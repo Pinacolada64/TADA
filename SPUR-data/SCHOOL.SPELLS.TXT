@@ -1,0 +1,26 @@
+Spur spells:
+
+Note that your IQ is  important in  the succesfull casting of spells. Any spell
+designed to raise an attribute,will  be doomed to failure, if that attribute is
+already 20 or higher.
+
+ESP        : Raises your intelligence
+Wheaties   : Raises your strength
+Happy feet : Raises your energy
+Elevator up: Puts you  up one  level in the dungeon
+Knowledge  : Raises your wisdom
+Destroyer  : An attack spell
+Slaughter  : An attack spell
+Deposit    : Puts your gold in the bank
+Well-being : Raises your constitution
+Balance    : Raises your dexterity
+Elevator Dn: Puts you down one level in the dungeon
+Endurance  : Raises your Hit points
+Trnsp shop : Moves you to the Shop
+Summn Spur : Takes you to Spur
+Dspl poison: cures poison
+Apple a day: cures disease
+Druid Helth: General purpose health, for Druids only
+Wizard Glow: Long lasting protective spell for wizards only.
+Boots-Speed: Adds 5 minutes to game
+-----------------------------------

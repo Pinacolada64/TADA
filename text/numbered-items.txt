@@ -1,0 +1,163 @@
+  1. COMPASS              Type: P    5g
+  2. CLOTH ARMOR          Type: A    2g
+  3. STEEL ARMOR          Type: A    6g
+  4. SMALL SHIELD         Type: S    2g
+  5. GOLD SHIELD          Type: S    6g
+  6. LARGE RUBY           Type: T    8g
+  7. GOLD CROWN           Type: T    2g
+  8. ROCKS|081SLING       Type: T    1g
+  9. ROCKS|101SLING       Type: T    1g
+ 10. IRON ARMOR           Type: A    4g
+ 11. GOLD COINS           Type: T    6g
+ 12. WOOD SHIELD          Type: S    3g
+ 13. IRON SHIELD          Type: S    5g
+ 14. EAGLES NEST          Type: C    6g
+ 15. MOUND OF JEWELS      Type: T    8g
+ 16. HAND GRENADE         Type: T    4g
+ 17. ARROWS|051 BOW       Type: T    1g
+ 18. SILVER COINS         Type: T    7g
+ 19. DIAMOND CROWN        Type: T    8g
+ 20. GOLD COFFIN          Type: C    3g
+ 21. HOURGLASS            Type: T    3g
+ 22. DIAMONDS             Type: T    8g
+ 23. AZTEC SHIELD         Type: S    5g
+ 24. LEATHER ARMOR        Type: A    3g
+ 25. OIL PAINTING         Type: T    1g
+ 26. GOLDEN EGG           Type: T    4g
+ 27. DIAMOND PILE         Type: T    6g
+ 28. CHAINMAIL ARMOR      Type: A    5g
+ 29. SMALL DIAMOND        Type: T    3g
+ 30. THE HOWLING          Type: B    7g
+ 31. IN SEARCH OF...      Type: B    9g
+ 32. FAMOUS BATS          Type: B    6g
+ 33. PLANT LIFE           Type: B    7g
+ 34. THE HOLY GRAIL       Type: T    9g
+ 35. SAND DOLLAR          Type: T    5g
+ 36. SILVER CHALICE       Type: T    6g
+ 37. GOLD NUGGET          Type: T    3g
+ 38. IVORY BONES          Type: C    5g
+ 39. DIAMOND RING         Type: T    7g
+ 40. BLACK DIAMOND        Type: T    7g
+ 41. GOLD ROSE            Type: T    5g
+ 42. JEWEL BUCKLE         Type: T    6g
+ 43. RARE COINS           Type: T    8g
+ 44. ROCKS|051SLING       Type: T    1g
+ 45. BRONZE SHIELD        Type: S    4g
+ 46. PLATE ARMOR          Type: A    7g
+ 47. BLUE GEM             Type: C    7g
+ 48. FLATHEAD STAMP       Type: T    9g
+ 49. SILVER CUP           Type: T    8g
+ 50. GOLD HEIRLOOM        Type: T    7g
+ 51. MONA LISA            Type: T    7g
+ 52. AMERICAN GOTHIC      Type: T    5g
+ 53. UNKNOWN PICASSO      Type: C    6g
+ 54. SKETCHES             Type: T    3g
+ 55. GOLD-FRAMED PORTRAIT Type: T    9g
+ 56. ANCIENT SHIELD       Type: S    7g
+ 57. MAGICAL ARMOR        Type: A    8g
+ 58. THE SPUR DIAMOND     Type: T    9g
+ 59. MAGICAL ARTIFACTS    Type: B    5g
+ 60. SILVER BEAKERS       Type: T    6g
+ 61. PROSPECTING...       Type: B    7g
+ 62. ADVENTURER'S GUIDE   Type: B    5g
+ 63. BOTTLE OF J.D.       Type: C    5g
+ 64. IT'S PILE OF JEWELS  Type: T    9g
+ 65. SMALL TREE           Type: T    1g
+ 66. COMMUNICATOR         Type: T    9g
+ 67. RING                 Type: T    9g
+ 68. GAUNTLETS            Type: T    9g
+ 69. SCRAP OF PAPER       Type: B    4g
+ 70. STRANGE WEAPON       Type: T    5g
+ 71. PANDORAS BOX         Type: T    5g
+ 72. FUNNY DOLL           Type: T    5g
+ 73. CROWN OF MIDAS       Type: T    5g
+ 74. INFLATABLE DINGY     Type: T    1g
+ 75. WRAITHS-THE BOOK     Type: B    5g
+ 76. AMULET OF LIFE       Type: T    5g
+ 77. GUIDE TO THE AMULET  Type: B    5g
+ 78. GREAT COAT           Type: T    4g
+ 79. GUIDE TO BIG ISLANDS Type: B    5g
+ 80. COPPER KEY           Type: T    2g
+ 81. FIREPLACE            Type: T    1g
+ 82. CRYSTAL PENDANT      Type: T    6g
+ 83. HUGE DIAMOND         Type: T    9g
+ 84. DEATH AMULET-BOOK    Type: B    5g
+ 85. DEATH AMULET-GUIDE   Type: B    5g
+ 86. TUT'S TREASURE       Type: T    9g
+ 87. TREASURE CHEST       Type: C    9g
+ 88. SCROLL OF ANTI-MAGIC Type: B    6g
+ 89. SCROLL OF ENDURANCE  Type: B    6g
+ 90. BOOK OF DOORWAYS     Type: B    7g
+ 91. MUMMY'S SCROLL       Type: B    5g
+ 92. SCROLL OF ENDURANCE  Type: B    5g
+ 93. MAP ONE              Type: B    9g
+ 94. MAP FOUR             Type: B    9g
+ 95. MAP TWO              Type: B    9g
+ 96. PALINTAR             Type: T    9g
+ 97. ICE CRYSTAL          Type: T    5g
+ 98. BOLTS|042CROSSBOW    Type: T    2g
+ 99. STEELIES|103SLING    Type: T    4g
+100. ARROWS|101 BOW       Type: T    1g
+101. DARTS|201BLOWGUN     Type: T    1g
+102. PSN DARTS|105BLOWGUN Type: T    4g
+103. BALLS|102MUSKET      Type: T    1g
+104. 357 AMMO|064357 MAG  Type: T    1g
+105. 44 AMMO|06644 MAG    Type: T    2g
+106. GAS|206FLAME THROWER Type: T    3g
+107. 45 MM|406MACHINE GUN Type: T    5g
+108. 9 MM|503UZI          Type: T    4g
+109. SHELL|029CANNON      Type: T    1g
+110. STONES|101SLING      Type: T    1g
+111. A.P. ARROWS|062 BOW  Type: T    3g
+112. ARMOR POWER PAK      Type: T    1g
+113. BATTLE ARMOR         Type: A    7g
+114. BATTLE SHIELD        Type: S    7g
+115. POWER ARMOR          Type: A    8g
+116. LAZER SHIELD         Type: S    8g
+117. SHIELD POWER PAK     Type: T    1g
+118. SABREPOWER|201LIGHT  Type: T    1g
+119. PHASER PAK|203PHASER Type: T    2g
+120. PLASMA PWR|108PLASMA Type: T    3g
+121. PLASMA PAK|258PLASMA Type: T    8g
+122. SPACESUIT            Type: T    9g
+123. GEIGER COUNTER       Type: T    9g
+124. RADIATION SUIT       Type: T    9g
+125. SHIPS LOG            Type: B    5g
+126. TOW ROCKET           Type: T    9g
+127. LAW ROCKET           Type: T    9g
+128. REDEYE ROCKET        Type: T    9g
+129. LAW ROCKET           Type: T    9g
+130. PLASMA ROCKET        Type: T    1g
+131. RED SECURITY CARD    Type: T    1g
+132. GREEN SECURITY CARD  Type: T    1g
+133. TOOL KIT             Type: T    4g
+134. BROKEN SPACESUIT     Type: T    5g
+135. SPACESUIT PARTS      Type: T    5g
+136. SPACE SCOUTS         Type: B    5g
+137. PLASMA ROCKET        Type: T    9g
+138. SPACE TRACKER        Type: T    9g
+139. HUGE BLACK OBELISK   Type: T    9g
+140. NUCLEAR ROCKET       Type: T    9g
+141. BROKEN COMMUNICATOR  Type: T    1g
+142. GALADRIELS VIAL      Type: T    9g
+143. GALADRIELS VIAL-FULL Type: T    9g
+144. RUBY SLIPPERS        Type: T    9g
+145. BROOMSTICK           Type: T    1g
+146. SALVAGE PARTS        Type: T    5g
+147. CARTRIDGE BOX|102    Type: T    5g
+148. 357 BANDOLEER|064    Type: T    5g
+149. 44 BANDOLEER|066     Type: T    5g
+150. SHELL CAISSON|029    Type: T    8g
+151. SHOVEL               Type: T    1g
+152. BOOBY TRAP-CODE A    Type: T    9g
+153. BOOBY TRAP-CODE B    Type: T    9g
+154. BOOBY TRAP-CODE C    Type: T    9g
+155. BOOBY TRAP-CODE D    Type: T    9g
+156. BOOBY TRAP-CODE E    Type: T    9g
+157. BOOBY TRAP-CODE F    Type: T    9g
+158. BOOBY TRAP-CODE G    Type: T    9g
+159. BOOBY TRAP-CODE H    Type: T    9g
+160. BOOBY TRAP-CODE I    Type: T    9g
+161. LASSO                Type: T    2g
+162. SADDLE               Type: T    5g
+163. HORSE ARMOUR         Type: T    8g

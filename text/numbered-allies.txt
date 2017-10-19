@@ -1,0 +1,60 @@
+  1. Free     Str:12 Hit: 70%   Name:BLACK KNIGHT|#5$
+  2. Free     Str:16 Hit: 60%   Name:MR. SPOCK|#4!
+  3. Free     Str:16 Hit: 90%   Name:EOWYN|!#4+
+  4. Free     Str: 9 Hit: 40%   Name:ALLAN OF YOR|#3
+  5. Free     Str:14 Hit: 80%   Name:ROBIN HOOD|#4!
+  6. Free     Str:12 Hit: 50%   Name:DARK WARRIOR|#4
+  7. Free     Str:10 Hit: 70%   Name:THE BISHOP|#3
+  8. Free     Str: 9 Hit: 60%   Name:HADES|#7>45)
+  9. Free     Str: 9 Hit: 50%   Name:VASQUEZ|#4+%
+ 10. Free     Str:15 Hit: 70%   Name:MORC FROM ORC|#5
+ 11. Free     Str:18 Hit: 70%   Name:DIRTY HARRY|#6
+ 12. Taken ** Str:16 Hit: 60%   Name:RED SONJA|#5!+
+ 13. Free     Str: 7 Hit: 30%   Name:LAZY LARRY|#2
+ 14. Free     Str: 9 Hit: 80%   Name:PAULA ABDUL|#3+
+ 15. Free     Str:15 Hit: 60%   Name:CONAN|#5
+ 16. Free     Str:18 Hit: 70%   Name:RAMBO|#6
+ 17. Free     Str:17 Hit: 50%   Name:CATWOMAN|#6+
+ 18. Free     Str:15 Hit: 70%   Name:APOLLO|#9>49(
+ 19. Free     Str:19 Hit: 80%   Name:DRAGONSLAYER|#6
+ 20. Free     Str:10 Hit: 70%   Name:FRED|#3
+ 21. Free     Str:14 Hit: 70%   Name:LANCELOT|#5
+ 22. Free     Str:15 Hit: 40%   Name:SIR GALAHAD|#5
+ 23. Free     Str:16 Hit: 60%   Name:KING ARTHUR|#5!
+ 24. Free     Str:15 Hit: 80%   Name:YODA|#5!
+ 25. Taken ** Str: 9 Hit: 60%   Name:PERSEPHONE|#3>42(+
+ 26. Taken ** Str:20 Hit: 10%   Name:SLAVE VERUS|#7
+ 27. Free     Str:10 Hit: 20%   Name:JIM MORRISON|#3
+ 28. Taken ** Str:20 Hit: 90%   Name:HAMMER|#7
+ 29. Taken ** Str:12 Hit: 40%   Name:XEVIOUS|#4
+ 30. Free     Str:15 Hit: 60%   Name:WARREN ZEVON|#5
+ 31. Free     Str:12 Hit: 50%   Name:NINJA TURTLE|#4
+ 32. Taken ** Str:10 Hit: 50%   Name:MARIAH CAREY|#2+
+ 33. Free     Str: 6 Hit: 30%   Name:TAYLOR DAYNE|#2+
+ 34. Free     Str:15 Hit: 50%   Name:JANIS JOPLIN|#5+
+ 35. Free     Str:14 Hit: 50%   Name:BATMAN|#5!
+ 36. Free     Str:18 Hit: 50%   Name:WONDER WOMAN|#6!+
+ 37. Free     Str:12 Hit: 50%   Name:DEMETER|#3>48+(
+ 38. Taken ** Str:20 Hit: 50%   Name:TERMINATOR|#9
+ 39. Taken ** Str:15 Hit: 70%   Name:STEELY DAN|#5
+ 40. Free     Str: 8 Hit: 60%   Name:JUDAS PRIEST|#4
+ 41. Free     Str:14 Hit: 60%   Name:SAMWISE|#5
+ 42. Taken ** Str:18 Hit: 90%   Name:RIPLEY|#6!+%
+ 43. Free     Str: 7 Hit: 60%   Name:BETTY BOOP|#2+
+ 44. Free     Str:12 Hit: 50%   Name:TAARNA|#5+
+ 45. Free     Str:10 Hit: 50%   Name:MR ROGERS|#3
+ 46. Free     Str:15 Hit: 90%   Name:ARES|#7>44)
+ 47. Free     Str:20 Hit: 90%   Name:SAURMON|#7
+ 48. Free     Str:10 Hit: 50%   Name:JULIA FELIX|#3
+ 49. Free     Str:15 Hit: 60%   Name:ATHENA|#8>43+(
+ 50. Free     Str:12 Hit: 60%   Name:DARTH VADER|#4
+ 51. Free     Str:12 Hit: 50%   Name:BUCK ROGERS|#4
+ 52. Free     Str:13 Hit: 60%   Name:PAN|#6>46
+ 53. Free     Str:16 Hit: 50%   Name:SARAH CONNER|#7+!%
+ 54. Free     Str:14 Hit: 60%   Name:ZORBA THE GEEK|#4
+ 55. Free     Str:12 Hit: 50%   Name:IRIS|#3>47+(
+ 56. Free     Str:20 Hit: 90%   Name:CLARK KENT|#7
+ 57. Free     Str:14 Hit: 60%   Name:IRON MAIDEN|#5+
+ 58. Free     Str: 8 Hit: 90%   Name:CARLY SIMON|#2+
+ 59. Free     Str:12 Hit: 60%   Name:JULIAS CAESAR|#4!
+ 60. Free     Str:15 Hit: 70%   Name:ATTILA|#5

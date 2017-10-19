@@ -1,0 +1,24 @@
+27/Dec/2016 12:02
+This is rendered obsolete by virtue of Input Any now accepting a string parameter.
+
+reader debugging:
+
+so input any grabs 1st variable defined, better make it a string
+
+with modbasic active, if there are any other parameters defined in a subroutine, this can impact what gets displayed, apparently
+
+fn a$ <- okay! displays disk data properly
+
+fn a$,b <- displays "x" (what a$ is defined as at the beginning of the program)
+
+fn b,a$ <- displays properly!
+
+fn b,z$ <- displays "x"
+
+LISTing crashes sometimes w/modBASIC active
+my code or AF's?
+cold reset, resets or hits BRK maybe
+
+($306/307) LIST points to $a71a, which is standard
+
+($316/317) BRK handler points to $fe66, standard

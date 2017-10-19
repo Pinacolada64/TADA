@@ -1,0 +1,135 @@
+# last updated 12/20/2014
+# of text blocks:
+7
+^
+# 1 - new player intro - 17 lines
+Approaching a wrought iron gate, you
+notice a wizened old man waiting for
+you. He is swatting flies and munching
+on a date. He introduces himself as
+Verus.
+
+"Ah," he says happily, "a new champion!
+Well, I suppose we should get you fixed
+up. Follow me, please!" His blue eyes
+twinkle merrily -- no doubt thinking of
+his recruitment bonus -- as he gestures
+towards a wooden building. Taking
+another slap at the pesky black flies,
+the two of you are on your way.
+
+Verus begins asking you some questions
+as you travel towards the building.
+^
+# 2 - new player age - 13 lines
+"How old be ye?" asks Verus.
+
+(NOTE: Age is considered to be in real
+time - i.e., you have a birthday every
+real-world year. [If] you live that long,
+of course...)
+
+* [0] chooses an undetermined age.
+  Players EXAMINEing you are told they
+  can't tell $n's age.
+
+* [R] chooses a random age between 15
+  and 50.
+^
+# 3 - new player guild - 20 lines
+You may start out as a Civilian, Guild
+member, or an Outlaw.
+
+* [Civilians] are safe from being DUELed
+  by other players, but neither may they
+  start a duel. Later, you may wish to
+  join a Guild. (This is recommended for
+  first-time players.)
+
+* [Guild members] earn certain advantages
+  within the game, and can attack
+  members of opposing Guilds without
+  incurring monetary, Honor or other
+  penalties.
+
+  There are three Guilds: Fist, Sword
+  and Claw.
+
+* [Outlaws] are free to attack members of
+  any Guild, except Civilians.
+^
+# 4 - new player quote - 14 lines
+Now enter a quote which you want your
+character to say to passers-by in the
+dungeon.
+
+You may choose to "be silent" if you
+just hit [Return].
+
+[QUOte] in the dungeon views or changes
+$n's quote.
+
+Note that [$$n] in the quote is replaced
+with the name of whoever is reading it.
+(Don't forget a space or comma after
+$$n.)
+^
+# 5 - new player description - 20 lines
+"I'm going to give you a scroll upon
+which to write a description others see
+when they [EXAMINE $n]," says Verus.
+
+  At the beginning of a line in the text
+  editor:
+
+* [.S] saves your description.
+
+* [.A] aborts changes (after confirming).
+
+  If you have no description available,
+  EXAMINEing players get only a general
+  description based on stats.
+
+* [DESc] in the dungeon views or changes
+  this description.
+
+You have twenty lines of text available
+for use at 40 characters per line.
+^
+# 6 - new player post-creation info - 2 lines
+Standby. Finding your place in the
+universe...
+^
+# 7 - new player challenge - 31 lines
+SPUR, the almighty and omnipotent,
+senses your intrusion into his land!
+"Thou dost dare to enter [my] domain?! I
+await thee at the appointed site!"
+
+Verus glances up at the clap of thunder
+from above and shakes his head
+disparagingly. "Don't mind him, he's in
+one of his moods again..."
+
+He lightly punches you on the shoulder,
+bony knuckles making you wince inwardly.
+Verus' gaunt face is alight in a nearly
+toothless smile, and he murmurs, "Go
+show 'im, kid - for me, and for all the
+rest of us..."
+
+Verus walks with you down a dirt path
+towards the wooden building you had
+noticed before. This is the Merchant's
+Annex, a place of rest and procuring
+supplies.
+
+Welcome to the Land. May your travels
+be nigh overly fraught with peril, and
+always richly rewarding. There is much
+to explore and learn. Good journey to
+you.
+
+Overhead, a bright blue sky promises a
+return to what once was...
+^

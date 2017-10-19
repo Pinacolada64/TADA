@@ -1,0 +1,251 @@
+[Cycling values]
+
+    0-7 -> N=(N+7) AND 7
+    1-16 -> N=(N+1) AND 15:N=(N+1)
+
+    BETTER CYCLE
+    ------------
+
+    B = begin value
+    E = end value
+
+    N = B :REM SET UP
+
+  THIS DOES THE CYCLE:
+
+    N = (N-B+1)*-(N+1<=E)+B
+
+[SAVE in BASIC]
+10 input"starting address";sa
+20 input"ending address";ea:ea=ea+1
+30 input"filename";f$
+40 input"device number";d
+50 sys57812f$,d,1:hb=int(sa/256):poke193,sa-hb*256:poke194,hb
+60 hb=int(ea/256):poke174,ea-hb*256:poke175,hb:sys62957
+
+[signed integers in 1 byte]
+
+  1000 if x<-127 or x>127 then 1500
+  1010 if x<0 then x=abs(x)+128
+  1020 return
+  1500 ** put error handler here **
+
+To decode the value:
+
+  storage x = signed byte.
+
+  1000 ifx>127 then x=-(x-128)
+  1010 return
+
+[loading files]
+peek(783)and1... file not found?
+
+[128 parser that mostly works]
+
+10 INPUT"COMMAND";A$
+20 W=0:RP=1
+30 DO WHILE RP<LEN(A$)
+40 :  IF MID$(A$,RP,1)<>" " THEN BEGIN
+50 :    B=RP:RP=RP+1
+60 :    DO WHILE (RP<=LEN(A$)) AND (MID$(A$,RP,1)<>" ")
+70 :      RP=RP+1
+80 :    LOOP
+90 :    P$(W)=MID$(A$,B,RP-B)
+100 :   W=W+1
+110 : BEND
+120 : RP=RP+1
+130 LOOP
+140 FOR X=0 TO W  :PRINT X;P$(X):NEXT
+
+[Quick SEQ file reader]
+10 open 1,8,2,"0:filename,s,r"
+20 for i=0 to 1:get#2,a$:printa$;:i=st:next
+30 close2
+
+
+[cursor blink]
+10 poke 204,0: rem cursor on
+20 if peek(207) then 20: wait until cursor blink phase is off
+30 poke 204,1: rem cursor off
+
+[get routine]
+print chr$(asc("Y")and 127) : rem turn off high bit, lowercase letter
+y
+
+[calculated restore]
+0  REM BY JIM RADIKS (sp?) FROM Secret Society of Commodore Coders
+
+10 DATA "ROOM 10",20,0,40,0
+20 DATA "ROOM 20",0,10,30,0
+30 DATA "ROOM 30",0,40,0,20
+40 DATA "ROOM 40",30,0,0,10
+
+45 GOTO 310
+
+50 REM GET-A-ROOM SUBROUTINE
+60 REM EXPECTS ROOM # IN VAR RO
+70 BE=FNDEEK(43):EN=FNDEEK(45)
+80 IF FNDEEK(BE+2)=RO THEN 110
+90 BE=FNDEEK(BE):IF BE<EN THEN 80
+100 PRINT "ERROR, LINE ";RO;" NOT FOUND":END
+110 REM PERFORM COMPUTED RESTORE
+120 POKE 65,((BE+4)AND255)
+130 POKE 66,INT((BE+4)/256)
+140 READ DE$,N,S,E,W
+150 PRINT "YOU ARE IN ";DE$
+160 PRINT "EXITS ARE:"
+170 IF N<>0 THEN PRINT "  NORTH"
+180 IF S<>0 THEN PRINT "  SOUTH"
+190 IF E<>0 THEN PRINT "  EAST"
+200 IF W<>0 THEN PRINT "  WEST"
+210 RETURN
+300 REM BELOW IS A DOUBLE-BYTE PEEK
+
+310 DEF FN DEEK(X)=PEEK(X)+256*PEEK(X+1)
+
+320 RO=10:GOSUB 50
+330 PRINT "COMMAND:";
+340 INPUT D$
+350 LR=RO
+360 IF D$="N" THEN IF N<>0 THEN RO=N
+370 IF D$="S" THEN IF S<>0 THEN RO=S
+380 IF D$="E" THEN IF E<>0 THEN RO=E
+390 IF D$="W" THEN IF W<>0 THEN RO=W
+400 IF LR<>RO THEN GOSUB 50:GOTO 330
+410 PRINT "YOU CANNOT GO THAT DIRECTION"
+420 GOTO 330
+
+[free memory]
+Because conversion is from a signed integer, any memory value
+over 32767 will be regarded as negative (the high bit is treated as
+a sign bit). FRE(0)-65536*(FRE(0)<0) always returns proper value.
+
+[get line]
+Oh folks, things can be so simple - you just have to know what to do!
+
+This is my suggestion:
+
+10 B$="":SYS42336:FOR A=512 TO 600:B=PEEK(A):IF B THEN B$=B$+CHR$(B):NEXT
+
+This single line should work for you. It doesn't display a "?", lets you write any prompt you like using PRINT and even allows entering commas!
+
+-Catboy
+
+[free memory, agentfriday]
+20:52 . af: ?peek(51)+peek(52)*256-peek(49)-peek(50)*256
+20:54 . af: tested. it works
+20:55 . Me: oh, that's useful
+20:55 . * pinacolada steals
+
+[print at]
+poke 211,x:poke 214,y:sys 58732
+x=0-39 y=0-24
+
+[modulo arithmetic]
+    10 input "please enter number then divisor ";a,b
+    20 print a; "/"; b; "=";int(a/b): print "remainder"; a-int(a/b)*b
+    30 end
+
+'clear line links
+for i=217 to 242:poke i,peek(i) or 128:next
+
+10 x=20555:print "x="x
+20 hi=x and 255
+30 lo=int(x/256)
+40 print hi+256*lo
+50 poke 49152,lo:poke 49153,hi
+60 print "returns" peek(49153)+256*peek(49152)
+
+ready.
+run
+x= 20555
+ 20555
+returns 20555
+
+ready.
+
+(Me): i'm thinking tada should incrementally have more commands added, that way i'm not under pressure to release the whole thing at once...
+[22:52:32]
+g00g: YES
+[22:52:42]
+(Me): and i should map out the relationship between objects needed to solve puzzes and such, 'cause source code is hairy
+
+
+https://www.youtube.com/watch?v=CuLUWQRh-po
+ three-way bipole magnetic teflerated conducer
+ iconoscopic sync generator
+
+
+https://www.assembla.com/code/totally-awesome-dungeon-adventure/subversion/nodes/33/trunk/TADA
+http://tinyurl.com/l8eq9y7
+
+pause until an odd # of keys hit:
+1 for x=1 to 1000:print x
+2 wait 198,1,1:poke 198,0:next
+
+
+100 a$="pscug was great"
+101 for x=1 to len(a$):y=asc(mid$(a$,x,1)):if y=32 then y=y+1
+102 print chr$(y-1);:next
+
+goto100
+orbtf v@r fqd@s
+ready.
+
+boolean increment:
+Transactor Vol. 5 Issue 1 Pg 20
+c = -c * (c<max) +1
+
+[Bug in AND]
+AND is not happy with values over 32767. There is a math fix for this, but I forget what.
+
+print 1024 and 32767
+1024
+
+print 1024 and 32768
+?illegal quantity  error
+
+ready.
+x=39166
+
+ready.
+h=int(x/256)
+
+ready.
+l=x-h*256
+
+ready.
+?l,h
+ 254       152
+
+ready.
+?256*h+l
+ 39166
+
+
+agentdanger: $a3bf: move bytes routine
+
+bryce's boolean logic:
+brobryce64: Y6=((Y6-46)*-(Y6-1>=0))+45 cycles backward from whatever Y6 is from 45 to 0
+[22:37:20]
+brobryce64: *-(Y6-1>=0) says multiply by 1 (or - - 1) as long as Y6-1>=0
+[22:37:33]
+brobryce64: *-(-1)
+[22:38:12]
+(Me): oh cool, ok yes :)
+brobryce64: once it reaches 0 it's multiplied by zero, and thus adds 45, and becomes 45
+http://www.infinite-loop.at/Power64/Documentation/Power64-ReadMe/AA-C64_BASIC.html
+
+[current basic line #]
+10 def fn ln(x)=peek(58)*256+peek(57)
+20 print fn ln(x)
+80 print fn ln(x)
+146 print fn ln(x)
+ready.
+run
+ 20
+ 80
+ 146
+
+
+115 if peek(207) then 115: rem wait until cursor is off

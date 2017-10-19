@@ -1,0 +1,37 @@
+Level 1 map
+ 
+b=Wall bar&grill, s=Shop
+S=Sword guild, C=Claw guild
+F=Fist guild, d=Down, M=Maze
+F=Underground forest
+<, >, ^, v = one way doors
+ 
+                   1 1 1
+ 1 2 3 4 5 6 7 8 9 0 1 2
+
+------------------------
+   | ^ |           |
+ s M-M-M   O-O-O   O      12
+ |         |   |   |
+-O-O-O-O-O-O   d-O-O-O-O- 24
+     |     |   |     |
+     O     O   O-O   O    36
+     |     |     |   |
+ b   S-S O-O-O   O C-C    48
+ |   | | | | |   | | |
+-O-O-O S-F-F>F   O-C O O- 60
+         | | |   |   | |
+ M-M-M-M F-F<F<F<O O-O-O  72
+ | | v | | | |   | v | |
+-M-M>d-M F-d-F O-O-O-O-O  84
+ |         ^   |
+-M O-O-O-O O-O-O-O M-M-d- 96
+   |   |   |     | |
+-O-O d O-O O-O-O<O d-O-O- 108
+     |   | |     |   |
+-M-M-M   O<O O-O-O   F d- 120
+ ^ v     | | | ^ |   | |
+-M-M>M-O-O>O-O<O>O-F-F O- 132
+ v | |     | | | ^ |
+ M-M>M-M   O-O<O-O>O      144
+   |   |   |   v   |

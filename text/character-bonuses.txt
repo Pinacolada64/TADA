@@ -1,0 +1,182 @@
+WORK IN PROGRESS
+
+01:58 . mintpocalypse: Hehe, Druid's abo ut as close as those get to what I usual ly play :P
+
+01:58 . Me: druid's good though!
+
+01:59 . Me: n obviously it's just using old hard-coded date... :p will get date fro commodoreserver eventually
+
+02:00 . mintpocalypse: I dunno if there is in game
+
+02:00 . Me: y'know, we have a druid and paladin. is there much difference? you m ight haftta help me like, write stuff.
+
+02:00 . mintpocalypse: Paladin's are mor e like holy soldiers.  Think a fighter w ith slight godly advantages.
+
+02:00 . Me: hmm. well after i get game a ll ported, i'mma improve
+
+02:00 . Me: ahhhh
+
+02:01 . mintpocalypse: Paladin is to Cle ric as Ranger is To Druid.    Rangers ar e typically supposed to be nature's figh ers, Druids are kinda like Nature Spellc asters.
+
+02:01 . Me: yay! nifty
+
+02:02 . mintpocalypse: So... Difference
+between Paladin and Druid is a little va
+st, cause it's different theme (God vs N
+atura) and different focii (melee vs Spe
+llcasting)
+02:02 . mintpocalypse: Even though Palad
+ins typically have a few spells and or s
+pell-like abilities.
+02:03 . mintpocalypse: All horribly simp
+lified and kind of gleamed from typical
+fantasy tropes.
+02:04 . Me: hey its more than i knew a m
+oment ago
+02:04 . mintpocalypse: Also, not that I
+-want- you to go, but, it's 2am your tim
+e
+
+
+
+
+[]=-=-=-=-=-=-=-=-=-=-=[] TADA Character Bonuses []=-=-=-=-=-=-=-=-=-=-=-=-=[]
+
+         Class: Wizard
+
+Maximum Spells: 10
+
+Weapon Bonuses:	Fireball, Thunderbolt & Staff: +10% accuracy, +2 damage.
+		Daggers and Knives...........: +10% accuracy.
+		All other weapons............: -20% accuracy.
+
+  Armor/Shield: Maximum physical size........: 20 (Can Enchant to larger size)
+		* Also has the "Wizard Glow" protective spell.
+
+     Abilities: * "Attack" spell: damage + 2 + level of caster + 5 experience.
+		* All spells are 1/2 cost in the Merchant's Annex, and
+		  automatically learned.
+		* Weapon bonuses are slightly higher in Duels as compared to
+		  other classes.
+		* 15% chance of casting an energy bolt during a Duel for 5-10
+		  HP of damage.
+		* Readied Staff enhances spells, +4 damage to energy bolts in
+		  Duel.
+
+Races not allowed: Ogre, Dwarf, Orc.
+
+ []=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]
+
+         Class: Druid
+
+Maximum Spells: 10
+
+Weapon Bonuses: Sabre, Sling, Javelin, Clubs, Spear, Staff, Stake,
+		Regular Bows: +1 damage, +10% accuracy
+
+  Armor/Shield; Maximum armor physical size..: 30
+		Maximum shield physical size.: 255 (?)
+
+     Abilities: * Heals faster, plus bonuses of +2 strength, +1 constitution,
+		  +1 energy.
+		* All spells are 2/3 cost in the Merchant's Annex, and
+		  automatically learned.
+		* Can Enchant armor to a larger size than everyone except a
+		  Wizard.
+
+Races not allowed: Ogre, Orc.
+
+ []=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]
+
+         Class: Fighter
+
+Maximum Spells: 6
+
+Weapon Bonuses: Class 4 weapons (Projectile): -10% accuracy
+		All other weapon classes....: +10% accuracy, +2 damage
+
+  Armor/Shield: None
+
+     Abilities: 25% (?) chance of picking lock of a booby-trapped buried item
+
+Races not allowed: None
+
+ []=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]
+
+         Class: Paladin
+
+Maximum Spells: 6
+
+Weapon Bonuses: Class 4 weapons (Projectile): -10% accuracy
+		All other weapon classes....: +10% accuracy
+
+  Armor/Shield: Shield skill is doubled
+
+     Abilities: * Charm: +10% chance
+		* Pray : +1   (2 prayers per session)
+		* Riding ability: +25%
+		* 5% chance x level to regain lost HP from wounds
+		  during battle/duel
+
+Races not allowed: None
+
+ []=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]
+
+         Class: Ranger
+
+Maximum Spells: 6
+
+Weapon Bonuses: Sword, Crossbow..............: +10% accuracy, +1 damage
+		Class 3 weapons (Pole/Ranged): -10% accuracy, -1 damage
+
+  Armor/Shield: None
+
+     Abilities: * # command gives room number, location of Dwarf if alive.
+		  This also displays a map of the surrounding area.
+		* Surprise: +10% chance
+		* Dodge...: +10% chance (in Duel and against monsters)
+		* Ranger tracking
+
+Races not allowed: None
+
+ []=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]
+
+         Class: Thief
+
+Maximum Spells: 6
+
+Weapon Bonuses: Class 3 weapons (Poke/Jab)...: +10% accuracy, +1 damage
+		All other weapon classes.....: -10% accuracy
+
+  Armor/Shield: Maximum physical size........: 35%
+
+     Abilities: * Surprise: +10% chance
+		* Hiding..: +35% chance (objects only for now)
+		* Dodging.: +10% chance (multiplied by level)
+		* 10% chance multiplied by level to pick a lock
+
+Races not allowed: Elf
+
+ []=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]
+
+         Class: Archer
+
+Maximum Spells: 6
+
+Weapon Bonuses: 
+
+ []=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]
+
+         Class: Assassin
+
+Maximum Spells: 6
+
+Weapon Bonuses: 
+
+ []=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]
+
+         Class: Knight
+
+Maximum Spells: 6
+
+Weapon Bonuses: 

@@ -1,0 +1,120 @@
+*** tab width: 8 ***
+
+Building TADA:
+
+1) Edit "\scripts\build-main.bat":
+	a) Adjust where in your path the C64List 3.03 and casm programs
+	   are located.
+	b) Re-save.
+
+2) cd \assembly-language
+3) casm "ml c500.lbl" -prg -sym:"ml-c500-symbols.lbl" -ovr
+	("boot" and "t.main" need symbols from this to work)
+4) Run "\scripts\build-main.bat" to compile "t_main.lbl" into "t.main.prg",
+   and c1541 puts that on "module-batch-disk.d81" renamed as "t.main".
+   When finished, a fresh "\includes\label-assignments.lbl" file is written.
+   This needs a bit of hand-editing (no way to automate that yet):
+	a) Delete the 3 C64list separator lines starting with "---"
+	b) Delete from after {assign:1=1} to before {assign:main_setup=900}
+	c) Delete the 3 C64list separator lines starting with "---"
+
+Building TADA disk image:
+
+5) Run "\text-listings\lbl2prg.bat" to compile *.lbl files into *.prg files.
+   It uses the "label-assignments.lbl" file created in step 1 to replace labels
+   with valid BASIC line numbers throughout the modules.
+
+Another method is to use Peter Schepers' 64COPY utility to copy all *.prg
+files into a disk image.
+
+Eventually there will be a "build-disk.bat" batch file which leverages
+CALL "add2d64.bat" to automate everything.
+
+Copy all the "make *" installer files too; although these installers are
+mostly incomplete, eventually there will be a menu system for them as well,
+taking advantage of MODULE64.
+
+Running TADA:
+
+1) Attach the 1581 disk "module-batch-disk.d81".
+2) LOAD and RUN the BASIC "boot" PRG file which does the following:
+
+   * "si 9900"		($9900) sliding input routine
+   * "modbasic c000 v2" ($c000) AgentFriday's modBASIC extension
+   * "ml c500"		($c500) various utility routines
+   * "sas c900"		($c900) Jeff Jones' "Static Array System"
+   * "trace 033c"	($033c) AgentFriday's BASIC trace routine
+   * "wrap.reloc"	($0801) AgentFriday's word-wrap driver
+   * "t.main"		($0801) which loads the rest of the code
+   * "t.startup"	($0801) startup tasks
+   * "t.np"		($0801) new player module
+
+21/Jun/2014 15:37 -- List of what builds properly (57 files):
+
+ace11
+boot
+combat-snippets
+fix-index
+stack
+
+t.bar
+t.bar.olaf
+t.bar.skip
+t.bar.vinney
+t.bash
+t.bonuses
+t.cast
+t.charge
+t.combat
+t.desc
+t.die
+t.drop
+t.encounter
+t.flee
+t.follow
+t.get
+t.get.modbasic
+t.give
+t.heal
+t.inv
+t.lurk
+t.ma.armory
+t.ma.armory.weap(ons)
+t.ma.blacksmith
+t.ma.cleric
+t.ma.elevator
+t.ma.gen-store
+t.ma.hq
+t.ma.locker
+t.ma.news-who
+t.ma.wizard
+t.mount
+t.np
+t.order
+t.page
+t.quit
+t.quote
+t.ready
+t.shoppe
+t.startup
+t.stat.basic
+t.take
+t.unready
+t.weapon-info
+29 files
+
+tests:
+attribute-adjust
+sliding-input-de(mo)
+display-date
+test-logging
+item-test
+err trap demo
+dir-test
+
+data files:
+e.t.playerlog
+e.t.roomdescs 1
+e.t.roomindex 1
+
+- have a disk image with fresh data (REL/SEQ files) that is copied to the working build disk, delete *.prg and *.log files at the beginning of lbl2prg.bat, add each PRG file to working copy using CALL ADD2D64.BAT as they're built

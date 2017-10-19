@@ -1,0 +1,627 @@
+FILE FORMATS (Pinacolada's version)
+
+Updated 8/Dec/2015 12:18
+	- "e.t.tada text" -> "e.t.messages"
+
+Updated Feb 14, 2011 19:16
+Updated Apr  2, 2014 11:27 - updated ZSCII format information, including
+				web site where information was found
+
+(tabs are 4 spaces wide)
+=============================================================================
+
+e.t.messages,r
+	record 1:
+	  # of blocks of text
+	record 2-
+	  2 bytes: starting record #
+	  1 byte:  # of lines in chunk of text
+
+INFO	Optimize map creation process:
+	  * open SEQ desc file as lfn #3
+	  * open REL desc file as lfn #2
+	  * position to/write highest record (nr%*2+1)
+	  
+	  line and number of lines therein, fill in index string as we go. 
+	  Write room desc text to records, come back and write index 
+	  strings to first few records. optimizes 2 passes into 1
+
+=============================================================================
+
+"e.t.level ? data" (data format 1)
+SEQ file:					REL file:
+	(static)				Record 1:
+	lv% level number			N/A		(this is in the filename)
+	df% data format version		1 byte
+	nr% number of rooms			2 bytes	(NR x NR square grid)
+	ln$ level name			   30 bytes
+							   --
+	LD$  					   33 bytes
+
+	(static)				Record 2:
+	    north exit				2 bytes		1-2
+	    east  exit				2 bytes		3-4
+	    south exit				2 bytes		5-6
+	    west  exit				2 bytes		7-8
+	rc% room command			1 byte		  9	(0=none, 1=up, 2=down)
+	rt% room transport			2 bytes	   10-11	(0=Shoppe, or room #)*
+	sl  desc start line ptr		2 bytes	   12-13
+	nl  desc # lines			1 byte	   14
+	lo$ room name			   25 bytes    15-40
+							   --
+	L1$						   39 bytes
+
+	* If 1st byte is 255, next byte is level #
+	
+	(changeable)			Record 3:			# of items
+	mw   monster				2 bytes		 1-2	(1)
+	it%  item					8 bytes		 3-10	(4, 3 initially empty)
+	wp%  weapon					8 bytes		11-18	(4, 3 initially empty)
+	fd%  food					8 bytes		19-26	(4, 3 initially empty)
+		 players			   10 bytes		27-36	(5,   initially empty)
+				---
+	L2$			 36 bytes
+
+==============================================================================
+				ACOS files:
+
+From CiderPress documentation:
+DOS High ASCII (TXT)
+
+Apple DOS stores text files with the high bit of every 8-bit byte set.	This 
+causes most other operating systems to display characters from an "extended" 
+character set (accents, tildes, etc.) instead of the intended characters.  This 
+is usually undesirable, so all files from DOS disks with file type 'T' should 
+be run through this converter to strip the high bit off.  This will also 
+convert the end-of-line character to CRLF.
+
+ALLIES		(record size: 15)
+	Ally names/stats.
+	0-n:	0=free, >0: Taken by player n
+	Name	! after ally name -- TIPS explains this:
+
+		  "Allies with a ! after their names are 'elite' allies. They
+		  tend to be more loyal than other allies, have light armor and
+		  will not attack you if you refuse to give them food when you
+		  EAT or DRINK.)"
+
+		(and does not need to be paid?)
+
+		8/Mar/2016 15:17 Trajan saves my sanity with updated files.
+
+			These seem to be abilities:
+		 = [MOUNT]
+		 @ [SADDLE]
+		 ! [DISCIPLINE] (Elite Ally?)
+		 $ [ARMOR]	(better, or light armor?)
+		 % [COMBAT]
+		 & [TRACKING]
+		 ( (GOOD)
+		 ) (EVIL)
+
+		cln.ally
+		 b=15:xy$=""
+		 if instr(">",lu$) xy$="THE GOD ":if instr("+",lu$) xy$="THE GODDESS "
+		 lu$=xy$+lu$
+		 if instr("#",lu$) b=val(mid$(lu$,instr("#",lu$)+1,1)):b=b*3
+		 if instr("|",lu$) lu$=left$(lu$,instr("|",lu$)-1)
+		 return
+
+	      Hmmmm.... so, full example (\tada-text\allies-numbered.txt):
+	      (spaces added between flags for clarity):
+	      
+	      Ally #25: PERSEPHONE|#3 >42 ( +
+	      
+	      #x: "body building" rating, 1-8, have seen a rating of 15 though
+	       +: Female ally (Goddess because of > flag)
+	       (: Good
+	       ): Evil
+	     >xx: SPUR.MISC2.S:no.fem - when ally initially found, "xx" is
+			the message # to display from MESSAGES file, and a flag
+			to prevent having 2 gods/goddesses in your party
+
+ALLY.ITEMS		(record size: 84)
+	# of items allies are carrying, and object strings
+	AI, AI$
+
+BATTLE.LOG
+	Battle chronicle header with date
+
+BURY.[1-5]
+	Which items are buried on level 1-5
+
+CLANS
+	"Indicate if you wish to join a Clan..."
+
+
+CLAW..LOG
+	Log of what's happened in the Claw clan (malformed because of
+	variable definition)
+
+CONTROL.MENU
+	Sysop control menu
+
+D.LEVEL1
+	Land of the Enchanted
+	144 rooms
+
+D.LEVEL2
+	Dark Side
+	225 rooms
+
+D.LEVEL3
+	The Shadowed Land
+	100 rooms
+
+D.LEVEL4
+	Maze of Alleyways
+	49 rooms
+
+D.LEVEL5
+	Land of the Wraiths
+	400 rooms
+
+D.LEVEL6
+	A Brave New World
+	900 rooms (!)
+
+D.LEVEL7
+	The House (no plain text room descs)
+	100 rooms
+
+ELEVATOR
+	Elevator combinations
+
+GORGON
+	Which players the GORGON has turned to stone.
+
+GRID.10X10
+	Map of some sort.
+
+GRID.LEVEL7
+	Map of some sort.
+
+GUARDIAN
+	Which players the GUARDIAN has turned to stone.
+
+GUILD
+	Guild HQ chalkboard, plus unknown other stuff.
+
+GUILD.STANDINGS
+	Holds guild duel record for Sword, Claw, and Fist.
+	(spur.annex.s:guild)
+	Win, loss, and guild points.
+	vr: Sword wins
+	vs: Sword losses
+	zt: Claw wins
+	xu: Claw losses
+	xv: Fist wins
+	xw: Fist losses
+
+HONOR		(record size: 10)
+	Holds Honor ratings. (vk)
+
+ITEMS
+	1			(CB$, active=1)
+	T.ROCKS|081SLING
+	T.					Treasure flag
+	  ROCKS				Name of ammo
+	       |08			Separator character, 2 digit # of rounds
+			  1			1 digit damage
+			   SLING	Weapon it goes with (weapon name contains this)
+	next line:
+		price (x100)?
+	next line:
+		unknown
+	
+	Ammunition carrier:
+	1					(some flag)
+	T.357 BANDOLIER|064	(TLOS differs ammo from carriers by putting * 
+						in ITEMS file, and hard-coding items 147-150 to 
+						be carriers [spur.misc5.s:ammo])
+					
+KING
+	Unknown.
+
+LITTLE.GIRL
+	Advice about the game.
+
+LOCKER
+	Items stored in Lockers.
+	ZT, ZW$
+
+MAIN.MENU
+	Main menu file
+
+MAP.[1-5]
+	Map of level 1-5
+
+MEDUSA
+	Which players MEDUSA has turned to stone.
+
+MISC.DATA		(record size: 250)
+	Name of person FOLLOWed. Battle experience with weapons.
+
+MONSTERS		(record size: 32)
+Monster names & stats. SPUR.MISC4:rd.mons has an example.
+
+	1			CB$ (Whether monster is active in game,
+					*=no)
+	M.SAND CRAB |X		 M$ (monster name, after | are flags)
+					(first byte=TY$, usually M)
+				* can be a number after M.: M.3XDRAGON! for example
+	5<$AC byte>		 MS (monster strength)
+				    ($AC is <cr> [$0D] w/high bit set*)
+	0			 SW (special weapon)
+	8			 MA To-hit (1-9): [may or may not be present]
+					1: HUGE
+					2: LARGE
+					3: BIG
+					4: MAN-SIZED
+					5: SHORT
+					6: SMALL
+					7: SWIFT
+	<nulls pad out the record>
+	
+	1
+	M.2SERPENT |*		Is 2 also a size? value left in YY. YY seen in charm
+	12
+	0
+	4
+	5	(optional size as above, not sure why in both places?)
+	
+	* I've noticed this in a lot of the original files. Search and replace works wonders.
+	
+	Space after the monster name and before pipe: unknown purpose
+	
+	Stuff after | symbol in name:	(spur.combat) (usually WY$)
+		]	double attacks
+		:	mechanical being (ex.: GUARD DROID. Can block your path)
+		.	increases strength by 10? (spur.misc4:rd.mons)
+				can also block path when moving/fleeing
+				can also mean immune to being charmed
+		E	Evil
+		G	Good
+		;;	heavy armor
+		;	light armor
+		<	monster re-animates, link to spur.misc3
+		>>	twice the chance of gold on body
+		>	chance of gold on body
+		++	cast multiple spells?
+		+	cast one spell?
+		#	cast turn to stone
+		*	Poisonous attack
+		@	Diseased attack
+		&	Experience drain
+		%	Magic resistant
+		~	"<monster> appears unaffected" (spur.misc3)
+				(changed to ^ on the Commodore)
+		-	fire attack (if a tank w/heavy armor: lazer fire)
+	(below found in spur.misc)
+		X	no chance of gold on body
+		$	chance of multiple monsters appearing (spur.misc4)
+		?	Do not display "THE " in front of monster name
+			if not instr("?",wy$) m$="THE "+m$ (spur.misc4:mon.set)
+		AC	able to be charmed
+		!55	 quote flag (quote # after !): TINMAN for example
+
+MONSTER.QUOTE
+	Random monster quotes.
+
+OLD.NEWS
+	Empty file. Old news...
+
+REVENGE
+	Unknown. I believe it has something to do with revenge duels.
+	More research needed.
+
+RONNEY
+	Unknown. May be similar to MEDUSA and GUARDIAN since
+	SPUR.MESSAGES makes reference to defeating RONNEY.
+
+ROOM.LEVEL[1-7]
+	Room descriptions for levels 1-7.
+
+SCHOOL.SPELLS
+	What specific spells do.
+
+SCHOOL.zip
+	SCHOOL.BIN, purpose unknown.
+
+SHIP.MENU
+	Menu for the Spaceship level
+
+SHOP.MENU
+	Shoppe menu
+
+SPELL.TYPE
+	Which letter corresponds to spell types.
+
+SPELLS
+	1		If <>1, not active in game
+	ESP		Spell name
+				|* flag: cures poison
+				|@ flag: cures disease
+	I4		ID: Type [I], point determinator [4] (CB)
+				How many points the spell affects stats
+				+ (success) / - (failure) [spur.misc3]
+				Types:
+					(P)layer      (M)onster
+					(S)trength    (C)onstitution
+					(E)nergy      (I)ntelligence
+					(W)isdom      (D)exterity
+					(L)evel-Down  (T)ransfer
+					(U)p-Level    (R)eturn to Shop
+					(G)et SPUR    (A)ura
+	7		Success [*10] (is this casting or learning?)
+	100		Cost in gold (1/2 for wizards, 2/3 for druids)
+
+SPUR.DATA		(record size: ??)
+	(SPUR.ANNEX:prnt.dat)
+  G$	Game name
+  NP	Number of players in game
+  GO	game objective
+  	1: specific amount of gold
+  	2: specific item
+  	3: specific amount of gold & item
+  OH	Objective amount of gold (high)
+  OL	Objective amount of gold (low)
+  OG	Item number you must leave the game with
+  N1$	Character name
+  LC	Level count (# of map levels in game)
+  MC	Monster count
+  IC	Item count
+  SC	spell count?
+  WC	Weapon count
+  AC	Ally count
+  CG	Ration count
+  PQ	Printer device #
+  SD	?
+  MV	Time limit in seconds
+  TD	Screen mask display (top)
+  BD	Screen mask display (bottom)
+  DH	Dwarf gold, high amount (<10000)
+  DL	Dwarf gold, low	 amount (>10000)
+
+SPUR.A1$
+	Gold in Vinney's account / 1000
+	Gold in Vinney's account (remainder)
+	Gold owed Vinney / 1000
+	Gold owed Vinney (remainder)
+	Duel wins
+	Duel losses
+	Spur account #
+
+	
+SPUR.ALLIES		(record size: 78)
+	Which player has which ally.
+
+SPUR.BOOKS		(record size: ??)
+	Book texts.
+
+SPUR.CHAT		(record size: ??)
+	Player QUOTEs.
+
+SPUR.HELP
+	Help on game objective and commands.
+
+SPUR.MONSTERS	(record size: 44)
+	Which monsters are alive per player so they don't encounter non-
+	re-animating monsters multiple times? Zelda can re-animate them.
+
+SPUR.SPELLS		(record size: 44)
+	Which spells each player has
+
+SPUR.STATUS		(record size: 32)
+	Holds ZU$, player status flags.
+
+	 1) 1=room description off.
+	 2) 1=Ring used
+	 3) 1=poisoned
+	 4) 1=deseased
+	 5) 1=Thug attack
+	 6) 1=Gauntlets worn
+	 7) 1=King Wraith dead, 2/3=Wizard Glow in effect
+	 8) 1=Amulet of Life energized
+	 9) Tut's treasure: 0=not examined, 1=examined, 2=taken.
+	10) Guild Follow mode: 0=off, 1=on
+
+SPUR.STORES		(record size: 44)
+	Rations in inventory
+	XF, XF$
+
+SPUR.TIME
+	Dates played and minutes left to play?
+
+SPUR.USERS		(record size: 130)
+	User log	
+
+	N1$	character name
+		leftmost character AB-C--D-E (-=unused) at login
+		check for duel loss
+		can also be a number (seen in spur.control.s:listplyr)
+	SN	BBS account # (hi)?
+	PN	BBS account # (lo)?
+	CL	Current level
+	CR	Current room
+	HP	hit points
+	PS	player strength
+	PT	player constitution
+	PI	player intelligence
+	PE	player energy
+	PW	player wisdom
+	PD	player dexterity
+	GH	gold high (>10000)
+	GL	gold low  (<10000)
+	BH	Bank money (high amount as above)
+	BL	Bank money (low	 amount as above)
+	SH	shield
+	AR	armor
+	PC	player class
+	PR	player race
+	EP	experience points
+	MK	monsters killed
+	MM	?
+	XP	Experience level
+	DF	dwarf room?
+	SL	SPUR level
+	SR	SPUR room
+
+SPUR.WEAPONS		(record size: 64)
+	Battle experience with weapons?
+	w$,w1,w2
+
+SPUR.WINNERS
+	Conquerors of SPUR
+
+STORES
+	Items for sale in the General Store?
+
+SWORD.LOG
+	Log of the Sword clan.
+
+THUG
+	Who ordered a hit on whom at the bar?
+
+TIPS
+	Survival tips.
+
+WEAPONS		(record size: 34?)
+	Weapon names and stats.
+
+	2 .....................	0: On player
+				1: In room
+				2: In shoppe
+	S. 1  LONG SWORD   (spaces for clarity,
+	^^ ^  \......../	no spaces in actual string)
+	|  |	  |
+	|  |	  `------------	weapon name
+	|  |
+	|  `--------------- TY$	(Type... not 100% sure what this is for)
+	|			7 =Secondary heat damage (phaser, fireball, etc)
+	|				Nothing to do with weapon class though
+	|
+	 `--------------------- M.=Magical
+	       			S.=Standard
+	 			C.=Cursed
+
+	5<cr>.................. stability (5-9) % x10 [AKA ease of use?]
+	6<cr>.................. hits AKA base damage % (3-9) x10
+	250<cr>................ price (1-9999)
+	2<cr>.................. weapon class
+				1: Energy (gets changed to 10)
+				2: Bash/Slash
+				3: Poke/Jab
+				5: Pole/Range
+				8: Projectile (+10% surprise, ammo bonus)
+				9: Proximity
+	Stability: 5-9 (aka damage?)
+	
+	Ammunition carrier:
+	1			(availability flag?)
+	T.357 BANDOLIER|064	(TLOS differs ammo from carriers by putting * 
+				in ITEMS file [indicates an inactive item],
+				and hard-coding items 147-150 to be carriers
+				[spur.misc5.s:ammo])
+
+==============================================================================
+SPUR Room Headers						       6/23/06
+
+From Skip:
+
+You may notice some peculiar looking strings after some of the room
+names. These begin with the "|" character followed by several other
+characters. These were "hidden fields" that triggered some event or
+condition in that location. The "|" character as well as the
+characters following it were removed before the room name was
+displayed to the player. Some come back to me from browsing some
+rooms, like "|@@" will be in a water room (i.e. ocean, underground
+lake, etc.) You would not be able to enter such a room without a boat
+of some kind. Another (if memory serves), would be like "!->" which
+indicates a hidden room in that direction (the room would not appear
+in the description, but moving in that direction would be possible-
+there were often 'subtle' clues in adjacent rooms for such hidden
+passages). I noticed numerous others, which I completely forgot
+(though looking through the code would hopefully disclose what they
+mean).
+
++	free fire zone (not after |)
+
+Characters after the room name and | indicate the room has certain qualities:
+
+@@	Water
+@@!	Water with rocks
+@@+x	Water with exit in direction x (x=1-6)
+
+	If there is a number after any of these codes, it indicates direction
+	of travel after exiting vehicle (have seen this in water rooms mostly)
+
+		1	North
+    		2	South
+    		3	East
+		4	West
+
+		5-6	up/down?
+
+**	Snow/ice
+
+	@@ and ** rooms also block FLEEing
+
+Things I've discovered:
+
+#!	unknown (seen in level 1 room 157) - statue here?
+
+<<	Blocks spell to go up/down level?
+>>	Blocks spell to go up/down level?
+		Also blocks FLEEing
+
+->	hidden exit east
+<-	hidden exit west
+]E]S	Blocks travel in direction after "]"
+		Found in room 126 (spur.main:block.s)
+	
+&	Radiation
+&&	Extreme radiation (radiation suit required)
+
+=+	Outer space
+
+~*	Hidden item in room
+
+~*E	Hidden door to the east
+~*W	...west
+~*S	...south	[~ needs to be translated to ^ in Commodore REL files
+~*N	...north		it's CHR$(255) on the Apple]
+
+-	unknown
+
+T	Room transports you (A wave of nausea engulfs you)
+	Must be last flag, apparently?
+
+=============================================================================
+
+	  Nov 15, 2012 13:56
+Corrected Apr  2, 2014 11:27
+
+Z-Machine text compression: 5-bit alphabet code ("ZSCII")
+
+http://inform-fiction.org/zmachine/standards/z1point1/sect03.html
+
+Text in memory consists of a sequence of 2-byte words. Each word is divided
+into three 5-bit 'Z-characters', plus 1 bit left over, arranged as
+
+   --first byte-------	 --second byte---
+   7	6 5 4 3 2  1 0	 7 6 5	4 3 2 1 0
+   bit	--first--  --second---	--third--
+
+The bit is set only on the last 2-byte word of the text, and so marks the end.
+
+3.5.3
+
+In Versions 2 to 4, the alphabet table for converting Z-characters into ZSCII character codes is as follows:
+
+   Z-char 6789abcdef0123456789abcdef
+current   --------------------------
+  A0      abcdefghijklmnopqrstuvwxyz
+  A1      ABCDEFGHIJKLMNOPQRSTUVWXYZ
+  A2       ^0123456789.,!?_#'"/\-:()
+          --------------------------

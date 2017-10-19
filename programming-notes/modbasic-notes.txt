@@ -1,0 +1,147 @@
+[AgentFriday]
+
+For all of its shortcomings, and as much as I get frustrated with using it, I haven't quite been able to swear off BASIC completely.  Having a high-level language at your fingertips that is installed and ready to go on all stock C64 machines is just too handy.
+
+But to be honest, BASIC 2.0 is pretty bad.  There are those who will defend it, and I don't want to tell them they are clueless or anything... wink I just think perhaps they don't have experience with something better.  I remember how the simple concepts of Pascal completely revolutionized how I approached programming.  Many of those concepts I have actually managed to apply to things I've written in BASIC on the C64, although it tends to be a painful exercise borne out of the necessity to actually get something done, not the relative joy that it would be in other languages.
+
+So... while I haven't completely thrown BASIC down the toilet, I did decide recently that I've had it with BASIC as we know it.  I don't want to waste my limited time and  energy banging my head against the same old issues that the world has wisely graduated from over the last couple of decades.  Retrocomputing is fun and all, but I have my limits.  So instead I choose to have some fun trying to fix some of BASIC's worst problems... And heck, with a little luck, I might even end up with a BASIC worth using.
+
+I do have plans for certain other extensions, but I'll leave it to another blog post (which at my current rate will be about 2015...hehe) to talk about theory, implementation details, future direction, and whatnot.  Right now I want to make sure I explain how to effectively use the deceptively powerful features that are in this first release.
+First Features
+
+My goal is not to come up with anything fancy or perfect, but to make as many useful advances in the language as possible without spending huge amounts of time doing it.  With that said, the first release is far from perfect, but it seems pretty stable, and with the proper understanding of how it works, it could enable some serious improvements in how you write programs.
+
+There are essentially 2 features in this first release:  Local variables is the least handy of the two, but it forms a solid foundation for implementing the other one: parameter passing.
+Local Variables
+
+In the interest of keeping it lean, I've found ways to overload the behavior of existing tokens.  To declare local variables, use the DEF command followed by a list of variables.
+
+      DEF A,I,B$
+Rules
+
+    You must SYS to the init routine at the beginning of your program.
+    Declaring a local var creates a new variable that hides any global or any other local variable of the same name.
+    The local starts out blank (0 or "").  Perhaps in the future I'll allow initialization in the DEF statement, such as DEF A=1, B=2
+    Scope:  The local variable lives through the end of the current subroutine (i.e. until a RETURN is executed)
+    Only simple floats and strings can be used as locals (integers and arrays of any type are not supported)
+    It is safe to use local variables as loop counters, and they will not interfere with loops using the same name in other scopes.
+    Efficiency: Allocation of local variables is pretty fast, and they are the first variables searched so access times are ideal.  (That said, there are still some efficiency improvements that could be made for allocation)
+    You can have up to 2K of local variables active at one time.
+
+Known Issues, Caveats, and Gory Details
+
+    When you initialize the system (SYS 49152), a 2K buffer is allocated after the natural end of the BASIC program.  All local variables are allocated in this space, before globals.  There is no way to specify a different size in this version.  If the 2K fills up, you get an OUT OF MEMORY error.
+    The fact that the locals buffer is tacked onto the end of the program means that if you SAVE the program after you've run it once, it will have up to 2K of that buffer space saved along with it.  I hope to fix this in the future.
+    Defined Functions is currently broken in this first version...  If you declare a local variable with the same name as the parameter of a defined function, calling that function won't return the right result.  This is only the case while a local variable of the same name is in effect.
+    Local vars of a subroutines are visible to any function they may call.  A nested subroutine's locals will always hide locals from other routines, but if a subroutine is expecting to read or set a global variable it would incorrectly access the outer  routines' local of the same name instead.
+    Very little checking is performed, so if you try to do something that doesn't make sense it might not tell you about it.  For example, you can declare the same variable name any number of times in the same routine, and each time it will allocate a new local that hides the previous ones.  RETURN will still clean up all the duplicates.
+    "Locals" can even be declared outside of any subroutine... These will supercede the actual globals, and there's no way to get rid of them (since RETURN would generate an error without first calling GOSUB)
+    Only works with pure BASIC programs (If there's ML at the end, it could get corrupted)
+    IF statments:  Because of a quirk (bug) in the BASIC ROM, using DEF, FN, GOSUB, or RETURN directly following the THEN keywoard will not activate the new behavior.  Workaround: place a colon after THEN, such as:  IF A=1 THEN : GOSUB 100: GOSUB 200:  RETURN
+    NOTE:  Do not use GOTO as a substitute for GOSUB followed by RETURN.  While this shortcut works on stock BASIC, it will not work correctly with the new features.
+
+Passing Parameters to Subroutines
+
+Parameter passing is far more powerful than local variables, but it's pretty simple.  The syntax of passing params to a subroutine is as follows:
+     GOSUB 1000( 5, "FOO"+A$, B+C) 
+This will call the subroutine at line 1000, just as a normal GOSUB 1000 would do, but it first allocates 3 new local variables in the new subroutine's scope, and assigns them the values contained between the parentheses.  What's special about these locals is that they are not yet named, so cannot be immediately accessed by the subroutine.  That's where the formal parameter declaration comes in.  Its syntax is like so:
+     FN N,A$,T
+(Again, I made use of an existing token in a way that does not conflict with its normal use.)  This is meant to resemble a function header as you would have in modular languages (like Pascal or C).  This simply supplies names to the parameters that were passed by GOSUB, and from then on they act just like local variables.
+Rules (etc.)
+
+As I mentioned, this is built on local variables, so most of the notes made above apply equally here, but you'll want to be aware of the following points specific to parameter passing:
+
+    Number of params passed must match how many you declare with FN, or it gives an ILLEGAL QUANTITY error
+    Param types must match what was passed, or TYPE MISMATCH
+    While it is not proper to do so, if you have multiple FN statements in a subroutine, each one will essentially override the names previously given to the parameters, although its exact behavior is more than I want to get into.  For now, just try not to do that.  At some time in the future I'll probably make it generate an error.
+    Errors that are generated will report the line where the FN statement is, while most likely the error occurred in what parameters were passed with GOSUB.  This will be changed to report the GOSUB line# eventually.
+
+Possible Future Features
+
+Aside from fixing bugs and making thngis work more seamlessly, here are some possible future features.
+
+    Local variable buffer size option
+    Return values from functions
+    Using function results in expressions
+    Multiple return values?
+    Reference parameters (but probably not...)
+    Direct GOTO targets
+
+Conclusion
+
+The release disk is available on CSDb and is published on Commodoreserver (under Programming/BASIC).
+I hope you have fun playing around with these features, I'm having a lot of fun implementing them.  I want to make this something that people will use and get benefit from, so please share your feedback and ideas.
+
+---
+
+15/Dec/2014 23:29
+
+(Me): that's what i thought. maybe i have a flaw inmy logic. i'll send you the latest work disk tomorrow.
+[23:25:42]
+agentfriday: only problem I noted w/ classic fn's was that if you have a local var active with same name as the fn argument, it won't get passed the value correctly
+[23:26:11]
+agentfriday: but, I may have done something that broke it since I last tested it
+(Me): oh. i didn't define any l ocal vars... oh i see what you're saying.. hrm. i'll have to check with that.
+[23:26:49]
+(Me): def x:def fn x(y)=... -- like that?
+[23:27:50]
+agentfriday: yeah... BASIC will use the pointer to the variable stored at the time the fn was defined... and borrow that variable to pass the value
+[23:28:15]
+agentfriday: the FN itself, however, will find the most recently declared local with the same name
+[23:28:28]
+(Me): ah, ok. huh! (copy/paste this)
+agentfriday: more like this...   def fn x(y)= y+10: def y: ?fnx(5)
+[23:29:45]
+(Me): ohhhhhhh
+agentfriday: that wil print 5, not 15 like you would expect
+agentfriday: errr... 10, not 15
+
+agentfriday: 2905 fn x: return peek(x)+b1*peek(x+1)
+[23:17:51]
+agentfriday: 118 blah=fn2905(780)
+[23:18:13]
+agentfriday: or... 2905 fn'dp' x: ...
+[23:18:26]
+agentfriday: 118 blah=fn'dp'(780)
+[23:19:36]
+* pinacolada reads slowly and carefully
+[23:20:57]
+(Me): so is that the return value thing?
+[23:21:45]
+agentfriday: yeah. NEW style functions, baby!
+[23:21:54]
+(Me): yay! :)
+
+
+agentfriday: 9000 fn ch,nb,cr
+[14:23:08]
+agentfriday: 9010 def ia$: sys ia,ch,nb,cr: return ia$
+[14:23:56]
+(Me): that could work. how many times do i use input any? let me count the ways
+[14:24:07]
+agentfriday: 555 n$= gosub9000(1,255,1)
+[14:25:43]
+(Me): hmm
+[14:26:06]
+agentfriday: encapsulation!
+
+nulls do work as string parameters
+ready.
+list
+
+10 sys 49152
+20 gosub 50("label","")
+30 print c$
+40 sys 49155
+45 end
+50 fn a$,b$:c$="a "+a$+b$:print"b$="len(b$):return
+ready.
+run
+
+modbasic v1.01
+b$= 0
+a label
+
+ready.
+
+don't put a def (local variable) before a fn (function parameters)

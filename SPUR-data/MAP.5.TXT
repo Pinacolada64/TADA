@@ -1,0 +1,55 @@
+Level 5 map (All east/west edges lap
+around to the other side)
+ 
+c=Stone Giant's cave, f=Fountain
+D=Desert, W=Water, O=Other, r=Rivertown
+w=Wall B&G, h=Island of Headhunters
+r=Island of Ringwraiths, X=Castle
+<, >, ^, v=one way doors
+ 
+1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0
+                  1 1 1 1 1 1 1 1 1 1 2
+---------------------------------------
+| | | | | | | | | |   | |   | | | | | |
+s-D-D-D-D-D-D-D-D r-r O-O D-D-D-D-D-D-D
+| | | | | | | |     | |   | | | | | | |
+D-D-D-D-D-D-D-D r-r-r O D-D-D-D-D-D-D-D
+| | | | | | |   | v   | | | | | | | | |
+D-D-D-D-D-D-D r-r r   O-O D-D-D-D-D-D-D
+| | | | | |   |   |     |   | | | | | |
+D-D-D-D-D-D   r-r-r   O-O-O D-D-D-D-D-D
+| | | | |     | |     |   |   | | | | |
+D-D-D-D-D-D   r r<c   O-O O-O D-D-D-D-D
+| | | |   |   |   |     |   |   | | | |
+D-D-D-D f D   W c-c     O-O-O-O D-D-D-D
+| | |   | |   |               W   | | |
+D-D-D   O-O   W-W-W-W       r-r-r D-D-D
+| |           | | | |           |   | |
+D-D   W-W-W-W-W-W-W-W-W-h-h<h r-r-w D-D
+|     | | | | | | | | | |     | |     |
+D W-W-W-W-W-W O W-W-W-W h-h-h r-r-r-r D
+  | |   | | |   | | | | | | |
+W-W-W   W-W-W-W-W-W-W-W-W h-h W-W-W-W-W
+| |         | | | | | | | | | | | | | |
+W-W   O-O   W-W-W-W-W-W-W-W-W-W-W-W-W-W
+      | |   | | | | | | | | | | |
+D   O-O O   W-W-W-W-W-W-W-W-W-W-W   D-D
+|       |   | |   | | | | | | |     | |
+D-D D-D-O O W-W O-W-W-W-W-W-W-W   D-D-D
+| | |   | | | |   | | | | | |     | | |
+D-D-D   O>O W-W-W-W-W-W-W-W-W   D-D-D-D
+| | |         | | | | | | | |   | | | |
+D-D-D-D X-X>X W-W-W-W-W-W-W-W-D-D-D-D-D
+| | | |   ^ v   | | | | | | | | | | | |
+D-D-D-D-D X<X<X W-W-W-W-W-W-W-W-W-W-W-W
+| | | | |   v |     | | | | |   | | | |
+D-D-D-D-D-D X-X>X>X W-W-W-W-W-W D-D-D-D
+| | | | | |   ^ ^ v | | | | |   | | | |
+D-D-D-D-D-D-D X<X<X W-W-W-W-W D-D-D-D-D
+| | | | | | |   v ^ | |       | | | | |
+D-D-D-D-D-D-D-D X>X W-W       D-D-D-D-D
+| | | | | | | |   | ^         | | | | |
+D-D-D-D-D-D-D-D-D r-r O-O   D-D-D-D-D-D
+| | | | | | | | | |   | |   | | | | | |
+ 
+ 

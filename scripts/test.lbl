@@ -1,0 +1,9 @@
+' call with build-bas.bat test.lbl
+{number:1}
+{def:debug}
+
+{ifdef:debug}
+	{uses:\TADA-svn\pinacolada\TADA\scripts\build-date_basic.lbl}
+{endif}
+
+print "this is driving me crazy":end

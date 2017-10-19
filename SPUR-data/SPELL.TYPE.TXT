@@ -1,0 +1,9 @@
+Spell Types:
+
+(P)layer      (M)onster
+(S)trength    (C)onstitution
+(E)nergy      (I)ntelligence
+(W)isdom      (D)exterity
+(L)evel-Down  (T)ransfer
+(U)p-Level    (R)eturn to Shop
+(G)et SPUR    (A)ura

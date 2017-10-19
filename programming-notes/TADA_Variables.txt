@@ -1,0 +1,309 @@
+*** Things surrounded by 3 asterisks are either (a) attention- ***
+*** worthy, or (b) a free spot in the chunk of player data.	   ***
+
+*** Also, tabs are 4 spaces wide. ***
+
+08/31/2003	* Version 1
+12/07/2003	* Finalized D$/D2$ layout
+07/20/2004	* Minor formatting changes
+08/13/2004	* Added "real" variables + horse saddlebags/race tweak
+06/09/2006	* Added Architect/Orator bits
+07/14/2006	* Added "game info" bytes at 228-230 on D2$
+07/18/2006	* Added "compass used" flag
+07/22/2006	* Added "Dwarf alive" flag
+07/26/2006	* Added lasso bit for when catching horse
+			* Removed "DG" (Dwarf Gold) variable since stored in D2$ now
+			* Workable inventory format (4 bytes per item)
+			* Added "Wraith King alive" flag
+08/05/2006	* Swapped Honor and BHR. Honor must be saved, and
+				BHR calculated in stats module
+			* Cut formal training down to 1 byte
+			* Since elevator/locker combinations follow xx-xx-xx
+				pattern, cut to 3 bytes each
+			* Removed lasso bit, it's just a regular carried item
+				after all
+			* Added ally "to hit" percentage
+			* Considering dropping EGO stat
+			* Can remember which position allies are in at startup
+			* Removed point/flank/rear guard name slots, added
+				pointers to ally name in "e.t.allies".
+			* Added weapon % left for 8 weapons for main character.
+			* Removed AL() array, now in D$.
+08/22/2006	* Minor fiddling around with inventory format (now 3 bytes,
+				omitting "container" flag for now, will hold 3 extra
+				items if we ever implement bag of holding)
+			* Changed groups of spaces into tabs, reducing file size.
+08/23/2006	* Now use 2-byte BBS ID, longer game name (18 chars)
+08/27/2006	* Added "Spur alive?" flag
+			* Added "ring worn?" flag
+06/17/2007	* Split "Wraith Master" and "Wizard Glow" into two bytes
+07/14/2007	* Considering moving v2+167 (weapon experience) to
+				"e.t.weapon exp", 60 bytes/char, change to more
+				inventory items?)
+09/01/2007	* More miscellaneous inventory tweaks
+03/29/2009	* Moved monsters killed, adjusted random item storage
+				length
+12/21/2010	* Added V1+96/97: Wall Bar & Grill X/Y coordinates to save
+				positions between visits to shops/carrier drop
+03/25/2011	* A few more sanitizations: remove current alignment,
+			honor calculates that
+03/06/2014	* Player class is now stored as 1-9, not 0-8.
+
+04/15/2014	* Double-spaced listing. Lots easier to read.
+		  Added Dwarf gold amount at v2+231 'cause I can't find it
+			elsewhere!
+
+08/22/2017	* Clarified "3-byte format" data structure. Putting Spur
+			variables next to TADA variables for ease of reference.
+
+			--- Variables in TADA: ---
+
+	"3 byte format" refers to a 24-bit value between 1 - 16,777,216.
+	1st byte: # of 65535s, 2nd/3rd byte: hi/lo bytes.
+	Handled by t.main using {:get_3_bytes}(x) and {:put_3_bytes}(x).
+
+ A$(0-4)	Names of main Player Character + 4 allies.
+AL$		Alignment titles
+
+CT		V1+64 in some modules
+
+D$/D2$	variables are stored in two dynamic strings. They're the player's
+	  stats. (D1$ holds the date/time on Image BBS.)
+
+D1$		11-digit time/date format used by Image BBS (example in t.page)
+DF		Dwarf Room on level 1 (0=dead)
+DI		Disk input flag *** obsolete using modBASIC ***
+
+GD$		Guild titles
+
+IN$(0-19)	Inventory item names
+			Items:			Weapons:
+			A)rmor			S)tandard
+			B)ook/Scroll		M)agical
+			C)ursed item		C)ursed
+			D)rink
+			F)ood
+			M)agic Spell
+			P) Compass
+			S)hield
+			T)reasure
+
+OB$()	In-room object names
+
+LA$	Last adventurer's name
+LL%	Line length (typically 40/80)
+LV%	peek(v1+140) [map level]
+
+PN	Player number
+PR	Printing flag *** obsolete with modBASIC ***
+
+RC$	Race titles
+RM	Room number
+RO	Old room number (for movement comparison)
+
+WC$	Weapon classes
+WR%	Weapon # readied
+WR$	Weapon readied
+
+V1/V2	indexes into these strings so they can be POKEd.
+	Note that V1+1 will POKE to the first byte of the string.
+
+	V1
+	--
+
+Start
+.
+.	Length
+.	.
+.	.	Variable
+.	.	.
+1	2	ID# on BBS (lo/hi byte), 0 if standalone game
+3	18	Character name
+21	1	Times played today
+		*** may be repurposed last play date, 20xx year ***
+22	2	Last play date (day/month in 1 byte each)
+24	24	Weapon % left (8 2-byte weapon, 1-byte %) 
+48	3	Pointers to ally number/name in "e.t.allies"
+51	3	Ally 1-3 positions:
+			0=unfilled
+			1=point man
+			2=flank guard
+			3=rear guard
+			4=unconscious
+54	10	Horse name
+64	1	Player bits:			(CT)
+			7=Autoduel
+			6=Hourglass		(0=off 1=on)
+			5=Guild follow
+			4=Expert mode		(0=off 1=on)
+			3=MORE prompt		(0=off 1=on)
+			2=Room descriptions	(0=off 1=on)
+			1=Gender		(0=Female 1=Male)
+			0=Architect
+65	1	Player bits:
+			7=Diseased
+			6=Hungry
+			5=Poisoned
+			4=Mounted on horse
+			3=Thirsty
+			2=Tired
+			1=Unconscious
+			0=Orator
+66	1	Unconscious flag off: Monster # at quit (if room does not
+			have "monster waiting" flag set)
+		Unconscious flag on : Player who you lost duel to
+67	1	*** Removed - formerly Current Alignment ***
+68	1	Character class:
+			1=Wizard   4=Paladin  7=Archer
+			2=Druid	   5=Ranger   8=Assassin
+			3=Fighter  6=Thief    9=Knight
+69	1	Guild:
+			0=Civilian
+			1=Fist
+			2=Sword
+			3=Claw
+			4=Outlaw
+70	1	Natural alignment:
+			0=Good
+			1=Neutral
+			2=Evil
+71	5	Armor items (1 per character)
+76	5	Armor % left (1 per character)
+81	5	Armor class (-18 to 18, high bit set=negative)
+86	8	Attributes [1-18 or 1-25, depending on character class]
+		[Attribute # for {:sub.adj_stat}(x) are in square brackets]
+		(Spur variable names are in parentheses)
+			[1] 86=Charisma                [5] 90=Intelligence (PI)
+			[2] 87=Constitution	(PT)   [6] 91=Strength     (PS)
+			[3] 88=Dexterity	(PD)   [7] 92=Wisdom       (PW)
+			[4] 89=Ego (may remove)        [8] 93=Energy       (PE)
+94	2	Honor rating (lo/hi bytes: in game, defines alignment)
+96	2	Wall Bar & Grill X/Y coordinates
+98	4	Birthday
+			98: month	100: century base [19/20]
+			99: day		101: year [00-99]
+102 	1	Formal training for main character
+103	1	*** Reserved for future expansion ***
+104 	3	Locker combination in Annex (xx-xx-xx)
+107	5	*** Reserved for future expansion ***
+112 	3	Vinney loan info: days remaining to pay (1 byte), amount
+			payable (lo/hi byte)
+115 	4	Constitution for allies
+119 	3	Elevator combination for Annex (xx-xx-xx)
+122	4	"To hit" percentage for allies (ex.: horse can kick or bite)
+126	1	*** Reserved for future expansion ***
+127	3	Experience points (3 byte format)
+130	3	Gold in bank      (same format as above)
+133	3	Gold in bar	  (same format as above)
+136	1	ZO	Maximum inventory items/spells learnable/character size
+			(6-10 depending on character class)
+137	3	Monsters killed (3-byte format)
+140	1	Map level
+141	3	Moves to date (3-byte format)
+144	2	Age
+146	29	Locations of random objects:
+		Level #, 2-byte room #. 9 max.
+			146: SCRAP OF PAPER for Annex elevator combination
+			(Always on level 1, room >144, can omit level byte)
+175	1	*** Reserved for future expansion ***
+176	8	Password to enter castle (level 7)
+184	24	Ammunition for weapons
+			(2-byte weapon # it goes with, how many shots left)
+			10 max. (5 for main char, 1 for allies except horse)
+208	26	Bits indicating dead monsters (1-208)
+===
+234 total
+
+	V2
+	--
+
+Start
+.
+.	Length
+.	.
+.	.	Variable
+.	.	.
+1	4	Shield skill   (1-100)	(4 bytes @ 1 per character)
+5	4	Shield object  (1-10)	("S." inv index #, 4 bytes @ 1 per 
+								character)
+9	4	Current weapon % left	(4 bytes @ 1 per character)
+13	8	Weapon readied for all characters and each ally
+			(except	horse)
+21	15	Gold in hand (3-byte pointer, for each character except horse)
+36	4	Shield % left (1-100, each character except horse)
+40	20	Inventory (main character, 10 items, spells stored @ offset 83)
+			Note: Type flag [ABCDFPST] is 1st letter in I$(x) array.
+		Bytes 1-2: 2-byte object # in "e.t.{items|rations}"
+			Both bytes are 0 if no object.
+			Nonzero value means	display element x in I$(x) array.
+60	20	Weapons (main character)
+			Bytes 1-2: Weapon object # in "e.t.weapons", used as in inv
+			Can have M./S./C. flag in I$() array [magical/standard/
+				cursed]
+80	3	Booby traps (code A-I, X if none; this is primarily for when
+			others dig up this char's items, otherwise will have
+			booby trap item in inventory)
+83	60	Spell info for main character, 20 max
+			Each value indexes into "e.t.spells":
+				Byte 1: # of spell in "e.t.spells":(1-255)
+					[nonzero value=index in S$() array (1-10, 0=no spell)]
+				Byte 2: % to cast.................:(1-100)
+				Byte 3: # of charges..............:(1-50)
+143	12	Spell info for Storm Weapon (4 spells, as above)
+155	4	Ally abilities (8 bits per ally):
+			7  =track
+			6  =search
+			5  =servant who needs to be paid each week
+	   ***  4-0=Reserved for future expansion ***
+159	4	Ally strength (max of 18)
+			4 str
+163	4	Ally dexterity (not saved in "e.t.allies")
+			4 dex
+
+167	18	Battle experience/skill pairs for weapons in inventory:
+			5 for main char, 1 for ally 1-3
+			2 bytes: weapon #, 1 byte: skill %
+
+185	4	Race (1 for main character + 3 allies)
+			1=Human	 4=Elf		 7=Dwarf
+			2=Ogre	 5=Hobbit	 8=Orc
+			3=Gnome	 6=Halfling	 9=Half-Elf
+
+189	1	Horse has saddlebags so it can carry things too?
+			Bit 7: 0=no, 1=yes
+		Horse race (haw haw!)
+			Bits 6-0: Race - setting multiple bits allows
+				cross-breeding. Thanks for the idea, DracoSilv :)
+
+190	10	Following guild members (2-byte pointer, hi/lo: MSB bit 7 means
+			member woke up while following you after game quit &
+			stopped following party, should be removed from list)
+
+200	16	Ally inventory (4 allies, 2 items each, 2-byte item pointer
+			to item # in I$() array)
+			(horse must have saddlebags, V2+189)
+
+216	10	Hit points (lo/hi byte for each character)
+
+226	2	Room number (loaded at start, saved at quit, RM otherwise)
+
+228	1	Game info:
+			Bit 7: Gauntlets worn
+			    6: Amulet of Life energized
+			    5: Thug attack
+			    4: Compass used
+			    3: Dwarf alive
+			    2: Wraith King alive
+			    1: Spur alive
+			    0: Ring worn
+
+229	1	Wizard's Glow active:
+			0: No
+		      <>0: # of rounds
+
+230	1	*** Bits 7-3: Reserved for future expansion ***
+		    Bit 2: Wraith Master of Spur   (0=no, 1=yes)
+		    Bit 1: Tut's treasure taken	   (0=no, 1=yes)
+		    Bit 0: Tut's treasure examined (0=no, 1=yes)
+231 3	Dwarf gold (hi/med/lo)
+===234 total

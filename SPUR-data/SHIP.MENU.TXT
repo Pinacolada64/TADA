@@ -1,0 +1,18 @@
+ [][][][][][][][][]*[][][][][][][][][]
+ |  The Land of SPUR: Ships Stores   |
+ |:::::::::::::::::::::::::::::::::::|
+ |      W: Weapons Dispensor         |
+ |      B: Ships Bankn               |
+ |      G: General Stores            |
+ |      S: Status                    |
+ |      I: Inventory                 |
+ |      E: Enter The Land of SPUR    |
+ |     TR: goto Transporter          |
+ |SALVAGE: Goto Salvage Bay          |
+ |:::::::::::::::::::::::::::::::::::|
+ | H:Help w/SPUR    L:List Opponents |
+ | A:Adventure Log  C:Conquerors     |
+ |:::::::::::::::::::::::::::::::::::|
+ | Q:Quit to BBS    T:To Oblivion    |
+ [][][][][][][][][]*[][][][][][][][][]
+

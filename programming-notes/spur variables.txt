@@ -1,0 +1,309 @@
+The Land of Spur General Usage Variable Listing
+Updated 2/Feb/2014 21:51 (Seahawks win Superbowl!)
+Updated 7/Mar/2016 16:03 -- some corrections made
+
+a	Time limit: initially 180. If caller's bps rate=300: 300.
+a1	Point man	(ally 1)
+a2	Flank guard	(ally 2)
+a3	Rear guard	(ally 3)
+a1$	BBS variable? Can't find a1$=... anywhere.
+a2$	BBS variable? Same...^
+a3$	BBS variable? Same...^
+ac	Ally count (# in game)
+ai	# of ally inventory items
+ai$	Ally inventory in xxx,yyy,[...] format (xxx/yyy=object #)
+ar	main char ARmor percentage
+        
+b	value of random character
+bd	Bottom BBS screen mask display
+        
+cb$	Flag for something (*=non-existent object)
+cd	opponent's dexterity
+ce	opponent's energy
+cg	# of rations in game
+ci	opponent's intelligence
+cl	current level on map
+cr	current room on map
+cs	opponent's strength
+ct	opponent's constitution
+cw	opponent's wisdom
+        
+d1$	Name of ally 1
+d2$	Name of ally 2
+d3$	Name of ally 3
+dc$	Last command
+df	Dwarf room (0=dead)
+dh	Dwarf gold, high amount (dh*10,000+dl)
+di	Direction chosen (N=1, S=2, E=3, W=4, U=5, D=6)
+dl	Dwarf gold, low  amount (dh*10,000+dl)
+dy$	Usually a module name to LINK to
+        
+--- drive specifiers ---
+dm$	g:
+ds$	a:
+dx$	j:
+dz$	a:
+dw$	j:
+        
+e	East exit from room
+ep	experience points (reset each experience level increase)
+ev	CLOCK(1) [time limit on BBS] - EW [?]
+ew	CLOCK(1)
+ex	ex=clock(1)-ew
+        
+fd	Food in room
+g$	Game name
+gh	Gold (high 10,000  gold=gh*10,000+gl)
+gl	Gold (low  10,000  gold=gh*10,000+gl)
+go	Game objective:
+		1=specific amount of gold
+		2=specific item
+		3=specific amount of gold & item
+gs	Cost of food
+gs$	Name of food
+        
+h1	HP for ally 1?
+h2	HP for ally 2?
+h3	HP for ally 3?
+hh	currently in hand-to-hand combat? (0=no, 1=yes)
+hp	hit points for main character
+        
+i	Item in room
+i$	GENERAL PURPOSE
+ic	Item count (# of items in game)
+        
+lc	Level count (# of map levels in game)
+lg$	last adventurer name
+lo$	Room location name (copied into ww$)
+        
+m$	Monster name
+mc	# of monsters in game
+ma	Related to probability (spur.main:set.prob)
+	Also probability of monster hitting *10?
+md	Monster dead (0=alive, 1=dead monster, 2=monster tracks)
+mf	Monster following (1=yes)
+mk	Monsters Killed
+mm	Counter for Wizard Glow?
+ms	Monster strength?
+mv	Time limit in seconds (0=unlimited)
+mw	Monster waiting in room
+        
+n	North exit from room
+n1$	Character Name (leftmost character is either duel loss or guild)
+np	Number of players in game
+nr	Number of rooms on level?
+        
+og	Item number you must leave the game with
+oh	Objective amount of gold (high, amount=oh*10,000+ol)
+ol	Objective amount of gold (low)
+        
+p1	Probability variable
+p2	Probability variable
+pa	Related to probability (spur.main:set.prob)
+pc	player class
+		1) Wizard      4) Paladin  7) Archer
+		2) Druid       5) Ranger   8) Assassin
+		3) Fighter     6) Thief    9) Knight
+pd	Player Dexterity
+pe	Player Energy
+ph$	BBS phone #? Checks for an = sign in it
+		(must mean long-distance caller?)
+pi	Player Intelligence
+pn	Player Number (in SPUR.USERS?)
+pq	Printer device #
+pr	Player Race
+		1) Human    4) Elf        7) Dwarf
+	        2) Ogre     5) Hobbit     8) Orc
+	        3) Pixie    6) Gnome      9) Half-Elf
+ps	Player Strength
+pt	Player Constitution
+pw	Player wisdom
+        
+rc	Room command (1=move up a level, 2=move down a level)
+ri	Level dimensions (RI x RI rooms)
+rt	Room exit transports you to room # (0=Shoppe)
+        
+s	South exit from room
+sc	Spell count? (# of spells in game)
+sc$	Screen Clear character (depends on terminal type)
+sd	Seems to have no purpose, but is read from/written to spur.data
+sh	Main character shield percentage
+sl	Level SPUR is residing on
+sn	Suicide? (If SN=1, don't write all stats to disk)
+sr	Room SPUR is residing in
+sw	Monster's special weapon to kill
+        
+ta$	Following characters on level 1 (spur.misc4:stay)
+tb$	Following characters on level 2
+tc$	Following characters on level 3
+td	Display BBS user stats on top of sysop screen
+td$	Following characters on level 4? 
+te$	Following characters on level 5? 
+tf$	Following characters? “>:” is default for TA/TB/TC/TD/TE/TF/TH$
+tg$	Can be copy of any T?$
+th$	Following characters on level 6? 
+tm	Counter for wizard glow?
+        
+un	User number on BBS (1=sysop)
+        
+vk	Honor
+vm	Ammo damage
+vn	Ammo left
+vp	Battle experience with weapon
+vr	guild.standings: Sword victory points
+vs	Guild.standings: Sword loss points
+vr	Flag to do with single/burst/auto ammo fire
+vq	Lurk flag
+vt	# of duels per game?
+vu	Round counter in combat?
+	Flag for money owed to Vinny
+vv	Civilian/Outlaw flag:
+	0: Civilian
+	1: Outlaw
+	2: Outlaw (Autoduel on)
+	3: Sword
+	4: Sword  (Autoduel on)
+	5: undefined
+	6: Claw
+	7: Claw (Autoduel on)
+	8: Fist
+	9: Fist (Autoduel on)
+vu	your initiative:
+	3: Opponent has initiative
+	4: Neither has initiative
+	5: You have initiative
+vw	
+vx	
+        
+w	West exit from room
+wa	Weapon class armed
+wc	Weapon count (# in game)
+wn	Game won flag
+wp	Weapon in room
+ww$	Copy of room name (stuff before pipe)
+wr$	Weapon readied
+wx$	>:x (x=current room) - another flag for who's present in a room?
+wy$	monster flags
+        
+xf	# of food items in char's inventory
+xi	# of inventory items
+xi$	inventory items [xxx,yyy,zzz...]
+xm	# of monsters in XM$?
+xm$	monsters killed so you don't encounter the same (non-re-animating) ones again [xxx,yyy,...]
+xn	copy of SN
+	copy of UN if SN=0
+xn$	Seems to be a scratch variable
+xo	Seems to be a copy of xf (# of rations in inventory), for ally use?
+xo$	Seems to be a copy of xf$ (rations in inventory), for ally use?
+xp	Experience level
+xs	# of spells learned
+xs$	Spells main character has
+xt	Something inventory/scroll-related...
+xt$	Same here
+xu	Guild.standings: Claw loss points
+xv$	How allies are ORDERed?
+xw	# of weapons main char has
+	guild.standings: Fist victory points
+xw$	Main char weapon list
+xx$	Scratch variable
+        
+yg	Copy of PC
+yi	Copy of PR
+ys$	What events have occurred this session
+	(Not strictly "once-per-session" flags as thought previously)
+	Strings are surrounded by "*" ("*GI*" for example) so INSTR() can
+	isolate just that sub-string from the whole string. I have not
+	included * characters around the following "flags."
+        
+          AD     AutoDuel flag
+          ayf    Ally finds something
+          bo     Boots of Speed used
+          CM     Communicator used
+          ENF    Enforcer
+          gal    Galadriel's test
+          gd     Guardian seen
+          gd2    Guardian waiting
+          GI     Little girl
+          LAZ.SH Lazer Shield used
+          LOOT   Looted character
+          me     meteor
+          OUTLAW Outlaws can LOOT twice
+          pr1    Can only pray once per session
+          pr2    Can pray twice (pc=2 or 4)
+          prd    Prayed
+          PS     Pawn Shop visited
+          PWR.AR Power Armor energized
+          sk     Visited Skip in Bar
+          SS     Salvage computer used
+          TR+    Transporter used
+        
+yt$	Characters following, * if none
+yx$	*
+yz	EV-EX (spur.main)
+        
+z	GENERAL PURPOSE
+zn	duel related
+zo	Carrying capacity
+zq	Ring invisibility flag? (related to ZS)
+	Commentary flag in duel
+zr	# to remove from stats
+zs	Ring invisibility flags
+		999: m$ lost sight of you
+		998: m$ is surprised
+		997:
+	       <990: m$ powers down/snarls and waits
+	       >989: ignores you/looks around uneasily
+		  0: 
+zt	Guild.standings: Claw victory points
+zt$	Copy of XV$ (from spur.misc2)
+zu$	10 characters:
+		1: Room description
+			A/B=off [spur.logon.s]
+			(SPUR.ANNEX.S:status1 says 1=descs off)
+			B/C: Shield training [spur.combat.s, spur.misc.s]
+        
+		2: The Ring worn
+		3: Poisoned
+		4: Diseased
+		5: Thug attack
+		6: Gauntlets worn
+		7:  0 - no spell active?
+          	  1|2 - Wraith Master of Spur
+		   >2 - Wizard Glow spell active
+		8: Amulet of Life
+		9: Tut's Treasure
+		    0 - not examined
+		    1 – examined
+	   10: Guild Follow
+zu	Skill with currently readied weapon
+zv	Damage with currently readied weapon
+zw	Opponent weapon class (from spur.duel2.s:opnt.wp)
+zw$	Temp for class/race display
+zz	temp variable
+zz$	random character
+	temp variable to output to news log
+
+FLAG( 1): 
+FLAG( 2): 
+FLAG( 3): Has access to Sword Guild HQ
+FLAG( 4): 
+FLAG( 5): 
+FLAG( 6): Has access to Claw Guild HQ
+FLAG( 7): Immortal player?
+FLAG( 8): 
+FLAG( 9): 
+FLAG(10): 
+FLAG(11): 
+FLAG(12): 
+FLAG(13): Has access to Fist Guild HQ
+FLAG(14): 
+FLAG(15): Involuntary Outlaw
+
+FLAG(25): Game Master
+FLAG(26): No Spur access
+FLAG(27): SPUR.GUILD: Member of Sword Guild
+FLAG(28): SPUR.GUILD: Member of Claw Guild
+FLAG(29): SPUR.GUILD: Member of Fist Guild
+FLAG(29): BAR.S: Caller in ANSI mode?
+FLAG(30): BAR.S: Caller in ProTerm mode (Atari graphics)?
+FLAG(35): Pause mode on BBS enabled

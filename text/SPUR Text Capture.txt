@@ -1,0 +1,2307 @@
+?
+              SPUR ANNEX
+[]=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=[]
+
+ 1) SPUR HELP         2) DUEL HELP
+ 3) SURVIVAL TIPS     4) SPELLS
+ 5) The Horse         6) New News
+ 7) Old News          8) Guild Ratings
+ 9) Personal Ratings 10) Weapons list
+11) GUILD HELP       12) Shields
+13) EXAMINE Command  14) TRACK Command
+
+            MEMBERSHIPS
+
+15) CIVILIAN        16) CLAW \|/
+17) SWORD -}----    18) FIST  ==[]
+19) OUTLAWS
+
+[48:33] [1-19] (?=help):10
+
+(Reading Spur system data)
+
+
+Long or short list? [L]/s:
+
+   Weapons          03/06/05
+
+  1. LONG SWORD         250g  Ease: 5  Hits: 6  Type: BASH/SLASH  Loc: Shop
+  2. BATTLEAXE          350g  Ease: 6  Hits: 7  Type: BASH/SLASH  Loc: Shop
+  3. WOOD STAFF          20g  Ease: 5  Hits: 4  Type: BASH/SLASH  Loc: Shop
+  4. CROSSBOW           450g  Ease: 8  Hits: 7* Type: PROJECTILE  Loc: Shop
+  5. SLING              200g  Ease: 6  Hits: 4* Type: PROJECTILE  Loc: Shop
+  6. LONG BOW          1000g  Ease: 8  Hits: 8* Type: PROJECTILE  Loc: Shop
+  7. DAGGER              75g  Ease: 5  Hits: 3  Type: POKE/JAB    Loc: Shop
+  8. MORNING STAR       525g  Ease: 7  Hits: 7  Type: BASH/SLASH  Loc: Shop
+  9. BRASS KNUCKLES     100g  Ease: 5  Hits: 3  Type: POKE/JAB    Loc: Shop
+ 10. STONE KNIFE        250g  Ease: 6  Hits: 5  Type: POKE/JAB    Loc: Shop
+ 11. 357 MAGNUM         200g  Ease: 5  Hits: 7* Type: PROJECTILE  Loc: Room
+ 12. WOODEN STAKE        20g  Ease: 5  Hits: 7  Type: POLE        Loc: Room
+ 13. SILVER BULLET      850g  Ease: 7  Hits: 8  Type: POKE/JAB    Loc: Room
+ 14. FIREBALL          1150g  Ease: 5  Hits: 7  Type: PROXIMITY   Loc: Room
+ 15. LARGE FIREBALL    2800g  Ease: 8  Hits: 9  Type: PROXIMITY   Loc: Room
+ 16. SPEAR              200g  Ease: 5  Hits: 4  Type: POLE        Loc: Room
+ 17. EXCALIBUR         9000g  Ease: 8  Hits: 9  Type: BASH/SLASH  Loc: Player
+ 18. NASTY KNIFE        175g  Ease: 5  Hits: 6  Type: POKE/JAB    Loc: Room
+ 19. HATCHET             80g  Ease: 6  Hits: 3  Type: BASH/SLASH  Loc: Player
+ 20. BLOWGUN             75g  Ease: 7  Hits: 5* Type: PROJECTILE  Loc: Player
+ 21. FLAME THROWER      700g  Ease: 7  Hits: 8* Type: PROJECTILE  Loc: Player
+ 22. STORM AXE         3000g  Ease: 6  Hits: 6  Type: BASH/SLASH  Loc: Player
+ 23. HAMMER             300g  Ease: 6  Hits: 7  Type: BASH/SLASH  Loc: Player
+ 24. HARPOON            350g  Ease: 6  Hits: 6* Type: PROJECTILE  Loc: Room
+ 25. LANCE              225g  Ease: 6  Hits: 7  Type: POLE        Loc: Player
+ 26. MACHINE GUN       1000g  Ease: 5  Hits: 5* Type: PROJECTILE  Loc: Room
+ 27. WOODEN CLUB        100g  Ease: 5  Hits: 6  Type: BASH/SLASH  Loc: Player
+ 28. PICKAXE            300g  Ease: 8  Hits: 5  Type: BASH/SLASH  Loc: Room
+ 29. SCYTHE             275g  Ease: 7  Hits: 7  Type: POLE        Loc: Room
+ 30. JAGGED BOTTLE        3g  Ease: 5  Hits: 4  Type: POKE/JAB    Loc: Room
+ 31. THUNDERBOLT        300g  Ease: 7  Hits: 6  Type: PROXIMITY   Loc: Shop
+ 32. WHIP               100g  Ease: 9  Hits: 3  Type: POLE        Loc: Shop
+ 33. LEATHER SLING      100g  Ease: 8  Hits: 5* Type: PROJECTILE  Loc: Room
+ 34. STORM BOW         3000g  Ease: 7  Hits: 6* Type: PROJECTILE  Loc: Shop
+ 35. RAZOR CLAWS        700g  Ease: 8  Hits: 7  Type: POKE/JAB    Loc: Shop
+ 36. MUSKET             430g  Ease: 8  Hits: 5* Type: PROJECTILE  Loc: Shop
+ 37. SMALL CANNON       300g  Ease: 6  Hits: 7* Type: PROJECTILE  Loc: Room
+ 38. SHORT SWORD        125g  Ease: 7  Hits: 4  Type: POKE/JAB    Loc: Room
+ 39. SMALL FIREBALL     375g  Ease: 6  Hits: 5  Type: PROXIMITY   Loc: Room
+ 40. DYNAMITE           560g  Ease: 5  Hits: 9  Type: PROXIMITY   Loc: Room
+ 41. STORM DAGGER      3000g  Ease: 8  Hits: 6  Type: POKE/JAB    Loc: Shop
+ 42. STORM LANCE       3000g  Ease: 6  Hits: 6  Type: POLE        Loc: Shop
+ 43. SABRE              245g  Ease: 8  Hits: 5  Type: POLE        Loc: Player
+ 44. GIANT SLING       1000g  Ease: 9  Hits: 7* Type: PROJECTILE  Loc: Shop
+ 45. 44 MAGNUM          400g  Ease: 5  Hits: 9* Type: PROJECTILE  Loc: Room
+ 46. UZI                800g  Ease: 5  Hits: 4* Type: PROJECTILE  Loc: Player
+ 47. STORM STAFF       3000g  Ease: 5  Hits: 6  Type: BASH/SLASH  Loc: Player
+ 48. JAVELIN            100g  Ease: 8  Hits: 6  Type: POLE        Loc: Player
+ 49. GOLDEN DAGGER     2500g  Ease: 5  Hits: 7  Type: POKE/JAB    Loc: Shop
+ 50. +2 SWORD          2000g  Ease: 7  Hits: 8  Type: BASH/SLASH  Loc: Player
+ 51. STORM PILUM       3000g  Ease: 8  Hits: 6  Type: POLE        Loc: Room
+ 52. STORM HAMMER      3000g  Ease: 6  Hits: 6  Type: BASH/SLASH  Loc: Player
+ 53. THORN CLUB         300g  Ease: 5  Hits: 7  Type: BASH/SLASH  Loc: Shop
+ 54. SWORD HELLRAZOR   2000g  Ease: 9  Hits: 9  Type: BASH/SLASH  Loc: Player
+ 55. STORM CROSSBOW    3000g  Ease: 8  Hits: 6* Type: PROJECTILE  Loc: Player
+ 56. DEATH AMULET      9000g  Ease: 5  Hits: 4  Type: PROXIMITY   Loc: Player
+ 57. WRAITH DAGGER     1000g  Ease: 5  Hits: 3  Type: PROXIMITY   Loc: Room
+ 58. LIGHT SABRE        100g  Ease: 5  Hits: 7  Type: ENERGY      Loc: Room
+ 59. HAND PHASER        300g  Ease: 7  Hits: 8  Type: ENERGY      Loc: Room
+ 60. PLASMA RIFLE       600g  Ease: 6  Hits: 9  Type: ENERGY      Loc: Room
+
+* Also gets bonus from Ammo
+[2J
+
+
+
+Spur Annex
+
+[]=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=-=[]
+
+        DURA-EUROPOS PRESENTS:
+
+          /)
+        _//                /
+      , /    __.  ____  __/
+      (/___ (_/|_/ / <_(_/_
+                  /)
+             ____//
+            (_) /__
+               />
+              </
+          ()
+          /\
+         /  )  _   , , __
+        /__/__/_)_(_/_/ (_
+             /
+            /
+
+          Copyright 1987 by
+     Greg Davis/Peripherals Plus
+
+      ENHANCED for the users of
+
+            DURA-EUROPOS
+
+[0m
+    (Support sub, #6: Spur Support)
+
+A Wizard greets you and begs you wait. Your status must be verified to pass..
+Last played on '03/05', Today is '03/06'
+
+Welcome BUG!
+
+The last Adventurer was ZORRO
+
+Current status:
+
+Room description: ON
+You are NOT poisoned.
+You are NOT diseased.
+Auto duel: OFF
+
+WEARING IRON ARMOR
+SMALL SHIELD IS READIED
+THE GODDESS PERSEPHONE await you!
+
+(Just a sec..)
+
+
+Entering the SPUR shoppe area
+
+
+[39:43] Lvl 3, Shoppe (?=Menu):INV
+
+Gold - In Hand:      362
+
+READIED- SMALL SHIELD, IN GOOD CONDITION (18)
+WORN- IRON ARMOR, IN POOR CONDITION (18)
+
+
+Items Carried:
+
+  1. - WOOD SHIELD
+
+Rations:
+
+  1. - MINERAL WATER
+  2. - BLUE PILL
+  3. - TEA
+  4. - CACTUS JUICE
+  5. - KELP
+  6. - LOAF OF BREAD
+  7. - MUSHROOMS
+
+Weapons:
+
+1) LONG SWORD
+
+Spells Known:
+
+  1. - TRANSPORT TO SHOPPE   : 80%
+
+Allies:
+
+Point guard: THE GODDESS PERSEPHONE (GOOD) Const=15 hp=14
+Flank guard: NONE
+Rear  guard: NONE
+
+Items carried by allies:
+
+No Items.
+
+[39:22] Lvl 3, Shoppe (?=Menu):W
+
+Wouldst thou be interested in [P]rotection or [W]eapondry? P
+Armor/Shields [B]uy, [R]epair? :R
+
+
+You are lead through a back door, to a large shed in back.
+Acrid smoke and clanging of metal greet you, as well as
+a huge metal smith who eyes you threw a yellow grin.
+
+[W]orn    - IRON ARMOR, IN POOR CONDITION (18)
+[R]eadied - SMALL SHIELD, IN GOOD CONDITION (18)
+[1]       - WOOD SHIELD, IN TERRIBLE CONDITION (0)
+
+'What kin eye fix fer ye?' (?=list):W
+
+'I will fix the IRON ARMOR for 22 gold'
+Ok? [Y]/n:
+
+The smithy grabs the IRON ARMOR and skuttles back into the smoke.
+Noises can soon be heard.
+BANG CLANG RATTLE WHEEZE(?) OOFF!
+
+Done!
+You now have       340 gold
+
+'What kin eye fix fer ye?' (?=list):
+
+[38:11] Lvl 3, Shoppe (?=Menu):E
+
+YOU HAVE ENTERED THE SHADOWED LAND!
+
+All around the land is covered in shadows. Dark, mysterious and forboding. You
+have come this far, there can be no turning back. There is noise and light
+coming from below you but you cannot see through the gloom.
+
+Ye may travel: North Down
+
+YOU SEE GOLD COINS
+[36m(Must READY weapon)[0m
+THE SHADOWED AREA +
+RETURN=?
+[38:03][27 hp] Cmd:GET
+
+GETTING GOLD COINS..
+
+
+(60 gp) You now have       400 in Gold.
+[36m(Must READY weapon)[0m
+THE SHADOWED AREA +
+RETURN=GET
+[37:54][27 hp] Cmd:READY
+
+1) LONG SWORD
+
+Ready which Weapon number? 1
+
+Weapon class: Hack/Slash/Bash.
+ [ BEST TARGETS ]: SWIFT, Small, Short, Light Armor
+Required dex: 9
+ Base damage: 6
+  Your skill: 3
+ Ease of use: 5
+Battle exp. : 3 [ GREEN ]
+
+LONG SWORD READIED.
+THE SHADOWED AREA +
+RETURN=READY
+[37:45][27 hp] Cmd:N
+
+You find yourself on a path that seems to wander aimlessly. You can see trees
+to your north. To your east it is hazy and unclear.
+
+Ye may travel: North East
+
+YOU SEE RARE COINS
+THE WANDERING PATH
+RETURN=N
+[37:38][27 hp] Cmd:GET
+
+GETTING RARE COINS..
+
+
+(120 gp) You now have       520 in Gold.
+THE WANDERING PATH
+RETURN=GET
+[37:33][27 hp] Cmd:E
+
+You are on a hill that slopes downward. Before you lay many such small rolling
+hills that act as stepping stones to the base of an ominous mountain shrouded
+in dark clouds.
+
+Ye may travel: East West
+
+YOU SEE STORM PILUM
+YOU SEE MELONS
+A SLOPING HILL
+RETURN=E
+[37:27][27 hp] Cmd:GET
+
+GETTING STORM PILUM..
+Got it..
+
+GETTING MELONS..
+Got 'em..
+A SLOPING HILL
+RETURN=GET
+[37:17][27 hp] Cmd:READY
+
+1) LONG SWORD
+2) STORM PILUM
+
+Ready which Weapon number? 2
+
+Weapon class: Pole/Ranged.
+ [ BEST TARGETS ]: MAN SIZED, Big, Short, Light Armor
+Required dex: 12
+
+
+
+A THUNDERING HOWL OF RAGE BLASTS FROM
+THE STORM PILUM! 'YOU ARE NOT MINE!!'
+
+A BOLT OF POWER BLASTS YOU BACKWARDS!
+YOU TAKE 10 DAMAGE!
+
+[36m(Must READY weapon)[0m
+A SLOPING HILL
+RETURN=READY
+[37:07][17 hp] Cmd:LOOK
+
+You are on a hill that slopes downward. Before you lay many such small rolling
+hills that act as stepping stones to the base of an ominous mountain shrouded
+in dark clouds.
+
+Ye may travel: East West
+[36m(Must READY weapon)[0m
+A SLOPING HILL
+RETURN=LOOK
+[36:44][17 hp] Cmd:W
+
+You find yourself on a path that seems to wander aimlessly. You can see trees
+to your north. To your east it is hazy and unclear.
+
+Ye may travel: North East
+
+[36m(Must READY weapon)[0m
+THE WANDERING PATH
+RETURN=W
+[36:38][17 hp] Cmd:N
+
+The path forks to the east and the west. You can still make out the trees in
+the distance.
+
+Ye may travel: South East West
+
+[36m(Must READY weapon)[0m
+THE WANDERING PATH
+RETURN=N
+[36:31][17 hp] Cmd:READY
+
+1) LONG SWORD
+2) STORM PILUM
+
+Ready which Weapon number? 1
+
+Weapon class: Hack/Slash/Bash.
+ [ BEST TARGETS ]: SWIFT, Small, Short, Light Armor
+Required dex: 9
+
+
+
+THE STORM WEAPON YOU IGNORED,
+HOWLS IN JEALOUS RAGE!!
+
+A BOLT OF POWER BLASTS YOU BACKWARDS!
+YOU TAKE 3 DAMAGE!
+
+
+MYSTERIOUS WEAPON DISTINGRATES!
+
+(No weapon readied..)
+[36m(Must READY weapon)[0m
+THE WANDERING PATH
+RETURN=READY
+[36:19][14 hp] Cmd:READY
+
+1) LONG SWORD
+
+Ready which Weapon number? 1
+
+Weapon class: Hack/Slash/Bash.
+ [ BEST TARGETS ]: SWIFT, Small, Short, Light Armor
+Required dex: 9
+ Base damage: 6
+  Your skill: 3
+ Ease of use: 5
+Battle exp. : 3 [ GREEN ]
+
+LONG SWORD READIED.
+THE WANDERING PATH
+RETURN=READY
+[36:08][14 hp] Cmd:EAT
+
+  1. - MINERAL WATER
+  2. - BLUE PILL
+  3. - TEA
+  4. - CACTUS JUICE
+  5. - KELP
+  6. - LOAF OF BREAD
+  7. - MUSHROOMS
+  8. - MELONS
+
+Eat which number Item? 8
+
+Your appetite is satisfied.
+(You feel a bit more healthy)
+THE WANDERING PATH
+RETURN=EAT
+[35:59][16 hp] Cmd:
+
+  1. - MINERAL WATER
+  2. - BLUE PILL
+  3. - TEA
+  4. - CACTUS JUICE
+  5. - KELP
+  6. - LOAF OF BREAD
+  7. - MUSHROOMS
+
+Eat which number Item? 7
+
+Your appetite is satisfied.
+(You feel a bit more healthy)
+THE WANDERING PATH
+RETURN=EAT
+[35:51][17 hp] Cmd:N
+
+CAN'T GO THERE!
+THE WANDERING PATH
+RETURN=N
+[35:47][17 hp] Cmd:E
+
+It is slippery here. The loose rock and shale make for very precarious footing.
+For every step forward you slide back some.
+
+Ye may travel: North East
+
+THE SHALE
+RETURN=E
+[35:41][17 hp] Cmd:N
+
+There is a worn path here on the side of the mountain. It branches in two
+directions. Which branch to take?
+
+Ye may travel: East West
+
+YOU SEE SPRING WATER
+THE BRANCH
+RETURN=N
+[35:35][17 hp] Cmd:GET
+
+GETTING SPRING WATER..
+Got it..
+THE BRANCH
+RETURN=GET
+[35:30][17 hp] Cmd:DRINK
+
+  1. - MINERAL WATER
+  2. - BLUE PILL
+  3. - TEA
+  4. - CACTUS JUICE
+  5. - KELP
+  6. - LOAF OF BREAD
+  7. - SPRING WATER
+
+Drink which number Item? 1
+
+You feel refreshed.
+
+...burp...
+(You feel a bit more healthy)
+THE BRANCH
+RETURN=DRINK
+[35:21][20 hp] Cmd:E
+
+This narrow ledge goes around and out of sight up the mountain. There is no
+room to turn around.
+
+Ye may travel: East
+
+
+YOU SEE A MAN SIZED HOBGOBLIN!
+(WHO IS QUITE CHARMED..)
+'GOSH, ER... HI BUG!'
+
+THE HOBGOBLIN STANDS AROUND..
+YOU SEE LEATHER SLING
+THE NARROW LEDGE
+RETURN=E
+[35:12][20 hp] Cmd:X
+
+EXAMINING LEATHER SLING..
+
+Looks ok to me..
+
+EXAMINING THE HOBGOBLIN..
+
+THE HOBGOBLIN DOESN'T LIKE BEING EXAMINED!
+
+THE HOBGOBLIN STANDS AROUND..
+YOU SEE LEATHER SLING
+THE NARROW LEDGE
+RETURN=X
+[35:02][20 hp] Cmd:GET
+
+GETTING LEATHER SLING..
+Got it..
+
+GETTING THE HOBGOBLIN..
+THE HOBGOBLIN WON'T LET YOU!
+
+THE HOBGOBLIN STANDS AROUND..
+THE NARROW LEDGE
+RETURN=GET
+[34:55][20 hp] Cmd:E
+
+[36mTHE HOBGOBLIN WANTS TO JOIN YOU![0m OK? [Y]/n :
+
+THE HOBGOBLIN beams with pride, and joins your party.
+
+The path along the ledge steepens here. You can see far down onto the valley
+floor. A dense forest is far to the east past the rolling hills at the base of
+the mountain.
+
+Ye may travel: North West
+
+THE LEDGE
+RETURN=E
+[34:42][20 hp] Cmd:INV
+
+Gold - In Hand:      520
+
+READIED- SMALL SHIELD, IN GOOD CONDITION (18)
+WORN- IRON ARMOR, IN GOOD CONDITION (40)
+
+
+Items Carried:
+
+  1. - WOOD SHIELD
+
+Rations:
+
+  1. - BLUE PILL
+  2. - TEA
+  3. - CACTUS JUICE
+  4. - KELP
+  5. - LOAF OF BREAD
+  6. - SPRING WATER
+
+Weapons:
+
+1) LONG SWORD
+2) LEATHER SLING
+
+Spells Known:
+
+  1. - TRANSPORT TO SHOPPE   : 80%
+
+Allies:
+
+Point guard: THE GODDESS PERSEPHONE[36m (GOOD)[0m Const=15 hp=14
+Flank guard: THE HOBGOBLIN Const=15 hp=20
+Rear  guard: NONE
+
+Items carried by allies:
+
+No Items.
+
+THE LEDGE
+RETURN=INV
+[34:18][20 hp] Cmd:N
+
+Here the path splits again. One way continues up, the other appears to lead
+down to the other side of the mountain.
+
+Ye may travel: South East West
+
+THE MOUNTAIN PATH
+RETURN=N
+[34:13][20 hp] Cmd:E
+
+The path leads down to the base of the mountain. It is steep but not
+un-managable.
+
+Ye may travel: South West
+
+YOU SEE MAP FOUR
+THE DOWNWARD SLOPE
+RETURN=E
+[34:06][20 hp] Cmd:GET
+
+GETTING MAP FOUR..
+
+Got it..
+THE DOWNWARD SLOPE
+RETURN=GET
+[34:00][20 hp] Cmd:READ
+
+These are your books:
+
+  2. - MAP FOUR
+
+Read which Book? 2
+
+MAP FOUR reads:
+
+Level 4 map
+
+1=shop, 25=IT, 43=Outside Dura, 48=UP
+29=barn, 30=garden, 32=graveyard
+17=Persian deserter, 7=mineral springs
+--------------------------------------
+                    |
+  1--2--3--4--5--6--7
+     |     |
+  8--9    10 7-11 store
+     |
+ 15-16 17          21 tavern
+  |     |           |
+-22-23-24<25-26 27-28-
+  |           |  |
+ 29-30    32-33-34
+     |
+    37-38 39-40-41-42
+        |  |  |     |
+-43    45-46-47 48-49-
+              |     |
+
+
+The book vanishes in a cloud of smoke!
+
+(You feel wiser..)
+THE DOWNWARD SLOPE
+RETURN=READ
+[33:49][20 hp] Cmd:S
+
+You are near the base of the mountain. The mountain is ominous above, and
+welcome easy rolling hills are below.
+
+Ye may travel: North South
+
+THE SIDE OF MOUNTAIN
+RETURN=S
+[33:42][20 hp] Cmd:S
+
+You are at the base of the dark mountain. Hills roll off in all directions.
+
+Ye may travel: South East
+
+YOU SEE SILVER CUP
+YOU SEE POTATOES
+THE BASE OF MOUNTAIN
+RETURN=S
+[33:34][20 hp] Cmd:GET
+
+GETTING SILVER CUP..
+
+
+(24 gp) You now have       544 in Gold.
+
+GETTING POTATOES..
+Got 'em..
+THE BASE OF MOUNTAIN
+RETURN=GET
+[33:28][20 hp] Cmd:E
+
+Green, grassy hills are all around you. The air is fresh and clear. Ominous
+clouds obscure the top of the mountain behind you and all the land is covered
+in shadows.
+
+Ye may travel: South
+
+
+YOU SURPRISED A BIG YELLOW MOLD!
+THE ROLLING HILLS
+RETURN=E
+[33:20][20 hp] Cmd:S
+
+THE YELLOW MOLD LOOKS AROUND UNEASILY.
+
+To the northwest you see a dark mountain. All around you are green rolling
+hills.
+
+Ye may travel: North South East West Up
+
+
+[36mSOMETHING EVIL, STALKS...[0m
+YOU SEE PANDORAS BOX
+YOU SEE SMALL FIREBALL
+THE ROLLING HILLS
+RETURN=S
+[33:11][20 hp] Cmd:X
+
+EXAMINING PANDORAS BOX..
+
+Your examination fails...
+
+EXAMINING SMALL FIREBALL..
+
+Your examination fails...
+YOU SEE PANDORAS BOX
+YOU SEE SMALL FIREBALL
+THE ROLLING HILLS
+RETURN=X
+[33:04][20 hp] Cmd:X
+
+EXAMINING PANDORAS BOX..
+
+Your examination fails...
+
+EXAMINING SMALL FIREBALL..
+
+It looks pretty ordinary..
+YOU SEE PANDORAS BOX
+YOU SEE SMALL FIREBALL
+THE ROLLING HILLS
+RETURN=X
+[32:59][20 hp] Cmd:E
+
+Green rolling hills surround you. You see a dense forest in the distance.
+
+Ye may travel: East West
+
+THE ROLLING HILLS
+RETURN=E
+[32:53][20 hp] Cmd:
+
+You are near the forest. These rolling hills are beginning to get to you.
+
+Ye may travel: North South East
+
+YOU SEE LEATHER ARMOR
+YOU SEE 44 MAGNUM
+THE ROLLING HILLS
+RETURN=E
+[32:47][20 hp] Cmd:GET
+
+GETTING 44 MAGNUM..
+Got it..
+
+GETTING LEATHER ARMOR..
+
+Got it..
+THE ROLLING HILLS
+RETURN=GET
+[32:39][20 hp] Cmd:READY
+
+1) LONG SWORD
+2) LEATHER SLING
+3) 44 MAGNUM
+
+Ready which Weapon number? 3
+
+Weapon class: Projectile (+10% surprise).
+ [ BEST TARGETS ]: HUGE, Large
+Required dex: 9
+ Base damage: 9
+  Your skill: 2
+ Ease of use: 5
+(Get ammunition at O)llys in the Shop)
+Battle exp. : 0 [ GREEN ]
+
+44 MAGNUM READIED.
+[36m(Must USE ammo)[0m
+THE ROLLING HILLS
+RETURN=READY
+[32:28][20 hp][0] Cmd:READY
+
+1) LONG SWORD
+2) LEATHER SLING
+3) 44 MAGNUM
+
+Ready which Weapon number? 1
+
+Weapon class: Hack/Slash/Bash.
+ [ BEST TARGETS ]: SWIFT, Small, Short, Light Armor
+Required dex: 9
+ Base damage: 6
+  Your skill: 3
+ Ease of use: 5
+Battle exp. : 3 [ GREEN ]
+
+LONG SWORD READIED.
+THE ROLLING HILLS
+RETURN=READY
+[32:14][20 hp] Cmd:S
+
+You are at the edge of a dense forest. The air is as thick as the forest is
+dense. There is an opening here and many have passed before you.
+
+Ye may travel: South East
+
+THE EDGE OF FOREST
+RETURN=S
+[32:09][20 hp] Cmd:S
+
+A dense forest surrounds you. Dim light streams through the thick roof of
+foliage. Dark shadows are cast everywhere.
+
+Ye may travel: North South East
+
+
+'THERE SEEMS TO BE A LIFE FORCE TO THE FRONT,' MENTIONS THE GODDESS PERSEPHONE
+
+YOU SEE A MAN SIZED THOUL!
+
+THE THOUL ATTACKS THE GODDESS PERSEPHONE - MISSES!
+YOU SEE COMMUNICATOR
+THE DENSE FOREST
+RETURN=S
+[31:59][20 hp] Cmd:ATT
+
+ATTACK WITH LONG SWORD
+
+SLASH! - THE THOUL HIT!
+
+
+THE THOUL TAKES 2 DAMAGE.
+
+THE GODDESS PERSEPHONE LOOKS ANNOYED, AND FLICKS HER FINGER..[ZAP][HIT!]
+
+THE THOUL TAKES 36 DAMAGE.
+
+THE THOUL HAS BEEN KILLED!
+
+YOU FIND 114 GOLD PIECES ON THE THOUL!
+
+
+In your  concentration on  the  battle, you fail to see a figure  watching
+the fight with  interest. But  now, the person comes foward, showing no
+hostile action...
+
+'I am STEELY DAN, I have been following you for some time
+now, and if you would have me, I would like to join you, ok?' :Y
+STEELY DAN bows, 'Thank you! May our journey be pleasant..'
+YOU SEE COMMUNICATOR
+
+YOU SEE A DEAD THOUL
+THE DENSE FOREST
+RETURN=ATT
+[31:33][22 hp] Cmd:GET
+
+GETTING COMMUNICATOR..
+
+Got it..
+
+GETTING THOUL..
+THE THOUL IS TOO MESSED UP TO GET!
+
+YOU SEE A DEAD THOUL
+THE DENSE FOREST
+RETURN=GET
+[31:26][22 hp] Cmd:X
+
+EXAMINING THOUL..
+
+Your examination fails...
+
+YOU SEE A DEAD THOUL
+THE DENSE FOREST
+RETURN=X
+[31:22][22 hp] Cmd:
+
+EXAMINING THOUL..
+
+YOUR SEARCH REVEALS NOTHING ON THE THOUL
+
+YOU SEE A DEAD THOUL
+THE DENSE FOREST
+RETURN=X
+[31:18][22 hp] Cmd:USE   CAST
+
+  1. - TRANSPORT TO SHOPPE   : 80%
+
+Cast which spell number? (?=list):1
+
+Spell successful!
+
+Entering the SPUR shoppe area
+
+
+[31:05] Lvl 3, Shoppe (?=Menu):?
+
+[33m                       Ctrl-S Stop/Start  Spacebar to Exit[0m
+
+
+*^^^^^^^^^*                 *^^^^^^^^^*
+[(^^^^^^^)]  ___  ___  ___  [(^^^^^^^)]
+ |   o   |___| |__| |__| |___|   o   |
+ |                                   |
+ |  The Land of SPUR Commands Menu   |
+ |:::::::::::::::::::::::::::::::::::|
+ |     W: Ye Olde Armory             |
+ |     B: Ye Olde Banker             |
+ |     V: Visit the Wizard           |
+ |     G: General Stores             |
+ |     S: Thy Status                 |
+ |     I: Thy Inventory              |
+ |     E: Enter The Land of SPUR     |
+ |     P: Pawn Shoppe                |
+ |     J: Join (change) Clan         |
+ |     O: Olly's Ammo & Traps Shop   |
+ |SCHOOL: goto school                |
+ |ELEVATOR: goto elevator            |
+ |  LOCKER: goto your locker.        |
+ |:::::::::::::::::::::::::::::::::::|
+ | H:Help w/SPUR    L:List Opponents |
+ | A:Adventure Log  C:Conquerors     |
+ |:::::::::::::::::::::::::::::::::::|
+ | Q:Quit to BBS    T:To Oblivion    |
+ [][][][][][][][][]*[][][][][][][][][]
+
+
+[30:54] Lvl 3, Shoppe (?=Menu):O
+
+Olly greets you, 'Welcome, BUG!! Choose from this
+fine list of ammunition and stuff.'
+[]=-=-=-=-=-=-=-=[OLLY]=-=-=-=-=-=-=-=[]
+
+  # Name      Rnds Dmg Weapon    Cost
+
+ 98:BOLTS       04 2 CROSSBOW      - 20
+ 99:STEELIES    10 3 SLING         - 40
+100:ARROWS      10 1 BOW           - 10
+101:DARTS       20 1 BLOWGUN       - 10
+102:PSN DARTS   10 5 BLOWGUN       - 40
+103:BALLS       10 2 MUSKET        - 10
+104:357 AMMO    06 4 357 MAG       - 10
+105:44 AMMO     06 6 44 MAG        - 20
+106:GAS         20 6 FLAME THROWER - 30
+107:45 MM       40 6 MACHINE GUN   - 50
+108:9 MM        50 3 UZI           - 40
+109:SHELL       02 9 CANNON        - 10
+110:STONES      10 1 SLING         - 10
+111:A.P. ARROWS 06 2 BOW           - 30
+
+            [ AMMO CARRIERS ]
+
+147:CARTRIDGE BOX     MUSKET       - 50
+148:357 BANDOLEER     357 MAG      - 50
+149:44 BANDOLEER      44 MAG       - 50
+150:SHELL CAISSON     CANNON       - 80
+
+            [ B)ooby traps ]
+
+Your Choice (?=List): 105
+
+You choose 44 AMMO for 20 gold? Y
+
+Done!
+
+Your Choice (?=List): 149
+
+You choose 44 BANDOLEER for 50 gold? Y
+
+Done!
+
+(Appropriate ammo will automatically be placed in the 44 BANDOLEER
+when it is purchased. Buying more than 1 44 BANDOLEER will do no good)
+
+Your Choice (?=List): 105
+
+You choose 44 AMMO for 20 gold? Y
+
+Done!
+Placed in the bandoleer. (6 refills in it).
+
+Your Choice (?=List): 105
+
+You choose 44 AMMO for 20 gold? Y
+
+Done!
+Placed in the bandoleer. (7 refills in it).
+
+Your Choice (?=List): 
+
+[29:43] Lvl 3, Shoppe (?=Menu):V
+
+
+You enter the cave of the Wizard, a
+dis-embodied voice asks.....
+
+"Are you here to learn a spell"? Y
+
+
+A scroll appears before you, and the
+voice pronounces...
+
+
+ 1 ESP - 100 Gold
+ 2 WHEATIES - 150 Gold
+ 3 HAPPY FEET - 100 Gold
+ 4 KILL - 140 Gold
+ 5 ELEVATOR UP - 800 Gold
+ 6 KNOWLEDGE - 75 Gold
+ 7 DESTROYER - 250 Gold
+ 8 SLAUGHTER - 100 Gold
+ 9 DEPOSIT - 50 Gold
+10 WELL-BEING - 170 Gold
+11 BALANCE - 80 Gold
+12 ELEVATOR DOWN -1000 Gold
+13 ENDURANCE - 140 Gold
+14 TRANSPORT TO SHOPPE - 250 Gold
+15 SUMMONS SPUR -2000 Gold
+16 DISPELL POISON * - 100 Gold
+17 APPLE A DAY @ - 100 Gold
+18 DRUID HEALTH - 200 Gold
+19 WIZARD'S GLOW - 200 Gold
+20 BOOTS OF SPEED -2000 Gold
+21 ENCHANT SHIELD - 250 Gold
+
+Choose carefully your spells to learn.
+
+
+Learn which spell? (?=List): 14
+
+You have chosen TRANSPORT TO SHOPPE for 250 gold
+
+Is this correct? Y
+
+Teaching spell............
+Spell taught, use it wisely, for it may only be used ONCE!
+
+Learn which spell? (?=List): 
+
+[29:21] Lvl 3, Shoppe (?=Menu):G
+
+The Stores Master greets you and says:
+
+"Welcome, Adventurer!! Have you come to buy goods for your journey through
+ the Land?" Y
+
+Good!! What will you have today?
+
+  1. TEA  -  15 Gold
+  2. CACTUS JUICE  -  25 Gold
+  3. KELP  -  12 Gold
+  4. MINERAL WATER  -  25 Gold
+  5. LOAF OF BREAD  -  30 Gold
+  6. JAR OF HONEY  -  50 Gold
+  7. MUSHROOMS  -  30 Gold
+  8. EAGLE EGGS  -  40 Gold
+  9. VITAMINS  -  75 Gold
+ 10. CANDY BAR  -  15 Gold
+
+Your Choice (?=List): 10
+
+You choose CANDY BAR for 15 gold? Y
+
+Done!
+
+Your Choice (?=List): 9
+
+You choose VITAMINS for 75 gold? Y
+
+Done!
+
+Your Choice (?=List): 8
+
+You choose EAGLE EGGS for 40 gold? Y
+
+Done!
+
+You have no room in your pack!
+
+[29:00] Lvl 3, Shoppe (?=Menu):E
+
+YOU HAVE ENTERED THE SHADOWED LAND!
+
+All around the land is covered in shadows. Dark, mysterious and forboding. You
+have come this far, there can be no turning back. There is noise and light
+coming from below you but you cannot see through the gloom.
+
+Ye may travel: North Down
+
+THE SHADOWED AREA +
+RETURN=CAST
+[28:51][22 hp] Cmd:USE
+
+  1. - WOOD SHIELD
+  2. - LEATHER ARMOR
+  3. - COMMUNICATOR
+  4. - 44 AMMO
+  5. - 44 BANDOLEER
+
+Use which number Item? 3
+
+A STRANGE BUZZING COMES FROM THE COMMUNICATOR!!
+A RED LIGHT STARTS FLASHING URGENTLY!
+
+
+
+
+YOU HAVE ENTERED DARK SIDE!
+
+You are in the Merchant Annex.  In the distance you can see the lower level to
+the shoppe area.
+
+Ye may travel: East Down
+
+THE MERCHANT ANNEX +
+RETURN=USE
+[27:59][22 hp] Cmd:INV
+
+Gold - In Hand:      168
+
+READIED- SMALL SHIELD, IN GOOD CONDITION (18)
+WORN- IRON ARMOR, IN GOOD CONDITION (40)
+
+
+Items Carried:
+
+  1. - WOOD SHIELD
+  2. - LEATHER ARMOR
+  3. - 44 AMMO
+  4. - 44 BANDOLEER
+  5. - BROKEN COMMUNICATOR
+
+Rations:
+
+  1. - BLUE PILL
+  2. - TEA
+  3. - CACTUS JUICE
+  4. - KELP
+  5. - LOAF OF BREAD
+  6. - SPRING WATER
+  7. - POTATOES
+  8. - CANDY BAR
+  9. - VITAMINS
+ 10. - EAGLE EGGS
+
+Weapons:
+
+1) LONG SWORD
+2) LEATHER SLING
+3) 44 MAGNUM
+
+Spells Known:
+
+  1. - TRANSPORT TO SHOPPE   : 80%
+
+Allies:
+
+Point guard: THE GODDESS PERSEPHONE[36m (GOOD)[0m Const=15 hp=14
+Flank guard: THE HOBGOBLIN Const=15 hp=20
+Rear  guard: STEELY DAN Const=15 hp=11
+
+Items carried by allies:
+
+No Items.
+
+THE MERCHANT ANNEX +
+RETURN=INV
+[27:27][22 hp] Cmd:DROP
+
+Drop? I)tem, W)eapon R)ation :I
+
+You are carrying:
+
+  1. - WOOD SHIELD
+  2. - LEATHER ARMOR
+  3. - 44 AMMO
+  4. - 44 BANDOLEER
+  5. - BROKEN COMMUNICATOR
+
+
+Drop which item? (?=list):5
+
+Dropped...
+
+--------------------------------------------------
+---- rewind. Lets try that communicator again ----
+--------------------------------------------------
+
+ATTACK WITH 44 MAGNUM
+
+BLAM!! - THE THOUL HIT!
+
+
+THE THOUL TAKES 9 DAMAGE.
+
+THE HOBGOBLIN ATTACKS THE THOUL - MISSED
+
+THE THOUL ATTACKS BUG - HIT!
+
+[GOT PAST YOUR SHIELD]
+[MISSED YOUR ARMOR]
+
+YOU TAKE 9 DAMAGE.
+(YOU FEEL A BIT LESS DEXTEROUS)
+YOU SEE COMMUNICATOR
+THE DENSE FOREST
+RETURN=ATT
+[38:45][21 hp][5] Cmd:
+
+ATTACK WITH 44 MAGNUM
+
+BLAM!! - THE THOUL HIT!
+
+
+THE THOUL TAKES 6 DAMAGE.
+
+STEELY DAN ATTACKS THE THOUL - MISSED
+
+THE THOUL ATTACKS STEELY DAN - MISSES!
+YOU SEE COMMUNICATOR
+THE DENSE FOREST
+RETURN=ATT
+[38:38][21 hp][4] Cmd:
+
+ATTACK WITH 44 MAGNUM
+
+(EASE OF USE HELPS!)
+
+BLAM!! - THE THOUL HIT!
+
+
+THE THOUL TAKES 6 DAMAGE.
+
+THE THOUL HAS BEEN KILLED!
+
+YOU FIND 134 GOLD PIECES ON THE THOUL!
+YOU SEE COMMUNICATOR
+
+YOU SEE A DEAD THOUL
+THE DENSE FOREST
+RETURN=ATT
+[38:31][25 hp][3] Cmd:EA  GET
+
+GETTING COMMUNICATOR..
+
+Got it..
+
+GETTING THOUL..
+THE THOUL IS TOO MESSED UP TO GET!
+
+YOU SEE A DEAD THOUL
+THE DENSE FOREST
+RETURN=GET
+[38:21][25 hp][3] Cmd:USE
+
+  1. - WOOD SHIELD
+  2. - LEATHER ARMOR
+  3. - 44 BANDOLEER
+  4. - COMMUNICATOR
+
+Use which number Item? 4
+
+The device humms strangly!
+Still want to use it? y/[N]:Y
+
+A tiny voice comes from the device!
+
+'STANDBY TO BEAM ABOARD..'
+
+The area fades from view!!
+
+To be replaced by metal walls!
+
+YOU HAVE ENTERED A BRAVE NEW WORLD!
+
+You are in a large corridor. The ship's Stores area is visible thru a
+manhole below you...
+
+Ye may travel: North South Down
+
+A CORRIDOR +
+RETURN=USE
+[37:27][25 hp][3] Cmd:D
+
+Entering the ships stores area..
+
+
+[36:34] SHIPS STORES (?=Menu):?
+
+                       Ctrl-S Stop/Start  Spacebar to Exit
+
+ [][][][][][][][][]*[][][][][][][][][]
+ |  The Land of SPUR: Ships Stores   |
+ |:::::::::::::::::::::::::::::::::::|
+ |      W: Weapons Dispensor         |
+ |      B: Ships Bankn               |
+ |      G: General Stores            |
+ |      S: Status                    |
+ |      I: Inventory                 |
+ |      E: Enter The Land of SPUR    |
+ |     TR: goto Transporter          |
+ |SALVAGE: Goto Salvage Bay          |
+ |:::::::::::::::::::::::::::::::::::|
+ | H:Help w/SPUR    L:List Opponents |
+ | A:Adventure Log  C:Conquerors     |
+ |:::::::::::::::::::::::::::::::::::|
+ | Q:Quit to BBS    T:To Oblivion    |
+ [][][][][][][][][]*[][][][][][][][][]
+
+
+[36:22] SHIPS STORES (?=Menu):W
+
+
+Entering Ships armory:
+[P]rotection, [W]eapondry, [A]mmo? P
+
+You go to the armor rack..
+112. ARMOR POWER PAK  -  100 Gold
+113. BATTLE ARMOR  -  700 Gold
+114. BATTLE SHIELD  -  700 Gold
+115. POWER ARMOR  -  800 Gold
+116. LAZER SHIELD  -  800 Gold
+117. SHIELD POWER PAK  -  100 Gold
+
+Your Choice (?=List): 
+
+
+Entering Ships armory:
+[P]rotection, [W]eapondry, [A]mmo? W
+
+You look at the weapons rack, it is mostly empty..
+
+Your Choice (?=List): ?
+
+The weapons here are:
+
+58. LIGHT SABRE -  100 Gold
+59. HAND PHASER -  300 Gold
+60. PLASMA RIFLE -  600 Gold
+
+Your Choice (?=List): 60
+
+You choose the PLASMA RIFLE for 600 gold,
+Do you wish to try it out first? Y
+
+You try out the PLASMA RIFLE
+
+Weapon class: 
+Required dex: 10
+ Base damage: 9
+  Your skill: 2
+ Ease of use: 4
+
+You hand the PLASMA RIFLE back to the robot..
+
+Buy it? Y
+
+YOU INSERT GOLD IN THE SLOT
+
+Buy ammo in A)mmo locker...
+
+You now have      4534 in gold.
+
+Your Choice (?=List): 
+
+
+Entering Ships armory:
+[P]rotection, [W]eapondry, [A]mmo? A
+
+You enter the ship's ammo locker..
+
+  # Name      Rnds Dmg Weapon    Cost
+ []=-=-=-=-=-=[STARBURST]=-=-=-=-=-=[]
+118:SABREPOWER  20 1 LIGHT SABRE   - 10
+119:PHASER PAK  20 3 HAND PHASER   - 20
+120:PLASMA PWR  10 8 PLASMA RIFLE  - 30
+121:PLASMA PAK  25 8 PLASMA RIFLE  - 80
+
+Your Choice (?=List): 119   121
+
+You choose PLASMA PAK for 160 gold? Y
+
+You insert gold in the slot.
+
+Your Choice (?=List): 120
+
+You choose PLASMA PWR for 60 gold? Y
+
+You insert gold in the slot.
+
+Your Choice (?=List): 
+
+
+Entering Ships armory:
+[P]rotection, [W]eapondry, [A]mmo? 
+
+You leave the armory!
+
+[34:13] SHIPS STORES (?=Menu):E
+
+YOU HAVE ENTERED A BRAVE NEW WORLD!
+
+You are in a large corridor. The ship's Stores area is visible thru a
+manhole below you...
+
+Ye may travel: North South Down
+
+(Must READY weapon)
+A CORRIDOR +
+RETURN=D
+[34:06][25 hp] Cmd:READY
+
+1) LONG SWORD
+2) LEATHER SLING
+3) 44 MAGNUM
+4) PLASMA RIFLE
+
+Ready which Weapon number? 4
+
+Weapon class: Energy weapon!
+ [ BEST TARGETS ]: HUGE, Large, Light Armor
+Required dex: 10
+ Base damage: 9
+  Your skill: 2
+ Ease of use: 4
+(10% chance of secondary heat damage)
+Battle exp. : 0 [ GREEN ]
+
+PLASMA RIFLE READIED.
+(Not energized)
+A CORRIDOR +
+RETURN=READY
+[33:54][25 hp][0] Cmd:USE
+
+  1. - WOOD SHIELD
+  2. - LEATHER ARMOR
+  3. - 44 BANDOLEER
+  4. - COMMUNICATOR
+  5. - PLASMA PAK
+  6. - PLASMA PWR
+
+Use which number Item? 5
+
+25 ROUNDS NOW READY: +8 DAMAGE
+A CORRIDOR +
+RETURN=USE
+[33:41][25 hp][25] Cmd:N
+
+You are in a north/south corridor.
+
+Ye may travel: North South
+
+A CORRIDOR
+RETURN=N
+[33:35][25 hp][25] Cmd:N
+
+The corridor branches 4 ways here. There is a doorway to the north.
+
+Ye may travel: North South East West
+
+A CORRIDOR
+RETURN=N
+[33:30][25 hp][25] Cmd:N
+
+You stand at the entrance to the ships bridge. You are dazzled by the immense
+display of lights. Ships security might frown on your presense...
+
+Ye may travel: North South East West
+
+
+THE GUARD DROID READIES IT'S ENERGY WEAPON!
+
+(Too bad you didn't USE a LAZER SHIELD)
+
+'THERE SEEMS TO BE A LIFE FORCE TO THE FRONT,' MENTIONS THE GODDESS PERSEPHONE
+
+YOU SEE A MAN SIZED GUARD DROID!
+
+MISSILE: FIRST STRIKE!
+
+THE BRIDGE
+RETURN=N
+[33:18][25 hp][25] Cmd:ATT
+
+ATTACK WITH PLASMA RIFLE
+
+SIZZLE - THE GUARD DROID HIT! [Light armor]
+THE GUARD DROID TAKES 9 DAMAGE.
+
+THE GODDESS PERSEPHONE MEDITATES..
+
+THE GUARD DROID ATTACKS BUG - HIT!
+SHIELD BLOCKS 3 HITS (18%)
+ARMOR BLOCKS 3 HITS! (40%)
+THE BRIDGE
+RETURN=ATT
+[33:11][25 hp][24] Cmd:
+
+ATTACK WITH PLASMA RIFLE
+
+SIZZLE - THE GUARD DROID HIT! [Light armor]
+THE GUARD DROID TAKES 8 DAMAGE.
+
+THE GUARD DROID IS NO LONGER FUNCTIONAL!
+
+THE GUARD DROID TWITCHES STRANGLY!
+
+No salvagable parts
+
+The power pak on THE GUARD DROID was destroyed..
+
+THE HOBGOBLIN LEANS UP AGAINST THE WALL, WAITING..
+
+YOU SEE A WRECKED GUARD DROID
+THE BRIDGE
+RETURN=ATT
+[33:00][25 hp][23] Cmd:X
+
+EXAMINING GUARD DROID..
+
+IT IS A TWISTED WRECK!
+
+YOU SEE A WRECKED GUARD DROID
+THE BRIDGE
+RETURN=X
+[32:53][25 hp][23] Cmd:N
+
+This is the center of The Bridge. A very imposing swivel chair sits on top of a
+raised platform. It is lavishly covered in red leather. A gold embossed sign on
+the back says simply, 'Captain'.
+  There is a very decayed corps in the chair! A book still in it's lap....
+
+Ye may travel: North South East West
+
+YOU SEE SHIPS LOG
+THE BRIDGE
+RETURN=N
+[32:45][25 hp][23] Cmd:GET
+
+GETTING SHIPS LOG..
+
+Got it..
+THE BRIDGE
+RETURN=GET
+[32:37][25 hp][23] Cmd:READ
+
+These are your books:
+
+  6. - SHIPS LOG
+
+Read which Book? 6
+
+SHIPS LOG reads:
+
+Stardate: 2163.5
+
+The end is near. The ships computer has baffled even our science officer, and
+thwarted all attempts to regain control of the ship. I fear that we in the
+barricaded Bridge are the only surviving humans left on board. I do not count
+the radiated humans under mind-control of the computer among our company.
+  Let it be known that I, Captian Uzaris, Commander of the United Federation
+Starship Starburst, do hearby award commendations to the entire crew. Let it be
+so recorded, and their families rewarded accordingly.
+  I must end now, they are reporting sounds of heavy Maulers approaching the
+door of the Bridge. We must all take part in the final defense.....
+
+                                       Captain Uzaris
+                                       UFS Starburst, Commanding.
+
+The book vanishes in a cloud of smoke!
+
+(You feel wiser..)
+THE BRIDGE
+RETURN=READ
+[31:17][25 hp][23] Cmd:X
+
+This area is empty..
+THE BRIDGE
+RETURN=X
+[31:13][25 hp][23] Cmd:N
+
+The only thing here, is one gigantic screen covering the bulkhead. On the
+screen, there is a large blue globe hanging against a black backdrop. Swirling
+white pattarns cover most of the globe. For some reason, you feel homesick..
+
+Ye may travel: South East West
+
+THE BRIDGE
+RETURN=N
+[31:06][25 hp][23] Cmd:X
+
+This area is empty..
+THE BRIDGE
+RETURN=X
+[31:01][25 hp][23] Cmd:W
+
+More and yet more little lights and buzzers. The buzzers are making a lot of
+noise. The back of the chair in front of you says, 'Damage Control Officer'.
+
+Ye may travel: South East
+
+THE BRIDGE
+RETURN=W
+[30:54][25 hp][23] Cmd:X
+
+This area is empty..
+THE BRIDGE
+RETURN=X
+[30:49][25 hp][23] Cmd:S
+
+Many, many little screens showing different parts of the ship are on the wall
+here. Some of them don't seem to be working anymore. The sign on the back of
+the chair says, 'Security Officer'.
+
+Ye may travel: North South East
+
+THE BRIDGE
+RETURN=S
+[30:41][25 hp][23] Cmd:X
+
+This area is empty..
+THE BRIDGE
+RETURN=X
+[30:37][25 hp][23] Cmd:S
+
+There seem to be a lot of red lights flashing on and off on the panal in front
+of a chair that says, 'Engineering Officer'.
+
+Ye may travel: North East
+
+THE BRIDGE
+RETURN=S
+[30:32][25 hp][23] Cmd:X
+
+This area is empty..
+THE BRIDGE
+RETURN=X
+[30:28][25 hp][23] Cmd:E
+
+You stand at the entrance to the ships bridge. You are dazzled by the immense
+display of lights. Ships security might frown on your presense...
+
+Ye may travel: North South East West
+
+
+THE GUARD DROID READIES IT'S ENERGY WEAPON!
+
+(Too bad you didn't USE a LAZER SHIELD)
+
+THE HOBGOBLIN SHOUTS, 'ON THE FLANK!'
+
+YOU SEE A MAN SIZED GUARD DROID!
+
+MISSILE: FIRST STRIKE!
+
+THE BRIDGE
+RETURN=E
+[30:17][25 hp][23] Cmd:ATT
+
+ATTACK WITH PLASMA RIFLE
+
+SIZZLE - THE GUARD DROID HIT! [Light armor]
+THE GUARD DROID TAKES 10 DAMAGE.
+
+THE HOBGOBLIN ATTACKS THE GUARD DROID - MISSED
+
+THE GUARD DROID ATTACKS 
+BUG WITH LAZER FIRE!
+
+YOU TAKE 9 DAMAGE.
+(YOU FEEL A BIT LESS DEXTEROUS)
+THE BRIDGE
+RETURN=ATT
+[30:10][16 hp][22] Cmd:ATT
+
+ATTACK WITH PLASMA RIFLE
+
+SIZZLE - MISSED
+
+THE HOBGOBLIN ATTACKS THE GUARD DROID - MISSED
+
+THE GUARD DROID ATTACKS BUG - HIT!
+
+[GOT PAST YOUR SHIELD]
+[MISSED YOUR ARMOR]
+
+YOU TAKE 8 DAMAGE.
+(YOU FEEL A BIT LESS DEXTEROUS)
+THE BRIDGE
+RETURN=ATT
+[30:03][8 hp][21] Cmd:ATT
+
+[+] HP DANGEROUSLY LOW [+] (FLEE might be wiser!)
+
+ATTACK WITH PLASMA RIFLE
+
+SIZZLE - MISSED
+
+THE HOBGOBLIN ATTACKS THE GUARD DROID - MISSED
+
+THE GUARD DROID ATTACKS 
+BUG WITH LAZER FIRE!
+
+YOU TAKE 5 DAMAGE.
+(YOU FEEL A BIT LESS DEXTEROUS)
+THE BRIDGE
+RETURN=ATT
+[29:54][3 hp][20] Cmd:FLEE
+
+THE GUARD DROID POWERS DOWN.
+
+Many, many little screens showing different parts of the ship are on the wall
+here. Some of them don't seem to be working anymore. The sign on the back of
+the chair says, 'Security Officer'.
+
+Ye may travel: North South East
+
+(Better EAT or DRINK something)
+THE BRIDGE
+RETURN=FLEE
+[29:43][3 hp][20] Cmd:EAT
+
+  1. - BLUE PILL
+  2. - TEA
+  3. - CACTUS JUICE
+  4. - KELP
+  5. - LOAF OF BREAD
+  6. - SPRING WATER
+  7. - POTATOES
+  8. - CANDY BAR
+  9. - VITAMINS
+ 10. - EAGLE EGGS
+
+Eat which number Item? 10
+
+Your appetite is satisfied.
+THE BRIDGE
+RETURN=EAT
+[29:33][10 hp][20] Cmd:DRINM K
+
+  1. - BLUE PILL
+  2. - TEA
+  3. - CACTUS JUICE
+  4. - KELP
+  5. - LOAF OF BREAD
+  6. - SPRING WATER
+  7. - POTATOES
+  8. - CANDY BAR
+  9. - VITAMINS
+
+Drink which number Item? 2
+(Some energy returns)
+
+You feel refreshed.
+
+...burp...
+THE BRIDGE
+RETURN=DRINK
+[29:21][13 hp][20] Cmd:LOOK
+
+Many, many little screens showing different parts of the ship are on the wall
+here. Some of them don't seem to be working anymore. The sign on the back of
+the chair says, 'Security Officer'.
+
+Ye may travel: North South East
+THE BRIDGE
+RETURN=LOOK
+[29:15][13 hp][20] Cmd:E
+
+This is the center of The Bridge. A very imposing swivel chair sits on top of a
+raised platform. It is lavishly covered in red leather. A gold embossed sign on
+the back says simply, 'Captain'.
+  There is a very decayed corps in the chair! A book still in it's lap....
+
+Ye may travel: North South East West
+
+THE BRIDGE
+RETURN=E
+[29:06][13 hp][20] Cmd:E
+
+A small speaker hidden among the glowing little screens is speaking, but you
+can not understand the words. The back of this chair says, 'Communications
+Officer.'
+
+Ye may travel: North South West
+
+THE BRIDGE
+RETURN=E
+[29:00][13 hp][20] Cmd:X
+
+This area is empty..
+THE BRIDGE
+RETURN=X
+[28:56][13 hp][20] Cmd:N
+
+More lights and panels. The panel in front of this chair also contains several
+levers and switches. One large screen in particular is quite impressive. It has
+objects moving about on it. The sign on the chair says, 'Weapons Officer'.
+
+Ye may travel: South West
+
+THE BRIDGE
+RETURN=N
+[28:49][13 hp][20] Cmd:X
+
+AHHAA! YOU FIND A RED SECURITY CARD
+
+YOU SEE RED SECURITY CARD
+THE BRIDGE
+RETURN=X
+[28:45][13 hp][20] Cmd:GET
+
+GETTING RED SECURITY CARD..
+
+Got it..
+THE BRIDGE
+RETURN=GET
+[28:38][13 hp][20] Cmd:S
+
+A small speaker hidden among the glowing little screens is speaking, but you
+can not understand the words. The back of this chair says, 'Communications
+Officer.'
+
+Ye may travel: North South West
+
+THE BRIDGE
+RETURN=S
+[28:31][13 hp][20] Cmd:S
+
+You stand before many screens containing strange displays. A sign on back of
+the dust covered chair says 'Navigation Officer'.
+
+Ye may travel: North West
+
+THE BRIDGE
+RETURN=S
+[28:27][13 hp][20] Cmd:W
+
+You stand at the entrance to the ships bridge. You are dazzled by the immense
+display of lights. Ships security might frown on your presense...
+
+Ye may travel: North South East West
+
+
+THE GUARD DROID READIES IT'S ENERGY WEAPON!
+
+(Too bad you didn't USE a LAZER SHIELD)
+
+'THERE SEEMS TO BE A LIFE FORCE TO THE FRONT,' MENTIONS THE GODDESS PERSEPHONE
+
+YOU SEE A MAN SIZED GUARD DROID!
+
+MISSILE: FIRST STRIKE!
+
+THE BRIDGE
+RETURN=W
+[28:14][13 hp][20] Cmd:ATT
+
+ATTACK WITH PLASMA RIFLE
+
+SIZZLE - THE GUARD DROID HIT! [Light armor]
+THE GUARD DROID TAKES 10 DAMAGE.
+
+THE GODDESS PERSEPHONE MEDITATES..
+
+THE GUARD DROID ATTACKS 
+BUG WITH LAZER FIRE!
+
+YOU TAKE 6 DAMAGE.
+(YOU FEEL A BIT LESS DEXTEROUS)
+THE BRIDGE
+RETURN=ATT
+[28:08][7 hp][19] Cmd:
+
+[+] HP DANGEROUSLY LOW [+] (FLEE might be wiser!)
+
+ATTACK WITH PLASMA RIFLE
+
+(EASE OF USE HELPS!)
+
+SIZZLE - THE GUARD DROID HIT! [Light armor]
+THE GUARD DROID TAKES 10 DAMAGE.
+
+THE GUARD DROID IS NO LONGER FUNCTIONAL!
+
+THE GUARD DROID TWITCHES STRANGLY!
+
+No salvagable parts
+
+The power pak on THE GUARD DROID is still energized!
+Recharge your PLASMA RIFLE? [Y]/n:
+
+
+ZZZZTTT
+
+
+THE GODDESS PERSEPHONE STRETCHES HER TWANY BODY, MAKING IT HARD FOR YOU TO CONCENTRATE.
+
+YOU SEE A WRECKED GUARD DROID
+THE BRIDGE
+RETURN=ATT
+[27:48][11 hp][25] Cmd:CAST
+
+  1. - TRANSPORT TO SHOPPE   : 80%
+
+Cast which spell number? (?=list):1
+
+Spell successful!
+
+Entering the ships stores area..
+
+
+[27:33] SHIPS STORES (?=Menu):G
+
+You go to the rations despenser,and look inside..
+
+ 70. RED FOOD  -  90 Gold
+ 71. BLUE FOOD  -  90 Gold
+ 72. YELLOW FOOD  -  90 Gold
+ 73. CLEAR LIQUID  -  90 Gold
+ 74. RED LIQUID  -  90 Gold
+ 75. GREEN LIQUID  -  90 Gold
+
+Your Choice (?=List): 70
+
+You choose RED FOOD for 90 gold? Y
+
+You insert gold in the slot.
+
+Your Choice (?=List): 71
+
+You choose BLUE FOOD for 90 gold? Y
+
+You insert gold in the slot.
+
+You have no room in your pack!
+
+[27:17] SHIPS STORES (?=Menu):E
+
+YOU HAVE ENTERED A BRAVE NEW WORLD!
+
+You are in a large corridor. The ship's Stores area is visible thru a
+manhole below you...
+
+Ye may travel: North South Down
+
+A CORRIDOR +
+RETURN=CAST
+[27:11][11 hp][25] Cmd:EAT T
+
+  1. - BLUE PILL
+  2. - CACTUS JUICE
+  3. - KELP
+  4. - LOAF OF BREAD
+  5. - SPRING WATER
+  6. - POTATOES
+  7. - CANDY BAR
+  8. - VITAMINS
+  9. - RED FOOD
+ 10. - BLUE FOOD
+
+Eat which number Item? 10
+
+Your appetite is satisfied.
+A CORRIDOR +
+RETURN=EAT
+[26:59][12 hp][25] Cmd:Q
+
+Leave SPUR ? Y
+
+Experience Points: 43
+
+SPUR awards you 12 gold for your experience.
+
+THE GODDESS PERSEPHONE SHAKES HER LOVELY HAIR, AND SMILES FAREWELL.
+
+THE HOBGOBLIN WAVES GOODBYE, AND BEGINS MAKING CAMP.
+
+STEELY DAN SHOUTS FAREWELL, AND BEGINS CLEANING HIS GEAR.
+
+SPUR says hold whilst your adventure is written in the BOOK of SPUR....
+
+It is written!
+
+L
+
+Items
+
+  1. COMPASS              Type: P    5g
+  2. CLOTH ARMOR          Type: A    2g
+  3. STEEL ARMOR          Type: A    6g
+  4. SMALL SHIELD         Type: S    2g
+  5. GOLD SHIELD          Type: S    6g
+  6. LARGE RUBY           Type: T    8g
+  7. GOLD CROWN           Type: T    2g
+  8. ROCKS|081SLING       Type: T    1g
+  9. ROCKS|101SLING       Type: T    1g
+ 10. IRON ARMOR           Type: A    4g
+ 11. GOLD COINS           Type: T    6g
+ 12. WOOD SHIELD          Type: S    3g
+ 13. IRON SHIELD          Type: S    5g
+ 14. EAGLES NEST          Type: C    6g
+ 15. MOUND OF JEWELS      Type: T    8g
+ 16. HAND GRENADE         Type: T    4g
+ 17. ARROWS|051 BOW       Type: T    1g
+ 18. SILVER COINS         Type: T    7g
+ 19. DIAMOND CROWN        Type: T    8g
+ 20. GOLD COFFIN          Type: C    3g
+ 21. HOURGLASS            Type: T    3g
+ 22. DIAMONDS             Type: T    8g
+ 23. AZTEC SHIELD         Type: S    5g
+ 24. LEATHER ARMOR        Type: A    3g
+ 25. OIL PAINTING         Type: T    1g
+ 26. GOLDEN EGG           Type: T    4g
+ 27. DIAMOND PILE         Type: T    6g
+ 28. CHAINMAIL ARMOR      Type: A    5g
+ 29. SMALL DIAMOND        Type: T    3g
+ 30. THE HOWLING          Type: B    7g
+ 31. IN SEARCH OF...      Type: B    9g
+ 32. FAMOUS BATS          Type: B    6g
+ 33. PLANT LIFE           Type: B    7g
+ 34. THE HOLY GRAIL       Type: T    9g
+ 35. SAND DOLLAR          Type: T    5g
+ 36. SILVER CHALICE       Type: T    6g
+ 37. GOLD NUGGET          Type: T    3g
+ 38. IVORY BONES          Type: C    5g
+ 39. DIAMOND RING         Type: T    7g
+ 40. BLACK DIAMOND        Type: T    7g
+ 41. GOLD ROSE            Type: T    5g
+ 42. JEWEL BUCKLE         Type: T    6g
+ 43. RARE COINS           Type: T    8g
+ 44. ROCKS|051SLING       Type: T    1g
+ 45. BRONZE SHIELD        Type: S    4g
+ 46. PLATE ARMOR          Type: A    7g
+ 47. BLUE GEM             Type: C    7g
+ 48. FLATHEAD STAMP       Type: T    9g
+ 49. SILVER CUP           Type: T    8g
+ 50. GOLD HEIRLOOM        Type: T    7g
+ 51. MONA LISA            Type: T    7g
+ 52. AMERICAN GOTHIC      Type: T    5g
+ 53. UNKNOWN PICASSO      Type: C    6g
+ 54. SKETCHES             Type: T    3g
+ 55. GOLD-FRAMED PORTRAIT Type: T    9g
+ 56. ANCIENT SHIELD       Type: S    7g
+ 57. MAGICAL ARMOR        Type: A    8g
+ 58. THE SPUR DIAMOND     Type: T    9g
+ 59. MAGICAL ARTIFACTS    Type: B    5g
+ 60. SILVER BEAKERS       Type: T    6g
+ 61. PROSPECTING...       Type: B    7g
+ 62. ADVENTURER'S GUIDE   Type: B    5g
+ 63. BOTTLE OF J.D.       Type: C    5g
+ 64. IT'S PILE OF JEWELS  Type: T    9g
+ 65. SMALL TREE           Type: T    1g
+ 66. COMMUNICATOR         Type: T    9g
+ 67. RING                 Type: T    9g
+ 68. GAUNTLETS            Type: T    9g
+ 69. SCRAP OF PAPER       Type: B    4g
+ 70. STRANGE WEAPON       Type: T    5g
+ 71. PANDORAS BOX         Type: T    5g
+ 72. FUNNY DOLL           Type: T    5g
+ 73. CROWN OF MIDAS       Type: T    5g
+ 74. INFLATABLE DINGY     Type: T    1g
+ 75. WRAITHS-THE BOOK     Type: B    5g
+ 76. AMULET OF LIFE       Type: T    5g
+ 77. GUIDE TO THE AMULET  Type: B    5g
+ 78. GREAT COAT           Type: T    4g
+ 79. GUIDE TO BIG ISLANDS Type: B    5g
+ 80. COPPER KEY           Type: T    2g
+ 81. FIREPLACE            Type: T    1g
+ 82. CRYSTAL PENDANT      Type: T    6g
+ 83. HUGE DIAMOND         Type: T    9g
+ 84. DEATH AMULET-BOOK    Type: B    5g
+ 85. DEATH AMULET-GUIDE   Type: B    5g
+ 86. TUT'S TREASURE       Type: T    9g
+ 87. TREASURE CHEST       Type: C    9g
+ 88. SCROLL OF ANTI-MAGIC Type: B    6g
+ 89. SCROLL OF ENDURANCE  Type: B    6g
+ 90. BOOK OF DOORWAYS     Type: B    7g
+ 91. MUMMY'S SCROLL       Type: B    5g
+ 92. SCROLL OF ENDURANCE  Type: B    5g
+ 93. MAP ONE              Type: B    9g
+ 94. MAP FOUR             Type: B    9g
+ 95. MAP TWO              Type: B    9g
+ 96. PALINTAR             Type: T    9g
+ 97. ICE CRYSTAL          Type: T    5g
+ 98. BOLTS|042CROSSBOW    Type: T    2g
+ 99. STEELIES|103SLING    Type: T    4g
+100. ARROWS|101 BOW       Type: T    1g
+101. DARTS|201BLOWGUN     Type: T    1g
+102. PSN DARTS|105BLOWGUN Type: T    4g
+103. BALLS|102MUSKET      Type: T    1g
+104. 357 AMMO|064357 MAG  Type: T    1g
+105. 44 AMMO|06644 MAG    Type: T    2g
+106. GAS|206FLAME THROWER Type: T    3g
+107. 45 MM|406MACHINE GUN Type: T    5g
+108. 9 MM|503UZI          Type: T    4g
+109. SHELL|029CANNON      Type: T    1g
+110. STONES|101SLING      Type: T    1g
+111. A.P. ARROWS|062 BOW  Type: T    3g
+112. ARMOR POWER PAK      Type: T    1g
+113. BATTLE ARMOR         Type: A    7g
+114. BATTLE SHIELD        Type: S    7g
+115. POWER ARMOR          Type: A    8g
+116. LAZER SHIELD         Type: S    8g
+117. SHIELD POWER PAK     Type: T    1g
+118. SABREPOWER|201LIGHT  Type: T    1g
+119. PHASER PAK|203PHASER Type: T    2g
+120. PLASMA PWR|108PLASMA Type: T    3g
+121. PLASMA PAK|258PLASMA Type: T    8g
+122. SPACESUIT            Type: T    9g
+123. GEIGER COUNTER       Type: T    9g
+124. RADIATION SUIT       Type: T    9g
+125. SHIPS LOG            Type: B    5g
+126. TOW ROCKET           Type: T    9g
+127. LAW ROCKET           Type: T    9g
+128. REDEYE ROCKET        Type: T    9g
+129. LAW ROCKET           Type: T    9g
+130. PLASMA ROCKET        Type: T    1g
+131. RED SECURITY CARD    Type: T    1g
+132. GREEN SECURITY CARD  Type: T    1g
+133. TOOL KIT             Type: T    4g
+134. BROKEN SPACESUIT     Type: T    5g
+135. SPACESUIT PARTS      Type: T    5g
+136. SPACE SCOUTS         Type: B    5g
+137. PLASMA ROCKET        Type: T    9g
+138. SPACE TRACKER        Type: T    9g
+139. HUGE BLACK OBELISK   Type: T    9g
+140. NUCLEAR ROCKET       Type: T    9g
+141. BROKEN COMMUNICATOR  Type: T    1g
+142. GALADRIELS VIAL      Type: T    9g
+143. GALADRIELS VIAL-FULL Type: T    9g
+144. RUBY SLIPPERS        Type: T    9g
+145. BROOMSTICK           Type: T    1g
+146. SALVAGE PARTS        Type: T    5g
+147. CARTRIDGE BOX|102    Type: T    5g
+148. 357 BANDOLEER|064    Type: T    5g
+149. 44 BANDOLEER|066     Type: T    5g
+150. SHELL CAISSON|029    Type: T    8g
+151. SHOVEL               Type: T    1g
+152. BOOBY TRAP-CODE A    Type: T    9g
+153. BOOBY TRAP-CODE B    Type: T    9g
+154. BOOBY TRAP-CODE C    Type: T    9g
+155. BOOBY TRAP-CODE D    Type: T    9g
+156. BOOBY TRAP-CODE E    Type: T    9g
+157. BOOBY TRAP-CODE F    Type: T    9g
+158. BOOBY TRAP-CODE G    Type: T    9g
+159. BOOBY TRAP-CODE H    Type: T    9g
+160. BOOBY TRAP-CODE I    Type: T    9g
+161. LASSO                Type: T    2g
+162. SADDLE               Type: T    5g
+163. HORSE ARMOUR         Type: T    8g
+
+[ ITEMS ]
+
+[L]ist [E]dit [A]dd [K]ill or [Q]uit: A
+
+[ ALLIES ]
+
+[L]ist [E]dit [A]dd [K]ill or [Q]uit: L
+
+Allies
+
+  1. Free     Str:12 Hit: 70%   Name:BLACK KNIGHT|#5$
+  2. Free     Str:16 Hit: 60%   Name:MR. SPOCK|#4!
+  3. Free     Str:16 Hit: 90%   Name:EOWYN|!#4+
+  4. Free     Str: 9 Hit: 40%   Name:ALLAN OF YOR|#3
+  5. Free     Str:14 Hit: 80%   Name:ROBIN HOOD|#4!
+  6. Free     Str:12 Hit: 50%   Name:DARK WARRIOR|#4
+  7. Free     Str:10 Hit: 70%   Name:THE BISHOP|#3
+  8. Free     Str: 9 Hit: 60%   Name:HADES|#7>45)
+  9. Free     Str: 9 Hit: 50%   Name:VASQUEZ|#4+%
+ 10. Free     Str:15 Hit: 70%   Name:MORC FROM ORC|#5
+ 11. Free     Str:18 Hit: 70%   Name:DIRTY HARRY|#6
+ 12. Taken ** Str:16 Hit: 60%   Name:RED SONJA|#5!+
+ 13. Free     Str: 7 Hit: 30%   Name:LAZY LARRY|#2
+ 14. Free     Str: 9 Hit: 80%   Name:PAULA ABDUL|#3+
+ 15. Free     Str:15 Hit: 60%   Name:CONAN|#5
+ 16. Free     Str:18 Hit: 70%   Name:RAMBO|#6
+ 17. Free     Str:17 Hit: 50%   Name:CATWOMAN|#6+
+ 18. Free     Str:15 Hit: 70%   Name:APOLLO|#9>49(
+ 19. Free     Str:19 Hit: 80%   Name:DRAGONSLAYER|#6
+ 20. Free     Str:10 Hit: 70%   Name:FRED|#3
+ 21. Free     Str:14 Hit: 70%   Name:LANCELOT|#5
+ 22. Free     Str:15 Hit: 40%   Name:SIR GALAHAD|#5
+ 23. Free     Str:16 Hit: 60%   Name:KING ARTHUR|#5!
+ 24. Free     Str:15 Hit: 80%   Name:YODA|#5!
+ 25. Taken ** Str: 9 Hit: 60%   Name:PERSEPHONE|#3>42(+
+ 26. Taken ** Str:20 Hit: 10%   Name:SLAVE VERUS|#7
+ 27. Free     Str:10 Hit: 20%   Name:JIM MORRISON|#3
+ 28. Taken ** Str:20 Hit: 90%   Name:HAMMER|#7
+ 29. Taken ** Str:12 Hit: 40%   Name:XEVIOUS|#4
+ 30. Free     Str:15 Hit: 60%   Name:WARREN ZEVON|#5
+ 31. Free     Str:12 Hit: 50%   Name:NINJA TURTLE|#4
+ 32. Taken ** Str:10 Hit: 50%   Name:MARIAH CAREY|#2+
+ 33. Free     Str: 6 Hit: 30%   Name:TAYLOR DAYNE|#2+
+ 34. Free     Str:15 Hit: 50%   Name:JANIS JOPLIN|#5+
+ 35. Free     Str:14 Hit: 50%   Name:BATMAN|#5!
+ 36. Free     Str:18 Hit: 50%   Name:WONDER WOMAN|#6!+
+ 37. Free     Str:12 Hit: 50%   Name:DEMETER|#3>48+(
+ 38. Taken ** Str:20 Hit: 50%   Name:TERMINATOR|#9
+ 39. Taken ** Str:15 Hit: 70%   Name:STEELY DAN|#5
+ 40. Free     Str: 8 Hit: 60%   Name:JUDAS PRIEST|#4
+ 41. Free     Str:14 Hit: 60%   Name:SAMWISE|#5
+ 42. Taken ** Str:18 Hit: 90%   Name:RIPLEY|#6!+%
+ 43. Free     Str: 7 Hit: 60%   Name:BETTY BOOP|#2+
+ 44. Free     Str:12 Hit: 50%   Name:TAARNA|#5+
+ 45. Free     Str:10 Hit: 50%   Name:MR ROGERS|#3
+ 46. Free     Str:15 Hit: 90%   Name:ARES|#7>44)
+ 47. Free     Str:20 Hit: 90%   Name:SAURMON|#7
+ 48. Free     Str:10 Hit: 50%   Name:JULIA FELIX|#3
+ 49. Free     Str:15 Hit: 60%   Name:ATHENA|#8>43+(
+ 50. Free     Str:12 Hit: 60%   Name:DARTH VADER|#4
+ 51. Free     Str:12 Hit: 50%   Name:BUCK ROGERS|#4
+ 52. Free     Str:13 Hit: 60%   Name:PAN|#6>46
+ 53. Free     Str:16 Hit: 50%   Name:SARAH CONNER|#7+!%
+ 54. Free     Str:14 Hit: 60%   Name:ZORBA THE GEEK|#4
+ 55. Free     Str:12 Hit: 50%   Name:IRIS|#3>47+(
+ 56. Free     Str:20 Hit: 90%   Name:CLARK KENT|#7
+ 57. Free     Str:14 Hit: 60%   Name:IRON MAIDEN|#5+
+ 58. Free     Str: 8 Hit: 90%   Name:CARLY SIMON|#2+
+ 59. Free     Str:12 Hit: 60%   Name:JULIAS CAESAR|#4!
+ 60. Free     Str:15 Hit: 70%   Name:ATTILA|#5
+
+[ ALLIES ]
+
+[L]ist [E]dit [A]dd [K]ill or [Q]uit: F
+
+[ RATIONS ]
+
+[L]ist [E]dit [A]dd [K]ill or [Q]uit: L
+
+Rations
+
+  1. Drink  :TEA                15 gold
+  2. Drink  :CACTUS JUICE       25 gold
+  3. Food   :KELP               12 gold
+  4. Drink  :MINERAL WATER      25 gold
+  5. Food   :LOAF OF BREAD      30 gold
+  6. Food   :JAR OF HONEY       50 gold
+  7. Food   :MUSHROOMS          30 gold
+  8. Food   :EAGLE EGGS         40 gold
+  9. Food   :VITAMINS           75 gold
+ 10. Food   :CANDY BAR          15 gold
+ 11. Food   :BANANAS            35 gold
+ 12. Drink  :BOTTLE OF MILK     30 gold
+ 13. Drink  :JUG OF WINE        25 gold
+ 14. Drink  :BOTTLE OF WATER    15 gold
+ 15. Food   :CAKES              40 gold
+ 16. Food   :CUBE OF SUGAR      18 gold
+ 17. Food   :DOMINOS PIZZA      30 gold
+ 18. Drink  :ORANGE JUICE       20 gold
+ 19. Food   :MELONS             50 gold
+ 20. Food   :APPLES             30 gold
+ 21. Drink  :BOTTLE OF BEER     10 gold
+ 22. Drink  :GOAT'S MILK        40 gold
+ 23. Drink  :SPRING WATER       40 gold
+ 24. Food   :GRANOLA BAR        50 gold
+ 25. Food   :WILD OATS          35 gold
+ 26. Food   :BLUEBERRIES        70 gold
+ 27. Food   :ICE CREAM          45 gold
+ 28. Food   :POPCORN            25 gold
+ 29. Food   :BEANS              60 gold
+ 30. Food   :POTATOES           55 gold
+ 31. Cursed :EMBALMING FLUID    50 gold
+ 32. Food   :BEEF JERKY         30 gold
+ 33. Cursed :POISON APPLE       30 gold
+ 34. Drink  :LEMONADE           50 gold
+ 35. Food   :SALT TABLETS       50 gold
+ 36. Food   :MOUNTAIN OYSTERS   60 gold
+ 37. Drink  :LARGE SLURPY       40 gold
+ 38. Drink  :CAN OF OLY LITE     1 gold
+ 39. Food   :TOMATOES            5 gold
+ 40. Drink  :CACTUS JUICE       10 gold
+ 41. Drink  :BROOK WATER        10 gold
+ 42. Food   :OLD HAMBURGER       1 gold
+ 43. Drink  :GREEN MOONSHINE     1 gold
+ 44. Drink  :RED SERUM           1 gold
+ 45. Food   :BLUE PILL           1 gold
+ 46. Food   :BREAD CRUMB         1 gold
+ 47. Drink  :FOUNTAIN OF YOUTH  10 gold
+ 48. Food   :ANTS               40 gold
+ 49. Food   :GRUBS              40 gold
+ 50. Drink  :CANTEEN OF WATER   40 gold
+ 51. Drink  :POOL OF WATER      50 gold
+ 52. Food   :HAUNCH OF A ZEBRA  40 gold
+ 53. Food   :FRIED FISH         20 gold
+ 54. Food   :SEAWEED            40 gold
+ 55. Food   :KELP               50 gold
+ 56. Food   :SEAGULL EGGS       50 gold
+ 57. Food   :SEAWEED            50 gold
+ 58. Food   :FLYING FISH        50 gold
+ 59. Food   :FLYING FISH        50 gold
+ 60. Food   :DEAD FISH          40 gold
+ 61. Food   :DRIED FIGS         99 gold
+ 62. Food   :DEAD RAT           50 gold
+ 63. Food   :DRIED DATES        80 gold
+ 64. Drink  :CHUNK OF ICE       70 gold
+ 65. Drink  :POTION OF SKILL    50 gold
+ 66. Drink  :VORPAL POTION      50 gold
+ 67. Food   :DEAD BUG           20 gold
+ 68. Drink  :CHARM POTION       50 gold
+ 69. Food   :MONSTER MEAT       25 gold
+ 70. Food   :RED FOOD           90 gold
+ 71. Food   :BLUE FOOD          90 gold
+ 72. Food   :YELLOW FOOD        90 gold
+ 73. Drink  :CLEAR LIQUID       90 gold
+ 74. Drink  :RED LIQUID         90 gold
+ 75. Drink  :GREEN LIQUID       90 gold
+ 76. Cursed :APPLE              50 gold
+ 77. Food   :CORN               99 gold
+ 78. Food   :APPLES             99 gold
+ 79. Food   :GRASS               5 gold
+ 80. Food   :GRASS               5 gold
+ 81. Food   :GRASS               5 gold
+ 82. Food   :OATS               20 gold
+ 83. Food   :BLANK               1 gold
+ 84. Food   :BLANK               1 gold
+ 85. Food   :BLANK               1 gold
+
+[ RATIONS ]
+
+[L]ist [E]dit [A]dd [K]ill or [Q]uit: 

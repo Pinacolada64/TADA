@@ -1,0 +1,28 @@
+Level 3 map
+
+s=shop, u=up
+<, >, ^, v, =one way doors
+
+ 1 2 3 4 5 6 7 8 9 10
+---------------------
+ ^ ^   |   | |   | |
+ s O   O   O-O>O-O O   10
+ ^ |           | | v
+ O-O           O-O-O>  20
+ ^             |
+ O-O-O>O       O       30
+     | v       |
+ O>O O O-O-O-O>O       40
+ | | | | v | | |
+-O O<u-O-O<O<O-O   O-  50
+   | |   ^ | | |   |
+-O O-O   O<O<O-O O O-  60
+ | | |         ^ | |
+ O<O O-O-O   O-O O O   70
+ ^     | |   |   | |
+ O-O>O-O O   O-O O-O   80
+   |     v     |
+-O>O-O   O>O   O O O-  90
+ |   |   | |   | | |
+ O-O>O>O-O-u-O>O-O-O  100
+       |   |   |

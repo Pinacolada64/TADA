@@ -1,0 +1,9 @@
+/Time 
+CS:  00:35
+
+[00:36:10]
+/Date 
+CS:  7/4/2015
+
+' csip command: blocksfree
+' also "bytes <filename>" and "blocks <filename>"

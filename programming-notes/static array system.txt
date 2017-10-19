@@ -1,0 +1,235 @@
+FROM LS FILE:"T.BITS 103"
+
+       STATIC ARRAY SYSTEM (SAS)
+
+         by Jeffrey L. Jones
+
+
+    This is a SYSy (pronounced "sissy") machine language utility that allows
+the programmer to use arrays outside of BASIC memory, tapping memory that
+otherwise couldn't be used by BASIC.  The machine language module must be
+LOADed before it can be used.  There are two versions on disk:
+
+   ARRAY C000 (load address 49152)
+   ARRAY C900 (load address 51456)
+
+    They can be loaded into the proper location with one of the following lines:
+
+ sys57812"array c000",dv,0:poke780,0: poke781,0: poke782,192: sys65493
+
+or
+
+ sys57812"array c900",dv,0:poke780,0: poke781,0: poke782,201: sys65493
+
+
+where DV = the device number.  These lines will bload the respective files
+into place without disturbing the flow of your BASIC program, as a regular
+LOAD would.
+
+
+ ARRAYS AND STATIC ARRAYS
+ ------------------------
+
+    One of the problems with array intensive BASIC programs is the fact that
+arrays use up good memory.  When those arrays are string arrays, and in great
+number, you run the risk of the dreaded and totally involuntary garbage
+collection routine.  Well, garbage collection occurs because string arrays
+aren't STATIC like numeric arrays, and BASIC must manage them as the amount of
+free memory changes with their lengths.
+
+    A static string array is an array of strings, each of which takes up an
+equal amount of space, rather than a variable amount of space as with DYNAMIC
+string arrays.  With static arrays you end up with storage slots of equal size
+where your strings may reside and be utilized by your program.  Strings longer
+than the slot size are automatically truncated.  Empty slots can waste a lot
+of memory if they are, say, 80 characters wide.  So you should make your slots
+as slim as possible for your applications.
+
+    SAS offers a few array-minded tools that BASIC doesn't, such as searching,
+loading and saving, and you can have as many arrays in memory as memory can
+handle (and you can manage).
+
+    Just as with built-in BASIC, my SAS arrays must be DIMensioned before they
+can be used.  DIMensioning tells SAS WHERE your array is located, HOW WIDE
+each element is, and HOW MANY elements will be in it.
+
+ ------------------------------------
+ DIM: SYS addr,loc,width,number,clear
+ ------------------------------------
+
+
+    ADDR is the location that SAS is LOADed into.
+
+    LOC is the desired location of the array.  You're in control of this.  I
+suggest $D000 (53248). BASIC doesn't use this area.  There is also $A000
+(40960), and $E000 (57344).  Make sure that the location(s) you use doesn't
+conflict with ML or other data you have stored.  It's also good to use a
+variable name for the LOC of each array so that they can be called later by
+name.  The end address of your array can be calculated as follows:
+
+   loc + 3 + width * number + width
+
+    WIDTH is the maximum length of any string in your array.  If you'll be
+using strings that are 40 columns wide, use 40 (Edstar files are actually 38
+columns wide).  The thinner your array, the fewer bytes used, thus the more
+elements you're allowed.
+
+    NUMBER is the maximum number of elements allowed in the array. Attempts to
+write or read beyond this array will be ignored.
+
+    CLEAR - Use 1 for yes or 0 for no.  This tells SAS to fill the array area
+with zeroes.  I suggest doing this when you're first DIMensioning the array. 
+If you want to extend or shorten the number of elements in your array, use 0
+for no.  This way you can re-DIMension your array and change NUMBER without
+clearing out any data.
+
+    Once you've created your array, you can start placing data into it with
+the STORE command:
+
+
+ ---------------------------------
+ STORE: SYSaddr+3,loc,subscript,a$
+ ---------------------------------
+
+    ADDR+3 is the load address+3. Each command has a different SYS number.
+
+    LOC is the location of the array. LOC is always how you refer to your
+arrays, which is why it's easier to manage your arrays when you use a variable
+for LOC.
+
+    SUBSCRIPT is the slot number number where you want the string stored.  Use
+any number smaller than or equal to NUMBER, including zero.
+
+    A$ is the string you want stored (you can use any legal variable name
+instead of A$, including text in quotes).  If A$ is longer than WIDTH, it will
+be truncated.
+
+
+ ---------------------------------
+ RETRIEVE: SYSaddr+6,loc,subscript
+ ---------------------------------
+
+    RETRIEVE will get a string from a slot in the static array and place it
+into the variable, W$, for you to do with as you will.  The parameters are as
+explained in STORE.  The length of W$ will be the original length of the
+string sent to the slot, and not WIDTH, unless the string was equal to, or
+truncated because it was larger than WIDTH.
+
+
+ ----------------------------------
+ PRINT: SYSaddr+9,loc,subscript,x,y
+ ----------------------------------
+
+   PRINT will take any element in your array and print it anywhere on the
+screen.
+
+   X is the desired column, 0-39
+
+   Y is the desired row, 0-24
+
+
+ ----------------------------------
+ SCREEN: SYSaddr+12,loc,sub,x,y,num
+ ----------------------------------
+
+
+    SCREEN will get string from the screen and place them into the desired slot.
+
+    NUM us the number of characters to get from the screen.  Extra spaces are
+ignored.
+
+    Note: since a file is opened to the screen, peek(186) will be changed to
+3.  Of course this should be no problem because you're a good programmer and
+you've already assigned peek(186) to a variable when your program was first
+RUN, right?
+
+
+ -------------------------------------
+ GET FILE: SYSaddr+15,loc,file$,dv,sub
+ -------------------------------------
+
+    You can read a whole text file into your array with this command. Your
+static array should be DIMensioned to an accommodating width.  For EDSTAR
+files, use 38. These files should be PETASCII.  All lines beyond the maximum
+allowed by NUMBER are ignored.
+
+    FILE$ is any legal file name.
+
+    DV is the device number.
+
+    SUB is the starting subscript, usually 0.
+
+
+ ---------------------------------
+ PUT FILE: SYSaddr+18,loc,file$,dv
+ ---------------------------------
+
+    This command will save the entire array to disk.  Since each subscript is
+padded, the file will be a little large, but the advantage is that the files
+you save can later be BLOADed into any desired location without your having to
+DIMension the array first.  BLOADing is much faster than GET FILE, especially
+if you have a good fastloader or a CMD drive.
+
+    Note: arrays at $D000 (53248) can't be BLOADED.  See RLOAD below.
+
+    You can save on the size of the file by re-DIMensioning to the highest
+subscript written to and then writing the file.  As long as you don't use the
+CLEAR flag, it's safe to re-DIMension.
+
+
+ ----------------------------------
+ SEARCH: SYSaddr+21,loc,text$,start
+ ----------------------------------
+
+    This command will initiate a case insensitive instring search for any
+string (up to 20 characters long) that you enter.  When a match is found, the
+string is placed in W$ and the subscript number is placed in F%.
+
+    START tells the search where to begin.  You may have already found a few
+matches, but want more.  You would simply make another search at one subscript
+higher than the last match.  You can start the search at any legal location
+within the array. If a match isn't found, W$ and F% won't change.
+
+    ? is a legal wildcard.
+
+
+ ------------------------------
+ BLOAD: SYSaddr+24,file$,dv,loc
+ ------------------------------
+
+    This is your average BLOAD routine. LOC tells it where to LOAD the PRG
+file.  DV is the device and FILE$ is any legal filename.
+
+
+ ------------------------------
+ RLOAD: SYSaddr+27,file$,dv,loc
+ ------------------------------
+
+    This routine is the same as BLOAD except, it can read data into memory in
+the forbidden $D000-$DFFF area.
+
+
+ TECH STUFF
+ ----------
+
+    Pre-prepared data should be padded with nulls for the width of the array,
+and shouldn't include carriage returns.  Data such as dictionaries should be
+BLOADed at 3+loc after the area is DIMensioned.
+
+    Arrays can be cleared by re-DIMensioning them with the CLEAR flag set to 1.
+
+    I didn't include numeric arrays since BASIC's numeric arrays, both
+floating point and integer don't contribute to garbage collection, and are
+static.
+
+    The applications of SAS are far-reaching, and you don't have to limit
+yourself to SAS arrays!  Use SAS arrays in high memory and BASIC arrays in low
+memory.  Now you're playing with -- well, let's just say it expands your
+programming horizons.
+
+JLJ
+
+FENDER'S NOTE: This tool has me excited.  I just came into some dictionary
+files and SAS will enable me to write word games that can QUICKLY check if a
+string is a word or not.  On upcoming issues expect to see these dictionary
+files, some word games and maybe some more SAS type tools.

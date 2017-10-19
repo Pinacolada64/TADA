@@ -1,0 +1,10 @@
+There's a fair bit of assembly language for some trickery though. I've got:
+
+* an "instring" routine, a disk input routine that can handle any data (and can optionally stop at a carriage return or grab a specified # of bytes)
+* a modular programming system (where lines 1000- are in memory always and lines 1-999 can be loaded any time while preserving variables)
+* a "bracket reader" routine (strings in [square brackets] are colored differently depending on (eventually) user-defined colors)
+* a stack manipulator that gets rid of RETURN statements (used a lot in the original game I'm porting from the Apple)
+* a "sliding input" routine (taken from Creative Micro Designs, modified to be more BASC-integrated)
+* and finally the piece de resistance, Steve Davison's modBASIC which gives BASIC local variables and parameter-passing to subroutines.
+
+- "Totally Awesome Dungeon Adventure" Google Plus photo album: https://goo.gl/photos/vm3n7LpTRADbTW5t7

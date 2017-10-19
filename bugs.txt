@@ -1,0 +1,337 @@
+BUG LIST
+
+FIXED	fixed
+
+INFO	ro=24 (lonely path)
+
+7/28:
+a$="e.t.roomindex"
+ro=-1
+x =-2
+(illegal quantity error in 1002)
+trace:
+	t.startup:
+	320: rm=peek(v2+226):ro=-1
+	322: x=0:gosub 2002 (get level stats)
+	2006:rm=ro (should it be ro=rm?)
+	2007:x=rm*2
+	
+rm=current room
+ro=old room (movement comparison)
+
+x=15 (cavern amphitheatre), gets read
+
+t.startup	334
+		df%=asc(left$(a$,1)+nl$) this was 13
+		2002 x=0: get level header info into ld$
+			drops through to get room info (x=ro*2)
+		2006	get df%
+		
+		the room header needs to be read before dropping to line 2000
+		but then it must get redefined in between lines 300- of t.startup
+	
+FIXED	displays correct room name, wrong room name (2x each)
+FIXED	displays wrong set of room desc lines
+FIXED	dc$=
+FIXED	Command "" not supported yet
+FIXED	2002 zz=3
+FIXED	2008 shouldn't fall through to get#2,a$
+FIXED	will make line 2002 not fall through to get room data
+		
+UGH. RENUMBER THIS SENSIBLY!!!!
+	
+2306 movement, data format 1
+
+FIXED	2315 illegal qty after entering N (x=3328)
+
+rm=ro after moved to another room, after room desc call (whether or not desc read)
+if rm=ro skip read desc
+
+2230 was look
+
+2306 pick direction based on NESW from I$ (doesn't work for UD, that's handled by RC%)
+		if RC%>0 then get room transport #,
+		if rt%=0 print Shoppe
+			2093 is where rt% gets defined
+2307 if no direction available (room=0) then print "You can't go that way."
+
+fl=flag for disk input:
+		0, use get#2 for byte-by-byte input [for embedded CHR$(13)]
+		1, sys to input any routine (40 chars for room descs, monster
+			quotes, whatever)
+		2, "cached" input like a "look" if room descs aren't in verbose
+			mode (always display them; need a flag for this?)
+
+---
+2010	gets called twice, once with RO room #
+			RO=room you were previously in
+				if RM<>RO then read room index info, then set RM=RO
+			RM=room you are currently in. gets copied to RO after room index 
+				read
+			thought: copy room desc lines to array ~20 lines, cuts down on 
+				disk access
+
+320	in t.startup, should be where RO=-1 to begin session
+			[catches case of starting game with RO=0 (in Shoppe)]
+
+---
+from GLOOMY PATH (room #24): East, South to Labyrinth
+				East, North to Shoppe
+
+FIXED	When in room 1: "Ye may travel South Up	 to ShoppeUp  to Shoppe"
+
+can't travel south in a room with rc%/rt%. south works fine in other rooms
+FIXED	(related to S being used in set/read bit routine)
+
+hourglass doesn't decrement seconds properly
+
+2241 where one-char cmds get interpreted. i% should be 1-6 if entering 
+		NESWUD?#GHILQRTX
+2092 where RT% gets defined, FNL1(10)
+
+random monster chance doesn't seem to do much
+FIXED	if cb$<>"1", don't display monster name
+FIXED	displays "IZED" even if ms<>4
+
+* Monster
+* Item
+* Weapon
+* Food
+  Players
+
+undef'd statement in 2133
+CAVERN PASSAGE - lists 3 food items, monster strength=25, then locks up
+
+room #27:
+   You see ROCKS|08 (shouldn't display | and past it, line 2148)
+   2149 was: MID$(Z$,L,R).
+   Maybe should be MID$(Z$,L,R-L)? No, this truncates: IRON ARMO
+FIXED	(copied code from PRINT CODE)
+
+Flags: 081SLING (correct)
+
+Sometimes hourglass, if off, mysteriously toggles on
+While in labyrinth, prints "Down" by itself (must GOSUB2120 somewhere)
+
+8/17/2007:
+FIXED	Reads wrong record to determine monster not active
+			EOF SEQ read: G's... (Can abort w/space though)
+FIXED	random in: overwrites room # moving to
+FIXED	room descs only read 1 line
+FIXED	Fixed movement in all directions on level 1 (df%=1)
+		Sometimes calls 2010 (re=reads level header info again) needlessly,
+			maybe should have IF RM<>RO clause
+		Sometimes the 3rd and 4th characters of the main character's name get
+			overwritten by random 2 bytes
+FIXED	Disk file routine slows down after 1st [MORE] prompt; traced to setting
+			X in line 2863; put X=0 in that routine
+
+FIXED	file not open error in 2010
+
+FIXED	RESTORE must be used in any module which contains DATA statements
+
+Jan 24, 2011 22:46
+File read routine:
+if i%>=len(a$) then ...
+
+Feb 13, 2011 10:07
+d% is direction of travel (NESWUD), di is taken
+
+tep: shows poison/disease off, also tired off
+t.startup shows both on
+t.stat shows ARE poisoned, Not diseased.
+
+t.res
+	HP set to 62469 (244*256+5)
+
+t.main
+	Moving to room #1 when a direction is entered (broken map connections)
+FIXED	FNp(x) needs NL$ added to avoid ?ILLEGAL QUANTITY ERRORs
+	undef'd statement in 2260 (parser dispatch) - 3 letter cmd not understood
+	movement in t.main says "you're too tired"
+	WHO: Not understood
+
+hydrophilic reports:	No JiffyDOS: moving from 49 -> 37 locks up
+
+	file read:
+		last line doesn't display
+		Hit Ctrl-S, [PAUSED] is displayed using bracket reader
+
+t.bar
+FIXED	E/S movement keys swapped
+162 gosub1902:sysis,"neswlg",an$:oni%+1goto162,175,180,185,190,245,191
+	Select "G" when at BAR NONE: infinite loop
+
+t.bar.olaf:
+	Takes money before telling you "already have 3 allies"
+
+t.bar.vinney:
+	wrong player gender reported
+	"R"eview: gold amount changes
+
+7/09:
+t.main	5-28-2011 handles file reads (seq and room descs) properly. doesn't color [text]
+t.main	7-09-2011 breaks badly (tries to read from nonexistant file)
+
+Oct 1, 2011 19:48
+t.np		illegal quantity in 821
+hx$="0123456789ABCDEF"
+dr=5
+d=51
+mx=16
+z8$="00000000"
+tr%=1
+fl$="[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+-=[]"
+d$="PINACOLADA		  ---		@@@---
+	 ---	   ---		 ---	   @@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@00000
+000@@@@@@@00000000@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@00000000@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@"
+d2$="@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+
+pn=20
+v1=6946922
+	 ^^
+   (!!!!)
+
+' t.np: 1/11/2014:
+' bug found by AF: illegal quantity error in 244
+
+' 00:40 . agentfriday: peek(v2+185) = 0
+' 00:40 . agentfriday: resulting in a negative starting pos in mid$
+' 00:40 . * pinacolada loads t.np up
+' 00:40 . Me: eek, ok
+
+' - because no longer an array of class/race names, now use single strings
+
+15/Apr/2014 18:40
+Line numbering with {uses:} conditionals
+
+t.main:						t.np:
+1	Always need this
+							100-
+							899
+900 	Initialization,
+999
+
+1000-	Always in memory (t.main)
+
+Notes from Jeff Hoag's assembler:
+ low byte only (example: lda #<screen)
+high byte only (example: lda #>screen)
+
+18/Apr/2014 19:04
+BUG		2 {:travel2a} labels defined in t.main
+		- commented 1st out
+
+21/Apr/2014 23:42
+tep208:
+	- when changing map level #, tries to grab level name from disk file and 
+		displays improperly (twice)
+	- weapons listing has extra "---" separator line
+
+1/Jul/2015 9:22
+BUG	t.startup: Vinney fight check needs to check value of loan, not just 
+		days remaining to pay counter.
+
+
+25/Nov/2015 23:39
+Initializing trace...
+[916][917]Build date: Fri 11/20/2015 15:
+59:34.09
+[918][1067][999][1000][1001]
+?type mismatch  error in 1001
+ready.
+list916-
+
+916 cm$="main"+""
+917 print"Build date: Fri 11/20/2015 15:
+59:34.09"
+918 gosub1067("startup","")
+999 rem === t.main ===
+1000 rem image bbs + modbasic subroutine
+s v2.1 nov 11, 2015
+1001 fnr:defd
+1002 gosub1003:ford=1to50:next
+1003 print#15,"pb"chr$(rand255)chr$(r/b1
+)"a":return
+1008 gosub1011("e.t.playerlog,l,"+chr$(2
+40)):return
+1010 close15:open15,dv,15:return
+1011 fna$:close2:open2,dv,2,dr$+a$
+1012 input#15,e,e$,t,s:a$="Status: "+rig
+
+29/Nov/2015 14:03
+tep: GP editor doesn't show correct GP for characters
+ ......................................
+ 1: PINACOLADA      1 GP
+ 2: (None)          0 GP
+ 3: (Unknown)       0 GP
+ 4: (Unknown)       0 GP
+ 5: STRAWBERRY      0 GP
+ ......................................
+ ......................................
+ Edit which (1-5)? 1
+
+hit points also display double line
+
+- input type is wrong
+ [0-16,777,216 characters]
+ Old GP Value:  1
+ New GP Value?
+
+?syntax error in 47
+47 print" 1: Natural Alignment: "mid$(al$(peek(v1+70)*)tab(32)"[Fixed]
+
+8/Dec/2015 12:02
+tep: flags editor: 21-24 do not toggle
+
+10/Dec/2015 14:44
+Level 7 data: rooms 101/118 are "STEEP PATH"
+
+16/Feb/2016 12:55
+t.np:
+- word-wrap: character name prompt doesn't display entirely:
+af sez 'cause no space afterwards
+
+than 18 characters."
+
+             [------------------]
+
+Your name railbender is?
+
+- t.np:
+* uppercase-converted name does not display:
+* word-wrap: 'already' could fit on line where [already] is:
+
+Verus checks whether anyone has [already]
+already heard of .......................
+.............
+"He's the first one around here!"
+
+- t.np:
+a$(0) does not get assigned properly:
+
+III. Class and Race
+
+
+
+"Now you may choose a class and race
+for . Do you want these terms
+explained, and see an acceptable list
+of class and race combinations first?"
+
+
+
+Your response? (Y/N) >>
+
+16/Feb/2016 13:52
+t.np JAMs after some point

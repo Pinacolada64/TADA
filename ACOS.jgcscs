@@ -1,0 +1,177 @@
+JGCSCS
+4
+ACOS
+*.s
+Ryan Sherwood
+sym.rsherwood@gmail.com
+
+
+TRUE
+;
+
+4
+Designed for Visual Basic.NET, but can also be used for VB6 and other versions of Basic.
+
+- Based on Advanced Communication Operating System, a script language for the Apple II.
+- Now handles multi-line strings.
+13
+; This is a comment
+
+label
+ PRINT "HELLO WORLD"
+ PRINT \'
+ "Hello, world," she said.
+ This is a multi-line PRINT statement.
+ '
+label2
+; that's a paddlin'
+ a=PDL(0)
+
+; other weird ACOS things to come
+0
+FALSE
+10
+String
+The closing " is optional, so unterminated strings are colored as well
+"[^"\r\n]*+(?:")?
+TRUE
+FALSE
+9
+0
+
+
+0
+FALSE
+Multi-line strings
+Include single quotes in case the string is a single multi-line string
+print[ \\]+'.*+
+FALSE
+FALSE
+9
+0
+
+
+3
+FALSE
+Documentation Comment
+
+'''.*+
+FALSE
+FALSE
+6
+0
+
+
+0
+TRUE
+Comment
+; comments should exclude quoted strings, extending to the end of the line
+[^"]\b;\b.*+$
+TRUE
+FALSE
+5
+0
+
+
+0
+FALSE
+Reserved word
+
+\b(?:addint|append|and|byte=|clear|close|copy|create|crunch|date\$|echo|else|end|fill|flag|for|get|go(?:sub|to)?|home|if|info|input([#@]?)|kill|move|msg|next|nibble|not|on nocar|open|or|poke|pop|position|print#?|public|push|ram2?|read#?|ready|recall|return|rewind|rnd\$|set|step|stop|text|then|to|update|use|when\$|write)(?![a-z])
+TRUE
+TRUE
+7
+0
+
+
+0
+FALSE
+Built-in Functions
+
+(?<![.\w])(?>byte|chr\$|clock|edit|flag|free|instr|int|key|left\$|len|link|log|mark|mid\$|modem|msg|nibble|pdl|peek|right\$|random|setint|str\$|time\$|tone|val|width)(?![.\w])
+TRUE
+FALSE
+8
+0
+
+
+0
+FALSE
+Integer
+
+\b[0-9]++[%SIL]?
+TRUE
+FALSE
+10
+0
+
+
+0
+FALSE
+Real
+
+\b(?:[0-9]++)?\.?[0-9]+(?:e[+-]?[0-9]+)?[@!#FRD]?
+FALSE
+FALSE
+10
+0
+
+
+0
+FALSE
+Operator
+
+[*+-/\^<=>]++
+FALSE
+FALSE
+13
+0
+
+
+0
+FALSE
+Bracket
+
+[()]++
+FALSE
+FALSE
+17
+0
+
+
+0
+FALSE
+4
+(
+)
+TRUE
+3
+[
+]
+FALSE
+3
+{
+}
+FALSE
+3
+"
+"
+FALSE
+2
+1
+Multi-line string
+1
+9
+FALSE
+1
+Closing '
+
+'
+FALSE
+FALSE
+9
+0
+
+
+1
+FALSE

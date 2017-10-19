@@ -1,0 +1,24 @@
+Challenges:
+
+Where will word wrap, character set, modBASIC, error trap and my ML all live?
+Module 64 takes some memory too. :P
+-and v-1541!
+
+Merging the room descriptions with room metadata for level 8
+
+- character set replacement for claw. <<| ? Dunno.
+
+- Tracking down duplicate code in t.main
+
+- Overflow in record in t.np
+
+- Get AppleWin installed to see original Land of Spur game running
+
+Currently t.np is included via a t.main {uses} directive.
+
+- Write a batch file to calculate the largest *.prg file (excluding t.main), merge that with the t.main program
+	* %~a1 expands to file attributes
+
+- write test cases, import bugs from bugs.txt into bughost
+
+- modbasic v2 ends @ ~$c500... re-assembled ml.o to start there

@@ -1,0 +1,54 @@
+Memory map:
+(tabs are 4 spaces wide)
+
+$e000-$efff	[from docs: String Array System storage]
+
+$d000-$dfff	[from docs: String Array System storage]
+
+$cd00-$cdff	Common buffer for Input Any, Sliding Input
+		(maybe Static Array System later, need to check if empty space
+		[$ced0-$cfcc] can in fact be relocated here)
+		Possibly receive buffer for v-1541
+
+$c900-$cfcc	Jeff Jones' String Array System from LoadStar: Issue #103 -
+		Lets you store fixed-width string arrays under ROM!
+		(Naybe it could be reassembled to eliminate a few routines
+		like loading/saving arrays, search arrays, to cut down size?)
+		[$ced0-$cfcc (252) $00 bytes at end, looks like a buffer)
+
+$c500-$c6db	instring
+50432-50907	input any
+		module 64
+"ml c500"	bracketxt
+ 		pop stack
+		error_trap (from 08/1984 Compute! magazine)
+
+- c47c-c4ff: 131 bytes free -
+
+$c000-$c47b	modBASIC v1.1-rc1
+49152-50276	A 2K buffer is allocated after the natural end of the
+		BASIC program.
+
+$a000-$bfff	Under BASIC ROM
+		[from SAS docs: possible String Array System storage]
+
+$9eff-$9fff	Word wrap: loads at top of BASIC
+		(additional space needed for wrap buffer?)
+
+$9900-$9d7a	Sliding Input
+
+--- Top of BASIC memory for now (no v-1541) ---
+$98ff
+
+$8000-$8bec	Future expansion: v-1541lo 2.4
+32768-35820	(additional space needed for receive buffer? could be $cd00)
+
+$0801-$????	t.main + t.np (at boot)
+ 2049-????	End of this program determines new artificial top of BASIC RAM
+		so new variables don't get overwritten by Module 64 loads
+
+ $33c-????	Cassette buffer
+  828-????	AgentFriday's trace routine
+
+ $13F-$1FF
+  319-511	Stack

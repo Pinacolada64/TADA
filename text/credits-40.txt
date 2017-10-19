@@ -1,0 +1,109 @@
+  [*] Totally Awesome Dungeon Adventure [*]
+  [*] Credits, Greets, and Gobbledygook [*]
+
+Based on [The Land Of Spur] (1986-1994),
+last seen running on a BBS called "Dura-
+Europos."  Cheers, Trajan.  Here's lookin' at one of the best
+Apple BBS door games in existence today, or any day.
+The game is a true classic, the
+inspiration behind this adaptation and
+enhancement.  Thank you for making
+adventurers happy.
+
+Oh, yes -- Verus, your locum is doing
+very nicely here.
+
+Then there's the undeniable influence of MUCKs...  Feeps 4-ever!
+
+Original Code/Hardware:
+    Greg W. Davis
+    Skip Thompson (Trajan)
+    Gene Buckle   (geneb)
+
+Technical Support:
+    Joe Commodore
+    Iron Axe
+    Kitty
+
+Descriptions/Text/Maps:
+    Demented Astronomer
+    NightFire
+    Aci_Jubatus
+
+Porting/Enhancements:
+  Ryan Sherwood (Pinacolada)
+  Jonathan Herr (DracoSilv)
+
+Ideas 'n Such:
+  FuzzyFox
+    BASIC math routines
+  Robin Harbron (MacbethPSW)
+    Hex -> decimal conversion
+  Dave Hartman  (Metal Mage)
+  Steve Judd
+    Various adventure game programming threads
+  David Mills
+    Blinking cursor at [>>] prompt
+  Paul Panks    (Dunric)
+    Banter, code and inspiration
+  Acea
+  Kalriss
+  nikoniko
+    original web hosting
+
+         Assembly Language:
+  Jim Butterfield, Syntax:
+    assembly inspiration
+  Bob Cederlof:
+    InString routine
+  Jeff Jones:
+    LoadStar guru, Static Array System
+  Dave Moorman:
+    Input Any routine
+  Jim Radiks, Stiggity:
+    IntToVar routine
+  Jefferey Stone
+  Michael J. Gibbons:
+    "Module 64"
+  AgentFriday
+    modBASIC, trace, v-1541,
+    infinite debugging help
+  Creative Micro Designs:
+    "Sliding Input" routine
+  Hydrophilic
+    cheering section
+
+CommodoreServer:
+    Goog
+    AgentFriday
+
+Programming Assistance:
+    Ping
+    Alessa/Mint
+
+Thank you [so much], everyone.
+
+And finally, a hearty thanks goes out
+to [you] for playing this game! I hope
+you enjoy it!
+
+          CONTACT:
+          --------
+
+Compliments, complaints, conversation, flames:
+
+        E-mail:      sym.rsherwood@gmail.com
+        Web page:    https://sites.google.com/site/pinacoladasprojects/
+
+Support BBS - telnet to
+dragonseye.dyndns.org:6400
+Home of The Dragon's Eye BBS.
+
+Original [Land of Spur]:
+The Age of Reason -
+          To be announced.
+
+Last updates:
+Friday the 13th, July 2007
+April 8, 2014 8:46 PM
+New Year's Day 2016

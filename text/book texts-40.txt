@@ -1,0 +1,296 @@
+B.MAP ONE
+9
+1
+
+B.MAP TWO
+9
+
+THE HOWLING
+Be it known that to kill a werewolf
+requires a special craft - one made of
+silver.
+
+IN SEARCH OF...
+The magic item that will restore peace
+amongst the people lieth far below on
+another level...  Many perils stand
+betwixt thou and that item...  Many
+twisty mazes...  Many UPS and DOWNS...
+
+FAMOUS BATS
+Legend has it that killing vampires is
+extremely difficult.  It takes the
+correct weapon, one that has been
+carefully crafted of the finest wood...
+
+PLANT LIFE
+You're having difficulty making out
+the passage:
+
+"...roots dissolve when exposed to
+seawater..."
+
+MAGICAL ARTIFACTS
+The following is a brief list of known
+potions and spells found in the land.
+Report compiled by Wizards Local 345.
+
+Scrolls:
+
+Scroll of Anti-Magic:
+Removes your magical spells!
+
+Scroll of Endurance:
+Increases your hit points.
+
+Scroll of Doorways:
+Allows you to create a doorway through
+solid rock!
+
+Scroll of the Mummy:
+Teleports you to the Mummy's tomb.
+
+Potions:
+
+Skill potion:
+Increases your skill with your currently
+readied weapon until you READY again.
+
+Vorpal potion:
+Increases the damage with your currently
+readied weapon, until you READY again.
+
+Charm potion:
+Will automatically charm any monster in
+the current room.  This monster will
+automatically ask to join you when you
+leave.
+
+MAP ONE
+Level 1 map
+
+SCROLL OF ANTI-MAGIC
+By reading these magical arcane words,
+you feel all your spells vanish as if
+you never knew them...
+
+PROSPECTING...
+Be it known that in olden days the sign
+of a truly WEALTHY adventurer was the
+accumulation of 5,000 gold pieces... It
+is said that without at least this
+amount of gold, one could not leave the
+LAND!
+
+Be also aware of a holy object for the
+knights of old...
+
+ADVENTURER'S GUIDE
+The novice adventurer should take these
+words to heart:
+
+ 1) Eat and drink often enough to keep
+    thy health up!
+ 2) READY a weapon before encountering
+    the demon!
+ 3) Shields are of little value unless
+    put to use!
+ 4) Armor carried is armor wasted!
+ 5) Mapping thy journey saves time &
+    lives!
+ 6) Acquisitions made in haste can prove
+    hazardous to thy health!
+ 7) Choose thy weapons well, for the
+    strongest may not always be the most
+    effective.
+
+....courtesy of The Adventurers Widows &
+                Orphans Guild
+
+SCRAP OF PAPER
+For a FAST ride, enter this when asked:
+ ?0-14-97
+
+WRAITHS - THE BOOK
+Oh ye doomed traveler!
+
+Ye must leave this terrible land at
+once.  Even though parts may seem fair
+and beautiful, it is ruled by the KING
+OF THE RINGWRAITHS!  It is from this
+kingdom that his cronies, the lesser
+Ringwraiths, prowl the other realms of
+Spur, seeking helpless souls upon which
+to feed.  They roam freely in this
+wretched land...
+
+Yet, if there should prove to be the
+long-awaited champion of the people, ye
+may yet stand a chance of killing the
+foul king, and rid Spur forever from the
+tyranny of the Ringwraiths. For this,
+your reward will be great indeed!
+
+GUIDE TO THE AMULET
+Ye weary traveler risks much in thy
+journeys.  Rejoice now, for the author
+will inform ye of a great and powerful
+object that will be of great use to ye.
+It is the Amulet of Life.  It is not
+easy to get, for it resides on a tiny
+deserted island in the vast reaches of
+the western ocean.
+
+Deserted that is, except for its
+guardian, one of the dreaded
+X-Dragons...
+
+Once ye have gotten the Amulet of Life,
+ye must energize it by drinking of the
+Fountain of Youth.  Only then will its
+powers be awakened.  It will actually
+snatch the weary traveler from the very
+jaws of death, and teleport them to
+safety.  It is also the enemy of the
+Amulet of Death, affording a measure of
+protection for one who attempts to [READY]
+that dreaded weapon.
+
+GUIDE TO BIG ISLANDS
+Besides the minor islands of the Great
+Ocean, there are two known big islands.
+These are the Isle of the Headhunters,
+and the Great Island of the Ringwraiths.
+
+The island of the Ringwraith is near the
+top of the world, and it's [very] cold
+there.  One is advised to bring a coat
+along.  The King of the Wraiths is said
+to have his castle somewhere there...
+
+About the Isle of the Headhunters,
+little is known except there is a rumor
+that the Chief of the Headhunters has a
+hidden treasure room. It is said that he
+hides the only item in the Land capable
+of killing the King of the Ringwraiths
+with a single blow. Apparently the two
+villains have a pact of some sort...
+
+DEATH AMULET-BOOK
+Listen now, my reader, as I tell ye of
+the most dreaded weapon in all the land.
+It is the Death Amulet.  Almost as
+feared by the person wielding it as the
+monster attacked by it.  It is rumored
+to lie at the head of a vast underground
+river somewhere on the 2nd level.  To
+get there, ye must first secure a boat
+of some sort.
+
+Be aware also that there is another
+Amulet in distant lands that affords
+some measure of protection for the
+wielder of the Death Amulet.
+
+DEATH AMULET-GUIDE
+Warning! This document is to be read
+only by Adepts of the Black Arts. Herein
+contains all known knowledge of the
+Death Amulet, otherwise known as the
+Dark Force in some less-learned circles.
+
+It is said to reside at the headwaters
+of an underground river in what is known
+as the Level Of The Second. This is
+disputed by some scholars, but is
+generally accepted as being correct.
+
+If one tries to [READY] the Death Amulet,
+there is a 20% chance of dying
+immediately (30% in duel)! However if
+one also carries the Amulet of Life,
+the risk is reduced to 10% (25% in
+duel). Furthermore, if one has the
+Amulet of Life properly energized, one
+will be resurrected even if one should
+die at the hands of the Death Amulet
+(note that the Author does not pretend
+to be an expert on the Amulet of Life,
+such study being outside the realm of
+the Brotherhood of the Black Arts).
+
+Once one has the Death Amulet readied,
+it manifests itself in this realm as a
+Proximity weapon of 50 base damage!
+Again, note that its nemesis, the Amulet
+of Life, will reduce this to 15% if one
+attacks another in duel who has that
+Amulet (10% if one has the Amulet of
+Life, and challenges another who has the
+Death Amulet.)
+
+Further study on this subject is only
+possible first-hand...
+
+SCROLL OF ENDURANCE
+By reading these magical arcane words,
+you feel some hit points return!
+
+SCROLL OF DOORWAYS
+By reading these magical arcane words,
+you are endowed with the power to open a
+doorway through the very walls in front
+of you. Choose carefully the doorway to
+open.
+
+MUMMY'S SCROLL
+As you read these ancient magical words,
+you feel a long-dead person tugging at
+your very being. Even as you read, you
+are de-materialized and transported to
+another realm. One not very friendly...
+The Mummy's Tomb...
+
+MAP TWO
+A voice roars in your ear, ["I bet you
+thought this was a map of Level Two!
+Well, it ain't!!! Harr harr harrr!! Only
+Rangers or those with the PALINTAR can
+view such a map!!"]
+
+MAP FOUR
+Level 4 map
+
+SHIP'S LOG
+Stardate: 216.5
+
+The end is near.  The ship's computer
+has baffled even our science officer,
+and thwarted all attempts to regain
+control of the ship.  I fear that we in
+the barricaded Bridge are the only
+surviving humans left on board.  I do
+not count the radiated humans under mind
+control of the computer among our
+company.  Let it be known that I,
+Captain Uzaris, commander of the United
+Federation Starship Starburst, do hereby
+award commendations to the entire crew.
+Let it be so recorded, and their
+families rewarded accordingly.  I must
+end now, they are reporting sounds of
+heavy Maulers approaching the door of
+the Bridge. We must all take part in the
+final defense....
+
+             [Captain Uzaris]
+             [UFS Starburst, Commanding]
+
+
+SPACE SCOUTS
+To the Space Scouts of Alpha-Centauri,
+always remember the Space Scouts motto:
+
+'X' here, 'X' there, 'X' everywhere
+makes a Scout healthy and wise.

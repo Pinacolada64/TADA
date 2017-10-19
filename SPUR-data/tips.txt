@@ -1,0 +1,63 @@
+
+Survival tips:
+--------------
+> Eat and drink to keep  your  strength up. This will  also  help  restore  hit
+hit points if low. Generally check your strength and energy after  each  battle
+and before you  leave the  game (if you are leaving  while  in  the dungeon). A
+victory in battle will restore some HPs while running away or fleeing will not.
+Fleeing also  will  reduce one of  your attributes.
+> Examine all suspicious  objects. This will raise your IQ if you successfully
+examine a cursed object. While  picking up a cursed object will reduce your IQ.
+> If you  leave your  character in  the dungeon, and  do  not  wish to  have it
+dueled, move it away from the shoppe in the first level! Find some quiet corner
+to hide  out. Also, leaving a  friendly QUOTE may help.
+> If  possible,  carry a 'Transport  to shoppe' spell.
+> If you always miss a certain monster, chances are, a special weapon is needed
+for that monster (ie, the silver bullet for the Werewolf). Attacking  with  any
+other weapon is just wasting your time.
+> The Dwarf always resides in one  spot on level  number 1. He  will  sometimes
+steal your gold as long as he is  still in that spot. The spot will not  change
+from game to game, so explore level  #1 until you find him. He is pretty tough,
+but when you bump him off, you not only are rid of him for the rest of the game
+but you get ALL the gold he has  stolen from all players since the last time he
+was bumped off.
+> An item found in a spot will be there again the next time you play UNLESS you
+are still carrying that item  from  the last time you played. So, if you  found
+a melon for example, and  are  about to quit for the day, EAT the melon, and it
+will be there again the next  time  you play, and you can EAT it again.
+> When DUELing somebody, compare  their BAD HOMBRE rating with yours. If theirs
+is too much higher, you may want to re- consider. You can still  win if  theirs
+if  somewhat  higher, as the  rating is only a rough approximation of the
+combat ability and a generous amount of luck is involved. Also, the weapons
+used are very important, but not in the BHR, as the program doesn't know
+which weapon each player will choose.
+> If 'Dusk  Approaches..', DO NOT start a fight with a tough  monster. If  time
+runs out during the battle, your  stats will be saved in your current  weakened
+condition, making you easy pickings for a duel. Also, when  you come  back, the
+monster will be  there at its  original strength, but you will still have  your
+combat hits from the last time you were there.
+> When 'Dusk Approaches..', find a spot without any monsters, eat and drink  to
+get your stats up. Your character  will be better prepared to defend himself in
+case of a duel, and you will be in good shape when you return.
+> As you go up in levels, the  monsters hit harder! To compensate, you get more
+skillful in  the use of  your  shield.  ALWAYS have a spare shield then...
+> Know your character! Study the School character file. Know what his good  and
+bad weapon types are.
+> ALL your stats  are  considered  when you are fighting or dueling!
+> If you belong to a Guild, try to park your character  in your  guilds HQ when
+you leave for the day. He/She will  get a duel  bonus if anybody attacks  while
+you are gone.
+> All items you find lying about can be sold at the Pawn shop.
+> Do NOT be afraid to  FLEE a  monster! It is much better to run away and  live
+to fight another day than to start over with zero experience points..
+> READ books to increase your wisdom!
+> If you should come across an  unconsc-ious player, use LOOT to see if he is
+carrying any  valuable  items. You can  LOOT one such item per  session  (Civys
+will not be allowed to stay in the shop if they loot that session).
+> If you leave your  character  in  the dungeon, GIVE your most valuable  items
+to your Allies if  possible.  Any items left with an Ally are safe from LOOT.
+> The higher your percentage of shield  or armor, the better  the  chance  that
+a monster will not slip by them.
+> Allies with a ! after their names are 'elite' allies. They tend to be  more
+loyal  than  other  allies, have  light armor  and will not attack you if you
+refuse to give  them food  when you EAT or DRINK.

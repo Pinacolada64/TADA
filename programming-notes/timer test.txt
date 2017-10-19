@@ -1,0 +1,48 @@
+dracosilv found an edge case:
+if ti/ti$ rolls over, could this produce an infinite wait?
+ti is reset along with ti$, i thought it read jiffies since power-up
+
+1 ti$="235900":print ti$,ti:t=ti
+2 if ti<t+60 then 2
+3 print ti$,ti
+4 goto 1
+ready.
+
+Setting ti$="235959" lets the bug rear its ugly head. the loop will wait a very, very long time.
+
+be somehow added up to be 60
+e.g. try to set ti$="235859"
+wait.. wait.. that WILL work.. since.. 23:58:60 is less than 23:59:00
+5860 is less than 5900
+
+sym_rsherwood  02:21:15 AM
+ 
+ha, basic corrected a typo. ti$="235880"... no syntax error
+ 
+hmm
+
+dracosilver_furcadia  02:21:46 AM
+ aah.. its checking values.. and those strings would compare correctly.. so i think the only edge case is basically to a number it can't count to.
+
+sym_rsherwood
+this is a two pipe problem (to quote sherlock holmes)
+
+eheh
+ 
+if you could somehow break apart.. or only use the end digits.. it would be easier
+e.g. ignore the hours
+or minutes.. 
+yeah..
+and just count that way
+so if it went from 59 seconds to 0 seconds.. it would actually go from 59 seconds to 1 minute 0 seconds which would work for all the other times.
+
+dracosilver_furcadia  02:26:20 AM
+ 
+well like i said.. unless the time variable is needed.. just reset it to 000000
+ 
+or.. 
+store it
+reset it to 000000
+do your jiffies-test
+then add the value of the seconds passed to the time stored... (and make sure to account for overflows.. e.g. 59 to 00 and 23 to 00
+easy peasy

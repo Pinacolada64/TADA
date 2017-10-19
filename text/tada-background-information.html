@@ -1,0 +1,970 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<!-- $MVD$:app("MicroVision WebExpress","770") --><!-- $MVD$:template("","0","0") --><!-- $MVD$:color("18","80ff","Orange","1") --><!-- $MVD$:color("19","ffd6ce","Lavender","1") --><!-- $MVD$:fontset("Untitled Font Set 2","Arial") --><!-- $MVD$:fontset("Sans Serif","Arial","Helvetica","Monaco") --><!-- $MVD$:fontset("Impact","Impact","Arial","Helvetica") --><!-- $MVD$:fontset("Serif","Times New Roman","Times","New York") --><!-- $MVD$:fontset("Verdana","Verdana","Arial","Times New I2") -->
+  <title>TADA Background Information</title>
+  <style type="text/css">
+body {
+  float: right;
+  margin-right: 15%;
+  line-height: 23pt;
+  font-size: 15pt;
+  margin-left: 15%;
+  width: 70%;
+  text-align: left;
+  font-family: "Times New Roman",Times,serif;
+}
+blockquote {
+  border-style: solid;
+  padding: 10px;
+  font-style: italic;
+  text-transform: none;
+  background-color: #ffcc66;
+  font-weight: bold;
+  color: #996633;
+  font-family: "Times New Roman",Times,serif;
+  font-size: 14.3pt;
+  line-height: 20px;
+}
+.speaker {
+  text-align: right;
+}
+.source {
+  text-align: right;
+  font-style: italic;
+  font-family: "Times New Roman",Times,serif;
+}
+span.command {
+  padding: 3px;
+  left: 10px;
+  bottom: 10px;
+  text-align: center;
+  background-color: #cccccc;
+  font-family: Arial,Helvetica,sans-serif;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+p {
+  font-size: 15pt;
+  line-height: 25pt;
+  color: black;
+}
+pre {
+  font-family: "Courier New",Courier,monospace;
+  font-size: 12pt;
+  line-height: 12pt;
+  color: #333333;
+  background-color: #999999;
+}
+div {
+}
+div.menu {
+  font-family: "Times New Roman",Times,serif;
+  font-size: 16px;
+  line-height: 16.5px;
+  color: black;
+}
+
+  </style>
+</head>
+<body
+ style="color: rgb(0, 0, 0); font-family: &quot;Times New Roman&quot;,Times,serif; line-height: 10pt; text-align: left; font-weight: normal; font-style: normal; text-transform: none; background-color: rgb(204, 153, 51);"
+ alink="#ee0000" link="#0000ee" vlink="#551a8b">
+<center>
+<p style="text-align: center;" align="center"> <i>Updated 08/20/2008,
+10/15/2009, 4/12/2010, 11/8/2015
+</i></p>
+</center>
+<blockquote>Treasures, perils, and mysteries await the adventuresome...</blockquote>
+<blockquote class="speaker">- Pinacolada's favorite
+room desc, evar.
+</blockquote>
+<ol style="list-style-type: upper-roman;">
+  <li> <a href="#history">History</a></li>
+  <li><a href="#history">Features</a></li>
+  <li>Menus &amp; Screenshots</li>
+  <li>Design Notes</li>
+  <li>To-Do List</li>
+  <li>Mysteries Abound</li>
+</ol>
+<h3> <a name="history"></a><span style="font-weight: bold;">I. History</span></h3>
+<p> Well, let's see. Where shall I begin?</p>
+<div style="margin-left: 40px;">
+<blockquote
+ style="border-style: double; border-color: rgb(153, 153, 153);">"Begin
+at the beginning," the King said gravely, "and go on till
+you come to the end: then stop."</blockquote>
+</div>
+<div style="margin-left: 40px;">
+<blockquote class="speaker"> - Lewis Carroll<br>
+Alice in Wonderland
+</blockquote>
+</div>
+<p> Okay, maybe here: TADA&mdash;short for <i>Totally Awesome Dungeon
+Adventure</i>&mdash;aims to be a Commodore 64 re-implementation and
+improvement of a game I played on a local Apple // bulletin board
+system (BBS) in Tacoma, Washington (state), USA. It ran GBBS Pro
+software,&nbsp;modified to reflect the theme of an ancient Roman/Syrian
+city called Dura-Europos. The system operator was named after an Roman
+emperor of that era, Trajan.</p>
+<p> The game which garnered my attention was called <i>The Land of Spur</i>.
+The in-game atmosphere was great, despite most room descriptions being
+only a few lines long. I remember logging lots of text from it, but I
+was never able to get far in it without dying. This frustrated me; I
+wanted to know more about the inner workings of the game.</p>
+<p> From this a half-formed seed of an idea began... I would re-create
+it on my own.
+</p>
+<p>(Several years ago, Trajan found my web page detailing this project
+whilst Googling for "Dura Europos" and got in contact with me on my
+BBS! That was really cool. He's set up his system again since then,
+working from backup disks. Maybe some day we'll actually get to visit.)</p>
+<p> And so TADA began its life as a pile of notes in 8th grade (in
+1989) &mdash;many of which I still have, written in faded pencil on the
+back
+of class notes, envelopes, you name it. Unhappily, no cocktail napkins.
+Hey, I was too young to drink at the time. My handle "Pinacolada"
+refers to the <i>yogurt</i>, which I still love dearly.</p>
+<p> So I started programming little bits and pieces of it, working
+mainly from the logs I had accumulated. Along the way, I thought it
+would be interesting to add a few features, such as the capability for
+the player to add things to the game: rooms, items, and monsters. This
+would effectively turn it into a one-player Multi-User Dungeon (SUD?
+Single-User Dungeon?).</p>
+<p> A few years later I was able to purchase a copy of GBBS Pro at an
+ungodly price, along with the Holy Grail (er, programmer's reference
+guide) and a magical disk which contained the original version of The
+Land Of Spur.</p>
+<p> Unfortunately, GBBS Pro did not boot.&nbsp;It was missing the <tt>ACOS.OBJ</tt>
+file&mdash;sort of a key element since that is the interpreter for the
+script
+language the BBS and The Land of Spur were written in, called Advanced
+Communications Operating System. Trajan kindly has supplied this file
+to me, and another friend from IRC (geneb) provided working disk images
+of GBBS Pro.</p>
+<p> Back then though, I was stuck. But my mind's eye could reconstruct
+what the game could have looked like in its native habitat from reading
+the source code. (You'll have to imagine the pick and shovel, little
+brushes, and pith helmet of an archaeologist; I've heard many tools of
+the trade are rather rough on vintage hardware. Mmm. Vintage. It
+doesn't get older, it gets better. Would you care to sniff the power
+cord? No... stop... don't <i>lick</i> it! Ack! Well, that's okay; it
+wasn't plugged in anyway.)</p>
+<p> I've made a hard copy of all the source code and have it backed up
+in multiple places now. You shoulda seen the one that got away...</p>
+<p> Also, I have PDFs of the BBS manual courtesy of geneb, since my
+project to HTMLize it are still in limbo.</p>
+<h3> <span style="font-weight: bold;">II. <a name="Features"></a>Features</span></h3>
+<p> The Land of Spur has a very team-oriented, cooperative world view,
+even though it was just a single-player game (ie, one player would log
+on, make their moves, log off, wait for the next player to log on,
+etc.) as "was the style at the time" &lt;mental image of hanging an
+onion on your belt <span style="font-style: italic;">&agrave; la</span>
+an episode of <i>The Simpsons</i>&gt;...</p>
+<p> You could also have up to three allies, which could improve your
+chances of winning a battle. I'm not sure whether the allies could also
+carry things (the version I have doesn't appear to have that
+capability) but I've already added it (well, at least the inventory
+part so far) in TADA. These could be found whilst adventuring, if your
+statistics were "good enough" (I'm still not 100% clear on what merited
+this) and you had the option of them joining your party. On the
+enhanced Dura-Europos version, you could also re-order the allies'
+positions (front, flank and rear guard) to gain tactical advantage.</p>
+<p> You could also charm monsters and have <i>them</i> join your
+party! Rawr.</p>
+<p> There was also a well-done (optional) guild system, in which people
+banded together to beat up opposing guilds. Or you could be a civilian,
+and have no affiliation with guilds. Or you could be a rogue, and
+against everyone! Muhahaha.</p>
+<p> You could also have a horse, which would speed up (quoted from the
+user documentation) "your journey over the land parts of the Land." It
+could also improve your chances of winning a battle (you could <span
+ class="command" style="font-family: monospace;">CHARGE</span> into
+battle on the first
+attack and gain a bonus, especially if you were carrying a lance or
+pole weapon). The horse can also carry things, if you find some
+saddlebags for it. And it has to be fed and watered, of course.</p>
+<p> I'm not sure whether this was done purely by choice of Trajan, but
+there were Storm Weapons in the game: intelligent and able to cast
+spells.
+Pretty neat concept. I'm not quite sure how to implement them yet.</p>
+<p> One of the neatest things about the game was that it involved what
+I saw as time travel. You could be on the bridge of the <i>Enterprise</i>
+with a two-handed sword, or wander around a dungeon level with a
+phaser. (Of course this was just the ability to carry items anywhere in
+the game, but I like my explanation better!)
+</p>
+<p>The goal of the game was configurable by the sysop, which usually
+involved getting out with:</p>
+<p style="margin-left: 80px;"> a) a certain amount of money</p>
+<p style="margin-left: 80px;"> b) a magical item</p>
+<p style="margin-left: 80px;"> c) both a) and b), or</p>
+<p style="margin-left: 80px;"> d) defeating the god Spur, who was a
+pretty hard dude to kill, I would imagine. I never did get that far.</p>
+<p> Some other interesting features of The Land of Spur were the fact
+that&mdash;going back to the guilds concept&mdash;every room in the
+game had a
+"guild alignment," and you could gain bonuses by having other members
+of your guild in the room with you at the time you decided to duel
+another character. To gain an easy bonus, you could even pick up
+sleeping guild members from other rooms (if the character let you). The
+<span class="command" style="font-family: monospace;">FL</span> command
+let you turn
+that on or off, if you found it annoying that you woke up in a
+different room that you bedded down for the night.
+</p>
+<p>There was also a statistic called "Bad Hombre Rating" (abbreviated
+as "BHR") which summarized what that character's fighting
+ability was.
+</p>
+If you belong to a guild, there are guild headquarters located at
+various spots on the map, which you can enter if you've paid your
+initial Guild dues at the beginning of each month (a wrinkle I will add
+at some future date). The payoff is there's usually a stockpile of
+gold, weapons, ammunition, and other things for people down on their
+luck. It's expected that you leave something in return, and I may
+enforce this rule via the software, or at least keep a log of whom
+takes what, viewable by anyone in the guild, and leave it up to
+vigilante justice to rain down upon the leech from within the ranks
+when they become greedy (while watching that player's Honor rating
+plummet for attacking members of their own guild :). Both ideas are
+equally appealing. The latter is certainly more entertaining, though.<br>
+<br>
+Speaking of gold: as everyone knows, rivers are some of the richest
+places in the world, right? They've got banks on both sides (dodges the
+tomatoes).<br>
+<br>
+While we're on the subject... there can be a problem when that hollow
+knot in the old oak tree just isn't <span style="font-style: italic;">big</span>
+enough to store all your gains, ill-gotten or no. Plus, carrying them
+all around just entices the Dwarf who wanders around in search of
+wealthy victims.<span style="" arial="" ;="" font-size:="" 12pt;="">&nbsp;</span><span
+ style="" arial="" ;="" font-size:="" 12pt;=""></span>The Merchant's
+Annex on Level One is pleased to announce they now have a Guild-owned,
+FDIC-insured (Flathead, Dimwit, Idiot and Clodhopper) lending facility
+available to the general public.
+If you're an evil thief, you may just want to moonlight as a bank
+robber. [Inside tip: Let's just say the guards aren't paid very well.
+But if some high-powered mage finds you've been skimming gold off his
+account... <span style="font-style: italic;">*shrug</span>* don't
+say I didn't warn you. You may look <span style="font-style: italic;">cute</span>
+with a horse's head.]<br>
+<p>If you're <i>not</i> part of a Guild and can stand some
+higher-than-average interest rates, visit Vinney at the Wall Bar &amp;
+Grill. He's just
+your typical underworld mob boss, good (enough) to people who respect
+him, not so good to those who don't. Can't pay back a loan on time? No
+hard feelings. He'll just send an Invisible Stalker after you, one of
+the nastiest creatures in the dungeons, the likes of which most
+high-level wizards have trouble with.
+</p>
+<p>Vinney also has other connections, some of which he'll tell you
+about if you merit a certain level of trust. Such as his totally
+legitimate, above-board package delivery business.
+</p>
+<p>(Hmm, I just made the package delivery business up to be funny, but
+now that people see it in print they'll expect it in the game... that
+would never do. Just not sure how to implement it. I already thought of
+Vinney being available for children's parties to be amusing. After all,
+the guy no doubt needs <i>some</i> levity in his life, ordering all
+these hits and stuff has gotta bring a guy down eventually. I heard him
+say he does balloon animals and magic tricks.)</p>
+<center style="font-family: monospace;">
+<p style="text-align: center;" align="center"> <span style="" arial=""
+ ;="" font-size:="" 12pt;="">[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]</span></p>
+</center>
+<h3>III. <a name="Menus__Screenshots"></a>Menus &amp; Screenshots</h3>
+<p>And so, the original <i>The Land of Spur</i> menu (cleverly adapts
+to 40 or 80 columns):
+<br>
+</p>
+<div style="text-align: center;">
+<pre>[-------------------------------------] [-------------------------------------]<br>(&nbsp;&nbsp;&nbsp;&nbsp; The LAND of SPUR Game Menu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ) (&nbsp;&nbsp;&nbsp;&nbsp; Ye may employ these commands&nbsp;&nbsp;&nbsp; )<br>(=====================================) (=====================================)<br>( DROP - an item&nbsp; READY&nbsp; - a weapon&nbsp;&nbsp; ) ( UNREADY-weapon&nbsp; REST&nbsp;&nbsp; - a while..&nbsp; )<br>( GET&nbsp; - an item&nbsp; ATTACK - a monster&nbsp; ) ( CAST - a spell&nbsp; LOOK&nbsp;&nbsp; - at a room&nbsp; )<br>( EAT&nbsp; - food&nbsp;&nbsp;&nbsp;&nbsp; DRINK&nbsp; - water/wine ) ( USE&nbsp; - item&nbsp;&nbsp;&nbsp;&nbsp; WEAR&nbsp;&nbsp; - armor&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )<br>( READ - a book&nbsp;&nbsp; DUEL&nbsp;&nbsp; - a player&nbsp;&nbsp; ) ( HELP - help&nbsp;&nbsp;&nbsp;&nbsp; QUIT&nbsp;&nbsp; - Quit game&nbsp; )<br>( EXAMINE OBECT (X-examines all)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ) (&nbsp;&nbsp; QUOTE - Write your chars quote&nbsp;&nbsp;&nbsp; )<br>(&nbsp;&nbsp;&nbsp; FLEE - random exit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ) (&nbsp;&nbsp; STATS - Your Current Status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )<br>(&nbsp;&nbsp;&nbsp;&nbsp; DIE - Terminate this player&nbsp;&nbsp;&nbsp;&nbsp; ) (&nbsp;&nbsp;&nbsp;&nbsp; INV - Display Inventory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )<br>(&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; V - Room description ON/OFF&nbsp;&nbsp; ) (&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; AD - Auto duel ON/OFF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )<br>(&nbsp;&nbsp; ORDER - Tactical order of allys&nbsp;&nbsp; ) (&nbsp;&nbsp;&nbsp; GIVE - Give item to ally to carry)<br>(&nbsp;&nbsp;&nbsp; TAKE - Take item from ally&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ) (&nbsp;&nbsp;&nbsp; LURK - Lurk behind ally in combat)<br>(&nbsp;&nbsp;&nbsp; LOOT - unconcious adventurers!&nbsp;&nbsp; ) (&nbsp;&nbsp;&nbsp; PRAY - When all else is gloom..&nbsp; )<br>(&nbsp;&nbsp;&nbsp;&nbsp; DIG - Dig up or bury items&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ) (&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )<br>======================================= =======================================<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Ye may travel:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ] [ Guild Special Commands:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ]<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [N]ORTH&nbsp; [S]OUTH&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ] [ FOLLOW ME-Ask guild member to follow]<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [E]AST&nbsp;&nbsp; [W]EST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ] [ FL-Allow your character to follow&nbsp;&nbsp; ]<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [D]OWN&nbsp;&nbsp; [U]P&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ] [ STAY- Leave followers behind&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ]<br>======================================= =======================================<br></pre>
+</div>
+I'm pondering whether TRACK will be used on non-square maps,
+since computing distance is made harder.
+<p> <span style="" arial="" ;="" font-size:="" 12pt;="">A mock-up of
+my version, in 80 columns. After looking at this, yes,stuff</span>
+is incomplete and missing. And other stuff is changing. Natch. (Note:
+the brackets around text are due to me writing a routine which
+highlights the text inside brackets in a different color.)
+</p>
+<p><span style="font-family: monospace;">&nbsp;&nbsp; [CONTROL-S] or
+[HOME] pauses, any other</span><br>
+<span style="font-family: monospace;">&nbsp;&nbsp; key resumes.&nbsp;
+[/] or [SPACE] quits.</span>
+<span style="font-family: monospace;">&nbsp;If you see a [[MORE/Q]]
+prompt: Q quits</span>
+<span style="font-family: monospace;">&nbsp;&nbsp; reading, any other
+key continues.</span>
+<span style="font-family: monospace;">&nbsp;You may wish to capture
+this text for</span>
+<span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+future reference.</span>
+<span style="font-family: monospace;">&nbsp; ["Totally Awesome Dungeon
+Adventure"]<br>
+</span><span style="font-family: monospace;">Rev. 1:
+??/??/1994&nbsp;&nbsp;
+Rev. 5: 07/25/2004</span>
+<span style="font-family: monospace;">Rev. 2: 09/29/1995&nbsp;&nbsp;
+Rev. 6: 07/19/2006</span>
+<span style="font-family: monospace;">Rev. 3: 10/25/1995&nbsp;&nbsp;
+Rev. 7: 07/29/2007</span>
+<span style="font-family: monospace;">Rev. 4: 05/03/2003</span>
+<span style="font-family: monospace;">&nbsp;--- [Command Summary:
+Dungeon Area] ---</span>
+<span style="font-family: monospace;">&nbsp; What the symbols to the
+left of some</span>
+<span style="font-family: monospace;">&nbsp; commands mean:</span>
+<span style="font-family: monospace;">[*] Typing the command by itself
+lists</span>
+<span style="font-family: monospace;">&nbsp; objects (whether in the
+current room</span>
+<span style="font-family: monospace;">&nbsp; or your inventory) to
+perform the</span>
+<span style="font-family: monospace;">&nbsp; desired action on. Typing
+the</span>
+<span style="font-family: monospace;">&nbsp; command, a space, plus an
+object</span>
+<span style="font-family: monospace;">&nbsp; name will perform the
+action on the</span>
+<span style="font-family: monospace;">&nbsp; specified object. For more
+detailed</span>
+<span style="font-family: monospace;">&nbsp; information, type [HELP
+PARAMETERS].</span>
+<span style="font-family: monospace;">[+] This command is a Guild
+command and</span>
+<span style="font-family: monospace;">&nbsp; can only be used by Guild
+members.</span>
+<span style="font-family: monospace;">&nbsp; For more detailed
+information, type</span>
+<span style="font-family: monospace;">&nbsp; [HELP GUILDS].</span>
+<span style="font-family: monospace;">[!] This command requires your
+character</span>
+<span style="font-family: monospace;">&nbsp; to learn a certain skill,
+either</span>
+<span style="font-family: monospace;">&nbsp; Architecture (building) or
+Oration</span>
+<span style="font-family: monospace;">&nbsp; (conversation). For more
+detailed</span>
+<span style="font-family: monospace;">&nbsp; information, type [HELP
+CREATE]</span>
+<span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+[HELP RECYCLE]</span>
+<span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+[HELP EDIT]</span>
+<span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+or [HELP SAYEDIT].</span>
+<span style="font-family: monospace;">&nbsp;-------- [One Letter
+Commands] -------</span>
+<span style="font-family: monospace;">&nbsp; [G]et all objects in
+room&nbsp;&nbsp;&nbsp; [N]orth</span>
+<span style="font-family: monospace;">&nbsp; [H]elp menu (also
+[?])&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [E]ast</span>
+<span style="font-family: monospace;">&nbsp;
+[I]nventory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+[S]outh</span>
+<span style="font-family: monospace;">&nbsp; [L]ook at
+room&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+[W]est</span>
+<span style="font-family: monospace;">&nbsp; [Q]uit the
+game&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+[U]p</span>
+<span style="font-family: monospace;">&nbsp; [R]oom descriptions
+on/off&nbsp;&nbsp; [D]own</span>
+<span style="font-family: monospace;">&nbsp; [T]ime (hourglass) on/off</span>
+<span style="font-family: monospace;">&nbsp;e[X]amine all objects in
+room</span>
+<span style="font-family: monospace;">&nbsp; [#] Ranger/Palintar mapping</span>
+<span style="font-family: monospace;">&nbsp;-------- [Two Letter
+Commands] --------</span>
+<span style="font-family: monospace;">&nbsp; [! DB]...List rooms and
+objects</span>
+<span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+you've created</span>
+<span style="font-family: monospace;">&nbsp; [+ FL]...Toggle follow
+mode on/off</span>
+<span style="font-family: monospace;">&nbsp;&nbsp;&nbsp; [XM]...Toggle
+expert mode on/off</span>
+<span style="font-family: monospace;">&nbsp; (Architects may create
+other room</span>
+<span style="font-family: monospace;">&nbsp;&nbsp; exits that use
+additional one- and</span>
+<span style="font-family: monospace;">&nbsp;&nbsp; two-letter commands.)</span>
+<span style="font-family: monospace;">&nbsp; -------- [Full Word
+Commands] --------</span>
+<span style="font-family: monospace;">&nbsp; Only capital letters in
+full word</span>
+<span style="font-family: monospace;">&nbsp; commands must be typed to
+distinguish</span>
+<span style="font-family: monospace;">&nbsp; them from one another.</span>
+<span style="font-family: monospace;">&nbsp; With [Expert Mode] off,
+you may type</span>
+<span style="font-family: monospace;">&nbsp; commands as seen here and
+they will</span>
+<span style="font-family: monospace;">&nbsp; automatically be spelled
+out for you.</span>
+<span style="font-family: monospace;">&nbsp; For more information, read
+[HELP XM].</span>
+<span style="font-family: monospace;">[* ATTack]..a monster, engage in
+combat</span>
+<span style="font-family: monospace;">[+ AUTo]....toggle autoduel on/off</span>
+<span style="font-family: monospace;">[* BASh]....a monster senseless
+w/shield</span>
+<span style="font-family: monospace;">[* CASt]....a magic spell that
+you have</span>
+<span style="font-family: monospace;">&nbsp; [CHArge]..your steed into
+battle</span>
+<span style="font-family: monospace;">[! CREate]..something (a room,
+food, etc)</span>
+<span style="font-family: monospace;">&nbsp; [DESc]....edit your char's
+description</span>
+<span style="font-family: monospace;">&nbsp; [DIE].....kill your
+character</span>
+<span style="font-family: monospace;">&nbsp; [DIG].....dig up or bury
+items</span>
+<span style="font-family: monospace;">[* DRInk]...water or wine</span>
+<span style="font-family: monospace;">[* DROp]....an item in your
+inventory</span>
+<span style="font-family: monospace;">[+ DUEl]....an opposing guild
+member</span>
+<span style="font-family: monospace;">[* EAT].....food</span>
+<span style="font-family: monospace;">[! EDIt]....an object/room you
+created</span>
+<span style="font-family: monospace;">[* EXAmine].an object or character</span>
+<span style="font-family: monospace;">[+ FOLlow]..let Guild members
+follow you</span>
+<span style="font-family: monospace;">&nbsp; [FLEe]....in a random
+direction</span>
+<span style="font-family: monospace;">[* GET].....an item from the room</span>
+<span style="font-family: monospace;">&nbsp; [GIVe]....an item to an
+ally to carry</span>
+<span style="font-family: monospace;">&nbsp; [HEAl]....a character who
+is wounded</span>
+<span style="font-family: monospace;">[* HELp]....with the game (see
+below)</span>
+<span style="font-family: monospace;">&nbsp; [HIDe]....or reveal
+objects in room</span>
+<span style="font-family: monospace;">&nbsp; [INV].....list what you're
+carrying</span>
+<span style="font-family: monospace;">[* LOOK]....at the room or an
+object</span>
+<span style="font-family: monospace;">[+ LOOT]....unconscious
+adventurers</span>
+<span style="font-family: monospace;">&nbsp; [LURk]....behind an ally
+in combat</span>
+<span style="font-family: monospace;">&nbsp; [MORe]....toggle
+[[MORE/Q]] page pausing</span>
+<span style="font-family: monospace;">&nbsp; [MOUnt]...your trusty steed</span>
+<span style="font-family: monospace;">&nbsp; [ORDer]...position allies
+in combat</span>
+<span style="font-family: monospace;">&nbsp; [PAGe]....a character with
+a message</span>
+<span style="font-family: monospace;">&nbsp; [PRAy]....when all else is
+gloom</span>
+<span style="font-family: monospace;">&nbsp; [QUIt]....the game in
+progress</span>
+<span style="font-family: monospace;">&nbsp; [QUOte]...edit your
+character's quote</span>
+<span style="font-family: monospace;">[* READ]....a book or scroll</span>
+<span style="font-family: monospace;">[* READY]...a weapon</span>
+<span style="font-family: monospace;">[! RECycle].an object or room you
+created</span>
+<span style="font-family: monospace;">&nbsp; [ROOm]....toggle
+descriptions on/off</span>
+<span style="font-family: monospace;">&nbsp; [SAY].....something to
+puppet character</span>
+<span style="font-family: monospace;">[! SAYEdit].edit char
+trigger/event file</span>
+<span style="font-family: monospace;">&nbsp; [SCHool]..read character
+stat files</span>
+<span style="font-family: monospace;">&nbsp; [SEArch]..area for hidden
+objects</span>
+<span style="font-family: monospace;">&nbsp; [STATs]...current
+character/ally stats</span>
+<span style="font-family: monospace;">[+ STAY]....leave following
+players here</span>
+<span style="font-family: monospace;">&nbsp; [TAKe]....an item from an
+ally</span>
+<span style="font-family: monospace;">&nbsp; [TRAck]...players in the
+dungeon</span>
+<span style="font-family: monospace;">[* UNMount].your trusty steed</span>
+<span style="font-family: monospace;">&nbsp; [UNReady].a weapon</span>
+<span style="font-family: monospace;">[* USE].....an item in your
+inventory</span>
+<span style="font-family: monospace;">[* WEAr]....clothing or armor</span>
+<span style="font-family: monospace;">&nbsp; [WHO].....list of players</span><br>
+</p>
+<div class="menu">+--- [Getting more detailed
+help:] ---+<br>
+|
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|<br>
+&nbsp;
+|&nbsp;
+Type...&nbsp;&nbsp;&nbsp;&nbsp; to
+list...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|
+<p><span style="font-family: monospace;"></span>&nbsp;
+|&nbsp; [HELP INDEX]&nbsp;
+all available topics |</p>
+<p><span style="font-family: monospace;"></span>&nbsp;
+|&nbsp; [HELP ALPHA]&nbsp;
+alphabetical order&nbsp;&nbsp; |</p>
+<p><span style="font-family: monospace;"></span>&nbsp;
+|&nbsp; [HELP GROUPS]
+topics by category&nbsp;&nbsp; |</p>
+<p><span style="font-family: monospace;"></span>&nbsp;
+|
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|</p>
+<span style="font-family: monospace;"></span>&nbsp;
++-------------------------------------+
+<br>
+</div>
+&nbsp;
+<h3>VII. <a name="Mysteries_abound"></a>Mysteries abound</h3>
+<p> I'm still trying to figure out exactly in what way the
+programmer encoded room description information on the original disk
+images&mdash;I'm using faddenSoft's <span style="font-style: italic;">CiderPress</span>
+tool to look at the
+information. I do have the full maps (including room description text)
+for levels one through six. Level seven has yet to be decoded. But this
+makes my job easier, thanks to Trajan. I went ahead and moved my
+original level one map to level eight, assuming I'll fill in
+information about level seven ("The House") one day.
+</p>
+<p style="margin-left: 40px;">Update: In the GBBS Pro documentation (I
+forget exactly where) it mentions text is compressed as it is written
+to disk.
+</p>
+<p> I finally found an issue of Compute that had a program which
+effectively lets you split your BASIC programs into modules, as long as
+you keep the main module of the program in memory at all times, which
+are lines 1000-, and sub-modules which are lines 1-999&mdash;rather
+like
+Image BBS's +.files. If there's enough interest, the original intent of
+this game was to port it to Image BBS to give it
+"single-player/multi-user" capability, but it's obviously important to
+get the game working in BASIC first. Maybe I'll flesh out the
+"standalone" version to function as a editor and client, allowing the
+player to create things offline and upload them to the BBS later. That
+would be cool, having user-created maps.</p>
+<span style="" arial="" ;="" font-size:="" 12pt;=""></span>
+<p style="font-family: monospace; text-align: center;">[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]</p>
+<p> V. Developer's notes<span style="font-weight: bold;"><br>
+</span></p>
+Beware: Beyond here lie dragons.<span style="font-weight: bold;"><span
+ style="font-weight: bold;"></span>
+</span><br>
+<br>
+Developer's Notes:<br>
+<br>
+Tools I Use:<br>
+<p>During the foreseeable future, the ANSI menu will likely be the most
+up-to-date; <b>TheDraw</b> (an ANSI art editor) has this awesome block
+move feature that makes juggling menu commands a joy.</p>
+<p> Rod Gasson's <b>Browser 128</b> is handy for viewing the resulting
+work of art on my C128.</p>
+<p> <b>EditPad Pro</b> for Windows and Linux has similar features for
+plain text files. I can use it to update my ASCII screens too, or use
+Craig Bruce's <b>ZED</b> on it.</p>
+Having gotten on to IRC a few years ago, I joined channel <span
+ style="font-family: monospace;">#c-64</span>, and shortly thereafter, <span
+ style="font-family: monospace;">#c64friends</span> for Saturday night
+Commodore chat. It's been worth it, forging several long-standing
+friendships with folks there.
+<p> Recently, between November 2006 and the beginning of 2007, I
+managed to write an assembly language INSTRing routine which naturally
+operates much more quickly than my BASIC version. There's a slight bug
+though; it returns the position of the match in <span
+ style="font-family: monospace;">I%</span> just fine, after being
+called thusly:</p>
+<p style="font-family: monospace;"> 10 SYS49152,"source string","match
+string"</p>
+<p> but it will return the <i>last </i>position of the match on a
+multiple-character match. Whoops! I guess I should be glad it works at
+all, assembly numbskull that I am...</p>
+<p>Later, on the gone-but-not-forgotten Commodore 128 forum, with help
+I got it working perfectly.<br>
+</p>
+<p> I think rather than trying to code the %-style substitutions in
+assembly, I'll try for just a simple SEQ file reader to start, maybe
+add word-wrap or paging later on.</p>
+<p> What do I mean by %-style substitutions? Gleaned from both DOS
+batch files and Internet MUCKs (an undeniably large part of my online
+time), they work something like this:
+</p>
+<p>
+<table style="text-align: left; margin-left: auto; margin-right: auto;"
+ border="0" cellpadding="1" cellspacing="2">
+  <tbody>
+  </tbody><tbody>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <center>
+      <p style="text-align: center;" align="center"> <b>Substitution</b></p>
+      </center>
+      </td>
+      <td style="padding: 1.5pt;">
+      <center>
+      <p style="text-align: center;" align="center"> <b>Represents:</b></p>
+      </center>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <p> %a (absolute)</p>
+      </td>
+      <td style="padding: 1.5pt;">
+      <p> <span style="font-style: italic;">name</span>'s, his, hers,
+its</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <p> %s (subjective)</p>
+      </td>
+      <td style="padding: 1.5pt;">
+      <p> <span style="font-style: italic;">name</span>, he, she, it</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <p> %o (objective)</p>
+      </td>
+      <td style="padding: 1.5pt;">
+      <p> <span style="font-style: italic;">name</span>, him, her, it</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <p> %p (possessive)</p>
+      </td>
+      <td style="padding: 1.5pt;">
+      <p> <span style="font-style: italic;">name</span>'s, his, her,
+its</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <p> %r (reflexive)</p>
+      </td>
+      <td style="padding: 1.5pt;">
+      <p> <span style="font-style: italic;">name</span>, himself,
+herself, itself.</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <p> %n (player's name)</p>
+      </td>
+      <td style="padding: 1.5pt;">
+      <p> <span style="font-style: italic;">name</span></p>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="padding: 1.5pt;">
+      <p> There are some additional substitutions I thought of:</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <p> %f (weapon's "sound effect") -</p>
+      </td>
+      <td style="padding: 1.5pt;">
+      <p> THUNK, CLANG, etc. [based on weapon class]</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <p> %h (horse's name)</p>
+      </td>
+      <td style="padding: 1.5pt;">
+      <p> [Oh, I've been riding on a horse with no name...]</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <p> %m</p>
+      </td>
+      <td style="padding: 1.5pt;">
+      <p> (monster's name)</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <p> %w</p>
+      </td>
+      <td style="padding: 1.5pt;">
+      <p> (player's weapon)</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 1.5pt;">
+      <p> %1</p>
+      </td>
+      <td style="padding: 1.5pt;">
+      <p> (ally 1's name)</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+</p>
+<p> <span style="" arial="" ;="" font-size:="" 12pt;="">And ad
+infinitum. Beats string-splicing and garbage-collection. Ergo, this:</span></p>
+<span style="font-family: monospace; font-size: 12pt;"> %n swings %p %w
+at the %m! %F - %s hits!</span><span style="font-family: monospace;"> </span>
+<span style="font-family: monospace; font-size: 12pt;">The %m is
+vanquished!</span>
+<p> <span style="" arial="" ;="" font-size:="" 12pt;="">could
+conceivably expand into something along these lines: </span></p>
+<span style="font-family: monospace; font-size: 12pt;">RATH swings his
+TWO-HANDED SWORD at the BASILISK! THUNK! - he</span><span
+ style="font-family: monospace;"> hits! The&nbsp;BASILISK is vanquished!</span>
+<p> <span style="" arial="" ;="" font-size:="" 12pt;="">August 1, 2004</span></p>
+<p> changed the terminology of "Builders" to "Architects." It sounds
+more "period."</p>
+<p> TRACK will work on level 1-6, since maps are nice and square.</p>
+<ul>
+  <li class="mvd-P">
+    <p> <span style="" arial="" ;="" font-size:="" 12pt;="">I've
+added </span><span style="font-size: 12pt;"><span
+ style="font-family: monospace;">MORE</span></span><span style=""
+ arial="" ;="" font-size:="" 12pt;=""> for controlling
+scrolling, hypothesizing this should be separate from Expert Mode.
+Except it's not perfect, it doesn't really count lines, it just gets
+called after a screen full of text (</span>typically 25 lines) gets
+dumped onscreen. I don't have a counter that count words and stuff. I
+need a hook into the <span style="font-family: monospace;">PRINT</span>
+command, I suppose. </p>
+  </li>
+  <li>I've thought about&nbsp;<tt><span class="command">PUT &lt;x&gt;
+IN &lt;y&gt;</span></tt>
+and <span style="font-family: monospace;">TAKE &lt;x&gt; FROM &lt;y&gt;</span>
+commands... how else will you put things in saddlebags? <span
+ style="font-family: monospace;">GIVE &lt;x&gt; TO HORSE</span> just
+sounds kooky, unless you're feeding it.</li>
+</ul>
+Also, creating objects that can be "scenery"/"hidden",so you can
+create&nbsp;<span class="command">LOOK</span>able objects, avoiding
+this pitfall (mostly it offends my sense of
+style):
+<p style="font-family: monospace;"> <span style="font-size: 12pt;">Walking
+down this wind-swept corridor (owing to the gaping hole in the roof),
+you notice several piles of rubble which are neatly swept into conical
+piles off to the side of the main thoroughfare.</span></p>
+<p style="font-family: monospace;"> You see: RUBBLE, and PILES.</p>
+<p> Um... sure gives away the&nbsp;<span class="command">EXAMINE</span>able
+items, doesn't it? That's no
+fun. (Also, I hope someone can offer critique on my writing style.
+People on MUCKs say it's good.) I guess that'd be easy enough to do,
+thinking about it. This should use some of the code and reasoning
+behind the <span style="font-family: monospace;">HIDE</span> command.
+Characters should be able to create scenery objects which may be hidden
+(<span style="font-family: monospace;">EXAMINE</span>able or <span
+ style="font-family: monospace;">LOOK</span>able as details in the
+room), not showing up in the "Objects here are:" line.
+</p>
+<p>On the other hand, they may have a normal object (a dagger) they
+want to hide behind a bookcase. In a wide open area, there may not be
+anything to hide an object under/behind/in. Should the room have a
+flag/scale for its "hidability"rating? Also maybe places where things
+can be hidden: under, behind, etc? Or should that task fall to flags on
+the object - supporter (stand or set things on), transparent (look in),
+container (put things in)... um, I'd have to look up the rest of the
+flags from Graham Nelson's inform6.org site, I really like that site.
+You know, I had to Google for "parts of speech" before I could think of
+the word "preposition"... Sad.
+</p>
+<p>I'm thinking <span class="command">SEARCH</span>
+would be a better "anti-action" than to enter <span class="command"
+ style="font-family: monospace;">HIDE</span> again to find hidden
+items. With <span class="command" style="font-family: monospace;">DIG</span>
+it makes
+sense to use a verb that works both ways, I guess.
+</p>
+<p>Thieves are good at searching for hidden stuff, of course. And they
+have a higher percentage of noticing things "out of the corner of their
+eye" if in "plain sight."And you should always be able to find your own
+stuff (so it's got to be tagged with who hid it) unless your
+Intelligence is &lt;5 let's say, just to throw some arbitrary
+restrictions in for laughs. Maybe enter <span class="command"
+ style="font-family: monospace;">HIDE BOOKCASE</span> if <span
+ style="font-family: monospace;">BOOKCASE</span> is a scenery object. <span
+ class="command" style="font-family: monospace;">HIDE</span> would list
+all <span style="font-family: monospace;">HIDE</span>able places in
+the room and
+let you pick. I'm thinking <span style="font-family: monospace;">DIG</span>
+and <span style="font-family: monospace;">HIDE</span> should end up
+using the same index file as to what's dug or hidden... it wouldn't
+make sense to have two files on the off chance that someone had an item
+buried AND hidden in the same room...
+</p>
+<ul>
+  <li>Heck, I'd love the whole object tree notion, that of "modern"
+text adventure. How to implement it though is another story, at least
+for me. Oh, and Z-machine 5-bit ZSCII. Yum. Encryption, and
+better-than-nothing compression.</li>
+  <li>How about a <span style="font-family: monospace;">LASTON</span>
+command to see when your (most/least) favorite character was last awake?</li>
+  <li>Whenever an object is <span style="font-family: monospace;">RECYCLE</span>d,
+it should go into a Lost and Found area so as to have a "second chance"
+at getting it back if you mistakenly <span
+ style="font-family: monospace;">RECYCLE</span> something you didn't
+want to. Maybe you get ten days or something,until it's irrevocably
+destroyed. That thought just popped into my head.</li>
+  <li>And there should be a "free object slots" file, probably just a
+SEQ file, so the game doesn't have to search from object #1 each time
+someone <span style="font-family: monospace;">CREATE</span>s
+something. Or better yet, have record #1 of "e.t.objects" contain the
+next "free" record. Duh.</li>
+  <li>Dang, the Aragain Falls area on Level 1 bugs me. I would like a
+"movealong" feature to "push" you through the rooms without giving you
+a chance to enter any commands... just be swept away by the water. Of
+course, the"entrance" square (forget which room at the moment) should
+check to see whether you're carrying the RUBBER DINGHY.. can't
+body-surf down it. I know, I spoil everyone's fun.</li>
+  <li>Hey, did I ever make sure there's just one exit from each room as
+you fall downwards? Oh, maybe calling FLEE code would help? Maybe have
+a %- sub, %W, that waits a few seconds, like IMAGE BBS's &pound;W
+command?
+(In that case, why not have one room with all the lines of the
+description of falling downwards? The world may never know.)</li>
+  <li>Can't forget Guild dues at the beginning of each month. Have an
+autopay plan? Almost mistyped that as "autopsy." :)</li>
+  <li>Oratory skills! I finally have a use for the Auditorium. :) You
+get to build your skills (by going back there multiple times) in
+creating puppet characters, which could conceivably be used for
+entertainment, or providing clues to parts of the game. One early
+concept was borrowed from Jeeves, a butler (I &nbsp;think he was a
+penguin?) on Brazilian Dreams, an online haven that is no more. Would
+be real simple:</li>
+</ul>
+<span class="command" style="font-family: monospace;">SAY JEEVES,
+ANSWER PHONE
+</span><br>
+<span style="font-family: monospace;"> Jeeves reaches into his
+tuxedo-plumage and withdraws an old style hand-crank phone. "Hello?" he
+squawks into the receiver, cocking his head curiously at the caller on
+the other end of the line. "It's for you," he notes, winging the
+handset in your direction.</span>
+<p> [I'm not sure if you'd actually end up with the phone in your
+inventory or not... it'd be kinda funny if you did. :)]<br>
+Be pretty simple to implement. Could even be just a SEQ file. Maybe
+even have a vocabulary command that lists all the stuff he responds to.
+Have operands in the file that mix replies, choosing random ones for
+variety. Make him respond to particular characters. Three fictitious
+examples:
+</p>
+<p>(Character is RATH)<br>
+<span class="command" style="font-family: monospace;">SAY JEEVES, HELLO</span>
+<span style="font-family: monospace;"><br>
+</span></p>
+<p><span style="font-family: monospace;">JEEVES waves enthusiastically
+to
+his master!</span>
+</p>
+<p>(Character is ROSE)<br>
+<span class="command" style="font-family: monospace;">SAY JEEVES, HELLO</span>
+</p>
+<p><span style="font-family: monospace;">JEEVES smiles brightly to his
+mistress, and kisses her hand. "Good %d, milady."</span>
+</p>
+<p>[%d may translate into time of day, of which there are six words
+used.]
+</p>
+<p>(Character is ARABELLA, a constant troublemaker in the Brazilian
+Bistro)<br>
+<span style="font-family: monospace;">SAY JEEVES, HELLO</span>
+</p>
+<p><span style="font-family: monospace;">JEEVES looks nonplussed, his
+feathers ruffled."What do [you] want?" he grouses, the last inkling of
+civility hiding somewhere between his feet, making the normally jovial
+Emperor penguin seem cold and distant. But perhaps that's just a case
+of nature vs. nurture.</span>
+</p>
+<p><span style="font-family: monospace;"><span class="command">ORDER
+HAM AND EGGS</span></span><br>
+(This brings to mind the idea of characters creating actions other than
+those listed on any of the menus. In this case I'd assume there was a <span
+ style="font-family: monospace;">READ MENU</span> option available, and
+<span style="font-family: monospace;">ORDER</span>ing something costs
+money - perhaps doubly so if you're a troublemaker...)-- oops, wait, <span
+ style="font-family: monospace;">ORDER</span> conflicts with the
+command used to re-arrange allies' tactical positions... <span
+ style="font-family: monospace;">PURCHASE</span>, instead? <span
+ style="font-family: monospace;">BUY</span>. Even better, shorter on
+the ol' fingerbones.
+</p>
+<p><span style="font-family: monospace;">JEEVES scowls, moving behind
+the oak-topped bar. "%N, my master has
+commanded me to be polite to his friends, but I do not feel you fall
+into that category. Here's your slop. Now we have a really great
+shoo..." You get the feeling he's not [exactly] quoting Ed Sulivan,
+before he starts whapping you with his wings. "Beat it before I bite
+you!"</span>
+</p>
+<p>It would be interesting to see whether puppet characters can give
+you real items; perhaps they can use a separate index file, a smaller
+one... An old man could give you a scroll with instructions for a
+quest, Jeeves above could wander off to another room when he gets tired
+of incessant actions,maybe even bring reinforcements ;) Probably be too
+hard to code though. It'd be hilarious if Jeeves poisoned the ham and
+eggs :)</p>
+<p> Castle password, how's someone going to get that, and what's the
+goal of getting <span style="font-style: italic;">into</span> the
+castle? So far it's just a boring place.
+Think, McFly, think...
+</p>
+<p>Well, geez, I'm bright, the solution to the "why Vinney vs the
+bank? Aren't they redundant?" question has been staring me in the
+face... because the bank <span style="font-style: italic;">only</span>
+caters to members of guilds! <span style="font-style: italic;">How</span>
+long ago
+did I write that?Another case of "can't see the forest for the trees."
+</p>
+<p>Note to self: Self, considering the amount of work you have yet to
+do,let's not keep adding work, hmm? Okay, I guess I don't have to have <i>every</i>
+single feature for this release...</p>
+<p> Haw haw. And I thought coding a file reader would be easy. I've <b>just
+about</b> licked the %-sub problem. Chatted with FuzzyFox (he wrote
+AutoGraph) and he wondered why I doing DEYs all over the place...</p>
+<p> I have this coded in BASIC already, mind you. It knows to look up
+variables and such, whereas the ML routine...
+</p>
+<ul>
+  <li>doesn't, and goes off into lala land when it loses its place in
+the string. Solution? I'm sure it's to use a location other than <span
+ style="font-family: monospace;">$FB</span>-<span
+ style="font-family: monospace;">$FF</span>. <span
+ style="font-family: monospace;">LDA #$INDEX</span> or some such.</li>
+  <li>FuzzyFox mentioned some routine that I was using clobbers one of
+those locations, or the Y register or something. I need to look at the
+chat log again. </li>
+  <li>is too hard-coded - it needs to know about BASIC variables. Thank
+goodness for an issue (not sure which one) of Loadstar's BITS columns,
+where Mike Maynard discusses how to retrieve values of strings in BASIC
+from ML. I bet you a plugged nickel this is the same routine the <span
+ style="font-family: monospace;">VARPTR</span> routine I'm using is
+based on... So if I'd just sit down and try coding a bit... :)</li>
+</ul>
+Ooh! Ooh! Here's an idea:<br>
+<br>
+%!p (the opposite gender for those flirtatious monster[ette]s)&nbsp;
+<p>or maybe just %P (capital) to make it easier to parse... dunno. I
+like the !'s usefulness in signifying <span
+ style="font-family: monospace;">NOT</span>. Of course this will make
+sense only with certain substitutions.</p>
+<p style="font-family: monospace;"> The %m flutters %p eyelashes at
+you."Gosh, er, hi, %N!"</p>
+<p style="font-family: monospace;"> The GNOME flutters her eyelashes at
+you."Gosh, er, hi, RATH!"</p>
+<p> Waitasec, what am I thinking... too tired... %p should get set to
+the gender of the calling object... shouldn't it? How about making
+&pound;
+(the British pound sign) interchangeable with %? Or instead adds More
+Neat Stuff(tm)? Dubious. End of transmission.</p>
+<div style="text-align: center;"><span style="font-family: monospace;">[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]</span></div>
+</body>
+</html>

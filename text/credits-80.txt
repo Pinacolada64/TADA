@@ -1,0 +1,48 @@
+   [*] Totally Awesome Dungeon Adventure Credits, Greets, and Gobbledygook [*]
+                     Last updates: Friday the 13th, July 2007
+								8/Apr/2014 20:46
+
+   Based on THE LAND OF SPUR (1986-1994), last seen running on Dura-Europos.
+   Here's lookin' at one of the best Apple BBS text adventures in existence
+   today, or any day. The game was a true classic, and the inspiration behind
+   this adaptation and enhancement. Thank you for making adventurers happy.
+
+    Oh, yes -- Verus, your locum is doing very well here.
+
+	Then there's the undeniable influence from MUCKs...  Feeps 4-ever!
+
+Original Code/Hardware:			Tech Support:        Descriptions/Text/Maps:
+  Greg W. Davis         	      Joe Commodore        Demented Astronomer  
+  Skip Thompson (Trajan)		  Iron Axe             NightFire
+  Gene Buckle   (geneb)	      	  Kitty				   Aci_Jubatus
+
+Porting/Enhancements:			Assembly Language:		CommodoreServer:
+  Ryan Sherwood (Pinacolada)      FuzzyFox				  Goog
+  Jonathan Herr (DracoSilv)       nikoniko				  AgentFriday
+                                  Syntax
+Ideas 'n Such:			  		  Jim Butterfield	Programming Assistance:
+  Robin Harbron (MacbethPSW)	  Bob Cederlof			Ping
+  Dave Hartman  (Metal Mage)	  Dave Moorman			Alessa
+  Kalriss						  Jim Radiks
+  Steve Judd			  		  Jefferey Stone
+  Paul Panks	(Dunric)		  AgentFriday
+  Acea							  Hydrophilic
+
+								Thanks, everyone!
+
+      And finally, a hearty thanks goes out to YOU for playing this game!
+      I hope you enjoy it!
+
+                                    CONTACT:
+                                    --------
+
+                    Compliments, complaints, conversation:
+
+	E-mail:		sym_rsherwood@gmail.com
+	Web page:	https://sites.google.com/site/pinacoladasprojects/
+
+	BBS:		Telnet to dragonseye.dyndns.org:6400
+				Home of The Dragon's Eye BBS.
+
+	Original Land of Spur:
+				To be announced.

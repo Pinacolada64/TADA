@@ -1,0 +1,42 @@
+Level 2 map
+
+M=MUMMY'S TOMB O=OTHER
+<,>,^,v = ONE WAY DOORS
+s=The Shop, r=underground river
+q=quiet pool, u=underground lake
+U=up
+                   1 1 1 1 1 1
+ 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+ -----------------------------
+ v           | |   v |   v ^
+ s-O-O-O-O-O M r<r<r r-r-r r<r  15
+           |                 |
+-r-r-q-q   O-O-O-O u-u-u-u   r- 30
+     | |       |   | | | |   ^
+-r-r q-q O-O-O-O   u-u-u-u-u-u- 45
+   | | | |         | | | |   ^
+<M r q-q O-O-O-O-O u-u-u-u-u-u< 60
+ | |     |   | |     | | | | |
+ M r-r-r O-O O O     u-u-u-u-u  75
+ |     |   |             | | |
+ M-M   O-O O       U-O-O-u-u-u  90
+   |       |       |       | |
+   M O M-M U-O-O   O M-M-M u-u  105
+   | | | | |   |   | |   |
+-M-M O M M O   O   O M O M-M-M- 120
+ | | | | | |       |   | |
+ M M O M M O-O-O-O-O-O-O M M<M  135
+ | |   |   |       |   | | | |
+ M M-M-M   O M O O O   O M-M M  150
+ |     v     |               |
+-M-M M-M-M-M M O O O M-M-M-M M- 165
+ | | |     | |       |     | |
+ M M-M M-M>M<M>M M-M-M M-M-M>M  180
+ |   ^ | | | |   |     |     |
+ M-M<M>M-M M<M-M-M M-M-M M-M-M  195
+   | |     |     v |     |
+-M-M M-M-M M-M-M-M<M-M-M-M M-M- 210
+   |     |   |   |
+ M-M>M-M-M-M>M W-M r<r   r<r    225
+ v           | |   v |   v ^
+ 

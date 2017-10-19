@@ -1,0 +1,36 @@
+5/Jan/2016 21:38
+
+c64list notes:
+
+When no -alpha:xxx command line option is specified, output defaults to -alpha:upper.
+
+agentfriday: The $C1 to $CA range are the correct values
+[00:36:47]
+agentfriday: I'm still not sure I convinced goog of this.  Been trying for years :p
+[00:37:19]
+(Me): oh i see
+[00:37:46]
+(Me): bummer!
+[00:38:01]
+(Me): maybe we could come up with a pre-processor
+[00:39:36]
+agentfriday: I used to be confused on the issue too.  Mostly because the range $61 .. $7A is the only range that actually shows the characters
+
+24/Aug/2017 22:10
+If you want to {use:} a symbol table, can't do:
+
+{asm}
+{use:<file>}
+{endasm}
+
+in same file. Must do:
+
+{use:<file>}
+   |
+   +--> <file> contents:
+	{asm}
+	label = $c000
+	{endasm} ---+
+                    |
+                    v
+<back to original file containing {use}>

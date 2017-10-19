@@ -1,0 +1,37 @@
+t.np debugging:
+
+22/Dec/2015 23:50
+
+
+"Choose a name for your character.
+Enter it now, and it must be no longer
+than 18 characters."
+
+
+
+             [------------------]
+Your name is? <nothing entered>
+
+"Come off it, man! Enter something!"
+"Choose a name for your character.
+Enter it now, and it must be no longer
+than 18 characters."
+
+
+
+             [------------------]
+Your name is? pinacolada
+
+[1811]
+ready.
+? a$(0)
+
+?out of memory  error
+?!
+lines 3019- are corrupt!
+m 77a8 - seems to be where the problem is
+mem for local vars?
+
+c64list being used:
+http://www.lemon64.com/forum/viewtopic.php?t=58978
+http://www.lemon64.com/forum/viewtopic.php?t=39825

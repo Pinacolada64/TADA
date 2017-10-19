@@ -1,0 +1,39 @@
+0 r"module batch d81" 01 3d’
+4    "boot"             prg load"boot",8
+5    "modbasic c000 v2" prg actually 1.1 ml
+1    "trace 033c"       prg trace util ml
+2    "ml c500"          prg utility ml
+7    "sas c900"         prg jeff jones' static array system
+				("static-array-sys" is a demo sort of)
+4    "wrap.reloc"       prg word-wrap ml
+112  "t.main"           prg main "kernel" of the game + t.np
+16   "t.startup"        prg startup, checks for player log, player
+7    "t.make playerlog" prg runs if player log not found
+25   "e.t.playerlog"    rel delete this to not crash :/
+36   "t.np"             prg new player module, not working quite yet
+8    "bits"             prg display flags and toggle them
+1    "keyscan-test"     prg check for ctrl-> or ctrl-<, idea for sliding input
+2    "test-params"      prg testing passing null params for module loader
+4    "player-setup"     prg standalone player setup code
+12   "t.ma.armory"      prg merchant annex armory routines
+0    "````````````````" del 
+12   "make messages"    prg make an index (e.t.messages) for blobs of text
+14   "s.t.messages"     seq seq listing of messages
+10   "reader"           prg broken file reader
+18   "s.tada main 40"   seq main menu file
+6    "combination"      prg type in a combination at various points in the game
+2    "t.mount"          prg mount a horse to charge into battle
+3    "sliding-input"    prg sliding input BASIC demo prg.
+23   "e.t.messages"     rel message index
+8    "t.ma.gen-store"   prg general store
+11   "monsterenum.06"   prg show monster flags. haven't copied monster data yet
+1    "cursor-raster"    prg program is from a web site, was curious about it
+3    "static-array-sys" prg jeff jones' static array system demo pinahack
+1    "shade-table"      prg completely unrelated, was gonna tint stuff darker/lighter...
+1    "luminance"        prg ...for a rpg map kinda thing... "luminance" organizes colors sorta
+4    "sliding-input-de" prg sliding input demo BASIC prg
+2    "break-handler"    prg yanked from BBS, hit a BRK, *supposed* to display useful info.
+28   "t.stat.basic"     prg Can run this, displays various things about TADA stats
+
+stuff that's newer:
+	t.ma.bank	Deposit/withdraw money so it doesn't get stolen

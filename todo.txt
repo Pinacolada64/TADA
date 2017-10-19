@@ -1,0 +1,367 @@
+TADA TODO:
+(tabs are 4 spaces wide)
+
+TODO	t.startup: If you get 1000 gold for your birthday, check if it 
+	  overflows bank account. If so, apply towards loan. If neither, 
+	  then...?
+	
+BUG	t.startup: Vinney fight check needs to check value of loan, not just 
+	  day counter.
+	
+BUG	t.main: FNp(x) needs NL$ added to avoid ?ILLEGAL QUANTITY ERRORs
+	
+BUG	t.np: set map/experience level to 1
+
+TODO	t.ma.olly: check for enough gold when purchasing booby trap.
+	Give quit option at booby trap/ammo purchase prompt.
+	Check if booby trap inventory is full before purchasing.
+
+8/13/2006:
+TODO	Create 'e.t.deadmonsters' so it keeps track of which monsters are alive 
+  	  for player so Zelda can reanimate them. 'e.t.monsters' are monster 
+	  stats.
+
+TODO	Finish the doggone GBBS docs...
+
+TODO	teo: spells need "type" identifier. SPUR.MISC3 lists attributes for 
+	    each spell. Q$,Q2,Q3,Q4
+
+TODO	Document what *every single program file* is for so people 
+	  know what the files are for.
+
+TODO	Translate my pencil sketches of level 8 to something more easily 
+	  readable -- use GUEmap.
+
+TODO	Find out what stuff after | symbol in ally name means.
+	  (text\allies-numbered.txt)
+
+Mar 8, 2011 22:21
+	Daytona400F suggests one output routine for online/offline use, like
+	a BBS local mode.
+
+Mar 24, 2011 19:42
+	
+	t.STAT:
+		Dwarf gold should be left-justified
+	t.RES:
+		HP clobbered
+
+	Ernie suggests "restless" flag (perhaps if poisoned)
+	"You spend the night tossing and turning, staring at the ceiling..."
+
+	t.main:
+		Print a blank line before room name.
+		Fix file read routine, stops a line early, says (Aborted.) twice
+	tep:
+		Remove Dwarf gold, current alignment
+
+
+30/Mar/2011 15:40
+
+	t.main:
+		move monster/item read stuff to subroutines around 2000
+	2007	level data is being read every room move again
+		M$ tracks follow you around
+
+26/Apr/2011 13:33
+	s.t.level 8:
+		Combine room descs, exits, items in one file
+		Put "# <room_number>" comments in
+		Write a program (for practice?) to mesh the PRG and SEQ data
+		instead of doing manually!
+	Standardize on modules starting at line 100, 2-99 are subroutines
+	t.startup:
+		b1=256:b2=b1*b1:b3=b2*b1
+		Use these vars in 2835- routines
+		b1: 256
+		b2: 65536
+		b3: 16777216
+
+May 12, 2011 12:02
+	t.bar:
+		use subroutine in t.main to display HP
+
+May 15, 2011 11:31
+	t.np 2:
+		29-30: clean up female/male display: x$"ale"
+		123:	use date string of PETSCII chars
+		136:	could be a subroutine (check/display sex)
+		age:	use bulleted points like in e.t.tada text
+		375:	good to copy to t.STAT (maybe make subroutine in t.main)
+		515-530:replace with instring sys
+		585:	a$="Key: ":gosub 
+	t.main:
+		2005-2006: optimize
+
+	t.RES:
+		look into jiffy clock for timing delay loops, I know I did this once
+
+	t.PAG:
+		Export: instead of email message, save locally on disk
+		instead of using I() array, use 3 bits of v1+90 (temp storage)?
+	t.ma.olly:
+		Renumber to start at 100, needs var update
+
+	t.ma.armory:
+		Haggling should use CHR to influence shopkeeper
+
+@$:*2 works (because of JiffyDOS?)
+	t.np 2:
+		Explain *what* class/race is in class/race file
+
+Hydrophilic:
+	As far as attacking Olaf, I imagine he might have a few loyal
+	"servants" who would fight with him.  And he would have all the
+	"rebels" shackled so they wouldn't be able to help the player.
+	So the player would likely meet a quick death unless really leveled
+	up.  Or even funnier, Olaf doesn't kill the player but makes them a slave!
+	
+t.main:
+2082 rem need palintar/ranger map check
+2100 rem check for available light & enhanced exits
+2101 rem level 1-7:start @1,inc 2 bytes/exit
+2102 rem level 7+:start @9,inc 4 bytes/exit
+
+find missing label in geneb's bbs during combat
+ * spur.logon.s : link.lgn
+ 	no "misc" label, but this label isn't public, and not called from this file
+ 
+- consider dropping pr=1 from line 2408 in t.main and just have:
+	GOSUB 2408 	print "You see: ";
+	GOSUB 2409	PRINT MID$(Z$,L,R):;RETURN
+
+	rem new addition to t.main:
+	rem 2225 a$="bar":goto 1067
+
+confirm: George Hug mentions "A REL file cannot be opened using the record lengths 42, 58, or 63."
+
+spur.sub.s:
+potion
+ if instr("OF SKILL",gs$) print \"You feel more skillful with the "wr$:print "(+4 skill until READY is executed again)":if zu<7 zu=zu+4
+ if instr("VORPAL",gs$) print \"You feel more deadly with the "wr$:print "(+4 damage until READY is executed again)":if zv<7 zv=zv+4
+ 
+rewrite:
+ if instr("OF SKILL",gs$) if zu<7 zu=zu+4:print \"You feel more skillful with the "wr$:print "(+4 skill until READY is executed again)"
+ if instr("VORPAL",gs$) if zv<7 zv=zv+4 print \"You feel more deadly with the "wr$:print "(+4 damage until READY is executed again)"
+ 
+spur.annex: "name of person followed" - syntax error
+	tried fixing - just took \ from input #2,xu$\
+	now unable to find menu files :(
+	- changed file to CR line endings, haven't updated file on BBS disk yet
+
+t.main:	change d% to w% (is really 'width' parameter) in 2895
+
+Perhaps replace YS$ with individual bits?
+	(see "\programming-notes\file-formats.txt" for YS$ values)
+
+Jul 9, 2011
+	t.startup: use subroutine at 1870 to display stats on/off -- does already
+	
+Jul 28, 2011
+	drop: if item dropped in water, "sinks slowly out of sight" and returned to shoppe
+
+Aug 19, 2011 19:10
+	PREFS:	change text colors (normal/highlight/off)
+		change background/foreground colors
+		change computer type (line length, terminal type, etc)
+		debug/beta testing flag?
+		dungeon master flag? for editing players
+		more?
+
+Aug 23, 2011 22:55
+agentfriday: what would you think of something like this for calling another module: --->
+agentfriday: sys gs,500'inv'
+
+me: oh, the line number, then module?
+
+agentfriday: (yeah, you got it :)
+agentfriday: you *could* even move main up to 10000 (or higher) and allocate
+agentfriday: a range of 1000 lines for each module. then the module name would
+agentfriday: be implied by what line# you are calling. that way, you write
+agentfriday: all your code as if you had unlimited memory, and were just
+agentfriday: breaking it up into multiple files for the beauty of it :d
+
+me: hmm, guess no reason couldn't move line numbers around. reason some are so
+me: odd (1902, 1603, etc) is cuz they were the ones used by image bbs... :p
+
+agentfriday: yeah. seems like they should always work together, right?
+
+me: cm$ looks like it just prevents reloading a module if it was just loaded.
+me: and called again.
+me: weapon bonuses are going to immediately modify stuff, so not needed if just
+me: trying out a weapon in the armory...
+
+agentfriday: yep, that's what i figured
+
+me: maybe i should just stick stats/bonuses in a sub-module, do the module load
+me: and go to line 100 (since most sub-modules leave 1-99 for subroutines not in
+me: t.main)...
+
+agentfriday: is sub-module a synonym for module?
+agentfriday: or are you extending module64 to allow modules to load sub-modules
+
+me: if lm$=ready or lm$=duel then (:bonus)
+me: if lm$=armory then (:stats)
+
+Sep 1, 2011 18:56
+t.main: if expert mode enabled, skip <RETURN>=(command) display
+t.ma.elevator: if expert mode disabled, give help on combo entry keys
+
+Sep 15, 2011 23:19
+	Implement light sources, flags for rooms that have light sources or darkness
+	Day/night cycles depending on server time (GMT?)
+
+From "Deathlord" RPG: "Ravendusk" is a cool name.
+
+Jul 22, 2012 22:52
+	Player character sees "Beware the Lemon" somewhere, and later on
+	tells someone. "Lemon? Don't you mean Demon?" (inspects sign) "Oh,
+	part of the letter is worn away. No wonder you were confused."
+
+[C]lown around:
+	male: "Well, here's youse balloon animal. Don't say Unca Vinney nevah
+		gave you nuttin'." (actually add one to inv if not full)
+	female: Vinney comes out from behind the desk. "I wouldn't mind
+		clownin' around wit' youse, doll, but..." He sighs and
+		sits down again. "Business before pleasure, as they say."
+
+1/Feb/2014 19:26
+	AgentFriday's suggestion: Orcs riding wolves, would affect probability of a battle
+	(not sure what this means anymore... i like the idea of orcs riding wolves though.
+	Maybe it's just the height differential of a mounted opponent and you being on foot.)
+
+13/Feb/2014 18:20
+	Break off individual modules in ML.O into separate {include:} files...
+	Benefit would be that "monsterenum" BASIC file would be smaller
+
+Update: I'm not sure this is much of a benefit, ml.o will be BLOADed at $c500,
+		not {include:}'d
+
+	write playerlog creator with stock characters to test t.main, since "t.np" 
+	is broken
+
+18/Feb/2014 22:31
+	AgentFriday: Possibility of stealing weapons from other players :)
+	Maybe one unused bit in the ally abilities slots could be "pilfer"
+
+9/Apr/2014 12:51
+	- t.main: make {:sub.check.class} and {:sub.check.race} subroutines
+
+5/May/2014 23:11
+	- tep: Implement a "move player record" option
+
+30/Jun/2015 15:41
+	- t.say (not written yet, proposed filename):
+		if player is not online, send text to PAGE for an offline message?
+	- possibility of spliting party up and controlling individual characters
+		like "zombies" on MUCKS, can look at different rooms with a command
+		prefix like "railbender, go north"
+	- magic boots which let you walk across water
+	- t.startup: read a system announcement file (new features, etc.)
+	- change record size to 254/255 to facilitate creating a character,
+		writing to disk properly
+
+1/Jul/2015 9:01
+Fixed	- t.main: need to adapt current/last/highlight color addresses to $c500 ML
+	- t.np: set map/experience level to 1 (moved from bugs.txt)
+
+gsteemso: game name - "A Spur of Land" :)
+
+30/Jul/2015 11:50
+Multi-player combat: count successful attacks by each player, award some
+multiple of that for experience points (and by extension, gold when quitting)
+
+1/Aug/2015 10:48
+monster data fixes needed:
+x monster 107 (GUARD DROID): add : flag for mechanical
+x also 110, 112, 113, 114
+' 127: BIG LITTLE DOG...? Really...?
+' 129: Fix to "SMALL BEE"
+' 130: HUGE MUNCHKINS...?
+
+24/Nov/2015 15:06
+- how many "get an$:if an$="/" or an$=" " then gosub {:msg.spacebar_aborts}" are there?
+
+29/Nov/2015 11:33
+- make a "dot leader" subroutine in t.main:
+{:sub.dot_leader}("message",length)
+	fn m$,l
+	if l<1 or l>35 then print "# of chars out of range":return
+	print left$(m$+"{$2e:39}",l);:return
+
+30/Nov/2015 23:16
+- Unicorns as ridable mounts. Horns, teeth and hooves should do damage.
+
+- t.prg info: option to toggle trace on/off
+
+some missing module names:
+t.bar.bar none
+t.bar.zelda
+t.bar.djinn
+
+t.encounter (meteor, little girl, etc.)
+
+GIVE and TAKE - from other player characters in the room also, not just NPCs
+
+1/Dec/2015 14:45
+- t_stat_basic.lbl -> t_stat.lbl
+
+4/Dec/2015 22:56
+- "Withdraw" spell - there is a "deposit" spell :P magical atm ftw!
+
+8/Dec/2015 12:09
+- "Dungeon Master" player flag could determine whether player can load player editor
+
+3/Jan/2016 23:24
+agentfriday: are you gonna work on the graphics plot exercise?
+[23:23:30]
+(Me): well, i dunno. could be fun to give TADA a graphical map! but that'd be waaaaaaaay down the road
+[23:24:13]
+(Me): throw in a split screen or toggle between text/gfx screen with Return or somethin'
+(David on Facebook in AF's Commodore Software dev group)
+
+' 16/Feb/2016 13:39
+' t.main:
+' it'd be nice to be able to include Sliding Input ML after t.main BASIC.
+' not sure of the max size of t.main...
+
+
+11/Mar/2016 10:52
+when PRAYing, consider if food/drink in inventory is poisoned before saying
+"perhaps you should eat or drink something"
+
+19/Nov/2016 23:10
+Text editor module should use Jeff Jones' Static Array System to store strings
+underneath ROM
+
+Maybe Sliding Input should have an extra .word slot for whether an editor escape code is active (and PREFS command could edit that code). The escape code would be like a dot command in Image BBS, entered on the leftmost column:
+
+Type:	.H
+
+Result:	Command: Help!
+
+Editor dot command strings should be in a separate file, BLOADed in. Static Array System can do a string search.
+
+23/Feb/2017 0:11
+Amber yaps. I was just reading that I can't start a fire with moonlight and a large magnifying glass.
+Rulan ohs, maybe you could create a moonfire. That would be neat for a magic thing here!
+
+Sunrise & moon phases
+http://pythonhosted.org/astral/#example
+
+Rulan(#17) yaps, "Also, weather affects the moon, fog, clouds..."
+Rulan(#17) yaps, "There's also the blue moon!"
+
+13/Apr/2017 12:34
+Auto-completion for command line things:
+http://stackoverflow.com/questions/7821661/how-to-code-autocompletion-in-python
+
+7/May/2017 23:21
+Keep track of individual files' build numbers in an .ini file?
+example:
+t.main\t45
+t.np\t13
+(etc.)
+
+29/Aug/2017 23:56
+find /i /n "fixme" *.lbl - dump fixme's to file

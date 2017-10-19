@@ -1,0 +1,168 @@
+[modBASIC]
+Approx. Dec 16th, 2014:
+18:39 . Me: yeah. but.... i have defined functions already. will overloading the
+	keywords break things?
+18:40 . af: how many defined funcs?
+18:40 . af: you could just convert them to proper functions
+18:41 . af: last I tested, defined funcs worked w/ modbasic as long as you
+	hadn't obscured the parameter variable with a local (which of course, is
+	easy to do)
+18:42 . af: I check for either a quoted func name or a number after FN keyword.
+	if neither of those, passes to normal code
+18:42 . Me: oh. there are about 5 i believe.
+18:47 . af: it should be easy to convert them
+18:47 . af: anything you could do with DEF FNs you can do w/ modBasic functions
+18:48 . af: right now, the function calls are a bit slower than goto & gosub,
+	but I plan to fix that
+18:48 . Me: got'cha :)
+
+' uppercase starts at $c1
+
+' breaking a value up into tens' and ones' digits:
+mint: int = int - ((int/10) *10)
+mint: in pseudo code anyways
+mint: a=a-((a/10) * 10) leaves you with the 1s digit.
+(Me): ohhhh
+(Me): i just did x=25:h=int(x/10 to get tens digit
+(Me): knowing that x-<25
+
+Screencast stuff:
+SYS 52224 initializes
+F7 re-syncs or something
+SYS 52227 restarts after Run/Stop-Restore for disk access
+
+[Word-wrap]
+http://www.commodoreserver.com/ForumTopicView.asp?FID=D2ECD22700E746A1B5136A1F61CA81DE&TopicID=27
+AgentFriday 9/15/2011
+
+Last night I decided to implement the ML word-wrap driver I've been talking about. It ain't too fancy, but it handles the the essentials. I'll describe here how it works and I invite any feedback.
+
+It hooks into the IBSOUT vector, so you use it simply by printing to the screen (ignores prints to other devices). Once installed, it is off by default, and should have no effect unless enabled.
+
+The feature is turned on and off using control codes that you print (similarly to how reverse mode and quote mode operate). The "on" code is Ctrl-W, and the "off" code is Ctrl-X.
+
+Once enabled, just print your text like normal. Characters will be buffered up until something seen as a "breakable" character is encountered (currently, either a space, dash, or ). At that point, the "word" that has accumulated in the buffer is checked to see if it can fit on the current line without overflowing. If not, a new line is begun before outputting it. When done outputting your unformatted text, just send the off code (Ctrl-X). If any characters are buffered at the point you disable the feature, those characters will be flushed out to the screen, and the cursor will remain on the same line as the last text to be printed.
+
+Being hooked into FFD2, the driver sees all output as a continuous stream of characters, one at a time. It has no concept of where one string ends and the next begins, other than by when it sees a character (ASCII 13, or carriage return). It will be interpreted as "end of paragraph" and will cause a blank line to display before any new text is output. If you are re-wrapping text that already contains line-breaks, you will need to strip off the characters (except on blank lines between paragraphs) and make sure that there is a space character where the old line-breaks used to be.
+
+Yes, you can turn it on before listing your BASIC program. This will not be so interesting if you have crunched out all the spaces. Note that since is treated as a "new paragraph", normal line-oriented output (most stuff) will look double-spaced. Also, you will have a hard time editing programs with it turned on, since it attempts to avoid line-linking by not actually printing a character in the last column.
+
+Limitations / quirks
+- Only recognizes space, dash, and as word separators
+- Quote mode is observed, meaning that the special "on" and "off" codes will not be acted on when in quotes. This allows them to appear as printable codes in program listings. Quote mode carries across soft line-breaks, but is terminated at paragraph breaks.
+- Avoids linking lines together in most cases, but long spans of characters without breaks may be an exception.
+- For that matter, trying to output more than 39 non-breakable characters in a row will have undefined results in the initial version.
+- No recognition of special characters, such as color codes or cursor controls.
+- Assumes that all characters will be printable, and cause the cursor to advance 1 space to the right
+
+Let me know if you want a copy to try out. Right now it's still entangled in my other ML code for Zork, but I'll be doing a separate build soon.
+
+[links]
+Pinacolada's Projects Google Site:
+https://sites.google.com/site/pinacoladasprojects/
+
+CommodoreServer Client SDK:
+https://docs.google.com/document/d/1RbFgCnzIepnc-VK0JZ03HoyQJaXpAl1GKtx8fGLJuBA
+
+CommodoreServer Programmer's Reference Guide:
+https://docs.google.com/document/d/1o2AJofDfR7skuavCX7K4lQ35zjbrKadQat8HgCPEp40
+
+BASIC program structure:
+https://docs.google.com/drawings/d/1ibQFQ6kIlIpXxJn2YGfFLqfdW2L33CvH_U614SsEVMw
+
+modBASIC 1.0 guide:
+https://docs.google.com/document/d/17IPY6GbvZKvxwOUVWpxPhxsx3jUv644vjiiS6JLxqkM
+
+Commodore 128 keyboard map:
+http://commodoreserver.com/Commodore/PhotoGallery/66C201A9145B40ED859FE61662E6C8A8.jpg
+
+[batch file stuff]
+Like MID$():
+> echo %time:~0,2%
+15
+
+8/Dec/2015 12:21
+Money in bar would be stored in REL file --
+<CommodoreServer handle> <cr> <amount> <cr>
+While the game character name can change, the CS handle should be pretty constant
+
+http://www.lemon64.com/forum/viewtopic.php?t=57694
+buzbard on Lemon64:
+Here are some typos that I've found in Mapping the C64 and 64C:
+
+Page 25: In the CHRGET listing the CHRGOT label is indented too far to the right, it's not really a typo, but it makes the code a bit harder to follow.
+
+Page 54: MEMSIZ $282-284 should be $283-$284
+
+Page 76: ILOAD 62622, $F49E should be 62629, $F4A5
+Page 76: ISAVE 62941, $F5DD should be 62957, $F5ED
+
+Page 103: CHKCOM 44799 $AEFF should be 44797 $AEFD
+
+bjonte adds:
+In Mapping The C64 i have found two errors.
+
+$dc0e bit 5 - 0 = count processor cycles, 1 = count signals on CNT
+$dd0e bit 5 - 0 = count processor cycles, 1 = count signals on CNT
+
+[vice automation]
+@Martin: I have used VICE scripting to automate song compiling with my native tracker. I modified the compiler to jump to a certain address ($cfff) after completion. This works even with VICE 2.4 on windows.
+
+The command line I use is something like this:
+
+x64.exe -drive8type 1541 -drive9type 1541 -autostart autocomp.d64 -9 temp.d64 -moncommand commands.txt -warp -logfile vice.log +sound -console 
+
+
+commands.txt is
+
+break cfff
+command 1 "quit"
+
+
+(Sorry for staying off topic..)
+
+---
+
+Kernal SAVE
+http://www.lemon64.com/forum/viewtopic.php?t=59083
+
+         *=$c000 
+file_start = $4000	; start addressses 
+file_end   = $9e00	; end addresses 
+
+        lda #filename_end-filename 
+        ldx #<filename 
+        ldy #>filename 
+        jsr $ffbd	; SETNAM. Set file name parameters. 
+        lda #$00 
+        ldx $ba		; current device number 
+        bne +		; if <> 0 is present 
+        ldx #$08        ; if 0 select device 
++       ldy #$01        ; secondary address 
+        jsr $ffba	; SETLFS. Set file parameters. 
+        lda #<file_start 
+        sta $c1		; low byte start address for LOAD / SAVE (*)
+        lda #>file_start 
+        sta $c2		; high byte start address for LOAD / SAVE 
+        ldx #<file_end	; low byte end address 
+        ldy #>file_end	; high byte end address 
+        lda #$c1	; Address (*) of zero page register holding start address of memory area to save 
+        jsr $ffd8	; SAVE. Save file 
+        bcs .error
+        rts 
+.error 
+        lda #$00 
+        sta $d020 
+        rts 
+filename 
+       !text "TEST" 
+filename_end
+
+
+[c128]
+150 print"{down}{rvrs on}D{rvrs off}isk, {rvrs on}S{rvrs off}creen, {rvrs on}P{rvrs off}rinter, {rvrs on}O{rvrs off}ther"
+160 getkey k$
+170 dv=-(k$="t")-3*(k$="s")-4*(k$="p")-8*(k$="d"):sa=7
+
+BASIC compactor:
+http://csdb.dk/release/?id=135189

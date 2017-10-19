@@ -1,0 +1,1838 @@
+# Level 8 room descriptions
+# Written by Pinacolada
+#  Consolidated: 2014-03-23
+#
+# of room descs: 224
+#
+# 40-character lines will "glue
+# together" properly when displayed.
+#
+# Format:
+# #<room_number>
+# <room_name>
+# <north>,<east>,<south>,<west>,<up>,
+#                               <down>
+# <description>
+# [...]
+# ^ marks end of text block
+#
+#1
+FOREST
+0,2,18,0,0,0
+You are wandering aimlessly around in
+the Forest of Canolbarth. This appears
+to be as far northwest as you can
+proceed.
+^
+#2
+FOREST
+0,3,19,1,0,0
+There appears to be evidence of some
+logging in this area; there are deep
+ruts in the soft ground. There are many
+tree stumps, more stumps than there are
+whole trees. The trees that remain here
+seem to be either dead or dying.
+^
+#3
+FOREST
+0,3,19,1,0,0
+Several of the shorter trees here
+appear to be mutilated and horribly
+twisted. Whether they were victims of
+disease or intentional abuse, you may
+never know.
+^
+#4
+FOREST
+0,4,20,2,0,0
+A few scattered trees here bear tooth
+marks on the lower part of their trunks
+and gnawed bark hangs down in large
+rough strips. A giant oak tree which
+stands directly in front of you has
+been blackened; most likely, from a
+lightning strike. The leaves are gone
+and the tree itself is cracked into
+three pieces.
+^
+#5
+FOREST
+0,5,21,3,0,0
+You are standing at the base of a
+majestic oak tree that towers many feet
+above you. The foliage is quite dense
+and you cannot see very far up into the
+tree. A series of rickety wooden planks
+is clumsily nailed to the side of the
+tree, allowing passage to the crown of
+the tree.
+^
+#6
+TREASURE ROOM
+0,5,21,3,0,0
+There is a rough path through the
+middle of this room, and along the path
+at intervals stand richly decorated
+suits of armor, like knights guarding
+the treasure. In between the suits of
+armor on either side of the path are
+shelves covered with precious baubles:
+necklaces, chalices, rings, golden
+bowls, long tusks of ivory and gold;
+brooches, amulets, and chains of silver
+and platinum; heaps of unset stones
+lying in great piles as if they were
+marbles - diamonds, rubies, carbuncles,
+topazes and amethysts. And underneath
+the shelves are large chests of oak
+strengthened with iron and heavily
+padlocked. Everything has a thin layer
+of dust on it, and there is an air of
+sadness and gloom about the place.
+^
+#7
+STUDY
+0,0,25,0,0,0
+The walls in this room are filled with
+shelves which are filled with books
+with such strange names as "The Life
+and Letters of Silenus" or "Nymphs and
+Their Ways" or "Men, Monks, and
+Game-Keepers: A Study In Popular
+Legend." There are numerous chairs
+scattered around the room which look as
+if they used to be extremely inviting
+and comfortable. Oil lamps look as if
+they provided pleasant if not adequate
+reading light. A desk in the middle of
+the room is covered with dusty,
+complicated-looking magical machinery
+and ancient symbols. The stuff looks so
+dangerous, and the runes so forbidding,
+that you hesitate to go near any of it.
+^
+#8
+0,9,0,0,0,0
+PANTRY
+Floor to ceiling shelves hold many
+yellowing boxes and crumbling wooden
+barrels of food. Many different shapes
+of packages done up with frayed cord
+are on the shelves, and small
+grease-stained bags of unknown origin
+fill the cracks up.
+^
+#9
+KITCHEN
+0,10,0,9,0,0
+Rusty pots and pans hang from hooks on
+the stone wall. A wood stove used for
+cooking is thickly covered in cobwebs
+and is quickly falling to disrepair.
+Large dusty counters still hold their
+collections of old kitchen utensils and
+rotting meats. A great stone fireplace
+is in the north corner of the room; it
+has been cold for many years. A doorway
+leads into what appears to be a small
+pantry.
+^
+#10
+WEST DINING HALL
+0,11,28,10,0,0
+Several differently sized human
+skeletons are clustered in groups
+around the central circular table; most
+are wearing tattered rags and some have
+their forks halfway to their mouths;
+one hapless diner was in the process of
+chewing when he died. To the west is a
+stone archway through which you see a
+kitchen.
+^
+#11
+EAST DINING HALL
+0,0,0,11,0,0
+Here too, skeletons are sitting on
+rough benches next to the tables.
+Plates of unappealing-looking food lie
+next to a sword that is permanently
+stuck in the table at a rakish angle,
+almost up to its hilt. Muddy rodent
+tracks lead to a small crack in the
+southwest corner. Bones and rotten food
+litter the floor. A shattered wine
+glass lies next to a yellowed pack of
+playing cards.
+^
+#12
+BEDCHAMBER
+0,0,30,0,0,0
+Furnishings here are threadbare and
+worn, but look as if they used to be in
+good shape and well made. A giant
+four-poster canopy bed is the most
+impressive work of carpentry you've
+seen to date. Intricate scroll-work
+adorns the bed, and even though time
+has obscured many details, you can
+still make out several bas-relief
+figures which hold up the canopy.
+^
+#13
+TOWER NW
+0,14,31,0,0,0
+The view from here is magnificent: you
+can see the whole forest and the
+mountains which are bathed in a gentle
+pink and yellow glow of the setting
+sun. To the south are some stairs which
+lead down.
+^
+#14
+TOWER NE
+0,0,32,13,0,0
+You are in the northeast corner of the
+abandoned tower. A loud and steady
+dripping noise can be heard, and you
+can smell the faint cloying odor of
+vanilla.
+^
+#15
+PRECIPICE
+0,15,0,0,0,0
+You look down on lush green and brown
+squares of land, just barely visible
+from this height. The flood basin
+certainly has blessed the land with
+fertility.
+^
+#16
+STONE STEPS
+0,17,0,0,15,0
+You are climbing a set of roughly
+carved stone steps. A vast precipice
+with a wonderful view of the valley
+below is to your west, and Ettinsmoor
+lies to your east.
+^
+#17
+ETTINSMOOR
+0,0,35,16,0,0
+This lonely moor is situated to the
+north of Watersmeet. It is rumored that
+witches and hags use the area for their
+secret ceremonies on clear nights when
+the moon is full. A brisk wind blows
+off the surface of the murky waters,
+chilling you momentarily. Gaunt trees
+bent almost double from the blast
+remind you of tortured souls praying
+for mercy in the hands of cruel and
+torturous captors. To the west lies a
+set of giant stone steps that lead
+upward.
+^
+#18
+FOREST
+1,0,41,0,0,0
+This is a pleasantly quiet place. A
+birch tree with large roots invites
+comfortable repose against the smooth
+bark. Long green grass begs you to
+remove your shoes and frolic in the
+softness for but a moment...
+^
+#19
+FOREST GLEN
+2,0,42,0,0,0
+This glen is filled with bushy pine
+trees. Their needles snap and crunch
+when you step on them, and the air
+seems very dry. The droning hum of
+insects makes you slightly drowsy.
+^
+#20
+CLEARING
+3,0,43,0,0,0
+The path widens momentarily here; trees
+are growing in a rough semicircle
+around the edges of the path. You have
+some breathing room at last, and the
+sun shines brightly down.
+^
+The glare of the sun momentarily blinds
+you as you walk into this area. Most of
+the trees here are saplings and offer
+no protection from the heat.
+^
+You are standing next to a tall tree.
+There is a branch just within your
+reach; you might be able to climb up
+and grab hold of it if you wished.
+^
+You have come as far east as you can.
+A stout iron fence (fairly new too,
+from the look of it) stops you from
+going any farther.
+^
+There is a small doorway to the south.
+Silver and gold light twinkles from
+between the cracks around a closed and
+heavily barred oak-paneled door to the
+north which has a brass handle. Faint
+rodent-like squeaking noises can be
+heard from within the room on the other
+side of the door. Several sets of red
+beady eyes glare malevolently at you
+from a large crack in the masonry in
+the northeast corner of the room.
+^
+You are near the west end of a long
+corridor. Several bats brush carelessly
+against you. Spiderwebs cling all over
+the walls and floor. A disused torch
+rests in a rusty sconce on the wall to
+the south. To the north lies a door.
+^
+You are in the east wing of a long
+corridor. A large stone fireplace is
+before you, cold and covered in cobwebs
+from years of disuse.
+^
+You are in the Great Hall, in the
+middle of a long corridor. Several
+menacing looking suits of armor stand
+before you, flanking the entryways to
+the east and west as well as the exit
+to the south. They hold sharp axes
+which are permanently raised as if to
+challenge your right to be here. You
+can almost imagine eyes glaring at you
+through the visor.
+^
+You are in the middle of a long
+corridor. The east end of the dining
+hall can be seen to the north. The
+drawbridge is to the southwest, as seen
+through chinks in the masonry.
+^
+You are nearing the east end of a long
+corridor. Many faded banners occupy
+space on the stone walls. The most
+magnificent one hangs down in the
+middle of the archway to the east. A
+pleasant shade of blue, it seems to
+draw attention to itself quite readily
+on its own merit.
+^
+You are near the east end of a long
+corridor. Simply constructed spiral
+stone stairs lead up to a darkened
+balcony, and dusty green tile stairs
+edged with dull brass trim lead up
+towards a doorway to the north.
+^
+An enormous bookcase groaning under the
+weight of musty magic books fills
+virtually all of the southwest corner
+of this abandoned tower. Some of the
+more distinguishable titles are "The
+Art Of Magic Pleasantlie Open'd to
+Tender Wits" or "Popular Wizardry
+Volume One: Abracadabra to Hocus-Pocus"
+or "Cantrips: Are They Really All
+They're Cracked Up To Be? A Definitive
+Study By Gandalf, Wizard; Esq."
+^
+You are in the southeast corner of the
+abandoned tower. Yellowed scrolls and
+strange magical paraphernalia which are
+covered with a thick layer of dust
+reside on a rickety set of shelves next
+to a paneless window.
+^
+You are standing on the edge of a dock
+which extends out into the water.
+Looking towards the east, you can see
+the river which flows gently past...
+Pebble Beach is towards the south.
+^
+The river slowly but surely comes to a
+near-standstill here; the channel gets
+narrower and the water gets choppier.
+Way off in the distance towards the
+east, you can see the short squat
+pilings of Watz Upp Dock, and land.
+^
+This large, blue, deep, wet lake gets
+its name from the fact that there are
+many smaller tributaries from different
+provinces of the land that end up here.
+You feel almost lost; an insignificant
+speck in the vastness of the lake
+(small ocean?). You begin to give up
+hope of finding your way back, then you
+spy a small piece of land against the
+horizon to the north. The east, south,
+and west are completely devoid of any
+detail. You decide to use it as a
+landmark and not let it out of your
+sight. Meanwhile, it is incredibly
+relaxing to float around without a care
+in the world. The sun is hot but not
+unpleasantly so; the light breeze from
+the water keeps you cool. You bob
+around in your dinghy, letting the
+gentle waves take you wherever they
+may.
+^
+This narrow, swift river quickly takes
+you thrice the length you expected to
+go in half the time. Without even
+thinking, you let the current carry you
+on.
+^
+This is a fine sandy beach near which
+to put in if you wished to. The current
+is slow and lazily meanders over the
+smooth bottom. You could most likely
+get out right here, and walk to the
+south, towing the dinghy; the water is
+fairly warm and not too deep.
+^
+The river sluggishly moves on: the
+banks are narrow and tall, and you can
+see the different-colored layers of
+rock and soil.
+^
+The speed of the foaming water has not
+decreased much, it pushes you and your
+dinghy along at a furious rate, almost
+as if by an invisible hand of some
+sort.
+^
+WOW! That was some ride! You fell about
+100 feet straight down, plunged
+headlong into the frigid foaming water,
+but still managed to hang on to the
+side of the dinghy. Your teeth are
+chattering violently and you can't stop
+shivering. There is a light fog from
+the waterfall, and the thunderous noise
+will most likely deafen you if you stay
+here much longer! You simply must find
+somewhere to dry off!
+^
+A stand of poplar trees blocks your way
+to the south. A squat stump is in the
+middle of the ring of trees; it has
+fungus growing on it and flabby white
+wild mushrooms growing off the top of
+it.
+^
+This path is lined with coarse gravel
+and looking up you notice a thickly
+interwoven canopy of branches and
+leaves overhead which provides
+pleasantly cool shade from the sun.
+^
+Groups of wind-swept trees remind you
+of old women huddled together
+gossiping. There are trees which you
+cannot identify, and you surmise that
+they must have been transplanted from
+Archenland or perhaps Alfheim.
+^
+Rows of logs, both thick and thin, lie
+lashed together using stout cord in
+neat piles alongside the rutted road
+through the trees. Wide open spaces are
+becoming more common as the push for
+colonization increases and logging
+activity increases. Happily, though,
+most loggers replant two trees for each
+one they cut down.
+^
+This solemn-looking place is mostly
+gently rolling hills covered with dried
+grass. To the east is a sheer rock
+face, the top of which cannot be seen.
+Crude handholds may make passage
+upwards possible.
+^
+You throw yourself upon the top of the
+rock face, panting with exertion. A
+giant nest, made of various sizes of
+twigs and small tree branches scavenged
+from the forest floor takes up most of
+the area here. At first glance, it
+appears that two small stone statues
+and a larger statue are currently
+occupying this nest.
+^
+The wind whistles fiercely through this
+room, the reason being there is little
+left of the southwest wall to prevent
+it from doing so. A tree must have
+fallen down upon it in a terrible
+windstorm years ago. The east wall
+holds what remains of a small
+bookshelf.
+^
+This passage has not been used in
+years. You can see a very dim light to
+the east. The walls look weak back
+here, and large wooden timbers serve as
+braces so they don't fall down.
+^
+There are boxes and boxes of dusty
+glass and crystal bottles with twirly
+writing on them. Trunks filled with
+faintly scented cloths in faded colors
+and chipped beakers and flexible tubing
+and funnels and other things you cannot
+find the words to describe fill this
+ancient room. Perhaps it was an alchemy
+laboratory in earlier times?
+^
+A large statue of a woman dominates
+the center of this room. She is smiling
+beatifically, and seems to be offering
+you something in her outstretched
+hands.
+^
+You are at the middle of a large narrow
+hallway which is filled with remarkably
+lifelike sculptures of men and beasts.
+Paintings of the forest, strangely
+distorted yet oddly vivid, line the
+walls.
+^
+This used to be Mananan's waiting room
+for magical consultation among his
+colleagues; chairs here have seen much
+use. Pictures on the back wall seem to
+move when you are not looking directly
+at them.
+^
+Here a pale greenish light emanates
+from nowhere in particular and the desk
+and walls are covered with arcane
+symbols and spooky magical stuff that
+no doubt maintained Mananan's image but
+don't impress you. Much.
+^
+The humid air in here makes you sweat a
+lot. Peering down a hole that is in the
+middle of the floor, you are hit in the
+face by a blast of steam.  Faint
+bubbling and cooking-popping noises
+come from down below. The strong smell
+of sulfur does nothing to improve the
+general state of things.
+^
+The spacious guest lodgings so
+graciously provided by your hosts
+actually turn out to be not that bad.
+Silken pillows help calm your jangled
+nerves as you sink down into them. A
+sizable hole has been cut in the
+ceiling, and it is open to the sky. A
+net has been attached to prevent small
+animals and debris from falling down
+onto people's heads. The East Quarters
+are to (where else?) the east.
+^
+Comfortable futon beds and a small yet
+useful writing desk occupy this wing.
+Several tasteful and moderately
+handsome sect masks adorn the simple
+walls. They have pleasant smiles, and
+invite a restful night's sleep.
+^
+In the center of the wall opposite the
+entrance to this large room is a carved
+wooden face that fills the area
+from floor to ceiling. The carving is
+highly polished, and flashes with
+reflections of light. The mouth is
+slightly open, and the eyes seem to
+glare at you for a split second, then
+the expression softens. In the center
+of the room sits a pedestal with a
+perfectly preserved stuffed or
+otherwise immobilized hummingbird.
+^
+This narrow strip of land is covered
+with every imaginable kind of pebble
+known in creation. Little ones, big
+ones, shiny ones, dull ones, round
+ones, square ones... well, you get the
+idea. There are lots of pebbles here.
+To the north is the water, to the south
+is a deep smoking crack in the earth.
+^
+A twisting, turning trail leads upwards
+to the south and down towards the east.
+^
+A twisting, turning trail leads upwards
+to the west and down and south towards
+Watersmeet.
+^
+This looks like a likely spot to pull
+in. The water is calm and unhurried,
+there's no chance of the dinghy being
+swept out to the river again once you
+beach it. A meandering path that snakes
+between two stately elms can be seen to
+the south.
+^
+You are in the Merchant's Annex.
+^
+A path leads down into the ground to
+the west, and other paths lead off to
+the north, east and south.
+^
+To the south is a grand view of the
+waterfront district; a nice dock can be
+seen down that way..
+^
+A magnificent lake is to the south, you
+can see it over the slight rise in the
+land. It looks very cool and
+refreshing.
+^
+Your path takes a sudden zig-zag route
+as the grade of the hill increases
+sharply. Luckily, the road is
+hard-packed dirt and not slippery
+gravel. You fight your way to the top
+of the hill and turn for a moment to
+survey your surroundings. High in the
+sky circles a lone eagle, and for a
+moment it is as if you are the only two
+beings in the world. You turn away, and
+with renewed spirit continue on your
+way.
+^
+Your way is partially blocked by a rock
+pile that has buried some hapless
+adventurer. A skeletal hand is sticking
+out of the rocks still clutching a
+useless rusty sword.
+^
+High sandstone walls surround you,
+blocking the sun's warmth. Faint traces
+of ancient rock paintings catch your
+eye. Looking more closely, the image of
+a bear takes form.
+^
+The canyon takes a sharp turn here to
+the west. The canyon floor is fairly
+smooth and easy to travel on.
+^
+You stand on the edge of a dry moat in
+front of a run-down castle. The
+drawbridge is closed. An unearthly
+voice whispers faintly, "What is the
+password?" and fades away to be
+replaced by the steady yet unobtrusive
+(almost pleasant) chirping of crickets.
+^
+To say that this place is a dust bowl
+would be entirely correct. In fact,
+that's basically what this place IS. A
+giant dust bowl. (Sorry, it's nothing
+like a sugar bowl or even the Super
+Bowl.) The wind whips stinging sand
+granules into your face with painful
+accuracy.
+^
+You stumble over the rough ground,
+cursing the lack of a path. Two stately
+pine trees stand here to your right. To
+the east lies a dark tunnel leading
+into a hillside. To the west is a giant
+expanse of shifting sands. Leading
+south, a path winds up to a windswept
+hilltop.
+^
+This almost-but-not-quite pitch black
+hole in the ground is hard to navigate
+around, there are lots of bumps and
+rocks you keep tripping over. As near
+as you can tell, there are exits to the
+west and south.
+^
+This room is lavishly adorned with
+likenesses of hummingbirds on the
+walls, floor, ceiling, and altar.
+^
+You stand in a quiet hall. A
+multicolored beaded curtain hangs
+between you and the guest quarters.
+Smooth tiles, aqua hued, chill your
+feet.
+^
+You stand just behind a sparkling azure
+pool. The water is calm and you can see
+the tiny blue tiles on the bottom.
+^
+You notice several priestesses lying
+down on simple mats, resting from the
+exertion of praying.  The walls are
+covered in masks and tapestries.
+^
+This ledge is terrifyingly steep. You
+kick a pebble over the edge, listening
+for any noise. You don't hear any.
+^
+To the east is an underground river.
+To the south appear to be some
+catacombs. To the north is a winding
+trail.
+^
+This wide, dark roaring river flows
+swiftly towards the east.
+^
+The bridge is broken in half. Towards
+the west you can see a vast underground
+river. You can still turn back the way
+you came towards the east.
+^
+These caverns are quite large, the
+ceiling is lost in the shadows above
+your head.
+^
+Volcanic and seismic activity has
+thrust the ground up into hundreds of
+chunks. Crackling of fire underneath
+your feet and smoking holes in the
+ground make this area dangerous.
+^
+You have stumbled into an ogre's lair.
+Each chamber in this cavern complex is
+lit by a crude, smoking torch. The dim,
+flickering illumination reveals burial
+chambers, littered with old bones,
+skulls, and rotting shrouds. You hear a
+fierce grating roar! Prepare to do
+battle!
+^
+You are in the crown of a tall oak
+tree. To the north you can see the
+Merchant's Annex. To the east you can
+see a hilltop. To the south you can see
+a lake and mountain.
+^
+You are on a lonely, narrow, dark path.
+Treasures, perils, and mysteries await
+the adventuresome.
+^
+You are standing on a dock which
+extends towards the east.
+^
+A small lake stretches out before you
+to the east. Another dock can be seen
+down that way as well.
+^
+You get out of your dinghy, moor it on
+the dock, and knock at the door of this
+house... Receiving no reply, you try
+the door. Finding it unlocked, you
+decide to come in and poke around a
+little, being an adventurer. So now you
+are standing in the front room. There
+are some stairs which go down towards
+the east, and another room towards the
+east. Some stairs that go up towards
+the south are here too, trying hard not
+to be noticed.
+^
+You are in a comfortable-looking living
+room. Dark wood paneling adds warmth
+to the tasteful decor. Several stools
+and a couch are arranged around the
+room next to a bookcase and a stone
+hearth. A finely woven Oriental rug is
+in the middle of the room.
+^
+This canyon stretches out for quite a
+distance.
+^
+If you've ever read "The Chronicles of
+Narnia" you'll probably know who the
+Telmarines are. Anyway, these are the
+Telmarine Hills.
+^
+You're in a cave with paths going every
+which-way. Well, not [every] which-way.
+Just [some] which-ways. Check the line
+"Ye may travel:" and you'll see [which]
+which-ways... (Still with me?)
+^
+You're on a central hilltop overlooking
+this cute 3x3 grid which is the
+stomping grounds of that stinking,
+sodding, no-good rotten Dwarf. Of
+course, if you've already killed him,
+the Dwarf is gone and there's really no
+point in reading this, but I just
+display the text like it is. I [could]
+check to see if the Dwarf was dead, but
+that would be extra work. And we all
+know how Pinacolada hates work.
+Especially programming adventure games.
+So talk to [him], and don't complain to
+[me] about it. I'm just the [program] that
+he wrote and I'm doing [exactly] what he
+told me to. So if your inventory goes
+[plooie] or you wake up some dark day and
+find your stats have been altered to
+all -1e+90, you know who to rag on. [Not
+me!] Ok, anyway, you're on a hilltop.
+
+[Author's note:] I did not write this.
+Really. The program wrote it. We all
+know how crafty commodore 64's can be!
+
+[Program note:] Did! You liar! Hey you
+out there - don't listen to him!
+
+[Author's note:] Did not! Be afraid. Be
+very afraid... I'd be careful if I were
+you!
+
+That's enough of this. Back to the
+game.
+^
+Well, it's just what it says.  A LONG
+TUNNEL. If you have any questions leave
+feedback.
+^
+This is quite a beautiful altar, all
+decked out in silver and gold and shiny
+stuff. Pretty impressive.
+^
+This hall is pretty HALLowed.
+^
+How this stuff got here you'll never
+know. It's kind of interesting, kind of
+like that stuff you put in the bottom
+of fish tanks.
+^
+For being priests these guys aren't
+acting very holy! At least not today.
+Looks like they're having a toga party
+(how appropriate!) and crushing beer
+cans with their foreheads and reading
+girlie magazines.
+^
+These catacombs are quite extensive.
+Dark passageways lead off in almost any
+direction, but something tells you
+(perhaps this very sentence) you'd
+better only go south or north if you
+want to wake up in one piece tomorrow
+morning.
+^
+This path IS pretty steep. It makes
+Mount Everest look like a walk in the
+park. Oh well. It's always good to push
+yourself. Or better yet, have someone
+push YOU. In a wheelchair. When you get
+old.
+^
+This path IS pretty narrow. It makes
+tightrope walking look easy. Oh well.
+It's always good to get vertigo once in
+awhile. It builds character.
+^
+Hello, what's this? A giant temple
+looms in front of you. This must be the
+place where you get in.
+^
+This too is a sensible basement,
+everything laid out logically. Dirty
+clothes are laid in two neat piles for
+lights and darks. A spacious
+conversation pit is in the middle of
+the room. Stairs go up. Well, actually
+YOU go up THEM. But you know what I
+mean.
+^
+This upstairs bedroom is one of the
+nicest and most sensible looking
+bedrooms you've seen. Carpeted in
+green, the room has a large water bed
+and a closet. A framed picture sits on
+top of a box which lies at the head of
+the bed next to a silver heart-shaped
+locket, a ring, and a scroll. A key is
+also on a bureau which is against the
+eastern wall.
+^
+The canyon continues on to the west.
+Trondheim is to the east.
+^
+This is a natural bowl-shaped
+depression in solid rock. Acoustics
+are excellent, leaving you to wonder
+why no one has staged a concert here?
+Harpsichords and pianofortes would
+sound GREAT! Maybe a little something
+by Bach, or perhaps Pachelbel's "Canon
+In D"... Too bad Queensryche or
+Metallica isn't around yet! THAT would
+be a concert to be talked about for
+CENTURIES. Speaking of which, it'll be
+about five till either of these guys
+show up, so be patient. Listen to a
+little something on your Ye Olde
+Walkman (or Discman, whichever you
+prefer) to pass the time.
+^
+True to its name, this place is dark.
+You get uneasy, sensing great evil at
+work here.
+^
+The Stone Warrior's lair is here.
+Giant chunks of basalt and granite
+litter the rocky ground.
+^
+This is a giant gravel pile.
+^
+You're in the open. The hot sun beats
+down on you relentlessly, and you feel
+tired and thirsty. The horizon
+shimmers, lost in silvery mirages. Dry
+grass crunches underneath your feet.
+Shading your eyes from the oppressive
+glare, you can see a path that leads to
+the south towards a gray indistinct
+mass. To the north appears to be a
+small cave.
+^
+In this library resides food for the
+imagination and inquiring mind. A
+lectern is against the north wall, and
+there are shelves upon shelves of books
+here. Tables and chairs are spaced out
+in the middle of the room, and several
+skylights provide plenty of light for
+reading or studying. The exit is
+towards the east.
+^
+You are in a T-junction with halls
+leading towards the north, east, and
+west.
+^
+You stand in the middle of a hall. To
+the east appears to be the entrance to
+the temple, and to the west is an
+intersection of halls.
+^
+This is the entrance to the main
+temple. It is lavishly decorated in
+sect masks, ornamental trinkets,
+shrunken heads, jawbones, feathered
+totems, and other primitive tribal
+symbols. Two spears are crossed against
+each other, point up, above the
+doorway. Three steps lead up to a
+square landing a few feet off the
+ground. Stone feet and ankles straddle
+the stairs, all that is left of an
+ancient statue. The stairs descend to
+the east towards the exit, and rough
+wooden planking leads off towards the
+north and west.
+^
+Almost identical to those at
+Watersmeet - perhaps built by the same
+craftspeople - these roughly carved
+stone steps go up towards the north and
+down towards the south. Minute cracks
+can be seen in the steps, which is not
+surprising since it often rains quite
+hard here and the steps seem almost
+porous.
+^
+This is a very steep path. Climbing
+this once a day for a month will put
+you in great physical shape! As you
+huff and puff to get to the top, your
+lungs wheezing in protest, you feel
+lightheaded and notice the air is much
+thinner at this great altitude.
+^
+There is a gilded crystal chandelier
+hanging from the stone ceiling. A tall
+ladder leans against the wall,
+providing access to the candle holders
+within. The fireplace, lit, is
+crackling loudly and occasionally spits
+sparks out at you. The flickering light
+casts eerie shadows on the walls,
+elongating your shadow until you look
+like a giant. A stone table sits in the
+corner, next to a rattan chair and a
+pile of rushes.
+^
+The entrance to the Inner Sanctum of
+the priest area seems to faintly echo
+with the prayers of priests within.
+Although shrouded in semi-darkness, you
+can sense movement somewhere along the
+western wall. You begin to feel
+spiritually uplifted as you get closer
+to the prayer area.
+^
+You are on some stairs which lead to
+the Inner Sanctum. Faint vibrations of
+chanting worshipers can be heard, as
+they are carried fairly well by the old
+wooden floors. You feel a tingling
+sensation in your body. If you didn't
+know better, you'd think your soul felt
+it too.
+^
+You are on a landing between several
+flights of stairs. Cheerful spiritual
+decorations line the walls, and the
+windows shine their dusty light down on
+you. It feels like their deity is
+smiling upon you as you stand there,
+staring out and towards the heavens.
+^
+You are walking along this incredibly
+long canyon. The ground is hard and
+rocky, and travel is rough. The high
+walls seem to close in on you, and
+what little sunlight gets through the
+suddenly cloudy sky is pale and dim.
+^
+You have entered the grain storage
+complex for the town stables. Bins of
+oats, barley, hay, and mash line the
+walls. Horse-smells abound, and there
+is a slight thumping noise as you hear
+a horse bumping into its stall, chewing
+its food contentedly.
+^
+You are in the Sulidam Inn. It's an
+immense structure of clapboard and
+brick that has clearly seen better
+days. The shingle roof sags, and the
+paint is losing its battle with the
+salt air. Still, there's something
+inviting about the place. The building
+somehow shrugs off its looks and offers
+you a warm welcome.
+^
+You are on a river-rock landing that
+leads up to a set of stairs that go to
+the Sulidam Inn. Pretty flowers line
+the stone planters in front of you, and
+thin trees assert themselves in small
+clusters all along the shaded avenue.
+^
+This alley was apparently used as a
+major artery of travel for quite a
+while a long time ago, and looks it.
+Having been bypassed with a new road
+and forgotten as the primary means of
+travel years ago, the rutted, muddy
+road now leads to what appears to be a
+medium-sized city nestled in back of
+the immense palace.
+^
+Several bony donkeys are tethered to
+large clumps of dead grass and are
+nibbling pitifully at what little food
+the townspeople can spare, here in what
+may as well be described as the
+"outskirts" of the tent city. Farther
+down to the east, villagers can be seen
+living their lives in isolation,
+desperation, abject poverty, and
+hopelessness.
+^
+Crumbling stucco buildings line the
+rutted avenue. People glumly go about
+their business, though what there is to
+do in this sad place, you cannot for
+the life if you imagine. A dead tree
+sags limply against a burned wooden
+building, and salvaged rough-hewn
+boards are stacked in wobbly piles
+which encircle the shell of the
+building. Small children sit on their
+parents laps, looking curiously but
+silently at you as you enter.
+^
+Tall dead brown grass partially
+obscures a rusted saw blade that is
+lying on the ground next to a wooden
+wagon wheel. Piles of trash litter the
+ground. Several frightened children are
+here who regard you with suspicion:
+they know you are a stranger in their
+small city. Parents look at you with
+pleading expressions, wordlessly
+begging for help, money, or food...
+^
+A stout stone wall impedes your
+progress east. Flat stones that paved
+the rough ground here are cracked or
+missing entirely. Thick patches of dead
+grass heave smaller paving stones up.
+An old man lies against the wall, his
+knees tucked up about his chin,
+grinning at you toothlessly, holding a
+battered tin cup which he jingles every
+so often. A few pennies can be heard
+rattling around in the echoing depths
+of the tin. Suddenly you feel rage
+choking you. Why has the king allowed
+his subjects to degenerate into what
+you see before you? These stories were
+all lies - Sulidam may have [been] a
+prosperous, happy city, but look at it
+now! A hot tear trickles down your
+dusty cheek...
+^
+This crevice seems to go down forever.
+It gets very narrow towards the bottom.
+You fear you may trap your foot in the
+crack and never be able to get it out
+again, so you stay as high up as you
+possibly can.
+^
+The sandy ground here slopes sharply
+towards a gaping hole in the earth,
+making passage around it dangerous, and
+footing becomes treacherous. A distant
+cave can be seen towards the east, and
+there are rough and rocky paths leading
+off in the remaining three directions.
+^
+You have entered a dimly lit cavern. A
+rattling and hissing noise alerts you
+to the presence of a dangerous snake,
+possibly several. Best be careful, they
+strike quickly and can leave you
+mortally wounded!
+^
+The shale walls of the interior of this
+cave are dusty, crumbly, and light
+filters poorly from chinks in the
+ceiling. You can see a bit ahead to the
+east, and in back of you to the west,
+are tunnels which snake through the
+heart of this cave. To the south is
+some sort of hastily boarded up area.
+^
+The slope down of this dusty tunnel is
+dangerous: the slippery gravel and
+fragments of rock provide very poor
+traction and you end up slipping and
+sliding down most of the way. Just be
+careful you don't break an ankle or
+something.
+^
+You stop short in surprise: this being
+the lowest point in the cave, it is the
+logical place for all water to seep
+into and runoff to end up in. The
+center of the room has been transformed
+into a small lake, having nowhere else
+to go. Evaporation is not possible,
+what with the solid rock faces present.
+The walls are muddy and black with dead
+algae. You bravely try to skirt the
+edge, but fail because of impassible
+rock formations.
+^
+The cave floor is damp and muck-filled
+with mud and debris that lodged here,
+apparently from flooding. The sodden
+ground squishes disgustingly, sucking
+at your feet. A foul stench wafts into
+the room, carried on air currents from
+the east.
+^
+You nearly pass out from the horrible
+odor, as of something dead or dying,
+but upon closer inspection, you notice
+a nest of gargoyles. The small ones are
+almost *cute*! You long to reach out
+and pet one, but remember that their
+grating scream would undoubtedly awaken
+the mother or father (whichever it is
+who is laying next to them, asleep as
+well) and they would tear into you in
+half a second.
+^
+You pause a moment, and push the door
+open... The room is filled with large
+stone statues of noble-looking people.
+Each face seems to stare past your eyes
+and into your soul. Aside from these
+statues, the room seems to be fairly
+empty, the floor thick with dust and
+debris. Several exits lead to the north
+and west, but should you really
+continue?
+^
+This hall has formidable stone arches
+and ivory torches rest in brass sconces
+on the walls. Luxurious carpets feel
+wonderful beneath your tired feet, and
+a large fireplace which has a fire
+cheerily burning in it and a stone
+hearth dominates the southern wall.
+^
+This fire pit is filled with dusty ash
+and charred bits of smoking wood. The
+rough stone floor circling the pit is
+littered with woven sleeping mats,
+chipped pottery, and eating utensils
+made of bone. There is a rough ten foot
+by ten foot hole in the ceiling, and is
+open to the sky. A net has been
+fastened across this opening to prevent
+debris and small creatures from
+entering. A rope hangs down from one
+corner of the opening to the floor.
+^
+This altar is simply constructed of
+slabs of stone set on top of each other
+in a staggered pyramid fashion. The
+room contains several items used by the
+priests in the worship of their gods.
+Bone rhythm sticks, a crumbling bamboo
+flute, and the remains of a feather fan
+are here.
+^
+You are on some stairs, approaching a
+landing. Carved out of the angled back
+walls of the stairwell are two
+bas-reliefs of humans holding lighted
+braziers.
+^
+A rain washed gully provides fairly good
+footing, gravel has been swept
+downstream leaving the hard-packed dirt
+to walk on in relative ease and
+comfort.
+^
+You have entered the stables of Sulidam
+where all the town's horses are kept. A
+sign is tacked on the wall, but you
+cannot quite make out what it says. A
+hand bell and book of some kind are
+here. Although faint clanking noises
+can be heard to the north, no humans
+are in sight.
+^
+Here the splendor continues: Row upon
+row of horses of every shape and color
+you can possibly imagine are here,
+quietly neighing and stamping in their
+stalls. Although the faint smells of
+hay and manure linger in the air, that
+is to be expected in any horse stable.
+The place is very well kept by caring
+and competent owners, whoever they are,
+and is mighty impressive.
+^
+You have entered a quiet alcove. Set
+back from the hustle and bustle of
+everyday life in this town, it seems to
+radiate a certain sense of tranquility
+and peace. And no wonder: a small sign
+fashioned in the shape of an arrow
+points towards the north, the entrance
+of a local chapel.
+^
+You enter a comfortable, darkened room.
+Amateur musicians sit around, tuning
+their strange instruments and talking
+shoppe...
+^
+This is most unusual: You've seen
+stripes in the middle of roads before,
+but whoever was in charge of painting
+the stripe widened it so that the whole
+width of the road appears yellow.
+Apparently they were not of sound mind,
+and went insane. You notice a manhole
+cover set off to one side which appears
+to be closed. Of several exits here,
+one leads to the north towards a grubby
+little alley, the other heads off to
+the west and to the south is an outdoor
+pavilion.
+^
+You find yourself at the edge of an
+artisan's district. Skilled
+craftspeople call out to you, hoping to
+pique your curiosity and interest about
+their wares. You weave in and out of
+rows of tables full of finely made
+curios, housewares, weapons, and
+clothing, chatting with people for a
+few minutes as they point out their
+skill and handiwork.
+^
+Here a large booth has been set up in
+order to showcase fine bone and wood
+carvings, mostly incarnations of local
+spirits and animals. You stare in your
+admiration of the many fine details of
+each and every piece. You believe it to
+be truly amazing that such cold and
+impersonal tools as the hammer and
+chisel can create such delicate and
+beautiful designs, but the results
+before your eyes clearly disprove that
+way of thinking.
+^
+A small cottage nestled in some low
+grassy hills next to a small stream
+catches your eye. Obviously a
+woodcutter lives there, there are bales
+of saplings tied with strong cord
+laying about in neat piles, and an axe
+has been driven into a stump next to a
+well. A wide ribbon of vegetables winds
+around in back of the cottage, and a
+tall majestic oak tree belies the
+presence of children with a swing which
+hangs down from one of the lower
+branches.
+^
+You have come to the end of the
+artisan's district. A botanical garden
+of sorts dominates your field of
+vision. Beautiful arrangements of
+plants and flowers have been carefully
+arranged in interesting geometrical
+patterns here. Even the gravel has been
+raked into ridges around the path and
+between the rows of the garden.
+^
+Only by holding your breath and barely
+squeezing past the claustrophobic stone
+walls can you enter or exit this area.
+The walls encompass you, and it is very
+dark.
+^
+This passage is barely wide enough for
+you to go through. Your body scrapes
+the walls, and you feel uncomfortable
+trying to squeeze through, but you
+manage anyway.
+^
+Faint traces of gold sparkle
+hypnotically in the dark walls of the
+cave. Glittering dust sits undisturbed
+on the sloping floor.
+^
+Here and there, golden flashes of light
+tease your eye. The floor becomes more
+rough the farther along the corridor
+you proceed.
+^
+The golden glitter is very faint and
+well spaced out here. Cold breezes
+whistle through the passageway, and it
+gets increasingly darker and the
+footing gets more treacherous.
+^
+The passageway ends here at a sheer
+rock face, as if the tunnel diggers
+decided to quit all of a sudden. There
+is practically no trace of gold around
+here, save for maybe one or two
+sparkles in the uppermost reaches of
+the ceiling.
+^
+You stand before a massive cave-in.
+Piles of rock and debris necessitate
+picking your way around them carefully.
+You look up often, fearing that the
+weak-looking ceiling will collapse any
+second, but thankfully it does not.
+^
+The lonely path you have been following
+ends at a stout stone wall. To the
+north lies a heavy wooden door, and to
+the east lies the pavilion.
+^
+This pavilion has colorful tiles
+placed in interesting patterns on the
+floor and walls. Twin pillars mark all
+four compass directions, and a bubbling
+fountain filled with some kind of
+orange liquid sits in the center of the
+room. Stairs lead off to the south, and
+a doorway can be seen to the east.
+^
+You step into this sparsely furnished
+room in the southwest corner of the
+main hall and look around. The hall is
+about fifty feet square, two stories
+high with balconies running along three
+sides of the second story. This quarter
+is simply decorated in a few ornamental
+tapestries, nothing more.
+^
+This is a large, brightly lit place,
+decorated with candles held in finely
+crafted candle holders so the wax
+doesn't spill. Hung on the wall is a
+large mirror of polished silver and
+bronze, patterned in shapes of
+fantastic animals and plants the likes
+of which you have never seen before.
+Flecks of mica glimmer in the stones of
+the wall, and sheets of feldspar and
+quartz dangle near the candles,
+scattering points of light everywhere.
+^
+You're walking on a slightly elevated
+ramp which leads to a landing just
+ahead to the north. The delicious aroma
+of incense wafts unobtrusively into
+your nostrils.
+^
+This rugged, rocky and shallow valley
+comes to an end here. To the north lies
+the rest of the valley, and to the east
+lies a black metal gate set into a cut
+out portion of the canyon wall.
+^
+You are just inside a black metal gate,
+which is the entrance to Sulidam.
+However, despite the city's reputation
+as being one of the richest cities on
+the continent, you have heard tales of
+beggars and peasants within, stories
+too numerous to be counted, and
+therefore may be true. From what you
+can see, the area bustles with activity
+and life, and so far it appears to be a
+very nice place in which to live.
+^
+You have entered the town square.
+Crowds of people, carts, and assorted
+livestock are all seemingly trying
+to occupy the same space at once.
+People mill about, engaged in
+conversations on just about anything.
+^
+You are in a well-to-do area, there are
+large mansions all over. You stand in
+the center of the palace gardens.
+Colorful sprays of exotic flowers burst
+forth from the planters, and benches
+are thoughtfully provided for those
+weary of standing. There is a rich
+looking palace to the southeast. To the
+west and east lie roadways, to the
+south lies a particularly extravagant
+looking mansion, and the local music
+club lies to the north.
+^
+This is the lavish entrance to the
+King's palace. Guards mutter about
+royal business you cannot hope to
+understand but still listen to with
+half an ear. Suddenly you feel somehow
+embarrassed to be here.
+^
+This hallway snakes around in the inner
+portion of the King's castle. At the
+end of what you can see towards the
+east the hall turns yet again.
+^
+Polished oak parquet floors dominate
+this part of the hall and interesting
+paintings line the hall. They show the
+King when he was a small boy, smiling
+happily.
+^
+Wonderful tapestries hang on the walls
+here. Embroidered with rich hues of
+blue, green and the warm glow of yellow
+makes them a pleasure to look at.
+^
+A magnificent clock towers above you in
+all its royal majesty. A spectacular
+cabochon crystal mounted with golden
+brackets is on the top of the clock.
+Twelve diamonds are set in the clock
+face. The clock has a pleasantly mellow
+and soothing sound when it ticks.
+^
+You slosh through this passageway,
+ankle-deep in brackish water. A steady
+dripping noise can be heard, and echoes
+eerily throughout the cavern.
+^
+Everything in this room is coated with
+a thick layer of chalk dust; you can
+barely make out where to step, it is so
+dim.
+^
+You go down the creaky steps and climb
+around back of the house to a rocky
+path. You are now standing just inside
+the door of a rickety tool shed, as
+there is not much space available to
+move about within. Light filters poorly
+through the small cobweb-laced window,
+revealing piles of rusty pickaxes,
+dusty gold pans, frayed rope, moldy
+sacks, and wire mesh boxes. The only
+exit is the way you came.
+^
+You stand in the center of a small
+one-room shack. The roof looks in need
+of much repair, leaking badly through
+sizable holes. The walls and floor are
+thick with dust, the sink is piled high
+with unwashed dishes, and a sagging
+table sits against one wall with a
+broken lamp toppled sideways sitting on
+it. Towards the east you can see what
+appears to be a shed of some sort.
+^
+Stairs lead up to a balcony which
+circles the room below.
+^
+You climb some stairs and find yourself
+on the second floor of the hall, on the
+balcony that runs along the wall above
+the entrance.
+^
+Beautiful jade and ruby statues line
+the hall, and golden shafts of sunlight
+make the walls sparkle and shine.
+^
+You are on a landing flanked with red
+marble pillars. The hall is decorated
+with paintings of glyphs and spiritual
+gatherings.
+^
+The room is dominated by a large dais
+leading up to a beautiful altar.
+Torches burn a heavy, sweet-smelling
+incense which makes you drowsy.
+The air rings with unearthly-sounding
+bells, and the room shimmers and fades,
+glowing oddly then growing dim as if
+seen through thick fog. A muffled voice
+speaks in a strange language, and you
+can hear a light drumming noise coming
+from somewhere in the room...
+^
+You are in the northwest corner of the
+temple. Here monks in coarse hooded
+robes are shrouded in ceremonial smoke.
+The room is filled with an ominous
+sounding mantra of some sort. Looking
+more closely at the proceedings you see
+they are trying to revive a wounded
+eagle that has been shot with an arrow.
+^
+You are in the northeast corner of the
+temple, next to the door. Statues made
+of bronze and gold act as spiritual
+watchdogs to ward off evil presences in
+the midst of the temple. They give you
+the creeps anyway. The temple's motto
+is lettered in gold at the top of the
+main doorway: "We Serve To Protect And
+We Protect So You May Serve." Serve
+what? Or whom? you wonder.
+^
+You poke your head in the door. Looking
+inside, you can hear that a REALLY loud
+party is in progress. People in various
+strange-looking costumes are running
+around, and what is that group over
+there in the corner doing?? GOODNESS! A
+short, chubby, merry-looking fellow
+greets you at the door to the mansion.
+"Welcome to my humble abode!" he says.
+"You are just in time for the party!"
+With a wide grin, he invites you in.
+^
+This is a bright and cheery courtyard.
+It has a bird of paradise singing in
+one of the tallest trees, and you can
+hear the tinkle of a fountain in the
+distance. To the south is the palace
+reception area, to the east is the
+King's anteroom.
+^
+The King's bedchamber totally takes
+your breath away. Everywhere you look
+gold and silver glitter enticingly,
+just barely within your reach. Plush
+and luxurious carpets, no doubt from
+rare and exotic animals, line the floor
+of the chamber. More pictures of the
+King, now later on in years, are on the
+walls. He still looks happy. There is a
+beautiful woman, probably his Queen, in
+a few of the pictures.
+^
+This is the entrance to the King's
+bedchamber. An ornate sign, proclaiming
+that "Visitors are welcome, but please
+don't touch anything. (You break it,
+you buy it.) Thanks - King Dwalin." is
+posted outside the fabled monarch's
+quarters. A burly guard is here, his
+arms crossed defiantly over his chest.
+^
+You are near the end of the hallway
+that leads to the King's bedchamber.
+^
+You are crawling on hands and knees on
+a rough cobblestone path. The ceiling
+is very low, and it is very dim.
+^
+In the center of this section of
+hallway is a short staircase that leads
+up to a platform. The platform stands
+just above the water level. The floor
+of the platform is damp and covered
+with pale fungus. Beyond the platform
+the steps lead back down into the
+flooded hall. You see a a small stream
+of air bubbles floating to the surface
+of the water.
+^
+This badly flooded room has a dais set
+in the middle of the room. There are
+what appear to be thin wires laying
+against the surface of the muddy water
+encircling the dais. You can only
+wonder as to their purpose. Sitting on
+the dais, high and dry, is an oyster.
+^
+You are at the east end of a natural
+cavern of great size. The air is hot,
+steamy, and fouled by volcanic gases.
+Here the floor of the cavern is a field
+of bubbling mud pots, small geysers,
+hot springs, and mineral crusts. Many
+vivid colors such as rich reds, browns,
+and yellows combine with blacks and
+grays. Terraces crusted with deposits
+from mineral springs extend from the
+sides of the cavern at several points.
+Stalactites hang from the ceiling,
+merging with stalagmites in a few
+places to form pillars from the roof to
+the floor.
+^
+Occasional flares of ruddy light
+combined with great bursts of steam of
+some of the hot springs briefly
+illuminate small points in the room.
+Set on the topmost terrace, directly
+underneath a dripping stalactite, sits
+a throne upon which is a grinning
+skeleton. Mineral-rich waters falling
+from the ceiling for years have
+encrusted the skeleton and hide all but
+the most general features. A sword,
+partially hidden by the mineral crust,
+lies directly before the throne.
+^
+As you move down this hallway, you see
+many large, rough holes in the walls
+just above the water level.
+^
+This area is covered in rubble, making
+passage difficult.
+^
+This area is covered in rubble, making
+passage difficult.
+^
+Many crystalline ice formations meet
+your eyes as you venture inside the
+frigid caves. This vast cavern awes you
+with its sheer magnitude; the ceiling
+is thirty-five feet above your head.
+The walls seem to stretch on forever,
+and you feel small and insignificant in
+comparison. Icy columns are scattered
+everywhere, breaking what little
+sunlight there is into rainbows that
+shower different colors on the walls
+and floor.
+^
+You stand on a snowy trail. Your feet
+crunch through the crust of snow and
+ice, and a few scattered trees have
+thick layers of fluffy powder stuck to
+them. The whole place seems to glow
+with a dim radiance as subdued rays of
+sunshine are scattered a hundredfold by
+the prism effect of the crystalline
+snow.
+^
+You stand on a snowy trail. The crust
+of snow is weaker here, and you kick up
+a fine powder while shuffling through
+the snow.
+^
+You are inside your dinghy, bouncing
+along the length of an old flume.
+^
+You are inside your dinghy, bouncing
+along the length of an old flume.
+^
+You stand in front of an iron grate.
+This houses the priest and protects
+both your identities.
+^
+You enter a vaulted room. On the
+ceiling there are rosettes and stars.
+The walls are covered in paintings and
+ornamental bands.
+^
+Shelves almost audibly groaning under
+the weight of supplies for the church
+are all along three sides of the room.
+Everything is neatly boxed and labeled.
+^
+You are in the southwest corner of the
+temple. A desk is set up with a crudely
+handwritten sign above it which reads:
+<<<<<<<<<<<<<<< HEALING >>>>>>>>>>>>>>>
+>>>>>>>>>>>>>>> is done <<<<<<<<<<<<<<<
+<<<<<<<<<<<<<<<  here!  >>>>>>>>>>>>>>>
+^
+You are in the southeast corner of the
+temple. A large window looks out to the
+south towards lush rolling green hills.
+Monks sit here, their heads bowed in
+concentration, and meditate.
+^
+These living quarters are quite
+spacious, befitting for a mansion as
+impressive as this one is. This chubby
+guy, whoever he is, sure has lots of
+gold... and he doesn't hoard it,
+either. From what you can see of these
+quarters, nearly five thousand gold has
+been invested in the gilt work alone!
+^
+You are on a landing that leads up to
+the owner's quarters.
+^
+A long red carpet stretches from here
+to the throne at the end of the room.
+Brass sconces adhered to the glowing
+terra cotta walls cast a pleasantly
+warm light upon your face.
+^
+You look up and notice the King looking
+kindly at you from a distance. He is
+saying something to you but at this
+distance you can't quite make out what.
+A guard is here, standing in front of a
+wooden door to the south.
+^
+Many people go before the King, you
+think to yourself. They know what to do
+and say. As for you, you have no idea
+how to act, and quite frankly, you're
+nervous.
+^
+King Dwalin motions you to come closer,
+smiling kindly. Looking into his face,
+you promptly decide it's one of the
+kindest-looking faces you've seen since
+you started this whole adventuring
+business.
+^
+The King allows you to come even closer
+and talk to him. He says to you, "Rub
+the lamp! It could use a good shine by
+someone as pure of heart as you are, my
+friend." Strange, since you could have
+sworn it wasn't there a second ago...
+You are immediately wary, yet you don't
+want to offend him... Should you comply
+with his request?
+^
+You stand on the mountain peak just
+below the summit which is separated by
+a vast expanse of slick ice. The trees
+end just below this point, and the path
+is now framed by the dark colored rock
+of the mountain. The path still gives
+the only clear way to travel, though.
+You see hard snow drifts, sculpted by
+the wind, looking like frozen wave froth
+on the ocean. The whipping wind chills
+you to the bone, and a few fat flakes
+of snow splatter against your face.
+^
+You are on the mountain summit, and
+stand on a large, flat, open expanse of
+snow and ice. Beneath your feet is a
+thick sheet of ice that glitters in the
+weak sunlight. A light snow, which has
+crystallized from the cold air, blows by
+you.
+^
+You stand by the edge of a sluice gate,
+peering down at a dangerous-looking
+descent along an ancient flume. Your
+heart beats faster, and you wonder if
+you're really in your right mind to go
+through with this... [More adventurous
+players might want to type 'D.']
+^
+You are inside your dinghy, bouncing
+along the length of an old flume.
+^
+You are inside your dinghy, bouncing
+along the length of an old flume.
+^
+You have entered a peaceful-looking
+arcade area, the entrance to what
+appears to be a chapel. Round stone
+planters house creeping vines and ivy
+which lends a pleasant touch to the
+venerable brick building.
+^
+You're at the bottom of the hill next
+to an old well. The rolling plains make
+this the only significant landmark in
+quite a distance, really.
+^
+This wine cellar appears to have been
+recently used... here the dusty
+footprints continue from the previous
+room and several bottles look like
+they've been moved up to the front of
+the rack.
+^
+This room appears to have been recently
+used... the dusty floor has been
+disturbed with footprints leading to
+the southwest.
+^

@@ -1,0 +1,561 @@
+Hello:
+I want to add a feature to a program, when, and if there is ever a
+SYNTAX ERROR, UNDEFINED STATEMENT ERROR, or any of the other BASIC
+errors message, An ML routine will record the error into a string, and
+JMP to a predefined Line Number in the program. Image BBS has this
+function, but im not too sure on how to write it. $0039 is CURLIN,
+where is the buffer for the Error messages? How to i write an ML
+routine that GOTO's a certain line # in the BASIC program? Any
+assistance will be greatly appreciated.
+
+Hi Steve,
+
+sorry if I produce another misunderstanding (I have not read the
+BBS-threads that maybe are related to this topic...) You want to stop
+a running BASIC program on a C64 if an error occurs and to proceed
+with your own error handlung in ML? This can be done by changing the
+pointers for the BASIC error message routine $300,301 and/or the BASIC
+Main Loop $302,301. I have done this for a ML-controlled BASIC-run in
+a spreadsheet. I directed the BASIC error message to a working area,
+catched BASIC in the main loop before returning to direct-mode and
+read the error message from the working area - if I remeber correctly.
+
+Can this be helpful for you? If yes, I will dig out the docs. If not -
+no problem ;-)
+
+Franz
+
+Franz:
+What you described is what i want to write. I want to write an ML
+routine that whenever there is any kind of BASIC error, it prints the
+BASIC error message to the screen, and then goes to a certain line
+number in the BASIC program. So the program will never "crash" due to
+a Syntax, Undefined Statement, Illegal quantity, or any other kind of
+BASIC error. instead of the program stopping, it will goto, lets say,
+Line Number 1500.
+
+Hi Steve,
+you have to change the vector of the BASIC Main loop in 770/771
+$302/303, so that it points to this ML routine:
+
+new basic main loop:
+  lda #$00
+  jsr $FF90 ;set control flag for running BASIC program again
+  lda l-byte line number
+  ldy h-byte line number
+  sta $14 ; set new line number
+  sty $15
+  jsr $A8A3 ; perform GOTO
+  jmp $A7AE ; execute next BASIC statement
+
+"line number" ist the number of the BASIC-Line where you want the
+program to continue.
+
+Franz
+
+Franz:
+Thanks for posting actual code. If im following you right, why wont
+this work. It goes to the specified line number, but something isnt
+right. Am i going to have to add your routine as an interrupt? Here is
+what i threw together, and it isnt working. It sounded easy, and
+looked easy, but it took me months to figure out the vector thing.
+
+        *=$c000
+
+start   lda     #<test
+        sta     $0302
+        lda     #>test
+        sta     $0303
+        rts
+
+test    lda     #$00
+        jsr     $FF90	;set control flag for running BASIC program again
+
+        lda     #$dc	;l-byte line number "00"
+        ldy     #$05	;h-byte line number "15"
+
+        sta     $14		; set new line number
+        sty     $15
+
+        jsr     $A8A3	; perform GOTO
+        jmp     $A7AE	; execute next BASIC statement
+
+when i do the sys49152, it just prints undefined statement error, over
+and over, and if i load in the routine, then in basic type 1500 end,
+and do the sys49152 it will print ready. over and over. Please tell me
+what im doing wrong. Looks easy, and it looks as if it should run
+right.
+
+-Steve
+
+> Hi Steve,
+> you have to change the vector of the BASIC Main loop in 770/771
+> $302/303, so that it points to this ML routine:
+
+> new basic main loop:
+>   lda #$00
+>   jsr $FF90 ;set control flag for running BASIC program again
+>   lda l-byte line number
+>   ldy h-byte line number
+>   sta $14 ; set new line number
+>   sty $15
+>   jsr $A8A3 ; perform GOTO
+>   jmp $A7AE ; execute next BASIC statement
+
+> "line number" ist the number of the BASIC-Line where you want the
+> program to continue.
+
+> Franz
+
+Franz:
+Sorry to post twice. Where do you guys find these memory address?
+Ex.$a8a3,$a7ae? Are they in Mapping The 64? I have a 64 programmers
+reference manual, but cannot find "them" listed.
+
+-Steve
+
+Cameron Kaiser   	
+View profile
+st...@brown-computers.com (Steve Bell) writes: >Sorry to post twice. Where do you guys find these memory address? >Ex.$a8a3,$a7ae? Are they in Mapping The 64? I have a 64 programmers >reference manual, but cannot find "them" listed. Mapping the 64 does have many of these routines documented and listed. --       Cameron Kaiser * ckai...@floodgap.com * posting with a Commodore 128                 personal page: http://www.armory.com/%7Espectre/   ** Computer Workshops: games, productivity software and more for C64/128! **                   ** http://www.armory.com/%7Espectre/cwi/ **
+	 More options Nov 9 2003, 12:22 am
+Newsgroups: comp.sys.cbm
+From: Cameron Kaiser <ckai...@floodgap.com>
+Date: 9 Nov 2003 01:22:32 -0600
+Local: Sun, Nov 9 2003 12:22 am
+Subject: Re: BBS Programming,ML Question.
+Reply to author | Forward | Print | Individual message | Show original | Report this message | Find messages by this author
+
+st...@brown-computers.com (Steve Bell) writes:
+>Sorry to post twice. Where do you guys find these memory address?
+>Ex.$a8a3,$a7ae? Are they in Mapping The 64? I have a 64 programmers
+>reference manual, but cannot find "them" listed.
+
+Mapping the 64 does have many of these routines documented and listed.
+
+st...@brown-computers.com (Steve Bell) writes:
+>when i do the sys49152, it just prints undefined statement error, over
+>and over, and if i load in the routine, then in basic type 1500 end,
+>and do the sys49152 it will print ready. over and over. Please tell me
+>what im doing wrong. Looks easy, and it looks as if it should run
+>right.
+
+Franz' routine is actually working correctly. What it is intended to do
+is hook the BASIC warm start routine to prevent the program from exiting.
+It will run line 1500 instead of going back to BASIC direct mode.
+
+When you typed sys49152 from the command line, you were setting this up
+to run in direct mode. With no line 1500, as soon as direct mode started,
+it failed with a undefined statement error, and then had to run line 1500
+again, and ...
+
+In your second attempt, you put an END in, which caused direct mode to
+start, which caused it to run line 1500 with an END, which caused
+direct mode to start, ...
+
+A better test case would be this.
+
+10 e=peek(770):f=peek(771):sys49152
+20 print"make me fail with a zero here"
+22 print"or -1 to return to basic"
+30 input w
+32 if w=-1thenpoke770,e:poke771,f:print"wimp":end
+40 print "4/w =";4/w
+50 goto 30
+1500 print "can't make me crash."
+1510 print "back to the loop, dude!"
+1520 goto 20
+
+-- 
+      Cameron Kaiser * ckai...@floodgap.com * posting with a Commodore 128
+                personal page: http://www.armory.com/%7Espectre/
+  ** Computer Workshops: games, productivity software and more for C64/128! **
+                  ** http://www.armory.com/%7Espectre/cwi/ **
+
+    Reply to author    Forward  
+		
+		
+		
+You must Sign in before you can post messages.
+To post a message you must first join this group.
+Please update your nickname on the subscription settings page before posting.
+You do not have the permission required to post.
+	
+		
+Franz Kottira   	
+View profile
+	 More options Nov 9 2003, 4:42 am
+Newsgroups: comp.sys.cbm
+From: kott...@chello.at (Franz Kottira)
+Date: 9 Nov 2003 03:42:32 -0800
+Local: Sun, Nov 9 2003 4:42 am
+Subject: Re: BBS Programming,ML Question.
+Reply to author | Forward | Print | Individual message | Show original | Report this message | Find messages by this author
+
+- Hide quoted text -
+- Show quoted text -
+st...@brown-computers.com (Steve Bell) wrote:
+>         *=$c000
+
+> start      lda     #<test
+>    sta     $0302
+>    lda     #>test
+>    sta     $0303
+>    rts
+
+> test       lda     #$00
+>    jsr     $FF90           ;set control flag for running BASIC program again
+
+>    lda     #$dc            ;l-byte line number "00"
+>    ldy     #$05            ;h-byte line number "15"
+
+>    sta     $14             ; set new line number
+>    sty     $15
+
+>    jsr     $A8A3           ; perform GOTO
+>    jmp     $A7AE           ; execute next BASIC statement
+
+> when i do the sys49152, it just prints undefined statement error, over
+> and over, and if i load in the routine, then in basic type 1500 end,
+> and do the sys49152 it will print ready. over and over. Please tell me
+> what im doing wrong. Looks easy, and it looks as if it should run
+> right.
+
+Hi Steve,
+the code I posted is very primitive, it needs a few refinements. If
+the line number 1500 does not exist, it will produce and endless loop.
+You could set up a counter of errors or any other control mechanism in
+order to stop this. And if you want to end the BASIC program, you must
+restore the vector 770/771 to the original value (131/164) before the
+END.
+
+A better methode would be to change the BASIC error vector $300/301 in
+addition, and to redirect it to a very short ML code. When the BASIC
+interpreter jumps to this vector, the X-register holds the error
+number. Store this error number somewhere, and also store the current
+value of the control flag $9D. Afterwards JMP to the original address
+$E38B (the X-register must be unchanged). Thats all concerning the
+error message vector. Now, concerning the code for the new BASIC main
+loop, you first can test if there was a program running or if there
+was direct mode. In direct mode the stored control flag was $80, and
+you better jump to the original address of the BASIC main loop $A483.
+Next you can check if there was an error. If the stored error number
+is $80, there was no error but the program ended. You can jump to the
+original address in this case as well. If the error number was
+positive, there was an error, and now you run the code for starting
+the BASIC program at line number 1500.
+
+This will prevent the undesirable effects you described :-)
+
+Franz
+
+    Reply to author    Forward  
+		
+		
+		
+You must Sign in before you can post messages.
+To post a message you must first join this group.
+Please update your nickname on the subscription settings page before posting.
+You do not have the permission required to post.
+	
+		
+Steve Bell   	
+View profile
+	 More options Nov 9 2003, 11:52 am
+Newsgroups: comp.sys.cbm
+From: st...@brown-computers.com (Steve Bell)
+Date: 9 Nov 2003 10:52:26 -0800
+Local: Sun, Nov 9 2003 11:52 am
+Subject: Re: BBS Programming,ML Question.
+Reply to author | Forward | Print | Individual message | Show original | Report this message | Find messages by this author
+Franz:
+Ok, i think i have it figured out now. I was hoping once line 1500 was
+executed, Ex. 1500 end , the program would just end, but, if i
+returned the original values of IMAIN at line 1500 the program would
+stop. I appreciate you posting actual code here, and have learned
+alot! If i may, i have another question. In the vector IERROR, the
+actual error message # is stored in the x register. Do you know how i
+could find a list of the error messages?
+
+ldx#$00
+jsr $a3ed ;loop
+inx
+cpx   ;how many error message are there?
+jmp loop
+rts
+
+-Steve
+
+> Franz
+st...@brown-computers.com (Steve Bell) wrote:
+> (...) In the vector IERROR, the
+> actual error message # is stored in the x register. Do you know how i
+> could find a list of the error messages?
+
+Hi Steve,
+there is a list sorted by error number in "Mapping the Commodore 64".
+(Memory location 41374.) An e-version can be downloaded at Project 64
+
+> ldx#$00
+> jsr $a3ed ;loop
+> inx
+> cpx   ;how many error message are there?
+> jmp loop
+> rts
+
+I have not tested the real effect, but $a3ed does not seem to be a
+valid adress (something in the middle of the routine for moving memory
+contents). Did you want to print the error messages by number? The
+error routine can´t be called as a subroutine. You only can jmp $e38b,
+and after printing the error message and restoring some parameters
+(including stack) the routine ends in the BASIC main loop.
+
+You can get a list of BASIC errors in BASIC direct mode, without
+changing any vectors:
+
+poke 781,x : rem set x-register
+sys 58251 : rem call error message routine $e38b
+
+x is the number of the error message, ranging from 1 to 30.
+
+thanks for all the help!! i got the routine(s) to work today, took me
+awhile, but got them working. You seem to understand Machine Language
+pretty good, and i have 1 last question, sort of ML related. IM using
+TurboASSembler (TASS) to compile my source written in Notepad. Ive
+added these labels for data..
+
+err1     .text     "too many files open error"
+err2     .text     "file open error"
+err3     .text     "file not open error"
+err4     .text     "file not found error"
+
+etc, untill i have all 30 of them added/labled.
+
+I want to write 1 routine, that uses the X register to read from each
+label, instead of writing (30) routines to print each labled error
+messages. Or am i going to have to use 30 different routine to print
+each error message? Could i store all of them in 1 big ".text" and use
+a pointer to find each one? Or is there a way to assign the value of
+each label to an address, and then write 1 routine that print from
+that address,y ?
+
+-Steve
+
+- Hide quoted text -
+- Show quoted text -
+kott...@chello.at (Franz Kottira) wrote in message <news:7a3ed5e6.0311091532.17773f7c@posting.google.com>...
+> st...@brown-computers.com (Steve Bell) wrote:
+
+> > Sorry to post twice. Where do you guys find these memory address?
+> > Ex.$a8a3,$a7ae? Are they in Mapping The 64? I have a 64 programmers
+> > reference manual, but cannot find "them" listed.
+
+> "Mapping The Commodore 64" is a great help. Additional a
+> ROM-diassembly is necessary for looking up details. I use the very
+> well commented ROM-listing in "64 Intern" (in German language).
+> Unfortunately I don´t know anything similar in English. You can find a
+> diassembly here:
+> http://www.hut.fi/Misc/cbm/docs/c64-diss.html
+> but it is not commented in detail.
+
+> Franz
+
+
+    Reply to author    Forward  
+		
+		
+		
+You must Sign in before you can post messages.
+To post a message you must first join this group.
+Please update your nickname on the subscription settings page before posting.
+You do not have the permission required to post.
+	
+		
+Franz Kottira   	
+View profile
+	 More options Nov 10 2003, 12:58 pm
+Newsgroups: comp.sys.cbm
+From: kott...@chello.at (Franz Kottira)
+Date: 10 Nov 2003 11:58:39 -0800
+Local: Mon, Nov 10 2003 12:58 pm
+Subject: Re: BBS Programming,ML Question.
+Reply to author | Forward | Print | Individual message | Show original | Report this message | Find messages by this author
+
+- Hide quoted text -
+- Show quoted text -
+st...@brown-computers.com (Steve Bell) wrote:
+> (...) IM using
+> TurboASSembler (TASS) to compile my source written in Notepad. Ive
+> added these labels for data..
+
+> err1     .text     "too many files open error"
+> err2     .text     "file open error"
+> err3     .text     "file not open error"
+> err4     .text     "file not found error"
+
+> etc, untill i have all 30 of them added/labled.
+
+> I want to write 1 routine, that uses the X register to read from each
+> label, instead of writing (30) routines to print each labled error
+> messages. Or am i going to have to use 30 different routine to print
+> each error message? Could i store all of them in 1 big ".text" and use
+> a pointer to find each one? Or is there a way to assign the value of
+> each label to an address, and then write 1 routine that print from
+> that address,y ?
+
+A slow but easy methode would be to seperate the messages with a Zero
+and to count them. I don´t know TASS, but maybe it looks like that:
+
+err   .byte 0
+      .text "message 1"
+      .byte 0
+      .text "message 2"
+      .byte 0
+      (...)
+      .text "message 30"
+      .byte 0
+
+You set a pointer in zeropage to the address of "err" and start
+reading. The error number has to be in register x.
+
+  ldy #$00
+
+loop 1             ;count zeros in datablock
+  lda (pointer),y
+  inc <pointer     ;increment pointer
+  bne check
+  inc >ponter
+
+check
+  cmp #$00         ;zero?
+  bne loop 1       ;no
+  dex              ;yes, count down message number
+  bne loop 1       ;not the requested number, continue
+
+loop 2             ;read found message
+  lda (pointer),y
+  beq finished     ;end of message, quit loop
+  sta somewhere,y  ;y is zero at start of the message
+  iny
+  jmp loop 2
+
+Another methode would be to to store the address of each message in a
+table and to read the table with the error number as index, in order
+to get the address of each message. This is how the BASIC interpreter
+does it. Btw., why do you want to write your own routine for error
+messages, while the built-in Software already does this job?
+
+> A slow but easy methode would be to seperate the messages with a Zero
+> and to count them. I don´t know TASS, but maybe it looks like that:
+
+The system uses probably a similar concept but
+without the need to store a zero for each message.
+
+29 of the BASIC language diagnostics are stored in memory beginning at
+location $a19e and ending at memory location $a327.  The only missing
+diagnostic is 'break'.  The letters of a diagnostic are lower case
+except that the last character which is capitolized.  Upper case
+letters will cause the negative flag in the status register to be set
+when loaded.  Loading lower case letters will clear the negative flag.
+Starting at the beginning of diagnostics at $a19e, you need to count
+the times you set the negative flag while the counter is less than the
+error number.  When the counter is equal to the error number, you have
+encountered the first letter of the diagnostic for the current error.
+You print the diagnostic until you set the negative flag again.
+
+> > (...) IM using
+> > TurboASSembler (TASS) to compile my source written in Notepad. Ive
+> > added these labels for data..
+
+> > err1     .text     "too many files open error"
+> > err2     .text     "file open error"
+> > err3     .text     "file not open error"
+> > err4     .text     "file not found error"
+
+> > etc, untill i have all 30 of them added/labled.
+
+> > I want to write 1 routine, that uses the X register to read from each
+> > label, instead of writing (30) routines to print each labled error
+> > messages. Or am i going to have to use 30 different routine to print
+> > each error message? Could i store all of them in 1 big ".text" and use
+> > a pointer to find each one? Or is there a way to assign the value of
+> > each label to an address, and then write 1 routine that print from
+> > that address,y ?
+
+> A slow but easy methode would be to seperate the messages with a Zero
+> and to count them. I don´t know TASS, but maybe it looks like that:
+
+> err   .byte 0
+>       .text "message 1"
+>       .byte 0
+>       .text "message 2"
+>       .byte 0
+>       (...)
+>       .text "message 30"
+>       .byte 0
+
+> You set a pointer in zeropage to the address of "err" and start
+> reading. The error number has to be in register x.
+
+>   ldy #$00
+
+> loop 1             ;count zeros in datablock
+>   lda (pointer),y
+>   inc <pointer     ;increment pointer
+>   bne check
+>   inc >ponter
+
+> check
+>   cmp #$00         ;zero?
+>   bne loop 1       ;no
+>   dex              ;yes, count down message number
+>   bne loop 1       ;not the requested number, continue
+
+> loop 2             ;read found message
+>   lda (pointer),y
+>   beq finished     ;end of message, quit loop
+>   sta somewhere,y  ;y is zero at start of the message
+>   iny
+>   jmp loop 2
+
+> Another methode would be to to store the address of each message in a
+> table and to read the table with the error number as index, in order
+> to get the address of each message. This is how the BASIC interpreter
+> does it. Btw., why do you want to write your own routine for error
+> messages, while the built-in Software already does this job?
+
+> Franz
+
+
+    Reply to author    Forward  
+		
+		
+		
+You must Sign in before you can post messages.
+To post a message you must first join this group.
+Please update your nickname on the subscription settings page before posting.
+You do not have the permission required to post.
+End of messages 	
+« Back to Discussions 	« Newer topic 	    	Older topic »
+
+	
+Create a group - Google Groups - Google Home - Terms of Service - Privacy Policy
+©2008 Google
+
+
+;		$A96B          LINGET
+; Convert an ASCII Decimal Number to a Two-Byte Binary Line Nmumber
+;
+; This subroutine is used by several statements to read a decimal
+; number, convert it to a two-byte integer line number (in low-byte,
+; high-byte format), and check that it is in the correct range of
+; 0-63999.
+
+;	GETBYTC= $B79B ; returns in .x
+; Input a Parameter Whose Value Is Between 0 and 255
+
+; This routine reads numeric ASCII program text, converts it to an
+; integer, checks that it is in the range 0-255, and stores it in the .X
+; register.  This routine can be useful for reading parameters from a
+; USR statement or new commands.
+
+; $E716	Output to the Screen (regardless of output device)

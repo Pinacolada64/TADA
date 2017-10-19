@@ -1,0 +1,19 @@
+BUGS:
+
+Missing label error after combat. Gene's not sure where that occurs.
+
+Listing type of spell doesn't display SPELL.TYPES
+
+When Storm Weapon is picked up, then USEd, truncates name of weapon.
+Also happens when MYSTERIO WEAPON DISINTEGRATES.
+
+Syntax error after editing weapon type in sysop editor.
+Occasionally battle locks up. Not sure why.
+
+Annex: if you enter it first thing off "LOS" menu, ? crashes with "message file not found" - I think drive prefixes aren't assigned there vs. are in SPUR.MAIN?
+
+16/Feb/2016 11:56
+My "Return/Space" page pauser needs one more backspace printed to erase "R" beginning the prompt
+
+RD.MONS: label not found in combat
+syntax error

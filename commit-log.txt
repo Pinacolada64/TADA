@@ -1,0 +1,396 @@
+commit log
+
+	- fixing includes to use absolute paths for Windows build
+	- un-indenting ' comments (matter of personal taste)
+	- updated SPUR.ANNEX.S to have a more useful player editor, still some unknown things
+
+/assembly-language:
+	- re-assemble ml.o to live above modbasic, some adjustments to assemble with c64list
+
+/programming-notes:
+	- added modbasic-notes from AgentFriday
+	- reformatting TADA_Variables.txt, making some small additions/corrections, double-spacing
+
+/misc:
+	- added stack.lbl, should show GOSUB chain
+
+/scripts:
+	- new directory, will be moving .bat and .sh (Linux script files) here
+
+/tests:
+	- file1.lbl, file2.lbl: testing persistence of {define}d variables (turns out a typo was the culprit)
+
+t.main:
+	- continuing to organize related subroutines together (messages, math, adjustments, checks)
+	- refined {:sub.log_error}("err_level","module","message")
+	- added   {:sub.adj_stat}(statistic,adjustment) for main player
+	- bless goog for knowledge of an undocumented c64list command-line switch: -labels :)
+	- {include}d check-io-status.lbl, globally changed e% to e
+
+t.np:
+	- upgrading to modBASIC
+	- Verus now "squints myopically" when asking whether character is male or female
+
+other:
+	- new document on Google Drive: BASIC program format <https://docs.google.com/drawings/d/1ibQFQ6kIlIpXxJn2YGfFLqfdW2L33CvH_U614SsEVMw/edit?usp=sharing> for friend interested in writing Ruby version of C64List
+
+20/May/2014 11:17
+/text-listings/includes:
+	- string-setup.lbl: cleaned up code, {uses:} variable-declarations.lbl
+
+21/May/2014 13:31
+	- changed "check_io_status" to "check-io-status"
+
+31/May/2014 13:29
+/scripts:
+	- build-main.bat: Added note to remind user to delete extra C64List output
+
+22/Jun/2014 12:46
+/includes:
+	- added rel-pointer.lbl
+/text-listings:
+	- t.main: removed duplicate room desc reading code, working on fixing some
+				issues
+			- added parameter to {:link.module}("module","label")
+				a) "label" can be "" to start at {:1} (which is usually
+					"goto 100")
+				b) if not "", that module will have a line which directs
+					program to proper routine:
+						on -(lm$="armory")-2*(lm$="buy") goto {:label1},
+						{:label2}
+						gosub {:sub.log_error}
+					{:sub.log_error} ' ("err_level",line,"message")
+			- added fn ln(x)=fn dp(57) <current line #>
+
+- added {ifdef:modbasic} directive to includes, that way small utility programs
+	which don't need it don't get "def" stuff included
+- moved  {:set.prob} and {:set.pa} from "t_combat-snippets.lbl" to "t_main.lbl"
+	to eliminate two duplicate label errors
+- renamed {:set.pa} -> {:sub.set_pa}
+- renamed {:sub.error_log} -> {:sub.log_error}
+- renamed {:sub.event_log} -> {:sub.log_event}
+- changed {:subpi} to {:sub.adj_stat} (t.main)
+
+28/Jun/2014 10:53
+- changed GET AN$:IF AN$="" THEN ... to IF PEEK(198) THEN GET AN$...
+/installers:
+	- changed {$C1...} to proper uppercase letters
+	- using more {includes...}, in preparation to use "installerbase v2"
+	- fixing some logic
+
+23/Oct/2014 18:15
+
+/text-listings:
+	- t.main: changing GOTO {:subroutine}(x,y) to GOSUB {:subroutine}(x,y):RETURN
+	- various files: changed "goto {:link.module}" to "gosub {:link.module}"
+	- t.startup: changed {:65} to {:search_for_player} (already exists in t.main)
+	- t.bar.skip: reworked logic, coffee now clears tired bit
+	- various: corrected {:sub.you_feel} to {:msg.you_feel}
+/tests:
+	- err trap: added missing BASIC code, disassembly of routine
+/programming-notes:
+	- TADA_Subroutines: Changed duplicate {:file.open} label to {:1027}
+*** t.main executes an illegal opcode causing a crash *** -- fixed
+
+4/Dec/2014 12:27
+/text-listings:
+	- t.np: think I corrected the loop situation when selecting incorrect class/race combo (replaced a few GOSUBs with GOTOs)
+		- "Race number [1-9" - only prints ", C", then "]" if c=1
+		- changing gender now uses {:bit.flip}
+	- t.main: need to adapt current/last/highlight color addresses to $c500 ML
+
+13/Dec/2014 11:44
+	- t.main / make playerlog 1.9: changed record length to 236 (2 more than the 234-character player log string length)
+	- t.np -- tweaked final line number to be 899 when {def:filler}, 999 otherwise
+
+19/Dec/2014 14:31
+	- t.startup: improving birthday routines
+
+28/Dec/2014 16:06
+	- fixed order of "input any" params (some had swapped bytes/channel params)
+	- fixed {:string.normalize}(an$) call params and t.main subroutine to always return 'an'
+	- added {:sub.input_any}(by,ch,cf) subroutine call, t.main subroutine creates local var a$
+
+31/Dec/2014 16:53
+	- ml c500.o: Input Any now accepts literals or numeric variables for parameters
+	- includes/variable-declarations:
+		* br=ml+3, not ia+3 (which=ml), causing spurious module loads, but due to program mode, no error issued. discovered when in immediate mode.
+		* force strings to become dynamic (not stored in BASIC program which gets overwritten)
+	- includes/rel-pointer.lbl: 'r' is variable for record # if using modbasic, 'x' cannot be both
+		a global and local variable simultaneously (type mismatch otherwise)
+
+11/Jan/2015 14:31
+	- scripts/build-date_basic.bat: output filename moved to /text-listings/includes, marked 'ignore' in svn
+	- scripts/build-main.bat: now calls build-date_basic.bat
+	- t.np: {ifdef:module_filler} {number:} condition corrected for closing line 899/999 difference
+	- various: regex "([^ ])then" -> "\1 then" adds space between condition and THEN clause (this is an oddity from c64list)
+	- includes/bload.lbl: improved error-checking: will report load error or file not found
+	- t.main:
+		* now loads trace function
+		* sub.bload: current device # moved here instead of duplicated 3x for 3 ML loads
+	- t.np:
+		* on-gosub loop changed to multiple gosubs to play nicely with modbasic
+
+5/May/2015 13:43
+Quite a load of changes this commit.
+
+	- more comments in batch files, assembly code
+
+6/May/2015 23:27
+- bugs.txt: changed text encoding from UTF-12 to DOS-437, cutting file size
+
+28/May/2015 10:24
+- t.main: moved "check for storm weapon" code out of t.ready
+
+1/Jul/2015 1:01
+- added missing /text-listings/misc/ally read-reset.lbl file
+- /programming notes:
+	* added Jeff Jones' Static Array System programming notes from LoadStar issue #103
+	* added memory map.txt
+- todo.txt: added some ideas, clarified some previous points
+
+2/Jul/2015 15:58
+- merged todo items in from assembla.com todo file
+
+3/Jul/2015
+- now recursively excluding EditPad Pro __history folders
+- added some non-versioned files
+
+7/Jul/2015 21:30
+make-playerlog:
+	- increased "e.t.playerlog" record length from 236 to 240
+	- put stock char stuff in {define} block which is unfinished
+t.main:
+	- increased "e.t.playerlog" record length from 236 to 240
+tests/header.lbl:
+	- noted {bar} is | symbol in {quoter:} directive
+
+10/Jul/2015 11:47
+t.main:
+	- {:sub.yes_no} now prints " (Y/N) >> "
+various:
+	- added defaults for {:sub.yes_no}, removed "(y/n)" text
+tests/%-substitution.lbl:
+	- added error-checking, displays wrong substitution char in reverse video
+includes/combo.lbl:
+	- fixed moving left in string
+
+12/Jul/2015 4:46
+	+ added programming-notes/error-trap-and-string-asm.txt
+	+ added text-listings/tests/yes-no.lbl
+
+22/Jul/2015 13:02
+t.main:
+	* moved {:bit.flip} routine next to other {:bit.*} operations
+	* corrected some old legacy line numbers
+	* neatening source code, removed leading spaces
+t.bar.olaf:
+	* modBASIC-ing code, {:link.bar} and {:link.shoppe} now in t.main
+	* re-links to bar instead of shoppe
++ added text/menu-40.txt
+
+30/Jul/2015 12:07
+text-listings/tests:
+	* bits.lbl: {:bit.flip} now just inverts a bit. Messages are printed via
+		calling {:sub.item_no_yes}(mem,bit) or {:sub.item_off_on}(mem,bit).
+	TODO:	This should be brought into t.main and all calls updated for the sake
+		of simplicity.
+	+ added alpha-test.lbl to make sure I understand the behavior of C64List's
+		{alpha:upper|lower|invert} directives.
+/text-listings/includes:
+	* bload.lbl: now prints 'Loading "f$"... '; (no q$=chr$(34) assumption)
+/scripts:
+	* build-date_basic.lbl: {ifdef:timestamp} used instead of {ifdef:debug}
+	* build-bas.bat: Updated c64list version used to build files to 3.03
+
+16/Nov/2015 23:52
+/text-listings:
+	boot.lbl: removed extraneous routines, made font_change conditional, not sure we have enough RAM for a fancy Olde English font, but works now! :)
+	t.main: line 1010 is now {:file.open_command_channel} [gosub], removing now duplicate loads of modBASIC and trace utils now handled with new boot prg
+/programming-notes/memory-map.txt:
+	tabs are 8 spaces
+scripts/add2d64-test.bat:
+	should deal with spaces in paths better now. still doesn't delete existing files in disk images (need a 'basename' function)
+text/DISK0025.D64:
+	should have complete, uncorrupted "level 1" (before I had The Land of SPUR room desc files) text, but will be level 8 map if I remember correctly.
+
+20/Nov/2015 13:58
+/text-listings:
+	t_main.lbl: now incorporates {:sub.item_off_on} and {:sub.item_no_yes}
+	t_startup.lbl: uses these instead of negated values passed to {:sub.item_toggle}
+
+24/Nov/2015 13:44
+/text-listings/tests/:
+	t_main, reader.lbl: {:file.read}() no longer includes conditional open. use {:file.open}() for that.
+	check.io_status prints status if error occurred
+
+25/Nov/2015 12:41
+- revamping tests/reader.lbl:
+	{:prompt_key}("prompt_string","allowable_keys")
+	print "prompt_string" + ": ", wait for keypress w/ flashing cursor,
+	if "allowable_keys" contains characters, check if keypress is in that list
+	if "allowable_keys" is null, skip this check
+	clear current line, return q=1 if "q" or "Q" hit (for "quit", also print "aborted" message)
+	return
+
+26/Nov/2015 11:44
+Global:
+	- fixed "then gosub {:label}(modbasic_param)" to
+		"then:gosub {:label}(modbasic_param)"
+	with 'then gosub (\{:.+}\()' -> 'then:gosub \1' :) (50+)
+
+change old {:bit.flip}("message",mem_loc,bit) 
+gosub {:bit.flip}("Guild Follow",v1+64,7)
+to
+gosub {:bit.flip}(mem_loc,bit):gosub {:sub.item_off_on}(mem_loc,bit)
+or
+gosub {:bit.flip}(mem_loc,bit):gosub {:sub.item_no_yes}(mem_loc,bit)
+
+- t.startup: changed {:msg.not_are} to use {:bit.check} rather than {:bit.set} :P
+
+28/Nov/2015 16:16
+* changed "string-setup" to "player-setup" globally, no longer includes other variable initialization, or hard-coded "PINACOLADA" for a player name
+* tep:
+	- more cases where SAve needs to happen caught after POKEs
+	- re-worked {:sub.menu} and {:sub.list} routines to eliminate double solid lines
+* includes/player-setup.lbl:
+	- re-factored string creation
+* scripts/add2d64-test.bat:
+	- fixed paths with strings, mostly, and now converts _ to . within the target filename
+
+1/Dec/2015 22:43
+* t_ma_news-who:
+	- renamed to t_ma_news-win (shows news and game winners)
+
+- initial check-ins of "t.ma.olly" and "make monsterqts"
+
+5/Dec/2015 15:26
+- changed {$dd} quoter directive to {bar} in all but test files (sed-test.lbl and test.lbl)
+- build-date_basic.lbl no longer requires {ifdef:} statements. {use:} and it gets included.
+- t.ma.bank "deposit" routine debugged, I think
+
+8/Dec/2015 11:20
+- make-allies: "active" flag is not replicated 63 times in DATA statements
+
+12/Dec/2015 14:46
+- "Doc Brown" release: "Something I invent finally works!" "make messages" fixed!
+- working on de-duping "t_get_modbasic" and "t_get"
+
+30/Dec/2015 22:38
+- Happy Almost New Year
+- includes/combination.lbl: move left, clear fixed. Loads correct filename.
+
+17/Jan/2016 14:36
+- sliding-input-editor.lbl: {include} cursor-get.lbl, remove obsolete ML tail, now BLOADs ML
+- delete obsolete combined.asm, sliding-input-new.asm, sliding-input-original.asm, sliding-input-new.*, final.txt
+- added substitutions.txt, has notes from AF
+
+28/Jan/2016 14:19
+- formatted "book texts" for 40 columns
+- static-array-system-test: "array c000" -> "sas c900", corrected ml start address (51456), corrected {:1811} label
+
+16/Feb/2016 13:22
+t.np:
+- changed {:sub.keypress} label to {:sub.pause}
+- added {off} word wrap control before new character name prompt
+- fixed bug in choosing "none" for a guild incorrectly sets guild type to 4 when it should be 0
+
+18/Feb/2016 15:38
+tests/string-handling.lbl:
+- changing {:str_i.uppercase}(i$) -> {:sub.str_uppercase} (will do so in t.main also)
+- debugging (minus erroneous debug info) routine - end result looks ok
+assembly-language/:
+- sliding-input.tmpx: assembles at $9900
+- boot.lbl: starting to integrate top of BASIC lowering code (?illegal quantity error when AND + values >32767 are involved)
+- programming-notes/:
+memory-map.lbl: modified to reflect above change
+spur variables.txt: Corrected A1$ definition
+
+spur-code/:
+- bugs.txt: added some notes about additional bugs in The Land of Spur
+- general: replaced _ with {underline} in PRINTed label names
+
+19/Feb/2016 21:18
+t.main:
+- added modbasic param: {:sub.yes_no}(a) and {:sub.are_you_sure}(a)
+
+21/Feb/2016 12:01
+includes/:
+- bload.lbl: fixed "file not found" reporting (a=4 instead of a=5)
+- current-drive.lbl: added {:get_current_device} and {:open_cmd_channel} labels
+
+3/Mar/2016 11:33
+/text-listings:
+t.ma.olly, t.ma.cleric:
+- bringing code up to spec with modBASIC
+- inverted some logic so "leave" occurs before branching off to valid menu options
+- added k$ and a$(0) definitions
+
+t.main:
+- {:msg.spacebar_aborts} now checks expert mode, outputs if not enabled
+- fn el(0) reports current line number no matter what the line label may be
+- add {:sub.check_abort} - get an$:if an$=" " or an$="/" then q=1
+
+/scripts/
+- added PRG2LBL.BAT, converts *.prg files to *.lbl in current dir
+
+19/Apr/2016 14:54
+skip-code/
+- Changing "spoken out loud" statements to use qt$ (") characters rather than
+	"'", and multi-line PRINT '"This is said out loud," said Pinacolada.'
+	style statements.
+- typo fixes; "Galadriel" corrected (except in MESSAGES.TXT because that's a
+	fixed-length message; a Commodore program can write that file as
+	necessary.
+- more comments
+
+19/Apr/2016 20:46
+- some corrections to zu$ (spur.status flags) - position #10 is guild follow
+
+24/Apr/2016 11:45
+- SPUR.BAR2.S: Mundo only knocks you over the head if HP>6.
+- SPUR.BAR.S: inlined plrlist5 routine (print # and adventurer name)
+
+21/Oct/2016 14:31
+- added ^ for field separator in \text\monsters.txt
+- fixed monster flags
+
+25/Nov/2016 17:45
+- reader3: fixed +/- color change routine (gets address from jump table)
+
+30/Nov/2016
+- ml c500: "input any" now inputs data into string parameter
+
+22/Apr/2017 19:06
+- misc/reader3: changed "abort while reading" to "q" instead of "space or /",
+	changed {sub.page_pause} label. changed {:1258} to {:sub.line_clear}
+- is really "reader" (will merge changes from reader3 to reader, delete reader3)
+
+4/May/2017 13:05
+- various: made more use of "gosub {:string.normalize}(an$)"
+	* must check for null string or input before GOSUB
+	* could change this to (for example) "t=gosub {:string.normalize}(an$)"
+- tests/sliding-input-demo:
+	* change hard-coded '49152' to 'si', add q$=quote mark, add using null string as response test
+		(will just print rvs on/rvs off chars and other weirdness)
+
+12/May/2017 12:56
+- t.main: fix return value of {:sub.string_truncate}
+
+18/May/2017 14:20
+- "si 9900": invert case of text strings so they appear lowercase on c64
+
+23/Jun/2017 11:47
+- improving error/event logging facilities, added current line # function
+- space between "fn r(x)"
+- move ally name printing routine from t.bar.olaf to t.main
+
+10/Jul/2017 22:59
+- change {bar} to {pipe} in C64List Quoter directive
+
+2/Aug/2017 15:22
+- various: redirected most {:check.expert_mode}(<bool>) to new {:msg.expert_mode)(<string>)
+- t.get and t.get.modbasic: move more lines into their correct files (old vs. modBASIC styles).
+- err trap demo: slight reorganization, fixed REM statement case
+- t.main: new {:choose_module} section, choose startup module (getting dir supported)
+	* {:sub.blocks_free} now supports <pattern>, will support page pause eventually

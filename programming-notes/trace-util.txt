@@ -1,0 +1,47 @@
+AF's trace util:
+Lives at $033c (828)
+
++0: install; +3: uninstall; +6: enable; +9: disable
+
+* init modbasic, then init trace
+
+10 sys 828+6:rem enable trace
+20 for x=1 to 20:gosub 40:next
+30 sys 828+9:rem disable trace
+35 end
+40 print x:return
+
+ready.
+run
+[10][20][20][40] 1
+[40][20][20][40] 2
+[40][20][20][40] 3
+[40][20][20][40] 4
+[40][20][20][40] 5
+[40][20][20][40] 6
+[40][20][20][40] 7
+[40][20][20][40] 8
+[40][20][20][40] 9
+[40][20][20][40] 10
+[40][20][20][40] 11
+[40][20][20][40] 12
+[40][20][20][40] 13
+[40][20][20][40] 14
+[40][20][20][40] 15
+[40][20][20][40] 16
+[40][20][20][40] 17
+[40][20][20][40] 18
+[40][20][20][40] 19
+[40][20][20][40] 20
+[40][20][30]
+ready.
+
+ready.
+list
+
+10 sys 828+0:print"trace installed"
+20 sys 828+6:print"trace started"
+30 for a=1 to 20:print a:next
+40 sys 828+9:print"trace disabled"
+50 sys 828+3:print"trace uninstalled"
+ready.

@@ -1,0 +1,776 @@
+General TADA subroutines
+------------------------
+
+' tabs are 4 spaces
+
+* 08/01/2004: First draft
+* 07/18/2006: Added comma justify, INSTR, MOD functions
+* 07/19/2006: Added 2855, read message from "e.t.messages"
+* 08/16/2006: Changed usage of X to Y in routine at 2850, X trashed
+				original value
+* 01/13/2007: Moved some notes into \changelog.txt
+* 04/14/2007: Fixed another bug in 2850 (related to overflow)
+				corrected these docs
+* 06/30/2007: Some more corrections, added "call with"
+* 09/01/2007: Added "wishlist"
+* 01/25/2011: Added some tweaks.
+* 04/02/2014:
+
+	- Added references to AgentFriday's "modBASIC" extension
+	<http://www.commodoreserver.com/BlogEntryView.asp?EID=EB7662805E4B4A7ABA2623257BCC642E>
+	- note: do not use GOTO in place of GOSUB:RETURN in modBASIC
+	- Updated line# references for C64List:
+		{:label} or "1000" (absolute line # for, say, Image BBS "im" routines)
+
+9/May/2014 21:30:
+
+This bit is most likely obsolete:
+	These will most likely need to be renumbered at some point, keeping
+	with the MODULE 64 philosophy. These are all commonly used routines,
+	and should be ideally placed in lines 1800 on.
+
+	However, when the game gets translated to IMAGE, the IM module needs
+	lines 1000-. Quite a pickle, but nothing SYSRES can't handle, bless
+	its renumbering feature. Guess I'll need two copies of this document,
+	one aimed at the "plain vanilla" BASIC/ML version, t'other at IMAGE.
+
+WISHLIST:
+---------
+				Handle YS$ (once per session flags)
+				Inventory search/add/delete, notify if empty/full
+
+* SHOULD have a subroutine for looking up and displaying a player's name.
+* Another sub should be looking up stats... that's going to be happening a TON.
+    Verify whether the character is an active one, if the name is "---" then the
+    player has been deleted or does not exist. S=-1 in that case. 0therwise
+    A$=character name with null padding stripped off
+	S=player number (just seems like a good idea), and
+	some variable would hold stats similar to D$/D2$ for the main character.
+
+					--- t.main (2014) ---
+
+IMAGE routines: ("image subs 2.1")
+---------------
+
+Line#	Call	{:C64List_label}(modBASIC parameters)
+				Purpose
+
+1000	---	REM statement to keep MODULE 64 happy
+
+1001	GOSUB	{:record_pointer}(record_num)
+		Position RELative file pointer to already OPEN file on LFN#2
+
+1008	GOSUB	{:file.open_playerlog}
+		open "e.t.playerlog"
+		RETURN
+
+1010	GOSUB	{:file.open.cmd_channel}
+		RETURN
+
+1011	GOSUB	{:file.open}("filename[,type,mode]")
+		Close, open "filename" on logical file #2
+		--- falls through ---
+
+1012	GOSUB	{:check.io_status}
+		Check disk drive error channel
+		RETURN	a$ like (for example) "00:<status>:00:00"
+
+1026	GOSUB	{:file.append_or_write}("filename")
+		Open a SEQ file for append or write.
+		GOSUB {:1027}("filename","mode")
+		- Open SEQuential file for write (if not found)
+		- Open for append (if exists)
+		RETURN
+
+1027	GOSUB	{:1027}("filename","mode")
+		Open a SEQ file ("e.t."+b$+",s,"+a$)
+		RETURN
+
+1062	GOSUB	read mail file
+		FIXME: Dummy routine for now, used in t.startup & t.page
+
+1067	GOSUB	{:link.module}("module","label")
+		Load "Module 64" module in A$ (minus t. prefix)
+		Compares A$ against CM$ (current module) to prevent needlessly
+		re-loading current (same) module.
+
+		Chain of events:
+		1) Module GOSUBs line 1067.
+		2)  a) no error: GOTO 1, usually GOTO 100,
+			b)    error: RETURNs
+			-- is this still true? --
+		3) Module ends in RETURN.
+		4) Transfers control back to line 2000 {:advent}
+			(parser entry) after module load.
+
+1075	GOSUB	{:file.read_clearscreen}
+		clear screen...
+		--- falls through ---
+
+1076	GOSUB	{:file.read}(num_lines,start_rec)
+		"filename": should be obvious.
+		num_lines : 0=read until EOF	<>0=read specified #
+		start_rec : 0=non-REL filetype	<>0=record # to position to
+						in REL file
+		GOTO	{:file.read2} routine
+
+			 /	DO NOT set NL=0 (# of lines to read)
+			?	OR x=0 (record #=0 which means straight SEQ read) --
+			 \		room desc read sets beforehand.
+
+1079	GOSUB	{:sub.blocks_free}(device, pattern, print_output)
+		Get blocks free on a drive.
+		WIP: use /text-listings/tests/dir-test.lbl
+		RETURN	BF, a copy of A% (stub for now)
+
+1090	GOSUB	{:sub.block_read}(message_num)
+		Open "e.t.messages" file, display text block <message_num>
+
+1100	1075/	{:file.read2}
+	1076	File read routine - reads from lfn#2
+		RETURN
+
+1258	GOSUB	{:sub.clear_line}
+		Clear line # cursor is on, put cursor in left column
+
+1603	GOTO	{:return}
+		general purpose RETURN
+
+1800	GOTO	Error trap target line
+
+1810	GOTO	{:1810}
+		print "[Quitter...]"
+
+1811	GOTO	{:1811}
+		Close disk files, disable trace, modBASIC, END
+
+1870	GOSUB	{:sub.item_toggle}("string",<value>}
+		Toggle status of <value> (0/1 only)
+		If "string" is not null, display "<string>: On" (value=1)
+			or "<string>: Off" (value=0)
+
+1900	GOSUB	{:sub.are_you_sure}(default: 0=no, 1=yes)
+		Display "Are you sure";
+		GOSUB {:sub.yes_no}:RETURN
+
+1902	GOSUB	{:sub.cursor_get}
+		Display flashing cursor while waiting for a keypress
+		RETURN	AN$=Key hit
+		A:  1 if AN$="y" or "Y", 0 otherwise
+
+1910	GOSUB	{:sub.yes_no}(x) [x is default answer: 0=no, 1=yes]
+		print " (Yes/No)? >> "; GOSUB {:sub.cursor_get}
+		Wait until either "Y" or "N" typed, print "Yes." or "No."
+		RETURN	a=0: no, a=1: yes
+
+1920	GOSUB	{:msg.aborted}
+		Print "(Aborted.)"
+		RETURN
+
+	GOSUB	{:msg.spacebar_aborts}
+
+TADA Kernel Routines:
+---------------------
+Line#	Call	Purpose
+
+2000-	GOTO	Parser
+2799
+
+2000	GOTO	{:advent}
+
+				{:read_room3}
+
+				{:sub.room_desc}
+
+2035	GOSUB	{:sub.read_room_desc.force}
+				Unconditionally read room desc
+				TODO: * use Bracket Read & InString routine
+					  * check for $ to print char name
+
+(:2036}
+
+{:2038}
+
+		GOSUB	{:sub.read_room}
+				Check whether RM=RO, if so then RETURN
+				(current room equals previous room)
+				Saves a bit of disk access
+
+		GOSUB	{:sub.level_header}
+				Open room index file, falls through to...
+
+2007
+
+		GOSUB	{:rd.room}(mode)
+				mode=0: Get either level data (X=0)
+				or room information (X>1) X gets changed to room #
+				according to DF% (data format specifier)
+
+				Uses Input Any routine to get a whole room desc
+				line
+
+{:2012}
+
+		GOSUB	{:sub.room_name}
+
+				{:read_room2}
+				{:guilda.c}
+				{:guild.claw}
+				{:guild.sword}
+				{:guild.fist}
+				{:guild.next}
+				{:read_room_descs_2}
+				{:msg}
+				{:geiger_counter}
+				{:radiation}
+				{:snow}
+				{:coat}
+				{:lost}
+				{:msg.directions}
+				{:2082}
+				{:2084}
+				{:2090}
+				{:2092}
+				{:msg.north}
+				{:msg.east}
+				{:msg.south}
+				{:msg.west}
+				{:msg.up}
+				{:msg.down}
+				{:msg.shoppe}
+				{:read_monster}
+				{:advent4}
+				{:advent2}
+				{:excal}
+				{:2130}
+				{:msg.health}
+				{:check.allies}
+				{:check.ring_weaken}
+				{:check.poison}
+				{:check.disease}
+				{:check.thirsty}
+{:check.hungry}
+{:check.weapons}
+{:header}
+{:space_tracker}
+{:quotes}
+{:2152}
+{:2156}
+{:cmdline}
+{:cmdline.2}
+{:sub.show_room_items}
+{:2046}
+{:2048}
+{:2049}
+{:sub.get_item_data}
+{:2014}
+{:2015}
+{:2018}
+{:2024}
+{:travel}
+{:travel.no_monster}
+{:boat}
+{:boat.2}
+{:block.s0}
+{:block.s1}
+{:block.s2}
+{:travel1}
+{:block.s3}
+{:block.s4}
+{:travel1a}
+{:trav1b}
+{:trav1c}
+{:trav1d}
+{:travel2}
+{:travel2a}
+{:no.guard}
+{:no.amoeba}
+{:dwarf}
+{:thief}
+{:no_dwarf}
+{:travel2b}
+{:travel2c}
+{:travel2d}
+{:travel2e}
+{:travel3}
+{:2195}
+{:2240}
+{:2246}
+{:2248}
+{:2258}
+{:2260}
+{:2266}
+{:2272}
+{:2205}
+{:cmd.get}
+{:cmd.main_menu}
+{:cmd.teleport}
+{:cmd.examine}
+{:cmd.inv}
+{:cmd.quit}
+{:link.dead}
+{:link.info}
+{:link.bar}
+{:link.shoppe}
+{:cmd.look}
+{:2300}
+{:2302}
+{:2307}
+{:2315}
+{:2320}
+{:2330}
+{:2345}
+{:2347}
+{:2350}
+{:2355}
+{:2360}
+{:2365}
+{:2370}
+{:bit.flip} ' (<mem_loc>,<bit>)
+{:check.guild_membership} ' (print)
+{:msg.hp} ' (print)
+{:err.too_tired}
+{:msg.e_exception}
+{:msg.affecting}
+{:msg.e_cant_go}
+{:msg.dusk_approaches}
+{:msg.reset_color}
+{:msg.list_item} ' (item_num,width,"message",cr)
+{:msg.delay} ' ("message",delay_in_jiffies)
+{:sub.time_delay} ' (jiffies)
+{:sub.time_delay2}
+{:err.cant_use_cmd}
+{:err.unsupported_cmd}
+{:msg.e_cmd_not_yet}
+{:msg.not_understood}
+{:2426}
+{:err.invalid_command}
+{:msg.you_feel} ' ("message")
+{:msg.fancy_line}
+{:msg.mounted} ' (print)
+{:sub.hourglass}
+{:msg.you_see}
+{:sub.item_init}
+{:msg.a_or_some} ' ("item")
+{:msg.item_name}
+{:msg.is_are} ' (mm)
+{:msg.multi} ' (string$)
+{:msg.weakens} ' (string$)
+{:msg.percentage} ' (number,percentage_of,width 1-3,columns 1/2)
+{:rnd.100a} ' no params
+{:rnd.10z} ' no params
+{:math.mod} ' (dividend,divisor)
+{:math.mod2}
+{:sub.adj_stat} ' (statistic, adjustment)
+	v1+86	8	Attributes [1-18 or 1-25, depending on character class]
+			[Attribute # for {:sub.adj_stat}(s,a) are in square brackets]
+			(Spur variable names are in parentheses)
+				[1] 86=Charisma                [5] 90=Intelligence (PI)
+				[2] 87=Constitution	(PT)   [6] 91=Strength     (PS)
+				[3] 88=Dexterity	(PD)   [7] 92=Wisdom       (PW)
+				[4] 89=Ego (may remove)        [8] 93=Energy       (PE)
+
+{:sub.adj_hp} '  (character: 1-5,adjustment)
+{:sub.get_hp} ' (character: 1-5)
+{:check.good} ' no params
+{:check.evil} ' no params
+{:check.gender} ' no params
+{:check.class} ' (character 1-4)
+{:check.race} ' (character 1-5)
+{:check.more}
+{:msg.more_prompt}
+{:msg.prompt} ' ("message")
+{:check.dead} ' (character,death_reason) death_reason used in in "t.die"
+{:check.expert_mode} ' (print: 0=no, 1=yes)
+{:bit.set} ' (mem_loc,bit)
+{:bit.clear} ' (mem_loc,bit)
+{:bit.test} ' (mem_loc,bit) => s (0=clear, 1=set)
+{:get_2_bytes} ' (mem_loc)
+{:put_2_bytes} ' (mem_loc, value)
+{:get_3_bytes} ' (mem_loc) => m
+{:put_3_bytes} ' (mem_loc, value)
+{:msg.comma_value} ' (value, justify: 0=no, 1=yes)
+{:msg.comma_value2}
+{:sub.get_gold} ' (character: 1-4) => 
+{:sub.check_gold} ' (character: 1-4, price) => s (0=not enough, 1=enough)
+{:sub.adj_gold} ' (character: 1-4, +/- amount)
+{:sub.display_gold} ' (character: 1-4, justify)
+{:sub.item_held} ' (item_num) => s (0=no, 1=yes)
+{:item_held2}
+{:sub.weapon_held} ' (item_num)
+{:2900}
+{:i_str.addr} ' (string$)
+{:sub.string_uppercase}(string$) ' ("string") => "STRING"
+{:string.normalize} ' (string$) => an
+{:sub.log_error} ' ("err_level", line (0=not printed), "message")
+{:sub.log_event} ' todo
+
+{:sub.string_expand} ' ("string",expand: 1-20 {space}s)
+{:sub.string_truncate} ' ("string[space:6}") -> x$ ("string")
+
+{:advent3}
+
+{:block.[neswud]} -> check whether exits blocked
+
+{:check.ring}
+{:check.storm_weapon}
+{:file.input}
+{:g.o.e.} - garden of eden, maybe move to t.events
+{:link.combat}
+{:link.duel}
+{:link.misc}
+{:link.misc5}
+{:link.misc6}
+{:link.misc7}
+{:pal}
+{:ply.loc}
+{:read_item}
+{:rd.dwarf}
+{:rd.room4}
+{:search_item}
+{:sub.set_pa}
+{:set.prob}
+{:set.prob2}
+
+2030?	GOSUB	Check for room desc flag, if not set, drop thru
+
+{:2036}? GOSUB	Read a room description from "e.t.roomdescs <level>"
+
+2040-	GOSUB	Start of "You see items" routine
+2064
+
+2050	GOSUB	{:sub.you_see}("list") ["i"tem "m"onster "r"ation "p"layer]
+			General purpose "get item from item file" routine
+		Expects: Z  0: open "e.t."+a$, set Z=1 (flag to open file)
+	2/1/2011:	 FL 0: return complete record
+			    1: truncate data at |
+	RETURN	I%=0: set at entry (for | match purposes), <>0 if found
+			  L=3/4: left limit for printing item name (skip type
+						flag, period, and numeric value if present)
+					R:	 right limit for printing item name (length of
+							Z$ minus position of | if any)
+				CB$=first field in record, usually a flag
+				 Z$=item name (truncated to point of | if FL set)
+				FL$=flags after |
+
+		GOSUB	{:msg.directions}
+
+		GOSUB	{:read_monster}
+
+		GOSUB	{:msg.health}
+
+		GOSUB	{:check.ring_worn}
+
+		GOTO	{:check.ring_weaken}
+
+		GOSUB	{:check.dead}(char: 1-5)
+				Character #, death reason
+				GOSUB {:sub.check.hp}
+		' wrong place, but starting to write down all labels
+
+		GOTO	{:check.poison}
+
+		GOTO 	{:check.disease}
+
+		GOTO	{:check.thirsty}
+
+		GOTO 	{:check.hungry}
+
+		GOTO	{:check.weapons}
+
+		GOTO	{:header}
+
+		GOTO 	{:space_tracker}
+
+		GOTO 	{:quotes}
+
+{:2152} GOTO	Check expert mode, if off then print last command
+
+{:2156} GOTO	Display weapon rounds
+		GOSUB (:sub.hourglass}
+			Display hourglass if enabled
+
+		GOSUB	{:msg.hp}(char,print)
+			Print <char>'s HP, depending on <print>
+
+			Display main character's name in mixed case
+
+{:link.module}	1067	Load module (minus t. prefix) in A$
+
+2287			Parser entry
+
+--- MESSAGES ---
+2400-		Parser messages
+
+2400	GOSUB	{:check.guild_membership}
+
+2405	GOSUB	{:msg.hp}(char,print)
+				If <print>=1, display <char>'s HP
+
+2410	GOTO	{:err.too_tired}
+				You're too tired to move
+		GOTO	{:advent}
+
+2415	GOTO	{:msg.e_exception}(x$)
+				X$ exception
+		GOTO	{:advent}
+
+2420	GOSUB	{:msg.affecting}(x$)
+		print "The x$ is affecting you."
+		RETURN
+
+2425	GOSUB	{:msg.e_cant_go}
+		print "You can't go that way."
+		GOTO {:err.invalid_command}
+
+2430	GOSUB	{:msg.dusk_approaches}
+		--- falls through ---
+
+2435	GOSUB	{:msg.reset_color}
+		Resets color with Bracket Read routine.
+		RETURN
+
+2440	GOSUB	{:msg.delay}("message", delay_in_jiffies [60=1 sec.])
+		GOSUB {:sub.time_delay}
+		RETURN
+
+2445	GOSUB	{:sub.time_delay}(jiffies)
+		Delay <jiffies> jiffies. (60=1 sec.)
+		RETURN
+
+2450	GOTO	{:err.cant_use_cmd}(x$)
+		"You can't use x$ commands "
+		GOTO {:msg.e_cmd_not_yet}
+
+2455	GOTO	{:err.unsupported_cmd}
+		print "Command dc$ not supported";
+		--- falls through ---
+
+2460	---	{:msg.e_cmd_not_yet}
+		print "yet."
+		GOTO {:err.invalid_command}
+
+2465	GOTO	{:msg.not_understood}
+		print "I didn't recognize that command."
+		--- falls through ---
+
+2470	GOTO	{:err.invalid_command}
+		Clear dc$ (current command)
+		(This makes the main prompt display "Unknown command.")
+		GOTO	{:advent}
+
+2475	GOSUB	{:msg.you_feel}("message")
+		GOSUB 	{:check.expert_mode}(0) -- If set, "(You feel x$.)"
+		RETURN	S=status of expert mode
+
+2480	GOSUB	{:msg.fancy_line}
+		print "{off}[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]{on}"
+		RETURN
+
+2485	GOSUB	{:msg.mounted}(print)
+		If the player has a horse...
+		GOSUB	{:check.expert_mode}(0)
+			If set, then "[MOUNTED] ";
+		RETURN
+
+2490	GOSUB	{:sub.hourglass}
+		Calculate time, display hourglass
+	GOSUB	{:msg.dusk_approaches} possibly
+
+MOVE	GOSUB	{:msg.list_item}(item_num, width, "message", cr)
+
+2495	GOSUB	{:msg.you_see}("item")
+		--- falls through ---
+
+2500	GOSUB	{:sub.item_init}
+
+		{:msg.a_or_some}
+
+		--- GENERAL SUBROUTINES ---
+
+2800	GOSUB	{:bit.set}(mem_loc, bit)
+		Set a bit
+		mem_loc [0-65535]: memory location
+		bit [0-7]: bit number
+		RETURN
+		(WISH: Probably should do error-checking...)
+
+2810	GOSUB	{:bit.clear}(mem_loc, bit)
+		Clear a bit
+
+2820	GOSUB	{:bit.test}(mem_loc, bit)
+		Test a bit
+	RETURN	S=0: clear
+	 	S=1: set
+
+2825	GOSUB	{:bit.flip}(mem_loc, bit)
+		Flip a bit
+	RETURN	S=0: clear
+	 	S=1: set
+
+2830	GOSUB	{:get_2_bytes}(mem_loc)
+		Get 2 byte value
+		mem_loc: memory location
+	RETURN	X=Value of PEEK(M*256)+PEEK(M+1)
+
+2835	GOSUB	{:put_2_bytes}(mem_loc,value)
+		Put 2 byte value
+		mem_loc memory location
+	RETURN nothing
+
+2840	GOSUB	{:get_3_bytes}(mem_loc)
+		Get 3 byte value
+	Local:	M: memory location
+	RETURN	X: 3 byte value
+
+2845	GOSUB	{:put_3_bytes}(mem_loc,value)
+		Put 3 byte value
+	RETURN	X: 3 byte value
+
+2850-	GOSUB	{:msg.comma_value}(value,justify)
+2855		Display comma-delimited integers 0-999,999,999
+			with or without right-justification
+			x=number to be displayed
+			j=0: display number  left-justified
+			j=1: display number right-justified
+				(11 characters altogether)
+	Locals:	 X$, L, A, Y
+	RETURN:	 X$: Nicely formatted string. No leading/trailing
+     		spaces in case number comes at beginning of
+     		line, or screen real estate is at a premium.
+
+	GOSUB	{:sub.get_gold}(character 1-5)
+		Call when character <c>'s gold in hand should be queried
+
+The following two subroutines check gold in hand:
+
+	GOSUB	{:sub.check_gold} ' (character: 1-4, price)
+		Have sufficient gold for a transaction?
+	GOSUB	{:sub.get_gold}(c)
+	RETURN  S=1: yes, 0: no
+		X=amount of gold in hand
+
+2860	GOSUB	{:sub.adj_gold}(character 1-4,amount)
+		Adjust <character>'s gold by <amount>
+		(negative amount subtracts, positive amount adds)
+		GOSUB {:sub.check_gold}(c)
+			RETURN s=0: no, s=1: yes
+		Check expert mode, print appropriate message (yes/no)
+		Adjust gold as necessary
+
+		GOSUB {:sub.display_gold}(character 1-4,justify)
+
+		GOSUB	{:sub.item_held}(item_num)
+
+		GOSUB	{:sub.weapon_held}(item_num)
+
+		GOSUB	{:sub.adj_hp}(character: 1-5, adjustment)
+			<adjustment> be positive or negative, 0 kills character
+
+		GOSUB	{:sub.get_hp}(character: 1-5)
+		RETURN	x=HP
+
+		GOSUB	{:check.good}
+				Check whether monster has "G" flag
+		RETURN	i%=0 if not, <>0 otherwise
+
+		GOSUB	{:check.evil}
+				Check whether monster has "E" flag
+		RETURN	i%=0 if not, <>0 otherwise
+
+	GOSUB	{:check.gender}
+		Check main character's gender (bit 1 of v1+64)
+		GOSUB {:bit.test}(v1+64,1)
+	RETURN	s=0 if female, 1 if male
+
+		GOSUB	{:check.race}(character)
+			Check race of specified character
+		RETURN	s=race, or 0 if none
+
+2860	GOSUB	{:check.more}(print)
+				Check if [More] prompt enabled
+		RETURN	S: 1=set 0=cleared
+		Locals:	M =V1+64 to check bit 3
+		--- falls through if set ---
+
+2861	GOSUB	{:msg.more_prompt}
+			Unconditionally display "More" prompt
+			A$="[More/Q] "
+			RETURN	Q=1 if "q" or "Q" typed, 0 otherwise
+
+2862	GOSUB	{:msg.prompt}("message")
+			Print "message" (no space before cursor)
+		GOSUB {:sub.cursor_get} [display flashing cursor, get key]
+			If "q" or "Q" typed, display "(Aborted.)"
+			otherwise clear cursor line
+		RETURN
+
+2865	GOSUB	{:sub.block_read}(message_num)
+			Read message from "e.t.messages" REL file.
+			X=message #
+
+2870	GOSUB	{:check_expert_mode}(print)
+			Check for expert mode; display status if print=1
+			RETURN
+		--- can fall through ---
+
+2871	GOSUB	{:you_feel}("message")
+		Display "(You feel <message>)":RETURN
+
+2875	GOSUB	{:sub.log_event}("event","additional info")
+		Log A$,E$ to lfn#2 "s.t.tada log"
+		E$=Event occurred (A1$ joined A$(0)'s party, etc)
+		A$=Additional info
+		Print level name, time/date?
+		Print file footer "[]=-=-=-[ TADA ]-=-=-=[]" also
+		close lfn#2
+
+		Expects: A$: Log info
+		Uses:	 B$: A or W, depending on need to append/write log
+		Returns: ST: serial status
+
+	GOSUB	{:sub.log_error}("err_level",line,"message")
+
+2885	GOSUB	{:math.mod}(dividend,divisor)
+				MOD function (remainder after division, repeated subtraction)
+		Expects: N: Dividend
+				 X: Divisor
+
+2890	GOSUB	{:msg.percentage}(number,percentage_of,width 1-3,columns 1/2)
+				examples: 50,100 => 50% / 10,18 => 55% / 36,78 => 46%
+				n=50,p=100,w=3,c=1: 50
+				n=10,p=18 ,w=2,c=2: 10  55%
+		Returns: nothing
+
+2900	GOSUB	Define functions (must stay in the "kernel space" since DEF
+				FN's are defined by BASIC similarly to static strings)
+
+2905	GOSUB	{:string.find_i}
+				find I$'s address pointer
+
+2910	GOSUB	{:string.upcase_i}
+				convert I$ to uppercase
+
+2920	GOSUB	{:sub.log_error}("err_level","module","message")
+		Example:	Log something like:
+					"[E] t.ma.bank: Gold out of range (4e7)"
+		TODO:	Get server time/date, put that in entry
+		RETURN
+
+		GOSUB	{:sub.log_event} (... fixme ...)
+
+2950	GOSUB	{:sub.string_expand}("string",num_spaces)
+				Pad out <string> with spaces, to length num_spaces. (max 20)
+		RETURN: X$: Spaces appended to the right to length num_spaces
+
+2955	GOSUB	{:sub.string_truncate}("string")
+				Search <string> from right to left, truncating to first non-
+				space char
+		RETURN  X$ truncated to first non-space char on right
+				Y  is position of first non-space character, might be useful
+
+		GOSUB	{:string.normalize}(string$)
+		RETURN	an=int(abs(val(string$)))
+
+11/Nov/2014 20:46
+De-duping label names:

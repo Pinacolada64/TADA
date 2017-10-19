@@ -1,0 +1,614 @@
+Totally Awesome Dungeon Adventure				       CHANGELOG
+						    (dates in MM/DD/YYYY format)
+================================================================================
+BUG	Bug identified                 NEW	New feature/file added
+CHANGE	Change in functionality, etc.  OTHER	None of the above
+DOCS	Documentation added/updated    REMOVE	Feature removed  
+DONE	Where WIPs go to die.          UPDATE	News about something
+FIXED	Bug squashed                   WIP	Work-in-progress
+INFO	General information            WISH	Wishlist item
+===============================================================================
+
+2/23/2011:	*** TODO items are in separate file TODO.TXT ***
+
+6/11/2006:
+CHANGE	"create playerlog" on adventure.d81: now creates 
+	  "e.t.playerlog" instead of "e.t.p", on current drive instead of
+	  drive 8 only.
+FIXED	Fixed tokenization error: when saving program with Tuned 
+	  Simons' BASIC, "play" in REM statements is tokenized into "D!".
+
+NEW	Added link to VICE homepage on TLOS_TADA group.
+
+WIP	Due to the C=-G/C=-H and C=-M/C=-N "bugs" in the Commodore 
+	  character set, characters suitable for building a "pixellated"
+	  horizontal bar graph were reworked - 2/4/6/8 pixels. The
+	  progress bar still looks jumpy, though.
+
+WIP	"bar graph 2" is being reworked to use standard Kernal PLOT
+	  routines to draw the "thermometer bar" bounding box.
+
+7/14/2006:
+FIXED	"spells" file to create spell list renamed to "create spells". 
+	  Creates "e.t.spells" on current drive. Checks if file exists.
+
+OTHER	Other stats (spell type, as per SPUR) should be saved. To-
+	  cast percentage should be saved too.
+
+DOCS	Mostly complete list of spell types and effects:
+
+        Spell Types:		Succeed			Backfires
+        ------------		-------			---------
+        (A)ura			Combat bonuses		?
+        (C)onstitution		?			?
+        (D)exterity		More dextrous		Less dextrous
+        (E)nergy		Feel stronger		Feel weaker
+        (G)et SPUR		Battle SPUR		(SPUR not here?)
+        (I)ntelligence		More intelligent	You feel dumber
+        (L)evel-Down		Move level down		Move level up
+        (M)onster      		Weaken			Strengthen
+        (P)layer		Increase HP		Decrease HP
+        (R)eturn to Shop	Go to Shop		Monster freezes you
+        (S)trength		Strengthen		Weaken player
+        (T)ransfer		Gold goes to bank	Carry all gold
+        (U)p-Level		Move one level up	Move one level down
+        (W)isdom		Become wiser		Become more foolish
+
+WIP	Starting to break up disk images into one big directory and list 
+	  contents using BASTEXT, then compare changes using EditPad Pro.
+
+7/19/2006:
+NEW	Put large chunks of text to be displayed in "t.np21" into "s.tada 
+	  messages".
+NEW/	"new plr msgs": file the text was extracted from. Weighing 
+WIP	  in at 11 blocks, that'll cut down on the size of t.np21. (this is on 
+	  adventure.d81) It'll follow the "spur messages" file format, which is
+	  to be determined, and could be extended to all programs.
+
+7/20/06
+NEW	t.np22 extracted from Linux-side disk image. No major changes, just 
+	  neatened up a few things. Still, included it in file archive for 
+	  completeness.
+
+7/21/06
+FIXED	lowercased all filenames, removed *.prg extensions where necessary
+FIXED	t.stat22: right-aligned "Horse" and "Front/Flank/Point/Rear 
+	  Guard", made it skip shield rating for horse, thusly:
+              Point guard:
+              Flank guard:
+               Rear guard:
+                    Horse:
+INFO	"lockers" installer is corrupt. No big deal.
+
+7/22/06:
+FIXES	"combo" series of programs (t.startup + t.main):
+	* Can finally enter text in lowercase in the parser. 
+	  (lowercase -> uppercase I$ converter)
+	* Made the clock actually display something.
+	* Working on the BASIC "INSTR" parser
+	* File reader works now. Use Home to pause, space or / to abort
+	* More intelligent handling of dc$ (next command)
+	* Grabs parameters from cmdline (tries to, anyway)
+	* Cleaned out dead code, reorganized
+	* Map movement possible now! Again! For the third time!
+	  Let's hope it STAYS this way.
+
+7/25/06:
+CHANGE	Long filenames. Easier on the brain.
+		t.ma.a.a   ->	t.ma.a.ammo
+		e.t.z	   ->	e.t.ammo
+		e.t.f	   ->	e.t.rations
+			etc.
+
+FIXED	"t.ma.elevator": Added more levels, inverted logic moving between
+	  levels: instead of moving 7...1 with (U)p, (D)own does the trick.
+
+FIXED	Tidied up "create rations" and "t.ma.gen-store", now use current drive 
+	  and Input Any routines
+
+7/27/06:
+NEW	Used "saver" routine to finally create a binary of MODULE 64, called 
+	  "module64.obj" on disk. No more DATA statements!
+
+7/30/06:
+OTHER	I'd like to look at Tuned Simons' BASIC to -quickly- implement The Land 
+	  of Spur. It has labels, and what appears to be a MOD function. No 
+	  docs on how to use the original Simons' BASIC, I know it's packed 
+	  away in a box somewhere...
+UPDATE	Found an e-text version on an earlier archive CD. Now included in 
+	  \docs\commodore
+CHANGE	Renamed "ia" to "input any $c000". Found another version on LoadStar 
+	  #132 that does the same thing, runs in cassette buffer ($033C).
+INFO	Order of parameters are opposite between the two files.
+	  (channel,bytes [$033c] vs. bytes,channel [$c000])
+FIXED	Imported "room.level1" file into descriptionwork.d81, will write a 
+	  program to strip high bits from ASCII descs.
+	Truncated the first 5128 bytes from the file so the file read goes 
+	  faster... also converted from plain ASCII to Commodore ASCII. That 
+	  might make things easier.
+REMOVE	Most of this was later found to be unneccessary, Skip's "SPUR Room 
+	  Text" file contains text for levels 1-6, not 7.
+CHANGE	All files in SPUR-(code|data) now read-only.
+
+8/05/06:
+NEW	Exported room desc hex dumps from CiderPress into EditPad Pro. You can 
+	  read descs now, but letters are still missing...
+UPDATE	This too is mostly unneccessary, except for level 7 (THE HOUSE).
+WISH	STAT program needs some concept of whether allies are good or evil?
+
+08/08/2006:
+CHANGES	wrote '16' to workdisk.d64. Trying to come up with an improved player 
+	  log writer following changes of 8/6/06. Trying to untangle kangaroo 
+	  code, but resulting code doesn't work. :/
+UPDATE	Reverted to 'create log 16' in 'installers' directory. Merged changes. 
+NEW	Saved 'create log 7' on workdisk.d64 (newer version of "create 
+	  playerlog")
+
+08/13/2006:
+OTHER	I guess just the JiffyDOS routines in VICE are to blame, I booted using 
+	  stock ROMs and "e.t.playerlog" reads fine instead of locking up VICE.
+NEW	Started work on t.ma.olaf -- slave trading. 90+ allies on workdisk.d64
+UPDATE	First major backup in a while :)
+
+08/16/2006:
+FIXED	Changed variable X to Y in subroutine at 2850 (display comma-delimited 
+	  value). On returning, X trashed original passed value.
+DOCS	Updated "TADA_Subroutines" to reflect this. Also:
+
+BUG?	Doesn't handle negative or fractional numbers, or variable 
+          column widths. Is this something to consider? For example, in 
+          t.np/t.stat, there's a lot of right-justified 2/3-digit 
+          numbers being displayed by a different subroutine (lines 375-
+          378 I believe) when you roll your character's stats.
+
+FIXED	Minor bug where justified numbers were getting an extra space 
+	  displayed before the number. This was removed for consistency in 
+	  needing/not needing to display a leading space before calling the 
+	  routine. (Compare, for example, t.vin24 to t.vin25.)
+
+FIXED	Numbers less than 1000 now displayed correctly.
+
+8/17/2006:
+BUG	t.ma.olaf doesn't subtract gold from player's account correctly, and 
+	  locks up occasionally when selecting ally to buy.
+
+08/20/2006:
+DOCS	Differentiated Fist guild (f)/underground forest (F) on level 1 map.
+WISH	Have a separate file with weapon experience? 2 bytes per weapon?
+
+8/26/2006:
+FIXED	Added more error-checking/intelligence to the save/quit routines in 
+	  player editor.
+NEW	Now flags changes that need to be saved, and only asks to save after 
+	  something has been changed.
+NEW	Also checks error channel when saving.
+CHANGE	Editor doesn't go back to player listing if you say "no" to exiting.
+
+WIP	adding/fixing more stuff in tep... saved tep23 on adventure.d81 -- 
+	  pushing 60 blocks... so much time, so little to *do*...
+
+8/27/2006:
+CHANGE	The Great Renumbering of tep. 
+DOCS	Details in "programming-notes\tep subroutines.txt"
+
+9/03/2006:
+WIP	After struggling with parts of tep rampantly POKEing over the program, 
+	  I've switched to another sub-project.
+NEW	Made a weapons file creator, cleaned up a few extra fields. 
+	  t.ma.arm.weapons will have to be rewritten.
+
+CHANGE	Added xx-xx-xx combo style and a few snarky comments in t.ma.elevator
+
+NEW	"monsterenum" program goes through monster flags and displays in
+	  English what the flags mean.
+DONE	Bring this over into the collective from my C128.
+
+9/04/2006:
+CHANGE	rewrote t.ma.arm.weapons display list to be compatible with new 
+	  e.t.weapons file.
+
+10/06/2006
+NEW	saved t.bar.olaf13 in mydocs\tada\prgs
+
+INFO	Lots of work to do on the Tuned Simons' BASIC version of 
+	  "spur.combat.s". It's coming along, though.
+
+10/17/2006
+DOCS	Finished book texts file. Some small spots need clarification.
+CHANGE	Moved a few duplicate, redundant, or outdated .zip and 
+	  .prg files out of the archive to cut down space requirements,
+	  moved them into a local directory called "not-archived".
+CHANGE	Finally updating %-sub-asm.txt to remove references to someone who 
+	  doesn't like me anymore. Long story.
+WIP	Anyway, the BASIC part at line 500 works fine. ML does not. Maybe now 
+	  that I  know more about ML, I can fixz0r it.
+CHANGE	Moved a few files around, yay. They're in a better place, now.
+DOCS	"tree" and "changelog" go in root directory. Easier to find.
+DOCS	Added Simons' BASIC reference and dumped the text of Arndt Dettke's 
+	  Tuned Simons' BASIC to a SEQ file, then exported to text.
+DOCS	Added some text from Skip's BBS to the text files section. 
+ 	  Unfortunately I can't find the original, unmodified part where I 
+ 	  signed on for the first time to his BBS, I had changed it thinking I 
+ 	  would do something similar on my BBS. But you should get the idea.
+
+10/23/2006
+WISH	Create records in room description files where oft-repeated phrases 
+	  like "You are in a maze." can simply point to this record instead of 
+	  taking up duplicate records.
+
+(Somewhere between 10/2006 and 1/2007)
+NEW	Wrote a mostly working INSTRing routine in assembly! INSTR2.OBJ
+BUG	Works great on one-character matches, but returns position of last 	
+	  character matched in >1 character matches.
+FIXED	Debugged.
+
+adventure.d81:
+INFO	* ace[1-10]: automatic command entry. (if expert mode off)
+	    many bugs. barely started. Too bad I got fed up with the original 
+	    which WORKED, years ago, and deleted it... sigh. Maybe it'll make 
+	    an appearance in v2.0. Has to be SOME reason to upgrade! :>
+BUG	* t.np22 (TADA.New Player routine). This is the latest one.
+	    Choosing a random age doesn't always seem to pick numbers in the 
+	    range of 15-50. Also needs to close disk channels at exit. A 
+	    few cosmetic bugs.
+WISH	Add a short menu of commands on the left of the Wall Bar & Grill
+	  display if expert mode is off: X=Mundo, I$=person. Also have
+	  Mundo positioned in the doorway thusly: ---|X|---
+	  (or perhaps "M" for Mundo...)
+
+1/23/2007
+CHANGE	GZipped all the disk images to cut down on space requirements. VICE
+	  opens *.gz images just fine (although read-only). I heart 7Zip!
+
+1/24/2007
+NEW	Since I'm home from college sick as a dog (yesterday too but I had no
+	  choice but to take my math test), I had some time to work on some
+	  things. Finally wrote a M$-DOS batch file that automates creation
+	  of the "filelist.txt" file listing in each directory. :) This will 
+	  replace the "tree.txt" files as soon as I move the descriptions out 
+	  of those files.
+WISH	Add a backup feature, since typing descriptions of files into each 
+	  filelist.txt file and having them overwritten would suck rocks.
+	  Perhaps a file compare/merge...
+WISH	Learn enough 'bash' scripting in Linux to do the same thing for Linux 
+	  brethren. Or have someone do it for me. :)
+UPDATE	December 2007: "Intro to Linux scripting" college course helped a lot!
+BUG	tep does not write "to hit%" in the right spot when getting ally (ends 
+	  up 0%) Pulled this out of "tep layout.txt"
+INFO	Note to self: Self, I put my EditPad Pro Clip Collection in not-
+	  archived\
+
+3/4/2007
+DOCS	Added a note about pausing LIST in SysRes, using space and C= keys.
+
+3/21/2007
+FIXED	Some typos and undefined statement errors in the TSB version of
+	  the combat module "17" on combat-work-disk.d81
+NEW	Made keys repeat, for now.
+
+4/9/2007
+DOCS	"making modules" in \programming-notes directory: finally get Module
+	   64 showing off more than the Compute!'s Gazette demo... need an
+           artificial amount of space reserved at setup, and error checking to 
+	   make sure a "file not found" error doesn't GOSUB 20 anyway.
+	   And copy f$ (name of module) into another string to prevent un-
+	   necessary file loads when saved string=f$.
+	   
+4/14/2007
+WIP	Created "module-work-disk.d81" and put the latest versions of:
+	  combo20		(t.startup + t.main)
+	  makeplayerlog18	makes player log, v1.8
+	  image subs		has swapped Input Any params + close2
+	  	last updated 6/10/2007
+	  tep60			latest version anywhere
+	  	last updated 6/10/2007
+	  t.np23		latest version anywhere
+	  t.startup		now reserves ~50 blocks of space, experimenting
+	  				with the right amount of space so prgs
+	  				don't collide in memory
+
+	I think I want to handle items being cursed differently than TLOS did;
+	"TADA_Variables.txt" now reflects this. Uppercase flag (ABDFMPS) means
+	normal item, lowercase flag means non-EXAMINEd cursed item. After a
+	successful EXAMINE, flag then changes to "C" for INVentory to 
+	reflect a flag like "(Cursed)" after player knows for sure item is 
+	cursed.
+
+4/15/2007
+INFO	Wow. Microsoft's SyncToy rocks... exactly what I've been looking for
+	to keep this project synced between three computers! Between that and 
+	EditPad Pro's file compare feature, updates are almost *fun*.
+
+5/5/2007
+BUG	Either the "make playerlog 1.8" or "t.np" leaves one space too many
+	after the last character in the player's name. # of plays is then set
+	to 32.
+
+6/11/2007 (happy birthday, CHANGELOG):
+NEW	Unified ML ("ML.O") now working. Runs at $C000. FINAL.BAS demonstrates
+	  usage.
+	  SYS 49152,"search_thru","search_for"		instring  (is)
+	  SYS 49155,<channel_number>,<bytes>,<skipcr>	input any (ia)
+	  SYS 49158,"filename"				module 64 (ml)
+	  SYS 49161					popstack  (po)
+
+FIXED	Eowyn (ally 73) to hit % no longer is 990% in "make allies 1.2"
+
+NEW	"make monsters" (module-work-disk.d81) works, generates "e.t.monsters".
+
+BUG	Found a bug in Peter Schepers' 64COPY - making a .D81 subdirectory 
+	  fills dir header with $00 instead of $A0. Will email him.
+UPDATE	Resolved.
+	  
+FIXED	tep62: Resolved: Listing allies, lists "Plr x" when listing player 
+	  x's allies and editing account x (should say "by you"). also when
+	  listing allies owned by players other than acct being edited, "Plr
+	  x" # is incorrect. (pn is record # in e.t.playerlog, so divide by 2 
+	  to get "normal" player #)
+
+6/13/2007
+CHANGE	* More intelligent loading of ML.O
+	* Better organization of "Combinations" submenu in tep64 editor
+	* Changed default "save changes" to "yes"
+
+6/16/2007
+INFO	Happy birthday to me! I am $1F years old.
+
+6/23/2007
+NEW	Monster quotes file now complete, but for some more choice comments and 
+	  typos fixed. (this on the new "installers.d81")
+INFO	! flag in monsters file is for quote. \text\tree.txt modified.
+	  Modified "monsterenum.04"
+CHANGE	Modify order of informational text in "s.tada main 40"
+NEW	Started \programming-notes\file-formats.txt
+
+INFO	Optimize the map creation process: read the SEQ desc file, count first 
+	  line and number of lines therein, fill in index string as we go along.
+	  Write room desc text to records, come back and write index strings to
+	  first few records. optimizes 2 passes into 1
+
+NEW	In addition to the RAD SUIT, maybe allow use of LEAD ARMOR
+	* Added that to s.t.items, also CANNON and MUSKET and a few other things
+	* |xxx* flag indicates ammo carriers and what they go with
+	* Expanded to 169 items
+INFO	Ammunition items available in Shoppe are items 98 and above
+	  (some may be available just in the dungeon)
+	* |+ indicates weapon is available in spaceship armory
+
+6/29/2007
+FIXED	* if i$="", illegal quantity error in line 2910 (t.main)
+	  need to skip uppercase conversion
+
+7/6/2007
+NEW	* Make input subroutines in tep* do more work! *whipcrack*
+	    They print separator lines, and <RETURN>s before exiting.
+FIXED	* Typo in "level 1 room data": "fiery" room
+BUG	make level 1 map: if you skip making "e.t.roomindex 1," pass 3 of 2
+INFO	Dave Moorman's Input Any doesn't like CHR$(13)...
+	  I'll try Jim Butterfield's "Input Any" again.
+	  		LDA JIM
+			STA HEAVEN
+	  Quoted on teh Intarweb! You heard it here first, folks. ;)
+
+7/12/2007
+DOCS	File structure organization continues... Separate "file-formats.txt"
+	  in \SPUR-data. Removed \text\tree.txt
+
+NEW	\latest-files.txt explains what the latest files are, and where
+INFO	\prgs\t.ma.main has proper clock decrement routine
+INFO	Seriously considering moving weapon experience to separate file... it
+	  sucks for the player to have to choose between 5 weapons to retain
+	  experience... just 60 bytes, position #=weapon experience, 0-100
+
+7/15/2007
+WIP	Adding screen/printer capability to monsterenum.04 on workdisk-2.d64
+
+7/28/2007
+INFO	Having some trouble making changes "stick" to installers.d81.gz;
+	  save + verify work and report no errors, but detach/change image and
+	  saves are lost. 1) turned off virtual device traps, 2) unzipped
+	  disk image into a regular .d81 file, changes now stay changed.
+	  (This is only on the laptop, w/7zip and WinRAR installed)
+UPDATE	Again, found out *.d??.gz is read-only.
+FIXED	Bugs in map information editor (tep79). Still some to squash,
+	  shouldn't be hard.
+INFO	When using a directory as an IEC device, @CD:.. works to change to
+	  parent directory when using JiffyDOS. \text\notes.txt updated.
+INFO	Slight bug in "make weapons 1.3": some fields have 5 pieces of info
+	  after weapon name. Need to restructure data file/installer to
+	  accomodate this (^ as record delimiter).
+FUNNY	CHARGE, if you have no horse:
+	  (if not in water area) "Clopping two coconut halves against the
+		ground does no good here. (You feel a bit dumber)"
+	  (if no monster) "Your embarassment is further compounded by there 
+		being nothing to charge TOWARDS."
+	  (if in water area) "What a concept!"
+
+VeryveryVERY latest version of t.main: installers.d81. Really.
+Fixed hourglass, made separate subroutine so can be called from Shoppe, or wherever.
+tm%: moves left (should start at 300, defined in t.startup, replacing TR%)
+
+8/17/2007:
+FIXED	Ally sick/weak messages. First command no longer gets ignored.
+FIXED	Level 1/room 37 special movement case to load "t.bar"
+
+8/20/2007:
+BUGS	t.ma.olly lists ammo, but doesn't differentiate between ammo carriers
+
+9/10/2007:
+FIXED	RED SONJA! in e.t.allies: records 12 and 21 are duplicates. Changed
+	  record #21 to EMMITT "DOC" BROWN, fixed EOWYN in "make allies 1.3" :)
+
+UPDATE	Forget using .gzipped disk images except when archiving.
+
+9/21/2007:
+FIXED	Massive reorganization of disk images. Sayonara, deadwood.
+	Fixed issue with "make monsters.02": because of INPUT#2 instead of
+	  Input Any, was truncating monsters with ":" in attribute lines.
+	  There are a few duplicates/typos: PIRANA, SCORPION
+NEW	"monsterenum.05" now reads monster quotes
+
+2/23/2008:
+CHANGE	"t.prg info" on module-work-disk.d81 now calculates bytes used for 
+	  simple/array variables, pauses when done.
+FIXED	Prints negative values... now uses ABS()
+WISH	Display in hex also
+
+3/2/2008:
+NEW	"logic plural" on same; quicker way of displaying ex. "game" or
+	  "games"!
+
+03/10/2008:
+NEW	"Dusk Approaches" message only displays every fifth turn.
+NEW	"t.main 3-10-08" on installers-9-20-07.d81
+	(must compare differences, seems like I'm re-doing some things)
+
+05/02/2009:
+FIXED	Improved logic in incrementing/decrementing color pairs in "highlight
+	  reader"
+FIXED	t.stat on module-work-disk.d81 no longer crashes w/RETURN WITHOUT GOSUB
+
+06/07/2009:
+FIXED	t.bar now displays/decrements hit points correctly
+
+06/26/2009:
+FIXED	e.t.monsters: # of monsters fixed (135), monsterenum.05 no longer reads
+	past EOF
+
+08/19/2009:
+NEW	Macbeth supplied BASIC decimal -> hexadecimal conversion. Slight
+	optimization by me.
+CHANGE	Display bytes in hex in "t.prg info"
+
+11/6/2010:
+IDEA	Jody: Orange fluffy monster named Gossamer (Daffy Duck would be
+	paralyzed with fear).
+
+12/14/2010:
+CHANGE	"ally read/reset" can now change the # of allies, since some edit
+	process in "tep" trashes it. also reads from current device
+
+3/11/2011:
+FIX	gsteemso helped with some math in calculating statistics changing -
+		see t.GET.
+
+3/24/2011:
+FIX	STAT command properly reflects tiredness mode.
+CHANGE	Instead of using GD$(, RC$(, WC$( arrays for guild, race and weapon
+	class, slice-'n-dice with MID$() for GD$, RC$, and WC$.
+REMOVE	t.main: DIM AL$( CL$( GD$( RC$(
+NEW	t.startup: B1/B2/B3 variables (256, 65536, 16777216 respectfully)
+		b1=256:b2=b1*b1:b3=b2*b1
+
+5/12/2011:
+CHANGE	t.bar:  use CO% instead of NL for deciding which character set to draw
+		bar with (NL=# of lines to read from data file)
+
+5/25/2011:
+CHANGE	t.np 2: class/race file will give explanation of class/race, Verus' text
+		updated accordingly
+
+6/14/2011:
+NEW	t.main: 2223 a$="t.bar":goto 1067
+
+7/19/2011:
+NEW	t.main: moved ML.O load to 900- range so gets overwritten after loading
+			t.startup
+FIX		added bounds checking to "teleport function" - mainly debugging
+			option for now
+
+C64List:
+Converting from .prg to .lbl file results in PETSCII characters in a DOS text file.  
+If you have Style's DirMaster utility, here is what I do:
+
+Change the file extension from .lbl to .seq, open with DirMaster. You'll see
+tabs and curly braces represented in PETSCII, no worries. Export the file as
+.txt, then open the resulting file in your text editor. You will probably have
+to trim off the last few bytes (my editor -- EditPad Pro -- has a hex view
+mode, very handy for this) </snob>.
+
+2012
+====
+
+	5/17
+NEW	t.main:		Better flashing cursor GET subroutine from Compute.
+				Doesn't leave cursor trails.
+
+	6/6
+FIX	t.startup:	RO now recognized as two-byte value with FN L2(226)
+				rather than PEEK(226).
+
+NEW	ALL		Working on converting to C64List labels with the
+				{include:} function.
+
+IDEA	t_die		Check for clone purchased in Spaceship, maybe 10,000 x
+					experience level price.
+
+	12/21 (are we all gonna die?)
+IDEA	Level 8		Have the labyrinth entrance & exit point to the
+					opposite room (so entering the labyrinth would put the
+					player outside the exit) during a full moon or a
+					certain spell being cast. There's really no point to
+					having the labyrinth anyway, other than frustration.
+
+2013/1/14:
+NEW	Using PabloEdit, a network-aware ANSI editor to create a single screen-
+	shot of the ANSI main TADA command menu. There are some tweaks that
+	should be made (replacing * + ! symbols with p g s, more sensible).
+
+23/Feb/2014 21:39
+WIP		Changing {uses:} labels to im.<label> instead of more generic
+			sub.<label> in order to tell where the routine is from
+
+March 23, 2014
+CHANGE	Applying spell-checking to "s.t.roomdescs 8" - fix "Comforatable"
+			and lines 691- need to be re-wrapped.
+
+15/Apr/2014 14:37
+IDEA	If player race is Dwarf, then should the Dwarf really be after the
+			player's gold?
+
+25/Apr/2014 10:50
+FIX		t.stat	Labeling, Honor rating displays as 16-bit instead of 8-bit
+				value, reverse Honor ratings to display highest to lowest
+
+28/Jun/2014 14:20
+NEW		Global	When prompt ends in ">>", this serves as an indication that
+				it is a hotkey. Make sure {:sub.cursor_get} is called.
+
+4/Jul/2015 17:17
+NEW		programming-notes/: broke off trace util notes from "modbasic-
+			notes.txt" into "trace-util.txt", added small demo program
+			in doc.
+
+24/Jul/2015 11:47
+CHANGE?	t.main	Check for guild membership once in parser dispatch, then
+				take care of interpreting guild commands, instead of checking
+				for guild membership where each command is interpreted. May
+				not be strictly necessary, since two commands load external
+				programs...
+
+CHANGE	t.main	More labels: {:parser}, {:cmd.hourglass} and others
+
+REMOVE	t.main	Dangling GOSUB target removed from {:parser} dispatch routine
+
+31/Jul/2015 23:42
+CHANGE		/misc/monsterenum.06.lbl:
+				+ fixed {include:} for cursor-get.lbl
+				+ corrected "." flag (magic-user monster)
+
+19/Feb/2016 0:16
+CHANGE	t.main	{:sub.string_uppercase} - changes a string to UPPERCASE
+		{:sub.string_address}(i$) - finds address of a string, returns in v
+FIX	t.np	Syntax error in 221 - {:82} unbalanced parentheses
+
+10/Dec/2016 14:42
+CHANGE	reader3	'co' tracks # of color combinations instead of 'mx' because
+		'mx' also tracked # of text chunks there were in 'e.t.messages'
+		index
+
+19/Apr/2017 0:02
+CHANGE	global	Clear answer string (usually) before input is accepted, possibly
+		also clear quote mode in InString ML before input loop begins
+		(eliminates reverse on/off characters displayed when cursor is
+		drawn)

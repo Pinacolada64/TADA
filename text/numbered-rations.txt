@@ -1,0 +1,85 @@
+  1. Drink  :TEA                15 gold
+  2. Drink  :CACTUS JUICE       25 gold
+  3. Food   :KELP               12 gold
+  4. Drink  :MINERAL WATER      25 gold
+  5. Food   :LOAF OF BREAD      30 gold
+  6. Food   :JAR OF HONEY       50 gold
+  7. Food   :MUSHROOMS          30 gold
+  8. Food   :EAGLE EGGS         40 gold
+  9. Food   :VITAMINS           75 gold
+ 10. Food   :CANDY BAR          15 gold
+ 11. Food   :BANANAS            35 gold
+ 12. Drink  :BOTTLE OF MILK     30 gold
+ 13. Drink  :JUG OF WINE        25 gold
+ 14. Drink  :BOTTLE OF WATER    15 gold
+ 15. Food   :CAKES              40 gold
+ 16. Food   :CUBE OF SUGAR      18 gold
+ 17. Food   :DOMINOS PIZZA      30 gold
+ 18. Drink  :ORANGE JUICE       20 gold
+ 19. Food   :MELONS             50 gold
+ 20. Food   :APPLES             30 gold
+ 21. Drink  :BOTTLE OF BEER     10 gold
+ 22. Drink  :GOAT'S MILK        40 gold
+ 23. Drink  :SPRING WATER       40 gold
+ 24. Food   :GRANOLA BAR        50 gold
+ 25. Food   :WILD OATS          35 gold
+ 26. Food   :BLUEBERRIES        70 gold
+ 27. Food   :ICE CREAM          45 gold
+ 28. Food   :POPCORN            25 gold
+ 29. Food   :BEANS              60 gold
+ 30. Food   :POTATOES           55 gold
+ 31. Cursed :EMBALMING FLUID    50 gold
+ 32. Food   :BEEF JERKY         30 gold
+ 33. Cursed :POISON APPLE       30 gold
+ 34. Drink  :LEMONADE           50 gold
+ 35. Food   :SALT TABLETS       50 gold
+ 36. Food   :MOUNTAIN OYSTERS   60 gold
+ 37. Drink  :LARGE SLURPY       40 gold
+ 38. Drink  :CAN OF OLY LITE     1 gold
+ 39. Food   :TOMATOES            5 gold
+ 40. Drink  :CACTUS JUICE       10 gold
+ 41. Drink  :BROOK WATER        10 gold
+ 42. Food   :OLD HAMBURGER       1 gold
+ 43. Drink  :GREEN MOONSHINE     1 gold
+ 44. Drink  :RED SERUM           1 gold
+ 45. Food   :BLUE PILL           1 gold
+ 46. Food   :BREAD CRUMB         1 gold
+ 47. Drink  :FOUNTAIN OF YOUTH  10 gold
+ 48. Food   :ANTS               40 gold
+ 49. Food   :GRUBS              40 gold
+ 50. Drink  :CANTEEN OF WATER   40 gold
+ 51. Drink  :POOL OF WATER      50 gold
+ 52. Food   :HAUNCH OF A ZEBRA  40 gold
+ 53. Food   :FRIED FISH         20 gold
+ 54. Food   :SEAWEED            40 gold
+ 55. Food   :KELP               50 gold
+ 56. Food   :SEAGULL EGGS       50 gold
+ 57. Food   :SEAWEED            50 gold
+ 58. Food   :FLYING FISH        50 gold
+ 59. Food   :FLYING FISH        50 gold
+ 60. Food   :DEAD FISH          40 gold
+ 61. Food   :DRIED FIGS         99 gold
+ 62. Food   :DEAD RAT           50 gold
+ 63. Food   :DRIED DATES        80 gold
+ 64. Drink  :CHUNK OF ICE       70 gold
+ 65. Drink  :POTION OF SKILL    50 gold
+ 66. Drink  :VORPAL POTION      50 gold
+ 67. Food   :DEAD BUG           20 gold
+ 68. Drink  :CHARM POTION       50 gold
+ 69. Food   :MONSTER MEAT       25 gold
+ 70. Food   :RED FOOD           90 gold
+ 71. Food   :BLUE FOOD          90 gold
+ 72. Food   :YELLOW FOOD        90 gold
+ 73. Drink  :CLEAR LIQUID       90 gold
+ 74. Drink  :RED LIQUID         90 gold
+ 75. Drink  :GREEN LIQUID       90 gold
+ 76. Cursed :APPLE              50 gold
+ 77. Food   :CORN               99 gold
+ 78. Food   :APPLES             99 gold
+ 79. Food   :GRASS               5 gold
+ 80. Food   :GRASS               5 gold
+ 81. Food   :GRASS               5 gold
+ 82. Food   :OATS               20 gold
+ 83. Food   :BLANK               1 gold
+ 84. Food   :BLANK               1 gold
+ 85. Food   :BLANK               1 gold

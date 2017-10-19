@@ -1,0 +1,27 @@
+
+*^^^^^^^^^*                 *^^^^^^^^^*
+[(^^^^^^^)]  ___  ___  ___  [(^^^^^^^)]
+ |   o   |___| |__| |__| |___|   o   |
+ |                                   |
+ |  The Land of SPUR Commands Menu   |
+ |:::::::::::::::::::::::::::::::::::|
+ |     W: Ye Olde Armory             |
+ |     B: Ye Olde Banker             |
+ |     V: Visit the Wizard           |
+ |     G: General Stores             |
+ |     S: Thy Status                 |
+ |     I: Thy Inventory              |
+ |     E: Enter The Land of SPUR     |
+ |     P: Pawn Shoppe                |
+ |     J: Join (change) Clan         |
+ |     O: Olly's Ammo & Traps Shop   |
+ |SCHOOL: goto school                |
+ |ELEVATOR: goto elevator            |
+ |  LOCKER: goto your locker.        |
+ |:::::::::::::::::::::::::::::::::::|
+ | H:Help w/SPUR    L:List Opponents |
+ | A:Adventure Log  C:Conquerors     |
+ |:::::::::::::::::::::::::::::::::::|
+ | Q:Quit to BBS    T:To Oblivion    |
+ [][][][][][][][][]*[][][][][][][][][]
+

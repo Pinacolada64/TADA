@@ -1,0 +1,60 @@
+JGFNS
+1
+Download the JGsoft File Navigation Scheme Editor from http://www.editpadpro.com/fns.html to create and edit JGsoft File Navigation Schemes
+ACOS source
+*.s
+
+Ryan Sherwood
+sym.rsherwood@gmail.com
+
+7
+This is a quick and dirty file navigation scheme for ACOS, the Advanced Communication Operating System by Lance Warren.
+
+Still needs to exclude PRINT statements.
+ print' this style
+of print statement
+gets categorized as
+a label'
+1
+Layout 1
+1
+Label
+16777215
+12607488
+ACOS labels start at column 0, start with letter, can contain .
+^[a-z]+[a-z\.\d]+
+1
+0
+0
+0
+0
+0
+
+0
+
+
+0
+0
+1
+0
+
+1
+
+1
+\0
+1
+0
+0
+1
+0
+0
+
+10
+
+1
+0
+2
+1
+0
+1
+-1

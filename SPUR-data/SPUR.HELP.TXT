@@ -1,0 +1,45 @@
+      Land of SPUR Help
+
+Ye must accomplish the following to be rated a 'Conqueror' of the LAND:
+
+  1)  Find the Almighty and Omnipotent SPUR and defeat him in battle.
+  2)  Escape from level #1 by finding the LADDER UP.
+
+In addition, ye may be required to:
+
+  1)  Find the MAGIC item required.
+  2)  Attain wealth by acquiring GOLD through your conquests of demons.
+
+Ye  may find clues as to what exactly is required of you scripted in books  or
+scrolls  within  the  LAND.   The challenge set forth is not  an  easy  one... 
+However, there are these commands that ye may use once you enter the dungeon:
+
+LOOK    - Re-describes your current location.
+DROP    - [ITEM] or [WEAPON] that ye are carrying.
+CAST    - To cast a spell that ye have learned from the Wizard.
+GET     - To pick up objects within a room.
+READY   - To prepare a weapon for battle.
+ATTACK  - To attack a monster or another adventurer.
+READ    - To read Books that ye have found.
+WEAR    - To don Armor.
+USE     - To use a Shield or Compass.
+FLEE    - To exit the room in a random direction.
+EAT     - To eat food.
+DRINK   - To drink a liquid.
+EXAMINE - To inspect an object BEFORE GETting it.
+STATS   - To display attributes.
+INV     - To display objects carried, spells known, allies acquired.
+DUEL    - To challenge another adventurer to a battle.
+
+N)ORTH - S)OUTH - E)AST - W)EST - U)P - D)OWN - Move in that direction.
+
+Ye may use single-letter or full-word commands for direction.
+
+Ye  will find it VERY helpful to map the maze.   There are many rooms and many 
+levels.   Along the way you will encounter many demons and monsters.   If  you
+are brave and fight well you will be rewarded for your efforts.
+
+(At the GAMES menu, select option 4:Spur annex, for more help files)
+
+This is all that I shall tell thee...
+

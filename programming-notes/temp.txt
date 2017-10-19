@@ -1,0 +1,91 @@
+0 "module batch d81" 01 3d’
+4    "boot-new"         prg I forget what's "new" about it :P
+4    "boot"             prg load"boot",8
+5    "modbasic c000 v2" prg actually 1.1 ML
+1    "trace 033c"       prg trace util ML
+5    "si 9900"          prg Sliding Input ML
+3    "ml c500"          prg utility ML
+2    "ml c500 - old"    prg same ML, no string param for Input Any
+7    "sas c900"         prg Jeff Jones' "Static Array System"
+							("static-array-sys" is a demo, sort of)
+4    "wrap.reloc"       prg AgentFriday's relocatable word-wrap routine
+117  "t.main"           prg main "kernel" of the game + t.np
+37   "t.np"             prg new player module, mostly works, barfs on writing player record
+16   "t.startup"        prg checks whether new player, other administrivia
+7    "t.make playerlog" prg runs if player log not found
+0    "````` data `````" del 
+10   "e.t.allies"       rel friends you meet along the way
+23   "e.t.messages"     rel message index; consolidates large passages of text
+19   "e.t.monsters"     rel are you a good witch or bad witch?
+42   "e.t.playerlog"    rel where player stats are stored
+18   "old main menu"    seq older arrangement of text
+18   "s.tada main 40"   seq current main menu
+10   "s.t.credits-40"   seq who to blame
+14   "s.t.messages"     seq this is the basis of "e.t.messages"
+9    "s.t.monsterquote" seq this is the basis of "e.t.monsterquotes"
+16   "monsters-numbers" seq monsters, numbered
+15   "monsters"         seq monsters, un-numbered
+4    "editor design"    seq proposed room editor mock-up
+0    "`` installers ``" del 
+59   "make level 7 map" prg A level I created
+15   "make-allies"      prg Create allies list
+11   "make monsters.02" prg Create monster list
+11   "monsterenum.06"   prg Show monster flags
+13   "make messages"    prg Make e.t.messages from s.t.messages
+11   "make monsterqts"  prg Make e.t.monsterquote from s.t.monsterquote
+0    "``` modules ```"  del 
+12   "t.ma.armory"      prg Buy/sell/repair weapons & armor
+25   "t.ma.bank"        prg Deposit/withdraw money so it doesn't get stolen while adventuring
+8    "t.ma.gen-store"   prg General store: Purchase supplies
+2    "t.mount"          prg Mount a horse to CHARGE into battle
+29   "t.stat.basic"     prg RUNnable: displays various things about TADA stats. Some bugs.
+79   "tep"              prg TADA player log editor; mostly for Dungeon Masters but you can peek
+							behind the curtain for now.
+0    "```` tests `````" del 
+8    "bits"             prg display different types of flags, toggle them
+2    "test-params"      prg testing passing null params for module loader
+4    "sliding-input-de" prg sliding input BASIC demo
+5    "sliding-input"    prg sliding input ML
+49   "nova.Text editor" prg text editor from NovaTerm terminal program
+6    "combination"      prg type in a combination at various points in the game
+3    "static-array-sys" prg jeff jones' static array system demo pinahack
+2    "break-handler"    prg yanked from BBS, hit a BRK, *supposed* to display useful info.
+2    "3 bytes"          prg 
+3    "medium-res plott" prg More QPLOT fiddling around
+1    "keyscan-test"     prg Check for ctrl-> or ctrl-<, idea for Sliding Input.
+							Does not quite work in ML.
+1    "hi-lo-byte"       prg 
+3    "read test"        prg 
+8    "nile queen"       prg Typed in from "35 Amazing Games" many years ago
+12   "reader3"          prg Close but no cigar on EOF. Mostly works.
+4    "dir-test"         prg 
+4    "read test 2"      prg 
+4    "read credits"     prg 
+31   "book texts"       seq 
+5    "lightbar-2"       prg 
+2    "app name list"    prg Some
+3    "highlight-bar"    prg CommodoreServer
+13   "v-1541"           prg stuff.
+7    "path"             prg Currently
+11   "drive mgr"        prg under
+5    "list"             prg construction.
+3    "key-test"         prg 
+1    "mem-fill"         prg 
+13   "lightbar-test"    prg 
+7    "rel-file"         prg 
+5    "string-handling"  prg 
+1    "dynamic-keyboard" prg 
+1    "background-color" prg 
+1    "qplot-test"       prg AgentFriday's QPLOT (quarter-square resolution) demo.
+1    "directory"        prg 
+1    "directory-2"      prg 
+4    "instr-null-strin" prg 
+5    "dtoi"             prg Image BBS date manipulation tests
+1    "dumpm"            prg Garbage file; can't remember what it is doing here.
+2    "plus.cm test"     prg Image BBS plus-file
+2    "break2"           prg from Image BBS: hit a BRK, *supposed* to display useful info.
+							Does not work yet.
+3    "groepaz scroll"   prg Code for a smooth (mostly) scroll
+1    "new ml test"      prg New parameter for Input Any code
+1    "new ml test 2"    prg More testing.
+2132 blocks free.

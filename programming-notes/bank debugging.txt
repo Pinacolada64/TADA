@@ -1,0 +1,86 @@
+ Done.
+Putting 5,000 gold in to account.
+Putting 1,000 gold in hand.
+
+[]=-=-=-[ Ye Olde Bank Of TADA ]-=-=-=[]
+
+      In Account:       5,000 gold
+      In Hand   :       1,000 gold
+
+Deposit, Withdraw, or Transfer >> Deposit.
+
+Deposit how much gold into your account:
+
+Return=Leave, All (1,000)? 100
+[217][2855] {assign:sub.check_gold=2855}
+[2855] {assign:sub.check_gold=2855}
+[2850]
+[2850]
+[2830]
+[2830]
+[2830]
+[2850]
+[2855] {assign:sub.check_gold=2855}
+[2855] {assign:sub.check_gold=2855}
+[217]
+[218]
+[218]
+[220]
+[65]
+[66]
+[2830]
+[2830]
+[2830]
+[67]
+[68]
+[69]
+[2835]
+[2835]
+[2835]
+[2836]
+[2836]
+[69]
+[221]
+[2860]
+[2861]
+[2850]
+[2850]
+[2830]
+[2830]
+[2830]
+[2850]
+[2862]
+[2863]
+[2864]
+[2835]
+[2835]
+
+?illegal quantity  error in 2835
+ready.
+
+29/Jan/2016 1:03
+Return Leave, All (1,000
+Transfer how much gold?
+(Aborted.)
+
+[]=-=-=-[ Ye Olde Bank Of TADA ]-=-=-=[]
+
+      In Account:       5,000 gold
+      In Hand   :       1,000 gold
+
+               Deposit
+               Withdraw
+               Transfer
+
+            Return: Leave
+
+       Bank >> Withdraw.
+
+Withdraw how much gold from your account
+?
+Return Leave, All (5,000)? 2000
+
+?illegal quantity  error in 138
+ready.
+
+previously tried to transfer gold to player, but aborted (routine not finished)

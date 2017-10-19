@@ -1,0 +1,54 @@
+TLOS Changelog:
+
+Jun 27, 2011
+
+SPUR.ANNEX.S
+	* Fixed syntax error when asking name of person followed
+	* Working on ROOM.EXPORT.S
+
+SPUR.USE.S
+	* Changed "use3" label to "compass"
+	* shortened PRINT statements in "use4"
+
+May 22, 2012 15:43
+	* Improved SPUR.SYSOP.S player editing functions:
+		+ ED.PLR: aligned columns
+		+ progress indicator "." for searching files
+		+ Corrected A-S prompt to A-V in plr.edit
+		+ Weapon editor displays type, location. Corrected prompts.
+		+ Weapon type isn't 1-9, check for invalid types, note entering "0" creates
+		random type when written to disk
+	* Fix "your" -> "you're" / "dont" -> "don't"
+	* improved labels: "check" -> "check30", "check2" -> "check100", "check4" -> "check.num"
+	+ improved code in check.num
+	
+		* Working on SPUR.ANNEX.S, neatening game info editor
+Subroutines to add:
+	* print "Nothing"
+	* print xn$ "add canceled"
+	* print "[S]ave [R]eturn [A]bort: "
+
+Jun 14, 2012 17:02
+SPUR.SYSOP.S:
+	* improved/mostly bug-fixed [P]layer listing:
+		+ neater columns, headings, etc.
+	* added menu of valid ration types when editing rations:
+		+ f.types
+	* added "edit BBS user ID" function
+
+SPUR.MISC2:
+	* lowercase/uppercase spirit of the dungeon's word
+	* added page-pause for all major file reads
+	
+17/Apr/2016 22:34
+'skip-code' project file (with Skip's updated code):
+
+Improving PRINT statements with "spoken" words, by use of the mutli-line PRINT
+statement. You can PRINT quotes by writing:
+
+PRINT '"Hello," he said.'
+
+qt$=chr$(34) otherwise (q$ is already used in about 35 places.)
+
+Working on:
+SPUR.SHOP.S

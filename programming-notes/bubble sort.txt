@@ -1,0 +1,102 @@
+"... if you're content with a bubble sort algorithm, then consider the
+following short program. It contains everything vital for this subject.".
+
+    The routines that you and Cameron posted will sort a set of numbers, but
+frequently that is not sufficient for the job at hand.  Consider this routine,
+(a bubble-sort), similar to the one that you posted:
+
+>> begin program
+10 poke55,.:poke56,160:clr:n=rnd(.)
+15 n=20:w=1:x=2:dimi,j,t,a(n),b(n)
+20 printchr$(147):fori=wton
+25 t=int(rnd(n)*1000):a(i)=t:b(i)=t
+30 next:fori=xton:forj=wtoi-w
+35 ifa(j)>a(i)then45
+40 t=a(j):a(j)=a(i):a(i)=t
+45 next:next:fori=wton
+50 printi,b(i),a(i):next:print
+>> end program
+
+    The sorted data are in a(i), and the original unsorted data are b(i).  So
+line 50 print three columns of numbers, 1 to 20, the unsorted numbers, and the
+sorted numbers.  But suppose that you were a techer, and had twenty students
+in a class.  The students had the unusual names of 1, 2, 3, ..., 20.  If the
+data were the students' test scores, the program display might show that 920
+was the highest score.  But who got that score?
+
+    You could check the middle column, looking for 920.  If you saw that that
+number corresponded to 18 in the left column, you would know that student 18
+had that score.  But it would not be that simple if there were hundreds or
+thousands of numbers in the set.  That is why I always use a different form of
+a sort routine (whether it be a quicksort, Shell sort, Comb sort, etc.).  That
+is the form that I posted to the poster of the original article.  Here is a
+modification of the above C-64 BASIC program:
+
+>> begin program
+10 poke55,.:poke56,160:clr:n=rnd(.)
+15 n=20:w=1:x=2:dimi,j,t,a(n),b(n)
+20 printchr$(147):fori=wton
+25 a(i)=int(rnd(n)*1000):b(i)=i:next
+30 fori=xton:forj=wtoi-w
+35 ifa(b(j))>a(b(i))then45
+40 t=b(j):b(j)=b(i):b(i)=t
+45 next:next:fori=wton
+50 printi,a(i),a(b(i)),b(i):next:print
+>> end program
+
+    The program defines b(i); a(i) (the original data) is not changed.  For i
+from 1 to 20, b(i) gives the arguments of a(i) that sort the data in
+descending order.  So line 50 prints four columns.  In the first column are 1
+to 20.  In the next, the original data for arguments 1 to 20.  In the third,
+the sorted data.  In the last column, the number in any row is the argument to
+be used for the original data to return the value in the third column of that
+row.  So in row 8, if the number in the third row is 500 (the eighth highest
+score), and the number in the fourth row is 12, the student named "12" got
+that score.
+
+-- 
+When backing up your hard drive, shift into reverse gear S M O O T H L Y.
+
+                      John
+
+... if you're content with a bubble sort algorithm, then consider the following
+short program. It contains everything vital for this subject.
+
+    100 REM ** CREATE N RANDOM NUMBERS **
+    110 N=25
+    120 DIM F(N)
+    130 FOR I=0 TO N-1
+    140 F(I)=INT(RND(0)*1000)
+    150 NEXT
+    160 REM ** OUTPUT THE UNSORTED ARRAY **
+    170 GOSUB 310
+    180 REM ** APPLYING BUBBLE SORT **
+    190 FOR I=0 TO N-1
+    200 FOR J=0 TO I-1
+    210 IF F(J)>F(I) GOTO 250
+    220 X=F(J)
+    230 F(J)=F(I)
+    240 F(I)=X
+    250 NEXT
+    260 NEXT
+    270 REM ** OUTPUT THE SORTED ARRAY **
+    280 GOSUB 310
+    290 END
+    300 REM ** OUTPUT THE ARRAY **
+    310 FOR I=0 TO N-1
+    320 PRINT F(I);
+    330 NEXT
+    340 PRINT
+    350 RETURN
+
+This program will create N random numbers between 0 and 999 and print out the
+array of numbers two times. The first time it will be unsorted and the second
+time, it will be sorted in descending order.
+
+Note that bubble sort is not the best sorting algorithm at all. In fact, it's
+the worst of all, but it shows how things can be done. If I was you, I wouldn't
+assign N a too big number such as 100 or so because it takes too long. ;-) But
+it's fine with 25 for demonstration purposes.
+
+Note that you can change the sorting order from descending to ascending, if you
+change the greater-than (">") in line 210 to a less-than ("<").
