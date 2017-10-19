@@ -1,0 +1,136 @@
+{number:1}
+	rem T.MA.OLLY
+'	updated 7/26/2006, 6/24/2007
+{def:standalone}
+{ifdef:standalone}
+' ct is for the "spinning cursor" routine
+	a$="":i%=.:ct=1
+	fl$="[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]"
+	def fn r(x)=int(rnd(1)*x)+1
+
+	k$="Return":q$=chr$(34):r$=chr$(13)
+	a$(0)="LARI'EL"
+{endif}
+	goto {:start}
+
+' fancy cursor + search
+{:200}
+	print " (Searching...) ";
+	gosub {:msg.spacebar_aborts}
+' the goal here is to spin the cursor while it's searching...
+{:205}
+	if a/4=int(a/4) then ct=ct+1:print mid$("{$ae}{$bd}{$ad}{$b0}",ct,1)"{left}";:if ct=5 then ct=1
+	gosub {:sub.check_abort}:if q then y=mx+2:print" ":return
+	gosub {:300}:sys is,y$,"{pipe}":if i%=. then return
+' weapons/ammo must have pipe after name
+	x=x+1:if x<mx+1 then {:205}
+
+{:220}
+	print" "r$" (Done.)":return
+
+{:300}
+' get data
+	gosub {:record_pointer}(x):input# 2,x$:input# 2,y$:input# 2,z$:gosub {:check.io_status}:if e then print fn cl(0);a$
+	return
+
+{:608}
+	print right$("   "+mid$(str$(x%),2),p%);:return
+
+{nice:100}
+' kick it off
+{:start}
+	print"{clear}{$08}{$0e}Olly greets you, "q$"Welcome, "a$(.)"!"
+	print"Choose from this fine list of ammunition and stuff."q$
+	gosub {:sub.file_open}("e.t.items"):if e then print a$:goto {:998}
+	gosub {:record_pointer}(1):input# 2,a$:mx=val(a$) ' max # of items
+	x=98 ' start here
+{:625}
+	print r$"[]=-=-=-=-=-=-[ Olly's! ]-=-=-=-=-=-=[]
+	print"### Name          Rd D Weapon      Gold
+	print"{$78:3} {$6e:13} {$72:2} D {$77:11} {$67:4}
+{:635}
+	x=x+1:gosub {:200}:if x=mx+2 then print fn cl(0)"end of list":goto {:998}
+	j%=i%:if mid$(y$,i%+1,1)="*" then {:650} ' ammo carriers
+	print"{up}":p%=3:x%=x+1:gosub {:608}:print" ";
+	print left$(mid$(y$,3,j%-3)+"             ",14);
+	p%=2:x%=val(mid$(y$,j%+1,2)):gosub {:608}:print" ";
+	p%=1:x%=val(mid$(y$,j%+3,1)):gosub {:608}:print" ";
+	print left$(mid$(y$,j%+4)+"            ",12);
+	p%=4:x%=val(z$):gosub {:608}:print:goto {:635}
+{:650}
+	print"{up}"r$"[]=-=-=-=-=[ Ammo Carriers ]=-=-=-=-=[]"
+{ifdef:debug}
+	print"y$="y$
+{endif}
+	p%=3:x%=x+1:gosub {:608}:print" "mid$(y$,3,j%-2)
+	goto {:998}:rem gosub 300
+	x%=y:gosub {:608}:print" "tt$(1)tab(20)tt$(2)tab(37):x%=val(tt$(3)):gosub {:608}
+	print
+
+' 5/Mar/2016 10:21 - just thinking, this is repeated a LOT:
+'	get an$:if an$=" "then y=mx:gosub {:msg.aborted}
+' instead, wouldn't it be nice to do:
+	gosub {:sub.check_abort}:if q then y=mx
+
+	next:print fl$
+{:675}
+	sys br,r$+"[?] List, [B]ooby Traps, [1-"+mid$(str$(mx),2)+"] Buy, ["+k$+"]=Leave"+r$+nl$
+	print r$"[";:gosub {:sub.show_gold}(1,0):print " gold] Speak, "a$(.);:an$="":sys si,2,3,an$:if an$="" then {:700}
+	gosub {:string.normalize}(an$)
+	on -(an$="?")-2*(an$="b")-3*(an<>.) goto {:625},{:750},{:705}
+{:710}
+	print r$"Olly breaks into a grin. "q$"Dare to be ";
+	print "different, eh, "a$(.)"?"q$:goto {:675}
+{:700}
+	print r$q$"Catch you latah!"q$:goto {:998}
+{:705}
+' increment selection by 1 to skip past ammo count record #1:
+	gosub {:string.normalize}(an$):if x>. and x<=mx then x=x+1:gosub {:record_pointer}(x)
+{:720}
+' fixme: ac is not defined
+	d=5:j=x:if j=>ac then d=3
+' get either 3 or 5 pieces of info:
+	for x=1 to d:input# 2,tt$(x):next
+' check whether character can afford it:
+	gosub {:sub.check_gold}(1,val(tt$(x-1))):if s then {:740}
+{:730}
+	print r$q$"I don't think you have quite that much gold, "a$(.)"..."q$
+	goto {:675}
+{:740}
+	print q$"Okay, you bought the "tt$(1)" for ";:gosub {:sub.p"gold."q$:gp(.)=gp(.)-p
+' todo: add to inventory
+	goto {:675}
+{:750}
+	print
+	print "You go to the Booby Trap display..."
+	print
+	print q$"Ahh, note this selection of the finest
+	print "traps!"q$" beams Olly. "q$"For you, only 200
+	print "gold apiece! Each comes with its own
+	print "secret disarm code. Bury one of these
+	sys br,"babies with the [DIG] command, and it'll"+r$+nl$
+	print "discourage people from digging up your
+	print "gold and other valuables!"q$
+	print
+	print "Cost: 200 gold. Purchase Booby Trap."
+	print "Disarm code [A-I] >> ";
+{:795}
+	gosub {:sub.cursor_get}:if an$<>r$ then {:805}
+	print "Leave.":print
+	sys br,"Olly tries not to look [too] disapointed"+r$+nl$
+	print "that you didn't buy something.":goto {:675}
+{:805}
+' convert letter to a value, 1-8
+	j=asc(an$)-64:if j<. or j>9 then {:795}
+	print an$"."
+{:815}
+	gosub {:sub.adj_gold}(1,-200):if s=. then {:730}
+' todo: add to inventory
+	print q$"Bought! Remember to write down your"
+	print"disarm code! You wouldn't want to get"
+	print"hurt getting into your own stuff!"q$
+	goto {:675}
+{number:998}
+{:998}
+	gosub {:1067}("shoppe","")
+	REM T.MA.OLLY

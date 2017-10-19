@@ -1,0 +1,65 @@
+' testing modbasic local variables
+
+' note: integer variables not supported as local variables!
+
+{alpha:invert}
+{crunch:off}
+{number:1}
+	poke 53280,0:poke 53281,0
+	if peek(49152)=76 then {:start}
+	dr$="0:" ' drive #
+	dv=peek(186):if dv<8 then dv=8
+	q$=chr$(34)
+	f$="lv.c000":print"Loading "q$f$q$"... ";:poke 147,.:sys 57812 dr$+f$,dv,1:poke 780,.:sys 65493:a=peek(780):c=peek(783) and 1:if c=1 and a=5 then print"{lt. red}File not found.{gray3}":goto {:1811}
+	if c=1 then print"{lt. red}Load error!{gray3}":goto {:1811}
+	print "{lt. green}OK.{gray3}"
+
+{nice:10}
+{:start}
+	sys 49152 ' initialize modbasic
+
+	gosub {:sub.print_delay}(10,"demo of listing items:")
+	gosub {:sub.pause}(10)
+	print	' new line after print_delay
+	for x=1 to 10
+	gosub {:sub.list}(x,2,"item"+str$(x))
+'	gosub {:sub.pause}(60-x*5) ' each list item displays more quickly than the last
+	next
+
+{nice:10}	
+{:1811}
+	end
+
+{nice:100}	
+
+{:sub.list}
+	fn n,w,m$	' function prototype
+				' n : 1-999 number of item to display
+				'		(should be global since it's incremented)
+				' w : 1-3	(width of n, how many digits/spaces to print)
+				' m$: string to be printed
+
+'	def w,m$	' local vars
+	print right$("  "+str$(n),w)". - "m$:return
+
+{nice:10}
+
+{:sub.print_delay}
+	fn d,m$		' function prototype 
+				' d:  delay factor in jiffies (60=1 second)
+				' m$: message to print
+
+	def x		' local vars
+	for x=1 to len(m$):print mid$(m$,x,1);:gosub {:sub.pause}(d):next:return
+
+{nice:10}
+{:sub.pause}
+	fn d	' function prototype
+			' d=delay in jiffies
+			' (d is passed from sub.print_delay)
+
+	def t	' local vars
+	t=ti
+{:sub.pause.2}
+	if ti<t+d then {:sub.pause.2}
+	return

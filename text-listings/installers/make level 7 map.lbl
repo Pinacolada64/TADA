@@ -1,0 +1,503 @@
+{number:1}
+' number of rooms on map with descs written (full # is 365)
+	data 224
+	data 0,2,18,0,0,0,"FOREST
+	data 0,3,19,1,0,0,"FOREST
+	data 0,4,20,2,0,0,"FOREST
+	data 0,5,21,3,0,0,"FOREST
+	data 0,0,22,4,252,0,"FOREST
+	data 0,0,24,0,0,0,"TREASURE ROOM
+	data 0,0,25,0,0,0,"STUDY
+	data 0,9,0,0,0,0,"PANTRY
+	data 0,10,0,9,0,0,"KITCHEN
+	data 0,11,28,10,0,0,"WEST DINING HALL
+	data 0,0,0,11,0,0,"EAST DINING HALL
+	data 0,0,30,0,0,0,"BEDCHAMBER
+	data 0,14,31,0,0,0,"TOWER NW
+	data 0,0,32,13,0,0,"TOWER NE
+	data 0,15,0,0,0,0,"PRECIPICE
+	data 0,17,0,0,15,0,"STONE STEPS
+	data 0,0,35,16,0,0,"ETTINSMOOR
+	data 1,0,41,0,0,0,"FOREST
+	data 2,0,42,0,0,0,"FOREST GLEN
+	data 3,0,43,0,0,0,"CLEARING
+	data 4,0,44,0,0,0,"FOREST
+	data 5,23,45,0,85,0,"CLEARING
+	data 0,0,0,22,0,0,"FENCE
+	data 6,25,47,0,0,0,"END OF CORRIDOR
+	data 7,26,0,24,0,0,"CORRIDOR
+	data 0,27,0,25,0,0,"CORRIDOR
+	data 0,28,50,26,0,0,"GREAT HALL
+	data 10,29,0,27,0,0,"CORRIDOR
+	data 0,30,0,28,0,0,"CORRIDOR
+	data 12,0,0,29,31,0,"CORRIDOR
+	data 13,32,0,0,0,30,"TOWER SW
+	data 14,0,0,31,0,0,"TOWER SE
+	data 0,34,58,0,0,0,"WATZ UPP DOCK
+	data 0,35,0,33,0,0,"RIVER SHRIBBLE
+	data 17,36,60,34,0,0,"WATERSMEET
+	data 0,37,0,35,0,0,"NARROW RIVER
+	data 0,38,61,36,0,0,"THE CAY
+	data 0,39,0,37,0,0,"RIVER
+	data 0,40,0,38,0,0,"RUSHING RIVER
+	data 0,0,0,39,0,0,"ARAGAIN FALLS
+	data 18,0,0,0,0,0,"FOREST
+	data 19,0,63,0,0,0,"SHADY PATH
+	data 20,0,0,0,0,0,"FOREST
+	data 21,45,0,0,0,0,"FOREST
+	data 22,0,66,44,46,0,"CLEARING
+	data 0,0,0,0,0,45,"ROC'S NEST
+	data 24,48,0,0,0,0,"DRAFTY ROOM
+	data 0,49,0,47,0,0,"SECRET PASSAGE
+	data 0,0,0,48,0,0,"STORAGE ROOM
+	data 27,51,70,0,0,0,"FOUNTAIN COURT
+	data 0,52,0,50,0,0,"MIDDLE OF HALLWAY
+	data 0,53,0,51,0,0,"WAITING ROOM
+	data 0,0,0,52,0,0,"OFFICE
+	data 0,0,74,0,0,0,"BOILING WELL
+	data 0,56,75,0,0,0,"GUEST QUARTERS W
+	data 0,0,0,55,0,0,"GUEST QUARTERS E
+	data 0,0,77,0,0,0,"STONE CHAMBER
+	data 33,0,78,0,0,0,"PEBBLE BEACH
+	data 0,60,79,0,0,0,"WINDING TRAIL
+	data 35,0,0,59,0,0,"WINDING TRAIL
+	data 37,0,82,0,0,0,"INLET
+	data 0,0,0,0,63,0,"MERCHANT'S ANNEX
+	data 42,64,86,0,0,62,"AUTODUEL SQUARE
+	data 0,65,87,63,0,0,"WATERFRONT VIEW
+	data 0,66,0,64,0,0,"LAKE VIEW
+	data 45,67,0,65,0,0,"HILL TOP
+	data 0,68,0,66,0,0,"WASHED OUT CANYON
+	data 0,69,0,67,0,0,"BOX CANYON
+	data 0,0,91,68,0,0,"CANYON
+	data 50,0,92,0,0,0,"IN FRONT OF MOAT
+	data 0,72,0,0,0,0,"HILL VALLEY
+	data 0,73,94,71,0,0,"TWIN PINES
+	data 0,0,93,72,0,0,"BADGER'S BURROW
+	data 54,0,96,0,0,0,"HUMMINGBIRD CHAMBER
+	data 55,0,97,0,0,0,"HALL
+	data 0,0,98,0,0,0,"POOL
+	data 57,0,99,0,0,0,"PRIESTESS CHAMBER
+	data 0,0,0,0,58,0,"DRAGON DROP
+	data 59,80,100,0,0,0,"CAVE MOUTH
+	data 0,0,0,79,0,0,"UNDERGROUND RIVER
+	data 0,82,0,0,0,0,"OLD BRIDGE
+	data 61,0,0,81,0,0,"SUBTERRANEAN CAVERNS
+	data 0,84,0,0,0,0,"THE BROKEN LANDS
+	data 0,0,101,83,0,0,"OGRE'S LAIR
+	data 0,0,0,0,0,22,"IN TALL TREE
+	data 63,0,102,0,0,0,"LONELY PATH
+	data 64,88,0,0,0,0,"DOCK
+	data 0,89,0,87,0,0,"LAKE
+	data 104,90,0,88,105,0,"OLD HOUSE
+	data 0,0,0,89,0,227,"LIVING ROOM
+	data 69,0,91,0,0,0,"CANYON
+	data 70,0,108,0,0,0,"TELMARINE HILLS
+	data 0,0,109,0,0,0,"CAVE
+	data 72,95,110,0,0,0,"HILLTOP
+	data 0,0,111,94,0,0,"LONG TUNNEL
+	data 74,97,0,0,0,0,"PRIVATE ALTAR
+	data 75,98,113,96,0,0,"HALL
+	data 76,0,0,97,0,0,"MINERAL CRUSTS
+	data 77,0,115,0,0,0,"PRIEST CHAMBER
+	data 79,0,116,0,226,0,"CASTLE CATACOMBS
+	data 84,0,117,0,0,0,"STEEP PATH
+	data 86,0103,0,0,0,0,"NARROW PATH
+	data 0,0,118,102,0,0,"STONE PLATFORM
+	data 0,0,0,0,89,0,"BASEMENT
+	data 0,0,0,0,0,89,"UPSTAIRS
+	data 91,107,122,0,0,0,"CANYON
+	data 0,108,0,106,0,0,"TRONDHEIM
+	data 92,0,0,107,0,0,"SHADOWLANDS
+	data 93,110,0,0,0,0,"ROCKHOME
+	data 94,111,0,109,0,0,"GRAVEL PILE
+	data 95,0,241,110,0,0,"IN THE OPEN
+	data 0,113,0,0,0,0,"LIBRARY
+	data 97,114,0,112,0,0,"HALL
+	data 0,115,0,113,0,0,"HALL
+	data 99,0,0,114,0,119,"ENTRANCE
+	data 100,0,132,0,0,0,"STONE STAIRS
+	data 101,0,138,0,0,0,"STEEP PATH
+	data 103,0,140,0,0,0,"FOYER
+	data 0,120,0,115,0,0,"ANTEROOM
+	data 0,0,0,119,0,121,"HALLWAY
+	data 0,0,0,0,120,143,"LANDING
+	data 106,0,144,0,0,0,"CANYON
+	data 0,0,146,0,0,0,"GRAIN STORAGE
+	data 0,0,0,0,0,125,"INN
+	data 0,0,148,0,124,0,"LANDING
+	data 0,127,149,0,0,0,"RUTTED ALLEY
+	data 0,128,0,126,0,0,"SLUMS
+	data 0,129,0,127,0,0,"SLUMS
+	data 0,130,0,128,0,0,"SLUMS
+	data 0,0,0,129,0,0,"SLUMS
+	data 0,132,0,0,0,0,"DEEP CREVICE
+	data 116,133,155,131,0,0,"SINKHOLE
+	data 0,134,0,132,0,0,"GUARDIANS' LAIR
+	data 0,135,156,133,0,0,"OLD WALLS
+	data 0,136,0,134,0,0,"SLOPING PASSAGEWAY
+	data 0,137,0,135,0,0,"FLOODED ROOM
+	data 0,138,0,136,0,0,"DAMP ROOM
+	data 117,0,0,137,0,0,"GARGOYLE'S LAIR
+	data 0,0,161,0,0,0,"CEMETERY
+	data 118,0,162,0,0,0,"HALL
+	data 0,142,163,0,0,0,"FIRE PIT
+	data 0,0,164,141,0,0,"ALTAR
+	data 0,0,165,0,143,0,"WALKWAY
+	data 122,0,166,0,0,0,"GULLY
+	data 0,146,0,0,0,0,"STABLES
+	data 123,0,168,145,0,0,"STABLES
+	data 223,0,169,0,0,0,"ALCOVE
+	data 125,0,170,0,0,0,"MUSIC CLUB
+	data 126,150,171,0,0,0,"YELLOW BRICK ROADWAY
+	data 0,151,0,149,0,0,"ARTISAN'S DISTRICT
+	data 0,152,0,150,0,0,"ARTISAN'S DISTRICT
+	data 0,153,0,151,0,0,"ARTISAN'S DISTRICT
+	data 0,0,0,152,0,0,"ARTISAN'S DISTRICT
+	data 0,155,176,0,0,0,"NARROW PASSAGEWAY
+	data 132,0,0,154,0,0,"NARROW PASSAGEWAY
+	data 134,157,0,0,0,0,"GOLD VEIN
+	data 0,158,0,156,0,0,"GOLD VEIN
+	data 0,159,0,157,0,0,"GOLD VEIN
+	data 0,0,0,158,0,0,"ROCK FACE
+	data 0,0,177,0,0,0,"CAVE-IN
+	data 139,162,0,0,0,0,"ENTRANCE
+	data 140,163,180,161,0,0,"PAVILION
+	data 141,164,0,162,0,0,UN-NAMED ROOM
+	data 142,0,0,163,0,0,"MIRROR ROOM
+	data 143,0,0,0,0,183,"WALKWAY
+	data 144,167,0,0,0,0,"RAVINE
+	data 0,168,0,166,0,0,"GREAT GATE
+	data 146,169,186,167,0,0,"TOWN SQUARE
+	data 147,170,0,168,0,0,"MARKETPLACE
+	data 148,171,187,169,0,0,"PALACE GARDENS
+	data 149,0,188,170,0,0,"OPEN-AIR PAVILION
+	data 0,173,189,0,0,0,"HALL
+	data 0,174,0,172,0,0,"HALL
+	data 0,175,0,173,0,0,"HALL
+	data 0,0,192,174,0,0,"HALL
+	data 154,0,193,0,0,0,"NARROW PASSAGE
+	data 160,0,200,0,0,0,"DIM PASSAGE
+	data 0,179,0,0,0,0,"TOOL SHED
+	data 0,0,0,178,202,0,"SHACK
+	data 162,0,0,0,181,0,"BALCONY
+	data 0,182,0,0,0,180,"WALKWAY
+	data 0,0,0,181,183,0,"WALKWAY
+	data 0,0,0,182,165,0,"LANDING
+	data 0,0,207,0,0,0,"ALTAR AND DAIS
+	data 0,186,209,0,0,0,"NW TEMPLE OF MARTENS
+	data 168,0,186,185,0,0,"NE TEMPLE OF MARTENS
+	data 170,0,212,0,0,0,"MANSION
+	data 171,189,213,0,0,0,"COURTYARD
+	data 172,0,0,188,0,0,"ANTE ROOM
+	data 0,191,0,0,0,0,"KING'S BEDCHAMBER
+	data 0,192,0,190,0,0,"HALL
+	data 175,0,0,191,0,0,"HALL
+	data 176,194,0,0,0,0,"COBBLE CRAWL
+	data 0,195,0,193,0,0,"CROCODILE POOL
+	data 0,196,0,194,0,0,"OYSTER ROOM
+	data 0,197,0,195,0,0,"MUD POTS
+	data 0,198,0,196,0,0,"MINERAL SPRINGS
+	data 0,199,0,197,0,0,"RAT LAIR
+	data 0,200,0,198,0,0,"RUBBLE
+	data 177,0,0,199,0,0,"RUBBLE
+	data 0,202,0,0,218,0,"ICE CAVES
+	data 179,0,0,201,219,203,"SNOWY TRAIL
+	data 0,0,220,0,202,0,"SNOWY TRAIL
+	data 0,0,0,0,0,307,"FLUME
+	data 0,0,0,0,0,204,"FLUME
+	data 0,207,0,0,0,0,"CONFESSIONAL
+	data 184,208,223,206,0,0,"CHAPEL
+	data 0,0,0,207,0,0,"STORE ROOM
+	data 185,210,0,0,0,0,"SW TEMPLE OF MARTENS
+	data 186,0,0,209,0,0,"SE TEMPLE OF MARTENS
+	data 0,212,0,0,0,0,"LIVING QUARTERS
+	data 187,0,0,211,0,0,"LANDING
+	data 188,214,0,0,0,0,"RECEPTION AREA
+	data 0,215,226,213,0,0,"HALLWAY
+	data 0,216,0,214,0,0,"HALLWAY
+' fixme:
+	data 0,217,0,215,0,0,"UN-NAMED ROOM
+	data 0,0,0,216,0,0,"THRONE ROOM
+	data 201,0,0,0,0,0,"GLACIER PEAK
+	data 0,0,0,0,0,202,"SUMMIT
+	data 203,221,0,0,0,0,"SLUICE GATES
+	data 0,222,0,0,220,0,"FLUME
+	data 0,0,0,0,205,0,"FLUME
+	data 207,0,147,0,0,0,"COURTYARD
+	data 0,0,237,66,0,0,"WELL
+	data 0,226,239,0,0,0,"WINE CELLAR
+	data 214,0,0,225,0,100,"DUSTY ROOM
+	data 0,228,242,0,90,0,"MAZE
+	data 0,229,0,227,0,0,"MAZE
+	data 0,230,244,228,0,0,"MAZE
+	data 0,231,0,229,0,0,"MAZE
+	data 0,0,246,230,0,0,"MAZE
+	data 0,233,0,0,0,0,"MAZE
+	data 0,234,0,232,0,0,"MAZE
+	data 0,235,0,233,0,0,"MAZE
+	data 0,0,250,234,0,0,"MAZE
+	data 0,0,251,0,0,0,"MAZE
+	data 224,238,0,0,0,0,"TOP OF HILL
+	data 0,239,0,237,0,0,"GENTLE SLOPE
+	data 0,240,0,238,0,0,"BASE OF HILL
+	data 0,0,255,239,0,0,"ROCKY RIDGE
+	data 0,0,0,0,256,111,"GREAT LEAP
+	data 227,0,258,0,0,0,"MAZE
+	data 0,0,259,0,0,0,"MAZE
+	data 229,0,0,0,0,0,"MAZE
+	data 0,0,261,0,0,0,"MAZE
+	data 231,0,262,0,0,0,"MAZE
+	data 0,248,263,0,0,0,"MAZE
+	data 0,249,0,257,0,0,"MAZE
+	data 0,0,0,248,0,0,"MAZE
+	data 235,0,266,0,0,0,"MAZE
+	data 236,0,267,0,0,0,"MAZE
+	data 0,253,0,0,5,0,"PHANATON SETTLEMENT
+	data 0,0,269,252,0,0,"PHANATON SETTLEMENT
+	data 0,0,270,0,0,0,"PHANATON SETTLEMENT
+	data 240,0,271,0,0,0,"WINDY GORGE
+	data 241,0,272,0,0,0,"WHISPERING FALLS
+	data 0,0,274,0,203,0,"BASE OF MOUNTAIN
+	data 242,259,276,0,0,0,"MAZE
+	data 243,260,0,258,0,0,"MAZE
+	data 0,261,0,259,0,0,"MAZE
+	data 245,0,0,260,0,0,"MAZE
+	data 246,0,280,0,0,0,"MAZE
+	data 247,0,281,0,0,0,"MAZE
+	data 0,0,282,0,0,0,"MAZE
+	data 0,266,283,0,0,0,"MAZE
+	data 250,0,0,265,0,0,"MAZE
+	data 251,0,285,0,0,0,"MAZE
+	data 0,269,0,0,0,0,"PHANATON SETTLEMENT
+	data 253,270,0,268,0,0,"PHANATON SETTLEMENT
+	data 254,0,0,269,0,0,"PHANATON SETTLEMENT
+	data 255,0,287,0,0,0,"WINDY GORGE
+	data 256,0,288,0,0,0,"GREAT WOODS
+	data 0,0,0,0,289,274,"ROCKY TRAIL
+	data 257,275,290,0,273,0,"CREVASSE
+	data 0,0,291,274,0,0,"CHASM
+	data 258,0,293,0,0,0,"MAZE
+	data 0,278,294,0,0,0,"MAZE
+	data 0,279,295,277,0,0,"MAZE
+	data 0,280,296,278,0,0,"MAZE
+	data 262,0,0,279,0,0,"MAZE
+	data 263,0,298,0,0,0,"MAZE
+	data 264,283,0,0,0,0,"MAZE
+	data 265,0,300,282,0,0,"MAZE
+	data 0,285,301,0,0,0,"MAZE
+	data 267,0,0,284,0,0,"MAZE
+	data 0,0,303,0,0,0,"CAVERN WELL
+	data 271,288,304,0,0,0,"FIST HQ
+	data 272,289,305,287,0,0,"PATTERTWIG BLUFF
+	data 0,0,0,288,0,274,"SCRAMBLE DOWN
+	data 274,0,0,0,0,0,"PRECIPICE
+	data 275,292,0,0,0,0,"PLATEAU
+	data 0,0,0,291,0,0,"BAR
+	data 276,0,308,0,0,0,"MAZE
+	data 277,0,309,0,0,0,"MAZE
+	data 278,296,0,0,0,0,"MAZE
+	data 279,0,0,295,0,0,"MAZE
+	data 0,298,312,0,0,0,"MAZE
+	data 281,299,313,297,0,0,"MAZE
+	data 0,0,0,298,0,0,"MAZE
+	data 283,0,315,0,0,0,"MAZE
+	data 284,0,316,0,0,0,"MAZE
+	data 0,0,317,0,0,0,"MAZE
+	data 286,304,318,0,0,0,"CAVERN LEDGE
+	data 287,0,0,303,0,0,"CAVERN ENTRANCE
+	data 288,0,0,0,0,0,"CANYON OVERLOOK
+	data 0,307,321,0,0,0,"RIVER
+	data 0,0,0,306,0,0,"RIVER
+	data 293,0,322,0,0,0,"MAZE
+	data 294,310,0,0,0,0,"MAZE
+	data 0,311,324,309,0,0,"MAZE
+	data 0,312,0,310,0,0,"MAZE
+	data 297,0,326,311,0,0,"MAZE
+	data 298,314,0,0,0,0,"MAZE
+	data 0,0,328,313,0,0,"MAZE
+	data 300,0,329,0,0,0,"MAZE
+	data 301,317,0,0,0,0,"MAZE
+	data 302,0,331,316,0,0,"MAZE
+	data 303,0,0,0,0,0,"CAVERN AMPHITHEATRE
+	data 0,320,334,0,0,0,"WHIRLPOOL
+	data 0,321,335,319,0,0,"RIVER
+	data 305,0,0,320,0,0,"RIVER
+	data 308,323,336,0,0,0,"MAZE
+	data 0,0,0,322,0,0,"MAZE
+	data 310,0,338,0,0,0,"MAZE
+	data 0,0,339,0,0,0,"MAZE
+	data 312,0,340,0,0,0,"MAZE
+	data 0,328,341,0,0,0,"MAZE
+	data 314,0,0,327,0,0,"MAZE
+	data 315,0,343,0,0,0,"MAZE
+	data 0,331,344,0,0,0,"MAZE
+	data 317,0,0,330,0,0,"MAZE
+	data 0,0,0,0,40,0,"ARAGAIN FALLS
+	data 0,334,0,332,0,0,"RAPIDS
+	data 319,335,0,333,0,0,"RAPIDS
+	data 320,0,0,334,0,0,"RIVER BEND
+	data 322,0,346,0,0,0,"MAZE
+	data 0,338,0,0,0,0,"MAZE
+	data 324,339,0,337,0,0,"MAZE
+	data 325,0,0,338,0,0,"MAZE
+	data 326,0,350,0,0,0,"MAZE
+	data 327,342,0,0,0,0,"MAZE
+	data 0,0,352,341,0,0,"MAZE
+	data 329,0,353,0,0,0,"MAZE
+	data 330,345,0,0,0,0,"MAZE
+	data 0,0,355,344,0,0,"MAZE
+	data 336,347,356,0,0,0,"MAZE
+	data 0,348,0,346,0,0,"MAZE
+	data 0,349,0,348,0,0,"MAZE
+	data 0,350,0,348,0,0,"MAZE
+	data 340,0,0,349,0,0,"MAZE
+	data 0,352,361,0,0,0,"MAZE
+	data 342,0,0,351,0,0,"MAZE
+	data 343,354,363,0,0,0,"MAZE
+	data 0,355,364,353,0,0,"MAZE
+	data 345,0,0,354,0,0,"MAZE
+	data 346,0,0,0,0,0,"MAZE
+	data 0,358,0,0,0,0,"MAZE
+	data 0,359,0,357,0,0,"MAZE
+	data 0,360,0,358,0,0,"MAZE
+	data 0,361,0,359,0,0,"MAZE
+	data 351,362,0,360,0,0,"MAZE
+	data 0,363,0,362,0,0,"MAZE
+	data 353,0,0,362,0,0,"MAZE
+	data 354,365,0,0,0,0,"MAZE
+	data 0,33,0,364,0,0,"MAZE
+	goto {:400}
+' DATA IS NORTH, EAST, SOUTH, WEST, UP, DOWN, ROOM NAME
+{nice:100}
+{:400}
+	poke 53280,12:poke 53281,12:print "{clear}{$08}";
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+'	f$="ml c500"
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+
+	l%=.:lv=1:a=96:for x=1 to a:d1$=d1$+nl$:next
+	open 15,dv,15:restore:read ro ' ro=# of rooms
+	print"TADA Map Level"lv"installer v1.2"
+	print
+	print"1) Check for data errors"
+	print"2) Install"
+	print"3) Quit"
+	print
+{:menu}
+	input"Choice";an$
+	on an goto {:option_1},{:option_2},{:1811}:goto {:menu}
+
+{:option_1}
+	print "Hit any key to pause/resume"
+	restore:read mx:print mx"rooms"
+	for x=1 to mx:read y,y,y,y,y,y,x$:l=len(x$):print x;x$:if l>m then m=l
+' wait until key is hit to pause. wait until another key is hit. clear keyboard buffer.
+	wait 198,1,1:poke 198,0
+	next:print "Longest room name:"m:next:goto {:menu}
+
+{:option_2}
+	print"      room number"
+	print"{midline:5}"
+	print"      best record length"
+	for x=1 to ro:read y,y,y,y,y,y,x$:z=len(x$)
+	if z>l% then l%=z
+' image bbs uses {pound}#5{pound}%l
+	print"{up:3}"right$("    "+mid$(str$(x),2),5):print
+	print right$("    "+mid$(str$(l%),2),5):next
+	print"+"right$("   "+mid$(str$(a),2),4)" additional data bytes per record"
+	l%=l%+a:print "{midline:5}":print right$("    "+mid$(str$(l%),2),5)" total":print:print
+	dr=3:a$="e.t.roomindex"+str$(lv):print# 15,"r"dr$a$"="a$:gosub {:check.io_status}
+	close 2:if e=63 then gosub {:900}:if a=. then {:620} ' was 1811
+	x=ro*l%:print x"bytes,";:x%=x/254:print x%"blocks.
+	print"Checking blocks free...";:gosub {:1081}:if a>=x%then print" OK":goto {:475}
+	print r$"{up}{rvrs on} BF warning {rvrs off} - Aborted.":goto {:920}
+{:475}
+	a$="e.t.roomindex"+str$(lv)+",l,"+chr$(l%)
+	gosub {:file.open} ' if e<>50 then print a$:goto 920
+	print"Writing highest record...":x=ro:gosub {:record_pointer}:a$=chr$(255)+r$:print# 2,a$
+	' gosub 1012:stop
+	print"Pre-filling file...":for x=1 to ro:gosub {:record_pointer}:print# 2,chr$(255):gosub {:check.io_status}
+	print"{up}"tab(27)right$("     "+mid$(str$(x),2),5)" (";
+	print mid$(str$(int(x/ro*100)),2)"%)" ' gosub 1012:ife=.then 500
+	' ife<>50then printa$:stop:x=ro:next:goto 920
+	next
+	print"Creating level"+str$(lv)+" map file..."
+	print"(Descs past room 224 not done.)"
+	print:x=1:gosub {:record_pointer}:print"Writing data...":restore:read ro:sl=1
+	open 3,dv,3,"s.t.roomdescs"+str$(lv)+",s,r" ' nl=# of lines, sl=starting ln
+	print:print:for z=1 to ro:fd$=nl$+nl$ ' owner: none
+	fd$=fd$+chr$(sl and 255)+chr$(sl/256) ' 2-byte pointer to starting line #
+	fd$=fd$+nl$+nl$ ' placeholder for last line # in room description
+	for y=1 to 6:read q:fd$=fd$+nl$+nl$+chr$(q and 255)+chr$(q/256)
+	next:read h$ ' object/exit pair
+	fd$=fd$+left$(d1$,64)+"{$01}"+h$ ' skip over room attributes for now
+	print:print left$(h$+"                   ",20)"     (";
+	print right$("  "+mid$(str$(z),2),3)"/"mid$(str$(ro),2)": ";
+	print mid$(str$(int(z/ro*100)),2)"%)
+'	nl=1:sl=0
+{:530}
+	sys ia,3,100,1,a$:if a$="{up arrow}"then print:sl=nl+1:goto {:550}
+	nl=nl+1:print nl;a$
+'	gosub 1012:ife>20ande<>50then z=ro:goto 665:ignore ok/record not present
+	goto {:530}
+{:550}
+	fd$=left$(fd$,4)+chr$(nl and 255)+chr$(nl/256)+mid$(fd$,7) ' last desc line
+	x=z:gosub {:record_pointer}:print# 2,fd$
+	next
+'	x%=x:print"{up}"tab(27)right$("     "+mid$(str$(x%),2),5)" (";
+'	printmid$(str$(int(x/ro*100)),2)"%)":gosub 1012
+'	ifethen printa$:x=ro:next:goto 920
+	close 2:close 3:print r$"File successfully created!"
+{:620}
+	print:print"Creating room description index..."
+	open 3,dv,3,"s.t.roomdescs"+str$(lv)+",s,r" ' input file, channel 3
+	a$="e.t.roomdescs"+str$(lv)+",l,"+chr$(40):gosub {:file.open}
+	x=.:for y=1 to ro ' output file, channel 2
+{:645}
+	sys ia,3,100,1,a$
+	if a$<>"{up arrow}"then print a$ ' gosub 1012:ife>20then y=ro:goto 665
+	if a$="{up arrow}"then {:665}
+	x=x+1:gosub {:record_pointer}:print# 2,a$:gosub {:check.io_status}
+	goto {:645}
+{:665}
+	next:print"Done.":goto {:1811}
+{:900}
+	print"Warning: "e$"... replace? ";:a=.:gosub {:1902}:if a=.then return
+	print"Scratching...";:print# 15,"s"dr$"e.t.roomindex"+str$(lv):print:gosub {:check.io_status}
+	if e<>1 then print a$
+	return
+{:920}
+	close 2:if fl=.then {:1811}
+	end ' a$="(next file?)":goto 1067
+{number:997}
+	REM "MAKE LEVEL 7"
+	REM 2/17/2005, 6/14/2007, 12/10/2015
+	REM COPR. 1995-2015 PINACOLADA
+
+'{number:1000}
+'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+'{number:1011}
+'{:file.open}
+'	close 2:open 2,dv,2,dr$+a$
+' 1012:
+'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+'{number:1081}
+'{:1081}
+'	a=x%:return
+'{number:1811}
+'{:1811}
+'	close 3:close 2:close 15:end
+' 1902:
+'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+'
+'{number:2000}
+' test two files open at once
+'	dv=peek(186):if dv<8 then dv=8
+'	open 15,dv,15:open 2,dv,2,"e.t.roomdescs 1,l,"+chr$(10)
+'	x=11:gosub {:record_pointer}:print# 2,chr$(255) ' create highest record
+'	for x=1 to 10:gosub {:record_pointer}:a$="blah"+str$(x)+chr$(13):print# 2,a$:gosub {:check.io_status}:next
+'	open 3,dv,3,"s.t.roomdescs 1,s,r"
+'	for y=1 to 10:input# 3,a$:print a$
+'	x=y:gosub {:record_pointer}:input# 2,a$:print a$
+'	next:close 2:close 3:end

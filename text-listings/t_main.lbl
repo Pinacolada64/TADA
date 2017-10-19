@@ -1,0 +1,2113 @@
+' c64list3_03.exe t_main.lbl -labels > label-assignments.lbl
+
+{uses:\TADA-svn\pinacolada\TADA\assembly-language\ml-c500-symbols.lbl}
+' for error-trap install/uninstall addresses
+
+' ------------------------ t.main -----------------------------------------
+
+' wish: break this up into modules: parser, kernel routines, what else...?
+' this file is getting too big to naviagate through.
+
+' last updates:
+' =============
+'		 12/13 - AF's advice:
+' Next time something like this happens, just go into vice monitor, check
+' contents of $39/3A, and look at that line# to see where things might have
+' gone off the rails. (+57/58)
+
+' ?illegal quantity error in 118 after t.np loads
+' from Mapping the 64:	Some string variable descriptors and function
+' definitions have their pointers set to areas within the program text.
+' When this text is replaced by a load, these pointers are no longer
+' valid, which will lead to errors if the FN or string value is
+' referenced.  And if the second program text area is larger than that
+' of the first, the second program will overwrite some of the first
+' program's variables, and their values will be lost.
+
+'		 10/17 - some changes
+'		  4/16  - NOW COMPILES!
+'	2014  4/11  - trimming some unnecessary stuff
+'				- want to make this compileable to test includes of labels
+
+'	2013  1/17	- Testing diff with previous version
+
+'	2012  9/5
+
+'   2011  1/25  2/15  3/3  3/24  7/13
+
+'	2010 12/22
+
+'	2008  3/10
+
+'	2007  8/04  8/10  8/26
+
+{crunch:on}
+{alpha:invert}
+
+{def:include_filler}	' for including a module so memory is reserved
+{def:modbasic}		' use modbasic DEF statements
+{def:debug}		' debug this puppy
+{def:build_date}	' include build date at startup
+{def:sliding_input}	' use dat
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+
+' i am being pseudo-geeky in naming subroutines:
+'			<class>.<method>
+
+' now converting to agentfriday's modbasic
+' function prototypes are now in /programming-notes/TADA_Subroutines.txt
+
+' 8/23/11: approx. 12k code / 12k rems = 14k left for code expansion
+{number:1}
+{:1}
+	REM	       *** T.MAIN ***
+	goto {:main_setup}
+{nice:100}
+	REM SOMEWHERE OVER A RAINBOW
+	REM WAY UP HIGH
+	REM THERE'S A LAND THAT I'VE HEARD OF
+	REM ONCE IN A LULLABY
+	REM
+	rem -------------------------------
+	rem -------------------------------
+	rem ------                  -------
+	rem ----+- ***  *  **   *   -+-----
+	rem --+-+-  *  * * * * * *  -+-+---
+	rem --+-+-  *  *** * * ***  -+-+---
+	rem ----+-  *  * * **  * *  -+-----
+	rem ------                  -------
+	rem -------------------------------
+	rem -------------------------------
+	rem --                           --
+	REM --  BASED ON GREG W. DAVIS'  --
+	REM --  WORK AND SKIP THOMSON'S  --
+	REM --    ENHANCEMENTS OF THE    --
+	REM --  APPLE GBBS PRO DOOR GAME --
+	REM --    "THE LAND OF SPUR"     --
+	rem --                           --
+	rem -------------------------------
+	rem -------------------------------
+	rem
+
+{:main_setup}
+{nice:100}
+{remremoval:off}
+
+' this section is temporary and will get overwritten by the first
+' module loaded (t.startup)
+
+	rem -------------------------------
+	rem -------------------------------
+	rem --                           --
+	REM -- ** FIRST THINGS FIRST: ** --
+	rem --                           --
+	rem -------------------------------
+	rem -------------------------------
+
+' is: instring		sys is,"search_through","search_for" -> i%
+' ia: input any		sys ia,<channel>,<num_bytes>,<crflag:1=stop at cr | 0=no>,
+'				<string_variable>
+' ml: module 64		sys ml,"0:<module>" (uses dv, current device)
+' br: bracketxt		sys br,"[highlighted] text"+r$+nl$ (null-terminated)
+' ps: pop stack		sys ps -> removes last GOSUB target
+
+' si: sliding input	sys si,<max_length>,<window_width>,<string$>
+
+' variable declarations re-include current drive, but that's okay
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+
+	gosub {:file.open_cmd_channel}
+
+' define functions:
+	gosub {:2900}
+	
+' initialize trace:
+{ifdef:trace}
+	print "Enabling trace...":sys 828+6
+{endif}
+
+' announce module name + compile date:
+	cm$="t.main"+"":lm$="startup"+""
+	print cm$": ";
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+
+{ifdef:debug}
+{:choose_module}
+	print "si="si
+	print:print "Module to load ($=directory): t.";:sys si,16,17,lm$
+	print "lm$="q$lm$q$:gosub {:sub.pause}
+' (drive, pattern, print_output)
+	if lm$="$" then:gosub {:sub.blocks_free}(dv,"t.*",1):goto {:choose_module}
+{endif}
+
+	gosub {:link.module}(lm$,""):goto {:1811}
+	
+{ifdef:include_filler}
+{remremoval:off}
+{nice:100}
+' can't use {quoter} replacement of {pipe} because
+' rem statements aren't enclosed in quotes anymore
+	rem -------------------------------
+	rem -------------------------------
+	rem --{176}{$c0:25}{174}--
+	REM --{$dd} THIS ALL RESERVES SPACE {$dd}--
+	REM --{$dd}  FOR MODULE 64 LINKING  {$dd}--
+	REM --{$dd}    (>50 DISK BLOCKS)    {$dd}--
+	rem --{173}{$c0:25}{189}--
+	rem -------------------------------
+	rem -------------------------------
+{nice:10}
+' largest module to artificially set top of BASIC pointer for module 64:
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\t_np.lbl}
+{endif}
+
+' line 999 keeps module64 from self-destructing
+{number:999}
+{remremoval:off}
+	REM === T.MAIN ===
+
+{number:1000}
+	REM IMAGE BBS + MODBASIC SUBROUTINES V2.1 NOV 11, 2015
+{remremoval:on}
+
+' 1001-1002:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+
+' new (8/15/2012):
+{number:1008}
+{:file.open_playerlog}
+	gosub {:file.open}("e.t.playerlog,l,"+chr$(240)):return
+
+{number:1010}
+{:file.open_cmd_channel}
+	close 15:open 15,dv,15:return
+
+{number:1011}
+{:file.open} ' ("<filename>[,type,mode]")
+	fn f$:close 2:open 2,dv,2,dr$+f$
+
+' 1012
+' {:check.io_status} - call with gosub
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{:file.append_or_write} ' ("<filename>")
+{number:1026}
+' for SEQ files, open "e.t.<filename>,s,<mode>"
+	fn a$:gosub {:1027}(a$,"a"):on e+1 goto {:return}:gosub {:1027}(a$,"w"):return
+
+{number:1027}
+{:1027} ' ("filename","mode")
+	fn f$,m$
+	gosub {:file.open}("e.t."+f$+",s,"+m$):gosub {:check.io_status}:return
+
+{number:1062}
+{:1062}
+' this is called from t.startup -- read mail file
+' TODO: could probably be put in t.startup/t.page to save space?
+' FIXME: i know i put this here for a reason, returns w/file not found error
+	fn f$,m$ ' filename, mode
+	gosub {:sub.log_error}("E",fn cl(0),f$+ " not ready"):e=62:return
+
+{number:1067}
+{:link.module}	' ("module_to_load","label")
+	fn m$,l$	' m$  = module to load,
+			' l$ = optional label to jump to in a multi-function module
+			' (null if module should just start at line 1, most do)
+			' make a$ a local variable (lm$ must be global)
+	def x$		' temporary log message
+' cm$=current module: prevents re-loading last-accessed module if no
+' same module being called again, no i/o error (e=0):
+	if cm$="t."+m$ and e=. then 1
+	cm$="t."+m$:print " [Loading "q$cm$q$"...]":sys ml,"0:"+cm$:gosub {:check.io_status}:if e=. then 1
+' error occurred:
+	x$="Module: "+q$+m$+q$:if m$<>"" then x$=x$+", Label: "+q$+l$+q$
+	gosub {:sub.log_error}("W",0,"(:link.module) "+x$):goto {:advent}
+
+{number:1075}
+{:file.read_clearscreen}
+	print "{clear}";
+
+{number:1076}
+{:file.read} ' (<num_lines>,<start_rec>)
+	goto {:file.read2}
+
+' 1079:
+{:sub.blocks_free}
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\blocks-free.lbl}
+
+{number:1090}
+{:sub.block_read}	' (message_num)
+	fn m		' function prototype: m=message #
+	def a$,mx,sl,nl	' local vars: temp data, maximum # of blocks, start line, # of lines to read
+	print "{off}";:gosub {:file.open}("e.t.messages"):if e then print a$:goto {:block_read_done}
+' get # of blocks:
+	gosub {:record_pointer}(1):input#2,a$:mx=val(a$)
+{ifdef:debug}
+	print "# of blocks:"mx
+{endif}
+	if m<1 or m>mx then:gosub {:sub.log_error}("E",fn cl(0),"Msg index: "+str$(m)+","+str$(mx)+" max"):goto {:block_read_done}
+' get message index, return in a$:
+	gosub {:record_pointer}(2):sys ia,2,40,0,a$
+{ifdef:debug}
+	print "Data: "q$a$q$,"Msg:"m
+{endif}
+' calculate starting message # (m), starting line (sl):
+	m=m*3-2:sl=asc(mid$(a$,m,1)+nl$)+ b1 * asc(mid$(a$,m+1,1)+nl$)
+
+' whole problem here is that the record # is not incrementing
+
+' (n)umber of (l)ines:
+	nl=asc(mid$(a$,m+2,1)+nl$)-1
+{ifdef:debug}
+	print "m="m:print "Starting Line:"sl:print "# of Lines:"nl
+{endif}
+	for x=sl to sl+nl:gosub {:record_pointer}(x)
+	sys ia,2,80,1,a$:sys br,a$+nl$:if pos(.)<>40 then print
+	next
+
+{:block_read_done}
+' avoid a ?file open error:
+	close 2:print "{on}";:return
+
+' reminder: 0=skip lines (not a seq file)
+'	nl=# of lines to read
+'	sl=rel_flag (record # to start at)
+'	gosub {:file.read}(0,nl,sl)
+
+' formerly 1100
+{nice:10}
+{:file.read2} ' gosub (num_lines,start_record)
+	fn sl,nl,rf
+' function prototype:
+' sl: start line - if RF=0 this specifies how many lines in a SEQ file to skip
+'		before starting to display data
+' nl: # of lines to read (0=to EOF)
+' rf: REL flag - 0=SEQ file, <>0: starting REL file record number
+
+	def q,c,c$,mx,l,an$ ' local vars
+' l: line counter for "more" prompt, if expert mode off
+' q ="q/Q" hit to quit reading, start off 0=no
+' c$=hex color pairs: normal, hilite
+' mx=# of color pairs
+' l =lines read (for page pause count)
+' an$=key hit
+	q=.:c=1:c$="2A5DC1E478":mx=len(c$)/2:l=.
+' turn off word wrap. file closed after block_read:
+	print "{off}";:gosub {:file.open}(a$):if e then print fn cl(0) a$:goto {:1108}
+
+{:1101}
+' 1) if rel record, set starting record #, increment:
+	if rf then:gosub {:record_pointer}(rf):rf=rf+1:gosub {:check.io_status}:if e then print fn cl(0) a$:goto {:1108}
+
+' 2) get data from disk file
+' 3) display it
+' 2012/7/20: fix 40-column text to "glue" lines together 
+	sys ia,2,80,1,a$:sys br,a$+nl$:if pos(.)<>40 then print
+
+' if rel record, position to initial record #:
+'	if rf then:gosub {:record_pointer}(rf):gosub {:check.io_status}:if e then print a$:goto {:1108}
+
+' if # of lines to read is specified, and that # has been reached,
+' or if a SEQ file (rf=0) and EOF (ST, bit 7) has been reached:
+	if (nl>0 and nl=l-1) or (rf=. and (64 and st=64)) then {:1109}
+
+' check for pause key:
+	get an$:if an$="{home}" then gosub {:msg.more_prompt}:if q or an$="/" or an$=" " then {:1108}' q or abort chars
+' increment lines read, do "More: " prompt:
+	l=l+1:if l/24=int(l/24) then gosub {:check.more}:if q then {:1108}
+
+	goto {:1101}
+{:1108}
+	gosub {:msg.aborted}
+{:1109}
+' reset color, close lfn#2, re-enable word-wrap, return
+' "close 2:return" -> 4 bytes vs "gosub xxxx" -> 5 bytes
+	gosub {:msg.reset_color}:close 2:print "{on}";:return
+{:1244}
+	gosub {:sub.prompt_key}("[+] Inc  [-] Dec  [Space] More  [Q]uit","+- q")
+
+{:1248}
+' i%=1: +  i%=2: -  i%=3: (space continues)  i%=4: q=1 ("q" quits)
+	gosub {:sub.clear_line}:on i% goto {:1250}, {:1252}, {:1101}:q=1:return
+{:1250}
+' increment color:
+	c=c-(c<mx):goto {:1254}
+{:1252}
+' decrement color:
+	c=c+(c>1)
+{:1254}
+' "0...F" replaced with hx$; is also used in "t.prg info"
+' change current/last colors:
+	sys is,hx$,mid$(c$,c*2-1,1):poke {sym:normal},i%-1:poke {sym:lastcol},i%-1
+' change highlight color:
+	sys is,hx$,mid$(c$,c*2,1):poke {sym:hilite},i%-1:gosub {:sub.clear_line}:goto {:1244}
+
+{number:1258}
+{:sub.clear_line} ' gosub - no params
+' SYS to clear a single screen line: 781=.x / peek(214)=current line number
+' new: also re-position cursor on column 0
+	poke 781,peek(214):sys 59903:poke 211,. ':return
+' print "{up}"r$left$("                    ",len(a$))"{up}":print
+
+{number:1603}
+{:return} ' goto - no params
+	return
+
+' fixme: duplicate label
+' {number:1810}
+' {:cmd.quit} ' goto - no params
+' todo: call t.quit - will save stats, clean up
+'	print " [Quitter...]"
+
+{number:1800}
+{:err_trap}
+' error trap routine - get error #:
+	e=peek({sym:err_num}):if e>127 then {:1811}
+' ...and error message:
+	a=peek(41766+2*e)+256*peek(41767+2*e):er$=""
+{:err_trap2}
+' todo: speed this up using ml:
+	e$=e$+chr$(peek(e)and 127):if peek(e)<128 then e=e+1:goto {:err_trap2}
+' line #: ($c74b) / +51019/20
+	l=peek({sym:err_line})+256*peek({sym:err_line}+1):gosub {:sub.log_error}("W",l,e$)
+'	e$" error in line"l
+
+{number:1811}
+{:1811} ' goto - no params
+' close all open files
+' unlock shift + c=
+' disable word-wrap ({off})
+' shut down modbasic:
+	for i=2 to peek(152):close peek(603):next:print "{$09}{off}";:gosub {:msg.shutdown}:print "modBASIC.":sys 49155
+{ifdef:trace}
+' shut down trace
+	gosub {:msg.shutdown}:print "trace.":sys 828+9
+{endif}
+	gosub {:msg.shutdown}:print "error trapping.":sys {sym:err_trap_uninstall}
+	end
+
+{nice:5}
+{:msg.shutdown}
+	print "Shutting down ";:return
+
+{number:1870}
+{:sub.item_toggle}	' ("string",bool) [string can be "" to suppress printout]
+	fn m$,v
+	def b		' for re-using sub.item_off_on routine
+'	a=1-a:if m$<>"" then print m$": O"mid$("ffn",a*2+1,2)
+	v=1-v:if m$<>"" then b=v:gosub {:sub.item_off_on.print}
+	return
+
+{nice:10}		' 1880
+{:sub.item_off_on}	' ("string",mem_loc,value)
+' example usage: gosub {:sub.item_off_on}("Expert Mode",v1+64,4):return
+	fn m$,m,b
+	' if <mem_loc>  =0: <value> must be a Boolean 0/1
+	' if <mem_loc> <>0: <mem_loc> PEEKed for bit <value>, returns Boolean 0/1
+' PEEK bit if <mem_loc> specified:
+	if m then:gosub {:bit.test}(m,b):b=s
+{:sub.item_off_on.print}
+' print "message: Off/On" (bool)
+	print m$": O"mid$("ffn",abs(sgn(b))*2+1,2):return
+
+{nice:10}		' 1890
+{:sub.item_no_yes}	' (<mem_loc>,<bit>)
+	fn m,b
+' check bit <b> in memory location <mem_loc>
+' returns s=1 if set, 0 if clear
+' show string (": No" if s=0 / ": Yes" if s=1)
+	gosub {:bit.test}(m,b):print ": "mid$("No Yes",s*3+1,3):return
+
+{number:1900}
+{:sub.are_you_sure} ' (a)
+' not calling {:msg.prompt} since i want the prompt & response preserved
+	fn a
+	print "Are you sure";:gosub {:sub.yes_no}(a):return
+	
+' 1902 -- {:sub.cursor_get}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+
+{number:1910}
+{:sub.yes_no} ' (default: a=0: no, a=1: yes)
+' display "? >> Yes/No"
+	fn a
+	def p ' position of cursor on line
+	print "? >> ";:p=pos(0):if a then sys br,"[Yes]"+nl$
+	if a=0 then sys br,"[No]"+nl$
+{:sub.yes_no.cursor}
+	gosub {:sub.cursor_get}:sys is,"ny"+r$,chr$(asc(an$) and 127):if i%=. then {:sub.yes_no.cursor}
+' set [Return] to default answer:
+	if i%=3 then i%=a+1
+' erase pre-printed answer:
+	print left$(chr$(20)+chr$(20)+chr$(20),pos(0)-p);
+{:sub.yes_no.response}
+' for just printing "Yes." or "No."
+	a=abs(i%-1):if a=. then print "No.":return
+	print "Yes.":return
+' returns a=0: no, a=1: yes
+
+{number:1920}
+{:msg.aborted} ' gosub - no params
+	print "(Aborted.)":return
+
+{nice:5}
+{:sub.check_abort}
+	get an$:q=-(an$=" " or an$="/"):on q gosub {:msg.aborted}:return
+
+{nice:5}
+{:msg.spacebar_aborts} ' gosub - no params
+	gosub {:msg.expert_mode}("    [Spacebar or / aborts listing.]")
+	return
+
+{nice:5}
+{:sub.prompt_key} ' gosub {:sub.prompt_key}("prompt_string","allowable_keys")
+' "allowable_keys": if null, all keys accepted to continue
+	fn p$,ok$
+	sys br,p$+": "+nl$
+{:prompt_key2}
+	gosub {:sub.cursor_get}:if ok$<>"" then sys is,ok$,an$:if i%=. then {:prompt_key2}
+	gosub {:sub.clear_line}:q=abs(an$="q" or an$="Q"):return
+
+{:sub.pause}
+	print "Pause: ";:gosub {:sub.cursor_get}:gosub {:sub.clear_line}:return
+
+' --- main loop ---
+' trying to follow spur.main.s -- aug 20
+
+' FIXME: DUPLICATE CODE
+' TODO: {auto:2} or so, fix spaced out line #s
+
+{number:2000}
+{:advent} ' goto - no params
+' {:sub.show_room_items} - di (disk input)=2, pr (print)=0
+	gosub {:sub.read_room}:gosub {:sub.room_name}:gosub {:sub.room_desc}:gosub {:sub.show_room_items}(0,2):gosub {:msg.health}:goto {:2130}
+
+' fixme 3/Jun/2014 23:53: work in progress, consolidating some duplicated code
+
+{:read_room3}
+	:
+'  fixme: read_room3 here is temporary until real target is found
+
+{:sub.room_desc}
+' --- read room descs ---
+' acos code:
+'	if (not instr(left$(zu$,1),"AB")) or (i$="LOOK") setint(1):copy #8,#0 :setint("")
+' current room = old room? skip disk access
+	
+' room desc mode enabled?
+	if rm<>ro then:gosub {:bit.test}(v1+64,2):if s then:gosub {:sub.read_room_desc.force}(rm)
+	return
+
+{:sub.read_room_desc.force} ' room desc 
+' - if x=0, read level header
+' - if x>0, read room info
+	fn x
+	if x>0 then {:2036}
+	rm=x
+' df%: level data format #:
+	on df% goto {:2036},{:2038}
+{:2036}
+' file.read prototype: starting record (0=seq file), # of lines (0=to eof)
+' fixme: fix line
+	stop:l1=asc(mid$(l1$,x,x)+nl$)
+	gosub {:file.open}("e.t.roomdescs"+str$(lv%)):if e then return
+	gosub {:file.read}(0,fn l1(12),asc(mid$(l1$,14,1)+nl$)):goto {:read_room_descs_2}
+{:2038}
+' todo: data format 2
+	return
+
+{:sub.read_room}
+' skip disk access if player hasn't moved since last turn
+	if ro=rm then return
+{:sub.level_header}
+	gosub {:file.open}("e.t.roomindex"+str$(lv%)):if e then return
+' if ro=-1 in t.startup, read level data:
+	if ro=-1 then x=1:gosub {:record_pointer}(x)
+
+' get#2,a$:df%=asc(a$+nl$):ld$=a$:sys ia,2,2,0,a$:ld$=ld$+a$ (46 bytes)
+' nr%=asc(left$(a$,1)+nl$)+b1*asc(right$(a$,1)+nl$):sys ia,2,30,1,a$:ld$=ld$+a$ (56 bytes)
+' ~ 102 bytes
+
+{:2007}
+' get data format (df%), number of rooms (nr%) and level data (ld$):
+	sys ia,2,33,0,a$
+	df%=asc(left$(a$,1)+nl$): nr%=asc(mid$(a$,3,1)+nl$)+b1*asc(mid$(a$,4,1)+nl$): ld$=a$:return ' (70 bytes)
+	ro=rm:on df% goto {:rd.room},{:2012}
+
+{:rd.room}
+' data format 1: get up to # desc lines (no cr skip) -> l1$, then room name
+	wy$="":gosub {:record_pointer}(rm*2):sys ia,2,14,0,l1$:sys ia,2,25,1,a$:l1$=l1$+a$:lo$=a$
+' get objects in room:
+	x=x+1:gosub {:record_pointer}(x):sys ia,2,36,0,l2$:l2$=l2$+""
+' get room connection / room transport data
+	rc%=asc(mid$(l1$,9)+nl$):rt%=fn l1(10):return
+
+{:2012}
+' data format 2
+	gosub {:record_pointer}(rm*2):sys ia,2,115,0,a$:return
+
+' ---- end of duplicated code? ---------
+
+{:sub.room_name}
+' ww$ is copy of lo$ up to |, if any
+	sys is,lo$,"{pipe}":z=len(lo$)-i%:ww$=left$(lo$,z):if z=. then lo$=" "
+' lo$ is copy of room flags
+	if z then lo$=mid$(lo$,z)
+' T: Transport to room flag. to work, T must be last flag
+	sys is,lo$,"T":if i% then rm=val(mid$(lo$,z+1)):sys br,"[A wave of nausea engulfs you, then subsides...]"+r$+nl$:goto {:sub.read_room}
+	sys is,lo$,"=+":x=i%:sys is,ww$,"OUTER SPACE":if x+i% then {:read_room2}
+	if left$(ww$,4)<>"THE " then if left$(ww$,2)<>"A " then ww$="THE "+ww$
+{:read_room2}
+	print:sys is,ww$,"HQ":if i%=. then {:read_room3}
+{:guilda.c}
+' all strings should be relocated -> "t.guild hq"
+' todo: more optimization needed
+' zm=0:yz=1 ' is used later in spur.guild
+	x=peek(v1+69):on x+1 goto {:space_tracker},{:guild.claw},{:guild.sword},{:guild.fist} ' 0 1 2 3
+{:guild.claw}
+	sys is,ww$,"/>>":if i% then x=1:goto {:guild.next}
+'if i% then zm=1:xu$="Mark of the Claw":zy$="CLAW"
+{:guild.sword}
+	sys is,ww$,"-]==":if i% then x=2:goto {:guild.next}
+'if i% then zm=1:xu$="Mark of the Sword":goto {:guild.next}:zy$="SWORD"
+{:guild.fist}
+	sys is,ww$,"=[]":if i% then x=3
+'if i% then zm=1:xu$="Iron Fist" ':zy$="FIST"
+{:guild.next}
+' keeping zm if it's used later
+	if i%=. then {:space_tracker}
+	zm=1:gosub {:sub.string_truncate}(mid$(gd$,x*8-7,8)):print "Enter "x$" HQ";:gosub {:sub.yes_no}(1)
+	if a then:gosub {:link.module}("guild hq",""):return
+
+' todo: un-possible for now!
+' if flag(yz)=0 and not info(5) then print r$"[Waiting for GM Access to this guild]":goto {:space_tracker}
+	
+' spur's way:
+'guilda.c
+' zm=0:yz=1
+'	if instr("\|/",ww$) xu$="Mark of the Claw":zy$="CLAW."
+'	if instr("-}--",ww$) xu$="Mark of the Sword":zy$="SWORD"
+'	if instr("=[]",ww$) xu$="Iron Fist":zy$="FIST."
+' claw: autoduel off/on, or sysop [info(5)]
+'	if (vv=6) or (vv=7) or (info(5)) then if instr("r$|/",ww$) zm=1:yz=28
+' sword: autoduel off/on, or sysop
+'	if (vv=3) or (vv=4) or (info(5)) then if instr("-}--",ww$) zm=2:yz=27
+' fist: autoduel off/on, or sysop
+'	if (vv=8) or (vv=9) or (info(5)) then if instr("=[]",ww$) zm=3:yz=29
+'	if (zm=0) return
+'	if flag(yz)=0 then if not info(5) print r$"[Waiting for GM Access to this guild]":return
+' input @2r$"Enter Guild HQ? "i$
+' if i$="Y" dy$=ds$+"spur.guild":pop:link dy$
+' return
+
+{:read_room_descs_2}
+' environmental factors:
+' z=death reason in t.die
+
+' decrease energy in desert:
+' better?
+	sys is,ww$,"DESERT":if i% then if i$<>"LOOK" then if fn r(10)<4 then:gosub {:sub.adj_stat}(6,-1):print:print "You sweat in the heat..."
+'	if i$<>"LOOK" then sys is,ww$,"DESERT":if i% then gosub {:rnd.10z}:if z<4 then pe=pe-1:print:print "You sweat in the heat..."
+' water room:
+	i$="":sys is,lo$,"@@":if i%=. then {:geiger_counter}
+	gosub {:sub.item_held}(74):if i=. then i$="'re drowning in the water!":z=10
+	if lv%<>6 then if i then i$="row the dinghy..."
+
+' space, check for space suit
+' todo: also check if worn - otherwise useless
+	if lv%=6 then:gosub {:sub.item_held}(122):if i=. then i$="choke in the vacuum!":z=15
+	if i%=. then:gosub {:sub.adj_hp}(1,-5):goto {:msg}
+' spacesuit:
+	if lv%=6 then:gosub {:sub.item_held}(122):if i then i$="fire steering rockets..."
+	if lv%<6 then gosub {:rnd.10z}:if z<4 then print "Growing a bit tired...":ps=ps-1
+{:msg}
+	if i$<>"" then print:print "You "i$
+
+'radiation
+' if instr("&",lo$) then if instr("123",xi$) print \"[TICK.. TICK..]":if instr("&&-",lo$) print \"[ DANGER! RAD SUIT REQUIRED ]"
+' i$=""
+' if instr("**",lo$) i$="078":zz$="**":a$="YOUR FREEZING!":zt$="COAT":z=11
+' if instr("&&",lo$) i$="124":zz$="&&":a$="YOU FEEL FUNNY!":zt$="RAD SUIT":z=16 :if not instr("123",xi$) i$="123"
+' if i$="" goto coat
+' if instr(zz$,lo$) then if not instr(i$,xi$) print \a$:pe=pe-1:ps=ps-1:hp=hp-2
+' if instr(i$,xi$) a$="YOU WISELY WEAR THE "+zt$:else a$="TOO BAD YOU DON'T HAVE A "+zt$+"!":if i$="123" a$="YOU HAVE A STRANGE FEELING THAT YOU SHOULD KNOW SOMETHING.."
+' zz$=zz$+"-":if instr(zz$,lo$) print \a$
+
+{:geiger_counter}
+'123=geiger counter, 124=radiation suit, &/&&=radiation flag
+
+' near radioactive equipment, have geiger counter?
+	sys is,lo$,"&":on i%+1 goto {:radiation}:gosub {:sub.item_held}(123):if i then print:print "[Tick... tick...]"
+	if i=. then print "You have a strange feeling that you should know something..."
+{:radiation}
+' have radiation suit?
+	sys is,lo$,"&&-":on i%+1 goto {:snow}:gosub {:sub.item_held}(124):if i then {:snow}
+	print:print "[ Danger! Radiation suit required. ]":print "You feel funny!":zt$="RADIATION SUIT":z=16
+
+{:snow}
+' in snow room, or on mountain, check for coat
+	zz$="**":sys is,lo$,zz$:if i% then:gosub {:sub.item_held}(78):if i=. then print "You're freezing!":zt$="COAT":z=11
+
+	if i$="" then {:coat}
+
+' if room flag matches zz$ but you don't have required item:
+' dec energy (8) & strength (6)
+	if i=. then:gosub {:sub.adj_stat}(8,-1):gosub {:sub.adj_stat}(6,-1):gosub {:sub.adj_hp}(1,-2):print "Too bad you don't have a "zt$"!"
+	if i then print "You wisely WEAR the "zt$"!""
+	
+' not sure what added "-" flag represents -- seems like a flag to control message output
+	zz$=zz$+"-"
+
+{:coat}
+'	if hp<1 pop:goto dead
+	if hp<1 then sys ps:goto {:link.dead}
+'	a=pw+pi:if a<10 goto rd.room3
+'	wisdom + intelligence
+	if peek(v1+92)+peek(v1+90)<10 then {:lost}
+'	if not instr("LABYR",ww$) then if not instr("DESERT",ww$) then if not instr("@@",lo$) goto rd.room4
+' if not in DESERT or LABYRINTH, check for water room?
+	sys is,ww$,"LABYR":if i%=. then sys is,ww$,"DESERT":if i%=. then sys is,lo$,"@@":if i%=. then {:rd.room4}
+'	if carrying compass (cp=1):
+	if cp=1 then if lv%<6 then print:print "[Compass read]":goto {:msg.directions}
+{:lost}
+	if lv%<6 then gosub {:sub.palintar}:if xy>0 then print:print "[Palintar glows]":goto {:msg.directions}
+	if lv%<6 and peek(v1+68)=5 then print:print "[Ranger tracking]":goto {:msg.directions}
+	print:if lv%<6 then print "You lost your sense of direction.":return
+	print "Star-filled blackness engulfs you.":return
+
+{:msg.directions}
+' todo: stub for 2 data formats, for 2nd just fall through for now
+	on df% goto {:2082}
+{:2082}
+' todo: skip directions if in labyrinth (unless compass held and used)
+	print:print "Ye may travel ";:on df% goto {:2084},{:2090}
+{:2084}
+' fixme: go to where besides {:advent} after printing directions?
+	on -(fn l1(1)>.) gosub {:msg.north}:on -(fn l1(3)>.) gosub {:msg.east}:on -(fn l1(5)>.) gosub {:msg.south}:on -(fn l1(7)>.) gosub {:msg.west}:on rc% gosub {:msg.up},{:msg.down}:goto {:advent}
+{:2090}
+' stub for data format 2
+	:
+{:2092}
+	print:return
+{:msg.north}
+' ]N - blocked exit
+	sys is,ww$,"]N":if i%=0 then print "North ";
+	return
+{:msg.east}
+' todo: check for -> (hidden exit east)
+	print "East ";:return
+{:msg.south}
+	print "South ";:return
+{:msg.west}
+' todo: check for <- (hidden exit west)
+	print "West ";:return
+{:msg.up}
+	print "Up ";:goto {:msg.shoppe}
+{:msg.down}
+	print "Down ";
+{:msg.shoppe}
+' generally just one 'to shoppe' per up/down pair, so no ;
+	if rt%=. then print "to Shoppe"
+	return
+
+{:read_monster}
+' spur.main.s links to spur.misc4:rd.mons, and that is ~ 7k
+' i've extracted that stuff out into t_encounter.lbl module
+
+' this has been moved from the middle of things in an attempt to make
+' getting disk data less haphazard
+	x=fn l2(1):mw=x:if mw=. then {:2152}
+	md=.
+{ifdef:debug}
+	print "mw="mw
+{endif}
+	gosub {:file.open}("e.t.monsters"):z=.:di=.:gosub {:sub.get_item_data}:if cb<>1 then {:sub.show_room_items}
+	gosub {:sub.item_init}:m$=mid$(z$,l,r)
+' todo: check for already-dead monsters here, set md=1 if already slain
+' todo: check for < in wy$, re-animating if so - would not check if already dead
+	input#2,ms
+{ifdef:debug}
+	print x$" strength:"ms
+{endif}
+	input#2,sw
+{ifdef:debug}
+	if sw then print "special weapon:"sw
+{endif}
+' fixme: is this correct?
+	input#2,ma:if ma=. then ma=val(mid$(m$,3,1)):if ma=. then {:quotes}
+' fixme: i don't understand having 1 # in m$ and 2nd # in ma - 1st may be size...?
+	return
+
+' new line-by-line translation -- May 27, 2012 19:58
+' gosub {:ply.loc} - also experience lvl is different in tada
+	if ep>(999+(xp*100)) then xp=xp+1:sys br,"[You are now a level"+str$(xp)+"adventurer!]"+r$+nl$
+
+'	todo: check server for time
+'	gosub {:check.time}:if FIXME then print "Dusk approaches."
+
+'	if not mw zs=0:goto advent2
+	if mw=. then zs=.:goto {:advent2}
+'	if instr(".",wy$) zs=0:goto advent4
+	sys is,wy$,".":if i% then zs=.:goto {:advent4}
+'	if zs=998 zs=997:goto advent2
+	if zs=998 then zs=997:goto {:advent2}
+	
+'	not thief/assassin and ring not worn:
+'	i$=str$(pc):if not instr(i$,"68") then if mid$(zu$,2,1)="0" goto advent4
+	x=peek(v1+68):if x<>6 or x<>8 then gosub {:check.ring}:if s=. then {:advent4}
+	if zs>. or zq>. then {:advent4}
+
+'	z=pc*10+5:if mid$(zu$,2,1)="1" z=50
+	z=x*10+5:if s=1 then z=50
+'	if random(100)>z zs=999
+	if fn r(100)>z then zs=999 ' invisible?
+	
+{:advent4}
+	if zs=999 then printr$m$" lost sight of you!":goto {:advent2}
+	i$="advent5":goto {:link.combat} 'fixme
+{:advent2}
+' di=0
+' zz$="You see "
+' if i print zz$;it$:else it$=""
+' if wp=17 print zz$"a large sword stuck in a rock!":goto excal
+' if lv%=3 if cr=3 print zz$"a large rock with a slot in it!"
+' if wp print zz$;wp$:else wp$=""
+{:excal}
+' if fd print zz$;fd$:else fd$=""
+' a$="A DEAD ":if right$(m$,1)="S" a$="SOME DEAD "
+' if instr(":",wy$) a$="A WRECKED "
+' if md=1 print r$zz$;a$;m$
+' if md=2 print r$zz$;m$" TRACKS.."
+
+' only if expert mode off:
+	gosub {:check.expert_mode}(0):if s=0 then {:2130}
+	if wr$="" then sys br,"(Must [READY] weapon)"+r$+nl$:vm=0:wa=0
+	if wa=8 then if vn=0 then sys is,wr$,"STORM":if i%=. then sys br,"(Must [USE] ammo)"+r$+nl$
+	if wa=10 then if vn=0 then sys br,"(Not energized - [USE "+wr$+"]")"+r$+nl$
+	print:print ww$ ' room name
+
+{:2130}
+' if no dead monster (md=0) + no live monster waiting here (mw), vs monster not dead...
+	on-(md+mw=.)-2*(md=.)goto {:2152},{:read_monster}
+' strings need "--" prefix, {:msg.you_see} displays from 3rd char on
+' wy$: monster characteristics flag, ":" is machinery
+	if md=1 then z$="--dead "+m$:sys is,wy$,":":if i% then z$="--wrecked "+m$
+	if md=2 then z$="--"+m$+" tracks"
+	gosub {:msg.you_see}(z$)
+
+' more converted...
+	gosub {:check.expert_mode}(0):if s=. then {:header}
+
+{nice:10}
+' {:check.health} correct?
+{:msg.health}
+' called as subroutine from {:advent}
+	y=.:gosub {:check.expert_mode}(0):if s then {:msg.directions}
+{:check.allies}
+	y=y+1:on -(y=5) goto {:msg.directions}:z=peek(v1+47+y):if z=0 or z=4 then {:check.ring_weaken}
+' 0=no ally / 4=unconscious
+' if ((a1<11)and(a1>0)) or ((a2<11)and(a2>0)) or ((a3<11)and(a3>0)) then print "(Your ally moans)"
+
+	if peek(v2+158+y)<7 then:gosub {:sub.print_ally_name}(a$(y)):print " looks weak." ' ally str
+	if peek(v2+162+y)<7 then:gosub {:sub.print_ally_name}(a$(y)):print " looks sick." ' ally con
+	goto {:check.allies}
+
+{:check.ring_weaken}
+' ring weakens: in progress
+' check.ring checks for carried/worn status, resets m
+' high con? subtract more
+	y=.:if peek(v1+87)>5 then y=2
+	gosub {:check.ring}:if i%=0 then {:check.poison}
+' if mid$(zu$,2,1)="1"gosub rnd.100a:if a<6 print "THE RING"i$:pt=pt-zr:if vk>2 vk=vk-2:if pw>5 pw=pw-1:if pi>5 pi=pi-1
+
+	z=0:gosub {:rnd.100a}:if a>6 then {:check.poison}
+' todo: replace this with {:sub.adj_stat}(stat,adjustment)
+	m=v1+87:if peek(m)>y then z=1:poke m,peek(m)-y' con
+' todo: subtract honor - if vk>2 vk=vk-2
+	m=v1+92:if peek(m)>5 then z=1:poke m,peek(m)-1' wis
+	m=v1+90:if peek(m)>5 then z=1:poke m,peek(m)-5' int
+	if z then print "The Ring";:gosub {:msg.weakens}
+	gosub {:check.dead}(1,7) 'if hp<1 z=7
+	
+{:check.poison}
+	gosub {:bit.test}(v1+65,2):if s=. then {:check.disease}
+' reorganize this more like above...
+' subtract con:
+	z=fn r(10):if z<4 then m=v1+87:if peek(m)<z then poke m,peek(m)-z:print "The poison";:gosub {:msg.weakens}:gosub {:sub.adj_hp}(1,-2):gosub {:check.dead}(1,7)
+	
+{:check.disease}
+' if mid$(zu$,4,1)="1"gosub rnd.10z:if z<4 print "THE DISEASE"i$:hp=hp-1 :pt=pt-zr:if hp<1 z=8
+' if hp<1 goto dead
+	gosub {:bit.test}(v1+65,7):if s=. then {:check.thirsty}
+	if fn r(10)<4 then print "The disease";:gosub {:msg.weakens}:gosub {:sub.adj_hp}(1,-1):if x<1 then z=8:goto {:link.dead}
+	m=v1+87:if peek(m)<zr then poke m,peek(m)-zr
+{:check.thirsty}
+' if pe<8 print "YOUR THIRSTY":if pe<4 print "VERY THIRSTY!"
+	x=peek(v1+93):on -(x>7) goto {:check.hungry}:print "You're thirsty";:if x<4 then print ", very thirsty";
+	print "!"
+' TODO: set thirsty bit, because even if energy returns, thirst remains
+
+{:check.hungry}
+' sorted by severity
+' if ps<8 print "YOUR HUNGRY":if ps<4 print "VERY HUNGRY!"
+' if (pe<3) or (ps<3) print "YOU ARE BECOMING FAINT!"
+
+	if x<3 or peek(v1+93)<3 then print "You are feeling faint!"
+
+' if hp<1 then {:dead}
+
+	on -(x>7) goto {:check.weapons}:print "You're hungry";:if x<4 then print ", very hungry";
+	print "!" ' set hungry bit
+' todo: maybe lower int/str, it's hard to think/move?
+
+' if hp<10 and xf then print "(You had better EAT or DRINK something)"
+' if (hp<5 or pe<3) or (ps<3 and xf=0) then print "(Try PRAY or REST)"
+' energy/strength:
+	x=peek(v1+91):if peek(v1+93)<1 and x<1 then print "Ye have starved to death!":hp=.:z=1:goto {:link.dead}
+
+{:check.weapons}
+	if mw and wr$="" then print "(Must READY weapon)":vm=.:wa=.:goto {:header}
+	if wa=8 and vn=. then gosub {:check.storm_weapon}:if i%=. then print "(USE ammunition)"
+	if wa=10 and vn=. then print "(Must USE to energize this)"
+
+{:header}
+' inlining all these bloody once-used subroutines :|
+	print ww$
+' galadriel's test:
+	if lv%=2 and rm=223 then sys is,ys$,"*GAL":if i%=. then:gosub {:link.module}("galadriel",""):return
+
+{:space_tracker}
+' display space tracker's (g)alactic (c)oordinates
+	gosub {:sub.item_held}(138)
+' if level<6, check for space room:
+' if yx$<>"*" then yx$="":on -(lv%<6) goto FIXME:sys is,lo$,"@@":on i%+1 goto {:quotes}
+	if i then print "[GC:"lv%","rm"]"
+
+{:quotes}
+' todo: players in this space/their quotes
+	print "(:quotes)"
+
+{:2152}
+	gosub {:check.expert_mode}(0):if s then {:cmdline}
+	print "<"k$">=";:if dc$="" then dc$="?":print "No valid command.":goto {:2156}
+	print dc$
+
+{:2156}
+' 8/Apr/2014 13:02 - these are getting changed to subroutines since ATTACK, DUEL and possibly STAT could display this information
+' y'know, maybe a flowchart would help a lot... :/
+
+'	print k$"="dc$:gosub {:hourglass}
+'	rz$=a$(0):gosub {:to.mixed}:print "["rz$" "str$(hp)" HP";
+
+	if wa=8 or wa=10 then print ","str$(vn)"rounds";
+	print "]";
+
+	gosub {:sub.hourglass}
+' if no monster waiting, if not round >5 of combat,
+' if not a storm weapon and >40% chance, go to command line
+	if mw+md=. or vu<6 then {:cmdline}
+	
+{:cmdline}
+	i$="":print "Cmd";:if mw=. then {:cmdline.2}
+' storm weapon can assert its will here, interrupting player input
+	gosub {:check.storm_weapon}:if i%=. and fn r(10)>4 then {:cmdline.2}
+	x=.:if vk>2 then x=2
+
+' highlighted so player knows they didn't type it
+' if vu<6 and instr("STORM",wr$) and mw then gosub rnd.10z:if z<4 then print r$r$"THE "wr$" ASSERTS IT'S WILL!!":i$="ATT":vk=vk-x:goto advent3
+' vk: honor
+	sys br,"[ATTACK]"+nl$:print:print:print "(The "wr$" asserts its will!)":i$="ATT":vk=vk-x:goto {:advent3}
+{:cmdline.2}
+	input i$:print:if i$="" and dc$<>"" then i$=dc$:goto {:parser}
+	if i$="" and dc$="" then {:err.cant_use_cmd}
+	gosub {:sub.i_string_uppercase}
+
+{:sub.show_room_items}
+' fixme: how to list trimmed items it$, wp$, fd$ (or even how to generate them)
+' todo: put item names in it$, wp$, fd$
+' todo: save file opens for when there is actually an item
+
+' l=1, open file
+' y=start of search in inventory
+' z=start of search in room data
+' i=item #
+
+	l=.:a$="e.t.items":y=40:for z=3 to 9 step 2:goto {:2046}
+' todo: skip items already held so they're not listed in room
+'	* pro: multiple players can have same item
+'	* con: player could EAT MELON, move to adjacent room,
+'		return, there it is again: infinite health benefits.
+'		clearly need some sort of "items seen this session"
+'		flag like ys$ (wouldn't need to save to disk)
+
+	l=.:a$="e.t.weapons":y=60:for z=11 to 17 step 2:goto {:2046}
+' fixme: gotta do something here to put item name in z$... set fl=something?
+' fixme: but this will only work for FIRST available item :/
+		
+	l=.:a$="e.t.rations":y=40:for z=19 to 25 step 2
+{:2046}
+' from item_held:
+' search thru main char's inventory for item #i
+' uses:	y=start of search (v2+y)
+'			x=loop counter
+'			mx=max in inv for items/weapons/spells: 7,10
+' returns:  i=position in l2$ item #i is found
+
+	i=fn l2(z):if i=. then {:2049} ' no item in this slot
+	gosub {:sub.item_held}(i):if s then poke y,.:poke y+1,.:goto {:2049}
+' ^ item already in inventory, remove from room's item list ^
+	
+{:2048}
+' item found
+	gosub {:file.input} ' get from disk, 
+	gosub {:sub.item_init} ' display its name
+{:2049}
+	next:return
+
+{:sub.get_item_data}
+' routine called from various places in t.main
+' l=0: open file
+' "i" is result from {:sub.item_held}
+	if i then if l=1 then l=.:gosub {:file.open}(a$):if e then z$="xxx":return
+' ^ z$=xxx is so calling routine doesn't crash on disk error
+	x=x+1:gosub {:record_pointer}(x):input# 2,cb$:cb=val(cb$)
+	input# 2,z$:if di=. then return
+' di=disk input flag: 1=get more data/do more processing
+' todo: get more data here
+	return
+
+{:2014}
+' df%: room header data format
+	on df% goto {:2015},{:2018}
+{:2015}
+	sys is,mid$(l1$,15),"{pipe}":print mid$(l1$,15,25-i%):return
+' could print ww$?
+{:2018}
+' co% is computer type: 1: c64 2:c128 >2: ansi/ascii perhaps
+	print r$mid$(c$,40)" ";:x=val(mid$(c$,39,1)) ' :if co%>2 then {:2022}
+	gosub {:sub.string_truncate}(mid$("+    =[]  />>  -]==>",x+1*5-4,5))
+' FIXME: this is commented out since it produces a c64list error:
+' {:2022}
+' this is for pc and/or apple folks:
+'	x$=mid$("+     ={}   \{pipe}/   -}===>",x+1*6-5,6):gosub {:sub.string_truncate}
+{:2024}
+	print x$:return
+
+' ----------- begin travel --------------------------
+
+' movement: handle tired/poison/blocking/special cases
+' spur.main.s:travel ... lots of optimizing to do :/
+
+{:travel}
+' monster waiting? mw=0 if no
+	if mw=. then {:travel.no_monster}
+	sys is,wy$,".":if i% then sys is,wy$,":":if i%=. and zq<1 then print r$m$" has you trapped!":goto {:advent}
+	if vu=1 and vn>. then print:print m$" charge";:gosub {:msg.multi}(m$):print "!":goto {:advent}
+	if zs<990 and zq=. and fn r(100)>50 then print r$m$" block";:gosub {:msg.multi}(m$):print " your way!":goto {:advent}
+
+{:travel.no_monster}
+	if peek(v1+93)<1 then print r$"Not enough energy!":goto {:advent}
+' nr=# of rooms in map, ri=# of squares x # of squares in map
+' x=nr-ri:y=cr mod ri
+
+' moving to bar:
+' todo: this could be split up by level with an on-goto statement - which is shorter?
+' could also use instring: sys is,"1456",mid$(str$(lv%),2):on i% goto .... ~23 bytes
+
+'	on -(lv%=1)-2*(lv%=4)-3*(lv%=5)-4*(lv%=6) goto {:bar.1},{:bar.1},{:bar.1},{:bar.1}	~50 bytes
+'	if (lv%=1 and rm=49 and di=1) or (lv%=4 and rm=42 and di=3) then {:link.bar}		~48 bytes 
+'	if (lv%=5 and rm=157 and di=3) or (lv%=6 and rm=584 and di=2) then {:link.bar}
+
+' moving to bar
+	if (lv%=1 and rm=49 and di=1) or (lv%=4 and rm=42 and di=3) then {:link.bar}
+	if (lv%=5 and rm=157 and di=3) or (lv%=6 and rm=584 and di=2) then {:link.bar}
+
+' check for exit in the water:
+	sys is,lo$,"+@":on i%+1 goto {:boat}:z=val(mid$(lo$,i%+2,1))
+	gosub {:sub.item_held}(74):if i then print "You shove the dinghy into the water..."
+	if lv%=6 then gosub {:sub.item_held}(122):if i then print "You first put on the spacesuit." ' todo, check if worn
+
+' todo: this could be split up by level with an on-goto statement
+
+'	sys is,lo$,"+@":on i%+1 goto {:boat}:z=val(mid$(lo$,i%+2,1))
+'	gosub {:sub.item_held}(74):if i then print "You shove the dinghy into the water..."
+'	if lv%=6 then:gosub {:sub.item_held}(122):if i then print "You first put on the spacesuit."
+' todo: check if worn
+'	if i=. or di<>z then {:boat} ' don't have the item or going wrong way
+
+' don't have the item or going wrong way:
+	if i=. or di<>z then {:boat}
+
+' FIXME - space tracker - duplicate code
+	if lv%<>6 then {:boat}
+	gosub {:sub.item_held}(138):if i then print:print "The SPACE TRACKER powers up! (Giving galactic space coodinates)" 'todo: check for USEing it
+' FIXME: later on there is a routine that prints [GC: x,y] (Galactic Coordinates), move here?
+	if i%=.	 then print:print "(Too bad you don't have a SPACE TRACKER...)"
+
+{:boat}
+'	i$="boat":if lv%=6 i$="space suit"
+'	if (di=z) and (a=0) then print r$"Not without a "i$"!":goto advent
+'	i$=lo$+"**"
+	if di=z and a then i$=lo$+"**":goto {:block.s0}
+	print r$"Not without a ";:if lv%<6 then print "boat";:goto {:boat.2}
+	print "space suit";
+{:boat.2}
+	print "!":goto {:advent}
+
+{:block.s0}
+' cp=1: "compass used" in spur, but different in tada
+' race=ranger
+	gosub {:sub.palintar}:if cp=1 or peek(v1+68)=5 then xy=1
+	sys is,i$,"]":if i%=. or (lv%<6 and xy>0) then {:block.s1}
+' direction input matches blocked direction
+	zz$=mid$(i$,z+1,1):if zz$=dc$ then {:travel1}
+	i$=mid$(i$,z+1):goto {:block.s0}
+{:block.s1}
+	on di goto {:block.n}, {:block.e}, {:block.s}, {:block.w}, {:block.u}, {:block.d}
+' if (di=1) and (n) then cr=(cr<=ri)*nr+cr-ri:goto {:travel1}
+' if (di=3) and (e) then cr=cr+1-((y=0)*ri):goto {:travel1}
+' if (di=2) and (s) then cr=cr+ri-((cr>x)*nr):goto {:travel1}
+' if (di=4) and (w) then cr=cr+((y=1)*ri)-1:goto {:travel1}
+' if (di=5 and rc=1) then {:travel3}
+' if (di=6 and rc=2) then {:travel3}
+' special case: teleporter room 
+	if lv%=1 and rm=89 then {:travel3}
+
+	sys is,lo$,"@@!":if i%=. then {:travel1}
+	print:print "You bounce off the ";:if lv%<6 then print "rocks";:goto {:block.s2}
+	print "hull";
+{:block.s2}
+	print "!":z=17:hp=hp-2:if hp<1 then {:link.dead}
+	
+'1 x=2
+'2 for y=1 to 3:x=x-1:print sgn(x),:on sgn(x)+2 gosub 300,200,100:next:end
+'100 print "+1":return
+'200 print " 0":return
+'300 print "-1":return
+'ready.
+'run
+' 1        +1
+' 0         0
+'-1        -1
+
+	print:print "You can't go in that direction.":goto {:advent}
+{:travel1}
+	yx$="":sys is,lo$,"@@+":if i%=. then {:block.s4}
+	z=val(mid$(lo$,i%+3,1):if di<>z then {:block.s3}
+	print "You get out of the ";:if lv%<6 then print "boat";:goto {:block.s3}
+	print "spacesuit";
+{:block.s3}
+	print "..."
+{:block.s4}
+' energy, str
+	if peek(v1+93)>4 or peek(v1+91)>4 then {:travel1a}
+' con, fixme
+	if pt then pt=pt-1:gosub {:msg.you_feel}("more fragile")
+{:travel1a}
+	if mw=. then {:travel2}
+	gosub {:sub.set_pa}:a=pa:b=ma:gosub {:set.prob}:x=fn r(100)
+	if fn r(100)>33 then if zs<990 and x<=p1 and mw>0 then print r$m$" follow";:gosub {:msg.multi}(m$):print "...":mf=1:mw=.
+' ^ "mf=1" was "mf=1:goto {:travel2}", mw=0 + fall-through saves 1-2 bytes, although maybe mw must be preserved?
+	if mw=. then {:travel2}
+	if zq>. then i$="CHARM":gosub {:link.misc5}:goto {:trav1c}
+	if zs>990 then {:trav1b}
+	sys is,wy$,":":if i% then print:print m$" power";:gosub {:msg.multi}(m$):print " down.":goto {:trav1d}
+	print:print m$" snarl";:gosub {:msg.multi}(m$):print " and wait";:gosub {:msg.multi}(m$):print "...":goto {:trav1d}
+{:trav1b}
+	if zs<989 then {:trav1c}
+	sys is,wy$,":":if i% then print r$m$" ignore";:gosub {:msg.multi}(m$):print " you.":zs=.:goto {:trav1c}
+	print r$m$" look";:gosub {:msg.multi}(m$):print " around uneasily.":zs=.
+{:trav1c}
+' mw used temporarily to calc honor (vk):
+	mw=2:if pr=2 or pr=8 then if i% then mw=4
+	if pr=3 or pr=4 then sys is,wy$,"G":if i% then mw=4
+	if zs>989 or (zq>0 and vk<2000) then vk=vk+mw
+{:trav1d}
+	zq=0:mw=0:mf=0:m$="":wy$=""
+
+{:travel2}
+	ep=ep+1:md=.:gosub {:rd.room}:mm=mm+1:print:if m then {:no.amoeba}
+' thug attack (fixme zu$ stuff):
+'	if mid$(zu$,5,1)="1" then i$="djinn":gosub {:link.misc7}:goto {:no.guard}
+	if mid$(zu$,5,1)="1" then:gosub {:link.module}("misc7","djinn"):goto {:no.guard}
+'	if instr("GARDEN OF EDEN",ww$) then gosub {:g.o.e.} ' separate module?
+	sys is,ww$,"GARDEN OF EDEN":if i% then gosub {:g.o.e.} ' separate module?
+'	gosub {:rnd.10z}:if z>3 then {:travel2a}
+	if fn r(10)>3 then {:travel2a}
+' need to account for different computer types below... flag for guild?
+'	if instr("\|/",ww$) and z<3 then m=67
+	sys is,ww$,"\{pipe}/":if i% then m=67
+'	if instr("-}-",ww$) and z<3 then m=66
+	sys is,ww$,"-]=":if i% then m=66
+'	if instr("=[]",ww$) and z<3 then m=65
+	sys is,ww$,"=[]":if i% then m=65
+	
+{:travel2a}
+' zu$ 7=spell active, what is zn?
+'	if m or z>lv% or mid$(zu$,7,1)="1" or zn=70 or lv%>5 then {:no.guard}
+	if m or z>lv% or mid$(zu$,7,1)="1" or zn=70 or lv%>5 then {:no.guard}
+' zu$ 2=ring worn
+'	if mid$(zu$,2,1)="0" then gosub {:rnd.10z}:if z>lv% then {:no.guard}
+	if mid$(zu$,2,1)="0" then gosub {:rnd.10z}:if z>lv% then {:no.guard}
+	print r$"Something evil stalks...";:gosub {:rnd.10z}:if z=1 then:gosub {:msg.delay}(" ...IT IS HERE!",30):m=70
+
+{:no.guard}
+	print:if lv%<>6 then sys is,lo$,"@@":if i%=0 then {:no.amoeba}
+'	gosub {:rnd.100a}:if a>97 then i$="METEOR":gosub {:link.misc6}
+	gosub {:rnd.100a}:if a>97 then:gosub {:link.module}("events","meteor")
+' fixme: which monster is 119?
+	gosub {:rnd.100a}:if a<3 then m=119:print r$r$"SOMETHING COMES!"
+
+{:no.amoeba}
+' fixme: mm is already multi-monster, so better pick another variable name :/
+	if tm<>0 then if tm<mm then print:print "The aura protecting you is gone.":tm=0
+'	if not (mm mod 10) then pe=pe-1
+' fixme: convert
+'	if not (mm mod 10) then pe=pe-1
+	if pe<0 then pe=0
+	if mm>9999 then mm=0 ' moves?
+
+' inlined these subroutines:
+' gosub {:dwarf}:gosub {:rnd.100a}:if a<3 gosub {:thief}
+
+{:dwarf}
+' this *was* a gosub -- keep in mind if called from other modules, not called within t.main
+' if (not df) return
+	gosub {:rnd.100a}:if a<>50 then return
+	on -(df=0) -2 * (mf<>0) -3 * (rm<>df or lv%>1) goto {:thief},{:travel2a},{:no_dwarf}
+' ^ 1) if dwarf dead, goto thief
+' ^ 2) if monster following, goto travel2a
+' ^ 3) if not in dwarf's room or not on level 1, goto no_dwarf
+' quick way to say "if m=0 then m=1": in acos, 1=true, 0=false:
+	m=fn r(mc):m=m+(m=0)
+	print r$"A short bearded person is here, with a pile of gold!"
+	gosub {:rd.dwarf}:ms=ms+15:mf=1:mw=1:md=0:m$="THE DWARF":goto {:travel2a}
+' i$="DWARF":goto {:link.misc5}
+
+{:thief}
+' got <3 weapons? he won't bother you
+	if xw>3 and fn r(100)<>50 then i$="thief":goto {:link.misc}
+
+{:no_dwarf}
+' you've found spur: same room (SR)/level (SL)
+	if lv%=sl and rm=sr then {:link.duel} 'dy$=ds$+"spur.duel":link dy$
+	if m=0 then gosub {:rnd.100a}:if a=50 or a=51 then i$="RANDOM":gosub {:link.misc6}
+	if m then gosub {:read_monster}
+' {:travel2a} -- FIXME duplicate label
+' display stuff in room inventory you or ally doesn't already have
+	on i+1 goto {:travel2b}:a$=right$("000"+str$(i),3)+",":i$=xi$+ai$
+' fixme: not sure what xt$ is
+	sys is,d$,xi$+ai$
+	sys is,a$,i$:if i%=0 then i=0:goto {:travel2b}
+	sys is,a$,xt$:if i%=0 then i=0:goto {:travel2b}
+	gosub {:sub.read_item}("items",i):sys is,d$,"{pipe}":yz=i%:if yz then d$=left$(d$,yz-1)
+' i'm preserving yz if it's used elsewhere
+	it$=d$:i=d:i1$=dp$:iv=f
+' iv=item value
+
+{:travel2b}
+' same with weapons
+' please note this is a rough translation from ACOS
+	on wp+1 goto {:travel2c}:a$=right$("000"+str$(wp),3)+","
+	sys is,xw$,a$:if i% then wp=0:goto {:travel2c}
+	gosub {:sub.read_item}("weapons",wp):wp$=mid$(d$,2):wt$=dp$:wv=f
+' wv=weapon value
+
+{:travel2c}
+' fixme
+	on fd+1 goto {:travel2e}:i%=fd:gosub {:search_item}:if i%=0 then print "not found"
+' search ally inventory too : if i%=0 then {:travel2d}
+' (was gosub {:ply.loc}:goto {:advent})
+' if (instr(a$,xf$)) or (instr(a$,xo$)) then fd=0:gosub {:ply.loc}:goto {:advent}
+' dy$=dw$+"stores":rl=26:d=fd:gosub {:sub.read_item}:fd$=d$:fd=d:ft$=dp$:sv=f
+' gosub {:ply.loc}:goto {:advent}
+' if instr(a$,xf$) or instr(a$,xo$) then fd=0:goto {:travel2e}
+
+{:travel2d}
+	gosub {:sub.read_item}("rations",fd):fd$=d$:fd=d:ft$=dp$:sv=f
+
+{:travel2e}
+' pina added this
+	gosub {:ply.loc}:goto {:advent}
+
+{:travel3}
+	i$="travel3":goto {:link.misc}
+
+' ------------------ end -- spur.main.s:travel -----------------------------
+
+' --- new instring parser: 4/1/2011 ---
+
+' todo: reorganize blocks of code, get all parser stuff in one general area
+{:parser}
+	pr$="":sys is,i$," ":if i% then pr$=mid$(i$,i%+1)
+{ifdef:debug}
+	print "param @"i%+1;pr$
+{endif}
+	dc$=i$
+{:2240}
+' 1-6 : north, east, south, west, up, down
+	sys is,"NESWUD?#GHILQRT",dc$:on-(i%=.)-2*(i%>6)goto {:2248},{:2246}
+	d%=i%:xx=fn l1(d%*2-1):on -(d%<5) goto {:2300}:goto {:2315}' nesw,ud
+{:2246}
+' 7-15: help, ranger map, get all, help, inventory, look, quit, room desc, time
+	on i%-6 goto {:cmd.main_menu}, {:cmd.teleport}, {:err.unsupported_cmd}, {:cmd.main_menu}, {:cmd.inv}, {:cmd.look}, {:cmd.quit}, {:cmd.room_descs}, {:cmd.hourglass}:goto {:err.cant_use_cmd}
+{:2248}
+' database of player-created items, guild follow, expert mode
+	on -(dc$="DB")-2*(dc$="FL")-3*(dc$="XM") goto {:err.unsupported_cmd}, {:cmd.toggle_guild_follow}, {:cmd.expert_mode}
+' attack, autoduel mode, bash, cast, charge, create item, description, die, dig
+' drink, drop, duel, eat, edit item, examine item, follow player, flee
+	i$="*ATT*AUT*BAS*CAS*CHA*CRE*DES*DIE*DIG*DRI*DRO*DUE*EAT*EDI*EXA*FOL*FLE*"
+	sys is,i$,"*"+left$(dc$,3)+"*":on i%+1 goto {:2258}:i%=i%/4+1
+	on i% goto {:2205}, {:2360}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd},	{:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}
+{:2258}
+' get, give, heal, help, hide <item>, inventory, lurk, more prompt,
+' mount steed, order allies, page <player>, pray, quit, quote, recycle <item>,
+' rest, room descs
+	i$="*GET*GIV*HEA*HEL*HID*INV*LUR*MOR*MOU*ORD*PAG*PRA*QUI*QUO*REC*RES*ROO*"
+{:2260}
+	sys is,i$,"*"+left$(dc$,3)+"*":on i%+1 goto {:2266}:i%=i%/4+1
+	on i% goto {:2205}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:cmd.main_menu}, {:err.unsupported_cmd}, {:cmd.inv}, {:err.unsupported_cmd}, {:cmd.more_prompt}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:2205}, {:err.unsupported_cmd}, {:cmd.quit}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:2205}, {:cmd.room_descs}
+{:2266}
+' say <text>, school, search, track, take <item>, use <item>, wear <item>,
+' program info, npc?, who is logged in
+	i$="*SAY*SCH*SEA*TRA*TAK*USE*WEA*PRG*NPC*WHO*"
+	sys is,i$,"*"+left$(dc$,3)+"*":if i%=. then {:2272}
+	i%=i%/4+1:on i% goto {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:link.info}, {:err.unsupported_cmd}, {:err.unsupported_cmd}
+{:2272}
+' look, loot, read, sayedit, stats, stay
+	sys is,"*LOOK*LOOT*READ*SAYE*STAT*STAY*","*"+left$(dc$,4)+"*":if i%=. then {:2260}
+	i%=i%/5+1:on i% goto {:cmd.look}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:err.unsupported_cmd}, {:2205}, {:err.unsupported_cmd}
+	if dc$="READY" then {:err.unsupported_cmd}
+	goto {:err.cant_use_cmd}
+
+{:2205}
+	gosub {:link.module}(left$(dc$,l),""):return
+{:cmd.get}
+	gosub {:link.module}("get",""):return
+{:cmd.main_menu}
+' x=0: not rel file, nl=0: read til eof
+	print:gosub {:file.read_clearscreen}("s.tada main"+str$(ll%),0,0):goto {:advent}
+
+{:cmd.teleport}
+' nr%: number of rooms on map
+	an$=str$(rm):print "Room #: ";:sys si,3,4,an$:gosub {:string.normalize}(an$):on -(an<1 or an>nr%) goto {:cmd.teleport}:rm=x:goto {:advent}
+
+{:cmd.examine}
+	gosub {:link.module}("examine",""):return
+{:cmd.inv}
+	gosub {:link.module}("inventory",""):return
+{:cmd.quit}
+	gosub {:link.module}("quit",""):return
+
+{:link.dead}
+	gosub {:link.module}("dead",""):return
+{:link.info}
+	gosub {:link.module}("prg info",""):return
+{:link.bar}
+	gosub {:link.module}("bar",""):return
+{:link.shoppe}
+	gosub {:link.module}("shoppe",""):return
+
+{:cmd.look}
+' look: (d)isk (i)nput= , 
+' fixme: modbasic call on gosub {:sub.show_room_items}
+	gosub {:2014}:gosub {:sub.read_room_desc.force}(0):di=.:pr=2:gosub {:sub.show_room_items}:goto {:2130}
+
+{:2300}
+	if df%=2 then {:2330}' nesw
+' todo: more levels later:
+'	on lv% goto {:2302}
+{:2302}
+' if tired or low energy, random chance can't move
+' fixme: this may still be broken
+	gosub {:bit.test}(v1+65,2):if s then x=fn r(5):if x>5 or (peek(v1+93)<5 and x<5) then {:err.too_tired}
+' no monster in space, otherwise monster alive? 30% chance won't let you:
+	on mw+1 goto {:2307}:if md=. and fn r(10)<3 then print m$" won't let you!":goto {:advent}
+' strength increased, and mechanical?
+	if zq<1 then sys is,wy$,".":if i% then sys is,wy$,":":if i%=. then print m$" has you trapped!":goto {:advent}
+{:2307}
+' handle ]n ]e ]s ]w blocks in room flags
+	sys is,l1$,"]"+dc$:if i% then print "Your way is blocked.":goto {:advent}
+' todo: move this into glob of movement cases:
+' level 1, north from 49 to 37:
+	if lv%=1 and ro=49 and d%=1 then {:link.bar}
+' data format 2 specifies a program that can be linked to,
+' so will cut down on this hackish stuff
+' below = 'if xx=0 then {:msg.e_cant_go}, else goto 2320'
+	on xx+1 goto {:msg.e_cant_go}:goto {:2320}
+{:2315}
+	on rc%+1 goto {:msg.e_cant_go}:xx=rt%:if xx=. then {:link.shoppe} ' ud, shoppe
+{:2320}
+' ro<>rm: moved from old room
+' todo: mo (moves) should be truly updated
+	mo=mo+1:rm=xx:print "Moved from room"ro"to"rm:goto {:advent}
+{:2330}
+' fixme: i think this is for restricting dwarf placement, needs finished
+' now spaces instead of * delimit #s, can use sys is,i$,val(x$)
+	i$=" 9 13 17 21 25 29 ":goto {:advent}
+' --- end of parser ---
+
+' --- toggles ---
+' 2345
+{:cmd.expert_mode}
+	gosub {:bit.flip}(v1+64,4):gosub {:sub.item_off_on}("Expert Mode",v1+64,4):return
+{:cmd.more_prompt}
+	gosub {:bit.flip}(v1+64,3):gosub {:sub.item_off_on}("[More] Prompt",v1+64,3):return
+{:cmd.room_descs}
+	gosub {:bit.flip}(v1+64,2):gosub {:sub.item_off_on}("Room Descriptions",v1+64,2):return
+{:cmd.hourglass}
+	gosub {:bit.flip}(v1+64,6):gosub {:sub.item_off_on}("Hourglass",v1+64,6):return
+{:2360}
+	gosub {:bit.flip}(v1+64,7):gosub {:sub.item_off_on}("Autoduel",v1+64,7):return
+{:cmd.toggle_guild_follow}
+' check verbosely if guild member:
+	gosub {:check.guild_membership}(1):if s then:gosub {:bit.flip}(v1+64,7):gosub {:sub.item_off_on}("Guild Follow",v1+64,7)
+	return
+
+' --- messages ---
+{number:2400}
+{:check.guild_membership} ' (print)
+	fn p
+' is player in guild?
+' if s>0, guild member so immediately return
+' otherwise, set dc$="" to produce "No valid command." for next input
+' if p=0, don't print message
+
+' return s, so needs to be global
+	s=peek(v1+69):if s=. then dc$="":if p then print "Thou art not a Guild member!"
+	return
+
+{number:2405}
+{:msg.hp} ' (char,print)
+' conditionally display a char's HP
+' also called from shoppe and STAT command
+	fn c,p
+	gosub {:sub.get_hp}(c):if p then print "[";:gosub {:msg.comma_value}(x,0):print " HP] ";
+	return
+
+{number:2410}
+{:err.too_tired}
+	print "Thou art too tired to move!":goto {:advent}
+
+{number:2415}
+{:msg.e_exception}
+' usually called after a parser problem
+	print x$" exception":goto {:advent}
+
+{number:2420}
+{:msg.affecting}
+' example: print "The poison";:gosub {:msg.affecting}
+	print " is affecting you.":return
+
+{number:2425}
+{:msg.e_cant_go}
+	print "You can't go that way.":goto {:err.invalid_command}
+
+{number:2430}
+{:msg.dusk_approaches}
+	sys br,"[Dusk approaches..."+nl$
+
+{number:2435}
+{:msg.reset_color}
+	sys br,"]"+nl$:return
+
+{number:2440}
+{:msg.list_item} ' (item_num,width,"message",cr)
+	fn n,w,m$,cr	' function prototype
+' item_num : 1-999 number of item to display
+' width    : 1-3	(width of n, how many digits/spaces to print)
+' "message": string to be printed
+' cr		: 1=yes, 0=no cr (for printing things afterwards)
+	print right$("  "+str$(n),w)". - "m$;:if cr then print
+	return
+
+{number:2445}
+{:msg.delay} ' ("message",delay_in_jiffies)
+	fn a$,d	' function prototype
+' a$: message
+' d : delay in jiffies (passed to {:sub.time_delay}
+	def x	' local var
+	for x=1 to len(a$):print mid$(a$,x,1);:gosub {:sub.time_delay}(d):next:return
+
+{number:2450}
+{:sub.time_delay} ' (jiffies)
+	fn d	' function prototype
+	def t	' local var
+	t=ti
+{:sub.time_delay2}
+' this is done so at 20 mhz speed with emulated/real supercpu,
+' delays will be the same amount of time
+	if ti<d+t then {:sub.time_delay2}
+	return
+
+{number:2455}
+{:err.cant_use_cmd}
+' usual reason for this is character ability not gained yet
+' (not an architect or orator - future expansion)
+	print "You cannot use "x$" commands";:goto {:msg.e_cmd_not_yet}
+
+{number:2460}
+{:err.unsupported_cmd}
+	print "Command "q$dc$q$" not supported";
+
+{number:2465}
+{:msg.e_cmd_not_yet}
+	print " yet.":goto {:err.invalid_command}
+
+{number:2470}
+{:msg.not_understood}
+	print "I didn't recognize that command."
+
+{number:2475}
+{:err.invalid_command}
+' clear dc$ so Return won't repeat last command:
+	dc$="":goto {:advent}
+
+{number:2480}
+{:msg.you_feel} ' ("message")
+' *mostly* called from t_encounter:ringwraith
+' if expert mode enabled, don't print "(You feel"x$")
+	fn x$
+	gosub {:check.expert_mode}(0):if s=. then print "(You feel "x$")"
+	return
+
+{number:2485}
+{:msg.fancy_line}
+' from t.ma.armory
+	print "{off}[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]{on}":return
+
+{number:2490}
+{:msg.mounted} ' (print)
+	fn p
+' v1+65, bit 4: have horse?
+	if a$(4)<>"---" then if p then:gosub {:bit.test}(v1+65,4):if s then print "[MOUNTED] ";
+	return
+
+{number:2495}
+{:sub.hourglass}
+' also called from shoppe
+' boots of speed extend gameplay
+' WISH: get server time, print time messages if outdoors:
+' night, dawn, sunrise, morning, noon, afternoon, evening, sunset, twilight, dusk
+
+' WISH: getting a light source (lantern, "light" magic spell) extends gameplay
+
+	tm%=tm%-1:if tm%<31 and (tm%/5=int(tm%/5)) then gosub {:msg.dusk_approaches}
+' display hourglass
+	gosub {:bit.test}(v1+65,7):if s=. then return
+' hours:minutes left
+	x=tm%-val(mid$(ti$,3,2)):print "["mid$(str$(x),2)":";:x=59-val(right$(ti$,2)):print right$("0"+mid$(str$(x),2),2)"] ";:return 
+
+{number:2500}
+{:msg.you_see} ' ("item")
+	fn z$
+	print "You see ";
+
+{:sub.item_init}
+' item could need "--" prefix to comply with starting check from 3rd character
+' handles object formats like T.ROCKS or M.2SERPENT|*
+
+' this subroutine establishes the left & right boundaries of what should be
+' printed -- the first two characters are always item type flags, followed
+' by an optional number in some cases. then comes the item name, followed
+' by optional flags (denoted by the {pipe} quoter directive, translated to
+' "|" on the Commodore) at the end of the item name
+
+' l and r need to be passed around to various subroutines, so no locals
+	l=3+sgn(val(mid$(z$,3,1))):sys is,z$,"{pipe}":r=i%:if r=. then r=len(z$)+1
+	r=r-l
+
+{number:2510}
+{:msg.a_or_some} ' ("item")
+	fn i$
+	def p
+' p=0: singular, 1: plural
+	p=abs(mid$(i$,l+r-1,1)="S"):if p=. then print "a";:sys is,"AEIOU",mid$(z$,l,1):if i% then print "n";
+' if md=2, this also displays "some m$ tracks"
+	if x then print "some";
+' {:msg.item_name} may be called from other places for printing just names,
+' minus all the other prefix/grammar stuff:
+	gosub {:msg.item_name}(i$):return
+
+{number:2515}
+{:msg.item_name}
+	fn z$ ' ("item")
+	print " "mid$(z$,l,r);:return
+
+{number:2520}
+{:msg.is_are} ' (<int>)
+' mm="multiple monsters"
+	def x
+	if x>1 then print "are";:return
+	print "is";:return
+
+{number:2525}
+{:msg.multi} ' (string$)
+' if string starts with "a" or ends in "S" print "s"; returns s=0: singular, s=1: plural
+' duplicate of {:msg.a_or_some}
+	def z$
+	s=abs(mid$(z$,l,1)="a") or abs(mid$(z$,l+r-1,1)="S"):if s then print "s";
+	return
+
+{number:2530}
+{:msg.weakens} ' (string$)
+	def x$
+	print "The "x$" is weakening you.":return
+
+{number:2535}
+{:sub.print_ally_name} ' ("ally_name[!]")
+' display ally name (strip elite ally's trailing "!" if needed):
+	fn n$
+	' def n$
+	print left$(n$,len(n$)+(right$(n$,1)="!"));:return
+
+' --- math ---
+{number:2600}
+{:msg.percentage} ' (number, percentage_of, width 1-3, columns 1/2)
+' number & percentage_of examples: 50, 100 => 50% / 10, 18 => 55% / 36, 78 => 46%
+	def n,p,w,c
+' print right-justified "###", if columns=2: print right-justified " ###%"
+	print right$("  "+str$(n),w);:if c=2 then print " "right$("  "+mid$(str$(int(n/p*100)),2),w)"%";
+	return
+
+{number:2605}
+{:sub.print_num} ' (num, width 1-3, cr)
+' like {:msg.percentage} but fewer params
+	fn n,w,cr
+	print right$("  "+str$(n),w);:if cr then print
+	return
+
+{number:2610}
+{:rnd.100a} ' no params
+	a=fn r(100):return
+
+{number:2615}
+{:rnd.10z} ' no params
+	z=fn r(10):return
+
+{number:2620}
+{:math.mod} ' (dividend,divisor)
+' seems like i've seen a quicker way somewhere
+' 8/Apr/2014 15:42: there is a longer but possibly faster routine in raeto
+'	collin west's book -- TODO: i will investigate, not sure of speed
+'	difference
+	def n,x
+{:math.mod2}
+	n=n-x:on-(n>x) goto {:math.mod2}:return
+
+' --- end math ---
+
+' --- stat adjustments ---
+{number:2700}
+{:sub.adj_stat} ' (statistic, adjustment)
+' adjust statistic for main character:
+' todo: class/race-specific limits
+'	1=Charisma		5=Intelligence  (PI)
+'	2=Constitution	(PT)	6=Strength	(PS)
+'	3=Dexterity	(PD)	7=Wisdom	(PW)
+'	4=EGO	(may remove)	8=Energy	(PE)
+	fn s1,a ' statistic, adjustment
+	def m	' mem_loc
+' if out of range, set s=0 to indicate failure
+	if s1<1 or s1>8 or a<-255 or a>255 then:gosub {:sub.log_error}("E", "t.main", "(:sub.adj{underline}stat): stat #"+str$(s1)+" adj"+str$(a)+"out of range"):s=0:return
+' get memory location of adjustment:
+	m=v1+85+s1:s=0
+' return s=0: stat adjustment not possible (not enough attribute points)
+' return s=1: stat adjustment succeeded
+{ifdef:debug}
+	print " in:"m"="peek(m),"adj="a
+{endif}
+' if - adjustment, check that subtracting a is >0:
+	if a<0 then if peek(m)+a > -1 then s=1
+' if + adjustment, check if adding a will <b1 (256):
+	if a>0 then if peek(m)+a < b1 then s=1
+' succeeded:
+	if s then poke m,peek(m)+a
+' todo: check for expert mode, announce stat adjustment
+{ifdef:debug}
+	print "out:"m"="peek(m)"adj="a
+{endif}
+	return
+
+{number:2720}
+{:sub.adj_hp} '  (character: 1-5, adjustment)
+' <adjustment>: positive to add hp, negative to subtract, 0=kill char
+	fn x,a
+	def s
+	s=0:gosub {:sub.get_hp}(x)
+' if hp adjustment=0, kill character:
+	if a=0 then x=-x
+' return s=-<character> if <character> died
+	x=x+a:if x<1 then s=-x
+	gosub {:put_2_bytes}(v2+214+x*2,x):return
+
+{number:2730}
+{:sub.get_hp} ' (character: 1-5)
+' added Aug 14, 2011 9:13
+' revised 8/Apr/2014 13:13
+' get hp for character 1-5 (starting at v2+216)
+	fn x
+	gosub {:get_2_bytes}(v2+214+x*2):return
+	
+' --- checks ---
+{number:2740}
+{:check.good} ' no params
+' check if monster has Good flag:
+' returns i%=0 if not
+	sys is,wy$,"G":return
+
+{nice:5}
+{:check.evil} ' no params
+' check if monster has Evil flag:
+' returns i%=0 if not
+	sys is,wy$,"E":return
+
+{nice:5}
+{:check.gender} ' no params
+' check gender of main character:
+' returns s=1 if male
+	gosub {:bit.test}(v1+64,1):return
+
+{nice:5}
+{:check.class} ' (character 1-4)
+	fn c:x=peek(v2+184+c):return
+
+{nice:5}
+{:check.race} ' (character 1-5)
+	def x
+'185	4	Race (1 for main character + 3 allies)
+'			1=Human  4=Elf       7=Dwarf
+'			2=Ogre   5=Hobbit    8=Orc
+'			3=Gnome  6=Halfling  9=Half-Elf
+'189	1	Horse has saddlebags so it can carry things too?
+'			Bit 7: 0=no, 1=yes
+'		Horse race (haw haw!)
+'			Bits 6-0: Race - setting multiple bits allows
+'			cross-breeding. Thanks for the idea, DracoSilv :)
+' todo: return 0 if no ally/horse
+	if x<5 then x=peek(v2+185):return
+	
+' "horse race" is bits 6-0, races undetermined right now
+	x=peek(v2+189) and 127:return
+
+{nice:5}
+{:check.more}
+' more prompt enabled?
+	q=.:gosub {:bit.test}(v1+64,3):if s=. then return
+{:msg.more_prompt}
+	gosub {:msg.prompt}("[More/Q]: "):return
+{:msg.prompt} ' ("message")
+	fn a$
+	print a$;:gosub {:sub.cursor_get}:q=-(an$="q" or an$="Q"):on q+1 gosub {:sub.clear_line}, {:msg.aborted}:return
+
+{nice:5}
+{:check.dead} ' (character,death_reason) in t.die
+' fixme: finish
+	fn c,z
+	print "(:check.dead) unfinished":return
+' todo: maybe 't.dead' will be have a function for suicides ("die") as well
+'	if c=1 then:gosub {:link.module}("die","death")
+
+{nice:5}
+{:check.expert_mode} ' (print)
+	def p
+' s+p (assumed "<>0" afterwards) is a quick way of saying "if s<>0 and p<>0 then..."
+' returns s=1: on
+	gosub {:bit.test}(v1+64,4):if s+p then:gosub {:sub.item_off_on}("Expert Mode",s)
+	return
+
+{nice:5}
+{:msg.expert_mode} ' (<string>)
+	def m$
+' print <string> if expert mode off
+	gosub {:check.expert_mode}(0):if s=. then print m$
+	return
+
+' --- general subroutines ---
+{number:2800}		' 2800
+{:bit.set}		' (mem_loc,bit)
+	fn m,b
+	poke m,peek(m)or 2^b:return
+
+{nice:5}		' 2805
+{:bit.clear}		' (mem_loc,bit)
+	fn m,b
+	poke m,peek(m)and 255-2^b:return
+
+{nice:5}		' 2810
+{:bit.test}		' (mem_loc,bit)
+' test bit: RETURNs s=1 IF ON, s=0 IF NOT
+' (trying to be clever, above line would tokenize pretty nicely :)
+	fn m,b
+	s=abs((peek(m)and 2^b)=2^b):return
+
+{nice:5}		' 2815
+{:bit.flip}		' (mem_loc,bit)
+' flip the value of bit <b> in memory location <m>
+	fn m,b
+	gosub {:bit.test}(m,b):if s then:gosub {:bit.clear}(m,b)
+	if s=. then:gosub {:bit.set}(m,b)
+	return
+
+{nice:5}		' 2820
+{:get_2_bytes}		' (mem_loc)
+	fn m
+	x=peek(m)*b1+peek(m+1):return
+
+{nice:5}		' 2825
+{:put_2_bytes}		' (mem_loc,value)
+' thanks fuzzyfox, for all the math
+	fn m,x
+	poke m,x/b1:poke m+1,x-int(x/b1)*b1:return
+
+{nice:5}		' 2830
+{:get_3_bytes}		' (mem_loc)
+	fn m:x=b2*peek(m)+(b1*peek(m+1))+peek(m+2):return
+
+{nice:5}		' 2835
+{:put_3_bytes}		' (mem_loc,value)
+	fn m,x
+	poke m,int(x/b2):poke m+1,int((x-int(x/b2)*b2)/b1):poke m+2,int((x-int(x/b1)*b1)):return
+
+{nice:5}		' 2840
+{:msg.comma_value}	' (value,justify)
+	fn x,j
+	def x$,l,a,y	' function prototype, local vars
+' x : 1-999,999,999	number of item to display
+' j : 0/1		whether to right-justify comma-delimited value
+
+' 1 j=1:forq=1to9:x=val(left$("999999999",q)):gosub2837:print:next:end
+
+'	x$=mid$(str$(x),2,9):l=len(x$):a=l:if j then print left$("{space:11}",9-l+abs(l<4)+abs(l<7));
+	x$=mid$(str$(x),2,9):l=len(x$):a=l:if j then print spc(9-l+abs(l<4)+abs(l<7));
+	if l<4 then print x$;:return
+{:msg.comma_value2}
+	a=a-3:if a>3 then {:msg.comma_value2}
+	print left$(x$,a);:for y=a+1 to l step 3:if a<>l then print ",";
+	print mid$(x$,y,3);:next:return
+
+{nice:5}		' 2850
+{:sub.get_gold}		' (character 1-4)
+' horse has no gold unless carrying saddlebags
+' haven't figured out where in stats file gold could be stored then
+
+' call {:sub.get_gold} when character <c>'s gold in hand should be queried
+
+' starts at v2+21
+' use {sub.display_gold}(c) to show it
+	fn c
+	gosub {:get_3_bytes}(v2+18+c*3):return
+
+{nice:5}		' 2855
+{:sub.check_gold}	' (character 1-4, price)
+' does character <c> have sufficient gold for a transaction?
+' transaction can be negative in order to deduct gold from account
+' (price=-150, gold=100, returns s=0 for false)
+' returns	s: 1=yes, 0=no
+'		x: amount of gold in hand
+' can also just get gold in hand with this routine, then disregard x and p
+	fn ch,p
+	gosub {:sub.get_gold}(ch):s=abs(abs(p)<=abs(x)):return
+
+{nice:5}		' 2860
+{:sub.adj_gold}		' (character 1-4,amount)
+	fn c,p 		' character, price
+' Adjust gold in hand by <p> gold if possible
+' To subtract, set <p> to a negative value
+	gosub {:sub.check_gold}(c,p):if s then:gosub {:put_3_bytes}(v2+18+c*3,x+p)
+	gosub {:check.expert_mode}(0):if s=. then return
+' print message about remaining gold:
+	def x$
+	x$=a$(c-1):if c=1 then x$="Thou"
+	print "("x$" hast ";:gosub {:sub.display_gold}(c,0):print " gold left.)":return
+
+{nice:10}			' 2870
+{:sub.display_gold} ' (character 1-4,justify)
+	fn c,j
+' show gold in hand for character c, j=1: right-justify, j=0: left-justify
+' does not print trailing carriage return
+	gosub {:sub.get_gold}(c):gosub {:msg.comma_value}(x,j):return
+
+{nice:5}			' 2875
+{:sub.item_held}		' (item_num)
+' search through main char's inventory for item #i
+' call with 'i' being item to search for
+
+' todo: define function prototype as being (item_num,player_num,"[isw]"
+'		(item/spell/weapon) list that sets y below
+' todo: expand out to automatically search other chars' inventories
+
+' locals:	y=start of search (v2+y) 
+'			x=loop counter
+'			mx=max items/spells/weapons in inventory: 7 or 10 depending on
+'				character race (carrying capacity)
+
+' returns: i=position in L2$ where item #i is found, 0 if not held
+	fn i
+	def mx,x,y
+	x=1:y=v2+y:mx=peek(v1+136)
+{:item_held2}
+' peek(y+1)*b1+peek(y+2)
+	if fn d2(x*2+y)=i then i=x:return
+' check within inv limits: if loop counter < max in inv, loop back
+	x=x+2:if x<mx then {:item_held2}
+	i=.:return
+
+{nice:5}		' 2885
+{:sub.weapon_held}	' (item_num)
+' fixme: finish this
+	print "(sub.weapon{underline}held)":return
+
+{nice:5}		' 2890
+{:adj_3_bytes}		' (mem_loc, amount to inc/dec)
+	fn m,i
+	gosub {:get_3_bytes}(m):gosub {:put_3_bytes}(m+i):return
+
+{number:2900}
+{:2900}
+' --- functions *must* stay here ---
+' 20/Dec/2014 12:36 - argument variables (z0) are something not used anywhere
+' else to avoid collision with local variables...
+' double-byte value in l1$ (level data):
+	def fn l1(z0)=asc(mid$(l1$,z0,1)+nl$)+b1*asc(mid$(l1$,z0+1,1)+nl$)
+' same in l2$:
+	def fn l2(z0)=asc(mid$(l2$,z0,1)+nl$)+b1*asc(mid$(l2$,z0+1,1)+nl$)
+' same for d$ (one half of player stats):
+	def fn	d(z0)=asc(mid$(d$,z0,1)+nl$)+b1*asc(mid$(d$,z0+1,1)+nl$)
+' same for d2$ (second half of player stats):
+	def fn d2(z0)=asc(mid$(d2$,z0,1)+nl$)+b1*asc(mid$(d2$,z0+1,1)+nl$)
+' random # between 1 and z0:
+	def fn	r(z0)=int(rnd(-ti)*z0)+1
+' added 8/Apr/2014 19:57:
+' double-byte peek:
+	def fn dp(z0)=peek(z0)+b1*peek(z0+1)
+' 4/Jun/2014 10:22 -- current line # (for sub.log_error among other things)
+{ifndef:fn_fix}
+	def fn cl(z0)=peek(57)+b1*peek(58)
+{else}
+	def fn cl(z0)=fn dp(57)
+{endif}
+	return
+
+' --- string stuff ---
+{nice:10}
+{:sub.i_string_address} ' (string$)
+{ifndef:fn_fix}
+' fixme: i think it returns length of i$ in vi+0
+	sys 45195i$:i=peek(780)+b1*peek(781)+1:i=peek(i)+b1*peek(i+1)-1
+{else}
+' 10/Apr/2014 15:16 - using new double byte peek function:
+	sys 45195i$:i=fn dp(780)+1:i=fn dp(i)-1
+{endif}
+	return
+
+{nice:10}
+{:sub.i_string_uppercase} ' (string$)
+'	i$="this is all lowercase"
+'	gosub {:sub.i_string_uppercase}
+'	print "after:"
+'	print i$
+
+' i=address of i$
+' x=loop counter
+' y=char under scrutiny
+' z=len(i$)
+	def i,x,y,z
+{ifdef:debug}
+	print "(:sub.i{underline}string{underline}uppercase) - global i$"
+{endif}
+	z=len(i$):if z=. then print "z [len(i$)]=0":return
+	gosub {:sub.i_string_address}
+{ifdef:debug}
+	print "(:sub.i{underline}string{underline}address) return:"
+	print "i (i$ addr)="i
+{endif}
+' uppercase string (starts at i+1 because 0 is LENgth):
+	for x=i+1 to i+z:y=peek(x)
+	{ifdef:debug}
+	' print address, contents:
+		print x"before:"y;chr$(y);
+	{endif}
+' uppercase it:
+	if y>64 and y<91 and y<>32 then y=y or 128:poke x,y
+	{ifdef:debug}
+		print " after:"y;chr$(y)
+	{endif}
+	next
+
+{ifdef:debug}
+	print "i$="i$
+{endif}
+	return
+	
+{nice:5}
+{:string.normalize} ' ("string")
+' returns value of string
+	fn a$
+	an=int(abs(val(a$))):return
+	
+{nice:5}
+{:sub.log_error} ' ("err_level",error_line,"message")
+	fn el$,el,m$
+	def x$ ' resultant full error text
+' added: Aug 14, 2011 20:01
+' modified: 15/Apr/2014 16:36
+' 6/23/2017: if error_line is 0, don't log error line # (not always important)
+
+' prototype:
+' "err_level" (suggested:) "e" => error  "w" => "warning"  "i" => "information"
+' "module" will usually = cm$ (current_module)
+' "message" can be whatever
+
+' todo: get date/time from server?
+' todo: make error trap routine call this
+
+' possible output:
+
+'  Date: 4/20/2014
+'  Time: 11:13 PM
+'  User: 
+'Module: 
+' Error: 
+'Line #: 
+
+' gosub {:sub.SendCSIP}("time"):
+' gosub {:sub.SendCSIP}("date")
+' x$=mid$("JanFebMarAprMayJunJulAugSepOctNovDec",?,x*3-2,3)
+
+	gosub {:file.append_or_write}("e.t.errorlog"):gosub {:sub.log_it}("An error occurred:")
+' [err_level] current_module, error_line: error
+' [err_level] current_module: error
+
+	x$="["+el$+"] "+cm$:if el then x$=x$+","+str$(el)
+	x$=x$+": "+m$:gosub {:sub.log_it}(x$):gosub {:sub.log_event.fancy_line}
+	close 2:return
+
+{nice:5}
+' in-game event logging
+{:sub.log_event.init} ' ("init_msg"
+	fn m$	' log initial_message
+	def f$	' log filename
+	f$="e.t.eventlog"
+	gosub {:file.append_or_write}(f$):if e then:gosub {:sub.log_error}("W",fn cl(0),"Can't open "+f$):goto {:sub.log_event.done}
+' todo: get CommodoreServer date/time:
+	gosub {:sub.log_event.fancy_line}:gosub {:sub.log_it}("dd/mm/yyyy hh:mm xM - "+m$):return
+
+' TODO: spur centered init_msg in header, like so...
+' []=-=-=-=-=-=-[ Thunder! ]-=-=-=-=-=-=[]
+
+' (it's okay to have 40 character lines; file_reader eliminates skipping a logical screen line
+
+{:sub.log_event} ' ("message")
+	def m$
+	gosub {:sub.log_it}(m$):return
+{:sub.log_event.fancy_line}
+	gosub {:sub.log_it}("[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]"):return ' 39 chars
+{:sub.log_it} ' ("message") printed to screen, logged to open disk file
+	fn a$
+	print a$:print# 2,a$:return
+{:sub.log_event.done}
+	gosub {:sub.log_event.fancy_line}:close 2:return
+
+{nice:5}
+{:sub.string_expand} ' ("string",expand 1-20)
+' was {:x_str.expand}
+	fn x$,z ' z=length to expand x$ to (1-20)
+	def z
+	x$=x$+left$("{space:20}",z-len(x$)):return
+
+{nice:5}
+{:sub.string_truncate} ' ("string")
+' searches <string> from right to left, truncating to first non-space char
+	fn z$
+	def y
+	y=len(z$):if y=. then return
+{:string.truncate2}
+	if mid$(z$,y,1)=" " then y=y-1:goto {:string.truncate2}
+	x$=left$(z$,y):return
+
+{nice:1000}
+' fixme: unfinished subroutines
+{:advent3}
+	print "(:advent3)":goto {:advent}
+
+{:block.n}
+{:block.e}
+{:block.s}
+{:block.w}
+{:block.u}
+{:block.d}
+' prevent player from moving in given direction
+	print "(:block.[neswud])":goto {:advent}
+
+{:check.ring}
+' this subroutine should check whether the ring is worn or not, i think
+	print "(:check.ring)":return
+
+{:check.storm_weapon}
+' returns i%=0: weapon readied is not a storm weapon, i%<>0=yes
+	sys is,wr$,"STORM":return
+
+{:file.input}
+	print "(:file.input)":return
+
+{:g.o.e.}
+	print "(:garden of eden)":return
+
+' fixme: eventually these could be folded into generic
+' {:link.module}("module_name") code, I think
+{:link.combat}
+	print "(:link.combat)":goto {:advent}
+{:link.duel}
+	print "(:link.duel)":return
+{:link.misc}
+	print "(:link.misc)":goto {:advent}
+{:link.misc5}
+	print "(:link.misc5)":return
+{:link.misc6}
+	print "(:link.misc6)":return
+{:link.misc7}
+	print "(:link.misc7)":return
+
+{:sub.palintar}
+' fixme - check for palintar
+	print "(:sub.palintar)":return
+{:ply.loc}
+' searches for following players, I think
+	print "(:ply.loc)":return
+
+{:sub.read_item} ' (item)
+	fn x
+' param given is x+1 since 1st record is # of items
+	print "(:read{underline}item)":gosub {:record_pointer}(x+1):return
+{:rd.dwarf}
+' read dwarf stats
+	print "(:rd.dwarf)":return
+{:rd.room4}
+' fixme: not sure what this is
+	print "(:rd.room4)":goto {:advent}
+
+'{:read_room3}
+'	print "(:read{underline}room3) - missing label":goto {:advent}
+
+{:search_item}
+	gosub {:sub.log_error}("I",fn cl(0),"(:search{underline}item) hit"):return
+
+' these were moved from combat-snippets.lbl -- labels were duplicates:
+{:sub.set_pa}
+' ps+pd+pt+pi+pw+pe
+' strength, dexterity, constitution, intelligence, wisdom, energy
+	pa=int(peek(v1+91)+peek(v1+88)+peek(v1+87)+peek(v1+90)+peek(v1+92)+peek(v1+93)/16):if pa>9 then pa=9
+'	if pa>6 then return
+	if pa<6 then:gosub {:msg.you_feel}("poorly.")
+	return
+
+{:set.prob}
+	if a>b then p1=a-b:goto {:set.prob2}
+	p1=b-a
+{:set.prob2}
+	if p1>5 then p1=10-p1
+	p2=p1*2:p2=10-p2+(p1=0):return
+
+' FIXME: true=1, false=0 in acos - can be abs(whatever) on c=

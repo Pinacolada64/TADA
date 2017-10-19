@@ -1,0 +1,214 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{ifdef:standalone}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{endif}
+	rem --- t.bar ---
+	goto {:start}
+' last updates:
+' 2014:  2/1   22:43
+'		 4/21   9:27
+' 2012:  4/8   22:19
+' 2006:  9/21
+' 2007:  8/18
+' 2008:  3/10
+' 2009:  6/7  6/27  7/25
+' 2011:  3/1  5/12
+
+{nice:10}
+{:sub.stash_position}
+' stash current x/y position in 2 empty spots in player data so
+' when player returns from sub-module, they're in the same spot
+' they "left off" from
+	def x,y
+	poke v1+96,x:poke v1+97,y:return
+
+{:sub.get_position}
+	x=peek(v1+96):y=peek(v1+97):return
+
+{nice:10}
+{:sub.show_map}
+' todo: convert to modbasic -- gosub {:sub.show_map}(x,y)
+' display bar map & current position as "*" (a$)
+	fn x,y
+	def j
+	for j=1 to 6:print tab(t):if x<>j then print tt$(j):goto {:show_map2}
+	print left$(tt$(j),y-1)a$mid$(tt$(j),y+1)
+{:show_map2}
+	next:print:return
+
+{nice:100}
+{:start}
+	t=9:if ll%=80 then t=34
+
+' get loan amount:
+' j=.: ' not sure if necessary, since for-next loop uses j
+{ifdef:fn_fix}
+	l=fn l1(113) ' loan amount
+{else}
+	l=asc(mid$(d$,113,1)+nl$)+256*asc(mid$(d$,114,1)+nl$
+{endif}
+
+' fix values passed from previously loaded sub-modules
+' if they use x or y:
+	x=peek(v1+96):y=peek(v1+97):if x+y=. then x=1:y=7
+	if x<1 then x=1
+	if x>6 then x=6
+	if y<1 then y=1
+	if y>12 then x=12
+
+' set up proper bar map, ascii or c/g
+' i$=person, a$=you
+	if co%=1 then {:800}
+
+' . = places to visit
+
+'						  11
+'				 12345678901
+' 1				+----+ +----+
+' 2 blue djinn	!o[].   .[]o! vinney			  N
+' 3				!.          !           		W-+-E
+' 4				!--+    .[]o! fat olaf's		  S
+' 5 skip's eats	!oo!.   .[]o! madame zelda's	(*=You)
+'				+-----------+
+'				    ^ bar none
+'				 12345678901
+'						  11
+
+{:700}
+' --- define ascii bar map ---	
+	i$="o":a$="*"
+	tt$(1)="+----+ +----+
+	tt$(2)="!"+i$+"[]     []"+i$+"!   N
+	tt$(3)="!           ! N-+-E
+	tt$(4)="!--+     []"+i$+"!   S
+	tt$(5)="!"+i$+i$+"!     []"+i$+"! ("+a$+"=You)"
+	tt$(6)="+-----------+
+	goto {:opening}
+
+{:800}
+' --- define c= c/g bar map ---
+	i$="o":a$="*"
+	tt$(1)="{$b0}{$c0:4}{$b3} {$ab}{$c0:4}{$ae}"
+	tt$(2)="{pipe}"+i$+"{$b6}{$a1}     {$b6}{$a1}"+i$+"{pipe}   N"
+	tt$(3)="{pipe}           {pipe} W{$c0}{$db}{$c0}E"
+	tt$(4)="{$ab}{$c0:2}{$ae}     {$b6}{$a1}"+i$+"{pipe}   S"
+	tt$(5)="{pipe}"+i$+i$+"{pipe}     {$b6}{$a1}"+i$+"{pipe} ("+a$+"=You)"
+	tt$(6)="{$ad}{$c0:2}{$b1}{$c0:8}{$bd}
+
+{:opening}
+' skip opening msg if not in doorway
+	if x>1 then {:115}
+	print "You stand in the doorway of a smoky ";
+	print "bar. A faded sign reads:":print
+	print tab(t)q$"WALL BAR AND GRILL"q$".":print
+	print "Mundo the bouncer ";:if l then {:35}
+	print "glances up and waves you in.":x=1:y=7:goto {:115}
+{:35}
+	print "recognizes you and "q$"escorts"q$" you over to Vinney!":x=2:y=9
+
+	rem --- main loop ---
+{:115}
+	an$="":print:gosub {:sub.show_map}(x,y)
+' determine whether char has bumped into someone (must be next to "o")
+	f=.:if mid$(tt$(x-1),y,1)=i$ or mid$(tt$(x+1),y,1)=i$ then f=1
+	if mid$(tt$(x),y-1,1)=i$ or mid$(tt$(x),y+1)=i$ then f=1
+	if f then gosub {:sub.fight}:if a=1 then {:advent}
+{:127}
+	g=.:if x=1 and y=7 and an$="n" then {:247}
+	if x=2 and y=5 then print "THE BLUE DJINN":g=1:if an$="g" then {:400}
+	if x=2 and y=9 then print "VINNEY":g=1:if an$="g" then {:401}
+	if x=3 and y=2 then print "SKIP'S EATS":g=1:if an$="g" then {:402}
+	if x=4 and y=9 then print "FAT OLAF'S":g=1:if an$="g" then {:403}
+	if x=5 and y=5 then print "BAR NONE":g=1:if an$="g" then {:405}
+	if x=5 and y=9 then print "MADAME ZELDA":g=1:if an$="g" then {:404}
+' z=x:m=v2+216:gosub 2830:print mid$(str$(x),2);
+	gosub {:sub.get_hp}(1):gosub {:msg.comma_value}(x,0)
+	print " hp) Move N/E/S/W, L)eave";:if g then print ", G)o here";
+' is z necessary? seems like a temp value and can be gotten rid of
+	x=z:print r$r$"Cmd >> ";
+{:162}
+	gosub {:sub.cursor_get}:sys is,"neswlg",an$:on i%+1 goto {:162}, {:175}, {:180}, {:185}, {:190}, {:245}, {:191}
+{:175}
+	print "North.":x=x-1:goto {:195}
+{:180}
+	print "East.":y=y+1:goto {:195}
+{:185}
+	print "South.":x=x+1:goto {:195}
+{:190}
+	print "West.":y=y-1:goto {:195}
+{:191}
+	on g+1 goto {:162}:print "Go here.":print:goto {:127}
+{:195}
+' in doorway:
+	if x=1 and (y=6 or y=8) then y=7:goto {:225}
+' walk north into blue djinn:
+	if x=2 and y=2 then x=3:gosub {:301}:if a=. then {:advent}
+' left edge check, was y<1, y=1
+	if x=3 and y<2 then y=2:goto {:225}
+' right edge check:
+	if x=3 then if y>12 then y=12:goto {:225}
+' other line left edge check
+	if x<>3 and y<5 then y=5:goto {:225}
+' other line right edge check
+	if x<>3 and y>9 then y=9:goto {:225}
+' prevent crashing into walls:
+	if x<1 then x=1:goto {:225}
+	if x>5 then x=5:goto {:225}
+	goto {:115}
+{:225}
+	print:print "Laughter fills the bar as you attempt to walk through solid objects..."
+{:subtract_hp}
+' subtract hp:
+	gosub {:sub.adj_hp}(1,-1)
+' fixme: i don't remember what 'x' and 'z' are all about:
+	if x then x=z:goto {:115}
+' FIXME: add death flag z:
+	z=1:print:print "Yer dead!":goto {:link.dead}
+	rem --- leave bar ---
+{:245}
+	print "Leave.":print:gosub {:sub.show_map}(1,7)
+{:247}
+	print "You return to the street.":print
+' clear x/y position:
+	gosub {:sub.stash_position}(0,0)
+	goto {:advent}
+
+' --- bump into someone ---
+{:sub.fight}
+	print "Mundo looks up from the floor. "q$"Hey,";:goto {:303}
+{:301}
+	print "The Blue Djinn eyes you, hissing. "q$"Are";
+{:303}
+' copied from {:sub.yes_no} because of quote mark occurring after question mark
+	print " you looking for a fight?"q$" (Y/N) >> ";:poke 212,.
+	a=.:gosub {:sub.yes_no.cursor}:if a=. then sys br,q$+"Well then, [watch] it!"+q$+r$+nl$:return
+{:306}
+' x stores x-coordinate in bar, z temporarily saves that since
+' {:sub.get_hp} returns x also
+	gosub {:sub.get_hp}(1):print "At a signal, Mundo the bouncer ";
+' < 5 hp, don't attack:
+	if x>5 then print "knocks you over the head with a baseball bat, and ";:gosub {:sub.adj_hp}(1,-5)
+	print "throws you out into the street..."
+{:315}
+' restore x-coordinate:
+	x=z:return
+
+	rem --- load modules ---
+{:400}
+	print "load "q$"t.bar.djinn"q$:goto {:115}
+{:401}
+	gosub {:sub.stash_position}:gosub {:link.module}("bar.vinney","")
+{:402}
+	print "load "q$"t.bar.skip"q$:goto {:115}
+{:403}
+	gosub {:sub.stash_position}:gosub {:link.module}("bar.olaf","")
+{:404}
+	print "load "q$"t.bar.zelda"q$:goto{:115}
+{:405}
+	print "load "q$"t.bar.gus"q$:goto{:115}
+{:link_dead}
+	gosub {:link.module}("dead","")
+{number:999}
+	rem t.bar

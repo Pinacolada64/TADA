@@ -1,0 +1,98 @@
+{undef:debug}
+{undef:fn_fix}
+{quoter:164=underline}
+
+' have tried with local variables, prints nothing after RETURN
+' so don't do it
+
+{alpha:invert} ' important so strings aren't uppercase to begin with
+
+{number:1}
+' check whether getting e.t.playerlog data, converting to uppercase works:
+	poke 53280,12:poke 53281,12:print"{clear}{gray3}{$08}{$0e}TADA String Handling v0.1"
+	print"{192:25}":print ' solid horizontal line
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+	gosub {:sub.get_current_drive}
+' load modbasic:
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	sys 49152
+' variables are now cleared
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+
+' load my utility ml:
+	gosub {:sub.get_current_drive}
+	f$="ml c500":gosub {:sub.bload}
+	goto {:menu}
+	
+{nice:10}
+{:sub.get_current_drive}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	return
+	
+{nice:10}
+{:sub.bload}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}	
+	return
+
+{nice:10}
+{:sub.i_str_addr} ' (string$)
+{ifndef:fn_fix}
+' fixme: i think it returns length of i$ in vi+0
+	print "using 1st varptr method"
+	sys 45195i$:i=peek(780)+b1*peek(781)+1:i=peek(i)+b1*peek(i+1)-1
+{else}
+' 10/Apr/2014 15:16 - using new double byte peek function:
+	print "using 2nd varptr method"
+	sys 45195i$:i=fn dp(780)+1:i=fn dp(i)-1
+{endif}
+
+{ifdef:debug}
+	print "i$ addr:"i
+	print "i$ len :"peek(i)
+{endif}
+	return
+
+{nice:10}
+{:sub.i_str_uppercase} ' (string$)
+' x=loop counter
+' y=char under scrutiny
+' z=len(i$)
+	def x,y,z
+	print "(:sub.i{underline}str{underline}uppercase)"
+	z=len(i$):if z=. then print "z [len(i$)]=0":return
+	gosub {:sub.i_str_addr}(i$)
+{ifdef:debug}
+	print "(:sub.i{underline}str{underline}addr) return:"
+	print "i (i$ addr)="i
+{endif}
+' uppercase string:
+	for x=i to i+z:y=peek(x)
+	{ifdef:debug}
+' print address, what's there:
+		print x"in:"y,
+	{endif}
+' uppercase it:
+	if y>64 and y<91 and y<>32 then poke x,y or 128
+	{ifdef:debug}
+		print "out:"y
+	{endif}
+	next
+
+{ifdef:debug}
+	print "during: i$="i$
+{endif}	
+	return
+
+{nice:100}
+{:menu}
+' make the string appear outside the basic program
+	i$="this is all lowercase"+"!"
+	print "before:"
+	print "i$="i$
+	gosub {:sub.i_str_uppercase}
+	print "after:"
+	print i$
+	
+{:1811}
+	print "shutting down modbasic":sys 49155
+	end

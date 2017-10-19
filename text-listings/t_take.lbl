@@ -1,0 +1,40 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.take
+{ifdef:standalone}
+	in=9:mi=10:al=4:for x=.to 4:a(x)=x:next:a(2)=5
+	in$(.)="0001000000030004000500060007000800090002"
+	for x=1 to 4:in$(x)="000100010000":next
+	for x=.to 4:a$(x)="CHAR"+str$(x):next
+	ob$(1)="ADVENTURER'S GUIDE":ob$(2)="IN SEARCH OF...":ob$(3)="*IVORY BONES"
+	ob$(4)="SACK LUNCH +1":ob$(5)="NOTHING SPECIAL":ob$(6)="IRON PLAQUE"
+	ob$(7)="BREAD BOX":ob$(8)="MEAT":ob$(9)="KNIFE":ob$(10)="LAST ITEM"
+{endif}
+	if al=. then print "You have no allies.":goto {:advent}
+	if in=mi then print "You can't carry any more.":goto {:advent}
+	print:y%=.:for x=1 to al:if a(x)=5 then {:625}
+	y%=y%+1:print y%"{left}. - "a$(a(x))
+{number:100}
+{:625}
+	next:print:an$="":print "Take object from whom";:sys si,2,3,an$:if an$="" then {:advent}
+	gosub {:string.normalize}(an$):z=an:on -(z<. or z>y%) goto {:advent}:t=z:for x=1 to z:if a(x)=5 then t=t+1
+	next:z=t:t=.:y=-1
+	for x=1 to 12 step 4:y=y+1:j(y)=val(mid$(in$(z),x,4)):if y then t=1
+	next:if t=. then print a$(a(z))" is carrying nothing.":goto {:advent}
+	print:y%=.:for x=.to 2:if j(x)=. then {:665}
+	y%=y%+1:o$=ob$(j(x)):if left$(o$,1)="*" then o$=mid$(o$,2)
+	print y%"{left}. - "o$
+{:665}
+	next:an$="":print "{down}Take which";:sys si,2,3,an$:if an$="" then {:advent}
+	gosub {:string.normalize}(an$):ob=an:on -(ob<1 or ob>y%) goto {:advent}:t=ob-1
+	for x=. to ob-1:if j(x)=. then t=t+1
+	next:ob=t:y=-1
+	for x=1 to mi*4 step 4:y=y+1:i(y)=val(mid$(in$(.),x,4)):next:y=-1
+	for x=1 to mi*4 step 4:y=y+1:if i(y)=. then j=y:x=mi*4
+	next:i(j)=j(ob):j(ob)=.:in$(.)="":in$(z)="
+	for x=. to 9:in$(.)=in$(.)+right$("000"+mid$(str$(i(x)),2),4):next
+	for x=1 to 3:in$(z)=in$(z)+right$("000"+mid$(str$(j(x-1)),2),4):next
+{number:999}
+	rem t.tak

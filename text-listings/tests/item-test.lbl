@@ -1,0 +1,290 @@
+{alpha:invert}
+{number:1}
+' 2011/07/26:	new, re-organized
+
+' 2014/05/22:	using modbasic @ $c000 / ml @ $c500
+'		"retun" -> "return", removed line #s
+'		added {:msg.list_item} use cases
+
+' 2017/07/09:	adding menu, more test cases:
+'		{:sub.item.name}	(formerly {:msg.item_init})
+'		{:sub.item.plural}	(formerly {:msg.a_or_some})
+'		{:sub.item.off_on.toggle}
+'		{:sub.item.no_yes}
+'		{:sub.item.off_on}
+
+{quoter:$dd="pipe"}		' so | translates properly on the Commodore
+{quoter:164="underline"}	' easier to type _ (c= @)
+
+{def:modbasic}			' so {include:}s provide modbasic function headers
+
+{:setup}
+	poke 53280,12:poke 53281,12:print "{$08}{$0e}{gray3}{clear}";
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	f$="ml c500":gosub {:sub.bload}
+
+' initialize modbasic:
+	sys 49152
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+
+	for x=1 to 5:read i$:i$(x)=i$:next
+	data "M.MUMMY{pipe}<]","B.SCROLL","T.3IRON MASK{pipe}x","F.BANANAS","I.MONKS"
+	goto {:menu}
+
+{:sub.bload}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+
+{nice:100}
+{:menu}
+	print:print "TADA list construct testing":print
+	gosub {:msg.list_item}(0,2,"Quit",1)
+	gosub {:msg.list_item}(1,2,"Singular/Plural Room Items",1)
+	gosub {:msg.list_item}(2,2,"Inventory Items",1)
+	gosub {:msg.list_item}(3,2,"Item Off/On Display",1)
+	gosub {:msg.list_item}(4,2,"Item No/Yes Display",1)
+	gosub {:msg.list_item}(5,2,"Item Toggle Displays",1)
+	gosub {:msg.list_item}(6,2,"Item List Display",1)
+
+	print:input "Which";an$:print:an=int(val(an$))
+	if an=0 then {:1811}
+	if an=1 then {:test_room_items}
+	if an=2 then {:test_inv_items}
+	if an=3 then {:test_item_off_on}
+	if an=4 then {:test_item_no_yes}
+	if an=5 then {:test_item_toggle}
+	if an=6 then {:test_item_list}
+	print "Bad choice.":print:goto {:menu}
+
+{nice:10}
+{:test_room_items}
+	print "You see:"
+	for x=1 to 5
+' print item name:
+	print "   ";:gosub {:sub.item.plural}(i$(x),1)
+	next
+
+	goto {:menu}
+
+{nice:10}
+{:test_inv_items}
+' gosub {:msg.list_item} ' (item_num: 0-999, width: 1-3, "string", cr: 0/1)
+	print "You are carrying:"
+' items with flags:
+	gosub {:msg.list_item}( 1,2,i$(3),1)
+
+' normal items:
+	gosub {:msg.list_item}( 2,2,"TEA, EARL GREY, HOT",1)
+	gosub {:msg.list_item}( 3,2,"TEA",1)
+	gosub {:msg.list_item}( 4,2,"NO TEA",1)
+	gosub {:msg.list_item}( 5,2,"THE WEIGHT OF THE WORLD",1)
+	gosub {:msg.list_item}( 6,2,"A TUNE IN A BUCKET",1)
+	gosub {:msg.list_item}( 7,2,"ON",1)
+	gosub {:msg.list_item}( 8,2,"A TORCH FOR SOMEONE",1)
+	gosub {:msg.list_item}( 9,2,"THE CARRY BIT",1)
+	gosub {:msg.list_item}(10,2,"A GUN",1)
+	
+	goto {:menu}
+
+{nice:10}
+{:test_item_off_on}
+	gosub {:msg.list_item}( 1,2,"Key repeat...................",0)
+' <message> is null since msg.list_item already printed something
+' <mem_loc>=0 since not PEEKing a memory location,
+' <condition>=boolean -- whether peek(650)=0
+	gosub {:sub.item.off_on}("",0,peek(650)=0)
+
+	gosub {:msg.list_item}( 2,2," ",0)
+' <message> is not null, so print something
+' <mem_loc>=0 since not PEEKing a memory location,
+' <condition>=boolean -- focus on bit 0 of software clock, 0/1:
+	gosub {:sub.item.off_on}("* "+q$+"Off/On"+q$+" randomly chosen: ",0,peek(162) and 1)
+' 2. - * "Off/On" randomly chosen: xxx
+
+' infinite loop of 0/1's:
+' [peek(162) is LSB of software clock, "AND 1" masks bit 0, I think,
+' but definitely determines whether value is odd or even]:
+' for x=1 to 2 step 0:print peek(162) and 1:next
+
+	gosub {:msg.list_item}( 3,2,"Accumulator bit 3..........",0)
+' <message> is null since msg.list_item already printed something
+' <mem_loc>=780 since PEEKing a memory location,
+' <condition>=bit 3
+	gosub {:sub.item.off_on}("> ",780,3)
+
+	goto {:menu}
+		
+{nice:10}
+{:test_item_no_yes}
+	gosub {:msg.list_item}( 1,2,"Current device is 8.........",0):gosub {:sub.item.no_yes}(0,dv=8)
+	gosub {:msg.list_item}( 2,2,"Will TADA ever be finished..",0):gosub {:sub.item.no_yes}(0,1)
+	gosub {:msg.list_item}( 3,2,"Is modBASIC totally awesome.",0):gosub {:sub.item.no_yes}(0,1)
+	gosub {:msg.list_item}( 4,2,"Video standard reports NTSC.",0):gosub {:sub.item.no_yes}(0,peek(678)=0)
+	gosub {:msg.list_item}( 5,2,"Are these silly test cases..",0):gosub {:sub.item.no_yes}(0,1)
+	
+	goto {:menu}
+	
+{nice:10}
+{:test_item_toggle}
+' is there really a use case for this in this test suite?
+
+' x0 is a scratch variable, unused anywhere else
+'  1. - (:sub.item.off_on.toggle): On
+	gosub {:msg.list_item}( 1,2,"(:sub.item.off{underline}on.toggle), no msg ",0):gosub {:sub.item.off_on.toggle}("",x0)
+
+'  2. - (:sub.item.off_on.toggle), message
+'          Toggle x0, currently: On
+	gosub {:msg.list_item}( 2,2,"(:sub.item.off{underline}on.toggle), message",1):gosub {:sub.item.off_on.toggle}("          Toggle x0, currently",x0)
+	
+	print:input "Which";an$:an=int(val(an$)
+	if an=0 then {:msg.unfinished}
+	if an=1 then {:msg.unfinished}
+	if an=2 then {:msg.unfinished}
+	
+	gosub {:sub.bad_choice}:goto {:test_item_toggle}
+	
+{nice:10}
+{:test_item_list}
+	rem
+	goto {:menu}
+
+{:msg.unfinished}
+	print "This option is unfinished.":print:goto {:menu}
+
+{:sub.bad_choice}
+	print "Bad choice.":print:return
+
+' 1012:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{number:1811}
+{:1811}
+' quit modbasic to avoid possibly saving 2K of program variables:
+	print "Shutting down modBASIC.":sys 49152+3
+' all variables are cleared
+	end
+
+{number:1870}
+{:sub.item.off_on.toggle}	' ("string",bool)
+'				[string can be "" to suppress printout]
+' use case: xp=0:gosub {:sub.item.off_on.toggle}("Expert mode",xp)
+' displays "Expert Mode: On" (toggles Boolean state, displays it)
+
+	fn m$,s
+	s=1-s:if m$<>"" then gosub {:sub.item.off_on.print}
+	return
+
+{nice:5}			' 1875
+{:sub.item.no_yes.toggle}	' ("string",bool)
+'				[string can be "" to suppress printout]
+' use case: xp=0:gosub {:sub.item.no_yes.toggle}("Toggle 1 to odd",0)
+' displays "Toggle 1 to odd: Yes" (toggles Boolean state, displays it)
+
+	fn m$,s
+	s=1-s:if m$<>"" then gosub {:sub.item.no_yes.print}
+	return
+
+{nice:5}		' 1880
+{:sub.item.off_on}	' ("string", mem_loc, value)
+' example usage:
+' print "Expert Mode: Off/On", non-zero <mem_loc>, so display bit 4 of <mem_loc> v1+64:
+' gosub {:sub.item.off_on}("Expert Mode", v1+64, 4):return
+
+'	or:
+' no leading string, <mem_loc>=0, so reduces <c> to either 0 (output "Off"),
+'	or non-zero (output "On"):
+' gosub {:sub.item.off_on}("", 0, c)
+
+	fn m$,m,s
+	' if <mem_loc>  =0: <value> must be a Boolean 0/1
+	' if <mem_loc> <>0: <mem_loc> PEEKed for bit <value>, returns Boolean s(et): 0/1
+' PEEK bit if <mem_loc> is non-zero:
+	if m then:gosub {:bit.test}(m,b)
+{:sub.item.off_on.print}
+' print "<string>: Off/On" (bool; abs(sgn(s)) forces non-zero/out of range values to 0/1)
+	print m$": O"mid$("ffn",abs(sgn(s))*2+1,2):return
+
+{nice:5}		' 1885
+{:sub.item.no_yes}	' (<mem_loc>,<bit>, or 0,<bool>)
+	fn m,v
+' if m non-zero: check bit <v> in memory location <mem_loc>
+' returns s=1 if set, 0 if clear
+	if m then:gosub {:bit.test}(m,v):v=s
+' if m zero: v represents Boolean value
+{:sub.item.no_yes.print}
+' show string (": No " if s=0 / ": Yes" if s=1)
+	print ": "mid$("No Yes",abs(sgn(v))*3+1,3):return
+
+' {nice:5} 1890:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\list-item.lbl}
+
+{number:2410}
+{:sub.item.trim} ' ("string")
+' This routine  establishes the left & right boundaries of what should be
+' printed -- there are several rules with how item names are formatted:
+
+' 1) If the 3rd character is ".", the first 2 characters are always an item
+' type flag followed by ".":
+'	Inventory item names
+'	Items:			Weapons:
+'	A)rmor			S)tandard
+'	B)ook/Scroll		M)agical
+'	C)ursed item		C)ursed
+'	D)rink
+'	F)ood
+'	M)agic Spell
+'	P) Compass
+'	S)hield
+'	T)reasure
+
+' (this works for printing monster names too, prefixes share several of the
+' same letters, but meanings are different than items' prefixes. See
+' "\TADA-svn\pinacolada\TADA\programming-notes\TADA_Variables.txt"
+' for more details.)
+
+' 2) (optional): a single-digit number (purpose unknown as of yet)
+' 3) item name
+' 4) (optional): {pipe} quoter directive, translated to "|" on the Commodore)
+'	followed by any object-specific flags
+
+' i$: item name to parse
+	fn i$
+' returns: (global) l: left boundary, r: right boundary
+
+' check where to start/end printing with "x.[#]<item_name>[|<flags>]" format:
+	l=3+sgn(val(mid$(i$,3,1))):sys is,i$,"{pipe}":r=i%:if r=. then r=len(i$)+1
+	r=r-l:return
+
+{nice:5}		' 2415
+{:sub.item}		' ("string",cr)
+' This routine prints an item name, in two different formats
+	fn z2$,cr
+' 1) assumes an item of the form "<flag>.[<num>]<name>[|<flags>]"
+'	has "metadata" in it:
+	if mid$(z2$,2,1)="." then:gosub {:sub.item.trim}(z2$):goto {:sub.item2}
+' 2) otherwise, considered a normal item, no trim takes place:
+	l=1:r=len(z2$)
+{:sub.item2}
+	print mid$(z2$,l,r);:if cr then print
+	return
+
+{nice:5}		' 2420
+{:sub.item.plural}	' ("string",cr)
+' print "a[n] <item>" or "some <items>"
+
+' item name (probably not a good idea to have identically-named local variables
+' shared between subroutines, so using i2$ here):
+	fn i2$,cr
+' (local)  p: item is plural ("S" at end of item name):
+	def p
+	gosub {:sub.item.trim}(i2$):p=abs(mid$(i2$,l+r-1,1)="S"):if p=. then print "a";:sys is,"AEIOU",mid$(i2$,l,1):if i% then print "n";
+	if p then print "some";
+	print " ";:gosub {:sub.item}(i2$,cr):return
+
+{number:2810}		' 2810
+{:bit.test}		' (mem_loc,bit)
+' test bit: RETURNs s=1 IF ON, s=0 IF NOT
+' (trying to be clever, above line would tokenize pretty nicely :)
+	fn m,b
+	s=abs((peek(m)and 2^b)=2^b):return

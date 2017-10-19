@@ -1,0 +1,29 @@
+' trying to optimize code further:
+' have concluded line 16 comes out ahead
+
+'0 j=1:x=        1:gosub 10:print
+'1 j=1:x=       12:gosub 10:print
+'2 j=1:x=      123:gosub 10:print
+'3 j=1:x=     1234:gosub 10:print
+'4 j=1:x=    12345:gosub 10:print
+'5 j=1:x=   123456:gosub 10:print
+'6 j=1:x=  1234567:gosub 10:print
+'7 j=1:x= 12345678:gosub 10:print
+'8 j=1:x=123456789:gosub 10:print
+'9 end
+'10 x$=mid$(str$(x),2):l=len(x$):a=l
+'15 if j then print spc(9-l + abs(l<4) +abs(l<7) );  :rem 22 bytes
+'16 rem if j then print spc( 9-l + abs( l<4 + l<7) );:rem 24 bytes
+'20 if l<4 then print x$;:return
+'25 a=a-3:if a>3 then 25
+'30 print left$(x$,a);:for y=a+1 to l step 3:if a<>l then print",";
+'35 print mid$(x$,y,3);:next:return
+
+{:msg.comma_value}
+'	x$=mid$(str$(x),2,9):l=len(x$):a=l:if j then print spc(9-l+abs(l<4)+abs(l<7));
+	x$=mid$(str$(x),2):l=len(x$):a=l:if j then print spc(9-l+abs(l<4)+abs(l<7));
+	if l<4 then print x$;:return
+{:msg.comma_value2}
+	a=a-3:if a>3 then {:msg.comma_value2}
+	print left$(x$,a);:for y=a+1 to l step 3:if a<>l then print ",";
+	print mid$(x$,y,3);:next:return

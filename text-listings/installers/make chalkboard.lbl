@@ -1,0 +1,11 @@
+' working on updating to  current coding standards
+' 26/Feb/2014 23:51
+{number:1}
+	rem chalkboards directory file maker
+	open 15,dv,15:a$="d.t.chalkboards,l,"+chr$(30):gosub {:file.open}
+	for x=1 to 11:gosub {:record_pointer}:print# 2,chr$(255):next
+	x=1:gosub {:record_pointer}:print# 2,10
+	for x=2 to 11:gosub {:record_pointer}:print# 2,"BOARD"+str$(x-1):next:close 2:goto {:next_module}
+	rem chalkboards directory file maker
+{number:999}
+	rem copr. 1995-2014 pinacolada

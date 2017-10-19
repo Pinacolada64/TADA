@@ -1,0 +1,182 @@
+{number:1}
+' available flag, (f)ood/(d)rink/(c)ursed flag.name, price
+
+' items most commonly in shoppe:
+	data 1,"D.TEA",15
+	data 1,"D.CACTUS JUICE",25
+	data 1,"F.KELP",12
+	data 1,"D.MINERAL WATER",25
+	data 1,"F.LOAF OF BREAD",30
+	data 1,"F.JAR OF HONEY",50
+	data 1,"F.MUSHROOMS",50
+	data 1,"F.EAGLE EGGS",40
+	data 1,"F.VITAMINS",75
+	data 1,"F.CANDY BAR",15
+' items found in the wild:
+	data 1,"F.BANANAS",35
+	data 1,"D.BOTTLE OF MILK",30
+	data 1,"D.JUG OF WINE",25
+	data 1,"D.BOTTLE OF WATER",15
+	data 1,"F.CAKES",40
+' for horse:
+	data 1,"F.CUBE OF SUGAR",18
+	data 1,"F.DOMINO'S PIZZA",30
+	data 1,"D.ORANGE JUICE",20
+	data 1,"F.MELONS",50
+' 1st apple, non-cursed:
+	data 1,"F.APPLES",30
+	data 1,"D.BOTTLE OF BEER",10
+	data 1,"D.GOAT'S MILK",40
+	data 1,"D.SPRING WATER",40
+	data 1,"F.GRANOLA BAR",50
+	data 1,"F.WILD OATS",35
+	data 1,"F.BLUEBERRIES",70
+	data 1,"F.ICE CREAM",45
+	data 1,"F.POPCORN",25
+	data 1,"F.BEANS",60
+	data 1,"F.POTATOES",55
+	data 1,"C.EMBALMING FLUID",50
+	data 1,"F.BEEF JERKY",30
+	data 1,"C.POISON APPLE",30
+	data 1,"D.LEMONADE",50
+	data 1,"F.SALT TABLETS",50
+	data 1,"F.MOUNTAIN OYSTERS",60
+	data 1,"D.LARGE SLURPEE",40
+	data 1,"D.CAN OF OLY LITE",1
+	data 1,"F.TOMATOES",5
+	data 1,"D.CACTUS JUICE",10
+	data 1,"D.BROOK WATER",10
+	data 1,"F.OLD HAMBURGER",1
+	data 1,"D.GREEN MOONSHINE",1
+	data 1,"D.RED SERUM",1
+	data 1,"F.BLUE PILL",1
+	data 1,"F.BREAD CRUMB",1
+	data 1,"D.FOUNTAIN OF YOUTH",10
+	data 1,"F.ANTS",40
+	data 1,"F.GRUBS",40
+	data 1,"D.CANTEEN OF WATER",40
+	data 1,"D.POOL OF WATER",50
+	data 1,"F.HAUNCH OF A ZEBRA",40
+	data 1,"F.FRIED FISH",20
+	data 1,"F.SEAWEED",40
+	data 1,"F.KELP",50
+	data 1,"F.SEAGULL EGGS",59
+	data 1,"F.SEAWEED",50
+	data 1,"F.FLYING FISH",50
+' 2nd apple, cursed:
+	data 1,"C.APPLE",50
+	data 1,"F.DEAD FISH",40
+	data 1,"F.DRIED FIGS",99
+	data 1,"F.DEAD RAT",50
+	data 1,"F.DRIED DATES",80
+	data 1,"D.CHUNK OF ICE",70
+	data 1,"D.POTION OF SKILL",50
+	data 1,"D.VORPAL POTION",50
+	data 1,"F.DEAD BUG",20
+	data 1,"D.CHARM POTION",50
+' #69:
+	data 1,"F.MONSTER MEAT",25
+	data 1,"F.RED FOOD",90
+	data 1,"F.BLUE FOOD",90
+	data 1,"F.YELLOW FOOD",90
+	data 1,"D.CLEAR LIQUID",90
+	data 1,"D.RED LIQUID",90
+	data 1,"D.GREEN LIQUID",90
+	data 1,"F.GRUB #9277814",90
+	data 1,"F.GRUB #983347",90
+	data 1,"F.STANDARD RATIONS",90
+	data 1,"D.FORMULAE H2O",90
+	data 1,"D.ISSUE #92667 LIQUID",90
+	data 1,"D.'RECYCLER WASTE'",90
+	data 1,"C.THE APPLE OF EVE",50
+' for horse:
+	data 1,"F.CORN",99
+	data 1,"F.APPLES",99
+	data 1,"F.OATS",99
+'	data 1,"F.TEMP",1
+	data ^
+
+' old format:
+'    10N-3 *POISONED APPLE
+' price: 10 gold (5 digits, left-justified)
+' energy is lowered by 3 (n-3 )
+' and is a cursed item   (*)
+
+' considering dropping random
+' attribute adjustments...
+
+' rem module name, filename, version
+	m$="rations":f$="e.t."+m$:ve=1.4
+	eb=2:dr=3:dr$="0:"
+' eb=extra bytes
+	q$=chr$(34):r$=chr$(13)
+	dv=peek(186):if dv<8 then dv=8
+' dv=device, dr=drive
+	print"TADA "m$" installer v."ve
+	print tab(6)m$
+	print "{midline:5}"
+	print "      best record length":restore
+{:415}
+	read x$:on -(x$="{up arrow}") goto {:430}:mx=mx+1:read y$,z$:d$=x$+r$+y$+r$+z$+r$
+	z=len(d$):if z>l% then l%=z
+	print"{up:3}"right$("    "+mid$(str$(mx),2),5):print
+	print right$("    "+mid$(str$(l%),2),5):goto {:415}
+{:430}
+	on eb+1 goto {:440}:print"+ "+right$("   "+mid$(str$(eb),2),3);
+	print" additional data  byte";:if eb>1 then print"s";
+	print" per record";
+	' chr$(192) is solid horizontal line (instead of -----)
+	l%=l%+eb:print r$"{192:5}"r$right$("    "+mid$(str$(l%),2),5)" total"r$r$;
+{:440}
+	open 15,dv,15:print# 15,"r"dr$f$"="f$:gosub {:1012}
+	close 2:if e%=63 then gosub {:900}:if a=. then {:1811}
+	x%=mx*(l%+1):print x%"bytes,";:x%=x%/254+.5:print x%"blocks.
+	print"Checking blocks free...";:gosub {:1081}:if a>=x% then print"Ok":goto {:465}
+	print"{rvrs on} BF Warning {rvrs off} - Aborted.":goto {:920}
+{:465}
+	a$=f$+",l,"+chr$(l%):gosub {:file.open}:if e% then print "Error: "a$:goto {:920}
+	print"Creating "q$f$q$:for x=1 to mx+1:gosub {:record_pointer}
+	print# 2,chr$(255);:print"{up}"tab(27)right$("     "+mid$(str$(x),2),5)" (";
+	print mid$(str$(int(x/mx*100)),2)"%)":gosub {:1012}:if e%=. then {:490}
+	if e%<>50 then x=mx:next:goto {:920}
+{:490}
+	next:print:x=1:gosub {:record_pointer}:print"Writing data ...":restore
+	x=1:gosub {:record_pointer}:print# 2,mx
+	for x=2 to mx+1:x$="":for y=1 to 3:read d$:x$=x$+d$+r$:next
+	print# 2,x$:x%=x:print"{up}"tab(27)right$("     "+mid$(str$(x%),2),5)" (";
+	print mid$(str$(int(x/mx*100)),2)"%)":gosub {:1012}:if e%then x=mx+1:next:goto {:920}
+	next:close 2:print r$"File successfully created!":goto {:920}
+{:900}
+	print"Warning! File exists... replace? ";:gosub {:1902}
+	if a=. then print "Bailing out.":return
+	print"Deleting "q$f$q$"...";:print# 15,"s"dr$f$:print:goto {:1012}
+{:920}
+	close 2:if fl=. then {:1811}
+	end:rem a$="(next file?)":goto 1013
+{number:991}
+	rem "make rations"
+	rem v1.0 05/08/1995  3:33 pm
+	rem v1.1 01/18/1996  9:26 pm
+	rem v1.2 11/03/2003  8:57 am
+	rem v1.3 07/25/2006  9:22 pm
+	rem v1.4  2/19/2014  5:32 pm
+	rem written by pinacolada for
+	rem commodoreserver
+	rem copr. 1995-2017 pinacolada
+
+' 1001:
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+
+' {number:1011}
+' {:file.open}
+'	open 2,dv,2,dr$+a$
+' 1012:
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+' {:1081}
+'	a=x%:return
+'{:1811}
+'	close 2:close 15:end
+
+' 1902
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}

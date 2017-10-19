@@ -1,0 +1,105 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.ma.locker
+' player gets locker combination from SCRAP OF PAPER, randomly placed in map from t.np
+' combination is poked into inventory when SCRAP OF PAPER is gotten in t.get
+{ifdef:standalone}
+	lc$="11-11-11"
+	r$=chr$(13):in=4:mi=10:pn=1:z%=.:l$=r$:dim ob$(20)
+' record format: ppp iiii iiii iiii iiii ...
+'			  player item item item item ...
+	a$="0001000200030004000300020001000200030000"
+' z%=objects in locker
+	ob$(1)="KNIFE":ob$(2)="MEAT":ob$(3)="CHEESE":ob$(4)="APPLE":ob$(5)="ROCK"
+	for x=6 to 20:ob$(x)=ob$(x-6):next
+	dv=peek(186):if dv<8 then dv=8
+	gosub {:file.open_command_channel}
+	for x=. to in-1:i(x)=1:next:for x=in to mi-1:i(x)=.:next
+' get locker combination:
+{ifdef:standalone}
+	f=peek(v1+119):m=peek(v1+120):l=peek(v1+121)
+	if lc$="00-00-00" then print "You don't have a locker combination yet!":goto {:1811}
+	close 2:gosub {:file.open}("e.t.locker"):on e goto {:1811}:gosub {:record_pointer}(1):input# 2,mx:q=.
+{:620}
+	for x=2 to mx+1:gosub {:record_pointer}(x):input# 2,a$:j=val(left$(a$,3)):if j=pn then x=mx+1:q=1
+	next:if q then {:660}
+	print "So you don't have a locker, eh? Well, we'll get you fixed up...";:for x=2 to mx+1:gosub {:record_pointer}(x):input# 2,a$
+{:640}
+	if left$(a$,3)<>"000" then {:655}
+	a$=right$("00"+mid$(str$(pn),2),3)+"0000000000000000000000000000000000000000"
+	print# 2,a$:print "Ok!":goto {:620}
+{:655}
+	next:gosub {:record_pointer}(1):x=mx+1:print# 2,x:gosub {:record_pointer}(x):a$="xxx":goto {:640}
+{:660}
+	for x=1 to 10:y=val(mid$(a$,x*4-3,4)):if y then z%=z%+1:q(z%-1)=y
+	next
+
+' use combination entry routine from ..\includes\combo.lbl
+
+' wish: if thief, chance of picking lock
+' wish: perhaps a poison dart comes out and wounds you (chance of dodging if
+' wish: dex is high enough) if you fail
+
+'	an$="":input"Enter combination";an$:if an$="" then 730
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\combination.lbl}
+
+	print "Access ";
+
+	if an$<>lc$ then print "denied.":goto {:advent}
+	print "granted."
+{:680}
+	print:print "[P]ut [T]ake [L]ook ("k$"=Leave): ";
+{:685}
+	gosub {:sub.cursor_get}:sys is,an$,"ptl"+r$:on i%+1 goto {:685},{:700},{:800},{:750},{:900}
+'	on-(an$="p")-2*(an$="t")-3*(an$="l")-4*(an$=r$)goto {:700},{:800},{:750},{:900}:goto {:685}
+{:700}
+	print "Put.":print:if in=. then print "(Nothing to put.)":goto {:680}
+	if z%=10 then print "Your locker is full.":goto {:680}
+	y=.:for x=.to mi-1
+' duplicate: y=...
+' {:msg.list_item}(item_num,width,"message",cr)
+	if i(x) then:gosub {:msg.list_item}(y%,2,ob$(i(x)),1)
+	next:an$="":print "{down}Put which item";:sys si,2,3,an$:gosub {:string.normalize}(an$)
+	ob=an:if ob<.or ob>in or an$="" then {:680}
+	ob=ob-1:t=ob:for x=.to ob:if i(x)=. then t=t+1
+	next:x=i(t):i(t)=.:j=.
+{:720}
+	j=j+1:if q(j)<>. then {:720}
+	q(j)=x:in=in-1:z%=z%+1
+	print:print "Done.":goto {:680}
+{:750}
+	print "Look.":print:if z%=. then print "Your locker is empty.":goto {:680}
+
+' duplicate: y=...
+	y%=.:for x=1 to 10:if q(x-1) then:gosub {:msg.list_item}(y%,2,ob$(q(x-1)),1)
+	next:goto {:680}
+{:800}
+	print "Take.":print
+	if in=mi then print "You can't carry any more.":goto {:680}
+	if z%=. then print "Your locker is empty.":goto {:680}
+	y%=.:for x=1 to mi
+' duplicate:
+	if q(x-1) then:gosub {:msg.list_item}(y%,2,ob$(q(x-1)),1)
+	next:an$="":print "{down}Take which item";:sys si,2,3,an$:if an$="" then {:680}
+	gosub {:string.normalize}(an$):ob=an:if ob<. or ob>y% then {:680}
+	ob=ob-1:t=ob:for x=.to ob:if q(x)=. then t=t+1
+	next:x=q(t):q(t)=.:j=.
+{:820}
+	j=j+1:if if i(j)<>. goto {:820}
+	i(j)=x:in=in+1:z%=z%-1
+	print:print "Done.":goto {:680}
+{:900}
+	print "Leave.":gosub {:record_pointer}(t):print# 2,j$:close 2:close 15:goto {:link.shoppe}
+{number:991}
+	rem t.ma.locker
+	rem v1.0 03/14/1995 10:36 am
+	rem v1.1 01/20/1996  2:39 pm
+	rem v1.2 09/08/2006  3:42 pm
+	rem v1.3 03/07/2014 11:26 pm
+	rem +.t.ma.lockers
+	rem "{delete}Written by Pinacolada for the
+	rem "{delete}Dragon's Eye BBS -- and CommodoreServer
+	rem (c) 1995-2014 pinacolada

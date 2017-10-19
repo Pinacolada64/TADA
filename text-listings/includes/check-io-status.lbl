@@ -1,0 +1,26 @@
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{number:1012}
+{:check.io_status}
+{ifdef:modbasic}
+	def e$,t,s ' e and a$ should be global, also can't make integers local
+{endif}
+	input#15,e,e$,t,s:a$="Status: " + right$("0"+mid$(str$(e),2),2) +":"+e$+":"+right$("0"+mid$(str$(t),2),2) +":"+right$("0"+mid$(str$(s),2),2):return
+
+' This program consistently gets corrupted by modBASIC.
+'
+' I would like A$ and E returned to the calling routine so I can do
+' "if e then print a$" (or eventually put it in an error log)
+'
+' so I didn't define it as a local variable.
+'
+' 1 sys 49152:open15,10,15
+' 2 gosub 1012:if e then print a$
+' 3 close 15:sys 49155:end
+' 1012 def en$,er$,tr$,sc$
+' 1013 input#15,en$,er$,tr$,sc$:e=val(en$)
+' 1014 a$="status: "+en$+":"+er$+":"+tr$+":"+sc$:return
+'
+' sys ia,15,40,1:a$="Status: "+a$:e=val(a$):return
+'
+' I think this got resolved by AF.

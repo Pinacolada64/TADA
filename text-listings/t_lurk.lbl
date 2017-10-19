@@ -1,0 +1,13 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.lurk
+	if al=. then print "You have no allies.":goto {:advent}
+	if al=1 then print "You need more than one ally for this to work.":goto {:advent}
+	lu=1-lu:if lu then {:620}
+	print "You come out of hiding from behind your allies...":goto {:advent}
+{:620}
+	print "You slink into the shadows and hide behind your allies...":goto {:advent}
+{number:999}
+	rem t.lurk

@@ -1,0 +1,236 @@
+{undef:debug}
+{def:modbasic} ' for including check.io_status
+
+{ifdef:debug}
+	{crunch:off}
+{endif}
+
+{number:1}
+	rem "READER3" 2/24/2016, 11/20/2016
+	poke 53280,12:poke 53281,12:print"{clear}{gray3}{$08}{$0e}TADA File Reader v0.3"
+	print"{$c0:21}":print
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	sys 49152
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+	f$="ml c500":gosub {:sub.bload}
+	hx$="0123456789abcdef"
+' color pairs:
+' 2 red		A lt red
+' 5 green	D lt green
+' F lt gray	1 white
+' 6 dk blue	4 purple
+' 7 yellow	8 orange
+	c=1:c$="2a5df16478"
+	goto {:100}
+	
+{:sub.bload}
+	dv=peek(186):if dv<8 then dv=8
+	gosub {:1010}:if st=128 then print "Device not present.":goto {:1811}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+
+{nice:100}
+{:100}
+	print
+	print "1. Read "q$"s.tada main 40"q$" (SEQ file)"
+	print tab(6)"[use bracket-txt]"
+	print "2. Read "q$"e.t.messages"q$" (REL file)"
+	print tab(6)"[use indexing]"
+	print "3. Read disk directory"
+
+	print:input "Which (Q=Quit)";an$
+	if an$="q" or an$="Q" then {:1811}
+	an=int(abs(val(an$)))
+''' on-gosub will not work within modbasic '''
+	if an=1 then:gosub {:sub.seq_read}:goto {:100}
+	if an=2 then:gosub {:sub.indexing}:goto {:100}
+	if an=3 then:gosub {:sub.directory}(0,1)
+	goto {:100}
+
+{:sub.seq_read}
+	gosub {:sub.file_open}("s.tada main 40"):if e=. then:gosub {:1076}(1,0,0)
+	return
+
+{nice:100}
+{:sub.directory}
+{ifdef:modbasic}
+	fn bf,pr	' bf: # of blocks free desired, 0=get blocks free
+			' pr: print entire directory=1, only blocks free=0
+	def x,o		' x: block count of the dir header/entry
+			' o: offset to calc dir header vs. entry block size
+{endif}
+	' returns s=1: enough blocks free, 0=not enough
+	
+' csip command: blocksfree
+' also "bytes <filename>" and "blocks <filename>"
+
+	gosub {:1010}
+' must open $ with secondary address of 0 to retrieve directory like load"$" 
+' shows in basic
+	close 1:open 1,dv,0,"$0":gosub {:check.io_status}:if e then {:finished}
+
+{ifdef:debug}
+' if pr=1: display directory entries, not just blocks free
+	pr=1
+{endif}
+' skip fake "load address"
+' in dir header, drive # is stored at offsets 3-4
+	get#1,a$,a$:o=3:gosub {:sub.get_entry}
+' in dir entries, block size is stored at offsets 1-2
+	o=1
+{:get_dir_entry}
+	gosub {:sub.get_entry}:if st=. then {:get_dir_entry}
+{:finished}
+	print "Done!":close 1
+' if bf (# of blocks needed free)=0, just want blocks free count
+' no comparison	so return s=0
+' if x (# of blocks in a file)...
+' TODO: ditch that for now... fix later
+'	s=abs(x>=bf)
+	return
+
+{:sub.get_entry}
+' get data, calculate drive number, or size of dir entry
+	sys ia,1,32,0,a$:x=asc(mid$(a$,o+1,1)+nl$)*256+asc(mid$(a$,o,1)+nl$)
+{ifdef:debug}
+	print "Data: "q$a$q$
+{endif}
+	if pr=0 then return
+
+' print block count, no leading space:
+	print mid$(str$(x),2) tab(5)
+	sys is,a$,"blocks free.":if i% then {:print_entry}
+' line up filenames neatly:
+	sys is,a$,q$
+{:print_entry}
+	if i% then print mid$(a$,i%)
+	return
+
+{nice:100}
+{:sub.indexing}
+	gosub {:1010}:gosub {:sub.file_open}("e.t.messages"):if e then print a$:return
+	gosub {:1001}(1):input# 2,a$:mx=int(val(a$)):print mx"chunks"
+{:202}
+	an$="q":print:print"Read which chunk [Q)uit, 1-"mid$(str$(mx),2)"]";:input an$
+	if an$="q" or an$="Q" then return
+	an=int(abs(val(an$))):if an<1 or an>mx then {:202}
+' get index data:
+	gosub {:1001}(2):sys ia,2,40,0,a$
+{ifdef:debug}
+	print q$a$q$
+{endif}
+	x$=mid$(a$,an*3-2,3)
+' starting line:
+	sl=asc(left$(x$,1)+nl$)+256*asc(mid$(x$,2,1)+nl$)
+' number of lines:
+	nl=asc(right$(x$,1)+nl$)
+{ifdef:debug}
+	print"input: "q$a$q$
+	print"start:"sl
+	print"lines:"nl
+{endif}
+	gosub {:1076}(sl,nl,sl)
+	print "Done.":goto {:202}
+
+{number:1001}
+{:1001}
+' position REL record pointer; r=record #
+	fn r
+	def d
+	gosub {:1002}:for d=1 to 50:next
+{:1002}
+	print# 15,"p{$02}"chr$(r and 255)chr$(r/b1)"{$01}":return
+{number:1010}
+{:1010}
+	close 15:open 15,dv,15:return
+{number:1011}
+{:sub.file_open}
+	fn a$:close 2:open 2,dv,2,dr$+a$
+{:1012}
+' 1012:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{number:1076}
+{:1076}
+' sl=start line
+' nl=# of lines to read (0=to EOF)
+' rf=REL flag: if 0, read from SEQuential file, <>0= starting REL record
+	fn sl,nl,rf
+	def l,an$,x$,co
+' co: # of color combinations
+' l: # of lines read
+' q=quit flag?
+	q=.:co=len(c$)/2:l=.
+{number:1100}
+{:1100}
+' position/increment record# if reading from a REL file:
+	if rf then:gosub {:1001}(rf):rf=rf+1
+	sys ia,2,80,1,x$
+' # of lines to read reached, or end of file during SEQ read:
+' i think rel file sets EOF when reading past end of record
+'	if (nl and nl=l) or (x=. and (64 and st=64)) then {:1110}
+	if (nl>. and nl=l) or (rf=. and (64 and st=64)) then {:1110}
+	sys br,x$+nl$:if pos(0)<>40 then print
+' count lines for "more" prompt:
+	l=l+1:if l/24=int(l/24) then gosub {:sub.page_pause}:if q then {:1109}
+	get an$:if an$="{home}" then:gosub {:2862}("[paused]","")
+	if q or an$="/" or an$=" " then {:1109}
+	goto {:1100}
+{:1109}
+	gosub {:1920}
+{:1110}
+{ifdef:debug}
+	print "lines read:"l
+{endif}
+	return
+
+{:sub.page_pause}
+	gosub {:2862}("[+] inc  [-] dec  [space] more  [q]uit","+- q")
+	on i% goto {:1113},{:1114},{:1100}
+	q=1:gosub {:sub.line_clear}:return
+
+{:1113}
+' increment color pair:
+	c=c-(c<co):goto {:1115}
+{:1114}
+' decrement color pair:
+	c=c+(c>1)
+{:1115}
+' fixed: this was overwriting the JMP instruction instead of the colors!
+' a should hold address of (popstack): [$c50d/e,50445] => $c6c4 (50884) -3 to
+' change colors instead
+' ps=50444
+' color bytes are $c6c1-c6c4 [50881-50884]
+
+	a=peek(ps+2)*256+peek(ps+1)-3 ':print a:stop
+' change normal/last used colors:
+	sys is,hx$,mid$(c$,c*2-1,1):if i% then poke a,i%-1:poke a+2,i%-1
+' change highlight color:
+	sys is,hx$,mid$(c$,c*2,1):if i% then poke a+1,i%-1:gosub {:sub.line_clear}:goto {:sub.page_pause}
+{number:1258}
+{:sub.line_clear}
+' clear current screen line:
+	poke 781,peek(214):sys 59903:poke 211,.
+{number:1603}
+	return
+{number:1811}
+{:1811}
+' shut down:
+	close 2:close 3:close 15:print"{$09}shutting down.";:sys 49155:end
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+
+{number:1920}
+{:1920}
+	print"(Aborted.)":return
+{number:2862}
+{:2862}
+	fn p$,ok$
+	sys br,p$+": "+nl$
+{:2864}
+	gosub {:sub.cursor_get}:if ok$<>"" then sys is,ok$,an$:if i%=. then {:2864}
+'	gosub {:sub.line_clear}:q=abs(an$="q" or an$="Q"):on q gosub {:1920}:return
+	gosub {:sub.line_clear}:q=abs(an$="q" or an$="Q"):return
+{nice:100}
+	rem READER0.3

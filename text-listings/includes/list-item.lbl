@@ -1,0 +1,11 @@
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\list-item.lbl}
+{nice:5}
+{:msg.list_item} ' (item_num,width,"string",cr)
+{ifdef:modbasic}
+	fn n,w,m$,cr	' function prototype
+' n , item_num : 1-999 (number of item to display)
+' w , width    : 1-3   (width of item_num, how many digits/spaces to print)
+' m$, "string" : string to be printed
+' cr           : 1=yes, 0=no cr (for printing things on same line)
+{endif}
+	print right$("  "+str$(n),w)". - ";:gosub {:sub.item}(m$,cr):return

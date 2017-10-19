@@ -1,0 +1,6 @@
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\clear-line.lbl}
+{number:1258}
+{:sub.clear_line}
+' SYS to clear a single screen line: 781=.x / peek(214)=current line number
+' new: also re-position cursor on column 0
+	poke 781,peek(214):sys 59903:poke 211,.:return

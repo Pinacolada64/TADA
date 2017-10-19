@@ -1,0 +1,334 @@
+' #################### working copy #################
+{def:debug}
+{:1}
+	REM V0.1  09/14/2006 11:42 AM
+	REM V0.8  06/30/2007  9:23 AM
+	REM V0.9  02/14/2011 11:39 PM
+	REM V0.9A 02/18/2014  5:00 PM
+	REM V0.9B 12/09/2014  4:13 PM
+	
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+
+	print "{clear}{$08}{$0e}Wait just a moment..."
+' start line, total lines, level #:
+	sl=1:tl=1:lv=1
+	for x=1 to 20:n2$=n2$+nl$+nl$:next
+	open 15,dv,15:if st=128 then print "Device not present.":goto {:1811}
+' line length, extra bytes appended to record:
+	l=40:eb=.:if eb then for x=1 to eb:d1$=d1$+nl$:next
+'	f$="ml c500"
+'	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+'	a$="s.t.level ? data":gosub {:file.open}:if e then {:1811}
+	goto {:400}
+
+{:50}
+	REM --- GENERAL PURPOSE REL FILE ---
+	REM --- ERROR CHECK (IGNORE #50) ---
+	REM --- BAD FORM BUT IT'S A HACK ---
+	gosub {:check.io_status}:if e<>.and e<>50 then print a$:goto {:1811}
+	return
+
+{:70}
+	REM --- PRINT PASS # ---
+	pa=pa+1:print r$tab(10)"*** Pass"pa"of 2 ***
+	print tab(6)"(Hit Spacebar or / to abort)
+	print:return
+
+{:80}
+	REM --- WRITE LEVEL HEADER ---
+' write data format, level name:
+	d$=chr$(df):gosub {:sub.make_pointer}(:d$=d$+ln$
+	x=1:gosub {:record_pointer}(x):print# 2,d$:goto {:check.io_status}
+
+{:100}
+	REM --- CREATE REL FILE ---
+	REM L=RECORD LENGTH
+	REM X =HIGHEST RECORD
+	print right$("    "+str$(x),5)" records"
+	print "x"right$("   "+str$(l),4)" bytes per record":print "-----
+	b=l*x:print right$("    "+str$(b),5)" bytes,";
+	a%=b/254:print a%"blocks."
+	print# 15,"r"dr$f$"="f$:gosub {:check.io_status}
+' FILE NOT FOUND, CREATE
+	if e=62 then{:120}
+' FILE EXISTS
+	if e=63 then{:900}
+	print a$:return
+
+{:120}
+	print "Checking blocks free...";:gosub {:1079}
+	if a%<bf then print r$"{up}{rvrs on} BF Warning {rvrs off} - Aborted":goto {:920}
+	print " Ok"
+{:124}
+	close 2:open 2,dv,2,dr$+f$+",l,"+chr$(l):gosub {:50}
+	print "Positioning to highest record...":gosub {:record_pointer}(rc):print# 2,chr$(255)
+	gosub {:50}
+	print "Pre-filling file...":for y=1 to tl
+	gosub {:record_pointer}(y):print# 2,chr$(255):gosub {:check.io_status}
+	print "{up}"spc(27)right$("    "+mid$(str$(x),2),5)" (";
+	print mid$(str$(int(y/z*100)),2)")"
+	gosub {:50}
+	next:return
+
+{:200}
+	rem --- open a$ on lfn#2 ---
+	gosub {:file.open}(f$+",l,"+chr$(l)):return
+
+{:sub.get_data}
+	rem --- get data from seq file, lfn#3, put in x$ ---
+	sys ia,3,40,1,x$:gosub {:check.io_status}:if e then return
+' skip comments
+	if left$(x$,1)="#" then {:sub.get_data}
+	return
+
+{:sub.make_pointer}
+	rem --- add 2 byte ptr in y to d$ ---
+	fn p
+	d$=d$+chr$(p and 255)+chr$(p/256):return
+
+{:320}
+	rem --- get room data from seq file, lfn#3 ---
+' room #
+	gosub {:sub.get_data}:rm=val(x$)
+' room name
+	gosub {:sub.get_data}:rn$=x$
+' monster, item, weapon, food
+	input# 3,mn,it,wp,fd:gosub {:check.io_status}:if e then return
+' exits: north, east, south, west, room connection, room transport:
+	input# 3,n,e,s,w,rc,rt:gosub {:check.io_status}
+	return
+
+{:sub.next_block}
+	rem --- get data from seq file until ^ on lfn#3 ---
+	gosub {:sub.get_data}:if a$<>"{up arrow}" then {:sub.next_block}
+	return
+
+{:400}
+	rem --- kick it off ---
+	open 3,dv,3,"0:s.t.level"+str$(lv)+"data,s,r":gosub {:check.io_status}:if e then {:1811}
+' level #:
+	gosub {:sub.get_data}:lv=val(x$)
+' data format:
+	gosub {:sub.get_data}:df=val(x$)
+' # of rooms (nr x nr) per map side:
+	gosub {:sub.get_data}:nr=val(x$)
+' level name:
+	gosub {:sub.get_data}:ln=x$
+
+	print "{clear}TADA Map Level"lv"Installer v1.0":print
+	print "*  Level name: "ln$
+	print "* Data format: v"df
+	gosub {:sub.next_block}:on df goto {:412},{:412}
+{:412}
+	print "*   Room grid:"nr"x"nr;:nr=nr^2:print "("mid$(str$(nr),2)")"
+	gosub {:70}
+' create file: rc=room count. 2 records per room + 1 index record
+	f$="e.t.roomindex"+str$(lv):rc=nr*2+1:gosub {:100}
+{:416}
+	if a=. then print "Moving on...":goto {:459}
+	if e then {:1811}
+' record #, current room #:
+	x=1:rm=1
+' previous room (for skip compare)
+	pr=.
+	for ct=1 to nr:d$=""
+	gosub {:320}:print:if rm=pr+1 then {:432}
+	s=rm-pr-1:print "[Skipped"s"room";:if s>1 then print "s";
+	print " ("pr+1;:if s>1 then print "-"rm-1;
+	print ")]":for z=pr+1 to rm-1:print tab(14)"* Fill room:"z
+	x=x+1:gosub {:record_pointer}(x):print# 2,left$(n2$,14)+"EMPTY"+r$
+	x=x+1:gosub {:record_pointer}(x):print# 2,left$(n2$,36)+r$
+	next:print ':print "rm="rm:goto1811
+{:432}
+	print "Monster:"mntab(20)"North:"n
+	print "   Item:"ittab(20)" East:"e
+	print " Weapon:"wptab(20)"South:"s
+	print " Ration:"fdtab(20)" West:"w
+	print "Command: "mid$("NoneUp  Down",rc*4+1,4);:if rc=. then{:442}
+	if rt=. then print " to Shoppe";:goto {:442}
+	print " to room"rt;
+{:442}
+	print:gosub {:sub.make_pointer}(n):gosub {:sub.make_pointer}(e):gosub {:sub.make_pointer}(s):gosub {:sub.make_pointer}(w)
+	d$=d$+chr$(rc):gosub {:sub.make_pointer}(rt):gosub {:505}:d$=d$+rn$
+	x=x+1:gosub {:record_pointer}(x):print# 2,d$:gosub {:50}:d$=""
+	gosub {:sub.make_pointer}(mn):gosub {:sub.make_pointer}(it):d$=d$+left$(n2$,6)
+	gosub {:sub.make_pointer}(wp):d$=d$+left$(n2$,6)
+	gosub {:sub.make_pointer}(fd):d$=d$+left$(n2$,6)
+	d$=d$+left$(n2$,10) ' no players
+	x=x+1:gosub {:record_pointer}(x):print# 2,d$:gosub {:50}:d$=""
+{ifdef:debug}
+	for z=1 to len(d$):poke 1023+z,asc(mid$(d$,z,1)+nl$):next:poke 1023+z,160
+{endif}
+	ct=rm:pr=rm:get an$:if an$<>"/" and an$<>" " then {:458}
+	nr=rm:print r$"(Will write room descs for"nr"rooms)":ct=1e9
+{:458}
+	next:print "(Done. Writing level header.)":gosub {:80}
+{:459}
+	close 3:close 2
+	rem --- create room desc file ---
+	open 3,dv,3,dr$+"s.t.level"+str$(lv)+" data,s,r":gosub {:check.io_status}
+	gosub {:70}:gosub {:sub.next_block}:rem skip until ^
+	f$="e.t.roomdescs"+str$(lv):x=tl:l=41:gosub {:100}:if a=. then{:416}
+	re=1:x=.:y=.
+{:466}
+	gosub {:320}:if rm=nr then{:478}
+	gosub {:505}:rem prints header, returns w/single line in x$
+	x=x+1:gosub {:record_pointer}(x):print# 2,x$:gosub {:50}
+{:470}
+	gosub {:510}:if x$="{up arrow}" then{:476}
+	x=x+1:gosub {:record_pointer}(x):print# 2,x$:gosub {:50}:goto {:470}
+	get an$:if an$=" "or an$="/" then{:478}
+{:476}
+	goto {:466}
+{:478}
+	print "(Done!)":goto {:1811}
+	rem ---
+	print:print:rem nl=# of lnes, tl=total lines
+
+{:505}
+	rem --- read room descs ---
+	print "{rvrs on}"left$(rn$+"                      ",23)" (";
+	print right$("  "+str$(rm),3)"/"right$("  "+str$(nr),3)": ";
+	print right$("  "+str$(int(rm/nr*100)),3)"%)"
+	rem --- re=1: return to calling routine (to write x$ to rel file) ---
+	sl=tl
+{:510}
+' get data until not #
+	gosub {:sub.get_data}:if x$="{up arrow}" then if re=. then {:516}
+	print x$;:if pos(0)<>40 then print
+	if re then return
+	tl=tl+1:gosub {:check.io_status}:if e>20 and e<>50 then z=nr:goto {:665}
+	nl=nl+1
+{:516}
+	gosub {:sub.make_pointer}(sl):d$=d$+chr$(nl):rem sl was tl
+	print "  Total:"tl;tab(18)"In desc:"nl:nl=.
+	return
+
+	close 2:close 3:print r$"File successfully created!
+	print:print "Creating room description index...
+	rem print "Key...":wait198,1:poke198,.
+	a$="":tl=100:lv=1:sr=8:de=9:rem sr=source, de=dest
+	open 3,sr,3,"0:s.t.roomdescs"+str$(lv)+",s,r
+	open 2,de,2,"0:e.t.roomdescs"+str$(lv)+",l,"+chr$(41):gosub {:check.io_status}
+	tl=50
+	print "Writing highest record...":gosub {:record_pointer}(tl):gosub {:check.io_status}:print 635;e$
+	print# 2,chr$(255):gosub {:check.io_status}:print e$
+	rem next
+	restore:read z:y=.:x=.
+{:641}
+	read z,z,z,z,z,z,x$:y=y+1
+	print:print x$tab(25)" ("mid$(str$(y),2)" of "mid$(str$(nr),2)")
+	n=.:rem # of lines in desc this pass
+{:645}
+' end of desc block
+	sys ia,40,3,1,a$:if a$="{up arrow}" then {:641}
+	sys br,a$+nl$:if pos(0)<>40 then print
+' n=# of lines in buffer
+	n=n+1:a$(n)=a$:if n>20 then {:655}
+	for n=1 to 20:x=x+1:gosub {:record_pointer}(x):print# 2,a$(n):gosub {:check.io_status}:if e<>50 then print e$
+	next
+{:655}
+' not read all lines
+	if x<>tl then {:645}
+{:665}
+	print a$:print "Done.":goto {:1811}
+{:900}
+	rem --- file exists ---
+	print r$q$f$q$r$"Note: "e$", re-use? ";:gosub {:sub.yes_no}(0):if a=. then return
+	print "Ok.":goto {:200}
+{:920}
+' flag to load next file in installer chain
+	close 2:if fl=. then {:1811}
+{number:998}
+	gosub {:link.file}("next file?")
+	rem "make level 1"
+
+'{number:1000}
+'	rem image bbs subroutines v2.0 6/30/2007
+'
+' 1001-1002:
+'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+'
+'{number:1011}
+'{:file.open}
+'	close 2:open 2,dv,2,dr$+a$
+'
+' 1012:
+'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+'	rem a$="a":b$="myfile":gosub 1027:if e then a$="w":gosub 1027
+'	dr=3:a$="e.t."+b$+",s,"+a$:goto {:file.open}
+'{number:1062}
+'	print 1062:e=62:return
+'{number:1067}
+'	if cm$="t."+a$ and e=. then {:1}
+'	cm$="t."+a$:sys ml,"0:"+cm$:gosub {:check.io_status}:on e+1 goto {:1}:print a$:return
+'{number:1075}
+'	print "{clear}";
+'	goto {:1100}
+'{number:1079}
+'{:1079}
+'	bf=a%:return
+'{number:1100}
+'{:1100}
+'	sys br,"[Home] pauses."+r$+nl$:l=1:gosub {:file.open}:if e then close 2:goto {:1920}
+'{:1102}
+'	sys ia,2,40,1:get an$:if st or an$="/" or an$=" " then close 2:goto {:1920}
+'	print a$:l=l+1:if l=25 then l=1:gosub {:2860}:if q then {:sub.cursor_get}
+'	if an$<>"{home}" then {:1102}
+'	a$="[Paused]":goto {:2862}
+'	return
+' 1258:
+'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\clear-line.lbl}
+'
+'{number:1811}
+'{:1811}
+'	close 2:close 3:close 15:print "{$09}";:end
+'
+' 1902:
+'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+'
+'{number:1920}
+'{:1920}
+'	print "(Aborted.)":return
+'
+'{number:2820}
+'{:2820}
+' fake setting the "more" prompt:
+'	s=1:return
+'
+'{number:2860}
+'{:2860}
+'	m=v1+65:b=5:gosub {:2820}:if s=. then return
+'	a$="[More/Q]"
+'{:2862}
+'	print a$;:gosub {:sub.cursor_get}:q=-(an$="q"):gosub {:sub.clear_line}:return
+'
+'{number:5000}
+'	rem test two files open at once
+'	dv=peek(186):if dv<8 then dv=8
+'	open 15,dv,15:open 2,dv,2,"e.t.roomdescs 1,l,"+chr$(50)
+'	x=11:gosub {:record_pointer}:print# 2,chr$(255):rem create highest record
+'	for x=1 to 40:gosub {:record_pointer}:a$="blah"+str$(x)+chr$(13):print# 2,a$:gosub {:check.io_status}:next
+'	open 3,dv,3,"s.t.roomdescs 1,s,r"
+'	for y=1 to 40:input# 3,a$:print a$
+'	x=y:gosub {:record_pointer}:input# 2,a$:print a$
+'	next:goto {:1811}
+'	rem test reading descs
+'	open 15,dv,15:open 2,8,2,"e.t.roomindex 1,l,"+chr$(91)
+'	x=1:gosub {:record_pointer}:input# 2,a$
+'	open 15,dv,15:open 2,8,2,"e.t.roomdescs 1,l,"+chr$(50):gosub {:check.io_status}:x=1:print e$
+'{:6001}
+'	gosub {:record_pointer}:input# 2,a$:gosub {:check.io_status}
+'	if (64 and st)=64 then print "end of file":goto {:1811}
+'	print a$:x=x+1:goto {:6001}
+'	x=1:print int(x and 255)int(x/256)
+'	print int(x and 255)+256*int(x/256)
+'
+'{number:7000}
+'	pr=37:rm=38:rem previous/current room (if rm > pr + 1)
+'	print " current room:"rm
+'	print "previous room:"pr
+'	if rm = pr + 1 then print "no skipped rooms":end
+'	s=rm-pr-1:print "skipped"s"room";:if s>1 then print "s";
+'	print " ("pr+1;:if rm > pr + 1 then print "-" rm - 1;
+'	print ")

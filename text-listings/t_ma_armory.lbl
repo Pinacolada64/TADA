@@ -1,0 +1,140 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.ma.armory
+'	rem updated 9/18/2007
+'	rem         9/10/2011
+'	rem         6/06/2012
+	goto {:26}
+
+{nice:5}
+{:sub.read_weapon} ' (weapon)
+' gets status flag (2=in shoppe), weapon name, price
+' record # incremented to skip over weapon count record #1
+	fn x
+	gosub {:record_pointer}(x+1):input#2,cb$,w$,p$:p=val(p$+nl$):return
+
+{nice:5}
+{:sub.write_weapon} ' (weapon #,flag,weapon name,price)
+' gets status flag (2=in shoppe), weapon name, price
+	def x,fl,w$,p
+	gosub {:record_pointer}(x+1):print#2,str$(fl)+r$+w$+r$+str$(p):return
+
+{nice:100}
+{:26}
+	print "The Armorer leads you to a table upon ";
+	print "which his hand-crafted armor lies..."
+	gosub {:file.open}("e.t.items"):if e then print a$:goto {:link.shoppe}
+	gosub {:record_pointer}(1):input# 2,mx
+{:46}
+	print "[]=-=-=-=-=-=-[ Armorer ]-=-=-=-=-=-=[]"
+	print
+	print "      # Name"spc(21)"Price"
+	print "    {midline:3} {midline:18} {midline:11}"
+	for y=1 to mx:gosub {:sub.read_weapon}(y)
+' not in shoppe:
+	if val(cb$)<>2 then {:76}
+' not armor/shield
+	sys is,left$(w$,1),"as":if i%=. then {:76}
+' {:sub.print_num}(num, width, cr)
+	print tab(5):gosub {:sub.print_num}(y,3,0):print " "mid$(a$,16,18) tab(28)
+	gosub {:msg.comma_value}(p,1):print
+{:76}
+	gosub {:sub.check_abort}:if q then y=mx
+	next:gosub {:msg.fancy_line}
+	print:print "[?] List, [1-"mid$(str$(mx),2)"] Buy, ["K$"]=Leave"
+{:menu}
+	print:print "[";:gosub {:sub.display_gold}(1,0):print " gold] Speak, "a$(.);
+	an$="":sys si,2,3,an$:if an$="?" then {:46}
+{:101}
+	if an$="" then print:print q$"Bye. Come again!"q$:goto {:link.armory}
+{:106}
+	gosub {:string.normalize}(an$):if an<1 or an>mx then {:126}
+
+' now in t.main
+' {:string.normalize}( )
+' an=abs(int(val(an$))):return
+
+	print:print "The shopkeeper frowns slightly and ";
+	print "suggests that you read the signs more ";
+	print "carefully.":goto {:menu}
+
+{:126}
+	gosub {:sub.read_weapon}(x):if val(cb$)=2 then {:141} ' in shoppe
+	print q$"I'm sorry, "A$(.)", the "w$" is temporarily out of stock. ";
+	print "Bear with us; we'll get our elves right on it!"q$:goto {:menu}
+
+{:141}
+	print:print "["K$"=";:gosub {:msg.comma_value}(p,0):print "] Pay how much";:INPUT AN$:gosub {:string.normalize}(an$)
+	if an>p or an<1 then {:price}
+	n=n+1:on n gosub {:156}, {:161}, {:166}, {:176}, {:186}, {:191}, {:196}, {:201}, {:206}, {:211}, {:216}:if n<12 then {:141}
+	goto {:221}
+
+{:sub.haggle}
+' todo: add ego/chr statistics for haggling:
+' todo: maybe more persuasion if female
+	x=fn r(10+peek(v2+86)):if p>x then p=p-x' v2+86=chr
+	gosub {:msg.comma_value}(p,0):return
+
+{:156}
+' messages are from temple of apshai:
+	print q$"I ask but ";:gosub {:sub.haggle}:print " for this. 'Tis well-forged!"q$:RETURN
+{:161}
+	print q$"Not so cheap, my friend! But I'd take ";:gosub {:sub.haggle}:print "."q$:RETURN
+{:166}
+	print q$"Hmm... such fine workmanship! I could ";
+	print "not part with this for less than ";:gosub {:sub.haggle}:print "."q$:RETURN
+{:176}
+	print q$"Blackheart! Thou takest food from my ";
+	print "children's mouths! No less than ";:gosub {:sub.haggle}:print "."q$:RETURN
+{:186}
+	print q$"This be sacreligous! No less than ";:gosub {:sub.haggle}:print "."q$:RETURN
+{:191}
+	print q$"Thou art a hard bargainer, "A$(.)"!"q$:RETURN
+{:196}
+	print q$"I laugh at thy paltry offer!"q$:RETURN
+{:201}
+	print q$"Perchance thou wouldst not have this at all!"q$:RETURN
+{:206}
+	print q$"Dost thou take me for a dolt!"q$:RETURN
+{:211}
+	print q$"Fool or knave, "A$(.)"! Make an offer higher than thy last!"q$:RETURN
+{:216}
+	print q$"Ha! 'Tis less than I paid for it!"q$:RETURN
+{:221}
+' shopkeeper's had it:
+	print q$"I wish for no more of thine hectoring! ";:sys br,"[BEGONE!]"+q$+r$+nl$:GOTO {:link.armory}
+{:price}
+	gosub {:sub.check_gold}(1,p):IF s then {:241}
+	print:print "The shopkeeper scowls at you. "q$"We dost ";
+	print "nay operate on credit here!"q$:goto {:141}
+{:241}
+	if an$<>"0" then {:256}
+	print:print "The shopkeeper nods sympathetically. ";
+	print q$"Canst thou decide, eh? I knowest how ";
+	sys br,"thou feel, they [all] art great choices!"+q$+r$+nl$:goto {:menu}
+{:256}
+' different payment amount reactions
+	if x<. then {:291}
+' overpaid?
+	x$="beam":if x>p then x$="stare":p=x
+	print:print "The shopkeeper "x$"s at you, and then cries, "q$;
+	sys br,"[Sold!]"+nl$:print q$" He grasps your hand and ";
+	print "shakes it warmly. "q$"Congratulations! ";
+	print "Thou art now the proud owner of "x$"!"q$
+	gosub {:sub.adj_gold}(1,-p)
+	
+' todo: add to inventory
+' todo: remove from shoppe inventory unless always-in-stock items <11
+	if wp<11 then cb$="1":gosub {:sub.write_weapon}
+	GOTO {:menu}
+{:291}
+' fixme: this may never be executed because of {:string.normalize} doing abs()
+	print r$q$"What's this?"q$" the shopkeeper growls. ";
+	print q$"Thou triest to pay me ";:sys br,"[less than  nothing]?!"+q$+r$+nl$:goto {:141}
+
+{number:998}
+{:link.armory}
+	gosub {:link.module}("armory","")
+	REM T.MA.ARMORY

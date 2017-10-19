@@ -1,0 +1,53 @@
+{asm}
+orig $c000
+; assemble with casm 4.00 beta
+
+; for basic equivalent, see:
+; C:\TADA-svn\pinacolada\TADA\text-listings\tests\%-substitution.lbl
+
+	vartab = $2d	; start of simple variables
+	fnaddr = $bb	; current filename ptr
+
+; BASIC routines:
+	strout = $ab1e ; .a / .y
+	require_numeric = $AD8A
+	FRMEVAL = $ad9e	; evaluate expression
+					; returns .a: length, .x/.y: address
+	require_string = $AEFD ; same as CHKCOM
+	CHKCOM  = $aefd	; exit with ?syntax error if next char not ,
+	FRESTR  = $b6a3	; (46755)
+					; free temporary string descriptor
+					; returns .a / .x
+
+	GETBYTC = $B79B	; Input a Parameter Whose Value Is Between 0 and 255
+					; returns .x
+	getadr  = $B7F7	; Convert Floating Point Number to Unsigned Two-Byte Int
+					; returns .a / .y
+
+; Kernal routines:
+	chrout  = $ffd2	; output character in .a
+
+; syntax: sys 49152,<string>
+	
+		jsr chkcom	; check for comma
+		jsr frmeval	; evaluate expression
+		jsr frestr	; discard temporary string descriptor
+
+		txa
+		jsr strout	; print it
+		rts
+
+; further ideas:
+; compare against table of variables
+
+; word-wrap, got length
+clc
+cmp column
+adc length of string
+bmi <print next char>
+
+outcr:
+lda #$0d
+
+; <print next char>
+jsr $ffd2

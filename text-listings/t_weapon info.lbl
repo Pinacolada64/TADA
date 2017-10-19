@@ -1,0 +1,70 @@
+' common code:
+' t.ma.armory: stats for trying out weapon
+' t.ready: stats, then class/race bonus
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	if lm$="bonuses" then {:weapon_bonuses} ' return from bonus calculations
+	goto {:weapon_info}
+
+{nice:100}
+{:weapon_info}
+	print "Weapon class: "mid$(wc$,x*10-9,10);
+	if wa=1 then print " (Energy weapon)";:wa=10
+	if wa=8 then print " (+10% surprise)";
+
+	print:print "Best targets: ";
+	if wa=2 then print "Swift, Small, Short";
+	if wa=3 then print "Huge, Swift";
+	if wa=5 then print "Man-Sized, Big, Short";
+	if wa=8 then print "Huge, Large";
+	if wa=9 then print "Anybody";
+	if wa=10 then print "Huge, Large";
+
+	if wa<>2 or wa<>10 then {:weapon_info_2}
+	sys is,ws$,"STORM":x=i%:sys is,ws$,"CANN":if x+i% then print ", Light Armor";
+{:weapon_info_2}
+	print:print "Required dex:"ws+4;
+' pd<ws+4:
+	if peek(v1+88)<ws+4 then print "(Not dextrous enough)":lm$=lm$+"dex":goto {:link_back}
+	vr=val(mid$(z$,3,1))*6+1:wr$=mid$(z$,4):x$=wr$:i$=""
+	gosub {:link.module}("armory","bonuses")
+
+{:weapon_bonuses}
+	zv=yz:zu=yx:zz=ws:if xp>1 then ws=int((xp+2)*ws)/3)
+	print:print " Base damage:"wd:zs=((ws+1)-zz)+yz+yx
+	print "  Your skill:"zs
+	print " Ease of use:"10-zz
+' not a storm weapon, or not projectile weapon:
+	sys is,wr$,"STORM":if i% or wa<>8 then {:weapon_info_3}
+	gosub {:check_expert_mode}(0):if s=. then print " [Get ammunition at (O)lly's in Shoppe]"
+
+{:weapon_info_3}
+	sys is,wr$,"FIREBALL":if i% or vr=43 then print r$" (10% chance of secondary heat damage)"
+' what is vr used for? in weapon name: mid$(z$,3,1)="7"*6+1=43
+
+	a$="{green}Green":if x%>25 then a$="{orange}Orange":if x%>50 then a$="{yellow}Yellow":if x%>99 then a$="{red}Red"
+	print a$"]";:gosub {:msg.reset_color}
+
+{:link_back}
+' if linked from armory, skip remainder
+' lm$=link to module
+
+' catch 'buy' and 'buy dex': continue to 'buy_it' routine
+	if left$(lm$,3)="buy" then {:link.module}("ma.armory","buy")
+
+' catch 'duel dex' and 'combat dex'
+' pointless to apply weapon bonuses if you can't wield the weapon
+	if right$(lm$,3)="dex" then lm$="":goto {:advent}
+
+' okay, can wield weapon, sufficient dex, go on to bonus code
+	if lm$="duel" or lm$="ready" then {:link.module}(lm$,"bonuses")
+
+' otherwise bad i$, todo: log it
+' {:sub.log_error}("err_level","module","message")
+	gosub {:sub.log_error}("W",cm$,"Bad i$: "+i$)
+	goto {:advent}
+
+{number:999}
+	rem t.weapon info

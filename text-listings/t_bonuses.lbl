@@ -1,0 +1,147 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.bonuses
+' calculate weapon class/race bonuses
+' called from t.armory, t.combat and t.ready
+' call with z$ as name of weapon
+' returns yz & yx
+	yz=.:yx=.:x$="*"+right$("    "+z$,4)+"*"
+' character class bonuses:
+	gosub {:check.class}(1):on x goto {:class.1}, {:class.2}, {:class.3}, {:class.4}, {:class.5}, {:class.6}, {:class.7}, {:class.8}, {:class.9}
+{:class.1}
+' wizard (1)
+' sabre staff bolt
+	sys is,"*BALL*TAFF*BOLT*",x$:if i% then yz=2:yx=1:goto {:class.finish}
+' dagger knife
+	sys is,"*GGER*NIFE*",x$:yx=-2:if i% then yx=1
+	goto {:class.finish}
+{:class.2}
+' druid (2)
+' sabre sling javelin club spear staff stake bow "storm pilum"
+	sys is,"*ABRE*LING*ELIN*CLUB*PEAR*TAFF*TAKE* BOW*ILUM*",x$:if i% then yz=1:yx=1
+	goto {:class.finish}
+{:class.3}
+' fighter (3)
+	yz=2:yx=1:if wa=8 then yz=.:yx=-1
+	if wa=10 then yx=yx+1
+	goto {:class.finish}
+{:class.4}
+' paladin (4)
+	yx=1:if wa=8 then yx=-1
+	goto {:class.finish}
+{:class.5}
+' ranger (5)
+' crossbow sword sabre
+	sys is,"*SBOW*WORD*ABRE*",x$:if i% then yz=1:yx=1
+	if wa=5 then yz=-1:yx=-1
+	goto {:class.finish}
+{:class.6}
+' thief (6)
+	if wa=3 then yz=-1:yx=-1:goto {:class.finish}
+	yx=-1:goto {:class.finish}
+{:class.7}
+' archer (7)
+' crossbow bow
+	sys is,"*SBOW* BOW*",x$:if i% then yz=2:yx=2
+	if wa=2 or wa=5 then yz=-1:yx=-1
+	goto {:class.finish}
+{:class.8}
+' assassin (8)
+	if wa=3 then yz=2:yx=1
+' crossbow bow sling
+	sysis,"*SBOW* BOW*LING*",x$:if i% then yz=-1:yx=-1
+	goto {:class.finish}
+{:class.9}
+' knight (9)
+' sword lance sabre
+	sys is,"*WORD*ANCE*ABRE*",x$:if i% then yz=2:yx=3
+' excalibur
+	if x$="IBUR" then yz=4:yx=4
+	if wa=8 then yz=.:yx=-1
+{:class.finish}
+' character race bonuses
+	on peek(v2+85) goto {:race.1},{:race.2},{:race.3},{:race.4},{:race.5},{:race.6},{:race.7},{:race.8},{:race.9}
+{:race.1}
+' human
+' magnum, "sabre power", harpoon, gun, musket, cannon, uzi, dynamite, laser, rifle
+	sys is,"*GNUM*OWER*POON* GUN*SKET*NNON* UZI*MITE*ASER*IFLE*",x$:if i% then yx=yx+1
+	goto {:race.finish}
+{:race.2}
+' ogre
+' club hammer knuckles
+	sys is,"*CLUB*MMER*KLES*",x$:if i% then yz=yz+3
+	goto {:race.finish}
+{:race.3}
+' gnome
+' knife dagger
+	sys is,"*NIFE*GGER*",x$:if i% then yz=yz+1:yx=yx+2
+	goto {:race.finish}
+{:race.4}
+' elf
+' bow
+	sys is,"* BOW*",x$:if i% then yz=yz+1:yx=yx+1
+	goto {:race.finish}
+{:race.5}
+' hobbit
+' sling
+	sys is,"*LING*",x$:if i% then yz=yz+1:yx=yx+2
+	if wa=5 then yz=yz+1:yx=yx+2
+	goto {:race.finish}
+{:race.6}
+' halfling
+' dagger knife ?
+	sys is,"*GGER*NIFE*TTLE*",x$:if i% then yz=yz+1:yx=yx+1
+	goto {:race.finish}
+{:race.7}
+' dwarf
+' battleaxe pickaxe hatchet crossbow axe
+	sys is,"*EAXE*KAXE*CHET*SBOW* AXE*",x$:if i% then yz=yz+1:yx=yx+1
+	goto {:race.finish}
+{:race.8}
+' orc
+' knife dagger uzi "brass knuckles"
+	sys is,"*NIFE*GGER* UZI*KLES*",x$:if i% then yz=yz+2
+' magnum *power harpoon gun musket cannon uzi
+	sys is,"*GNUM*OWER*POON* GUN*SKET*NNON* UZI*",x$:if i% then yx=yx+2
+	goto {:race.finish}
+{:race.9}
+' half-elf
+' crossbow bow sword
+	sys is,"*SBOW* BOW*WORD*",x$:if i% then yx=yx+1
+{:race.finish}
+	sys is,wr$,"PHASER":if i% and yz<1 then yz=1
+	gosub {:check.storm_weapon}:if i%=. and zt>. then zt=2:goto {:spec5}
+	if i%=. then {:link_back}
+	if yz+yx<1 then {:spec3}
+{:spec3}
+	sys is,wr$,"STORM":if i%=. then if wr$<>"EXCALIBUR" then wr$="STORM WEAPON"
+{:spec4}
+	print "spec4: fixme"
+{:spec5}
+	if zt>1 then print "The Storm Weapon you ignored howls in jealous rage!":da$="THE "+wr$:goto {:spec4}
+	print:print "Thundering laughter shrieks from the "wr$"!"
+	sys br,q$+"I ACCEPT THEE AS MY SERVANT!"+q$+nl$:yz=yz+2:yx=yx+2
+	print:print "A jolt of power surges up your arm.":return
+{:spec3}
+	gosub {:check.storm_weapon}:if i%=. and wr$<>"EXCALIBUR" then wr$="STORM WEAPON"
+	da$=wr$:sys is,wr$,"STORM":if i% then da$="THE "+wr$
+	print "A thundering howl of rage blasts from "da$"! "q$;
+	sys br,"[YOU ARE NOT MINE!]"+q$+r$+nl$
+
+{:link_back}
+' link back to buying phase in ma.armory, or advent
+	if lm$="armory" then:gosub {:link.module}("ma.armory","buy")
+
+' todo: link to combat
+' todo: link to duel
+
+' lm$="ready" so fall through
+{:msg.readied}
+'	todo: poke readied weapons into user data
+	wz$=wr$:print:print wr$" readied."
+{:link_advent}
+	lm$="":goto {:advent}
+{number:999}
+	rem t.bonuses

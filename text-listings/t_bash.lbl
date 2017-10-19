@@ -1,0 +1,172 @@
+{number:1}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	REM T.BASH
+	goto {:bash}
+
+{nice:5}
+{:msg.tired}
+	print " a bit more tired. ";:return
+
+{nice:5}
+{:msg.clumsy}
+	print " a bit clumsier. ";:return
+
+{nice:5}
+{:msg.weaker}
+	print " a bit weaker. ";:return
+
+{nice:5}
+{:msg.initiative}
+	print " an initiative bonus. ";:return
+
+{nice:100}
+{:bash}
+' todo: this is for while in duel, could it be expanded for monster combat too?
+	if m$="" or mw=. then print "There's no monster here.":goto {:dumber}
+	if md then "The "m$" is already dead.":gosub {:dumber}
+
+' todo: check for readied shield, give option to ready it if not
+
+' shield percentage left (tlos: sh):
+	m=peek(v2+36):if m<10 then:gosub {:msg.expert_mode}("(Your shield's nearly destroyed!)")
+' shield % low
+	if m<6 then print "Not enough shield!":goto {:dumber}
+
+' fixme: check for carrying shield item
+	if s then print "(You have no shield!)":goto {:dumber}
+
+	zy$="Shield BASH!":zw=4:zp=zp+1:xu=0:zn=0
+
+{:604}
+	print "You attempt to bash "xx$" a good one with your shield... and ";
+' ac=armor class, ss=shield skill
+' mh=monster hp, h=?
+' acos code - needs massaging
+{:tac.bash}
+' calculate encumbrance? v1+136=shield %
+	m=v1+136:a=0:if peek(m)>yw then a=(peek(m)-yw)*8
+	if yw>peek(m) then a=(yw-peek(m))*8
+	if zq then print "Size differential: "a"%"
+	a=100
+' v2+36: shield %
+	m=v2+36
+	xz=peek(m):if xz>100 then xz=100
+	a=a+int(xz/3)
+	xz=ye:if xz>100 then xz=100
+	a=a-int(xz/3)
+	if zw=4 then x=peek(m)-3:if x<1 then x=0
+	if zz=4 then ye=ye-3:if ye<1 then ye=0
+' if opponent bashes and player doesn't parry, or player bashes and opponent
+' doesn't parry, larger size benefits
+	if (zz=4 and zw<>3) or (zz<>3 and zw=4) then a=a+(peek(m)*8):a=a-(yw*8):if zq then print "Larg";
+' if opponent bashes and player parries, or opponent parries and player bashes:
+' smaller size benefits
+	if (zz=4 and zw=3) or (zz=3 and zw=4) then a=a-(peek(m)*8):a=a+(yw*8):if zq then print "Small";
+	if zq then print "er person benefits."
+' if player continually parries, shield bash gets more effective (predictable)
+	if zz=4 then a=(a-10)-(xu*3):if zq then print xx$" bashes. -10%":if xu>2 then print:print "Predicting you will parry, -"xu*3"%!"
+	if zw=4 then a=a+10:if zq then print "You bash. +10%"
+	if zz=1 then a=a+10:if zq then print "You try to keep "xx$" down! +10%"
+	if zz=2 then a=a+10:if zq then print "You try to catch "xx$" off guard! +10%"
+' if player continually bashes, parry gets more effective (predictable)
+	if zz=3 then a=(a-10)-(zp*3):if zq then print:print xx$" tries to trip you! -10%":if zp>2 print "Predicting you will bash, -"zp*3"%!"
+	if zz=3 and ye<sh then xz=(sh-ye)/3:a=a-xz:if zq then print "Parry: "xx$"'s smaller shield increases agility +"xz"%"
+	if zw=1 then a=a-10:if zq then print xx$" tries to keep you down! -10%"
+' if player continually attacks, bash gets more effective
+	if zw=2 then a=(a-10)-(zn*3):if zq then print xx$" tries to catch you off guard! -10%" :if zn>2 print "Predicting you will attack, -"zn*3"%!"
+	if zw=3 a=a+10:if zq then print "You try to trip the charging "xx$"! +10%"
+	if zw=3 and sh<ye then xz=(ye-sh)/3:a=a+xz:if zq then print "Parry: your smaller shield increases agility +"xz"%"
+
+	if ce>pe+4 then a=a-10:if zq then print "You are";:gosub {:msg.tired}:print "-10%"
+	if pe>ce+4 then a=a+10:if zq then print xx$" is";:gosub {:msg.tired}:print "+10%"
+
+	if cd>pd+4 then a=a-10:if zq then print "You are";:gosub {:msg.clumsy}:print "-10%"
+	if pd>cd+4 then a=a+10:if zq then print xx$" is";:gosub {:msg.tired}:print "+10%"
+
+	if cs>ps+4 then a=a-10:if zq then print "You are";:gosub {:msg.weaker}:print "-10%"
+	if ps>cs+4 then a=a+10:if zq then print xx$" is";:gosub {:msg.weaker}:print "+10%"
+
+	if vu=5 then a=a+10:if zq then print "You have";:gosub {:msg.initiative}:print "+10%"
+	if vu=3 then a=a-10:if zq then print xx$" has";:gosub {:msg.initiative}:print "-10%"
+	z=fn r(100)+50:if a>140 then a=140
+	if a<60 then a=60
+	if z>a+20 then yx=13
+	if z<a-20 then yx=3
+
+	x=fn r(100-ac):if x<20+ss then print "succeed!":mh=mh-x:h=1:goto {:advent}
+	print "WHIFF! You missed!":goto {:advent}
+
+{:dumber}
+' decrease intelligence:
+' ~40 bytes
+	gosub {:sub.adj_stat}(5,-1):if s then:gosub {:msg.you_feel}("less intelligent")
+' ~52	m=v1+90:x=peek(m):if x>1 then poke m,x-1:gosub {:msg.you_feel}("less intelligent")
+	goto {:advent}
+
+' [O]pponent, [P]layer
+' a	P attack %?
+' ar	P armor strength
+
+' cw$	O readied weapon
+' ps	P strength
+
+' sh	P shield percentage	peek(v2+36)
+
+' vn	  rounds for ammo-based weapon
+' vt
+' vu	  initiative (seen in spur.duel.s:gvl.chk)
+'	  also possibly duel round
+
+' wd	P weapon damage
+' ws	P weapon stability
+
+' xu
+' xv	P accuracy bonus
+' xx$	O enemy name
+' xy	P damage bonus
+' xz	P shield %, or agility?
+
+' ye	O shield %
+' yg	O Wizard Glow in effect
+' yh
+' yw	
+' yx	? modified by zx
+
+' zo	P Carrying capacity	peek(v1+136)
+' zq	- duel commentary on
+' zr	P initiative
+' zs	P readied weapon attribute, spur.duel.s:rdy.wep
+' zt	P readied weapon attribute, spur.duel.s:rdy.wep
+' zu	O Skill with currently readied weapon
+' zv	O Damage with currently readied weapon
+'	- follow: # of same Guild members in current square
+' zw	O tactic
+'	player:
+'	1: not on ground
+'	2: (surprise) attack
+'	3: parry
+'	4: 
+'	5: on ground
+
+' zx	P tactic
+'	weapon class? (from spur.duel2.s:opnt.wp)
+'
+' zz	P turf bonus:
+'	3: on HQ square
+	
+'	P tactic:
+'	1: 
+'	2: 
+'	3: parry
+'	4: bashes
+'	5: on ground (stands up)
+
+' You	Statistic	Opponent
+' pd	Dexterity	cd
+' pe	Energy		ce
+' ps	Strength	cs
+
+{number:998}
+	goto {:advent}
+	REM T.BASH

@@ -1,0 +1,454 @@
+{remremoval:on}
+{number:1}
+{alpha:invert}
+{def:standalone}
+' 2017/08/02: current version (using modbasic)
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	REM T.GET
+
+{ifdef:standalone}
+	f$="modbasic v2 c000":gosub {:sub.bload}
+	f$="si 9900":gosub {:sub.bload}
+	goto {:get}
+
+{:sub.bload}
+' bload file in f$:
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return	
+{endif}
+
+' t.get (spur.misc.s:get)
+' 2007: 8/27
+' 2011: 1/30, 6/10, 7/21
+' 2012: 8/17
+' 2014: 19/May/2014 14:53
+
+' TODO: handle picking up scrap of paper for locker combination, setting random #s
+
+{nice:10}
+{:sub.dumber}
+	def d,m,p
+' subtract up to 5 int points if int>5
+' prints message if expert mode disabled
+	m=v1+90:x=peek(m):if x<5 then poke m,x-fn r(5):gosub {:msg.you_feel}("less intelligent")
+	return
+
+{nice:10}
+{:sub.drain_hp}
+' subtract up to y hit points from main character
+	def y
+	gosub {:get_hp}(1):if x<y then y=x ' drain max hp
+	gosub {:sub.adj_hp}(1,-y):gosub {:msg.you_feel}("weaker")
+' successful: print msg -- 'if not s' <> 'if s=0'
+' pop gosub off stack, link to different module
+	if x<1 then sys po:gosub {:link.module}("dead","")
+	return
+	
+{nice:10}
+{:sub.cursed} ' (item_name,damage_amt)
+	fn d$,d
+' from caller: d$=wp$:d=wv
+' subtract d int and hp
+	print d$" is cursed!":gosub {:sub.dumber}
+	gosub {:msg.expert_mode}("(Try EXAMINEing things first!)")
+
+' z is reason for dying, used in 'dead' module
+	z=3:gosub {:sub.drain_hp}(1,d)
+	return
+{nice:10}
+{:sub.item_held} ' (item_number)
+' search thru main char's inventory for item #i
+' returns s=position in list, if item #i found
+' y: start of search
+	y=v2+40:goto {:item_held_1}
+{:weapon_held}
+	y=v2+60
+{:item_held_1}
+' s=0: at start, search unsuccessful. x=loop counter
+' mx=max in inv for items/weapons/spells: 7,10
+	s=.:x=1:mx=peek(v1+136)
+{:item_held_2}
+' old: peek(y+1)*b1+peek(y+2)
+	if fn d2(y+x*2)=i then s=x:return
+' check within inv limits: if loop counter < max in inv, loop back
+	x=x+1:if x<mx then {:item_held_2}
+	return
+
+{nice:10}
+{:sub.check_free_item}
+' check for free space in main char's inventory
+' returns with s pointing to open slot, 0 if inv full
+	y=v2+40:goto {:check_free}
+
+{:sub.check_free_weapon}
+' call this to search for free weapon slot
+	y=v2+60
+
+{:check_free}
+' mx=max items in inventory
+	s=.:x=1:mx=peek(v1+136)
+{:check_free_2}
+	if fn d2(y+x*2)=0 then s=x:return
+	x=x+1:if x<mx then {:check_free_2}
+	return
+
+{:add.item}
+' fixme: handles food/drink, item, ...
+' (A)rmor
+' (B)ook
+' (C)ursed
+' (D)rink
+' (F)ood
+' com(P)ass
+' (S)hield
+' (T)reasure
+	sys is,left$(i$,1),"ABCDFPST":if i%=0 then:gosub {:sub.log_error}("W",fn cl(0),"Bad item type "+i$):goto {:advent}
+' FIXME: compass requires some more handling, I think
+	if i%=6 then print "compass":stop
+' x : put item name in i$() array
+' i$: item name: <type> . <number?> name [|<flags>]
+' s : pointer into inventory, from check_free_(item|weapon) subroutines
+	if s<y and s>y+20 then gosub {:sub.log_error}("W",fn cl(0),"Inv ptr out of range:"+str$(s)):goto {:add.item_2}
+	poke s,i:i$(x)=i$
+	' TODO: stash string under ROM with Static Array System rather than use string array
+{:add.item_2}
+	return
+
+{nice:10}
+{:sub.add_weapon}
+' TODO: remember (M.)agical / (S.)tandard / (C.)ursed flag
+' adds weapon <w> to main character's inventory?
+	fn w
+	rem fixme
+	return
+
+{nice:10}
+{:msg.search_reveals}
+	print "A search reveals a secret hole, ";:return
+
+{:msg.rock_too_large}
+	print "The rock is too large!":return
+
+{:msg.inv_full}
+	print:print "Thou canst carry no more ";:return
+	
+{nice:100}
+{:get}
+' check for, truncate | in item name
+' zm *might* be used in other modules, that's why it's not i% here
+
+' this stuff will be removed once made a real module:
+{ifdef:standalone}
+' sliding input: sys si,<strlen>,<strwin>,<string$>
+	i$="get thing"
+	print "Command: ";:sys si,30,30,i$
+{endif}
+	sys is,"{pipe}",it$:zm=i%:if zm then it$=left$(it$,zm-1)
+	if i$="get" then i$="GET ALL"
+' assumes "GET " prefix:
+	i$=mid$(i$,5):zz$=""
+	if i$<>"ALL" then gosub {:sub.get_b}:goto {:sub.get_c}
+	goto {:advent}
+{:get.2}
+' fixme: zt$<>"" is flag if something found, seems inefficient:
+	zt$="$":if wp$+it$+fd$="" and mw+md=. then zt$="" ' nothing here
+' monster waiting, or monster dead, or monster following:
+	if it$<>"" then:gosub {:sub.get_c}(it$)
+	if fd$<>"" then:gosub {:sub.get_c}(fd$)
+	if wp$<>"" then:gosub {:sub.get_c}(wp$)
+	sys is,wy$,"#":if i% then:gosub {:sub.get_c}("STATUE")
+	wx$="*":gosub {:sub.get_player}
+	if zt$="" and lv%=3 and rm=3 then gosub {:msg.rock_too_large}:goto {:get.3}
+	if zt$="" then print "There is nothing here to get."
+{:get.3}
+	gosub {:sub.dumber}:goto {:advent}
+
+{:sub.get_c}
+' handle "GET MONSTER"
+' if the monster has fled (md=2), all you see is m$ tracks:
+	if md=2 and i$=m$ then i$=i$+" TRACKS"
+	print "Getting "i$"..."
+
+{:sub.get_b}
+' if not getting monster, continue to statue routine.
+	if i$<>m$ then {:sub.statue}
+' if monster is alive, then...
+	if mw or md=0 then print m$" won't let you!":return
+	if md=2 then {:monster_tracks}
+
+{:monster_food}
+' assumes md=1
+' certain player classes have dead monster in room transmogrified into monster meat
+	sys is,"MEAT",fd$:if i%=. then print "The "m$" is too messed up to get!":return
+	print "You hack up the "m$" into "m$" steaks...":return
+
+{:monster_tracks}
+	sys is,i$,m$:if i% then print "You hear laughter as you try to get the "i$"!":gosub {:sub.dumber}:return
+
+{:sub.statue}
+' if statue (or dead monster who had 'turn to stone' spell in ability flags?):
+	sys is,"#",wy$:if i% then print "The statue is much too heavy!":return
+
+' holding crown of midas? it turns things to gold:
+	if i$=it$ or i$=fd$ then:gosub {:item_held}(73):if s=0 then {:statue.2}
+	print "It is turned to gold!":zz$="midas"
+	gosub {:check.expert_mode}(0):if s then:gosub {:msg.you_feel}("drained")
+' if it kills you, z=death reason -- 3=cursed item:
+	gosub {:sub.drain_hp}(1,-2):if s then:gosub {:link.dead}(3)
+' drain con:
+	m=v1+87:x=peek(m):if x>5 then poke m,x-1
+{:statue.2}
+	if i$=wp$ then {:get_weapon}
+	if i$=it$ then {:get.item}
+	if i$=fd$ then {:get.food.1}
+	wx$=i$:zt$="":gosub {:sub.get_player}:if zt$<>"" then return
+' level 3, room 3:
+	if lv%<>3 and rm<>3 then {:excal_local}
+	sys is,i$,"STONE":if i% then gosub {:msg.rock_too_large}
+	print i$" is not here.":gosub {:msg.expert_mode}("("+q$+"GET"+q$+" gets all)")
+	gosub {:sub.dumber}:return
+
+{:strange}
+	gosub {:msg.delay}("AARRGGHH! It is booby-trapped! It blows up!"+r$+r$+r$+r$+"*BOOOOMMMM*"+r$,30)
+'	gosub {:msg.delay}("message",delay_in_jiffies)
+	gosub {:msg.delay}(a$,30)
+' fixme:
+	gosub {:sub.adj_hp}(1,-x)
+
+{:pandora}
+' FOOL! You should not do that! Strange
+' smoke billows out!
+	sys br,"[FOOL!]"+nl$:print " You should not do that! Strange smoke billows out!"r$
+' subtract all but 100 experience points if possible
+' tell how many subtracted
+
+' 12/Nov/2014 20:45 - checking this code:
+
+'10 t=492:print t"total
+'20 l=100:print l"should be left
+'30 s=t-l:print s"subtracted"
+'40 t=l  :print t"new total
+'ready.
+' 492 total
+' 100 should be left
+' 392 subtracted
+' 100 new total
+
+	gosub {:get_3_bytes}(v1+127):if x<100 then {:pandora.2}
+	print "You lose ";:gosub {:msg.comma_value}(x-100,0):print " experience!"
+' leave just 100 xp:
+	gosub {:put_3_bytes}(v1+127,100)
+
+
+{:pandora.2}
+	m=v1+87:x=peek(m):if x<5 then {:pandora.3}
+' this is probably important enough to disregard expert mode check:
+	poke m,5:sys br,"[Your constitution has been reduced to 5!]"+r$+nl$
+{:pandora.3}
+' fixme: WORK IN PROGRESS
+' subtract all but 5 hp
+	gosub {:sub.get_hp}(1):if x<5 then return
+	gosub {:sub.adj_hp}(1,x-5)
+	gosub {:check.expert_mode}(0)
+	if s=0 then print "You take ";:gosub {:msg.comma_value}(y,0):print " damage!"
+	return
+
+{:get_weapon}
+' called with goto - this reorganization seems good:
+	gosub {:sub.check_free_weapon}:if s then {:get_weapon_2}
+	x=peek(v1+88):if x<8 then print "(Dexterity is too low)"
+	if x>8 and s then {:get_weapon_2}
+	gosub {:msg.inv_full}:print "weapons.":return
+{:get_weapon_2}
+' cursed weapon:
+	if wt$="C" then d$=wp$:d=wv:gosub {:sub.cursed}:return
+	if wp=17 then {:excal.r}
+' get honor:
+	m=v1+94:gosub {:get_2_bytes}
+' must be knight and honor > 1200:
+	if peek(v1+68)=9 and x<1200 then {:excalibur}
+{:excal_local} ' already {:excal} in t.main
+	print "A voice booms, "q$"Thou art not worthy!"q$" Thou mayest not pulleth the Sword out!"q$:return
+{:excalibur}
+	print "The Sword slides out of the Stone!"
+' todo: log: a$(.)" pulled Excalibur out of the Stone!"
+	gosub {:add_weapon}
+' todo: update e.t.weapons cb$ flag: 0 (not available)
+	wp=.:wp$="":goto {:got.it}
+{:excal.r}
+	i=wp:gosub {:add_weapon}
+{:rewrite_weapon}
+	gosub {:record_pointer}(wp+1)
+' acos code:
+' open #1,dy$
+' position #1,34,wp
+' fixme: print #2,"0"+r$+wp$+...(something else)
+	close 2:wp=0:wp$="":goto {:got.it}
+
+{:get.item}
+' called with goto
+' i: item #
+	if peek(v1+87)<9 then print "You are too sickly to carry it!":return ' con
+	if s>peek(v1+136) then print "You may carry no more items.":return ' inv full
+' 41: gold rose   70: strange weapon   71: pandora's box
+' 72: funny doll  73: crown of midas
+	on-(i=41)-2*(i=70 or i=72)-3*(i=71) goto {:rose},{:strange},{:pandora}
+' 81: fireplace  139: huge black obelisk
+	if i=81 or i=139 then sys br,"The "+it$+" is [much] too large to get!"+r$+nl$:return
+
+	if i<>86 then {:get.item.2}
+{:treasure}
+' tut's treasure taken?
+	print "Bingo! Such wealth!":a=1000:goto {:get.item.4}
+{:treasure.2}
+	print "(Ain't you heard of the Mummy's Curse?!)":gosub {:bit.set}(v2+230,1):goto {:pandora}
+
+{:get.item.2}
+	if i1$="C" then d$=it$:d=iv:goto {:sub.cursed}
+	if zz$="midas" then a=fn r(30)+10:goto {:get.item.4}
+	sys is,"COIN",it$:if i% then a=fn r(20)+1:goto {:get.item.4}
+	sys is,"DIAMOND",it$:if i% then a=fn r(30)+1:goto {:get.item.4}
+	sys is,"GOLD",it$:if i% then a=fn r(15)+1:goto {:get.item.4}
+	sys is,"SILVER",it$:if i% then a=fn r(10)+1:goto {:get.item.4}
+	sys is,"JEWEL",it$:if i% then a=fn r(8)+1:goto {:get.item.4}
+	xi=xi+1
+' gosub add to inv subroutine, returns s
+' crown of midas:
+	if i=73 then:gosub {:msg.you_feel}("funny")
+	gosub {:got.it}:goto {:get.item.5}
+
+{:rose}
+' dex check to avoid getting poisoned
+' i added check for druid, thief or assassin classes, improving chances:
+	a=peek(v1+68):if a=2 or a=6 or a=8 and fn r(18)>peek(v1+88) then {:rose.2}
+	print "Ack! You've pricked your finger with the poisoned rose!"
+' set poison:
+	gosub {:bit.set}(v1+65,5):goto {:rose.3}
+
+{:rose.2}
+	print "Whew! You are dextrous enough to avoid the poisoned stickers!"
+{:rose.3}
+	i=41
+' TODO: define 'iv' => item value
+
+{:get.item.4}
+' fixme:
+	y=iv*a:gosub {:sub.adj_gold}(1,y)
+	print "(";:gosub {:msg.comma_value}(y,0):print x$" gold)"
+	print "You now have ";:gosub {:sub.display_gold}(1,0):print " gold."
+	if zz$="midas food" then {:get.food.1}
+{:get.item.5}
+	gosub {:add.item} ' TODO: add to inv
+' x : put item name in i$() array
+' i$: item name: <type> . name [|<flags>]
+' s : pointer into inventory, from check_free_(item|weapon) subroutines
+
+{:get.food.1}
+' sys is,"search_through","search_for" => i%
+	sys is,fd$,"FOUNTAIN":x=i%:sys is,fd$,"POOL":if x+i%=. then {:get.food.2}
+	print "(You may only DRINK this.)"
+	gosub {:sub.dumber}:return
+{:get.food.2}
+' iv=item value
+	if zz$="midas" then a=fn r(30)+10:iv=1:zz$="midas food"
+' what is sv? comes from another module
+' ft$ probably "food type" - where is ft$ defined?
+	if ft$="C" then d$=fd$:d=sv:gosub {:sub.cursed}:return
+' zo=carrying capacity -> peek(v1+136) in tada
+	gosub {:sub.check_free_item}:if s=0 then gosub {:msg.inv_full}:print "food.":return
+{:get.food.3}
+' TODO: add.item subroutine
+
+{:got.it}
+' this shouldn't handle adding to inv because of weapon, item+ration list segregation
+	print "Got ";:if right$(i$,1)="S" then print "'em...":return
+	print "it...":return
+
+{:sub.get_player}
+	tg$=ta$:gosub {:ply.loc.d}
+' level=1, and i do not understand this part at all. are we searching for
+' unconscious players to add to the party? i think i'll just scrap this for now
+	if lv%=1 and tf$<>">:" then tg$=tf$:gosub {:ply.loc.d}
+' i wonder if this happens if player guild <> attempted picked-up player's guild...
+	if zt$="*" then print q$"Back off, weirdo!"q$
+	wx$="":return
+
+{:ply.loc.d}
+' vs/vx only seem to be used in calculating guild wins/losses and in this
+' "locate player" routine, so for now lv%=vs, rm=vx
+	zw$="":zx$=":"+mid$(str$(rm),2)+"="
+	yz=len(zx$):gosub {:ply.loc8}:sys is,zw$,zx$:yy=i%:if yy=. then return
+{:ply.loc.1}
+	yw=yz+yy:xz=.
+{:ply.loc.2}
+	xz=xz+1:if mid$(zw$,xz+yw,1)=":" then {:ply.loc.3}
+	if xz+yw>len(zw$) then return
+	goto {:ply.loc.2}
+{:ply.loc.3}
+' zy$=name:
+	zy$=mid$(zw$,yw+1,yz-1):zz$=mid$(zw$,yw,1):yx=val(zz$)
+	a$="scuttles out of reach!":zt$="*"
+	if yx<1 and zz$<>"0" then a$="won't fit in your sack...":zt$="="
+	if wx$="*" or wx$=zy$ then print zy$a$
+	zw$=mid$(zw$,yw+1):sys is,zw$,zx$:yy=i%:if yy then {:ply.loc.1}
+	return
+
+{:ply.loc8}
+' map level:
+	on lv% goto {:ply.loc8.1}, {:ply.loc8.2}, {:ply.loc8.3}, {:ply.loc8.4}, {:ply.loc8.5}, {:ply.loc8.6}
+{:ply.loc8.1}
+	zw$=tg$:return
+{:ply.loc8.2}
+	zw$=tb$:return
+{:ply.loc8.3}
+	zw$=tc$:return
+{:ply.loc8.4}
+	zw$=td$:return
+{:ply.loc8.5}
+	zw$=te$:return
+{:ply.loc8.6}
+	zw$=th$:return
+
+{remremoval:off}
+{number: 998}
+	rem 2/Aug/2017 15:22
+	rem t.get
+
+{ifdef:standalone}
+' kernel routines:
+{number:10}
+{:sub.adj_gold} ' (char, adjustment)
+' y=amt of gold to add to main character
+	fn c,a ' character, amount to adjust
+	gosub {:get_3_bytes}(v2+20+c):gosub {:put_3_bytes}(v2+20+c,x+y):return
+
+{nice:10}
+{:sub.adj_hp}
+' subtract up to y hit points from main character
+
+	gosub {:get_2_bytes}(v1+216):if x>y then ' fixme
+	y=x ' drain max hp
+	x=x-y:gosub {:put_2_bytes}
+	gosub {:check.expert_mode}(0):if s=. then:gosub {:msg.you_feel}("weaker")
+
+' if dead, pop gosub off stack, link to start of "dead" module (null label)
+	if x<1 then sys po:gosub {:link.module}{"dead","")
+	return
+
+{nice:10}
+{:msg.delay} ' ("message",delay_in_jiffies)
+' display a$ with output delay
+' this is now in t.main
+	fn a$,d
+	def x,y
+	for x=1 to len(a$):print mid$(a$,x,1);:for y=1 to d:next:next:return
+
+{number:2480}
+{:msg.you_feel} ' ("message")
+' *mostly* called from t_encounter:ringwraith
+' if expert mode enabled, don't print "(You feel"x$")
+	fn x$
+	gosub {:check.expert_mode}(0):if s=. then print "(You feel "x$")"
+	return
+{endif}

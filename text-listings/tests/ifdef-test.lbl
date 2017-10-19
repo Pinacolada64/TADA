@@ -1,0 +1,9 @@
+{number:1}
+{def:define.test}
+	print "this is a test of c64list's (def:) directive."
+{ifdef:define.test}
+	print "(define.test) was defined, thus this line was displayed."
+{else}
+	print "(define.test) was not defined, thus this line was displayed."
+{endif}
+	print "that's all, folks!"

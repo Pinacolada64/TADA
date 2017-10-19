@@ -1,0 +1,32 @@
+' use with c64list-testing.jgfns
+{:awfully.useless_label.1}
+	sys {sym:smooth_scroll}
+{:horribly-useless_label.2}
+	sys {sym:smooth_scroll}
+{:useless_label.3}
+	sys {sym:smooth_scroll}
+{asm}
+smooth_scroLL_1:
+	jsr scrinit
+
+; should exclude comments ending in colons:
+bar:
+	brk
+Label0:
+	brk
+label-1:
+	nop
+baz:
+	brk
+label_2:
+	sei
+label3:
+	lda #>irq
+foo:
+	brk
+{endasm}
+
+{:more_basic}
+	' illegal in c64list, just for file navigation testing purposes:
+	' {asm}/{endasm} blocks do work
+

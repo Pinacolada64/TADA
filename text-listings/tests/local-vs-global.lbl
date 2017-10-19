@@ -1,0 +1,67 @@
+{number:1}
+
+{alpha:invert}
+
+{crunch:off}
+
+{def:standalone}
+{def:debug}
+{def:trace}
+
+' show that global variables should maintain their own values
+' since modbasic puts local variables into their own variable
+' space (as explained to me by agentfriday)
+
+{ifdef:standalone}
+	poke 53280,12:poke 53281,12:print "{$08}{$0e}{gray3}{clear}";
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+	gosub {:sub.get_current_drive}
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	sys 49152
+' variables cleared now
+	gosub {:sub.get_current_drive}
+	f$="ml c500":gosub {:sub.bload}
+
+	sys 49152
+{step:5}
+	x=5:gosub {:10}
+	for y=1 to 10:z=z+2:gosub {:1001}(z):next
+	gosub 10:sys 49155:end
+{:10}
+	print"global x:"x
+	return
+{:1001}
+	fn y:print" local y="y:return
+
+{nice:100}
+{:sub.get_current_drive}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	return
+
+{nice:10}
+{:sub.bload}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+{endif}
+
+'ready.
+'run
+'
+'modbasic v1.01
+'global x: 5
+' local y= 2
+' local y= 4
+' local y= 6
+' local y= 8
+' local y= 10
+' local y= 12
+' local y= 14
+' local y= 16
+' local y= 18
+' local y= 20
+'global x: 5
+'
+'ready.
+
+'- modbasic clears all vars upon shutdown
+'	(swap "sys 49155" and "gosub 10" to show)

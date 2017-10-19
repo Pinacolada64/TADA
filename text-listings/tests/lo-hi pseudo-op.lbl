@@ -1,0 +1,11 @@
+' assemble with c64list 3.03
+' test for lo/hi byte pseudo-ops
+
+{loadaddr:$c000}
+
+{asm}
+addr: word $efbe
+
+lo_addr = (   addr & %00001111)
+hi_addr = (hi_addr & %11110000)
+{endasm}

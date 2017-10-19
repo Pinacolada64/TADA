@@ -1,0 +1,1009 @@
+{:1}
+' create a table and pass it through sed
+' ($C1) = A
+' ($61} = a
+
+	goto{:909}
+	rem *** t.main 9/05/2012 ***
+	rem
+	rem somewhere over a rainbow
+	rem way up high
+	rem there's a land that i've heard of
+	rem once in a lullaby
+	rem -------------------------------
+	rem -------------------------------
+	rem "{delete}--{$b0}{$c0:25}{$ae}--
+	rem "{delete}--{$dd} {$74}{$68}{$69}{$73} {$61}{$6c:2} {$72}{$65}{$73}{$65}{$72}{$76}{$65}{$73} {$73}{$70}{$61}{$63}{$65} {$dd}--
+	rem "{delete}--{$dd}  {$66}{$6f}{$72} {$6d}{$6f}{$64}{$75}{$6c}{$65} 64 {$6c}{$69}{$6e}{$6b}{$69}{$6e}{$67}  {$dd}--
+	rem "{delete}--{$dd}    (>50 {$64}{$69}{$73}{$6b} {$62}{$6c}{$6f}{$63}{$6b}{$73})    {$dd}--
+	rem "{delete}--{$ad}{$c0:25}{$bd}--
+	rem -------------------------------
+	rem -------------------------------
+	rem ------                  -------
+	rem ----+- ***  *  **   *   -+-----
+	rem --+-+-  *  * * * * * *  -+-+---
+	rem --+-+-  *  *** * * ***  -+-+---
+	rem ----+-  *  * * **  * *  -+-----
+	rem ------                  -------
+	rem -------------------------------
+	rem -------------------------------
+	rem --                           --
+	rem --  based on greg w. davis'  --
+	rem --  work and skip thomson's  --
+	rem --    enhancements of the    --
+	rem --  apple gbbs pro door game --
+	rem --    "{$74}{$68}{$65} {$6c}{$61}{$6e}{$64} {$6f}{$66} {$73}{$70}{$75}{$72}"     --
+	rem --                           --
+	rem -------------------------------
+	rem -------------------------------
+	goto{:200}:rem "{$74}.{$6e}{$70}" -- aug 17, 2012 13:32
+{:140}
+	a$="e.t.messages":gosub{:1011}
+	x=1:gosub{:1001}:input# 2,a$:mx=val(a$):if m<1 or m>mx then print"Out of range.":return
+	x=2:gosub{:1001}:sys ia,2,40,0
+	x=m*3-2:x=asc(mid$(a$,x,1)+nl$)+b1*asc(mid$(a$,x+1,1)+nl$):nl=asc(mid$(a$,x+2,1)+nl$):a$="e.t.messages":goto{:1076}
+{:150}
+	x$=mid$("January  February March    April    May      June     {$6a}uly     {$61}ugust   {$73}eptember{$6f}ctober  {$6e}ovember {$64}ecember",m*9-8,9):gosub{:2955}
+	print x$;d",";:x=2000+val(mid$(d1$,6,2)):if c then x=x-peek(v1+144)
+	print x;:return
+{:160}
+	print:print"[{$70}aused] ";:gosub{:1902}:goto{:1258}
+{:170}
+	x%=x/m*100:print right$("  "+str$(x),3)tab(17)
+	print str$(m)tab(21)right$("  "+str$(x%),3)"%":return
+{:200}
+	print"{$18}{$66}inding your place in the universe...";
+	na$="{$70}{$69}{$6e}{$61}{$63}{$6f}{$6c}{$61}{$64}{$61}":h1$=left$(na$,18):d$="x"+"":d2$="x"+""
+	gosub{:1010}:if e%then{:442}
+	h1$=left$(h1$+"                  ",18)
+	d$=h1$+"---       "+nl$+nl$+nl$
+	d$=d$+"---       ---       ---       ---       "+nl$+nl$+nl$
+	for x=67 to 103:d$=d$+nl$:next
+	d$=d$+"00000000":for x=112 to 118:d$=d$+nl$:next:d$=d$+"00000000"
+	for x=127 to 175:d$=d$+nl$:next:d$=d$+"00000000"
+	for x=184 to 234:d$=d$+nl$:next:for x=1 to 234:d2$=d2$+nl$:next:x=fre(.)
+	x=1:gosub{:1001}:input# 2,mx:x=.
+{:211}
+	print".";:x=x+2:if x/2>mx then{:214}
+	gosub{:1001}:sys ia,2,20,0:x$=right$(a$,18):gosub{:2955}:if x$="---"then pn=x:goto{:217}
+	goto{:211}
+{:214}
+	print"{$17}":print"{$63}reating one."
+	mx=mx+1:x=1:gosub{:1001}:print# 2,mx
+	x=mx*2+1:pn=x:gosub{:1001}:print# 2,d$:x=x+1:gosub{:1001}:print# 2,d2$
+{:217}
+	sys 45195d$::v1=peek(780)+b1*peek(781)+1:v1=peek(v1)+b1*peek(v1+1)-1
+	sys 45195d2$:v2=peek(780)+b1*peek(781)+1:v2=peek(v2)+b1*peek(v2+1)-1
+	poke v1+22,val(mid$(d1$,2,2)):poke v1+23,val(mid$(d1$,4,2))
+	poke v1+100,20:poke v1+101,val(mid$(d1$,6,2))
+	co%=1:k$=mid$("{$72}eturn{$65}nter",6*-(co%>2)+1,6)+""
+	d1$="71208188142":tr%=1
+	m=v1+64:b=3:gosub{:2800}:b=2:gosub{:2800}
+	print"{$18}[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]":print
+	m=1:gosub{:140}
+	for i=1 to 5:on i gosub{:253},{:260},{:278},{:295},{:315}:next:print:goto{:340}
+{:253}
+	print"{$69}. {$67}ender
+	print:print"{$76}erus asks, "q$"{$61}re you male or female?"q$
+	print:print"{$79}our response [{$6d}/{$66}]: ";
+{:256}
+	gosub{:1902}:sys is,"mf",an$:if i%=.then{:256}
+	m=v1+64:b=1:if i%=1 then gosub{:2800}:print"{$6d}";:goto{:259}
+	gosub{:2810}:print"{$66}em";
+{:259}
+	print"ale.":return
+{:260}
+	print:print"{$69:2}. {$6e}ame
+{:261}
+	print:print"{$17}"q$"{$63}hoose a name for your character. {$65}nter it now, and it must be no longer than 18 characters."q$
+	print:print tab(13)"[------------------]";
+{:263}
+	print"{$18}":if a$(0)<>""then print"{$69}s currently: "a$(0)
+	an$="":input"{$79}our name is";an$:if an$<>""or a$(.)<>""then{:267}
+	m=v1+64:b=1:gosub{:2820}:print:print q$"{$63}ome off it, ";:if s=.then print"wo";
+	sys br,"man! {$65}nter [something]!"+q$+nl$:goto{:261}
+{:267}
+	print:i$=an$:gosub{:2910}:if i$=left$(na$,18)then print q$"{$70}lease don't use your handle."q$:goto{:263}
+	gosub{:1010}:if e%then print a$:goto{:1811}
+	print"{$76}erus checks whether anyone has already heard of "i$"...{$18}";:t=x:x=.
+{:270}
+	x=x+2:if x/2>mx then{:273}
+	gosub{:1001}:sys ia,2,20,0:print".";:if left$(i$+"                  ",18)<>right$(a$,18)then{:270}
+	print:print"{$17}"q$"{$73}orry, there's already someone by that name. {$70}lease choose another!"q$:er=1:goto{:276}
+{:273}
+	m=v1+64:b=1:gosub{:2820}:print:print q$;:if s=.then print"{$73}h";:goto{:275}
+	print"{$68}";
+{:275}
+	print"e's the first one around here!"q$:er=.
+{:276}
+	x=t:if er then{:261}
+	a$(.)=i$:return
+{:278}
+	print:print"{$17}{$69:3}. {$63}lass and {$72}ace"
+	print:print q$"{$6e}ow you may choose a class and race for "a$(0)". {$64}o you want these terms explained, and see an acceptable list of class and race combinations first?"q$"{$18}":print:print"{$79}our response [{$79}/{$6e}]: ";
+{:280}
+	gosub{:1902}:sys is,"yn",an$:if i%=.then{:280}
+	c=.:if i%=2 then{:285}
+	print"{$79}es.{$17}":print:print q$"{$76}ery well."q$" {$76}erus sighs, takes a worn scroll out from somewhere under his cloak, and begins reading in a bored tone of voice:{$18}":print
+	print:print"[{$64}isk read...]"
+	goto{:287}
+{:285}
+	print"{$6e}o."r$r$q$"{$69} understand,"q$" smiles {$76}erus. "q$"{$79}ou're impatient to get on with more important things, {$69} see..."q$:print
+	print"{$68}e chuckles softly to himself, then continues."
+{:287}
+	print:print q$"{$63}hoose a class,"q$" {$76}erus instructs.":print
+	print"(1) {$77}izard   (4) {$70}aladin  (7) {$61}rcher"
+	print"(2) {$64}ruid    (5) {$72}anger   (8) {$61}ssassin"
+	print"(3) {$66}ighter  (6) {$74}hief    (9) {$6b}night"
+	print:print"{$63}lass number [1-9]: ";
+{:292}
+	gosub{:1902}:x=val(an$):on-(x<1 or x>9)goto{:292}:print mid$(cl$,x*8-7,8)
+	if c then gosub{:304}:if er then{:287}
+	poke v1+68,x-1:return
+{:295}
+	print:print q$"{$63}hoose a race,"q$" {$76}erus instructs.":print:c=1:an$=""
+	print"(1) {$68}uman    (4) {$65}lf      (7) {$64}warf"
+	print"(2) {$6f}gre     (5) {$68}obbit   (8) {$6f}rc"
+	print"(3) {$67}nome    (6) {$68}alfling (9) {$68}alf-{$65}lf":print
+	print"[{$63}]hange class":print:print:print"{$72}ace number [1-9, {$63}]: ";
+{:300}
+	gosub{:1902}:on-(an$>"0"and an$<":")-2*(an$="c")goto{:301},{:303}:goto{:300}
+{:301}
+	x=val(an$):print mid$(rc$,x*8-7,8):gosub{:304}:if er then{:295}
+	poke v2+185,x-1:return
+{:303}
+	print"{$63}hange class.":c=1:gosub{:287}:goto{:295}
+{:304}
+	z=peek(v1+68)+1:y=peek(v2+185)+1
+	if z=1 and y=2 or y=7 or y=8 then{:312}
+	if z=2 and y=2 or y=8 then{:312}
+	if z=6 and y=4 then{:312}
+	if z=7 and y=2 or y=3 or y=5 then{:312}
+	if z=8 and y=3 or y=4 or y=5 then{:312}
+	if z=9 and y=2 or y=8 then{:312}
+	print r$q$"{$6f}kay, fine with me,"q$" agrees {$76}erus.":er=.:return
+{:312}
+	x$=mid$(cl$,y*8-7,8):gosub{:2955}:x$=x$+" "+mid$(rc$,z*8-7,8):gosub{:2955}
+	print:sys is,"{$61}{$65}{$69}{$6f}{$75}",left$(x$,1):print"{$17}"q$"{$61}";:if i%then print"n";
+	print" "x$" doth not a good adventurer make! {$74}ry again!"q$"{$18}":er=1:return
+{:315}
+	print:print"{$69}{$76}. {$61}ge"
+{:316}
+	print:m=2:gosub{:140}
+{:317}
+	an$="0":print"{$18}":input"{$61}ge (15-50, [0]/{$72})";an$:print"{$17}"
+	if an$="r"then an$=str$(fnr(35)+14)
+	an=val(an$):if an=.then print"{$79}ou're of an unknown age.":poke v1+144,.:goto{:323}
+	on-(an>14)goto{:321}:print q$"{$6f}h, come off it! {$79}ou're not even old enough to handle a {$73}taff yet! {$67}et real!"q$:goto{:317}
+{:321}
+	on-(an<51)goto{:322}:print q$"{$68}mmm, we seem to be out of {$73}enior {$61}dventurer life insurance policies right now. {$63}ome back tomorrow!"q$:goto{:317}
+{:322}
+	print q$"{$79}ou're"str$(an)" years old."q$:poke v1+144,an
+{:323}
+	print:print"{$77}ould you like your birthday to be:
+	m=val(mid$(d1$,2,2)):d=val(mid$(d1$,4,2)):y=.:sys br,"[{$74}]oday's date"+nl$:print" (";:gosub{:150}:print")"
+	sys br,"[{$61}]nother date (choose month and day)"+r$+nl$
+	print"[{$74}/{$61}]: ";:y=val(mid$(d1$,6,2))
+{:327}
+	gosub{:1902}:sys is,"ta",an$:on i%+1 goto{:327},{:328},{:329}
+{:328}
+	print"{$74}oday.":poke v1+98,d:poke v1+99,m:poke v1+101,peek(v1+144):return
+{:329}
+	print"{$61}nother."
+{:330}
+	an$=mid$(d1$,2,2):print"{$6d}onth (1-12) ["k$"="an$"]";:input an$
+	m=int(val(an$)):if m<1 or m>12 then{:330}
+	if m=1 or m=3 or m=5 or m=7 or m=8 or m=10 or m=12 then j%=31
+	if m=4 or m=6 or m=9 or m=11 then j%=30
+	if m=2 then j%=28:if y/4=int(y/4)then j%=29
+	an$=mid$(d1$,4,2)
+{:336}
+	print"  {$64}ay (1-"mid$(str$(j%),2)") ["k$"="an$"]";:input an$
+	d=int(val(an$)):if d<1 or d>j%then{:336}
+	poke v1+98,d:poke v1+99,m:poke v1+101,peek(v1+144)
+	return
+{:340}
+	x$="{$6d}":m=v1+64:b=1:gosub{:2820}:if s=.then x$="{$66}em"
+	print"{$18}(1)   {$73}ex: "x$"ale"
+	print"(2)  {$6e}ame: "a$(.)
+	print"(3) {$63}lass: "mid$(cl$,peek(v1+68)*8-7,8)
+	print"(4)  {$72}ace: "mid$(rc$,peek(v2+185)*8-7,8)
+	print"(5)   {$61}ge:";:y=peek(v1+144):if y=.then print" {$75}nknown";:goto{:348}
+	print y"years
+	print tab(11)"({$62}orn ";:d=peek(v1+98):m=peek(v1+99):y=1:gosub{:150}:print")"
+{:348}
+	print:print"{$65}nter 1-5 to change, or hit "k$" if correct: ";
+{:349}
+	gosub{:1902}:if an$=r$then print"{$64}one.":print:goto{:353}
+	if an$<"1"and an$>"5"then{:349}
+	print an$".":an=val(an$):on an gosub{:352},{:261},{:287},{:295},{:316}:print:goto{:340}
+{:352}
+	m=v1+64:b=1:gosub{:2820}:on s+1 goto{:2800},{:2810}
+{:353}
+	m=3:gosub{:140}
+	an$="":sys br,r$+"{$77}hich - [{$63}]ivilian, [{$67}]uild {$6d}ember, or [{$6f}]utlaw? "+nl$
+{:355}
+	gosub{:1902}:sys is,"cog",an$:on i%+1 goto{:355},{:356},{:357},{:358}
+{:356}
+	print"{$63}ivilian.":poke v1+69,.:goto{:371}
+{:357}
+	print"{$6f}utlaw.":print:print:poke v1+69,4:goto{:359}
+{:358}
+	print"{$6a}oin {$67}uild.":print
+{:359}
+	print"{$17}"q$"{$77}hich guild would you like to join?"q$" asks {$76}erus, waiting expectantly.{$18}"
+	print
+	sys br,"[{$66}]ist "+nl$:print" =[]"
+	sys br,"[{$73}]word"+nl$:print" -]==="
+	sys br,"[{$63}]law "+nl$:print" />>"+r$+"[{$6e}]one"+nl$
+	print:print:print"{$67}uild: ";
+{:365}
+	gosub{:1902}:sys is,"fscn",an$:on i%+1 goto{:365}:if i%<4 then poke v1+69,i%-1
+	on i%goto{:367},{:368},{:369},{:370}
+{:367}
+	print"{$66}ist.":goto{:371}
+{:368}
+	print"{$73}word.":goto{:371}
+{:369}
+	print"{$63}law.":goto{:371}
+{:370}
+	print"{$6e}one.":print
+{:371}
+	print:print"{$17}"q$"{$79}ou will have 5 chances to roll for "a$(.)"'s attributes."q$:z=.
+{:372}
+	z=z+1:if z=6 then print q$"{$73}orry, you're stuck with these scores,"q$" {$76}erus says.":goto{:424}
+	print"{$18}":print"["mid$(str$(z),2)" of 5] {$72}olling...";
+	on peek(v1+68)gosub{:375},{:376},{:377},{:378},{:379},{:380},{:381},{:382},{:383}:goto{:384}
+{:375}
+	a$=" 0-1 0 0+2 0 0 0":return
+{:376}
+	a$=" 0 0 0 0+2-1+2 0":return
+{:377}
+	a$=" 0+2-1 0-1+2 0+2":return
+{:378}
+	a$=" 0 0+1 0+1+1+1 0":return
+{:379}
+	a$=" 0 0 0 0-1+1-1 0":return
+{:380}
+	a$=" 0 0+1 0 0 0 0+2":return
+{:381}
+	a$=" 0 0+2 0 0 0 0-1":return
+{:382}
+	a$=" 0 0-1 0 0+2 0 0":return
+{:383}
+	a$=" 0+1 0 0+1 0 0-1":return
+{:384}
+	y=v1+86:for x=1 to 8:b=18:if x>3 then b=25
+{:385}
+	n=fnr(b):if n=1 then{:385}
+	n=n+val(mid$(a$,x*2-1,2)):if n<1 then{:385}
+	if n>b then n=b
+	poke y,n:y=y+1:print".";
+	next:y=v1+86
+	on peek(v2+185)gosub{:391},{:392},{:393},{:394},{:395},{:396},{:397},{:398},{:399}:goto{:400}
+{:391}
+	a$=" 0 0+1 0+2-1+1-1":return
+{:392}
+	a$=" 0+2-1 0-2+3-1 0":return
+{:393}
+	a$=" 0 0-1 0 0+1+1 0":return
+{:394}
+	a$=" 0-1+2 0+1 0+2 0":return
+{:395}
+	a$=" 0 0+1 0+2-1 0+1":return
+{:396}
+	a$=" 0+1+2 0+2-1 0 0":return
+{:397}
+	a$=" 0+1-1 0 0+2 0 0":return
+{:398}
+	a$=" 0 0+1 0-1+2-1+2":return
+{:399}
+	a$=" 0 0+1 0 0 0+1 0":return
+{:400}
+	b=18:y=v1+86:for x=1 to 8:n=peek(y):if x=4 then b=25
+	n=n+val(mid$(a$,x*2-1,2)):if n<=.then n=3:goto{:403}
+	if n>b then n=b
+{:403}
+	poke y,n:y=y+1:print".";:next
+	y=.:for x=.to 7:y=y+peek(v1+86+x):next
+	y=int(y/8)+fnr(10):poke v1+225,y
+	print".":print:print tab(17)"{$6f}ut":print tab(11)"{$73}core {$6f}f:    %"
+	m=y:x=peek(v1+225):print"  {$68}it {$70}oints:";:gosub{:170}
+	m=18:x=peek(v1+86):print"    {$63}harisma:";:gosub{:170}
+	x=peek(v1+87):print"{$63}onstitution:";:gosub{:170}
+	x=peek(v1+88):print"   {$64}exterity:";:gosub{:170}
+	x=peek(v1+89):print tab(9)"{$65}go:";:gosub{:170}:m=25
+	x=peek(v1+90):print"{$69}ntelligence:";:gosub{:170}
+	x=peek(v1+91):print"    {$73}trength:";:gosub{:170}
+	x=peek(v1+92):print tab(6)"{$77}isdom:";:gosub{:170}:print
+	x=peek(v1+93):print"{$65}nergy {$6c}evel:";:gosub{:170}:m=100
+	x=peek(v1+71):print"      {$73}hield:";:if x then gosub{:170}:goto{:418}
+	print" {$6e}one"
+{:418}
+	x=peek(v1+71):print"       {$61}rmor:";:if x then gosub{:170}:goto{:420}
+	print" {$6e}one"
+{:420}
+	print r$"{$69}s this {$6f}{$6b} [{$79}/{$6e}]: ";
+{:421}
+	gosub{:1902}:sys is,"yn",an$:if i%=.then{:421}
+	if i%=1 then print"{$79}es.":goto{:424}
+	print"{$6e}o.":goto{:372}
+{:424}
+	print r$q$"{$68}old while you are entered into the"l$"log..."q$:print
+	x=val(mid$("231122232",peek(v2+185),1))
+	poke v1+70,x
+	m=5:gosub{:140}
+	print:an$="":input"{$71}uote";an$:z=len(an$)
+	if z=.then print r$q$"{$6f}kay, fine."q$;:goto{:435}
+	for y=z to 1 step-1
+	for x=1 to y
+	if mid$(an$,y,1)="$"then an$=left$(an$,y-1)+a$(0)+mid$(an$,y+1):z=z+1
+	next:next
+	print"{$79}ou say: "q$an$q$
+{:435}
+	m=6:gosub{:140}:gosub{:160}
+	print"{$61}dding you to the world..."
+	for x=1 to len(a$(.)):poke v1+10+x,asc(mid$(a$(.),x,1)+nl$):next
+	x=pn:gosub{:1001}:gosub{:1012}:if e%then{:442}
+	print# 2,d$;:print".";:gosub{:1012}:if e%then{:442}
+	x=x+1:gosub{:1001}:gosub{:1012}:if e%then{:442}
+	print# 2,d2$;:print".";:gosub{:1012}:if e%=.then{:443}
+{:442}
+	print"(:error) "a$:goto{:1811}
+{:443}
+	m=7:gosub{:140}:gosub{:160}
+	a$="startup":goto{:1067}
+	rem "{$74}.{$6e}{$70}" -- aug 17, 2012 13:32
+	rem
+	rem -------------------------------
+	rem -------------------------------
+	rem --                           --
+	rem -- ** first things first: ** --
+	rem --                           --
+	rem -------------------------------
+	rem -------------------------------
+	rem
+{:909}
+	a$="x"+"":i%=.:is=49152:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
+	poke 53280,12:poke 53281,12:print"{gray3}{clear}{$08}{$0e}{$17}"
+	dim a$(4):q$=chr$(34)+"":dv=peek(186):if dv<8 then dv=8
+	close 15:open 15,dv,15:if st=128 then print"{$64}evice not present.":goto{:1811}
+	if peek(is)=76 then{:915}
+	poke 147,.:sys 57812"ml.o",dv,1:poke 780,.:sys 65493:gosub{:1012}:if e%then then print a$:goto{:1811}
+{:915}
+	gosub{:2900}:a$="startup":goto{:1067}
+	rem === t.startup ===
+	rem image bbs subroutines v2.1 7/07/2007
+{:1001}
+	gosub{:1002}:for d=1 to 50:next
+{:1002}
+	print# 15,"p{$02}"chr$(x and 255)chr$(x/b1)"{$01}":return
+{:1010}
+	a$="e.t.playerlog"
+{:1011}
+	close 2:open 2,dv,2,"0:"+a$
+{:1012}
+	input# 15,e%,e$,t%,s%:a$="{$73}tatus: "+right$("0"+mid$(str$(e%),2),2)+":"+e$+":"+right$("0"+mid$(str$(t%),2),2)+":"+right$("0"+mid$(str$(s%),2),2):return
+{:1026}
+	a$="a":gosub{:1027}:on e%+1 goto{:1603}:a$="w"
+{:1027}
+	dr=3:a$="e.t."+b$+",s,"+a$:goto{:1011}
+	print 1062:e%=62:return
+{:1067}
+	if cm$="t."+a$and e%=.then{:1}
+	cm$="t."+a$:print" [{$6c}oading "q$cm$q$"...]":sys ml,"0:"+cm$:gosub{:1012}:if e%=.then{:1}
+	print a$:goto{:2000}
+{:1075}
+	print"{clear}";
+{:1076}
+	goto{:1100}
+	bf=a%:return
+{:1100}
+	print"{$18}";:q=.:c=1:c$="2{$61}5{$64}{$63}1{$65}478":mx=len(c$)/2:l=.:gosub{:1011}:if e%then print 1100a$:goto{:1107}
+{:1101}
+	get an$:if an$="{home}"then a$="[{$70}aused] ":gosub{:2862}:if q or an$="/"or an$=" "then{:1107}
+	l=l+1:if l/24=int(l/24)then gosub{:2860}:if q then{:1107}
+	if x then gosub{:1001}:x=x+1
+	sys ia,2,80,1:sys br,a$+nl$:if pos(.)<>40 then print
+	if(nl and nl=l)or(x=.and(64 and st=64))then{:1108}
+	goto{:1101}
+{:1107}
+	gosub{:1920}
+{:1108}
+	gosub{:2407}:close 2:print"{$17}";:return
+{:1109}
+	q=.:gosub{:2407}:print"[";:sys br,"[+]/[-]/[{$73}{$70}{$61}{$63}{$65}]/[{$71}]"+nl$:print"] {$18}";
+{:1110}
+	gosub{:1902}:sys is,"+- q",an$:on i%+1 goto{:1110},{:1111},{:1112},{:1258}:q=1:goto{:1258}
+{:1111}
+	c=c-(c<mx):goto{:1113}
+{:1112}
+	c=c+(c>1)
+{:1113}
+	sys is,hx$,mid$(c$,c*2-1,1):poke 49607,i%-1:poke 49609,i%-1
+	sys is,hx$,mid$(c$,c*2,1):poke 49608,i%-1:gosub{:1258}:goto{:1109}
+{:1258}
+	poke 781,peek(214):sys 59903:poke 211,.
+{:1603}
+	return
+{:1810}
+	print" [{$71}uitter...]"
+{:1811}
+	close 2:close 3:close 15:print"{$09}{$18}";:end
+{:1870}
+	a=1-a:print b$": {$6f}"mid$("ffn",a*2+1,2):return
+{:1902}
+	poke 198,.:xl%=peek(211)
+{:1903}
+	if xl%>39 then xl%=xl%-40:goto{:1903}
+	xl%=xl%+peek(214)*40+1024:poke 54272+xl%,peek(646):xo%=peek(xl%):xt%=xo%:xq%=128:if xo%>127 then xq%=-xq%
+{:1905}
+	xt%=xt%+xq%:poke xl%,xt%:xq%=-xq%:xr=ti+20
+{:1906}
+	if peek(198)then get an$:poke xl%,xo%:a=-(an$="y"or an$="{$79}"):return
+	on-(ti<xr)goto{:1906}:goto{:1905}
+{:1920}
+	print"({$61}borted.)":return
+	print tab(7)"[{$73}pacebar aborts listing.]":return
+{:2000}
+	gosub{:2001}:gosub{:2011}:gosub{:2022}:di=.:pr=2:gosub{:2136}:gosub{:2090}:goto{:2083}
+{:2001}
+	if ro=rm then return
+	a$="e.t.roomindex"+str$(lv%):gosub{:1011}:if e%then print a$:return
+	if ro=-1 then x=1:gosub{:1001}
+	sys ia,2,33,0:df%=asc(left$(a$,1)+nl$):nr%=asc(mid$(a$,3,1)+nl$)+b1*asc(mid$(a$,4,1)+nl$):ld$=a$:return
+	ro=rm:on df%goto{:2007},{:2010}
+{:2007}
+	wy$="":x=rm*2:gosub{:1001}:sys ia,2,14,0:l1$=a$:sys ia,2,25,1:l1$=l1$+a$:lo$=a$
+	x=x+1:gosub{:1001}:sys ia,2,36,0:l2$=a$+""
+	rc%=asc(mid$(l1$,9)+nl$):rt%=fnl1(10):return
+{:2010}
+	x=rm*2:gosub{:1001}:sys ia,2,115,0:b$=a$+"":return
+{:2011}
+	sys is,lo$,"{$dd}":z=len(lo$)-i%:ww$=left$(lo$,z):if z=.then lo$=" "
+	if z then lo$=mid$(lo$,z)
+	sys is,lo$,"{$74}":if i%then rm=val(mid$(lo$,z+1)):sys br,"[{$61} wave of nausea engulfs you, then subsides...]"+r$+nl$:goto{:2001}
+	sys is,lo$,"=+":x=i%:sys is,ww$,"{$6f}{$75}{$74}{$65}{$72} {$73}{$70}{$61}{$63}{$65}":if x+i%then{:2016}
+	if left$(ww$,4)<>"{$74}{$68}{$65} "and left$(ww$,2)<>"{$61} "then ww$="{$74}{$68}{$65} "+ww$
+{:2016}
+	print:sys is,ww$,"{$68}{$71}":if i%=.then{:2022}
+	x=peek(v1+69):on x+1 goto{:2118},{:2018},{:2019},{:2020}
+{:2018}
+	sys is,ww$,"/>>":goto{:2021}
+{:2019}
+	sys is,ww$,"-]==":goto{:2021}
+{:2020}
+	sys is,ww$,"=[]"
+{:2021}
+	on i%+1 goto{:2118}:zm=1:x$=mid$(gd$,x*8-7,8):gosub{:2955}:print"{$65}nter "x$" {$68}{$71}? ";:gosub{:1902}:if a then a$="guild hq":goto{:1067}
+{:2022}
+	m=v1+64:b=2:gosub{:2820}:if s=.or rm=ro then return
+{:2023}
+	print:a$="e.t.roomdescs"+str$(lv%):on df%goto{:2024},{:2025}
+{:2024}
+	x=fnl1(12):nl=asc(mid$(l1$,14,1)+nl$):gosub{:1076}:goto{:2026}
+{:2025}
+	return
+{:2026}
+	if i$<>"{$6c}{$6f:2}{$6b}"then sys is,ww$,"{$64}{$65}{$73}{$65}{$72}{$74}":if i%then gosub{:2503}:if z<4 then pe=pe-1:print:print"{$79}ou sweat in the heat..."
+	i$="":sys is,lo$,"@@":if i%=.then{:2035}
+	i=74:gosub{:2867}:if i%=.then i$="drown in the water!":z=10
+	if lv%=6 then i=122:gosub{:2867}:if i=.then i$="choke in the vacuum!":z=15
+	if i%=.then print:print"{$79}ou "i$:hp=hp-5:goto{:2035}
+	if lv%<>6 then i=74:gosub{:2867}:if i then i$="row the dinghy..."
+	if lv%=6 then i=122:gosub{:2867}:if i then i$="fire steering rockets..."
+	gosub{:2503}:if z<4 then print"{$67}rowing a bit tired...":ps=ps-1
+	if i$<>""then print:print"{$79}ou "i$
+{:2035}
+	sys is,lo$,"&":on i%+1 goto{:2037}:i=123:gosub{:2867}:if i then print:print"[{$74}ick... tick...]"
+	if i=.then print"{$79}ou have a strange feeling that you should know something..."
+{:2037}
+	sys is,lo$,"&&-":on i%+1 goto{:2039}:i=124:gosub{:2867}:if i=.then print:print"[ {$64}anger! {$72}ad suit required. ]"
+	if i=.then print"{$79}ou feel funny!":zt$="{$72}{$61}{$64} {$73}{$75}{$69}{$74}":z=16
+{:2039}
+	zz$="**":sys is,lo$,zz$:if i%then i=78:gosub{:2867}:if i=.then print"{$79}ou're freezing!":zt$="{$63}{$6f}{$61}{$74}":z=11
+	if i$=""then{:2044}
+	if i=.then pe=pe-1:ps=ps-1:hp=hp-2:print"{$74}oo bad you don't have a "zt$"!"
+	if i then print"{$79}ou wisely {$77}{$65}{$61}{$72} the "zt$"!""
+	zz$=zz$+"-"
+{:2044}
+	if hp<1 then sys ps:goto{:2267}
+	if peek(v1+92)+peek(v1+90)<10 then{:2048}
+	sys is,ww$,"{$6c}{$61}{$62}{$79}{$72}":if i%=.then sys is,ww$,"{$64}{$65}{$73}{$65}{$72}{$74}":if i%=.then sys is,lo$,"@@":if i%=.then{:3016}
+	if cp=1 and lv%<6 then print:print"[{$63}ompass read]":goto{:2053}
+{:2048}
+	i$="{$79}ou lost your sense of direction."
+	if lv%=6 then i$="{$73}tar-filled blackness engulfs you."
+	if lv%<6 then gosub{:3012}:if xy>0 then print:print"[{$70}alintar glows]":goto{:2053}
+	if lv%<6 and peek(v1+68)=5 then print:print"[{$72}anger tracking]":goto{:2053}
+	print:print i$:return
+{:2053}
+	on df%goto{:2054}
+{:2054}
+	print:print"{$79}e may travel ";:on df%goto{:2055},{:2056}
+{:2055}
+	on-(fnl1(1)>.)gosub{:2057}:on-(fnl1(3)>.)gosub{:2058}:on-(fnl1(5)>.)gosub{:2059}:on-(fnl1(7)>.)gosub{:2060}:on rc%gosub{:2061},{:2062}
+{:2056}
+	print:return
+{:2057}
+	print"{$6e}orth ";:return
+{:2058}
+	print"{$65}ast ";:return
+{:2059}
+	print"{$73}outh ";:return
+{:2060}
+	print"{$77}est ";:return
+{:2061}
+	print"{$75}p ";:goto{:2063}
+{:2062}
+	print"{$64}own ";
+{:2063}
+	if rt%=.then print"to {$73}hoppe"
+	return
+{:2065}
+	x=fnl2(1):mw=x:if mw=.then{:2121}
+	md=.:print"mw="mw:a$="e.t.monsters":z=.:di=.:gosub{:2144}:if cb<>1 then{:2136}
+	gosub{:2411}:m$=mid$(z$,l,r)
+	input# 2,ms:print x$" strength:"ms
+	input# 2,sw:if sw then print"special weapon:"sw
+	input# 2,ma:if ma=.then ma=val(mid$(m$,3,1)):if ma=.then{:2120}
+	return
+	if ep>(999+(xp*100))then xp=xp+1:sys br,"[{$79}ou are now a level"+str$(xp)+"adventurer!]"+r$+nl$
+	if mw=.then zs=.:goto{:2082}
+	sys is,wy$,".":if i%then zs=.:goto{:2080}
+	if zs=998 then zs=997:goto{:2082}
+	x=peek(v1+68):if x<>6 or x<>8 then gosub{:3002}:if s=.then{:2080}
+	if zs>.or zq>.then{:2080}
+	z=x*10+5:if s=1 then z=50
+	if fnr(100)>z then zs=999
+{:2080}
+	if zs=999 then print r$m$" lost sight of you!":goto{:2082}
+	i$="advent5":goto{:3006}
+{:2082}
+	gosub{:2866}:if s then{:2083}
+{:2083}
+	on-(md+mw=.)-2*(md=.)goto{:2121},{:2065}
+	if md=1 then z$="--dead "+m$:sys is,wy$,":":if i%then z$="--wrecked "+m$
+	if md=2 then z$="--"+m$+" tracks"
+	gosub{:2410}
+	pr=0:gosub{:2866}:if s=.then{:2116}
+{:2090}
+	y=.:pr=.:gosub{:2866}:if s then{:2053}
+{:2091}
+	y=y+1:on-(y=5)goto{:2053}:z=peek(v1+47+y):if z=0 or z=4 then{:2095}
+	if peek(v2+158+y)<7 then print a$(y)" looks weak."
+	if peek(v2+162+y)<7 then print a$(y)" looks sick."
+	goto{:2091}
+{:2095}
+	y=.:if peek(v1+87)>5 then y=2
+	gosub{:3002}:if i%=0 then{:2103}
+	z=0:if fnr(100)>6 then{:2103}
+	m=v1+87:if peek(m)>y then z=1:poke m,peek(m)-y
+	m=v1+92:if peek(m)>5 then z=1:poke m,peek(m)-1
+	m=v1+90:if peek(m)>5 then z=1:poke m,peek(m)-5
+	if z then print"{$74}he {$72}ing";:gosub{:2432}
+	z=7:gosub{:2865}
+{:2103}
+	m=v1+65:b=5:gosub{:2820}:if s=.then{:2105}
+	if fnr(10)<4 then pt=pt-z:print"{$74}he poison";:gosub{:2432}:z=7:hp=hp-2:gosub{:2865}
+{:2105}
+	m=v1+65:b=7:gosub{:2820}:if s=.then{:2107}
+	if fnr(10)<4 then print"{$74}he disease";:gosub{:2432}:hp=hp-1:pt=pt-zr:if hp<1 then z=8
+{:2107}
+	x=peek(v1+93):on-(x>7)goto{:2109}:print"{$79}ou're thirsty";:if x<4 then print", very thirsty";
+	print"!"
+{:2109}
+	if x<3 or peek(v1+93)<3 then print"{$79}ou are feeling faint!"
+	on-(x>7)goto{:2113}:print"{$79}ou're hungry";:if x<4 then print", very hungry";
+	print"!"
+	x=peek(v1+91):if peek(v1+93)<1 and x<1 then print"{$79}e have starved to death!":hp=.:z=1:goto{:2267}
+{:2113}
+	if mw and wr$=""then print"({$6d}ust {$72}{$65}{$61}{$64}{$79} weapon)":vm=.:wa=.:goto{:2116}
+	if wa=8 and vn=.then gosub{:3003}:if i%=.then print"({$75}{$73}{$65} ammunition)"
+	if wa=10 and vn=.then print"({$6d}ust {$75}{$73}{$65} to energize this)"
+{:2116}
+	print ww$
+	if lv%=2 and rm=223 then sys is,ys$,"*{$67}{$61}{$6c}":if i%=.then i$="galadriel":goto{:1067}
+{:2118}
+	i=138:gosub{:2867}:if i=.then fixme
+	print"[{$67}{$63}:"lv%","rm"]"
+{:2120}
+	print
+{:2121}
+	gosub{:2866}:if s then{:2129}
+	print"<"k$">=";:if dc$=""then dc$="?":print"{$6e}o valid command.":goto{:2124}
+	print dc$
+{:2124}
+	if wa=8 or wa=10 then print","str$(vn)" rounds";
+	print"]";:if mw=0 or vu<6 then{:2129}
+	m=v1+65:b=7:gosub{:2820}:if s then gosub{:2425}
+	gosub{:2500}:print"["mid$(str$(x),2)" {$68}{$70}] ";
+	if a$(4)<>"---"then m=v1+65:b=4:gosub{:2820}:if s then print"[{$6d}{$6f}{$75}{$6e}{$74}{$65}{$64}] ";
+{:2129}
+	i$="":print"{$63}md";:if mw=.then{:2133}
+	gosub{:3003}:if i%=.and fnr(10)>4 then{:2133}
+	x=.:if vk>2 then x=2
+	sys br,"[{$61}{$74:2}{$61}{$63}{$6b}]"+nl$:print:print:print"({$74}he "wr$" asserts its will!)":i$="{$61}{$74:2}":vk=vk-x:goto{:3000}
+{:2133}
+	input i$:print:if i$=""and dc$<>""then i$=dc$:goto{:2241}
+	if i$=""and dc$=""then{:2420}
+	gosub{:2910}
+{:2136}
+	l=.:a$="e.t.items":y=40:for z=3 to 9 step 2:goto{:2139}
+	l=.:a$="e.t.weapons":y=60:for z=11 to 17 step 2:goto{:2139}
+	l=.:a$="e.t.rations":y=40:for z=19 to 25 step 2
+{:2139}
+	i=fnl2(z):if i=.then{:2143}
+	gosub{:2867}:if s then poke y,.:poke y+1,.:goto{:2143}
+	gosub{:3004}
+	gosub{:2411}
+{:2143}
+	next:return
+{:2144}
+	if i and l=1 then l=.:gosub{:1011}:if e%then print a$:z$="xxx":return
+	x=x+1:gosub{:1001}:input# 2,cb$:cb=val(cb$)
+	input# 2,z$:if di=.then return
+	return
+{:2148}
+	on df%goto{:2149},{:2150}
+{:2149}
+	sys is,mid$(l1$,15),"{$dd}":print mid$(l1$,15,25-i%):return
+{:2150}
+	print r$mid$(c$,40)" ";:x=val(mid$(c$,39,1)):if co%>2 then{:2152}
+	x$=mid$("+{$09}  =[]  />>{$09}-]===",x+1*5-4,5):gosub{:2955}:goto{:2153}
+{:2152}
+	x$=mid$("+{$09}  ={$fb}{$fd}  {pound}{$fd}/{$09}-{$fd}===",x+1*5-4,5):gosub{:2955}
+{:2153}
+	print x$:return
+	m=v1+64:b=2:gosub{:2820}:if s=.or rm=ro then return
+	if mw=.then{:2159}
+	sys is,wy$,".":if i%then sys is,wy$,":":if i%=.and zq<1 then print r$m$" has you trapped!":goto{:2000}
+	if vu=1 and vn>.then print:print m$" charge";:gosub{:2428}:print"!":goto{:2000}
+	if zs<990 and zq=.and fnr(100)>50 then print r$m$" block";:gosub{:2428}:print" your way!":goto{:2000}
+{:2159}
+	if peek(v1+93)<1 then print r$"{$6e}ot enough energy!":goto{:2000}
+	if(lv%=1 and rm=49 and di=1)or(lv%=4 and rm=42 and di=3)then{:2268}
+	if(lv%=5 and rm=157 and di=3)or(lv%=6 and rm=584 and di=2)then{:2268}
+	sys is,lo$,"+@":on i%+1 goto{:2169}:z=val(mid$(lo$,i%+2,1))
+	i=74:gosub{:2867}:if i then print"{$79}ou shove the dinghy into the water..."
+	if lv%=6 then i=122:gosub{:2867}:if i then print"{$79}ou first put on the spacesuit."
+	if i=.or di<>z then{:2169}
+	if lv%<>6 then{:2169}
+	i=138:gosub{:2867}:if i then print:print"{$74}he {$73}{$70}{$61}{$63}{$65} {$74}{$72}{$61}{$63}{$6b}{$65}{$72} powers up! ({$67}iving galactic space coodinates)"
+	if i%=.then print:print"({$74}oo bad you don't have a {$73}{$70}{$61}{$63}{$65} {$74}{$72}{$61}{$63}{$6b}{$65}{$72}...)"
+{:2169}
+	if di=z and a then i$=lo$+"**":goto{:2173}
+	print r$"{$6e}ot without a ";:if lv%<6 then print"boat";:goto{:2172}
+	print"space suit";
+{:2172}
+	print"!":goto{:2000}
+{:2173}
+	gosub{:3012}:if cp=1 or peek(v1+68)=5 then xy=1
+	sys is,i$,"]":if i%=.or(lv%<6 and xy>0)then{:2177}
+	zz$=mid$(i$,z+1,1):if zz$=dc$then{:2184}
+	i$=mid$(i$,z+1):goto{:2173}
+{:2177}
+	on di goto{:3001},{:3001},{:3001},{:3001},{:3001},{:3001}
+	if lv%=1 and rm=89 then{:2240}
+	sys is,lo$,"@@!":if i%=.then{:2184}
+	print:print"{$79}ou bounce off the ";:if lv%<6 then print"rocks";:goto{:2182}
+	print"hull";
+{:2182}
+	print"!":z=17:hp=hp-2:if hp<1 then{:2267}
+	print:print"{$79}ou can't go in that direction.":goto{:2000}
+{:2184}
+	yx$="":sys is,lo$,"@@+":if i%=.then{:2189}
+	z=val(mid$(lo$,i%+3,1):if di<>z then{:2188}
+	print"{$79}ou get out of the ";:if lv%<6 then print"boat";:goto{:2188}
+	print"spacesuit";
+{:2188}
+	print"..."
+{:2189}
+	if peek(v1+93)>4 or peek(v1+91)>4 then{:2191}
+	if pt then pt=pt-1:x$="more fragile":pr=1:gosub{:2866}
+{:2191}
+	if mw=.then{:2206}
+	gosub{:3018}:a=pa:b=ma:gosub{:3019}:gosub{:2503}:x=z
+	if zs<990 and x<=p1 and mw>0 and fnr(100)>33 print r$m$" follow";:gosub{:2428}:print"...":mf=1:mw=.
+	if mw=.then{:2206}
+	if zq>.then i$="{$63}{$68}{$61}{$72}{$6d}":gosub{:3009}:goto{:2202}
+	if zs>990 then{:2199}
+	sys is,wy$,":":if i%then print:print m$" power";:gosub{:2428}:print" down.":goto{:2205}
+	print:print m$" snarl";:gosub{:2428}:print" and wait";:gosub{:2428}:print"...":goto{:2205}
+{:2199}
+	if zs<989 then{:2202}
+	sys is,wy$,":":if i%then print r$m$" ignore";:gosub{:2428}:print" you.":zs=.:goto{:2202}
+	print r$m$" look";:gosub{:2428}:print" around uneasily.":zs=.
+{:2202}
+	mw=2:if pr=2 or pr=8 then if i%then mw=4
+	if pr=3 or pr=4 then sys is,wy$,"{$67}":if i%then mw=4
+	if zs>989 or(zq>0 and vk<2000)then vk=vk+mw
+{:2205}
+	zq=0:mw=0:mf=0:m$="":wy$=""
+{:2206}
+	ep=ep+1:md=.:gosub{:2007}:mm=mm+1:print:if m then{:2219}
+	if mid$(zu$,5,1)="1"then i$="djinn":gosub{:3011}:goto{:2216}
+	sys is,ww$,"{$67}{$61}{$72}{$64}{$65}{$6e} {$6f}{$66} {$65}{$64}{$65}{$6e}":if i%then gosub{:3005}
+	gosub{:2503}:if z>3 then{:2213}
+	sys is,ww$,"{pound}{$dd}/":if i%then m=67
+	sys is,ww$,"-]=":if i%then m=66
+	sys is,ww$,"=[]":if i%then m=65
+{:2213}
+	if m or z>lv%or mid$(zu$,7,1)="1"or zn=70 or lv%>5 then{:2216}
+	if mid$(zu$,2,1)="0"then gosub{:2503}:if z>lv%then{:2216}
+	print r$"{$73}omething evil stalks...";:gosub{:2503}:if z=1 then a$="...{$69}{$74} {$69}{$73} {$68}{$65}{$72}{$65}!":gosub{:2409}:m=70
+{:2216}
+	print:if lv%<>6 then sys is,lo$,"@@":if i%=0 then{:2219}
+	gosub{:2502}:if a>97 then i$="{$6d}{$65}{$74}{$65}{$6f}{$72}":gosub{:3010}
+	gosub{:2502}:if a<3 then m=119:print r$r$"{$73}{$6f}{$6d}{$65}{$74}{$68}{$69}{$6e}{$67} {$63}{$6f}{$6d}{$65}{$73}!"
+{:2219}
+	if tm and tm<mm then print:print"{$74}he aura protecting you is gone.":tm=0
+	if pe<0 then pe=0
+	if mm>9999 then mm=0
+	gosub{:2502}:if a<>50 then return
+	on-(df=0)-2*(mf<>0)-3*(rm<>df or lv%>1)goto{:2227},{:2213},{:2228}
+	m=fnr(mc):m=m+(m=0)
+	print r$"{$61} short bearded person is here, with a pile of gold!"
+	gosub{:3015}:ms=ms+15:mf=1:mw=1:md=0:m$="{$74}{$68}{$65} {$64}{$77}{$61}{$72}{$66}":goto{:2213}
+{:2227}
+	if xw>3 and fnr(100)<>50 then i$="thief":goto{:3008}
+{:2228}
+	if lv%=sl and rm=sr then{:3007}
+	if m=0 then gosub{:2502}:if a=50 or a=51 then i$="{$72}{$61}{$6e}{$64}{$6f}{$6d}":gosub{:3010}
+	if m then gosub{:2065}
+	on i+1 goto{:2235}:a$=right$("000"+str$(i),3)+",":i$=xi$+ai$
+	sys is,d$,xi$+ai$:if instr(a$,i$)or instr(a$,xt$)then i=0:goto{:2235}
+	a$="items":d=i:gosub{:3014}:sys is,d$,"{$dd}":yz=i%:if yz then d$=left$(d$,yz-1)
+	it$=d$:i=d:i1$=dp$:iv=f
+{:2235}
+	on wp+1 goto{:2237}:a$=right$("000"+str$(wp),3)+",":sys is,xw$,a$:if i%then wp=0:goto{:2237}
+	a$="weapons":d=wp:gosub{:3014}:wp$=mid$(d$,2):wp=d:wt$=dp$:wv=f
+{:2237}
+	on fd+1 goto{:2239}:i%=fd:gosub{:3017}:if i%=0 then
+	a$="rations":gosub{:1011}:x=fd+1:gosub{:3014}:fd$=d$:fd=d:ft$=dp$:sv=f
+{:2239}
+	gosub{:3013}:goto{:2000}
+{:2240}
+	i$="travel3":goto{:3008}
+{:2241}
+	pr$="":sys is,i$," ":if i%then pr$=mid$(i$,i%+1):print"param @"i%+1;pr$
+	dc$=i$
+	sys is,"{$6e}{$65}{$73}{$77}{$75}{$64}?#{$67}{$68}{$69}{$6c}{$71}{$72}{$74}",dc$:on-(i%=.)-2*(i%>6)goto{:2246},{:2245}
+	d%=i%:xx=fnl1(d%*2-1):on-(d%<5)goto{:2272}:goto{:2280}
+{:2245}
+	on i%-6 goto{:2262},{:2263},{:2421},{:2262},{:2264},{:2271},{:1810},{:2285},{:2286},{:2421}:goto{:2420}
+{:2246}
+	on-(dc$="{$64}{$62}")-2*(dc$="{$66}{$6c}")-3*(dc$="{$78}{$6d}")goto{:2421},{:2288},{:2283}
+	i$="*{$61}{$74:2}*{$61}{$75}{$74}*{$62}{$61}{$73}*{$63}{$61}{$73}*{$63}{$68}{$61}*{$63}{$72}{$65}*{$64}{$65}{$73}*{$64}{$69}{$65}*{$64}{$69}{$67}*{$64}{$72}{$69}*{$64}{$72}{$6f}*{$64}{$75}{$65}*{$65}{$61}{$74}*{$65}{$64}{$69}*{$65}{$78}{$61}*{$66}{$6f}{$6c}*{$66}{$6c}{$65}*"
+	sys is,i$,"*"+left$(dc$,3)+"*":on i%+1 goto{:2250}:i%=i%/4+1
+	on i%goto{:2260},{:2287},{:2421},{:2421},{:2421},{:2421},{:2421},{:2421},{:2421},{:2421},{:2421},{:2421},{:2421},{:2421},{:2421},{:2421},{:2421}
+{:2250}
+	i$="*{$67}{$65}{$74}*{$67}{$69}{$76}*{$68}{$65}{$61}*{$68}{$65}{$6c}*{$68}{$69}{$64}*{$69}{$6e}{$76}*{$6c}{$75}{$72}*{$6d}{$6f}{$72}*{$6d}{$6f}{$75}*{$6f}{$72}{$64}*{$70}{$61}{$67}*{$70}{$72}{$61}*{$71}{$75}{$69}*{$71}{$75}{$6f}*{$72}{$65}{$63}*{$72}{$65}{$73}*{$72}{$6f:2}*"
+{:2251}
+	sys is,i$,"*"+left$(dc$,3)+"*":on i%+1 goto{:2253}:i%=i%/4+1
+	on i%goto{:2260},{:2421},{:2421},{:2262},{:2421},{:2264},{:2421},{:2284},{:2421},{:2421},{:2260},{:2421},{:1810},{:2421},{:2421},{:2260},{:2285}
+{:2253}
+	i$="*{$73}{$61}{$79}*{$73}{$63}{$68}*{$73}{$65}{$61}*{$74}{$72}{$61}*{$74}{$61}{$6b}*{$75}{$73}{$65}*{$77}{$65}{$61}*{$70}{$72}{$67}*{$6e}{$70}{$63}*{$77}{$68}{$6f}*"
+	sys is,i$,"*"+left$(dc$,3)+"*":if i%=.then{:2256}
+	i%=i%/4+1:on i%goto{:2421},{:2421},{:2421},{:2421},{:2421},{:2421},{:2421},{:2270},{:2421},{:2421}
+{:2256}
+	sys is,"*{$6c}{$6f:2}{$6b}*{$6c}{$6f:2}{$74}*{$72}{$65}{$61}{$64}*{$73}{$61}{$79}{$65}*{$73}{$74}{$61}{$74}*{$73}{$74}{$61}{$79}*","*"+left$(dc$,4)+"*":if i%=.then{:2251}
+	i%=i%/5+1:on i%goto{:2271},{:2421},{:2421},{:2421},{:2260},{:2421}
+	if dc$="{$72}{$65}{$61}{$64}{$79}"then{:2421}
+	goto{:2420}
+{:2260}
+	a$=left$(dc$,l):goto{:1067}
+	a$="{$67}{$65}{$74}":goto{:1067}
+{:2262}
+	print:a$="s.tada main"+str$(ll%):x=.:nl=.:gosub{:1075}:goto{:2000}
+{:2263}
+	print r$"{$72}oom #:"rm:input"{$72}oom #";an$:gosub{:2416}:on-(x<1 or x>nr%)goto{:2263}:rm=x:goto{:2000}
+{:2264}
+	a$="{$69}{$6e}{$76}":goto{:1067}
+	a$="{$71}{$75}{$69}":goto{:1067}
+	a$="{$65}{$78}{$61}":goto{:1067}
+{:2267}
+	a$="dead":goto{:1067}
+{:2268}
+	a$="bar":goto{:1067}
+{:2269}
+	a$="shoppe":goto{:1067}
+{:2270}
+	a$="prg info":goto{:1067}
+{:2271}
+	gosub{:2148}:gosub{:2023}:di=.:pr=2:gosub{:2136}:goto{:2083}
+{:2272}
+	if df%=2 then{:2282}
+	on lv%goto{:2274}
+{:2274}
+	m=v1+65:b=2:gosub{:2820}:x=fnr(5):if(s and x>5)or(peek(v1+93)<5 and x<5)then{:2402}
+	on mw+1 goto{:2277}:if md=.and fnr(10)<3 then print m$" won't let you!":goto{:2000}
+	if zq<1 then sys is,wy$,".":if i%then sys is,wy$,":":if i%=.then print m$" has you trapped!":goto{:2000}
+{:2277}
+	sys is,l1$,"]"+dc$:if i%then print"{$79}our way is blocked.":goto{:2000}
+	if lv%=1 and ro=49 and d%=1 then{:2268}
+	on xx+1 goto{:2405}:goto{:2281}
+{:2280}
+	on rc%+1 goto{:2405}:xx=rt%:if xx=.then{:2269}
+{:2281}
+	mo=mo+1:rm=xx:print"from"ro"to"rm:goto{:2000}
+{:2282}
+	i$=" 9 13 17 21 25 29 ":goto{:2000}
+{:2283}
+	b$="{$65}xpert {$6d}ode":m=v1+65:b=5:goto{:2290}
+{:2284}
+	b$="[{$6d}ore] {$70}rompt":m=v1+64:b=3:goto{:2290}
+{:2285}
+	b$="{$72}oom {$64}escriptions":m=v1+64:b=2:goto{:2290}
+{:2286}
+	b$="{$68}ourglass":m=v1+65:b=7:goto{:2290}
+{:2287}
+	b$="{$61}utoduel":b=7:goto{:2289}
+{:2288}
+	b$="{$67}uild {$66}ollow":b=5
+{:2289}
+	pr=1:gosub{:2400}:if s=.then{:2000}
+{:2290}
+	m=v1+64:gosub{:2820}:on s+1 gosub{:2800},{:2810}:a=s:gosub{:1870}:goto{:2000}
+{:2400}
+	s=peek(v1+69):if s=.then dc$="":if pr then print"{$74}hou art not a {$67}uild member!"
+	return
+{:2402}
+	print"{$74}hou art too tired to move!":goto{:2000}
+	print x$" exception":goto{:2000}
+	print" is affecting you.":return
+{:2405}
+	print"{$79}ou can't go that way.":goto{:2424}
+{:2406}
+	sys br,"[{$64}usk approaches..."+nl$
+{:2407}
+	sys br,"]"+nl$:return
+	n%=n%+1:print right$("  "+str$(n%),w%)". - "x$:return
+{:2409}
+	for x=1 to len(a$):print mid$(a$,x,1);:for d=1 to 100:next:next:return
+{:2410}
+	print"{$79}ou see ";
+{:2411}
+	l=3+sgn(val(mid$(z$,3,1))):sys is,z$,"{$dd}":r=i%:if r=.then r=len(z$)+1
+	r=r-l
+	x=abs(mid$(z$,l+r-1,1)="{$73}"):if x=.then print"a";:sys is,"{$61}{$65}{$69}{$6f}{$75}",mid$(z$,l,1):if i%then print"n";
+	if x then print"some";
+	print" "mid$(z$,l,r):return
+{:2416}
+	x=abs(int(val(an$))):return
+{:2420}
+	print"{$79}ou cannot use "x$" commands";:goto{:2422}
+{:2421}
+	print"{$63}ommand "q$dc$q$" not supported";
+{:2422}
+	print l$"yet.":goto{:2424}
+	print"{$69} didn't recognize that command."
+{:2424}
+	dc$="":goto{:2000}
+{:2425}
+	tm%=tm%-1:if tm%<31 and(tm%/5=int(tm%/5))then gosub{:2406}
+	x=tm%-val(mid$(ti$,3,2)):print"["mid$(str$(x),2)":";:x=59-val(right$(ti$,2))
+	print right$("0"+mid$(str$(x),2),2)"] ";:return
+{:2428}
+	if abs(mid$(z$,l,1)="a")or abs(mid$(z$,l+r-1,1)="{$73}")then print"s";
+	return
+	if mm then print"are";:return
+	print"is";:return
+{:2432}
+	print"{$74}he "x$" is weakening you.":return
+{:2500}
+	m=v2+216:goto{:2830}
+	m=v2+216:goto{:2835}
+{:2502}
+	a=fnr(100):return
+{:2503}
+	z=fnr(10):return
+	sys is,wy$,"{$67}":return
+	sys is,wy$,"{$65}":return
+{:2800}
+	poke m,peek(m)or 2^b:return
+{:2810}
+	poke m,peek(m)and 255-2^b:return
+{:2820}
+	s=abs((peek(m)and 2^b)=2^b):return
+{:2830}
+	x=peek(m)*b1+peek(m+1):return
+{:2835}
+	poke m,x/b1:poke m+1,x-int(x/b1)*b1:return
+{:2840}
+	x=b2*peek(m)+(b1*peek(m+1))+peek(m+2):return
+{:2845}
+	poke m,int(x/b2):poke m+1,int((x-int(x/b2)*b2)/b1)
+	poke m+2,int((x-int(x/b1)*b1)):return
+{:2850}
+	x$=mid$(str$(x),2,9):l=len(x$):a=l:if j then print left$("           ",9-l+abs(l<4)+abs(l<7));
+	if l<4 then print x$;:return
+{:2852}
+	a=a-3:if a>3 then{:2852}
+	print left$(x$,a);:for y=a+1 to l step 3:if a<>l then print",";
+	print mid$(x$,y,3);:next:return
+{:2855}
+	m=v2+21:gosub{:2840}:s=abs(p<=x):return
+	gosub{:2855}:if s then x=x-p:goto{:2845}
+	return
+	gosub{:2855}:j=.:goto{:2850}
+{:2860}
+	q=.:m=v1+64:b=3:gosub{:2820}:if s=.then return
+	a$="[{$6d}ore/{$71}]: "
+{:2862}
+	print a$;:gosub{:1902}:q=-(an$="q"or an$="{$71}"):goto{:1258}
+	gosub{:2866}:if s then print"({$79}ou feel "x$")"
+	return
+{:2865}
+	print"(:check.dead) unfinished":return
+{:2866}
+	m=v1+64:b=4:goto{:2820}
+{:2867}
+	x=1:y=v2+y:mx=peek(v1+136)
+{:2868}
+	if fnd2(y+x*2)=i then i=x:return
+	x=x+1:if x<mx then{:2868}
+	i=.:return
+{:2885}
+	n=n-x:on-(n<x)goto{:1603}:goto{:2885}
+	print right$("  "+str$(x%),w%)" ";
+	print right$("  "+str$(int(x%/m%*100)),w%)"%";:return
+{:2900}
+	def fnl1(x)=asc(mid$(l1$,x,1)+nl$)+b1*asc(mid$(l1$,x+1,1)+nl$)
+	def fnl2(x)=asc(mid$(l2$,x,1)+nl$)+b1*asc(mid$(l2$,x+1,1)+nl$)
+	def fnd(x)=asc(mid$(d$,x,1)+nl$)+b1*asc(mid$(d$,x+1,1)+nl$)
+	def fnd2(x)=asc(mid$(d2$,x,1)+nl$)+b1*asc(mid$(d2$,x+1,1)+nl$)
+	def fnr(x)=int(rnd(ti)*x)+1:return
+{:2905}
+	sys 45195i$:vi=peek(780)+b1*peek(781)+1:vi=peek(vi)+b1*peek(vi+1)-1:return
+{:2910}
+	z=len(i$):if z=.then return
+	gosub{:2905}:for y=1 to z:x=peek(vi+y):if x>64 and x<91 and x<>32 then x=x or 128:poke vi+y,x
+	next:return
+	a$="e.errlog":gosub{:1026}:print#2,"["cm$"] "i$:close 2:return
+	x$=x$+left$("                    ",z-len(x$)):return
+{:2955}
+	y=len(x$):if y=.then return
+{:2956}
+	if mid$(x$,y,1)=" "then y=y-1:goto{:2956}
+	x$=left$(x$,y):return
+{:3000}
+	print"(:advent3)":goto{:2000}
+{:3001}
+	print"(:block.[neswud])":goto{:2000}
+{:3002}
+	print"(:check.ring)":return
+{:3003}
+	print"(:check.storm{back arrow}weapon)":return
+{:3004}
+	print"(:file.input)":return
+{:3005}
+	print"(:garden of eden)":return
+{:3006}
+	print"(:link.combat)":goto{:2000}
+{:3007}
+	print"(:link.duel)":return
+{:3008}
+	print"(:link.misc)":goto{:2000}
+{:3009}
+	print"(:link.misc5)":return
+{:3010}
+	print"(:link.misc6)":return
+{:3011}
+	print"(:link.misc7)":return
+{:3012}
+	print"(:pal)":return
+{:3013}
+	print"(:ply.loc)":return
+{:3014}
+	print"(:read{back arrow}item)":return
+{:3015}
+	print"(:rd.dwarf)":return
+{:3016}
+	print"(:rd.room4)":goto{:2000}
+{:3017}
+	print"(:search{back arrow}item)":return
+{:3018}
+	print"(:set.pa)":return
+{:3019}
+	print"(:set.prob)":return

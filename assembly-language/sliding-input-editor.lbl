@@ -1,0 +1,95 @@
+' work in progress
+' 5/Dec/2016 17:04: use Jeff Jones' Static Array System
+
+' for simplicity's sake, this should probably start out as a line editor
+
+{number:1}
+{alpha:invert}
+{:setup}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	f$="sliding-input":gosub {:sub.bload}
+	f$="sas c900":gosub {:sub.bload}
+	q$=chr$(34)
+	si=49152 ' $c000 - sliding input address
+	sa=51456 ' $c900 - static array system address
+
+{ifdef:debug}
+	' load some dummy data
+	
+{endif}
+	goto {:intro}
+
+{nice:10}
+{:sub.set_cursor}
+' position cursor on row rw, column cl
+	poke 214,rw:poke 211,cl:sys 58732:return
+
+{nice:10}
+{:sub.bload}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+
+{nice:100}
+{:intro}
+	print "{clear}You may enter up to ten lines of text."
+	print "Use CRSR keys, INSerT, and DELete."
+	print "Return finishes editing a line."
+	print
+	print "* .S on the left margin saves text.
+	print
+	print "* Return starts/ends editing line"
+	print
+	
+	ln=1	' editing line #, 
+	nl=1	' # of lines in memory=1
+
+{:line_number}
+	print mid$(str$(ln),2)":"
+
+{:idle_loop}
+	rw=peek(214):cl=peek(211):gosub {:sub.set_cursor}
+
+{:user_input}
+	gosub {:sub.get_keypress}
+' enter command mode if . or / typed and in col 0:
+	if cl=. then if (an$="." or an$="/") then {:command_mode}
+
+' 10 wait 198,1:get an$
+' 20 ln=ln-1*(ln<10 and an$="{down}")
+' 30 ln=ln+1*(ln>01 and an$="{up}")
+' 40 print ln:goto 10
+
+' crsr up:
+	rw=rw+1*(rw<11 and an$="{up}")
+' crsr down:
+	rw=rw-1*(rw>1 and an$="{down}")
+	
+'	on -(an$="{up}")-2*(an$="{down}")-3*(an$="{home}") goto {:crsr.up}, {:crsr.down}, {:save.text}:goto {:edit_line}
+	gosub {:sub.set_cursor}
+	
+{:edit_line}
+' input line #:
+	sys si,5,5,a$
+' check for allowable range: el=line being edited
+' mx=max editable # of lines
+	el=int(abs(val(a$))):if el>0 and el<mx then stop
+' get current text from beneath rom:
+	sys sa+6,53248,el
+' "sliding" input on current cursor line, maxlen/window 39 chars wide
+	sys si,39,39,w$
+' update line text
+	sys sa+3,53248,w$:if nl<=ln then nl=ln
+	goto {:command_mode}
+
+{:save_text}
+	rw=23:cl=10:gosub {:sub.set_cursor}:print "{rvrs on} Saving text... {rvrs off}"
+	for x=1 to nl:print x;tt$(x):next:end
+
+{:command_mode}
+	print "Command: ";
+	gosub {:sub.get_keypress}
+	end
+	
+' 1902:
+{:sub.get_keypress}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}

@@ -1,0 +1,5 @@
+{step:10}
+{alpha:lower}
+	PRINT "LOWERCASE TEXT"
+{alpha:upper}
+	print "uppercase text"

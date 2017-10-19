@@ -1,0 +1,98 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{undef:modbasic} ' disables modbasic extension
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+
+{quoter:$08="lock"} ' prevent shift + c= from changing screen case
+{quoter:$09="unlock"} ' re-enable case switching
+' {quoter:$61=”spade”}
+' v0.2 2013/13/12 -- add chunk reader
+
+' fix index -- update "e.t.messages" so chunks of text are properly displayed
+	goto {:start}
+
+{nice:100}
+{:start}
+' a$ must be 1st variable, preferably dynamic
+' InString ML does not create i%:
+	a$="a"+"b":i%=.:is=50432:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
+' null character, quote, carriage return, 1 byte value
+	nl$=chr$(.):q$=chr$(34):r$=chr$(13):b1=256
+	poke 53280,12:poke 53281,12:print "{lock}{clear}{gray3}TADA "q$"e.t.messages"q$" Index Fixer v2014-12-20":print
+' dv=source drive
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+' drive prefix
+	dr$="0:"
+	
+	f$="ml c500"
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	a$="e.t.messages":gosub {:1011}:if e then print a$:goto {:1811}
+
+{nice:10}
+	restore:read np ' # of messages
+' calculate pointers:
+	for y=1 to np
+	read sl,nl	' starting line #, # of lines
+	d$=d$+chr$(sl and 255)+chr$(sl/256)+chr$(nl)
+	next
+	x=2:gosub {:record_pointer}:print#2,d$
+
+' also see {:choose_block} in "make messages.lbl":
+{nice:10}
+	x=1:gosub {:record_pointer}:input#2,a$:mx=val(a$):print mx"chunks"
+{:loop}
+	a$="0":print "Chunk [0=quit, 1-"mid$(str$(mx),2)"]";:input a$
+	n=int(val(a$)):if n=0 then {:end}
+	if n<0 or n>mx then {:loop}
+	x=2:gosub {:record_pointer}:sys ia,2,45,0 ':print q$a$q$
+	x=n*3-2:print "Start:"n,"End:"n+3
+' (s)tart (l)ine, (n)umber of (l)ines:
+	sl=asc(mid$(a$,x,1)+nl$)+b1 * asc(mid$(a$,x+1,1)+nl$)
+	nl=asc(mid$(a$,x+2,1)+nl$)
+	print "Starting Line:"sl
+	nl=asc(mid$(a$,x+2,1)+nl$)-1
+	print "# of Lines:"nl
+
+	for x=sl to sl+nl:gosub {:record_pointer}
+	sys ia,2,80,1:sys br,a$+nl$:if pos(.)<>40 then print
+	next
+	goto {:loop}
+	
+{nice:10}
+{:end}
+	close 2:goto {:1811}
+
+{nice:10}
+' # of blocks:
+	data  7
+' start 3, length 17:
+	data  3,17
+	 ' 20
+' &c.:
+' todo: calculate starting line from # of previous lines
+' ie, just have 13, 20, 14 ... added on to starting line #
+	data 21,13
+	 ' 34
+	data 35,20
+	 ' 55
+	data 56,14
+	 ' 70
+	data 71,20
+	 ' 91
+	data 92,2 
+	 ' 94
+	data 95,31
+	 ' 126
+
+{number:1000}	
+	rem image bbs subroutines 09/16/2006, 4/14/2007, 4/21/2007, 6/10/2007
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+
+{number:1011}
+{:1011}
+	close 2:open 2,dv,2,"0:"+a$
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{number:1811}
+{:1811}
+	close 2:close 3:close 15:print "{$09}";:end ' unlock shift + c=

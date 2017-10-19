@@ -1,0 +1,4 @@
+' file2.lbl
+{ifdef:persist}
+	print"c64list can remember the (:persist) label across files"
+{endif}

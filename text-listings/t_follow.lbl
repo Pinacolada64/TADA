@@ -1,0 +1,74 @@
+{number:1}
+{alpha:invert}
+{undef:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.follow
+{ifdef:standalone}
+	na$="PINACOLADA"
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+{endif}
+' gd=guild, peek(v1+136) nowadays
+' tt$(3)=who's here in the room?
+' fl$=who's following you already?
+	poke v1+136,1
+	tt$(3)="001002003004005":fl$="001"
+	restore:for x=1 to 5:read pl$(x):next
+	data "RATH","BERNIE","JACK","LANCE","QUASIMODO"
+	goto {:start}
+
+{nice:10}
+{:sub.no_one}
+	print "No one else can follow you.":return 
+
+{number:100}
+{:start}
+' part of a guild? if not, complain about it:
+	gosub {:check.guild_membership}(1):if s=. then {:advent}
+' at 3 chars per follower, 5 people already following:
+	if len(fl$)=15 then gosub {:sub.no_one}:goto {:advent}
+	x=.:for y=1 to 5:z=val(mid$(tt$(3),y*3-2,3)):q(y)=z
+' q(y) holds followers, i think
+' 1. - BERNIE
+' 2. - JACK
+' todo: check potential follower's guild, reject if doesn't match
+' todo: check if FL flag is on
+	if y then x=x+1:gosub {:sub.print_list}(x,pl$(x))
+{:650}
+	next:if x=. then print "There are no "g$(s)" guild members here.":goto {:advent}
+	print "["len(fl$)/3"/5] ";
+	an$="":input"Which should follow [A=All]";an$:if an$="a" then {:720}
+	gosub {:string.normalize}(an$):if an$="" or an<1 or an>x% then {:advent}
+	t=an:for x=1 to an:if val(mid$(tt$(3),x*3-2,3))=. then t=t+1
+	next:j=q(t):q(t)=.:tt$(3)="":fl$=fl$+right$("000"+mid$(str$(j),2),3)
+	for x=1 to 5:tt$(3)=tt$(3)+right$("000"+mid$(str$(q(x)),2),3):next
+{ifdef:debug}
+	print tt$(3)
+{endif}
+{:720}
+	y=-1:for x=1 to 15 step 3:y=y+1:q(y)=val(mid$(tt$(3),x,3)):next:t=.
+	for x=1 to 5:if len(fl$)=15 then gosub {:sub.no_one}:t=x:x=5:goto {:750}
+	if q(x-1)<>0 then fl$=fl$+right$("000"+mid$(str$(q(x-1)),2),3):q(x-1)=.
+{:750}
+	next:tt$(3)="":if t then {:780}
+	for x=. to 4:tt$(3)=tt$(3)+right$("000"+mid$(str$(q(x)),2),3):next
+{ifdef:debug}
+	print tt$(3)
+{endif}
+	goto {:advent}
+{:780}
+	for x=t to 5:print "("pl$(x)" was left behind.)":next:goto {:advent}
+' todo: write tt$(3) back to the room data file!
+{number:998}
+	rem copr. 1995-2014 pinacolada
+	rem t.follow
+	rem
+{ifdef:standalone}
+	{number:1001}
+		gosub {:1002}:for d=1 to 50:next
+	{:1002}
+		print# 15,"p{$02}"chr$(x and 255)chr$(x/256)"{$01}":return
+	{number:1011}
+		open 2,dv,2,a$
+	
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{endif}

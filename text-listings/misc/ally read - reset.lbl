@@ -1,0 +1,26 @@
+	goto {:2000}
+	rem "ally read/reset" last modified 12/14/2010
+	rem copr. 2006 pinacolada
+{:1001}
+	gosub{:1002}:for d=1 to 50:next
+{:1002}
+	print# 15,"p{$02}"chr$(x and 255)chr$(x/256)"{$01}":return
+{:1011}
+	open 2,dv,2,a$
+	input# 15,e%,e$,t%,s%:return
+	print"{$d3}tatus: "mid$(str$(e%),2)":"e$":"mid$(str$(t%),2)":"mid$(str$(s%),2)
+	return
+	a=x%:return
+{:1811}
+	close 2:close 15:end
+{:2000}
+	dv=peek(186):if dv<8 then dv=8
+	open 15,dv,15:a$="e.t.allies":gosub{:1011}:if e%then print e%e$t%s%:goto{:1811}
+	x=1:gosub{:1001}:input# 2,mx:print"allies:"mx,:input"modify (y/n)";an$
+{:2003}
+	if an$="y"then input"new value";an$:an=int(abs(val(an$))):gosub{:1001}:print# 2,an
+	x=.:input"{down}ally";x:if x<1 or x>mx then{:1811}
+	x=x+1:gosub{:1001}:input# 2,a,b$,c,d
+	x=len(b$):if right$(b$,1)="!"then x=x-1
+	print"{down}"left$(b$,x);:if x<len(b$)then print" (an elite ally)";
+	print" awaits you!":print"str:"c,"to hit:"d*10"{left}%":goto{:2003}

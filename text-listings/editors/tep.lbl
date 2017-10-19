@@ -1,0 +1,938 @@
+{alpha:invert}
+{def:standalone}
+{def:modbasic}		' using modBASIC
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{def:build_date}
+	rem tep (tada.editor.player log) v2.08 written by pinacolada for commodoreserver
+' updates:
+'	2017:  6/29  now using modbasic
+'	2015: 11/28  ml now loads/runs from $c500
+'	2012:  9/6   moved flag/counter editor from end of program
+'	2011:  9/16
+'	2008:  3/10
+'	2007:  4/14  6/10  7/6  7/28
+'	2006:  8/25
+'	2003:  9/13
+
+{quoter:$dd="bar"} ' this is so | translates properly on the Commodore
+{quoter:$20="space"} ' so runs of spaces are easier to read
+{number:1}
+{:1}
+	poke 53280,12:poke 53281,12:print "{clear}{$08}{gray3}Setting up...":print
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+' this includes current drive:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+	d1$="11111111111":l$=" {$c0:38}":n$="(None)":qm$=q$+"?"+q$+"=Menu":dl$=q$+"---"+q$+" to delete":sp$="{space:9}Spacebar or [/] aborts":v$="Value"
+	dim a$(4),x(4)
+' random numbers:
+	def fn r(x)=int(rnd(-ti)*x)+1
+' byte/pointer blk 1:
+	def fn b1(x)=peek(v1+x):def fn p1(x)=fn b1(x)*b1+fn b1(x+1)
+' byte/pointer blk 2:
+	def fn b2(x)=peek(v2+x):def fn p2(x)=fn b2(x)*b1+fn b2(x+1)
+' current basic line:
+	def fn cl(x)=peek(58)*b1+peek(57)
+' todo: add double-byte peek function
+
+' alignments:		x$=mid$(al$,x*7-6,7):gosub {:string.trim_right}
+	al$="Evil   Bad    NeutralGood   Saintly"+""
+' character classes:	x$=mid$(cl$,x*8-7,8):gosub {:string.trim_right}
+	cl$="Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  AssassinKnight"+""
+' character races:	x$=mid$(rc$,x*8-7,8):gosub {:string.trim_right}
+	rc$="Human   Ogre    Gnome   Elf     Hobbit  HalflingDwarf   Orc     Half-Elf"+""
+' guilds:		x$=mid$(gd$,x*8-7,8):gosub {:string.trim_right}
+	gd$="CivilianFist    Sword   Claw    Outlaw"+""
+' weapon classes:	x$=mid$(wc$,x*10-9,10):gosub {:string.trim_right}
+	wc$="ENERGY    BASH/SLASHPOKE/JAB            POLE/RANGE                    PROJECTILEPROXIMITY"+""
+
+	open 15,dv,15
+' load ml:
+	f$="ml c500":gosub {:sub.bload}
+' load modBASIC:
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	goto {:start}
+
+{nice:10}
+{:sub.bload}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+
+{nice:10}
+{:sub.top_frame}
+' top line on square frame:
+	print " {176}"mid$(l$,2,36)"{174}":return
+{:sub.bottom_frame}
+' bottom line on square frame:
+' left on same line since in some cases stuff underneath must be cleared out
+	print " {173}"mid$(l$,2,36)"{189}";:return
+
+{nice:100}	
+{:start}
+	gosub {:sub.top_frame}:print " {pipe}{rvrs on}"q$"Totally Awesome Dungeon Adventure"q$" {rvrs off}{pipe}"
+'	print " {176}"mid$(l$,2,36)"{174}"
+	print " {pipe}{rvrs on}     --- Player Editor v2.08 ---    {rvrs off}{pipe}":gosub {:sub.bottom_frame}:print
+	gosub {:sub.open_playerlog}:if e then print a$:goto {:1811}
+	x%=.:gosub {:rel_pointer}(1):input# 2,a$:mx=val(a$)
+{:20}
+	gosub {:920}:gosub {:sub.menu}(mx):if an=. then {:42} ' exit editor
+	pn=an*2:gosub {:rel_pointer}(pn):gosub {:850}
+{:30}
+	print " STATS FOR "q$a$(.)q$r$l$
+	print " 1:*ALIGNMENT        7:*HIT POINTS
+	print " 2:*ARMOR/SHIELD     8:*MAP INFORMATION
+	print " 3:*ATTRIBUTES       9:*MONEY
+	print " 4:*CHARACTER NAMES 10:*STATISTICS
+	print " 5:*COMBINATIONS    11:*WEAPONS
+	print " 6:*FLAGS/COUNTERS    (*=Sub-menu)"
+	gosub {:sub.menu}(11)
+{:42}
+	if an=. then gosub {:825}:on x+1 goto {:20},{:1811}
+	on an gosub {:60},{:70},{:115},{:150},{:250},{:3000},{:480},{:450},{:400},{:500},{:700}:goto {:30}
+{:60}
+	print " ALIGNMENT"r$l$
+	print " 1: Natural Alignment: "mid$(al$(peek(v1+70)*)tab(32)"[Fixed]"
+' fixme: deprecated: current alignment determined by Honor rating
+	print " 2: Current Alignment: "al$(peek(v1+67))tab(31)"[Varies]"
+	gosub {:sub.menu}(2):if an=. then return
+	z=an:print " [0=Random, 1=Good, 2=Neutral, 3=Evil]"
+	p$="Alignment":l=.:h=3:m=v1+70:if z=2 then m=m-3
+	x$=str$(peek(m)):gosub {:895}:poke m,an:sa=1:goto {:60}
+{:70}
+	print " ARMOR/SHIELD":print l$
+	print " 1:*ARMOR % LEFT     4:*SHIELD % LEFT
+	print " 2:*ARMOR CLASSES    5:*SHIELD SKILL
+	print " 3:*ARMOR TYPE       6:*SHIELD TYPE
+	gosub {:sub.menu}(6):on an+1 goto {:1603},{:80},{:84},{:88},{:102},{:110}
+{:80}
+	m=v1+76:for x=. to 4:x(x)=peek(m+x):next:h$="%":gosub {:sub.list}:gosub {:sub.menu_noline}(5)
+	on an+1 goto {:70}:x=an-1:p$="Armor %":l=.:h=100
+	x$=str$(peek(m+x)):gosub {:895}:poke m+x,an:sa=1:goto {:80}
+{:84}
+	m=v1+81:h$=" AC":for x=.to 4:y=peek(m+x):if y>127 then y=y-128:y=-y
+	x(x)=y:next:gosub {:sub.list}:gosub {:sub.menu}(5):on an+1 goto {:70}:print " [-18 to 18]":x=an-1
+	x$=str$(x(x)):p$="AC":l=-18:h=18:gosub {:895}:y=an:if y<. then y=-y+128
+	poke m+x,y:sa=1:goto {:84}
+{:88}
+	m=v1+71:gosub {:file.open}("e.t.armor"):gosub {:rel_pointer}(1):input# 2,x%
+{:89}
+	for x=. to 4:x(x)=peek(m+x):next:h$="":h=5:gosub {:sub.list}:gosub {:sub.menu}(5):if an=. then {:94}
+	y=an-1:print r$" [1-"mid$(str$(x%),2)"]":qu$="'?'=List
+	p$="Armor Type":x$=str$(peek(m+y))
+	l=1:h=x%:q=1:qu$=qm$:gosub {:895}:if q then {:95}
+	poke m+y,an:sa=1:goto {:89}
+{:94}
+	x=pn:gosub {:sub.open_playerlog}:goto {:70}
+{:95}
+	print l$r$sp$r$l$:for z=1 to x%
+	gosub {:rel_pointer}(z+1):input# 2,a$:print str$(z)". "mid$(a$,16):if peek(198) then get an$:if an$=" " or an$="/" then z=x%
+	next:print l$;:goto {:89}
+{:102}
+	h=4:m=v2+36:for x=. to h:x$(x)=str$(peek(m+x)):next:h$="%"
+	gosub {:sub.list}:gosub {:sub.menu}(4):if an=. then {:70}
+	x=an-1:print " [0-100]":p$="Shield %":l=.:h=100:x$=str$(peek(m+x))
+	gosub {:895}:poke m+x,an:sa=1:goto {:102}
+{:110}
+	print " [0-25]":p$="Shield Skill":l=.:h=25:x$=str$(ss):gosub {:895}:ss=an:goto {:70}
+
+{:115}
+	print " ATTRIBUTES":t=.:h$="":h=5:gosub {:sub.list}:gosub {:sub.menu_noline}(5):if an=. then return
+	ct=an-2:if an>1 then {:134}
+{:119}
+	print " "a$(.):printl$
+	print " 1: Charisma....:";:x%=peek(v1+86):gosub {:2880}:print "  5: Intelligence:";:x%=peek(v1+90):gosub {:2880}:print
+	print " 2: Constitution:";:x%=peek(v1+87):gosub {:2880}:print "  6: Strength....:";:x%=peek(v1+91):gosub {:2880}:print
+	print " 3: Dexterity...:";:x%=peek(v1+88):gosub {:2880}:print "  7: Wisdom......:";:x%=peek(v1+92):gosub {:2880}:print
+	print " 4: Ego.........:";:x%=peek(v1+89):gosub {:2880}:print "  8: Energy......:";:x%=peek(v1+93):gosub {:2880}:print
+	print:gosub {:sub.menu}(8):if an=. then {:115}
+	x=an:h=18:if x>4 then h=25
+	p$=v$:l=1:m=v1+85+x:x$=str$(peek(m)):gosub {:895}:poke m,an:sa=1:goto {:119}
+{:134}
+	print " "a$(ct+1)r$l$
+{ifdef:debug}
+	print "CT="ct
+{endif}
+	print " 1: Constitution:"peek(v1+115+ct)
+	print " 2: Dexterity...:"peek(v2+159+ct)
+	print " 3: Strength....:"peek(v2+162+ct)
+	print " 4: To hit %....:"peek(v1+122+ct)*10"%"
+	gosub {:sub.menu}(4):if an=. then {:115}
+	l=1:h=18:on an gosub {:144},{:145},{:146},{:147}
+	p$=v$:x$=str$(peek(m)):gosub {:895}:poke m,an:sa=1:goto {:134}
+{:144}
+	m=v1+115+ct:return
+{:145}
+	m=v2+159+ct:return
+{:146}
+	m=v2+162+ct:return
+{:147}
+	m=v1+122+ct:l=1:h=10:return
+{:150}
+	print " CHARACTER NAMES":print l$:print " 1: User ID:";:x=fnp1(1):x$=str$(x)
+	if x=. then x$=" (Standalone account)
+	print x$:print " 2:  Player: ";:x$=a$(.):if x$="---" then x$=n$
+	print x$:for x=1 to 3:print x+2"{left}:* Ally"x"{left}: ";:x$=a$(x):if x$="---" then x$=n$
+	if left$(x$,2)="M." then print mid$(x$,3)tab(20):x$="(Monster)"
+	print x$:next:print " 6:   Horse: ";:x$=a$(4):if x$="---" then x$=n$
+	print x$:gosub {:sub.menu}(6):on an+1 goto {:1603}:on an gosub {:162},{:166},{:178},{:178},{:178},{:170}
+	goto {:150}
+{:162}
+	print " [0 marks standalone player not on BBS]";
+	t=.:l=.:h=b2-1:p$="User ID #":x$=str$(fnp1(1)):gosub {:895}:m=v1+1
+	x=an:goto {:2835}
+{:166}
+	print " ["dl$"]
+	t=1:l=2:h=18:p$="Player Name":x$=a$(.):gosub {:895}:an$=x$:x=1:y=3:z=18
+	gosub {:930}:x$=mid$(d$,3,18):gosub {:2955}:a$(.)=x$:return
+{:170}
+	print " ["dl$"]
+	t=1:l=2:h=10:p$="Horse Name":x$=a$(4):gosub {:895}:an$=x$:x=1:y=54:z=10
+	gosub {:930}:x$=mid$(d$,54,10):gosub {:2955}:a$(4)=x$:return
+{:178}
+	close 2:xx=an-2:a$="e.t.allies":gosub {:1011} ' xx=ally # (1-3)
+	if e then print a$:th%=.:st%=.:goto {:204}
+	gosub {:rel_pointer}(1):input# 2,a$:ct=val(a$)
+{:182}
+	print sp$r$r$" ALLIES"r$l$r$"   # Name",,"Owned?  Str  Hit%"r$l$
+	p=.:p%=3:for y=1 to ct:gosub {:228}:x%=y:gosub {:2890}
+	if len(z$)>14 then z$=left$(z$,11)+"...
+	print " "z$tab(20):if fl=. then print "Free";:goto {:190}
+	if fl=pn then print "By you";:goto {:190}
+	print "Plr"fl/2;
+{:190}
+	print tab(28):x%=st%:gosub {:2890}:print tab(33):x%=th%*10:gosub {:2890}:print "%
+	if peek(198) then get an$:if an$=" " or an$="/" then y=ct
+	next:print l$:t=.:l=.:h=ct:q=1:p$="Ally":qu$=qm$+", 0=Remove, "+k$+"=Exit
+	m=v1+47+xx:x$=str$(peek(m)):gosub {:900}:on-(an$="?")-2*(an=.)goto {:182},{:212}
+	y=an:al=y:gosub {:228}:if fl=. then {:200}
+	if y=peek(m) then print " (No change.)":goto {:224}
+' al=ally # in e.t.allies
+	print r$" "z$" is already owned by":x$="player"+str$(fl/2):if fl/2=pn/2 then x$="you
+	print " "x$".":goto {:182}
+{:200}
+	m=v1+47+xx:x=peek(m):if x=. then {:208} ' ally already exists
+	gosub {:202}:goto {:206}
+{:202}
+	y=x:gosub {:228}:print " Freeing "z$"...":z=.:gosub {:226}:sf=1:poke v1+47+xx,.
+{:204}
+	poke v2+158+xx,.:poke v2+159+xx,.:poke v1+121+xx,.:a$(xx)="---" ' clear attributes
+	return ' also gets called when removing ally
+{:206}
+	y=al:gosub {:228}
+{:208}
+	print " Getting "z$"...":z=pn:gosub {:226}:sf=1:poke v1+47+xx,al:poke v2+158+xx,st%
+	poke v2+159+xx,fn r(18):poke v2+121+xx,th%:a$(xx)=z$:goto {:224} ' random dex
+{:212}
+' remove ally
+	x=peek(v1+47+xx):if x=. then print " (No one to remove.)":goto {:224}
+	gosub {:202}
+{:224}
+	print fn cl(0)"goto"890:gosub {:sub.open_playerlog}:return
+{:226}
+{:sub.write_ally}
+	fn a
+	gosub {:rel_pointer}(a+1):x$=str$(z)+r$+z$+r$+str$(st%)+r$+str$(th%):print# 2,x$:gosub {:check.io_status}:return
+{:228}
+{:sub.get_ally}
+	fn a
+	gosub {:rel_pointer}(a+1):input# 2,fl,z$,st%,th%:return
+' ally=monster
+
+{:250}
+	print " COMBINATIONS":print l$
+	print " 1:     Booby Traps: ";:for x=1 to 3
+	y=asc(mid$(d2$,79+x,1)+nl$):if (y<asc("A") or y>asc("I")) and y<>asc("X") then y=63 ' ?
+	print chr$(y)" ";:next:print
+	print " 2: Castle Password: "mid$(d$,176,8)
+	print " 3:  Elevator Combo: ";:gosub {:256}:print x$
+	print " 4:    Locker Combo: ";:gosub {:257}:print x$:goto {:263}
+{:256}
+' elevator
+	m=v1+119:z=2:goto {:260}
+{:257}
+' locker
+	m=v1+104:z=2:goto {:260}
+' traps
+	m=v2+ 80:z=2
+{:260}
+	x$="":for x=m to m+z:x$=x$+right$("0"+mid$(str$(peek(x)),2),2):if x<m+z then x$=x$+"-"
+	next:return
+{:263}
+	gosub {:sub.menu}(4):on an+1 goto {:1603},{:265},{:270},{:274},{:276}
+{:265}
+	print " [3 codes: A-I, X=none]":q=.:l=3:h=3:t=1:x$=mid$(d2$,80,3)
+	p$="Codes":gosub {:901}
+	z=.:for x=1 to 3:sys is,"AaBbCcDdEeFfGgHhIiXx",mid$(an$,x,1):if i% then z=z+1
+	next:on-(z<3)goto {:265}:x=2:y=80:z=.:gosub {:930}:goto {:250}
+{:270}
+	p$="Password":x$=mid$(d$,176,8):l=1:h=8:t=1:gosub {:895}
+	x=1:y=176:z=8:gosub {:930}:goto {:250}
+{:274}
+	gosub {:256}:goto {:280}
+{:276}
+	gosub {:257}
+{:280}
+	z$=x$:t=.:l=.:h=99:for y=1 to 3:p$=mid$("1st2nd3rd",y*3-2,3)+" digit"
+	x$=mid$(z$,y*3-2,2):gosub {:895}
+	poke m+y-1,val(an$):next:sa=1:goto {:250}
+
+{nice:100}
+{:3000}
+' flags/counters editor
+	p=.:ct=v1+64:gosub {:5000}:goto {:3010}
+{:3001}
+'	print " FLAGS/COUNTERS"tab(31)"Page "mid$("12",p+1,1)"/2"r$l$:return ' 49
+	print " FLAGS/COUNTERS"tab(31)"Page"str$(p+1)"/2":print l$:return ' 46
+{:sub.off_on}
+	gosub {:2820}:print "O"mid$("ffn",s*2+1,2):return
+{:sub.yes_no}
+	gosub {:2820}:print mid$("YesNo",s*3+1,3):return
+{:3004}
+' toggle value - on-gosub not allowed in modBASIC:
+	gosub {:2820}( ):if s=. then:gosub {:2800}( ):return
+	gosub {:2810}( ):return
+{:msg.not_held}
+	print "Not held":return
+{:3006}
+	fn x$
+	print l$:print " "x$" first.":print l$:return
+{:3010}
+	gosub {:3001}:on p goto {:3115}:print "     Game options"
+	print "  1: Expert mode..........: ";:m=ct:b=4:gosub {:sub.off_on}
+	print "  2: Hourglass display....: ";:b=6:gosub {:sub.off_on}
+	print "  3: "q$"More"q$" prompt........: ";:b=3:gosub {:sub.off_on}
+	print "  4: Room descriptions....: ";:b=2:gosub {:sub.off_on}
+	print:gosub {:3035}:goto {:3040}
+{:3035}
+	print "     Player status":return
+{:3040}
+	print "  5: Amulet of Life.......: ";:i%=76:gosub {:5002}:if s then {:3042}
+	gosub {:msg.not_held}:goto {:3045}
+{:3042}
+	m=v2+228:b=6:gosub {:2820}:if s=. then print "Drained":goto {:3045}
+	print "Energized"
+{:3044}
+' Amulet of Life energized
+	m=v2+228:b=6:gosub {:sub.yes_no}
+{:3045}
+	print "  6: Architect............: ";:m=ct:b=.:gosub {:sub.yes_no}
+	print "  7: Autoduel.............: ";:b=7:gosub {:3076}
+' in guild, so check 
+	if m then m=ct:b=7:gosub {:sub.off_on}
+	print "  8: Compass used.........: fixme"
+	print "  9: Diseased.............: ";:m=ct+1:b=7:gosub {:sub.yes_no}
+	print " 10: Gauntlets worn.......: ";:i%=68:gosub {:5002}:if s then {:3067}
+	gosub {:msg.not_held}:goto {:3070}
+{:3067}
+	m=v2+228:b=7:gosub {:sub.yes_no}
+{:3070}
+	print " 11: Gender...............: ";:m=ct:b=1:gosub {:2820}:if s then print "M";
+	if s=. then print "Fem";
+	print "ale":print " 12: Guild follow.........: ";:gosub {:3076}:goto {:3078}
+{:3076}
+	m=peek(ct+5):if m=. then print "No Guild"
+	return
+{:3078}
+	if m then m=ct:b=5:gosub {:sub.off_on}
+	print " 13: Horse has saddlebags.: ";:gosub {:3081}:goto {:3085}
+{:3081}
+	if a$(4)="---" then print "No horse":return
+	m=v2+189:b=7:goto {:sub.yes_no}
+{:3085}
+	print " 14: Hungry...............: ";:m=ct+1:b=6:gosub {:sub.yes_no}
+	print " 15: Mounted on horse.....: ";:b=4:gosub {:3081}
+	print " 16: Orator...............: ";:m=ct+1:b=.:gosub {:sub.yes_no}
+' menu:
+	goto {:3205}
+{:3115}
+' page 2
+	gosub {:3035}
+	print " 17: Poisoned.............: ";:b=5:gosub {:sub.yes_no}
+	print " 18: Ring worn............: ";:i%=67:gosub {:5002}:if s then {:3127}
+	gosub {:msg.not_held}:goto {:3130}
+{:3127}
+	m=v2+228:b=.:gosub {:sub.yes_no}
+{:3130}
+	print " 19: Spell active.........: ";
+	if peek(v1+68) then print "Non-Wizard":goto {:3135}
+	x=peek(v2+229):if x<2 then print "None":goto {:3135}
+	print "WizGlo("mid$(str$(x-2),2)")"
+{:3135}
+	print " 20: Thirsty..............: ";:m=ct:b=3:gosub {:sub.yes_no}
+	print " 21: Thug attack..........: ";:m=v2+228:b=5:gosub {:sub.yes_no}
+	print " 22: Tired................: ";:m=ct+1:b=2:gosub {:sub.yes_no}
+	print " 23: Unconscious..........: ";:b=1:gosub {:sub.yes_no}
+	print " 24: Wraith Master of Spur: ";:x$="No":x=peek(v2+229)
+	if x=1 or x=2 then x$="Yes"
+	print x$r$r$"     Game objective flags"
+	print " 25: Dwarf alive..........: ";:m=v2+228:b=3:gosub {:sub.yes_no}
+	print " 26: Spur alive...........: ";:b=1:gosub {:sub.yes_no}
+	print " 27: Tut's treasure looked: ";:m=m+2:b=.:gosub {:sub.yes_no}
+	print " 28: Tut's treasure taken.: ";:b=1:gosub {:sub.yes_no}
+	print " 29: Wraith King alive....: ";:m=m-2:b=2:gosub {:sub.yes_no}:print
+	print " 30:*Ally flags"
+	print " 31:*Ally tactical positions"
+{:3205}
+	print "     [C]hange page"r$l$
+	an$="0":input" Edit which (1-31/C)";an$:print:if an$="c" then p=1-p:goto {:3010}
+	an=val(an$):on -(an<1 or an>31) goto {:1603}:gosub {:3230}:goto {:3010}
+{:3230}
+	on an goto {:3330}, {:3331}, {:3332}, {:3333}, {:3334}, {:3340}, {:3341}, {:3343}, {:3346}, {:3348}, {:3350}, {:3351}, {:3353}, {:3356}, {:3357}, {:3359}, {:3361}, {:3363}, {:3367}
+	return
+
+' edit options:
+
+' fixme: line 3310 was referenced elsewhere, this is just a temporary fix:
+{:3310}
+	print "fixme:"fn cl(0):stop
+
+{:3330}
+	m=ct:b=4:goto {:3004}
+{:3331}
+	m=ct:b=6:goto {:3004}
+{:3332}
+	m=ct:b=3:goto {:3004}
+{:3333}
+	m=ct:b=2:goto {:3004}
+{:3334}
+	print r$l$r$" Amulet of Life: ";:i%=76:gosub {:5002}:if s=. then gosub {:msg.not_held}:goto {:3337}
+	m=v2+228:b=6:gosub {:3004}:if s then print "Drained":goto {:3337}
+	print "Energized
+{:3337}
+	print l$:goto {:3010}
+{:3340}
+	m=ct:b=.:goto {:3004}
+{:3341}
+	on-(peek(ct+5))+1 goto {:3342}:m=ct:b=7:goto {:3004} ' autoduel
+{:3342}
+	x$="Join a Guild":goto {:3006}
+{:3343}
+' compass
+	goto {:544}
+{:3346}
+' disease:
+	m=ct+1:b=7:goto {:3004}
+{:3348}
+	i%=68:gosub {:5002}:if s=. then x$="Get Gauntlets":goto {:3006}
+	m=v2+228:b=7:goto {:3004}
+{:3350}
+	m=ct:b=1:goto {:3004}
+{:3351}
+' guild follow:
+	on-(peek(ct+5))+1 goto {:3342}:m=ct:b=5:goto {:3004}
+{:3353}
+	m=v2+189:b=7
+{:3354}
+	if a$(4)="---" then x$="Name the horse":goto {:3006}
+	goto {:3004}
+{:3356}
+' hunger:
+	m=ct+1:b=6:goto {:3004}
+{:3357}
+' on horse:
+	m=ct+1:b=4:goto {:3354}
+{:3359}
+	m=ct+1:b=.:goto {:3004}
+{:3361}
+	m=ct+1:b=5:goto {:3004}
+{:3363}
+	i%=62:gosub {:5002}:if s=. then x$="Get the Ring":goto {:3006}
+	m=v2+228:b=.:goto {:3004}
+{:3367}
+	if peek(v1+68) then x$="Become a Wizard":goto {:3006}
+	gosub {:sub.fancy_input}("Activate Wizard's Glow",1):m=v2+229:on x+1 goto {:3370},{:3371}
+{:3370}
+	poke m,x:sa=1:goto {:3010}
+{:3371}
+	l=1:h=253:t=.:gosub {:895}:poke m,an+2:sa=1:goto {:3310}
+	 
+{:300}
+' the bulk of the flags/counters editor has moved to 3000-
+	m=v1+64:b=7:goto {:360}
+	m=v1+64:b=4:goto {:360}
+	m=v1+64:b=5:goto {:360}
+	m=v1+64:b=2:goto {:360}
+	m=v1+64:b=6:goto {:360}
+	m=v1+65:b=7:goto {:360}
+	m=v1+65:b=6:goto {:360}
+	m=v1+65:b=5:goto {:360}
+	m=v1+65:b=3:goto {:360}
+	m=v1+65:b=2:goto {:360}
+	m=v1+64:b=1
+
+{:347}
+' fixme: line 347 was referenced elsewhere, this is just a temporary fix:
+	print fn cl(0)"todo: battle exp/skill edit":stop
+
+{:360}
+	gosub {:2820}:on s+1 goto {:2800},{:2810}
+{:362}
+	print " Enter '0' to revive character, or type"
+	print " number of player that has knocked this"
+	print " character out.":qu$="'?'=Player list"
+{:366}
+	l=.:h=mx:p$="Player":x$=str$(peek(v1+66))
+	q=1:gosub {:895}:if an$="?" then gosub {:920}:print:goto {:362}
+	if an$="0" then m=v1+65:b=1:gosub {:2810}:print " Revived.":return
+	print:print " Checking... ";:gosub {:rel_pointer}(val(an$)*2):sys ia,2,23,1,a$
+	if mid$(a$,3,3)="---" then print "Deleted player.":goto {:366}
+	print "Ok":m=v1+65:b=1:gosub {:2820}:poke m+1,an:sa=1:goto {:300}
+{nice:100}
+{:400}
+	q=.:print " MONEY"r$l$r$" 1: Gold in bank : ";:m=v1+130:gosub {:2840}:gosub {:2850}
+	print r$" 2:*GOLD IN HAND":print " 3: Gold on dwarf: ";:m=v2+231:gosub {:2830}
+	gosub {:2850}:print r$" 4: Gold borrowed: ";:m=v1+113:gosub {:2830}
+	if x=. then print "None":goto {:405}
+	gosub {:2850}:print " gold in":print tab(18)peek(v1+112)"days
+{:405}
+	print " 5: Gold in bar  : ";:m=v1+133:gosub {:2840}:gosub {:2850}:print
+	gosub {:sub.menu}(5):ct=an:on ct+1 goto {:1603}:on ct gosub {:407},{:412},{:408},{:422},{:409}:goto {:400}
+{:407}
+	m=v1+130:gosub {:2840}:h=b3:goto {:410}
+{:408}
+	m=v2+231:gosub {:2830}:h=b2:goto {:410}
+{:409}
+	m=v1+133:gosub {:2840}:h=b3
+{:410}
+	t=.:l=.:p$="GP "+v$:x$=str$(x):gosub {:895}:x=an:print fn cl(0)x:print "ct="ct
+	on-(ct=1 or ct=5)-2*(ct=3)goto {:2845},{:2835}
+{:412}
+	for y=.to 4:m=v2+21+(y*3):gosub {:2840}:x(y)=x:next:h=5:h$=" GP"
+	gosub {:sub.list}:gosub {:sub.menu_noline}(5):m=v2+18+(an*3):if an=. then return
+	p$="GP "+v$:gosub {:2840}
+	l=.:h=b3:x$=str$(x):gosub {:895}:x=an:gosub {:2845}:goto {:412}
+{:422}
+	print " Type the number of days until the loan
+	print " is due and Vinney sends the Stalker to
+	print " collect it. '0' clears debt.
+	m=v1+112:l=.:h=255:p$="Days":x$=str$(peek(m)):gosub {:895}
+	if an=. then poke m,.:poke m+1,.:poke m+2,.:print " Debt-free.":sa=1:return
+	poke m,an:m=m+1:print r$" Enter the amount the character owes."
+	t=.:l=.:h=b2-1:p$="Amount":x$=str$(fn p1(113)):print fn cl(0)x$:gosub {:895}:x=an
+	print fn cl(0)x:sa=1:goto {:2835}
+
+{:450}
+	mx=.:gosub {:470}:goto {:452}
+{:451}
+	x$=" (Shoppe)":return
+{:452}
+	print " MAP INFORMATION"r$l$r$" 1: Room number:";:rm=peek(v2+226)
+	lv%=peek(v1+140):x$=str$(rm):on rm+1 gosub {:451}:print x$
+	print " 2:   Map level:"lv%;:if lv% then print r$tab(10)"("ln$")";
+	print
+	gosub {:sub.menu}(2):on an+1 goto {:479}:on an gosub {:457},{:465}:goto {:452}
+{:457}
+	if mx=. then gosub {:470}:if mx=. then print " Can't read level"lv%:return
+{:458}
+	p$="Room number":l=.:h=mx:m=v2+226:x$=str$(peek(m)):gosub {:895}
+	if an=. then x=.:goto {:463}
+	gosub {:rel_pointer}(an*2):b$=""
+{:461}
+	get#2,a$:b$=b$+a$:on st+1 goto {:461}:x$=mid$(b$,3):gosub {:2955}:if z=. then {:1811}
+	if x$="EMPTY" then print " (This room is undefined.)":goto {:458}
+{:463}
+	if x=. then gosub {:451}
+	print " Room: "x$:print:poke m,an:sa=1:return
+{:465}
+	p$="Map Level":l=1:h=255:t=.:m=v1+140:x$=str$(peek(m)):gosub {:895}:lv%=an:gosub {:470}
+	if e then print " "a$r$" Level"an"map not available."r$:return
+	poke m,an:sa=1:return
+{:470}
+	gosub {:file.open}("e.t.roomindex"+str$(lv%)):if e then mx=.:return
+	gosub {:rel_pointer}(1):sys ia,2,250,0,a$:df%=asc(left$(a$,1)+nl$):print "df%"df%
+	print q$a$q$:on df%goto {:473}
+{:473}
+	mx=asc(mid$(a$,2,1)+nl$)+b2*asc(mid$(a$,3,1)+nl$):print fn cl(0)"mx="mx
+	x$=mid$(a$,3):gosub {:2955}:if z=. then print fn cl(0):goto {:1811}
+	ln$=x$:return
+{:479}
+	x=pn:goto {:sub.open_playerlog}
+{:480}
+	print " HIT POINTS":for x=. to 4:x(x)=fn p2(216+x*2):next:h$=" HP"
+	h=5:gosub {:sub.list}:gosub {:sub.menu_noline}(5):if an=. then return
+	ct=an-1:p$="HP "+v$:l=1:h=b2:print "CT="ct
+	x$=str$(fnp2(216+ct*2)):gosub {:895}:m=v2+216+ct*2:x=an:print fn cl(0)an:gosub {:2835}
+	goto {:480}
+{:500}
+' get monster name, use code from monsterenum.03
+	print " STATISTICS"r$l$:j=.:t=.
+	x=fnp1(144):x$=str$(x):if x=. then x$=" Undetermined.
+	print "  1: Age...............:"x$
+	print "  2: Birthday..........: ";:x%=peek(v1+98):gosub {:2880}:print "/";
+	x%=peek(v1+99):gosub {:2880}:print "/";
+	x%=peek(v1+100):gosub {:2880}
+	x%=peek(v1+101):gosub {:2880}:print
+' todo: fix this
+	print "  3: Class.............: "cl$(peek(v1+68))
+	print "  4: Experience points.: ";:m=v1+127:gosub {:2840}:gosub {:2850}:print
+	print "  5:*Following players
+	print "  6: Formal training...:"peek(v1+102)
+	print "  7: Guild.............: "g$(peek(v1+69))
+	print "  8: Honor rating......: ";:x=fnp1(94):gosub {:2850}:print
+	print "  9: Last played.......: ";:x%=peek(v1+22):gosub {:2880}:print "/";
+	x%=peek(v1+23):gosub {:2880}
+	print r$" 10: Max inv and spells:"peek(v1+136)"items
+	print " 11: Monsters killed...: ";:m=v1+137:gosub {:2840}:gosub {:2850}:print
+	print " 12: ";:m=v1+65:b=1:gosub {:2820}:x=peek(v1+66):if s then {:525}
+	print "Lost duel to......: Player"x:goto {:527}
+{:525}
+	print "Monster at quit...: ";:if x=. then print n$:goto {:527}
+	print peek(v1+66)
+{:527}
+	print " 13: Moves to date.....: ";:m=v1+141:gosub {:2840}:gosub {:2850}:print
+	print " 14: Plays taken today.:"peek(v1+21)
+	print " 15:*Race"
+	gosub {:sub.menu}(15):if an=. then return
+	on an gosub {:536}, {:566}, {:548}, {:552}, {:544}, {:554}, {:562}, {:540}, {:578}, {:582}, {:586}, {:544}, {:590}, {:594}, {:610}
+	goto {:500}
+{:536}
+	print " [0=Undetermined, 15-50]":p$="Age":t=.:l=.:h=50:x$=str$(fnp1(144))
+	gosub {:900}:on-(an>.and an<15)goto {:536}:m=v1+144:x=an:goto {:2835}
+{:540}
+	p$="Honor":l=.:h=2^16:m=v1+94:x$=str$(fnp1(94)):gosub {:895}:x=an:goto {:2835}
+{:544}
+' todo: finish this
+	print " todo: option"an"not implemented yet":return
+{:548}
+	print l$:for x=.to 7:print x+1"{left}: "cl$(x):next:print l$
+	p$="Class":t=.:l=1:h=8:m=v1+68:x$=str$(peek(m)+1):gosub {:895}:poke m,an-1:sa=1
+' todo: finish this
+	print " todo: check for illegal class/race combo":return
+{:552}
+	p$="Experience":l=.:h=b3:m=v1+127:gosub {:2840}:x$=str$(x)
+	gosub {:895}:x=val(x$):goto {:2845}
+{:554}
+	p$="Formal Training":l=.:h=255:m=v1+102:x$=str$(peek(m)):gosub {:895}
+	poke m,an:sa=1:return
+	p$="Map Level":l=1:h=20:m=v1+140:x$=str$(peek(m)):gosub {:895}:poke m,an:sa=1
+	return
+{:562}
+	print r$l$:for x=.to 4:print x+1"{left}: "g$(x):next:print l$
+	p$="Guild":t=.:l=1:h=5:m=v1+69:x$=str$(peek(m)+1):gosub {:895}:poke m,an-1:sa=1:return
+{:566}
+	m=v1+98
+{:567}
+	p$="Month":l=1:h=12:x$=str$(peek(m)):gosub {:895}:poke m,an:sa=1
+	x%=asc(mid$("{blue}{red}{blue}{green}{blue}{green}{blue:2}{green}{blue}{green}{blue}",an,1))
+	if an=2 then if val(right$(d1$,2))=int(val(right$(d1$,2))) then x%=29
+	m=m+1
+	p$="Day":l=1:h=x%:x$=str$(peek(m)):gosub {:895}:poke m,an:sa=1:if m=v1+23 then return
+	p$="Century":l=19:h=20:m=m+1:x$=str$(peek(m)):gosub {:895}:poke m,an:sa=1
+	p$="Year":l=.:h=99:m=m+1:x$=str$(peek(m)):gosub {:895}:poke m,an:sa=1
+	return
+{:578}
+	m=v1+22:goto {:567}
+{:582}
+	print " [6/10]":p$="Max Inv/Spells":l=6:h=10:m=v1+136:x$=str$(peek(m))
+	gosub {:900}:on-(an<>6 and an<>10)goto {:582}:poke m,an:sa=1:return
+{:586}
+	p$="Monsters Killed":l=.:h=b3:m=v1+137:x$=str$(peek(m)):gosub {:895}
+	x=val(x$):goto {:2845}
+{:590}
+	p$="Moves To Date":l=.:h=b3:m=v1+141:x$=str$(peek(m)):gosub {:895}
+	x=an:goto {:2845}
+{:594}
+	p$="Plays Taken Today":l=.:h=3:m=v1+21:x$=str$(peek(m))
+	gosub {:895}:poke m,an:sa=1:return
+	a$="e.t.monsters":gosub {:1011}:gosub {:rel_pointer}(1):input# 2,x%:x$=str$(mn)
+{:600}
+	print r$"[1-"mid$(str$(x%),2)", ?=List]":p$="Monster #":l=1:h=x%:q=1:gosub {:895}
+	q=.:on-(an$<>"?")goto {:608}:print r$l$r$:for y=1 to x%:gosub {:rel_pointer}(y+1):input# 2,a$
+	print y;a$:if peek(198) then get an$:if an$=" " then y=x%
+	next:goto {:600}
+{:608}
+	mn=an:gosub {:sub.open_playerlog}:gosub {:rel_pointer}(pn)
+{:610}
+	print r$l$r$:for x=.to 7:print x+1"{left}: "ra$(x):next:print l$r$
+	p$="Race":l=1:h=8:x$=str$(ra+1):gosub {:895}:ra=an-1:return
+'
+{:700}
+	print r$" WEAPONS"r$l$r$" 1:*AMMUNITION":print " 2:*BATTLE EXPERIENCE/SKILL
+	print " 3:*WEAPON READIED":print " 4:*WEAPON % LEFT"r$l$
+' fixme: finish this
+	gosub {:sub.menu}(4):on an+1 goto {:1603},{:706}:print fn cl(0)"fixme":goto {:347}
+{:706}
+	print "[0-100]":p$=v$:l=.:h=100:x$=str$(wr):gosub {:895}:wr=an:return
+' subroutines
+{:825}
+	if sf then print " Save forced.";:goto {:828}
+	if sa=. then {:835}
+	gosub {:sub.fancy_input}("Save changes",1):if x=. then {:835}
+{:828}
+	print " Saving...";:gosub {:rel_pointer}(pn)
+	print# 2,d$:gosub {:check.io_status}:gosub {:rel_pointer}(pn+1):print# 2,d2$:gosub {:check.io_status}
+	print " Done!":print:sa=.:sf=.
+{:835}
+	gosub {:sub.fancy_input}("Exit editor",1):return
+{:850}
+' load player data
+	print " Loading stats...":d$="":d2$=""
+	gosub {:rel_pointer}(x):sys ia,2,235,0,d$:gosub {:rel_pointer}(x+1):sys ia,2,235,0,d2$
+	sys 45195d$::v1=peek(780)+b1*peek(781)+1:v1=peek(v1)+b1*peek(v1+1)-1
+	sys 45195d2$:v2=peek(780)+b1*peek(781)+1:v2=peek(v2)+b1*peek(v2+1)-1
+	x$=mid$(d$,3,18):gosub {:2955}:a$(.)=x$:close 2
+' todo: check if allies present first
+	gosub {:file.open}("e.t.allies")
+	if e then a$(2)="(Unknown)":a$(3)=a$(2):a$(4)=a$(2):goto {:870}
+	gosub {:rel_pointer}(1):input# 2,ct
+	for y=1 to 3:z=peek(v1+47+y):if z=. then a$(y)="---":goto {:865}
+	gosub {:rel_pointer}(z+1):input# 2,x$,x$:a$(y)=x$
+{:865}
+	next
+{:870}
+	x$=mid$(d$,54,10):gosub {:2955}:a$(4)=x$:print "{up:2}"
+{:sub.open_playerlog}
+	gosub {:file.open}("e.t.playerlog"):return
+{:895}
+' input strings/values:
+' h/l high/low values
+' t=0: accept numeric values
+' t=1: accept string
+' q=1: allow '?' to be typed
+' p$: prompt
+' sa=1: value has changed, prompt to save
+' save temp values:
+	a$=x$:l%=l:x=l
+	print r$" [";:gosub {:2850}:print "-";:x=h:gosub {:2850}:l=l%:x$=a$
+	if t then print " characters";
+	print "]";
+{:900}
+	if q=1 then print " ["qu$"]"
+{:901}
+	print r$" Old "p$": "x$r$" New "p$;:an$=x$:input an$:if q=1 and an$="?" then return
+	q=.:if t and(len(an$)<l or len(an$)>h) then print " Bad length.":goto {:901}
+	if t=. then an=val(an$):if (an<l or an>h) then print " Out of range.":goto {:901}
+	if an$<>x$ then sa=1:x$=an$:print
+	return
+{:sub.menu}
+' menu input:
+	print l$
+{:sub.menu_noline}
+	fn h
+{:sub.menu_noline2}
+	print " Edit which (1-"mid$(str$(h),2)")";:an$="0":input an$:an=int(val(an$))
+	if an<. or an>h then print "{up}";:gosub {:sub.clear_line}:goto {:sub.menu_noline2}
+	print:return
+{:sub.list}
+	print l$
+{:sub.list_noline} ' (highest_num),("trailing_info")
+' print list of items (h=highest # in list):
+' used directly after a call to {:sub.menu} to prevent two solid lines from displaying
+
+' call with x() set to data to display
+	fn h,h$
+	def z,x$
+	for z=1 to h:print str$(z)": ";:x$=a$(z-1):if x$="---" then x$=n$
+	print x$;:if h$<>"" then print tab(19)str$(x(z-1));h$;
+	print:next:print l$:return
+{:920}
+' player listing
+	print l$r$" Player Listing:"mid$(sp$,9)
+	print l$r$r$"   #  UID#  Game Name"tab(30)"Last Play"
+	p=.:q=.:print l$:for y=1 to mx:gosub {:rel_pointer}(y*2):sys ia,2,24,0,a$
+	p%=4:x%=y:gosub {:2890}:print " ";
+	p%=5:x%=asc(left$(a$,1)+nl$)*b1+asc(mid$(a$,2,1)+nl$):gosub {:2890}:print "  ";
+	c$=mid$(a$,3,18):if left$(c$,3)="---" then c$="[Deleted]"
+' display character name, last play
+	print c$tab(32):p%=2:x%=asc(mid$(a$,22,1)+nl$):gosub {:2880}:print "/";
+	x%=asc(mid$(a$,23,1)+nl$):gosub {:2880}:print
+	if peek(198) then get an$:if an$=" " or an$="/" then y=mx:gosub {:1920}
+	next:return
+{:930}
+' poke uppercase string data from an$ into either d$ (x=1) or d2$ (x=2)
+' at offset y, length z
+ 	q=v1+y:if x=2 then q=v2+y
+	for i=1 to len(an$):h=asc(mid$(an$,i,1)):if h>64 and h<91 then h=h+128
+' "?"
+ 	if h<1 or h>255 then h=63
+	poke q+i-1,h:next:sa=1:if z<=len(an$) then print fn cl(0)"no overflow":return
+' pad out string w/spaces:
+	for i=len(an$) to z-1:poke q+i,32:next:sa=1:return
+' expand:
+	x$=left$(x$+"{space:20}",z):return
+
+{number:1000}
+	rem image bbs subroutines 09/16/2006, 4/14/2007, 4/21/2007, 6/10/2007
+{number:1001}
+{:rel_pointer}
+	fn x:def d:gosub {:1002}:for d=1 to 50:next
+{:1002}
+	print# 15,"p{$02}"chr$(x and 255)chr$(x/b1)"{$01}":return
+{number:1011}
+{:1011}
+{:file.open}
+	fn a$:close 2:open 2,dv,2,"0:"+a$
+
+' 1012
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{ifdef:future_expansion}
+{number:1067}
+' load a module
+	if cm$="t."+a$ then e=.:goto {:1}
+	cm$="t."+a$:sys ml,"0:"+cm$:goto {:1}
+
+{number:1075}
+' todo: perhaps future docs read from here
+	print "{clear}";
+	l%=1:gosub {:1011}:if e then print a$:goto {:1082}
+{:1077}
+	sys ia,2,40,1,a$:l%=l%+1:if l%=25 then l%=1:gosub {:2860}:if q then {:1082}
+	print a$:on-(st<>.)goto {:1082}:get an$
+	on -(an$="{home}") goto {:1088}:if an$=" "or an$="/" then gosub {:1920}:goto {:1082}
+	goto {:1077}
+{:1080}
+	print "[Paused] ";:gosub {:sub.cursor_get}:gosub {:sub.clear_line}:goto {:1077}
+
+{:1082}
+	close 2
+{endif}
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\clear-line.lbl}
+
+{number:1603}
+{:1603}
+{:return}
+	return
+{number:1811}
+{:1811}
+	close 2:close 15:print "{$09}Shutting down modBASIC.":sys 49155:end
+{number:1870}
+{:1870}
+	a=1-a:print b$": O"mid$("ffn",a*2+1,2):return
+
+' 1902:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+
+{number:1920}
+{:1920}
+	print "(Aborted.)":return
+
+{number:2800}
+{:2800}
+{:bit.set}
+' set bit:
+	fn m,b
+	poke m,peek(m)or 2^b:sa=1:return
+{number:2810}
+{:2810}
+{:bit.clear}
+' clear bit:
+	fn m,b
+	poke m,peek(m)and 255-2^b:sa=1:return
+{number:2820}
+{:2820}
+{:bit.test}
+' test bit:
+	fn m,b
+	s=abs((peek(m)and 2^b)=2^b):return
+{number:2830}
+{:2830}
+{:get_2_bytes}
+	fn m
+	x=b1*peek(m)+peek(m+1):return
+{number:2835}
+{:2835}
+{:put_2_bytes}
+	fn m
+	poke m,int(x/b1):poke m+1,x-int(x/b1)*b1:sa=1:return
+{number:2840}
+{:2840}
+{:get_3_bytes}
+	fn m
+	x=b2*peek(m)+(b1*peek(m+1))+peek(m+2):return
+{number:2845}
+{:2845}
+{:put_3_bytes}
+	poke m,int(x/b2):poke m+1,int((x-int(x/b2)*b2)/b1)
+	poke m+2,int((x-int(x/b1)*b1)):sa=1:return
+{number:2850}
+{:2850}
+{:msg.comma_value}
+' comma-delimited value
+	fn x,j
+	def x$,l,a,y
+	x$=mid$(str$(x),2,9):l=len(x$):a=l
+	if j then print spc(9-l+abs(l<4)+abs(l<7));
+	if l<4 then print x$;:return
+{:2853}
+	a=a-3:if a>3 then {:2853}
+	print left$(x$,a);:for y=a+1 to l step 3:if a<>l then print ",";
+	print mid$(x$,y,3);:next:return
+{number:2860}
+{:2860}
+{:check.more}
+' check for more prompt:
+	gosub {:bit.test}(v1+65,5):if s then print "[More] ";:gosub {:sub.cursor_get}:gosub {:sub.clear_line}:if q then gosub {:msg.aborted}
+	return
+{number:2880}
+{:2880}
+	print right$("0"+mid$(str$(x%),2),2);:return
+{number:2885}
+{:2885}
+' mod function:
+	n=n-x:on -(n>x) goto {:2885}:return
+{number:2890}
+{:2890}
+' todo: update this to use 'c'olumns variable (currently ",3" below):
+	print right$("    "+str$(x%),p%);:if p=1 then print " "right$("   "+str$(int(x%/m%*100)),3)"%";
+	return
+{number:2955}
+{:2955}
+' string.trim:
+	z=len(x$):if z=. then return
+{:2956}
+	if mid$(x$,z,1)=" " then z=z-1:goto {:2956}
+	x$=left$(x$,z):return
+
+{ifdef:debug}
+{number:4000}
+	dv=peek(186):r$=chr$(13):a$="e.t.allies":gosub {:1011}
+{:4001}
+	y=.:input"Reset ally #";y:if y=. then {:1811}
+	y=y-1:gosub {:228}:z=.:gosub {:226}:goto {:4001}
+{endif}
+
+{number:5000}
+{:5000}
+' []=-=-=-=-=-=-=-=-=-=-=-=-=[]
+'   search through inventory.
+' []=-=-=-=-=-=-=-=-=-=-=-=-=[]
+	for x=v2+40 to v2+80 step 3:y=76:poke x+1,y/255:poke x+2,y and 255:next:return
+' ^ fill inventory
+{:5002}
+	s=.:for x=v2+40 to v2+80 step 3:y=peek(x+1)*256+peek(x+2)
+	if i%=y then s=1:x=v2+80
+	next:return
+' ^ search
+
+{number:5010}
+{:5010}
+{:sub.fancy_input}
+' fancy input:
+'	print " {176}"mid$(l$,2,36)"{174}"
+	fn x$ ' ("message")
+	gosub {:sub.top_frame}:print " {pipe} "left$(x$,26)"?"tab(38)"{pipe}"
+	print " {pipe} "mid$(l$,2,34)" {pipe}":print " {pipe} Use CRSR <= / => keys and ["k$"] {pipe}"
+' printing stays on same line:
+	gosub {:sub.bottom_frame}:print "{up:3}"
+{:5040}
+' ~ 56 bytes
+'	x=1-x:print "{UP}"tab(31)mid$("{RVRS ON}{RVRS OFF}",x+1,1)"Yes{RVRS OFF} "mid$("{RVRS OFF}{RVRS ON}",x+1,1)"No":poke 198,.
+' ~ 51 bytes:
+	print "{up}"tab(31):poke 199,abs(x=1):print "Yes{rvrs off} ";:poke 199,abs(x=.):print "No"
+{:5050}
+'	wait 198,1:get an$:on-(an$="{RIGHT}"or an$="{LEFT}")-2*(an$=r$) goto {:5040}, {:5060}:goto {:5050}
+	poke 198,.:wait 198,1:get an$:sys is,r$+"{right}{left}",an$:on i%+1 goto {:5050}, {:5060}:x=1-x:goto {:5040}
+{:5060}
+	print "{up}"tab(31):if x then print "Yes   ":goto {:5080}
+	print "    No"
+{:5080}
+' bottom line:
+	gosub {:sub.bottom_frame}:print:gosub {:sub.clear_line}:print:gosub {:sub.clear_line}:print "{up:2}":return
+
+{ifdef:debug}
+{nice:1000}
+	a$="":dv=10:open 15,dv,15:gosub {:file.open}("e.t.roomindex 1")
+	a$=chr$(12)+chr$(0)+"LAND OF THE ENCHANTED":print chr$(34)a$
+	gosub {:rel_pointer}(1):print# 2,a$:goto {:1811}
+{endif}

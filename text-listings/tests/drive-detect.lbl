@@ -1,0 +1,4 @@
+	dv=peek(186)
+' 1st device: 8 -- last device: 31
+' cycle through devices, checking for available drives
+' i can do a "uj" dos command, that puts the drive type into the error channel

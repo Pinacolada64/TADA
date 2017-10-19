@@ -1,0 +1,5 @@
+{loadaddr:$c000}
+{asm}
+	ldx #<$2000	; $00 (lo)
+	ldy #>$2000	; $20 (hi)
+{endasm}

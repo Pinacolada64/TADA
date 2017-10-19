@@ -1,0 +1,49 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	goto {:start}:rem t.flee
+
+{number:100}
+{:start}
+	if peek(v1+93)<1 then print "You don't have enough energy!":goto {:advent}
+	if mw=0 then print "There's nothing to flee from here!":gosub {:sub.adj_stat}(5,-2):goto {:advent2}
+	sys is,lo$,"**":if i% then print "The snow makes it impossible to flee!":goto {:msg.cant_flee} ' snow
+' fixme: you could possibly get somewhere in a water room, there are exits...
+	sys is,lo$,"@@":if i% then print "You row furiously, but get nowhere.":goto {:msg.cant_flee} ' water
+	sys is,lo$,"<<":if i% then {:msg.cant_flee} ' fixme - what is this flag?
+	goto {:flee1}
+{:msg.cant_flee}
+	print "You can't flee from here.":goto {:advent}
+
+{:flee1}
+' find hp, subtract honor
+	m=v2+216:gosub {:get_2_bytes}:if x<7 then {:282}
+	if x>9 then m=v1+94:gosub {:get_2_bytes}:if x>10 then x=x-10:gosub {:put_2_bytes}
+	
+' if monster flag = . but not mechanical, then flee is possible?
+	sys is,wy$,".":if i% then sys is,wy$,":":if i%=0 then {:flee_2}
+{:282}
+	z=fn r(10):if z<xp/3 then print r$m$" blocks the path!":goto {:advent}
+
+{:flee_2}
+' fixme: this should ck random exits adjacent to the room you are in instead
+	rm=fn r(nr):if rm=0 then {:flee_2} ' select 0 < rm < nr
+' todo: check for water room, shouldn't be possible to move there unless have dinghy
+	if i$="MALFUNCTION" then {:travel1} ' i$ gets set from transporter accident
+' select a random room to flee to:
+	if lv%=2 then i$="  6,141,117, 54,167,120,141":goto {:flee_5}
+	if lv%=5 then i$="393,366,115,101,341,205,378":goto {:flee_5}
+' fixme: what if you end up in the vacuum of space with no spacesuit?
+	if lv%=6 then a=int(fn r(49))/10:rm=int(fn r(39)/10)+1:rm=rm+(a*30)
+	goto {:travel1}
+{:flee_5}
+	rm=val(mid$(i$,fn r(7)*4-3,3)):if rm=0 then rm=1
+' original top-heavy code:
+' cr=random(7):if cr=0 cr=7
+' zz$=mid$(i$,(cr*4-3),3):cr=val(zz$):if cr=0 cr=1
+	goto {:travel1}
+' todo: {:travel1} is in t.main
+
+{number:999}
+	rem t.flee

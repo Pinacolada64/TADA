@@ -1,0 +1,43 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.quote
+
+{nice:10}
+{:sub.show_quote}
+' todo: display quotes with instring for "$" (player name)
+	print q$a$q$
+	return
+
+{number:100}
+' display help text if expert mode off
+	gosub {:check.expert_mode}(0):if s=. then:gosub {:sub.block_read}(4)
+
+' get current quote:
+	gosub {:file.open}("e.t.playerquotes")
+	gosub {:record_pointer}(pn+1)
+	sys ia,2,255,1,a$
+
+	gosub {:sub.show_quote}
+
+' ask whether to change:
+	print "Change your quote";:gosub {:sub.yes_no}(1):if a=. then {:advent}
+
+{:edit}
+' edit string
+' sys si,<maxlen>,<strwin>,<string$>
+	print "Quote: ";:sys si,254,32,a$
+' show expanded quote:
+	gosub {:sub.show_quote}
+	gosub {:sub.are_you_sure}(0):if a=. then {:edit}
+
+' todo: finish this
+'	gosub {:file.open}("e.t.playerquotes")
+	gosub {:record_pointer}(pn+1)
+	print# 2,a$:close 2
+	goto {:advent}
+
+{number:998}
+	rem written by pinacolada for commodoreserver
+	rem t.quote

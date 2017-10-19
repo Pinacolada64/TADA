@@ -1,0 +1,553 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+
+	rem t.stat
+'	updates:
+' 2006: 7/21
+' 2007: 6/15
+' 2011: 2/14, 3/24-25
+' 24/May/2014 10:16 - labelizing, modbasic-ing
+' 19/Jan/2015 10:54 - more work
+
+{ifdef:standalone}
+	poke 53280,12:poke 53281,12
+	print"{clear}{$08}{$0e}";
+{def:debug}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+
+	f$="modbasic c000 v2":gosub {:sub.bload}
+
+' initialize modbasic:
+	sys 49152
+
+	f$="ml c500":gosub {:sub.bload}
+
+	goto {:init}
+
+{:sub.bload}
+' done each time since initializing modbasic clears all vars
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+
+	print"Loading "chr$(34)f$chr$(34)tab(30)
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+
+{:init}
+{nice:10}
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+
+' double byte peek:
+	def fn dp(z0)=peek(z0)+b1*peek(z0+1)
+' random number:
+	def fn r(z0)=int(rnd(1)*z0)+1
+
+	na$="PINACOLADA"
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+
+' guilds	x$=mid$(gd$,(x+1)*8-7,8):gosub {:string.trim_right}
+	gd$="CivilianFist    Sword   Claw    Outlaw"+""
+
+	restore
+' shield types:
+	for x=. to 3:read sh$(x):next
+	data "LARGE","MEDIUM","SMALL","NONE"
+' armor types:
+	for x=. to 3:read ar$(x):next
+	data "LEATHER","BANDED","WOODEN","FIELD PLATE"
+' armor/shield types, shield skill
+	poke v1+71,1:poke v2+5,1:poke v2+1,80
+' make random armor class negative 1/2 the time:
+	for x=. to 4:i=v1+81+x:poke i,fn r(18):if rnd(1)>.5 then:gosub {:bit.set}(i,7)
+	next
+{endif}
+
+	goto {:start}
+
+{nice:5}
+{:sub.print_value}
+' x=value, m=max, c=cols (1=value, 2=value & percentage):
+	fn x,m,c:print right$(" "+str$(x),2);:if c=2 then print right$("  "+str$(int(x/m*100)),3)"%";
+	return
+
+{nice:5}
+{:sub.print_class}
+	print mid$(cl$,x+1*8-7,8);:return
+
+{nice:5}
+{:sub.print_race}
+	print mid$(rc$,x+1*8-7,8);:return
+
+{nice:5}
+{:msg.dead_alive}
+	fn m,b:gosub {:bit.test}(m,b):print mid$("Dead Alive",s*5+1,5);:return
+
+{nice:5}
+{:sub.not_are}
+	fn m,b:gosub {:bit.test}(m,b):print mid$("NotARE",s*3+1,3)" ";:return
+
+{nice:5}
+{:check.guild}
+' p=print (0=no, 1=yes)
+	fn p:def x:x=peek(v1+69):if p then print mid$(gd$,x*8-7,8);
+	return
+	
+{number:100}
+{:start}
+' todo: before i forget: if expert mode is off, give the player a menu of WHICH
+' stats to view, since there are a LOT. hydrophilic suggested breaking it down
+' into separate commands entirely.
+
+' i'm wondering how this can all be categorized. hydro mentioned maybe a CHAR 
+' command, i forget what else. responses are in personal messages on 
+' commodore128.org somewhere.
+
+' his response:
+' Actually STAT has a whole bunch of stuff besides character stats.  Like 
+' party stats and "major enemies" killed... you might want to simplify / break 
+' that up.  Like maybe STAT or CHAR for character stats only, and PARTY for 
+' info about point / flank / rear... and maybe something like GAME to give 
+' game progress info (major enemies killed or other milestones). 
+
+' another issue: pauses for all the information may be in the wrong place if 
+' using a menu. need a counter that's incremented after each line is printed, 
+' then call {:check.more}. even better would be a hook into $ffd2, check if 
+' output device is screen, then pause -- have some code for that in 
+' "composer.d64"
+
+'		 12/13 - AF's advice:
+' Next time something like this happens, just go into vice monitor, check
+' contents of $39/3A, and look at that line# to see where things might have
+' gone off the rails. (+57/58)
+
+{ifdef:standalone}
+{:cmdline}
+' todo: use mint's command parser?
+
+' check expert mode, do not print status--if set then ...
+	gosub {:msg.expert_mode}("(Expert mode is off)"):goto {:prompt}
+' todo: use sliding input routine...
+	an$="stat":print "Cmd ["an$"]";:input an$
+' parse command line:
+	sys is,an$," "
+' i%=0 if no space: (assume "stat all")
+	if i%=0 and an$="stat" then i%=6:goto {:all_stats}
+
+' pr$ would normally be params passed from t.main (or other modules)
+' here it represents everything after "stat "
+' todo: make sure string doesn't start with a space (i%=0):
+'	an$=left$(pr$,i%-1)
+	pr$=mid$(an$,i%+1):goto {:options}
+
+{:prompt}
+' todo: finish breaking all the stats up into categories:	
+
+' ----+----+----+----+----+----+----+----
+
+'          [A]llies
+'          [G]oals
+'          [H]ealth
+'          [M]oney
+'          [S]tats
+'          [E]verything
+'
+'          [Q]uit
+
+' Stats >> _
+
+' 19/Nov/2016 23:44
+' or...
+'
+' ----+----+----+----+----+----+----+----
+' Allies   Goals        Health   Money
+' Stats    Everything            Quit
+'
+' Stats >> _
+
+' 'or, better yet: 13/Oct/2017 23:31
+'  [A]llies    [E]verything
+'  [G]oals     [Q]uit
+'  [H]ealth
+'  [M]oney
+'  [S]tats
+
+	print tab(9):sys br,"[A]llies"+r$+nl$
+	print tab(9):sys br,"[G]oals"+r$+nl$
+	print tab(9):sys br,"[H]ealth"+r$+nl$
+	print tab(9):sys br,"[M]oney"+r$+nl$
+	print tab(9):sys br,"[S]tats"+r$+nl$
+	print tab(9):sys br,"[E]verything"+r$+nl$
+	print
+	print tab(9):sys br,"[Q]uit"+r$+nl$
+	print
+	sys br,"Stats >> "+nl$
+{:options}
+	gosub {:sub.cursor_get}:sys is,"qaghmse",an$:z=i%:if z=. then {:options}
+	if z=1 then {:link_back}
+	if z=2 then gosub {:allies}
+	if z=3 then gosub {:goals}
+	if z=4 then gosub {:health}
+	if z=5 then gosub {:money}
+	if z=6 then gosub {:stats}
+{:all_stats}
+	if z=7 then print "Everything.":gosub {:money}:gosub {:stats}:gosub {:health}:gosub {:goals}:gosub {:allies}
+	goto {:prompt}
+	goto {:link_back}
+{endif}
+
+' 1 i=6:rem 0 skips everything, 6 does all, 1-4 goes to specified subroutine
+' 2 if i=6 then for i=1 to 5:rem this does not work, return clears stack?
+' 3 on i gosub 100,200,300,400,500
+' 4 if i=6 then next
+' 5 list 1
+' 100 print 100:return
+' 200 print 200:return
+' 300 print 300:return
+' 400 print 400:return
+' 500 print 500:return
+
+{:money}
+' this should probably only be printed if param "all" is selected:
+'	print a$(.)"'s current stats:"
+
+' q tallies how much gold character has total
+	print:print " Gold:  In bank: ";:gosub {:get_3_bytes}(v1+130):q=x:gosub {:msg.comma_value}(x,1)
+'	gosub {:check.guild}(0):if x then print "     Guild:";
+	if peek(v1+69) then print "     Guild:";
+	print:print tab(8)"In bar : ";:gosub {:get_3_bytes}(v1+133):q=q+x:gosub {:msg.comma_value}(x,1)
+' with modbasic, would 'x' be preserved from previous call to {:check.guild}?
+' if p=1 then print <guild_name> ("civilian" included)
+
+' for display purposes, the max each can be is 299,999,999
+' (2,999,999 * 3 = 899,999,997) -- any more and we get into scientific notation
+
+' could print "civilian" here (guild 0):
+' issue is printing "guild: " beforehand...
+' should probably just set p=0, do the call
+	x=peek(v1+69):if x then print "     "mid$(gd$,(x+1)*6-5,6);
+'	gosub {:check.guild}(0):if x then print "     "mid$(gd$,(x+1)*6-5,6);
+
+{:50}
+' new: since this module was first developed, the {:sub.get_gold} routine came 
+' into being -- simply call it with "gosub {:sub.get_gold}(1-5)", returns x 
+' ready to be printed by {:msg.comma_value}
+
+	print:print tab(8)"In hand: ";:gosub {:sub.get_gold}(1):q=q+x:gosub {:msg.comma_value}(x,1)
+	print:print tab(8)"*Total*: ";:gosub {:msg.comma_value}(q,1)
+	return
+
+{:stats}
+	print:print "Monsters killed: ";:gosub {:get_3_bytes}(v1+137):gosub {:msg.comma_value}(x,1)
+' todo: print level name? there isn't room though
+	print " Level:"peek(v1+140)
+	print "Experience pts.: ";:gosub {:get_3_bytes}(v1+127):gosub {:msg.comma_value}(x,1)
+'	print "    HP: ";:m=v2+216:gosub {:get_2_bytes}:j=.:gosub {:msg.comma_value}(x,1):print
+' todo: optimized -- gosub {:msg.comma_value}(fn d2(216),0)
+	print "    HP: ";:gosub {:sub.get_hp}(1):gosub {:msg.comma_value}(x,0):print
+' civilian? skip printing bad hombre rating:
+	if peek(v1+69)=. then {:95}
+'	gosub {:check.guild}(0):if x=. then {:95}
+	print "Bad Hombre Rtg.: ";
+' bhr: hp+(xp*2)+((pe+pd+ps)/2)+((sh+ar)/4)
+' get hp, v1+127 is experience
+	q=fn d2(216):gosub {:get_3_bytes}(v1+127):q=q+x*2
+' add energy, dexterity, strength, shield % left, armor % left
+	q=int(q+(peek(v1+93)+peek(v1+88)+peek(v1+91)/2)+(peek(v2+36)+peek(v1+76)/4))
+	gosub {:msg.comma_value}(x,1):print
+
+{:95}
+	print
+	print "Charisma.:";:gosub {:sub.print_value}(peek(v1+86),18,2)
+	print "  Energy......:";:gosub {:sub.print_value}(peek(v1+93),18,2):print
+	print "Const'n..:";:gosub {:sub.print_value}(peek(v1+87),18,2)
+	print "  Intelligence:";:gosub {:sub.print_value}(peek(v1+90),18,2):print
+	print "Dexterity:";:gosub {:sub.print_value}(peek(v1+88),18,2)
+	print "  Strength....:";:gosub {:sub.print_value}(peek(v1+91),18,2):print
+	print "Ego......:";:gosub {:sub.print_value}(peek(v1+89),18,2)
+	print "  Wisdom......:";:gosub {:sub.print_value}(peek(v1+92),18,2):print:print
+' fixme: if player doesn't have shield or armor?
+	print "Shield......:";:gosub {:sub.print_value}(peek(v2+30),100,1)
+	print "  Armor..........:";:gosub {:sub.print_value}(peek(v1+76),100,1):print
+	print "Shield Skill:";:gosub {:sub.print_value}(peek(v2+1),100,1)
+' x is a signed integer:
+	print tab(19)"Armor Class....:";:x=peek(v1+81):if x>128 then x=128-x
+	print x
+	print "  (shield type)"tab(21)"(armor type)"
+	print
+	print " Formal training: ";:gosub {:get_2_bytes}(v1+102):gosub {:msg.comma_value}(x,0)
+	print
+	print "Class: ";:gosub {:sub.print_class}(peek(v1+68))
+	print " Race: ";:gosub {:sub.print_race}(peek(v2+144))
+	print
+	print " Gender: ";:a$="Fem":gosub {:bit.test}(v1+64,1):if s then a$="M"
+	print a$"ale   Age:";:x=peek(v1+144):a$=str$(x):if x=. then a$=" Undetermined"
+	print a$
+	gosub {:check.more}:if q then gosub {:msg.aborted}:return
+	print
+	print "Natural alignment: "mid$("Good   NeutralEvil",(peek(v1+70)+1)*7-6,7)
+' honor rating:
+	print "Current alignment: ";:x=fn dp(v1+94)
+	if x>1600 then print "Saintly":goto {:188}
+	if x>1200 then print "Good":goto {:188}
+	if x>799 then print "Neutral":goto {:188}
+	if x<399 then print "Evil":goto {:188}
+	print "Bad"
+{:188}
+	print "     Honor rating: ";:gosub {:msg.comma_value}(x,1):print
+	print
+	return
+	
+' health:
+{:health}
+	print
+	gosub {:sub.not_are}(v1+64,3):print "poisoned."tab(20)
+	gosub {:sub.not_are}(v1+64,6):print "diseased."
+	gosub {:sub.not_are}(v1+65,6):print "thirsty."tab(20)
+	gosub {:sub.not_are}(v1+64,4):print "hungry."
+	gosub {:sub.not_are}(v1+65,2):print "tired."
+	print
+
+' todo: maybe move this to inventory:
+	gosub {:bit.test}(v2+228,0):if s then print "Ring worn."
+	gosub {:bit.test}(v2+228,7):if s then print "Gauntlets worn."
+	return
+	
+' no allies?
+{:allies}
+	print "Allies:";:if peek(v1+48)+peek(v1+49)+peek(v1+50)=0 then print " All alone... sniff...":return
+'	print:for z=1 to 4:if z=3 then:gosub {:check.more}:if q then z=4:next:gosub {:msg.aborted}:return
+	print:for z=1 to 4
+'	on z goto {:242},{:243},{:244},{:245}
+{:242}
+	if z=1 then print "  Point man: "; ' :goto {:250}
+{:243}
+	if z=2 then print "Flank guard: "; ' :goto {:250}
+{:244}
+	if z=3 then gosub {:check.more}:if q then z=4:next:gosub {:msg.aborted}:return
+	print " Rear guard: "; ' :goto {:250}
+{:245}
+	if z=4 then print "      Horse: "; ' :goto {:255}
+{:250}
+	if peek(v1+50+z)=. then print "(None)":goto {:280}
+	if peek(v1+50+z)=4 then print "(Unc.)":goto {:280}
+{:255}
+	print a$(z)tab(25)"Con:"str$(peek(v1+114+z));
+	print tab(33)"HP: "peek(v2+24+z)
+{:280}
+' fixme: gold in hand starts at v2+21 - need to subtract 3 if using ally index=1-4 (i think)
+
+' new: since this module was first developed, the {:sub.get_gold} routine came into being
+' simply call it with gosub {:sub.get_gold}(1-5), returns x ready to be printed
+' c=peek(v2+18*(z*3))
+	print tab(7)"Gold: ";:gosub {:sub.get_gold}(z):gosub {:msg.comma_value}(x,1)
+	print tab(25)"Dex:"peek(v2+115+z);
+	print "Str:"peek(v2+114+z)
+	print tab(7)"Race: ";:gosub {:sub.print_race}(peek(v2+186+z))
+	print tab(6)"Armor: "ar$(peek(v1+70+z));
+' signed int: -127 to 127
+	print tab(32)"AC: ";:x=peek(v1+81+z):if x>128 then x=128-x
+	print x
+' horses don't have shields...
+	if z=4 then {:330}
+	print "     Shield: "sh$(peek(v2+5+z))tab(27)"(";
+	gosub {:sub.print_value}(peek(v2+37+z),100,2) ':print " left)"
+	print " Shld Skill: ";:gosub {:sub.print_value}(peek(v2+1+z),100,1):print
+{:330}
+	print "  Abilities: ";
+'  Abilities: aaa bbb ccc ddd Srv Sch Trk
+
+' a lot of these are yet-unassigned...
+' 155	4	Ally abilities (8 bits per ally):
+'			7  =track   Trk
+'			6  =search  Sch
+'			5  =servant Srv (who needs to be paid each week)
+'	   ***  4-0=Reserved for future expansion ***
+
+' todo: af mentioned one should be "pilfer" or "steal weapons"... :)
+
+' this is a pretty short line that's output -- the ability descs could be 
+' longer :P also, some of these aren't really *abilities* per se, "servant" is 
+' more a flag to say the person in question was bought from fat olaf the slave 
+' trader, rather than picked up whilst adventuring... or a charmed monster...
+
+	for y=. to 7:gosub {:bit.test}(v1+155+x,y):if s then print mid$("aaabbbcccdddSrvSchTrk",y*3+1,3)" ";:x=1
+	next:if x=. then print "(None)";
+	print:print:next
+
+'		  "----+----+----+----+----+----+----+----"
+	print " Mockup:"
+	print "      Horse: STRAWBERRY  Con:00   HP:00"
+	print "       Gold: 999,999,999 Dex:00  Str:00"
+	print "       Race: Thoroughbred"
+	print
+	print "      Armor: BARDING             AC:-18"
+	print "     Shield: FULL-BODY      (100% left)"
+	print "  Sh. Skill: xxx% accuracy."
+	print "  Abilities: Tracking"
+	print "             Searching"
+	print
+	print tab(13)"(A party member.)"
+	print tab(16)"or"
+	print tab(13)"(On loan from Olaf.)" ' servant, must be paid weekly
+	print tab(16)"or"
+	print tab(13)"(Following you about.)" ' charmed monster found while adventuring
+	return
+	
+' game objectives:
+{:goals}
+	print:print "King of the Wraiths: ";:gosub {:msg.dead_alive}(v2+228,2):print
+	print tab(14)"Dwarf: ";:gosub {:msg.dead_alive}(v2+228,3)
+	if s then:gosub {:get_2_bytes}(v2+221):print " [";:gosub {:msg.comma_value}(x,0):print " gold]";
+' todo: change dwarf gold to global value instead of per-player
+	print:print tab(15)"SPUR: ";:gosub {:msg.dead_alive}(v2+228,1):print
+	gosub {:check.more}:if q then gosub {:msg.aborted}
+	return
+
+{:link_back}
+' link back to where we came from:
+' if last module was shoppe:
+	if lm$="shoppe" then {:link.shoppe}
+	goto {:advent}
+
+{number:999}
+	rem t.stat
+
+{ifdef:standalone}
+'	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{number:1258}
+{:sub.clear_line}
+' SYS to clear a single screen line: 781=.x / peek(214)=current line number
+' new: also re-position cursor on column 0
+	poke 781,peek(214):sys 59903:poke 211,.:return
+
+{:1811}
+{number:1811}
+' kill modbasic
+	sys 49155:end
+
+' 1902
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+
+{number:1920}
+{:msg.aborted}
+	print "(Aborted.)":return
+	
+{:msg.not_understood}
+	print "I didn't understand that command."
+		
+{number:2000}
+{:advent}
+	print "(:advent)":goto {:1811}
+
+{:link.shoppe}
+	print "(:link.shoppe)":goto {:advent}
+	
+{number:2800} ' (mem_loc,bit)
+{:bit.set}
+	fn m,b
+	poke m,peek(m)or 2^b:return
+	
+{nice:5} ' 2805
+{:bit.clear} ' (mem_loc,bit)
+	fn m,b
+	poke m,peek(m)and 255-2^b:return
+	
+{nice:5} ' 2810
+{:bit.test} ' (mem_loc,bit)
+	fn m,b
+' test bit: RETURNs s=1 IF ON, s=0 IF NOT
+' (trying to be clever, above line would tokenize pretty nicely :)
+	s=abs((peek(m)and 2^b)=2^b):return
+	
+{nice:5} ' 2815
+{:get_2_bytes} ' (mem_loc)
+	fn m
+	x=peek(m)*b1+peek(m+1):return
+
+{nice:5} ' 2820
+{:put_2_bytes} ' (mem_loc,value)
+' thanks fuzzyfox, for all the math
+	fn m,x
+	poke m,x/b1:poke m+1,x-int(x/b1)*b1:return
+
+{nice:5} ' 2825
+{:get_3_bytes} ' (mem_loc)
+	fn m
+	x=b2*peek(m)+(b1*peek(m+1))+peek(m+2):return
+
+{nice:5} ' 2830
+{:put_3_bytes} ' (mem_loc,value)
+	fn m,x
+	poke m,int(x/b2):poke m+1,int((x-int(x/b2)*b2)/b1)
+	poke m+2,int((x-int(x/b1)*b1)):return
+
+{nice:5} ' 2840
+{:msg.comma_value} ' (value,justify)
+	fn x,j	' function prototype
+' x : 1-999,999,999	number of item to display
+' j : 0/1		whether to right-justify comma-delimited value
+
+	def x$,l,a,y	' local vars
+'																11 spaces:
+	x$=mid$(str$(x),2,9):l=len(x$):a=l:if j then print spc(9-l+abs(l<4)+abs(l<7));
+	if l<4 then print x$;:return
+{:msg.comma_value2}
+	a=a-3:if a>3 then {:msg.comma_value2}
+	print left$(x$,a);:for y=a+1 to l step 3:if a<>l then print ",";
+	print mid$(x$,y,3);:next:return
+
+{nice:5} ' 2850
+{:sub.get_gold} ' (character 1-4)
+' horse has no gold unless carrying saddlebags
+' haven't figured out where in stats file gold could be stored then
+	
+' call sub.get_gold when character <c>'s gold in hand should be queried
+' return x
+	
+' starts at v2+21
+' use {:sub.display_gold}(c) to show it
+	fn c
+	gosub {:get_3_bytes}(v2+18+c*3):return
+
+{nice:5} ' 2855
+{:check.expert_mode} ' (print)
+	def p
+' s+p (assumed "<>0" afterwards) is a quick way of saying "if s<>0 and p<>0 then ..."
+' returns s=1: on
+	gosub {:bit.test}(v1+64,4):if s+p then:gosub {:sub.item_off_on}("Expert Mode",s)
+	return
+
+{number:2860}
+{:check.more}
+	print "[More/Quit]: ";:gosub {:sub.cursor_get}:q=abs(an$="q"):gosub {:sub.clear_line}:return
+
+{nice:10}
+{:sub.item_off_on}
+	fn m,b			' (mem_loc,bit)
+' show value of bit <b> (Off: 0 / On: 1)
+' print "message: Off/On"
+	gosub {:bit.test}(m,b)
+	print ": O"mid$("ffn",s*2+1,2)
+	return
+
+{nice:10}
+{:sub.item_no_yes}
+	fn m,b			' (<mem_loc>,bit)
+' check bit <b> in memory location <mem_loc>
+' returns s=1 if set, 0 if clear
+' show string (": No" if s=0 / ": Yes" if s=1)
+	gosub {:bit.test}(m,b)
+	print ": "mid$("No Yes",s*3+1,3)
+	return
+
+{nice:5}
+{:sub.get_hp} ' (<character: 1-5>)
+' added Aug 14, 2011 9:13
+' revised 8/Apr/2014 13:13
+' get hp for character 1-5 (starting at v2+216)
+	fn x
+	gosub {:get_2_bytes}(v2+214+x*2):return
+{endif}

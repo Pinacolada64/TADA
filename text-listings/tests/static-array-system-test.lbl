@@ -1,0 +1,41 @@
+{:number:10}
+{alpha:invert}
+{step:5}
+	rem static array system demo
+	rem written by jeff jones for loadstar #103
+	rem demo by ryan "pinacolada" sherwood
+	poke 53280,0:poke 53281,0:print "{clear}{gray3}";
+{def:build_date}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	f$="sas c900"
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	ml=51456
+' DIMension: SYS addr,loc,width,number,clear
+' this creates 10 elements of 40 bytes each, and clears them:
+' under ROM at $d000:
+	sys ml,53248,40,10,1
+' store info in array:
+	for x=1 to 10
+' STORE: SYSaddr+3,loc,subscript,a$
+	sys ml+3,53248,x,"This is string"+str$(x)
+	next
+
+	for x=1 to 10
+' retrieve strings:
+' RETRIEVE: SYSaddr+6,loc,subscript
+' places into w$
+'	sys ml+6,53248,x:print w$
+' display strings:
+' PRINT: SYSaddr+9,loc,subscript,x,y
+	sys ml+9,53248,x,x+5,x+5
+	next
+{number:1811}
+{:1811}
+	end
+	
+	' to display in vice's monitor
+	' alt+m
+	' bank ram
+	' m d000
+	

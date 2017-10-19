@@ -1,0 +1,32 @@
+{number:10}
+	d$="hello, $!"
+	sys 45195d$::v1=peek(780)+256*peek(781)+1:v1=peek(v1)+256*peek(v1+1)-1
+
+
+--- qbasic driver, i think ---
+
+0 goto 100
+1 st=1:ln=len(a$)+1:for pp=1 to ln:lw=instr(pp,a$," "):if lw then if lw-st<wd then pp=lw:next else else print mid$(a$,st):return
+2 if lw-st=wd then print mid$(a$,st,lw-st);:pp=lw:st=lw+1:next else ifpp<>st then print mid$(a$,st,pp-st-1):st=pp:pp=pp-1:next else print mid$(a$,st,lw-st)" ";:pp=lw:st=lw+1:next
+100 cls
+110 input"screen width [32]";wd
+120 if wd=0 then wd=32
+130 input"uppercase ([0]=no, 1=yes)";uc
+140 timer=0:tm=timer
+150 print "short string:"
+160 a$="this should not need to wrap.":gosub 1
+170 print "long string:"
+180 a$="this is a string we want to word wrap. i wonder if i can make something that will wrap like i think it should?":gosub 1
+190 print "word > width:"
+200 a$="123456789012345678901234567890123 that was too long to fit but this is even longer abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz1234 so there.":gosub 1
+210 print "time taken:"timer-tm
+220 end
+
+--- commodore basic ---
+
+10 a$="x"+"":i%=.:is=49152:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
+20 an$="i sense your name is $. $, have a nice day.":z=len(an$):l=1
+30 sys is,an$,"$":if i%=. then print an$:end
+40 sys is,mid$(an$,l),"$":if i%=. then print mid$(an$,l):end
+50 l=i%-1:r=l+1:print mid$(an$,l,r);:goto40
+

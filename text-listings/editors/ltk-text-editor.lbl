@@ -1,0 +1,53 @@
+	rem editor, modified from ltk manual
+	dim tt$(20)
+	for t=1 to 20:tt$(t)="                    ":next
+	x=1:l=3
+	print"{clear}    enter         press <return> here"
+	print" definition       when done editing"
+	gosub {:23}:end
+{:23}
+	gosub {:im.cursor_get}
+{:keys}
+	if an$="{clear}" or an$="{home}" then l=3:x=1:print "{home}{down:3}";:goto {:23}:rem clr/home
+	if an$="{insert}" then {:23}:rem insert
+	if an$="{right}" and l=20 and x=40 then {:23}
+	if an$="{right}" then print mid$(tt$(l),x,1);:gosub {:67}:goto {:23}
+	if an$="{up}" or an$="{down}" then print mid$(tt$(l),x,1)"{left}";:gosub {:75}:print an$;:goto {:23}
+	if not(x=40 and l=20)and an$<>"{left}"and an$<>chr$(13)or an$=chr$(20)then print"{left}"an$;
+	if an$="{left}"and l=1 and x=1 then{:23}
+	if an$="{left}"then print mid$(tt$(l),x,1)an$"{left}";:gosub {:59}:goto {:23}
+	if an$=chr$(20)then gosub {:55}:goto {:23}
+	if an$=chr$(13)and l=20 then{:23}
+	x1=.:if an$=chr$(13) then print mid$(tt$(l),x,1)"{left}":x1=x:x=1
+
+'	if an$=chr$(13) and tt$(l)=".s" then return
+	if an$=chr$(13) and l<3 then return
+
+	if an$=chr$(13)and x1=40 then print"{up}";
+	if an$=chr$(13)then gosub {:77}:goto {:23}
+	gosub {:63}:goto {:23}
+{:55}
+	if x=1 then tt$(l)=" "+right$(tt$(l),39):goto {:59}:rem fixme
+	tt$(l)=left$(tt$(l),x-1)+" "+right$(tt$(l),x+1):rem or x+1?
+{:59}
+	x=x-1:if x<1 then x=40:l=l-1:goto {:79}
+	return
+{:63}
+' modify entered line
+	if x=1 then tt$(l)=an$+right$(tt$(l),39):rem fixme
+	tt$(l)=left$(tt$(l),x-1)+an$+right$(tt$(l),40-x)
+{:67}
+	if l=20 then if x<40 then x=x+1:print "{right}";:return
+	if l=20 then an$="":return
+	if l<20 then x=x+1:if x>40 then x=1:goto {:77}
+	return
+{:75}
+	if an$="{up}"then l=l-1:goto {:79}
+{:77}
+	l=l+1
+{:79}
+	if l<1 then l=1:an$=""
+	if l>20 then l=20:an$=""
+	return
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor_get.lbl}

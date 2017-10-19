@@ -1,0 +1,9 @@
+10 n=100
+12 gosub 100(10,"string"):gosub 30
+20 end
+30 print "global n="n:return
+100 gosub 30:print"starting subroutine":fn n,a$
+110 print" local n="n
+120 print tab(n) a$:return
+ready.
+

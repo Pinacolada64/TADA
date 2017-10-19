@@ -1,0 +1,137 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{def:h2g2}
+
+{ifdef:standalone}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{endif}
+
+	rem t.ma.elevator
+' updates:
+'			2014/05/20  streamlining random combo entry, debug/h2g2 stuff
+'			2014/03/05	using {sub.cursor_get}, including combination.lbl
+'			2012/06/06, 12/21
+'			2012/09/20	updates for word-wrap, instring routine
+'			2007/08/15
+' 			2006/07/25
+
+{ifdef:standalone}
+
+' j=combo entry try #
+' lv%=map level (space, in this case)
+' t=temp level comparison (to see if we really changed levels at the end)
+	j=.:lv%=6:t=lv%
+' combination: first, middle, last digits:
+	f=11:m=11:l=11
+' construct a string:
+	cb$=right$("0"+mid$(str$(f),2),2) +"-"+mid$(str$(m),2),2)+"-"+right$("0"+mid$(str$(l),2),2)
+
+' combination numbers:
+	print "(Forcing combination to be "cb$")"
+	poke v1+119,f:poke v1+120,m:poke v1+121,l
+{endif}
+
+	f=peek(v1+119):m=peek(v1+120):l=peek(v1+121)
+
+{:700}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\combination.lbl}
+	a$(0)="PINACOLADA"
+{ifdef:h2g2}
+	a$(1)="FORD PREFECT":a$(2)="TRICIA MCMILLAN":a$(3)="ARTHUR DENT"
+{else}
+	a$(1)="SHINJU":a$(2)="ELISSA":a$(3)="LARI'EL"
+{endif}
+	a$(4)="---"
+	
+' if these 3 values added up <>0, then you should have a combination:
+	if f+m+l then {:31}
+	print "The guard says, "q$"Sorry, you have not been authorized to use this elevator yet. You need a combination first."q$:goto {:link.shoppe}
+{:31}
+	print "The burly guard eyes you suspiciously and asks, "q$"What is your combination?"q$
+{:41}
+	j=j+1:print:print "[";:sys br,"["+k$+"]"+nl$:print "] exits. (Attempt"J"of 3)":print
+ ' fancy combo input:
+	gosub {:700}
+' an$="":input an$:if an$="" then print r$q$"Come again, "a$(.)"!"q$:goto 998
+	on -(in$=cb$) goto {:96}:print:on j goto {:66},{:71},{:76}
+{:66}
+	print q$"Easy enough to miss, I know I've missed it before..."q$:goto {:41}
+{:71}
+	print "The guard taps his foot a bit. "q$"Nope, try again..."q$:goto {:41}
+{:76}
+	sys br, q$+"Sorry, but I can't let just [any]one in..."+q$+r$+nl$:goto {:300}
+{:96}
+	X=lv%:gosub {:sub.calc_level}:print x$
+	print r$"The guard opens the door and you walk in. He turns around and closes the door."
+{:106}
+	print r$"Current level is #"mid$(str$(lv%),2)
+	print tab(10)"(";:gosub {:sub.calc_level}(lv%):print x$").":print:print
+	sys br,"[?]=List of levels, ["+k$+"]=Leave"+r$+nl$
+	if lv%<>1 then sys br,"[U]p a level, "+nl$
+	if lv%<>7 then sys br,"[D]own a level, "+nl$
+	sys br,"[1-7] Go to that level"+r$+nl$
+	an$="":print "Move";:input an$
+	if an$="" then print r$q$"There you go, "a$(.)"!"q$:j=.:goto {:800}
+	on -(an$="?")-2*(an$="u" or an$="d") goto {:171},{:186}
+	gosub {:string.normalize}(an$):if an>. and an<8 then lv%=an:goto {:106}
+{:166}
+	print r$"The guard says, "q$"Huh?"q$:goto {:106}
+{:171}
+	print:print "List of levels:":print "{45:15}":gosub {:list.init}:for x=1 to 7
+' use {:msg.list_item}(item_num,width,"message",cr) in t.main:
+	gosub {:sub.calc_level}(x):gosub {:msg.list_item}(x,1,x$,1)
+	print:next:goto {:106}
+{:186}
+	if an$="u" then if lv%=7 then b$="ceiling":goto {:211}
+	if an$="d" then if lv%=1 then b$="floor":goto {:211}
+	IF AN$="u" then lv%=lv%+1
+	IF AN$="d" then lv%=lv%-1
+	goto {:166}
+{:211}
+	print:print q$"Not on your life! We'd go straight through the "b$"!"q$" The guard pauses for a moment, scratching his chin."
+	sys br,q$+"That [would] be kind of fun, but I don't think my boss would be very happy with me."+q$+nl$:goto {:106}
+{:sub.calc_level}
+	ON x goto {:246},{:251},{:256},{:261},{:266},{:271},{:276}
+{:246}
+	x$="LAND OF THE ENCHANTED":return
+{:251}
+	x$="DARK SIDE":return
+{:256}
+	x$="THE SHADOWED LAND":return
+{:261}
+	x$="MAZE OF ALLEYWAYS":return
+{:266}
+	x$="LAND OF THE WRAITHS":return
+{:271}
+	x$="A BRAVE NEW WORLD":return
+{:276}
+	x$="THE HOUSE":return
+{:300}
+' level-specific missed combo messages
+	YS$="EL*":ON lv% GOTO {:link.shoppe}, {:link.shoppe}, {:link.shoppe}, {:link.shoppe}, {:link.shoppe}, {:310}, {:link.shoppe}
+{:310}
+	print "He stomps around, bellowing:":
+	a$=r$+r$+r$+r$+"        "+q$+"RESISTANCE IS USELESS!"+q$+r$+r$+r$+r$+r$
+	gosub {:msg.delay}(a$,30)
+	print "Once your ears stop ringing, you are escorted away.":print
+{ifdef:h2g2}
+	for x=1 to 3
+	if a$(x)="FORD PREFECT" then print "Ford muses, "q$"I wonder where I've heard that before."q$
+	if a$(x)="TRICIA MCMILLAN" then print "Tricia ponders. "q$"I miss my mice..."q$
+	if a$(x)="ARTHUR DENT" then print "Arthur sighs. "q$"I never could get the hang of Thursdays."q$
+	next
+{endif}
+	goto {:link.shoppe}
+
+{nice:100}
+{:list.init}
+	print "(:list.init) - fixme":return
+
+{number:800}
+{:800}
+' todo: level-specific good exit messages
+	goto {:advent}
+
+{number:999}
+	rem t.ma.elevator

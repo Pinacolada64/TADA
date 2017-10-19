@@ -1,0 +1,70 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	REM T.MA.GEN-STORE
+'	rem updated 7/25/2006
+'	rem 1/Feb/2014 20:11
+{ifdef:standalone}
+	a$(.)="STINGRAY":k$="Return":r$=chr$(13)
+	l$=" {midline:38}":q$=chr$(34)
+	na$="PINACOLADA"
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+{endif}
+
+' mi=max inventory
+
+{nice:100}
+	print "You step into the General Store..."
+	gosub {:file.open_cmd_channel}:gosub {:file.open_playerlog}:gosub {:record_pointer}(2)
+	sys ia,2,234,0,d$
+
+' check for over-abundance of stuff:
+' todo: also check allies' inventory
+	j=.:for q=1 to mi*4 step 4:if mid$(in$(.),q,4)="0000" then j=q:q=mi*4
+	next:if j=. then print q$"You have too much stuff."q$:close 2:close 15:goto {:link.shoppe}
+' empty slot in j:
+	gosub {:file.open}("e.t.rations"):if e then print a$:goto {:link.shoppe}
+	gosub {:record_pointer}(1):input# 2,mx
+	gosub {:msg.spacebar_aborts}:print l$
+' list first 10 items (always in general store):
+	for y=1 to 10:x%=y:gosub {:record_pointer}(y+1):sys ia,2,40,1,a$
+	print tab(22)"Gold"
+' {:msg.list_item}(item_num,width,"message",cr)
+	gosub {:msg.list_item}(y,3,mid$(a$,11),0)
+' print price:
+	print tab(22):gosub {:msg.comma_value}(val(left$(a$,5)),0)
+	gosub {:sub.check_abort}:if q then y=mx
+	next:print l$
+{:60}
+	h=mx
+{:120}
+	gosub {:sub.display_gold}(1,0)" gold. ["k$"] exits.":print
+{:125}
+' {:sub.check_gold} ' (character 1-4,price)
+' {:sub.adj_gold} ' (character 1-4,amount)
+' {:sub.display_gold} ' (character 1-4,justify)
+
+	gosub {:sub.display_gold}(1,0)
+	an$="":print " Buy which (1-"mid$(str$(h),2)")";:input an$
+	gosub {:string.normalize}(an$):if an<1 or an>h then {:125}
+	if an=. then print q$"Bye now!"q$:goto {:link.shoppe}
+	gosub {:record_pointer}(an+1):input# 2,a$:x=val(left$(a$,4)):x$=mid$(a$,5)
+	gosub {:sub.check_gold}:if s=. then print q$"Whaddya mean you can't pay? Get outta here!"q$:goto {:link.shoppe}
+' subtract price:
+	gosub {:sub.adj_gold}(1,-x)
+' add to inventory (todo: this assumes "f"ood item, but could be "d"rink also):
+	x$="f"+right$("000"+mid$(str$(an),2),3):print in$(.)
+' todo: add string to static array system string table
+'	if j=1  then in$(.)=x$+mid$(in$(.),5):goto {:640}
+'	if j=mi then in$(.)=left$(in$(.),mi*3)+x$:goto {:640}
+	in$(.)=left$(in$(.),j)+x$+mid$(in$(.),j+5):in$(.)=mid$(in$(.),2)
+	print in$(.):goto {:60}
+
+{ifndef:standalone}
+{number:998}
+{:link.shoppe}
+	gosub {:link.module}("shoppe","")
+{endif}
+{number:999}
+	REM COPR. 1995-2017 PINACOLADA

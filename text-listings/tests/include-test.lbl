@@ -1,0 +1,23 @@
+' relative paths (..\includes\label-assignments.lbl) do not seem to work properly
+' note on includes: use an absolute path (with no spaces):
+
+{number:1}
+
+' this works just fine:
+'  {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+
+' this does not:
+' +-- text-listings
+' |      |
+' |      +--- label-assignments.lbl
+' |
+' +-- tests
+' |      |
+' |      +--- include-test.lbl
+
+{uses:..\..\includes\label-assignments.lbl}
+
+ 	print "Type any key: ";:gosub {:im.cursor_get}
+	print an$:end
+	rem hello there
+	

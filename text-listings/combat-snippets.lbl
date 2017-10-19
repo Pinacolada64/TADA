@@ -1,0 +1,84 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	
+{:p.a3}
+' p.a3 (dead monster routine, not needed here?)
+' reset monster following/monster waiting
+' 'vp' is battle experience with a particular weapon
+' fixme: shouldn't this set 'md' (monster dead) also?
+	mf=.:mw=.:if vp<99 then vp=vp+1
+	if m$<>"THE DWARF" then {:p.a4}
+
+' dwarf gold is pooled between players and saved to "spur.data"
+' todo: research this
+
+' dwarf gold
+	gosub {:get_3_bytes}(v2+231)
+	print "Upon killing The Dwarf, you claim his treasure of ";
+	gosub {:msg.comma_value}(x,0):print " gold!"
+' add that to your inventory:
+	gosub {:sub.adj_gold}(1,x)
+' reset his gold to 500 in case he's reanimated:
+	gosub {:put_3_bytes}(v2+231,500)
+' kill dwarf by setting room # to 0
+	m$="DWARF":df=0:goto {:advent}
+{:p.a4}
+' ringwraith
+	if m=70 then print "A shadow flies away!"
+' re-animating monsters:
+	sys is,wy$,">":if i%=. then {:p.a5}
+' mm: multiple monsters:
+	printm$" twitch";:if mm=0 then print "es";
+	print " strangely!"
+{:p.a5}
+	gosub {:sub.set_pa}:a=pa:b=ma:gosub {:set.prob}
+	x=int(6-p1)/2:if x1=. then x=int(5-pl)
+' X=no gold :=mechanical
+	sys is,wy$,"X":x=i%:sys is,wy$,":":if i%+x=. then {:no.gold}
+	x=p1*25+fn r(10)+10:sys is,wy$,">>":if i% then x=x*2
+' un-needed? sys is,wy$,">>":if i% then x=x*2
+	print "You find ";:gosub {:msg.comma_value}(x,0):print " gold pieces on the "m$"!"
+	gosub {:sub.adj_gold}(1,x)
+{:no.gold}
+	sys is,wy$,":":if i%=. then {:old_man}
+	if fn r(10)>5 then print "No salvage parts.":goto {:no.salvg}
+	if i=. then i=146:it$="SALVAGE PARTS":i1$="T"
+{:no.salvg}
+' not energy weapon
+	if wa<>10 then {:old_man}
+'	z=fn r(10):print "The power pak on the "m$" ";
+	print "The power pak on the "m$" ";:if fn r(10)>4 then print "was destroyed.":goto {:old_man}
+	print "is still energized!":print
+	print "Recharge your "wr$;:gosub {:sub.yes_no}(1)
+	if a then:gosub {:msg.delay}("ZZZZZZTTTTTT",30):vn=vl
+{:old_man}
+' TODO: OLD MAN
+	if m=120 then a=17:gosub {:message}
+{:rec.ammo}
+	sys is,wr$,"STORM":if i% or wa<>8 or zm<3 then return
+	sys is,wr$,"BOW":x=i%:sys is,wr$,"SLING":x=x+i%:sys is,wr$,"BLOWGUN":x=x+i%
+	if x=. or zm<2 then return
+	z=fn r(zm):if z>zm then z=zm
+	print "You recover"z"ammo rounds.":vn=vn+z:if vn>v1 then vn=v1
+
+' fixme: seems like these next lines should be in 'examine' code?
+' TODO: check df%, open exit appropriately
+	sysis,lo$,"->":if i% then gosub {:search_reveals}:print "east!"
+	sysis,lo$,"<-":if i% then gosub {:search_reveals}:print "west!"
+
+	if left$(m$,4)="THE " then m$=mid$(m$,5)
+' wraith, fixme: link to spur.misc7
+	zn=m:if m=93 then fixme
+' not in water room, 50% chance link to servant
+	sysis,lo$,"@@":if i%=. and fn r(10)>5 then fixme
+	goto {:advent}
+
+' unfinished:
+
+{:MESSAGE}
+	print "(:message)":return
+
+{:SEARCH_REVEALS}
+	print "A search reveals an exit to the ";:return

@@ -1,0 +1,188 @@
+{asm}
+orig $c000
+; assemble with casm 4.00 beta
+
+; for basic equivalent, see:
+; C:\TADA-svn\pinacolada\TADA\text-listings\tests\%-substitution.lbl
+
+	vartab = $2d	; start of simple variables
+	fnaddr = $bb	; current filename ptr
+
+	require_string = $AEFD ; AFED, DEAF, FADE - part of CHKCOM
+	require_numeric = $AD8A
+	GETBYTC= $B79B ; returns in .x
+		; Input a Parameter Whose Value Is Between 0 and 255
+	getadr = $B7F7 ; .a / .y
+		; Convert a Floating Point Number to an Unsigned Two-Byte Integer
+
+	chrout = $ffd2 ; .a
+	strout = $ab1e ; .a / .y
+	
+	; format: sys 49152,<string>
+	
+	;	jsr chkcom			; check for comma		jsr require_string	; check for comma, make sure param is string		jsr getadr			; get address of string
+; FIXME:
+	sta fnaddr
+	sty fnaddr+1
+
+	jsr strout	; print it
+	rts
+		
+; array pointers: ($2F)
+; same format as simple variables
+; we'll still use FORPNT for a scratch zero-page area
+
+; FIXME
+
+setvar:	; lda (t_arrays),...
+
+	; throw me a bone here... i'm the boss, need the info
+
+; 47-48			 $2F-$30	   ARYTAB
+; Pointer to the Start of the BASIC Array Storage Area
+; 
+; This location points to the address of the end of nonarray variable
+; storage, and the beginning of array variable storage.	 The format for
+; array storage is as follows:
+; 
+; The first two bytes hold the array name.	The format and high-bit
+; patterns are the same as for nonarray variables (see 45 ($2D) above),
+; except that there is no equivalent to the function definition.
+; 
+; Next comes a two-byte offset to the start of the next array, low byte
+; first.  Then there is a one-byte value for the number of array
+; dimensions (e.g., 2 for a two-dimensional array like A(x,y)).	 That
+; byte is followed by pairs of bytes which hold the value of each array
+; dimension+1 (DIMensioning an array always makes space for 0, so A(0)
+; can be used).
+; 
+; Finally come the values of the variables themselves.	The format for
+; these values is the same as with nonarray values, but each value only
+; takes up the space required; that is, floating point variables use
+; five bytes each, integers two bytes, and string descriptors three
+; bytes each.
+; 
+; Remember that as with nonarray string, the actual string text is
+; stored elsewhere, in the area which starts at the location pointed to
+; in 51-52 ($33-$34).
+
+; OLD CODE:
+
+{ifdef:old_code}
+start:	sty 251		sta 252		ldy #0loop:	jsr in		cmp #34 ; quote mark		beq done
+c1:		cmp #"%"	; 37		bne out		jsr in
+		cmp #"s"	; 83		bne	c2
+		pha		lda #<gender		ldy #>gender		jsr strout		pla		iny		iny		jmp cont
+c2:		cmp #78	;"n"		bne cont
+		pha		lda #<name		ldy #>name		jsr strout		pla		iny		iny		jmp cont
+out:	jsr strout
+cont:	jmp loop
+done:	lda #13		jmp chrout
+in:		iny		lda ($fb),y		rts
+{endif}
+
+; NEW CODE:
+; search through arrays:
+
+arrayvar: lda p_arrays
+		 sta fnaddr
+		 lda p_arrays+1
+	   ; sta fnaddr+1
+	   ; FIXME: can I search for particular element #?
+	   ; remember strings are stored elsewhere ($33)
+		 jmp str0
+		
+intvar:	  lda vartab
+		 sta fnaddr
+		 lda vartab+1
+str0:	  sta fnaddr+1
+
+str1:	  ldy #$00
+		 lda (fnaddr),y
+varname1:  ; idea is to sta varname1 + 1 & 2 to change variable/array being
+		  ; searched for...
+		 cmp #"i" + {%:01000000}	; i + bit 7 set=integer
+		 bne str2
+		 iny
+		 lda (fnaddr),y
+varname2:  ; same here... sta varname2 + 1
+		 cmp #$00 + {%:01000000}	; no 2nd letter + bit 7 set=integer
+		 beq str3
+
+str2:	  clc
+		 lda fnaddr
+		 adc #$07
+		 sta fnaddr
+		 lda fnaddr+1
+		 adc #$00
+		 sta fnaddr+1
+		 jmp str1
+
+str3:	  iny
+		 lda #$00  ;hi byte=0
+		 sta (fnaddr),y
+		 iny
+		 lda $fb   ;lo byte=$fb
+		 sta (fnaddr),y
+
+done:	  rts
+
+gender:	ascii "female"		byte 0
+name:	ascii "Shinju"		byte 0
+		
+		; ------------------------
+		; t_*	table
+		; lo_*	lo bytes
+		; hi_*	hi bytes
+		; b_*	byte
+		; ------------------------
+		
+t_prefix:		ascii '/%'
+b_prefix_len:	ascii * - t_prefix ; table length
+lo_prefix:		word  cmd.slash,cmd.percent
+;hi_prefix:		byte <cmd.slash,<cmd.percent
+
+	t_cmd:		ascii 'cnprx'
+b_cmd_len:		ascii * - t_cmd ; table length
+
+subst_hi:	word char_class, char_name, char_possessive, char_race, char_gender
+
+subst_len:	byte * - subst_hi ; table length
+
+char_class:
+			nop
+			; fixme
+			; idea is to get %c# param, where #: 0=main char, 1-3=allies
+
+	; simple variables:
+t_variables:	byte 'd',      {%:01000000}	; d$
+				byte 'd','2' + {%:01000000}	; d2$
+				byte 'c','l' + {%:01000000}	; cl$
+				byte 'r','c' + {%:01000000}	; rc$
+				byte 'i'     + {%:01000000}
+				byte 		   {%:01000000}	; i%
+b_variables_len: byte * - t_variables
+
+	; array variables:
+t_arrays:
+			byte "a",$00 + %01000000 ; a$( )
+p_arrays:
+			word t_arrays
+			; FIXME: gotta be more...
+
+b_arrays_len:	byte * - t_arrays
+
+char_name:
+; /c[1-5]	- require "/c" and a digit 1-5 (main char, allies 1-3, horse)
+	jsr	GET_VAR	; returns var addr in .A/.Y
+	jsr	REQUIRE_NUMERIC
+	
+	; Put string var address in FORPNT
+	sta	FORPNT
+	sty	FORPNT +1
+
+; find array element:
+
+; FIXME...
+
+{endasm}

@@ -1,0 +1,10 @@
+' comment: {assign:label=line number}
+'  to use: {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+' last updates: 5/Aug/2017 19:54, 18/Feb/2016 22:49, 21/Jun/2014 14:18
+
+{quoter:$17="on"}		' word-wrap on, ctrl-w
+{quoter:$18="off"}		' word-wrap off, ctrl-x
+{quoter:$20="space"}		' multiple spaces can be replaced with {space:xx}
+{quoter:$dd="pipe"}		' so | translates properly on the Commodore
+{quoter:164="underline"}	' easier to type _ (c= @)
+{quoter:192="midline"}		' easier to type solid - (shift *)

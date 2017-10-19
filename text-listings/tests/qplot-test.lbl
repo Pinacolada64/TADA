@@ -1,0 +1,65 @@
+{number:1}
+{:2100}
+	sys {sym:test}:print "char"peek(780)"(.a) found at offset"peek(782)"(.y)"
+{asm}
+; BroBryce: basically the criteria is that it either matches one of the other 15 chars in the table or it is treated as a space ($20). Period. For the purposes of my routine, it returns the corresponding screen code, or it returns $20, AND it returns .y as the # of the character in the table, so as to be useful to both qplot and my basic routine
+; BroBryce: because at this point, qplot doesn't return non-qchars as spaces, which makes it difficult and unpredictable when you're trying to paint over existing characters.
+; Rulan: oh, ok.
+; BroBryce: that's the only reason why I'm wanting to write this code, and this would make the slowest part my of my routine much much faster
+
+; goal: to check whether a given character (stored in .x) is found within
+;        a table of characters. we will use indirect-y indexing to step
+;        through this table, possibly set .carry to indicate it is found.
+
+; to test, we will load into .a, a character we know is in the table:
+; (that will return "6" because it's the 7th entry in the table, table
+; numbering starts at 0) -- this could be changed with an "iny" before
+; the "rts" in the "found" routine...
+
+; to debug, load a char NOT in the table, like #$d0
+test:
+    lda #$e2 ; $#e2 is a valid table entry
+
+; initialize the .y register to 0, since it's the beginning of our loop,
+; and this register counts where we are in the loop:
+    ldy #$00
+
+; start the loop:
+
+check_char:
+	cpy #16			; have we reached 16, the end of the table?
+	beq not_found	; yes, so it wasn't found. .y will contain $20 then.
+	
+    ; compare the byte in the table - plus an offset which is contained in .y
+    ; if we do "lda characters,y" to compare the 1st byte (.y starts out as 0),
+    ; it's saying "look up the address of the "characters" table, add 0 to that
+    ; (.y starts the loop as 0 the first iteration through the loop). later, if
+    ; there's no match, .y will get incremented, until it
+    ; a) finds a match, or
+    ; b) reaches the end of the table (16 bytes in).
+    
+    ; the character we're comparing to is in .a
+    cmp table,y
+	; was there a match? go to found:
+	beq found
+	; otherwise, increment .y, loop back
+	iny
+	jmp check_char
+	
+found:
+	; our test should return 6
+	; load char found (.a) from offset .y so basic can check return value [peek(782)]
+	lda table,y
+	; return to basic:
+	rts
+	
+not_found:
+	; load a space char:
+	lda #$20
+	; .y contains 16 ($0f) to 0 to indicate no match
+	rts	
+
+table:
+    ; these are the bytes of the quarter-square graphics
+    byte $7e,$7c,$7b,$6c,$62,$61,$e2,$e1,$a0,$fe,$fc,$fb,$ec,$7f,$ff,$20
+{endasm}

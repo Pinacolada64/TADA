@@ -1,0 +1,273 @@
+
+---------- BOOT.LBL
+
+---------- COMBAT-SNIPPETS.LBL
+[10]' fixme: shouldn't this set 'md' (monster dead) also?
+[66]' fixme: seems like these next lines should be in 'examine' code?
+[72]' wraith, fixme: link to spur.misc7
+[73]	zn=m:if m=93 then fixme
+[75]	sysis,lo$,"@@":if i%=. and fn r(10)>5 then fixme
+
+---------- T_BAR.LBL
+[165]' fixme: i don't remember what 'x' and 'z' are all about:
+[167]' FIXME: add death flag z:
+
+---------- T_BAR_OLAF.LBL
+[135]' fixme: finish this
+
+---------- T_BAR_SKIP.LBL
+[39]	zv$=zv$+i$ ' fixme
+
+---------- T_BAR_VINNEY.LBL
+[55]' fixme: instring ml currently resides in same address as sliding input
+[109]	if a then rem fixme
+[135]' fixme: (preferably through use of disk text block)
+[166]' check gender...? fixme
+[195]' fixme: finish this
+[233]	print "(:get{underline}gold): fixme":goto {:55}
+
+---------- T_BASH.LBL
+[36]' fixme: check for carrying shield item
+
+---------- T_BONUSES.LBL
+[121]	print "spec4: fixme"
+
+---------- T_CAST.LBL
+[64]	print "(:sub.dumber) - fixme":return
+[127]' fixme: high bit set=skip listing item - means something:
+[149]' fixme: it doesn't seem like this stuff flows logically
+[227]' fixme: since commodoreserver is not governed by a time limit,
+[246]' fixme:
+[257]	print "(:WIZ.GLW2) - fixme":stop
+[487]	x=fn r(30):if x<15 and x<25 then fixme
+[498]	x=fn r(30):if x<15 and x<25 then fixme
+
+---------- T_CHARGE.LBL
+
+---------- T_COMBAT.LBL
+[69]' fixme
+[94]' fixme - time remaining to play today, or from server?
+[121]{:label} ' fixme
+[125]' fixme: already in t.main, but this 'fl' test seems like a good idea
+[212]' fixme
+[220]	if md=0 then {:label}' fixme {:label} -- no dead monster here
+[362]	if b=0 then print "No damage!":goto FIXME
+[396]	ms=ms-b:print "HIT!";:if b=0 then print "NO DAMAGE!":goto FIXME
+[411]' FIXME: add to dead monsters list:
+[417]' fixme...
+[491]' fixme: a1-3 are ally hp, could be streamlined
+[519]' fixme: add check for race 1st
+[604]' fixme: is this all the code? cp needs to be changed to a bit
+[623]' fixme:
+[652]' todo: fixme: get date/time from server, also date format probably won't include seconds
+
+---------- T_DESC.LBL
+
+---------- T_DIE.LBL
+[14]' FIXME: use TI-based delay for SuperCPU emulation
+[116]' fixme:
+[159]' fixme: unfinished:
+
+---------- T_DROP.LBL
+
+---------- T_ENCOUNTER.LBL
+[80]' fixme: better label name
+[301]' fixme: what if 1st char? this will fail
+[312]' fixme: same problem as above, also subroutine this?
+
+---------- T_FLEE.LBL
+[12]' fixme: you could possibly get somewhere in a water room, there are exits...
+[14]	sys is,lo$,"<<":if i% then {:msg.cant_flee} ' fixme - what is this flag?
+[30]' fixme: this should ck random exits adjacent to the room you are in instead
+[37]' fixme: what if you end up in the vacuum of space with no spacesuit?
+
+---------- T_FOLLOW.LBL
+
+---------- T_GET.LBL
+[36]		gosub {:get_2_bytes}(v1+216):if x>y then ' fixme
+[121]' fixme: handles food/drink, item, ...
+[131]' FIXME:
+[172]' fixme: zt$<>"" is flag if something found, seems inefficient:
+[235]' fixme:
+[268]' fixme: WORK IN PROGRESS
+[305]' fixme: print #2,"0"+r$+wp$+...(something else)
+[355]' fixme:
+
+---------- T_GET_MODBASIC.LBL
+[42]		gosub {:get_2_bytes}(v1+216):if x>y then ' fixme
+[129]' fixme: handles food/drink, item, ...
+[139]' FIXME: compass requires some more handling, I think
+[155]	rem fixme
+[186]' fixme: zt$<>"" is flag if something found, seems inefficient:
+[248]' fixme:
+[281]' fixme: WORK IN PROGRESS
+[318]' fixme: print #2,"0"+r$+wp$+...(something else)
+[368]' fixme:
+
+---------- T_GIVE.LBL
+
+---------- T_HEAL.LBL
+
+---------- T_INV.LBL
+[44]' print:gosub {:FIXME}:goto {:get_flags}
+[59]' fixme:
+[71]' fixme: what about "Using" status?
+[85]' fixme:
+[121]{:_205} ' FIXME _205 is local to this file, {:205} already defined?
+[122]{:210} ' FIXME
+
+---------- T_LURK.LBL
+
+---------- T_MAIN.LBL
+[206]' FIXME: i know i put this here for a reason, returns w/file not found error
+[233]' FIXME: i *think* this should be line 1079
+[375]' fixme: duplicate label
+[493]' FIXME: DUPLICATE CODE
+[500]' fixme 3/Jun/2014 23:53: work in progress, consolidating some duplicated code
+[503]'  fixme: read_room3 here is temporary until real target is found
+[525]' fixme: fix line
+[668]' fixme: should be energy (8) & strength (6)
+[699]' fixme: go to where besides {:advent} after printing directions?
+[756]' fixme: is this correct?
+[758]' fixme: i don't understand having 1 # in m$ and 2nd # in ma - 1st may be size...?
+[766]'	gosub {:check.time}:if FIXME then print "Dusk approaches."
+[787]	i$="advent5":goto {:link.combat} 'fixme
+[903]' if yx$<>"*" then yx$="":on -(lv%<6) goto FIXME:sys is,lo$,"@@":on i%+1 goto {:quotes}
+[946]' fixme: how to list trimmed items it$, wp$, fd$ (or even how to generate them)
+[964]' fixme: gotta do something here to put item name in z$... set fl=something?
+[965]' fixme: but this will only work for FIRST available item :/
+[1009]' FIXME: this is commented out since it produces a c64list error:
+[1061]' FIXME - space tracker - duplicate code
+[1064]' FIXME: later on there is a routine that prints [GC: x,y] (Galactic Coordinates), move here?
+[1124]' con, fixme
+[1150]' thug attack (fixme zu$ stuff):
+[1178]' fixme: which monster is 119?
+[1182]' fixme: mm is already multi-monster, so better pick another variable name :/
+[1185]' fixme: convert
+[1216]' {:travel2a} -- FIXME duplicate label
+[1219]' fixme: not sure what xt$ is
+[1237]' fixme
+[1333]' fixme: modbasic call on gosub {:sub.show_room_items}
+[1342]' fixme: this may still be broken
+[1365]' fixme: i think this is for restricting dwarf placement, needs finished
+[1716]' fixme: finish
+[1865]' fixme: finish this
+[1898]' fixme: i think it returns length of i$ in vi+0
+[2032]' fixme: unfinished subroutines
+[2059]' fixme: eventually these could be folded into generic
+[2075]' fixme - check for palintar
+[2089]' fixme: not sure what this is
+[2114]' FIXME: true=1, false=0 in acos - can be abs(whatever) on c=
+
+---------- T_MA_ARMORY.LBL
+
+---------- T_MA_ARMORY_FIX.LBL
+
+---------- T_MA_ARMORY_WEAPONS.LBL
+[159]	' FIXME: start of shared code from READY
+[172]	print "(:spec4) fixme"
+[174]'	print "(:spec5) fixme":return
+[176]	' FIXME: end of shared code from READY
+
+---------- T_MA_BANK.LBL
+[25]' fixme: withdraw routine needs work
+
+---------- T_MA_BLACKSMITH.LBL
+[51]	print "[W]orn" 		' fixme: add worn item name
+[52]	print "[R]eadied" 	' fixme: add readied item name
+[54]	gosub {:check.ally}(1):if x then print "[1]"a$(1)tab(20)"weapon" ' fixme
+[55]	gosub {:check.ally}(2):if x then print "[2]"a$(2)tab(20)"weapon" ' fixme
+[56]	gosub {:check.ally}(3):if x then print "[3]"a$(3)tab(20)"weapon" ' fixme
+[64]	on i%+1 goto {:635}, {:640}, {:not_done}, {:not_done}, {:not_done}, {:not_done}, {:not_done}, {:645}, {:650} ' fixme
+
+---------- T_MA_CLERIC.LBL
+[44]' fixme
+[50]' fixme: i have no idea what this is doing
+
+---------- T_MA_ELEVATOR.LBL
+[129]	print "(:list.init) - fixme":return
+
+---------- T_MA_GEN-STORE.LBL
+
+---------- T_MA_HQ.LBL
+[88]' fixme
+
+---------- T_MA_LOCKER.LBL
+
+---------- T_MA_NEWS-WIN.LBL
+
+---------- T_MA_OLLY.LBL
+[90]' fixme: ac is not defined
+
+---------- T_MA_WIZARD.LBL
+[12]{:fixme}
+[13]	print "(:fixme)":return
+[71]	input# 2,a$:gosub {:fixme}
+[96]	gosub {:sub.check_gold}(1,p):if s=. then print "<fixme>":goto {:999}
+
+---------- T_MOUNT.LBL
+
+---------- T_NP.LBL
+[34]' FIXME: where did entering descs go?
+[35]' FIXME: need to read message # 5 - new player description
+[122]' fixme: only do this if there are no empty records:
+[210]' fixme: IF i$="" AND A$(.)<>"" THEN AN$=A$(.) ---> ???
+[232]' fixme: is t unnecessary now?
+[523]' fixme: char might not start w/ shield
+[527]' fixme: char might not start w/ armor
+[592]' fixme: currently there is an overflow in record error that kills this whole deal...
+
+---------- T_ORDER.LBL
+
+---------- T_PAGE.LBL
+[54]' fixme: d2$ is actually the 2nd half of the player's stats, isn't it?!
+[109]' fixme
+[242]' fixme: ^ finish it... ^
+[247]' fixme: scratch 1st:
+[248]	print#15,"s0:e.temp":gosub {:check.io_status}:if e<>1 then {:fixme}
+[263]' fixme: scratch 1st, if it fails, then what? o.o
+[264]' fixme: use csip commands!
+[265]	print#15,"s0:e.temp":gosub {:check.io_status}:if e<>1 then {:fixme}
+[291]{:fixme}
+
+---------- T_PRG-INFO.LBL
+
+---------- T_QUIT.LBL
+[29]' fixme: check whether new day; if so, reset play counter
+
+---------- T_QUOTE.LBL
+
+---------- T_READY.LBL
+[15]{:fixme}
+[16]	print "(:fixme)":return
+[39]' fixme: unfinished code
+[62]' fixme - after error, then what?
+[63]	if a>zw or a<1 then gosub {:sub.log_error}("E",fn cl(0),"Invalid weapon # "+str$(a)):z=xw:next:goto {:fixme}
+[68]	sys is,"STORM",zz$:if i% then {:fixme}
+[120]' fixme: not called from anywhere?
+
+---------- T_REST.LBL
+
+---------- T_SHOPPE.LBL
+[98]' fixme
+[121]' fixme: this depends on map level:
+
+---------- T_STARTUP.LBL
+[232]' fixme: why the swap from above?
+[265]' FIXME: find an available ally slot - finish this:
+[267]	z=z+1:if peek(v1+47+y)=z then print "FIXME:"fn cl(x)"find ally slot"
+[354]' fixme: since shoppes are different rooms on different levels, maybe
+
+---------- T_STAT.LBL
+[263]' fixme: if player doesn't have shield or armor?
+[332]' fixme: gold in hand starts at v2+21 - need to subtract 3 if using ally index=1-4 (i think)
+
+---------- T_TAKE.LBL
+
+---------- T_UNREADY.LBL
+
+---------- T_WEAPON INFO.LBL
+
+---------- T_WEAPON-INFO.LBL
+
+---------- T_WEAPON_MASTER.LBL

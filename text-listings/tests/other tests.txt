@@ -1,0 +1,61 @@
+test displaying warning every 5 turns:
+'list
+'
+'1 tm%=28
+'2 tm%=tm%-1:print tm%,:if 5 and tm%=5 then print "[5]";
+'3 print:if tm%>. then 2
+'ready.
+' 14
+' 13
+' 12
+' 11
+' 10
+' 9
+' 8
+' 7
+' 6
+' 5        [5]
+' 4
+' 3
+' 2
+' 1
+' 0
+'
+'ready.
+'
+test a_or_some routine:
+
+' 1 z$="some monk":l=1:r=len(z$):gosub100
+' 2 print "You see "z$" who wait";:if mm then print "s";
+' 3 print" patiently.":end
+' 100 mm=abs(mid$(z$,l,1)="a") or abs(mid$(z$,l+r-1,1)="S"):return
+' run
+' You see some monk who wait patiently.
+
+24/Dec/2015 22:27
+-- using wrong variable for "input any"--
+list
+
+7 a=0:i%=0
+8 is=50432:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
+10 open2,10,2,"s.tada menu,s,r"
+11 sys ia,2,40,1:print a
+12 close 2
+run
+-5.04575067e-39
+
+-- using modbasic and "input any" correctly! --
+ready.
+list
+
+1 sys 49152
+7 a$="x":i%=0
+8 is=50432:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
+10 open2,10,2,"s.tada main 40,s,r"
+11 gosub 110("hi"):rem sys ia,2,40,1:print a$:if st=. then 11
+12 close 2
+15 sys 49155:end
+110 fn a$
+111 sys ia,2,40,1:print a$:if st=. then 111
+112 return
+ready.

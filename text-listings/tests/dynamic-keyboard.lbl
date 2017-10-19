@@ -1,0 +1,32 @@
+' dynamic keyboard buffer technique
+
+{number:1}
+{:1}
+' the setup:
+	print "{clear}"
+	print
+	print
+	print "a="a+1
+	print
+	print
+	print "print a"
+	print
+	print
+	print
+	print "goto 1"
+	print "{home}
+
+' here's where we take control of the keyboard:
+
+' first cr:
+	poke 631,13
+' second cr:
+	poke 632,13
+' third cr:
+	poke 633,13
+' 3 keys typed:
+	poke 198,3
+	
+	end
+
+' ...and the program takes over!

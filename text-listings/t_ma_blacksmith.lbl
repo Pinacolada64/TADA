@@ -1,0 +1,131 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.ma.blacksmith
+' last updated	2012/06/06, 06/08
+' labelized	2011/11/07 21:47
+' 		2006/09/08  6:28 pm
+
+' m$ used temporarily here, cleared on exit
+	m$="blacksmith":goto {:start}
+
+{nice:10}
+{:sub.delay}
+	for d=1 to 800:next:return
+
+{nice:10}
+{:msg.number}
+' print x padded out to a w, maximum of 3 left-aligned spaces:
+	fn x,w
+	print right$("  "+str$(x),w);:return
+
+{nice:10}
+{:check.ally}
+' check for ally slot not empty or unconscious
+' accepts x=1-3
+' returns x=1 if x = 1-3
+' x=0 otherwise
+	fn x
+	x=peek(v1+50+x):x=abs(x>0 and x<4):return
+
+{nice:10}
+{:sub.get_data} ' (<record>)
+	fn r
+	gosub {:record_pointer}(r+1)
+	sys ia,2,50,1,a$
+' trim names with | in them:
+	sys is,a$,"{pipe}":if i% then a$=left$(a$,i%-1)
+' p=price
+	p=val(mid$(a$,5,L)):return	
+	
+{nice:100}
+{:start}
+	print "You are led into a back room. Here, a ";
+	print "younger man is working on some armor. ";
+	print "He pushes it aside as he sees you are ";
+	print "impatient to get back to adventuring.":print
+	print q$"Well, what have we here? What can I fix for you?"q$
+{:605}
+	print			' todo: display condition here too
+	print "[W]orn" 		' fixme: add worn item name
+	print "[R]eadied" 	' fixme: add readied item name
+	print
+	gosub {:check.ally}(1):if x then print "[1]"a$(1)tab(20)"weapon" ' fixme
+	gosub {:check.ally}(2):if x then print "[2]"a$(2)tab(20)"weapon" ' fixme
+	gosub {:check.ally}(3):if x then print "[3]"a$(3)tab(20)"weapon" ' fixme
+	print "[A]rmor not listed here"
+	print "[O]ther not listed here"
+{:prompt}
+	print:print " >> ";
+' todo: shoe horse
+{:635}
+	gosub {:sub.cursor_get}:sys is,r$+"wr123ao",an$
+	on i%+1 goto {:635}, {:640}, {:not_done}, {:not_done}, {:not_done}, {:not_done}, {:not_done}, {:645}, {:650} ' fixme
+{:640}
+	print "Leave.":print
+	print q$"Changed your mind, eh?"q$" grins the "m$" as you dash out...":goto {:link_armory}
+{:not_done}
+	print "Not done yet.":goto {:prompt}
+{:645}
+' op=display "armor" later
+'  l=length of item name?
+'  n=start item display at char
+' a$=filename
+	print "Weapons.":op=1:l=4:n=36:a$="weapons":goto {:655}
+{:650}
+	print "Armor.":op=.:l=3:n=16:a$="armor"
+{:655}
+	print a$".":print:gosub {:file.open}("e.t."+a$):gosub {:record_pointer}(1):input#2,mx
+{:665}
+	gosub {:msg.spacebar_aborts} ' in t.main
+' w=3	set width for msg.number to 3
+' j=1	right-justify price
+	print "[]=-=-=-=-=-[ BLACKSMITH: ]-=-=-=-=-=[]"
+	print tab(9)"# Name"tab(26)"Price"
+	for y=1 to mx
+	gosub {:sub.get_data}(y+1):if p=. then {:685}
+' n=start item display at char
+	print tab(6):gosub {:msg.list_item}(y,3,a$,0):print " " mid$(a$,n) tab(27):gosub {:msg.comma_value}(p,0)
+	gosub {:sub.check_abort}:if q then y=mx
+{:685}
+	next:gosub {:msg.fancy_line}
+{:690}
+	print:gosub {:msg.expert_mode}("[?] List, [1-"+mid$(str$(mx),2)+"] Fix, ["+k$+"]=Leave")
+{:695}
+	print:print "[";:gosub {:sub.display_gold}(1,0):print " gold] Speak, "a$(.)": ";:an$="":sys si,2,3,an$:gosub {:string.normalize}(an$)
+	on -(an$="")-2*(an$="?")-3*(an<>.) goto {:705},{:665},{:715}
+	print:print "The "m$" looks at you strangely.":goto {:690}
+{:705}
+	print:print q$"Happy trails, "a$(.)"!"q$" the "m$" shouts as you leave."
+	goto {:link_armory}
+
+{:715}
+	if an>1 and an<mx then print:print q$"Sorry, I don't know what you mean."q$:goto {:695}
+{:720}
+	gosub {:sub.get_data}(an+1):gosub {:sub.check_gold}(1,p):if s then {:fix}
+{:730}
+' todo: check chr for haggling ability
+	print:print "The "m$" shakes his head. "q$"Sorry, ";
+	print "I can't do the repair for less than ";
+	print "what's listed."q$:goto {:695}
+{:fix}
+' todo: scan inventory
+	gosub {:sub.adj_gold}(1,x-p) ' adjust gold
+	print:print "You are led back into the main room again and cautioned that it is not wise ";
+	print "to watch a "m$" at work; it's akin to a wizard giving away the secret ";
+	print "to one his spells. (Besides, you might get hurt.)":print:print
+	print "From the distant room, you hear the noises of the "m$" plying his ";
+	print "trade...":print:poke 204,. ' enable cursor
+	print "BANG";:gosub {:sub.delay}:print " CLANG";:gosub {:sub.delay}:print " WHAM";:gosub {:sub.delay}
+	print " THUD";:gosub {:sub.delay}:print " WHEEZE(?)";:gosub {:sub.delay}:print " OOOFFF!";:gosub {:sub.delay}
+	poke 204,1:print " ":print:print "The "m$" returns, triumphantly ";
+	print "holding your "mid$(x$,n);:if op=. then print " ARMOR";
+	print ".":print:print q$"Good as new, "a$(.)"!"q$:goto {:605}
+'todo: fix stats
+
+{:link_armory}
+	m$="":gosub {:link.module}("ma.armory","")
+
+{number:999}
+	REM T.MA.BLACKSMITH

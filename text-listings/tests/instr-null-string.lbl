@@ -1,0 +1,259 @@
+' check for null string using instring
+' brobryce64: because the next string is null, it's looking at 
+' main,main_length,key,key_length where they were previously stored.
+
+' {:loop}
+' GET A$:SYS {sym:InString},"ABCDF{enter}{f1}",A$:IF I%=0 THEN {:loop}
+' or
+' ON I%+1 GOTO {:loop},{:routine 1},.....
+
+' {:loop}
+' GET A$:if a$<>"" then SYS {sym:InString},"ABCDF{enter}{f1}",A$:on I% goto {:routine 1},.....
+' GOTO {:loop}
+
+{number:1}
+{alpha:invert}
+
+{quoter:164="underline"}	' easier to type _ (c= @)
+
+{def:debug}			' debug this sucker
+{undef:modbasic}	' not using modbasic here
+{undef:loadable}	' not loading ml from disk -
+					' can {def:} this to load "ml c500"
+
+{number:1}
+	goto {:start}
+
+{ifdef:loadable}
+	{number:10}
+	{:sub.bload}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+{endif}
+
+{nice:100}
+{:start}
+{ifdef:loadable}
+' get current drive:
+	dv=peek(186):if dv<8 then dv=8
+	open 15,dv,15
+' bload instring ml
+	f$="ml c500":gosub {:sub.bload}
+
+' InString, Input_Any, Module_Load, BRacketxt, PopStack:
+	is=50432:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
+{else}
+	is={sym:instring}
+{endif}
+
+' set up i% so match doesn't automatically fail
+' tested: if i% not defined, ml does not crash! :)
+	i%=0
+	q$=chr$(34):nl$=chr$(0)
+	st$="search{underline}thru":sf$="search{underline}for"
+	
+	poke 53280,12:poke 53281,12
+	print "{gray3}{$08}{$0e}{clear}InString test"
+	print "{$c0:13}"
+	print
+	print "Syntax:"
+	print "sys"is","q$ st$ q$ "," q$ sf$ q$
+	print
+{:menu}
+	print "Test InString routine with:"
+	print
+	print "0) Exit"
+	print "1) Valid match"
+	print "2) Invalid match"
+	print "3) Null string"
+	print
+{:choice}
+	input "Choice";an$:an=abs(int(val(an$)))
+	on an+1 goto {:1811},{:valid},{:invalid},{:null}
+	goto {:choice}
+	
+{:valid}
+' test result should pass with a result of 4
+	print "sys"is","q$"contemporary"q$","q$"temp"q$
+	print:r=4
+	sys is,"contemporary","temp"
+	goto {:result}
+	
+{:invalid}
+' test result should pass with a result of 0 (not found)
+	print "sys"is","q$"insinuate"q$","q$"xyzzy"q$
+	print:r=0
+	sys is,"insinuate","xyzzy"
+	goto {:result}
+
+{:null}
+' test result should pass with a result of 0 (null string)
+	print "sys"is","q$"reverberate"q$","q$q$
+	print:r=0
+	sys is,"reverberate",""
+	
+{:result}
+	print "result:"i%;
+	if i% =r then print "passed"
+	if i%<>r then print "failed"
+	goto {:menu}
+	
+{ifdef:loadable}
+	' 1012:
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{endif}
+
+' 1811:
+{number:1811}
+{:1811}
+{ifdef:modbasic}
+	sys 49155 ' shut down modbasic
+{endif}
+{ifdef:loadable}
+	close 15
+{endif}
+' unlock shift-c=
+	print "{$09}";:end
+
+{asm}
+		; zero-page:
+
+chrget	= $0073	; force c64list to jsr to zp addr
+vartab	= $2d	; start of basic variables
+fnaddr	= $bb	; current filename ptr
+main	= $fb	; string search ptr ("search_thru")
+key		= $fd	; substring search ptr ("search_for")
+
+		; basic interpreter routines:
+
+strout	= $ab1e	; set .a/.y: address of zero-terminated string to output
+frmeval	= $ad9e	; evaluate string/math expressions
+chkcom	= $aefd	; check basic text for comma, return ?syntax error
+				; if not found
+frestr	= $b6a6	; returns .a: len, $22/$23: addr
+getbytc	= $b79e	; read petscii program text, convert to integer 0-255,
+				; store in .x
+comnum	= $b7f1 ; checks for a comma (jsr chkcom), evaluates numeric
+				; expression (returns type mismatch if string var),
+				; returns .x: 0-255, returns ?illegal quantity error
+				; if param is out of range
+
+		; variables:
+
+main_length:
+	byte $ff	; length of string to search through
+key_length:
+	byte $ff	; length of string to search for
+
+	; subroutines:
+
+chkparam:
+	jsr chkcom
+	jsr frmeval
+	jmp frestr		; returns 256*y+x=string addr, .a=length
+
+	; main program:
+
+instring:
+; 2/May/2016 11:48 - addition for kaleidoscope:
+; init: properly clear out previously saved data
+	jsr s8			; clear residual params from previous run
+
+	jsr chkparam	; get length of search_thru
+	sta main_length
+	sty main+1
+	stx main
+
+	jsr chkparam	; get length of search_for
+	sta key_length
+	sty key+1
+	stx key
+
+	; thanks to nikoniko and bob cederlof for this instring routine.
+	; syntax: sys is,"search_thru","search_for"
+	; (both params can be variables or literals thanks to frmeval)
+	; returns result in i% (which must be set up in basic first)
+	; i%=0 for no match / search_thru > search_for
+
+s1:
+	ldx #0
+
+s2:
+	lda main_length
+	cmp key_length	; substring > amt of remaining string to search?
+	bcc s8			; yes, exit
+
+	ldy #0
+s3:
+	lda (key),y
+	cmp (main),y
+	bne s6
+	iny
+	cpy key_length
+	bcc s3
+	inx
+	jmp store
+s6:
+	inc main
+	bne s7
+	inc main+1
+s7:
+	inx
+	dec main_length
+	bne s2
+s8:
+	ldx #$00
+; 2/May/2016 16:01
+; brobryce: clear residual values from previous runs
+; "s8" jsr'ed from init
+	stx main_length	; pos of search_thru (?)
+    stx key_length	; pos of search_for  (?)
+    stx key+1
+    stx key
+    stx main+1
+	
+store:
+	stx main	; store length in $fb (251)
+
+; thanks to jim radiks & steve bell for this routine:
+
+intvar:
+	lda vartab
+	sta fnaddr
+	lda vartab+1
+	sta fnaddr+1
+
+str1:
+; find i% in variable descriptor table
+	ldy #$00
+	lda (fnaddr),y
+	cmp #$c9 ; i + bit 7 set=integer
+	bne str2
+	iny
+	lda (fnaddr),y
+	cmp #$80 ;		bit 7 set=integer
+	beq str3
+
+str2:
+; move to next variable descriptor
+	clc
+	lda fnaddr
+	adc #$07
+	sta fnaddr
+	lda fnaddr+1
+	adc #$00
+	sta fnaddr+1
+	jmp str1
+
+str3:
+; i% found, assign a value to it
+	iny
+	lda #$00	; hi byte=0
+	sta (fnaddr),y
+	iny
+	lda $fb	; lo byte=$fb
+	sta (fnaddr),y
+
+done:
+	rts
+{endasm}

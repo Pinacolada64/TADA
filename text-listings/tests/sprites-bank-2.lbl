@@ -1,0 +1,17 @@
+' example code - change vic-ii bank 2 ($8000-$bfff)
+' http://codebase64.org/doku.php?id=base:vicii_memory_organizing
+{number:2015}
+	sys {sym:ml}:end
+{asm}
+; change to bank 2 without disturbing other bits
+	lda $DD00
+	and #%11111100
+	ora #%00000001 ;<- your desired VIC bank value, see above
+	sta $DD00
+	
+	; screen memory has not been relocated (still starts at $0400)
+	screen = $0400
+	
+	; sprite pointers always start $03f8 bytes after screen memory
+	sprite_pointer = screen + $03f8
+	

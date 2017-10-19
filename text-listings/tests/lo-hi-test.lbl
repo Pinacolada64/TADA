@@ -1,0 +1,47 @@
+	sys {sym:print}
+	end
+{asm}
+; in c64list 3.03:
+
+; since assembling 'byte >string' doesn't seem to work, i'm trying to make a 
+; workaround:
+; the routine in basic to split a number into high and low bytes is:
+
+; this number must be <32767 or else basic pitches a fit. there is a fix for 
+; that, but i forget the formula
+
+; ready.
+; n=32767
+
+; ready.
+; hi=n and 255:lo=int(n/256)
+
+; ready.
+; ?hi,lo
+; 255       127
+
+; ready.
+; ?255+256*127
+; 32767
+
+; ready.
+; _
+;				Hex		f    f    d    2
+;				Dec	   16   16   14    2
+;					 8421 8421 8421 8421
+; $$ff $d2 = 		Bin %1111 1111 1101 0010
+
+print:
+	hi = $FE ; 255
+	lo = $FF ; 256
+
+;	string_hi = string & hi
+;	string_lo = string / lo
+
+	lda #<string ; lo byte
+	ldy #>string ; hi byte
+	jsr $ab1e
+	rts
+
+string:	ascii "tHIS IS A STRING!" ; reverse case for petscii
+		byte $00

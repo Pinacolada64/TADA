@@ -1,0 +1,10 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.desc
+	print "editor entry"
+	print ":
+	print "Save"
+{number:999}
+	rem t.desc

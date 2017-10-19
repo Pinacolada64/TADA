@@ -1,0 +1,8 @@
+{loadaddr:$c200}
+; work around lack of "byte <label" ability
+{asm}
+	byte 512/256	; byte >label
+	byte $ad	; byte <label
+
+label:	word $adde
+{endasm}

@@ -1,0 +1,51 @@
+{asm}
+
+; from steve bell
+
+; like a$ would be
+;
+; lda #"a"
+; sta var1
+; lda #$00 + #128
+; sta var2
+
+isary = $b1d1	; find array address
+				; $0b - $0e:
+				; $45 - $46: 
+strpnt = $fc
+
+; this routine finds a variable and stores the string in a buffer
+strfin:	lda var1
+		ldy var2
+		sta $45
+		sty $46
+		lda #$ff
+		sta $0d
+		jsr $b0e7	; locate scalar variable
+
+;		rts
+
+strget:	ldy #2
+strget2:	lda ($47),y
+		sta strpnt,y
+		dey
+		bpl strget2
+;		rts
+
+prstr:	tya
+		pha
+		ldy #0
+prstr2:	sty prtstry
+		lda (strpnt+1),y ;($fd),y
+		sta mcibuf,y
+		ldy prtstry
+		iny
+		cpy strpnt ;strlen
+		bcc prstr2
+		sty uplen
+		pla
+		tay
+		rts
+
+mcibuf:	area 255,$00
+{endasm}

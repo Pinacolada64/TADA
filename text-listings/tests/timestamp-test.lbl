@@ -1,0 +1,4 @@
+{alpha:lower}
+{number:1}
+	print "this is revision ";
+{include:timestamp}

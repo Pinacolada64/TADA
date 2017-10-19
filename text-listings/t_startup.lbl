@@ -1,0 +1,408 @@
+{number:1}
+{alpha:invert}
+{crunch:on}
+
+{def:modbasic}	' using modbasic extension
+{def:debug}	' output extra debugging statements
+
+{undef:trace}
+
+{def:fn_fix}	' until modbasic can do regular "def fn(x)"s
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{remremoval:off}
+{crunch:on}
+	rem  *** T.STARTUP ***
+{remremoval:on}
+
+	goto {:startup}
+
+' modified	2012:	6/6
+'			8/14 add word-wrap controls
+'			8/16 check for # of plays is conditional
+'				moved new player setup code
+'			9/6
+'		2011:	2/25 3/26 4/26 8/16 9/13
+'			2009: 6/15
+'			2008: 3/4
+'			2007: 4/21 5/5 6/14 7/4 7/28
+
+{nice:5}
+{:msg.not_are}
+	def m,b
+	gosub {:bit.test}(m,b):print "You are ";:if s=. then print "NOT ";
+	return
+
+{nice:5}
+{:sub.clear_ally}
+' clear ally #a status in player stats:
+	def a
+	poke v1+47+a,.:return
+
+{nice:100}
+{:startup}
+' make strings dynamic (stored after program text rather than inside the
+' program) so they doesn't get eated by modules
+	
+' this is mostly for error logging purposes (cm$="current module"):
+	cm$="t.startup"+""
+
+{ifdef:debug}
+	print cm$" ";
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+{endif}
+
+' these were defined back in 900- of t.main:
+'	b1=256:b2=b1*b1:b3=b2*b1' 256  65,536  1,677,7216
+'	co%=1:ll%=40 ' computer type, line length
+
+' depending on client type, non-Commodore computers could display "Enter"
+' instead of "Return" using k$:
+' nl$=null, q$=quote mark, r$=return (could also be return+linefeed, depending
+' on client)
+	k$="Return"+"":nl$=chr$(.)+"":q$=chr$(34)+"":r$=chr$(13)+""
+
+' date/time (todo: should get from server + convert)
+	d1$="11405110800"+""
+
+' tm%: moves per day - not sure i want a time limit right now
+'	tm%=300
+
+' obsolete because of word-wrap, but a neat bit of code, assuming ll%=40 or 80
+'	l$=mid$(r$+" ",ll%/40,1)+""
+
+' alignments:		gosub {:sub.string_truncate}(mid$(al$,x*7-6,7)):x$ ...
+	al$="Evil   Bad    NeutralGood   Saintly"+""
+' character classes:	gosub {:sub.string_truncate}(mid$(cl$,x*8-7,8)):x$ ...
+	cl$="Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  AssassinKnight"+""
+' character races:	gosub {:sub.string_truncate}(mid$(rc$,x*8-7,8)):x$ ...
+	rc$="Human   Ogre    Gnome   Elf     Hobbit  HalflingDwarf   Orc     Half-Elf"+""
+' guilds:		gosub {:sub.string_truncate}(mid$(gd$,x*8-7,8)):x$ ...
+	gd$="CivilianFist    Sword   Claw    Outlaw  "+""
+' weapon classes: (#)=unused
+
+'	1 wc$="ENERGY    BASH/SLASHPOKE/JAB       POLE/RANGE                    "
+'	2 wc$=wc$+"PROJECTILEPROXIMITY"
+'	3 forx=1to9:printmid$(wc$,x*10-9,10):next
+'
+'		 1         2         3         (4)       5         (6)       (7)       8         9
+	wc$="ENERGY    BASH/SLASHPOKE/JAB            POLE/RANGE                    PROJECTILEPROXIMITY"+""
+' gosub {:sub.string_truncate}(mid$(wc$,x*10-9,10)):x$ ...
+
+	hx$="0123456789ABCDEF"+""
+
+' instring puts match in i%, which BASIC must set up beforehand.
+	i%=.
+
+' todo: get handle (ha$) from commodoreserver:
+
+{ifdef:debug}
+' todo: use csip command "setval" to write 
+	ha$="PINACOLADA"+"":na$="RAILBENDER"
+{endif}
+
+{ifdef:bbs}
+' read title screen:
+' todo: design a butt-kickingly awesome hi-res graphic title screen
+	gosub {:file.read_clearscreen}("tada title")
+{endif}
+
+	gosub {:file.open_cmd_channel}
+	print "{gray3}{clear}{$08}{$0e}{on}A Wizard greets you and begs you to wait. Your status must be verified in order to pass...{off}";
+
+{ifdef:trace}
+' initialize trace:
+	print "Enabling trace...":sys 828+6
+{endif}
+' 20/Nov/2015 17:49
+' now checks for presence of file by renaming itself.
+' specifying the record length automatically creates the file and causes
+' "?file data  error" a few lines down -- no data has been written to file yet
+	f$="e.t.playerlog":dr=3:print#15,"r0:"f$"="f$:gosub {:check.io_status}
+' if file not found, run the player log creator:
+	if e=62 then:gosub {:link.module}("make playerlog","")
+	gosub {:file.open_playerlog}:if e then:gosub {:sub.log_error}("W",fn cl(0),a$):goto {:1811}
+	' ("err_level",error_line,"message")
+	' old code: l=fn cl(0):print a$:goto {:1811}
+
+{:60}
+	gosub {:record_pointer}(1):input#2,a$:mx=val(a$):x=.
+{ifdef:debug}
+	print "Max players:"mx
+{endif}
+{:search_for_player}
+' search for player:
+	x=x+2:if x/2>mx then {:new_player}
+{ifdef:debug}
+	print "{off}Record #"x
+{endif}
+	gosub {:record_pointer}(x):sys ia,2,21,0,a$
+{ifdef:debug}
+	print "a$="q$a$q$
+{endif}
+	na$=mid$(a$,3,18)
+{ifdef:debug}
+	print "Game name: " q$na$q$
+{endif}
+' compare CommodoreServer account (ha$) to player name (na$) --both are padded to 18 chars:
+	if left$(ha$+"{space:18}",18)<>left$(na$+"{space:18}",18) then print ".";:goto {:search_for_player}
+' pn=player number, get player data:
+	pn=x:gosub {:record_pointer}(pn):sys ia,2,234,0,d$:d$=d$+""
+	gosub {:record_pointer}(pn+1):sys ia,2,234,0,d2$:d2$=d2$+"":close 2
+{ifdef:debug}
+	print "d$  len="len(d$):print q$ d$ q$
+	print "d2$ len="len(d2$):print q$ d2$ q$
+	gosub {:sub.pause}
+{endif}
+
+' find addresses of strings (now using double byte peek function):
+' note that this first gets the pointer *to* the pointer.
+
+{ifdef:fn_fix}
+	sys 45195d$::v1=fn dp(780)+1:v1=fn dp(v1)-1
+	sys 45195d2$:v2=fn dp(780)+1:v2=fn dp(v2)-1
+{else}
+	sys 45195d$::v2=peek(780)+b1*peek(781)+1:v2=peek(v2)+b1*peek(v2+1)-1
+	sys 45195d2$:v2=peek(780)+b1*peek(781)+1:v2=peek(v2)+b1*peek(v2+1)-1
+{endif}
+	gosub {:sub.string_truncate}(mid$(d$,3,18)):a$(.)=x$+""
+	print:print "Welcome, "a$(.)"!"
+
+' todo: check for wraith master
+' todo: find adventurer name in some file somewhere
+
+	print:print "The last adventurer was "la$".":if la$="you" then la$=a$(.)
+
+	d=peek(v1+22):m=peek(v1+23):print "Last play was ";
+	print right$("0"+mid$(str$(m),2),2)"/" right$("0"+mid$(str$(d),2),2)"."
+
+{ifdef:bbs}
+'	This section is more for discouraging too many plays on a BBS:
+
+	print:print "You have played ";:x=peek(v1+21):if x>2 then print "too many";:goto {:110}
+	if x<1 then print "no";:goto {:110}
+	print mid$("onetwo",(x-1)*3+1,3);
+{:110}
+	print left$(" games",5-(x<>1))" today.":if x<4 then {:140}
+	print "(Noting re-entry attempt in game log...)";
+	gosub {:sub.log_error}("I",0,"=> "+a$(0)+" tried to sneak in! <=")
+
+' todo -- remember stuff from spur.logon.s!
+' except this is more of a "security" (said tongue-in-cheek) problem...
+
+	fl=1:gosub {:link.module}("quit","")
+{endif}
+
+{:140}
+' birthday stuff
+' date format (spaces added for clarity)
+' d1$="3 11 01 25 88 00" -> "Tue Jan 25, 2011 08:00 PM"
+'
+' 3  day of week	(1=sun...7=sat)
+' 11 year			(+2000)
+' 01 month
+' 25 day
+' 88 hour			(+80 = PM)
+' 00 minute
+
+' also see t.page
+{ifdef:debug}
+' force birth month/day to current month/day:
+	poke v1+98,val(mid$(d1$,2,2)):poke v1+99,val(mid$(d1$,6,2)):print "Setting birthday to today..."
+{endif}
+' check if birth month<>current month:
+	if peek(v1+98)<>val(mid$(d1$,2,2)) then {:210}
+' check if birth day<>current day:
+	if peek(v1+99)<>val(mid$(d1$,6,2)) then {:210}
+
+' if age=0, don't print "x'th" birthday (unknown age)
+	gosub {:get_2_bytes}(v1+144):a=x:if a=. then {:happy_birthday}
+' increase age:
+	gosub {:put_2_bytes}(v1+144,a+1)
+' calculate age (current year [2000+current year]-birth year [century*100+year])
+	a=2000+val(mid$(d1$,2,2))-(peek(v1+100)*100+peek(v1+101))
+' figure out last digit of age to print 1st, 2nd, 3rd, 0th, 4-9th
+	x=val(right$(str$(x),1)):a$="th":if x<4 then a$=mid$("stndrd",x*2-1,2)
+{:happy_birthday}
+	print "Happy";:if a then print a;a$;
+	print " birthday!"
+' add 1000 gold:
+	gosub {:sub.adj_gold}(1,1000)
+	print:print "Thou art awarded 1,000 gold!" ', plus 100"l$"bonus moves!"
+' todo: maybe a birthday cake would be more appropriate instead of bonus moves
+' (or vinney appears and gives you a balloon animal)
+
+' fixme: why the swap from above?
+	if la$=a$(.) then la$="you"
+
+' todo: guild dues routine
+
+' ally names (0-4):
+	dim a$(4)
+
+{:207}
+' have any allies?
+	if peek(v1+48)+peek(v1+49)+peek(v1+50)=. then print "All alone... sniff...":goto {:horse}
+' from t.main:
+' y=y+1:on-(y=5) goto {:2080}:z=peek(v1+47+y):if z=0 or z=4 then {:check.ring_weaken}
+' 0=no ally / 4=unconscious
+
+' if no allies, or file not found:
+	gosub {:file.open}("e.t.allies"):if e then:gosub {:sub.log_error}("W",fn cl(0),a$):goto {:horse}
+	x=1:gosub {:record_pointer}(x):input# 2,mx
+' get ally status:
+	for y=1 to 3:x=peek(v1+47+y):if x=. then a$(x)="---"+"":goto {:210}
+	if x>mx then:gosub {:sub.log_error}("W",cm$,"Ally #"+str$(x)+", but max="+str$(mx)+")"):goto {:210}
+' cb=ally flag (pn=yours, 0=not available), name, strength, to-hit (x10)
+	x=x+1:gosub {:record_pointer}(x):input# 2,cb,x$,st%,th%
+' display ally name (strip elite ally's trailing ! if needed):
+	gosub {:sub.print_ally_name}
+' ally yours and conscious?
+	if cb=pn then if x<4 then print "awaits you!":a$(y)=x$+"":goto {:210}
+' ally left, was killed, etc. - clear position in ally status
+' in e.t.allies, this handles status 0 (not available) 
+	if cb<>pn then print "seems to have left you.":gosub {:sub.clear_ally}(cb)
+
+' unconscious:
+	if x<>4 then {:210}
+' FIXME: find an available ally slot - finish this:
+	print "awakens from a nap.":z=.
+	z=z+1:if peek(v1+47+y)=z then print "FIXME:"fn cl(x)"find ally slot"
+	gosub {:sub.clear_ally}(y)
+{:210}
+	next:close 2
+
+' todo: remember flags after pipe in name in allies.txt, can't find documentation
+' todo: more stuff here probably
+
+{:horse}
+' get horse name/status:
+	gosub {:sub.string_truncate}(mid$(d$,54,10)):a$(4)=x$+""
+	if x$<>"---" then print:print "Your faithful steed "x$" is here."
+	
+{:status}
+	print:print "Your current status:":print
+	print "      Expert Mode";:gosub {:sub.item_off_on}(v1+64,4)
+	print "    [More] prompt";:gosub {:sub.item_off_on}(v1+64,3)
+	print "Room Descriptions";:gosub {:sub.item_off_on}(v1+64,2)
+' old:
+'	gosub {:bit.test}(v1+64,4):gosub {:sub.item_toggle}("      Expert Mode",1-s)
+'	gosub {:bit.test}(v1+64,3):gosub {:sub.item_toggle}("    [More] prompt",1-s)
+'	gosub {:bit.test}(v1+64,2):gosub {:sub.item_toggle}("Room Descriptions",1-s)
+' older still:
+'	b=2:gosub {:bit.test}:a=1-s:b$="Room Descriptions":gosub {:sub.item_toggle}(b$,a)
+
+' guild features:
+	gosub {:check.guild_membership}(0):if x=. then {:status2}
+	print "         Autoduel";:gosub {:sub.item_off_on}(v1+64,7)
+	print "     Guild Follow";:gosub {:sub.item_off_on}(v1+64,5)
+
+{:status2}
+	print:gosub {:msg.not_are}(v1+65,5):print " poisoned."
+	gosub {:msg.not_are}(v1+65,7):print " diseased."
+
+	print:print "(Just a sec...)"
+
+' todo:
+' open system-wide data file (yet to be named)
+' write la$ (this is common data shared between players)
+' read game objective/gold/item
+' ...
+' print#2,la$:la$=""
+'
+' these are per-player:
+' read	kw (king of wraiths)
+'		da (dwarf alive)
+'		dg (dwarf gold)
+'		sa (spur alive)
+	
+' unconscious?
+'	m=v1+65:b=1:gosub {:bit.test}:if s=. then {:loan}
+	gosub {:bit.test}(v1+65,1):if s=. then {:loan}
+
+' todo: look up/display player name
+
+	print "You slowly awaken from your less-than-";
+	print "pleasant slumber, nursing a large bump ";
+	print "on your head and an urge to thump ";
+	print "<player>.":gosub {:bit.clear}(v1+65,1)
+
+' todo: could also be carried off by a guild member, report that too
+
+{:loan}
+' loan shark stuff
+' loan amount:
+	gosub {:get_2_bytes}(v1+113):if x=. then {:320}
+	print "Vinney is displeased with you. (Fight)"
+' todo: set up fight
+
+' days left to pay:
+	if peek(v1+112)=. then {:320}
+
+{:320}
+' figure out where player is on map
+' fixed: rm could be >256, changed to 16-bit value
+	rm=fn l2(226):ro=-1:lv%=peek(v1+140)
+' get level stats (0=read header info only)
+	gosub {:sub.read_room_desc.force}(0)
+' handle any weird out-of-bounds errors: nr=# of rooms on level
+' place in shoppe temporarily to at least recover...
+	if rm<1 or rm>nr then rm=1
+' ln$ = level name
+	ln$=mid$(ld$,4):if rm>. then {:350}' not in shoppe
+' peek(v1+69)=0: civilian:
+	print "You wake up in the Shoppe."
+	gosub {:check.guild_membership}(0):if x=. then {:link.module}("shoppe","")
+
+' fixme: since shoppes are different rooms on different levels, maybe
+' roomindex file should have shoppe room #
+
+	print "Mundo politely throws you out.":rm=1
+{:350}
+' todo: use {:rd.room} routine in t.main for this - more complete?
+' now with word-wrap:
+	print:print "YOU HAVE ENTERED "ln$"!"
+' ;:if len(ln$)+17>ll% then print
+' print ln$"!"
+	goto {:start}
+	
+{number:400}
+' offline messages waiting?
+	gosub {:1062}("t."+a$(.),"r"):if e then close 2:goto {:advent}
+' b: # of messages, a: new messages
+	a=.:b=.
+{:402}
+' skip header
+' todo: reconcile '07/04' (mm/dd) type of date stored in playerlog with
+'		11-digit image bbs style date (see t.page for format)
+	b=b+1:input#2,a$,a$,a$:if mid$(a$,2)>mid$(ld$,2) then a=a+1
+{:404}
+' discard message body: look for ^ (message delimiter)
+'	input# 2,a$:on st+1 goto {:402}:if a$<>"^" then {:404}
+'	note: i think this will work
+	sys ia,2,40,1,a$:if st=. then if a$<>"^" then {:404}
+'	on-(a$<>"^") goto {:404}:if st=. then {:402}
+	close 2:print "You look down and see"b"scroll";:gosub {:msg.multi}(b)
+	' old: :if b>1 then print "s";
+' print new msg count:
+	if a then print " ("a;:gosub {:msg.is_are}(a):print " new)";
+{:msg.continue}
+	print " at your feet."
+' 0: do not print result of expert mode, returns s<>0 if enabled
+	gosub {:check.expert_mode}(0):if s then {:start}
+	print:print "(Use "q$"PAGE"q$" to read ";:if a=1 then print "it";
+	if a>1 then print "them";
+	print ".)":print
+
+{:start}
+' todo: more stuff here eventually, perhaps
+	goto {:advent}
+
+{nice:100}
+{:new_player}
+	close 2:print:print "Setting up a new player..."
+	dr=5:gosub {:link.module}("np","")
+
+{remremoval:off}
+{number:999}
+  	rem  *** T.STARTUP ***

@@ -1,0 +1,28 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{ifdef:standalone}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{endif}
+	rem t.ma.news-winners
+{:600}
+	sys br,"[N]ews or [W]inners? "+nl$:gosub {:sub.cursor_get}
+	sys is,"nw"+r$,an$:on i% goto {:610},{:630}
+	print "Leave.":goto {:650}
+{:610}
+	sys br,"[T]oday's or [Y]esterday's? "+nl$:gosub {:sub.cursor_get}
+	sys is,"ty",an$:on i% goto {:620},{:625}
+	print "Neither.":goto {:650}
+{:620}
+	f$="s.t.news 1":gosub {:file.open}(f$):goto {:640}
+{:625}
+	f$="s.t.news 2":gosub {:file.open}(f$):goto {:640}
+{:630}
+	f$="s.t.winners":gosub {:file.open}(f$):if e then a$="No winners yet!"
+{:640}
+	if e then print f$:print a$
+	if e=. then:gosub {:file.read}(0,0,0)
+{:650}
+	close 2:goto {:link.shoppe}
+{number:999}
+	rem t.ma.news-winners

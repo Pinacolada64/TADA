@@ -1,0 +1,725 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{undef:modbasic} ' not using modbasic extension yet
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' spur.combat.s -- rough translation
+
+' 1/Jun/2014 19:54
+' Jun 18, 2012 17:57
+' Aug 12, 2011 18:55
+' Oct 21, 2006
+
+' trying to write standalone module 1st
+
+' to be a point man means to assume the first and most exposed position in a 
+' combat military formation, that is, the lead soldier/unit advancing through 
+' hostile or unsecured territory
+' == wikipedia ==
+	na$="PINACOLADA"
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+	z=0		' death reason flag: 0=not dead yet
+	ep=100	' experience points
+	xp=2	' experience level
+	po=1	' poisoned
+	hp=40	' hit points
+	tr%=40	' time remaining on bbs
+	def fn r(x)=int(rnd(-ti)*x)+1
+	r$=chr$(13)
+	ev=tr%	' ev=time remaining?
+	ex=30	' ex=?
+	k$="Return"
+	lo$="SOMEWHERE IN SPUR +"	' location
+	ww$=lo$	' forget why there is a copy of this
+	vk=200	' honor
+	a$(0)="SHINJU" ' main player character name
+	xv$="(You feel a bit "
+	zu$="B000000000"	' flags
+
+	wr$="LONG BOW" ' weapon readied,
+	vr=10 ' unknown
+	wa=5' weapon class
+	vn=10' rounds left
+	
+' ally attributes:
+' 	a1: hit points? h1: hit points?
+	a1=40:d1$="PERSEPHONE":h1=20
+	a2=40:d2$="ELISSA":h2=20
+	a3=40:d3$="MACY":h3=20
+
+' monster waiting, monster name|attributes, strength
+	mw=1:m$="M.3DRAGON! {pipe}^>>-.":ms=20
+
+' figure out left/right boundaries for printing names
+	l=3+sgn(val(mid$(m$,3,1))):sys is,m$,"{pipe}":if i% then wy$=mid$(m$,r)
+	if i%=. then r=len(m$)+1
+	r=r-l:m$=mid$(m$,l,r)
+' pina added multi-monster:
+	mm=abs(right$(m$,1)="S")
+' better? sys is,wy$,"$":mm=abs(right$(m$,1)="S"+i%) <- adds check for $ flag: multi-monsters
+' returns >0 if (m)ultiple (m)onsters, for grammar purposes, so 'if mm then print "s"...'
+'	[]-=-=-=-=-=-=-[]
+'     come get some
+'	[]-=-=-=-=-=-=-[]
+	goto {:start}
+
+{nice:10}
+{:check.bc}
+' checks for shield training, i think
+' fixme
+	sys is,left$(zu$,1),"BC":return
+
+' {:check.gender}
+' check gender of main character:
+' returns s=1 if male
+'	gosub {:bit.test}(v1+64,1):return
+
+' {:check.ring}
+' destroys m during call
+' carried? returns i%=0 if not
+'	gosub {:sub.item_held}(67):if i%=0 then return
+' worn? returns s=1 if so
+'	m=v2+228:b=.:goto {:bit.test}
+
+{:FIXME}
+	print fn cl(0)" (:fixme}":goto {:advent}
+
+{:msg.level_up}
+	print "Congratulations! You are a level"xp"player!":return
+
+{:msg.take}
+	print:print m$" take";:if mm=. then print "s";
+	return
+' {:msg.multi}
+'	if mm then print "s";
+'	return
+' {:msg.is_are}
+'	if mm then print "are";:return
+'	print "is";:return
+
+{:msg.destroyed}
+' this is for a weapon, i think
+	print " ha";:if right$(wr$,1)="S" then print "ve";:goto {:msg.destroyed2}
+	print "s";
+{:msg.destroyed2}
+	print " been destroyed!":return
+
+' {:msg.weakens}
+'	print " weaken";:if mm then print "s";
+'	print " you!":return
+
+{:label} ' fixme
+	print "(:label)":stop
+
+'{:sub.hp_subtract}
+' fixme: already in t.main, but this 'fl' test seems like a good idea
+' call with:
+'	x=hp
+'	y=# of hp to subtract from x
+	
+' returns fl=1 if subtraction successful
+' can test with 'if fl then...' upon return ('if not fl' seemed backwards)
+'	fl=0:if x>=y then x=x-y:fl=1:goto {:put_2_bytes}
+	fl=abs(x>=y):if fl then x=x-y:goto {:put_2_bytes}
+	return
+
+{:sub.dumber}
+' called with goto, *used to* fall through to advent
+	gosub {:sub.adj_stat}(5,-1):gosub {:msg.you_feel}("less intelligent")
+	return
+
+' redundant?
+{:misc}
+	if tr%=0 then {:carrier_dropped}
+	if i$="KILL.MON" then x1=0:mf=0:goto {:p.a2}
+	if i$="P.ATTACK" then goto {:p.attack}
+	if i$="ADVENT5" then gosub {:advent5}
+	goto {:advent}
+
+{:ally.remove}
+	i$="":x=0:if a1>0 then i$=d1$:x=h1:d1$="*":a1=0:h1=0:goto {:ally.sacrifice}
+	if a2>0 then i$=d2$:x=h2:d2$="*":a2=0:h2=0:goto {:ally.sacrifice}
+	if a3>0 then i$=d3$:x=h3:d3$="*":a3=0:h3=0
+
+{:ally.sacrifice}
+	if i$="" then return
+' check for elite ally (name ends in !)
+	wx$=i$:a=0:zt$="":i$="":if fn r(800)+200<vk then sys is,wx$,"!":if i% then {:2052}
+' otherwise, chickens out:
+	print wx$" sees you are about to die, and runs away!":zt$="EVIL"
+	gosub {:ally.free}:goto {:ally.remove}
+{:2052}
+	print wx$", seeing you are about to die, leaps in front to take the death blow!":goto {:ally.free}
+
+{:sub.scare}
+'if un=1 then print "[scare: vr="vr"]"
+	if fn r(10)<>5 or vu>1 then return
+	if vr<>31 and vr<>55 and vr<>37 then return ' todo: figure these out
+	sys is,wy$,":":if i% then return
+	sys is,wy$,".":if i% then return
+	print "The thundering noise of the "wr$"scares "m$" away!"
+	mw=0:md=2:ms=0:sys po:goto {:advent}
+
+' these routines may be better used elsewhere -- t.main?
+{:to.mixed}
+	print "(:to.mixed)":stop
+{:to.lower}
+' todo: optimize this
+	l0$="":for yy=1 to len(rz$):x=asc(mid$(rz$,yy,1)):if x>64 and x<91 then x=x+32
+	l0$=l0$+chr$(x):next:rz$=l0$
+	l0$="":y=0:for yy=1 to len(rz$):x=asc(mid$(rz$,yy,1))
+	if x=32 and len(l0$)=0 then {:tm.loop}
+	if len(l0$)=0 and x>96 and x<123 then l0$=chr$(x-32):goto {:tm.loop}
+' if x=32 then y=1:l0$=lo$+chr$(32):goto tm.loop
+' force uppercase after non-alpha character
+	if (x>64 and x<91) and (x>96 and x<123) then {:skip.conv}
+	y=l:l0$=l0$+chr$(x):goto {:tm.loop}
+{:skip.conv}
+	if y=1 and x>96 and x<123 then l0$=l0$+chr$(x-32):y=0:goto {:tm.loop}
+	l0$=l0$+chr$(x)
+{:tm.loop}
+	next:rz$=l0$:return
+
+{:lnk.main}
+	print "[lnk.main] back into the fray you go":goto {:advent}
+
+{:lnk.msc}
+	print "i$="i$:goto {:advent}
+
+{:start}
+	print "(:start)"
+
+' {:advent4} ' this label also in t.main
+'	if zs=999 then print m$" lost sight of you!":goto {:advent2}
+{:advent5}
+	gosub {:m.attack}:if vz=1 then vz=.:print "Surprise attack!":gosub {:m.attack}
+	if zq then {:198}
+	sys is,wy$,"]":if i% and fn r(10)<5 then print "Double attack!":gosub {:m.attack}
+{:198}
+	zs=.
+
+' {:advent2} ' this label also in t.main
+' fixme
+	di=.:fl=.:if it then:gosub {:msg.you_see}(it$) ':gosub 
+{:206}
+	if wp then:gosub {:msg.you_see}(wp$)
+{:210}
+	if fd then:gosub {:msg.you_see}(fd$)
+
+' is monster dead or mechanical?
+	if md=0 then {:label}' fixme {:label} -- no dead monster here
+	fl=1:gosub {:msg.you_see} ' ("item") -- "You see (a|some) "
+' has monster fled?
+	if md=2 then:gosub {:msg.you_see}(m$+" tracks"):goto {:label}
+	sys is,wy$,":": if i% then z$=i$+" wrecked "+m$
+	
+' has monster fled?
+	if md=2 then z$=m$:gosub {:sub.item_init}:print " tracks..."
+	
+' wa=weapon class readied
+' vn=rounds left
+' vm=?
+
+' {:advent3}
+	if i$=r$ then i$=dc$
+	dc$=i$
+	sys is,i$,"ATT":if i% then vq=0:goto {:p.attack}
+	sys is,i$,"LURK":if i% then vq=2:goto {:p.attack}
+	if i$="FLEE"or i$="RUN" then {:flee} ' todo: link to separate flee code
+	if i$="CAST" then {:lnk.msc3}
+	i$="ADVENT3":goto {:lnk.main}
+
+{:p.attack}
+	i$="":if zs=999 then zs=0
+	x1=0:if hp>9 then {:298}
+	gosub {:check.expert_mode}(0):if s=0 then sys br,"[+] HP DANGEROUSLY LOW [+]"+nl$:print " (FLEE might be wiser!)"
+' + HP DANGEROUSLY LOW + (FLEE might be wiser!)
+{:298}
+	if vq=2 then if a1+a2+a3=0 then print "No allies - no lurk!":vq=0:gosub {:sub.dumber}:goto {:advent}
+	if vq=0 and wr$="" then print "You must have a weapon readied.":gosub {:sub.dumber}:goto {:advent}
+	if wa=8 or wa=10 then gosub {:check.storm_weapon}:if i% then {:308}
+' original lines: if i%=0 and vn<1 and vq<>2 then {:306}
+' goto {:308}
+{:306}
+	if vn<1 and vq<>2 then vn=0:print "No ammo ready!"r$r$"(Try LURKing, if you have allies.)":gosub {:sub.dumber}
+	return
+
+{:308}
+	if wr$="" then wa=0
+	if mw=0 then print "No monster here!":gosub {:sub.dumber}:return
+	if vq<>2 then goto {:lurk.b}
+' knight
+	p2=2:gosub {:check.race}:if x=9 then p2=3
+	if hp>20 then p2=p2+1
+	if hp<10 then p2=p2-1:if hp<5 then p2=p2-1
+	zz$="":if wa=8 or wa=10 and vn<1 then zz$="*":p2=p2-1
+	sys is,wr$,"LIGHT":if i% then zz$="*"
+	if p2<1 then p2=0
+	if vk>p2 then vk=vk-p2
+' todo: how 'bout a name here, huh?
+	if wa<8 or zz$="*" then print "You lurk behind your allies.":zq=0:goto {:p.a1}
+	print "You fire over your ally's head...":zq=0
+
+{:lurk.b}
+	if vr<>55 then {:340}
+	print "[";:sys br,"[S]"+nl$:print "]ingle, ";:sys br,"[B]urst, [A]uto >> "+nl$:gosub {:sub.cursor_get}
+{:340}
+	if vn>0 then vn=vn-1:if an$="B" then vn=vn-4
+	if vn<1 then vn=0
+	if an$="a" then vm=vm+int(vn/3)+ma:vn=0
+	if wa=8 then zm=zm+1
+	ep=ep+1
+	zw$="CRACK!SWISH!SWISH!SWISH!SWISH!BLAM! FIZZLESIZZLESWISH!BRRRT!"
+	zx$="CRACK!SLASH!BASH! THUNK!STAB! BLAM! BOOOM!SIZZLECRASH!BRRRT!"
+	p2=3:if wa=2 then p2=ma-wa
+	if wa=3 and ma<6 then p2=7-ma
+	if wa=3 and ma>5 then p2=ma-3
+	if wa=5 and ma<6 then p2=ma
+	if wa=5 and ma>5 then p2=10-ma
+	if wa=8 or wa=10 then p2=wa-ma
+	p2=p2+zu+xp:if p2>7 then p2=7
+' check for evil monster:
+	gosub {:sub.check_evil}:if i%=0 then {:no.evil}
+' race=ogre or orc
+	b=2:gosub {:check.race}:if x=2 or x=8 then b=4
+	if x=3 or x=4 then b=1
+{:no.evil}
+' x=race, check for good monster:
+	gosub {:sub.check_good}:if i% then {:no.good}
+' race=ogre or orc:
+	gosub {:check.race}:if x=2 or x=8 then b=1
+	if x=3 or x=4 then b=4
+{:no.good}
+' race=knight
+	gosub {:check.race}:if x=9 then b=b+2
+	if zs<>997 and zq<0 then {:394}
+	print "Surprise attack! ";:zq=0:zs=997:p2=p2+2:if vk>b then vk=vk-b
+{:394}
+	if p2<3 then print "(Bad weapon choice)":if p2<2 then p2=1
+	print "Attack with "wr$:b=fn r(wd*100):b=int(b/100)+2
+' monster doesn't need a special weapon:
+	if sw$="" then {:p.a0}
+	gosub {:check.storm_weapon}:if i% or vq=2 then {:p.a6}
+	print "Fire flashes from the "wr$"!":ms=0
+	if hp<5 then {:p.a2}
+' todo: check if gauntlet carried, not just worn
+' got gauntlets?
+	gosub {:bit.test}(v2+228,7):if s then {:410}
+	print "The backflash burns your hands! (-4 HP)":gosub {:adj_hp}(1,-4):goto {:p.a2}
+{:410}
+	gosub {:sub.gauntlet}:goto {:p.a2}
+
+{:p.a6}
+	if wr$<>sw$ then print "The "wr$" seems ineffective against "m$"!":goto {:advent}
+	p2=10
+
+{:p.a0}
+	zy$="":if an$="B" then zy$="BRRRRRT "' todo: streamline an$=... into i%?
+	if an$="A" then zy$="BBBRRRRRTTT "
+	a=fn r(10):if vq=0 and a>ws+2 then print "(Ease of use helps!)":goto {:p.a5}
+	if a<p2-vq then {:434}
+	print zy$mid$(zw$,vr*6-5,6)" - missed":gosub {:sub.scare}:goto {:p.a1}
+{:434}
+' todo: check if more code here
+{:p.a5}
+	b=int(b*ws/10):b=(b+zv)-1:if zs=997 then b=b+3
+	if wa=8 or wa=10 then b=b+vm:if an$="B" then b=b+2
+	b=b-vq:z=0:if vq=0 then gosub {:check.class}:if x<>8 then {:446}
+	if fn r(10)=10 then sys br,"Assassin: [Critical hit!]"+r$+nl$:b=b*2
+{:446}
+	if wr$<>"EXCALIBUR" then {:452}
+	gosub {:sub.check_evil}:if i% then print wr$" screams in rage!":b=b*2:goto {:452}
+	gosub {:sub.check_good}:if i% then print wr$" seems reluctant...":b=int(b/2)
+{:452}
+	if b>10 then b=int((b*4)/5)
+' wraith king
+	if mw<>70 and wr$<>"WRAITH DAGGER" then {:458}
+	sys br,"Power [explodes] from the "wr$"!"+r$+nl$:b=b+40
+{:458}
+	if sw$<>"" then b=b+2
+	print zy$mid$(zx$,vr,6)" - "m$" HIT! [";
+' always check repeated chars before single chars like ;; << ++
+	sys is,wy$,";;":if i% then print "=[HEAVY ARMOR]=]":z=1
+	if wa<10 then b=b-(xp*2)
+	sys is,wy$,";":if i%=0 then print:goto {:no.arm}
+	print "LIGHT ARMOR]":z=0
+	if z=1 then b=(b-2)*xp
+
+	gosub {:check.storm_weapon}:x=i%:sys is,wr$,"CANNON":if x or i% or wa=2 then b=b+xp
+
+{:no.arm}
+' vr=43 only if weapon has "7" as 3rd char in item name (indicates heat damage)
+	if vr<>43 then sys is,wr$,"FIREBALL":if i%=0 then {:490}
+	z=fn r(10):if z<>5 then {:486}
+	z=int(z/2)*xp+1:print r$"Secondary heat damage to "m$" (+"z")!";:b=b+z
+{:486}
+	if b<1 then b=0
+	if b=0 then print "No damage!":goto {:FIXME}
+{:490}
+	gosub {:msg.take}:print b"damage."
+' increase dexterity
+	if b>4 then if peek(v1+88)<15 and fn r(10)>6 then {:496}
+	gosub {:sub.adj_stat}(3,1):pr=1:gosub {:msg.you_feel}("more dextrous")
+{:496}
+' ms=monster strength
+	ms=ms-b:if ms<1 then goto {:p.a2}
+	gosub {:sub.scare}
+
+{:p.a1}
+	x1=0:b=0:z=fn r(3):if z=0 then z=3
+	if vu<4 then z=vy
+
+{:p.a1a}
+	if z=1 then if a1 then x1$=d1$:x1=h1:b=a1
+	if z=2 then if a2 then x1$=d2$:x1=h2:b=a2
+	if z=3 then if a3 then x1$=d3$:x1=h3:b=a3
+	if vq=2 and b=0 then z=z+1:if z>3 then z=1
+	if vq=2 and b=0 then {:p.a1a}
+	if b=0 then {:advent}
+' ! in ally name=elite ally
+	a=0:sys is,x1$,"!":if i% then a=2
+	print r$x1$" ATTACKS "m$" - ";
+	z=fn r(10)-a
+{ifdef:debug}
+	print fn cl(0)"z="z:gosub {:sub.pause}
+{endif}
+	if z<4 then print "Missed":goto {:advent}
+	b=int((a+b)/2):if b>1 then b=fn r(b)+1
+	if b>8 then b=8
+	b=b+int(xp/2)+a:i$=""
+	sys is,wy$,";;":if i% then print "[=[HEAVY ARMOR]=] ";:b=int((b*2)/3):goto {:540}
+	sys is,wy$,";":if i% then print "[LIGHT ARMOR] ";:b=int((b*2)/3)
+{:540}c
+	ms=ms-b:print "HIT!";:if b=0 then print "NO DAMAGE!":goto {:FIXME}
+	gosub {:msg.take}:print b"damage!":if ms>0 then {:advent}
+
+{:p.a2}
+	print m$" ";:sys is,wy$,":":if i% then print "is no longer functional!":goto {:p.a2.2}
+	print "ha";:if mm then print "ve";:goto {:p.a2.1}
+	print "s";
+{:p.a2.1}
+	print " been killed!"
+{:p.a2.2}
+	md=1:if x1 then {:p.a3}
+' increase wisdom:
+	if peek(v1+92)<12 then:gosub {:sub.adj_stat}(7,1):gosub {:msg.you_feel}("wiser")
+' increase # of monsters killed:
+	gosub {:adj_3_bytes}(v1+137,1):gosub {:check.storm_weapon}:if i% then print wr$" screams in glee!"
+' mf<>0 = monster following; < means undead monster:
+	if mf then sys is,wy$,"<":if i% then {:p.a3}
+' FIXME: add to dead monsters list:
+	x$=right$("000"+mid$(str$(mw),2),3)
+	if xm<15 then xm=xm+1:xm$=xm$+x$+","
+	xm$=mid$(xm$,5)+x$
+
+{:p.a3}
+' fixme...
+	i$="P.A3":goto {:lnk.msc}
+
+{:sub.gauntlet}
+' todo: add check for carried
+' worn?
+	m=v2+228:b=7:gosub {:bit.test}:if s=0 then z=0:return
+	print "The gauntlets take a hit...";:z=fn r(1)
+' is this correct? returns 0/1?
+	if z=1 then print " they are DESTROYED!";:zt=5
+	print:return
+
+{:m.attack}
+' vu=round
+	vu=vu+1:if vu>1 then {:610}
+	if vn>0 and vz<>1 and zs<>999 then sys is,wr$,"LIGHT":if i%=0 and zq then {:600}
+	print "Missile: first strike!":return
+{:600}
+	if wa<>5 then {:610}
+' todo: print weapon name instead of "Pole weapon"
+' peek(v1+88)=dex
+	print "Pole weapon: ";:if fn r(10)+(ma*3)+2<peek(v1+88) then print "You manage to";:goto {:608}
+	print "Oops, didn't";
+{:608}
+	print " get first strike!":return
+{:610}
+' todo: which monster is this?
+	 if mw=120 then print r$m$" waits patiently...":return
+'	i$="S ":zz$="is":if mm then i$=" ":zz$="are"
+	if zq>0 then print:print m$" stand";:gosub {:msg.multi}(m$):print " around...":return
+	if zs=997 then print r$m$" ";:gosub {:msg.is_are}(m$):print " furious!"
+	if mw>64 and mw<68 then sys is,m$,"GUARDS":if i%=. then {:cast.multi}
+' mad guards - where does this ever happen?
+	z=fn r(10):z=int(z/3)+2:ms=ms+int(ms/2)*z:m$="THE"+str$(z+1)+"GUARDS"
+' what does wy$ set?
+	wy$="{pipe}<]>":print r$"The guard blows on a whistle, and"z;
+	print "more guards come running! They are not ";
+	print "amused by your treachery either..."
+
+' cast multiple spells
+{:cast.multi}
+	sys is,wy$,"++":if i% and fn r(10)>6 then {:mon.cst}
+' cast single spell
+	z=fn r(10):sys is,wy$,"+":if i% and ms<z+3 or z>8 then {:mon.cst}
+' turn to stone
+	sys is,wy$,"#":if i%=0 or z>2 then {:medusa}
+	print r$m$" casts "q$"turn to stone"q$" on you!";
+' pina added check for CRYSTAL PENDANT!
+	gosub {:sub.item_held}(82):if i% then print " ...but you have a CRYSTAL PENDANT!":goto {:medusa}
+	if fn r(10)>1 then print " ...it failed!":return
+	
+' todo: carve statue? is that done in dead module?
+	print:gosub {:msg.delay}("Argghh!! You are turned to stone!",30)
+	z=6:goto {:dead}
+' todo: have screen text fade out slowly? have seen that done before
+	
+{:medusa}
+	print:print m$" attack";:gosub {:msg.multi}(m$):x=1:a=fn r(10):if a>4 then a=1
+	print " "a$(0)" with ";:d=1:if vu<3 then a=vy+1
+' todo: how about picking on someone other than the main character?
+	sys is,wy$,"-":if i%=. then {:no.fire}
+	z=fn r(10):a=2:if lv%>5 then print "laser ";:a=5
+	print "fire!":if z>a then {:no.fire}
+	z=0:sys is,wy$,";;":if i% then print "its plasma cannon! ]=======[]":z=4
+	a=(fn r(50)/10)+5+z
+	if lv%>5 then sys is,ys$,"LAZ.SH":if i% then print "[ The laser shield flashes! ]":a=int(a/2)
+	goto {:dragon}
+
+{:no.fire}
+	if vq=2 then a=fn r(3)+2:if a>4 then a=2
+
+{:lurk.a}
+' fixme: a1-3 are ally hp, could be streamlined
+	if a=2 and a1>0 then print a$(1);:d=2
+	if a=3 and a2>0 then print a$(2);:d=3
+	if a=4 and a3>0 then print a$(3);:d=4
+	if vq<>2 and d<>1 then {:680}
+	a=a+1:if a>4 then a=2
+	goto {:lurk.a}
+{:680}
+	if d<>1 then {:688}
+' player race=size
+	z=val(mid$("996877889",peek(v2+185)+1,1)):z=int(((z+ma)/2)+3)
+	if fn r(10)>z then print r$r$m$" misses over your head!":return
+' race=ranger:
+	if peek(v1+68)=5 and fn r(10)=5 then print r$r$"You dodged the blow!":return
+{:688}
+' zo=carrying capacity
+	p1=int((ma+zo-1)/2):if zs=997 then p1=p1+2
+	if p1<3 then p1=3
+	if p1>8 then p1=8
+	if fn r(10)>p1 then print " - MISSES!":return
+	print " - HIT!"
+' sh=shield remaining:
+	sh=peek(v2+36)
+	a=fn r(10):z=fn r(10):a=a+z:z=fn r(10):z=int((a+z)/3):if d<>1 then {:m.a1}
+	a=a+(8-ma):if zs=997 then a=a+int(112-ma)/2)
+	sys is,wy$,".":if i% then a=a+fn r(5)
+	yz=2+xp:if yz>8 then yz=8
+	z=fn r(10):if z<yz then gosub {:sub.gauntlet}:if z>0 then a=a-1:print "-1 HIT"
+' wizard glow:
+	gosub {:check.class}:if x=1 then if peek(v2+229) then sys br,"[Wizard's Glow flashes!]"+r$+nl$:a=a-2
+	if sh<1 then print "(A shield might have helped!)":goto {:m.att.1}
+	z=fn r(10):gosub {:check.bc}:if i% then z=z-2
+
+	print "[";:if ma>6 then print "little bugger";:gosub {:msg.multi}(m$):z=z+ma-6
+	if ma<4 then then z=z-(4-ma)
+	if z>yz then print " got past your shield]":goto {:m.att.1}
+	if ma=2 then print "[CRUNCH!!] ";
+	if ma=3 then print "[THUD] ";
+	if ma=4 then print "[WHAP] ";
+	z=int(2+(sh/25)+fn r(3)):if peek(v1+68)=3 then z=z+2:print "Paladin ";
+	if z>a then z=a
+	yz=1+fn r(10-ma):if i% then yz=yz-1
+	sh=sh-yz:a=a-z:print "Shield ";
+' fixme: just one point? really?! v make it random(10) * experience?
+	gosub {:check.bc}:if i% then z=z+1:print "training ";
+	print "blocks"z"damage. ";
+	z=0:if ma<6 then z=7-ma:if i% then z=z-1
+	z=z*2:if fn r(60)<z then print "...It's torn from your hands and smashed!";:sh=0
+' todo: keep in inventory, can be fixed
+	if sh<0 then sh=0
+	poke v2+36,sh:if sh then print " ("sh"% left)"
+	if a<1 then a=0:goto {:no.armor}
+
+{:m.att.1}
+' armor left:
+	ar=peek(v1+76)
+	yy=0:if ar<1 then print "(Armor might have helped!)":goto {:no.armor}
+	z=2+int(ar/10):p1=2+fn r(z):p2=1+int(ar/20)+fn r(3):if p2>a then p2=a
+	z=fn r(10):if ma<5 then z=z-(5-ma):print "[";
+	if ma>6 then z=z+(ma-6):print "The litle creep";:gosub {:msg.multi}(m$)
+	if z>p1 then print " missed your armor]":goto {:no.armor}
+	if ma=2 then print "[THUD!] ";
+	if ma=3 then print "[UFFF] ";
+	ar=ar-yz:a=a-p2:yy=1:if p2=0 then {:772}
+' considering replacing 'p2' with 'a lot' 'some' 'a little' 'barely any'
+' unless have some scroll of seeing or something to give actual #s...
+' (is a pet peeve of mine)... but for now...
+	print "Armor blocks"p2"hits!";
+	if fn r(100)<yz*2 then print " It's partly ripped off!";:ar=ar-50
+' keep in inventory, can be fixed
+	if ar<0 then ar=0
+{:772}
+	poke v1+76,ar:if ar then print " ("ar"% left)"
+
+{:no.armor}
+	if sh<=0 and hs then print r$"Your shield";:gosub {:msg.destroyed}:hs=0
+' what are hs and ra other than sh and ar reversed?
+	if ar<=0 and ra then print r$"Your armor";:gosub {:msg.destroyed}:ra=0
+' druid health
+	if peek(v1+68)<>2 then {:790}
+' is a set prior to this? it's not explicitly 0
+	sys is,wy$,".":if i% then a=a+int(fn r(xp+1)/3)
+	if a<1 then return
+	if fn r(10)<>5 and hp+a<30 then {:790}
+	print "Yo! You regenerate"a"hit point";:if a>1 then print "s";
+	print "!":hp=hp+a:goto {:druid}
+{:790}
+' * 100 / 100... modulo math?
+	b=a:a=fn r(a*100):a=int(a/100)+1:b=b-a:b=int(b/2)
+	if ps>b and b>0 then ps=ps-b:pr=0:x$="more fatigued":gosub {:msg.you_feel}
+
+{:dragon}
+' you got allies left?
+	if a>hp-1 and a1+a2+a3>0 then {:ally.remove}
+	if a=0 then {:druid}
+	hp=hp-a:print r$"You take"a"damage.":gosub {:check.dead}
+	sys is,wy$,"*":if i%=0 then {:806}
+	if fn r(10)<3 then print "Argh! You have been poisoned!":m=v1+65:b=5:gosub {:bit.set}
+{:806}
+	z=fn r(10):if z>3 then sys is,wy$,"@":if i%=. then {:810}
+	print "Yuck! You have become diseased!":m=v1+65:b=7:gosub {:bit.set}
+{:810}
+' xp: experience level  "level xp (1,2,3...) character"
+' ep: experience points (reset each experience level increase)
+	if fn r(10)>3 then sys is,wy$,"@":if i%=. and ep<xp*13 then {:816}
+	print "Arrrrgggghhhh! "m$"'S bite drains you!":ep=ep-(xp*13)
+	print "(You lose"xp*13"experience points.)"
+{:816}
+	if hp<1 then z=4' z=dead flag
+	if a>4 and pd>0 then pd=pd-1:x$="less dextrous":gosub {:msg.you_feel}
+
+{:druid}
+	if cp=1 then a=fn r(100):if a<54 and a>60 then {:828}
+	print "[Compass damaged]":cp=0
+' fixme: is this all the code? cp needs to be changed to a bit
+{:828}
+' str, remove weapon
+	if peek(v1+91)<4 then wr$="":print "You are too weak to wield your weapon!"
+	return
+
+{:m.a1}
+' ally/ies desert you:
+	if d=2 then i$=d1$
+	if d=3 then i$=d2$
+	if d=4 then i$=d3$
+	if i$="*" then return
+	a=a-1:zt$=i$+" throws down all weapons and runs away!"
+	z=fn r(10)-1:if vk<800 then z=z-1:if vk<400 then z=z+1
+	if vk>1200 then z=z-1:if vk>1600 then z=z-1
+	z<1 then z=0
+	sys is,i$,"!":if i% then print "[LIGHT ARMOR] ";:a=a-2:z=0
+	if a>0 then i$=i$+" takes"+str$(a)+"damage"
+	if a<1 then i$="NO DAMAGE!
+' fixme:
+	on d goto,,860,866,872
+	if a1>0 then wx$=d1$:print i$:a1=a1-a
+	if a1<1 then print d1$"is dead.":d1$="*":a1=0:x=h1:h1=0:goto {:ally.free}
+	if z>a1 then print zt$:zt$="RUN":d1$="*":a1=0:x=h1:h1=0
+	if a2>0 then wx$=d2$:print i$:a2=a2-a
+	if a2<1 then print d2$"is dead.":d2$="*":a2=0:x=h2:h2=0:goto {:ally.free}
+	if z>a2 then print zt$:zt$="RUN":d2$="*":a2=0:x=h2:h2=0
+	if a3>0 then wx$=d3$:print i$:a3=a3-a
+	if a3<1 then print d3$"is dead.":d3$="*":a3=0:x=h3:h3=0:goto {:ally.free}
+	if z>a3 then print zt$:zt$="RUN":d3$="*":a3=0:x=h3:h3=0
+	if zt$="RUN" then {:ally.free}
+	return
+
+{:flee}
+	print "(:flee)":stop
+	
+{:dead}
+' remove all player's HP:
+	gosub {:adj.hp}(1,0):xn=sn:sn=0:gosub {:link.module}("misc6","dead2")
+
+{:ally.free}
+	print r$"(Writing in news log...)"
+' clear (a)lly (i)nventory:
+	if a1+a2+a3<1 then ai=0:ai$=""
+' log here:
+	dy$="Sniff":if i$=wx$ then dy$="Sacrifice"
+	if zt$="RUN" or zt$="EVIL" then dy$="Morale failure"
+	gosub {:sub.log_event.init}(dy$)
+' todo: fixme: get date/time from server, also date format probably won't include seconds
+	{:sub.log_event.init} ' ("init_msg"
+' below will be in {:sub.log_event.init}
+' "MM/DD/YYYY xx:xx xM - "+dy$
+	
+	gosub {:sub.log_event}(wx$+", died fighting "+m$+",")
+	if zt$="RUN" then:gosub {:sub.log_event}(wx$+" fled after a hit from "+m$+".")
+	if zt$="EVIL" then:gosub {:sub.log_event}(wx$+", seeing "+a$(0)+" in trouble, ran away!"
+' otherwise, ally sacrificed themselves:
+	gosub {:sub.log_event}("While in service to "+a$(0))
+	if i$=wx$ then:gosub {:sub.log_event}("to save the life of "+a$(0)+"!")
+' write fancy line, close log:
+	gosub {:sub.log_event.done}
+
+	vq=0:zt$="":if x=0 then return
+' todo: rewrite ally file here
+	return
+
+' unfinished routines:
+{:carrier_dropped}
+	print "(:carrier{underline}dropped)":stop
+
+{:lnk.msc3}
+	print "(:lnk.msc3)":stop
+
+{:lnk.misc6}
+	print "(:lnk.msc6)":stop
+
+{:mon.cst}
+	print "(:mon.cst)":stop
+
+{number:999}
+	rem t.combat
+
+{ifdef:standalone}
+' routines in t.main:
+{number:2000}
+{:advent}
+	print "(:advent)":end
+
+{:check.dead}
+	print "(:check.dead)":return
+
+{:parser}
+	print "(:parser)":goto {:advent}
+
+' {:sub.get_hp}
+'	def x:gosub {:put_2_bytes}(v2+216,x):return
+	
+' {:sub.adj_hp} ' (character: 1-5,adjustment)
+' from get-labels. todo: update call there to here
+' y = hp to +/-
+' subtract up to y hit points from main character
+'	gosub {:get_2_bytes}(v1+216):if x<y then y=x ' drain max hp
+'	gosub {:put_2_bytes}(v1+216,x-y):pr=1:x$="weaker":gosub {:msg.you_feel}
+' successful: print msg -- 'if not s' <> 'if s=0' [if s (assumed <>0)]
+' 'if s=-1' == 'if not s'
+' 'if s'    == 'if s<>.'
+' pop gosub off stack, z=death reason, link to different module
+'	if x<1 then sys po:gosub {:link.module}("dead","")
+'	return
+
+{:sub.check_good}
+	sys is,wy$,"G":return
+
+{:sub.check_evil}
+	sys is,wy$,"E":return
+
+' {:check.storm_weapon}
+'	sys is,wr$,"STORM":return
+
+{:check.time}
+' fixme - time remaining to play today, or from server?
+	print "(:check.time)":return
+
+{endif}

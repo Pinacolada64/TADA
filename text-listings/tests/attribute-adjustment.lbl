@@ -1,0 +1,122 @@
+{def:debug}
+{def:modbasic}
+{crunch:on}
+{number:1}
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+
+	poke 53280,12:poke 53281,12
+	print "{gray3}{$08}{$0e}{clear}";
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	sys 49152
+' variables now cleared
+	f$="ml c500":gosub {:sub.bload}
+
+' new, 6/Aug/2017 9:40
+	gosub {:sub.header_line}("Test Attribute Adjustment")
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+
+	goto {:setup}
+
+{nice:10}
+{:sub.bload}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+
+{nice:100}
+{:setup}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+	
+' calculate bottom of BASIC (STREND), for a storage buffer after BASIC text:
+	v1=peek(46)*b1+peek(45)
+' set up some test values (10 ... 80):
+	for x=1 to 8:poke v1+85+x,x*10:next
+	
+{nice:100}
+{:menu}
+' new idea: use letters instead of numbers, more mnemonic-like:
+	print
+	print "V. View values"
+	print "E. Edit values"
+	print "Q. Quit"
+' lowercase the input:
+	print:input "Which";an$:an$=chr$(asc(an$) and 127)
+	if an$="v" then {:test_view}
+	if an$="e" then {:test_edit}
+	if an$="q" then {:1811}
+	print "Bad choice.":print:goto {:menu}
+
+{:test_view}
+	print "Unfinished.":goto {:menu}
+
+{:test_edit}
+	print
+	print "1. Attribute  1:"peek(v1+86)tab(34)"(-10)"
+	print "2. Attribute 11:"peek(v1+87)tab(34)"(Err)"
+	
+	print:input "Which";an$:an=val(an$)
+	if an=1 then:gosub {:sub.adj_stat}( 1,-10):goto {:status}
+	if an=2 then:gosub {:sub.adj_stat}(11,-10):goto {:status}
+
+	goto {:menu}
+
+{:status}
+	if s=0 then print "Failed."
+	if s then print "Succeeded."
+
+	goto {:test_edit}
+		
+{number:1811}
+{:1811}
+	print "Shutting down modBASIC.":sys 49155:end
+
+{nice:100}
+{:sub.header_line} ' (<string>)
+' new: 6/Aug/2017 10:17
+' print <string>, newline, "-" for length of <string>
+	fn m$
+	print m$:print left$("{midline:40}",len(m$)):print:return
+
+{nice:100}
+{:sub.log_error}
+' dummy function
+	fn el$,cm$,er$
+	sys is,"IWE",el$:print "{white}["+mid$("{white}----{lt. green}Info{lt. red}Warn{red}Err ",(i%+1)*5-4,5)+"{white}]  "er$
+	return
+	
+' --- stat adjustments ---
+{nice:100}
+{:sub.adj_stat} ' (statistic, adjustment)
+' adjust statistic for main character:
+' todo: class/race-specific limits, multiple characters
+' v1+86	8	Attributes [1-18 or 1-25, depending on character class]
+' 		[Attribute # for {:sub.adj_stat}(x) are in square brackets]
+' 		(Spur variable names are in parentheses)
+' 			[1] 86=Charisma                [5] 90=Intelligence (PI)
+' 			[2] 87=Constitution	(PT)   [6] 91=Strength     (PS)
+' 			[3] 88=Dexterity	(PD)   [7] 92=Wisdom       (PW)
+' 			[4] 89=Ego (may remove)        [8] 93=Energy       (PE)
+	fn s1,a ' statistic, adjustment
+	def m	' mem_loc
+' if out of range, log, plus set s=0 to indicate failure
+	s=0:if s1<1 or s1>8 or a<-255 or a>255 then:gosub {:sub.log_error}("E", "t.main", "(:sub.adj{underline}stat): stat #"+str$(s1)+" adj"+str$(a)+"out of range"):return
+' get memory location of adjustment:
+	m=v1+85+s1:s=0
+' return s=0: stat adjustment not possible (not enough attribute points)
+' return s=1: stat adjustment succeeded
+{ifdef:debug}
+	print " in:"m"="peek(m),"adj="a
+{endif}
+' if - adjustment, check that subtracting a is >0:
+	if a<0 then if peek(m)+a > -1 then s=1
+' if + adjustment, check if adding a will <b1 (256):
+	if a>0 then if peek(m)+a < b1 then s=1
+' succeeded:
+	if s then poke m,peek(m)+a
+' todo: check for expert mode, announce stat adjustment
+{ifdef:debug}
+	print "out:"m"="peek(m),"status:"s
+{endif}
+	return

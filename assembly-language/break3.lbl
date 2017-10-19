@@ -1,0 +1,82 @@
+orig $cf00
+
+{asm}
+
+; break3.lbl
+; assemble with casm 4.0 beta
+
+setup:
+	lda #<brk1
+	sta $316
+	lda #>brk1
+	sta $317
+	rts
+;
+brk1:
+	ldx #5
+	lda #27
+	sta $d011
+brk2:
+	pla
+	sta brkbuf,x
+	dex
+	bpl brk2
+	tsx
+	stx brkbuf+6
+	lda 0
+	sta brkbuf+7
+	lda 1
+	sta brkbuf+8
+	lda $df02
+	sta brkbuf+9
+	sec
+	lda brkbuf+1
+	sbc #2
+	sta brkbuf+1
+	bcs brk2a
+	dec brkbuf
+brk2a:
+	ldx #0
+	ldy #0
+brk3:
+	lda brkbuf,x
+	jsr hex
+	inx
+	cpx #10
+	bne brk3
+	lda #$3a
+	jsr hex2
+brk4:
+	pla
+	jsr hex
+brk5:
+	tsx
+	cpx #$ff
+	bne brk4
+
+	; .byte $02
+	rts
+	
+hex:
+	pha
+	lsr
+	lsr
+	lsr
+	lsr
+	jsr hex1
+	pla
+hex1:
+	and #$0f
+	ora #$30
+	cmp #$3a
+	bcc hex2
+	adc #$06
+hex2:
+	sta $0400,y
+	lda #1
+	sta $d800,y
+	iny
+	rts
+
+brkbuf = *
+{endasm}

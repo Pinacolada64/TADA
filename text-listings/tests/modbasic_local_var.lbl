@@ -1,0 +1,27 @@
+{number:1}
+	if lf=0 then lf=1: d=peek(186): load"lv.c000",d,1
+{number:5}
+' initialize modbasic:
+	sys 49152
+{nice:100}
+{step:10}
+	for i=1 to 5
+	print "global:"i,
+	gosub {:local_var}
+	next
+' shut down modbasic:
+	sys 49155:end
+{nice:100}
+{step:10}
+{:local_var}
+	def i ' this defines a local variable i, separate from the global one
+	for i=1 to 999:next:print "local:"i
+	return
+
+' sample run:
+
+' global: 1           local: 1000
+' global: 2           local: 1000
+' global: 3           local: 1000
+' global: 4           local: 1000
+' global: 5           local: 1000

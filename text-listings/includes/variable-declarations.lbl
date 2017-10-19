@@ -1,0 +1,37 @@
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+
+' force strings to become dynamic (not stored in BASIC program which gets overwritten)
+
+' i% (which holds instring character position result) is not created by instring routine
+	i%=0
+
+' input any, instring routine addresses
+' (now at $c500 to reserve space for modbasic 1.1)
+
+'	jmp instring	sys is,<search_through>,<search_for>
+'	jmp inputany	sys ia,<channel_num>,<num_bytes>,<cr_flag>
+'	jmp module64	sys ml,"0:<module_name>"
+'	jmp bracketxt	sys br,"this [highlights] text"+r$+nl$ (null-delimited string)
+'	jmp popstack	sys ps
+
+' InString, InputAny, ModuleLoad, BRacketxt, PopStack:
+	is=50432:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
+
+' if using SlidingInput, define that ($9900):
+{ifdef:sliding_input}
+	si=39168
+{endif}
+
+' drive prefix, could change if multiple drives are used on commodoreserver
+' open logical_file_num,device[,secondary_address],dr$+"filename[,filetype,mode]"
+	dr$="0"+":"
+
+' "Return/Enter" (depending on system accessing game), null, quote, return:
+	k$="Return"+"":nl$=chr$(.)+"":q$=chr$(34)+"":r$=chr$(13)+""
+
+' current device:
+	dv=peek(186):if dv<8 then dv=8
+
+' 8, 16, 24-bit values (1 byte, 2 bytes, 3 bytes):
+' 256  65,536  16,777,216
+	b1=256:b2=b1*b1:b3=b2*b1

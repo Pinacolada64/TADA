@@ -1,0 +1,132 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.ma.wizard
+	goto {:start}
+
+{nice:10}
+{:sub.check_class}
+	c=peek(v1+68):return
+
+{:fixme}
+	print "(:fixme)":return
+
+{:wiz2}
+	print "(:wiz2)":return
+
+{:SUB.GET_SPELL_DATA}	
+	print "(:SUB.GET{underline}SPELL{underline}DATA)":return
+
+{:sub.spell_name}
+' Based on {:sub.item_init}.
+' There can be |* or |@ flags after spell name, don't print those
+
+	l=len(a$):sys is,a$,"{pipe}":if i% then l=i%-1
+	s$=left$(a$,l):print s$;:return
+	
+{nice:100}
+{:start}
+{ifdef:standalone}
+	def fn r(x)=int(rnd(1)*x)+1
+	dv=peek(186):if dv<8 then dv=8
+	a$(.)="STINGRAY":k$="RETURN":r$=chr$(13):open 15,dv,15
+	l$=" {$c0:38}"
+
+' old code:
+' mi = max in inventory
+' cl = class?
+' at(4-7) not sure
+' lv=xp level?
+
+	print "You step into the Wizard's cave. A hollow, disembodied voice announces: "q$;:gosub {:sub.check_class}:if c>2 then {:check.spells}
+	print "Psst! Fellow ";
+	if c=1 then print "Wizard";
+	if c=2 then print "Druid";
+	print "! All spells are ";
+	if c=1 then print "half";
+	if c=2 then print "two-thirds";
+	print " price!"q$:print
+
+{:check.spells}
+' check if spell inventory is full before going through buying spells:
+	if c>3 then {:next}
+	if c<3 then print q$"Non-Adepts may only learn six spells."q$:goto {:999}
+
+' spur code:
+'	if xs>5 then if pc>2 print "Sorry, Non - Adepts can only learn  six spells..'\:goto main1
+' if xs=10 print'I am sorry but ye have already  learned ten spells.'\:goto main1
+
+{:next}
+	gosub {:file.open}("e.t.spells"):if e then {:999}
+	gosub {:record_pointer}(1):input# 2,mx
+{:611}
+	print l$:gosub {:msg.spacebar_aborts}
+
+' display:
+' ##. - Spell Name      Gold        % cast
+'                       xxx,xx9,999 
+	for y=1 to mx:x%=y:gosub {:record_pointer}(y+1)
+' get spell name:
+	input# 2,a$:gosub {:fixme}
+
+' toss point determinator and... 	
+	input#2,a$
+' ...calculate price:
+	input#2,a$:p=val(a$)
+	gosub {:check.race}(1):if s=1 then p=p/2 ' wizard
+	if s=2 then p=p*(2/3) ' druid
+
+	gosub {:msg.comma_value}(p,1):print
+
+	gosub {:sub.check_abort}:if q then y=mx
+	next:print l$
+{:menu}
+	h=mx:gosub {:905}:if an=. then print q$"Return when you are ready."q$:goto {:999}
+
+	x=an+1:gosub {:sub.get_spell_data}:
+
+	if cl=1 then p=p/2
+	if cl=2 then p=p*.75
+
+	if an=18 and c<>2 then print s$" is only for Druids.":goto {:menu}
+	if an=19 and c<>1 then print s$" is only for Wizards.":goto {:menu}
+
+' can character 1 afford spell?
+	gosub {:sub.check_gold}(1,p):if s=. then print "<fixme>":goto {:999}
+{:630}
+	print "Teaching "s$"...";
+
+	gosub {:check.race}(1):if s<3 then print "{down} ** Autolearn **{down}":goto {:640}
+	if pi<10 then print "Thy intelligence may hinder thee from learning this spell."
+
+	b=0:if r=2 or r=7 or r=8 then b=3
+' zz$=rnd$:a=random(25):a=a+5+b
+	if a>peek(v1+90) then if fn r(10)<3 print "After much study...":goto {:wiz4}
+	if a>peek(v1+90) then print q$"Alas! My efforts to teach thee were in vain, maybe if thee were smarter.."q$
+' v1+90=int
+	if b>0 then if a>peek(v1+90) print q$"Your kind never did make good wizards,"q$" the voice sniffs..."
+	if a>peek(v1+90) then {:wiz2}
+{:wiz4}
+	print " "q$"Spell taught. Use "s$" wisely, for it can only be used {off}"; 
+	sys br,"[once]!"+q$+r$+nl$
+
+{:640}
+' add spell to inventory:
+
+' todo: # of charges if applicable (not in original game)
+'	a wand of confusion would be cool
+
+' old:	y$=right$("0"+mid$(str$(an),2),2)
+' old:	sp$="0"+sp$:sp$=left$(sp$,j)+y$+mid$(sp$,j+3):sp$=mid$(sp$,2):y$=""
+
+{:905}
+	' menu input
+	print " [";:gosub {:sub.display_gold}(1,0):print " gold] Buy which (1-"mid$(str$(h),2)")";
+	an$="":sys si,2,3,an$:if an$="" then {:999}
+	gosub {:string.normalize}(an$):on -(an<1 or an>h) goto {:905}:return
+{number:998}
+{:999}
+	close 2:close 15:goto {:link.shoppe}
+{number:999}
+	rem (c) 1995-2014 pinacolada

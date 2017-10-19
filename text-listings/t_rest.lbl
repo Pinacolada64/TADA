@@ -1,0 +1,49 @@
+' TODO: if player has allies, improve their stats too
+
+' 2014/01/17: created more labels in place of hard-coded line #s
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	REM T.REST
+	' 3/12/10, 6/5/2013
+	goto {:start}
+
+{:5}
+	for x=1 to 3000:next:return
+{:7}
+	for x=1 to 600:next:return
+
+{nice:100}
+{:start}
+' monster here:
+	if mw then print m$" won't let you!":goto {:advent} ' 2000
+	print "You rest a bit... ";:gosub {:5}
+	gosub {:msg.delay}("Y-A-W-N...",30)
+' check xp, = to if hp < xp + 25 then hp=hp+4:
+	gosub {:get_3_bytes}(v1+127):if x>fn d2(216)+25 then {:125}
+' increase hp:
+	gosub {:sub.get_hp}(1):if x<5 then:gosub {:sub.adj_hp}(1,x+5):if s then:gosub {:msg.expert_mode}("You feel revitalized  (HP  +5)")
+{:125}
+' increase strength:
+	if peek(v1+86)<20 then:gosub {:sub.adj_stat}(6,4):if s then:gosub {:msg.expert_mode}("Some strength returns (Str +4)")
+{:135}
+' increase energy
+	if peek(v1+93)<15 then:gosub {:sub.adj_stat}(8,4):if s then:gosub {:msg.expert_mode}("Some energy returns   (Egy +4)")
+{:145}
+' increase con
+	if peek(v1+87)<20 then:gosub {:sub.adj_stat}(2,4):if s then:gosub {:msg.expert_mode}("You feel healthier    (Con +2)")
+' set hungry bit:
+	gosub {:bit.set}(v1+65,6):gosub {:msg.you_feel}("a tad hungry...")
+{:165}
+' set thirsty bit:
+	gosub {:bit.set}(v1+65,3):gosub {:msg.you_feel}("a tad thirsty...")
+{:175}
+' clear tired bit:
+	gosub {:bit.clear}(v1+65,2):print:gosub {:msg.you_feel}("rested.")
+
+' todo: add REST flag to play session
+
+	goto {:advent} ' 2000
+{number:999}
+	REM "T.REST"

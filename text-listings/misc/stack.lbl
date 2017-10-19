@@ -1,0 +1,49 @@
+{ifdef:append_prg_info}
+	{nice:10}
+{else}
+	{number:1}
+{endif}
+
+{ifdef:standalone}
+	{alpha:invert}
+'	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{else}
+	{nice:10}
+{endif}
+
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\misc\stack.lbl}
+
+' converted from image bbs
+	rem stack investigator
+' 186 must be "tsx", 96 is "rts"
+	print "Stack Investigator 1.2t":poke 512,186:poke 513,96:sys 512:x=peek(781)+256
+	print "Stack has";
+	if x>=502 then print " no garbage.":print " Press a key: ";:gosub {:sub.cursor_get}:goto {:998}
+	print 502-x"bytes of garbage:":print
+	for a=x+5 to 511:x=peek(a+1)+peek(a+2)*256
+	if peek(a)=141 then print "GOSUB on line"x:a=a+4
+{:6}
+	if peek(a)=129 then print "FOR "chr$(peek(x-2))chr$(peek(x-1))" on line"PEEK(A+14)+PEEK(A+15)*256):A=A+17
+{:9}
+	next:print
+	sys br," [Reset stack?] "+nl$:a=1:gosub {:sub.yes_no}:IF a=. then {:998}
+	print "A syntax error will be forced, and logged.":print
+	print "It's what resets the stack!"
+	x
+
+{ifdef:standalone}
+' can include
+' {ifdef:append_prg_info}  (defined in t.prg info)
+{number:998}
+{:998}
+	goto {:advent}
+{else}
+	sys 49155 ' shut down modbasic
+{endif}
+
+{:999}
+	rem stack investigator
+
+{ifdef:standalone}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{endif}

@@ -1,0 +1,160 @@
+{number:1}
+
+{def:sliding_input}
+{def:debug}
+
+{undef:font_setup}
+{ifdef:font_setup}
+' change font in basic
+' raise start of basic by 2K (2048 bytes):
+' ?peek(43)+256*peek(44)
+' - or -
+' ?peek(44)*256+peek(43)
+
+' 2049
+' normally 2048 ($0801)
+' 43: 1
+' 44: 8
+
+' f.pinacolada loads @ $2000
+' raise start of basic by 2k ("bs"="basic start")
+	bs=peek(43)+256*peek(44)+2048
+	poke 43,bs and 255:poke 44,bs/256:poke bs+1,0
+	clr
+
+' loadstar suggests:
+' pg=13:poke 44,pg:poke pg*256,0
+' <load program here>
+
+rem set vic character address: > $d000 %00001110
+	poke 53272,18
+
+' set cursor color to background color (make instructions invisible)
+	poke 53272,23:poke 646,peek(53281)
+
+' todo: set vic-ii bank, bottom/top of memory pointers
+{endif}
+
+' workaround for old roms to fill color ram with current color:
+	poke 53280,12:poke 53281,12:print "{gray3}{clear}{$08}{$0e}";
+	print "Totally Awesome Dungeon Adventure":print
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+
+' must init agentfriday's modbasic before trace:
+' load agentfriday's modbasic ("v2" in filename really means 1.1):
+' 22/Nov/2014 16:03:
+' {:check.io_status} crashes with ?syntax error
+' because modbasic is not enabled yet, so:
+' kludgey but works for now
+' get current drive:
+	gosub {:sub.get_current_drive}
+
+{ifdef:sliding_input}
+' this is experimental:
+' load "si 9900"
+	f$="si 9900":gosub {:sub.bload}
+	print tab(5)"$9900: Sliding Input installed"
+' reset top of basic to $98ff
+' this works around AND not liking values > 32767
+' thanks to jeff hoag and robin harbron
+	ad=39167:h%=ad/256:poke 56,h%:poke 55,ad-h%*256
+	print tab(5)"$98ff: New top of BASIC":clr
+{endif}
+
+	gosub {:sub.get_current_drive}	
+	f$="modbasic c000 v2":gosub {:sub.bload}
+' initialize it:
+	print "Initializing modBASIC"
+	print tab(5)"$c000: ";:sys 49152:print "- OK"
+
+' 16/Apr/2014 10:47:
+' had to reassemble ml.o at $c500 to accommodate
+' modbasic v2 at $c000-$c400
+
+' 11/Dec/2014 13:01:
+' moved loading modbasic before variable declarations to
+' avoid variables getting wiped out by initializing modbasic
+
+' repeat getting current drive since variables have been cleared
+	gosub {:sub.get_current_drive}
+	f$="trace 033c":gosub {:sub.bload}
+	print tab(5)"$033c: BASIC Trace installed":sys 828
+
+' load my ml:
+{uses:\TADA-svn\pinacolada\TADA\assembly-language\ml-c500-symbols.lbl}
+' for error-trap addresses
+
+	f$="ml c500":gosub {:sub.bload}
+	print tab(5)"$c500: ML version ";:sys{sym:asm_date}
+	q$=chr$(34)
+
+' until error-trap debugged:
+	goto {:sas}
+
+' (new 8/24/2017) initialize error-trapping:
+' err_action buffer: $10 bytes, the action to take after an error occurs:
+' need null delimiter
+	x$="goto1800"+chr$(0)
+	for x=1 to len(x$):poke{sym:err_action}+x-1,asc(mid$(x$,x,1)):next
+' install error trap: err_trap_install = $c73c (+51004)
+	sys{sym:err_trap_install}:print "$c73c: Error trap installed. Action:"
+	print tab(10)q$x$q$
+{ifdef:debug}
+	print "Test error trap? ";:an$="n"
+	{ifdef:sliding_input}
+		' 39168,<length>,<width>,<string$>
+		sys 39168,1,2,an$
+	{else}
+		print "  "an$"{left:3}";:input an$
+	{endif}
+	an$=chr$(asc(an$) and 127):if an$="n" then {:sas}
+' generate a division by zero error, which jumps to line 1800:
+	for i=10 to 0 step -1:print "1/"i"="1/i:next
+{endif}
+
+{:sas}
+' load jeff jones' static array system from loadstar issue #103:
+	f$="sas c900":gosub {:sub.bload}
+	print tab(5)"$c900: Static Array System installed"
+
+{ifdef:debug}
+	print "Hit a key.":poke 198,0:wait 198,1:poke 198,0
+{endif}	
+
+' set start of basic (43/44, $2b/2c) to 2049 ($0801)
+' load wrap.reloc: this adjusts top of basic automatically
+' (further down from $98ff after Sliding Input installed)
+	print "{clear}{down:3}poke43,1:poke44,8:poke2048,0:clr:load"q$"wrap.reloc"q$","dv
+	print "{down:4}run:"
+
+' load t.main - code from loadstar presenter:
+
+' wrap.reloc moves top of basic down:
+' set top of basic (55/56, $37/38) to 40959 ($9FFF) pO56,160:pO55,0:
+	print "{down:2}lO"q$"t.main"q$","dv
+	print "{down:4}run:{home}"
+	poke 631,13:poke 632,13:poke 633,13:poke 634,13:poke 198,4:end
+
+{nice:10}
+{:sub.get_current_drive}
+' must be repeated since initializing modbasic clears variables:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}	
+	return
+	
+{nice:10}
+{:sub.bload}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+	
+{remremoval:off}
+{number:999}
+	REM TADA
+{remremoval:on}
+
+{number:1800}
+	print "1800: Error trap target hit."
+
+{number:1811}
+{:1811}
+'	print "Restoring standard error handler ($E38B).":sys {sym:err_trap_uninstall}
+	close 2:close 3:close 15:print "{$09}Shutting down modBASIC.";:sys 49155:end

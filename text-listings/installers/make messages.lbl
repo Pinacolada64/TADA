@@ -1,0 +1,239 @@
+{alpha:invert}
+{number:1}
+{def:debug}
+{undef:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+
+	REM "MAKE MESSAGES" INSTALLER
+
+	' updates:
+	' 2017:  1/20 - update Input Any call with string variable holding data
+	'	 9/9  - update to modBASIC
+	' 2015: 12/10 - switched to using some includes.
+	' 2014: 12/10
+	' 2012:  8/11 - wrote "fix index" to adjust pointers.
+	' 2011:  2/23  5/18
+	' 2007:  4/21  6/23
+
+	' moves portions of text from utility programs (t.np, &c.) to
+	' rel-indexed "e.t.messages":
+	'
+	' record 1:	# of messages (mx)
+	' record 2-n:	starting line (lo/hi bytes), # of lines (1 byte)
+	'		up to 13 records of 3 bytes each (39 bytes total)
+	' record n+1:	start of text (no ^ indicates end of block)
+
+	' sequence of steps:
+	' 
+	' select source/target drives
+	' check for existing file, scratch/re-use
+	' 1) get # of text blocks -> mx
+	' 2) read text lines, look for # or ^ chars:
+	'    ^: end of block. add sl/ct pointers to d$
+	'    #: comment.
+	' 3) go to 2)
+	goto {:100}
+
+{nice:10}
+{:text.get_block}
+	' =-- read from seq file until ^ on lfn#3 ---
+	' -=- reset ct (lines gotten per call)
+	' --= increment sl (starting line number)
+	ct=.:er=.
+{:32}
+	' get up to 45 chars from lfn#3, stop at cr, store in a$:
+	sys ia,3,45,1,a$:if st then print "st="st:er=1:return
+	if left$(a$,1)="#" then {:32}' skip comments
+	' increment Starting Line, line CounT
+	' stash in b$ so not overwritten by ^:
+	if a$<>"^" then sl=sl+1:ct=ct+1:b$=a$:print sl;b$:goto {:32}
+	return
+	
+{nice:10}
+{:sub.write_index}
+	' stash current index pointer, increment, resume writing:
+{ifdef:debug}
+	zz=zz+1:print "write index call#"zz
+{endif}
+' tm=temp var
+	tm=x:x=pt:gosub {:record_pointer}:print#2,d$:d$="":x=tm:pt=pt+1:goto {:record_pointer}
+
+{nice:10}
+{:msg.pass}
+	' --- print pass #:
+	pa=pa+1:print:print tab(10)"*** Pass"pa"of 2 ***"
+	print"      (Hit Spacebar or / to abort)":print:return
+
+{nice:100}
+{:100}
+	' --- kick it off ---
+	' a$ must be 1st variable, stored outside program text; InString ML does not create i%:
+	poke 53280,12:poke 53281,12:print "{gray3}{$08}{$0e}{clear}TADA Message Installer v0.8":print
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+
+' sr=source drive, de=destination drive
+	sr=dv:de=sr
+{:104}
+	print:print"Source drive:"sr:print tab(13)de"{up}":input"Target drive";de
+' de = destination drive:
+	open 15,de,15:close 15:if 128 and st=128 then print"Device not present.":goto {:104}
+' load ml:
+	open 15,de,15:if peek(is)=76 then {:122}
+	f$="ml c500"
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{:122}
+	f$=".t.messages":open 3,sr,3,dr$+"s"+f$+",s,r":gosub {:check.io_status}:if e then print a$:goto {:1811}
+
+' mx = # of text blocks
+' 3 bytes per pointer: starting line (lo/hi) [2]  + # of lines [1]
+' 13 pointers * 3 bytes = 39 bytes
+	gosub {:text.get_block}:mx=val(b$)
+' get_block returns:
+' sl: # lines since start of file
+' ct: how many lines read in this block
+
+	print:print mid$(str$(mx),2)" message blocks":gosub {:msg.pass} ' print pass #
+' record length >> moves last byte of line into 1st byte of next record if rl%<42:
+	rl%=43
+
+' todo: programmatically determine this:
+' of: offset to begin writing at (after rel index info)
+	of=3
+' check whether file exists:
+	print#15,"r"dr$"e"f$"=e"f$:gosub {:check.io_status}
+' file not found, create:
+	if e=62 then {:164}
+' --- file exists ---
+	if e<>63 then print a$:goto {:1811}
+	
+	print:print q$"e"f$q$:print"Note: "e$", delete [y/N]? ";:gosub {:msg.yes_no}
+	if a=. then {:msg.prompt}
+	
+{:162}
+	print"Scratching...":print#15,"s"dr$"e"f$:gosub {:check.io_status}:if e<>1 then print a$:goto {:1811}
+
+{:164}
+' --- create rel file ---
+	close 2:open 2,de,2,dr$+"e"+f$+",l,"+chr$(rl%):gosub {:check.io_status}:if e then print a$:goto {:1811}
+' write # of text blocks:
+' pt=index record #
+	x=1:gosub {:record_pointer}:print#2,str$(mx):pt=2
+
+' 11/Dec/2015 13:19
+''' sl needs to be reset to of (since skimming past comments will have added
+'''		to it in the previous call to {:text.get_block}
+''' this starts writing index info after # of blocks + index info records:
+	sl=of
+
+' 12/Dec/2015 14:05
+''' problem is that d$ needs an initial index for the 1st text chunk
+	d$=""
+	
+	for z=1 to mx
+{ifdef:debug}
+	print,"Start:"sl
+{endif}
+	d$=d$+chr$(sl and 255)+chr$(sl/256)
+' read from lfn #3 until ^ or eof:
+	gosub {:text.get_block}
+{ifdef:debug}
+	print,"Count:"ct
+	print,"Press a key: ";:gosub {:sub.cursor_get}
+{endif}
+	' error? abort:
+	' if er then print "Aborted: z="z:z=mx+1:goto {:214}
+' --- add 2-byte line # pointer + 1 byte text block line count to d$ ---
+	d$=d$+chr$(ct)
+	' if len(d$)=39 then print "4: len=39":gosub {:sub.write_index}
+	
+{:214}
+	next
+{ifdef:debug}
+	print "Index looks like:"
+	for x=1 to len(d$) step 3
+	print,"Pos'n:"x
+	print,"Start:" asc(mid$(d$,x,1))+256*asc(mid$(d$,x+1,1))
+	print,"Lines:" asc(mid$(d$,x+2,1))
+	next
+{endif}
+	gosub {:sub.write_index}	
+	gosub {:msg.pass}:print
+' will re-opening file help?
+	close 3:open 3,sr,3,dr$+"s"+f$+",s,r":gosub {:check.io_status}:if e then print a$:goto {:1811}
+' skip past # of text blocks, set record # to offset-1 since incremented later:
+	gosub {:text.get_block}:x=of-1:gosub {:record_pointer}
+{:532}
+' write text out:
+	sys ia,3,45,1,b$:if st then gosub {:check.io_status}:print b$:goto {:msg.prompt}
+	if left$(b$,1)="#" then {:532}' skip comments
+' end of block:
+ 	if b$="^" then print:gosub {:msg.fancy_line}:print:goto {:532}
+' not using len(a$) below because of brackets artificially adding to string length:
+' goal: if line is exactly 40 chars long, glue next line together:
+	sys br,b$+nl$:if pos(.)<>40 then print
+	x=x+1:gosub {:record_pointer}:print#2,b$
+	goto {:532}
+
+{:615}
+	print:print"File successfully created!"
+
+{nice:100}
+{:msg.prompt}
+	print:print"Read current text blocks [Y/N]? ";:gosub {:sub.yes_no}(0):if a=. then {:menu}
+	close 2:open 2,de,2,dr$+"e"+f$+",l,"+chr$(rl%):gosub {:check.io_status}:if e then print a$:goto {:1811}
+	x=1:gosub {:record_pointer}:input#2,a$:mx=val(a$):print mx" text blocks":if mx<1 then print "Error: mx="mx:goto {:1811}
+{:choose_block}
+	an$="0":print:print "Block [1-"mid$(str$(mx),2)"]";:input an$
+	an=int(abs(val(an$))):if an<1 or an>mx then {:msg.finish}
+	x=2:gosub {:record_pointer}:sys ia,2,39,0,a$
+' calculate starting line, number of lines:
+' old "x=(an*3-2)+of" was reading one record too high
+	x=an*3-2:sl=asc(mid$(a$,x,1)+nl$)+256*asc(mid$(a$,x+1,1)+nl$): ct=asc(mid$(a$,x+2,1)+nl$):x=sl
+	print,"Start:"sl:print,"Lines:"ct
+' adapted from t.main:
+{:1101}
+'	get an$:if an$="{home}"then a$="[Paused] ":gosub {:prompt_key}:if q then {:1108}
+' if an$="/"or an$=" "then {:1108}:' abort chars
+' l=l+1:if l/24=int(l/24) then gosub {:check.more}:if q then {:1108}
+	for z=1 to ct
+	gosub {:record_pointer}:x=x+1 ' increment record #
+	sys ia,2,45,1,a$:sys br,a$+nl$:if pos(.)<>40 then print
+	next:goto {:choose_block}
+
+{number:900}
+{:msg.finish}
+	print "Ok, done!"
+
+{:menu}
+	:
+{number:999}
+{remremoval:off}
+	REM "MAKE MESSAGES" INSTALLER
+
+{ifdef:standalone}
+{number:1000}
+	REM IMAGE BBS SUBROUTINES V2.0 6/30/2007
+{remremoval:on}
+{:record_pointer}
+	gosub {:1002}:for d=1 to 50:next
+{:1002}
+	print# 15,"p{$02}"chr$(x and 255)chr$(x/256)"{$01}":return
+{number:1011}
+{:file.open}
+	close 2:open 2,sr,2,dr$+a$
+
+' 1012:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{number:1811}
+{:1811}
+	close 2:close 3:close 15:print"{$09}";:end
+
+' 1902:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+
+{number:1920}
+{:msg.aborted}
+	print"(Aborted.)":return
+{endif}

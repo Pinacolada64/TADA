@@ -1,0 +1,181 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.ma.arm.weapons
+' updated 09/04/2006, 07/14/2007, 8/19/2007
+	goto {:start}
+
+{nice:10}
+{:sub.header}
+	print "## Weapon Name    Price E D* Class"
+	print "{midline:2} {midline:14} {midline:5} {midline} {midline:2} {midline:10}"
+	gosub {:check.expert_mode}:if s then return
+'	print "-- -------------- ----- - -- ----------"
+	sys br,"  [E]ase of use   [D]amage    [*]=Ammo Bonus"+r$+nl$:return
+'   Ease of use   Damage   *=Ammo bonus
+
+{nice:10}
+{:msg.best_targets}
+	print:print "Best targets:";:return
+
+{nice:10}
+{:msg.weapon_class}
+	fn w
+	gosub {:sub.string_truncate}(mid$(wc$,w*10-9,10)):print x$;:return
+
+{number:100}
+{:start}
+{ifdef:standalone}
+	i%=.
+' tlos variables: player class, player dexterity, player race
+	pc=1:pd=15:pr=1:m$="Weapons Master"
+	print "Setting gold to 2,000.":print:gosub {:sub.adj_gold}(1,2000)
+{endif}
+
+	print "The "m$" leads you to a room where his hand-crafted weapons hang..."
+	gosub {:file.open}("e.t.weapons"):gosub {:record_pointer}(1):input# 2,mx
+{:611}
+	gosub {:msg.spacebar_aborts}
+	print "[]=-=-=-=-=-=-[ Weapons ]-=-=-=-=-=-=[]"
+	print:gosub {:sub.header}
+{:620}
+	for y=1 to mx
+{:621}
+' 2=weapon is in shoppe:
+	if val(cb$)<>2 then {:629}
+	gosub {:sub.print_num}(y,2,0):print " ";
+' calc length of string minus metadata, see if too long to print
+	l=len(w$)-4:if l>14 then print mid$(w$,4,14)"...";
+	if l<14 then print mid$(w$,4);
+	print tab(18) right$("    "+str$(wp),5) left$(str$(ws),2) left$(str$(wd),2) mid$("* ",2+(wa=8),1)" " c$(wa)
+{:629}
+	if y/24=int(y/24) then gosub {:msg.more_prompt}:gosub {:sub.header}
+	gosub {:sub.check_abort}:if q then y=mx+1
+	next:gosub {:msg.fancy_line}
+{:631}
+	print r$"[?] List, [1-";:gosub {:sub.print_num}(mx,2,0):print  "] Buy, ["k$"]=Leave"
+	print:print "[";:gosub {:sub.display_gold}(1,0):print " gold] ";
+	an$="":print "Speak, "a$(.)": ";:sys si,2,3,an$:gosub {:string.normalize}(an$)
+	on -(an$="?")-2*(an$="") goto {:611},{:637}
+{:635}
+	sys br,q$+"Don't you know how to [read]?"+q$+" sniffs the "+m$+"."+r$+nl$:goto {:631}
+{:637}
+	print r$q$"May the Prophets guide you well!"q$:goto {:998}
+
+{:617}
+' get weapon data:
+	gosub {:record_pointer}(y+1)
+' location flag, weapon name + flags, weapon stability
+	input# 2,cb$:input# 2,w$:input# 2,ws
+' base damage, price, class
+	input# 2,wd:input# 2,wp:input# 2,wa
+
+{:641}
+' weapon in shop:
+	if val(cb$)=2 then {:655}
+	sys br,r$+q$+"What are you looking at [me] for? If you"+r$+nl$
+	print "don't see it here, we don't have it!
+	print "It's probably being chewed on by some
+	print "horrible little monster who has no
+	print "respect for quality merchandise!"q$" moans
+	print "the "m$".":goto {:631}
+{:655}
+	gosub {:sub.check_gold}(1,wp):if s then {:671}
+	print r$"The "m$" looks down his nose
+	print "at you. 'You really must learn how to
+	print "budget your income. You don't have
+	print "enough gold, and American Express cards
+	print "won't be invented for another six
+	print "hundred years, so why don't you just
+	print "put it back, all right?'":goto {:631}
+
+{:671}
+	print r$"The "m$" nods approvingly. ";
+'	x$="is":y$="it":if right$(w$,1)="S" then x$="are":y$="them"
+	y$="it":if right$(w$,1)="S" then y$="them"
+	print q$"The "mid$(w$,4)" ";:gosub {:msg.is_are}(w$):print " an excellent ";
+	print "choice. Would you like to try "y$" out first?"q$:print
+	print "[Y]es/(N)o >> ";:gosub {:sub.yes_no.cursor}:if a=. then {:730}
+
+	print r$"You try out the "mid$(w$,4)"...":print
+	print "Weapon class: ";:gosub {:msg.weapon_class}(wa)
+	print c$(wa);:if wa=8 then print " (10% surprise)";
+	print:gosub {:msg.best_targets}
+	if wa=1 then wa=10:print "Huge, Large";
+	if wa=2 then print "Swift, Small, Short";
+	if wa=3 then print "Huge, Swift";
+	if wa=5 then print "Man-Sized, Big, Short";
+	if wa=8 then print "Huge, Large";
+	if wa=9 then print "Anybody";
+'	if wa=1 then wa=10:gosub {:msg.best_targets}:print "Huge, Large";
+'	if wa=2 then gosub {:msg.best_targets}:print "Swift, Small, Short";
+'	if wa=3 then gosub {:msg.best_targets}:print "Huge, Swift";
+'	if wa=5 then gosub {:msg.best_targets}:print "Man-Sized, Big, Short";
+'	if wa=8 then print " (10% surprise)";:gosub {:msg.best_targets}:print "Huge, Large";
+'	if wa=9 then gosub {:msg.best_targets}:print "Anybody";
+
+	if wa=2 then sys is,w$,"STORM":if i% then {:700} 
+	if wa=10 then sys is,w$,"CANN"
+{:700}
+	if i% then print ", Light Armor";
+
+'	if wa<>2 or wa<>10 then {:702}
+'	sys is,w$,"STORM":if i% then {:700}
+'	sys is,w$,"CANN":if i% then {:700}
+'	goto {:702}
+'{:700}
+'	print ", Light Armor";
+
+{:702}
+	print:print "Required dex:"ws+4;:if pd<ws+4 then print "(Not dextrous enough)";
+	vr=val(mid$(w$,3,1))*6+1:wr$=mid$(w$,4):n$=wr$:i$="":gosub {:800}:zv=yz:zu=yx
+	zz=ws:if xp>1 then ws=int((xp+2)*ws)/3)
+	print:print " Base damage:"wd
+	zs=((ws+1)-zz)+yz+yx:print "  Your skill:"zs
+	print " Ease of use:"10-zz
+	if xp>1 or wa<>8 then {:714}
+	sys is,wr$,"STORM":if i% then {:714}
+	gosub {:msg.expert_mode}(" [Get ammunition at (O)lly's in Shoppe]")
+{:714}
+	sys is,wr$,"FIREBALL":if i%=. or vr=43 then print:print " (10% chance of secondary heat damage)"
+{:716}
+	print:print "You hand the weapon back."
+{:730}
+	print:print "Buy "y$;:gosub {:sub.yes_no}(1):if a=. then {:631}
+	gosub {:sub.adj_gold}(1,-wp)
+	print q$"May it serve thee well!"q$:goto {:631}
+'	goto {:998}
+
+	' calculate class/race bonuses
+{:800}
+	' TODO: call t_bonuses
+{:870}
+	sys is,w$,"PHASER":if i% then if yz<1 then yz=1
+	sys is,wr$,"STORM":if i%=. then if zt>. then zt=2:goto {:spec5}
+	if i%=. then return
+	if yz+yx<1 then {:spec3}
+
+	' FIXME: start of shared code from READY
+
+{:spec5}
+	if zt>1 then print "The Storm Weapon you ignored howls in jealous rage!":da$="THE "+wr$:goto {:spec4}
+	print:print "Thundering laughter shrieks from the "wr$"!"
+	sys br,q$+"I ACCEPT THEE AS MY SERVANT!"+q$+r$+nl$:yz=yz+2:yx=yx+2
+	print r$"A jolt of power surges up your arm.":return
+{:spec3}
+	sys is,wr$,"STORM":if i%=. then if wr$<>"EXCALIBUR" then wr$="STORM WEAPON"
+	da$=wr$:sys is,wr$,"STORM":if i% then da$="THE "+wr$
+	print "A thundering howl of rage blasts from "da$"! "q$;
+	sys br,"YOU ARE NOT MINE!"+q$+r$+nl$
+{:spec4}
+	print "(:spec4) fixme"
+'{:spec5}
+'	print "(:spec5) fixme":return
+
+	' FIXME: end of shared code from READY
+
+{number:998}
+{:998}
+	gosub {:link.module}("shoppe","")
+	rem t.ma.arm.weapons

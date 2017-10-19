@@ -1,0 +1,60 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' automatic command entry
+	read n:dim c$(2,n)
+	c$(1,.)=str$(n):for x=1 to n:read x$:c$(1,x)=x$:print c$(1,x):next
+	read n
+	c$(2,.)=str$(n):for x=1 to n:read x$:c$(2,x)=x$:print c$(2,x):next
+	data 16
+	data"dDown
+	data"eEast
+	data"gGet all
+	data"hHelp!
+	data"iInventory
+	data"lLook
+	data"nNorth
+	data"qQuit
+	data"rRoom descriptions
+	data"sSouth
+	data"tTime display
+	data"uUp
+	data"wWest
+	data"xExamine all
+	data"?Help!
+	data"#Map
+	data 3
+	data"dbDatabase
+	data"flFollow
+	data"xmExpert mode
+{number:200}
+	print "Command> ";:in$="":in=.
+{:205}
+	gosub {:sub.cursor_get}
+{:210}
+	in=len(in$):if in$<>chr$(20) then {:240}
+	in=in-1:if in=1 then in$=left$(in$,1)
+	for x=1 to len(c$):print an$;:next
+	print mid$(c$(in,pc),2);
+	goto {:205}
+{:240}
+	if an$=chr$(13) then print:goto {:250}
+	if in=4 then {:205}
+	in=in+1:in$=in$+an$:in=len(an$):m=.:z=val(c$(in,.))
+	for x=1 to z
+	if an$=left$(c$(in,x),in) then gosub {:260}:c$=mid$(c$(in,x),in+1):print c$;:x=z
+	next
+' match?
+	if m=0 then print in$;
+	goto {:205}
+{:250}
+	end
+{:260}
+' pc=previous command
+	m=x:pc=m
+	if in=2 then for y=1 to len(c$):print chr$(20);:next
+	return
+{ifdef:standalone}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{endif}

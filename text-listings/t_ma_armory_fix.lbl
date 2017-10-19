@@ -1,0 +1,159 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' t.ma.armory.fix
+' last updated 09/08/06 6:28 pm
+' 2013/04/02
+'	bringing up to current code standards
+'	assumes word-wrap ml and modbasic are installed
+'	uses instring code, im.cursor_get
+'	streamlined printing 3-digit value
+'	speaking uses " instead of '
+'	"space aborts" message printed before listing blacksmith's inventory
+'	fixed "blacksmith looks at you strangely" loop
+'	should now check for sufficient funds before work is done
+
+{ifdef:standalone}
+	dv=peek(186):if dv<8 then dv=8
+	def fn r(x)=int(rnd(1)*x)+1
+	gosub {:file.open_command_channel}:a$(.)="STINGRAY":q$=chr$(34):r$=chr$(13):k$="Return"
+	na$="PINACOLADA"
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+{endif}
+	goto {:start}
+	
+{nice:10}
+{:603}
+	fn x
+' print a 3-digit #:
+'	if x%<10 then print " ";
+'	print mid$(str$(x%),2);:return
+	print right$("  "+str$(x),3);:return
+
+{:sub.delay800}
+	def d
+	for d=1 to 800:next:return
+
+{number:100}
+{:start}
+	print "You are led into a back room. Here, a ";
+	print "younger man is working on some armor. ";
+	print "He pushes it aside as he sees you are ";
+	print "impatient to get back to adventuring. ";
+	print q$"Well, what have we here? What can I ";
+	print "fix for you?"q$
+	print
+	print "[W]orn"
+	print "[R]eadied"
+	print
+	if a$(1)<>"---" then print "[1] Ally:  "a$(1)
+	if a$(2)<>"---" then print "[2] Ally:  "a$(2)
+	if a$(3)<>"---" then print "[3] Ally:  "a$(3)
+	if a$(4)<>"---" then print "[4] Horse: "a$(4)
+	print
+	print "[A]rmor not listed here"
+	print "[W]eapon not listed here"
+	print
+	print "Which? >> ";
+{:635}
+	gosub {:sub.cursor_get}:sys is,r$+"aw":on i%+1 goto {:635},{:640},{:650},{:650}
+	an=val(an$):if an<1 and an>4 then {:dont_understand}
+
+{:dont_understand}
+	print "I don't understand.":goto {:menu}
+	
+{:640}
+	print "Leave.":print
+	print q$"Changed your mind, eh?"q$" grins the blacksmith as you dash out..."
+	goto {:link_armory}
+
+{:650}
+' op=0: armor
+'  l=3:
+'  n=16:
+	if an$="a" then op=.:l=3:n=16:a$="armor":print "Armor";
+	if an$="w" then op=1:l=4:n=36:a$="weapons":print "Weapons";
+	print "."
+	gosub {:file.open}("e.t."+a$):if e then {:link_armory}
+	gosub {:record_pointer}(1):input# 2,mx
+{:665}
+	print "[]=-=-=-=-=-[ BLACKSMITH: ]-=-=-=-=-=[]"
+	gosub {:msg.space_aborts}
+	print tab(9)"# Name"tab(26)"Price"
+' search for armor/weapons in respective file:
+	for y=1 to mx:gosub {:record_pointer}(y+1)
+' flag 2=in shoppe:
+	input#2,a$:if val(a$)<>2 then {:685}
+' get weapon name/flags:
+	sys ia,2,50,1,a$
+' get price:
+	p=val(mid$(a$,5,l)) ' :if p=. then {:685}
+' display:
+'        ###. - WEAPON                    999,999,999
+
+' {:sub.print_num}(num,width,cr)
+	print tab(8):gosub {:sub.print_num}(x,3,0):print " "mid$(a$,n)tab(27):gosub {:msg.comma_value}(p,1):print
+
+{:685}
+	gosub {:sub.check_abort}:if q then y=mx
+	next:gosub {:sub.fancy_line}
+	print r$"[?] List, [1-"mid$(str$(mx),2)"] Fix, ["k$"]=Leave
+{:690}
+	print:print "[";:gosub {:sub.display_gold}(1,0):print " gold] Speak, "a$(.);
+	an$="":input an$:gosub {:string.normalize}(an$)
+{:695}
+	on -(an$="")-2*(an$="?")-3*(an<>.) goto {:705},{:665},{:715}
+	print:print "The blacksmith looks at you strangely.":goto {:690}
+{:705}
+	print:print q$"Happy trails, "a$(.)"!"q$"the blacksmith shouts as you leave."
+	goto {:link_armory}
+{:715}
+	gosub {:string.normalize}(an$):if (an<1 or an>=mx+1) then {:720}
+	gosub {:record_pointer}(an+1):input# 2,a$:goto {:725}
+{:720}
+	print:print q$"Sorry, I don't know which one you mean."q$:goto {:690}
+{:725}
+' todo: implement haggling
+	p=val(mid$(a$,5,l)):gosub {:sub.check_gold}(1,p):if s then {:745}
+	print r$"The blacksmith shakes his head. "q$"Sorry, ";
+	print "I can't do the repair for less than ";
+	print "what's listed."q$:goto {:695}
+{:745}
+' todo: scan inventory
+	print r$"You are led back into the main room
+	print "again and cautioned that it is not wise
+	print "to watch a blacksmith at work; it's
+	print "akin to a wizard giving away the secret
+	print "to one his spells. Besides, you might
+	print "get hurt."
+	print
+	print "From the distant room, you hear the
+	print "noises of the blacksmith plying his
+	print "trade...":print:poke 204,.
+{:800}
+	print "BANG";:gosub {:sub.delay800}:print " CLANG";:gosub {:sub.delay800}:print " WHAM";:gosub {:sub.delay800}
+	print " THUD";:gosub {:sub.delay800}:print " WHEEZE (?)";:gosub {:sub.delay800}:print " OOOF!";:gosub {:sub.delay800}
+' todo: increase weapon/armor attributes
+	poke 204,1:print " ":print
+	print "The blacksmith returns, triumphantly holding your "mid$(x$,n);
+	if op=. then print " ARMOR";
+	print ". "q$"Good as new, "a$(.)"!"q$
+	close 2
+{:830}
+{:link_armory}
+{number:998}
+	print "Load "q$"t.ma.armory"q$"...":gosub {:link.armory}
+	rem t.ma.arm.fix
+	rem copr. pinacolada 1995-2014
+
+{ifdef:standalone}
+{number:1001}
+{:record_pointer} ' (record_num)
+	fn x:def d:gosub {:1002}:for d=1 to 50:next
+{:1002}
+	print#15,"p{$02}"chr$(x and 255)chr$(x/256)"{$01}":return
+{:1011}
+	close 2:open 2,dv,2,"0:"+a$
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{endif}

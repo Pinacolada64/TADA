@@ -1,0 +1,8 @@
+print "hit stop to return to basic"
+sys {sym:loop}
+{asm}
+loop:	inc $d021 ; increment border color
+	jsr $ffe1 ; check for stop key hit
+	bne loop	; stop not pressed
+	rts	; return to basic
+{endasm}

@@ -1,0 +1,167 @@
+' test logging:
+{number:1}
+{def:debug}
+{def:trace}
+{def:modbasic}
+
+{number:1}
+	poke 53280,12:poke 53281,12:print "{gray3}{$08}{clear}Test game/event logging functions"
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+	gosub {:sub.current_drive}
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	f$="ml c500":gosub {:sub.bload}
+
+{ifdef:trace}
+' +0: install; +3: uninstall; +6: enable; +9: disable
+	f$="trace 033c":gosub {:sub.bload}
+	print "trace installed":sys 828
+{endif}
+
+	sys 49152
+' re-calculate current drive # (variables have been cleared):
+	gosub {:sub.current_drive}
+' i% (which holds instring character position result) is not created by instring routine
+	i%=0
+' InString, Input_Any, Module_Load, BRacketxt, PopStack:
+	is=50432:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
+
+' current BASIC line number:
+	def fn cl(z0)=peek(58)*256+peek(57)
+' current module:
+	cm$="test-logging":r$=chr$(13)
+	goto {:start}
+
+{:sub.current_drive}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	return
+
+{:sub.bload}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+
+{nice:100}
+{:start}
+
+{ifdef:trace}
+	print "Starting trace":sys 828+6
+{endif}
+
+	gosub {:sub.log_event.init}("Event log init")
+	gosub {:sub.log_event}("Event log test")
+	gosub {:sub.log_event.done}
+
+{ifdef:trace}
+	print "Ending trace":sys 828+9
+{endif}
+	
+	gosub {:sub.log_error}("-", 0,        "Error log: no match, no line #")
+	gosub {:sub.log_error}("I", 0,        "Error log: info test, no line #")
+	gosub {:sub.log_error}("W", fn cl(0), "Error log: warn test, line"+str$(fn cl(0)))
+	gosub {:sub.log_error}("E", fn cl(0), "Error log: err  test, line"+str$(fn cl(0)))
+	goto {:1811}
+
+{nice:100}
+{:sub.log_error} ' ("error_level",error_line,"message")
+	fn el$,el,m$
+	def x$ ' resultant full error text
+' added: Aug 14, 2011 20:01
+' modified: 15/Apr/2014 16:36
+' 6/23/2017: if error_line is 0, don't log error line # (not always important)
+
+' prototype:
+' "err_level" (suggested:) "e" => error  "w" => "warning"  "i" => "information"
+' "module" will usually = cm$ (current_module)
+' "message" can be whatever
+
+' todo: get date/time from server?
+' todo: make error trap routine call this
+
+' possible output:
+
+'  Date: 4/20/2014, 11:13 PM
+'  User: Pinacolada
+'[----]  <msg>
+'Module: test-logging, 10
+
+' gosub {:sub.sendCSIP}("time")
+' gosub {:sub.sendCSIP}("date")
+' x$=mid$("JanFebMarAprMayJunJulAugSepOctNovDec",?*3-2,3)
+
+	gosub {:file.append_or_write}("e.t.errorlog")
+	gosub {:sub.log_it}("{cyan}  Date: {white}mm/dd/yyyy, hh:mm xm")
+	gosub {:sub.log_it}("{cyan}  User: {white}Pinacolada")
+
+' playing with coloring:
+' [----] - <msg> [no match, or no particular importance]
+' [Info] I <msg>
+' [Warn] W <msg>
+' [Err ] E <msg>
+	sys is,"IWE",el$:gosub {:sub.log_it}("{white}["+mid$("{white}----{lt. green}Info{lt. red}Warn{red}Err ",(i%+1)*5-4,5)+"{white}]  "+m$)
+
+' Module: current_module, error_line
+' or
+' Module: current_module
+	x$="{cyan}Module: {white}"+cm$:if el then x$=x$+"{cyan},"+str$(el)
+	gosub {:sub.log_it}(x$+r$):close 2:return
+
+{nice:5}
+' in-game event logging
+{:sub.log_event.init} ' ("init_msg")
+	fn m$	' log initial_message
+	def f$	' log filename
+	f$="e.t.eventlog"
+	gosub {:file.append_or_write}(f$):if e then:gosub {:sub.log_error}("W",fn cl(0),"Can't open "+f$):goto {:sub.log_event.done}
+' todo: get CommodoreServer date/time:
+	gosub {:sub.log.fancy_line}:gosub {:sub.log_it}("dd/mm/yyyy hh:mm xM - "+m$):return
+
+' TODO: spur centered init_msg in header, like so...
+' []=-=-=-=-=-=-[ Thunder! ]-=-=-=-=-=-=[]
+
+' (it's okay to have 40 character lines; file_reader eliminates skipping a logical screen line
+
+{:sub.log_event}
+	def m$
+	gosub {:sub.log_it}(m$):return
+{:sub.log.fancy_line}
+	gosub {:sub.log_it}("[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]"):return ' 39 chars
+{:sub.log_it} ' ("message") printed to screen, output to open disk file
+' this can be used for either game events or errors
+	fn a$
+	print a$:print# 2,a$:return
+{:sub.log_event.done}
+	gosub {:sub.log.fancy_line}:close 2:return
+
+{number:1010}
+{:file.open_cmd_channel}
+	close 15:open 15,dv,15:return
+
+{number:1011}
+{:file.open} ' ("filename[,type,mode]")
+	fn a$:close 2:open 2,dv,2,dr$+a$
+
+' 1012
+' {:check.io_status} - call with gosub
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{:file.append_or_write} ' ("filename")
+{number:1026}
+' for SEQ files, open "e.t.<filename>,s,<mode>"
+	fn f$:gosub {:1027}(f$,"a"):on e+1 goto {:return}:gosub {:1027}(f$,"w"):return
+
+{number:1027}
+{:1027} ' ("filename","mode")
+	fn a$,b$
+	gosub {:file.open}("e.t."+a$+",s,"+b$):gosub {:check.io_status}:return
+
+{number:1603}
+{:return}
+	return
+
+{number:1811}
+{:1811}
+{ifdef:trace}
+' +0: install; +3: uninstall; +6: enable; +9: disable
+	print "Shutting down trace.":sys 828+9
+	print "Trace uninstalled.":sys 828+3
+{endif}
+	print "Shutting down modBASIC.":sys 49155:end

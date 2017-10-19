@@ -1,0 +1,298 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+
+{assign:editor=1604}
+
+' at a guess, page file format:
+' 11-digit sent date
+' 11-digit read date
+' sender's handle
+' <body of message>
+' ^ is body delimiter
+
+{remremoval:off}
+{ifdef:standalone}
+	na$="PINACOLADA"
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+{endif}
+
+	goto {:start}
+	rem t.page 1.3 -- 2014: 05/20, 1:08 pm
+
+	rem t.pag 1.2 -- 2011: 1/25, 2/16
+	rem t.pag 1.1 -- 1996: 1/16 8:26 pm
+
+{remremoval:on}
+' todo:	implement rel directory with dates read/posted, message text
+' todo: implement check for online character, forward message to character not in room
+'  new:	changed "export" to "forward"
+{:msg.page_10}
+	print:print "Up to 10 players can be paged.":return
+
+{:msg.enter_name}
+	print "Enter player ID/name, "q$"?"q$" lists, "k$"aborts.":return
+
+{:msg.date}
+' print verbose date from d$
+	def x,ap
+	print mid$("SunMonTueWedThuFriSat",val(left$(d$,1))*3-2,3)" ";
+	print mid$("JanFebMarAprMayJunJulAugSepOctNovDec",val(mid$(d$,4,2))*3-2,3);
+	print " "mid$(d$,6,2)", 20"mid$(d$,2,2)" ";:x=val(mid$(d$,8,2)):ap=abs(x>80)+1:if ap then x=x-80
+	print right$("0"+mid$(str$(x),2),2)":"right$(d$,2)" "mid$("AP",ap,1)"M":return
+
+{:player_listing}
+	print:print "Player Listing (SPACE or [/] aborts)":n%=.:for y=1 to mx:x=y*2
+	gosub {:record_pointer}(x):sys ia,2,20,0,a$:gosub {:sub.string_truncate}(mid$(a$,3)):if x$="---" then {:892}
+	gosub {:msg.list_item}(n%,3,x$,1)
+{:892}
+	gosub {:sub.check_abort}:if q then j=mx
+	next:return
+
+{:sub.write_header}
+' fixme: d2$ is actually the 2nd half of the player's stats, isn't it?!
+' write handle of sending player
+' current date/time
+' 
+	gosub {:file.append_or_write}(an$):print#2,a$(.):print#2,d1$:print#2,d2$
+{:save_message_text}
+	for x=1 to kk:print# 2,tt$(x):next:print# 2,"^":close 2
+	return
+
+{:25}
+' disk input until not ^
+	input# 2,a$:on -(a$="^") goto {:25}:return
+	
+{number:100}
+{:start}
+	tt$(1)="Message":dr$="0:":d$="31101258800":d2$="71106251000"
+'
+' 3 11 01 25 88 00	-> "Tue Jan 25, 2011 08:00 PM"
+'
+' 3  day of week	(1=sun...7=sat) todo: need day of week subroutine
+' 11 year			(+2000)
+' 01 month
+' 25 day
+' 88 hour			(+80 = PM)
+' 00 minute
+'
+	dr=3:gosub {:file.open}("e.t."+a$(.)):if e=. then {:770}
+{:reopen_player_log}
+	close 2:dr=3:gosub {:file.open_playerlog}:if e then close 2:goto {:advent}
+	x=1:gosub {:record_pointer}(x):input# 2,mx
+{:page_request}
+	print:print "Page whom? (*=Multi-Page, +=Y/N Select)":x%=1:gosub {:msg.enter_name}
+	an$="":input"{down}Page";an$:if an$="" then close 2:goto 2000
+	gosub {:string.normalize}(an$):on -(an<>.)-2*(an$="*")-3*(an$="+") goto {:621},{:700},{:750}:gosub {:675}
+	if an$="?" then gosub {:player_listing}
+	goto {:page_request}
+{:621}
+	gosub {:find_player_id}:on -(er=1) goto {:page_request}:gosub {:650}:if er then {:page_request}
+	close 2:on kk+1 goto {:page_request}:an$=a$:gosub {:edit_text}:goto {:page_request}
+'	gosub {:sub.write_header}:on-(kk=.) goto {:page_request}:an$=a$:gosub {:sub.write_header}:goto {:reopen_player_log}
+{:find_player_id}
+' read name from playerlog, j=player #
+' returns er=0 if valid player, 1=--- (deleted player)
+	gosub {:string.normalize}(an$):j=an:er=.:if j<1 or j>mx then {:err.player_not_found}
+	x=j*2:gosub {:record_pointer}(x):sys ia,2,20,1,a$:gosub {:sub.string_truncate}(mid$(a$,3)):if x$<>"---" then er=.:return
+{:err.player_not_found}
+	print:print "This player does not exist. Please try again.":er=1:x$="(Deleted player)":return
+{:650}
+	print "Page "a$;
+{:655}
+	gosub {:sub.yes_no}(1):er=a:return
+'	if a=0 then print "Yes.":er=0:return
+'	if a=1 then print "No.":er=1:return
+'	goto {:655}
+{:edit_text}
+' fixme
+	gosub {:editor}:if kk=. then {:msg.aborted}
+	return
+{:675}
+	er=1:for j=1 to mx:gosub {:record_pointer}(j*2):sys ia,2,20,1,a$:gosub {:sub.string_truncate}(mid$(a$,3))
+	if x$=an$ then nn$(x%)=an$:er=.:j=mx
+	next:on -(er=1) goto {:err.player_not_found}:gosub {:650}:on -(er=1) goto {:page_request}:goto {:740}
+{:700}
+	gosub {:msg.page_10}:gosub {:msg.enter_name}:x%=.
+{:702}
+	x%=x%+1:if x%>10 then {:730}
+{:705}
+	an$="":print "Player"x%"{left}";:input an$:if an$="" then {:730}
+	if an$="?" then gosub {:player_listing}:goto {:705}
+	gosub {:string.normalize}(an$):j=an:if j then {:715}
+	gosub {:720}:if er then gosub {:err.player_not_found}:goto {:705}
+	goto {:702}
+{:715}
+	gosub {:find_player_id}:if er then {:705}
+	gosub {:650}:if er then {:705}
+	nn$(x%)=a$:goto {:702}
+{:720}
+	er=1:for j=1 to mx:gosub {:record_pointer}(j*2):sys ia,2,20,1,a$:gosub {:sub.string_truncate}(mid$(a$,3))
+	if a$=an$ then nn$(x%)=an$:er=.:j=mx
+	next:return
+{:730}
+	if x%=1 and an$="" then er=1:gosub {:msg.aborted}:goto {:page_request}
+{:740}
+	gosub {:edit_text}:if kk=0 then {:page_request}
+	close 2:print "Working...";:for j=1 to x%
+	an$=nn$(j):gosub {:sub.write_header}:print ".";:next:print "Done!":goto {:reopen_player_log}
+{:750}
+	gosub {:msg.page_10}:er=.:x%=.
+	for z=1 to mx:gosub {:record_pointer}(z*2):sys ia,2,20,1,a$:gosub {:sub.string_truncate}(mid$(a$,3))
+	on -(x$="---") goto {:760}:print "["right$(" "+str$(x%),2)"/10] Page "x$" (Y/N/S/A): ";
+{:753}
+	gosub {:sub.cursor_get}:sys is,"ynsa",an$:on i%+1 goto {:753},{:755},{:756},{:765},{:757}
+{:755}
+	print "Yes.":x%=x%+1:nn$(x%)=x$:on -(x%>10) goto {:758}:goto {:760}
+{:756}
+	print "No.":goto {:760}
+{:757}
+	er=1
+{:758}
+	z=mx
+{:760}
+	next:if er then gosub {:msg.aborted}
+	if x%>. then {:740}
+	goto {:page_request}
+{:765}
+	print "Start.":goto {:758}
+{:770}
+	mx=.:x%=1
+{:771}
+	gosub {:25}:mx=mx+1:if st=. then {:771}
+{:772}
+	close 2:dr=3:gosub {:file.open}("e.t."+a$(.)):if x%>1 then gosub {:780}
+	input# 2,d$(.),d$(1),d$(2):kk=.:fl=.
+{:774}
+' display message header
+	print:print "("mid$(str$(x%),2)" of "mid$(str$(mx),2);
+	if mid$(d$(1),2)>mid$(d$(2),2) then print ", Read ";:d$=d$(1):gosub {:msg.date}
+	print ")"l$"From "d$(.)" on ";:d$=d$(1):gosub {:msg.date}:if fl then return
+{:777}
+' read message text
+	input# 2,a$:if a$<>"^" then print a$:kk=kk+1:tt$(kk)=a$:goto {:777}
+	goto {:787}
+{:780}
+	for x=1 to x%
+{:781}
+	gosub {:25}:next:return
+{:787}
+	print "{down}[A,D,F,R,S,?]: ";
+{:788}
+	gosub {:sub.cursor_get}:sys is,"?adfrs",an$:on i%+1 goto {:788},{:790},{:792},{:793},{:795},{:865},{:870}
+{:790}
+	print "Help."r$r$"[A]bort [D]elete [F]orward [R]ead [S]ave":goto {:787}
+{:792}
+	gosub {:msg.aborted}:goto {:reopen_player_log}
+{:793}
+	print "Delete.":gosub {:855}:on-(er=1)goto {:772}:print r$"Done.":if mx=. then {:reopen_player_log}
+	goto {:772}
+{:795}
+	print "Forward.":i(.)=.:i(1)=.:i(2)=.:print:print "Forward where?"
+{:797}
+	print
+	print mid$("  ->",(i(.)+1)*2-1,2)" [E]-Mail on BBS"
+	print mid$("  ->",(i(1)+1)*2-1,2)" [M]essage board"
+	print mid$("  ->",(i(2)+1)*2-1,2)" [P]layer"
+	print "{down}[E,M,P]: ";
+{:801}
+	gosub {:sub.cursor_get}:sys is,"emp"+r$,an$:if i%=. then {:801}
+	if i%>0 and i%<3 then print an$:i(i%)=1-i(i%):goto {:797}
+'  |----+--| (7)
+'	E-Mail
+'	Message
+'	Player
+'	if an$="e" then print an$:i(.)=1-i(.):goto {:797}
+'	if an$="m" then print an$:i(1)=1-i(1):goto {:797}
+'	if an$="p" then print an$:i(2)=1-i(2):goto {:797}
+'	if an$<>r$ then 801
+{:807}
+	if i(.)+i(1)+i(2)=. then gosub {:msg.aborted}:goto {:772}
+	close 2:print r$r$"Working...";:if i(.)=. then {:write_chalkboard}
+	b$=na$:gosub {:file.append_or_write}:print# 2,d$(.)+r$+" 0"+d1$+r$+"[Forwarded from TADA]"
+	gosub {:save_message_text}
+{number:815}
+{:write_chalkboard}
+	if i(1)=. then {:player_mail}
+	print:print
+	dr=4:gosub {:file.open}("d.t.chalkboards"):if e then print "No boards.":close 2:goto {:player_mail}
+
+	gosub {:record_pointer}(1):input# 2,a:for x=2 to a+1:gosub {:record_pointer}(x):sys ia,2,80,1,a$:if a$="^" then x=a+1:goto {:820}
+' ^ duplicate code
+	gosub {:msg.list_item}(x,3,a$,1):next:an$="":input"Which board";an$
+' ^ list chalkboards in directory
+{:820}
+	gosub {:string.normalize}(an$):if an<1 or an>a% then close 2:goto {:player_mail}
+' d.t.c. = directory.tada.chalkboard:
+	gosub {:record_pointer}(an+1):input# 2,a$:close 2:dr=4:gosub {:file.open}("d.t.c."+a$)
+{:822}
+	if e then close 2:goto {:player_mail}
+	gosub {:record_pointer}(1):input# 2,a:for x=2 to a+1:gosub {:record_pointer}(x):sys ia,2,80,1,a$:if a$="^" then a=x:x=a+1
+' ^ duplicate code
+	next:gosub {:record_pointer}(a):an$="Untitled":print "Subject ["an$"]";:input an$
+' todo: use "write header" subroutine:
+	print# 2,an$r$d1$r$a$(.):close 2
+	gosub {:file.open}("e.c."+str$(an)+an$+",s,a")
+	if e then {:822}
+	gosub {:editor}:gosub {:save_message_text}
+{number:830}
+{:player_mail}
+	on-(i(2)=.)goto {:850}:print "Player mail"
+' fixme: ^ finish it... ^
+{:850}
+	gosub {:file.open}("e.t."+a$(.)):goto {:772}
+{:855}
+	close 2:on-(mx=1)goto {:860}:gosub {:file.open}("e.t."+a$(.)):if e then er=1:return
+' fixme: scratch 1st:
+	print#15,"s0:e.temp":gosub {:check.io_status}:if e<>1 then {:fixme}
+	open 3,dv,3,"e.temp,s,w":for x=1 to x%
+	gosub {:25}:next
+{:858}
+'	input# 2,a$:on-(st<>.)goto {:859}:print# 3,a$:goto {:858}
+	sys ia,2,40,1,a$:if st=. then print# 3,a$:goto {:858}
+{:859}
+	print# 3,"^":close 3:close 2
+{:860}
+	print# 15,"s"dr$"e.t."+a$(.):if mx=1 then mx=.:return
+	print# 15,"r"dr$"e.t."a$(.)"=e.temp":mx=mx-1:return
+{:865}
+	print "Read.":fl=1:gosub {:774}:for x=1 to kk:print tt$(x):next:goto {:787}
+{:870}
+	print "Save.":close 2:gosub {:file.open}("e.t."+a$(.)):if e then return
+' fixme: scratch 1st, if it fails, then what? o.o
+' fixme: use csip commands!
+	print#15,"s0:e.temp":gosub {:check.io_status}:if e<>1 then {:fixme}
+	open 3,dv,3,"e.temp,s,w":if x%<1 then {:880}
+{:874}
+' copy text from lfn #2 to lfn #3
+	for j=2 to x%
+{:876}
+' this happens quite a lot, subroutine it?
+' (replace with sys ia,2,40,1):print #3,a$
+	input# 2,a$:print# 3,a$:if a$<>"^" then {:876}
+	next:return
+{:880}
+' update date read:
+'	input# 2,a$:print# 3,a$:input# 2,a$:print# 3,a$:input# 2,a$:print# 3,d1$
+	for x=1 to 2:input# 2,a$:print# 3,a$:next:input#2,a$:print# 3,d1$
+{:882}
+' copy message body:
+'	input# 2,a$:on-(st<>.)goto {:884}:print# 3,a$:goto {:882}
+	input# 2,a$:if st=. then print# 3,a$:goto {:882}
+{:884}
+	close 2:print# 3,"^":close 3:print:print "Marked read."
+' scratch original message file:
+	print# 15,"s"dr$"e.t."+a$(.)
+' rename e.temp to message file:
+	print# 15,"r"dr$"e.t."a$(.)"=e.temp":x%=x%+1:if x%<mx+1 then {:772}
+	print:print "End of messages.":goto {:reopen_player_log}
+
+{:fixme}
+	print "Panicing now. "q$a$q$" can't be scratched."
+	
+{remremoval:off}
+{number:997}
+	goto {:advent}
+	rem written by pinacolada @ dre
+	rem t.page

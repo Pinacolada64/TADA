@@ -1,0 +1,593 @@
+{alpha:invert}
+
+{def:standalone}
+{ifdef:standalone}
+
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+{endif}
+
+{number:1}
+	rem t.cast - spur.misc3
+' updates:
+' 22/Apr/2014 15:09 - labelizing, standardizing
+' 8/Mar/2014 14:21
+' 11/28/2003
+
+' info: 'cs' is acted upon in {:spl.link}
+{ifdef:standalone}
+	r$=chr$(13):q$=chr$(34):nl$=chr$(.)
+	def fn r(x)=int(rnd(.)*x)+1
+	def fn p2(x)=peek(v2+x)+256*peek(v2+x+1)
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+' set up ... something, I don't remember what, but this doesn't correspond to
+' any current variables
+	poke v2+11,232:poke v2+12,3
+
+	for x=. to 29 step 3:y=fn r(22):z=fn r(100)
+' high byte of spell #
+	poke v2+83+x,.
+' low byte of spell #/% to cast
+	poke v2+84+x,y:poke v2+85+x,z
+	print fn p2(x+83),peek(v2+83+x):next
+{endif}
+
+	read x
+	dim ob$(x)
+' spell name, type|point determinator, price (thrown away here)
+' todo: read from 'e.t.spells'
+	for y=1 to x:read ob$(x),t$(x),pd(x),x:next
+' |* - dispel poison
+' |@ - cure disease
+	data 20
+	data "ESP",i4,7,100
+	data "WHEATIES",s6,7,150
+	data "HAPPY FEET",e6,5,100
+	data "KILL",m6,6,140
+	data "ELEVATOR UP",u7,7,800
+	data "KNOWLEDGE",w4,7,75
+	data "DESTROYER",m8,7,250
+	data "SLAUGHTER",m4,9,100
+	data "DEPOSIT",t4,8,50
+	data "WELL-BEING",c9,7,170
+	data "BALANCE",d4,6,80
+	data "ELEVATOR DOWN",l5,8,1000
+	data "ENDURANCE",p8,7,140
+	data "TRANSPORT TO SHOPPE",r8,8,250
+	data "SUMMON SPUR",g7,9,2000
+	data "DISPEL POISON{pipe}*",a5,9,100
+	data "APPLE A DAY{pipe}@",a7,9,100
+' only for druids:
+	data "DRUID HEALTH",a9,9,200
+' next 2 only for wizards:
+	data "WIZARD'S GLOW",a9,9,200
+	data "BOOTS OF SPEED",a9,5,2000
+
+{nice:10}
+{:sub.dumber}
+	print "(:sub.dumber) - fixme":return
+
+{endif}
+
+{nice:100}
+'prspell
+' if xs=0 print \"No Spells.":return
+' dy$=dw$+"spells"
+' open #1,dy$
+' print:for x=1 to xs
+' y=(x*4)-3:a=val(mid$(xs$,y))
+' position #1,40,a
+' input #1,cb$\q$,q2$,q3,q4
+' setint(1)
+' print right$("   "+str$(x),3)". - ";
+' print q$;chr$(32,21-len(q$))" : "q3"0%"
+' if key(1) x=xs
+' next:close:return
+'
+'cast
+' if xs=0 print \"No Spells.":goto advent
+' gosub prspell
+
+'cast.a
+' input @2\"Cast which spell number? (?=list):"a$:if a$="" goto advent
+' if a$="?" gosub prspell:goto cast.a
+' if instr(" ",a$) print \"There was a space in your command.":goto cast.a
+' x=val(a$):if (x<1) or (x>xs) print \"You do not know that spell.":goto cast.a
+' y=(x*4)-3:l=len(xs$):x=val(mid$(xs$,y))
+' xs=xs-1:if xs=0 then xs$="":goto spl.read
+' if y=1 then xs$=mid$(xs$,5):goto spl.read
+' if (y+4)>l then xs$=left$(xs$,y-1):goto spl.read
+' xs$=left$(xs$,y-1)+mid$(xs$,y+4)
+' 
+'spl.read
+' dy$=dw$+"spells"
+' open #1,dy$
+' position #1,40,x
+' input #1,cb$\q$,q2$,q3,q4
+' close
+
+' cast
+'	if xs=0 print \"No Spells.":goto advent
+'	gosub prspell
+' cast.a
+'	input @2\"Cast which spell number? (?=list):"a$:if a$="" goto advent
+'	if a$="?" gosub prspell:goto cast.a
+'	if instr(" ",a$) print \"There was a space in your command.":goto cast.a
+'	x=val(a$):if (x<1) or (x>xs) print \"You do not know that spell.":goto cast.a
+'	y=(x*4)-3:l=len(xs$):x=val(mid$(xs$,y))
+'	xs=xs-1:if xs=0 then xs$="":goto spl.read
+'	if y=1 then xs$=mid$(xs$,5):goto spl.read
+'	if (y+4)>l then xs$=left$(xs$,y-1):goto spl.read
+'	xs$=left$(xs$,y-1)+mid$(xs$,y+4)
+'
+' spl.read
+'	dy$=dw$+"spells"
+'	open #1,dy$
+'	position #1,40,x
+'	input #1,cb$\q$,q2$,q3,q4
+'	close
+
+	print "##     Spell"tab(25)"Cast %"
+' fixme: high bit set=skip listing item - means something:
+	z=.:for x=. to 29 step 3:y=fn p2(x):if y<128 then {:160}
+'	z=z+1:y=y-128:print right$(" "+mid$(str$(z),2),2);
+' z: spell #
+	z=z+1:y=y-128
+' trim | flag stuff:
+	n=len(ob$(x)):sys is,ob$(x),"{pipe}":if i% then n=i%-1
+	gosub {:msg.list_item}(z,2,left$(ob$(x),n),0)
+'	print ". - "ob$(x+1)tab(25)y"{left}%
+' print cast %:
+	print right$("  "+str$(y))"%"
+{:160}
+	next:if z=. then print "You have no spells.":goto {:advent}
+' "an" is spell #:
+	an$="":input"Cast which";an$:gosub {:string.normalize}(an$):if an<1 or an>z then {:advent}
+	z=1:x=0
+{:170}
+	y=peek(v2+80+z):if y<128 then {:180}
+	y=y-128:x=x+1:if x=an then print "{rvrs on}"ob$(z):stop
+{:180}
+	z=z+1:goto {:170}
+' figure % to cast successfully
+' fixme: it doesn't seem like this stuff flows logically
+	print:x=fn r(100):an=z:if x<peek(v2+81+an)-128 then {:195}
+
+' determine spell type:
+	sys is,"acdegilmprstuw",left$(t$(an),1):if i%=. then print "No such spell identifier.":stop
+	
+'	(A)ura
+'	(C)onstitution
+'	(D)exterity
+'	(E)nergy
+'	(G)et SPUR
+'	(I)ntelligence
+'	(L)evel Down
+'	(M)onster
+'	(P)layer
+'	(R)eturn to Shoppe
+'	(S)trength
+'	(T)ransfer gold
+'	(U)p Level
+'	(W)isdom
+
+' determine intelligence bonus?
+' if race=druid, additional bonus
+{:cst.outc}
+	b=20-peek(v1+90):gosub {:check.race}:if x=2 then b=b+2
+	if b<3 then b=3
+'	zz$=rnd$:a=random(b*100):a=a/100+1:b=0
+	a=fn r(b*100):a=a/100+1:b=0
+'	if a<q3 then b=1:goto cast.spl
+	if a<q3 then b=1:goto {:cast.spl}
+'	gosub rnd.10
+	gosub {:rnd.10}
+'	if a<5 then b=2
+	if a<5 then b=2
+'	if (not b) goto spl.fail
+	if not b then {:spl.fail}
+
+{:cast.spl}
+	cs=0:c1$=left$(q2$,1):c2=val(right$(q2$,1)):c2=c2/b
+	zz=0:gosub {:check.class}:if x=2 then if c1$<>"M" then zz=2:sys br,"[Druid power!]"+r$+nl$
+' this doesn't look like it would work: if M is not in that group of letters, then the next IF won't get evaluated
+' i'm breaking it into two lines
+'	if pc=1 then if instr("STAFF",wr$) then if instr(c1$,"SWDCEI") print \"The staff trembles..":zz=1:if c1$="M" zz=4
+	if x=1 then sys is,wr$,"STAFF":if i% then sys is,"SWDCEI",c1$:if i% then print "The staff trembles...":zz=1
+	if x=1 then if c1$="M" then zz=4
+' old labels:
+' if c1$="S" goto cst.strn
+' if c1$="W" goto cst.wisd
+' if c1$="D" goto cst.dext
+' if c1$="C" goto cst.cons
+' if c1$="E" goto cst.engy
+' if c1$="I" goto cst.intl
+' if c1$="T" goto cst.xfer
+' if c1$="P" goto cst.plyr
+' if c1$="M" goto cst.mons
+' if c1$="L" goto cst.dnlv
+' if c1$="U" goto cst.uplv
+' if c1$="R" goto cst.shop
+' if c1$="G" goto cst.spur
+' if c1$="A" goto cst.aura
+	
+{:195}
+	sys is,"ACDEGILMPRSTUW",c1$
+'	sys is,"SWDCEITPMLURGA",c1$
+	on i% goto {:cast.aura}, {:cast.con}, {:cast.dex}, {:cast.energy}, {:cast.get_spur}, {:cast.intelligence}, {:cast.level_down}, {:cast.monster}, {:cast.player}, {:cast.shoppe}, {:cast.strength}, {:cast.transfer}, {:cast.level_up}, {:cast.wisdom}
+
+{:cast.aura}
+' q$: name of spell
+	sys is,q$,"BOOTS":if i% then {:boots}
+	sys is,q$,"*",q$:if i% then {:poison}
+	sys is,q$,"@",q$:if i% then {:disease}
+	sys is,q$,"GLOW",q$:if i% then {:wiz.glw}
+	sys is,q$,"DRUID HEALTH",q$:if i% then {:dru.hlth}
+	x=q4/10:if tm=0 then tm=mm+x+c2:goto {:spl.succ}
+	tm=tm+x+c2:goto {:spl.succ}
+	
+{:boots}
+	sys is,"*BO",ys$:if i% then {:spl.fail}
+' fixme: since commodoreserver is not governed by a time limit,
+' maybe tada will change its meaning into double attacks
+'	print \"10 minutes added.":ev=ev+600
+'	if len(ys$)<240 ys$=ys$+"*BO"
+	goto {:spl.succ}
+
+{:poison}
+' dispel poison
+	gosub {:bit.test}(v1+65,5):if s=. then print "Why? You weren't poisoned!":gosub {:sub.dumber}:goto {:spl.fail}
+	gosub {:bit.clear}(v1+65,5):print "Poison... gone!":goto {:spl.succ}
+'	i$="zu$":zw=3:zw$="0":zt=4:gosub lnk.misc:goto spl.succ
+
+{:disease}
+	gosub {:bit.test}(v1+65,7):if s=. then print "Why? You didn't have a disease!":gosub {:sub.dumber}:goto {:spl.fail}
+	gosub {:bit.clear}(v1+65,7):print "You feel much better!":goto {:spl.succ}
+'	i$="zu$":zw=4:zw$="0":zt=4:gosub lnk.misc:goto spl.succ
+
+{:wiz.glw}
+'	zw=val(mid$(zu$,7,1)):if zw>1 print "Wizard Glow is already in effect!":gosub {:sub.dumber}:goto {:spl.fail}
+' fixme:
+	zw=val(mid$(zu$,7,1)):if zw>1 print "Wizard Glow is already in effect!":gosub {:sub.dumber}:goto {:spl.fail}
+	gosub {:msg.delay}("A shimmering glow surrounds you!",30)
+	gosub {:msg.expert_mode}(" (-2 damage from monsters for duration of play session, +20 effective shield size in duels)")
+	if zw=0 then zw=3:goto {:wiz.glw2}
+	zw=2
+'	if zw=0 zw=3:else zw=2
+' resetting flags:
+'	zw$=str$(zw):zu$=left$(zu$,6)+zw$+mid$(zu$,8):goto spl.succ
+
+{:WIZ.GLW2}
+	print "(:WIZ.GLW2) - fixme":stop
+	
+{:dru.hlth}
+	print "A blue glow surrounds you!"
+	if hp<25 then hp=25:gosub {:msg.expert_mode}("Hit points return.")
+	if peek(v1+91)<20 then:gosub {:sub.adj_stat}(6,20-peek(v1+91)):gosub {:msg.expert_mode}("Strength returns.")
+	if peek(v1+93)<20 then:gosub {:sub.adj_stat}(8,20-peek(v1+93)):gosub {:msg.expert_mode}("Energy returns.")
+	if peek(v1+87)<20 then:gosub {:sub.adj_stat}(2,20-peek(v1+87)):gosub {:msg.expert_mode}("Health returns.")
+	gosub {:bit.test}(v1+65,5):if s then:gosub {:bit.clear}(v1+65,5):gosub {:msg.expert_mode}("Poison gone!")
+	gosub {:bit.test}(v1+65,7):if s then:gosub {:bit.clear}(v1+65,7):gosub {:msg.expert_mode}("Disease gone!")
+	goto {:spl.succ}
+
+{:wiz.a}
+' ms=monster strength
+	ms=ms-c2:if a>5 then ms=0
+	print "The area glows with an eerie blue light..."
+	if ms<=0 then {:cst.mns3}
+	if mw then print m$" appears to have weakened."
+	goto {:spl.succ}
+{:cst.mns2}
+	ms=ms+c2:sys br,"The spell appears to have made "+m$+" [stronger]!"+r$+nl$
+	goto {:spl.back}
+{:cst.mns3}
+	ms=0:print "A horrid shriek comes from "m$"!"
+'	i$="kill.mon":dy$=dz$+"spur.combat":link dy$,"misc"
+	goto {:advent}
+
+{:cast.con}
+' my original:
+'	if at(1)>19 then
+'	print "Constitution was"at(1)"{left}, now";:at(1)=at(1)+fn r(10)
+'	if at(1)>25 then at(1)=25
+'	print at(1)"{left}.":goto {:advent}
+'	goto {:advent}
+
+' cst.cons
+	if b=1 and peek(v1+87)<20 then:gosub {:sub.adj_stat}(2,c2):gosub {:msg.you_feel}("healthier"):goto {:spl.succ}
+	if peek(v1+87)=>c2 then:gosub {:sub.adj_stat}(2,-c2):gosub {:msg.you_feel}("a bit less healthy")
+	goto {:spl.back}
+
+{:cast.dex}
+	if b=1 and pd<20 then pd=pd+c2+zz:gosub {:msg.you_feel}("more skillful"):goto {:spl.succ}
+'	if b=1 and pd<20 then pd=pd+c2+zz:print "(You feel a bit more skillful)":goto spl.succ
+'	if pd=>c2 then pd=pd-c2:print "(You feel a bit more clumsy)"
+	if pd=>c2 then pd=pd-c2:gosub {:msg.you_feel}("a bit more clumsy")
+	goto {:spl.back}
+
+{:cast.energy}
+' my original:
+'	if at(7)>19 then
+'	print "Energy was"at(7)"{left}, now";:at(7)=at(7)+fn r(10)
+'	if at(7)>25 then at(7)=25
+'	print at(7)"{left}."
+
+'cst.engy
+	zs=20:gosub {:check.race}:if x=1 then zs=24
+	if x=9 then zs=22
+	if b=1 and pe<zs then pe=pe+c2+zz:gosub {:msg.you_feel}("a surge of energy"):goto {:spl.succ}
+	if pe=>c2 then pe=pe-c2:gosub {:msg.you_feel}("tired")
+	goto {:spl.back}
+
+{:cast.get_spur}
+{:cst.spur}
+	if cl<>sl then print "SPUR is not on level"cl"!":goto {:spl.fail}
+	cr=sr:cs=1:print "Prepare thyself...":goto {:spl.succ}
+
+
+{:cast.intelligence}
+' my original:
+'	if at(4)>19 then
+'	print "Intelligence was"at(4)"{left}, now";:at(4)=at(4)+fn r(10)
+'	if at(4)>25 then at(4)=25
+'	print at(4)"{left}."
+	
+' cst.intl
+	if b=1 and peek(v1+90)<20 then pi=pi+c2+zz:gosub {:smart}:goto {:spl.succ}
+'	if pi=>c2 then pi=pi-c2:print "(You feel a bit dumber)"
+	if pi=>c2 then pi=pi-c2:gosub {:msg.you_feel}("a bit dumber")
+	goto {:spl.back}
+
+{:cast.level_down}
+'todo: check room #
+' cst.dnlv
+'	if instr(".",wy$) goto spl.fail
+	sys is,wy$,".":if i% then {:spl.fail}
+'	if instr("<<",lo$) goto spl.fail
+	sys is,lo$,"<<":if i% then {:spl.fail}
+	if lv%>4 then {:spl.fail}
+	if b=2 then {:cst.dn2}
+' lc=level count (max # of levels) for map
+	if lc>lv% then cl=cl+1:cs=1:goto {:spl.succ}
+	goto {:spl.fail}
+{:cst.dn2}
+	if cl<>1 then cl=cl-1:cs=1:goto {:spl.back}
+	goto {:spl.fail}
+
+{:cast.monster}
+'cst.mons
+	if mw=. then print "No monster here!":gosub {:sub.dumber}:goto {:spl.fail}
+'	if instr("%",wy$) print \m$" sneers at your feats of magic.":goto spl.fail
+	sys is,wy$,"%":if i% then print m$" sneers at your feats of magic.":goto {:spl.fail}
+	sys is,wy$,":":if i% then print "Mechanical devices are unaffected by magic!":goto {:spl.fail}
+'	if instr(":",wy$) print \"Mechanical devices are unaffected by magic!":goto spl.fail
+'.. for casting against charmed monsters
+	if zs=997 or zq>0 then zs=997:zq=0
+	zr=5:if pc=1 then zr=6
+' wizard:
+	zr=5:gosub {:check.class}:if x=1 then zr=6
+'	if instr("~",wy$) gosub rnd.10:if a>zr print m$" appears unaffected!" :goto spl.fail
+' ~ on Apple [chr$(255)] is ^ on Commodore
+	sys is,wy$,"^":if i% then gosub {:rnd.10}:if a>zr then print m$" appears unaffected!":goto {:spl.fail}
+	if b=2 then gosub {:check.class}:if x>1 then {:cst.mns2}
+	gosub {:rnd.10}:gosub {:check.class}:if x>1 then {:wiz.a}
+'	gosub rnd.10:if pc>1 goto wiz.a
+	ep=ep+5:a=a+1:c2=c2+2+xp:gosub {:msg.expert_mode}("(+5 experience)")
+'	print "(+5 experience)":ep=ep+5:a=a+1:c2=c2+2+xp
+'	if instr("STAFF",wr$) print \"Power BLASTS from the staff!":a=a+1:c2=c2+4
+	sys is,wr$,"STAFF":if i% then sys br,"Power [blasts] from the staff!"+r$+nl$:a=a+1:c2=c2+4
+'	if not instr("STAFF",wr$) print \"Fire sizzles from your fingertips!"
+	if i%=. then sys br,"[Fire] sizzles from your fingertips!"+r$+nl$
+	goto {:advent}
+
+{:cast.player}
+' my old way:
+'	print "You feel more ready to face the world.
+'	print "Hit points were"hp(.)"{left}, now";:hp(.)=hp(.)+fn r(20):print hp(.)"{left}.
+'todo: if player has cast esp, tell how many hp specifically
+'	goto {:advent}
+
+'	x=.:if at(5)<10 then x=1:at(5)=at(5)+fn r(10):if at(5)>25 then at(5)=25
+'	if at(7)<10 then x=1:at(7)=at(7)+fn r(10):if at(7)>25 then at(7)=25
+'	if x=. then print "You notice no change in health.":goto {:advent}
+'	print "You feel better now.
+'	goto {:advent}
+
+'	if at(6)>19 then
+'	print "Wisdom was"at(6)"{left}, now";:at(6)=at(6)+fn r(10)
+'	if at(6)>25 then at(6)=25
+'	print at(6)"{left}.":goto {:advent}
+
+'	if at(5)>19 then
+'	print "Strength was"at(5)"{left}, now";:at(5)=at(5)+fn r(10)
+'	if at(5)>25 then at(5)=25
+'	print at(5)"{left}."
+'	goto {:advent}
+
+' spur's way:
+
+	if b=2 then {:cst.pl2}
+'	gosub rnd.10:zz=23+xp:if pr=2 zz=zz+2
+	gosub {:rnd.10}:zz=23+xp:gosub {:check.race}:if x=2 then zz=zz+2
+'	if hp<zz then hp=hp+c2:goto spl.succ
+	if hp<zz then hp=hp+c2:goto {:spl.succ}
+{:cst.pl2}
+	if hp>c2 then hp=hp-c2
+	goto {:spl.back}
+	
+{:cast.shoppe}
+	if b=2 or mw=0 then {:cst.shp2}
+' monster present:
+' magic user:
+	sys is,wy$,".":if i% then sys br,m$+" casts a [FREEZE ADVENTURER] spell!"+r$+nl$:goto {:spl.fail}
+' mechanical:
+	sys is,wy$,":":if i% then print "Sensors on "m$" go nuts as you dematerialize!"
+	print m$" looks puzzled as you fade from view."
+	mw=0:mf=0:m$="":wy$=""
+' fixme: whoa professor, location of shoppe (current room) depends on level...
+	cr=1:di=6:cs=1:goto {:spl.succ}
+{:cst.shp2}
+' pick a random room # from max rooms on level:
+' todo: may want to be nice and check for not ending up in a water room
+
+'	zz$=rnd$:cr=random(nr):if cr=0 goto cst.shp2
+	rm=fn r(nr):if cr=0 then {:cst.shp2}
+	cs=1:goto {:spl.back}
+
+{:cast.strength}
+'cst.strn
+' zs=max strength?
+	zs=20:gosub {:check.race}:if x=2 then zs=24
+	if b=1 and ps<zs then ps=ps+c2+zz:gosub {:msg.you_feel}("a bit stronger"):goto {:spl.succ}
+	if ps=>c2 then ps=ps-c2:gosub {:msg.you_feel}("a bit weaker")
+	goto {:spl.back}
+
+{:cast.transfer}
+'{:cst.xfer}
+' todo: check for gold in bank first to avoid printing silly messages
+' get gold in bank, get gold in hand, zero it, add gold in bank and gold in hand to gold in bank:
+	if b=1 then print "Your gold has been transferred to your bank account.":gosub {:get_3_bytes}(v1+130):y=x:gosub {:get_gold}(1):gosub {:adj_gold}(1,-x):gosub {:put_3_bytes}(v1+130,x+y)
+' get gold in bank, zero it, add to gold in hand:
+	if b=0 then print "Spell has backfired. You are now carrying all your gold.":gosub {:get_3_bytes}(v1+130):y=x:gosub {:put_3_bytes}(v1+130,0):gosub {:get_gold}(1):gosub {:adj_gold}(1,x+y)
+'	if b=1 then print "Your gold has been transferred to your bank account.":bh=bh+gh:bl=bl+gl:gh=0:gl=0:goto cst.x2
+'	print "Spell has backfired.  You are now carrying all your gold.":gh=gh+bh:gl=gl+bl:bh=0:bl=0
+
+'{:cst.x2}
+'	if bl=>10000 then bl=bl-10000:bh=bh+1
+'	if gl=>10000 then gl=gl-10000:gh=gh+1
+	goto {:advent}
+
+
+{:cast.level_up}
+'cst.uplv
+'	if mw then if instr(".",wy$) goto spl.fail
+	if mw then sys is,wy$,".":if i% then {:spl.fail}
+'	if instr("<<",lo$) goto spl.fail
+	sys is,wy$,"<<":if i% then {:spl.fail}
+'	if cl=6 goto spl.fail
+	if cl=6 goto {:spl.fail}
+'	if b=2 goto cst.up2
+	if b=2 goto {:cst.up2}
+'	if cl<>1 then cl=cl-1:cs=1:goto spl.succ
+	if cl<>1 then cl=cl-1:cs=1:goto {:spl.succ}
+	goto {:spl.fail}
+{:cst.up2}
+	if lc>cl then cl=cl+1:cs=1:goto {:spl.back}
+'	if lc>cl then cl=cl+1:cs=1:goto spl.back
+	goto {:spl.fail}
+
+{:cast.wisdom}
+'cst.wisd
+'	if (b=1) and (pw<20) then pw=pw+c2+zz:print "(You feel a bit wiser)":goto {:spl.succ}
+	if b=1 and pw<20 then pw=pw+c2+zz:gosub {:msg.you_feel}("a bit wiser"):goto {:spl.succ}
+'	if pw=>c2 then pw=pw-c2:print "(You feel a bit more foolish)"
+	if pw=>c2 then pw=pw-c2:gosub {:msg.you_feel}("a bit more foolish")
+	goto {:spl.back}
+
+{:spell_fail}
+	print "You cast the spell, but it fails.":goto {:advent}
+
+' possible future spells (old code though):
+{ifdef:future_spells}
+' repair armor
+''' {:sub.print_num}(num,width,cr)
+	x=fn r(30):if x<15 and x<25 then fixme
+	if peek(v1+71)=. then print "Thou hast no armor to repair!":stop
+	print "Motes of light surround your armor,"
+	print "dents and rust magically disappearing."
+	print "(Armor was at";:gosub {:sub.print_num}(a1(.),3,0):print "%, now at";:a1(.)=a1(.)+x
+	if cl=1 then if a1(.)>200 then a1(.)=200
+	if cl=2 then if a1(.)>150 then a1(.)=150
+	if cl=x then if a1(.)>999 then a1(.)=999
+	print mid$(str$(a1(.)),2)"%).":goto {:advent}
+
+' repair shield
+	x=fn r(30):if x<15 and x<25 then fixme
+	print "Shield was at";:gosub {:sub.print_num}(s1(.),3,0):print "%, now at";:s1(.)=s1(.)+x
+	if cl=1 then if s1(.)>200 then s1(.)=200
+	if cl=2 then if s1(.)>150 then s1(.)=150
+' fixme
+	if cl=x then if s1(.)>999 then s1(.)=999
+	gosub {:sub.print_num}(a1(.),3,0):print "%."
+	goto {:advent}
+{endif}
+
+' === ACOS source ===
+
+{:spl.succ}
+' todo: increase casting percentage, decrease charges
+	print "Spell successful!"
+
+{:spl.link}
+	if cs then dy$=dz$+"spur.misc":i$="travel3":link dy$
+	goto {:advent}
+	
+{:spl.back}
+	print "Spell backfired!"
+	goto {:spl.link}
+	
+{:spl.fail}
+	print "Your spell fizzles...":if peek(v1+90)<15 print "(Perhaps if you were smarter...)"
+	goto {:spl.link}
+
+{:lnk.misc}
+'  (supply i$=name of routine in spur.misc)
+	dy$=dz$+"spur.misc":link dy$,"misc"
+
+{:main.msc}
+	dy$=dz$+"spur.main":link dy$,"misc"
+
+{:misc}
+'	on nocar goto {:dropped}
+	if i$="return" then return
+	print "BAD VALUE OF I$ IN SPUR.MISC3! I$="i$
+
+'{:advent}
+'	dy$=dz$+"spur.main"
+'	link dy$
+
+{:dropped}
+	i$="SPUR.SUB"
+	dy$=ds$+"spur.logon"
+	link dy$,"quit3"
+
+{:smart}
+	gosub {:msg.you_feel}("a bit smarter"):return
+ 
+{:rnd.10}
+'	zz$=rnd$:a=random(999):a=a/100+1:return
+	a=fn r(999)/100+1:return
+
+{ifdef:standalone}
+	{number:999}
+	rem T.CAST
+
+' from t.main, just for reference:
+
+{number:2000}
+{:check.gold} ' (character 1-5, price)
+' does character <c> have sufficient gold <p> for a transaction?
+' transaction can be negative in order to deduct gold from account
+' (price=-150, gold=100, returns s=0 for false)
+' returns s: 1=yes, 0=no and x=amount of gold in hand
+' can also just get gold in hand with this routine, then disregard x and p
+	fn c,p
+	gosub {:get_3_bytes}(v2+18+c*3):s=abs(abs(p)<=abs(x)):return
+
+{:sub.adj_gold} ' (character 1-4,amount)
+	fn c,p ' character, price
+' Adjust gold in hand by <p> gold if possible
+' to subtract, set <p> to a negative value
+	gosub {:sub.check_gold}(c,p):if s then:gosub {:put_3_bytes}(v2+18+c*3,x+p)
+	gosub {:check.expert_mode}(0):if s=. then return
+' print message about remaining gold:
+	def x$
+	x$=a$(c-1):if c=1 then x$="Thou"
+	print "("x$" hast ";:gosub {:sub.display_gold}(c,0):print " gold left.)":return
+
+{:sub.display_gold} ' (character #, justification)
+' returns from msg.comma_value:
+	fn c,j
+	gosub {:check.gold}:gosub {:msg.comma_value}(x,1):return
+{endif}

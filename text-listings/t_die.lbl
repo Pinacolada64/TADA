@@ -1,0 +1,181 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' latest update: 24/Sep/2017 18:08
+
+' TODO: use AgentFriday's word-wrap instead
+
+	rem t.die
+	goto {:main}
+
+{nice:10}
+{:sub.delay}
+' FIXME: use TI-based delay for SuperCPU emulation
+	def t	' make local var
+	for t=1 to 2000:next
+{:delay2}
+' wait for cursor to toggle off so as not to leave a "cursor dropping":
+	if peek(207) then {:delay2}
+	print:print:return
+
+' TODO: Other characters saving the day...
+
+' TODO: Check for Paladin character in party, chance of revival of other chars.
+' From WOWiki:
+' Paladins are extremely effective against undead and demons - however 
+' contrary to popular belief, unless specifically stated their attacks do not 
+' do extra damage to either - its main bonus is that no race has any special 
+' resistance to it. A good Paladin player is always useful in a group, but in
+' an Undead/Demon infested area, they are invaluable.
+
+' TODO: Check for charges left of a revive spell an ally could use on other chars
+
+' WISH: <ally> throws him/herself in front of you to take fatal hit
+' this is in another module, but could be moved here perhaps?
+
+' TODO: Save other characters from dying if you have healing spells... would need
+' another LN flag here
+
+{:main}
+	on ln goto {:suicide},{:death_reason}
+
+{:dead}
+' ===============[ acos code ]=============================
+'
+'	mf=0:mw=0:zz$=wr$:wr$="":xt$="":xt=0:xm$="":xm=0:cp=0:dp=0
+'	if z<>18 then print "You have not survived.."
+'	if z=18 then print "You pass through the portal..."
+'	dy$=dx$+"weapons"
+' have any weapons?
+'	if xw=0 then {:dead1}
+' make them available to other players again:
+'	open #1,dy$
+'	for j=1 to xw
+'	y=(j*4)-3:x=val(mid$(xw$,y))
+'	if x>10 position #1,34,x:print #1,"1"
+'	next
+'	close 2
+'
+'
+'{:dead1}
+' if d1$<>"*" then x=h1:gosub {:fre.ally}
+'	if d2$<>"*" then x=h2:gosub {:fre.ally}
+'	if d3$<>"*" then x=h3:gosub {:fre.ally}
+'	if (not mv) return
+'	dy$=dx$+"spur.time"
+'	open #1,dy$
+'	position #1,12,un
+'	eu=eu+ex:a$=left$(date$,5)+"":if left$(cm$,5)<>a$ then eu=0
+'	print #1,a$,eu:close
+'	return
+'
+'{:dead2}
+'	on nocar goto {:dropped}
+'	print "The land fades from your eyes..."
+'	cl=0:cr=0:dy$=ds$+"spur.logon":link dy$,"quit1"
+'
+'{:fre.ally}
+'	if x=0 return
+'	dy$=dx$+"allies":open #1,dy$
+'	position #1,26,x
+'	print #1,1:close:return
+
+' ===============[ tada code ]=============================
+
+{:dead2c}
+	:
+{:dead2a}
+'	vv=0:if z<>18 then print "Uh, oh..."
+'	dy$=dx$+"battle.log":create dy$:open #1,dy$:append #1
+'	zw$="OBITUARY":if z=18 zw$="STAR CHILD"
+'	print #1, left$(date$,6)yr$" "time$"- "zw$
+'	zt$="DIED":if z=18 zt$="BECAME IMMORTAL"
+'	zw$=n1$+" "+zt$+" IN "+ww$+",":xu=len(zw$)
+'	if xu<40 print #1, zw$:goto dead2b
+'	print #1, n1$" "zt$
+'	print #1, "IN "ww$","
+
+{:death_reason}
+' TODO: Log reason 'z' here:
+
+{:dead2b}
+	if z=1 then print #1, "of starvation!!"
+	if z=2 then print #1, "by commiting suicide..":goto {:win}
+	if z=3 then print #1, "picking up a cursed object!"
+	if z=4 then print #1, "while battling "m$"."
+	if z=5 then if wr$<>"" print #1, "killed by the "wr$"!"
+	if z=6 then print #1, "turned to stone by "m$"!"
+	if z=7 then print #1, "from being poisoned!"
+	if z=8 then print #1, "from a strange disease.."
+	if z=9 then print #1, "killed by the death amulet!"
+	if z=10 then print #1,"from drowning.."
+	if z=11 then print #1,"from freezing to death.."
+	if z=12 or z=0 then print #1,"fighting a duel.."
+	if z=13 then print #1,"zapped by the spirit of the dungeon!"
+	if z=14 then print #1,"killed by the magic of "m$"!"
+	if z=15 then print #1,"from decompression!"
+	if z=16 then print #1,"from radiation poisoning!"
+	if z=17 then print #1,"from an accidental concussion"
+	if z=18 then print #1,"passing through the Portal of Spur!":goto {:win}
+	if z=19 then print #1,"killed by a booby trap!"
+' fixme: hmm... no equivalent to flag(7) yet...
+'	if flag(7) print #1,"BUT RETURNED TO LIFE!":goto {:win}
+' check for amulet of life:
+	gosub {:check.item}(76):if s then print #1, "BUT WAS REVIVED BY THE AMULET OF LIFE!":goto {:win}
+' fixme: vk is honor
+	gosub {:check.class}:if s=9 then if vk>1600 then print #1,"BUT THE SAINTLY KNIGHT WAS REVIVED BY THE GODS!"
+{:win}
+	print #1, "[]=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=[]"
+' check whether amulet of life is energized or flag(7)<>0, and death wasn't a suicide:
+'	close 1:if (mid$(zu$,8,1)="1") or (flag(7)) then if z<>2 then i$="":goto {:revive}
+	close 1:if mid$(zu$,8,1)="1" or flag(7) then if z<>2 then i$="":goto {:revive}
+	if pc=9 then if vk>1600 then if z<>2 then i$="SAINT":goto {:revive}
+' zero out ally inventory:
+' z=6: turned to statue
+	ai=0:ai$="":if z=6 then gosub {:statue}
+
+'	dy$=dx$+"spur.a1$":open #1,dy$
+'	position #1,64,un
+'	input #1,g5,g6,g7,g8,g9,g9,g0
+'	if z=2 print \"(Suicides lose any money saved with Vinney..)":g5=0:g6=0
+'	position #1,64,un
+'	print #1,g5,g6,g7,g8,0,g9,g0
+'	close:return
+
+{:suicide}
+'	an$="":input"DIE! Ok (Y/[N])";an$:print:on-(an$<>"y")goto610:goto611
+
+' this now asks  "DIE: Are you sure [y/n]? "
+	an$="":print "DIE: ";:gosub {:sub.yes_no}(0):print
+{:610}
+	if a=0 then print "Whew! For a minute there I thought you were serious!!!":goto {:advent}
+{:611}
+	print "(Suicides lose any money saved with Vinney in the bar...)"
+' TODO: Reset money in bar
+
+{:612}
+	gosub {:sub.delay}:poke 204,.:print "{clear}Uh oh...";:gosub {:sub.delay}
+{:613}
+	print "You have not survived...";:gosub {:sub.delay}
+{:614}
+	print "The Land fades from your eyes...";
+
+' fixme: unfinished:
+{:dead.a}
+	print "(:dead.a)":stop
+
+{:dropped}
+	print "(:dropped)":stop
+
+{:revive}
+	print "(:revive)":stop
+
+{:statue}
+	print "(:statue)":stop
+	
+' todo: Log to e.t.eventlog
+
+' todo: erase player slot in e.t.playerlog
+{number:999}
+	rem t.die

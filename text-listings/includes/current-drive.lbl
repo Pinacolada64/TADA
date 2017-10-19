@@ -1,0 +1,5 @@
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+{:get_current_device}
+	dv=peek(186):if dv<8 then dv=8
+{:open_cmd_channel}
+	close 15:open 15,dv,15:if st=128 then print "Device not present.":goto {:1811}

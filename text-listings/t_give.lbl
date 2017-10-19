@@ -1,0 +1,45 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.give
+{ifdef:standalone}
+	in=10:mi=in:al=4:for x=.to 4:a(x)=x:next
+	in$(.)="0001000200030004000500060007000800090010
+	for x=1 to 4:in$(x)="000000010001":next
+	for x=.to 4:a$(x)="CHAR"+str$(x):next:i(3)=.:i(7)=.
+' |* flag = cursed
+	ob$(1)="ADVENTURER'S GUIDE":ob$(2)="IN SEARCH OF...":ob$(3)="IVORY BONES|*"
+	ob$(4)="SACK LUNCH +1":ob$(5)="NOTHING SPECIAL":ob$(6)="IRON PLAQUE"
+	ob$(7)="BREAD BOX":ob$(8)="MEAT":ob$(9)="KNIFE":ob$(10)="LAST ITEM"
+{endif}
+	if in=. then print "You have nothing to give.":goto {:advent}
+	if al=. then print "You have no allies.":goto {:advent}
+{:inv_loop}
+	y=-1:for x=1 to mi*4 step 4:y=y+1:i(y)=val(mid$(in$(.),x,4)):next
+	print:y%=.:for x=.to mi:if i(x)=. then {:670}
+	a$=ob$(i(x)):if left$(o$,1)="*" then o$=mid$(o$,2)
+'	print y%"{left}. - "o$
+	gosub {:msg.list_item}(x+1,2,o$,1)
+{:670}
+	next:an$="":print "{down}Give which item?";:sys si,2,3,an$:if an$="" then {:advent}
+	gosub {:string.normalize}(an$):t=an:if t<1 or t>y% then {:advent}
+	for x=1 to t:if i(x)=. then t=t+1
+	next:ob=t
+' list available allies (5=unconscious):
+	print:y%=.:for x=1 to al:if a(x)<>5 then:gosub {:msg.list_item}(x,2,a$(a(x)),1)
+	
+{:720}
+	next:print:an$="":print "Give "ob$(ob)" to whom? ";:sys si,2,3,an$:if an$="" then {:inv_loop}
+	gosub {:string.normalize}(an$):if an<. or an>y% then {:advent}
+	for x=1 to z:if a(x)=5 then z=z+1 ' unconscious ally
+	next:y=.:t=.
+
+' search for empty inventory slot to put item into 
+	for x=1 to 12 step 4:y=y+1:j(y)=val(mid$(in$(z),x,4)):if j(y)=. then t=y
+	next:if t=. then print a$(y)" can't carry any more.":goto {:advent}
+' transfer item:
+
+	print "{down}Given away.":goto {:advent}
+{number:999}
+	rem t.give

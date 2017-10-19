@@ -1,0 +1,114 @@
+{number:1}
+{alpha:invert}
+
+{def:standalone}
+{def:debug}
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.drop
+
+' 12/May/2016 17:56: Why not combine flags?
+
+' <category> [<additional modifier>] . <item name>
+' DC.EMBALMING FLUID - cursed drink
+' TC.IVORY BONES - cursed ivory bones
+' P.GOOG - GOOG is in party
+
+' major item categories:
+' A Armor
+' B Book
+' C Compass
+' D Drink
+' F Food
+' M Monster found/charmed while adventuring & joined party (is it needed?)
+' P Player
+' S Shield
+' T Treasure
+
+' additional modifiers:
+' B Blessed - original game does not have this attribute...
+' C Cursed  -  make a spell to bless/curse items?
+' M Magic item
+
+' WS. Weapon - Standard
+' WM. Weapon - Magical
+' WC. Weapon - Cursed
+
+' store item names using Jeff Jones' Static Array System
+
+{ifdef:standalone}	
+	read n:print n"items"
+' calculate length of longest item
+	print "reading"
+	for x=1 to n
+	read i,w$:print x;w$
+	if len(w$)<l then l=len(w$)
+	next
+	print "longest:"l
+
+' set up static array, n items of l width
+' SYS addr,loc,width,number,clear
+	print "making space"
+	sys sa,53248,l,n,1
+
+' store each item in the static array
+	print "storing"
+	restore
+	read i ' toss # of items
+	for x=1 to n
+	read i,w$:
+
+	data 5
+' item #,name
+	data  62,"B.ADVENTURER'S GUIDE" ' 20
+	data  31,"B.IN SEARCH OF..."
+	data  38,"CT.IVORY BONES"
+	data 160,"F.SACK LUNCH +1"
+	data 161,"T.NOTHING MUCH"
+
+{endif}
+	goto {:start}
+
+{:start}
+{number:100}
+' todo: scan command line to see whether "DROP <OBJECT_NAME>" was typed
+
+' todo: scan through inventory, count items (in) to see if there's anything to
+' drop
+	if in=. then print "You have nothing to drop.":goto {:advent}
+
+' check whether room is at capacity
+	t=.:for x=. to 4:t(x)=val(mid$(tt$(4),x*4-3,4)):next
+{:620}
+	t=t+1:y=t(t):on y and t<17 goto {:620}:if y=. then {:640}
+	print "This place is full.":goto {:advent}
+{:640}
+	print:y%=.:for x=1 to 5:x$=mid$(in$(.),x*4-3,4):n=val(left$(x$,1))
+	j=val(mid$(x$,2)):on-(j=.)goto {:680}:y%=y%+1:o$=ob$(j)
+	gosub {:sub.list}(n,w$)
+{:680}
+	next
+	an$="":input"{down}Drop which";an$:gosub {:string.normalize}(an$):ob=an:if ob<1 or ob>y% then {:advent}
+
+' add to room's inventory:
+	j=-2:x=.:in$(.)="0"+in$(.):tt$(4)="0"+tt$(4)
+{:700}
+	j=j+4:x=x+1:y$=mid$(in$(.),j,4):if y$="0000" then {:700}
+	on-(x<>ob)goto {:700}:in$(.)=left$(in$(.),ob*4)+"0000"+mid$(in$(.),ob*4+5)
+	in$(.)=mid$(in$(.),2):j=-2
+{:730}
+	j=j+4:x=x+1:if mid$(tt$(4),j,4)<>"0000" then {:730}
+	tt$(4)=left$(tt$(4),j-1)+y$+mid$(tt$(4),j+4):tt$(4)=mid$(tt$(4),2)
+	if ob=y% then in$(.)=left$(in$(.),len(in$(.))-3)
+
+' todo: if water room, "<item> slowly sinks from view..."
+' todo: if space room, "<item> slowly floats away..."
+
+	print:print "Dropped.":goto {:advent}
+{number:999}
+	rem t.drop
+
+{ifndef:standalone}
+{:advent}
+	end
+{endif}

@@ -1,0 +1,250 @@
+
+start tok64 teo
+1 REM teo: tada editor - objects
+2 REM last modified 11/3/03
+3 FORx=1TO10:READat$(x):NEXT
+4 DATA"CHR","CON","DEX","EGO","INT","STR","WIS","Egy","Spl","Exp
+9 v$="Value":l$=" {sh asterisk*38}
+10 OPEN15,8,15:DIMtt$(45):r$=CHR$(13)
+11 CLOSE2:er=.:PRINTr$"{reverse on}[A]{reverse off}rmor"r$"{reverse on}[B]{reverse off}ooks"r$"{reverse on}[F]{reverse off}ood/Drinks
+12 PRINT"{reverse on}[O]{reverse off}bjects"r$"{reverse on}[S]{reverse off}pells"r$"{reverse on}[W]{reverse off}eapons"r$"{reverse on}[Q]{reverse off}uit
+13 PRINT:an$="q":INPUT"Well";an$:op$=an$
+14 ON-(op$="a")-2*(op$="b")-3*(op$="f")GOTO20,45,300
+15 ON-(op$="o")-2*(op$="s")-3*(op$="w")GOTO999,300,100
+16 ON-(an$="q")GOTO1811:GOTO11
+20 a=1:a$="e.t.a":GOSUB1011:IFe%THEN11
+21 GOSUB752:ON-(er=1)GOTO11:GOTO23
+22 a$=MID$(a$,16):RETURN
+23 INPUT#2,a$:tt$(1)=LEFT$(a$,3):tt$(2)=MID$(a$,4,4):tt$(3)=MID$(a$,8,4)
+24 tt$(4)=MID$(a$,12,4):tt$(5)=MID$(a$,16)
+25 PRINTl$r$" 1. Armor Name : "tt$(5):PRINT" 2. Armor Class:"tt$(1)
+26 PRINT" 3. Store Price: "tt$(2):PRINT" 4. Pawn Shop{space*2}: "tt$(3)
+27 PRINT" 5. Fix Price{space*2}: "tt$(4)r$l$:h=5:GOSUB905:IFan=.THEN40
+28 ONanGOTO30,32,34,36,38
+30 PRINT"[15 char max]":p$="Armor Name":l=1:h=15:t=.:x$=tt$(5):GOSUB900
+31 tt$(5)=x$:GOTO25
+32 PRINT"[-10 to 10]":p$="Armor Class":l=-10:h=10:t=1:x$=tt$(1):GOSUB900
+33 tt$(1)=x$:GOTO25
+34 PRINT"[0-{9*4}]":p$="Store Price":l=.:h=9999:t=1:x$=tt$(2):GOSUB900
+35 tt$(2)=x$:GOTO25
+36 PRINT"[0-{9*4}]":p$="Pawn Shop Price":l=.:h=9999:t=1:x$=tt$(3):GOSUB900
+37 tt$(3)=x$:GOTO25
+38 PRINT"[0-{9*4}]":p$="Armory Fix Price":l=.:h=9999:t=1:x$=tt$(4):GOSUB900
+39 tt$(4)=x$:GOTO25
+40 x$="+":IFVAL(tt$(1))<.THENx$="-
+41 d$=x$+RIGHT$("00"+MID$(STR$(VAL(tt$(1))),2),2)
+42 FORq=2TO4:d$=d$+RIGHT$("{0*3}"+MID$(STR$(VAL(tt$(q))),2),4):NEXT:d$=d$+tt$(5)
+43 GOSUB1001:PRINT#2,d$:GOTO21
+45 a$="e.t.b":a=1:GOSUB1011:IFe%THEN11
+46 GOSUB752:ON-(er=1)GOTO11:GOTO48
+47 a$=MID$(a$,8):RETURN
+48 INPUT#2,a$:tt$(1)=LEFT$(a$,1):tt$(2)=MID$(a$,2,1):tt$(3)=MID$(a$,3,4)
+49 tt$(4)=MID$(a$,7,1):tt$(5)=MID$(a$,8)
+50 PRINTr$l$r$" 1. Book Name{space*4}: "tt$(5)
+51 q=1+VAL(tt$(1)):PRINT" 2. In Same Place: "MID$("NO YES",q*3-2,3)
+52 q=1+VAL(tt$(2)):PRINT" 3. Self-Destruct: "MID$("NO YES",(q*3-2),3)
+53 x$=MID$(at$,q*3-2,3)
+54 PRINT" 4. Attribute Adj: ";:q=ASC(LEFT$(tt$(3),1))-64
+55 PRINTMID$("NO YES",((q<1)+2)*3-2,3);:IFq=.THEN57
+56 PRINT" ("at$(q)MID$(tt$(3),2)")";
+57 q=1+VAL(tt$(4)):PRINTr$" 5. Cursed Book{space*2}: "MID$("NO YES",q*3-2,3)r$;
+58 PRINT" 6. Edit Book Text"r$l$:h=6:a=.:GOSUB905:IFan=.THEN90
+59 ONanGOTO60,62,63,64,84,85
+60 PRINT"[15 char max]":p$="Book Name":l=1:h=15:t=.:x$=tt$(5):GOSUB900:tt$(5)=x$
+61 GOTO50
+62 q=1-VAL(tt$(1)):tt$(1)=MID$(STR$(q),2):GOTO50
+63 q=1-VAL(tt$(2)):tt$(2)=MID$(STR$(q),2):GOTO50
+64 PRINTr$l$r$" A. None":FORq=1TO10:PRINT" "CHR$(193+q)". "at$(q):NEXT
+65 PRINTl$r$:PRINT"[A-K]":p$="Attribute":l=.:h=10:q=ASC(LEFT$(tt$(3),1))+1
+66 x$=CHR$(q):GOSUB900:ON-(x$<"a"ANDx$>"k")GOTO64:q=ASC(x$)-1:x$=CHR$(q)
+67 tt$(3)=x$+MID$(tt$(3),2):IFx$="@"THENPRINTr$"Negated.":tt$(3)="@+00":GOTO50
+68 PRINTr$at$(ASC(x$)-64)" is set to ";:x$=MID$(tt$(3),2,1)
+69 IFx$="="THENPRINT"equal";
+70 IFx$="-"THENPRINT"subtract";
+71 IFx$="+"THENPRINT"add";
+72 x$=MID$(tt$(3),3):IFx$="RR"THENPRINT" a random amount";:GOTO74
+73 PRINT" "x$;:REM random amount above should be 1 r then # between 1-18
+74 PRINT".":REM high bit set for negative 1-18
+75 PRINTr$"[+/-/=]":p$="Modifier":l=1:h=1:t=.:x$=MID$(tt$(3),2,1):GOSUB900
+76 IFx$<>"+"ANDx$<>"-"ANDx$<>"="THEN75
+77 tt$(3)=LEFT$(tt$(3),1)+x$+RIGHT$(tt$(3),2):h=18:q=VAL(LEFT$(tt$(3),1))
+78 IFq>5THENh=25:IFq>9THENh=99
+79 PRINT"[0-"MID$(STR$(h),2)", RR=Random]":p$=v$:l=.:x$=RIGHT$(tt$(3),2)
+80 GOSUB900:IFVAL(x$)<10THENx$="0"+x$
+81 tt$(3)=LEFT$(tt$(3),2)+x$:GOTO50
+84 q=1-VAL(tt$(4)):tt$(4)=MID$(STR$(q),2):GOTO50
+85 PRINT"Not supported yet":GOTO50
+90 d$="":FORq=1TO5:d$=d$+tt$(q):NEXT:GOSUB1001:PRINT#2,d$:GOTO46
+100 REM weapons
+101 a$="e.t.w":GOSUB1011:IFe%THEN11
+102 GOSUB752:ON-(an<>.)GOTO104:GOTO11
+103 a$=MID$(a$,36):RETURN
+104 INPUT#2,a$:tt$(1)=LEFT$(a$,4):tt$(2)=MID$(a$,5,4):tt$(3)=MID$(a$,9,4)
+105 tt$(4)=MID$(a$,13,1):tt$(5)=MID$(a$,14,2):tt$(6)=MID$(a$,16,2)
+106 tt$(7)=MID$(a$,18,1):tt$(8)=MID$(a$,19,10):tt$(9)=MID$(a$,29,7)
+107 tt$(10)=MID$(a$,36)
+110 a=.:PRINTr$l$r$" 1. Weapon Name : "tt$(10)r$" 2. Store Price : "tt$(1)
+111 PRINT" 3. Fix Price{space*3}: "tt$(3)r$" 4. Pawn Shop{space*3}: "tt$(2)r$;
+112 PRINT" 5. Ease of Use : "tt$(4)r$" 6. Base Damage : "LEFT$(tt$(5),1);
+113 IFRIGHT$(tt$(5),1)="*"THENPRINT" + Ammunition Bonus";
+114 PRINTr$" 7. Reqired Dex : "tt$(6)r$" 8. Weapon Class: ";
+115 x$="SLASH/BASHPOKE/JAB{space*2}POLE/RANGEPROJECTILEPROXIMITY ENERGY
+116 PRINTMID$(x$,VAL(tt$(7))*10-9,10)" (Class "tt$(7)")
+117 PRINT" 9. Edit Weapon Flags/Data"r$l$r$;
+120 h=9:GOSUB905:IFan=.THEN230
+121 ONanGOSUB125,127,131,129,133,135,142,144,150:GOTO110
+125 p$="Weapon Name":l=1:h=15:t=.:x$=tt$(10):GOSUB900:tt$(10)=x$:RETURN
+127 PRINT"[1-9,{9*3}]":p$="Store Price":l=1:h=9999:t=1:x$=tt$(1):GOSUB900
+128 tt$(1)=x$:RETURN
+129 PRINT"[1-9,{9*3}]":p$="Pawn Shop Price":l=1:h=9999:t=1:x$=tt$(2):GOSUB900
+130 tt$(2)=x$:RETURN
+131 PRINT"[1-9,{9*3}]":p$="Armory Fix Price":l=1:h=9999:t=1:x$=tt$(3):GOSUB900
+132 tt$(3)=x$:RETURN
+133 PRINT"[1-9]":p$="Ease Of Use":l=1:h=9:t=1:x$=tt$(4):GOSUB900:tt$(4)=an$
+134 RETURN
+135 PRINT"[1-9]":p$="Base Damage":l=1:h=9:t=1:x$=LEFT$(tt$(5),1):GOSUB900
+136 d$=x$
+137 x$="Y":IFRIGHT$(tt$(5),1)=" "THENx$="N
+138 PRINT"[Y=Yes, N=No]":p$="Ammunition Bonus":l=1:h=1:t=.:GOSUB900
+139 IFx$<>"y"ANDx$<>"n"THEN138
+140 x$="*":IFx$="n"THENx$=" "
+141 tt$(5)=d$+x$:RETURN
+142 PRINT"[1-25]":p$="Required Dexterity":l=1:h=25:t=1:x$=tt$(6):GOSUB900
+143 tt$(6)=x$:RETURN
+144 x$="SLASH/BASHPOKE/JAB{space*2}POLE/RANGEPROJECTILEPROXIMITY ENERGY
+145 PRINTr$;:FORx=1TO6:PRINTMID$(STR$(x),2)". "MID$(x$,x*10-9,10):NEXT
+146 PRINT"[1-6]":p$="Weapon Class":l=1:h=6:t=1:x$=tt$(7):GOSUB900:tt$(7)=x$
+147 RETURN
+150 GOSUB240
+151 PRINTr$"Edit Weapon Flags/Data: "tt$(10)r$l$r$" 1) Weapon Flag{space*2}:";
+154 x$=tt$(8):fl=VAL(LEFT$(x$,1)):PRINTfl;:ONflGOTO155,160,164,167,169
+155 PRINT"(In Shoppe)
+156 q=1+VAL(MID$(x$,2,1)):PRINT" 2) In Annex?{space*4}: "MID$("NO YES",q*3-2,3)
+157 q=1+VAL(MID$(x$,3,1)):PRINT" 3) In Pawn Shop?: "MID$("NO YES",q*3-2,3)
+158 q=1+VAL(MID$(x$,4,1)):PRINT" 4) In Underdark?: "MID$("NO YES",q*3-2,3)
+159 h=8:GOTO170
+160 PRINT"(In Dungeon)
+161 PRINT" 2) In Room{space*6}: "MID$(x$,2,3)
+162 PRINT" 3) On Level{space*5}: "MID$(x$,5,2)
+163 h=7:GOTO170
+164 PRINT"(Player Has It)
+165 PRINT" 2) Player{space*7}: "MID$(x$,2,3)
+166 h=6:GOTO170
+167 PRINT"(Monster Has It)"r$" 2) Monster{space*6}: "MID$(x$,2,3)
+168 h=6:GOTO170
+169 PRINT"(DESTROYED)"r$"{space*3}[Change flag to resume use in game]":h=5
+170 q=1+VAL(MID$(x$,7,1))
+171 PRINTh-3"{left}) Storm Weapon?: "MID$("NO YES",q*3-2,3)r$;
+172 q=ASC(MID$(x$,9,1))-64
+173 PRINTh-2"{left}) Intelligence :"q;
+174 IFq>17THENPRINT"(Can Cast Spells)";
+175 q=1+VAL(RIGHT$(x$,1)):PRINTr$h-1"{left}) Alignment{space*4}: ";
+176 PRINTMID$("GOOD{space*3}NEUTRALEVIL{space*3}RANDOM",q*7-6,7)r$h"{left}) Edit Best Targets
+177 PRINTl$r$;:GOSUB905:IFan=.THEN110
+179 ONflGOTO181,201,209,211,220
+181 ONanGOSUB183,187,188,190,192,194,197,246
+182 GOTO150
+183 PRINTr$" 1) In Shoppe"r$" 2) In Dungeon"r$" 3) Player Has It
+184 PRINT" 4) Monster Has It"r$" 5) Destroyed":x$=LEFT$(tt$(8),1)
+185 PRINT"[1-5]":p$="Flag Number":l=1:h=5:t=1:GOSUB900
+186 tt$(8)=x$+MID$(tt$(8),2):RETURN
+187 q=1-VAL(MID$(tt$(8),2,1)):tt$(8)="1"+MID$(STR$(q),2)+MID$(tt$(8),3):RETURN
+188 q=1-VAL(MID$(tt$(8),3,1))
+189 tt$(8)=LEFT$(tt$(8),2)+MID$(STR$(q),2)+MID$(tt$(8),4):RETURN
+190 q=1-VAL(MID$(tt$(8),4,1))
+191 tt$(8)=LEFT$(tt$(8),3)+MID$(STR$(q),2)+MID$(tt$(8),5):RETURN
+192 q=1-VAL(MID$(tt$(8),7,1))
+193 tt$(8)=LEFT$(tt$(8),6)+MID$(STR$(q),2)+RIGHT$(tt$(8),3):RETURN
+194 PRINTr$"[0-20]":p$="Intelligence":l=.:h=20:t=1
+195 x$=STR$(ASC(MID$(tt$(8),9,1))-64):GOSUB900
+196 tt$(8)=LEFT$(tt$(8),8)+CHR$(64+VAL(x$))+RIGHT$(tt$(8),1):RETURN
+197 PRINT:FORq=1TO4:PRINT"{left}"q"{left}. "MID$("GOOD{space*3}NEUTRALEVIL{space*3}RANDOM",q*7-6,7):NEXT
+198 PRINT"[1-4]":p$="Alignment":l=1:h=4:t=1:x$=STR$(VAL(RIGHT$(tt$(8),1))+1)
+199 GOSUB900:tt$(8)=LEFT$(tt$(8),9)+STR$(VAL(x$)-1):RETURN
+201 ONanGOSUB183,203,206,192,194,197,246
+202 GOTO150
+203 PRINT"[1-{9*3}]":p$="Room #":l=1:h=999:t=1:x$=MID$(tt$(8),2,3):GOSUB900
+204 tt$(8)="2"+RIGHT$("{0*3}"+MID$(STR$(VAL(x$)),2),3)+MID$(tt$(8),5):RETURN
+206 PRINT"[1-99]":p$="Level #":l=1:h=99:x$=MID$(tt$(8),5,2):GOSUB900
+207 tt$(8)=LEFT$(tt$(8),4)+RIGHT$("00"+MID$(STR$(VAL(x$)),2),2)+MID$(tt$(8),7)
+208 RETURN
+209 ONanGOSUB183,216,192,194,197,246
+210 GOTO150
+211 ONanGOSUB183,213,192,194,197,246
+212 GOTO150
+213 PRINT"[0-{9*3}]":p$="Monster #":l=.:h=999:t=1:x$=MID$(tt$(8),2,3):GOSUB900
+214 q=VAL(x$)
+215 tt$(8)="4"+RIGHT$("{0*3}"+MID$(STR$(q),2),3)+MID$(tt$(8),5)+"00":RETURN
+216 PRINT"[0-{9*3}]":p$="Player #":l=.:h=999:t=1:x$=MID$(tt$(8),2,3):GOSUB900
+217 q=VAL(x$)
+218 tt$(8)="3"+RIGHT$("{0*3}"+MID$(STR$(q),2),3)+MID$(tt$(8),5)+"00":RETURN
+220 ONanGOSUB183,192,194,197,246
+221 GOTO150
+230 d$="":FORq=1TO3:d$=d$+RIGHT$("{0*4}"+tt$(q),4):NEXT:FORq=4TO10:d$=d$+tt$(q)
+231 NEXT:GOSUB1001:PRINT#2,d$:GOTO102
+240 REM weapon flag autocorrection
+241 IFLEFT$(tt$(8),1)<>"1"THENRETURN
+242 IFVAL(MID$(tt$(8),2,1))>1THENtt$(8)="11"+MID$(tt$(8),3)
+243 IFVAL(MID$(tt$(8),3,1))>1THENtt$(8)=LEFT$(tt$(8),2)+"1"+MID$(tt$(8),4)
+244 IFVAL(MID$(tt$(8),4,1))>1THENtt$(8)=LEFT$(tt$(8),3)+"1"+MID$(tt$(8),5)
+245 RETURN
+246 PRINTr$l$r$;:FORq=1TO7:PRINTq"{left}) ";:IFq>.THENx$="HUGE":REM best targets
+247 IFq>1THENx$="LARGE":IFq>2THENx$="BIG":IFq>3THENx$="MAN-SIZED
+248 IFq>4THENx$="SHORT":IFq>5THENx$="SMALL":IFq>6THENx$="SWIFT
+249 PRINTx$TAB(13)": ";:j=1+VAL(MID$(tt$(9),q,1)):PRINTMID$("NO YES",j*3-2,3)
+250 NEXT
+251 PRINTl$r$;:h=7:GOSUB905:IFan=.THEN150
+252 q=VAL(MID$(tt$(9),an,1)):q=1-q
+253 IFan=1THENtt$(9)=MID$(STR$(q),2)+MID$(tt$(9),2):GOTO246
+254 IFan=7THENtt$(9)=LEFT$(tt$(9),6)+MID$(STR$(q),2):GOTO246
+255 tt$(9)=LEFT$(tt$(9),an-1)+MID$(STR$(q),2)+MID$(tt$(9),an+1):GOTO246
+300 REM food/drink/spells
+301 a$="e.t."+op$:GOSUB1011:IFe%THEN11
+302 GOSUB752:ON-(an<>.)GOTO304:GOTO11
+303 a$=MID$(a$,5):RETURN
+304 INPUT#2,a$:tt$(1)=LEFT$(a$,4):tt$(2)=MID$(a$,5)
+305 PRINTl$r$" 1) ";:x$="Food/Drink":IFop$="s"THENx$="Spell
+306 PRINTx$TAB(14)": "tt$(2)r$" 2) Price"TAB(14)": "tt$(1)r$l$r$;
+307 h=2:GOSUB905:IFan=.THEN314
+308 ONanGOSUB310,312
+309 GOTO305
+310 PRINT"[15 char max]":p$=x$+" Name":x$=tt$(2):l=1:h=15:t=.:GOSUB900:tt$(2)=x$
+311 RETURN
+312 PRINT"[1-{9*4}]":p$=x$+" Price":x$=tt$(1):l=1:h=9999:t=1:GOSUB900
+313 tt$(1)=x$:RETURN
+314 GOSUB1001:PRINT#2,RIGHT$("{0*4}"+tt$(1),4)tt$(2):GOSUB1001:GOTO302
+752 PRINT"SPACE aborts."r$r$"{#*3} Name"r$l$r$;:x=1:GOSUB1001:INPUT#2,mx:x%=.
+753 FORx=2TOmx+1:x%=x-1:GOSUB1001:INPUT#2,a$:IFa$="^"THEN759
+754 ON-(op$="a")-2*(op$="b")-3*(op$="f")GOSUB22,47,303
+755 ON-(op$="m")-2*(op$="s")-3*(op$="w")GOSUB999,303,103
+756 PRINTx%"{left}: ";:IFa$="{-*3}"THENa$="(EMPTY RECORD)
+757 PRINTa$:GETan$:IFan$=" "THENx=mx+1
+759 NEXT:PRINTl$:PRINT" [";:IFaTHENPRINT"A=Add, ";
+760 PRINT"#=Edit]";:h=mx:GOSUB905:IFaANDan$="a"THEN763
+761 an=VAL(an$):IFan<1ORan>hTHENCLOSE2:er=1:RETURN
+762 x=an+1:GOSUB1001:RETURN
+763 mx=mx+1:x=1:GOSUB1001:PRINT#2,mx:x=mx+1:GOSUB1001:PRINT#2,CHR$(255)
+764 GOSUB1001:ON-(op$="a")-2*(op$="b")-3*(op$="d"ORop$="f")GOTO766,767,768
+765 ON-(op$="m")-2*(op$="s")GOTO769,770
+766 d$="+1{0*13}{-*3}":GOTO780
+767 d$="00+{0*4}{-*3}":GOTO780
+768 d$="00{-*3}":GOTO780
+780 PRINT#2,d$:RETURN
+799 END
+900 PRINTr$"Old "p$":";:IFt=.THENPRINT" ";
+901 PRINTx$r$"New "p$":";:an$=x$:INPUTan$:an=VAL(an$):IFqANDan$="?"THENRETURN
+902 IFt=.ANDLEN(an$)<lORLEN(an$)>hTHEN900
+903 IFt=1ANDan<lORan>hTHEN900
+904 x$=an$:RETURN:REM prompt input
+905 an$="":PRINT" Edit which (1-"MID$(STR$(h),2)")";:INPUTan$:an=VAL(an$)
+907 IF(aANDan$="a")ORan=.THENRETURN
+908 ON-(an<1ORan>h)GOTO905:RETURN:REM menu input
+999 END
+1001 PRINT#15,"p{ct b}"CHR$(xAND255)CHR$(x/256)"{ct a}":RETURN
+1011 OPEN2,8,2,a$
+1012 INPUT#15,e%,e$,t%,s%:IFe%=.THEN1014
+1013 PRINT"Status: "MID$(STR$(e%),2)":"e$":"MID$(STR$(t%),2)":"MID$(STR$(s%),2)
+1014 RETURN
+1811 END
+stop tok64
+(bastext 1.03)

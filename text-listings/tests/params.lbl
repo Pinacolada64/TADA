@@ -1,0 +1,34 @@
+{number:1}
+	sys 49152
+	cm$="t.module one":q$=chr$(34)
+	gosub {:link.module}("module two","label")
+
+{nice:10}
+{:1}
+' expected behavior:
+' this is module "module two", label "label"
+	print "this is module "q$cm$q$", label "q$a$q$
+{:2}
+	sys 49155:end
+
+{number:1012}
+{:check.io_status}
+	e=.:e$="00:ok:00:00":return
+
+{number:1067}
+{:link.module}	' ("module_to_load","label")
+	fn a$,lm$	' a$  = module to load,
+				' lm$ = optional label to jump to in a multi-function module
+				' (null if module should just start at line 1, most do)
+	def a$		' make a$ a local variable (lm$ must be global)
+
+' cm$=current module: prevents re-loading last-accessed module if no
+'						i/o error (e=0):
+	if cm$="t."+a$ and e=. then {:1}
+	cm$="t."+a$:print " [Loading "q$cm$q$"...]":print "sys ml,"q$"0:"cm$q$:gosub {:check.io_status}:if e=. then {:1}
+' error occurred:
+	print e$:goto {:advent}
+
+{number:2000}
+{:advent}
+	print "(:advent)":goto {:2}

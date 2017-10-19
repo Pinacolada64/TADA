@@ -1,0 +1,27 @@
+{step:10}
+	print"{clear}{down:10}"
+	for x=1 to 6:read y:n(x)=y:poke 1025+(40*x),y:next
+	data 116,117,97,246,234,160
+	x=5:y=10
+	for l=1 to 16
+	for n=1 to 6
+	poke 1024+(40*y)+x,n(n)
+	t=ti
+{:delay}
+	if t>ti+300 then {:delay}
+	next:x=x+1
+	next
+
+' old version:
+' uses vertical line chars
+
+' 0 forx=1to8:ready:n(x)=y:poke 1024+(40*x),y:next
+' 1 data101,84,71,66,93,72,89,103
+' 2 x=5:y=10
+' 3 forl=1to8
+' 4 forn=1to8
+' 5 poke1024+(40*x)+y,n(n)
+' 6 t=ti
+' 7 ift>ti+100then7
+' 8 next:y=y+1
+' 9 next

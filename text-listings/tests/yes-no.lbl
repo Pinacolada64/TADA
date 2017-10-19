@@ -1,0 +1,84 @@
+{number:1}
+' test two yes/no styles:
+{def:debug}
+{def:modbasic}
+
+{number:1}
+	poke 53280,12:poke 53281,12:print "{gray3}{14}{$08}{clear}Test Yes/No prompt styles"
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	sys 49152
+	f$="ml c500":gosub {:sub.bload}
+
+{ifdef:trace}
+' +0: install; +3: uninstall; +6: enable; +9: disable
+	f$="trace 033c":gosub {:sub.bload}
+	print "trace installed":sys 828
+{endif}
+	goto {:start}
+	
+{:sub.bload}
+' bload file in f$
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+
+{nice:100}
+{:start}
+' InString, InputAny, ModuleLoad, BRacketxt, PopStack:
+	is=50432:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
+' Return character, null character, instring match setup:
+	r$=chr$(13):nl$=chr$(0):i%=0
+	print "Style 1";:gosub {:sub.yes_no.tep}(1)
+	print
+	print "Style 2";:gosub {:sub.yes_no}(0)
+
+{number:1811}
+{:1811}
+' close open files
+' unlock shift + c=
+' shut down modbasic
+{ifdef:modbasic}
+	print "Shutting down modBASIC.":sys 49155
+{endif}
+	print"{$09}";:end
+		
+'1902:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+
+' 1910:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\yes-no.lbl}
+
+{nice:100}
+' used in TADA Editor.Player
+{:sub.yes_no.tep}
+' show prompt
+' default response on entry is stored in a
+	fn a
+	print " (y/n) >> ";
+' todo: y stores copy of column (peek (214) ) for positioning cursor
+'		if expert mode off and help printed below
+
+{:5040}
+' show default:
+' todo: expert mode off shows "crsr <=/=> to switch" help below
+	poke 199,abs(a=1):print"Yes{rvrs off} ";:poke 199,abs(a=0):print "No{rvrs off}";
+{:5050}
+' wait for keypress, toggle selection with crsr left/right:
+'	gosub {:sub.cursor_get}:if an$="{right}" or an$="{left}" then x=(x+2) and 2:goto {:5055}
+	gosub {:sub.cursor_get}:sys is,"{right}{left}",an$:if i% then a=1-a:goto {:5055}
+
+' returns x=2: y/Y
+' returns x=1: n/N
+' returns x=0: no valid keypress
+	sys is,"ny"+r$,chr$(asc(an$) and 127):if i%=. then {:5050}
+	if i%=3 then return
+	a=i%-1
+'	x=-(an$="y" or an$="Y")-2*(an$="n" or an$="N")-3*(an$=r$):if x=. then {:5050}
+{:5055}
+' if Return not hit, loop back to get another keypress
+' if no valid key hit, loop back to get another one
+	print "{left:6}";:goto {:5040}
+'{:5060}
+' todo: if expert mode off, clean up help text
+'	print mid$("No    Yes   ",(a+1)*6-5);:return

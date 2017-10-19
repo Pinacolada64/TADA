@@ -1,0 +1,12 @@
+{nice:5}
+{:sub.time_delay} ' (jiffies)
+{ifdef:modbasic}
+	fn d	' function prototype
+	def t	' local var
+{endif}
+	t=ti
+{:sub.time_delay2}
+' this is done so at 20 mhz speed with emulated/real supercpu,
+' delays will be the same amount of time
+	if ti<d+t then {:sub.time_delay2}
+	return

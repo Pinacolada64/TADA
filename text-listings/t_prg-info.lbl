@@ -1,0 +1,120 @@
+{number:1}
+{alpha:invert}
+{undef:standalone}
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.prg info
+	' v.02  2/23/2008
+	' v.03  9/16/2009
+	' v.04 12/13/2010 -- using macbeth's dec -> hex converter
+	' v.05 12/11/2013 -- def fn dp(x) for 2-byte pointer value to further
+	'						compact
+	'					 move subroutines to beginning of file
+
+{def:standalone}
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+
+{ifdef:standalone}
+	b1=256:hx$="0123456789ABCDEF"
+	def fn dp(x)=peek(x)+b1*peek(x+1)
+	f$="modbasic c000 v2"
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	sys 49152 ' initialize modbasic
+{endif}
+
+	goto {:start}
+
+{nice:5}
+{:sub.difference} ' (value)
+	fn n
+	print tab(9)"Total bytes used:";:gosub {:sub.display}(abs(n)):return
+
+{nice:5}
+{:sub.display} ' (value)
+	fn n
+' decimal:
+	print tab(25)right$("    "+str$(n),5);
+	
+' hexadecimal:
+	for x=1 to 4:v(x)=n-(int(n/16)*16):n=n/16:next:print " $";
+	for x=4 to 1 step-1:print mid$(hx$,v(x)+1,1);:next:print:return
+
+{nice:100}
+{:start}
+	print "   Start of BASIC program:";:gosub {:sub.display}(fn dp(43))
+
+'	a=peek(45)+256*peek(46):s=a:print "Start of simple variables:";:gosub{:sub.display}
+'	a=peek(47)+256*peek(48)-1:e=a:print "  End of simple variables:";:gosub{:sub.display}
+'	a=peek(47)+256*peek(48):s=a:print tab(10)"Start of arrays:";:gosub{:sub.display}
+'	a=peek(49)+256*peek(50)-1:e=a:print tab(12)"End of arrays:";:gosub{:sub.display}
+'	print "{down}Current bottom of strings:";:a=peek(51)+256*peek(52):gosub{:sub.display}
+
+' 1) memory map
+' 2) stack info
+' 3) trace on/off
+
+	print "Start of simple variables:";:s=fn dp(45):  gosub {:sub.display}(s)
+	print "  End of simple variables:";:e=fn dp(47)-1:gosub {:sub.display}(e)
+	gosub {:sub.difference}(s-e)
+
+	print tab(10)"Start of arrays:";:s=fn dp(47):gosub {:sub.display}(s)
+	print tab(12)"End of arrays:";:e=fn dp(49)-1:gosub {:sub.display}(e)
+	gosub {:sub.difference}(s-e)
+	
+	print " Current bottom of strings:";:s=fn dp(51):gosub {:sub.display}(s)
+	print "Previous bottom of strings:";:e=fn dp(53):gosub {:sub.display}(e)
+	gosub {:sub.difference}(s-e)
+
+' not using a custom character set yet
+
+'    POKE 53272,(PEEK(53272)AND240)OR A
+'
+'  Where A is one of the following values:
+'  +-----+----------+------------------------------------------------------+
+'  |VALUE|          |            LOCATION OF CHARACTER MEMORY*             |
+'  | of A|   BITS   +-------+----------------------------------------------+
+'  |     |          |DECIMAL|         HEX                                  |
+'  +-----+----------+-------+----------------------------------------------+
+'  |   0 | XXXX000X |     0 | $0000-$07FF                                  |
+'  |   2 | XXXX001X |  2048 | $0800-$0FFF                                  |
+'  |   4 | XXXX010X |  4096 | $1000-$17FF ROM IMAGE in BANK 0 & 2 (default)|
+'  |   6 | XXXX011X |  6144 | $1800-$1FFF ROM IMAGE in BANK 0 & 2          |
+'  |   8 | XXXX100X |  8192 | $2000-$27FF                                  |
+'  |  10 | XXXX101X | 10240 | $2800-$2FFF                                  |
+'  |  12 | XXXX110X | 12288 | $3000-$37FF                                  |
+'  |  14 | XXXX111X | 14336 | $3800-$3FFF                                  |
+'  +-----+----------+-------+----------------------------------------------+
+'  +-----------------------------------------------------------------------+
+'  | * Remember to add in the BANK address.                                |
+'  +-----------------------------------------------------------------------+
+
+'	print
+'	print"  VIC-II character set at:";:a=peek(53272) and 
+'	print
+
+' todo: after static array system test stuff is written,
+'			display free memory in used blocks under rom?
+
+  {def:append_stack_info}
+{ifdef:append_stack_info}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\misc\stack.lbl}
+{endif}
+
+{number:998}
+{:998}
+{ifdef:standalone}
+' shut down modbasic
+	sys 49155:end
+{else}
+	goto {:advent} ' 2000
+{endif}
+
+{number:999}
+{:999}
+	rem t.prg info
+
+{ifdef:standalone}
+{number:2000}
+{:advent}
+	end
+{endif}

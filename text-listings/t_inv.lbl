@@ -1,0 +1,225 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' 7/30/2011: do not attempt to run this through c64list yet. too many issues.
+	REM T.INV
+' 09/14/2007, 2/5/2011
+' (from spur.sub.s)
+	gosub {:setup}:goto {:main}
+
+{number:10}
+{:sub.finish_list}
+' i=items in list - reset item counter for next list type
+	if i=. then print " none.";
+	print:i=.:return
+
+{nice:10}
+{:sub.condition}
+	fn x
+	print:print tab(11)"in ";
+	if x>90 then print "excellent";
+	if x>70 then print "good";
+	if x>50 then print "fair";
+	if x>30 then print "serviceable";
+	if x>20 then print "bad";
+	if x<20 then print "terrible";
+{:condition.2}
+	print " condition. (";:gosub {:msg.percentage}(x,100,3,1):print ")":return
+
+'	the difference between S.<shield> and a standard weapon (S.*) is the
+'	file it comes from (e.t.items or e.t.weapons)
+
+{:msg.shield_left}
+	print " (left:"left$(str$(x),3)"%)";:gosub {:sub.condition}(x)
+{:msg.armor_class}
+	x=peek(v1+71):if x>127 then x=-(x-128)' handle signed integer armor class
+	print " (AC"x")";:gosub {:sub.condition}(x)
+	z$=in$(y%):print " ";:gosub {:get_flags}
+
+' {:msg.percentage} ' (number, percentage_of, width 1-3,columns 1/2)
+'	z$=in$(y%)' item name
+
+{:condition.3}
+' print:gosub {:FIXME}:goto {:get_flags}
+
+{nice:100}
+{:main}
+	print "Inventory for "a$(.)":":print:print:i=0
+	print "   Gold: ";:gosub {:sub.display_gold}(1,1):print
+	print "Readied: ";:z$=wr$:if z$="" or wr%=. then {:ready.2}
+' weapon found: it is item in$(x)
+	
+	gosub {:get_flags}:gosub {:msg.list_item}(i,3,mid$(z$,l,r),1)
+	gosub {:sub.condition}(peek(v1+26))
+{:ready.2}
+' add compass, gauntlets, others?
+	gosub {:sub.finish_list}
+
+' fixme:
+	gosub {:get_2_bytes}(m,b):y%=x:x%=peek(v2+9)
+' y%=weapon readied, x%=% left
+'	gosub 14 ' weapons
+	print:next:gosub {:sub.finish_list}
+	
+' for x=v2+40 to v2+80
+{:worn}
+' v2+5 -- shield object:
+	print r$"   worn: ";:x=peek(v2+5):if x then {:worn.display}
+' check for armor:
+	x=peek(v1+71):if x then {:worn.display}
+' fixme: what about "Using" status?
+' must you WEAR or USE armor & shield?
+' compass/gauntlets in STAT, would here be more appropriate?
+
+{:worn.display}
+	z$=in$(x):gosub {:get_flags}(z$):gosub {:msg.list_item}(i,3,i$,0)
+	gosub {:msg.condition}(peek(v1+76))
+{:worn.finish}
+	gosub {:sub.finish_list}
+
+{:items}
+	print:print "Items carried: ";
+	for x=1 to 10:gosub {:get_2_bytes}(v2+39+x):if x=. then {:items.next}
+' armor, book, item?, shield, treasure, weapon:
+' fixme:
+	y%=x:gosub {:get_flags}:sys is,"abistw",left$(z$,1):if i% then i=i+1:gosub {:msg.list_item}(i,3,z$,1)
+{:items.next}
+	next:gosub {:sub.finish_list}
+
+{:list.rations}
+	print:print "Rations: ";
+	for x=1 to 10:gosub {:get_2_bytes}(v2+39+x):if x=. then {:rations.next}
+' cursed, drink, food:
+	y%=x:gosub {:get_flags}:sys is,"cdf",left$(z$,1):if i% then:gosub {:msg.list_item}(n%,3,z$,0)
+{:rations.next}
+	next:gosub {:sub.finish_list}
+
+{:list.weapons}
+	print "(:list.weapons)"
+{:list.spells}
+' xx1. - (xx) spell_name ..........xxx%
+	print:print "Spells: ";
+	for m=v2+83 to v2+143 step 3:x=peek(m):if x=. then {:spells.next}
+	z$=s$(x):gosub {:get_flags}
+	i=i+1:if i=1 then print tab(7)"Left"tab(31)"Cast %"
+	print left$("  "+mid$(str$(i),2),3)". - ("peek(m+1)") "mid$(z$,l,r);
+	print left$("............................",r-l);' 28 .s
+	print left$(".."+left$(str$(peek(m+2)),3)"%)"
+{:spells.next}
+	next:gosub {:sub.finish_list}
+
+{:list.allies}
+' any allies present?
+	print "Allies:";:if peek(v1+51)+peek(v1+52)+peek(v1+53) =0 then print " none... sniff...":goto {:finish}
+{:carried}
+	print "Carried by allies: ";
+	for z=1 to 4:y=peek(v1+50+z):if y=. or y=4 then {:_205}' no ally or unconscious
+	print:print
+	gosub {:sub.finish_list}
+
+{:_205} ' FIXME _205 is local to this file, {:205} already defined?
+{:210} ' FIXME
+
+{:finish}
+{:898}
+	goto {:1811}
+	
+{number:900}
+{:setup}
+' todo: use Static Array System to stash strings
+	na$="PINACOLADA"
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+'	a$="x"+"":q$=chr$(34):r$=chr$(13):nl$=chr$(.):def fn r(x)=int(rnd(-ti)*x)+1
+	a$(.)="SHINJU":a$(1)="FIERA":a$(2)="RATH":a$(3)="JAKE":a$(4)="STRAWBERRY"
+'	i%=.' ml does not create i%
+'	is=49152:ia=is+3' ml jmp table
+'	for x=1 to 117:d$=d$+nl$+nl$:next:d2$=d$
+'	sys 45195d$ :v1=peek(780)+256*peek(781)+1:v1=peek(v1)+256*peek(v1+1)-1
+'	sys 45195d2$:v2=peek(780)+256*peek(781)+1:v2=peek(v2)+256*peek(v2+1)-1
+	dim in$(10),s$(10):restore:read in
+	for y=1 to in:read z,x$:in$(y)=x$:x=z
+	gosub {:put_2_bytes}(v2+39+x*2,z) ' hi/lo bytes of obj #
+	next
+	read sp:for x=1 to sp:read y,x$:sp$(x)=x$:poke v2+80+3*x,y:poke v2+81+3*x,.
+	poke v2+82+3*x,fn r(100) ' spell index # + rnd cast chance%
+	next
+	poke v1+136,10 ' # inv items
+	read wp:for y=1 to wp:read z:gosub {:put_2_bytes}(v2+57+y*2,z):read x$:w$(y)=x$
+	next:poke v2+9,99 ' weapon # 60-80, % left
+	poke v2+14,2:wr$=w$(2) ' hi/lo byte, hammer=readied weapon
+
+' format: index # in e.t.items file, "type.object name|flags"
+' # of items
+	data 10
+	data 01,"P.COMPASS"           
+	data 05,"S.GOLD SHIELD"       
+	data 62,"B.ADVENTURER'S GUIDE"
+	data 11,"F.BANANAS"           
+	data 46,"F.BREAD CRUMB"       
+	data 34,"D.LEMONADE"          
+	data 44,"T.ROCKS{pipe}051SLING"
+	data 36,"T.SILVER CHALICE"    
+	data 28,"A.CHAINMAIL ARMOR"   
+	data 23,"S.AZTEC SHIELD
+
+' these are too good to pass up:
+	920 ob$(0)="a0HAWAIIAN SHIRT +1"
+	921 ob$(1)="c6A REALLY OLD ORANGE
+	922 ob$(2)="t5POCKET FLUFF
+	923 ob$(3)="f5BUFFERED ANALGESIC
+	924 ob$(4)="A0DRESSING GOWN
+	925 ob$(5)="i0PAPER SACK
+	926 ob$(6)="i6GARLIC CLOVE
+	927 ob$(7)="b6A NOTE FROM MOM
+	928 ob$(8)="m0A DEAD FISH
+	929 ob$(9)="t0SILVER SAUCER
+       
+'  --- spells ---
+' # of spells
+ 	data 02
+	data 01,"M.TRANSPORT TO SHOPPE"
+	data 02,"M.WHEATIES"          
+
+' # of weapons:
+	data 03
+' s. = standard / m. = magical
+' # = weapon class
+	data 27,"S.2WOODEN CLUB"
+	data 23,"M.2HAMMER"     
+	data 36,"S.6DYNAMITE"   
+' spells 12/13+rnd%
+	x$=nl$+"{$01}"+chr$(fn r(100))+nl$+"{$02}"+chr$(fn r(100))
+	for x=1 to len(x$):poke v2+82+x,asc(mid$(x$,x,1)+nl$):next
+	gosub {:put_3_bytes}(v2+21,987654321):return
+{number:999}
+	REM T.INV
+
+{:get_flags}
+{number:2056}
+' search z$ for pipe, return flags in fl$, can print mid$(z$,l,r)
+	fl$="":sys is,z$,"{pipe}":l=3+sgn(val(mid$(z$,3,1))):r=i%:if r=. then r=len(z$)+1
+'	r=r-l:on i%+1 goto {:return}:fl$=mid$(z$,i%+1):print "flags: "fl$:return
+	r=r-l:if i% then fl$=mid$(z$,i%+1):print "flags: "fl$
+	return
+
+{ifdef:standalone}
+{number:2895}
+' from t_main:
+{:msg.percentage} ' (number,percentage_of,width 1-3,columns 1/2)
+' print right-justified "###", if columns=2, fall through
+	def n,p,w,c
+	print right$("  "+str$(n),w);:if c=2 then print " "right$("  "+mid$(str$(int(n/p*100)),2),w)"%";
+	return
+{endif}
+
+' --- from tep: search inventory ---
+' 5002 s=.:x=v2+40
+' 5004 y=peek(x+1)*256+peek(x+2):x=x+3:s=-(i%=y):if s then return
+' 5006 on -(x<v2+80) goto 5004:return
+' (67 bytes)
+'
+' 5002 s=.:for x=v2+40 to v2+80 step 3:y=peek(x+1)*256+peek(x+2)
+' 5003 if i%=y then s=i%:x=v2+80
+' 5004 next:return
+' (41 bytes)

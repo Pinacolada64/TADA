@@ -1,0 +1,101 @@
+{number:1}
+' older code than misc/reader.lbl
+{def:modbasic}
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	
+{:sub.bload}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+
+' 1012
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{number:1100}
+{:file.read2} ' comes from {:file.read}(num_lines,start_record)
+	fn nl,x
+' function prototype:
+' a$: filename to read
+' nl: # of lines to read
+'  x: 0=SEQ file, <>0: REL file record number
+
+' successful test:
+'10 sys 49152
+'20 gosub 1075("filename_1",1,0)
+'30 gosub 1076("filename_2",25,4)
+'40 sys 49155
+'50 end
+'1075 print"(clear)"
+'1076 fn a$,nl,x:print a$;nl;x:print:return
+'ready.
+'run
+'(clear)
+'filename_1 1  0
+'
+'filename_2 25  4
+
+	def q,c,c$,mx,l,an$ ' local vars
+' l: line counter for "more" prompt, if expert mode off
+' q ="Q" hit to quit reading, start off 0=no
+' c$=hex color pairs: normal, hilite
+' mx=# of color pairs
+' an$=data read from disk
+	print "{off}";:q=.:c=1:c$="2A5DC1E478":mx=len(c$)/2:l=.
+	gosub {:file.open}(a$):if e then print 1102 a$:goto {:1108}
+
+' if rel file, point to initial record #:
+	if x then:gosub {:record_pointer}(x):gosub {:check.io_status}:if e then print a$:return
+
+{:1101}
+	get an$:if an$="{home}" then gosub {:msg.more_prompt}
+	if q or an$="/" or an$=" " then {:1108}' q or abort chars
+	l=l+1:if l/24=int(l/24) then gosub {:check.more}:if q then {:1108}
+' if rel record, increment record #:
+	if x then:gosub {:record_pointer}(x):x=x+1:gosub {:check.io_status}:if e then print a$:return
+' get data from disk file: if specified # of lines has been reached, or eof then close file
+' 2012/7/20: fix 40-column text to "glue" lines together 
+	sys ia,2,80,1:sys br,a$+nl$:if pos(.)<>40 then print
+' if # of lines to read is specified, and that # has been reached,
+' or if a SEQ file (x=0) and EOF has been reached:
+	if (nl and nl=l) or (x=. and (64 and st=64)) then {:1109}
+	goto {:1101}
+{:1108}
+	gosub {:msg.aborted}
+{:1109}
+' reset color, close lfn#2, re-enable word-wrap, return
+' "close 2:return" -> 4 bytes vs "gosub xxxx" -> 5 bytes
+	gosub {:msg.reset_color}:close 2:print "{on}";:return
+{:1244}
+' new: replace 'sys br,"]"+nl$' with gosub {:msg.reset_color} >> save 6 bytes
+	q=.:gosub {:msg.reset_color}:print "[";:sys br,"[+]/[-]/[Space]/[Q]"+nl$:print "] {off}";
+{:1248}
+'	gosub {:sub.cursor_get}:sys is,"+- q",an$:on i%+1 goto {:1248}, {:1250}, {:1252}, {:sub.clear_line}:q=1:goto {:sub.clear_line}
+' i%=3, q=0 (space continues)  i%=4, q=1 (q quits)
+	gosub {:sub.cursor_get}:sys is,"+- q",an$:on i%+1 goto {:1248}, {:1250}, {:1252}:q=i%-3:gosub {:sub.clear_line}:return
+{:1250}
+' increment color:
+	c=c-(c<mx):goto {:1254}
+{:1252}
+' decrement color:
+	c=c+(c>1)
+{:1254}
+' "0...F" replaced with hx$; hx$ is also used in "t.prg info"
+' change current ("normal")/last ("lastcol") colors:
+' x=address of colors, address of popstack jmp -3) should be 50814 right now
+	sys is,hx$,mid$(c$,c*2-1,1):poke ps-3,i%-1:poke ps-1,i%-1
+' change highlight color:
+	sys is,hx$,mid$(c$,c*2,1):poke ps-2,i%-1:gosub {:sub.clear_line}:goto {:1244}
+
+{number:1258}
+{:sub.clear_line} ' gosub - no params
+' SYS to clear a single screen line: 781=.x / peek(214)=current line number
+' new: also re-position cursor on column 0
+	poke 781,peek(214):sys 59903:poke 211,. ':return
+' print "{up}"r$left$("                    ",len(a$))"{up}":print
+
+{number:1603}
+{:return} ' goto - no params
+	return
+
+{number:1920}
+{:msg.aborted}
+	print "(Aborted.)":return

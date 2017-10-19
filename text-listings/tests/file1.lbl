@@ -1,0 +1,10 @@
+{number:1}
+
+{def:persist}
+
+{ifdef:persist}
+	{uses:C:\TADA-svn\pinacolada\TADA\text-listings\tests\file2.lbl}
+{endif}
+
+	end
+		

@@ -1,0 +1,26 @@
+# installer-list
+#
+make playerlog_19
+make characters
+make allies 1_2
+make allies1_0
+make allies1_1
+make allies1_2
+make chalkboard
+make messages(2)
+make messages
+make rations 1.4
+make rations
+make spells
+make weapons 1.5
+make weapons 2
+make weapons
+make-allies
+#
+# maps
+#
+make level 1
+make level 1_21
+make level 7 map
+make-level-8
+makeplayerlog1_9

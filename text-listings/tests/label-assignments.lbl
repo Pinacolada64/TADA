@@ -1,0 +1,46 @@
+' comment? {assign:label=line number}
+' to use: {include:label-assignments.lbl}
+' last update: 2012/6/6
+
+{assign:record_pointer=1001}
+{assign:file.open_playerlog=1010}
+{assign:file.open=1011}
+{assign:check.io_status=1012}
+{assign:file.append_or_write=1026}
+{assign:read.mail_file=1062}
+{assign:link.module=1067}
+{assign:file.read_clearscreen=1075}
+{assign:file.read=1076}
+{assign:blocks_free=1079}
+{assign:sub.clear_line=1258}
+{assign:return=1603}
+{assign:1811=1811}
+{assign:1870=1870}
+{assign:get_keypress=1902}
+{assign:msg.aborted=1920}
+
+{assign:advent=2000}
+{assign:read_room_desc=2002}
+{assign:read_room_desc.force=2003}
+{assign:sub.hourglass=2158}
+
+{assign:link.shoppe=2225}
+
+{assign:bit.set=2800}
+{assign:bit.clear=2810}
+{assign:bit.test=2820}
+{assign:get_2_bytes=2830}
+{assign:put_2_bytes=2835}
+{assign:get_3_bytes=2840}
+{assign:put_3_bytes=2845}
+{assign:msg.comma_value=2850}
+{assign:check.more_prompt=2860}
+{assign:msg.more_prompt=2861}
+{assign:prompt_key=2862}
+{assign:check.expert_mode=2870}
+{assign:i_str.uppercase=2910}
+{assign:x_str.trim_right=2955}
+
+{quoter:$dd="bar"} ' this is so | translates properly on the Commodore
+{quoter:$17="on"}	' word-wrap on, ctrl-w
+{quoter:$18="off"}	' word-wrap off, ctrl-x

@@ -1,0 +1,15 @@
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+' bload a binary file:
+{nice:5}
+	print "Loading "chr$(34)f$chr$(34)"... ";
+' 147   = $93    VERCK: Flag for Load Routine: 0=LOAD, 1=VERIFY
+' 57812 = $e1d4
+' fixme: poke 147,0 is apparently superfluous
+' .a (780) is set to 0 for a LOAD, vs. 1 for a VERIFY.
+' SETLFS does this, then apparently sets 147 from there.
+' 65493 ($FFD5) LOAD
+	poke 147,.:sys 57812 f$,dv,1:poke 780,.:sys 65493
+' (a)ccumulator & (c)arry bit status:
+	a=peek(780):c=peek(783) and 1:if c=1 and a=4 then print"{lt. red}File not found.{gray3}":goto {:1811}
+	if c=1 then print"{lt. red}Load error!{gray3}":goto {:1811}
+	print "{lt. green}OK.{gray3}"

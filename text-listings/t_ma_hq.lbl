@@ -1,0 +1,176 @@
+' todo: subroutine "Try again later."
+{number:1}
+{alpha:invert}
+{def:standalone}
+	rem t.ma.hq
+{ifdef:standalone}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	na$="PINACOLADA"
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{endif}
+	goto {:602}
+
+{nice:10}
+{:msg.try_again}
+	print "Please try again later.":return
+
+{nice:10}
+{:sub.get_bank_gold}
+	gosub {:get_3_bytes}(v1+130):return
+
+{:sub.put_bank_gold} ' x=gold
+	def x
+	gosub {:put_3_bytes}(v1+130,x):return
+	
+{nice:100}
+{:602}
+	print q$"Welcome to Adventurer Headquarters!"q$" says a grizzled old man.":print
+	gosub {:check.guild_membership}(0):if s then {:660}
+
+	print "Want to join a guild";:gosub {:sub.yes_no}(1)
+{:msg.nope}
+	if a=. then print q$"Some other time, then."q$" he remarks.":goto {:advent}
+
+' todo: actually, include some code from t_np...
+
+' reproduced here for my amusement:
+{ifdef:debug}
+{:160}
+' guild choice:
+	gosub {:sub.block_read}(3)
+	AN$="":sys br,r$+"Which - [C]ivilian, [G]uild Member, or [O]utlaw? "+nl$
+{:185}
+	gosub {:sub.cursor_get}:sys is,"cog",an$:on i%+1 goto {:185},{:civy},{:outlaw},{:guild}
+'IF TR%=. then {:1811}
+{:civy}
+	print "Civilian.":POKE V1+69,.:goto {:245}
+{:outlaw}
+	print "Outlaw.":print:print:POKE V1+69,4:goto {:205}
+{:guild}
+	print "Join Guild.":print
+{:205}
+	print Q$"{on}Which guild would you like to join?"Q$" asks Verus, waiting expectantly.{off}"
+	print
+' possible claw symbols: <//>
+' this is neat: (//////) - scroll header?
+	sys br,"[F]ist "+nl$:print " =[]"
+	sys br,"[S]word"+nl$:print " -]==="
+	sys br,"[C]law "+nl$:print " />>"+r$+"[N]one"+nl$
+	print:print:print "Guild: ";
+{:220}
+	gosub {:sub.cursor_get}:sys is,"fscn",an$:on i%+1 goto {:220}:POKE V1+69,i%-1:ON i% goto {:225},{:230},{:235},{:240}
+{:225}
+	print "Fist.":goto {:245}
+{:230}
+	print "Sword.":goto {:245}
+{:235}
+	print "Claw.":goto {:245}
+{:240}
+	print "None.":print
+{endif}
+
+' choose guild:
+{:606}
+	print
+	print "F. - Fist  =[]"
+	print "S. - Sword -]---"
+	print "C. - Claw  />>"
+{:608}
+	print "{down}Which guild (["k$"]=Leave) >> ";
+	gosub {:sub.cursor_get}:sys is,"cfs",an$
+' todo: link back to shoppe	
+	if i%=. then print "None.":gosub {:msg.nope}:goto {:link.shoppe}
+	if an$="" then {:msg.nope}
+	gosub {:string.normalize}(an$):if an<1 and an>3 then {:608}
+
+' go ahead with it:
+' fixme
+	print mid$(gd$,x,x)
+	print:print q$"Okay, "a$(.)", now comes the matter
+	print "of guild dues. ";
+
+	print "This helps fund the guild headquarters and ";
+	print "give "g$" guild members money and items in ";
+	print "their time of need."
+	print
+	
+	print "You must pay an initial sign-up fee of ";
+	print "fifty (50) gold, and pay ";
+	print "twenty (20) gold the first of each ";
+	print "month thereafter, with an additional ";
+	print "ten (10) gold fee added on for each ";
+	print "outstanding day of payment."q$:print
+
+	print "Do you agree to these terms";:gosub {:sub.yes_no}(1)
+{:618}
+	if a=. then {:msg.nope}
+' check gold in hand:
+	gosub {:sub.check_gold}(1,50):if s then {:622}
+	print "Sorry, but you don't have enough gold ";
+	print "with you right now. ";
+' check gold in bank:
+{:622}
+' y=gold in bank acct from above:
+	y=x
+	gosub {:sub.get_bank_gold}
+	if x>. then gosub {:msg.try_again}:goto {:advent}
+	if x+y>=50 then {:635}
+	print "In addition, your bank account does not contain enough ";
+	print "funds to cover the cost. ";
+	gosub {:msg.try_again}:goto {:advent}
+
+' otherwise, have all gold in hand:
+{:have_all_gold}
+	gosub {:sub.adj_gold}(1,-50):goto {:650}
+	
+{:635}
+	x%=50-x:print "Do you wish to withdraw"x%"gold from your bank account ";
+	print "to cover the initial sign-up fee";:gosub {:sub.yes_no}(1)
+	if a=. then goto {:advent}
+
+' subtract from bank account:
+	gosub {:sub.get_bank_gold}
+	print "Done. Your account now stands at ";
+	gosub {:msg.comma_value}(x,0):print " gold."
+
+{:650}
+' set guild (gd), guild follow flag (gf)=0
+	gd=an:gf=.:print "Adding you to the ";
+	if gd=3 then print "Claw";
+	if gd=2 then print "Fist";
+	if gd=1 then print "Sword";
+	print " member roster..."
+
+	print "Notifying the public..."
+' todo... well, do it
+
+' this is more "t.guild hq" stuff afaik:
+{:660}
+	sys br,"View [M]essages or [R]atings >> "+nl$
+{:665}
+	gosub {:sub.cursor_get}:sys is,"mr",an$:on i% goto {:670},{:990}
+{:667}
+	print "Leave.":goto {:advent}
+{:670}
+	print "Messages.":print
+	sys br,"[C]halkboards or [G]uild Messages >> "+nl$
+'	print "[P]ersonal Messages" -- handled by t.page now
+	
+' remember lurch the butler in t.guild hq!
+
+{:990}
+	print "unfinished"
+
+{number:999}
+	goto {:advent}
+	rem copr. 1995-2014 pinacolada
+
+{undef:standalone}
+{ifdef:standalone}
+' 1001-1002:
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+
+' 1012:	
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{endif}

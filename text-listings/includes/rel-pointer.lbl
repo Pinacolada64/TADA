@@ -1,0 +1,15 @@
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+' b1=256
+{number:1001}
+{:record_pointer} ' (record_num)
+{ifdef:modbasic}
+' usually record # variable is x; can't use x here, so reassigning
+	fn r:def d	' d=delay - wish: could use {:sub.time_delay}(d)...
+{endif}
+	gosub {:1002}:for d=1 to 50:next
+{:1002}
+{ifdef:modbasic}
+	print#15,"p{$02}"chr$(r and 255)chr$(r/b1)"{$01}":return
+{else}
+	print#15,"p{$02}"chr$(x and 255)chr$(x/b1)"{$01}":return
+{endif}

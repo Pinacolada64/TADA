@@ -1,0 +1,126 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.shoppe
+' last modified:2012 06/06, 12/21
+'				2011 02/16, 02/22
+'				2007 08/05, 08/10, 08/18
+
+	print:if lv%<5 then {:10} ' map level
+	print "{on}The Shoppe is closed, due to lack of interest on this level. Look for our stores on levels 1-5!{off}":goto {:cmd.exit}
+{:10}
+'	print " [Entering the Spur shoppe area...]
+	sys br," [Entering the Spur shoppe area...]"+r$+nl$
+{:11}
+	gosub {:sub.hourglass} ' display time
+	i$="":print "[Level"left$(str$(lv%),2)"] ";:input"Cmd";i$
+' convert to uppercase
+	gosub {:sub.string_uppercase}(i$)
+' sort input according to length (1-4):
+	i%=len(i$):on i% goto {:cmd.1},{:cmd.2},{:cmd.3},{:cmd.4}:goto {:cmd.huh}
+{:cmd.1}
+'	sysis,"*?*A*B*C*E*G*H*I*LO*LOG*M*OA*OP*P*Q*S*W*X*STAT*","*"+i$+"*"
+	sys is,"?ABCEGHIMPQSWX",i$
+	on i% goto {:cmd.menu_local}, {:cmd.armory}, {:cmd.bank}, {:cmd.conquerors}, {:cmd.elevator}, {:cmd.general_store}, {:cmd.guild_hq}, {:cmd.inventory}, {:cmd.mage}, {:cmd.pawn_shoppe}, {:cmd.quit_local}, {:cmd.school}, {:cmd.wizard}, {:cmd.exit} 
+{:cmd.2}
+'	on -(i$="LO")-2*(i$="OA")-3*(i$="OP") goto {:cmd.log},{:cmd.olly},{:cmd.opponents}
+	i%=-(i$="LO")-2*(i$="OA")-3*(i$="OP"):on i% goto {:cmd.log},{:cmd.olly},{:cmd.opponents}:goto {:cmd.huh}
+'	on i% goto {:cmd.menu_local}
+
+{:cmd.3}
+	on -(i$="LOG") goto {:cmd.log}:goto {:cmd.huh}
+{:cmd.4}
+	on -(i$="STAT") goto {:cmd.stat}
+{:cmd.huh}
+	print "Huh?":goto {:11}
+
+	x$="parser":gosub {:msg.e_exception}:goto {:11}
+
+{:cmd.menu_local}
+' display menu
+	gosub {:file.open}("s.shoppe-menu"):if e then 
+	goto {:11}
+
+{:cmd.armory}
+'	printr$"Wouldst thou be interested in:"r$r$"   [P]rotection"
+'	print "or [W]eaponry?"r$r$"Choose: ";
+' Wouldst thou be interested in
+' [P]rotection or [W]eaponry?
+	print r$"Wouldst thou be interested in"
+	sys br,"[P]rotection or [W]eaponry?"+r$+nl$
+	print "Choose >> ";
+'	gosub {:1902}:on-(an$="p")-2*(an$="w")goto {:33},{:34}:print "Neither.":goto {:11}
+	gosub {:sub.cursor_get}:sys is,"pw",an$:on i% goto {:33},{:34}:print "Neither.":goto {:11}
+{:33}
+	print "Protection.":gosub {:link.module}("ma.armory","")
+{:34}
+	print "Weaponry.":gosub {:link.module}("ma.weapons","")
+
+{:cmd.bank} ' b
+	print "bank":goto {:11}
+
+{:cmd.conquerors} ' c
+	print "conquerors":goto {:11}
+
+{:cmd.elevator} ' e
+	gosub {:link.module}("ma.elevator","")
+
+{:cmd.general_store} ' g
+	print "general store":goto {:11}
+
+{:cmd.guild_hq} ' h
+	print "guild hq":goto {:11}
+
+{:cmd.inventory} ' i
+	print "inventory":goto {:11}
+
+{:cmd.lockers} ' lo
+	print "lockers":goto {:11}
+
+{:cmd.log} ' log
+	print "adventurer's log":goto {:11}
+
+{:cmd.mage} ' m
+	print "mage healing":goto {:11}
+
+{:cmd.olly} ' oa 
+' Olly's Ammo and Trap Shop (OATS) :)
+	gosub {:link.module}("ma.olly","")
+
+{:cmd.opponents} ' op
+	print "opponents":goto {:11}
+
+{:cmd.pawn_shoppe} ' p
+	sys is,ys$,"*PS*":if i% then print "Sorry, Pawn Shoppe is closed for today.":goto {:11}
+' todo: build subroutine to handle ys$
+	if len(ys$)<250 then ys$=ys$+"PS*"
+' fixme
+	goto {:11}
+
+{:cmd.quit_local} ' q
+	print "Quit game... ";:gosub {:sub.are_you_sure}(1)
+	if a then {:link.module}("quit","")
+	goto {:11}
+
+{:cmd.school} ' s
+	print "school":goto {:11}
+
+{:cmd.stat}
+	gosub {:link.module}("stat","shoppe")
+	
+{:cmd.wizard} ' w
+	print "visit wizard":goto {:11}
+
+{:cmd.exit} ' x
+'	print " [Leaving Shoppe...]":poke v1+140,lv%:on lv% goto {:191}
+	sys br," [Leaving Shoppe...]"+r$+nl$:poke v1+140,lv%
+	on lv% goto {:191}
+
+{:191}
+' fixme: this depends on map level:
+	rm=1
+	goto {:advent}
+
+{number:999}
+	rem t.shoppe

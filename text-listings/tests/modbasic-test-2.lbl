@@ -1,0 +1,15 @@
+{step:10}
+{number:10}
+	sys 49152
+{number:20}
+	gosub 100("string",3)
+{number:30}
+	sys 49155
+{number:40}
+	end
+{number:100}
+	fn a$,x	' function prototype
+	def d	' local variable
+	for d=1 to x
+	print a$
+	next:return

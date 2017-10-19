@@ -1,0 +1,57 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.charge
+' ms=monster strength
+' al=# of allies?
+	def fn r(x)=int(rnd(.)*x)+1
+' todo: consider not mounted/no saddle
+
+
+' 4 allies? a(x) = 4=horse?
+	al=4:for x=.to al:a(x)=x:next
+' player class, monster here:
+	cl=2:m$="bat"
+
+	y=.:for x=.to al:if a(x)=4 then y=x:x=al
+	next:if y=. then print "You don't have a horse.":goto {:advent}
+
+' no monster, monster is dead or monster tracks:
+	if m$="" or md=1 or md=2 then sys br,"Your embarassment is further compounded by there being nothing to charge [towards]."+r$+nl$
+
+
+'	  (if in water area)
+	sys is,ww$,"@":if i% then print "What a concept!"
+
+	
+	print "Clopping two coconut halves against the ground does no good here. (You feel a bit dumber)"
+
+	
+	if peek(v1+119)<5 then print "Your horse is too weak to charge.":goto {:advent}
+' z=...attack bonus
+	if cl=1 or cl=6 or cl=7 then z=-25
+	if cl=3 then z=25
+	if cl=8 then z=35
+
+	ms=fn r(7)-1
+	if ms<7 then x=20
+	if ms<6 then x=30
+	if ms<5 then x=40
+	if ms<4 then x=50
+	if ms<3 then x=60
+	if mx<2 then x=70
+	if ms<1 then x=80
+	y=fn r(x)+20+z:print "You gallop towards the "m$"...":print "And ";
+	if y>49 then {:635}
+' todo: consider monster size, missing over its' head
+' consider knight with lance bonus
+' consider being unseated with force of blow/no saddle
+	print "hit!":d=fn r(y/4):print "(The "m$" takes"d"damage!)":h=1
+' todo: subtract monster hit points
+' consider you and/or horse taking damage from return attack
+	goto {:advent}
+{:635}
+	print "miss!":goto {:advent}
+{number:999}
+	rem t.charge

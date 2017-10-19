@@ -1,0 +1,83 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.bar.skip -- nov 19, 2014
+	goto {:skip}
+
+{nice:10}
+{:sub.improve_stats}
+	fn s,ar,m$	' (statistic,adjustment_range,"message")
+	def m		' local vars: m=memory location of statistic s
+' calculate random adjustment_range. is stat + adjustment_range < 25?
+' if so, adjust stat, call check.expert_mode to display "you feel m$" if 
+' expert mode disabled
+' TODO: gosub {:sub.adj_stat}(8,-1) ' (main player)
+	ar=fn r(ar):m=v1+85+s:if peek(m)+ar<25 then poke m,peek(m)+ar:gosub {:msg.you_feel}(m$)
+	return
+
+{nice:100}
+{:skip}
+	z$="miss":gosub {:check.gender}:if s then z$="mac"
+	print "Skip sweats over a hot grill, muttering under his breath..."
+	sys is,"*SK",ys$:if i%=. and len(ys$)<240 then ys$=ys$+"*SK":goto {:skip.menu}
+	print:print "Skip suddenly looks annoyed. "q$"Hey, ";
+	sys br,"you've already [been] here once today!"+q$+r$+nl$:goto {:link.bar}
+
+{:skip.menu}
+	print:print q$"What'll ya have, "z$"?"q$
+	sys br,"[H]ash (5g), [C]offee (1g), or [Q]uit >> "+nl$
+	gosub {:sub.cursor_get}:print an$:print
+	sys is,zv$,an$:if i% then print q$"You just had the last of it!"q$" Skip protests.":goto {:skip.menu}
+	sys is,"hcq",an$
+	if i%=. then print q$"Eh? What?"q$" Skip mutters.":goto {:skip.menu}
+	if i%=3 then {:skip.quit}
+	if i%=1 then y=5
+	if i%=2 then y=1
+	gosub {:sub.check_gold}(1,y):if s=. then print q$"Ye don't got enough gold."q$:goto {:skip.menu}
+	gosub {:sub.adj_gold}(1,-y)
+	zv$=zv$+i$ ' fixme
+	on i% goto {:skip.hash},{:skip.coffee}
+
+{:skip.quit}
+	print q$"Yeah, well... take 'er easy..."q$" Skip mumbles.":goto {:link.bar}
+
+{:skip.hash}
+	print "The hash is greasy, but hot and nourishing."
+	gosub {:sub.improve_stats}(6,5,"stronger")
+	' str=stat 6, 5=adjustment range, "you feel stronger" if expert mode off)
+' clear hungry bit:
+	gosub {:bit.clear}(v1+65,6)
+	goto {:skip.menu}
+	
+{:skip.coffee}
+	print "The steaming mug of coffee is strangely satisfying."
+' clear thirsty bit:
+	gosub {:bit.clear}(v1+65,3)
+' clear tired bit:
+	gosub {:bit.clear}(v1+65,2):gosub {:msg.you_feel}("more awake")
+	gosub {:sub.improve_stats}(8,5,"more energetic") ' egy=8
+' increase hp:
+' {:sub.adj_hp} '  (character: 1-5,adjustment)
+	gosub {:sub.get_hp}(1):if x>21 then {:con}
+	gosub {:sub.adj_hp}(1,4) ' +4 hp
+	gosub {:msg.hp}(1,1) ' (char,print)
+{:con}
+	gosub {:sub.improve_stats}(2,3,"revitalized") '  con=2
+	goto {:skip.menu}
+
+' {:sub.check_gold} ' (character 1-4,price)
+
+' {:link.bar}
+' new addition to t.main:
+' gosub {:link.module}("t.bar","<label>")
+
+' {number: 2871}
+' {:msg.you_feel}
+'	fn x$
+' old:	gosub {:check.expert_mode}(0):if s then print "(You feel "x$")"
+' new:	gosub {:msg.expert_mode}("(You feel "+x$+")")
+'	return
+
+{number:999}
+	rem t.bar.skip

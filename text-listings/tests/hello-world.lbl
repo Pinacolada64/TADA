@@ -1,0 +1,6 @@
+' hello world test program
+' hex dump is to teach friend about internal structure of a commodore basic program
+{number:10}
+	print "hello, world!"
+{number:20}
+	end

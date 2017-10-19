@@ -1,0 +1,381 @@
+' teo: tada editor - objects
+' last modified 2012/06/12 - bringing up to standards
+'				2011/03/03
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	goto {:start}
+
+{nice:10}
+{:sub.set9999}
+	print "[1-9,999]":h=9999:goto {:set.return}
+
+{:sub.set9}
+	print "[1-9]":h=9
+
+{:set.return}
+	l=1:t=1:return
+	
+{nice:10}
+{:sub.yes_no}
+	print mid$("No Yes",q*3-2,3);:return
+
+{nice:100}
+{:start}
+	for x=1 to 10:read at$(x):next
+' TODO: replace with long string, slice with MID$()?
+	data"CHR","CON","DEX","EGO","INT","STR","WIS","Egy","Spl","Exp"
+	v$="Value":l$=" {$c0:38}"
+
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	open 15,dv,15:dim tt$(45):r$=chr$(13)
+{:11}
+	close 2:er=.
+	print "{rvrs on}[A]{rvrs off}rmor"
+	print "{rvrs on}[B]{rvrs off}ooks"
+	print "{rvrs on}[F]{rvrs off}ood/Drinks"
+	print "{rvrs on}[O]{rvrs off}bjects"
+	print "{rvrs on}[S]{rvrs off}pells"
+	print "{rvrs on}[W]{rvrs off}eapons"
+	print "{rvrs on}[Q]{rvrs off}uit"
+	print:input"Well";op$
+	on -(op$="a")-2*(op$="b")-3*(op$="f")-4*(op$="o")-5*(op$="s")-6*(op$="w")-7*(an$="q") goto {:20}, {:45}, {:300}, {:999}, {:300}, {:100}, {:1811}:goto {:11}
+{:20}
+	a=1:gosub {:file.open}("e.t.armor"):if e then print a$:goto {:11}
+{:21}
+	gosub {:752}:on-(er=1)goto {:11}:goto {:23}
+{:22}
+	a$=mid$(a$,16):return
+{:23}
+	input# 2,a$:tt$(1)=left$(a$,3):tt$(2)=mid$(a$,4,4):tt$(3)=mid$(a$,8,4)
+	tt$(4)=mid$(a$,12,4):tt$(5)=mid$(a$,16)
+{:25}
+	print l$r$" 1. Armor Name : "tt$(5):print " 2. Armor Class:"tt$(1)
+	print " 3. Store Price: "tt$(2):print " 4. Pawn Shop  : "tt$(3)
+	print " 5. Fix Price  : "tt$(4)r$l$
+	h=5:gosub {:905}:on an+1 goto {:40}, {:30}, {:32}, {:34}, {:36}, {:38}
+{:30}
+	print "[15 char max]":p$="Armor Name":l=1:h=15:t=.:x$=tt$(5):gosub {:900}
+	tt$(5)=x$:goto {:25}
+{:32}
+	print "[-10 to 10]":p$="Armor Class":l=-10:h=10:t=1:x$=tt$(1):gosub {:900}
+	tt$(1)=x$:goto {:25}
+{:34}
+	gosub {:sub.set9999}:p$="Store Price":x$=tt$(2):gosub {:900}
+	tt$(2)=x$:goto {:25}
+{:36}
+	gosub {:sub.set9999}:p$="Pawn Shop Price":x$=tt$(3):gosub {:900}
+	tt$(3)=x$:goto {:25}
+{:38}
+	gosub {:sub.set9999}:p$="Armory Fix Price":x$=tt$(4):gosub {:900}
+	tt$(4)=x$:goto {:25}
+{:40}
+	x$="+":if val(tt$(1))<. then x$="-"
+	x$=x$+right$("00"+mid$(str$(val(tt$(1))),2),2)
+	for q=2 to 4:d$=d$+right$("000"+mid$(str$(val(tt$(q))),2),4):next:d$=d$+tt$(5)
+	gosub {:record_pointer}(x):print# 2,d$:goto {:21}
+{:45}
+' books
+	a=1:gosub {:file.open}("e.t.books"):if e then print a$:goto {:11}
+{:46}
+	gosub {:752}:on-(er=1)goto {:11}:goto {:48}
+{:47}
+	a$=mid$(a$,8):return
+{:48}
+	input# 2,a$:tt$(1)=left$(a$,1):tt$(2)=mid$(a$,2,1):tt$(3)=mid$(a$,3,4)
+	tt$(4)=mid$(a$,7,1):tt$(5)=mid$(a$,8)
+{:50}
+	print r$l$r$" 1. Book Name    : "tt$(5)
+	q=1+val(tt$(1)):print " 2. In Same Place: ";:gosub {:sub.yes_no}
+	q=1+val(tt$(2)):print " 3. Self-Destruct: ";:gosub {:sub.yes_no}
+	x$=mid$(at$,q*3-2,3)
+	print " 4. Attribute Adj: ";:q=asc(left$(tt$(3),1))-64
+	print mid$("NO YES",((q<1)+2)*3-2,3); ':if q=. then{:57}
+	if q then print " ("at$(q)mid$(tt$(3),2)")";
+{:57}
+	q=1+val(tt$(4)):print:print " 5. Cursed Book  : ";:gosub {:sub.yes_no}
+	print:print " 6. Edit Book Text"r$l$:h=6:a=.:gosub {:905}:if an=. then{:90}
+	on an goto {:60},{:62},{:63},{:64},{:84},{:msg.not_done}
+{:60}
+	print "[15 char max]":p$="Book Name":l=1:h=15:t=.:x$=tt$(5):gosub {:900}:tt$(5)=x$
+	goto {:50}
+{:62}
+	q=1-val(tt$(1)):tt$(1)=mid$(str$(q),2):goto {:50}
+{:63}
+	q=1-val(tt$(2)):tt$(2)=mid$(str$(q),2):goto {:50}
+{:64}
+	print r$l$r$" A. None":for q=1 to 10:print " "chr$(193+q)". "at$(q):next
+	print l$r$:print "[A-K]":p$="Attribute":l=.:h=10:q=asc(left$(tt$(3),1))+1
+	x$=chr$(q):gosub {:900}:on-(x$<"a"and x$>"k")goto {:64}:q=asc(x$)-1:x$=chr$(q)
+	tt$(3)=x$+mid$(tt$(3),2):if x$="@" then print r$"Negated.":tt$(3)="@+00":goto {:50}
+	print r$at$(asc(x$)-64)" is set to ";:x$=mid$(tt$(3),2,1)
+	if x$="=" then print "equal";
+	if x$="-" then print "subtract";
+	if x$="+" then print "add";
+	x$=mid$(tt$(3),3):if x$="RR" then print " a random amount";:goto {:74}
+	print " "x$;
+' FIXME: random amount above should be 1 r then # between 1-18
+{:74}
+	print "." ' high bit set for -1 - -18
+{:75}
+	print r$"[+/-/=]":p$="Modifier":l=1:h=1:t=.:x$=mid$(tt$(3),2,1):gosub {:900}
+	if x$<>"+"and x$<>"-"and x$<>"=" then{:75}
+	tt$(3)=left$(tt$(3),1)+x$+right$(tt$(3),2):h=18:q=val(left$(tt$(3),1))
+	if q>5 then h=25:if q>9 then h=99
+	print "[0-"mid$(str$(h),2)", R=Random]":p$=v$:l=.:x$=right$(tt$(3),2)
+	gosub {:900}:if val(x$)<10 then x$="0"+x$
+	tt$(3)=left$(tt$(3),2)+x$:goto {:50}
+{:84}
+	q=1-val(tt$(4)):tt$(4)=mid$(str$(q),2):goto {:50}
+{:msg.not_done}
+	print "Not done yet.":goto {:50}
+{:90}
+	d$="":for q=1 to 5:d$=d$+tt$(q):next:gosub {:record_pointer}(x):print# 2,d$:goto {:46}
+{:100}
+' weapons
+	gosub {:file.open}("e.t.weapons"):if e then  print a$:goto {:11}
+{:102}
+	gosub {:752}:on-(an<>.)goto {:104}:goto {:11}
+{:103}
+	a$=mid$(a$,36):return
+{:104}
+	input# 2,a$:tt$(1)=left$(a$,4):tt$(2)=mid$(a$,5,4):tt$(3)=mid$(a$,9,4)
+	tt$(4)=mid$(a$,13,1):tt$(5)=mid$(a$,14,2):tt$(6)=mid$(a$,16,2)
+	tt$(7)=mid$(a$,18,1):tt$(8)=mid$(a$,19,10):tt$(9)=mid$(a$,29,7)
+	tt$(10)=mid$(a$,36)
+{:110}
+	a=.:print r$l$r$" 1. Weapon Name : "tt$(10)r$" 2. Store Price : "tt$(1)
+	print " 3. Fix Price   : "tt$(3)r$" 4. Pawn Shop   : "tt$(2)
+	print " 5. Ease of Use : "tt$(4)r$" 6. Base Damage : "left$(tt$(5),1);
+	if right$(tt$(5),1)="*" then print " + Ammunition Bonus";
+	print r$" 7. Reqired Dex : "tt$(6)r$" 8. Weapon Class: ";
+' duplicate string
+	print mid$("SLASH/BASHPOKE/JAB  POLE/RANGEPROJECTILEPROXIMITY ENERGY",val(tt$(7))*10-9,10)" (Class "tt$(7)")
+	print " 9. Edit Weapon Flags/Data"r$l$r$;
+	h=9:gosub {:905}:if an=. then {:230}
+	on an gosub {:125}, {:127}, {:131}, {:129}, {:133}, {:135}, {:142}, {:144}, {:150}:goto {:110}
+{:125}
+	p$="Weapon Name":l=1:h=15:t=.:x$=tt$(10):gosub {:900}:tt$(10)=x$:return
+{:127}
+	gosub {:sub.set9999}:p$="Store Price":t=1:x$=tt$(1):gosub {:900}:tt$(1)=x$:return
+{:129}
+	gosub {:sub.set9999}:p$="Pawn Shop Price":x$=tt$(2):gosub {:900}:tt$(2)=x$:return
+{:131}
+	gosub {:sub.set9999}:p$="Armory Fix Price":x$=tt$(3):gosub {:900}:tt$(3)=x$:return
+{:133}
+' print "[1-9]":
+	gosub {:sub.set9}:p$="Ease Of Use":x$=tt$(4):gosub {:900}:tt$(4)=an$:return
+{:135}
+' print "[1-9]":l=1:h=9:t=1
+	gosub {:sub.set9}:p$="Base Damage":x$=left$(tt$(5),1):gosub {:900}:d$=x$
+	x$="Y":if right$(tt$(5),1)=" " then x$="N"
+{:138}
+' fixme: this was written before i discovered weapon class has to do with ammo bonus
+	print "[Y=Yes, N=No]":p$="Ammunition Bonus":l=1:h=1:t=.:gosub {:900}
+	if x$<>"y" and x$<>"n" then {:138}
+	x$="*":if x$="n" then x$=" "
+	tt$(5)=d$+x$:return
+{:142}
+	print "[1-25]":p$="Required Dexterity":l=1:h=25:t=1:x$=tt$(6):gosub {:900}
+	tt$(6)=x$:return
+{:144}
+' fixme: adjust for gaps in weapon classes
+' duplicate string
+	x$="SLASH/BASHPOKE/JAB  POLE/RANGEPROJECTILEPROXIMITY ENERGY"
+	print:for x=1 to 6:print mid$(str$(x),2)". "mid$(x$,x*10-9,10):next
+	print "[1-6]":p$="Weapon Class":l=1:h=6:t=1:x$=tt$(7):gosub {:900}:tt$(7)=x$
+	return
+{:150}
+	gosub {:240}
+	print r$"Edit Weapon Flags/Data: "tt$(10)r$l$r$" 1) Weapon Flag  :";
+	x$=tt$(8):fl=val(left$(x$,1)):print fl;:on fl goto {:155},{:160},{:164},{:167},{:169}
+{:155}
+	print "(In Shoppe)
+	q=1+val(mid$(x$,2,1)):print " 2) In Annex?    : ";:gosub {:sub.yes_no}
+	q=1+val(mid$(x$,3,1)):print " 3) In Pawn Shop?: ";:gosub {:sub.yes_no}
+	q=1+val(mid$(x$,4,1)):print " 4) In Underdark?: ";:gosub {:sub.yes_no}
+	h=8:goto {:170}
+{:160}
+	print "(In Dungeon)
+	print " 2) In Room      : "mid$(x$,2,3)
+	print " 3) On Level     : "mid$(x$,5,2)
+	h=7:goto {:170}
+{:164}
+	print "(Player Has It)
+	print " 2) Player       : "mid$(x$,2,3)
+	h=6:goto {:170}
+{:167}
+	print "(Monster Has It)"r$" 2) Monster      : "mid$(x$,2,3)
+	h=6:goto {:170}
+{:169}
+	print "(DESTROYED)"r$"   [Change flag to resume use in game]":h=5
+{:170}
+	q=1+val(mid$(x$,7,1))
+	print h-3"{left}) Storm Weapon?: ";:gosub {:sub.yes_no}:print
+	q=asc(mid$(x$,9,1))-64:print h-2"{left}) Intelligence :"q;:if q>17 then print "(Can Cast Spells)";
+	q=1+val(right$(x$,1)):print:print h-1"{left}) Alignment    : ";
+	print mid$("Good   NeutralEvil   Random",q*7-6,7)r$h"{left}) Edit Best Targets"
+	print l$:gosub {:905}:if an=. then {:110}
+	on fl goto {:181},{:201},{:209},{:211},{:220}
+{:181}
+	on an gosub {:183},{:187},{:188},{:190},{:192},{:194},{:197},{:246}:goto {:150}
+{:183}
+	print r$" 1) In Shoppe"r$" 2) In Dungeon"r$" 3) Player Has It
+	print " 4) Monster Has It"r$" 5) Destroyed":x$=left$(tt$(8),1)
+	print "[1-5]":p$="Flag Number":l=1:h=5:t=1:gosub {:900}
+	tt$(8)=x$+mid$(tt$(8),2):return
+{:187}
+	q=1-val(mid$(tt$(8),2,1)):tt$(8)="1"+mid$(str$(q),2)+mid$(tt$(8),3):return
+{:188}
+	q=1-val(mid$(tt$(8),3,1))
+	tt$(8)=left$(tt$(8),2)+mid$(str$(q),2)+mid$(tt$(8),4):return
+{:190}
+	q=1-val(mid$(tt$(8),4,1))
+	tt$(8)=left$(tt$(8),3)+mid$(str$(q),2)+mid$(tt$(8),5):return
+{:192}
+	q=1-val(mid$(tt$(8),7,1))
+	tt$(8)=left$(tt$(8),6)+mid$(str$(q),2)+right$(tt$(8),3):return
+{:194}
+	print r$"[0-20]":p$="Intelligence":l=.:h=20:t=1
+	x$=str$(asc(mid$(tt$(8),9,1))-64):gosub {:900}
+	tt$(8)=left$(tt$(8),8)+chr$(64+val(x$))+right$(tt$(8),1):return
+{:197}
+	print:for q=1 to 4:print "{left}"q"{left}. "mid$("GOOD   NEUTRALEVIL   RANDOM",q*7-6,7):next
+	print "[1-4]":p$="Alignment":l=1:h=4:t=1:x$=str$(val(right$(tt$(8),1))+1)
+	gosub {:900}:tt$(8)=left$(tt$(8),9)+str$(val(x$)-1):return
+{:201}
+	on an gosub {:183},{:203},{:206},{:192},{:194},{:197},{:246}
+	goto {:150}
+{:203}
+' TODO: get max room from level data
+	print "[1-999]":p$="Room #":l=1:h=999:t=1:x$=mid$(tt$(8),2,3):gosub {:900}
+	tt$(8)="2"+right$("000"+mid$(str$(val(x$)),2),3)+mid$(tt$(8),5):return
+{:206}
+	print "[1-99]":p$="Level #":l=1:h=99:x$=mid$(tt$(8),5,2):gosub {:900}
+	tt$(8)=left$(tt$(8),4)+right$("00"+mid$(str$(val(x$)),2),2)+mid$(tt$(8),7)
+	return
+{:209}
+	on an gosub {:183},{:216},{:192},{:194},{:197},{:246}
+	goto {:150}
+{:211}
+	on an gosub {:183},{:213},{:192},{:194},{:197},{:246}
+	goto {:150}
+{:213}
+	print "[0-999]":p$="Monster #":l=.:h=999:t=1:x$=mid$(tt$(8),2,3):gosub {:900}
+	q=val(x$)
+	tt$(8)="4"+right$("000"+mid$(str$(q),2),3)+mid$(tt$(8),5)+"00":return
+{:216}
+	print "[0-999]":p$="Player #":l=.:h=999:t=1:x$=mid$(tt$(8),2,3):gosub {:900}
+	q=val(x$)
+	tt$(8)="3"+right$("000"+mid$(str$(q),2),3)+mid$(tt$(8),5)+"00":return
+{:220}
+	on an gosub {:183},{:192},{:194},{:197},{:246}
+	goto {:150}
+{:230}
+	d$="":for q=1 to 3:d$=d$+right$("0000"+tt$(q),4):next:for q=4 to 10:d$=d$+tt$(q)
+	next:gosub {:record_pointer}(x):print# 2,d$:goto {:102}
+{:240}
+' weapon flag autocorrection
+	if left$(tt$(8),1)<>"1" then return
+	if val(mid$(tt$(8),2,1))>1 then tt$(8)="11"+mid$(tt$(8),3)
+	if val(mid$(tt$(8),3,1))>1 then tt$(8)=left$(tt$(8),2)+"1"+mid$(tt$(8),4)
+	if val(mid$(tt$(8),4,1))>1 then tt$(8)=left$(tt$(8),3)+"1"+mid$(tt$(8),5)
+	return
+{:246}
+' best targets:
+' fixme: use one string:
+ 	print r$l$:for j=1 to 7:print j"{left}) ";
+ 	if j>. then x$="HUGE"
+	if j>1 then x$="LARGE":if j>2 then x$="BIG":if j>3 then x$="MAN-SIZED"
+	if j>4 then x$="SHORT":if j>5 then x$="SMALL":if j>6 then x$="SWIFT"
+	print x$tab(13)": ";:q=1+val(mid$(tt$(9),j,1))
+	next
+	print l$r$;:h=7:gosub {:905}:if an=. then{:150}
+	q=val(mid$(tt$(9),an,1)):q=1-q
+	if an=1 then tt$(9)=mid$(str$(q),2)+mid$(tt$(9),2):goto {:246}
+	if an=7 then tt$(9)=left$(tt$(9),6)+mid$(str$(q),2):goto {:246}
+	tt$(9)=left$(tt$(9),an-1)+mid$(str$(q),2)+mid$(tt$(9),an+1):goto {:246}
+{:300}
+' food/drink/spells
+	gosub {:file.open}(a$="e.t."+op$):if e then print a$:goto {:11}
+{:302}
+	gosub {:752}:on-(an<>.)goto {:304}:goto {:11}
+{:303}
+	a$=mid$(a$,5):return
+{:304}
+	input# 2,a$:tt$(1)=left$(a$,4):tt$(2)=mid$(a$,5)
+{:305}
+	print l$r$" 1) ";:x$="Food/Drink":if op$="s" then x$="Spell"
+	print x$tab(14)": "tt$(2)r$" 2) Price"tab(14)": "tt$(1)r$l$
+	h=2:gosub {:905}:if an=. then{:314}
+	on an gosub {:310},{:312}
+	goto {:305}
+{:310}
+	print "[15 char max]":p$=x$+" Name":x$=tt$(2):l=1:h=15:t=.:gosub {:900}:tt$(2)=x$
+	return
+{:312}
+	print "[1-9999]":p$=x$+" Price":x$=tt$(1):l=1:h=9999:t=1:gosub {:900}
+	tt$(1)=x$:return
+{:314}
+	gosub {:record_pointer}(x):print# 2,right$("0000"+tt$(1),4)tt$(2):gosub {:record_pointer}(x):goto {:302}
+{:752}
+	print "SPACE aborts."r$r$"### Name"r$l$r$;:x=1:gosub {:record_pointer}(x):input# 2,mx:x%=.
+	for x=2 to mx+1:x%=x-1:gosub {:record_pointer}(x):input# 2,a$:if a$="{up arrow}" then{:759}
+	on-(op$="a")-2*(op$="b")-3*(op$="f")gosub {:22},{:47},{:303}
+	on-(op$="m")-2*(op$="s")-3*(op$="w")gosub {:999},{:303},{:103}
+	print x%"{left}: ";:if a$="---" then a$="(EMPTY RECORD)
+	print a$:if peek(198) then get an$:if an$=" " then x=mx+1:gosub {:msg.aborted}
+{:759}
+	next:print l$:print " [";:if a then print "A=Add, ";
+	print "#=Edit]";:h=mx:gosub {:905}:if a and an$="a" then{:763}
+	an=val(an$):if an<1 or an>h then close 2:er=1:return
+	x=an+1:gosub {:record_pointer}(x):return
+{:763}
+	mx=mx+1:x=1:gosub {:record_pointer}(x):print# 2,mx:x=mx+1:gosub {:record_pointer}(x):print# 2,chr$(255)
+	gosub {:record_pointer}(x):on-(op$="a")-2*(op$="b")-3*(op$="d"or op$="f")goto {:766},{:767},{:768}
+	on-(op$="m")-2*(op$="s")goto 769,770
+{:766}
+	d$="+10000000000000---":goto {:780}
+{:767}
+	d$="00+0000---":goto {:780}
+{:768}
+	d$="00---" ':goto {:780}
+' fixme, finish these lines
+{:780}
+	print# 2,d$:return
+
+{:900}
+	print r$"Old "p$":";:if t=. then print " ";
+	print x$r$"New "p$":";:an$=x$:input an$:an=val(an$):if q and an$="?" then return
+	if t=. and len(an$)<l or len(an$)>h then{:900} ' string value
+	if t=1 and an<l or an>h then{:900} ' numeric value
+	x$=an$:return ' prompt input
+{:905}
+	an$="":print l$:print " Edit which (1-"mid$(str$(h),2)")";:input an$:an=val(an$)
+	if (a and an$="a") or an=. then return ' "add" option available if a<>0
+	on -(an<1 or an>h) goto {:905}:return ' menu input
+{:999}
+	end
+{ifdef:standalone}	
+{number:1001}
+{:record_pointer}
+	def x:gosub {:1002}:for d=1 to 50:next
+{:1002}
+	print# 15,"p{$02}"chr$(x and 255)chr$(x/b1)"{$01}":return
+{:file.open} ' ("filename")
+{number:1011}
+	fn a$:close 2:open 2,dv,2,"0:"+a$
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{number:1603}
+{:return}
+	return
+{:1811}
+	close 2:close 3:close 15:print "{$09}";:end ' unlock shift + c=
+
+{number:1920}
+{:msg.aborted}
+	print "(Aborted.)":return
+{endif}

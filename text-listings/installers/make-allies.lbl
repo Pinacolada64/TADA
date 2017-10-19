@@ -1,0 +1,196 @@
+' another idea is to separate all the allies into their respective categories:
+' hitchiker's guide to the galaxy
+' star trek
+' star wars
+' gods & goddesses
+' middle earth
+' sci-fi
+' comic book superheroes and villains/cartoons
+' real life personalities
+' what else?
+
+' todo: give allies flags, like r2d2 and the terminator should be mechanical
+' fred and charlie "| 2" = double attacks
+' which benefits would those have though?
+
+'	data name, strength, to-hit % (x10)
+	data "ALAN OF YOR",9,4
+	data "ANUBIS",5,8
+	data "APOLLO",15,7
+	data "ARES",15,9
+	data "ARTHUR DENT",4,4
+	data "ATHENA",15,6
+	data "ATILLA THE HUN",15,7
+	data "BATMAN!",14,5
+	data "BETTY BOOP",7,6
+	data "BEAVER CLEAVER",9,6
+	data "BLACK KNIGHT!",12,7
+	data "BLUE DEMON",19,9
+	data "BUCK ROGERS",12,5
+	data "CARLY SIMON",8,9
+	data "CATWOMAN",17,5
+	data "CENTURIAN ROCK!",20,9
+	data "CHUCK KNOX",12,5
+	data "CLARK KENT",20,9
+	data "COLONEL KLINK",10,2
+	data "CONAN!",15,6
+	data "DARK WARRIOR",12,5
+	data "DARTH VADER",12,6
+	data "DAVY CROCKETT!",15,7
+	data "DEMETER",12,5
+	data "DIRTY HARRY",18,7
+	data "DOC BROWN",4,3
+	data "DRAGONSLAYER",19,8
+	data "DUKE OF EARL",12,8
+	data "EOWYN",16,9
+	data "FINIEOUS FINGERS",12,5
+	data "FORD PREFECT",3,6
+	data "FRED AND CHARLIE{pipe}2",15,9
+	data "FRED THE TERRIBLE",10,7
+	data "FRODO",8,6
+	data "GANDALF THE GREY!",7,7
+	data "HAMMER",20,9
+	data "IRIS",12,5
+	data "IRON MAIDEN",14,6
+	data "J.R.R. TOLKIEN",4,3
+	data "JANIS JOPLIN",15,5
+	data "JIM MORRISON",4,5
+	data "JUDAS PRIEST",8,6
+	data "JULIA FELIX",10,5
+	data "JULIAS CAESAR!",12,6
+	data "KING ARTHUR!",16,6
+	data "LAZY LARRY",7,3
+	data "LUKE SKYWALKER",15,5
+	data "MARIAH CAREY",10,5
+	data "MERLIN!",10,3
+	data "MINICIUS ITALUS!",15,6
+	data "MISTER ROGERS",10,5
+	data "MORK FROM ORK",15,7
+	data "MR. SPOCK",16,6
+	data "MYSTIC MORGANNA",6,4
+	data "NINJA TURTLE",12,5
+	data "PAN",13,6
+	data "PANCHO VILLA",10,5
+	data "PAULA ABDUL",9,8
+	data "PERSEPHONE",9,6
+	data "PETER JENNINGS",13,6
+	data "QUEEN BODAICEA!",12,5
+	data "R2D2",9,6
+	data "RAMBO!",18,7
+	data "RED SONJA!",16,6
+	data "RIKER THE STRIKER",12,7
+	data "RIPLEY",18,9
+	data "ROBIN HOOD!",14,8
+	data "SADDAM HUSSEIN",5,3
+	data "SAMWISE",14,6
+	data "SARAH CONNER",16,5
+	data "SARUMON",20,9
+	data "SCOTTY",6,4
+	data "SIR GALAHAD",15,4
+	data "SLAVE VERUS",20,1
+	data "STEELY DAN",15,7
+	data "STORMIN' NORMAN",20,9
+	data "TAARNA",12,5
+	data "TAYLOR DAYNE",6,3
+	data "THE BISHOP",10,7
+	data "THE BOGIEMAN",15,5
+	data "THE IRON LADY",18,9
+	data "THE TERMINATOR",20,5
+	data "TIMMY",7,6
+	data "TINY TIM",6,5
+	data "TRAJAN OF DURA",15,8
+	data "TRICIA MCMILLAN",4,5
+	data "UHURA",7,4
+	data "VERUS' BROTHER",15,6
+	data "WARREN ZEVON",15,6
+	data "WEREWOLF OF LONDON",10,5
+	data "WONDER WOMAN!",18,5
+	data "XEVIOUS",12,4
+	data "YODA",15,8
+	data "ZAPHOD BEEBLEBROX",5,5
+	data "ZORBA THE GREEK",14,6
+	data ^
+{nice:100}
+' module name, filename, version
+	m$="allies":f$="e.t."+m$:ve=1.1
+' eb=extra bytes, dr=system drive #, dr$=drive prefix, dv=device
+' r$=carriage return, l%=best record length
+	eb=4:dr=3:dr$="0:":r$=chr$(13):dv=peek(186):if dv<8 then dv=8
+	PRINT"TADA "M$" installer v."VE;R$R$"      "M$R$"{$c0:5}"
+	PRINT"      best record length"
+{:415}
+	READ A$:if A$="{up arrow}" then {:430}
+	MX=MX+1:READ B$,C$:X$=A$+R$+B$+R$+C$
+	Z=LEN(X$):IF Z>L% THEN L%=Z
+	PRINT"{up:3}"RIGHT$("    "+MID$(STR$(MX),2),5)R$R$;
+	PRINT RIGHT$("    "+MID$(STR$(L%),2),5):GOTO {:415}
+{:430}
+	if eb=. then {:440}
+	print"+ "+right$("   "+mid$(str$(eb),2),3);
+	print" extra data byte";:if eb>1 then print"s";
+	print" per record";:l%=l%+eb
+	print r$"{$c0:5}"r$right$("    "+mid$(str$(l%),2),5)" total"r$r$;
+{:440}
+' check if file exists by renaming it to itself:
+	OPEN 15,DV,15:PRINT# 15,"r"DR$F$"="F$:GOSUB {:check.io_status}
+' file exists:
+	CLOSE 2:IF e=63 THEN GOSUB {:900}:IF A=.then {:1811}
+' fix: re-adjust maximum record length:
+	if eb then l%=l%+eb
+	X%=MX*(L%+1):PRINT X%"bytes,";:X%=X%/254+.5:PRINT X%"blocks.
+	PRINT"Checking blocks free...";:GOSUB {:1081}:IF A>=X% THEN PRINT"Ok":GOTO {:465}
+	PRINT"{rvrs on} BF Warning {rvrs off} - Aborted.":GOTO {:920}
+{:465}
+' create file with record length l%:
+	A$=F$+",l,"+CHR$(L%):GOSUB {:file.open}:IF eTHEN PRINT a$:GOTO {:920}
+	PRINT"Creating '"F$"'":FOR X=1 TO MX+1:GOSUB {:record_pointer}
+' put filler byte in record:
+	PRINT# 2,CHR$(255);:PRINT"{up}"TAB(27)RIGHT$("     "+MID$(STR$(X),2),5)" (";
+	PRINT MID$(STR$(INT(X/MX*100)),2)"%)":GOSUB {:check.io_status}:IF e=. THEN {:490}
+' ignore "overflow in record" error:
+	IF e<>50 THEN X=MX:NEXT:GOTO {:920}
+{:490}
+	NEXT:PRINT:X=1:GOSUB {:record_pointer}:PRINT"Writing data...":RESTORE
+	x=1:gosub {:record_pointer}:print# 2,mx
+' 8/Dec/2015 11:00: include 'owned flag' here instead of 60+ times in DATA
+	FOR X=2 TO MX+1:X$=" 0"+r$:FOR Y=1 TO 3:READ D$:X$=X$+D$+R$:NEXT
+	print# 2,x$:x%=x:print"{up}"tab(27)right$("     "+mid$(str$(x%),2),5)" (";
+	PRINT MID$(STR$(INT(X/MX*100)),2)"%)":GOSUB {:check.io_status}:IF e THEN X=MX+1:NEXT:GOTO {:920}
+	IF e THEN X=MX+1:NEXT:print a$:GOTO {:1811}
+	NEXT:PRINT R$"File successfully created!":GOTO {:920}
+{:900}
+	PRINT"Warning! File exists... replace? ";:GOSUB {:sub.cursor_get}
+	IF A=. THEN PRINT"Bailing out.":RETURN
+	PRINT"Deleting '"F$"'...";:PRINT# 15,"s"DR$F$:PRINT:GOTO {:check.io_status}
+{:920}
+' fl controls loading next installer module:
+	IF FL=. THEN {:1811}
+	END:REM A$="(NEXT FILE?)":GOTO 1067
+	REM "create allies"
+	REM V1.0 08/06/2006  1:58 PM
+	REM v1.1 12/08/2015 11:19 AM
+	REM WRITTEN BY PINACOLADA FOR THE
+	REM DRAGON'S EYE BBS / COMMODORESERVER
+	REM
+{number:1000}
+	REM COPR. 2006-2015 PINACOLADA
+{:record_pointer}
+	GOSUB {:1002}:FOR D=1 TO 50:NEXT
+{:1002}
+	PRINT# 15,"p{$02}"CHR$(X AND 255)CHR$(X/256)"{$01}":RETURN
+{number:1011}
+{:file.open}
+	close 2:open 2,dv,2,dr$+a$
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{number:1081}
+{:1081}
+' blocks free check stub
+	A=X%:RETURN
+
+{number:1811}
+{:1811}
+	CLOSE 2:CLOSE 15:END
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}

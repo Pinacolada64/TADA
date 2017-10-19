@@ -1,0 +1,9 @@
+# ignore .prg binaries
+*.prg
+
+# ignore .d64/d81 disk images
+*.[dD]64
+*.[dD]81
+
+# ignore EditPad (Pro) __history backup folders (no * wildcard needed)
+__history/

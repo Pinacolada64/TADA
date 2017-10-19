@@ -1,0 +1,111 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{:1}
+	poke 53280,12:poke 53281,12:print "{clear}{black}"
+	a$="x"+"":i%=.:is=49152:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
+	dv=peek(186):if dv<8 then dv=8
+	open 15,dv,15:if peek(is)=76 then {:continue}
+	poke 147,.:sys 57812 "ml.o",dv,1:poke 780,.:sys 65493:gosub {:check.io_status}:if e then print a$:goto {:1811}
+
+' TODO: menu options for reading SEQ or file chunks like e.t.messages
+	open 15,dv,15:a$="s.shoppe-menu":gosub {:file.read}:goto {:1811}
+
+{number:1001}
+{:record_pointer}
+	gosub {:1002}:for d=1 to 50:next
+{:1002}
+	print# 15,"p{$02}"chr$(x and 255)chr$(x/b1)"{$01}":return
+
+{:file.open}
+{number:1011}
+	close 2:open 2,dv,2,"0:"+a$
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check_io_status.lbl}
+
+{:file.append_or_write}
+{number:1026}
+' b$: filename, default to "append", unless file doesn't exist, fall back to "write"
+	a$="a":gosub {:1027}:on e+1 goto {:return}:a$="w"
+{number:1027}
+{:1027}
+	dr=3:a$="e.t."+b$+",s,"+a$:goto {:file.open}
+{number:1075}
+{:file.read_clearscreen}
+	print "{clear}";
+{:file.read}
+	: ' goto {:1100}
+
+{number:1100}
+{:1100}
+' c$=hex color pairs: normal, hilite
+	q=.:c=1:c$="2A5DC1E478":mx=len(c$)/2:l=.:gosub {:file.open}:if e then print a$:goto {:1108}
+{:1101}
+	get an$:if an$="{home}"then gosub {:msg.prompt}("[Paused] "):if q or an$="/" or an$=" " then {:1108}' q or abort chars
+	l=l+1:if l/24=int(l/24) then gosub {:check.more}:if q then {:1108}
+	if x then gosub {:record_pointer}:x=x+1' if rel record, increment record #
+' get data from disk file: if specified # of lines has been reached, or eof then close file
+' 2012/7/20: fixed 40-column text to "glue" lines together 
+	sys ia,2,80,1:sys br,a$+nl$:if pos(.)<>40 then print
+	if (nl and nl=l) or (x=. and (64 and st=64)) then {:1109}
+	goto {:1101}
+{:1108}
+	gosub {:msg.aborted}
+{:1109}
+' reset color, close lfn#2, return
+' "close 2:return" -> 4 bytes vs "gosub xxxx" -> 5 bytes
+	gosub {:msg.reset_color}:close 2:return
+{:1244}
+' new: replace sys br,"]"+nl$ with gosub {:msg.reset_color} >> save 6 bytes
+	q=.:gosub {:msg.reset_color}:print "[";:sys br,"[+]/[-]/[Space]/[Q]"+nl$:print "] ";
+{:1248}
+' fixme: streamline sub.clear_line usage...
+	gosub {:im.cursor_get}:sys is,"+- q",an$:on i%+1 goto {:1248}, {:1250}, {:1252}, {:sub.clear_line}:q=1:goto {:sub.clear_line}
+
+{:1250}
+' increment color:
+	c=c-(c<mx):goto {:1254}
+{:1252}
+' decrement color:
+	c=c+(c>1)
+{:1254}
+' "0...F" replaced with hx$; is also used in "t.prg info"
+' May 3, 2012 11:45: TODO: replace hard-coded values with {sym:} directives from C64List
+' change current/last colors:
+	sys is,hx$,mid$(c$,c*2-1,1):poke 49607,i%-1:poke 49609,i%-1
+' change highlight color:
+	sys is,hx$,mid$(c$,c*2,1):poke 49608,i%-1:gosub {:sub.clear_line}:goto {:1244}
+{:sub.clear_line}
+' SYS to clear a single screen line: 781=.x / peek(214)-1=current line
+	poke 781,peek(214)-1:sys 59903
+
+{number:1603}
+{:return}
+	return
+
+{number:1811}
+{:1811}
+	close 2:close 3:close 15:print "{$09}";:end ' unlock shift + c=
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor_get.lbl}
+
+{number:1920}
+{:msg.aborted}
+	print "(Aborted.)":return
+
+{:msg.reset_color}
+	sys br,"]"+nl$:return
+
+{number:2000}
+{:advent}
+	goto {:1811}
+	
+{number:2860}
+{:check.more}
+' more prompt enabled?
+	rem q=.:m=v1+64:b=3:gosub {:bit.test}:if s=.then return
+{:msg.more_prompt}
+	a$="[More/Q]: "
+{:msg.prompt}
+	print a$;:gosub {:im.cursor_get}:q=-(an$="q" or an$="Q"):goto {:sub.clear_line}' quicker erasing

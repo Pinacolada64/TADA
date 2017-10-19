@@ -1,0 +1,97 @@
+' demonstrate displaying a date, using modbasic and given date string d1$
+
+{def:debug}
+
+{number:1}
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	sys 49152:goto {:start}
+	
+{:sub.bload}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+
+{nice:10}
+{:sub.show_date} ' (day_of_week,month,date,year)
+	fn dw,mo,da,yr ' function prototype
+
+' shows [day_of_week] month date year
+
+' expects:	dw	day_of_week (1=show, 0=don't)
+'		mo	month
+'		da	date
+'		yr	print year (1=birthday, 0=current)
+ 
+' local:	x	year
+	def x
+' (107 chars)
+{ifdef:debug}
+	print "d1$="d1$
+	print "dw="dw,"mo="mo,"da="da,"yr="yr
+{endif}
+	if dw then:gosub {:sub.string_truncate}(mid$("Sunday   Monday   Tuesday  WednesdayThursday Friday   Saturday",val(left$(d1$,1))*9-8,9)):print x$" ";
+	gosub {:sub.string_truncate}(mid$("January  February March    April    May      June     July     August   SeptemberOctober  November December",mo*9-8,9)):print x$;
+	
+' print date [str$() keeps leading space but removes crsr-right after last digit]:
+	print str$(da)",";
+' print either current year or birth year:
+' subtract one year if birth month and birth day > current month and day
+' otherwise current month=may and birthday=june get counted as additional year of age.
+' 1) subtract age [peek(v1+144)]
+' 2) if mo [current month] <= birth month [peek(v1+98)] then
+' 2a)if da [current day  ] <  birth day   [peek(v1+99)] then subtract 1 year's age
+	x=2000+val(mid$(d1$,6,2)):if yr then x=x-peek(v1+144):if mo <= peek(v1+98) then x=x-1
+	'17? bytes: if da < peek(v1+99) then x=x-1
+	'14? bytes: x = x + da<peek(v1+99)
+	print str$(x);:return
+
+{nice:10}
+{:sub.set_date} ' (month,date,year)
+	fn mo,dy,yr ' function prototype
+	def x
+' sets month, date, and year
+
+' expects:	mo	month
+'		dy	date
+'		yr=0	set current year
+' 		yr=1	set birth year
+' peek(v1+144) is age:
+	x=val(mid$(d1$,6,2)):if y then x=x-peek(v1+144)
+	poke v1+98,d:poke v1+99,m:poke v1+100,20:poke v1+101,x:return
+
+{nice:5}
+{:sub.string_truncate} ' ("string")
+' searches <string> from right to left, truncating to first non-space char
+	fn z$
+	def y
+	y=len(z$):if y=. then return
+{:string_truncate2}
+	if mid$(z$,y,1)=" " then y=y-1:goto {:string_truncate2}
+	x$=left$(z$,y):return
+
+{nice:100}
+{:start}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+
+	'    123456789ab
+	d1$="60512171006" ' Friday May 12 2017
+	' 1   day of week (1=sun)
+	' 2-3 month
+	' 4-5 day of month
+	' 6-7 year (+2000)
+	' 8-9 hour (+80=pm)
+	' a-b minute
+
+	print "Setting birthday to 6/16/1976.":poke v1+98,6:poke v1+99,16:poke v1+100,19:poke v1+101,76
+	print "Setting age to 40.":poke v1+144,40
+	
+	print "Display current date, with day of week:"
+	' day_of_week, month, date, year (0=current, 1=birth)
+	gosub {:sub.show_date}(1,val(mid$(d1$,2,2)),val(mid$(d1$,4,2)),0):print
+
+	print "Display birth date, no day of week:"
+	gosub {:sub.show_date}(0,peek(v1+98),peek(v1+99),1):print
+
+{number:1811}
+{:1811}
+	sys 49155:print "modbasic shutting down":end

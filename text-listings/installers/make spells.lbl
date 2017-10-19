@@ -1,0 +1,84 @@
+{number:1}
+'	r$=chr$(13):open 15,dv,15
+	print"{clear}{$08}{$0e}TADA spell file creator v1.1."
+'	printr$"File is created on drive 8.
+'	print r$"{rvrs on}NOTE:{rvrs off} This will replace any existing"r$"'e.t.s' file you have!";
+{:5}
+'	print r$r$;:input"Is this okay with you";an$
+'	if an$<>"Y"and an$<>"N"then {:5}
+'	if an$<>"Y"then print"{clear}Okay, bailing out...":end
+	restore:read nr:print nr"Items.
+	a$="e.t.spells":l=25:gosub {:800}
+	if e% then {:60}
+	print r$"Writing data..."
+	for z=1 to nr:x=z+1:gosub {:record_pointer}:print"-";
+' new: more data per record:
+	for x=1 to nr
+	read x$:d$=x$+r$:print# 2,d$:next
+	gosub {:1012}:if e% then {:60}
+	print"*"r$r$"File successfully created!":goto {:80}
+{:60}
+	print r$r$"Error: "a$
+	print" Check disks and try again."
+{:80}
+	close 2:close 15:end
+
+'	# of spells:
+	data 20
+' format:
+'	0) availability flag (always 1 in a new game, written outside of data statements)
+'	1) spell name
+'	2) spell type (a-i, see "file-formats.txt" for details) + point determinator
+'	3) success (learning or casting?)
+'	4) price
+
+	data "APPLE A DAY{pipe}@",a7,9,100 ' ,9,150 - extra data in record on apple
+	data "BALANCE",d4,6,80
+	data "BOOTS OF SPEED",a9,5,2000
+	data "DEPOSIT",t4,8,50
+	data "DESTROYER",m8,7,250
+	data "DISPEL POISON{pipe}*",a5,9,100
+	data "DRUID HEALTH",a9,9,200		' only for druids
+			' 8,9,500 - extra data in record on apple
+	data "ELEVATOR DOWN",l5,8,1000
+	data "ELEVATOR UP",u7,7,800
+	data "ENDURANCE",p8,7,140
+	data "ESP",i4,7,100
+	data "HAPPY FEET",e6,5,100
+	data "KILL",m6,6,140
+	data "KNOWLEDGE",w4,7,75
+	data "SLAUGHTER",m4,9,100
+	data "SUMMON SPUR",g7,9,2000
+	data "TRANSPORT TO SHOPPE",r8,8,250
+	data "WELL-BEING",c9,7,170
+	data "WHEATIES",s6,7,150
+' only for wizards:
+	data "WIZARD'S GLOW",a9,9,200	' ,9,1000 - extra data on disk
+
+{:800}
+	rem create "e.t.spells" file
+	print"{down}Creating '"a$"'...":open 2,dv,2,"0:"+a$+",l,"+chr$(l)
+	gosub {:810}:x=1:gosub {:record_pointer}:print# 2,nr
+	gosub {:1012}:if e%=. then return
+	print a$:goto {:1811}
+{:810}
+	for x=1 to nr+1:gosub {:record_pointer}:print# 2,chr$(255):print".";:next:print"*
+	return
+{number:998}
+	rem "{delete}TADA Spell File Creator V1.0            May 8, 1995 5:50 PM
+	rem "{delete}Written By PINACOLADA For The           Dragon's Eye {$c2:2}S
+
+{ifndef:standalone}
+{number:1000}
+ 	rem image bbs routines:
+{:record_pointer}
+ 	gosub {:1002}:for d=1 to 50:next
+{:1002}
+ 	print# 15,"p{$02}"chr$(x and 255)chr$(x/256)"{$01}":return
+{:1012}
+	input# 15,e%,e$,t%,s%:if e%=.then {:1014}
+ 	print"Status: "mid$(str$(e%),2)":"e$":"mid$(str$(t%),2)":"mid$(str$(s%),2)
+{:1811}
+	close 2:close 15:end
+{endif}
+	

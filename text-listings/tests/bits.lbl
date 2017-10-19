@@ -1,0 +1,115 @@
+{alpha:invert}
+{number:10}
+
+' this is to make sure displaying and toggling status items works properly
+' (a model of this should be found in tep208, in the flags editor)
+' or t.startup
+
+' initializing modbasic clears variables, so load it first
+
+{def:build_date}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+{undef:build_date}
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	f$="modbasic c000 v2"
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	sys 49152
+
+	print "Setting up player data..."
+	na$="PINACOLADA"
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+
+{:menu}
+	print
+	print "0. Quit"
+	print "1. Hunger flag.........";:gosub {:sub.item.no_yes}(v1+65,6)
+	print "2. Room descriptions...";:gosub {:sub.item_off_on}(v1+64,2)
+' old code from t.startup:
+'	gosub {:bit.test}(v1+64,4):gosub {:sub.item_toggle}("      Expert Mode",1-s)
+	input "Choice";an$:an=val(an$)
+' quit:
+	if an=0 then {:1811}
+
+' previously:
+' on an gosub {:sub.item_1}, {:sub.item_2}
+' modbasic does not like on-gosub
+
+' "if an=1 then gosub {:bit.flip}(v1+65,6) <-- illegal quantity error
+' (needs ":" between "then gosub" if calling a modbasic-extended routine
+
+	if an=1 then:gosub {:bit.flip}(v1+65,6):print "Hunger flag";:gosub {:sub.item.no_yes}(v1+65,6)
+	if an=2 then:gosub {:bit.flip}(v1+64,2):print "Room descriptions flag";:gosub {:sub.item_off_on}(v1+64,2)
+
+	goto {:menu}
+
+{number:1811}
+{:1811}
+' kill modbasic
+	print "v1="v1:print "shutting down modbasic":sys 49155:close 2:close 15:print "v1="v1:end
+
+{nice:10}
+{:sub.item_off_on}
+	fn m,b			' (mem_loc,bit)
+' show value of bit <b> (Off: 0 / On: 1)
+' print "message: Off/On"
+	gosub {:bit.test}(m,b)
+	print ": O"mid$("ffn",s*2+1,2)
+	return
+
+{nice:10}
+{:sub.item.no_yes}
+	fn m,b			' (<mem_loc>,bit)
+' check bit <b> in memory location <mem_loc>
+' returns s=1 if set, 0 if clear
+' show string (": No" if s=0 / ": Yes" if s=1)
+	gosub {:bit.test}(m,b)
+	print ": "mid$("No Yes",s*3+1,3)
+	return
+
+{number:2800}	' 2800
+{:bit.set}
+' set bit <b> of memory location <m>
+	fn m,b		' (mem_loc,bit)
+' set bit <b> in memory location <mem_loc>
+	poke m,peek(m) or 2^b:return
+
+{nice:5}		' 2805
+{:bit.clear}
+' clear bit <b> of memory location <m>
+	fn m,b		' (mem_loc,bit)
+	poke m,peek(m) and 255-2^b:return
+
+{nice:5}		' 2820
+{:bit.test}		' (mem_loc,bit)
+' test bit: RETURNs s=1 IF ON, s=0 IF NOT
+' (trying to be clever, above line would tokenize pretty nicely :)
+	fn m,b
+	s=abs((peek(m) and 2^b)=2^b):return
+
+{nice:5}		' 2825
+{:bit.flip}
+' toggle bit value <b> in memory location <m>
+	fn m,b		' mem_loc,bit
+	gosub {:bit.test}(m,b)
+' if set, clear it
+	if s=1 then:gosub {:bit.clear}(m,b)
+' if clear, set it
+	if s=. then:gosub {:bit.set}(m,b)
+	return
+
+' compare speed of exponent vs. multiplying value by itself
+' not sure whether the math is right:
+' list
+' 
+' 1 b=1:m=53280
+' 2 t1=ti:s=abs(peek(m)and2^b)=2^b:t2=ti-t1
+' 3 printt2"jiffies
+' 4 t1=ti:s=abs(peek(m)andb*b)=b*b:t2=ti-t1
+' 5 printt2"jiffies
+' ready.
+' run
+'  4 jiffies
+'  1 jiffies
+' 
+' ready.

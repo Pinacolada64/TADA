@@ -1,0 +1,162 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem SPUR.WEAPON.S (T.READY)
+	goto {:setup}
+
+' updates:
+' 28/Jun/2014 12:26 - compiles!
+' apr 20, 2014 10:34 - making better
+' aug 16, 2012  8:33 - better documentation
+' aug 14, 2011 18:43
+' oct 21, 2006
+
+{:fixme}
+	print "(:fixme)":return
+
+{:lnk.misc}
+	def x$ ' module name
+	print "(:lnk.misc) "x$:return
+	
+{nice:100}
+{:setup}
+' SPUR variables -- working on translating to TADA format
+
+' weapon string - 6 4-digit weapons, xw=# of weapons
+' rem apparently xw$ needs that trailing comma
+	xw$="001,002,003,004,005,006,":xw=6
+	q$=chr$(34):r$=chr$(13)
+	i$="READY"
+' Player Class, Dexterity, Energy, Intelligence, Race, Strength, consTitution, Wisdom:
+	pc=1:pd=20:pe=20:pi=20:pr=1:ps=20:pt=20:pw=20
+	dv=peek(186):if dv<8 then dv=8
+	gosub {:file.open_cmd_channel}
+	goto {:link}
+
+{nice:100}
+{:link}
+' fixme: unfinished code
+'	on -(lm=1 or lm=2) goto {:bonuses}
+'	if i$="BONUS" or i$="SHIP" then {:bonuses}
+	if i$="READY" then {:rdy.wep}
+	gosub {:sub.log_error}("I",fn cl(0),"Bad I$ value: "+i$):goto {:advent}
+
+{:rdy.wep}	
+	if mw then:gosub {:check.expert_mode}(0):if s then sys br,"(It's wiser to ready [before] meeting a monster!)"+r$+nl$
+' strength? todo: make it dependent on weight of weapon
+' (that's a chore in and of itself)
+	if peek(v1+91)<4 then print "(You're not strong enough to wield a weapon.)":goto {:advent}
+	zr=0:zt$=""
+
+{:pr.weapons}
+	zt=0:xu$="":if xw=0 or xw$="" then print "(You have no weapons.)":goto {:advent}
+	gosub {:msg.spacebar_aborts}
+	gosub {:file.open}("e.t.weapons"):if e then:gosub {:sub.log_error}("E",fn cl(0),a$)
+' get game weapon count:
+	gosub {:record_pointer}(1):input#2,wc:z=0
+{:weapon.loop}
+' xw is # of weapons in inventory
+	z=z+1:if z>xw then {:weapon.done}
+	zw=wc:zz$=xw$:y=z*4-3:a=val(mid$(zz$,y))
+' fixme - after error, then what?
+	if a>zw or a<1 then gosub {:sub.log_error}("E",fn cl(0),"Invalid weapon # "+str$(a)):z=xw:next:goto {:fixme}
+' location, name, stability, hits, price
+	gosub {:record_pointer}(z+1):input#2,xu,zz$,xu,xv,yy
+	gosub {:sub.check_abort}:if q then {:weapon.done}
+	gosub {:sub.string_truncate}(mid$(zz$,4))
+	sys is,"STORM",zz$:if i% then {:fixme}
+	zt=zt+1:xu$=xu$+right$("00"+mid(str$(a),2)+",",4)
+{:weapon.done}
+	close 2
+
+{:rdy.wep2}
+	an$="":input"Ready which weapon number";an$:if an$="" then goto {:advent}
+	gosub {:string.normalize}(an$):x=an:if x<1 or x>xw then print "You don't have that weapon!":goto {:rdy.wep2}
+	y=x*4-3:zp=val(mid$(xw$,y)):yw=vo
+	if vo<>zp or wr$="" then {:38}
+' todo: this needs to be changed to unready weapon:
+' print "You already have the "wr$" readied!":gosub {:sub.adj_stat}(5,-2):goto {:advent}
+{:38}
+' check for storm weapon, handle jealousy
+	sys is,"STORM",wr$:if i%=0 then {:44}
+	print "The "wr$" howls in rage! "q$"No! I refuse! You are mine!"q$
+	zr=vo:da$="THE "+wr$:goto {:spec4}
+{:44}
+	if (pc<>9 or vk<1200) and zp=17 then {:spec3}
+	gosub {:file.open}("e.t.weapons"):x=zp+1:gosub {:record_pointer}(x)
+' todo: make these variables the same (or subroutine)
+	input#2,ws,ws$,ws,wd,wa:close 2
+' only wizards can wield fireballs!
+	gosub {:check.class}:if x<>1 then sys is,wr$,"FIREBALL":if i% then print "Yelp! You burn your fingers.":gosub {:sub.adj_hp}(1,-3):goto {:advent}
+	vm=0:sys is,ws$,"DEATH AMULET":if i%=0 then {:weapon_info}
+	sys br,"[WARNING!]"+nl$:print:print "Readying the Death Amulet has a 20% possibility of instant death.";
+	z=2:gosub {:sub.item_held}(76):if i%=0 then {:64}
+	z=1:print "The Amulet of Life reduces this to 10%.";
+{:64}
+	print:print "Still want to";:gosub {:sub.yes_no}(0):if a=. then {:rdy.wep2}
+	gosub {:msg.delay}("Deadly power stirs. It lives...",30):gosub {:sub.time_delay}(120) ' equals "for x=1 to 2000:next"
+	zz=fn r(100)/10)+1:if zz>z then wd=50:print "YOU LIVE!":goto {:80}
+	print "ARGH! It turns on you!":print:print:print "You are torn to pieces! Little ones."
+	hp=0:xn=sn:sn=0:z=9:goto {:lnk.misc}("dead2")
+
+{:weapon_info}
+	gosub {:link.module}("ready","weapon info")
+
+{:80}
+	print "(:80)":stop
+	
+' link to separate weapon info module
+' where do i stop cutting code?
+
+{:excalibur}
+	print "A fiery sheen engulfs the huge sword as sweet music hums softly from its terrible, sharp blade..."
+
+{:link_bonus}
+' call t.bonuses ("ready" routine), then go to advent
+	gosub {:link.module}("bonuses","ready")
+
+{:spec5}
+' fixme: not called from anywhere?
+	if zt<1 then {:250}
+	print "The Storm Weapon you ignored howls in jealous rage!":da$="THE "+wr$:goto {:spec4}
+	print:print "Thundering laughter shrieks from the "wr$"! "q$"I accept thee as my servant!"q$" A jolt of power surges up your arm..."
+	yz=yz+2:yx=yx+2:return
+
+{:spec3}
+	sys is,wr$,"STORM":if i%=0 and wr$<>"EXCALIBUR" then wr$="STORM WEAPON"
+	da$=wr$:if i% then da$="THE "+wr$
+	print:print:print "A thundering howl of rage blasts from "da$"! "q$"YOU ARE NOT MINE!"q$
+{:spec4}
+	print "A bolt of power blasts you backwards!"
+	a=fn r(10):print "You take"a"damage!":gosub {:sub.adj_hp}(1,-a)
+' todo: handle in {:sub.hp_adj}: if hp<1 then xn=sn:sn=0:z=5:i$="dead2":goto {:lnk.misc}
+
+' drop weapon (zr=# to drop)
+	if zr>0 then {:spec7}
+	da$="MYSTERIOUS WEAPON"
+
+{:spec6}
+' i think this removes weapon zp from inventory
+	sys is,xu$,",":if i%=. then wr$="":goto {:advent}
+	zr=val(left$(xu$,3)):if zr=zp then xu$=mid$(xu$,5):goto {:spec6}
+
+{:spec7}
+	n$="00"+mid$(str$(zr),2)+",":n$=right$(n$,4):sys is,xw$,n$
+	if i%=0 then wr$="":goto {:advent}
+	print:print da$" disintegrates!"
+
+' todo: get server time/date
+' file header:	"mm/dd/yyyy hh:mm xM - " + "<event_title>")
+	gosub {:sub.log_event.init}("Thunder!")
+	gosub {:sub.log_event}(da$+" disintegrated in rage when insulted by "+a$(0)+"!")
+' todo: free weapon in file
+
+	wr$=""
+	gosub {:msg.expert_mode}("(No weapon readied)")
+
+{:250}
+	print "(:250)"
+{number:998}
+	goto {:advent}
+	rem SPUR.WEAPON.S (T.READY)

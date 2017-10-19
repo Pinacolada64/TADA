@@ -1,0 +1,234 @@
+{number:1}
+	b1=256:b2=b1*b1
+	x=123456789
+	v1=int(x/b2):v2=int((x-int(x/b2)*b2)/b1):v3=int((x-int(x/b1)*b1))
+	print v1,v2,v3
+	hx$="0123456789ABCDEF"
+	' hexadecimal:
+	for x=1 to 4:v(x)=n-(int(n/16)*16):n=n/16:next:print " $";
+	for x=4 to 1 step-1:print mid$(hx$,v(x)+1,1);:next
+
+	sys{sym:math}:end
+{asm}
+; 24-bit math (addition and subtraction)
+; with printing comma-delimited values
+; set leading_space = 1 if leading spaces are desired
+
+math:
+	lo_byte = $ff
+	hi_byte = $ff
+
+num_table:
+	byte $00,$00,$01 ; 1
+	byte $00,$00,$0c ; 12
+	byte $00,$00,$7b ; 123
+	byte $00,$04,$d2 ; 1234
+	byte $00,$30,$39 ; 12345
+	byte $01,$e2,$40 ; 123456
+	byte $12,$d6,$87 ; 1234567
+	byte $bc,$61,$4e ; 12345678
+	byte $75,$bc,$d1 ; 123456789
+
+; step 1: print 24-bit numbers
+
+num_count = * - num_table
+	
+leading_space: .byte $01
+
+; ------------------------------
+
+; * Name PrintDecW
+; * Purpose Print a 16-bit number in decimal
+; * Input Areg = low byte of num to be printed
+; * Yreg = high byte of num to be printed
+; * Xreg = leading char:
+; * $00 for no leading chars
+; * (left justified)
+; * $A0 for leading blank spaces
+; * (right justified)
+; * $B0 for leading zeros
+; * Output Xreg = $FF
+; * Uses Areg
+; * Xreg = digit ctr
+; * Yreg = digit
+; * ptr0 = num to be printed
+; * LeadChar = leading char
+; * LeadZero = leading zeros flag
+; * pos while finding leading zeros
+; * neg after end of leading zeros
+; * Calls MON_COUT
+; * Reference loosely based on Integer BASIC
+; * routine by WOZ
+; * Note handles 0 to 65535 ($0000 to $FFFF)
+
+; * variables:
+; * num (ptr0)
+; * leading char (LeadChar)
+; * digit ctr (Xreg)
+; * digit (Yreg)
+; * leading zeros flag (LeadZero)
+; 
+; * leading zeros flag := true
+; * for digit ctr = 4 to 0 step -1
+; * digit := "0"-1
+; * while num >= 0
+; * digit := digit + 1
+; * num := num - power of ten
+; * endw
+; * num := num + power of ten
+; * print digit or leading char
+; * endf
+
+PrintDecW:
+STX LeadChar ;set up leading char
+
+; * alternate entry point if leading
+; * char is already set up
+
+PrintDecW_1:
+STA ptr0
+STY ptr0+1
+
+STA LeadZero ;init to pos
+LDX #4 ;5 bytes to print
+
+; *!loop
+LDY #"0"-1 ;init digit to print
+
+; *! loop
+INY
+LDA ptr0
+SEC
+SBC PowerOf10Lo,X
+STA ptr0
+LDA ptr0+1
+SBC PowerOf10Hi,X
+STA ptr0+1
+; *! until <mi>
+
+; * compensate for one too many subtractions
+
+LDA ptr0
+CLC
+ADC PowerOf10Lo,X
+STA ptr0
+LDA ptr0+1
+ADC PowerOf10Hi,X
+STA ptr0+1
+
+JSR FrontChar ;print digit
+
+CPX #3 ;just printed thousands?
+; *! if <eq>
+; * must preserve Xreg, but can destroy Areg & Yreg
+LDY #"," ;print a comma
+BIT LeadZero ;are we still printing
+; leading zeros?
+; *! if <pl>
+LDY LeadChar ;yes, so print lead char
+; *! endif
+TYA ;Areg := char to print
+; *! if <ne>
+JSR MON_COUT ;print the comma or
+; lead char
+; *! endif
+; *! endif
+
+DEX
+; *!until <mi>
+RTS
+
+; *---------
+; * Name PrintDecB
+; * Purpose Print an 8-bit number in decimal
+; * Input Areg = byte of num to be printed
+; * Xreg = leading char:
+; * $00 for no leading chars
+; * (left justified)
+; * $A0 for leading blank spaces
+; * (right justified)
+; * $B0 for leading zeros
+; * Note handles 0 to 255 ($00 to $FF)
+
+PrintDecB
+STX LeadChar ;set up leading char
+
+PrintDecB_1
+STA ptr0
+PHY ;save Yreg
+
+STZ LeadZero ;init to pos
+LDX #2 ;3 bytes to print
+
+; *!loop
+LDY #"0"-1 ;init digit to print
+LDA ptr0
+
+; *! loop
+INY ;incr count
+SEC ;Areg := Areg - 10^Xreg
+SBC PowerOf10Lo,X
+; *! until <mi>
+
+; * correct for one too many subtractions
+
+CLC
+ADC PowerOf10Lo,X
+STA ptr0
+
+JSR FrontChar ;print digit
+DEX
+; *!until <mi>
+PLY ;restore Yreg
+RTS
+
+; *---------
+
+; * if digit ctr <> 0 then
+; * if digit <> "0" then
+; * leading zeros flag := false
+; * else
+; * if leading zeros flag = true then
+; * digit := leading char
+; * endif
+; * endif
+; * if digit <> 0 then
+; * print char in Yreg
+
+FrontChar:
+TXA ;doing last digit?
+; *!if <ne>
+CPY #"0" ;still doing leading zeros?
+; *! if <ne>
+DEC LeadZero ;no, do not substitute
+; leading char
+; *! else
+BIT LeadZero ;substitute leading char?
+; *! if <pl>
+LDY LeadChar ;yes
+; *! endif
+; *! endif
+; *!endif
+TYA ;Areg := char to print
+; *!if <ne>
+JSR MON_COUT ;print char
+; *!endif
+RTS
+
+PowerOf10Lo:
+byte <1
+byte <10
+byte <100
+byte <1000
+byte <10000
+
+PowerOf10Hi:
+byte >1
+byte >10
+byte >100
+byte >1000
+byte >10000
+
+{endasm}
+
+' http://forum.6502.org/viewtopic.php?f=7&t=287#p1992

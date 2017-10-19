@@ -1,0 +1,116 @@
+' display directory or check blocks free on device dv
+{number:1}
+{step:5}
+
+{alpha:invert}
+
+{def:debug}
+{def:modbasic}
+
+{number:1}
+
+{ifdef:modbasic}
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	sys 49152
+' variables cleared
+{endif}
+	f$="ml c500":gosub {:sub.bload}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+	goto {:menu}
+
+{nice:10}
+{:sub.bload}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+
+{nice:100}
+{:menu}
+	print
+	print "1. Blocks free"
+	print "2. Full directory"
+	input "Choice";an$:an=int(val(an$))
+	if an=1 then {:blocks_free}
+	if an=2 then {:directory}
+
+{nice:100}
+{:blocks_free}
+{ifndef:modbasic}
+	bf=0:pa$="xyz":pr=1:gosub {:sub.directory}
+{else}
+	gosub {:sub.directory}(0,"xyz",1)
+{endif}
+	goto {:menu}
+
+{nice:100}
+{:directory}
+	rem
+
+	goto {:menu}
+
+{nice:100}
+{:sub.directory}
+{ifdef:modbasic}
+	fn bf,pa$,pr	' bf : # of blocks free desired, 0=get blocks free
+			' pa$: dir pattern to get
+			' pr : 0=only blocks free / 1=print entire directory
+	def x,o		' x  : block count of the dir header/entry
+			' o  : offset to calc dir header vs. entry block size
+{endif}
+' returns s=1: enough blocks free, 0=not enough
+	
+' csip command: blocksfree
+' also "bytes <filename>" and "blocks <filename>"
+
+	close 15:open 15,dv,15 ' this is line 1010 in "t.main"
+' must open $ with secondary address of 0 to retrieve directory like load"$" 
+' shows in basic
+	close 1:open 1,dv,0,"$0"+pa$:gosub {:check.io_status}:if e then print a$:goto {:finished}
+
+{ifdef:debug}
+' if pr=1: display directory entries, not just blocks free
+	pr=1
+{endif}
+' skip fake "load address"
+' in dir header, drive # is stored at offsets 3-4
+	get#1,a$,a$:o=3:gosub {:sub.get_entry}
+' in dir entries, block size is stored at offsets 1-2
+	o=1
+{:get_dir_entry}
+	gosub {:sub.get_entry}:if st=. then {:get_dir_entry}
+{:finished}
+	print "Done!":close 1:close 15
+' if bf (# of blocks needed free)=0, just want blocks free count
+' no comparison	so return s=0
+' if x (# of blocks in a file)...
+' TODO: ditch that for now... fix later
+'	s=abs(x>=bf)
+	return
+
+{:sub.get_entry}
+' get data, calculate drive number, or size of dir entry
+	sys ia,1,32,0,a$:x=asc(mid$(a$,o+1,1)+nl$)*256+asc(mid$(a$,o,1)+nl$)
+{ifdef:debug}
+	print "Data: "q$a$q$
+{endif}
+	if pr=0 then return
+
+' print block count, no leading space:
+	print mid$(str$(x),2) tab(5)
+	sys is,a$,"blocks free.":if i% then {:print_entry}
+' line up filenames neatly:
+	sys is,a$,q$
+{:print_entry}
+	if i% then print mid$(a$,i%)
+
+	return
+
+' 1012:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+	
+{number:1811}
+{:1811}
+{ifdef:modbasic}
+	print "Shutting down modBASIC.":sys 49155 ' shut down modbasic
+{endif}
+	end

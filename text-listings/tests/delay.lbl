@@ -1,0 +1,24 @@
+	sys {sym:delay_countdown}
+	end
+{asm}
+
+delay_countdown:
+outer_counter = $fb
+inner_counter = outer_counter+1
+
+	lda #$ff
+	sta outer_counter
+	sta inner_counter
+
+outer_loop:
+	dec outer_counter
+	lda outer_counter
+	bne inner_loop	; counted down to 0, so...
+	rts
+
+inner_loop:
+	dec inner_counter
+	lda inner_counter
+	bne inner_loop	; still >0
+		
+	jmp outer_loop

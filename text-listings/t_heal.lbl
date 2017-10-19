@@ -1,0 +1,37 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.heal
+	for x=.to 4:a$(x)="CHAR"+str$(x):hp(x)=10:a(x)=x:next:lv=1:cl=1:al=3
+	def fn r(x)=int(rnd(1)*x)+1:an$=""
+	on-(an$="")goto {:660}:for x=.to 4:if an$=a$(x) then an=x+1:x=4
+	next:if an then {:660}
+	print "There is no character with that name.":goto {:advent}
+{:660}
+' new: add to ys$ instead:
+	hc=hc+1:if hc<4 then {:680}
+	print "Sorry, only three heals are allowed per session.":hc=hc-1:goto {:advent}
+{:680}
+	if cl<>1 and cl<>3 then print "You must use the 'Druid Health' spell.":hc=.:goto {:advent}
+	if an then {:770}
+	x=2:if cl=3 then x=3
+	for x=.to al:if a(x)=5 then {:730}
+	x%=x%+1:print x%"{left}. - "a$(a(x))
+{:730}
+	next
+	an$="":input"{down}Heal which";an$:gosub {:string.normalize}(an$):an=an-1:if an<. or an>al then {:advent}
+	for x=.to al+1:if a(x)=5 then an=an+1
+	next:goto {:780}
+{:770}
+	an=an-1
+{:780}
+	b$="You":if an then b$="They
+	print:print b$" have ";:gosub {:msg.hp}(an,1)" hit points.":print
+	print b$" could have"30*lv"hit points.
+	print:print "Healing...";:x=fn r(30*lv+lv)
+	for x=1 to 1000:next:for x=1 to 6:print chr$(20);:next
+	print "ed"x"points for a total of"x+hp(an)"{left}.
+	hp(an)=hp(an)+x%:goto {:advent}
+{number:999}
+	rem t.heal

@@ -1,0 +1,69 @@
+{:loop}
+	print "f1 ends."
+	sys {sym:cursor_get}:if peek(198)=asc("{f1}") then {:loop}
+	end
+
+{asm}
+
+cursor_get:
+	; Jan 27, 2014 15:44 - converted to ML
+	; Aug 18, 2012 14:33 - Optimized keystroke checking
+
+	; May 17, 2012 23:21 - GREAT routine from July 1984 Compute!
+	; thanks to David Mills
+	; get with cursor blink, leaves no cursor trails.
+	; Fix: crunched, removed one-time "xc%" variable: 54272+xl%
+	
+	; uses: xl% xo% xq% xr xt%
+	; returns: an$=key hit, a: 1 if an$="y"
+;	poke 198,.:xl%=peek(211)
+	lda #$00
+	sta 198		; clear keyboard buffer
+
+	lda 211
+;{:1903}
+;	if xl%>39 then xl%=xl%-40:goto {:1903}
+	cmp #40
+	bmi line1904
+	clc
+	sbc #40
+
+line1904:
+
+; {:1904}
+;	xl%=xl%+peek(214)*40+1024:poke 54272+xl%,peek(646): xo%=peek(xl%):xt%=xo%:xq%=128:if xo%>127 then xq%=-xq%
+
+; calculate where in video ram the cursor is, store in ($fb):
+
+	lda #<1024
+	sta $fb
+	lda #>1024
+	sta $fc
+	; load cursor row:
+	ldx 214
+	; row 0? forget the loop
+	beq add_col
+add_row:
+	
+
+add_col:
+{:1906}
+	' changing 20 changes blink speed (WAS ORIGINALLY 60):
+ 	xt%=xt%+xq%:poke xl%,xt%:xq%=-xq%:xr=ti+20
+{:1907}
+	if peek(198) then get an$:poke xl%,xo%:a=-(an$="y" or an$="Y"):return
+' 	for xr=1 to 60:get an$:if an$<>"" then poke xl%,xo%:a=-(an$="y"):return
+{:1908}
+	on -(ti<xr) goto {:1907}:goto {:1906}
+'	next:goto {:1906}
+
+' r=1: start out w/ reversed block
+' 198: characters in keyboard buffer
+' 199: reverse mode (1=yes)
+'  xr: delay (20=system cursor speed)
+
+
+'  1 r=1:poke 198,.:rem pina's cursor
+' 10 poke199,abs(r=1):print " {rvs off}{left}";:xr=ti+20:r=notr
+' 15 if peek(198) then get an$:print an$:end
+' 20 on -(ti<xr) goto 15:goto 10

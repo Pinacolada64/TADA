@@ -1,0 +1,19 @@
+{number:1}
+{alpha:invert}
+{:setup}
+	q$=chr$(34):si={sym:sliding_input}:poke 53280,0:poke 53281,0
+	' 1/May/2014 11:15
+	a$(0)="RAILBENDER":an$="NINETEEN CHARACTERS"
+{:loop}
+	print "{cyan}{clear}{down:9}"Q$"Choose a name for your character. Enterit now, but it must be no longer than 18characters."Q$
+	print:print"("q$"quit"q$" leaves, if you must. But who":print"shall be our champion...?)"
+	print:print tab(13)"[------------------]":if a$(0)<>"" then print "Is currently: "a$(0)
+	print tab(34)"input"
+' input now occurs on current cursor line/column
+' sys parameters: input width, max string length, string variable to edit/return
+' trailing print used since ml routine does not print one when return is hit
+	print"{up}Your name is: ";:sys si,18,30,an$:print
+	if an$<>"quit" then a$(.)=an$:goto {:loop}
+	print an$:end
+
+{uses:sliding-input-working-copy.lbl}

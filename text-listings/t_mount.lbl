@@ -1,0 +1,17 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.mount
+' todo: check for char class size, perhaps this would present difficulties
+' todo: check for saddle, main char strength, weight of armor, water room
+' possibility of in the future folding MOUNT and UNMOUNT into one command
+	if a$(4)="---" then print "You don't have a horse!":goto {:advent}
+	gosub {:bit.test}(v1+65,4)
+	if s then print "You're already seated upon "a$(4)"!":goto {:advent}
+' in a water room?
+	sys is,"@@",wy$:if i% then print "(Luckily, "a$(4)" can swim.)"
+' set "mounted" bit:
+	gosub {:bit.set}(v1+65,4):print "You leap upon your noble steed, "a$(4)"...":goto {:advent}
+{number:999}
+	rem t.mount

@@ -1,0 +1,474 @@
+{asm}
+; instr - enhanced string input routine
+; commodore world issue 21, pg. 36
+
+; must assemble with c64list 3.00 because of word statements
+; last updated 28/Jan/2014 16:38
+
+; Current syntax:
+; sys si,<strlen>,<strwin>,<string$>
+
+; <strlen> is the maximum allowable length of string
+
+; TODO:
+; syntax: sys si,<strlen>,<strwin>,<string$>,<clear>
+
+; <width>	# viewable chars in input area, currently hard-coded to 19
+; <clear> 0: copy contents of <string$> to input buffer, position cursor
+;				at end of string
+;		  1: clear contents of input buffer, position cursor at beginning
+;				of buffer
+
+;' reason for dynamically allocating the input buffer in the string heap is
+;' because when a string is created after a BASIC program ends and not on the
+;' string heap, assigning the string to the variable doesn't make a copy (and
+;' mangles later string definitions by pointing them to the previously defined
+;' string).
+
+ALLOC_STRING	= $B4F4 ; Allocates space on string heap; pass length in .A;
+						; address returned in .X/.Y and $35
+
+	; constants:
+
+datco  = #$01	; input text color
+
+forpnt   = $49	; temporary pointer to index
+				; variable used by 'for'
+
+fac_strptr = $64
+strptr   = $fb
+
+	; kernal routines:
+
+basic_error = $a437	; output error message in .a
+
+assign_string = $aa2c
+		; string w/ descriptor address
+		; in $64/$65 stored in variable
+		; descriptor pointed to by $49/
+		; $4a
+; $49: OLD descriptor pointed to by SYS statement
+; $64: NEW descriptor that just-input
+;      line points to describing value
+;      about to be assigned to var
+
+require_string  = $ad8f
+require_numeric = $b79b ; returns in .x
+
+get_var  = $b08b
+
+	; read variable name from basic
+	; text, look up address
+
+skip_comma = $e20e
+     ; check basic text for comma
+     ; followed by something else
+
+chrout   = $ffd2 ;kernal character output
+getin    = $ffe4 ;kernal character input
+plot     = $fff0 ;kernal cursor position
+
+sliding_input:
+
+	; todo: add help text - if no comma, output usage information
+	; jsr chrget+6 (chrgot) will not increment basic text pointer
+	; and allow us to check for comma or not comma, returns in .a
+
+	jsr CHRGET+6
+	cmp ","
+	bne nohelp
+	ldy <helptext
+	lda >helptext
+	jmp strout
+
+nohelp:
+	; read param 1, length
+	jsr SKIP_COMMA
+	jsr REQUIRE_NUMERIC
+	stx strlen
+	inx
+	stx strwin	; input +1 stops scrolling in editing area when entering
+				; last character in string
+
+ 	; Read param 2, target string variable
+	; Check is String and save address on stack
+	jsr	SKIP_COMMA
+	jsr	GET_VAR	; var addr in .A/.Y
+	jsr	REQUIRE_STRING
+
+	; read param 3, strwin
+	jsr SKIP_COMMA
+	jsr REQUIRE_NUMERIC
+	cpx #41
+	bmi winok
+	lda #14		; illegal quantity error
+	jmp basic_error
+	
+winok:
+;	stx strwin
+	inx
+	stx strwin ; input +1 stops scrolling in editing area
+
+	; Put string var address in FORPNT
+	sta	FORPNT
+	sty	FORPNT +1
+
+	; Allocate new space in string heap for the line (max length)
+	lda	#$FF
+	jsr	ALLOC_STRING	; ... and allocate that much space on string heap
+	stx	strptr	; pass buffer location to GETLINE
+	sty	strptr +1	; (address returned in .X/.Y)
+                ; point variable to newly allocated space, where line WILL be stored
+	tya
+	ldy	#2
+	sta	(FORPNT),y		; descriptor +2 (hi byte of string data)
+	txa
+	dey
+	sta	(FORPNT),y		; descriptor +1 (lo byte of string data)
+
+	; Call the input routine
+	jsr	setup
+
+		; Find length of string
+		ldy #$00   ; max string length
+loop:	lda (strptr),y
+		; load .a w/ addr of strptr + y
+		beq found0; branch if =0
+		iny          ; $01, $02, $03...
+		bne loop   ; branch if not zero
+found0:
+	; Store length directly in descriptor of string var
+	tya
+	ldy #0
+	sta (FORPNT),y		; descriptor +0 (length of string)
+	rts
+
+setup:	lda $d6		; current cursor row
+		sta strrow
+		
+		lda $d3		; current cursor column
+		sta strcol
+
+; TODO: Add sys line parameter to customize this:
+		
+		lda #19		; width of input window
+		sta strwin
+
+;	now handled by sys line parameter:
+;		lda #18		; max chars enterable (strwin+1 for a non-scrolling area)
+;		sta strlen
+
+; in original, this could be customized:
+; say if the string started with 'http://' and you didn't want the user to
+; modify that, set lftlim to 7 (0-based)
+		
+		lda #0
+		sta lftlim
+		
+; clear string buffer:
+		lda #0
+		ldy #0
+		sta (strptr),y
+
+		lda #$00;use #$80 for 128 mode
+		sta mode
+;		jmp instr
+
+; instr main loop
+
+instr:	lda lftlim
+		sta cpos
+		lda #0
+		sta lcol
+getstr:	jsr drwstr
+		jsr rvson
+gets10:	ldx #30
+gekey:	jsr getin
+		bne gk1
+		ldy #10
+		jsr delyms
+		dex
+		bne gekey
+		lda rvsflg
+		beq getstr
+		jsr rvsoff
+		jmp gets10
+gk1:	pha
+		jsr rvsoff
+		pla
+		ldx numkeys ; variable now
+gk2:	cmp edkeys,x
+		beq exkey
+		dex
+		bpl gk2
+
+;put character at cursor
+putchr:	ldy cpos
+		cpy strlen
+		bcs getstr
+		pha
+		lda (strptr),y
+		bne pc1
+		iny
+		sta (strptr),y
+		dey
+pc1:	pla
+		sta (strptr),y
+		jsr movrt
+		jmp getstr
+
+;execute special key routines
+exkey:	txa
+		asl ;a
+		tax
+		lda ekaddr,x
+		sta jmpkey+1
+		lda ekaddr+1,x
+		sta jmpkey+2
+jmpkey:	jsr $ffff	; self-modifying
+		jmp getstr
+
+edkeys:	byte 13	; $0d - return
+		byte 20	; $14 - delete
+		byte 148; $94 - insert
+		byte 29	; $1d - cursor right
+		byte 157; $9d - cursor left
+		byte 34	; $22 - quote
+		byte 19	; $13 - home
+		byte 147; $93 - clear
+numkeys: byte numkeys-edkeys
+ekaddr:	word return
+		word delete
+		word insert
+		word cright
+		word cleft
+		word ekrts ; quote does nothing
+		word home
+		word clear
+		
+;carriage return
+return:	lda #0
+		sta lcol
+		sta cpos
+		pla
+		pla
+		jmp drwstr
+
+;handle cursor right
+cright:	ldy cpos
+		lda (strptr),y
+		beq ekrts
+
+movrt:	iny
+		sty cpos
+		tya
+		sec
+		sbc lcol
+		cmp strwin
+		bcc ekrts
+		inc lcol
+ekrts:	rts
+
+; fixme, supposed to clear input field
+; todo, add "are you sure (y/n) prompt
+
+clear:	lda #20			; pina added this
+		ldy strlen
+clear1:	sta (strptr),y
+		dey
+		bne clear1
+		sty strlen
+		sty lcol	; still not sure what this is, but routine breaks without it
+		jsr home
+		jmp drwstr
+		
+home:	ldy lftlim ; pina added this
+		sty cpos
+		rts
+		
+;handle delete key
+delete:	ldy cpos
+		cpy lftlim
+		bne delchr
+		lda (strptr),y
+		beq ekrts
+		iny
+
+delchr:	lda (strptr),y
+		dey
+		sta (strptr),y
+		tax
+		beq cleft
+		iny
+		iny
+		bne delchr
+
+;handle cursor left
+cleft:	ldy cpos
+		cpy lftlim
+		bne cl1
+		lda lcol
+		bne declco
+		rts
+
+cl1:	dey
+		sty cpos
+		cpy lcol
+		bcs cl2
+declco:	dec lcol
+cl2:	rts
+
+;handle insert key
+insert:	ldy #0
+i1:		lda (strptr),y
+		beq i2
+		iny
+		bne i1
+i2:		cpy strlen
+		bcs insrts
+
+i3:		lda (strptr),y
+		iny
+		sta (strptr),y
+		dey
+		dey
+		cpy #$ff
+		beq i4
+		cpy cpos
+		bcs i3
+i4:		iny
+		lda #$20
+		sta (strptr),y
+insrts:	rts
+
+;display string in input area
+drwstr:	ldx strrow
+		ldy strcol
+drwsxy:	clc
+		jsr plot
+		lda #datco
+		sta 646
+;		jsr chrout
+		jsr quomod
+		ldx #0
+		ldy lcol
+dr1:	lda (strptr),y
+		beq dr2
+		iny
+		byte $2c
+dr2:	lda #32
+		jsr chrout
+		inx
+		cpx strwin
+		bcc dr1
+
+;set/clear quote mode
+clrquo:	lda #0
+		byte $2c
+quomod:	lda #1
+		bit mode
+		bmi q1
+		sta $d4
+		rts
+q1:		sta $f4
+		rts
+
+;set/clear reverse on/off for cursor blink
+rvson:	sec
+		byte $24
+rvsoff:	clc
+		php
+		lda cpos
+		sec
+		sbc lcol
+		clc
+		adc strcol
+		tay
+		ldx strrow
+		clc
+		jsr plot
+		lda #datco
+		jsr chrout
+		plp
+		bcc r1
+		lda #18
+		jsr chrout
+		byte $2c
+r1:		lda #0
+		sta rvsflg
+		jsr quomod
+		ldy cpos
+		lda (strptr),y
+		bne r2
+		lda #32
+r2:		jsr chrout
+		jsr clrquo
+		lda #146
+		jmp chrout
+
+;delay used for cursor blink
+delyms:	pha			;save .a
+		lda	#$7f
+		sta $dd0d	;clear icr of cia #2
+		lda #$08
+		sta $dd0e	;clear cra of cia #2
+		sta $dd0f	;clear crb of cia #2
+		lda #$ff
+		sta $dd04	;setup timer a lobyte
+		lda #$04
+		sta $dd05	;setup timer a hibyte
+de1:	lda #$11
+		sta $dd0e	;start timer a
+de2:	lda $dd05	;has timer counted down?
+		bne de2		;no - keep waiting
+		dey			;yes - dec .y
+		bne de1		;branch if not done
+		pla			;restore .a
+		RTS
+
+
+; variables
+
+cpos:	byte 0 ; cursor position
+lcol:	byte 0
+lftlim:	byte 0 ; furthest left cursor can move in input area
+strrow:	byte 0 ; input display row
+strcol:	byte 0 ; leftmost column of input area (0-80)
+strwin:	byte 0 ; # viewable chars in input area
+strlen:	byte 0 ; max string length
+rvsflg:	byte 0
+mode:	byte 0 ; $80: 128 mode
+
+helptext:
+		byte "syntax: sys si,<strlen>,<strwin>,",$0d
+		byte "               <string$>",$0d
+		byte $0d
+		byte "<strlen> : maximum length of string",$0d
+		byte "           input allowed",$0d
+		byte "<strwin> : maximum width of input",$0d
+		byte "           window (39=c64, 79=c128)",$0d
+		byte "<string$>: string variable name to edit",$0d
+		byte "           on entry, return input on exit",$0d
+		byte $00
+
+; would be cool if help text could be tokenized...
+; there are a lot of basic keywords in here
+
+; also tabs would be cool
+
+; syntax: sys si,<strlen>,<strwin>,
+;                <string$>
+
+; <strlen> : maximum length of string
+;            input allowed
+; <strwin> : maximum width of input
+;            window (39=c64, 79=c128)
+; <string$>: string variable name to edit
+;            on entry, return input on exit
+
+;space for string buffer
+descriptor: byte 0		; length
+			word inbuf	; address of string
+			; TODO: erase inbuf reference
+inbuf:	area 256 ; reserve 256 bytes of undefined value
+{endasm}

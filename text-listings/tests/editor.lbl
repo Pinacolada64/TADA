@@ -1,0 +1,91 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' line based text editor
+' -- uses static array system to store editor command strings
+' -- uses instring to search for command key matches
+' -- uses sliding input to provide line editing functionality
+
+	poke 53280,0:poke 53281,0:print "{clear}{gray3}";
+{def:build_date}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	f$="sas c900"
+	sa=51456
+
+	f$="ml c500":gosub {:sub.bload}
+	f$="sas c900":gosub {:sub.bload}
+
+{:sub.bload}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+	
+' todo: replace all this with a SAS load
+	read c$:n=len(c$)
+
+' DIMension: SYS addr,loc,width,number,clear
+' this creates 10 elements of 40 bytes each, and clears them:
+' under ROM at $d000:
+	sys sa,53248,40,10,1
+
+' store info in array:
+	for x=1 to n
+' STORE: SYSaddr+3,loc,subscript,a$
+	sys ml+3,53248,x-1,"This is string"+str$(x)
+	next
+
+	for x=1 to n:read x$:print x$
+	
+	' STORE: SYSaddr+3,loc,subscript,a$
+	sys sa+3,53248,x,"This is string"+str$(x)
+	next
+
+c$(1,x)=x$:print c$(1,x):next
+	read n
+	c$(2,.)=str$(n):for x=1 to n:read x$:c$(2,x)=x$:print c$(2,x):next
+
+' command keys:
+	data"aehlnqrs?"
+
+' command text:
+	data"Abort
+' todo: iInsert
+	data"Edit
+	data"Help!
+	data"List
+	data"New
+	data"Quit
+	data"Read
+	data"Save
+	data"Help!
+{number:200}
+	print "Command> ";:in$="":in=.
+{:205}
+	gosub {:sub.cursor_get}
+{:210}
+	in=len(in$):if in$<>chr$(20) then {:240}
+	in=in-1:if in=1 then in$=left$(in$,1)
+	for x=1 to len(c$):print an$;:next
+	print mid$(c$(in,pc),2);
+	goto {:205}
+{:240}
+	if an$=chr$(13) then print:goto {:250}
+	if in=4 then {:205}
+	in=in+1:in$=in$+an$:in=len(an$):m=.:z=val(c$(in,.))
+	for x=1 to z
+	if an$=left$(c$(in,x),in) then gosub {:260}:c$=mid$(c$(in,x),in+1):print c$;:x=z
+	next
+' match?
+	if m=0 then print in$;
+	goto {:205}
+{:250}
+	end
+{:260}
+' pc=previous command
+	m=x:pc=m
+	if in=2 then for y=1 to len(c$):print chr$(20);:next
+	return
+{ifdef:standalone}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{endif}

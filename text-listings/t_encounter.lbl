@@ -1,0 +1,467 @@
+{number:1}
+{alpha:invert}
+{undef:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' comes from spur.misc4 to save ~7k
+	goto {:start}
+
+{nice:10}
+
+{:sub.glasses}
+	fn zz$
+	print:print m$" happens to see you are wearing the "zz$", and ";
+	print "quickly puts on ANTI-"x$"glasses!":return
+
+{nice:100}
+{:start}
+	print "(:start)"
+	
+{:read.monster}
+	vy=0:vz=0:zq=0:zs=0:md=0:mf=0:mw=0
+	gosub {:file.open}("e.t.monsters"):gosub {:record_pointer}(m+1)
+	input #1,cb$,m$,ms,sw,ma:close 2
+	ty$=left$(m$,1):m$=mid$(m$,3)
+' pina added (m)ultiple (m)onsters variable -- {:msg.multi} uses it
+	sys is,wy$,"$":mm=abs(right$(m$,1)="S"+i%)
+' old: mm=abs(right$(m$,1)="S")
+' better? sys is,wy$,"$":mm=abs(right$(m$,1)="S"+i%) <- adds check for $ flag: multi-monsters
+' returns >0 if (m)ultiple (m)onsters, for grammar purposes, so 'if mm then print "s"...'
+
+'	wy$="":if m=67 wy$="|<":m$="GUARD \|/":goto {:claw}
+	wy$="":if m=67 then wy$="{pipe}<":m$="GUARD \{pipe}/":goto {:claw}
+'	yy=instr("|",m$):if yy wy$=mid$(m$,yy)+"  ":m$=left$(m$,yy-1)
+' if | found, this separates monster name from flags, so adjust accordingly
+	sys is,m$,"{pipe}":if i% then wy$=mid$(m$,i%)+"  ":m$=left$(m$,i%-1)
+'	if right$(m$,1)=" " m$=left$(m$,yy-2)
+' really don't know why there would be an extra space at the end of the string
+	if right$(m$,1)=" " then m$=left$(m$,i%-2)
+	if m=70 then gosub {:wraith}:if vw then return
+{:claw}
+'	if xp>1 then ms=((xp+1)*ms)/2
+	if xp>1 then ms=((xp+1)*ms)/2
+'	if instr(".",wy$) ms=ms+10
+	sys is,wy$,".":if i% then ms=ms+10:goto {:claw2}
+'	if not instr(".",wy$) then if ms>60 ms=60
+	if ms>60 then ms=60
+{:claw2}
+'	if ms>80 ms=80
+	if ms>80 then ms=80
+'	ms=ms+((lv%-1)*3)
+	ms=ms+((lv%-1)*3)
+' get type flag from monster:
+' typical string -> M.SAND CRAB |X
+'	zx$=left$(m$,1):yy=val(zx$):if yy>0 m$=mid$(m$,2)
+	x=val(left$(m$,1)):if y then m$=mid$(m$,2)
+
+' monster has same name as an ally (has joined your party, i guess)
+'	if zw$=d1$ or zw$=d2$ or zw$=d3$ then ms=0:print r$"The "m$;:gosub {:msg.multi}:print " look";:gosub {:msg.multi}:print " around nostalgically...":return
+	if zw$=a$(1) or zw$=a$(2) or zw$=a$(3) then ms=0:print r$"The "m$;:gosub {:msg.multi}(m$):print " look";:gosub {:msg.multi}(m$):print " around nostalgically...":return
+	gosub {:sub.string_truncate}(mid$("HUGE     LARGE    BIG      MAN-SIZEDSHORT    SMALL    SWIFT",(ma-2)*9+8,9))
+	print x$;:zy$=x$
+'	z=(ma-2)*5+1:zy$=mid$(zw$,z,5)
+'	if left$(zy$,1)=" " zy$=mid$(zy$,2):if left$(zy$,1)=" " zy$=mid$(zy$,2)
+'	if ma=5 zy$=zy$+"IZED"
+
+'	if m>64 then if m<68 zx$=rnd$:if random(100)/20=3 m$="CAPTAIN!" +mid$(m$,6):ms=ms+(xp*3):wy$="|;>]"
+	if m>64 and m<68 and fn r(100)/20=3 then m$="CAPTAIN!"+mid$(m$,6):ms=ms+(xp*3):wy$="{pipe};>]"
+'	zw$="YOU SEE "
+' sub.you_see prints "You see "z$
+	gosub {:msg.you_see}(m$)
+' get rid of un-necessary gosub: if instr("$",wy$) gosub multi.mn
+	if mm=0 then {:read_monster.2}
+
+{:multi_monster}
+	gosub {:rnd.10z}:z=int(z/2)+2:ms=ms+(int(ms/2)*z):wy$=wy$+"]"
+	print str$(z);
+{:read_monster.2}
+' if instr("E",wy$) zy$=zy$+" EVIL"
+' add proper a/some:
+	gosub {:msg.a_or_some}
+' fixme: better label name
+	gosub {:check.evil}:if i%=0 then {:2}
+	if mm=0 then print "n";' :sys is,left$(m$,1),"AEIOU":if i% then print "n";
+	print " evil, ";
+'	if instr("G",wy$) zy$=zy$+" GOOD"
+	gosub {:check.good}:if i% then print " good, ";
+{:2}
+'	zw$=zw$+zy$+" "+m$+"!":xz$="S ":if right$(m$,1)="S" xz$=" "
+	print zy$" "m$"!"
+
+' xz$ is " " or "S " depending on # of monsters appearing
+' (:msg.multi} replaces this
+	xz$="S ":if mm then xz$=" "
+'	if m=74 ms=ms+5+(xp*2):return
+	if m=74 then ms=ms+5+(xp*2):return
+'	if m=93 ms=ms+30
+	if m=93 then ms=ms+30
+' able to be charmed?
+'	if (instr(".",wy$)) or (instr("AC",wy$)) goto d.charm
+	sys is,wy$,".":x=i%:sys is,wy$,"AC":if x+i% then {:d.charm}
+
+'...turf guards
+	z=0
+' vv has to do with guild + autoduel on/off
+'	if m=67 then if ((vv=6) or (vv=7)) then z=1
+	if m=67 and (vv=6 or vv=7) then z=1
+'	if m=66 then if ((vv=3) or (vv=4)) then z=1
+	if m=66 and (vv=3 or vv=4) then z=1
+'	if m=65 then if ((vv=8) or (vv=9)) then z=1
+	if m=65 and (vv=8 or vv=9) then z=1
+	if zq then print "You meet one of your guards. He salutes smartly!":return
+'  ^^ should zq be z?
+
+;...surprise
+'	z=10-ma:z=z*2:z=z+(2*xp):z=z+pd
+	z=10-ma:z=z*2:z=z+(2*xp):z=z+pd
+'	if pc=5 or pc=6 z=z+15
+	if pc=5 or pc=6 then z=z+15
+'	if pc=8 z=z+7
+	if pc=8 then z=z+7
+'	if pr=3 z=z+15
+	if pr=3 then z=z+15
+'	if pr=4 z=z+7
+	if pr=4 then z=z+7
+'	if wa=8 z=z+15
+	if wa=8 then z=z+15
+'	if z>50 z=50
+	if z>50 then z=50
+'	i$="A":if right$(m$,1)="S" i$="SOME"
+' i$= a/some
+' zw$="YOU SEE" from previous routine
+' zy$=(size of monster) (preserved)
+' xz$=(one or multiple)
+
+'	zx$=rnd$:if random(150)<z zw$="YOU SURPRISED "+i$+" "+zy$+" "+m$+"!":zs=998
+	if fn r(150)<z then print "You surprised ";:gosub {:msg.a_or_some}:print " "zy$" "m$"!":zs=998
+	if zs<>998 then {:d.charm}
+'	if zs=998 then if instr(":",wy$) zw$="THE "+zy$+" "+m$+" FAIL"+xz$+"TO DETECT YOU!" :goto read_monster3
+	sys is,wy$,":":if i% then print "The "zy$" "m$" fail";:gosub {:msg.multi}(m$):print "to detect you!" :goto {:read_monster_3}
+'	if zs=998 then if yy>0 a$=rnd$:z=random(100):if z<(hp+(xp*2)) zx$="WHO RUN"+xz$+"AWAY SCREAMING!":md=2:mw=0:ms=0:return
+	if yy<0 then {:d.charm}
+	gosub {:rnd.10z}:if z<(hp+(xp*2)) then print "who run";:if mm=0 then print "s";
+' md=2 leaves MONSTER TRACKS in the room
+	print " away screaming!":md=2:mw=0:ms=0:return
+
+' ...charm
+{:d.charm}
+	if yy=0 or zs=998 then {:read_monster_3}
+'	z=pi+pw:z=z+(2*xp) = int + wis + (2 x experience points)
+	z=peek(v1+90)+peek(v1+92)+(2*xp)
+	gosub {:check.class}
+	if x=4 then z=z+20
+	if x=9 and yy=1 then z=z+20
+	gosub {:check.race}
+	if x=2 then gosub {:check.evil}:if i%=0 then z=z-40
+	if x=3 and yy=2 then z=z+40
+	if x=4 then z=z+10
+	if x=8 then gosub {:check.evil}:if i% then z=z-20
+	if z>70 then z=70
+
+'.. additional mods for alignment
+'	i$="":if not instr("E",wy$) goto {:not.evil}
+	i$="":gosub {:check.evil}:if i%=0 then {:not.evil}
+'	if (pr=2) or (pr=8) z=z+10:if vk>900 i$="*"
+	if pr=2 or pr=8 then z=z+10:if vk>900 then {:msg.good}
+'	if (pr=3) or (pr=4) if vk>700 i$="*"
+	if pr=3 or pr=4 and vk<700 then {:evil_2}
+'	if i$="*" cs$="(who is agast at your goodly ways)":ms=ms+(xp*5):goto {:read_monster_3}
+{:msg.good}
+	print "(who is aghast at your goodly ways)":ms=ms+(xp*5):goto {:read_monster_3}
+{:evil_2}
+'	if vk<900  z=z+((1000-vk)/20):goto {:not.good}
+	if vk<900 then z=z+((1000-vk)/20):goto {:not.good}
+'	if vk>1100 z=z-((vk-1000)/20):goto {:not.good}
+	if vk>1100 then z=z-((vk-1000)/20):goto {:not.good}
+{:not.evil}
+'	if not instr("G",wy$) goto {:not.good}
+	gosub {:check.good}:if i%=0 then {:not.good}
+'	if (pr=3) or (pr=4) z=z+10:if vk<1100 i$="*"
+	if pr=3 or pr=4 then z=z+10:if vk<1100 then {:msg.evil}
+'	if (pr=2) or (pr=8) if vk<1300 i$="*"
+	if pr<>2 or pr<>8 and vk>1300 then {:good_2}
+{:msg.evil}
+'	if i$="*" cs$="(who is aghast at your evil ways)":ms=ms+(xp*5):goto {:read_monster_3}
+	print "(who is aghast at your evil ways)":ms=ms+(xp*5):goto {:read_monster_3}
+{:good_2}
+'	if vk>1100 z=z+((vk-1000)/20)
+	if vk>1100 then z=z+((vk-1000)/20)
+'	if vk<900 z=z-((1000-vk)/20)
+	if vk<900 then z=z-((1000-vk)/20)
+{:not.good}
+'	zx$=rnd$:zx$="IS":if right$(m$,1)="S" zx$="ARE"
+'	if random(200)+10<z then if not instr(".",wy$) zq=1:zx$="(WHO "+zx$+" QUITE CHARMED..)"
+	if fn r(200)+10<z then sys is,wy$,".":if i%=0 then zq=1:print "(who ";:gosub {:msg.is_are}(m$):print " quite charmed...)"
+'	if pr=9 then if instr("DRAGON",m$) zq=1:zx$="(Dragons are great fans of Half-Elfs..)"
+	if peek(v2+185)=9 then sys is,m$,"DRAGON": if i% then zq=1:print "(Dragons are great fans of Half-Elves..)"
+' able to be charmed?
+'	if instr("AC",wy$) zq=1
+	sys is,wy$,"AC":if i% then zq=1
+{:read_monster_3}
+'	gosub mon.set
+	gosub {:mon.set}
+'	if zq=0 then if zs=0 gosub tactical
+	if zq+zs=0 then gosub {:tactical}
+'	if (not sw) then sw$="":return
+	if sw=0 then sw$="":return
+'	dy$=dx$+"weapons"
+'	open #1,dy$
+	gosub {:file.open}("e.t.weapons")
+'	position #1,34,sw
+	x=sw+1:gosub {:record_pointer}
+'	input #1,cb$r$sw$
+	input #1,cb$,sw$
+'	close:sw$=mid$(sw$,4)
+	close 2:sw$=mid$(sw$,4):return
+
+{:tactical}
+' already killed this monster? messy logic but keeping it in case vars
+' used elsewhere
+'	a$=right$("000"+str$(m),3):if instr(a$,xm$) return
+	a$=right$("000"+str$(m),3):sys is,xm$,a$:if i% then return
+'	zt=0:i$="1111122333":gosub rnd.10z
+	zt=0:i$="1111122333":gosub {:rnd.10z}
+'	zx$=mid$(i$,z,1):vy=val(zx$):if vy=0 vy=1
+	zx$=mid$(i$,z,1):vy=val(zx$):if vy=0 then vy=1
+'	if vy=1 then if a1 print r$d1$" SHOUTS 'TO THE FRONT!'":zt=a1:i$=d1$:x=h1
+	if vy=1 and a1 then print r$a$(1)" shouts, "q$"To the front!"q$:zt=a1:i$=a$(1):x=h1
+'	if vy=2 then if a2 print r$d2$" SHOUTS 'ON THE FLANK!'":zt=a2:i$=d2$:x=h2
+	if vy=2 and a2 then print r$a$(2)" shouts, "q$"On the flank!"q$:zt=a2:i$=a$(2):x=h2
+'	if vy=3 then if a3 print r$d3$" SHOUTS 'TO THE REAR!'":zt=a3:i$=d3$:x=h3
+	if vy=3 and a3 then print r$a$(3)" shouts, "q$"To the rear!"q$:zt=a3:i$=a$(3):x=h3
+'	zx$=rnd$:z=random(299):z=(z/10)-9
+	z=(fn r(300)/10)-9
+'	if zt>0 then if z>zt then if instr("!",i$) print i$" IS TOO CLEVER TO BE CAUGHT OFF GUARD.":return
+' todo: subroutine printing "caught off guard"
+	if zt>0 and z>zt then sys is,i$,"!":if i% then print i$" is too clever to be caught off guard.":return
+'	if zt>0 then if z>zt print i$" WAS CAUGHT OFF GUARD!":vz=1:goto desert
+	if zt>0 and z>zt then print i$" was caught off guard!":vz=1:goto {:desert}
+'	if zt>0 return
+	if zt>0 then return
+'	if vy=1 print r$"TO THE FRONT!"
+	if vy=1 then print r$"To the front!"
+'	if vy=2 print r$"ON THE FLANK!"
+	if vy=2 then print r$"On the flank!"
+'	if vy=3 print r$"TO THE REAR!"
+	if vy=3 then print r$"To the rear!"
+	z=z+(vy*3)
+'	if zt=0 then if (z>(pi+xp)) vz=1
+	if zt=0 and z>(peek(v1+90)+xp) then vz=1
+'	if random(10)=5 vz=1
+	if fn r(10)=5 then vz=1
+'	if vz=1 print "YOU ARE CAUGHT OFF GUARD!"
+	if vz=1 then print "You are caught off guard!"
+	return
+
+{:desert}
+'	gosub rnd.10z:if z<>5 then return
+	gosub {:rnd.10z}:if z<>5 then return
+'	if instr("SPACE",ww$) xx$="FIRES RETROS, AND FLEES!":else xx$="JUMPS OVERBOARD AND SWIMS AWAY!"
+	sys is,ww$,"SPACE":if i% then print i$"fires retros, and flees!":goto {:desert.2}
+'	if instr("@@",lo$) print i$" "xx$:else print i$" RUNS AWAY SCREAMING!"
+	sys is,lo$,"@@":if i% then print i$" jumps overboard and swims away!":goto {:desert.2}
+	print i$" runs away screaming!"
+
+{:desert.2}
+'	gosub fre.ally
+	gosub {:fre.ally}
+'	if vy=1 d1$="*":a1=0:h1=0
+	if vy=1 then a$(1)="*":a1=0:h1=0
+'	if vy=2 d2$="*":a2=0:h2=0
+	if vy=2 then a$(2)="*":a2=0:h2=0
+'	if vy=3 d3$="*":a3=0:h3=0
+	if vy=3 then a$(3)="*":a3=0:h3=0
+'	if (a1+a2+a3)<1 then ai=0:ai$=""
+	if (a1+a2+a3)<1 then ai=0:ai$=""
+'	xx$="FLEE":zt$=i$+" DESERTED":goto news
+	xx$="FLEE":zt$=i$+" DESERTED":goto {:news}
+
+{:mon.set}
+	if m=103 then gosub {:guardian}
+'	a$=right$("000"+str$(m),3):if instr(a$,xm$) then return
+	a$=right$("000"+str$(m),3):sys is,xm$,a$:if i% then return
+'	sys is,wy$,"?":if i% then m$="THE "+m$
+	sys is,wy$,"?":if i% then m$="THE "+m$
+'	if instr("++",wy$) print "Lightning shimmers around "m$"..":goto {:mon.set2}
+	sys is,wy$,"++":if i% then print "Lightning shimmers around "m$"..":goto {:mon.set2}
+' monster can cast magic:
+	sys is,wy$,"+":if i% then print r$"The air crackles with magic..."
+{:mon.set2}
+' monster can use fire:
+	sys is,wy$,"-":if i%=0 or lv%<6 then {:fire}
+	if zs<>998 then print r$m$" readies its energy weapon!":gosub {:msg.delay}
+	sys is,ys$,"LAZ.SH":if i% then print r$"Your lazer shield kicks in!"r$:gosub {:msg.delay}
+	if i%=0 then print r$"(Too bad you didn't USE a LAZER SHIELD!)"
+	z=0
+{:fire}
+'	if instr("097",xi$)=0 or z=0 then {:stone}
+	sys is,xi$,"097":if i%=0 or z=0 then {:stone}
+	gosub {:rnd.10a}:if a=5 then:gosub {:sub.glasses}("ICE CRYSTAL"):goto {:stone}
+	print r$"The ICE CRYSTAL glows, preventing FIRE ATTACK from "m$"!"
+' remove fire attack flag from monster
+' fixme: what if 1st char? this will fail
+	if i%=1 then wy$=mid$(wy$,2):goto {:stone}
+	wy$=left$(wy$,i%-1)+mid$(wy$,i%+1)
+{:stone}
+'	z=instr("#",wy$):if (not instr("082",xi$)) or (z=0) then return
+' if no "turn to stone" capability, search for item #82 in inventory:
+	sys is,wy$,"#":if i%=0 then sys is,xi$,"082":if i%=0 then return
+'	gosub rnd.10a:if a=5 zz$="CRYSTAL PENDANT":goto glasses
+	gosub {:rnd.10a}:if a=5 then:gosub {:sub.glasses}("CRYSTAL PENDANT"):return
+	print r$"The CRYSTAL PENDANT flashes, preventing TURN TO STONE by "m$"!"
+'	wy$=left$(wy$,z-1)+mid$(wy$,z+1)
+' fixme: same problem as above, also subroutine this?
+	wy$=left$(wy$,i%-1)+mid$(wy$,i%+1)
+	return
+
+{:guardian}
+'	if instr("gd2",ys$) print r$"THIS TIME, THE GUARDIAN IS WAITING FOR YOU!":wy$=wy$+"++];":ms=ms+(xp*6):vz=1:return
+	sys is,ys$,"gd2":if i% then print r$"This time, THE GUARDIAN is waiting for you!":wy$=wy$+"++];":ms=ms+(xp*6):vz=1:return
+'	amulet of life wielded?
+'	if mid$(zu$,8,1)<>"1" goto no.amult
+	if mid$(zu$,8,1)<>"1" goto {:no.amult}
+'	gosub rnd.10a:if a<3 zz$="AMULET":gosub glasses:goto no.amult
+	gosub {:rnd.10a}:if a<3 then:gosub {:sub.glasses}("AMULET"):goto {:no.amult}
+'	wy$="<.~":print r$"The Amulet of life blazes bright, startling the GUARDIAN!"
+	wy$="<.^":print r$"The AMULET OF LIFE blazes brightly, startling THE GUARDIAN!"
+{:no.amult}
+'	if instr("gd1",ys$) then if len(ys$)<240 ys$=ys$+"gd2"
+	sys is,ys$,"gd1":if i%=0 and len(ys$)<240 then ys$=ys$+"gd2*"
+'	if not instr("gd1",ys$) then if len(ys$)<240 ys$=ys$+"gd1"
+	sys is,ys$,"gd1":if i%=0 and len(ys$)<240 then ys$=ys$+"gd1*"
+	return
+
+{:wraith}
+'	vz=1:vw=0:wy$="|.*&~<!51E"
+	vz=1:vw=0:wy$="{pipe}.*&^<!51E"
+'	ring worn
+'	if mid$(zu$,2,1)="1" ms=ms+(xp*7):wy$=wy$+";":print r$"(..oh, oh... The ring..)"r$
+	gosub {:check.ring}:if s then ms=ms+(xp*7):wy$=wy$+";":print r$"(..oh, oh... The ring...)"r$
+	if vk>800 then return
+'	gosub rnd1000z:if (pr=2) or (pr=8) z=z+100
+	gosub {:rnd1000z}:gosub {:check.race}:if x=2 or x=8 then z=z+100
+'	if z+100 < vk print r$"The monster ignores your alignment, and attacks!":return
+	if z+100 < vk then print r$"The monster ignores your alignment, and attacks!":return
+'	print r$'
+	print r$"The Ringwraith recognizes one of his own kind! Hot yellow eyes glow at you";
+	print " from under a black hood for a long second. You feel its evil strength..."
+	for d=1 to 2000:next:pr=1
+'	if hp<30 hp=30:print "(hit points increase)"
+	if hp<30 then hp=30::gosub {:msg.you_feel}("more vital")
+'	if ps<26 ps=26:print "(strength increases)"
+	if peek(v1+91)<26 then poke v1+91,26::gosub {:msg.you_feel}("stronger")
+'	if pe<26 pe=26:print "(energy increases)"
+	if peek(v1+93)<26 then poke v1+93,26::gosub {:msg.you_feel}("more energetic")
+'	if pd<26 pd=26:print "(dexterity increases)"
+	if peek(v1+88)<26 then poke v1+88,26::gosub {:msg.you_feel}("more dextrous")
+'	ep=ep+25:print "(+25 exp)"
+	ep=ep+25::gosub {:msg.you_feel}("more experienced")
+'	zt$="RINGWRAITH VISITED":xx$="EVIL!":gosub news
+	zt$="RINGWRAITH VISITED":xx$="EVIL!":gosub {:news}
+'	print r$"The shadow flies away.."r$
+	print r$"The shadow flies away..."r$
+' subtract honor:
+	if vk>25 then vk=vk-25
+'	mf=0:mw=0:m$="":wy$="":ms=0:zn=70
+	mf=0:mw=0:m$="":wy$="":ms=0:zn=70
+	return
+
+{:rd.mon3}
+'	if md=2 print r$zw$r$r$zx$
+{ifdef:debug}
+	if md=2 then print r$zw$r$r$zx$
+{endif}
+'	if ms=0 goto mon.ret
+	if ms=0 then {:mon.ret}
+'	mw=m:md=0
+	mw=m:md=.
+' search for monster in dead monsters list:
+'	a$=right$("000"+str$(m),3):if instr(a$,xm$) then md=1:mw=0:mf=0
+	a$=right$("000"+mid$(str$(m),2),3):sys is,xm$,a$:if i% then md=1:mw=.:mf=.:goto {:mon.ret}
+'	if md=1 goto mon.ret
+'	z=instr("!",wy$)
+	sys is,wy$,"!"
+'	if zw$<>"" print r$zw$:if zq>0 and z=0 then print zx$
+	if zw$<>"" then print r$zw$:if zq>. and i%=. then print zx$
+'	if cs$<>"" print cs$:goto mon.ret
+	if cs$<>"" then print cs$:goto {:mon.ret}
+'	if yy<>1 then if yy<>3 goto mon.ret
+	if yy<>1 and yy<>3 then {:mon.ret}
+'	if z yx=val(mid$(wy$,z+1,2)):goto perm.qt
+	if z then yx=val(mid$(wy$,z+1,2)):goto {:perm.qt}
+'	if zs=998 print "'YELP!!'":goto mon.ret
+	if zs=998 then print q$"Yelp!"q$:goto {:mon.ret}
+'	if zq>0 print "'GOSH, ER... HI "n1$"!'":goto mon.ret
+	if zq>0 then print q$"Gosh, er... hi, "a$(0)"!"q$:goto {:mon.ret}
+'	zz$=rnd$:yx=random(99)/10:yx=yx+61:if yx>70 yx=61
+	y=(fn r(100)/10)+61:if y>70 then y=61
+'	x=rc
+	x=peek(v2+185) ' player race
+'	if instr("E",wy$) then if ((pr=2) or (pr=9)) goto {:perm.qt}
+	gosub {:check.evil}:if i% then if x=2 or x=9 then {:perm.qt}
+'	if instr("G",wy$) then if ((pr=3) or (pr=4)) goto {:perm.qt}
+	gosub {:check.good}:if i% then if x=3 or x=4 then {:perm.qt}
+	y=int(fn r(500)/10)
+{:perm.qt}
+	gosub {:file.open}("e.t.monster quotes")
+'	open #1,dy$:position #1,z,yx:input #1,zz$:close
+	gosub {:record_pointer}(y+1):input #1,zz$:close 2
+' process quote
+'	yx=instr("$",zz$):dy$=zz$:xz=len(zz$)
+	sys is,zz$,"$":yx=i%:dy$=zz$:xz=len(zz$)
+'	if yx>1 then if yx<xz dy$=left$(zz$,yx-1):zz$=mid$(zz$,yx+1):dy$=dy$+n1$+zz$
+	if yx>1 and yx<xz then dy$=left$(zz$,yx-1):zz$=mid$(zz$,yx+1):dy$=dy$+a$(0)+zz$
+'	if yx=1 dy$=n1$+mid$(zz$,2)
+	if yx=1 then dy$=a$(0)+mid$(zz$,2)
+'	if yx=xz dy$=left$(zz$,yx-1)+n1$
+	if yx=xz then dy$=left$(zz$,yx-1)+a$(0)
+'	zz$=dy$:dy$="'"+zz$+"'"
+	zz$=dy$:dy$=q$+zz$+q$
+'	print dy$:goto mon.ret
+	print dy$:goto {:mon.ret}
+
+' unfinished stuff
+
+{:mon.ret}
+	print "(:mon.ret)":return
+	
+{:fre.ally}
+	print "(:fre.ally)":return
+
+{:news}
+	print "(:news)":return
+
+{:RND.10A}
+	a=int(rnd(1)*10)+1:return
+
+{:RND1000Z}
+	z=int(rnd(1)*1000)+1:return
+
+{ifdef:standalone}
+{number:2000}
+{:check.good}
+	sys is,wy$,"E":return
+{:check.evil}
+	sys is,wy$,"G":return
+{:msg.multi}
+	if mm then print "s";
+	return
+{:msg.is_are}
+	def x
+	if x>1 then print "are";:return
+	print "is";:return
+
+{:msg.delay}
+	print "(:msg.delay)":return
+
+{:CHECK.RING}
+	print "(:CHECK.RING)":return
+
+{:sub.string_truncate}
+	print "(:sub.string{underline}truncate)":return
+	
+{:msg.A_OR_SOME}
+	print "(:msg.a{underline}or{underline}some)":return
+	
+{:MSG.YOU_FEEL}
+	print "(:msg.you{underline}feel)":return
+{endif}	

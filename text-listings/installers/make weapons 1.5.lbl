@@ -1,0 +1,48 @@
+{number:1}
+	rem "make weapons"
+
+	' v1.0 1995/05/08  3:33 pm
+	' v1.1 1996/01/18  9:26 pm
+	' v1.2 2003/11/03  8:57 am
+	' v1.3 2006/07/25  9:22 pm
+	' v1.4 2006/09/03
+	' v1.5 2012/06/28
+	' v1.6 02/20/2014  5:55 pm -- rewriting for installer framework
+	' v1.7 11/28/2015  2:22 pm -- same
+	rem written by pinacolada for commodoreserver
+' module name, filename, version
+	m$="weapons":ve=1.7
+' eb: extra bytes
+	eb=.
+' fixme: use installer routine
+	gosub {:file.open}(m$):if e then print a$:goto {:1811}
+{:get_max_records}
+' max # of records
+	input# 2,mx:dim x$(mx),x%(mx,4)
+
+	gosub {:sub.title}(m$)
+
+'	gosub {:sub.show_max_records}
+	
+' read disk data:
+
+' read disk data:
+' fixme, what are these #s again?
+	for xx=1 to mx
+	input# 2,x%:x%(xx,.)=x%
+	input# 2,x$:x$(xx)=x$
+
+' calculate best record length (l%)
+	z=len(x$):if z>l% then l%=z
+
+' more file-specific data:
+	for y=1 to 4:input# 2,x%:x%(xx,y)=x%:next
+
+' gosub ...
+
+{:write_file_data}
+	for y=1 to mx:x=y+1:gosub {:record_pointer}
+	x$=str$(x%(y,.))+r$+x$(y)+r$:for z=1 to 4:x$=x$+str$(x%(y,z))+r$:next
+
+{number:999}
+	rem "make weapons 1.7"

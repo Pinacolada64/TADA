@@ -1,0 +1,35 @@
+{number:10}
+	sys{sym:ml}:end
+{asm}
+strout = $ab1e
+
+ml:
+shade_loop:
+	; get shade counter
+		ldy shade_counter
+		cpy #17
+		bpl shade_finish
+		iny
+	; mark our place if interrupted
+		sty shade_counter
+shade:
+	; loop through shade table
+		lda shade_table,y
+	; print strings in each color
+		sta 646
+	; output string
+		lda #<string
+		ldy #>string
+		jsr strout
+		jmp shade_loop
+
+shade_finish:
+		rts
+
+shade_table: byte 1,15,9,14,2,6,0,5,9,11,2,0,11,5,6,12 ; 16
+
+shade_counter: byte 0
+
+string: ascii "This is a string"
+		byte 13,0
+{endasm}

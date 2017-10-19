@@ -1,0 +1,78 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem t.ma.cleric
+' todo: replace "lv" with experience peek
+	q$=chr$(34):r$=chr$(13):lv=1
+	a$(.)="STINGRAY":k$="Return"
+	goto {:start}
+
+' todo: is this removable? must be
+	if x%<10 then print " ";
+	print mid$(str$(x%),2);:return
+
+{number:100}
+{:start}
+' p=price per hp
+	p=5:gosub {:sub.check_class}:if x=2 then p=3
+
+	print r$r$"[]=-=-=-=-[ Ye Olde Cleric! ]-=-=-=-=[]"
+	print r$"The cleric looks you over for a while and finally says, "q$;
+	gosub {:sub.get_hp}(1):x%=(30*lv-x)*p:if x% then {:614}
+	print "Thou art not in need of healing! Begone!"q$:goto {:link.shoppe}
+{:614}
+	if x<>2 then print "I can heal you. It will cost 5";:goto {:619}
+{:617}
+	print "Psst! Fellow Cleric! Thine wounds shall be healed for only 3";
+{:619}
+	print " gold for each hit point."
+	print
+' example:
+' Full recovery (to 300 HP) will cost you 30,000 gold.
+	print "Full recovery (to"30*lv"HP) will cost you ";
+	gosub {:sub.show_comma_value}(x%,0):print " gold."
+{:622}
+	print:print "[";:gosub {:sub.show_gold}(1,0):print " gold] [";:gosub {:sub.get_hp}(1):gosub {:sub.show_comma_value}(x,0):print " HP]"
+	sys br,"["+k$+"]=Leave, Heal [A]ll/[P]artially?"+r$+nl$
+	print "Heal >> ";
+{:625}
+	gosub {:sub.cursor_get}:on -(an$=r$)-2*(an$="a")-3*(an$="p")goto {:626},{:630},{:650}:goto {:625}
+{:626}
+	print r$r$"The cleric bids thee farewell.":goto {:link.shoppe}
+{:630}
+' fixme
+	print "All.":print:gosub {:sub.check_gold}(1,x%):if s then {:639}
+	' on-(gp(.)<1)-2*(gp(.)>x%)goto {:645},{:639}
+	print r$q$"You haven't that much gold! However, ";
+	a=30-hp(.)
+	print "I can heal"int(gp(.)/p)"out of"a*lv"missing HP."q$
+' fixme: i have no idea what this is doing
+'	for x=1 to gp(.)/p:y=y+1:next
+' i think this is equivalent:
+	y=y+int(gp(.)/p)
+	print r$"(This is a"int(y/a*100)"{left}% recovery.)";
+	print r$r$"Do you agree to this [Y]/n? ";
+	gosub {:sub.yes_no}:if a=. then {:622}
+{:639}
+' do the healing, show progress
+	y%=gp(.)/p:for x=1 to y%:gp(.)=gp(.)-p:print "*";:next:hp(.)=hp(.)+y
+	print r$"Done.":goto {:622}
+{:645}
+	print r$"The cleric shakes his head. "q$"Thou hast no gold, "a$(.)"!"q$:goto {:622}
+{:650}
+	print "Partially."
+{:651}
+	gosub {:sub.get_gold}(1):if x<1 then {:645}
+	y%=x/p:an$=str$(y%)
+	print r$"Heal how many HP ("k$"=" ;:gosub {:sub.comma_value}(y%,0):print ")";
+	sys si,2,3,an$:if an$="" then x=y%:goto {:655}
+	gosub {:string.normalize}(an$):x%=an:if x>. or x<y then {:655}
+	print "The cleric looks at you, puzzled.":goto {:651}
+{:655}
+	gosub {:sub.adj_hp}(1,x):gosub {:sub.adj_gold}(1,-x*p)
+	print r$"Done.":goto {:622}
+	goto {:link.shoppe}
+{number:998}
+	REM T.MA.CLERIC
+	REM COPR. PINACOLADA 1995-2016

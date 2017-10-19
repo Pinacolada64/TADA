@@ -1,0 +1,216 @@
+' newer code than tests/file-reader.lbl
+{crunch:on}
+{alpha:invert}
+
+{quoter:24="off"} ' ctrl-x to turn off word-wrap
+
+{def:modbasic}
+{def:debug}
+
+{number:1}
+{:1}
+	poke 53280,12:poke 53281,12:print"{clear}{gray3}{$08}{$0e}TADA File Reader v0.2"
+	print"{192:21}":print ' solid horizontal line
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+	gosub {:sub.get_current_drive}
+' load my utility ml:
+	f$="ml c500":gosub {:sub.bload}
+' load modbasic:
+	f$="modbasic c000 v2":gosub {:sub.bload}
+	sys 49152
+' variables are now cleared
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+
+' a nice thought, unit testing...
+
+'{ifdef:debug}
+'	print "expected: "q$"x"q$
+'	print "  actual: "q$a$q$
+'{endif}
+
+	hx$="0123456789ABCDEF":nl$=chr$(.)
+' c =first color pair for bracket reader:
+' c$=hex color pairs: normal, hilite
+	c=1:c$="2A5DC1E478"
+	goto {:menu}
+	
+{nice:10}
+{:sub.get_current_drive}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	return
+	
+{nice:10}
+{:sub.bload}
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}	
+	return
+	
+{nice:100}
+{:menu}
+'1. read "s.tada main 40" SEQ file
+'      [use bracket-txt]
+'2. Read "e.t.messages" REL file
+'      [use indexing]
+	print
+	print "1. Read "q$"s.tada main 40"q$" (SEQ file)"
+	print "2. Read "q$"s.t.credits-40"q$" (SEQ file)"
+	print tab(6)"[use bracket-txt]"
+	print "3. Read "q$"e.t.messages"q$"   (REL file)"
+	print tab(6)"[use indexing]"
+	print
+	input "Which";an$
+	an=int(abs(val(an$))):on an goto {:main_menu},{:credits},{:chunk}:goto {:1811}
+
+{nice:5}
+{:main_menu}
+	gosub {:file.open}("s.tada main 40"):if e then {:1811}
+' num_lines: 0=to eof, rec_num: 0=not rel file
+	gosub {:file.read}(0,0):goto {:menu}
+
+{nice:5}
+{:credits}
+	gosub {:file.open}("s.t.credits-40"):if e then {:1811}
+' num_lines: 0=to eof, rec_num: 0=not rel file
+	gosub {:file.read}(0,0):goto {:menu}
+
+{nice:10}
+{:chunk}
+	gosub {:open_cmd_channel}
+	gosub {:file.open}("e.t.messages"):if e then {:1811}
+{:loop}
+' get # of chunks:
+	gosub {:record_pointer}(1):input#2,a$:mx=int(val(a$)):print mx"chunks"
+' fixme: in case of >39 chunks, cs=chunk start
+'	cs=int(mx/39)+ ... /13 ? (39/3)
+{:loop2}
+	an$="q":print "Read which chunk [Q)uit, 1-"mid$(str$(mx),2)"]";:input an$
+	if an$="q" or an$="Q" then {:1811}
+	an=int(abs(val(an$))):if an<1 or an>mx then {:loop2}
+' get 40 bytes from lfn#3, don't stop at <cr>
+	gosub {:record_pointer}(2):sys ia,2,40,0,a$
+' chunk info: 3 bytes, (MSB LSB) starting line in chunk, (lines) in chunk
+' sl = starting line #, nl=chunk lines
+	x$=mid$(a$,an*3-2,3)
+' starting line:
+	a=asc(left$(x$,1)+nl$)+256*asc(mid$(x$,2,1)+nl$)
+' number of lines:
+	b=asc(right$(x$,1)+nl$)
+{ifdef:debug}
+	print " data: "q$a$q$
+	print "start:"a
+	print "lines:"b
+{endif}
+	gosub {:file.read}(a,b):goto {:loop}
+
+' 1001:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+
+{number:1011}
+{:file.open}
+	fn f$:close 2:open 2,dv,2,dr$+f$
+
+' 1012:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{number:1076}
+{:file.read} ' gosub {:file.read}(num_lines,start_record)
+	fn nl,rf
+' function prototype:
+' nl: # of lines to read (0=to EOF)
+' rf: 0=SEQ file, <>0: REL file record number
+
+	def q,c,mx,l,c$
+' local vars:
+' q ="Q" hit to quit reading, start off (0=no)
+' c =starting color pair
+' mx=# of color pairs
+' l: line counter for "more" prompt, if expert mode off
+' c$=hex color pairs (normal/highlight)
+' a$=data read from disk
+	q=.:c=1:c$="2A5DC1E478":mx=len(c$)/2:l=.
+
+{number:1100}
+{:1101}
+' if rel record (x<>0), increment record #:
+	if rf then:gosub {:record_pointer}(rf):rf=rf+1
+
+' get data from disk, print with bracket-text routine:
+	sys ia,2,80,1,a$:sys br,a$+nl$:if pos(0)<>40 then print
+	
+' check for pause/abort chars:
+	get an$:if an$="{home}" then:gosub {:sub.prompt_key}("[Paused] ","")
+	if an$="q" then {:abort}
+' check for page pause:
+	l=l+1:if l/24=int(l/24) then gosub {:sub.page_pause}:if q then {:abort}
+' specific # of lines to read (for either filetype), or eof (for seq file):
+' old: if (nl and nl=l)
+	if nl=l or (x=. and (64 and st=64)) then {:1109}
+	goto {:1101}
+{:abort}
+	gosub {:sub.aborted}
+{:1109}
+	close 2:return
+
+' page pause:
+{:sub.page_pause}
+' sub.prompt_key returns with q=1 if "q" hit:
+	gosub {:sub.prompt_key}("[+] Inc  [-] Dec  [Space] More  [Q]uit","+-q "):on i% goto {:1250}, {:1252}
+' modbasic forbids on-gosubs
+	if i%=3 then return
+	gosub {:sub.aborted}:return
+{:1250}
+' increment color pair:
+	c=c-(c<mx):goto {:1254}
+{:1252}
+' decrement color pair:
+	c=c+(c>1)
+{:1254}
+' "0...F" replaced with hx$; is also used in "t.prg info"
+' 24/Nov/2015 12:48:
+' replaced hard-coded color locations with negative offsets from popstack
+' routine (closer to end of bracketxt, thus easier to calculate)
+'
+' change current ("normal")/last ("lastcol") colors:
+' x=address of colors, address of popstack jmp -3) should be 50814 right now
+	sys is,hx$,mid$(c$,c*2-1,1):poke ps-3,i%-1:poke ps-1,i%-1
+' change highlight color:
+	sys is,hx$,mid$(c$,c*2,1):poke ps-2,i%-1:gosub {:sub.clear_line}:goto {:sub.page_pause}
+
+{number:1258}
+{:sub.clear_line}
+' SYS to clear a single screen line: 781=.x / peek(214)-1=current line number
+' new: also position cursor on column 0
+	poke 781,peek(214):sys 59903:poke 211,.
+
+{number:1603}
+{:return}
+	return
+
+{number:1811}
+{:1811}
+' close open files
+' unlock shift + c=
+' shut down modbasic
+{ifdef:modbasic}
+	print "Shutting down modBASIC.":sys 49155
+{endif}
+	close 2:close 3:close 15:print"{$09}";:end
+
+' 1902
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+
+{number:1920}
+{:sub.aborted}
+	print "(Aborted.)":return
+
+{number:2862}
+{:sub.prompt_key} ' gosub {:sub.prompt_key}("prompt_string","allowable_keys")
+' "allowable_keys": if null, all keys accepted to continue
+	fn p$,ok$
+	sys br,p$+": "+nl$
+{:prompt_key2}
+	gosub {:sub.cursor_get}:if ok$<>"" then sys is,ok$,an$:if i%=. then {:prompt_key2}
+	gosub {:sub.clear_line}:q=abs(an$="q" or an$="Q")
+{ifdef:debug}
+	print "q="q
+{endif}
+	return

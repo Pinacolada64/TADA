@@ -1,0 +1,368 @@
+{undef:debug}
+	' monster capability enumerator
+	' v.01 10/3/2006
+	' v.02 				swap two same-char attribs before same 1 letter attrib
+	' v.03	6/9/2007	using unified ml (sys 49152,"source","match" -> returns i%)
+	' v.031 			clarify "!" flag: quote
+	' v.04				add screen/printer output, neaten output list
+	' v.05				clarify "?" flag: display monster quotes
+	' v.06	6/25/2012	add flashing cursor, add <crskip> param for "input any",
+	'					truly fix printer output, link ml to basic prg,
+	'					fix monster size string
+	' v.07	7/31/2015	clarify "." flag: magic-user
+	'					some fix-ups to assemble properly with c64list3.03
+	
+' >c64list3_0 monsterenum.06.lbl -prg -ovr -crunch -verbose:list
+
+{number:1}
+	a$="x"+"":i%=.' define a$,i% for ml
+	l$=" {$c0:38}":is={sym:instring}:ia={sym:inputany} ' instring, input any start addrs
+	restore:read at:dim a$(at):for y=1 to at:read a$(y):next
+	data 24,],":",.,"E","G",;;,;,<,>>,>,++,+,#,*,@,&,%,^,"X","$","?",-,!,"AC"
+	dv=peek(186):if dv<8 then dv=8
+	print"{clear}{$08}{$0e}     Monster Capability Enumerator":print l$
+	print"      [S]creen/[P]rinter/[Q]uit ";
+{:17}
+	gosub {:sub.cursor_get}:sys is,"sSpPqQ",an$:if i%=. then {:17}
+	print an$
+' op=output device, sa=secondary address
+' screen:
+	if i%=1 or i%=2 then op=3:sa=.
+' printer:
+	if i%=3 or i%=4 then op=4:sa=7:open 15,op,15:close 15:if st then print"Printer not present?":goto {:1811}
+' quit:
+	if i%=5 or i%=6 then {:1811}
+	open 1,op,sa
+	open 15,dv,15:a$="e.t.monsters":gosub {:1011}:if e% then print a$:goto {:1811}
+	x=1:gosub {:1001}:input# 2,mx:print# 1, mx"monsters"
+	for mn=1 to mx:x=mn+1:gosub {:1001}:print# 1,right$("  "+str$(mn),3)". - ";
+' active flag, strength, special weapon, to hit %
+'	input# 2,fl:sys ia,2,255,1:m$=a$:input# 2,st%,sw%,th%
+	input# 2,fl:input#2,m$:input# 2,st%,sw%,th%
+{ifdef:debug}
+	print "fl="fl:print "m$="m$:print "st%="st%:print "sw%="sw%:print "th%="th%
+{endif}
+' monster size:
+	ms=val(mid$(m$,3,1)):if ms=. then {:50}
+	print# 1, mid$("HUGE      LARGE       BIG        MAN-SIZEDSHORT      SMALL       SWIFT",ms*9-8,9);
+' you may well ask, "how can SWIFT be a monster size?" short answer: "rutabaga."
+
+{:50}
+	l=3+sgn(ms):sys is,m$,"{pipe}":r=i%:if r=. then r=len(m$)+1
+' strength, special weapon, to hit
+	r=r-l:print# 1, mid$(m$,l,r):if i% then wy$=mid$(m$,i%+1)
+	for y=1 to at:sys is,wy$,a$(y):if i%=.then {:500}
+	print# 1,"("a$(y)"="right$("0"+mid$(str$(y),2),2)")"tab(8)
+	on y goto {:100}, {:110}, {:120}, {:130}, {:140}, {:150}, {:160}, {:170}, {:180}, {:185}, {:190}, {:200}, {:210}, {:220}, {:230}, {:240}, {:250}, {:260}, {:270}, {:280}, {:290}, {:300}, {:310}, {:320}
+{:100}
+	' "]"
+	print# 1,"double attacks":goto {:500}
+{:110}
+	' ":"
+	print# 1,"mechanical being":goto {:500}
+{:120}
+	' "."
+	print# 1,"magic-user":goto {:500}
+{:130}
+	' "E"
+	print# 1,"evil":goto {:500}
+{:140}
+	' "G"
+	print# 1,"good":goto {:500}
+{:150}
+	' ";;"
+	print# 1,"heavy armor":goto {:500}': y=y+1
+{:160}
+	' ";"
+	print# 1,"light armor":goto {:500}
+{:170}
+	' "<"
+	print# 1,"re-animates":goto {:500}
+{:180}
+	' ">>"
+	print# 1,"2x ";:y=y+1
+{:185}
+	' ">"
+	print# 1,"gold on body":goto {:500}
+{:190}
+	' "++"
+	print# 1,"cast multi spells":y=y+1:goto {:500}
+{:200}
+	' "+"
+	print# 1,"cast one spell":goto {:500}
+{:210}
+	' "#"
+	print# 1,"cast turn to stone":goto {:500}
+{:220}
+	' "*"
+	print# 1,"poisonous attack":goto {:500}
+{:230}
+	' "@"
+	print# 1,"diseased attack":goto {:500}
+{:240}
+	' "&"
+	print# 1,"experience drain":goto {:500}
+{:250}
+	' "%"
+	print# 1,"magic resistant":goto {:500}
+{:260}
+	' "^"
+	print# 1,"'monster appears unaffected'":goto {:500}
+{:270}
+	' "X"
+	print# 1,"no gold on body":goto {:500}
+{:280}
+	' "$"
+	print# 1,"multiple appearing":goto {:500}
+{:290}
+	' "?"
+	print# 1,"don't print 'THE "mid$(m$,l,r)"'":goto {:500}
+{:300}
+	' "-"
+	sys is,wy$,":":if i% then print# 1,"lazer ";
+	print# 1,"fire attack":goto {:500}
+{:310}
+	' "!xx" (xx=quote number)
+	print# 1,"Quote #:";:sys is,wy$,"!":qt=val(mid$(wy$,i%+1,2)):print# 1, qt
+	a$="e.t.monsterquote":gosub {:1011}:if e%then print a$:goto {:315}
+	x=1:input# 2,mq:x=qt+1:gosub {:1001}:sys ia,2,255,1:print# 1, a$
+{:315}
+	a$="e.t.monsters":gosub {:1011}:goto {:500}
+{:320}
+	' "AC"
+	print# 1,"able to be charmed"
+{:500}
+	next:print:next
+	goto {:1811}
+{number:1000}
+  	rem IMAGE BBS SUBROUTINES 09/16/2006
+{number:1001}
+{:1001}
+	gosub {:1002}:for d=1 to 50:next
+{number:1002}
+{:1002}
+	print# 15,"p{$02}"chr$(x and 255)chr$(x/256)"{$01}":return
+{number:1011}
+{:1011}
+	close 2:open 2,dv,2,"0:"+a$
+	input# 15,e%,e$,t%,s%:a$="Status: "+ right$("0"+mid$(str$(e%),2),2)+ ":"+e$+":"+right$("0"+mid$(str$(t%),2),2)+ ":"+right$("0"+mid$(str$(s%),2),2)
+	return
+{number:1811}
+{:1811}
+	close 1:close 2:close 15:print"{$09}";:end
+
+{number:1902}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+
+{asm}
+instring: jmp instring_2
+inputany: jmp inputany_2
+
+ ; build date
+		 byte 0
+		 byte 8
+		 byte 47 ; "/"
+		 byte 0
+		 byte 1
+		 byte 47 ; "/"
+		 byte 2
+		 byte 0
+		 byte 1
+		 byte 5
+
+		 ; constants
+vartab	 = $2d		; start of basic variables
+chrget	 = $0073	; keep c64list happy when jsr-ing to zero-page
+fnaddr	 = $bb		; current filename pointer
+main	 = $fb		; string search pointer
+key		 = $fd		; substring search pointer
+strout	 = $ab1e	; .a/.y: string address
+frmeval	 = $ad9e
+chkcom	 = $aefd
+frestr	 = $b6a6  ; .a:len, $22/$23:address
+setlfs	 = $ffba
+setnam	 = $ffbd
+chkin	 = $ffc6
+load	 = $ffd5
+clrchn	 = $ffcc
+chrin	 = $ffcf
+
+		 ; variables
+
+main_length: byte $ff  ;length
+
+key_length: byte $ff   ;length
+
+	   ; subroutines
+
+chkparam:jsr chkcom
+		 jsr frmeval
+		 jmp frestr
+	   ; 256*y+x=string addr
+
+instring_2: jsr chkparam
+		 sta main_length
+		 sty main+1
+		 stx main
+
+		 jsr chkparam
+		 sta key_length
+		 sty key+1
+		 stx key
+
+	   ; thanks to nikoniko and bob
+	   ; cederlof for this instring
+	   ; routine. syntax:
+	   ; sys 49152,"search_thru","search_for"
+	   ; (both params can be variables
+	   ; or literals thanks to frmeval)
+	   ; returns result in i% (which
+	   ; must be set up in basic first)
+	   ; 0 for no match / search>source
+
+s1:		 ldx #0
+
+s2:		 lda main_length
+	   ; substring > amt of remaining
+	   ; string to search?
+		 cmp key_length
+	   ; yes, exit
+		 bcc s8
+
+		 ldy #0
+s3:		 lda (key),y
+		 cmp (main),y
+		 bne s6
+		 iny
+		 cpy key_length
+		 bcc s3
+		 inx
+		 jmp store
+s6:		 inc main
+		 bne s7
+		 inc main+1
+s7:		 inx
+		 dec main_length
+		 bne s2
+s8:		 ldx #0
+
+	   ; store length in $fb (251)
+store:	 stx $fb
+
+; thanks to jim radiks & steve bell
+; for this routine:
+
+intvar:	 lda vartab
+		 sta fnaddr
+		 lda vartab+1
+		 sta fnaddr+1
+
+str1:	 ldy #$00
+		 lda (fnaddr),y
+		 cmp #$c9	; i + bit 7 set=integer ($c9 / "i" + %01000000)
+		 bne str2
+		 iny
+		 lda (fnaddr),y
+		 cmp #$80	;	 bit 7 set=integer ($80)
+		 beq str3
+
+str2:	 clc
+		 lda fnaddr
+		 adc #$07
+		 sta fnaddr
+		 lda fnaddr+1
+		 adc #$00
+		 sta fnaddr+1
+		 jmp str1
+
+str3:	 iny
+		 lda #$00  ;hi byte=0
+		 sta (fnaddr),y
+		 iny
+		 lda $fb   ;lo byte=$fb
+		 sta (fnaddr),y
+
+done:	 rts
+
+	   ; thanks to dave moorman for
+	   ; this routine.
+	   ; gets data from disk files
+	   ; which can ordinarily cause
+	   ; input#x in basic to choke.
+	   ; syntax:
+	   ; sys 49155,<channel number>,
+	   ;		  <number of bytes>,
+	   ; *new*	  <skip cr flag>
+	   ;
+	   ; returns data in first
+	   ; variable defined in basic,
+	   ; so make it a string
+
+inputany_2: jsr chrget
+		 sta channel
+		 clc
+		 sbc #$2f
+		 sta channel
+		 jsr chrget
+		 jsr chkcom
+		 jsr $b79e
+; partway through getbytc: read ascii
+; program text, convert to integer
+; 0-255, store in .x
+		 stx bytes
+
+; pinacolada's addition: crflag param
+; to ignore carriage returns in data.
+; 1=stop at carriage return
+; 0=add cr to data read (binary mode)
+
+		 jsr chkcom
+		 jsr $b79e
+		 stx crflag
+
+; we now return you to your regularly
+; scheduled programming:
+
+		 lda #$00
+		 sta $fb
+		 ldx channel
+		 jsr chkin
+		 ldx #$00
+		 ldy #$00
+m0362:	 jsr chrin
+		 sta work2
+		 ldy $fb
+		 sta code_end,y
+		 inc $fb
+
+; here comes crflag stuff
+		 lda crflag
+		 beq m037b ; add cr to data
+
+; continuing on...
+
+		 lda work2
+		 cmp #$0d
+		 bne m037b
+		 dec $fb
+		 jmp m0382
+m037b:	 lda $fb
+		 cmp bytes
+		 bne m0362
+m0382:	 ldy #$02
+		 lda $fb
+		 sta (vartab),y
+		 iny
+		 lda #<code_end
+		 sta (vartab),y
+		 iny
+		 lda #>code_end
+		 sta (vartab),y
+		 jmp clrchn
+
+channel: byte 0
+work2:	 byte 0
+bytes:	 byte 0
+crflag:	 byte 0
+
+code_end: byte 0

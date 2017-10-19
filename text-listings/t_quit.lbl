@@ -1,0 +1,56 @@
+{number:1}
+{alpha:invert}
+
+{def:standalone}
+{def:modbasic} ' using modbasic extension
+{def:debug}
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{remremoval:off}
+{crunch:on}
+	REM  *** T.QUIT ***
+{remremoval:on}
+
+{ifdef:debug}
+	cm$="t.quit":print cm$" ";
+	{uses:\TADA-svn\pinacolada\TADA\scripts\build-date_basic.lbl}
+{endif}
+
+' todo: get date from commodoreserver
+' d=day, m=month of last play
+	d=peek(v1+22):m=peek(v1+23)
+
+{ifdef:debug}
+' set last play to yesterday
+	d2=d-1
+{endif}
+
+' d2 is current day (not gotten from c=server yet)
+' fixme: check whether new day; if so, reset play counter
+	x=v1+21:if d<d2 then poke x,.
+	poke x,peek(x)+1
+
+' from t.startup:
+'	print "Last play was ";
+'	print right$("0"+mid$(str$(m),2),2)"/" right$("0"+mid$(str$(d),2),2)"."
+
+' todo: award gold for player killing monsters
+
+	close 2:gosub {:file.open_playerlog}:if e then print a$:goto {:finish}
+' write player stats:
+	gosub {:record_pointer}(pn):gosub {:check.io_status}
+	print#2,d$:gosub {:check.io_status}:if e then print a$:goto {:finish}
+	gosub {:record_pointer}(pn+1):gosub {:check.io_status}
+	print#2,d2$:gosub {:check.io_status}:if e then print a$:goto {:finish}
+
+' todo: update FOLLOWing players' level/room #s
+	gosub {:check.guild}:if s=. then {:finish}
+' todo: in guild, check FL status, 
+	
+	print "[Intermediate things here]"
+
+{:finish}
+	goto {:1811}
+
+{number:999}
+	REM  *** T.QUIT ***

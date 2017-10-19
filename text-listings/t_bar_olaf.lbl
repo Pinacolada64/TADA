@@ -1,0 +1,169 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' t.bar.olaf -- buy/sell/maintain allies
+' updated 8/19/2007, 6/27/2009
+' updated 2012/6/6
+	gosub {:file.open}("e.t.allies"):if e then {:link.bar}
+' # of allies:
+	x=1:gosub {:record_pointer}(x):input# 2,mx
+	print "The slave trader Fat Olaf sits behind a table, gnawing a chicken leg.
+	rem --- MAIN LOOP ---
+{:8}
+	print r$q$"Vot kin I du ver ya?"q$
+{:10}
+	print:gosub {:check.expert_mode}(0):if s then {:prompt}
+{:help}
+
+' buy sell maintain return/l leave ? help
+
+	sys br,r$+"[B]uy [S]ell [M]aintain ["+k$+"]/[L] Leave [?] Help"+r$+nl$
+{:prompt}
+	print "Choice >> ";
+{:cursor}
+	gosub {:sub.cursor_get}:sys is,r$+"lbsm?",an$
+	on i% goto {:20},{:20},{:30},{:150},{:999},{:help}
+	sys br,"[(Mumble, mumble.)]"+r$+nl$:print:print q$"Cud yu spek up, young'un?"q$:goto {:10}
+{:20}
+	print "Leave.":print:print "Olaf watches you leave."
+	gosub {:file.open_playerlog}:if e then {:link.bar}
+' todo: farm this out to a save_stats routine in t.main:
+	x=pn*2:gosub {:record_pointer}(x):print# 2,d$:gosub {:record_pointer}(x+1):print# 2,d2$:goto {:link.bar}
+{:30}
+	rem BUY
+	print "Buy."
+{:35}
+' find spot for next ally. p=pointer in ally lists coming up
+	p=-1:for x=v1+48 to v1+50:p=p+1:if peek(x)=. then x=v1+50
+{ifdef:debug}
+	print fn cl(0)"p="p"x="peek(x)
+{endif}
+	next
+	if p=2 then print q$"Yu hav 3 allies alriddy!"q$:goto {:10}
+	print:print "["q$"?"q$"=list, "k$"=abort]":print
+	print "Vich vun (1-"mid$(str$(mx),2)")";:an$="":input an$:print
+	if an$="?" then gosub {:101}:goto {:35}
+	if an$="" then print "Olaf shrugs.":goto {:10}
+	gosub {:string.normalize}(an$)
+{:41}
+	if an<1 then gosub {:200}:goto {:35}
+	if an>mx then print q$"Whoa, dun't hav that many!"q$:goto {:35}
+' al=ally # used shortly
+	al=an:gosub {:sub.get_ally}(an)
+	if val(cb$)=pn then print q$"Ye alriddy hav ";:gosub {:sub.print_ally_name}:print "!"q$:goto {:35}
+	if val(cb$)<>. then print q$"They are nut ver sale!"q$:goto {:35}
+' price=strength x 100
+	PR=ST%*100
+' double the price for an Elite ally:
+	if right$(n$,1)="!" then print "(An Elite ally!)":print:pr=pr*2
+	print q$"Vell, ";:gosub {:sub.print_ally_name}:print " iz a vine specimen, ";
+	print "but ver yu it will be ";:gosub {:sub.comma_value}(pr,0):print " gald!"q$
+' check gold
+	gosub {:sub.check_gold}(1,pr)
+' set response=yes if enough
+	print r$"Hokay";:gosub {:sub.yes_no}(a):print
+	if a=. then print q$"Vell, too bad!"q$:goto {:35}
+	gosub {:sub.check_gold}(1,pr):if s then print q$"Yu dun't hav enough gald."q$:goto {:35}
+	gosub {:sub.adj_gold}(1,-pr):print q$"Yu hav ";:gosub {sub.display_gold)(1,0):print " gald left."q$
+' store ally in name pointer list
+	poke v1+48+p,al
+' store to hit %
+	poke v1+122+p,th%
+' set bit 5, servant expecting to be paid weekly
+	gosub {:bit.set}(v1+155+p,5)
+' store strength
+	poke v2+159+p,st%
+' store random dex
+	poke v2+163+p,fn r(18)
+' todo: assign hp
+
+' write stats to disk
+	gosub {:record_pointer}(al+1)
+	print#2,str$(pn)+r$+n$+r$+str$(st%)+r$+str$(th%)+r$
+	gosub {:check.io_status}:if e then {:link.shoppe}
+	al$(p)=n$
+	print q$"May ";:gosub {:sub.print_ally_name}:print " serve yu vell!"q$:goto {:35}
+
+
+' list allies:
+{:101}
+	x=2:gosub {:msg.spacebar_aborts}
+{:102}
+	gosub {:sub.get_ally}
+' skip taken/owned allies/servants
+	if val(cb$)<>. or val(cb$)=pn then {:107}
+' {:msg.list_item}(item_num,width,"message",cr)
+	print:gosub {:msg.list_item}(x-1,4,"    Name: ",0)
+' old:
+' print right$("   "+mid$(str$(x-1),2),3)". -     Name: ";:gosub {:sub.print_ally_name}
+	print r$ tab(7)"Strength:"st%:print tab(9)"To-hit:"th%*10"%"
+{:107}
+	gosub {:sub.check_abort}:if q then x=mx
+	x=x+1:if x>mx then print "  (Done.)":return
+	goto {:102}
+	
+{:150}
+	rem SELL SLAVE
+	print "Sell.":x$="":p=.
+	for x=v1+48 to v1+50:z=peek(x):if z then p=p+1:x$=x$+mid$(str$(p),2)+right$("  "+str$(z),3)
+	next
+' build list of sellable allies "xyyy", x=# in list, yyy=ally record#
+	if p=. then print "Olaf looks around, puzzled. "q$"I dun't see any teu sell!"q$:goto {:10}
+{:170}
+	print "Your current servant";:if p>1 then print "s";
+	print ":"r$
+{ifdef:debug}
+	print "x$="x$
+{endif}
+'	for y=1 to p:print right$("  "+str$(y),3)". - ";
+	for y=1 to p
+	
+	gosub {:msg.list_item}(y,1,"",0)
+
+	x=val(mid$(x$,y*4-2,3)):if x then x=x+1:gosub {:sub.get_ally}:gosub {:sub.print_ally_name}:goto {:174}
+	print "(None)";
+{:174}
+	print:next
+	print "Sell vich vun [1-"mid$(str$(p),2)"]";:an$="":input an$:gosub {:string.normalize}(an$)
+	if an<1 or an>p then an$="":goto {:41}
+	n$=a$(an):print "Your other all";:x$="y":if p>1 then x$="ies"
+	print x$" look";:if x=1 then print "s";
+	print " relieved, while":gosub {:sub.print_ally_name}
+	rem SELL ALLY
+	rem CHECK FOR ALLY VS. SERVANT:
+' fixme: finish this
+' check bit 5 of ally abilities (servant):
+	gosub {:bit.check}(v2+154+an,5):if s then print fn cl(0)"servant not done":goto {:10}
+	print " looks shocked. "q$;:gosub {:check.gender}:x$="Sir":if s then x$="Ma'am"
+	print x$"! You wound me!"q$
+' check honor rating:
+	gosub {:get_2_bytes}(v1+94):if x<50 then {:185}
+	gosub {:put_2_bytes}(v1+94,x-50):print r$"(You just lost 50 honor points!)"
+{:185}
+	cb$="0":n$=a$(an):st%=peek(v2+158+an):th%=peek(v1+121+an)
+	gosub {:sub.put_ally}(val(mid$(x$,an*4-2,3)))
+' free ally on disk
+' clear name, ally tactical position & pointer
+	a$(an)="---":poke v1+47+an,.:poke v1+51+an,.
+	print fn cl(0)"cleared":goto {:8}
+	print fn cl(0):goto {:link.bar}
+{:200}
+' smart-aleck replies:
+	print q$"I tink yu must be drinking teu moch!"q$:return
+
+{:sub.get_ally} ' (ally_#)
+' get ally info from file (record #1 is # of allies):
+' available, name, strength, to-hit % *10
+' put ally info to file (define x beforehand)
+' get strings for safety's sake, then convert to ints
+	def x
+	gosub {:record_pointer}(x+1):input# 2,cb$,n$,st$,th$:st%=val(st$):th%=val(th$):return
+
+{:sub.put_ally}
+	def x
+	gosub {:record_pointer}(x+1):print# 2,cb$ r$ n$ r$ st% r$ th%:return
+
+{number:999}
+{:999}
+	rem T.BAR.OLAF

@@ -1,0 +1,1079 @@
+; assemble with casm4
+; save as "si 9900"
+
+orig $9900
+
+{undef:debug}
+
+{asm}
+; instr - enhanced string input routine
+; commodore world issue 21, pg. 36
+
+; must assemble with c64list 3.00 because of "byte <inbuf" statements
+; (low/high-byte pseudo-ops broken in newer versions)
+
+; goog's testing notes:
+; blink cursor on reversed chars
+; move between multiple spaces
+; ctrl-j crashes the routine
+; possible auto-insert mode
+
+; last updated:
+
+; 8/Aug/2017 17:18
+; FIXED: clear_string y/n response
+; FIXED: Move left/right by word no longer enter infinite loops
+; FIXME: returned string is "@" (null byte) if Clr hit, followed by Return
+; FIXME: previous definition of string prints after help message
+
+; 8/May/2017 13:50
+; converting to casm4 beta, use common input buffer area at $cd00
+
+; 6/Dec/2015 14:10
+; .ifdef out testing the magnetic_home routine for now
+
+; 11/Oct/2015 15:38
+; strlen -> maxlen (label clarification)
+; strlen -> tracks length of string now, eliminates a few "find terminator" loops
+; FIXED	removed color change
+; FIXED	"clear screen" prompt accepts capital Y/N
+; FIXED better sys parameter error checking/reporting
+; FIXED	moving between spaces works for shifted spaces
+; TODO	conditional compilation of BASIC string-passing/integration stuff
+; WIP	Home should toggle between beginning and end of string
+
+; 8/Oct/2015 11:07
+; FIXED	Clears entire string, fills with $00 instead of $20
+
+; 7/Oct/2015 21:47
+; FIXED	1st column DELete no longer DELetes to the right
+
+; 2 Oct 2015 12:53 AM
+; geomat-home: yep if you can add cursor up down and cut paste would be massive
+; me: i've thought about adding ctrl-space to complete users' names
+; FIX	AF helped show me where word-left/word-right were breaking
+
+; 19/Sep/2015 17:42
+; Arrr! Talk Like a Pirate Day
+;
+; BUG	if f1 is hit and cursor moves beyond end of string, locks up
+; FIX	256 empty bytes no longer appended to end  of program, copy_loop
+;		takes care of initializing this space
+
+; 18/Sep/2015 0:45
+;   ^
+;  /!\  Don't use "convert spaces to tabs"...
+; /___\       ...it'll screw up the help text
+
+; 31/Aug/2015 16:06
+; BUG	FIXME - character for space fwd is injected into input
+; HELP	jbevren (the awesome) helped with space_fwd routine
+
+; 20/Aug/2015 20:32
+; FIXED	Home works
+; gsteemso sez:
+; up arrow to set the insertion point at the start and down arrow
+; for at the end would be obvious to a Mac user
+
+; 18/Aug/2015 19:05
+; FIXED help messages display properly with SYS 49152
+; FIXED input length no longer restricted to length of passed string
+; FIXED neatening source code, hopefully
+; FIXED Return needs to be hit several times to accept input
+; FIXED Shorter input strings don't erase longer previously input data
+;		when run
+; FIXED Home/Clear don't work
+; NEAT	works in immediate mode!
+; TODO	three-key rollover?
+
+; 17/Aug/2015 13:05
+; converting over to Style's TMPx, C64Studio doesn't like lo/hi addresses
+; * TMPx does not like labels followed by :
+; * labels are case-sensitive
+
+; 14/Aug/2015 18:11
+; converting over to C64Studio temporarily, fixes help text
+
+; 27/Jul/2015 10:46
+; to do: move inbuf from end of code to string heap - saves memory
+
+; 1/Jul/2015 10:12
+; made assembly address conditional
+
+; 19/May/2015 12:54
+; help function prints three strings
+; param error-checking prints substrings of help text before illegal quantity
+; + converted tabs to spaces in help text
+; + user-friendly param names instead of internal labels in help text
+
+; 17/May/2015
+; + AF helped fix illegal quantity errors :)
+
+; 2/May/2015 17:43
+; + fixed illegal qty routine (uses .x instead of .a)
+; + working on tracking down illegal qty errors on supposedly correct sys params
+
+; 24/Mar/2015 13:33
+; + attempting a multi-tasking input line + clock display
+;	just for yuks
+
+; 1/May/2014 10:07
+; + added conditional assembly of help message since that's a work in progress
+; * copied some comments from CMD's original listing
+; * added sanity checks (which don't fully work yet) for command line params
+
+; Current syntax:
+; sys si,<maxlen>,<strwin>,<string$>
+
+; <maxlen>: maximum allowable length of string
+; <strwin>: # viewable chars in input area
+
+; TODO:
+; sys si,<maxlen>,<strwin>,<string$>[,<clear>]
+
+; <clear> 0: copy contents of <string$> to input buffer, position cursor
+;				at end of string
+;		  1: clear contents of input buffer, position cursor at beginning
+;				of buffer
+; - have "clear" subroutine, need to test it
+
+; reason for dynamically allocating the input buffer in the string heap is
+; because when a string is created after a BASIC program ends and not on the
+; string heap, assigning the string to the variable doesn't make a copy (and
+; mangles later string definitions by pointing them to the previously defined
+; string).
+
+	; constants:
+lower		= $c0	; lowercase characters start at $60 in character set.
+			; normally $c0 ; +1 = a ... +26 = z
+			; this is needed because of an oddity in casm4's
+			; ASCII pseudo-op, character case is reversed
+
+	; variables:
+inbuf		= $cd00	; common input buffer shared among Input Any & Sliding Input
+
+	; zero-page:
+
+index		= $22	; Miscellaneous Temporary Pointers and Save Area ($22-$25)
+VARPNT		= $47	; temporary pointer for reading variable
+
+FORPNT		= $49	; temporary pointer for writing variable
+			; OLD descriptor pointed to by SYS statement
+
+fac_strptr	= $64	; NEW descriptor that just-input line points to
+			; describing value about to be assigned to var
+
+strptr		= $fb	; used for instring routine
+
+CHRGET		= $0073 ; two bytes for zero-page JSR
+
+	; kernal routines:
+
+basic_error	= $a437 ; output error message in .x
+
+assign_string	= $aa2c ; string w/ descriptor address
+			; in $64/$65 stored in variable
+			; descriptor pointed to by $49/$4a
+
+strout		= $ab1e ; output message in <.a, >.y, terminated by $00
+
+REQUIRE_STRING	= $ad8f	; ensure param is a string variable
+			; midway through FRMNUM, "Mapping the 64" has
+			; no real info on return values...
+
+ALLOC_STRING	= $B4F4	; Allocates space on string heap; pass length in .A;
+			; address returned in .X/.Y and $35
+
+GET_BYTE_VAL	= $b79b	; returns 8-bit number in .x
+			; (is really GETBYTC with a different label)
+
+get_expr	= $ae86	; evaluate expression from basic text, returning
+			; its value in FAC.
+
+GET_VAR		= $b08b	; read variable name from basic text, look up address
+			; returns address to *pointer* in 780,781
+			; in basic:
+			; sys 45195a$
+			; v1=peek(780)+256*peek(781)  +1
+			; v1=peek(v1) +256*peek(v1+1) -1
+
+SKIP_COMMA	= $e20e	; check basic text for comma followed by something else
+
+chrout		= $ffd2 ; kernal character output in .a
+getin		= $ffe4 ; kernal character input  in .a
+plot		= $fff0 ; kernal cursor position
+
+	; display help text - if no comma after sys, output usage information
+	; jsr chrget+6 (chrgot) will not increment basic text pointer
+	; and allow us to check for comma or not comma, returns in .a
+
+	; check for trailing comma after SYS statement
+	; if found, proceed to si_start routine to process parameters
+sliding_input:
+		jsr CHRGET+6
+		cmp #','
+		beq si_start
+		lda #<msg_help
+		ldy #>msg_help
+		jsr strout
+		lda #<msg_maxlen
+		ldy #>msg_maxlen
+		jsr strout
+		lda #<msg_strwin
+		ldy #>msg_strwin
+		jsr strout
+		lda #<msg_stringname
+		ldy #>msg_stringname
+		jmp strout
+
+si_start:
+	; read param 1, maximum length of input allowed (maxlen)
+
+	; note: cannot take 255 length string, will wrap around & store last char in
+	;			1st byte
+	; note: check for this condition when evaluating parameters
+
+		jsr GET_BYTE_VAL	; check for comma after sys, put 8-bit param in .x
+		stx maxlen
+		cpx #0
+		beq maxlen_wrong	; maxlen shouldn't be 0: issue error
+
+	;	inx			; input +1 stops scrolling in editing area when entering
+	;	stx strwin		; last character in string
+maxlen_check:
+		cpx #$ff		; equal to 255?
+		bne get_input_width	; no, go on to get input width
+		
+maxlen_wrong:
+		lda #<msg_maxlen
+		ldy #>msg_maxlen
+		jsr strout		; print usage info
+
+; 0: correctly reports error
+; 255:	 "		"		"
+; 1-254: "		"		"
+
+		lda #01			; passed param # to complain about
+		jmp illegal_qty
+			
+	; read param 2, width of input area (strwin)
+get_input_width:
+		jsr GET_BYTE_VAL
+		stx strwin
+	; error-check:
+		cpx #0					; 0 is not acceptable
+		beq input_width_err
+	; todo: make #41 dependant on "mode" variable (c64: 40, c128: 80)
+		cpx #41
+		bmi param3	; branches on less than 41 ("Branch MInus")
+input_width_err:
+		lda #<msg_strwin
+		ldy #>msg_strwin
+		jsr strout		; print usage info
+
+		lda #02			; bad param #
+	
+illegal_qty:
+	; enter with bad passed param # in .a
+		clc
+		adc #$30	; convert to printable #
+		sta msg_bad_param_num
+
+		lda #<msg_bad_param
+		ldy #>msg_bad_param
+		jsr strout
+
+		ldx #$0e	; illegal quantity error
+		jmp basic_error
+
+	; Read param 3, target string variable
+	; Check if string and save address on stack
+	; This is AF's doing
+param3:
+		jsr SKIP_COMMA
+		jsr GET_VAR		; returns var addr in .A/.Y
+		jsr REQUIRE_STRING	; exits to BASIC immediately if type mismatch
+
+	; Put string var address in (FORPNT)
+		sta FORPNT
+		sty FORPNT+1
+
+	; Allocate new space in string heap for the line (max length)
+		lda #$FF
+		jsr ALLOC_STRING	; ... and allocate that much space on string heap
+		stx strptr			; pass buffer location to GETLINE
+		sty strptr+1		; (address returned in .X/.Y)
+							; point variable to newly allocated space,
+							; where line WILL be stored
+
+	; copy starting string value into buffer:
+		
+		ldy #2
+		lda (VARPNT),y		; descriptor +2 (hi byte of string data)
+		sta index+1			; free zp location
+		dey					; .y=1
+		lda (VARPNT),y		; descriptor +1 (lo byte of string data)
+		sta index
+
+	; pina added this:
+	; todo: future clear string buffer:
+	; todo: this will be customizable using the <clear> param eventually
+	;		1: clear string
+	;		0: copy contents of string to buffer
+		
+	; get passed string length:
+		dey
+		lda (VARPNT),y		; .a = length
+
+		sta strlen		; this keeps track of string length during
+					; this routine
+
+	; this sets starting point (end of passed string) of copy_loop
+	; to go from end of string to #$fe to fill with nulls
+		sta copy_loop_count+1		; store string length
+		tay
+		
+	; copy passed string to work buffer:
+		dey
+copy_loop:
+		lda (index),y		; copy string contents from the specified string...
+		sta (strptr),y		; ...to the work buffer
+		dey
+		cpy #$ff		; wrapped around?
+		bne copy_loop	; not yet
+		
+; make descriptor point to newly allocated buffer
+
+		ldy #2
+		lda strptr+1
+		sta (FORPNT),y		; descriptor +2 (hi byte of string data)
+		lda strptr
+		dey
+		sta (FORPNT),y		; descriptor +1 (lo byte of string data)
+
+	; add end-of-string terminator
+
+		lda #0		; terminator
+copy_loop_count:
+		ldy #$ff	; start at length of passed string (self-modifying)
+
+	; 27/Aug/2015
+	; fill to end of string with nulls
+	; eliminates problem of a shorter string having residual data from
+	; longer string from previous run
+fill_nulls_loop:
+		sta (strptr),y	; store terminator
+		cpy #$fe		; until string buffer full (max of $fe chars)
+		bcs setup		; finished?
+		iny			; no, keep going
+		jmp fill_nulls_loop
+
+; works:
+
+; .C:c000  A9 00	   LDA #$00
+; .C:c002  A0 0F	   LDY #$0F
+; .C:c004  91 FB	   STA ($FB),Y
+; .C:c006  C0 FE	   CPY #$FE
+; .C:c008  B0 04	   BCS $C00E
+; .C:c00a  C8		   INY
+; .C:c00b  4C 04 C0	   JMP $C004
+; .C:c00e  60		   RTS
+
+	; set up params for input routine
+	; fixme: are row & column different for c128?
+setup:
+		lda $d6		; current cursor row
+		sta strrow
+		
+		lda $d3		; current cursor column
+		sta strcol
+
+	; in original, this could be customized:
+	; say if the string started with 'http://' and you didn't want the user to
+	; modify that, set lftlim to 7 (0-based)
+		
+		lda #0
+		sta lftlim
+
+		lda #$00		; use #$80 for 128 mode
+		sta mode
+
+		jsr instr
+		
+; Find length of returned string
+;		ldy #$00		; max string length
+;loop	lda (strptr),y	; load .a w/ addr of strptr + y
+;		beq found0		; branch if =0
+;		iny			; #$01, #$02, #$03...
+;		bne loop		; branch if not zero
+;found0
+; Store length directly in descriptor of string var
+;		tya
+		lda strlen
+		ldy #0
+		sta (FORPNT),y		; descriptor +0 (length of string)
+
+		lda #$0d		; output final carriage return
+		jmp chrout
+
+; ---------- instr main loop ----------
+
+instr:
+		lda lftlim	; enter here
+		sta cpos	; set cursor position
+		lda #0		; first char of string
+		sta lcol	; at left of input area
+
+; ----------- continue with input here in multi-tasking environment -----
+
+getstr:
+
+; .ifdef multitasking_enabled
+;		jsr clock_display	; fixme
+; .endif
+
+		jsr drwstr	; display string
+
+; 27/Aug/2015 14:38
+; c= crsr down and c= crsr right for moving right/left by words
+;		ldx 653		; ctrl / c= / shift status	}
+;		cpx #2		; c= held?			} this works	
+;		bne cursor	; no				}
+;		ldx 203		; last key held		}  this works
+;		cpx #7		; crsr down		}
+;		beq space_fwd
+
+cursor:
+		jsr rvson	; reverse on
+gets10:
+	 	ldx #30		; value for blink time
+gekey:
+		jsr getin	; get keypress
+		bne gk1		; if a key pressed
+		ldy #10		; no keypress
+		jsr delyms	; wait 10 milliseconds
+		dex
+		bne gekey	; not done - loop again
+		lda rvsflg	; time to switch cursor
+		beq getstr	; if rvs off, turn it on
+		jsr rvsoff	; if rvs on, turn it off
+		jmp gets10
+gk1:
+		pha			; save key pressed
+		jsr rvsoff	; turn off cursor
+		pla
+		ldx numkeys ; see if key needs special handling
+					; (variable now)
+gk2:
+		cmp edkeys,x
+		beq exkey	; yes - go do it
+		dex
+		bpl gk2
+
+; put character in .a at cursor
+putchr:
+		ldy cpos
+		cpy maxlen	; exit if cursor at end
+		bcs getstr	;	of string
+		pha		; save character
+		lda (strptr),y	; cursor at end of buffer?
+		bne pc1		; no: branch
+		iny		; yes
+		sta (strptr),y	; move terminator (0) up one
+	; addition 11/Oct/2015 16:56
+		inc strlen	; increase string length
+	; addition end
+		dey
+pc1:
+		pla
+		cmp #%10100000	; shifted space? ($a0)
+		bne pc2
+		lda #32		; replace with space
+pc2:
+		sta (strptr),y	; put char at cursor
+		jsr movrt	; move the cursor right
+		jmp getstr	; back to main loop
+
+; execute special key routines
+exkey:
+		txa		
+		asl		; multiply by two
+		tax		; calculate index
+		lda ekaddr,x	; get command address
+		sta jmpkey+1	; set up jsr lo addr
+		lda ekaddr+1,x
+		sta jmpkey+2	; set up jsr hi addr
+jmpkey:
+		jsr $ffff	; (self-modifying)
+		jmp getstr	; back to main loop
+
+edkeys:
+		byte 13  ; $0d - return
+		byte 20  ; $14 - delete
+		byte 148 ; $94 - insert
+		byte 29  ; $1d - cursor right
+		byte 157 ; $9d - cursor left
+		byte 34  ; $22 - quote
+		byte 19  ; $13 - home
+		byte 147 ; $93 - clear
+		byte 133 ; $85 - f1
+		byte 136 ; $88 - f7
+		byte 10  ; $0a - linefeed - thuff
+numkeys:
+		byte numkeys-edkeys ; pina added this
+
+ekaddr:
+		.word return
+		.word delete
+		.word insert
+		.word cright
+		.word cleft
+		.word quote
+		.word home
+		.word clear
+		.word next_word
+		.word prev_word
+		.word linefeed
+		
+; FIXED - character for space fwd is injected into input
+; poke 198,0 doesn't work
+; poke 203,64 doesn't work
+
+next_word:
+		ldy cpos	; get position within string
+		cpy strlen	; reached end of string?
+		beq space_rts	; yes, exit
+						
+next_word2:
+		lda (strptr),y	; get char under cursor
+;		cmp #$00	; end of string?
+;		beq space_rts	; yes
+		cmp #' '	; found a space?
+		beq next_space	; yes
+		jsr cright	; cursor right if necessary
+				; cright increments cpos & lcol if necessary
+		jmp next_word	; continue looping
+				
+next_space:	; space found. is it a single space or run of spaces?
+		; check for first non-space character to move right to
+		
+		lda (strptr),y	; get char in front of cursor
+;		cmp #$00	; end of string?
+		beq space_rts	; yes
+		cmp #' '	; found a space?
+		bne space_rts	; no, exit
+		jsr cright	; move cursor right
+				; cright increments cpos & lcol if necessary
+		jmp next_space	; continue looping
+
+		; if equal or larger, this means the space was found outside the
+		; boundaries of what the string window is currently displaying
+		; and needs to be scrolled
+		
+		; left									right
+		; margin								margin
+		; 	| lcol <--- strwin ---> lcol + strwin |		input area
+
+linefeed:
+		; ignore it (crashes otherwise) - thuff
+
+space_rts:
+		rts		; return to getting input
+
+		; find space before current word
+
+prev_word:
+		ldy cpos	; get cursor position in string
+		cpy lftlim	; leftmost position?
+		beq prev_rts	; yes, return
+		dec cpos
+		ldy cpos
+		lda (strptr),y	; get char under cursor
+		cmp #' '	; found a space?
+		beq prev_space	; yes, check for multiple spaces
+		jsr cleft	; no, move string left
+				; (dec cpos & lcol if needed)
+		jmp prev_word	; repeat
+
+		; find char after previous space (beginning of previous word)
+
+prev_space:	; space before previous word found.
+		; is it a single space or run of spaces?
+		; check for first non-space character to move left to
+		; THIS PART WORKS GREAT, DON'T MESS WITH IT YOU FOOL - rns
+			
+		jsr cleft	; cleft decrements cpos & lcol if necessary
+		ldy cpos	; get cursor position within string
+		cpy lftlim	; leftmost position?
+		beq prev_rts	; yes, return
+		lda (strptr),y	; get char under cursor
+		cmp #' '	; found a space?
+
+;		beq prev_space2	; yes
+;		jmp prev_space
+
+		bne prev_space	; no
+;		jmp prev_space
+
+prev_space2:
+		jsr cright	; put cursor after space
+
+prev_rts:
+		rts		; return to getting input
+
+; handle carriage return
+return:
+		lda #0
+		sta lcol	; position string
+		sta cpos	; and cursor
+		pla		; fix up stack so we'll
+		pla		; return to calling routine
+		jmp drwstr	; display string, quit
+
+; handle cursor right
+cright:
+		ldy cpos
+		lda (strptr),y	; at end of string already?
+		beq ekrts	; yes, don't do anything
+
+movrt:
+		iny
+		sty cpos	; move cursor to right
+		tya
+		sec
+		sbc lcol	; see if we need to slide
+		cmp strwin	; the string to the left
+		bcc ekrts	; no - exit
+		inc lcol	; yes - slide it to the left
+ekrts:
+		rts
+
+; pina added this stuff:
+; allows you to type a ", kills quote mode
+; note that control keys are displayed as though quote mode is enabled, however
+; (has nothing to do with this routine, it did that before this was added)
+; todo: would be nice to filter that out, or add things like
+; ctrl-b (or ctrl-<) = backwards by word
+
+quote:
+		lda #34
+		jsr putchr
+		jmp clrquo	; clear quote mode
+
+clear:
+		lda strlen
+		bne clear0
+		rts		; nothing to clear
+
+; 1) clear input area
+; 2) display "clear? y/n" prompt
+; 2a)show flashing cursor
+; 3) accept y/n keys
+; 3a)y: clear string buffer
+; 3b)n: redraw string
+
+clear0:
+	; position cursor:
+		jsr clearplot
+	; clear on-screen input area:	
+		ldy strwin
+		lda #$20
+clear_loop:
+		jsr chrout
+		dey
+		bne clear_loop
+	; re-position cursor
+		jsr clearplot
+		
+	; display prompt
+		lda #<msg_clear_prompt
+		ldy #>msg_clear_prompt
+		jsr strout
+
+	; get input
+clearkey_loop:
+; system cursor (logic reversed):
+
+; 10 poke 204,0:rem turn system cursor on
+; 20 wait 198,1:get a$
+; 30 poke 204,1:print a$:rem turn system cursor off
+
+		ldx #$00
+		stx 204			; turn system cursor on during wait
+		jsr getin		; key hit in .a
+		beq clearkey_loop	; no key hit, loop back
+
+{ifdef:debug}
+; LINPRT: > .A < .X
+		tax
+		pha
+		lda #$00
+		jsr $bdcd		; print value of key hit
+					; raw input: 78=n, 89=y, N=206, 217=Y
+		pla
+{endif}
+		and #%01111111		; knock high bit off (shift-lock)
+
+		ldx #$01
+		stx 204			; turn system cursor off again
+
+		cmp #78			; lower + 14		; $c0 + 14 = 'n'
+		bne clearkey_y
+		rts			; "n" entered, go back to getstr
+clearkey_y:
+		cmp #89			; lower + 25		; $c0 + 25 = 'y'
+		bne clearkey_loop
+
+; catch shift-lock, supposedly
+; .C:c900  20 E4 FF	JSR $FFE4
+; .C:c903  F0 FB	BEQ $C900
+; .C:c905  29 80	AND #%01111111 	; $80
+; .C:c907  C9 89	CMP #$89	; "y"
+; .C:c909  D0 F5	BNE $C900
+; .C:c90b  EE 20 D0	INC $D020
+; .C:c90e  20 D2 FF	JSR $FFD2
+; .C:c911  4C 00 C9	JMP $C900
+
+; .C:9000  20 E4 FF	JSR .kGETIN
+; .C:9003  F0 FB	BEQ $9000
+; .C:9005  C9 0D	CMP #$0D
+; .C:9007  D0 01	BNE $900A
+; .C:9009  60		RTS
+; .C:900a  20 D2 FF	JSR .kCHROUT
+; .C:900d  4C 00 90	JMP $9000
+
+clear1:
+		lda #$00	; load .a with a null
+		ldy maxlen	; do this for length of string
+
+clear2:
+		sta (strptr),y	; store null in buffer
+		dey
+		cpy #$ff
+		bne clear2	; until done
+
+; reset display to leftmost column,
+; string length must be 1 character, 0 characters disallows typing
+
+		ldy #$01
+		sty lcol	; display from beginning of string
+	; addition 11/Oct/2015 16:56
+		sty strlen	; reset string length to 1 character
+		jmp move_home
+	; addition end
+
+; pina added this:
+; 11/Oct/2015 13:08
+; this routine also gets called by "clear"
+; home toggles between moving to beginning or end of string
+; depending on where cpos is closer to - "magnetic home"
+; currently debugging this
+home:
+
+;.ifdef magnetic_home
+;		inc $d020		; border
+;		brk
+;		byte $01,$02,$03
+;		lda strlen		; get length of string
+;		lsr				; divide by two
+;		cmp cpos		; get cursor position
+;		bpl move_end	; cpos > 1/2 of strlen? move to end
+;.endif
+
+move_home:
+		ldy lftlim		; set cursor to leftmost limit position
+		sty cpos		; update cursor position
+		lda #$00		; move to leftmost column (0-based)
+		sta lcol		; set left column to display
+		jmp drwstr		; redraw string (subroutine), rts from there
+
+;.ifdef magnetic_home
+;move_end:
+;		lda strlen		; set cursor to end of string
+;	; find string terminator:
+;move_find0:
+;		lda (strptr),y		; get char under cursor
+;		bne move_find0_done	; not a terminator
+;		dey					; keep looping backwards
+;		jmp move_find0		; until done
+;move_find0_done:
+;		sta cpos		; update cursor position
+;	;	tya				; transfer to .a
+;		clc				; get ready to subtract
+;		sbc strwin		; width of window
+;		sta lcol		; and make that the leftmost column
+;		jmp drwstr		; redraw string (subroutine), rts from there
+;.endif
+
+; subroutine:
+clearplot:
+	; position cursor
+		ldx strrow
+		ldy strcol
+		clc
+		jmp plot
+
+; handle delete key
+delete:
+		ldy cpos		; are we at the left limit
+		cpy lftlim		; of cursor movement?
+		bne delchr0		; no, decrease string length
+		rts
+
+delchr0:
+		dec strlen		; decrease string length
+
+delchr:
+		lda (strptr),y		; move chars in string
+		dey			; to the left
+		sta (strptr),y
+		tax			; end of string?
+		beq cleft		; yes - now move cursor
+		iny
+		iny			; point to next character
+		bne delchr		; branch back
+		
+; handle cursor left
+cleft:
+		ldy cpos
+		cpy lftlim		; already at left limit?
+		bne cl1			; no, branch
+		lda lcol		; yes, see if we need to
+		bne declco		; slide string to right
+		rts			; no, already at last char
+
+cl1:
+		dey
+		sty cpos		; move cursor left
+		cpy lcol		; need to slide right?
+		bcs cl2			; no, branch
+declco:
+		dec lcol		; yes, slide string right
+cl2:
+		rts
+
+; handle insert key
+
+insert:
+		ldy strlen
+i2:		cpy maxlen		; see if at maximum length
+		bcs insrts		; yes, exit
+		inc strlen		; no, increase strlen
+		
+i3:		lda (strptr),y		; move characters up one
+		iny			; position
+		sta (strptr),y
+		dey
+		dey
+		cpy #$ff		; don't go too far
+		beq i4
+		cpy cpos		; at cursor yet?
+		bcs i3			; no, move another
+i4:		iny			; done moving
+		lda #$20		; put a space under the
+		sta (strptr),y		; cursor
+insrts:
+		rts
+
+; display string in input area (subroutine)
+drwstr:
+		ldx strrow		; put cursor at far left
+		ldy strcol		; of input area
+drwsxy:
+		clc
+		jsr plot		; kernal positions cursor
+	;	lda #datco		; set display color
+	;	sta 646
+		jsr quomod		; quote mode for all chars visible
+		ldx #0
+		ldy lcol		; start with leftmost char
+dr1:
+		lda (strptr),y		; get character
+		beq dr2			; end of string? yes, branch
+		iny			; point to next character
+		byte $2c	 	; BIT - skip next instruction
+dr2:
+		lda #32			; spaces fill rest of line
+		jsr chrout		; output the character
+		inx
+		cpx strwin		; done yet?
+		bcc dr1			; no: branch, yes: fall through to clrquo
+
+; subroutine
+; clear (clrquo)/set (quomod) quote mode
+clrquo:
+		lda #0		; value to clear flag
+		byte $2c	; BIT - skip next instruction
+quomod:
+		lda #1		; value to set flag
+		bit mode	; check computer type
+		bmi q1		; $80?
+		sta $d4		; no, c64
+		rts
+q1:		sta $f4		; yes, c128
+		rts
+
+; subroutine
+; set/clear reverse on/off for cursor blink
+; 28/May/2017 16:34:
+; TODO: blink on reversed stuff too
+
+rvson:
+		ldy cpos
+		lda (strptr),y	; get char under cursor
+
+; 28/May/2017 16:34:
+; attempt to reverse characters
+;		cmp #$7f		; > 128, and thus reversed?
+;		bpl r1	; rvsoff	;  turn rvs off to get un-
+					; reversed char
+
+		sec			; flag for later
+		byte $24	; skip next instruction
+rvsoff:
+		clc			; flag for later
+		php			; save flag
+		lda cpos	; cursor position within string
+		sec
+		sbc lcol	; consider slide position
+		clc
+		adc strcol	; left side of input area
+		tay		; move column to .y
+		ldx strrow	; get row to .x
+		clc
+		jsr plot	; kernal positions cursor
+	;	lda #datco	; set color
+	;	sta 646		; set display color
+		plp		; test the flag
+		bcc r1		; branch if rvs off
+		lda #18
+		jsr chrout	; output rvs on character
+		byte $2c	; skip next instruction
+r1:
+		lda #0
+		sta rvsflg	; set/clear our flag
+		jsr quomod	; all chars will be displayed
+		ldy cpos
+		lda (strptr),y	; get character under cursor
+		bne r2		; at end of string?
+		lda #32		; yes, output a space
+r2:
+		jsr chrout	; output the character
+		jsr clrquo	; clear quote mode
+		lda #146
+		jmp chrout	; output rvs off & exit
+
+; subroutine
+; delay used for cursor blink (.y = milliseconds)
+delyms:
+		pha		; save .a
+		lda #$7f
+		sta $dd0d	; clear icr of cia #2
+		lda #$08
+		sta $dd0e	; clear cra of cia #2
+		sta $dd0f	; clear crb of cia #2
+		lda #$ff
+		sta $dd04	; setup timer a lobyte
+		lda #$04
+		sta $dd05	; setup timer a hibyte
+de1:
+		lda #$11
+		sta $dd0e	; start timer a
+de2:
+		lda $dd05	; has timer counted down?
+		bne de2		; no - keep waiting
+		dey		; yes - dec .y
+		bne de1		; branch if not done
+		pla		; restore .a
+		rts
+
+; .ifdef multitasking_enabled
+; clock_display:
+;		rts ; fixme
+; .endif
+
+; variables
+
+cpos:	byte 0	; cursor position within string
+lcol:	byte 0	; leftmost column of the string currently displayed
+lftlim:	byte 0	; leftmost limit of cursor travel within the input area,
+		; Setting this variable to a non-zero value is useful when
+		; editing a pre-initialized string that begins with characters 
+		; that the user should not change, such as the slashes and 
+		; colon ('//:') in a directory pathname.
+strrow:	byte 0	; row of the input area (0-24)
+strcol:	byte 0	; leftmost column of the input area
+		; 0-39 for a 40-column screen;
+		; 0-79 for an 80-column screen.
+strwin:	byte 0	; width of the input area (number of viewable characters).
+		; 1-40 for a 40-column screen;
+		; 1-80 for an 80-column screen.
+maxlen:	byte 0	; maximum length of the input string (1-254)
+strlen:	byte 0	; current length of string
+rvsflg:	byte 0	; blink flag for cursor
+mode:	byte 0	; $80: c128 mode
+
+msg_help:
+; text ruler:  ----|----|----|----|----|----|----|----|
+	byte $0d
+	ascii "SYNTAX:  SYS SI,LENGTH,WIDTH,STRING$"
+	byte $0d,$00
+
+msg_maxlen:
+; text ruler:  ----|----|----|----|----|----|----|----|
+	byte $0d
+	ascii "LENGTH:  MAXIMUM LENGTH OF STRING INPUT"
+	byte $0d
+	ascii "         ALLOWED (1-254)"
+	byte $0d,$00
+
+msg_strwin:
+; text ruler:  ----|----|----|----|----|----|----|----|
+	byte $0d
+	ascii "WIDTH:   MAXIMUM WIDTH OF INPUT WINDOW"
+	byte $0d
+	ascii "         (C64: 39   C128: 79)"
+	byte $0d,$00
+
+msg_stringname:
+; text ruler:  ----|----|----|----|----|----|----|----|
+	byte $0d
+	ascii "STRING$: STRING VARIABLE NAME TO EDIT"
+	byte $0d
+	ascii "         ON ENTRY, RETURN INPUT ON EXIT"
+	byte $0d,$00
+
+msg_bad_param:
+; text ruler:  ----|----|----|----|----|----|----|----|
+	byte $0d
+	ascii "?BAD PARAMETER "
+msg_bad_param_num:
+	byte $ff
+	byte $0d,$00
+
+msg_clear_prompt:
+; text ruler:  ----|----|----|----|----|----|----|----|
+	ascii "CLEAR: ARE YOU SURE (Y/N)? "
+	byte $00
+
+; would be cool if help text could be tokenized...
+; there are a lot of basic keywords in here
+
+; also tabs instead of 8 spaces (on the 128) would be cool
+
+; space for string buffer
+descriptor:
+	byte 0		 ; length
+	.word inbuf	 ; address of string ($cd00)
+
+; the way the original routine worked was:
+; if the user is to edit the string from scratch, set 1st byte of INBUF to 0.
+; if using a pre-defined string, copy it to INBUF, terminating with 0.
+
+; since modifications were made, enhanced input reads string variable from
+; command line (with future optional <clear> param) so would this behavior
+; be preserved?
+
+; C64Studio syntax:	!fill 8,$ff (count,value)
+; TMPx syntax:		.repeat 8,$ff (count,value)
+{endasm}

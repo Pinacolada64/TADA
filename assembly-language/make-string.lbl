@@ -1,0 +1,74 @@
+{asm}
+; casm v4.0 beta syntax:
+orig $9000
+; example of usage:
+;	10 a$="aaaaa":sys 36864,a$:print a$
+; hi
+	
+	varname = $45	; name for assignment
+	descadd = $47	; descriptor address
+
+	require_string  = $ad8f ; ensure param is a string variable
+
+	chkcom	= $aefd
+	get_var	= $b08b	; read variable name from basic text, return address
+			; of byte following variable name in .a/.y.
+			; returns variable name in (varname)
+	makdes	= $b0e7 ; set up descriptor stored in (varname)
+			; returns address in (descadd)
+	setptr	= $b4f4 ; set string pool pointer: set .a=length
+			; returns address in ($33) which is pointer to bottom 
+			; of string text storage area
+
+	movstr	= $b688 ; copy string to pool, from ($22) to ($35)
+
+	jsr chkcom	; check for comma
+	jsr GET_VAR	; return var addr in .A/.Y
+			; return var name in $45/46
+	jsr REQUIRE_STRING
+
+	jsr makdes	; make descriptor
+
+	lda namlen	; load .A with length.
+	jsr setptr	; set string pool ptr.
+
+; set up source address:
+	ldx <vartext
+	stx $22
+	ldy >vartext	; for transfer of string
+	sty $23
+	lda namlen	; to string pool
+
+; set up dest address:
+	ldx <vartext
+	stx $35
+	ldy >vartext
+	sty $36
+
+	jsr movstr	 ; do the transfer
+ 
+; get address of descriptor
+	ldy #$00
+	lda namlen	; filename length
+	sta (descadd),y	; first byte: length
+	lda address
+	iny
+	sta (descadd),y	; second byte is 
+			; address lo-byte
+	lda address+1
+	iny
+	sta (descadd),y	; third byte is
+			; address hi-byte
+	rts
+
+; variable descriptor:
+name:
+	.word $0000	; variable name
+namlen:
+	.byte 2		; length of string
+address:
+	word vartext
+	word $0000 	; unused bytes
+vartext:
+	.byte $48, $49	; "hi"
+{endasm}

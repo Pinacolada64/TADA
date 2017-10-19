@@ -1,0 +1,58 @@
+{alpha:invert}
+{number:0}
+{step:5}
+	a$="/r%n is a %x %c %r!/rI like %p./r%% escaped is %%./r/rDeliberate error: %z/r"
+	sys 45195a$
+	v1=peek(780)+256*peek(781)+1
+	v1=peek(v1)+256*peek(v1+1)
+	for x=v1 to v1+len(a$)-1
+	n=peek(x)
+	' substitution prefixes: / %
+	on -(n=47)-2*(n=37) goto {:slash},{:percent}:goto {:output}
+
+{:slash}
+	' check for / - get next char
+	x=x+1:n=peek(x)
+	if n=82 then n=13:goto {:output} ' /r - return
+	goto {:error}
+
+{:percent}
+	' check for % - get next char: % c n p r x
+	' todo: add uppercase letters
+	x=x+1:n=peek(x):on -(n=37)-2*(n=67)-3*(n=78)-4*(n=80)-5*(n=82)-6*(n=88) goto {:percent_escape},{:c},{:n},{:p},{:r},{:x}
+' error: highlight char
+	goto {:error}
+
+{:percent_escape}
+	' escape % sign
+	print"%";:goto {:next}
+	
+{:c}
+	' class
+	print"Fighter";:goto {:next}
+
+{:n}
+	' name
+	print"Shinju";:goto {:next}
+ 
+{:p}
+	' posessive pronoun
+	print"her";:goto {:next}
+
+{:r}
+	' race
+	print"Cleric";:goto {:next}
+
+{:x}
+	' gender
+	print"female";:goto {:next}
+
+{:error}
+' highlight error char:
+	c=1:print "{rvrs on}";
+{:output}
+	' otherwise print whatever n is:
+	print chr$(n);:if c then c=.:print "{rvrs off}";
+
+{:next}
+	next:end

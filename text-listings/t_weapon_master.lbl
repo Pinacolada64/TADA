@@ -1,0 +1,237 @@
+{number:1}
+{alpha:invert}
+{def:standalone}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' t.weapon_master
+' copy of t.ma.armory.weapons
+' todo: use t.weapon in place of code @800-
+' (called from t.ma.armory or t.ready because of shared class/race bonus code)
+
+' updated 09/04/2006, 07/14/2007, 9/29/2007
+{ifdef:standalone}
+' uses unified ml.o file
+	i%=.:is=49152
+	pc=1:pd=15:pr=1
+	m$="Weapons Master"
+' from t.startup (weapon classes):
+'		 1			2			3					5								8			9
+	wc$="ENERGY    BASH/SLASHPOKE/JAB            POLE/RANGE          	          PROJECTILEPROXIMITY"
+	ll$="[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]":def fnr(x)=int(rnd(-ti)*x)+1
+	gp(.)=2000:a$(.)="STINGRAY":q$=chr$(34):r$=chr$(13):k$="RETURN":restore
+{endif}
+{ifdef:debug}
+	for x=1 to 9:print x;mid$(c$,x*10-9,10):next
+	stop
+{endif}
+
+' which module did we need to link back to? ("armory" or "ready"?)
+	dv=peek(186):if dv<8 then dv=8
+	open 15,dv,15
+	lm$="armory"
+
+	goto{:start}
+
+{nice:10}
+{:200}
+' location flag, weapon name + flags, weapon stability
+	gosub {:record_pointer}(x+1):input# 2,cb$:input# 2,w$:input# 2,ws
+' base damage, price, class
+	input# 2,wd:input# 2,wp:input# 2,wa:return
+
+{nice:100}
+{:start}
+	print "The "m$" leads you to a room"
+	print "where his hand-crafted weapons hang..."
+	gosub {:file.open}("e.t.weapons"):if e then print a$:goto {:1811}
+	gosub {:record_pointer}(1):input# 2,mx
+{:611}
+	print r$"[]=-=-=-=-=-=-[ WEAPONS ]-=-=-=-=-=-=[]"
+	print "## Weapon Name     Gold E D* Class"
+	print "-- --------------- ---- - -- ----------"
+	for y=1 to mx:gosub {:200}:w$=mid$(w$,4):if val(cb$)<>2 then {:629}
+' display #, truncate weapon # if >15 chars
+	print right$(" "+str$(y),2)" ";:if len(w$)>15 then w$=left$(w$,11)+"..."
+' print weapon name, 
+	print w$tab(18)right$("    "+str$(wp),5)left$(str$(ws),2)left$(str$(wd),2);
+' ammo bonus (class 8 weapons): *=yes
+	print mid$("* ",2+(wa=8),1)" ";
+' weapon class:
+	print mid$(wc$,wa*10-9,10)
+{:629}
+	get an$:if an$=" " or an$="/" then y=mx+1
+	next:print ll$
+{:631}
+	print r$"[?] List, [1-"mid$(str$(mx),2)"] Buy, ["k$"]=Leave
+	print r$"[";:gosub " gold] Speak, "a$(.);:an$="":input an$
+	on-(an$="")-2*(an$="?")-3*(val(an$)<>.)goto{:635},{:611},{:637}:goto{:637}
+{:635}
+	print r$"'May the Prophets guide you well!'":goto{:1811}
+{:637}
+	y=val(an$):on-(y<1 or y>mx)goto{:639}:gosub 617:goto{:641}
+{:639}
+	print r$"'Don't you know how to READ?' sniffs"r$"the "m$".":goto{:631}
+{:641}
+	if val(cb$)=2 then{:655}
+	print r$"'What are you looking at ME for? If you
+	print "don't see it here, we don't have it!
+	print "It's probably being chewed on by some
+	print "horrible little monster who has no
+	print "respect for quality merchandise!' moans
+	print "the "m$".":goto{:631}
+{:655}
+	if gp(.)>=wp then{:671}
+	print r$"The "m$" looks down his nose
+	print "at you. 'You really must learn how to
+	print "budget your income. You don't have
+	print "enough gold, and American Express cards
+	print "won't be invented for another six
+	print "hundred years, so why don't you just
+	print "put it back, all right?'":goto{:631}
+{:671}
+	print r$"The "m$" nods approvingly.
+	x$="is":y$="it":if right$(w$,1)="S"then x$="are":y$="them
+	print "'The "mid$(w$,4)" "x$" an excellent
+	print "choice. Would you like to try "y$" out
+	print "first?'"r$r$"[Y]es/(N)o: ";
+	gosub{:1902}:if a=.then print "No."r$r$;:goto{:730}
+	print "Yes."r$r$"You try out the "mid$(w$,4)"..."r$r$;
+	print "Weapon class: "c$(wa);:i$=r$+"Best targets: "
+	if wa=1 then wa=10:print i$"Huge, Large";
+	if wa=2 then print i$"Swift, Small, Short";
+	if wa=3 then print i$"Huge, Swift";
+	if wa=5 then print i$"Man-Sized, Big, Short";
+	if wa=8 then print " (10% surprise)"i$"Huge, Large";
+	if wa=9 then print i$"Anybody";
+	if wa<>2 or wa<>10 then{:702}
+	sys is,w$,"STORM":if i%then{:700}
+	sys is,w$,"CA{$ce:2}":if i%then{:700}
+	goto{:702}
+{:700}
+	print ", Light Armor";
+{:702}
+	print r$"Required dex:"ws+4;
+	if pd<ws+4 then print "(Not dextrous enough)";
+	vr=val(mid$(w$,3,1))*6+1:wr$=mid$(w$,4):n$=wr$:i$="":gosub{:800}:zv=yz:zu=yx
+	zz=ws:if xp>1 then ws=int((xp+2)*ws)/3)
+	print r$" Base damage:"wd:zs=((ws+1)-zz)+yz+yx:print "  Your skill:"zs
+	print " Ease of use:"10-zz
+	if xp>1 then{:714}
+	on-(wa<>8)goto{:714}:sys is,wr$,"STORM":if i%then{:714}
+	print " [Get ammunition at (O)lly's in Shoppe]
+{:714}
+	sys is,wr$,"FIREBALL":if i%=.or vr<>43 then{:716}:rem class 8
+	print r$" (10% chance of secondary heat damage)
+{:716}
+	print:print "You hand the weapon back.
+{:730}
+	print:print "Buy "y$" (Y)es/(N)o? ";:gosub{:1902}
+	if a=.then print "No.":goto{:631}
+	gp(.)=gp(.)-wp
+	print "'May it serve thee well!'":goto{:631}
+	print "Load 't.ma.armory'...":goto{:1811}
+	rem jump to main loop
+	lm$="":goto 2000
+
+' ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ----------' ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 
+	rem calculate class/race bonuses
+{:800}
+	yz=.:yx=.:n$="*"+right$("    "+w$,4)+"*"
+	on pc goto{:802},{:806},{:808},{:812},{:814},{:818},{:820},{:823},{:826}
+{:802}
+	sys is,"*BA{$cc:2}*TA{$c6:2}*BOLT*",n$:if i%then yz=2:yx=1:goto{:830}:rem wizard (1)
+	sys is,"*{$c7:2}ER*NIFE*",n$:yx=-2:if i%then yx=1:rem wizard (1)
+	goto{:830}
+{:806}
+	sys is,"*ABRE*LING*ELIN*CLUB*PEAR*TA{$c6:2}*TAKE* BOW*ILUM*",n$:if i%then yz=1:yx=1
+	goto{:830}:rem druid (2)
+{:808}
+	yz=2:yx=1:if wa=8 then yz=.:yx=-1:rem fighter (3)
+	if wa=10 then yx=yx+1:rem fighter (3)
+	goto{:830}
+{:812}
+	yx=1:if wa=8 then yx=-1:rem paladin (4)
+	goto{:830}
+{:814}
+	sys is,"*SBOW*WORD*ABRE*",n$:if i%then yz=1:yx=1:rem ranger (5)
+	if wa=5 then yz=-1:yx=-1:rem ranger (5)
+	goto{:830}
+{:818}
+	if wa=3 then yz=-1:yx=-1:goto{:830}:rem thief (6)
+	yx=-1:goto{:830}:rem thief (6)
+{:820}
+	sys is,"*SBOW* BOW*",n$:if i%then yz=2:yx=2:rem archer (7)
+	if wa=2 or wa=5 then yz=-1:yx=-1:rem archer (7)
+	goto{:830}
+{:823}
+	if wa=3 then yz=2:yx=1:rem assassin (8)
+	sys is,"*SBOW* BOW*LING*",n$:if i%then yz=-1:yx=-1:rem assassin (8)
+	goto{:830}
+{:826}
+	sys is,"*WORD*ANCE*ABRE*",n$:if i%then yz=2:yx=3:rem knight (9)
+	if n$="IBUR"then yz=4:yx=4:rem knight (9)
+	if wa=8 then yz=.:yx=-1:rem knight (9)
+{:830}
+	on pr goto{:832},{:836},{:840},{:844},{:848},{:854},{:858},{:862},{:868}
+{:832}
+	sys is,"*GNUM*OWER*P{$cf:2}N* GUN*SKET*{$ce:2}ON* UZI*MITE*ASER*IFLE*",n$:if i%then yx=yx+1
+	goto{:870}:rem human (1)
+{:836}
+	sys is,"*CLUB*{$cd:2}ER*KLES*",n$:if i%then yz=yz+3:rem ogre (2)
+	goto{:870}
+{:840}
+	sys is,"*NIFE*{$c7:2}ER*",n$:if i%then yz=yz+1:yx=yx+2:rem gnome (3)
+	goto{:870}
+{:844}
+	sys is,"* BOW*",n$:if i%then yz=yz+1:yx=yx+1:rem elf (4)
+	goto{:870}
+{:848}
+	sys is,"*LING*",n$:if i%then yz=yz+1:yx=yx+2:rem hobbit (5)
+	if wa=5 then yz=yz+1:yx=yx+2:rem hobbit (5)
+	goto{:870}
+{:854}
+	sys is,"*{$c7:2}ER*NIFE*{$d4:2}LE*",n$:if i%then yz=yz+1:yx=yx+1:rem halfling (6)
+	goto{:870}
+{:858}
+	sys is,"*EAXE*KAXE*CHET*SBOW* AXE*",n$:if i%then yz=yz+1:yx=yx+1:rem dwarf (7)
+	goto{:870}
+{:862}
+	sys is,"*NIFE*{$c7:2}ER* UZI*KLES*",n$:if i%then yz=yz+2:rem orc (8)
+	sys is,"*GNUM*OWER*P{$cf:2}N* GUN*SKET*{$ce:2}ON* UZI*",n$:if i%then yx=yx+2:rem orc (8)
+	goto{:870}
+{:868}
+	sys is,"*SBOW* BOW*WORD*",n$:if i%then yx=yx+1:rem half-elf (9)
+{:870}
+	sys is,w$,"PHASER":if i%then if yz<1 then yz=1
+	sys is,wr$,"STORM":if i%=.then if zt>.then zt=2:goto {:900}:rem spec5
+	if i%=.then return
+	if yz+yx<1 then{:900}:rem spec3
+	rem spec5:
+	if zt>1 then print "The Storm Weapon you ignored howls in
+	if zt>1 then print "jealous rage!":da$="THE "+wr$:goto spec4
+	print:print "Thundering laughter shrieks from the
+	print wr$"!"r$r$q$"I A{$c3:2}EPT TH{$c5:2} AS MY SERVANT!"q$:yz=yz+2:yx=yx+2
+	print r$"A jolt of power surges up your arm.":return
+	rem spec3:
+	sys is,wr$,"STORM":if i%=.then if wr$<>"EXCALIBUR"then wr$="STORM WEAPON"
+	da$=wr$:sys is,wr$,"STORM":if i%then da$="THE "+wr$
+	print "A thundering howl of rage blasts from
+	print da$"! "q$"YOU ARE NOT MINE!"q$
+	rem spec4:
+' ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ----------
+{:900}
+	return
+	rem t.ma.arm.weapons
+	copr. 1995
+{:1001}
+	gosub{:1002}
+{:1002}
+	print# 15,"p{$02}"chr$(x and 255)chr$(x/256)"{$01}":return
+{:1011}
+	open 2,dv,2,a$
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+{:1811}
+	close 2:close 15:end
+
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor_get.lbl}

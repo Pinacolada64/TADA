@@ -1,0 +1,44 @@
+' to include, copy & un-comment:
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+
+' na$=character's name:
+'	na$="PINACOLADA"
+	d$="{$58:234}"+"" ' 234 "x" characters
+	d2$="{$58:234}"+"" ' 234 "x" characters
+	
+'	d$=nl$+nl$+left$(na$+"{space:18}",18)
+'	for x=21 to 53:d$=d$+nl$:next
+'	d$=d$+"---       "+nl$+nl$+nl$
+'	for x=64 to 234:d$=d$+nl$:next
+'	d2$="":for x=1 to 234:d2$=d2$+nl$:next:x=fre(.)
+
+' find addresses of strings:
+' 18/Apr/2014 18:52 now using double-byte peek function
+
+{ifdef:fn_fix}
+' z0 is a dummy variable not used elsewhere to avoid using an already-defined
+' local variable -- which can crash a modbasic program in really odd ways
+
+' note that functions can be re-defined at any time
+	def fn dp(z0)=peek(x)+b1*peek(x+1)
+
+' this returns the pointer to the *pointer*, so thus the double usage:
+' this is defined if using modbasic, so "fn" keyword overloading still works
+	sys 45195d$::v1=fn dp(780)+1:v1=fn dp(v1)-1
+	sys 45195d2$:v2=fn dp(780)+1:v2=fn dp(v2)-1
+{else}
+	sys 45195d$::v1=peek(780)+256*peek(781)+1:v1=peek(v1)+256*peek(v1+1)-1
+	sys 45195d2$:v2=peek(780)+256*peek(781)+1:v2=peek(v2)+256*peek(v2+1)-1
+{endif}
+
+{ifdef:debug}
+	print "v1="v1,"len="len(d$)
+	print "v2="v2,"len="len(d2$)
+{endif}
+
+' fill in strings:
+	for x=1 to 234:poke v1+x,0:poke v2+x,0:next
+' player name:
+	for x=1 to 18:poke v1+2+x,asc(mid$(left$(na$+"{space:18}",18),x,1)):next
+' horse name:
+	for x=1 to 10:poke v1+53+x,asc(mid$(left$("---{space:7}",10),x,1)):next

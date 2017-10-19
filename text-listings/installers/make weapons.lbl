@@ -1,0 +1,96 @@
+{number:1}
+	rem "make weapons"
+
+
+	' v1.0 05/08/1995  3:33 pm
+	' v1.1 01/18/1996  9:26 pm
+	' v1.2 11/03/2003  8:57 am
+	' v1.3 07/25/2006  9:22 pm
+	' v1.4 09/03/2006
+	' v1.5 06/28/2012
+	' v1.6 02/20/2014  5:55 pm -- rewriting for installer framework
+	' v1.7 11/28/2015  2:22 pm -- same
+
+	rem written by pinacolada for the
+	rem dragon's eye bbs / commodoreserver
+
+' print current BASIC line #:
+	def fn ln(x)=peek(58)*256+peek(57)
+' module name, version
+	m$="weapons":ve=1.7
+' eb: extra bytes in record
+	eb=.
+' use installer routine:
+	a$=m$+",s,r":gosub {:installer.open}:if e then print a$:return
+' dv=device, dr=drive
+
+' get # of records:
+	input# 2,mx:dim x$(mx),x%(mx,4):rem # of records
+
+'	print"TADA "m$" installer v."ve:print
+'	print right$("    "+str$(mx),5)" "m$
+'	print"{$c0:5}"
+'	print"      best record length"
+
+' read disk data:
+	for xx=1 to mx
+	input# 2,x%:x%(xx,.)=x%
+	input# 2,x$:x$(xx)=x$
+
+' calculate best record length (l%)
+	z=len(x$):if z>l% then l%=z
+
+' more file-specific data:
+	for y=1 to 4:input# 2,x%:x%(xx,y)=x%:next
+
+' todo: goes in {:installer.calc_file_size} or something similar
+'	input#2,x$:rem toss blank line
+'	print"{up}"right$("    "+str$(l%),5)
+'	next:if eb=0 then {:440}
+'	print"+ "+right$("   "+str$(eb),3);
+'	on eb+1 goto {:440}:print"+ "+right$("   "+str$(eb),3);
+'	print" additional data byte";:if eb>1 then print"s";
+'	print" per record";
+'	l%=l%+eb:print r$"{$c0:5}"r$right$("    "+mid$(str$(l%),2),5)" total"r$r$;
+{:440}
+' fixme: a lot of this stuff needs to go in a standalone installer
+'	print fn cl(0):goto {:1811}
+	close 2:print# 15,"r"dr$f$"="f$:gosub {:1012}
+	close 2:if e%=63 then gosub {:900}:if a=.then {:1811}
+	x%=mx*(l%+1):print x%"bytes,";:x%=x%/254+.5:print x%"blocks.
+	print"Checking blocks free...";:gosub {:1081}:if a>=x%then print"Ok":goto {:465}
+	print"{rvrs on} BF Warning {rvrs off} - Aborted.":goto {:920}
+{:465}
+	a$=f$+",l,"+chr$(l%):gosub {:file.open}:if e%then print"Error!":goto {:920}
+	print"Creating '"f$"'":for x=1 to mx+1:gosub {:record_pointer}
+	print# 2,chr$(255);:print"{up}"tab(27)right$("     "+str$(x),5)" (";
+	print mid$(str$(int(x/mx*100)),2)"%)":gosub {:1012}:if e%=.then {:490}
+	if e%<>50 then x=mx:next:goto {:920}
+{:490}
+	next:print:x=1:gosub {:record_pointer}:print"Writing data...
+	x=1:gosub {:record_pointer}:print# 2,mx
+	for x=2 to mx+1:x$="":for y=1 to 3:x$=str$(
+	print# 2,x$:x%=x:print"{up}"tab(27)right$("     "+str$(x%),5)" (";
+	print mid$(str$(int(x/mx*100)),2)"%)":gosub {:1012}:if e%then x=mx+1:next:goto {:920}
+	next:close 2:print r$"File successfully created!":goto {:920}
+{:900}
+	print"Warning! File exists... replace? ";:gosub {:1902}
+	if a=.then print"Bailing out.":return
+	print"Deleting '"f$"'...";:print# 15,"s"dr$f$:print:goto {:1012}
+{:920}
+	close 2:if fl=.then {:1811}
+	end:rem a$=(next file?):goto 1013
+{number:1000}
+	rem copr. 1995-2014 pinacolada
+{:record_pointer}
+	gosub {:1002}:for d=1 to 50:next
+{:1002}
+	print# 15,"p{$02}"chr$(x and 255)chr$(x/256)"{$01}":return
+{:file.open}
+	open 2,dv,2,a$
+{include:check_io_status.lbl}
+{:1081}
+	a=x%:return
+{:1811}
+	close 2:close 15:end
+{uses:cursor_get.lbl}

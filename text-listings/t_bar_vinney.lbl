@@ -1,0 +1,261 @@
+{number:1}
+{alpha:invert}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	rem T.BAR.VINNEY
+' updates:
+' 7/Mar/2014 21:39
+'	2012/06/07
+'	2009/07/25
+' 	2006/09/20
+
+{def:standalone}
+{ifdef:standalone}
+	gosub {:setup} ' set up loan
+{endif}
+
+	goto {:start}
+	
+{:msg.since}
+	sys br,"[since] "+nl$:return
+
+{nice:100}
+{:start}
+' todo: change this to a "e.t.messages" text block:
+	print "Your vision is filled with a very large ";
+	print "man, with broad shoulders the size of a ";
+	print "good-sized draft horse. He's got the ";
+	print "biggest hands and bushiest eyebrows ";
+	print "you've ever seen. A plastic name tag ";
+	print "mentions his name is Vinney, and that ";
+	print "he's... available for children's ";
+	print "parties?":print
+	
+	gosub {:check.gender}:IF S THEN HN$="weasel":DL$="mac":goto {:29}
+	print "Vinney leers. "Q$"Heya, sweet thing."Q$:HN$="honey":DL$="doll"
+
+{:29}
+	print:print "He looks at you suspiciously through a cloud of cigar smoke..."
+{:check_loan}
+' x%: days left to pay loan
+' x : amount owed
+	x%=peek(v1+112):gosub {:get_2_bytes}(v1+113):if x+x%=. then {:245} ' days + amt =0
+{:35}
+' --- main loop ---
+	print:print Q$"Got my money, "HN$"?"Q$" he rasps. "Q$"You owe me ";
+	gosub {:msg.comma_value}(x,0):print " gold, payable ";:if x%=. then print "today":goto {:50}
+	print "in"x%"day";:if x%>1 then print "s";
+{:50}
+	print ". ";
+{:51}
+	print "Cough up da dough, "dl$"!"q$
+	gosub {:msg.expert_mode}("[A/C/G/P/R/S]")
+{:55}
+	an$="":print:print "[?=Menu, "K$"=Leave]: ";:sys si,1,2,an$
+' todo: add "g" option in dispatch
+' fixme: instring ml currently resides in same address as sliding input
+	on -(an$="a")-2*(an$="c")-3*(an$="p")-4*(an$="r")-5*(an$="")-6*(an$="?")-6*(an$=
+	"g") goto {:apply_loan}, {:clown_around}, {:200}, {:35}, {:400}, {:80}, {:get_gold}
+	print:gosub {:msg.disgust}
+	print:print Q$"Look, "HN$", knock it off. Just stick wit' da choices. We'll both be so much";
+	sys br,"[happier]"+nl$:print " that way, youse know what I mean...?"Q$:goto {:55}
+{:80}
+	print
+	print tab(7):sys br,"[A]pply for another loan"+r$+nl$
+	print tab(7):sys br,"[C]lown around"+r$+nl$
+	print tab(7):sys br,"[G]et stored money"+r$+nl$
+	print tab(7):sys br,"[P]ay off current loan"+r$+nl$
+	print tab(7):sys br,"[R]eview terms of agreement"+r$+nl$
+	print tab(7):sys br,"[S]tore money in bar"+r$+nl$
+	goto {:55}
+
+{:clown_around}
+	if dl$="mac" then {:clown_around.2}
+	print "Vinney comes out from behind his table, wiggling his eyebrows. "q$"I wouldn't mind ;"
+	print "clownin' around wit' youse, doll, but..."q$" He sighs and sits again. ";
+	print q$"Business before pleasure, as they say."q$
+	
+{:clown_around.2}
+' todo: don't say unca vinney never gave ya nuttin, kid. here.
+' todo: add balloon animal to inventory, if not full
+
+{:apply_loan}
+	print:gosub {:msg.disgust}
+	sys br,q$+"[Another]"+nl$:print " loan?"Q$" he growls. "Q$;
+' check outstanding loan amount:
+	gosub {:get_2_bytes}(V1+113):IF X>5000 THEN {:190}
+	print "Okay, ";:gosub {:msg.since}:print "youse borrowed less den 5,000 gold an' ";
+' what about the gangster-ish stereotype of "leave" instead of "let"?
+	gosub {:msg.since}:print "I'm such a nice guy, I'll let youse have dis extra gold. ";
+{:115}
+	print "But if youse fail ta pay..."Q$" His voice trails off as ";
+	print "he raises a ham-like fist menacingly.":Y=b2-X
+	print:print "["K$"=Cancel, 1-";:gosub {:msg.comma_value}(y,0):print "]";
+	an$="":input an$:if an$="" then gosub {:msg.offense}:goto {:55}
+	gosub {:string.normalize}(an$)
+{:145}
+	IF AN<1 OR AN>Y THEN print Q$"Nice try, "HN$"..."Q$:goto {:check_loan}
+	AN=AN+X:J=INT(AN/b2)+1:IF J>254 THEN J=254
+	print:print Q$;:POKE 212,.:print "Youse got"J"days ta pay off dis loan ";
+	print "atta average of"INT(AN/J)"gold a day, or else!"Q$:print
+	print "Vinney asks, "Q$"Can youse handle dis, ";:if dl$="mac" then print "you ";
+	print hn$"?"q$;:poke 212,.
+{:170}
+	gosub {:sub.yes_no}(1)
+'	gosub {:sub.cursor_get}:on-(AN$="y")-2*(AN$="n")goto {:180},{:175}:goto {:170}
+{:175}
+	if a=. then print "Vinney smirks. "Q$"Hah. Thought not."Q$:goto {:35}
+{:180}
+' add to debt
+	if a then rem fixme
+' add to gold in hand:
+' goSUB {:msg.gold}:GP(.)=GP(.)+AN:goto {:35}
+' todo: set length of loan
+
+{:190}
+	print "Heck no!":print "Youse got too much outstanding gold ta ";
+	print "suit me. Pay some of it back foist, ";:IF DL$="mac" THEN print "youse dirty ";
+	print HN$"!"Q$:goto {:55}
+{:200}
+	print:print "Vinney breaks into a smile. "Q$"Come ta ";
+	print "pay da ol' man back, have youse? Well, ";
+	print "as long as youse make yer payments on ";
+	print "time, we take good care of youse here."Q$:print
+ ' gp=gold in hand, ln=loan amt
+	gosub {:sub.get_gold}(1):gp=x:if gp=. then print q$"Yer broke, dummy!"Q$:goto {:55}
+	print "You have ";:gosub {:msg.comma_value}(gp,0):print " gold in hand."
+' todo: add transferring from bank account, other allies
+	gosub {:get_2_bytes}(v1+113):ln=x
+	print "Loan stands at ";:gosub {:msg.comma_value}(ln,0):print " gold."
+	print:print "["K$"=Leave, 'A'=All]"
+{:230}
+	an$="0":input "Pay how much";an$:gosub {:string.normalize}(an$):if an=0 then {:280}
+	if an$="a" then an=ln
+	if an>ln then print "Vinney shakes his head. "Q$"Look, uh..."q$" (disk read)":goto {:230}
+
+' fixme: (preferably through use of disk text block)
+' sign a contract and:
+
+' |--------+---------+---------+---------|
+' Vinnie stabs his finger down at the
+' paper you signed, growling menacingly,
+' his cigar twitching alarmingly. His
+' fingers flex and twist, looking like
+' they need some exercise...
+	
+' if you overpay the loan:
+	
+' He looks around stealthily and whispers,
+' "Look, uh... dis is just between youse &
+' me, but..." - his voice drops to a mere
+' murmur - "Youse don' hafta pay me all
+' dis."
+	
+' He shoves the remainder back at you with
+' a quick motion. "Dis is our secret, ok?"
+
+' subtract gold in hand, pay down loan:
+	if gp>=ln then:gosub {:put_3_bytes}(v2+21,gp-an):gosub {:put_2_bytes}(v1+113,ln-j)
+	print "intermediate case here"
+' check value of loan:
+	gosub {:get_2_bytes}(V1+113):print:if x then {:244}
+	print "[Loan is now paid in full.]"
+	print "Vinney looks startled. "Q$"Pleasure doing business with you, ";
+	gosub {:check.gender}:print mid$("ma'amsir",(s+1)*5-4,5)"."Q$
+' clear loan:
+	gosub {:put_3_bytes}(V1+112,0)
+' check gender...? fixme
+'	M=V1+64:B=1
+	goto {:check_loan}
+{:244}
+	gosub {:get_2_bytes}(V1+113):print "Paid. [Loan now at ";:gosub {:msg.comma_value}(x,0):print " gold.]":goto {:check_loan}
+
+{:245}
+	print:print Q$"Psst, wanna loan, "hn$"?"q$;
+	gosub {:sub.yes_no}(1):if a=. then {:400}
+	print Q$"Awright, youse can have dis gold, "hn$", wit' my blessing. ";:X=.:goto {:115}
+{:275}
+' borrow 65536-(current amount of loan)
+	x=b2-ln:print:print "["K$"=Cancel, 1-";:gosub {:msg.comma_value}(x,0):print "]: ";
+	an$=mid$(str$(x),2):sys si,5,6,an$
+{:280}
+	if an$="" then print:gosub {:msg.offense}:goto {:check_loan}
+{:290}
+	gosub {:string.normalize}(an$):if an<1 or an>b2 then print q$"Nice try, "hn$"..."q$:goto {:275}
+	j%=an/b1:if j>254 then j=254
+	print:print Q$"Youse got"J%/7"weeks ta pay this loan ";
+	print "atta average of"int(an/j%)"gold a day, or else!"Q$:print
+
+'	bm$=chr$(j)+right$("000000000"+an$,9):x=an
+'	gosub {:msg.gold}:gp(.)=gp(.)+x
+
+	REM --- store gold in bar ---
+{:400}
+	print:print Q$"Wanna store some of yer gold here, "DL$"?"Q$;:POKE 212,.
+' poke 212,0: turn off quote mode
+' fixme: finish this
+	a=1:gosub {:sub.cursor_get}:if an$="?" then print "Help!":print "Not done yet.":GOTO {:400}
+	gosub {:sub.yes_no.response}
+
+' {number:1910}
+' {:sub.yes_no}(a) ' gosub - default: 0=no, 1=yes
+' returns a=1: yes, a=0: no
+'	print "? (Y/N) >> ";
+' {:sub.yes_no.cursor}
+'	gosub {:sub.cursor_get}:sys is,"ny",an$:if i%=. then {:sub.yes_no.cursor}
+' {:sub.yes_no.response}
+' for just printing Yes. or No.
+'	a=abs(i%-1):if a=. then print "No.":return
+'	print "Yes.":return
+
+'	if a=. then print"No.":goto {:leave}
+	if a=. then {:leave}
+'	print "Yes."r$r$"Vinney looks at a piece of paper..."
+'	print:print "Vinney looks at a piece of paper..."
+
+{:425}
+	print:print "[";:gosub {:sub.display_gold}(1,0):print " gold. 'A'=All]"
+	an$="":input "Deposit how much";an$:IF AN$="a" THEN AN=x
+	if an$="" then print:print Q$"Okay, fine wit' me..."Q$" he shrugs.":goto {:leave}
+	gosub {:string.normalize}(an$)
+	if an<. or an>x then print:print Q$"Hey!"Q$" Vinney glares at you.":goto {:425}
+' add to total in bar:
+	gosub {:get_3_bytes}(v1+133):x=x+an:gosub {:put_3_bytes}(v1+133,x)
+	print "Deposited. [Total is now ";:gosub {:msg.comma_value}(x,0):print " gold.]"
+' todo: write to file!
+	goto {:490}
+{:leave}
+	print:if dl$="doll" then print "Vinney looks a bit sad to see you go."
+{:490}
+	goto {:link.bar}
+
+{nice:10}
+{:get_gold}
+	print "(:get{underline}gold): fixme":goto {:55}
+	
+{nice:100}
+' messages
+{:msg.disgust}
+	print "Predictably, Vinney looks disgusted.":RETURN
+
+{:msg.offense}
+	print "Vinney looks offended. "Q$"What? Was it sometin' I said?"Q$:RETURN
+
+{:msg.gold}
+	print "Vinney forks over the gold.":RETURN
+
+{ifdef:standalone}
+' setup
+{nice:100}
+	na$="PINACOLADA"
+	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+
+{:setup}
+' set days to 6
+	poke v1+112,6
+' set loan to 49,152 gold
+	gosub {:put_2_bytes}(v1+113,49152)
+'poke v1+113,6:poke v1+114,192:return
+{endif}
+
+{number:999}
+	rem t.bar.vinney

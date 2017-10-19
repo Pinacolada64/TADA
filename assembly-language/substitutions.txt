@@ -1,0 +1,77 @@
+See comments, below...
+
+I think I highlighted all my comments in red, but may have missed some.  You'll probably figure out what is what as you delve in.
+
+          *= $2000
+          ; subs.s - substitutions
+          ; thanks to agentfriday for fixes/suggestions
+          ; last updated 3/11/2011
+
+          ldx #$ff
+loop      inx
+          cpx buflen   
+          bcc getdata
+          jmp end
+ 
+getdata   lda buffer,x
+          cmp #"%"
+          beq cmdfound
+          jsr $ffd2
+          jmp loop
+ 
+cmdfound  ldy cmdtbllen
+          inx   ; move x past %  
+
+cmdload1  dey ; compare char found to   oops... no limit control. what if I passed "%0"?
+              ; table                       will go outside of cmdtbl bounds, possibly loop
+              ;                             forever if "0" not found by accident
+          cmp cmdtbl,y   ;  Here you need to compare to CMDTBL,y NOT var...
+          bne cmdload1
+
+;  Once you've matched to a char in cmdtbl, y will be the index into all tables.
+;  Don't need to do any further comparison on varhi or lo, just copy the two
+;  letters of the var name from varlo,y and varhi,y and store in correct 0-page
+;  location for call to BASIC ROM.  See code inserted below.
+
+cmdload2    lda  varlo, y
+            sta  var_to_lookup
+            lda  varhi, y
+            sta  var_to_lookup +1
+ 
+; !!! Code to fill in here...
+;xchrout  nop
+
+repl_out    jsr  VAR_FIND       ; First, find the var name just identified
+                                ; Var address is stored in $47/48
+; . . . .  to be completed later...
+
+	jsr $ab1e ; uses a/y to print string
+
+end      rts
+ 
+          ; $2d-$2e: variable storage
+          ; $2f-$30: array var ptr
+          ; $b08b: search for/create   !!! This is actually what you'd want to read var a$, in example sys from BASIC
+          ;    variable, which regs?
+ 
+cmdtbl   .text "nxepr"
+cmdtbllen *- cmdtbl         ; length      s/b cmdtblLEN = *-cmdtbl
+
+ 
+varhi    .byte "n"+$80 ;n$
+         .byte "x"+$80 ;x$
+         .byte "e"+$80 ;e$
+         .byte "p"+$80 ;p$
+         .byte "r"+$80 ;r$
+varlo    .byte $00,$00,$00,$00,$00
+ 
+buffer   .text "Hi, %n. How are you?"
+ 
+buflen   .byte *-buffer
+
+GET_VAR     = $B08B    ;read var name from BASIC text and look it up. Address returned in .A/.Y (creates if not found*)
+VAR_FIND    = $B0E7 ;in: $45/46 = coded variable name. Creates if not found*, returns addr (of var data) in $47/48 AND .A/.Y
+        ;     * !!unles low byte of return address=$2A, in which case returns blank value. Place
+        ;       alignment check in your code to be safe!
+var_to_lookup = $45     ; $45/46 is a var name, used as input param to VAR_FIND
+var_descr     = $47     ; After var found, $47 points to its descriptor

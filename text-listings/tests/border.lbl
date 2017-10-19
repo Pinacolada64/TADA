@@ -1,0 +1,9 @@
+{alpha:invert}
+{quoter:$dd="bar"} ' | symbol
+	poke 53280,12:poke 53281,12:l$=" {$c0:38}":q$=chr$(34)
+	print"{gray1}{clear} {176}"mid$(l$,2,36)"{174}"
+	print" {pipe}{rvrs on}"q$"Totally Awesome Dungeon Adventure"q$" {rvrs off}{pipe}"
+	print" {pipe}{rvrs on}     --- Player Editor v2.07 ---    {rvrs off}{pipe}"
+	print" {173}"mid$(l$,2,36)"{189}"
+	print
+	print l$

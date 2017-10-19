@@ -1,0 +1,33 @@
+{crunch:off}
+{number:1}
+	rem BY AGENTFRIDAY
+	gosub {:9000}
+	rem BOUNCING BALL
+	rem FV=FORWARD VELOCITY
+	rem UV=UPWARD VELOCITY
+	fv=2:uv=55:y1=1:g=-32.2:dc=.9
+	rem TRY FV=15:UV=45, ALSO FV=0.2
+	for j=0 to (ln*2-1)/fv
+	x=fv*j
+	y=y1+uv*t+.5*g*(t^2)
+	if y<y1 then y=y1:t=0:uv=uv*dc
+	gosub {:8000}:rem PLOT A POINT
+	t=t+.2
+	next
+	end
+{:8000}
+	rem PLOT X, Y
+	tx=int(x+ir):ty=int(y+ir):sq=am(tx and am,ty and am)
+	p=tx/dv-int(ty/dv)*ln:poke bs+p,c(i(peek(p+bs))or sq)
+	return
+{:9000}
+	rem SETUP
+	print "{clear}"chr$(142);
+	dim c(15),i(255),am(1,1)
+	for i=0 to 15:read c(i):i(c(i))=i:next
+	for i=0 to 1:for j=0 to 1:am(j,i)=(j+1)*4^i:next:next
+	ln=40:bs=1024+24*ln:dv=2:am=1:ir=.5
+	data 32,123,108,98,126,97,127,252
+	data 124,255,225,254,226,236,251,160
+	return
+	

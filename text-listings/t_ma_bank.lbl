@@ -1,0 +1,449 @@
+{number:1}
+
+{alpha:invert}
+
+{crunch:off}
+
+{def:standalone}
+{def:debug}
+{def:trace}
+{undef:rob}
+
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+
+' consider calling this code from t.cast for "deposit (bank)" spell...?
+' although all it needs is part of the deposit code, so that's overkill
+
+' todo: option to rob bank if thief, dip into random player's money - honor 
+'		penalty though
+
+' wish: timed simulation of standing in line, or displaying how many people 
+'		are ahead of you if there's someone else in the room :)
+
+' memory refresh: 'gb' apparently means 'gold in bank'
+
+' fixme: withdraw routine needs work
+
+	rem T.MA.BANK
+{ifdef:standalone}
+	poke 53280,12:poke 53281,12:print "{$08}{$0e}{gray3}{clear}";
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+	f$="modbasic c000 v2":gosub {:sub.bload}:sys 49152
+' variables cleared now
+	f$="ml c500":gosub {:sub.bload}
+
+{ifdef:trace}
+	f$="trace 033c":gosub {:sub.bload}
+	sys 828:print "trace installed"
+{endif}
+'	gosub {:file.open_cmd_channel}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+
+' main player character:
+	na$="LARI'EL":a$(0)=na$
+	print "Setting up player stats...";
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+	print" Done."
+
+{ifdef:debug}
+	print "Putting 5,000 gold in account.":gosub {:sub.adj_account}(5000)
+	print "Putting 1,000 gold in hand.":gosub {:sub.adj_gold}(1,1000)
+{endif}
+	goto {:start}
+
+{nice:5}
+{:sub.bload}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	return
+{endif}
+
+	goto {:start}
+
+{nice:5}
+{:sub.bank_gold} ' (print, justify)
+' get (and optionally display) gold in bank for main player character
+	fn p,j
+	gosub {:get_3_bytes}(v1+130):if p then:gosub {:msg.comma_value}(x,j)
+	return
+
+{nice:5}
+{:sub.adj_account} ' (p)
+' add a positive amount or subtract a negative amount from bank account
+' todo: should this subroutine call {:sub.check_gold}(char,price)?
+	fn p
+	gosub {:get_3_bytes}(v1+130)
+' this returns x, so if "fn x" was used above it would be overwritten
+
+' error-handling:
+	if p<0 then if x-p<0  then print "adj.account underflow:"x-p:return
+	if p>0 then if x+p>b3 then print "adj.account overflow:"x+p:return
+	gosub {:put_3_bytes}(v1+130,p+x):return
+
+{:sub.bank_teller}
+{nice:5}
+	print "The bank teller ";:return
+	
+{:sub.empty_account}
+{nice:5}
+	gosub {:sub.bank_teller}:print "looks and sees you have no money in your account.":return
+
+{:sub.empty_hand}
+{nice:5}
+	gosub {:sub.bank_teller}:print "notices you're not carrying any money.":return
+
+{nice:5}
+{:sub.error}
+' value is out of range or similar errors:
+	print:gosub {:sub.bank_teller}:print "suggests you check your typing and try again.":return
+
+{:sub.empty_purse}
+' this is the gold the main character is carrying:
+{nice:5}
+	print "Alas, you have no money in your purse.":return
+
+{:sub.not_enough}
+{nice:5}
+' not enough gold for a deposit or withdrawal of the requested amount:
+	print "Alas, you possess less than that.":return
+
+{:sub.leave_or_all}
+	sys br,"["+k$+"] Leave, [A]ll ("+nl$:return
+
+{nice:100}
+{:start}
+	print:print "[]=-=-=-[ Ye Olde Bank Of TADA ]-=-=-=[]"
+	print tab(6)"In Account: ";:gosub {:sub.bank_gold}(1,1):print " gold"
+	print tab(6)"In Hand   : ";:gosub {:sub.display_gold}(1,1):print " gold"
+	print
+' [R]ob, [D]eposit, [W]ithdraw, or [T]ransfer? _
+{ifdef:rob}
+' if main character is a thief:
+	gosub {:check.class}(1):if x=2 then print tab(15):sys br,"[R]ob, "r$+nl$
+{endif}
+' ----+---- (9)
+' Rob
+' Deposit
+' Withdraw
+' Transfer
+' Bank >>
+	print tab(15):sys br,"[D]eposit"+r$+nl$
+	print tab(15):sys br,"[W]ithdraw"+r$+nl$
+	print tab(15):sys br,"[T]ransfer"+r$+nl$
+	print
+' Return: Leave	
+' ---+---+---+- (40-16)/2=12
+	print tab(12)k$": Leave":print
+	print tab(7)"Bank >> ";
+{:613}
+' no i%+1 (0) case here; is caught later
+	gosub {:sub.cursor_get}:sys is,"dwt"+r$,an$:on i% goto {:620}, {:withdraw}, {:transfer}, {:leave}
+{ifdef:rob}
+	if an$="r" then:gosub {:check.class}(1):if x=2 then print "Rob.":goto {:rob}
+{endif}
+	goto {:613}
+	
+{:leave}
+	print "Leave.":print
+' todo: of course, it wouldn't be a nice day for you if you ROBBED the place...
+' there'd be guards, and maybe a dead ally or two
+	print "The bank manager nods and smiles at you pleasantly. "q$"Have a nice day, "a$(0)"!"q$
+	goto {:finish}
+
+{:620}
+	print "Deposit."
+{:621}
+' check if any gold first
+	gosub {:sub.check_gold}(1,p):if s=0 then gosub {:sub.empty_purse}:goto {:start}
+	print:print "Deposit how much gold into your account:"
+	gosub {:sub.leave_or_all}:gosub {:sub.display_gold}(1,0):print ")";
+	input an$:gosub {:string.normalize}(an$)
+	on -(an$="")-2*(an$="a")-3*(an<>.) goto {:leave_dep},{:deposit_all},{:deposit_some}
+
+{:leave_dep}
+	print:gosub {:sub.bank_teller}:print "smiles at you. "q$"Always a pleasure, "a$(.)"!"q$:goto {:finish}
+
+{:deposit_some}
+{ifdef:trace}
+	print"Trace started":sys 828+6 ' start tracing
+{endif}
+
+' check if sufficient requested funds:
+	gosub {:sub.check_gold}(1,an):if s=0 then gosub {:sub.not_enough}:goto {:deposit_cleanup}
+	print r$"DBG: In account: "x
+	x=an:goto {:deposit2}
+	
+{:deposit_all}
+' get full amount in hand:
+	gosub {:sub.get_gold}(1):if x=. then gosub {:sub.empty_hand}:goto {:start}
+
+{:deposit2}
+' add <p> to account:
+	p=x ' save value 'cause 'x' gets used a lot elsewhere
+	gosub {:sub.adj_account}(p)
+	print r$"DBG: Adjusted account:"x
+	
+' subtract <p> gold in hand:
+	gosub {:sub.adj_gold}(1,-p)
+	print r$"DBG: Adjusted gold in hand:"x
+	
+{:msg_deposited}
+' show how much in account:
+	print "Deposited ";:gosub {:msg.comma_value}(x,0):print " gold in to your account."
+
+{:deposit_cleanup}
+{ifdef:trace}
+	print"Trace stopped":sys 828+9 ' stop tracing
+{endif}
+	goto {:start}
+
+{:withdraw}
+	print "Withdraw."
+	
+{:withdraw_prompt}
+	print r$"Withdraw how much gold from your account?"
+	gosub {:sub.leave_or_all}:gosub {:sub.bank_gold}(1,0):print ")";
+	an$="":input an$:if an$<>"" then:gosub {:string.normalize}(an$)
+	on -(an$="") -2*(an$="a") -3*(an<>.) goto {:start}, {:withdraw_all}, {:withdraw_some}
+{:withdraw_error}
+	gosub {:sub.error}:goto {:withdraw_prompt}
+	
+{:withdraw_all}
+' get all gold (print=0, justify=0) from bank account
+	gosub {:sub.bank_gold}(0,0):if x=. then:gosub {:sub.empty_account}:goto {:withdraw_prompt}
+' copy amount 'x' to 'p' since following subroutines use 'x'
+	p=x:goto {:withdraw2}
+	
+{:withdraw_some}
+' copy amount from prompt (an) to 'p' since following subroutines use 'x'
+	p=an
+' 1) don't print, don't justify:
+' 2) check if chosen amount (p) exists in account (x):
+	gosub {:sub.bank_gold}(0,0):if p>x then:gosub {:sub.not_enough}:goto {:withdraw_prompt}
+	
+{:withdraw2}
+' subtract 'p' from bank account:
+	gosub {:sub.adj_account}(-p)
+{ifdef:debug}
+	print:print "DBG: Bank gold: ";:gosub {:sub.bank_gold}(1,0):print
+{endif}	
+
+' add 'p' to gold in hand
+' add to current total - add p
+{ifdef:debug}
+	print "DBG: gold before adj.gold:";:gosub {:sub.display_gold}(1,0):print	
+{endif}
+	gosub {:sub.adj_gold}(1,p)
+
+' display total:
+	print "You now have ";:gosub {:sub.display_gold}(1,0):print " in your account."
+
+{:withdraw_cleanup}
+	print r$"Withdrawn.":goto {:start}
+
+{:transfer}
+	print "Transfer."
+	print:print "Transfer gold between accounts:"
+	print
+{:transfer_menu}	
+	sys br,"["+k$+"]: Leave, [?]: Player list"+r$+nl$
+	an$="":input "Transfer gold to whom";an$
+	if an$="" then gosub {:msg.aborted}:goto {:start}
+' todo: finish this
+	if an$="?" then print:print "Status: 74:player listing not ready:00:00":print:goto {:transfer_menu}
+' look up player
+	sys br,"Checking for ["+an$+"]..."+r$+nl$
+	print:print "TODO: finish this":print
+' an will be player # in the player list
+
+{:transfer_value}
+' value to give
+	gosub {:sub.leave_or_all}:gosub {:sub.display_gold}(1,0):print
+	an$="":input "Transfer how much gold";an$
+	if an$="" then gosub {:msg.aborted}:goto {:start}
+	if an$="a" then gosub {:sub.get_gold}
+	gosub {:string.normalize}(an$)
+	
+{:654}
+	p=an:gosub {:sub.get_gold}(1):if p>x then gosub {:sub.not_enough}:goto {:transfer_menu}
+
+' todo:
+' look up player in player log...
+' an=player record #...
+
+{:transfer2}
+'todo...
+' * subtract money from account
+' * read in player data
+' * modify gold
+' * write back to disk
+
+' give money to yourself?
+	if an<>pn then {:transfer3}
+	print "Even if they say, "q$"charity begins at home"q$" -- Sorry, but no.":goto {:transfer_menu}
+
+{:transfer3}
+' todo: notify player
+' write page-mail
+	print "Notifying "an$"!"
+	goto {:start}
+
+{:rob}
+' todo: finish this
+	print "TODO: "q$"rob"q$" not finished yet.":goto {:start}
+	
+{:finish}
+{number:998}
+	gosub {:link.module}("shoppe","")
+	rem T.MA.BANK -- COPR. 1995-2017
+
+{ifdef:standalone}
+{number:1000}
+	rem IMAGE BBS SUBROUTINES:
+
+' 1001-1002:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+
+' 1012
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+' 1067
+{:link.module}
+	fn m$,l$	' module, label
+	def x$		' temporary log message
+{ifdef:debug}
+	x$="Module: "+m$:if m$<>"" then x$=x$+", Label: "+l$
+	gosub {:sub.log_error}("I",0,"(:link.module) "+x$)	
+{endif}
+	print "Fake news."
+
+{number:1811}
+{:1811}
+	close 2:close 15
+{ifdef:trace}
+	print "Trace stopped.":sys 828+9 ' uninstall trace
+{endif}
+	print "modBASIC stopped.":sys 49155:end
+
+{number:1880}
+{:sub.item_off_on}	' (message,value)
+	fn m$,v
+' show value <s> of bit <b> (Off: 0 / On: 1)
+'	gosub {:bit.test}(m,b):if s then ...
+' print ": Off/On" [sgn() returns -1 for negative, 0 for 0, +1 for positive):
+	print ": O"mid$("ffn",sgn(v)*2+1,2)
+	return
+
+' 1902:
+{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+
+{number:1920}
+{:msg.aborted}		' gosub - no params
+	print "(Aborted.)":return
+
+{number:2290}
+{:check.expert_mode}	' (print)
+	fn p
+' s+p (assumed "<>0" afterwards) is a quick way of saying "if s then if p then..."
+' the 1-s makes it so it passes the opposite value to the item_toggle
+' subroutine to report the correct status
+' returns s=1: on
+	gosub {:bit.test}(v1+64,4):if s+p then:gosub {:sub.item_off_on}("Expert Mode",s)
+	return
+
+' from t.main:
+{number:2595}
+{:check.class}		' (character 1-4)
+	fn c:x=peek(v2+184+c):return
+
+{number:2810}		' 2810
+{:bit.test}		' (mem_loc,bit)
+' test bit: RETURNs s=1 IF ON, s=0 IF NOT
+' (trying to be clever, above line would tokenize pretty nicely :)
+	fn m,b:s=abs((peek(m)and 2^b)=2^b):return
+
+{number:2820}
+{nice:5}		' 2820
+{:get_2_bytes}		' (mem_loc)
+	fn m:x=peek(m)*b1+peek(m+1):return
+
+{nice:5}		' 2825
+{:put_2_bytes}		' (mem_loc,value)
+' thanks fuzzyfox, for all the math
+	fn m,x:poke m,x/b1:poke m+1,x-int(x/b1)*b1:return
+
+{nice:5}		' 2830
+{:get_3_bytes} ' (mem_loc)
+	fn m:x=b2*peek(m)+(b1*peek(m+1))+peek(m+2):return
+
+{nice:5}		' 2835
+{:put_3_bytes}		' (mem_loc,value)
+	fn m,x:poke m,int(x/b2):poke m+1,int((x-int(x/b2)*b2)/b1)
+	poke m+2,int((x-int(x/b1)*b1)):return
+
+{nice:5}		' 2840
+{:msg.comma_value}	' (value,justify)
+	fn x,j:def x$,l,a,y	' function prototype, local vars
+' x : 1-999,999,999	number of item to display
+' j : 0/1		whether to right-justify comma-delimited value
+
+' 1 j=1:forq=1to9:x=val(left$("999999999",q)):gosub2837:print:next:end
+
+	x$=mid$(str$(x),2,9):l=len(x$):a=l:if j then print spc(9-l+abs(l<4)+abs(l<7));
+	if l<4 then print x$;:return
+{:msg.comma_value2}
+	a=a-3:if a>3 then {:msg.comma_value2}
+	print left$(x$,a);:for y=a+1 to l step 3:if a<>l then print ",";
+	print mid$(x$,y,3);:next:return
+
+{nice:5}		' 2850
+{:sub.get_gold} 	' (character 1-4)
+' horse has no gold unless carrying saddlebags
+' haven't figured out where in stats file gold could be stored then
+
+' call {:sub.get_gold} when character <c>'s gold in hand should be queried
+
+' starts at v2+21
+' use {sub.display_gold}(c) to show it
+	fn c:gosub {:get_3_bytes}(v2+18+c*3):return
+
+{nice:5}		' 2855
+{:sub.check_gold}	' (character 1-4,price)
+' have sufficient gold for a transaction?
+' returns:
+' s=1: yes, 0: no
+' x=amount of gold in hand
+' "if s" is an assumed "if s<>0"
+	fn c,p:gosub {:sub.get_gold}(c):s=abs(p<=x):return
+
+{nice:5}		' 2860
+{:sub.adj_gold}		' (character 1-4,price)
+	fn c,p
+	def x$
+' Adjust gold in hand by <p> gold if possible
+' To subtract, set <p> to a negative value
+	gosub {:sub.get_gold}(c)
+' error-handling:
+	if p<0 then if x-p<0  then:gosub {:sub.log_error}("W",fn cl(0),"(sub.adj{underline}gold) underflow:"+str$(p-x)):return
+	if p>0 then if x+p>b3 then:gosub {:sub.log_error}("W",fn cl(0),"(sub.adj{underline}gold) overflow:"+str$(p+x)):return
+' okay:
+	gosub {:put_3_bytes}(v2+18+c*3,x+p)
+	gosub {:check.expert_mode}(0):if s=. then return
+' print message about remaining gold (t.main uses more efficient x$ construct):
+	print "(";
+	if c<>1 then print a$(c-1);
+	if c= 1 then print "Thou";
+	print " hast ";:gosub {:sub.display_gold}(c,0):print " gold left.)":return
+
+{nice:10}		' 2870
+{:sub.display_gold}	' (character 1-4,justify)
+	fn c,j
+' show gold in hand for character c, j=1: right-justify, j=0: left-justify
+' does not print trailing carriage return
+	gosub {:sub.get_gold}(c):gosub {:msg.comma_value}(x,j):return
+
+{number:2920}
+{:string.normalize} ' ("string")
+	fn a$
+	an=int(abs(val(a$))):return
+{endif}

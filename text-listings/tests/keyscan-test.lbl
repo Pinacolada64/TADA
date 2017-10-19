@@ -1,0 +1,18 @@
+' ctrl-< and ctrl-> should move forward and backward by spaces in a string
+	an$="This is a string with spaces in it."
+' check for ctrl hit and ">" (44) hit
+{:start}
+	if peek(653)=4 and peek(203)=44 then print "ctrl->"
+' check for ctrl and "<" (47) hit
+	if peek(653)=4 and peek(203)=47 then print "ctrl-<"
+	goto {:start}
+	' space_fwd	iny
+	' 			lda (strptr),y
+	' 			cmp " "
+	' 			beq space_rts	; found a space
+	' 			cpy strlen		; end of string?
+	' 			bne space_fwd
+	' space_rts	iny				; put cursor after space
+	'			sty cpos		; update cursor position
+	'			rts
+	

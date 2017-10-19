@@ -1,0 +1,23 @@
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\blocks-free.lbl}
+
+{number:1079}
+{:sub.blocks_free} ' (device, pattern, print_output)
+' checks for blocks free
+' <device>=8-, <print_output>: 0=don't show dir, 1=show
+	fn dr,pa$,pr
+' bf=blocks free, ct=line count for pause routine
+	def bf,ct
+	pa$="$0:"+pa$:open 1,dv,0,pa$:gosub {:check.io_status}:if e then:gosub {:sub.log_error}("W",fn cl(0),"can't read dir "+q$+pa$+q$):goto {:sub.blocks_free3}
+' display abort msg, toss "starting address":
+	gosub {:msg.spacebar_aborts}:get#1,a$,a$
+{:sub.blocks_free2}
+' get dir entry:
+	sys ia,1,32,0,a$:bf=asc(mid$(a$,2,1)+nl$)*256+asc(left$(a$,1)+nl$):if pr then sys is,a$,q$:print str$(bf) tab(5)mid$(a$,i%)
+' check for abort keys:
+	gosub {:sub.check_abort}:if q then gosub {:msg.aborted}:goto {:sub.blocks_free3}
+	ct=ct+1:if ct/24=int(ct/24) then:gosub {:msg.more_prompt}:if q then {:sub.blocks_free2}
+' check for end of dir, i/o error:
+	sys is,a$,"blocks free.":if i%=. and st=. then {:sub.blocks_free2}
+'	bf(dr)=bf
+{:sub.blocks_free3}
+	close 1:return

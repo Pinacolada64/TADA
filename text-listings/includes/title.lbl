@@ -1,0 +1,28 @@
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\title.lbl}
+
+	' t$=module title (>22 characters)
+	' d$=build date/time
+	' ve=module version
+	'     ....|....|....|....|..
+{ifdef:modbasic}
+	fn t$,d$,ve ' title, date, version
+{endif}
+
+	' t$="Title Test"
+	' d$=" 2/24/2014 12:03 PM" ' 19
+	poke 53280,12:poke 53281,12
+	q$=chr$(34):l$=" {midline:38}":sp$="{space:20}" ' 20 spaces
+
+' line 1:
+	print"{gray1}{clear} {176}"mid$(l$,2,36)"{174}"
+' line 2:
+	print" {pipe}{rvrs on}"q$"Totally Awesome Dungeon Adventure"q$" {rvrs off}{pipe}"
+' line 3:
+	m$=m$+" v"+mid$(str$(ve),2):t=(30-len(t$))/2
+	print" {pipe}{rvrs on}"left$(sp$,t)"--- "t$" ---"left$(sp$,t)"{rvrs off}{pipe}"
+' line 4:
+	print" {pipe}{rvrs on}"left$(sp$,9)d$left$(sp$,8)"{rvrs off}{pipe}"
+' line 5:
+	print" {173}"mid$(l$,2,36)"{189}"
+' lines 6/7:
+	print:print l$

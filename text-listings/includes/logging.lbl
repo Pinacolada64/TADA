@@ -1,0 +1,64 @@
+' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\logging.lbl}
+
+{nice:5}
+{:sub.log_error} ' ("err_level",error_line,"message")
+	fn el$,el,m$
+	def x$ ' resultant full error text
+' added: Aug 14, 2011 20:01
+' modified: 15/Apr/2014 16:36
+' 6/23/2017: if error_line is 0, don't log error line # (not always important)
+
+' prototype:
+' "err_level" (suggested:) "e" => error  "w" => "warning"  "i" => "information"
+' "module" will usually = cm$ (current_module)
+' "message" can be whatever
+
+' todo: get date/time from server?
+' todo: make error trap routine call this
+
+' possible output:
+
+'  Date: 4/20/2014
+'  Time: 11:13 PM
+'  User: 
+'Module: 
+' Error: 
+'Line #: 
+
+' gosub {:sub.SendCSIP}("time"):
+' gosub {:sub.SendCSIP}("date")
+' x$=mid$("JanFebMarAprMayJunJulAugSepOctNovDec",?,x*3-2,3)
+
+	gosub {:file.append_or_write}("e.t.errorlog"):gosub {:sub.log_it}("An error occurred:")
+' [err_level] current_module, error_line: error
+' [err_level] current_module: error
+
+	x$="["+el$+"] "+cm$:if el then x$=x$+","+str$(el)
+	x$=x$+": "+m$:gosub {:sub.log_it}(x$):gosub {:sub.log_event.fancy_line}
+	close 2:return
+
+{nice:5}
+' in-game event logging
+{:sub.log_event.init} ' ("init_msg"
+	fn m$	' log initial_message
+	def f$	' log filename
+	f$="e.t.eventlog"
+	gosub {:file.append_or_write}(f$):if e then:gosub {:sub.log_error}("W",fn cl(0),"Can't open "+f$):goto {:sub.log_event.done}
+' todo: get CommodoreServer date/time:
+	gosub {:sub.log_event.fancy_line}:gosub {:sub.log_it}("dd/mm/yyyy hh:mm xM - "+m$):return
+
+' TODO: spur centered init_msg in header, like so...
+' []=-=-=-=-=-=-[ Thunder! ]-=-=-=-=-=-=[]
+
+' (it's okay to have 40 character lines; file_reader eliminates skipping a logical screen line)
+
+{:sub.log_event} ' ("message")
+	def m$
+	gosub {:sub.log_it}(m$):return
+{:sub.log_event.fancy_line}
+	gosub {:sub.log_it}("[]=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=[]"):return ' 39 chars
+{:sub.log_it} ' ("message") printed to screen, logged to open disk file
+	fn a$
+	print a$:print# 2,a$:return
+{:sub.log_event.done}
+	gosub {:sub.log_event.fancy_line}:close 2:return
