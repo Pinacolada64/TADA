@@ -2,7 +2,7 @@
  public auto.c
  public compile
 
- if un=1 print "spur.duel2-";:gosub comp.ck
+ if flag(32) print "spur.duel2-";:gosub comp.ck
 
  if i$="SPECIAL" gosub special:goto duel.return
  if i$="GROVEL" goto grovel
@@ -11,7 +11,7 @@
  if i$="hell2" goto hell2
  if i$="sendmail" goto sendmail
  i$="Bad value of i$ in spur.duel2.s ->"+i$
- print \i$:gosub add.lg:goto lnk.gm.s
+ print \i$:gosub add.log:goto lnk.gm.s
 
 duel
  on nocar goto dropped
@@ -23,7 +23,7 @@ challenge
 Adventurers in  current  room, followed by BAD HOMBRE  rating  (BHR). Note: BHR
 does NOT include weapon factors:'\
  print "[ "n1$" ] BHR = "hp+(xp*2)+((pe+pd+ps)/2)+((sh+ar)/4)
- dy$=dx$+"spur.users":open #1,dy$
+ dy$=dw$+"spur.users":open #1,dy$
  free:tg$=ta$:ch=0:gosub ply.locD
  if cl=1 then if tf$<>">:" tg$=tf$:gosub ply.locD
  close:wx$="":gosub clr.var:goto chlng2
@@ -93,7 +93,7 @@ chlng2
  if yz=0 then if xx$<>"0" print\"You can't duel unconcious people!":goto chlng2
  if instr("+",ww$) goto free.a
  if yz=0 then if (vv<1) or(vv>2) print \"You can not duel Civies!!":goto chlng2
- if yz=0 print \"'YOU SCONDREL! ATTACKING A POOR CIVILIAN!'"
+ if yz=0 print \'"YOU SCOUNDREL! ATTACKING A POOR CIVILIAN!"'
 free.a
  gosub mark:xx$=mid$(n2$,2):xy=0
  if yz=3 xy=zm-1
@@ -118,11 +118,13 @@ follow
  zs$=mid$(i$,2,1):if not instr(zs$,"CDE") vu=vu+1:if vu>5 vu=5
  z=z+1:i$=mid$(i$,a+4):if instr("=",i$) then if z<6 goto follow
 follow.a
+ print \xx$;
  zz=zz+vu:if zz<13 goto follow.b
- if vu>(xy+1) print \xx$" looks scornfull, and speaks;":print '
+ if vu>(xy+1) print ' looks scornful, and speaks:
+
 "Courage comes easily when one is followed by so many fellow bullies! Return
-when thou is ready to do battle in a fair manner, and I shall fight!"':goto follow.b
- print \xx$" says: 'I respectfully DECLINE your Challenge!'"
+when thou are ready to do battle in a fair manner, and I shall fight!"':goto follow.b
+ print ' says: "I respectfully DECLINE your challenge!"'
 follow.b
  if zz<8 gosub set.rvng
  vu=0:zs$="":xz$="":if zz>12 goto ck.rvng
@@ -132,7 +134,6 @@ auto.c
  gosub clr.var
  gosub opnt.wp:if hh gosub hndtohnd
  dy$=ds$+"spur.duel":link dy$,"auto.c"
-; ^ link ok
 ;
 opnt.wp
  print \xx$" PONDERS..";
@@ -142,7 +143,7 @@ opnt.wp
  position #1,64,yp
  input #1,c\i$:close
  if c=0 print \xx$" has no Weapons!":hh=1:return
- dy$=dx$+"weapons":open #1,dy$
+ dy$=dw$+"weapons":open #1,dy$
  yt=-10:for e=1 to c:print ".";
  y=(e*4)-3:a=val(mid$(i$,y))
  position #1,34,a,2
@@ -156,22 +157,22 @@ opnt.wp
  w4=w4*5/10:x=p2*7/10:w4=w4+x
  w3=(w3+p4)/2
  return
- 
+
 c.amulet
  gosub opnt.itm:w4=30:if instr("076",i$) w4=15:print"("xx$" has BOTH Amulets!)"
  gosub rnd.100z
  if z<w4 print \xx$" is zapped by the Death Amulet as it is readied!":w4=4:h=1:return
- w4=30:print \xx$"'S Death Amulet glows strangely.."
+ w4=30:print \xx$"'S Death Amulet glows strangely..."
  if instr("076",xi$) print \"Your Amulet of Life FLARES in defiance!":w4=10 :else print "(Too bad you don't have the Amulet of Life!)"
  return
 ;
 hndtohnd
- print \xx$' says: 
+ print \xx$' says:
 I fear you not, and would gladly do battle with you, but as you see, I have
 no weapons!'
  input @0\"Wilst Thou fight me hand to hand? "i$:if i$<>"Y" pop:goto lnk.gm.s
  wr$="FISTS":cw$="FISTS":xu$="FISTS":gosub set.hh:wd=p1:w4=p2:ws=p3:w3=p4
- vu=4:print "Neither has initiative in fisty-cuffs"
+ vu=4:print "Neither has initiative in fisticuffs"
  return
 ;
 set.hh
@@ -181,7 +182,7 @@ set.hh
  if p2>9 then a=p2-9:p2=9:p1=p1-a
  if p1<3 then p1=3
  if p2<3 then p2=3
- 
+
  p3=pw+pi:p3=p3/4
  p4=cw+ci:p4=p4/4
  if p3>9 then a=p3-9:p3=9:p4=p4-a
@@ -247,13 +248,17 @@ wr.stat
  input #1,cs,ct,ci,ce,cw,cd
  input #1,ye,ye,ye,ye,ye,yf,yg,yi,yj,yk,ym,yn
  input #1,p2$
+ gosub wr.stat2:dy$=dw$+"spur.users":open #1,dy$
+ gosub wr.stat2:goto sendmail
+
+wr.stat2
  position #1,130,yp
  print #1,n2$,ys,yp,yl,yr,yh
  print #1,cs,ct,ci,ce,cw,cd
  print #1,ya,yb,yc,yd,ye,yf,yg,yi,yj,yk,ym,yn
  print #1,p2$
- close
-
+ close:return
+;
 sendmail
  if instr("random",wx$) goto news
  if ys=0 ys=1
@@ -266,7 +271,7 @@ sndmail4
 sndmail5
  x=edit(3):edit(3)=40
  print "Enter comment now, 40 chr max:" \"....!....!....!....!....!....!....!....!"
- input @3 wx$:edit(3)=x
+ input @2 wx$:edit(3)=x
 sndmail3
  dy$=dm$+"mail":ready dy$:edit(0)
  if info(6)<29 wx$="":goto linkgame
@@ -274,7 +279,7 @@ sndmail3
  print #6," []=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=[]"
  if zv$="" print #6,  " ** RESULT FROM A CHALLENGE IN SPUR **"
  if zv$<>"" print #6, " * RESULT FROM YOUR AUTODUEL IN SPUR *"
- print #6,\" Date -> "date$" "left$(time$,8)\
+ print #6,\" Date -> "date$" "time$\
  if yx$<>"" print #6,"You were attacked in "ww$:print #6,"by "n1$", who then ran away!":goto sndmail2
  if ch then print #6,"You were defeated by "n1$:else print #6,"You were victorious over "n1$
  print #6,"in a Duel in "ww$
@@ -388,7 +393,8 @@ uncon
  if cl=5 xv$=te$
  if cl=6 xv$=th$
  if xv$="" return
- yy=instr(xx$,xv$):if not yy return
+ yy=instr(xx$,xv$)
+ if not yy i$="UNCON: "+xx$+" not found in "+xv$:goto add.log
  a$="ABBCCCDDEE":zz$=mid$(a$,yz+1,1)
  a$=mid$(xv$,yy):xv$=left$(xv$,yy-2)+zz$+a$
  n2$=zz$+xx$
@@ -484,20 +490,20 @@ fllw.msg
 ;
 linkflee
  zv$="":wr$="":zq=0:dy$=dz$+"spur.main":ready dr$:link dy$,"flee2"
-; ^ link ok
+;
 dropped
  i$="SPUR.DUEL2-A":dy$=ds$+"spur.logon":link dy$,"quit3"
-; ^ link ok
+;
 drop.1
  dy$=ds$+"spur.logon":link dy$,"quit3"
-; link ok
+;
 ; link back if no duel, or if dueling spur
 lnk.gm.s
  zv$="":dy$=dz$+"spur.main":link dy$
 ;
 duel.return
  dy$=ds$+"spur.duel":link dy$,"return"
-; ^ link ok
+;
 linkgame
  if info(0)+info(5)=0 i$="SPUR.DUEL2-B":goto drop.1
  if sx goto linkflee
@@ -505,14 +511,15 @@ linkgame
  dy$=dz$+"spur.main"
  ready dr$:if zv$="abortduel" then zv$="":link dy$
  zv$="":dy$=dz$+"spur.misc":i$="travel3":link dy$,"misc"
-; ^ link ok
-add.lg
+;
+add.log
 ;.. i$=log message
  open #2,"a:add.log":append #2
  print #2,"Spur.duel2[] "i$" @"time$:close #2:return
 ;
 compile
- if un=1 print \"Compiled":link "k:system.seg"
+ if a$="spur.compile" link "d:spur.compile","return"
+ if info(5) print \"Compiled":link "k:system.seg"
 comp.ck
  print " ok":return
 ;

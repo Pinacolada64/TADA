@@ -1,11 +1,12 @@
 ;spur.misc
+;Worked on with Appleworks
 ;
  public misc
  public compile
 
 misc
  on nocar goto dropped
- if un=1 print "spur.misc--";:gosub comp.ck
+ if flag(32) print "spur.misc--";:gosub comp.ck
  free
  if i$="thief" goto thief
  if i$="GIVE" vq=1 goto give
@@ -41,7 +42,7 @@ dropped
  i$="SPUR.MISC"
 dropped1
  dy$=ds$+"spur.logon":link dy$,"quit3"
-; ^ target ok
+;
 fre.ally
  if x=0 return
  dy$=dx$+"allies":open #1,dy$
@@ -65,8 +66,8 @@ thief
  if xw>1 zz$=rnd$:x=random(xw):if x=0 then x=xw
  if xw=1 x=1
  dy$=dx$+"weapons":open #1,dy$:gosub drp.wpn
- print "knocks  you down, and vanishes!! As you"
- print "gather your weapons, you see one missing!"
+ print "knocks  you down, and vanishes!!"
+ print "As you gather your weapons, you see one missing!"
  goto l.return
 ;
 take
@@ -138,11 +139,11 @@ drop.b
  if vq=1 then if a=73 print \"Your ally refuses to hold it!":goto drop.b
  if a=73 print \"(You feel more normal..)"
  l=len(xi$):y=(x*4)-3:gosub drp.itm:goto drop.b
- 
+
 drp.itm
  if vq=0 print \"Dropped...":else print \"Your ally now has it.."
 drp.itm2
- if vq=1 ai=ai+1:a$=right$("000"+str$(a),3)+",":ai$=ai$+a$
+ if vq=1 ai=ai+1:a$=right$("000"+str$(a),3)+",": ai$=ai$+a$
  xi=xi-1:if xi=0 then xi$="":goto drp.itm3
  if y=1 then xi$=mid$(xi$,5):goto drp.itm3
  if (y+4)>l then xi$=left$(xi$,y-1):goto drp.itm3
@@ -175,11 +176,11 @@ drop.wpn
  input #1,n$
  print right$("   "+str$(x),4)". - "mid$(n$,4)
  next:print
- 
+
  input @2\"Which weapon number? "a$:x=val(a$):if a$="" close:goto advent
  if (x<1) or (x>xw) print "You're NOT carrying that!!":close:goto advent
  print \"Weapon dropped...":gosub drp.wpn:goto advent
- 
+
 drp.wpn
  l=len(xw$)
  y=(x*4)-3:a=val(mid$(xw$,y))
@@ -197,7 +198,7 @@ rnd.10z
  a$=rnd$:z=random(999):z=z/100+1:return
 ;
 zu$
-;... input zw=position number, zw$=new value, 
+;... input zw=position number, zw$=new value,
 ;... zt=calling program:1=main, 2=sub, 3=misc(gosub), 4=misc3, 5=combat
  zu$="-"+zu$+"-"
  zx$=left$(zu$,zw):zy$=mid$(zu$,zw+2)
@@ -227,9 +228,7 @@ get.c
  if md=2 then if i$=m$ i$=i$+" TRACKS"
  print \"GETTING "i$".."
 get.b
- if i$=m$ then if mw print m$" WON'T LET YOU!":return
- if i$=m$ then if not instr("MEAT",fd$) then if md=1 print "THE "m$" IS TOO MESSED UP TO GET!":return
- if i$=m$ then if md=1 print "YOU HACK UP THE "m$" INTO "m$" STEAKS..":return
+ if i$=m$ goto get.mon
  if md=2 then if instr(m$,i$) print "YOU HEAR LAUGHTER AS YOU TRY TO GET THE "i$:return
  if instr("STATUE",i$) then if instr("#",wy$) print "THE STATUE IS MUCH TOO HEAVY!":return
  if (i$=it$) or (i$=fd$) then if instr("073",xi$) print "IT IS TURNED TO GOLD!":zz$="midas":if hp>5 print "(You feel drained..)":hp=hp-2:if pt>5 pt=pt-1
@@ -252,6 +251,13 @@ hp.5
  if hp>5 print "You take "hp-5" damage!":hp=5
  return
 ;
+get.mon
+ if mw print m$" WON'T LET YOU!":if instr("HORSE",m$) print "(Try using a lasso)"
+ if mw return
+ if not instr("MEAT",fd$) if md=1 print "THE "m$" IS TOO MESSED UP TO GET!" :return
+ if md=1 print "YOU HACK UP THE "m$" INTO "m$" STEAKS.."
+ return
+
 get.wpn
  if wt$="C" then d$=wp$:d=wv:goto cursed
  if pd<8 print "(Dexterity too low)"
@@ -265,7 +271,7 @@ excal.r
  position #1,34,wp
  print #1,"0"
  close:wp=0:wp$="":i$="it":goto gotit
- 
+
 excalibur
  if vk<1200 if pc=9 print \"A VOICE BOOMS, 'THOU ARE NOT WORTHY!'";
  if (pc<>9) or (vk<1200) print \"YOU CAN NOT PULL THE SWORD OUT!":close:return
@@ -297,11 +303,11 @@ get.itm
  if i=73 print \"You feel funny.."
  i$="it":if right$(it$,1)="S" i$="'em"
  print \"Got "i$"..":goto get.itm5
- 
+
 rose
  i$=rnd$:a=random(16)+12:if a<pd print \'
-Whew! You are dextrous enough to avoid
-the poisoned stickers!':a=80:goto get.itm4
+Whew! You are dextrous enough to avoid the poisoned stickers!':a=80:goto get.itm4
+ if gm=1 print \"GOD MODE protects you from the poison.":a=80:goto get.itm4
  print \"Akk! You prick your finger!":print \"Poison!!":if hp>5 hp=hp-5
  zw=3:zw$="1":zt=3:gosub zu$:a=80:goto get.itm4
 
@@ -320,7 +326,7 @@ get.itm5
  i=0:it$=""
  if xt<60 then xt=xt+1:xt$=xt$+a$:return
  xt$=mid$(xt$,5)+a$:return
- 
+
 get.fd
  if (instr("FOUNTAIN",fd$)) or (instr("POOL",fd$)) print \"You can only DRINK this.":return
  if zz$="midas" a=random(30)+10:iv=1:zz$="midas food":goto get.itm4
@@ -332,14 +338,15 @@ get.fd1
  fd=0:fd$=""
  if xo<20 then xo=xo+1:xo$=xo$+a$:goto gotit
  xo$=mid$(xo$,5)+a$
- 
+
 gotit
  print "Got "i$".."
  return
- 
+
 cursed
  if d=0 then d=10
  print \d$" is Cursed!":a=random(d):d=d-a:pi=pi-a:hp=hp-d
+ if hp<=0 if gm=1 hp=1: print "GOD MODE saves you from dying."
  if hp<=0 then pop:xn=sn:sn=0:z=3:i$="dead2":goto lnk.msc6
  print xv$"dumber..)":if pi<0 then pi=0
  print "(Try examining things first!)"
@@ -347,7 +354,7 @@ cursed
 ;
 get.plyr
  free:tg$=ta$:gosub ply.locD
- if cl=1 then if tf$<>">:" tg$=tf$:gosub ply.locD 
+ if cl=1 then if tf$<>">:" tg$=tf$:gosub ply.locD
  if zt$="*" print "'BACK OFF WEIRDO!'"
  wx$="":return
 
@@ -385,13 +392,13 @@ p.a3
  if m$<>"THE DWARF" goto p.a4
  g1=dh:g2=dl:gosub prt.gold
  print \"UPON KILLING "m$", YOU CLAIM HIS TREASURE OF "gd$" GOLD!"
- gosub add.gold:gh=gh+g1:df=0:dh=0:dl=500:m$="DWARF"
+ gosub add.gold:gh=gh+g1:df=0:dh=0:dl=500: m$="DWARF"
  goto advent
- 
+
 p.a4
- if m=70 print \"A SHADOW FLYS AWAY!"
+ if m=70 print \"A SHADOW FLIES AWAY!"
  i$="ES ":if right$(m$,1)="S" i$=" "
- if instr("<",wy$) print \m$" TWITCH"i$"STRANGLY!"
+ if instr("<",wy$) print \m$" TWITCH"i$"STRANGELY!"
  gosub set.pa
  a=pa:b=ma:gosub set.prob
  if x1=0 then x=5-p1:else x=(6-p1)/2
@@ -412,14 +419,15 @@ no.salvg
  if z>4 print \"The power pak on "m$" was destroyed..":goto no.robot
  print \"The power pak on "m$" is still energized!"\"Recharge your "wr$;
  input @2"? [Y]/n:"i$
- if i$<>"N" gosub delay.a:print \\"ZZZZTTT"\:gosub delay.a:vn=vl
+ if i$<>"N" gosub delay.a:print \\hl$"ZZZZTTT"of$\:gosub delay.a:vn=vl
 no.robot
  if m=120 a=17:gosub message
  gosub rec.ammo:i$="A SEARCH REVEALS A SECRET HOLE, "
  if instr("->",lo$) print \i$"EAST!":e=1
  if instr("<-",lo$) print \i$"WEST!":w=1
  if left$(m$,4)="THE " m$=mid$(m$,5)
- dy$=ds$+"spur.misc2":zn=m:if m=93 i$="wraith":link dy$
+ if val(left$(m$,1))>0 m$=mid$(m$,3)
+ dy$=dz$+"spur.misc2":zn=m:if m=93 i$="wraith":link dy$
  if not instr("@@",lo$) gosub rnd.10z:if z>5 link dy$,"servant"
  goto advent
 ;
@@ -451,7 +459,7 @@ travel3
  if (cr=1) and (cl=6) then dy$=ds$+"spur.ship":mf=0:cr=792:link dy$
  if ((cr=584) and (cl=6)) or (cr=1) then dy$=dz$+"spur.shop":mf=0:cr=0:link dy$
 no.shop
- if (cl=6) and (di=5) then mf=0:i$="WIN":dy$=ds$+"spur.misc7":link dy$
+ if (cl=6) and (di=5) then mf=0:i$="WIN":dy$=dz$+"spur.misc7":link dy$
  if di=5 cl=cl-1:cr=rt
  if di=6 cl=cl+1:cr=rt
 travel4
@@ -465,16 +473,26 @@ travel4
  goto l.m.misc
 ;
 drop.fd
- if info(5) print "xf$="xf$
+ if flag(32) print "xf$="xf$
  gosub pr.food:if xf=0 return
 drop.fd2
  input @2\"Drop which ration Item? "a$:if a$="" return
  x=val(a$):if (x<1) or (x>xf) print \"You don't have that item.":goto drop.fd2
- y=(x*4)-3:print \"Dropped"\
+ y=(x*4)-3:a$=mid$(xf$,y,3)
+ if flag(32) print "a$="a$
+ print \"Dropped"\
+ if a$="016" gosub d.sugar
  xf=xf-1:if xf=0 then xf$="":return
  l=len(xf$):if y=1 then xf$=mid$(xf$,5):return
  if (y+4)>l then xf$=left$(xf$,y-1):return
  xf$=left$(xf$,y-1)+mid$(xf$,y+4):return
+
+d.sugar
+ if not instr("GRASSY",ww$) print "Dropping here does no good":return
+ a$=rnd$:if random(100)>50 print "Hmpth.. nothing..":return
+ print hl$"A horse gallops up to gobble down the sugar!"of$
+ m=134:m$="THE HORSE":wy$="AC":ma=3:ms=10:zq=1:mw=1
+ return
 ;
 pr.food
  if xf=0 print \"No Rations."\:return
@@ -501,7 +519,8 @@ message
  return
 ;
 compile
- if un=1 print \"Compiled..":link "k:system.seg"
+ if a$="spur.compile" link "d:spur.compile","return"
+ if info(5) print \"Compiled..":link "k:system.seg"
 comp.ck
  print " ok..":return
 ;

@@ -2,47 +2,52 @@
 
  on nocar goto dropped
  public compile
- if info(5) print \"spur.guild--";:gosub comp.ck
+ if flag(32) print \"spur.guild--";:gosub comp.ck
 
- if yx$="*ANNEX*" print \"VISITOR ACCESS, DON'T GIVE OR TAKE ANYTHING!!"
+ if yx$="*ANNEX*" print \"VISITOR ACCESS, DONT GIVE OR TAKE ANYTHING!!"
 
  zm=0:yz=1
  if instr("\|/",ww$) xu$="Mark of the Claw":zy$="CLAW."
  if instr("-}--",ww$) xu$="Mark of the Sword":zy$="SWORD"
  if instr("=[]",ww$) xu$="Iron Fist":zy$="FIST."
- if (vv=6) or (vv=7) or (info(5)) then if instr("\|/",ww$) zm=1:yz=28
- if (vv=3) or (vv=4) or (info(5)) then if instr("-}--",ww$) zm=2:yz=27
- if (vv=8) or (vv=9) or (info(5)) then if instr("=[]",ww$) zm=3:yz=29
+ if (vv=6) or (vv=7) or (flag(32)) then if instr("\|/",ww$) zm=1:yz=6
+ if (vv=3) or (vv=4) or (flag(32)) then if instr("-}--",ww$) zm=2:yz=3
+ if (vv=8) or (vv=9) or (flag(32)) then if instr("=[]",ww$) zm=3:yz=13
  if (zm=0) print\"A gruff guard informs you that you  are not a member of the "xu$\"and politely throws you out..":goto advent
- if flag(yz)=0 then if not info(5) print \"A guard politely informs you that the Guildmaster has not yet given you"\"access. 'Sorry, try again later..'":goto advent
+ if flag(yz)=0 then if not flag(32) print \"A guard politely informs you that the Guildmaster has not yet given you"\"access. 'Sorry, try again later..'":goto advent
  if mw print \"The guards prevent "m$" from following you in.."
 
  setint(1):print \"Lurch the butler meets you at the door. 'Greetings "n1$"! Welcome"\"to The "xu$".' He hands you a warmed brandy and leads you inside."
  if pe<15 pe=pe+4:print "(Energy: +4)"
- if flag(25) print \"'Always honored to welcome the GM Of The "zy$"!'"
+ if flag(19) print \"'Always honored to welcome an Officer Of The "zy$"!'"
  setint(""):dy$=dx$+"guild":open #2,dy$
 
 menu.a
- gosub tim.chk:if (ev-ex)<120 print "Dusk approaches..."
+ gosub tim.chk:if (ev-ex)<120 print on$"Dusk approaches..."of$
  yz=ev-ex
  i$=str$(yz-((yz/60)*60)):i$=right$("00"+i$,2)
  zz$="["+str$(yz/60)+":"+i$+"] "+xu$
- print \zz$": C,F,I,B,V,W,Q,?";:input @2":"i$
+ print \zz$": C,F,I,B,V,W,M,";:if flag(19) print "K,";
+ input @2"Q,?:"i$
  if i$="C" goto chalk.bd
  if i$="F" goto food
  if i$="I" goto item
  if i$="B" print \"Lurch takes you to the treasury.":gosub read.gld:goto bank
  if i$="V" print \"Lurch shows you the Guild Log..":goto show.lg
  if i$="W" print \"You open up the weapon box.":goto weapon
+ if i$="M" gosub mem.list:goto menu.a
  if i$="Q" or i$="" goto advent
+ if i$="K" if flag(19) goto bann
  if i$<>"?" print\"Lurch snickers..":goto menu.a
  print \'
 C=Chalk board, where you may read/write a one line message.
 F=Food locker, where you may deposite or take food items.
 I=Item locker, where you may deposite or take items.
-B=Bank, where you may deposit or take gold.
+B=Bank, where you may deposite or take gold.
 V=View the Guild transaction log.
-W=Weapons box.'
+W=Weapons box.
+M=Members'
+ if flag(19) print "K=Kick out!"
  print "Q=Leave The "xu$
  goto menu.a
 
@@ -234,6 +239,7 @@ drp.a
  if a$="?" goto drp.b
  if (x<1) or (x>xi) print "You're NOT carrying that!!":goto drp.a
  y=(x*4)-3:a=val(mid$(xi$,y)):a$=right$("000"+str$(a),3)+","
+; ring worn
  if a=67 then if mid$(zu$,2,1)="1" print\"Can't, you are USEing it!":goto drp.a
  i$="067,073,074,076,097,080,082,096,097,122,123,124,131,132,"
  i$=i$+"133,134,135,138,140,142,143,144,145,"
@@ -267,7 +273,7 @@ food.a
 take.fd
  if (xf>(zo-1)) print \"No room left in your pack.":goto food.a
  position #2,256,zm,116:input #2,xv\xv$
- if xv<1 print \"'Alas, the pantry is empty!'":goto food.a
+ if xv<1 print \"'Alas, the pantry is emty!'":goto food.a
  dy$=dw$+"stores"
  open #1,dy$
 tk.fd.1
@@ -364,14 +370,14 @@ chalk.a
 ;
 show.lg
  f$=dx$+zy$+".LOG":gosub show.file
- if flag(25) input @2\"Clear log? y/[N]:"i$
+ if flag(19) input @2\"Clear log? y/[N]:"i$
  if i$="Y" gosub kill.lg
  goto menu.a
 ;
 add.lg
  if left$(zw$,1)="0" then if len(zw$)>1 zw$=mid$(zw$,2):goto add.lg
  dy$=dx$+zy$+".LOG":create dy$:open #1,dy$:append #1
- print #1, left$(date$,6)yr$" "left$(time$,8)
+ print #1, left$(date$,6)yr$" "time$
  print #1, n1$" "zx$" "zw$
  print #1,"[]=-=-=-=-=-=-=["zy$"]=-=-=-=-=-=-=[]":close #1:return
 ;
@@ -414,7 +420,7 @@ give.wep
 sel.wep
  input @2\"Which : "i$:if i$="" or i$="Q" close #1:goto menu.a
  x=val(i$)
- if (x<1) or (x>xw) print "You don't have that!":goto sel.wep
+ if (x<1) or (x>xw) print "You dont have that!":goto sel.wep
  y=(x*4)-3:x=val(mid$(xw$,y))
  vw=10:if vk<vw vw=vk
  if x=17 print "'I will not take that!!'":vk=vk-vw:goto sel.wep
@@ -433,12 +439,124 @@ wr.weap
  if vk<2000 vk=vk+5
  goto menu.a
 ;
+bann
+ position #2,256,zm,239:input #2,xx$
+ if len(xx$)<4 xx$=""
+ if un<>1 goto bann.1
+ print "Bann string: "xx$
+ input @2\"Edit? "i$:if i$<>"Y" goto bann.1
+ input @2\"Enter new string "i$
+ if len(i$)>16 print "Too long":goto bann
+ position #2,256,zm,239:print #2,i$:goto bann
+bann.1
+ input @2\"SPUR ID# of subject (?=list):"i$
+ if i$="?" gosub plr.list:goto bann.1
+ if (i$="") or (i$="Q") position #2,256,zm,239:print #2,xx$:goto menu.a
+ x=val(i$):if (x<2) or (x>np) print \"Bad entry":goto bann.1
+ dy$=dx$+"spur.users":open #1,dy$
+ position #1,130,x
+ input #1,a$,zz:close #1
+ zw$=left$(a$,1):a$=mid$(a$,2)
+ print \"Work with "a$;
+ input @2 " [Y]/n:"b$:if b$="N" goto bann.1
+ i$=right$("00"+str$(zz),3):a=instr(i$,xx$)
+ if a print \a$" is currently banned!":else print \a$" is not currently banned."
+ input @2\"Switch status? [Y]/n:"b$
+ if b$="N" goto bann.1
+ if a=0 if len(xx$)<13 xx$=xx$+i$+"*":goto bann.2
+ if a=0 print \"Only allowed to ban 4 at one time":goto bann.2
+ if a=1 xx$=mid$(xx$,5):goto bann.2
+ if a=len(xx$)-3 xx$=left$(xx$,a-1):goto bann.2
+ xx$=left$(xx$,a-1)+mid$(xx$,a+5)
+bann.2
+ print \"Done"
+ b$="UN-BANNED":if instr(i$,xx$) b$="BANNED"
+ i$="BAN: xx$="+xx$:gosub sys.log
+ if len(xx$)>16 print \"Bad ban variable! Cancelled.":xx$="":goto bann.1
+ dy$=dx$+"battle.log":open #1,"battle.log":append #1
+ print #1, left$(date$,6)yr$" "time$;" GUILD BAN"
+ print #1, a$" IS "b$" FROM THE "zy$"!"
+ print #1,"[]=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=[]":close #1
+ if instr(zw$,"6,7,D") a=1
+ if instr(zw$,"3,4,C") a=2
+ if instr(zw$,"8,9,E") a=3
+ if a<>zm goto bann.1
+ print \"Changing player record to Outlaw.."
+ dy$=dx$+"spur.users"
+ open #1,dy$:position #1,130,x
+ input #1,n2$,ys,yp,yl,yr,yh
+ input #1,cs,ct,ci,ce,cw,cd
+ input #1,ya,yb,yc,yd,ye,yf,yg,yi,yj,yk,ym,yn
+ input #1,p2$
+ n2$="1"+mid$(n2$,2)
+ position #1,130,x
+ print #1,n2$,ys,yp,yl,yr,yh
+ print #1,cs,ct,ci,ce,cw,cd
+ print #1,ya,yb,yc,yd,ye,yf,yg,yi,yj,yk,ym,yn
+ print #1,p2$
+ close #1:goto bann.1
+;
+plr.list
+ print \"List of players in Game"
+ input @2 \"Match letters or CR for all: "i$
+ x=1:dy$=dx$+"spur.users":a=1
+ open #1,dy$:gosub plrlist5
+ 
+plrlist1
+ position #1,130,x
+ input #1,n$,l1,b1,b2,b3,b4
+ setint(1)
+ if (not l1) goto plrlist4
+ if not instr(i$,n$) goto plrlist4
+ setint(1)
+ 
+plrlist2
+ n$=mid$(n$,2)
+ print right$("  "+str$(b1),3)"  ";
+ print left$(n$+"               ",14)
+ 
+plrlist4
+ x=x+1:if (x>np) or (key(1)) close #1:return
+ goto plrlist1
+
+plrlist5
+ print \\" #   Adventurer"
+ print "---  ---------------"
+ return
+;
+mem.list
+ position #2,256,zm,239:input #2,i$:close
+ if flag(32) print "Banned string: "i$
+ print \"Members of the "zy$":"\
+ x=1:dy$=dx$+"spur.users":open #1,dy$
+ open #2,"a:users":if mark(2) close #2:open #2,"k:users"
+list.1
+ position #1,130,x
+ input #1,xx$,zz
+ setint(1):if (not zz) goto list.2
+ zw$=left$(xx$,1):a=0
+ if instr(zw$,"6,7,D") a=1
+ if instr(zw$,"3,4,C") a=2
+ if instr(zw$,"8,9,E") a=3
+ if a<>zm if not instr(str$(zz),i$) goto list.2
+ position #2,64,zz:input #2,a$,b$
+ xx$=mid$(xx$,2):zz$=right$("  "+str$(x),3)
+ zz$=zz$+"-"+left$(xx$+"            ",15)
+ zz$=zz$+"Sys ID #"+str$(zz)
+ zz$=zz$+"-"+a$
+ if instr(str$(zz),i$) zz$=zz$+" - BANNED!"
+ print zz$
+list.2
+ x=x+1:if (x>np) or (key(1)) close:dy$=dx$+"guild":open #2,dy$:return
+ goto list.1
+;
 sys.log
 ;.. i$=log message
  open #1,"a:add.log":append #1
  print #1,"Spur.guild] "i$" @"time$:close #1:return
 ;
 compile
+ if a$="spur.compile" link "d:spur.compile","return"
  if info(5) print \"Compiled..":link "k:system.seg"
 comp.ck
  print "ok":return

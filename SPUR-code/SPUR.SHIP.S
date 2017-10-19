@@ -1,18 +1,19 @@
 ;
 ;     Spur.Shop
+;     MODIFIED WITH APPLEWORKS
 
  public main1
  public return
  public compile
 
 main
- if un=1 print "spur.shop--";:gosub comp.chk
+ if flag(32) print "spur.shop--";:gosub comp.chk
  cl=6:gosub set.pa
  print \"Entering the ships stores area.."\
- 
+
 main1
  on nocar goto dropped
- free:gosub tim.chk:if (ev-ex)<120 print \"Dusk approaches..."
+ free:gosub tim.chk:if (ev-ex)<120 print \on$"Dusk approaches..."of$
  yz=ev-ex
  i$=str$(yz-((yz/60)*60)):i$=right$("00"+i$,2)
  zz$="["+str$(yz/60)+":"+i$+"]"
@@ -36,7 +37,7 @@ main1
  if i$="SALVAGE" goto salvage
  if i$="SCHOOL" print \"(Inactive here)":goto main1
  if left$(i$,2)="TR" goto elevator
- if (i$="}") and ((info(5)) or (un=dm)) then dy$=ds$+"spur.sysop":link dy$
+ if i$="}" if info(5) dy$=ds$+"spur.sysop":link dy$
  if instr(" ",i$) print \"There was a space in your command":goto main1
  print \"Huh?":goto main1
 ;
@@ -46,11 +47,10 @@ plr.list
 plr.sub
  print \"List of players in Game"
  input @2 \"Match letters or CR for all: "i$
- x=1:dy$=dx$+"spur.users"
- a=1:dr$=dx$+"room.level"+str$(a):ready dr$
- open #1,dy$
+ x=1:dy$=dw$+"spur.users"
+ a=1:open #1,dy$
  gosub plrlist5
- 
+
 plrlist1
  position #1,130,x
  input #1,n$,l1,b1,b2,b3,b4
@@ -59,35 +59,27 @@ plrlist1
  setint(1)
  if (not l1) goto plrlist4
  if not instr(i$,n$) goto plrlist4
- if x=pn then b2=cl:lo$="Shoppe":m=mm:f2=mk:b4=hp:f1=ep:n1=ps:n2=pt:n3=pi :n4=pe:n5=pw:n6=pd:g1=gh:g2=gl:goto plrlist2
- if b3=0 then lo$="Shoppe":goto plrlist2
- if a<>b2 then dr$=dx$+"room.level"+str$(b2):ready dr$:a=b2
- input #msg(b3),lo$,f
+ if x=pn then b2=cl:lo$="Shoppe":m=mm:f2=mk:b4=hp :f1=ep:n1=ps:n2=pt:n3=pi:n4=pe:n5=pw :n6=pd:g1=gh:g2=gl:goto plrlist2
  setint(1)
- 
+
 plrlist2
  zw$=left$(n$,1):yz=val(zw$):zr=instr(zw$,"ABBCCCDDE"):if zr then yz=zr-1
- zw$=": Civy"
- if (yz=1) or (yz=2) zw$="-OUTLAW"
+ zw$=" Civy"
+ if (yz=1) or (yz=2) zw$=" OUTLAW"
  if (yz=3) or (yz=4) zw$=" -}----"
- if (yz=6) or (yz=7) zw$=": \|/"
- if (yz=8) or (yz=9) zw$=": ==[]"
+ if (yz=6) or (yz=7) zw$=" \|/"
+ if (yz=8) or (yz=9) zw$=" ==[]"
  n$=mid$(n$,2)
  gosub prt.gold
- print right$("  "+str$(b1),3)"  ";
- print left$(n$+"               ",14)"  ";
- print "$"gd$"   ";
- vy=instr("|",lo$)
- if vy then if not instr("\|/",lo$) then lo$=left$(lo$,vy-1)
- print right$("  "+str$(b2),3)"-"lo$;zw$
- 
+ print right$("  "+str$(b1),3)"  "left$(n$+" ",14)"  ";zw$
+
 plrlist4
  x=x+1:if (x>np) or (key(1)) close:return
  goto plrlist1
 
 plrlist5
- print \\" #   Adventurer       Gold/Hand   Dungeon Level/Room"
- print "---  ---------------  ----------  ----------------------------"
+ print \\" #   Adventurer"
+ print "---  ---------------"
  return
 ;
 armory
@@ -138,7 +130,7 @@ try.wep
  print \"You try out the "w$
  print \"Weapon class: ";
  if wa=2 print "Hack/Slash/Bash.":print "Best Targets: SWIFT, Small, Short";
- if wa=3 print "Poke/Jab.":print "Best Targets: HUGE, SWIFT,"; 
+ if wa=3 print "Poke/Jab.":print "Best Targets: HUGE, SWIFT,";
  if wa=5 print "Pole/Ranged.":print "Best Targets: MAN SIZED, Big, Short";
  if wa=8 print "Projectile (+10% surprise).":print "Best Targets: HUGE, Large";
  if wa=9 print "Proximity.":print "Best Targets: Anybody..";
@@ -153,7 +145,7 @@ try.wep
  print \"You hand the "w$" back to the robot..":return
 ;
 special
- i$="SPECIAL2":dy$=ds$+"spur.weapon":link dy$
+ i$="SPECIAL2":dy$=dz$+"spur.weapon":link dy$
 ;
 wep.list
  print \"The weapons here are:"
@@ -163,13 +155,13 @@ w.list2
  input #1,cb$\w$\s,d,v
  setint(1)
  w$=mid$(w$,4)
- print right$("  "+str$(x),2)". "left$(w$+"               ",15)"- "right$("    "+str$(v),4)" Gold"
+ print right$("  "+str$(x),2)". "left$(w$+" ",15)"- "right$(" "+str$(v),4)" Gold"
  b=b+1
 w.list3
  x=x+1:if (b=nw) or (x>wc) return
  if (key(1)) return
  goto w.list2
- 
+
 wp.exit
  close:goto armory
 ;
@@ -177,23 +169,25 @@ protect
  print \"You go to the armor rack.."
 
  dy$=dw$+"items":open #1,dy$
- x=113
+pro0
+ x=112
 pro1
  position #1,30,x:input #1,cb$:if cb$="*" goto pro1a
- input #1,it$\it:it=it*100:it$=left$(mid$(it$,3)+"                   ",20)
- print right$("   "+str$(x),3)". "it$" - "right$("     "+str$(it),5)" Gold"
+ input #1,it$\it:it=it*100:it$=left$(mid$(it$,3)+" ",20)
+ print right$("   "+str$(x),3)". "it$" - "right$(" "+str$(it),5)" Gold"
 pro1a
- x=x+1:if x>116 goto pro2
+ x=x+1:if x>117 goto pro2
  goto pro1
 pro2
  if xi>zo-1 print \"You have no room in your pack!":close:goto armory
  input @2\"Your Choice (?=List): "i$:if i$="" or i$="Q" close:goto armory
- if i$="?" then x=1:print:goto pro1
- x=val(i$):if (x<113) or (x>116) print \"Enter from 113 to 116 or Q":goto pro2
+ if i$="?" print \:goto pro0
+ x=val(i$):if (x<112) or (x>117) print \"Enter from 112 to 117 or Q":goto pro2
  position #1,30,x:input #1,cb$:if cb$="*" goto pro2
  input #1,it$\it:it=it*100
  g3=gh:g4=gl:g1=0:g2=it:gosub chk.gold:if a=0 print \"You do not have enough gold.":goto pro2
  a$=mid$(it$,3)
+ if x>112 if x<117 print "(Uses power paks for energy)"
  print \"You choose "a$" for "it" gold? ";:input @0 i$
  if i$<>"Y" goto pro2
  xa$=right$("000"+str$(x),3)+","
@@ -209,7 +203,7 @@ gen1
  position #1,26,x:input #1,cb$:if cb$="*" goto gen1a
  input #1,gs$\gs:setint(1)
  gs$=mid$(gs$,3)
- print right$("   "+str$(x),3)". "left$(gs$+"                    ",18)" - "right$("     "+str$(gs),5)" Gold"
+ print right$("   "+str$(x),3)". "left$(gs$+" ",18)" - "right$(" "+str$(gs),5)" Gold"
 gen1a
  x=x+1:if (x>75) or (key(1)) goto gen2
  goto gen1
@@ -273,52 +267,52 @@ show.file
 add.gold
  gl=gl+g2:if gl=>10000 then gl=gl-10000:gh=gh+1
  return
- 
+
 sub.gold
  if g2>gl then gl=gl+10000:gh=gh-1
  gl=gl-g2:return
- 
+
 put.gold
  bh=bh+g1
  bl=bl+g2:if bl=>10000 then bl=bl-10000:bh=bh+1
  if g2>gl then gl=gl+10000:gh=gh-1
  gh=gh-g1:gl=gl-g2
  return
- 
+
 tak.gold
  if g2>bl then bl=bl+10000:bh=bh-1
  bh=bh-g1:bl=bl-g2
  gh=gh+g1
  gl=gl+g2:if gl=>10000 then gl=gl-10000:gh=gh+1
  return
- 
+
 prt.gold
  a$=str$(g1):gd$="0000":if g1=0 then gd$="    ":a$=" "
  gd$=right$("    "+a$,5)+right$(gd$+str$(g2),4)
  return
- 
+
 spl.gold
  gd$=right$("00000000"+gd$,9)
  g1=val(left$(gd$,5)):g2=val(right$(gd$,4))
  if g1<0 g1=0:g2=0:gd$="":print \"Number too lage!"
  return
- 
+
 chk.gold
  a=0
  if g3>g1 then a=1:return
  if (g3=g1) and (g4=>g2) then a=1:return
  return
- 
+
 val.gold
  l=len(gd$)
  for i=1 to l:a=instr(mid$(gd$,i,1),"0123456789")
  if (not a) then i=l:next:return
  next:return
- 
+
 set.pa
  pa=ps+pd+pt+pi+pw+pe:pa=pa mod 10
  return
- 
+
 tim.chk
  ex=clock(1)-ew:if ex=>ev pop:goto quit1
  return
@@ -376,18 +370,18 @@ clan
 elevator
  dy$=dx$+"elevator":open #1,dy$
  position #1,pn,10:input #1,xu$:close
- if un=1 print \"xu$='"xu$"'; pn="pn
+ if flag(32) print \"xu$='"xu$"'; pn="pn
 elev.1
- if un=1 input "Test malfunction Y/N:" i$:if i$="Y" goto malfunction
+ if flag(32) input "Test malfunction Y/N:" i$:if i$="Y" goto malfunction
  input @2\"TRANSPORTER ROOM: Coordinates ->"i$
  if i$="" or i$="Q" goto main1
  if i$<>xu$ print \"Wrong!":goto elev.1
  input @2\"LEVEL: [1] [2] [3] [4] [5]->"i$
  a=val(i$):if (a<1) or (a>5) print \"It don't go there!":goto main1
  print "Standby to beam down!":cl=a
- zz$=rnd$:xz=random(100):if instr("TR+",ys$) xz=xz-20
+ zz$=rnd$:xz=random(100):if instr("*TR",ys$) xz=xz-30
  if xz<10 goto malfunction
- if len(ys$)<220 then if not instr("TR+",ys$) then ys$=ys$+"TR+"
+ if len(ys$)<240 if not instr("*TR",ys$) then ys$=ys$+"*TR"
  for x=1 to 8:print ".":gosub delay:next:print \
  dy$=dz$+"spur.shop":link dy$
 ;
@@ -403,7 +397,7 @@ ammo1
  position #1,30,x:input #1,cb$:if cb$="*" goto ammo1a
  input #1,it$\it:it=it*10
  zm=instr("|",it$):if zm=0 goto ammo1a
- zw$=mid$(it$,zm+1,2):zx$=mid$(it$,zm+3,1):zy$=mid$(it$,zm+4)
+  zw$=mid$(it$,zm+1,2):zx$=mid$(it$,zm+3,1):zy$=mid$(it$,zm+4)
  if left$(zy$,4)="LIGH" zy$="LIGHT SABRE"
  if left$(zy$,4)="PHAS" zy$="HAND PHASER"
  if left$(zy$,4)="PLAS" zy$="PLASMA RIFLE"
@@ -438,18 +432,13 @@ return
  return
 ;
 malfunction
- gosub delay:print \"A STRANGE BUZZING COMES FROM THE TRANSPORTER!!"
- gosub delay:print \"A RED LIGHT STARTS FLASHING URGENTLY!"\
- for xz=1 to 5:gosub delay:print "[] ALARM []"\:next
- i$="[] MALFUNCTION []"
- xz=info(2):if xz=0 xz=2
- if xz>1 xz=100
- for yz=1 to 4
- for yx=1 to len(i$):print mid$(i$,yx,1);:for yy=1 to xz:next:next
- for yx=1 to len(i$):print chr$(8)" "chr$(8);:for yy=1 to xz:next:next
- next:for yz=1 to 8:gosub delay:zz$=rnd$:yx=random(10)+1:for yy=1 to yx
- print " ";:next:print ".":next
- print:zz$=rnd$:cl=random(6)+1:if cl>6 cl=6
+ gosub delay
+ print \"A STRANGE BUZZING COMES FROM THE TRANSPORTER!!"
+ gosub delay
+ print \"A RED LIGHT STARTS FLASHING URGENTLY!"\
+ gosub delay
+ i$="malfunction":gosub pulse:print \
+ zz$=rnd$:cl=random(6)+1:if cl>6 cl=6
  dy$=dx$+"battle.log":create dy$:open #1,dy$:append #1
  print #1, left$(date$,6)yr$" "time$": HARR HARR"
  print #1, "THE TRANSPORTER MALFUNCTIONED!"
@@ -477,7 +466,7 @@ sal.1
  print right$("   "+str$(x),3)". - "mid$(n$,3)
  if key(1) x=xi
  next:print:close
- 
+
  input @2\"Sell which item number? "a$:x=val(a$):if a$="" goto sal.1
  if (x<1) or (x>xi) print "You're NOT carrying that!!":goto sal.1
  l=len(xi$):y=(x*4)-3:a=val(mid$(xi$,y))
@@ -499,14 +488,28 @@ drp.itm2
  xi$=left$(xi$,y-1)+mid$(xi$,y+4)
  goto sal.1
 ;
+pulse
+ b=500:if hl$="" b=800
+ for y=1 to 4
+ for x=1 to len(i$)
+ if y=1 if info(0) print #4,chr$(7);
+ print hl$;chr$(asc(mid$(i$,x,1))-32);of$;
+ for a=1 to b:next
+ print chr$(8);mid$(i$,x,1);
+ next
+ if y<4 print chr$(8,len(i$));
+ next
+ return
+;
 delay
- for a=1 to 3000:next:return
+ for a=1 to 9000:next:return
 ;
 lnk.msc
  dy$=dz$+"spur.misc":link dy$
 ;
 compile
- if un=1 print "ok..":link "k:system.seg"
+ if a$="spur.compile" link "d:spur.compile","return"
+ if info(5) print "ok..":link "k:system.seg"
 ;
 comp.chk
  print \" ok":return

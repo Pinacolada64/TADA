@@ -1,9 +1,10 @@
 ;.... spur.misc4.s
+;.... modified with Appleworks
 
  on nocar goto dropped
  public compile
 ;
- if un=1 print "spur.misc4--";:gosub comp.ck
+ if flag(32) print "spur.misc4--";:gosub comp.ck
  cs$=""
  if i$="MON.CST" goto mon.cst
  if i$="rd.dwarf" gosub rd.mons:goto mon.ret
@@ -33,7 +34,7 @@ destroy
  gosub rnd.10z:z=(z/2)+1:z=z+4
  if instr("++",wy$) z=z+2
  if instr("dest",zs$) zs$=zs$+"dest2":else zs$=zs$+"dest"
- print \"ZAP! You take "z" hits!":hp=hp-z
+ if gm=0 print \"ZAP! You take "z" hits!":hp=hp-z:else print "GOD MODE- NO DAMAGE"
  if hp<1 hp=0:pop:print\"opps..":xn=sn:sn=0:z=14:i$="dead2":goto lnk.msc6
  pop:goto c.return
 ;
@@ -42,6 +43,7 @@ teleport
  pop:pop:mf=0:mw=0:m$="":wy$="":dy$=dz$+"spur.main":link dy$,"flee2"
 ;
 ;
+rd.mons
  vy=0:vz=0:zq=0:zs=0:md=0:mf=0:mw=0
  dy$=dw$+"monsters"
  open #1,dy$
@@ -53,6 +55,8 @@ teleport
  yy=instr("|",m$):if yy wy$=mid$(m$,yy)+"  ":m$=left$(m$,yy-1)
  if right$(m$,1)=" " m$=left$(m$,yy-2)
  if m=70 gosub wraith:if vw return
+;.. mod djinn name when fighting for Vinney (used in flee) xv$ set in djinn
+ if m=74 if xv$="VINNEY" m$="BLUE-DJINN"
 claw
  if xp>1 then ms=((xp+1)*ms)/2
  if instr(".",wy$) ms=ms+10
@@ -61,7 +65,8 @@ claw
  ms=ms+((cl-1)*3)
  zx$=left$(m$,1):yy=val(zx$):if yy>0 m$=mid$(m$,2)
  zw$="THE "+m$:i$="S ":if right$(zw$,1)="S" i$=" "
- if (zw$=d1$) or (zw$=d2$) or (zw$=d3$) then ms=0:print \zw$" LOOK"i$"AROUND NOSTALGICALLY..":return
+ lc$=d1$+"|"+d2$+"|"+d3$+"|"
+ if instr(m$+"|",lc$) ms=0:print \zw$" LOOK"i$"AROUND NOSTALGICALLY..":return
  zw$=" HUGELARGE  BIG  MANSHORTSMALLSWIFT"
  z=(ma-2)*5+1:zy$=mid$(zw$,z,5)
  if left$(zy$,1)=" " zy$=mid$(zy$,2):if left$(zy$,1)=" " zy$=mid$(zy$,2)
@@ -122,15 +127,17 @@ not.evil
  if vk>1100 z=z+((vk-1000)/20)
  if vk<900  z=z-((1000-vk)/20)
 not.good
+ if instr("F",wy$) z=z+20
  zx$=rnd$:zx$="IS":if right$(m$,1)="S" zx$="ARE"
  if random(200)+10<z then if not instr(".",wy$) zq=1:zx$="(WHO "+zx$+" QUITE CHARMED..)"
  if pr=9 then if instr("DRAGON",m$) zq=1:zx$="(Dragons are great fans of Half-Elfs..)"
- if instr("AC",wy$) zq=1
+ if instr("F",wy$) zx$="WHO BATS HER LARGE EYES AT YOU, AND SMILES.."
+ if instr("AC",wy$) zq=1:zx$=""
 rd.mon2
  gosub mon.set
- if zq=0 then if zs=0 gosub tactical
+ if zq=0 if zs=0 gosub tactical
  if (not sw) then sw$="":return
- dy$=dx$+"weapons"
+ dy$=dw$+"weapons"
  open #1,dy$
  position #1,34,sw
  input #1,cb$\sw$
@@ -141,31 +148,30 @@ tactical
  a$=right$("000"+str$(m),3):if instr(a$,xm$) return
  zt=0:i$="1111122333":gosub rnd.10z
  zx$=mid$(i$,z,1):vy=val(zx$):if vy=0 vy=1
- if vy=1 then if a1 print \d1$" SHOUTS 'TO THE FRONT!'":zt=a1:i$=d1$:x=h1
- if vy=2 then if a2 print \d2$" SHOUTS 'ON THE FLANK!'":zt=a2:i$=d2$:x=h2
- if vy=3 then if a3 print \d3$" SHOUTS 'TO THE REAR!'":zt=a3:i$=d3$:x=h3
+ if vy=1 zt$="TO THE FRONT":if a1 lu$=d1$:gosub cln.ally:zt=a1:i$=d1$:x=h1
+ if vy=2 zt$="ON THE FLANK":if a2 lu$=d2$:gosub cln.ally:zt=a2:i$=d2$:x=h2
+ if vy=3 zt$="TO THE REAR" :if a3 lu$=d3$:gosub cln.ally:zt=a3:i$=d3$:x=h3
+ if zt if not instr(">",i$) print \lu$" SHOUTS, '"zt$"!'"
+ if zt if instr(">",i$) print \"'THERE SEEMS TO BE A LIFE FORCE "zt$",' MENTIONS "lu$:return
  zx$=rnd$:z=random(299):z=(z/10)-9
- if zt>0 then if z>zt then if instr("!",i$) print i$" IS TOO CLEVER TO BE CAUGHT OFF GUARD.":return
- if zt>0 then if z>zt print i$" WAS CAUGHT OFF GUARD!":vz=1:goto desert
- if zt>0 return
- if vy=1 print \"TO THE FRONT!"
- if vy=2 print \"ON THE FLANK!"
- if vy=3 print \"TO THE REAR!"
- z=z+(vy*3)
+ if zt if z>zt then if instr("!",i$) print lu$" IS TOO DISCIPLINED TO BE CAUGHT OFF GUARD.":return
+ if zt if z>zt print lu$" WAS CAUGHT OFF GUARD!":vz=1:goto desert
+ if zt return
+ print \zt$"!!":z=z+(vy*3)
  if zt=0 then if (z>(pi+xp)) vz=1
  if random(10)=5 vz=1
  if vz=1 print "YOU ARE CAUGHT OFF GUARD!"
  return
 desert
  gosub rnd.10z:if z<>5 then return
- if instr("SPACE",ww$) xx$="FIRES RETROS, AND FLEES!":else xx$="JUMPS OVERBOARD AND SWIMS AWAY!"
- if instr("@@",lo$) print i$" "xx$:else print i$" RUNS AWAY SCREAMING!"
+ if instr("SPACE",lu$) xx$="FIRES RETROS, AND FLEES!":else xx$="JUMPS OVERBOARD AND SWIMS AWAY!"
+ if instr("@@",lo$) print lu$" "xx$:else print lu$" RUNS AWAY SCREAMING!"
  gosub fre.ally
  if vy=1 d1$="*":a1=0:h1=0
  if vy=2 d2$="*":a2=0:h2=0
  if vy=3 d3$="*":a3=0:h3=0
  if (a1+a2+a3)<1 then ai=0:ai$=""
- xx$="FLEE":zt$=i$+" DESERTED":goto news
+ xx$="FLEE":zt$=lu$+" DESERTED":goto news
 ;
 mon.set
  if m=103 gosub guardian
@@ -209,8 +215,10 @@ wraith
  vz=1:vw=0:wy$="|.*&~<!51E"
  if mid$(zu$,2,1)="1" ms=ms+(xp*7):wy$=wy$+";":print \"(..oh, oh... The ring..)"\
  if vk>800 return
- gosub rnd1000z:if (pr=2) or (pr=8) z=z+100
- if z+100 < vk print \"The monster ignores your alignment, and attacks!":return
+ gosub rnd1000z:z=z+100:if (pr=2) or (pr=8) z=z+100
+ if instr("*RG",ys$) z=0
+ if z<vk print \"The monster ignores your alignment, and attacks!":return
+ if len(ys$)<240 ys$=ys$+"*RG"
  print \'
 The Ringwraith recognizes one of his own kind! Hot yellow eyes glow at you
 from under black hood for a long second. You feel its evil strength..'\
@@ -238,15 +246,15 @@ rd.mon3
  a$=right$("000"+str$(m),3):if instr(a$,xm$) then md=1:mw=0:mf=0
  if md=1 goto mon.ret
  z=instr("!",wy$)
- if zw$<>"" print \zw$:if (zq>0) and (z=0) then print zx$
+ if zw$<>"" print \zw$:if zq>0 if z=0 print zx$
  if cs$<>"" print cs$:goto mon.ret
  if yy<>1 then if yy<>3 goto mon.ret
  if z yx=val(mid$(wy$,z+1,2)):goto perm.qt
  if zs=998 print "'YELP!!'":goto mon.ret
  if zq>0 print "'GOSH, ER... HI "n1$"!'":goto mon.ret
  zz$=rnd$:yx=random(99)/10:yx=yx+61:if yx>70 yx=61
- if instr("E",wy$) then if ((pr=2) or (pr=9)) goto perm.qt
- if instr("G",wy$) then if ((pr=3) or (pr=4)) goto perm.qt
+ if instr("E",wy$) if ((pr=2) or (pr=9)) zq=1:goto perm.qt
+ if instr("G",wy$) if ((pr=3) or (pr=4)) zq=1:goto perm.qt
  yx=random(499)/10:yx=yx+1
 perm.qt
  z=170:dy$=dw$+"monster.quote"
@@ -298,21 +306,40 @@ stay.a
  if instr("OK",lo$) zt=0
  if zt=1 print \"A STRANGE FORCE PREVENTS YOU FROM DROPPING OFF FOLLOWERS!":return
  print \"DROPPING OFF FOLLOWERS."
- dy$=dx$+"spur.users":open #1,dy$
  dy$=dx$+"misc.data":open #2,dy$
+ dy$=dx$+"spur.users":f$=dw$+"spur.users"
 stay.b
  yz=instr("*",yt$):xy=instr("=",yt$)
  if not xy then close:yt$="*":return
  xu$=mid$(yt$,yz+1,xy-2):i$=mid$(yt$,xy+1,3)
- x=val(i$)
+ x=val(i$):open #1,dy$
  position #1,130,x
- input #1,n2$,ys,yp,yl,yr,yh:input #1,zw$:input #1,zx$:input #1,zy$
- yl=cl:yr=cr:position #1,130,x
- print #1,n2$,ys,yp,yl,yr,yh:print #1,zw$:print #1,zx$:print #1,zy$
+ input #1,n2$,ys,yp,yl,yr,yh
+ input #1,zw$
+ input #1,zx$
+ input #1,zy$
+ yl=cl:yr=cr
+ gosub pr.user:close #1
+ open #1,f$:gosub pr.user:close #1
  position #2,250,x:print #2,a$\
  yt$=mid$(yt$,xy+4)
  xv$=xv$+str$(cr)+"="+xu$+":"+i$+":"
  goto stay.b
+
+pr.user
+ position #1,130,x
+ print #1,n2$,ys,yp,yl,yr,yh
+ print #1,zw$
+ print #1,zx$
+ print #1,zy$
+ return
+;
+cln.ally
+ xu$=""
+ if instr(">",lu$) xu$="THE GOD ":if instr("+",lu$) xu$="THE GODDESS "
+ lu$=xu$+lu$
+ if instr("|",lu$) lu$=left$(lu$,instr("|",lu$)-1)
+ return
 ;
 advent
  dy$=dz$+"spur.main":link dy$
@@ -339,14 +366,15 @@ dropped
 dropped1
  dy$=ds$+"spur.logon"
  link dy$,"quit3"
-; ^ target ok
+;
 add.lg
 ;.. i$=log message
  open #2,"a:add.log":append #2
  print #2,"Spur.misc4[] "i$" @"time$:close #2:return
 ;
 compile
- if un=1 print \"Compiled..":link "k:system.seg"
+ if a$="spur.compile" link "d:spur.compile","return"
+ if info(5) print \"Compiled..":link "k:system.seg"
 comp.ck
  print "..ok":return
 ;

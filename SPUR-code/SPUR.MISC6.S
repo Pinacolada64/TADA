@@ -1,11 +1,11 @@
 ;.. spur.misc6.s
+;.. modified with Appleworks
 
  public compile
 
  on nocar goto dropped
- if un=1 print "spur.misc6--";:gosub comp.ck
+ if flag(32) print "spur.misc6--";:gosub comp.ck
  free
- if i$="PALINTAR"gosub room.dsp:print\"Palintar returned to pack":goto advent
  if i$="dead.a" goto dead.a
  if i$="dropdead" goto dropdead
  if i$="dead2" goto dead2c
@@ -15,7 +15,7 @@
  if i$="METEOR" gosub meteor:goto lnk.m.rt
  if i$="galad" gosub galad:goto advent
  i$="Bad value of i$ in spur.misc6! i$="+i$
- print \i$:gosub write.lg
+ print \i$:gosub add.log
 advent
  dy$=dz$+"spur.main":link dy$
 lnk.misc
@@ -38,7 +38,7 @@ dropdead
 ;
 dead
  mf=0:mw=0:zz$=wr$:wr$="":xt$="":xt=0:xm$="":xm=0:cp=0:dp=0
- if z<>18 print \"You have not survived..":else print \"You pass thru the portal..."
+ if z<>18 print \hl$"You have not survived.."of$:else print \"You pass thru the portal..."
  dy$=dx$+"weapons"
  open #1,dy$
  if xw=0 goto dead1
@@ -103,6 +103,7 @@ dead2b
  if z=17 print #1,"FROM AN ACCIDENTAL CONCUSSION"
  if z=18 print #1,"PASSING THRU THE PORTAL OF SPUR!":goto win
  if z=19 print #1,"KILLED BY A BOOBY TRAP!"
+ if z=20 print #1,"BY FALLING FROM A HIS STEED!"
  if flag(7) print #1,"BUT RETURNED TO LIFE!":goto win
  if mid$(zu$,8,1)="1" print #1, "BUT WAS REVIVED BY THE AMULET OF LIFE!":goto win
  if pc=9 if vk>1600 print #1,"BUT THE SAINTLY KNIGHT WAS REVIVED BY THE GODS!!"
@@ -133,38 +134,28 @@ revive
  zw$="0":if not flag(7) zw=8:gosub zu$
  zw=3:gosub zu$:zw=4:gosub zu$
  if xn=0 xn=un
- sn=xn:hp=10:ps=10:pt=10:pi=25:pe=10:pw=25:pd=10:mw=0:mf=0:m$="":wy$=""
+ sn=xn:hp=10:ps=10:pt=10:pi=25:pe=10:pw=25:pd=10:mw=0:mf=0:m$ ="":wy$=""
  di=6:cr=1:i$="travel3":goto lnk.misc
 ;
 random
- if un<>1 goto no.test
- print "1=Girl       3=Galadriel  5=Find"
- print "2=Enforcer   4=Meteor     6=Ally"
-; input @2\"Test: 1=Girl, 2=Enf 3=Galad 4=Meteor 5=Find 6=ally:"i$
- input @2\"Event (0=Random): "i$
- if i$="1" goto girl
- if i$="2" goto enforce
- if i$="3" goto galad
- if i$="4" goto meteor
- if i$="5" goto al.find
- if i$="6" goto dead.al
- print \"Random test"
-no.test
+ gosub dead.al
+ if not instr("*GC",ys$) gosub chk.god:if i$<>"" return
  gosub rnd.100z
- if z<15 goto galad
- if z<30 goto meteor
- if z<45 goto dead.al
- if z<60 goto al.find
- if z<80 goto enforce
-girl
+ if z<15 if not instr("*GA",ys$) goto galad
+ if z<32 if not instr("*ME",ys$) goto meteor
+ if z<49 if not instr("*AF",ys$) goto al.find
+ if z<66 if not instr("*EN",ys$) goto enforce
+ if z<83 if not instr("*VN",ys$) goto djinn
  if instr("*gi",ys$) return
+
+; Little Girl
  if len(ys$)<240 ys$=ys$+"*gi"
- if cl>5 print "A little spacesuit pulls along side, retro-rockets firing."
- if instr("@@",lo$) print "A little boat pulls alongside you.."
+ i$="A little boat pulls along side..":if cl>5 i$="A little spacesuit pulls along side, retro-rockets firing."
+ if instr("@@",lo$) print \i$
  print \'
-A little girl  approaches  you. She is quite skinny and very poor looking..
-"Oh please, please, kind person.  My grandmother is very sick, and I don't
-know what to do! Won't you please give something that I can pawn so I can buy
+A little girl  approaches  you! She  is quite skinny and very poor looking..
+"Oh  please,  please, kind  person.  My grandmother  is  very  sick, and I dont
+know what to do! Wont you  please  give something that I can pawn so I can  buy
 her the medicine she needs?"'
  if cl>5 print \"'Now, how did SHE get here?' you wonder to yourself.."
 give
@@ -204,9 +195,8 @@ Looking at you, she sees you are not feeling too well. She gently lays a small h
  position #1,170,a:input #1,i$:close
  print \"She smiles a secretive little smile;"
  print "'"i$"'"\
- print "The little girl ";:i$="runs off.."
- if instr("@@",lo$) i$="rows off.."
- if cl>5 i$="fires steering rockets, and leaves.."
+ i$="The little girl runs off.."
+ if instr("@@",lo$) i$="The little girl rows off..":if cl>5 i$="The little girl fires steering rockets, and leaves.."
  print \i$
  zr=xi:zs$=xi$:gosub drp.itm:xi=zr:xi$=zs$
  return
@@ -217,18 +207,18 @@ girl.m1
 girl.m
  print \"Suddenly, the girl seems to get bigger";
  for a=1 to 10:print "!";:gosub delay:next
- print \\\"'NOW YOU DIE!!'"\\:gosub delay
+ print \\\hl$"'NOW YOU DIE!!'"of$\\:gosub delay
  m=106:return
 girl.sad
- print \"The poor little girl runs away crying.."\
+ print \"The poor little girl, runs away crying.."\
  if pi>3 pi=pi-2:print "(You feel a bit dumber)"
  if pw>4 pw=pw-3:print "(you feel more foolish)"
  return
 ;
 enforce
- ex=clock(1)-ew:if info(2)=1 then if (ev-ex)<300 return
- if ((ev-ex)<180) or (instr("*enf",ys$)) then return
- if len(ys$)<230 ys$=ys$+"*enf"
+ ex=clock(1)-ew:if info(2)=1 if (ev-ex)<300 return
+ if (ev-ex)<180 return
+ if len(ys$)<230 ys$=ys$+"*EN"
  pop:if instr("@@",lo$) print \"A dark craft pulls along side.."
  print \"Suddenly, you are confronted by a shadow looming out of the darkness!"
  gosub delay
@@ -251,14 +241,14 @@ set.stat
  return
 ;
 lnk.duel
- gosub delay:print \"'I CHALLENGE YOU TO A DUEL!'"\
+ gosub delay:print \hl$"'I CHALLANGE YOU TO A DUEL!'"of$\
  zt$=zu$:zv$="autoduel":wx$="random"
  yx$="":hh=0:b=0:wr$="":sx=0:zy$="":zs$=""
  zt=0:zs=0:vy=0:zm=0:vq=0:zq=0:zu=0
  dy$=ds$+"spur.duel":link dy$,"auto.c"
 ;
 delay
- for a=1 to 3000:next:return
+ for a=1 to 5000:next:return
 ;
 rnd.10z
  a$=rnd$:z=random(999):z=z/100+1:return
@@ -274,7 +264,7 @@ zu$
  return
 ;
 locker
- print \"PRIVATE LOCKER"
+ print \on$"PRIVATE LOCKER"of$
  gosub open.loc
 loc.pmt
  input @2 \"P)ut, T)ake L)ook :"i$
@@ -310,7 +300,7 @@ tak.a
 tak.b
  input @2 \"Take which item? (?=list):"a$:x=val(a$):if a$="" goto loc.pmt
  if a$="?" goto tak.a
- if (x<1) or (x>zt) print "That's not in the locker!":goto tak.b
+ if (x<1) or (x>zt) print "Thats not in the locker!":goto tak.b
  y=(x*4)-3:a=val(mid$(zw$,y)):a$=right$("000"+str$(a),3)+","
  if instr(a$,xi$) print \"You already have one!":goto tak.b
  if instr(a$,ai$) print \"Your ally already has one!":goto tak.b
@@ -351,117 +341,12 @@ drp.itm
  zs$=left$(zs$,y-1)+mid$(zs$,y+4)
  return
 
-room.dsp
- print \\\"The Palintar glows softly..."\\\
- xy=(pi+pw)*xp
- if pc=2 xy=xy+20
- if pr=3 xy=xy+30
- if pr=4 xy=xy+20
- if pr=9 xy=xy+10
- if xy<240 goto fail
- print \"A soft voice whispers..'You are now in room "cr"'"
- if cl=1 xu=12
- if cl=2 xu=15
- if cl=3 xu=10
- if cl=4 xu=7
- if (cl=5) or (cl=6) xu=20
- print "("nr" rooms total; in rows of "xu")."\
-
-listrm4
- gosub tim.chk:if (ev-ex)<120 print "Dusk approaches..."
- print\"Room("cr"):[1-"nr", M)ap, Q)uit]";:input @2" :"i$
- if i$="M" f$="c:map."+str$(cl):gosub show.file:goto listrm4
- if i$="" or i$="Q" return
- x=val(i$)
- if x<1 print \"Please enter a number from 1-"nr", M or Q":goto listrm4 
- if x>nr print \"1-"nr" rooms only!":goto listrm4
- ready dr$
-listrm2
- edit(0)
- input #msg(x),xu$,xu,xv,xy,xz,yw,yx,yy,yz,zt,zs
- if xu$="" goto listrm3
- copy #6,#8
- setint(1)
- print\"Room Number  : "x
- print"Contains     :";:if (xu+xv+xy+xz)>0 then print
- if xu print"Monster- ";:dy$=dw$+"monsters":rl=32:d=xu:gosub rd.file
- if xv print"Item- ";:dy$=dw$+"items":rl=30:d=xv:gosub rd.file
- if xy print"Weapon- ";:dy$=dx$+"weapons":rl=34:d=xy:gosub rd.file
- if xz print"Ration- ";:dy$=dw$+"stores":rl=26:d=xz:gosub rd.file
- if (xu+xv+xy+xz)<1 then print"Nothing"
- print"Openings     :";
- if yw print" North";
- if yx print" South";
- if yy print" West";
- if yz print" East";
- print\\"Room command : ";:if zt=1 print"UP";:else if zt=2 print"DOWN";:else print"NONE";
- if (zt>0) and (zs>0) print" - to #"zs:else if (zt>0) and (zs=0) print" - Shoppe":else print
- gosub rm.name:print"Room Name: "zz$
- print\"Room Description :"\
- copy #8,#0
- print\
-listrm3
- if xu$="" print \"[No room here...]"
- goto listrm4
-
-tim.chk
- ex=clock(1)-ew:if ex=>ev pop:goto cnf.qt1
- return
-cnf.qt1
- mw=0:mf=0:dy$=dz$+"spur.sub":link dy$,"quit"
-;
 dropped
  i$="SPUR.MISC5":dy$=ds$+"spur.logon":link dy$,"quit3"
 ;
-rm.name
- zz=instr("|",xu$):if instr("\|",xu$) zz=0
- zz$=xu$:if zz zz$=left$(xu$,zz-2)
- if left$(zz$,4)<>"THE " then if left$(zz$,2)<>"A " zz$="THE "+zz$
- return
-;
-rd.file
- open #1,dy$
- position #1,rl,d
- input #1,cb$\d$\f
- d$=mid$(d$,3)
- close
- if instr("monster",dy$) d$=mid$(d$,2):d=instr("|",d$):if d d$=left$(d$,d-2)
- if instr("weapon",dy$) d$=mid$(d$,2)
- print d$:return
-;
-show.file
- setint(1):print \s$\
- open #1,f$:if mark(1) close #1:print\"(No file!)":return
-showfl2
- copy (20) #1
- if (eof(1) or key(1)) setint(""):close #1:return
- if not flag(35) goto showfl2
- print "Press [RETURN] ";:get i$:if i$=chr$(13) print " ";
- print chr$(8,16);chr$(32,16);chr$(8,16);
- if i$=" " setint(""):close #1:return
- setint(1):goto showfl2
-;
-fail
- print "A voice whispers, 'Thou are not enlightened enough to use the Great Palintar!'"
- input @2\"View enlightenment status? [Y]/n:"i$
- if i$="N" return
- setint(1):print \'
-Required Enlightenment status is 240.
-(Intelligence + Wisdom) times player
-level = status, subject to following
-additions:
-
- Druid;    plus 20
- Pixie;    plus 30
- Elf;      plus 20
- Half Elf; plus 10':setint("")
-
- print \"Your current status="xy
- return
-;
 rest
  print \"YOU REST FOR A BIT..":gosub delay
- print \\"Y-A-W-N... (-4 minutes)":gosub delay
+ print \\on$"Y-A-W-N"of$"... (-4 minutes)":gosub delay
  ew=ew-240:if hp<(25+xp) hp=hp+4:print "(hp+4)"
  if ps<15 ps=ps+4:print "Some strength returns    (+4)"
  if ps>20 ps=ps-2:print "You feel a tad hungry    (-2)"
@@ -476,7 +361,7 @@ meteor
  z=info(2):if z=0 z=2
  if z>1 z=100
  i$="FLYING BANSHEE":if cl=6 then if instr("@@",lo$) i$="METEOR"
- print \"LOOK OUT!! "i$"!!"\:gosub delay
+ print \on$"LOOK OUT!! "i$"!!"of$;hl$\:gosub delay
  i$=". . . . . . ,":gosub met.a
  i$=".,.,.,.,;,;":gosub met.a
  i$=",;,;,+,+;+":gosub met.a
@@ -486,15 +371,15 @@ meteor
  i$="#*0*#":gosub met.a
  i$="*#0":gosub met.a
  i$="*@":gosub met.a:gosub met.a:gosub met.a
- print \"YOU DODGE WILDLY!"
+ print \of$"YOU DODGE WILDLY!"
  gosub rnd.100z
  if pd<18 print "(Low dexterity: -10%)":z=z+10
  if pi<18 print "(Low IQ: -5%)":z=z+5
- if pe<18 print "(Low energy: -5%)":z=z+5
- if ps<18 print "(Low strength: -5%)":z=z+5
+ if pe<18 print "(Low energy: -7%)":z=z+7
+ if ps<18 print "(Low strength: -7%)":z=z+7
  gosub delay
- if (z<90) or (hp<3) print \\"Whew... Missed...(+50 ep)"\:ep=ep+50:return
- if hp>2 print \"CRUNCH!! "hp/2" DAMAGE!"\:hp=hp/2
+ if (z<70) or (hp<4) print \\"Whew... Missed...(+50 ep)"\:ep=ep+50:return
+ if hp>3 print \hl$"CRUNCH!! "hp/2" DAMAGE!"of$\:hp=hp/2
  return
 met.a
  for a=1 to len(i$)
@@ -502,12 +387,17 @@ met.a
  next:print " ";:return
 ;
 galad
- if instr("142",xi$) or instr("143",xi$) or instr("142",ai$) or instr("143",ai$) or (instr("*GAL",ys$)) then goto galad.99
+ if (instr("142",xi$)) or (instr("143",xi$)) goto galad.99
+ if (instr("142",ai$)) or (instr("143",ai$)) goto galad.99
+ if instr("*GA",ys$) goto galad.99
+ print \"A mist forms...";:gosub open.loc:close
+ if (instr("142",zw$)) or (instr("143",zw$)) print "...and vanishes...":goto galad.99
+ print \
  a=24:gosub messages:gosub delay:input @2\"Your response? [Y]es, N)o :"i$
- if i$="N" print \"'Too bad..'":goto galad.9
- print \'
-Her piercing eyes flash, "Ye seem confident! First let me see if ye are worthy
-by asking a simple question..':gosub delay
+ if i$="N" print \'"Too bad.."':goto galad.9
+ print\'
+Her piercing eyes flash, "Ye seem confident! First let me see if Ye are worthy
+by asking a simple question...':gosub delay
  zz$=rnd$:z=(random(49)/10)+1:if z>5 z=1
 galad.1
  if z=1 a=25:zz$="3"
@@ -520,18 +410,17 @@ galad.2
  input @0\"Your answer? [1-4] (?=repeat):"i$
  if i$="?" goto galad.1
  if not instr(i$,"1234") print \"Enter 1 thru 4":goto galad.2
- if i$=zz$ print \"'Correct! Here is thy gift!":i=143:it$="VIAL OF GALADRIAL" :i1$="M":goto galad.9
+ if i$=zz$ print \'"Correct! Here is thy gift!"':i=143:it$="VIAL OF GALADRIEL" :i1$="M":goto galad.9
  print \"'Sorry, that is not right! Return when Ye are worthy.'"
 galad.9
  dy$=dx$+"battle.log":create dy$:open #1,dy$:append #1
- i$="Fail":if i=143 i$="Pass"
- print #1, left$(date$,6)yr$" "time$"- Test"
- print #1, n1$" "i$"ed the Test Of Galadriel!"
+ i$="FAILED":if i=143 i$="PASSED"
+ print #1, left$(date$,6)yr$" "time$"- TEST"
+ print #1, n1$" "i$" THE TEST OF GALADRIEL!"
  print #1,"[]=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=[]":close
 galad.99
- if instr("*GAL",ys$) return
- if len(ys$)>240 ys$=mid$(ys$,10)
- ys$=ys$+"*GAL":return
+ if len(ys$)<240 ys$=ys$+"*GA"
+ return
 ;
 messages
  bk$=dx$+"messages":ready bk$:input #msg(a),i$
@@ -539,19 +428,20 @@ messages
  return
 
 al.find
- i$="":if instr("@@",lo$) return
- if a3 i$=d3$
- if a2 i$=d2$
- if a1 i$=d1$
- if (i$="") or (instr("*AYF",ys$)) then return
- gosub rnd.100z:z=(z*2)+50:print \"'Look what I found!' shouts "i$\
+ lu$="":if instr("@@",lo$) return
+ if a3 lu$=d3$
+ if a2 lu$=d2$
+ if a1 lu$=d1$
+ if len(ys$)<240 ys$=ys$+"*AF"
+ if lu$="" return
+ gosub cln.ally
+ gosub rnd.100z:z=(z*2)+50:print \qt$"LOOK WHAT I FOUND!"qt$" shouts "lu$\
  gosub delay
- print i$" hands you a gold sack!"
+ print lu$" hands you a gold sack!"
  g2=z:gosub add.gold
  g1=gh:g2=gl:gosub prt.gold
  print \"("z" gp) You now have "gd$" in Gold."
- if len(ys$)<240 ys$=ys$+"*AYF"
- gosub delay:print \i$" swaggers proudly."\
+ gosub delay:print \lu$" swaggers proudly."\
  return
 ;
 add.gold
@@ -563,25 +453,96 @@ prt.gold
  gd$=right$("    "+a$,5)+right$(gd$+str$(g2),4)
  return
 ;
+chk.god
+; "god check", presumably
+ if len(ys$)<240 ys$=ys$+"*GC"
+ i$="":a$="*"
+ if a1>0 if instr(">",d1$) a$=d1$
+ if a2>0 if instr(">",d2$) a$=d2$
+ if a3>0 if instr(">",d3$) a$=d3$
+ if a$="*" return
+ lu$=a$:gosub cln.ally
+;.. Good god
+ if instr("(",a$) i$="GOOD"
+;.. Evil god
+ if instr(")",a$) i$="EVIL"
+ if i$="" return
+ if i$="EVIL" goto evil.god
+ if vk>1600 gosub gd.beam:goto ck.hlth
+ if vk>1200 gosub gd.smile:goto ck.hlth
+ if vk<800 goto gd.zap
+ if vk<1000 goto gd.frown
+ print \lu$" OBSERVES YOU.."
+ck.hlth
+ if hp+ps+pt+pi+pe+pw+pd>105 return
+ i$="HE":if instr("+",a$) i$="SHE"
+ print \"'YE LOOK A BIT WEAK,' "i$" SAYS, AND PLACES"
+ print "A HAND ON YOUR HEAD.."
+ if hp<20 hp=20:print "Hit points, ";
+ if ps<20 ps=20:print "Strength, ";
+ if pt<20 pt=20:print "health, ";
+ if pi<20 pi=20:print "I.Q., ";
+ if pe<20 pe=20:print "Energy, ";
+ if pw<20 pw=20:print "Wisdom, ";
+ if pd<20 pd=20:print "Dexterity, ";
+ print "increases.."
+ return
+
+evil.god
+ if vk<400 goto gd.beam
+ if vk<800 goto gd.smile
+ if vk>1600 goto gd.zap
+ if vk>1200 goto gd.frown
+ print \lu$" OBSERVES YOU.."
+ return
+
+gd.beam
+ print \lu$" BEAMS AT YOU! (Exp +50)":ep=ep+50:return
+gd.smile
+ print \lu$" GRINS AT YOU, "qt$"KEEP UP THE "i$" WORK, "n1$"!"qt$:return
+gd.frown
+ print \lu$" FROWNS, "qt$"BETTER WATCH YOUR "i$"NESS THERE, "n1$"!"qt$:return
+gd.zap
+ print \qt$"YOU ARE NOT "i$" ENOUGH, "n1$"!"qt$
+ print lu$" GIVES YOU A BIT OF A "hl$"ZAP"of$" TO ENCOURAGE YOU!"
+ gosub rnd.10z:z=z+3:if z+3>hp z=hp-3
+ print \"YOU TAKE "z" DAMAGE!":hp=hp-z
+ dy$=dx$+"battle.log":create dy$:open #1,"battle.log":append #1
+ print #1, left$(date$,6)yr$" "time$"-REMINDER"
+ print #1, lu$" 'INFORMED' "n1$
+ print #1, "HE WAS NOT "i$" ENOUGH,"
+ print #1, "WITH A SMALL 'ZAP' TO THE POSTERIOR!"
+ print #1, "[]=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=[]":close
+ return
+;
 dead.al
- x=0:i$="*"
- if a1>0 if a1<8 i$=d1$:d1$="*":a1=0:x=h1:h1=0:goto dead.al2
- if a2>0 if a2<8 i$=d2$:d2$="*":a2=0:x=h2:h2=0:goto dead.al2
- if a3>0 if a2<8 i$=d3$:d3$="*":a3=0:x=h3:h3=0:goto dead.al2
+ x=0:lu$="*"
+ if a1>0 if a1<8 lu$=d1$:d1$="*":a1=0:x=h1:h1=0:goto dead.al2
+ if a2>0 if a2<8 lu$=d2$:d2$="*":a2=0:x=h2:h2=0:goto dead.al2
+ if a3>0 if a3<8 lu$=d3$:d3$="*":a3=0:x=h3:h3=0:goto dead.al2
  return
 dead.al2
- if i$="*" return
- print \"The weakened "i$" stumbles and falls!"
+ if lu$="*" return
+ i$=lu$:gosub cln.ally
+ if not instr(">",i$) a$="The weakened "+lu$+" stumbles and falls!"
+ if instr(">",i$) a$=lu$+" looks annoyed, and flies away!"
+ print \a$
  gosub delay
  if (a1+a2+a3)<1 then ai=0:ai$=""
- print \\\\i$" is dead! (wait..)"
+ print \\\\lu$" is dead! (wait..)"
  dy$=dx$+"battle.log":create dy$:open #1,"battle.log":append #1
  print #1, left$(date$,6)yr$" "time$"-LOSS OF FACE!"
- print #1, i$" died in "ww$","
- print #1, "from lack of nourishment while in"
- print #1, "service to "n1$"..."
+ if instr(">",i$) goto god.lv
+ print #1, lu$" DIED IN "ww$","
+ print #1, "FROM LACK OF NOURISHMENT! WHILE IN"
+ print #1, "SERVICE TO "n1$"..."
+ goto end.log
+god.lv
+ print #1, lu$" GREW UNHAPPY WITH "n1$","
+ print #1, "AND LEFT!"
+end.log
  print #1,"[]=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=[]":close
- if vk>20 vk=vk-20:print "You feel less honorable"
+ if vk>25 vk=vk-25:print "You feel less honorable"
  if pw>5 pw=pw-5:print "You feel foolish"
  if pi>5 pi=pi-5:print "You feel dumb"
 fre.ally
@@ -590,13 +551,37 @@ fre.ally
  position #1,26,x
  print #1,1:close:return
 ;
-write.lg
+djinn
+ if len(ys$)<245 ys$=ys$+"*VN"
+ print \"You think you see the Blue Djinn in the distance!"
+ dy$=dx$+"spur.a1$":open #1,dy$
+ position #1,64,un
+ input #1,g5,g6,g7,g8,g9,g9,g0
+ close
+ if g7+g8<1 print \qt$"Good day to you "n1$"..."qt$"  [HE VANISHES!]":return
+ if len(ys$)<245 ys$=ys$+"*VN"
+ dy$=dx$+"thug":open #1,dy$:position #1,50,pn
+ print #1,"VINNEY","VINNEY",1,20,0:close
+; set thug attack flag:
+ zu$=left$(zu$,4)+"1"+mid$(zu$,6)
+ return
+
+;
+add.log
 ;.. i$=log message
- create "a:add.log":open #2,"a:add.log"
- append #2:print #2,"[Spur.misc6] @ "time$" - "i$:close #2:return
+ open #2,"a:add.log"
+ append #2:print #2,"Spur.misc6 []"i$" @"time$:close #2:return
+;
+cln.ally
+ if (instr("\|/",lu$)) or (instr("-}-",lu$)) or (instr("=[]",lu$)) return
+ xy$=""
+ if instr(">",lu$) xy$="THE GOD ":if instr("+",lu$) xy$="THE GODDESS "
+ lu$=xy$+lu$:if instr("|",lu$) lu$=left$(lu$,instr("|",lu$)-1)
+ return
 ;
 compile
- if un=1 print \"Compiled..":link "k:system.seg"
+ if a$="spur.compile" link "d:spur.compile","return"
+ if info(5) print \"Compiled..":link "k:system.seg"
 comp.ck
  print "..ok":return
 ;

@@ -1,5 +1,9 @@
 
 ; spur.bar.s
+; FREE OF IMBEDDED CONTROL CHARACTERS
+
+; 17/Apr/2016 23:06 - pina hack:
+; qt$ for printable quotes in strings, print '"audible"' strings 
 
  on nocar goto dropped
  public compile
@@ -15,9 +19,9 @@
 
  gosub restart1
 
- d4$="Mundo checks your books..":d5$="":gosub msg:gosub read.a1$
+ d4$="Mundo checks your books...":d5$="":gosub msg:gosub read.a1$
  d4$="":gosub msg
- if (g7>0) or (g8>0) d4$="He 'escorts' you over to Vinney!":gosub msg:yy=1:yw=9 :goto mundo.ck
+ if (g7>0) or (g8>0) d4$="He "+qt$+"escorts"+qt$+" you over to Vinney!":gosub msg:yy=1:yw=9 :goto mundo.ck
  if vw gosub ansi.prompt
 
 move
@@ -53,7 +57,7 @@ mundo.ck
 bad.move
  d4$="Laughter fills the bar, as you"
  d5$="try to walk thru solid objects":gosub msg
- if hp>5 hp=hp-1
+ if gm=0 if hp>5 hp=hp-1
  goto move
 
 rest.rm
@@ -83,32 +87,32 @@ prt.room
  return
 
 thug
- print \"The Blue Djinn sits behind the table"
- print "'What do you want?' he hisses"
+ print \"The Blue Djinn sits behind the table."
+ print '"What do you want?" he hisses.'
 thug.1
  input @2"H)ire, L)eave, I)nsult :"i$
  if i$="L" or i$="" d6$="He looks relieved..":goto restart
  if i$="H" goto hire
  if i$="I" goto bouncer
  print '
-The Blue Djinn looks amused..':goto thug.1
+The Blue Djinn looks amused...':goto thug.1
 hire
- print \"Who do you wish me to mess up?"
- input @2"Player number (?=list) :" i$
+ print \'"Who do you wish me to mess up?"'
+ input @2"Player number (?=list): " i$
  if i$="?" gosub plr.list:goto hire
  x=val(i$):if (x=0) or (x>np) goto thug.2
  gosub rd.plyr
  if (n2$="") or (ys=0) goto thug.2
- print \"You want me to beat up "n2$"?";
- input @2" Y/N: "i$
- if i$<>"Y" print \"'Well, make up your mind!'":goto thug.1
- zr=yn*500:print \"'For a level "yn" opponent, the"
- print "price is "zr" gold. Ok?";:input " Y/N "i$
+ print \qt$"You want me to beat up "n2$"?"qt$;
+ input @2 " Y/N: "i$
+ if i$<>"Y" print \'"Well, make up your mind!"':goto thug.1
+ zr=yn*500:print \qt$"For a level "yn" opponent, the"
+ print "price is "zr" gold. Ok?"qt$;:input " Y/N "i$
  if i$<>"Y" d6$="He snickers..":goto restart
  g3=gh:g4=gl:g1=0:g2=zr:gosub chk.gold
  if a=0 d6$="Ye do not have enough gold.":goto restart
  gosub sub.gold:g1=gh:g2=gl:gosub prt.gold
- print \"He writes up the contract.."
+ print \"He writes up the contract..."
  zw=5:zw$="1"
 ;... input zw=position number, zw$=new value
  dy$=dx$+"spur.status":open #1,dy$:position #1,32,x:input #1,i$
@@ -120,7 +124,7 @@ hire
  zw$="SOMEBODY":if i$<>"Y" then zw$=n1$
  dy$=dx$+"thug":open #1,dy$:position #1,50,x
  print #1,zw$,n1$,pn,xp,0:close
- d6$="The Blue Djinn bows, 'The agreement shall be carried out..'"
+ d6$="The Blue Djinn bows, "+qt$+"The agreement shall be carried out.."+qt$
  goto restart
 
 thug.2
@@ -128,31 +132,35 @@ thug.2
 ;
 slave
  print \"Fat Olaf, the slave trader is behind the table"
- print "'VOT KIN I DU VER YA?'"
+ print '"Vot kin I du ver ya?"'
 slave.a
- input @2\"B)uy, S)ell, M)aintain, L)eave :"i$
+ input @2\"B)uy, S)ell, M)aintain, L)eave: "i$
  if i$="B" goto buy
  if i$="S" goto sell
  if i$="M" goto maint
  if (i$="L")or (i$="") d6$="Olaf watches you leave.":goto restart
- print \"KUD YE SPEK UP YUNGUN?"\:goto slave.a
+ print \'"Kud ye spek up, yungun?"'\:goto slave.a
 
 buy
- if a1 then if a2 then if a3 print \"YU HAV 3 ALREADY!!":goto slave.a
- xu=0:gosub show.slv:if xu=0 print \"SURRY, ALD SOLT UT!":goto slave.a
+ if a1 then if a2 then if a3 print \'"Yu hav 3 already!"':goto slave.a
+ xu=0:gosub show.slv:if xu=0 print \'"Surry, ald solt ut!"':goto slave.a
 buy.a
- input @2\"BUY VICH UN? :"i$:if i$="" goto slave.a
- zz=val(i$):if zz=0 print \"'HUH?'":goto slave.a
- if zz>x print \"'WHOA, DUN'T AVE THAT MANY!'":goto buy.a
+ input @2\"Buy vich un? :"i$:if i$="" goto slave.a
+ zz=val(i$):if zz=0 print \'"Huh?"':goto slave.a
+ if zz>x print \'"Whoa, dun't ave that many!"':goto buy.a
  dy$=dx$+"allies":open #1,dy$
  position #1,26,zz:input #1,cb$\x1$\x2,x3:close
- if cb$<>"1" print \"'HE IS NUT VER SALE!'":goto buy.a
- x=x2*100:if instr("!",x1$) x=x*2:print \"(ELITE ALLY!)"
- print \"'VELL, "x1$" IZ A VINE SPECIMEN,"
- print "BUT VER YE, IT WILL ONLY BE "x
- input @2"GALD! HOKEY?' Y/N "i$:if i$<>"Y" print \"'VELL, TOO BAD!'":goto buy.a
+ xy$="he":if instr(">",x1$) xy$="da god"
+ if instr("+",x1$) xy$="she":if instr(">",x1$) xy$="da goddess"
+ if (cb$<>"1")or(instr(">",x1$)) print \qt$xy$" is nut ver sale!"qt$:goto buy.a
+ x=x2*100:if instr("!",x1$) x=x*2
+ lu$=x1$:gosub cln.ally
+ print \qt$"Vell, "lu$" iz a vine speceemin,"
+ print "but ver ye, "xy$" will only be "x
+ print "gald! Hokey?"qt$;:input @2 " (Y/N): "i$
+ if i$<>"Y" print \'"Vell, too bad!"':goto buy.a
  g3=gh:g4=gl:g1=0:g2=x:gosub chk.gold
- if a=0 print \"YE DUN'T HAV ENOUGH GALD.":goto buy.a
+ if a=0 print \'"Ye dun't hav enough gald."':goto buy.a
  gosub sub.gold:g1=gh:g2=gl:gosub prt.gold
  dy$=dx$+"allies":open #1,dy$
  position #1,26,zz:print #1,0:close
@@ -160,26 +168,32 @@ buy.a
  if a2=0 d2$=x1$:a2=x2+5:h2=zz:goto buy.b
  d3$=x1$:a3=x2+5:h3=zz
 buy.b
- print \"'VINE! MAY HE SERVE YE WELL!":goto slave.a
+
+ print \qt$"Vine! may "xy$" serve ye well!"qt$:goto slave.a
 
 sell
  gosub your.slv
 sell.a
- input @2\"VICH SERVANT DO YE WISH TO SELL? "i$
- if i$="" or i$="Q" print \"Olaf shrugs":goto slave.a
+ print \'"Vich servant do ye wish to sell?" ';:input @2,i$
+ if i$="" or i$="Q" print \"Olaf shrugs.":goto slave.a
  z=val(i$)
- if (z<1) or (z>3) print \"'COM COM, 1 TEU 3!' (<CR> aborts)":goto sell.a
+ if (z<1) or (z>3) print \'"Com com, 1 teu 3!" (<CR> aborts)':goto sell.a
  zt$=""
  if z=1 then if a1>0 zt$=d1$:zr=a1:zs=h1
  if z=2 then if a2>0 zt$=d2$:zr=a2:zs=h2
  if z=3 then if a3>0 zt$=d3$:zr=a3:zs=h3
- if zt$="" print \"'I TINK YE MUST BE DRINKING TEU MOCH!'":goto sell.a
- if zs=0 print \"'OLAF DOZ NOT BUY FREE SPIRITS!!'":goto sell.a
- gosub slv.srch:if zz=0 print \"'I DUN'T WONT HIM!'":goto sell.a
+ if zt$="" print \'"I tink ye must be drinking teu moch!"':goto sell.a
+ if zs=0 print \'"Olaf doz not buy free spirits!!"':goto sell.a
+ gosub slv.srch
+ xy$="him":if instr(">",zt$) xy$="a god":zz=0
+ if instr("+",zt$) xy$="her":if instr(">",zt$) xy$="a goddess":zz=0
+ if zz=0 print \qt$"I dun't wont "xy$"!"qt$:goto sell.a
  zr=zr*50:if instr("!",zt$) zr=zr*2
- print \"'HE DUN'T LOOK TOO GOOD, BUT"
- print "I GUS I CUN GIVE YE "zr" GALD.'"
- input @2 "HOKAY? Y/N :" i$:if i$<>"Y" print \"'HOH VELL..'":goto sell.a
+ xy$="he":if instr("+",zt$) xy$="she"
+ print \qt$xy$" dun't look too good, but"
+ print "I gus I cun give ye "zr" gald."qt$
+; todo: subroutine this:
+ input @2 "Hokay (Y/N)? " i$:if i$<>"Y" print \'"Hoh vell..."':goto sell.a
  g2=zr:gosub add.gold:gosub prt.gold
  dy$=dx$+"allies":open #1,dy$
  position #1,26,zz:print #1,1:close
@@ -187,52 +201,55 @@ sell.a
  if z=2 d2$="*":a2=0:h2=0
  if z=3 d3$="*":a3=0:h2=0
  if vk>10 vk=vk-10
- print \"'HOKAY VINE! DUNKAH'":goto slave.a
+ print \'"Hokay, vine! Dunkah."':goto slave.a
 
 maint
  gosub your.slv
 maint.a
- input @2\"VICH SERVANT DO YE VITCH TO STRENGTHEN? "i$
- if i$="" or i$="Q" print \"Olaf shrugs":goto slave.a
+ print \'"Vich servant do ye vitch to strengthen?" ';:input @2 i$
+ if i$="" or i$="Q" print \"Olaf shrugs.":goto slave.a
  z=val(i$)
- if (z<1) or (z>3) print \"'COM COM, 1 TEU 3!' (<CR> aborts)":goto maint.a
+ if (z<1) or (z>3) print \'"Com com, 1 teu 3!" (<CR> aborts)':goto maint.a
  zt$=""
  if z=1 then if a1>0 zt$=d1$:zr=a1:zs=h1
  if z=2 then if a2>0 zt$=d2$:zr=a2:zs=h2
  if z=3 then if a3>0 zt$=d3$:zr=a3:zs=h3
- if zt$="" print \"'I TINK YE MUST BE DRINKING TEU MOCH!'":goto maint.a
+ if zt$="" print \'"I tink ye must be drinking teu moch!"':goto maint.a
  if zs=0 x2=15:zz=1:goto maint.b
  gosub slv.srch
 maint.b
- if (zz<1) or (x2-zr<1) print \"'I CON DU NUTIN VER HIM!'":goto maint.a
- zz=(x2-zr)*20:print \"'IT VIL COST YE "zz" GALD!"
- input @2"HOKEY?' Y/N :" i$:if i$<>"Y" print \"Olaf shrugs..":goto maint.a
+ i$="him":if instr(">",zt$) i$="a god":zz=0
+ if instr("+",zt$) i$="her":if instr(">",zt$) i$="a goddess":zz=0
+ if (zz<1) or (x2-zr<1) print \qt$"I con du nutin ver "i$"!"qt$:goto maint.a
+ zz=(x2-zr)*20:print \qt$"It vil cost ye "zz" gald!"qt$
+; todo: subroutine this:
+ input @2"Hokay (Y/N)? " i$:if i$<>"Y" print \"Olaf shrugs...":goto maint.a
  g3=gh:g4=gl:g1=0:g2=zz:gosub chk.gold
- if a=0 print \"YE DO NOT HOV ENOUGH GALD.":goto maint.a
+ if a=0 print \'"Ye do not hov enough gald."':goto maint.a
  gosub sub.gold:g1=gh:g2=gl:gosub prt.gold
  if z=1 a1=x2
  if z=2 a2=x2
  if z=3 a3=x2
  if vk<2000 vk=vk+5
  print \"Olaf does something mysterious..."
- print \"'DER!! NAOW IZ BEDDER!!":goto slave.a
+ print \'"Der!! Naow iz bedder!!"':goto slave.a
 
 show.slv
  print \"Servants for sale:"\
  x=1:dy$=dx$+"allies":open #1,dy$
 show.s2
  position #1,26,x:input #1,cb$\x1$\x2,x3
- setint(1)
- if cb$="1" xu=1:print x") "x1$", strength = "x2
+ setint(1):lu$=x1$:gosub cln.ally
+ if cb$="1" xu=1:print x") "lu$", strength = "x2
  if (cb$="") or (x>100) or (key(1)) close:return
  x=x+1:goto show.s2
 
 your.slv
  print \"Your current servants:":z=0
- if a1 print "1) "d1$", strength = "a1:z=1
- if a2 print "2) "d2$", strength = "a2:z=1
- if a3 print "3) "d3$", strength = "a3:z=1
- if z=0 print \"Olaf chuckles.. 'YU DUN'T AVE ANY!'":pop:goto slave.a
+ if a1 lu$=d1$:gosub cln.ally:print "1) "lu$", strength = "a1:z=1
+ if a2 lu$=d2$:gosub cln.ally:print "2) "lu$", strength = "a2:z=1
+ if a3 lu$=d3$:gosub cln.ally:print "3) "lu$", strength = "a3:z=1
+ if z=0 print \'"Olaf chuckles... "Yu dun't ave any!"':pop:goto slave.a
  return
 
 slv.srch
@@ -244,31 +261,31 @@ slv.srch
  close:return
 
 zelda
- print \"Madam Zelda hovers over a ball"
+ print \"Madame Zelda hovers over a crystal ball."
 zelda.1
- print \"'What Doooo.. you wish?'"
- input @2"S)tudy a player, R)esurrect monsters :"i$
- if i$="" or i$="Q" d6$="'Gooo away, you bother my cat..'":goto restart
+ print \'"What doooo.. you wish?"'
+ input @2"S)tudy a player, R)esurrect monsters: "i$
+ if i$="" or i$="Q" d6$=qt$+"Gooo away, you bother my cat..."+qt$:goto restart
  if i$="S" goto zelda.3
  if i$="R" goto zelda.4
  goto zelda.2
 zelda.3
- input @2\"Study - Player number (?=list) :" i$
+ input @2\"Study - Player number (?=list): " i$
  if i$="?" gosub plr.list:goto zelda.3
  x=val(i$):if (x=0) or (x>np) goto zelda.2
- if x=pn print \"'I suggest you ussssse a mirror!'":goto zelda.1
+ if x=pn print \'"I suggest you ussssse a mirror!"':goto zelda.1
  gosub rd.plyr
  if (n2$="") or (ys=0) goto zelda.2
- print \"You want me to reeead "n2$"?";
+ print \qt$"You want me to reeead "n2$"?"qt$;
  input @2" Y/N: "i$
- if i$<>"Y" print \"'Wellll, make up your mind!'":goto zelda.2
- input \"'It will cost you 1000 gold, ok?' Y/N :"i$
- if i$<>"Y" print \"'Hmpppth..'":goto zelda.1
+ if i$<>"Y" print \'"Wellll, make up your miiiind!"':goto zelda.2
+ print \'"It will cost you 1,000 gold, ok?" Y/N: ';:input @2 i$
+ if i$<>"Y" print \'"Hmmmph.."':goto zelda.1
  g3=gh:g4=gl:g1=0:g2=1000:gosub chk.gold
- if a=0 print \"Ye doooo not have enough gold.":goto zelda.1
+ if a=0 print \'"Ye doooo not have enough gold!"':goto zelda.1
  gosub sub.gold:g1=gh:g2=gl:gosub prt.gold
- print \"She hunkers down over the ball.."
- print "'I SEEEEEE......."\
+ print \"She hunkers down over the ball..."
+ print \'"I seeeeee......."\
  print n2$" on dungeon level "yl"."
  print "With "yh" hit points, a strength"
  print "of "cs", intelligence of "ci","
@@ -281,19 +298,20 @@ zelda.3
 zelda.5
  print \"Zelda stares at you. Her cat stares too.":goto zelda.1
 zelda.2
- print \"'Are yooouu trying to be cute?'":goto zelda.1
+ print \'"Are yooouu trying to be cute?"':goto zelda.1
 zelda.4
  print \"Resurrect monsters for"
- input @2"Player number (?=list) :" i$
+ input @2"Player number (?=list): " i$
  if i$="?" gosub plr.list:goto zelda.4
  x=val(i$):if (x=0) or (x>np) goto zelda.2
- if x=pn print \"'I suggest you NOT do that!'":goto zelda.1
+ if x=pn print \'"I suggest you NOT do that!"':goto zelda.1
  gosub rd.plyr
+; editing stopping point: 17/Apr/2016 23:35
  if (n2$="") or (ys=0) goto zelda.2
  print \"You want me to bring "n2$"'S"
- input @2"monsters alive? Y/N: "i$
- if i$<>"Y" print \"'Wellll, make up your mind!'":goto zelda.2
- input \"'It will cost you 6000 gold, ok?' Y/N :"i$
+ input @2"monsters back to life? Y/N: "i$
+ if i$<>"Y" print \'"Wellll, make up your mind!"':goto zelda.2
+ input \"'It will cost you 6,000 gold, ok?' Y/N :"i$
  if i$<>"Y" print \"'Hmpppth..'":goto zelda.1
  g3=gh:g4=gl:g1=0:g2=6000:gosub chk.gold
  if a=0 print \"Ye doooo not have enough gold.":goto zelda.1
@@ -318,20 +336,25 @@ skip
 fight
  if vw d4$="":d5$="":gosub msg:x=1:y=18:gosub screen
  input @2\"'Are you trying to pick a fight?' (Y/N) " i$
- if i$<>"Y" print "'Well then, WATCH it!'":return
+ if i$<>"Y" print '"Well then, WATCH it!"':return
  pop
 bouncer
+ if gm=1 d4$="GOD MODE prevents Mundo from throwing you out of the bar.":d5$="":gosub msg:goto advent
+ if hp<6 then bouncer.2
  d4$="At a signal, Mundo the bouncer knocks you over the head with a baseball"
- d5$="bat, and throws you out in the street..":gosub msg
- if hp>6 hp=hp-5
+ d5$="bat, and throws you out in the street...":gosub msg
+ hp=hp-5:goto advent
+bouncer.2
+ d4$="At a signal, Mundo the bouncer throws you out in the street..."
+ d5$="":gosub msg
  goto advent
-
+ 
 door.chk
  if yw<>7 return
  pop
 advent
  i=0:zv$=""
- d4$="You return to the street..":d5$="":gosub msg
+ d4$="You return to the street...":d5$="":gosub msg
  dy$=dz$+"spur.main":link dy$
 ;
 dropped
@@ -342,10 +365,13 @@ dropped
 plr.list
  print \"List of players in Game"
  input @2 \"Match letters or CR for all: "i$
- x=1:dy$=dx$+"spur.users":a=1
+ x=1:dy$=dw$+"spur.users":a=1
  open #1,dy$
- gosub plrlist5
- 
+; rns - this was formerly a gosub:
+plrlist5
+ print \\" #   Adventurer"
+ print "---  ---------------"
+
 plrlist1
  position #1,130,x
  input #1,n$,l1,b1,b2,b3,b4
@@ -353,25 +379,20 @@ plrlist1
  if (not l1) goto plrlist4
  if not instr(i$,n$) goto plrlist4
  setint(1)
- 
+
 plrlist2
  n$=mid$(n$,2)
  print right$("  "+str$(b1),3)"  ";
  print left$(n$+"               ",14)
- 
+
 plrlist4
  x=x+1:if (x>np) or (key(1)) close:return
  goto plrlist1
 
-plrlist5
- print \\" #   Adventurer"
- print "---  ---------------"
- return
-;
 add.gold
  gl=gl+g2:if gl=>10000 then gl=gl-10000:gh=gh+1
  return
- 
+
 sub.gold
  if g2>gl then gl=gl+10000:gh=gh-1
  gl=gl-g2:return
@@ -380,11 +401,11 @@ prt.gold
  a$=str$(g1):gd$="0000":if g1=0 then gd$="    ":a$=" "
  gd$=right$("    "+a$,5)+right$(gd$+str$(g2),4)
  return
- 
+
 chk.gold
  a=0
- if g3>g1 then a=1:return
- if (g3=g1) and (g4=>g2) then a=1:return
+ if g3>g1 a=1:return
+ if (g3=g1) and (g4=>g2) a=1:return
  return
 ;
 rd.plyr
@@ -500,13 +521,19 @@ home
  if vw=0 return
  home:return
 ;
+cln.ally
+ yx$=""
+ if instr(">",lu$) yx$="THE GOD ":if instr("+",lu$) yx$="THE GODDESS "
+ lu$=yx$+lu$:if instr("|",lu$) lu$=left$(lu$,instr("|",lu$)-1)
+ return
+;
 add.lg
 ;.. i$=log message
  create "a:add.log":open #1,"a:add.log"
  append #1:print #1,"[SPUR.BAR] "i$:close:return
 ;
 compile
- if un=1 print "Compiled..":link "k:system.seg"
+ if a$="spur.compile" link "d:spur.compile","return"
+ if info(5) print "Compiled..":link "k:system.seg"
  return
 ;
- ;

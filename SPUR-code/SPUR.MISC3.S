@@ -1,15 +1,14 @@
 ;... spur.misc3.s
+;... Edited with Appleworks
 
  public misc
  public compile
 
  on nocar goto dropped
 
- if info(5) print "spur.misc3--";:gosub comp.ck
+ if flag(32) print "spur.misc3--";:gosub comp.ck
  free:xu$="[]=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=[]"
  if (instr("EXAMINE",i$)) or (i$="X") goto examine
- if i$="LOOT" goto loot
-
 
 cast
  if xs=0 print \"No Spells.":goto advent
@@ -24,14 +23,14 @@ cast.a
  if y=1 then xs$=mid$(xs$,5):goto spl.read
  if (y+4)>l then xs$=left$(xs$,y-1):goto spl.read
  xs$=left$(xs$,y-1)+mid$(xs$,y+4)
- 
+
 spl.read
  dy$=dw$+"spells"
  open #1,dy$
  position #1,40,x
  input #1,cb$\q$,q2$,q3,q4
  close
- 
+
 cst.outc
  b=20-pi:if pr=2 then b=b+2
  if b<3 then b=3
@@ -40,11 +39,11 @@ cst.outc
  gosub rnd.10
  if a<5 then b=2
  if (not b) goto spl.fail
- 
+
 cast.spl
  cs=0:c1$=left$(q2$,1):c2=val(right$(q2$,1)):c2=c2/b
  zz=0:if pc=2 then if c1$<>"M" zz=2:print \"DRUID POWER!"
- if pc=1 then if instr("STAFF",wr$) then if instr(c1$,"SWDCEI") print \"The staff trembles..":zz=1:if c1$="M" zz=4
+ if pc=1 if instr("STAFF",wr$) if instr(c1$,"SWDCEI") print \"The staff trembles..":zz=1
  if c1$="S" goto cst.strn
  if c1$="W" goto cst.wisd
  if c1$="D" goto cst.dext
@@ -59,40 +58,40 @@ cast.spl
  if c1$="R" goto cst.shop
  if c1$="G" goto cst.spur
  if c1$="A" goto cst.aura
- 
+
 cst.strn
  zs=20:if pr=2 zs=24
  if (b=1) and (ps<zs) then ps=ps+c2+zz:print "(You feel a bit stronger)":goto spl.succ
  if ps=>c2 then ps=ps-c2:print "(You feel a bit weaker)"
  goto spl.back
- 
+
 cst.wisd
  if (b=1) and (pw<20) then pw=pw+c2+zz:print "(You feel a bit wiser)":goto spl.succ
  if pw=>c2 then pw=pw-c2:print "(You feel a bit more foolish)"
  goto spl.back
- 
+
 cst.dext
  if (b=1) and (pd<20) then pd=pd+c2+zz:print "(You feel a bit more skillful)":goto spl.succ
  if pd=>c2 then pd=pd-c2:print "(You feel a bit more clumsy)"
  goto spl.back
- 
+
 cst.cons
  if (b=1) and (pt<20) then pt=pt+c2+zz:print "(You feel healthier)":goto spl.succ
  if pt=>c2 then pt=pt-c2:print "(You feel a bit less healthy)"
  goto spl.back
- 
+
 cst.engy
  zs=20:if pr=1 zs=24
  if pr=9 zs=22
  if (b=1) and (pe<zs) then pe=pe+c2+zz:print "(You feel a surge of energy)":goto spl.succ
  if pe=>c2 then pe=pe-c2:print "(You feel a bit tired)"
  goto spl.back
- 
+
 cst.intl
  if (b=1) and (pi<20) then pi=pi+c2+zz:gosub smart:goto spl.succ
  if pi=>c2 then pi=pi-c2:print "(You feel a bit dumber)"
  goto spl.back
- 
+
 cst.xfer
  if b=1 print \'
 Your gold has been transferred to
@@ -100,12 +99,12 @@ your bank account.':bh=bh+gh:bl=bl+gl:gh=0:gl=0:goto cst.x2
  print \'
 Spell has backfired.  You are now
 carrying all your gold.':gh=gh+bh:gl=gl+bl:bh=0:bl=0
- 
+
 cst.x2
  if bl=>10000 then bl=bl-10000:bh=bh+1
  if gl=>10000 then gl=gl-10000:gh=gh+1
  goto advent
- 
+
 cst.plyr
  if b=2 goto cst.pl2
  gosub rnd.10:zz=23+xp:if pr=2 zz=zz+2
@@ -113,13 +112,13 @@ cst.plyr
 cst.pl2
  if hp>c2 then hp=hp-c2
  goto spl.back
- 
+
 cst.mons
  if (not mw) print \"No monster here!":goto spl.fail
  if instr("%",wy$) print \m$" sneers at your feats of magic.":goto spl.fail
  if instr(":",wy$) print \"Mechanical devices are unaffected by magic!":goto spl.fail
 ;.. for casting against charmed monsters
- if (zs=997) or (zq>0) then zs=997:zq=0
+ if (zs=997) or (zq>0) then zs=997:zq=0:vk=vk-5:if vk<1 vk=0
  zr=5:if pc=1 then zr=6
  if instr("~",wy$) gosub rnd.10:if a>zr print m$" appears unaffected!" :goto spl.fail
  if b=2 then if pc>1 goto cst.mns2
@@ -129,7 +128,7 @@ cst.mons
  if not instr("STAFF",wr$) print \"Fire sizzles from your fingertips!"
 wiz.a
  ms=ms-c2:if a>5 then ms=0
- print "The area glows with a erie blue light.."
+ print "The area glows with an eerie blue light..."
  if ms<=0 goto cst.mns3
  if mw print \m$" appears to have weakened."
  goto spl.succ
@@ -151,7 +150,7 @@ cst.dnlv
 cst.dn2
  if cl<>1 then cl=cl-1:cs=1:goto spl.back
  goto spl.fail
- 
+
 cst.uplv
  if mw then if instr(".",wy$) goto spl.fail
  if instr("<<",lo$) goto spl.fail
@@ -162,23 +161,24 @@ cst.uplv
 cst.up2
  if lc>cl then cl=cl+1:cs=1:goto spl.back
  goto spl.fail
- 
+
 cst.shop
  if b=2 goto cst.shp2
  if mw then if instr(".",wy$) then if not instr(":",wy$) print\m$" CASTS 'FREEZE ADVENTURER' SPELL!":goto spl.fail
  i$=m$+" LOOKS PUZZLED AS YOU FADE FROM VIEW."
- if instr(":",wy$) i$="SENSORS ON:  "+m$+" GO NUTS AS YOU DEMATERIALIZE!"
+ if instr(":",wy$) i$="SENSORS ON "+m$+" GO NUTS AS YOU DEMATERIALIZE!"
  if mw print \i$:mw=0:mf=0:m$="":wy$=""
  cr=1:di=6:cs=1:goto spl.succ
 cst.shp2
  zz$=rnd$:cr=random(nr):if cr=0 goto cst.shp2
  cs=1:goto spl.back
- 
+
 cst.spur
  if cl<>sl print \"SPUR is not on level "cl"!":goto spl.fail
  cr=sr:cs=1:print \"Prepare thyself...":goto spl.succ
- 
+
 cst.aura
+ if instr("ENCHANT",q$) goto enchant
  if instr("BOOTS",q$) goto boots
  if instr("*",q$) goto poison
  if instr("@",q$) goto disease
@@ -186,10 +186,34 @@ cst.aura
  if instr("DRUID HEALTH",q$) goto dru.hlth
  x=q4/10:if tm=0 then tm=mm+x+c2:else tm=tm+x+c2
  goto spl.succ
- 
+
+enchant
+ x=0:b=0
+ if instr("ARMOR",q$) x=209:b=ar
+ if instr("SHIELD",q$) x=213:b=sh
+ if x=0 goto spl.fail
+ f$=dx$+"misc.data":open #2,f$
+ position #2,250,pn,x:input #2,a
+ if ((a=0) or (a>60)) close:goto spl.fail
+ dy$=dw$+"items"
+ open #1,dy$:position #1,30,a,2
+ input #1,i$\a
+ close
+ if pc=1 a=a*20
+ if pc=2 a=a*15
+ if pc>2 a=a*10
+ if b>(a*3)/2 goto spl.fail
+ b=b+(random(100)/10)+15
+ print hl$"LIGHT SHIMMERS AROUND THE "mid$(i$,3);
+ if pc=1 if instr("STAFF",wr$) print " AND THE STAFF":b=b+10
+ print of$;" ("b")"
+ if x=209:ar=b
+ if x=213:sh=b
+ goto spl.succ
+
 boots
  if instr("*BO",ys$) goto spl.fail
- print \"10 minutes added.":ev=ev+600
+ print \"5 minutes added.":ev=ev+300
  if len(ys$)<240 ys$=ys$+"*BO"
  goto spl.succ
 poison
@@ -213,8 +237,8 @@ dru.hlth
  if pe<20 print "Energy returns":pe=20
  if pt<20 print "Health returns":pt=20
  if mid$(zu$,3,1)="1" print "Poison gone!":zu$=left$(zu$,2)+"0"+mid$(zu$,4)
- if mid$(zu$,4,1)="1" print "Disease gone!":zu$=left$(zu$,3)+"0"+mid$(zu$,5)
- if info(5) print "zu$="zu$
+ if mid$(zu$,4,1)="1" print "Desease gone!":zu$=left$(zu$,3)+"0"+mid$(zu$,5)
+ if flag(32) print "zu$="zu$
  goto spl.succ
 ;
 spl.succ
@@ -223,11 +247,11 @@ spl.succ
 spl.link
  if cs then dy$=dz$+"spur.misc":i$="travel3":link dy$
  goto advent
- 
+
 spl.back
  print \"Spell Backfired!"
  goto spl.link
- 
+
 spl.fail
  print \"Your spell fizzles...":if pi<15 print "(Prehaps, if you were smarter..)"
  goto spl.link
@@ -250,7 +274,7 @@ dropped
  i$="SPUR.SUB"
  dy$=ds$+"spur.logon"
  link dy$,"quit3"
-; ^ target ok
+;
 smart
  print "(You feel a bit smarter)":return
 ;
@@ -296,7 +320,7 @@ exam.a
 exam2
  gosub rnd.100a:if a>60 print \"Your examination fails...":return
  if xz$=a$ print \"You have already examined this!":return
- xz$=a$:if m$<>"" then if instr(m$,a$) goto exam.mon
+ xz$=a$:if m$<>"" if instr(m$,a$) goto exam.mon
  if not instr(ty$,"MCB") goto exam3
  if ty$="M" print \"This "a$" is Magical."
  if ty$="C" print \"This "a$" is Cursed.":goto smarter
@@ -309,6 +333,11 @@ exam3
  if a$="ICE CRYSTAL" print \"In small letters you see; 'ACME ANTI-FIRE DEVICE'":return
  if instr(a$,"CROWN OF MIDASFOUNTAIN OF YOUTH") print \"It has a strange power..":return
  if a$="GOLD ROSE"print\"It looks VERY valuable, but beware the thorns!":return
+ if instr("BROKEN",a$) print \"It is broken, perhaps you could repair it if you had the proper tools..":return
+ if a$="TOOL KIT" print \"Letters on the side say 'ACME tool kits make life better!'":return
+ if instr("PARTS",a$) print \"They look like they belong to something..":return
+ if a$="SHOVEL" print \"Looks like you could really DIG with this baby.":return
+ if a$="COMMUNICATOR" print \"It is a small gadget with voices coming from it!":print "'Bridge to ground crew, come in ground crew..'":return
  if instr("POTION",a$) print \"It is a magic potion!":return
  if instr("MOONSHINE",a$) print \"It is poison!":goto smarter
  if a$="OLD HAMBURGER" print \"It don't look very good..":goto smarter
@@ -333,23 +362,31 @@ SLIPPERS TOWARDS THE SOUTHERN WALL!':s=1:i$="SOUTH"
  if cr=752 a=131:i$="RED SECURITY CARD"
  if cr=93 a=124:i$="RADIATION SUIT"
  if cr=180 a=123:i$="GEIGER COUNTER"
- if cr=557 a=145:i$="BROOMSTICK"
+ if cr=557 gosub ck.broom
  if a=0 return
  a$=str$(a) if (instr(a$,xi$)) or (instr(a$,ai$)) return
  print \"AHHAA! YOU FIND A "i$\
- i=a:it$=i$:i1$="T":pop:goto advent
+ i=a:it$=i$:i1$="T":pop
+ i$=a1$+" got "+i$:gosub add.log
+ goto advent
+
+ck.broom
+ if instr("138,",xi$+ai$) a=40:gosub messages:a=145:i$="BROOMSTICK":return
+ a=39:gosub messages:a=0:i$=a1$+" Failed to get broomstick":goto add.log
 
 exam.mon
  if md=0 print \m$" DOESN'T LIKE BEING EXAMINED!":return
  if md=2 print \"YEP, THEY ARE "m$" TRACKS AWRIGHT.":return
- if info(5) print "wy$="wy$"<-"
+ if flag(32) print "wy$="wy$"<-"
  if instr(":",wy$) print \"IT IS A TWISTED WRECK!":return
  gosub rnd.100a
  i$="YOUR SEARCH REVEALS NOTHING ON THE "+m$
  if instr("@@",lo$) i$="FISH ARE NIBBLING ON THE "+m$
  if instr("**",lo$) i$="THE "+m$+" IS QUITE FROZEN!"
- if a>40 i$="YEP. IT'S DEAD AWRIGHT.."
- if a>70 i$="THE "+m$+" IS QUITE UGLY, ACTUALLY.."
+ a$="IT'S":if right$(m$,1)="S" a$="THEIR"
+ if a>40 i$="YEP. "+a$+" DEAD AWRIGHT.."
+ a$="IS":if right$(m$,1)="S" a$="ARE"
+ if a>70 i$="THE "+m$+" "+a$+" QUITE UGLY, ACTUALLY.."
  if it$="" then if pr=7 gosub rnd.100a:if a<26 print \"YOUR DWARVISH EYES SPOT SOMETHING!":goto mon.dv
  gosub rnd.100a:if a>70 goto mon.fd
  gosub rnd.100a:if (a>15) or (it$<>"") print \i$:goto mon.des
@@ -369,7 +406,8 @@ mon.fd
  fd=69:fd$=m$+" MEAT"
  i$="OGRE'S":if pr=8 i$="ORCISH"
  if (pr=2) or (pr=8) then if a>100 print \"YOUR "i$" MOUTH WATERS!";
- print \"YOU DECIDE THE "m$" LOOKS EDIBLE! (sort of..)":return
+ a$="S ":if right$(m$,1)="S" a$=" "
+ print \"YOU DECIDE THE "m$" LOOK"a$"EDIBLE! (sort of..)":return
 mon.des
  gosub rnd.100a:if a>2 return
  print \"YUK! YOU PICKED UP A DISEASE FROM THE THING!"
@@ -384,8 +422,7 @@ carefully disarm..'
  pop:i$="zu$":zw=9:zw$="1":zt=4:goto lnk.misc
 
 smarter
- print "(You feel a bit smarter)":if pi<25 then pi=pi+2
- if pi>24 then print "(but not much..)"
+ if pi<25 pi=pi+2:print "You feel a bit smarter"
  return
 ;
 l.return
@@ -393,115 +430,6 @@ l.return
 ;
 rnd.100a
  zz$=rnd$:a=(random(999)/10)+1:return
-;
-
-loot
- if instr("loot",ys$) print \'
-The SPUR gestapo frowns on taking too
-many items per game session!'\:goto advent
- if xi>(zo-1) print \"You can carry no more Items.":goto advent
- zw$="":zx$="":zy$="":ch=0
- print \"People in the area;"\:gosub plyr.loc
-
-loot2
- if ch=0 print \"No adventurers here!"\:goto advent
- input @2\"Loot which Adventurer (CR=Abort) ? "i$
- if i$="" goto advent
- if (i$="?") or (i$="L") goto loot
- x=val(i$):xu=x
- if (x<1) or (x>np) print \"Enter number from 1 to "np:goto loot2
- if x=pn print \"You CANNOT loot yourself!":goto loot2
- gosub rd.plyr2
- if (cl<>yl) or (cr<>yr) print \"That Adventurer is NOT here!":goto loot2
- i$=left$(n2$,1):n2$=mid$(n2$,2)
- if not instr(i$,"ABCDE") print\n2$" scowls, 'Back off bugger!'":goto loot2
- if i$="D" and zw$<>"" i$=zw$:goto guardian
- if i$="C" and zx$<>"" i$=zx$:goto guardian
- if i$="E" and zy$<>"" i$=zy$:goto guardian
-
- dy$=dx$+"spur.items"
- open #1,dy$:position #1,84,x
- input #1,zr\zt$:close
-
-take
- if xi>(zo-1) print \"You can carry no more Items.":goto advent
- if zr<1 print \n2$" isn't carrying any items!":goto loot2
- print \n2$" is carrying:"\
- dy$=dw$+"items"
- open #1,dy$
-loot4
- for zs=1 to zr
- y=(zs*4)-3:a=val(mid$(zt$,y)):if a<1 goto bad.loot
- position #1,30,a,2
- input #1,n$:zm=instr("|",n$):if zm>0 n$=left$(n$,zm-1)
- if len(n$)<2 goto bad.loot
- print right$("   "+str$(zs),3)". - "mid$(n$,3)
- next:print:goto loot3
-
-bad.loot
- i$="Bad loot item string. zr="+str$(zr):gosub add.lg
- i$="zt$="+zt$+", n$="+n$:gosub add.lg 
- zr=zs-1:next:print
- if zr<1 close:print "nothing!":goto loot2
-
-loot3
- input @2\"Take which item number? :"a$:zs=val(a$):if a$="" close:goto loot2
- if a$="?" goto loot4
- if (zs<1) or (zs>zr) print n2$" doesn't don't carry that!!":goto loot3
- y=(zs*4)-3:a=val(mid$(zt$,y))
- position #1,30,a,2:input #1,n$:l=len(zt$):y=(zs*4)-3
- 
-tak.itm
- a$=right$("000"+str$(a),3)+","
- if instr("|",n$) goto loot.6
- if instr(a$,xi$) print \"You already have one!":goto loot3
- if instr(a$,ai$) print \"Your ally already carries one!":goto loot3
-loot.6
- close:zm=instr("|",n$):if zm>0 n$=left$(n$,zm-1)
- print \"You steal the "mid$(n$,3)" from "n2$"!"
- a=30:if pc=9 a=50
- if vk>a vk=vk-a
- xi=xi+1:xi$=xi$+a$
- zr=zr-1:if zr=0 then zt$="":goto loot.4
- if y=1 then zt$=mid$(zt$,5):goto loot.4
- if (y+4)>l then zt$=left$(zt$,y-1):goto loot.4
- zt$=left$(zt$,y-1)+mid$(zt$,y+4)
-loot.4
- dy$=dx$+"spur.items"
- open #1,dy$:position #1,84,x
- print #1,zr\zt$:close
-
- if (vv=1) or (vv=2) then if not instr("outlaw",ys$) then ys$=ys$+"outlaw" :print \"(Outlaws may steal twice!)":goto loot.5
- ys$=ys$+"loot"
-loot.5
- print \"Wait.."
- dy$=dx$+"battle.log":create dy$:open #1,"battle.log":append #1
- print #1, left$(date$,6)yr$" "time$"- PILLAGE!"
- print #1, n1$" STOLE "mid$(n$,3)" FROM"
- print #1, n2$" IN "ww$".."
- print #1,xu$:close
-
- if (ys<1) or (ys>nu) then ys=1
- f$=dm$+"mail":ready f$:edit(0):if info(6)<29 goto advent
- print #msg(ys),0
- print #6,xu$
- print #6,"While you were unconscious, you were"
- print #6,"robbed of your "mid$(n$,3)"!"
- print #6,xu$
- copy #8,#6
- print #msg(ys),chr$(4);chr$(0);
- msg(ys)=1:update:ready dr$:goto advent
-;
-guardian
- print \i$" blocks the path!"
- print "'"n2$" is a member of my guild,"
- print "you must defeat ME first!'"
- dy$=dx$+"battle.log":create dy$:open #1,"battle.log":append #1
- print #1, left$(date$,6)yr$" "time$"- COMRADES!"
- print #1, i$" PROTECTED "n2$
- print #1, "FROM PILLAGE, IN "ww$".."
- print #1,xu$:close
- goto loot2
 ;
 obelisk
  dy$=dx$+"battle.log":create dy$:open #1,"battle.log":append #1
@@ -518,12 +446,11 @@ messages
 ;
 plyr.loc
  free:tg$=ta$:gosub ply.locD
- if cl=1 then if tf$<>">:" tg$=tf$:gosub ply.locD 
+ if cl=1 then if tf$<>">:" tg$=tf$:gosub ply.locD
  wx$="":return
 
 ply.locD
 ; Feed 'ch' variable as status flag.
-; ch=0 is call from LOOT. Return ch=1 if players present.
 ; ch=2 is call from Examine
 ;    zt$="*" is examine ALL, zt$=NAME is examine NAME. Return ch=4 if success.
  vs=cl:vx=cr
@@ -545,19 +472,9 @@ ply.loc3
  if yx<1 then if zz$<>"0" a$=" LIES UNCONSCIOUS."
 ; Here: yx=game id number, if needed
  yx=yw+xz+1:yx=val(mid$(dy$,yx,3))
- if ch>1 x=yx:gosub rd.plyr:goto ply.loc7
- if instr(zz$,"67") zw$=n2$
- if instr(zz$,"34") zx$=n2$
- if instr(zz$,"89") zy$=n2$
- xx$="UNKNOWN"
- if instr(zz$,"0A") xx$="CIVY"
- if instr(zz$,"12B") xx$="OUTLAW"
- if instr(zz$,"67D") xx$="\|/"
- if instr(zz$,"34C") xx$="-}---"
- if instr(zz$,"89E") xx$="==[]"
- print "# "yx", "xx$" "n2$;a$:ch=1
-ply.loc7
- dy$=mid$(dy$,yw+1):yy=instr(wx$,dy$):if yy goto ply.loc1
+ x=yx:gosub rd.plyr
+ dy$=mid$(dy$,yw+1):yy=instr(wx$,dy$)
+ if yy goto ply.loc1
  return
 ply.loc8
  if cl=1 dy$=tg$
@@ -578,7 +495,7 @@ rd.plyr
  if yn>4 i$="n elite":if yn>6 i$=" deadly"
  print i$" ";
  yg=(yg-1)*7+1:yi=(yi-1)*8+1
- i$="Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc     Half-Elf"
+ i$="Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf Orc     Half-Elf"
  i$=mid$(i$,yi,8):a=instr(" ",i$):if a i$=left$(i$,a-1)
  print i$" ";
  i$="Wizard Druid  FighterPaladinRanger Thief  Archer AssasinKnight "
@@ -600,32 +517,31 @@ rd.plyr
  open #1,i$
  position #1,64,x
  input #1,c\a$:close
- if c=0 print "No Weapons!":return
- i$=dx$+"weapons":open #1,i$
+ if c=0 print "no Weapons!":return
+ i$=dw$+"weapons":open #1,i$
  for e=1 to c
  y=(e*4)-3:a=val(mid$(a$,y))
  position #1,34,a,2
  input #1,w$\w1,w2\w5:if e>1 print " and ";
- if mid$(w$,4,3) ="EXC" print mid$(w$,4);
- if mid$(w$,4,3) <> "EXC" and instr("A*E*I*O*U",mid$(w$,4)) print "an" wq=1
- if wq=0 and mid$(w$,4,3) <> "EXC" print "a "mid$(w$,4);
- wq=0:next:close:print "." 
+ print "a "mid$(w$,4);
+ next:close:print "."
  return
 
 rd.plyr2
- i$=dx$+"spur.users"
+ i$=dw$+"spur.users"
  open #1,i$:position #1,130,x
  input #1,n2$,ys,yp,yl,yr,yh
  input #1,cs,ct,ci,ce,cw,cd
  input #1,ya,yb,yc,yd,ye,yf,yg,yi,yj,yk,ym,yn
  input #1,p2$:close:return
 
-add.lg
+add.log
 ;.. i$=log message
  create "a:add.log":open #2,"a:add.log"
  append #2:print #2,"[spur.misc3] "i$:close #2:return
 
 compile
+ if a$="spur.compile" link "d:spur.compile","return"
  if info(5) print \"Compiled..":link "k:system.seg"
 comp.ck
  print "..ok":return

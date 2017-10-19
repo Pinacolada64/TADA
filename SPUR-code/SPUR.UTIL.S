@@ -2,11 +2,8 @@
 ;      Spur Utilities
 
  public compile
-; backups called from spur.annex.s
- public backups
  on nocar goto linkterm
 
- 
 main
  input \"SPUR Utility (?=Menu): "i$
  push main
@@ -43,7 +40,7 @@ room.def
  if a print \"No rooms to read":pop:return
  ready dr$
  return
- 
+
 search
  gosub room.def
 srch.1
@@ -56,7 +53,7 @@ srch.2
  input @2\"Enter #: "a
  if a=0 return
  x=1
- 
+
 srch.3
  print \"Scanning # [" x "]";
 srch.4
@@ -74,14 +71,14 @@ srch.6
  goto srch.3
 srch.7
  print \\"Search complete.":goto srch.1
- 
+
 cross
  gosub room.def
  gosub ptr.pmt
  q=0:y=18:if o=5 then y=60
  x=1
  gosub header
- 
+
 rm.prt1
  input #msg(x),lo$,m,i,wp,fd,n,s,e,w,rc,rt
  setint(1)
@@ -90,8 +87,8 @@ rm.prt1
  print #o,left$(lo$+"                         ",25)"  ";
  if m print #o,right$("   "+str$(m),3);:else print #o,"   ";
  print #o,"  ";:if i print #o,right$("   "+str$(i),3);:else print #o,"   ";
- print #o,"  ";:if wp print #o,right$("   "+str$(wp),3);:else print #o,"   ";
- print #o,"  ";:if fd print #o,right$("   "+str$(fd),3);:else print #o,"   ";
+ print #o,"  ";:if wp print #o,right$(" "+str$(wp),3);:else print #o,"   ";
+ print #o,"  ";:if fd print #o,right$(" "+str$(fd),3);:else print #o,"   ";
  print #o,"   ";:if n print #o,"Y";:else print #o," ";
  print #o," ";:if s print #o,"Y";:else print #o," ";
  print #o," ";:if e print #o,"Y";:else print #o," ";
@@ -104,11 +101,11 @@ rm.prt1
 rm.prt3
  if (x<nr) and (not key(1)) then x=x+1:goto rm.prt1
  return
- 
+
 header
- print #o,"Numb   Name                       Mon  Itm  Wep  Rat   ";
+ print #o,"Numb   Name                       Mon  Itm  Wep Rat   ";
  print #o,"N S E W  Up  Dn  Room"
- print #o,"----   -------------------------  ---  ---  ---  ---   ";
+ print #o,"----   -------------------------  ---  ---  --- ---   ";
  print #o,"- - - -  --  --  ----"
  return
 
@@ -213,7 +210,7 @@ purge.4
  goto purge.1
 purge.5
  close:print \q" users deleted.":return
- 
+
 workshet
  if info(0) print \"Local mode only!":return
  if (not pq) print \"Printer not defined..."\:return
@@ -230,7 +227,7 @@ wksht.2
  input @2\\"Ready PRINTER - Hit RETURN :"b$
  print #o,chr$(9)a$"N";
  w=b/10:x1=s:x2=s
- 
+
 length
  b=l:if x2<b then b=x2
  x2=x2-b
@@ -242,7 +239,7 @@ width
  if x1<>0 goto width
  if x2=0 return
  x1=s:goto length
- 
+
 prt.grid
  d=a-1:c=0
 grid1
@@ -251,227 +248,39 @@ grid1
  x=0
 grid2
  print #o,"|      |";
- if d=0 then print #o:else for y=1 to d:print #o,"  |      |";:next print #o
+ if d=0 then print #o:else for y=1 to d:print #o,"  | |";:next print #o
  x=x+1:if x<5 goto grid2
  print #o,"|------|";
- if d=0 then print #o,\\:else for y=1 to d:print #o,"  |------|";:next:print #o,\\
+ if d=0 then print #o,\\:else for y=1 to d:print #o," |------|";:next:print #o,\\
  c=c+1:if c<b goto grid1
  return
- 
+
 cont
  input @2\"Press Return to continue "a$:return
- 
+
 ptr.pmt
  o=0:if info(0) return
  q$="":input @0\"Send output to printer? "q$
  if q$="Y" then o=5
  return
- 
+
 relink
  dt$=ds$+"spur.sysop":link dt$,"relink"
- 
+
 quit
  pop:dy$=ds$+"spur.sysop"
  link dy$
- 
+
 linkterm
  dy$=dz$+"spur.logon":link dy$,"quit3"
 ;
 linkmain
  recall "a:var"
  link "a:main.seg","term1"
-
-backups
- store "a:var"
- on nocar goto linkmain
- print \"Spur player files"
- input @2"B)ackup files, R)estore player, Q)uit :"i$
- if i$="Q" or i$="" recall "a:var":link "d:spur.annex"
- if i$="B" goto cp.spur
- if i$="R" gosub restore:goto backups
- print \"Bad entry":goto backups
-;
-cp.spur
- print \"Copying c: to j: directory.."
- f$="c:spur.data":print \f$:open #1,f$
- input #1,g$,np,go,oh,ol,og,lg$
- input #1,lc,mc,ic,sc,wc,ac,cg
- input #1,pq,sd,mv,td,bd
- input #1,dh,dl:close
- f$="j:spur.data":kill f$:create f$:open #1,f$
- print #1,g$,np,go,oh,ol,og,lg$
- print #1,lc,mc,ic,sc,wc,ac,cg
- print #1,pq,sd,mv,td,bd
- print #1,dh,dl:close
-
- f$="c:spur.users":open #1,f$
- f$="j:spur.users":open #2,f$:if mark(1) close:print \"Backup files not found in j: directory- aborted." :goto cp.spur4
- print "See who played since last backup.."
- zz$="":for a=1 to np
- position #1,130,a
- input #1,n1$,sn,pn,cl,cr,hp
- input #1,ps,pt,pi,pe,pw,pd
- input #1,gh,gl,bh,bl,sh,ar,pc,pr,ep,i$
- position #2,130,a
- input #2,n1$,sn,pn,cl,cr,hp
- input #2,ps,pt,pi,pe,pw,pd
- input #2,gh,gl,bh,bl,sh,ar,pc,pr,yy,i$
- if ep<>yy print "#"sn"/"pn", "n1$:zz$=zz$+right$("00"+str$(a),3)
- next:if zz$="" print \"Nobody played!":close:goto cp.spur4
-
- print \"Player file";
- for x=1 to len(zz$)/3:i$=mid$(zz$,(x-1)*3+1,3):a=val(i$)
- if (a<1) or (a>np) print \"Bad player number:"a:close:pop:goto cp.spur4
- position #1,130,a
- input #1,n1$,sn,pn,cl,cr,hp
- input #1,ps,pt,pi,pe,pw,pd
- input #1,gh,gl,bh,bl,sh,ar,pc,pr,ep,mk,mm,xp
- input #1,df,sl,sr
- position #2,130,a
- print #2,n1$,sn,pn,cl,cr,hp
- print #2,ps,pt,pi,pe,pw,pd
- print #2,gh,gl,bh,bl,sh,ar,pc,pr,ep,mk,mm,xp
- print #2,df,sl,sr
- print ","a;:next:close
-
- print \"Spur.allies";
- open #1,"c:spur.allies":open #2,"j:spur.allies"
- for x=1 to len(zz$)/3:i$=mid$(zz$,(x-1)*3+1,3):a=val(i$)
- position #1,78,a:input #1,d1$,a1,h1\d2$,a2,h2\d3$,a3,h3
- position #2,78,a:print #2,d1$,a1,h1\d2$,a2,h2\d3$,a3,h3
- print ","a;:next:close
-
- print \"Spur.weapons";
- open #1,"c:spur.weapons":open #2,"j:spur.weapons"
- for x=1 to len(zz$)/3:i$=mid$(zz$,(x-1)*3+1,3):a=val(i$)
- position #1,64,a:input #1,xw\xw$
- position #2,64,a:print #2,xw\xw$
- print ","a;:next:close
-
- print \"Spur.stores";
- open #1,"c:spur.stores":open #2,"j:spur.stores"
- for x=1 to len(zz$)/3:i$=mid$(zz$,(x-1)*3+1,3):a=val(i$)
- position #1,44,a:input #1,xf\xf$
- position #2,44,a:print #2,xf\xf$
- print ","a;:next:close
-
- print \"Spur.items";
- open #1,"c:spur.items":open #2,"j:spur.items"
- for x=1 to len(zz$)/3:i$=mid$(zz$,(x-1)*3+1,3):a=val(i$)
- position #1,84,a:input #1,xi\xi$
- position #2,84,a:print #2,xi\xi$
- print ","a;:next:close
-
- print \"Ally.items";
- open #1,"c:ally.items":open #2,"j:ally.items"
- for x=1 to len(zz$)/3:i$=mid$(zz$,(x-1)*3+1,3):a=val(i$)
- position #1,84,a:input #1,ai\ai$
- position #2,84,a:print #2,ai\ai$
- print ","a;:next:close
-
- print \"Spur.spells";
- open #1,"c:spur.spells":open #2,"j:spur.spells"
- for x=1 to len(zz$)/3:i$=mid$(zz$,(x-1)*3+1,3):a=val(i$)
- position #1,44,a:input #1,xs\xs$
- position #2,44,a:print #2,xs\xs$
- print ","a;:next:close
-
- print \"Spur.status";
- open #1,"c:spur.status":open #2,"j:spur.status"
- for x=1 to len(zz$)/3:i$=mid$(zz$,(x-1)*3+1,3):a=val(i$)
- position #1,32,a:input #1,zu$
- position #2,32,a:print #2,zu$
- print ","a;:next:close
-
- print \"Locker";
- open #1,"c:locker":open #2,"j:locker"
- for x=1 to len(zz$)/3:i$=mid$(zz$,(x-1)*3+1,3):a=val(i$)
- position #1,84,a:input #1,zt\zw$
- position #2,84,a:print #2,zt\zw$
- print ","a;:next:close:print \"DONE!"
-
-cp.spur4
- goto backups
-;
-;
-restore
- gosub view.dat
- input @2\"Restore which player record? :"i$
- a=val(i$):if a=0 return
- if a>np print \"Too high!":goto restore
- print "Restore to active file, as record #["a;:input @2"]:"i$
- zz=val(i$):if zz<1 zz=a
- if zz>np print \"To high":goto restore
- open #1,"j:spur.users":if mark(1) close:print \"Backup not found in j: directory- aborted.":return
- print \"Restoring spur.users file. Backup #"a" to active #"zz
- input @2"Ok? [Y]/n:"i$:if i$="N" close:return
- open #2,"c:spur.users"
- position #1,130,a:input #1,n1$,i$
- print \"Restoring "n1$;:input @2" OK? [Y]/n:"i$:if i$="N" close:return
- position #2,130,zz:input #2,a$,sn,i$
- if sn>0 then if a$<>n1$ print "Overwrite "a$;:input @2" OK [Y]/n:"i$:if i$="N" close:return
- print \"Restoring spur.users"
- position #1,130,a
- input #1,n1$,sn,pn,cl,cr,hp
- input #1,ps,pt,pi,pe,pw,pd
- input #1,gh,gl,bh,bl,sh,ar,pc,pr,ep,mk,mm,xp
- input #1,df,sl,sr
- position #2,130,zz
- print #2,n1$,sn,zz,cl,cr,hp
- print #2,ps,pt,pi,pe,pw,pd
- print #2,gh,gl,bh,bl,sh,ar,pc,pr,ep,mk,mm,xp
- print #2,df,sl,sr
- close
- print "Restoring Spur.allies"
- open #1,"j:spur.allies":open #2,"c:spur.allies"
- position #1,78,a:input #1,d1$,a1,h1\d2$,a2,h2\d3$,a3,h3
- position #2,78,zz:print #2,d1$,a1,h1\d2$,a2,h2\d3$,a3,h3
- close
- print "Restoring Spur.weapons file"
- open #1,"j:spur.weapons":open #2,"c:spur.weapons"
- position #1,64,a:input #1,xw\xw$
- position #2,64,zz:print #2,xw\xw$
- close
- print "Restoring Spur.stores file"
- open #1,"j:spur.stores":open #2,"c:spur.stores"
- position #1,44,a:input #1,xf\xf$
- position #2,44,zz:print #2,xf\xf$
- close
- print "Restoring Spur.items file"
- open #1,"j:spur.items":open #2,"c:spur.items"
- position #1,84,a:input #1,xi\xi$
- position #2,84,zz:print #2,xi\xi$
- close
- print "Restoring Ally.items file"
- open #1,"j:ally.items":open #2,"c:ally.items"
- position #1,84,a:input #1,ai\ai$
- position #2,84,zz:print #2,ai\ai$
- close
- print "Restoring Spur.spells file"
- open #1,"j:spur.spells":open #2,"c:spur.spells"
- position #1,44,a:input #1,xs\xs$
- position #2,44,zz:print #2,xs\xs$
- close
- print "Restoring Spur.status file"
- open #1,"j:spur.status":open #2,"c:spur.status"
- position #1,32,a:input #1,zu$
- position #2,32,zz:print #2,zu$
- close
- print "Restoring locker file"
- open #1,"j:locker":open #2,"c:locker"
- position #1,84,a:input #1,zt\zw$
- position #2,84,zz:print #2,zt\zw$
- close:print \"DONE!"\:return
-;
-view.dat
- print \"(Reading Spur system data)"\
- dy$=dx$+"spur.data
- open #1,dy$
- input #1,g$,np,go,oh,ol,og,lg$
- input #1,lc,mc,ic,sc,wc,ac,cg
- input #1,pq,sd,mv,td,bd
- input #1,dh,dl:close
- return
 ;
 compile
- print " - ok":if un=1 then if info(5) link "k:system.seg"
+ if a$="spur.compile" link "d:spur.compile","return"
+ print " - ok":if info(5) link "k:system.seg"
+ goto linkmain
+;
+

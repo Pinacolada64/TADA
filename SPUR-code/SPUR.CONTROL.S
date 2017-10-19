@@ -1,14 +1,12 @@
 ; spur.control.s
 
-; last modified 2012/06/14 by pinacolada
-
  on nocar goto dropped
 
  public list
  public configure
  public annex.l
+ public compile
 
-gosub compiler
 main
  input \"SPUR Sysop Control (?=Menu): "i$
  push main
@@ -310,73 +308,35 @@ listfd3
  x=x+1:if (x>cg) or (key(1)) close:return
  goto listfd2
 
-; pina here: this section is pretty buggy and unclear.
-; * b1 apparently does not get initialized so prints garbage
-;   for the first bbs user account name. list #s do not increment
-;   properly
-; * spur character names sometimes have #s as 1st char
-;   (they shouldn't get printed, in my opinion)
-; * the "xxx - gold" could lose the "-" too.
-
-; also, it seems like the bbs user id# and spur player # columns are swapped?
-
 listplyr
  if pq gosub ptr.pmt
- print #o,"Players:"\
+ print #o,\"Players:"\
  dy$=dx$+"spur.users":open #1,dy$:x=1
  dt$="k:users":open #2,dt$
-
-; pina here: let's print a header so it's clearer what columns mean.
-; also, initialize b1 and see if that fixes the 1st bbs account name.
- print #o\" TLOS                     Dwarf Spur  BBS"
- print #o "  ID     BBS User Name     Room Room  ID          Game Name              Gold"
- print #o " --- --------------------- ---- ---- ---- --------------------------- -------"
 lstplyr2
  position #1,130,x
-
-; b1,b2 get read from spur.users here:
-
-; input #1,n$,b1,b2\f\g1,g2,g3,g4\s1,s2,s3
-; going to try swapping inputting b2/b1 so they display in proper columns later:
- input #1,n$,b2,b1\f\g1,g2,g3,g4\s1,s2,s3
+ input #1,n$,b1,b2\f\g1,g2,g3,g4\s1,s2,s3
  setint(1)
  if not b1 goto lstplyr3
-
-; reading from k:users here:
-; pina: should b1 increment to display proper user name?
- b1=b1+1
-
-;p1$/p2$ are bbs user first/last names:
  position #2,64,b1:input #2,p1$,p2$
-
  setint(1)
-; this displays tlos id#, then bbs user name:
-; although why not use x (loop counter) instead of b1?
-; p1$=p1$+" "+p2$:print #o,right$("    "+str$(b1),4)" "left$(p1$+"                     ",21);
- print #o,right$("    "+str$(x),4)" "left$(p1$+" "+p2$+"                      ",22);
-; display dwarf room:
-; TODO: print "DEAD" if so:
- print #o,right$("    "+str$(s1),4)" ";
-; display spur room:
-; TODO: print "DEAD" if so:
- print #o,right$("    "+str$(s3),4)" ";
-; display bbs account # + game name:
- print #o,right$("    "+str$(b2),4)" ";
-; strip # from left of name, if present:
- if val(left$(n$,1)) n$=mid$(n$,2)
- print #o,left$(n$+"                          ",26);
-; gosub gold.cnv - inline this once-used subroutine
-;gold.cnv
+ gosub gold.cnv
+ p1$=p1$+" "+p2$:print #o,right$("    "+str$(b1),4)" "left$(p1$+"                     ",21);
+ print #o," DR="right$("   "+str$(s1),3)" ";
+ print #o,"SR="right$("   "+str$(s3),3);
+ print #o,right$("    "+str$(b2),4)" "left$(n$+"                ",16);
+ print #o," "a$" - gold"
+lstplyr3
+ x=x+1:if (x>np) or (key(1)) close:return
+ goto lstplyr2
+ 
+gold.cnv
  t1=g1+g3
  t2=g2+g4
  if t2>10000 then t2=t2-10000:t1=t1+1
  b$=str$(t1):a$="0000":if t1=0 then a$="    ":b$=" "
  a$=right$("     "+b$,5)+right$(a$+str$(t2),4)
-; return
- print #o,a$
-lstplyr3
- x=x+1:if (x>np) or (key(1)) close:return
- goto lstplyr2
+ return
  
 room.dsp
  input @2\"Rooms on which level "i$
@@ -390,8 +350,9 @@ listroom
  dy$=dm$+"mail":ready dy$
  open #1,dr$:a=mark(1):close #1
  if a print \"No rooms to read":return
- input @2\"Start at room # "i$:x=val(i$):if x<1 then x=1
+ input @2\"Start at room # (ALL=non-stop):"i$:x=val(i$):if x<1 then x=1
  if x>nr then x=nr
+ f$="*":if i$="ALL" f$="+"
  ready dr$
 listrm2
  edit(0)
@@ -418,11 +379,12 @@ listrm2
  print #o,"Room Name    : "lo$
  print #o,\"Room Description :"\
  copy #8,#o
-; print #o,\
+ print #o,\
 listrm3
  x=x+1:if (x>nr) or (key(1)) return
  if lo$="" goto listrm2
- if o=0 print md$:input @2"Q=Quit, C/R=Continue: "i$:if i$="Q" return
+ if f$="+" goto listrm2
+ if o=0 print \md$:input @2\"Q=Quit C/R=Continue: "i$:if i$="Q" return
  goto listrm2
 
 ptr.pmt
@@ -779,8 +741,8 @@ quit
  
 dropped
  link "a:main.seg","term1"
-
-compiler
- print \"spur.control-ok"
- return
+;
+compile
+ if a$="spur.compile" link "d:spur.compile","return"
+ if info(5) print \"Compiled..":link "k:system.seg"
 ;

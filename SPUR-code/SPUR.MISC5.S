@@ -1,10 +1,11 @@
 ;..spur.misc5.s
+;..modified with appleworks
  on nocar goto dropped
 
  public show2
  public compile
 
- if un=1 print "spur.misc5--";:gosub comp.ck
+ if flag(32) print "spur.misc5--";:gosub comp.ck
  if i$="V" goto verbose
  if i$="STATS" gosub status:setint(""):goto advent
  if i$="STAT2" gosub status:goto lnk.ship
@@ -48,15 +49,15 @@ auto.e
  if instr("+",ww$)zz$="'Pity AUTODUEL doesn't work in '+' rooms..'":goto auto.b
  if vt>0 zz$="'We will meet later "+n1$+"!'":goto auto.b
 ;--duel
- zv$="autoduel":yx$="":hh=0:b=0:cw$="":sx=0:zt=0:zs=0:xy=0:xv=0
+ zv$="autoduel":yx$="":hh=0:b=0:cw$="":sx=0:zt=0:zs=0:xy=0:xv =0
  xu=x:gosub auto.a
  z=0
  if zz>11 then zz$=xx$+" upon reflection, looks polite!":goto auto.b
  if zz<7 then if not instr(zx$,ww$) zz$="'Your too weak, come back when your grown!'":goto auto.b
- if instr(zx$,ww$) print \"'How DARE you invade our turf?!?'"
+ if instr(zx$,ww$) print \hl$"'How DARE you invade our turf?!?'"of$
  z=1:zz$="'I challenge you to a duel!!'"
 auto.b
- print zz$:if zv$="autoduel" then if z=1 goto auto.c
+ print on$;zz$;of$:if zv$="autoduel" then if z=1 goto auto.c
  zv$="":goto advent
 ;
 auto.a
@@ -80,7 +81,7 @@ auto.c
  wr$="":xy=0:gosub set.lvl:gosub auto.c1
  if cl=1 then if tf$<>">:" a$=tf$:gosub auto.c1
  xy=xy-1:if xy<1 xy=0
- xv=xy:zu=xy:if xy print \"("xx$" supported by "xy" guild members)" 
+ xv=xy:zu=xy:if xy print \"("xx$" supported by "xy" guild members)"
  dy$=ds$+"spur.duel2":link dy$,"auto.c"
 auto.c1
  z=0
@@ -152,12 +153,15 @@ come.e
  if (instr("*C",yt$)) or (instr("*D",yt$)) or (instr("*E",yt$)) print "YOU CAN ONLY CARRY ONE PERSON, "dy$" IS LEFT.":return
  xz$="HELPS YOU CARRY "+dy$:f$="IS TOO WEAK TO HELP"
  if yt$<>"*" xu=(instr("=",yt$)-1):print mid$(yt$,3,xu-2)" "xz$:goto come.f
- if a1>10 print d1$" "xz$:goto come.f
- if a1>0 print d1$" "f$
- if a2>10 print d2$" "xz$:goto come.f
- if a2>0 print d2$" "f$
- if a3>10 print d3$" "xz$:goto come.f
- if a3>0 print d3$" "f$
+ lu$=d1$:gosub cln.ally
+ if a1>10 print lu$" "xz$:goto come.f
+ if a1>0 print lu$" "f$
+ lu$=d2$:gosub cln.ally
+ if a2>10 print lu$" "xz$:goto come.f
+ if a2>0 print lu$" "f$
+ lu$=d3$:gosub cln.ally
+ if a3>10 print lu$" "xz$:goto come.f
+ if a3>0 print lu$" "f$
  print "YOU CAN'T CARRY "dy$" BY YOURSELF" :return
 come.f
  yt$=yt$+zz$+"="+xu$+"*":zt$=i$+zz$+":"+xu$:xu=instr(zt$,a$)
@@ -176,8 +180,8 @@ status
  print "Gold - In Hand:"gd$
  g1=bh:g2=bl:gosub prt.gold
  print "       In Bank:"gd$
- print \"Experience Pts :"right$("   "+str$(ep),5)"   Hit Points :"right$("   "+str$(hp),3)
- print "Monsters Kills :"right$("   "+str$(mk),5)" Player Level :"right$("   "+str$(xp),3)
+ print \"Experience Pts :"right$("   "+str$(ep),5)"   Hit Points :"right$(" "+str$(hp),3)
+ print "Monsters Kills :"right$("   "+str$(mk),5)" Player Level :"right$(" "+str$(xp),3)
  a=ps*4:print \"Strength: "right$("  "+str$(ps),2)right$("    "+str$(a),4)"%   ";
  a=pt*4:print "Const'n  :"right$("  "+str$(pt),2)right$("    "+str$(a),4)"%"
  a=pi*4:print "Intel   : "right$("  "+str$(pi),2)right$("    "+str$(a),4)"%   ";
@@ -203,13 +207,20 @@ status
  print \"GUILD FOLLOWER? ";
  if mid$(zu$,10,1)="1" print "YES":else print "NO"
 no.guild
+ yx=12+xp
+ if pc=1 yx=yx-2
+ if pc=5 yx=yx+5
+ if (pc=6) or (pc=8) yx=yx+2
+ if (b5=3) or (b5=9) yx=yx+2
+ if instr("&",d1$+d2$+d3$) yx=yx+5
+ print "Effective Tracking ability: "yx
  if mid$(zu$,3,1)="1" print \"POISONED!":else print \"Not poisoned"
  if mid$(zu$,4,1)="1" print "DISEASED!":else print "Not diseased"
  if mid$(zu$,2,1)="1" print "Ring worn.."
  if mid$(zu$,6,1)="1" print "Gauntlets worn.."
  i$=mid$(zu$,8,1):zs=instr("076,",xi$):zr=instr("076,",ai$)
  if i$="1" print "Amulet of life -  ENERGIZED!"
- if i$="0" then if zs+zr>0 print "[][] AMULET OF LIFE NOT ENERGIZED! [][]":if zr>0 print "(Your ally carries it!)"
+ if i$="0" if zs+zr>0 print "[][] AMULET OF LIFE NOT ENERGIZED! [][]":if zr>0 print "(Your ally carries it!)"
  if instr(mid$(zu$,7,1),"23") print "Wizard's Glow spell active!"
  print \"King of the Wraiths : ";
  if instr(mid$(zu$,7,1),"12") print "Dead..":else print "Alive.."
@@ -250,7 +261,9 @@ verbose
  if i$="B" zw$="C"
  if i$="A" zw$="0"
  if instr(zw$,"AB") zz$="OFF":else zz$="ON"
- gosub zu$:print \"Room description: "zz$:goto advent
+ gosub zu$:print \"Room description: "zz$
+ if zz$="OFF" print \on$"Note that important information is sometimes contained in Room descriptions!"of$
+ goto advent
 ;
 zu$
 ;... input zw=position number, zw$=new value
@@ -327,7 +340,7 @@ ammo2
 ammo.z
 ;zt=0 is ammo, zt=1 is booby trap
  position #1,30,x:input #1,cb$:if cb$="*" return
- input #1,it$\it:it=it*10:if zt=1 it=1000
+ input #1,it$\it:it=it*10:if zt=1 it=200
  g3=gh:g4=gl:g1=0:g2=it:gosub chk.gold
  if a=0 print \"You do not have enough gold.":return
  a$=mid$(it$,3)
@@ -362,9 +375,11 @@ booby
  setint(1):print \'
 You go to the Booby Trap display...
 
-"Ahh, note this selection of the finest traps!" beams Olly.. "For you, only 1000 gold a piece! Each with its secret disarm code! Bury one of these babies with the DIG command and it will discourage people from digging up your gold!"' :setint("")
+"Ahh, note this selection of the finest traps!" beams Olly.. "For you, only 200
+gold a piece! Each with its secret disarm code! Bury one of these babies with
+the DIG command and it will discourage people from digging up your gold!"' :setint("")
 booby.a
- print \"Cost=1000. Purchase Booby Trap."
+ print \"Cost=200. Purchase Booby Trap."
  input @2 "Disarm code [A,B,C,D,E,F,G,H,I]:"i$
  if i$="" or i$="Q" print \"You leave the booby trap display":goto ammo2
  if len(i$)>1 i$="*"
@@ -387,9 +402,10 @@ add.gold
  return
 ;
 charm
+ if instr("HORSE",m$) print \"The horse munches grass..":goto l.return
  gosub rnd.10z
- if instr("E",wy$) if vk<800 z=z-1:if vk<400 z=z-1
- if instr("G",wy$) if vk>1200 z=z-1:if vk>1600 z=z-1
+ if instr("E",wy$) if vk<800  z=z-1:print "(Evil charm?)":if vk<400 z=z-2
+ if instr("G",wy$) if vk>1200 z=z-1:print "(Good charm?)":if vk>1600 z=z-2
  if z<1 z=0
  if zq>1 z=0
  if z>2 goto charm.a
@@ -397,21 +413,24 @@ charm
  i$="*"+d1$+"*"+d2$+"*"+d3$+"*":zt$="*"+m$+"*"
  if instr(zt$,i$) goto charm.a
  i$="S ":if right$(m$,1)="S" i$=" "
- print \m$" WANT"i$"TO JOIN YOU!";:input @2" OK? [Y]/n :"i$
+ print \on$;m$" WANT"i$"TO JOIN YOU!"of$;:input @2" OK? [Y]/n :"i$
  z=2:if instr("E",wy$) if vk<800 z=4
  if instr("G",wy$) if vk>1200 z=4
  if z>vk z=vk
  if i$="N" vk=vk-z:zq=0:goto charm.a
  if ms>15 ms=15
- if a1=0 d1$=m$:a1=ms+5:h1=0:goto charm.b
- if a2=0 d2$=m$:a2=ms+5:h2=0:goto charm.b
- if a3=0 d3$=m$:a3=ms+5:h3=0:goto charm.b
+ i$=m$+"|#"+str$(ms/3):if instr("F",wy$) i$=i$+"+"
+ if a1=0 d1$=i$:a1=ms+5:h1=0:goto charm.b
+ if a2=0 d2$=i$:a2=ms+5:h2=0:goto charm.b
+ if a3=0 d3$=i$:a3=ms+5:h3=0:goto charm.b
 charm.a
  i$="ES ":if right$(m$,1)="S" i$=" "
  print \m$" SADLY WATCH"i$"YOU LEAVE..":goto charm.c
 charm.b
 ;.. (honor given upon return to spur.main- keys on zq)
- print \m$" beams with pride!"
+ xx$=" beams with pride,"
+ if instr("F",wy$) xx$=" smiles at you sweetly,"
+ print \m$;xx$" and joins your party.
  xx$="CHARM":zt$=m$+" JOINED"
  gosub news
 charm.c
@@ -426,7 +445,7 @@ news
  return
 ;
 show.file
- if info(5) print "f$="f$
+ if flag(32) print "f$="f$
  setint(1)
  open #1,f$:if mark(1) close #1:print\"(This map not ready yet!)":return
  close #1:copy f$:setint(""):return
@@ -443,13 +462,18 @@ set.lvl
  if cl=6 a$=th$
  return
 ;
+cln.ally
+ if instr("|",lu$) lu$=left$(lu$,instr("|",lu$)-1)
+ return
+;
 add.lg
 ;.. i$=log message
  open #2,"a:add.log":append #2
  print #2,"Spur.misc5[] "i$" @"time$:close #2:return
 ;
 compile
- if un=1 print "Compiled..":link "k:system.seg"
+ if a$="spur.compile" link "d:spur.compile","return"
+ if info(5) print "Compiled..":link "k:system.seg"
 comp.ck
  print ".. ok":return
 ;

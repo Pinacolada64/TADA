@@ -1,25 +1,26 @@
 
 ; spur.bar2.s
+; worked on with appleworks
 
  on nocar goto dropped
  public compile
 
  if i$="SKIP" goto skip
 
- print \"Guss the Barkeep smiles at you"
- print "'HAAY... DUDE! Like wats happenin?'"
+ print \"Gus the Barkeep smiles at you"
+ print '"HAAY... DUDE! Like wats happenin?"'
 bar.a
  input @2\"T)alk, L)eave :" i$
  if i$="T" goto bar.b
- if (i$="") or (i$="L") or (i$="Q") print \"'Later... dude!'":goto move
+ if (i$="") or (i$="L") or (i$="Q") print \'"Later... dude!"':goto move
 bar.b
- print \"'Soooo... Whats new in the Land of OZ?'"
- input @2"'Like, ya wanna F)lip some coins, B)lackjack, or W)hat?' :" i$
- if i$="F" print \"'AWWRIGHT 'M Man!' Guss thumps a bag of gold on the bar!" :goto flip
- if i$="B" print \"'AWWRIGHT!' Gus plops a strange hat on his head, and deals..":goto blackjack
+ print \'"Soooo... What's new in the Land of OZ?"'
+ print '"Like, ya wanna F)lip some coins, B)lackjack, or W)hat?" ';:input @2 i$
+ if i$="F" print \'"AWWRIGHT M'man!" Gus thumps a bag of gold on the bar!' :goto flip
+ if i$="B" print \'"AWWRIGHT!" Gus plops a strange hat on his head, and deals...':goto blackjack
  if i$="" or i$="Q" goto bar.a
- if i$<>"W" print \"Guss looks puzzled..":goto bar.b
- print \"So, what's on yer mind "n1$"?"
+ if i$<>"W" print \"Gus looks puzzled...":goto bar.b
+ print \"So, what's on yer mind, "n1$"?"
  input @2 \"->" i$
  if i$="" or i$="Q" goto bar.a
 chat.chk
@@ -31,28 +32,28 @@ chat.chk
 chk.1
  gosub rnd100xv:if len(i$)<3 goto chk.2
  xu=len(i$):zz=instr(" ",i$)
- zt$=" "+left$(i$,zz):if un=1 print "'"zt$"' ";
- if instr(zt$," SHIT FUCK ASS HOLE HELL CUNT ") then if xv>20 i$="Guss is shocked by your foul mouth..":goto chk.3
- if instr(zt$," HOW WHY WHERE WHAT WHEN WHO ") if xv>50 i$="'An interesting question..'":goto chk.3
- if instr(zt$," SHUTUP JERK FAGGOT KISS KICK KILL HIT BEAT HELL GEEK UGLY PUSSY ") gosub fight:i$="'Hmpth..'":goto chk.3
- if instr(zt$," DURA SPUR LAND MONSTER AMULET ") then if xv>50 i$="Guss looks nervous, 'Watch what you say..'":goto chk.3
- if instr(zt$," RING EXCALIBUR GUILD EVIL GOOD GOLD ") then if xv<50 i$="'Stay healthy, keep your nose clean and you will find out!'":goto chk.3
+ zt$=" "+left$(i$,zz):if flag(32) print "'"zt$"' ";
+ if instr(zt$," SHIT FUCK ASS HOLE HELL CUNT ") if xv>20 i$="Gus is shocked by your foul mouth...":goto chk.3
+ if instr(zt$," HOW WHY WHERE WHAT WHEN WHO ") if xv>50 i$=qt$+"An interesting question..."+qt$:goto chk.3
+ if instr(zt$," SHUTUP JERK FAGGOT KISS KICK KILL HIT BEAT HELL GEEK UGLY PUSSY ") gosub fight:i$=qt$+"Hmmph..."+qt$:goto chk.3
+ if instr(zt$," DURA SPUR LAND MONSTER AMULET ") if xv>50 i$="Gus looks nervous, "+qt$+"Watch what you say..."+qt$:goto chk.3
+ if instr(zt$," RING EXCALIBUR GUILD EVIL GOOD GOLD ") if xv<50 i$=qt$+"Stay healthy, keep your nose clean and you will find out!"+qt$:goto chk.3
  gosub rnd100xv
- if instr("HELP",i$)if xv>50 i$="'One must help one's self..'":goto chk.3
- if instr("?",i$) if xv>75 i$="'Why do you ask?'":goto chk.3
- if instr("?",i$) if xv>66 i$="'What kind of question is that?'":goto chk.3
- if instr("?",i$) if xv>50 i$="'I waz wondering that myself..'":goto chk.3
- if instr("?",i$) if xv>25 i$="'Beats me..'":goto chk.3
+ if instr("HELP",i$)if xv>50 i$=qt$+"One must help one's self..."+qt$:goto chk.3
+ if instr("?",i$) if xv>75 i$=qt$+"Why do you ask?"+qt$:goto chk.3
+ if instr("?",i$) if xv>66 i$=qt$+"What kind of question is that?"+qt$:goto chk.3
+ if instr("?",i$) if xv>50 i$=qt$+"I waz wondering that myself..."+qt$:goto chk.3
+ if instr("?",i$) if xv>25 i$=qt$+"Beats me..."+qt$:goto chk.3
  if xu>zz+1 i$=mid$(i$,zz+1):goto chk.1
 chk.2
  gosub rnd100xv:i$=""
- if xv>10 i$="Guss looks at you, 'You don't say!'"
- if xv>25 i$="Guss looks thoughtfull.."
- if xv>40 i$="Guss refills your glass, listening.."
- if xv>55 i$="'Um-hmmm...'"
- if xv>70 i$="'Say! How do ya suppose they get frosting in those twinkies?'"
- if xv>90 i$="Guss stares off into space.."
- if i$="" i$="'yep..'"
+ if xv>10 i$="Gus looks at you, "+qt$+"You don't say!"+qt$
+ if xv>25 i$="Gus looks thoughtful..."
+ if xv>40 i$="Gus refills your glass, listening..."
+ if xv>55 i$=qt$+"Um-hmmm..."+qt$
+ if xv>70 i$=qt$+"Say! How do ya suppose they get frosting in those Twinkies?"+qt$
+ if xv>90 i$="Gus stares off into space..."
+ if i$="" i$=qt$+"Yep..."+qt$
 chk.3
  print \i$
  i$=rnd$:input @2\"->" i$
@@ -62,21 +63,22 @@ chk.3
 flip
  gosub tim.chk:if (ev-ex)<120 print "Dusk approaches..."
  print \"("gh*10000+gl" gp)"
- if gh>1 print \"'Yer too rich for me!'":i$="" goto bar.a
+ if gh>1 print \'"Yer too rich for me!"':i$="" goto bar.a
  input @2\"'How much ya wanna bet?' "i$:if i$="" or i$="Q" i$="":goto bar.a
  zz=val(i$):if zz=0 goto bar.a
+ if zz>1000 print \'"Whoa there, 1,000 is the table limit!"' :goto flip
  g3=gh:g4=gl:g1=0:g2=zz:gosub chk.gold
- if a=0 print \"'Hey dude, you don't have that much!'":goto flip
- if zz>1000 print \"'1000 max, my friend..'":goto flip
+ if a=0 print \'"Hey dude, you don't have that much!"':goto flip
+ if zz>1000 print \'"1,000 max, my friend.."':goto flip
 
 flip.a
- input "Call it sam! H)eads, T)ails " i$
- if i$<>"H" then if i$<>"T" print \"'Huh?'":goto flip.a
+ input "Call it, Sam! H)eads, T)ails " i$
+ if i$<>"H" then if i$<>"T" print \'"Huh?"':goto flip.a
  print \"Gus flips a coin.."\
  zt$="  _":gosub spin.curs:zt$=rnd$:zt$="H":if random(1000)>500 zt$="T"
- if zt$="H" print \\"'HEADS!'":else print \\"'TAILS!'"
- if zt$=i$ print \"'You win!'":gosub add.gold:goto flip
- print \"'Too bad..'":gosub sub.gold:goto flip
+ if zt$="H" print \\'"HEADS!"':else print \\'"TAILS!"'
+ if zt$=i$ print \'"You win!"':gosub add.gold:goto flip
+ print \'"Too bad..."':gosub sub.gold:goto flip
 ;
 drop.bj
  i$="Dropped carrier in blackjack":gosub add.lg
@@ -91,7 +93,7 @@ show.file
 add.gold
  gl=gl+g2:if gl=>10000 then gl=gl-10000:gh=gh+1
  return
- 
+
 sub.gold
  if g2>gl then gl=gl+10000:gh=gh-1
  gl=gl-g2:return
@@ -100,7 +102,7 @@ prt.gold
  a$=str$(g1):gd$="0000":if g1=0 then gd$="    ":a$=" "
  gd$=right$("    "+a$,5)+right$(gd$+str$(g2),4)
  return
- 
+
 chk.gold
  a=0
  if g3>g1 then a=1:return
@@ -117,7 +119,7 @@ cnf.qt1
 ;...zt$="whatever" and gosub spin.curs.
 spin.curs
  for xv=1 to len(zt$)
- print "!";chr$(8);"/";chr$(8);"-";chr$(8);"\";chr$(8);"!";chr$(8);
+ print "!";chr$(8);"/";chr$(8);"-"; chr$(8);"\";chr$(8);"!";chr$(8);
  print mid$(zt$,xv,1);:next
  return
 ;
@@ -141,14 +143,14 @@ bj.start
  gosub zero.set:poke 120,0:xz=10000-zw
  gosub timchkbj:if (ev-ex)<120 print "Dusk approaches..."
  print \"("gh*10000+gl" gp)"
- if gh>1 print \"'Yer too rich for me!'":i$="" goto bj.end
+ if gh>1 print \'"Yer too rich for me!"':i$="" goto bj.end
  input @2\"'How much ya wanna bet?' "i$:if i$="" or i$="Q" goto end.bj
  b=val(i$):if b=0 goto end.bj
  g3=gh:g4=gl:g1=0:g2=b:gosub chk.gold
- if gh+gl<1 print \"'Hey dude, broke eh? Maybe later..'":goto end.bj
- if a=0 print \"'Hey dude, you don't have that much!'":goto bj.start
- if b>500 print \"'500 gold. Table limit, my friend..'":goto bj.start
- if b<25 print \"'Last of the big spenders!'"
+ if gh+gl<1 print \'"Hey dude, broke eh? Maybe later.."':goto end.bj
+ if a=0 print \'"Hey dude, you don't have that much!"':goto bj.start
+ if b>500 print \'"500 gold. Table limit, my friend.."':goto bj.start
+ if b<25 print \'"Last of the big spenders!"'
 
 set.num
  rnd$:gosub getnum:gosub bj.comm:zx=a:wr$=i$
@@ -158,8 +160,8 @@ set.num
  zt=zx+zz:zs=zv+zu
  if zt>21 goto set.num
  if zs>21 goto set.num
- if zs=21 print \"Blackjack! I win! Most excellent!'":g2=b:gosub sub.gold:goto bj.start
- if zt=21 print \"'Blackjack! You win! Bogus!'":g2=b*2:gosub add.gold:goto bj.start
+ if zs=21 print \'"Blackjack! I win! Most excellent!"':g2=b:gosub sub.gold:goto bj.start
+ if zt=21 print \'"Blackjack! You win! Bogus!"':g2=b*2:gosub add.gold:goto bj.start
  goto bj.set1
 
 bj.comm
@@ -179,30 +181,30 @@ bj.set1
  gosub show.card:input @0 \\"|H|it |D|ouble |S|tand:" i$
  if i$="H" goto bj.set2
  if i$="S" goto com.turn
- if i$="D" g2=b*2:gosub chk.gold:if a=0 print\"Yo! Dude! You don't have the gold to do that!":goto bj.set1
- if i$<>"D" print\"'I think your shorts must be too tight..'":goto bj.set1
+ if i$="D" g2=b*2:gosub chk.gold:if a=0 print\'"Yo! Dude! You don't have the gold to do that!"':goto bj.set1
+ if i$<>"D" print\'"I think your shorts must be too tight..."':goto bj.set1
  b=b*2:rnd$:gosub getnum:zt=zt+a
  gosub bj.comm:gosub draw.card:if zt>21 and xs then zt=zt-10:xs=xs-1
  print"  You have "zt
- if zt>21 then print\"You busted! Radical!'":g2=b:gosub sub.gold:goto bj.start
+ if zt>21 then print\'"You busted! Radical!"':g2=b:gosub sub.gold:goto bj.start
  goto com.turn
 
 bj.set2
  rnd$:gosub getnum:gosub bj.comm:zt=zt+a:print\"You draw a":gosub draw.card
  if zt>21 and xs then zt=zt-10:xs=xs-1
- if zt>21 print\"'You busted! Radical!'":g2=b:gosub sub.gold:goto bj.start
+ if zt>21 print\'"You busted! Radical!"':g2=b:gosub sub.gold:goto bj.start
  print\"  You have "zt:input\"Would you like another Hit? (Y/N):"i$
  if i$ <>"Y" goto com.turn
  goto bj.set2
 
 bj.result
  if zt=zs print \"  --- Push ---":goto bj.end
- if zs>21 print\\"'You win! Most henious'":g2=b:gosub add.gold:goto bj.end
- if zs>zt print\\"'I win! Tubuler!'":g2=b:gosub sub.gold:goto bj.end
- if zt>zs print\\"'You win! Most bogus..'":g2=b:gosub add.gold
+ if zs>21 print\\'"You win! Most heinous."':g2=b:gosub add.gold:goto bj.end
+ if zs>zt print\\'"I win! Tubular!"':g2=b:gosub sub.gold:goto bj.end
+ if zt>zs print\\'"You win! Most bogus..."':g2=b:gosub add.gold
 
 bj.end
- print\"You had    = "zt
+ print\"You had   = "zt
  print\"Gus had   = "zs\:goto bj.start
 
 com.turn
@@ -295,28 +297,28 @@ tran.gd1
  return
 
 tran.gd2
- open #1,"a:temp":inpõt #1,gh,gl:close
+ open #1,"a:temp":input #1,gh,gl:close
  i$="BLACKJACK OUT :"+str$(gh*10000+gl)+" gp"
  goto add.lg
 
 ;
 skip
- print \"Skip sweats over a hot grill, muttering under his breath.."
+ print \"Skip sweats over a hot grill, muttering under his breath..."
 skip.a
- print \"'Whatyla have mack?'"
+ print \'"Whatyla have mack?"'
  input @2"H)ash - 5g, C)offee - 1g :"i$
- if i$="" or i$="Q" print \"'Yeah, well... taker ezy..'"\:if not instr("*sk",ys$) if len(ys$)<240 ys$=ys$+"*sk"
+ if i$="" or i$="Q" print \'"Yeah, well... taker ezy.."'\:if not instr("*sk",ys$) if len(ys$)<240 ys$=ys$+"*sk"
  if i$="" or i$="Q" goto move
- if not instr(i$,"H*C") print \"'Eh? What?'":goto skip.a
- if instr("*sk",ys$) print \"Skip suddenly looks annoyed.. 'Hey B-O-Z-O! Are you a tad slow or what?'":goto bouncer
+ if not instr(i$,"H*C") print \'"Eh? What?"':goto skip.a
+ if instr("*sk",ys$) print \'Skip suddenly looks annoyed.. "Hey B-O-Z-O! Are you a tad slow or what?"':goto bouncer
  if i$="H" g2=5:else g2=1
- if instr(i$,zv$) print \"'You just had the last of it!'":goto skip.a
+ if instr(i$,zv$) print \'"You just had the last of it!"':goto skip.a
  g3=gh:g4=gl:g1=0:gosub chk.gold
- if a=0 print \"'Ye don't got enough gold.'"\:goto move
+ if a=0 print \'"Ye don't got enough gold."'\:goto move
  gosub sub.gold:g1=gh:g2=gl:gosub prt.gold
  zv$=zv$+i$
- if i$="H" print \"The hash is greazy, but hot and nourshing."
- if i$="C" print \"The steaming mug of coffee is strangly satisfying."
+ if i$="H" print \"The hash is greasy, but hot and nourishing."
+ if i$="C" print \"The steaming mug of coffee is strangely satisfying."
  if hp<25 then hp=hp+4:print "(hp+4)"
  if i$="H" then if ps<23 ps=ps+3:print "(Strength +4)"
  if i$="C" then if pe<23 pe=pe+3:print "(Energy +4)"
@@ -328,9 +330,14 @@ fight
  if i$<>"Y" print "'Well then, WATCH it!'":return
  pop
 bouncer
- print \'
-At a signal, Mundo the bouncer knocks you over the head with a baseball bat,
-and throws you out in the street..':if hp>6 hp=hp-5
+ if gm=1 print \"GOD MODE prevents Mundo from throwing you out of the bar.":goto advent
+ print \"At a signal, Mundo the bouncer ";
+ if hp>6 then hp=hp-5:print "knocks you over the head with a baseball bat":print "and ";
+ print "throws you out in the street..."
+; At a signal, Mundo the bouncer knocks you over the head with a baseball bat,
+; and throws you out into the street.
+
+; At a signal, Mundo the bouncer throws you out into the street.
  goto advent
 ;
 rnd100xv
@@ -352,6 +359,7 @@ add.lg
  append #1:print #1,"[SPUR.BAR2] "i$:close:return
 ;
 compile
- if un=1 print "Compiled..":link "k:system.seg"
+ if a$="spur.compile" link "d:spur.compile","return"
+ if info(5) print "Compiled..":link "k:system.seg"
  return
 ;

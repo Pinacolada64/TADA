@@ -1,20 +1,21 @@
 
 ;  Spur.duel.s - WITH AUTODUEL
- 
+;  WORKED ON WITH APPLEWORKS
+
  public duel
  public return
  public auto.c
  public compile
 
-;... yz, xz$, zu must be preserved for spur.duel2, don't use
+;... yz, xz$, zu must be preserved for spur.duel2, dont use
 
  on nocar goto dropped
- if un=1 print "spur.duel--";:gosub comp.ck
+ if flag(32) print "spur.duel--";:gosub comp.ck
  yx$="":zv$="":hh=0:wr$="":xu$="":cw$="":sx=0
  zt=0:zs=0:xy=0:xv=0:vy=0:zm=0:vq=0:zq=0:xu=0:zn=0:zp=0
  if (sl=cl) and (sr=cr) goto chalspur
  goto challenge
- 
+
 duel
  on nocar goto dropped
  yx$="":if zv$="autoduel" zv$="autoduel.2"
@@ -30,18 +31,18 @@ duel
  if wr$="" goto no.wep
  if i$="P" zy$="PARRY WITH THE "+xu$+"!":zw=3:xu=xu+1:zn=0:zp=0:goto tactic
  if (i$="B") and (sh<6) print \"Not enough shield!":goto duel
- if i$="B" zy$="Shield BASH!":zw=4:zp=zp+1:xu=0:zn=0:goto tactic
+ if i$="B" zy$="SHIELD BASH!":zw=4:zp=zp+1:xu=0:zn=0:goto tactic
  if i$="V" goto verbose
- if i$="#" then if un=1 then hp=30
- zy$="aTTacK!":zw=2:zn=zn+1:xu=0:zp=0:goto tactic
+ if i$="#" then if flag(32) then hp=30
+ zy$="ATTACK!":zw=2:zn=zn+1:xu=0:zp=0:goto tactic
 
 down
  input @2 \"(S],R,V,H,?):"i$
  if instr(" ",i$) print \"There was a space in your command":goto duel
- if i$="R" then zy$="Roll on the ground..":zw=5:goto tactic
+ if i$="R" then zy$="ROLL ON THE GROUND..":zw=5:goto tactic
  if i$="V" goto verbose
  if i$="H" a=16:gosub messages:goto duel
- if i$="?" print \"S]tand up, Roll on ground, Verbose ON/OFF, Help":goto duel
+ if i$="?" print \"S]tandup, Roll on ground, Verbose ON/OFF, Help":goto duel
  zy$="TRY TO STAND UP..":zw=1:goto tactic
 
 verbose
@@ -52,29 +53,34 @@ no.wep
  if pi>2 pi=pi-2
  if pi<9 print\"You wisely decide you are too dumb to duel and FLEE":goto flee2
  print \"NO WEAPON READIED! (You feel dumber)":goto duel
-; 
+;
 challenge
  i$="DUEL":goto lnkduel2
 ;
 auto.c
  on nocar goto dropped
  xu=0:zn=0:zp=0
- if zv$="abortduel" zv$="":print \xx$" says: 'I accept your challenge!'"
+ if zv$="abortduel" zv$="":print \xx$" says: 'I ACCEPT YOUR CHALLENGE!'"
  if not hh then print \"I CHOOSE "cw$
 ; turf bonus
  zz=0:if instr(zw$,ww$) zz=1:xv=xv+1:if instr("HQ",ww$) zz=3:xy=xy+2
  if zz>0 print \"TURF BONUS = ["zz"]"
- print \"Damage adds: "xy", Accuracy adds: "xv
- zr=(yn*2)+xy+xv+cd+cs+ci:print \"Initiative: "zr
- if zv$<>"" print \'I choose "Sport" duel!'
- if mid$(zt$,2,1)="1" print \"(The !#%%@# seems a bit hard to see!)"
+ print \"DAMAGE ADDS: "xy", ACCURACY ADDS: "xv
+ zr=(yn*2)+xy+xv+cd+cs+ci+(zz*5):print \"Initiative: "zr
+ if zv$<>"" print \"I CHOOSE SPORT DUEL!"
+ if mid$(zt$,2,1)="1" print \"(The bugger seems a bit hard to see!)"
  i$=mid$(zt$,7,1):if not instr(i$,"23") goto gvl.chk
  ye=ye+20:if yg=1 print \"(The dork has Wizard glow in effect)"
 
 gvl.chk
  input @0\"C)ontinue duel or G)rovel? "i$
- if i$="G"gosub rnd.100z:if z>50print\"'GROVELING WILL DO YOU NO GOOD!'":i$="C"
- if i$="G" print \xx$" snickers, and waves you on.":i$="GROVEL":goto lnkduel2
+ if i$<>"G" goto no.gvl
+ if vk>5 vk=vk-5
+ gosub rnd.100z
+ if z>50 print\"'GROVELING WILL DO YOU NO GOOD!'":i$="C":goto no.gvl
+ print \xx$" snickers, and waves you on.":i$="GROVEL":goto lnkduel2
+
+no.gvl
  if i$<>"C" goto gvl.chk
  i$=mid$(zu$,7,1):if instr(i$,"23") print \"(Your Wizard glow adds 20 to your shield)":sh=sh+20
  if (xx$<>"THE ENFORCER") or (cw$<>"SUN-SWORD") then vt=vt+1
@@ -91,7 +97,7 @@ rdy.wp
  if ps<3 print \"Not enough strength to ready a weapon!":return
  if xw=0 print \"You have No Weapons!":xu$="NO WEAPONS":return
  print \"Choose a Weapon:"\
- dy$=dx$+"weapons"
+ dy$=dw$+"weapons"
  open #1,dy$
  for e=1 to xw
  y=(e*4)-3:a=val(mid$(xw$,y))
@@ -112,7 +118,7 @@ rdy.wp1
  gosub set.hh
  wd=wd*5/10:x=p1*7/10:wd=wd+x
  ws=(ws+p3)/2
- if (wa=8) or (wa=10) then if not instr("STORM",wr$) then if vn<1 then print \"No ammo readied! All weapon attributes reduced by half.":zt=zt/2:zs=zs/2 :wd=wd/2:ws=ws/2:xu$="UNLOADED "+xu$
+ if (wa=8) or (wa=10) if not instr("STORM",wr$) if vn<1 print \"No ammo readied! All weapon attributes reduced by half..":zt=zt/2:zs=zs/2 :wd=wd/2:ws=ws/2:xu$="UNLOADED "+xu$
 
 ;
 ;... Drop thru to the follow routine
@@ -142,9 +148,9 @@ amulet
 WARNING!!!
 
 Readying the Death Amulet has a 30%
-possibility of instant death!!'
+possibility of instand death!!'
  a=30:if instr("076",xi$) a=15:print \"The AMULET OF LIFE reduces this to 15%!"
- input @2\"Still want to?!? Y/N: " i$:if i$<>"Y" pop:goto rdy.wp
+ input @2\"Still want to?!? Y/N" i$:if i$<>"Y" pop:goto rdy.wp
  print \\"DEADLY POWER STIRS. IT LIVES.."
  gosub rnd.100z:if z>a wd=50:print \"YOU LIVE!":goto amulet.2
  print \\"ARGH!! IT TURNS ON YOU!!"\"YOU ARE TORN TO PIECES. LITTLE ONES.."
@@ -157,7 +163,7 @@ amulet.2
 ;
 chalspur
  zv=0:zu=0
- x=pe+pi+ps+pw+pt+pd:zw$="OMNIPOTENT":xx$="SPUR":sx=1:wx$="random"
+  x=pe+pi+ps+pw+pt+pd:zw$="OMNIPOTENT" :xx$="SPUR" :sx=1 :wx$="random"
  if x>90 goto chalsp.2
  print \"'Thou art too weak to challenge the omnipotent Spur!'"
  print \"You are teleported elsewhere.."
@@ -172,8 +178,8 @@ A shadowed figure looms out of the dark, Large Fireball sizzling in one hand.
  h=10*sl:h=h+random(10):if h>51 then h=51
  a=xl*3:if a<h then h=h-a
  ya=0:yb=5000:zz$=rnd$:ye=50:yf=50
- 
- dy$=dx$+"weapons"
+
+ dy$=dw$+"weapons"
  open #1,dy$
  w4=0:for e=1 to wc
  position #1,34,e,2
@@ -184,11 +190,11 @@ A shadowed figure looms out of the dark, Large Fireball sizzling in one hand.
  w4=w4*5/10:x=p2*7/10:w4=w4+x
  w3=(w3+p4)/2
  gosub rdy.wp:goto duel
- 
+
 attack
  gosub get.numb:i$=" STRIKE CHANCE MOD: "
  if zz=1 a=a-2:if zq=1 print xx$" TRIES TO STAND:"i$"-2"
- if zw=1 a=a+2:if zq=1 print "You TRY to stand, your"i$"-2"
+ if zw=1 a=a+2:if zq=1 print "YOU TRY TO STAND, YOUR"i$"-2"
  if zz=2 a=a+1:if zq=1 print xx$" ATTACKS:"i$"+1"
  if zw=2 a=a-1:if zq=1 print "YOU ATTACK, YOUR"i$"+1"
  if zz=3 a=a-2:if zq=1 print xx$" PARRYS:"i$"-2"
@@ -199,22 +205,22 @@ attack
  if zz=5 a=a-2:if zq=1 print xx$" ROLLS:"i$"-2"
  if (yx=3) or (yx=4) a=0:if zq=1 print "YOU HAVE AUTO-STRIKE"
  if (yx=13) or (yx=14) a=9:if zq=1 print xx$" HAS AUTO-STRIKE"
- print \"[Strike result]:";
- for z=1 to 7:print ".";:for w1=1 to 50:next:next:print \\
+ print \"[STRIKE RESULT]:";
+ for z=1 to 10:print ".";:for w1=1 to 100:next:next:print \\
  if a>vu goto attack1
- if (instr("STORM",xu$)) or (sh>40) goto staff.0
  a=0:if pc=1 gosub rnd.100z:if z>70 a=1:if instr("cast.a",wx$) a=0
- if a=1 print \"Energy FLASHES from your fingers!!":gosub rnd.100z:w1=(z/20)+3 :if instr("STAFF",xu$) print "Your staff amplifies it!":w1=w1+3
- if a=1 print "..THUNDER rocks the chamber..":wx$=wx$+"cast.a":goto wiz.a
-staff.0
+ if (instr("STORM",xu$)) or (sh>40) a=0
+ if (instr("041",xw$)) or (instr("047",xw$)) a=0
+ if a=1 print \"ENERGY FLASHES FROM YOUR FINGERS!!":gosub rnd.100z :w1=(z/20)+3:if instr("STAFF",xu$) print "YOUR STAFF AMPLIFIES IT!":w1=w1+3
+ if a=1 print "..THUNDER ROCKS THE CHAMBER..":wx$=wx$+"cast.a":goto wiz.a
  zz$=rnd$:w1=random(wd*100):w1=w1/100+1
  a=0:if yg=6 a=15:if pc=6 a=0
  if yg=8 a=8:if pc=8 a=0
  if mid$(zt$,2,1)="1" a=20
- if a>0 gosub rnd.100z:if z<a print \"LOST SIGHT OF THE !$@*@&!!":goto duel
+ if a>0 gosub rnd.100z:if z<a print \"LOST SIGHT OF THE BUGGER!!":goto duel
  zx$="996877889":zz$=mid$(zx$,yi,1):a=val(zz$):a=a*10
  zx$=mid$(zx$,pr,1):yy=val(zx$):yy=yy*10
- yy=yy-a:if yy>0 yy=yy/2:gosub rnd.100z:if z<(yy+1) print \"SWUNG OVER THE !#$%@$@ HEAD!":goto duel
+ yy=yy-a:if yy>0 yy=yy/2:gosub rnd.100z:if z<(yy+1) print \"SWUNG OVER THE BUGGERS HEAD!":goto duel
  gosub get.numb
  print "YOU STRIKE WITH THE "xu$"!"\:i$=" HIT CHANCE MOD: "
  if yx=11 a=a+2:if zq=1 print "YOU ATTACK, "xx$" PARRIED."i$"-2"
@@ -238,11 +244,9 @@ staff.0
  if zw=5 w1=w1/2:if zq=1 print "YOU ROLL"i$"0.50%"
  if w1>5 w1=(w1*4)/5
  if yg=4 then if ye print "(PALADIN SKILL!) ";
- if ye print "SHIELD TAKES HIT!":ye=ye-2:w1=w1-1:if yg=4 w1=w1-2
- if ye<0 then ye=0
+ if ye>5 print "SHIELD TAKES HIT!":ye=ye-2:w1=w1-1:if yg=4 w1=w1-2
  if w1<=0 print "NO DAMAGE!":goto duel
- if yf print "ARMOR TAKES HIT!":yf=yf-3:w1=w1-2
- if yf<0 then yf=0
+ if yf>6 print "ARMOR TAKES HIT!":yf=yf-3:w1=w1-2
  if w1<=0 print "NO DAMAGE!":goto duel
 wiz.a
  if yg=2 then if h+w1<26 gosub rnd.100z:if z>90 print \"YO! "xx$" LOOKS STRONGER!!":h=h+w1:goto druid.a
@@ -250,7 +254,7 @@ wiz.a
 druid.a
  if h<=0 then ch=1:goto hell
  goto duel
- 
+
 attack1
  if hp<=0 then ch=0:goto hell2
  if (instr("STORM",cw$)) or (ye>40) goto staff.1
@@ -265,7 +269,7 @@ staff.1
  if a>0 gosub rnd.100z:if z<a print\"HE SWUNG, BUT LOST SIGHT OF YA!":goto duel
  zx$="996877889":zz$=mid$(zx$,yi,1):a=val(zz$):a=a*10
  zx$=mid$(zx$,pr,1):yy=val(zx$):yy=yy*10
- a=a-yy:if a>0 a=a/2:gosub rnd.100z:if z<(a+1) print \"THE !#%%@# SWINGS OVER YOUR HEAD!":goto duel
+ a=a-yy:if a>0 a=a/2:gosub rnd.100z:if z<(a+1) print \"THE BUGGER SWINGS OVER YOUR HEAD!":goto duel
  gosub get.numb:
  print xx$" STRIKES WITH THE "cw$"!"\:i$=". HIT CHANCE MOD: "
  if yx=1 a=a+2:if zq=1 print xx$" ATTACKS, YOU PARRY"i$"-2"
@@ -288,24 +292,22 @@ staff.1
  if zz=4 w1=w1-2:if zq=1 print xx$" BASHES"i$"-2"
  if zz=5 w1=w1/2:if zq=1 print xx$" ROLLS"i$"0.50%"
  if w1>5 w1=(w1*4)/5
- if pc=4 then if sh print "(PALADIN SKILL!) ";
- if sh print "SHIELD TAKES HIT!":sh=sh-2:w1=w1-1:if pc=4 w1=w1-2
- if sh<0 then sh=0
+ if pc=4 then if sh>5 print "(PALADIN SKILL!) ";
+ if sh>5 print "SHIELD TAKES HIT!":sh=sh-2:w1=w1-1:if pc=4 w1=w1-2
  if w1<=0 print "NO DAMAGE!":goto duel
- if ar print "ARMOR TAKES HIT!":ar=ar-3:w1=w1-2
- if ar<1 then ar=0
+ if ar>6 print "ARMOR TAKES HIT!":ar=ar-3:w1=w1-2
  if w1<=0 print "NO DAMAGE!":goto duel
 wiz.b
  if pc=2 then if hp+w1<26 gosub rnd.100z:if z>90 print \"YO! YOU FEEL STRONGER!" :hp=hp+w1:ps=ps+1:goto druid.b
  print n1$" HIT! TAKES "w1" DAMAGE!":hp=hp-w1:ps=ps-1
 druid.b
  if hp<=0 then ch=0:goto hell2
- if ps<3 then wr$="":print\"THY STRENGTH IS  FADING...   UNABLE  TO DEFEND THYSELF!!"
+ if ps<3 then wr$="":print\"THY STRENGTH IS  FADING... UNABLE  TO DEFEND THYSELF!!"
  goto duel
- 
+
 flee
  gosub get.numb:a=(a*10):if (a+pi+pw+pe)>90 goto flee2
- print \xx$' BLOCKS YOUR PATH! 
+ print \xx$' BLOCKS YOUR PATH!
 "STAND AND FIGHT YOU COWARD!!"'
  goto attack1
 flee2
@@ -313,7 +315,7 @@ flee2
 "RUN YOU COWARD!!! I WILL CATCH YOU
 AT A LATER DATE!"'
  yx$=n1$+" FLED!":i$="sendmail":goto lnkduel2
- 
+
 hell
  i$="hell":goto lnkduel2
 hell2
@@ -335,7 +337,7 @@ set.hh
  if p2>9 then a=p2-9:p2=9:p1=p1-a
  if p1<3 then p1=3
  if p2<3 then p2=3
- 
+
  p3=pw+pi:p3=p3/4
  p4=cw+ci:p4=p4/4
  if p3>9 then a=p3-9:p3=9:p4=p4-a
@@ -343,12 +345,11 @@ set.hh
  if p3<5 then p3=5
  if p4<5 then p4=5
  return
- 
+
 dropped
  i$="SPUR.DUEL"
  ch=0:if zv$<>"abortduel" then zt$="CARRIER LOST":goto hell2
  dy$=ds$+"spur.logon":link dy$,"quit3"
-; ^ target ok
 
 lnk.msc4
 ;..supply i$
@@ -431,8 +432,8 @@ tac.bash
  a=a+(xz/3)
  xz=ye:if xz>100 xz=100
  a=a-(xz/3)
- if zw=4 sh=sh-3:if sh<1 sh=0
- if zz=4 ye=ye-3:if ye<1 ye=0
+ if zw=4 if sh>5 sh=sh-3
+ if zz=4 if ye>5 ye=ye-3
 ;if oppnt bashes and plyr doesnt parry, or plyr bashes and oppnt doesnt parry
 ;larger size benifits
  if (zz=4 and zw<>3) or (zz<>3 and zw=4) then a=a+(zo*8):a=a-(yw*8):if zq=1 print "LARGER PERSON BENIFITS"
@@ -469,12 +470,13 @@ tac.bash
  if a<60 a=60
  if z>(a+20) yx=13
  if z<(a-20) yx=3
+ goto tac.msg
 
 tac.msg
  if (yx=3) and (zw=3) and (zz=4) print "YOU TRIP UP "xx$"! ";
  if (yx=3) and (zz<>5) print xx$" FALLS DOWN!"
  if (yx=13) and (zw=4) and (zz=3) print xx$" TRIPS YOU UP! ";
- if (yx=13) and (zw<>5) print "YOU FALL DOWN!":if xu+zp+zn>3 print \"'YOU'RE SOOO PREDICTABLE! HAHAHA!!!' SHOUTS "xx$
+ if (yx=13) and (zw<>5) print "YOU FALL DOWN!":if xu+zp+zn>3 print \"'YOUR SOOO PREDICTABLE! HAHAHA!!!' SHOUTS "xx$
  if (yx=3) or (zz=5) zs$="DOWN":if zw=5 yx=15
  if (yx=13)or (zw=5) zy$="DOWN":if zz=5 yx=15
  if yx=15 zy$="DOWN":zs$="DOWN":print "BOTH ARE ON THE GROUND!":goto duel
@@ -490,7 +492,8 @@ messages
  return
 ;
 compile
- if un=1 print \"Compiled.":link "k:system.seg"
+ if a$="spur.compile" link "d:spur.compile","return"
+ if info(5) print \"Compiled.":link "k:system.seg"
 comp.ck
  print " ok..":return
 ;

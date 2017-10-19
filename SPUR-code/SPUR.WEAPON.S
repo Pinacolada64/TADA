@@ -5,7 +5,7 @@
 
  public compile
 
- if un=1 print "spur.weapon -";:gosub comp.ck
+ if flag(32) print "spur.weapon -";:gosub comp.ck
  if i$="SPECIAL" gosub special:goto shop.rtn
  if i$="SPECIAL2":gosub special:goto ship.rtn
  if i$="READY" goto rdy.wep
@@ -32,7 +32,7 @@ rdy.wep2
  i$=" [ BEST TARGETS ]: "
  setint(1):print \"Weapon class: ";
  if wa=2 print "Hack/Slash/Bash.":print i$"SWIFT, Small, Short";
- if wa=3 print "Poke/Jab.":print i$"HUGE, SWIFT,"; 
+ if wa=3 print "Poke/Jab.":print i$"HUGE, SWIFT,";
  if wa=5 print "Pole/Ranged.":print i$"MAN SIZED, Big, Short";
  if wa=8 print "Projectile (+10% surprise).":print i$"HUGE, Large";
  if wa=9 print "Proximity.":print i$"Anybody..";
@@ -47,7 +47,7 @@ rdy.wep2
  zs=((ws+1)-zz)+yz+yx
  print "  Your skill: "zs
  print " Ease of use: "10-zz
- if xp=1 then if wa=8 then if not instr("STORM",wr$) print "(Get ammunition at O)lly's in the Shop)"
+ if xp=1 then if wa=8 then if not instr("STORM",wr$) print "(Get ammunition at O)llys in the Shop)"
  if(vr=43)or(instr("FIREBALL",wr$))print"(10% chance of secondary heat damage)"
  setint("")
  f$=dx$+"misc.data":open #2,f$
@@ -66,18 +66,19 @@ amulet
 WARNING!!!
 
 Readying the Death Amulet has a 20%
-possibility of instant death!!'
+possibility of instand death!!'
  a=2:if instr("076",xi$) a=1:print \"The AMULET OF LIFE reduces this to 10%!"
- input @2\"Still want to?!? Y/N: " i$:if i$<>"Y" pop:goto rdy.wep2
+ input @2\"Still want to?!? Y/N" i$:if i$<>"Y" pop:goto rdy.wep2
  print \\"DEADLY POWER STIRS. IT LIVES.."
  zz$=rnd$:zz=random(99)/10+1:if zz>a wd=50:print \"YOU LIVE!":return
+ if gm=1 hp=1:print \\"ARGH!! IT TURNS ON YOU, BUT GOD MODE SAVES YOU FROM DYING.":return
  print \\"ARGH!! IT TURNS ON YOU!!"\"YOU ARE TORN TO PIECES. LITTLE ONES.."
  pop:hp=0:xn=sn:sn=0:z=9:i$="dead2":goto lnk.misc
 ;
 pr.weapons
  zt=0:xu$=""
  if (xw=0) or (xw$="") print \"No Weapons.":xw=0:xw$="":return
- dy$=dx$+"weapons"
+ dy$=dw$+"weapons"
  open #1,dy$
  print:for x=1 to xw
  zw=wc:zz$=xw$:gosub pr.sub
@@ -169,6 +170,7 @@ spec3
 spec4
  pop:print \"A BOLT OF POWER BLASTS YOU BACKWARDS!"
  gosub rnd.10a:print "YOU TAKE "a" DAMAGE!"\:hp=hp-a
+ if hp<1 if gm=1 hp=1:print "GOD MODE saves you from dying."
  if hp<1 xn=sn:sn=0:z=5:i$="dead2":goto lnk.misc
 ;... drop weapon. zr is weapon # to be dropped
  if zr>0 goto spec7
@@ -179,7 +181,7 @@ spec6
 spec7
  n$="00"+str$(zr)+",":n$=right$(n$,4)
  y=instr(n$,xw$):if y=0 wr$="":goto advent
- print \da$" DISINTEGRATES!"
+ print \da$" DISTINGRATES!"
  dy$=dx$+"weapons":open #1,dy$
  l=len(xw$):a=val(mid$(xw$,y,3))
  xw=xw-1:if xw=0 then xw$="":goto drp.wpn2
@@ -191,15 +193,15 @@ drp.wpn2
  position #1,34,a:print #1,cb$:close
  dy$=dx$+"battle.log":create dy$:open #1,"battle.log":append #1
  print #1, left$(date$,6)yr$" "time$"- THUNDER!"
- print #1, da$" DISINTEGRATED IN RAGE"
+ print #1, da$" DISTINTEGRATED IN RAGE"
  print #1, "WHEN INSULTED BY "n1$"!!"
  print #1,"[]=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=[]":close
  wr$="":print \"(No weapon readied..)":goto advent
 
 excalibur
  print \'
-A fiery sheen engulfs the huge sword, as sweet music hums softly from
-its terrible sharp blade..'
+A fiery sheen engulfs the huge sword, as sweet music hums softly from it's
+terrible sharp blade..'
  return
 ;
 show.file
@@ -214,7 +216,8 @@ messages
  setint(1):copy #6,#0:setint(""):ready dr$:return
 ;
 compile
- if un=1 print "Compiled..":link "k:system.seg"
+ if a$="spur.compile" link "d:spur.compile","return"
+ if info(5) print "Compiled..":link "k:system.seg"
 comp.ck
  print " ok..":return
 ;
