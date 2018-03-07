@@ -656,7 +656,7 @@
 	if i=. then:gosub {:sub.adj_stat}(8,-1):gosub {:sub.adj_stat}(6,-1):gosub {:sub.adj_hp}(1,-2):print "Too bad you don't have a "zt$"!"
 	if i then print "You wisely WEAR the "zt$"!""
 	
-' not sure what added "-" flag represents -- seems like a flag to control message output
+' not sure what added "-" flag represents -- seems like a flag to prevent duplicate messages
 	zz$=zz$+"-"
 
 {:coat}
@@ -1102,11 +1102,11 @@
 {:block.s4}
 ' energy, str
 	if peek(v1+93)>4 or peek(v1+91)>4 then {:travel1a}
-' con, fixme
-	if pt then pt=pt-1:gosub {:msg.you_feel}("more fragile")
+' con -1
+	gosub {:sub.adj_stat}(2,-1):if s then:gosub {:msg.you_feel}("more fragile")
 {:travel1a}
 	if mw=. then {:travel2}
-	gosub {:sub.set_pa}:a=pa:b=ma:gosub {:set.prob}:x=fn r(100)
+	gosub {:sub.set_pa}:gosub {:sub.set_prob}(pa,ma):x=fn r(100)
 	if fn r(100)>33 then if zs<990 and x<=p1 and mw>0 then print r$m$" follow";:gosub {:msg.multi}(m$):print "...":mf=1:mw=.
 ' ^ "mf=1" was "mf=1:goto {:travel2}", mw=0 + fall-through saves 1-2 bytes, although maybe mw must be preserved?
 	if mw=. then {:travel2}
@@ -1144,19 +1144,19 @@
 	sys is,ww$,"=[]":if i% then m=65
 	
 {:travel2a}
-' zu$ 7=spell active, what is zn?
+' zu$ 7=1: wraith master of spur. fixme: what is zn?
 '	if m or z>lv% or mid$(zu$,7,1)="1" or zn=70 or lv%>5 then {:no.guard}
-	if m or z>lv% or mid$(zu$,7,1)="1" or zn=70 or lv%>5 then {:no.guard}
-' zu$ 2=ring worn
+	if m or z>lv% or zn=70 or lv%>5 then:gosub {:bit.test}(v2+230,2):if s=. then {:no.guard}
+' zu$ 2=ring worn, m=70: ringwraith
 '	if mid$(zu$,2,1)="0" then gosub {:rnd.10z}:if z>lv% then {:no.guard}
-	if mid$(zu$,2,1)="0" then gosub {:rnd.10z}:if z>lv% then {:no.guard}
-	print r$"Something evil stalks...";:gosub {:rnd.10z}:if z=1 then:gosub {:msg.delay}(" ...IT IS HERE!",30):m=70
+	gosub {:rnd.10z}:gosub {:bit.test}(v2+228,0):if s then if z>lv% then {:no.guard}
+	print r$"Something evil stalks...";:if z=1 then:gosub {:msg.delay}(" ...IT IS HERE!",30):m=70
 
 {:no.guard}
 	print:if lv%<>6 then sys is,lo$,"@@":if i%=0 then {:no.amoeba}
 '	gosub {:rnd.100a}:if a>97 then i$="METEOR":gosub {:link.misc6}
 	gosub {:rnd.100a}:if a>97 then:gosub {:link.module}("events","meteor")
-' fixme: which monster is 119?
+' monster 119 is SPACE AMEOBA
 	gosub {:rnd.100a}:if a<3 then m=119:print r$r$"SOMETHING COMES!"
 
 {:no.amoeba}
@@ -1556,11 +1556,15 @@
 	print "The "x$" is weakening you.":return
 
 {number:2535}
-{:sub.print_ally_name} ' ("ally_name[!]")
-' display ally name (strip elite ally's trailing "!" if needed):
-	fn n$
-	' def n$
-	print left$(n$,len(n$)+(right$(n$,1)="!"));:return
+{:sub.print_ally_name} ' (n$=ally name string)
+' also used in t.bar.olaf
+' display ally name, stripped of ally's flags (trailing "|!" or other flags if needed):
+' returns s=1 if elite ally
+	fn n$ ' ally name
+	def l ' length of string to print
+' check for flag char (|): if found, truncate output to before |, then check for elite ally flag (!):
+	l=len(n$):sys is,n$,"{pipe}":if i% then l=i%-1:sys is,mid$(n$,l),"!":s=abs(sgn(i%))
+	print left$(n$,l);:return
 
 ' --- math ---
 {number:2600}
@@ -1612,16 +1616,16 @@
 ' if out of range, set s=0 to indicate failure
 	if s1<1 or s1>8 or a<-255 or a>255 then:gosub {:sub.log_error}("E", "t.main", "(:sub.adj{underline}stat): stat #"+str$(s1)+" adj"+str$(a)+"out of range"):s=0:return
 ' get memory location of adjustment:
-	m=v1+85+s1:s=0
+	m=v1+85+s1
 ' return s=0: stat adjustment not possible (not enough attribute points)
 ' return s=1: stat adjustment succeeded
 {ifdef:debug}
 	print " in:"m"="peek(m),"adj="a
 {endif}
-' if - adjustment, check that subtracting a is >0:
-	if a<0 then if peek(m)+a > -1 then s=1
+' if - adjustment, check that subtracting a is >= 0:
+	if a<0 then s=-(peek(m)+a > -1)
 ' if + adjustment, check if adding a will <b1 (256):
-	if a>0 then if peek(m)+a < b1 then s=1
+	if a>0 then s=-(peek(m)+a < b1)
 ' succeeded:
 	if s then poke m,peek(m)+a
 ' todo: check for expert mode, announce stat adjustment
@@ -2103,10 +2107,10 @@
 	if pa<6 then:gosub {:msg.you_feel}("poorly.")
 	return
 
-{:set.prob}
-	if a>b then p1=a-b:goto {:set.prob2}
-	p1=b-a
-{:set.prob2}
+{:sub.set_prob}
+' given a,b, returns p1,p2
+	fn a,b
+	p1=b-a:if a>b then p1=a-b
 	if p1>5 then p1=10-p1
 	p2=p1*2:p2=10-p2+(p1=0):return
 
