@@ -18,6 +18,7 @@
 * PopStack: Pops `return` addresses off the stack. There are a lot of uses of this in The Land of Spur, unfortunately.
 * InString: Replicates `INSTR("search_through","search_for")` function in ACOS, or other BASICs, such as the C128.
 * String Array System: By Jeff Jones. This allows strings to be stored beneath ROM. Hopefully it will save some BASIC RAM. I haven't implemented much other than a demo of it being used yet, however.
+* Sliding Input: Originally by Creative Micro Designs. With help, I have enhanced this utility to integrate with BASIC. It passes a string from the SYS call to be edited, and unlike `INPUT`, traps against accidental Clr/Home keypresses (confirmation is provided if you really _do_ want to erase the string), allows Inst/Del usage (while defeating "quote mode"), and `f1` and `f7` move left and right by words. (If the allowed length of the input exceeds the width of the "window" for displaying the input, the input scrolls left or right, hence the name "Sliding Input.") Hit `Return` and the string is passed back to BASIC, replacing the original contents.
 
 ## Want to play the original game?
 It's telnettable: telnet://dura-bbs.net:6359
