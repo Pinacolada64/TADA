@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:..\includes\label-assignments.lbl}
 	rem t.ma.arm.weapons
 ' updated 09/04/2006, 07/14/2007, 8/19/2007
 	goto {:start}
@@ -115,7 +115,7 @@
 '	if wa=8 then print " (10% surprise)";:gosub {:msg.best_targets}:print "Huge, Large";
 '	if wa=9 then gosub {:msg.best_targets}:print "Anybody";
 
-	if wa=2 then sys is,w$,"STORM":if i% then {:700} 
+	if wa=2 then sys is,w$,"STORM":if i% then {:700}
 	if wa=10 then sys is,w$,"CANN"
 {:700}
 	if i% then print ", Light Armor";
