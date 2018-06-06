@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:..\includes\label-assignments.lbl}
 	rem t.ma.arm.weapons
 ' updated 09/04/2006, 07/14/2007, 8/19/2007
 	goto {:start}
@@ -14,10 +14,6 @@
 '	print "-- -------------- ----- - -- ----------"
 	sys br,"  [E]ase of use   [D]amage    [*]=Ammo Bonus"+r$+nl$:return
 '   Ease of use   Damage   *=Ammo bonus
-
-{nice:10}
-{:msg.best_targets}
-	print:print "Best targets:";:return
 
 {nice:10}
 {:msg.weapon_class}
@@ -100,22 +96,16 @@
 
 	print r$"You try out the "mid$(w$,4)"...":print
 	print "Weapon class: ";:gosub {:msg.weapon_class}(wa)
-	print c$(wa);:if wa=8 then print " (10% surprise)";
-	print:gosub {:msg.best_targets}
+	print "Best targets: ";:if wa=8 then print " (10% surprise)";
+	print
 	if wa=1 then wa=10:print "Huge, Large";
 	if wa=2 then print "Swift, Small, Short";
 	if wa=3 then print "Huge, Swift";
 	if wa=5 then print "Man-Sized, Big, Short";
 	if wa=8 then print "Huge, Large";
 	if wa=9 then print "Anybody";
-'	if wa=1 then wa=10:gosub {:msg.best_targets}:print "Huge, Large";
-'	if wa=2 then gosub {:msg.best_targets}:print "Swift, Small, Short";
-'	if wa=3 then gosub {:msg.best_targets}:print "Huge, Swift";
-'	if wa=5 then gosub {:msg.best_targets}:print "Man-Sized, Big, Short";
-'	if wa=8 then print " (10% surprise)";:gosub {:msg.best_targets}:print "Huge, Large";
-'	if wa=9 then gosub {:msg.best_targets}:print "Anybody";
 
-	if wa=2 then sys is,w$,"STORM":if i% then {:700} 
+	if wa=2 then sys is,w$,"STORM":if i% then {:700}
 	if wa=10 then sys is,w$,"CANN"
 {:700}
 	if i% then print ", Light Armor";
