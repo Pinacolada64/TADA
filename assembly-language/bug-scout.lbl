@@ -1,4 +1,7 @@
 {asm}
+; casm v4.0 beta syntax:
+orig $c000
+
 ; open2,9,1,"0:bugsc.52300"
 ; sys700
 ;
@@ -54,7 +57,7 @@ pha ;
 ;
 jsr title	;display title
 lda ierror+1	;set/reset
-cmp #$e3	; debug wedge
+cmp #$e3	; debug wedge - compare to normal 58251 ($E38B)
 beq e1
 ;
 ldx #7
@@ -78,8 +81,8 @@ dex
 lda mtab,x
 jsr strout
 ;
-pla ;
-sta 646 ;
+pla
+sta 646
 ;
 jmp $a474
 ;
@@ -107,7 +110,7 @@ lda #<ms1    ;display error
 ldy #>ms1    ; message
 jsr strout
 lda err
-asl a
+asl
 tax
 lda errtab,x
 sta ptr
@@ -220,7 +223,8 @@ ldy #$ff
 l9:
 dex
 beq l11
-l10 iny
+l10:
+iny
 lda reslst,y
 bpl l10
 bmi l9
@@ -268,37 +272,37 @@ jmp lp1
 ms1:
 .byte $93,$1c,$5b,0
 ms2:
-.asc " error]"
+ascii " error]"
 .byte 13,13,0
 ms3:
 .byte $93,9,142,0
-.asc "©"
+.byte $c2,$a9	;ascii "©"
 .byte $9a
-.asc "			       "
+ascii "			       "
 .byte 0,$20,$9a
-.asc "	  loadstar presents    "
+ascii "	  loadstar presents    "
 .byte 0,$20,$9a
-.asc "	      bug scout	       "
+ascii "	      bug scout	       "
 .byte 0,$20,$9a
-.asc "	    by rick nash       "
+ascii "	    by rick nash       "
 .byte 0,$20,$9a
-.asc " (c) softdisk publishing "
+ascii " (c) softdisk publishing "
 .byte 0,$20,$9a
-.asc "			       "
+ascii "			       "
 .byte 0
-.asc "			       "
+ascii "			       "
 .byte 146
-.asc "©"
+.byte $c2,$a9	;ascii "©"
 .byte 13,13,13,255
 ms4:
-.asc "installed"
+ascii "installed"
 .byte 13,13,0
 ms5:
-.asc "removed"
+ascii "removed"
 .byte 13,13,0
 ms6:
 .byte 159
-.asc "	     bug scout is now "
+ascii "	     bug scout is now "
 .byte 0
 mtab:
 .word ms4,start,ms5,$e38b

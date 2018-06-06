@@ -50,4 +50,4 @@
 	if l>20 then l=20:an$=""
 	return
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor_get.lbl}
+{uses:..\includes\cursor_get.lbl}
