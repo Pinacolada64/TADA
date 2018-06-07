@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+' {uses:.\includes\cursor-get.lbl}
 
 {number:1902}
 {:sub.cursor_get}
@@ -11,7 +11,7 @@
 	' thanks to David Mills
 	' get with cursor blink, leaves no cursor trails.
 	' Fix: crunched, removed one-time "xc" variable: 54272+xl
-	
+
 	' uses: xl xo xq xr xt
 	' returns: an$=key hit, a: 1 if an$="y"
 	poke 198,.:xl=peek(211)

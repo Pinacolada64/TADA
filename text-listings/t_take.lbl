@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.take
 {ifdef:standalone}
 	in=9:mi=10:al=4:for x=.to 4:a(x)=x:next:a(2)=5

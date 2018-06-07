@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+' {uses:.\includes\rel-pointer.lbl}
 ' b1=256
 {number:1001}
 {:record_pointer} ' (record_num)

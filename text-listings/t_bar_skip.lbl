@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.bar.skip -- nov 19, 2014
 	goto {:skip}
 
@@ -10,7 +10,7 @@
 	fn s,ar,m$	' (statistic,adjustment_range,"message")
 	def m		' local vars: m=memory location of statistic s
 ' calculate random adjustment_range. is stat + adjustment_range < 25?
-' if so, adjust stat, call check.expert_mode to display "you feel m$" if 
+' if so, adjust stat, call check.expert_mode to display "you feel m$" if
 ' expert mode disabled
 ' TODO: gosub {:sub.adj_stat}(8,-1) ' (main player)
 	ar=fn r(ar):m=v1+85+s:if peek(m)+ar<25 then poke m,peek(m)+ar:gosub {:msg.you_feel}(m$)
@@ -49,7 +49,7 @@
 ' clear hungry bit:
 	gosub {:bit.clear}(v1+65,6)
 	goto {:skip.menu}
-	
+
 {:skip.coffee}
 	print "The steaming mug of coffee is strangely satisfying."
 ' clear thirsty bit:

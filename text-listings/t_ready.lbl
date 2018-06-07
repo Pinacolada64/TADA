@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem SPUR.WEAPON.S (T.READY)
 	goto {:setup}
 
@@ -18,7 +18,7 @@
 {:lnk.misc}
 	def x$ ' module name
 	print "(:lnk.misc) "x$:return
-	
+
 {nice:100}
 {:setup}
 ' SPUR variables -- working on translating to TADA format
@@ -42,7 +42,7 @@
 	if i$="READY" then {:rdy.wep}
 	gosub {:sub.log_error}("I",fn cl(0),"Bad I$ value: "+i$):goto {:advent}
 
-{:rdy.wep}	
+{:rdy.wep}
 	if mw then:gosub {:check.expert_mode}(0):if s then sys br,"(It's wiser to ready [before] meeting a monster!)"+r$+nl$
 ' strength? todo: make it dependent on weight of weapon
 ' (that's a chore in and of itself)
@@ -105,7 +105,7 @@
 
 {:80}
 	print "(:80)":stop
-	
+
 ' link to separate weapon info module
 ' where do i stop cutting code?
 

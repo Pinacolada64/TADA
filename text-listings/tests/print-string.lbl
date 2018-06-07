@@ -3,7 +3,7 @@ orig $c000
 ; assemble with casm 4.00 beta
 
 ; for basic equivalent, see:
-; C:\TADA-svn\pinacolada\TADA\text-listings\tests\%-substitution.lbl
+; C:.\tests\%-substitution.lbl
 
 	vartab = $2d	; start of simple variables
 	fnaddr = $bb	; current filename ptr
@@ -28,7 +28,7 @@ orig $c000
 	chrout  = $ffd2	; output character in .a
 
 ; syntax: sys 49152,<string>
-	
+
 		jsr chkcom	; check for comma
 		jsr frmeval	; evaluate expression
 		jsr frestr	; discard temporary string descriptor

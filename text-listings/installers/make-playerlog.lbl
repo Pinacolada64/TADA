@@ -1,4 +1,4 @@
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	{uses:.\includes\label-assignments.lbl}
 
 {number:1}
 	rem T.MAKE PLAYERLOG
@@ -8,9 +8,9 @@
 {:sub.create_player}
 	print "Setting up player data...";
 	na$="---"
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+	{uses:.\includes\player-setup.lbl}
 	print "Done.":return
-	
+
 {nice:100}
 {:start}
 	f$="e.t.playerlog"
@@ -78,7 +78,7 @@
 	read na$:gosub {:sub.string_expand}(na$,18)
 ' put game name into d$:
 	for i=1 to 18:poke v1+,asc(mid$(x$,i,1)):next
-	
+
 ' 4) gender (v1+64,1) [2]
 ' set x=0 if female, 1 if male
 	read x$:if x$="m" then:gosub {:bit.set}(v1+64,1)
@@ -111,7 +111,7 @@
 {:finish}
 	print "Reloading "q$"t.startup"q$"..."
 	gosub {:link.module}("startup","")
-	
+
 '	v1.1  nov  1, 1997  8:26 pm
 '	v1.2  feb 10, 2002  1:27 pm
 '	v1.3  aug 10, 2003  7:38 am

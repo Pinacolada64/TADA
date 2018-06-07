@@ -1,8 +1,8 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
-	
+{uses:.\includes\label-assignments.lbl}
+
 {:p.a3}
 ' p.a3 (dead monster routine, not needed here?)
 ' reset monster following/monster waiting

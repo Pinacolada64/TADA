@@ -6,12 +6,12 @@
 
 {ifdef:standalone}
 	{alpha:invert}
-'	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+'	{uses:.\includes\label-assignments.lbl}
 {else}
 	{nice:10}
 {endif}
 
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\misc\stack.lbl}
+' {uses:.\misc\stack.lbl}
 
 ' converted from image bbs
 	rem stack investigator
@@ -45,5 +45,5 @@
 	rem stack investigator
 
 {ifdef:standalone}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+	{uses:.\includes\cursor-get.lbl}
 {endif}

@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\list-item.lbl}
+' {uses:.\includes\list-item.lbl}
 {nice:5}
 {:msg.list_item} ' (item_num,width,"string",cr)
 {ifdef:modbasic}

@@ -382,7 +382,7 @@
 ' todo: fill in string with 96 nulls to eliminate garbage collection
 	ia=49155
 	f$="ml c000":open 15,dv,15:print "{clear}{$08}{$0e}Loading "q$f$q$"..."
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\bload.lbl}
 	restore:read ro ' # of rooms
 	print "TADA Map Level"lv"Installer v1.1"
 	print

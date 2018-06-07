@@ -25,15 +25,15 @@
 
 ' initialize modbasic:
 	sys 49152
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 
 	for x=1 to 5:read i$:i$(x)=i$:next
 	data "M.MUMMY{pipe}<]","B.SCROLL","T.3IRON MASK{pipe}x","F.BANANAS","I.MONKS"
 	goto {:menu}
 
 {:sub.bload}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\current-drive.lbl}
+{uses:.\includes\bload.lbl}
 	return
 
 {nice:100}
@@ -84,7 +84,7 @@
 	gosub {:msg.list_item}( 8,2,"A TORCH FOR SOMEONE",1)
 	gosub {:msg.list_item}( 9,2,"THE CARRY BIT",1)
 	gosub {:msg.list_item}(10,2,"A GUN",1)
-	
+
 	goto {:menu}
 
 {nice:10}
@@ -114,7 +114,7 @@
 	gosub {:sub.item.off_on}("> ",780,3)
 
 	goto {:menu}
-		
+
 {nice:10}
 {:test_item_no_yes}
 	gosub {:msg.list_item}( 1,2,"Current device is 8.........",0):gosub {:sub.item.no_yes}(0,dv=8)
@@ -122,9 +122,9 @@
 	gosub {:msg.list_item}( 3,2,"Is modBASIC totally awesome.",0):gosub {:sub.item.no_yes}(0,1)
 	gosub {:msg.list_item}( 4,2,"Video standard reports NTSC.",0):gosub {:sub.item.no_yes}(0,peek(678)=0)
 	gosub {:msg.list_item}( 5,2,"Are these silly test cases..",0):gosub {:sub.item.no_yes}(0,1)
-	
+
 	goto {:menu}
-	
+
 {nice:10}
 {:test_item_toggle}
 ' is there really a use case for this in this test suite?
@@ -136,14 +136,14 @@
 '  2. - (:sub.item.off_on.toggle), message
 '          Toggle x0, currently: On
 	gosub {:msg.list_item}( 2,2,"(:sub.item.off{underline}on.toggle), message",1):gosub {:sub.item.off_on.toggle}("          Toggle x0, currently",x0)
-	
+
 	print:input "Which";an$:an=int(val(an$)
 	if an=0 then {:msg.unfinished}
 	if an=1 then {:msg.unfinished}
 	if an=2 then {:msg.unfinished}
-	
+
 	gosub {:sub.bad_choice}:goto {:test_item_toggle}
-	
+
 {nice:10}
 {:test_item_list}
 	rem
@@ -156,7 +156,7 @@
 	print "Bad choice.":print:return
 
 ' 1012:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 {number:1811}
 {:1811}
@@ -217,7 +217,7 @@
 	print ": "mid$("No Yes",abs(sgn(v))*3+1,3):return
 
 ' {nice:5} 1890:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\list-item.lbl}
+{uses:.\includes\list-item.lbl}
 
 {number:2410}
 {:sub.item.trim} ' ("string")

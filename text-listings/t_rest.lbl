@@ -4,7 +4,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	REM T.REST
 	' 3/12/10, 6/5/2013
 	goto {:start}

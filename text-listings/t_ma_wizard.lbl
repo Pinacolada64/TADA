@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.ma.wizard
 	goto {:start}
 
@@ -15,7 +15,7 @@
 {:wiz2}
 	print "(:wiz2)":return
 
-{:SUB.GET_SPELL_DATA}	
+{:SUB.GET_SPELL_DATA}
 	print "(:SUB.GET{underline}SPELL{underline}DATA)":return
 
 {:sub.spell_name}
@@ -24,7 +24,7 @@
 
 	l=len(a$):sys is,a$,"{pipe}":if i% then l=i%-1
 	s$=left$(a$,l):print s$;:return
-	
+
 {nice:100}
 {:start}
 {ifdef:standalone}
@@ -65,12 +65,12 @@
 
 ' display:
 ' ##. - Spell Name      Gold        % cast
-'                       xxx,xx9,999 
+'                       xxx,xx9,999
 	for y=1 to mx:x%=y:gosub {:record_pointer}(y+1)
 ' get spell name:
 	input# 2,a$:gosub {:fixme}
 
-' toss point determinator and... 	
+' toss point determinator and...
 	input#2,a$
 ' ...calculate price:
 	input#2,a$:p=val(a$)
@@ -108,7 +108,7 @@
 	if b>0 then if a>peek(v1+90) print q$"Your kind never did make good wizards,"q$" the voice sniffs..."
 	if a>peek(v1+90) then {:wiz2}
 {:wiz4}
-	print " "q$"Spell taught. Use "s$" wisely, for it can only be used {off}"; 
+	print " "q$"Spell taught. Use "s$" wisely, for it can only be used {off}";
 	sys br,"[once]!"+q$+r$+nl$
 
 {:640}

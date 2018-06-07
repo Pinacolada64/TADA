@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	goto {:start}:rem t.flee
 
 {number:100}
@@ -20,7 +20,7 @@
 ' find hp, subtract honor
 	m=v2+216:gosub {:get_2_bytes}:if x<7 then {:282}
 	if x>9 then m=v1+94:gosub {:get_2_bytes}:if x>10 then x=x-10:gosub {:put_2_bytes}
-	
+
 ' if monster flag = . but not mechanical, then flee is possible?
 	sys is,wy$,".":if i% then sys is,wy$,":":if i%=0 then {:flee_2}
 {:282}

@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.mount
 ' todo: check for char class size, perhaps this would present difficulties
 ' todo: check for saddle, main char strength, weight of armor, water room

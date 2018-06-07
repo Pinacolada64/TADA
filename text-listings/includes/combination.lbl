@@ -1,6 +1,6 @@
 {alpha:invert}
 {def:standalone}
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\combination.lbl}
+' {uses:.\includes\combination.lbl}
 
 {ifdef:standalone}
 	a$="":i%=0
@@ -15,8 +15,8 @@
 	po=1			' starting POsition of cursor
 	tb=len(p$)+1	' tab value (leaves cursor after prompt)
 	f$="ml c500"	' ml filename to load
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	{uses:.\includes\current-drive.lbl}
+	{uses:.\includes\bload.lbl}
 	is=50432		' $c500
 {endif}
 
@@ -32,7 +32,7 @@
 {:715}
 	INPUT" Third number (0-99)";Z:IF Z<1 OR Z>99 then {:715}
 	in$=right$("0"+mid$(str$(x),2),2)+"-"+right$("0"+mid$(str$(y),2),2)+"-"+right$("0"+mid$(str$(z),2),2)
-	
+
 {:prompt}
 '	gosub {:sub.display_input_line}:
 	IF co%=. THEN print "ack!":STOP
@@ -58,11 +58,11 @@
 	goto {:position}
 
 {:backspace}
-' blank out 
+' blank out
 	an$=" "
 '	po=po+(po<mx):if mid$(im$,po,1)="-" then {:backspace}
 '	goto {:left}
-	
+
 {:left}
 '	if po>1 then po=po-1
 ' retreat a position + skip dashes:
@@ -84,6 +84,6 @@
 {:1811}
 {number:1811}
 	end
-	
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+
+	{uses:.\includes\cursor-get.lbl}
 {endif}

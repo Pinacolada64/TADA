@@ -11,7 +11,7 @@
 {:1}
 	poke 53280,12:poke 53281,12:print"{clear}{gray3}{$08}{$0e}TADA File Reader v0.2"
 	print"{192:21}":print ' solid horizontal line
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+{uses:.\includes\build-date_basic.lbl}
 	gosub {:sub.get_current_drive}
 ' load my utility ml:
 	f$="ml c500":gosub {:sub.bload}
@@ -19,7 +19,7 @@
 	f$="modbasic c000 v2":gosub {:sub.bload}
 	sys 49152
 ' variables are now cleared
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 
 ' a nice thought, unit testing...
 
@@ -33,17 +33,17 @@
 ' c$=hex color pairs: normal, hilite
 	c=1:c$="2A5DC1E478"
 	goto {:menu}
-	
+
 {nice:10}
 {:sub.get_current_drive}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	{uses:.\includes\current-drive.lbl}
 	return
-	
+
 {nice:10}
 {:sub.bload}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}	
+	{uses:.\includes\bload.lbl}
 	return
-	
+
 {nice:100}
 {:menu}
 '1. read "s.tada main 40" SEQ file
@@ -102,14 +102,14 @@
 	gosub {:file.read}(a,b):goto {:loop}
 
 ' 1001:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+{uses:.\includes\rel-pointer.lbl}
 
 {number:1011}
 {:file.open}
 	fn f$:close 2:open 2,dv,2,dr$+f$
 
 ' 1012:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 {number:1076}
 {:file.read} ' gosub {:file.read}(num_lines,start_record)
@@ -135,7 +135,7 @@
 
 ' get data from disk, print with bracket-text routine:
 	sys ia,2,80,1,a$:sys br,a$+nl$:if pos(0)<>40 then print
-	
+
 ' check for pause/abort chars:
 	get an$:if an$="{home}" then:gosub {:sub.prompt_key}("[Paused] ","")
 	if an$="q" then {:abort}
@@ -196,7 +196,7 @@
 	close 2:close 3:close 15:print"{$09}";:end
 
 ' 1902
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 {number:1920}
 {:sub.aborted}

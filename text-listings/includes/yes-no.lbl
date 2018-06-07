@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\yes-no.lbl}
+' {uses:.\includes\yes-no.lbl}
 
 {number:1910}
 {:sub.yes_no} ' (default: a=0: no, a=1: yes)

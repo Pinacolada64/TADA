@@ -2,7 +2,7 @@
 {alpha:invert}
 {def:standalone}
 {ifdef:standalone}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	{uses:.\includes\label-assignments.lbl}
 {endif}
 	rem --- t.bar ---
 	goto {:start}
@@ -77,7 +77,7 @@
 '						  11
 
 {:700}
-' --- define ascii bar map ---	
+' --- define ascii bar map ---
 	i$="o":a$="*"
 	tt$(1)="+----+ +----+
 	tt$(2)="!"+i$+"[]     []"+i$+"!   N

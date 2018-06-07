@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+' {uses:.\includes\check-io-status.lbl}
 
 {number:1012}
 {:check.io_status}

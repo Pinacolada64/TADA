@@ -1,7 +1,7 @@
 {alpha:invert}
 {def:standalone}
 {def:modbasic}		' using modBASIC
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' {uses:.\includes\label-assignments.lbl}
 {def:build_date}
 	rem tep (tada.editor.player log) v2.08 written by pinacolada for commodoreserver
 ' updates:
@@ -19,9 +19,9 @@
 {number:1}
 {:1}
 	poke 53280,12:poke 53281,12:print "{clear}{$08}{gray3}Setting up...":print
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+{uses:.\includes\build-date_basic.lbl}
 ' this includes current drive:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 	d1$="11111111111":l$=" {$c0:38}":n$="(None)":qm$=q$+"?"+q$+"=Menu":dl$=q$+"---"+q$+" to delete":sp$="{space:9}Spacebar or [/] aborts":v$="Value"
 	dim a$(4),x(4)
 ' random numbers:
@@ -54,7 +54,7 @@
 
 {nice:10}
 {:sub.bload}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\bload.lbl}
 	return
 
 {nice:10}
@@ -66,7 +66,7 @@
 ' left on same line since in some cases stuff underneath must be cleared out
 	print " {173}"mid$(l$,2,36)"{189}";:return
 
-{nice:100}	
+{nice:100}
 {:start}
 	gosub {:sub.top_frame}:print " {pipe}{rvrs on}"q$"Totally Awesome Dungeon Adventure"q$" {rvrs off}{pipe}"
 '	print " {176}"mid$(l$,2,36)"{174}"
@@ -316,7 +316,7 @@
 {:3045}
 	print "  6: Architect............: ";:m=ct:b=.:gosub {:sub.yes_no}
 	print "  7: Autoduel.............: ";:b=7:gosub {:3076}
-' in guild, so check 
+' in guild, so check
 	if m then m=ct:b=7:gosub {:sub.off_on}
 	print "  8: Compass used.........: fixme"
 	print "  9: Diseased.............: ";:m=ct+1:b=7:gosub {:sub.yes_no}
@@ -444,7 +444,7 @@
 	poke m,x:sa=1:goto {:3010}
 {:3371}
 	l=1:h=253:t=.:gosub {:895}:poke m,an+2:sa=1:goto {:3310}
-	 
+
 {:300}
 ' the bulk of the flags/counters editor has moved to 3000-
 	m=v1+64:b=7:goto {:360}
@@ -763,7 +763,7 @@
 	fn a$:close 2:open 2,dv,2,"0:"+a$
 
 ' 1012
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 {ifdef:future_expansion}
 {number:1067}
@@ -787,7 +787,7 @@
 	close 2
 {endif}
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\clear-line.lbl}
+{uses:.\includes\clear-line.lbl}
 
 {number:1603}
 {:1603}
@@ -801,7 +801,7 @@
 	a=1-a:print b$": O"mid$("ffn",a*2+1,2):return
 
 ' 1902:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 {number:1920}
 {:1920}

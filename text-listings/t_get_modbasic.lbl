@@ -3,7 +3,7 @@
 {alpha:invert}
 {def:standalone}
 ' 2017/08/02: current version (using modbasic)
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	REM T.GET
 
 {ifdef:standalone}
@@ -13,9 +13,9 @@
 
 {:sub.bload}
 ' bload file in f$:
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
-	return	
+	{uses:.\includes\current-drive.lbl}
+	{uses:.\includes\bload.lbl}
+	return
 {endif}
 
 ' t.get (spur.misc.s:get)
@@ -44,7 +44,7 @@
 ' pop gosub off stack, link to different module
 	if x<1 then sys po:gosub {:link.module}("dead","")
 	return
-	
+
 {nice:10}
 {:sub.cursed} ' (item_name,damage_amt)
 	fn d$,d
@@ -132,7 +132,7 @@
 
 {:msg.inv_full}
 	print:print "Thou canst carry no more ";:return
-	
+
 {nice:100}
 {:get}
 ' check for, truncate | in item name

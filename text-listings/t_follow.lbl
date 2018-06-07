@@ -1,11 +1,11 @@
 {number:1}
 {alpha:invert}
 {undef:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.follow
 {ifdef:standalone}
 	na$="PINACOLADA"
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+	{uses:.\includes\player-setup.lbl}
 {endif}
 ' gd=guild, peek(v1+136) nowadays
 ' tt$(3)=who's here in the room?
@@ -18,7 +18,7 @@
 
 {nice:10}
 {:sub.no_one}
-	print "No one else can follow you.":return 
+	print "No one else can follow you.":return
 
 {number:100}
 {:start}
@@ -69,6 +69,6 @@
 		print# 15,"p{$02}"chr$(x and 255)chr$(x/256)"{$01}":return
 	{number:1011}
 		open 2,dv,2,a$
-	
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+
+	{uses:.\includes\check-io-status.lbl}
 {endif}

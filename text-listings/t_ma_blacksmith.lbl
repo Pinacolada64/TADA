@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.ma.blacksmith
 ' last updated	2012/06/06, 06/08
 ' labelized	2011/11/07 21:47
@@ -37,8 +37,8 @@
 ' trim names with | in them:
 	sys is,a$,"{pipe}":if i% then a$=left$(a$,i%-1)
 ' p=price
-	p=val(mid$(a$,5,L)):return	
-	
+	p=val(mid$(a$,5,L)):return
+
 {nice:100}
 {:start}
 	print "You are led into a back room. Here, a ";

@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {undef:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 ' comes from spur.misc4 to save ~7k
 	goto {:start}
 
@@ -15,7 +15,7 @@
 {nice:100}
 {:start}
 	print "(:start)"
-	
+
 {:read.monster}
 	vy=0:vz=0:zq=0:zs=0:md=0:mf=0:mw=0
 	gosub {:file.open}("e.t.monsters"):gosub {:record_pointer}(m+1)
@@ -423,7 +423,7 @@
 
 {:mon.ret}
 	print "(:mon.ret)":return
-	
+
 {:fre.ally}
 	print "(:fre.ally)":return
 
@@ -458,10 +458,10 @@
 
 {:sub.string_truncate}
 	print "(:sub.string{underline}truncate)":return
-	
+
 {:msg.A_OR_SOME}
 	print "(:msg.a{underline}or{underline}some)":return
-	
+
 {:MSG.YOU_FEEL}
 	print "(:msg.you{underline}feel)":return
-{endif}	
+{endif}

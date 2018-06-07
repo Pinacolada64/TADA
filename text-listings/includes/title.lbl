@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\title.lbl}
+' {uses:.\includes\title.lbl}
 
 	' t$=module title (>22 characters)
 	' d$=build date/time

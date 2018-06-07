@@ -2,7 +2,7 @@
 {alpha:invert}
 {def:standalone}
 {undef:modbasic} ' disables modbasic extension
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' {uses:.\includes\label-assignments.lbl}
 
 {quoter:$08="lock"} ' prevent shift + c= from changing screen case
 {quoter:$09="unlock"} ' re-enable case switching
@@ -21,12 +21,12 @@
 	nl$=chr$(.):q$=chr$(34):r$=chr$(13):b1=256
 	poke 53280,12:poke 53281,12:print "{lock}{clear}{gray3}TADA "q$"e.t.messages"q$" Index Fixer v2014-12-20":print
 ' dv=source drive
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	{uses:.\includes\current-drive.lbl}
 ' drive prefix
 	dr$="0:"
-	
+
 	f$="ml c500"
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	{uses:.\includes\bload.lbl}
 	a$="e.t.messages":gosub {:1011}:if e then print a$:goto {:1811}
 
 {nice:10}
@@ -58,7 +58,7 @@
 	sys ia,2,80,1:sys br,a$+nl$:if pos(.)<>40 then print
 	next
 	goto {:loop}
-	
+
 {nice:10}
 {:end}
 	close 2:goto {:1811}
@@ -80,19 +80,19 @@
 	 ' 70
 	data 71,20
 	 ' 91
-	data 92,2 
+	data 92,2
 	 ' 94
 	data 95,31
 	 ' 126
 
-{number:1000}	
+{number:1000}
 	rem image bbs subroutines 09/16/2006, 4/14/2007, 4/21/2007, 6/10/2007
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+	{uses:.\includes\rel-pointer.lbl}
 
 {number:1011}
 {:1011}
 	close 2:open 2,dv,2,"0:"+a$
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+	{uses:.\includes\check-io-status.lbl}
 {number:1811}
 {:1811}
 	close 2:close 3:close 15:print "{$09}";:end ' unlock shift + c=

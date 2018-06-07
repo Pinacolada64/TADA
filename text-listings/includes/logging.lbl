@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\logging.lbl}
+' {uses:.\includes\logging.lbl}
 
 {nice:5}
 {:sub.log_error} ' ("err_level",error_line,"message")
@@ -20,10 +20,10 @@
 
 '  Date: 4/20/2014
 '  Time: 11:13 PM
-'  User: 
-'Module: 
-' Error: 
-'Line #: 
+'  User:
+'Module:
+' Error:
+'Line #:
 
 ' gosub {:sub.SendCSIP}("time"):
 ' gosub {:sub.SendCSIP}("date")

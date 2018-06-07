@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.charge
 ' ms=monster strength
 ' al=# of allies?
@@ -24,10 +24,10 @@
 '	  (if in water area)
 	sys is,ww$,"@":if i% then print "What a concept!"
 
-	
+
 	print "Clopping two coconut halves against the ground does no good here. (You feel a bit dumber)"
 
-	
+
 	if peek(v1+119)<5 then print "Your horse is too weak to charge.":goto {:advent}
 ' z=...attack bonus
 	if cl=1 or cl=6 or cl=7 then z=-25

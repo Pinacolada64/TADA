@@ -1,5 +1,5 @@
 ' check for null string using instring
-' brobryce64: because the next string is null, it's looking at 
+' brobryce64: because the next string is null, it's looking at
 ' main,main_length,key,key_length where they were previously stored.
 
 ' {:loop}
@@ -27,7 +27,7 @@
 {ifdef:loadable}
 	{number:10}
 	{:sub.bload}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	{uses:.\includes\bload.lbl}
 	return
 {endif}
 
@@ -51,7 +51,7 @@
 	i%=0
 	q$=chr$(34):nl$=chr$(0)
 	st$="search{underline}thru":sf$="search{underline}for"
-	
+
 	poke 53280,12:poke 53281,12
 	print "{gray3}{$08}{$0e}{clear}InString test"
 	print "{$c0:13}"
@@ -71,14 +71,14 @@
 	input "Choice";an$:an=abs(int(val(an$)))
 	on an+1 goto {:1811},{:valid},{:invalid},{:null}
 	goto {:choice}
-	
+
 {:valid}
 ' test result should pass with a result of 4
 	print "sys"is","q$"contemporary"q$","q$"temp"q$
 	print:r=4
 	sys is,"contemporary","temp"
 	goto {:result}
-	
+
 {:invalid}
 ' test result should pass with a result of 0 (not found)
 	print "sys"is","q$"insinuate"q$","q$"xyzzy"q$
@@ -91,16 +91,16 @@
 	print "sys"is","q$"reverberate"q$","q$q$
 	print:r=0
 	sys is,"reverberate",""
-	
+
 {:result}
 	print "result:"i%;
 	if i% =r then print "passed"
 	if i%<>r then print "failed"
 	goto {:menu}
-	
+
 {ifdef:loadable}
 	' 1012:
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+	{uses:.\includes\check-io-status.lbl}
 {endif}
 
 ' 1811:
@@ -211,7 +211,7 @@ s8:
     stx key+1
     stx key
     stx main+1
-	
+
 store:
 	stx main	; store length in $fb (251)
 

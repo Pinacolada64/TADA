@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 ' t.bar.olaf -- buy/sell/maintain allies
 ' updated 8/19/2007, 6/27/2009
 ' updated 2012/6/6
@@ -102,7 +102,7 @@
 	gosub {:sub.check_abort}:if q then x=mx
 	x=x+1:if x>mx then print "  (Done.)":return
 	goto {:102}
-	
+
 {:150}
 	rem SELL SLAVE
 	print "Sell.":x$="":p=.
@@ -118,7 +118,7 @@
 {endif}
 '	for y=1 to p:print right$("  "+str$(y),3)". - ";
 	for y=1 to p
-	
+
 	gosub {:msg.list_item}(y,1,"",0)
 
 	x=val(mid$(x$,y*4-2,3)):if x then x=x+1:gosub {:sub.get_ally}:gosub {:sub.print_ally_name}:goto {:174}

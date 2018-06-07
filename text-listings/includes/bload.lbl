@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+' {uses:.\includes\bload.lbl}
 ' bload a binary file:
 {nice:5}
 	print "Loading "chr$(34)f$chr$(34)"... ";

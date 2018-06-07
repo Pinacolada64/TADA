@@ -3,7 +3,7 @@
 	' v1.0 06/10/2007  9:41 pm
 	' last updated 6/10/2007, 9/21/2007, 12/1/2015
 	poke 53280,12:poke 53281,12:print "{clear}{$08}{gray 2}";
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 	open 15,dv,15
 ' module name, filename, version
 	m$="monsters":f$="e.t."+m$:ve=1.02

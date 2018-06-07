@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 ' latest update: 24/Sep/2017 18:08
 
 ' TODO: use AgentFriday's word-wrap instead
@@ -23,9 +23,9 @@
 
 ' TODO: Check for Paladin character in party, chance of revival of other chars.
 ' From WOWiki:
-' Paladins are extremely effective against undead and demons - however 
-' contrary to popular belief, unless specifically stated their attacks do not 
-' do extra damage to either - its main bonus is that no race has any special 
+' Paladins are extremely effective against undead and demons - however
+' contrary to popular belief, unless specifically stated their attacks do not
+' do extra damage to either - its main bonus is that no race has any special
 ' resistance to it. A good Paladin player is always useful in a group, but in
 ' an Undead/Demon infested area, they are invaluable.
 
@@ -173,7 +173,7 @@
 
 {:statue}
 	print "(:statue)":stop
-	
+
 ' todo: Log to e.t.eventlog
 
 ' todo: erase player slot in e.t.playerlog

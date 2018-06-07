@@ -15,13 +15,13 @@
 ' variables cleared
 {endif}
 	f$="ml c500":gosub {:sub.bload}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 	goto {:menu}
 
 {nice:10}
 {:sub.bload}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\current-drive.lbl}
+{uses:.\includes\bload.lbl}
 	return
 
 {nice:100}
@@ -58,12 +58,12 @@
 			' o  : offset to calc dir header vs. entry block size
 {endif}
 ' returns s=1: enough blocks free, 0=not enough
-	
+
 ' csip command: blocksfree
 ' also "bytes <filename>" and "blocks <filename>"
 
 	close 15:open 15,dv,15 ' this is line 1010 in "t.main"
-' must open $ with secondary address of 0 to retrieve directory like load"$" 
+' must open $ with secondary address of 0 to retrieve directory like load"$"
 ' shows in basic
 	close 1:open 1,dv,0,"$0"+pa$:gosub {:check.io_status}:if e then print a$:goto {:finished}
 
@@ -106,8 +106,8 @@
 	return
 
 ' 1012:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
-	
+{uses:.\includes\check-io-status.lbl}
+
 {number:1811}
 {:1811}
 {ifdef:modbasic}

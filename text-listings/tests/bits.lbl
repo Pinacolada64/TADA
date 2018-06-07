@@ -8,17 +8,17 @@
 ' initializing modbasic clears variables, so load it first
 
 {def:build_date}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+	{uses:.\includes\build-date_basic.lbl}
 {undef:build_date}
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+{uses:.\includes\current-drive.lbl}
 	f$="modbasic c000 v2"
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\bload.lbl}
 	sys 49152
 
 	print "Setting up player data..."
 	na$="PINACOLADA"
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+{uses:.\includes\player-setup.lbl}
 
 {:menu}
 	print
@@ -101,7 +101,7 @@
 ' compare speed of exponent vs. multiplying value by itself
 ' not sure whether the math is right:
 ' list
-' 
+'
 ' 1 b=1:m=53280
 ' 2 t1=ti:s=abs(peek(m)and2^b)=2^b:t2=ti-t1
 ' 3 printt2"jiffies
@@ -111,5 +111,5 @@
 ' run
 '  4 jiffies
 '  1 jiffies
-' 
+'
 ' ready.

@@ -50,7 +50,7 @@
 {def:build_date}	' include build date at startup
 {def:sliding_input}	' use dat
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+{uses:.\includes\quoter-assignments.lbl}
 
 ' i am being pseudo-geeky in naming subroutines:
 '			<class>.<method>
@@ -115,13 +115,13 @@
 ' si: sliding input	sys si,<max_length>,<window_width>,<string$>
 
 ' variable declarations re-include current drive, but that's okay
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+	{uses:.\includes\variable-declarations.lbl}
 
 	gosub {:file.open_cmd_channel}
 
 ' define functions:
 	gosub {:2900}
-	
+
 ' initialize trace:
 {ifdef:trace}
 	print "Enabling trace...":sys 828+6
@@ -130,7 +130,7 @@
 ' announce module name + compile date:
 	cm$="t.main"+"":lm$="startup"+""
 	print cm$": ";
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+	{uses:.\includes\build-date_basic.lbl}
 
 {ifdef:debug}
 {:choose_module}
@@ -142,7 +142,7 @@
 {endif}
 
 	gosub {:link.module}(lm$,""):goto {:1811}
-	
+
 {ifdef:include_filler}
 {remremoval:off}
 {nice:100}
@@ -159,7 +159,7 @@
 	rem -------------------------------
 {nice:10}
 ' largest module to artificially set top of BASIC pointer for module 64:
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\t_np.lbl}
+	{uses:.\t_np.lbl}
 {endif}
 
 ' line 999 keeps module64 from self-destructing
@@ -172,7 +172,7 @@
 {remremoval:on}
 
 ' 1001-1002:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+{uses:.\includes\rel-pointer.lbl}
 
 ' new (8/15/2012):
 {number:1008}
@@ -189,7 +189,7 @@
 
 ' 1012
 ' {:check.io_status} - call with gosub
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 {:file.append_or_write} ' ("<filename>")
 {number:1026}
@@ -234,7 +234,7 @@
 
 ' 1079:
 {:sub.blocks_free}
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\blocks-free.lbl}
+' {uses:.\includes\blocks-free.lbl}
 
 {number:1090}
 {:sub.block_read}	' (message_num)
@@ -302,7 +302,7 @@
 
 ' 2) get data from disk file
 ' 3) display it
-' 2012/7/20: fix 40-column text to "glue" lines together 
+' 2012/7/20: fix 40-column text to "glue" lines together
 	sys ia,2,80,1,a$:sys br,a$+nl$:if pos(.)<>40 then print
 
 ' if rel record, position to initial record #:
@@ -424,9 +424,9 @@
 ' not calling {:msg.prompt} since i want the prompt & response preserved
 	fn a
 	print "Are you sure";:gosub {:sub.yes_no}(a):return
-	
+
 ' 1902 -- {:sub.cursor_get}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 {number:1910}
 {:sub.yes_no} ' (default: a=0: no, a=1: yes)
@@ -494,12 +494,12 @@
 ' acos code:
 '	if (not instr(left$(zu$,1),"AB")) or (i$="LOOK") setint(1):copy #8,#0 :setint("")
 ' current room = old room? skip disk access
-	
+
 ' room desc mode enabled?
 	if rm<>ro then:gosub {:bit.test}(v1+64,2):if s then:gosub {:sub.read_room_desc.force}(rm)
 	return
 
-{:sub.read_room_desc.force} ' room desc 
+{:sub.read_room_desc.force} ' room desc
 ' - if x=0, read level header
 ' - if x>0, read room info
 	fn x
@@ -582,7 +582,7 @@
 
 ' todo: un-possible for now!
 ' if flag(yz)=0 and not info(5) then print r$"[Waiting for GM Access to this guild]":goto {:space_tracker}
-	
+
 ' spur's way:
 'guilda.c
 ' zm=0:yz=1
@@ -655,7 +655,7 @@
 ' dec energy (8) & strength (6)
 	if i=. then:gosub {:sub.adj_stat}(8,-1):gosub {:sub.adj_stat}(6,-1):gosub {:sub.adj_hp}(1,-2):print "Too bad you don't have a "zt$"!"
 	if i then print "You wisely WEAR the "zt$"!""
-	
+
 ' not sure what added "-" flag represents -- seems like a flag to prevent duplicate messages
 	zz$=zz$+"-"
 
@@ -752,7 +752,7 @@
 	sys is,wy$,".":if i% then zs=.:goto {:advent4}
 '	if zs=998 zs=997:goto advent2
 	if zs=998 then zs=997:goto {:advent2}
-	
+
 '	not thief/assassin and ring not worn:
 '	i$=str$(pc):if not instr(i$,"68") then if mid$(zu$,2,1)="0" goto advent4
 	x=peek(v1+68):if x<>6 or x<>8 then gosub {:check.ring}:if s=. then {:advent4}
@@ -762,7 +762,7 @@
 	z=x*10+5:if s=1 then z=50
 '	if random(100)>z zs=999
 	if fn r(100)>z then zs=999 ' invisible?
-	
+
 {:advent4}
 	if zs=999 then printr$m$" lost sight of you!":goto {:advent2}
 	i$="advent5":goto {:link.combat} 'fixme
@@ -829,13 +829,13 @@
 	m=v1+90:if peek(m)>5 then z=1:poke m,peek(m)-5' int
 	if z then print "The Ring";:gosub {:msg.weakens}
 	gosub {:check.dead}(1,7) 'if hp<1 z=7
-	
+
 {:check.poison}
 	gosub {:bit.test}(v1+65,2):if s=. then {:check.disease}
 ' reorganize this more like above...
 ' subtract con:
 	z=fn r(10):if z<4 then m=v1+87:if peek(m)<z then poke m,peek(m)-z:print "The poison";:gosub {:msg.weakens}:gosub {:sub.adj_hp}(1,-2):gosub {:check.dead}(1,7)
-	
+
 {:check.disease}
 ' if mid$(zu$,4,1)="1"gosub rnd.10z:if z<4 print "THE DISEASE"i$:hp=hp-1 :pt=pt-zr:if hp<1 z=8
 ' if hp<1 goto dead
@@ -907,7 +907,7 @@
 ' if no monster waiting, if not round >5 of combat,
 ' if not a storm weapon and >40% chance, go to command line
 	if mw+md=. or vu<6 then {:cmdline}
-	
+
 {:cmdline}
 	i$="":print "Cmd";:if mw=. then {:cmdline.2}
 ' storm weapon can assert its will here, interrupting player input
@@ -944,7 +944,7 @@
 	l=.:a$="e.t.weapons":y=60:for z=11 to 17 step 2:goto {:2046}
 ' fixme: gotta do something here to put item name in z$... set fl=something?
 ' fixme: but this will only work for FIRST available item :/
-		
+
 	l=.:a$="e.t.rations":y=40:for z=19 to 25 step 2
 {:2046}
 ' from item_held:
@@ -957,10 +957,10 @@
 	i=fn l2(z):if i=. then {:2049} ' no item in this slot
 	gosub {:sub.item_held}(i):if s then poke y,.:poke y+1,.:goto {:2049}
 ' ^ item already in inventory, remove from room's item list ^
-	
+
 {:2048}
 ' item found
-	gosub {:file.input} ' get from disk, 
+	gosub {:file.input} ' get from disk,
 	gosub {:sub.item_init} ' display its name
 {:2049}
 	next:return
@@ -1016,7 +1016,7 @@
 ' could also use instring: sys is,"1456",mid$(str$(lv%),2):on i% goto .... ~23 bytes
 
 '	on -(lv%=1)-2*(lv%=4)-3*(lv%=5)-4*(lv%=6) goto {:bar.1},{:bar.1},{:bar.1},{:bar.1}	~50 bytes
-'	if (lv%=1 and rm=49 and di=1) or (lv%=4 and rm=42 and di=3) then {:link.bar}		~48 bytes 
+'	if (lv%=1 and rm=49 and di=1) or (lv%=4 and rm=42 and di=3) then {:link.bar}		~48 bytes
 '	if (lv%=5 and rm=157 and di=3) or (lv%=6 and rm=584 and di=2) then {:link.bar}
 
 ' moving to bar
@@ -1071,7 +1071,7 @@
 ' if (di=4) and (w) then cr=cr+((y=1)*ri)-1:goto {:travel1}
 ' if (di=5 and rc=1) then {:travel3}
 ' if (di=6 and rc=2) then {:travel3}
-' special case: teleporter room 
+' special case: teleporter room
 	if lv%=1 and rm=89 then {:travel3}
 
 	sys is,lo$,"@@!":if i%=. then {:travel1}
@@ -1079,7 +1079,7 @@
 	print "hull";
 {:block.s2}
 	print "!":z=17:hp=hp-2:if hp<1 then {:link.dead}
-	
+
 '1 x=2
 '2 for y=1 to 3:x=x-1:print sgn(x),:on sgn(x)+2 gosub 300,200,100:next:end
 '100 print "+1":return
@@ -1142,7 +1142,7 @@
 	sys is,ww$,"-]=":if i% then m=66
 '	if instr("=[]",ww$) and z<3 then m=65
 	sys is,ww$,"=[]":if i% then m=65
-	
+
 {:travel2a}
 ' zu$ 7=1: wraith master of spur. fixme: what is zn?
 '	if m or z>lv% or mid$(zu$,7,1)="1" or zn=70 or lv%>5 then {:no.guard}
@@ -1310,7 +1310,7 @@
 	gosub {:link.module}("shoppe",""):return
 
 {:cmd.look}
-' look: (d)isk (i)nput= , 
+' look: (d)isk (i)nput= ,
 ' fixme: modbasic call on gosub {:sub.show_room_items}
 	gosub {:2014}:gosub {:sub.read_room_desc.force}(0):di=.:pr=2:gosub {:sub.show_room_items}:goto {:2130}
 
@@ -1497,7 +1497,7 @@
 ' display hourglass
 	gosub {:bit.test}(v1+65,7):if s=. then return
 ' hours:minutes left
-	x=tm%-val(mid$(ti$,3,2)):print "["mid$(str$(x),2)":";:x=59-val(right$(ti$,2)):print right$("0"+mid$(str$(x),2),2)"] ";:return 
+	x=tm%-val(mid$(ti$,3,2)):print "["mid$(str$(x),2)":";:x=59-val(right$(ti$,2)):print right$("0"+mid$(str$(x),2),2)"] ";:return
 
 {number:2500}
 {:msg.you_see} ' ("item")
@@ -1653,7 +1653,7 @@
 ' get hp for character 1-5 (starting at v2+216)
 	fn x
 	gosub {:get_2_bytes}(v2+214+x*2):return
-	
+
 ' --- checks ---
 {number:2740}
 {:check.good} ' no params
@@ -1691,7 +1691,7 @@
 '			cross-breeding. Thanks for the idea, DracoSilv :)
 ' todo: return 0 if no ally/horse
 	if x<5 then x=peek(v2+185):return
-	
+
 ' "horse race" is bits 6-0, races undetermined right now
 	x=peek(v2+189) and 127:return
 
@@ -1842,7 +1842,7 @@
 '		(item/spell/weapon) list that sets y below
 ' todo: expand out to automatically search other chars' inventories
 
-' locals:	y=start of search (v2+y) 
+' locals:	y=start of search (v2+y)
 '			x=loop counter
 '			mx=max items/spells/weapons in inventory: 7 or 10 depending on
 '				character race (carrying capacity)
@@ -1944,13 +1944,13 @@
 	print "i$="i$
 {endif}
 	return
-	
+
 {nice:5}
 {:string.normalize} ' ("string")
 ' returns value of string
 	fn a$
 	an=int(abs(val(a$))):return
-	
+
 {nice:5}
 {:sub.log_error} ' ("err_level",error_line,"message")
 	fn el$,el,m$
@@ -1971,10 +1971,10 @@
 
 '  Date: 4/20/2014
 '  Time: 11:13 PM
-'  User: 
-'Module: 
-' Error: 
-'Line #: 
+'  User:
+'Module:
+' Error:
+'Line #:
 
 ' gosub {:sub.SendCSIP}("time"):
 ' gosub {:sub.SendCSIP}("date")

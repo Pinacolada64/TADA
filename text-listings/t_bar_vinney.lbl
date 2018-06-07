@@ -1,6 +1,6 @@
 {number:1}
 {alpha:invert}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem T.BAR.VINNEY
 ' updates:
 ' 7/Mar/2014 21:39
@@ -14,7 +14,7 @@
 {endif}
 
 	goto {:start}
-	
+
 {:msg.since}
 	sys br,"[since] "+nl$:return
 
@@ -29,7 +29,7 @@
 	print "mentions his name is Vinney, and that ";
 	print "he's... available for children's ";
 	print "parties?":print
-	
+
 	gosub {:check.gender}:IF S THEN HN$="weasel":DL$="mac":goto {:29}
 	print "Vinney leers. "Q$"Heya, sweet thing."Q$:HN$="honey":DL$="doll"
 
@@ -73,7 +73,7 @@
 	print "Vinney comes out from behind his table, wiggling his eyebrows. "q$"I wouldn't mind ;"
 	print "clownin' around wit' youse, doll, but..."q$" He sighs and sits again. ";
 	print q$"Business before pleasure, as they say."q$
-	
+
 {:clown_around.2}
 ' todo: don't say unca vinney never gave ya nuttin, kid. here.
 ' todo: add balloon animal to inventory, if not full
@@ -141,15 +141,15 @@
 ' his cigar twitching alarmingly. His
 ' fingers flex and twist, looking like
 ' they need some exercise...
-	
+
 ' if you overpay the loan:
-	
+
 ' He looks around stealthily and whispers,
 ' "Look, uh... dis is just between youse &
 ' me, but..." - his voice drops to a mere
 ' murmur - "Youse don' hafta pay me all
 ' dis."
-	
+
 ' He shoves the remainder back at you with
 ' a quick motion. "Dis is our secret, ok?"
 
@@ -231,7 +231,7 @@
 {nice:10}
 {:get_gold}
 	print "(:get{underline}gold): fixme":goto {:55}
-	
+
 {nice:100}
 ' messages
 {:msg.disgust}
@@ -247,7 +247,7 @@
 ' setup
 {nice:100}
 	na$="PINACOLADA"
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+	{uses:.\includes\player-setup.lbl}
 
 {:setup}
 ' set days to 6

@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {undef:standalone}
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' {uses:.\includes\label-assignments.lbl}
 	rem t.prg info
 	' v.02  2/23/2008
 	' v.03  9/16/2009
@@ -12,13 +12,13 @@
 
 {def:standalone}
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+{uses:.\includes\build-date_basic.lbl}
 
 {ifdef:standalone}
 	b1=256:hx$="0123456789ABCDEF"
 	def fn dp(x)=peek(x)+b1*peek(x+1)
 	f$="modbasic c000 v2"
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	{uses:.\includes\bload.lbl}
 	sys 49152 ' initialize modbasic
 {endif}
 
@@ -34,7 +34,7 @@
 	fn n
 ' decimal:
 	print tab(25)right$("    "+str$(n),5);
-	
+
 ' hexadecimal:
 	for x=1 to 4:v(x)=n-(int(n/16)*16):n=n/16:next:print " $";
 	for x=4 to 1 step-1:print mid$(hx$,v(x)+1,1);:next:print:return
@@ -60,7 +60,7 @@
 	print tab(10)"Start of arrays:";:s=fn dp(47):gosub {:sub.display}(s)
 	print tab(12)"End of arrays:";:e=fn dp(49)-1:gosub {:sub.display}(e)
 	gosub {:sub.difference}(s-e)
-	
+
 	print " Current bottom of strings:";:s=fn dp(51):gosub {:sub.display}(s)
 	print "Previous bottom of strings:";:e=fn dp(53):gosub {:sub.display}(e)
 	gosub {:sub.difference}(s-e)
@@ -89,7 +89,7 @@
 '  +-----------------------------------------------------------------------+
 
 '	print
-'	print"  VIC-II character set at:";:a=peek(53272) and 
+'	print"  VIC-II character set at:";:a=peek(53272) and
 '	print
 
 ' todo: after static array system test stuff is written,
@@ -97,7 +97,7 @@
 
   {def:append_stack_info}
 {ifdef:append_stack_info}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\misc\stack.lbl}
+	{uses:.\misc\stack.lbl}
 {endif}
 
 {number:998}

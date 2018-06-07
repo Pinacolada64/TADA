@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.shoppe
 ' last modified:2012 06/06, 12/21
 '				2011 02/16, 02/22
@@ -22,7 +22,7 @@
 {:cmd.1}
 '	sysis,"*?*A*B*C*E*G*H*I*LO*LOG*M*OA*OP*P*Q*S*W*X*STAT*","*"+i$+"*"
 	sys is,"?ABCEGHIMPQSWX",i$
-	on i% goto {:cmd.menu_local}, {:cmd.armory}, {:cmd.bank}, {:cmd.conquerors}, {:cmd.elevator}, {:cmd.general_store}, {:cmd.guild_hq}, {:cmd.inventory}, {:cmd.mage}, {:cmd.pawn_shoppe}, {:cmd.quit_local}, {:cmd.school}, {:cmd.wizard}, {:cmd.exit} 
+	on i% goto {:cmd.menu_local}, {:cmd.armory}, {:cmd.bank}, {:cmd.conquerors}, {:cmd.elevator}, {:cmd.general_store}, {:cmd.guild_hq}, {:cmd.inventory}, {:cmd.mage}, {:cmd.pawn_shoppe}, {:cmd.quit_local}, {:cmd.school}, {:cmd.wizard}, {:cmd.exit}
 {:cmd.2}
 '	on -(i$="LO")-2*(i$="OA")-3*(i$="OP") goto {:cmd.log},{:cmd.olly},{:cmd.opponents}
 	i%=-(i$="LO")-2*(i$="OA")-3*(i$="OP"):on i% goto {:cmd.log},{:cmd.olly},{:cmd.opponents}:goto {:cmd.huh}
@@ -39,7 +39,7 @@
 
 {:cmd.menu_local}
 ' display menu
-	gosub {:file.open}("s.shoppe-menu"):if e then 
+	gosub {:file.open}("s.shoppe-menu"):if e then
 	goto {:11}
 
 {:cmd.armory}
@@ -84,7 +84,7 @@
 {:cmd.mage} ' m
 	print "mage healing":goto {:11}
 
-{:cmd.olly} ' oa 
+{:cmd.olly} ' oa
 ' Olly's Ammo and Trap Shop (OATS) :)
 	gosub {:link.module}("ma.olly","")
 
@@ -108,7 +108,7 @@
 
 {:cmd.stat}
 	gosub {:link.module}("stat","shoppe")
-	
+
 {:cmd.wizard} ' w
 	print "visit wizard":goto {:11}
 

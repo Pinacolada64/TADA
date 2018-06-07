@@ -2,7 +2,7 @@
 {number:1}
 {def:debug}
 {undef:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+{uses:.\includes\quoter-assignments.lbl}
 
 	REM "MAKE MESSAGES" INSTALLER
 
@@ -24,7 +24,7 @@
 	' record n+1:	start of text (no ^ indicates end of block)
 
 	' sequence of steps:
-	' 
+	'
 	' select source/target drives
 	' check for existing file, scratch/re-use
 	' 1) get # of text blocks -> mx
@@ -48,7 +48,7 @@
 	' stash in b$ so not overwritten by ^:
 	if a$<>"^" then sl=sl+1:ct=ct+1:b$=a$:print sl;b$:goto {:32}
 	return
-	
+
 {nice:10}
 {:sub.write_index}
 	' stash current index pointer, increment, resume writing:
@@ -69,8 +69,8 @@
 	' --- kick it off ---
 	' a$ must be 1st variable, stored outside program text; InString ML does not create i%:
 	poke 53280,12:poke 53281,12:print "{gray3}{$08}{$0e}{clear}TADA Message Installer v0.8":print
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+	{uses:.\includes\variable-declarations.lbl}
+	{uses:.\includes\build-date_basic.lbl}
 
 ' sr=source drive, de=destination drive
 	sr=dv:de=sr
@@ -81,7 +81,7 @@
 ' load ml:
 	open 15,de,15:if peek(is)=76 then {:122}
 	f$="ml c500"
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\bload.lbl}
 {:122}
 	f$=".t.messages":open 3,sr,3,dr$+"s"+f$+",s,r":gosub {:check.io_status}:if e then print a$:goto {:1811}
 
@@ -106,10 +106,10 @@
 	if e=62 then {:164}
 ' --- file exists ---
 	if e<>63 then print a$:goto {:1811}
-	
+
 	print:print q$"e"f$q$:print"Note: "e$", delete [y/N]? ";:gosub {:msg.yes_no}
 	if a=. then {:msg.prompt}
-	
+
 {:162}
 	print"Scratching...":print#15,"s"dr$"e"f$:gosub {:check.io_status}:if e<>1 then print a$:goto {:1811}
 
@@ -129,7 +129,7 @@
 ' 12/Dec/2015 14:05
 ''' problem is that d$ needs an initial index for the 1st text chunk
 	d$=""
-	
+
 	for z=1 to mx
 {ifdef:debug}
 	print,"Start:"sl
@@ -146,7 +146,7 @@
 ' --- add 2-byte line # pointer + 1 byte text block line count to d$ ---
 	d$=d$+chr$(ct)
 	' if len(d$)=39 then print "4: len=39":gosub {:sub.write_index}
-	
+
 {:214}
 	next
 {ifdef:debug}
@@ -157,7 +157,7 @@
 	print,"Lines:" asc(mid$(d$,x+2,1))
 	next
 {endif}
-	gosub {:sub.write_index}	
+	gosub {:sub.write_index}
 	gosub {:msg.pass}:print
 ' will re-opening file help?
 	close 3:open 3,sr,3,dr$+"s"+f$+",s,r":gosub {:check.io_status}:if e then print a$:goto {:1811}
@@ -224,14 +224,14 @@
 	close 2:open 2,sr,2,dr$+a$
 
 ' 1012:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 {number:1811}
 {:1811}
 	close 2:close 3:close 15:print"{$09}";:end
 
 ' 1902:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 {number:1920}
 {:msg.aborted}

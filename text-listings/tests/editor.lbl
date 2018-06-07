@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' {uses:.\includes\label-assignments.lbl}
 ' line based text editor
 ' -- uses static array system to store editor command strings
 ' -- uses instring to search for command key matches
@@ -9,8 +9,8 @@
 
 	poke 53280,0:poke 53281,0:print "{clear}{gray3}";
 {def:build_date}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	{uses:.\includes\build-date_basic.lbl}
+	{uses:.\includes\current-drive.lbl}
 	f$="sas c900"
 	sa=51456
 
@@ -18,9 +18,9 @@
 	f$="sas c900":gosub {:sub.bload}
 
 {:sub.bload}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	{uses:.\includes\bload.lbl}
 	return
-	
+
 ' todo: replace all this with a SAS load
 	read c$:n=len(c$)
 
@@ -36,7 +36,7 @@
 	next
 
 	for x=1 to n:read x$:print x$
-	
+
 	' STORE: SYSaddr+3,loc,subscript,a$
 	sys sa+3,53248,x,"This is string"+str$(x)
 	next
@@ -87,5 +87,5 @@ c$(1,x)=x$:print c$(1,x):next
 	if in=2 then for y=1 to len(c$):print chr$(20);:next
 	return
 {ifdef:standalone}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+	{uses:.\includes\cursor-get.lbl}
 {endif}

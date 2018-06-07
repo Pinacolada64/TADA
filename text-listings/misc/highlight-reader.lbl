@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 {:1}
 	poke 53280,12:poke 53281,12:print "{clear}{black}"
 	a$="x"+"":i%=.:is=49152:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
@@ -22,7 +22,7 @@
 {number:1011}
 	close 2:open 2,dv,2,"0:"+a$
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check_io_status.lbl}
+{uses:.\includes\check_io_status.lbl}
 
 {:file.append_or_write}
 {number:1026}
@@ -46,7 +46,7 @@
 	l=l+1:if l/24=int(l/24) then gosub {:check.more}:if q then {:1108}
 	if x then gosub {:record_pointer}:x=x+1' if rel record, increment record #
 ' get data from disk file: if specified # of lines has been reached, or eof then close file
-' 2012/7/20: fixed 40-column text to "glue" lines together 
+' 2012/7/20: fixed 40-column text to "glue" lines together
 	sys ia,2,80,1:sys br,a$+nl$:if pos(.)<>40 then print
 	if (nl and nl=l) or (x=. and (64 and st=64)) then {:1109}
 	goto {:1101}
@@ -88,7 +88,7 @@
 {:1811}
 	close 2:close 3:close 15:print "{$09}";:end ' unlock shift + c=
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor_get.lbl}
+{uses:.\includes\cursor_get.lbl}
 
 {number:1920}
 {:msg.aborted}
@@ -100,7 +100,7 @@
 {number:2000}
 {:advent}
 	goto {:1811}
-	
+
 {number:2860}
 {:check.more}
 ' more prompt enabled?

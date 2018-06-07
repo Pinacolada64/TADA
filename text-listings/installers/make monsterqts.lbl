@@ -1,13 +1,13 @@
 {:1}
 	rem  "MAKE MONSTERQTS"
 ' updated 6/19/2007, 12/5/2015
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 ' current BASIC line #:
 	def fn cl(x)=peek(58)*256+peek(57)
 ' eb=extra bytes
 	eb=0:dr=3
 	open 15,dv,15:f$="ml c500"
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\bload.lbl}
 	rem MODULE NAME/FILENAME/VERSION
 	m$="Monster Quotes":f$="monsterquote":ve=.01
 	a$=f$+",s,r":gosub {:file.open}:if e% then print fn cl(0)a$:goto {:1811}

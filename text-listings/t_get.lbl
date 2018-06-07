@@ -3,7 +3,7 @@
 {alpha:invert}
 {def:standalone}
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.get
 	goto {:get}
 ' t.get (spur.misc.s:get)
@@ -32,12 +32,12 @@
 	{nice:10}
 	{:sub.adj_hp}
 	' subtract up to y hit points from main character
-	
+
 		gosub {:get_2_bytes}(v1+216):if x>y then ' fixme
 		y=x ' drain max hp
 		x=x-y:gosub {:put_2_bytes}
 		gosub {:check.expert_mode}(0):if s=. then:gosub {:msg.you_feel}("weaker")
-	
+
 	' if dead, link to start of "dead" module (null label), that pops gosub off stack
 		if x<1 then:gosub {:link.module}{"dead","")
 		return
@@ -49,7 +49,7 @@
 		fn a$,d
 		def x,y
 		for x=1 to len(a$):print mid$(a$,x,1);:for y=1 to d:next:next:return
-	
+
 {endif}
 
 {nice:10}
@@ -70,7 +70,7 @@
 ' pop gosub off stack, link to different module
 	if x<1 then sys po:gosub {:link.module}("dead","")
 	return
-	
+
 {nice:10}
 {:sub.cursed} ' (item_name,damage_amt)
 	fn d$,d
@@ -152,7 +152,7 @@
 
 {:msg.inv_full}
 	print:print "Thou canst carry no more ";:return
-	
+
 {nice:100}
 {:get}
 ' check for, truncate | in item name

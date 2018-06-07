@@ -9,7 +9,7 @@
 
 {def:fn_fix}	' until modbasic can do regular "def fn(x)"s
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 {remremoval:off}
 {crunch:on}
 	rem  *** T.STARTUP ***
@@ -43,13 +43,13 @@
 {:startup}
 ' make strings dynamic (stored after program text rather than inside the
 ' program) so they doesn't get eated by modules
-	
+
 ' this is mostly for error logging purposes (cm$="current module"):
 	cm$="t.startup"+""
 
 {ifdef:debug}
 	print cm$" ";
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+	{uses:.\includes\build-date_basic.lbl}
 {endif}
 
 ' these were defined back in 900- of t.main:
@@ -97,7 +97,7 @@
 ' todo: get handle (ha$) from commodoreserver:
 
 {ifdef:debug}
-' todo: use csip command "setval" to write 
+' todo: use csip command "setval" to write
 	ha$="PINACOLADA"+"":na$="RAILBENDER"
 {endif}
 
@@ -260,7 +260,7 @@
 ' ally yours and conscious?
 	if cb=pn then if x<4 then print "awaits you!":a$(y)=x$+"":goto {:210}
 ' ally left, was killed, etc. - clear position in ally status
-' in e.t.allies, this handles status 0 (not available) 
+' in e.t.allies, this handles status 0 (not available)
 	if cb<>pn then print "seems to have left you.":gosub {:sub.clear_ally}(cb)
 
 ' unconscious:
@@ -279,7 +279,7 @@
 ' get horse name/status:
 	gosub {:sub.string_truncate}(mid$(d$,54,10)):a$(4)=x$+""
 	if x$<>"---" then print:print "Your faithful steed "x$" is here."
-	
+
 {:status}
 	print:print "Your current status:":print
 	print "      Expert Mode";:gosub {:sub.item_off_on}(v1+64,4)
@@ -315,7 +315,7 @@
 '		da (dwarf alive)
 '		dg (dwarf gold)
 '		sa (spur alive)
-	
+
 ' unconscious?
 '	m=v1+65:b=1:gosub {:bit.test}:if s=. then {:loan}
 	gosub {:bit.test}(v1+65,1):if s=. then {:loan}
@@ -365,7 +365,7 @@
 ' ;:if len(ln$)+17>ll% then print
 ' print ln$"!"
 	goto {:start}
-	
+
 {number:400}
 ' offline messages waiting?
 	gosub {:1062}("t."+a$(.),"r"):if e then close 2:goto {:advent}

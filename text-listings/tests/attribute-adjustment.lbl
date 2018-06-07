@@ -3,7 +3,7 @@
 {crunch:on}
 {number:1}
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+{uses:.\includes\quoter-assignments.lbl}
 
 	poke 53280,12:poke 53281,12
 	print "{gray3}{$08}{$0e}{clear}";
@@ -15,25 +15,25 @@
 ' new, 6/Aug/2017 9:40
 	gosub {:sub.header_line}("Test Attribute Adjustment")
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 
 	goto {:setup}
 
 {nice:10}
 {:sub.bload}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\current-drive.lbl}
+{uses:.\includes\bload.lbl}
 	return
 
 {nice:100}
 {:setup}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
-	
+{uses:.\includes\build-date_basic.lbl}
+
 ' calculate bottom of BASIC (STREND), for a storage buffer after BASIC text:
 	v1=peek(46)*b1+peek(45)
 ' set up some test values (10 ... 80):
 	for x=1 to 8:poke v1+85+x,x*10:next
-	
+
 {nice:100}
 {:menu}
 ' new idea: use letters instead of numbers, more mnemonic-like:
@@ -55,7 +55,7 @@
 	print
 	print "1. Attribute  1:"peek(v1+86)tab(34)"(-10)"
 	print "2. Attribute 11:"peek(v1+87)tab(34)"(Err)"
-	
+
 	print:input "Which";an$:an=val(an$)
 	if an=1 then:gosub {:sub.adj_stat}( 1,-10):goto {:status}
 	if an=2 then:gosub {:sub.adj_stat}(11,-10):goto {:status}
@@ -67,7 +67,7 @@
 	if s then print "Succeeded."
 
 	goto {:test_edit}
-		
+
 {number:1811}
 {:1811}
 	print "Shutting down modBASIC.":sys 49155:end
@@ -85,7 +85,7 @@
 	fn el$,cm$,er$
 	sys is,"IWE",el$:print "{white}["+mid$("{white}----{lt. green}Info{lt. red}Warn{red}Err ",(i%+1)*5-4,5)+"{white}]  "er$
 	return
-	
+
 ' --- stat adjustments ---
 {nice:100}
 {:sub.adj_stat} ' (statistic, adjustment)

@@ -5,10 +5,10 @@
 {number:1}
 	f$="modbasic c000 v2":gosub {:sub.bload}
 	sys 49152:goto {:start}
-	
+
 {:sub.bload}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\current-drive.lbl}
+{uses:.\includes\bload.lbl}
 	return
 
 {nice:10}
@@ -21,7 +21,7 @@
 '		mo	month
 '		da	date
 '		yr	print year (1=birthday, 0=current)
- 
+
 ' local:	x	year
 	def x
 ' (107 chars)
@@ -31,7 +31,7 @@
 {endif}
 	if dw then:gosub {:sub.string_truncate}(mid$("Sunday   Monday   Tuesday  WednesdayThursday Friday   Saturday",val(left$(d1$,1))*9-8,9)):print x$" ";
 	gosub {:sub.string_truncate}(mid$("January  February March    April    May      June     July     August   SeptemberOctober  November December",mo*9-8,9)):print x$;
-	
+
 ' print date [str$() keeps leading space but removes crsr-right after last digit]:
 	print str$(da)",";
 ' print either current year or birth year:
@@ -71,7 +71,7 @@
 
 {nice:100}
 {:start}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+{uses:.\includes\player-setup.lbl}
 
 	'    123456789ab
 	d1$="60512171006" ' Friday May 12 2017
@@ -84,7 +84,7 @@
 
 	print "Setting birthday to 6/16/1976.":poke v1+98,6:poke v1+99,16:poke v1+100,19:poke v1+101,76
 	print "Setting age to 40.":poke v1+144,40
-	
+
 	print "Display current date, with day of week:"
 	' day_of_week, month, date, year (0=current, 1=birth)
 	gosub {:sub.show_date}(1,val(mid$(d1$,2,2)),val(mid$(d1$,4,2)),0):print

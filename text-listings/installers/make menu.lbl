@@ -2,7 +2,7 @@
 ' module64 ml
 {def:modbasic}
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+{uses:.\includes\quoter-assignments.lbl}
 
 {number:1}
 {:1}
@@ -16,10 +16,10 @@
 {nice:10}
 {:sub.bload}
 ' bload file in f$
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\current-drive.lbl}
+{uses:.\includes\bload.lbl}
 	return
-		
+
 ' there should be a menu to do a 'full install' or pick individual modules
 
 ' 2 main ways of getting data: read from seq file or data statements
@@ -47,13 +47,13 @@
 	rem --- for tada ---
 
 ' 1001
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+{uses:.\includes\rel-pointer.lbl}
 
 {number:1011}
 {:file.open}
 	fn f$:close 2:open 2,dv,2,dr$+f$
 ' 1012
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 ' 1026
 {:file.append_or_write} ' ("<filename>")
@@ -75,36 +75,36 @@
 	print a$:return
 
 ' 1079:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\blocks-free.lbl}
+{uses:.\includes\blocks-free.lbl}
 
 {:return}
 {number:1603}
 	return
-	
+
 {number:1811}
 {:1811}
 	close 2:close 15:print "Shutting down modBASIC.":sys 49155:end
 
 ' 1902:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 ' 1910:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\yes-no.lbl}
+{uses:.\includes\yes-no.lbl}
 
 {number:2000}
 {:installer}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
-	
+{uses:.\includes\variable-declarations.lbl}
+
 ' setup:
 	gosub {:sub.title}("Make Menu","Sep 11 12:48 PM",.01)
 	rem fixme
 
 
 {:sub.title}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\title.lbl}
+{uses:.\includes\title.lbl}
 	return
-	
-	
+
+
 {:sub.show_version}
 ' ve=version, drops leading space if ve>1
 	print"TADA "m$" installer v"mid$(str$(ve),2+(ve<.))
@@ -186,7 +186,7 @@
 	e=.
 
 ' hook for installer menu
-	
+
 '	if nm$<>"" then:gosub {:link.module}(nm$)
 '	if e then print "Can't find "q$a$q$", aborting.":goto {:1811}
 
@@ -207,7 +207,7 @@
 ' todo: store installer module names with static array system?
 	if i%=1 then print "Run all":poke 828,i%
 	if i%<>2 then {:check_module}
-	
+
 	print "Quit":gosub {:sub.are_you_sure}(0):if a=0 then {:installer_menu}
 	goto {:1811}
 
@@ -215,7 +215,7 @@
 ' todo: check whether key pressed has module associated with it
 	print an$:gosub {:link.module}(a$(i%-2))
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\logging.lbl}
+{uses:.\includes\logging.lbl}
 
 {nice:100}
 	REM "MAKE MENU"

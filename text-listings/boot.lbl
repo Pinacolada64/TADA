@@ -1,4 +1,5 @@
 {number:1}
+{alpha:invert}
 
 {def:sliding_input}
 {def:debug}
@@ -38,7 +39,7 @@ rem set vic character address: > $d000 %00001110
 ' workaround for old roms to fill color ram with current color:
 	poke 53280,12:poke 53281,12:print "{gray3}{clear}{$08}{$0e}";
 	print "Totally Awesome Dungeon Adventure":print
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+{uses:.\includes\build-date_basic.lbl}
 
 ' must init agentfriday's modbasic before trace:
 ' load agentfriday's modbasic ("v2" in filename really means 1.1):
@@ -61,7 +62,7 @@ rem set vic character address: > $d000 %00001110
 	print tab(5)"$98ff: New top of BASIC":clr
 {endif}
 
-	gosub {:sub.get_current_drive}	
+	gosub {:sub.get_current_drive}
 	f$="modbasic c000 v2":gosub {:sub.bload}
 ' initialize it:
 	print "Initializing modBASIC"
@@ -81,7 +82,7 @@ rem set vic character address: > $d000 %00001110
 	print tab(5)"$033c: BASIC Trace installed":sys 828
 
 ' load my ml:
-{uses:\TADA-svn\pinacolada\TADA\assembly-language\ml-c500-symbols.lbl}
+{uses:..\assembly-language\ml-c500-symbols.lbl}
 ' for error-trap addresses
 
 	f$="ml c500":gosub {:sub.bload}
@@ -119,7 +120,7 @@ rem set vic character address: > $d000 %00001110
 
 {ifdef:debug}
 	print "Hit a key.":poke 198,0:wait 198,1:poke 198,0
-{endif}	
+{endif}
 
 ' set start of basic (43/44, $2b/2c) to 2049 ($0801)
 ' load wrap.reloc: this adjusts top of basic automatically
@@ -138,14 +139,14 @@ rem set vic character address: > $d000 %00001110
 {nice:10}
 {:sub.get_current_drive}
 ' must be repeated since initializing modbasic clears variables:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}	
+{uses:.\includes\current-drive.lbl}
 	return
-	
+
 {nice:10}
 {:sub.bload}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\bload.lbl}
 	return
-	
+
 {remremoval:off}
 {number:999}
 	REM TADA

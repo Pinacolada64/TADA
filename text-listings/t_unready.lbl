@@ -1,10 +1,9 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.unready
 	if wr=. then print "You have no weapon to unready.":goto {:advent}
 	print "You repack the "ob$(wr)".":wr=.:goto {:advent}
 {number:999}
 	rem t.unready
-	

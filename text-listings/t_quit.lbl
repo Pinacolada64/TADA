@@ -5,7 +5,7 @@
 {def:modbasic} ' using modbasic extension
 {def:debug}
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 {remremoval:off}
 {crunch:on}
 	REM  *** T.QUIT ***
@@ -45,8 +45,8 @@
 
 ' todo: update FOLLOWing players' level/room #s
 	gosub {:check.guild}:if s=. then {:finish}
-' todo: in guild, check FL status, 
-	
+' todo: in guild, check FL status,
+
 	print "[Intermediate things here]"
 
 {:finish}

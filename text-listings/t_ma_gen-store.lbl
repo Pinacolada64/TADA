@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	REM T.MA.GEN-STORE
 '	rem updated 7/25/2006
 '	rem 1/Feb/2014 20:11
@@ -9,7 +9,7 @@
 	a$(.)="STINGRAY":k$="Return":r$=chr$(13)
 	l$=" {midline:38}":q$=chr$(34)
 	na$="PINACOLADA"
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+	{uses:.\includes\player-setup.lbl}
 {endif}
 
 ' mi=max inventory

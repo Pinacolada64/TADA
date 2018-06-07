@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' {uses:.\includes\label-assignments.lbl}
 
 	rem t.stat
 '	updates:
@@ -15,7 +15,7 @@
 	poke 53280,12:poke 53281,12
 	print"{clear}{$08}{$0e}";
 {def:debug}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+{uses:.\includes\build-date_basic.lbl}
 
 	f$="modbasic c000 v2":gosub {:sub.bload}
 
@@ -28,16 +28,16 @@
 
 {:sub.bload}
 ' done each time since initializing modbasic clears all vars
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	{uses:.\includes\current-drive.lbl}
 
 	print"Loading "chr$(34)f$chr$(34)tab(30)
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+	{uses:.\includes\bload.lbl}
 	return
 
 {:init}
 {nice:10}
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 
 ' double byte peek:
 	def fn dp(z0)=peek(z0)+b1*peek(z0+1)
@@ -45,7 +45,7 @@
 	def fn r(z0)=int(rnd(1)*z0)+1
 
 	na$="PINACOLADA"
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+{uses:.\includes\player-setup.lbl}
 
 ' guilds	x$=mid$(gd$,(x+1)*8-7,8):gosub {:string.trim_right}
 	gd$="CivilianFist    Sword   Claw    Outlaw"+""
@@ -93,28 +93,28 @@
 ' p=print (0=no, 1=yes)
 	fn p:def x:x=peek(v1+69):if p then print mid$(gd$,x*8-7,8);
 	return
-	
+
 {number:100}
 {:start}
 ' todo: before i forget: if expert mode is off, give the player a menu of WHICH
 ' stats to view, since there are a LOT. hydrophilic suggested breaking it down
 ' into separate commands entirely.
 
-' i'm wondering how this can all be categorized. hydro mentioned maybe a CHAR 
-' command, i forget what else. responses are in personal messages on 
+' i'm wondering how this can all be categorized. hydro mentioned maybe a CHAR
+' command, i forget what else. responses are in personal messages on
 ' commodore128.org somewhere.
 
 ' his response:
-' Actually STAT has a whole bunch of stuff besides character stats.  Like 
-' party stats and "major enemies" killed... you might want to simplify / break 
-' that up.  Like maybe STAT or CHAR for character stats only, and PARTY for 
-' info about point / flank / rear... and maybe something like GAME to give 
-' game progress info (major enemies killed or other milestones). 
+' Actually STAT has a whole bunch of stuff besides character stats.  Like
+' party stats and "major enemies" killed... you might want to simplify / break
+' that up.  Like maybe STAT or CHAR for character stats only, and PARTY for
+' info about point / flank / rear... and maybe something like GAME to give
+' game progress info (major enemies killed or other milestones).
 
-' another issue: pauses for all the information may be in the wrong place if 
-' using a menu. need a counter that's incremented after each line is printed, 
-' then call {:check.more}. even better would be a hook into $ffd2, check if 
-' output device is screen, then pause -- have some code for that in 
+' another issue: pauses for all the information may be in the wrong place if
+' using a menu. need a counter that's incremented after each line is printed,
+' then call {:check.more}. even better would be a hook into $ffd2, check if
+' output device is screen, then pause -- have some code for that in
 ' "composer.d64"
 
 '		 12/13 - AF's advice:
@@ -142,7 +142,7 @@
 	pr$=mid$(an$,i%+1):goto {:options}
 
 {:prompt}
-' todo: finish breaking all the stats up into categories:	
+' todo: finish breaking all the stats up into categories:
 
 ' ----+----+----+----+----+----+----+----
 
@@ -230,8 +230,8 @@
 '	gosub {:check.guild}(0):if x then print "     "mid$(gd$,(x+1)*6-5,6);
 
 {:50}
-' new: since this module was first developed, the {:sub.get_gold} routine came 
-' into being -- simply call it with "gosub {:sub.get_gold}(1-5)", returns x 
+' new: since this module was first developed, the {:sub.get_gold} routine came
+' into being -- simply call it with "gosub {:sub.get_gold}(1-5)", returns x
 ' ready to be printed by {:msg.comma_value}
 
 	print:print tab(8)"In hand: ";:gosub {:sub.get_gold}(1):q=q+x:gosub {:msg.comma_value}(x,1)
@@ -298,7 +298,7 @@
 	print "     Honor rating: ";:gosub {:msg.comma_value}(x,1):print
 	print
 	return
-	
+
 ' health:
 {:health}
 	print
@@ -313,7 +313,7 @@
 	gosub {:bit.test}(v2+228,0):if s then print "Ring worn."
 	gosub {:bit.test}(v2+228,7):if s then print "Gauntlets worn."
 	return
-	
+
 ' no allies?
 {:allies}
 	print "Allies:";:if peek(v1+48)+peek(v1+49)+peek(v1+50)=0 then print " All alone... sniff...":return
@@ -367,9 +367,9 @@
 
 ' todo: af mentioned one should be "pilfer" or "steal weapons"... :)
 
-' this is a pretty short line that's output -- the ability descs could be 
-' longer :P also, some of these aren't really *abilities* per se, "servant" is 
-' more a flag to say the person in question was bought from fat olaf the slave 
+' this is a pretty short line that's output -- the ability descs could be
+' longer :P also, some of these aren't really *abilities* per se, "servant" is
+' more a flag to say the person in question was bought from fat olaf the slave
 ' trader, rather than picked up whilst adventuring... or a charmed monster...
 
 	for y=. to 7:gosub {:bit.test}(v1+155+x,y):if s then print mid$("aaabbbcccdddSrvSchTrk",y*3+1,3)" ";:x=1
@@ -394,7 +394,7 @@
 	print tab(16)"or"
 	print tab(13)"(Following you about.)" ' charmed monster found while adventuring
 	return
-	
+
 ' game objectives:
 {:goals}
 	print:print "King of the Wraiths: ";:gosub {:msg.dead_alive}(v2+228,2):print
@@ -415,7 +415,7 @@
 	rem t.stat
 
 {ifdef:standalone}
-'	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+'	{uses:.\includes\check-io-status.lbl}
 
 {number:1258}
 {:sub.clear_line}
@@ -429,39 +429,39 @@
 	sys 49155:end
 
 ' 1902
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+	{uses:.\includes\cursor-get.lbl}
 
 {number:1920}
 {:msg.aborted}
 	print "(Aborted.)":return
-	
+
 {:msg.not_understood}
 	print "I didn't understand that command."
-		
+
 {number:2000}
 {:advent}
 	print "(:advent)":goto {:1811}
 
 {:link.shoppe}
 	print "(:link.shoppe)":goto {:advent}
-	
+
 {number:2800} ' (mem_loc,bit)
 {:bit.set}
 	fn m,b
 	poke m,peek(m)or 2^b:return
-	
+
 {nice:5} ' 2805
 {:bit.clear} ' (mem_loc,bit)
 	fn m,b
 	poke m,peek(m)and 255-2^b:return
-	
+
 {nice:5} ' 2810
 {:bit.test} ' (mem_loc,bit)
 	fn m,b
 ' test bit: RETURNs s=1 IF ON, s=0 IF NOT
 ' (trying to be clever, above line would tokenize pretty nicely :)
 	s=abs((peek(m)and 2^b)=2^b):return
-	
+
 {nice:5} ' 2815
 {:get_2_bytes} ' (mem_loc)
 	fn m
@@ -503,10 +503,10 @@
 {:sub.get_gold} ' (character 1-4)
 ' horse has no gold unless carrying saddlebags
 ' haven't figured out where in stats file gold could be stored then
-	
+
 ' call sub.get_gold when character <c>'s gold in hand should be queried
 ' return x
-	
+
 ' starts at v2+21
 ' use {:sub.display_gold}(c) to show it
 	fn c

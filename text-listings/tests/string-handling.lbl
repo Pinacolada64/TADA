@@ -11,27 +11,27 @@
 ' check whether getting e.t.playerlog data, converting to uppercase works:
 	poke 53280,12:poke 53281,12:print"{clear}{gray3}{$08}{$0e}TADA String Handling v0.1"
 	print"{192:25}":print ' solid horizontal line
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+{uses:.\includes\build-date_basic.lbl}
 	gosub {:sub.get_current_drive}
 ' load modbasic:
 	f$="modbasic c000 v2":gosub {:sub.bload}
 	sys 49152
 ' variables are now cleared
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 
 ' load my utility ml:
 	gosub {:sub.get_current_drive}
 	f$="ml c500":gosub {:sub.bload}
 	goto {:menu}
-	
+
 {nice:10}
 {:sub.get_current_drive}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+	{uses:.\includes\current-drive.lbl}
 	return
-	
+
 {nice:10}
 {:sub.bload}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}	
+	{uses:.\includes\bload.lbl}
 	return
 
 {nice:10}
@@ -80,7 +80,7 @@
 
 {ifdef:debug}
 	print "during: i$="i$
-{endif}	
+{endif}
 	return
 
 {nice:100}
@@ -92,7 +92,7 @@
 	gosub {:sub.i_str_uppercase}
 	print "after:"
 	print i$
-	
+
 {:1811}
 	print "shutting down modbasic":sys 49155
 	end

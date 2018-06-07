@@ -6,7 +6,7 @@
 
 {number:1}
 	poke 53280,12:poke 53281,12:print "{gray3}{$08}{clear}Test game/event logging functions"
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+{uses:.\includes\build-date_basic.lbl}
 	gosub {:sub.current_drive}
 	f$="modbasic c000 v2":gosub {:sub.bload}
 	f$="ml c500":gosub {:sub.bload}
@@ -32,11 +32,11 @@
 	goto {:start}
 
 {:sub.current_drive}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+{uses:.\includes\current-drive.lbl}
 	return
 
 {:sub.bload}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\bload.lbl}
 	return
 
 {nice:100}
@@ -53,7 +53,7 @@
 {ifdef:trace}
 	print "Ending trace":sys 828+9
 {endif}
-	
+
 	gosub {:sub.log_error}("-", 0,        "Error log: no match, no line #")
 	gosub {:sub.log_error}("I", 0,        "Error log: info test, no line #")
 	gosub {:sub.log_error}("W", fn cl(0), "Error log: warn test, line"+str$(fn cl(0)))
@@ -141,7 +141,7 @@
 
 ' 1012
 ' {:check.io_status} - call with gosub
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 {:file.append_or_write} ' ("filename")
 {number:1026}

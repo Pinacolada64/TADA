@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' {uses:.\includes\label-assignments.lbl}
 ' automatic command entry
 	read n:dim c$(2,n)
 	c$(1,.)=str$(n):for x=1 to n:read x$:c$(1,x)=x$:print c$(1,x):next
@@ -56,5 +56,5 @@
 	if in=2 then for y=1 to len(c$):print chr$(20);:next
 	return
 {ifdef:standalone}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+	{uses:.\includes\cursor-get.lbl}
 {endif}

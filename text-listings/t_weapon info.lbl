@@ -4,7 +4,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	if lm$="bonuses" then {:weapon_bonuses} ' return from bonus calculations
 	goto {:weapon_info}
 

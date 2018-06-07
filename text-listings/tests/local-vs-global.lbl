@@ -14,7 +14,7 @@
 
 {ifdef:standalone}
 	poke 53280,12:poke 53281,12:print "{$08}{$0e}{gray3}{clear}";
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+{uses:.\includes\build-date_basic.lbl}
 	gosub {:sub.get_current_drive}
 	f$="modbasic c000 v2":gosub {:sub.bload}
 	sys 49152
@@ -35,12 +35,12 @@
 
 {nice:100}
 {:sub.get_current_drive}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+{uses:.\includes\current-drive.lbl}
 	return
 
 {nice:10}
 {:sub.bload}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\bload.lbl}
 	return
 {endif}
 

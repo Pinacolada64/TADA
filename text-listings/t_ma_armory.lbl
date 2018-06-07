@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.ma.armory
 '	rem updated 9/18/2007
 '	rem         9/10/2011
@@ -124,7 +124,7 @@
 	print "shakes it warmly. "q$"Congratulations! ";
 	print "Thou art now the proud owner of "x$"!"q$
 	gosub {:sub.adj_gold}(1,-p)
-	
+
 ' todo: add to inventory
 ' todo: remove from shoppe inventory unless always-in-stock items <11
 	if wp<11 then cb$="1":gosub {:sub.write_weapon}

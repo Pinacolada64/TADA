@@ -1,6 +1,6 @@
 {number:1}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	REM T.BASH
 	goto {:bash}
 
@@ -130,7 +130,7 @@
 ' ye	O shield %
 ' yg	O Wizard Glow in effect
 ' yh
-' yw	
+' yw
 ' yx	? modified by zx
 
 ' zo	P Carrying capacity	peek(v1+136)
@@ -146,7 +146,7 @@
 '	1: not on ground
 '	2: (surprise) attack
 '	3: parry
-'	4: 
+'	4:
 '	5: on ground
 
 ' zx	P tactic
@@ -154,10 +154,10 @@
 '
 ' zz	P turf bonus:
 '	3: on HQ square
-	
+
 '	P tactic:
-'	1: 
-'	2: 
+'	1:
+'	2:
 '	3: parry
 '	4: bashes
 '	5: on ground (stands up)

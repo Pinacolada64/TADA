@@ -372,9 +372,9 @@
 {nice:100}
 {:400}
 	poke 53280,12:poke 53281,12:print "{clear}{$08}";
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 '	f$="ml c500"
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+' {uses:.\includes\bload.lbl}
 
 	l%=.:lv=1:a=96:for x=1 to a:d1$=d1$+nl$:next
 	open 15,dv,15:restore:read ro ' ro=# of rooms
@@ -476,12 +476,12 @@
 	REM COPR. 1995-2015 PINACOLADA
 
 '{number:1000}
-'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+'{uses:.\includes\rel-pointer.lbl}
 '{number:1011}
 '{:file.open}
 '	close 2:open 2,dv,2,dr$+a$
 ' 1012:
-'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+'{uses:.\includes\check-io-status.lbl}
 '{number:1081}
 '{:1081}
 '	a=x%:return
@@ -489,7 +489,7 @@
 '{:1811}
 '	close 3:close 2:close 15:end
 ' 1902:
-'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+'{uses:.\includes\cursor-get.lbl}
 '
 '{number:2000}
 ' test two files open at once

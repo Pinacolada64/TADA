@@ -5,7 +5,7 @@
 
 {number:1}
 	poke 53280,12:poke 53281,12:print "{gray3}{14}{$08}{clear}Test Yes/No prompt styles"
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+{uses:.\includes\build-date_basic.lbl}
 	f$="modbasic c000 v2":gosub {:sub.bload}
 	sys 49152
 	f$="ml c500":gosub {:sub.bload}
@@ -16,11 +16,11 @@
 	print "trace installed":sys 828
 {endif}
 	goto {:start}
-	
+
 {:sub.bload}
 ' bload file in f$
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\current-drive.lbl}
+{uses:.\includes\bload.lbl}
 	return
 
 {nice:100}
@@ -42,12 +42,12 @@
 	print "Shutting down modBASIC.":sys 49155
 {endif}
 	print"{$09}";:end
-		
+
 '1902:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 ' 1910:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\yes-no.lbl}
+{uses:.\includes\yes-no.lbl}
 
 {nice:100}
 ' used in TADA Editor.Player

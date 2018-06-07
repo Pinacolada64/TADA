@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 
 {assign:editor=1604}
 
@@ -15,7 +15,7 @@
 {remremoval:off}
 {ifdef:standalone}
 	na$="PINACOLADA"
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+	{uses:.\includes\player-setup.lbl}
 {endif}
 
 	goto {:start}
@@ -54,7 +54,7 @@
 ' fixme: d2$ is actually the 2nd half of the player's stats, isn't it?!
 ' write handle of sending player
 ' current date/time
-' 
+'
 	gosub {:file.append_or_write}(an$):print#2,a$(.):print#2,d1$:print#2,d2$
 {:save_message_text}
 	for x=1 to kk:print# 2,tt$(x):next:print# 2,"^":close 2
@@ -63,7 +63,7 @@
 {:25}
 ' disk input until not ^
 	input# 2,a$:on -(a$="^") goto {:25}:return
-	
+
 {number:100}
 {:start}
 	tt$(1)="Message":dr$="0:":d$="31101258800":d2$="71106251000"
@@ -290,7 +290,7 @@
 
 {:fixme}
 	print "Panicing now. "q$a$q$" can't be scratched."
-	
+
 {remremoval:off}
 {number:997}
 	goto {:advent}

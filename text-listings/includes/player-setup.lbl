@@ -1,11 +1,11 @@
 ' to include, copy & un-comment:
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+' {uses:.\includes\player-setup.lbl}
 
 ' na$=character's name:
 '	na$="PINACOLADA"
 	d$="{$58:234}"+"" ' 234 "x" characters
 	d2$="{$58:234}"+"" ' 234 "x" characters
-	
+
 '	d$=nl$+nl$+left$(na$+"{space:18}",18)
 '	for x=21 to 53:d$=d$+nl$:next
 '	d$=d$+"---       "+nl$+nl$+nl$

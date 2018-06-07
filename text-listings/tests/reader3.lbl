@@ -9,10 +9,10 @@
 	rem "READER3" 2/24/2016, 11/20/2016
 	poke 53280,12:poke 53281,12:print"{clear}{gray3}{$08}{$0e}TADA File Reader v0.3"
 	print"{$c0:21}":print
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+{uses:.\includes\build-date_basic.lbl}
 	f$="modbasic c000 v2":gosub {:sub.bload}
 	sys 49152
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 	f$="ml c500":gosub {:sub.bload}
 	hx$="0123456789abcdef"
 ' color pairs:
@@ -23,11 +23,11 @@
 ' 7 yellow	8 orange
 	c=1:c$="2a5df16478"
 	goto {:100}
-	
+
 {:sub.bload}
 	dv=peek(186):if dv<8 then dv=8
 	gosub {:1010}:if st=128 then print "Device not present.":goto {:1811}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\bload.lbl}
 	return
 
 {nice:100}
@@ -61,12 +61,12 @@
 			' o: offset to calc dir header vs. entry block size
 {endif}
 	' returns s=1: enough blocks free, 0=not enough
-	
+
 ' csip command: blocksfree
 ' also "bytes <filename>" and "blocks <filename>"
 
 	gosub {:1010}
-' must open $ with secondary address of 0 to retrieve directory like load"$" 
+' must open $ with secondary address of 0 to retrieve directory like load"$"
 ' shows in basic
 	close 1:open 1,dv,0,"$0":gosub {:check.io_status}:if e then {:finished}
 
@@ -149,7 +149,7 @@
 	fn a$:close 2:open 2,dv,2,dr$+a$
 {:1012}
 ' 1012:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 {number:1076}
 {:1076}
@@ -219,7 +219,7 @@
 ' shut down:
 	close 2:close 3:close 15:print"{$09}shutting down.";:sys 49155:end
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 {number:1920}
 {:1920}

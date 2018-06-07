@@ -2,7 +2,7 @@
 {alpha:invert}
 {def:standalone}
 {undef:modbasic} ' not using modbasic extension yet
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 ' spur.combat.s -- rough translation
 
 ' 1/Jun/2014 19:54
@@ -12,12 +12,12 @@
 
 ' trying to write standalone module 1st
 
-' to be a point man means to assume the first and most exposed position in a 
-' combat military formation, that is, the lead soldier/unit advancing through 
+' to be a point man means to assume the first and most exposed position in a
+' combat military formation, that is, the lead soldier/unit advancing through
 ' hostile or unsecured territory
 ' == wikipedia ==
 	na$="PINACOLADA"
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+{uses:.\includes\player-setup.lbl}
 	z=0		' death reason flag: 0=not dead yet
 	ep=100	' experience points
 	xp=2	' experience level
@@ -40,7 +40,7 @@
 	vr=10 ' unknown
 	wa=5' weapon class
 	vn=10' rounds left
-	
+
 ' ally attributes:
 ' 	a1: hit points? h1: hit points?
 	a1=40:d1$="PERSEPHONE":h1=20
@@ -116,7 +116,7 @@
 ' call with:
 '	x=hp
 '	y=# of hp to subtract from x
-	
+
 ' returns fl=1 if subtraction successful
 ' can test with 'if fl then...' upon return ('if not fl' seemed backwards)
 '	fl=0:if x>=y then x=x-y:fl=1:goto {:put_2_bytes}
@@ -200,7 +200,7 @@
 
 ' {:advent2} ' this label also in t.main
 ' fixme
-	di=.:fl=.:if it then:gosub {:msg.you_see}(it$) ':gosub 
+	di=.:fl=.:if it then:gosub {:msg.you_see}(it$) ':gosub
 {:206}
 	if wp then:gosub {:msg.you_see}(wp$)
 {:210}
@@ -212,10 +212,10 @@
 ' has monster fled?
 	if md=2 then:gosub {:msg.you_see}(m$+" tracks"):goto {:label}
 	sys is,wy$,":": if i% then z$=i$+" wrecked "+m$
-	
+
 ' has monster fled?
 	if md=2 then z$=m$:gosub {:sub.item_init}:print " tracks..."
-	
+
 ' wa=weapon class readied
 ' vn=rounds left
 ' vm=?
@@ -463,12 +463,12 @@
 ' pina added check for CRYSTAL PENDANT!
 	gosub {:sub.item_held}(82):if i% then print " ...but you have a CRYSTAL PENDANT!":goto {:medusa}
 	if fn r(10)>1 then print " ...it failed!":return
-	
+
 ' todo: carve statue? is that done in dead module?
 	print:gosub {:msg.delay}("Argghh!! You are turned to stone!",30)
 	z=6:goto {:dead}
 ' todo: have screen text fade out slowly? have seen that done before
-	
+
 {:medusa}
 	print:print m$" attack";:gosub {:msg.multi}(m$):x=1:a=fn r(10):if a>4 then a=1
 	print " "a$(0)" with ";:d=1:if vu<3 then a=vy+1
@@ -634,7 +634,7 @@
 
 {:flee}
 	print "(:flee)":stop
-	
+
 {:dead}
 ' remove all player's HP:
 	gosub {:adj.hp}(1,0):xn=sn:sn=0:gosub {:link.module}("misc6","dead2")
@@ -651,7 +651,7 @@
 	{:sub.log_event.init} ' ("init_msg"
 ' below will be in {:sub.log_event.init}
 ' "MM/DD/YYYY xx:xx xM - "+dy$
-	
+
 	gosub {:sub.log_event}(wx$+", died fighting "+m$+",")
 	if zt$="RUN" then:gosub {:sub.log_event}(wx$+" fled after a hit from "+m$+".")
 	if zt$="EVIL" then:gosub {:sub.log_event}(wx$+", seeing "+a$(0)+" in trouble, ran away!"
@@ -695,7 +695,7 @@
 
 ' {:sub.get_hp}
 '	def x:gosub {:put_2_bytes}(v2+216,x):return
-	
+
 ' {:sub.adj_hp} ' (character: 1-5,adjustment)
 ' from get-labels. todo: update call there to here
 ' y = hp to +/-

@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 ' 7/30/2011: do not attempt to run this through c64list yet. too many issues.
 	REM T.INV
 ' 09/14/2007, 2/5/2011
@@ -49,7 +49,7 @@
 	print "   Gold: ";:gosub {:sub.display_gold}(1,1):print
 	print "Readied: ";:z$=wr$:if z$="" or wr%=. then {:ready.2}
 ' weapon found: it is item in$(x)
-	
+
 	gosub {:get_flags}:gosub {:msg.list_item}(i,3,mid$(z$,l,r),1)
 	gosub {:sub.condition}(peek(v1+26))
 {:ready.2}
@@ -61,7 +61,7 @@
 ' y%=weapon readied, x%=% left
 '	gosub 14 ' weapons
 	print:next:gosub {:sub.finish_list}
-	
+
 ' for x=v2+40 to v2+80
 {:worn}
 ' v2+5 -- shield object:
@@ -124,12 +124,12 @@
 {:finish}
 {:898}
 	goto {:1811}
-	
+
 {number:900}
 {:setup}
 ' todo: use Static Array System to stash strings
 	na$="PINACOLADA"
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+{uses:.\includes\player-setup.lbl}
 '	a$="x"+"":q$=chr$(34):r$=chr$(13):nl$=chr$(.):def fn r(x)=int(rnd(-ti)*x)+1
 	a$(.)="SHINJU":a$(1)="FIERA":a$(2)="RATH":a$(3)="JAKE":a$(4)="STRAWBERRY"
 '	i%=.' ml does not create i%
@@ -152,15 +152,15 @@
 ' format: index # in e.t.items file, "type.object name|flags"
 ' # of items
 	data 10
-	data 01,"P.COMPASS"           
-	data 05,"S.GOLD SHIELD"       
+	data 01,"P.COMPASS"
+	data 05,"S.GOLD SHIELD"
 	data 62,"B.ADVENTURER'S GUIDE"
-	data 11,"F.BANANAS"           
-	data 46,"F.BREAD CRUMB"       
-	data 34,"D.LEMONADE"          
+	data 11,"F.BANANAS"
+	data 46,"F.BREAD CRUMB"
+	data 34,"D.LEMONADE"
 	data 44,"T.ROCKS{pipe}051SLING"
-	data 36,"T.SILVER CHALICE"    
-	data 28,"A.CHAINMAIL ARMOR"   
+	data 36,"T.SILVER CHALICE"
+	data 28,"A.CHAINMAIL ARMOR"
 	data 23,"S.AZTEC SHIELD
 
 ' these are too good to pass up:
@@ -174,20 +174,20 @@
 	927 ob$(7)="b6A NOTE FROM MOM
 	928 ob$(8)="m0A DEAD FISH
 	929 ob$(9)="t0SILVER SAUCER
-       
+
 '  --- spells ---
 ' # of spells
  	data 02
 	data 01,"M.TRANSPORT TO SHOPPE"
-	data 02,"M.WHEATIES"          
+	data 02,"M.WHEATIES"
 
 ' # of weapons:
 	data 03
 ' s. = standard / m. = magical
 ' # = weapon class
 	data 27,"S.2WOODEN CLUB"
-	data 23,"M.2HAMMER"     
-	data 36,"S.6DYNAMITE"   
+	data 23,"M.2HAMMER"
+	data 36,"S.6DYNAMITE"
 ' spells 12/13+rnd%
 	x$=nl$+"{$01}"+chr$(fn r(100))+nl$+"{$02}"+chr$(fn r(100))
 	for x=1 to len(x$):poke v2+82+x,asc(mid$(x$,x,1)+nl$):next

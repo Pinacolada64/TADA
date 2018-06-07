@@ -4,7 +4,7 @@
 {def:standalone}
 {def:debug}
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.drop
 
 ' 12/May/2016 17:56: Why not combine flags?
@@ -36,7 +36,7 @@
 
 ' store item names using Jeff Jones' Static Array System
 
-{ifdef:standalone}	
+{ifdef:standalone}
 	read n:print n"items"
 ' calculate length of longest item
 	print "reading"

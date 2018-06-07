@@ -1,5 +1,5 @@
 ' comment: {assign:label=line number}
-'  to use: {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+'  to use: {uses:.\includes\quoter-assignments.lbl}
 ' last updates: 5/Aug/2017 19:54, 18/Feb/2016 22:49, 21/Jun/2014 14:18
 
 {quoter:$17="on"}		' word-wrap on, ctrl-w

@@ -2,13 +2,13 @@
 ' older code than misc/reader.lbl
 {def:modbasic}
 	f$="modbasic c000 v2":gosub {:sub.bload}
-	
+
 {:sub.bload}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\bload.lbl}
 	return
 
 ' 1012
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 {number:1100}
 {:file.read2} ' comes from {:file.read}(num_lines,start_record)
@@ -52,7 +52,7 @@
 ' if rel record, increment record #:
 	if x then:gosub {:record_pointer}(x):x=x+1:gosub {:check.io_status}:if e then print a$:return
 ' get data from disk file: if specified # of lines has been reached, or eof then close file
-' 2012/7/20: fix 40-column text to "glue" lines together 
+' 2012/7/20: fix 40-column text to "glue" lines together
 	sys ia,2,80,1:sys br,a$+nl$:if pos(.)<>40 then print
 ' if # of lines to read is specified, and that # has been reached,
 ' or if a SEQ file (x=0) and EOF has been reached:

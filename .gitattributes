@@ -1,0 +1,14 @@
+# Set the default behavior, in case people don't have core.autocrlf set.
+* text=auto
+
+# Explicitly declare text files you want to always be normalized and converted
+# to native line endings on checkout.
+
+# Here, we set C64List *.lbl files to have CRLF line endings since they are
+# usually being edited in Windows or processed using Wine.
+*.lbl text
+
+# Declare files that will always have CR line endings on checkout.
+# ACOS source files (*.s) need CR-only line endings since Apple DOS/ProDOS
+# prefers CR-only line endings.
+*.s text eol=cr

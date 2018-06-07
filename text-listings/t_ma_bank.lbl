@@ -9,15 +9,15 @@
 {def:trace}
 {undef:rob}
 
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+' {uses:.\includes\label-assignments.lbl}
 
 ' consider calling this code from t.cast for "deposit (bank)" spell...?
 ' although all it needs is part of the deposit code, so that's overkill
 
-' todo: option to rob bank if thief, dip into random player's money - honor 
+' todo: option to rob bank if thief, dip into random player's money - honor
 '		penalty though
 
-' wish: timed simulation of standing in line, or displaying how many people 
+' wish: timed simulation of standing in line, or displaying how many people
 '		are ahead of you if there's someone else in the room :)
 
 ' memory refresh: 'gb' apparently means 'gold in bank'
@@ -27,7 +27,7 @@
 	rem T.MA.BANK
 {ifdef:standalone}
 	poke 53280,12:poke 53281,12:print "{$08}{$0e}{gray3}{clear}";
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl} 
+{uses:.\includes\build-date_basic.lbl}
 	f$="modbasic c000 v2":gosub {:sub.bload}:sys 49152
 ' variables cleared now
 	f$="ml c500":gosub {:sub.bload}
@@ -37,12 +37,12 @@
 	sys 828:print "trace installed"
 {endif}
 '	gosub {:file.open_cmd_channel}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+{uses:.\includes\variable-declarations.lbl}
 
 ' main player character:
 	na$="LARI'EL":a$(0)=na$
 	print "Setting up player stats...";
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+{uses:.\includes\player-setup.lbl}
 	print" Done."
 
 {ifdef:debug}
@@ -53,8 +53,8 @@
 
 {nice:5}
 {:sub.bload}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\current-drive.lbl}
+{uses:.\includes\bload.lbl}
 	return
 {endif}
 
@@ -83,7 +83,7 @@
 {:sub.bank_teller}
 {nice:5}
 	print "The bank teller ";:return
-	
+
 {:sub.empty_account}
 {nice:5}
 	gosub {:sub.bank_teller}:print "looks and sees you have no money in your account.":return
@@ -131,7 +131,7 @@
 	print tab(15):sys br,"[W]ithdraw"+r$+nl$
 	print tab(15):sys br,"[T]ransfer"+r$+nl$
 	print
-' Return: Leave	
+' Return: Leave
 ' ---+---+---+- (40-16)/2=12
 	print tab(12)k$": Leave":print
 	print tab(7)"Bank >> ";
@@ -142,7 +142,7 @@
 	if an$="r" then:gosub {:check.class}(1):if x=2 then print "Rob.":goto {:rob}
 {endif}
 	goto {:613}
-	
+
 {:leave}
 	print "Leave.":print
 ' todo: of course, it wouldn't be a nice day for you if you ROBBED the place...
@@ -172,7 +172,7 @@
 	gosub {:sub.check_gold}(1,an):if s=0 then gosub {:sub.not_enough}:goto {:deposit_cleanup}
 	print r$"DBG: In account: "x
 	x=an:goto {:deposit2}
-	
+
 {:deposit_all}
 ' get full amount in hand:
 	gosub {:sub.get_gold}(1):if x=. then gosub {:sub.empty_hand}:goto {:start}
@@ -182,11 +182,11 @@
 	p=x ' save value 'cause 'x' gets used a lot elsewhere
 	gosub {:sub.adj_account}(p)
 	print r$"DBG: Adjusted account:"x
-	
+
 ' subtract <p> gold in hand:
 	gosub {:sub.adj_gold}(1,-p)
 	print r$"DBG: Adjusted gold in hand:"x
-	
+
 {:msg_deposited}
 ' show how much in account:
 	print "Deposited ";:gosub {:msg.comma_value}(x,0):print " gold in to your account."
@@ -199,7 +199,7 @@
 
 {:withdraw}
 	print "Withdraw."
-	
+
 {:withdraw_prompt}
 	print r$"Withdraw how much gold from your account?"
 	gosub {:sub.leave_or_all}:gosub {:sub.bank_gold}(1,0):print ")";
@@ -207,31 +207,31 @@
 	on -(an$="") -2*(an$="a") -3*(an<>.) goto {:start}, {:withdraw_all}, {:withdraw_some}
 {:withdraw_error}
 	gosub {:sub.error}:goto {:withdraw_prompt}
-	
+
 {:withdraw_all}
 ' get all gold (print=0, justify=0) from bank account
 	gosub {:sub.bank_gold}(0,0):if x=. then:gosub {:sub.empty_account}:goto {:withdraw_prompt}
 ' copy amount 'x' to 'p' since following subroutines use 'x'
 	p=x:goto {:withdraw2}
-	
+
 {:withdraw_some}
 ' copy amount from prompt (an) to 'p' since following subroutines use 'x'
 	p=an
 ' 1) don't print, don't justify:
 ' 2) check if chosen amount (p) exists in account (x):
 	gosub {:sub.bank_gold}(0,0):if p>x then:gosub {:sub.not_enough}:goto {:withdraw_prompt}
-	
+
 {:withdraw2}
 ' subtract 'p' from bank account:
 	gosub {:sub.adj_account}(-p)
 {ifdef:debug}
 	print:print "DBG: Bank gold: ";:gosub {:sub.bank_gold}(1,0):print
-{endif}	
+{endif}
 
 ' add 'p' to gold in hand
 ' add to current total - add p
 {ifdef:debug}
-	print "DBG: gold before adj.gold:";:gosub {:sub.display_gold}(1,0):print	
+	print "DBG: gold before adj.gold:";:gosub {:sub.display_gold}(1,0):print
 {endif}
 	gosub {:sub.adj_gold}(1,p)
 
@@ -245,7 +245,7 @@
 	print "Transfer."
 	print:print "Transfer gold between accounts:"
 	print
-{:transfer_menu}	
+{:transfer_menu}
 	sys br,"["+k$+"]: Leave, [?]: Player list"+r$+nl$
 	an$="":input "Transfer gold to whom";an$
 	if an$="" then gosub {:msg.aborted}:goto {:start}
@@ -263,7 +263,7 @@
 	if an$="" then gosub {:msg.aborted}:goto {:start}
 	if an$="a" then gosub {:sub.get_gold}
 	gosub {:string.normalize}(an$)
-	
+
 {:654}
 	p=an:gosub {:sub.get_gold}(1):if p>x then gosub {:sub.not_enough}:goto {:transfer_menu}
 
@@ -291,7 +291,7 @@
 {:rob}
 ' todo: finish this
 	print "TODO: "q$"rob"q$" not finished yet.":goto {:start}
-	
+
 {:finish}
 {number:998}
 	gosub {:link.module}("shoppe","")
@@ -302,10 +302,10 @@
 	rem IMAGE BBS SUBROUTINES:
 
 ' 1001-1002:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+{uses:.\includes\rel-pointer.lbl}
 
 ' 1012
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 ' 1067
 {:link.module}
@@ -313,7 +313,7 @@
 	def x$		' temporary log message
 {ifdef:debug}
 	x$="Module: "+m$:if m$<>"" then x$=x$+", Label: "+l$
-	gosub {:sub.log_error}("I",0,"(:link.module) "+x$)	
+	gosub {:sub.log_error}("I",0,"(:link.module) "+x$)
 {endif}
 	print "Fake news."
 
@@ -335,7 +335,7 @@
 	return
 
 ' 1902:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 {number:1920}
 {:msg.aborted}		' gosub - no params

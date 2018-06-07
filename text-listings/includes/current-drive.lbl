@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+' {uses:.\includes\current-drive.lbl}
 {:get_current_device}
 	dv=peek(186):if dv<8 then dv=8
 {:open_cmd_channel}

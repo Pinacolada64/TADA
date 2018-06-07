@@ -1,10 +1,10 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.order
 	goto {:start}
-	
+
 ' check tactical position, display stats for ally in position 'p'
 {:sub.ally_pos}
 ' loop through ally position list, checking to see if p (tactical position)
@@ -15,7 +15,7 @@
 {:6}
 ' check position this ally is assigned to:
 ' 0=none; 1-3 point, flank, rear; 4=unconscious
-' a=ally 
+' a=ally
 	a=peek(v1+50+p):if a=. then print "(None)":return
 	print a$(x)tab(15)
 	if m=4 then print "(Unconscious)":return
@@ -25,7 +25,7 @@
 ' move to next ally in pointer list:
 	a=a+1:if a<5 then {:next}
 	return
-	
+
 {nice:100}
 {:start}
 	print "Tactical deployment of servants:":print
@@ -34,6 +34,6 @@
 	print " 3. - Rear Guard : ";:gosub {:sub.ally_pos}(3)
 
 	print:print "Change this";:gosub {:sub.yes_no}(0)
-		
+
 {number:999}
 	rem t.order

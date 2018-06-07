@@ -4,7 +4,7 @@
 {def:h2g2}
 
 {ifdef:standalone}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	{uses:.\includes\label-assignments.lbl}
 {endif}
 
 	rem t.ma.elevator
@@ -35,7 +35,7 @@
 	f=peek(v1+119):m=peek(v1+120):l=peek(v1+121)
 
 {:700}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\combination.lbl}
+	{uses:.\includes\combination.lbl}
 	a$(0)="PINACOLADA"
 {ifdef:h2g2}
 	a$(1)="FORD PREFECT":a$(2)="TRICIA MCMILLAN":a$(3)="ARTHUR DENT"
@@ -43,7 +43,7 @@
 	a$(1)="SHINJU":a$(2)="ELISSA":a$(3)="LARI'EL"
 {endif}
 	a$(4)="---"
-	
+
 ' if these 3 values added up <>0, then you should have a combination:
 	if f+m+l then {:31}
 	print "The guard says, "q$"Sorry, you have not been authorized to use this elevator yet. You need a combination first."q$:goto {:link.shoppe}

@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+' {uses:.\includes\variable-declarations.lbl}
 
 ' force strings to become dynamic (not stored in BASIC program which gets overwritten)
 

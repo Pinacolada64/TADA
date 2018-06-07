@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.ma.cleric
 ' todo: replace "lv" with experience peek
 	q$=chr$(34):r$=chr$(13):lv=1

@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.heal
 	for x=.to 4:a$(x)="CHAR"+str$(x):hp(x)=10:a(x)=x:next:lv=1:cl=1:al=3
 	def fn r(x)=int(rnd(1)*x)+1:an$=""

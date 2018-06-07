@@ -11,7 +11,7 @@
 	'					fix monster size string
 	' v.07	7/31/2015	clarify "." flag: magic-user
 	'					some fix-ups to assemble properly with c64list3.03
-	
+
 ' >c64list3_0 monsterenum.06.lbl -prg -ovr -crunch -verbose:list
 
 {number:1}
@@ -152,7 +152,7 @@
 	close 1:close 2:close 15:print"{$09}";:end
 
 {number:1902}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 {asm}
 instring: jmp instring_2

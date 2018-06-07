@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 ' t.weapon_master
 ' copy of t.ma.armory.weapons
 ' todo: use t.weapon in place of code @800-
@@ -51,7 +51,7 @@
 	for y=1 to mx:gosub {:200}:w$=mid$(w$,4):if val(cb$)<>2 then {:629}
 ' display #, truncate weapon # if >15 chars
 	print right$(" "+str$(y),2)" ";:if len(w$)>15 then w$=left$(w$,11)+"..."
-' print weapon name, 
+' print weapon name,
 	print w$tab(18)right$("    "+str$(wp),5)left$(str$(ws),2)left$(str$(wd),2);
 ' ammo bonus (class 8 weapons): *=yes
 	print mid$("* ",2+(wa=8),1)" ";
@@ -132,7 +132,7 @@
 	rem jump to main loop
 	lm$="":goto 2000
 
-' ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ----------' ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 
+' ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ----------' ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ---------- 8< ----------
 	rem calculate class/race bonuses
 {:800}
 	yz=.:yx=.:n$="*"+right$("    "+w$,4)+"*"
@@ -229,9 +229,9 @@
 {:1011}
 	open 2,dv,2,a$
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 {:1811}
 	close 2:close 15:end
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor_get.lbl}
+{uses:.\includes\cursor_get.lbl}

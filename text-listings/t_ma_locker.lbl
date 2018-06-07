@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.ma.locker
 ' player gets locker combination from SCRAP OF PAPER, randomly placed in map from t.np
 ' combination is poked into inventory when SCRAP OF PAPER is gotten in t.get
@@ -44,7 +44,7 @@
 
 '	an$="":input"Enter combination";an$:if an$="" then 730
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\combination.lbl}
+{uses:.\includes\combination.lbl}
 
 	print "Access ";
 

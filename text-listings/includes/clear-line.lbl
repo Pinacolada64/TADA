@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\clear-line.lbl}
+' {uses:.\includes\clear-line.lbl}
 {number:1258}
 {:sub.clear_line}
 ' SYS to clear a single screen line: 781=.x / peek(214)=current line number

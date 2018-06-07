@@ -2,7 +2,7 @@
 {alpha:invert}
 {def:standalone}
 {ifdef:standalone}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	{uses:.\includes\label-assignments.lbl}
 {endif}
 	rem t.ma.news-winners
 {:600}

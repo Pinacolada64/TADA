@@ -144,13 +144,13 @@
 
 {ifdef:standalone}
 ' 1001-1002:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+{uses:.\includes\rel-pointer.lbl}
 
 {:file.open}
 	open 2,dv,2,a$
 
 ' 1012:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 {:1081}
 	a=x%:return
@@ -158,6 +158,6 @@
 	for i=2 to peek(152):close peek(603):next:print"{$09}":end
 
 ' 1902:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 {endif}

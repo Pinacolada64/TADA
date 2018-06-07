@@ -1,4 +1,4 @@
-' {uses:\TADA-svn\pinacolada\TADA\text-listings\includes\blocks-free.lbl}
+' {uses:.\includes\blocks-free.lbl}
 
 {number:1079}
 {:sub.blocks_free} ' (device, pattern, print_output)

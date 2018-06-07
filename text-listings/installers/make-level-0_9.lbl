@@ -6,8 +6,8 @@
 	REM V0.9  02/14/2011 11:39 PM
 	REM V0.9A 02/18/2014  5:00 PM
 	REM V0.9B 12/09/2014  4:13 PM
-	
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+
+{uses:.\includes\variable-declarations.lbl}
 
 	print "{clear}{$08}{$0e}Wait just a moment..."
 ' start line, total lines, level #:
@@ -17,7 +17,7 @@
 ' line length, extra bytes appended to record:
 	l=40:eb=.:if eb then for x=1 to eb:d1$=d1$+nl$:next
 '	f$="ml c500"
-'	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+'	{uses:.\includes\bload.lbl}
 '	a$="s.t.level ? data":gosub {:file.open}:if e then {:1811}
 	goto {:400}
 
@@ -247,14 +247,14 @@
 '	rem image bbs subroutines v2.0 6/30/2007
 '
 ' 1001-1002:
-'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+'{uses:.\includes\rel-pointer.lbl}
 '
 '{number:1011}
 '{:file.open}
 '	close 2:open 2,dv,2,dr$+a$
 '
 ' 1012:
-'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+'{uses:.\includes\check-io-status.lbl}
 '	rem a$="a":b$="myfile":gosub 1027:if e then a$="w":gosub 1027
 '	dr=3:a$="e.t."+b$+",s,"+a$:goto {:file.open}
 '{number:1062}
@@ -278,14 +278,14 @@
 '	a$="[Paused]":goto {:2862}
 '	return
 ' 1258:
-'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\clear-line.lbl}
+'{uses:.\includes\clear-line.lbl}
 '
 '{number:1811}
 '{:1811}
 '	close 2:close 3:close 15:print "{$09}";:end
 '
 ' 1902:
-'{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+'{uses:.\includes\cursor-get.lbl}
 '
 '{number:1920}
 '{:1920}

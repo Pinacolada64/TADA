@@ -4,10 +4,10 @@
 {def:standalone}
 	rem t.ma.hq
 {ifdef:standalone}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+	{uses:.\includes\label-assignments.lbl}
 	na$="PINACOLADA"
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+	{uses:.\includes\player-setup.lbl}
+	{uses:.\includes\variable-declarations.lbl}
 {endif}
 	goto {:602}
 
@@ -22,7 +22,7 @@
 {:sub.put_bank_gold} ' x=gold
 	def x
 	gosub {:put_3_bytes}(v1+130,x):return
-	
+
 {nice:100}
 {:602}
 	print q$"Welcome to Adventurer Headquarters!"q$" says a grizzled old man.":print
@@ -79,7 +79,7 @@
 {:608}
 	print "{down}Which guild (["k$"]=Leave) >> ";
 	gosub {:sub.cursor_get}:sys is,"cfs",an$
-' todo: link back to shoppe	
+' todo: link back to shoppe
 	if i%=. then print "None.":gosub {:msg.nope}:goto {:link.shoppe}
 	if an$="" then {:msg.nope}
 	gosub {:string.normalize}(an$):if an<1 and an>3 then {:608}
@@ -94,7 +94,7 @@
 	print "give "g$" guild members money and items in ";
 	print "their time of need."
 	print
-	
+
 	print "You must pay an initial sign-up fee of ";
 	print "fifty (50) gold, and pay ";
 	print "twenty (20) gold the first of each ";
@@ -123,7 +123,7 @@
 ' otherwise, have all gold in hand:
 {:have_all_gold}
 	gosub {:sub.adj_gold}(1,-50):goto {:650}
-	
+
 {:635}
 	x%=50-x:print "Do you wish to withdraw"x%"gold from your bank account ";
 	print "to cover the initial sign-up fee";:gosub {:sub.yes_no}(1)
@@ -156,7 +156,7 @@
 	print "Messages.":print
 	sys br,"[C]halkboards or [G]uild Messages >> "+nl$
 '	print "[P]ersonal Messages" -- handled by t.page now
-	
+
 ' remember lurch the butler in t.guild hq!
 
 {:990}
@@ -169,8 +169,8 @@
 {undef:standalone}
 {ifdef:standalone}
 ' 1001-1002:
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+	{uses:.\includes\rel-pointer.lbl}
 
-' 1012:	
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+' 1012:
+	{uses:.\includes\check-io-status.lbl}
 {endif}

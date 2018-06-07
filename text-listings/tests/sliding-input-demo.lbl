@@ -1,9 +1,9 @@
 {number:1}
 	poke 53280,12:poke 53281,12:print "{$08}{$0e}{white}{clear}";
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+{uses:.\includes\build-date_basic.lbl}
 	f$="si 9900"
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+{uses:.\includes\current-drive.lbl}
+{uses:.\includes\bload.lbl}
 	si=39168:q$=chr$(34)
 	print "some usage info:":sys si:print
 ' str$() removes trailing cursor right when PRINTing numbers
@@ -14,7 +14,7 @@
 	print tab(8)"F7: Move left by word"
 	print:print "{gray1}Prompt: {white}";:sys si,254,30,a$
 	print:print "{cyan}New string: {white}"q$a$q$
-	
+
 	print:print "2017/05/08:"
 	print "Test a null string as the response":print
 	a$="":sys si,20,20,a$:if a$="" then print "(Null string result.)"

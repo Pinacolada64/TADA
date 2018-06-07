@@ -1,7 +1,7 @@
 {number:1}
 {alpha:invert}
 {def:standalone}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
+{uses:.\includes\label-assignments.lbl}
 	rem t.give
 {ifdef:standalone}
 	in=10:mi=in:al=4:for x=.to 4:a(x)=x:next
@@ -28,14 +28,14 @@
 	next:ob=t
 ' list available allies (5=unconscious):
 	print:y%=.:for x=1 to al:if a(x)<>5 then:gosub {:msg.list_item}(x,2,a$(a(x)),1)
-	
+
 {:720}
 	next:print:an$="":print "Give "ob$(ob)" to whom? ";:sys si,2,3,an$:if an$="" then {:inv_loop}
 	gosub {:string.normalize}(an$):if an<. or an>y% then {:advent}
 	for x=1 to z:if a(x)=5 then z=z+1 ' unconscious ally
 	next:y=.:t=.
 
-' search for empty inventory slot to put item into 
+' search for empty inventory slot to put item into
 	for x=1 to 12 step 4:y=y+1:j(y)=val(mid$(in$(z),x,4)):if j(y)=. then t=y
 	next:if t=. then print a$(y)" can't carry any more.":goto {:advent}
 ' transfer item:

@@ -1,7 +1,7 @@
 ' see \programming-notes\file-formats.txt for details
 {tokenizer:$20="space"}
-' syntax: {tokenizer:$cc="newtoken1",$cd="newtoken2"; 206="newtoken3"} 
- 
+' syntax: {tokenizer:$cc="newtoken1",$cd="newtoken2"; 206="newtoken3"}
+
 ' last updates: 2012	8/29
 '				2005	2/17
 '				1995	?/??
@@ -510,7 +510,7 @@
 
 {:sub.get_keypress}
 {number:1902}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 {:sub.clear_line}
 	' SYS to clear a single screen line: 781=.x / peek(214)-1=current line

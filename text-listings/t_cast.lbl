@@ -3,8 +3,8 @@
 {def:standalone}
 {ifdef:standalone}
 
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\label-assignments.lbl}
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+	{uses:.\includes\label-assignments.lbl}
+	{uses:.\includes\quoter-assignments.lbl}
 {endif}
 
 {number:1}
@@ -20,7 +20,7 @@
 	def fn r(x)=int(rnd(.)*x)+1
 	def fn p2(x)=peek(v2+x)+256*peek(v2+x+1)
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\player-setup.lbl}
+{uses:.\includes\player-setup.lbl}
 ' set up ... something, I don't remember what, but this doesn't correspond to
 ' any current variables
 	poke v2+11,232:poke v2+12,3
@@ -99,7 +99,7 @@
 ' if y=1 then xs$=mid$(xs$,5):goto spl.read
 ' if (y+4)>l then xs$=left$(xs$,y-1):goto spl.read
 ' xs$=left$(xs$,y-1)+mid$(xs$,y+4)
-' 
+'
 'spl.read
 ' dy$=dw$+"spells"
 ' open #1,dy$
@@ -156,7 +156,7 @@
 
 ' determine spell type:
 	sys is,"acdegilmprstuw",left$(t$(an),1):if i%=. then print "No such spell identifier.":stop
-	
+
 '	(A)ura
 '	(C)onstitution
 '	(D)exterity
@@ -211,7 +211,7 @@
 ' if c1$="R" goto cst.shop
 ' if c1$="G" goto cst.spur
 ' if c1$="A" goto cst.aura
-	
+
 {:195}
 	sys is,"ACDEGILMPRSTUW",c1$
 '	sys is,"SWDCEITPMLURGA",c1$
@@ -226,7 +226,7 @@
 	sys is,q$,"DRUID HEALTH",q$:if i% then {:dru.hlth}
 	x=q4/10:if tm=0 then tm=mm+x+c2:goto {:spl.succ}
 	tm=tm+x+c2:goto {:spl.succ}
-	
+
 {:boots}
 	sys is,"*BO",ys$:if i% then {:spl.fail}
 ' fixme: since commodoreserver is not governed by a time limit,
@@ -260,7 +260,7 @@
 
 {:WIZ.GLW2}
 	print "(:WIZ.GLW2) - fixme":stop
-	
+
 {:dru.hlth}
 	print "A blue glow surrounds you!"
 	if hp<25 then hp=25:gosub {:msg.expert_mode}("Hit points return.")
@@ -332,7 +332,7 @@
 '	print "Intelligence was"at(4)"{left}, now";:at(4)=at(4)+fn r(10)
 '	if at(4)>25 then at(4)=25
 '	print at(4)"{left}."
-	
+
 ' cst.intl
 	if b=1 and peek(v1+90)<20 then pi=pi+c2+zz:gosub {:smart}:goto {:spl.succ}
 '	if pi=>c2 then pi=pi-c2:print "(You feel a bit dumber)"
@@ -415,7 +415,7 @@
 {:cst.pl2}
 	if hp>c2 then hp=hp-c2
 	goto {:spl.back}
-	
+
 {:cast.shoppe}
 	if b=2 or mw=0 then {:cst.shp2}
 ' monster present:
@@ -522,11 +522,11 @@
 {:spl.link}
 	if cs then dy$=dz$+"spur.misc":i$="travel3":link dy$
 	goto {:advent}
-	
+
 {:spl.back}
 	print "Spell backfired!"
 	goto {:spl.link}
-	
+
 {:spl.fail}
 	print "Your spell fizzles...":if peek(v1+90)<15 print "(Perhaps if you were smarter...)"
 	goto {:spl.link}
@@ -554,7 +554,7 @@
 
 {:smart}
 	gosub {:msg.you_feel}("a bit smarter"):return
- 
+
 {:rnd.10}
 '	zz$=rnd$:a=random(999):a=a/100+1:return
 	a=fn r(999)/100+1:return
