@@ -23,10 +23,42 @@
 220 end
 
 --- commodore basic ---
+6/30/2018
 
-10 a$="x"+"":i%=.:is=49152:ia=is+3:ml=ia+3:br=ml+3:ps=br+3
-20 an$="i sense your name is $. $, have a nice day.":z=len(an$):l=1
-30 sys is,an$,"$":if i%=. then print an$:end
-40 sys is,mid$(an$,l),"$":if i%=. then print mid$(an$,l):end
-50 l=i%-1:r=l+1:print mid$(an$,l,r);:goto40
+new
+10 i%=.:is=50432:ia=is+3:ml=ia+3:br=ml+3:ps=br+3:n$="LARI'EL"
+rem s=starting point. e=ending point
+20 an$="i sense your name is $. have a nice day, $.":z=len(an$):s=1:e=z
+30 gosub 60
+rem find starting point. if no $, set end-of-string flag:
+32 sys is,mid$(an$,s,e),"$":if i%=. then e=-z:goto 55
+rem ending point 'e' is before $, new starting point 's' is after $:
+34 e=i%-1
+rem -e = end of string
+36 gosub 60
+55 x=abs(e):print mid$(an$,s,x);:if i% then print n$;:s=x+2
+rem check for end-of-string flag (e=-z):
+57 if e>1 then e=z:goto 32
+59 end
+60 print:print"i%="i%" s="s" e="e:return
 
+expected results:
+----+----+----+----+----+----+----+----+----+
+i sense your name is $. have a nice day, $.
+i%=0, s=1, e=43
+i sense your name is |
+i%=22, s=1, e=22?
+
+[actual working program copied from vice]
+10 i%=.:is=50432:ia=is+3:ml=ia+3:br=ml+3:ps=br+3:n$="LARI'EL"
+20 an$="i sense your name is $. have a nice day, $.":z=len(an$):s=1:e=z
+30 gosub 60
+32 sys is,mid$(an$,s,e),"$":if i%=. then e=-z:goto 36
+34 e=i%-1
+36 gosub 60
+55 x=abs(e):print mid$(an$,s,x);:if i% then print n$;:s=x+2
+57 if e>1 then e=z:goto 32
+59 end
+60 print:print"i%="i%" s="s" e="e:return
+
+Works great, except if $ is at/close to beginning/end of string. Hmm.
