@@ -4,10 +4,10 @@
 # $^ is all dependencies
 
 C1541 = c1541
-OUTPUT_DISK = "test.d81"
-OUTPUT_PATH = "../text-listings"
+OUTPUT_DISK = test.d81
+OUTPUT_PATH = ../text-listings
 
-OBJECTS	= ($OUTPUT_PATH/boot.prg \
+OBJECTS	= $(OUTPUT_PATH)/boot.prg \
 combat-snippets.prg \
 misc/stack.prg \
 t.bar \
@@ -57,7 +57,7 @@ t.weapon-info)
 
 3krs.prg: 3-key-rollover-source.lbl
 
-# "t.main" uses symbols from ml, {include:t_np.prg}
+# "t.main" uses symbols from "ml-c500" when {include:'d} in t_np.prg
 main: ../assembly-language/ml-c500.lbl ../text-listings/t_np.prg
 
 	wine casm.exe $< -prg:$@ -ovr -verbose
@@ -70,14 +70,27 @@ casm: %-casm.lbl
 # TODO: establish build rules (mostly the same as "module" target)
 
 # Include build date of module
-# FIXME: Do this with every module build
+# Example output: "Fri Jun 29 10:36:18 PDT 2018"
+# FIXME: Do this with every module build, make a function of this?
 # FIXME: Might not need "PDT" displayed
 # Must end in CR/LF to keep DOS/wine happy
-date: build-date_basic.lbl
-	$(shell echo `date`"\r\n" > build-date_basic.lbl)
+build-date:
+	$(shell echo "print \"`date`\"\r\n" > build-date_basic.lbl)
 
 # The "make disk" target will add all the *.prg files to a .d81 at once
+# TODO: update disk directory timestamp, maybe with
+# "cc1541 -f `date <format_code>` (output: "wed jun 27, 2018")?
+# -- con: won't work with 1581
+# https://bitbucket.org/PTV_Claus/cc1541/src
+
 disk: test.d81
+# from 'make' documentation ('files' function):
+# If the command required each argument to be on a separate line of the input
+# file [which c64list does!], you might write your recipe like this:
+program: $(OBJECTS)
+	$(file >$@.in) $(foreach O,$^,$(file >>$@.in,$O))
+	$(CMD) $(CMDFLAGS) @$@.in
+	@rm $@.in
 
 # The "basic" build target builds "*.lbl" files into "*.prg" files,
 # then puts them on (currently) "test.d81" disk image, with some
@@ -88,13 +101,13 @@ disk: test.d81
 # ...should resolve to:
 # ($OUTPUT_PATH) is used to cd ../text-listings
 #	             wine c64list3_05.exe boot.lbl -prg:boot.prg -ovr -verbose
-	$(shell echo "# wine c64list3_05.exe $(OUTPUT_PATH)/$(basename $@).lbl -prg:$(OUTPUT_PATH)/$(basename $@).prg -ovr -verbose")
-#	                wine c64list3_05.exe $(OUTPUT_PATH/basename $@).lbl -prg:$(OUTPUT_PATH)/$(basename $@).prg -ovr -verbose
+#	$(shell echo "# wine c64list3_05.exe $(OUTPUT_PATH)/$(basename $@).lbl -prg:$(OUTPUT_PATH)/$(basename $@).prg -ovr -verbose")
+	                wine c64list3_05.exe $(OUTPUT_PATH)/$(basename $@).lbl -prg:$(OUTPUT_PATH)/$(basename $@).prg -ovr -verbose
 # and
 #	           c1541 test.d81 -del "boot" -write "boot.prg" "boot"
 # TODO: filename transformations: _ to . (t_main.prg -> t.main.prg, mainly)
-	$(shell echo "# $(C1541) $(OUTPUT_PATH)/$(OUTPUT_DISK) -del $(basename $@) -write $(OUTPUT_PATH)/$(basename $@).prg $(basename $@)")
-#	                $(C1541) $(OUTPUT_PATH)/$(OUTPUT_DISK) -del $(basename $@) -write $(OUTPUT_PATH)/$(basename $@).prg $(basename $@)
+#	$(shell echo "# $(C1541) $(OUTPUT_PATH)/$(OUTPUT_DISK) -del $(basename $@) -write $(OUTPUT_PATH)/$(basename $@).prg $(basename $@)")
+	                $(C1541) $(OUTPUT_PATH)/$(OUTPUT_DISK) -del $(basename $@) -write $(OUTPUT_PATH)/$(basename $@).prg $(basename $@)
 
 test.d81: $(OBJECTS)
 	$(C1541) $(OUTPUT_DISK) \
@@ -146,8 +159,9 @@ test.d81: $(OBJECTS)
 	$@
 
 clean:
-	rm *.prg build-date_basic.lbl $(OUTPUT_DISK)
-	$(C1541) -format "tada,rs" d81 $(OUTPUT_DISK)
+# "-" prefix allows 'clean' to continue despite possible missing files
+	-rm $(OUTPUT_PATH)/*.prg build-date_basic.lbl $(OUTPUT_PATH)/$(OUTPUT_DISK)
+	$(C1541) -format "tada,rs" d81 $(OUTPUT_PATH)/$(OUTPUT_DISK)
 
 # FIXME: not sure this really works
 #	$(C1541) -format $(DISKNAME),$(ID) d64 $(DISKFILENAME)
@@ -157,4 +171,43 @@ clean:
 
 # The "test" target just creates a few files for "make clean" to clean up
 test:
-	touch bla.prg build-date_basic.lbl test.d81
+	touch $(OUTPUT_PATH)/bla.prg build-date_basic.lbl $(OUTPUT_PATH)/test.d81
+# list files in directories $(dirs) to $(files):
+# https://www.gnu.org/software/make/manual/make.html#Foreach-Function
+
+# From KDE documentation:
+# This simple example sets the variable 'files' to the list of all files in the
+# directories in the list 'dirs':
+#      dirs := a b c d
+#		  foreach <var>,<list>,<text>
+#      files := $(foreach dir,$(dirs),$(wildcard $(dir)/*))
+
+# Here TEXT is '$(wildcard $(dir)/*)'. The first repetition finds the value 'a'
+# for 'dir', so it produces the same result as '$(wildcard a/*)'; the second
+# repetition produces the result of '$(wildcard b/*)'; and the third, that of '$
+# (wildcard c/*)'.
+
+	dirs=$(OUTPUT_PATH)
+# desired output:
+# t_ma_armory.lbl t_ma_armory_weap.lbl [...]
+	files=$(foreach dir,$(OBJECTS),$(wildcard $(dir)/*.lbl))
+
+	VAR="bla bla bla"
+
+	echo I am writing to ${OUTPUT_PATH}!
+	$(info [Info]: VAR is [$(VAR)])
+
+macy: $(OUTPUT_PATH)/*.lbl
+# desired command line (this does work!):
+# c1541 test.d81 -write boot.prg boot -write bla.prg bla -dir
+
+# c64 filename: _ -> ., .prg extension removed:
+	C64_FILENAME="$(subst _,.,$(patsubst %.lbl,%,$^)"
+# filesystem filename:
+	FS_FILENAME=$@
+# attach target disk image:
+	echo $(C1541) $(OUTPUT_PATH)/$(OUTPUT_DISK) \
+# delete already existing filename:
+	-del "$(C64_FILENAME)" \
+# write file from filesystem into disk image with c64 filename transformation:
+	-write "$(FS_FILENAME)" "$(C64_FILENAME)")
