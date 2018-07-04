@@ -16,20 +16,34 @@ Another annoyance, at least to me, was that there was a lot of duplicate, shared
 * Similar routine labels to TLOS source
 
 ## Directory structure:
-`SPUR-data`: Data files for study, part of TLOS. 
+`SPUR-data`: Data files for study, part of TLOS.
+
 `SPUR-code`: Modules for TLOS.
+
 `assembly-language`: C64 6510 assembly projects: $c500 code, parser, works in progress, or code testing.
+
 `programming-notes`: Notes on both TLOS and TADA.
+
 `scripts`: Build, automation, and test scripts for both M$-DO$ and Linux.
+
 `text-listings`: This is the meat of the archive, with C64 modules of various types for TADA. Inside this directory:
+
   `editors`: Some notable things:
-    * `tep82.lbl`: Character editor (mostly for fixing bad values written during the "new player" routine). Later, once this becomes modularized, players with _Dungeon Master_ status will be allowed to use this.
-    * `ltk-editor.lbl`: Possibly going to be abandoned in favor of storing strings under ROM, and using a fancier input routine, once that is debugged.
-    * `teo.lbl`: TADA Object Editor. This file format will possibly be abandoned, but it has the bones of a good idea. If items have been destroyed and need to be re-introduced to the game, or if the value of a treasure needs to be adjusted, a `Dungeon Master` would conceivable use this program to do so.
-  `includes`: files used by other files. Saves typing. All the modern programmers do it.
-  `installers`: Not really traditional "installers" in the sense of copying files from an archive to directories, they do nevertheless change SEQuential files into RELative ones, usually.
-  `misc`: Tests, weird one-off "I wonder how this works" ideas, unfinished stuff, unrealized features, maybe even from other future projects.
-  `tests`: Tests of routines, hopefully not littering source code proper, but there's probably some of that, too.
+  
+* `tep82.lbl`: Character editor (mostly for fixing bad values written during the "new player" routine). Later, once this becomes modularized, players with _Dungeon Master_ status will be allowed to use this.
+    
+* `ltk-editor.lbl`: Possibly going to be abandoned in favor of storing strings under ROM, and using a fancier input routine, once that is debugged.
+    
+* `teo.lbl`: TADA Object Editor. This file format will possibly be abandoned, but it has the bones of a good idea. If items have been destroyed and need to be re-introduced to the game, or if the value of a treasure needs to be adjusted, a `Dungeon Master` would conceivable use this program to do so.
+    
+`includes`: files used by other files. Saves typing. All the modern programmers do it.
+  
+`installers`: Not really traditional "installers" in the sense of copying files from an archive to directories, they do nevertheless change SEQuential files into RELative ones, usually.
+  
+`misc`: Tests, weird one-off "I wonder how this works" ideas, unfinished stuff, unrealized features, maybe even from other future projects.
+  
+`tests`: Tests of routines, hopefully not littering source code proper, but there's probably some of that, too.
+  
 `text`: Text captures from TLOS, miscellaneous notes.
 
 ## Assembly language routines:
