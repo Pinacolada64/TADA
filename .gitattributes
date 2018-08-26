@@ -6,9 +6,9 @@
 
 # Here, we set C64List *.lbl files to have CRLF line endings since they are
 # usually being edited in Windows or processed using Wine.
-*.lbl text
+*.lbl eol=crlf
 
 # Declare files that will always have CR line endings on checkout.
 # ACOS source files (*.s) need CR-only line endings since Apple DOS/ProDOS
 # prefers CR-only line endings.
-*.s text eol=cr
+*.s eol=cr

@@ -394,3 +394,9 @@ skip-code/
 - err trap demo: slight reorganization, fixed REM statement case
 - t.main: new {:choose_module} section, choose startup module (getting dir supported)
 	* {:sub.blocks_free} now supports <pattern>, will support page pause eventually
+
+Aug 25, 2018
+- t.main-small:
+    * commenting out a lot of untested code, those lines begin with "'add"
+    * fixed Guild Follow toggle bit (was same as Autoduel toggle)
+    * 

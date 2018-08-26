@@ -103,7 +103,7 @@
 	gosub {:record_pointer}(1):input# 2,mx:x=. ' mx=max # of players
 {:913}
 	print ".";:x=x+2:if x/2>mx then {:920}
-' don't set "crflag" for input any
+' don't set "crflag" (0) for input any
 	gosub {:record_pointer}(x):sys ia,2,20,0,a$
 {ifdef:debug}
 	print q$a$q$
@@ -281,7 +281,7 @@
 	gosub {:sub.cursor_get}:if an$="c" and c=1 then {:84}
 	gosub {:string.normalize}(an$):if an<1 or an>9 then {:71}
 {:72}
-	print mid$(rc$,an*8-7,8):gosub {:sub.check_class_race}:if er then {:sub.choose_race}
+	print mid$(rc$,an*8-7,8):gosub {:sub.check_class_race}:if er then c=.:goto {:sub.choose_race}
 ' store race (1-9) when correct:
 ' c=1: class change possible only after selecting a valid class and race
 	poke v2+185,an:c=1:return
