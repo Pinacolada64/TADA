@@ -77,6 +77,8 @@ casm: %-casm.lbl
 # Must end in CR/LF to keep DOS/wine happy
 build-date:
 	$(shell echo "print \"`date +%b\ %d\ %Y\ %r`\"\r\n" > build-date_basic.lbl)
+# FIXME: Do this with every module build, make a function of this?
+# Must end in CR/LF to keep DOS/wine happy
 
 # The "make disk" target will add all the *.prg files to a .d81 at once
 # TODO: update disk directory timestamp, maybe with
