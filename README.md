@@ -4,16 +4,19 @@
 
 "Totally Awesome Dungeon Adventure" (TADA) is a Commodore 64 re-implementation of the Apple BBS game "The Land of Spur" (TLOS). But instead of being a single-player, one-at-a-time, multi-user-dungeon as it was in the dial-up BBS days, I would like to eventually leverage the server-client technology of [CommodoreServer](https://www.commodoreserver.com) to have a real, multi-player game experience.
 
-TLOS was written in a scripting language called _Advanced Communications Operating System_ (ACOS). It had limitations and quirks, as any programming language does. One such quirk is in handling signed integers between -32767 and +32767. Naturally, this is a bit restrictive when dealing with adventure game statistics such as the amount of gold carried upon your person, or similar things. (There are cumbersome workarounds in the code for this, splitting larger values into "high and low" halves.) In my rewrite, I address this -- with routines written by FuzzyFox of "AutoGraph," a graphics converter for the C64, fame -- with essentially 24-bit arithmetic, yielding values of 1 to 16,777,216. -- a much more comfortable range.
+TLOS was written in a scripting language called _Advanced Communications Operating System_ (ACOS). It had limitations and quirks, as any programming language does. One such quirk is that by default, it can only handle one-byte signed integers between -32767 and +32767. Naturally, this is a bit restrictive when dealing with adventure game statistics such as the amount of gold carried upon your person, or similar things. (There is a cumbersome, repeated workaround in the code for this: splitting large values into two bytes/variables of most- and least-significant multiples of 100.) In my rewrite, I address this--with routines written by FuzzyFox of "AutoGraph," a graphics converter for the C64, fame--with essentially 24-bit values of 1-16,777,216: a much more comfortable range.
 
 Another annoyance, at least to me, was that there was a lot of duplicate, shared code between modules. This rewrite addresses that by having a "kernel" in memory at all times with common subroutines, callable by any module when loaded into RAM from disk.
 
 ## Advantages of C64 framework:
 * Common kernel routines: code isn't repeated throughout each module as is in TLOS.
-* Modular: More, smaller modules make it hopefully easier to write/upgrade routines.
-* [modBASIC](https://www.commodoreserver.com/BlogEntryView.asp?EID=EB7662805E4B4A7ABA2623257BCC642E): Parameter-passing and local variables unlike the laundry list of obscure variables used in TLOS, not all of which I have documented yet.
-* [C64List](http://commodoreserver.com/BlogView.asp?BID=620460DB83BF4CC1AE7FEF4E9AB4A228): Written in an easy-to-read, friendly text format which can be translated to C64 BASIC, or assembled to 6510 assembly code
-* Similar routine labels to TLOS source
+* Modular: More, smaller modules make it hopefully easier to write and upgrade routines.
+* [modBASIC](https://www.commodoreserver.com/BlogEntryView.asp?EID=EB7662805E4B4A7ABA2623257BCC642E):
+* Parameter passing: `gosub 1000(a,a$)` eliminates lots of temporary variable assignments
+* Type-checking: `1000 fn b,b$` (issues a `?type mismatch  error` if the wrong variable type is passed to a routine)
+* Local variables (`def c,c$`) avoids the need for doing things like `a=b:b=10:gosub <routine>:c=b:b=a` if there is a variable name clash between two routines.
+Hopefully this will reduce the code complexity and number of variables used as compared to TLOS, most of which I have [documented](https://github.com/Pinacolada64/TADA-old/blob/master/programming-notes/spur%20variables.txt).
+* [C64List](http://commodoreserver.com/BlogView.asp?BID=620460DB83BF4CC1AE7FEF4E9AB4A228): Written in an easy-to-read, friendly text format. BASIC code uses `{:labels}` which are resolved to regular BASIC line numbers. The label names from TLOS can be used, but I can make them more descriptive. A 6510 assembler is included for assembly language routines.
 
 ## Directory structure:
 `SPUR-data`: Data files for study, part of TLOS.
