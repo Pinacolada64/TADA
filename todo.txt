@@ -365,3 +365,13 @@ t.np\t13
 
 29/Aug/2017 23:56
 find /i /n "fixme" *.lbl - dump fixme's to file
+
+2018-06-15 09:51
+PRG [<option>]: Optional command-line parameters. "PRG" by itself will display a menu, but {:advent}
+		should parse (or at least split "<command> [<argument(s)>]" given, which modules then
+		could interpret. Not sure what variables names to use yet. Sleepless nights are good
+		for inspiration sometimes, but bad for remembering implementation details.
+    PRG D	Toggle debug output: d=peek(v1+<some unused byte, some unused bit, to be determined>)
+		during main loop {:advent}. "if d then <debug statements>" would be handy.
+    PRG T	Toggle trace mode output.
+    PRG M(?)	Display BASIC pointers, free RAM, etc.

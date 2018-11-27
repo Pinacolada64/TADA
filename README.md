@@ -4,7 +4,7 @@
 
 "Totally Awesome Dungeon Adventure" (TADA) is a Commodore 64 re-implementation of the Apple BBS game "The Land of Spur" (TLOS). But instead of being a single-player, one-at-a-time, multi-user-dungeon as it was in the dial-up BBS days, I would like to eventually leverage the server-client technology of [CommodoreServer](https://www.commodoreserver.com) to have a real, multi-player game experience.
 
-TLOS was written in a scripting language called _Advanced Communications Operating System_ (ACOS). It had limitations and quirks, as any programming language does. One such quirk is that by default, it can only handle one-byte signed integers between -32767 and +32767. Naturally, this is a bit restrictive when dealing with adventure game statistics such as the amount of gold carried upon your person, or similar things. (There is a cumbersome, repeated workaround in the code for this: splitting large values into two bytes/variables of most- and least-significant multiples of 100.) In my rewrite, I address this--with routines written by FuzzyFox of "AutoGraph," a graphics converter for the C64, fame--with essentially 24-bit values of 1-16,777,216: a much more comfortable range.
+TLOS was written in a scripting language called _Advanced Communications Operating System_ (ACOS). It had limitations and quirks, as any programming language does. One such quirk is that by default, it can only handle two-byte signed integers between -32767 and +32767. Naturally, this is a bit restrictive when dealing with adventure game statistics such as the amount of gold carried upon your person, or similar things. (There is a cumbersome, repeated workaround in the code for this: splitting large values into two bytes/variables of most- and least-significant multiples of 100.) In my rewrite, I address this--with routines written by FuzzyFox of "AutoGraph," a graphics converter for the C64, fame--with 24-bit values of 1-16,777,216: a much more comfortable range.
 
 Another annoyance, at least to me, was that there was a lot of duplicate, shared code between modules. This rewrite addresses that by having a "kernel" in memory at all times with common subroutines, callable by any module when loaded into RAM from disk.
 
@@ -31,22 +31,22 @@ Hopefully this will reduce the code complexity and number of variables used as c
 
 `text-listings`: This is the meat of the archive, with C64 modules of various types for TADA. Inside this directory:
 
-  `editors`: Some notable things:
-  
+`editors`: Some notable things:
+
 * `tep82.lbl`: Character editor (mostly for fixing bad values written during the "new player" routine). Later, once this becomes modularized, players with _Dungeon Master_ status will be allowed to use this.
-    
+
 * `ltk-editor.lbl`: Possibly going to be abandoned in favor of storing strings under ROM, and using a fancier input routine, once that is fully debugged.
-    
+
 * `teo.lbl`: TADA Object Editor. This file format will possibly be abandoned, but it has the bones of a good idea. If items have been destroyed and need to be re-introduced to the game, or if the value of a treasure needs to be adjusted, a `Dungeon Master` would conceivably use this program to do so.
-    
+
 `includes`: files used by other files. Saves typing. All the modern programmers do it.
-  
+
 `installers`: Not really traditional "installers" in the sense of copying files from an archive to directories, they do nevertheless change SEQuential files into RELative ones, usually.
-  
+
 `misc`: Tests, weird one-off "I wonder how this works" ideas, unfinished stuff, unrealized features, maybe even from other future projects.
-  
+
 `tests`: Tests of routines, hopefully not littering source code proper, but there's probably some of that, too.
-  
+
 `text`: Text captures from TLOS, miscellaneous notes.
 
 ## Assembly language routines:
