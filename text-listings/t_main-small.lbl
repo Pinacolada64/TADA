@@ -1599,14 +1599,10 @@
 	z=fn r(10):return
 
 {number:2620}
-{:math.mod} ' (dividend,divisor)
-' seems like i've seen a quicker way somewhere
-' 8/Apr/2014 15:42: there is a longer but possibly faster routine in raeto
-'	collin west's book -- TODO: i will investigate, not sure of speed
-'	difference
+{:math.mod} ' (n=dividend,x=divisor)
 	def n,x
-{:math.mod2}
-	n=n-x:on-(n>x) goto {:math.mod2}:return
+	n=int(n/x)*x:return ' 12 bytes
+'	n=n-x:on-(n>x) goto {:math.mod2}:return	' 21 bytes
 
 ' --- end math ---
 

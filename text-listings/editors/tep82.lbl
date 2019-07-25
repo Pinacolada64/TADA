@@ -763,8 +763,9 @@
 {:2880}
 	print right$("0"+mid$(str$(x%),2),2);:return
 {:2885}
-' math.mod
-	n=n-x:on-(n>x)goto {:2885}:return
+' math.mod: n=dividend, x=divisor
+'	n=n-x:on-(n>x)goto {:2885}:return
+	n=n-int(n/x)*x:return
 {:2890}
 	print right$("    "+str$(x%),p%);:if p=.then return
 	print" "right$("   "+str$(int(x%/m%*100)),3)"%";:return
