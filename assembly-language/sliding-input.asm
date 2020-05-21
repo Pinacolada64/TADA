@@ -1,22 +1,31 @@
-; assemble with casm4
+; assemble with c64list4_02.exe
 ; save as "si 9900"
 
 orig $9900
 
-{undef:debug}
+{alpha:invert}			; fixes case of help messages
 
-{asm}
+{undef:debug}			; not really needed anymore
+{undef:magnetic_home}		; not ready yet
+{undef:multitasking_enabled}	; not ready yet
+
+BIT_ZP  = $24	; bit $xx	; (zeropage) skips next 1-byte instruction
+BIT_ABS = $2c	; bit $xxxx	; (absolute) skips next 2-byte instruction
+
+comma	=  44			; eliminates assembler addressing mode confusion
+				; when "cmp ','" is encountered
+
 ; instr - enhanced string input routine
 ; commodore world issue 21, pg. 36
 
-; must assemble with c64list 3.00 because of "byte <inbuf" statements
-; (low/high-byte pseudo-ops broken in newer versions)
+; must assemble with c64list >3.00 because of "byte <inbuf" statements
+; (low/high-byte pseudo-ops broken in older versions)
 
 ; goog's testing notes:
-; blink cursor on reversed chars
-; move between multiple spaces
-; ctrl-j crashes the routine
-; possible auto-insert mode
+; [ ] blink cursor on reversed chars
+; [x] move between multiple spaces
+; [x] ctrl-j crashes the routine
+; [ ] possible auto-insert mode
 
 ; last updated:
 
@@ -211,7 +220,7 @@ plot		= $fff0 ; kernal cursor position
 	; if found, proceed to si_start routine to process parameters
 sliding_input:
 		jsr CHRGET+6
-		cmp #','
+		cmp #comma
 		beq si_start
 		lda #<msg_help
 		ldy #>msg_help
@@ -243,7 +252,7 @@ si_start:
 maxlen_check:
 		cpx #$ff		; equal to 255?
 		bne get_input_width	; no, go on to get input width
-		
+
 maxlen_wrong:
 		lda #<msg_maxlen
 		ldy #>msg_maxlen
@@ -255,7 +264,7 @@ maxlen_wrong:
 
 		lda #01			; passed param # to complain about
 		jmp illegal_qty
-			
+
 	; read param 2, width of input area (strwin)
 get_input_width:
 		jsr GET_BYTE_VAL
@@ -272,7 +281,7 @@ input_width_err:
 		jsr strout		; print usage info
 
 		lda #02			; bad param #
-	
+
 illegal_qty:
 	; enter with bad passed param # in .a
 		clc
@@ -307,7 +316,7 @@ param3:
 							; where line WILL be stored
 
 	; copy starting string value into buffer:
-		
+
 		ldy #2
 		lda (VARPNT),y		; descriptor +2 (hi byte of string data)
 		sta index+1			; free zp location
@@ -320,7 +329,7 @@ param3:
 	; todo: this will be customizable using the <clear> param eventually
 	;		1: clear string
 	;		0: copy contents of string to buffer
-		
+
 	; get passed string length:
 		dey
 		lda (VARPNT),y		; .a = length
@@ -330,9 +339,9 @@ param3:
 
 	; this sets starting point (end of passed string) of copy_loop
 	; to go from end of string to #$fe to fill with nulls
-		sta copy_loop_count+1		; store string length
+		sta copy_loop_count+1	; store string length
 		tay
-		
+
 	; copy passed string to work buffer:
 		dey
 copy_loop:
@@ -340,8 +349,8 @@ copy_loop:
 		sta (strptr),y		; ...to the work buffer
 		dey
 		cpy #$ff		; wrapped around?
-		bne copy_loop	; not yet
-		
+		bne copy_loop		; not yet
+
 ; make descriptor point to newly allocated buffer
 
 		ldy #2
@@ -368,7 +377,7 @@ fill_nulls_loop:
 		iny			; no, keep going
 		jmp fill_nulls_loop
 
-; works:
+; test code works:
 
 ; .C:c000  A9 00	   LDA #$00
 ; .C:c002  A0 0F	   LDY #$0F
@@ -384,14 +393,14 @@ fill_nulls_loop:
 setup:
 		lda $d6		; current cursor row
 		sta strrow
-		
+
 		lda $d3		; current cursor column
 		sta strcol
 
 	; in original, this could be customized:
 	; say if the string started with 'http://' and you didn't want the user to
 	; modify that, set lftlim to 7 (0-based)
-		
+
 		lda #0
 		sta lftlim
 
@@ -399,7 +408,7 @@ setup:
 		sta mode
 
 		jsr instr
-		
+
 ; Find length of returned string
 ;		ldy #$00		; max string length
 ;loop	lda (strptr),y	; load .a w/ addr of strptr + y
@@ -428,16 +437,16 @@ instr:
 
 getstr:
 
-; .ifdef multitasking_enabled
-;		jsr clock_display	; fixme
-; .endif
+{ifdef:multitasking_enabled}
+		jsr clock_display	; FIXME
+{endif}
 
 		jsr drwstr	; display string
 
 ; 27/Aug/2015 14:38
 ; c= crsr down and c= crsr right for moving right/left by words
 ;		ldx 653		; ctrl / c= / shift status	}
-;		cpx #2		; c= held?			} this works	
+;		cpx #2		; c= held?			} this works
 ;		bne cursor	; no				}
 ;		ldx 203		; last key held		}  this works
 ;		cpx #7		; crsr down		}
@@ -496,7 +505,7 @@ pc2:
 
 ; execute special key routines
 exkey:
-		txa		
+		txa
 		asl		; multiply by two
 		tax		; calculate index
 		lda ekaddr,x	; get command address
@@ -518,23 +527,23 @@ edkeys:
 		byte 147 ; $93 - clear
 		byte 133 ; $85 - f1
 		byte 136 ; $88 - f7
-		byte 10  ; $0a - linefeed - thuff
+		byte 10  ; $0a - linefeed - thuff (FIXME: typing this crashes routine)
 numkeys:
 		byte numkeys-edkeys ; pina added this
 
 ekaddr:
-		.word return
-		.word delete
-		.word insert
-		.word cright
-		.word cleft
-		.word quote
-		.word home
-		.word clear
-		.word next_word
-		.word prev_word
-		.word linefeed
-		
+		word return
+		word delete
+		word insert
+		word cright
+		word cleft
+		word quote
+		word home
+		word clear
+		word next_word
+		word prev_word
+		word linefeed
+
 ; FIXED - character for space fwd is injected into input
 ; poke 198,0 doesn't work
 ; poke 203,64 doesn't work
@@ -543,23 +552,20 @@ next_word:
 		ldy cpos	; get position within string
 		cpy strlen	; reached end of string?
 		beq space_rts	; yes, exit
-						
+
 next_word2:
 		lda (strptr),y	; get char under cursor
-;		cmp #$00	; end of string?
-;		beq space_rts	; yes
 		cmp #' '	; found a space?
 		beq next_space	; yes
 		jsr cright	; cursor right if necessary
 				; cright increments cpos & lcol if necessary
 		jmp next_word	; continue looping
-				
+
 next_space:	; space found. is it a single space or run of spaces?
 		; check for first non-space character to move right to
-		
+
 		lda (strptr),y	; get char in front of cursor
-;		cmp #$00	; end of string?
-		beq space_rts	; yes
+		beq space_rts	; end of string?
 		cmp #' '	; found a space?
 		bne space_rts	; no, exit
 		jsr cright	; move cursor right
@@ -569,7 +575,7 @@ next_space:	; space found. is it a single space or run of spaces?
 		; if equal or larger, this means the space was found outside the
 		; boundaries of what the string window is currently displaying
 		; and needs to be scrolled
-		
+
 		; left									right
 		; margin								margin
 		; 	| lcol <--- strwin ---> lcol + strwin |		input area
@@ -601,7 +607,7 @@ prev_space:	; space before previous word found.
 		; is it a single space or run of spaces?
 		; check for first non-space character to move left to
 		; THIS PART WORKS GREAT, DON'T MESS WITH IT YOU FOOL - rns
-			
+
 		jsr cleft	; cleft decrements cpos & lcol if necessary
 		ldy cpos	; get cursor position within string
 		cpy lftlim	; leftmost position?
@@ -609,11 +615,7 @@ prev_space:	; space before previous word found.
 		lda (strptr),y	; get char under cursor
 		cmp #' '	; found a space?
 
-;		beq prev_space2	; yes
-;		jmp prev_space
-
 		bne prev_space	; no
-;		jmp prev_space
 
 prev_space2:
 		jsr cright	; put cursor after space
@@ -675,7 +677,7 @@ clear:
 clear0:
 	; position cursor:
 		jsr clearplot
-	; clear on-screen input area:	
+	; clear on-screen input area:
 		ldy strwin
 		lda #$20
 clear_loop:
@@ -684,7 +686,7 @@ clear_loop:
 		bne clear_loop
 	; re-position cursor
 		jsr clearplot
-		
+
 	; display prompt
 		lda #<msg_clear_prompt
 		ldy #>msg_clear_prompt
@@ -770,15 +772,17 @@ clear2:
 ; currently debugging this
 home:
 
-;.ifdef magnetic_home
-;		inc $d020		; border
+{ifdef:magnetic_home}
+		inc $d020		; border
+; this was for easily searching out breakpoints (h 9900 a000 00 01 02 03)
+; before figuring out vice's monitor breakpoint commands:
 ;		brk
 ;		byte $01,$02,$03
-;		lda strlen		; get length of string
-;		lsr				; divide by two
-;		cmp cpos		; get cursor position
-;		bpl move_end	; cpos > 1/2 of strlen? move to end
-;.endif
+		lda strlen		; get length of string
+		lsr			; divide by two
+		cmp cpos		; get cursor position
+		bpl move_end		; cpos > 1/2 of strlen? move to end
+{endif}
 
 move_home:
 		ldy lftlim		; set cursor to leftmost limit position
@@ -787,23 +791,23 @@ move_home:
 		sta lcol		; set left column to display
 		jmp drwstr		; redraw string (subroutine), rts from there
 
-;.ifdef magnetic_home
-;move_end:
-;		lda strlen		; set cursor to end of string
-;	; find string terminator:
-;move_find0:
-;		lda (strptr),y		; get char under cursor
-;		bne move_find0_done	; not a terminator
-;		dey					; keep looping backwards
-;		jmp move_find0		; until done
-;move_find0_done:
-;		sta cpos		; update cursor position
-;	;	tya				; transfer to .a
-;		clc				; get ready to subtract
-;		sbc strwin		; width of window
-;		sta lcol		; and make that the leftmost column
-;		jmp drwstr		; redraw string (subroutine), rts from there
-;.endif
+{ifdef:magnetic_home}
+move_end:
+		lda strlen		; set cursor to end of string
+	; find string terminator:
+move_find0:
+		lda (strptr),y		; get char under cursor
+		bne move_find0_done	; not a terminator
+		dey			; keep looping backwards
+		jmp move_find0		; until done
+move_find0_done:
+		sta cpos		; update cursor position
+		tya			; transfer to .a
+		clc			; get ready to subtract
+		sbc strwin		; width of window
+		sta lcol		; and make that the leftmost column
+		jmp drwstr		; redraw string (subroutine), rts from there
+{endif}
 
 ; subroutine:
 clearplot:
@@ -832,7 +836,7 @@ delchr:
 		iny
 		iny			; point to next character
 		bne delchr		; branch back
-		
+
 ; handle cursor left
 cleft:
 		ldy cpos
@@ -859,7 +863,7 @@ insert:
 i2:		cpy maxlen		; see if at maximum length
 		bcs insrts		; yes, exit
 		inc strlen		; no, increase strlen
-		
+
 i3:		lda (strptr),y		; move characters up one
 		iny			; position
 		sta (strptr),y
@@ -882,8 +886,7 @@ drwstr:
 drwsxy:
 		clc
 		jsr plot		; kernal positions cursor
-	;	lda #datco		; set display color
-	;	sta 646
+; commenting this next line out results in crsr down repainting string 1 line down
 		jsr quomod		; quote mode for all chars visible
 		ldx #0
 		ldy lcol		; start with leftmost char
@@ -891,7 +894,7 @@ dr1:
 		lda (strptr),y		; get character
 		beq dr2			; end of string? yes, branch
 		iny			; point to next character
-		byte $2c	 	; BIT - skip next instruction
+		byte BIT_ABS	 	; skip next 2-byte instruction
 dr2:
 		lda #32			; spaces fill rest of line
 		jsr chrout		; output the character
@@ -903,7 +906,7 @@ dr2:
 ; clear (clrquo)/set (quomod) quote mode
 clrquo:
 		lda #0		; value to clear flag
-		byte $2c	; BIT - skip next instruction
+		byte BIT_ABS	; skip next 2-byte instruction
 quomod:
 		lda #1		; value to set flag
 		bit mode	; check computer type
@@ -923,16 +926,15 @@ rvson:
 		lda (strptr),y	; get char under cursor
 
 ; 28/May/2017 16:34:
-; attempt to reverse characters
-;		cmp #$7f		; > 128, and thus reversed?
-;		bpl r1	; rvsoff	;  turn rvs off to get un-
-					; reversed char
+; attempt to toggle reverse for all characters (reversed control characters included)
+		cmp #$7f	; > 128, and thus reversed?
+		bpl rvsoff	;  turn rvs off to get un-reversed char
 
-		sec			; flag for later
-		byte $24	; skip next instruction
+		sec		; flag for later
+		byte BIT_ZP	; skip next 1-byte instruction
 rvsoff:
-		clc			; flag for later
-		php			; save flag
+		clc		; flag for later
+		php		; save flag
 		lda cpos	; cursor position within string
 		sec
 		sbc lcol	; consider slide position
@@ -942,13 +944,11 @@ rvsoff:
 		ldx strrow	; get row to .x
 		clc
 		jsr plot	; kernal positions cursor
-	;	lda #datco	; set color
-	;	sta 646		; set display color
 		plp		; test the flag
 		bcc r1		; branch if rvs off
 		lda #18
 		jsr chrout	; output rvs on character
-		byte $2c	; skip next instruction
+		byte BIT_ABS	; skip next 2-byte instruction
 r1:
 		lda #0
 		sta rvsflg	; set/clear our flag
@@ -987,10 +987,10 @@ de2:
 		pla		; restore .a
 		rts
 
-; .ifdef multitasking_enabled
-; clock_display:
-;		rts ; fixme
-; .endif
+{ifdef:multitasking_enabled}
+clock_display:
+		rts		; FIXME
+{endif}
 
 ; variables
 
@@ -998,8 +998,8 @@ cpos:	byte 0	; cursor position within string
 lcol:	byte 0	; leftmost column of the string currently displayed
 lftlim:	byte 0	; leftmost limit of cursor travel within the input area,
 		; Setting this variable to a non-zero value is useful when
-		; editing a pre-initialized string that begins with characters 
-		; that the user should not change, such as the slashes and 
+		; editing a pre-initialized string that begins with characters
+		; that the user should not change, such as the slashes and
 		; colon ('//:') in a directory pathname.
 strrow:	byte 0	; row of the input area (0-24)
 strcol:	byte 0	; leftmost column of the input area
@@ -1016,44 +1016,44 @@ mode:	byte 0	; $80: c128 mode
 msg_help:
 ; text ruler:  ----|----|----|----|----|----|----|----|
 	byte $0d
-	ascii "SYNTAX:  SYS SI,LENGTH,WIDTH,STRING$"
+	ascii "syntax:  sys si,length,width,string$"
 	byte $0d,$00
 
 msg_maxlen:
 ; text ruler:  ----|----|----|----|----|----|----|----|
 	byte $0d
-	ascii "LENGTH:  MAXIMUM LENGTH OF STRING INPUT"
+	ascii "length:  maximum length of string input"
 	byte $0d
-	ascii "         ALLOWED (1-254)"
+	ascii "         allowed (1-254)"
 	byte $0d,$00
 
 msg_strwin:
 ; text ruler:  ----|----|----|----|----|----|----|----|
 	byte $0d
-	ascii "WIDTH:   MAXIMUM WIDTH OF INPUT WINDOW"
+	ascii "width:   maximum width of input window"
 	byte $0d
-	ascii "         (C64: 39   C128: 79)"
+	ascii "         (c64: 39   c128: 79)"
 	byte $0d,$00
 
 msg_stringname:
 ; text ruler:  ----|----|----|----|----|----|----|----|
 	byte $0d
-	ascii "STRING$: STRING VARIABLE NAME TO EDIT"
+	ascii "string$: string variable name to edit"
 	byte $0d
-	ascii "         ON ENTRY, RETURN INPUT ON EXIT"
+	ascii "         on entry, return input on exit"
 	byte $0d,$00
 
 msg_bad_param:
 ; text ruler:  ----|----|----|----|----|----|----|----|
 	byte $0d
-	ascii "?BAD PARAMETER "
+	ascii "?bad parameter "
 msg_bad_param_num:
 	byte $ff
 	byte $0d,$00
 
 msg_clear_prompt:
 ; text ruler:  ----|----|----|----|----|----|----|----|
-	ascii "CLEAR: ARE YOU SURE (Y/N)? "
+	ascii "clear: are you sure (y/n)? "
 	byte $00
 
 ; would be cool if help text could be tokenized...
@@ -1064,7 +1064,7 @@ msg_clear_prompt:
 ; space for string buffer
 descriptor:
 	byte 0		 ; length
-	.word inbuf	 ; address of string ($cd00)
+	word inbuf	 ; address of string ($cd00)
 
 ; the way the original routine worked was:
 ; if the user is to edit the string from scratch, set 1st byte of INBUF to 0.
@@ -1076,4 +1076,3 @@ descriptor:
 
 ; C64Studio syntax:	!fill 8,$ff (count,value)
 ; TMPx syntax:		.repeat 8,$ff (count,value)
-{endasm}
