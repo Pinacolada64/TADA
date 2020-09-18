@@ -2,7 +2,7 @@
 
 setlocal
 
-rem add2d64
+rem add2d64.bat
 
 rem based on a batch file to add a .prg file to a d64 disk image
 rem original by Bill Buckels 2013
@@ -37,7 +37,7 @@ rem Syntax
 rem      %variable:StrToFind=NewStr%
 
 set oldpath=%path%
-set C1541=c:\opt\c1541.exe
+set C1541=..\..\GTK3VICE-3.4-win64-r38417\bin\c1541.exe
 
 rem no command line parameters?
 rem usually is 'if "%1" == "" goto USAGE' but this barfs if
@@ -76,13 +76,13 @@ setlocal DisableDelayedExpansion
 
 set prgfile="%~2"
 
-rem 1) prgfile_basename: strips path and file extension from imported .prg file:
+rem 1) c64_filename: strips path and file extension from imported .prg file:
 set "prgfile_basename=%~n2"
 echo prgfile = %prgfile%
-echo prgfile_basename = %prgfile_basename%
+echo c64_filename = %prgfile_basename%
 
-rem 2) prgfile_basename: change "_" to ".":
-set prgfile_basename="%prgfile_basename:_=.%"
+rem 2) c64_filename: change "_" to ".":
+set c64_filename="%prgfile_basename:_=.%"
 
 rem prgfile_filename_ext: filename.ext
 set prgfile_filename_ext="%~nx2"
@@ -108,14 +108,13 @@ goto :QUIT
 rem 1) attach disk image
 rem 2) delete existing file from disk image (basename)
 rem 3) write new prg file to disk image (with full path + ".prg" extension)
-rem 4) remame to remove ".prg" suffix on disk image
 
 rem the thing to remember here is the following parameters need not be quoted twice:
 rem c1541 will throw "wrong number of parameters" errors if so
 
 setlocal EnableDelayedExpansion
-echo %c1541% -attach !diskimage! -delete !prgfile_basename! -write !prgfile! -rename %prgfile_filename_ext% %prgfile_basename%
-     %c1541% -attach !diskimage! -delete !prgfile_basename! -write !prgfile! -rename %prgfile_filename_ext% %prgfile_basename% >&2
+echo %c1541% -attach !diskimage! -delete !c64_filename! -write !prgfile! %c64_filename%
+     %c1541% -attach !diskimage! -delete !c64_filename! -write !prgfile! %c64_filename% >&2
      %c1541% -attach !diskimage! -dir
 setlocal DisableDelayedExpansion
 goto :QUIT

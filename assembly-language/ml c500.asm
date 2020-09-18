@@ -1,7 +1,6 @@
 {asm}
 orig $c500 ; 50432
-; save as "ml c500" - assemble with casm 4
-; casm "ml c500.lbl" -prg -sym:"ml-c500-symbols.lbl" -ovr
+; c64list4_03.exe "ml c500.asm" -prg -sym:"ml c500.sym" -ovr
 ; \scripts\build-ml-c500.bat takes care of this
 
 ; tabs are 8 spaces
