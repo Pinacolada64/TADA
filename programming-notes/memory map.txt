@@ -10,11 +10,15 @@ $cd00-$cdff	Common buffer for Input Any, Sliding Input
 		[$ced0-$cfcc] can in fact be relocated here)
 		Possibly receive buffer for v-1541
 
+		[FIXME: $cd00-$cfcc overlap]
+
 $c900-$cfcc	Jeff Jones' String Array System from LoadStar: Issue #103 -
 		Lets you store fixed-width string arrays under ROM!
-		(Naybe it could be reassembled to eliminate a few routines
+		(Maybe it could be reassembled to eliminate a few routines
 		like loading/saving arrays, search arrays, to cut down size?)
 		[$ced0-$cfcc (252) $00 bytes at end, looks like a buffer)
+
+$c6dc-$c9ff: 323 bytes free
 
 $c500-$c6db	instring
 50432-50907	input any
@@ -23,11 +27,11 @@ $c500-$c6db	instring
  		pop stack
 		error_trap (from 08/1984 Compute! magazine)
 
-- c47c-c4ff: 131 bytes free -
+$c47c-$c4ff: 131 bytes free
 
 $c000-$c47b	modBASIC v1.1-rc1
 49152-50276	A 2K buffer is allocated after the natural end of the
-		BASIC program.
+		BASIC program for local variables.
 
 $a000-$bfff	Under BASIC ROM
 		[from SAS docs: possible String Array System storage]
@@ -35,7 +39,9 @@ $a000-$bfff	Under BASIC ROM
 $9eff-$9fff	Word wrap: loads at top of BASIC
 		(additional space needed for wrap buffer?)
 
-$9900-$9d7a	Sliding Input
+- 97db-9efe: 723 bytes free
+
+$9900-$9d7a	Sliding Input (1146 bytes)
 
 --- Top of BASIC memory for now (no v-1541) ---
 $98ff

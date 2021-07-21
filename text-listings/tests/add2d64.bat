@@ -1,5 +1,5 @@
-echo off
-rem add2d64
+rem @echo off
+rem add2d64.bat
 
 rem based on a batch file to add a .prg file to a d64 disk image
 rem original by Bill Buckels 2013
@@ -11,7 +11,7 @@ rem the program is a c64 binary with BASIC startup code
 rem modified by pinacolada, 2/Apr/2014 20:49
 
 set oldpath=%path%
-set C1541=c:\opt\c1541.exe
+rem set C1541=\Program Files\VICE\GTK3VICE-3.4-win64-r37296\c1541.exe
 
 rem no parameters?
 rem usually is 'if "%1" == "" goto USAGE' but this barfs if
@@ -52,8 +52,7 @@ goto :QUIT
 :WORK
 rem attach disk image, delete existing file, write new prg file
 %c1541% -attach "%diskimage%" -delete "%prgfile%" -write "%prgfile%" -dir
-if errorlevel echo %errorlevel%
-pause
+if errorlevel echo [%0]: errorlevel %errorlevel%
 goto :QUIT
 
 :USAGE

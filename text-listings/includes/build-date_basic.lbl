@@ -1,2 +1,2 @@
 ' {uses:.\includes\build-date_basic.lbl}
-print "Build date: Mon 09/25/2017 20:11:40.29"
+print "Build date: "{usedef:__BuildDate}" "{usedef:__BuildTime}

@@ -47,7 +47,7 @@
 {def:build_date}	' include build date at startup
 {def:sliding_input}	' use dat
 
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\quoter-assignments.lbl}
+{uses:includes\quoter-assignments.lbl}
 
 ' i am being pseudo-geeky in naming subroutines:
 '			<class>.<method>
@@ -100,7 +100,7 @@
 	rem "{delete}--{173}{$c0:25}{189}--
 	rem -------------------------------
 	rem -------------------------------
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\t_np.lbl}
+	{uses:.\t_np.lbl}
 {endif}
 
 {:main_setup}
@@ -126,7 +126,7 @@
 ' ps: pop stack		sys ps -> removes last GOSUB target
 
 ' variable declarations re-include current drive, but that's okay
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\variable-declarations.lbl}
+	{uses:.\includes\variable-declarations.lbl}
 
 	gosub {:file.open_cmd_channel}
 
@@ -143,7 +143,7 @@
 
 ' announce module name + compile date:
 	cm$="t.main"+""
-	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\build-date_basic.lbl}
+	{uses:.\includes\build-date_basic.lbl}
 {ifdef:debug}
 {:choose_module}
 	lm$="t.startup":print "Module to load ($=directory): ";:sys si,16,17,lm$
@@ -154,10 +154,10 @@
 
 ' {:sub.bload}
 ' done each time since initializing modbasic clears all vars
-'	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\current-drive.lbl}
+'	{uses:.\includes\current-drive.lbl}
 
 '	print"Loading "chr$(34)f$chr$(34);
-'	{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\bload.lbl}
+'	{uses:.\includes\bload.lbl}
 '	return
 	
 ' line 999 keeps module64 from self-destructing
@@ -170,7 +170,7 @@
 {remremoval:on}
 
 ' 1001-1002:
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\rel-pointer.lbl}
+{uses:.\includes\rel-pointer.lbl}
 
 ' new (8/15/2012):
 {number:1008}
@@ -187,7 +187,7 @@
 
 ' 1012
 ' {:check.io_status} - call with gosub
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\check-io-status.lbl}
+{uses:.\includes\check-io-status.lbl}
 
 {:file.append_or_write} ' ("<filename>")
 {number:1026}
@@ -422,7 +422,7 @@
 	print "Are you sure";:gosub {:sub.yes_no}(a):return
 	
 ' 1902 -- {:sub.cursor_get}
-{uses:\TADA-svn\pinacolada\TADA\text-listings\includes\cursor-get.lbl}
+{uses:.\includes\cursor-get.lbl}
 
 {number:1910}
 {:sub.yes_no} ' (default: a=0: no, a=1: yes)

@@ -110,7 +110,7 @@ $dd0e bit 5 - 0 = count processor cycles, 1 = count signals on CNT
 
 The command line I use is something like this:
 
-x64.exe -drive8type 1541 -drive9type 1541 -autostart autocomp.d64 -9 temp.d64 -moncommand commands.txt -warp -logfile vice.log +sound -console 
+x64.exe -drive8type 1541 -drive9type 1541 -autostart autocomp.d64 -9 temp.d64 -moncommand commands.txt -warp -logfile vice.log +sound -console
 
 
 commands.txt is
@@ -126,36 +126,36 @@ command 1 "quit"
 Kernal SAVE
 http://www.lemon64.com/forum/viewtopic.php?t=59083
 
-         *=$c000 
-file_start = $4000	; start addressses 
-file_end   = $9e00	; end addresses 
+         *=$c000
+file_start = $4000	; start addressses
+file_end   = $9e00	; end addresses
 
-        lda #filename_end-filename 
-        ldx #<filename 
-        ldy #>filename 
-        jsr $ffbd	; SETNAM. Set file name parameters. 
-        lda #$00 
-        ldx $ba		; current device number 
-        bne +		; if <> 0 is present 
-        ldx #$08        ; if 0 select device 
-+       ldy #$01        ; secondary address 
-        jsr $ffba	; SETLFS. Set file parameters. 
-        lda #<file_start 
+        lda #filename_end-filename
+        ldx #<filename
+        ldy #>filename
+        jsr $ffbd	; SETNAM. Set file name parameters.
+        lda #$00
+        ldx $ba		; current device number
+        bne +		; if <> 0 is present
+        ldx #$08        ; if 0 select device
++       ldy #$01        ; secondary address
+        jsr $ffba	; SETLFS. Set file parameters.
+        lda #<file_start
         sta $c1		; low byte start address for LOAD / SAVE (*)
-        lda #>file_start 
-        sta $c2		; high byte start address for LOAD / SAVE 
-        ldx #<file_end	; low byte end address 
-        ldy #>file_end	; high byte end address 
-        lda #$c1	; Address (*) of zero page register holding start address of memory area to save 
-        jsr $ffd8	; SAVE. Save file 
+        lda #>file_start
+        sta $c2		; high byte start address for LOAD / SAVE
+        ldx #<file_end	; low byte end address
+        ldy #>file_end	; high byte end address
+        lda #$c1	; Address (*) of zero page register holding start address of memory area to save
+        jsr $ffd8	; SAVE. Save file
         bcs .error
-        rts 
-.error 
-        lda #$00 
-        sta $d020 
-        rts 
-filename 
-       !text "TEST" 
+        rts
+.error
+        lda #$00
+        sta $d020
+        rts
+filename
+       !text "TEST"
 filename_end
 
 
@@ -166,3 +166,9 @@ filename_end
 
 BASIC compactor:
 http://csdb.dk/release/?id=135189
+
+[movement messages]
+and i wasn't gonna gave exit messages other than
+You move north.
+Your party moves north.
+(seen by others) Elissa and her party move north.

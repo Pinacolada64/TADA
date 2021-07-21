@@ -1,6 +1,6 @@
-' c64list3_03.exe t_main.lbl -labels > label-assignments.lbl
+' c64list4_03.exe t_main.lbl -labels > label-assignments.lbl
 
-{uses:\TADA-svn\pinacolada\TADA\assembly-language\ml-c500-symbols.lbl}
+{uses:..\assembly-language\ml c500.sym}
 ' for error-trap install/uninstall addresses
 
 ' ------------------------ t.main -----------------------------------------
@@ -24,16 +24,16 @@
 ' of the first, the second program will overwrite some of the first
 ' program's variables, and their values will be lost.
 
-'		 10/17 - some changes
-'		  4/16  - NOW COMPILES!
-'	2014  4/11  - trimming some unnecessary stuff
-'				- want to make this compileable to test includes of labels
+'		 10/17	- some changes
+'		  4/16	- NOW COMPILES!
+'	2014	  4/11	- trimming some unnecessary stuff
+'			- want to make this compileable to test includes of labels
 
 '	2013  1/17	- Testing diff with previous version
 
 '	2012  9/5
 
-'   2011  1/25  2/15  3/3  3/24  7/13
+'	2011  1/25  2/15  3/3  3/24  7/13
 
 '	2010 12/22
 
@@ -42,7 +42,7 @@
 '	2007  8/04  8/10  8/26
 
 {crunch:on}
-{alpha:invert}
+{alpha:alt}
 
 {def:include_filler}	' for including a module so memory is reserved
 {def:modbasic}		' use modbasic DEF statements
@@ -50,25 +50,25 @@
 {def:build_date}	' include build date at startup
 {def:sliding_input}	' use dat
 
-{uses:.\includes\quoter-assignments.lbl}
+{uses:includes\quoter-assignments.lbl}
 
 ' i am being pseudo-geeky in naming subroutines:
-'			<class>.<method>
+'	<class>.<method>
 
 ' now converting to agentfriday's modbasic
 ' function prototypes are now in /programming-notes/TADA_Subroutines.txt
 
 ' 8/23/11: approx. 12k code / 12k rems = 14k left for code expansion
-{number:1}
+{assign:1=1}
 {:1}
-	REM	       *** T.MAIN ***
+	rem	       *** t.main ***
 	goto {:main_setup}
 {nice:100}
-	REM SOMEWHERE OVER A RAINBOW
-	REM WAY UP HIGH
-	REM THERE'S A LAND THAT I'VE HEARD OF
-	REM ONCE IN A LULLABY
-	REM
+	rem somewhere over a rainbow
+	rem way up high
+	rem there's a land that i've heard of
+	rem once in a lullaby
+	rem
 	rem -------------------------------
 	rem -------------------------------
 	rem ------                  -------
@@ -80,11 +80,11 @@
 	rem -------------------------------
 	rem -------------------------------
 	rem --                           --
-	REM --  BASED ON GREG W. DAVIS'  --
-	REM --  WORK AND SKIP THOMSON'S  --
-	REM --    ENHANCEMENTS OF THE    --
-	REM --  APPLE GBBS PRO DOOR GAME --
-	REM --    "THE LAND OF SPUR"     --
+	rem --  based on greg w. davis'  --
+	rem --  work and skip thomson's  --
+	rem --    enhancements of the    --
+	rem --  apple gbbs pro door game --
+	rem --    "the land of spur"     --
 	rem --                           --
 	rem -------------------------------
 	rem -------------------------------
@@ -100,7 +100,7 @@
 	rem -------------------------------
 	rem -------------------------------
 	rem --                           --
-	REM -- ** FIRST THINGS FIRST: ** --
+	rem -- ** first things first: ** --
 	rem --                           --
 	rem -------------------------------
 	rem -------------------------------
@@ -115,7 +115,7 @@
 ' si: sliding input	sys si,<max_length>,<window_width>,<string$>
 
 ' variable declarations re-include current drive, but that's okay
-	{uses:.\includes\variable-declarations.lbl}
+	{uses:includes\variable-declarations.lbl}
 
 	gosub {:file.open_cmd_channel}
 
@@ -130,7 +130,7 @@
 ' announce module name + compile date:
 	cm$="t.main"+"":lm$="startup"+""
 	print cm$": ";
-	{uses:.\includes\build-date_basic.lbl}
+	{uses:includes\build-date_basic.lbl}
 
 {ifdef:debug}
 {:choose_module}
@@ -143,7 +143,7 @@
 
 	gosub {:link.module}(lm$,""):goto {:1811}
 
-{ifdef:include_filler}
+{'ifdef:include_filler}
 {remremoval:off}
 {nice:100}
 ' can't use {quoter} replacement of {pipe} because
@@ -151,28 +151,27 @@
 	rem -------------------------------
 	rem -------------------------------
 	rem --{176}{$c0:25}{174}--
-	REM --{$dd} THIS ALL RESERVES SPACE {$dd}--
-	REM --{$dd}  FOR MODULE 64 LINKING  {$dd}--
-	REM --{$dd}    (>50 DISK BLOCKS)    {$dd}--
+	rem --{$dd} this all reserves space {$dd}--
+	rem --{$dd}  for module 64 linking  {$dd}--
+	rem --{$dd}    (>50 disk blocks)    {$dd}--
 	rem --{173}{$c0:25}{189}--
 	rem -------------------------------
 	rem -------------------------------
 {nice:10}
 ' largest module to artificially set top of BASIC pointer for module 64:
-	{uses:.\t_np.lbl}
-{endif}
+	{uses:t_np.lbl}
 
 ' line 999 keeps module64 from self-destructing
 {number:999}
 {remremoval:off}
-	REM === T.MAIN ===
+	rem === t.main ===
 
 {number:1000}
-	REM IMAGE BBS + MODBASIC SUBROUTINES V2.1 NOV 11, 2015
+	rem image bbs + modbasic subroutines v2.1 nov 11, 2015
 {remremoval:on}
 
 ' 1001-1002:
-{uses:.\includes\rel-pointer.lbl}
+{uses:includes\rel-pointer.lbl}
 
 ' new (8/15/2012):
 {number:1008}
@@ -189,7 +188,7 @@
 
 ' 1012
 ' {:check.io_status} - call with gosub
-{uses:.\includes\check-io-status.lbl}
+{uses:includes\check-io-status.lbl}
 
 {:file.append_or_write} ' ("<filename>")
 {number:1026}
@@ -234,7 +233,7 @@
 
 ' 1079:
 {:sub.blocks_free}
-' {uses:.\includes\blocks-free.lbl}
+' {uses:includes\blocks-free.lbl}
 
 {number:1090}
 {:sub.block_read}	' (message_num)
@@ -426,7 +425,7 @@
 	print "Are you sure";:gosub {:sub.yes_no}(a):return
 
 ' 1902 -- {:sub.cursor_get}
-{uses:.\includes\cursor-get.lbl}
+{uses:includes\cursor-get.lbl}
 
 {number:1910}
 {:sub.yes_no} ' (default: a=0: no, a=1: yes)

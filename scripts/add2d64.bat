@@ -1,5 +1,5 @@
 @echo off
-
+echo [%0]:
 setlocal
 
 rem add2d64.bat
@@ -36,8 +36,8 @@ rem Use the syntax below to edit and replace the characters assigned to a string
 rem Syntax
 rem      %variable:StrToFind=NewStr%
 
-set oldpath=%path%
-set C1541=..\..\GTK3VICE-3.4-win64-r38417\bin\c1541.exe
+rem set oldpath=%path%
+rem C1541=..\..\GTK3VICE-3.4-win64-r38417\bin\c1541.exe
 
 rem no command line parameters?
 rem usually is 'if "%1" == "" goto USAGE' but this barfs if
@@ -74,12 +74,11 @@ goto :QUIT
 :CHECK_PRG_PARAM
 setlocal DisableDelayedExpansion
 
+rem ends in .prg extension
 set prgfile="%~2"
 
-rem 1) c64_filename: strips path and file extension from imported .prg file:
-set "prgfile_basename=%~n2"
-echo prgfile = %prgfile%
-echo c64_filename = %prgfile_basename%
+rem 1) prgfile_basename: %~n2 strips path and file extension from imported .prg file:
+set prgfile_basename="%~n2"
 
 rem 2) c64_filename: change "_" to ".":
 set c64_filename="%prgfile_basename:_=.%"
@@ -87,35 +86,35 @@ set c64_filename="%prgfile_basename:_=.%"
 rem prgfile_filename_ext: filename.ext
 set prgfile_filename_ext="%~nx2"
 
-echo prgfile_basename:     %prgfile_basename%
+echo     prgfile_basename: %prgfile_basename%
 echo prgfile_filename_ext: %prgfile_filename_ext%
-echo prgfile:              !prgfile!
+echo              prgfile: %prgfile%
+echo         c64_filename: %c64_filename%
 
 setlocal EnableDelayedExpansion
 
-if not !prgfile!. == . goto CHECK_PRG_EXISTS
+if not %prgfile%. == . goto CHECK_PRG_EXISTS
 echo Missing ^<program_file.prg^> parameter. >&2
 set errorlevel=4
 goto :QUIT
 
 :CHECK_PRG_EXISTS
-if exist !prgfile! goto WORK
-echo .prg file !prgfile! not found. Aborting. >&2
+if exist %prgfile% goto WORK
+echo .prg file %prgfile% not found. Aborting. >&2
 set errorlevel=5
 goto :QUIT
 
 :WORK
 rem 1) attach disk image
-rem 2) delete existing file from disk image (basename)
+rem 2) delete existing file from disk image (c64_filename)
 rem 3) write new prg file to disk image (with full path + ".prg" extension)
 
 rem the thing to remember here is the following parameters need not be quoted twice:
 rem c1541 will throw "wrong number of parameters" errors if so
 
 setlocal EnableDelayedExpansion
-echo %c1541% -attach !diskimage! -delete !c64_filename! -write !prgfile! %c64_filename%
-     %c1541% -attach !diskimage! -delete !c64_filename! -write !prgfile! %c64_filename% >&2
-     %c1541% -attach !diskimage! -dir
+echo %c1541% -attach !diskimage! -delete %c64_filename% -write %prgfile% %c64_filename% -dir
+     %c1541% -attach !diskimage! -delete %c64_filename% -write %prgfile% %c64_filename% -dir
 setlocal DisableDelayedExpansion
 goto :QUIT
 
@@ -134,7 +133,6 @@ set diskimage=
 set prgfile=
 set prgfile_basename=
 set C1541= 
-set path=%oldpath%
 
 rem 'exit' closes dos window if open
 rem also returns control to lbl2prg.bat

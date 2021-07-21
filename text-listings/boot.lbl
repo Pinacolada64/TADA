@@ -1,5 +1,5 @@
 {number:1}
-{alpha:invert}
+{alpha:alt}
 
 {def:sliding_input}
 {def:debug}
@@ -81,8 +81,8 @@ rem set vic character address: > $d000 %00001110
 	f$="trace 033c":gosub {:sub.bload}
 	print tab(5)"$033c: BASIC Trace installed":sys 828
 
-' load my ml:
-{uses:..\assembly-language\ml-c500-symbols.lbl}
+' load my ml symbols:
+{uses:..\assembly-language\ml-c500.sym}
 ' for error-trap addresses
 
 	f$="ml c500":gosub {:sub.bload}
@@ -102,12 +102,12 @@ rem set vic character address: > $d000 %00001110
 	print tab(10)q$x$q$
 {ifdef:debug}
 	print "Test error trap? ";:an$="n"
-	{ifdef:sliding_input}
-		' 39168,<length>,<width>,<string$>
-		sys 39168,1,2,an$
-	{else}
+'	{ifdef:sliding_input}
+'		' 39168,<length>,<width>,<string$>
+'		sys 39168,1,2,an$
+'	{else}
 		print "  "an$"{left:3}";:input an$
-	{endif}
+'	{endif}
 	an$=chr$(asc(an$) and 127):if an$="n" then {:sas}
 ' generate a division by zero error, which jumps to line 1800:
 	for i=10 to 0 step -1:print "1/"i"="1/i:next
@@ -149,7 +149,7 @@ rem set vic character address: > $d000 %00001110
 
 {remremoval:off}
 {number:999}
-	REM TADA
+	rem tada
 {remremoval:on}
 
 {number:1800}

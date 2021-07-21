@@ -31,7 +31,7 @@ set curbuild_tmp=
 set filename=build-date_basic.lbl
 rem pina added this:
 rem output c64list comment describing {uses:} path:
-echo ' {uses:\TADA-svn\pinacolada\TADA\scripts\%filename%} > %filename%
+echo ' {uses:..\TADA\scripts\%filename%} > %filename%
 echo print "%date% %time%"	>> %filename%
 set filename=
 echo Done.
