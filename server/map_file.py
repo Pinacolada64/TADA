@@ -1,10 +1,9 @@
-# Thanks to Tanabi for all the help :)
-
 class Room(object):
     def __init__(self, number: int, name: str,
                  monster: int, item: int, weapon: int, food: int,
                  exits: list,
-                 desc: str):
+                 desc: str,
+                 alignment: str):
         """Adds alignment of 'neutral' without having to specify for each room"""
         self.number = number
         self.name = name
@@ -15,6 +14,7 @@ class Room(object):
         self.food = food
         self.exits = exits
         self.desc = desc
+        self.alignment = alignment
 
     def __str__(self):
         return f'#{self.number=} {self.name=}\n' \
@@ -29,13 +29,20 @@ class Room(object):
     """
 
     @staticmethod
-    def create_room(number: int, name: str, monster: int, item: int, weapon: int, food: int, exits: list, desc: str):
-        Room.number = self.number
-        Room.name = self.name
-        Room.monster = self.monster
+    def create_room(number: int, name: str, monster: int, item: int, weapon: int, food: int, exits: list, desc: str,
+                    alignment: str):
+        self.number = number
+        self.name = name
+        self.monster = monster
+        self.item = item
+        self.weapon = weapon
+        self.food = food
+        self.exits = exits
+        self.desc = desc
         # self.db[new_room.alignment] = "neutral"
-        Room.alignment = "neutral"
-        return Room(number, name, alignment, monster, item, weapon, food, exits, desc)
+        self.alignment = "neutral"
+
+        return Room(number, name, monster, item, weapon, food, exits, desc, alignment)
 
 
 class Map(object):
@@ -46,13 +53,15 @@ class Map(object):
         # new_room = 0
 
     def add_room(self, number: int, name: str, monster: int, item: int, weapon: int,
-                 food: int, exits: list, desc: str):
-        new_room = Room.create_room(number, name, monster, item, weapon, food, exits, desc)
+                 food: int, exits: list, desc: str) -> object:
+        new_room = Room.create_room(number, name, monster, item, weapon, food, exits, desc, alignment)
         self.db[new_room.number] = new_room
         logging.info(f'# {number=} {name=}')
         logging.info(f'{monster=} {item=} {weapon=} {food=}')
         logging.info(f'{exits=}')
         logging.info(f'{desc=}')
+        logging.info(f'{alignment=}')
+
         # TODO: until actual room alignment can be changed, this saves entering a data point:
         # exits: n e s w rc rt
         # FIXME: work on rc/rt later
@@ -75,7 +84,7 @@ class Map(object):
             try:
                 # line 1:
                 data = f.readline()
-                room_number = data.rstrip('\n')
+                room_number = int(data.rstrip('\n'))
                 logging.info(f'{room_number=}')
 
                 # line 2:
@@ -85,13 +94,13 @@ class Map(object):
 
                 # line 3:
                 data = f.readline().split(",")  # creates a list
-                monster = data[0]
+                monster = int(data[0])
                 logging.info(f'{monster=}')
-                item = data[1]
+                item = int(data[1])
                 logging.info(f'{item=}')
-                weapon = data[2]
+                weapon = int(data[2])
                 logging.info(f'{weapon=}')
-                food = data[3].rstrip('\n')
+                food = int(data[3].rstrip('\n'))
                 logging.info(f'{food=}')
 
                 # line 4:
@@ -109,7 +118,8 @@ class Map(object):
                 room_desc = " ".join(room_list)
                 logging.info(f'{room_desc=}')
 
-                Map.add_room(room_number, room_name, monster, item, weapon, food, exits=exits, desc=room_desc)
+                alignment = "neutral"
+                self.add_room(room_number, room_name, monster, item, weapon, food, exits, room_desc)
                 _ = input("Pause: ")
             except EOFError:
                 logging.info("EOF reached")
