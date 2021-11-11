@@ -1,0 +1,855 @@
+1
+MERCHANT LOBBY +
+0,62,0,0
+0,0,13,0,2,0
+You are at the entrance to the store.
+There is a passage leading downward to
+the market area.
+^
+2
+LABYRINTH
+0,0,0,0
+134,3,0,0,0,0
+You are in a maze.
+^
+3
+LABYRINTH
+0,0,0,0
+135,4,0,2,0,0
+You are in a maze.
+^
+4
+LABYRINTH
+0,0,0,0
+136,0,0,3,0,0
+You are in a maze.
+^
+6
+SAND DOLLAR ROOM
+1,35,0,0
+0,7,18,0,0,0
+The hot sand burns your feet.
+^
+7
+LONELY PATHWAY
+0,0,20,0
+0,8,0,6,0,0
+The passage here is a narrow one. It
+stretches from east to west.
+^
+8
+FIERY ROOM
+0,0,0,0
+0,0,20,0,0,0
+There are dead cactii all around. The
+walls are covered with soot from a
+crevice, exposing hot lava.
+^
+10
+NORTH PATH
+32,24,0,0
+142,0,22,0,0,0
+Clouds gather overhead, warning of
+impending danger!
+^
+13
+CAVERN HEAD +
+3,0,0,0
+1,14,0,24,0,0
+You have reached the entrance to a
+large cavern.
+^
+14
+BURIAL GROUNDS +
+0,38,0,0
+0,15,0,13,0,0
+Here lie the remains of the inhabitants
+of the cavern. It appears to be a
+sacred burial ground.
+^
+15
+CAVERN AMPHITHEATRE +
+26,0,0,0
+0,16,27,14,0,0
+You are standing in a large room. Every
+sound echoes off the wall. A strange
+message is spray painted on the wall:
+'SSSWWN'
+^
+16
+CAVERN PASSAGE
+2,0,0,4
+0,17,0,15,0,0
+The walls contain mysterious markings
+from an ancient civilization.
+^
+17
+CAVERN HOLE
+0,15,27,0
+0,18,0,16,0,0
+You can see a glimmer of light to the
+west as you approach an exit.
+^
+18
+CAVERN ENTRANCE
+0,30,0,15
+6,0,30,17,0,0
+You have reached the entrance to a
+large cavern. You see large bats flying
+in and out of the cave... Dare you
+enter this dark, forbidden place?
+^
+20
+VOLCANO ROOM
+10,29,0,0
+8,21,32,0,2,23
+You are able to maneuver around the hot
+molten lava from recent volcanic
+activity in the area.
+^
+21
+SULPHUR ROOM
+0,0,14,1
+0,24,0,23,0,0
+You gasp for air as sulphur fumes
+overwhelm you.
+^
+22
+GLASS ROOM
+0,36,25,0
+10,23,0,21,0,0
+You are in a room with glass walls.
+^
+23
+JUNCTION +
+6,0,0,0
+0,24,35,22,0,0
+You have reached a major intersection.
+The path continues in many directions
+to different areas within the dungeon.
+A faded sign seems to read: 'Fo- a go-d
+t-me g- SSSSSENNEN'
+^
+24
+GLOOMY PATH +
+0,10,0,0
+0,13,0,23,0,0
+You are on a lonely, narrow, dark path.
+Treasures, perils, and mysteries await
+the adventuresome...
+^
+27
+CAVERN WELL
+4,8,0,0
+15,0,39,0,0,0
+...bar...bar...
+^
+30
+EDGE OF FOREST
+0,0,29,6
+18,0,42,0,0,0
+You have reached the edge of a large
+underground forest.
+^
+32
+ASH ROOM
+0,0,0,0
+20,33,0,0,0,0
+The floor of this room is covered by
+several feet of volcanic ash.
+^
+33
+COAL MINE
+24,0,0,0
+0,0,45,32,0,0
+This appears to be the entrance to a
+large coal mine. Abandoned many years
+ago, the mine was once the source of
+fuel for those of the Enchanted Land.
+^
+35
+IGNEOUS ROOM
+0,39,0,22
+23,0,47,0,0,0
+Igneous rocks abound.
+^
+39
+CAVERN LEDGE -]----
+0,0,0,0
+27,40,51,0,0,0
+You see a deep chasm below.
+^
+40
+CAVERN PEAK -]---- HQ
+0,12,0,0
+0,0,52,39,0,0
+You have reached the highest point of
+the cavern. A deep underground forest
+can be seen below. There is a large
+Mark of the Sword carved in the rock.
+^
+41
+UNDERGROUND FOREST
+0,88,0,3
+0,42,53,0,0,0
+You are deep within an underground
+forest.
+^
+42
+UNDERGROUND FOREST
+0,26,0,0
+30,43,54,41,0,0
+You are deep within an underground
+forest.
+^
+43
+UNDERGROUND FOREST
+20,0,19,0
+0,0,55,42,0,0
+You are deep within an underground
+forest.
+^
+45
+MINE SHAFT
+0,0,0,2
+33,0,57,0,0,0
+You can see the bright sun beaming in
+from above through the narrow shaft.
+^
+46
+STORAGE ROOM //> HQ
+0,0,0,0
+0,47,0,58,0,0
+All supplies for operations were stored
+here. A large Mark of the Claw is on
+the wall.
+^
+47
+RUBY ROOM //>
+0,0,0,0
+35,0,59,46,0,0
+The walls of this room are adorned with
+precious gems.
+^
+49
+MINERAL ROOM
+0,0,0,0
+37,50,0,60,0,0
+Rich mineral deposits form this room. A
+strange door is north.
+^
+50
+STALACTITE ROOM
+0,0,0,0
+0,51,0,49,0,0
+Large stalactites are hanging from the
+ceiling.
+^
+51
+STALAGMITE ROOM
+22,0,0,0
+39,0,0,50,0,0
+Large stalagmites extend upward from
+the cavern floor.
+^
+52
+EDGE OF FOREST -]----
+0,0,11,0
+40,53,0,0,0,0
+You are at the edge of a large
+underground forest.
+^
+53
+UNDERGROUND FOREST
+0,9,0,0
+41,54,65,52,0,0
+You are deep within a large underground
+forest.
+^
+54
+UNDERGROUND FOREST
+0,14,16,0
+42,55,66,53,0,0
+You are deep within a large underground
+forest.
+^
+55
+UNDERGROUND FOREST
+0,0,0,5
+43,0,67,0,0,0
+You are deep within a large underground
+forest.
+^
+57
+TUNNEL
+9,22,0,0
+45,58,69,0,0,0
+The mine tunnel runs north and south.
+^
+58
+CONTROL ROOM //>
+0,0,28,9
+46,0,0,57,0,0
+A large control panel is mounted in the
+wall. All operations of the mine were
+controlled from this room.
+^
+59
+BREEZY TUNNEL
+11,0,0,0
+47,0,71,0,0,0
+A cool, brisk wind blows through the
+room... chilling you to the bone!
+^
+60
+BAT ROOM
+5,32,0,0
+0,49,72,0,0,0
+You have reached the opening to a large
+cavern. Vampire bats fly overhead!
+^
+61
+LABYRINTH
+0,0,0,17
+0,62,73,0,0,0
+You are in a maze.
+^
+62
+LABYRINTH
+0,23,0,0
+0,72,74,61,0,0
+You are in a maze.
+^
+63
+LABYRINTH
+0,0,30,0
+0,64,75,62,0,0
+You are in a maze.
+^
+64
+LABYRINTH
+0,69,0,0
+0,0,76,63,0,0
+You are in a maze.
+^
+65
+UNDERGROUND FOREST
+0,0,0,0
+53,66,77,0,0,0
+You are deep within a large underground
+forest.
+^
+66
+UNDERGROUND FOREST
+0,0,0,0
+54,67,78,65,0,0
+You are deep within a large underground
+forest.
+^
+67
+UNDERGROUND FOREST
+0,0,0,7
+55,0,79,66,0,0
+You are deep within a large underground
+forest.
+^
+68
+EDGE OF FOREST
+0,0,0,0
+0,0,0,67,0,0
+You have reached the entrance to a
+large underground forest.
+^
+69
+LOADING DOCK
+14,28,0,0
+57,0,81,68,0,0
+This is where the coal was brought out
+from the mine and shipped to the people
+of the Enchanted Land.
+^
+70
+SMOKY ROOM
+31,0,0,0
+0,71,82,0,0,0
+You look down into a large hole in the
+middle of the room. Certainly there is
+a way down into that pit...
+^
+71
+TOP LEDGE
+0,0,21,8
+59,72,83,70,0,0
+You are at the top of a deep mine
+shaft.
+^
+72
+MINE OPENING
+0,0,0,42
+60,0,84,71,0,0
+Through a small opening you are able to
+gain entrance to this old abandonded
+coal mine.
+^
+73
+LABYRINTH
+0,0,0,0
+61,74,85,74,0,0
+You are in a maze.
+^
+74
+LABYRINTH
+0,27,0,0
+62,75,0,73,0,0
+You are in a maze.
+^
+75
+LABYRINTH
+0,0,31,0
+0,76,0,0,2,93
+You are in a maze.
+^
+76
+LABYRINTH
+0,0,0,0
+64,0,0,75,0,0
+You are in a maze.
+^
+77
+UNDERGROUND FOREST
+0,17,12,0
+65,78,0,0,0,0
+You are deep within a large underground
+forest.
+^
+78
+UNDERGROUND FOREST
+12,0,0,0
+66,79,0,77,2,96
+You are deep within a large underground
+forest.
+^
+79
+UNDERGROUND FOREST
+0,0,0,0
+67,0,0,78,0,0
+You are deep within a large underground
+forest.
+^
+80
+MINE ENTRANCE
+0,0,0,11
+0,81,92,0,0,0
+You have reached the main entrance to a
+coal mine.
+^
+81
+MINE EXIT
+0,91,0,0
+69,82,0,80,0,0
+Undescribed: fixme
+^
+82
+INNER MINE
+0,0,0,21
+0,83,0,81,0,0
+The mine tunnel continues east to west.
+^
+83
+DEEP SHAFT
+0,0,18,0
+71,84,0,82,0,0
+A deep shaft is in the center of the
+room.
+^
+84
+PIT
+8,0,0,65
+72,0,0,83,0,0
+The bones of mine workers, apparently
+buried in a cave-in, can be seen in the
+corner of the room.
+^
+85
+LABYRINTH
+0,0,0,0
+73,0,0,96,0,0
+You are in a maze.
+^
+86
+DARK ROOM
+0,0,0,0
+0,87,98,0,0,0
+This is a dimly-lit room. It is hard to
+get a sense of direction... you do
+detect an impending danger!
+^
+87
+ANTECHAMBER ROOM
+13,20,0,0
+0,88,0,86,0,0
+This room was once used for the
+deceased. The smell of the dead
+remains.
+^
+88
+COOL ROOM
+0,68,0,0
+0,89,100,87,0,0
+You are chilled to the bone, hearing
+sounds coming from another room close
+by!
+
+A sign is stuck into the earth. It is
+written in strange handwriting, but you
+think you can make out the words: "dO
+yOu wAnNa TrAvEl tO fAr aWay pLaCes?
+tHen gO eAsT!"
+^
+89
+TELEPORT ROOM}->
+0,0,0,0
+0,0,0,88,0,0
+You hear a noise as if a distant wind
+is rapidly approaching. You ponder the
+wisdom of leaving this room pronto...
+
+But you also notice a strangely drawn
+symbol on the eastern wall, even though
+it looks like there is no exit that
+way...
+^
+90
+GATE ROOM
+7,0,0,0
+78,91,102,0,0,0
+You have reached the entrance to the
+Enchanted Land.
+^
+91
+HALLWAY
+27,0,0,0
+0,92,0,90,0,0
+A voice whispers, "Welcome, $.
+Venture forth into my Land with care!"
+^
+92
+PATHWAY
+0,11,0,0
+80,93,0,91,0,0
+You are on a narrow path that enters
+the Enchanted Land.
+^
+93
+CABANA
+0,0,0,0
+0,0,105,92,0,0
+You are in the cabana just outside the
+Enchanted Land.
+^
+94
+LABYRINTH
+0,0,0,0
+0,95,106,0,0,0
+You are in a maze.
+^
+95
+LABYRINTH
+0,0,0,0
+0,96,0,94,0,0
+You are in a maze.
+^
+96
+LABYRINTH
+0,0,0,0
+0,85,0,95,2,117
+You are in a maze.
+^
+97
+WELL ROOM
+0,0,0,0
+0,98,0,108,0,0
+There is a deep well here which once
+supplied the people of the Enchanted
+Land with fresh water.
+^
+98
+SUPPLY ROOM
+0,0,44,12
+86,0,0,97,0,0
+This room was used to store food.
+^
+99
+LABYRINTH
+0,0,0,0
+0,0,0,111,2,123
+You are in a maze.
+^
+100
+DAMP ROOM
+0,15,0,10
+88,101,0,0,0,0
+This is an eerie, damp place.
+^
+101
+LIBRARY
+0,33,15,0
+0,0,113,100,0,0
+There are many books in this room. The
+people were apparently a learned group.
+^
+102
+GRAND BALLROOM
+0,18,0,0
+90,103,114,0,0,0
+You are standing in a large room that
+once was used for large gala affairs.
+^
+103
+EAST HALL
+0,7,0,0
+0,104,0,102,0,0
+This is an L-shaped room with a
+fireplace in the corner.
+^
+104
+HALLWAY ENTRANCE
+0,0,24,45
+0,0,0,103,0,0
+This is the entrance to the main
+ballrooms.
+^
+105
+STORAGE HOUSE
+16,0,50,0
+93,0,117,104,0,0
+This room was once used to store
+supplies.
+^
+106
+LABYRINTH
+0,0,0,0
+94,107,0,0,2,130
+You are in a maze.
+^
+107
+FURNACE ROOM
+33,0,0,0
+0,108,119,106,0,0
+There is a large furnace in the room.
+It was used to heat the dungeons.
+^
+108
+BOILER ROOM
+0,84,0,43
+0,97,0,107,0,0
+There is an old boiler in the corner.
+^
+109
+LABYRINTH
+30,0,0,0
+0,110,0,120,0,0
+You are in a maze.
+^
+110
+LABYRINTH
+0,19,0,0
+0,111,122,109,0,0
+You are in a maze.
+^
+111
+LABYRINTH
+0,0,0,14
+99,0,0,110,0,0
+You are in a maze.
+^
+113
+PEARL ROOM
+0,0,0,0
+101,0,125,0,0,0
+You are confused... how did you get
+here?
+^
+114
+STUDY
+21,0,0,15
+102,0,126,113,0,0
+You are in a large study.
+^
+115
+PIPE ROOM
+18,25,0,0
+0,116,127,0,0,0
+There is a large pipe organ here.
+^
+116
+MUSIC ANTECHAMBER
+15,0,0,18
+0,117,127,0,0,0
+Small concertos were once held in this
+room.
+^
+117
+SOUTH HALLWAY
+0,0,0,0
+105,0,129,116,0,0
+Rooms are off in various directions.
+^
+119
+GAS ROOM ==[]
+0,0,0,0
+107,0,131,0,0,0
+This room was once the source of
+natural gas for the inhabitants.
+^
+120
+LABYRINTH
+0,0,0,0
+0,109,132,0,0,0
+You are in a maze.
+^
+121
+LABYRINTH
+28,0,0,0
+109,122,133,132,0,0
+You are in a maze.
+^
+122
+LABYRINTH
+0,0,0,0
+0,123,134,121,0,0
+You are in a maze.
+^
+123
+LABYRINTH
+0,16,0,19
+0,124,135,0,0,0
+You are in a maze.
+^
+124
+BASEMENT
+0,0,0,0
+0,125,0,123,0,0
+You have reached the basement.
+^
+125
+STONE ROOM
+19,82,0,0
+113,126,0,124,0,0
+For some reason, all items in this room
+are made of stone!
+^
+126
+OVAL ROOM
+0,0,0,16
+114,127,138,0,0,0
+You are in a large, oval-shaped room.
+^
+127
+GAME ROOM
+23,6,0,0
+115,0,139,126,0,0
+You are in the game room.
+^
+128
+LONG PASSAGE
+0,0,0,0
+115,129,140,127,0,0
+You are in a long passageway.
+^
+129
+ANGLED ROOM
+17,0,0,0
+117,130,141,128,0,0
+You are in a strangely-shaped room.
+^
+130
+TEA ROOM ==[]
+0,0,0,0
+0,131,142,129,0,0
+A small table sits in the middle of
+this room, which was once used for
+social gatherings.
+^
+131
+SECLUDED ROOM ==[] HQ
+0,31,22,0
+119,0,0,130,0,0
+You are in a large room... there is a
+strange symbol on the wall!
+^
+132
+LABYRINTH
+0,13,0,0
+120,121,0,0,0,0
+You are in a maze.
+^
+133
+LABYRINTH
+0,74,23,0
+0,134,0,0,0,0
+You are in a maze.
+^
+134
+LABYRINTH
+0,0,0,0
+122,135,0,133,0,0
+You are in a maze.
+^
+135
+LABYRINTH
+0,0,0,0
+123,136,0,0,0,0
+You are in a maze.
+^
+136
+LABYRINTH
+0,92,0,0
+0,0,0,135,0,0
+You are in a maze.
+^
+138
+TRANSPORT ROOM
+0,0,0,0
+126,139,0,0,0,0
+There is a sign on the wall. You can
+make out only a few of the words:
+"...The land of no return..."
+^
+139
+MORNING ROOM
+0,0,0,20
+127,0,0,138,0,0
+There is a large hole in the roof and
+the sun comes gleaming through.
+^
+140
+LONG PASSAGE
+0,0,0,0
+128,141,0,139,0,0
+You are in a long passageway.
+^
+141
+SIGN ROOM
+0,0,0,0
+129,142,0,140,0,0
+A bizarre neon sign is propped up on
+the ground. It reads:
+
+"START TODAY! DON'T DELAY!
+    TRAVEL FAR, BEYOND THE STARS
+    WIN THE GAME, ENJOY THE FAME!"
+^
+142
+GARDEN ROOM
+0,0,0,19
+130,0,0,0,0,0
+Here are the remains of a once-
+beautiful garden.
+^
+144
+EMPTY
+0,0,0,0
+0,0,0,0,0,0
+EMPTY
+^
