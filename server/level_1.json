@@ -1,0 +1,1285 @@
+{
+    "rooms": [
+        {
+            "number": 1,
+            "name": "MERCHANT LOBBY +",
+            "exits": {
+                "s": 13,
+                "rc": 2
+            },
+            "desc": "You are at the entrance to the store. There is a passage leading downward to the market area.",
+            "item": 62
+        },
+        {
+            "number": 2,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 134,
+                "e": 3
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 3,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 135,
+                "e": 4,
+                "w": 2
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 4,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 136,
+                "w": 3
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 6,
+            "name": "SAND DOLLAR ROOM",
+            "exits": {
+                "e": 7,
+                "s": 18
+            },
+            "desc": "The hot sand burns your feet.",
+            "monster": 1,
+            "item": 35
+        },
+        {
+            "number": 7,
+            "name": "LONELY PATHWAY",
+            "exits": {
+                "e": 8,
+                "w": 6
+            },
+            "desc": "The passage here is a narrow one. It stretches from east to west.",
+            "weapon": 20
+        },
+        {
+            "number": 8,
+            "name": "FIERY ROOM",
+            "exits": {
+                "s": 20
+            },
+            "desc": "There are dead cacti all around. The walls are covered with soot from a crevice, exposing hot lava."
+        },
+        {
+            "number": 10,
+            "name": "NORTH PATH",
+            "exits": {
+                "n": 142,
+                "s": 22
+            },
+            "desc": "Clouds gather overhead, warning of impending danger!",
+            "monster": 32,
+            "item": 24
+        },
+        {
+            "number": 13,
+            "name": "CAVERN HEAD +",
+            "exits": {
+                "n": 1,
+                "e": 14,
+                "w": 24
+            },
+            "desc": "You have reached the entrance to a large cavern.",
+            "monster": 3
+        },
+        {
+            "number": 14,
+            "name": "BURIAL GROUNDS +",
+            "exits": {
+                "e": 15,
+                "w": 13
+            },
+            "desc": "Here lie the remains of the inhabitants of the cavern. It appears to be a sacred burial ground.",
+            "item": 38
+        },
+        {
+            "number": 15,
+            "name": "CAVERN AMPHITHEATRE +",
+            "exits": {
+                "e": 16,
+                "s": 27,
+                "w": 14
+            },
+            "desc": "You are standing in a large room. Every sound echoes off the wall. A strange message is spray-painted on the wall: 'SSSWWN'",
+            "monster": 26
+        },
+        {
+            "number": 16,
+            "name": "CAVERN PASSAGE",
+            "exits": {
+                "e": 17,
+                "w": 15
+            },
+            "desc": "The walls contain mysterious markings from an ancient civilization.",
+            "monster": 2,
+            "food": 4
+        },
+        {
+            "number": 17,
+            "name": "CAVERN HOLE",
+            "exits": {
+                "e": 18,
+                "w": 16
+            },
+            "desc": "You can see a glimmer of light to the west as you approach an exit.",
+            "item": 15,
+            "weapon": 27
+        },
+        {
+            "number": 18,
+            "name": "CAVERN ENTRANCE",
+            "exits": {
+                "n": 6,
+                "s": 30,
+                "w": 17
+            },
+            "desc": "You have reached the entrance to a large cavern. You see large bats flying in and out of the cave... Dare you enter this dark, forbidden place?",
+            "item": 30,
+            "food": 15
+        },
+        {
+            "number": 20,
+            "name": "VOLCANO ROOM",
+            "exits": {
+                "n": 8,
+                "e": 21,
+                "s": 32,
+                "rc": 2,
+                "rt": 23
+            },
+            "desc": "You are able to maneuver around the hot molten lava from recent volcanic activity in the area.",
+            "monster": 10,
+            "item": 29
+        },
+        {
+            "number": 21,
+            "name": "SULPHUR ROOM",
+            "exits": {
+                "e": 24,
+                "w": 23
+            },
+            "desc": "You gasp for air as sulphur fumes overwhelm you.",
+            "weapon": 14,
+            "food": 1
+        },
+        {
+            "number": 22,
+            "name": "GLASS ROOM",
+            "exits": {
+                "n": 10,
+                "e": 23,
+                "w": 21
+            },
+            "desc": "You are in a room with glass walls.",
+            "item": 36,
+            "weapon": 25
+        },
+        {
+            "number": 23,
+            "name": "JUNCTION +",
+            "exits": {
+                "e": 24,
+                "s": 35,
+                "w": 22
+            },
+            "desc": "You have reached a major intersection. The path continues in many directions to different areas within the dungeon. A faded sign seems to read: 'Fo- a go-d t-me g- SSSSSENNEN'",
+            "monster": 6
+        },
+        {
+            "number": 24,
+            "name": "GLOOMY PATH +",
+            "exits": {
+                "e": 13,
+                "w": 23
+            },
+            "desc": "You are on a lonely, narrow, dark path. Treasures, perils, and mysteries await the adventuresome...",
+            "item": 10
+        },
+        {
+            "number": 27,
+            "name": "CAVERN WELL",
+            "exits": {
+                "n": 15,
+                "s": 39
+            },
+            "desc": "...bar...bar...",
+            "monster": 4,
+            "item": 8
+        },
+        {
+            "number": 30,
+            "name": "EDGE OF FOREST",
+            "exits": {
+                "n": 18,
+                "s": 42
+            },
+            "desc": "You have reached the edge of a large underground forest.",
+            "weapon": 29,
+            "food": 6
+        },
+        {
+            "number": 32,
+            "name": "ASH ROOM",
+            "exits": {
+                "n": 20,
+                "e": 33
+            },
+            "desc": "The floor of this room is covered by several feet of volcanic ash."
+        },
+        {
+            "number": 33,
+            "name": "COAL MINE",
+            "exits": {
+                "s": 45,
+                "w": 32
+            },
+            "desc": "This appears to be the entrance to a large coal mine. Abandoned many years ago, the mine was once the source of fuel for those of the Enchanted Land.",
+            "monster": 24
+        },
+        {
+            "number": 35,
+            "name": "IGNEOUS ROOM",
+            "exits": {
+                "n": 23,
+                "s": 47
+            },
+            "desc": "Igneous rocks abound.",
+            "item": 39,
+            "food": 22
+        },
+        {
+            "number": 39,
+            "name": "CAVERN LEDGE -]----",
+            "exits": {
+                "n": 27,
+                "e": 40,
+                "s": 51
+            },
+            "desc": "You see a deep chasm below."
+        },
+        {
+            "number": 40,
+            "name": "CAVERN PEAK -]---- HQ",
+            "exits": {
+                "s": 52,
+                "w": 39
+            },
+            "desc": "You have reached the highest point of the cavern. A deep underground forest can be seen below. There is a large Mark of the Sword carved in the rock.",
+            "item": 12
+        },
+        {
+            "number": 41,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "e": 42,
+                "s": 53
+            },
+            "desc": "You are deep within an underground forest.",
+            "item": 88,
+            "food": 3
+        },
+        {
+            "number": 42,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "n": 30,
+                "e": 43,
+                "s": 54,
+                "w": 41
+            },
+            "desc": "You are deep within an underground forest.",
+            "item": 26
+        },
+        {
+            "number": 43,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "s": 55,
+                "w": 42
+            },
+            "desc": "You are deep within an underground forest.",
+            "monster": 20,
+            "weapon": 19
+        },
+        {
+            "number": 45,
+            "name": "MINE SHAFT",
+            "exits": {
+                "n": 33,
+                "s": 57
+            },
+            "desc": "You can see the bright sun beaming in from above through the narrow shaft.",
+            "food": 2
+        },
+        {
+            "number": 46,
+            "name": "STORAGE ROOM //> HQ",
+            "exits": {
+                "e": 47,
+                "w": 58
+            },
+            "desc": "All supplies for operations were stored here. A large Mark of the Claw is on the wall."
+        },
+        {
+            "number": 47,
+            "name": "RUBY ROOM //>",
+            "exits": {
+                "n": 35,
+                "s": 59,
+                "w": 46
+            },
+            "desc": "The walls of this room are adorned with precious gems."
+        },
+        {
+            "number": 49,
+            "name": "MINERAL ROOM",
+            "exits": {
+                "n": 37,
+                "e": 50,
+                "w": 60
+            },
+            "desc": "Rich mineral deposits form this room. A strange door is north."
+        },
+        {
+            "number": 50,
+            "name": "STALACTITE ROOM",
+            "exits": {
+                "e": 51,
+                "w": 49
+            },
+            "desc": "Large stalactites are hanging from the ceiling."
+        },
+        {
+            "number": 51,
+            "name": "STALAGMITE ROOM",
+            "exits": {
+                "n": 39,
+                "w": 50
+            },
+            "desc": "Large stalagmites extend upward from the cavern floor.",
+            "monster": 22
+        },
+        {
+            "number": 52,
+            "name": "EDGE OF FOREST -]----",
+            "exits": {
+                "n": 40,
+                "e": 53
+            },
+            "desc": "You are at the edge of a large underground forest.",
+            "weapon": 11
+        },
+        {
+            "number": 53,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "n": 41,
+                "e": 54,
+                "s": 65,
+                "w": 52
+            },
+            "desc": "You are deep within a large underground forest.",
+            "item": 9
+        },
+        {
+            "number": 54,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "n": 42,
+                "e": 55,
+                "s": 66,
+                "w": 53
+            },
+            "desc": "You are deep within a large underground forest.",
+            "item": 14,
+            "weapon": 16
+        },
+        {
+            "number": 55,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "n": 43,
+                "s": 67
+            },
+            "desc": "You are deep within a large underground forest.",
+            "food": 5
+        },
+        {
+            "number": 57,
+            "name": "TUNNEL",
+            "exits": {
+                "n": 45,
+                "e": 58,
+                "s": 69
+            },
+            "desc": "The mine tunnel runs north and south.",
+            "monster": 9,
+            "item": 22
+        },
+        {
+            "number": 58,
+            "name": "CONTROL ROOM //>",
+            "exits": {
+                "n": 46,
+                "w": 57
+            },
+            "desc": "A large control panel is mounted in the wall. All operations of the mine were controlled from this room.",
+            "weapon": 28,
+            "food": 9
+        },
+        {
+            "number": 59,
+            "name": "BREEZY TUNNEL",
+            "exits": {
+                "n": 47,
+                "s": 71
+            },
+            "desc": "A cool, brisk wind blows through the room... chilling you to the bone!",
+            "monster": 11
+        },
+        {
+            "number": 60,
+            "name": "BAT ROOM",
+            "exits": {
+                "e": 49,
+                "s": 72
+            },
+            "desc": "You have reached the opening to a large cavern. Vampire bats fly overhead!",
+            "monster": 5,
+            "item": 32
+        },
+        {
+            "number": 61,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 62,
+                "s": 73
+            },
+            "desc": "You are in a maze.",
+            "food": 17
+        },
+        {
+            "number": 62,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 72,
+                "s": 74,
+                "w": 61
+            },
+            "desc": "You are in a maze.",
+            "item": 23
+        },
+        {
+            "number": 63,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 64,
+                "s": 75,
+                "w": 62
+            },
+            "desc": "You are in a maze.",
+            "weapon": 30
+        },
+        {
+            "number": 64,
+            "name": "LABYRINTH",
+            "exits": {
+                "s": 76,
+                "w": 63
+            },
+            "desc": "You are in a maze.",
+            "item": 69
+        },
+        {
+            "number": 65,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "n": 53,
+                "e": 66,
+                "s": 77
+            },
+            "desc": "You are deep within a large underground forest."
+        },
+        {
+            "number": 66,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "n": 54,
+                "e": 67,
+                "s": 78,
+                "w": 65
+            },
+            "desc": "You are deep within a large underground forest."
+        },
+        {
+            "number": 67,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "n": 55,
+                "s": 79,
+                "w": 66
+            },
+            "desc": "You are deep within a large underground forest.",
+            "food": 7
+        },
+        {
+            "number": 68,
+            "name": "EDGE OF FOREST",
+            "exits": {
+                "w": 67
+            },
+            "desc": "You have reached the entrance to a large underground forest."
+        },
+        {
+            "number": 69,
+            "name": "LOADING DOCK",
+            "exits": {
+                "n": 57,
+                "s": 81,
+                "w": 68
+            },
+            "desc": "This is where the coal was brought out from the mine and shipped to the people of the Enchanted Land.",
+            "monster": 14,
+            "item": 28
+        },
+        {
+            "number": 70,
+            "name": "SMOKY ROOM",
+            "exits": {
+                "e": 71,
+                "s": 82
+            },
+            "desc": "You look down into a large hole in the middle of the room. Certainly there is a way down into that pit...",
+            "monster": 31
+        },
+        {
+            "number": 71,
+            "name": "TOP LEDGE",
+            "exits": {
+                "n": 59,
+                "e": 72,
+                "s": 83,
+                "w": 70
+            },
+            "desc": "You are at the top of a deep mine shaft.",
+            "weapon": 21,
+            "food": 8
+        },
+        {
+            "number": 72,
+            "name": "MINE OPENING",
+            "exits": {
+                "n": 60,
+                "s": 84,
+                "w": 71
+            },
+            "desc": "Through a small opening you are able to gain entrance to this old abandoned coal mine.",
+            "food": 42
+        },
+        {
+            "number": 73,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 61,
+                "e": 74,
+                "s": 85,
+                "w": 74
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 74,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 62,
+                "e": 75,
+                "w": 73
+            },
+            "desc": "You are in a maze.",
+            "item": 27
+        },
+        {
+            "number": 75,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 76,
+                "rc": 2,
+                "rt": 93
+            },
+            "desc": "You are in a maze.",
+            "weapon": 31
+        },
+        {
+            "number": 76,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 64,
+                "w": 75
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 77,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "n": 65,
+                "e": 78
+            },
+            "desc": "You are deep within a large underground forest.",
+            "item": 17,
+            "weapon": 12
+        },
+        {
+            "number": 78,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "n": 66,
+                "e": 79,
+                "w": 77,
+                "rc": 2,
+                "rt": 96
+            },
+            "desc": "You are deep within a large underground forest.",
+            "monster": 12
+        },
+        {
+            "number": 79,
+            "name": "UNDERGROUND FOREST",
+            "exits": {
+                "n": 67,
+                "w": 78
+            },
+            "desc": "You are deep within a large underground forest."
+        },
+        {
+            "number": 80,
+            "name": "MINE ENTRANCE",
+            "exits": {
+                "e": 81,
+                "s": 92
+            },
+            "desc": "You have reached the main entrance to a coal mine.",
+            "food": 11
+        },
+        {
+            "number": 81,
+            "name": "MINE EXIT",
+            "exits": {
+                "n": 69,
+                "e": 82,
+                "w": 80
+            },
+            "desc": "Undescribed: fixme",
+            "item": 91
+        },
+        {
+            "number": 82,
+            "name": "INNER MINE",
+            "exits": {
+                "e": 83,
+                "w": 81
+            },
+            "desc": "The mine tunnel continues east to west.",
+            "food": 21
+        },
+        {
+            "number": 83,
+            "name": "DEEP SHAFT",
+            "exits": {
+                "n": 71,
+                "e": 84,
+                "w": 82
+            },
+            "desc": "A deep shaft is in the center of the room.",
+            "weapon": 18
+        },
+        {
+            "number": 84,
+            "name": "PIT",
+            "exits": {
+                "n": 72,
+                "w": 83
+            },
+            "desc": "The bones of mine workers, apparently buried in a cave-in, can be seen in the corner of the room.",
+            "monster": 8,
+            "food": 65
+        },
+        {
+            "number": 85,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 73,
+                "w": 96
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 86,
+            "name": "DARK ROOM",
+            "exits": {
+                "e": 87,
+                "s": 98
+            },
+            "desc": "This is a dimly-lit room. It is hard to get a sense of direction... you do detect an impending danger!"
+        },
+        {
+            "number": 87,
+            "name": "ANTECHAMBER ROOM",
+            "exits": {
+                "e": 88,
+                "w": 86
+            },
+            "desc": "This room was once used for the deceased. The smell of the dead remains.",
+            "monster": 13,
+            "item": 20
+        },
+        {
+            "number": 88,
+            "name": "COOL ROOM",
+            "exits": {
+                "e": 89,
+                "s": 100,
+                "w": 87
+            },
+            "desc": "You are chilled to the bone, hearing sounds coming from another room close by!  A sign is stuck into the earth. It is written in strange handwriting, but you think you can make out the words: \"dO yOu wAnNa TrAvEl tO fAr aWay pLaCes? tHen gO eAsT!\"",
+            "item": 68
+        },
+        {
+            "number": 89,
+            "name": "TELEPORT ROOM}->",
+            "exits": {
+                "w": 88
+            },
+            "desc": "You hear a noise as if a distant wind is rapidly approaching. You ponder the wisdom of leaving this room pronto...  But you also notice a strangely drawn symbol on the eastern wall, even though it looks like there is no exit that way..."
+        },
+        {
+            "number": 90,
+            "name": "GATE ROOM",
+            "exits": {
+                "n": 78,
+                "e": 91,
+                "s": 102
+            },
+            "desc": "You have reached the entrance to the Enchanted Land.",
+            "monster": 7
+        },
+        {
+            "number": 91,
+            "name": "HALLWAY",
+            "exits": {
+                "e": 92,
+                "w": 90
+            },
+            "desc": "A voice whispers, \"Welcome, $. Venture forth into my Land with care!\"",
+            "monster": 27
+        },
+        {
+            "number": 92,
+            "name": "PATHWAY",
+            "exits": {
+                "n": 80,
+                "e": 93,
+                "w": 91
+            },
+            "desc": "You are on a narrow path that enters the Enchanted Land.",
+            "item": 11
+        },
+        {
+            "number": 93,
+            "name": "CABANA",
+            "exits": {
+                "s": 105,
+                "w": 92
+            },
+            "desc": "You are in the cabana just outside the Enchanted Land."
+        },
+        {
+            "number": 94,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 95,
+                "s": 106
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 95,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 96,
+                "w": 94
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 96,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 85,
+                "w": 95,
+                "rc": 2,
+                "rt": 117
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 97,
+            "name": "WELL ROOM",
+            "exits": {
+                "e": 98,
+                "w": 108
+            },
+            "desc": "There is a deep well here which once supplied the people of the Enchanted Land with fresh water."
+        },
+        {
+            "number": 98,
+            "name": "SUPPLY ROOM",
+            "exits": {
+                "n": 86,
+                "w": 97
+            },
+            "desc": "This room was used to store food.",
+            "weapon": 44,
+            "food": 12
+        },
+        {
+            "number": 99,
+            "name": "LABYRINTH",
+            "exits": {
+                "w": 111,
+                "rc": 2,
+                "rt": 123
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 100,
+            "name": "DAMP ROOM",
+            "exits": {
+                "n": 88,
+                "e": 101
+            },
+            "desc": "This is an eerie, damp place.",
+            "item": 15,
+            "food": 10
+        },
+        {
+            "number": 101,
+            "name": "LIBRARY",
+            "exits": {
+                "s": 113,
+                "w": 100
+            },
+            "desc": "There are many books in this room. The people were apparently a learned group.",
+            "item": 33,
+            "weapon": 15
+        },
+        {
+            "number": 102,
+            "name": "GRAND BALLROOM",
+            "exits": {
+                "n": 90,
+                "e": 103,
+                "s": 114
+            },
+            "desc": "You are standing in a large room that once was used for large gala affairs.",
+            "item": 18
+        },
+        {
+            "number": 103,
+            "name": "EAST HALL",
+            "exits": {
+                "e": 104,
+                "w": 102
+            },
+            "desc": "This is an L-shaped room with a fireplace in the corner.",
+            "item": 7
+        },
+        {
+            "number": 104,
+            "name": "HALLWAY ENTRANCE",
+            "exits": {
+                "w": 103
+            },
+            "desc": "This is the entrance to the main ballrooms.",
+            "weapon": 24,
+            "food": 45
+        },
+        {
+            "number": 105,
+            "name": "STORAGE HOUSE",
+            "exits": {
+                "n": 93,
+                "s": 117,
+                "w": 104
+            },
+            "desc": "This room was once used to store supplies.",
+            "monster": 16,
+            "weapon": 50
+        },
+        {
+            "number": 106,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 94,
+                "e": 107,
+                "rc": 2,
+                "rt": 130
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 107,
+            "name": "FURNACE ROOM",
+            "exits": {
+                "e": 108,
+                "s": 119,
+                "w": 106
+            },
+            "desc": "There is a large furnace in the room. It was used to heat the dungeons.",
+            "monster": 33
+        },
+        {
+            "number": 108,
+            "name": "BOILER ROOM",
+            "exits": {
+                "e": 97,
+                "w": 107
+            },
+            "desc": "There is an old boiler in the corner.",
+            "item": 84,
+            "food": 43
+        },
+        {
+            "number": 109,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 110,
+                "w": 120
+            },
+            "desc": "You are in a maze.",
+            "monster": 30
+        },
+        {
+            "number": 110,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 111,
+                "s": 122,
+                "w": 109
+            },
+            "desc": "You are in a maze.",
+            "item": 19
+        },
+        {
+            "number": 111,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 99,
+                "w": 110
+            },
+            "desc": "You are in a maze.",
+            "food": 14
+        },
+        {
+            "number": 113,
+            "name": "PEARL ROOM",
+            "exits": {
+                "n": 101,
+                "s": 125
+            },
+            "desc": "You are confused... how did you get here?"
+        },
+        {
+            "number": 114,
+            "name": "STUDY",
+            "exits": {
+                "n": 102,
+                "s": 126,
+                "w": 113
+            },
+            "desc": "You are in a large study.",
+            "monster": 21,
+            "food": 15
+        },
+        {
+            "number": 115,
+            "name": "PIPE ROOM",
+            "exits": {
+                "e": 116,
+                "s": 127
+            },
+            "desc": "There is a large pipe organ here.",
+            "monster": 18,
+            "item": 25
+        },
+        {
+            "number": 116,
+            "name": "MUSIC ANTECHAMBER",
+            "exits": {
+                "e": 117,
+                "s": 127
+            },
+            "desc": "Small concertos were once held in this room.",
+            "monster": 15,
+            "food": 18
+        },
+        {
+            "number": 117,
+            "name": "SOUTH HALLWAY",
+            "exits": {
+                "n": 105,
+                "s": 129,
+                "w": 116
+            },
+            "desc": "Rooms are off in various directions."
+        },
+        {
+            "number": 119,
+            "name": "GAS ROOM ==[]",
+            "exits": {
+                "n": 107,
+                "s": 131
+            },
+            "desc": "This room was once the source of natural gas for the inhabitants."
+        },
+        {
+            "number": 120,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 109,
+                "s": 132
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 121,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 109,
+                "e": 122,
+                "s": 133,
+                "w": 132
+            },
+            "desc": "You are in a maze.",
+            "monster": 28
+        },
+        {
+            "number": 122,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 123,
+                "s": 134,
+                "w": 121
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 123,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 124,
+                "s": 135
+            },
+            "desc": "You are in a maze.",
+            "item": 16,
+            "food": 19
+        },
+        {
+            "number": 124,
+            "name": "BASEMENT",
+            "exits": {
+                "e": 125,
+                "w": 123
+            },
+            "desc": "You have reached the basement."
+        },
+        {
+            "number": 125,
+            "name": "STONE ROOM",
+            "exits": {
+                "n": 113,
+                "e": 126,
+                "w": 124
+            },
+            "desc": "For some reason, all items in this room are made of stone!",
+            "monster": 19,
+            "item": 82
+        },
+        {
+            "number": 126,
+            "name": "OVAL ROOM",
+            "exits": {
+                "n": 114,
+                "e": 127,
+                "s": 138
+            },
+            "desc": "You are in a large, oval-shaped room.",
+            "food": 16
+        },
+        {
+            "number": 127,
+            "name": "GAME ROOM",
+            "exits": {
+                "n": 115,
+                "s": 139,
+                "w": 126
+            },
+            "desc": "You are in the game room.",
+            "monster": 23,
+            "item": 6
+        },
+        {
+            "number": 128,
+            "name": "LONG PASSAGE",
+            "exits": {
+                "n": 115,
+                "e": 129,
+                "s": 140,
+                "w": 127
+            },
+            "desc": "You are in a long passageway."
+        },
+        {
+            "number": 129,
+            "name": "ANGLED ROOM",
+            "exits": {
+                "n": 117,
+                "e": 130,
+                "s": 141,
+                "w": 128
+            },
+            "desc": "You are in a strangely-shaped room.",
+            "monster": 17
+        },
+        {
+            "number": 130,
+            "name": "TEAROOM ==[]",
+            "exits": {
+                "e": 131,
+                "s": 142,
+                "w": 129
+            },
+            "desc": "A small table sits in the middle of this room, which was once used for social gatherings."
+        },
+        {
+            "number": 131,
+            "name": "SECLUDED ROOM ==[] HQ",
+            "exits": {
+                "n": 119,
+                "w": 130
+            },
+            "desc": "You are in a large room... there is a strange symbol on the wall!",
+            "item": 31,
+            "weapon": 22
+        },
+        {
+            "number": 132,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 120,
+                "e": 121
+            },
+            "desc": "You are in a maze.",
+            "item": 13
+        },
+        {
+            "number": 133,
+            "name": "LABYRINTH",
+            "exits": {
+                "e": 134
+            },
+            "desc": "You are in a maze.",
+            "item": 74,
+            "weapon": 23
+        },
+        {
+            "number": 134,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 122,
+                "e": 135,
+                "w": 133
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 135,
+            "name": "LABYRINTH",
+            "exits": {
+                "n": 123,
+                "e": 136
+            },
+            "desc": "You are in a maze."
+        },
+        {
+            "number": 136,
+            "name": "LABYRINTH",
+            "exits": {
+                "w": 135
+            },
+            "desc": "You are in a maze.",
+            "item": 92
+        },
+        {
+            "number": 138,
+            "name": "TRANSPORT ROOM",
+            "exits": {
+                "n": 126,
+                "e": 139
+            },
+            "desc": "There is a sign on the wall. You can make out only a few of the words: \"...The land of no return...\""
+        },
+        {
+            "number": 139,
+            "name": "MORNING ROOM",
+            "exits": {
+                "n": 127,
+                "w": 138
+            },
+            "desc": "There is a large hole in the roof and the sun comes gleaming through.",
+            "food": 20
+        },
+        {
+            "number": 140,
+            "name": "LONG PASSAGE",
+            "exits": {
+                "n": 128,
+                "e": 141,
+                "w": 139
+            },
+            "desc": "You are in a long passageway."
+        },
+        {
+            "number": 141,
+            "name": "SIGN ROOM",
+            "exits": {
+                "n": 129,
+                "e": 142,
+                "w": 140
+            },
+            "desc": "A bizarre neon sign is propped up on the ground. It reads:  \"START TODAY! DON'T DELAY! TRAVEL FAR, BEYOND THE STARS WIN THE GAME, ENJOY THE FAME!\""
+        },
+        {
+            "number": 142,
+            "name": "GARDEN ROOM",
+            "exits": {
+                "n": 130
+            },
+            "desc": "Here are the remains of a once- beautiful garden.",
+            "food": 19
+        },
+        {
+            "number": 144,
+            "name": "EMPTY",
+            "desc": "EMPTY"
+        }
+    ]
+}
