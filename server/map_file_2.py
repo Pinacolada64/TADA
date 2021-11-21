@@ -10,18 +10,18 @@
 
 import json
 import textwrap
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class Room(object):
     number: int
     name: str
-    monster: int
-    item: int
-    weapon: int
-    food: int
-    exits: list     # {n e s w rc rt}
     desc: str
+    exits: list = field(default_factory=lambda: []) # {n e s w rc rt}
+    monster: int = 0
+    item: int = 0
+    weapon: int = 0
+    food: int = 0
     alignment: str = "neutral"
 
     def __str__(self):
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
     # load map
     game_map = Map()
-    game_map.read_map("map_data_2.json")
+    game_map.read_map("map_data.json")
     # print rooms
     wrapper = textwrap.TextWrapper(width=40)
     for number, room in game_map.rooms.items():
