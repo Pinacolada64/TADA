@@ -17,7 +17,7 @@ class Room(object):
     number: int
     name: str
     desc: str
-    exits: list = field(default_factory=lambda: []) # {n e s w rc rt}
+    exits: dict = field(default_factory=lambda: {}) # {n e s w rc rt}
     monster: int = 0
     item: int = 0
     weapon: int = 0
@@ -27,6 +27,10 @@ class Room(object):
     def __str__(self):
         return f'#{self.number} {self.name}\n' \
                f'{self.desc}\n{self.exits}'
+
+    def exitsTxt(self):
+        exitNames = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'rc': '?', 'rt': '?'}
+        return " ".join([exitNames[k] for k in self.exits.keys()])
 
 class Map(object):
     def __init__(self):
@@ -65,5 +69,6 @@ if __name__ == '__main__':
     for number, room in game_map.rooms.items():
         print(f"#{number} - {room.name}")
         print(wrapper.fill(text=room.desc))
-        print(room.exits)
+        exits_txt = room.exitsTxt()
+        if exits_txt is not None:  print(f"exits: {exits_txt}")
 
