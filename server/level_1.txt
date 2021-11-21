@@ -41,7 +41,7 @@ stretches from east to west.
 FIERY ROOM
 0,0,0,0
 0,0,20,0,0,0
-There are dead cactii all around. The
+There are dead cacti all around. The
 walls are covered with soot from a
 crevice, exposing hot lava.
 ^
@@ -73,7 +73,7 @@ CAVERN AMPHITHEATRE +
 0,16,27,14,0,0
 You are standing in a large room. Every
 sound echoes off the wall. A strange
-message is spray painted on the wall:
+message is spray-painted on the wall:
 'SSSWWN'
 ^
 16
@@ -388,7 +388,7 @@ MINE OPENING
 0,0,0,42
 60,0,84,71,0,0
 Through a small opening you are able to
-gain entrance to this old abandonded
+gain entrance to this old abandoned
 coal mine.
 ^
 73
@@ -764,7 +764,7 @@ ANGLED ROOM
 You are in a strangely-shaped room.
 ^
 130
-TEA ROOM ==[]
+TEAROOM ==[]
 0,0,0,0
 0,131,142,129,0,0
 A small table sits in the middle of
