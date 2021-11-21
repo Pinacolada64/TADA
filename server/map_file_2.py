@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
     # load map
     game_map = Map()
-    game_map.read_map("map_data_2.txt")
+    game_map.read_map("map_data_2.json")
     # print rooms
     wrapper = textwrap.TextWrapper(width=40)
     for number, room in game_map.rooms.items():
