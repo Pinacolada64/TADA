@@ -29,8 +29,19 @@ class Room(object):
                f'{self.desc}\n{self.exits}'
 
     def exitsTxt(self):
-        exitNames = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'rc': '?', 'rt': '?'}
-        return " ".join([exitNames[k] for k in self.exits.keys()])
+        # compass direction text names
+        compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West'}
+        # connecton/transport names, index by (connection, transport)
+        extra_txts = {(1, 0): 'Up to Shoppe', (1, 1): 'Up',
+                (2, 0): 'Down to Shoppe', (2, 1): 'Down'}
+        exit_txts = []
+        for k in self.exits.keys():
+            if k in compass_txts:  exit_txts.append(compass_txts[k])
+        room_connection = self.exits.get('rc', 0)
+        room_transport = self.exits.get('rt', 0)
+        exit_extra = extra_txts.get((room_connection, room_transport))
+        if exit_extra is not None:  exit_txts.append(exit_extra)
+        return ", ".join(exit_txts)
 
 class Map(object):
     def __init__(self):
