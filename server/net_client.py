@@ -41,19 +41,22 @@ class Client(object):
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.clientSocket:
-            self.clientSocket.connect((self.host, self.port))
-            self.clientSocket.sendall(nc.toJSONB(Init()))
-            running = True
-            while running:
-                request = nc.fromJSONB(self.clientSocket.recv(1024))
-                if request is None:
-                    running = False
-                    break
-                response = self.processMessage(request)
-                if isinstance(response, LocalAction):
-                    running = self.processLocal(response)
-                else:
-                    self.sendData(response)
+            try:
+                self.clientSocket.connect((self.host, self.port))
+                self.clientSocket.sendall(nc.toJSONB(Init()))
+                running = True
+                while running:
+                    request = nc.fromJSONB(self.clientSocket.recv(1024))
+                    if request is None:
+                        running = False
+                        break
+                    response = self.processMessage(request)
+                    if isinstance(response, LocalAction):
+                        running = self.processLocal(response)
+                    else:
+                        self.sendData(response)
+            except ConnectionRefusedError as e:
+                print(f"ERROR: unable to connect to {self.host}:{self.port}. Is server running?")
 
     def sendData(self, data):
         self.clientSocket.sendall(nc.toJSONB(data))
