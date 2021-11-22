@@ -4,15 +4,28 @@ import socket
 import sys
 import json
 from dataclasses import dataclass, field
+import enum
 
-initMsg = '{"key":"TADA","protocol":1}'
+import net_common as nc
+
+Mode = nc.Mode
+
+class Action(str, enum.Enum):
+    quit = 'quit'
+    unknown = 'unknown'
+
+@dataclass
+class Init(object):
+   app: str = "TADA"
+   key: str = "1234567890"
+   protocol: int = 1
 
 @dataclass
 class Login(object):
    login : list
 
 @dataclass
-class SendCmd(object):
+class Cmd(object):
     cmd: str
 
 @dataclass
@@ -26,51 +39,56 @@ class Client(object):
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.clientSocket:
-            self.clientSocket.connect((host, port))
-            self.clientSocket.sendall(bytes(initMsg, 'utf-8'))
+            self.clientSocket.connect((self.host, self.port))
+            self.clientSocket.sendall(nc.toJSONB(Init()))
             running = True
             while running:
-                jsonIn = str(self.clientSocket.recv(1024), 'utf-8')
-                if len(jsonIn) == 0:  running = False
-                data = json.loads(jsonIn)
-                response = self.processMessage(data)
+                request = nc.fromJSONB(self.clientSocket.recv(1024))
+                if request is None:
+                    running = False
+                    break
+                response = self.processMessage(request)
                 if isinstance(response, LocalAction):
                     running = self.processLocal(response)
                 else:
-                    self.sendResponse(response)
+                    self.sendData(response)
 
-    def sendResponse(self, response):
-        jsonOut = json.dumps(response, default=lambda o: o.__dict__)
-        self.clientSocket.sendall(bytes(jsonOut, 'utf-8'))
+    def sendData(self, data):
+        self.clientSocket.sendall(nc.toJSONB(data))
 
-    def processMessage(self, data):
-        request = data.get('request')
-        if request == 'login':
+    def processMessage(self, request):
+        if request['error'] > 0:
+            error_line = request['error_line']
+            print(f"ERROR: {error_line}")
+        for m in request['lines']:  print(m)
+        mode = request.get('mode')
+        if mode == Mode.login:
             user = input("user? ")
             if user != '': 
                 return Login(login=[user, "123"])
             else:
-                return LocalAction(action='quit')
-        elif request == 'cmd':
-            if data['error'] > 0:  print("ERROR:")
-            for m in data['lines']:  print(m)
+                return LocalAction(action=Action.quit)
+        elif mode == Mode.bye:
+            return LocalAction(action=Action.quit)
+        elif mode == Mode.cmd:
             text = input("> ")
-            if text == 'q':
-                return LocalAction(action='quit')
-            else:
-                return SendCmd(cmd=text)
+            return Cmd(cmd=text)
         else:
-            print(data)
-            return LocalAction(action='none')
+            print(request)
+            return LocalAction(action=Action.unknown)
 
     def processLocal(self, response):
         running = True
         if isinstance(response, LocalAction):
-            if response.action == 'quit':  running = False
+            if response.action == Action.quit:
+                running = False
+            elif response.action == Action.unknown:
+                print("unknown mode")
+                running = False
         return running
 
 if __name__ == "__main__":
-    host, port = "localhost", 5000
-    client = Client(host, port)
+    host = "localhost"
+    client = Client(host, nc.serverPort)
     client.start()
 
