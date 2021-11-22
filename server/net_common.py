@@ -3,6 +3,8 @@ import json
 import enum
 
 serverPort = 5000
+app = 'TADA'
+key = '1234567890'
 
 class K(str, enum.Enum):
     name = 'name'
@@ -10,6 +12,9 @@ class K(str, enum.Enum):
     password = 'password'
     money = 'money'
     room = 'room'
+    room_name = 'room_name'
+    health = 'health'
+    xp = 'xp'
 
 class Mode(str, enum.Enum):
     login = 'login'

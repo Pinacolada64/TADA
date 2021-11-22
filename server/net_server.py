@@ -18,7 +18,10 @@ roomsData = {
     'lr': {K.name: 'Lower Right', K.exits: {'n': 'ur', 'w': 'll'}},
 }
 usersData = {
-    'ryan': {K.password: 'swordfish', K.money: 1000, K.room: 'ul'},
+    'ryan': {K.password: 'swordfish', K.money: 1000, K.room: 'ul',
+            K.health: 100, K.xp: 0},
+    'core': {K.password: 'joshua', K.money: 10, K.room: 'ul',
+            K.health: 99, K.xp: 0},
 }
 
 compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West'}
@@ -40,11 +43,14 @@ class User(object):
     password: str
     money: int
     room: str
+    health: int
+    xp: int
 
 @dataclass
 class Message(object):
     lines: list
     mode: Mode = Mode.cmd
+    changes: dict = field(default_factory=lambda: {})
     error: int = 0
     error_line: str = ''
 
@@ -55,12 +61,12 @@ for id, info in roomsData.items():
 users = {}
 for name, info in usersData.items():
     user = User(name=name, password=info[K.password], money=info[K.money],
-            room=info[K.room])
+            room=info[K.room], health=info[K.health], xp=info[K.xp])
     users[name] = user
 
 class PlayerServer(socketserver.BaseRequestHandler):
     def handle(self):
-        self.sender = self.client_address[0]
+        self.sender = f"{self.client_address[0]}:{self.client_address[1]}"
         self.ready = None
         self.user = None
         print(f"connect (addr={self.sender})")
@@ -76,7 +82,8 @@ class PlayerServer(socketserver.BaseRequestHandler):
                 except Exception as e:
                     print(e)
                     self.sendData(Message(lines=["server side error"], error=1))
-                self.sendData(response)
+                if response is None:  running = False
+                else:  self.sendData(response)
             except:
                 print("WARNING: ignore malformed JSON")
                 self.sendData(Message(lines=["malformed JSON"], error=1))
@@ -85,25 +92,27 @@ class PlayerServer(socketserver.BaseRequestHandler):
     def sendData(self, data):
         self.request.sendall(nc.toJSONB(data))
 
-    def roomMsg(self, lines=[]):
+    def roomMsg(self, lines=[], changes={}):
         room = rooms[self.user.room]
         room_name = room.name
         exitsTxt = room.exitsTxt()
         lines2 = list(lines)
         lines2.append(f"You are in {room_name} with exits to {exitsTxt}")
-        return Message(lines=lines2)
+        return Message(lines=lines2, changes=changes)
 
     def processMessage(self, data):
         if self.ready is None:  # assume init message
-            if 'app' in data:
-                if data['app'] == 'TADA':
-                    #TODO: verify key is expected and protocol match
+            app = data.get('app')
+            if app == nc.app:
+                key = data.get('key')
+                if key == nc.key:
+                    #TODO: handle protocol difference
                     self.ready = True
-                    return Message(lines=['Welcome!', 'Please log in.'], mode=Mode.login)
+                    return Message(lines=['TADA!', 'Please log in.'], mode=Mode.login)
                 else:
-                    return {'eol'} # poser, ignore them
+                    return None # poser, ignore them
             else:
-                return {'eol'} # poser, ignore them
+                return None # poser, ignore them
         if self.user is None:
             user_id, password = data['login']
             if user_id not in users:
@@ -116,7 +125,10 @@ class PlayerServer(socketserver.BaseRequestHandler):
                 print(f"login {self.user.name} (addr={self.sender})")
                 money = self.user.money
                 lines = [f"Welcome {self.user.name}.", f"You have {money} gold."]
-                return self.roomMsg(lines)
+                changes = {K.room_name: rooms[self.user.room].name,
+                        K.money: money, K.health: self.user.health,
+                        K.xp: self.user.xp}
+                return self.roomMsg(lines, changes)
         if 'cmd' in data:
             cmd = data['cmd'].split(' ')
             #TODO: handle all commands (would be more sophisticated, e.g. proper parser)
@@ -127,9 +139,10 @@ class PlayerServer(socketserver.BaseRequestHandler):
                 room = rooms[self.user.room]
                 if direction in room.exits:
                     self.user.room = room.exits[direction]
+                    room_name = rooms[self.user.room].name
+                    return self.roomMsg(changes={'room_name': room_name})
                 else:
                     return Message(lines=["You cannot go that direction."])
-                return self.roomMsg()
             if cmd[0] in ['look']:
                 return self.roomMsg()
             if cmd[0] in ['bye', 'logout']:

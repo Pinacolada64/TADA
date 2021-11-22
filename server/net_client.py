@@ -8,6 +8,7 @@ import enum
 
 import net_common as nc
 
+K = nc.K
 Mode = nc.Mode
 
 class Action(str, enum.Enum):
@@ -16,8 +17,8 @@ class Action(str, enum.Enum):
 
 @dataclass
 class Init(object):
-   app: str = "TADA"
-   key: str = "1234567890"
+   app: str = nc.app
+   key: str = nc.key
    protocol: int = 1
 
 @dataclass
@@ -36,22 +37,26 @@ class Client(object):
     def __init__(self, host, port):
         self.host = host
         self.port = port
+        self.status = {K.room_name: '', K.money: 0, K.health: 0, K.xp: 0}
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.clientSocket:
-            self.clientSocket.connect((self.host, self.port))
-            self.clientSocket.sendall(nc.toJSONB(Init()))
-            running = True
-            while running:
-                request = nc.fromJSONB(self.clientSocket.recv(1024))
-                if request is None:
-                    running = False
-                    break
-                response = self.processMessage(request)
-                if isinstance(response, LocalAction):
-                    running = self.processLocal(response)
-                else:
-                    self.sendData(response)
+            try:
+                self.clientSocket.connect((self.host, self.port))
+                self.clientSocket.sendall(nc.toJSONB(Init()))
+                running = True
+                while running:
+                    request = nc.fromJSONB(self.clientSocket.recv(1024))
+                    if request is None:
+                        running = False
+                        break
+                    response = self.processMessage(request)
+                    if isinstance(response, LocalAction):
+                        running = self.processLocal(response)
+                    else:
+                        self.sendData(response)
+            except ConnectionRefusedError as e:
+                print(f"ERROR: unable to connect to {self.host}:{self.port}. Is server running?")
 
     def sendData(self, data):
         self.clientSocket.sendall(nc.toJSONB(data))
@@ -60,8 +65,13 @@ class Client(object):
         if request['error'] > 0:
             error_line = request['error_line']
             print(f"ERROR: {error_line}")
-        for m in request['lines']:  print(m)
+        for f in [K.room_name, K.money, K.health, K.xp]:
+            v = request.get('changes', {}).get(f)
+            if v:  self.status[f] = v
         mode = request.get('mode')
+        if mode == Mode.cmd:
+            print(f"---< {self.status[K.room_name]} | health {self.status[K.health]} | xp {self.status[K.xp]} | {self.status[K.money]} gold >---")
+        for m in request['lines']:  print(m)
         if mode == Mode.login:
             user = input("user? ")
             if user != '': 
