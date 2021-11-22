@@ -8,6 +8,7 @@ import enum
 
 import net_common as nc
 
+K = nc.K
 Mode = nc.Mode
 
 class Action(str, enum.Enum):
@@ -36,6 +37,7 @@ class Client(object):
     def __init__(self, host, port):
         self.host = host
         self.port = port
+        self.status = {K.room_name: '', K.money: 0, K.health: 0, K.xp: 0}
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.clientSocket:
@@ -60,8 +62,13 @@ class Client(object):
         if request['error'] > 0:
             error_line = request['error_line']
             print(f"ERROR: {error_line}")
-        for m in request['lines']:  print(m)
+        for f in [K.room_name, K.money, K.health, K.xp]:
+            v = request.get('changes', {}).get(f)
+            if v:  self.status[f] = v
         mode = request.get('mode')
+        if mode == Mode.cmd:
+            print(f"---< {self.status[K.room_name]} | health {self.status[K.health]} | xp {self.status[K.xp]} | {self.status[K.money]} gold >---")
+        for m in request['lines']:  print(m)
         if mode == Mode.login:
             user = input("user? ")
             if user != '': 

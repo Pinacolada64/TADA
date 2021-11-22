@@ -10,6 +10,9 @@ class K(str, enum.Enum):
     password = 'password'
     money = 'money'
     room = 'room'
+    room_name = 'room_name'
+    health = 'health'
+    xp = 'xp'
 
 class Mode(str, enum.Enum):
     login = 'login'
