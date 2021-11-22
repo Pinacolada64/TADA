@@ -17,8 +17,8 @@ class Action(str, enum.Enum):
 
 @dataclass
 class Init(object):
-   app: str = "TADA"
-   key: str = "1234567890"
+   app: str = nc.app
+   key: str = nc.key
    protocol: int = 1
 
 @dataclass

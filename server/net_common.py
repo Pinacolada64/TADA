@@ -3,6 +3,8 @@ import json
 import enum
 
 serverPort = 5000
+app = 'TADA'
+key = '1234567890'
 
 class K(str, enum.Enum):
     name = 'name'

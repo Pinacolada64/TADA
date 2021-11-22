@@ -82,7 +82,8 @@ class PlayerServer(socketserver.BaseRequestHandler):
                 except Exception as e:
                     print(e)
                     self.sendData(Message(lines=["server side error"], error=1))
-                self.sendData(response)
+                if response is None:  running = False
+                else:  self.sendData(response)
             except:
                 print("WARNING: ignore malformed JSON")
                 self.sendData(Message(lines=["malformed JSON"], error=1))
@@ -101,15 +102,17 @@ class PlayerServer(socketserver.BaseRequestHandler):
 
     def processMessage(self, data):
         if self.ready is None:  # assume init message
-            if 'app' in data:
-                if data['app'] == 'TADA':
-                    #TODO: verify key is expected and protocol match
+            app = data.get('app')
+            if app == nc.app:
+                key = data.get('key')
+                if key == nc.key:
+                    #TODO: handle protocol difference
                     self.ready = True
                     return Message(lines=['TADA!', 'Please log in.'], mode=Mode.login)
                 else:
-                    return {'eol'} # poser, ignore them
+                    return None # poser, ignore them
             else:
-                return {'eol'} # poser, ignore them
+                return None # poser, ignore them
         if self.user is None:
             user_id, password = data['login']
             if user_id not in users:
