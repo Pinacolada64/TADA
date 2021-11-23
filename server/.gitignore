@@ -1,2 +1,4 @@
 # ignore generated files
 __pycache__/
+run/
+

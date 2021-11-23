@@ -43,6 +43,7 @@ class Client(object):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.clientSocket:
             try:
                 self.clientSocket.connect((self.host, self.port))
+                print(f"client connected ({self.host}:{self.port})")
                 self.clientSocket.sendall(nc.toJSONB(Init()))
                 running = True
                 while running:
@@ -74,10 +75,8 @@ class Client(object):
         for m in request['lines']:  print(m)
         if mode == Mode.login:
             user = input("user? ")
-            if user != '': 
-                return Login(login=[user, "123"])
-            else:
-                return LocalAction(action=Action.quit)
+            password = input("password? ")
+            return Login(login=[user, password])
         elif mode == Mode.bye:
             return LocalAction(action=Action.quit)
         elif mode == Mode.cmd:
