@@ -1,4 +1,5 @@
 
+import os
 import json
 import enum
 
@@ -33,4 +34,9 @@ def fromJSONB(bytes):
         return json.loads(json_in)
     except:
         return None
+
+def makeDirs(dir):
+    """make directory path if doesn't exist"""
+    if not os.path.exists(dir):
+        os.makedirs(dir)
 
