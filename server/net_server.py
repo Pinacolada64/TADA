@@ -1,50 +1,34 @@
 #!/bin/env python3
 
+import os
 import socketserver
 import json
 from dataclasses import dataclass, field
+from typing import ClassVar
 import enum
 
 import net_common as nc
+import util
 
 K = nc.K
 Mode = nc.Mode
 
-# fake data 
-roomsData = {
-    'ul': {K.name: 'Upper Left',  K.exits: {'s': 'll', 'e': 'ur'}},
-    'ur': {K.name: 'Upper Right', K.exits: {'s': 'lr', 'w': 'ul'}},
-    'll': {K.name: 'Lower Left',  K.exits: {'n': 'ul', 'e': 'lr'}},
-    'lr': {K.name: 'Lower Right', K.exits: {'n': 'ur', 'w': 'll'}},
-}
-usersData = {
-    'ryan': {K.password: 'swordfish', K.money: 1000, K.room: 'ul',
-            K.health: 100, K.xp: 0},
-    'core': {K.password: 'joshua', K.money: 10, K.room: 'ul',
-            K.health: 99, K.xp: 0},
-}
-
-compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West'}
-
-@dataclass
-class Room(object):
-    name: str
-    exits: dict
-
-    def exitsTxt(self): 
-        exit_txts = []
-        for k in self.exits.keys():
-            if k in compass_txts:  exit_txts.append(compass_txts[k])
-        return ", ".join(exit_txts)
+server_id = None
+server_key = None
+server_protocol = None
+net_dir = 'run/net'
 
 @dataclass
 class User(object):
     name: str
     password: str
-    money: int
-    room: str
-    health: int
-    xp: int
+
+usersData = {
+    'ryan': {K.password: 'swordfish'},
+    'core': {K.password: 'joshua'},
+    'jam': {K.password: 'halt'},
+    'x': {K.password: 'x'},
+}
 
 @dataclass
 class Message(object):
@@ -54,19 +38,76 @@ class Message(object):
     error: int = 0
     error_line: str = ''
 
-rooms = {}
-for id, info in roomsData.items():
-    room = Room(name=info[K.name], exits=info[K.exits])
-    rooms[id] = room
 users = {}
 for name, info in usersData.items():
-    user = User(name=name, password=info[K.password], money=info[K.money],
-            room=info[K.room], health=info[K.health], xp=info[K.xp])
+    user = User(name=name, password=info[K.password])
     users[name] = user
 
-class PlayerServer(socketserver.BaseRequestHandler):
+@dataclass
+class LoginHistory(object):
+    addr: str
+    no_user_attempts: dict = field(default_factory=lambda: {})
+    bad_password_attempts: dict = field(default_factory=lambda: {})
+    fail_count: int = 0
+    ban_count: int = 0
+
+    _fail_limit: ClassVar[int] = 10
+
+    def banned(self, update, save=False):
+        is_banned = self.fail_count >= LoginHistory._fail_limit
+        if is_banned and update:
+            self.ban_count += 1
+            if save:  self.save()
+        return is_banned
+
+    def noUser(self, user_id, save=False):
+        self.fail_count += 1
+        attempts = self.no_user_attempts.get(user_id, 0)
+        self.no_user_attempts[user_id] = attempts + 1
+        if save:  self.save()
+        return self.banned(True, save=save)
+
+    def failPassword(self, user_id, save=False):
+        self.fail_count += 1
+        attempts = self.bad_password_attempts.get(user_id, 0)
+        self.bad_password_attempts[user_id] = attempts + 1
+        if save:  self.save()
+        return self.banned(True, save=save)
+
+    def succeedUser(self, user_id, save=False):
+        self.fail_count = 0
+        if user_id in self.bad_password_attempts:
+            self.bad_password_attempts.pop(user_id)
+        if save:  self.save()
+
+    @staticmethod
+    def _json_path(addr):
+        return os.path.join(net_dir, f"client-{addr}.json")
+
+    @staticmethod
+    def load(addr):
+        path = LoginHistory._json_path(addr)
+        if os.path.exists(path):
+            with open(path) as jsonF:
+                lh_data = json.load(jsonF)
+            return LoginHistory(**lh_data)
+        else:
+            return LoginHistory(addr)
+
+    def save(self):
+        with open(LoginHistory._json_path(self.addr), 'w') as jsonF:
+            json.dump(self, jsonF, default=lambda o: {k: v for k, v
+                    in o.__dict__.items() if v}, indent=4)
+
+class UserHandler(socketserver.BaseRequestHandler):
     def handle(self):
-        self.sender = f"{self.client_address[0]}:{self.client_address[1]}"
+        addr = self.client_address[0]
+        self.login_history = LoginHistory.load(addr)
+        if self.login_history.banned(True, save=True):
+            print(f"ignoring banned {addr}")
+            return
+        port = self.client_address[1]
+        self.sender = f"{addr}:{port}"
         self.ready = None
         self.user = None
         print(f"connect (addr={self.sender})")
@@ -78,86 +119,115 @@ class PlayerServer(socketserver.BaseRequestHandler):
                     running = False
                     break
                 try:
-                    response = self.processMessage(request)
+                    if self.ready is None:  # assume init message
+                        response = self._processInit(request)
+                    elif self.user is None:
+                        response = self._processLogin(request)
+                    else:
+                        response = self.processMessage(request)
                 except Exception as e:
-                    print(e)
-                    self.sendData(Message(lines=["server side error"], error=1))
+                    print(f"{e=}")
+                    #TODO: log error with message, error code to client
+                    self._sendData(Message(lines=["Terminating session."],
+                            error_line="server side error",
+                            error=1, mode=Mode.bye))
                 if response is None:  running = False
-                else:  self.sendData(response)
-            except:
-                print("WARNING: ignore malformed JSON")
-                self.sendData(Message(lines=["malformed JSON"], error=1))
-        print(f"disconnect {self.user.name} (addr={self.sender})")
+                else:  self._sendData(response)
+            except Exception as e:
+                print(f"{e=}")
+                #TODO: log error with message, error code to client
+                self._sendData(Message(lines=["Terminating session."],
+                        error_line="server side error",
+                        error=2, mode=Mode.bye))
+        user_id = self.user.name if self.user is not None else '?'
+        print(f"disconnect {user_id} (addr={self.sender})")
 
-    def sendData(self, data):
+    def _sendData(self, data):
         self.request.sendall(nc.toJSONB(data))
 
-    def roomMsg(self, lines=[], changes={}):
-        room = rooms[self.user.room]
-        room_name = room.name
-        exitsTxt = room.exitsTxt()
-        lines2 = list(lines)
-        lines2.append(f"You are in {room_name} with exits to {exitsTxt}")
-        return Message(lines=lines2, changes=changes)
+    def _processInit(self, data):
+        client_id = data.get('id')
+        if client_id == server_id:
+            client_key = data.get('key')
+            if client_key == server_key:
+                #TODO: handle protocol difference
+                self.ready = True
+                return Message(lines=self.initSucessLines(), mode=Mode.login)
+            else:
+                #TODO: record history in case want to ban
+                return None # poser, ignore them
+        else:
+            #TODO: record history in case want to ban
+            return None # poser, ignore them
+
+    def _processLogin(self, data):
+        user_id, password = data['login']
+        if user_id == '':
+            return Message(lines=['User name required.'],
+                    error_line='No user name.',
+                    error=3, mode=Mode.bye)
+        def errorBan():
+            return Message(lines=[],
+                    error_line='Too many failed attempts.',
+                    error=4, mode=Mode.bye)
+        def errorLoginFailed():
+            return Message(lines=self.loginFailLines(),
+                    error_line='Login failed.',
+                    error=5, mode=Mode.login)
+        if user_id not in users:
+            print(f"WARN: no user '{user_id}'")
+            # when failing don't tell that have wrong user id
+            banned = self.login_history.noUser(user_id, save=True)
+            if banned:
+                print(f"ban {self.sender}")
+                return errorBan() 
+            return errorLoginFailed()
+        else:
+            if password != users[user_id].password:
+                print(f"WARN: bad password '{user_id}' '{password}'")
+                banned = self.login_history.failPassword(user_id, save=True)
+                if banned:
+                    print(f"ban {self.sender}")
+                    return errorBan() 
+                return errorLoginFailed()
+            self.user = users[user_id]
+            self.login_history.succeedUser(user_id, save=True)
+            return self.processLoginSuccess(user_id)
+
+    def initSucessLines(self):
+        """OVERRIDE THIS in subclass"""
+        return ['Generic Server.', 'Please log in.']
+
+    def loginFailLines(self):
+        """OVERRIDE THIS in subclass"""
+        return ['please try again.']
+
+    def processLoginSuccess(self, user_id):
+        """OVERRIDE THIS in subclass"""
+        return Message(lines=[f"Welcome {user_id}."])
 
     def processMessage(self, data):
-        if self.ready is None:  # assume init message
-            app = data.get('app')
-            if app == nc.app:
-                key = data.get('key')
-                if key == nc.key:
-                    #TODO: handle protocol difference
-                    self.ready = True
-                    return Message(lines=['TADA!', 'Please log in.'], mode=Mode.login)
-                else:
-                    return None # poser, ignore them
-            else:
-                return None # poser, ignore them
-        if self.user is None:
-            user_id, password = data['login']
-            if user_id not in users:
-                #TODO: check password
-                # when failing don't tell that have wrong user id
-                return Message(error_line='Login failed.', error=1,
-                        lines=['please try again.'], mode=Mode.login)
-            else:
-                self.user = users[user_id]
-                print(f"login {self.user.name} (addr={self.sender})")
-                money = self.user.money
-                lines = [f"Welcome {self.user.name}.", f"You have {money} gold."]
-                changes = {K.room_name: rooms[self.user.room].name,
-                        K.money: money, K.health: self.user.health,
-                        K.xp: self.user.xp}
-                return self.roomMsg(lines, changes)
+        """OVERRIDE THIS in subclass"""
         if 'cmd' in data:
             cmd = data['cmd'].split(' ')
-            #TODO: handle all commands (would be more sophisticated, e.g. proper parser)
-            if cmd[0] in compass_txts:  cmd.insert(0, 'go')
-            print(f"{cmd}")
-            if cmd[0] in ['g', 'go']:
-                direction = cmd[1]
-                room = rooms[self.user.room]
-                if direction in room.exits:
-                    self.user.room = room.exits[direction]
-                    room_name = rooms[self.user.room].name
-                    return self.roomMsg(changes={'room_name': room_name})
-                else:
-                    return Message(lines=["You cannot go that direction."])
-            if cmd[0] in ['look']:
-                return self.roomMsg()
             if cmd[0] in ['bye', 'logout']:
-                return Message(lines=["Bye for now."], mode=Mode.bye)
-            if cmd[0] in ['help', 'cheatcode']:
-                return Message(lines=["Wouldn't that be nice."])
+                return Message(lines=["Goodbye."], mode=Mode.bye)
             else:
-                return Message(lines=["I didn't understand that.  Try something else."])
+                return Message(lines=["Unknown command."])
 
-def startServer(host, port):
-    with socketserver.TCPServer((host, port), PlayerServer) as server:
-        print(f"server running ({host=}, {port=})")
+def start(host, port, id, key, protocol, handler_class):
+    global server_id, server_key, server_protocol
+    server_id = id
+    server_key = key
+    server_protocol = protocol
+    util.makeDirs(net_dir)
+    with socketserver.TCPServer((host, port), handler_class) as server:
+        print(f"server running ({host}:{port})")
         server.serve_forever()
 
 if __name__ == "__main__":
+    """a test of the stub net server"""
     host = "localhost"
-    startServer(host, nc.serverPort)
+    start(host, nc.Test.server_port, nc.Test.id, nc.Test.key, nc.Test.protocol,
+            UserHandler)
 

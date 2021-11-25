@@ -2,19 +2,8 @@
 import json
 import enum
 
-serverPort = 5000
-app = 'TADA'
-key = '1234567890'
-
 class K(str, enum.Enum):
-    name = 'name'
-    exits = 'exits'
     password = 'password'
-    money = 'money'
-    room = 'room'
-    room_name = 'room_name'
-    health = 'health'
-    xp = 'xp'
 
 class Mode(str, enum.Enum):
     login = 'login'
@@ -33,4 +22,10 @@ def fromJSONB(bytes):
         return json.loads(json_in)
     except:
         return None
+
+class Test(object):
+    server_port = 5001
+    id = 'testing'
+    key = '999999999'
+    protocol = 1
 
