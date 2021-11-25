@@ -14,7 +14,7 @@ class Client(net_client.Client):
         if request['error'] > 0:
             error_code = request['error']
             error_line = request['error_line']
-            print(f"ERROR: {error_code} - {error_line}")
+            print(f"ERROR: {error_line} ({error_code})")
         for f in [K.room_name, K.money, K.health, K.xp]:
             v = request.get('changes', {}).get(f)
             if v:  self.status[f] = v

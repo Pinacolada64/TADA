@@ -60,7 +60,7 @@ class Client(object):
         if request['error'] > 0:
             error_code = request['error']
             error_line = request['error_line']
-            print(f"ERROR: {error_code} - {error_line}")
+            print(f"ERROR: {error_line} ({error_code})")
         for m in request['lines']:  print(m)
 
     def _processMode(self, request):
