@@ -8,49 +8,26 @@ from typing import ClassVar
 import enum
 
 import net_common as nc
+import util
 
 K = nc.K
 Mode = nc.Mode
 
-run_dir = 'run'
-
-# fake data 
-roomsData = {
-    'ul': {K.name: 'Upper Left',  K.exits: {'s': 'll', 'e': 'ur'}},
-    'ur': {K.name: 'Upper Right', K.exits: {'s': 'lr', 'w': 'ul'}},
-    'll': {K.name: 'Lower Left',  K.exits: {'n': 'ul', 'e': 'lr'}},
-    'lr': {K.name: 'Lower Right', K.exits: {'n': 'ur', 'w': 'll'}},
-}
-usersData = {
-    'ryan': {K.password: 'swordfish', K.money: 1000, K.room: 'ul',
-            K.health: 100, K.xp: 0},
-    'core': {K.password: 'joshua', K.money: 10, K.room: 'ul',
-            K.health: 99, K.xp: 0},
-    'x': {K.password: 'x', K.money: 1, K.room: 'ul',
-            K.health: 2, K.xp: 3},
-}
-
-compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West'}
-
-@dataclass
-class Room(object):
-    name: str
-    exits: dict
-
-    def exitsTxt(self): 
-        exit_txts = []
-        for k in self.exits.keys():
-            if k in compass_txts:  exit_txts.append(compass_txts[k])
-        return ", ".join(exit_txts)
+server_id = None
+server_key = None
+server_protocol = None
+net_dir = 'run/net'
 
 @dataclass
 class User(object):
     name: str
     password: str
-    money: int
-    room: str
-    health: int
-    xp: int
+
+usersData = {
+    'ryan': {K.password: 'swordfish'},
+    'core': {K.password: 'joshua'},
+    'x': {K.password: 'x'},
+}
 
 @dataclass
 class Message(object):
@@ -60,14 +37,9 @@ class Message(object):
     error: int = 0
     error_line: str = ''
 
-rooms = {}
-for id, info in roomsData.items():
-    room = Room(name=info[K.name], exits=info[K.exits])
-    rooms[id] = room
 users = {}
 for name, info in usersData.items():
-    user = User(name=name, password=info[K.password], money=info[K.money],
-            room=info[K.room], health=info[K.health], xp=info[K.xp])
+    user = User(name=name, password=info[K.password])
     users[name] = user
 
 @dataclass
@@ -109,7 +81,7 @@ class LoginHistory(object):
 
     @staticmethod
     def _json_path(addr):
-        return os.path.join(run_dir, f"client-{addr}.json")
+        return os.path.join(net_dir, f"client-{addr}.json")
 
     @staticmethod
     def load(addr):
@@ -125,8 +97,8 @@ class LoginHistory(object):
         with open(LoginHistory._json_path(self.addr), 'w') as jsonF:
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
                     in o.__dict__.items() if v}, indent=4)
-            
-class PlayerServer(socketserver.BaseRequestHandler):
+
+class UserHandler(socketserver.BaseRequestHandler):
     def handle(self):
         addr = self.client_address[0]
         self.login_history = LoginHistory.load(addr)
@@ -159,6 +131,7 @@ class PlayerServer(socketserver.BaseRequestHandler):
                 if response is None:  running = False
                 else:  self._sendData(response)
             except Exception as e:
+                print(e)
                 print(f"WARNING: ignore malformed JSON: {e}")
                 self._sendData(Message(lines=["malformed JSON"], error=1,
                         mode=Mode.bye))
@@ -169,10 +142,10 @@ class PlayerServer(socketserver.BaseRequestHandler):
         self.request.sendall(nc.toJSONB(data))
 
     def _processInit(self, data):
-        app = data.get('app')
-        if app == nc.app:
-            key = data.get('key')
-            if key == nc.key:
+        client_id = data.get('id')
+        if client_id == server_id:
+            client_key = data.get('key')
+            if client_key == server_key:
                 #TODO: handle protocol difference
                 self.ready = True
                 return Message(lines=self.initSucessLines(), mode=Mode.login)
@@ -205,69 +178,44 @@ class PlayerServer(socketserver.BaseRequestHandler):
                             error=1, lines=[], mode=Mode.bye)
                 return Message(error_line='Login failed.', error=1,
                         lines=self.loginFailLines, mode=Mode.login)
+            self.user = users[user_id]
             self.login_history.succeedUser(user_id, save=True)
             return self.processLoginSuccess(user_id)
 
-    ### TADA specific methods
-
     def initSucessLines(self):
-        return ['TADA!', 'Please log in.']
+        """OVERRIDE THIS in subclass"""
+        return ['Generic Server.', 'Please log in.']
 
     def loginFailLines(self):
+        """OVERRIDE THIS in subclass"""
         return ['please try again.']
 
-    def roomMsg(self, lines=[], changes={}):
-        room = rooms[self.user.room]
-        room_name = room.name
-        exitsTxt = room.exitsTxt()
-        lines2 = list(lines)
-        lines2.append(f"You are in {room_name} with exits to {exitsTxt}")
-        return Message(lines=lines2, changes=changes)
-
     def processLoginSuccess(self, user_id):
-        self.user = users[user_id]
-        print(f"login {self.user.name} (addr={self.sender})")
-        money = self.user.money
-        lines = [f"Welcome {self.user.name}.", f"You have {money} gold."]
-        changes = {K.room_name: rooms[self.user.room].name,
-                K.money: money, K.health: self.user.health,
-                K.xp: self.user.xp}
-        return self.roomMsg(lines, changes)
+        """OVERRIDE THIS in subclass"""
+        return Message(lines=['Welcome.'])
 
     def processMessage(self, data):
+        """OVERRIDE THIS in subclass"""
         if 'cmd' in data:
             cmd = data['cmd'].split(' ')
-            print(f"{cmd=}")
-            #TODO: handle commands with parser etc.
-            if cmd[0] in compass_txts:  cmd.insert(0, 'go')
-            if cmd[0] in ['g', 'go']:
-                direction = cmd[1]
-                room = rooms[self.user.room]
-                if direction in room.exits:
-                    self.user.room = room.exits[direction]
-                    room_name = rooms[self.user.room].name
-                    return self.roomMsg(changes={'room_name': room_name})
-                else:
-                    return Message(lines=["You cannot go that direction."])
-            if cmd[0] in ['look']:
-                return self.roomMsg()
             if cmd[0] in ['bye', 'logout']:
-                return Message(lines=["Bye for now."], mode=Mode.bye)
-            if cmd[0] in ['help', 'cheatcode']:
-                return Message(lines=["Wouldn't that be nice."])
+                return Message(lines=["Goodbye."], mode=Mode.bye)
             else:
-                return Message(lines=["I didn't understand that.  Try something else."])
-        else:
-            print("ERROR: unexpected message")
-            return Message(lines=["Unexpected message."], mode=Mode.bye)
+                return Message(lines=["Unknown command."])
 
-def startServer(host, port):
-    nc.makeDirs(run_dir)
-    with socketserver.TCPServer((host, port), PlayerServer) as server:
+def start(host, port, id, key, protocol, handler_class):
+    global server_id, server_key, server_protocol
+    server_id = id
+    server_key = key
+    server_protocol = protocol
+    util.makeDirs(net_dir)
+    with socketserver.TCPServer((host, port), handler_class) as server:
         print(f"server running ({host}:{port})")
         server.serve_forever()
 
 if __name__ == "__main__":
+    """a test of the stub net server"""
     host = "localhost"
-    startServer(host, nc.serverPort)
+    start(host, nc.Test.server_port, nc.Test.id, nc.Test.key, nc.Test.protocol,
+            UserHandler)
 
