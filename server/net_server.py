@@ -1,6 +1,7 @@
 #!/bin/env python3
 
 import os
+import threading
 import socketserver
 import json
 from dataclasses import dataclass, field
@@ -98,6 +99,9 @@ class LoginHistory(object):
         with open(LoginHistory._json_path(self.addr), 'w') as jsonF:
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
                     in o.__dict__.items() if v}, indent=4)
+
+class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    pass
 
 class UserHandler(socketserver.BaseRequestHandler):
     def handle(self):
@@ -234,13 +238,22 @@ def start(host, port, id, key, protocol, handler_class):
     server_key = key
     server_protocol = protocol
     util.makeDirs(net_dir)
-    with socketserver.TCPServer((host, port), handler_class) as server:
+    with Server((host, port), handler_class) as server:
         print(f"server running ({host}:{port})")
-        server.serve_forever()
+        server_thread = threading.Thread(target=server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
+        running = True
+        while running:
+            text = input()
+            if text in ['q', 'quit', 'exit']:
+                running = False
+        server.shutdown()
+        print('shutdown.')
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     """a test of the stub net server"""
-    host = "localhost"
+    host = 'localhost'
     start(host, nc.Test.server_port, nc.Test.id, nc.Test.key, nc.Test.protocol,
             UserHandler)
 
