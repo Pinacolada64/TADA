@@ -29,10 +29,6 @@ class Login(object):
 class Cmd(object):
     cmd: str
 
-@dataclass
-class LocalAction(object):
-    action: str
-
 class Client(object):
     def start(self, host, port, id, key, protocol):
         self.host = host
@@ -43,19 +39,19 @@ class Client(object):
                 self.clientSocket.connect((self.host, self.port))
                 print(f"client connected ({self.host}:{self.port})")
                 self.clientSocket.sendall(nc.toJSONB(Init(**init_params)))
-                running = True
-                while running:
+                self.active = True
+                while self.active:
                     request = nc.fromJSONB(self.clientSocket.recv(1024))
                     if request is None:
-                        running = False
+                        print('no request.')
+                        self.active = False
                         break
                     response = self._processMode(request)
-                    if isinstance(response, LocalAction):
-                        running = self.processLocal(response)
-                    else:
+                    if response is not None:
                         self._sendData(response)
             except ConnectionRefusedError as e:
                 print(f"ERROR: unable to connect to {self.host}:{self.port}. Is server running?")
+        print('exiting.')
 
     def _sendData(self, data):
         self.clientSocket.sendall(nc.toJSONB(data))
@@ -76,23 +72,16 @@ class Client(object):
             return Login(login=[user, password])
         elif mode == Mode.bye:
             self._printCommon(request)
-            return LocalAction(action=Action.quit)
+            print('server said bye.')
+            self.active = False
+            return None
         elif mode == Mode.cmd:
             return self.nextCmd(request)
         else:
-            print(request)
             self._printCommon(request)
-            return LocalAction(action=Action.unknown)
-
-    def processLocal(self, response):
-        running = True
-        if isinstance(response, LocalAction):
-            if response.action == Action.quit:
-                running = False
-            elif response.action == Action.unknown:
-                print("unknown mode")
-                running = False
-        return running
+            print('unexpected request.')
+            self.active = False
+            return None
 
     def nextCmd(self, request):
         """OVERRIDE THIS in subclass"""
