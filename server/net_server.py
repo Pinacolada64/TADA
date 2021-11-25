@@ -1,6 +1,9 @@
 #!/bin/env python3
 
+import sys
 import os
+import traceback
+import threading
 import socketserver
 import json
 from dataclasses import dataclass, field
@@ -17,18 +20,19 @@ server_id = None
 server_key = None
 server_protocol = None
 net_dir = 'run/net'
+server_lock = threading.Lock()
 
 @dataclass
 class User(object):
-    name: str
+    id: str
     password: str
 
-usersData = {
-    'ryan': {K.password: 'swordfish'},
-    'core': {K.password: 'joshua'},
-    'jam': {K.password: 'halt'},
-    'x': {K.password: 'x'},
-}
+usersData = [
+    {K.id: 'ryan', K.password: 'swordfish'},
+    {K.id: 'core', K.password: 'joshua'},
+    {K.id: 'jam',  K.password: 'halt'},
+    {K.id: 'x',    K.password: 'x'},
+]
 
 @dataclass
 class Message(object):
@@ -39,9 +43,10 @@ class Message(object):
     error_line: str = ''
 
 users = {}
-for name, info in usersData.items():
-    user = User(name=name, password=info[K.password])
-    users[name] = user
+for info in usersData:
+    user = User(id=info[K.id], password=info[K.password])
+    users[info[K.id]] = user
+connected_users = set()
 
 @dataclass
 class LoginHistory(object):
@@ -99,6 +104,9 @@ class LoginHistory(object):
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
                     in o.__dict__.items() if v}, indent=4)
 
+class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    pass
+
 class UserHandler(socketserver.BaseRequestHandler):
     def handle(self):
         addr = self.client_address[0]
@@ -126,7 +134,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                     else:
                         response = self.processMessage(request)
                 except Exception as e:
-                    print(f"{e=}")
+                    traceback.print_exc(file=sys.stdout)
                     #TODO: log error with message, error code to client
                     self._sendData(Message(lines=["Terminating session."],
                             error_line="server side error",
@@ -134,12 +142,17 @@ class UserHandler(socketserver.BaseRequestHandler):
                 if response is None:  running = False
                 else:  self._sendData(response)
             except Exception as e:
-                print(f"{e=}")
+                traceback.print_exc(file=sys.stdout)
                 #TODO: log error with message, error code to client
                 self._sendData(Message(lines=["Terminating session."],
                         error_line="server side error",
                         error=2, mode=Mode.bye))
-        user_id = self.user.name if self.user is not None else '?'
+        if self.user is not None:
+            user_id = self.user.id
+            with server_lock:
+                connected_users.remove(user_id)
+        else:
+            user_id = '?'
         print(f"disconnect {user_id} (addr={self.sender})")
 
     def _sendData(self, data):
@@ -183,6 +196,11 @@ class UserHandler(socketserver.BaseRequestHandler):
                 return errorBan() 
             return errorLoginFailed()
         else:
+            with server_lock:
+                if user_id in connected_users:
+                    return Message(lines=['One connection allowed at a time.'],
+                            error_line='Multiple connections.',
+                            error=6, mode=Mode.bye)
             if password != users[user_id].password:
                 print(f"WARN: bad password '{user_id}' '{password}'")
                 banned = self.login_history.failPassword(user_id, save=True)
@@ -191,23 +209,38 @@ class UserHandler(socketserver.BaseRequestHandler):
                     return errorBan() 
                 return errorLoginFailed()
             self.user = users[user_id]
+            with server_lock:
+                connected_users.add(user_id)
             self.login_history.succeedUser(user_id, save=True)
             return self.processLoginSuccess(user_id)
 
+    # base implementation for when testing net_client/net_server
+    # NOTE: must be overridden by actual app (see client/server)
+
     def initSucessLines(self):
-        """OVERRIDE THIS in subclass"""
+        """OVERRIDE in subclass
+        First server message lines that user sees.  Should tell them to log in.
+        """
         return ['Generic Server.', 'Please log in.']
 
     def loginFailLines(self):
-        """OVERRIDE THIS in subclass"""
+        """OVERRIDE in subclass
+        Login failure message lines back to user.
+        """
         return ['please try again.']
 
     def processLoginSuccess(self, user_id):
-        """OVERRIDE THIS in subclass"""
+        """OVERRIDE in subclass
+        First method called on successful login.
+        Should do any user initialization and then return Message.
+        """
         return Message(lines=[f"Welcome {user_id}."])
 
     def processMessage(self, data):
-        """OVERRIDE THIS in subclass"""
+        """OVERRIDE in subclass
+        Called on all subsequent Cmd messages from client.
+        Should do any processing and return Message.
+        """
         if 'cmd' in data:
             cmd = data['cmd'].split(' ')
             if cmd[0] in ['bye', 'logout']:
@@ -221,13 +254,22 @@ def start(host, port, id, key, protocol, handler_class):
     server_key = key
     server_protocol = protocol
     util.makeDirs(net_dir)
-    with socketserver.TCPServer((host, port), handler_class) as server:
+    with Server((host, port), handler_class) as server:
         print(f"server running ({host}:{port})")
-        server.serve_forever()
+        server_thread = threading.Thread(target=server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
+        running = True
+        while running:
+            text = input()
+            if text in ['q', 'quit', 'exit']:
+                running = False
+        server.shutdown()
+        print('shutdown.')
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     """a test of the stub net server"""
-    host = "localhost"
+    host = 'localhost'
     start(host, nc.Test.server_port, nc.Test.id, nc.Test.key, nc.Test.protocol,
             UserHandler)
 
