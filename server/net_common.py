@@ -3,6 +3,7 @@ import json
 import enum
 
 class K(str, enum.Enum):
+    id = 'id'
     password = 'password'
 
 class Mode(str, enum.Enum):

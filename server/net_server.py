@@ -18,18 +18,19 @@ server_id = None
 server_key = None
 server_protocol = None
 net_dir = 'run/net'
+server_lock = threading.Lock()
 
 @dataclass
 class User(object):
-    name: str
+    id: str
     password: str
 
-usersData = {
-    'ryan': {K.password: 'swordfish'},
-    'core': {K.password: 'joshua'},
-    'jam': {K.password: 'halt'},
-    'x': {K.password: 'x'},
-}
+usersData = [
+    {K.id: 'ryan', K.password: 'swordfish'},
+    {K.id: 'core', K.password: 'joshua'},
+    {K.id: 'jam',  K.password: 'halt'},
+    {K.id: 'x',    K.password: 'x'},
+]
 
 @dataclass
 class Message(object):
@@ -40,9 +41,10 @@ class Message(object):
     error_line: str = ''
 
 users = {}
-for name, info in usersData.items():
-    user = User(name=name, password=info[K.password])
-    users[name] = user
+for info in usersData:
+    user = User(id=info[K.id], password=info[K.password])
+    users[info[K.id]] = user
+connected_users = set()
 
 @dataclass
 class LoginHistory(object):
@@ -143,7 +145,12 @@ class UserHandler(socketserver.BaseRequestHandler):
                 self._sendData(Message(lines=["Terminating session."],
                         error_line="server side error",
                         error=2, mode=Mode.bye))
-        user_id = self.user.name if self.user is not None else '?'
+        if self.user is not None:
+            user_id = self.user.id
+            with server_lock:
+                connected_users.remove(user_id)
+        else:
+            user_id = '?'
         print(f"disconnect {user_id} (addr={self.sender})")
 
     def _sendData(self, data):
@@ -187,6 +194,11 @@ class UserHandler(socketserver.BaseRequestHandler):
                 return errorBan() 
             return errorLoginFailed()
         else:
+            with server_lock:
+                if user_id in connected_users:
+                    return Message(lines=['One connection allowed at a time.'],
+                            error_line='Multiple connections.',
+                            error=6, mode=Mode.bye)
             if password != users[user_id].password:
                 print(f"WARN: bad password '{user_id}' '{password}'")
                 banned = self.login_history.failPassword(user_id, save=True)
@@ -195,6 +207,8 @@ class UserHandler(socketserver.BaseRequestHandler):
                     return errorBan() 
                 return errorLoginFailed()
             self.user = users[user_id]
+            with server_lock:
+                connected_users.add(user_id)
             self.login_history.succeedUser(user_id, save=True)
             return self.processLoginSuccess(user_id)
 
