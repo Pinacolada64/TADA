@@ -1,21 +1,9 @@
 
-import os
 import json
 import enum
 
-serverPort = 5000
-app = 'TADA'
-key = '1234567890'
-
 class K(str, enum.Enum):
-    name = 'name'
-    exits = 'exits'
     password = 'password'
-    money = 'money'
-    room = 'room'
-    room_name = 'room_name'
-    health = 'health'
-    xp = 'xp'
 
 class Mode(str, enum.Enum):
     login = 'login'
@@ -35,8 +23,9 @@ def fromJSONB(bytes):
     except:
         return None
 
-def makeDirs(dir):
-    """make directory path if doesn't exist"""
-    if not os.path.exists(dir):
-        os.makedirs(dir)
+class Test(object):
+    server_port = 5001
+    id = 'testing'
+    key = '999999999'
+    protocol = 1
 

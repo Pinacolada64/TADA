@@ -17,9 +17,9 @@ class Action(str, enum.Enum):
 
 @dataclass
 class Init(object):
-   app: str = nc.app
-   key: str = nc.key
-   protocol: int = 1
+   id: str
+   key: str
+   protocol: int
 
 @dataclass
 class Login(object):
@@ -34,54 +34,44 @@ class LocalAction(object):
     action: str
 
 class Client(object):
-    def __init__(self, host, port):
+    def start(self, host, port, id, key, protocol):
         self.host = host
         self.port = port
-        self.status = {K.room_name: '', K.money: 0, K.health: 0, K.xp: 0}
-
-    def start(self):
+        init_params = {'id': id, 'key': key, 'protocol': protocol}
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.clientSocket:
             try:
                 self.clientSocket.connect((self.host, self.port))
                 print(f"client connected ({self.host}:{self.port})")
-                self.clientSocket.sendall(nc.toJSONB(Init()))
+                self.clientSocket.sendall(nc.toJSONB(Init(**init_params)))
                 running = True
                 while running:
                     request = nc.fromJSONB(self.clientSocket.recv(1024))
                     if request is None:
                         running = False
                         break
-                    response = self.processMessage(request)
+                    response = self._processMode(request)
                     if isinstance(response, LocalAction):
                         running = self.processLocal(response)
                     else:
-                        self.sendData(response)
+                        self._sendData(response)
             except ConnectionRefusedError as e:
                 print(f"ERROR: unable to connect to {self.host}:{self.port}. Is server running?")
 
-    def sendData(self, data):
+    def _sendData(self, data):
         self.clientSocket.sendall(nc.toJSONB(data))
 
-    def processMessage(self, request):
-        if request['error'] > 0:
-            error_line = request['error_line']
-            print(f"ERROR: {error_line}")
-        for f in [K.room_name, K.money, K.health, K.xp]:
-            v = request.get('changes', {}).get(f)
-            if v:  self.status[f] = v
+    def _processMode(self, request):
         mode = request.get('mode')
-        if mode == Mode.cmd:
-            print(f"---< {self.status[K.room_name]} | health {self.status[K.health]} | xp {self.status[K.xp]} | {self.status[K.money]} gold >---")
-        for m in request['lines']:  print(m)
         if mode == Mode.login:
+            for m in request['lines']:  print(m)
             user = input("user? ")
             password = input("password? ")
             return Login(login=[user, password])
         elif mode == Mode.bye:
+            for m in request['lines']:  print(m)
             return LocalAction(action=Action.quit)
         elif mode == Mode.cmd:
-            text = input("> ")
-            return Cmd(cmd=text)
+            return self.nextCmd(request)
         else:
             print(request)
             return LocalAction(action=Action.unknown)
@@ -96,8 +86,17 @@ class Client(object):
                 running = False
         return running
 
+    def nextCmd(self, request):
+        """OVERRIDE THIS in subclass"""
+        if request['error'] > 0:
+            error_line = request['error_line']
+            print(f"ERROR: {error_line}")
+        for m in request['lines']:  print(m)
+        text = input("nc> ")
+        return Cmd(cmd=text)
+
 if __name__ == "__main__":
     host = "localhost"
-    client = Client(host, nc.serverPort)
-    client.start()
+    client = Client()
+    client.start(host, nc.Test.server_port, nc.Test.id, nc.Test.key, nc.Test.protocol)
 
