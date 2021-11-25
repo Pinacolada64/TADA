@@ -12,12 +12,12 @@ class Client(net_client.Client):
 
     def nextCmd(self, request):
         if request['error'] > 0:
+            error_code = request['error']
             error_line = request['error_line']
-            print(f"ERROR: {error_line}")
+            print(f"ERROR: {error_code} - {error_line}")
         for f in [K.room_name, K.money, K.health, K.xp]:
             v = request.get('changes', {}).get(f)
             if v:  self.status[f] = v
-        #print(f"---< {self.status[K.room_name]} | health {self.status[K.health]} | xp {self.status[K.xp]} | {self.status[K.money]} gold >---")
         print("---< %(room_name)s | health %(health)d | xp %(xp)d | %(money)d gold >---"%self.status)
         for m in request['lines']:  print(m)
         text = input("TADA> ")

@@ -26,6 +26,7 @@ class User(object):
 usersData = {
     'ryan': {K.password: 'swordfish'},
     'core': {K.password: 'joshua'},
+    'jam': {K.password: 'halt'},
     'x': {K.password: 'x'},
 }
 
@@ -126,15 +127,18 @@ class UserHandler(socketserver.BaseRequestHandler):
                         response = self.processMessage(request)
                 except Exception as e:
                     print(f"{e=}")
-                    self._sendData(Message(lines=["server side error"],
+                    #TODO: log error with message, error code to client
+                    self._sendData(Message(lines=["Terminating session."],
+                            error_line="server side error",
                             error=1, mode=Mode.bye))
                 if response is None:  running = False
                 else:  self._sendData(response)
             except Exception as e:
-                print(e)
-                print(f"WARNING: ignore malformed JSON: {e}")
-                self._sendData(Message(lines=["malformed JSON"], error=1,
-                        mode=Mode.bye))
+                print(f"{e=}")
+                #TODO: log error with message, error code to client
+                self._sendData(Message(lines=["Terminating session."],
+                        error_line="server side error",
+                        error=2, mode=Mode.bye))
         user_id = self.user.name if self.user is not None else '?'
         print(f"disconnect {user_id} (addr={self.sender})")
 
@@ -158,26 +162,34 @@ class UserHandler(socketserver.BaseRequestHandler):
 
     def _processLogin(self, data):
         user_id, password = data['login']
+        if user_id == '':
+            return Message(lines=['User name required.'],
+                    error_line='No user name.',
+                    error=3, mode=Mode.bye)
+        def errorBan():
+            return Message(lines=[],
+                    error_line='Too many failed attempts.',
+                    error=4, mode=Mode.bye)
+        def errorLoginFailed():
+            return Message(lines=self.loginFailLines(),
+                    error_line='Login failed.',
+                    error=5, mode=Mode.login)
         if user_id not in users:
             print(f"WARN: no user '{user_id}'")
             # when failing don't tell that have wrong user id
             banned = self.login_history.noUser(user_id, save=True)
             if banned:
                 print(f"ban {self.sender}")
-                return Message(error_line='Too many failed attempts.',
-                        error=1, lines=[], mode=Mode.bye)
-            return Message(error_line='Login failed.', error=1,
-                    lines=self.loginFailLines, mode=Mode.login)
+                return errorBan() 
+            return errorLoginFailed()
         else:
             if password != users[user_id].password:
-                print(f"WARN: badd password '{user_id}' '{password}'")
+                print(f"WARN: bad password '{user_id}' '{password}'")
                 banned = self.login_history.failPassword(user_id, save=True)
                 if banned:
                     print(f"ban {self.sender}")
-                    return Message(error_line='Too many failed attempts.',
-                            error=1, lines=[], mode=Mode.bye)
-                return Message(error_line='Login failed.', error=1,
-                        lines=self.loginFailLines, mode=Mode.login)
+                    return errorBan() 
+                return errorLoginFailed()
             self.user = users[user_id]
             self.login_history.succeedUser(user_id, save=True)
             return self.processLoginSuccess(user_id)
@@ -192,7 +204,7 @@ class UserHandler(socketserver.BaseRequestHandler):
 
     def processLoginSuccess(self, user_id):
         """OVERRIDE THIS in subclass"""
-        return Message(lines=['Welcome.'])
+        return Message(lines=[f"Welcome {user_id}."])
 
     def processMessage(self, data):
         """OVERRIDE THIS in subclass"""
