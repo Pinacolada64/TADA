@@ -16,6 +16,7 @@ class K(str, enum.Enum):
 
     (see https://www.google.com/search?q=%22stringly%22+typed)
     """
+    id = 'id'
     name = 'name'
     exits = 'exits'
     password = 'password'

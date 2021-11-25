@@ -1,6 +1,8 @@
 #!/bin/env python3
 
+import sys
 import os
+import traceback
 import threading
 import socketserver
 import json
@@ -132,7 +134,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                     else:
                         response = self.processMessage(request)
                 except Exception as e:
-                    print(f"{e=}")
+                    traceback.print_exc(file=sys.stdout)
                     #TODO: log error with message, error code to client
                     self._sendData(Message(lines=["Terminating session."],
                             error_line="server side error",
@@ -140,7 +142,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                 if response is None:  running = False
                 else:  self._sendData(response)
             except Exception as e:
-                print(f"{e=}")
+                traceback.print_exc(file=sys.stdout)
                 #TODO: log error with message, error code to client
                 self._sendData(Message(lines=["Terminating session."],
                         error_line="server side error",
