@@ -105,7 +105,7 @@ class PlayerHandler(net_server.UserHandler):
             cmd = data['cmd'].split(' ')
             #TODO: handle commands with parser etc.
             if cmd[0] in compass_txts:  cmd.insert(0, 'go')
-            print(f"{cmd=}")
+            print(f"{self.player.id} {cmd=}")
             if cmd[0] in ['g', 'go']:
                 direction = cmd[1]
                 last_room_id = self.player.room
