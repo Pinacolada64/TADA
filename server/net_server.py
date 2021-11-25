@@ -194,20 +194,33 @@ class UserHandler(socketserver.BaseRequestHandler):
             self.login_history.succeedUser(user_id, save=True)
             return self.processLoginSuccess(user_id)
 
+    # base implementation for when testing net_client/net_server
+    # NOTE: must be overridden by actual app (see client/server)
+
     def initSucessLines(self):
-        """OVERRIDE THIS in subclass"""
+        """OVERRIDE in subclass
+        First server message lines that user sees.  Should tell them to log in.
+        """
         return ['Generic Server.', 'Please log in.']
 
     def loginFailLines(self):
-        """OVERRIDE THIS in subclass"""
+        """OVERRIDE in subclass
+        Login failure message lines back to user.
+        """
         return ['please try again.']
 
     def processLoginSuccess(self, user_id):
-        """OVERRIDE THIS in subclass"""
+        """OVERRIDE in subclass
+        First method called on successful login.
+        Should do any user initialization and then return Message.
+        """
         return Message(lines=[f"Welcome {user_id}."])
 
     def processMessage(self, data):
-        """OVERRIDE THIS in subclass"""
+        """OVERRIDE in subclass
+        Called on all subsequent Cmd messages from client.
+        Should do any processing and return Message.
+        """
         if 'cmd' in data:
             cmd = data['cmd'].split(' ')
             if cmd[0] in ['bye', 'logout']:
