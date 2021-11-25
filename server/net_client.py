@@ -60,20 +60,28 @@ class Client(object):
     def _sendData(self, data):
         self.clientSocket.sendall(nc.toJSONB(data))
 
+    def _printCommon(self, request):
+        if request['error'] > 0:
+            error_code = request['error']
+            error_line = request['error_line']
+            print(f"ERROR: {error_code} - {error_line}")
+        for m in request['lines']:  print(m)
+
     def _processMode(self, request):
         mode = request.get('mode')
         if mode == Mode.login:
-            for m in request['lines']:  print(m)
+            self._printCommon(request)
             user = input("user? ")
             password = input("password? ")
             return Login(login=[user, password])
         elif mode == Mode.bye:
-            for m in request['lines']:  print(m)
+            self._printCommon(request)
             return LocalAction(action=Action.quit)
         elif mode == Mode.cmd:
             return self.nextCmd(request)
         else:
             print(request)
+            self._printCommon(request)
             return LocalAction(action=Action.unknown)
 
     def processLocal(self, response):
@@ -88,10 +96,7 @@ class Client(object):
 
     def nextCmd(self, request):
         """OVERRIDE THIS in subclass"""
-        if request['error'] > 0:
-            error_line = request['error_line']
-            print(f"ERROR: {error_line}")
-        for m in request['lines']:  print(m)
+        self._printCommon(request)
         text = input("nc> ")
         return Cmd(cmd=text)
 

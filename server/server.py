@@ -23,6 +23,8 @@ playersData = {
             K.health: 100, K.xp: 0},
     'core': {K.name: 'Core', K.money: 10, K.room: 'ul',
             K.health: 99, K.xp: 0},
+    'jam': {K.name: 'Jam', K.money: 10000, K.room: 'ul',
+            K.health: 101, K.xp: 7},
     'x': {K.name: 'Mr. X', K.money: 1, K.room: 'ul',
             K.health: 2, K.xp: 3},
 }
