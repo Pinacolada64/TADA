@@ -26,4 +26,8 @@ class K(str, enum.Enum):
     health = 'health'
     xp = 'xp'
 
+#class Mode1(str, enum.Enum):
+#    prompt = 'prompt'
+#    choice = 'choice'
+#    cmd = 'cmd'
 

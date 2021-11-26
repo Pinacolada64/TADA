@@ -1,14 +1,17 @@
 #!/bin/env python3
 
+import os
+import json
 import threading
 from dataclasses import dataclass, field
 
 import net_server
+import net_common
 import common
 import util
 
 K = common.K
-Mode = net_server.Mode
+Mode0 = net_server.Mode0
 Message = net_server.Message
 
 # fake data 
@@ -19,16 +22,8 @@ roomsData = [
     {K.id: 'lr', K.name: 'Lower Right', K.exits: {'n': 'ur', 'w': 'll'}},
 ]
 
-playersData = [
-    {K.id: 'ryan', K.name: 'Ryan', K.money: 1000, K.room: 'ul',
-            K.health: 100, K.xp: 0},
-    {K.id: 'core', K.name: 'Core', K.money: 10, K.room: 'ul',
-            K.health: 99, K.xp: 0},
-    {K.id: 'jam', K.name: 'Jam', K.money: 10000, K.room: 'ul',
-            K.health: 101, K.xp: 7},
-    {K.id: 'x', K.name: 'Mr. X', K.money: 1, K.room: 'ul',
-            K.health: 2, K.xp: 3},
-]
+room_start = 'ul'
+money_start = 1000
 
 compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West'}
 
@@ -63,10 +58,10 @@ def playersInRoom(room_id, exclude_id=None):
 class Player(object):
     id: str
     name: str
-    money: int
     room: str
-    health: int
-    xp: int
+    money: int
+    health: int = 100
+    xp: int = 0
 
     def connect(self):
         with server_lock:
@@ -84,11 +79,27 @@ class Player(object):
             room_players[self.room].remove(self.id)
 
         print(f"room {self.room} players:  {playersInRoom(self.room)}")
+
+    @staticmethod
+    def _json_path(user_id):
+        return os.path.join(net_common.run_server_dir, f"player-{user_id}.json")
+
+    @staticmethod
+    def load(user_id):
+        path = Player._json_path(user_id)
+        if os.path.exists(path):
+            with open(path) as jsonF:
+                lh_data = json.load(jsonF)
+            return Player(**lh_data)
+        else:
+            return None
+
+    def save(self):
+        with open(Player._json_path(self.id), 'w') as jsonF:
+            json.dump(self, jsonF, default=lambda o: {k: v for k, v
+                    in o.__dict__.items() if v}, indent=4)
+
 players = {}
-for info in playersData:
-    player = Player(id=info[K.id], name=info[K.name], money=info[K.money],
-            room=info[K.room], health=info[K.health], xp=info[K.xp])
-    players[player.id] = player
 
 class PlayerHandler(net_server.UserHandler):
 
@@ -111,7 +122,18 @@ class PlayerHandler(net_server.UserHandler):
         return Message(lines=lines2, changes=changes)
 
     def processLoginSuccess(self, user_id):
-        self.player = players[user_id]
+        player = Player.load(user_id)
+        if player is None:
+            # create player
+            valid_name = False
+            while not valid_name:
+                reply = self.promptRequest(lines=["Choose your adventurer's name."], prompt='name? ')
+                name = reply['text'].strip()
+                if name != '':  #TODO: limitations on valid names
+                    valid_name = True
+            player = Player(id=user_id, name=name, room=room_start, money=money_start)
+            player.save()
+        self.player = players[user_id] = player
         print(f"login {user_id} '{self.player.name}' (addr={self.sender})")
         money = self.player.money
         lines = [f"Welcome {self.player.name}.", f"You have {money} gold."]
@@ -122,8 +144,8 @@ class PlayerHandler(net_server.UserHandler):
         return self.roomMsg(lines, changes)
 
     def processMessage(self, data):
-        if 'cmd' in data:
-            cmd = data['cmd'].split(' ')
+        if 'text' in data:
+            cmd = data['text'].split(' ')
             #TODO: handle commands with parser etc.
             if cmd[0] in compass_txts:  cmd.insert(0, 'go')
             print(f"{self.player.id} {cmd=}")
@@ -132,6 +154,7 @@ class PlayerHandler(net_server.UserHandler):
                 room = rooms[self.player.room]
                 if direction in room.exits:
                     self.player.move(room.exits[direction])
+                    self.player.save()
                     room_name = rooms[self.player.room].name
                     return self.roomMsg(changes={'room_name': room_name})
                 else:
@@ -140,14 +163,14 @@ class PlayerHandler(net_server.UserHandler):
                 return self.roomMsg()
             if cmd[0] in ['bye', 'logout']:
                 self.player.disconnect()
-                return Message(lines=["Bye for now."], mode=Mode.bye)
+                return Message(lines=["Bye for now."], mode=[Mode0.bye])
             if cmd[0] in ['help', 'cheatcode']:
                 return Message(lines=["Wouldn't that be nice."])
             else:
                 return Message(lines=["I didn't understand that.  Try something else."])
         else:
             print("ERROR: unexpected message")
-            return Message(lines=["Unexpected message."], mode=Mode.bye)
+            return Message(lines=["Unexpected message."], mode=[Mode0.bye])
 
 if __name__ == "__main__":
     host = "localhost"
