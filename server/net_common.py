@@ -64,6 +64,9 @@ class Invite(object):
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
                     in o.__dict__.items() if v}, indent=4)
 
+    def delete(self):
+        os.remove(Invite._json_path(self.id))
+
 @dataclass
 class User(object):
     id: str

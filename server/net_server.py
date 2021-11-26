@@ -210,6 +210,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                     user = nc.User(user_id)
                     user.hashPassword(password)
                     user.save()
+                    invite.delete()
         with server_lock:
             if user_id in connected_users:
                 return Message(lines=['One connection allowed at a time.'],
