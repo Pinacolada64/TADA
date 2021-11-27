@@ -12,12 +12,12 @@ K = nc.K
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers(dest='subparser_name', help='sub-command help')
 
-invite_parser = subparsers.add_parser('invite', help='invite help')
+invite_parser = subparsers.add_parser(K.invite, help='invite help')
 invite_parser.add_argument('id', type=str, help='user id')
 invite_parser.add_argument('email', type=str, nargs='?', help='email address')
 invite_parser.add_argument('--revoke', action='store_true', help='revoke invite')
 
-user_parser = subparsers.add_parser('user', help='user help')
+user_parser = subparsers.add_parser(K.user, help='user help')
 user_parser.add_argument('id', type=str, help='user id')
 user_parser.add_argument('--remove', action='store_true', help='remove user')
 
@@ -44,7 +44,7 @@ def showInvite(invite):
     print(f"  email: {invite.email}")
     print(f"  code:  {invite.code}")
 
-if args.subparser_name == 'invite':
+if args.subparser_name == K.invite:
     id = args.id
     if args.revoke:
         # revoke existing invite
@@ -66,7 +66,7 @@ if args.subparser_name == 'invite':
         # print existing invite
         invite = loadInvite(id)
         showInvite(invite)
-elif args.subparser_name == 'user':
+elif args.subparser_name == K.user:
     id = args.id
     if args.remove:
         user = loadUser(id)

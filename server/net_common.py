@@ -13,11 +13,19 @@ invite_dir = os.path.join(run_server_dir, 'invite')
 net_dir = os.path.join(run_server_dir, 'net')
 
 class K(str, enum.Enum):
+    """keys for dictionary use, so that we can avoid 'stringly' typed
+    anti-pattern.  When adding new entries make sure the key matches
+    the string.
+
+    (see https://www.google.com/search?q=%22stringly%22+typed)
+    """
     id = 'id'
     password = 'password'
     code = 'code'
     hash = 'hash'
     salt = 'salt'
+    invite = 'invite'
+    user = 'user'
 
 class Mode0(str, enum.Enum):
     login = 'login'
