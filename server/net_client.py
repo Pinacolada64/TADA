@@ -16,10 +16,6 @@ Mode0 = nc.Mode0
 run_dir = 'run/client'
 net_dir = os.path.join(run_dir, 'net')
 
-class Action(str, enum.Enum):
-    quit = 'quit'
-    unknown = 'unknown'
-
 @dataclass
 class Init(object):
     id: str
