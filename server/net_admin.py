@@ -15,7 +15,7 @@ subparsers = parser.add_subparsers(dest='subparser_name', help='sub-command help
 invite_parser = subparsers.add_parser('invite', help='invite help')
 invite_parser.add_argument('id', type=str, help='user id')
 invite_parser.add_argument('email', type=str, nargs='?', help='email address')
-invite_parser.add_argument('--remove', action='store_true', help='remove invite')
+invite_parser.add_argument('--revoke', action='store_true', help='revoke invite')
 
 user_parser = subparsers.add_parser('user', help='user help')
 user_parser.add_argument('id', type=str, help='user id')
@@ -46,11 +46,11 @@ def showInvite(invite):
 
 if args.subparser_name == 'invite':
     id = args.id
-    if args.remove:
-        # remove existing invite
+    if args.revoke:
+        # revoke existing invite
         invite = loadInvite(id)
         invite.delete()
-        print(f"deleted invite for '{id}'")
+        print(f"revoked invite for '{id}'")
     elif args.email:
         # generate user invite
         email = args.email
