@@ -15,7 +15,7 @@ import net_common as nc
 import util
 
 K = nc.K
-Mode0 = nc.Mode0
+Mode = nc.Mode
 
 server_id = None
 server_key = None
@@ -33,7 +33,7 @@ class Error(str, enum.Enum):
 @dataclass
 class Message(object):
     lines: list
-    mode: list = field(default_factory=lambda: [Mode0.app])
+    mode: Mode = Mode.app
     changes: dict = field(default_factory=lambda: {})
     choices: list = field(default_factory=lambda: [])
     prompt: str = ''
@@ -133,7 +133,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                     #TODO: log error with message, error code to client
                     self._sendData(Message(lines=["Terminating session."],
                             error_line="server side error",
-                            error=Error.server1, mode=[Mode0.bye]))
+                            error=Error.server1, mode=Mode.bye))
                 if response is None:  running = False
                 else:  self._sendData(response)
             except Exception as e:
@@ -141,7 +141,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                 #TODO: log error with message, error code to client
                 self._sendData(Message(lines=["Terminating session."],
                         error_line="server side error",
-                        error=Error.server2, mode=[Mode0.bye]))
+                        error=Error.server2, mode=Mode.bye))
         if self.user is not None:
             user_id = self.user.id
             with server_lock:
@@ -163,7 +163,7 @@ class UserHandler(socketserver.BaseRequestHandler):
             if client_key == server_key:
                 #TODO: handle protocol difference
                 self.ready = True
-                return Message(lines=self.initSucessLines(), mode=[Mode0.login])
+                return Message(lines=self.initSucessLines(), mode=Mode.login)
             else:
                 #TODO: record history in case want to ban
                 return None # poser, ignore them
@@ -176,15 +176,15 @@ class UserHandler(socketserver.BaseRequestHandler):
         if user_id == '':
             return Message(lines=['User id required.'],
                     error_line='No user id.',
-                    error=Error.user_id, mode=[Mode0.bye])
+                    error=Error.user_id, mode=Mode.bye)
         def errorBan():
             return Message(lines=[],
                     error_line='Too many failed attempts.',
-                    error=Error.login2, mode=[Mode0.bye])
+                    error=Error.login2, mode=Mode.bye)
         def errorLoginFailed():
             return Message(lines=self.loginFailLines(),
                     error_line='Login failed.',
-                    error=Error.login1, mode=[Mode0.login])
+                    error=Error.login1, mode=Mode.login)
         user = nc.User.load(user_id)
         if user is None:
             invite = nc.Invite.load(user_id)
@@ -215,7 +215,7 @@ class UserHandler(socketserver.BaseRequestHandler):
             if user_id in connected_users:
                 return Message(lines=['One connection allowed at a time.'],
                         error_line='Multiple connections.',
-                        error=Error.multiple, mode=[Mode0.bye])
+                        error=Error.multiple, mode=Mode.bye)
         if not user.matchPassword(password):
             print(f"WARN: bad password for '{user_id}'")
             banned = self.login_history.failPassword(user_id, save=True)
@@ -263,7 +263,7 @@ class UserHandler(socketserver.BaseRequestHandler):
         if 'text' in data:
             cmd = data['text'].split(' ')
             if cmd[0] in ['bye', 'logout']:
-                return Message(lines=["Goodbye."], mode=[Mode0.bye])
+                return Message(lines=["Goodbye."], mode=Mode.bye)
             else:
                 return Message(lines=["Unknown command."])
 

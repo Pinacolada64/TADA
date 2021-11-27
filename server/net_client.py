@@ -11,7 +11,7 @@ import net_common as nc
 import util
 
 K = nc.K
-Mode0 = nc.Mode0
+Mode = nc.Mode
 
 run_dir = 'run/client'
 net_dir = os.path.join(run_dir, 'net')
@@ -53,6 +53,7 @@ class Cmd(object):
 class Client(object):
     def __init__(self):
         self.user_id = None
+        self.login = None
 
     def setUser(self, id):
         self.user_id = id
@@ -92,7 +93,7 @@ class Client(object):
 
     def _processMode(self, request):
         mode = request.get('mode')
-        if mode[0] == Mode0.login:
+        if mode == Mode.login:
             self._printCommon(request)
             user_id = input('user? ') if self.user_id is None else self.user_id
             login = Login.load(user_id)
@@ -100,10 +101,16 @@ class Client(object):
                 print(f"Registering user '{user_id}'.")
                 invite = nc.Invite.load(user_id)
                 if invite is None:
-                    print(f"ERROR:  don't have invite code for '{user_id}'.  Server admin must generate.")
-                    #TODO: ask user 
-                    self.active = False
-                    return None
+                    print(f"WARN:  could not find invite code for '{user_id}'.")
+                    is_registered = input('have you previously registered with server? [y/n] ')
+                    if is_registered != 'y':
+                        self.active = False
+                        print(f"Server admin must generate invite for you.")
+                        return None
+                    print("Use same password used during previous registration.")
+                    invite_code = ''
+                else:
+                    invite_code = invite.code
                 password = None
                 while password is None:
                     pw = input('password? ')
@@ -111,17 +118,21 @@ class Client(object):
                     if pw == pw_again:
                         password = pw
                     else:  print('Password did not match.  Try again.')
-                login = Login(login=[user_id, password, invite.code])
-                login.save()
+                login = Login(login=[user_id, password, invite_code])
             else:
                 print('sending cached login info.')
+            self.login = login
             return login
-        elif mode[0] == Mode0.bye:
+        elif mode == Mode.bye:
             self._printCommon(request)
             print('server said bye.')
             self.active = False
             return None
-        elif mode[0] == Mode0.app:
+        elif mode == Mode.app:
+            if self.login is not None:
+                # save successful login then forget
+                self.login.save()
+                self.login = None
             return self.processRequest(request)
         else:
             self._printCommon(request)

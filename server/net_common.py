@@ -27,7 +27,7 @@ class K(str, enum.Enum):
     invite = 'invite'
     user = 'user'
 
-class Mode0(str, enum.Enum):
+class Mode(str, enum.Enum):
     login = 'login'
     app = 'app'
     bye = 'bye'

@@ -11,7 +11,7 @@ import common
 import util
 
 K = common.K
-Mode0 = net_server.Mode0
+Mode = net_server.Mode
 Message = net_server.Message
 
 # fake data 
@@ -163,14 +163,14 @@ class PlayerHandler(net_server.UserHandler):
                 return self.roomMsg()
             if cmd[0] in ['bye', 'logout']:
                 self.player.disconnect()
-                return Message(lines=["Bye for now."], mode=[Mode0.bye])
+                return Message(lines=["Bye for now."], mode=Mode.bye)
             if cmd[0] in ['help', 'cheatcode']:
                 return Message(lines=["Wouldn't that be nice."])
             else:
                 return Message(lines=["I didn't understand that.  Try something else."])
         else:
             print("ERROR: unexpected message")
-            return Message(lines=["Unexpected message."], mode=[Mode0.bye])
+            return Message(lines=["Unexpected message."], mode=Mode.bye)
 
 if __name__ == "__main__":
     host = "localhost"
