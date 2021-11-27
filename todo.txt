@@ -1,15 +1,15 @@
 TADA TODO:
 (tabs are 4 spaces wide)
 
-TODO	t.startup: If you get 1000 gold for your birthday, check if it 
-	  overflows bank account. If so, apply towards loan. If neither, 
+TODO	t.startup: If you get 1000 gold for your birthday, check if it
+	  overflows bank account. If so, apply towards loan. If neither,
 	  then...?
-	
-BUG	t.startup: Vinney fight check needs to check value of loan, not just 
+
+BUG	t.startup: Vinney fight check needs to check value of loan, not just
 	  day counter.
-	
+
 BUG	t.main: FNp(x) needs NL$ added to avoid ?ILLEGAL QUANTITY ERRORs
-	
+
 BUG	t.np: set map/experience level to 1
 
 TODO	t.ma.olly: check for enough gold when purchasing booby trap.
@@ -17,19 +17,19 @@ TODO	t.ma.olly: check for enough gold when purchasing booby trap.
 	Check if booby trap inventory is full before purchasing.
 
 8/13/2006:
-TODO	Create 'e.t.deadmonsters' so it keeps track of which monsters are alive 
-  	  for player so Zelda can reanimate them. 'e.t.monsters' are monster 
+TODO	Create 'e.t.deadmonsters' so it keeps track of which monsters are alive
+  	  for player so Zelda can reanimate them. 'e.t.monsters' are monster
 	  stats.
 
 TODO	Finish the doggone GBBS docs...
 
-TODO	teo: spells need "type" identifier. SPUR.MISC3 lists attributes for 
+TODO	teo: spells need "type" identifier. SPUR.MISC3 lists attributes for
 	    each spell. Q$,Q2,Q3,Q4
 
-TODO	Document what *every single program file* is for so people 
+TODO	Document what *every single program file* is for so people
 	  know what the files are for.
 
-TODO	Translate my pencil sketches of level 8 to something more easily 
+TODO	Translate my pencil sketches of level 8 to something more easily
 	  readable -- use GUEmap.
 
 TODO	Find out what stuff after | symbol in ally name means.
@@ -40,7 +40,7 @@ Mar 8, 2011 22:21
 	a BBS local mode.
 
 Mar 24, 2011 19:42
-	
+
 	t.STAT:
 		Dwarf gold should be left-justified
 	t.RES:
@@ -89,7 +89,7 @@ May 15, 2011 11:31
 		age:	use bulleted points like in e.t.tada text
 		375:	good to copy to t.STAT (maybe make subroutine in t.main)
 		515-530:replace with instring sys
-		585:	a$="Key: ":gosub 
+		585:	a$="Key: ":gosub
 	t.main:
 		2005-2006: optimize
 
@@ -115,7 +115,7 @@ Hydrophilic:
 	"rebels" shackled so they wouldn't be able to help the player.
 	So the player would likely meet a quick death unless really leveled
 	up.  Or even funnier, Olaf doesn't kill the player but makes them a slave!
-	
+
 t.main:
 2082 rem need palintar/ranger map check
 2100 rem check for available light & enhanced exits
@@ -125,7 +125,7 @@ t.main:
 find missing label in geneb's bbs during combat
  * spur.logon.s : link.lgn
  	no "misc" label, but this label isn't public, and not called from this file
- 
+
 - consider dropping pr=1 from line 2408 in t.main and just have:
 	GOSUB 2408 	print "You see: ";
 	GOSUB 2409	PRINT MID$(Z$,L,R):;RETURN
@@ -139,11 +139,11 @@ spur.sub.s:
 potion
  if instr("OF SKILL",gs$) print \"You feel more skillful with the "wr$:print "(+4 skill until READY is executed again)":if zu<7 zu=zu+4
  if instr("VORPAL",gs$) print \"You feel more deadly with the "wr$:print "(+4 damage until READY is executed again)":if zv<7 zv=zv+4
- 
+
 rewrite:
  if instr("OF SKILL",gs$) if zu<7 zu=zu+4:print \"You feel more skillful with the "wr$:print "(+4 skill until READY is executed again)"
  if instr("VORPAL",gs$) if zv<7 zv=zv+4 print \"You feel more deadly with the "wr$:print "(+4 damage until READY is executed again)"
- 
+
 spur.annex: "name of person followed" - syntax error
 	tried fixing - just took \ from input #2,xu$\
 	now unable to find menu files :(
@@ -156,7 +156,7 @@ Perhaps replace YS$ with individual bits?
 
 Jul 9, 2011
 	t.startup: use subroutine at 1870 to display stats on/off -- does already
-	
+
 Jul 28, 2011
 	drop: if item dropped in water, "sinks slowly out of sight" and returned to shoppe
 
@@ -237,7 +237,7 @@ Jul 22, 2012 22:52
 Update: I'm not sure this is much of a benefit, ml.o will be BLOADed at $c500,
 		not {include:}'d
 
-	write playerlog creator with stock characters to test t.main, since "t.np" 
+	write playerlog creator with stock characters to test t.main, since "t.np"
 	is broken
 
 18/Feb/2014 22:31
@@ -375,3 +375,10 @@ PRG [<option>]: Optional command-line parameters. "PRG" by itself will display a
 		during main loop {:advent}. "if d then <debug statements>" would be handy.
     PRG T	Toggle trace mode output.
     PRG M(?)	Display BASIC pointers, free RAM, etc.
+
+2021-11-26 09:06
+core: if player misses birthday, a stale birthday cake (xx days old) greets them on login
+core: chest that doesn't open until their birthday (1000 gold inside maybe)
+core: if user posts inappropriate things on a community room bulletin board, revoke their writing
+    privilege: "There is no chalk here."
+core: have a per-player "state" of each room with objects/quest items
