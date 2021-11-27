@@ -260,8 +260,8 @@ class UserHandler(socketserver.BaseRequestHandler):
         Called on all subsequent Cmd messages from client.
         Should do any processing and return Message.
         """
-        if 'cmd' in data:
-            cmd = data['cmd'].split(' ')
+        if 'text' in data:
+            cmd = data['text'].split(' ')
             if cmd[0] in ['bye', 'logout']:
                 return Message(lines=["Goodbye."], mode=[Mode0.bye])
             else:
