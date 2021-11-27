@@ -103,6 +103,9 @@ class User(object):
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
                     in o.__dict__.items() if v}, indent=4)
 
+    def delete(self):
+        os.remove(User._json_path(self.id))
+
 class Test(object):
     server_port = 5001
     id = 'testing'
