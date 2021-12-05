@@ -1,3 +1,7 @@
+# supposed to handle passing "str | list" type-hinting to get_stat()
+# but breaks print(f'string') because python 2.7? don't understand that
+# from __future__ import annotations
+
 import doctest
 
 # https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
@@ -15,9 +19,18 @@ class Player(object):
             maybe return Player or Ally object if they hold it, or None if no-one holds it
     """
 
-    def __init__(self, player_id: int, name: str, stats: dict, flags: dict, silver: dict, terminal: dict):
+    def __init__(self, connection_id: int, name: str, stats: dict, flags: dict, silver: dict, terminal: dict):
         # this code is called when creating a new character
-        self.player_id = player_id  # 'id' shadows built-in name
+        # connection_id: CommodoreServer connection ID
+        # add connection_id to connections[{connection_id: name}], to disallow duplicate ids:
+        if connection_id in connection_ids:
+            logging.info(f'Player.__init__: duplicate {connection_id=} assigned to '
+                         f'{connection_ids[name][connection_id]}')
+            return
+        # temp = {self.name, connection_id}
+        connection_ids.append({name, connection_id})
+        logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
+        self.connection_id = connection_id  # 'id' shadows built-in name
         self.name = name
         # creates a new stats dict for each Player:
         # FIXME: trying to apply the specified Con value here...
@@ -36,7 +49,7 @@ class Player(object):
         # in_bar should be preserved after character's death (TODO: same)
         self.silver = silver  # {"in_hand": 0, "in_bank": 0, "in_bar": 0}
         # test that it works
-        logging.info("Silver in hand: " + str(self.silver["in_hand"]))
+        logging.info(f'Silver in hand: {self.silver["in_hand"]}')
 
         # terminal settings:
         self.terminal = terminal
@@ -75,18 +88,121 @@ class Player(object):
     
         combat:
             honor: int
-            weapon_percentage{'weapon': percentage [, ...]}, weapon_ammunition{'weapon': ammo_count}
+            weapon_percentage{'weapon': percentage [, ...]}
+            weapon_ammunition{'weapon': ammo_count [, ...]}
             bad_hombre_rating is calculated from stats, not stored in player log
         
         once_per_day[] flags:  # things you can only do once per day (file_formats.txt)
             'pr'    has PRAYed once
-            'pr2'   can PRAYed twice (only if player class is Druid)
-            
+            'pr2'   can PRAY twice per day (only if player class is Druid)
         """
 
     def __str__(self):
         """print formatted Player object (double-quoted since ' in string)"""
-        return f"Name: {self.name}\tSilver in hand: {self.silver['in_hand']}"
+        return f"Name: {self.name}\nSilver in hand: {self.silver['in_hand']}"
+
+    def set_stat(self, stat: str, adjustment: int):
+        """
+        :param stat: statistic in stats{} dict to adjust
+        :param adjustment: adjustment (+x or -x)
+        :return: stat, maybe also 'success': True if 0 > stat > <limit>
+
+        TODO: example for doctest:
+        >>> Rulan.set_stat['str': -5]  # decrement Rulan's strength by 5
+        """
+        if stat not in self.stats:
+            logging.warning(f"Stat {stat} doesn't exist.")
+            # raise ValueError?
+            return
+        # self.stats = {'con': 0, 'dex': 0, 'ego': 0, 'int': 0, 'str': 0, 'wis': 0}
+        # adjust stat by <adjustment>:
+        before = self.stats[stat]
+        after = before + adjustment
+        logging.info(f"set_stat: Before: {stat=} {before=} {adjustment=}")
+        if not self.flags['expert_mode']:
+            if before < after:
+                # FIXME: e.g., if Int, {descriptive} should say "intelligent". How to do?
+                print("(You feel less {descriptive}.)")
+            if before > after:
+                print("(You feel more {descriptive}.)")
+        logging.info(f"set_stat: After: {stat=} {after=}")
+        # return self.stats(stat)
+
+    def get_stat(self, stat):
+        """
+        if 'stat' is str: return value of single stat as str: 'stat'
+        if 'stat' is list: sum up contents of list: ['str', 'wis', 'int']...
+        -- avoids multiple function calls
+        """
+        if type(stat) is list:
+            _sum = 0  # 'sum' shadows built-in type
+            for k in stat:
+                if stat not in self.stats:
+                    logging.warning(f"get_stat: Stat {stat} doesn't exist.")
+                    # TODO: raise ValueError?
+                    return
+                _sum += self.stats[k]
+            logging.info(f'get_stat[list]: {stat=} {_sum=}')
+            return _sum
+        # otherwise, get just a single stat:
+        if stat not in self.stats:
+            logging.warning(f"get_stat: Stat {stat} doesn't exist.")
+            # TODO: raise ValueError?
+            return
+        return self.stats[stat]
+
+    def print_stat(self, stat: str):
+        """print player stat 'stat'"""
+        if stat not in self.stats:
+            logging.warning(f"get_stat: Stat {stat} doesn't exist.")
+            # TODO: raise ValueError?
+            return
+        x = self.get_stat(stat)
+        logging.info(f'print_stat: {self.get_stat(stat)=}')
+        # return e.g., "Int: 4"
+        print(f'{stat.title()}: {self.stats[stat]}')
+
+    def get_silver(self, kind):
+        """
+        get amount of silver player has
+        'kind' is 'in_hand', 'in_bank', or 'in_bar'
+        """
+        if kind not in self.silver:
+            logging.info(f"get_silver: Bad type '{kind}'.")
+            return
+        # return self.silver{kind}
+        print(f"Silver: {self.silver[kind]}")
+        return
+
+    def set_silver(self, kind, adj):
+        """
+        :param kind: 'in_hand', 'in_bank' or 'in_bar'
+        :param adj: amount to add (<adj>) or subtract (-<adj>)
+        :return:
+        """
+        before = self.silver[kind]
+        # TODO: check for negative amount
+        after = before + adj
+        if after < 0:
+            logging.info(f'set_silver: {after=}, negative amount not allowed')
+            return
+        self.silver[kind] = after
+
+
+def transfer_money(p1, p2, kind: str, adj: int):
+    """
+    :param p1: Player to transfer <adj> gold to
+    :param p2: Player to transfer <adj> gold from
+    :param kind: classification ('in_hand' most likely)
+    :param adj: amount to transfer
+    :return: none
+    """
+    # as suggested by Shaia:
+    # (will be useful for future bank, or future expansion: gold transfer spell?)
+    p1.set_silver(kind, adj)
+    p1.set_silver('in_hand', adj)
+    p2.set_silver('in_hand', -adj)
+    logging.info(f'transfer_money: {p2} transferred {adj} silver to {p1}.')
 
 
 class Ally(object):
@@ -109,7 +225,8 @@ class Ally(object):
         flags[              # | = TLOS ally string postfix, then:
             'elite': bool   # !
             'mount': bool   # =
-            'body_build': bool  # #nn <nn=1...25?> Not clear what this is for, TODO: find ally guild code
+            'body_build': bool  # #nn <nn=1...25?> Not clear what this is for, Str improvement?
+             # TODO: find ally guild code
             ]
         silver: int
         """
@@ -126,84 +243,24 @@ class Horse(object):
         """
 
 
-# I think these functions should be outside the class so that it can modify other Player objects?
-def set_stat(player: object, stat: str, adjustment: int):
-    """
-    :param player: Player object
-    :param stat: statistic in stats{} dict to adjust
-    :param adjustment: adjustment (+x or -x)
-    :return: stat, maybe also 'success': True if 0 > stat > <limit>
-
-    example:
-    >>> Rulan.set_stat['str': -5]  # decrement Rulan's strength by 5
-    """
-    if stat not in player.stats:
-        logging.warning(f"Stat {stat} doesn't exist.")
-        # raise ValueError?
-        return
-    # self.stats = {'con': 0, 'dex': 0, 'ego': 0, 'int': 0, 'str': 0, 'wis': 0}
-    # adjust stat by <adjustment>:
-    before = player.stats[stat]
-    after = before + adjustment
-    logging.info(f"set_stat: Before: {stat=} {before=} {adjustment=}")
-    if not player.flags['expert_mode']:
-        if before < after:
-            # FIXME: e.g., if Int, {descriptive} should say "intelligent". How to do?
-            print("(You feel less {descriptive}.)")
-        if before > after:
-            print("(You feel more {descriptive}.)")
-    logging.info(f"set_stat: After: {stat=} {after=}")
-    # return self.stats(stat)
-
-
-def get_stat(player: object, stat: str):
-    """print stat 'stat'"""
-    if stat not in player.stats:
-        logging.warning(f"get_stat: Stat {stat} doesn't exist.")
-        # TODO: raise ValueError?
-        return
-    return self.stats[stat]
-
-
-def print_stat(self, player: object, stat: str):
-    logging.info(f'print_stat: {get_stat(player=player, stat=stat)}')
-
-
-def get_silver(self, player, kind):
-    """
-    get amount of silver player_name has
-    TODO: allies too - Ally['silver': 100?]
-    'kind' is 'in_hand', 'in_bank', or 'in_bar'
-    """
-    if kind not in player.silver:
-        logging.info(f"get_silver: Bad type '{kind}'.")
-        return
-    # return player.silver{kind}
-    print(f"player.silver[kind]")
-    return
-
-
-def set_silver(player, kind, adjustment):
-    """adjustment can be either positive or negative"""
-    before = player.silver[kind]
-    # TODO: check for negative amount
-    after = before + adjustment
-    player.silver(kind, after)
-
-
 if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
-    Rulan = Player(name="Rulan", player_id=1, stats={'int': 5}, terminal={'type': 'Commodore 64'},
+    connection_ids = []  # initialize empty list for logging connection_id's
+
+    Rulan = Player(name="Rulan", connection_id=1, stats={'int': 5}, terminal={'type': 'Commodore 64'},
                    silver={'in_hand': 100, 'in_bank': 200, 'in_bar': 300},
                    flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
                    )
     print(Rulan)
+    print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this fails
 
-    set_stat(Rulan, 'int', 4)  # set Rulan's Intelligence to 4
-    show = Rulan.stats['int']
-    print(f"{show}")  # show "Int: 4"
+    Rulan.set_stat(stat='int', adjustment=4)  # add to Rulan's Intelligence of 5, total 9
+    print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this fails
 
-    set_silver(player=Rulan, kind='in_hand', adjustment=100)
-    print(f"Silver in bank: {get_silver(player='Rulan', kind='in_bank')}")  # should print 100
+    Rulan.set_silver(kind='in_hand', adj=100)
+    print(f"Silver in bank: {Rulan.get_silver('in_bank')}")  # should print 100
+
+    Shaia = Player(name="Shaia", connection_id=1, stats={'int': 18}, terminal={'type': 'none'},
+                   silver={'in_bank': 10}, flags={'expert_mode': True})
