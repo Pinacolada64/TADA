@@ -126,7 +126,7 @@ class Player(object):
             if before > after:
                 print("(You feel more {descriptive}.)")
         logging.info(f"set_stat: After: {stat=} {after=}")
-        # return self.stats(stat)
+        self.stats[stat] = after
 
     def get_stat(self, stat):
         """
@@ -254,9 +254,11 @@ if __name__ == '__main__':
                    flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
                    )
     print(Rulan)
+    print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this passes
     print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this fails
 
     Rulan.set_stat(stat='int', adjustment=4)  # add to Rulan's Intelligence of 5, total 9
+    print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this passes
     print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this fails
 
     Rulan.set_silver(kind='in_hand', adj=100)
