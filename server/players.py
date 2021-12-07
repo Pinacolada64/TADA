@@ -255,11 +255,9 @@ if __name__ == '__main__':
                    )
     print(Rulan)
     print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this passes
-    print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this fails
 
     Rulan.set_stat(stat='int', adjustment=4)  # add to Rulan's Intelligence of 5, total 9
     print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this passes
-    print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this fails
 
     Rulan.set_silver(kind='in_hand', adj=100)
     print(f"Silver in bank: {Rulan.get_silver('in_bank')}")  # should print 100
