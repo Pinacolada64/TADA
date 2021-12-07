@@ -49,7 +49,7 @@ class Player(object):
         # in_bar should be preserved after character's death (TODO: same)
         self.silver = silver  # {"in_hand": 0, "in_bank": 0, "in_bar": 0}
         # test that it works
-        logging.info(f'Silver in hand: {self.silver["in_hand"]}')
+        logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
 
         # terminal settings:
         self.terminal = terminal
@@ -120,11 +120,14 @@ class Player(object):
         after = before + adjustment
         logging.info(f"set_stat: Before: {stat=} {before=} {adjustment=}")
         if not self.flags['expert_mode']:
-            if before < after:
-                # FIXME: e.g., if Int, {descriptive} should say "intelligent". How to do?
-                print("(You feel less {descriptive}.)")
-            if before > after:
-                print("(You feel more {descriptive}.)")
+            descriptive = zip(['con', 'dex', 'ego', 'int', 'str', 'wis'],
+                              ['hearty', 'agile', 'influential', 'intelligent', 'strong', 'wise'])
+            # returns ('con', 'hearty') -- etc.
+            for n in descriptive:
+                # FIXME: I don't know of a more efficient way to refer to a subscript in this case.
+                # This may be good enough, it's a small loop
+                if n[0] == stat:
+                    print(f"You feel {'more' if after > before else 'less'} {n[1]}.")
         logging.info(f"set_stat: After: {stat=} {after=}")
         self.stats[stat] = after
 
@@ -152,27 +155,37 @@ class Player(object):
         return self.stats[stat]
 
     def print_stat(self, stat: str):
-        """print player stat 'stat'"""
+        """
+        print player stat in title case: '<Stat>: <value>'
+
+        >>> Rulan = Player(name="Rulan", \
+                           connection_id=1, \
+                           stats={'int': 5}, \
+                           terminal={'type': 'Commodore 64'}, \
+                           silver={'in_hand': 100, 'in_bank': 200, 'in_bar': 300}, \
+                           flags={'dungeon_master': True, 'debug': True, 'expert_mode': False})
+        None
+        >>> print(f"{Rulan.print_stat('int')}")
+        Int: 5
+        """
         if stat not in self.stats:
             logging.warning(f"get_stat: Stat {stat} doesn't exist.")
             # TODO: raise ValueError?
             return
-        x = self.get_stat(stat)
-        logging.info(f'print_stat: {self.get_stat(stat)=}')
+        # logging.info(f'print_stat: {self.get_stat(stat)=}')
         # return e.g., "Int: 4"
         print(f'{stat.title()}: {self.stats[stat]}')
 
     def get_silver(self, kind):
         """
-        get amount of silver player has
-        'kind' is 'in_hand', 'in_bank', or 'in_bar'
+        get and return amount of silver player has
+        'kind': 'in_hand', 'in_bank', or 'in_bar'
         """
         if kind not in self.silver:
             logging.info(f"get_silver: Bad type '{kind}'.")
             return
-        # return self.silver{kind}
-        print(f"Silver: {self.silver[kind]}")
-        return
+        logging.info(f'get_silver: {self.silver[kind]}')
+        return self.silver[kind]
 
     def set_silver(self, kind, adj):
         """
@@ -230,6 +243,7 @@ class Ally(object):
             ]
         silver: int
         """
+        pass
 
 
 class Horse(object):
@@ -241,15 +255,21 @@ class Horse(object):
         inventory[]  # mash, hay, oats, apples, sugar cubes
         ]
         """
+        pass
 
 
 if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
+    import doctest
+    # doctest.testmod(verbose=True)
+
     connection_ids = []  # initialize empty list for logging connection_id's
 
-    Rulan = Player(name="Rulan", connection_id=1, stats={'int': 5}, terminal={'type': 'Commodore 64'},
+    Rulan = Player(name="Rulan", connection_id=1,
+                   stats={'int': 5},
+                   terminal={'type': 'Commodore 64'},
                    silver={'in_hand': 100, 'in_bank': 200, 'in_bar': 300},
                    flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
                    )
@@ -260,7 +280,7 @@ if __name__ == '__main__':
     print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this passes
 
     Rulan.set_silver(kind='in_hand', adj=100)
-    print(f"Silver in bank: {Rulan.get_silver('in_bank')}")  # should print 100
+    print(f"Silver in bank: {Rulan.get_silver('in_bank')}")  # should print 200
 
-    Shaia = Player(name="Shaia", connection_id=1, stats={'int': 18}, terminal={'type': 'none'},
+    Shaia = Player(name="Shaia", connection_id=2, stats={'int': 18}, terminal={'type': 'none'},
                    silver={'in_bank': 10}, flags={'expert_mode': True})
