@@ -19,23 +19,26 @@ class Player(object):
             maybe return Player or Ally object if they hold it, or None if no-one holds it
     """
 
-    def __init__(self, connection_id: int, name: str, stats: dict, flags: dict, silver: dict, terminal: dict):
+    def __init__(self, connection_id: int, name: str, flags: dict, terminal: dict):
         # this code is called when creating a new character
-        # connection_id: CommodoreServer connection ID
-        # add connection_id to connections[{connection_id: name}], to disallow duplicate ids:
-        if connection_id in connection_ids:
-            logging.info(f'Player.__init__: duplicate {connection_id=} assigned to '
-                         f'{connection_ids[name][connection_id]}')
-            return
+
+        # FIXME: probably just forget this, net_server.py handles IP addresses
+        # connection_id: list of CommodoreServer IDs: {'connection_id': id, 'name': 'name'}
+        # for k in len(connection_ids):
+        #     if connection_id in connection_ids[1][k]:
+        #         logging.info(f'Player.__init__: duplicate {connection_id['id']} assigned to '
+        #                      f'{connection_ids[1][connection_id]}')
+        #     return
         # temp = {self.name, connection_id}
-        connection_ids.append({name, connection_id})
-        logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
-        self.connection_id = connection_id  # 'id' shadows built-in name
+        # connection_ids.append({'name': name, connection_id})
+        # logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
+        # self.connection_id = connection_id  # 'id' shadows built-in name
+
         self.name = name
-        # creates a new stats dict for each Player:
-        # FIXME: trying to apply the specified Con value here...
-        # ...this can be done with self.silver but not here?
-        self.stats = stats  # {'con': 0, 'dex': 0, 'ego': 0, 'int': 0, 'str': 0, 'wis': 0}
+        self.connection_id = connection_id  # keep this until I figure out where it is in net_server.py
+        # creates a new stats dict for each Player, zero all stats:
+        # set with Player.set_stat('xyz', val)
+        self.stats = {'chr': 0, 'con': 0, 'dex': 0, 'int': 0, 'str': 0, 'wis': 0, 'egy': 0}
 
         # flags:
         self.flags = flags  # {'room_descriptions': bool}
@@ -47,7 +50,8 @@ class Player(object):
         # creates a new silver dict for each Player:
         # in_bank may be cleared on character death (TODO: look in TLOS source)
         # in_bar should be preserved after character's death (TODO: same)
-        self.silver = silver  # {"in_hand": 0, "in_bank": 0, "in_bar": 0}
+        # use Player.set_silver("kind", value)
+        self.silver = {"in_hand": 0, "in_bank": 0, "in_bar": 0}
         # test that it works
         logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
 
@@ -101,10 +105,10 @@ class Player(object):
         """print formatted Player object (double-quoted since ' in string)"""
         return f"Name: {self.name}\nSilver in hand: {self.silver['in_hand']}"
 
-    def set_stat(self, stat: str, adjustment: int):
+    def set_stat(self, stat: str, adj: int):
         """
         :param stat: statistic in stats{} dict to adjust
-        :param adjustment: adjustment (+x or -x)
+        :param adj: adjustment (+x or -x)
         :return: stat, maybe also 'success': True if 0 > stat > <limit>
 
         TODO: example for doctest:
@@ -117,11 +121,14 @@ class Player(object):
         # self.stats = {'con': 0, 'dex': 0, 'ego': 0, 'int': 0, 'str': 0, 'wis': 0}
         # adjust stat by <adjustment>:
         before = self.stats[stat]
-        after = before + adjustment
-        logging.info(f"set_stat: Before: {stat=} {before=} {adjustment=}")
+        after = before + adj
+        logging.info(f"set_stat: Before: {stat=} {before=} {adj=}")
         if not self.flags['expert_mode']:
-            descriptive = zip(['con', 'dex', 'ego', 'int', 'str', 'wis'],
-                              ['hearty', 'agile', 'influential', 'intelligent', 'strong', 'wise'])
+            descriptive = zip(['chr', 'con', 'dex', 'int', 'str', 'wis', 'egy'],
+                              ['influential', 'hearty', 'agile', 'intelligent',
+                               'strong', 'wise', 'energetic'])
+            # TODO: jwhoag suggested adding 'confidence' -> 'brave' -- good idea,
+            # not sure where it can be added yet.
             # returns ('con', 'hearty') -- etc.
             for n in descriptive:
                 # FIXME: I don't know of a more efficient way to refer to a subscript in this case.
@@ -158,23 +165,51 @@ class Player(object):
         """
         print player stat in title case: '<Stat>: <value>'
 
-        >>> Rulan = Player(name="Rulan", \
-                           connection_id=1, \
-                           stats={'int': 5}, \
-                           terminal={'type': 'Commodore 64'}, \
-                           silver={'in_hand': 100, 'in_bank': 200, 'in_bar': 300}, \
-                           flags={'dungeon_master': True, 'debug': True, 'expert_mode': False})
-        None
-        >>> print(f"{Rulan.print_stat('int')}")
+        for doctest
+        FIXME: eventually. can't figure out how to test routines which have a function call hierarchy
+        >>> Rulan = Player(name="Rulan",
+                           connection_id=1,
+                           terminal={'type': 'Commodore 64'},
+                           flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
+                           )
+
+        >>> Rulan.print_stat('int')
         Int: 5
         """
         if stat not in self.stats:
             logging.warning(f"get_stat: Stat {stat} doesn't exist.")
             # TODO: raise ValueError?
             return
-        # logging.info(f'print_stat: {self.get_stat(stat)=}')
         # return e.g., "Int: 4"
-        print(f'{stat.title()}: {self.stats[stat]}')
+        return f'{stat.title()}: {self.stats[stat]}'
+
+    def print_all_stats(self):
+        """
+        print all player stats in title case: '<Stat>: <value>'
+
+        for doctest
+        FIXME: eventually. can't figure out how to test routines which have a function call hierarchy
+        >>> Rulan = Player(name="Rulan",
+                           connection_id=1,
+                           terminal={'type': 'Commodore 64'},
+                           flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
+                           )
+
+        >>> Rulan.print_all_stats()
+        Chr: 8    Int: 5   Egy: 2
+        Con: 15   Str: 8
+        Dex: 3    Wis: 3
+        """
+        for k in ['chr', 'int', 'egy']:
+            print(k)
+            print(f'{self.print_stat(k)}', end='')
+        print()
+        for k in ['con', 'str']:
+            print(f'{self.print_stat(k)}', end='')
+        print()
+        for k in ['dex', 'wis']:
+            print(f'{self.print_stat(k)}', end='')
+        print()
 
     def get_silver(self, kind):
         """
@@ -268,19 +303,40 @@ if __name__ == '__main__':
     connection_ids = []  # initialize empty list for logging connection_id's
 
     Rulan = Player(name="Rulan", connection_id=1,
-                   stats={'int': 5},
                    terminal={'type': 'Commodore 64'},
-                   silver={'in_hand': 100, 'in_bank': 200, 'in_bar': 300},
                    flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
                    )
     print(Rulan)
+    Rulan.set_stat('int', 5)
     print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this passes
 
-    Rulan.set_stat(stat='int', adjustment=4)  # add to Rulan's Intelligence of 5, total 9
+    Rulan.set_stat(stat='int', adj=4)  # add to Rulan's Intelligence of 5, total 9
     print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this passes
+    # when print_stat returned None, had to do this:
+    # print(f'Rulan ...... ', end='')
+    # Rulan.print_stat('int')  # should print 'Rulan ...... Int: 9'
 
     Rulan.set_silver(kind='in_hand', adj=100)
-    print(f"Silver in bank: {Rulan.get_silver('in_bank')}")  # should print 200
+    Rulan.set_silver(kind='in_bank', adj=200)
+    Rulan.set_silver(kind='in_bar', adj=300)
 
-    Shaia = Player(name="Shaia", connection_id=2, stats={'int': 18}, terminal={'type': 'none'},
-                   silver={'in_bank': 10}, flags={'expert_mode': True})
+    print(f"Silver in bank: {Rulan.get_silver('in_bank')}")  # should print 200, this passes
+
+    print(f'{Rulan.print_all_stats}')
+
+    Shaia = Player(name="Shaia", connection_id=1,
+                   terminal={'type': 'none'},
+                   flags={'expert_mode': True})
+
+    Shaia.set_stat(stat='int', adj=18)
+    print(f"Shaia ...... {Shaia.print_stat('int')}")  # should print 'Shaia ...... Int: 18': passes
+
+    # when print_stat returned None, did this:
+    # print(f'Shaia ...... ', end='')
+    # Shaia.print_stat('int')  # should print 'Shaia ...... Int: 18'
+
+    Shaia.set_silver(kind='in_hand', adj=10)
+    Shaia.set_silver(kind='in_bank', adj=200)
+    Shaia.set_silver(kind='in_bar', adj=300)
+
+    print(f'{Shaia.print_all_stats}')
