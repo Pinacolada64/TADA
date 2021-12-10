@@ -166,7 +166,7 @@ class Player(object):
         print player stat in title case: '<Stat>: <value>'
 
         for doctest
-        FIXME: eventually. can't figure out how to test routines which have a function call hierarchy
+        FIXME: eventually. can't figure out how to test functions which have a prerequisite function
         >>> Rulan = Player(name="Rulan",
                            connection_id=1,
                            terminal={'type': 'Commodore 64'},
@@ -187,8 +187,8 @@ class Player(object):
         """
         print all player stats in title case: '<Stat>: <value>'
 
-        for doctest
-        FIXME: eventually. can't figure out how to test routines which have a function call hierarchy
+        for doctest eventually
+        FIXME: can't figure out how to test routines which have other function call prerequisites
         >>> Rulan = Player(name="Rulan",
                            connection_id=1,
                            terminal={'type': 'Commodore 64'},
@@ -196,19 +196,18 @@ class Player(object):
                            )
 
         >>> Rulan.print_all_stats()
-        Chr: 8    Int: 5   Egy: 2
-        Con: 15   Str: 8
-        Dex: 3    Wis: 3
+        Chr:  8   Int:  5   Egy:  3
+        Con: 15   Str:  8
+        Dex:  3   Wis:  3
         """
-        for k in ['chr', 'int', 'egy']:
-            print(k)
-            print(f'{self.print_stat(k)}', end='')
+        for stat in ['chr', 'int', 'egy']:
+            print(f'{stat.title()}: {self.stats[stat]:2}   ', end='')
         print()
-        for k in ['con', 'str']:
-            print(f'{self.print_stat(k)}', end='')
+        for stat in ['con', 'str']:
+            print(f'{stat.title()}: {self.stats[stat]:2}   ', end='')
         print()
-        for k in ['dex', 'wis']:
-            print(f'{self.print_stat(k)}', end='')
+        for stat in ['dex', 'wis']:
+            print(f'{stat.title()}: {self.stats[stat]:2}   ', end='')
         print()
 
     def get_silver(self, kind):
@@ -237,7 +236,7 @@ class Player(object):
         self.silver[kind] = after
 
 
-def transfer_money(p1, p2, kind: str, adj: int):
+def transfer_money(p1: Player, p2: Player, kind: str, adj: int):
     """
     :param p1: Player to transfer <adj> gold to
     :param p2: Player to transfer <adj> gold from
@@ -247,10 +246,14 @@ def transfer_money(p1, p2, kind: str, adj: int):
     """
     # as suggested by Shaia:
     # (will be useful for future bank, or future expansion: gold transfer spell?)
-    p1.set_silver(kind, adj)
-    p1.set_silver('in_hand', adj)
-    p2.set_silver('in_hand', -adj)
-    logging.info(f'transfer_money: {p2} transferred {adj} silver to {p1}.')
+    if p2.silver[kind] >= adj:
+        p1.set_silver(kind, adj)
+        p2.set_silver(kind, -adj)
+        logging.info(f'transfer_money: {p2.name} {adj} {kind} -> {p1.name}: {p1.silver[kind]}')
+        print(f'{p2.name} transferred {adj} silver {kind} to {p1.name}.')
+        print(f'{p1.name} now has {p1.silver[kind]}.')
+    else:
+        print(f"{p2.name} doesn't have {adj} silver to give.")
 
 
 class Ally(object):
@@ -322,9 +325,9 @@ if __name__ == '__main__':
 
     print(f"Silver in bank: {Rulan.get_silver('in_bank')}")  # should print 200, this passes
 
-    print(f'{Rulan.print_all_stats}')
+    Rulan.print_all_stats()
 
-    Shaia = Player(name="Shaia", connection_id=1,
+    Shaia = Player(name="Shaia", connection_id=2,
                    terminal={'type': 'none'},
                    flags={'expert_mode': True})
 
@@ -339,4 +342,8 @@ if __name__ == '__main__':
     Shaia.set_silver(kind='in_bank', adj=200)
     Shaia.set_silver(kind='in_bar', adj=300)
 
-    print(f'{Shaia.print_all_stats}')
+    Shaia.print_all_stats()
+
+    transfer_money(Shaia, Rulan, kind='in_hand', adj=500)  # should rightfully fail
+    transfer_money(Shaia, Rulan, kind='in_hand', adj=100)  # this passes
+
