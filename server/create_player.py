@@ -9,11 +9,36 @@ Traceback (most recent call last):
     UnicodeDecodeError: 'charmap' codec can't decode byte 0x90 in position 2537: character maps to <undefined>
 """
 
+
 # https://docs.python.org/3/library/collections.html
 
 
+def choose_gender(player: Player):
+    """step 1: choose character gender"""
+    print('Verus squints myopically. "Are you a male or female?"')
+    while True:
+        temp = input("Enter [M]ale or [F]emale: ").lower()
+        if temp == 'm':
+            player.gender = 'male'
+            break
+        if temp == 'f':
+            player.gender = 'female'
+            break
+
+
+def edit_gender(character: Player):
+    """toggle existing character gender"""
+    if character.gender == 'female':
+        character.gender = 'male'
+        return
+    if character.gender == 'male':
+        character.gender = 'female'
+        return
+    raise ValueError
+
+
 def choose_name(player: Player):
-    """choose (or update existing) player name"""
+    """step 2: choose (or update existing) player name"""
     if player.name:
         # this is repeated, so function:
         enter_name(player=player, edit_mode=True)
@@ -23,6 +48,10 @@ def choose_name(player: Player):
         player.name = enter_name(player=player, edit_mode=False)
 
         print(f'{player.name}')
+
+
+def edit_name(player=Player):
+    pass
 
 
 def enter_name(player: Player, edit_mode: bool):
@@ -44,7 +73,7 @@ def enter_name(player: Player, edit_mode: bool):
     if edit_mode:
         if temp == "":
             temp = player.name
-            print(f'(Keeping the name of {temp}.)')
+            print(f"(Keeping the name of '{temp}'.)")
     if temp.lower() == 'q':
         print("'Quit' selected.")
     print(f'Verus checks to see if anyone else has heard of "{temp}" around here...')
@@ -59,8 +88,10 @@ def enter_name(player: Player, edit_mode: bool):
 
 
 def choose_client(player: Player):
-    """choose (or update existing) client type"""
-    if player.client['type']:
+    global return_key
+    """step 0: choose (or update existing) client name"""
+    logging.info(f"{player.client['name']}")
+    if player.client['name']:
         options = 3
         # FIXME: this unintentionally wraps text (as it's supposed to) and loses formatting
         # output(text=f'''
@@ -82,26 +113,108 @@ def choose_client(player: Player):
         ''')
 
         temp = input(f"Which client (1-{options}, [Q]uit): ").lower()
+
         if temp == "q":
             # FIXME
             pass
+
         elif temp == "1":
-            player.client['type']: 'Commodore 64'
+            player.client['name']: 'Commodore 64'
             player.client['columns']: 40
             player.client['rows']: 25
             player.client['translation']: 'PETSCII'
+            bla = player.client['name']
+            return_key = 'Return'
+            logging.info(f'1: Client set to {bla}.')
         elif temp == "2":
-            player.client['type']: 'Commodore 128'
+            player.client['name']: 'Commodore 128'
             player.client['columns']: 80
             player.client['rows']: 25
             player.client['translation']: 'PETSCII'
+            return_key = 'Return'
         elif temp == "3":
-            player.client['type']: 'TADA Client'
+            player.client['name']: 'TADA Client'
             player.client['columns']: 80
             player.client['rows']: 25
             player.client['translation']: "ASCII"
+            return_key = 'Enter'
 
-        print(f"Terminal: {player.client['type']}")
+        # FIXME: until below code gets fixed, {return_key} will be "Enter"
+        if player.client == "PETSCII":
+            return_key = "Return"
+        else:
+            return_key = "Enter"
+        print(f"Client: {player.client['name']}")
+
+
+def edit_client(player=Player):
+    pass
+
+
+def choose_class(player: Player):
+    """step 3a: choose player class"""
+    print('''
+"Choose a class," Verus instructs.
+
+    (1) Wizard   (4) Paladin  (7) Archer
+    (2) Druid    (5) Ranger   (8) Assassin
+    (3) Fighter  (6) Thief    (9) Knight
+
+    FINISH ME
+''')
+
+
+def edit_class(player=Player):
+    pass
+
+
+def choose_race(player: Player):
+    """step 3b: choose player race"""
+    print('''
+"Choose a race," Verus instructs.
+    
+    (1) Human    (4) Elf      (7) Dwarf
+    (2) Ogre     (5) Hobbit   (8) Orc
+    (3) Gnome    (6) Halfling (9) Half-Elf
+
+    FINISH ME
+''')
+
+
+def edit_race(player):
+    pass
+
+
+def choose_age(player: Player):
+    """
+    step 4: allow player to select age and birthday
+
+    if player.age = 0, it is displayed as 'Unknown'
+    """
+    player.age = 0
+    print("TODO: Choose age/birthday")
+
+
+def edit_age(player):
+    pass
+
+
+def final_edit(player: Player):
+    """allow player another chance to view/edit characteristics before saving"""
+    print(f"Summary of character '{player.name}':")
+    options = 2
+    while True:
+        print()
+        print(f'1.    Name: {player.name}')
+        print(f'2.  Gender: {player.gender.title()}')
+        print()
+        temp = input(f"Option [1-{options}, {return_key}=Done]: ")
+        if temp == '1':
+            edit_name(player)
+        if temp == '2':
+            edit_gender(player)
+        if temp == '':
+            break
 
 
 def output(player: Player, text: str):
@@ -121,6 +234,7 @@ def output(player: Player, text: str):
 
 if __name__ == '__main__':
     import logging
+
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
     logging.info("Logging is running")
 
@@ -129,14 +243,19 @@ if __name__ == '__main__':
     #  so use IP address?  will use standard print() here until Player object is established
     print("Your faithful servant Verus appears at your side, as if by magic.")
 
-    player = Player(name=None, connection_id=1,
-                    client={'type': 'Commodore 128', 'columns': 80, 'translation': 'PETSCII'},
-                    # these are enabled for debugging info:
-                    flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
-                    )
+    character = Player(name=None, connection_id=1,
+                       client={'name': 'Commodore 128', 'columns': 80, 'translation': 'PETSCII'},
+                       # these are enabled for debugging info:
+                       flags={'dungeon_master': True, 'debug': True, 'expert_mode': False},
+                       silver={'in_hand': 1000}
+                       )
 
-    choose_name(player=player)
+    choose_client(player=character)  # TODO: net_server handles this
+    choose_gender(player=character)
+    choose_name(player=character)
+    choose_class(player=character)
+    choose_race(player=character)
 
-    choose_client(player=player)  # TODO: net_server
+    final_edit(player=character)
 
-    output(text="Done!", player=player)
+    output(text="Done!", player=character)
