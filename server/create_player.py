@@ -71,9 +71,9 @@ def enter_name(player: Player, edit_mode: bool):
     """
     if edit_mode is True:
         print(f"Editing existing name '{player.name}'.")
-    print("([Q] quits", end='')
+    print("([Q]uit", end='')
     if edit_mode is True:
-        print(f", Return/Enter keeps existing name", end='')
+        print(f", [{return_key}] keeps existing name", end='')
     print(")")
     # TODO: this should be written as a generic edit prompt
     temp = input("What is your name: ")
@@ -126,27 +126,26 @@ def choose_client(player: Player):
 
         if temp == "q":
             # FIXME
-            pass
+            print("quit selected")
 
-        elif temp == "1":
-            player.client['name']: 'Commodore 64'
-            player.client['columns']: 40
-            player.client['rows']: 25
-            player.client['translation']: 'PETSCII'
-            bla = player.client['name']
+        if temp == "1":
+            print("Option 1")
+            player.client['name'] = 'Commodore 64'
+            player.client['columns'] = 40
+            player.client['rows'] = 25
+            player.client['translation'] = 'PETSCII'
             return_key = 'Return'
-            logging.info(f'1: Client set to {bla}.')
         elif temp == "2":
-            player.client['name']: 'Commodore 128'
-            player.client['columns']: 80
-            player.client['rows']: 25
-            player.client['translation']: 'PETSCII'
+            player.client['name'] = 'Commodore 128'
+            player.client['columns'] = 80
+            player.client['rows'] = 25
+            player.client['translation'] = 'PETSCII'
             return_key = 'Return'
         elif temp == "3":
-            player.client['name']: 'TADA Client'
-            player.client['columns']: 80
-            player.client['rows']: 25
-            player.client['translation']: "ASCII"
+            player.client['name'] = 'TADA Client'
+            player.client['columns'] = 80
+            player.client['rows'] = 25
+            player.client['translation'] = "ASCII"
             return_key = 'Enter'
 
         # FIXME: until below code gets fixed, {return_key} will be "Enter"
@@ -154,7 +153,7 @@ def choose_client(player: Player):
             return_key = "Return"
         else:
             return_key = "Enter"
-        print(f"Client: {player.client['name']}")
+        print(f"Client set to: {player.client['name']}")
 
 
 def edit_client(player: Player):
