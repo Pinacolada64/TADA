@@ -52,8 +52,6 @@ def choose_name(player: Player):
         # no existing name, prompt for new character name
         player.name = enter_name(player=player, edit_mode=False)
 
-        print(f'{player.name}')
-
 
 def edit_name(player: Player):
     """update character name"""
@@ -134,25 +132,22 @@ def choose_client(player: Player):
             player.client['columns'] = 40
             player.client['rows'] = 25
             player.client['translation'] = 'PETSCII'
-            return_key = 'Return'
         elif temp == "2":
             player.client['name'] = 'Commodore 128'
             player.client['columns'] = 80
             player.client['rows'] = 25
             player.client['translation'] = 'PETSCII'
-            return_key = 'Return'
         elif temp == "3":
             player.client['name'] = 'TADA Client'
             player.client['columns'] = 80
             player.client['rows'] = 25
             player.client['translation'] = "ASCII"
-            return_key = 'Enter'
 
         # FIXME: until below code gets fixed, {return_key} will be "Enter"
         if player.client['translation'] == "PETSCII":
-            return_key = "Return"
+            return_key = "[Return]"
         else:
-            return_key = "Enter"
+            return_key = "[Enter]"
         print(f"Client set to: {player.client['name']}")
 
 
@@ -350,10 +345,10 @@ def edit_age(player: Player):
 def validate_age(age: int):
     if age < 15:
         print("\"Oh, come off it! You're not even old enough to handle a "
-              'Staff yet! Get real!"')
+              'Staff yet. Get real!"')
         return False
     if age > 50:
-        print('"Hmmm, we seem to be out of Senior Adventurer life '
+        print('"Hmm, we seem to be out of Senior Adventurer life '
               'insurance policies right now. Come back tomorrow!"')
         return False
     return True
