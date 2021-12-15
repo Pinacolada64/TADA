@@ -3,6 +3,7 @@
 # from __future__ import annotations
 
 import doctest
+import logging
 
 # https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
 
@@ -19,7 +20,8 @@ class Player(object):
             maybe return Player or Ally object if they hold it, or None if no-one holds it
     """
 
-    def __init__(self, connection_id: int, name: str, flags: dict, terminal: dict):
+    def __init__(self, connection_id=None, name=None, flags=None, silver=None, client=None,
+                 age=None, char_class=None, race=None):
         # this code is called when creating a new character
 
         # FIXME: probably just forget this, net_server.py handles IP addresses
@@ -55,16 +57,16 @@ class Player(object):
         # test that it works
         logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
 
-        # terminal settings:
-        self.terminal = terminal
+        # client settings (set up some defaults):
+        self.client = client  # {'name': None, 'rows': None, 'columns': None, 'translation': None}
+
+        self.age = age
         """
         {'type': 'Commodore 64', 'rows': 24, 'columns': 40,
          # for [bracket reader] text highlighting on C64/128:
          'colors': {'text': 1, 'highlight': 13, 'background': 15, 'border': 15}
         }
-        """
 
-        """
         proposed stats:
         some (not all) other stats, still collecting them:
     
@@ -82,10 +84,10 @@ class Player(object):
         moves_made: int
         guild[civilian | fist | sword | claw | outlaw]
         #                      1       2        3       4      5       6       7         8       9
-        player.class: int  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight 
-        player.race: int   # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
-        player.silver{in_hand: int, in_bank: int, in_bar: int}
-    
+        """
+        self.char_class = char_class  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
+        self.race = race  # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
+        """
         config stuff:
             colors{'highlight': 0, 'normal': 0}
             terminal{'type': str, 'columns': int, 'rows': int}  # c64: columns=40, rows=25
@@ -297,7 +299,7 @@ class Horse(object):
 
 
 if __name__ == '__main__':
-    import logging
+    # import logging
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
     import doctest
@@ -306,9 +308,10 @@ if __name__ == '__main__':
     connection_ids = []  # initialize empty list for logging connection_id's
 
     Rulan = Player(name="Rulan", connection_id=1,
-                   terminal={'type': 'Commodore 64'},
+                   client={'name': 'Commodore 64'},
                    flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
                    )
+    Rulan.client['columns']: 80
     print(Rulan)
     Rulan.set_stat('int', 5)
     print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this passes
@@ -328,7 +331,7 @@ if __name__ == '__main__':
     Rulan.print_all_stats()
 
     Shaia = Player(name="Shaia", connection_id=2,
-                   terminal={'type': 'none'},
+                   client={'name': 'none'},
                    flags={'expert_mode': True})
 
     Shaia.set_stat(stat='int', adj=18)
@@ -346,4 +349,3 @@ if __name__ == '__main__':
 
     transfer_money(Shaia, Rulan, kind='in_hand', adj=500)  # should rightfully fail
     transfer_money(Shaia, Rulan, kind='in_hand', adj=100)  # this passes
-

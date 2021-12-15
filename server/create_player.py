@@ -164,9 +164,18 @@ def choose_class(player: Player):
     """step 3a: choose player class"""
     # NOTE: Player object 'class' attribute conflicts with built-in keyword
     # I am naming it char_class instead
-    display_classes()
-    player.char_class = "fixme"
-    print("TODO: choose class")
+    class_valid = False
+    while class_valid is False:
+        display_classes()
+        temp = int(input("Class [1-9]: "))
+        valid = 0 < temp < 10  # accept 1-9
+        if valid:
+            # first time answering this prompt, there is no race to validate against:
+            player.char_class = ['wizard', 'druid', 'fighter', 'paladin', 'ranger',
+                                 'thief', 'archer', 'assassin', 'knight'][temp-1]
+            class_valid = True
+        else:
+            print('"Choose a class between 1 and 9," suggests Verus.')
 
 
 def display_classes():
@@ -175,59 +184,94 @@ def display_classes():
     (1) Wizard   (4) Paladin  (7) Archer
     (2) Druid    (5) Ranger   (8) Assassin
     (3) Fighter  (6) Thief    (9) Knight
-
-    FINISH ME''')
-    # TODO: Should be a help function to get help about individual classes.
-    # Whether it's called up with "H1" or "1?" is undetermined.
+    ''')
 
 
-def edit_class(player: Player):
-    while True:
+def edit_class(character: Player):
+    """
+    this is called during final_edit() to change the class,
+    then validate the resulting class/race combination
+    """
+    # TODO: combine common code in another method
+    valid_class = False
+    while valid_class is False:
         display_classes()
-        print(f'Current class: {player.char_class}. [{return_key}] keeps this.')
-        print(f'TODO: edit and validate.')
-        break
+        # TODO: Should be a help function to get help about individual classes.
+        # Whether it's called up with "H1" or "1?" is undetermined.
+        print(f'{return_key} keeps {character.char_class.title()}.')
+        """if the character creation process has only asked for the class so far,
+        race will be None, and we shouldn't validate the combination"""
+        temp = int(input("Class [1-9]: "))
+        valid = 0 < temp < 10  # accept 1-9
+        if valid:
+            valid_class = validate_class_race_combo(player=character)
+            if valid_class:
+                # class/race combo is good, set class:
+                character.char_class = ['wizard', 'druid', 'fighter', 'paladin',
+                                        'ranger', 'thief', 'archer', 'assassin',
+                                        'knight'][temp-1]
+                # end outer loop
+                break
+        else:
+            print('"Choose a class between 1 and 9," suggests Verus.')
 
 
-def validate_class_race_combo(self, player: Player):
-    """make sure class/race combination are allowed"""
-    bad_combination = False
+def validate_class_race_combo(player: Player):
+    """make sure selected class/race combination is allowed
+    :param player: Player object to validate class and race of
+    :returns: True if an acceptable combination, False if not"""
+    ok_combination = True
+    logging.info("validate_class_race_combo reached")
 
     # list of bad combinations:
     if player.char_class == 'wizard':
         if player.race in ['ogre', 'dwarf', 'orc']:
-            bad_combination = True
+            ok_combination = False
 
     elif player.char_class == 'druid':
         if player.race in ['ogre', 'orc']:
-            bad_combination = True
+            ok_combination = False
 
     elif player.char_class == 'thief':
         if player.race == 'elf':
-            bad_combination = True
+            ok_combination = False
 
     elif player.char_class == 'archer':
         if player.race in ['ogre', 'gnome', 'hobbit']:
-            bad_combination = True
+            ok_combination = False
 
     elif player.char_class == 'assassin':
         if player.race in ['gnome', 'elf', 'hobbit']:
-            bad_combination = True
+            ok_combination = False
 
     elif player.char_class == 'knight':
         if player.race in ['ogre', 'orc']:
-            bad_combination = True
+            ok_combination = False
 
-    if bad_combination:
-        print("Bad combination.")
+    if ok_combination is False:
+        print(f"\"{'An ' if player.race.startswith(('a', 'e', 'i', 'o', 'u')) else 'A '}", end='')
+        print(f"{player.race} {player.char_class} does not a good adventurer make. Try again.\"")
     else:
         print('"Okay, fine with me," agrees Verus.')
+    return ok_combination
 
 
 def choose_race(player: Player):
     """step 3b: choose player race"""
-    display_races()
-    player.race = "temp"
+    valid = False
+    while valid is False:
+        display_races()
+        print("Race [1-9]", end='')
+        temp = input(": ")
+        # TODO: help option here ("H1", "1?" or similar, want to avoid reading 9 races as in original
+        temp = int(temp)
+        valid = 0 < temp < 10  # accept 1-9
+        if valid:
+            player.race = ['human', 'ogre', 'gnome', 'elf', 'hobbit', 'halfling',
+                           'dwarf', 'orc', 'half-elf'][temp-1]
+            valid = validate_class_race_combo(player=player)
+            if valid:
+                break
 
 
 def display_races():
@@ -236,18 +280,30 @@ def display_races():
     (1) Human    (4) Elf      (7) Dwarf
     (2) Ogre     (5) Hobbit   (8) Orc
     (3) Gnome    (6) Halfling (9) Half-Elf
-
-    FINISH ME''')
+    ''')
     # TODO: Should be a help function to get help about individual races.
     # Whether it's called up with "H1" or "1?" is undetermined.
 
 
 def edit_race(player: Player):
-    while True:
+    race_valid = False
+    while race_valid is False:
         display_races()
-        print(f'Current race: {player.race}. [{return_key}] keeps this.')
-        print(f'TODO: edit and validate.')
-        break
+        if player.race:
+            print(f"{return_key} keeps '{player.race.title()}'.\n")
+        print("Race [1-9]", end='')
+        temp = input(": ")
+        if temp == '':
+            print(f"Keeping '{player.race.title()}'.")
+        # TODO: help option here ("H1", "1?" or similar, want to avoid reading 9 races as in original
+        temp = int(temp)
+        valid = 1 < temp < 9
+        if valid:
+            player.race = ['human' 'ogre', 'gnome', 'elf', 'hobbit', 'halfling',
+                           'dwarf', 'orc', 'half-elf'][temp-1]
+        race_valid = validate_class_race_combo(player=player)
+        if race_valid is not True:
+            print('"Try picking a different race," Verus suggests.')
 
 
 def choose_age(player: Player):
