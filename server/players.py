@@ -24,7 +24,7 @@ class Player(object):
                  age=None, char_class=None, race=None):
         # this code is called when creating a new character
 
-        # FIXME: probably just forget this, net_server.py handles IP addresses
+        # FIXME: probably just forget this, net_server.py handles connected_users(set)
         # connection_id: list of CommodoreServer IDs: {'connection_id': id, 'name': 'name'}
         # for k in len(connection_ids):
         #     if connection_id in connection_ids[1][k]:
@@ -62,7 +62,7 @@ class Player(object):
 
         self.age = age
         """
-        {'type': 'Commodore 64', 'rows': 24, 'columns': 40,
+        {'name': 'Commodore 64', 'rows': 24, 'columns': 40, 'translation': 'PETSCII'
          # for [bracket reader] text highlighting on C64/128:
          'colors': {'text': 1, 'highlight': 13, 'background': 15, 'border': 15}
         }
@@ -90,7 +90,7 @@ class Player(object):
         """
         config stuff:
             colors{'highlight': 0, 'normal': 0}
-            terminal{'type': str, 'columns': int, 'rows': int}  # c64: columns=40, rows=25
+            client{'type': str, 'columns': int, 'rows': int}  # c64: columns=40, rows=25
     
         combat:
             honor: int
@@ -143,7 +143,7 @@ class Player(object):
     def get_stat(self, stat):
         """
         if 'stat' is str: return value of single stat as str: 'stat'
-        if 'stat' is list: sum up contents of list: ['str', 'wis', 'int']...
+        TODO: if 'stat' is list: sum up contents of list: ['str', 'wis', 'int']...
         -- avoids multiple function calls
         """
         if type(stat) is list:
@@ -171,7 +171,7 @@ class Player(object):
         FIXME: eventually. can't figure out how to test functions which have a prerequisite function
         >>> Rulan = Player(name="Rulan",
                            connection_id=1,
-                           terminal={'type': 'Commodore 64'},
+                           client={'name': 'Commodore 64'},
                            flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
                            )
 
@@ -193,7 +193,7 @@ class Player(object):
         FIXME: can't figure out how to test routines which have other function call prerequisites
         >>> Rulan = Player(name="Rulan",
                            connection_id=1,
-                           terminal={'type': 'Commodore 64'},
+                           client={'name': 'Commodore 64'},
                            flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
                            )
 
@@ -223,11 +223,11 @@ class Player(object):
         logging.info(f'get_silver: {self.silver[kind]}')
         return self.silver[kind]
 
-    def set_silver(self, kind, adj):
+    def set_silver(self, kind: str, adj: int):
         """
         :param kind: 'in_hand', 'in_bank' or 'in_bar'
         :param adj: amount to add (<adj>) or subtract (-<adj>)
-        :return:
+        :return: None
         """
         before = self.silver[kind]
         # TODO: check for negative amount

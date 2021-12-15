@@ -12,8 +12,10 @@ Traceback (most recent call last):
     UnicodeDecodeError: 'charmap' codec can't decode byte 0x90 in position 2537: character maps to <undefined>
 """
 
-
+# resources:
 # https://docs.python.org/3/library/collections.html
+# https://docs.python.org/3/library/datetime.html
+# https://www.dataquest.io/blog/python-datetime-tutorial/
 
 
 def choose_gender(player: Player):
@@ -424,7 +426,8 @@ if __name__ == '__main__':
                        client={'name': 'Commodore 128', 'columns': 80, 'translation': 'PETSCII'},
                        # these are enabled for debugging info:
                        flags={'dungeon_master': True, 'debug': True, 'expert_mode': False},
-                       silver={'in_hand': 1000}
+                       # char_class=None, race=None,
+                       silver={'in_hand': 0, 'in_bank': 0, 'in_bar': 0}
                        )
 
     header("Introduction")
