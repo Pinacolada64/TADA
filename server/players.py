@@ -21,7 +21,7 @@ class Player(object):
     """
 
     def __init__(self, connection_id=None, name=None, flags=None, silver=None, client=None,
-                 age=None, char_class=None, race=None):
+                 age=None, birthday=None, char_class=None, race=None):
         # this code is called when creating a new character
 
         # FIXME: probably just forget this, net_server.py handles connected_users(set)
@@ -61,6 +61,7 @@ class Player(object):
         self.client = client  # {'name': None, 'rows': None, 'columns': None, 'translation': None}
 
         self.age = age
+        self.birthday = birthday  # tuple: (month, day, year)
         """
         {'name': 'Commodore 64', 'rows': 24, 'columns': 40, 'translation': 'PETSCII'
          # for [bracket reader] text highlighting on C64/128:

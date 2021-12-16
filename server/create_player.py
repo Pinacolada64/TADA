@@ -6,6 +6,8 @@ from random import randrange  # for age and generating random stats
 
 from datetime import date  # for birthday displays/calculations
 
+import calendar  # monthrange for validating # of days in month
+
 # import cbmcodecs2
 # FIXME: broken package
 """
@@ -311,17 +313,19 @@ def choose_age(player: Player):
 
     if player.age = 0, it is displayed as 'Unknown'
     """
-    while True:
+    age_valid = False
+    temp_age = 0
+    while age_valid is False:
         print('"Enter [0] to be of an unknown age."')
         print('"Enter [R] to select a random age between 15-50."\n')
-        temp = input("Enter your age (0, R or 15-50): ")
-        if temp.lower() == 'r':
-            player.age = randrange(15, 50)
+        temp_age = input("Enter your age (0, R or 15-50): ")
+        if temp_age.lower() == 'r':
+            temp_age = randrange(15, 50)
             break
-        if temp.isalpha():
+        if temp_age.isalpha():
             print('Verus tsks. "Please enter a number."')
-        temp = int(temp)
-        if temp == 0:
+        temp_age = int(temp_age)
+        if temp_age == 0:
             """
             I think this is mostly for when people LOOK at your character:
             
@@ -329,34 +333,45 @@ def choose_age(player: Player):
             
             Not entirely sure, though.
             """
-            player.age = 0
-            print('Verus studies you, and comments: "You\'re of an unknown age."')
+            temp_age = 0
             break
 
-        valid = validate_age(temp)
-        while valid:
-            player.age = temp
-            print(f'Verus remarks, "You\'re {player.age} years of age."')
-            break
-        print('"Try again," suggests Verus.')
+        age_valid = validate_age(temp_age)
+        if age_valid is False:
+            print('"Try again," suggests Verus.')
+
+    temp = 'of an unknown' if temp_age == 0 else f'{temp_age} years of'
+    print(f'Verus studies you, and comments: "You\'re {temp} age."')
+    player.age = temp_age
 
     # year = today.year - player.age FIXME: (if =0, what then?)
-    today_date = f"{date.today().month}/{date.today().day}"
+    _month = date.today().month
+    _day = date.today().day
+    _year = date.today().year
     print(f"""Would you like your birthday to be:
     
-    [T]oday ({today_date})
-    [A]nother date (choose month and day)""")
+    [T]oday ({_month}/{_day})
+    [A]nother date (choose month and day)
+""")
     temp = input("Which [T, A]: ").lower()
     if temp == 't':
-        # TODO: store as tuple? (12, 5)
-        player.birthday = today_date
-        print(f'Set to today: {today_date}.')
+        # store as tuple:
+        player.birthday = (_month, _day, _year)
+        print(f'Set to today: {_month}/{_day}.\n')
     if temp == 'a':
-        valid = False
-        # 50 is the upper limit for the char's age, that's why today.year-50
-        while valid is False:
-            _year = validate_range(word="Year", start=today.year-50, end=today.year)
-            print("FINISH ME")
+        # year is calculated for leap year in monthrange() below, and displaying later
+        # FIXME: what to do about age = 0
+        _year = date.today().year-player.age
+        _month = int(validate_range(word="Month", start=1, end=12))
+        # monthrange(year, day) returns tuple: (month, days_in_month)
+        # we just need days_in_month, which is monthrange()[1]
+        _day = int(validate_range(word="Day", start=1,
+                                  end=calendar.monthrange(year=_year, month=_month)[1]))
+
+        # store birthday as tuple: birthday[0] = month, [1] = day, [2] = year
+        # store year anyway in case age = 0
+        player.birthday = (_month, _day, _year)
+        print(f"Birthday: {_month}/{_day}/{_year}")
 
 
 def validate_range(word, start, end):
@@ -368,18 +383,25 @@ def validate_range(word, start, end):
     """
     valid = False
     while valid is False:
-        temp = int(input(f"{word} ({start}-{end}): "))
-        if start < temp < end:
+        temp = input(f"{word} ({start}-{end}): ")
+        if temp.isalpha():
+            print("Numbers only, please.")
+        temp = int(temp)
+        if start-1 < temp < end+1:
             valid = True
             return temp
         print("No, try again.")
 
 
-def edit_age(player: Player):
-    pass
-
-
 def validate_age(age: int):
+    """
+    validate that the age == 0, or 15 < age < 50
+    :param age: age entered
+    :return: True if age == 0, or 15 < age 50, False if not
+    """
+    if age == 0:
+        print("You're of an unknown age.")
+        return True
     if age < 15:
         print("\"Oh, come off it! You're not even old enough to handle a "
               'Staff yet. Get real!"')
@@ -388,7 +410,6 @@ def validate_age(age: int):
         print('"Hmm, we seem to be out of Senior Adventurer life '
               'insurance policies right now. Come back tomorrow!"')
         return False
-    return True
 
 
 def final_edit(player: Player):
@@ -407,7 +428,9 @@ def final_edit(player: Player):
             temp = player.age
         print(f'5.     Age: {temp}')
         # print(f'5.     Age: {player.age()}')
-        print(f"  Birthday: {player.birthday}")
+        # Birthday: tuple(month, day, year)
+        print(f'  Birthday: {player.birthday[0]}/{(player.birthday[1])}/'
+              f'{(player.birthday[2])}')
         print()
 
         temp = input(f"Option [1-{options}, {return_key}=Done]: ")
