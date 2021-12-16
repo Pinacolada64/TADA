@@ -4,6 +4,8 @@ from players import Player
 
 from random import randrange  # for age and generating random stats
 
+from datetime import date  # for birthday displays/calculations
+
 # import cbmcodecs2
 # FIXME: broken package
 """
@@ -332,12 +334,45 @@ def choose_age(player: Player):
             break
 
         valid = validate_age(temp)
-        if valid:
+        while valid:
             player.age = temp
             print(f'Verus remarks, "You\'re {player.age} years of age."')
             break
         print('"Try again," suggests Verus.')
-    print("TODO: Choose birthday")
+
+    # year = today.year - player.age FIXME: (if =0, what then?)
+    today_date = f"{date.today().month}/{date.today().day}"
+    print(f"""Would you like your birthday to be:
+    
+    [T]oday ({today_date})
+    [A]nother date (choose month and day)""")
+    temp = input("Which [T, A]: ").lower()
+    if temp == 't':
+        # TODO: store as tuple? (12, 5)
+        player.birthday = today_date
+        print(f'Set to today: {today_date}.')
+    if temp == 'a':
+        valid = False
+        # 50 is the upper limit for the char's age, that's why today.year-50
+        while valid is False:
+            _year = validate_range(word="Year", start=today.year-50, end=today.year)
+            print("FINISH ME")
+
+
+def validate_range(word, start, end):
+    """
+    :param word: Edit <word>
+    :param start: lowest number to allow
+    :param end: highest number to allow
+    :return: temp, the value input
+    """
+    valid = False
+    while valid is False:
+        temp = int(input(f"{word} ({start}-{end}): "))
+        if start < temp < end:
+            valid = True
+            return temp
+        print("No, try again.")
 
 
 def edit_age(player: Player):
@@ -371,7 +406,8 @@ def final_edit(player: Player):
         else:
             temp = player.age
         print(f'5.     Age: {temp}')
-        print(f"  Birthday: player.birthday")
+        # print(f'5.     Age: {player.age()}')
+        print(f"  Birthday: {player.birthday}")
         print()
 
         temp = input(f"Option [1-{options}, {return_key}=Done]: ")
