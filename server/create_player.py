@@ -449,6 +449,48 @@ def final_edit(player: Player):
             break
 
 
+def choose_guild(player: Player):
+    valid_guild = False
+    while valid_guild is False:
+        print('''"Would you like to join a Guild?" asks Verus.
+
+            No, stay a [C]ivilian
+            No, turn into an [O]utlaw
+            Yes, join a [G]uild
+        ''')
+        temp = input("Which option [C, O, G]: ").lower()
+        print()
+        if temp in ['c', 'o']:
+            guilds = {'c': 'civilian', 'o': 'outlaw'}
+            player.guild = guilds[temp]
+            _ = guilds[temp].title()
+            print(f'"You have chosen to be a {_}."')
+            valid_guild = True
+            break
+        if temp == 'g':
+            while True:
+                print('''"Which guild would you like to join?" asks Verus expectantly.
+    
+    [F]ist
+    [S]word
+    [C]law
+    [N]one - changed my mind
+''')
+                temp = input("Which option [F, S, C, N]: ")
+                print()
+                if temp in ['f', 's', 'c']:
+                    guilds = {'f': 'fist', 's': 'sword', 'c': 'claw'}
+                    player.guild = guilds[temp]
+                    _ = guilds[temp].title()
+                    print(f'"You have chosen the {_} guild."')
+                    valid_guild = True
+                    break
+                # N goes back to choose_guild()
+                if temp == 'n':
+                    print("Withdrawing guild choice.")
+                    valid_guild = False
+
+
 def header(text: str):
     print()
     print(text)
@@ -513,5 +555,8 @@ if __name__ == '__main__':
 
     header("VI. Final Edit")
     final_edit(player=character)
+
+    header("Choose Guild")
+    choose_guild(player=character)
 
     output(text="Done!", player=character)

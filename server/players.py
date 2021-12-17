@@ -21,7 +21,7 @@ class Player(object):
     """
 
     def __init__(self, connection_id=None, name=None, flags=None, silver=None, client=None,
-                 age=None, birthday=None, char_class=None, race=None):
+                 age=None, birthday=None, char_class=None, race=None, gender=None):
         # this code is called when creating a new character
 
         # FIXME: probably just forget this, net_server.py handles connected_users(set)
@@ -36,6 +36,7 @@ class Player(object):
         # logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
         # self.connection_id = connection_id  # 'id' shadows built-in name
 
+        self.gender = gender
         self.name = name
         self.connection_id = connection_id  # keep this until I figure out where it is in net_server.py
         # creates a new stats dict for each Player, zero all stats:
@@ -53,7 +54,7 @@ class Player(object):
         # in_bank may be cleared on character death (TODO: look in TLOS source)
         # in_bar should be preserved after character's death (TODO: same)
         # use Player.set_silver("kind", value)
-        self.silver = {"in_hand": 0, "in_bank": 0, "in_bar": 0}
+        self.silver = silver  # {"in_hand": 0, "in_bank": 0, "in_bar": 0}
         # test that it works
         logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
 
