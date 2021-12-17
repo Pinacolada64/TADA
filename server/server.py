@@ -103,7 +103,7 @@ players = {}
 
 class PlayerHandler(net_server.UserHandler):
 
-    def initSucessLines(self):
+    def initSuccessLines(self):
         return ['TADA!', 'Please log in.']
 
     def loginFailLines(self):
