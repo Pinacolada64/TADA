@@ -172,7 +172,8 @@ def choose_class(player: Player):
         valid = 0 < temp < 10  # accept 1-9
         if valid:
             # first time answering this prompt, there is no race to validate against:
-            player.char_class = ['wizard', 'druid', 'fighter', 'paladin', 'ranger',
+            player.char_class = ['wizard' if player.gender == 'male' else 'witch',
+                                 'druid', 'fighter', 'paladin', 'ranger',
                                  'thief', 'archer', 'assassin', 'knight'][temp-1]
             class_valid = True
         else:
@@ -180,9 +181,10 @@ def choose_class(player: Player):
 
 
 def display_classes():
-    print('''"Choose a class," Verus instructs.
+    wizard = 'Wizard' if character.gender == 'male' else 'Witch '
+    print(f'''"Choose a class," Verus instructs.
 
-    (1) Wizard   (4) Paladin  (7) Archer
+    (1) {wizard}   (4) Paladin  (7) Archer
     (2) Druid    (5) Ranger   (8) Assassin
     (3) Fighter  (6) Thief    (9) Knight
     ''')
@@ -211,6 +213,8 @@ def edit_class(character: Player):
                 character.char_class = ['wizard', 'druid', 'fighter', 'paladin',
                                         'ranger', 'thief', 'archer', 'assassin',
                                         'knight'][temp-1]
+                if temp == 1 and character.gender == 'female':
+                    character.char_class = 'witch'
                 # end outer loop
                 break
         else:
@@ -225,7 +229,7 @@ def validate_class_race_combo(player: Player):
     logging.info("validate_class_race_combo reached")
 
     # list of bad combinations:
-    if player.char_class == 'wizard':
+    if player.char_class == 'wizard' or 'witch':
         if player.race in ['ogre', 'dwarf', 'orc']:
             ok_combination = False
 
