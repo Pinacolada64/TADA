@@ -82,7 +82,7 @@ def enter_name(_char: Player, edit_mode: bool):
         output(f"(Editing existing name '{_char.name}'.)", _char)
     print("([Q]uit", end='')
     if edit_mode is True:
-        print(f", [{return_key}] keeps existing name", end='')
+        print(f", {return_key} keeps existing name", end='')
     print(")")
     # TODO: this should be written as a generic edit prompt
     temp = input("What is your name: ")
@@ -95,12 +95,13 @@ def enter_name(_char: Player, edit_mode: bool):
     output(f'Verus checks to see if anyone else has heard of "{temp}" around '
            'here...', _char)
     # TODO: check for existing name
-    print(f"Seems to be okay. He ", end='')
+    _ = f"Seems to be okay. He "
     if edit_mode and character.name != temp:
-        print("scratches out your old name and re-writes it", end='')
+        _ += "scratches out your old name and re-writes it"
     else:
-        print("scribbles your name", end='')
-    print(" in a dusty book.")
+        _ += "scribbles your name"
+    _ += " in a dusty book."
+    output(_, _char)
     return temp
 
 
@@ -255,7 +256,7 @@ def validate_class_race_combo(player: Player):
             ok_combination = False
 
     if ok_combination is False:
-        temp = f'''"{'An ' if player.race.startswith(('a', 'e', 'i', 'o', 'u')) else 'A '}"'''
+        temp = f'''"{'An ' if player.race.startswith(('a', 'e', 'i', 'o', 'u')) else 'A '}'''
         temp += f'{player.race} {player.char_class} does not a good adventurer make. Try again."'
         output(temp, player)
     else:
@@ -292,7 +293,7 @@ def display_races(player: Player):
     # Whether it's called up with "H1" or "1?" is undetermined.
 
 
-def edit_race(player: Player):
+def edit_race(player: Player) -> None:
     race_valid = False
     while race_valid is False:
         display_races(player)
@@ -301,6 +302,9 @@ def edit_race(player: Player):
             print()
         print("Race [1-9]", end='')
         temp = input(": ")
+        # TODO: make subroutine that validates isalpha() and allowable range:
+        if temp.isalpha():
+            output(f'"Numbers only, please."', player)
         if temp == '':
             output(f"Keeping '{player.race.title()}'.", player)
         # TODO: help option here ("H1", "1?" or similar, want to avoid reading 9 races as in original
@@ -312,6 +316,7 @@ def edit_race(player: Player):
         race_valid = validate_class_race_combo(player=player)
         if race_valid is not True:
             output('"Try picking a different race," Verus suggests.', player)
+    return None
 
 
 def choose_age(player: Player):
@@ -572,3 +577,7 @@ if __name__ == '__main__':
     choose_guild(character)
 
     output("Done!", character)
+    print()
+    output("Final stats:", character)
+    # can't use output() because of \n's
+    print(character)
