@@ -39,6 +39,7 @@ class Player(object):
         self.gender = gender
         self.name = name
         self.connection_id = connection_id  # keep this until I figure out where it is in net_server.py
+
         # creates a new stats dict for each Player, zero all stats:
         # set with Player.set_stat('xyz', val)
         self.stats = {'chr': 0, 'con': 0, 'dex': 0, 'int': 0, 'str': 0, 'wis': 0, 'egy': 0}
@@ -54,25 +55,35 @@ class Player(object):
         # in_bank may be cleared on character death (TODO: look in TLOS source)
         # in_bar should be preserved after character's death (TODO: same)
         # use Player.set_silver("kind", value)
-        self.silver = silver  # {"in_hand": 0, "in_bank": 0, "in_bar": 0}
+        if silver is None:
+            # this initializes the dict with default values
+            self.silver = {"in_hand": 0, "in_bank": 0, "in_bar": 0}
+        else:
+            # thanks for bulletproofing code - jam
+            if type(silver) is dict:
+                self.silver = silver
+            else:
+                raise TypeError
         # test that it works
         logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
 
-        # client settings (set up some defaults):
-        self.client = client  # {'name': None, 'rows': None, 'columns': None, 'translation': None}
+        # client settings:
+        if client is None:
+            # set up some defaults
+            self.client = {'name': None, 'rows': None, 'columns': None, 'translation': None,
+                           # colors for [bracket reader] text highlighting on C64/128:
+                           'text': None, 'highlight': None, 'background': None, 'border': None}
+        else:
+            self.client = client
 
         self.age = age
         self.birthday = birthday  # tuple: (month, day, year)
         """
-        {'name': 'Commodore 64', 'rows': 24, 'columns': 40, 'translation': 'PETSCII'
-         # for [bracket reader] text highlighting on C64/128:
-         'colors': {'text': 1, 'highlight': 13, 'background': 15, 'border': 15}
-        }
-
         proposed stats:
         some (not all) other stats, still collecting them:
     
-        times_played: str, last_play_date: str
+        times_played: int
+        last_play_date: tuple # (month, day, year) like birthday
     
         special_items[
             SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
@@ -80,20 +91,15 @@ class Player(object):
             combinations{'elevator', 'locker', 'castle'}  # tuple? combo is 3 digits: (nn, nn, nn)
             ]
                 
-        age: int, birthday: str, sex: [ male | female ]
-        stats{'con': 0, 'dex': 0, 'ego': 0, 'int': 0, 'str': 0, 'wis': 0}
-        map_level: int  # cl, map_room: int  # cr
+        map_level: int  # cl
+        map_room: int  # cr
         moves_made: int
-        guild[civilian | fist | sword | claw | outlaw]
-        #                      1       2        3       4      5       6       7         8       9
         """
+        self.guild = None  # [civilian | fist | sword | claw | outlaw]
+        #                      1       2        3       4      5       6       7         8       9
         self.char_class = char_class  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
         self.race = race  # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
         """
-        config stuff:
-            colors{'highlight': 0, 'normal': 0}
-            client{'type': str, 'columns': int, 'rows': int}  # c64: columns=40, rows=25
-    
         combat:
             honor: int
             weapon_percentage{'weapon': percentage [, ...]}
@@ -107,7 +113,11 @@ class Player(object):
 
     def __str__(self):
         """print formatted Player object (double-quoted since ' in string)"""
-        return f"Name: {self.name}\nSilver in hand: {self.silver['in_hand']}"
+        _ = f"Name: {self.name}\t\t"
+        f"Age: {'Undetermined' if self.age == 0 else '{self.age}'}"
+        f'\tBirthday: {self.birthday[0]}/{self.birthday[1]}/{self.birthday[2]}\n'
+        f"Silver: In hand: {self.silver['in_hand']}\n"
+        f'Guild: {self.guild}\n'
 
     def set_stat(self, stat: str, adj: int):
         """
