@@ -506,6 +506,97 @@ def choose_guild(player: Player):
                     valid_guild = False
 
 
+def roll_stats(player):
+    roll_number = 1
+    chances = 1  # was 5
+    output(f"You will have {chances} chances to roll for {player.name}'s attributes.", player)
+    while roll_number < chances+1:
+        print(f"Throw {roll_number} of {chances} - Rolling...", end='')
+        roll_number += 1
+        for k in player.stats:
+            player.stats[k] = getnum()
+            logging.info(f'{k=} {player.stats[k]=}')
+    print()
+    for k in player.stats:
+        print(f'{k=} {player.stats[k]}')
+    output('"Sorry, you\'re stuck with these scores," Verus says.', player)
+
+
+def getnum():
+    """ACOS code:
+getnum
+ zz$=rnd$:a=0   # rnd$ = random character
+getnum1
+ print ".";
+ b=asc(rnd$)-64:if b>17 then b=b-7
+ if b=>11 return
+ a=a+1:if a<10 then zz$=rnd$:goto getnum1
+ b=b+9:if b<11 goto getnum1
+ return"""
+    a = 0  # loop counter
+    b = 0  # value returned
+    while a < 10:
+        print(".", end='')
+        b = randrange(1, 26)  # assuming this is rnd$'s limit
+        logging.info(f'{b=} init')
+        if b > 17:
+            b -= 7
+            logging.info(f'{b=} -7')
+        if b >= 11:
+            logging.info(f'{b=} >= 11 return')
+            return b
+        a += 1
+        logging.info(f'loop {a=}')
+        b += 9
+        logging.info(f'stat {b=} +9')
+        if b > 11:
+            logging.info(f'stat {b=} >11 break')
+            break
+    logging.info(f'stat {b=} return')
+    return b
+
+
+def adjust_stats(player):
+    """adjust stats of player, based on class and race"""
+    if player.flags['debug']:
+        # just so we don't have to go through every char creation step...
+        player.char_class = 'fighter'
+        logging.info(f'Shortcut: set {player.char_class=}')
+    pc = player.char_class
+    # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
+    if pc == 'witch' or 'wizard':  # class 1
+        # these lists are all the same length because they loop through all
+        # player attributes and add or subtract the number in that position.
+        # if 0, the attribute is not modified.
+        # NOTE: compared to t.np, stat 4 (Ego) has been removed from these lists
+        adj = [0, -1, 0, 2, 0, 0, 0]
+    if pc == 'druid':  # class 2
+        adj = [0, 0, 0, +2, -1, +2, 0]
+    if pc == 'fighter':  # class 3
+        adj = [0, +2, -1, -1, +2, 0, +2]
+    if pc == 'paladin':  # class 4
+        adj = [0, 0, +1, +1, +1, +1, 0]
+    if pc == 'ranger':  # class 5
+        adj = [0, 0, 0, -1, +1, -1, 0]
+    if pc == 'thief':  # class 6
+        adj = [0, 0, +1, 0, 0, 0, +2]
+    if pc == 'archer':  # class 7
+        adj = [0, 0, +2, 0, 0, 0, -1]
+    if pc == 'assassin':  # class 8
+        adj = [0, 0, -1, 0, +2, 0, 0]
+    if pc == 'knight':  # class 9
+        adj = [0, +1, 0, +1, 0, 0, -1]
+    # loop through stats, adjusting each based on player class:
+    num = 0  # index into adj[num]
+    for k in player.stats:
+        before = player.stats[k]  # e.g., stat{'dex': 4}
+        after = before + adj[num]
+        player.stats[k] = after
+        logging.info(f'{k=} {before=} {after=}')
+        num += 1
+    print("Done!")
+
+
 def header(text: str):
     print()
     print(text)
@@ -545,6 +636,10 @@ if __name__ == '__main__':
                        # char_class=None, race=None,
                        silver={'in_hand': 0, 'in_bank': 0, 'in_bar': 0}
                        )
+
+    roll_stats(character)
+    adjust_stats(character)
+    exit()
 
     header("Introduction")
     output("Your faithful servant Verus appears at your side, as if by magic.",
