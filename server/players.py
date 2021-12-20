@@ -21,7 +21,8 @@ class Player(object):
     """
 
     def __init__(self, connection_id=None, name=None, flags=None, silver=None, client=None,
-                 age=None, birthday=None, char_class=None, race=None, gender=None):
+                 age=None, birthday=None, char_class=None, race=None, gender=None,
+                 hit_points=None, shield=None, armor=None):
         # this code is called when creating a new character
 
         # FIXME: probably just forget this, net_server.py handles connected_users(set)
@@ -36,9 +37,10 @@ class Player(object):
         # logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
         # self.connection_id = connection_id  # 'id' shadows built-in name
 
-        self.gender = gender
-        self.name = name
         self.connection_id = connection_id  # keep this until I figure out where it is in net_server.py
+        self.name = name
+
+        self.gender = gender
 
         # creates a new stats dict for each Player, zero all stats:
         # set with Player.set_stat('xyz', val)
@@ -99,6 +101,10 @@ class Player(object):
         #                      1       2        3       4      5       6       7         8       9
         self.char_class = char_class  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
         self.race = race  # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
+
+        self.hit_points = hit_points
+        self.shield = shield
+        self.armor = armor
         """
         combat:
             honor: int
@@ -323,12 +329,12 @@ if __name__ == '__main__':
                    client={'name': 'Commodore 64'},
                    flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
                    )
-    Rulan.client['columns']: 80
+    Rulan.client['columns'] = 80
     print(Rulan)
     Rulan.set_stat('int', 5)
     print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this passes
 
-    Rulan.set_stat(stat='int', adj=4)  # add to Rulan's Intelligence of 5, total 9
+    Rulan.set_stat('int', 4)  # add to Rulan's Intelligence of 5, total 9
     print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this passes
     # when print_stat returned None, had to do this:
     # print(f'Rulan ...... ', end='')

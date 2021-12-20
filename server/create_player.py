@@ -112,7 +112,7 @@ def choose_client(player: Player):
     if player.client['name']:
         options = 3
         # FIXME: this unintentionally wraps text (as it's supposed to) but loses newlines
-        output('* '*80, player)
+        output('* ' * 80, player)
 
         # output() discards newlines, so can't use it here - even literal \n's don't work:
 
@@ -176,7 +176,7 @@ def choose_class(player: Player):
     # first time answering this prompt, there is no race to validate against:
     player.char_class = ['wizard' if player.gender == 'male' else 'witch',
                          'druid', 'fighter', 'paladin', 'ranger',
-                         'thief', 'archer', 'assassin', 'knight'][temp-1]
+                         'thief', 'archer', 'assassin', 'knight'][temp - 1]
 
 
 def display_classes(player: Player):
@@ -214,7 +214,7 @@ def edit_class(player: Player):
                 # class/race combo is good, set class:
                 character.char_class = ['wizard', 'druid', 'fighter', 'paladin',
                                         'ranger', 'thief', 'archer', 'assassin',
-                                        'knight'][temp-1]
+                                        'knight'][temp - 1]
                 if temp == 1 and character.gender == 'female':
                     character.char_class = 'witch'
                 # end outer loop
@@ -276,7 +276,7 @@ def choose_race(player: Player):
         valid = 0 < temp < 10  # accept 1-9
         if valid:
             player.race = ['human', 'ogre', 'gnome', 'elf', 'hobbit', 'halfling',
-                           'dwarf', 'orc', 'half-elf'][temp-1]
+                           'dwarf', 'orc', 'half-elf'][temp - 1]
             valid = validate_class_race_combo(player=player)
             if valid:
                 break
@@ -312,7 +312,7 @@ def edit_race(player: Player) -> None:
         valid = 1 < temp < 9
         if valid:
             player.race = ['human' 'ogre', 'gnome', 'elf', 'hobbit', 'halfling',
-                           'dwarf', 'orc', 'half-elf'][temp-1]
+                           'dwarf', 'orc', 'half-elf'][temp - 1]
         race_valid = validate_class_race_combo(player=player)
         if race_valid is not True:
             output('"Try picking a different race," Verus suggests.', player)
@@ -375,7 +375,7 @@ def choose_age(player: Player):
     if temp == 'a':
         # year is calculated for leap year in monthrange() below, and displaying later
         # FIXME: what to do about age = 0
-        _year = date.today().year-player.age
+        _year = date.today().year - player.age
         _month = int(validate_range(word="Month", start=1, end=12))
         # monthrange(year, day) returns tuple: (month, days_in_month)
         # we just need days_in_month, which is monthrange()[1]
@@ -388,11 +388,12 @@ def choose_age(player: Player):
         output(f"Birthday: {_month}/{_day}/{_year}", player)
 
 
-def validate_range(word, start, end):
+def validate_range(word, start, end, player=None):
     """
     :param word: Edit <word>
     :param start: lowest number to allow
     :param end: highest number to allow
+    :param player: Player object to output to
     :return: temp, the value input
     """
     valid = False
@@ -401,7 +402,7 @@ def validate_range(word, start, end):
         if temp.isalpha():
             output("Numbers only, please.", player)
         temp = int(temp)
-        if start-1 < temp < end+1:
+        if start - 1 < temp < end + 1:
             valid = True
             return temp
         output("No, try again.", player)
@@ -507,19 +508,53 @@ def choose_guild(player: Player):
 
 
 def roll_stats(player):
-    roll_number = 1
-    chances = 1  # was 5
+    roll_number = 0
+    chances = 5
     output(f"You will have {chances} chances to roll for {player.name}'s attributes.", player)
-    while roll_number < chances+1:
-        print(f"Throw {roll_number} of {chances} - Rolling...", end='')
+    while roll_number < chances:
         roll_number += 1
-        for k in player.stats:
-            player.stats[k] = getnum()
-            logging.info(f'{k=} {player.stats[k]=}')
-    print()
+        print(f"Throw {roll_number} of {chances} - Rolling...", end='')
+        # considering that running both these routines make unbelievably good 1st level stats,
+        # i don't think they both need to be called.
+        # TODO: each routine needs to be tested/compared to see what a more realistic set of stats is
+        # for k in player.stats:
+        # player.stats[k] = getnum()
+        # logging.info(f'{k=} {player.stats[k]=}')
+        class_race_bonuses(player)
+        print()
+        player.hit_points = 0
+        # hp=((ps+pd+pt+pi+pw+pe)/6)+random(10)
+        player.hit_points = player.stats['chr'] + player.stats['con'] + player.stats['dex'] + player.stats['int'] \
+            + player.stats['str'] + player.stats['wis'] + player.stats['egy'] // 7 + randrange(10)
+        player.experience = 0
+
+        if randrange(10) > 5:
+            player.shield = 0
+            player.armor = 0
+        else:
+            player.shield = randrange(30)
+            player.armor = randrange(30)
+
+        print(f"Charisma......: {player.stats['chr']}")
+        print(f"Constitution..: {player.stats['con']}")
+        print(f"Dexterity.....: {player.stats['dex']}")
+        print(f"Intelligence..: {player.stats['int']}")
+        print(f"Strength......: {player.stats['str']}")
+        print(f"Wisdom........: {player.stats['wis']}\n")
+        print(f"Hit Points....: {player.hit_points}")
+        print(f"Energy Level..: {player.stats['egy']}")
+        temp = player.shield
+        print(f"Shield........: {temp if temp != 0 else 'None'}")
+        temp = player.armor
+        print(f"Armor.........: {temp if temp != 0 else 'None'}")
+        print()
+        temp = input("Do you accept [y/n]: ").lower()
+        if temp == 'y':
+            break
     for k in player.stats:
         print(f'{k=} {player.stats[k]}')
-    output('"Sorry, you\'re stuck with these scores," Verus says.', player)
+    if roll_number == chances:
+        output('"Sorry, you\'re stuck with these scores," Verus says.', player)
 
 
 def getnum():
@@ -537,7 +572,7 @@ getnum1
     b = 0  # value returned
     while a < 10:
         print(".", end='')
-        b = randrange(1, 26)  # assuming this is rnd$'s limit
+        b = randrange(1, 26)  # assuming 1-26 is rnd$'s limit
         logging.info(f'{b=} init')
         if b > 17:
             b -= 7
@@ -556,20 +591,23 @@ getnum1
     return b
 
 
-def adjust_stats(player):
+def class_race_bonuses(player):
     """adjust stats of player, based on class and race"""
-    if player.flags['debug']:
-        # just so we don't have to go through every char creation step...
-        player.char_class = 'fighter'
-        logging.info(f'Shortcut: set {player.char_class=}')
     pc = player.char_class
+    # if player.flags['debug']:
+    # just so we don't have to go through every char creation step...
+    # TODO: prompt using display_classes()
+    pc = 'fighter'
+    # logging.info(f'Shortcut: set {pc=}')
+
     # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
     if pc == 'witch' or 'wizard':  # class 1
         # these lists are all the same length because they loop through all
         # player attributes and add or subtract the number in that position.
         # if 0, the attribute is not modified.
         # NOTE: compared to t.np, stat 4 (Ego) has been removed from these lists
-        adj = [0, -1, 0, 2, 0, 0, 0]
+        #     chr con dex int str wis egy
+        adj = [0, -1, 0, +2, 0, 0, 0]
     if pc == 'druid':  # class 2
         adj = [0, 0, 0, +2, -1, +2, 0]
     if pc == 'fighter':  # class 3
@@ -586,15 +624,72 @@ def adjust_stats(player):
         adj = [0, 0, -1, 0, +2, 0, 0]
     if pc == 'knight':  # class 9
         adj = [0, +1, 0, +1, 0, 0, -1]
-    # loop through stats, adjusting each based on player class:
+    apply_bonuses(adj, player)
+
+    pr = player.race
+    # if player.flags['debug']:
+    # just so we don't have to go through every char creation step...
+    # TODO: prompt using display_classes()
+    # pr = 'human'
+    # logging.info(f'Shortcut: set {pr=}')
+
+    # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc     Half-Elf
+    # these lists are all the same length because they loop through all
+    # player attributes and add or subtract the number in that position.
+    # if 0, the attribute is not modified.
+    # NOTE: compared to t.np, stat 4 (Ego) has been removed from these lists
+    #     chr con dex int str wis egy
+    if pr == 'human':  # race 1
+        adj = [0, +1, +2, +2, -1, 0, 0]
+    if pr == 'ogre':  # race 2
+        adj = [0, +2, -1, -2, +3, -1, 0]
+    if pr == 'pixie':  # race 3
+        adj = [0, 0, -1, 0, +1, +1, 0]
+    if pr == 'elf':  # race 4
+        adj = [0, -1, +2, +1, 0, +2, 0]
+    if pr == 'hobbit':  # race 5
+        adj = [0, 0, +1, +2, -1, 0, +1]
+    if pr == 'gnome':  # race 6
+        adj = [0, +1, +2, +2, -1, 0, 0]
+    if pr == 'dwarf':  # race 7
+        adj = [0, +1, -1, 0, +2, 0, 0]
+    if pr == 'orc':  # race 8
+        adj = [0, 0, +1, -1, +2, -1, +2]
+    if pr == 'half-elf':  # race 9
+        adj = [0, 0, +1, 0, 0, +1, 0]
+    apply_bonuses(adj, player)
+
+
+def apply_bonuses(adj: list, player: Player):
+    # loop through stats, adjusting each based on player race:
     num = 0  # index into adj[num]
     for k in player.stats:
-        before = player.stats[k]  # e.g., stat{'dex': 4}
+        # class_calculate is not in skip's branch
+        # https://github.com/Pinacolada64/TADA/blob/skip/SPUR-code/SPUR.NEW.S
+        # nor spur.logon.s:
+        # https://github.com/Pinacolada64/TADA/blob/master/SPUR-code/SPUR.LOGON.S
+        # t.np:
+        # y=stat, x=counter, b=max value
+        # maximum allowable value for chr, con, dex: 18
+        # maximum allowable value for int, str, wis, egy: 25
+        # y=v1+86:for x=1 to 8:b=18:if x>3 then b=25
+        if num < 3:
+            _max = 18
+        else:
+            _max = 25
+        # {:_276}
+        # n=fn r(b):if n=1 then {:_276}
+        before = randrange(2, _max)
+        # n=n+val(mid$(a$,x*2-1,2)):if n<1 then {:_276}
+        # poke y,n:y=y+1:print ".";
+        # next:y=v1+86
         after = before + adj[num]
+        # if n>b then n=b
+        if after > _max:
+            after = _max
         player.stats[k] = after
-        logging.info(f'{k=} {before=} {after=}')
+        logging.info(f'{k=} {before=} {after=} {_max=}')
         num += 1
-    print("Done!")
 
 
 def header(text: str):
@@ -613,6 +708,13 @@ def output(string: str, player: Player):
     :return: none
 
     TODO: implement cbmcodec2 ASCII -> PETSCII translation
+
+    TODO: implement different success messages for player originating action vs. other players in room
+    for cxn in all_players_in_room:
+        if player.(something, idk what at this point) == player.who_performed_action:
+            output(f"You throw the snowball at {target}.", player)
+        else:
+            output(f"{actor} throws the snowball at {target}.", player)
     """
     if player.client['translation'] == 'PETSCII':
         pass  # until cbmcodecs2 is fixed
@@ -636,10 +738,6 @@ if __name__ == '__main__':
                        # char_class=None, race=None,
                        silver={'in_hand': 0, 'in_bank': 0, 'in_bar': 0}
                        )
-
-    roll_stats(character)
-    adjust_stats(character)
-    exit()
 
     header("Introduction")
     output("Your faithful servant Verus appears at your side, as if by magic.",
@@ -671,8 +769,12 @@ if __name__ == '__main__':
     header("Choose Guild")
     choose_guild(character)
 
-    output("Done!", character)
+    header("Roll Statistics")
+    roll_stats(character)
+
+    header("Done!")
     print()
     output("Final stats:", character)
     # can't use output() because of \n's
-    print(character)
+    # FIXME
+    # print(character)
