@@ -5,8 +5,8 @@
 import doctest
 import logging
 
-# https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
 
+# https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
 # http://pythonfiddle.com/text-based-rpg-code-python/
 
 
@@ -20,10 +20,9 @@ class Player(object):
             maybe return Player or Ally object if they hold it, or None if no-one holds it
     """
 
-    def __init__(self, connection_id=None, name=None, flags=None, silver=None, client=None,
-                 age=None, birthday=None, char_class=None, race=None, gender=None,
-                 hit_points=None, shield=None, armor=None):
-        # this code is called when creating a new character
+    def __init__(self):
+        """this code is called when creating a new character"""
+        # specifying e.g., 'hit_points=None' makes it a required parameter
 
         # FIXME: probably just forget this, net_server.py handles connected_users(set)
         # connection_id: list of CommodoreServer IDs: {'connection_id': id, 'name': 'name'}
@@ -37,49 +36,38 @@ class Player(object):
         # logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
         # self.connection_id = connection_id  # 'id' shadows built-in name
 
-        self.connection_id = connection_id  # keep this until I figure out where it is in net_server.py
-        self.name = name
+        self.connection_id = 0  # keep this until I figure out where it is in net_server.py
+        self.name = None
 
-        self.gender = gender
+        self.gender = None
 
         # creates a new stats dict for each Player, zero all stats:
         # set with Player.set_stat('xyz', val)
         self.stats = {'chr': 0, 'con': 0, 'dex': 0, 'int': 0, 'str': 0, 'wis': 0, 'egy': 0}
 
         # flags:
-        self.flags = flags  # {'room_descriptions': bool}
-        # autoduel_mode: bool, hourglass_mode: bool, expert_mode: bool, more_prompt: bool
-        # architect_mode: bool, orator_mode: bool # TODO: define orator_mode more succinctly
-        # hungry: bool, thirsty: bool, diseased: bool, poisoned: bool
-        # debug_mode: bool, dungeon_master: bool]
+        self.flags = {'room_descriptions': bool, 'autoduel': bool, 'hourglass': bool,
+                      'expert': bool, 'more_prompt': bool, 'architect': bool,
+                      # TODO: orator_mode: bool # define orator_mode more succinctly
+                      'hungry': bool, 'thirsty': bool, 'diseased': bool, 'poisoned': bool,
+                      'debug': bool, 'dungeon_master': bool
+                      }
+        logging.info(f'{self.flags=}')
 
         # creates a new silver dict for each Player:
         # in_bank may be cleared on character death (TODO: look in TLOS source)
         # in_bar should be preserved after character's death (TODO: same)
         # use Player.set_silver("kind", value)
-        if silver is None:
-            # this initializes the dict with default values
-            self.silver = {"in_hand": 0, "in_bank": 0, "in_bar": 0}
-        else:
-            # thanks for bulletproofing code - jam
-            if type(silver) is dict:
-                self.silver = silver
-            else:
-                raise TypeError
-        # test that it works
-        logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
+        self.silver = {"in_hand": 0, "in_bank": 0, "in_bar": 0}
+        # logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
 
-        # client settings:
-        if client is None:
-            # set up some defaults
-            self.client = {'name': None, 'rows': None, 'columns': None, 'translation': None,
-                           # colors for [bracket reader] text highlighting on C64/128:
-                           'text': None, 'highlight': None, 'background': None, 'border': None}
-        else:
-            self.client = client
+        # client settings - set up some defaults
+        self.client = {'name': None, 'rows': None, 'columns': 80, 'translation': None,
+                       # colors for [bracket reader] text highlighting on C64/128:
+                       'text': None, 'highlight': None, 'background': None, 'border': None}
 
-        self.age = age
-        self.birthday = birthday  # tuple: (month, day, year)
+        self.age = 0
+        self.birthday = None  # tuple: (month, day, year)
         """
         proposed stats:
         some (not all) other stats, still collecting them:
@@ -99,12 +87,13 @@ class Player(object):
         """
         self.guild = None  # [civilian | fist | sword | claw | outlaw]
         #                      1       2        3       4      5       6       7         8       9
-        self.char_class = char_class  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
-        self.race = race  # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
+        self.char_class = None  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
+        self.race = None  # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
 
-        self.hit_points = hit_points
-        self.shield = shield
-        self.armor = armor
+        self.hit_points = None
+        self.shield = None
+        self.armor = None
+        self.experience = None
         """
         combat:
             honor: int
@@ -321,15 +310,17 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
     import doctest
+
     # doctest.testmod(verbose=True)
 
-    connection_ids = []  # initialize empty list for logging connection_id's
+    # connection_ids = []  # initialize empty list for logging connection_id's
 
-    Rulan = Player(name="Rulan", connection_id=1,
-                   client={'name': 'Commodore 64'},
-                   flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
-                   )
-    Rulan.client['columns'] = 80
+    Rulan = Player()
+    Rulan.name = "Rulan"
+    Rulan.connection_id = 1
+    Rulan.client = {'name': 'Commodore 128', 'columns': 80}
+    Rulan.flags = {'dungeon_master': True, 'debug': True, 'expert_mode': False}
+
     print(Rulan)
     Rulan.set_stat('int', 5)
     print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this passes
@@ -348,9 +339,11 @@ if __name__ == '__main__':
 
     Rulan.print_all_stats()
 
-    Shaia = Player(name="Shaia", connection_id=2,
-                   client={'name': 'none'},
-                   flags={'expert_mode': True})
+    Shaia = Player()
+    Shaia.name = "Shaia"
+    Shaia.connection_id = 2
+    Shaia.client = {'name': 'none'},
+    Shaia.flags = {'expert_mode': True}
 
     Shaia.set_stat(stat='int', adj=18)
     print(f"Shaia ...... {Shaia.print_stat('int')}")  # should print 'Shaia ...... Int: 18': passes
