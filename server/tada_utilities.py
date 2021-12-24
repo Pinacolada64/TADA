@@ -1,6 +1,9 @@
 import textwrap
 
 from players import Player
+
+import net_server  # for promptRequest and Message
+
 """
 utilities such as:
 * grammatically correct list output
@@ -138,6 +141,30 @@ def input_yes_no(prompt: str):
             return True
         if temp == 'n':
             return False
+
+
+def fileread(filename: str):
+    """display a file to a user in 40 or 80 columns with more_prompt paging"""
+    msg = net_server.Message
+    prompt = net_server.UserHandler.promptRequest
+    # p = self.player
+    # with open(f"main-menu-{self.client['columns']}")
+    line_count = 0
+    with open(filename) as f:
+        reading = True
+        while reading:
+            msg(lines=[f.readline()])
+            # if p.flags['more_prompt']:
+            line_count += 1
+            # if line_count == p.client['rows']:
+            if line_count == 20:
+                line_count = 0
+                option = prompt(lines=['new', 'news2'],
+                                prompt="[Enter]: More   [Q]uit: ",
+                                choices=['', 'q']).lower()
+                if option == 'q':
+                    reading = False
+                    net_server.Message(lines=["(Quitting.)"])
 
 
 if __name__ == '__main__':

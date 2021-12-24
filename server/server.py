@@ -164,8 +164,11 @@ class PlayerHandler(net_server.UserHandler):
             if cmd[0] in ['bye', 'logout']:
                 self.player.disconnect()
                 return Message(lines=["Bye for now."], mode=Mode.bye)
-            if cmd[0] in ['help', 'cheatcode']:
-                return Message(lines=["Wouldn't that be nice."])
+            if cmd[0] in ['?', 'help']:
+                from tada_utilities import fileread
+                fileread("main-menu-80.txt")
+            if cmd[0] in ['cheatcode']:
+                return Message(lines=["↑ ↑ ↓ ↓ ← → ← → B A"])
             else:
                 return Message(lines=["I didn't understand that.  Try something else."])
         else:

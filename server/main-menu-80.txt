@@ -1,0 +1,124 @@
+  Totally Awesome Dungeon Adventure [-] Command Summary: Dungeon Area [-]
+
+ If you see a [More/Q] prompt at the bottom of your screen: any key continues,
+ [Q] quits reading.
+
+  Letters to the left of commands mean certain things:
+
+[p] Typing the command by itself lists objects (in the room or your inventory)
+  to perform the desired action on.
+
+  Typing the command, a space, plus an object name will perform the action on
+  the specified object. For more detailed information, type [HELp PARAMETERS].
+
+[g] This command is a Guild command, only usable by Guild members.
+  For more detailed information, type [HELP GUILDS].
+
+[s] This command requires your character to learn a certain skill, currently either
+  Architecture (building) or Oration (conversation). For more information, see:
+                   [HELP CREATE]
+                   [HELP RECYCLE]
+                   [HELP EDIT]
+               or [HELP SAYEDIT]
+
+ -------- One Letter Commands -------
+
+  [G]et all objects in room    [N]orth
+  [H]elp menu (also [?])       [E]ast
+  [I]nventory                  [S]outh
+  [L]ook at room               [W]est
+  [Q]uit the game              [U]p
+  [R]oom descriptions on/off   [D]own
+  [T]ime (hourglass) on/off
+ e[X]amine all objects in room
+  [#] Ranger/Palintar mapping
+
+ -------- Two Letter Commands --------
+
+  s DB...List rooms and objects
+         you've created
+  g FL...Toggle follow mode on/off
+    XM...Toggle expert mode on/off
+
+  (Architects may create other room
+   exits that use different one- and
+   two-letter commands.)
+
+  -------- Full Word Commands --------
+
+ Only the capital letters in full-word
+ commands must be typed to distinguish
+ them from one another.
+
+ With Expert Mode off, you may type
+ commands as seen here and they will
+ automatically be spelled out for you.
+ For more information, read [HELp XM].
+
+p ATTack..a monster, engage in combat
+g AUTo....toggle autoduel on/off
+p BASh....a monster senseless w/shield
+p CASt....a magic spell that you have
+  CHArge..your steed into battle
+s CREate..something (a room, food, etc)
+  DESc....edit your char's description
+  DIE.....kill your character
+  DIG.....dig up or bury items
+p DRInk...water or wine
+p DROp....an item in your inventory
+g DUEl....an opposing guild member
+p EAT.....food
+s EDIt....an object/room you created
+p EXAmine.an object or character
+g FOLlow..let Guild members follow you
+  FLEe....in a random direction
+p GET.....an item from the room
+  GIVe....an item to an ally to carry
+  HEAl....a character who is wounded
+p HELp....with the game (see below)
+  HIDe....or reveal objects in room
+  INV.....list what you're carrying
+  LOOk....at the room or an object
+g LOOt....unconscious adventurers
+  LURk....behind an ally in combat
+  MORe....toggle [More/Q] page pausing
+  MOUnt...your trusty steed
+  ORDer...position allies in combat
+  PAGe....a character with a message
+  PRAy....when all else is gloom
+  QUIt....the game in progress
+  QUOte...edit your character's quote
+p READ....a book or scroll
+p READY...a weapon
+s RECycle.an object or room you created
+  ROOm....toggle descriptions on/off
+  SAY.....something to puppet character
+s SAYEdit.edit char trigger/event file
+  SCHool..read character stat files
+  SEArch..area for hidden objects
+  STATs...current character/ally stats
+g STAY....leave following players here
+  TAKe....an item from an ally
+  TRAck...players in the dungeon
+p UNMount.your trusty steed
+  UNReady.a weapon
+p USE.....an item in your inventory
+p WEAr....clothing or armor
+  WHO.....list of players
+
+ +----------------------- Getting more detailed help: -----------------------+
+ |                                                                           |
+ |  [HELP INDEX] lists all available   |
+ |  help topics.                     |
+ |                                   |
+ |  alphabetically or by category    |
+ |  while at the main menu.          |
+ |                                   |
+ |  Typing [?], [H] or [HELP] followed by a command (like [HELP ATTACK]) will    |
+ |  displays that command's help entry.                                      |
+ +-----------------------------------+
+
+Rev. 1: ??/??/1994 Rev. 5:  07/25/2004
+Rev. 2: 09/29/1995 Rev. 6:  07/19/2006
+Rev. 3: 10/25/1995 Rev. 7:  07/29/2007
+Rev. 4: 05/03/2003 Rev. 8:  07/24/2015
