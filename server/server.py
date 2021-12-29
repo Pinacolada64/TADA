@@ -172,9 +172,10 @@ class PlayerHandler(net_server.UserHandler):
                     return Message(lines=["Bye for now."], mode=Mode.bye)
                 else:
                     return Message(lines=["Thanks for sticking around."])
-            if cmd[0] in ['?', 'help']:
-                from tada_utilities import fileread
-                fileread("main-menu-80.txt")
+            if cmd[0] in ['?', 'hel', 'help']:
+                from tada_utilities import game_help
+                game_help(self, cmd)
+                return Message(lines=["Done."])
             if cmd[0] in ['cheatcode']:
                 return Message(lines=["↑ ↑ ↓ ↓ ← → ← → B A"])
             else:

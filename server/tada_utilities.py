@@ -1,3 +1,4 @@
+import logging
 import textwrap
 
 from players import Player
@@ -143,28 +144,77 @@ def input_yes_no(prompt: str):
             return False
 
 
-def fileread(filename: str):
-    """display a file to a user in 40 or 80 columns with more_prompt paging"""
-    msg = net_server.Message
-    prompt = net_server.UserHandler.promptRequest
-    # p = self.player
-    # with open(f"main-menu-{self.client['columns']}")
-    line_count = 0
-    with open(filename) as f:
-        reading = True
-        while reading:
-            msg(lines=[f.readline()])
-            # if p.flags['more_prompt']:
-            line_count += 1
-            # if line_count == p.client['rows']:
-            if line_count == 20:
-                line_count = 0
-                option = prompt(lines=['new', 'news2'],
-                                prompt="[Enter]: More   [Q]uit: ",
-                                choices=['', 'q']).lower()
-                if option == 'q':
-                    reading = False
-                    net_server.Message(lines=["(Quitting.)"])
+def fileread(self, filename: str):
+    """
+    display a file to a user in 40 or 80 columns with more_prompt paging
+    also handles highlighting [text in brackets] via re and colorama
+    """
+    from net_server import Message
+    from net_server import UserHandler  # promptResponse and _sendData
+    from colorama import Fore, Back, Style
+    import re
+
+    p = self.player
+    logging.info(f"fileread: read {filename=}")
+
+    self.line_count = 0
+    # cols = self.client['columns']
+    cols = 80
+    fh = f"{filename}-{cols}.txt"
+    logging.info(f"fileread: {fh=}")
+
+    with open(f'{fh}', newline='\n') as file:
+        try:
+            reading = True
+            while reading is True:
+                line = file.readline().rstrip('\n')
+                if line == '':
+                    reading = False  # EOF
+                # FIXME: how to output data to user without using 'return Message(lines=[])'?
+                #  UserHandler._sendData(line) -- access to a protected member fails
+                # x = Message(lines=[line])  # ???
+
+                # color text inside brackets using re and colorama
+                # '.+?' is a non-greedy match (finds multiple matches, not just '[World...a]')
+                # >>> re.sub(r'\[(.+?)\]', r'!\1!', string="Hello [World] this [is a] test.")
+                # 'Hello !World! this !is a! test.'
+                l = re.sub(r'\[(.+?)\]', f'{Fore.RED}' + r'\1' + f'{Fore.RESET}', string=line)
+                print(l)
+                # if p.flags['more_prompt']:
+                self.line_count += 1
+                # if line_count == p.client['rows']:
+                if self.line_count == 20:
+                    self.line_count = 0
+                    """
+                    This call is a little different: choices{} is empty because we don't want a menu,
+                    and we'll validate temp here (instead of in promptRequest) because of the possible
+                    null represented by just hitting Return/Enter.
+                    """
+                    temp = UserHandler.promptRequest(self, lines=[],
+                                                     prompt='[Enter]: Continue, [Q]uit: ',
+                                                     choices={})
+                    logging.info(f'{repr(temp)}')
+                    # returns dict('text': 'response')
+                    choice = temp.get('text')
+                    if choice.lower() == 'q':
+                        return Message(lines=["(You quit reading.)"])
+                    # otherwise, assume Enter was pressed and continue...
+        except FileNotFoundError:
+            return Message(lines=[], error_line=f'File {fh} not found.')
+
+
+def game_help(self, params: list):
+    from net_server import Message
+    """
+    :param self:
+    :param params: what's typed after HELP <...>
+    :return:
+    """
+    # function name 'help' shadows built-in name
+    logging.info(f'game_help: {params=}')
+    # if len(params) == 0:
+    fileread(self, filename="main-menu")
+    return Message(lines=["Done."])
 
 
 if __name__ == '__main__':
