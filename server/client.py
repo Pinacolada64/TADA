@@ -50,8 +50,8 @@ class Client(net_client.Client):
         else:
             # multiple options:
             while True:
-                text = input(prompt)
-                if text not in choices:
+                text = input(prompt).lower()
+                if text not in choices.keys():
                     print("Choose an option listed above.")
                 else:
                     return Cmd(text=text)

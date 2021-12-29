@@ -162,15 +162,16 @@ class PlayerHandler(net_server.UserHandler):
             if cmd[0] in ['look']:
                 return self.roomMsg()
             if cmd[0] in ['bye', 'logout', 'quit']:
-                reply = net_server.UserHandler.promptRequest(self, lines=[], prompt='Really quit? ',
-                                                             choices={'y': 'yes', 'n': 'no'})
+                temp = net_server.UserHandler.promptRequest(self, lines=[], prompt='Really quit? ',
+                                                            choices={'y': 'yes', 'n': 'no'})
                 # returns a Cmd object?
-                print(f'{reply=}')
-                if reply == 'y':
+                logging.info(f'{temp=}')
+                # extract value from returned dict, e.g.: temp={'text': 'y'}
+                if temp.get('text') == 'y':
                     self.player.disconnect()
                     return Message(lines=["Bye for now."], mode=Mode.bye)
                 else:
-                    Message(lines=["Thanks for sticking around."])
+                    return Message(lines=["Thanks for sticking around."])
             if cmd[0] in ['?', 'help']:
                 from tada_utilities import fileread
                 fileread("main-menu-80.txt")
