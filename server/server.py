@@ -161,9 +161,16 @@ class PlayerHandler(net_server.UserHandler):
                     return Message(lines=["You cannot go that direction."])
             if cmd[0] in ['look']:
                 return self.roomMsg()
-            if cmd[0] in ['bye', 'logout']:
-                self.player.disconnect()
-                return Message(lines=["Bye for now."], mode=Mode.bye)
+            if cmd[0] in ['bye', 'logout', 'quit']:
+                reply = net_server.UserHandler.promptRequest(self, lines=[], prompt='Really quit? ',
+                                                             choices={'y': 'yes', 'n': 'no'})
+                # returns a Cmd object?
+                print(f'{reply=}')
+                if reply == 'y':
+                    self.player.disconnect()
+                    return Message(lines=["Bye for now."], mode=Mode.bye)
+                else:
+                    Message(lines=["Thanks for sticking around."])
             if cmd[0] in ['?', 'help']:
                 from tada_utilities import fileread
                 fileread("main-menu-80.txt")
@@ -176,6 +183,9 @@ class PlayerHandler(net_server.UserHandler):
             return Message(lines=["Unexpected message."], mode=Mode.bye)
 
 if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
+
     host = "localhost"
     net_server.start(host, common.server_port, common.app_id, common.app_key,
             common.app_protocol, PlayerHandler)
