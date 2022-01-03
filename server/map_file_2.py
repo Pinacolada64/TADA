@@ -12,7 +12,8 @@ import json
 import textwrap
 from dataclasses import dataclass, field
 import logging
-import Player from player
+from players import Player
+
 
 @dataclass
 class Room(object):
@@ -66,7 +67,7 @@ class Map(object):
                             2=move down),
           RT (Room exit transports you to:
                  <>0: room #, or 0=Shoppe)
-        https://github.com/Pinacolada64/TADA-old/blob/master/text/s_t_level-1-data.txt
+        https://github.com/Pinacolada64/TADA/blob/master/text/s_t_level-1-data.txt
         """
 
         with open(filename) as jsonF:
@@ -81,9 +82,9 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
     # create new Player
-    Rulan = Player(id=1, name="Rulan")
-    Rulan.flag["debug": True]
-    print(Rulan)
+    # Rulan = Player()
+    # Rulan = dict(flag['debug']: True)
+    # print(Rulan)
 
     # load map
     game_map = Map()
@@ -95,38 +96,58 @@ if __name__ == '__main__':
         print(f"#{number} {room.name}")
         print(wrapper.fill(text=room.desc))
         exits_txt = room.exitsTxt()
-        if exits_txt:  # is not None:
+        if exits_txt is not None:
             print(f"exits: {exits_txt}")
         print()
 
+    # start of ryan's code
     player_room = 1
     logging.info("Made it past dumping JSON info")
 
-
+    debug = True
     # FIXME: how do I refer to a single JSON item?
     while True:
         # get room # that player is in
         room_id = 1
         room = game_map.rooms[room_id]
-        alignment = room["alignment"]
-
-        # could all this be put in a room.header() __str__ method?
-        if Rulan.flag["debug"]:
-            print(f'#{player_room} ', end='')
-        print(f'{room.name} {alignment}')
-
-        if player.flag["room_descs"]:
-            print("\n", wrapper.fill(text=player_room.desc))
-        exits_txt = player_room.exitsTxt()
-        if exits_txt:  # is not None:
+        # FIXME: could all this be put in a room.header() __str__ method?
+        if debug is True:  # Rulan.flag["debug"]:
+            print(f'#{room.number} ', end='')
+        print(f'{room.name} {room.alignment}\n')
+        print(room.desc)
+        exits_txt = room.exitsTxt()
+        if exits_txt is not None:
             print(f"Ye may travel: {exits_txt}")
-        item_here = game_map.rooms["item"]
-        if item_here:
-            # TODO: add grammatical list item (SOME MELONS, AN ORANGE)
-            print(f"Ye see {item_here}.")
+            # ryan: list exit dirs and room #s
+            for k in room.exits:  # Room.exits[room_id].exits.keys():
+                # dest = k.keys()
+                print(f'{k=}')
+
+        # import json
+        #
+        # with open('./testJSON.json') as json_file:
+        #     data = json.load(json_file)
+        #     dataList = {item['id']: item['name'] for item in data}
+
+        # item_here = room.items
+        # if item_here:
+        #    # TODO: add grammatical list item (SOME MELONS, AN ORANGE)
+        #    print(f"Ye see {item_here}.")
 
         cmd = input("What now? ").lower()
-        if cmd in ['n', 'e', 's', 'w']:
-            player_room = Room.exits[cmd]
+        direction = cmd[0:1]
+        if direction in ['n', 'e', 's', 'w']:
+            # check room.exits for 'direction'
+            logging.info("dir: n/e/s/w")
+            if direction in room.exits:
+                try:
+                    print(f"You move {exits_txt.index(direction)}.")
+                    room_id = room.exits[direction]
+                    print(f'{room_id=}')
+                except ValueError:
+                    print("Ye cannot travel that way.")
+            else:
+                print("Ye cannot travel that way.")
         if cmd == "q":
+            print("Quitting.")
             break
