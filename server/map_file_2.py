@@ -32,8 +32,6 @@ class Room(object):
                f'{self.desc}\n{self.exits}'
 
     def exitsTxt(self):
-        # compass direction text names
-        compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West'}
         # connection/transport names, index by (connection, transport)
         extra_txts = {(1, 0): 'Up to Shoppe', (1, 1): 'Up',
                       (2, 0): 'Down to Shoppe', (2, 1): 'Down'}
@@ -81,6 +79,9 @@ class Map(object):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
+    # compass direction text names, used in Room.exitsTxt and main parser
+    compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West'}
+
     # create new Player
     # Rulan = Player()
     # Rulan = dict(flag['debug']: True)
@@ -105,11 +106,14 @@ if __name__ == '__main__':
     logging.info("Made it past dumping JSON info")
 
     debug = True
-    # FIXME: how do I refer to a single JSON item?
+    room_id = 1
     while True:
         # get room # that player is in
-        room_id = 1
-        room = game_map.rooms[room_id]
+        try:
+            room = game_map.rooms[room_id]
+        except KeyError:
+            print("exception: No such room yet (37, Bar?).")
+
         # FIXME: could all this be put in a room.header() __str__ method?
         if debug is True:  # Rulan.flag["debug"]:
             print(f'#{room.number} ', end='')
@@ -119,9 +123,9 @@ if __name__ == '__main__':
         if exits_txt is not None:
             print(f"Ye may travel: {exits_txt}")
             # ryan: list exit dirs and room #s
-            for k in room.exits:  # Room.exits[room_id].exits.keys():
-                # dest = k.keys()
-                print(f'{k=}')
+            if debug:
+                for k in room.exits:
+                    logging.info(f'{k=}')
 
         # import json
         #
@@ -141,11 +145,14 @@ if __name__ == '__main__':
             logging.info("dir: n/e/s/w")
             if direction in room.exits:
                 try:
-                    print(f"You move {exits_txt.index(direction)}.")
-                    room_id = room.exits[direction]
-                    print(f'{room_id=}')
+                    print(f"You move {compass_txts[direction]}.")
+                    try:
+                        room_id = room.exits[direction]
+                    except KeyError:
+                        print("exception: No such room yet (37, Bar?).")
+                    logging.info(f'{room_id=}')
                 except ValueError:
-                    print("Ye cannot travel that way.")
+                    print("exception: Ye cannot travel that way.")
             else:
                 print("Ye cannot travel that way.")
         if cmd == "q":
