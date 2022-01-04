@@ -118,7 +118,7 @@ if __name__ == '__main__':
         if debug is True:  # Rulan.flag["debug"]:
             print(f'#{room.number} ', end='')
         print(f'{room.name} {room.alignment}\n')
-        print(room.desc)
+        print(wrapper.fill(text=room.desc))
         exits_txt = room.exitsTxt()
         if exits_txt is not None:
             print(f"Ye may travel: {exits_txt}")
