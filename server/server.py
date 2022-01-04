@@ -103,7 +103,7 @@ players = {}
 
 class PlayerHandler(net_server.UserHandler):
 
-    def initSucessLines(self):
+    def initSuccessLines(self):
         return ['TADA!', 'Please log in.']
 
     def loginFailLines(self):
@@ -161,11 +161,23 @@ class PlayerHandler(net_server.UserHandler):
                     return Message(lines=["You cannot go that direction."])
             if cmd[0] in ['look']:
                 return self.roomMsg()
-            if cmd[0] in ['bye', 'logout']:
-                self.player.disconnect()
-                return Message(lines=["Bye for now."], mode=Mode.bye)
-            if cmd[0] in ['help', 'cheatcode']:
-                return Message(lines=["Wouldn't that be nice."])
+            if cmd[0] in ['bye', 'logout', 'quit']:
+                temp = net_server.UserHandler.promptRequest(self, lines=[], prompt='Really quit? ',
+                                                            choices={'y': 'yes', 'n': 'no'})
+                # returns a Cmd object?
+                logging.info(f'{temp=}')
+                # extract value from returned dict, e.g.: temp={'text': 'y'}
+                if temp.get('text') == 'y':
+                    self.player.disconnect()
+                    return Message(lines=["Bye for now."], mode=Mode.bye)
+                else:
+                    return Message(lines=["Thanks for sticking around."])
+            if cmd[0] in ['?', 'hel', 'help']:
+                from tada_utilities import game_help
+                game_help(self, cmd)
+                return Message(lines=["Done."])
+            if cmd[0] in ['cheatcode']:
+                return Message(lines=["↑ ↑ ↓ ↓ ← → ← → B A"])
             else:
                 return Message(lines=["I didn't understand that.  Try something else."])
         else:
@@ -173,6 +185,9 @@ class PlayerHandler(net_server.UserHandler):
             return Message(lines=["Unexpected message."], mode=Mode.bye)
 
 if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
+
     host = "localhost"
     net_server.start(host, common.server_port, common.app_id, common.app_key,
             common.app_protocol, PlayerHandler)

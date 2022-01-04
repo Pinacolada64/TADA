@@ -16,11 +16,13 @@ Mode = nc.Mode
 run_dir = 'run/client'
 net_dir = os.path.join(run_dir, 'net')
 
+
 @dataclass
 class Init(object):
     id: str
     key: str
     protocol: int
+
 
 @dataclass
 class Login(object):
@@ -44,11 +46,13 @@ class Login(object):
     def save(self):
         with open(Login._json_path(self.login[0]), 'w') as jsonF:
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
-                    in o.__dict__.items() if v}, indent=4)
+                                                      in o.__dict__.items() if v}, indent=4)
+
 
 @dataclass
 class Cmd(object):
     text: str
+
 
 class Client(object):
     def __init__(self):
@@ -89,7 +93,8 @@ class Client(object):
             error_code = request['error']
             error_line = request['error_line']
             print(f"ERROR: {error_line} ({error_code})")
-        for m in request['lines']:  print(m)
+        for m in request['lines']:
+            print(m)
 
     def _processMode(self, request):
         mode = request.get('mode')
@@ -117,7 +122,8 @@ class Client(object):
                     pw_again = input('   again? ')
                     if pw == pw_again:
                         password = pw
-                    else:  print('Password did not match.  Try again.')
+                    else:
+                        print('Password did not match.  Try again.')
                 login = Login(login=[user_id, password, invite_code])
             else:
                 print('sending cached login info.')
@@ -146,10 +152,10 @@ class Client(object):
         text = input('nc> ')
         return Cmd(text=text)
 
+
 if __name__ == "__main__":
     user_id = sys.argv[1] if len(sys.argv) > 1 else None
     host = 'localhost'
     client = Client()
     client.setUser(user_id)
     client.start(host, nc.Test.server_port, nc.Test.id, nc.Test.key, nc.Test.protocol)
-

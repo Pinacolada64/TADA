@@ -3,9 +3,10 @@
 # from __future__ import annotations
 
 import doctest
+import logging
+
 
 # https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
-
 # http://pythonfiddle.com/text-based-rpg-code-python/
 
 
@@ -19,10 +20,11 @@ class Player(object):
             maybe return Player or Ally object if they hold it, or None if no-one holds it
     """
 
-    def __init__(self, connection_id: int, name: str, flags: dict, terminal: dict):
-        # this code is called when creating a new character
+    def __init__(self):
+        """this code is called when creating a new character"""
+        # specifying e.g., 'hit_points=None' makes it a required parameter
 
-        # FIXME: probably just forget this, net_server.py handles IP addresses
+        # FIXME: probably just forget this, net_server.py handles connected_users(set)
         # connection_id: list of CommodoreServer IDs: {'connection_id': id, 'name': 'name'}
         # for k in len(connection_ids):
         #     if connection_id in connection_ids[1][k]:
@@ -34,41 +36,44 @@ class Player(object):
         # logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
         # self.connection_id = connection_id  # 'id' shadows built-in name
 
-        self.name = name
-        self.connection_id = connection_id  # keep this until I figure out where it is in net_server.py
+        self.connection_id = 0  # keep this until I figure out where it is in net_server.py
+        self.name = None
+
+        self.gender = None
+
         # creates a new stats dict for each Player, zero all stats:
         # set with Player.set_stat('xyz', val)
         self.stats = {'chr': 0, 'con': 0, 'dex': 0, 'int': 0, 'str': 0, 'wis': 0, 'egy': 0}
 
         # flags:
-        self.flags = flags  # {'room_descriptions': bool}
-        # autoduel_mode: bool, hourglass_mode: bool, expert_mode: bool, more_prompt: bool
-        # architect_mode: bool, orator_mode: bool # TODO: define orator_mode more succinctly
-        # hungry: bool, thirsty: bool, diseased: bool, poisoned: bool
-        # debug_mode: bool, dungeon_master: bool]
+        self.flags = {'room_descriptions': bool, 'autoduel': bool, 'hourglass': bool,
+                      'expert': bool, 'more_prompt': bool, 'architect': bool,
+                      # TODO: orator_mode: bool # define orator_mode more succinctly
+                      'hungry': bool, 'thirsty': bool, 'diseased': bool, 'poisoned': bool,
+                      'debug': bool, 'dungeon_master': bool
+                      }
+        logging.info(f'{self.flags=}')
 
         # creates a new silver dict for each Player:
         # in_bank may be cleared on character death (TODO: look in TLOS source)
         # in_bar should be preserved after character's death (TODO: same)
         # use Player.set_silver("kind", value)
         self.silver = {"in_hand": 0, "in_bank": 0, "in_bar": 0}
-        # test that it works
-        logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
+        # logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
 
-        # terminal settings:
-        self.terminal = terminal
-        """
-        {'type': 'Commodore 64', 'rows': 24, 'columns': 40,
-         # for [bracket reader] text highlighting on C64/128:
-         'colors': {'text': 1, 'highlight': 13, 'background': 15, 'border': 15}
-        }
-        """
+        # client settings - set up some defaults
+        self.client = {'name': None, 'rows': None, 'columns': 80, 'translation': None,
+                       # colors for [bracket reader] text highlighting on C64/128:
+                       'text': None, 'highlight': None, 'background': None, 'border': None}
 
+        self.age = 0
+        self.birthday = None  # tuple: (month, day, year)
         """
         proposed stats:
         some (not all) other stats, still collecting them:
     
-        times_played: str, last_play_date: str
+        times_played: int
+        last_play_date: tuple # (month, day, year) like birthday
     
         special_items[
             SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
@@ -76,20 +81,20 @@ class Player(object):
             combinations{'elevator', 'locker', 'castle'}  # tuple? combo is 3 digits: (nn, nn, nn)
             ]
                 
-        age: int, birthday: str, sex: [ male | female ]
-        stats{'con': 0, 'dex': 0, 'ego': 0, 'int': 0, 'str': 0, 'wis': 0}
-        map_level: int  # cl, map_room: int  # cr
+        map_level: int  # cl
+        map_room: int  # cr
         moves_made: int
-        guild[civilian | fist | sword | claw | outlaw]
+        """
+        self.guild = None  # [civilian | fist | sword | claw | outlaw]
         #                      1       2        3       4      5       6       7         8       9
-        player.class: int  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight 
-        player.race: int   # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
-        player.silver{in_hand: int, in_bank: int, in_bar: int}
-    
-        config stuff:
-            colors{'highlight': 0, 'normal': 0}
-            terminal{'type': str, 'columns': int, 'rows': int}  # c64: columns=40, rows=25
-    
+        self.char_class = None  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
+        self.race = None  # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
+
+        self.hit_points = None
+        self.shield = None
+        self.armor = None
+        self.experience = None
+        """
         combat:
             honor: int
             weapon_percentage{'weapon': percentage [, ...]}
@@ -103,7 +108,11 @@ class Player(object):
 
     def __str__(self):
         """print formatted Player object (double-quoted since ' in string)"""
-        return f"Name: {self.name}\nSilver in hand: {self.silver['in_hand']}"
+        _ = f"Name: {self.name}\t\t"
+        f"Age: {'Undetermined' if self.age == 0 else '{self.age}'}"
+        f'\tBirthday: {self.birthday[0]}/{self.birthday[1]}/{self.birthday[2]}\n'
+        f"Silver: In hand: {self.silver['in_hand']}\n"
+        f'Guild: {self.guild}\n'
 
     def set_stat(self, stat: str, adj: int):
         """
@@ -141,7 +150,7 @@ class Player(object):
     def get_stat(self, stat):
         """
         if 'stat' is str: return value of single stat as str: 'stat'
-        if 'stat' is list: sum up contents of list: ['str', 'wis', 'int']...
+        TODO: if 'stat' is list: sum up contents of list: ['str', 'wis', 'int']...
         -- avoids multiple function calls
         """
         if type(stat) is list:
@@ -169,7 +178,7 @@ class Player(object):
         FIXME: eventually. can't figure out how to test functions which have a prerequisite function
         >>> Rulan = Player(name="Rulan",
                            connection_id=1,
-                           terminal={'type': 'Commodore 64'},
+                           client={'name': 'Commodore 64'},
                            flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
                            )
 
@@ -191,7 +200,7 @@ class Player(object):
         FIXME: can't figure out how to test routines which have other function call prerequisites
         >>> Rulan = Player(name="Rulan",
                            connection_id=1,
-                           terminal={'type': 'Commodore 64'},
+                           client={'name': 'Commodore 64'},
                            flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
                            )
 
@@ -221,11 +230,11 @@ class Player(object):
         logging.info(f'get_silver: {self.silver[kind]}')
         return self.silver[kind]
 
-    def set_silver(self, kind, adj):
+    def set_silver(self, kind: str, adj: int):
         """
         :param kind: 'in_hand', 'in_bank' or 'in_bar'
         :param adj: amount to add (<adj>) or subtract (-<adj>)
-        :return:
+        :return: None
         """
         before = self.silver[kind]
         # TODO: check for negative amount
@@ -297,23 +306,26 @@ class Horse(object):
 
 
 if __name__ == '__main__':
-    import logging
+    # import logging
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
     import doctest
+
     # doctest.testmod(verbose=True)
 
-    connection_ids = []  # initialize empty list for logging connection_id's
+    # connection_ids = []  # initialize empty list for logging connection_id's
 
-    Rulan = Player(name="Rulan", connection_id=1,
-                   terminal={'type': 'Commodore 64'},
-                   flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
-                   )
+    Rulan = Player()
+    Rulan.name = "Rulan"
+    Rulan.connection_id = 1
+    Rulan.client = {'name': 'Commodore 128', 'columns': 80}
+    Rulan.flags = {'dungeon_master': True, 'debug': True, 'expert_mode': False}
+
     print(Rulan)
     Rulan.set_stat('int', 5)
     print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this passes
 
-    Rulan.set_stat(stat='int', adj=4)  # add to Rulan's Intelligence of 5, total 9
+    Rulan.set_stat('int', 4)  # add to Rulan's Intelligence of 5, total 9
     print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this passes
     # when print_stat returned None, had to do this:
     # print(f'Rulan ...... ', end='')
@@ -327,9 +339,11 @@ if __name__ == '__main__':
 
     Rulan.print_all_stats()
 
-    Shaia = Player(name="Shaia", connection_id=2,
-                   terminal={'type': 'none'},
-                   flags={'expert_mode': True})
+    Shaia = Player()
+    Shaia.name = "Shaia"
+    Shaia.connection_id = 2
+    Shaia.client = {'name': 'none'},
+    Shaia.flags = {'expert_mode': True}
 
     Shaia.set_stat(stat='int', adj=18)
     print(f"Shaia ...... {Shaia.print_stat('int')}")  # should print 'Shaia ...... Int: 18': passes
@@ -346,4 +360,3 @@ if __name__ == '__main__':
 
     transfer_money(Shaia, Rulan, kind='in_hand', adj=500)  # should rightfully fail
     transfer_money(Shaia, Rulan, kind='in_hand', adj=100)  # this passes
-
