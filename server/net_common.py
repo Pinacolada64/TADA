@@ -1,4 +1,3 @@
-
 import os
 import json
 import enum
@@ -11,6 +10,7 @@ import util
 run_server_dir = 'run/server'
 invite_dir = os.path.join(run_server_dir, 'invite')
 net_dir = os.path.join(run_server_dir, 'net')
+
 
 class K(str, enum.Enum):
     """keys for dictionary use, so that we can avoid 'stringly' typed
@@ -27,23 +27,28 @@ class K(str, enum.Enum):
     invite = 'invite'
     user = 'user'
 
+
 class Mode(str, enum.Enum):
     login = 'login'
     app = 'app'
     bye = 'bye'
+
 
 def toJSONB(obj):
     """turn arbitrary object into JSON string"""
     json_out = json.dumps(obj, default=lambda o: o.__dict__)
     return bytes(json_out, 'utf-8')
 
+
 def fromJSONB(bytes):
     try:
         json_in = str(bytes, 'utf-8')
-        if len(json_in) == 0:  return None
+        if len(json_in) == 0:
+            return None
         return json.loads(json_in)
     except:
         return None
+
 
 @dataclass
 class Invite(object):
@@ -70,10 +75,11 @@ class Invite(object):
     def save(self):
         with open(Invite._json_path(self.id), 'w') as jsonF:
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
-                    in o.__dict__.items() if v}, indent=4)
+                                                      in o.__dict__.items() if v}, indent=4)
 
     def delete(self):
         os.remove(Invite._json_path(self.id))
+
 
 @dataclass
 class User(object):
@@ -109,14 +115,14 @@ class User(object):
     def save(self):
         with open(User._json_path(self.id), 'w') as jsonF:
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
-                    in o.__dict__.items() if v}, indent=4)
+                                                      in o.__dict__.items() if v}, indent=4)
 
     def delete(self):
         os.remove(User._json_path(self.id))
+
 
 class Test(object):
     server_port = 5001
     id = 'testing'
     key = '999999999'
     protocol = 1
-

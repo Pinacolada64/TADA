@@ -1,5 +1,5 @@
 #!/bin/env python3
-
+import logging
 import sys
 import os
 import traceback
@@ -37,7 +37,7 @@ class Message(object):
     lines: list
     mode: Mode = Mode.app
     changes: dict = field(default_factory=lambda: {})
-    choices: list = field(default_factory=lambda: [])
+    choices: dict = field(default_factory=lambda: {})
     prompt: str = ''
     error: str = ''
     error_line: str = ''
@@ -117,13 +117,13 @@ class UserHandler(socketserver.BaseRequestHandler):
         addr = self.client_address[0]
         self.login_history = LoginHistory.load(addr)
         if self.login_history.banned(True, save=True):
-            print(f"ignoring banned {addr}")
+            logging.info(f"ignoring banned {addr}")
             return
         port = self.client_address[1]
         self.sender = f"{addr}:{port}"
         self.ready = None
         self.user = None
-        print(f"connect (addr={self.sender})")
+        logging.info(f"connect (addr={self.sender})")
         running = True
         while running:
             try:
@@ -160,7 +160,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                 connected_users.remove(user_id)
         else:
             user_id = '?'
-        print(f"disconnect {user_id} (addr={self.sender})")
+        logging.info(f"disconnect {user_id} (addr={self.sender})")
 
     def _receiveData(self):
         return nc.fromJSONB(self.request.recv(1024))
@@ -204,20 +204,20 @@ class UserHandler(socketserver.BaseRequestHandler):
         if user is None:
             invite = nc.Invite.load(user_id)
             if invite is None:
-                print(f"WARN: no user '{user_id}'")
+                logging.warning(f"no user '{user_id}'")
                 # when failing don't tell that have wrong user id
                 banned = self.login_history.noUser(user_id, save=True)
                 if banned:
-                    print(f"ban {self.sender}")
+                    logging.info(f"ban {self.sender}")
                     return errorBan()
                 return errorLoginFailed()
             else:
                 # process new user with invite
                 if invite.code != invite_code:
-                    print('invalid invite code')
+                    logging.warning(f'invalid invite code {invite_code}')
                     banned = self.login_history.noUser(user_id, save=True)
                     if banned:
-                        print(f"ban {self.sender}")
+                        logging.info(f"ban {self.sender}")
                         return errorBan()
                     return errorLoginFailed()
                 else:
@@ -232,10 +232,10 @@ class UserHandler(socketserver.BaseRequestHandler):
                                error_line='Multiple connections.',
                                error=Error.multiple, mode=Mode.bye)
         if not user.matchPassword(password):
-            print(f"WARN: bad password for '{user_id}'")
+            logging.warning(f"bad password for '{user_id}'")
             banned = self.login_history.failPassword(user_id, save=True)
             if banned:
-                print(f"ban {self.sender}")
+                logging.info(f"ban {self.sender}")
                 return errorBan()
             return errorLoginFailed()
         self.user = user
@@ -244,7 +244,7 @@ class UserHandler(socketserver.BaseRequestHandler):
         self.login_history.succeedUser(user_id, save=True)
         return self.processLoginSuccess(user_id)
 
-    def promptRequest(self, lines, prompt='', choices=[]):
+    def promptRequest(self, lines, prompt='', choices={}):
         self._sendData(Message(lines=lines, prompt=prompt, choices=choices))
         return self._receiveData()
 
@@ -289,7 +289,7 @@ def start(host, port, id, key, protocol, handler_class):
     server_key = key
     server_protocol = protocol
     with Server((host, port), handler_class) as server:
-        print(f"server running ({host}:{port})")
+        logging.info(f"server running ({host}:{port})")
         server_thread = threading.Thread(target=server.serve_forever)
         server_thread.daemon = True
         server_thread.start()
@@ -299,7 +299,8 @@ def start(host, port, id, key, protocol, handler_class):
             if text in ['q', 'quit', 'exit']:
                 running = False
         server.shutdown()
-        print('shutdown.')
+        logging.info('server shutdown.')
+
 
 
 if __name__ == '__main__':

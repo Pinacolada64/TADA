@@ -88,6 +88,7 @@ if __name__ == '__main__':
     # print(Rulan)
 
     # load map
+    # fixme: room 81 has no description
     game_map = Map()
     game_map.read_map("level_1.json")
 
@@ -97,26 +98,25 @@ if __name__ == '__main__':
         print(f"#{number} {room.name}")
         print(wrapper.fill(text=room.desc))
         exits_txt = room.exitsTxt()
-        if exits_txt is not None:
+        if exits_txt:
             print(f"exits: {exits_txt}")
         print()
 
     # start of ryan's code
-    player_room = 1
     logging.info("Made it past dumping JSON info")
 
     debug = True
-    room_id = 1
+    room_number = 1
     while True:
         # get room # that player is in
         try:
-            room = game_map.rooms[room_id]
+            room = game_map.rooms[room_number]
         except KeyError:
             print("exception: No such room yet (37, Bar?).")
 
         # FIXME: could all this be put in a room.header() __str__ method?
         if debug is True:  # Rulan.flag["debug"]:
-            print(f'#{room.number} ', end='')
+            print(f'#{room_number} ', end='')
         print(f'{room.name} {room.alignment}\n')
         print(wrapper.fill(text=room.desc))
         exits_txt = room.exitsTxt()

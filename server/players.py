@@ -12,15 +12,24 @@ import logging
 
 class Player(object):
     """
-    Gathering all the attributes, flags and other stuff about players.
-
+    Attributes, flags and other stuff about players.
+    """
+    """
     There should be methods here for Inventory:
         Inventory.item_held(item): check player/ally inventory, return True or False
             (is it important to know whether the player or ally is carrying an item?)
             maybe return Player or Ally object if they hold it, or None if no-one holds it
     """
 
-    def __init__(self):
+    # def __init__(self, connection_id=None, name=None, gender=None, stats=None,
+    #              flags=None, silver=None, client=None, age=None, birthday=None,
+    #              guild=None, char_class=None, race=None, hit_points=None,
+    #              shield=None, armor=None, experience=None):
+    def __init__(self, connection_id, name, gender, stats,
+                 flags, silver, client, age, birthday,
+                 guild, char_class, race, hit_points,
+                 shield, armor, experience):
+
         """this code is called when creating a new character"""
         # specifying e.g., 'hit_points=None' makes it a required parameter
 
@@ -36,38 +45,52 @@ class Player(object):
         # logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
         # self.connection_id = connection_id  # 'id' shadows built-in name
 
-        self.connection_id = 0  # keep this until I figure out where it is in net_server.py
-        self.name = None
+        self.connection_id = connection_id  # keep this until I figure out where it is in net_server.py
+        self.name = name
 
-        self.gender = None
+        self.gender = gender
 
         # creates a new stats dict for each Player, zero all stats:
         # set with Player.set_stat('xyz', val)
-        self.stats = {'chr': 0, 'con': 0, 'dex': 0, 'int': 0, 'str': 0, 'wis': 0, 'egy': 0}
+        self.stats = stats
+        # if self.stats is not None:
+        #     self.stats = stats
+        # else:
+        #     self.stats = {'chr': 0, 'con': 0, 'dex': 0, 'int': 0, 'str': 0, 'wis': 0, 'egy': 0}
+        print(f"stats: {self.stats}")
 
         # flags:
-        self.flags = {'room_descriptions': bool, 'autoduel': bool, 'hourglass': bool,
-                      'expert': bool, 'more_prompt': bool, 'architect': bool,
-                      # TODO: orator_mode: bool # define orator_mode more succinctly
-                      'hungry': bool, 'thirsty': bool, 'diseased': bool, 'poisoned': bool,
-                      'debug': bool, 'dungeon_master': bool
-                      }
+        if self.flags is not None:
+            self.flags = flags
+        else:
+            self.flags = {'room_descriptions': bool, 'autoduel': bool, 'hourglass': bool,
+                          'expert': bool, 'more_prompt': bool, 'architect': bool,
+                          # TODO: orator_mode: bool # define orator_mode more succinctly
+                          'hungry': bool, 'thirsty': bool, 'diseased': bool, 'poisoned': bool,
+                          'debug': bool, 'dungeon_master': bool
+                          }
         logging.info(f'{self.flags=}')
 
         # creates a new silver dict for each Player:
         # in_bank may be cleared on character death (TODO: look in TLOS source)
         # in_bar should be preserved after character's death (TODO: same)
         # use Player.set_silver("kind", value)
-        self.silver = {"in_hand": 0, "in_bank": 0, "in_bar": 0}
+        if self.silver is not None:
+            self.silver = silver
+        else:
+            self.silver = {"in_hand": 0, "in_bank": 0, "in_bar": 0}
         # logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
 
         # client settings - set up some defaults
-        self.client = {'name': None, 'rows': None, 'columns': 80, 'translation': None,
-                       # colors for [bracket reader] text highlighting on C64/128:
-                       'text': None, 'highlight': None, 'background': None, 'border': None}
+        if self.client is not None:
+            self.client = client
+        else:
+            self.client = {'name': None, 'rows': None, 'columns': 80, 'translation': None,
+                           # colors for [bracket reader] text highlighting on C64/128:
+                           'text': None, 'highlight': None, 'background': None, 'border': None}
 
-        self.age = 0
-        self.birthday = None  # tuple: (month, day, year)
+        self.age = age
+        self.birthday = birthday  # tuple: (month, day, year)
         """
         proposed stats:
         some (not all) other stats, still collecting them:
@@ -85,15 +108,15 @@ class Player(object):
         map_room: int  # cr
         moves_made: int
         """
-        self.guild = None  # [civilian | fist | sword | claw | outlaw]
+        self.guild = guild  # [civilian | fist | sword | claw | outlaw]
         #                      1       2        3       4      5       6       7         8       9
-        self.char_class = None  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
-        self.race = None  # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
+        self.char_class = char_class  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
+        self.race = race  # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
 
-        self.hit_points = None
-        self.shield = None
-        self.armor = None
-        self.experience = None
+        self.hit_points = hit_points
+        self.shield = shield
+        self.armor = armor
+        self.experience = experience
         """
         combat:
             honor: int
@@ -113,6 +136,7 @@ class Player(object):
         f'\tBirthday: {self.birthday[0]}/{self.birthday[1]}/{self.birthday[2]}\n'
         f"Silver: In hand: {self.silver['in_hand']}\n"
         f'Guild: {self.guild}\n'
+        return _
 
     def set_stat(self, stat: str, adj: int):
         """
@@ -339,11 +363,10 @@ if __name__ == '__main__':
 
     Rulan.print_all_stats()
 
-    Shaia = Player()
-    Shaia.name = "Shaia"
-    Shaia.connection_id = 2
-    Shaia.client = {'name': 'none'},
-    Shaia.flags = {'expert_mode': True}
+    Shaia = Player(name="Shaia",
+                   connection_id=2)
+    Shaia.client = {'name': 'TADA', 'columns': 80, 'rows': 25}
+    Shaia.flags = {'expert_mode': True, 'debug': True}
 
     Shaia.set_stat(stat='int', adj=18)
     print(f"Shaia ...... {Shaia.print_stat('int')}")  # should print 'Shaia ...... Int: 18': passes

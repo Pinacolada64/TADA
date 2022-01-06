@@ -1,0 +1,184 @@
+# type, item name|flags, price
+P,compass              ,5
+A,cloth armor          ,2
+A,steel armor          ,6
+S,small shield         ,2
+S,gold shield          ,6
+T,large ruby           ,8
+T,gold crown           ,2
+T,rocks|081sling       ,1
+T,rocks|101sling       ,1
+A,iron armor           ,4
+T,gold coins           ,6
+S,wooden shield        ,3
+S,iron shield          ,5
+C,eagle's nest         ,6
+T,mound of jewels      ,8
+T,hand grenade         ,4
+T,arrows|051 bow       ,1
+T,silver coins         ,7
+T,diamond crown        ,8
+C,gold coffin          ,3
+T,hourglass            ,3
+T,diamonds             ,8
+S,Aztec shield         ,5
+A,leather armor        ,3
+T,oil painting         ,1
+T,golden egg           ,4
+T,diamond pile         ,6
+A,chainmail armor      ,5
+T,small diamond        ,3
+B,The Howling          ,7
+B,In Search Of...      ,9
+B,Famous Bats          ,6
+B,Plant Life           ,7
+T,the Holy Grail       ,9
+T,sand dollar          ,5
+T,silver chalice       ,6
+T,gold nugget          ,3
+C,ivory bones          ,5
+T,diamond ring         ,7
+T,black diamond        ,7
+T,gold rose            ,5
+T,jeweled buckle       ,6
+T,rare coins           ,8
+T,rocks|051sling       ,1
+S,bronze shield        ,4
+A,plate armor          ,7
+C,blue gem             ,7
+# Named after the Royal Dimwit Flatheads of Zork:
+T,Flathead stamp       ,9
+T,silver cup           ,8
+T,gold heirloom        ,7
+T,Mona Lisa            ,7
+T,American Gothic      ,5
+C,unknown Picasso      ,6
+T,sketches             ,3
+T,gold-framed portrait ,9
+S,ancient shield       ,7
+A,magical armor        ,8
+T,the Spur diamond     ,9
+B,magical artifacts    ,5
+T,silver beakers       ,6
+B,Prospecting...       ,7
+B,Adventurer's Guide   ,5
+C,bottle of J.D.       ,5
+T,It's pile of jewels  ,9
+T,small tree           ,1
+T,communicator         ,9
+T,ring                 ,9
+T,gauntlets            ,9
+B,scrap of paper       ,4
+T,strange weapon       ,5
+T,Pandora's box        ,5
+T,funny doll           ,5
+T,crown of Midas       ,5
+T,inflatable dinghy    ,1
+B,Wraiths: the Book    ,5
+T,Amulet of Life       ,5
+B,Guide to the Amulet  ,5
+T,Great Coat           ,4
+B,Guide to Big Islands ,5
+T,copper key           ,2
+T,fireplace            ,1
+T,Crystal Pendant      ,6
+T,huge diamond         ,9
+B,Death Amulet book    ,5
+B,Death Amulet guide   ,5
+T,Tut's treasure       ,9
+C,treasure chest       ,9
+B,Scroll of Anti-Magic ,6
+B,Scroll of Endurance  ,6
+B,Book of Doorways     ,7
+B,Mummy's Scroll       ,5
+B,Scroll of Endurance  ,5
+B,Map One              ,9
+B,Map Four             ,9
+B,Map Two              ,9
+T,Palintar             ,9
+T,Ice Crystal          ,5
+T,bolts|042crossbow    ,2
+T,steelies|103sling    ,4
+T,arrows|101 bow       ,1
+T,darts|201blowgun     ,1
+T,poison darts|105blowgun,4
+T,balls|102musket      ,1
+T,.357 ammo|064357 mag ,1
+T,.44 ammo|06644 mag   ,2
+T,gas|206flame thrower ,3
+T,.45 mm|406machine gun,5
+T,9 mm|503uzi          ,4
+T,shell|029cannon      ,1
+T,stones|101sling      ,1
+# Not sure what a.p. stands for: advanced poison?
+T,A.P. arrows|062 bow  ,3
+# space level:
+T,armor power pak      ,1
+A,battle armor         ,7
+S,battle shield        ,7
+A,power armor          ,8
+S,lazer shield         ,8
+T,shield power pak     ,1
+# goes to the light sabre:
+T,sabre power|201light ,1
+T,phaser pak|203phaser ,2
+T,plasma power|108plasma,3
+T,plasma pak|258plasma ,8
+T,spacesuit            ,9
+T,Geiger counter       ,9
+T,radiation suit       ,9
+B,ship's log           ,5
+# The BGM-71 TOW is an American anti-tank missile.
+# [T]ube-launched [O]ptically-tracked [W]ire-guided
+T,TOW rocket           ,9
+# The M72 LAW (Light Anti-Tank Weapon, also referred to as the Light Anti-
+# Armor Weapon or LAW as well as LAWS: Light Anti-Armor Weapons System) is
+# a portable one-shot 66-mm unguided anti-tank weapon.
+# game talks about back-blast, demonstrated on Fort Lewis:
+# https://en.wikipedia.org/wiki/M72_LAW#/media/File:M72A2_LAW_1969.jpg
+T,LAW rocket           ,9
+# The General Dynamics FIM-43 Redeye is a man-portable surface-to-air
+# missile system. It uses passive infrared homing to track its target.
+T,Redeye rocket        ,9
+# Duplicate:
+T,LAW rocket           ,9
+T,plasma rocket        ,1
+T,red security card    ,1
+T,green security card  ,1
+T,tool kit             ,4
+T,broken spacesuit     ,5
+T,spacesuit parts      ,5
+B,Space Scouts         ,5
+# duplicate:
+T,plasma rocket        ,9
+T,space tracker        ,9
+T,huge black obelisk   ,9
+T,nuclear rocket       ,9
+T,broken communicator  ,1
+T,Galadriel's vial (empty),9
+T,Galadriel's vial (full),9
+T,ruby slippers        ,9
+T,broomstick           ,1
+T,salvage parts        ,5
+T,cartridge box|102    ,5
+# A bandolier or a bandoleer is a pocketed belt for holding either individual
+# bullets, or belts, of ammunition. It is usually slung sash-style over the
+# shoulder, with the ammunition pockets across the midriff and chest.
+T,.357 bandolier|064    ,5
+T,.44 bandolier|066    ,5
+# A caisson is a chest to hold ammunition:
+T,shell caisson|029    ,8
+T,shovel               ,1
+T,booby trap (code A)  ,9
+T,booby trap (code B)  ,9
+T,booby trap (code C)  ,9
+T,booby trap (code D)  ,9
+T,booby trap (code E)  ,9
+T,booby trap (code F)  ,9
+T,booby trap (code G)  ,9
+T,booby trap (code H)  ,9
+T,booby trap (code I)  ,9
+# Horse stuff:
+T,lasso                ,2
+T,saddle               ,5
+T,horse armour         ,8

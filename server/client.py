@@ -64,4 +64,3 @@ if __name__ == '__main__':
     client.setUser(user_id)
     client.start(host, common.server_port, common.app_id, common.app_key,
                  common.app_protocol)
-
