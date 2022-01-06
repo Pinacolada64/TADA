@@ -4,22 +4,32 @@ import os
 import json
 import threading
 from dataclasses import dataclass, field
+import textwrap
 
 import net_server
 import net_common
 import common
 import util
 
+# import players
+
 K = common.K
 Mode = net_server.Mode
 Message = net_server.Message
 
-# fake data
+# fake data - make sure keys match class Room
 roomsData = [
-    {K.number: 1, K.name: 'Upper Left',  K.exits: {'s': 3, 'e': 2}},
-    {K.number: 2, K.name: 'Upper Right', K.exits: {'s': 4, 'w': 1}},
-    {K.number: 3, K.name: 'Lower Left',  K.exits: {'n': 1, 'e': 4}},
-    {K.number: 4, K.name: 'Lower Right', K.exits: {'n': 2, 'w': 3}},
+    {K.number: 1, K.name: 'Upper Left', K.desc: f"In {K.name}", K.exits: {'s': 3, 'e': 2},
+     K.monster: 1, K.item: 1, K.weapon: 1, K.food: 1, K.alignment: 'neutral'},
+
+    {K.number: 2, K.name: 'Upper Right', K.desc: f"In {K.name}", K.exits: {'s': 4, 'w': 1},
+     K.monster: 1, K.item: 1, K.weapon: 1, K.food: 1, K.alignment: 'neutral'},
+
+    {K.number: 3, K.name: 'Lower Left', K.desc: f"In {K.name}", K.exits: {'n': 1, 'e': 4},
+     K.monster: 1, K.item: 1, K.weapon: 1, K.food: 1, K.alignment: 'neutral'},
+
+    {K.number: 4, K.name: 'Lower Right', K.desc: f"In {K.name}", K.exits: {'n': 2, 'w': 3},
+     K.monster: 1, K.item: 1, K.weapon: 1, K.food: 1, K.alignment: 'neutral'},
 ]
 
 room_start = 1
@@ -73,6 +83,9 @@ def playersInRoom(room_id, exclude_id=None):
     return players_in_room
 
 
+players = {}
+
+
 @dataclass
 class Player(object):
     id: str  # login id
@@ -82,6 +95,8 @@ class Player(object):
     money: int = 1000
     health: int = 100
     xp: int = 0
+    # https://docs.python.org/3/library/collections.html?highlight=default%20factory#collections.defaultdict
+    # flag: dict = default_factory 'room_descs', True
     # for saving previous command to repeat with Return/Enter:
     last_command: str = None
 
@@ -123,8 +138,9 @@ class Player(object):
     def save(self):
         with open(Player._json_path(self.id), 'w') as jsonF:
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
-
                                                       in o.__dict__.items() if v}, indent=4)
+
+
 class PlayerHandler(net_server.UserHandler):
     def initSuccessLines(self):
         return ['Welcome to:\n', 'Totally\nAwesome\nDungeon\nAdventure\n', 'Please log in.']
@@ -134,10 +150,14 @@ class PlayerHandler(net_server.UserHandler):
 
     def roomMsg(self, lines=[], changes={}):
         room = rooms[self.player.room]
-        room_name = room.name
+        room_header = f"#{room.number} {room.name} [{room.alignment}]"
         exitsTxt = room.exitsTxt()
         lines2 = list(lines)
-        lines2.append(f"{room_name}\nYe may travel: {exitsTxt}")
+        lines2.append(f"{room_header}\n")
+        # if self.player.flag['room_desc'] is True:
+        lines2.append(f'{wrapper.fill(text=room.desc)}')
+        lines2.append(f"Ye may travel: {exitsTxt}\n")
+
         # setting exclude_id doesn't list that player (i.e., yourself)
         other_player_ids = playersInRoom(room.number, self.player.id)
         if len(other_player_ids) > 0:
@@ -160,12 +180,12 @@ class PlayerHandler(net_server.UserHandler):
         self.player = players[user_id] = player
         logging.info(f"login {user_id} '{self.player.name}' (addr={self.sender})")
         money = self.player.money
-        lines = [f"Welcome, {self.player.name}.", f"You have {money} gold."]
+        lines = [f"Welcome, {self.player.name}.", f"You have {money} gold.", '\n']
         changes = {K.room_name: rooms[self.player.room].name,
                    K.money: money, K.health: self.player.health,
                    K.xp: self.player.xp}
         self.player.connect()
-        return self.roomMsg(self, lines, changes)
+        return self.roomMsg(lines, changes)
 
     def processMessage(self, data):
         if 'text' in data:
@@ -230,6 +250,8 @@ class PlayerHandler(net_server.UserHandler):
 if __name__ == "__main__":
     import logging
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
+
+    wrapper = textwrap.TextWrapper(width=80)
 
     host = "localhost"
     net_server.start(host, common.server_port, common.app_id, common.app_key,
