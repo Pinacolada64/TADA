@@ -247,9 +247,22 @@ class PlayerHandler(net_server.UserHandler):
             return Message(lines=["Unexpected message."], mode=Mode.bye)
 
 
+def break_handler(signal_received, frame):
+    # Handle any cleanup here
+    logging.warning(f'{signal_received} SIGINT or Ctrl-C detected. Shutting down server.')
+    # TODO: broadcast shutdown message to all players
+    print("Server going down. Bye.")
+    exit(0)
+
+
 if __name__ == "__main__":
     import logging
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
+
+    import signal
+    # exit gracefully when SIGINT is received
+    # signal(SIGINT, handler)  # for *nix
+    signal.signal(signal.SIGINT, break_handler)  # for Windows
 
     wrapper = textwrap.TextWrapper(width=80)
 
