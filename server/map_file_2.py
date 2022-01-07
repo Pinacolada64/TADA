@@ -115,17 +115,17 @@ if __name__ == '__main__':
             print("exception: No such room yet (37, Bar?).")
 
         # FIXME: could all this be put in a room.header() __str__ method?
-        if debug is True:  # Rulan.flag["debug"]:
-            print(f'#{room_number} ', end='')
-        print(f'{room.name} {room.alignment}\n')
+        # if debug is True:  # player.flag['debug'] is True:
+        #     print(f'#{room_number} ', end='')
+        print(f"{f'#{room_number} ' if debug else ''}{room.name} {room.alignment}\n")
         print(wrapper.fill(text=room.desc))
         exits_txt = room.exitsTxt()
         if exits_txt is not None:
             print(f"Ye may travel: {exits_txt}")
             # ryan: list exit dirs and room #s
             if debug:
-                for k in room.exits:
-                    logging.info(f'{k=}')
+                for k, v in room.exits.items():
+                    logging.info(f"Exit '{k}' to {v}")
 
         # import json
         #
@@ -146,15 +146,14 @@ if __name__ == '__main__':
             if direction in room.exits:
                 try:
                     print(f"You move {compass_txts[direction]}.")
-                    try:
-                        room_id = room.exits[direction]
-                    except KeyError:
-                        print("exception: No such room yet (37, Bar?).")
-                    logging.info(f'{room_id=}')
+                    room_number = room.exits[direction]
+                except KeyError:
+                    print("exception: No such room yet (37, Bar?).")
+                    logging.info(f'{room_number=}')
                 except ValueError:
                     print("exception: Ye cannot travel that way.")
             else:
                 print("Ye cannot travel that way.")
-        if cmd == "q":
-            print("Quitting.")
-            break
+            if cmd == "q":
+                print("Quitting.")
+                break
