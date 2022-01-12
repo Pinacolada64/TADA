@@ -21,7 +21,7 @@ class Client(net_client.Client):
             error_code = request['error']
             error_line = request['error_line']
             print(f"ERROR: {error_line} ({error_code})")
-        for f in [K.room_name, K.money, K.health, K.xp]:
+        for f in [K.room_name, K.money, K.health, K.xp, K.last_command]:
             v = request.get('changes', {}).get(f)
             if v:
                 self.status[f] = v
@@ -45,7 +45,13 @@ class Client(net_client.Client):
         multiple_choice = True if len(choices) > 0 else False
         if multiple_choice is False:
             # just one option:
+            temp = request.get['last_command']
+            if temp is not None:
+                print(f"[Return] = {temp}\n")
             text = input(prompt)
+            if temp is not None and text == '':
+                print(f"(Repeating '{temp}.')")
+                text = temp
             return Cmd(text=text)
         else:
             # multiple options:
