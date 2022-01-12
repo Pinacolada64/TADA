@@ -142,7 +142,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                     traceback.print_exc(file=sys.stdout)
                     # TODO: log error with message, error code to client
                     self._sendData(Message(lines=["Terminating session."],
-                                           error_line="server side error",
+                                           error_line=f"server side error ({e})",
                                            error=Error.server1, mode=Mode.bye))
                 if response is None:
                     running = False
@@ -152,7 +152,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                 traceback.print_exc(file=sys.stdout)
                 # TODO: log error with message, error code to client
                 self._sendData(Message(lines=["Terminating session."],
-                                       error_line="server side error",
+                                       error_line=f"server side error ({e})",
                                        error=Error.server2, mode=Mode.bye))
         if self.user is not None:
             user_id = self.user.id
