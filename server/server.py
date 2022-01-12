@@ -253,7 +253,7 @@ class PlayerHandler(net_server.UserHandler):
         if len(other_player_ids) > 0:
             other_players = ', '.join([players[id].name for id in other_player_ids])
             lines2.append(f"Other adventurers in the room:  {other_players}")
-            return Message(lines=[lines, lines2], changes=changes)
+        return Message(lines=lines2, changes=changes)
 
     def processLoginSuccess(self, user_id):
         player = Player.load(user_id)
