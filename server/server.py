@@ -18,7 +18,7 @@ K = common.K
 Mode = net_server.Mode
 Message = net_server.Message
 
-# fake data - make sure keys match class Room
+# fake data - make sure keys match those in Room class
 roomsData = [
     {K.number: 1,
      K.name: 'Brookdale',
@@ -103,7 +103,8 @@ class Room(object):
 
 rooms = {}
 for info in roomsData:
-    room = Room(number=info[K.number], name=info[K.name], desc=info[K.desc], exits=info[K.exits])
+    room = Room(number=info[K.number], name=info[K.name], desc=info[K.desc], exits=info[K.exits],
+                alignment=info[K.alignment])
     rooms[room.number] = room
 
 server_lock = threading.Lock()
@@ -223,7 +224,7 @@ class PlayerHandler(net_server.UserHandler):
         #     lines = []
         # if changes is None:
         #     changes = {}
-        lines.append(["above status line?"])
+        # lines.append(["above status line?"])
         room = rooms[self.player.room]
         exitsTxt = room.exitsTxt()
         lines2 = list(lines)
@@ -300,31 +301,33 @@ class PlayerHandler(net_server.UserHandler):
             # TODO: handle commands with parser etc.
 
             if cmd[0] in compass_txts:
-                logging.info(f'current room: {self.player.room}')
-                logging.info(f"direction: {cmd[0]}")
+                room = rooms[self.player.room]
+                logging.info(f'current room #: {self.player.room}')
+                direction = cmd[0]
+                logging.info(f"direction: {direction}")
                 # 'rooms' is a list of Room objects?
-                logging.info(f'{rooms}')
-                logging.info(f'exits: {self.player.room}')
+                logging.info(f'exits: {room.exits}')
                 # >>> exits = {'n': 1, 's': 3}
                 # >>> exits.keys()
                 # dict_keys(['n', 's'])
+                # >>> exits['n']
+                # 1
                 # cmd.insert(0, 'go') probably not necessary
                 # json data (dict):
-                direction = cmd[0]
-                logging.info(f'{direction=} {self.player.room=}')
-            """room = room.exits[direction]
-                # check if it's a movable direction
-                logging.info(f"dir: {direction} => {room.exits.keys(direction)=}")
-                # delete player from list of players in current room,
-                # add player to list of players in room being moved to
-                self.player.move(room.exits[direction])
-                # FIXME: maybe only at quit
-                # self.player.save()
-                self.player.room = room.exits[direction]
-                return Message(lines=[f"You move {compass_txts[direction]}."])
-            else:
-                return Message(lines=["Ye cannot travel that way."])
-            """
+                # check if 'direction' is in room exits
+                if direction in room.exits:  # rooms[self.player.room].exits.keys():
+                    logging.info(f"{direction=} => {self.player.room=}")
+                    # delete player from list of players in current room,
+                    # add player to list of players in room they moved to
+                    self.player.move(room.exits[direction])
+                    # FIXME: maybe only at quit
+                    # self.player.save()
+                    room_name = rooms[self.player.room].name
+                    return self.roomMsg(lines=[f"You move {compass_txts[direction]}."],
+                                        changes={'room_name': room_name})
+                else:
+                    return Message(lines=["Ye cannot travel that way."])
+
             if cmd[0] in ['l', 'look']:
                 return self.roomMsg(lines=[], changes={})
             if cmd[0] in ['bye', 'logout', 'quit']:
