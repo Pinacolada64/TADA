@@ -208,7 +208,8 @@ class Player:
     def save(self):
         with open(Player._json_path(self.id), 'w') as jsonF:
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
-                                                      in o.__dict__.items() if v}, indent=4)
+                                                      # in o.__dict__.items() if v}, indent=4)
+                                                      in o.__dict__.items()}, indent=4)
         return Message(lines=[f'Saved {self.name}.'])
 
 
@@ -266,7 +267,17 @@ class PlayerHandler(net_server.UserHandler):
                 name = reply['text'].strip()
                 if name != '':  # TODO: limitations on valid names
                     valid_name = True
-            player = Player(id=user_id, name=name, room=room_start, money=money_start)
+            player = Player(id=user_id,
+                            name=name,
+                            map_level=1,
+                            room=room_start,
+                            money=money_start,
+                            health=100,
+                            xp=0,
+                            flag={'debug': True,
+                                  'expert_mode': False,
+                                  'room_descs': True},
+                            last_command=None)
             player.save()
         self.player = players[user_id] = player
         logging.info(f"login {user_id} '{self.player.name}' (addr={self.sender})")
@@ -297,9 +308,9 @@ class PlayerHandler(net_server.UserHandler):
             # if an invalid command, set to None later
             # TODO: maybe maintain a history
             self.player.last_command = cmd
-            logging.info(f'{self.player.last_cmd=}')
-            # TODO: handle commands with parser etc.
+            logging.info(f'{self.player.last_command=}')
 
+            # TODO: handle commands with parser etc.
             if cmd[0] in compass_txts:
                 room = rooms[self.player.room]
                 logging.info(f'current room #: {self.player.room}')
