@@ -367,6 +367,14 @@ class PlayerHandler(net_server.UserHandler):
                 logging.info(f'Room descriptions: {temp}.')
                 return Message(lines=[f'Room descriptions are now '
                                       f'{"off" if temp is False else "on"}.'])
+            if cmd[0] == 'who':
+                from server import net_server as ns
+                lines = ["\nWho's on:"]
+                count = 0
+                for login_id in ns.connected_users:
+                    count += 1
+                    lines.append(f'{count:2}) {players[login_id].name}')
+                return Message(lines=lines)
             else:
                 # invalidate repeating last_command
                 self.player.last_command = None
