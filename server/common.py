@@ -34,7 +34,7 @@ class K(str, enum.Enum):
     room_name = 'room_name'
     health = 'health'
     xp = 'xp'
-
+    last_command = 'last_command'
 
 # class Mode1(str, enum.Enum):
 #    prompt = 'prompt'

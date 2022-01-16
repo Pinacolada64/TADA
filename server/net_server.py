@@ -302,7 +302,6 @@ def start(host, port, id, key, protocol, handler_class):
         logging.info('server shutdown.')
 
 
-
 if __name__ == '__main__':
     """a test of the stub net server"""
     host = 'localhost'

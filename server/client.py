@@ -45,7 +45,7 @@ class Client(net_client.Client):
         multiple_choice = True if len(choices) > 0 else False
         if multiple_choice is False:
             # just one option:
-            temp = request.get['last_command']
+            temp = request.get('last_command')
             if temp is not None:
                 print(f"[Return] = {temp}\n")
             text = input(prompt)
