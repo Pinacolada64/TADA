@@ -3,6 +3,7 @@ import cmd2     # a more advanced version of 'cmd'
 
 """
 This tests the Cmd2 module, a drop-in replacement for cmd.
+https://github.com/python-cmd2/cmd2
 """
 
 # Wonderful! cmd2 provides 'help -v', exactly how I wanted to show help topics:
@@ -35,15 +36,16 @@ class Parser(cmd2.Cmd):
     prompt = '\nTADA> '
 
     # initialize list of spells:
-    SPELL_NAMES = ['list', 'filfre', 'frobnitz', 'frobnicate', 'gnusto', 'melbor', 'trizbort', 'xyzzy']
+    SPELL_NAMES = ['list', 'filfre', 'frobnicate', 'frobnitz', 'gnusto', 'melbor', 'trizbort', 'xyzzy']
 
     # Spell descriptions for 'cast list':
-    SPELL_DESCS = ['List the spells you know.',
-                   'Create a magical light display of fireworks.',
+    # Periods are automatically added by 'cast list'
+    SPELL_DESCS = ['List the spells you know',
+                   'Create a magical light display of fireworks',
                    '',
                    '',
-                   'Inscribe a magical spell in your spell book.',
-                   'Protects magic-users from harm by evil beings.',
+                   'Inscribe a magical spell in your spell book',
+                   'Protects magic-users from harm by evil beings',
                    '',
                    '']
 
@@ -76,7 +78,6 @@ your spell book. After a moment or two, a new spell appears therein, the magicke
 vanishing.""")
 
                 if arg == 'list':
-                    count = 1
                     print("Here are the spells you know:\n")
                     longest = longest_list_length(self.SPELL_NAMES)
 
@@ -84,21 +85,24 @@ vanishing.""")
                     # whitespace characters. We can modify that to be a different character by specifying the
                     # character we want it to be directly following the colon: e.g.,
                     # >>> print("{:*^20s}".format("Sammy"))
+                    count = 1
                     for item in self.SPELL_NAMES:
-                        desc = f"{self.SPELL_DESCS[count - 1] if not None else '(This space intentionally left blank.)'}"
+                        name = item + ' '
+                        temp = self.SPELL_DESCS[count - 1]
+                        if temp == '':
+                            desc = '(This space intentionally left blank.)'
+                        else:
+                            desc = temp + '.'
                         # SPELL_DESCS is zero-based index, so subtract 1 from count
                         # print(f'{count:2}. {item:.<{longest}} {self.SPELL_DESCS[count - 1]}')
-                        print(f'{count:2}. {item:.<{longest}} {desc}')
+                        print(f'{count:2}. {name:.<{longest}} {desc}')
                         count += 1
 
-                    for s in self.SPELL_NAMES:
-                        print(f'{count:2}. {s}, {self.SPELL_DESCS[count - 1]}')
-                        count += 1
                 if arg == 'melbor':
                     print("Specifying <target> is in the works.")
 
-                else:
-                    print(f"You don't know the spell '{arg}'.")
+            else:
+                print(f"You don't know the spell '{arg}'.")
 
     def complete_cast(self, text, line, begidx, endidx):
         """https://pymotw.com/2/cmd/"""
