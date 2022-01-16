@@ -1,9 +1,16 @@
+import cmd
+
+import readline
+
 import cmd2     # a more advanced version of 'cmd'
-# import readline  # for cmd tab-completion
+import pyreadline
+import pyreadline3  # for cmd tab-completion
 
 """
 This tests the Cmd2 module, a drop-in replacement for cmd.
 https://github.com/python-cmd2/cmd2
+https://cmd2.readthedocs.io/en/stable/
+https://cmd2.readthedocs.io/en/stable/api/index.html
 """
 
 # Wonderful! cmd2 provides 'help -v', exactly how I wanted to show help topics:
@@ -32,9 +39,46 @@ def longest_list_length(items: list):
     return len(max([x for x in items], key=len)) + 4
 
 
-class Parser(cmd2.Cmd):
-    prompt = '\nTADA> '
+class RemovePrivilegedCmds(cmd2.Cmd):
+    """A class which removes built-in command from cmd2"""
+    def __init__(self):
+        super().__init__()
+        # To remove built-in commands entirely, delete
+        # the "do_*" function from the cmd2.Cmd class
 
+        # this doesn't work:
+        # privileged_cmds = [cmd2.Cmd.do_py,
+        #                    cmd2.Cmd.do_run_pyscript,
+        #                    cmd2.Cmd.do_shell,
+        #                    cmd2.Cmd.do_shortcuts,
+        #                    cmd2.Cmd.do_edit]
+
+        # for i in privileged_cmds:
+        #     print(f"Removing command '{str(i)}'")
+        #     del i
+
+        print("Removing 'edit' command")
+        del cmd2.Cmd.do_edit
+        print("Removing 'py' command")
+        del cmd2.Cmd.do_py
+        print("Removing 'run_pyscript' command")
+        del cmd2.Cmd.do_run_pyscript
+        print("Removing 'run_script' command")
+        del cmd2.Cmd.do_run_script
+        print("Removing 'shell' command")
+        del cmd2.Cmd.do_shell
+        print("Removing 'shortcuts' command")
+        del cmd2.Cmd.do_shortcuts
+
+        # template:
+        # print("Removing 'shell' command")
+        # del cmd2.Cmd.do_shell
+
+    def __str__(self):
+        print(self)
+
+
+class GameCommands(cmd2.Cmd):
     # initialize list of spells:
     SPELL_NAMES = ['list', 'filfre', 'frobnicate', 'frobnitz', 'gnusto', 'melbor', 'trizbort', 'xyzzy']
 
@@ -107,10 +151,10 @@ vanishing.""")
     def complete_cast(self, text, line, begidx, endidx):
         """https://pymotw.com/2/cmd/"""
         if not text:
-            completions = self.SPELLS[:]
+            completions = self.SPELL_NAMES[:]
         else:
             completions = [f
-                           for f in self.SPELLS
+                           for f in self.SPELL_NAMES
                            if f.startswith(text)
                            ]
         return completions
@@ -126,12 +170,13 @@ vanishing.""")
         """Say <message> to other characters in the room.
 
 'say <message>' is required."""
+        print(arg)
         if arg == '':  # 'if arg is None' does not work
             print("Please specify what to say.")
             return
         else:
-            print(type(arg))
-            print(f'You say, "{arg.sen}."')
+            speech = f"{arg}"
+            print(f'You say, "{speech.capitalize()}."')
 
 
 if __name__ == '__main__':
@@ -140,8 +185,25 @@ cmd2 demo
 ---------
 
 'help' or '?' displays help, 'help -v' shows verbose help.
-Pressing Return/Enter by itself repeats the last command.
 """)
+    admin = input("Privileged user? ").lower()
+    if admin == 'y':
+        print("Keeping privileged commands.")
+        parser = GameCommands(completekey='tab')
+    if admin == 'n':
+        print("Removing privileged commands:")
+        parser = RemovePrivilegedCmds()
+        # but, now missing "game" commands, so we subclass (?) parser again
+        # to add them back:
+        parser = GameCommands(completekey='tab')
+
+    # aliases: 'q' = 'quit'
+    # do_q = do_quit
+
+    # set prompt
+    parser.prompt = "prompt >>> "
+
+    parser.default_error = "No idea."
 
     # start parser parsing until returns True, thus ending program
-    Parser().cmdloop()
+    parser.cmdloop()
