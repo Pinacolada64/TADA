@@ -1,4 +1,5 @@
 # type, item name|flags, price
+# item 9: |08 = qty, 1 = damage
 P,compass              ,5
 A,cloth armor          ,2
 A,steel armor          ,6
