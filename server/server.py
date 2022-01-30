@@ -374,7 +374,6 @@ class PlayerHandler(net_server.UserHandler):
                 for login_id in ns.connected_users:
                     lines.append(f'{count + 1:2}) {players[login_id].name}')
                     count += 1
-                    lines.append(f'{count:2}) {players[login_id].name}')
                 return Message(lines=lines)
             else:
                 # invalidate repeating last_command
