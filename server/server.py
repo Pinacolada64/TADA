@@ -372,6 +372,7 @@ class PlayerHandler(net_server.UserHandler):
                 lines = ["\nWho's on:"]
                 count = 0
                 for login_id in ns.connected_users:
+                    lines.append(f'{count + 1:2}) {players[login_id].name}')
                     count += 1
                     lines.append(f'{count:2}) {players[login_id].name}')
                 return Message(lines=lines)
