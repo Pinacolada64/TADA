@@ -375,10 +375,31 @@ class PlayerHandler(net_server.UserHandler):
                     lines.append(f'{count + 1:2}) {players[login_id].name}')
                     count += 1
                 return Message(lines=lines)
-            else:
-                # invalidate repeating last_command
-                self.player.last_command = None
-                return Message(lines=["I didn't understand that.  Try something else."])
+            """
+            FIXME: Under consideration, but not sure how to set this up
+            if cmd[0] == 'petscii':
+                header = 'PetSCII Strings:'
+                midline = b'\xc0' * len(header)  # solid '-'
+                lines = [f'{header}', f'{midline}',
+                         'HELLO 123 @!\x5c = HELLO 123 @!£',
+                         '\x12 \uf11a',  # reverse video
+                         '\xd3 ♥',
+                         '\xff π',
+                         '✓'
+                         ]
+                for line in lines:
+                    # must ignore \x0a (linefeed), gives MappingError
+                    temp = line + '\n'
+                    # data = temp.encode(encoding='petscii-c64en-lc', errors='ignore')
+                    data = temp.encode(encoding='utf-8', errors='ignore')
+                    logging.info(f'data={type(data)}')  # type = bytes
+                    data_dict = dict(data)
+                    net_server.UserHandler.message(net_common.toJSONB(data_dict))
+                    net_server.UserHandler.message(self, "This should be PetSCII.\r")  # socket: request.sendall(data)
+            """
+            # invalidate repeating last_command
+            self.player.last_command = None
+            return Message(lines=["I didn't understand that.  Try something else."])
         else:
             logging.error("unexpected message")
             return Message(lines=["Unexpected message."], mode=Mode.bye)
