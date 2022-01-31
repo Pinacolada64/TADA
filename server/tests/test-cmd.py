@@ -1,5 +1,3 @@
-import cmd
-
 import readline
 
 import cmd2     # a more advanced version of 'cmd'
@@ -50,7 +48,6 @@ class RemovePrivilegedCmds(cmd2.Cmd):
         # privileged_cmds = [cmd2.Cmd.do_py,
         #                    cmd2.Cmd.do_run_pyscript,
         #                    cmd2.Cmd.do_shell,
-        #                    cmd2.Cmd.do_shortcuts,
         #                    cmd2.Cmd.do_edit]
 
         # for i in privileged_cmds:
@@ -67,8 +64,6 @@ class RemovePrivilegedCmds(cmd2.Cmd):
         del cmd2.Cmd.do_run_script
         print("Removing 'shell' command")
         del cmd2.Cmd.do_shell
-        print("Removing 'shortcuts' command")
-        del cmd2.Cmd.do_shortcuts
 
         # template:
         # print("Removing 'shell' command")
@@ -79,6 +74,16 @@ class RemovePrivilegedCmds(cmd2.Cmd):
 
 
 class GameCommands(cmd2.Cmd):
+    def __init__(self, completekey):
+        # modify shortcuts list:
+        shortcuts = dict(cmd2.DEFAULT_SHORTCUTS)
+        print(shortcuts)
+        shortcuts.update({'\"': 'say'})  # , 'h': 'help', 'q': 'quit'}
+        cmd2.Cmd.__init__(self, shortcuts=shortcuts)
+        # select tab-completion key (usually Tab)
+        # with PetSCII clients, Ctrl key could be read in input loop to send Tab from PetSCII clients
+        cmd2.Cmd.completekey = self.completekey
+
     # initialize list of spells:
     SPELL_NAMES = ['list', 'filfre', 'frobnicate', 'frobnitz', 'gnusto', 'melbor', 'trizbort', 'xyzzy']
 
@@ -174,9 +179,17 @@ vanishing.""")
         if arg == '':  # 'if arg is None' does not work
             print("Please specify what to say.")
             return
-        else:
-            speech = f"{arg}"
-            print(f'You say, "{speech.capitalize()}."')
+        speech = f"{arg}"
+        if speech.endswith('?') is False or speech.endswith('!') is False:
+            punctuation = '.'
+            verb = 'say'
+        if speech.endswith('?'):
+            punctuation = ''
+            verb = 'ask'
+        if speech.endswith('!'):
+            punctuation = ''
+            verb = 'exclaim'
+        print(f'You {verb}, "{speech.capitalize()}{punctuation}"')
 
 
 if __name__ == '__main__':
