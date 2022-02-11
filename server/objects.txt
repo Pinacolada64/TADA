@@ -96,7 +96,8 @@ B,Scroll of Endurance  ,5
 B,Map One              ,9
 B,Map Four             ,9
 B,Map Two              ,9
-T,Palintar             ,9
+# I believe this is spelled "Palantir" according to "Lord of the Rings":
+T,Palantir             ,9
 T,Ice Crystal          ,5
 T,bolts|042crossbow    ,2
 T,steelies|103sling    ,4
@@ -104,6 +105,7 @@ T,arrows|101 bow       ,1
 T,darts|201blowgun     ,1
 T,poison darts|105blowgun,4
 T,balls|102musket      ,1
+# use
 T,.357 ammo|064357 mag ,1
 T,.44 ammo|06644 mag   ,2
 T,gas|206flame thrower ,3
