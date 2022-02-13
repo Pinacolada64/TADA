@@ -39,33 +39,35 @@ def convert(object_txt_filename, object_json_filename):
         object_list = []
         while count < 20:  # was 'while True' which... loops over the same item infinitely?
             object_data = {}
-            line = object_txt.readline()
+            line = object_txt.readline().strip('\n')
             logging.info(f"Raw input: '{line}'")
             # '#'-style comments can begin the line, and a null is EOF:
             if line.startswith('#') is False and line != '':
                 count += 1
-                field = line.strip('\n').split(',')
+                field = line.split(',')
                 if debug:
                     for k in field:
                         print(f"'{k}' ", end='')
                     print()
                 object_data['number'] = count
-                object_data['type'] = object_types[field[0][0:1]]
-                # skip past the 'x.' prefix, strip trailing spaces:
-                temp = field[0][2:].strip()
+                object_data['type'] = object_types[field[0]]
+                # object name, strip trailing spaces:
+                temp = field[1].strip()
+                logging.info(f'{temp=}')
                 # if '|' in object name, it is 'used with' item
-                pos = temp.rfind('|')  # index('|')
-                if pos:
-                    # object_data['name'] = field[1][:container - 1:].rstrip(' ')
-                    # trim name to just before '|':
-                    name = temp[pos - 1:]
+                pos = temp.rfind('|')  # returns -1 if not found
+                if pos != -1:
+                    # trim name to before '|':
+                    name = temp[:pos]
+                    object_data['name'] = name
+                    logging.info(f'with flag: {name=}')
                     # 2-digit round count
-                    rounds = temp[pos + 1:2]
+                    rounds = temp[pos + 1:pos + 3]
                     # 1-digit damage count
-                    damage = temp[pos + 3:1]
+                    damage = temp[pos + 3:pos + 4]
                     # can 'blah.rfind('substring') to match with complementary item:
                     used_with = temp[pos + 4:]
-                    logging.info(f'{rounds=}, {damage=}, {used_with=}')
+                    logging.info(f'{name=}, {rounds=}, {damage=}, {used_with=}')
                     _ = input("Hit Return: ")
                     temp = {"rounds": rounds,
                             "damage": damage,
@@ -73,20 +75,20 @@ def convert(object_txt_filename, object_json_filename):
                     object_data['flags'] = temp
                 else:
                     object_data['name'] = field[1].rstrip(' ')
-                    object_data['flags'] = ''
+                    object_data['flags'] = None
                     logging.info("(Not a container)")
 
-                object_data['price'] = field[2]
+                object_data['price'] = int(field[2])
                 # TODO: maybe descriptions later
                 # descLines = []
                 # moreLines = True
                 # while moreLines:
-                #     line = mapTxt.readline().strip()
+                #     line = objTxt.readline().strip()
                 #     if line != "^":
                 #         descLines.append(line)
                 #     else:
                 #         moreLines = False
-                # roomData['desc'] = " ".join(descLines)
+                # itemData['desc'] = " ".join(descLines)
 
                 if debug:
                     name = object_data['name']
@@ -100,10 +102,8 @@ def convert(object_txt_filename, object_json_filename):
                 logging.info(f"*** processed object '{object_data['name']}'")
                 object_list.append(item)
                 if debug:
-                    logging.info(f'{object_list}')
-            else:
-                print("breaking")
-
+                    logging.info(f'{count=} {len(object_list)=}')
+                    # FIXME temp = object_list[count]
         if write is True:
             with open(object_json_filename, 'w') as object_json:
                 json.dump(object_data, object_json,
