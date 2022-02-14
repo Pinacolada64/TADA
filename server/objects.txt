@@ -59,7 +59,7 @@ T,gold-framed portrait ,9
 S,ancient shield       ,7
 A,magical armor        ,8
 T,the Spur diamond     ,9
-B,magical artifacts    ,5
+B,Magical Artifacts    ,5
 T,silver beakers       ,6
 B,Prospecting...       ,7
 B,Adventurer's Guide   ,5
@@ -105,7 +105,6 @@ T,arrows|101 bow       ,1
 T,darts|201blowgun     ,1
 T,poison darts|105blowgun,4
 T,balls|102musket      ,1
-# use
 T,.357 ammo|064357 mag ,1
 T,.44 ammo|06644 mag   ,2
 T,gas|206flame thrower ,3

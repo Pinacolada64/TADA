@@ -20,7 +20,7 @@ class Items(object):
 
 def convert(object_txt_filename, object_json_filename):
     # FIXME: items 127 and 129 are duplicates (LAW ROCKET)
-    write = False
+    write = True
     object_data = {'objects': []}
     object_types = {'A': 'armor', 'B': 'book', 'C': 'cursed', 'P': 'compass',
                     'S': 'shield', 'T': 'treasure'}
@@ -37,7 +37,7 @@ def convert(object_txt_filename, object_json_filename):
         count = 0
         debug = True
         object_list = []
-        while count < 20:  # was 'while True' which... loops over the same item infinitely?
+        while count < 163:  # was 'while True' which... loops over the same item infinitely?
             object_data = {}
             line = object_txt.readline().strip('\n')
             logging.info(f"Raw input: '{line}'")
@@ -62,13 +62,12 @@ def convert(object_txt_filename, object_json_filename):
                     object_data['name'] = name
                     logging.info(f'with flag: {name=}')
                     # 2-digit round count
-                    rounds = temp[pos + 1:pos + 3]
+                    rounds = int(temp[pos + 1:pos + 3])
                     # 1-digit damage count
-                    damage = temp[pos + 3:pos + 4]
+                    damage = int(temp[pos + 3:pos + 4])
                     # can 'blah.rfind('substring') to match with complementary item:
                     used_with = temp[pos + 4:]
                     logging.info(f'{name=}, {rounds=}, {damage=}, {used_with=}')
-                    _ = input("Hit Return: ")
                     temp = {"rounds": rounds,
                             "damage": damage,
                             "used_with": used_with}
@@ -91,22 +90,25 @@ def convert(object_txt_filename, object_json_filename):
                 # itemData['desc'] = " ".join(descLines)
 
                 if debug:
+                    type = object_data['type']
                     name = object_data['name']
                     price = object_data['price']
                     try:
                         flags = object_data['flags']
                     except ValueError:
                         flags = '(None)'
-                    print(f'{count=} {name=} {flags=} {price=}')
+                    print(f'{count=} {type=} {name=} {flags=} {price=}')
                 item = Items(**object_data)
                 logging.info(f"*** processed object '{object_data['name']}'")
                 object_list.append(item)
                 if debug:
-                    logging.info(f'{count=} {len(object_list)=}')
-                    # FIXME temp = object_list[count]
+                    if count % 20 == 0:
+                        _ = input("Hit Return: ")
+                        # logging.info(f'{count=} {len(object_list)=}')
+
         if write is True:
             with open(object_json_filename, 'w') as object_json:
-                json.dump(object_data, object_json,
+                json.dump(object_list, object_json,
                           default=lambda o: {k: v for k, v in o.__dict__.items() if v}, indent=4)
             logging.info(f"wrote '{object_json_filename}'")
 

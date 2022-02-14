@@ -1,0 +1,1110 @@
+[
+    {
+        "number": 1,
+        "name": "compass",
+        "type": "compass",
+        "price": 5
+    },
+    {
+        "number": 2,
+        "name": "cloth armor",
+        "type": "armor",
+        "price": 2
+    },
+    {
+        "number": 3,
+        "name": "steel armor",
+        "type": "armor",
+        "price": 6
+    },
+    {
+        "number": 4,
+        "name": "small shield",
+        "type": "shield",
+        "price": 2
+    },
+    {
+        "number": 5,
+        "name": "gold shield",
+        "type": "shield",
+        "price": 6
+    },
+    {
+        "number": 6,
+        "name": "large ruby",
+        "type": "treasure",
+        "price": 8
+    },
+    {
+        "number": 7,
+        "name": "gold crown",
+        "type": "treasure",
+        "price": 2
+    },
+    {
+        "number": 8,
+        "name": "rocks",
+        "type": "treasure",
+        "flags": {
+            "rounds": 8,
+            "damage": 1,
+            "used_with": "sling"
+        },
+        "price": 1
+    },
+    {
+        "number": 9,
+        "name": "rocks",
+        "type": "treasure",
+        "flags": {
+            "rounds": 10,
+            "damage": 1,
+            "used_with": "sling"
+        },
+        "price": 1
+    },
+    {
+        "number": 10,
+        "name": "iron armor",
+        "type": "armor",
+        "price": 4
+    },
+    {
+        "number": 11,
+        "name": "gold coins",
+        "type": "treasure",
+        "price": 6
+    },
+    {
+        "number": 12,
+        "name": "wooden shield",
+        "type": "shield",
+        "price": 3
+    },
+    {
+        "number": 13,
+        "name": "iron shield",
+        "type": "shield",
+        "price": 5
+    },
+    {
+        "number": 14,
+        "name": "eagle's nest",
+        "type": "cursed",
+        "price": 6
+    },
+    {
+        "number": 15,
+        "name": "mound of jewels",
+        "type": "treasure",
+        "price": 8
+    },
+    {
+        "number": 16,
+        "name": "hand grenade",
+        "type": "treasure",
+        "price": 4
+    },
+    {
+        "number": 17,
+        "name": "arrows",
+        "type": "treasure",
+        "flags": {
+            "rounds": 5,
+            "damage": 1,
+            "used_with": " bow"
+        },
+        "price": 1
+    },
+    {
+        "number": 18,
+        "name": "silver coins",
+        "type": "treasure",
+        "price": 7
+    },
+    {
+        "number": 19,
+        "name": "diamond crown",
+        "type": "treasure",
+        "price": 8
+    },
+    {
+        "number": 20,
+        "name": "gold coffin",
+        "type": "cursed",
+        "price": 3
+    },
+    {
+        "number": 21,
+        "name": "hourglass",
+        "type": "treasure",
+        "price": 3
+    },
+    {
+        "number": 22,
+        "name": "diamonds",
+        "type": "treasure",
+        "price": 8
+    },
+    {
+        "number": 23,
+        "name": "Aztec shield",
+        "type": "shield",
+        "price": 5
+    },
+    {
+        "number": 24,
+        "name": "leather armor",
+        "type": "armor",
+        "price": 3
+    },
+    {
+        "number": 25,
+        "name": "oil painting",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 26,
+        "name": "golden egg",
+        "type": "treasure",
+        "price": 4
+    },
+    {
+        "number": 27,
+        "name": "diamond pile",
+        "type": "treasure",
+        "price": 6
+    },
+    {
+        "number": 28,
+        "name": "chainmail armor",
+        "type": "armor",
+        "price": 5
+    },
+    {
+        "number": 29,
+        "name": "small diamond",
+        "type": "treasure",
+        "price": 3
+    },
+    {
+        "number": 30,
+        "name": "The Howling",
+        "type": "book",
+        "price": 7
+    },
+    {
+        "number": 31,
+        "name": "In Search Of...",
+        "type": "book",
+        "price": 9
+    },
+    {
+        "number": 32,
+        "name": "Famous Bats",
+        "type": "book",
+        "price": 6
+    },
+    {
+        "number": 33,
+        "name": "Plant Life",
+        "type": "book",
+        "price": 7
+    },
+    {
+        "number": 34,
+        "name": "the Holy Grail",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 35,
+        "name": "sand dollar",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 36,
+        "name": "silver chalice",
+        "type": "treasure",
+        "price": 6
+    },
+    {
+        "number": 37,
+        "name": "gold nugget",
+        "type": "treasure",
+        "price": 3
+    },
+    {
+        "number": 38,
+        "name": "ivory bones",
+        "type": "cursed",
+        "price": 5
+    },
+    {
+        "number": 39,
+        "name": "diamond ring",
+        "type": "treasure",
+        "price": 7
+    },
+    {
+        "number": 40,
+        "name": "black diamond",
+        "type": "treasure",
+        "price": 7
+    },
+    {
+        "number": 41,
+        "name": "gold rose",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 42,
+        "name": "jeweled buckle",
+        "type": "treasure",
+        "price": 6
+    },
+    {
+        "number": 43,
+        "name": "rare coins",
+        "type": "treasure",
+        "price": 8
+    },
+    {
+        "number": 44,
+        "name": "rocks",
+        "type": "treasure",
+        "flags": {
+            "rounds": 5,
+            "damage": 1,
+            "used_with": "sling"
+        },
+        "price": 1
+    },
+    {
+        "number": 45,
+        "name": "bronze shield",
+        "type": "shield",
+        "price": 4
+    },
+    {
+        "number": 46,
+        "name": "plate armor",
+        "type": "armor",
+        "price": 7
+    },
+    {
+        "number": 47,
+        "name": "blue gem",
+        "type": "cursed",
+        "price": 7
+    },
+    {
+        "number": 48,
+        "name": "Flathead stamp",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 49,
+        "name": "silver cup",
+        "type": "treasure",
+        "price": 8
+    },
+    {
+        "number": 50,
+        "name": "gold heirloom",
+        "type": "treasure",
+        "price": 7
+    },
+    {
+        "number": 51,
+        "name": "Mona Lisa",
+        "type": "treasure",
+        "price": 7
+    },
+    {
+        "number": 52,
+        "name": "American Gothic",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 53,
+        "name": "unknown Picasso",
+        "type": "cursed",
+        "price": 6
+    },
+    {
+        "number": 54,
+        "name": "sketches",
+        "type": "treasure",
+        "price": 3
+    },
+    {
+        "number": 55,
+        "name": "gold-framed portrait",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 56,
+        "name": "ancient shield",
+        "type": "shield",
+        "price": 7
+    },
+    {
+        "number": 57,
+        "name": "magical armor",
+        "type": "armor",
+        "price": 8
+    },
+    {
+        "number": 58,
+        "name": "the Spur diamond",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 59,
+        "name": "Magical Artifacts",
+        "type": "book",
+        "price": 5
+    },
+    {
+        "number": 60,
+        "name": "silver beakers",
+        "type": "treasure",
+        "price": 6
+    },
+    {
+        "number": 61,
+        "name": "Prospecting...",
+        "type": "book",
+        "price": 7
+    },
+    {
+        "number": 62,
+        "name": "Adventurer's Guide",
+        "type": "book",
+        "price": 5
+    },
+    {
+        "number": 63,
+        "name": "bottle of J.D.",
+        "type": "cursed",
+        "price": 5
+    },
+    {
+        "number": 64,
+        "name": "It's pile of jewels",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 65,
+        "name": "small tree",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 66,
+        "name": "communicator",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 67,
+        "name": "ring",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 68,
+        "name": "gauntlets",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 69,
+        "name": "scrap of paper",
+        "type": "book",
+        "price": 4
+    },
+    {
+        "number": 70,
+        "name": "strange weapon",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 71,
+        "name": "Pandora's box",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 72,
+        "name": "funny doll",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 73,
+        "name": "crown of Midas",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 74,
+        "name": "inflatable dinghy",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 75,
+        "name": "Wraiths: the Book",
+        "type": "book",
+        "price": 5
+    },
+    {
+        "number": 76,
+        "name": "Amulet of Life",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 77,
+        "name": "Guide to the Amulet",
+        "type": "book",
+        "price": 5
+    },
+    {
+        "number": 78,
+        "name": "Great Coat",
+        "type": "treasure",
+        "price": 4
+    },
+    {
+        "number": 79,
+        "name": "Guide to Big Islands",
+        "type": "book",
+        "price": 5
+    },
+    {
+        "number": 80,
+        "name": "copper key",
+        "type": "treasure",
+        "price": 2
+    },
+    {
+        "number": 81,
+        "name": "fireplace",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 82,
+        "name": "Crystal Pendant",
+        "type": "treasure",
+        "price": 6
+    },
+    {
+        "number": 83,
+        "name": "huge diamond",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 84,
+        "name": "Death Amulet book",
+        "type": "book",
+        "price": 5
+    },
+    {
+        "number": 85,
+        "name": "Death Amulet guide",
+        "type": "book",
+        "price": 5
+    },
+    {
+        "number": 86,
+        "name": "Tut's treasure",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 87,
+        "name": "treasure chest",
+        "type": "cursed",
+        "price": 9
+    },
+    {
+        "number": 88,
+        "name": "Scroll of Anti-Magic",
+        "type": "book",
+        "price": 6
+    },
+    {
+        "number": 89,
+        "name": "Scroll of Endurance",
+        "type": "book",
+        "price": 6
+    },
+    {
+        "number": 90,
+        "name": "Book of Doorways",
+        "type": "book",
+        "price": 7
+    },
+    {
+        "number": 91,
+        "name": "Mummy's Scroll",
+        "type": "book",
+        "price": 5
+    },
+    {
+        "number": 92,
+        "name": "Scroll of Endurance",
+        "type": "book",
+        "price": 5
+    },
+    {
+        "number": 93,
+        "name": "Map One",
+        "type": "book",
+        "price": 9
+    },
+    {
+        "number": 94,
+        "name": "Map Four",
+        "type": "book",
+        "price": 9
+    },
+    {
+        "number": 95,
+        "name": "Map Two",
+        "type": "book",
+        "price": 9
+    },
+    {
+        "number": 96,
+        "name": "Palantir",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 97,
+        "name": "Ice Crystal",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 98,
+        "name": "bolts",
+        "type": "treasure",
+        "flags": {
+            "rounds": 4,
+            "damage": 2,
+            "used_with": "crossbow"
+        },
+        "price": 2
+    },
+    {
+        "number": 99,
+        "name": "steelies",
+        "type": "treasure",
+        "flags": {
+            "rounds": 10,
+            "damage": 3,
+            "used_with": "sling"
+        },
+        "price": 4
+    },
+    {
+        "number": 100,
+        "name": "arrows",
+        "type": "treasure",
+        "flags": {
+            "rounds": 10,
+            "damage": 1,
+            "used_with": " bow"
+        },
+        "price": 1
+    },
+    {
+        "number": 101,
+        "name": "darts",
+        "type": "treasure",
+        "flags": {
+            "rounds": 20,
+            "damage": 1,
+            "used_with": "blowgun"
+        },
+        "price": 1
+    },
+    {
+        "number": 102,
+        "name": "poison darts",
+        "type": "treasure",
+        "flags": {
+            "rounds": 10,
+            "damage": 5,
+            "used_with": "blowgun"
+        },
+        "price": 4
+    },
+    {
+        "number": 103,
+        "name": "balls",
+        "type": "treasure",
+        "flags": {
+            "rounds": 10,
+            "damage": 2,
+            "used_with": "musket"
+        },
+        "price": 1
+    },
+    {
+        "number": 104,
+        "name": ".357 ammo",
+        "type": "treasure",
+        "flags": {
+            "rounds": 6,
+            "damage": 4,
+            "used_with": "357 mag"
+        },
+        "price": 1
+    },
+    {
+        "number": 105,
+        "name": ".44 ammo",
+        "type": "treasure",
+        "flags": {
+            "rounds": 6,
+            "damage": 6,
+            "used_with": "44 mag"
+        },
+        "price": 2
+    },
+    {
+        "number": 106,
+        "name": "gas",
+        "type": "treasure",
+        "flags": {
+            "rounds": 20,
+            "damage": 6,
+            "used_with": "flame thrower"
+        },
+        "price": 3
+    },
+    {
+        "number": 107,
+        "name": ".45 mm",
+        "type": "treasure",
+        "flags": {
+            "rounds": 40,
+            "damage": 6,
+            "used_with": "machine gun"
+        },
+        "price": 5
+    },
+    {
+        "number": 108,
+        "name": "9 mm",
+        "type": "treasure",
+        "flags": {
+            "rounds": 50,
+            "damage": 3,
+            "used_with": "uzi"
+        },
+        "price": 4
+    },
+    {
+        "number": 109,
+        "name": "shell",
+        "type": "treasure",
+        "flags": {
+            "rounds": 2,
+            "damage": 9,
+            "used_with": "cannon"
+        },
+        "price": 1
+    },
+    {
+        "number": 110,
+        "name": "stones",
+        "type": "treasure",
+        "flags": {
+            "rounds": 10,
+            "damage": 1,
+            "used_with": "sling"
+        },
+        "price": 1
+    },
+    {
+        "number": 111,
+        "name": "A.P. arrows",
+        "type": "treasure",
+        "flags": {
+            "rounds": 6,
+            "damage": 2,
+            "used_with": " bow"
+        },
+        "price": 3
+    },
+    {
+        "number": 112,
+        "name": "armor power pak",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 113,
+        "name": "battle armor",
+        "type": "armor",
+        "price": 7
+    },
+    {
+        "number": 114,
+        "name": "battle shield",
+        "type": "shield",
+        "price": 7
+    },
+    {
+        "number": 115,
+        "name": "power armor",
+        "type": "armor",
+        "price": 8
+    },
+    {
+        "number": 116,
+        "name": "lazer shield",
+        "type": "shield",
+        "price": 8
+    },
+    {
+        "number": 117,
+        "name": "shield power pak",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 118,
+        "name": "sabre power",
+        "type": "treasure",
+        "flags": {
+            "rounds": 20,
+            "damage": 1,
+            "used_with": "light"
+        },
+        "price": 1
+    },
+    {
+        "number": 119,
+        "name": "phaser pak",
+        "type": "treasure",
+        "flags": {
+            "rounds": 20,
+            "damage": 3,
+            "used_with": "phaser"
+        },
+        "price": 2
+    },
+    {
+        "number": 120,
+        "name": "plasma power",
+        "type": "treasure",
+        "flags": {
+            "rounds": 10,
+            "damage": 8,
+            "used_with": "plasma"
+        },
+        "price": 3
+    },
+    {
+        "number": 121,
+        "name": "plasma pak",
+        "type": "treasure",
+        "flags": {
+            "rounds": 25,
+            "damage": 8,
+            "used_with": "plasma"
+        },
+        "price": 8
+    },
+    {
+        "number": 122,
+        "name": "spacesuit",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 123,
+        "name": "Geiger counter",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 124,
+        "name": "radiation suit",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 125,
+        "name": "ship's log",
+        "type": "book",
+        "price": 5
+    },
+    {
+        "number": 126,
+        "name": "TOW rocket",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 127,
+        "name": "LAW rocket",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 128,
+        "name": "Redeye rocket",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 129,
+        "name": "LAW rocket",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 130,
+        "name": "plasma rocket",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 131,
+        "name": "red security card",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 132,
+        "name": "green security card",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 133,
+        "name": "tool kit",
+        "type": "treasure",
+        "price": 4
+    },
+    {
+        "number": 134,
+        "name": "broken spacesuit",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 135,
+        "name": "spacesuit parts",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 136,
+        "name": "Space Scouts",
+        "type": "book",
+        "price": 5
+    },
+    {
+        "number": 137,
+        "name": "plasma rocket",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 138,
+        "name": "space tracker",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 139,
+        "name": "huge black obelisk",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 140,
+        "name": "nuclear rocket",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 141,
+        "name": "broken communicator",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 142,
+        "name": "Galadriel's vial (empty)",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 143,
+        "name": "Galadriel's vial (full)",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 144,
+        "name": "ruby slippers",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 145,
+        "name": "broomstick",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 146,
+        "name": "salvage parts",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 147,
+        "name": "cartridge box",
+        "type": "treasure",
+        "flags": {
+            "rounds": 10,
+            "damage": 2,
+            "used_with": ""
+        },
+        "price": 5
+    },
+    {
+        "number": 148,
+        "name": ".357 bandolier",
+        "type": "treasure",
+        "flags": {
+            "rounds": 6,
+            "damage": 4,
+            "used_with": ""
+        },
+        "price": 5
+    },
+    {
+        "number": 149,
+        "name": ".44 bandolier",
+        "type": "treasure",
+        "flags": {
+            "rounds": 6,
+            "damage": 6,
+            "used_with": ""
+        },
+        "price": 5
+    },
+    {
+        "number": 150,
+        "name": "shell caisson",
+        "type": "treasure",
+        "flags": {
+            "rounds": 2,
+            "damage": 9,
+            "used_with": ""
+        },
+        "price": 8
+    },
+    {
+        "number": 151,
+        "name": "shovel",
+        "type": "treasure",
+        "price": 1
+    },
+    {
+        "number": 152,
+        "name": "booby trap (code A)",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 153,
+        "name": "booby trap (code B)",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 154,
+        "name": "booby trap (code C)",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 155,
+        "name": "booby trap (code D)",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 156,
+        "name": "booby trap (code E)",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 157,
+        "name": "booby trap (code F)",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 158,
+        "name": "booby trap (code G)",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 159,
+        "name": "booby trap (code H)",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 160,
+        "name": "booby trap (code I)",
+        "type": "treasure",
+        "price": 9
+    },
+    {
+        "number": 161,
+        "name": "lasso",
+        "type": "treasure",
+        "price": 2
+    },
+    {
+        "number": 162,
+        "name": "saddle",
+        "type": "treasure",
+        "price": 5
+    },
+    {
+        "number": 163,
+        "name": "horse armour",
+        "type": "treasure",
+        "price": 8
+    }
+]
