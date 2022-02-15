@@ -47,6 +47,41 @@ class Room(object):
         return ", ".join(exit_txts)
 
 
+@dataclass
+class Item(object):
+    number: int
+    name: str
+    type: str
+    price: int
+    flags: dict
+
+    def __init__(self):
+        logging.info(f"Instantiated new Item")
+        # self.number = number
+        # self.name = name
+        # self.kind = kind
+        # self.price = price
+        # self.flags = flags
+        # self.items = {'number': self.number,
+        #               'name': self.name,
+        #               'kind': self.kind,
+        #               'price': self.price,
+        #               'flags': self.flags}
+        # self.items = {'number': self.num}
+
+    def read_items(self, filename: str):
+        global item_list
+        with open(filename) as jsonF:
+            item_data = json.load(jsonF)
+        count = 0
+        for each_item in item_data['items']:
+            count += 1
+            # FIXME: item_n = Item(**each_item)
+            logging.info(f'{each_item=}')
+            # FIXME: something like:
+            #  item_list[item_data['number']] = each_item
+
+
 class Map(object):
     def __init__(self):
         """
@@ -73,7 +108,7 @@ class Map(object):
         for room_data in map_data['rooms']:
             room = Room(**room_data)
             self.rooms[room.number] = room
-            logging.info(f'{room.number=}')
+            # logging.info(f'{room.number=} {room.name=}')
 
 
 if __name__ == '__main__':
@@ -88,9 +123,12 @@ if __name__ == '__main__':
     # print(Rulan)
 
     # load map
-    # fixme: room 81 has no description
     game_map = Map()
     game_map.read_map("level_1.json")
+
+    # load items
+    game_items = Item()
+    game_items.read_items("objects.json")
 
     # print rooms - this works fine
     wrapper = textwrap.TextWrapper(width=80)
