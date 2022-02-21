@@ -989,7 +989,7 @@
         {
             "number": 147,
             "name": "cartridge box",
-            "type": "treasure",
+            "type": "container",
             "flags": {
                 "rounds": 10,
                 "damage": 2,
@@ -1004,18 +1004,18 @@
             "flags": {
                 "rounds": 6,
                 "damage": 4,
-                "used_with": ""
+                "used_with": ".357 magnum"
             },
             "price": 5
         },
         {
             "number": 149,
             "name": ".44 bandolier",
-            "type": "treasure",
+            "type": "container",
             "flags": {
                 "rounds": 6,
                 "damage": 6,
-                "used_with": ""
+                "used_with": "44 magnum"
             },
             "price": 5
         },

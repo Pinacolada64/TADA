@@ -12,7 +12,7 @@ import json
 import textwrap
 from dataclasses import dataclass, field
 import logging
-from players import Player
+# from players import Player
 
 
 @dataclass
@@ -47,39 +47,77 @@ class Room(object):
         return ", ".join(exit_txts)
 
 
-@dataclass
 class Item(object):
-    number: int
-    name: str
-    type: str
-    price: int
-    flags: dict
-
-    def __init__(self):
-        logging.info(f"Instantiated new Item")
-        # self.number = number
-        # self.name = name
-        # self.kind = kind
-        # self.price = price
-        # self.flags = flags
-        # self.items = {'number': self.number,
+    def __init__(self, number, name, type, price, **flags):
+        # logging.info(f'{flags.get(number)=}')
+        # logging.info(f'{flags.get(name)=}')
+        # logging.info(f'{flags.get(type)=}')
+        # logging.info(f'{flags.get(price)=}')
+        # logging.info(f'{flags.get(flags)=}')
+        # logging.info(f"Instantiated new Item:")
+        if flags:
+            for key, value in flags.items():
+                logging.info(f'{key=} {value=}')
+        self.number = number  # params['number']
+        self.name = name  # params['name']
+        self.type = type  # params['type']
+        self.price = price  # params['price']
+        if flags:
+            self.flags = flags  # params['flags']
+    """
+    def __init__(self, /, number, name, type, price, flags=None):
+        self.number = number
+        self.name = name
+        self.type = type
+        self.price = price
+        # this field may or may not be present:
+        if flags is not None:
+            self.flags = flags
+        # {'number': self.number,
         #               'name': self.name,
         #               'kind': self.kind,
         #               'price': self.price,
         #               'flags': self.flags}
-        # self.items = {'number': self.num}
+        # self.items = {'number': self.number}
+    # """
 
-    def read_items(self, filename: str):
-        global item_list
+    @staticmethod
+    def read_items(filename: str):
+        item_list = []
         with open(filename) as jsonF:
             item_data = json.load(jsonF)
+
+        logging.info("Got past reading JSON data")
+
         count = 0
-        for each_item in item_data['items']:
+        # TODO: pick apart item_data elements
+        # logging.info({item_data.get['items']})
+        # print(type(item_data))  # expecting 'dict'
+        for items in item_data['items']:
             count += 1
-            # FIXME: item_n = Item(**each_item)
-            logging.info(f'{each_item=}')
+            item_list.append(items)
+            print(f'{count:3} {items}')
+        print(f'{len(item_list)=}')
+        # FIXME: split dict items into Item objects
+        #  is putting them in a list necessary for indexing?
+        # in game something like:
+        # if item = player.room:
+        #     print(f"You see {item} here.")
+        for item in item_list:
+            number = item['number']
+            name = item['name']
+            type = item['type']
+            price = item['price']
+
+            logging.info(f'{number=} {name=} {type=} {price=}')
+            # count += 1
+            # item = {'number': number, 'name': name, 'type': type, 'price': price}
+            temp = Item(**item)
+            item_list.append(temp)
+            # logging.info(f'{temp=}')
             # FIXME: something like:
-            #  item_list[item_data['number']] = each_item
+            #  item_list[item_data['number']] = temp
+        return item_list
 
 
 class Map(object):
@@ -127,8 +165,7 @@ if __name__ == '__main__':
     game_map.read_map("level_1.json")
 
     # load items
-    game_items = Item()
-    game_items.read_items("objects.json")
+    items = Item.read_items("objects.json")
 
     # print rooms - this works fine
     wrapper = textwrap.TextWrapper(width=80)

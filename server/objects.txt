@@ -162,6 +162,7 @@ T,Galadriel's vial (full),9
 T,ruby slippers        ,9
 T,broomstick           ,1
 T,salvage parts        ,5
+# TODO: figure out what this goes with
 T,cartridge box|102    ,5
 # A bandolier or a bandoleer is a pocketed belt for holding either individual
 # bullets, or belts, of ammunition. It is usually slung sash-style over the
