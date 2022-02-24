@@ -49,23 +49,9 @@ class Room(object):
 
 class Item(object):
     def __init__(self, number, name, type, price, **flags):
-        # logging.info(f'{flags.get(number)=}')
-        # logging.info(f'{flags.get(name)=}')
-        # logging.info(f'{flags.get(type)=}')
-        # logging.info(f'{flags.get(price)=}')
-        # logging.info(f'{flags.get(flags)=}')
-        # logging.info(f"Instantiated new Item:")
         if flags:
             for key, value in flags.items():
                 logging.info(f'{key=} {value=}')
-        self.number = number  # params['number']
-        self.name = name  # params['name']
-        self.type = type  # params['type']
-        self.price = price  # params['price']
-        if flags:
-            self.flags = flags  # params['flags']
-    """
-    def __init__(self, /, number, name, type, price, flags=None):
         self.number = number
         self.name = name
         self.type = type
@@ -73,51 +59,42 @@ class Item(object):
         # this field may or may not be present:
         if flags is not None:
             self.flags = flags
-        # {'number': self.number,
-        #               'name': self.name,
-        #               'kind': self.kind,
-        #               'price': self.price,
-        #               'flags': self.flags}
-        # self.items = {'number': self.number}
-    # """
 
     @staticmethod
     def read_items(filename: str):
-        item_list = []
         with open(filename) as jsonF:
-            item_data = json.load(jsonF)
-
+            temp = json.load(jsonF)
+            items = temp["items"]  # remove the dict "items"
         logging.info("Got past reading JSON data")
 
+        # count = 0
+        # 'item' becomes a copy of each dict element on each iteration of the loop:
+        # for item in items:
+        #     print(f'{count:3} {item["name"]}')  # this works
+        #     count += 1
+        # _ = input("Pause: ")
+        print(f'{items[61]["name"]}')  # Adventurer's Guide
+
+        """
         count = 0
-        # TODO: pick apart item_data elements
-        # logging.info({item_data.get['items']})
-        # print(type(item_data))  # expecting 'dict'
-        for items in item_data['items']:
-            count += 1
-            item_list.append(items)
-            print(f'{count:3} {items}')
-        print(f'{len(item_list)=}')
-        # FIXME: split dict items into Item objects
-        #  is putting them in a list necessary for indexing?
-        # in game something like:
-        # if item = player.room:
-        #     print(f"You see {item} here.")
         for item in item_list:
+            count += 1
+            logging.info(f'{count} {item}')
+
             number = item['number']
             name = item['name']
             type = item['type']
             price = item['price']
-
-            logging.info(f'{number=} {name=} {type=} {price=}')
-            # count += 1
-            # item = {'number': number, 'name': name, 'type': type, 'price': price}
-            temp = Item(**item)
+            try:
+                flags = item['flags']
+            except KeyError:
+                flags = None
+            logging.info(f'{count=} {name=} {type=} {price=} {flags=}')
+            temp = Item(number, name, type, price, **flags)
+            logging.info(f'After Item instantiated: {temp=}')
             item_list.append(temp)
-            # logging.info(f'{temp=}')
-            # FIXME: something like:
-            #  item_list[item_data['number']] = temp
-        return item_list
+        """
+        return items
 
 
 class Map(object):
@@ -151,14 +128,13 @@ class Map(object):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
+    wrapper = textwrap.TextWrapper(width=80)
 
     # compass direction text names, used in Room.exitsTxt and main parser
     compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West'}
 
-    # create new Player
-    # Rulan = Player()
-    # Rulan = dict(flag['debug']: True)
-    # print(Rulan)
+    debug = True
+    room_number = 1
 
     # load map
     game_map = Map()
@@ -168,20 +144,17 @@ if __name__ == '__main__':
     items = Item.read_items("objects.json")
 
     # print rooms - this works fine
-    wrapper = textwrap.TextWrapper(width=80)
-    for number, room in game_map.rooms.items():
-        print(f"#{number} {room.name}")
-        print(wrapper.fill(text=room.desc))
-        exits_txt = room.exitsTxt()
-        if exits_txt:
-            print(f"exits: {exits_txt}")
-        print()
-
+    """
+    if debug:
+        for number, room in game_map.rooms.items():
+            print(f"#{number} {room.name}")
+            print(wrapper.fill(text=room.desc))
+            exits_txt = room.exitsTxt()
+            if exits_txt:
+                print(f"exits: {exits_txt}")
+            print()
+    """
     # start of ryan's code
-    logging.info("Made it past dumping JSON info")
-
-    debug = True
-    room_number = 1
     while True:
         # get room # that player is in
         try:
@@ -202,22 +175,46 @@ if __name__ == '__main__':
                 for k, v in room.exits.items():
                     logging.info(f"Exit '{k}' to {v}")
 
-        # import json
-        #
-        # with open('./testJSON.json') as json_file:
-        #     data = json.load(json_file)
-        #     dataList = {item['id']: item['name'] for item in data}
+        # show item in room:
+        # num = 62  # zero-based numbering, so subtract one to get actual object
+        # logging.info(f'item #{num} name: {items[num - 1]["name"]}')
 
-        # item_here = room.items
-        # if item_here:
-        #    # TODO: add grammatical list item (SOME MELONS, AN ORANGE)
-        #    print(f"Ye see {item_here}.")
+        # is an item in current room?
+        # logging.info(f'{room=}')  # raw info
+        obj_list = []  # for grammatical list and .join(",") later
+        item = room.item
+        if item:
+            obj_name = items[item - 1]["name"]
+            obj_list.append(obj_name)
+            print(f'You see item #{item} {obj_name}')
+
+        # TODO: get food, monster, weapon names (data files not converted to JSON yet)
+
+        food = room.food
+        if food:
+            # food_name = items[room.item - 1]["name"]
+            # obj_list.append(food_name)
+            print(f'You see food #{food} (food_name)')
+
+        monster = room.monster
+        if monster:
+            # monster_name = items[room.item - 1]["name"]
+            # obj_list.append(monster_name)
+            print(f'You see monster #{monster} (monster_name)')
+
+        weapon = room.weapon
+        if weapon:
+            # weapon_name = items[room.item - 1]["name"]
+            # obj_list.append(weapon_name)
+            print(f'You see weapon #{weapon} (weapon_name)')
+
+        # TODO: add grammatical list item (SOME MELONS, AN ORANGE)
 
         cmd = input("What now? ").lower()
         direction = cmd[0:1]
         if direction in ['n', 'e', 's', 'w']:
             # check room.exits for 'direction'
-            logging.info("dir: n/e/s/w")
+            logging.info(f"dir: {direction}")
             if direction in room.exits:
                 try:
                     print(f"You move {compass_txts[direction]}.")
@@ -229,6 +226,6 @@ if __name__ == '__main__':
                     print("exception: Ye cannot travel that way.")
             else:
                 print("Ye cannot travel that way.")
-            if cmd == "q":
-                print("Quitting.")
-                break
+        if cmd == "q":
+            print("Quitting.")
+            break

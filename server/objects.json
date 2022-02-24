@@ -790,12 +790,12 @@
             "number": 117,
             "name": "shield power pak",
             "type": "power",
-            "price": 1,
             "flags": {
                 "rounds": 6,
                 "damage": 0,
                 "used_with": "lazer shield"
             },
+            "price": 1
         },
         {
             "number": 118,
