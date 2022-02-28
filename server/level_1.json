@@ -753,7 +753,7 @@
         },
         {
             "number": 89,
-            "name": "TELEPORT ROOM}->",
+            "name": "TELEPORT ROOM|->",
             "exits": {
                 "w": 88
             },

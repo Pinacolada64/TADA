@@ -447,7 +447,7 @@ coal mine.
 MINE EXIT
 0,91,0,0
 69,82,0,80,0,0
-Undescribed: fixme
+You have reached the main entrance to a coal mine.
 ^
 82
 INNER MINE
@@ -507,7 +507,7 @@ yOu wAnNa TrAvEl tO fAr aWay pLaCes?
 tHen gO eAsT!"
 ^
 89
-TELEPORT ROOM}->
+TELEPORT ROOM|->
 0,0,0,0
 0,0,0,88,0,0
 You hear a noise as if a distant wind
