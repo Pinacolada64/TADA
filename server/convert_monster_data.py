@@ -26,27 +26,34 @@ def read_stanza(filename):
 
     :return: data[], the info from the file
     """
+    count = 0
     line = []
-    for count in range(1, 5):
-        while True:
-            data = filename.readline().strip('\n')
-            while data.startswith("#") is False:
-                logging.info(f'{data=}')
-                line[count] = data
-                break
-            # while filename.readline().strip('\n')
+    while count < 5:
+        # 'diskin()' discards '#'-style comments
+        temp = diskin(filename)
+        if temp != "^":
+            line.append(temp)
+            count += 1
+    logging.info("Stanza:")
+    count = 0
+    for n in line:
+        logging.info(f'{count=} {n=}')
+        count += 1
+    return line
 
 
-"""
-    def get_line(filename):
-    # get a line of data from disk file, skipping '#'-style comments
-    # '^' marks end of stanza
-        with open(filename) as monster_txt:
-            while True:
-                ...?
-"""
+def diskin(filename):
+    # get a line of data from disk file, discarding '#'-style comments
+    while True:
+        data = filename.readline().strip('\n')
+        if data.startswith("#") is False:
+            logging.info(f'keep {data=}')
+            return data
+        else:
+            logging.info(f'toss {data=}')
 
-def convert(monster_txt_filename, monster_json_filename):
+
+def convert(txt_filename, monster_json_filename):
     write = False
     monster_data = {'monsters': []}
     # flags with '[?]' I am unsure about
@@ -86,49 +93,52 @@ def convert(monster_txt_filename, monster_json_filename):
                        7: "swift"
                        }
 
-    with open(monster_txt_filename) as monster_txt:
+    with open(txt_filename) as file:
         # TODO: not sure how to code this yet
         debug = True
         monster_list = []
         # get monster count:
         # enter a state where it's only looking for an integer value [monster count]
-        # not sure if this could be farmed out to a function
         num_monsters = 999  # some unrealistic number to serve as a flag
         while num_monsters == 999:
             # discard '#'-style comments:
-            while True:
-                data = monster_txt.readline().strip('\n')
-                while data.startswith("#") is False:
-                    print(f'{data=}')
-                break
-            # hoping for an integer here:
-            data = int(monster_txt.readline().strip('\n'))
-            print(f'found {data=}')
-            if data != 0:
-                num_monsters = data
-                break
-            # toss "^" separator:
-            _ = monster_txt.readline().strip('\n')
+            data = diskin(file)
+            print(f'{data=}')
+            break
+        # hoping for an integer here:
+        num_monsters = int(data)
+        print(f'{num_monsters=}')
+        # toss "^" separator:
+        _ = diskin(file)
         count = 0
-"""
+        """
         sample data:
         M.7RATTLESNAKE |*
         capture monster names (from 'M\.(?:\d)' through an optional '|' indicating flags)
         then convert to lowercase with .lower():
-"""
-        monster_name = re.compile('^M\.?:\d(.+(?:\|))')
+        """
+        # monster_name = re.compile("^M\.?:\d(.+(?:\|))")
         while count < num_monsters:  # was 'while True' which... loops over the same item infinitely?
+            data = read_stanza(file)
             monster_data = {}
-            status = monster_txt.readline().strip('\n')
-            info = monster_txt.readline().strip('\n')
+            status = int(data[0])  # usually '1' for 'active'
+            info = data[1]
             # TODO: capture optional monster class number after 'M.':
-            monster_class = re.compile('^M\.(?:\d)', info)
-            name = info.monster_name.lower()
-            strength = monster_txt.readline().strip('\n')
-            special_weapon = monster_txt.readline().strip('\n')
-            to_hit = monster_txt.readline().strip('\n')
+            temp = info[2:1].isdigit()
+            start_name = 2  # starting position of name
+            if temp:  # re.compile('^M\.(?:\d)', info)
+                monster_class = monster_classes.items(temp - 1)
+                start_name = 3
+            end_name = info.rfind("|")
+            if end_name == -1:  # not found
+                end_name = len(info)
+            name = info[start_name:end_name]
+            print(f'{name=}')
+            strength = data[3]
+            special_weapon = data[4]
+            to_hit = data[5]
             # toss "^" data block separator:
-            _ = monster_txt.readline().strip('\n')
+            _ = diskin(file)
             print(f"""Raw input:\n
 {status=}
 {info=}
@@ -136,7 +146,6 @@ def convert(monster_txt_filename, monster_json_filename):
 {special_weapon=}
 {to_hit=}
 """)
-            # '#'-style comments can begin the line, and a null is EOF:
             if status.startswith('#') is False and status != '':
                 count += 1
                 field = info.split(',')
@@ -146,35 +155,39 @@ def convert(monster_txt_filename, monster_json_filename):
                     print()
                 monster_data['number'] = count
                 monster_data['type'] = monster_flags[field[0]]
-                # monster name, strip trailing spaces:
+
+                # get monster name, strip trailing spaces:
                 temp = field[1].strip()
                 logging.info(f'{temp=}')
+
                 # if '|' in monster name, it has monster flags:
                 pos = temp.rfind('|')  # returns -1 if not found
                 if pos != -1:
                     # trim name to before '|':
                     name = temp[:pos]
                     monster_data['name'] = name
-                    # clear flag_list:
+                    flags = temp[pos + 1:]  # flags after '|'
+                    # clear monster flag list:
                     flag_list = []
-                    # FIXME: not sure if 'enumerate' will work; I want to parse all the flags
-                    #  after the | symbol and add their English keywords to flag_list, maybe 'yield'?
-                    for flag in enumerate(monster_flags):
-                        logging.info(f'with flag: {flag=}')
-                        flag_list.append(flag)
-                        monster_data['flags'] = flag_list
+                    # FIXME: parse all the flags after the | symbol and add
+                    #  their English keywords to flag_list
+                    for k, v in monster_flags.items():
+                        if k in flags:
+                            logging.info(f'with flag: {k=} {v=}')
+                            flag_list.append(v)
+                    monster_data['flags'] = flag_list
+                    logging.info(f'{monster_data["flags"]=}')
                 else:
                     monster_data['name'] = field[1].rstrip(' ')
                     monster_data['flags'] = None
                     logging.info("(No flags)")
 
-                monster_data['price'] = int(field[2])
                 # TODO: maybe descriptions later
                 """
                 descLines = []
                 moreLines = True
                 while moreLines:
-                    line = objTxt.readline().strip()
+                    line = diskin(file)
                     if line != "^":
                         descLines.append(line)
                     else:
