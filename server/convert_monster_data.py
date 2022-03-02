@@ -3,17 +3,21 @@
 import json
 from dataclasses import dataclass
 import logging
-import re
+
+
+# import re
 
 
 @dataclass
-class Items(object):
-    number: int
+class Monsters(object):
+    # number: int
+    status: int
     name: str
-    # armor | book | cursed | compass | drink | food | shield | treasure | weapon
-    type: str
+    size: int
+    strength: int
+    special_weapon: int
+    to_hit: int
     flags: list
-    price: int
 
     def __str__(self):
         return f'#{self.number} {self.name}'
@@ -21,7 +25,7 @@ class Items(object):
 
 def read_stanza(filename):
     """
-    Read block of data [usually 5 lines] from file
+    Read block of data [5 lines] from file
     skipping '#'-style comments; `^` is stanza delimiter
 
     :return: data[], the info from the file
@@ -54,8 +58,8 @@ def diskin(filename):
 
 
 def convert(txt_filename, monster_json_filename):
-    write = False
-    monster_data = {'monsters': []}
+    write = True
+    # TODO: before write to disk: monster_data = {'monsters': []}
     # flags with '[?]' I am unsure about
     monster_flags = {']': 'double attacks',
                      ':': 'mechanical being',
@@ -84,17 +88,16 @@ def convert(txt_filename, monster_json_filename):
                      # regex: !(\d{2}), 2-digit quote number follows
                      '!': 'quote flag'}
 
-    monster_classes = {1: "huge",
-                       2: "large",
-                       3: "big",
-                       4: "man-sized",
-                       5: "short",
-                       6: "small",
-                       7: "swift"
-                       }
+    monster_sizes = {1: "huge",
+                     2: "large",
+                     3: "big",
+                     4: "man-sized",
+                     5: "short",
+                     6: "small",
+                     7: "swift"
+                     }
 
     with open(txt_filename) as file:
-        # TODO: not sure how to code this yet
         debug = True
         monster_list = []
         # get monster count:
@@ -113,36 +116,52 @@ def convert(txt_filename, monster_json_filename):
         count = 0
         """
         sample data:
-        M.7RATTLESNAKE |*
+        1) 1
+        2) M.7RATTLESNAKE |*
+        3) 2
+        4) 0
+        5) 8
+        
+        1) status
+        2) M. Monster flag
+           7  [optional] monster class
+           RATTLESNAKE name
+           |  [optional] monster flags follow
+        3) strength
+        4) special weapon to kill?
+        5) to-hit
+        
+        (breakdown also found in /programming-notes/file-formats.txt)
+        
         capture monster names (from 'M\.(?:\d)' through an optional '|' indicating flags)
         then convert to lowercase with .lower():
+        
         """
         # monster_name = re.compile("^M\.?:\d(.+(?:\|))")
         while count < num_monsters:
             data = read_stanza(file)
-            monster_data = {}
             status = int(data[0])  # usually '1' for 'active'
-
             info = data[1]
             # capture optional monster class number after 'M.':
-            temp = info[2:1].isdigit()
-            if temp:  # re.compile('^M\.(?:\d)', info)
-                monster_class = monster_classes.keys()
+            temp = info[2]
+            if temp.isdigit():  # re.compile('^M\.(?:\d)', info)
+                monster_size = monster_sizes[int(temp)]
                 start_name = 3  # starting position of name
             else:
-                monster_class = None
+                monster_size = None
                 start_name = 2  # starting position of name
-            logging.info(f'{monster_class=}')
+            logging.info(f'{monster_size=}')
 
             flag = info.rfind("|")
             if flag == -1:  # not found
-                monster_flags = None
+                flag_list = None
                 name = info[start_name:]
                 logging.info("(No flags)")
             else:
                 # '|' in monster name. it has monster flags:
                 # trim name to before '|':
-                name = info[start_name:flag - 1]
+                # can also do: monster[start_name:monster.find('|')].rstrip()
+                name = info[start_name:flag].rstrip()  # was flag - 1
                 # clear per-monster flag list:
                 flag_list = []
                 # FIXME: parse all the flags after the | symbol and add
@@ -152,8 +171,7 @@ def convert(txt_filename, monster_json_filename):
                     if k in info[flag + 1:]:
                         logging.info(f'with flag: {k=} {v=}')
                         flag_list.append(v)
-                monster_data['flags'] = flag_list
-                logging.info(f'{monster_data["flags"]=}')
+            logging.info(f'{name=}')
             strength = int(data[2])
             special_weapon = int(data[3])
             to_hit = int(data[4])
@@ -162,11 +180,11 @@ def convert(txt_filename, monster_json_filename):
             print(f"""Parsed input:\n
 {status=}
 {name=}
-{monster_class=}
-{flag_list=}
+{monster_size=}
 {strength=}
 {special_weapon=}
 {to_hit=}
+{flag_list=}
 """)
 
             # TODO: maybe descriptions later
@@ -179,24 +197,33 @@ def convert(txt_filename, monster_json_filename):
                     descLines.append(line)
                 else:
                     moreLines = False
-            itemData['desc'] = " ".join(descLines)
+            monster_data['desc'] = " ".join(descLines)
             """
 
+            monster_data = {'status': status,
+                            'name': name,
+                            'size': monster_size,
+                            'strength': strength,
+                            'special_weapon': special_weapon,
+                            'to_hit': to_hit,
+                            'flags': flag_list}
+
             if debug:
-                # type = monster_data['type']
                 name = monster_data['name']
+                status = monster_data['status']
                 try:
                     flags = monster_data['flags']
                 except ValueError:
                     flags = '(None)'
-                print(f'{count=} {type=} {name=} {flags=}')
-            item = Items(**monster_data)
+                logging.info(f'{count=} {status=} {name=} {flags=}')
+            count += 1
+            # add based on dataclass:
+            monster = Monsters(**monster_data)
             logging.info(f"*** processed monster '{monster_data['name']}'")
-            monster_list.append(item)
+            monster_list.append(monster)
             if debug:
                 if count % 20 == 0:
                     _ = input("Hit Return: ")
-                    # logging.info(f'{count=} {len(monster_list)=}')
 
         if write is True:
             with open(monster_json_filename, 'w') as monster_json:
