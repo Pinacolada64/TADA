@@ -65,7 +65,7 @@ class Item(object):
         with open(filename) as jsonF:
             temp = json.load(jsonF)
             items = temp["items"]  # remove the dict "items"
-        logging.info("Got past reading JSON data")
+        logging.info("*** Read item JSON data")
 
         # count = 0
         # 'item' becomes a copy of each dict element on each iteration of the loop:
@@ -126,6 +126,40 @@ class Map(object):
             # logging.info(f'{room.number=} {room.name=}')
 
 
+class Monster(object):
+    def __init__(self, status, name, size, strength, special_weapon, to_hit, **flags):
+        self.status = status
+        self.name = name
+        # this field is optional:
+        if size is not None:
+            self.size = size
+        self.strength = strength
+        # this field is optional:
+        if special_weapon is not None:
+            self.special_weapon = special_weapon
+        self.to_hit = to_hit
+        # this field is optional:
+        if flags is not None:
+            self.flags = flags
+
+    @staticmethod
+    def read_monsters(filename: str):
+        with open(filename) as jsonF:
+            monsters = json.load(jsonF)
+            # items = temp["items"]  # remove the dict "items"
+        logging.info("*** Read monster JSON data")
+
+        # count = 0
+        # 'item' becomes a copy of each dict element on each iteration of the loop:
+        # for item in items:
+        #     print(f'{count:3} {item["name"]}')  # this works
+        #     count += 1
+        # _ = input("Pause: ")
+        # print(f'{items[61]["name"]}')  # Adventurer's Guide
+
+        return monsters
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
     wrapper = textwrap.TextWrapper(width=80)
@@ -142,6 +176,9 @@ if __name__ == '__main__':
 
     # load items
     items = Item.read_items("objects.json")
+
+    # load monsters
+    monsters = Monster.read_monsters("monsters.json")
 
     # print rooms - this works fine
     """
@@ -198,9 +235,16 @@ if __name__ == '__main__':
 
         monster = room.monster
         if monster:
-            # monster_name = items[room.item - 1]["name"]
-            # obj_list.append(monster_name)
-            print(f'You see monster #{monster} (monster_name)')
+            m = monsters[monster - 1]
+            mon_name = m["name"]
+            try:
+                mon_size = m["size"]
+            except KeyError:
+                mon_size = None
+            # obj_list.append(mon_name)
+            print(f"You see monster #{monster}: "
+                  f"{f'{mon_size} ' if mon_size is not None else ''}"
+                  f"{mon_name}")
 
         weapon = room.weapon
         if weapon:
