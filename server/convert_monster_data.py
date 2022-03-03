@@ -5,12 +5,9 @@ from dataclasses import dataclass
 import logging
 
 
-# import re
-
-
 @dataclass
 class Monsters(object):
-    # number: int
+    number: int
     status: int
     name: str
     size: int
@@ -139,6 +136,7 @@ def convert(txt_filename, monster_json_filename):
         """
         # monster_name = re.compile("^M\.?:\d(.+(?:\|))")
         while count < num_monsters:
+            count += 1
             data = read_stanza(file)
             status = int(data[0])  # usually '1' for 'active'
             info = data[1]
@@ -178,6 +176,7 @@ def convert(txt_filename, monster_json_filename):
             # toss "^" data block separator:
             _ = diskin(file)
             print(f"""Parsed input:\n
+{count=}
 {status=}
 {name=}
 {monster_size=}
@@ -200,7 +199,8 @@ def convert(txt_filename, monster_json_filename):
             monster_data['desc'] = " ".join(descLines)
             """
 
-            monster_data = {'status': status,
+            monster_data = {'number': count,
+                            'status': status,
                             'name': name,
                             'size': monster_size,
                             'strength': strength,
@@ -216,7 +216,6 @@ def convert(txt_filename, monster_json_filename):
                 except ValueError:
                     flags = '(None)'
                 logging.info(f'{count=} {status=} {name=} {flags=}')
-            count += 1
             # add based on dataclass:
             monster = Monsters(**monster_data)
             logging.info(f"*** processed monster '{monster_data['name']}'")

@@ -127,7 +127,8 @@ class Map(object):
 
 
 class Monster(object):
-    def __init__(self, status, name, size, strength, special_weapon, to_hit, **flags):
+    def __init__(self, number, status, name, size, strength, special_weapon, to_hit, **flags):
+        self.number = number
         self.status = status
         self.name = name
         # this field is optional:
