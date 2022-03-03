@@ -1,0 +1,1547 @@
+[
+    {
+        "number": 1,
+        "status": 1,
+        "name": "SAND CRAB",
+        "strength": 5,
+        "to_hit": 8,
+        "flags": [
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 2,
+        "status": 1,
+        "name": "RATTLESNAKE",
+        "size": "swift",
+        "strength": 2,
+        "to_hit": 8,
+        "flags": [
+            "poisonous attack"
+        ]
+    },
+    {
+        "number": 3,
+        "status": 1,
+        "name": "TROLL",
+        "size": "huge",
+        "strength": 6,
+        "to_hit": 3
+    },
+    {
+        "number": 4,
+        "status": 1,
+        "name": "WERE-BAT",
+        "strength": 9,
+        "to_hit": 4,
+        "flags": [
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 5,
+        "status": 1,
+        "name": "SLOTH",
+        "size": "large",
+        "strength": 4,
+        "to_hit": 5
+    },
+    {
+        "number": 6,
+        "status": 1,
+        "name": "GIANT CLAW",
+        "strength": 6,
+        "to_hit": 5
+    },
+    {
+        "number": 7,
+        "status": 1,
+        "name": "DRAGON!",
+        "size": "big",
+        "strength": 18,
+        "to_hit": 3,
+        "flags": [
+            "increase strength [?]",
+            "2x chance find gold",
+            "chance find gold",
+            "appears unaffected [?]",
+            "fire attack"
+        ]
+    },
+    {
+        "number": 8,
+        "status": 1,
+        "name": "SKELETON",
+        "strength": 9,
+        "to_hit": 8,
+        "flags": [
+            "evil"
+        ]
+    },
+    {
+        "number": 9,
+        "status": 1,
+        "name": "SLICK EEL",
+        "strength": 7,
+        "to_hit": 7
+    },
+    {
+        "number": 10,
+        "status": 1,
+        "name": "SLIME DEVIL",
+        "strength": 13,
+        "to_hit": 4,
+        "flags": [
+            "evil"
+        ]
+    },
+    {
+        "number": 11,
+        "status": 1,
+        "name": "GILA MONSTER",
+        "strength": 8,
+        "to_hit": 6,
+        "flags": [
+            "poisonous attack",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 12,
+        "status": 1,
+        "name": "WEREWOLF",
+        "size": "huge",
+        "strength": 11,
+        "special_weapon": 13,
+        "to_hit": 5,
+        "flags": [
+            "evil",
+            "cast one spell [?]"
+        ]
+    },
+    {
+        "number": 13,
+        "status": 1,
+        "name": "DRACULA",
+        "size": "huge",
+        "strength": 15,
+        "special_weapon": 12,
+        "to_hit": 5,
+        "flags": [
+            "evil",
+            "chance find gold",
+            "experience drain",
+            "do not display \"THE\""
+        ]
+    },
+    {
+        "number": 14,
+        "status": 1,
+        "name": "TRANTELLA",
+        "strength": 7,
+        "to_hit": 8,
+        "flags": [
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 15,
+        "status": 1,
+        "name": "GARGOYLE",
+        "size": "huge",
+        "strength": 10,
+        "to_hit": 3
+    },
+    {
+        "number": 16,
+        "status": 1,
+        "name": "SPITTING COBRA",
+        "size": "swift",
+        "strength": 5,
+        "to_hit": 8,
+        "flags": [
+            "poisonous attack"
+        ]
+    },
+    {
+        "number": 17,
+        "status": 1,
+        "name": "MINOTAUR!",
+        "size": "big",
+        "strength": 11,
+        "to_hit": 3,
+        "flags": [
+            "light armor"
+        ]
+    },
+    {
+        "number": 18,
+        "status": 1,
+        "name": "RED ORC",
+        "size": "huge",
+        "strength": 9,
+        "to_hit": 6,
+        "flags": [
+            "evil"
+        ]
+    },
+    {
+        "number": 19,
+        "status": 1,
+        "name": "MEDUSA",
+        "size": "huge",
+        "strength": 8,
+        "to_hit": 5,
+        "flags": [
+            "cast turn to stone"
+        ]
+    },
+    {
+        "number": 20,
+        "status": 1,
+        "name": "TRIFFID",
+        "size": "huge",
+        "strength": 16,
+        "special_weapon": 11,
+        "to_hit": 7,
+        "flags": [
+            "cast one spell [?]"
+        ]
+    },
+    {
+        "number": 21,
+        "status": 1,
+        "name": "PIXIE",
+        "size": "small",
+        "strength": 3,
+        "to_hit": 8,
+        "flags": [
+            "good",
+            "cast multiple spells [?]",
+            "cast one spell [?]"
+        ]
+    },
+    {
+        "number": 22,
+        "status": 1,
+        "name": "GORN",
+        "size": "big",
+        "strength": 10,
+        "to_hit": 5
+    },
+    {
+        "number": 23,
+        "status": 1,
+        "name": "GOLEM",
+        "size": "big",
+        "strength": 7,
+        "to_hit": 2,
+        "flags": [
+            "light armor"
+        ]
+    },
+    {
+        "number": 24,
+        "status": 1,
+        "name": "HYDRA",
+        "strength": 13,
+        "to_hit": 4,
+        "flags": [
+            "double attacks"
+        ]
+    },
+    {
+        "number": 25,
+        "status": 1,
+        "name": "CYCLOPS",
+        "size": "big",
+        "strength": 9,
+        "to_hit": 3,
+        "flags": [
+            "light armor"
+        ]
+    },
+    {
+        "number": 26,
+        "status": 1,
+        "name": "GORGON!",
+        "size": "big",
+        "strength": 10,
+        "to_hit": 4,
+        "flags": [
+            "chance find gold",
+            "cast turn to stone"
+        ]
+    },
+    {
+        "number": 27,
+        "status": 1,
+        "name": "SERPENT",
+        "size": "large",
+        "strength": 12,
+        "to_hit": 4,
+        "flags": [
+            "poisonous attack"
+        ]
+    },
+    {
+        "number": 28,
+        "status": 1,
+        "name": "BRONTOSAURUS",
+        "size": "large",
+        "strength": 10,
+        "to_hit": 2
+    },
+    {
+        "number": 29,
+        "status": 1,
+        "name": "WITCH",
+        "size": "huge",
+        "strength": 13,
+        "to_hit": 5,
+        "flags": [
+            "cast multiple spells [?]",
+            "cast one spell [?]"
+        ]
+    },
+    {
+        "number": 30,
+        "status": 1,
+        "name": "BANSHEE",
+        "size": "big",
+        "strength": 15,
+        "to_hit": 6,
+        "flags": [
+            "cast one spell [?]"
+        ]
+    },
+    {
+        "number": 31,
+        "status": 1,
+        "name": "SPIDER",
+        "size": "swift",
+        "strength": 3,
+        "to_hit": 4,
+        "flags": [
+            "poisonous attack",
+            "no gold on body",
+            "multiple monsters"
+        ]
+    },
+    {
+        "number": 32,
+        "status": 1,
+        "name": "CROCODILE",
+        "size": "big",
+        "strength": 6,
+        "to_hit": 5,
+        "flags": [
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 33,
+        "status": 1,
+        "name": "BLOB",
+        "size": "small",
+        "strength": 9,
+        "to_hit": 4,
+        "flags": [
+            "diseased attack"
+        ]
+    },
+    {
+        "number": 34,
+        "status": 1,
+        "name": "VAMPIRE",
+        "size": "huge",
+        "strength": 12,
+        "to_hit": 5,
+        "flags": [
+            "evil",
+            "chance find gold",
+            "experience drain"
+        ]
+    },
+    {
+        "number": 35,
+        "status": 1,
+        "name": "STIRGE",
+        "strength": 8,
+        "to_hit": 5
+    },
+    {
+        "number": 36,
+        "status": 1,
+        "name": "THOUL",
+        "strength": 10,
+        "to_hit": 5
+    },
+    {
+        "number": 37,
+        "status": 1,
+        "name": "TROGLODYTE",
+        "size": "big",
+        "strength": 13,
+        "to_hit": 3
+    },
+    {
+        "number": 38,
+        "status": 1,
+        "name": "WIGHT",
+        "strength": 7,
+        "to_hit": 5,
+        "flags": [
+            "diseased attack"
+        ]
+    },
+    {
+        "number": 39,
+        "status": 1,
+        "name": "YELLOW MOLD",
+        "strength": 10,
+        "to_hit": 4,
+        "flags": [
+            "diseased attack"
+        ]
+    },
+    {
+        "number": 40,
+        "status": 1,
+        "name": "ZOMBIE",
+        "strength": 14,
+        "to_hit": 3,
+        "flags": [
+            "evil",
+            "re-animates",
+            "diseased attack"
+        ]
+    },
+    {
+        "number": 41,
+        "status": 1,
+        "name": "GIANT SHREW",
+        "strength": 8,
+        "to_hit": 5
+    },
+    {
+        "number": 42,
+        "status": 1,
+        "name": "WEREBOAR",
+        "strength": 9,
+        "to_hit": 3
+    },
+    {
+        "number": 43,
+        "status": 1,
+        "name": "MAGICIAN",
+        "size": "huge",
+        "strength": 12,
+        "to_hit": 5,
+        "flags": [
+            "cast multiple spells [?]",
+            "cast one spell [?]"
+        ]
+    },
+    {
+        "number": 44,
+        "status": 1,
+        "name": "LYCANTHROPE",
+        "strength": 7,
+        "to_hit": 5
+    },
+    {
+        "number": 45,
+        "status": 1,
+        "name": "GHOUL",
+        "size": "huge",
+        "strength": 9,
+        "to_hit": 3,
+        "flags": [
+            "evil",
+            "diseased attack"
+        ]
+    },
+    {
+        "number": 46,
+        "status": 1,
+        "name": "GRAY OOZE",
+        "strength": 5,
+        "to_hit": 6,
+        "flags": [
+            "diseased attack"
+        ]
+    },
+    {
+        "number": 47,
+        "status": 1,
+        "name": "HARPY",
+        "size": "big",
+        "strength": 8,
+        "to_hit": 6
+    },
+    {
+        "number": 48,
+        "status": 1,
+        "name": "HOBGOBLIN",
+        "size": "huge",
+        "strength": 15,
+        "to_hit": 5
+    },
+    {
+        "number": 49,
+        "status": 1,
+        "name": "GOBLIN",
+        "size": "huge",
+        "strength": 8,
+        "to_hit": 6
+    },
+    {
+        "number": 50,
+        "status": 1,
+        "name": "GNOLL",
+        "size": "huge",
+        "strength": 12,
+        "to_hit": 7
+    },
+    {
+        "number": 51,
+        "status": 1,
+        "name": "CARETAKER!",
+        "size": "huge",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "good",
+            "cast one spell [?]"
+        ]
+    },
+    {
+        "number": 52,
+        "status": 1,
+        "name": "RIVER RAT",
+        "size": "large",
+        "strength": 4,
+        "to_hit": 8,
+        "flags": [
+            "diseased attack",
+            "multiple monsters"
+        ]
+    },
+    {
+        "number": 53,
+        "status": 1,
+        "name": "GRIZZLY BEAR",
+        "size": "large",
+        "strength": 14,
+        "to_hit": 3,
+        "flags": [
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 54,
+        "status": 1,
+        "name": "WRAITH",
+        "strength": 16,
+        "to_hit": 5,
+        "flags": [
+            "evil",
+            "chance find gold",
+            "experience drain"
+        ]
+    },
+    {
+        "number": 55,
+        "status": 1,
+        "name": "GIANT",
+        "size": "huge",
+        "strength": 10,
+        "special_weapon": 44,
+        "to_hit": 2
+    },
+    {
+        "number": 56,
+        "status": 1,
+        "name": "OGRE",
+        "size": "huge",
+        "strength": 12,
+        "to_hit": 3,
+        "flags": [
+            "evil"
+        ]
+    },
+    {
+        "number": 57,
+        "status": 1,
+        "name": "PERSIAN DESERTER",
+        "size": "huge",
+        "strength": 12,
+        "to_hit": 5
+    },
+    {
+        "number": 58,
+        "status": 1,
+        "name": "ITLETS",
+        "size": "small",
+        "strength": 10,
+        "to_hit": 7,
+        "flags": [
+            "multiple monsters"
+        ]
+    },
+    {
+        "number": 59,
+        "status": 1,
+        "name": "IT",
+        "size": "big",
+        "strength": 18,
+        "to_hit": 6,
+        "flags": [
+            "do not display \"THE\""
+        ]
+    },
+    {
+        "number": 60,
+        "status": 1,
+        "name": "THUG",
+        "size": "huge",
+        "strength": 7,
+        "to_hit": 6
+    },
+    {
+        "number": 61,
+        "status": 1,
+        "name": "DRUNKEN OLD MAN",
+        "size": "huge",
+        "strength": 5,
+        "to_hit": 5
+    },
+    {
+        "number": 62,
+        "status": 1,
+        "name": "BANDIT",
+        "size": "huge",
+        "strength": 8,
+        "to_hit": 5
+    },
+    {
+        "number": 63,
+        "status": 1,
+        "name": "BLACK ANGUS BULL",
+        "size": "large",
+        "strength": 5,
+        "to_hit": 4
+    },
+    {
+        "number": 64,
+        "status": 1,
+        "name": "ITLET",
+        "size": "big",
+        "strength": 12,
+        "to_hit": 7
+    },
+    {
+        "number": 65,
+        "status": 1,
+        "name": "GUARD ==[]",
+        "strength": 12,
+        "to_hit": 5,
+        "flags": [
+            "re-animates"
+        ]
+    },
+    {
+        "number": 66,
+        "status": 1,
+        "name": "GUARD -}---",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "re-animates"
+        ]
+    },
+    {
+        "number": 67,
+        "status": 1,
+        "name": "GUARD \\|/",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "re-animates"
+        ]
+    },
+    {
+        "number": 68,
+        "status": 1,
+        "name": "SOMETHING",
+        "strength": 18,
+        "to_hit": 7,
+        "flags": [
+            "double attacks",
+            "increase strength [?]",
+            "evil",
+            "experience drain",
+            "fire attack"
+        ]
+    },
+    {
+        "number": 69,
+        "status": 1,
+        "name": "WOOD DRAGON!",
+        "size": "big",
+        "strength": 18,
+        "to_hit": 2,
+        "flags": [
+            "increase strength [?]",
+            "chance find gold",
+            "fire attack"
+        ]
+    },
+    {
+        "number": 70,
+        "status": 1,
+        "name": "RINGWRAITH",
+        "size": "big",
+        "strength": 18,
+        "to_hit": 2,
+        "flags": [
+            "increase strength [?]",
+            "re-animates",
+            "experience drain",
+            "quote flag"
+        ]
+    },
+    {
+        "number": 71,
+        "status": 1,
+        "name": "GOLLUM",
+        "size": "short",
+        "strength": 12,
+        "to_hit": 6,
+        "flags": [
+            "double attacks",
+            "do not display \"THE\"",
+            "quote flag"
+        ]
+    },
+    {
+        "number": 72,
+        "status": 1,
+        "name": "BATS",
+        "size": "swift",
+        "strength": 5,
+        "to_hit": 8,
+        "flags": [
+            "diseased attack",
+            "no gold on body",
+            "multiple monsters"
+        ]
+    },
+    {
+        "number": 73,
+        "status": 1,
+        "name": "VAMPIRE",
+        "size": "huge",
+        "strength": 12,
+        "to_hit": 8,
+        "flags": [
+            "double attacks",
+            "evil",
+            "experience drain",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 74,
+        "status": 1,
+        "name": "BLUE DJINN",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "double attacks",
+            "increase strength [?]",
+            "heavy armor",
+            "light armor",
+            "re-animates",
+            "magic-resistant"
+        ]
+    },
+    {
+        "number": 75,
+        "status": 1,
+        "name": "RATTLESNAKE",
+        "strength": 5,
+        "to_hit": 8,
+        "flags": [
+            "poisonous attack",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 76,
+        "status": 1,
+        "name": "XDRAGON!",
+        "size": "big",
+        "strength": 18,
+        "to_hit": 2,
+        "flags": [
+            "double attacks",
+            "increase strength [?]",
+            "re-animates",
+            "2x chance find gold",
+            "chance find gold",
+            "appears unaffected [?]",
+            "fire attack"
+        ]
+    },
+    {
+        "number": 77,
+        "status": 1,
+        "name": "SCORPION",
+        "strength": 7,
+        "to_hit": 8,
+        "flags": [
+            "double attacks",
+            "poisonous attack",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 78,
+        "status": 1,
+        "name": "SCORPION",
+        "strength": 7,
+        "to_hit": 8,
+        "flags": [
+            "double attacks",
+            "poisonous attack",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 79,
+        "status": 1,
+        "name": "SWARTHY NOMAD",
+        "size": "huge",
+        "strength": 13,
+        "to_hit": 5
+    },
+    {
+        "number": 80,
+        "status": 1,
+        "name": "LION",
+        "size": "large",
+        "strength": 12,
+        "to_hit": 4,
+        "flags": [
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 81,
+        "status": 1,
+        "name": "RHINOCEROS",
+        "size": "large",
+        "strength": 16,
+        "to_hit": 3,
+        "flags": [
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 82,
+        "status": 1,
+        "name": "TROLL",
+        "size": "huge",
+        "strength": 14,
+        "to_hit": 4
+    },
+    {
+        "number": 83,
+        "status": 1,
+        "name": "HEADHUNTER",
+        "strength": 10,
+        "to_hit": 5,
+        "flags": [
+            "re-animates"
+        ]
+    },
+    {
+        "number": 84,
+        "status": 1,
+        "name": "BIG CHIEF",
+        "strength": 17,
+        "to_hit": 5,
+        "flags": [
+            "double attacks",
+            "increase strength [?]",
+            "2x chance find gold",
+            "chance find gold"
+        ]
+    },
+    {
+        "number": 85,
+        "status": 1,
+        "name": "GIANT SQUID",
+        "strength": 12,
+        "to_hit": 2,
+        "flags": [
+            "double attacks",
+            "increase strength [?]",
+            "re-animates",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 86,
+        "status": 1,
+        "name": "SEA MONSTER",
+        "strength": 18,
+        "to_hit": 2,
+        "flags": [
+            "increase strength [?]",
+            "re-animates",
+            "appears unaffected [?]",
+            "fire attack",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 87,
+        "status": 1,
+        "name": "GREAT WHITE",
+        "strength": 10,
+        "to_hit": 4,
+        "flags": [
+            "re-animates",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 88,
+        "status": 1,
+        "name": "SEAGULL",
+        "strength": 1,
+        "to_hit": 8,
+        "flags": [
+            "re-animates",
+            "no gold on body",
+            "multiple monsters"
+        ]
+    },
+    {
+        "number": 89,
+        "status": 1,
+        "name": "PIRATE",
+        "size": "huge",
+        "strength": 7,
+        "to_hit": 5,
+        "flags": [
+            "re-animates"
+        ]
+    },
+    {
+        "number": 90,
+        "status": 1,
+        "name": "GIANT PIRANHA",
+        "strength": 10,
+        "to_hit": 5,
+        "flags": [
+            "re-animates",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 91,
+        "status": 1,
+        "name": "STONE GIANT",
+        "size": "huge",
+        "strength": 18,
+        "to_hit": 2,
+        "flags": [
+            "increase strength [?]",
+            "light armor",
+            "re-animates",
+            "appears unaffected [?]"
+        ]
+    },
+    {
+        "number": 92,
+        "status": 1,
+        "name": "WRAITH-GUARD",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "double attacks",
+            "increase strength [?]",
+            "re-animates"
+        ]
+    },
+    {
+        "number": 93,
+        "status": 1,
+        "name": "RONNEY",
+        "size": "huge",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "double attacks",
+            "increase strength [?]",
+            "light armor",
+            "cast multiple spells [?]",
+            "cast one spell [?]",
+            "cast turn to stone",
+            "appears unaffected [?]",
+            "fire attack",
+            "do not display \"THE\""
+        ]
+    },
+    {
+        "number": 94,
+        "status": 1,
+        "name": "MERMAID",
+        "size": "huge",
+        "strength": 15,
+        "to_hit": 5,
+        "flags": [
+            "good",
+            "2x chance find gold",
+            "chance find gold",
+            "cast one spell [?]",
+            "experience drain"
+        ]
+    },
+    {
+        "number": 95,
+        "status": 1,
+        "name": "NESSIE",
+        "strength": 18,
+        "to_hit": 2,
+        "flags": [
+            "double attacks",
+            "re-animates",
+            "no gold on body",
+            "do not display \"THE\""
+        ]
+    },
+    {
+        "number": 96,
+        "status": 1,
+        "name": "TUNNEL RAT",
+        "strength": 2,
+        "to_hit": 8,
+        "flags": [
+            "re-animates",
+            "no gold on body",
+            "multiple monsters"
+        ]
+    },
+    {
+        "number": 97,
+        "status": 1,
+        "name": "MUMMY",
+        "size": "huge",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "evil",
+            "re-animates",
+            "chance find gold",
+            "diseased attack",
+            "experience drain"
+        ]
+    },
+    {
+        "number": 98,
+        "status": 1,
+        "name": "ROTTEN ZOMBIE",
+        "size": "huge",
+        "strength": 12,
+        "to_hit": 5,
+        "flags": [
+            "evil",
+            "re-animates",
+            "diseased attack"
+        ]
+    },
+    {
+        "number": 99,
+        "status": 1,
+        "name": "SKELETON",
+        "strength": 14,
+        "to_hit": 5,
+        "flags": [
+            "evil",
+            "re-animates"
+        ]
+    },
+    {
+        "number": 100,
+        "status": 1,
+        "name": "SLIMEY THING",
+        "strength": 16,
+        "to_hit": 7,
+        "flags": [
+            "re-animates",
+            "poisonous attack",
+            "diseased attack",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 101,
+        "status": 1,
+        "name": "ICE LIZARD",
+        "size": "big",
+        "strength": 18,
+        "to_hit": 4
+    },
+    {
+        "number": 102,
+        "status": 1,
+        "name": "KING TUT",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "double attacks",
+            "increase strength [?]",
+            "re-animates",
+            "cast turn to stone",
+            "appears unaffected [?]",
+            "no gold on body",
+            "multiple monsters",
+            "do not display \"THE\""
+        ]
+    },
+    {
+        "number": 103,
+        "status": 1,
+        "name": "GUARDIAN",
+        "size": "huge",
+        "strength": 18,
+        "to_hit": 3,
+        "flags": [
+            "increase strength [?]",
+            "re-animates",
+            "cast one spell [?]",
+            "cast turn to stone",
+            "experience drain",
+            "appears unaffected [?]",
+            "fire attack"
+        ]
+    },
+    {
+        "number": 104,
+        "status": 1,
+        "name": "KEEPER",
+        "size": "huge",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "increase strength [?]",
+            "appears unaffected [?]"
+        ]
+    },
+    {
+        "number": 105,
+        "status": 1,
+        "name": "SARUMAN",
+        "size": "huge",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "increase strength [?]",
+            "evil",
+            "cast multiple spells [?]",
+            "cast one spell [?]",
+            "experience drain",
+            "appears unaffected [?]",
+            "do not display \"THE\""
+        ]
+    },
+    {
+        "number": 106,
+        "status": 1,
+        "name": "EVILYNN",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "increase strength [?]",
+            "re-animates",
+            "cast multiple spells [?]",
+            "cast one spell [?]",
+            "poisonous attack",
+            "appears unaffected [?]",
+            "no gold on body",
+            "do not display \"THE\""
+        ]
+    },
+    {
+        "number": 107,
+        "status": 1,
+        "name": "GUARD DROID",
+        "strength": 2,
+        "to_hit": 5,
+        "flags": [
+            "mechanical being",
+            "light armor",
+            "re-animates",
+            "fire attack",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 108,
+        "status": 1,
+        "name": "RAD ZOMBIE",
+        "strength": 8,
+        "to_hit": 5,
+        "flags": [
+            "re-animates",
+            "diseased attack",
+            "experience drain"
+        ]
+    },
+    {
+        "number": 109,
+        "status": 1,
+        "name": "LIGHT TANK",
+        "strength": 14,
+        "to_hit": 3,
+        "flags": [
+            "double attacks",
+            "mechanical being",
+            "light armor",
+            "fire attack",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 110,
+        "status": 1,
+        "name": "OGRE TANK",
+        "strength": 18,
+        "to_hit": 2,
+        "flags": [
+            "mechanical being",
+            "increase strength [?]",
+            "heavy armor",
+            "light armor",
+            "fire attack",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 111,
+        "status": 1,
+        "name": "RABID TRIBBLE",
+        "strength": 1,
+        "to_hit": 8,
+        "flags": [
+            "diseased attack"
+        ]
+    },
+    {
+        "number": 112,
+        "status": 1,
+        "name": "BLACK DROID",
+        "strength": 14,
+        "to_hit": 4,
+        "flags": [
+            "double attacks",
+            "mechanical being",
+            "light armor",
+            "fire attack",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 113,
+        "status": 1,
+        "name": "C-3-P-0",
+        "size": "man-sized",
+        "strength": 3,
+        "to_hit": 5,
+        "flags": [
+            "mechanical being",
+            "light armor"
+        ]
+    },
+    {
+        "number": 114,
+        "status": 1,
+        "name": "RECON TANK",
+        "strength": 18,
+        "to_hit": 3,
+        "flags": [
+            "mechanical being",
+            "light armor",
+            "fire attack",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 115,
+        "status": 1,
+        "name": "XENOMORPH",
+        "strength": 14,
+        "to_hit": 4,
+        "flags": [
+            "poisonous attack",
+            "diseased attack",
+            "experience drain"
+        ]
+    },
+    {
+        "number": 116,
+        "status": 1,
+        "name": "TOMMYKNOCKER",
+        "size": "huge",
+        "strength": 12,
+        "to_hit": 5,
+        "flags": [
+            "2x chance find gold",
+            "chance find gold",
+            "appears unaffected [?]"
+        ]
+    },
+    {
+        "number": 117,
+        "status": 1,
+        "name": "EXP. BIO-UNIT",
+        "size": "huge",
+        "strength": 14,
+        "to_hit": 5,
+        "flags": [
+            "fire attack"
+        ]
+    },
+    {
+        "number": 118,
+        "status": 1,
+        "name": "BERSERKER",
+        "strength": 18,
+        "to_hit": 4,
+        "flags": [
+            "mechanical being",
+            "increase strength [?]",
+            "light armor",
+            "fire attack"
+        ]
+    },
+    {
+        "number": 119,
+        "status": 1,
+        "name": "SPACE AMOEBA",
+        "strength": 18,
+        "to_hit": 2,
+        "flags": [
+            "increase strength [?]",
+            "re-animates",
+            "experience drain",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 120,
+        "status": 1,
+        "name": "OLD MAN",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "re-animates",
+            "charmable",
+            "quote flag"
+        ]
+    },
+    {
+        "number": 121,
+        "status": 1,
+        "name": "SERPENT",
+        "strength": 14,
+        "to_hit": 8,
+        "flags": [
+            "re-animates",
+            "poisonous attack",
+            "experience drain",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 122,
+        "status": 1,
+        "name": "TINMAN",
+        "size": "huge",
+        "strength": 8,
+        "to_hit": 5,
+        "flags": [
+            "good",
+            "charmable",
+            "quote flag"
+        ]
+    },
+    {
+        "number": 123,
+        "status": 1,
+        "name": "SCARECROW",
+        "size": "huge",
+        "strength": 10,
+        "to_hit": 5,
+        "flags": [
+            "good",
+            "charmable",
+            "quote flag"
+        ]
+    },
+    {
+        "number": 124,
+        "status": 1,
+        "name": "LION",
+        "size": "huge",
+        "strength": 18,
+        "to_hit": 4,
+        "flags": [
+            "good",
+            "charmable",
+            "quote flag"
+        ]
+    },
+    {
+        "number": 125,
+        "status": 1,
+        "name": "OZ",
+        "size": "huge",
+        "strength": 6,
+        "to_hit": 5,
+        "flags": [
+            "re-animates",
+            "do not display \"THE\"",
+            "charmable",
+            "quote flag"
+        ]
+    },
+    {
+        "number": 126,
+        "status": 1,
+        "name": "WICKED WITCH",
+        "size": "huge",
+        "strength": 18,
+        "to_hit": 5,
+        "flags": [
+            "increase strength [?]",
+            "evil",
+            "cast multiple spells [?]",
+            "cast one spell [?]"
+        ]
+    },
+    {
+        "number": 127,
+        "status": 1,
+        "name": "LITTLE DOG",
+        "size": "big",
+        "strength": 5,
+        "to_hit": 7,
+        "flags": [
+            "good",
+            "charmable",
+            "quote flag"
+        ]
+    },
+    {
+        "number": 128,
+        "status": 1,
+        "name": "ADAM & EVE",
+        "size": "man-sized",
+        "strength": 5,
+        "to_hit": 5,
+        "flags": [
+            "do not display \"THE\"",
+            "charmable",
+            "quote flag"
+        ]
+    },
+    {
+        "number": 129,
+        "status": 1,
+        "name": "BEE",
+        "size": "small",
+        "strength": 5,
+        "to_hit": 8,
+        "flags": [
+            "poisonous attack",
+            "multiple monsters"
+        ]
+    },
+    {
+        "number": 130,
+        "status": 1,
+        "name": "MUNCHKINS",
+        "size": "short",
+        "strength": 8,
+        "to_hit": 6,
+        "flags": [
+            "re-animates",
+            "multiple monsters",
+            "charmable",
+            "quote flag"
+        ]
+    },
+    {
+        "number": 131,
+        "status": 1,
+        "name": "APPLE TREE",
+        "strength": 18,
+        "to_hit": 3,
+        "flags": [
+            "light armor",
+            "appears unaffected [?]",
+            "no gold on body"
+        ]
+    },
+    {
+        "number": 132,
+        "status": 1,
+        "name": "ORCS",
+        "size": "huge",
+        "strength": 9,
+        "to_hit": 6,
+        "flags": [
+            "re-animates",
+            "multiple monsters"
+        ]
+    },
+    {
+        "number": 133,
+        "status": 1,
+        "name": "THE WATCHER",
+        "size": "huge",
+        "strength": 18,
+        "to_hit": 6,
+        "flags": [
+            "good",
+            "cast multiple spells [?]",
+            "cast one spell [?]",
+            "do not display \"THE\""
+        ]
+    },
+    {
+        "number": 134,
+        "status": 1,
+        "name": "HELLHOUND",
+        "size": "huge",
+        "strength": 18,
+        "special_weapon": 61,
+        "to_hit": 9,
+        "flags": [
+            "diseased attack"
+        ]
+    },
+    {
+        "number": 135,
+        "status": 1,
+        "name": "MR. CLEAN",
+        "strength": 18,
+        "to_hit": 7
+    }
+]
