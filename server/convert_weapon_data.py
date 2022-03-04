@@ -8,12 +8,13 @@ import logging
 @dataclass
 class Weapons(object):
     number: int
-    status: int  # on player, in shoppe, in room
+    location: int  # on player, in shoppe, in room
     name: str
+    kind: str  # magical, standard, cursed
     sound_effect: list  # hit/miss strings
-    type: str  # magical, standard, cursed
+    to_hit: int  # 3-9 (*10% in game) [aka 'stability'?]
+    price: int
     ease_of_use: int
-    hits: int
     stability: int
 
     def __str__(self):
@@ -22,14 +23,14 @@ class Weapons(object):
 
 def read_stanza(filename):
     """
-    Read block of data [5 lines] from file
+    Read block of data [6 lines] from file
     skipping '#'-style comments; `^` is stanza delimiter
 
     :return: data[], the info from the file
     """
     count = 0
     line = []
-    while count < 5:
+    while count < 6:
         # 'diskin()' discards '#'-style comments
         temp = diskin(filename)
         if temp != "^":
@@ -56,15 +57,20 @@ def diskin(filename):
 
 def convert(txt_filename, weapon_json_filename):
     write = False
-    weapon_class = {1: "Energy",
-                    2: "Bash/Slash",
-                    3: "Poke/Jab",
-                    4: "n/a",  # there isn't a class 4 category
-                    5: "Pole/Range",
-                    6: "n/a",  # there isn't a class 6 category
-                    7: "n/a",  # there isn't a class 7 category
-                    8: "Projectile",  # (+10% surprise, ammo bonus)
-                    9: "Proximity"}
+
+    weapon_kind = {"M.": "magic",
+                   "S.": "standard",
+                   "C.": "cursed"}
+
+    weapon_classes = {1: "energy",
+                      2: "bash/slash",
+                      3: "poke/jab",
+                      4: "n/a",  # there isn't a class 4 category
+                      5: "pole/range",
+                      6: "n/a",  # there isn't a class 6 category
+                      7: "n/a",  # there isn't a class 7 category
+                      8: "projectile",  # (+10% surprise, ammo bonus)
+                      9: "proximity"}
 
     """
     I think only Skip's branch uses this weapon class "sound effect":
@@ -89,6 +95,8 @@ def convert(txt_filename, weapon_json_filename):
     https://github.com/Pinacolada64/TADA/blob/4c24c069139a495f97b2964d54c374b957c9eeab/SPUR-code/SPUR.WEAPON.S#L43
     This is the weapon class hit/miss "sound effect":
     https://github.com/Pinacolada64/TADA/blob/4c24c069139a495f97b2964d54c374b957c9eeab/SPUR-code/SPUR.COMBAT.S#L119
+    then it's used here:
+    https://github.com/Pinacolada64/TADA/blob/4c24c069139a495f97b2964d54c374b957c9eeab/SPUR-code/SPUR.COMBAT.S#L171
     """
     # TODO: update programming-notes.txt
 
@@ -120,33 +128,34 @@ def convert(txt_filename, weapon_json_filename):
         # hoping for an integer here:
         num_weapons = int(data)
         print(f'{num_weapons=}')
-        # toss "^" separator:
-        _ = diskin(file)
+        # I eliminated "^" record separators in this file
+        # _ = diskin(file)
         count = 0
         """
         sample data:
-        2 .................. Status: 0: On player
-                                     1: In room
-                                     2: In shoppe
+        2 .................. Location: 0: On player
+                                       1: In room
+                                       2: In shoppe [first 10 weapons are always
+                                                     in the Shoppe]
         
         S. 1  LONG SWORD   (spaces for clarity,
         ^^ ^  |________|    no spaces in actual string)
         |  |      |
         |  |	  `-------- weapon name
         |  |
-        |  `--------------- TY$	(Type? not 100% sure what this is for)
-        |                   0 = ?
-        |                   7 = Secondary heat damage (phaser, fireball, etc)
+        |  `--------------- hit/miss "sound effect" class (0-9)
+        |                   7 = Secondary heat damage (phaser, fireball, etc.)
         |                   Nothing to do with weapon class though
         |
         `------------------ M. = Magical
                             S. = Standard
-                            C. = Cursed
+                            C. = Cursed [first 10 weapons cannot be cursed
+                                         since they are always in the Shoppe]
 
-        5<cr> ............. stability (5-9) % x10 [AKA ease of use?]
-        6<cr> ............. hits AKA base damage % (3-9) x10
+        5<cr> ............. "ease of use" % (5-9) *10 [AKA "stability"?]
+        6<cr> ............. "to hit" % (3-9) *10
         250<cr> ........... price (1-9999)
-        2<cr> ............. weapon class
+        2<cr> ............. weapon class [wa]
                             1: Energy (gets changed to 10)
                             2: Bash/Slash
                             3: Poke/Jab
@@ -156,9 +165,16 @@ def convert(txt_filename, weapon_json_filename):
                             7: [does not exist]
                             8: Projectile (+10% surprise, ammo bonus)
                             9: Proximity
-        [I don't see this in all weapons]:
-        ??<cr> ............ Stability: 5-9 (aka damage?)
 
+        There don't seem to be flags associated with weapons, but I'm leaving
+        the logic for them in, and the JSON data field, if we ever want to add
+        them in the future.
+        
+        NOTE: All the null bytes padding each fixed-length "record" in weapons.txt
+        wreak havoc with Windows' copy-and-paste functionality in Andy Fadden's
+        "CiderPress" disk archive manager. I had to copy each record manually,
+        being sure not to select any null bytes so that copy-and-paste would work.
+        
         Ammunition carrier:
         1 ..................... (availability flag?)
         T..357 BANDOLIER|064	(TLOS differs ammo from carriers by putting "*"
@@ -172,18 +188,22 @@ def convert(txt_filename, weapon_json_filename):
         while count < num_weapons:
             count += 1
             data = read_stanza(file)
-            status = int(data[0])  # 0=on player, 1=in room, 2=in shoppe
-            info = data[1]  # "M."agical / "S."tandard / "C."ursed
-            kind = info[2]  # digit
-            # capture optional weapon type number:
-            temp = info[2]
+            # 0=on player, 1=in room, 2=in shoppe:
+            location = int(data[0])
+            # info: weapon kind, sfx, name
+            info = data[1]
+            # kind = "M."agic / "S."tandard / "C."ursed
+            kind = weapon_kind[info[:2]]
+
+            # capture weapon sfx number:
+            temp = info[2:3]  # digit 0-9
             if temp.isdigit():
-                weapon_type = weapon_types[int(temp)]
+                # list within a list
+                weapon_sound = weapon_sounds[int(temp)]  # [0]
                 start_name = 3  # starting position of name
             else:
-                weapon_type = None
+                weapon_sound = None
                 start_name = 2  # starting position of name
-            logging.info(f'{weapon_type=}')
 
             flag = info.rfind("|")
             if flag == -1:  # not found
@@ -197,27 +217,30 @@ def convert(txt_filename, weapon_json_filename):
                 name = info[start_name:flag].rstrip()
                 # clear per-weapon flag list:
                 flag_list = []
-                # FIXME: parse all the flags after the | symbol and add
-                #  their English keywords to flag_list
+                # parse all the flags after the | symbol,
+                # add their English keywords to flag_list
                 logging.info(f'Flags: {info[flag + 1:]}')
                 for k, v in weapon_flags.items():
                     if k in info[flag + 1:]:
                         logging.info(f'with flag: {k=} {v=}')
                         flag_list.append(v)
             stability = int(data[2])
-            hits = int(data[3])
+            to_hit = int(data[3])
             price = int(data[4])
-            weapon_class = int(data[5])
+            temp = int(data[5])
+            weapon_class = weapon_classes[temp]
             # toss "^" data block separator:
-            _ = diskin(file)
+            # _ = diskin(file)
             print(f"""Parsed input:\n
 {count=}
-{status=}
+{location=}
 {name=}
-{weapon_size=}
-{strength=}
-{special_weapon=}
+{kind=}
+{weapon_sound=}
+{stability=}
 {to_hit=}
+{price=}
+{weapon_class=}
 {flag_list=}
 """)
 
@@ -234,30 +257,33 @@ def convert(txt_filename, weapon_json_filename):
             weapon_data['desc'] = " ".join(descLines)
             """
 
-            weapon_data = {'number': count,
-                           'status': status,
+            weapon_data = {"number": count,
+                           'location': location,
                            'name': name,
-                           'size': weapon_size,
-                           'strength': strength,
-                           'special_weapon': special_weapon,
+                           'kind': kind,  # magical / standard / cursed
+                           'sound_effect': weapon_sound,
+                           "stability": stability,
                            'to_hit': to_hit,
-                           'flags': flag_list}
+                           "price": price,
+                           "weapon_class": weapon_class,
+                           'flags': flag_list
+                           }
 
             if debug:
                 name = weapon_data['name']
-                status = weapon_data['status']
+                location = weapon_data['location']
                 try:
                     flags = weapon_data['flags']
                 except ValueError:
                     flags = '(None)'
-                logging.info(f'{count=} {status=} {name=} {flags=}')
+                logging.info(f'{count=} {location=} {name=} {flags=}')
             # add based on dataclass:
-            weapon = weapons(**weapon_data)
+            weapon = Weapons(**weapon_data)
             logging.info(f"*** processed weapon '{weapon_data['name']}'")
             weapon_list.append(weapon)
             if debug:
-                if count % 20 == 0:
-                    _ = input("Hit Return: ")
+                # if count % 20 == 0:
+                _ = input("Hit Return: ")
 
         if write is True:
             with open(weapon_json_filename, 'w') as weapon_json:
