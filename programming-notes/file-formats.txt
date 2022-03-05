@@ -418,7 +418,7 @@ SPUR.STATUS		(record size: 32)
 	 1) 1=room description off.
 	 2) 1=Ring used
 	 3) 1=poisoned
-	 4) 1=deseased
+	 4) 1=diseased
 	 5) 1=Thug attack
 	 6) 1=Gauntlets worn
 	 7) 1=King Wraith dead, 2/3=Wizard Glow in effect
@@ -515,7 +515,6 @@ WEAPONS		(record size: 34?)
 				5: Pole/Range
 				8: Projectile (+10% surprise, ammo bonus)
 				9: Proximity
-	Stability: 5-9 (aka damage?)
 	
 	Ammunition carrier:
 	1			(availability flag?)
