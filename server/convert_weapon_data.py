@@ -12,10 +12,11 @@ class Weapons(object):
     name: str
     kind: str  # magical, standard, cursed
     sound_effect: list  # hit/miss strings
-    to_hit: int  # 3-9 (*10% in game) [aka 'stability'?]
+    stability: int  # aka "ease of use"
+    to_hit: int  # 3-9 (*10% in game) aka "damage"
     price: int
-    ease_of_use: int
-    stability: int
+    weapon_class: str
+    flags: list
 
     def __str__(self):
         return f'#{self.number} {self.name}'
@@ -72,6 +73,8 @@ def convert(txt_filename, weapon_json_filename):
                       8: "projectile",  # (+10% surprise, ammo bonus)
                       9: "proximity"}
 
+    weapon_flags = {"x": "future expansion"}
+
     """
     I think only Skip's branch uses this weapon class "sound effect":
     (variable is 'vr=val(zz$)*6+1' because each SFX is 6 chars).
@@ -86,9 +89,9 @@ def convert(txt_filename, weapon_json_filename):
     Bash/Slash    2      13   SWISH!    BASH!
     Poke/Jab      3      19   SWISH!    THUNK!
     n/a           4      25   SWISH!    STAB!
-    Pole/Range    5      31   BLAM!!    BLAM! 
-    n/a           6      37   FIZZLE    BOOOM!
-    n/a           7      43   SIZZLE    SIZZLE   heat damage: FLAME THROWER, etc.
+    Pole/Range    5      31   KA-PWING! BLAM! 
+    n/a           6      37   FIZZLE!   BOOOM!
+    n/a           7      43   SIZZLE!   SIZZLE!  heat damage: FLAME THROWER, etc.
     Projectile    8      49   SWISH!    CRASH!
     Proximity     9      55   BRRRT!    BRRRT!
 
@@ -107,9 +110,9 @@ def convert(txt_filename, weapon_json_filename):
         ["SWISH!", "BASH!"],
         ["SWISH!", "THUNK!"],
         ["SWISH!", "STAB!"],
-        ["BLAM!!", "BLAM!"],
-        ["FIZZLE", "BOOOM!"],
-        ["SIZZLE", "SIZZLE"],
+        ["KA-PWING!", "BLAM!"],  # bullet ricocheting off target
+        ["FIZZLE!", "BOOOM!"],
+        ["SIZZLE!", "SIZZLE!"],
         ["SWISH!", "CRASH!"],
         ["BRRRT!", "BRRRT!"]
     ]
@@ -153,7 +156,7 @@ def convert(txt_filename, weapon_json_filename):
                                          since they are always in the Shoppe]
 
         5<cr> ............. "ease of use" % (5-9) *10 [AKA "stability"?]
-        6<cr> ............. "to hit" % (3-9) *10
+        6<cr> ............. "to hit" % (3-9) *10 [chance of causing damage]
         250<cr> ........... price (1-9999)
         2<cr> ............. weapon class [wa]
                             1: Energy (gets changed to 10)
@@ -224,11 +227,10 @@ def convert(txt_filename, weapon_json_filename):
                     if k in info[flag + 1:]:
                         logging.info(f'with flag: {k=} {v=}')
                         flag_list.append(v)
-            stability = int(data[2])
-            to_hit = int(data[3])
+            stability = int(data[2]) * 10
+            to_hit = int(data[3]) * 10
             price = int(data[4])
-            temp = int(data[5])
-            weapon_class = weapon_classes[temp]
+            weapon_class = weapon_classes[int(data[5])]
             # toss "^" data block separator:
             # _ = diskin(file)
             print(f"""Parsed input:\n
@@ -237,8 +239,8 @@ def convert(txt_filename, weapon_json_filename):
 {name=}
 {kind=}
 {weapon_sound=}
-{stability=}
-{to_hit=}
+{stability=}%
+{to_hit=}%
 {price=}
 {weapon_class=}
 {flag_list=}
