@@ -63,6 +63,7 @@
             "number": 8,
             "name": "FIERY ROOM",
             "exits": {
+                "w": 7,
                 "s": 20
             },
             "desc": "There are dead cacti all around. The walls are covered with soot from a crevice, exposing hot lava."
@@ -163,7 +164,7 @@
             "name": "SULPHUR ROOM",
             "exits": {
                 "e": 24,
-                "w": 23
+                "w": 20
             },
             "desc": "You gasp for air as sulphur fumes overwhelm you.",
             "weapon": 14,
