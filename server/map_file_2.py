@@ -161,6 +161,39 @@ class Monster(object):
         return monsters
 
 
+class Weapons(object):
+    def __init__(self, number, location, name, kind, sound_effect, stability, to_hit, price, weapon_class, **flags):
+        self.number = number
+        self.location = location
+        self.name = name
+        # this field is optional:
+        self.kind = kind
+        self.sound_effect = sound_effect
+        self.stability = stability
+        self.to_hit = to_hit
+        self.price = price
+        self.weapon_class = weapon_class
+        # this field is optional:
+        if flags is not None:
+            self.flags = flags
+
+    @staticmethod
+    def read_weapons(filename: str):
+        with open(filename) as jsonF:
+            weapons = json.load(jsonF)
+        logging.info("*** Read weapon JSON data")
+
+        # count = 0
+        # 'weapon' becomes a copy of each dict element on each iteration of the loop:
+        # for weapon in weapons:
+        #     print(f'{count:3} {weapon["name"]}')  # this works
+        #     count += 1
+        # _ = input("Pause: ")
+        # print(f'{weapon[10]["name"]}')  # STONE KNIFE
+
+        return weapons
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
     wrapper = textwrap.TextWrapper(width=80)
@@ -180,6 +213,9 @@ if __name__ == '__main__':
 
     # load monsters
     monsters = Monster.read_monsters("monsters.json")
+
+    # load weapons
+    weapons = Weapons.read_weapons("weapons.json")
 
     # print rooms - this works fine
     """
@@ -238,6 +274,7 @@ if __name__ == '__main__':
         if monster:
             m = monsters[monster - 1]
             mon_name = m["name"]
+            # optional info:
             try:
                 mon_size = m["size"]
             except KeyError:
@@ -247,11 +284,12 @@ if __name__ == '__main__':
                   f"{f'{mon_size} ' if mon_size is not None else ''}"
                   f"{mon_name}")
 
-        weapon = room.weapon
+        weapon = room.weapon  # weapon number
         if weapon:
-            # weapon_name = items[room.item - 1]["name"]
+            w = weapons[weapon - 1]
+            weapon_name = w["name"]
             # obj_list.append(weapon_name)
-            print(f'You see weapon #{weapon} (weapon_name)')
+            print(f'You see weapon #{weapon} {weapon_name}')
 
         # TODO: add grammatical list item (SOME MELONS, AN ORANGE)
 
