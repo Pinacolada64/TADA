@@ -172,3 +172,6 @@ and i wasn't gonna gave exit messages other than
 You move north.
 Your party moves north.
 (seen by others) Elissa and her party move north.
+
+[DIG]
+Should be able to dig with a SHOVEL or PICKAXE.
