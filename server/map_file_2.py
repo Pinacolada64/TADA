@@ -33,8 +33,10 @@ class Room(object):
 
     def exitsTxt(self):
         # connection/transport names, index by (connection, transport)
-        extra_txts = {(1, 0): 'Up to Shoppe', (1, 1): 'Up',
-                      (2, 0): 'Down to Shoppe', (2, 1): 'Down'}
+        # rc = 1: Up     rt != 0: Room #
+        # rc = 2: Down   rt == 0: Shoppe
+        extra_txts = {(1, 0): 'Up to Shoppe',
+                      (2, 0): 'Down to Shoppe'}
         exit_txts = []
         for k in self.exits.keys():
             if k in compass_txts:
@@ -44,6 +46,11 @@ class Room(object):
         exit_extra = extra_txts.get((room_connection, room_transport))
         if exit_extra:  # is not None:
             exit_txts.append(exit_extra)
+        # example: level 1, room 20:
+        if room_connection == 1 and room_transport != 0:
+            exit_txts.append(f"Up to #{room_transport}" if debug else "Up")
+        if room_connection == 2 and room_transport != 0:
+            exit_txts.append(f"Down to #{room_transport}" if debug else "Down")
         return ", ".join(exit_txts)
 
 
@@ -309,6 +316,21 @@ if __name__ == '__main__':
                     print("exception: Ye cannot travel that way.")
             else:
                 print("Ye cannot travel that way.")
+        rc = room.exits.get('rc')
+        rt = room.exits.get('rt')
+        if direction == "u":
+            if rc == 1:
+                print(f"You move Up{f' to #{rt}' if debug else ''}.")
+                room_number = rt
+            else:
+                print("Ye cannot go that way.")
+        if direction == "d":
+            if rc == 2:
+                print(f"You move Down{f' to #{rt}' if debug else ''}.")
+                room_number = rt
+            else:
+                print("Ye cannot go that way.")
+
         if cmd == "q":
             print("Quitting.")
             break
