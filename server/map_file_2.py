@@ -301,17 +301,28 @@ if __name__ == '__main__':
         # TODO: add grammatical list item (SOME MELONS, AN ORANGE)
 
         cmd = input("What now? ").lower()
+
+        if cmd == "db":
+            debug = not debug
+            if debug:
+                state = "on"
+            else:
+                state = "off"
+            print(f"Debug is now {state}.")
+
         direction = cmd[0:1]
         if direction in ['n', 'e', 's', 'w']:
             # check room.exits for 'direction'
-            logging.info(f"dir: {direction}")
+            if debug:
+                logging.info(f"dir: {direction}")
             if direction in room.exits:
                 try:
                     print(f"You move {compass_txts[direction]}.")
                     room_number = room.exits[direction]
                 except KeyError:
                     print("exception: No such room yet (37, Bar?).")
-                    logging.info(f'{room_number=}')
+                    if debug:
+                        logging.info(f'{room_number=}')
                 except ValueError:
                     print("exception: Ye cannot travel that way.")
             else:
