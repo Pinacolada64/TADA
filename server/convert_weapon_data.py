@@ -57,7 +57,7 @@ def diskin(filename):
 
 
 def convert(txt_filename, weapon_json_filename):
-    write = False
+    write = True
 
     weapon_kind = {"M.": "magic",
                    "S.": "standard",
