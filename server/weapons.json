@@ -1,0 +1,836 @@
+[
+    {
+        "number": 1,
+        "location": 2,
+        "name": "LONG SWORD",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "SLASH!"
+        ],
+        "stability": 50,
+        "to_hit": 60,
+        "price": 250,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 2,
+        "location": 2,
+        "name": "BATTLEAXE",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "BASH!"
+        ],
+        "stability": 60,
+        "to_hit": 50,
+        "price": 350,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 3,
+        "location": 2,
+        "name": "WOOD STAFF",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "BASH!"
+        ],
+        "stability": 50,
+        "to_hit": 40,
+        "price": 20,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 4,
+        "location": 2,
+        "name": "CROSSBOW",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 80,
+        "to_hit": 70,
+        "price": 450,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 5,
+        "location": 2,
+        "name": "SLING",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 60,
+        "to_hit": 40,
+        "price": 200,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 6,
+        "location": 2,
+        "name": "LONG BOW",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 80,
+        "to_hit": 80,
+        "price": 2000,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 7,
+        "location": 2,
+        "name": "DAGGER",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 50,
+        "to_hit": 50,
+        "price": 75,
+        "weapon_class": "poke/jab"
+    },
+    {
+        "number": 8,
+        "location": 2,
+        "name": "MORNING STAR",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "BASH!"
+        ],
+        "stability": 70,
+        "to_hit": 70,
+        "price": 525,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 9,
+        "location": 2,
+        "name": "BRASS KNUCKLES",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "BASH!"
+        ],
+        "stability": 50,
+        "to_hit": 30,
+        "price": 100,
+        "weapon_class": "poke/jab"
+    },
+    {
+        "number": 10,
+        "location": 2,
+        "name": "STONE KNIFE",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 60,
+        "to_hit": 50,
+        "price": 250,
+        "weapon_class": "poke/jab"
+    },
+    {
+        "number": 11,
+        "location": 1,
+        "name": ".357 MAGNUM",
+        "kind": "standard",
+        "sound_effect": [
+            "KA-PWING!",
+            "BLAM!"
+        ],
+        "stability": 50,
+        "to_hit": 70,
+        "price": 200,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 12,
+        "location": 1,
+        "name": "WOODEN STAKE",
+        "kind": "magic",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 50,
+        "to_hit": 70,
+        "price": 20,
+        "weapon_class": "pole/range"
+    },
+    {
+        "number": 13,
+        "location": 1,
+        "name": "SILVER BULLET",
+        "kind": "magic",
+        "sound_effect": [
+            "KA-PWING!",
+            "BLAM!"
+        ],
+        "stability": 70,
+        "to_hit": 80,
+        "price": 850,
+        "weapon_class": "poke/jab"
+    },
+    {
+        "number": 14,
+        "name": "FIREBALL",
+        "kind": "magic",
+        "sound_effect": [
+            "SIZZLE!",
+            "SIZZLE!"
+        ],
+        "stability": 50,
+        "to_hit": 70,
+        "price": 1150,
+        "weapon_class": "proximity"
+    },
+    {
+        "number": 15,
+        "location": 1,
+        "name": "LARGE FIREBALL",
+        "kind": "magic",
+        "sound_effect": [
+            "SIZZLE!",
+            "SIZZLE!"
+        ],
+        "stability": 80,
+        "to_hit": 90,
+        "price": 2800,
+        "weapon_class": "proximity"
+    },
+    {
+        "number": 16,
+        "name": "SPEAR",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 50,
+        "to_hit": 40,
+        "price": 200,
+        "weapon_class": "pole/range"
+    },
+    {
+        "number": 17,
+        "location": 1,
+        "name": "EXCALIBUR",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "BASH!"
+        ],
+        "stability": 80,
+        "to_hit": 90,
+        "price": 9000,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 18,
+        "name": "NASTY KNIFE",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 50,
+        "to_hit": 60,
+        "price": 175,
+        "weapon_class": "poke/jab"
+    },
+    {
+        "number": 19,
+        "location": 1,
+        "name": "HATCHET",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "BASH!"
+        ],
+        "stability": 60,
+        "to_hit": 30,
+        "price": 80,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 20,
+        "location": 1,
+        "name": "BLOWGUN",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 70,
+        "to_hit": 50,
+        "price": 75,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 21,
+        "name": "FLAME THROWER",
+        "kind": "standard",
+        "sound_effect": [
+            "SIZZLE!",
+            "SIZZLE!"
+        ],
+        "stability": 70,
+        "to_hit": 80,
+        "price": 700,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 22,
+        "location": 1,
+        "name": "STORM AXE",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "BASH!"
+        ],
+        "stability": 60,
+        "to_hit": 60,
+        "price": 3000,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 23,
+        "location": 1,
+        "name": "HAMMER",
+        "kind": "magic",
+        "sound_effect": [
+            "SWISH!",
+            "BASH!"
+        ],
+        "stability": 60,
+        "to_hit": 70,
+        "price": 300,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 24,
+        "location": 1,
+        "name": "HARPOON",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 60,
+        "to_hit": 60,
+        "price": 350,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 25,
+        "location": 2,
+        "name": "LANCE",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 60,
+        "to_hit": 70,
+        "price": 225,
+        "weapon_class": "pole/range"
+    },
+    {
+        "number": 26,
+        "location": 1,
+        "name": "MACHINE GUN",
+        "kind": "standard",
+        "sound_effect": [
+            "BRRRT!",
+            "BRRRT!"
+        ],
+        "stability": 50,
+        "to_hit": 50,
+        "price": 1000,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 27,
+        "name": "WOODEN CLUB",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "BASH!"
+        ],
+        "stability": 50,
+        "to_hit": 60,
+        "price": 100,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 28,
+        "location": 1,
+        "name": "PICKAXE",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 80,
+        "to_hit": 50,
+        "price": 300,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 29,
+        "location": 1,
+        "name": "SCYTHE",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "SLASH!"
+        ],
+        "stability": 70,
+        "to_hit": 70,
+        "price": 275,
+        "weapon_class": "pole/range"
+    },
+    {
+        "number": 30,
+        "name": "SUN BLADE",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 70,
+        "to_hit": 80,
+        "price": 4999,
+        "weapon_class": "poke/jab"
+    },
+    {
+        "number": 31,
+        "location": 1,
+        "name": "THUNDERBOLT",
+        "kind": "magic",
+        "sound_effect": [
+            "CRACK!",
+            "CRACK!"
+        ],
+        "stability": 70,
+        "to_hit": 60,
+        "price": 300,
+        "weapon_class": "proximity"
+    },
+    {
+        "number": 32,
+        "location": 1,
+        "name": "ROTTEN APPLE CORE",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 60,
+        "to_hit": 50,
+        "price": 45,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 33,
+        "location": 1,
+        "name": "LEATHER SLING",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 80,
+        "to_hit": 50,
+        "price": 100,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 34,
+        "location": 1,
+        "name": "STORM BOW",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 70,
+        "to_hit": 60,
+        "price": 3000,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 35,
+        "location": 1,
+        "name": "RAZOR CLAWS",
+        "kind": "magic",
+        "sound_effect": [
+            "SWISH!",
+            "SLASH!"
+        ],
+        "stability": 80,
+        "to_hit": 70,
+        "price": 700,
+        "weapon_class": "poke/jab"
+    },
+    {
+        "number": 36,
+        "location": 1,
+        "name": "MUSKET",
+        "kind": "standard",
+        "sound_effect": [
+            "KA-PWING!",
+            "BLAM!"
+        ],
+        "stability": 80,
+        "to_hit": 50,
+        "price": 430,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 37,
+        "location": 1,
+        "name": "SMALL CANNON",
+        "kind": "standard",
+        "sound_effect": [
+            "KA-PWING!",
+            "BLAM!"
+        ],
+        "stability": 60,
+        "to_hit": 70,
+        "price": 300,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 38,
+        "location": 1,
+        "name": "SHORT SWORD",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 70,
+        "to_hit": 40,
+        "price": 125,
+        "weapon_class": "poke/jab"
+    },
+    {
+        "number": 39,
+        "location": 1,
+        "name": "SMALL FIREBALL",
+        "kind": "standard",
+        "sound_effect": [
+            "FIZZLE!",
+            "BOOOM!"
+        ],
+        "stability": 60,
+        "to_hit": 50,
+        "price": 375,
+        "weapon_class": "proximity"
+    },
+    {
+        "number": 40,
+        "location": 1,
+        "name": "DYNAMITE",
+        "kind": "standard",
+        "sound_effect": [
+            "FIZZLE!",
+            "BOOOM!"
+        ],
+        "stability": 50,
+        "to_hit": 90,
+        "price": 560,
+        "weapon_class": "proximity"
+    },
+    {
+        "number": 41,
+        "location": 1,
+        "name": "STORM DAGGER",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 80,
+        "to_hit": 60,
+        "price": 3000,
+        "weapon_class": "poke/jab"
+    },
+    {
+        "number": 42,
+        "location": 1,
+        "name": "STORM LANCE",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 60,
+        "to_hit": 60,
+        "price": 3000,
+        "weapon_class": "pole/range"
+    },
+    {
+        "number": 43,
+        "location": 1,
+        "name": "SABRE",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "SLASH!"
+        ],
+        "stability": 80,
+        "to_hit": 50,
+        "price": 245,
+        "weapon_class": "pole/range"
+    },
+    {
+        "number": 44,
+        "location": 1,
+        "name": "GIANT SLING",
+        "kind": "magic",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 90,
+        "to_hit": 70,
+        "price": 1000,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 45,
+        "location": 1,
+        "name": ".44 MAGNUM",
+        "kind": "standard",
+        "sound_effect": [
+            "KA-PWING!",
+            "BLAM!"
+        ],
+        "stability": 50,
+        "to_hit": 90,
+        "price": 400,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 46,
+        "location": 1,
+        "name": "UZI",
+        "kind": "standard",
+        "sound_effect": [
+            "BRRRT!",
+            "BRRRT!"
+        ],
+        "stability": 50,
+        "to_hit": 40,
+        "price": 800,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 47,
+        "location": 1,
+        "name": "STORM STAFF",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "BASH!"
+        ],
+        "stability": 50,
+        "to_hit": 60,
+        "price": 3000,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 48,
+        "location": 1,
+        "name": "JAVELIN",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 80,
+        "to_hit": 60,
+        "price": 100,
+        "weapon_class": "pole/range"
+    },
+    {
+        "number": 49,
+        "location": 1,
+        "name": "GOLDEN DAGGER",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 50,
+        "to_hit": 70,
+        "price": 2500,
+        "weapon_class": "poke/jab"
+    },
+    {
+        "number": 50,
+        "location": 1,
+        "name": "+2 SWORD",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "SLASH!"
+        ],
+        "stability": 70,
+        "to_hit": 80,
+        "price": 2000,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 51,
+        "location": 1,
+        "name": "STORM PILUM",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 80,
+        "to_hit": 60,
+        "price": 3000,
+        "weapon_class": "pole/range"
+    },
+    {
+        "number": 52,
+        "location": 1,
+        "name": "STORM HAMMER",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "CRASH!"
+        ],
+        "stability": 60,
+        "to_hit": 60,
+        "price": 3000,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 53,
+        "location": 1,
+        "name": "THORN CLUB",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "BASH!"
+        ],
+        "stability": 50,
+        "to_hit": 70,
+        "price": 300,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 54,
+        "location": 1,
+        "name": "SWORD OF AVALON",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 90,
+        "to_hit": 60,
+        "price": 2000,
+        "weapon_class": "bash/slash"
+    },
+    {
+        "number": 55,
+        "location": 1,
+        "name": "STORM CROSSBOW",
+        "kind": "standard",
+        "sound_effect": [
+            "SWISH!",
+            "THUNK!"
+        ],
+        "stability": 80,
+        "to_hit": 60,
+        "price": 3000,
+        "weapon_class": "projectile"
+    },
+    {
+        "number": 56,
+        "location": 1,
+        "name": "DEATH AMULET",
+        "kind": "magic",
+        "sound_effect": [
+            "CRACK!",
+            "CRACK!"
+        ],
+        "stability": 50,
+        "to_hit": 40,
+        "price": 9000,
+        "weapon_class": "proximity"
+    },
+    {
+        "number": 57,
+        "location": 1,
+        "name": "WRAITH DAGGER",
+        "kind": "magic",
+        "sound_effect": [
+            "SWISH!",
+            "STAB!"
+        ],
+        "stability": 50,
+        "to_hit": 30,
+        "price": 1000,
+        "weapon_class": "proximity"
+    },
+    {
+        "number": 58,
+        "location": 1,
+        "name": "LIGHT SABRE",
+        "kind": "standard",
+        "sound_effect": [
+            "SIZZLE!",
+            "SIZZLE!"
+        ],
+        "stability": 50,
+        "to_hit": 70,
+        "price": 100,
+        "weapon_class": "energy"
+    },
+    {
+        "number": 59,
+        "location": 1,
+        "name": "HAND PHASER",
+        "kind": "standard",
+        "sound_effect": [
+            "SIZZLE!",
+            "SIZZLE!"
+        ],
+        "stability": 70,
+        "to_hit": 80,
+        "price": 300,
+        "weapon_class": "energy"
+    },
+    {
+        "number": 60,
+        "location": 1,
+        "name": "PLASMA RIFLE",
+        "kind": "standard",
+        "sound_effect": [
+            "SIZZLE!",
+            "SIZZLE!"
+        ],
+        "stability": 60,
+        "to_hit": 90,
+        "price": 600,
+        "weapon_class": "energy"
+    }
+]
