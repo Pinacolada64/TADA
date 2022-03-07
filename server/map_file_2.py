@@ -309,6 +309,7 @@ if __name__ == '__main__':
             else:
                 state = "off"
             print(f"Debug is now {state}.")
+            continue
 
         direction = cmd[0:1]
         if direction in ['n', 'e', 's', 'w']:
