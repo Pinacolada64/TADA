@@ -201,6 +201,31 @@ class Weapons(object):
         return weapons
 
 
+@dataclass
+class Rations(object):
+    number: int
+    name: str
+    kind: str  # magical, standard, cursed
+    price: int
+    flags: list
+
+    def __init__(self, number, name, kind, price, **flags):
+        self.number = number
+        self.name = name
+        self.kind = kind
+        self.price = price
+        # this field is optional:
+        if flags is not None:
+            self.flags = flags
+
+    @staticmethod
+    def read_rations(filename: str):
+        with open(filename) as jsonF:
+            rations = json.load(jsonF)
+        logging.info("*** Read ration JSON data")
+        return rations
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
     wrapper = textwrap.TextWrapper(width=80)
@@ -223,6 +248,9 @@ if __name__ == '__main__':
 
     # load weapons
     weapons = Weapons.read_weapons("weapons.json")
+
+    # load rations
+    rations = Rations.read_rations("rations.json")
 
     # print rooms - this works fine
     """
@@ -273,9 +301,9 @@ if __name__ == '__main__':
 
         food = room.food
         if food:
-            # food_name = items[room.item - 1]["name"]
-            # obj_list.append(food_name)
-            print(f'You see food #{food} (food_name)')
+            food_name = rations[room.food - 1]["name"]
+            # TODO: obj_list.append(food_name)
+            print(f'You see food #{food} {food_name}')
 
         monster = room.monster
         if monster:
@@ -286,7 +314,7 @@ if __name__ == '__main__':
                 mon_size = m["size"]
             except KeyError:
                 mon_size = None
-            # obj_list.append(mon_name)
+            # TODO: obj_list.append(mon_name)
             print(f"You see monster #{monster}: "
                   f"{f'{mon_size} ' if mon_size is not None else ''}"
                   f"{mon_name}")
@@ -295,7 +323,7 @@ if __name__ == '__main__':
         if weapon:
             w = weapons[weapon - 1]
             weapon_name = w["name"]
-            # obj_list.append(weapon_name)
+            # TODO: obj_list.append(weapon_name)
             print(f'You see weapon #{weapon} {weapon_name}')
 
         # TODO: add grammatical list item (SOME MELONS, AN ORANGE)
@@ -321,9 +349,8 @@ if __name__ == '__main__':
                     print(f"You move {compass_txts[direction]}.")
                     room_number = room.exits[direction]
                 except KeyError:
-                    print("exception: No such room yet (37, Bar?).")
                     if debug:
-                        logging.info(f'{room_number=}')
+                        logging.warning(f'No such room yet (#{room_number}).")')
                 except ValueError:
                     print("exception: Ye cannot travel that way.")
             else:
