@@ -1,0 +1,362 @@
+[
+    {
+        "number": 1,
+        "name": "TEA",
+        "kind": "drink",
+        "price": 15
+    },
+    {
+        "number": 2,
+        "name": "CACTUS JUICE",
+        "kind": "drink",
+        "price": 25
+    },
+    {
+        "number": 3,
+        "name": "KELP",
+        "kind": "food",
+        "price": 12
+    },
+    {
+        "number": 4,
+        "name": "MINERAL WATER",
+        "kind": "drink",
+        "price": 25
+    },
+    {
+        "number": 5,
+        "name": "LOAF OF BREAD",
+        "kind": "food",
+        "price": 30
+    },
+    {
+        "number": 6,
+        "name": "JAR OF HONEY",
+        "kind": "food",
+        "price": 50
+    },
+    {
+        "number": 7,
+        "name": "MUSHROOMS",
+        "kind": "food",
+        "price": 30
+    },
+    {
+        "number": 8,
+        "name": "EAGLE EGGS",
+        "kind": "food",
+        "price": 40
+    },
+    {
+        "number": 9,
+        "name": "VITAMINS",
+        "kind": "food",
+        "price": 75
+    },
+    {
+        "number": 10,
+        "name": "CANDY BAR",
+        "kind": "food",
+        "price": 15
+    },
+    {
+        "number": 11,
+        "name": "BANANAS",
+        "kind": "food",
+        "price": 35
+    },
+    {
+        "number": 12,
+        "name": "BOTTLE OF MILK",
+        "kind": "drink",
+        "price": 30
+    },
+    {
+        "number": 13,
+        "name": "JUG OF WINE",
+        "kind": "drink",
+        "price": 25
+    },
+    {
+        "number": 14,
+        "name": "BOTTLE OF WATER",
+        "kind": "drink",
+        "price": 15
+    },
+    {
+        "number": 15,
+        "name": "CAKES",
+        "kind": "food",
+        "price": 40
+    },
+    {
+        "number": 16,
+        "name": "CUBE OF SUGAR",
+        "kind": "food",
+        "price": 18
+    },
+    {
+        "number": 17,
+        "name": "DOMINO'S PIZZA",
+        "kind": "food",
+        "price": 30
+    },
+    {
+        "number": 18,
+        "name": "ORANGE JUICE",
+        "kind": "drink",
+        "price": 20
+    },
+    {
+        "number": 19,
+        "name": "MELONS",
+        "kind": "food",
+        "price": 50
+    },
+    {
+        "number": 20,
+        "name": "APPLES",
+        "kind": "food",
+        "price": 30
+    },
+    {
+        "number": 21,
+        "name": "BOTTLE OF BEER",
+        "kind": "drink",
+        "price": 10
+    },
+    {
+        "number": 22,
+        "name": "GOAT'S MILK",
+        "kind": "drink",
+        "price": 40
+    },
+    {
+        "number": 23,
+        "name": "SPRING WATER",
+        "kind": "drink",
+        "price": 40
+    },
+    {
+        "number": 24,
+        "name": "GRANOLA BAR",
+        "kind": "food",
+        "price": 50
+    },
+    {
+        "number": 25,
+        "name": "WILD OATS",
+        "kind": "food",
+        "price": 35
+    },
+    {
+        "number": 26,
+        "name": "BLUEBERRIES",
+        "kind": "food",
+        "price": 70
+    },
+    {
+        "number": 27,
+        "name": "ICE CREAM",
+        "kind": "food",
+        "price": 45
+    },
+    {
+        "number": 28,
+        "name": "POPCORN",
+        "kind": "food",
+        "price": 25
+    },
+    {
+        "number": 29,
+        "name": "BEANS",
+        "kind": "food",
+        "price": 60
+    },
+    {
+        "number": 30,
+        "name": "POTATOES",
+        "kind": "food",
+        "price": 55
+    },
+    {
+        "number": 31,
+        "name": "EMBALMING FLUID",
+        "kind": "cursed",
+        "price": 50
+    },
+    {
+        "number": 32,
+        "name": "BEEF JERKY",
+        "kind": "food",
+        "price": 30
+    },
+    {
+        "number": 33,
+        "name": "POISON APPLE",
+        "kind": "cursed",
+        "price": 30
+    },
+    {
+        "number": 34,
+        "name": "LEMONADE",
+        "kind": "drink",
+        "price": 50
+    },
+    {
+        "number": 35,
+        "name": "SALT TABLETS",
+        "kind": "food",
+        "price": 50
+    },
+    {
+        "number": 36,
+        "name": "MOUNTAIN OYSTERS",
+        "kind": "food",
+        "price": 60
+    },
+    {
+        "number": 37,
+        "name": "LARGE SLURPY",
+        "kind": "drink",
+        "price": 40
+    },
+    {
+        "number": 38,
+        "name": "CAN OF OLY LITE",
+        "kind": "drink",
+        "price": 1
+    },
+    {
+        "number": 39,
+        "name": "TOMATOES",
+        "kind": "food",
+        "price": 5
+    },
+    {
+        "number": 40,
+        "name": "CACTUS JUICE",
+        "kind": "drink",
+        "price": 10
+    },
+    {
+        "number": 41,
+        "name": "BROOK WATER",
+        "kind": "drink",
+        "price": 10
+    },
+    {
+        "number": 42,
+        "name": "OLD HAMBURGER",
+        "kind": "food",
+        "price": 1
+    },
+    {
+        "number": 43,
+        "name": "GREEN MOONSHINE",
+        "kind": "drink",
+        "price": 1
+    },
+    {
+        "number": 44,
+        "name": "RED SERUM",
+        "kind": "drink",
+        "price": 1
+    },
+    {
+        "number": 45,
+        "name": "BLUE PILL",
+        "kind": "food",
+        "price": 1
+    },
+    {
+        "number": 46,
+        "name": "BREAD CRUMB",
+        "kind": "food",
+        "price": 1
+    },
+    {
+        "number": 47,
+        "name": "FOUNTAIN OF YOUTH",
+        "kind": "drink",
+        "price": 10
+    },
+    {
+        "number": 48,
+        "name": "ANTS",
+        "kind": "food",
+        "price": 40
+    },
+    {
+        "number": 49,
+        "name": "GRUBS",
+        "kind": "food",
+        "price": 40
+    },
+    {
+        "number": 50,
+        "name": "CANTEEN OF WATER",
+        "kind": "drink",
+        "price": 40
+    },
+    {
+        "number": 51,
+        "name": "POOL OF WATER",
+        "kind": "drink",
+        "price": 50
+    },
+    {
+        "number": 52,
+        "name": "HAUNCH OF A ZEBRA",
+        "kind": "food",
+        "price": 40
+    },
+    {
+        "number": 53,
+        "name": "FRIED FISH",
+        "kind": "food",
+        "price": 20
+    },
+    {
+        "number": 54,
+        "name": "SEAWEED",
+        "kind": "food",
+        "price": 40
+    },
+    {
+        "number": 55,
+        "name": "KELP",
+        "kind": "food",
+        "price": 50
+    },
+    {
+        "number": 56,
+        "name": "SEAGULL EGGS",
+        "kind": "food",
+        "price": 50
+    },
+    {
+        "number": 57,
+        "name": "SEAWEED",
+        "kind": "food",
+        "price": 50
+    },
+    {
+        "number": 58,
+        "name": "FLYING FISH",
+        "kind": "food",
+        "price": 50
+    },
+    {
+        "number": 59,
+        "name": "FLYING FISH",
+        "kind": "food",
+        "price": 50
+    },
+    {
+        "number": 60,
+        "name": "DEAD FISH",
+        "kind": "food",
+        "price": 40
+    }
+]
