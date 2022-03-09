@@ -358,5 +358,113 @@
         "name": "DEAD FISH",
         "kind": "food",
         "price": 40
+    },
+    {
+        "number": 61,
+        "name": "DRIED FIGS",
+        "kind": "food",
+        "price": 99
+    },
+    {
+        "number": 62,
+        "name": "DEAD RAT",
+        "kind": "food",
+        "price": 50
+    },
+    {
+        "number": 63,
+        "name": "DRIED DATES",
+        "kind": "food",
+        "price": 80
+    },
+    {
+        "number": 64,
+        "name": "CHUNK OF ICE",
+        "kind": "drink",
+        "price": 70
+    },
+    {
+        "number": 65,
+        "name": "POTION OF SKILL",
+        "kind": "drink",
+        "price": 50
+    },
+    {
+        "number": 66,
+        "name": "VORPAL POTION",
+        "kind": "drink",
+        "price": 50
+    },
+    {
+        "number": 67,
+        "name": "DEAD BUG",
+        "kind": "food",
+        "price": 20
+    },
+    {
+        "number": 68,
+        "name": "CHARM POTION",
+        "kind": "drink",
+        "price": 50
+    },
+    {
+        "number": 69,
+        "name": "MONSTER MEAT",
+        "kind": "food",
+        "price": 25
+    },
+    {
+        "number": 70,
+        "name": "GRUB #9277814",
+        "kind": "food",
+        "price": 90
+    },
+    {
+        "number": 71,
+        "name": "GRUB #983347",
+        "kind": "food",
+        "price": 90
+    },
+    {
+        "number": 72,
+        "name": "STANDARD RATIONS",
+        "kind": "food",
+        "price": 90
+    },
+    {
+        "number": 73,
+        "name": "FORMULAE H2O",
+        "kind": "drink",
+        "price": 90
+    },
+    {
+        "number": 74,
+        "name": "ISSUE#92667 LIQUID",
+        "kind": "drink",
+        "price": 90
+    },
+    {
+        "number": 75,
+        "name": "\"RECYCLER WASTE\"",
+        "kind": "drink",
+        "price": 90
+    },
+    {
+        "number": 76,
+        "name": "THE APPLE OF EVE",
+        "kind": "cursed",
+        "price": 50
+    },
+    {
+        "number": 77,
+        "name": "CORN",
+        "kind": "food",
+        "price": 99
+    },
+    {
+        "number": 78,
+        "name": "APPLES",
+        "kind": "food",
+        "price": 99
     }
 ]
