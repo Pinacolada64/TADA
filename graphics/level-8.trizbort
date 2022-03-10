@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<trizbort version="1.7.2.0">
+<trizbort version="1.7.3.0">
 	<info>
 		<title>Totally Awesome Dungeon Adventure</title>
 		<author>Ryan Sherwood</author>
@@ -880,7 +880,7 @@
 		<regions>
 			<Castle Name="Castle" TextColor="White">Gray</Castle>
 			<Forest Name="Forest" TextColor="White">#008040</Forest>
-			<NoRegion Name="NoRegion" TextColor="White">Silver</NoRegion>
+			<NoRegion Name="NoRegion" TextColor="Black">Silver</NoRegion>
 			<Temple Name="Temple" TextColor="White">#FF8080</Temple>
 			<Water Name="Water" TextColor="White">#4387D1</Water>
 			<Wilderness Name="Wilderness" TextColor="White">#804000</Wilderness>
