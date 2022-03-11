@@ -1276,11 +1276,6 @@
             },
             "desc": "Here are the remains of a once- beautiful garden.",
             "food": 19
-        },
-        {
-            "number": 144,
-            "name": "EMPTY",
-            "desc": "EMPTY"
         }
     ]
 }

@@ -401,6 +401,6 @@ if __name__ == '__main__':
                 print(f"You teleport to room #{val}, {room.name}.\n")
                 room_number = val
             except KeyError:
-                if debug:
-                    logging.warning(f'No such room yet (#{room_number}),"'
-                                    f'max of {len(room)}).')
+                logging.warning(f'No such room yet (#{val}, '
+                                f'max of {max(game_map.rooms)}).')
+                continue
