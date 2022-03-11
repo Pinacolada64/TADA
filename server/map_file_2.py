@@ -274,7 +274,16 @@ if __name__ == '__main__':
         # FIXME: could all this be put in a room.header() __str__ method?
         # if debug is True:  # player.flag['debug'] is True:
         #     print(f'#{room_number} ', end='')
-        print(f"{f'#{room_number} ' if debug else ''}{room.name} {room.alignment}\n")
+
+        # check for/trim room flags (currently only '->'):
+        temp = room.name.rfind("|")
+        room_name = room.name
+        room_flags = ''
+        if temp != -1:
+            room_name = room.name[:temp]
+            room_flags = room.name[temp + 1:]
+
+        print(f"{f'#{room_number} ' if debug else ''}{room_name} [{room.alignment}]\n")
         print(wrapper.fill(text=room.desc))
         exits_txt = room.exitsTxt()
         if exits_txt is not None:
@@ -353,6 +362,13 @@ if __name__ == '__main__':
                         logging.warning(f'No such room yet (#{room_number}).")')
                 except ValueError:
                     print("exception: Ye cannot travel that way.")
+            # case for moving east from room #89 (TELEPORT ROOM):
+            if room_flags == "->" and direction == "e":
+                # TODO: flag should probably have room number with it; e.g., "->90"
+                # TODO: special routines needed?
+                print("You walk up to the wall and touch it... and...")
+                room_number = 90
+                continue
             else:
                 print("Ye cannot travel that way.")
         rc = room.exits.get('rc')
