@@ -389,3 +389,18 @@ if __name__ == '__main__':
         if cmd == "q":
             print("Quitting.")
             break
+
+        if cmd[:1] == "#":
+            temp = cmd[1:]
+            if temp.isdigit() is False:
+                print("(Room number required after '#'.)")
+                continue
+            val = int(temp)
+            try:
+                room = game_map.rooms[val]
+                print(f"You teleport to room #{val}, {room.name}.\n")
+                room_number = val
+            except KeyError:
+                if debug:
+                    logging.warning(f'No such room yet (#{room_number}),"'
+                                    f'max of {len(room)}).')
