@@ -263,6 +263,7 @@
                 "e": 40,
                 "s": 51
             },
+            "alignment": "sword",
             "desc": "You see a deep chasm below."
         },
         {
@@ -272,6 +273,7 @@
                 "s": 52,
                 "w": 39
             },
+            "alignment": "sword",
             "desc": "You have reached the highest point of the cavern. A deep underground forest can be seen below. There is a large Mark of the Sword carved in the rock.",
             "item": 12
         },
@@ -326,6 +328,7 @@
                 "e": 47,
                 "w": 58
             },
+            "alignment": "claw",
             "desc": "All supplies for operations were stored here. A large Mark of the Claw is on the wall."
         },
         {
@@ -336,6 +339,7 @@
                 "s": 59,
                 "w": 46
             },
+            "alignment": "claw",
             "desc": "The walls of this room are adorned with precious gems."
         },
         {
@@ -374,6 +378,7 @@
                 "n": 40,
                 "e": 53
             },
+            "alignment": "sword",
             "desc": "You are at the edge of a large underground forest.",
             "weapon": 11
         },
@@ -431,6 +436,7 @@
                 "n": 46,
                 "w": 57
             },
+            "alignment": "claw",
             "desc": "A large control panel is mounted in the wall. All operations of the mine were controlled from this room.",
             "weapon": 28,
             "food": 9
@@ -1049,6 +1055,7 @@
                 "n": 107,
                 "s": 131
             },
+            "alignment": "fist",
             "desc": "This room was once the source of natural gas for the inhabitants."
         },
         {
@@ -1168,6 +1175,7 @@
                 "s": 142,
                 "w": 129
             },
+            "alignment": "fist",
             "desc": "A small table sits in the middle of this room, which was once used for social gatherings."
         },
         {
@@ -1177,6 +1185,7 @@
                 "n": 119,
                 "w": 130
             },
+            "alignment": "fist",
             "desc": "You are in a large room... there is a strange symbol on the wall!",
             "item": 31,
             "weapon": 22

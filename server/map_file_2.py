@@ -25,7 +25,7 @@ class Room(object):
     item: int = 0
     weapon: int = 0
     food: int = 0
-    alignment: str = "neutral"
+    alignment: str = "neutral"  # default unless set to another guild
 
     def __str__(self):
         return f'#{self.number} {self.name}\n' \
@@ -283,7 +283,8 @@ if __name__ == '__main__':
             room_name = room.name[:temp]
             room_flags = room.name[temp + 1:]
 
-        print(f"{f'#{room_number} ' if debug else ''}{room_name} [{room.alignment}]\n")
+        temp = str(room.alignment).title()
+        print(f"{f'#{room_number} ' if debug else ''}{room_name} [{temp}]\n")
         print(wrapper.fill(text=room.desc))
         exits_txt = room.exitsTxt()
         if exits_txt is not None:
@@ -357,6 +358,7 @@ if __name__ == '__main__':
                 try:
                     print(f"You move {compass_txts[direction]}.")
                     room_number = room.exits[direction]
+                    continue
                 except KeyError:
                     if debug:
                         logging.warning(f'No such room yet (#{room_number}).")')
@@ -371,6 +373,7 @@ if __name__ == '__main__':
                 continue
             else:
                 print("Ye cannot travel that way.")
+                continue
         rc = room.exits.get('rc')
         rt = room.exits.get('rt')
         if direction == "u":
