@@ -161,11 +161,11 @@ class Player(object):
                               ['influential', 'hearty', 'agile', 'intelligent',
                                'strong', 'wise', 'energetic'])
             # TODO: jwhoag suggested adding 'confidence' -> 'brave' -- good idea,
-            # not sure where it can be added yet.
+            #  not sure where it can be added yet.
             # returns ('con', 'hearty') -- etc.
             for n in descriptive:
                 # FIXME: I don't know of a more efficient way to refer to a subscript in this case.
-                # This may be good enough, it's a small loop
+                #  This may be good enough, it's a small loop
                 if n[0] == stat:
                     print(f"You feel {'more' if after > before else 'less'} {n[1]}.")
         logging.info(f"set_stat: After: {stat=} {after=}")
