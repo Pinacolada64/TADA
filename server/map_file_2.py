@@ -307,8 +307,6 @@ if __name__ == '__main__':
             obj_list.append(obj_name)
             print(f'You see item #{item} {obj_name}')
 
-        # TODO: get food, monster, weapon names (data files not converted to JSON yet)
-
         food = room.food
         if food:
             food_name = rations[room.food - 1]["name"]
