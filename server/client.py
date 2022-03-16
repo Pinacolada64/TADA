@@ -1,5 +1,5 @@
 #!/bin/env python3
-
+import logging
 import sys
 
 import net_client
@@ -20,14 +20,14 @@ class Client(net_client.Client):
         if request['error'] != '':
             error_code = request['error']
             error_line = request['error_line']
-            print(f"ERROR: {error_line} ({error_code})")
+            logging.error(f"{error_line} ({error_code})")
         for f in [K.room_name, K.money, K.health, K.xp, K.last_command]:
             v = request.get('changes', {}).get(f)
             if v:
                 self.status[f] = v
         choices = request.get('choices')
         if len(choices) > 0:
-            print(f'{choices=}')
+            logging.info(f'{choices=}')
         prompt = request.get('prompt')
         if prompt == '':
             print("---< %(room_name)s | health %(health)d | xp %(xp)d | %(money)d gold >---" % self.status)

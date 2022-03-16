@@ -278,13 +278,6 @@ class Rations(object):
         return rations
 
 
-rooms = {}
-for info in Map().rooms:
-    room = Room(number=info[K.number], name=info[K.name], desc=info[K.desc], exits=info[K.exits],
-                alignment=info[K.alignment])
-    rooms[room.number] = room
-room_players = {id: set() for id in rooms.keys()}
-
 server_lock = threading.Lock()
 
 
@@ -349,22 +342,27 @@ class Player:
     def connect(self):
         with server_lock:
             room_players[self.room].add(self.id)
+            # TODO: notify other players of connection
 
-    def move(self, next_room: int):
+    def move(self, next_room: int, direction: str):
         """
         remove player from list of players in current_room, add them to room next_room
+        :param next_room: room to move to
+        :param direction: direction being moved in, for notifying other players of movement
         """
         current_room = self.room
         with server_lock:
             room_players[current_room].remove(self.id)
             self.room = next_room
             room_players[self.room].add(self.id)
-            logging.info(f'Moved {self.player.name} from {current_room} to {self.room}')
+            logging.info(f'Moved {self.name} from {current_room} to {self.room}')
+            return PlayerHandler.roomMsg(lines=[f"f'{self.name} moves {compass_txts[direction]}.'"],
+                                         changes=None)
 
     def disconnect(self):
         with server_lock:
             room_players[self.room].remove(self.id)
-
+            return PlayerHandler.roomMsg(lines=[f'{players[self.id].name} falls asleep.'], changes='')
         # FIXME: is this orphaned code?
         #  print(f"You are in {self.room}.\n{playersInRoom(self.room)} is here.")
 
@@ -397,23 +395,25 @@ class PlayerHandler(net_server.UserHandler):
     def loginFailLines(self):
         return ['Please try again.']
 
-    def roomMsg(self, lines, changes):
+    def roomMsg(self, lines: list, changes: dict):
         """
+        Display a message to the player in the room
 
-        :param lines:
-        :param changes:
-        :return:
+        :param lines: text to output. each line is an element of a list.
+        :param changes: ...?
+        :return: Message object
         """
-        room = rooms[self.player.room]
+        # get room # that player is in
+        try:
+            room = game_map.rooms[self.player.room]
+        except KeyError:
+            logging.warning("exception: No such room yet (37, Bar?).")
+
+        # room = game_map.rooms[self.player.room]
+
         debug = self.player.flag['debug']
         exitsTxt = room.exitsTxt()
         lines2 = list(lines)
-
-        # get room # that player is in
-        try:
-            room = game_map.rooms[room.number]
-        except KeyError:
-            logging.warning("exception: No such room yet (37, Bar?).")
 
         # display room header
         # check for/trim room flags (currently only '->'):
@@ -542,8 +542,9 @@ class PlayerHandler(net_server.UserHandler):
                 self.player.flag[k] = False
             logging.info(f'{k=} {v=}')
 
-        changes = {K.room_name: rooms[self.player.room].name,
-                   K.money: money, K.health: self.player.health,
+        # FIXME
+        changes = {K.room_name: game_map.rooms[self.player.room].name,
+                   K.money: self.player.money, K.health: self.player.health,
                    K.xp: self.player.xp}
         self.player.connect()
         return self.roomMsg(lines, changes)
@@ -561,7 +562,7 @@ class PlayerHandler(net_server.UserHandler):
 
             # TODO: handle commands with parser etc.
             if cmd[0] in compass_txts:
-                room = rooms[self.player.room]
+                room = game_map.rooms[self.player.room]
                 logging.info(f'current room #: {self.player.room}')
                 direction = cmd[0]
                 logging.info(f"direction: {direction}")
@@ -579,10 +580,10 @@ class PlayerHandler(net_server.UserHandler):
                     logging.info(f"{direction=} => {self.player.room=}")
                     # delete player from list of players in current room,
                     # add player to list of players in room they moved to
-                    self.player.move(room.exits[direction])
+                    self.player.move(room.exits[direction], direction)
                     # FIXME: maybe only at quit
                     # self.player.save()
-                    room_name = rooms[self.player.room].name
+                    room_name = game_map.rooms[self.player.room].name
                     return self.roomMsg(lines=[f"You move {compass_txts[direction]}."],
                                         changes={'room_name': room_name})
                 else:
@@ -680,6 +681,18 @@ if __name__ == "__main__":
     # load map
     game_map = Map()
     game_map.read_map("level_1.json")
+
+    # rooms = {}
+    # for data in game_map.rooms:
+    #     print(type(data.number))
+    #     n = int(data.number)
+    #     room = Room(number=n, name=data.name, desc=data.desc, exits=data.exits,
+    #                 monster=data.monster, item=data.item, weapon=data.weapon, food=data.food,
+    #                 alignment=data.alignment)
+    #     rooms[data.number] = room
+    # TODO: determine how this works:
+    room_players = {number: set() for number in game_map.rooms.keys()}
+    logging.info(f'{room_players=}')
 
     # load items
     items = Item.read_items("objects.json")
