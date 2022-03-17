@@ -92,7 +92,12 @@ class Room(object):
         return f'#{self.number} {self.name}\n' \
                f'{self.desc}\n{self.exits}'
 
-    def exitsTxt(self):
+    def exitsTxt(self, debug: bool):
+        """
+        Display exits in a comma-delimited list.
+        :param debug: display room #s if True
+        :return: joined list of exits
+        """
         # connection/transport names, index by (connection, transport)
         # rc = 1: Up     rt != 0: Room #
         # rc = 2: Down   rt == 0: Shoppe
@@ -107,7 +112,7 @@ class Room(object):
         exit_extra = extra_txts.get((room_connection, room_transport))
         if exit_extra:  # is not None:
             exit_txts.append(exit_extra)
-        # example: level 1, room 20:
+        # example: level 1, room 20
         if room_connection == 1 and room_transport != 0:
             exit_txts.append(f"Up to #{room_transport}" if debug else "Up")
         if room_connection == 2 and room_transport != 0:
@@ -344,11 +349,13 @@ class Player:
             room_players[self.room].add(self.id)
             # TODO: notify other players of connection
 
-    def move(self, next_room: int, direction: str):
+    def move(self, next_room: int, direction=None):
         """
-        remove player from list of players in current_room, add them to room next_room
+        remove player login id from list of players in current_room, add them to room next_room
         :param next_room: room to move to
         :param direction: direction being moved in, for notifying other players of movement
+        if None, '#<room_number>' teleportation command (or, later, spell) was used and the
+        "<player> disappears in a flash of light" message is used instead
         """
         current_room = self.room
         with server_lock:
@@ -356,13 +363,16 @@ class Player:
             self.room = next_room
             room_players[self.room].add(self.id)
             logging.info(f'Moved {self.name} from {current_room} to {self.room}')
-            return PlayerHandler.roomMsg(lines=[f"f'{self.name} moves {compass_txts[direction]}.'"],
-                                         changes=None)
+            # teleport command doesn't require direction, just room #
+            if direction is None:
+                return Message(lines=[f'[{self.name} disappears in a flash of light.'])
+            else:
+                return Message(lines=[f"{self.name} moves {compass_txts[direction]}."])
 
     def disconnect(self):
         with server_lock:
             room_players[self.room].remove(self.id)
-            return PlayerHandler.roomMsg(lines=[f'{players[self.id].name} falls asleep.'], changes='')
+            return Message(lines=[f'{players[self.id].name} falls asleep.'])
         # FIXME: is this orphaned code?
         #  print(f"You are in {self.room}.\n{playersInRoom(self.room)} is here.")
 
@@ -397,7 +407,7 @@ class PlayerHandler(net_server.UserHandler):
 
     def roomMsg(self, lines: list, changes: dict):
         """
-        Display a message to the player in the room
+        Display the room description and contents to the player in the room
 
         :param lines: text to output. each line is an element of a list.
         :param changes: ...?
@@ -407,12 +417,10 @@ class PlayerHandler(net_server.UserHandler):
         try:
             room = game_map.rooms[self.player.room]
         except KeyError:
-            logging.warning("exception: No such room yet (37, Bar?).")
-
-        # room = game_map.rooms[self.player.room]
+            logging.warning(f"Room #{room.number} does not exist")
 
         debug = self.player.flag['debug']
-        exitsTxt = room.exitsTxt()
+        exitsTxt = room.exitsTxt(debug)
         lines2 = list(lines)
 
         # display room header
@@ -469,7 +477,8 @@ class PlayerHandler(net_server.UserHandler):
 
         # TODO: add grammatical list item (SOME MELONS, AN ORANGE)
 
-        exits_txt = room.exitsTxt()
+        debug = self.player.flag['debug']
+        exits_txt = room.exitsTxt(debug)
         if exits_txt is not None:
             lines2.append(f"Ye may travel: {exitsTxt}\n")
             # ryan: list exit dirs and room #s
@@ -531,7 +540,7 @@ class PlayerHandler(net_server.UserHandler):
         self.player = players[user_id] = player
         logging.info(f"login {user_id} '{self.player.name}' (addr={self.sender})")
         money = self.player.money
-        lines = [f"Welcome, {self.player.name}.", f"You have {money} gold.\n"]
+        lines = [f"Welcome, {self.player.name}.", f"You have {money:,} gold.\n"]
 
         # show/convert flags from json text 'true/false' to bool True/False
         # (otherwise they're not recognized, and can't be toggled):
@@ -561,6 +570,8 @@ class PlayerHandler(net_server.UserHandler):
             logging.info(f'{self.player.last_command=}')
 
             # TODO: handle commands with parser etc.
+
+            # movement
             if cmd[0] in compass_txts:
                 room = game_map.rooms[self.player.room]
                 logging.info(f'current room #: {self.player.room}')
@@ -591,6 +602,7 @@ class PlayerHandler(net_server.UserHandler):
 
             if cmd[0] in ['l', 'look']:
                 return self.roomMsg(lines=[], changes={})
+
             if cmd[0] in ['bye', 'logout', 'quit']:
                 temp = net_server.UserHandler.promptRequest(self, lines=[], prompt='Really quit? ',
                                                             choices={'y': 'yes', 'n': 'no'})
@@ -603,12 +615,15 @@ class PlayerHandler(net_server.UserHandler):
                     return Message(lines=["Bye for now."], mode=Mode.bye)
                 else:
                     return Message(lines=["Thanks for sticking around."])
+
             if cmd[0] in ['?', 'hel', 'help']:
                 from tada_utilities import game_help
                 game_help(self, cmd)
                 return Message(lines=["Done."])
+
             if cmd[0] in ['cheatcode']:
                 return Message(lines=["↑ ↑ ↓ ↓ ← → ← → B A"])
+
             # toggle room descriptions:
             if cmd[0] in ['r']:
                 logging.info(f"{self.player.flag['room_descs']}")
@@ -617,6 +632,7 @@ class PlayerHandler(net_server.UserHandler):
                 logging.info(f'Room descriptions: {temp}.')
                 return Message(lines=[f'[Room descriptions are now '
                                       f'{"off" if temp is False else "on"}.]'])
+
             if cmd[0] == 'who':
                 from server import net_server as ns
                 lines = ["\nWho's on:"]
@@ -625,6 +641,34 @@ class PlayerHandler(net_server.UserHandler):
                     lines.append(f'{count + 1:2}) {players[login_id].name}')
                     count += 1
                 return Message(lines=lines)
+
+            # really this is just a debugging tool to save shoe leather:
+            if cmd[0][:1] == "#":
+                temp = cmd[0][1:]
+                if temp.isdigit() is False:
+                    return Message(lines=["(Room number required after '#'.)"])
+                val = int(temp)
+                try:
+                    # get destination room data:
+                    dest = game_map.rooms[val]
+                    room_num = dest.number
+                    # delete player id from list of players in current room,
+                    # add player id to list of players in room they moved to
+                    # 'direction' is None, so display "{player} disappears in a flash of light."
+                    self.player.move(room_num, direction=None)
+
+                    # move player there:
+                    self.player.room = room_num
+                    logging.info(f'{room_num=} {self.player.room=}')
+                    # TODO: something like this displayed to other players would be nice to indicate teleportation:
+                    #  Message([f"{self.player.name} disappears in a flash of light.")
+                    # TODO: display new room description
+                    return Message(lines=[f"You teleport to room #{val}, {dest.name}.\n"])
+                    # changes={"prompt": "Prompt:", "status_line": 'Status Line'})
+                except KeyError:
+                    return Message(lines=[f'Teleport: No such room yet (#{val}, '
+                                   f'max of {max(game_map.rooms)}).'])
+
             """
             FIXME: Under consideration, but not sure how to set this up
             if cmd[0] == 'petscii':
@@ -657,7 +701,7 @@ class PlayerHandler(net_server.UserHandler):
 
 def break_handler(signal_received):
     # Handle any cleanup here
-    t = signal.Signals
+    t = signal.Signals  # to display signal name
     logging.warning(f'{signal_received} SIGINT or Ctrl-C detected. Shutting down server.')
     # TODO: broadcast shutdown message to all players
     print("Server going down. Bye.")
@@ -670,7 +714,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
     import signal
-
     # exit gracefully when SIGINT is received
     # signal(SIGINT, handler)  # for *nix
     signal.signal(signal.SIGINT, break_handler)  # for Windows
@@ -690,7 +733,7 @@ if __name__ == "__main__":
     #                 monster=data.monster, item=data.item, weapon=data.weapon, food=data.food,
     #                 alignment=data.alignment)
     #     rooms[data.number] = room
-    # TODO: determine how this works:
+    # FIXME: determine how this works, it just copies 'set()' for each item in the list:
     room_players = {number: set() for number in game_map.rooms.keys()}
     logging.info(f'{room_players=}')
 
