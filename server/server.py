@@ -596,7 +596,51 @@ class PlayerHandler(net_server.UserHandler):
                     # self.player.save()
                     room_name = game_map.rooms[self.player.room].name
                     return self.roomMsg(lines=[f"You move {compass_txts[direction]}."],
-                                        changes={'room_name': room_name})
+                                        changes={K.room_name: room_name})
+
+            """
+            This is the way the original Apple code handled up/down exits.
+            I'm fully aware up/down exits could just be a room number, or 0
+            for no connection--my self-written level 8 map does exactly this.
+            """
+            if cmd[0][:1] == 'u' or cmd[0][:1] == 'd':
+                room = game_map.rooms[self.player.room]
+                room_exits = room.exits
+                room_connection = room_exits.get('rc', 0)
+                room_transport = room_exits.get('rt', 0)
+                # example: level 1, room 20
+                if cmd[0] == 'u' and room_connection == 1:
+                    if room_transport != 0:
+                        logging.info(f'{self.player.name} moves Up to #{room_transport}')
+                        self.player.room = room_transport
+                        return
+                    else:
+                        logging.info(f'{self.player.name} moves Up to Shoppe')
+                        # don't change self.player.room, return them to where they left
+                        return Message(lines=["TODO: write Shoppe routine..."])
+                if cmd[0] == 'd' and room_connection == 2:
+                    if room_transport != 0:
+                        logging.info(f'{self.player.name} moves Down to #{room_transport}')
+                        number = self.player.room
+                        self.player.room = room_transport
+                        # get new room desc:
+                        # FIXME: TypeError: 'Room' object is not subscriptable
+                        """
+                        temp = game_map.rooms[number]
+                        logging.info(f"room info: {temp}")
+                        desc = temp["desc"]
+                        logging.info(f"desc: {desc}")
+                        """
+                        desc = "bla"
+                        # FIXME: see server.py, line 24:
+                        #  thought maybe this would show the new room desc
+                        return Message(lines=["You move down."],
+                                       changes={K.desc: desc})
+                    else:
+                        logging.info(f'{self.player.name} moves Down to Shoppe')
+                        # don't change self.player.room, return them to where they left
+                        return Message(lines=["TODO: write Shoppe routine..."])
+
                 else:
                     return Message(lines=["Ye cannot travel that way."])
 
