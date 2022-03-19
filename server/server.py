@@ -73,8 +73,7 @@ roomsData = [
 room_start = 1
 money_start = 1000
 
-compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West'}
-
+compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up', 'd': 'Down'}
 
 @dataclass
 class Room(object):
@@ -359,9 +358,14 @@ class Player:
         """
         current_room = self.room
         with server_lock:
+            logging.debug(f"Before remove: {room_players=}")
             room_players[current_room].remove(self.id)
+            logging.debug(f"After remove: {room_players=}")
+
             self.room = next_room
+            logging.debug(f"Before add: {room_players=}")
             room_players[self.room].add(self.id)
+            logging.debug(f"After add: {room_players=}")
             logging.info(f'Moved {self.name} from {current_room} to {self.room}')
             # teleport command doesn't require direction, just room #
             if direction is None:
@@ -612,17 +616,19 @@ class PlayerHandler(net_server.UserHandler):
                 if cmd[0] == 'u' and room_connection == 1:
                     if room_transport != 0:
                         logging.info(f'{self.player.name} moves Up to #{room_transport}')
-                        self.player.room = room_transport
+                        # self.player.room = room_transport
+                        self.player.move(next_room=room_transport, direction='u')
                         return
                     else:
                         logging.info(f'{self.player.name} moves Up to Shoppe')
+                        self.player.move(next_room=room_transport, direction='u')
                         # don't change self.player.room, return them to where they left
                         return Message(lines=["TODO: write Shoppe routine..."])
                 if cmd[0] == 'd' and room_connection == 2:
                     if room_transport != 0:
                         logging.info(f'{self.player.name} moves Down to #{room_transport}')
-                        number = self.player.room
-                        self.player.room = room_transport
+                        self.player.move(next_room=room_transport, direction='d')
+
                         # get new room desc:
                         # FIXME: TypeError: 'Room' object is not subscriptable
                         """
@@ -638,6 +644,8 @@ class PlayerHandler(net_server.UserHandler):
                                        changes={K.desc: desc})
                     else:
                         logging.info(f'{self.player.name} moves Down to Shoppe')
+                        self.player.move(next_room=room_transport, direction='d')
+
                         # don't change self.player.room, return them to where they left
                         return Message(lines=["TODO: write Shoppe routine..."])
 
