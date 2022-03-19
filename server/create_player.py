@@ -22,7 +22,7 @@ Traceback (most recent call last):
 # https://www.dataquest.io/blog/python-datetime-tutorial/
 
 
-def choose_gender(char: Player):
+def choose_gender(character: Player):
     """step 1: choose character gender"""
     output('Verus squints myopically. "Are you a male or female?"', char)
     while True:
@@ -58,9 +58,9 @@ def choose_name(char: Player):
         # this is repeated, so function:
         char.name = enter_name(char.name, edit_mode=True)
 
-    elif character.name is None:
+    elif char.name is None:
         # no existing name, prompt for new character name
-        character.name = enter_name(char, edit_mode=False)
+        char.name = enter_name(char, edit_mode=False)
 
 
 def edit_name(char: Player):
@@ -90,7 +90,7 @@ def enter_name(_char: Player, edit_mode: bool):
            'here...', _char)
     # TODO: check for existing name
     _ = f'"Seems to be okay." He '
-    if edit_mode and character.name != temp:
+    if edit_mode and _char.name != temp:
         _ += "scratches out your old name and re-writes it"
     else:
         _ += "scribbles your name"
@@ -112,7 +112,7 @@ def choose_client(p: Player):
     # the width of this string is >40 characters
     output('"Which kind of client are you using?" Verus asks.',
            p)
-    print()  # must be used in place of \n
+    print()  # must be used in place of 'output('\n', p)'?
     output("## Client type     Screen size", p)
     output("-- --------------- -----------", p)
     output("1. Commodore 64    (40 x 25)", p)
@@ -161,6 +161,7 @@ def choose_class(p: Player):
 
 
 def display_classes(p: Player):
+    # TODO: make this a subroutine:
     wizard = 'Wizard' if p.gender == 'male' else 'Witch '
     output('"Choose a class," Verus instructs.', p)
     print()
@@ -184,8 +185,10 @@ def edit_class(p: Player):
                                 reminder='"Choose a class between 1 and 9,"'
                                          ' suggests Verus.')
         # output(f'{return_key} keeps {p.char_class.title()}.', p)
-        """if the character creation process has only asked for the class so far,
-        race will be None, and we shouldn't validate the combination"""
+        """
+        if the character creation process has only asked for the class so far,
+        race will be None, and we shouldn't validate the combination
+        """
         # temp = input("Class [1-9]: ")
         # if temp.isalpha():
         #     output('"Numbers only, please."', p)
@@ -195,9 +198,9 @@ def edit_class(p: Player):
         valid = validate_class_race_combo(p)
         if valid:
             # class/race combo is good, set class:
-            character.char_class = ['wizard' if p.gender == 'male' else 'witch',
-                                    'druid', 'fighter', 'paladin', 'ranger',
-                                    'thief', 'archer', 'assassin', 'knight'][pc - 1]
+            p.char_class = ['wizard' if p.gender == 'male' else 'witch',
+                            'druid', 'fighter', 'paladin', 'ranger',
+                            'thief', 'archer', 'assassin', 'knight'][pc - 1]
             # end loop
             break
 
@@ -675,60 +678,64 @@ def apply_bonuses(adj: list, p: Player):
 
 if __name__ == '__main__':
     import logging
-
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
     logging.info("Logging is running")
 
-    global return_key  # so it can be modified in choose_client()
+    global return_key   # so it can be modified in choose_client()
     return_key = '[Return]'
 
-    connection_id = 1
-    # FIXME: initially, we wouldn't know which Player object to output it to (hasn't been created yet)
-    #  so use IP address?  will use standard print() here until Player object is established
+    def setup():
+        connection_id = 1
+        # FIXME: initially, we wouldn't know which Player object to output it to (hasn't been created yet)
+        #  so use IP address?  will use standard print() here until Player object is established
 
-    character = Player()
-    character.connection_id = 1
-    # these are enabled for debugging info:
-    character.flags = {'dungeon_master': True, 'debug': True, 'expert_mode': False},
-    character.silver = {'in_hand': 0, 'in_bank': 0, 'in_bar': 0}
-    print(character.client['columns'])
+        character = Player()
+        character.connection_id = 1
+        # these are enabled for debugging info:
+        character.flags = {'dungeon_master': True, 'debug': True, 'expert_mode': False},
+        character.silver = {'in_hand': 0, 'in_bank': 0, 'in_bar': 0}
+        print(f"{character.client['columns']=}")
 
-    header("Introduction")
-    output("Your faithful servant Verus appears at your side, as if by magic.",
-           character)
-    output('Verus mentions, "Do not worry if ye answer wrong, ye can change thy answer later."',
-           character)
+        header("Introduction")
+        output("Your faithful servant Verus appears at your side, as if by magic.",
+               character)
+        output('Verus mentions, "Do not worry if ye answer wrong, ye can change thy answer later."',
+               character)
 
-    header("0. Choose Client")
-    choose_client(character)  # TODO: net_server handles this
+        header("0. Choose Client")
+        choose_client(character)  # TODO: net_server handles this
 
-    header("I. Choose Gender")
-    choose_gender(character)
+        header("I. Choose Gender")
+        choose_gender(character)
 
-    header("II. Choose Name")
-    choose_name(character)
+        header("II. Choose Name")
+        choose_name(character)
 
-    header("III. Choose Class")
-    choose_class(character)
+        header("III. Choose Class")
+        choose_class(character)
 
-    header("IV. Choose Race")
-    choose_race(character)
+        header("IV. Choose Race")
+        choose_race(character)
 
-    header("V. Choose Age")
-    choose_age(character)
+        header("V. Choose Age")
+        choose_age(character)
 
-    header("VI. Final Edit")
-    final_edit(character)
+        # TODO: description
+        # TODO: character quote
 
-    header("Choose Guild")
-    choose_guild(character)
+        header("VI. Final Edit")
+        final_edit(character)
 
-    header("Roll Statistics")
-    roll_stats(character)
+        header("Choose Guild")
+        choose_guild(character)
 
-    header("Done!")
-    print()
-    output("Final stats:", character)
-    # can't use output() because of \n's
-    # FIXME
-    # print(character)
+        header("Roll Statistics")
+        roll_stats(character)
+
+        header("Done!")
+        print()
+        output("Final stats:", character)
+        # can't use output() because of \n's
+        # FIXME
+        # print(character)
+        return character

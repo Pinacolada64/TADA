@@ -523,13 +523,19 @@ class PlayerHandler(net_server.UserHandler):
         player = Player.load(user_id)
         if player is None:
             # TODO: create player
+            """
             valid_name = False
             while not valid_name:
                 reply = self.promptRequest(lines=["Choose your adventurer's name."], prompt='Name? ')
                 name = reply['text'].strip()
                 if name != '':  # TODO: limitations on valid names
                     valid_name = True
+            """
+            import create_player as create_player
+            create_player.setup()
+
             player = Player(id=user_id,
+                            # TODO: CommodoreServer Internet Protocol connection_id?
                             name=name,
                             map_level=1,
                             room=room_start,

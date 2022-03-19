@@ -4,6 +4,7 @@ import textwrap
 from players import Player
 
 import net_server  # for promptRequest and Message
+from net_server import Message
 
 """
 utilities such as:
@@ -29,7 +30,7 @@ def grammatical_list(item_list):
     if len(result_list) > 1:
         result_list[-1] = f"and {result_list[-1]}"
     # Join it together
-    return ", ".join(result_list)
+    return Message(lines=[(", ".join(result_list))])
 
 
 def header(text: str):
@@ -41,10 +42,12 @@ def header(text: str):
     :param text: string to display
     :return: None
     """
-    print()
-    print(text)
-    print("-" * len(text))
-    print()
+    line = f"\n{text}\n{'*' * len(text)}\n"
+    # print()
+    # print(text)
+    # print("-" * len(text))
+    # print()
+    return Message(lines=[line])
 
 
 def output(string: str, conn: Player):
@@ -67,7 +70,7 @@ def output(string: str, conn: Player):
     """
     if conn.client['translation'] == 'PETSCII':
         pass  # until cbmcodecs2 is fixed
-    print(textwrap.fill(text=string, width=conn.client['columns']))
+    return Message(lines=[textwrap.fill(text=string, width=conn.client['columns'])])
 
 
 def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, default=None):
@@ -82,7 +85,7 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, d
     :param p: Player to output text to
     :param reminder: string to display if lo < temp < hi
     """
-    if default is not None and p.flags['expert_mode'] is False:
+    if default is not None and p.flag['expert_mode'] is False:
         output(f"{return_key} keeps '{default}'.", p)
     while True:
         temp = input(f"{prompt} [{lo}-{hi}]: ")
@@ -90,7 +93,7 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, d
         if temp.isalpha():
             output("Numbers only, please.", p)
         if default is not None and temp == '':
-            if p.flags['expert_mode'] is False:
+            if p.flag['expert_mode'] is False:
                 output(f"(Keeping '{default}'.)", p)
             return default
         else:
