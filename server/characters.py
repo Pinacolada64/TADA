@@ -10,7 +10,6 @@ from dataclasses import dataclass
 # https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
 # http://pythonfiddle.com/text-based-rpg-code-python/
 
-
 @dataclass
 class Character(object):
     """
@@ -205,7 +204,7 @@ class Character(object):
 
         special_items: list
         # SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
-        # TODO: check for "holes" in map where there is no room
+        # TODO: avoid placing objects in map "holes" where no room exists
         # DINGHY  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
         combinations: dict  # {'elevator', 'locker', 'castle'}  # tuple? combo is 3 digits: (nn, nn, nn)
 
@@ -386,7 +385,7 @@ class Character(object):
             return
         self.silver[kind] = after
 
-    def is_magic_user(self, char: Character):
+    def is_magic_user(self, char):
         """
         Shorter than repeating 'if char.class_name == 'witch' or char.class_name == 'wizard'
 
@@ -396,7 +395,7 @@ class Character(object):
         """
         return char.char_class == 'witch' or char.char_class == 'wizard'
 
-    def magic_user_class_name(self, char: Character):
+    def magic_user_class_name(self, char):
         """
         Shorter than repeating 'if char.class_name == 'witch' or char.class_name == 'wizard'
 
@@ -407,24 +406,25 @@ class Character(object):
         if char.char_class == "wizard" or char.char_class == "witch":
             return char.char_class.title()
 
-    def transfer_money(self, c1: Character, c2: Character, kind: str, adj: int):
+    def transfer_silver(self, from_char, to_char, where: str, adj: int):
         """
-        :param c1: Character to transfer <adj> gold to
-        :param c2: Character to transfer <adj> gold from
-        :param kind: classification ('in_hand' most likely)
+        :param from_char: Character to transfer <adj> silver from
+        :param to_char: Character to transfer <adj> silver from
+        :param where: where silver is ('in_hand' most likely)
         :param adj: amount to transfer
         :return: none
         """
         # as suggested by Shaia:
-        # (will be useful for future bank, or future expansion: gold transfer spell?)
-        if c2.silver[kind] >= adj:
-            c1.set_silver(kind, adj)
-            c2.set_silver(kind, -adj)
-            logging.info(f'transfer_money: {c2.name} {adj} {kind} -> {c1.name}: {c1.silver[kind]}')
-            print(f'{c2.name} transferred {adj} silver {kind} to {c1.name}.')
-            print(f'{c1.name} now has {c1.silver[kind]}.')
+        # (will be useful for future bank, or future expansion: silver transfer spell?)
+        if from_char.silver[where] >= adj:
+            to_char.set_silver(where, adj)
+            from_char.set_silver(where, -adj)
+            # e.g., transfer_silver: Shaia 100 in_hand -> Rulan 200
+            logging.info(f'transfer_silver: {from_char.name} {adj} {where} -> {to_char.name}: {to_char.silver[where]}')
+            print(f'{from_char.name} transferred {adj} silver {where} to {from_char.name}.')
+            print(f'{from_char.name} now has {from_char.silver[where]}.')
         else:
-            print(f"{c2.name} doesn't have {adj} silver to give.")
+            print(f"{from_char.name} doesn't have {adj} silver to give.")
 
 
 class Ally(object):
@@ -538,5 +538,5 @@ if __name__ == '__main__':
 
     Shaia.print_all_stats()
 
-    transfer_money(Shaia, Rulan, kind='in_hand', adj=500)  # should rightfully fail
-    transfer_money(Shaia, Rulan, kind='in_hand', adj=100)  # this passes
+    transfer_silver(Shaia, Rulan, kind='in_hand', adj=500)  # should rightfully fail
+    transfer_silver(Shaia, Rulan, kind='in_hand', adj=100)  # this passes
