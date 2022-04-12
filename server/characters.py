@@ -2,13 +2,12 @@
 # but breaks print(f'string') because python 2.7? don't understand that
 # from __future__ import annotations
 
-import doctest
 import logging
 from dataclasses import dataclass
 
-
 # https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
 # http://pythonfiddle.com/text-based-rpg-code-python/
+
 
 @dataclass
 class Character(object):
@@ -91,16 +90,16 @@ class Character(object):
     spells: list  # tuple(spell_name: str, charges, chance_to_cast: int)
     booby_traps: list  # ['a' - 'i']
 
-    def __init__(self, *arguments, **stat):  # arguments, stat are dicts of keywords
+    def __init__(self, /, *args, **kwargs):  # args: tuple, kwargs: dict of keywords
         """this code is called when creating a new character"""
-        logging.info(f"Character {self.name} instantiated")
         # FIXME: true that specifying e.g., 'hit_points=None' makes it a positional parameter
 
-        for arg, val in arguments:
-            print(f'{arg} = {val}')
-        print("-" * 40)
-        for kw in stat:
-            print(kw, ":", stat[kw])
+        if args:
+            for v in args:
+                print(f'{v=}')
+            print("-" * 40)
+        for k, v in kwargs.items():
+            print(f'{k=} {v=}')
 
         # FIXME: probably just forget this, net_server.py handles connected_users(set)
         """
@@ -115,26 +114,31 @@ class Character(object):
         logging.info(f'Character.__init__: Connections: {len(connection_ids)}, {connection_ids}')
         self.connection_id = connection_id  # 'id' shadows built-in name
         """
-        if stat['connection_id'] is not None:
-            self.connection_id = stat['connection_id']  # keep this until I figure out where it is in net_server.py
-        if stat['name'] is not None:
-            self.name = stat['name']
-        if stat['gender'] is not None:
-            self.gender = stat['gender']
+        if kwargs['name'] is not None:
+            self.name = kwargs['name']
+        logging.info(f"Character {self.name} instantiated")
 
-        # creates a new stats dict for each Character, zero all stats:
-        # set with Character.set_stat('xyz', val)
-        if stat['stats'] is not None:
-            self.stats = stat['stats']
+        if kwargs['connection_id'] is not None:
+            self.connection_id = kwargs['connection_id']  # keep this until I figure out where it is in net_server.py
+        if kwargs['name'] is not None:
+            self.name = kwargs['name']
+        if kwargs['gender'] is not None:
+            self.gender = kwargs['gender']
+
+        # creates a new kwargs dict for each Character, zero all kwargs:
+        # set with Character.set_stats('xyz', val)
+        if kwargs['stats'] is not None:
+            self.stats = kwargs['stats']
         else:
             self.stats = {'chr': 0, 'con': 0, 'dex': 0, 'int': 0, 'str': 0, 'wis': 0, 'egy': 0}
         logging.info(f"stats: {self.stats}")
 
         # flags:
-        if stat['flag'] is not None:
-            self.flag = stat['flag']
+        if kwargs['flag'] is not None:
+            self.flag = kwargs['flag']
         else:
-            self.flag = {  # status flags:
+            self.flag = {
+                # status flags:
                 'room_descriptions': bool, 'autoduel': bool, 'hourglass': bool,
                 'expert': bool, 'more_prompt': bool, 'architect': bool,
                 # 'orator_mode': bool  # TODO: define orator_mode more succinctly
@@ -181,23 +185,23 @@ class Character(object):
         # in_bar should be preserved after character's death (TODO: same)
         # use Character.set_silver("kind", value)
         if self.silver is not None:
-            self.silver = stat['silver']
+            self.silver = kwargs['silver']
         else:
             self.silver = {"in_hand": 0, "in_bank": 0, "in_bar": 0}
         logging.info(f'Character.__init__: Silver in hand: {self.silver["in_hand"]}')
 
         # client settings - set up some defaults
         if self.client is not None:
-            self.client = stat['client']
+            self.client = kwargs['client']
         else:
             self.client = {'name': None, 'rows': None, 'columns': 80, 'translation': None,
                            # colors for [bracket reader] text highlighting on C64/128:
                            'text': None, 'highlight': None, 'background': None, 'border': None}
 
         if self.age is not None:
-            self.age = stat['age']
+            self.age = kwargs['age']
         if self.birthday is not None:
-            self.birthday = stat['birthday']  # tuple: (month, day, year)
+            self.birthday = kwargs['birthday']  # tuple: (month, day, year)
 
         times_played: int  # TODO: increment at character.save()
         last_play_date: tuple  # (month, day, year) like birthday
@@ -214,12 +218,12 @@ class Character(object):
         """
         if self.guild is not None:
             # [civilian | fist | sword | claw | outlaw | none]
-            self.guild = stat['guild']
+            self.guild = kwargs['guild']
         if self.char_class is not None:
             # 1: Wizard|Witch 2: Druid 3: Fighter 4: Paladin 5: Ranger 6: Thief 7: Archer 8: Assassin 9: Knight
-            self.char_class = stat['char_class']
+            self.char_class = kwargs['char_class']
         # 1: Human 2: Ogre 3: Pixie 4: Elf 5: Hobbit 6: Gnome 7: Dwarf 8: Orc 9: Half-Elf
-        self.race = stat['race']
+        self.race = kwargs['race']
 
         self.hit_points = hit_points
         self.shield = shield
@@ -258,7 +262,9 @@ class Character(object):
         TODO: example for doctest:
 
         >>> Rulan.set_stat['str': 10]  # start out with strength 10
+        
         >>> Rulan.set_stat['str': -5]  # decrement Rulan's strength by 5
+
         >>> Rulan.get_stat('str')  # should return 5
         5
         """
@@ -338,10 +344,10 @@ class Character(object):
         for doctest eventually
         FIXME: can't figure out how to test routines which have other function call prerequisites
         >>> Rulan = Character(name="Rulan", \
-                              # connection_id=1, \
-                              # client={'name': 'Commodore 64'}, \
-                              # flag={'dungeon_master': True, 'debug': True, 'expert_mode': False}, \
-                              stats={'chr': 8, 'con': 15, 'dex': 3, 'int': 5, 'str': 8, 'wis': 3, 'egy': 3}
+                              connection_id=1, \
+                              client={'name': 'Commodore 64'}, \
+                              flag={'dungeon_master': True, 'debug': True, 'expert_mode': False}, \
+                              stats={'chr': 8, 'con': 15, 'dex': 3, 'int': 5, 'str': 8, 'wis': 3, 'egy': 3}, \
                               )
 
         >>> Rulan.print_all_stats()
@@ -375,15 +381,16 @@ class Character(object):
         :param self:
         :param kind: 'in_hand', 'in_bank' or 'in_bar'
         :param adj: amount to add (<adj>) or subtract (-<adj>)
-        :return: None
+        :return: True if succeeded, False if failed
         """
         before = self.silver[kind]
         # TODO: check (before?) for negative amount
         after = before + adj
         if after < 0:
             logging.info(f'set_silver: {after=}, negative amount not allowed')
-            return
+            return False
         self.silver[kind] = after
+        return True
 
     def is_magic_user(self, char):
         """
@@ -397,7 +404,7 @@ class Character(object):
 
     def magic_user_class_name(self, char):
         """
-        Shorter than repeating 'if char.class_name == 'witch' or char.class_name == 'wizard'
+        FIXME: justification for this routine's existence?
 
         :param self: self
         :param char: Character object
@@ -406,10 +413,11 @@ class Character(object):
         if char.char_class == "wizard" or char.char_class == "witch":
             return char.char_class.title()
 
-    def transfer_silver(self, from_char, to_char, where: str, adj: int):
+    @staticmethod
+    def transfer_silver(from_char, to_char, where: str, adj: int):
         """
         :param from_char: Character to transfer <adj> silver from
-        :param to_char: Character to transfer <adj> silver from
+        :param to_char: Character to transfer <adj> silver to
         :param where: where silver is ('in_hand' most likely)
         :param adj: amount to transfer
         :return: none
@@ -495,19 +503,24 @@ if __name__ == '__main__':
     # connection_ids = []  # initialize empty list for logging connection_id's
 
     Rulan = Character(name="Rulan", connection_id=1,
-                      client={'name': 'Commodore 128', 'columns': 80}
+                      client={'name': 'Commodore 128', 'columns': 80},
+                      gender="male",
+                      flag={'dungeon_master': True, 'debug': True, 'expert_mode': False}
                       )
-    Rulan.name = "Rulan"
-    Rulan.connection_id = 1
-    Rulan.client = {'name': 'Commodore 128', 'columns': 80}
-    Rulan.flag = {'dungeon_master': True, 'debug': True, 'expert_mode': False}
 
-    print(Rulan)
+    print(f"Test of __str__ method: {Rulan}")
     Rulan.set_stat('int', 5)
-    print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this passes
-
+    print(f"{Rulan.print_stat('int')}")
+    """
+    >>> print(f"{Rulan.print_stat('int')}")
+    Int: 9
+    """
     Rulan.set_stat('int', 4)  # add to Rulan's Intelligence of 5, total 9
     print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this passes
+    """
+    >>> print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this passes
+    Int: 9
+    """
     # when print_stat returned None, had to do this:
     # print(f'Rulan ...... ', end='')
     # Rulan.print_stat('int')  # should print 'Rulan ...... Int: 9'
@@ -516,27 +529,55 @@ if __name__ == '__main__':
     Rulan.set_silver(kind='in_bank', adj=200)
     Rulan.set_silver(kind='in_bar', adj=300)
 
-    print(f"Silver in bank: {Rulan.get_silver('in_bank')}")  # should print 200, this passes
-
+    print(f"Silver in bank: {Rulan.get_silver('in_bank')}")
+    """
+    >>> print(f"Silver in bank: {Rulan.get_silver('in_bank')}")
+    Silver in bank: 200
+    """
     Rulan.print_all_stats()
 
     Shaia = Character(name="Shaia",
-                      connection_id=2)
-    Shaia.client = {'name': 'TADA', 'columns': 80, 'rows': 25}
-    Shaia.flag = {'expert_mode': True, 'debug': True}
+                      connection_id=2,
+                      client={'name': 'TADA', 'columns': 80, 'rows': 25},
+                      flag={'expert_mode': True, 'debug': True})
 
     Shaia.set_stat(stat='int', adj=18)
-    print(f"Shaia ...... {Shaia.print_stat('int')}")  # should print 'Shaia ...... Int: 18': passes
-
+    print(f"Shaia ...... {Shaia.print_stat('int')}")
+    """
+    >>> print(f"Shaia ...... {Shaia.print_stat('int')}")
+    Shaia ...... Int: 18
+    """
     # when print_stat returned None, did this:
     # print(f'Shaia ...... ', end='')
     # Shaia.print_stat('int')  # should print 'Shaia ...... Int: 18'
 
     Shaia.set_silver(kind='in_hand', adj=10)
+    """
+    >>> Shaia.set_silver(kind='in_hand', adj=10
+    10
+    """
+
     Shaia.set_silver(kind='in_bank', adj=200)
+    """
+    >>> Shaia.set_silver(kind='in_hand', adj=200
+    200
+    """
+
     Shaia.set_silver(kind='in_bar', adj=300)
+    """
+    >>> Shaia.set_silver(kind='in_bar', adj=300
+    300
+    """
 
-    Shaia.print_all_stats()
+    Shaia.print_all_stats()  # FIXME: not finished
 
-    transfer_silver(Shaia, Rulan, kind='in_hand', adj=500)  # should rightfully fail
-    transfer_silver(Shaia, Rulan, kind='in_hand', adj=100)  # this passes
+    Character.transfer_silver(from_char=Shaia, to_char=Rulan, where='in_hand', adj=500)  # should rightfully fail
+    """
+    >>> Character.transfer_silver(Shaia, Rulan, where="in_hand", adj=500)
+    False
+    """
+    Character.transfer_silver(from_char=Shaia, to_char=Rulan, where='in_hand', adj=100)  # this passes
+    """
+    >>> Character.transfer_silver(Shaia, Rulan, where="in_hand", adj=100)
+    500
+    """
