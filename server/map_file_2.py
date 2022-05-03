@@ -12,7 +12,7 @@ import json
 import textwrap
 from dataclasses import dataclass, field
 import logging
-# from players import Player
+# from characters import Character
 
 
 @dataclass

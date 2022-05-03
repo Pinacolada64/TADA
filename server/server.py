@@ -12,7 +12,7 @@ import net_common
 import common
 import util
 
-# from players import Player
+# from players import Character
 
 K = common.K
 Mode = net_server.Mode
@@ -75,6 +75,7 @@ money_start = 1000
 
 compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up', 'd': 'Down'}
 
+
 @dataclass
 class Room(object):
     number: int
@@ -94,6 +95,7 @@ class Room(object):
     def exitsTxt(self, debug: bool):
         """
         Display exits in a comma-delimited list.
+
         :param debug: display room #s if True
         :return: joined list of exits
         """
@@ -272,7 +274,7 @@ class Rations(object):
         self.price = price
         # this field is optional:
         if flags is not None:
-            self.flags = flags
+            self.flags = dict(flags)
 
     @staticmethod
     def read_rations(filename: str):
@@ -304,9 +306,8 @@ def playersInRoom(room_id: int, exclude_id: str):
 players = {}
 
 
-# @dataclass
+@dataclass
 class Player:
-    """
     id: str  # login id
     name: str  # player's handle
     map_level: int = 1
@@ -315,33 +316,36 @@ class Player:
     health: int = 100
     xp: int = 0
 
+    """
     this is to create default values for missing player.flag['foo'],
     instead of hand-editing 'player-<foo>.json' or getting KeyErrors
     if dict key player.flag['foo'] is undefined in said file
     https://docs.python.org/3.8/library/dataclasses.html?highlight=dataclass#dataclasses.field
-    
+
     this is useful also, but cannot be used in the dataclass context:
     https://docs.python.org/3/library/collections.html?highlight=default%20factory#collections.defaultdict
+    """
 
     # flag: dict = field(default_factory=dict)
     flag: dict = field(default_factory=lambda: {})
     # for saving previous command to repeat with Return/Enter
-    # (it may be expanded to a list in the future):
+    # (it may be expanded to a list to implement history in the future):
     last_command: str = None
-    """
 
-    def __init__(self, id, name, map_level, room, money, health, xp,
-                 flag, last_command):
+    def __init__(self, id, connection_id, name, map_level, room, money, health, xp,
+                 flag, last_command, times_played):
         logging.info(f"Instantiating player '{name}'.")
-        self.id: str = id  # login id
-        self.name: str = name  # player's handle
-        self.map_level: int = map_level  # to differentiate between eXPerience level
-        self.room: int = room  # default: room_start = 1
-        self.money: int = money  # default: money_start = 1000
-        self.health: int = health  # default 100
-        self.xp: int = xp
-        self.flag = dict(flag)
-        self.last_command: str = last_command
+        self.id = id  # login id
+        self.connection_id = connection_id  # CommodoreServer connection ID
+        self.name = name  # player's handle
+        self.map_level = map_level  # to differentiate between eXPerience level
+        self.room = room  # default: room_start = 1
+        self.money = money  # default: money_start = 1000
+        self.health = health  # default 100
+        self.xp = xp
+        self.flag = flag
+        self.last_command = last_command
+        self.times_played = times_played
 
     def connect(self):
         with server_lock:
@@ -358,27 +362,25 @@ class Player:
         """
         current_room = self.room
         with server_lock:
-            logging.debug(f"Before remove: {room_players=}")
+            # logging.debug(f"Before remove: {room_players=}")
             room_players[current_room].remove(self.id)
-            logging.debug(f"After remove: {room_players=}")
+            # logging.debug(f"After remove: {room_players=}")
 
-            self.room = next_room
-            logging.debug(f"Before add: {room_players=}")
-            room_players[self.room].add(self.id)
-            logging.debug(f"After add: {room_players=}")
-            logging.info(f'Moved {self.name} from {current_room} to {self.room}')
-            # teleport command doesn't require direction, just room #
-            if direction is None:
-                return Message(lines=[f'[{self.name} disappears in a flash of light.'])
-            else:
-                return Message(lines=[f"{self.name} moves {compass_txts[direction]}."])
+        self.room = next_room
+        # logging.debug(f"Before add: {room_players=}")
+        room_players[self.room].add(self.id)
+        # logging.debug(f"After add: {room_players=}")
+        logging.info(f'Moved {self.name} from {current_room} to {self.room}')
+        # teleport command doesn't require direction, just room #
+        if direction is None:
+            return Message(lines=[f'[{self.name} disappears in a flash of light.'])
+        else:
+            return Message(lines=[f"{self.name} moves {compass_txts[direction]}."])
 
     def disconnect(self):
         with server_lock:
             room_players[self.room].remove(self.id)
             return Message(lines=[f'{players[self.id].name} falls asleep.'])
-        # FIXME: is this orphaned code?
-        #  print(f"You are in {self.room}.\n{playersInRoom(self.room)} is here.")
 
     @staticmethod
     def _json_path(user_id):
@@ -395,6 +397,7 @@ class Player:
             return None
 
     def save(self):
+        self.times_played += 1
         with open(Player._json_path(self.id), 'w') as jsonF:
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
                                                       # in o.__dict__.items() if v}, indent=4)
@@ -479,7 +482,7 @@ class PlayerHandler(net_server.UserHandler):
             # TODO: obj_list.append(weapon_name)
             lines2.append(f'You see weapon #{weapon} {weapon_name}')
 
-        # TODO: add grammatical list item (SOME MELONS, AN ORANGE)
+        # TODO: add grammatical list item (SOME MELONS, AN ORANGE) from tada_utilities
 
         debug = self.player.flag['debug']
         exits_txt = room.exitsTxt(debug)
@@ -496,6 +499,7 @@ class PlayerHandler(net_server.UserHandler):
 
         # setting 'exclude_id' excludes that player (i.e., yourself) from being listed
         other_player_ids = playersInRoom(room.number, exclude_id=self.player.id)
+        logging.info(f'{other_player_ids=}')
         # TODO: "Alice is here." / "Alice and Bob are here." / "Alice, Bob and Mr. X are here."
         """
         if len(other_player_ids) == 0:
@@ -515,11 +519,12 @@ class PlayerHandler(net_server.UserHandler):
 
         if len(other_player_ids) > 0:
             other_players = ', '.join([players[id].name for id in other_player_ids])
+            # FIXME: 'Alice are here' (counts you too)
             temp = 'is' if len(other_players) == 1 else 'are'
             lines2.append(f"{other_players} {temp} here.")
         return Message(lines=lines2, changes=changes)
 
-    def processLoginSuccess(self, user_id):
+    def processLoginSuccess(self, user_id, connection_id=None):
         player = Player.load(user_id)
         if player is None:
             # TODO: create player
@@ -531,11 +536,13 @@ class PlayerHandler(net_server.UserHandler):
                 if name != '':  # TODO: limitations on valid names
                     valid_name = True
             """
-            import create_player as create_player
-            create_player.setup()
+            logging.info("Running player_setup() from create_player")
+            import create_character as c
+            print(c.__file__)
+            x = c.character_setup()
 
             player = Player(id=user_id,
-                            # TODO: CommodoreServer Internet Protocol connection_id?
+                            connection_id=connection_id,  # TODO: CommodoreServer Internet Protocol connection_id?
                             name=name,
                             map_level=1,
                             room=room_start,
@@ -545,7 +552,8 @@ class PlayerHandler(net_server.UserHandler):
                             flag={'debug': True,
                                   'expert_mode': False,
                                   'room_descs': True},
-                            last_command=None)
+                            last_command=None,
+                            times_played=1)
             player.save()
         self.player = players[user_id] = player
         logging.info(f"login {user_id} '{self.player.name}' (addr={self.sender})")

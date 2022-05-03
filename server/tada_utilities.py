@@ -1,7 +1,7 @@
 import logging
 import textwrap
 
-from players import Player
+from characters import Character
 
 import net_server  # for promptRequest and Message
 from net_server import Message
@@ -50,9 +50,9 @@ def header(text: str):
     return Message(lines=[line])
 
 
-def output(string: str, conn: Player):
+def output(string: str, conn: Character.connection_id):
     """
-    Print 'string' word-wrapped to client's column width to Player
+    Print <string> word-wrapped to client's column width to Character
 
     :param string: string to output
     :param conn: connection to output text to
@@ -61,9 +61,10 @@ def output(string: str, conn: Player):
     """
     TODO: implement cbmcodec2 ASCII -> PETSCII translation
 
-    TODO: implement different success messages for player originating action vs. other players in room
-    for cxn in all_players_in_room:
-        if p.(something, idk what at this point) == player.who_performed_action:
+    TODO: implement different success messages for character originating action vs. other characters in room
+    use player.
+    for cxn in all_characters_in_room:
+        if char.(something, idk what at this point) == character.who_performed_action:
             output(f"You throw the snowball at {target}.", player)
         else:
             output(f"{actor} throws the snowball at {target}.", player)
@@ -73,7 +74,7 @@ def output(string: str, conn: Player):
     return Message(lines=[textwrap.fill(text=string, width=conn.client['columns'])])
 
 
-def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, default=None):
+def input_number_range(prompt: str, lo: int, hi: int, p=Character, reminder=None, default=None):
     """input 'prompt', accept numbers lo < value < hi
     e.g.
     "'prompt' ['lo'-'hi']: "
@@ -82,7 +83,7 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, d
     :param default: if not None, and expert mode is False, {return_key} keeps 'default'
     :param lo: lowest number accepted
     :param hi: highest number accepted
-    :param p: Player to output text to
+    :param p: Character to output text to
     :param reminder: string to display if lo < temp < hi
     """
     if default is not None and p.flag['expert_mode'] is False:
@@ -104,7 +105,7 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, d
                 output(reminder, p)
 
 
-def input_string(prompt: str, default: str, p: Player, reminder="Please enter something."):
+def input_string(prompt: str, default: str, char: Character, reminder="Please enter something."):
     """input 'prompt', accept numbers lo < value < hi
     e.g.:
     [Return] keeps 'Druid.'  # if expert mode off
@@ -114,20 +115,20 @@ def input_string(prompt: str, default: str, p: Player, reminder="Please enter so
     :param default: True: print/accept {return_key} keeps 'keep_string',
      return 'string' if null string entered
     :param default: [if expert mode off] print "Return keeps 'keep_string'"
-    :param p: Player to output text to
+    :param char: Character to output text to
     :param reminder: what to display if edit_mode is False and null string entered
     """
-    if default and p.flags['expert_mode'] is False:
-        output(f"{return_key} keeps '{default}.'", p)
+    if default and char.flags['expert_mode'] is False:
+        output(f"{return_key} keeps '{default}.'", char)
     while True:
         temp = input(f"{prompt}: ")
         # just hitting Return keeps original string
         if default and (temp == '' or temp == default):
-            if p.flags['expert_mode']:
-                output(f"(Keeping '{default}'.)", p)
+            if char.flags['expert_mode']:
+                output(f"(Keeping '{default}'.)", char)
             return default
         else:
-            output(reminder, p)
+            output(reminder, char)
 
 
 def input_yes_no(prompt: str):
@@ -136,7 +137,7 @@ def input_yes_no(prompt: str):
     "'prompt' [y/n]: "
 
     :param prompt: prompt user with this string
-    :param p: Player to output text to
+    :param char: Character to output text to
     :return False: 'no' entered. True: 'yes' entered
     """
     while True:
@@ -183,11 +184,11 @@ def fileread(self, filename: str):
                     # '.+?' is a non-greedy match (finds multiple matches, not just '[World...a]')
                     # >>> re.sub(r'\[(.+?)\]', r'!\1!', string="Hello [World] this [is a] test.")
                     # 'Hello !World! this !is a! test.'
-                    l = re.sub(r'\[(.+?)\]', f'{Fore.RED}' + r'\1' + f'{Fore.RESET}', string=line)
-                    print(l)
-                    # if p.flags['more_prompt']:
+                    new_line = re.sub(r'\[(.+?)\]', f'{Fore.RED}' + r'\1' + f'{Fore.RESET}', string=line)
+                    print(new_line)
+                    # if char.flags['more_prompt']:
                     self.line_count += 1
-                    # if line_count == p.client['rows']:
+                    # if line_count == char.client['rows']:
                     if self.line_count == 20:
                         self.line_count = 0
                         """
@@ -223,11 +224,11 @@ def game_help(self, params: list):
 
 
 if __name__ == '__main__':
-    from players import Player
-    player = Player()
-    player.name = 'Darmok'
-    player.flags = {'expert_mode': False}
-    player.client = {'columns': 80, 'translation': 'PETSCII'}
+    from characters import Character
+    character = Character()
+    character.name = 'Darmok'
+    character.flags = {'expert_mode': False}
+    character.client = {'columns': 80, 'translation': 'PETSCII'}
 
     return_key = '[Enter]'
 
