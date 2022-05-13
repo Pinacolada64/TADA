@@ -398,7 +398,7 @@ class Character(object):
 
     def is_magic_user(self, char):
         """
-        Shorter than repeating 'if char.class_name == 'witch' or char.class_name == 'wizard'
+        Shorter than repeating "if char.class_name == 'witch' or char.class_name == 'wizard'"
 
         :param self: self object
         :param char: Character object
@@ -412,9 +412,9 @@ class Character(object):
 
         :param self: self
         :param char: Character object
-        :return: Title case character class name
+        :return: Title-case character class name ("Witch" or "Wizard")
         """
-        if char.char_class == "wizard" or char.char_class == "witch":
+        if char.is_magic_user(self):
             return char.char_class.title()
 
     @staticmethod
@@ -462,7 +462,7 @@ class Character(object):
         >>> TestBirthday = Character(age=0, birthday=((6, 16, 1976))
         6/16
         """
-        # TODO: locale stuff where dates are in year-month-day format?
+        # TODO: locale stuff where dates are in either month-day-year / year-month-day format?
         month = character.birthday[0]
         day = character.birthday[1]
         if character.age is None or character.age == 0:
@@ -564,21 +564,21 @@ if __name__ == '__main__':
     # test of Character.set_silver:
     # Rulan.set_silver(kind='in_hand', adj=100)
     """
-    >>> Test = Character(silver={'in_bank': 200})
+    >>> silver_test = Character(silver={'in_bank': 200})
 
-    >>> print(f"Silver in bank: {Test.get_silver('in_bank')}")
+    >>> print(f"Silver in bank: {silver_test.get_silver('in_bank')}")
     Silver in bank: 200
     """
 
     # test of Character.print_all_stats()
     """
-    >>> Test = Character(name="Test", \
-                         flag={'dungeon_master': True, 'debug': True, 'expert_mode': False}, \
-                         stats={'chr': 8, 'con': 15, 'dex': 3, 'int': 5, 'str': 8, 'wis': 3, 'egy': 3}, \
-                         age=45 \
-                         )
+    >>> stats_test = Character(name="Test", \
+                               flag={'dungeon_master': True, 'debug': True, 'expert_mode': False}, \
+                               stats={'chr': 8, 'con': 15, 'dex': 3, 'int': 5, 'str': 8, 'wis': 3, 'egy': 3}, \
+                               age=45 \
+                               )
 
-    >>> Test.print_all_stats()
+    >>> stats_test.print_all_stats()
     Chr:  8   Int:  5   Egy:  3   
     Con: 15   Str:  8   
     Dex:  3   Wis:  3   
