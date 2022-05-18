@@ -277,26 +277,47 @@ class Character(object):
         :param stat: statistic in stats{} dict to adjust
         :param adj: adjustment (+x or -x)
         :return: stat, maybe also 'success': True if 0 > stat > limit
+
+        >>> set_stat_test = Character(name="Test", \
+                                      connection_id=1, \
+                                      client={'name': 'Commodore 64'}, \
+                                      flag={'dungeon_master': True, 'debug': True, 'expert_mode': False}, \
+                                      stat={'int': 5} \
+                                      )
+
+        >>> set_stat_test.set_stat(stat='int', adj=15)
+
+        >>> set_stat_test.print_stat('int')
+        Int: 15
+
+        >>> set_stat_test.set_stat({'wis': 9})
+
+        >>> print(f"{set_stat_test.print_stat('wis')}")
+        Wis: 9
+
+        # test of Character.set_stat()
+        >>> Shaia = Character(name="Shaia", \
+                              connection_id=2, \
+                              client={'name': 'TADA', 'columns': 80, 'rows': 25}, \
+                              gender="female", \
+                              stats={'int': 8}, \
+                              flag={'expert_mode': True, 'debug': True})
+
+        >>> Shaia.set_stat(stat='int', adj=18)
+
+        >>> print(f"Shaia ...... {Shaia.print_stat('int')}")
+        Shaia ...... Int: 18
         """
 
         # TODO: example for doctest:
-        # to instantiate Test character, must have stat{} key present
+        #  to instantiate Test character, must have stat{} key present
 
-        """
-        >>> Test = Character(stats={'str': 0})
-        
-        >>> Test.set_stat['str': 10]  # start out with strength 10
-        
-        >>> Test.set_stat['str': -5]  # decrement Test's strength by 5
-
-        >>> Test.get_stat('str')  # should return 5
-        5
-        """
         if stat not in self.stats:
             logging.warning(f"Stat '{stat}' doesn't exist.")
             # raise ValueError?
             return
-        # self.stats = {'con': 0, 'dex': 0, 'ego': 0, 'int': 0, 'str': 0, 'wis': 0}
+
+        # example self.stats = {'con': 0, 'dex': 0, 'ego': 0, 'int': 0, 'str': 0, 'wis': 0}
         # adjust stat by <adjustment>:
         before = self.stats[stat]
         after = before + adj
@@ -352,15 +373,27 @@ class Character(object):
         # return e.g., "Int: 4"
         return f'{stat.title()}: {self.stats[stat]}'
 
-    def print_all_stats(self):
+    def print_all_stats(self, character: object):
         """
         print all player stats in title case: '<Stat>: <value>'
-        """
+
+        # test of Character.print_all_stats()
+        >>> test = Character(name="Test", \
+                             stats={'chr': 8, 'con': 15, 'dex': 3, 'int': 5, 'str': 8, 'wis': 3, 'egy': 3})
+
+        >>> print_all_stats(test)
+
+        Chr:  8   Int:  5   Egy:  3
+        Con: 15   Str:  8
+        Dex:  3   Wis:  3
+
         # for doctest eventually
         # FIXME: can't figure out how to test routines which have other function call prerequisites
-        # note that print_all_stats returns three trailing spaces after integer
+        #  note that print_all_stats returns three trailing spaces after integer
+        """
         for stat in ['chr', 'int', 'egy']:
-            print(f'{stat.title()}: {self.stats[stat]:2}   ', end='')
+            print(f'Method 1: {character.print_stat(self, stat)}', end='')
+            print(f'Method 2: {stat.title()}: {self.stats[stat]:2}   ', end='')
         print()
         for stat in ['con', 'str']:
             print(f'{stat.title()}: {self.stats[stat]:2}   ', end='')
@@ -372,7 +405,7 @@ class Character(object):
     def get_silver(self, kind):
         """
         get and return amount of silver player has
-        'kind': 'in_hand', 'in_bank', or 'in_bar'
+        :param kind: 'in_hand', 'in_bank', or 'in_bar'
         """
         if kind not in self.silver:
             logging.info(f"get_silver: Bad type '{kind}'.")
@@ -386,7 +419,20 @@ class Character(object):
         :param kind: 'in_hand', 'in_bank' or 'in_bar'
         :param adj: amount to add (<adj>) or subtract (-<adj>)
         :return: True if succeeded, False if failed
+
+        # test of Character.set_silver:
+        >>> test_silver = Character(name="silver", silver={'in_bank': 200})
+
+        >>> print(f"Silver in bank: {test_silver.get_silver('in_bank')}")
+        Silver in bank: 200
+
+        >>> test_silver.set_silver(kind='in_hand', adj= 100)
+
+        # set to 110
+        >>> test_silver.set_silver(kind='in_hand', adj=10)
+
         """
+
         before = self.silver[kind]
         # TODO: check (before?) for negative amount
         after = before + adj
@@ -425,6 +471,17 @@ class Character(object):
         :param where: where silver is ('in_hand' most likely)
         :param adj: amount to transfer
         :return: True if from_char has adj silver, False if not
+
+        # test of Character.transfer_silver:
+        >>> Shaia = Character.set_silver(kind='in_hand', adj=200)
+
+        >>> Rulan = Character.set_silver(kind='in_hand', adj=200)
+
+        # character doesn't have that much, so will fail:
+        >>> Character.transfer_silver(Shaia, Rulan, where="in_hand", adj=500)
+        False
+        >>> Character.transfer_silver(Shaia, Rulan, where="in_hand", adj=100)
+        True
         """
         # as suggested by Shaia:
         # (will be useful for future bank, or future expansion: silver transfer spell?)
@@ -440,37 +497,37 @@ class Character(object):
             print(f"{from_char.name} doesn't have {adj} silver to give.")
             return False
 
-    def get_birthday(self, character):
+    def get_birthday(self, age: int, birthday: tuple):
         """
         get character's birthday
 
-        :param character: character object
-        :return: str: month/day (year if age known)
-        """
-        from datetime import date
-        """
+        :param age: Character age
+        :param birthday: tuple (month, day, year)
+        :return: str: "month/day" ("month/day/year" if age known)
+
         character.birthday[0=month, 1=day, 2=year]  # tuple
         
         1) determine if character.age is known (!= 0) or unknown (== 0):
            a) if age known: format birthday 'month/day/year'
            b) if age unknown: format birthday 'month/day'
-        """
 
-        """
-        >>> TestBirthday = Character(age=45, birthday=(6, 16, 1976))
+        >>> get_birthday(age=45, birthday=(6, 16, 1976))
         6/16/1976
-        >>> TestBirthday = Character(age=0, birthday=((6, 16, 1976))
+        
+        >>> get_birthday(age=0, birthday=(6, 16, 1976))
         6/16
         """
+        from datetime import date
+
         # TODO: locale stuff where dates are in either month-day-year / year-month-day format?
-        month = character.birthday[0]
-        day = character.birthday[1]
-        if character.age is None or character.age == 0:
+        month = birthday[0]
+        day = birthday[1]
+        if age is None or age == 0:
             # year unknown, don't print it
             temp = f"{month}/{day}"
         else:
             # year known, get current year - age
-            year = date.today().year - character.age
+            year = date.today().year - age
             temp = f"{month}/{day}/{year}"
         return temp
 
@@ -533,7 +590,6 @@ class Horse(object):
 
 
 if __name__ == '__main__':
-    # import logging
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
     import doctest
@@ -541,80 +597,3 @@ if __name__ == '__main__':
 
     # connection_ids = []  # initialize empty list for logging connection_id's
 
-    # test of Character.set_stat and print_stat methods:
-    """
-    >>> SetStatTest = Character(name="Test", \
-                                connection_id=1, \
-                                client={'name': 'Commodore 64'}, \
-                                flag={'dungeon_master': True, 'debug': True, 'expert_mode': False} \
-                                stat={'int': 5}
-                                )
-
-    >>> SetStatTest.set_stat('int', 5)
-    
-    >>> SetStatTest.print_stat('int')
-    Int: 5
-    
-    >>> Test = Character(stat={'int': 9})
-    
-    >>> print(f"{Test.print_stat('int')}")
-    Int: 9
-    """
-
-    # test of Character.set_silver:
-    # Rulan.set_silver(kind='in_hand', adj=100)
-    """
-    >>> silver_test = Character(silver={'in_bank': 200})
-
-    >>> print(f"Silver in bank: {silver_test.get_silver('in_bank')}")
-    Silver in bank: 200
-    """
-
-    # test of Character.print_all_stats()
-    """
-    >>> stats_test = Character(name="Test", \
-                               flag={'dungeon_master': True, 'debug': True, 'expert_mode': False}, \
-                               stats={'chr': 8, 'con': 15, 'dex': 3, 'int': 5, 'str': 8, 'wis': 3, 'egy': 3}, \
-                               age=45 \
-                               )
-
-    >>> stats_test.print_all_stats()
-    Chr:  8   Int:  5   Egy:  3   
-    Con: 15   Str:  8   
-    Dex:  3   Wis:  3   
-    """
-
-    # test of Character.set_stat()
-    """
-    >>> Shaia = Character(name="Shaia",
-                          connection_id=2,
-                          client={'name': 'TADA', 'columns': 80, 'rows': 25},
-                          gender="female",
-                          stats={'int': 8},
-                          flag={'expert_mode': True, 'debug': True})
-
-    >>> Shaia.set_stat(stat='int', adj=18)
-
-    >>> print(f"Shaia ...... {Shaia.print_stat('int')}")
-    Shaia ...... Int: 18
-    """
-
-    # test of Character.set_silver:
-    """
-    >>> Test = Character(silver={'in_hand': 100)
-    
-    >>> Test.set_silver(kind='in_hand', adj=10)
-
-    """
-
-    # test of Character.transfer_silver:
-    """
-    >>> Shaia = Character(silver{'in_hand': 200})
-    
-    >>> Rulan = Character(silver{'in_hand': 200})
-        
-    >>> Character.transfer_silver(Shaia, Rulan, where="in_hand", adj=500)
-    False
-    >>> Character.transfer_silver(Shaia, Rulan, where="in_hand", adj=100)
-    True
-    """
