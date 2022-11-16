@@ -1,18 +1,18 @@
 #!/bin/env python3
-
+import logging
 import os
 import json
 import threading
 from dataclasses import dataclass, field
 import textwrap
+
+from typing import List, Tuple
+
 # import collections  # for defaultdict behavior
 
 import net_server
 import net_common
 import common
-import util
-
-# from players import Character
 
 K = common.K
 Mode = net_server.Mode
@@ -122,13 +122,13 @@ class Room(object):
 
 
 class Item(object):
-    def __init__(self, number, name, type, price, **flags):
+    def __init__(self, number, name, kind, price, **flags):
         if flags:
             for key, value in flags.items():
                 logging.info(f'{key=} {value=}')
         self.number = number
         self.name = name
-        self.type = type
+        self.kind = kind
         self.price = price
         # this field may or may not be present:
         if flags is not None:
@@ -138,17 +138,17 @@ class Item(object):
     def read_items(filename: str):
         with open(filename) as jsonF:
             temp = json.load(jsonF)
-            items = temp["items"]  # remove the dict "items"
+            game_items = temp["items"]  # remove the dict "items"
         logging.info("*** Read item JSON data")
 
         """
         count = 0
         # 'item' becomes a copy of each dict element on each iteration of the loop:
-        for item in items:
+        for item in game_items:
             print(f'{count:3} {item["name"]}')  # this works
             count += 1
         _ = input("Pause: ")
-        print(f'{items[61]["name"]}')  # Adventurer's Guide
+        print(f'{game_items[61]["name"]}')  # Adventurer's Guide
 
         count = 0
         for item in item_list:
@@ -168,7 +168,7 @@ class Item(object):
             logging.info(f'After Item instantiated: {temp=}')
             item_list.append(temp)
         """
-        return items
+        return game_items
 
 
 class Map(object):
@@ -274,7 +274,7 @@ class Rations(object):
         self.price = price
         # this field is optional:
         if flags is not None:
-            self.flags = dict(flags)
+            self.flags = list(flags)
 
     @staticmethod
     def read_rations(filename: str):
@@ -291,8 +291,8 @@ def playersInRoom(room_id: int, exclude_id: str):
     """
     Return a dict of player login id's in the room
 
-    :param room_id: room number
-    :param exclude_id: player to exclude (often the player executing the command) to not be listed
+    :param: room_id: room number
+    :param: exclude_id: player to exclude (often the player executing the command) to not be listed
     :return: dict of players
     """
     with server_lock:
@@ -308,53 +308,202 @@ players = {}
 
 @dataclass
 class Player:
-    id: str  # login id
-    name: str  # player's handle
-    map_level: int = 1
-    room: int = 1
-    money: int = 1000
-    health: int = 100
-    xp: int = 0
+    def __init__(self, **kwarg):
+        """
+        Attributes, flags and other stuff about characters.
+        """
+        self.name = kwarg['name']  # str  # in-game name
+        self.id = kwarg['id'] = int  # handle, for Player.connect
+        # TODO: eventually, CommodoreServer Internet Protocol connection ID
+        self.connection_id = kwarg['connection_id']  # int
+        self.gender = kwarg['gender']  # [ male | female ]
+        # creates a new kwargs dict for each Character:
+        # set with Character.set_stat('xyz', val)
+        # dict['chr': int, 'con': int, 'dex': int, 'int': int, 'str': int, 'wis': int, 'egy': int]
+        self.stat = kwarg['stat']
+        # status flags:
+        self.flag = kwarg['flag']
+        """
+        #: dict[  # status flags:
+        'room_descriptions': bool,
+        'autoduel': bool,
+        'hourglass': bool,
+        'expert_mode': bool,
+        'more_prompt': bool,
+        'architect': bool,
+        # TODO: define orator_mode more succinctly
+        # orator_mode: bool
 
-    """
-    this is to create default values for missing player.flag['foo'],
-    instead of hand-editing 'player-<foo>.json' or getting KeyErrors
-    if dict key player.flag['foo'] is undefined in said file
-    https://docs.python.org/3.8/library/dataclasses.html?highlight=dataclass#dataclasses.field
+        # health flags:
+        'hungry': bool,
+        'thirsty': bool,
+        'diseased': bool,
+        'poisoned': bool,
+        'tired': bool,
+        'on_horse': bool,
+        'unconscious': bool,
 
-    this is useful also, but cannot be used in the dataclass context:
-    https://docs.python.org/3/library/collections.html?highlight=default%20factory#collections.defaultdict
-    """
+        # other flags:
+        'debug': bool,
+        'dungeon_master': bool,
+        'compass_used': bool,
+        'thug_attack': bool,
 
-    # flag: dict = field(default_factory=dict)
-    flag: dict = field(default_factory=lambda: {})
-    # for saving previous command to repeat with Return/Enter
-    # (it may be expanded to a list to implement history in the future):
-    last_command: str = None
+        # game objectives:
+        'spur_alive': bool,
+        'dwarf_alive': bool,
+        'wraith_king_alive': bool,
+        'wraith_master': bool,
+        'tut_treasure': dict['examined': bool, 'taken': bool],
 
-    def __init__(self, id, connection_id, name, map_level, room, money, health, xp,
-                 flag, last_command, times_played):
-        logging.info(f"Instantiating player '{name}'.")
-        self.id = id  # login id
-        self.connection_id = connection_id  # CommodoreServer connection ID
-        self.name = name  # player's handle
-        self.map_level = map_level  # to differentiate between eXPerience level
-        self.room = room  # default: room_start = 1
-        self.money = money  # default: money_start = 1000
-        self.health = health  # default 100
-        self.xp = xp
-        self.flag = flag
-        self.last_command = last_command
-        self.times_played = times_played
+        # magic items:
+        'gauntlets_worn': bool,
+        'ring_worn': bool,
+        'amulet_of_life': bool,
+
+        # wizard_glow stuff:
+        # 0 if inactive
+        # != 0 is number of rounds left, decrement every turn
+        'wizard_glow': int]
+        # things you can only do once per day (file_formats.txt)
+        'pr'    has PRAYed once
+        'pr2'   can PRAY twice per day (only if char_class is Druid)
+        TODO: finish this
+        """
+        self.once_per_day = kwarg['once_per_day']  # list
+
+        # TODO: money types may be expanded to platinum, electrum in future
+        # creates a new silver dict for each Character:
+        # in_bank: may be cleared on character death (TODO: look in TLOS source)
+        # in_bar: should be preserved after character's death (TODO: same)
+        # use Character.set_silver("kind", value)
+        self.silver = kwarg['silver']  # dict['in_hand': int, 'in_bank': int, 'in_bar': int]
+
+        self.age = kwarg['age']  # int
+        # Tuple[('0', '0', '0')]  # (month, day, year):
+        self.birthday = kwarg['birthday']
+        # [civilian | fist | sword | claw | outlaw]:
+        self.guild = kwarg['guild']  # str
+
+        #                   1       2        3       4      5       6       7         8       9
+        self.char_class: str  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
+        self.race: str  # ......Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
+        self.natural_alignment: str  # good | neutral | evil (depends on race)
+
+        # client info:
+        self.client = kwarg['client']  # dict[]
+        """# host (i.e., Python, C64, C128...?)
+        'name': str,
+        # screen dimensions:
+        'rows': int,
+        'cols': int,
+        # {'translation': None | ASCII | ANSI | Commodore }
+        'translation': str,
+        # colors for [bracket reader] text highlighting on C64/128:
+        'text': int,
+        'highlight': int,
+        'background': int,
+        'border': int]
+        """
+        self.hit_points = kwarg['hit_points']  # int
+        self.experience = kwarg['experience']  # int
+
+        # map stats:
+        self.map_level = kwarg['map_level']  # int  # cl = current level
+        self.room = kwarg['room']  # int  # cr = current room
+        self.moves_made = kwarg['moves_made']  # int
+        # tracks how many moves made today for experience at quit:
+        self.moves_today = kwarg['moves_today']  # int
+
+        # combat stats:
+        self.armor = kwarg['armor']  # list
+        # e.g., should it be its own class with attributes?
+        # Armor(object):
+        #     def __init__(name, percent_left, armor_class, ...)
+        # TODO: weight (iron armor vs. padded leather armor will be different),
+        #  could also define effectiveness, heavier armor absorbs more damage
+
+        self.shield = kwarg['shield']  # dict
+        self.shield_used = kwarg['shield_used']  # int  # shield item being USEd
+        self.shield_skill = kwarg['shield_skill']  # dict['item': int, 'skill': int]
+        # same:
+        # Shield(object):
+        #     def __init__(name, percent_left, shield_size, ...)
+        # TODO: weight (iron shield vs. wooden shield will be different),
+        #  could also define effectiveness, heavier shields absorb more damage
+
+        self.weapon = kwarg['weapon']  # dict
+        self.weapon_used = kwarg['weapon_used']  # int  # if not None, this weapon READYed
+        self.weapon_skill = kwarg['weapon_skill']  # dict  # {weapon_item: int, weapon_skill: int}
+        self.weapon_left = kwarg['weapon_left']  # int  # TODO: map this to a rating
+
+        # bad_hombre_rating is calculated from stats, not stored in player log
+        self.honor_rating = kwarg['honor_rating']  # int  # helps determine current_alignment
+        self.formal_training = kwarg['formal_training']  # int
+        self.monsters_killed = kwarg['monsters_killed']  # int
+        """
+        monsters_killed is not always the same as dead_monsters[];
+        still increment it if you re-kill a re-animated monster
+        """
+        self.dead_monsters = kwarg['dead_monsters']  # list  # keeps track of monsters for Zelda in the bar to resurrect
+        self.monster_at_quit = kwarg['monster_at_quit']  # str
+
+        # ally stuff:
+        self.allies = kwarg['allies']  # list  # (list of tuples?)
+        self.ally_inv = kwarg['ally_inv']  # list
+        self.ally_abilities = kwarg['ally_abilities']  # list
+
+        # horse stuff:
+        self.has_horse = kwarg['has_horse']  # bool
+        self.horse_name = kwarg['horse_name']  # str
+        self.horse_armor = kwarg['horse_armor']  # dict  # {'name': name, 'armor_class': ac?}
+        self.has_saddlebags = kwarg['has_saddlebags']  # bool
+        self.saddlebags = kwarg['saddlebags']  # list  # these can carry items for GIVE and TAKE commands
+
+        self.vinny_loan = kwarg['vinny_loan']  # dict  # {'amount_payable': int, 'days_til_due': int}
+
+        # inventory
+        """
+        # TODO: There should be methods here for Inventory:
+            Inventory.item_held(item): check player/ally inventory, return True or False
+                (is it important to know whether the player or ally is carrying an item?)
+                maybe return Character or Ally object if they hold it, or None if no-one holds it
+                Or could be written:
+    
+                if 'armor' in Character.inventory and 'armor' in Character.used:
+                # meaning 'armor' is in 'inventory' and 'used' lists?
+                # could this be shortened? perhaps:
+                # if Character.ItemHeldUsed('armor')
+        """
+        self.max_inv = kwarg['max_inv']  # int
+        # also see weapons[], armor[], shields[]
+        self.food = kwarg['food']  # list
+        self.drink = kwarg['drink']  # list
+        self.spells = kwarg['spells']  # list  # list of dicts('spell_name': str, 'charges', 'chance_to_cast': int)
+        self.booby_traps = kwarg['booby_traps']  # dict['room': int, 'combination': str]  # combo: '[a-i]'
+
+        self.times_played = kwarg['times_played']  # int  # TODO: increment at Character.save()
+        self.last_play_date = kwarg['last_play_date']  # Tuple[(0, 0, 0)]  # (month, day, year) like birthday
+
+        self.special_items = kwarg['special_items']  # dict
+        # SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
+        # TODO: avoid placing objects in map "holes" where no room exists
+        # DINGHY  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
+        self.combinations = kwarg['combinations']
+        # dict['elevator': (0, 0, 0), 'locker': (0, 0, 0),
+        #      'castle': (0, 0, 0)]
+        # tuple: combo is 3 digits: (nn, nn, nn)
 
     def connect(self):
         with server_lock:
             room_players[self.room].add(self.id)
             # TODO: notify other players of connection
 
-    def move(self, next_room: int, direction=None):
+    def move(self, next_room: int, direction: str = None):
         """
         remove player login id from list of players in current_room, add them to room next_room
+
+        :param self: self
         :param next_room: room to move to
         :param direction: direction being moved in, for notifying other players of movement
         if None, '#<room_number>' teleportation command (or, later, spell) was used and the
@@ -394,6 +543,7 @@ class Player:
                 lh_data = json.load(jsonF)
             return Player(**lh_data)
         else:
+            # player does not exist:
             return None
 
     def save(self):
@@ -416,8 +566,8 @@ class PlayerHandler(net_server.UserHandler):
         """
         Display the room description and contents to the player in the room
 
-        :param lines: text to output. each line is an element of a list.
-        :param changes: ...?
+        :param: lines: text to output. each line is an element of a list.
+        :param: changes: ...?
         :return: Message object
         """
         # get room # that player is in
@@ -526,8 +676,9 @@ class PlayerHandler(net_server.UserHandler):
 
     def processLoginSuccess(self, user_id, connection_id=None):
         player = Player.load(user_id)
+        logging.info(f'{player.name} loaded.')
         if player is None:
-            # TODO: create player
+            # create player
             """
             valid_name = False
             while not valid_name:
@@ -537,28 +688,16 @@ class PlayerHandler(net_server.UserHandler):
                     valid_name = True
             """
             logging.info("Running player_setup() from create_player")
-            import create_character as c
-            print(c.__file__)
-            x = c.character_setup()
+            import create_character as cc
+            logging.info(f'> running {cc.__file__}')
+            cc.character_setup()
+            Player.save(user_id)
+        # keeps track of who is connected?
+        players[user_id] = player
 
-            player = Player(id=user_id,
-                            connection_id=connection_id,  # TODO: CommodoreServer Internet Protocol connection_id?
-                            name=name,
-                            map_level=1,
-                            room=room_start,
-                            money=money_start,
-                            health=100,
-                            xp=0,
-                            flag={'debug': True,
-                                  'expert_mode': False,
-                                  'room_descs': True},
-                            last_command=None,
-                            times_played=1)
-            player.save()
-        self.player = players[user_id] = player
         logging.info(f"login {user_id} '{self.player.name}' (addr={self.sender})")
-        money = self.player.money
-        lines = [f"Welcome, {self.player.name}.", f"You have {money:,} gold.\n"]
+        money = player.silver['in_hand']
+        lines = [f"Welcome, {self.player.name}.", f"You have {money:,} silver in hand.\n"]
 
         # show/convert flags from json text 'true/false' to bool True/False
         # (otherwise they're not recognized, and can't be toggled):
@@ -570,17 +709,18 @@ class PlayerHandler(net_server.UserHandler):
             logging.info(f'{k=} {v=}')
 
         # FIXME
-        changes = {K.room_name: game_map.rooms[self.player.room].name,
-                   K.money: self.player.money, K.health: self.player.health,
-                   K.xp: self.player.xp}
+        changes = {K.room_name: game_map.rooms[player.room].name,
+                   K.money: self.player.silver['in_hand'], K.health: player.hit_points,
+                   K.xp: self.player.experience}
         self.player.connect()
+        logging.debug(f"processLoginSuccess: Player {player.name} connected")
         return self.roomMsg(lines, changes)
 
     def processMessage(self, data):
         logging.info('processMessage()')
         if 'text' in data:
             cmd = data['text'].lower().split(' ')
-            logging.info(f"{self.player.id}: {cmd}")
+            logging.info(f"{self.player.game_id}: {cmd}")
             # update last command to repeat with Return/Enter
             # if an invalid command, set to None later
             # TODO: maybe maintain a history
@@ -733,7 +873,7 @@ class PlayerHandler(net_server.UserHandler):
                     # changes={"prompt": "Prompt:", "status_line": 'Status Line'})
                 except KeyError:
                     return Message(lines=[f'Teleport: No such room yet (#{val}, '
-                                   f'max of {max(game_map.rooms)}).'])
+                                          f'max of {max(game_map.rooms)}).'])
 
             """
             FIXME: Under consideration, but not sure how to set this up
@@ -768,18 +908,17 @@ class PlayerHandler(net_server.UserHandler):
 def break_handler(signal_received):
     # Handle any cleanup here
     t = signal.Signals  # to display signal name
-    logging.warning(f'{signal_received} SIGINT or Ctrl-C detected. Shutting down server.')
+    logging.critical(f'{t} ({signal_received}) detected. Shutting down server.')
     # TODO: broadcast shutdown message to all players
     print("Server going down. Bye.")
-    exit(0)
+    exit(t)  # exit status is signal received
 
 
 if __name__ == "__main__":
-    import logging
-
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
     import signal
+
     # exit gracefully when SIGINT is received
     # signal(SIGINT, handler)  # for *nix
     signal.signal(signal.SIGINT, break_handler)  # for Windows
