@@ -58,8 +58,8 @@ def skip():
     """Order hash or coffee"""
     global player_name
     if flag['expert_mode'] is False:
-        output("You can come here once per day to drink coffee (which resets"
-               "your 'tired' and 'thirsty' health flags), or eat hash (which"
+        output("You can come here once per day to drink coffee (which resets "
+               "your 'tired' and 'thirsty' health flags), or eat hash (which "
                "restores some of your energy).")
         print()
     output("Skip sweats over a hot grill, muttering under his breath...")
@@ -72,7 +72,9 @@ def skip():
                     once_per_day.append("Skip")
                     output("Appended.")
                     break  # out of loop
-            if command == '?':
+            elif command == 'n':
+                break
+            elif command == '?':
                 output("Trip the 'once per day' limit of visiting Skip's eatery.")
     if "Skip" in once_per_day:
         output('Skip suddenly looks annoyed. "Hey, you\'ve already [been] here once today!"')
@@ -115,21 +117,37 @@ def vinny():
 
 def zelda():
     """Madame Zelda, the fortune-teller"""
+
+    # FIXME: does not matter whether the globals are here or in zelda.py
+    #  still get "NameError: name 'client' is not defined" errors
+
     logging.debug("zelda(): importing bar_zelda.py")
-    global player_name
-    global client
-    print("zelda(): function call")
     import bar_zelda
+
+    print("zelda(): function call")
+
+    # switch between the two call styles by uncommenting one:
+    bar_zelda.main(client=client, flag=flag,
+                   player_name=player_name)
+    """
+    bar_zelda.client = client
+    bar_zelda.flag = flag
+    bar_zelda.player_name = player_name
+    global client
+    global flag
+    global player_name
     bar_zelda.main()
+    """
     return
 
 
 def fat_olaf():
     output("The slave trader Fat Olaf sits behind a table, gnawing a chicken leg.")
     if flag["expert_mode"] is False:
-        output("I buy und sell servants yu can add tu your party! "
-               "They need tu be fed und paid on a veekly basis "
-               "tu remain loyal tu yu, though!")
+        output('"I buy und sell servants yu can add tu your party! '
+               'They need tu be fed und paid on a veekly basis '
+               'tu remain loyal tu yu, though! I kin alzo strengthen '
+               'your allies, for a fee."')
         print()
         fat_olaf_menu()
         print()
@@ -150,7 +168,7 @@ def fat_olaf():
 
 
 def fat_olaf_menu():
-    output(f"[B]uy, [S]ell, [M]aintain, [L, {client['return_key']}] Leave")
+    output(f"[B]uy, [S]ell, [M]aintain, [L]eave")
     return
 
 
@@ -203,24 +221,30 @@ def show_main_menu():
     output("  Tests: [O]utput word-wrap, [X] More Prompt")
 
 
-def output(string: str, bracket_coloring=True) -> None:
+# def output(string: str, width: int = client['cols'], bracket_coloring: bool = True) -> None:
+def output(string: str, bracket_coloring: bool = True) -> None:
     """
     Word-wrap string to client['cols'] width.
     If a line break in the string is needed, make two separate calls to output(), one per line.
     Ending a string with a CR or specifying CR in the join() call won't do what you want.
 
+    FIXME: add :param width: how many characters wide the output should be - would this require
+     adding 'width=' parameters to _every function call_ though? argh... do not want.
+     I have tried an __init__() function in zelda_bar.py, "zelda.client =
     :param string: string[] to output
     :param bracket_coloring: if False, do not recolor text within brackets
-     (e.g., used in drawing bar because of '[]' table graphics)
+     (e.g., set to False when drawing bar because of mistakenly coloring '[] ... []' table graphics)
     """
 
     """
     we want to wrap the un-substituted text first. substituting ANSI
-    escape codes adds 5-6 characters per substitution, and that wraps
+    color codes adds 5-6 characters per substitution, and that wraps
     text in the wrong places.
     """
-    # returns wrapped_text[]:
+    # global client  # FIXME: this does not help
     wrapped_text = textwrap.wrap(string, width=client['cols'])
+    # wrapped_text = textwrap.wrap(string, width=text_width)
+    # returns wrapped_text[]
 
     # color text inside brackets using re and colorama:
     # '.+?' is a non-greedy match (finds multiple matches, not just '[World...a]')
@@ -235,20 +259,18 @@ def output(string: str, bracket_coloring=True) -> None:
                                         string=temp))
         new_lines = colored_lines
     else:
-        new_lines = string
-
-    if type(new_lines) == str:
-        print(f'{new_lines}')
-        return
-    elif type(new_lines) == list:
-        for i, line in enumerate(new_lines, start=1):
-            print(line)
-            if i % client['rows'] == 0 and flag['more_prompt'] is True:
-                # print(f'{i=} {client["rows"]=} {i % client["rows"]=}')
-                temp, _ = prompt(f"[A]bort or {client['return_key']} to continue: ", help=False)
-                if temp == 'a':
-                    print('[Aborted.]')
-                    break  # out of the loop
+        # for ASCII clients, no substitution for [bracketed text]:
+        new_lines = [string]
+    # put output in list, otherwise enumerate() goes through individual
+    # characters of a single string
+    for i, line in enumerate(new_lines, start=1):
+        print(line)
+        if i % client['rows'] == 0 and flag['more_prompt'] is True:
+            # print(f'{i=} {client["rows"]=} {i % client["rows"]=}')
+            temp, _ = prompt(f"[A]bort or {client['return_key']} to continue: ", help=False)
+            if temp == 'a':
+                print('[Aborted.]')
+                break  # out of the loop
 
         """
         rows = 25
