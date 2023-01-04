@@ -1,6 +1,7 @@
 import logging
 import glob
 import json
+
 from bar import output, prompt
 
 
@@ -48,7 +49,7 @@ def get_player_info(stats: list, id_pattern="*") -> dict:
                 except KeyError:
                     print(f'get_player_info: {stat=} not found')
     if filename_list is None:
-        print("There are no players.")
+        print(f"There are no players matching the pattern '{id_pattern}'.")
         returned_stats = None
     return returned_stats
 
@@ -57,14 +58,18 @@ def zelda_menu():
     output("[S]tudy a player, [R]esurrect monsters, or [L]eave")
 
 
-def main():
+def main(client: dict, flag: dict, player_name: str):
     """
     Spy on player's stats
     Raise other players' dead monsters
     """
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
-    # import server.server.Player as test
+    print(f'zelda.main(): {client=}')
+    print(f'zelda.main(): {flag=}')
+    print(f'zelda.main(): {player_name=}')
+
+    # TODO: import server.server.Player dataclass
 
     character = "Madame Zelda"
     output(f'{character} and her cat sit in front of a crystal ball.')
@@ -98,7 +103,7 @@ def main():
                             stats = ['name', 'map_level', 'hit_points', 'experience_level',
                                      'shield', 'armor']
                             temp = get_player_info(stats, id_pattern=look_up)
-                            x = input("Pause: ")
+                            _ = input("Pause: ")
                             output(f"{temp['name']} is on dungeon level {temp['map_level']}. "
                                    f"They have {temp['hit_points']} hit points, a strength of <str>, "
                                    f"an intelligence of <int>, dexterity of <dex>, energy of <egy>, "
@@ -110,17 +115,6 @@ def main():
                                    f" "
                                    f"[TODO:] Instruments of death")
 
-                            """
-                            output n2$" on dungeon level "yl"."
-                            output "With "yh" hit points, a strength"
-                            output "of "cs", intelligence of "ci","
-                            output "dexterity of "cd", energy of "ce","
-                            output "constitution of "ct", wisdom of "cw"."
-                            output n2$" has achieved level "yn
-                            output "in the land, has "ye"% shield, and"
-                            output yf"% armor. Instruments of death:'"
-                            gosub pr.weapons
-                            """
                         except FileNotFoundError:
                             logging.info(f"Can't find player '{look_up}'.")
 
@@ -162,4 +156,13 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    def __init__(self, client, flag, player_name):
+        """
+        FIXME: Again, just trying to figure out a method of passing
+         client['cols'] from bar.py, and failing
+        """
+        # imported from bar.py:
+        self.client = client
+        self.flag = flag
+        self.player_name = player_name
+        main(client=client, flag=flag, player_name=player_name)
