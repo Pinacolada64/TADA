@@ -3,7 +3,10 @@ import glob
 import json
 
 from bar import output, prompt
+from globals import get_client, get_flag
 
+client = get_client()
+flag = get_flag()
 
 def get_player_info(stats: list, id_pattern="*") -> dict:
     """
@@ -23,6 +26,7 @@ def get_player_info(stats: list, id_pattern="*") -> dict:
     path = "D:/Documents/C64/TADA/server/run/server"
     filename_list = glob.glob(f'{path}/player-{id_pattern}.json')
     # print(filename_list)
+    returned_stats = None
     for index, player_filename in enumerate(filename_list):
         logging.info(f"get_player_info: Reading {player_filename}")
         with open(player_filename) as json_file:
@@ -148,21 +152,22 @@ def main(client: dict, flag: dict, player_name: str):
     # returns dict:
     stats = get_player_info(data, id_pattern='a')
 
-# https://stackoverflow.com/questions/36244380/enumerate-for-dictionary-in-python#53865188
-    for i, (key, value) in enumerate(stats.items(), start=1):
-        temp = str(key).replace("_", " ").title()
-        print(f"{i:2}. {str(temp).ljust(30, '.')}: {value}")
-        # preferred output: " 1. Name................: Alice"
+    if stats is not None:
+        # https://stackoverflow.com/questions/36244380/enumerate-for-dictionary-in-python#53865188
+        for i, (key, value) in enumerate(stats.items(), start=1):
+            temp = str(key).replace("_", " ").title()
+            print(f"{i:2}. {str(temp).ljust(30, '.')}: {value}")
+            # preferred output: " 1. Name................: Alice"
 
 
-if __name__ == '__main__':
-    def __init__(self, client, flag, player_name):
-        """
-        FIXME: Again, just trying to figure out a method of passing
-         client['cols'] from bar.py, and failing
-        """
-        # imported from bar.py:
-        self.client = client
-        self.flag = flag
-        self.player_name = player_name
-        main(client=client, flag=flag, player_name=player_name)
+# if __name__ == '__main__':
+#     def __init__(self, client, flag, player_name):
+#         """
+#         FIXME: Again, just trying to figure out a method of passing
+#          client['cols'] from bar.py, and failing
+#         """
+#         # imported from bar.py:
+#         self.client = client
+#         self.flag = flag
+#         self.player_name = player_name
+#         main(client=client, flag=flag, player_name=player_name)
