@@ -244,7 +244,7 @@ class UserHandler(socketserver.BaseRequestHandler):
         self.login_history.succeedUser(user_id, save=True)
         return self.processLoginSuccess(user_id)
 
-    def promptRequest(self, lines, prompt='', choices={}):
+    def promptRequest(self, lines, prompt='', choices=None):
         self._sendData(Message(lines=lines, prompt=prompt, choices=choices))
         return self._receiveData()
 
