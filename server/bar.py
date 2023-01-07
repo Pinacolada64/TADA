@@ -3,7 +3,10 @@ import textwrap
 import re
 import colorama  # for foreground color changes
 
-# import server.server
+from globals import set_client, get_client, set_flag, get_flag
+
+client = get_client()
+flag = get_flag()
 
 
 def bouncer():
@@ -282,7 +285,9 @@ def output(string: str, bracket_coloring: bool = True) -> None:
         """
 
 
+
 if __name__ == '__main__':
+
     import logging
     # y, x, name, routine to call:
     locations = [(0, 6, "Exit", None),
@@ -306,10 +311,12 @@ if __name__ == '__main__':
               "cols": window_size[0],
               "rows": window_size[1],
               "translation": "PetSCII"}
+    set_client(client)
 
     flag = {"expert_mode": False,
             "debug": True,
             "more_prompt": True}
+    set_flag(flag)
 
     # once-per-day activities:
     once_per_day = []
