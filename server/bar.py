@@ -2,6 +2,7 @@ import shutil  # for get_terminal_width()
 import textwrap
 import re
 import colorama  # for foreground color changes
+import logging
 
 from globals import set_client, get_client, set_flag, get_flag
 
@@ -31,10 +32,11 @@ def blue_djinn():
     character = "The Blue Djinn"
     if flag['expert_mode'] is False:
         output(f"For a price, {character} can attack other players.")
+        print()
         blue_djinn_menu()
     output(f'{character} sits behind the table.')
     while True:
-        command, last_command = prompt('He hisses, "What do you want?":', help=True)
+        command, last_command = input_prompt('He hisses, "What do you want?":', help=True)
         if command == 'h':
             output('"Who do you want me to mess up?"')
             output("TODO")
@@ -54,7 +56,7 @@ def blue_djinn():
 
 
 def blue_djinn_menu():
-    output("\n[H]ire [I]nsult [L]eave\n")
+    output("[H]ire [I]nsult [L]eave")
 
 
 def skip():
@@ -69,7 +71,7 @@ def skip():
 
     if flag["debug"]:
         while True:
-            command, last_command = prompt("Add 'Skip' to once-per-day activities?", help=True)
+            command, _ = input_prompt("Add 'Skip' to once-per-day activities?", help=True)
             if command == 'y':
                 if "Skip" not in once_per_day:
                     once_per_day.append("Skip")
@@ -87,7 +89,7 @@ def skip():
         skip_show_menu()
 
     while True:
-        command, last_command = prompt(f'"What\'ll ya have, {player_name}?" ', help=True)
+        command, last_command = input_prompt(f'"What\'ll ya have, {player_name}?" ', help=True)
         if command == 'h':
             # TODO: check/subtract silver
             output("The hash is greasy, but hot and nourishing.")
@@ -120,27 +122,8 @@ def vinny():
 
 def zelda():
     """Madame Zelda, the fortune-teller"""
-
-    # FIXME: does not matter whether the globals are here or in zelda.py
-    #  still get "NameError: name 'client' is not defined" errors
-
-    logging.debug("zelda(): importing bar_zelda.py")
     import bar_zelda
-
-    print("zelda(): function call")
-
-    # switch between the two call styles by uncommenting one:
-    bar_zelda.main(client=client, flag=flag,
-                   player_name=player_name)
-    """
-    bar_zelda.client = client
-    bar_zelda.flag = flag
-    bar_zelda.player_name = player_name
-    global client
-    global flag
-    global player_name
-    bar_zelda.main()
-    """
+    bar_zelda.main(client=client, flag=flag, player_name=player_name)
     return
 
 
@@ -155,7 +138,7 @@ def fat_olaf():
         fat_olaf_menu()
         print()
     while True:
-        command, last_command = prompt("Vot kin I du ver ya?", help=True)
+        command, last_command = input_prompt("Vot kin I du ver ya?", help=True)
         if command == '' or command == 'l':
             output('"Hokey dokey." Fat Olaf watches you leave.')
             return
@@ -194,7 +177,7 @@ def horizontal_ruler():
     output(f"   {(digits * 10)[:ruler_length]}")
 
 
-def prompt(prompt: str, help=False):
+def input_prompt(prompt: str, help=False):
     """
     Prompt user for something
     :param prompt: string to prompt for, minus space at end
@@ -207,7 +190,7 @@ def prompt(prompt: str, help=False):
     temp = input(f"{prompt} ")
     print()
     if temp != '':
-        command = temp[0].lower()
+        command = temp.lower()
         last_command = command
     if temp == '':
         command = last_command
@@ -219,21 +202,17 @@ def prompt(prompt: str, help=False):
 def show_main_menu():
     # TODO: grab these options from the functions themselves
     extra = ", [G]o here" if go_here else ''
-    output(f"[N]orth, [E]ast, [S]outh, [W]est, [Q]uit{extra}")
-    output("Toggles: [D]ebug, [T]ranslation, e[X]pert Mode, [M]ore Prompt")
-    output("  Tests: [O]utput word-wrap, [X] More Prompt")
+    output(f"   Dirs: [N]orth, [E]ast, [S]outh, [W]est, [Q]uit{extra}")
+    output("Toggles: [D]ebug, [T]ranslation, e[X]pert Mode, [M]ore [P]rompt")
+    output("  Tests: [O]utput word-wrap, [M]ore Prompt")
 
 
-# def output(string: str, width: int = client['cols'], bracket_coloring: bool = True) -> None:
 def output(string: str, bracket_coloring: bool = True) -> None:
     """
     Word-wrap string to client['cols'] width.
     If a line break in the string is needed, make two separate calls to output(), one per line.
     Ending a string with a CR or specifying CR in the join() call won't do what you want.
 
-    FIXME: add :param width: how many characters wide the output should be - would this require
-     adding 'width=' parameters to _every function call_ though? argh... do not want.
-     I have tried an __init__() function in zelda_bar.py, "zelda.client =
     :param string: string[] to output
     :param bracket_coloring: if False, do not recolor text within brackets
      (e.g., set to False when drawing bar because of mistakenly coloring '[] ... []' table graphics)
@@ -244,9 +223,7 @@ def output(string: str, bracket_coloring: bool = True) -> None:
     color codes adds 5-6 characters per substitution, and that wraps
     text in the wrong places.
     """
-    # global client  # FIXME: this does not help
     wrapped_text = textwrap.wrap(string, width=client['cols'])
-    # wrapped_text = textwrap.wrap(string, width=text_width)
     # returns wrapped_text[]
 
     # color text inside brackets using re and colorama:
@@ -270,7 +247,7 @@ def output(string: str, bracket_coloring: bool = True) -> None:
         print(line)
         if i % client['rows'] == 0 and flag['more_prompt'] is True:
             # print(f'{i=} {client["rows"]=} {i % client["rows"]=}')
-            temp, _ = prompt(f"[A]bort or {client['return_key']} to continue: ", help=False)
+            temp, _ = input_prompt(f"[A]bort or {client['return_key']} to continue: ", help=False)
             if temp == 'a':
                 print('[Aborted.]')
                 break  # out of the loop
@@ -285,10 +262,9 @@ def output(string: str, bracket_coloring: bool = True) -> None:
         """
 
 
-
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
-    import logging
     # y, x, name, routine to call:
     locations = [(0, 6, "Exit", None),
                  (1, 4, "The Blue Djinn", blue_djinn),
@@ -297,8 +273,6 @@ if __name__ == '__main__':
                  (2, 5, "Bar None", bar_none),
                  (3, 8, "Fat Olaf's Slave Trade", fat_olaf),
                  (4, 8, "Madame Zelda's", zelda)]
-
-    obstacles = ["+", "-", "|", '[', ']']
 
     # pos is zero-based from the top down, left-to-right
     pos_y = 0  # row
@@ -341,6 +315,7 @@ if __name__ == '__main__':
                    "│  ┌──┐  []o│",
                    "│  │oo│  []o│",
                    "└──┴──┴─────┘"]
+            obstacles = ["─", "┤", "├", "│", "[", "]", "┌", "─", "┐"]
         else:
             # ASCII
             bar = ["+----| |----+",
@@ -349,6 +324,7 @@ if __name__ == '__main__':
                    "|  +--+  []o|",
                    "|  |oo|  []o|",
                    "+-----------+"]
+            obstacles = ["+", "-", "|", '[', ']']
         print()
         if flag["debug"]:
             horizontal_ruler()
@@ -360,9 +336,6 @@ if __name__ == '__main__':
                 text.append(f'{line[:pos_x]}X{line[pos_x + 1:]}')
             else:
                 text.append(line)
-            # FIXME: bracket_coloring parameter needed?
-            # output("".join(text), bracket_coloring=False)
-            # output(text, bracket_coloring=False)
             print("".join(text))
         go_here = False
         valid_move = False
@@ -411,7 +384,7 @@ if __name__ == '__main__':
 
         output(f"[HP: {hp}]")
         # parser:
-        command, last_command = prompt("Which way?")
+        command, last_command = input_prompt("Which way?")
         move_into_obstacle = False
 
         if command == '?':
@@ -430,12 +403,12 @@ if __name__ == '__main__':
             if flag['debug']:
                 valid_move = False
                 while valid_move is False:
-                    last_place = len(locations)
+                    num_places = len(locations)
                     for i, k in enumerate(locations):
                         print(f'{i} {k[2]}')
-                    place, temp = prompt("Quick move:", help=False)
-                    place = int(place)
-                    if 1 > place > last_place:
+                    option, _ = input_prompt("Quick move:", help=False)
+                    place = int(option)
+                    if 1 > place > num_places:
                         output("Aborting.")
                         break  # out of the loop
                     where = locations[place]
@@ -452,6 +425,11 @@ if __name__ == '__main__':
         if command == 'x':
             flag['expert_mode'] = not flag['expert_mode']
             output(f"Expert Mode is now {'On' if flag['expert_mode'] else 'Off'}.")
+            valid_move = True
+
+        if command == "mp":
+            flag['more_prompt'] = not flag['more_prompt']
+            output(f"More Prompt is now {'On' if flag['more_prompt'] else 'Off'}.")
             valid_move = True
 
         if command == 't':
@@ -483,9 +461,10 @@ if __name__ == '__main__':
                    "mattis rhoncus. Ut morbi tincidunt augue interdum velit. Orci eu "
                    "lobortis elementum nibh tellus.")
 
-            x = input("Okay? ")
+            _ = input("Okay? ")
             # valid_move = True  # because Latin is incomprehensible :)
 
+        # regular commands:
         if command == 'n':
             # look up for obstacle:
             obstacle = bar[pos_y - 1][pos_x]

@@ -104,8 +104,8 @@ def main(client: dict, flag: dict, player_name: str):
             else:
                 pay = 'y'  # FIXME: temporarily short-circuit answering
                 while pay not in ["y", "n"]:
-                    cost, last_command = input_prompt('"It willlll cossssst 1,000 silver. '
-                                                      'Is thaaaaaat okayyyyy?" [y/n]:')
+                    pay, _ = input_prompt('"It willlll cossssst 1,000 silver. '
+                                          'Is thaaaaaat okayyyyy?" [y/n]:')
                 if pay == 'y':
                     logging.info("TODO: check silver")
                     output(f'{character} hunkers down over the ball.. "I seeeee..."')
@@ -117,8 +117,9 @@ def main(client: dict, flag: dict, player_name: str):
                             logging.info(f"Can't find player {look_up}.")
                             break
                         pronoun = "She" if temp['gender'] == 'female' else "He"
-                        output(f"{temp['name']} is on dungeon level {temp['map_level']}. "
-                               f"{pronoun} has {temp['hit_points']} hit points, a strength of <str>, "
+                        output(f"{temp['name']} is on dungeon level {temp['map_level']}.")
+                        print()
+                        output(f"{pronoun} has {temp['hit_points']} hit points, a strength of <str>, "
                                f"an intelligence of <int>, dexterity of <dex>, energy of <egy>, "
                                f"constitution of <con>, wisdom of <wis>.")
                         print()
@@ -169,6 +170,7 @@ def main(client: dict, flag: dict, player_name: str):
             output(f'{character} stares at you. Her cat stares too.')
 
     # TODO: could be a player editor skeleton
+    """
     data = ['name', 'hit_points']
     # returns dict:
     stats = get_player_info(data, id_pattern='a')
@@ -179,16 +181,4 @@ def main(client: dict, flag: dict, player_name: str):
             temp = str(key).replace("_", " ").title()
             print(f"{i:2}. {str(temp).ljust(30, '.')}: {value}")
             # preferred output: " 1. Name................: Alice"
-
-
-# if __name__ == '__main__':
-#     def __init__(self, client, flag, player_name):
-#         """
-#         FIXME: Again, just trying to figure out a method of passing
-#          client['cols'] from bar.py, and failing
-#         """
-#         # imported from bar.py:
-#         self.client = client
-#         self.flag = flag
-#         self.player_name = player_name
-#         main(client=client, flag=flag, player_name=player_name)
+    """
