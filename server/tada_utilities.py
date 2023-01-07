@@ -1,10 +1,9 @@
 import logging
 import textwrap
 
-from characters import Character
-
-import net_server  # for promptRequest and Message
+# import net_server  # for promptRequest and Message
 from net_server import Message
+from server import Player
 
 """
 utilities such as:
@@ -50,21 +49,21 @@ def header(text: str):
     return Message(lines=[line])
 
 
-def output(string: str, conn: Character.connection_id):
+def output(string: str, conn: Player.connection_id):
     """
-    Print <string> word-wrapped to client's column width to Character
+    Print <string> word-wrapped to client's column width to Player
 
-    :param string: string to output
-    :param conn: connection to output text to
+    :param: string: string to output
+    :param: conn: connection to output text to
     :return: none
     """
     """
     TODO: implement cbmcodec2 ASCII -> PETSCII translation
 
-    TODO: implement different success messages for character originating action vs. other characters in room
+    TODO: implement different success messages for Player originating action vs. other Players in room
     use player.
-    for cxn in all_characters_in_room:
-        if char.(something, idk what at this point) == character.who_performed_action:
+    for cxn in all_Players_in_room:
+        if char.(something, idk what at this point) == Player.who_performed_action:
             output(f"You throw the snowball at {target}.", player)
         else:
             output(f"{actor} throws the snowball at {target}.", player)
@@ -74,7 +73,7 @@ def output(string: str, conn: Character.connection_id):
     return Message(lines=[textwrap.fill(text=string, width=conn.client['columns'])])
 
 
-def input_number_range(prompt: str, lo: int, hi: int, p=Character, reminder=None, default=None):
+def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, default=None):
     """input 'prompt', accept numbers lo < value < hi
     e.g.
     "'prompt' ['lo'-'hi']: "
@@ -83,7 +82,7 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Character, reminder=None
     :param default: if not None, and expert mode is False, {return_key} keeps 'default'
     :param lo: lowest number accepted
     :param hi: highest number accepted
-    :param p: Character to output text to
+    :param p: Player to output text to
     :param reminder: string to display if lo < temp < hi
     """
     if default is not None and p.flag['expert_mode'] is False:
@@ -105,7 +104,7 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Character, reminder=None
                 output(reminder, p)
 
 
-def input_string(prompt: str, default: str, char: Character, reminder="Please enter something."):
+def input_string(prompt: str, default: str, player: Player, reminder="Please enter something."):
     """input 'prompt', accept numbers lo < value < hi
     e.g.:
     [Return] keeps 'Druid.'  # if expert mode off
@@ -115,20 +114,20 @@ def input_string(prompt: str, default: str, char: Character, reminder="Please en
     :param default: True: print/accept {return_key} keeps 'keep_string',
      return 'string' if null string entered
     :param default: [if expert mode off] print "Return keeps 'keep_string'"
-    :param char: Character to output text to
+    :param player: Player to output text to
     :param reminder: what to display if edit_mode is False and null string entered
     """
-    if default and char.flags['expert_mode'] is False:
-        output(f"{return_key} keeps '{default}.'", char)
+    if default and player.flag['expert_mode'] is False:
+        output(f"{player.return_key} keeps '{default}.'", player)
     while True:
         temp = input(f"{prompt}: ")
         # just hitting Return keeps original string
         if default and (temp == '' or temp == default):
-            if char.flags['expert_mode']:
-                output(f"(Keeping '{default}'.)", char)
+            if player.flag['expert_mode']:
+                output(f"(Keeping '{default}'.)", player)
             return default
         else:
-            output(reminder, char)
+            output(reminder, player)
 
 
 def input_yes_no(prompt: str):
@@ -137,7 +136,6 @@ def input_yes_no(prompt: str):
     "'prompt' [y/n]: "
 
     :param prompt: prompt user with this string
-    :param char: Character to output text to
     :return False: 'no' entered. True: 'yes' entered
     """
     while True:
@@ -155,11 +153,11 @@ def fileread(self, filename: str):
     """
     from net_server import Message
     from net_server import UserHandler  # promptResponse and _sendData
-    from colorama import Fore, Back, Style
-    import re
+    from colorama import Fore  # , Back, Style
+    import re  # regular expressions library
 
     p = self.player
-    logging.info(f"fileread: read {filename=}")
+    logging.info(f"fileread(): read {filename=}")
 
     self.line_count = 0
     # cols = self.client['columns']
@@ -184,9 +182,9 @@ def fileread(self, filename: str):
                     # '.+?' is a non-greedy match (finds multiple matches, not just '[World...a]')
                     # >>> re.sub(r'\[(.+?)\]', r'!\1!', string="Hello [World] this [is a] test.")
                     # 'Hello !World! this !is a! test.'
-                    new_line = re.sub(r'\[(.+?)\]', f'{Fore.RED}' + r'\1' + f'{Fore.RESET}', string=line)
+                    new_line = re.sub(r'\[(.+?)]', f'{Fore.RED}' + r'\1' + f'{Fore.RESET}', string=line)
                     print(new_line)
-                    # if char.flags['more_prompt']:
+                    # if char.flag['more_prompt']:
                     self.line_count += 1
                     # if line_count == char.client['rows']:
                     if self.line_count == 20:
@@ -209,26 +207,33 @@ def fileread(self, filename: str):
             return Message(lines=[], error_line=f'File {fh} not found.')
 
 
-def game_help(self, params: list):
+def game_help(self, arg: list):
     from net_server import Message
     """
     :param self:
-    :param params: what's typed after HELP <...>
+    :param arg: what's typed after HELP <...>
     :return:
     """
     # function name 'help' shadows built-in name
-    logging.info(f'game_help: {params=}')
-    # if len(params) == 0:
-    fileread(self, filename="main-menu")
+    logging.info(f'game_help: {arg=}')
+    if len(arg) == 0:
+        fileread(self, filename="main-menu")
+        return
+    else:
+        try:
+            if callable(arg[0]):
+                print(arg[0].__docstring__)
+        except not callable(arg[0]):
+            print(f"Can't find help for {arg[0]}.")
+
     return Message(lines=["Done."])
 
 
 if __name__ == '__main__':
-    from characters import Character
-    character = Character()
-    character.name = 'Darmok'
-    character.flags = {'expert_mode': False}
-    character.client = {'columns': 80, 'translation': 'PETSCII'}
+    Player = server.Player()
+    Player.name = 'Darmok'
+    Player.flags = {'expert_mode': False}
+    Player.client = {'columns': 80, 'translation': 'PETSCII'}
 
     return_key = '[Enter]'
 
