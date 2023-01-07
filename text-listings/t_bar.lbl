@@ -64,24 +64,24 @@
 
 ' . = places to visit
 
-'						  11
-'				 12345678901
-' 1				+----+ +----+
-' 2 blue djinn	!o[].   .[]o! vinney			  N
-' 3				!.          !           		W-+-E
-' 4				!--+    .[]o! fat olaf's		  S
-' 5 skip's eats	!oo!.   .[]o! madame zelda's	(*=You)
-'				+-----------+
-'				    ^ bar none
-'				 12345678901
-'						  11
+'                         1111
+'                1234567890123
+' 1              +----+ +----+
+' 2 blue djinn   !o[].   .[]o! vinney              N
+' 3              !.          !                   W-+-E
+' 4              !--+    .[]o! fat olaf's          S
+' 5 skip's eats  !oo!.   .[]o! madame zelda's        (*=You)
+'                +-----------+
+'                    ^ bar none
+'                1234567890111
+'                         1123
 
 {:700}
 ' --- define ascii bar map ---
 	i$="o":a$="*"
 	tt$(1)="+----+ +----+
 	tt$(2)="!"+i$+"[]     []"+i$+"!   N
-	tt$(3)="!           ! N-+-E
+	tt$(3)="!           ! W-+-E
 	tt$(4)="!--+     []"+i$+"!   S
 	tt$(5)="!"+i$+i$+"!     []"+i$+"! ("+a$+"=You)"
 	tt$(6)="+-----------+
