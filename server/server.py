@@ -6,8 +6,6 @@ import threading
 from dataclasses import dataclass, field
 import textwrap
 
-from typing import List, Tuple
-
 # import collections  # for defaultdict behavior
 
 import net_server
@@ -498,6 +496,7 @@ class Player:
         with server_lock:
             room_players[self.room].add(self.id)
             # TODO: notify other players of connection
+        logging.debug(f"Player.connect(): Player {self.name} connected")
 
     def move(self, next_room: int, direction: str = None):
         """
@@ -519,17 +518,17 @@ class Player:
         # logging.debug(f"Before add: {room_players=}")
         room_players[self.room].add(self.id)
         # logging.debug(f"After add: {room_players=}")
-        logging.info(f'Moved {self.name} from {current_room} to {self.room}')
+        logging.info(f'Player.move: Moved {self.name} from {current_room} to {self.room}')
         # teleport command doesn't require direction, just room #
         if direction is None:
-            return Message(lines=[f'[{self.name} disappears in a flash of light.'])
+            Message(lines=[f'[{self.name} disappears in a flash of light.'])
         else:
-            return Message(lines=[f"{self.name} moves {compass_txts[direction]}."])
+            Message(lines=[f"{self.name} moves {compass_txts[direction]}."])
 
     def disconnect(self):
         with server_lock:
             room_players[self.room].remove(self.id)
-            return Message(lines=[f'{players[self.id].name} falls asleep.'])
+            Message(lines=[f'{players[self.id].name} falls asleep.'])
 
     @staticmethod
     def _json_path(user_id):
@@ -556,6 +555,10 @@ class Player:
 
 
 class PlayerHandler(net_server.UserHandler):
+    def __init__(self, request: _RequestType, client_address: _AddressType, server: BaseServer):
+        # super().__init__(request, client_address, server)
+        self.player = None
+
     def initSuccessLines(self):
         return ['Welcome to:\n', 'Totally\nAwesome\nDungeon\nAdventure\n', 'Please log in.']
 
@@ -567,10 +570,12 @@ class PlayerHandler(net_server.UserHandler):
         Display the room description and contents to the player in the room
 
         :param: lines: text to output. each line is an element of a list.
-        :param: changes: ...?
+        :param: changes: FIXME: I don't get the purpose of this
         :return: Message object
         """
         # get room # that player is in
+        room = game_map.rooms[self.player]
+        logging.info(f"in roomMsg: {room=}, {player=}")
         try:
             room = game_map.rooms[self.player.room]
         except KeyError:
@@ -614,7 +619,7 @@ class PlayerHandler(net_server.UserHandler):
         monster = room.monster
         if monster:
             m = monsters[monster - 1]
-            mon_name = m["name"]
+            mon_name = ["name"]
             # optional info:
             try:
                 mon_size = m["size"]
@@ -648,7 +653,7 @@ class PlayerHandler(net_server.UserHandler):
         # logging.info(f'item #{num} name: {items[num - 1]["name"]}')
 
         # setting 'exclude_id' excludes that player (i.e., yourself) from being listed
-        other_player_ids = playersInRoom(room.number, exclude_id=self.player.id)
+        other_player_ids = playersInRoom(room.number, exclude_id=self.player.game_id)
         logging.info(f'{other_player_ids=}')
         # TODO: "Alice is here." / "Alice and Bob are here." / "Alice, Bob and Mr. X are here."
         """
@@ -695,25 +700,14 @@ class PlayerHandler(net_server.UserHandler):
         # keeps track of who is connected?
         players[user_id] = player
 
-        logging.info(f"login {user_id} '{self.player.name}' (addr={self.sender})")
-        money = player.silver['in_hand']
-        lines = [f"Welcome, {self.player.name}.", f"You have {money:,} silver in hand.\n"]
-
-        # show/convert flags from json text 'true/false' to bool True/False
-        # (otherwise they're not recognized, and can't be toggled):
-        for k, v in self.player.flag.items():
-            if self.player.flag[k] == 'true':
-                self.player.flag[k] = True
-            if self.player.flag[k] == 'false':
-                self.player.flag[k] = False
-            logging.info(f'{k=} {v=}')
+        logging.info(f"login {user_id} '{player.name}' (addr={self.sender})")
+        lines = [f"Welcome, {player.name}.", f"You have {player.silver['in_hand']:,} silver in hand.\n"]
 
         # FIXME
         changes = {K.room_name: game_map.rooms[player.room].name,
-                   K.money: self.player.silver['in_hand'], K.health: player.hit_points,
-                   K.xp: self.player.experience}
-        self.player.connect()
-        logging.debug(f"processLoginSuccess: Player {player.name} connected")
+                   K.money: player.silver['in_hand'], K.health: player.hit_points,
+                   K.xp: player.experience}
+        player.connect()
         return self.roomMsg(lines, changes)
 
     def processMessage(self, data):
