@@ -63,7 +63,7 @@ def get_player_info(stats: list, id_pattern="*") -> dict:
 
 
 def zelda_menu():
-    output("[S]tudy a player, [R]esurrect monsters, or [L]eave")
+    output("[S]tudy a player (1,000 silver), [R]esurrect monsters (6,000 silver), or [L]eave")
 
 
 def main(client: dict, flag: dict, player_name: str):
@@ -82,8 +82,8 @@ def main(client: dict, flag: dict, player_name: str):
     character = "Madame Zelda"
     output(f'{character} and her cat sit in front of a crystal ball.')
     if flag['expert_mode'] is False:
-        output("She can either show other players' statistics, or resurrect "
-               "their dead monsters so they must be fought again.")
+        output("She can either show other players' statistics (which costs 1,000 silver), or resurrect "
+               "their dead monsters so they must be fought again (which costs 6,000 silver).")
         print()
         zelda_menu()
     while True:
@@ -117,11 +117,18 @@ def main(client: dict, flag: dict, player_name: str):
                             logging.info(f"Can't find player {look_up}.")
                             break
                         pronoun = "She" if temp['gender'] == 'female' else "He"
-                        output(f"{temp['name']} is on dungeon level {temp['map_level']}.")
+                        output(f"{temp['name']} is on dungeon level {temp['map_level']}. "
+                               f"{pronoun} has {temp['hit_points']} hit points.")
                         print()
-                        output(f"{pronoun} has {temp['hit_points']} hit points, a strength of {temp['stat']['str']}, "
-                               f"an intelligence of {temp['stat']['int']}, dexterity of {temp['stat']['dex']}, energy of {temp['stat']['egy']}, "
-                               f"constitution of {temp['stat']['con']}, wisdom of {temp['stat']['wis']}.")
+                        # order: chr con dex egy int str wis
+                        output(f"{pronoun} has "
+                               f"charisma of {temp['stat']['chr']}, "
+                               f"constitution of {temp['stat']['con']}, "
+                               f"dexterity of {temp['stat']['dex']}, "
+                               f"energy of {temp['stat']['egy']}, "
+                               f"intelligence of {temp['stat']['int']}, "
+                               f"strength of {temp['stat']['str']}, "
+                               f"and wisdom of {temp['stat']['wis']}.")
                         print()
                         output(f"{temp['name']} has achieved {temp['experience']} experience in the land.")
                         print()
@@ -148,6 +155,7 @@ def main(client: dict, flag: dict, player_name: str):
 
         if command == 'r':
             target = input('"Whooose monsters shall I briiiiing back to liiiiife?" ')
+            # TODO: be kind, if target doesn't have any dead monsters, say so and skip this
             anonymous = ""
             while anonymous not in ["y", "n"]:
                 anonymous, last_command = input_prompt('"Dooo you wiiiiish to be unknowwwwwn?" [Y/N]:')
@@ -164,8 +172,8 @@ def main(client: dict, flag: dict, player_name: str):
             zelda_menu()
             continue
         if command == 'l':
-            output('"Gooo away, you bother my caaaat..."')
-            break  # out of loop
+            output(f'{character} crosses her arms. "Gooo away, you bother my caaaat..."')
+            break  # return to bar
         else:
             output(f'{character} stares at you. Her cat stares too.')
 
