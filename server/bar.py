@@ -130,14 +130,15 @@ def zelda():
 def fat_olaf():
     output("The slave trader Fat Olaf sits behind a table, gnawing a chicken leg.")
     if flag["expert_mode"] is False:
+        print()
         output('"I buy und sell servants yu can add tu your party! '
                'They need tu be fed und paid on a veekly basis '
                'tu remain loyal tu yu, though! I kin alzo strengthen '
                'your allies, for a fee."')
         print()
         fat_olaf_menu()
-        print()
     while True:
+        print()
         command, last_command = input_prompt("Vot kin I du ver ya?", help=True)
         if command == '' or command == 'l':
             output('"Hokey dokey." Fat Olaf watches you leave.')
@@ -398,6 +399,8 @@ if __name__ == '__main__':
                 if callable(go_routine):
                     go_routine()
                     print()
+                    continue
+
                 else:
                     output(f"Can't hack it, man. {go_routine} isn't callable.")
             if flag['debug']:
