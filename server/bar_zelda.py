@@ -111,7 +111,7 @@ def main(client: dict, flag: dict, player_name: str):
                     output(f'{character} hunkers down over the ball.. "I seeeee..."')
                     try:
                         stats = ['name', 'gender', 'map_level', 'hit_points', 'experience',
-                                 'shield', 'armor', '["stat"]["chr"]']
+                                 'shield', 'armor', 'stat']
                         temp = get_player_info(stats, id_pattern=look_up)
                         if temp is None:
                             logging.info(f"Can't find player {look_up}.")
@@ -119,9 +119,9 @@ def main(client: dict, flag: dict, player_name: str):
                         pronoun = "She" if temp['gender'] == 'female' else "He"
                         output(f"{temp['name']} is on dungeon level {temp['map_level']}.")
                         print()
-                        output(f"{pronoun} has {temp['hit_points']} hit points, a strength of <str>, "
-                               f"an intelligence of <int>, dexterity of <dex>, energy of <egy>, "
-                               f"constitution of <con>, wisdom of <wis>.")
+                        output(f"{pronoun} has {temp['hit_points']} hit points, a strength of {temp['stat']['str']}, "
+                               f"an intelligence of {temp['stat']['int']}, dexterity of {temp['stat']['dex']}, energy of {temp['stat']['egy']}, "
+                               f"constitution of {temp['stat']['con']}, wisdom of {temp['stat']['wis']}.")
                         print()
                         output(f"{temp['name']} has achieved {temp['experience']} experience in the land.")
                         print()
