@@ -400,7 +400,6 @@ if __name__ == '__main__':
                     go_routine()
                     print()
                     continue
-
                 else:
                     output(f"Can't hack it, man. {go_routine} isn't callable.")
             if flag['debug']:
