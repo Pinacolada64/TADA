@@ -321,8 +321,8 @@ def playersInRoom(room_id: int, exclude_id: str):
     """
     Return a dict of player login id's in the room
 
-    :param: room_id: room number
-    :param: exclude_id: player to exclude (often the player executing the command) to not be listed
+    :param room_id: room number
+    :param exclude_id: player to exclude (often the player executing the command) to not be listed
     :return: dict of players
     """
     with server_lock:
@@ -626,7 +626,7 @@ class PlayerHandler(net_server.UserHandler):
         lines2 = list(lines)
 
         # display room header
-        # check for/trim room flags (currently only '->'):
+        # check for/trim room flags after "|" in string (currently only '->'):
         temp = room.name.rfind("|")
         room_name = room.name
         room_flags = ''
@@ -710,13 +710,18 @@ class PlayerHandler(net_server.UserHandler):
                 pass
         other_player_ids = playersInRoom(room.id, self.player.id)
         lines2.append(f"{result_list} here.")
-        """
 
-        if len(other_player_ids) > 0:
-            other_players = ', '.join([players[id].name for id in other_player_ids])
+        # attempt 2:
+        log.info(other_player_ids)
+        if other_player_ids:
+            # len(other_player_ids) > 0:
+            # fixme
+
+            other_players = ', '.join([players[person].name for person in other_player_ids])
             # FIXME: 'Alice are here' (counts you too)
             temp = 'is' if len(other_players) == 1 else 'are'
             lines2.append(f"{other_players} {temp} here.")
+            """
         return Message(lines=lines2, changes=changes)
 
     def processLoginSuccess(self, user_id):
@@ -900,7 +905,7 @@ class PlayerHandler(net_server.UserHandler):
                     player.room = room_num
                     log.info(f'{room_num=} {player.room=}')
                     # TODO: something like this displayed to other players would be nice to indicate teleportation:
-                    #  Message([f"{self.player.name} disappears in a flash of light.")
+                    #  Message([f"{player.name} disappears in a flash of light.")
                     # TODO: display new room description
                     return Message(lines=[f"You teleport to room #{val}, {dest.name}.\n"])
                     # changes={"prompt": "Prompt:", "status_line": 'Status Line'})
