@@ -306,191 +306,198 @@ players = {}
 
 @dataclass
 class Player:
-    def __init__(self, **kwarg):
-        """
-        Attributes, flags and other stuff about characters.
-        """
-        self.name = kwarg['name']  # str  # in-game name
-        self.id = kwarg['id'] = int  # handle, for Player.connect
-        # TODO: eventually, CommodoreServer Internet Protocol connection ID
-        self.connection_id = kwarg['connection_id']  # int
-        self.gender = kwarg['gender']  # [ male | female ]
-        # creates a new kwargs dict for each Character:
-        # set with Character.set_stat('xyz', val)
-        # dict['chr': int, 'con': int, 'dex': int, 'int': int, 'str': int, 'wis': int, 'egy': int]
-        self.stat = kwarg['stat']
-        # status flags:
-        self.flag = kwarg['flag']
-        """
-        #: dict[  # status flags:
-        'room_descriptions': bool,
-        'autoduel': bool,
-        'hourglass': bool,
-        'expert_mode': bool,
-        'more_prompt': bool,
-        'architect': bool,
-        # TODO: define orator_mode more succinctly
-        # orator_mode: bool
+    """
+    Attributes, flags and other stuff about characters.
+    """
+    name: str  # in-game name
+    id: int  # handle, for Player.connect
+    # TODO: eventually, CommodoreServer Internet Protocol connection ID
+    connection_id: int
+    gender: str  # [ male | female ]
+    # creates a new kwargs dict for each Character:
+    # set with Character.set_stat('xyz', val)
+    # dict['chr': int, 'con': int, 'dex': int, 'int': int, 'str': int, 'wis': int, 'egy': int]
+    stat: dict
+    # status flags:
+    flag: dict
+    """
+    flag: dict[  # status flags:
+    'room_descriptions': bool,
+    'autoduel': bool,
+    'hourglass': bool,
+    'expert_mode': bool,
+    'more_prompt': bool,
+    'architect': bool,
+    # TODO: define orator_mode more succinctly
+    # orator_mode: bool
 
-        # health flags:
-        'hungry': bool,
-        'thirsty': bool,
-        'diseased': bool,
-        'poisoned': bool,
-        'tired': bool,
-        'on_horse': bool,
-        'unconscious': bool,
+    # health flags:
+    'hungry': bool,
+    'thirsty': bool,
+    'diseased': bool,
+    'poisoned': bool,
+    'tired': bool,
+    'on_horse': bool,
+    'unconscious': bool,
 
-        # other flags:
-        'debug': bool,
-        'dungeon_master': bool,
-        'compass_used': bool,
-        'thug_attack': bool,
+    # other flags:
+    'debug': bool,
+    'dungeon_master': bool,
+    'compass_used': bool,
+    'thug_attack': bool,
 
-        # game objectives:
-        'spur_alive': bool,
-        'dwarf_alive': bool,
-        'wraith_king_alive': bool,
-        'wraith_master': bool,
-        'tut_treasure': dict['examined': bool, 'taken': bool],
+    # game objectives:
+    'spur_alive': bool,
+    'dwarf_alive': bool,
+    'wraith_king_alive': bool,
+    'wraith_master': bool,
+    'tut_treasure': dict['examined': bool, 'taken': bool],
 
-        # magic items:
-        'gauntlets_worn': bool,
-        'ring_worn': bool,
-        'amulet_of_life': bool,
+    # magic items:
+    'gauntlets_worn': bool,
+    'ring_worn': bool,
+    'amulet_of_life': bool,
 
-        # wizard_glow stuff:
-        # 0 if inactive
-        # != 0 is number of rounds left, decrement every turn
-        'wizard_glow': int]
-        # things you can only do once per day (file_formats.txt)
-        'pr'    has PRAYed once
-        'pr2'   can PRAY twice per day (only if char_class is Druid)
-        TODO: finish this
-        """
-        self.once_per_day = kwarg['once_per_day']  # list
+    # wizard_glow stuff:
+    # 0 if inactive
+    # != 0 is number of rounds left, decrement every turn
+    'wizard_glow': int]
+    # things you can only do once per day (file_formats.txt)
+    'pr'    has PRAYed once
+    'pr2'   can PRAY twice per day (only if char_class is Druid)
+    TODO: finish this
+    """
+    once_per_day: list
 
-        # TODO: money types may be expanded to platinum, electrum in future
-        # creates a new silver dict for each Character:
-        # in_bank: may be cleared on character death (TODO: look in TLOS source)
-        # in_bar: should be preserved after character's death (TODO: same)
-        # use Character.set_silver("kind", value)
-        self.silver = kwarg['silver']  # dict['in_hand': int, 'in_bank': int, 'in_bar': int]
+    # TODO: money types may be expanded to platinum, electrum in future
+    # creates a new silver dict for each Character:
+    # in_bank: may be cleared on character death (TODO: look in TLOS source)
+    # in_bar: should be preserved after character's death (TODO: same)
+    # use Character.set_silver("kind", value)
+    # TODO (maybe):
+    # silver: dict[str] = field(default_factory=dict)
+    # silver['in_hand': int, 'in_bank': int, 'in_bar': int]
+    silver: dict
 
-        self.age = kwarg['age']  # int
-        # Tuple[('0', '0', '0')]  # (month, day, year):
-        self.birthday = kwarg['birthday']
-        # [civilian | fist | sword | claw | outlaw]:
-        self.guild = kwarg['guild']  # str
+    age: int
+    # Tuple[('0', '0', '0')]  # (month, day, year):
+    birthday: tuple
+    # [civilian | fist | sword | claw | outlaw]:
+    guild: str
 
-        #                   1       2        3       4      5       6       7         8       9
-        self.char_class: str  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
-        self.race: str  # ......Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
-        self.natural_alignment: str  # good | neutral | evil (depends on race)
+    #                   1       2        3       4      5       6       7         8       9
+    char_class: str  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
+    race: str  # ......Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
+    natural_alignment: str  # good | neutral | evil (depends on race)
 
-        # client info:
-        self.client = kwarg['client']  # dict[]
-        """# host (i.e., Python, C64, C128...?)
-        'name': str,
-        # screen dimensions:
-        'rows': int,
-        'cols': int,
-        # {'translation': None | ASCII | ANSI | Commodore }
-        'translation': str,
-        # colors for [bracket reader] text highlighting on C64/128:
-        'text': int,
-        'highlight': int,
-        'background': int,
-        'border': int]
-        """
-        self.hit_points = kwarg['hit_points']  # int
-        self.experience = kwarg['experience']  # int
+    # client info:
+    client: dict
+    """
+    # host (i.e., Python, C64, C128...?)
+    'name': str,
+    # screen dimensions:
+    'rows': int,
+    'cols': int,
+    # {'translation': None | ASCII | ANSI | Commodore }
+    'translation': str,
+    # colors for [bracket reader] text highlighting on C64/128:
+    'text': int,
+    'highlight': int,
+    'background': int,
+    'border': int]
+    """
+    hit_points: int
+    experience: int
 
-        # map stats:
-        self.map_level = kwarg['map_level']  # int  # cl = current level
-        self.room = kwarg['room']  # int  # cr = current room
-        self.moves_made = kwarg['moves_made']  # int
-        # tracks how many moves made today for experience at quit:
-        self.moves_today = kwarg['moves_today']  # int
+    # map stats:
+    map_level: int  # cl = current level
+    room: int  # cr = current room
+    moves_made: int
+    # tracks how many moves made today for experience at quit:
+    moves_today: int
 
-        # combat stats:
-        self.armor = kwarg['armor']  # list
-        # e.g., should it be its own class with attributes?
-        # Armor(object):
-        #     def __init__(name, percent_left, armor_class, ...)
-        # TODO: weight (iron armor vs. padded leather armor will be different),
-        #  could also define effectiveness, heavier armor absorbs more damage
+    # combat stats:
+    armor: list
+    # e.g., should it be its own class with attributes?
+    # Armor(object):
+    #     def __init__(name, percent_left, armor_class, ...)
+    # TODO: weight (iron armor vs. padded leather armor will be different),
+    #  could also define effectiveness, heavier armor absorbs more damage
 
-        self.shield = kwarg['shield']  # dict
-        self.shield_used = kwarg['shield_used']  # int  # shield item being USEd
-        self.shield_skill = kwarg['shield_skill']  # dict['item': int, 'skill': int]
-        # same:
-        # Shield(object):
-        #     def __init__(name, percent_left, shield_size, ...)
-        # TODO: weight (iron shield vs. wooden shield will be different),
-        #  could also define effectiveness, heavier shields absorb more damage
+    shield: dict
+    shield_used: int  # shield item being USEd
+    shield_skill: dict  # dict['item': int, 'skill': int]
+    # same:
+    # Shield(object):
+    #     def __init__(name, percent_left, shield_size, ...)
+    # TODO: weight (iron shield vs. wooden shield will be different),
+    #  could also define effectiveness, heavier shields absorb more damage
 
-        self.weapon = kwarg['weapon']  # dict
-        self.weapon_used = kwarg['weapon_used']  # int  # if not None, this weapon READYed
-        self.weapon_skill = kwarg['weapon_skill']  # dict  # {weapon_item: int, weapon_skill: int}
-        self.weapon_left = kwarg['weapon_left']  # int  # TODO: map this to a rating
+    weapon: dict
+    weapon_used: int  # if not None, this weapon READYed
+    weapon_skill: dict  # {weapon_item: int, weapon_skill: int}
+    weapon_left: int  # TODO: map this to a rating
 
-        # bad_hombre_rating is calculated from stats, not stored in player log
-        self.honor_rating = kwarg['honor_rating']  # int  # helps determine current_alignment
-        self.formal_training = kwarg['formal_training']  # int
-        self.monsters_killed = kwarg['monsters_killed']  # int
-        """
-        monsters_killed is not always the same as dead_monsters[];
-        still increment it if you re-kill a re-animated monster
-        """
-        self.dead_monsters = kwarg['dead_monsters']  # list  # keeps track of monsters for Zelda in the bar to resurrect
-        self.monster_at_quit = kwarg['monster_at_quit']  # str
+    # bad_hombre_rating is calculated from stats, not stored in player log
+    honor_rating: int  # helps determine current_alignment
+    formal_training: int
+    monsters_killed: int
+    """
+    monsters_killed is not always the same as dead_monsters[];
+    still increment it if you re-kill a re-animated monster
+    """
+    dead_monsters: list  # keeps track of monsters for Zelda in the bar to resurrect
+    monster_at_quit: str
 
-        # ally stuff:
-        self.allies = kwarg['allies']  # list  # (list of tuples?)
-        self.ally_inv = kwarg['ally_inv']  # list
-        self.ally_abilities = kwarg['ally_abilities']  # list
+    # ally stuff:
+    allies: list  # (list of tuples?)
+    ally_inv: list
+    ally_abilities: list
+    ally_flags: list
 
-        # horse stuff:
-        self.has_horse = kwarg['has_horse']  # bool
-        self.horse_name = kwarg['horse_name']  # str
-        self.horse_armor = kwarg['horse_armor']  # dict  # {'name': name, 'armor_class': ac?}
-        self.has_saddlebags = kwarg['has_saddlebags']  # bool
-        self.saddlebags = kwarg['saddlebags']  # list  # these can carry items for GIVE and TAKE commands
+    # horse stuff:
+    has_horse: bool
+    horse_name: str
+    horse_armor: dict  # {'name': name, 'armor_class': ac?}
+    has_saddlebags: bool
+    saddlebags: list  # these can carry items for GIVE and TAKE commands
 
-        self.vinny_loan = kwarg['vinny_loan']  # dict  # {'amount_payable': int, 'days_til_due': int}
+    vinny_loan: dict  # {'amount_payable': int, 'days_til_due': int}
 
-        # inventory
-        """
-        # TODO: There should be methods here for Inventory:
-            Inventory.item_held(item): check player/ally inventory, return True or False
-                (is it important to know whether the player or ally is carrying an item?)
-                maybe return Character or Ally object if they hold it, or None if no-one holds it
-                Or could be written:
-    
-                if 'armor' in Character.inventory and 'armor' in Character.used:
-                # meaning 'armor' is in 'inventory' and 'used' lists?
-                # could this be shortened? perhaps:
-                # if Character.ItemHeldUsed('armor')
-        """
-        self.max_inv = kwarg['max_inv']  # int
-        # also see weapons[], armor[], shields[]
-        self.food = kwarg['food']  # list
-        self.drink = kwarg['drink']  # list
-        self.spells = kwarg['spells']  # list  # list of dicts('spell_name': str, 'charges', 'chance_to_cast': int)
-        self.booby_traps = kwarg['booby_traps']  # dict['room': int, 'combination': str]  # combo: '[a-i]'
+    # inventory
+    """
+    # TODO: There should be methods here for Inventory:
+        Inventory.item_held(item): check player/ally inventory, return True or False
+            (is it important to know whether the player or ally is carrying an item?)
+            maybe return Character or Ally object if they hold it, or None if no-one holds it
+            Or could be written:
 
-        self.times_played = kwarg['times_played']  # int  # TODO: increment at Character.save()
-        self.last_play_date = kwarg['last_play_date']  # Tuple[(0, 0, 0)]  # (month, day, year) like birthday
+            if 'armor' in Character.inventory and 'armor' in Character.used:
+            # meaning 'armor' is in 'inventory' and 'used' lists?
+            # could this be shortened? perhaps:
+            # if Character.ItemHeldUsed('armor')
+    """
+    max_inv: int
+    # also see weapons[], armor[], shields[]
+    food: list
+    drink: list
+    spells: list  # list of dicts('spell_name': str, 'charges', 'chance_to_cast': int)
+    booby_traps: dict  # dict['room': int, 'combination': str]  # combo: '[a-i]'
 
-        self.special_items = kwarg['special_items']  # dict
-        # SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
-        # TODO: avoid placing objects in map "holes" where no room exists
-        # DINGHY  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
-        self.combinations = kwarg['combinations']
-        # dict['elevator': (0, 0, 0), 'locker': (0, 0, 0),
-        #      'castle': (0, 0, 0)]
-        # tuple: combo is 3 digits: (nn, nn, nn)
+    times_played: int  # TODO: increment at Character.save()
+    last_play_date: tuple  # Tuple[(0, 0, 0)]  # (month, day, year) like birthday
+
+    special_items: dict
+    # SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
+    # TODO: avoid placing objects in map "holes" where no room exists
+    # DINGHY  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
+    combinations: dict
+    # dict['elevator': (0, 0, 0),
+    #      'locker': (0, 0, 0),
+    #      'castle': (0, 0, 0)]
+    # tuple: combo is 3 digits: (nn, nn, nn)
+
+    last_command: list
 
     def connect(self):
         with server_lock:
