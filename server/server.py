@@ -1,10 +1,43 @@
 #!/bin/env python3
 import logging
+from typing import Type
+
+# configure logging: display function name
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    datefmt='%m/%d %H:%M')
+# define a Handler which writes INFO messages or higher to the sys.stderr
+console = logging.StreamHandler()
+# console.setLevel(logging.INFO)
+
+# set a format which is simpler for console use
+formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+# tell the handler to use this format
+console.setFormatter(formatter)
+# add the handler to the root logger
+logging.getLogger('').addHandler(console)
+
+# Now, we can log to the root logger, or any other logger. First the root...
+logging.info('Jackdaws love my big sphinx of quartz.')
+
+# Now, define a couple of other loggers which might represent areas in your
+# application:
+
+log = logging.getLogger(__name__)  # qualified function name
+
+log.debug('Quick zephyrs blow, vexing daft Jim.')
+log.info('How quickly daft jumping zebras vex.')
+log.warning('Jail zesty vixen who grabbed pay from quack.')
+log.error('The five boxing wizards jump quickly.')
+
+log.info("startup: per-module logging test")
+
 import os
 import json
 import threading
 from dataclasses import dataclass, field
 import textwrap
+import signal  # for ctrl-c/other error trapping
 
 # import collections  # for defaultdict behavior
 
@@ -69,7 +102,6 @@ roomsData = [
 """
 
 room_start = 1
-money_start = 1000
 
 compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up', 'd': 'Down'}
 
@@ -123,7 +155,7 @@ class Item(object):
     def __init__(self, number, name, kind, price, **flags):
         if flags:
             for key, value in flags.items():
-                logging.info(f'{key=} {value=}')
+                log.info(f'{key=} {value=}')
         self.number = number
         self.name = name
         self.kind = kind
@@ -137,7 +169,7 @@ class Item(object):
         with open(filename) as jsonF:
             temp = json.load(jsonF)
             game_items = temp["items"]  # remove the dict "items"
-        logging.info("*** Read item JSON data")
+        log.info("*** Read item JSON data")
 
         """
         count = 0
@@ -151,7 +183,7 @@ class Item(object):
         count = 0
         for item in item_list:
             count += 1
-            logging.info(f'{count} {item}')
+            log.info(f'{count} {item}')
 
             number = item['number']
             name = item['name']
@@ -161,9 +193,9 @@ class Item(object):
                 flags = item['flags']
             except KeyError:
                 flags = None
-            logging.info(f'{count=} {name=} {type=} {price=} {flags=}')
+            log.info(f'{count=} {name=} {type=} {price=} {flags=}')
             temp = Item(number, name, type, price, **flags)
-            logging.info(f'After Item instantiated: {temp=}')
+            log.info(f'After Item instantiated: {temp=}')
             item_list.append(temp)
         """
         return game_items
@@ -195,7 +227,7 @@ class Map(object):
         for room_data in map_data['rooms']:
             room = Room(**room_data)
             self.rooms[room.number] = room
-            # logging.info(f'{room.number=} {room.name=}')
+            # log.info(f'{room.number=} {room.name=}')
 
 
 class Monster(object):
@@ -220,7 +252,7 @@ class Monster(object):
         with open(filename) as jsonF:
             monsters = json.load(jsonF)
             # items = temp["items"]  # remove the dict "items"
-        logging.info("*** Read monster JSON data")
+        log.info("*** Read monster JSON data")
 
         # count = 0
         # 'item' becomes a copy of each dict element on each iteration of the loop:
@@ -253,7 +285,7 @@ class Weapons(object):
     def read_weapons(filename: str):
         with open(filename) as jsonF:
             weapons = json.load(jsonF)
-        logging.info("*** Read weapon JSON data")
+        log.info("*** Read weapon JSON data")
         return weapons
 
 
@@ -278,7 +310,7 @@ class Rations(object):
     def read_rations(filename: str):
         with open(filename) as jsonF:
             rations = json.load(jsonF)
-        logging.info("*** Read ration JSON data")
+        log.info("*** Read ration JSON data")
         return rations
 
 
@@ -297,7 +329,7 @@ def playersInRoom(room_id: int, exclude_id: str):
         players_in_room = room_players[room_id]
     if exclude_id is not None:
         players_in_room = players_in_room.difference({exclude_id})
-    logging.info(f'{players_in_room}')
+    log.info(f'{players_in_room}')
     return players_in_room
 
 
@@ -503,7 +535,7 @@ class Player:
         with server_lock:
             room_players[self.room].add(self.id)
             # TODO: notify other players of connection
-        logging.debug(f"Player.connect(): Player {self.name} connected")
+        log.debug(f"Player.connect(): Player {self.name} connected")
 
     def move(self, next_room: int, direction: str = None):
         """
@@ -517,15 +549,15 @@ class Player:
         """
         current_room = self.room
         with server_lock:
-            # logging.debug(f"Before remove: {room_players=}")
+            # log.debug(f"Before remove: {room_players=}")
             room_players[current_room].remove(self.id)
-            # logging.debug(f"After remove: {room_players=}")
+            # log.debug(f"After remove: {room_players=}")
 
         self.room = next_room
-        # logging.debug(f"Before add: {room_players=}")
+        # log.debug(f"Before add: {room_players=}")
         room_players[self.room].add(self.id)
-        # logging.debug(f"After add: {room_players=}")
-        logging.info(f'Player.move: Moved {self.name} from {current_room} to {self.room}')
+        # log.debug(f"After add: {room_players=}")
+        log.info(f'Player.move: Moved {self.name} from {current_room} to {self.room}')
         # teleport command doesn't require direction, just room #
         if direction is None:
             Message(lines=[f'[{self.name} disappears in a flash of light.'])
@@ -547,6 +579,7 @@ class Player:
         if os.path.exists(path):
             with open(path) as jsonF:
                 lh_data = json.load(jsonF)
+                log.info(f'Loaded {lh_data["name"]}.')
             return Player(**lh_data)
         else:
             # player does not exist:
@@ -558,7 +591,7 @@ class Player:
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
                                                       # in o.__dict__.items() if v}, indent=4)
                                                       in o.__dict__.items()}, indent=4)
-        return Message(lines=[f'Saved {self.name}.'])
+        log.info(f'Saved {self.name}.')
 
 
 class PlayerHandler(net_server.UserHandler):
@@ -586,7 +619,7 @@ class PlayerHandler(net_server.UserHandler):
         try:
             room = game_map.rooms[self.player.room]
         except KeyError:
-            logging.warning(f"Room #{room.number} does not exist")
+            log.warning(f"Room #{room.number} does not exist")
 
         debug = self.player.flag['debug']
         exitsTxt = room.exitsTxt(debug)
@@ -609,7 +642,7 @@ class PlayerHandler(net_server.UserHandler):
             lines2.append(f'{wrapper.fill(text=room.desc)}')
 
         # is an item in current room?
-        # logging.info(f'{room=}')  # raw info
+        # log.info(f'{room=}')  # raw info
         obj_list = []  # TODO: for grammatical list and .join(",") later
         item = room.item
         if item:
@@ -653,19 +686,19 @@ class PlayerHandler(net_server.UserHandler):
             # ryan: list exit dirs and room #s
             if debug:
                 for k, v in room.exits.items():
-                    logging.info(f"Exit '{k}' to {v}")
+                    log.info(f"Exit '{k}' to {v}")
 
         # show item in room:
         # num = 62  # zero-based numbering, so subtract one to get actual object
-        # logging.info(f'item #{num} name: {items[num - 1]["name"]}')
+        # log.info(f'item #{num} name: {items[num - 1]["name"]}')
 
         # setting 'exclude_id' excludes that player (i.e., yourself) from being listed
-        other_player_ids = playersInRoom(room.number, exclude_id=self.player.game_id)
-        logging.info(f'{other_player_ids=}')
+        other_player_ids = playersInRoom(room.number, exclude_id=self.player.connection_id)
+        log.info(f'{other_player_ids=}')
         # TODO: "Alice is here." / "Alice and Bob are here." / "Alice, Bob and Mr. X are here."
         """
         if len(other_player_ids) == 0:
-            logging.info("No other players here.")
+            log.info("No other players here.")
         if len(other_player_ids) > 0:
             result_list = []
             result_list.append(i for i in other_player_ids)
@@ -686,9 +719,8 @@ class PlayerHandler(net_server.UserHandler):
             lines2.append(f"{other_players} {temp} here.")
         return Message(lines=lines2, changes=changes)
 
-    def processLoginSuccess(self, user_id, connection_id=None):
+    def processLoginSuccess(self, user_id):
         player = Player.load(user_id)
-        logging.info(f'{player.name} loaded.')
         if player is None:
             # create player
             """
@@ -699,16 +731,17 @@ class PlayerHandler(net_server.UserHandler):
                 if name != '':  # TODO: limitations on valid names
                     valid_name = True
             """
-            logging.info("Running player_setup() from create_player")
+            log.info("Running player_setup() from create_player")
             import create_character as cc
-            logging.info(f'> running {cc.__file__}')
+            log.info(f'> running {cc.__file__}')
             cc.character_setup()
             Player.save(user_id)
         # keeps track of who is connected?
         players[user_id] = player
 
-        logging.info(f"login {user_id} '{player.name}' (addr={self.sender})")
-        lines = [f"Welcome, {player.name}.", f"You have {player.silver['in_hand']:,} silver in hand.\n"]
+        log.info(f"login {user_id} '{player.name}' (addr={self.sender})")
+        lines = [f"Welcome, {player.name}.",
+                 f"You have {player.silver['in_hand']:,} silver in hand.\n"]
 
         # FIXME
         changes = {K.room_name: game_map.rooms[player.room].name,
@@ -717,27 +750,28 @@ class PlayerHandler(net_server.UserHandler):
         player.connect()
         return self.roomMsg(lines, changes)
 
-    def processMessage(self, data):
-        logging.info('processMessage()')
-        if 'text' in data:
-            cmd = data['text'].lower().split(' ')
-            logging.info(f"{self.player.game_id}: {cmd}")
+    def processMessage(self, data: dict):
+        log.info(f'processMessage(): {data=}')
+        if data.get('text'):
+            self.cmd = data['text'].lower().split(' ')
+            # FIXME
+            log.info(f"{self.player.id}: {cmd}")
             # update last command to repeat with Return/Enter
             # if an invalid command, set to None later
             # TODO: maybe maintain a history
-            self.player.last_command = cmd
-            logging.info(f'{self.player.last_command=}')
+            self.player.last_command = self.cmd
+            log.info(f'{self.player.last_command=}')
 
             # TODO: handle commands with parser etc.
 
             # movement
             if cmd[0] in compass_txts:
                 room = game_map.rooms[self.player.room]
-                logging.info(f'current room #: {self.player.room}')
+                log.info(f'current room #: {self.player.room}')
                 direction = cmd[0]
-                logging.info(f"direction: {direction}")
+                log.info(f"direction: {direction}")
                 # 'rooms' is a list of Room objects?
-                logging.info(f'exits: {room.exits}')
+                log.info(f'exits: {room.exits}')
                 # >>> exits = {'n': 1, 's': 3}
                 # >>> exits.keys()
                 # dict_keys(['n', 's'])
@@ -746,13 +780,12 @@ class PlayerHandler(net_server.UserHandler):
                 # cmd.insert(0, 'go') probably not necessary
                 # json data (dict):
                 # check if 'direction' is in room exits
-                if direction in room.exits:  # rooms[self.player.room].exits.keys():
-                    logging.info(f"{direction=} => {self.player.room=}")
+                if direction in room.exits:  # rooms[player.room].exits.keys():
+                    log.info(f"{direction=} => {self.player.room=}")
                     # delete player from list of players in current room,
                     # add player to list of players in room they moved to
-                    self.player.move(room.exits[direction], direction)
-                    # FIXME: maybe only at quit
-                    # self.player.save()
+                    player.move(room.exits[direction], direction)
+                    # player.save()  # FIXME: maybe only at quit
                     room_name = game_map.rooms[self.player.room].name
                     return self.roomMsg(lines=[f"You move {compass_txts[direction]}."],
                                         changes={K.room_name: room_name})
@@ -775,30 +808,29 @@ class PlayerHandler(net_server.UserHandler):
                         self.player.move(next_room=room_transport, direction='u')
                         return
                     else:
-                        logging.info(f'{self.player.name} moves Up to Shoppe')
-                        self.player.move(next_room=room_transport, direction='u')
+                        log.info(f'{self.player.name} moves Up to Shoppe')
+                        self.player.move(self, next_room=room_transport, direction='u')
                         # don't change self.player.room, return them to where they left
                         return Message(lines=["TODO: write Shoppe routine..."])
                 if cmd[0] == 'd' and room_connection == 2:
                     if room_transport != 0:
-                        logging.info(f'{self.player.name} moves Down to #{room_transport}')
+                        log.info(f'{player.name} moves Down to #{room_transport}')
                         self.player.move(next_room=room_transport, direction='d')
 
                         # get new room desc:
                         # FIXME: TypeError: 'Room' object is not subscriptable
                         """
                         temp = game_map.rooms[number]
-                        logging.info(f"room info: {temp}")
+                        log.info(f"room info: {temp}")
                         desc = temp["desc"]
-                        logging.info(f"desc: {desc}")
+                        log.info(f"desc: {desc}")
                         """
-                        desc = "bla"
                         # FIXME: see server.py, line 24:
                         #  thought maybe this would show the new room desc
                         return Message(lines=["You move down."],
                                        changes={K.desc: desc})
                     else:
-                        logging.info(f'{self.player.name} moves Down to Shoppe')
+                        log.info(f'{player.name} moves Down to Shoppe')
                         self.player.move(next_room=room_transport, direction='d')
 
                         # don't change self.player.room, return them to where they left
@@ -814,7 +846,7 @@ class PlayerHandler(net_server.UserHandler):
                 temp = net_server.UserHandler.promptRequest(self, lines=[], prompt='Really quit? ',
                                                             choices={'y': 'yes', 'n': 'no'})
                 # returns a Cmd object?
-                logging.info(f'{temp=}')
+                log.info(f'{temp=}')
                 # extract value from returned dict, e.g.: temp={'text': 'y'}
                 if temp.get('text') == 'y':
                     self.player.save()
@@ -833,10 +865,10 @@ class PlayerHandler(net_server.UserHandler):
 
             # toggle room descriptions:
             if cmd[0] in ['r']:
-                logging.info(f"{self.player.flag['room_descs']}")
+                log.info(f"{self.player.flag['room_descs']}")
                 self.player.flag['room_descs'] = not self.player.flag['room_descs']
                 temp = self.player.flag['room_descs']
-                logging.info(f'Room descriptions: {temp}.')
+                log.info(f'Room descriptions: {temp}.')
                 return Message(lines=[f'[Room descriptions are now '
                                       f'{"off" if temp is False else "on"}.]'])
 
@@ -865,8 +897,8 @@ class PlayerHandler(net_server.UserHandler):
                     self.player.move(room_num, direction=None)
 
                     # move player there:
-                    self.player.room = room_num
-                    logging.info(f'{room_num=} {self.player.room=}')
+                    player.room = room_num
+                    log.info(f'{room_num=} {player.room=}')
                     # TODO: something like this displayed to other players would be nice to indicate teleportation:
                     #  Message([f"{self.player.name} disappears in a flash of light.")
                     # TODO: display new room description
@@ -893,7 +925,7 @@ class PlayerHandler(net_server.UserHandler):
                     temp = line + '\n'
                     # data = temp.encode(encoding='petscii-c64en-lc', errors='ignore')
                     data = temp.encode(encoding='utf-8', errors='ignore')
-                    logging.info(f'data={type(data)}')  # type = bytes
+                    log.info(f'data={type(data)}')  # type = bytes
                     data_dict = dict(data)
                     net_server.UserHandler.message(net_common.toJSONB(data_dict))
                     net_server.UserHandler.message(self, "This should be PetSCII.\r")  # socket: request.sendall(data)
@@ -902,24 +934,21 @@ class PlayerHandler(net_server.UserHandler):
             self.player.last_command = None
             return Message(lines=["I didn't understand that.  Try something else."])
         else:
-            logging.error("unexpected message")
+            log.error("unexpected message")
             return Message(lines=["Unexpected message."], mode=Mode.bye)
 
 
 def break_handler(signal_received):
     # Handle any cleanup here
+    # TODO: move to net_server.handle()?
     t = signal.Signals  # to display signal name
-    logging.critical(f'{t} ({signal_received}) detected. Shutting down server.')
+    log.critical(f'{t} ({signal_received}) detected. Shutting down server.')
     # TODO: broadcast shutdown message to all players
     print("Server going down. Bye.")
     exit(t)  # exit status is signal received
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
-
-    import signal
-
     # exit gracefully when SIGINT is received
     # signal(SIGINT, handler)  # for *nix
     signal.signal(signal.SIGINT, break_handler)  # for Windows
@@ -941,7 +970,7 @@ if __name__ == "__main__":
     #     rooms[data.number] = room
     # FIXME: determine how this works, it just copies 'set()' for each item in the list:
     room_players = {number: set() for number in game_map.rooms.keys()}
-    logging.info(f'{room_players=}')
+    # log.info(f'{room_players=}')
 
     # load items
     items = Item.read_items("objects.json")
