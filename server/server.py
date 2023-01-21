@@ -567,7 +567,7 @@ class Player:
     def disconnect(self):
         with server_lock:
             room_players[self.room].remove(self.id)
-            Message(lines=[f'{players[self.id].name} falls asleep.'])
+            return Message(lines=[f'{players[self.id].name} falls asleep.'])
 
     @staticmethod
     def _json_path(user_id):
@@ -595,9 +595,8 @@ class Player:
 
 
 class PlayerHandler(net_server.UserHandler):
-    def __init__(self, request: _RequestType, client_address: _AddressType, server: BaseServer):
-        # super().__init__(request, client_address, server)
-        self.player = None
+    def __init__(self):
+        self.player = player
 
     def initSuccessLines(self):
         return ['Welcome to:\n', 'Totally\nAwesome\nDungeon\nAdventure\n', 'Please log in.']
@@ -614,8 +613,6 @@ class PlayerHandler(net_server.UserHandler):
         :return: Message object
         """
         # get room # that player is in
-        room = game_map.rooms[self.player]
-        logging.info(f"in roomMsg: {room=}, {player=}")
         try:
             room = game_map.rooms[self.player.room]
         except KeyError:
@@ -659,7 +656,7 @@ class PlayerHandler(net_server.UserHandler):
         monster = room.monster
         if monster:
             m = monsters[monster - 1]
-            mon_name = ["name"]
+            mon_name = m["name"]
             # optional info:
             try:
                 mon_size = m["size"]
@@ -752,7 +749,7 @@ class PlayerHandler(net_server.UserHandler):
         changes = {K.room_name: game_map.rooms[player.room].name,
                    K.money: player.silver['in_hand'], K.health: player.hit_points,
                    K.xp: player.experience}
-        player.connect()
+        self.player.connect()
         return self.roomMsg(lines, changes)
 
     def processMessage(self, data: dict):
@@ -878,12 +875,10 @@ class PlayerHandler(net_server.UserHandler):
                                       f'{"off" if temp is False else "on"}.]'])
 
             if cmd[0] == 'who':
-                from server import net_server as ns
+                import net_server as ns
                 lines = ["\nWho's on:"]
-                count = 0
-                for login_id in ns.connected_users:
-                    lines.append(f'{count + 1:2}) {players[login_id].name}')
-                    count += 1
+                for idx, login_id in enumerate(ns.connected_users, start=1):
+                    lines.append(f'{idx:2}) {players[login_id].name}')
                 return Message(lines=lines)
 
             # really this is just a debugging tool to save shoe leather:
@@ -899,7 +894,7 @@ class PlayerHandler(net_server.UserHandler):
                     # delete player id from list of players in current room,
                     # add player id to list of players in room they moved to
                     # 'direction' is None, so display "{player} disappears in a flash of light."
-                    self.player.move(room_num, direction=None)
+                    player.move(room_num, direction=None)
 
                     # move player there:
                     player.room = room_num
