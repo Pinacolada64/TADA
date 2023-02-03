@@ -256,6 +256,14 @@
             "food": 22
         },
         {
+            "number": 37,
+            "name": "WALL BAR & GRILL",
+            "exits": {
+                "s": 49
+            },
+            "desc": "You stand in the doorway of a smoke-filled bar. A sign on the wall reads: \"Wall Bar & Grill.\""
+        },
+        {
             "number": 39,
             "name": "CAVERN LEDGE -]----",
             "exits": {
