@@ -14,14 +14,14 @@ default_prompt = 'TADA> '
 
 class Client(net_client.Client):
     def __init__(self):
-        self.status = {K.room_name: '', K.money: 0, K.health: 0, K.xp: 0}
+        self.status = {K.room_name: '', K.silver: 0, K.hit_points: 0, K.experience: 0}
 
     def processRequest(self, request):
         if request['error'] != '':
             error_code = request['error']
             error_line = request['error_line']
             logging.error(f"{error_line} ({error_code})")
-        for f in [K.room_name, K.money, K.health, K.xp, K.last_command]:
+        for f in [K.room_name, K.silver, K.hit_points, K.experience, K.last_command]:
             v = request.get('changes', {}).get(f)
             if v:
                 self.status[f] = v
@@ -30,7 +30,15 @@ class Client(net_client.Client):
             logging.info(f'{choices=}')
         prompt = request.get('prompt')
         if prompt == '':
-            print("---< %(room_name)s | health %(health)d | xp %(xp)d | %(money)d gold >---" % self.status)
+            # print("---< %(room_name)s | health %(health)d | xp %(xp)d | %(silver)d gold >---" % self.status)
+            logging.info(f'{self.status=}')
+            s = self.status[K.silver]  # returns set() item (as string)
+            logging.info(f'{s=}')
+            print(f"---< {self.status[K.room_name]} | "
+                  f"HP: {self.status[K.hit_points]} | "
+                  f"Experience: {self.status[K.experience]} | "
+                  # FIXME: f"Silver in hand: {self.status[K.silver['in_hand']]}"
+                  f" >---")
         for m in request['lines']:
             print(m)
         if len(choices) > 0:
