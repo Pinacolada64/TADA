@@ -2,6 +2,7 @@
 
 import os
 import json
+import random
 import threading
 from dataclasses import dataclass, field
 import textwrap
@@ -74,6 +75,7 @@ room_start = 1
 money_start = 1000
 
 compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up', 'd': 'Down'}
+
 
 @dataclass
 class Room(object):
@@ -304,49 +306,211 @@ def playersInRoom(room_id: int, exclude_id: str):
 players = {}
 
 
-# @dataclass
-class Player:
+def random_number():
+    return random.randrange(1, 65535)
+
+
+@dataclass
+class Player():
     """
-    id: str  # login id
-    name: str  # player's handle
-    map_level: int = 1
-    room: int = 1
-    money: int = 1000
-    health: int = 100
-    xp: int = 0
-
-    this is to create default values for missing player.flag['foo'],
-    instead of hand-editing 'player-<foo>.json' or getting KeyErrors
-    if dict key player.flag['foo'] is undefined in said file
-    https://docs.python.org/3.8/library/dataclasses.html?highlight=dataclass#dataclasses.field
-    
-    this is useful also, but cannot be used in the dataclass context:
-    https://docs.python.org/3/library/collections.html?highlight=default%20factory#collections.defaultdict
-
-    # flag: dict = field(default_factory=dict)
-    flag: dict = field(default_factory=lambda: {})
-    # for saving previous command to repeat with Return/Enter
-    # (it may be expanded to a list in the future):
-    last_command: str = None
+    Attributes, flags and other stuff about characters.
     """
+    name: str  # in-game name
+    id: str  # handle, for Player.connect
+    # TODO: eventually, CommodoreServer Internet Protocol connection ID
+    connection_id: int  # field(default_factory=random_number)
+    gender: str  # [ male | female ]
+    # set stats with Character.set_stat('xyz', val)
+    # stat: {'chr': int, 'con': int, 'dex': int, 'int': int,
+    #        'str': int, 'wis': int, 'egy': int}
+    stat: dict
+    # status flags:
+    flag: {'room_descriptions': True,
+           'autoduel': False,
+           'room_descriptions': True,
+           'autoduel': False,
+           'hourglass': True,
+           'expert_mode': False,
+           'more_prompt': True,
+           'architect': False,
+           # TODO: define orator_mode more succinctly
+           'orator_mode': False,
 
-    def __init__(self, id, name, map_level, room, money, health, xp,
-                 flag, last_command):
-        logging.info(f"Instantiating player '{name}'.")
-        self.id: str = id  # login id
-        self.name: str = name  # player's handle
-        self.map_level: int = map_level  # to differentiate between eXPerience level
-        self.room: int = room  # default: room_start = 1
-        self.money: int = money  # default: money_start = 1000
-        self.health: int = health  # default 100
-        self.xp: int = xp
-        self.flag = dict(flag)
-        self.last_command: str = last_command
+           # health flags:
+           'hungry': False,
+           'thirsty': False,
+           'diseased': False,
+           'poisoned': False,
+           'tired': False,
+           'on_horse': False,
+           'unconscious': False,
+
+           # other flags:
+           'debug': True,
+           'dungeon_master': True,
+           'compass_used': False,
+           'thug_attack': False,
+
+           # game objectives:
+           'spur_alive': True,
+           'dwarf_alive': True,
+           'wraith_king_alive': True,
+           'wraith_master': False,
+           'tut_treasure': {'examined': False, 'taken': False},
+
+           # magic items:
+           'gauntlets_worn': False,
+           'ring_worn': False,
+           'amulet_of_life': False,
+
+           # wizard_glow stuff:
+           # 0 if inactive
+           # != 0 is number of rounds left, decrement every turn
+           'wizard_glow': int}
+
+    # things you can only do once per day (file_formats.txt)
+    once_per_day: list
+    # 'pr'    has PRAYed once
+    # 'pr2'   can PRAY twice per day (only if char_class is Druid)
+    # TODO: finish this
+
+    # TODO: money types may be expanded to platinum, electrum in future
+    # creates a new silver dict for each Character:
+    # in_bank: may be cleared on character death (TODO: look in TLOS source)
+    # in_bar: should be preserved after character's death (TODO: same)
+    # use Character.set_silver("kind", value)
+    # TODO (maybe):
+    # silver: dict[str] = field(default_factory=dict)
+    # silver['in_hand': int, 'in_bank': int, 'in_bar': int]
+    silver: dict
+
+    # 0 if unknown, otherwise age in years:
+    age: int
+    # Tuple[('0', '0', '0')]  # (month, day, year):
+    birthday: tuple
+    # [civilian | fist | sword | claw | outlaw]:
+    guild: str
+
+    #                  1       2       3       4       5       6       7       8        9
+    char_class: str  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
+    race: str  # ......Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
+    natural_alignment: str  # good | neutral | evil (depends on race)
+
+    # client info:
+    client: dict
+    """
+    # host (i.e., Python, C64, C128...?)
+    'name': str,
+    # screen dimensions:
+    'rows': int,
+    'cols': int,
+    # {'translation': None | ASCII | ANSI | Commodore }
+    'translation': str,
+    # colors for [bracket reader] text highlighting on C64/128:
+    'text': int,
+    'highlight': int,
+    'background': int,
+    'border': int]
+    """
+    hit_points: int
+    experience: int
+
+    # map stats:
+    map_level: int  # cl = current level
+    room: int  # cr = current room
+    moves_made: int
+    # tracks how many moves made today for experience at quit:
+    moves_today: int
+
+    # combat stats:
+    armor: list
+    # e.g., should it be its own class with attributes?
+    # Armor(object):
+    #     def __init__(name, percent_left, armor_class, ...)
+    # TODO: weight (iron armor vs. padded leather armor will be different),
+    #  could also define effectiveness, heavier armor absorbs more damage
+
+    shield: dict
+    shield_used: int  # shield item being USEd
+    shield_skill: dict  # dict['item': int, 'skill': int]
+    # same:
+    # Shield(object):
+    #     def __init__(name, percent_left, shield_size, ...)
+    # TODO: weight (iron shield vs. wooden shield will be different),
+    #  could also define effectiveness, heavier shields absorb more damage
+
+    weapon: dict
+    weapon_used: int  # if not None, this weapon READYed
+    weapon_skill: dict  # {weapon_item: int, weapon_skill: int}
+    weapon_left: int  # TODO: map this to a rating
+
+    # bad_hombre_rating is calculated from stats, not stored in player log
+    honor_rating: int  # helps determine current_alignment
+    formal_training: int
+    monsters_killed: list
+    """
+    monsters_killed is not always the same as dead_monsters[];
+    still increment it if you re-kill a re-animated monster
+    """
+    dead_monsters: list  # keeps track of monsters for Zelda in the bar to resurrect
+    monster_at_quit: str
+
+    # ally stuff:
+    allies: list  # (list of tuples?)
+    ally_inv: list
+    ally_abilities: list
+    ally_flags: list
+
+    # horse stuff:
+    has_horse: bool
+    horse_name: str
+    horse_armor: dict  # {'name': name, 'armor_class': ac?}
+    has_saddlebags: bool
+    saddlebags: list  # these can carry items for GIVE and TAKE commands
+
+    vinny_loan: dict  # {'amount_payable': int, 'days_til_due': int}
+
+    # inventory
+    """
+    # TODO: There should be methods here for Inventory:
+        Inventory.item_held(item): check player/ally inventory, return True or False
+     (is it important to know whether the player or ally is carrying an item?)
+     maybe return Character or Ally object if they hold it, or None if no-one holds it
+     Or could be written:
+
+     if 'armor' in Character.inventory and 'armor' in Character.used:
+     # meaning 'armor' is in 'inventory' and 'used' lists?
+     # could this be shortened? perhaps:
+     # if Character.ItemHeldUsed('armor'):
+    """
+    max_inv: int
+    # also see weapons[], armor[], shields[]
+    food: list
+    drink: list
+    spells: list  # list of dicts('spell_name': str, 'charges', 'chance_to_cast': int)
+    booby_traps: dict  # dict['room': int, 'combination': str]  # combo: '[a-i]'
+
+    times_played: int  # TODO: increment at Character.save()
+    last_play_date: tuple  # Tuple[(0, 0, 0)]  # (month, day, year) like birthday
+
+    special_items: dict
+    # SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
+    # TODO: avoid placing objects in map "holes" where no room exists
+    # DINGHY  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
+    combinations: dict
+    # dict['elevator': (0, 0, 0),
+    #      'locker': (0, 0, 0),
+    #      'castle': (0, 0, 0)]
+    # tuple: combo is 3 digits: (nn, nn, nn)
+
+    last_command: list
+
 
     def connect(self):
         with server_lock:
             room_players[self.room].add(self.id)
             # TODO: notify other players of connection
+
 
     def move(self, next_room: int, direction=None):
         """
@@ -358,31 +522,32 @@ class Player:
         """
         current_room = self.room
         with server_lock:
-            logging.debug(f"Before remove: {room_players=}")
+            logging.debug(f"Before remove: {room_players[current_room]=}")
             room_players[current_room].remove(self.id)
-            logging.debug(f"After remove: {room_players=}")
+            logging.debug(f"After remove: {room_players[current_room]=}")
 
             self.room = next_room
-            logging.debug(f"Before add: {room_players=}")
+            logging.debug(f"Before add: {room_players[current_room]=}")
             room_players[self.room].add(self.id)
-            logging.debug(f"After add: {room_players=}")
+            logging.debug(f"After add: {room_players[current_room]=}")
             logging.info(f'Moved {self.name} from {current_room} to {self.room}')
             # teleport command doesn't require direction, just room #
             if direction is None:
-                return Message(lines=[f'[{self.name} disappears in a flash of light.'])
+                print(f'[{self.name} disappears in a flash of light.')
             else:
-                return Message(lines=[f"{self.name} moves {compass_txts[direction]}."])
+                print(f"{self.name} moves {compass_txts[direction]}.")
+
 
     def disconnect(self):
         with server_lock:
             room_players[self.room].remove(self.id)
-            return Message(lines=[f'{players[self.id].name} falls asleep.'])
-        # FIXME: is this orphaned code?
-        #  print(f"You are in {self.room}.\n{playersInRoom(self.room)} is here.")
+            print(f'{players[self.id].name} falls asleep.')
+
 
     @staticmethod
     def _json_path(user_id):
         return os.path.join(net_common.run_server_dir, f"player-{user_id}.json")
+
 
     @staticmethod
     def load(user_id):
@@ -390,16 +555,23 @@ class Player:
         if os.path.exists(path):
             with open(path) as jsonF:
                 lh_data = json.load(jsonF)
+                logging.info(f"Loaded \"{lh_data['name']}\".")
             return Player(**lh_data)
         else:
             return None
+
 
     def save(self):
         with open(Player._json_path(self.id), 'w') as jsonF:
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
                                                       # in o.__dict__.items() if v}, indent=4)
                                                       in o.__dict__.items()}, indent=4)
-        return Message(lines=[f'Saved {self.name}.'])
+        logging.info(f'Saved "{self.name}".')
+
+
+    def make_random_id(self):
+        """return a random connection id"""
+        return random.randrange(1, 65535)
 
 
 class PlayerHandler(net_server.UserHandler):
@@ -543,8 +715,9 @@ class PlayerHandler(net_server.UserHandler):
             player.save()
         self.player = players[user_id] = player
         logging.info(f"login {user_id} '{self.player.name}' (addr={self.sender})")
-        money = self.player.money
-        lines = [f"Welcome, {self.player.name}.", f"You have {money:,} gold.\n"]
+        silver = self.player.silver['in_hand']
+        lines = [f"Welcome, {self.player.name}.",
+                 f"You have {silver:,} silver.\n"]
 
         # show/convert flags from json text 'true/false' to bool True/False
         # (otherwise they're not recognized, and can't be toggled):
@@ -557,8 +730,8 @@ class PlayerHandler(net_server.UserHandler):
 
         # FIXME
         changes = {K.room_name: game_map.rooms[self.player.room].name,
-                   K.money: self.player.money, K.health: self.player.health,
-                   K.xp: self.player.xp}
+                   K.silver: self.player.silver, K.hit_points: self.player.hit_points,
+                   K.experience: self.player.experience}
         self.player.connect()
         return self.roomMsg(lines, changes)
 
@@ -719,7 +892,7 @@ class PlayerHandler(net_server.UserHandler):
                     # changes={"prompt": "Prompt:", "status_line": 'Status Line'})
                 except KeyError:
                     return Message(lines=[f'Teleport: No such room yet (#{val}, '
-                                   f'max of {max(game_map.rooms)}).'])
+                                          f'max of {max(game_map.rooms)}).'])
 
             """
             FIXME: Under consideration, but not sure how to set this up
@@ -766,6 +939,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
     import signal
+
     # exit gracefully when SIGINT is received
     # signal(SIGINT, handler)  # for *nix
     signal.signal(signal.SIGINT, break_handler)  # for Windows
