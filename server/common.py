@@ -29,11 +29,11 @@ class K(str, enum.Enum):
 
     # players
     password = 'password'
-    money = 'money'
-    room = 'room'
+    silver = 'silver'
+    room = 'room'  # room number
     room_name = 'room_name'
-    health = 'health'
-    xp = 'xp'
+    hit_points = 'hit_points'
+    experience = 'experience'
     last_command = 'last_command'
 
 # class Mode1(str, enum.Enum):
