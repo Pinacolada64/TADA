@@ -88,6 +88,7 @@ class Room(object):
     weapon: int = 0
     food: int = 0
     alignment: str = "neutral"  # default unless set to another guild
+    module: str = None  # for loading specific modules when entered
 
     def __str__(self):
         return f'#{self.number} {self.name}\n' \
@@ -311,7 +312,7 @@ def random_number():
 
 
 @dataclass
-class Player():
+class Player:
     """
     Attributes, flags and other stuff about characters.
     """
@@ -772,6 +773,30 @@ class PlayerHandler(net_server.UserHandler):
                     # FIXME: maybe only at quit
                     # self.player.save()
                     room_name = game_map.rooms[self.player.room].name
+
+                    # special movement cases import new modules (e.g., bar):
+                    # .get() defaults to None if KeyNotFoundError
+                    module = room.module.get(direction)
+                    if module:
+                        # https://stackoverflow.com/questions/13598035/importing-a-module-when-the-module-name-is-in-a-variable
+                        logging.info(f'Exit module: {direction=} {module=}')
+                        try:
+                            # FIXME: force it for now:
+                            # should run __main__():
+                            logging.debug(f'{module} started')
+                            import test
+                            """
+                            # FIXME: but eventually get current path
+                            # https://docs.python.org/3/library/importlib.html#importlib.import_module
+                            # from importlib import import_module
+                            # the 'package' argument is required to perform a relative import for './bar.py'
+                            import_module(name=f'./{module}', package=f'./{module}')
+                            """
+                            logging.debug(f'{module} finished')
+                            return Message(lines=['line 1', 'line 2'])
+                        except ModuleNotFoundError:
+                            logging.warning(f"Can't find '{module}'.")
+
                     return self.roomMsg(lines=[f"You move {compass_txts[direction]}."],
                                         changes={K.room_name: room_name})
 

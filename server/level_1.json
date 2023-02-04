@@ -358,6 +358,9 @@
                 "e": 50,
                 "w": 60
             },
+            "module": {
+                "n": "bar.py"
+            },
             "desc": "Rich mineral deposits form this room. A strange door is north."
         },
         {
