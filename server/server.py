@@ -13,7 +13,10 @@ import net_common
 import common
 import util
 
-# from players import Player
+# TADA modules:
+import bar
+import bar_zelda
+import shoppe
 
 K = common.K
 Mode = net_server.Mode
@@ -523,14 +526,16 @@ class Player:
         """
         current_room = self.room
         with server_lock:
+            logging.debug(f"Move from {current_room}")
             logging.debug(f"Before remove: {room_players[current_room]=}")
             room_players[current_room].remove(self.id)
             logging.debug(f"After remove: {room_players[current_room]=}")
 
             self.room = next_room
-            logging.debug(f"Before add: {room_players[current_room]=}")
+            logging.debug(f"Move to {self.room}")
+            logging.debug(f"Before add: {room_players[self.room]=}")
             room_players[self.room].add(self.id)
-            logging.debug(f"After add: {room_players[current_room]=}")
+            logging.debug(f"After add: {room_players[self.room]=}")
             logging.info(f'Moved {self.name} from {current_room} to {self.room}')
             # teleport command doesn't require direction, just room #
             if direction is None:
@@ -764,41 +769,63 @@ class PlayerHandler(net_server.UserHandler):
                 # 1
                 # cmd.insert(0, 'go') probably not necessary
                 # json data (dict):
+                room_name = room.name
                 # check if 'direction' is in room exits
                 if direction in room.exits:  # rooms[self.player.room].exits.keys():
                     logging.info(f"{direction=} => {self.player.room=}")
-                    # delete player from list of players in current room,
-                    # add player to list of players in room they moved to
-                    self.player.move(room.exits[direction], direction)
-                    # FIXME: maybe only at quit
-                    # self.player.save()
-                    room_name = game_map.rooms[self.player.room].name
-
+                    # NEW: check module to load _first_, otherwise KeyError of '0' occurs
+                    # since there is no "real" destination (i.e., room number)
                     # special movement cases import new modules (e.g., bar):
-                    # .get() defaults to None if KeyNotFoundError
-                    module = room.module.get(direction)
-                    if module:
+                    # .get() defaults to None if KeyError:
+                    # module_for_dir = room.module.get(direction, None)
+                    module_for_dir = room.module  # dataclass defaults to None
+                    logging.info(f'{module_for_dir=}')
+                    if direction == module_for_dir:
+                        logging.info(f"{direction=} {module_for_dir=}")
+                        """
+                        Volca:
+                        For that error: whatever you were trying to get doesn't exist.
+                        room.module either doesn't exist or equals None, so when you do room.module.get(),
+                        it's like saying None.get(), which isn't a thing, which is what the error is
+                        telling you.
+                        """
                         # https://stackoverflow.com/questions/13598035/importing-a-module-when-the-module-name-is-in-a-variable
-                        logging.info(f'Exit module: {direction=} {module=}')
-                        try:
-                            # FIXME: force it for now:
-                            # should run __main__():
-                            logging.debug(f'{module} started')
-                            import test
-                            """
-                            # FIXME: but eventually get current path
-                            # https://docs.python.org/3/library/importlib.html#importlib.import_module
-                            # from importlib import import_module
-                            # the 'package' argument is required to perform a relative import for './bar.py'
-                            import_module(name=f'./{module}', package=f'./{module}')
-                            """
-                            logging.debug(f'{module} finished')
-                            return Message(lines=['line 1', 'line 2'])
-                        except ModuleNotFoundError:
-                            logging.warning(f"Can't find '{module}'.")
+                        """
+                            try:
+                                # FIXME: force it for now:
+                                # should run __main__():
+                                logging.debug(f'{module} started')
+                                import test
 
-                    return self.roomMsg(lines=[f"You move {compass_txts[direction]}."],
-                                        changes={K.room_name: room_name})
+                                # import os
+                                # logging.info(f'{os.path}')
+
+                                # should output a few messages...
+                                test.main(cxn=self.player)
+                                # FIXME: but eventually get current path
+                                # https://docs.python.org/3/library/importlib.html#importlib.import_module
+                                # from importlib import import_module
+                                # the 'package' argument is required to perform a relative import for './bar.py'
+                                import_module(name=f'{module}', package=f'./{module}')
+                            # from colorama import Fore
+                            # import colorama.Fore
+                            # TODO: look at jam's empyre5 code for use of importlib
+                            logging.debug(f'{module} finished')
+                            except ModuleNotFoundError as e:
+                                logging.warning(f"Can't find '{module}'.")
+                                return Message(error="Error {e}")
+                            """
+                    else:
+                        # delete player from list of players in current room,
+                        # add player to list of players in room they moved to
+                        self.player.move(room.exits[direction], direction)
+                        # FIXME: maybe only at quit
+                        # self.player.save()
+                        # FIXME: only a dumb test
+                        # return Message(lines=['line 1', 'line 2', 'line 3'],
+                        #                changes={K.experience: 1000})
+                        return self.roomMsg(lines=[f"You move {compass_txts[direction]}."],
+                                            changes={K.room_name: room_name})
 
             """
             This is the way the original Apple code handled up/down exits.
