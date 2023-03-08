@@ -81,7 +81,7 @@ compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up',
 
 
 @dataclass
-class Room(object):
+class Room:
     number: int
     name: str
     desc: str
@@ -91,7 +91,7 @@ class Room(object):
     weapon: int = 0
     food: int = 0
     alignment: str = "neutral"  # default unless set to another guild
-    module: str = None  # for loading specific modules when entered
+    module: dict = None  # for loading specific modules when entered
 
     def __str__(self):
         return f'#{self.number} {self.name}\n' \
@@ -125,7 +125,11 @@ class Room(object):
         return ", ".join(exit_txts)
 
 
-class Item(object):
+class Item:
+    """
+    this can't be a dataclass because of the optional flags...
+    maybe using pydantic it could be
+    """
     def __init__(self, number, name, type, price, **flags):
         if flags:
             for key, value in flags.items():
@@ -178,7 +182,7 @@ class Item(object):
         return items
 
 
-class Map(object):
+class Map:
     def __init__(self):
         """
         Define the level map layout
@@ -277,13 +281,15 @@ class Weapons(object):
 
 
 @dataclass
-class Rations(object):
+class Rations:
+    # this can't be a dataclass due to the optional presence of the 'flags' field
+    # TODO: maybe later look at using pydantic
     number: int
     name: str
     kind: str  # magical, standard, cursed
     price: int
-    flags: list
-
+    flags: list = None
+    """
     def __init__(self, number, name, kind, price, **flags):
         self.number = number
         self.name = name
@@ -319,7 +325,7 @@ def playersInRoom(room_id: int, exclude_id: str):
         players_in_room = room_players[room_id]
     if exclude_id is not None:
         players_in_room = players_in_room.difference({exclude_id})
-    logging.info(f'{players_in_room}')
+    logging.info(f'playersInRoom: {players_in_room=}')
     return players_in_room
 
 
@@ -335,61 +341,21 @@ class Player:
     """
     Attributes, flags and other stuff about characters.
     """
-    name: str  # in-game name
-    id: str  # handle, for Player.connect
+    name: str = None  # in-game name
+    id: str = None # handle, for Player.connect
     # TODO: eventually, CommodoreServer Internet Protocol connection ID
-    connection_id: int  # field(default_factory=random_number)
-    gender: str  # [ male | female ]
+    connection_id: int = field(default_factory=random_number)
+    gender: str = None  # [ male | female ]
     # set stats with Character.set_stat('xyz', val)
-    # stat: {'chr': int, 'con': int, 'dex': int, 'int': int,
-    #        'str': int, 'wis': int, 'egy': int}
-    stat: dict
+    stat: dict = field(default_factory=dict)
+        # {'chr': int, 'con': int, 'dex': int, 'int': int,
+        #  'str': int, 'wis': int, 'egy': int}
     # status flags:
-    flag: {'room_descriptions': True,
-           'autoduel': False,
-           'room_descriptions': True,
-           'autoduel': False,
-           'hourglass': True,
-           'expert_mode': False,
-           'more_prompt': True,
-           'architect': False,
-           # TODO: define orator_mode more succinctly
-           'orator_mode': False,
-
-           # health flags:
-           'hungry': False,
-           'thirsty': False,
-           'diseased': False,
-           'poisoned': False,
-           'tired': False,
-           'on_horse': False,
-           'unconscious': False,
-
-           # other flags:
-           'debug': True,
-           'dungeon_master': True,
-           'compass_used': False,
-           'thug_attack': False,
-
-           # game objectives:
-           'spur_alive': True,
-           'dwarf_alive': True,
-           'wraith_king_alive': True,
-           'wraith_master': False,
-           'tut_treasure': {'examined': False, 'taken': False},
-
-           # magic items:
-           'gauntlets_worn': False,
-           'ring_worn': False,
-           'amulet_of_life': False,
-
-           # wizard_glow stuff:
-           # 0 if inactive
-           # != 0 is number of rounds left, decrement every turn
-           'wizard_glow': int}
-
+    # FIXME: corey wrote:
+    #  flag: dict = field(default_factory=lambda: {})
+    flag: dict = field(default_factory=dict)
     # things you can only do once per day (file_formats.txt)
-    once_per_day: list
+    once_per_day: list = field(default_factory=list)
     # 'pr'    has PRAYed once
     # 'pr2'   can PRAY twice per day (only if char_class is Druid)
     # TODO: finish this
@@ -400,95 +366,88 @@ class Player:
     # in_bar: should be preserved after character's death (TODO: same)
     # use Character.set_silver("kind", value)
     # TODO (maybe):
-    # silver: dict[str] = field(default_factory=dict)
-    # silver['in_hand': int, 'in_bank': int, 'in_bar': int]
-    silver: dict
+    silver: dict = field(default_factory=dict)
+        # {'in_hand': int, 'in_bank': int, 'in_bar': int}
 
     # 0 if unknown, otherwise age in years:
-    age: int
+    age: int = 0
     # Tuple[('0', '0', '0')]  # (month, day, year):
-    birthday: tuple
+    # FIXME: maybe a datetime object instead
+    birthday: tuple = field(default_factory=tuple)
     # [civilian | fist | sword | claw | outlaw]:
-    guild: str
+    guild: str = None
 
     #                  1       2       3       4       5       6       7       8        9
-    char_class: str  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
-    race: str  # ......Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
-    natural_alignment: str  # good | neutral | evil (depends on race)
+    char_class: str = None  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
+    race: str = None  # ......Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
+    natural_alignment: str = None  # good | neutral | evil (depends on race)
 
-    # client info:
-    client: dict
-    """
-    # host (i.e., Python, C64, C128...?)
-    'name': str,
-    # screen dimensions:
-    'rows': int,
-    'cols': int,
-    # {'translation': None | ASCII | ANSI | Commodore }
-    'translation': str,
-    # colors for [bracket reader] text highlighting on C64/128:
-    'text': int,
-    'highlight': int,
-    'background': int,
-    'border': int]
-    """
-    hit_points: int
-    experience: int
+    # client info:  host (i.e., Python, C64, C128...?)
+    client: dict = field(default_factory=dict)
+    hit_points: int = 0
+    experience: int = 0
 
     # map stats:
-    map_level: int  # cl = current level
-    room: int  # cr = current room
-    moves_made: int
+    map_level: int = 1  # cl = current level
+    room: int = 1  # cr = current room
+    moves_made: int = 0
     # tracks how many moves made today for experience at quit:
-    moves_today: int
+    moves_today: int = 0
 
     # combat stats:
-    armor: list
+    armor: list = field(default_factory=list)
     # e.g., should it be its own class with attributes?
     # Armor(object):
     #     def __init__(name, percent_left, armor_class, ...)
     # TODO: weight (iron armor vs. padded leather armor will be different),
     #  could also define effectiveness, heavier armor absorbs more damage
 
-    shield: dict
-    shield_used: int  # shield item being USEd
-    shield_skill: dict  # dict['item': int, 'skill': int]
+    shield: dict = field(default_factory=dict)
+    shield_used: int = 0 # shield item being USEd
+    shield_skill: dict = field(default_factory=dict)
+    # dict{'<item>': int, 'skill': int}
     # same:
     # Shield(object):
     #     def __init__(name, percent_left, shield_size, ...)
     # TODO: weight (iron shield vs. wooden shield will be different),
     #  could also define effectiveness, heavier shields absorb more damage
 
-    weapon: dict
-    weapon_used: int  # if not None, this weapon READYed
-    weapon_skill: dict  # {weapon_item: int, weapon_skill: int}
-    weapon_left: int  # TODO: map this to a rating
+    weapon: dict = field(default_factory=dict)
+    weapon_used: int = 0  # if not None, this weapon READYed
+    weapon_skill: dict = field(default_factory=dict)
+    # {weapon_item: int, weapon_skill: int}
+    weapon_left: int = 0  # TODO: map this to a rating
 
     # bad_hombre_rating is calculated from stats, not stored in player log
-    honor_rating: int  # helps determine current_alignment
-    formal_training: int
-    monsters_killed: list
+    honor_rating: int = 0  # helps determine current_alignment
+    formal_training: int = 0
+    monsters_killed: list = field(default_factory=list)
     """
     monsters_killed is not always the same as dead_monsters[];
     still increment it if you re-kill a re-animated monster
     """
-    dead_monsters: list  # keeps track of monsters for Zelda in the bar to resurrect
-    monster_at_quit: str
+    # keeps track of monsters for Zelda in the bar to resurrect:
+    dead_monsters: list = field(default_factory=list)
+    monster_at_quit: str = None
 
     # ally stuff:
-    allies: list  # (list of tuples?)
-    ally_inv: list
-    ally_abilities: list
-    ally_flags: list
+    allies: list = field(default_factory=list) # (list of tuples?)
+    ally_inv: list = field(default_factory=list)
+    ally_abilities: list = field(default_factory=list)
+    ally_flags: list = field(default_factory=list)
 
     # horse stuff:
-    has_horse: bool
-    horse_name: str
-    horse_armor: dict  # {'name': name, 'armor_class': ac?}
-    has_saddlebags: bool
-    saddlebags: list  # these can carry items for GIVE and TAKE commands
+    has_horse: bool = False
+    horse_name: str = None
+    horse_armor: dict = field(default_factory=dict)
+    # {'name': name, 'armor_class': ac?}
+    has_saddlebags: bool = False
+    # these can carry items for GIVE and TAKE commands:
+    saddlebags: list = field(default_factory=list)
+    on_horse: bool = False
 
-    vinny_loan: dict  # {'amount_payable': int, 'days_til_due': int}
+    vinny_loan: dict = field(default_factory=dict)
+    # {'amount_payable': int, 'date_due': 'datetime'}
 
     # inventory
     """
@@ -503,34 +462,44 @@ class Player:
      # could this be shortened? perhaps:
      # if Character.ItemHeldUsed('armor'):
     """
-    max_inv: int
+    max_inv: int = 0
     # also see weapons[], armor[], shields[]
-    food: list
-    drink: list
-    spells: list  # list of dicts('spell_name': str, 'charges', 'chance_to_cast': int)
-    booby_traps: dict  # dict['room': int, 'combination': str]  # combo: '[a-i]'
+    food: list = field(default_factory=list)
+    drink: list = field(default_factory=list)
+    spells: list = field(default_factory=list)
+    # list of dicts('spell_name': str, 'charges', 'chance_to_cast': int)
+    booby_traps: dict = field(default_factory=dict)
+    # {'room': int, 'combination': str}  # combo: '[a-i]'
 
-    times_played: int  # TODO: increment at Character.save()
-    last_play_date: tuple  # Tuple[(0, 0, 0)]  # (month, day, year) like birthday
+    times_played: int = 0  # TODO: increment at Character.save()
+    last_play_date: tuple = field(default_factory=tuple)  # TODO: datetime object?
+    # currently Tuple[(0, 0, 0)]  # (month, day, year) like birthday
 
-    special_items: dict
+    special_items: dict = field(default_factory=dict)
     # SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
     # TODO: avoid placing objects in map "holes" where no room exists
     # DINGHY  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
-    combinations: dict
-    # dict['elevator': (0, 0, 0),
-    #      'locker': (0, 0, 0),
-    #      'castle': (0, 0, 0)]
+    combinations: dict = field(default_factory=dict)
+        # {'elevator': (0, 0, 0),
+        #  'locker': (0, 0, 0),
+        #  'castle': (0, 0, 0)}
     # tuple: combo is 3 digits: (nn, nn, nn)
 
-    last_command: list
-
+    last_command: list = field(default_factory=list)
+    # logon_time: str = datetime.datetime.now()
+    # logoff_time: str = datetime.datetime.now()
 
     def connect(self):
         with server_lock:
+            """
+            # set logon time to now:
+            self.logon_time = datetime.datetime.now()
+            # set logoff time to logon time, otherwise it will be in the past
+            self.logoff_time = self.logon_time
+            """
+            # add login id to room_players set() so people are listed as being in the room
             room_players[self.room].add(self.id)
-            # TODO: notify other players of connection
-
+            # TODO: notify other players in same room of connection
 
     def move(self, next_room: int, direction=None):
         """
@@ -555,21 +524,18 @@ class Player:
             logging.info(f'Moved {self.name} from {current_room} to {self.room}')
             # teleport command doesn't require direction, just room #
             if direction is None:
-                print(f'[{self.name} disappears in a flash of light.')
+                return Message(lines=[f'{self.name} disappears in a flash of light.'])
             else:
-                print(f"{self.name} moves {compass_txts[direction]}.")
-
+                return Message(lines=[f"{self.name} moves {compass_txts[direction]}."])
 
     def disconnect(self):
         with server_lock:
             room_players[self.room].remove(self.id)
-            print(f'{players[self.id].name} falls asleep.')
-
+            return Message(lines=[f'{players[self.id].name} falls asleep.'])
 
     @staticmethod
     def _json_path(user_id):
         return os.path.join(net_common.run_server_dir, f"player-{user_id}.json")
-
 
     @staticmethod
     def load(user_id):
@@ -585,16 +551,14 @@ class Player:
         else:
             return None
 
-
     def save(self):
         with open(Player._json_path(self.id), 'w') as jsonF:
             json.dump(self, jsonF, default=lambda o: {k: v for k, v
                                                       # in o.__dict__.items() if v}, indent=4)
                                                       in o.__dict__.items()}, indent=4)
-        logging.info(f'Saved "{self.name}".')
+        logging.info(f'Player.save: Saved "{self.name}".')
 
-
-    def make_random_id(self):
+    def random_connection_id(self):
         """return a random connection id"""
         return random.randrange(1, 65535)
 
@@ -726,18 +690,23 @@ class PlayerHandler(net_server.UserHandler):
                 name = reply['text'].strip()
                 if name != '':  # TODO: limitations on valid names
                     valid_name = True
-            player = Player(id=user_id,
-                            name=name,
-                            map_level=1,
-                            room=room_start,
-                            money=money_start,
-                            health=100,
-                            xp=0,
-                            flag={'debug': True,
-                                  'expert_mode': False,
-                                  'room_descs': True},
-                            last_command=None)
+
+            status = {'id': user_id,
+                      'name': name,
+                      'map_level': 1,
+                      'room': room_start,
+                      'silver': {'in_hand': money_start},
+                      'hit_points': 100,
+                      'experience': 0,
+                      'flag': {'debug': True,
+                               'expert_mode': False,
+                               'room_descs': True},
+                      'last_command': None}
+            player = Player(**status)
+            import create_player
+            create_player.main(player)
             player.save()
+
         self.player = players[user_id] = player
         logging.info(f"login {user_id} '{self.player.name}' (addr={self.sender})")
         silver = self.player.silver['in_hand']
@@ -787,9 +756,8 @@ class PlayerHandler(net_server.UserHandler):
                 # >>> exits['n']
                 # 1
                 # cmd.insert(0, 'go') probably not necessary
-                # json data (dict):
                 room_name = room.name
-                # check if 'direction' is in room exits
+                # check if <direction> is in room exits
                 if direction in room.exits:  # rooms[self.player.room].exits.keys():
                     logging.info(f"{direction=} => {self.player.room=}")
                     # NEW: check module to load _first_, otherwise KeyError of '0' occurs
@@ -880,12 +848,14 @@ class PlayerHandler(net_server.UserHandler):
                         logging.info(f"room info: {temp}")
                         desc = temp["desc"]
                         logging.info(f"desc: {desc}")
-                        """
+                        
                         desc = "bla"
                         # FIXME: see server.py, line 24:
                         #  thought maybe this would show the new room desc
-                        return Message(lines=["You move down."],
-                                       changes={K.desc: desc})
+                        """
+                        return Message(lines2=["You move down."],
+                                       # changes={K.desc: desc}
+                                       )
                     else:
                         logging.info(f'{self.player.name} moves Down to Shoppe')
                         self.player.move(next_room=room_transport, direction='d')

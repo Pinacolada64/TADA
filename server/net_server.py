@@ -6,7 +6,7 @@ import traceback
 import threading
 import socketserver
 import json
-import datetime
+
 from dataclasses import dataclass, field
 from typing import ClassVar
 import enum
@@ -33,7 +33,7 @@ class Error(str, enum.Enum):
 
 
 @dataclass
-class Message(object):
+class Message:
     lines: list
     mode: Mode = Mode.app
     changes: dict = field(default_factory=lambda: {})
@@ -47,7 +47,7 @@ connected_users = set()
 
 
 @dataclass
-class LoginHistory(object):
+class LoginHistory:
     addr: str
     no_user_attempts: dict = field(default_factory=lambda: {})
     bad_password_attempts: dict = field(default_factory=lambda: {})
@@ -97,7 +97,11 @@ class LoginHistory(object):
         path = LoginHistory._json_path(addr)
         if os.path.exists(path):
             with open(path) as jsonF:
-                lh_data = json.load(jsonF)
+                logging.info(f'LoginHistory.load: {jsonF=}')
+                try:
+                    lh_data = json.load(jsonF)
+                except:  # FIXME: JSONDecodeError not valid?
+                    logging.error(f"LoginHistory.load: \"{lh_data['name']}\" JSON error")
             return LoginHistory(**lh_data)
         else:
             return LoginHistory(addr)
@@ -244,7 +248,9 @@ class UserHandler(socketserver.BaseRequestHandler):
         self.login_history.succeedUser(user_id, save=True)
         return self.processLoginSuccess(user_id)
 
-    def promptRequest(self, lines, prompt='', choices={}):
+    def promptRequest(self, lines, prompt='', choices=None):
+        if choices is None:
+            choices = {}
         self._sendData(Message(lines=lines, prompt=prompt, choices=choices))
         return self._receiveData()
 
@@ -268,7 +274,7 @@ class UserHandler(socketserver.BaseRequestHandler):
         First method called on successful login.
         Should do any user initialization and then return Message.
         """
-        return Message(lines=[f"Welcome {user_id}."])
+        return Message(lines=[f"Welcome, {user_id}."])
 
     def processMessage(self, data):
         """OVERRIDE in subclass
