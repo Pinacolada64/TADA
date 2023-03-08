@@ -1,5 +1,5 @@
 #!/bin/env python3
-
+import datetime
 import os
 import json
 import random
@@ -131,9 +131,6 @@ class Item:
     maybe using pydantic it could be
     """
     def __init__(self, number, name, type, price, **flags):
-        if flags:
-            for key, value in flags.items():
-                logging.info(f'{key=} {value=}')
         self.number = number
         self.name = name
         self.type = type
@@ -298,6 +295,7 @@ class Rations:
         # this field is optional:
         if flags is not None:
             self.flags = flags
+    """
 
     @staticmethod
     def read_rations(filename: str):
@@ -377,7 +375,7 @@ class Player:
     # [civilian | fist | sword | claw | outlaw]:
     guild: str = None
 
-    #                  1       2       3       4       5       6       7       8        9
+    #                         1       2       3       4       5       6       7       8        9
     char_class: str = None  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
     race: str = None  # ......Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
     natural_alignment: str = None  # good | neutral | evil (depends on race)
@@ -807,7 +805,6 @@ class PlayerHandler(net_server.UserHandler):
                         #                changes={K.experience: 1000})
                         return self.roomMsg(lines=[f"You move {compass_txts[direction]}."],
                                             changes={K.room_name: room_name})
-
             """
             This is the way the original Apple code handled up/down exits.
             I'm fully aware up/down exits could just be a room number, or 0
@@ -864,8 +861,9 @@ class PlayerHandler(net_server.UserHandler):
                 return self.roomMsg(lines=[], changes={})
 
             if cmd[0] in ['bye', 'logout', 'quit']:
-                temp = net_server.UserHandler.promptRequest(self, lines=[], prompt='Really quit? ',
-                                                            choices={'y': 'yes', 'n': 'no'})
+                from net_server import UserHandler
+                temp = UserHandler.promptRequest(self, lines=[], prompt='Really quit? ',
+                                                 choices={'y': 'yes', 'n': 'no'})
                 # returns a Cmd object?
                 logging.info(f'{temp=}')
                 # extract value from returned dict, e.g.: temp={'text': 'y'}
@@ -876,13 +874,25 @@ class PlayerHandler(net_server.UserHandler):
                 else:
                     return Message(lines=["Thanks for sticking around."])
 
-            if cmd[0] in ['?', 'hel', 'help']:
+            if cmd[0] in ['?', 'h', 'hel', 'help']:
                 from tada_utilities import game_help
-                game_help(self, cmd)
-                return Message(lines=["Done."])
+                text = game_help(params=cmd, conn=self.player)  # params could be cmd[1] if typed
+                return Message(lines=[text, "Done."])
 
             if cmd[0] in ['cheatcode']:
                 return Message(lines=["↑ ↑ ↓ ↓ ← → ← → B A"])
+
+            if cmd[0] in ['map']:
+                from tada_utilities import file_read
+                stuff = file_read(filename="maps/level_1", conn=self.player)
+                print(type(stuff))
+                for k, v in enumerate(stuff):
+                    print(k, v)
+                stuff.append("Done.")
+                # FIXME: uncommenting this line returns "no request. exiting." and crashes the server:
+                # return Message(lines=list(stuff))
+                # this works:
+                return Message(lines=[x for x in stuff], error_line="blah")
 
             # toggle room descriptions:
             if cmd[0] in ['r']:
