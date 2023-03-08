@@ -1,9 +1,8 @@
 import logging
 import textwrap
 
-from players import Player
-
-import net_server  # for promptRequest and Message
+from server import Player
+from net_server import UserHandler, Message
 
 """
 utilities such as:
@@ -11,7 +10,7 @@ utilities such as:
 * display a header with underlined text
 * prompt requiring yes/no response
 * prompt for a range of numbers
-* prompt with string editing
+* prompt with response string editing
 """
 
 
@@ -47,30 +46,74 @@ def header(text: str):
     print()
 
 
-def output(string: str, conn: Player):
+def output(lines: list, conn: Player, bracket_coloring: bool = True) -> Message:
     """
-    Print 'string' word-wrapped to client's column width to Player
+    Word-wrap string to Player.client['cols'] width.
+    If a line break in the string is needed, make two separate calls to output(), one per line.
+    Ending a string with a CR or specifying CR in the join() call won't do what you want.
 
-    :param string: string to output
-    :param conn: connection to output text to
-    :return: none
+    :param lines: list of strings to output
+    :param conn: player to output() data to
+    :param bracket_coloring: if False, do not recolor text within brackets
+     (e.g., set to False when drawing bar so as to not color '[] ... []' table graphics)
+     :return Message: list
     """
+    from colorama import Fore as foreground
+    import re
+    from net_server import Message
     """
-    TODO: implement cbmcodec2 ASCII -> PETSCII translation
-
-    TODO: implement different success messages for player originating action vs. other players in room
-    for cxn in all_players_in_room:
-        if p.(something, idk what at this point) == player.who_performed_action:
-            output(f"You throw the snowball at {target}.", player)
-        else:
-            output(f"{actor} throws the snowball at {target}.", player)
+    we want to wrap the un-substituted text first. substituting ANSI
+    color codes adds 5-6 characters per substitution, and that wraps
+    text in the wrong places.
     """
-    if conn.client['translation'] == 'PETSCII':
-        pass  # until cbmcodecs2 is fixed
-    print(textwrap.fill(text=string, width=conn.client['columns']))
+    wrapped_text = []
+    for i, v in enumerate(lines):
+        # returns wrapped_text[]
+        wrapped_text.append(textwrap.wrap(v, width=conn.client['cols']))
+        # print(i, wrapped_text[i])
+    new_lines = wrapped_text
+    # color text inside brackets using re and colorama:
+    # '.+?' is a non-greedy match (finds multiple matches, not just '[World...a]')
+    # >>> re.sub(r'\[(.+?)]', r'!\1!', string="Hello [World] this [is a] test.")
+    # 'Hello !World! this !is a! test.'
+    """
+    if bracket_coloring and conn.client['translation'] != "ASCII":
+        colored_lines = []
+        for i, line in enumerate(wrapped_text):
+            # FIXME print(line)
+            temp = re.sub(r'[(.+?)]', f'{foreground.RED}' + r'\1' + f'{foreground.RESET}', line)
+            colored_lines.append(temp)
+        new_lines = colored_lines
+    else:
+        # for ASCII clients, no color substitution for [bracketed text]:
+        new_lines = wrapped_text
+    # put output in list, otherwise enumerate() goes through individual
+    # characters of a single string
+    
+    output = []
+    for k, v in enumerate(new_lines):
+        print(k, v)
+        output.append(v)
+        
+        if i % conn.client['rows'] == 0 and conn.flag['more_prompt'] is True:
+            # print(f'{i=} {client["rows"]=} {i % client["rows"]=}')
+            temp, _ = input_prompt(prompt=f"[A]bort or {conn.client['return_key']} to continue: ",
+                                   help=False)
+            if temp == 'a':
+                output.append("[Aborted.]")
+                break  # out of the loop
+
+        rows = 25
+        for i in range(1,58):
+            print(f'{i=}', end='')
+            if i % rows == 0:
+                print(f' [pause]', end='')
+            print()
+    """
+    return Message(lines=wrapped_text)
 
 
-def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, default=None):
+def input_number_range(prompt: str, lo: int, hi: int, conn: Player, reminder=None, default=None):
     """input 'prompt', accept numbers lo < value < hi
     e.g.
     "'prompt' ['lo'-'hi']: "
@@ -79,30 +122,56 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, d
     :param default: if not None, and expert mode is False, {return_key} keeps 'default'
     :param lo: lowest number accepted
     :param hi: highest number accepted
-    :param p: Player to output text to
+    :param conn: Player to output text to
     :param reminder: string to display if lo < temp < hi
     """
-    if default is not None and p.flags['expert_mode'] is False:
-        output(f"{return_key} keeps '{default}'.", p)
+    if default is not None and conn.flag['expert_mode'] is False:
+        output([f"{conn.client['return_key']} keeps '{default}'."], conn)
     while True:
         temp = input(f"{prompt} [{lo}-{hi}]: ")
         # just hitting Return keeps original number
         if temp.isalpha():
-            output("Numbers only, please.", p)
+            output(["Numbers only, please."], conn)
         if default is not None and temp == '':
-            if p.flags['expert_mode'] is False:
-                output(f"(Keeping '{default}'.)", p)
+            if conn.flag['expert_mode'] is False:
+                output([f"(Keeping '{default}'.)"], conn)
             return default
         else:
             temp = int(temp)
             if lo - 1 < temp < hi + 1:
                 return temp
             else:
-                output(reminder, p)
+                output(reminder, conn)
 
 
-def input_string(prompt: str, default: str, p: Player, reminder="Please enter something."):
-    """input 'prompt', accept numbers lo < value < hi
+def input_prompt(prompt: str, conn: Player, help=False):
+    """
+    Prompt user for something
+
+    :param prompt: string to prompt for, minus space at end
+    :param conn: connection to output to
+    :param help: if True and Expert Mode is off, tell that '?' gets help
+    :return: tuple(last_command, command)
+    """
+    import net_server as ns
+    global command, last_command
+    if conn.flag['expert_mode'] is False and help is True:
+        prompt = f"['?' for menu] {prompt}"
+    temp = ns.UserHandler.promptRequest(lines=[], prompt=f'{prompt} ', choices=None)
+    print()
+    if temp != '':
+        command = temp.lower()
+        last_command = command
+    if temp == '':
+        command = last_command
+        if conn.flag["expert_mode"] is False:
+            output([f"(Repeating '{command}'.)\n"], conn)
+    return last_command, command
+
+
+def input_string(prompt: str, default: str, conn: Player, reminder="Please enter something."):
+    """
+    input 'prompt', accept numbers lo < value < hi
     e.g.:
     [Return] keeps 'Druid.'  # if expert mode off
     "'prompt' : "
@@ -111,29 +180,29 @@ def input_string(prompt: str, default: str, p: Player, reminder="Please enter so
     :param default: True: print/accept {return_key} keeps 'keep_string',
      return 'string' if null string entered
     :param default: [if expert mode off] print "Return keeps 'keep_string'"
-    :param p: Player to output text to
+    :param conn: Player to output text to
     :param reminder: what to display if edit_mode is False and null string entered
     """
-    if default and p.flags['expert_mode'] is False:
-        output(f"{return_key} keeps '{default}.'", p)
+    if default and conn.flag['expert_mode'] is False:
+        output([f"{conn.client['return_key']} keeps '{default}.'"], conn)
     while True:
         temp = input(f"{prompt}: ")
         # just hitting Return keeps original string
         if default and (temp == '' or temp == default):
-            if p.flags['expert_mode']:
-                output(f"(Keeping '{default}'.)", p)
+            if conn.flag['expert_mode']:
+                output([f"(Keeping '{default}'.)"], conn)
             return default
         else:
-            output(reminder, p)
+            output([reminder], conn)
 
 
-def input_yes_no(prompt: str):
+def input_yes_no(prompt: str, conn: Player) -> bool:
     """input 'prompt', accept 'y' or 'n'
     e.g.
     "'prompt' [y/n]: "
 
     :param prompt: prompt user with this string
-    :param p: Player to output text to
+    :param conn: Player to output text to
     :return False: 'no' entered. True: 'yes' entered
     """
     while True:
@@ -144,92 +213,85 @@ def input_yes_no(prompt: str):
             return False
 
 
-def fileread(self, filename: str):
+def file_read(filename: str, conn: Player) -> list:
     """
-    display a file to a user in 40 or 80 columns with more_prompt paging
-    also handles highlighting [text in brackets] via re and colorama
+    Return a list containing a text file to the calling Player
+    Output is handled by tada_utilities.output()
+
+    :param filename: filename to read, minus '-<column_width>.txt' suffix
+    :param conn: needed for client["cols"] width suffix on filename
+    :return: list text of the file
     """
-    from net_server import Message
-    from net_server import UserHandler  # promptResponse and _sendData
-    from colorama import Fore, Back, Style
-    import re
-
-    p = self.player
-    logging.info(f"fileread: read {filename=}")
-
-    self.line_count = 0
-    # cols = self.client['columns']
-    cols = 80
-    fh = f"{filename}-{cols}.txt"
-    logging.info(f"fileread: {fh=}")
-
+    # AttributeError: 'list' object has no attribute 'client'
+    cols = conn.client['cols']
+    fh = f"{filename}-{cols}.txt"  # file handle
+    logging.info(f"file_read: {cols=} {fh=}")
     with open(f'{fh}', newline='\n') as file:
         try:
-            reading = True
-            while reading is True:
-                line = file.readline().rstrip('\n')
-                # comment lines in the file are skipped:
-                if line.startswith('#') is False:
-                    if line == '':
-                        reading = False  # EOF
-                    # FIXME: how to output data to user without using 'return Message(lines=[])'?
-                    #  UserHandler._sendData(line) -- access to a protected member fails
-                    # x = Message(lines=[line])  # ???
-
-                    # color text inside brackets using re and colorama
-                    # '.+?' is a non-greedy match (finds multiple matches, not just '[World...a]')
-                    # >>> re.sub(r'\[(.+?)\]', r'!\1!', string="Hello [World] this [is a] test.")
-                    # 'Hello !World! this !is a! test.'
-                    l = re.sub(r'\[(.+?)\]', f'{Fore.RED}' + r'\1' + f'{Fore.RESET}', string=line)
-                    print(l)
-                    # if p.flags['more_prompt']:
-                    self.line_count += 1
-                    # if line_count == p.client['rows']:
-                    if self.line_count == 20:
-                        self.line_count = 0
-                        """
-                        This call is a little different: choices{} is empty because we don't want a menu,
-                        and we'll validate temp here (instead of in promptRequest) because of the possible
-                        null represented by just hitting Return/Enter.
-                        """
-                        temp = UserHandler.promptRequest(self, lines=[],
-                                                         prompt='[Enter]: Continue, [Q]uit: ',
-                                                         choices={})
-                        logging.info(f'{repr(temp)}')
-                        # returns dict('text': 'response')
-                        choice = temp.get('text')
-                        if choice.lower() == 'q':
-                            return Message(lines=["(You quit reading.)"])
-                        # otherwise, assume Enter was pressed and continue...
+            lines = file.readlines()
+            output = []
+            for k, v in enumerate(lines):
+                output.append(v.strip('\n'))
+                # print(k, output[k])
+            """
+            # more prompt stuff
+            if conn.flag['more_prompt'] and k % conn.client['rows'] == 0:
+                ===
+                This call is a little different: choices{} is empty because we don't want a menu,
+                and we'll validate temp here (instead of in promptRequest) because of the possible
+                null represented by just hitting Return/Enter.
+                ===
+                temp = UserHandler.promptRequest(# self,
+                                                 lines=[],
+                                                 prompt='[Enter]: Continue, [Q]uit: ',
+                                                 choices={},
+                                                 )
+                logging.info(f'{repr(temp)}')
+                # returns dict('text': 'response')
+                choice = temp.get('text')
+                if choice.lower() == 'q':
+                    text.append("(You quit reading.)")
+                # otherwise, assume Enter was pressed and continue...
+            """
+            return list(output)
         except FileNotFoundError:
-            return Message(lines=[], error_line=f'File {fh} not found.')
+            logging.warning(f'File {fh} not found.')
+            return list("(Error.)")
 
 
-def game_help(self, params: list):
+def game_help(params: list, conn: Player) -> Message:
     from net_server import Message
     """
-    :param self:
+    Display various help menus.
+    If no parameter is given, display the main menu.
+    If parameter(s) given, display help for that command.
+    
     :param params: what's typed after HELP <...>
-    :return:
+    :return: Message object with help text
     """
     # function name 'help' shadows built-in name
     logging.info(f'game_help: {params=}')
     # if len(params) == 0:
-    fileread(self, filename="main-menu")
-    return Message(lines=["Done."])
+    lines = file_read(filename="main-menu", conn=conn)
+    return Message(lines=[lines, "Done."])
 
 
 if __name__ == '__main__':
-    from players import Player
-    player = Player()
-    player.name = 'Darmok'
-    player.flags = {'expert_mode': False}
-    player.client = {'columns': 80, 'translation': 'PETSCII'}
+    from server import Player
+    data = {'name': 'Darmok',
+            'flag': {'expert_mode': False},
+            'client': {'columns': 80,
+                       'translation': 'PetSCII',
+                       'return_key': 'Return'}}
+    temp = Player(**data)
+    print(temp)
+    # player.name = 'Darmok'
+    # player.flags = {'expert_mode': False}
+    # player.client = {'columns': 80, 'translation': 'PETSCII'}
+    # return_key = '[Enter]'
 
-    return_key = '[Enter]'
-
-    input_yes_no("Is this a good demo")
-    n = input_number_range(prompt="Enter a value", default=18, lo=10, hi=45)
+    input_yes_no("Is this a good demo", conn=temp)
+    n = input_number_range(prompt="Enter a value", default=18, lo=10, hi=45, conn=temp)
     print(f"Entered {n}")
 
     items = ['orange', 'dry bones', 'book']
