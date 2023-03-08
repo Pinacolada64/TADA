@@ -2,17 +2,15 @@ import logging
 import glob
 import json
 
-# from tada_utilities import input_prompt
-from globals import get_client, get_flag
-
-client = get_client()
-flag = get_flag()
+from server import Player
+from tada_utilities import output, input_prompt
 
 
-def get_player_info(stats: list, id_pattern="*") -> dict:
+def get_player_info(stats: list, conn: Player, id_pattern="*") -> dict:
     """
     Put stats[] from file 'player-<id_pattern>.json' into returned_stats{}
 
+    :param conn: Player object
     :param id_pattern: wildcard pattern of 'player-{id_pattern}.json' ids to return, default '*'
     :param stats: list of stats to return from file(s)
     :return: returned_stats: dict of data{'stat': 'value', 'stat': 'value'}, etc.
@@ -56,81 +54,82 @@ def get_player_info(stats: list, id_pattern="*") -> dict:
                 logging.info(f'File "{path}" not found.')
                 continue
     if filename_list is None:
-        output(f"There are no players matching the pattern '{id_pattern}'.")
+        output([f"There are no players matching the pattern '{id_pattern}'."], conn)
         returned_stats = None
     logging.info(f'{returned_stats=}')
     return returned_stats
 
 
-def zelda_menu():
-    output("[S]tudy a player (1,000 silver), [R]esurrect monsters (6,000 silver), or [L]eave")
+def zelda_menu(conn: Player):
+    output(["[S]tudy a player (1,000 silver), [R]esurrect monsters (6,000 silver), or [L]eave"],
+           conn)
 
 
-def main(client: dict, flag: dict, player_name: str):
+def main(conn: Player):
     """
     Spy on player's stats
     Raise other players' dead monsters
+
+    conn: Player to output text to
     """
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
-    logging.info(f'zelda.main(): {client=}')
-    logging.info(f'zelda.main(): {flag=}')
-    logging.info(f'zelda.main(): {player_name=}')
-
-    # TODO: import server.server.Player dataclass
+    logging.info(f'zelda.main(): {conn.client=}')
+    logging.info(f'zelda.main(): {conn.flag=}')
+    logging.info(f'zelda.main(): {conn.name=}')
 
     character = "Madame Zelda"
-    output(f'{character} and her cat sit in front of a crystal ball.')
-    if flag['expert_mode'] is False:
-        output("She can either show other players' statistics (which costs 1,000 silver), or resurrect "
-               "their dead monsters so they must be fought again (which costs 6,000 silver).")
+    output([f'{character} and her cat sit in front of a crystal ball.'], conn)
+    if conn.flag['expert_mode'] is False:
+        output(["She can either show other players' statistics (which costs 1,000 silver), or resurrect "
+               "their dead monsters so they must be fought again (which costs 6,000 silver)."],
+               conn)
         print()
-        zelda_menu()
+        zelda_menu(conn)
     while True:
         print()
-        command, last_command = input_prompt('"What dooooo you wiiiiiish?":')
+        command, last_command = input_prompt('"What dooooo you wiiiiiish?":', conn)
         if command == "s":
-            if flag['expert_mode'] is False:
-                output("[?] lists players.")
+            if conn.flag['expert_mode'] is False:
+                output(["[?] lists players."], conn)
             # TODO: trap against null input, digits; can't use prompt() if it just returns 1st character
-            look_up = input('"Study which player?": ')
-            if look_up.lower() == player_name.lower():
-                output('She looks you up and down. "I suggesssst youuuuuu uuuuuuuse a mirror!"')
+            look_up = input_prompt('"Study which player?": ', conn)
+            if look_up.lower() == conn.name.lower():
+                output(['She looks you up and down. "I suggesssst youuuuuu uuuuuuuse a mirror!"'], conn)
                 continue  # out of the loop
             if look_up == '?':
-                output("[TODO]: List players")
+                output(["[TODO]: List players"], conn)
                 # list_players()
                 continue
             else:
                 pay = 'y'  # FIXME: temporarily short-circuit answering
                 while pay not in ["y", "n"]:
                     pay, _ = input_prompt('"It willlll cossssst 1,000 silver. '
-                                          'Is thaaaaaat okayyyyy?" [y/n]:')
+                                          'Is thaaaaaat okayyyyy?" [y/n]:', conn)
                 if pay == 'y':
                     logging.info("TODO: check silver")
-                    output(f'{character} hunkers down over the ball.. "I seeeee..."')
+                    output([f'{character} hunkers down over the ball.. "I seeeee..."'], conn)
                     try:
                         stats = ['name', 'gender', 'map_level', 'hit_points', 'experience',
                                  'shield', 'armor', 'stat']
-                        temp = get_player_info(stats, id_pattern=look_up)
+                        temp = get_player_info(stats, conn, id_pattern=look_up)
                         if temp is None:
                             logging.info(f"Can't find player {look_up}.")
                             break
                         pronoun = "She" if temp['gender'] == 'female' else "He"
-                        output(f"{temp['name']} is on dungeon level {temp['map_level']}. "
-                               f"{pronoun} has {temp['hit_points']} hit points.")
-                        print()
-                        # order: chr con dex egy int str wis
-                        output(f"{pronoun} has "
-                               f"charisma of {temp['stat']['chr']}, "
-                               f"constitution of {temp['stat']['con']}, "
-                               f"dexterity of {temp['stat']['dex']}, "
-                               f"energy of {temp['stat']['egy']}, "
-                               f"intelligence of {temp['stat']['int']}, "
-                               f"strength of {temp['stat']['str']}, "
-                               f"and wisdom of {temp['stat']['wis']}.")
-                        print()
-                        output(f"{temp['name']} has achieved {temp['experience']} experience in the land.")
+                        output([f"{temp['name']} is on dungeon level {temp['map_level']}. "
+                                f"{pronoun} has {temp['hit_points']} hit points.",
+                                " ",
+                                f"{pronoun} has "
+                                f"charisma of {temp['stat']['chr']}, "
+                                f"constitution of {temp['stat']['con']}, "
+                                f"dexterity of {temp['stat']['dex']}, "
+                                f"energy of {temp['stat']['egy']}, "
+                                f"intelligence of {temp['stat']['int']}, "
+                                f"strength of {temp['stat']['str']}, "
+                                f"and wisdom of {temp['stat']['wis']}.",
+                                " ",
+                                f"{temp['name']} has achieved {temp['experience']} experience in the land."], conn)
                         print()
                         sh = temp['shield']
                         if str(sh).isnumeric():
@@ -142,7 +141,7 @@ def main(client: dict, flag: dict, player_name: str):
                             armor = f'{ar}%'
                         elif ar == 'none':
                             armor = 'no'
-                        output(f"{pronoun} has {shield} shield, and {armor} armor.")
+                        output([f"{pronoun} has {shield} shield, and {armor} armor."], conn)
                         logging.info(f"TODO: Instruments of death")
                         continue  # back to Zelda menu
                     except FileNotFoundError:
@@ -150,32 +149,32 @@ def main(client: dict, flag: dict, player_name: str):
                         break
                 # pay 1000 silver?
                 if pay == 'n':
-                    output('"Hmph..."')
+                    output(['"Hmph..."'], conn)
                     break
 
         if command == 'r':
-            target = input('"Whooose monsters shall I briiiiing back to liiiiife?" ')
+            target = input_prompt('"Whooose monsters shall I briiiiing back to liiiiife?" ', conn)
             # TODO: be kind, if target doesn't have any dead monsters, say so and skip this
             anonymous = ""
             while anonymous not in ["y", "n"]:
-                anonymous, last_command = input_prompt('"Dooo you wiiiiish to be unknowwwwwn?" [Y/N]:')
-            benefactor = f'{"somebody" if anonymous == "y" else f"{player_name}"}'
-            message = f"""Zelda casts 'Monster Life' on {target}! Spell paid for by {benefactor}!"""
-            output(message)
+                anonymous, last_command = input_prompt(['"Dooo you wiiiiish to be unknowwwwwn?" [Y/N]:'], conn)
+            benefactor = f'{"somebody" if anonymous == "y" else f"{conn.name}"}'
+            message = f"Zelda casts 'Monster Life' on {target}! Spell paid for by {benefactor}!"
+            output([message], conn)
             # TODO: battle_log(message)
-            output(f"{character} and her cat get [really] weird...")
-            output("[TODO]: Resurrect player's monsters")
-            output('"It iiiisss doooooone!"')
+            output([f"{character} and her cat get [really] weird...",
+                    "[TODO]: Resurrect player's monsters",
+                    '"It iiiisss doooooone!"'], conn)
             continue  # back to menu
 
         if command == '?':
-            zelda_menu()
+            zelda_menu(conn)
             continue
         if command == 'l':
-            output(f'{character} crosses her arms. "Gooo away, you bother my caaaat..."')
+            output([f'{character} crosses her arms. "Gooo away, you bother my caaaat..."'], conn)
             break  # return to bar
         else:
-            output(f'{character} stares at you. Her cat stares too.')
+            output([f'{character} stares at you. Her cat stares too.'], conn)
 
     # TODO: could be a player editor skeleton
     """
