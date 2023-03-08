@@ -1,16 +1,9 @@
 import shutil  # for get_terminal_width()
-import textwrap
-import re
-import colorama  # for foreground color changes
-import logging
-
 import bar_zelda
-from tada_utilities import output, input_prompt
-from globals import set_client, get_client, set_flag, get_flag
+import net_server
+from net_server import UserHandler
+from tada_utilities import output
 from server import Player
-
-# client = get_client()
-# flag = get_flag()
 
 
 def bouncer(conn: Player):
@@ -36,10 +29,15 @@ def blue_djinn(conn: Player):
     if conn.flag['expert_mode'] is False:
         output([f"For a price, {character} can attack other players."], conn)
         print()
-        blue_djinn_menu()
-    output(f'{character} sits behind the table.')
+        blue_djinn_menu(conn)
+    output([f'{character} sits behind the table.'], conn)
     while True:
-        command, last_command = input_prompt('He hisses, "What do you want?":', help=True)
+        command = UserHandler.promptRequest(lines=[],
+                                            prompt='He hisses, "What do you want?":',
+                                            choices={'h': 'Help',
+                                                     '?': 'Help',
+                                                     'i': 'Insult',
+                                                     'l': 'Leave'})
         if command == 'h':
             output(['"Who do you want me to mess up?"', "TODO"], conn)
             continue
@@ -73,7 +71,7 @@ def skip(conn: Player):
 
     if conn.flag["debug"]:
         while True:
-            command, _ = input_prompt("Add 'Skip' to once-per-day activities?", help=True)
+            command = net_server.UserHandler.promptRequest(prompt="Add 'Skip' to once-per-day activities?")
             if command == 'y':
                 if "Skip" not in conn.once_per_day:
                     conn.once_per_day.append("Skip")
@@ -91,7 +89,11 @@ def skip(conn: Player):
         skip_show_menu(conn)
 
     while True:
-        command, last_command = input_prompt(f'"What\'ll ya have, {conn.name}?" ', help=True)
+        command = net_server.UserHandler.promptRequest(prompt=f'"What\'ll ya have, {conn.name}?" ',
+                                                       choices={'h': 'Hash',
+                                                                'c': 'Coffee',
+                                                                '?': 'Menu',
+                                                                'l': 'Leave'})
         if command == 'h':
             # TODO: check/subtract silver
             output(["The hash is greasy, but hot and nourishing."], conn)
@@ -103,7 +105,7 @@ def skip(conn: Player):
             continue
 
         if command == '?':
-            skip_show_menu()
+            skip_show_menu(conn)
             continue
 
         if command == 'l':
@@ -124,7 +126,7 @@ def vinny(conn: Player):
 
 def zelda(conn: Player):
     """Madame Zelda, the fortune-teller"""
-    bar_zelda.main()
+    bar_zelda.main(conn)
     return
 
 
@@ -140,14 +142,20 @@ def fat_olaf(conn: Player):
         fat_olaf_menu(conn)
     while True:
         print()
-        command, last_command = input_prompt("Vot kin I du ver ya?", help=True)
-        if command == '' or command == 'l':
+        command = UserHandler.promptRequest(prompt="Vot kin I du ver ya?",
+                                            choices={'l': 'Leave',
+                                                     '?': 'Help',
+                                                     'b': 'Buy',
+                                                     's': 'Sell',
+                                                     'm': 'Maintain'})
+        if command == 'l':
             output(['"Hokey dokey." Fat Olaf watches you leave.'], conn)
             return
 
         if command == "?":
             fat_olaf_menu(conn)
             continue
+
         if command in ["b", "s", "m"]:
             output(["[FIXME]: That hasn't been written yet."], conn)
             continue
@@ -219,15 +227,14 @@ def main(conn: Player):
     pos_y = 0  # row
     pos_x = 6  # column
 
-    window_size = shutil.get_terminal_size()
+    window_size = shutil.get_terminal_size()  # returns tuple: (<columns>, <lines>)
 
-    output(['You stand in the doorway of a smoky bar. A faded sign reads: "WALL BAR AND GRILL."'],
-           conn)
+    lines = ['You stand in the doorway of a smoky bar. A faded sign reads: "WALL BAR AND GRILL."']
 
     while True:
-        print()
+        lines.append([" "])
         if conn.flag["debug"]:
-            horizontal_ruler(conn, bar)
+            lines.append([horizontal_ruler(conn, bar)])
         for count, line in enumerate(bar):
             text = []
             if conn.flag["debug"]:
@@ -236,7 +243,7 @@ def main(conn: Player):
                 text.append(f'{line[:pos_x]}X{line[pos_x + 1:]}')
             else:
                 text.append(line)
-            output(text, conn)
+            lines.append(text)
             # print("".join(text))
         go_here = False
         valid_move = False
@@ -268,10 +275,10 @@ def main(conn: Player):
         if bump:
             response = ''
             while response not in ["y", "n"]:
-                response = input(f'{opponent} {text} you looking for a fight?" (Y/N): ')[0].lower()
+                response = net_server.UserHandler.promptRequest(prompt=f'{opponent} {text} you looking for a fight?" (Y/N): ')[0].lower()
             if response == "y":
                 if opponent.startswith("Mundo"):
-                    bouncer()  # also called from blue djinn
+                    bouncer(conn)  # also called from blue djinn
                     continue
                 else:
                     # TODO: Blue Djinn: finish this
@@ -285,7 +292,7 @@ def main(conn: Player):
 
         output([f"[HP: {conn.hit_points}]"], conn)
         # parser:
-        command, last_command = input_prompt("Which way?")
+        command = net_server.UserHandler.promptRequest(lines=[], prompt="Which way? ")
         move_into_obstacle = False
 
         if command == '?':
@@ -309,10 +316,10 @@ def main(conn: Player):
                     num_places = len(locations)
                     for i, k in enumerate(locations):
                         print(f'{i} {k[2]}')
-                    option, _ = input_prompt("Quick move:", help=False)
+                    option = net_server.UserHandler.promptRequest(lines=[], prompt="Quick move:")
                     place = int(option)
                     if 1 > place > num_places:
-                        output("Aborting.")
+                        output(["Aborting."], conn)
                         break  # out of the loop
                     where = locations[place]
                     pos_y, pos_x = where[0], where[1]
@@ -322,7 +329,7 @@ def main(conn: Player):
         # toggles:
         if command == 'd':
             conn.flag['debug'] = not conn.flag['debug']
-            output(f"Debug info is now {'On' if conn.flag['debug'] else 'Off'}.")
+            output([f"Debug info is now {'On' if conn.flag['debug'] else 'Off'}."], conn)
             valid_move = True
 
         if command == 'x':
@@ -413,7 +420,7 @@ def main(conn: Player):
             output("Laughter fills the bar as you attempt to move through solid objects.\n")
             Player.hit_points -= 1
             if Player.hit_points <= 0:
-                output(["You have died."], conn=Player)
+                output(["You have died."], conn)
                 # TODO: room_notify(f"{player.name} dies from bumping into something.")
                 break  # out of loop
             continue  # suppress the following message
