@@ -764,11 +764,10 @@ class PlayerHandler(net_server.UserHandler):
                     # since there is no "real" destination (i.e., room number)
                     # special movement cases import new modules (e.g., bar):
                     # .get() defaults to None if KeyError:
-                    # module_for_dir = room.module.get(direction, None)
-                    module_for_dir = room.module  # dataclass defaults to None
-                    logging.info(f'{module_for_dir=}')
-                    if direction == module_for_dir:
-                        logging.info(f"{direction=} {module_for_dir=}")
+                    if room.module is not None and direction in room.module:
+                        #get("module", None):  # dataclass defaults to None
+                        mod = room.module[direction]
+                        logging.info(f"{direction=} {mod=}")
                         """
                         Volca:
                         For that error: whatever you were trying to get doesn't exist.
@@ -777,31 +776,26 @@ class PlayerHandler(net_server.UserHandler):
                         telling you.
                         """
                         # https://stackoverflow.com/questions/13598035/importing-a-module-when-the-module-name-is-in-a-variable
-                        """
-                            try:
-                                # FIXME: force it for now:
-                                # should run __main__():
-                                logging.debug(f'{module} started')
-                                import test
+                        try:
+                            # FIXME: force it for now:
+                            # should run __main__():
+                            logging.debug(f'{mod} started')
+                            # bar.main(conn=self.player)
+                            # import os
+                            # logging.info(f'{os.path}')
 
-                                # import os
-                                # logging.info(f'{os.path}')
-
-                                # should output a few messages...
-                                test.main(cxn=self.player)
-                                # FIXME: but eventually get current path
-                                # https://docs.python.org/3/library/importlib.html#importlib.import_module
-                                # from importlib import import_module
-                                # the 'package' argument is required to perform a relative import for './bar.py'
-                                import_module(name=f'{module}', package=f'./{module}')
-                            # from colorama import Fore
-                            # import colorama.Fore
+                            # should output a few messages...
+                            bar.main(conn=self.player)
+                            # FIXME: but eventually get current path
+                            # https://docs.python.org/3/library/importlib.html#importlib.import_module
+                            # from importlib import import_module
+                            # the 'package' argument is required to perform a relative import for './bar.py'
+                            # import_module(name=f'{module}', package=f'./{module}')
                             # TODO: look at jam's empyre5 code for use of importlib
-                            logging.debug(f'{module} finished')
-                            except ModuleNotFoundError as e:
-                                logging.warning(f"Can't find '{module}'.")
-                                return Message(error="Error {e}")
-                            """
+                            logging.debug(f'{mod} finished')
+                        except ImportError as e:
+                            logging.warning(f"Can't find '{module}'.")
+                            return Message(error="Error {e}", error_line="bla")
                     else:
                         # delete player from list of players in current room,
                         # add player to list of players in room they moved to
