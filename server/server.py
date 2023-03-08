@@ -141,7 +141,10 @@ class Item(object):
     @staticmethod
     def read_items(filename: str):
         with open(filename) as jsonF:
-            temp = json.load(jsonF)
+            try:
+                temp = json.load(jsonF)
+            except JSONDecodeError as j:
+                logging.info(f'{filename} JSON error {j}')
             items = temp["items"]  # remove the dict "items"
         logging.info("*** Read item JSON data")
 
@@ -197,11 +200,15 @@ class Map(object):
         """
 
         with open(filename) as jsonF:
-            map_data = json.load(jsonF)
+            try:
+                map_data = json.load(jsonF)
+            except JSONDecodeError as j:
+                print(f'read_map: {filename} JSON error {j}')
         for room_data in map_data['rooms']:
             room = Room(**room_data)
             self.rooms[room.number] = room
             # logging.info(f'{room.number=} {room.name=}')
+        logging.info("**** Read room JSON data")
 
 
 class Monster(object):
@@ -224,7 +231,10 @@ class Monster(object):
     @staticmethod
     def read_monsters(filename: str):
         with open(filename) as jsonF:
-            monsters = json.load(jsonF)
+            try:
+                monsters = json.load(jsonF)
+            except JSONDecodeError as j:
+                print(f'read_monsters: {filename} JSON error {j}')
             # items = temp["items"]  # remove the dict "items"
         logging.info("*** Read monster JSON data")
 
@@ -258,7 +268,10 @@ class Weapons(object):
     @staticmethod
     def read_weapons(filename: str):
         with open(filename) as jsonF:
-            weapons = json.load(jsonF)
+            try:
+                weapons = json.load(jsonF)
+            except JSONDecodeError as j:
+                logging.error(f'read_weapons: {filename} JSON error {j}')
         logging.info("*** Read weapon JSON data")
         return weapons
 
@@ -283,7 +296,10 @@ class Rations(object):
     @staticmethod
     def read_rations(filename: str):
         with open(filename) as jsonF:
-            rations = json.load(jsonF)
+            try:
+                rations = json.load(jsonF)
+            except JSONDecodeError as j:
+                logging.error(f'read_rations: {filename} JSON error {j}')
         logging.info("*** Read ration JSON data")
         return rations
 
@@ -560,8 +576,11 @@ class Player:
         path = Player._json_path(user_id)
         if os.path.exists(path):
             with open(path) as jsonF:
-                lh_data = json.load(jsonF)
-                logging.info(f"Loaded \"{lh_data['name']}\".")
+                try:
+                    lh_data = json.load(jsonF)
+                    logging.info(f"Player.load: Loaded \"{lh_data['name']}\".")
+                except JSONDecodeError as j:
+                    logging.error(f"Player.load: \"{lh_data['name']}\" JSON error {j}")
             return Player(**lh_data)
         else:
             return None
