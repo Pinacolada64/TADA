@@ -902,10 +902,8 @@ class PlayerHandler(net_server.UserHandler):
             if cmd[0] == 'who':
                 from server import net_server as ns
                 lines = ["\nWho's on:"]
-                count = 0
-                for login_id in ns.connected_users:
-                    lines.append(f'{count + 1:2}) {players[login_id].name}')
-                    count += 1
+                for count, login_id in enumerate(ns.connected_users, start=1):
+                    lines.append(f'{count:2}) {players[login_id].name}')
                 return Message(lines=lines)
 
             # really this is just a debugging tool to save shoe leather:
