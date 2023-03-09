@@ -1,6 +1,9 @@
+import logging
+
 from tada_utilities import header, output, input_number_range, input_yes_no
 
-from players import Player
+from server import Player
+from net_server import Message
 
 from random import randrange  # for age and generating random stats
 
@@ -16,22 +19,23 @@ Traceback (most recent call last):
     UnicodeDecodeError: 'charmap' codec can't decode byte 0x90 in position 2537: character maps to <undefined>
 """
 
+
 # resources:
 # https://docs.python.org/3/library/collections.html
 # https://docs.python.org/3/library/datetime.html
 # https://www.dataquest.io/blog/python-datetime-tutorial/
 
 
-def choose_gender(char: Player):
+def choose_gender(conn: Player):
     """step 1: choose character gender"""
-    output('Verus squints myopically. "Are you a male or female?"', char)
+    output(['Verus squints myopically. "Are you a male or female?"'], conn)
     while True:
-        temp = input("Enter [M]ale or [F]emale: ").lower()
+        temp = input("Enter [M]ale or [F]emale: ")[:1].lower()
         if temp == 'm':
-            character.gender = 'male'
+            conn.gender = 'male'
             break
         if temp == 'f':
-            character.gender = 'female'
+            conn.gender = 'female'
             break
 
 
@@ -49,59 +53,60 @@ def edit_gender(char: Player):
         if char.gender == 'male':
             char.gender = 'female'
             break
-    output(f"{char.name} is now {char.gender}.", char)
+    output([f"{char.name} is now {char.gender}."], char)
 
 
-def choose_name(char: Player):
+def choose_name(conn: Player):
     """step 2: choose character name"""
-    if char.name:
+    if conn.name:
         # this is repeated, so function:
-        char.name = enter_name(char.name, edit_mode=True)
+        conn.name = enter_name(conn=conn, edit_mode=True)
 
-    elif character.name is None:
+    elif conn.name is None:
         # no existing name, prompt for new character name
-        character.name = enter_name(char, edit_mode=False)
+        conn.name = enter_name(conn=conn, edit_mode=False)
 
 
-def edit_name(char: Player):
+def edit_name(conn: Player):
     """update character name"""
     # 'character' param shadows 'character' from outer scope
-    char.name = enter_name(char, edit_mode=True)
+    conn.name = enter_name(conn, edit_mode=True)
+    return conn.name
 
 
-def enter_name(_char: Player, edit_mode: bool):
+def enter_name(conn: Player, edit_mode: bool):
     """
     change character name. this can also be called during final player edit menu
 
-    :param _char: Player object (trying to make _private to eliminate shadowing)
+    :param conn: Player object
     :param edit_mode: True: editing existing name
                       False: no name assigned, entering new name
     :return: name: str
     """
     if edit_mode is True:
-        print(f"({return_key} keeps '{_char.name}.')")
+        print(f"({conn.client['return_key']} keeps '{conn.name}.')")
     # TODO: this should be written as a generic edit prompt
     temp = input("What is your name: ")
     if edit_mode:
         # Return hit, or new string = old string:
-        if temp == "" or temp == _char.name:
-            output(f"(Keeping the name of '{_char.name}'.)", _char)
-    output(f'Verus checks to see if anyone else has heard of "{temp}" around '
-           'here...', _char)
+        if temp == "" or temp == conn.name:
+            output([f"(Keeping the name of '{conn.name}'.)"], conn)
+    output([f'Verus checks to see if anyone else has heard of "{temp}" around '
+            'here...'], conn)
     # TODO: check for existing name
     _ = f'"Seems to be okay." He '
-    if edit_mode and character.name != temp:
+    if edit_mode and conn.name != temp:
         _ += "scratches out your old name and re-writes it"
     else:
         _ += "scribbles your name"
     _ += " in a dusty book."
-    output(_, _char)
+    output([_], conn)
     return temp
 
 
-def choose_client(p: Player):
+def choose_client(conn: Player):
     """step 0: choose (or update existing) client name and parameters"""
-    logging.info(f"{p.client['name']}")
+    logging.info(f"{conn.client['name']}")
 
     options = 3
     # FIXME: this unintentionally wraps text (as it's supposed to) but loses newlines
@@ -110,79 +115,81 @@ def choose_client(p: Player):
     # output() discards newlines, so can't use it here - even literal \n's don't work:
 
     # the width of this string is >40 characters
-    output('"Which kind of client are you using?" Verus asks.',
-           p)
+    output(['"Which kind of client are you using?" Verus asks.'],
+           conn)
     print()  # must be used in place of \n
-    output("## Client type     Screen size", p)
-    output("-- --------------- -----------", p)
-    output("1. Commodore 64    (40 x 25)", p)
-    output("2. Commodore 128   (80 x 25)", p)
-    output("3. TADA client", p)
+    output(["## Client type     Screen size",
+            "-- --------------- -----------",
+            "1. Commodore 64    (40 x 25)",
+            "2. Commodore 128   (80 x 25)",
+            "3. TADA client"], conn)
     print()
-    temp = input_number_range(prompt="Which client", lo=1, hi=options)
+    temp = input_number_range(prompt="Which client", lo=1, hi=options,
+                              conn=conn)
 
     if temp == 1:
-        p.client['name'] = 'Commodore 64'
-        p.client['columns'] = 40
-        p.client['rows'] = 25
-        p.client['translation'] = 'PETSCII'
+        conn.client['name'] = 'Commodore 64'
+        conn.client['columns'] = 40
+        conn.client['rows'] = 25
+        conn.client['translation'] = 'PetSCII'
     elif temp == 2:
-        p.client['name'] = 'Commodore 128'
-        p.client['columns'] = 80
-        p.client['rows'] = 25
-        p.client['translation'] = 'PETSCII'
+        conn.client['name'] = 'Commodore 128'
+        conn.client['columns'] = 80
+        conn.client['rows'] = 25
+        conn.client['translation'] = 'PetSCII'
     elif temp == 3:
-        p.client['name'] = 'TADA Client'
-        p.client['columns'] = 80
-        p.client['rows'] = 25
-        p.client['translation'] = "ASCII"
+        conn.client['name'] = 'TADA Client'
+        conn.client['columns'] = 80
+        conn.client['rows'] = 25
+        conn.client['translation'] = "ANSI"
 
     # FIXME: until below code gets fixed, {return_key} will be "Enter"
-    if p.client['translation'] == "PETSCII":
-        return_key = "[Return]"
+    if conn.client['translation'] == "PetSCII":
+        conn.client['return_key'] = "[Return]"
     else:
-        return_key = "[Enter]"
-    output(f"Client set to: {p.client['name']}", p)
+        conn.client['return_key'] = "[Enter]"
+    output([f"Client set to: {conn.client['name']}"], conn)
 
 
-def choose_class(p: Player):
+def choose_class(conn: Player):
     """step 3a: choose player class"""
     # NOTE: Player object 'class' attribute conflicts with built-in keyword
     # I am naming it char_class instead
-    display_classes(p)
+    display_classes(conn)
     temp = input_number_range("Class", lo=1, hi=9,
-                              reminder='"Choose a class between 1 and 9," suggests Verus.')
+                              reminder='"Choose a class between 1 and 9," suggests Verus.',
+                              conn=conn)
     # was previously using 'temp = int(input(...))' but you can't cast a str -> int
     logging.info(f"{temp=}")
     # first time answering this prompt, there is no race to validate against:
-    p.char_class = ['wizard' if p.gender == 'male' else 'witch',
+    conn.char_class = ['wizard' if conn.gender == 'male' else 'witch',
                     'druid', 'fighter', 'paladin', 'ranger',
                     'thief', 'archer', 'assassin', 'knight'][temp - 1]
 
 
-def display_classes(p: Player):
-    wizard = 'Wizard' if p.gender == 'male' else 'Witch '
-    output('"Choose a class," Verus instructs.', p)
+def display_classes(conn: Player):
+    wizard = 'Wizard' if conn.gender == 'male' else 'Witch '
+    output(['"Choose a class," Verus instructs.'], conn)
     print()
-    output(f"(1) {wizard}   (4) Paladin  (7) Archer", p)
-    output("(2) Druid    (5) Ranger   (8) Assassin", p)
-    output("(3) Fighter  (6) Thief    (9) Knight", p)
+    output([f"(1) {wizard}   (4) Paladin  (7) Archer",
+            f"(2) Druid    (5) Ranger   (8) Assassin",
+            f"(3) Fighter  (6) Thief    (9) Knight"], conn)
     print()
 
 
-def edit_class(p: Player):
+def edit_class(conn: Player):
     """
     this is called during final_edit() to change the class,
     then validate the resulting class/race combination
     """
     while True:
-        display_classes(p)
+        display_classes(conn)
         # TODO: Should be a help function to get help about individual classes.
         # Whether it's called up with "H1" or "1?" is undetermined.
-        pc = input_number_range("Class", default=p.char_class.title(),
+        pc = input_number_range("Class", default=conn.char_class.title(),
                                 lo=1, hi=9,
                                 reminder='"Choose a class between 1 and 9,"'
-                                         ' suggests Verus.')
+                                         ' suggests Verus.', conn=conn)
         # output(f'{return_key} keeps {p.char_class.title()}.', p)
         """if the character creation process has only asked for the class so far,
         race will be None, and we shouldn't validate the combination"""
@@ -192,12 +199,12 @@ def edit_class(p: Player):
         # temp = int(temp)
         # valid = 0 < temp < 10  # accept 1-9
         # if valid:
-        valid = validate_class_race_combo(p)
+        valid = validate_class_race_combo(conn)
         if valid:
             # class/race combo is good, set class:
-            character.char_class = ['wizard' if p.gender == 'male' else 'witch',
-                                    'druid', 'fighter', 'paladin', 'ranger',
-                                    'thief', 'archer', 'assassin', 'knight'][pc - 1]
+            conn.char_class = ['wizard' if conn.gender == 'male' else 'witch',
+                            'druid', 'fighter', 'paladin', 'ranger',
+                            'thief', 'archer', 'assassin', 'knight'][pc - 1]
             # end loop
             break
 
@@ -237,32 +244,32 @@ def validate_class_race_combo(p: Player):
     if ok_combination is False:
         temp = f'''"{'An ' if p.race.startswith(('a', 'e', 'i', 'o', 'u')) else 'A '}'''
         temp += f'{p.race} {p.char_class} does not a good adventurer make. Try again."'
-        output(temp, p)
+        output([temp], p)
     else:
-        output('"Okay, fine with me," agrees Verus.', p)
+        output(['"Okay, fine with me," agrees Verus.'], p)
     return ok_combination
 
 
-def choose_race(p: Player):
+def choose_race(conn: Player):
     """step 3b: choose player race"""
     while True:
-        display_races(p)
+        display_races(conn)
         temp = input_number_range(prompt="Race", lo=1, hi=9,
-                                  reminder='"Enter a race from 1-9," Verus says.')
+                                  reminder='"Enter a race from 1-9," Verus says.', conn=conn)
         # TODO: help option here ("H1", "1?" or similar, want to avoid reading 9 races as in original
-        p.race = ['human', 'ogre', 'gnome', 'elf', 'hobbit', 'halfling',
+        conn.race = ['human', 'ogre', 'gnome', 'elf', 'hobbit', 'halfling',
                   'dwarf', 'orc', 'half-elf'][temp - 1]
-        valid = validate_class_race_combo(p)
+        valid = validate_class_race_combo(conn)
         if valid:
             break
 
 
-def display_races(p: Player):
-    output('"Choose a race," Verus instructs.', p)
+def display_races(conn: Player):
+    output(['"Choose a race," Verus instructs.'], conn)
     print()
-    output("(1) Human    (4) Elf      (7) Dwarf", p)
-    output("(2) Ogre     (5) Hobbit   (8) Orc", p)
-    output("(3) Gnome    (6) Halfling (9) Half-Elf", p)
+    output(["(1) Human    (4) Elf      (7) Dwarf"
+            "(2) Ogre     (5) Hobbit   (8) Orc"
+            "(3) Gnome    (6) Halfling (9) Half-Elf"], conn)
     print()
     # TODO: Should be a help function to get help about individual races.
     # Whether it's called up with "H1" or "1?" is undetermined.
@@ -273,7 +280,7 @@ def edit_race(p: Player) -> None:
     while race_valid is False:
         display_races(p)
         if p.race:
-            temp = input_number_range("Race", 1, 9, p,
+            temp = input_number_range(prompt="Race", lo=1, hi=9, conn=p,
                                       reminder='"Enter a race from 1-9," Verus suggests.')
             # output(f"{return_key} keeps '{p.race.title()}'.", p)
             print()
@@ -292,11 +299,11 @@ def edit_race(p: Player) -> None:
                   'dwarf', 'orc', 'half-elf'][temp - 1]
         race_valid = validate_class_race_combo(p)
         if race_valid is False:
-            output('"Try picking a different race," Verus suggests.', p)
+            output(['"Try picking a different race," Verus suggests.'], p)
     return None
 
 
-def choose_age(p: Player):
+def choose_age(conn: Player):
     """
     step 4: allow player to select age and birthday
 
@@ -305,15 +312,15 @@ def choose_age(p: Player):
     age_valid = False
     temp_age = 0
     while age_valid is False:
-        output('Enter [0] to be of an unknown age.', p)
-        output('Enter [R] to select a random age between 15-50.', p)
+        output(['Enter [0] to be of an unknown age.'
+                'Enter [R] to select a random age between 15-50.'], conn)
         print()
         temp_age = input("Enter your age (0, R or 15-50): ")
         if temp_age.lower() == 'r':
             temp_age = randrange(15, 50)
             break
         if temp_age.isalpha():
-            output('Verus tsks. "Please enter a number."', p)
+            output(['Verus tsks. "Please enter a number."'], conn)
         temp_age = int(temp_age)
         if temp_age == 0:
             """
@@ -326,43 +333,44 @@ def choose_age(p: Player):
             temp_age = 0
             break
 
-        age_valid = validate_age(temp_age, p)
+        age_valid = validate_age(temp_age, conn)
         if age_valid is False:
-            output('"Try again," suggests Verus.', p)
+            output(['"Try again," suggests Verus.'], conn)
 
     temp = 'of an unknown' if temp_age == 0 else f'{temp_age} years of'
-    output(f'Verus studies you, and comments: "You\'re {temp} age."', p)
-    p.age = temp_age
+    output([f'Verus studies you, and comments: "You\'re {temp} age."'], conn)
+    conn.age = temp_age
 
     # year = today.year - p.age FIXME: (if =0, what then?)
     _month = date.today().month
     _day = date.today().day
     _year = date.today().year
-    output(f'"Which would you like your birthday to be?" asks Verus.', p)
+    output([f'"Which would you like your birthday to be?" asks Verus.'], conn)
     print()
-    output(f"[T]oday ({_month}/{_day})", p)
-    output("[A]nother date (choose month and day)", p)
+    output([f"[T]oday ({_month}/{_day})"
+            "[A]nother date (choose month and day)"], conn)
     print()
     temp = input("Which [T, A]: ").lower()
     if temp == 't':
         # store as tuple:
-        p.birthday = (_month, _day, _year)
-        output(f'Set to today: {_month}/{_day}.', p)
+        conn.birthday = (_month, _day, _year)
+        output([f'Set to today: {_month}/{_day}.'], conn)
         print()
     if temp == 'a':
         # year is calculated for leap year in monthrange() below, and displaying later
         # FIXME: what to do about age = 0
-        _year = date.today().year - p.age
-        _month = input_number_range(prompt="Month", lo=1, hi=12)
+        _year = date.today().year - conn.age
+        _month = input_number_range(prompt="Month", lo=1, hi=12, conn=conn)
         # monthrange(year, day) returns tuple: (month, days_in_month)
         # we just need days_in_month, which is monthrange()[1]
         _day = input_number_range(prompt="Day", lo=1,
-                                  hi=calendar.monthrange(year=_year, month=_month)[1])
+                                  hi=calendar.monthrange(year=_year, month=_month)[1],
+                                  conn=conn)
 
         # store birthday as tuple: birthday[0] = month, [1] = day, [2] = year
         # store year anyway in case age = 0
-        p.birthday = (_month, _day, _year)
-        output(f"Birthday: {_month}/{_day}/{_year}", p)
+        conn.birthday = (_month, _day, _year)
+        output([f"Birthday: {_month}/{_day}/{_year}"], conn)
 
 
 # def validate_range(word, start, end, p=None):
@@ -383,109 +391,108 @@ def choose_age(p: Player):
 #         output("No, try again.", p)
 
 
-def validate_age(age: int, p: Player):
+def validate_age(age: int, conn: Player):
     """
     validate that the age == 0, or 15 < age < 50
-    :param p: Player to output message to
+    :param conn: Player to output message to
     :param age: age entered
     :return: True if age == 0, or 15 < age 50, False if not
     """
     if age == 0:
-        output("You're of an unknown age.", p)
+        output(["You're of an unknown age."], conn)
         return True
     if age < 15:
-        output('"Oh, come off it! You\'re not even old enough to handle a '
-               'Staff yet."', p)
+        output(['"Oh, come off it! You\'re not even old enough to handle a '
+                'Staff yet."'], conn)
         return False
     if age > 50:
-        output('"Hmm, we seem to be out of Senior Adventurer life '
-               'insurance policies right now. Come back tomorrow!"', p)
+        output(['"Hmm, we seem to be out of Senior Adventurer life '
+                'insurance policies right now. Come back tomorrow!"'], conn)
         return False
 
 
-def final_edit(p: Player):
+def final_edit(conn: Player):
     """allow player another chance to view/edit characteristics before saving"""
-    output(f"Summary of character '{p.name}':", p)
+    output([f"Summary of character '{conn.name}':"], conn)
     options = 5
     while True:
         print()
-        output(f'1.    Name: {p.name}', p)
-        output(f'2.  Gender: {p.gender.title()}', p)
-        output(f'3.   Class: {p.char_class.title()}', p)
-        output(f'4.    Race: {p.race.title()}', p)
-        if p.age == 0:
+        output([f'1.    Name: {conn.name}',
+                f'2.  Gender: {conn.gender.title()}',
+                f'3.   Class: {conn.char_class.title()}',
+                f'4.    Race: {conn.race.title()}'], conn)
+        if conn.age == 0:
             temp = "Unknown"
         else:
-            temp = p.age
-        output(f'5.     Age: {temp}', p)
-        # print(f'5.     Age: {p.age()}')
+            temp = conn.age
+        output([f'5.     Age: {temp}'], conn)
         # Birthday: tuple(month, day, year)
-        output(f'  Birthday: {p.birthday[0]}/{(p.birthday[1])}/'
-               f'{(p.birthday[2])}', p)
+        output([f'  Birthday: {conn.birthday[0]}/{(conn.birthday[1])}/'
+                f'{(conn.birthday[2])}'], conn)
         print()
 
-        temp = input(f"Option [1-{options}, {return_key}=Done]: ")
+        temp = input(f"Option [1-{options}, {conn.client['return_key']}=Done]: ")
         print()
         if temp == '1':
-            edit_name(p)
+            edit_name(conn)
         if temp == '2':
-            edit_gender(p)
+            edit_gender(conn)
         if temp == '3':
-            edit_class(p)
+            edit_class(conn)
         if temp == '4':
-            edit_race(p)
+            edit_race(conn)
         if temp == '5':
-            choose_age(p)
+            choose_age(conn)
         if temp == '':
             break
 
 
-def choose_guild(p: Player):
+def choose_guild(conn: Player):
     valid_guild = False
     while valid_guild is False:
-        output('"Would you like to join a Guild?" asks Verus.', p)
+        output(['"Would you like to join a Guild?" asks Verus.'], conn)
         print()
-        output("    No, stay a [C]ivilian", p)
-        output("    No, turn into an [O]utlaw", p)
-        output("   Yes, join a [G]uild", p)
+        output(["    No, stay a [C]ivilian",
+                "    No, turn into an [O]utlaw",
+                "   Yes, join a [G]uild"], conn)
         print()
         temp = input("Which option [C, O, G]: ").lower()
         print()
         if temp in ['c', 'o']:
             guilds = {'c': 'civilian', 'o': 'outlaw'}
-            p.guild = guilds[temp]
+            conn.guild = guilds[temp]
             _ = guilds[temp].title()
-            output(f'"You have chosen to be a {_}."', p)
+            output([f'"You have chosen to be a {_}."'], conn)
             valid_guild = True
             break
         if temp == 'g':
             while True:
-                output('"Which guild would you like to join?" asks Verus expectantly.', p)
+                output(['"Which guild would you like to join?" asks Verus expectantly.'], conn)
                 print()
-                output("[F]ist", p)
-                output("[S]word", p)
-                output("[C]law", p)
-                output("[N]one - changed my mind", p)
+                output(["[F]ist",
+                        "[S]word",
+                        "[C]law"
+                        "[N]one - changed my mind"], conn)
                 print()
                 temp = input("Which option [F, S, C, N]: ").lower()[0:1]
                 print()
                 if temp in ['f', 's', 'c']:
                     guilds = {'f': 'fist', 's': 'sword', 'c': 'claw'}
-                    p.guild = guilds[temp]
+                    conn.guild = guilds[temp]
                     _ = guilds[temp].title()
-                    output(f'"You have chosen the {_} guild."', p)
+                    output([f'"You have chosen the {_} guild."'], conn)
                     valid_guild = True
                     break
                 # N goes back to choose_guild()
                 if temp == 'n':
-                    output("Withdrawing guild choice.", p)
+                    output(["Withdrawing guild choice."], conn)
                     valid_guild = False
 
 
-def roll_stats(p: Player):
+def roll_stats(conn: Player):
     roll_number = 0
     chances = 5
-    output(f"You will have {chances} chances to roll for {p.name}'s attributes.", p)
+    output([f"You will have {chances} chances to roll for {conn.name}'s attributes."], conn)
     while roll_number < chances:
         roll_number += 1
         print(f"Throw {roll_number} of {chances} - Rolling...", end='')
@@ -495,41 +502,41 @@ def roll_stats(p: Player):
         # for k in p.stats:
         # p.stats[k] = getnum()
         # logging.info(f'{k=} {p.stats[k]=}')
-        class_race_bonuses(p)
+        class_race_bonuses(conn)
         print()
-        p.hit_points = 0
+        conn.hit_points = 0
         # hp=((ps+pd+pt+pi+pw+pe)/6)+random(10)
-        p.hit_points = p.stats['chr'] + p.stats['con'] + p.stats['dex'] + p.stats['int'] \
-            + p.stats['str'] + p.stats['wis'] + p.stats['egy'] // 7 + randrange(10)
-        p.experience = 0
+        conn.hit_points = conn.stat['chr'] + conn.stat['con'] + conn.stat['dex'] + conn.stat['int'] \
+                          + conn.stat['str'] + conn.stat['wis'] + conn.stat['egy'] // 7 + randrange(10)
+        conn.experience = 0
 
         if randrange(10) > 5:
-            p.shield = 0
-            p.armor = 0
+            conn.shield = 0
+            conn.armor = 0
         else:
-            p.shield = randrange(30)
-            p.armor = randrange(30)
+            conn.shield = randrange(30)
+            conn.armor = randrange(30)
 
-        print(f"Charisma......: {p.stats['chr']}")
-        print(f"Constitution..: {p.stats['con']}")
-        print(f"Dexterity.....: {p.stats['dex']}")
-        print(f"Intelligence..: {p.stats['int']}")
-        print(f"Strength......: {p.stats['str']}")
-        print(f"Wisdom........: {p.stats['wis']}\n")
-        print(f"Hit Points....: {p.hit_points}")
-        print(f"Energy Level..: {p.stats['egy']}")
-        temp = p.shield
-        print(f"Shield........: {f'{temp}%' if temp else 'None'}")
-        temp = p.armor
-        print(f"Armor.........: {f'{temp}%' if temp else 'None'}")
+        output([f"Charisma......: {conn.stat['chr']}",
+                f"Constitution..: {conn.stat['con']}",
+                f"Dexterity.....: {conn.stat['dex']}",
+                f"Intelligence..: {conn.stat['int']}",
+                f"Strength......: {conn.stat['str']}",
+                f"Wisdom........: {conn.stat['wis']}\n",
+                f"Hit Points....: {conn.hit_points}",
+                f"Energy Level..: {conn.stat['egy']}"], conn)
+        temp = conn.shield
+        output([f"Shield........: {f'{temp}%' if temp else 'None'}"], conn)
+        temp = conn.armor
+        output([f"Armor.........: {f'{temp}%' if temp else 'None'}"], conn)
         print()
         temp = input_yes_no("Do you accept")  # returns True if 'yes'
         if temp is True:
             break
-    for k in p.stats:
-        print(f'{k=} {p.stats[k]}')
+    for k in conn.stat:
+        logging.info(f'{k=} {conn.stat[k]}')
     if roll_number == chances:
-        output('"Sorry, you\'re stuck with these scores," Verus says.', p)
+        output(['"Sorry, you\'re stuck with these scores," Verus says.'], conn)
 
 
 def getnum():
@@ -644,7 +651,7 @@ def apply_bonuses(adj: list, p: Player):
     :param p: Player object to apply adjustments to
     :return: None"""
     num = 0  # index into adj[num]
-    for k in p.stats:
+    for k in p.stat:
         # class_calculate is not in skip's branch
         # https://github.com/Pinacolada64/TADA/blob/skip/SPUR-code/SPUR.NEW.S
         # nor spur.logon.s:
@@ -668,67 +675,100 @@ def apply_bonuses(adj: list, p: Player):
         # if n>b then n=b
         if after > _max:
             after = _max
-        p.stats[k] = after
+        p.stat[k] = after
         logging.info(f'{k=} {before=} {after=} {_max=}')
         num += 1
 
 
-if __name__ == '__main__':
-    import logging
-
+def main(conn: Player):
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
     logging.info("Logging is running")
 
-    global return_key  # so it can be modified in choose_client()
-    return_key = '[Return]'
-
-    connection_id = 1
-    # FIXME: initially, we wouldn't know which Player object to output it to (hasn't been created yet)
-    #  so use IP address?  will use standard print() here until Player object is established
-
-    character = Player()
-    character.connection_id = 1
+    lines=[]
     # these are enabled for debugging info:
-    character.flags = {'dungeon_master': True, 'debug': True, 'expert_mode': False},
-    character.silver = {'in_hand': 0, 'in_bank': 0, 'in_bar': 0}
-    print(character.client['columns'])
+    conn.flag = {'dungeon_master': True, 'debug': True, 'expert_mode': False,
+                 'room_descriptions': True,
+                 'autoduel': False,
+                 'hourglass': True,
+                 'more_prompt': True,
+                 'architect': False,
+                 # TODO: define orator_mode more succinctly
+                 'orator_mode': False,
+
+                 # health flags:
+                 'hungry': False,
+                 'thirsty': False,
+                 'diseased': False,
+                 'poisoned': False,
+                 'tired': False,
+                 'unconscious': False,
+
+                 # other flags:
+                 'compass_used': False,
+                 'thug_attack': False,
+
+                 # game objectives:
+                 'spur_alive': True,
+                 'dwarf_alive': True,
+                 'wraith_king_alive': True,
+                 'wraith_master': False,
+                 'tut_treasure': {'examined': False, 'taken': False},
+
+                 # magic items:
+                 'gauntlets_worn': False,
+                 'ring_worn': False,
+                 'amulet_of_life': False,
+
+                 # wizard_glow stuff:
+                 # 0 if inactive
+                 # != 0 is number of rounds left, decrement every turn
+                 'wizard_glow': int},
+    conn.silver = {'in_hand': 0, 'in_bank': 0, 'in_bar': 0}
+    conn.client = {'name': None,
+                   # screen dimensions:
+                   'rows': 25,
+                   'cols': 80,
+                   'translation': None,  # ASCII | ANSI | Commodore
+                   # colors for [bracket reader] text highlighting on C64/128:
+                   'text': int,
+                   'highlight': int,
+                   'background': int,
+                   'border': int}
+
+    lines.append(f'{conn.client["cols"]=}')
 
     header("Introduction")
-    output("Your faithful servant Verus appears at your side, as if by magic.",
-           character)
-    output('Verus mentions, "Do not worry if ye answer wrong, ye can change thy answer later."',
-           character)
+    output(["Your faithful servant Verus appears at your side, as if by magic."
+            'Verus mentions, "Do not worry if ye answer wrong, ye can change thy answer later."'])
 
     header("0. Choose Client")
-    choose_client(character)  # TODO: net_server handles this
+    choose_client(conn)  # TODO: net_server handles this
 
     header("I. Choose Gender")
-    choose_gender(character)
+    choose_gender(conn)
 
     header("II. Choose Name")
-    choose_name(character)
+    choose_name(conn)
 
     header("III. Choose Class")
-    choose_class(character)
+    choose_class(conn)
 
     header("IV. Choose Race")
-    choose_race(character)
+    choose_race(conn)
 
     header("V. Choose Age")
-    choose_age(character)
+    choose_age(conn)
 
     header("VI. Final Edit")
-    final_edit(character)
+    final_edit(conn)
 
     header("Choose Guild")
-    choose_guild(character)
+    choose_guild(conn)
 
     header("Roll Statistics")
-    roll_stats(character)
+    roll_stats(conn)
 
     header("Done!")
     print()
-    output("Final stats:", character)
+    logging.info(f"Final stats:\n{conn=}")
     # can't use output() because of \n's
-    # FIXME
-    # print(character)
