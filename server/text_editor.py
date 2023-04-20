@@ -25,7 +25,7 @@ class Buffer:
         """
         self.max_lines = max_lines
         # start with empty buffer, but 1-indexed:
-        self.line = ['' for x in range(0, max_lines + 1)]
+        self.line = [None for _ in range(0, max_lines + 1)]
         self.current_line = 1
 
     def get_last_line(self, buffer: Buffer) -> int | None:
@@ -99,9 +99,9 @@ class Buffer:
 
         :param max_insertable: editor.max_lines - (Buffer.get_last_line + 1) I think
         """
-        lines_remaining = editor.max_lines - buffer.get_last_line() + 1
-        logging.debug(f'{lines_remaining=}')
-        if editor.max_lines <= 0:
+        lines_remaining = editor.max_lines - self.get_last_line(buffer=buffer) + 1
+        if lines_remaining is None:
+            print("Memory full. Enter .S to save, .A to abort.")
             raise MemoryError  # i guess :)
         """
         Line 1
