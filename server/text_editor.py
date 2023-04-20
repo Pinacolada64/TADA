@@ -34,32 +34,41 @@ class Buffer:
         Enumerating forwards through <buffer.lines[]> stops at the first blank line.
 
         :param buffer: list of text lines
-        :return last_line: int value of last line which is not ''
-        :return None: buffer full (no empty lines)
-        """
-        last_line = editor.max_lines  # start from the highest line allowed by editor
-        """
-        >>> [x for x in range(10, 0, -1)]  # start, end, stride
-        [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-        """
-        """
-        >>> for text in range(len(buffer), 1, -1):  # start, end, stride
-        ...     print(text, buffer[text - 1])
-        
-        8 line 7
-        7 line 6
-        6 
-        5 line 4
-        4 line 3
-        3 line 2
-        2 line 1
-        1 
-        """
+        :return last_line: int value of last line which is not None
+        :return None: buffer full (no empty lines) | int (last non-None line)
 
-        """
-        >>> lines['', 'line 1', 'line 2', 'line 3', 'line 4', '', 'line 6', 'line 7']
-        >>> self.get_last_line(lines)
-        5
+        # quick example of range() function:
+        >>> [_ for _ in range(10, 0, -1)]  # start, end, stride
+        [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+
+        # instantiate buffer of 11 lines (0-10):
+        >>> test_buffer = Buffer(max_lines=10)
+
+        # fill it with some text:
+        >>> test_buffer.line = [None, 'line 1', 'line 2', 'line 3', 'line 4',
+        ...                     None, 'line 6', 'line 7', 'line 8', None, None]
+
+        # print lines out (should not print test_buffer.line[0] because users won't
+        # expect to edit/interact with line 0, plus it avoids coding e.g.:
+        # 'buffer.line[current + 1])' repeatedly, to "normalize" referring to
+        # line numbers 0-n as 1-n+1.
+        >>> for index in range(test_buffer.max_lines, 0, -1):  # start, end, stride
+        ...     print(f"{index} {test_buffer.line[index]}")
+        10 None
+        9 None
+        8 line 8
+        7 line 7
+        6 line 6
+        5 None
+        4 line 4
+        3 line 3
+        2 line 2
+        1 line 1
+
+        # determine last line with text in buffer
+        # (last line is None, line before that is not None):
+        >>> Buffer.get_last_line(buffer=test_buffer)
+        8
         """
         for line_num in range(editor.max_lines, 1, -1):  # start, end, stride
             if buffer[line_num] == '':
