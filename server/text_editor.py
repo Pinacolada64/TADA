@@ -81,7 +81,7 @@ class Buffer:
                 return last_line
         return None
 
-    def insert_lines(self, buffer: list, start: int, end: int):
+    def insert_lines(self, buffer: Buffer, start: int):
         """
         Instantiate a separate buffer for entering the inserted text into.
 
@@ -135,7 +135,7 @@ class Buffer:
         # TODO: put lines in the right place.
         buffer.insert(insert_buffer)
 
-    def put_in_undo(self, line_range):
+    def put_in_undo_buffer(self, line_range):
         if line_range is None:
             # FIXME
             undo_buffer = work_buffer
@@ -178,9 +178,6 @@ class DotCommand:
                 (.C Columns <x>)
         """
     pass
-
-    def cmd_help(DotCommand):
-        pass
 
     def parse_dot_command(self, char: str):
         """
@@ -391,18 +388,19 @@ class Editor:
         self.current_line = 1
         # position within line:
         self.column = 1
-        logging.info(f'Buffer: init {buffer}, {self.max_lines=}, {self.max_line_length=} ')
+        logging.info(f'Buffer: init {buffer}, {self.max_lines=}, {self.max_line_length=}')
 
     def input_line_range(self):
-        line_range = input("Line range: ")
-        if line_range.lower() == "h" or line_range == "?":
-            print("""
-x      Just line x
-x-     Lines x to the end of the buffer
-x-y    Lines x to y
- -y    Lines 1 to y
-""")
-        # line_range_len = len(line_range)  # FIXME: for backspacing that too, maybe?
+        if expert_mode is False:
+            line_range = input("Line range ['?' or 'h' for help]: ")
+            if line_range.lower() == "h" or line_range == "?":
+                print("""
+    x      Just line x
+    x-     Lines x to the end of the buffer
+    x-y    Lines x to y
+     -y    Lines 1 to y
+    """)
+            # line_range_len = len(line_range)  # FIXME: for backspacing that too, maybe?
 
     def run(self, buffer: Buffer):
         editor.show_available_lines(self, buffer=buffer)
@@ -411,9 +409,9 @@ x-y    Lines x to y
             if editor.mode["line_numbers"]:
                 print(f'{buffer.current_line}')
 
-    def show_available_lines(self, buffer):
+    def show_available_lines(self, buffer: Buffer):
         # TODO: display this at init, and after .Q Query (.G Get File if ever implemented)
-        in_mem = buffer.get_last_line()
+        in_mem = Buffer.get_last_line(buffer)
         print("Total lines:")
         print(f"Available: {editor.max_lines}")
         print(f"In Memory: {in_mem}")
@@ -431,7 +429,7 @@ x-y    Lines x to y
     def show_line_raw(self, line_num: int, buffer: Buffer):
         # TODO: .L List, more...
         print(line_num)
-        print(Buffer.buffer[line_num])
+        print(buffer[line_num])
 
 
 def get_character():
@@ -515,8 +513,8 @@ def input_line(flags=None):
             pass
 
         # handle Return key:
-        elif asc == 10:
-            # print(" [Return/Enter hit]\n")
+        elif asc == KEY_RETURN:
+            logging.info(f'[Return/Enter hit]')
             print()
             buffer[editor.current_line] = editor.current_line
             editor.line_number += 1
@@ -526,7 +524,7 @@ def input_line(flags=None):
         else:
             # filter out control chars for now:
             if 31 < asc < 197:
-                # print(f"{asc if debug else ''}{char}", end='', flush=True)
+                logging.info(f"{asc if debug else ''}{char}")
                 print(f"{char}", end='', flush=True)
                 editor.column += 1
                 editor.current_line = editor.current_line + char
@@ -551,7 +549,7 @@ def show_line_raw(line_number: int, buffer: list):
     """
     if editor.mode["show_line_numbers"]:
         print(f'{line_number}:')
-    print(r'{text}')
+    print(f'{buffer[line_number]}')
 
 
 def yes_or_no(prompt="Are you sure", default=False):
