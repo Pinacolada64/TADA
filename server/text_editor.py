@@ -75,8 +75,10 @@ class Buffer:
         8
         """
         for line_num in range(editor.max_lines, 1, -1):  # start, end, stride
-            if buffer[line_num] == '':
-                return line_num
+            if buffer[line_num] is None and buffer[line_num - 1]:
+                last_line = line_num - 1
+                logging.debug(f'get_last_line: {last_line=}')
+                return last_line
         return None
 
     def insert_lines(self, buffer: list, start: int, end: int):
@@ -405,7 +407,7 @@ x-y    Lines x to y
     def run(self, buffer: Buffer):
         editor.show_available_lines(self, buffer=buffer)
         while True:
-            editor.get_character()
+            char, asc = get_character()
             if editor.mode["line_numbers"]:
                 print(f'{buffer.current_line}')
 
@@ -574,7 +576,7 @@ def yes_or_no(prompt="Are you sure", default=False):
     if default is False and command_char != "y":
         response = False
         print("No.\n")
-    return command_char
+    return response
 
 
 # init:
