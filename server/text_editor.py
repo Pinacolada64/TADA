@@ -124,9 +124,6 @@ class Buffer:
         5:
         Line 4
                 
-        Turns on Insert mode and Line Numbering mode for the duration of
-        inserting lines.
-        
         :param start: line # to start inserting at
         :return: new List
         """
