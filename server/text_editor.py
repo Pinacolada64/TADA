@@ -577,39 +577,53 @@ def yes_or_no(prompt="Are you sure", default=False):
     return response
 
 
-# init:
-logging.basicConfig()
+if __name__ == '__main__':
+    # init:
+    logging.basicConfig()
 
-# this works:
-# line range regular expression. all three elements (start, delimiter and end) are optional.
-line_range_re = re.compile(r"(\d+)?(-)?(\d+)?")
+    # this works:
+    # line range regular expression. all three elements (start, delimiter and end) are optional.
+    line_range_re = re.compile(r"(\d+)?(-)?(\d+)?")
 
-KEY_BACKSPACE = 127
-KEY_RETURN = 10  # last char of CR/LF pair
+    # keyboard key constants:
+    # TODO: inherit from Player.terminal
+    KEY_ESC = chr(27)
+    KEY_BACKSPACE = chr(8)
+    KEY_DELETE = chr(127)
+    KEY_RETURN = chr(10)  # last char of CR/LF pair
 
-COMMAND_PROMPT = "Command: "
-debug = True
+    # environment constants:
+    COMMAND_PROMPT = "Command: "
 
-dot_cmd_table = [{"a": ("Abort", DotCommand.cmd_abort, "immediate", False)},
-                 {"c": ("Columns", DotCommand.cmd_columns, "single", True)},
-                 {"d": ("Delete", DotCommand.cmd_delete, "all", True)},
-                 {"e": ("Edit", DotCommand.cmd_edit, ["last", "subcmd"], True)},
-                 {"f": ("Find", DotCommand.cmd_find, "all", True)},
-                 {"h": ("Help", DotCommand.cmd_help, "immediate", False)},
-                 {"i": ("Insert", DotCommand.cmd_insert, "single", True)},
-                 # TODO: Justify: could use textwrap module
-                 # {"j": ("Justify", DotCommand.cmd_justify, ["all", "subcmd"], True)},
-                 {"k": ("Find and Replace", DotCommand.cmd_replace, "all", False)},
-                 {"l": ("List", DotCommand.cmd_list, "all", True)},
-                 {"n": ("New Text", DotCommand.cmd_new, "immediate", False)},
-                 {"o": ("Line Numbering", DotCommand.cmd_line_nums, "immediate", False)},
-                 {"q": ("Query", DotCommand.cmd_query, "immediate", False)},
-                 {"r": ("Read", DotCommand.cmd_read, "all", False)},
-                 {"s": ("Save", DotCommand.cmd_save, "immediate", False)},
-                 {"u": ("Undo", DotCommand.cmd_undo, "immediate", False)},
-                 {"w": ("Word-Wrap", DotCommand.cmd_word_wrap, "all", True)},
-                 {"#": ("Scale", DotCommand.cmd_scale, "immediate", False)}
-                 ]
+    # ANSI Control Sequence Introducer
+    # https://en.wikipedia.org/wiki/ANSI_escape_code#CSI_(Control_Sequence_Introducer)_sequences
+    CSI = f'{KEY_ESC}['
+
+    # TODO: get from Player.flag{} dict
+    # per-user flags:
+    debug = True
+    expert_mode = False  # just for testing purposes
+
+    dot_cmd_table = [{"a": ("Abort", DotCommand.cmd_abort, "immediate", False)},
+                     {"c": ("Columns", DotCommand.cmd_columns, "single", True)},
+                     {"d": ("Delete", DotCommand.cmd_delete, "all", True)},
+                     {"e": ("Edit", DotCommand.cmd_edit, ["last", "subcmd"], True)},
+                     {"f": ("Find", DotCommand.cmd_find, "all", True)},
+                     {"h": ("Help", DotCommand.cmd_help, "immediate", False)},
+                     {"i": ("Insert", DotCommand.cmd_insert, "single", True)},
+                     # TODO: Justify: could use textwrap module
+                     # {"j": ("Justify", DotCommand.cmd_justify, ["all", "subcmd"], True)},
+                     {"k": ("Find and Replace", DotCommand.cmd_replace, "all", False)},
+                     {"l": ("List", DotCommand.cmd_list, "all", True)},
+                     {"n": ("New Text", DotCommand.cmd_new, "immediate", False)},
+                     {"o": ("Line Numbering", DotCommand.cmd_line_nums, "immediate", False)},
+                     {"q": ("Query", DotCommand.cmd_query, "immediate", False)},
+                     {"r": ("Read", DotCommand.cmd_read, "all", False)},
+                     {"s": ("Save", DotCommand.cmd_save, "immediate", False)},
+                     {"u": ("Undo", DotCommand.cmd_undo, "immediate", False)},
+                     {"w": ("Word-Wrap", DotCommand.cmd_word_wrap, "all", True)},
+                     {"#": ("Scale", DotCommand.cmd_scale, "immediate", False)}
+                     ]
 
 if __name__ == '__main__':
     doctest.testmod(verbose=True)
