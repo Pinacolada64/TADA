@@ -13,9 +13,11 @@ class Buffer:
     def __init__(self, max_lines):
         """
         Instantiate buffer object which holds up to <editor.max_lines> of list <line>
-
         :param max_lines: how many lines of text can be entered
-        :var line: a list of empty elements [1 - editor.max_lines], representing an empty buffer
+
+        Variables created by __init__:
+        :var line: a list of empty elements (None) [1 - editor.max_lines],
+         representing an empty buffer
         :var current_line: line # currently being edited
         TODO: self.modified flag?
         """
@@ -78,16 +80,20 @@ class Buffer:
     def insert_lines(self, buffer: list, start: int, end: int):
         """
         Instantiate a separate buffer for entering the inserted text into.
+
+        Buffer.line[start - end].
+
         TODO: After the text is entered, somehow weave the buffers together
             properly.
 
-        :param start:
-        :param end:
-        :return:
-        """
-        """
-        :param max_lines: editor.max_lines - (last_line + 1) I think
-        TODO: check if any lines left; if not: "Buffer full." message 
+        :param buffer: Buffer object to insert lines into
+        :param start: line # to start inserting text at
+        :return: buffer object with Buffer.line[start - <however many lines entered>]
+
+        TODO: check if any lines left; if not, or buffer becomes full,
+            display: "Buffer full." message
+
+        :param max_insertable: editor.max_lines - (Buffer.get_last_line + 1) I think
         """
         lines_remaining = editor.max_lines - buffer.get_last_line() + 1
         logging.debug(f'{lines_remaining=}')
@@ -101,7 +107,7 @@ class Buffer:
         [.I]nsert [4]
         I4:
         The quick brown fox jumped over the lazy dog.
-        [.I]nsert mode off.
+        [.]Command: Exit
         [.L]ist
         1:
         Line 1
@@ -260,20 +266,38 @@ class DotCommand:
 
     def cmd_help(self):
         """.h or .?"""
-        """TODO: Enhancement: type [.h] <dot_letter> for specific help"""
+        """
+        TODO: Enhancement: type [.h] <dot_key> for help on topic <dot_key>,
+        instead of [.h] displaying a huge file on all commands.
+        """
         pass
 
     def cmd_insert(self):
-        """.i"""
+        """.i Insert <starting_line>
+        Turns on Insert mode and Line Numbering mode for the duration of
+        inserting lines.
+
+        [.I]nsert At: [4]
+        User is prompted:
+        I4:
+        [The quick brown fox jumped over the lazy dog.]
+        I5:
+        [The same.]
+
+        User ends Insert mode by typing:
+        [.]Command: Exit
+        """
+        # TODO: normalize line range: check if 1 > start > editor.max_lines
         pass
 
     def cmd_replace(self):
-        """.K"""
-        pass
+        """.K Find and Replace <line_range>"""
+        print("TODO: Find what: ")
+        print("TODO: Replace with: ")
 
     def cmd_list(self, line_range: tuple):
         """
-        .L List [x[-[y]]]
+        .L List <line_range>
         List a single line or range of lines.
         Line numbers are printed regardless of editor.mode["line_numbers"] status.
 
@@ -332,24 +356,26 @@ class DotCommand:
         pass
 
     def cmd_word_wrap(self):
-        """
-        .W Word-Wrap Text
-        """
+        """.W Word-wrap text"""
         pass
 
-   def cmd_scale(self):
-       """.# Scale"""
-       # TODO: expand the printed output to match Editor.max_line_length
-       print(f"{1:10}{2:10}{3:10}{4:10}")
-       print("1234567890" * 4)
+    def cmd_scale(self):
+        """
+        .# Scale
+        Display a ruler with numbered screen columns to assist with, among
+        other things, aligning text at a certain column
+        """
+        # TODO: expand the printed output to match Editor.max_line_length
+        print(f"{1:10}{2:10}{3:10}{4:10}")
+        print("1234567890" * 4)
 
 
 class Editor:
     def __init__(self, max_line_length, buffer: Buffer):
         # editor modes:
-        #              toggled with .O (Line Numbering):
+        #            toggled with .O (Line Numbering):
         self.mode = {"show_line_numbers": False,
-                     # toggled with .I (Insert Mode)
+                     # toggled with .I (Insert Mode):
                      "insert": False}
         self.max_line_length = max_line_length
         # modified with .Columns <value>, this is independent of max_line_length
@@ -449,11 +475,11 @@ def get_line_range(range_str: str) -> tuple:
     if evaluate:
         # split 'evaluate' into capture groups (returns a tuple)
         result = evaluate.groups()
-        logging.info(f"{result=}")
+        logging.info(f"get_line_range: {result=}")
     else:
         logging.info("<no regex match>")
         result = None
-    # TODO: validate start/end are within 1 < Editor.last_line < Editor.max_lines
+    # TODO: validate 1 <= start <= Editor.max_lines, start <= end <= Editor.max_lines
     return result
 
 
@@ -505,15 +531,20 @@ def input_line(flags=None):
 def out_backspace(count: int) -> str:
     """
     Output <count> backspaces.
-    FIXME: character used depends on terminal
+    FIXME: backspace key value + character output depends on translation
     """
     backspace = "\b \b"  # Linux terminal
     # if Character.terminal['translation'] == "PetSCII" then:
-    #     backspace = chr(20)
+    #     KEY_BACKSPACE = chr(20)  # ctrl-t
+    #     KEY_INSERT = chr(20 + 128)  # ctrl-shift-t
     return backspace * count
 
 
-def show_line_raw(line_number: int, text: str):
+def show_line_raw(line_number: int, buffer: list):
+    """
+    Show a single line in the buffer.
+    Used for things like .E Edit, .L List
+    """
     if editor.mode["show_line_numbers"]:
         print(f'{line_number}:')
     print(r'{text}')
@@ -526,7 +557,7 @@ def yes_or_no(prompt="Are you sure", default=False):
 
     :param prompt: configurable string
     :param default: unless any other key but 'y' for True or 'n' for False is typed
-    :return: command_char: yes = True, no = False
+    :return: response: yes = True, no = False
     """
     if default is True:
         chars = "Y/n"
@@ -582,7 +613,7 @@ if __name__ == '__main__':
     doctest.testmod(verbose=True)
     """
     editing: Boolean whether we're in the editor
-    char_pos: character position within line
+    column: character position within line
     line: the string input so far
     current_line: the line number being edited (1-based)
     char: character typed
