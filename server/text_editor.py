@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 import doctest
 
@@ -26,7 +28,7 @@ class Buffer:
         self.line = ['' for x in range(0, max_lines + 1)]
         self.current_line = 1
 
-    def get_last_line(self, buffer: list) -> int | None:
+    def get_last_line(self, buffer: Buffer) -> int | None:
         """
         Enumerate backwards through buffer.lines[] looking for the first non-
         empty list item. This is considered the highest line number in the text
