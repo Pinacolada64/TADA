@@ -625,7 +625,57 @@ if __name__ == '__main__':
                      {"#": ("Scale", DotCommand.cmd_scale, "immediate", False)}
                      ]
 
-if __name__ == '__main__':
+    # ctrl-key tables: keyboard maps (currently taken from 'bash' shell and
+    # the Image BBS text editor, used at prompts and line editor
+    # CSI = Control Sequence Introducer (Esc [)
+
+    # https://www.howtogeek.com/181/keyboard-shortcuts-for-bash-command-shell-for-ubuntu-debian-suse-redhat-linux-etc/
+    KEYMAPS = [{'name': 'bash',
+                # per-character keys:
+                'char_insert': None,
+                'char_retype': chr(6),  # Ctrl-f, move forward 1 character
+                'move_char_left': f"{CSI}1C",  # Esc[1C
+                'move_char_right': f"{CSI}1D",  # Esc[1D
+                'del_char_left': KEY_BACKSPACE,
+                'del_char_right': KEY_DELETE,
+                'key_return': KEY_RETURN,  # 10
+                # per-word keys:
+                'move_word_left': None,
+                'move_word_right': None,  # TODO: Alt+F
+                'del_word_left': None,
+                'del_word_right': None,  # Ctrl+F
+                # per-line keys:
+                'move_line_start': None,
+                'move_line_end': None},
+               # https://pinacolada64.github.io/ImageBBS3-docs.github.io/12b-text-editor.html#editor-control-keys
+               {'name': 'Image BBS',
+                # per-character keys:
+                'char_insert': chr(148),  # ctrl-shift-T (or ctrl-i)
+                'char_retype': chr(21),  # ctrl-u
+                'move_char_left': chr(157),
+                'move_char_right': chr(29),
+                'del_char_left': chr(20),  # ctrl-t
+                'del_char_right': chr(4),  # ctrl-d
+                'key_return': chr(13),
+                # per-word keys:
+                'move_word_left': None,
+                'move_word_right': chr(25),  # ctrl-y
+                'del_word_left': chr(23),  # ctrl-w
+                'del_word_right': None,
+                # per-line keys:
+                'move_line_start': chr(2),  # ctrl-b
+                'move_line_end': chr(14)}]  # ctrl-n
+
+    # iterate through keymaps, displaying functions and keys bound to them:
+    for num, keymap in enumerate(KEYMAPS, start=1):
+        print(f"{num}. {keymap['name']}")
+        # iterate through keys in keymap:
+        for key_function, key_value in keymap.items():
+            if key_function != "name" and key_value is not None:
+                # TODO: keytable{17: "crsr down", 17+128: "crsr up"}  # etc.
+                #     for more-easily read keytable definitions
+                print(f"\tKey {key_function:.<15}: {key_value}")
+
     doctest.testmod(verbose=True)
     """
     editing: Boolean whether we're in the editor
