@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 import doctest
 
 try:
-    import getch
+    if os.getenv("os") == "NT":
+        print("Running on NT: Importing msvcrt.getch()")
+        from msvcrt import getch
 except ImportError as e:
     print(f"Can't import getch: {e}.")
 import re
@@ -69,13 +72,29 @@ class Buffer:
         2 line 2
         1 line 1
 
-        # determine last line with text in buffer
-        # (last line is None, line before that is not None):
-        >>> Buffer.get_last_line(buffer=test_buffer)
+        # determine last line with text in buffer (lines free)
+        # (line[10] is None, line[9] is not None):
+        >>> test_buffer.get_last_line(buffer=test_buffer)
         8
+
+        # determine last line with all lines full in a new buffer:
+        >>> test_buffer = Buffer(max_lines=10)
+
+        >>> test_buffer.line = [f"line {_}" for _ in range(test_buffer.max_lines)]
+
+        # verify all lines are full, plus line numbers are as expected:
+        >>> test_buffer.line
+        ['line 0', 'line 1', 'line 2', 'line 3', 'line 4', 'line 5', 'line 6', 'line 7', 'line 8', 'line 9']
+
+        # verify a full buffer returns None
+        # FIXME: an empty buffer also returns None, use sentinel marker to tell difference?
+        >>> test_buffer.get_last_line(test_buffer)
+        None
         """
-        for line_num in range(editor.max_lines, 1, -1):  # start, end, stride
-            if buffer[line_num] is None and buffer[line_num - 1]:
+        last_line = buffer.max_lines
+        for line_num in range(last_line, 1, -1):  # start, end, stride
+            logging.info(f"{line_num=} {buffer.line[line_num]=}")
+            if buffer.line[line_num] is None and buffer.line[line_num - 1]:
                 last_line = line_num - 1
                 logging.debug(f'get_last_line: {last_line=}')
                 return last_line
@@ -99,10 +118,13 @@ class Buffer:
 
         :param max_insertable: editor.max_lines - (Buffer.get_last_line + 1) I think
         """
-        lines_remaining = editor.max_lines - self.get_last_line(buffer=buffer) + 1
+        lines_remaining = editor.max_lines - self.get_last_line(buffer=buffer)
         if lines_remaining is None:
             print("Memory full. Enter .S to save, .A to abort.")
             raise MemoryError  # i guess :)
+            # FIXME
+        else:
+            lines_remaining += 1
         """
         Line 1
         Line 2
@@ -426,7 +448,7 @@ class Editor:
     def show_line_raw(self, line_num: int, buffer: Buffer):
         # TODO: .L List, more...
         print(line_num)
-        print(buffer[line_num])
+        print(buffer.line[line_num])
 
 
 def get_character():
@@ -482,11 +504,12 @@ def get_line_range(range_str: str) -> tuple:
     return result
 
 
-def input_line(flags=None):
+def input_line(flags=None) -> None | str:
     """
     :param flags: dot_exits: True: "." or "/" on column 1 exits
     :return None: no line entered, str: line input
     """
+    # the line as typed so far:
     editor.input_line = ''
     while True:
         asc, char = get_character()
@@ -502,21 +525,43 @@ def input_line(flags=None):
         if asc == KEY_BACKSPACE and editor.column > 0:
             # print("BS", end='')
             editor.column -= 1
-            editor.current_line = editor.current_line[:editor.column]
-            print(out_backspace(1), end='', flush=True)
+            if editor.column == editor.max_line_length:
+                # the cursor is at the end of the line:
+                editor.input_line = editor.input_line[:editor.column]
+                print(out_backspace(1), end='', flush=True)
+            if editor.column < editor.max_line_length:
+                # the cursor is anywhere between the second character of the
+                # line to the second-to-last character of the line.
+                # 1) shift characters from there to the end of the
+                #    line to the left
+                # 2)
+                print(out_backspace(1), end='', flush=True)
 
         # handle word wrap:
-        if editor.column == buffer.line_length:
-            pass
+        if editor.column == editor.max_line_length:
+            # TODO: iterate backwards through string, looking for space
 
+            word_wrap_pos = editor.input_line.find(" ", editor.input_line)
+            # TODO: if no space found, hard Return, make new line:
+            if word_wrap_pos is None:
+                logging.info("TODO: no space found, making new line")
+            else:
+                # TODO: add that word to next line
+                new_line = editor.input_line[:word_wrap_pos]
+                editor.input_line = editor.input_line[word_wrap_pos]
+                # backspace over it:
+                out_backspace(editor.column_width - word_wrap_pos)
+                # new line:
+                print()
         # handle Return key:
         elif asc == KEY_RETURN:
             logging.info(f'[Return/Enter hit]')
             print()
-            buffer[editor.current_line] = editor.current_line
-            editor.line_number += 1
-            editor.current_line = ''
-            editor.column = 0
+            return editor.input_line
+            # buffer[editor.current_line] = editor.current_line
+            # editor.line_number += 1
+            # editor.current_line = ''
+            # editor.column = 0
 
         else:
             # filter out control chars for now:
@@ -565,6 +610,7 @@ def yes_or_no(prompt="Are you sure", default=False):
     print(f"{prompt} [{chars}]: ", end="", flush=True)
     key, asc = get_character()
     command_char = key.lower()
+    response = ''
     if default is True and command_char != "n":
         response = True
         print("Yes.\n")
@@ -575,26 +621,15 @@ def yes_or_no(prompt="Are you sure", default=False):
 
 
 if __name__ == '__main__':
-    # init:
+    # init logging
     logging.basicConfig()
 
     # this works:
     # line range regular expression. all three elements (start, delimiter and end) are optional.
     line_range_re = re.compile(r"(\d+)?(-)?(\d+)?")
 
-    # keyboard key constants:
-    # TODO: inherit from Player.terminal
-    KEY_ESC = chr(27)
-    KEY_BACKSPACE = chr(8)
-    KEY_DELETE = chr(127)
-    KEY_RETURN = chr(10)  # last char of CR/LF pair
-
     # environment constants:
     COMMAND_PROMPT = "Command: "
-
-    # ANSI Control Sequence Introducer
-    # https://en.wikipedia.org/wiki/ANSI_escape_code#CSI_(Control_Sequence_Introducer)_sequences
-    CSI = f'{KEY_ESC}['
 
     # TODO: get from Player.flag{} dict
     # per-user flags:
@@ -622,57 +657,6 @@ if __name__ == '__main__':
                      {"#": ("Scale", DotCommand.cmd_scale, "immediate", False)}
                      ]
 
-    # ctrl-key tables: keyboard maps (currently taken from 'bash' shell and
-    # the Image BBS text editor, used at prompts and line editor
-    # CSI = Control Sequence Introducer (Esc [)
-
-    # https://www.howtogeek.com/181/keyboard-shortcuts-for-bash-command-shell-for-ubuntu-debian-suse-redhat-linux-etc/
-    KEYMAPS = [{'name': 'bash',
-                # per-character keys:
-                'char_insert': None,
-                'char_retype': chr(6),  # Ctrl-f, move forward 1 character
-                'move_char_left': f"{CSI}1C",  # Esc[1C
-                'move_char_right': f"{CSI}1D",  # Esc[1D
-                'del_char_left': KEY_BACKSPACE,
-                'del_char_right': KEY_DELETE,
-                'key_return': KEY_RETURN,  # 10
-                # per-word keys:
-                'move_word_left': None,
-                'move_word_right': None,  # TODO: Alt+F
-                'del_word_left': None,
-                'del_word_right': None,  # Ctrl+F
-                # per-line keys:
-                'move_line_start': None,
-                'move_line_end': None},
-               # https://pinacolada64.github.io/ImageBBS3-docs.github.io/12b-text-editor.html#editor-control-keys
-               {'name': 'Image BBS',
-                # per-character keys:
-                'char_insert': chr(148),  # ctrl-shift-T (or ctrl-i)
-                'char_retype': chr(21),  # ctrl-u
-                'move_char_left': chr(157),
-                'move_char_right': chr(29),
-                'del_char_left': chr(20),  # ctrl-t
-                'del_char_right': chr(4),  # ctrl-d
-                'key_return': chr(13),
-                # per-word keys:
-                'move_word_left': None,
-                'move_word_right': chr(25),  # ctrl-y
-                'del_word_left': chr(23),  # ctrl-w
-                'del_word_right': None,
-                # per-line keys:
-                'move_line_start': chr(2),  # ctrl-b
-                'move_line_end': chr(14)}]  # ctrl-n
-
-    # iterate through keymaps, displaying functions and keys bound to them:
-    for num, keymap in enumerate(KEYMAPS, start=1):
-        print(f"{num}. {keymap['name']}")
-        # iterate through keys in keymap:
-        for key_function, key_value in keymap.items():
-            if key_function != "name" and key_value is not None:
-                # TODO: keytable{17: "crsr down", 17+128: "crsr up"}  # etc.
-                #     for more-easily read keytable definitions
-                print(f"\tKey {key_function:.<15}: {key_value}")
-
     doctest.testmod(verbose=True)
     """
     editing: Boolean whether we're in the editor
@@ -683,9 +667,11 @@ if __name__ == '__main__':
     asc: ascii value of char
     """
 
+    # see https://en.wikipedia.org/wiki/Command_pattern
+
     work_buffer = Buffer(max_lines=10)
     undo_buffer = Buffer(max_lines=10)
 
     editor = Editor(max_line_length=80, buffer=work_buffer)
     while True:
-        Editor.run(buffer=work_buffer)
+        editor.run(buffer=work_buffer)
