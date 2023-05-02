@@ -38,7 +38,9 @@ if __name__ == '__main__':
                    "del_char_right": "Delete Char to Right",
                    "char_insert": "Insert Char to Right",
                    "del_word_right": "Delete Word to Right",
+                   "del_word_left": "Delete Word to Left",
                    "del_char_left": "Backspace Char to Left",
+                   "char_retype": "Retype character",
                    "key_return": "FIXME"}
 
     # ctrl-key tables: keyboard maps
@@ -89,20 +91,23 @@ if __name__ == '__main__':
 
     # start out with '<null>' in list index 0
     # this list will be used for ANSI/keytable editor
-    plain_key_names = ["Null"]
+    # this also works:
+    # ctrl_key_list = [f"Ctrl-{chr(x + 64)}" for x in range(0, 27)]
+    ctrl_key_list = ["Null"]
     # iterate through ['Ctrl-A', 'Ctrl-B' ... 'Ctrl-Y', 'Ctrl-Z']
     for x in range(ord("A"), ord("Z") + 1):
-        plain_key_names.append(f"Ctrl-{chr(x)}")
+        ctrl_key_list.append(f"Ctrl-{chr(x)}")
 
     # iterate through [27 ... 255]
     for x in range(27, 255 + 1):
-        plain_key_names.append(f'{chr(x)}')
+        ctrl_key_list.append(f'{chr(x)}')
 
-    keymap = {value: name for value, name in zip(key_nums, plain_key_names)}
+    keymap = {value: name for value, name in zip(key_nums, ctrl_key_list)}
 
+    """
     print("Before key name replacement:")
     show_keymap()
-    # sys.exit()
+    """
 
     # Commodore terminal:
     # override generic "Ctrl-<letter>" keys with more meaningful names:
@@ -125,59 +130,96 @@ if __name__ == '__main__':
     #    e.g., instead of '\x95', show '[Brown]'
     keymap.update(ctrl_key_nice_names)
 
+    """
     print("After key name replacement:")
     show_keymap()
-
     """
-    finally, print this whole mess to see if it's somewhat understandable:
-    ideal output:
-    [Custom] would have to check that a reassigned keystroke was not already
-    assigned to an existing function
 
-    Using 'Image BBS' keymap [Custom]:
+    # set user's keymap to Image BBS:
+    # KEYMAPS is a list of dicts:
+    USER_KEYMAP_NAME = KEYMAPS[1]["name"]  # ['Image BBS']
+    USER_KEYMAP_KEYS = KEYMAPS[1]["keys"]
 
-        key_name                                    key_classes
-     1) Ctrl-A   Unassigned            14) Ctrl-N   Move: End of Line
-     2) Ctrl-B   Move: Start of Line   15) Ctrl-O   Unassigned
-     3) Ctrl-C   Unassigned            16) Ctrl-P   Unassigned
-    [...]
-    11) Ctrl-K   Unassigned            24) Ctrl-X   Unassigned
-    12) Ctrl-L   Unassigned            25) Ctrl-Y   Move: Word Right
-    13) Ctrl-M   Return                26) Ctrl-Z   Unassigned
-    """
-    # FIXME: this is incoherent code but has some basic ideas
-    """
-    # show Ctrl-x keys plain_key_names[], KEY_CLASSES{}
-    for num, key_name in enumerate(KEYMAPS):
-        key_class = KEY_CLASSES[<FIXME>]
-        print(f'{num:2}) {key_name:9}{key_class:15}', end='')
-        # FIXME: make two columns, something like:
-        col_2, key_name_2 = num + 13
-        key_class_2 = KEY_CLASSES[<FIXME>]
-        print(f'{col_2:2}) {key_name_2:9}{key_class_2:15}', end='')
-        
-    # FIXME: set user's keymap:
-    # KEYMAPS is a list of dicts
-    KEYMAP = KEYMAPS[1]['Image BBS']
-    logging.info(f"{KEYMAP=}")
+    # Display keymap:
+    # iterate through keymap, displaying plain ctrl key names,
+    # functions bound to them (if any, could be None):
+    print(f"Using '{USER_KEYMAP_NAME}' keymap:\n")
+    # this list displays by default e.g., "Ctrl-A: None"
 
-    # CHOOSE KEYMAP:
-    # iterate through keymaps, displaying functions and keys bound to them:
-    for num, keymap in enumerate(KEYMAPS, start=1):
-        print(f"{num:2}) {keymap['name']}")
-        # iterate through keys in keymap:
-        for key_function, key_value in keymap["keys"].items():
-            key_string = plain_key_names[num]
-            if key_value is None:
-                key_string = "Not assigned"
-                print(f"\tKey {key_function:.<15}: {key_value}")
+    SHOW_USER_KEYS = [None for k in ctrl_key_list]
+    # "None" is replaced by USER_KEYMAP_KEYS.value(key_chr):
+    num = 0
+    for function, key_chr in USER_KEYMAP_KEYS.items():
+        if key_chr:
+            ctrl_key = ctrl_key_list[ord(key_chr)]
+            function_name = KEY_CLASSES[function]
+            num += 1
+            print(f"{num:2}) {ctrl_key}: {function_name}")
+
+    # let's just figure out logic to display one line to spec first:
+    num = 0
+    ctrl_key = ctrl_key_list[num]
+    print(f"{num:2}) {ctrl_key:15}", end='')
+    # look through USER_KEYMAP_KEYS:
+    # if e.g. {'char_retype': chr(21)} then convert chr() value to
+    # ordinal(ctrl_key_list[num]) to display:
+    if ctrl_key in USER_KEYMAP_KEYS:
+        # convert from chr() byte to an int:
+        key_chr_to_num = ord(USER_KEYMAP_KEYS['char_retype'])  # 21
+        # we use ctrl_key_list[] since ctrl_key_nice_names[] makes
+        # output more confusing (e.g., "Lowercase: Move Line End"
+        # is technically correct (Ctrl-N is Lowercase), but we want to keep
+        # the output as "Ctrl-N: Move End of Line"
+        output = ctrl_key_list[key_chr_to_num]  # "Retype Character"
+    else:
+        output = "Not Assigned"
+    print(f"{output}")
+    # SHOW_KEYS{plain_key_name: KEY_CLASSES{USER_KEYMAP_KEYS{ord(
+    # if KEY_CLASSES:
+    #   print(f"{keymap_key}")
+
+    # display keys/iterate through keys in user keymap:
+    for num, key_value in USER_KEYMAP_KEYS:
+        key_string = ctrl_key_list[num]
+        if key_value is None:
+            key_string = "Not assigned"
+        print(f"\tKey {ctrl_key_list[num]:.<15}: {key_string}")
 
     keymap_num = None
     while keymap_num is None:
         _ = int(input("Keymap number: "))
         if 1 < _ < len(KEYMAPS):
             keymap_num = _
+            print(f"Switched to keymap '{KEYMAPS[_]['name']}.'")
 
-    for key_name, key_value in KEYMAP['keys'].items():
+    for key_name, key_value in USER_KEYMAP_KEYS.items():
         print(key_name, key_value)
+
+    """
+    finally, print this whole mess to see if it's somewhat understandable:
+    ideal output:
+    '[Custom]' would have to check that a reassigned keystroke was not already
+    assigned to an existing function
+
+    Using 'Image BBS' keymap [Custom]:
+    
+        ctrl_key_list[]                             key_classes[]
+     1) Ctrl-A   Unassigned            14) Ctrl-N   Move End of Line
+     2) Ctrl-B   Move Start of Line    15) Ctrl-O   Unassigned
+     3) Ctrl-C   Unassigned            16) Ctrl-P   Unassigned
+    [...]
+    11) Ctrl-K   Unassigned            24) Ctrl-X   Unassigned
+    12) Ctrl-L   Unassigned            25) Ctrl-Y   Move Word Right
+    13) Ctrl-M   Return                26) Ctrl-Z   Unassigned
+    """
+    # FIXME: this is incoherent code but has some basic ideas
+    """
+    # show Ctrl-x keys ctrl_key_list[], KEY_CLASSES{}
+    for num, key_name in enumerate(KEYMAPS):
+        key_class = KEY_CLASSES.items()
+        print(f'{num:2}) {key_name:9}{key_class:15}', end='')
+        # FIXME: make two columns, something like:
+        col_2, key_name_2 = num + 13
+        key_class_2 = KEY_CLASSES[col_2]
+        print(f'{col_2:2}) {key_name_2:9}{key_class_2:15}')
     """
