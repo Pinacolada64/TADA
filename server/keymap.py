@@ -41,7 +41,7 @@ if __name__ == '__main__':
                    "del_word_left": "Delete Word to Left",
                    "del_char_left": "Backspace Char to Left",
                    "char_retype": "Retype character",
-                   "key_return": "FIXME"}
+                   "key_return": "New Line"}
 
     # ctrl-key tables: keyboard maps
     # (currently taken from 'bash' shell and the Image BBS text editor
@@ -144,56 +144,45 @@ if __name__ == '__main__':
     # iterate through keymap, displaying plain ctrl key names,
     # functions bound to them (if any, could be None):
     print(f"Using '{USER_KEYMAP_NAME}' keymap:\n")
-    # this list displays by default e.g., "Ctrl-A: None"
 
-    SHOW_USER_KEYS = [None for k in ctrl_key_list]
-    # "None" is replaced by USER_KEYMAP_KEYS.value(key_chr):
+    # THIS WORKS
+    """
     num = 0
     for function, key_chr in USER_KEYMAP_KEYS.items():
         if key_chr:
+            # we use ctrl_key_list[] since ctrl_key_nice_names[] makes
+            # output more confusing (e.g., "Lowercase: Move Line End" is
+            # technically correct (Ctrl-N is Lowercase), but we want to keep
+            # the output as "Ctrl-N: Move End of Line"
             ctrl_key = ctrl_key_list[ord(key_chr)]
             function_name = KEY_CLASSES[function]
             num += 1
             print(f"{num:2}) {ctrl_key}: {function_name}")
+    """
+    # None = Unassigned
+    SHOW_USER_KEYS = {ctrl_key_list[_]: None for _ in range(1, 27)}
+    # print(f"{len(SHOW_USER_KEYS) == 26}")
 
-    # let's just figure out logic to display one line to spec first:
-    num = 0
-    ctrl_key = ctrl_key_list[num]
-    print(f"{num:2}) {ctrl_key:15}", end='')
-    # look through USER_KEYMAP_KEYS:
-    # if e.g. {'char_retype': chr(21)} then convert chr() value to
-    # ordinal(ctrl_key_list[num]) to display:
-    if ctrl_key in USER_KEYMAP_KEYS:
-        # convert from chr() byte to an int:
-        key_chr_to_num = ord(USER_KEYMAP_KEYS['char_retype'])  # 21
-        # we use ctrl_key_list[] since ctrl_key_nice_names[] makes
-        # output more confusing (e.g., "Lowercase: Move Line End"
-        # is technically correct (Ctrl-N is Lowercase), but we want to keep
-        # the output as "Ctrl-N: Move End of Line"
-        output = ctrl_key_list[key_chr_to_num]  # "Retype Character"
-    else:
-        output = "Not Assigned"
-    print(f"{output}")
-    # SHOW_KEYS{plain_key_name: KEY_CLASSES{USER_KEYMAP_KEYS{ord(
-    # if KEY_CLASSES:
-    #   print(f"{keymap_key}")
+    # build a dict of ctrl keys and their assigned functions to show in two columns:
+    index = 0
+    # e.g., {'char_retype': chr(21)}
+    for key_class, ascii_char in USER_KEYMAP_KEYS.items():
+        # if None, it is not supported, so skip it:
+        if ascii_char is None:
+            print(f'{key_class} not supported, skipping')
+        else:
+            key_value = ord(ascii_char)
+            print(f"{key_value=} {ascii_char=}")
+            if 1 < key_value < 27:
+                SHOW_USER_KEYS[ctrl_key_list[key_value]] = KEY_CLASSES[key_class]
+                print(f"{ctrl_key_list[key_value]}"
+                      f": {SHOW_USER_KEYS[ctrl_key_list[key_value]]}")
+            else:
+                # TODO: add this to output
+                print(f"Extended character, using {ctrl_key_nice_names[key_value]}")
+                print(f"Out of range: {key_value}: {key_class}, skipping")
+    _ = input("Pause: ")
 
-    # display keys/iterate through keys in user keymap:
-    for num, key_value in USER_KEYMAP_KEYS:
-        key_string = ctrl_key_list[num]
-        if key_value is None:
-            key_string = "Not assigned"
-        print(f"\tKey {ctrl_key_list[num]:.<15}: {key_string}")
-
-    keymap_num = None
-    while keymap_num is None:
-        _ = int(input("Keymap number: "))
-        if 1 < _ < len(KEYMAPS):
-            keymap_num = _
-            print(f"Switched to keymap '{KEYMAPS[_]['name']}.'")
-
-    for key_name, key_value in USER_KEYMAP_KEYS.items():
-        print(key_name, key_value)
 
     """
     finally, print this whole mess to see if it's somewhat understandable:
@@ -202,24 +191,41 @@ if __name__ == '__main__':
     assigned to an existing function
 
     Using 'Image BBS' keymap [Custom]:
-    
-        ctrl_key_list[]                             key_classes[]
-     1) Ctrl-A   Unassigned            14) Ctrl-N   Move End of Line
-     2) Ctrl-B   Move Start of Line    15) Ctrl-O   Unassigned
-     3) Ctrl-C   Unassigned            16) Ctrl-P   Unassigned
+
+        ctrl_key_list[]                           key_classes[]
+     1) Ctrl-A: ---                   14) Ctrl-N: Move End of Line
+     2) Ctrl-B: Move Start of Line    15) Ctrl-O: ---       
+     3) Ctrl-C: ---                   16) Ctrl-P: ---       
     [...]
-    11) Ctrl-K   Unassigned            24) Ctrl-X   Unassigned
-    12) Ctrl-L   Unassigned            25) Ctrl-Y   Move Word Right
-    13) Ctrl-M   Return                26) Ctrl-Z   Unassigned
+    11) Ctrl-K: ---                   24) Ctrl-X: ---       
+    12) Ctrl-L: ---                   25) Ctrl-Y: Move Word Right
+    13) Ctrl-M: Return                26) Ctrl-Z: ---       
     """
-    # FIXME: this is incoherent code but has some basic ideas
+    # spaces = len(max([x for x in str(SHOW_USER_KEYS.values())], key=len))
+
+    # e.g., {'ctrl-a': 'Unassigned'}
+    for index in range(1, 14):
+        key_1 = ctrl_key_list[index]
+        function_1 = SHOW_USER_KEYS[key_1]
+
+        key_2 = ctrl_key_list[index + 13]
+        function_2 = SHOW_USER_KEYS[key_2]
+
+        # "xx) Ctrl-T Delete char to right"
+        if function_1 is None:
+            function_1 = "---"
+        print(f"{index:2}) {key_1}: {function_1:20}", end='')
+
+        if function_2 is None:
+            function_2 = "---"
+        print(f"{index + 13:2}) {key_2}: {function_2:20}")
+
+    # TODO: later
     """
-    # show Ctrl-x keys ctrl_key_list[], KEY_CLASSES{}
-    for num, key_name in enumerate(KEYMAPS):
-        key_class = KEY_CLASSES.items()
-        print(f'{num:2}) {key_name:9}{key_class:15}', end='')
-        # FIXME: make two columns, something like:
-        col_2, key_name_2 = num + 13
-        key_class_2 = KEY_CLASSES[col_2]
-        print(f'{col_2:2}) {key_name_2:9}{key_class_2:15}')
+    keymap_num = None
+    while keymap_num is None:
+        _ = int(input("Keymap number: "))
+        if 1 < _ < len(KEYMAPS):
+            keymap_num = _
+            print(f"Switched to keymap '{KEYMAPS[_]['name']}.'")
     """
