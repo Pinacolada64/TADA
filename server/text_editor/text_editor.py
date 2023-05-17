@@ -3,15 +3,22 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 import doctest
+import logging
+
+import text_editor.functions
+# text editor module imports:
+from .. import keymap
+
+# https://en.wikipedia.org/wiki/Memento_pattern#Python_example
 
 try:
     if os.getenv("os") == "NT":
-        print("Running on NT: Importing msvcrt.getch()")
+        logging.info("Running on NT: Importing msvcrt.getch()")
         from msvcrt import getch
 except ImportError as e:
-    print(f"Can't import getch: {e}.")
+    logging.info(f"Can't import getch: {e}.")
+
 import re
-import logging
 
 
 class Buffer:
@@ -152,7 +159,7 @@ class Buffer:
         insert_buffer = Buffer(max_lines=editor.max_lines)
 
         # TODO: put lines in the right place.
-        buffer.insert(insert_buffer)
+        # FIXME: buffer.insert(insert_buffer)
 
     def put_in_undo_buffer(self, line_range):
         if line_range is None:
@@ -210,16 +217,18 @@ class DotCommand:
         # char, asc = get_character()
         if char in ("/", "."):
             print(COMMAND_PROMPT, end="", flush=True)
-            key, asc = get_character()
+            key, asc = text_editor.functions.get_character()
             dot_cmd = key.lower()
             if dot_cmd in dot_cmd_table:
                 dot_key, dot_text, dot_function, dot_params, dot_range = dot_cmd_table[dot_cmd]
-                # print command text:
-                # -> if 'immediate' in dot_params: hitting CR is not necessary. Call function
-                #        immediately
-                #    Examples: # (Scale), H (Help), Q (Query)
-                # -> if accept_ranges is True: print additional space after dot_text.
-                #    Examples: L (List), R (Read)
+                """
+                print command text:
+                -> if 'immediate' in dot_params: hitting CR is not necessary. Call function
+                       immediately
+                   Examples: # (Scale), H (Help), Q (Query)
+                -> if accept_ranges is True: print additional space after dot_text.
+                   Examples: L (List), R (Read)
+                """
                 ending = ''
                 if 'immediate' in dot_params:
                     ending = "\n"
@@ -229,12 +238,12 @@ class DotCommand:
                 print(dot_text, end=f"{ending}", flush=True)
                 line_range_len = 0
                 if dot_range:
-                    line_range = get_line_range()
+                    line_range = text_editor.functions.get_line_range()
 
                 # wait for Return/Backspace unless dot_params contains 'immediate'
                 if 'immediate' not in dot_params:
-                    char, asc = get_character()
-                    if char == KEY_BACKSPACE:
+                    char, asc = text_editor.functions.get_character()
+                    if char == keymap.keybinding(user_keymap, "delete_char_left"):
                         # cancel command:
                         out_backspace(len(dot_text + line_range_len))
                 else:
@@ -246,7 +255,7 @@ class DotCommand:
                 print(out_backspace(len(COMMAND_PROMPT)))
 
     def cmd_abort(self):
-        response = yes_or_no(default=False)
+        response = text_editor.functions.yes_or_no(default=False)
         if response:
             editor.mode["editing"] = False
 
@@ -276,7 +285,7 @@ class DotCommand:
         search = input("Find what: ")
         found = False
         for line_num in range(start, end):
-            if search in buffer.lines:
+            if search in buffer.lines[line_num]:
                 found = True
                 print(f"{line_num}:")
                 # TODO: highlight match
@@ -292,7 +301,7 @@ class DotCommand:
         """
         pass
 
-    def cmd_insert(self):
+    def cmd_insert(self, start_line: int):
         """.i Insert <starting_line>
         Turns on Insert mode and Line Numbering mode for the duration of
         inserting lines.
@@ -330,7 +339,7 @@ class DotCommand:
         This is line 3
 
         When no line range is specified, list all lines in buffer.
-        TODO: save line numbering status, enable line numbers, \
+        TODO: save line numbering status, enable line numbers,
             show_raw_lines(line_range), restore line numbering status
         """
         start, end = line_range[0], line_range[1]
@@ -343,7 +352,7 @@ class DotCommand:
             line_num += 1
 
     def cmd_new(self, buffer):
-        response = yes_or_no(prompt="Erase buffer?", default=False)
+        response = text_editor.functions.yes_or_no(prompt="Erase buffer?", default=False)
         if response is True:
             # TODO: swap buffer with undo buffer
             # print("You can restore the text by selecting .Undo.")
@@ -407,6 +416,8 @@ class Editor:
         self.current_line = 1
         # position within line:
         self.column = 1
+        # text being edited:
+        self.line_input = ''
         logging.info(f'Buffer: init {buffer}, {self.max_lines=}, {self.max_line_length=}')
 
     def input_line_range(self):
@@ -430,7 +441,7 @@ class Editor:
 
     def show_available_lines(self, buffer: Buffer):
         # TODO: display this at init, and after .Q Query (.G Get File if ever implemented)
-        in_mem = Buffer.get_last_line(buffer)
+        in_mem = buffer.get_last_line(buffer=buffer)
         print("Total lines:")
         print(f"Available: {editor.max_lines}")
         print(f"In Memory: {in_mem}")
@@ -451,59 +462,6 @@ class Editor:
         print(buffer.line[line_num])
 
 
-def get_character():
-    """
-    Wait for a character to be typed.
-    return tuple: 'in_char': character, 'asc': ascii value
-    """
-    in_char = None
-    data = ''
-    while in_char is None:
-        # getch.getch() does not echo input
-        in_char = getch.getch()
-        asc = ord(in_char)
-        data = (in_char, asc)
-    return data
-
-
-def get_line_range(range_str: str) -> tuple:
-    """
-    parse line range string in the form of:
-    x   line x
-    x-  line x to the end of the buffer
-    x-y line x to line y
-    -y line 1 to line y
-    Nothing entered: defaults to last line entered,
-    depending on "default_last" in dot_params
-
-    returns:
-    tuple(x): just line x
-    tuple(x, y): lines x - y
-    tuple(0, y): lines start of buffer - y
-    tuple(x, 0): lines x - end of buffer
-    None: no line range entered. if default_last is in dot_params, set current_line to Editor.last_line
-    """
-
-    # TODO: (maybe) prompt if range_string is missing?
-    # if expert_mode is False:
-    #     while True:
-    #         start = input("First line: ")
-    #         end = input("Last line: ")
-    # ...etc...
-
-    evaluate = line_range_re.search(range_str)
-    logging.info(f'get_line_range: {range_str=} {evaluate=}')
-    if evaluate:
-        # split 'evaluate' into capture groups (returns a tuple)
-        result = evaluate.groups()
-        logging.info(f"get_line_range: {result=}")
-    else:
-        logging.info("<no regex match>")
-        result = None
-    # TODO: validate 1 <= start <= Editor.max_lines, start <= end <= Editor.max_lines
-    return result
-
-
 def input_line(flags=None) -> None | str:
     """
     :param flags: dot_exits: True: "." or "/" on column 1 exits
@@ -512,7 +470,7 @@ def input_line(flags=None) -> None | str:
     # the line as typed so far:
     editor.input_line = ''
     while True:
-        asc, char = get_character()
+        asc, char = text_editor.functions.get_character()
         # handle column 0 dot/slash commands:
         if editor.column == 0 and char == "." or char == "/":
             print("Command: ", end='', flush=True)
@@ -522,18 +480,25 @@ def input_line(flags=None) -> None | str:
             DotCommand.parse_dot_command(char=char)
 
         # handle backspace:
-        if asc == KEY_BACKSPACE and editor.column > 0:
-            # print("BS", end='')
-            editor.column -= 1
-            if editor.column == editor.max_line_length:
-                # the cursor is at the end of the line:
-                editor.input_line = editor.input_line[:editor.column]
-                print(out_backspace(1), end='', flush=True)
-            if editor.column < editor.max_line_length:
+        if asc == keymap.keybinding(user_keymap, 'delete_char_left'):
+            if 0 < editor.column < editor.max_line_length:
                 # the cursor is anywhere between the second character of the
                 # line to the second-to-last character of the line.
                 # 1) shift characters from there to the end of the
                 #    line to the left
+                editor.column -= 1
+                # TODO: make generic edit function to backspace x chars
+                # shift all chars from [:editor.column] left:
+                temp = editor.input_line[:editor.column] + \
+                    editor.input_line[editor.column + 1:]
+                editor.input_line = temp
+                print(out_backspace(1))
+            if editor.column == editor.max_line_length:
+                # the cursor is at the end of the line:
+                editor.input_line = editor.input_line[:editor.column]
+                # TODO: find last space on line
+                print(out_backspace(1), end='', flush=True)
+            if editor.column < editor.max_line_length:
                 # 2)
                 print(out_backspace(1), end='', flush=True)
 
@@ -554,14 +519,14 @@ def input_line(flags=None) -> None | str:
                 # new line:
                 print()
         # handle Return key:
-        elif asc == KEY_RETURN:
+        elif asc == keymap.keybinding(user_keymap, 'new_line'):
             logging.info(f'[Return/Enter hit]')
             print()
-            return editor.input_line
             # buffer[editor.current_line] = editor.current_line
-            # editor.line_number += 1
-            # editor.current_line = ''
-            # editor.column = 0
+            editor.line_number += 1
+            editor.current_line = ''
+            editor.column = 0
+            return editor.input_line
 
         else:
             # filter out control chars for now:
@@ -592,32 +557,6 @@ def show_line_raw(line_number: int, buffer: list):
     if editor.mode["show_line_numbers"]:
         print(f'{line_number}:')
     print(f'{buffer[line_number]}')
-
-
-def yes_or_no(prompt="Are you sure", default=False):
-    """
-    Ask a yes-or-no question, with default answer.
-    the response is yes (True), or no (False).
-
-    :param prompt: configurable string
-    :param default: unless any other key but 'y' for True or 'n' for False is typed
-    :return: response: yes = True, no = False
-    """
-    if default is True:
-        chars = "Y/n"
-    if default is False:
-        chars = "y/N"
-    print(f"{prompt} [{chars}]: ", end="", flush=True)
-    key, asc = get_character()
-    command_char = key.lower()
-    response = ''
-    if default is True and command_char != "n":
-        response = True
-        print("Yes.\n")
-    if default is False and command_char != "y":
-        response = False
-        print("No.\n")
-    return response
 
 
 if __name__ == '__main__':
@@ -669,9 +608,17 @@ if __name__ == '__main__':
 
     # see https://en.wikipedia.org/wiki/Command_pattern
 
+    # initialize some buffers:
     work_buffer = Buffer(max_lines=10)
     undo_buffer = Buffer(max_lines=10)
 
+    # initialize keymap:
+    user_keymap = keymap.USER_KEYMAP_KEYS
+    print(user_keymap)
+    _ = text_editor.functions.pause()
+
+    # initialize editor:
     editor = Editor(max_line_length=80, buffer=work_buffer)
+
     while True:
         editor.run(buffer=work_buffer)

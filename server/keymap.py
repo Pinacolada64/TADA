@@ -1,14 +1,41 @@
 import logging
+from text_editor import functions as te_func
+
+"""
+keymap.py (keybinding classes and methods) is kept in the top-level server/
+directory since it is used for such things as editing player input at command
+prompts, and the "text_editor.py" package.
+
+FIXME: maybe this *should* move to text_editor/ instead, uncertain.
+"""
 
 
-def show_keymap():
-    for value, key_name in keymap.items():
-        print(f"{value:3} {key_name}")
-        if value % 20 == 0:
-            _ = input("Pause ('Q' quits): ")
-            if _.lower() == "q":
-                print("Aborted.")
-                break
+def show_keymap(keymap: dict):
+    _continue = True
+    while _continue:
+        for value, key_name in keymap.items():
+            print(f"{value:3}) {key_name}")
+            if value % 20 == 0:
+                _continue = te_func.pause()
+
+
+def keybinding(keymap: dict, key_class: str) -> None | str:
+    """
+    Return key binding char assigned to Command class,
+    or None if keymap does not support that function
+
+    :param keymap: dict of keymap used
+    :param key_class: string representing function desired
+    :return: str | None
+    >>> keymap = ['delete_char_left': chr(20)]
+
+    >>> keybinding(keymap, 'delete_char_left')
+    20
+
+    FIXME: this doesn't flow very well, and is logically unfinished
+    """
+    key = keymap.get(key_class)
+    return key
 
 
 if __name__ == '__main__':
@@ -19,10 +46,11 @@ if __name__ == '__main__':
     # TODO: inherit from Player.terminal
 
     # ANSI/Linux terminal stuff:
-    KEY_RETURN = chr(10)  # last char of CR/LF pair
+    KEY_BACKSPACE = chr(8)  # backspace to left
+    KEY_LF = chr(10)  # linefeed; last char of CR/LF pair
+    KEY_CR = chr(13)  # carriage return
     KEY_ESC = chr(27)
-    KEY_BACKSPACE = chr(8)
-    KEY_DELETE = chr(127)
+    KEY_DELETE = chr(127)  # delete to right
 
     # ANSI Control Sequence Introducer
     # https://en.wikipedia.org/wiki/ANSI_escape_code#CSI_(Control_Sequence_Introducer)_sequences
@@ -44,24 +72,30 @@ if __name__ == '__main__':
                    "key_return": "New Line"}
 
     # ctrl-key tables: keyboard maps
-    # (currently taken from 'bash' shell and the Image BBS text editor
+    # (currently taken from 'bash' shell and the Image BBS text editor)
     # will be used at prompts and in line editor
 
+    # a value of None means the terminal does not support this function
+    # TODO: implement lists of keys, since CR/LF is two separate characters
+
+    # TODO: some of these keymap options are blank simply because I don't know
+    #  how to specify an Alt key shortcut. Keyboard scancodes appear to add 0x80
     # https://www.gnu.org/software/bash/manual/html_node/Readline-Movement-Commands.html
+    # https://www.lookuptables.com/coding/keyboard-scan-codes
     KEYMAPS = [{'name': 'bash', 'keys': {
         # per-character keys:
-        'char_insert': None,
+        'char_insert': None,  # just type
         'char_retype': chr(6),  # Ctrl-f, move forward 1 character
-        'move_char_left': f"{CSI}1C",  # Esc [1C
-        'move_char_right': f"{CSI}1D",  # Esc [1D
-        'del_char_left': KEY_BACKSPACE,
-        'del_char_right': KEY_DELETE,
-        'key_return': KEY_RETURN,  # 10
+        'move_char_left': f"{CSI}1C",  # Esc [1C, Ctrl-B
+        'move_char_right': f"{CSI}1D",  # Esc [1D, Ctrl-F
+        'del_char_left': KEY_BACKSPACE,  # Ctrl-H
+        'del_char_right': KEY_DELETE,  # or Ctrl-D
+        'key_return': [KEY_CR, KEY_LF],  # Ctrl-M, Ctrl-J
         # per-word keys:
-        'move_word_left': None,  # TODO: Meta-b
-        'move_word_right': None,  # TODO: Meta-f
-        'del_word_left': None,
-        'del_word_right': None,  # Meta-b?
+        'move_word_left': None,  # TODO: Alt-b
+        'move_word_right': None,  # TODO: Alt-f
+        'del_word_left': chr(23),  # Ctrl-W or TODO: Alt-Backspace
+        'del_word_right': None,  # TODO: Ctrl-Delete
         # per-line keys:
         'move_line_start': chr(1),  # Ctrl-A
         'move_line_end': chr(5)}},  # Ctrl-E
@@ -169,7 +203,7 @@ if __name__ == '__main__':
     for key_class, ascii_char in USER_KEYMAP_KEYS.items():
         # if None, it is not supported, so skip it:
         if ascii_char is None:
-            print(f'{key_class} not supported, skipping')
+            logging.info(f'{key_class} not supported, skipping')
         else:
             key_value = ord(ascii_char)
             print(f"{key_value=} {ascii_char=}")
@@ -179,10 +213,9 @@ if __name__ == '__main__':
                       f": {SHOW_USER_KEYS[ctrl_key_list[key_value]]}")
             else:
                 # TODO: add this to output
-                print(f"Extended character, using {ctrl_key_nice_names[key_value]}")
-                print(f"Out of range: {key_value}: {key_class}, skipping")
+                logging.info(f"Extended character, using {ctrl_key_nice_names[key_value]}")
+                logging.info(f"Out of range: {key_value}: {key_class}, skipping")
     _ = input("Pause: ")
-
 
     """
     finally, print this whole mess to see if it's somewhat understandable:
@@ -220,7 +253,8 @@ if __name__ == '__main__':
             function_2 = "---"
         print(f"{index + 13:2}) {key_2}: {function_2:20}")
 
-    # TODO: later
+    # TODO: this will eventually let the user switch keymaps if they prefer to work
+    #  with a different one
     """
     keymap_num = None
     while keymap_num is None:
