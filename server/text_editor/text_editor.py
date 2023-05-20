@@ -384,6 +384,10 @@ class DotCommand:
         """.U Undo Edit"""
         pass
 
+    def cmd_version(self):
+        """.V Version"""
+        print("Editor version 2023-05-20")
+
     def cmd_word_wrap(self):
         """.W Word-wrap text"""
         pass
@@ -592,6 +596,7 @@ if __name__ == '__main__':
                      {"r": ("Read", DotCommand.cmd_read, "all", False)},
                      {"s": ("Save", DotCommand.cmd_save, "immediate", False)},
                      {"u": ("Undo", DotCommand.cmd_undo, "immediate", False)},
+                     {"v": ("Version", DotCommand.cmd_version, "immediate", False)},
                      {"w": ("Word-Wrap", DotCommand.cmd_word_wrap, "all", True)},
                      {"#": ("Scale", DotCommand.cmd_scale, "immediate", False)}
                      ]
