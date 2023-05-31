@@ -1,12 +1,9 @@
 # from dataclasses import dataclass
-from typing import NamedTuple, Callable, Any
+import logging
+from typing import Callable, Any
 from dataclasses import dataclass
 
-
-# text editor module imports:
-# import text_editor.text_editor
-# from text_editor.text_editor import Buffer
-# from text_editor.text_editor import Editor as editor
+import text_editor
 
 
 @dataclass
@@ -244,7 +241,12 @@ def cmd_abort(**kwargs):
 
 def cmd_columns(**kwargs):
     if kwargs['line_range'] is None:
-        print("Columns set to {editor.column_width}.")
+        print(f"Column width is set to {editor.column_width}.")
+    if kwargs['line_range']:
+        # _ discards second parameter of line range if present:
+        width, _ = parse_line_range(dot_func=kwargs['dot_func'])
+        print(f"Column width is now changed to {width}.")
+        editor.column_width = width
     pass
 
 
@@ -365,9 +367,7 @@ def cmd_new(**kwargs):
 
 def cmd_line_nums(**kwargs):
     """.O Toggle displaying line numbers on or off"""
-    # line_numbering = editor.mode["line_numbers"]
-    line_numbering = not line_numbering
-    # editor.mode = {"line_numbers": line_numbering}
+    line_numbering = editor.mode["line_numbers"]
     print(f"Line numbering is now {'on' if line_numbering is True else 'off'}.")
 
 
@@ -417,7 +417,16 @@ def cmd_scale(**kwargs):
 
 
 if __name__ == '__main__':
-    # editor = text_editor.text_editor.Editor
+    # init logging:
+    logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
+
+    # test stuff:
+
+    # text editor module imports:
+    from text_editor import Editor, Buffer
+
+    editor = text_editor.Editor
+    buffer = text_editor.Buffer(max_lines=20)  # max_lines = (int)
 
     # test instantiating a dot command:
     """
