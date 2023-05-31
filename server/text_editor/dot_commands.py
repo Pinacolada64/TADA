@@ -438,7 +438,8 @@ if __name__ == '__main__':
     print(yada_yada)
     """
 
-    # {"dot_key": ("dot_text", dot_func, ["dot_flag", ...], dot_range)}:
+    # {"dot_key": ("dot_text", dot_func, ["dot_flag", ...], dot_range,
+    #  dot_range_default)}:
     DOT_CMD_TABLE = {"a": DotCommand(dot_text="Abort",
                                      dot_func=cmd_abort,
                                      dot_flag="immediate",
@@ -457,7 +458,7 @@ if __name__ == '__main__':
                      "e": DotCommand(dot_text="Edit",
                                      dot_func=cmd_edit,
                                      dot_flag=["subcmd"],
-                                     dot_range="first-last",
+                                     dot_range="all",
                                      dot_range_default="last"),
                      "f": DotCommand(dot_text="Find",
                                      dot_func=cmd_find,
@@ -471,9 +472,9 @@ if __name__ == '__main__':
                                      dot_range_default=None),
                      "i": DotCommand(dot_text="Insert",
                                      dot_func=cmd_insert,
-                                     dot_flag=[],
+                                     dot_flag=["dot_exits"],
                                      dot_range="single",
-                                     dot_range_default="last"),
+                                     dot_range_default="first"),
                      # TODO: Justify: could use textwrap module
                      """
                      "j": DotCommand(dot_text="Justify",
