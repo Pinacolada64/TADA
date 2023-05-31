@@ -36,6 +36,9 @@ class DotCommand:
         None: No line range needed
         'single': one value accepted:
             (.C Columns <x>)
+    """
+    dot_range: str | None
+    """
     dot_range_default:
         'first': Return key by itself chooses first line in buffer
             (.I Insert)
@@ -44,7 +47,6 @@ class DotCommand:
         'all': Return key by itself chooses all lines in buffer
             (.F Find, .K Find and Replace, .L List, .R Read)
     """
-    dot_range: str | None
     dot_range_default: str | None
 
     def __str__(self):
@@ -52,59 +54,183 @@ class DotCommand:
               f"     Function: {self.dot_func}\n" \
               f"        Flags: {self.dot_flag}\n" \
               f"       Ranges: {self.dot_range}\n" \
-              f"Range Default: {self.dot_range_default}\n" \
-
+              f"Range Default: {self.dot_range_default}\n"
         return bla
 
-    def parse_dot_command(self, char: str):
-        """
-        Dot commands are called such since they traditionally begin with typing
-        "." in column zero. Later revisions of the BBS software added "/" since
-        many text editors also used that character, so that is reproduced here.
 
-        :param char: character typed
-        :return:
-        """
-        # char, asc = get_character()
-        pass
-        """
-        if char in ("/", "."):
-            print(COMMAND_PROMPT, end="", flush=True)
-            key, asc = editor.functions.get_character()
-            dot_cmd = key.lower()
-            if dot_cmd in DOT_CMD_TABLE:
-                dot_key, dot_text, dot_func, dot_params, dot_range = DOT_CMD_TABLE[dot_cmd]
-                # print command text:
-                # -> if 'immediate' in dot_params: hitting CR is not necessary. Call function
-                #        immediately
-                #    Examples: # (Scale), H (Help), Q (Query)
-                # -> if accept_ranges is True: print additional space after dot_text.
-                #    Examples: L (List), R (Read)
-                ending = ''
-                if 'immediate' in dot_params:
-                    ending = "\n"
-                if 'accept_ranges' in dot_params:
-                    ending = " "
+def parse_dot_command(input_line: str):
+    """
+    Dot commands are called such since they traditionally begin with typing
+    "." in column zero. Later revisions of the BBS software added "/" since
+    many text editors also used that character, so that is reproduced here.
 
-                print(dot_text, end=f"{ending}", flush=True)
-                line_range_len = 0
+    :param input_line: text typed
+    :return:
+    """
+    # print(COMMAND_PROMPT, end="", flush=True)
+    # check for space(s) in input:
+    args = input_line.split()
+    # argument count:
+    argc = len(args)
+    if argc > 0:
+        logging.info(f"{argc=}")
+        for num, arg in enumerate(args):
+            logging.info(f"{num=} {arg=}")
+    if len(args[0]) != 2:
+        print("Dot needs a command letter after it.")
+    else:
+        # get dot command letter:
+        dot_cmd_letter = args[0][1:2].lower()
+        logging.info(f'Cmd: .{dot_cmd_letter}')
+        if dot_cmd_letter in DOT_CMD_TABLE:
+            dot_cmd = DOT_CMD_TABLE[dot_cmd_letter]
+            dot_text = dot_cmd.dot_text
+            dot_func = dot_cmd.dot_func
+            dot_flag = dot_cmd.dot_flag
+            dot_range = dot_cmd.dot_range
+            logging.info(f'{dot_text=}')
+            logging.info(f'{dot_func=}, {type(dot_func)}')
+            # build an option list to pass to function:
+            # pass dot_func so the called function has a clue if dot_range is correct
+            dot_args = {'dot_func': dot_func}
+            # range supplied:
+            if argc >= 1 and dot_range:
+                # set appropriate line range based on dot cmd defaults:
+                # FIXME: crash with zero arguments
+                start, end = parse_line_range(dot_cmd, args[1])
+                dot_args.update({'range': (start, end)})
+            # additional parameters supplied:
+            if argc >= 2:
+                dot_args.update({'params': args[2:]})
+            for k, v in dot_args.items():
+                logging.info(f'{k}: {v}')
+
+            if callable(dot_func):
+                """
+                print command text:
+                -> if 'immediate' in dot_params: hitting CR is not necessary. Call function
+                       immediately
+                   Examples: # (Scale), H (Help), Q (Query)
+                -> if dot_range is True: print additional space after dot_text.
+                   Examples: L (List), R (Read)
+                """
+                output = dot_cmd.dot_text
+                if 'immediate' in dot_flag:
+                    # this is concatenated to for correct Backspace count if
+                    # command get canceled
+                    output += "\n"
+                if dot_range is not None:
+                    output += " "
+
+                print(output, end='', flush=True)
+                # FIXME: for backspacing over cancelled command later
+                # line_range_len = len(args[2])
                 if dot_range:
-                    line_range = editor.functions.get_line_range()
+                    _, end = parse_line_range(dot_func, args[1])
 
                 # wait for Return/Backspace unless dot_params contains 'immediate'
-                if 'immediate' not in dot_params:
+                if 'immediate' not in dot_flag:
+                    """
                     char, asc = editor.functions.get_character()
                     if char == keymap.keybinding(user_keymap, "delete_char_left"):
                         # cancel command:
-                        out_backspace(len(dot_text + line_range_len))
-                else:
+                        # out_backspace(len(dot_text + line_range_len))
+                    """
                     pass
-                    dot_func(line_range=line_range, params=dot_params)
+                result = dot_func(**dot_args)
+                if result:
+                    print(f'{result=}')
+        else:
+            print(f"Unrecognized dot command '.{dot_cmd_letter}'.")
+            # print(out_backspace(len(COMMAND_PROMPT))
 
-            else:
-                # not a dot command:
-                print(out_backspace(len(COMMAND_PROMPT)))
-        """
+
+def parse_line_range(dot_func: DotCommand, line_range: str):
+    """
+    parse line range string in the form of:
+    x   line x
+    x-  line x to the end of the buffer
+    x-y line x to line y
+    -y line 1 to line y
+
+    Whether the command needs all these ranges is governed by
+    'dot_cmd.dot_range':
+
+    'single':   x
+    'all':      x, x-, x-y, -y accepted
+    None:       No range needed
+
+    When no range is entered, the defaults depend on the dot command's
+    'dot_cmd.dot_range_default':
+
+    'all':      all lines in buffer
+    'first':    first line entered,
+    'last':     last line entered
+
+    :param line_range:
+    :param dot_func: function being ultimately called; this is needed to
+     inspect the function's dot_range and dot_range_defaults
+    :returns:
+    tuple(x): just line x
+    tuple(x, y): lines x - y
+    tuple(0, y): lines start of buffer - y
+    tuple(x, 0): lines x - end of buffer
+    None: no line range entered. if default_last is in dot_params, set current_line to Editor.last_line
+    """
+    log_function = "parse_line_range:"
+    # TODO: (maybe) prompt if range_string is missing?
+    """
+    if expert_mode is False:
+        while True:
+            start = input("First line: ")
+            end = input("Last line: ")
+    ...etc...
+    """
+    # range starts out as string:
+    start, end = line_range.split("-")
+    # ensure both start/end (if present) are ints
+    if start.isalpha() or end.isalpha():
+        # line ranges are ints, not chars
+        logging.info(f"{log_function} found alpha chars in range")
+        return None
+    # convert '' to None:
+    if start == '':
+        start = None
+    if end == '':
+        end = None
+    logging.info(f'{log_function} {start=} {end=}')
+
+    # TODO: normalize 1 <= start <= Editor.max_lines, start <= end <= Editor.max_lines
+
+    # set range defaults if start / end not specified:
+    # e.g., '1-', '-10'
+    if start == '':
+        if dot_func.dot_range_default == 'all':
+            start = 1
+        if dot_func.dot_range_default == 'first':
+            start = 1
+        if dot_func.dot_range_default == 'last':
+            start = buffer.max_lines
+
+    if end == '':
+        if dot_func.dot_range_default == 'all':
+            end = buffer.max_lines
+        if dot_func.dot_range_default == 'first':
+            end = 1
+        if dot_func.dot_range_default == 'last':
+            end = buffer.max_lines
+
+    #
+    if dot_func.dot_range == 'single':
+        if start == '':
+            start = 1
+            end = None
+    if dot_func.dot_range == 'all':
+        if start == '' and end != '':
+            start = 1
+            end = buffer.max_lines
+
+    return start, end
 
 
 def cmd_abort(**kwargs):
@@ -405,40 +531,5 @@ if __name__ == '__main__':
 
     while True:
         input_line = input(": ")
-        # check for space(s) in input:
-        args = input_line.split()
-        # argument count:
-        argc = len(args)
-        for num, arg in enumerate(args):
-            print(f"{num=} {arg=}")
-        if args[0].startswith(".") or args[0].startswith('/'):
-            if len(args[0]) != 2:
-                print("Dot needs a command letter after it.")
-            else:
-                # get dot command letter:
-                dot_cmd_letter = args[0][1:2].lower()
-                print(f'Cmd: .{dot_cmd_letter}')
-                if dot_cmd_letter in DOT_CMD_TABLE:
-                    dot_cmd = DOT_CMD_TABLE[dot_cmd_letter]
-                    print(dot_cmd)
-                    cmd_text = dot_cmd.dot_text
-                    cmd_func = dot_cmd.dot_func
-                    print(f'{cmd_text=}')
-                    print(f'{cmd_func=}, {type(cmd_func)}')
-                    # build an option list to pass to function:
-                    cmd_opts = {}
-                    # range supplied:
-                    if argc == 1:
-                        cmd_opts.update({'range': args[1]})
-                    # additional parameters supplied:
-                    if argc == 2:
-                        cmd_opts.update({'params': args[2:]})
-                    for k, v in cmd_opts.items():
-                        print(f'{k}: {v}')
-                    if callable(cmd_func):
-                        # result = cmd_func(*args[1:])
-                        result = cmd_func(**cmd_opts)
-                        if result:
-                            print(f'{result=}')
-                else:
-                    print(f"Unrecognized dot command '.{dot_cmd_letter}'.")
+        if input_line.startswith(".") or input_line.startswith('/'):
+            parse_dot_command(input_line=input_line)
