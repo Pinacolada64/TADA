@@ -1,9 +1,9 @@
-# from dataclasses import dataclass
 import logging
 from typing import Callable, Any
 from dataclasses import dataclass
 
-import text_editor
+# text editor package imports
+from text_editor import Buffer, Editor
 
 
 @dataclass
