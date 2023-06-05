@@ -90,14 +90,17 @@ def parse_dot_command(input_line: str):
             # build an option list to pass to function:
             # pass dot_func so the called function has a clue if dot_range is correct
             dot_args = {'dot_func': dot_func}
+
+            # just bare command:
+            if argc == 1:
+                start, end = None, None
             # range supplied:
-            if argc >= 1 and dot_range:
+            if argc > 1 and dot_range:
                 # set appropriate line range based on dot cmd defaults:
-                # FIXME: crash with zero arguments
                 start, end = parse_line_range(dot_cmd, args[1])
                 dot_args.update({'range': (start, end)})
             # additional parameters supplied:
-            if argc >= 2:
+            if argc > 2:
                 dot_args.update({'params': args[2:]})
             for k, v in dot_args.items():
                 logging.info(f'{k}: {v}')
@@ -105,7 +108,7 @@ def parse_dot_command(input_line: str):
             if callable(dot_func):
                 """
                 print command text:
-                -> if 'immediate' in dot_params: hitting CR is not necessary. Call function
+                -> if 'immediate' in dot_flag: hitting CR is not necessary. Call function
                        immediately
                    Examples: # (Scale), H (Help), Q (Query)
                 -> if dot_range is True: print additional space after dot_text.
@@ -121,19 +124,20 @@ def parse_dot_command(input_line: str):
 
                 print(output, end='', flush=True)
                 # FIXME: for backspacing over cancelled command later
-                # line_range_len = len(args[2])
                 if dot_range:
-                    _, end = parse_line_range(dot_func, args[1])
-
+                    # line_range_len = len(args[2])
+                    pass
                 # wait for Return/Backspace unless dot_params contains 'immediate'
+                """
                 if 'immediate' not in dot_flag:
-                    """
                     char, asc = editor.functions.get_character()
                     if char == keymap.keybinding(user_keymap, "delete_char_left"):
                         # cancel command:
                         # out_backspace(len(dot_text + line_range_len))
-                    """
-                    pass
+                """
+                if 'immediate' in dot_flag:
+                    # no parameters needed
+                    dot_args = {}
                 result = dot_func(**dot_args)
                 if result:
                     print(f'{result=}')
@@ -235,16 +239,17 @@ def cmd_abort(**kwargs):
     # if response:
     #     editor.mode["editing"] = False
     print("Reached .Abort -- kwargs:")
-    for k, v in enumerate(kwargs):
+    for k, v in kwargs.items():
         print(f'{k=} {v=}')
 
 
 def cmd_columns(**kwargs):
-    if kwargs['line_range'] is None:
+    if 'line_range' not in kwargs:
         print(f"Column width is set to {editor.column_width}.")
-    if kwargs['line_range']:
-        # _ discards second parameter of line range if present:
-        width, _ = parse_line_range(dot_func=kwargs['dot_func'])
+    if 'line_range' in kwargs:
+        # get first value of tuple:
+        width = kwargs['line_range'][0]
+        logging.info(f'{width=}')
         print(f"Column width is now changed to {width}.")
         editor.column_width = width
     pass
