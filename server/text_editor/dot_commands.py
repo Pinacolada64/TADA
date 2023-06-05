@@ -149,28 +149,34 @@ def parse_dot_command(input_line: str):
 def parse_line_range(dot_func: DotCommand, line_range: str):
     """
     parse line range string in the form of:
+
     x   line x
+
     x-  line x to the end of the buffer
+
     x-y line x to line y
+
     -y line 1 to line y
 
+    :param dot_func: function being ultimately called; this is needed to
+     inspect the function's dot_range and dot_range_defaults
     Whether the command needs all these ranges is governed by
     'dot_cmd.dot_range':
 
+    :param line_range: a string governing which ranges the command accepts
     'single':   x
+
     'all':      x, x-, x-y, -y accepted
+
     None:       No range needed
 
     When no range is entered, the defaults depend on the dot command's
     'dot_cmd.dot_range_default':
 
     'all':      all lines in buffer
-    'first':    first line entered,
+    'first':    first line entered
     'last':     last line entered
 
-    :param line_range:
-    :param dot_func: function being ultimately called; this is needed to
-     inspect the function's dot_range and dot_range_defaults
     :returns:
     tuple(x): just line x
     tuple(x, y): lines x - y
