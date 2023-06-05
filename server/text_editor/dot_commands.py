@@ -432,12 +432,10 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
     # test stuff:
-
-    # text editor module imports:
-    from text_editor import Editor, Buffer
-
-    editor = text_editor.Editor
-    buffer = text_editor.Buffer(max_lines=20)  # max_lines = (int)
+    # instantiate Buffer first since Editor needs Buffer object:
+    buffer = Buffer(max_lines=20)  # max_lines = (int)
+    editor = Editor(max_line_length=80, buffer=buffer)
+    editor.column_width = 40
 
     # test instantiating a dot command:
     """
@@ -459,7 +457,7 @@ if __name__ == '__main__':
                      "c": DotCommand(dot_text="Columns",
                                      dot_func=cmd_columns,
                                      dot_flag=None,
-                                     dot_range=None,
+                                     dot_range="single",
                                      dot_range_default=None),
                      "d": DotCommand(dot_text="Delete",
                                      dot_func=cmd_delete,
