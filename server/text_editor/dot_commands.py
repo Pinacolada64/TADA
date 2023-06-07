@@ -150,7 +150,7 @@ def parse_dot_command(input_line: str):
             # print(out_backspace(len(COMMAND_PROMPT))
 
 
-def parse_line_range(dot_cmd: DotCommand, line_range: str = "-") -> list[int | None, int | None]:
+def parse_line_range(dot_cmd: DotCommand, buffer: Buffer, line_range: str = "-") -> list[int | None, int | None]:
     """
     parse line range string in the form of:
 
@@ -166,6 +166,8 @@ def parse_line_range(dot_cmd: DotCommand, line_range: str = "-") -> list[int | N
      inspect the function's dot_range and dot_range_defaults
     Whether the command needs zero, one or two parameters is governed by
     'dot_cmd.dot_range':
+
+    :param buffer: buffer object (needs to know how many lines in it)
 
     :param line_range: a string governing which ranges the command accepts
     'single':   x
@@ -187,34 +189,39 @@ def parse_line_range(dot_cmd: DotCommand, line_range: str = "-") -> list[int | N
     list[1, y]: lines start of buffer - y
     list[x, editor.max_lines]: lines x - end of buffer
     None: no line range entered. if default_last is in dot_params, set current_line to Editor.last_line
-    >>> test_buffer = Buffer(max_lines = 5)
 
-    >>> test_buffer.test_fill_buffer()
+    # first, create an empty buffer to work with:
+    >>> buffer = Buffer(max_lines = 5)
 
-    >>> kwargs = {'buffer': 'test_buffer', 'line_range': "1-5"}
+    # fill it with test text:
+    >>> buffer.test_fill_buffer()
+
+    # set some info up:
+    >>> kwargs = {'buffer': buffer, 'line_range': [1, 5]}
 
     # should list lines 1-5
     >>> cmd_list(**kwargs)
     1:
-    line 1
+    test 1
     2:
-    line 2
+    test 2
     3:
-    line 3
+    test 3
     4:
-    line 4
+    test 4
     5:
-    line 5
+    test 5
 
-    >>> test_dot_cmd = DOT_CMD_TABLE["l"]
+    # make a new test dot command - all we're interested in is testing various
+    # line ranges, both legal and illegal:
+    >>> cmd_test = DotCommand(dot_text="Test", dot_func=cmd_list, dot_flag=[],
+    ...                       dot_range='all', dot_range_default='all')
 
-    >>> print(test_dot_cmd)
-
-    >>> test_dot_cmd.dot_range
+    >>> cmd_test.dot_range
     'all'
 
     # test passing a start-end line range to command
-    >>> parse_line_range(test_dot_cmd, line_range="3-5")
+    >>> parse_line_range(dot_cmd=cmd_test, buffer=buffer, line_range="3-5")
     [3, 5]
     """
     log_function = "parse_line_range:"
@@ -230,65 +237,63 @@ def parse_line_range(dot_cmd: DotCommand, line_range: str = "-") -> list[int | N
     """
     logging.info(f'{log_function} enter: {dot_range=}')
     # determine the value(s) which calling function needs:
-    start, end = line_range.split("-")
+
+    # only one parameter entered: end should equal start:
+    if "-" not in line_range:
+        # only one parameter entered: end should equal start:
+        logging.info(f"{log_function} only one line, {line_range=}")
+        line_range = line_range + "-" + line_range
+        logging.info(f"{log_function} {line_range=}, end changed to match")
+
     # range starts out as string:
-    logging.info(f'{log_function} line_range enter: {start=} {end=}')
+    start, end = line_range.split("-")
+    logging.info(f'{log_function} line range enter: {start=} {end=}')
 
     # ensure both start/end (if present) are ints
     if start.isalpha() or end.isalpha():
         # line ranges are ints, not chars
-        logging.info(f"{log_function} found alpha chars in range")
+        logging.error(f"{log_function} found alpha chars in range")
         # TODO: define this as an error condition
+        # raise ValueError
         return [0, 0]
 
-    # convert '' to None:
-    debug_null = False
+    # missing param will be '', so convert to 0
     if start == '':
-        start = None
-        debug_null = True
+        start = 0
     if end == '':
-        end = None
-        debug_null = True
-    if debug_null:
-        logging.info(f"{log_function} Null converted to None")
+        end = 0
 
-    """
-    # start out with null strings, convert to None later if missing:
-    if len(line_range) == 1:
-        # only one parameter entered:
-        start = line_range[0]
-    if len(line_range) == 2:
-        # two parameters entered:
-        # ['', <int>]:
-        if line_range[0] == '':
-            end = line_range[1]
-        # [<int>, '']:
-        if line_range[1] == '':
-            start = line_range[0]
-    """
-    """
-    if dot_range == 'single':
-        # start
+    # convert strings to ints (no effect if already int):
+    start = int(start)
+    end = int(end)
+
+    # normalize values:
+    if start < 1:
+        start = 1
+        logging.warning(f"{log_function} 'start' < 1, now {start=}")
+    if start > buffer.max_lines:
+        start = buffer.max_lines
+        logging.warning(f"{log_function} 'start' > buffer.max_lines, now {start=}")
+    if end > buffer.max_lines:
+        end = buffer.max_lines
+        logging.warning(f"{log_function} 'end' > buffer.max_lines, now {end=}")
+    if start > end:
+        start = end
+        logging.warning(f"{log_function} 'start' > 'end', now {start=}")
+    if end < start:
         end = start
-    if dot_range == "all":
-        # start, start-, start-end, -end
-        if start != '':
-            start = int(start)
-        if end != '':
-            end = int(end)
-    """
-    # TODO: normalize 1 <= start <= Editor.max_lines, start <= end <= Editor.max_lines
+        logging.warning(f"{log_function} 'end' < 'start', now {start=}")
 
     # supply missing values if start / end not specified:
     # e.g., '1-', '-10'
-    if start is None:
+    if start == 0:
         if dot_range_default == 'all':
             start = 1
         if dot_range_default == 'first':
             start = 1
         if dot_range_default == 'last':
             start = buffer.max_lines
-    if end is None:
+    if end == 0:
         if dot_range_default == 'all':
             end = buffer.max_lines
         if dot_range_default == 'first':
@@ -297,28 +302,22 @@ def parse_line_range(dot_cmd: DotCommand, line_range: str = "-") -> list[int | N
             end = buffer.max_lines
 
     if dot_range == 'single':
-        if start == '':
+        if start == 0:
             if dot_range_default == "first":
                 start, end = 1, 1
             if dot_range_default == "last":
-                start = editor.max_lines
+                start = buffer.max_lines
                 end = start
+            logging.info(f"{log_function} 'single' range: adjusting to {start=}, {end=}")
+
     if dot_range == 'all':
-        if start == '' and end != '':
+        if start == 0 and end != 0:
             start = 1
-            end = editor.max_lines
+            end = buffer.max_lines
+            logging.info(f"{log_function} 'all' range: adjusting to {start=}, {end=}")
 
-    # a quick & dirty cast: start / end could be None
-    if type(start) == 'str':
-        logging.info(f'{log_function} start: str cast to int')
-        start = int(start)
-    if type(end) == 'str':
-        logging.info(f'{log_function} end: str cast to int')
-        end = int(end)
-
-    # FIXME: ".l 4" raises ValueError: not enough values to unpack (expected 2, got 1)
     # exit:
-    logging.info(f'{log_function} line range at exit: {start=} {end=}')
+    logging.info(f'{log_function} line range exit: {start=} {end=}')
     return [start, end]
 
 
@@ -442,7 +441,7 @@ def cmd_list(**kwargs):
     :param kwargs['buffer']: buffer object to work with
     :param kwargs['line_range']: [start, end]: line range
     """
-    start, end = int(kwargs["line_range"][0]), int(kwargs["line_range"][1])
+    start, end = kwargs["line_range"][0], kwargs["line_range"][1]
     log_function = "cmd_list:"
     logging.info(f"{log_function} {start=} {end=}")
     buffer = kwargs['buffer']
