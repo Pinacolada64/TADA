@@ -90,15 +90,19 @@ def parse_dot_command(input_line: str):
             # build an option list to pass to function:
             # pass dot_func so the called function has a clue if dot_range is correct
             dot_args = {'dot_func': dot_func}
+            # pass buffer so called functions requiring a buffer object have it:
+            dot_args.update({'buffer': buffer})
 
             # just bare command:
             if argc == 1:
-                start, end = None, None
+                # let parse_line_range apply default line range:
+                start, end = parse_line_range(dot_cmd)
             # range supplied:
             if argc > 1 and dot_range:
                 # set appropriate line range based on dot cmd defaults:
                 start, end = parse_line_range(dot_cmd, args[1])
-                dot_args.update({'range': (start, end)})
+            dot_args.update({'line_range': [start, end]})
+
             # additional parameters supplied:
             if argc > 2:
                 dot_args.update({'params': args[2:]})
@@ -146,7 +150,7 @@ def parse_dot_command(input_line: str):
             # print(out_backspace(len(COMMAND_PROMPT))
 
 
-def parse_line_range(dot_func: DotCommand, line_range: str):
+def parse_line_range(dot_cmd: DotCommand, line_range: str = "-") -> list[int | None, int | None]:
     """
     parse line range string in the form of:
 
@@ -158,9 +162,9 @@ def parse_line_range(dot_func: DotCommand, line_range: str):
 
     -y line 1 to line y
 
-    :param dot_func: function being ultimately called; this is needed to
+    :param dot_cmd: command being ultimately called; this is needed to
      inspect the function's dot_range and dot_range_defaults
-    Whether the command needs all these ranges is governed by
+    Whether the command needs zero, one or two parameters is governed by
     'dot_cmd.dot_range':
 
     :param line_range: a string governing which ranges the command accepts
@@ -178,14 +182,45 @@ def parse_line_range(dot_func: DotCommand, line_range: str):
     'last':     last line entered
 
     :returns:
-    tuple(x): just line x
-    tuple(x, y): lines x - y
-    tuple(0, y): lines start of buffer - y
-    tuple(x, 0): lines x - end of buffer
+    list[x, x]: just line x
+    list[x, y]: lines x - y
+    list[1, y]: lines start of buffer - y
+    list[x, editor.max_lines]: lines x - end of buffer
     None: no line range entered. if default_last is in dot_params, set current_line to Editor.last_line
+    >>> test_buffer = Buffer(max_lines = 5)
+
+    >>> test_buffer.test_fill_buffer()
+
+    >>> kwargs = {'buffer': 'test_buffer', 'line_range': "1-5"}
+
+    # should list lines 1-5
+    >>> cmd_list(**kwargs)
+    1:
+    line 1
+    2:
+    line 2
+    3:
+    line 3
+    4:
+    line 4
+    5:
+    line 5
+
+    >>> test_dot_cmd = DOT_CMD_TABLE["l"]
+
+    >>> print(test_dot_cmd)
+
+    >>> test_dot_cmd.dot_range
+    'all'
+
+    # test passing a start-end line range to command
+    >>> parse_line_range(test_dot_cmd, line_range="3-5")
+    [3, 5]
     """
     log_function = "parse_line_range:"
     # TODO: (maybe) prompt if range_string is missing?
+    dot_range = dot_cmd.dot_range
+    dot_range_default = dot_cmd.dot_range_default
     """
     if expert_mode is False:
         while True:
@@ -193,51 +228,98 @@ def parse_line_range(dot_func: DotCommand, line_range: str):
             end = input("Last line: ")
     ...etc...
     """
-    # range starts out as string:
+    logging.info(f'{log_function} enter: {dot_range=}')
+    # determine the value(s) which calling function needs:
     start, end = line_range.split("-")
+    # range starts out as string:
+    logging.info(f'{log_function} line_range enter: {start=} {end=}')
+
     # ensure both start/end (if present) are ints
     if start.isalpha() or end.isalpha():
         # line ranges are ints, not chars
         logging.info(f"{log_function} found alpha chars in range")
-        return None
+        # TODO: define this as an error condition
+        return [0, 0]
+
     # convert '' to None:
+    debug_null = False
     if start == '':
         start = None
+        debug_null = True
     if end == '':
         end = None
-    logging.info(f'{log_function} {start=} {end=}')
+        debug_null = True
+    if debug_null:
+        logging.info(f"{log_function} Null converted to None")
 
+    """
+    # start out with null strings, convert to None later if missing:
+    if len(line_range) == 1:
+        # only one parameter entered:
+        start = line_range[0]
+    if len(line_range) == 2:
+        # two parameters entered:
+        # ['', <int>]:
+        if line_range[0] == '':
+            end = line_range[1]
+        # [<int>, '']:
+        if line_range[1] == '':
+            start = line_range[0]
+    """
+    """
+    if dot_range == 'single':
+        # start
+        end = start
+    if dot_range == "all":
+        # start, start-, start-end, -end
+        if start != '':
+            start = int(start)
+        if end != '':
+            end = int(end)
+    """
     # TODO: normalize 1 <= start <= Editor.max_lines, start <= end <= Editor.max_lines
 
-    # set range defaults if start / end not specified:
+    # supply missing values if start / end not specified:
     # e.g., '1-', '-10'
-    if start == '':
-        if dot_func.dot_range_default == 'all':
+    if start is None:
+        if dot_range_default == 'all':
             start = 1
-        if dot_func.dot_range_default == 'first':
+        if dot_range_default == 'first':
             start = 1
-        if dot_func.dot_range_default == 'last':
+        if dot_range_default == 'last':
             start = buffer.max_lines
-
-    if end == '':
-        if dot_func.dot_range_default == 'all':
+    if end is None:
+        if dot_range_default == 'all':
             end = buffer.max_lines
-        if dot_func.dot_range_default == 'first':
+        if dot_range_default == 'first':
             end = 1
-        if dot_func.dot_range_default == 'last':
+        if dot_range_default == 'last':
             end = buffer.max_lines
 
-    #
-    if dot_func.dot_range == 'single':
+    if dot_range == 'single':
         if start == '':
-            start = 1
-            end = None
-    if dot_func.dot_range == 'all':
+            if dot_range_default == "first":
+                start, end = 1, 1
+            if dot_range_default == "last":
+                start = editor.max_lines
+                end = start
+    if dot_range == 'all':
         if start == '' and end != '':
             start = 1
-            end = buffer.max_lines
+            end = editor.max_lines
 
-    return start, end
+    # a quick & dirty cast: start / end could be None
+    if type(start) == 'str':
+        logging.info(f'{log_function} start: str cast to int')
+        start = int(start)
+    if type(end) == 'str':
+        logging.info(f'{log_function} end: str cast to int')
+        end = int(end)
+
+    # FIXME: ".l 4" raises ValueError: not enough values to unpack (expected 2, got 1)
+    # exit:
+    logging.info(f'{log_function} line range at exit: {start=} {end=}')
+    return [start, end]
 
 
 def cmd_abort(**kwargs):
@@ -262,10 +344,13 @@ def cmd_columns(**kwargs):
 
 
 def cmd_delete(**kwargs):
-    if kwargs['line_range'] is None:
-        print("Deleting line {self.buffer.line}.")
+    if 'line_range' not in kwargs:
+        print(f"Deleting line {buffer.line[buffer.current_line]}.")
+    else:
+        start, end = kwargs['line_range'][0], kwargs['line_range'][1]
+        print(f"Deleting lines {start}-{end}.")
         # TODO: Buffer.put_in_undo(line_range) or something
-        # work_buffer = ['']
+        # undo_buffer.line = [for x in ]
 
 
 def cmd_edit(**kwargs):
@@ -349,18 +434,22 @@ def cmd_list(**kwargs):
     This is line 3
 
     When no line range is specified, list all lines in buffer.
+
     TODO: save line numbering status, enable line numbers,
         show_raw_lines(line_range), restore line numbering status
-
-    start, end = line_range[0], line_range[1]
-    # start += 1
-    # end += 1
-    line_num = start
-    # can't use enumerate() here; it has a 'start=' param, but no 'end=' param
-    for line in range(start, end):
-        print(f"{line_num}:\n{line}")
-        line_num += 1
     """
+    """
+    :param kwargs['buffer']: buffer object to work with
+    :param kwargs['line_range']: [start, end]: line range
+    """
+    start, end = int(kwargs["line_range"][0]), int(kwargs["line_range"][1])
+    log_function = "cmd_list:"
+    logging.info(f"{log_function} {start=} {end=}")
+    buffer = kwargs['buffer']
+    # can't use enumerate() here; it has a 'start=' param, but no 'end=' param
+    for line_num in range(start, end + 1):
+        print(f"{line_num}:\n{buffer.line[line_num]}")
+        line_num += 1
 
 
 def cmd_new(**kwargs):
@@ -408,7 +497,7 @@ def cmd_undo(**kwargs):
 
 def cmd_version(**kwargs):
     """.V Version"""
-    print("Editor version 2023-05-20")
+    print("Editor version 2023-06-05")
 
 
 def cmd_word_wrap(**kwargs):
@@ -434,18 +523,13 @@ if __name__ == '__main__':
     # test stuff:
     # instantiate Buffer first since Editor needs Buffer object:
     buffer = Buffer(max_lines=20)  # max_lines = (int)
+    buffer.test_fill_buffer()
+
     editor = Editor(max_line_length=80, buffer=buffer)
     editor.column_width = 40
-
-    # test instantiating a dot command:
-    """
-    yada_yada = DotCommand(dot_text="Abort",
-                           dot_func=cmd_abort,
-                           dot_flag="immediate",
-                           dot_range=None,
-                           dot_range_default="all")
-    print(yada_yada)
-    """
+    # force buffer text to be listed:
+    kwargs = {"line_range": (1, buffer.max_lines), "buffer": buffer}
+    cmd_list(**kwargs)
 
     # {"dot_key": ("dot_text", dot_func, ["dot_flag", ...], dot_range,
     #  dot_range_default)}:
@@ -456,12 +540,12 @@ if __name__ == '__main__':
                                      dot_range_default=None),
                      "c": DotCommand(dot_text="Columns",
                                      dot_func=cmd_columns,
-                                     dot_flag=None,
+                                     dot_flag=[],
                                      dot_range="single",
                                      dot_range_default=None),
                      "d": DotCommand(dot_text="Delete",
                                      dot_func=cmd_delete,
-                                     dot_flag=None,
+                                     dot_flag=[],
                                      dot_range="all",
                                      dot_range_default="last"),
                      "e": DotCommand(dot_text="Edit",
@@ -500,8 +584,8 @@ if __name__ == '__main__':
                      "l": DotCommand(dot_text="List",
                                      dot_func=cmd_list,
                                      dot_range="all",
-                                     dot_flag=["all"],
-                                     dot_range_default="last"),
+                                     dot_flag=[],
+                                     dot_range_default="all"),
                      "n": DotCommand(dot_text="New Text",
                                      dot_func=cmd_new,
                                      dot_flag="immediate",
