@@ -372,19 +372,29 @@ def cmd_find(**kwargs):
     Find text in a single line or range of lines.
     When no line range is specified, default to all text in buffer.
     """
-    pass
-    """
+    start, end = kwargs["line_range"][0], kwargs["line_range"][1]
+    log_function = "cmd_find:"
+    buffer = kwargs['buffer']
+
     search = input("Find what: ")
+    if search == '':
+        print("Aborted.")
+        return
+
     found = False
-    for line_num in range(start, end):
-        if search in buffer.lines[line_num]:
+    count = 0
+    for line_num in range(start, end + 1):
+        if search in buffer.line[line_num]:
             found = True
+            count += 1
             print(f"{line_num}:")
             # TODO: highlight match
-            print(buffer.lines[line_num])
+            print(buffer.line[line_num])
     if found is False:
         print(f"No match for '{search}' was found.")
-    """
+    else:
+        print(f"'{search}' was found {count} time"
+              f"{'s' if count != 1 else ''}.")
 
 
 def cmd_help(**kwargs):
