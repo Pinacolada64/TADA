@@ -96,11 +96,11 @@ def parse_dot_command(input_line: str):
             # just bare command:
             if argc == 1:
                 # let parse_line_range apply default line range:
-                start, end = parse_line_range(dot_cmd)
+                start, end = parse_line_range(dot_cmd=dot_cmd, buffer=buffer)
             # range supplied:
             if argc > 1 and dot_range:
                 # set appropriate line range based on dot cmd defaults:
-                start, end = parse_line_range(dot_cmd, args[1])
+                start, end = parse_line_range(dot_cmd=dot_cmd, buffer=buffer, line_range=args[1])
             dot_args.update({'line_range': [start, end]})
 
             # additional parameters supplied:
@@ -220,9 +220,14 @@ def parse_line_range(dot_cmd: DotCommand, buffer: Buffer, line_range: str = "-")
     >>> cmd_test.dot_range
     'all'
 
-    # test passing a start-end line range to command
-    >>> parse_line_range(dot_cmd=cmd_test, buffer=buffer, line_range="3-5")
+    # test passing various line ranges to test command:
+    >>> for test in ('', '3', '-3', '3-5', '2-'):
+    ...     parse_line_range(dot_cmd=cmd_test, buffer=buffer, line_range=test)
+    [1, 5]
+    [3, 3]
+    [1, 3]
     [3, 5]
+    [2, 5]
     """
     log_function = "parse_line_range:"
     # TODO: (maybe) prompt if range_string is missing?
@@ -245,17 +250,17 @@ def parse_line_range(dot_cmd: DotCommand, buffer: Buffer, line_range: str = "-")
         line_range = line_range + "-" + line_range
         logging.info(f"{log_function} {line_range=}, end changed to match")
 
-    # range starts out as string:
-    start, end = line_range.split("-")
-    logging.info(f'{log_function} line range enter: {start=} {end=}')
-
     # ensure both start/end (if present) are ints
-    if start.isalpha() or end.isalpha():
+    if line_range.isalpha():
         # line ranges are ints, not chars
         logging.error(f"{log_function} found alpha chars in range")
         # TODO: define this as an error condition
         # raise ValueError
         return [0, 0]
+
+    # range starts out as string:
+    start, end = line_range.split("-")
+    logging.info(f'{log_function} line range enter: {start=} {end=}')
 
     # missing param will be '', so convert to 0
     if start == '':
@@ -266,23 +271,6 @@ def parse_line_range(dot_cmd: DotCommand, buffer: Buffer, line_range: str = "-")
     # convert strings to ints (no effect if already int):
     start = int(start)
     end = int(end)
-
-    # normalize values:
-    if start < 1:
-        start = 1
-        logging.warning(f"{log_function} 'start' < 1, now {start=}")
-    if start > buffer.max_lines:
-        start = buffer.max_lines
-        logging.warning(f"{log_function} 'start' > buffer.max_lines, now {start=}")
-    if end > buffer.max_lines:
-        end = buffer.max_lines
-        logging.warning(f"{log_function} 'end' > buffer.max_lines, now {end=}")
-    if start > end:
-        start = end
-        logging.warning(f"{log_function} 'start' > 'end', now {start=}")
-    if end < start:
-        end = start
-        logging.warning(f"{log_function} 'end' < 'start', now {start=}")
 
     # supply missing values if start / end not specified:
     # e.g., '1-', '-10'
@@ -300,6 +288,25 @@ def parse_line_range(dot_cmd: DotCommand, buffer: Buffer, line_range: str = "-")
             end = 1
         if dot_range_default == 'last':
             end = buffer.max_lines
+
+    # normalize values:
+    if start < 1:
+        start = 1
+        logging.warning(f"{log_function} 'start' < 1, now {start=}")
+    if start > buffer.max_lines:
+        start = buffer.max_lines
+        logging.warning(f"{log_function} 'start' > buffer.max_lines, now {start=}")
+
+    if end > buffer.max_lines:
+        end = buffer.max_lines
+        logging.warning(f"{log_function} 'end' > buffer.max_lines, now {end=}")
+
+    if end < start:
+        end = start
+        logging.warning(f"{log_function} 'end' < 'start', now {start=}")
+    if start > end:
+        start = end
+        logging.warning(f"{log_function} 'start' > 'end', now {start=}")
 
     if dot_range == 'single':
         if start == 0:
