@@ -126,7 +126,8 @@ def parse_dot_command(input_line: str):
                 if dot_range is not None:
                     output += " "
 
-                print(output, end='', flush=True)
+                # TODO: 'end=' will change when getch() is possible:
+                print(output, end='\n', flush=True)
                 # FIXME: for backspacing over cancelled command later
                 if dot_range:
                     # line_range_len = len(args[2])
@@ -329,15 +330,39 @@ def parse_line_range(dot_cmd: DotCommand, buffer: Buffer, line_range: str = "-")
 
 
 def cmd_abort(**kwargs):
-    # response = editor.functions.yes_or_no(default=False)
-    # if response:
-    #     editor.mode["editing"] = False
-    print("Reached .Abort -- kwargs:")
-    for k, v in kwargs.items():
-        print(f'{k=} {v=}')
+    """
+    Ask whether you want to abandon editing text in the buffer.
+
+      * If [Y]es is selected, the editor is exited and any unsaved changes
+        are lost.
+
+      * If [N]o is selected, you are returned to the editor to continue
+        editing text.
+    """
+    import functions
+    response = functions.yes_or_no(prompt="Exit editor: Are you sure?",
+                                   default=False)
+    if response is True:
+        print("Quitting.")
+        editor.mode["running"] = False
+    else:
+        print("Aborted.")
 
 
 def cmd_columns(**kwargs):
+    """
+    This is used to adjust the length of lines you type in the editor before
+    word-wrap creates a new line.
+    The editor's column width is independent of your terminal's line length.
+    The column width can be set shorter than or equal to the line length,
+    but not larger than the line length.
+    For example, if your terminal's line length is 80 characters, but you set
+    your column width to 40 characters, you can't type more than 40 characters
+    before word-wrap takes effect.
+      Examples:
+        * Typing [.C] reports your current column width.
+        * Typing [.C 80] sets your column width to 80 characters.
+    """
     if 'line_range' not in kwargs:
         print(f"Column width is set to {editor.column_width}.")
     if 'line_range' in kwargs:
@@ -350,6 +375,11 @@ def cmd_columns(**kwargs):
 
 
 def cmd_delete(**kwargs):
+    """
+    Delete a line (or range of lines).
+
+    If a line range is not given, the last line entered is deleted.
+    """
     if 'line_range' not in kwargs:
         print(f"Deleting line {buffer.line[buffer.current_line]}.")
     else:
@@ -361,16 +391,40 @@ def cmd_delete(**kwargs):
 
 def cmd_edit(**kwargs):
     """
-    Edit a single line or range of lines.
-    When no line range is specified, edit the last line in buffer.
+        Edit a single line (or range of lines).
+
+        Pressing [Enter] by itself on a line during editing leaves that line
+    unchanged.
+
+        If a line range is given, typing [.] by itself on a line ends editing
+    early.
+
+        When no line range is specified, edit the last line in buffer.
     """
-    pass
+    start, end = kwargs["line_range"][0], kwargs["line_range"][1]
+    log_function = "cmd_edit:"
+    buffer = kwargs['buffer']
+
+    print(". ends editing early.")
+    print("Enter by itself leaves line unchanged.")
+
+    for line_num in range(start, end + 1):
+        print(f"{line_num}:")
+        print(buffer.line[line_num])
+        edit = input("> ")
+        if edit == '':
+            print("(Line unchanged.)")
+        if edit == ".":
+            print("(Editing ended.)")
+            break
+        else:
+            buffer.line[line_num] = edit
 
 
 def cmd_find(**kwargs):
     """
-    Find text in a single line or range of lines.
-    When no line range is specified, default to all text in buffer.
+    Find text in a single line (or range of lines).
+    When no line range is specified, search through all text in buffer.
     """
     start, end = kwargs["line_range"][0], kwargs["line_range"][1]
     log_function = "cmd_find:"
@@ -398,65 +452,154 @@ def cmd_find(**kwargs):
 
 
 def cmd_help(**kwargs):
-    """.h or .?"""
-    """
-    TODO: Enhancement: type [.h] <dot_key> for help on topic <dot_key>,
-    instead of [.h] displaying a huge file on all commands.
-    """
-    print("Help:\n")
+    """View help for all dot commands"""
+    # TODO: Enhancement: type [.h] <dot_key> for help on topic <dot_key>,
+    #     instead of [.h] displaying a huge file on all commands.
+    help_text = []
     for cmd_letter in DOT_CMD_TABLE:
         # e.g., DOT_CMD_TABLE['a'].dot_flag
         # display dot command letter, command name:
-        print(f'.{cmd_letter}: {DOT_CMD_TABLE[cmd_letter].dot_text}')
+        command = DOT_CMD_TABLE[cmd_letter]
+        help_text.append(f'.{cmd_letter}: {command.dot_text}')
+        # type 'str':
+        docstring = command.dot_func.__doc__
+        if docstring is None:
+            help_text.append(f"(No documentation for '{command.dot_text}'.)")
+        else:
+            for line_num, text in enumerate(docstring.split('\n')):
+                """
+                Word-wrap string to Player.client['cols'] width.
+                If a line break in the string is needed, make two separate calls to output(), one per line.
+                Ending a string with a CR or specifying CR in the join() call won't do what you want.
+
+                :param lines: list of strings to output
+                :param bracket_coloring: if False, do not recolor text within brackets
+                 (e.g., set to False when drawing bar so as to not color '[] ... []' table graphics)
+                 :return Message: list
+                """
+                """
+                we want to wrap the un-substituted text first. substituting ANSI
+                color codes adds 5-6 characters per substitution, and that wraps
+                text in the wrong places.
+                """
+                help_text.append(text)
+            page_text(help_text)
+
+
+def output(lines: list, bracket_coloring: bool, text_wrap=False):
+    from colorama import Fore as foreground
+    import re
+    import textwrap
+    function_name = "output:"
+    # rip-off of tada_utilities.output() except for socket stuff:
+    logging.info(f"{function_name} entry:")
+    for idx, txt in enumerate(lines):
+        logging.info(f'{idx:3}: {txt}')
+    if text_wrap:
+        wrapped_text = []
+        for text in lines:
+            # wrapped_text.append(textwrap.wrap(text, width=conn.client['cols']))
+            wrapped_text.append(textwrap.wrap(text, width=editor.max_line_length))
+            # print(line_num, wrapped_text[line_num])
+        lines = wrapped_text
+    # print([f"{line}\n" for line in lines])
+    """
+    color text inside brackets using 're' and 'colorama' modules:
+    '.+?' is a non-greedy match (finds multiple matches, not just '[World ... a]')
+
+    # demonstrate replacing '[' and ']' with '!':
+    >>> re.sub(r'[(.+?)]', r'!\1!', string="Hello [World] this [is a] test.")
+    'Hello !World! this !is a! test.'
+    """
+    if bracket_coloring:  # ... and client['translation'] != "ASCII":
+        for idx, txt in enumerate(lines, start=1):
+            logging.info(f'{idx=} {txt=}')
+            temp = re.sub(pattern=r'\[(.+?)\]',
+                          repl=f'{foreground.RED}' + r'\1' + f'{foreground.RESET}',
+                          # string="normal [color] normal again"
+                          string=txt[idx]
+                          )
+            print(f'{idx:3} | {temp}')
+            # lines.append(temp)
+    else:
+        # for ASCII clients, no color substitution for [bracketed text], so preserve brackets:
+        lines = wrapped_text
+        # page_text(lines)
+    for line_num, line in enumerate(lines):
+        print(line)
+
+
+def page_text(help_text: list):
+    if len(help_text) == 0:
+        print("No help text to display.")
+        return
+    else:
+        total_lines = len(help_text)
+        window_top = 1
+        # if line_count % 25 == 0:
+        while True:
+            output([page for page in help_text[window_top:window_top + 24]], bracket_coloring=True)
+            _ = input("[Return]: next page, [-] last page, [A]: abort: ").lower()
+            if _ == "a":
+                print(f"Read {line_count} lines. Aborted.")
+                break
+            if _ == "" and window_top > total_lines:
+                window_top += 24
+            if _ == "-" and window_top < 24:
+                window_top -= 24
 
 
 def cmd_insert(**kwargs):
-    """.I Insert <starting_line>
+    """Insert <starting_line>
     Turns on Insert mode and Line Numbering mode for the duration of
     inserting lines.
 
-    [.I]nsert At: [4]
+    Example:
+        [.I]nsert At: [4]
+
     User is prompted:
-    I4:
-    [The quick brown fox jumped over the lazy dog.]
-    I5:
-    [The same.]
+        I4:
+        [The quick brown fox jumped over the lazy dog.]
+        I5:
+        [The same.]
 
     User ends Insert mode by typing:
-    [.]Command: Exit
+        [.]Command: Exit
     """
-    # TODO: normalize line range: check if 1 > start > editor.max_lines
     pass
 
 
 def cmd_replace(**kwargs):
-    """.K Find and Replace <line_range>"""
+    """Find text and replace with different text."""
     print("TODO: Find what: ")
     print("TODO: Replace with: ")
 
 
 def cmd_list(**kwargs):
     """
-    .L List <line_range>
-    List a single line or range of lines.
+    List a single line (or range of lines).
     Line numbers are printed regardless of editor.mode["line_numbers"] status.
 
     Example:
-    1:
-    This is line 1
-    2:
-    This is line 2
-    3:
-    This is line 3
+
+        [.L 1-3]
+        1:
+        This is line 1
+        2:
+        This is line 2
+        3:
+        This is line 3
 
     When no line range is specified, list all lines in buffer.
 
-    TODO: save line numbering status, enable line numbers,
-        show_raw_lines(line_range), restore line numbering status
     """
     """
     :param kwargs['buffer']: buffer object to work with
     :param kwargs['line_range']: [start, end]: line range
+
+    TODO: save line numbering status, enable line numbers,
+        show_raw_lines(line_range), restore line numbering status
+    editor.mode["line_numbering"]
     """
     start, end = kwargs["line_range"][0], kwargs["line_range"][1]
     log_function = "cmd_list:"
@@ -470,6 +613,9 @@ def cmd_list(**kwargs):
 
 def cmd_new(**kwargs):
     """
+    Be prompted to erase text in buffer. If you reply with Yes, text is erased.
+    """
+    """
     response = editor.functions.yes_or_no(prompt="Erase buffer?", default=False)
     response = input("Clear buffer?")
     if response is True:
@@ -482,50 +628,71 @@ def cmd_new(**kwargs):
 
 
 def cmd_line_nums(**kwargs):
-    """.O Toggle displaying line numbers on or off"""
+    """
+    Toggle displaying line numbers as you enter new lines on or off.
+    """
     line_numbering = editor.mode["line_numbers"]
     print(f"Line numbering is now {'on' if line_numbering is True else 'off'}.")
 
 
 def cmd_query(**kwargs):
-    """.Q Query buffer contents"""
+    """
+    Query buffer contents. This shows how many lines you have available to
+    type in, how many are full, and how many remain empty.
+    """
     # in_mem = buffer.last_line()
     # editor.show_available_lines(buffer=buffer)
     pass
 
 
 def cmd_read(**kwargs):
-    """.R <[x-y]> Read text"""
-    pass
+    """
+    Read text in buffer. This shows text without line numbers.
+    """
+    start, end = kwargs["line_range"][0], kwargs["line_range"][1]
+    log_function = "cmd_read:"
+    logging.info(f"{log_function} {start=} {end=}")
+    buffer = kwargs['buffer']
+    # can't use enumerate() here; it has a 'start=' param, but no 'end=' param
+    for line_num in range(start, end + 1):
+        print(f"{buffer.line[line_num]}")
+        line_num += 1
 
 
 def cmd_save(**kwargs):
-    """.S Save Text"""
+    """
+    Save text in buffer.
+    """
     # TODO: what if file exists:
     # [A]ppend, [R]eplace, [N]ew Name, [R]eturn to Editor
     pass
 
 
 def cmd_undo(**kwargs):
-    """.U Undo Edit"""
+    """
+    Undo an edit that has been made. This includes...
+    """
     pass
 
 
 def cmd_version(**kwargs):
-    """.V Version"""
-    print("Editor version 2023-06-05")
+    """
+    Show the editor version information.
+    """
+    print("Editor version: 2023-06-05")
 
 
 def cmd_word_wrap(**kwargs):
-    """.W Word-wrap text"""
+    """
+    Word-wrap text
+    """
     pass
 
 
 def cmd_scale(**kwargs):
     """
-    .# Scale
     Display a ruler with numbered screen columns to assist with, among
-    other things, aligning text at a certain column
+    other things, aligning text at a certain column.
     """
     # TODO: expand the printed output to match Editor.max_line_length
     print(f"{1:10}{2:10}{3:10}{4:10}")
@@ -541,8 +708,11 @@ if __name__ == '__main__':
     buffer = Buffer(max_lines=20)  # max_lines = (int)
     buffer.test_fill_buffer()
 
+    # instantiate editor and set some parameters:
     editor = Editor(max_line_length=80, buffer=buffer)
+    editor.mode["running"] = True
     editor.column_width = 40
+
     # force buffer text to be listed:
     kwargs = {"line_range": (1, buffer.max_lines), "buffer": buffer}
     cmd_list(**kwargs)
@@ -648,7 +818,7 @@ if __name__ == '__main__':
                                      dot_range=None,
                                      dot_range_default=None)}
 
-    while True:
+    while editor.mode["running"]:
         input_line = input(": ")
         if input_line.startswith(".") or input_line.startswith('/'):
             parse_dot_command(input_line=input_line)
