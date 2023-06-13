@@ -20,17 +20,18 @@ except ImportError as e:
 
 
 class Buffer:
-    def __init__(self, max_lines: int):
+    def __init__(self, last_line: int, name: str):
         """
         Instantiate buffer List object which holds up to <editor.max_lines> of <line>
-        :param max_lines: how many lines of text can be entered
+        :param last_line: how many lines of text can be entered
+        :param name: name of buffer
 
         Variables created by __init__:
         :var line: a list of empty elements (None) [1 - editor.max_lines],
          representing an empty buffer
         :var current_line: line # currently being edited
 
-        >>> buffer = Buffer(max_lines=10)
+        >>> buffer = Buffer(last_line=10,name="test")
 
         >>> for i, line in enumerate(buffer.line):
         ...     print(f'{i:2} {line}')
@@ -47,10 +48,17 @@ class Buffer:
 
         TODO: self.modified flag?
         """
-        self.max_lines = max_lines
+        self.name = name
+        self.last_line = last_line
         # start with empty buffer, but 1-indexed:
-        self.line = [None for _ in range(0, max_lines + 1)]
+        self.line = [None for _ in range(0, last_line + 1)]
         self.current_line = 1
+
+    def erase_buffer(self):
+        self.line = [None, '']
+        self.current_line = 1
+        self.last_line = 1
+        print(f"'{self.name}' buffer erased.")
 
     def get_last_line(self, buffer: Buffer) -> int | None:
         """
@@ -70,7 +78,7 @@ class Buffer:
         [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
 
         # instantiate buffer of 11 lines (0-10):
-        >>> test_buffer = Buffer(max_lines=10)
+        >>> test_buffer = Buffer(last_line=10,name="test")
 
         # fill it with some text:
         >>> test_buffer.line = [None, 'line 1', 'line 2', 'line 3', 'line 4',
@@ -99,7 +107,7 @@ class Buffer:
         8
 
         # determine last line with all lines full in a new buffer:
-        >>> test_buffer = Buffer(max_lines=10)
+        >>> test_buffer = Buffer(last_line=10,name="test")
 
         >>> test_buffer.line = [f"line {_}" for _ in range(test_buffer.max_lines)]
 
@@ -170,7 +178,7 @@ class Buffer:
         :param start: line # to start inserting at
         :return: new List
         """
-        insert_buffer = Buffer(max_lines=editor.max_lines)
+        insert_buffer = Buffer(last_line=editor.max_lines, name="insert")
 
         # TODO: put lines in the right place.
         # FIXME: buffer.insert(insert_buffer)
@@ -181,10 +189,10 @@ class Buffer:
             undo_buffer = work_buffer
 
     def test_fill_buffer(self):
-        for line_num in range(1, self.max_lines + 1):
+        for line_num in range(1, self.last_line + 1):
             self.line[line_num] = f"test {line_num}"
         # for .O (Line Numbering) mode:
-        self.current_line = self.max_lines + 1
+        self.current_line = self.last_line + 1
 
 
 @dataclass
@@ -435,12 +443,16 @@ class Editor:
         # but is set to the same value initially:
         self.column_width = max_line_length
         # how many lines in buffer:
-        self.max_lines = buffer.max_lines
+        self.max_lines = buffer.last_line
         # line number being edited:
-        self.current_line = 1
-        # position within line:
-        self.column = 1
-        # text being edited:
+        self.current_line: int = 1
+        """
+        position within line (0-based so lines don't start with ''):
+        .# Scale ruler is still 1-based since users don't expect to start
+        tabs at column 0 (this has thrown me for a loop many times):
+        """
+        self.column = 0
+        # line of text being edited:
         self.line_input = ''
         logging.info(f'Buffer: init {buffer}, {self.max_lines=}, {self.max_line_length=}')
 
@@ -609,12 +621,11 @@ if __name__ == '__main__':
     char: character typed
     asc: ascii value of char
     """
-
     # see https://en.wikipedia.org/wiki/Command_pattern
 
     # initialize some buffers:
-    work_buffer = Buffer(max_lines=10)
-    undo_buffer = Buffer(max_lines=10)
+    work_buffer = Buffer(last_line=10, name="work")
+    undo_buffer = Buffer(last_line=10, name="undo")
 
     # initialize keymap:
     user_keymap = keymap.USER_KEYMAP_KEYS

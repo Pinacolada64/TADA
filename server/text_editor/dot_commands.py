@@ -142,7 +142,7 @@ def parse_dot_command(input_line: str):
                 """
                 if 'immediate' in dot_flag:
                     # no parameters needed
-                    dot_args = {}
+                    dot_args.update({'params': ''})
                 result = dot_func(**dot_args)
                 if result:
                     print(f'{result=}')
@@ -283,30 +283,30 @@ def parse_line_range(dot_cmd: DotCommand, buffer: Buffer, line_range: str = "-")
         if dot_range_default == 'first':
             start = 1
         if dot_range_default == 'last':
-            start = buffer.max_lines
+            start = buffer.last_line
     if end == 0:
         if dot_range_default == 'all':
-            end = buffer.max_lines
+            end = buffer.last_line
         if dot_range_default == 'first':
             end = 1
         if dot_range_default == 'last':
-            end = buffer.max_lines
+            end = buffer.last_line
 
     # normalize values:
     if start < 1:
         start = 1
         logging.warning(f"{log_function} 'start' < 1, now {start=}")
-    if start > buffer.max_lines:
-        start = buffer.max_lines
-        logging.warning(f"{log_function} 'start' > buffer.max_lines, now {start=}")
+    if start > buffer.last_line:
+        start = buffer.last_line
+        logging.warning(f"{log_function} 'start' > buffer.last_line, now {start=}")
 
-    if end > buffer.max_lines:
-        end = buffer.max_lines
-        logging.warning(f"{log_function} 'end' > buffer.max_lines, now {end=}")
+    if end > buffer.last_line:
+        end = buffer.last_line
+        logging.warning(f"{log_function} 'end' > buffer.last_line, now {end=}")
 
     if end < start:
         end = start
-        logging.warning(f"{log_function} 'end' < 'start', now {start=}")
+        logging.warning(f"{log_function} 'end' < 'start', now {end=}")
     if start > end:
         start = end
         logging.warning(f"{log_function} 'start' > 'end', now {start=}")
@@ -316,14 +316,14 @@ def parse_line_range(dot_cmd: DotCommand, buffer: Buffer, line_range: str = "-")
             if dot_range_default == "first":
                 start, end = 1, 1
             if dot_range_default == "last":
-                start = buffer.max_lines
+                start = buffer.last_line
                 end = start
             logging.info(f"{log_function} 'single' range: adjusting to {start=}, {end=}")
 
     if dot_range == 'all':
         if start == 0 and end != 0:
             start = 1
-            end = buffer.max_lines
+            end = buffer.last_line
             logging.info(f"{log_function} 'all' range: adjusting to {start=}, {end=}")
 
     # exit:
@@ -722,7 +722,7 @@ if __name__ == '__main__':
     # test stuff:
     max_lines = 20
     # instantiate Buffer first since Editor needs Buffer object:
-    buffer = Buffer(max_lines=max_lines)  # max_lines = (int)
+    buffer = Buffer(last_line=max_lines, name="work")  # last_line = (int)
     buffer.test_fill_buffer()
 
     # instantiate editor and set some parameters:
@@ -731,7 +731,7 @@ if __name__ == '__main__':
     editor.column_width = 40
 
     # force buffer text to be listed:
-    kwargs = {"line_range": (1, buffer.max_lines), "buffer": buffer}
+    kwargs = {"line_range": [1, buffer.last_line], "buffer": buffer}
     cmd_list(**kwargs)
 
     # {"dot_key": ("dot_text", dot_func, ["dot_flag", ...], dot_range,
