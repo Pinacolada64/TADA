@@ -477,32 +477,31 @@ def cmd_help(**kwargs):
                  (e.g., set to False when drawing bar so as to not color '[] ... []' table graphics)
                  :return Message: list
                 """
-                """
-                we want to wrap the un-substituted text first. substituting ANSI
-                color codes adds 5-6 characters per substitution, and that wraps
-                text in the wrong places.
-                """
                 help_text.append(text)
-            page_text(help_text)
+    page_text(format_text(input_list=help_text, bracket_coloring=True, text_wrap=False))
 
 
-def output(lines: list, bracket_coloring: bool, text_wrap=False):
+def format_text(input_list: list, bracket_coloring: bool, text_wrap=False) -> list:
     from colorama import Fore as foreground
     import re
     import textwrap
-    function_name = "output:"
+    function_name = "format_text:"
     # rip-off of tada_utilities.output() except for socket stuff:
     logging.info(f"{function_name} entry:")
-    for idx, txt in enumerate(lines):
-        logging.info(f'{idx:3}: {txt}')
     if text_wrap:
+        # FIXME: wrapping text makes each line into a list element
+        #  so displays e.g., ['Text'] later
+        """
+        we want to wrap the un-substituted text first. substituting ANSI
+        color codes adds 5-6 characters per substitution, and that wraps
+        text in the wrong places.
+        """
         wrapped_text = []
-        for text in lines:
+        for line_num, text in enumerate(input_list):
             # wrapped_text.append(textwrap.wrap(text, width=conn.client['cols']))
             wrapped_text.append(textwrap.wrap(text, width=editor.max_line_length))
-            # print(line_num, wrapped_text[line_num])
-        lines = wrapped_text
-    # print([f"{line}\n" for line in lines])
+            print(f'{line_num:3} {wrapped_text[line_num]}')
+        input_list = wrapped_text
     """
     color text inside brackets using 're' and 'colorama' modules:
     '.+?' is a non-greedy match (finds multiple matches, not just '[World ... a]')
@@ -511,42 +510,52 @@ def output(lines: list, bracket_coloring: bool, text_wrap=False):
     >>> re.sub(r'[(.+?)]', r'!\1!', string="Hello [World] this [is a] test.")
     'Hello !World! this !is a! test.'
     """
-    if bracket_coloring:  # ... and client['translation'] != "ASCII":
-        for idx, txt in enumerate(lines, start=1):
-            logging.info(f'{idx=} {txt=}')
-            temp = re.sub(pattern=r'\[(.+?)\]',
-                          repl=f'{foreground.RED}' + r'\1' + f'{foreground.RESET}',
-                          # string="normal [color] normal again"
-                          string=txt[idx]
-                          )
-            print(f'{idx:3} | {temp}')
-            # lines.append(temp)
-    else:
-        # for ASCII clients, no color substitution for [bracketed text], so preserve brackets:
-        lines = wrapped_text
-        # page_text(lines)
-    for line_num, line in enumerate(lines):
-        print(line)
+    if bracket_coloring:  # ... and player.client['translation'] != "ASCII":
+        colored_text = []
+        for idx, txt in enumerate(input_list):
+            if txt != '':
+                # <class 'str'>
+                # print(txt, type(txt))
+                regex = re.sub(pattern=r"\[(.+)]",
+                               repl=f'{foreground.RED}' + r'\1' + f'{foreground.RESET}',
+                               string=f"{txt}")
+                colored_text.append(regex)
+            else:
+                # txt is '', apparently regex doesn't like that:
+                colored_text.append(txt)
+        # logging.info(f'{idx:3} | {temp}')
+        input_list = colored_text
+    # for ASCII clients, or bracketed_text is False, don't color bracketed text:
+    return input_list
 
 
-def page_text(help_text: list):
+def page_text(help_text: list) -> None:
     if len(help_text) == 0:
         print("No help text to display.")
         return
     else:
         total_lines = len(help_text)
+        line_count = 0
         window_top = 1
+        window_height = 24
         # if line_count % 25 == 0:
         while True:
-            output([page for page in help_text[window_top:window_top + 24]], bracket_coloring=True)
+            for page in range(window_top, window_top + window_height):
+                print(help_text[page])
             _ = input("[Return]: next page, [-] last page, [A]: abort: ").lower()
             if _ == "a":
                 print(f"Read {line_count} lines. Aborted.")
                 break
-            if _ == "" and window_top > total_lines:
-                window_top += 24
-            if _ == "-" and window_top < 24:
+            if _ == "" and window_top < total_lines:
+                window_top += window_height
+                # FIXME: stop early instead of "index out of range" error
+                if window_top > total_lines:
+                    window_top += window_height - total_lines
+                line_count += 24
+            if _ == "-" and window_top > 24:
                 window_top -= 24
+                if window_top < 1:
+                    window_top = 1
 
 
 def cmd_insert(**kwargs):
