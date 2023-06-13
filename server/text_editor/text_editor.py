@@ -166,6 +166,12 @@ class Buffer:
             # FIXME
             undo_buffer = work_buffer
 
+    def test_fill_buffer(self):
+        for line_num in range(1, self.max_lines + 1):
+            self.line[line_num] = f"test {line_num}"
+        # for .O (Line Numbering) mode:
+        self.current_line = self.max_lines + 1
+
 
 @dataclass
 class DotCommand:
@@ -407,7 +413,7 @@ class Editor:
     def __init__(self, max_line_length, buffer: Buffer):
         # editor modes:
         #            toggled with .O (Line Numbering):
-        self.mode = {"show_line_numbers": False,
+        self.mode = {"line_numbers": False,
                      # toggled with .I (Insert Mode):
                      "insert": False}
         self.max_line_length = max_line_length
@@ -526,9 +532,10 @@ def input_line(flags=None) -> None | str:
         elif asc == keymap.keybinding(user_keymap, 'new_line'):
             logging.info(f'[Return/Enter hit]')
             print()
-            # buffer[editor.current_line] = editor.current_line
-            editor.line_number += 1
-            editor.current_line = ''
+            # put editor.line_input into buffer:
+            buffer.line[editor.current_line] = editor.line_input
+            buffer.current_line += 1
+            editor.line_input = ''
             editor.column = 0
             return editor.input_line
 

@@ -189,7 +189,9 @@ def parse_line_range(dot_cmd: DotCommand, buffer: Buffer, line_range: str = "-")
     list[x, y]: lines x - y
     list[1, y]: lines start of buffer - y
     list[x, editor.max_lines]: lines x - end of buffer
-    None: no line range entered. if default_last is in dot_params, set current_line to Editor.last_line
+    None: no line range entered.
+        if 'last' is in dot_defaults, set buffer.current_line to
+        Editor.last_line
 
     # first, create an empty buffer to work with:
     >>> buffer = Buffer(max_lines = 5)
@@ -516,9 +518,11 @@ def format_text(input_list: list, bracket_coloring: bool, text_wrap=False) -> li
             if txt != '':
                 # <class 'str'>
                 # print(txt, type(txt))
-                regex = re.sub(pattern=r"\[(.+)]",
+                regex = re.sub(pattern=r"\[(.+?)]",
                                repl=f'{foreground.RED}' + r'\1' + f'{foreground.RESET}',
-                               string=f"{txt}")
+                               string=f"{txt}",
+                               # string="Hello [World], this [is a] test."
+                               )
                 colored_text.append(regex)
             else:
                 # txt is '', apparently regex doesn't like that:
@@ -587,7 +591,7 @@ def cmd_replace(**kwargs):
 def cmd_list(**kwargs):
     """
     List a single line (or range of lines).
-    Line numbers are printed regardless of editor.mode["line_numbers"] status.
+    Line numbers are printed regardless of .O (Line Numbering) mode.
 
     Example:
 
@@ -608,7 +612,7 @@ def cmd_list(**kwargs):
 
     TODO: save line numbering status, enable line numbers,
         show_raw_lines(line_range), restore line numbering status
-    editor.mode["line_numbering"]
+    editor.mode["line_numbers"]
     """
     start, end = kwargs["line_range"][0], kwargs["line_range"][1]
     log_function = "cmd_list:"
@@ -638,8 +642,9 @@ def cmd_new(**kwargs):
 
 def cmd_line_nums(**kwargs):
     """
-    Toggle displaying line numbers as you enter new lines on or off.
+    Toggle displaying line numbers on or off as you enter new lines.
     """
+    editor.mode["line_numbers"] = not editor.mode["line_numbers"]
     line_numbering = editor.mode["line_numbers"]
     print(f"Line numbering is now {'on' if line_numbering is True else 'off'}.")
 
@@ -657,6 +662,8 @@ def cmd_query(**kwargs):
 def cmd_read(**kwargs):
     """
     Read text in buffer. This shows text without line numbers.
+
+    If no line range is specified, the entire buffer is read.
     """
     start, end = kwargs["line_range"][0], kwargs["line_range"][1]
     log_function = "cmd_read:"
@@ -693,7 +700,7 @@ def cmd_version(**kwargs):
 
 def cmd_word_wrap(**kwargs):
     """
-    Word-wrap text
+    Word-wrap text.
     """
     pass
 
@@ -713,8 +720,9 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
 
     # test stuff:
+    max_lines = 20
     # instantiate Buffer first since Editor needs Buffer object:
-    buffer = Buffer(max_lines=20)  # max_lines = (int)
+    buffer = Buffer(max_lines=max_lines)  # max_lines = (int)
     buffer.test_fill_buffer()
 
     # instantiate editor and set some parameters:
@@ -828,6 +836,8 @@ if __name__ == '__main__':
                                      dot_range_default=None)}
 
     while editor.mode["running"]:
+        if editor.mode["line_numbers"]:
+            print(f'{buffer.current_line}:')
         input_line = input(": ")
         if input_line.startswith(".") or input_line.startswith('/'):
             parse_dot_command(input_line=input_line)
