@@ -18,19 +18,33 @@ try:
 except ImportError as e:
     logging.info(f"Can't import getch: {e}.")
 
-import re
-
 
 class Buffer:
-    def __init__(self, max_lines):
+    def __init__(self, max_lines: int):
         """
-        Instantiate buffer object which holds up to <editor.max_lines> of list <line>
+        Instantiate buffer List object which holds up to <editor.max_lines> of <line>
         :param max_lines: how many lines of text can be entered
 
         Variables created by __init__:
         :var line: a list of empty elements (None) [1 - editor.max_lines],
          representing an empty buffer
         :var current_line: line # currently being edited
+
+        >>> buffer = Buffer(max_lines=10)
+
+        >>> for i, line in enumerate(buffer.line):
+        ...     print(f'{i:2} {line}')
+         1 None
+         2 None
+         3 None
+         4 None
+         5 None
+         6 None
+         7 None
+         8 None
+         9 None
+        10 None
+
         TODO: self.modified flag?
         """
         self.max_lines = max_lines
@@ -62,7 +76,7 @@ class Buffer:
         >>> test_buffer.line = [None, 'line 1', 'line 2', 'line 3', 'line 4',
         ...                     None, 'line 6', 'line 7', 'line 8', None, None]
 
-        # print lines out (should not print test_buffer.line[0] because users won't
+        # print lines out - should not print test_buffer.line[0] because users won't
         # expect to edit/interact with line 0, plus it avoids coding e.g.:
         # 'buffer.line[current + 1])' repeatedly, to "normalize" referring to
         # line numbers 0-n as 1-n+1.
