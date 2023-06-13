@@ -586,28 +586,6 @@ if __name__ == '__main__':
     debug = True
     expert_mode = False  # just for testing purposes
 
-    dot_cmd_table = [{"a": ("Abort", DotCommand.cmd_abort, "immediate", False)},
-                     {"c": ("Columns", DotCommand.cmd_columns, "single", True)},
-                     {"d": ("Delete", DotCommand.cmd_delete, "all", True)},
-                     {"e": ("Edit", DotCommand.cmd_edit, ["last", "subcmd"], True)},
-                     {"f": ("Find", DotCommand.cmd_find, "all", True)},
-                     {"h": ("Help", DotCommand.cmd_help, "immediate", False)},
-                     {"i": ("Insert", DotCommand.cmd_insert, "single", True)},
-                     # TODO: Justify: could use textwrap module
-                     # {"j": ("Justify", DotCommand.cmd_justify, ["all", "subcmd"], True)},
-                     {"k": ("Find and Replace", DotCommand.cmd_replace, "all", False)},
-                     {"l": ("List", DotCommand.cmd_list, "all", True)},
-                     {"n": ("New Text", DotCommand.cmd_new, "immediate", False)},
-                     {"o": ("Line Numbering", DotCommand.cmd_line_nums, "immediate", False)},
-                     {"q": ("Query", DotCommand.cmd_query, "immediate", False)},
-                     {"r": ("Read", DotCommand.cmd_read, "all", False)},
-                     {"s": ("Save", DotCommand.cmd_save, "immediate", False)},
-                     {"u": ("Undo", DotCommand.cmd_undo, "immediate", False)},
-                     {"v": ("Version", DotCommand.cmd_version, "immediate", False)},
-                     {"w": ("Word-Wrap", DotCommand.cmd_word_wrap, "all", True)},
-                     {"#": ("Scale", DotCommand.cmd_scale, "immediate", False)}
-                     ]
-
     doctest.testmod(verbose=True)
     """
     editing: Boolean whether we're in the editor
