@@ -480,7 +480,10 @@ def cmd_help(**kwargs):
                  :return Message: list
                 """
                 help_text.append(text)
-    page_text(format_text(input_list=help_text, bracket_coloring=True, text_wrap=False))
+    page_text(format_text(input_list=help_text,
+                          bracket_coloring=True,
+                          text_wrap=False),
+              start_line=0)
 
 
 def format_text(input_list: list, bracket_coloring: bool, text_wrap=False) -> list:
@@ -533,33 +536,54 @@ def format_text(input_list: list, bracket_coloring: bool, text_wrap=False) -> li
     return input_list
 
 
-def page_text(help_text: list) -> None:
+def page_text(help_text: list, start_line: int = 0) -> None:
+    log_func = "page_text:"
     if len(help_text) == 0:
         print("No help text to display.")
         return
     else:
         total_lines = len(help_text)
+        logging.info(f'{total_lines=}')
         line_count = 0
-        window_top = 1
+        viewport_top = start_line
+        # TODO: Player.terminal['rows']
         window_height = 24
-        # if line_count % 25 == 0:
         while True:
-            for page in range(window_top, window_top + window_height):
+            lines_to_display = window_height
+            # avoid displaying text past end of list:
+            if viewport_top + window_height > total_lines:
+                logging.info(f"{log_func} {viewport_top=} + {window_height=} > {total_lines=}")
+                # show ending lines:
+                window_height = total_lines - window_height
+                lines_to_display = window_height
+                logging.info(f"{log_func} {lines_to_display=}")
+                line_count += lines_to_display
+
+            for page in range(viewport_top, viewport_top + lines_to_display):
                 print(help_text[page])
             _ = input("[Return]: next page, [-] last page, [A]: abort: ").lower()
             if _ == "a":
                 print(f"Read {line_count} lines. Aborted.")
                 break
-            if _ == "" and window_top < total_lines:
-                window_top += window_height
+            if _ == "":
                 # FIXME: stop early instead of "index out of range" error
-                if window_top > total_lines:
-                    window_top += window_height - total_lines
-                line_count += 24
-            if _ == "-" and window_top > 24:
-                window_top -= 24
-                if window_top < 1:
-                    window_top = 1
+                if viewport_top + window_height > total_lines:
+                    logging.info(f"{log_func} {viewport_top=} {window_height=}")
+                    lines_to_display = total_lines - viewport_top
+                    logging.info(f"{log_func} {lines_to_display=}")
+                    viewport_top = lines_to_display
+                    line_count += lines_to_display
+                elif viewport_top == total_lines:
+                    print("At end of text.")
+                else:
+                    viewport_top += window_height
+                    line_count += window_height
+            if _ == "-":
+                if viewport_top < window_height:
+                    viewport_top -= window_height
+                if viewport_top < 1:
+                    viewport_top = 1
+                logging.info(f"{log_func} {viewport_top=}")
 
 
 def cmd_insert(**kwargs):
