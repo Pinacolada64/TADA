@@ -482,8 +482,7 @@ def cmd_help(**kwargs):
                 help_text.append(text)
     page_text(format_text(input_list=help_text,
                           bracket_coloring=True,
-                          text_wrap=False),
-              start_line=0)
+                          text_wrap=False), more_prompt=True, start_line=0)
 
 
 def format_text(input_list: list, bracket_coloring: bool, text_wrap=False) -> list:
@@ -536,54 +535,55 @@ def format_text(input_list: list, bracket_coloring: bool, text_wrap=False) -> li
     return input_list
 
 
-def page_text(help_text: list, start_line: int = 0) -> None:
+def page_text(help_text: list, start_line: int = 0, more_prompt: bool = True) -> None:
     log_func = "page_text:"
     if len(help_text) == 0:
         print("No help text to display.")
         return
+    total_lines = len(help_text)
+    logging.info(f'{total_lines=}')
+    # TODO: window_height = Player.terminal['rows']
+    window_height = 24
+    line_count = 0
+    top_line = start_line
+    if more_prompt is False:
+        logging.info(f'{more_prompt=}')
+        bottom_line = total_lines
+        show_page(top_line=top_line, bottom_line=bottom_line, help_text=help_text)
     else:
-        total_lines = len(help_text)
-        logging.info(f'{total_lines=}')
-        line_count = 0
-        viewport_top = start_line
-        # TODO: Player.terminal['rows']
-        window_height = 24
-        while True:
-            lines_to_display = window_height
-            # avoid displaying text past end of list:
-            if viewport_top + window_height > total_lines:
-                logging.info(f"{log_func} {viewport_top=} + {window_height=} > {total_lines=}")
-                # show ending lines:
-                window_height = total_lines - window_height
-                lines_to_display = window_height
-                logging.info(f"{log_func} {lines_to_display=}")
-                line_count += lines_to_display
-
-            for page in range(viewport_top, viewport_top + lines_to_display):
-                print(help_text[page])
-            _ = input("[Return]: next page, [-] last page, [A]: abort: ").lower()
-            if _ == "a":
+        logging.info(f'{more_prompt=}')
+        bottom_line = top_line + window_height
+        while more_prompt:
+            show_page(top_line=top_line, bottom_line=bottom_line, help_text=help_text)
+            # if bottom_line % window_height == 0:
+            _ = input("[Return]: next page, [-]: previous page, [Q]: quit: ").lower()
+            if _ == "q":
                 print(f"Read {line_count} lines. Aborted.")
-                break
-            if _ == "":
+                more_prompt = False
+            elif _ == "":
                 # FIXME: stop early instead of "index out of range" error
-                if viewport_top + window_height > total_lines:
-                    logging.info(f"{log_func} {viewport_top=} {window_height=}")
-                    lines_to_display = total_lines - viewport_top
-                    logging.info(f"{log_func} {lines_to_display=}")
-                    viewport_top = lines_to_display
-                    line_count += lines_to_display
-                elif viewport_top == total_lines:
-                    print("At end of text.")
-                else:
-                    viewport_top += window_height
-                    line_count += window_height
-            if _ == "-":
-                if viewport_top < window_height:
-                    viewport_top -= window_height
-                if viewport_top < 1:
-                    viewport_top = 1
-                logging.info(f"{log_func} {viewport_top=}")
+                top_line += bottom_line
+                bottom_line += top_line + window_height
+                if bottom_line + window_height > total_lines:
+                    logging.info(f"{log_func} overflow: was {bottom_line=} + {window_height=} > {total_lines=}")
+                    bottom_line = total_lines
+                    logging.info(f"{log_func} overflow: now {bottom_line=}")
+                elif top_line >= total_lines:
+                    print("Already at end of text.")
+
+            elif _ == "-":
+                top_line -= window_height
+                bottom_line -= window_height
+                if top_line < window_height:
+                    top_line -= window_height
+                if top_line < 1:
+                    top_line = 1
+                logging.info(f"{log_func} {top_line=}")
+
+
+def show_page(top_line, bottom_line: int, help_text: list) -> None:
+    for line_num in range(top_line, bottom_line):
+        print(f"{line_num:3} | {help_text[line_num]}")
 
 
 def cmd_insert(**kwargs):
@@ -619,7 +619,7 @@ def cmd_list(**kwargs):
 
     Example:
 
-        [.L 1-3]
+        [.L]ist [1-3]
         1:
         This is line 1
         2:
@@ -643,9 +643,11 @@ def cmd_list(**kwargs):
     logging.info(f"{log_function} {start=} {end=}")
     buffer = kwargs['buffer']
     # can't use enumerate() here; it has a 'start=' param, but no 'end=' param
+    listed_lines = []
     for line_num in range(start, end + 1):
-        print(f"{line_num}:\n{buffer.line[line_num]}")
-        line_num += 1
+        listed_lines.append(f"{line_num}:")
+        listed_lines.append(f"{buffer.line[line_num]}")
+    page_text(listed_lines, start_line=0)
 
 
 def cmd_new(**kwargs):
