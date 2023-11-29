@@ -1,8 +1,5 @@
-import readline
-
 import cmd2     # a more advanced version of 'cmd'
-import pyreadline
-import pyreadline3  # for cmd tab-completion
+import pyreadline3
 
 """
 This tests the Cmd2 module, a drop-in replacement for cmd.
@@ -25,14 +22,16 @@ https://cmd2.readthedocs.io/en/stable/api/index.html
 # (maybe use for characters talking to you?)
 
 
-def longest_list_length(items: list):
-    """Display items, a group of ellipses, the length is determined by the longest string
-     and something else afterwards is printed by the calling routine"""
-    # e.g.,
-    # item_one ...... foo
-    # item_two ...... bar
-    # item_three .... baz
-
+def longest_list_item_length(items: list):
+    """
+    Display items + a group of ellipses: how many elipses is determined by the length
+    of the longest string in the list.
+    and something else afterwards is printed by the calling routine:
+    e.g.,
+    item_one ...... foo
+    item_two ...... bar
+    item_three .... baz
+    """
     # return longest string length, plus 4 extra for spaces at either end:
     return len(max([x for x in items], key=len)) + 4
 
@@ -70,97 +69,86 @@ class RemovePrivilegedCmds(cmd2.Cmd):
         # del cmd2.Cmd.do_shell
 
     def __str__(self):
-        print(self)
+        return self
 
 
 class GameCommands(cmd2.Cmd):
     def __init__(self, completekey):
         # modify shortcuts list:
         shortcuts = dict(cmd2.DEFAULT_SHORTCUTS)
-        print(shortcuts)
-        shortcuts.update({'\"': 'say'})  # , 'h': 'help', 'q': 'quit'}
+        shortcuts.update({'\"': 'say'})  # 'h': 'help', 'q': 'quit' already used by parser
+        # print(shortcuts)
         cmd2.Cmd.__init__(self, shortcuts=shortcuts)
         # select tab-completion key (usually Tab)
         # with PetSCII clients, Ctrl key could be read in input loop to send Tab from PetSCII clients
-        cmd2.Cmd.completekey = self.completekey
+        self.completekey = completekey
+        # FIXME: set prompt:
+        cmd2.Cmd.prompt = "What now?\n> "
 
-    # initialize list of spells:
-    SPELL_NAMES = ['list', 'filfre', 'frobnicate', 'frobnitz', 'gnusto', 'melbor', 'trizbort', 'xyzzy']
-
-    # Spell descriptions for 'cast list':
-    # Periods are automatically added by 'cast list'
-    SPELL_DESCS = ['List the spells you know',
-                   'Create a magical light display of fireworks',
-                   '',
-                   '',
-                   'Inscribe a magical spell in your spell book',
-                   'Protects magic-users from harm by evil beings',
-                   '',
-                   '']
-
-    # The default() method is called when none of the other do_*() command methods match.
     def default(self, arg):
+        # The default() method is called when none of the other do_*() command methods match.
         print('I do not understand that command. Type "help" for a list of commands.')
 
-    # A very simple "quit" command to terminate the program:
     def do_quit(self, arg):
+        # A very simple "quit" command to terminate the program:
         """Quit the game."""
         # arg seems to be unused, but required by the function definition
         print(f'{arg=}')
         return True  # this exits the Cmd2 application loop in Parser.cmdloop()
 
-    def do_cast(self, arg):
-        if arg == '':
+    def do_cast(self, param):
+        if len(param) == 0:
             print("""In a moment of forgetfulness rivaling the Wizard Frobozz himself,
 your struggle to think of a spell name to cast is proving more than you can bear.""")
         else:
             # TODO: test tab-completion in bash
             # would be nice if we could do partial matches with something like:
             # if arg.startsith(arg) == arg.startswith(self.SPELLS)
-            if arg in self.SPELL_NAMES:
-                print(f"With a wave of your magic wand, you cast '{arg}'.")
 
-                if arg == 'gnusto':
+            # this works too:
+            spell = param.argv[1]
+            if spell in SPELL_LIST.keys():
+                print(f"With a wave of your magic wand, you cast '{spell}'.")
+
+                if spell == 'gnusto':
                     print("""
 A softly glowing ink pot and quill pen appear, the pen nib scratching at an empty page of
 your spell book. After a moment or two, a new spell appears therein, the magicked objects
 vanishing.""")
 
-                if arg == 'list':
+                if spell == 'list':
                     print("Here are the spells you know:\n")
-                    longest = longest_list_length(self.SPELL_NAMES)
-
-                    # By default, when we make a field larger with formatters, Python will fill the field with
-                    # whitespace characters. We can modify that to be a different character by specifying the
-                    # character we want it to be directly following the colon: e.g.,
-                    # >>> print("{:*^20s}".format("Sammy"))
-                    count = 1
-                    for item in self.SPELL_NAMES:
+                    longest = longest_list_item_length([k for k in SPELL_LIST.keys()])
+                    """
+                    By default, when we make a field larger with formatters, Python will fill the field with
+                    whitespace characters. We can modify that to be a different character by specifying the
+                    character we want it to be directly following the colon: e.g.,
+                    >>> print("{:*^20s}".format("Sammy"))
+                    *******Sammy********
+                    """
+                    for count, item in enumerate([k for k in SPELL_LIST.keys()], start=1):
                         name = item + ' '
-                        temp = self.SPELL_DESCS[count - 1]
+                        temp = SPELL_LIST[item]
                         if temp == '':
                             desc = '(This space intentionally left blank.)'
                         else:
                             desc = temp + '.'
-                        # SPELL_DESCS is zero-based index, so subtract 1 from count
-                        # print(f'{count:2}. {item:.<{longest}} {self.SPELL_DESCS[count - 1]}')
-                        print(f'{count:2}. {name:.<{longest}} {desc}')
-                        count += 1
+                        print(f'{count:2}. {name.ljust(longest, ".")} {desc}')
 
-                if arg == 'melbor':
+                if spell == 'melbor':
                     print("Specifying <target> is in the works.")
 
             else:
-                print(f"You don't know the spell '{arg}'.")
+                print(f"You don't know the spell '{spell}'.")
 
-    def complete_cast(self, text, line, begidx, endidx):
+    def complete_cast(self, text_to_complete, line, begidx, endidx):
         """https://pymotw.com/2/cmd/"""
-        if not text:
-            completions = self.SPELL_NAMES[:]
+        if not text_to_complete:
+            completions = SPELL_LIST
         else:
             completions = [f
-                           for f in self.SPELL_NAMES
-                           if f.startswith(text)
+                           for f in SPELL_LIST
+                           if f.startswith(text_to_complete)
                            ]
         return completions
 
@@ -199,7 +187,11 @@ cmd2 demo
 
 'help' or '?' displays help, 'help -v' shows verbose help.
 """)
-    admin = input("Privileged user? ").lower()
+    # aliases: 'q' = 'quit'
+    # do_q = do_quit
+
+    """
+    admin = input("Privileged user (y/n)? ").lower()
     if admin == 'y':
         print("Keeping privileged commands.")
         parser = GameCommands(completekey='tab')
@@ -209,14 +201,21 @@ cmd2 demo
         # but, now missing "game" commands, so we subclass (?) parser again
         # to add them back:
         parser = GameCommands(completekey='tab')
-
-    # aliases: 'q' = 'quit'
-    # do_q = do_quit
-
-    # set prompt
-    parser.prompt = "prompt >>> "
+"""
+    parser = GameCommands(completekey='tab')
 
     parser.default_error = "No idea."
+
+    # initialize list of spells (name and description) for 'cast list'
+    # Periods after descriptions are automatically added by 'cast list'
+    SPELL_LIST = {'list': 'List the spells you know',
+                  'filfre': 'Create a magical light display of fireworks',
+                  'frobnicate': '',
+                  'frobnitz': '',
+                  'gnusto': 'Inscribe a magical spell in your spell book',
+                  'melbor': 'Protects magic-users from harm by evil beings',
+                  'trizbort': '',
+                  'xyzzy': ''}
 
     # start parser parsing until returns True, thus ending program
     parser.cmdloop()
