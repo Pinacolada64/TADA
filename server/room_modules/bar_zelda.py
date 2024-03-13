@@ -23,7 +23,7 @@ def get_player_info(stats: list, conn: Player, id_pattern="*") -> dict:
     logging.info(f'get_player_info: Info requested: {stats}')
     # FIXME: get path from server.Player?
     # use relative path:
-    path = "./run/server"
+    path = "../run/server"
     # absolute path: "D:/Documents/C64/TADA/server/run/server"
     filename_list = glob.glob(f'{path}/player-{id_pattern}.json')
     # print(filename_list)

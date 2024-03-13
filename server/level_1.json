@@ -359,9 +359,9 @@
                 "w": 60
             },
             "module": {
-                "n": "bar.py"
+                "n": "bar"
             },
-            "desc": "Rich mineral deposits form this room. A strange door is north."
+            "desc": "Rich mineral deposits form this room. A strange door is to the north."
         },
         {
             "number": 50,

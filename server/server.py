@@ -6,17 +6,13 @@ import random
 import threading
 from dataclasses import dataclass, field
 import textwrap
-# import collections  # for defaultdict behavior
+import importlib  # for room exit modules
 
+# tada imports:
 import net_server
 import net_common
 import common
 import util
-
-# TADA modules:
-import bar
-import bar_zelda
-import shoppe
 
 K = common.K
 Mode = net_server.Mode
@@ -91,7 +87,10 @@ class Room:
     weapon: int = 0
     food: int = 0
     alignment: str = "neutral"  # default unless set to another guild
-    module: dict = None  # for loading specific modules when entered
+    # for loading specific modules when room exited from a specific direction:
+    # format is {"module_name": "<compass_direction>"}
+    # will go to module_name.main() when exited
+    module: dict = field(default_factory=dict)
 
     def __str__(self):
         return f'#{self.number} {self.name}\n' \
@@ -762,38 +761,23 @@ class PlayerHandler(net_server.UserHandler):
                     # since there is no "real" destination (i.e., room number)
                     # special movement cases import new modules (e.g., bar):
                     # .get() defaults to None if KeyError:
-                    if room.module is not None and direction in room.module:
-                        #get("module", None):  # dataclass defaults to None
-                        mod = room.module[direction]
-                        logging.info(f"{direction=} {mod=}")
-                        """
-                        Volca:
-                        For that error: whatever you were trying to get doesn't exist.
-                        room.module either doesn't exist or equals None, so when you do room.module.get(),
-                        it's like saying None.get(), which isn't a thing, which is what the error is
-                        telling you.
-                        """
-                        # https://stackoverflow.com/questions/13598035/importing-a-module-when-the-module-name-is-in-a-variable
-                        try:
-                            # FIXME: force it for now:
-                            # should run __main__():
-                            logging.debug(f'{mod} started')
-                            # bar.main(conn=self.player)
-                            # import os
-                            # logging.info(f'{os.path}')
-
-                            # should output a few messages...
-                            bar.main(conn=self.player)
-                            # FIXME: but eventually get current path
-                            # https://docs.python.org/3/library/importlib.html#importlib.import_module
-                            # from importlib import import_module
-                            # the 'package' argument is required to perform a relative import for './bar.py'
-                            # import_module(name=f'{module}', package=f'./{module}')
-                            # TODO: look at jam's empyre5 code for use of importlib
-                            logging.debug(f'{mod} finished')
-                        except ImportError as e:
-                            logging.warning(f"Can't find '{module}'.")
-                            return Message(error="Error {e}", error_line="bla")
+                    if room.module and direction in room.module:
+                        module_name = room.module[direction] + ".py"
+                        # load room module:
+                        # FIXME: should be room_modules\bar.py, but is room_modules\\bar.py
+                        room_module_path = os.path.join("room_modules", f"{module_name}")  # Construct path
+                        logging.info(f"{room_module_path=}, {module_name=}")
+                        if os.path.isfile(room_module_path):
+                            logging.debug(f'{room_module_path} started')
+                            room_module = importlib.import_module(f"{room_module_path}")
+                            logging.debug(f"{room_module=}")
+                            # Call the main() function for the specific room
+                            getattr(room_module, "__main__")()  # Dynamically access function
+                            logging.debug(f'{room_module_path} finished')
+                        else:
+                            # Handle cases where the module doesn't exist
+                            logging.info(f"Room '{room_module_path}' not found. "
+                                         "No room-specific logic available.")
                     else:
                         # delete player from list of players in current room,
                         # add player to list of players in room they moved to
