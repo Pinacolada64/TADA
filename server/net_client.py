@@ -59,7 +59,7 @@ class Client(object):
         self.user_id = None
         self.login = None
 
-    def setUser(self, id):
+    def set_user(self, id):
         self.user_id = id
 
     def start(self, host, port, id, key, protocol):
@@ -78,17 +78,17 @@ class Client(object):
                         print('no request.')
                         self.active = False
                         break
-                    response = self._processMode(request)
+                    response = self._process_mode(request)
                     if response is not None:
-                        self._sendData(response)
+                        self._send_data(response)
             except ConnectionRefusedError as e:
                 print(f"ERROR: unable to connect to {self.host}:{self.port}. Is server running?")
         print('exiting.')
 
-    def _sendData(self, data):
+    def _send_data(self, data):
         self.clientSocket.sendall(nc.toJSONB(data))
 
-    def _printCommon(self, request):
+    def _print_common(self, request):
         if request['error'] != '':
             error_code = request['error']
             error_line = request['error_line']
@@ -96,10 +96,10 @@ class Client(object):
         for m in request['lines']:
             print(m)
 
-    def _processMode(self, request):
+    def _process_mode(self, request):
         mode = request.get('mode')
         if mode == Mode.login:
-            self._printCommon(request)
+            self._print_common(request)
             user_id = input('user? ') if self.user_id is None else self.user_id
             login = Login.load(user_id)
             if login is None:
@@ -130,7 +130,7 @@ class Client(object):
             self.login = login
             return login
         elif mode == Mode.bye:
-            self._printCommon(request)
+            self._print_common(request)
             print('server said bye.')
             self.active = False
             return None
@@ -139,17 +139,17 @@ class Client(object):
                 # save successful login then forget
                 self.login.save()
                 self.login = None
-            return self.processRequest(request)
+            return self.process_request(request)
         else:
-            self._printCommon(request)
-            print('unexpected request.')
+            self._print_common(request)
+            print('Unexpected request.')
             self.active = False
             return None
 
-    def processRequest(self, request):
+    def process_request(self, request):
         """OVERRIDE THIS in subclass"""
-        self._printCommon(request)
-        text = input('nc> ')
+        self._print_common(request)
+        text = input('process_request> ')
         return Cmd(text=text)
 
 
@@ -157,5 +157,5 @@ if __name__ == "__main__":
     user_id = sys.argv[1] if len(sys.argv) > 1 else None
     host = 'localhost'
     client = Client()
-    client.setUser(user_id)
+    client.set_user(user_id)
     client.start(host, nc.Test.server_port, nc.Test.id, nc.Test.key, nc.Test.protocol)

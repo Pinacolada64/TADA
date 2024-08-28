@@ -93,7 +93,7 @@ class Room(object):
         return f'#{self.number} {self.name}\n' \
                f'{self.desc}\n{self.exits}'
 
-    def exitsTxt(self, debug: bool):
+    def exits_txt(self, debug: bool):
         """
         Display exits in a comma-delimited list.
         :param debug: display room #s if True
@@ -286,8 +286,7 @@ class Rations(object):
 
 server_lock = threading.Lock()
 
-
-def playersInRoom(room_id: int, exclude_id: str):
+def players_in_room(room_id: int, exclude_id: str | None):
     """
     Return a dict of player login id's in the room
 
@@ -575,13 +574,13 @@ class Player():
 
 
 class PlayerHandler(net_server.UserHandler):
-    def initSuccessLines(self):
+    def init_success_lines(self):
         return ['Welcome to:\n', 'Totally\nAwesome\nDungeon\nAdventure\n', 'Please log in.']
 
-    def loginFailLines(self):
+    def login_fail_lines(self):
         return ['Please try again.']
 
-    def roomMsg(self, lines: list, changes: dict):
+    def room_msg(self, lines: list, changes: dict):
         """
         Display the room description and contents to the player in the room
 
@@ -633,16 +632,16 @@ class PlayerHandler(net_server.UserHandler):
         monster = room.monster
         if monster:
             m = monsters[monster - 1]
-            mon_name = m["name"]
+            monster_name = m["name"]
             # optional info:
             try:
-                mon_size = m["size"]
+                monster_size = m["size"]
             except KeyError:
-                mon_size = None
+                monster_size = None
             # TODO: obj_list.append(mon_name)
             lines2.append(f"You see monster #{monster}: "
-                          f"{f'{mon_size} ' if mon_size is not None else ''}"
-                          f"{mon_name}")
+                          f"{f'{monster_size} ' if monster_size else ''}"
+                          f"{monster_name}")
 
         weapon = room.weapon  # weapon number
         if weapon:
@@ -691,7 +690,7 @@ class PlayerHandler(net_server.UserHandler):
             lines2.append(f"{other_players} {temp} here.")
         return Message(lines=lines2, changes=changes)
 
-    def processLoginSuccess(self, user_id):
+    def process_login_success(self, user_id):
         player = Player.load(user_id)
         if player is None:
             # TODO: create player
@@ -735,8 +734,7 @@ class PlayerHandler(net_server.UserHandler):
         self.player.connect()
         return self.roomMsg(lines, changes)
 
-    def processMessage(self, data):
-        logging.info('processMessage()')
+    def process_message(self, data):
         if 'text' in data:
             cmd = data['text'].lower().split(' ')
             logging.info(f"{self.player.id}: {cmd}")
@@ -829,7 +827,7 @@ class PlayerHandler(net_server.UserHandler):
                 return self.roomMsg(lines=[], changes={})
 
             if cmd[0] in ['bye', 'logout', 'quit']:
-                temp = net_server.UserHandler.promptRequest(self, lines=[], prompt='Really quit? ',
+                temp = net_server.UserHandler.prompt_request(self, lines=[], prompt='Really quit? ',
                                                             choices={'y': 'yes', 'n': 'no'})
                 # returns a Cmd object?
                 logging.info(f'{temp=}')

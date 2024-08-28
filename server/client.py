@@ -16,7 +16,7 @@ class Client(net_client.Client):
     def __init__(self):
         self.status = {K.room_name: '', K.silver: 0, K.hit_points: 0, K.experience: 0}
 
-    def processRequest(self, request):
+    def process_request(self, request):
         if request['error'] != '':
             error_code = request['error']
             error_line = request['error_line']
@@ -75,6 +75,6 @@ if __name__ == '__main__':
     user_id = sys.argv[1] if len(sys.argv) > 1 else None
     host = 'localhost'
     client = Client()
-    client.setUser(user_id)
+    client.set_user(user_id)
     client.start(host, common.server_port, common.app_id, common.app_key,
                  common.app_protocol)
