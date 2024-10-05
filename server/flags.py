@@ -125,7 +125,9 @@ class Player(object):
     # TODO: make some of these stats part of a base class
     # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
     flags: dict[PlayerFlagName, Flag] = field(default_factory=lambda: {i[0]: Flag(*i) for i in player_flag_data})
+    # creates a new stats dict for each Player, zero all stats:
     stat: dict[PlayerStatName, int] = field(default_factory=lambda: {i: 0 for i in PlayerStatName})
+    # same with gold:
     gold: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1000 for i in PlayerMoneyTypes})
 
     def get_flag(self, name: PlayerFlagName) -> Flag:
@@ -157,9 +159,7 @@ class Player(object):
             flag_name = flag.value
             logging.debug("show_flag: enter: flag: %s" % flag_name)
             temp = self.get_flag(flag)
-            # flag_name = temp.name
-            display_type = temp.display_type
-            status = temp.status
+            display_type, status = temp.display_type, temp.status
             logging.debug("show_flag: flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
             result = self.show_flag_status(flag)
             return f"{flag_name}: {result}"
@@ -173,7 +173,6 @@ class Player(object):
 
         :param flag: Flag name to display
         :param leading_num: used with dot_leader, True prefixes the flag display with this number
-        :param max_width: how many dot leaders to display between the flag and its status
         :return: str
         """
         """
@@ -204,6 +203,8 @@ class Player(object):
         :return: Appropriate string for flag DisplayType
         """
         """
+        >>> rulan = Player()
+        
         >>> rulan.show_flag_status(PlayerFlagName.UNCONSCIOUS)
         'No'
         """
@@ -247,7 +248,7 @@ class Player(object):
 
     def query_flag(self, flag: PlayerFlagName) -> bool:
         result = self.get_flag(flag)
-        # returned Flag object, return the status to caller:
+        # returned Flag object, return the status (True/False) to caller:
         return result.status
 
     def show_stat(self, stat_name: PlayerStatName) -> str:
@@ -278,7 +279,7 @@ def flag_editor(player: Player):
         for k, v in enumerate(player.flags, start=1):
             print(player.show_flag_line_item(v, leading_num=k))
         option = input(f"1-{len(player.flags)}, [Q]uit: ").lower()
-        if option == 'q':
+        if option[0] == 'q':
             print("Done.")
             break
         value = int(option)
@@ -300,6 +301,8 @@ if __name__ == '__main__':
     # set up doctest
     doctest.testmod(verbose=True)
 
+
+    # instantiate player:
     rulan = Player()
     print(f"- Show Admin flag object:")
     print(f"{rulan.get_flag(PlayerFlagName.ADMIN)}")
