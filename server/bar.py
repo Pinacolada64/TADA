@@ -1,37 +1,41 @@
-# this also imports the current Player class framework:
-import flags
+import logging
+from dataclasses import dataclass
 
-def bouncer():
+# this also imports the current Player class framework:
+# TODO: break Player stuff out of flags
+from flags import Player, PlayerFlags, PlayerMoneyTypes
+
+def bouncer(character: Player):
     """
     Mundo the bouncer gets personal with the player.
     Also called when the Blue Djinn is insulted.
     """
-    global hp, pos_y, pos_x, valid_move
     print("At a signal, Mundo ", end='')
     # if player's HP < 5, don't attack with baseball bat:
-    if hp > 5:
+    if character.hit_points > 5:
         print("knocks you over the head with a baseball bat, and ", end='')
-        hp -= 5
+        # TODO: write 'character.adjust_hp' and put check for >=0 HP there...
+        character.hit_points -= 5
     print("throws you out into the street...")
-    pos_y, pos_x = 0, 6
-    valid_move = True  # to re-display bar map
+    bar.pos_y, bar.pos_x = 0, 6
+    bar.valid_move = True  # to re-display bar map
 
 
 def blue_djinn(character: Player):
     """Hire thugs to attack other players"""
     npc = "The Blue Djinn"
-    if flag['expert_mode'] is False:
+    if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
         print(f"For a price, {npc} can attack other players.")
         blue_djinn_menu()
     print(f'{npc} sits behind the table.')
     while True:
-        command, last_command = prompt('He hisses, "What do you want?":')
+        command, last_command = prompt(character, 'He hisses, "What do you want?":')
         if command == 'h':
             print('"Who do you want me to mess up?"')
             print("TODO")
             continue
         if command == 'i':
-            bouncer()
+            bouncer(character=character)
             continue
         if command == 'l':
             print("He looks relieved.")
@@ -44,33 +48,35 @@ def blue_djinn(character: Player):
             continue
 
 def blue_djinn_menu():
-    print("\n[H]ire [I]nsult [L]eave\n")
+    print("\nOptions: [H]ire [I]nsult [L]eave\n")
 
 def vinny():
     """Loan shark"""
     print("Vinny")
 
-
 def skip(character: Player):
-    """Order hash or coffee"""
-    global player_name
+    """Order hash or coffee from Skip"""
     print("Skip sweats over a hot grill, muttering under his breath...")
 
-    if flag["debug"]:
-        command, last_command = prompt("Add 'Skip' to once-per-day activities?")
+    add_item = "Skip"
+    # TODO: make this a general function
+    if character.query_flag(PlayerFlags.DEBUG_MODE):
+        command, last_command = prompt(character, f"Add '{add_item}' to once-per-day activities? ")
         if command == 'y':
-            if "Skip" not in once_per_day:
-                once_per_day.append("Skip")
+            if add_item not in character.once_per_day:
+                character.once_per_day.append(add_item)
                 print("Appended.")
-    if "Skip" in once_per_day:
+    if add_item in character.once_per_day:
         print('Skip suddenly looks annoyed. "Hey, you\'ve already [been] here once today!"')
+        print("He points angrily towards the exit, and you decide to heed his advice.")
+        print("(Never argue with a man who has hot grease at his disposal.)")
         return
 
-    if flag["expert_mode"] is False:
+    if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
         skip_show_menu()
 
     while True:
-        command, last_command = prompt(f'"What\'ll ya have, {character.name}?" ')
+        command, last_command = prompt(character, f'"What\'ll ya have, {character.name}?" ')
         if command == 'h':
             # TODO: check/subtract silver
             print("The hash is greasy, but hot and nourishing.")
@@ -78,8 +84,10 @@ def skip(character: Player):
 
         if command == 'c':
             # TODO: check/subtract silver
+            character.gold[PlayerMoneyTypes.IN_HAND] = character.gold[PlayerMoneyTypes.IN_HAND] - 2
             print("The steaming mug of coffee is strangely satisfying.")
-            character.
+            character.clear_flag(PlayerFlags.TIRED)
+            print("(You feel more awake.)")
             continue
 
         if command == '?':
@@ -98,32 +106,33 @@ def skip_show_menu():
 
 
 def fat_olaf(character: Player):
-    print("The slave trader Fat Olaf sits behind a table, gnawing a chicken leg.")
-    if flag["expert_mode"] is False:
+    npc_name = "Fat Olaf"
+    print(f"The slave trader {npc_name} sits behind a table, gnawing a chicken leg.")
+    if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
         print('''
 "I buy und sell servants yu can add tu your party!
 They need tu be fed und paid on a veekly basis tu remain loyal tu yu, though!"
 ''')
-        fat_olaf_menu()
+        fat_olaf_menu(character)
         print()
     while True:
-        command, last_command = prompt("Vot kin I du ver ya?")
+        command, last_command = prompt(character, "Vot kin I du ver ya?")
         if command == '' or command == 'l':
-            print('"Hokey dokey." Fat Olaf watches you leave.')
+            print(f'"Hokey dokey." {npc_name} watches you leave.')
             return
 
         if command == "?":
-            fat_olaf_menu()
+            fat_olaf_menu(character)
             continue
         if command in ["b", "s", "m"]:
             print("FIXME: That hasn't been written yet.")
             continue
         else:
-            print('Fat Olaf looks puzzled. "Vot?"')
+            print(f'{npc_name} looks puzzled. "Vot?"')
 
 
-def fat_olaf_menu():
-    print(f"[B]uy, [S]ell, [M]aintain, [L, {client['return_key']}] Leave")
+def fat_olaf_menu(character: Player):
+    print(f"[B]uy, [S]ell, [M]aintain an ally, [L] or [Return]: Leave")
     return
 
 
@@ -131,34 +140,39 @@ def bar_none():
     print("Exception raised: NO_FLAVOR_TEXT")
 
 
-def zelda():
+def zelda(character: Player):
     """
-    Spy on player's stats
-    Raise other players' dead monsters
+    * Spy on player's stats
+    * Raise other players' dead monsters
     """
-    character = "Madame Zelda"
-    if flag['expert_mode'] is False:
-        print("She can show other players' statistics, or resurrect their dead monsters so they have to be fought again.")
-        zelda_menu()
-    print(f'{character} and her cat sit in front of a crystal ball.')
+    npc_name = "Madame Zelda"
+    if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
+        print(f"""
+{npc_name} can show other players' statistics, or resurrect their dead
+monsters (for a hefty fee!) so they have to be fought again.
+""")
+        zelda_menu(character)
+    print(f'{npc_name} and her cat sit in front of a crystal ball.')
     while True:
-        command, last_command = prompt('"What dooooo you wiiiiiish?":')
+        command, last_command = prompt(character, '"What dooooo you wiiiiiish?":')
         if command == "s":
-            if flag['expert_mode'] is False:
+            if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
                 print("'?' lists players.")
-            command, last_command = prompt('"Study which player?":')
-            if command.lower() == player_name.lower():
+            command, last_command = prompt(character, '"Study which player?":')
+            if command.lower() == character.name.lower():
+                # studying themselves :)
                 print('"I suggesssst you uuuuuuuse a mirror!"')
             if command == '?':
                 list_players()
                 continue
             else:
                 while True:
-                    command, last_command = prompt('"It willlll cossssst 1,000 silver. Is thaaaaaat okayyyyy?":')
+                    command, last_command = prompt(character, '"It willlll cossssst 1,000 silver. Is thaaaaaat okayyyyy?":')
                     if command == 'y':
-                        print("TODO: check silver, find player, read stats")
+                        # TODO: check silver, find player, read stats
                         print('She hunkers down over the ball.. "I seeeee..."')
                         """
+                        TLoS code:
                         print n2$" on dungeon level "yl"."
                         print "With "yh" hit points, a strength"
                         print "of "cs", intelligence of "ci","
@@ -174,43 +188,48 @@ def zelda():
                         break
                     continue
         if command == 'r':
-            print("TODO: Resurrect player's monsters")
+            # TODO: Resurrect player's monsters
+            # TODO: adjust Honor score if natural alignment is Good
             target = input('"Whooose monsters shall I briiiiing back to liiiiife?" ')
+            if target == '':
+                break
+            if target == character.name:
+                # raise your own monsters?
+                print('"I dooooon\'t adviiiiise thaaaaaat."')
+                break
             while True:
-                command, last_command = prompt('"Dooo you wiiiiish to be unknowwwwwn?" [Y/N]:')
-                print(f"{character} and her cat get REALLY weird...")
-                benefactor = f'{"somebody" if command == "y" else f"{player_name}"}'
-                message = f"""Zelda casts 'Monster Life' on {target}! Spell paid for by {benefactor}!"""
+                command, last_command = prompt(character, '"Dooo you wiiiiish to be unknowwwwwn?" [Y/N]:')
+                print(f"{npc_name} and her cat get REALLY weird...")
+                benefactor = f'{"somebody" if command == "y" else f"{character.name}"}'
+                message = f"Zelda casts 'Monster Life' on {target}! Spell paid for by {benefactor}!"
                 print(message)
-                # TODO: battle_log(message)
+                # TODO: add this message to daily event log
                 print('"It iiiisss doooooone!"')
                 break
             continue  # back to menu
         if command == '?':
-            zelda_menu()
+            zelda_menu(character)
             continue
-        if command == 'l':
-            print('"Gooo away, you bother my caaaat..."')
+        if command == 'l' or command == '':
+            print('"Gooo awayyyyy, you bother my caaaat..."')
             break  # out of loop
         else:
-            print(f'{character} stares at you. Her cat stares too.')
+            print(f'{npc_name} stares at you. Her cat stares too.')
 
-def zelda_menu():
-    print("[S]tudy a player, [R]esurrect monsters, or [L]eave")
-
+def zelda_menu(character: Player):
+    print(f"Options: [S]tudy a player, [R]esurrect monsters, or [L]/[Return]: Leave")
+    # TODO: f"{character.client_settings.RETURN_KEY}" or something
 
 def list_players():
     """List players in game"""
-    import os
     import glob
-    import server.server
     player_list = glob.glob('./server/run/server/player-*.json')
-    # FIXME: get names from JSON files
+    # TODO: get names from JSON files
     if player_list is None:
         print("There are no players.")
         return
     else:
-        for player_name, index in enum(player_list):
+        for player_name, index in enumerate(player_list):
             print(f'{index: 2}. {player_name}')
 
 
@@ -219,7 +238,7 @@ def horizontal_ruler():
 
     #           1         2         3         4
     # 01234567890123456789012345678901234567890 etc.
-    ruler_length = len(bar[0])
+    ruler_length = len(bar.bar_map[0])
     digits = "0123456789"
     print("   ", end='')
     print(" ", end='')  # extra space for first '0'
@@ -231,11 +250,13 @@ def horizontal_ruler():
     print((digits * 10)[:ruler_length])
 
 
-def prompt(prompt: str):
+def prompt(character: Player, prompt: str):
     """
-    Prompt user for something
+    Prompt user for something, accept input
+
+    :param character: Player to prompt, also for ClientSettings.RETURN_KEY string
     :param prompt: string to prompt for, minus space at end
-    :return: tuple(last_command, command)
+    :return: tuple(last_command, command) # command: leftmost char of input, lowercase
     """
     global command, last_command
     temp = input(f"{prompt} ")
@@ -245,27 +266,52 @@ def prompt(prompt: str):
         last_command = command
     if temp == '':
         command = last_command
-        if flag["expert_mode"] is False:
+        if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
             print(f"(Repeating '{command}'.)\n")
     return last_command, command
 
 
+def bar_help():
+    print("""
+This is the Wall Bar & Grill, a place where you (and your party, if you
+have others with you) can find food, drink, and various services to help
+yourself--or harm others, if you wish--in the Land.
+
+In the map of the bar, 'o' represents each person you can interact with,
+by moving in front (or to the side) of them. 'M' represents Mundo, the
+bar bouncer. Lastly, 'X' represents you (and your party, if applicable).
+""")
+
 def show_menu():
-    extra = ", [G]o here" if go_here else ''
-    print(f"[N]orth, [E]ast, [S]outh, [W]est, [Q]uit{extra}")
+    go_here = ", [G]o here" if bar.can_go_here else ''
+    print(f"[N]orth, [E]ast, [S]outh, [W]est{go_here}, [H]elp, [Q]uit")
     print("Toggles: [D]ebug, e[X]pert Mode")
 
 
-if __name__ == '__main__':
-    bar = ["+----| |----+",
-           "|o[]     []o|",
-           "|           |",
-           "|  +--+  []o|",
-           "|  |oo|  []o|",
-           "+-----------+"
-           ]
+@dataclass
+class Bar(object):
+    # initial x-coordinate of player:
+    pos_x: int = 6
+    # initial y-coordinate of player:
+    pos_y: int = 0
+    # True: a person to interact with is in an adjacent square
+    # and '[G]o Here' will be shown in the hotkey options
+    can_go_here: bool = False
 
-    # y, x, name, routine to call:
+    valid_move: bool = True
+
+    # 'M' is marker for Mundo, the bar's bouncer
+    # 'o' is marker for various NPCs sitting behind tables
+    bar_map = ["+----| |----+",
+               "|o[]     []o|",
+               "|          M|",
+               "|  +--+  []o|",
+               "|  |oo|  []o|",
+               "+-----------+"
+               ]
+
+    # tuple is: y-coordinate, x-coordinate, name, routine to call:
+    # TODO: if Expert Mode off, display a letter instead of 'o'
     locations = [(0, 6, "Exit", None),
                  (1, 4, "The Blue Djinn", blue_djinn),
                  (1, 8, "Vinny the Loan Shark", vinny),
@@ -274,69 +320,68 @@ if __name__ == '__main__':
                  (3, 8, "Fat Olaf's Slave Trade", fat_olaf),
                  (4, 8, "Madame Zelda's", zelda)]
 
-    obstacles = ["+", "-", "|", '[', ']']
+    obstacles = ["+", "-", "|", '[', ']', 'o', 'M']
+
+
+if __name__ == '__main__':
+    # instantiate Player
+    rulan = Player()
+    rulan.client_settings = {"type": "Commodore 64",
+                             "return_key": "Return"}
+
+    # TODO: rulan.clear_flag(PlayerFlagTypes.EXPERT_MODE) # set to False
+    # TODO: rulan.set_flag(PlayerFlagTypes.DEBUG_MODE) # set to True
+
+    # once-per-day activities:
+    rulan.once_per_day = []
+
+    # must be assigned for 'global' in prompt() to work:
+    rulan.command = "?"
+    rulan.last_command = "?"
+
+    rulan.hit_points = 20
+
+    # instantiate Bar, place player at (x=6, y=0)
+    bar = Bar()
+    logging.debug("%s" % bar.bar_map)
 
     print("You stand in the doorway of a smoky bar. A faded sign reads:")
     print('"WALL BAR AND GRILL."')
 
-    # pos is zero-based from the top down, left-to-right
-    pos_y = 0  # row
-    pos_x = 6  # column
-
-    client = {"type": "Commodore 64",
-              "return_key": "Return"}
-
-    rulan = Player()
-
-    rulan.
-    flag = {"expert_mode": False,
-            "debug": True}
-
-    # once-per-day activities:
-    once_per_day = []
-
-    # must be assigned for 'global' in prompt() to work:
-    command = "?"
-    last_command = "?"
-
-    player_name = "Railbender"
-
-    # TODO: get from Player.hit_points:
-    hp = 20
-
     while True:
-        if flag["debug"]:
+        if rulan.query_flag(PlayerFlags.DEBUG_MODE):
             horizontal_ruler()
-        for count, line in enumerate(bar):
-            if flag["debug"]:
+        for count, line in enumerate(bar.bar_map):
+            if rulan.query_flag(PlayerFlags.DEBUG_MODE):
                 print(f'{count: 2} ', end='')
-            if count == pos_y:
-                print(f'{line[:pos_x]}X{line[pos_x + 1:]}')
+            if count == bar.pos_y:
+                print(f'{line[:bar.pos_x]}X{line[bar.pos_x + 1:]}')
             else:
                 print(line)
 
-        go_here = False
-        valid_move = False
-
-        for place in locations:
+        # look through 'locations' tuple to see if the player is in an
+        # interactive spot
+        for place in bar.locations:
             # sorted by rows
-            if pos_y == place[0] and pos_x == place[1]:
+            if bar.pos_y == place[0] and bar.pos_x == place[1]:
                 print(f'{place[2]}', end='')
-                if flag["debug"]:
-                    print(f"  function {place[3]}", end='')
+                if rulan.query_flag(PlayerFlags.DEBUG_MODE):
+                    print(f"  function: {place[3]}", end='')
                 print()
-                go_here = True
-                go_routine = place[3]
+                bar.can_go_here = True
+                bar.go_routine = place[3]
 
-        if flag["debug"]:
-            print(f'{pos_x=}, {pos_y=}')
+        if rulan.query_flag(PlayerFlags.DEBUG_MODE):
+            print(f'(x: {bar.pos_x}, y: {bar.pos_y})')
 
         bump = False
-        if pos_y == 2 and pos_x == 1:
+        opponent = None
+        text = None
+        if bar.pos_y == 2 and bar.pos_x == 1:
             bump = True
             opponent = "The Blue Djinn"
             text = 'eyes you, hissing. "Are'
-        if pos_y == 2 and pos_x == 11:
+        if bar.pos_y == 2 and bar.pos_x == 11:
             # getting too close to Vinny the loan shark:
             bump = True
             opponent = "Mundo the bouncer"
@@ -347,82 +392,74 @@ if __name__ == '__main__':
                 response = input(f'{opponent} {text} you looking for a fight?" (Y/N): ')[0].lower()
             if response == "y":
                 if opponent.startswith("Mundo"):
-                    bouncer()  # also called from blue djinn
+                    bouncer(rulan)  # also called from blue djinn
                     continue
                 else:
                     # TODO: Blue Djinn: finish this
                     print(f"{opponent} something something...")
             else:
-                print('"Well then, WATCH it!"')
+                print(f'"Well then, WATCH it!" {opponent} glares at you.')
 
-        if flag['expert_mode'] is False:
+        if rulan.query_flag(PlayerFlags.EXPERT_MODE) is False:
             show_menu()
+            print(f"[{rulan.client_settings['return_key']}] = '{rulan.last_command}'")
 
-        print(f"[{client['return_key']}] = '{last_command}'")
-        print(f"[HP: {hp}] ", end='')
+        print(f"[HP: {rulan.hit_points}] ", end='')
         # parser:
-        command, last_command = prompt("Which way?")
+        command, last_command = prompt(rulan, "What now?")
         move_into_obstacle = False
 
         if command == '?':
             show_menu()
-            valid_move = True
 
-        if go_here and command == "g":
-            valid_move = True
+        if command == 'h':
+            bar_help()
+
+        if bar.can_go_here and command == "g":
             # exit doesn't have a function
-            if go_routine:
-                go_routine()  # call routine
+            if callable(bar.go_routine):
+                # FIXME:  mutable parameter list
+                bar.go_routine()  # call routine
                 print()
-            # if callable(go_routine):
-            #   go_routine  # does not work
-
-            # except:
-            #     print("Can't hack it, man.")
 
         if command == 'd':
-            flag['debug'] = not flag['debug']
-            print(f"Debug info is now {'On' if flag['debug'] else 'Off'}.")
-            valid_move = True
+            rulan.toggle_flag(PlayerFlags.DEBUG_MODE, verbose=True)
+            # print(f"Debug info is now {'On' if rulan.query_flag(PlayerFlagName.DEBUG_MODE) else 'Off'}.")
 
         if command == 'x':
-            flag['expert_mode'] = not flag['expert_mode']
-            print(f"Expert Mode is now {'On' if flag['expert_mode'] else 'Off'}.")
-            valid_move = True
+            rulan.toggle_flag(PlayerFlags.EXPERT_MODE, verbose=True)
+            # print(f"Expert Mode is now {'On' if rulan.query_flag(PlayerFlagName.EXPERT_MODE) else 'Off'}.")
 
         if command == 'n':
             # look up for obstacle:
-            obstacle = bar[pos_y - 1][pos_x]
-            if obstacle not in obstacles:
-                pos_y -= 1
-                valid_move = True
+            obstacle = bar.bar_map[bar.pos_y - 1][bar.pos_x]
+            if obstacle not in bar.obstacles:
+                bar.pos_y -= 1
+                bar.valid_move = True
             else:
-                move_into_obstacle = True
+                bar.move_into_obstacle = True
 
         if command == 's':
             # look down for obstacle:
-            obstacle = bar[pos_y + 1][pos_x]
-            if obstacle not in obstacles:
-                pos_y += 1
-                valid_move = True
+            obstacle = bar.bar_map[bar.pos_y + 1][bar.pos_x]
+            if obstacle not in bar.obstacles:
+                bar.pos_y += 1
             else:
                 move_into_obstacle = True
 
         if command == 'e':
             # look right for obstacle:
-            obstacle = bar[pos_y][pos_x + 1]
-            if obstacle not in obstacles:
-                pos_x += 1
-                valid_move = True
+            obstacle = bar.bar_map[bar.pos_y][bar.pos_x + 1]
+            if obstacle not in bar.obstacles:
+                bar.pos_x += 1
             else:
                 move_into_obstacle = True
 
         if command == 'w':
             # look left for obstacle:
-            obstacle = bar[pos_y][pos_x - 1]
-            if obstacle not in obstacles:
-                pos_x -= 1
-                valid_move = True
+            obstacle = bar.bar_map[bar.pos_y][bar.pos_x - 1]
+            if obstacle not in bar.obstacles:
+                bar.pos_x -= 1
             else:
                 move_into_obstacle = True
 
@@ -431,16 +468,17 @@ if __name__ == '__main__':
 
         if move_into_obstacle:
             print("Laughter fills the bar as you attempt to move through solid objects.\n")
-            hp -= 1
-            if hp <= 0:
+            rulan.hit_points -= 1
+            if rulan.hit_points <= 0:
                 print("You have died.")
                 # TODO: room_notify(f"{player.name} dies from bumping into something.")
                 break  # out of loop
             continue  # suppress the following message
 
-        if valid_move:
+        if bar.valid_move:
             last_command = command
         else:
+            # valid_move has been set to False above
             print("The bar patrons look at you strangely as you do something incomprehensible.")
             last_command = "?"
             # TODO: room_notify(f"{player.name} is confused.")

@@ -2,9 +2,30 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 import doctest
+from typing import Any
 
 
-class PlayerFlagName(str, Enum):
+class ClientSettings(str, Enum):
+    """
+    NAME = "name"
+    ROWS = "rows"
+    COLUMNS = "columns"
+    TRANSLATION = "Character translation"
+    # colors for [bracket reader] text highlighting on C64/128:
+    TEXT_COLOR = "Text color"
+    HIGHLIGHT_COLOR = "Highlight color"
+    BACKGROUND = "Background"
+    BORDER = "border"
+    """
+    def __init__(self):
+        self.name = "name"
+        self.rows = 25
+        self.columns = 40
+        self.translation = "PetSCII"
+        self.return_key = "Return"
+
+
+class PlayerFlags(str, Enum):
     ADMIN = "Administrator"
     ARCHITECT = "Architect"
     DUNGEON_MASTER = "Dungeon Master"
@@ -15,6 +36,7 @@ class PlayerFlagName(str, Enum):
     # speaker on a chat channel or in an amphitheater (public chat room):
     ORATOR = "Orator"
     # option toggles:
+    DEBUG_MODE = "Debug Mode"
     EXPERT_MODE = "Expert Mode"
     HOURGLASS = "Hourglass"
     MORE_PROMPT = "More Prompt"
@@ -39,6 +61,7 @@ class PlayerFlagName(str, Enum):
     THUG_ATTACK = "Thug attack",
     WRAITH_KING_ALIVE = "Wraith King alive",
 
+
 def longest_flag_name() -> int:
     """
     Determine length of the longest PlayerFlagName string, so the maximum
@@ -49,7 +72,7 @@ def longest_flag_name() -> int:
     item_two......: bar
     item_three....: baz
     """
-    return len(max([x for x in PlayerFlagName], key=len)) + 4
+    return len(max([x for x in PlayerFlags], key=len)) + 4
 
 
 class PlayerMoneyTypes(str, Enum):
@@ -87,30 +110,31 @@ class FlagDisplayTypes(str, Enum):
 
 
 player_flag_data = [
-    (PlayerFlagName.ADMIN, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.ADMIN, FlagDisplayTypes.YESNO, False),
     # can build things later:
-    (PlayerFlagName.ARCHITECT, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.ARCHITECT, FlagDisplayTypes.YESNO, False),
     # a level lower than Admin, different permissions to be determined:
-    (PlayerFlagName.DUNGEON_MASTER, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.DUNGEON_MASTER, FlagDisplayTypes.YESNO, False),
     # guild stuff:
-    (PlayerFlagName.GUILD_AUTODUEL, FlagDisplayTypes.ONOFF, False),
-    (PlayerFlagName.GUILD_FOLLOW_MODE, FlagDisplayTypes.ONOFF, False),
-    (PlayerFlagName.GUILD_MEMBER, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.GUILD_AUTODUEL, FlagDisplayTypes.ONOFF, False),
+    (PlayerFlags.GUILD_FOLLOW_MODE, FlagDisplayTypes.ONOFF, False),
+    (PlayerFlags.GUILD_MEMBER, FlagDisplayTypes.YESNO, False),
     # option toggles:
-    (PlayerFlagName.EXPERT_MODE, FlagDisplayTypes.ONOFF, False),
-    (PlayerFlagName.HOURGLASS, FlagDisplayTypes.ONOFF, True),
-    (PlayerFlagName.ORATOR, FlagDisplayTypes.YESNO, False),
-    (PlayerFlagName.ROOM_DESCRIPTIONS, FlagDisplayTypes.ONOFF, True),
-    (PlayerFlagName.UNCONSCIOUS, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.DEBUG_MODE, FlagDisplayTypes.ONOFF, True),
+    (PlayerFlags.EXPERT_MODE, FlagDisplayTypes.ONOFF, False),
+    (PlayerFlags.HOURGLASS, FlagDisplayTypes.ONOFF, True),
+    (PlayerFlags.ORATOR, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.ROOM_DESCRIPTIONS, FlagDisplayTypes.ONOFF, True),
+    (PlayerFlags.UNCONSCIOUS, FlagDisplayTypes.YESNO, False),
     # game states:
-    (PlayerFlagName.AMULET_OF_LIFE_ENERGIZED, FlagDisplayTypes.YESNO, False),
-    (PlayerFlagName.COMPASS_USED, FlagDisplayTypes.YESNO, False),
-    (PlayerFlagName.DWARF_ALIVE, FlagDisplayTypes.YESNO, True),
-    (PlayerFlagName.GAUNTLETS_WORN, FlagDisplayTypes.YESNO, False),
-    (PlayerFlagName.RING_WORN, FlagDisplayTypes.YESNO, False),
-    (PlayerFlagName.SPUR_ALIVE, FlagDisplayTypes.YESNO, True),
-    (PlayerFlagName.THUG_ATTACK, FlagDisplayTypes.YESNO, False),
-    (PlayerFlagName.WRAITH_KING_ALIVE, FlagDisplayTypes.YESNO, True),
+    (PlayerFlags.AMULET_OF_LIFE_ENERGIZED, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.COMPASS_USED, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.DWARF_ALIVE, FlagDisplayTypes.YESNO, True),
+    (PlayerFlags.GAUNTLETS_WORN, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.RING_WORN, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.SPUR_ALIVE, FlagDisplayTypes.YESNO, True),
+    (PlayerFlags.THUG_ATTACK, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.WRAITH_KING_ALIVE, FlagDisplayTypes.YESNO, True),
 ]
 
 
@@ -120,26 +144,74 @@ class Flag(object):
     display_type: FlagDisplayTypes
     status: bool
 
+
 @dataclass
 class Player(object):
     # TODO: make some of these stats part of a base class
+    name: str = None
+    once_per_day: list[str] = field(default_factory=list)
     # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
-    flags: dict[PlayerFlagName, Flag] = field(default_factory=lambda: {i[0]: Flag(*i) for i in player_flag_data})
+    flags: dict[PlayerFlags, Flag] = field(default_factory=lambda: {i[0]: Flag(*i) for i in player_flag_data})
     # creates a new stats dict for each Player, zero all stats:
     stat: dict[PlayerStatName, int] = field(default_factory=lambda: {i: 0 for i in PlayerStatName})
     # same with gold:
     gold: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1000 for i in PlayerMoneyTypes})
+    hit_points: int = 0
+    client_settings: dict[ClientSettings, Any] = field(default_factory=lambda: {k: v for k, v in ClientSettings})
 
-    def get_flag(self, name: PlayerFlagName) -> Flag:
+    def adjust_gold(self, kind: PlayerMoneyTypes, adjustment: int):
+        try:
+            current_total = self.gold[kind]
+            adjusted_total = current_total + adjustment
+            gold_kind = PlayerMoneyCategory[kind.name]
+            logging.debug("adjust_gold: kind: %s, adjustment: %i, total: %i" % (gold_kind, adjustment,
+                                                                                adjusted_total))
+            self.gold[kind] = adjusted_total
+        except IndexError:
+            logging.debug("adjust_gold: %s does not exist" % kind)
+
+    def get_flag(self, name: PlayerFlags) -> Flag:
         """
-        Given a PlayerFlagName, return the Flag object
+        Given a PlayerFlagName Enum, return the Flag object
         :param name: name of flag
         :return: Flag object
         """
-        logging.debug("get_flag: %s" % self.flags.get(name))
-        return self.flags.get(name)
+        try:
+            logging.debug("get_flag: %s" % self.flags.get(name))
+            return self.flags.get(name)
+        except IndexError:
+            logging.error("get_flag: no flag %s" % self.flags.get(name))
 
-    def show_flag(self, flag: PlayerFlagName, ) -> str:
+    def set_flag(self, flag: PlayerFlags):
+        """
+        # FIXME: fix this
+        Directly set the flag status to True.
+
+        :param flag:
+        :return:
+        """
+        try:
+            logging.debug("set_flag: setting flag %s to True" % flag.name)
+        except KeyError:
+            logging.error("set_flag: flag %s not found")
+
+    def clear_flag(self, flag: PlayerFlags):
+        """
+        # FIXME: fix this
+        Directly clear the flag status to False.
+
+        :param flag: flag to clear
+        :return:
+        """
+        try:
+            logging.debug("clear_flag: setting flag %s to False" % flag.name)
+            temp = self.get_flag(flag)
+            self.put_flag(flag, status=False, display_type=flag.display_type)
+
+        except KeyError:
+            logging.error("clear_flag: flag %s not found")
+
+    def show_flag(self, flag: PlayerFlags, ) -> str:
         """
         Display the flag name, ":", and its display_name status.
         :param flag: Flag name to display
@@ -166,7 +238,7 @@ class Player(object):
         except KeyError:
             logging.warning("show_flag: unknown flag: %s" % flag.name)
 
-    def show_flag_line_item(self, flag: PlayerFlagName, leading_num: int) -> str:
+    def show_flag_line_item(self, flag: PlayerFlags, leading_num: int) -> str:
         """
         Display the flag status based on its display_type string.
         The flag is listed prefixed with leading_number, "...:" and the status.
@@ -187,16 +259,18 @@ class Player(object):
             'Unconscious'
             """
             max_width = longest_flag_name()
-            logging.debug("show_flag_line_item: enter: flag: %s, leading_num: %i, max_width: %i" % (flag, leading_num, max_width))
+            logging.debug(
+                "show_flag_line_item: enter: flag: %s, leading_num: %i, max_width: %i" % (flag, leading_num, max_width))
             temp = self.get_flag(flag)
-            flag_name, display_type, status = temp.name.value, temp.display_type, temp.status
-            logging.debug("show_flag_line_item: flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
+            flag_name, display_type, status = temp.name, temp.display_type, temp.status
+            logging.debug(
+                "show_flag_line_item: flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
             result = self.show_flag_status(flag)
             return f"{leading_num:>2}. {flag_name:.<{max_width}}: {result}"
         except KeyError:
             logging.warning("show_flag_line_item: unknown flag: %s" % flag.name)
 
-    def show_flag_status(self, flag: PlayerFlagName) -> str:
+    def show_flag_status(self, flag: PlayerFlags) -> str:
         """
         Show a flag's status.
         :param flag: PlayerFlagName to display the status of
@@ -220,7 +294,7 @@ class Player(object):
             result = "<<error>>"
         return result
 
-    def toggle_flag(self, flag: PlayerFlagName, verbose=False):
+    def toggle_flag(self, flag: PlayerFlags, verbose=False):
         """
         Toggle the status of a flag. If verbose=True, tell about it (like when a player
         toggles an option on or off)
@@ -242,11 +316,13 @@ class Player(object):
         except KeyError:
             logging.warning("toggle_flag: Can't toggle unknown flag: %s" % flag.name)
 
-    def put_flag(self, name: PlayerFlagName, display_type: FlagDisplayTypes, status: bool):
+    def put_flag(self, name: PlayerFlags, display_type: FlagDisplayTypes, status: bool):
+        # FIXME: seems like put_flag should know the display_type of the PlayerFlags object and
+        #  not need to be specified in the function call
         logging.debug("put_flag: %s put as %s" % (name, status))
         self.flags[name] = Flag(name, display_type, status)
 
-    def query_flag(self, flag: PlayerFlagName) -> bool:
+    def query_flag(self, flag: PlayerFlags) -> bool:
         result = self.get_flag(flag)
         # returned Flag object, return the status (True/False) to caller:
         return result.status
@@ -289,9 +365,10 @@ def flag_editor(player: Player):
                 # look up the flag index in player_flag_data:
                 # value-1 accounts for lists being 0-indexed
                 # TODO: toggle_flag_by_index() function?
-                player.toggle_flag(player_flag_data[value-1][0], verbose=True)
+                player.toggle_flag(player_flag_data[value - 1][0], verbose=True)
         except IndexError:
             print("Out of range")
+
 
 if __name__ == '__main__':
     # thanks to you, volca. code has been simplified
@@ -301,28 +378,27 @@ if __name__ == '__main__':
     # set up doctest
     doctest.testmod(verbose=True)
 
-
     # instantiate player:
     rulan = Player()
     print(f"- Show Admin flag object:")
-    print(f"{rulan.get_flag(PlayerFlagName.ADMIN)}")
+    print(f"{rulan.get_flag(PlayerFlags.ADMIN)}")
 
     print(f"- show_flag 'Unconscious':")
-    print(f"{rulan.show_flag(PlayerFlagName.UNCONSCIOUS)}")
+    print(f"{rulan.show_flag(PlayerFlags.UNCONSCIOUS)}")
 
     print("- Show all flags:")
     for i, flag in enumerate(rulan.flags, start=1):
         print(rulan.show_flag_line_item(flag=flag, leading_num=i))
 
     print("- Toggle 'Unconscious' flag, verbose=True:")
-    rulan.toggle_flag(PlayerFlagName.UNCONSCIOUS, verbose=True)
+    rulan.toggle_flag(PlayerFlags.UNCONSCIOUS, verbose=True)
 
     print("- Toggle 'Room Descriptions' flag, verbose=False:")
-    rd_flag = PlayerFlagName.ROOM_DESCRIPTIONS
+    rd_flag = PlayerFlags.ROOM_DESCRIPTIONS
     rulan.toggle_flag(rd_flag, verbose=False)
 
     print("- Toggle 'Orator' flag, verbose=True:")
-    rulan.toggle_flag(PlayerFlagName.ORATOR, verbose=True)
+    rulan.toggle_flag(PlayerFlags.ORATOR, verbose=True)
 
     print("- Different text for result of query 'Room Descriptions' flag:")
     print("Shazam [True]" if rulan.query_flag(rd_flag) else "Bazinga [False]")
@@ -362,6 +438,9 @@ if __name__ == '__main__':
     wealth = 50000
     print(f"- Set gold in hand to {wealth:,}")
     rulan.gold[PlayerMoneyTypes.IN_HAND] = wealth
+
+    rulan.adjust_gold(PlayerMoneyTypes.IN_HAND, 100)
+    rulan.adjust_gold(PlayerMoneyTypes.IN_BANK, 385)
 
     print(f"- Show money types and values:")
     for k, v in enumerate(PlayerMoneyTypes, start=1):
