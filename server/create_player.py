@@ -8,6 +8,8 @@ from datetime import date  # for birthday displays/calculations
 
 import calendar  # monthrange for validating # of days in month
 
+import logging
+
 # import cbmcodecs2
 # FIXME: broken package
 """
@@ -548,21 +550,21 @@ getnum1
     while a < 10:
         print(".", end='')
         b = randrange(1, 26)  # assuming 1-26 is rnd$'s limit
-        logging.info(f'{b=} init')
+        logging.debug("getnum: init: stat b = %i" % b)
         if b > 17:
             b -= 7
-            logging.info(f'{b=} -7')
+            logging.debug("getnum: stat b -= 7 (now %i)" % b)
         if b >= 11:
-            logging.info(f'{b=} >= 11 return')
+            logging.debug("getnum: stat b >= 11 (now %i): return b" % b)
             return b
         a += 1
         logging.info(f'loop {a=}')
         b += 9
-        logging.info(f'stat {b=} +9')
+        logging.debug("getnum: loop: a += 1 (now %i), stat: b += 9 (now %i)" % (a, b))
         if b > 11:
-            logging.info(f'stat {b=} >11 break')
+            logging.debug("getnum: stat b > 9 (now %i), break" % b)
             break
-    logging.info(f'stat {b=} return')
+    logging.debug("getnum: stat b = %i, return" % b)
     return b
 
 
@@ -573,7 +575,7 @@ def class_race_bonuses(p: Player):
     # just so we don't have to go through every char creation step...
     # TODO: prompt using display_classes()
     pc = 'fighter'
-    # logging.info(f'Shortcut: set {pc=}')
+    logging.debug("class_race_bonuses:_Shortcut: set player_class: %s" % pc)
 
     # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
     if pc == 'witch' or 'wizard':  # class 1
@@ -674,8 +676,7 @@ def apply_bonuses(adj: list, p: Player):
 
 
 if __name__ == '__main__':
-    import logging
-
+    # init logging
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
     logging.info("Logging is running")
 
@@ -691,7 +692,7 @@ if __name__ == '__main__':
     # these are enabled for debugging info:
     character.flags = {'dungeon_master': True, 'debug': True, 'expert_mode': False},
     character.silver = {'in_hand': 0, 'in_bank': 0, 'in_bar': 0}
-    print(character.client['columns'])
+    logging.debug("__main__: client columns: %i" % character.client['columns'])
 
     header("Introduction")
     output("Your faithful servant Verus appears at your side, as if by magic.",
@@ -728,7 +729,7 @@ if __name__ == '__main__':
 
     header("Done!")
     print()
-    output("Final stats:", character)
+    logging.debug("Final stats: %s" % character)
     # can't use output() because of \n's
     # FIXME
     # print(character)

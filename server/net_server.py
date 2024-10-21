@@ -117,13 +117,13 @@ class UserHandler(socketserver.BaseRequestHandler):
         addr = self.client_address[0]
         self.login_history = LoginHistory.load(addr)
         if self.login_history.banned(True, save=True):
-            logging.info(f"ignoring banned {addr}")
+            logging.warning("UserHandler.handle: ignoring banned IP %s" % addr)
             return
         port = self.client_address[1]
         self.sender = f"{addr}:{port}"
         self.ready = None
         self.user = None
-        logging.info(f"connect (addr={self.sender})")
+        logging.info(f"UserHandler: handle: connect (addr=%s)" % self.sender)
         running = True
         while running:
             try:
@@ -160,7 +160,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                 connected_users.remove(user_id)
         else:
             user_id = '?'
-        logging.info(f"disconnect {user_id} (addr={self.sender})")
+        logging.info("user_handler: disconnect %s (addr=%s)" % (user_id, self.sender))
 
     def _receive_data(self):
         return nc.fromJSONB(self.request.recv(1024))
@@ -204,7 +204,7 @@ class UserHandler(socketserver.BaseRequestHandler):
         if user is None:
             invite = nc.Invite.load(user_id)
             if invite is None:
-                logging.warning(f"no user '{user_id}'")
+                logging.warning("process_login: login failed: no user '%s`" % user_id)
                 # when failing don't tell that have wrong user id
                 banned = self.login_history.no_user(user_id, save=True)
                 if banned:
@@ -216,13 +216,11 @@ class UserHandler(socketserver.BaseRequestHandler):
             else:
                 # process new user with invite
                 if invite.code != invite_code:
-                    logging.warning(f'invalid invite code {invite_code}')
-                    banned = self.login_history.noUser(user_id, save=True)
+                    logging.warning(f"process_login: invalid invite code %s" % invite_code)
                     banned = self.login_history.no_user(user_id, save=True)
                     if banned:
-                        logging.info(f"ban {self.sender}")
-                        return errorBan()
-                    return errorLoginFailed()
+                        logging.info("process_login: ban %s" % self.sender)
+                        return error_ban()
                     return error_login_failed()
                 else:
                     # create and save user
@@ -296,7 +294,7 @@ def start(host, port, _id, key, protocol, handler_class):
     server_key = key
     server_protocol = protocol
     with Server((host, port), handler_class) as server:
-        logging.info(f"server running ({host}:{port})")
+        logging.info(f"Server.start: server running (%s:%s)" % (host, port))
         server_thread = threading.Thread(target=server.serve_forever)
         server_thread.daemon = True
         server_thread.start()

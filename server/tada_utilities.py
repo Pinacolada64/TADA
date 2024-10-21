@@ -196,6 +196,7 @@ def fileread(self, filename: str):
                                                          prompt='[Enter]: Continue, [Q]uit: ',
                                                          choices={})
                         logging.info(f'{repr(temp)}')
+                        logging.debug("fileread: temp = %s" % repr(temp))
                         # returns dict('text': 'response')
                         choice = temp.get('text')
                         if choice.lower() == 'q':
