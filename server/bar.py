@@ -1,4 +1,5 @@
 import logging
+import random  # for random.choices
 from dataclasses import dataclass
 
 # this also imports the current Player class framework:
@@ -32,11 +33,16 @@ def blue_djinn(character: Player):
         command, last_command = prompt(character, 'He hisses, "What do you want?":')
         if command == 'h':
             print('"Who do you want me to mess up?"')
-            print("TODO")
+            # TODO: finish Blue Djinn
             continue
         if command == 'i':
-            bouncer(character=character)
-            continue
+            # choice insults:
+            # convert list element random.choices returns to a string:
+            random_insult = random.choices(["lineage", "dog's appearance", "parenting skills"])[0]
+            print(f"You say something deeply insulting about {npc_name}'s {random_insult}.")
+            print(f"{npc_name}'s eyes narrow...\n")
+            bouncer(character)
+            break
         if command == 'l':
             print("He looks relieved.")
             break  # out of loop

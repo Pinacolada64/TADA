@@ -6,7 +6,7 @@ import random
 import threading
 from dataclasses import dataclass, field
 import textwrap
-# import collections  # for defaultdict behavior
+from typing import Optional
 import logging
 
 import net_server
@@ -123,17 +123,12 @@ class Room(object):
 
 
 class Item(object):
-    def __init__(self, number, name, type, price, **flags):
-        if flags:
-            for key, value in flags.items():
-                logging.info(f'{key=} {value=}')
+    def __init__(self, number, name, kind, price, **flags):
         logging.debug("Instantiate item '%s'" % name)
         self.number = number
         self.name = name
         self.type = type
         self.price = price
-        # this field may or may not be present:
-        if flags is not None:
         # this field is optional:
         if flags:
             logging.debug("Flags:")
@@ -700,6 +695,7 @@ class PlayerHandler(net_server.UserHandler):
         if player is None:
             logging.debug("process_login_success: No player data, creating new character.")
             # TODO: create player
+            import create_player
             logging.debug("process_login_success: Running create_player...")
             valid_name = False
             while not valid_name:
@@ -936,15 +932,16 @@ class PlayerHandler(net_server.UserHandler):
         logging.error("parser: unexpected message '%s'" % cmd)
         return Message(lines=["parser: Unexpected message '{cmd}'."], mode=Mode.bye)
 
-def break_handler(signal_received):
-    # Handle any cleanup here
-    t = signal.Signals  # to display signal name
-    logging.warning(f'{signal_received} SIGINT or Ctrl-C detected. Shutting down server.')
+
+def break_handler(msg, event):
+    # TODO: also 'shutdown' admin command could call this code
     logging.warning("break_handler: Shutting down on thread id: %x" %
+                    id(threading.current_thread()))
     # TODO: broadcast shutdown message to all players
-    print("Server going down. Bye.")
-    exit(0)
+    logging.info("break_handler: Server going down. Bye.")
+    # TODO: Handle any cleanup here; try to save player/server state
     logging.info("break_handler: Shutdown complete.")
+    event.set()
 
 
 if __name__ == "__main__":
@@ -954,8 +951,8 @@ if __name__ == "__main__":
     import signal
 
     # exit gracefully when SIGINT is received
-    # signal(SIGINT, handler)  # for *nix
-    signal.signal(signal.SIGINT, break_handler)  # for Windows
+    # https://stackoverflow.com/questions/17550389/shut-down-socketserver-on-sig/18243619#18243619
+    doneEvent = threading.Event()
     logging.info("init: Main thread id: %x" % id(threading.current_thread()))
 
     wrapper = textwrap.TextWrapper(width=80)

@@ -192,10 +192,9 @@ def fileread(self, filename: str):
                         and we'll validate temp here (instead of in promptRequest) because of the possible
                         null represented by just hitting Return/Enter.
                         """
-                        temp = UserHandler.promptRequest(self, lines=[],
-                                                         prompt='[Enter]: Continue, [Q]uit: ',
-                                                         choices={})
-                        logging.info(f'{repr(temp)}')
+                        temp = UserHandler.prompt_request(self, lines=[],
+                                                          prompt='[Enter]: Continue, [Q]uit: ',
+                                                          choices={})
                         logging.debug("fileread: temp = %s" % repr(temp))
                         # returns dict('text': 'response')
                         choice = temp.get('text')
