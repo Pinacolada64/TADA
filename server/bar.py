@@ -29,7 +29,7 @@ def blue_djinn(character: Player):
         blue_djinn_menu()
     print(f'{npc} sits behind the table.')
     while True:
-        command, last_command = prompt(character, 'He hisses, "What do you want?":')
+        command, character.previous_command = prompt(character, 'He hisses, "What do you want?":')
         if command == 'h':
             print('"Who do you want me to mess up?"')
             print("TODO")
@@ -91,7 +91,7 @@ def skip(character: Player):
             continue
 
         if command == '?':
-            skip_show_menu()
+            skip_show_menu(character)
             continue
 
         if command == 'l':
@@ -116,7 +116,7 @@ They need tu be fed und paid on a veekly basis tu remain loyal tu yu, though!"
         fat_olaf_menu(character)
         print()
     while True:
-        command, last_command = prompt(character, "Vot kin I du ver ya?")
+        command, character.previous_command = prompt(character, "Vot kin I du ver ya?")
         if command == '' or command == 'l':
             print(f'"Hokey dokey." {npc_name} watches you leave.')
             return
@@ -258,17 +258,17 @@ def prompt(character: Player, prompt: str):
     :param prompt: string to prompt for, minus space at end
     :return: tuple(last_command, command) # command: leftmost char of input, lowercase
     """
-    global command, last_command
     temp = input(f"{prompt} ")
     print()
     if temp != '':
+        # TODO: refactor 'last_command' into Character.previous_command
         command = temp[0].lower()
-        last_command = command
+        character.previous_command = command
     if temp == '':
-        command = last_command
+        command = character.previous_command
         if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
             print(f"(Repeating '{command}'.)\n")
-    return last_command, command
+    return character.previous_command, command
 
 
 def bar_help():
@@ -401,8 +401,9 @@ if __name__ == '__main__':
                 print(f'"Well then, WATCH it!" {opponent} glares at you.')
 
         if rulan.query_flag(PlayerFlags.EXPERT_MODE) is False:
-            show_menu()
-            print(f"[{rulan.client_settings['return_key']}] = '{rulan.last_command}'")
+            show_menu(rulan)
+            repeat_command = f"'{rulan.previous_command}'" if rulan.previous_command is not None else 'Invalid command'
+            print(f"[{rulan.client_settings['return_key']}]: {repeat_command}")
 
         print(f"[HP: {rulan.hit_points}] ", end='')
         # parser:
@@ -476,9 +477,9 @@ if __name__ == '__main__':
             continue  # suppress the following message
 
         if bar.valid_move:
-            last_command = command
+            rulan.previous_command = command
         else:
             # valid_move has been set to False above
             print("The bar patrons look at you strangely as you do something incomprehensible.")
-            last_command = "?"
+            rulan.previous_command = None
             # TODO: room_notify(f"{player.name} is confused.")
