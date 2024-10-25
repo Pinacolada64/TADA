@@ -47,16 +47,16 @@ def blue_djinn(character: Player):
             print("He looks relieved.")
             break  # out of loop
         if command == '?':
-            blue_djinn_menu()
+            blue_djinn_menu(character)
             continue
         else:
             print(f"{npc} looks amused.")
             continue
 
-def blue_djinn_menu():
+def blue_djinn_menu(character: Player):
     print("\nOptions: [H]ire [I]nsult [L]eave\n")
 
-def vinny():
+def vinny(character: Player):
     """Loan shark"""
     print("Vinny")
 
@@ -97,7 +97,7 @@ def skip(character: Player):
             continue
 
         if command == '?':
-            skip_show_menu()
+            skip_show_menu(character)
             continue
 
         if command == 'l':
@@ -107,7 +107,7 @@ def skip(character: Player):
             print('"Eh? What?" Skip mutters.')
 
 
-def skip_show_menu():
+def skip_show_menu(character: Player):
     print("[H]ash (1 silver), [C]offee (5 silver), or [L]eave")
 
 
@@ -142,7 +142,7 @@ def fat_olaf_menu(character: Player):
     return
 
 
-def bar_none():
+def bar_none(character: Player):
     print("Exception raised: NO_FLAVOR_TEXT")
 
 
@@ -226,7 +226,7 @@ def zelda_menu(character: Player):
     print(f"Options: [S]tudy a player, [R]esurrect monsters, or [L]/[Return]: Leave")
     # TODO: f"{character.client_settings.RETURN_KEY}" or something
 
-def list_players():
+def list_players(character: Player):
     """List players in game"""
     import glob
     player_list = glob.glob('./server/run/server/player-*.json')
@@ -277,7 +277,7 @@ def prompt(character: Player, prompt: str):
     return last_command, command
 
 
-def bar_help():
+def bar_help(character: Player):
     print("""
 This is the Wall Bar & Grill, a place where you (and your party, if you
 have others with you) can find food, drink, and various services to help
@@ -288,7 +288,7 @@ by moving in front (or to the side) of them. 'M' represents Mundo, the
 bar bouncer. Lastly, 'X' represents you (and your party, if applicable).
 """)
 
-def show_menu():
+def show_menu(character: Player):
     go_here = ", [G]o here" if bar.can_go_here else ''
     print(f"[N]orth, [E]ast, [S]outh, [W]est{go_here}, [H]elp, [Q]uit")
     print("Toggles: [D]ebug, e[X]pert Mode")
@@ -409,6 +409,7 @@ if __name__ == '__main__':
         if rulan.query_flag(PlayerFlags.EXPERT_MODE) is False:
             show_menu()
             print(f"[{rulan.client_settings['return_key']}] = '{rulan.last_command}'")
+            show_menu(rulan)
 
         print(f"[HP: {rulan.hit_points}] ", end='')
         # parser:
@@ -416,16 +417,16 @@ if __name__ == '__main__':
         move_into_obstacle = False
 
         if command == '?':
-            show_menu()
+            show_menu(rulan)
 
         if command == 'h':
-            bar_help()
+            bar_help(rulan)
 
         if bar.can_go_here and command == "g":
             # exit doesn't have a function
             if callable(bar.go_routine):
                 # FIXME:  mutable parameter list
-                bar.go_routine()  # call routine
+                bar.go_routine(rulan)  # call routine with Character object
                 print()
 
         if command == 'd':
