@@ -6,4 +6,10 @@
 *.[dD]81
 
 # ignore EditPad (Pro) __history backup folders (no * wildcard needed)
-__history/
+__history/**
+
+# ignore virtual environment .venv directory
+server/.venv/**
+
+# ignore JetBrains IDE stuff
+/.idea/**
