@@ -24,16 +24,16 @@ def bouncer(character: Player):
 
 def blue_djinn(character: Player):
     """Hire thugs to attack other players"""
-    npc = "The Blue Djinn"
+    npc_name = "The Blue Djinn"
     if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
-        print(f"For a price, {npc} can attack other players.")
-        blue_djinn_menu()
-    print(f'{npc} sits behind the table.')
+        print(f"For a price, {npc_name} can attack other players.")
+        blue_djinn_menu(character)
+    print(f'{npc_name} sits behind the table.')
     while True:
         command, character.previous_command = prompt(character, 'He hisses, "What do you want?":')
         if command == 'h':
             print('"Who do you want me to mess up?"')
-            print("TODO")
+            # TODO: finish Blue Djinn
             continue
         if command == 'i':
             # choice insults:
@@ -44,19 +44,19 @@ def blue_djinn(character: Player):
             bouncer(character)
             break
         if command == 'l':
-            print("He looks relieved.")
+            print(f"{npc_name} looks relieved.")
             break  # out of loop
         if command == '?':
-            blue_djinn_menu()
+            blue_djinn_menu(character)
             continue
         else:
-            print(f"{npc} looks amused.")
+            print(f"{npc_name} looks amused.")
             continue
 
-def blue_djinn_menu():
+def blue_djinn_menu(character: Player):
     print("\nOptions: [H]ire [I]nsult [L]eave\n")
 
-def vinny():
+def vinny(character: Player):
     """Loan shark"""
     print("Vinny")
 
@@ -79,7 +79,7 @@ def skip(character: Player):
         return
 
     if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
-        skip_show_menu()
+        skip_show_menu(character)
 
     while True:
         command, last_command = prompt(character, f'"What\'ll ya have, {character.name}?" ')
@@ -107,7 +107,7 @@ def skip(character: Player):
             print('"Eh? What?" Skip mutters.')
 
 
-def skip_show_menu():
+def skip_show_menu(character: Player):
     print("[H]ash (1 silver), [C]offee (5 silver), or [L]eave")
 
 
@@ -142,7 +142,7 @@ def fat_olaf_menu(character: Player):
     return
 
 
-def bar_none():
+def bar_none(character: Player):
     print("Exception raised: NO_FLAVOR_TEXT")
 
 
@@ -226,7 +226,7 @@ def zelda_menu(character: Player):
     print(f"Options: [S]tudy a player, [R]esurrect monsters, or [L]/[Return]: Leave")
     # TODO: f"{character.client_settings.RETURN_KEY}" or something
 
-def list_players():
+def list_players(character: Player):
     """List players in game"""
     import glob
     player_list = glob.glob('./server/run/server/player-*.json')
@@ -277,7 +277,7 @@ def prompt(character: Player, prompt: str):
     return character.previous_command, command
 
 
-def bar_help():
+def bar_help(character: Player):
     print("""
 This is the Wall Bar & Grill, a place where you (and your party, if you
 have others with you) can find food, drink, and various services to help
@@ -288,7 +288,7 @@ by moving in front (or to the side) of them. 'M' represents Mundo, the
 bar bouncer. Lastly, 'X' represents you (and your party, if applicable).
 """)
 
-def show_menu():
+def show_menu(character: Player):
     go_here = ", [G]o here" if bar.can_go_here else ''
     print(f"[N]orth, [E]ast, [S]outh, [W]est{go_here}, [H]elp, [Q]uit")
     print("Toggles: [D]ebug, e[X]pert Mode")
@@ -331,7 +331,7 @@ class Bar(object):
 
 if __name__ == '__main__':
     # instantiate Player
-    rulan = Player()
+    rulan = Player(name="Rulan")
     rulan.client_settings = {"type": "Commodore 64",
                              "return_key": "Return"}
 
@@ -417,16 +417,16 @@ if __name__ == '__main__':
         move_into_obstacle = False
 
         if command == '?':
-            show_menu()
+            show_menu(rulan)
 
         if command == 'h':
-            bar_help()
+            bar_help(rulan)
 
         if bar.can_go_here and command == "g":
             # exit doesn't have a function
             if callable(bar.go_routine):
                 # FIXME:  mutable parameter list
-                bar.go_routine()  # call routine
+                bar.go_routine(rulan)  # call routine with Character object
                 print()
 
         if command == 'd':

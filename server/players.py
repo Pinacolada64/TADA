@@ -1,16 +1,223 @@
-# supposed to handle passing "str | list" type-hinting to get_stat()
-# but breaks print(f'string') because python 2.7? don't understand that
-# from __future__ import annotations
-
 import doctest
 import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+
+# TADA-specific:
+import flags
+from flags import PlayerFlags
 
 
 # https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
 # http://pythonfiddle.com/text-based-rpg-code-python/
 
 
+class Gender(Enum, str):
+    MALE = "male"
+    FEMALE = "female"
+
+
+class PlayerMoneyTypes(str, Enum):
+    # this is the dict element to reference money amounts
+    IN_HAND = "IN_HAND"
+    IN_BANK = "IN_BANK"
+    IN_BAR = "IN_BAR"
+
+
+class PlayerMoneyCategory(str, Enum):
+    # this refers to Player.gold{PlayerMoneyTypes.Enum} printable names
+    IN_HAND = "In hand"
+    IN_BANK = "In bank"
+    IN_BAR = "In bar"
+
+
+class PlayerStatName(str, Enum):
+    CHR = "Charisma"
+    CON = "Constitution"
+    DEX = "Dexterity"
+    INT = "Intelligence"
+    STR = "Strength"
+    WIS = "Wisdom"
+
+
+class ClientSettings(Enum, str):
+    NAME = "name"
+    ROWS = "rows"
+    COLUMNS = "columns"
+    TRANSLATION = "Character translation"
+    # colors for [bracket reader] text highlighting on C64/128:
+    TEXT_COLOR = "Text color"
+    HIGHLIGHT_COLOR = "Highlight color"
+    BACKGROUND = "Background"
+    BORDER = "border"
+
+@dataclass
+class Character(object):
+    name: str
+    flags: dict[flags.PlayerFlags, flags.Flag] = field(default_factory=lambda: {i[0] for i in
+                                                                                flags.player_flag_data})
+
+class Ally(Character):
+    pass
+
+@dataclass
 class Player(object):
+    # TODO: make some of these stats part of a base class
+    # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
+    flags: dict[flags.PlayerFlags, flags.Flag] = field(default_factory=lambda: {i[0]: flags.Flag(*i) for i in flags.player_flag_data})
+    stat: dict[PlayerStatName, int] = field(default_factory=lambda: {i: 0 for i in PlayerStatName})
+    """
+    The Florentine florin was a gold coin struck from 1252 to 1533 with no significant change in its design or metal content standard during that time. Wikipedia
+    """
+    gold: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1000 for i in PlayerMoneyTypes})
+
+    def get_flag(self, name: flags.PlayerFlagName) -> Flag:
+        """
+        Given a PlayerFlagName, return the Flag object
+        :param name: name of flag
+        :return: Flag object
+        """
+        logging.debug("get_flag: %s" % self.flags.get(name))
+        return self.flags.get(name)
+
+    def show_flag(self, flag: flags.PlayerFlagName, ) -> str:
+        """
+        Display the flag name, ":", and its display_name status.
+        :param flag: Flag name to display
+        :return: str
+        """
+        """
+        >>> test_player = Player(name="test")
+
+        >>> print(test_player.show_flag(PlayerFlagName.UNCONSCIOUS))
+        Unconscious: No
+        """
+        try:
+            """
+            >>> print(PlayerFlagName.UNCONSCIOUS.value)
+            'Unconscious'
+            """
+            flag_name = flag.value
+            logging.debug("show_flag: enter: flag: %s" % flag_name)
+            temp = self.get_flag(flag)
+            # flag_name = temp.name
+            display_type = temp.display_type
+            status = temp.status
+            logging.debug("show_flag: flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
+            result = self.show_flag_status(flag)
+            return f"{flag_name}: {result}"
+        except KeyError:
+            logging.warning("show_flag: unknown flag: %s" % flag.name)
+
+    def show_flag_line_item(self, flag: PlayerFlagName, leading_num: int) -> str:
+        """
+        Display the flag status based on its display_type string.
+        The flag is listed prefixed with leading_number, "...:" and the status.
+
+        :param flag: Flag name to display
+        :param leading_num: used with dot_leader, True prefixes the flag display with this number
+        :param max_width: how many dot leaders to display between the flag and its status
+        :return: str
+        """
+        """
+        >>> test_player = Player(name="test")
+
+        >>> print(test_player.show_flag_line_item(PlayerFlagName.UNCONSCIOUS, leading_num=1))
+         1. Unconscious...............: No
+        """
+        try:
+            """
+            >>> print(PlayerFlagName.UNCONSCIOUS.value)
+            'Unconscious'
+            """
+            max_width = flags.longest_flag_name()
+            logging.debug("show_flag_line_item: enter: flag: %s, leading_num: %i, max_width: %i" % (flag, leading_num, max_width))
+            temp = self.get_flag(flag)
+            flag_name, display_type, status = temp.name.value, temp.display_type, temp.status
+            logging.debug("show_flag_line_item: flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
+            result = self.show_flag_status(flag)
+            return f"{leading_num:>2}. {flag_name:.<{max_width}}: {result}"
+        except KeyError:
+            logging.warning("show_flag_line_item: unknown flag: %s" % flag.name)
+
+    def show_flag_status(self, flag: PlayerFlagName) -> str:
+        """
+        Show a flag's status.
+        :param flag: PlayerFlagName to display the status of
+        :return: Appropriate string for flag DisplayType
+        """
+        """
+        >>> rulan.show_flag_status(PlayerFlagName.UNCONSCIOUS)
+        'No'
+        """
+        temp = self.flags[flag]
+        if temp.display_type is flags.FlagDisplayTypes.YESNO:
+            result = "Yes" if temp.status else "No"
+        elif temp.display_type is flags.FlagDisplayTypes.ONOFF:
+            result = "On" if temp.status else "Off"
+        elif temp.display_type is flags.FlagDisplayTypes.TRUEFALSE:
+            result = "True" if temp.status else "False"
+        else:
+            logging.error("show_flag_status: invalid type %s for flag %s" % (temp.display_type, temp.name))
+            result = "<<error>>"
+        return result
+
+    def toggle_flag(self, flag: PlayerFlagName, verbose=False):
+        """
+        Toggle the status of a flag. If verbose=True, tell about it (like when a player
+        toggles an option on or off)
+        :param flag: Flag to toggle
+        :param verbose: True=tell that the flag is being toggled
+        :return: None
+        """
+        try:
+            result = self.get_flag(flag)
+            logging.debug("toggle_flag: Flag: %s before toggle: %s" % (flag.value, result.status))
+            result.status = not result.status
+            logging.debug("toggle_flag: Flag: %s after toggle: %s" % (flag.value, result.status))
+            self.put_flag(result.name, result.display_type, result.status)
+            if verbose:
+                # FIXME: I'm going to let this stand even though "UNCONSCIOUS are off"
+                # will never be displayed directly, maybe in a player editor program...
+                indefinite_article = "are" if flag.name.endswith("S") else "is"
+                print(f"{flag.value} {indefinite_article} now {self.show_flag_status(flag)}.")
+        except KeyError:
+            logging.warning("toggle_flag: Can't toggle unknown flag: %s" % flag.name)
+
+    def put_flag(self, name: flags.PlayerFlagName, display_type: flags.FlagDisplayTypes, status: bool):
+        logging.debug("put_flag: %s put as %s" % (name, status))
+        self.flags[name] = Flag(name, display_type, status)
+
+    def query_flag(self, flag: flags.PlayerFlagName) -> bool:
+        result = self.get_flag(flag)
+        # returned Flag object, return the status to caller:
+        return result.status
+
+    def show_stat(self, stat_name: PlayerStatName) -> str:
+        logging.debug(f"show_stat: %s" % stat_name.value)
+        x = self.get_stat(stat_name)
+        return f"{stat_name.value}: {x}"
+
+    def adjust_stat(self, stat_name: PlayerStatName, adjustment):
+        current = self.get_stat(stat_name)
+        new = current + adjustment
+        logging.debug("adjust_stat: current: %s: %i, adjusted: %i" % (stat_name.name, current, new))
+        self.put_stat(stat_name, new)
+
+    def get_stat(self, stat_name: PlayerStatName) -> int:
+        for key, value in self.stat.items():
+            if stat_name.value == key:
+                logging.debug("get_stat: get %s: %i" % (stat_name.value, value))
+                return value
+
+    def put_stat(self, stat_name: PlayerStatName, value) -> None:
+        logging.debug("put_stat: put %s: %i" % (stat_name.value, value))
+        self.stat[stat_name] = value
+
+@dataclass
+class TodoPlayer(Character):
+    super().__init__()
     """
     Attributes, flags and other stuff about players.
     """
@@ -21,94 +228,65 @@ class Player(object):
             maybe return Player or Ally object if they hold it, or None if no-one holds it
     """
 
-    # def __init__(self, connection_id=None, name=None, gender=None, stats=None,
-    #              flags=None, silver=None, client=None, age=None, birthday=None,
-    #              guild=None, char_class=None, race=None, hit_points=None,
-    #              shield=None, armor=None, experience=None):
-    def __init__(self, connection_id, name, gender, stats,
-                 flags, silver, client, age, birthday,
-                 guild, char_class, race, hit_points,
-                 shield, armor, experience):
+    # this code is called when creating a new character
+    connection_id: int
+    gender: Gender
+    # specifying e.g., 'hit_points=None' makes it a required parameter
 
-        """this code is called when creating a new character"""
-        # specifying e.g., 'hit_points=None' makes it a required parameter
+    # FIXME: probably just forget this, net_server.py handles connected_users(set)
+    """
+    connection_id: list of CommodoreServer IDs: {'connection_id': id, 'login_name': 'name'}
+    for k in len(connection_ids):
+        if connection_id in connection_ids[1][k]:
+            logging.info(f'Player.__init__: duplicate {connection_id['id']} assigned to '
+                         f'{connection_ids[1][connection_id]}')
+        return
+    temp = {self.name, connection_id}
+    connection_ids.append({'name': name, connection_id})
+    logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
+    self.connection_id = connection_id  # 'id' shadows built-in name
+    """
+    connection_id: int  # TODO: keep this until I figure out where it is in net_server.py
+    login_name: str
 
-        # FIXME: probably just forget this, net_server.py handles connected_users(set)
-        # connection_id: list of CommodoreServer IDs: {'connection_id': id, 'name': 'name'}
-        # for k in len(connection_ids):
-        #     if connection_id in connection_ids[1][k]:
-        #         logging.info(f'Player.__init__: duplicate {connection_id['id']} assigned to '
-        #                      f'{connection_ids[1][connection_id]}')
-        #     return
-        # temp = {self.name, connection_id}
-        # connection_ids.append({'name': name, connection_id})
-        # logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
-        # self.connection_id = connection_id  # 'id' shadows built-in name
+    gender: Gender
+    """
+    # stats: str = "abc"
+    # set with Player.set_stat(PlayerStatName.Enum, val)
+    logging.debug("Player.__init__: stats: %s" % stats)
+    """
+    logging.debug("Player.__init__: flags: %s" % flags)
 
-        self.connection_id = connection_id  # keep this until I figure out where it is in net_server.py
-        self.name = name
+    # creates a new silver dict for each Player:
+    # in_bank may be cleared on character death (TODO: look in TLOS source)
+    # in_bar should be preserved after character's death (TODO: same)
+    # use Player.set_silver("kind", value)
+    # logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
 
-        self.gender = gender
+    # client settings - set up some defaults
+    client: dict[ClientSettings, int | str] = field(default_factory=lambda: {i for i in ClientSettings})
 
-        # creates a new stats dict for each Player, zero all stats:
-        # set with Player.set_stat('xyz', val)
-        self.stats = stats
-        # if self.stats is not None:
-        #     self.stats = stats
-        # else:
-        #     self.stats = {'chr': 0, 'con': 0, 'dex': 0, 'int': 0, 'str': 0, 'wis': 0, 'egy': 0}
-        print(f"stats: {self.stats}")
+    age: int
+    birthday: datetime.date
+    """
+    proposed stats:
+    some (not all) other stats, still collecting them:
+    """
+    times_played: int
+    last_play_date: datetime # (month, day, year) like birthday
 
-        # flags:
-        if self.flags is not None:
-            self.flags = flags
-        else:
-            self.flags = {'room_descriptions': bool, 'autoduel': bool, 'hourglass': bool,
-                          'expert': bool, 'more_prompt': bool, 'architect': bool,
-                          # TODO: orator_mode: bool # define orator_mode more succinctly
-                          'hungry': bool, 'thirsty': bool, 'diseased': bool, 'poisoned': bool,
-                          'debug': bool, 'dungeon_master': bool
-                          }
-        logging.info(f'{self.flags=}')
+    special_items: list
+    """
+        SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
+        BOAT  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
+        combinations{'elevator', 'locker', 'castle'}  # tuple? combo is 3 digits: (nn, nn, nn)
+    """
 
-        # creates a new silver dict for each Player:
-        # in_bank may be cleared on character death (TODO: look in TLOS source)
-        # in_bar should be preserved after character's death (TODO: same)
-        # use Player.set_silver("kind", value)
-        if self.silver is not None:
-            self.silver = silver
-        else:
-            self.silver = {"in_hand": 0, "in_bank": 0, "in_bar": 0}
-        # logging.info(f'Player.__init__: Silver in hand: {self.silver["in_hand"]}')
-
-        # client settings - set up some defaults
-        if self.client is not None:
-            self.client = client
-        else:
-            self.client = {'name': None, 'rows': None, 'columns': 80, 'translation': None,
-                           # colors for [bracket reader] text highlighting on C64/128:
-                           'text': None, 'highlight': None, 'background': None, 'border': None}
-
-        self.age = age
-        self.birthday = birthday  # tuple: (month, day, year)
-        """
-        proposed stats:
-        some (not all) other stats, still collecting them:
-    
-        times_played: int
-        last_play_date: tuple # (month, day, year) like birthday
-    
-        special_items[
-            SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
-            BOAT  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
-            combinations{'elevator', 'locker', 'castle'}  # tuple? combo is 3 digits: (nn, nn, nn)
-            ]
-                
-        map_level: int  # cl
-        map_room: int  # cr
-        moves_made: int
-        """
-        self.guild = guild  # [civilian | fist | sword | claw | outlaw]
+    map_level: int  # cl
+    map_room: int  # cr
+    moves_made: int
+    """
+    self.guild = guild  # [civilian | fist | sword | claw | outlaw]
         #                      1       2        3       4      5       6       7         8       9
         self.char_class = char_class  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
         self.race = race  # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
@@ -118,23 +296,23 @@ class Player(object):
         self.armor = armor
         self.experience = experience
         """
-        combat:
-            honor: int
-            weapon_percentage{'weapon': percentage [, ...]}
-            weapon_ammunition{'weapon': ammo_count [, ...]}
-            bad_hombre_rating is calculated from stats, not stored in player log
+    # combat:
+    honor: int
+    # Weapon(weapon_percentage{'weapon': percentage [, ...]}
+    weapon_ammunition{'weapon': ammo_count [, ...]}
+    # bad_hombre_rating is calculated from stats, not stored in player log
         
-        once_per_day[] flags:  # things you can only do once per day (file_formats.txt)
-            'pr'    has PRAYed once
-            'pr2'   can PRAY twice per day (only if player class is Druid)
-        """
+    once_per_day: list  # things you can only do once per day (file_formats.txt)
+    # 'pr'    has PRAYed once
+    # 'pr2'   can PRAY twice per day (only if player class is Druid)
+
 
     def __str__(self):
         """print formatted Player object (double-quoted since ' in string)"""
         _ = f"Name: {self.name}\t\t"
         f"Age: {'Undetermined' if self.age == 0 else '{self.age}'}"
         f'\tBirthday: {self.birthday[0]}/{self.birthday[1]}/{self.birthday[2]}\n'
-        f"Silver: In hand: {self.silver['in_hand']}\n"
+        f"Silver: In hand: {self.gold['in_hand']}\n"
         f'Guild: {self.guild}\n'
         return _
 
@@ -145,48 +323,50 @@ class Player(object):
         :return: stat, maybe also 'success': True if 0 > stat > <limit>
 
         TODO: example for doctest:
-        >>> Rulan.set_stat['str': -5]  # decrement Rulan's strength by 5
-        """
-        if stat not in self.stats:
-            logging.warning(f"Stat {stat} doesn't exist.")
-            # raise ValueError?
-            return
-        # self.stats = {'con': 0, 'dex': 0, 'ego': 0, 'int': 0, 'str': 0, 'wis': 0}
-        # adjust stat by <adjustment>:
-        before = self.stats[stat]
-        after = before + adj
-        logging.info(f"set_stat: Before: {stat=} {before=} {adj=}")
-        if not self.flags['expert_mode']:
-            descriptive = zip(['chr', 'con', 'dex', 'int', 'str', 'wis', 'egy'],
-                              ['influential', 'hearty', 'agile', 'intelligent',
-                               'strong', 'wise', 'energetic'])
-            # TODO: jwhoag suggested adding 'confidence' -> 'brave' -- good idea,
-            #  not sure where it can be added yet.
-            # returns ('con', 'hearty') -- etc.
-            for n in descriptive:
-                # FIXME: I don't know of a more efficient way to refer to a subscript in this case.
-                #  This may be good enough, it's a small loop
-                if n[0] == stat:
-                    print(f"You feel {'more' if after > before else 'less'} {n[1]}.")
-        logging.info(f"set_stat: After: {stat=} {after=}")
-        self.stats[stat] = after
+        >>> rulan = Player()
 
-    def get_stat(self, stat):
+        >>> rulan.set_stat[PlayerStatName.STR, -5]  # decrement Rulan's strength by 5
+        """
+        try:
+            # self.stats = {'con': 0, 'dex': 0, 'ego': 0, 'int': 0, 'str': 0, 'wis': 0}
+            # adjust stat by <adjustment>:
+            before = self.stats[stat]
+            after = before + adj
+            logging.info(f"set_stat: Before: {stat=} {before=} {adj=}")
+            if self.query_flag(PlayerFlags.EXPERT_MODE) is False:
+                descriptive = zip(['chr', 'con', 'dex', 'int', 'str', 'wis', 'egy'],
+                                  ['influential', 'hearty', 'agile', 'intelligent',
+                                   'strong', 'wise', 'energetic'])
+                # TODO: jwhoag suggested adding 'confidence' -> 'brave' -- good idea,
+                #  not sure where it can be added yet.
+                # returns ('con', 'hearty') -- etc.
+                for n in descriptive:
+                    # FIXME: I don't know of a more efficient way to refer to a subscript in this case.
+                    #  This may be good enough, it's a small loop
+                    if n[0] == stat:
+                        print(f"You feel {'more' if after > before else 'less'} {n[1]}.")
+            logging.info(f"set_stat: After: {stat=} {after=}")
+            self.stats[stat] = after
+        except KeyError:
+            # TODO: raise ValueError?
+            logging.warning("Player.set_stat: Stat %s doesn't exist." % stat)
+
+def get_stat(self, stat: ):
         """
         if 'stat' is str: return value of single stat as str: 'stat'
         TODO: if 'stat' is list: sum up contents of list: ['str', 'wis', 'int']...
         -- avoids multiple function calls
         """
         if type(stat) is list:
-            _sum = 0  # 'sum' shadows built-in type
+            total = 0
             for k in stat:
                 if stat not in self.stats:
                     logging.warning(f"get_stat: Stat {stat} doesn't exist.")
                     # TODO: raise ValueError?
                     return
-                _sum += self.stats[k]
-            logging.info(f'get_stat[list]: {stat=} {_sum=}')
-            return _sum
+                total += self.stats[k]
+            logging.info(f'get_stat[list]: {stat=} {total=}')
+            return total
         # otherwise, get just a single stat:
         if stat not in self.stats:
             logging.warning(f"get_stat: Stat {stat} doesn't exist.")
@@ -269,24 +449,24 @@ class Player(object):
         self.silver[kind] = after
 
 
-def transfer_money(p1: Player, p2: Player, kind: str, adj: int):
+def transfer_money(receiver: Player, giver: Player, kind: str, adj: int):
     """
-    :param p1: Player to transfer <adj> gold to
-    :param p2: Player to transfer <adj> gold from
+    :param receiver: Player to transfer <adj> gold to
+    :param giver: Player to transfer <adj> gold from
     :param kind: classification ('in_hand' most likely)
     :param adj: amount to transfer
     :return: none
     """
     # as suggested by Shaia:
     # (will be useful for future bank, or future expansion: gold transfer spell?)
-    if p2.silver[kind] >= adj:
-        p1.set_silver(kind, adj)
-        p2.set_silver(kind, -adj)
-        logging.info(f'transfer_money: {p2.name} {adj} {kind} -> {p1.name}: {p1.silver[kind]}')
-        print(f'{p2.name} transferred {adj} silver {kind} to {p1.name}.')
-        print(f'{p1.name} now has {p1.silver[kind]}.')
+    if giver.silver[kind] >= adj:
+        receiver.set_silver(kind, adj)
+        giver.set_silver(kind, -adj)
+        logging.info(f'transfer_money: {giver.name} {adj} {kind} -> {giver.name}: {giver.silver[kind]}')
+        print(f'{giver.name} transferred {adj} silver {kind} to {receiver.name}.')
+        print(f'{receiver.name} now has {receiver.silver[kind]}.')
     else:
-        print(f"{p2.name} doesn't have {adj} silver to give.")
+        print(f"{giver.name} doesn't have {adj} silver to give.")
 
 
 class Ally(object):
