@@ -46,7 +46,7 @@ def fromJSONB(bytes):
         if len(json_in) == 0:
             return None
         return json.loads(json_in)
-    except:
+    except FileNotFoundError:
         return None
 
 
@@ -87,12 +87,12 @@ class User(object):
     salt: int = 0
     hash: str = ''
 
-    def hashPassword(self, password):
+    def hash_password(self, password):
         salt = bcrypt.gensalt()
         self.salt = salt.hex()
         self.hash = bcrypt.hashpw(bytes(password, 'utf-8'), salt).hex()
 
-    def matchPassword(self, password):
+    def match_password(self, password):
         salt = bytes.fromhex(self.salt)
         hash = bcrypt.hashpw(bytes(password, 'utf-8'), salt).hex()
         return self.hash == hash

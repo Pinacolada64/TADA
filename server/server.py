@@ -595,7 +595,7 @@ class PlayerHandler(net_server.UserHandler):
             logging.warning(f"Room #{room.number} does not exist")
 
         debug = self.player.flag['debug']
-        exitsTxt = room.exitsTxt(debug)
+        exits_txt = room.exits_Txt(debug)
         lines2 = list(lines)
 
         # display room header
@@ -655,7 +655,7 @@ class PlayerHandler(net_server.UserHandler):
         debug = self.player.flag['debug']
         exits_txt = room.exitsTxt(debug)
         if exits_txt is not None:
-            lines2.append(f"Ye may travel: {exitsTxt}\n")
+            lines2.append(f"Ye may travel: {exits_txt}\n")
             # ryan: list exit dirs and room #s
             if debug:
                 for k, v in room.exits.items():
@@ -666,7 +666,7 @@ class PlayerHandler(net_server.UserHandler):
         # logging.info(f'item #{num} name: {items[num - 1]["name"]}')
 
         # setting 'exclude_id' excludes that player (i.e., yourself) from being listed
-        other_player_ids = playersInRoom(room.number, exclude_id=self.player.id)
+        other_player_ids = players_in_room(room.number, exclude_id=self.player.id)
         # TODO: "Alice is here." / "Alice and Bob are here." / "Alice, Bob and Mr. X are here."
         """
         if len(other_player_ids) == 0:
