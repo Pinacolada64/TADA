@@ -1,5 +1,5 @@
 #!/bin/env python3
-
+import logging
 import socket
 import sys
 import os
@@ -69,21 +69,21 @@ class Client(object):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.clientSocket:
             try:
                 self.clientSocket.connect((self.host, self.port))
-                print(f"client connected ({self.host}:{self.port})")
+                logging.debug("Client.start: connected (%s:%s)" % (self.host, self.port))
                 self.clientSocket.sendall(nc.toJSONB(Init(**init_params)))
                 self.active = True
                 while self.active:
                     request = nc.fromJSONB(self.clientSocket.recv(1024))
                     if request is None:
-                        print('no request.')
+                        logging.debug("Client.start: no request.")
                         self.active = False
                         break
                     response = self._process_mode(request)
                     if response is not None:
                         self._send_data(response)
             except ConnectionRefusedError as e:
-                print(f"ERROR: unable to connect to {self.host}:{self.port}. Is server running?")
-        print('exiting.')
+                logging.error("unable to connect to %s:%s. Is server running?" % (self.host, self.port))
+        logging.info('Exiting.')
 
     def _send_data(self, data):
         self.clientSocket.sendall(nc.toJSONB(data))
@@ -92,7 +92,7 @@ class Client(object):
         if request['error'] != '':
             error_code = request['error']
             error_line = request['error_line']
-            print(f"ERROR: {error_line} ({error_code})")
+            logging.error("%s: %s" % (error_line, error_code))
         for m in request['lines']:
             print(m)
 
@@ -106,9 +106,9 @@ class Client(object):
                 print(f"Registering user '{user_id}'.")
                 invite = nc.Invite.load(user_id)
                 if invite is None:
-                    print(f"WARN:  could not find invite code for '{user_id}'.")
-                    is_registered = input('have you previously registered with server? [y/n] ')
-                    if is_registered != 'y':
+                    logging.warning("Could not find invite code for '%s'." % user_id)
+                    is_registered = input('Have you previously registered with server? [y/n] ')
+                    if is_registered.lower() != 'y':
                         self.active = False
                         print(f"Server admin must generate invite for you.")
                         return None

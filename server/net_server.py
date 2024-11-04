@@ -117,13 +117,13 @@ class UserHandler(socketserver.BaseRequestHandler):
         addr = self.client_address[0]
         self.login_history = LoginHistory.load(addr)
         if self.login_history.banned(True, save=True):
-            logging.info(f"ignoring banned {addr}")
+            logging.warning("UserHandler.handle: ignoring banned IP %s" % addr)
             return
         port = self.client_address[1]
         self.sender = f"{addr}:{port}"
         self.ready = None
         self.user = None
-        logging.info(f"connect (addr={self.sender})")
+        logging.info("UserHandler: handle: connect (addr=%s)" % self.sender)
         running = True
         while running:
             try:
@@ -137,7 +137,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                     elif self.user is None:
                         response = self._process_login(request)
                     else:
-                        response = process_message(request)
+                        response = self.process_message(request)
                 except Exception as e:
                     traceback.print_exc(file=sys.stdout)
                     # TODO: log error with message, error code to client
@@ -152,15 +152,15 @@ class UserHandler(socketserver.BaseRequestHandler):
                 traceback.print_exc(file=sys.stdout)
                 # TODO: log error with message, error code to client
                 self._send_data(Message(lines=["Terminating session."],
-                                        error_line=f"server side error ({e})",
-                                        error=Error.server2, mode=Mode.bye))
+                                       error_line=f"server side error ({e})",
+                                       error=Error.server2, mode=Mode.bye))
         if self.user is not None:
             user_id = self.user.id
             with server_lock:
                 connected_users.remove(user_id)
         else:
             user_id = '?'
-        logging.info(f"disconnect {user_id} (addr={self.sender})")
+        logging.info("user_handler: disconnect %s (addr=%s)" % (user_id, self.sender))
 
     def _receive_data(self):
         return nc.fromJSONB(self.request.recv(1024))
@@ -204,7 +204,7 @@ class UserHandler(socketserver.BaseRequestHandler):
         if user is None:
             invite = nc.Invite.load(user_id)
             if invite is None:
-                logging.warning(f"no user '{user_id}'")
+                logging.warning("process_login: login failed: no user '%s`" % user_id)
                 # when failing don't tell that have wrong user id
                 banned = self.login_history.no_user(user_id, save=True)
                 if banned:
@@ -214,10 +214,10 @@ class UserHandler(socketserver.BaseRequestHandler):
             else:
                 # process new user with invite
                 if invite.code != invite_code:
-                    logging.warning(f'invalid invite code {invite_code}')
+                    logging.warning(f"process_login: invalid invite code %s" % invite_code)
                     banned = self.login_history.no_user(user_id, save=True)
                     if banned:
-                        logging.info(f"ban {self.sender}")
+                        logging.info("process_login: ban %s" % self.sender)
                         return error_ban()
                     else:
                         return error_login_failed()
@@ -246,14 +246,12 @@ class UserHandler(socketserver.BaseRequestHandler):
         self.login_history.succeed_user(user_id, save=True)
         return process_login_success(user_id)
 
-
 def prompt_request(self, lines, prompt: str, choices: dict):
     self._send_data(Message(lines=lines, prompt=prompt, choices=choices))
     return self._receive_data()
 
-
-# base implementation for when testing net_client/net_server
-# NOTE: must be overridden by actual app (see client/server)
+    # base implementation for when testing net_client/net_server
+    # NOTE: must be overridden by actual app (see client/server)
 
 def init_success_lines(self):
     """OVERRIDE in subclass
@@ -261,25 +259,22 @@ def init_success_lines(self):
     """
     return ['Generic Server.', 'Please log in.']
 
-
 def login_fail_lines(self):
     """OVERRIDE in subclass
     Login failure message lines back to user.
     """
     return ['please try again.']
 
-
-def process_login_success(user_id):
+def process_login_success(self, user_id):
     """OVERRIDE in subclass
     First method called on successful login.
-    Should do any user initialization and then return Message.
+Should do any user initialization and then return Message.
     """
     return Message(lines=[f"Welcome {user_id}."])
 
-
 def process_message(self, data):
     """OVERRIDE in subclass
-    Called on all subsequent Cmd messages from client.
+Called on all subsequent Cmd messages from client.
     Should do any processing and return Message.
     """
     if 'text' in data:
@@ -289,14 +284,13 @@ def process_message(self, data):
         else:
             return Message(lines=["Unknown command."])
 
-
 def start(host, port, _id, key, protocol, handler_class):
     global server_id, server_key, server_protocol
     server_id = _id
     server_key = key
     server_protocol = protocol
     with Server((host, port), handler_class) as server:
-        logging.info(f"server running ({host}:{port})")
+        logging.info("Server.start: server running (%s:%s)" % (host, port))
         server_thread = threading.Thread(target=server.serve_forever)
         server_thread.daemon = True
         server_thread.start()
