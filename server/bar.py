@@ -24,11 +24,11 @@ def bouncer(character: Player):
 
 def blue_djinn(character: Player):
     """Hire thugs to attack other players"""
-    npc = "The Blue Djinn"
+    npc_name = "The Blue Djinn"
     if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
-        print(f"For a price, {npc} can attack other players.")
-        blue_djinn_menu()
-    print(f'{npc} sits behind the table.')
+        print(f"For a price, {npc_name} can attack other players.")
+        blue_djinn_menu(character)
+    print(f'{npc_name} sits behind the table.')
     while True:
         command, last_command = prompt(character, 'He hisses, "What do you want?":')
         if command == 'h':
@@ -50,7 +50,7 @@ def blue_djinn(character: Player):
             blue_djinn_menu(character)
             continue
         else:
-            print(f"{npc} looks amused.")
+            print(f"{npc_name} looks amused.")
             continue
 
 def blue_djinn_menu(character: Player):
@@ -79,7 +79,7 @@ def skip(character: Player):
         return
 
     if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
-        skip_show_menu()
+        skip_show_menu(character)
 
     while True:
         command, last_command = prompt(character, f'"What\'ll ya have, {character.name}?" ')
@@ -90,7 +90,7 @@ def skip(character: Player):
 
         if command == 'c':
             # TODO: check/subtract silver
-            character.gold[PlayerMoneyTypes.IN_HAND] = character.gold[PlayerMoneyTypes.IN_HAND] - 2
+            character.silver[PlayerMoneyTypes.IN_HAND] = character.silver[PlayerMoneyTypes.IN_HAND] - 2
             print("The steaming mug of coffee is strangely satisfying.")
             character.clear_flag(PlayerFlags.TIRED)
             print("(You feel more awake.)")
