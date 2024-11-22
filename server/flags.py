@@ -90,7 +90,6 @@ class PlayerMoneyCategory(str, Enum):
     IN_BAR = "In bar"
 
 
-class PlayerStatName(str, Enum):
 class CombinationTypes(str, Enum):
     CASTLE = "Castle"
     ELEVATOR = "Elevator"  # Get this from SCRAP OF PAPER item in dungeon
@@ -156,6 +155,12 @@ class Flag(object):
 class Player(object):
     # TODO: make some of these stats part of a base class
     # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
+    combinations: dict[CombinationTypes, tuple] = field(
+        default_factory=lambda: {
+            combination_type: (random.randrange(99) for _ in range(3))
+            for combination_type in CombinationTypes
+        }
+    )
     name: str = None
     once_per_day: list[str] = field(default_factory=list)
     # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
