@@ -169,7 +169,7 @@ monsters (for a hefty fee!) so they have to be fought again.
                 # studying themselves :)
                 print('"I suggesssst you uuuuuuuse a mirror!"')
             if command == '?':
-                list_players()
+                list_players(character)
                 continue
             else:
                 while True:
@@ -367,6 +367,7 @@ if __name__ == '__main__':
 
         # look through 'locations' tuple to see if the player is in an
         # interactive spot
+        bar.can_go_here = False
         for place in bar.locations:
             # sorted by rows
             if bar.pos_y == place[0] and bar.pos_x == place[1]:
@@ -407,7 +408,7 @@ if __name__ == '__main__':
                 print(f'"Well then, WATCH it!" {opponent} glares at you.')
 
         if rulan.query_flag(PlayerFlags.EXPERT_MODE) is False:
-            show_menu()
+            show_menu(character=rulan)
             print(f"[{rulan.client_settings['return_key']}] = '{rulan.last_command}'")
             show_menu(rulan)
 
