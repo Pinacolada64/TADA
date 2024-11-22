@@ -5,7 +5,6 @@ from enum import Enum
 import doctest
 from typing import Any
 
-
 class ClientSettings(str, Enum):
     """
     NAME = "name"
@@ -84,7 +83,7 @@ class PlayerMoneyTypes(str, Enum):
 
 
 class PlayerMoneyCategory(str, Enum):
-    # this refers to Player.gold{PlayerMoneyTypes.Enum} printable names
+    # this refers to Player.silver{PlayerMoneyTypes.Enum} printable names
     IN_HAND = "In hand"
     IN_BANK = "In bank"
     IN_BAR = "In bar"
@@ -96,6 +95,7 @@ class CombinationTypes(str, Enum):
     LOCKER = "Locker"
 
 
+class PlayerStat(str, Enum):
     CHR = "Charisma"
     CON = "Constitution"
     DEX = "Dexterity"
@@ -153,7 +153,7 @@ class Flag(object):
 
 @dataclass
 class Player(object):
-    # TODO: make some of these stats part of a base class
+    # TODO: make some of these stats part of a generic Character base class
     # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
     combinations: dict[CombinationTypes, tuple] = field(
         default_factory=lambda: {
@@ -166,20 +166,20 @@ class Player(object):
     # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
     flags: dict[PlayerFlags, Flag] = field(default_factory=lambda: {i[0]: Flag(*i) for i in player_flag_data})
     # creates a new stats dict for each Player, zero all stats:
-    stat: dict[PlayerStatName, int] = field(default_factory=lambda: {i: 0 for i in PlayerStatName})
-    # same with gold:
-    gold: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1000 for i in PlayerMoneyTypes})
+    stat: dict[PlayerStat, int] = field(default_factory=lambda: {i: 0 for i in PlayerStat})
+    # same with silver:
+    silver: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1000 for i in PlayerMoneyTypes})
     hit_points: int = 0
     client_settings: dict[ClientSettings, Any] = field(default_factory=lambda: {k: v for k, v in ClientSettings})
 
-    def adjust_gold(self, kind: PlayerMoneyTypes, adjustment: int):
+    def adjust_silver(self, kind: PlayerMoneyTypes, adjustment: int):
         try:
-            current_total = self.gold[kind]
+            current_total = self.silver[kind]
             adjusted_total = current_total + adjustment
             gold_kind = PlayerMoneyCategory[kind.name]
             logging.debug("adjust_gold: kind: %s, adjustment: %i, total: %i" % (gold_kind, adjustment,
                                                                                 adjusted_total))
-            self.gold[kind] = adjusted_total
+            self.silver[kind] = adjusted_total
         except IndexError:
             logging.debug("adjust_gold: %s does not exist" % kind)
 
@@ -323,7 +323,7 @@ class Player(object):
             self.put_flag(result.name, result.display_type, result.status)
             if verbose:
                 # FIXME: I'm going to let this stand even though "UNCONSCIOUS are off"
-                # will never be displayed directly, maybe in a player editor program...
+                #  will never be displayed directly except maybe in a player editor program...
                 indefinite_article = "are" if flag.name.endswith("S") else "is"
                 print(f"{flag.value} {indefinite_article} now {self.show_flag_status(flag)}.")
         except KeyError:
@@ -340,24 +340,24 @@ class Player(object):
         # returned Flag object, return the status (True/False) to caller:
         return result.status
 
-    def show_stat(self, stat_name: PlayerStatName) -> str:
+    def show_stat(self, stat_name: PlayerStat) -> str:
         logging.debug(f"show_stat: %s" % stat_name.value)
         x = self.get_stat(stat_name)
         return f"{stat_name.value}: {x}"
 
-    def adjust_stat(self, stat_name: PlayerStatName, adjustment):
+    def adjust_stat(self, stat_name: PlayerStat, adjustment):
         current = self.get_stat(stat_name)
         new = current + adjustment
         logging.debug("adjust_stat: current: %s: %i, adjusted: %i" % (stat_name.name, current, new))
         self.put_stat(stat_name, new)
 
-    def get_stat(self, stat_name: PlayerStatName) -> int:
+    def get_stat(self, stat_name: PlayerStat) -> int:
         for key, value in self.stat.items():
             if stat_name.value == key:
                 logging.debug("get_stat: get %s: %i" % (stat_name.value, value))
                 return value
 
-    def put_stat(self, stat_name: PlayerStatName, value) -> None:
+    def put_stat(self, stat_name: PlayerStat, value) -> None:
         logging.debug("put_stat: put %s: %i" % (stat_name.value, value))
         self.stat[stat_name] = value
 
@@ -407,19 +407,19 @@ if __name__ == '__main__':
     rulan.toggle_flag(PlayerFlags.UNCONSCIOUS, verbose=True)
 
     print("- Toggle 'Room Descriptions' flag, verbose=False:")
-    rd_flag = PlayerFlags.ROOM_DESCRIPTIONS
-    rulan.toggle_flag(rd_flag, verbose=False)
+    room_desc_flag = PlayerFlags.ROOM_DESCRIPTIONS
+    rulan.toggle_flag(room_desc_flag, verbose=False)
 
     print("- Toggle 'Orator' flag, verbose=True:")
     rulan.toggle_flag(PlayerFlags.ORATOR, verbose=True)
 
     print("- Different text for result of query 'Room Descriptions' flag:")
-    print("Shazam [True]" if rulan.query_flag(rd_flag) else "Bazinga [False]")
+    print("Shazam [True]" if rulan.query_flag(room_desc_flag) else "Bazinga [False]")
 
     print("- Show stats object:")
     print(rulan.stat)
-    # this worked before show_stat():
     """
+    # this worked before show_stat() was written:
     for key, value in rulan.stat.items():
         print(f"{key.value}: {value}")
     """
@@ -429,38 +429,38 @@ if __name__ == '__main__':
 
     print("- Adjust & show DEX score:")
     print("- Current DEX score:")
-    print(rulan.show_stat(PlayerStatName.DEX))
+    print(rulan.show_stat(PlayerStat.DEX))
     add = 15
     print(f"- Adjust DEX to {add}:")
-    rulan.adjust_stat(PlayerStatName.DEX, adjustment=add)
-    print(rulan.show_stat(PlayerStatName.DEX))
+    rulan.adjust_stat(PlayerStat.DEX, adjustment=add)
+    print(rulan.show_stat(PlayerStat.DEX))
 
     subtract = -9
     verify = add + subtract
     print(f"- Adjust DEX by {subtract}:")
-    rulan.adjust_stat(PlayerStatName.DEX, adjustment=subtract)
-    print(rulan.show_stat(PlayerStatName.DEX))
+    rulan.adjust_stat(PlayerStat.DEX, adjustment=subtract)
+    print(rulan.show_stat(PlayerStat.DEX))
     # test = 5
-    # print(f'{test.bit_count()}') # 2: bit 4 + bit 1
+    # print(f'{test.bit_count()}') # 2 bits set: bit 4 + bit 1
 
     if verify == add + subtract:
         print("* Math checks out!")
     else:
         print("* Somethin' ain't right.")
 
-    wealth = 50000
+    wealth = 50_000
     print(f"- Set gold in hand to {wealth:,}")
-    rulan.gold[PlayerMoneyTypes.IN_HAND] = wealth
+    rulan.silver[PlayerMoneyTypes.IN_HAND] = wealth
 
-    rulan.adjust_gold(PlayerMoneyTypes.IN_HAND, 100)
-    rulan.adjust_gold(PlayerMoneyTypes.IN_BANK, 385)
+    rulan.adjust_silver(PlayerMoneyTypes.IN_HAND, 100)
+    rulan.adjust_silver(PlayerMoneyTypes.IN_BANK, 385)
 
     print(f"- Show money types and values:")
     for k, v in enumerate(PlayerMoneyTypes, start=1):
         # element_name is an Enum shared between PlayerMoneyTypes and PlayerMoneyCategory
         # to make printing prefixes and gold amounts easier -- at least that's the idea
         col_1 = PlayerMoneyCategory[v].value
-        col_2 = rulan.gold[PlayerMoneyTypes[v]]
+        col_2 = rulan.silver[PlayerMoneyTypes[v]]
         """
         >>> PlayerMoneyCategory.IN_HAND.value, rulan.gold[PlayerMoneyTypes.IN_HAND]
         ('In hand', 50000)
