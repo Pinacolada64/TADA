@@ -195,36 +195,37 @@ class Player(object):
         except IndexError:
             logging.error("get_flag: no flag %s" % self.flags.get(name))
 
-    def set_flag(self, flag: PlayerFlags):
+    def set_flag(self, flag: PlayerFlags) -> None:
         """
         # FIXME: fix this
         Directly set the flag status to True.
 
-        :param flag:
-        :return:
+        :param flag: PlayerFlag to set
+        :return: None
         """
         try:
             logging.debug("set_flag: setting flag %s to True" % flag.name)
+            temp = self.get_flag(flag)
+            self.put_flag(flag, status=True, display_type=temp.display_type)
         except KeyError:
-            logging.error("set_flag: flag %s not found")
+            logging.error("set_flag: flag %s not found" % flag.name)
 
-    def clear_flag(self, flag: PlayerFlags):
+    def clear_flag(self, flag: PlayerFlags) -> None:
         """
         # FIXME: fix this
         Directly clear the flag status to False.
 
-        :param flag: flag to clear
-        :return:
+        :param flag: PlayerFlag to clear
+        :return: None
         """
         try:
-            logging.debug("clear_flag: setting flag %s to False" % flag.name)
+            logging.debug("clear_flag: clearing flag %s to False" % flag.name)
             temp = self.get_flag(flag)
-            self.put_flag(flag, status=False, display_type=flag.display_type)
-
+            self.put_flag(flag, status=False, display_type=temp.display_type)
         except KeyError:
-            logging.error("clear_flag: flag %s not found")
+            logging.error("clear_flag: flag %s not found" % flag.name)
 
-    def show_flag(self, flag: PlayerFlags, ) -> str:
+    def show_flag(self, flag: PlayerFlags) -> str:
         """
         Display the flag name, ":", and its display_name status.
         :param flag: Flag name to display
@@ -242,7 +243,6 @@ class Player(object):
             'Unconscious'
             """
             flag_name = flag.value
-            logging.debug("show_flag: enter: flag: %s" % flag_name)
             temp = self.get_flag(flag)
             display_type, status = temp.display_type, temp.status
             logging.debug("show_flag: flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
@@ -256,7 +256,7 @@ class Player(object):
         Display the flag status based on its display_type string.
         The flag is listed prefixed with leading_number, "...:" and the status.
 
-        :param flag: Flag name to display
+        :param flag: PlayerFlag name to display
         :param leading_num: used with dot_leader, True prefixes the flag display with this number
         :return: str
         """
@@ -272,12 +272,12 @@ class Player(object):
             'Unconscious'
             """
             max_width = longest_flag_name()
-            logging.debug(
-                "show_flag_line_item: enter: flag: %s, leading_num: %i, max_width: %i" % (flag, leading_num, max_width))
+            logging.debug("show_flag_line_item: enter: flag: %s, "
+                          "leading_num: %i, max_width: %i" % (flag, leading_num, max_width))
             temp = self.get_flag(flag)
-            flag_name, display_type, status = temp.name, temp.display_type, temp.status
-            logging.debug(
-                "show_flag_line_item: flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
+            flag_name, display_type, status = temp.name.value, temp.display_type, temp.status
+            logging.debug("show_flag_line_item: flag_name=%s, "
+                          "display_type=%s, status=%s" % (flag_name, display_type, status))
             result = self.show_flag_status(flag)
             return f"{leading_num:>2}. {flag_name:.<{max_width}}: {result}"
         except KeyError:
@@ -320,7 +320,7 @@ class Player(object):
             logging.debug("toggle_flag: Flag: %s before toggle: %s" % (flag.value, result.status))
             result.status = not result.status
             logging.debug("toggle_flag: Flag: %s after toggle: %s" % (flag.value, result.status))
-            self.put_flag(result.name, result.display_type, result.status)
+            self.put_flag(flag, result.display_type, result.status)
             if verbose:
                 # FIXME: I'm going to let this stand even though "UNCONSCIOUS are off"
                 #  will never be displayed directly except maybe in a player editor program...
@@ -366,21 +366,21 @@ def flag_editor(player: Player):
     print("- Toggling an indexed flag:")
     while True:
         for k, v in enumerate(player.flags, start=1):
-            print(player.show_flag_line_item(v, leading_num=k))
+            print(player.show_flag_line_item(flag=v, leading_num=k))
         option = input(f"1-{len(player.flags)}, [Q]uit: ").lower()
-        if option[0] == 'q':
-            print("Done.")
-            break
-        value = int(option)
         try:
-            if 1 < value < len(player.flags):
-                print("ok")
+            if option[0] == 'q':
+                print("Done.")
+                break
+            value = int(option)
+            if 0 < value < len(player.flags) + 1:
                 # look up the flag index in player_flag_data:
                 # value-1 accounts for lists being 0-indexed
                 # TODO: toggle_flag_by_index() function?
+                logging.debug("flag_editor: value: %i" % value)
                 player.toggle_flag(player_flag_data[value - 1][0], verbose=True)
-        except IndexError:
-            print("Out of range")
+        except ValueError:
+            print(f"Please enter a number 1-{len(player.flags)}.")
 
 
 if __name__ == '__main__':
@@ -465,7 +465,7 @@ if __name__ == '__main__':
         >>> PlayerMoneyCategory.IN_HAND.value, rulan.gold[PlayerMoneyTypes.IN_HAND]
         ('In hand', 50000)
         """
-        print(f"{k:2>}. {col_1}: {col_2:,}")
+        print(f"{k:2>}. {name:.<10}: {amount:>9,}")
 
     print("- Show random combinations:")
     for combination_name, combination_tuple in rulan.combinations.items():
