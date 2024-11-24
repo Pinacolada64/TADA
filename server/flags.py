@@ -21,8 +21,9 @@ class ClientSettings(str, Enum):
         self.name = "name"
         self.rows = 25
         self.columns = 40
-        self.translation = "PetSCII"
-        self.return_key = "Return"
+        self.translation = TranslationType.PETSCII
+        self.return_key = KeyName.RETURN | KeyName.ENTER
+    """
 
 class Gender(str, Enum):
     MALE = "Male"
@@ -173,8 +174,8 @@ class Player(object):
     flags: dict[PlayerFlags, Flag] = field(default_factory=lambda: {i[0]: Flag(*i) for i in player_flag_data})
     # creates a new stats dict for each Player, zero all stats:
     stat: dict[PlayerStat, int] = field(default_factory=lambda: {i: 0 for i in PlayerStat})
-    # same with silver:
-    silver: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1000 for i in PlayerMoneyTypes})
+    # same with silver FIXME: (set to 1_000 for testing purposes):
+    silver: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1_000 for i in PlayerMoneyTypes})
     hit_points: int = 0
     client_settings: dict[ClientSettings, Any] = field(default_factory=lambda: {k: v for k, v in ClientSettings})
 
@@ -182,12 +183,12 @@ class Player(object):
         try:
             current_total = self.silver[kind]
             adjusted_total = current_total + adjustment
-            gold_kind = PlayerMoneyCategory[kind.name]
-            logging.debug("adjust_gold: kind: %s, adjustment: %i, total: %i" % (gold_kind, adjustment,
-                                                                                adjusted_total))
+            silver_kind = PlayerMoneyCategory[kind.name]
+            logging.debug("adjust_silver: kind: %s, adjustment: %i, total: %i" % (silver_kind, adjustment,
+                                                                                  adjusted_total))
             self.silver[kind] = adjusted_total
         except IndexError:
-            logging.debug("adjust_gold: %s does not exist" % kind)
+            logging.debug("adjust_silver: %s does not exist" % kind)
 
     def get_flag(self, name: PlayerFlags) -> Flag:
         """
@@ -455,20 +456,21 @@ if __name__ == '__main__':
         print("* Somethin' ain't right.")
 
     wealth = 50_000
-    print(f"- Set gold in hand to {wealth:,}")
+    print(f"\n- Set silver in hand to {wealth:,}")
     rulan.silver[PlayerMoneyTypes.IN_HAND] = wealth
 
     rulan.adjust_silver(PlayerMoneyTypes.IN_HAND, 100)
     rulan.adjust_silver(PlayerMoneyTypes.IN_BANK, 385)
 
-    print(f"- Show money types and values:")
-    for k, v in enumerate(PlayerMoneyTypes, start=1):
-        # element_name is an Enum shared between PlayerMoneyTypes and PlayerMoneyCategory
-        # to make printing prefixes and gold amounts easier -- at least that's the idea
-        col_1 = PlayerMoneyCategory[v].value
-        col_2 = rulan.silver[PlayerMoneyTypes[v]]
+    print(f"\n- Show money categories and values:")
+    for k, element_name in enumerate(PlayerMoneyTypes, start=1):
+        name = PlayerMoneyCategory[element_name].value
+        amount = rulan.silver[element_name]  # Directly access the value using the enum member
         """
-        >>> PlayerMoneyCategory.IN_HAND.value, rulan.gold[PlayerMoneyTypes.IN_HAND]
+        >>> rulan.silver[PlayerMoneyTypes.IN_BAR]
+        1000
+        
+        >>> PlayerMoneyCategory.IN_HAND.value, rulan.silver[PlayerMoneyTypes.IN_HAND]
         ('In hand', 50000)
         """
         print(f"{k:2>}. {name:.<10}: {amount:>9,}")
