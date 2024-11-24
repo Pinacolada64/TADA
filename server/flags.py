@@ -24,6 +24,10 @@ class ClientSettings(str, Enum):
         self.translation = "PetSCII"
         self.return_key = "Return"
 
+class Gender(str, Enum):
+    MALE = "Male"
+    FEMALE = "Female"
+
 
 class PlayerFlags(str, Enum):
     ADMIN = "Administrator"
@@ -162,6 +166,8 @@ class Player(object):
         }
     )
     name: str = None
+    # FIXME: just for test purposes:
+    gender: Gender = Gender.MALE
     once_per_day: list[str] = field(default_factory=list)
     # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
     flags: dict[PlayerFlags, Flag] = field(default_factory=lambda: {i[0]: Flag(*i) for i in player_flag_data})
