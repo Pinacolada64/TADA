@@ -420,6 +420,9 @@ if __name__ == '__main__':
     print("- Toggle 'Orator' flag, verbose=True:")
     rulan.toggle_flag(PlayerFlags.ORATOR, verbose=True)
 
+    print("- Set 'Expert Mode' flag to True:")
+    rulan.set_flag(PlayerFlags.EXPERT_MODE)
+
     print("- Different text for result of query 'Room Descriptions' flag:")
     print("Shazam [True]" if rulan.query_flag(room_desc_flag) else "Bazinga [False]")
 
