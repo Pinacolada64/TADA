@@ -49,7 +49,7 @@ def header(text: str):
     return Message(lines=[line])
 
 
-def output(string: str, conn: Player.connection_id):
+def output(string: str, conn: Player):
     """
     Print <string> word-wrapped to client's column width to Player
 
@@ -62,7 +62,7 @@ def output(string: str, conn: Player.connection_id):
 
     TODO: implement different success messages for Player originating action vs. other Players in room
     use player.
-    for cxn in all_Players_in_room:
+    for cxn in all_players_in_room:
         if char.(something, idk what at this point) == Player.who_performed_action:
             output(f"You throw the snowball at {target}.", player)
         else:
