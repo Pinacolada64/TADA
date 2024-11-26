@@ -177,7 +177,7 @@ class Character:
             year = date.today().year - age
             return f"{month}/{day}/{year}"
 
-    def print_all_stats(self, char: Character):
+    def print_all_stats(self, char: Player):
         """
         >>> test = Character(stats={'chr': 8,
                                     'con': 15,
