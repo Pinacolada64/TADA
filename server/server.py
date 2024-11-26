@@ -6,15 +6,14 @@ import random
 import threading
 from dataclasses import dataclass, field
 import textwrap
-from typing import Optional
 import logging
+from datetime import datetime
 
 import net_server
 import net_common
 import common
-import util
 
-# from players import Player
+from flags import Player, PlayerFlags, PlayerMoneyTypes
 
 K = common.K
 Mode = net_server.Mode
@@ -124,10 +123,10 @@ class Room(object):
 
 class Item(object):
     def __init__(self, number, name, kind, price, **flags):
-        logging.debug("Instantiate item '%s'" % name)
+        logging.debug("Item.__init__: Instantiate item '%s'" % name)
         self.number = number
         self.name = name
-        self.type = type
+        self.kind = kind
         self.price = price
         # this field is optional:
         if flags:
@@ -146,6 +145,7 @@ class Item(object):
         except FileNotFoundError:
             logging.error(">>> read_items: %s not found" % filename)
             return None
+
 
 class Map(object):
     def __init__(self):
@@ -301,7 +301,7 @@ def random_number():
 
 
 @dataclass
-class Player():
+class Player:
     """
     Attributes, flags and other stuff about characters.
     """
@@ -314,49 +314,19 @@ class Player():
     # stat: {'chr': int, 'con': int, 'dex': int, 'int': int,
     #        'str': int, 'wis': int, 'egy': int}
     stat: dict
-    # status flags:
-    flag: {'room_descriptions': True,
-           'autoduel': False,
-           'room_descriptions': True,
-           'autoduel': False,
-           'hourglass': True,
-           'expert_mode': False,
-           'more_prompt': True,
-           'architect': False,
-           # TODO: define orator_mode more succinctly
-           'orator_mode': False,
+    """
+   'wraith_master': False,
+   'tut_treasure': {'examined': False, 'taken': False},
 
-           # health flags:
-           'hungry': False,
-           'thirsty': False,
-           'diseased': False,
-           'poisoned': False,
-           'tired': False,
-           'on_horse': False,
-           'unconscious': False,
+   # magic items:
+   'gauntlets_worn': False,
+   'ring_worn': False,
+   'amulet_of_life': False,
 
-           # other flags:
-           'debug': True,
-           'dungeon_master': True,
-           'compass_used': False,
-           'thug_attack': False,
-
-           # game objectives:
-           'spur_alive': True,
-           'dwarf_alive': True,
-           'wraith_king_alive': True,
-           'wraith_master': False,
-           'tut_treasure': {'examined': False, 'taken': False},
-
-           # magic items:
-           'gauntlets_worn': False,
-           'ring_worn': False,
-           'amulet_of_life': False,
-
-           # wizard_glow stuff:
-           # 0 if inactive
-           # != 0 is number of rounds left, decrement every turn
-           'wizard_glow': int}
+   # wizard_glow stuff:
+   # 0 if inactive
+   # != 0 is number of rounds left, decrement every turn
+   wizard_glow: int
 
     # things you can only do once per day (file_formats.txt)
     once_per_day: list
@@ -369,26 +339,20 @@ class Player():
     # in_bank: may be cleared on character death (TODO: look in TLOS source)
     # in_bar: should be preserved after character's death (TODO: same)
     # use Character.set_silver("kind", value)
-    # TODO (maybe):
-    # silver: dict[str] = field(default_factory=dict)
-    # silver['in_hand': int, 'in_bank': int, 'in_bar': int]
-    silver: dict
 
     # 0 if unknown, otherwise age in years:
-    age: int
-    # Tuple[('0', '0', '0')]  # (month, day, year):
-    birthday: tuple
+    # age is derived from datetime.now() - birthday
+    birthday: datetime
     # [civilian | fist | sword | claw | outlaw]:
     guild: str
 
     #                  1       2       3       4       5       6       7       8        9
     char_class: str  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
     race: str  # ......Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
-    natural_alignment: str  # good | neutral | evil (depends on race)
 
     # client info:
     client: dict
-    """
+    
     # host (i.e., Python, C64, C128...?)
     'name': str,
     # screen dimensions:
@@ -481,23 +445,19 @@ class Player():
     booby_traps: dict  # dict['room': int, 'combination': str]  # combo: '[a-i]'
 
     times_played: int  # TODO: increment at Character.save()
-    last_play_date: tuple  # Tuple[(0, 0, 0)]  # (month, day, year) like birthday
+    # FIXME: how to distinguish between offline characters and online?
+    last_connection: datetime
 
     special_items: dict
     # SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
     # TODO: avoid placing objects in map "holes" where no room exists
     # DINGHY  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
-    combinations: dict
-    # dict['elevator': (0, 0, 0),
-    #      'locker': (0, 0, 0),
-    #      'castle': (0, 0, 0)]
-    # tuple: combo is 3 digits: (nn, nn, nn)
 
     last_command: list
 
-
     def connect(self):
         with server_lock:
+            # TODO: add last_connection as datetime.now()
             room_players[self.room].add(self.id)
             # TODO: notify other players of connection
 
@@ -526,7 +486,6 @@ class Player():
             else:
                 print(f"{self.name} moves {compass_txts[direction]}.")
 
-
     def disconnect(self):
         with server_lock:
             room_players[self.room].remove(self.id)
@@ -543,12 +502,13 @@ class Player():
 
     @staticmethod
     def load(user_id):
-        path = Player._json_path(user_id)
-        if os.path.exists(path):
-            with open(path) as jsonF:
-                lh_data = json.load(jsonF)
-                logging.debug(f"Player.load: Loaded '%s'." % lh_data['name'])
-                return Player(**lh_data)
+        try:
+            path = Player._json_path(user_id)
+            if os.path.exists(path):
+                with open(path) as jsonF:
+                    lh_data = json.load(jsonF)
+                    logging.debug(f"Player.load: Loaded '%s'." % lh_data['name'])
+                    return Player(**lh_data)
         except FileNotFoundError:
             # Failure
             logging.error("Player.load: '%s' not found" % user_id)
@@ -556,8 +516,8 @@ class Player():
 
 
     def save(self):
-        with open(Player._json_path(self.id), 'w') as jsonF:
-            json.dump(self, jsonF, default=lambda o: {k: v for k, v
+        with open(Player._json_path(self.id), 'w') as json_file:
+            json.dump(obj=self, fp=json_file, default=lambda o: {k: v for k, v
                                                       # in o.__dict__.items() if v}, indent=4)
                                                       in o.__dict__.items()}, indent=4)
             logging.debug("Player.save: Saved '%s'." % self.name)
@@ -590,9 +550,9 @@ class PlayerHandler(net_server.UserHandler):
         try:
             room = game_map.rooms[self.player.room]
         except KeyError:
-            logging.warning("room_msg: Room %i does not exist" % self.player.room)
+            logging.warning("room_msg: Room %i does not exist" % player.room)
 
-        debug = self.player.flag['debug']
+        debug = player.query_flag(PlayerFlags.DEBUG_MODE)
         exits_txt = room.exits_Txt(debug)
         lines2 = list(lines)
 
@@ -609,7 +569,7 @@ class PlayerHandler(net_server.UserHandler):
         lines2.append(f"{f'#{room.number} ' if debug else ''}{room_name} [{temp}]\n")
 
         # FIXME: is anything wrong with this?
-        if self.player.flag['room_descs']:
+        if player.flag['room_descs']:
             lines2.append(f'{wrapper.fill(text=room.desc)}')
 
         # is an item in current room?
@@ -650,7 +610,7 @@ class PlayerHandler(net_server.UserHandler):
 
         # TODO: add grammatical list item (SOME MELONS, AN ORANGE)
 
-        debug = self.player.flag['debug']
+        debug = player.flag['debug']
         exits_txt = room.exitsTxt(debug)
         if exits_txt is not None:
             lines2.append(f"Ye may travel: {exits_txt}\n")
@@ -664,7 +624,7 @@ class PlayerHandler(net_server.UserHandler):
         # logging.info(f'item #{num} name: {items[num - 1]["name"]}')
 
         # setting 'exclude_id' excludes that player (i.e., yourself) from being listed
-        other_player_ids = players_in_room(room.number, exclude_id=self.player.id)
+        other_player_ids = players_in_room(room.number, exclude_id=player.id)
         # TODO: "Alice is here." / "Alice and Bob are here." / "Alice, Bob and Mr. X are here."
         """
         if len(other_player_ids) == 0:
@@ -678,7 +638,7 @@ class PlayerHandler(net_server.UserHandler):
                 # tanabi: Add 'and' if we need it
                 # result_list = f"and {result_list[:-1]} are"
                 pass
-        other_player_ids = playersInRoom(room.id, self.player.id)
+        other_player_ids = playersInRoom(room.id, player.id)
         lines2.append(f"{result_list} here.")
         """
 
@@ -691,7 +651,7 @@ class PlayerHandler(net_server.UserHandler):
     def process_login_success(self, user_id):
         player = Player.load(user_id)
         logging.info("process_login_success: Login %s ('%s') (IP: %s)" \
-                     % (user_id, self.player.name, self.sender))
+                     % (user_id, player.name, self.sender))
         if player is None:
             logging.debug("process_login_success: No player data, creating new character.")
             # TODO: create player
@@ -699,7 +659,7 @@ class PlayerHandler(net_server.UserHandler):
             logging.debug("process_login_success: Running create_player...")
             valid_name = False
             while not valid_name:
-                reply = self.promptRequest(lines=["Choose your adventurer's name."], prompt='Name? ')
+                reply = net_server.prompt_request(lines=["Choose your adventurer's name."], prompt='Name? ')
                 name = reply['text'].strip()
                 if name != '':  # TODO: limitations on valid names
                     valid_name = True
@@ -707,52 +667,52 @@ class PlayerHandler(net_server.UserHandler):
                             name=name,
                             map_level=1,
                             room=room_start,
-                            money=money_start,
-                            health=100,
-                            xp=0,
-                            flag={'debug': True,
-                                  'expert_mode': False,
-                                  'room_descs': True},
+                            hit_points=100,
                             last_command=None)
+            player.set_flag(PlayerFlags.DEBUG_MODE)
+            player.clear_flag(PlayerFlags.EXPERT_MODE)
+            player.set_flag(PlayerFlags.ROOM_DESCRIPTIONS)
+
             player.save()
-        self.player = players[user_id] = player
-        logging.info(f"login {user_id} '{self.player.name}' (addr={self.sender})")
-        silver = self.player.silver['in_hand']
-        lines = [f"Welcome, {self.player.name}.",
-                 f"You have {silver:,} silver.\n"]
+        player = players[user_id] = player
+        logging.info("login %s ('%s', IP addr=%s)" %
+                     (user_id, player.name, self.sender))
+        silver = player.silver[PlayerMoneyTypes.IN_HAND]
+        lines = [f"Welcome, {player.name}.",
+                 f"You have {silver:,} silver in hand.\n"]
 
         # show/convert flags from json text 'true/false' to bool True/False
         # (otherwise they're not recognized, and can't be toggled):
-        for k, v in self.player.flag.items():
-            if self.player.flag[k] == 'true':
-                self.player.flag[k] = True
-            if self.player.flag[k] == 'false':
-                self.player.flag[k] = False
+        for k, v in player.flag.items():
+            if player.flag[k] == 'true':
+                player.flag[k] = True
+            if player.flag[k] == 'false':
+                player.flag[k] = False
             logging.debug("%s: %s" % (k, v))
 
-        # FIXME
-        changes = {K.room_name: game_map.rooms[self.player.room].name,
-                   K.silver: self.player.silver, K.hit_points: self.player.hit_points,
-                   K.experience: self.player.experience}
-        self.player.connect()
-        return self.roomMsg(lines, changes)
+        changes = {K.room_name: game_map.rooms[player.room].name,
+                   K.silver: player.silver, K.hit_points: player.hit_points,
+                   K.experience: player.experience}
+        player.connect()
+        return self.room_msg(lines, changes)
 
-    def process_message(self, data):
+    def process_message(self, data, player: Player):
         if 'text' in data:
             cmd = data['text'].lower().split(' ')
-            logging.debug("process_message: ID=%s, command=%s" % (self.player.id, cmd))
+            logging.debug("process_message: ID=%s, command=%s" % (player.id, cmd))
             # update last command to repeat with Return/Enter
             # if an invalid command, set to None later
             # TODO: maybe maintain a history
-            self.player.last_command = cmd
-            logging.info(f'{self.player.last_command=}')
+            player.last_command = cmd
+            logging.debug("process_message: Player %s last cmd: %s" %
+                         (player.name, player.last_command))
 
             # TODO: handle commands with parser etc.
 
             # movement
             if cmd[0] in compass_txts:
-                room = game_map.rooms[self.player.room]
-                logging.debug("parser: current room #: %s" % self.player.room)
+                room = game_map.rooms[player.room]
+                logging.debug("parser: current room #: %s" % player.room)
                 direction = cmd[0]
                 logging.debug("parser: direction: %s" % direction)
                 # 'rooms' is a list of Room objects?
@@ -768,43 +728,43 @@ class PlayerHandler(net_server.UserHandler):
                 # cmd.insert(0, 'go') probably not necessary
                 # json data (dict):
                 # check if 'direction' is in room exits
-                if direction in room.exits:  # rooms[self.player.room].exits.keys():
-                    logging.debug("parser: move %s => %s" % (direction, self.player.room))
+                if direction in room.exits:  # rooms[player.room].exits.keys():
+                    logging.debug("parser: move %s => %s" % (direction, player.room))
                     # delete player from list of players in current room, then
                     # add player to list of players in room they moved to
-                    self.player.move(room.exits[direction], direction)
+                    player.move(room.exits[direction], direction)
                     # FIXME: maybe only at quit
-                    # self.player.save()
-                    room_name = game_map.rooms[self.player.room].name
-                    return self.roomMsg(lines=[f"You move {compass_txts[direction]}."],
+                    # player.save()
+                    room_name = game_map.rooms[player.room].name
+                    return self.room_msg(lines=[f"You move {compass_txts[direction]}."],
                                         changes={K.room_name: room_name})
 
             """
             This is the way the original Apple code handled up/down exits.
             I'm fully aware up/down exits could just be a room number, or 0
-            for no connection--my self-written level 8 map does exactly this.
+            for no connection--my -written level 8 map does exactly this.
             """
             if cmd[0][:1] == 'u' or cmd[0][:1] == 'd':
-                room = game_map.rooms[self.player.room]
+                room = game_map.rooms[player.room]
                 room_exits = room.exits
                 room_connection = room_exits.get('rc', 0)
                 room_transport = room_exits.get('rt', 0)
                 # example: level 1, room 20
                 if cmd[0] == 'u' and room_connection == 1:
                     if room_transport != 0:
-                        logging.debug("parser: %s moves Up to %i" % (self.player.name, room_transport))
-                        # self.player.room = room_transport
-                        self.player.move(next_room=room_transport, direction='u')
+                        logging.debug("parser: %s moves Up to %i" % (player.name, room_transport))
+                        # player.room = room_transport
+                        player.move(next_room=room_transport, direction='u')
                         return
                     else:
-                        logging.debug("parser: %s moves Up to Shoppe" % self.player.name)
-                        self.player.move(next_room=room_transport, direction='u')
-                        # don't change self.player.room, return them to where they left
+                        logging.debug("parser: %s moves Up to Shoppe" % player.name)
+                        player.move(next_room=room_transport, direction='u')
+                        # don't change player.room, return them to where they left
                         return Message(lines=["TODO: write Shoppe routine..."])
                 if cmd[0] == 'd' and room_connection == 2:
                     if room_transport != 0:
-                        logging.debug("parser: %s moves Down to %i" % (self.player.name, room_transport))
-                        self.player.move(next_room=room_transport, direction='d')
+                        logging.debug("parser: %s moves Down to %i" % (player.name, room_transport))
+                        player.move(next_room=room_transport, direction='d')
 
                         # get new room desc:
                         # FIXME: TypeError: 'Room' object is not subscriptable
@@ -814,24 +774,25 @@ class PlayerHandler(net_server.UserHandler):
                         desc = temp["desc"]
                         logging.info(f"desc: {desc}")
                         """
-                        desc = "bla"
                         # FIXME: see server.py, line 24:
                         #  thought maybe this would show the new room desc
                         return Message(lines=["You move down."],
-                                       changes={K.desc: desc})
+                                       changes={K.room_name: room.name,
+                                                K.room: room.desc}
+                        )
                     else:
-                        logging.debug("parser: %s moves Down to Shoppe" % self.player.name)
-                        self.player.move(next_room=room_transport, direction='d')
+                        logging.debug("parser: %s moves Down to Shoppe" % player.name)
+                        player.move(next_room=room_transport, direction='d')
 
-                        # don't change self.player.room, return them to where they left
+                        # don't change player.room, return them to where they left
                         return Message(lines=["TODO: write Shoppe routine..."])
 
                 else:
                     return Message(lines=["Ye cannot travel that way."])
 
             if cmd[0] in ['l', 'look']:
-                room = game_map.rooms[self.player.room]
-                return self.roomMsg(lines=room.desc)
+                room = game_map.rooms[player.room]
+                return self.room_msg(lines=room.desc)
 
             if cmd[0] in ['bye', 'logout', 'quit']:
                 temp = net_server.UserHandler.prompt_request(self, lines=[], prompt='Really quit? ',
@@ -840,8 +801,8 @@ class PlayerHandler(net_server.UserHandler):
                 logging.info(f'{temp=}')
                 # extract value from returned dict, e.g.: temp={'text': 'y'}
                 if temp.get('text') == 'y':
-                    self.player.save()
-                    self.player.disconnect()
+                    player.save()
+                    player.disconnect()
                     return Message(lines=["Bye for now."], mode=Mode.bye)
                 else:
                     return Message(lines=["Thanks for sticking around."])
@@ -856,20 +817,16 @@ class PlayerHandler(net_server.UserHandler):
 
             # toggle room descriptions:
             if cmd[0] in ['r']:
-                logging.info(f"{self.player.flag['room_descs']}")
-                self.player.flag['room_descs'] = not self.player.flag['room_descs']
-                temp = self.player.flag['room_descs']
-                logging.info(f'Room descriptions: {temp}.')
+                player.toggle_flag(PlayerFlags.ROOM_DESCRIPTIONS, verbose=True)
                 return Message(lines=[f'[Room descriptions are now '
                                       f'{"off" if temp is False else "on"}.]'])
 
             if cmd[0] == 'who':
-                from server import net_server as ns
-                lines = ["\nWho's on:"]
-                count = 0
-                for login_id in ns.connected_users:
-                    lines.append(f'{count + 1:2}) {players[login_id].name}')
-                    count += 1
+                # TODO: add login time, calculate how long player has been on
+                import net_server as ns
+                lines = ["\nWho's on:\n"]
+                for count, login_id in enumerate(ns.connected_users, start=1):
+                    lines.append(f'{count:2}) {players[login_id].name}')
                 return Message(lines=lines)
 
             # really this is just a debugging tool to save shoe leather:
@@ -885,13 +842,13 @@ class PlayerHandler(net_server.UserHandler):
                     # delete player id from list of players in current room,
                     # add player id to list of players in room they moved to
                     # 'direction' is None, so display "{player} disappears in a flash of light."
-                    self.player.move(room_num, direction=None)
+                    player.move(room_num, direction=None)
 
                     # move player there:
-                    self.player.room = room_num
-                    logging.debug("parser: moved to room #%i, %s" % (room_num, self.player.room))
+                    player.room = room_num
+                    logging.debug("parser: moved to room #%i, %s" % (room_num, player.room))
                     # TODO: something like this displayed to other players would be nice to indicate teleportation:
-                    #  Message([f"{self.player.name} disappears in a flash of light.")
+                    #  Message([f"{player.name} disappears in a flash of light.")
                     # TODO: display new room description
                     return Message(lines=[f"You teleport to room #{val}, {dest.name}.\n"])
                     # changes={"prompt": "Prompt:", "status_line": 'Status Line'})
@@ -919,18 +876,15 @@ class PlayerHandler(net_server.UserHandler):
                     logging.info("parser: data=%s" % type(data))  # type = bytes
                     data_dict = dict(data)
                     net_server.UserHandler.message(net_common.toJSONB(data_dict))
-                    net_server.UserHandler.message(self, "This should be PetSCII.\r")  # socket: request.sendall(data)
+                    net_server.UserHandler.message(, "This should be PetSCII.\r")  # socket: request.sendall(data)
             """
             # invalidate repeating last_command
-            self.player.last_command = None
+            player.last_command = None
             return Message(lines=["I didn't understand that.  Try something else."])
         else:
-            logging.error("unexpected message")
-            return Message(lines=["Unexpected message."], mode=Mode.bye)
-
-        # otherwise, not a valid server message?:
-        logging.error("parser: unexpected message '%s'" % cmd)
-        return Message(lines=["parser: Unexpected message '{cmd}'."], mode=Mode.bye)
+            # otherwise, not a valid server message?:
+            logging.error("parser: unexpected message '%s'" % cmd)
+            return Message(lines=["parser: Unexpected message '{cmd}'."], mode=Mode.bye)
 
 
 def break_handler(msg, event):
