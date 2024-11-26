@@ -207,6 +207,9 @@ class BaseCharacterClass(object):
     can_fly: False
     size: Size.MAN_SIZED
     carrying_capacity: 10
+    natural_alignment: str  # FIXME: [good | neutral | evil] (depends on race)
+    honor: 1000  # TODO: look this up, I think that equates to Saintly for a Knight
+    # current_alignment is based on Honor score (the lower it is, the more evil the character is)
 
 @dataclass
 class Pixie(BaseCharacterClass):
