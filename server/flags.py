@@ -1,12 +1,14 @@
 import logging
 import random
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 import doctest
+from multiprocessing.managers import Value
+from types import NoneType
 from typing import Any
 
 class ClientSettings(str, Enum):
-    """
     NAME = "name"
     ROWS = "rows"
     COLUMNS = "columns"
@@ -25,9 +27,22 @@ class ClientSettings(str, Enum):
         self.return_key = KeyName.RETURN | KeyName.ENTER
     """
 
+
 class Gender(str, Enum):
     MALE = "Male"
     FEMALE = "Female"
+    
+    
+class PlayerClass(str, Enum):
+    WIZARD = "Wizard" # TODO: if player.gender == Gender.MALE else 'Witch'
+    DRUID = "Druid"
+    FIGHTER = "Fighter"
+    PALADIN = "Paladin"
+    RANGER = "Ranger"
+    THIEF = "Thief"
+    ARCHER = "Archer"
+    ASSASSIN = "Assassin"
+    KNIGHT = "Knight"
 
 
 class PlayerFlags(str, Enum):
@@ -104,6 +119,7 @@ class PlayerStat(str, Enum):
     CHR = "Charisma"
     CON = "Constitution"
     DEX = "Dexterity"
+    EGY = "Energy"
     INT = "Intelligence"
     STR = "Strength"
     WIS = "Wisdom"
@@ -157,18 +173,56 @@ class Flag(object):
 
 
 @dataclass
+class PlayerRace(str, Enum):
+    HUMAN = "Human"
+    OGRE = "Ogre"
+    GNOME = "Gnome"
+    ELF = "Elf"
+    HOBBIT = "Hobbit"
+    HALFLING = "Halfling"
+    DWARF = 'Dwarf'
+    ORC = 'Orc'
+    HALF_ELF = 'Half-Elf'
+
+
+@dataclass
+class Size(object):
+    TINY = 1
+    SHORT = 2
+    SMALL = 3
+    MEDIUM_SIZED = 4
+    MAN_SIZED = 5
+    LARGE = 6
+    HUGE = 7
+
+
+@dataclass
+class BaseCharacterClass(object):
+    name: str
+    """
+    'can_fly' can be set to True if mounted on a Pegasus, also if the SPACE SUIT is fixed;
+    this lets you navigate over bodies of water without the use of a DINGHY.
+    Also the HOT AIR BALLOON in 'The Land of Oz' level could allow flight
+    """
+    can_fly: False
+    size: Size.MAN_SIZED
+    carrying_capacity: 10
+
+@dataclass
+class Pixie(BaseCharacterClass):
+    can_fly: True
+    size: Size.TINY
+    carrying_capacity: 4
+
+
+@dataclass
 class Player(object):
     # TODO: make some of these stats part of a generic Character base class
-    # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
-    combinations: dict[CombinationTypes, tuple] = field(
-        default_factory=lambda: {
-            combination_type: (random.randrange(99) for _ in range(3))
-            for combination_type in CombinationTypes
-        }
-    )
     name: str = None
-    # FIXME: just for test purposes:
     gender: Gender = Gender.MALE
+    character_class: PlayerClass = None
+    character_race: PlayerRace = None
+    hit_points: int = 0
     once_per_day: list[str] = field(default_factory=list)
     # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
     flags: dict[PlayerFlags, Flag] = field(default_factory=lambda: {i[0]: Flag(*i) for i in player_flag_data})
@@ -176,8 +230,28 @@ class Player(object):
     stat: dict[PlayerStat, int] = field(default_factory=lambda: {i: 0 for i in PlayerStat})
     # same with silver FIXME: (set to 1_000 for testing purposes):
     silver: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1_000 for i in PlayerMoneyTypes})
-    hit_points: int = 0
-    client_settings: dict[ClientSettings, Any] = field(default_factory=lambda: {k: v for k, v in ClientSettings})
+    """
+    Silver is a more reasonable default currency than gold -- most people in the Middle Ages didn't have gold.
+    
+    The Florentine florin was a gold coin struck from 1252 to 1533 with no significant change in its design or 
+    metal content standard during that time. - Wikipedia
+
+    The shilling is a historical coin, and the name of a unit of modern currencies formerly used in the United 
+    Kingdom, Australia, New Zealand, other British Commonwealth countries and Ireland, where they were generally 
+    equivalent to 12 pence or one-twentieth of a pound before being phased out during the 1960s and 1970s. - Wikipedia
+    
+    TODO: Also possibly introduce platinum, electrum, copper pieces.
+    """
+    birthday: datetime = datetime.today()
+
+    # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
+    combinations: dict[CombinationTypes, tuple] = field(
+        default_factory=lambda: {
+            combination_type: (random.randrange(99) for _ in range(3))
+            for combination_type in CombinationTypes
+        }
+    )
+    client_settings: dict[str, str | int] = field(default_factory=lambda: {k: v for k, v in enumerate(ClientSettings)})
 
     def adjust_silver(self, kind: PlayerMoneyTypes, adjustment: int):
         try:
@@ -372,22 +446,25 @@ class Player(object):
 def flag_editor(player: Player):
     print("- Toggling an indexed flag:")
     while True:
+        max_options = len(player_flag_data)
         for k, v in enumerate(player.flags, start=1):
             print(player.show_flag_line_item(flag=v, leading_num=k))
-        option = input(f"1-{len(player.flags)}, [Q]uit: ").lower()
+        option = input(f"1-{max_options}, [Q]uit: ").lower()
         try:
             if option[0] == 'q':
                 print("Done.")
                 break
             value = int(option)
-            if 0 < value < len(player.flags) + 1:
+            if 0 < value < max_options + 1:
                 # look up the flag index in player_flag_data:
                 # value-1 accounts for lists being 0-indexed
                 # TODO: toggle_flag_by_index() function?
                 logging.debug("flag_editor: value: %i" % value)
                 player.toggle_flag(player_flag_data[value - 1][0], verbose=True)
+            else:
+                raise ValueError
         except ValueError:
-            print(f"Please enter a number 1-{len(player.flags)}.")
+            print(f"Please enter a number 1-{max_options}.")
 
 
 if __name__ == '__main__':
