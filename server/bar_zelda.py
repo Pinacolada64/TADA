@@ -2,11 +2,9 @@ import logging
 import glob
 import json
 
-from bar import output, input_prompt
-from globals import get_client, get_flag
+from tada_utilities import output, input_string
 
-client = get_client()
-flag = get_flag()
+from flags import PlayerFlags, Player, Gender
 
 
 def get_player_info(stats: list, id_pattern="*") -> dict:
@@ -34,9 +32,10 @@ def get_player_info(stats: list, id_pattern="*") -> dict:
         logging.info(f"get_player_info: Reading {player_filename}")
         with open(player_filename) as json_file:
             try:
-                # returns dict object
+                # returns dict object, I think
+                # TODO: use Player.json_load() function instead
                 player_data = json.load(json_file)
-                logging.info(f'{player_data=}')
+                logging.info('get_{player_info: %s' % player_data)
                 """
                 # Print the type of data variable
                 print("Type:", type(player_data))
@@ -51,9 +50,9 @@ def get_player_info(stats: list, id_pattern="*") -> dict:
                     try:
                         returned_stats[stat] = player_data[stat]
                     except KeyError:
-                        logging.warning(f'get_player_info: {stat=} not found')
+                        logging.warning('get_player_info: stat %s not found' % stat)
             except FileNotFoundError:
-                logging.info(f'File "{path}" not found.')
+                logging.info("File '%s' not found." % path)
                 continue
     if filename_list is None:
         output(f"There are no players matching the pattern '{id_pattern}'.")
@@ -63,67 +62,36 @@ def get_player_info(stats: list, id_pattern="*") -> dict:
 
 
 def zelda_menu():
-    output("[S]tudy a player (1,000 silver), [R]esurrect monsters (6,000 silver), or [L]eave")
+    output("[S]tudy a player (1,000 silver)\n[R]esurrect monsters (6,000 silver), or\n[L]eave", player)
 
 
-def main(client: dict, flag: dict, player_name: str):
+if __name__ == '__main__':
+    player = Player()
     """
     Spy on player's stats
     Raise other players' dead monsters
     """
-    import logging
-
     # set up logging to file - see previous section for more details
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
                         datefmt='%m-%d %H:%M')
-    # define a Handler which writes INFO messages or higher to the sys.stderr
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    # set a format which is simpler for console use
-    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-    # tell the handler to use this format
-    console.setFormatter(formatter)
-    # add the handler to the root logger
-    logging.getLogger('').addHandler(console)
 
-    # Now, we can log to the root logger, or any other logger. First the root...
-    logging.info('Jackdaws love my big sphinx of quartz.')
-
-    # Now, define a couple of other loggers which might represent areas in your
-    # application:
-
-    logger1 = logging.getLogger(__name__)
-    # logger2 = logging.getLogger('myapp.area2')
-
-    logger1.debug('Quick zephyrs blow, vexing daft Jim.')
-    logger1.info('How quickly daft jumping zebras vex.')
-    logger1.warning('Jail zesty vixen who grabbed pay from quack.')
-    logger1.error('The five boxing wizards jump quickly.')
-
-    logger1.info("Test")
-    logger1.info(f'{client=}')
-    logger1.info(f'{flag=}')
-    logger1.info(f'{player_name=}')
-
-    # TODO: import server.server.Player dataclass
-
-    character = "Madame Zelda"
-    output(f'{character} and her cat sit in front of a crystal ball.')
-    if flag['expert_mode'] is False:
+    npc_name = "Madame Zelda"
+    output(f'{npc_name} and her cat sit in front of a crystal ball.')
+    if player.query_flag(flags.PlayerFlags.EXPERT_MODE) is False:
         output("She can either show other players' statistics (which costs 1,000 silver), or resurrect "
-               "their dead monsters so they must be fought again (which costs 6,000 silver).")
+               "their dead monsters so they must be fought again (which costs 6,000 silver).", player)
         print()
         zelda_menu()
     while True:
         print()
-        command, last_command = input_prompt('"What dooooo you wiiiiiish?":')
+        command, last_command = input_string('"What dooooo you wiiiiiish?":')
         if command == "s":
-            if flag['expert_mode'] is False:
+            if player.query_flag(PlayerFlags.EXPERT_MODE) is False:
                 output("[?] lists players.")
             # TODO: trap against null input, digits; can't use prompt() if it just returns 1st character
             look_up = input('"Study which player?": ')
-            if look_up.lower() == player_name.lower():
+            if look_up.lower() == player.name.lower():
                 output('She looks you up and down. "I suggesssst youuuuuu uuuuuuuse a mirror!"')
                 continue  # out of the loop
             if look_up == '?':
@@ -137,7 +105,7 @@ def main(client: dict, flag: dict, player_name: str):
                                           'Is thaaaaaat okayyyyy?" [y/n]:')
                 if pay == 'y':
                     logging.info("TODO: check silver")
-                    output(f'{character} hunkers down over the ball.. "I seeeee..."')
+                    output(f'{npc_name} hunkers down over the ball.. "I seeeee..."')
                     try:
                         stats = ['name', 'gender', 'map_level', 'hit_points', 'experience',
                                  'shield', 'armor', 'stat']
@@ -145,7 +113,7 @@ def main(client: dict, flag: dict, player_name: str):
                         if temp is None:
                             logging.info(f"Can't find player {look_up}.")
                             break
-                        pronoun = "She" if temp['gender'] == 'female' else "He"
+                        pronoun = "She" if temp['gender'] == Gender.FEMALE else "He"
                         output(f"{temp['name']} is on dungeon level {temp['map_level']}. "
                                f"{pronoun} has {temp['hit_points']} hit points.")
                         print()
@@ -172,14 +140,14 @@ def main(client: dict, flag: dict, player_name: str):
                         elif ar == 'none':
                             armor = 'no'
                         output(f"{pronoun} has {shield} shield, and {armor} armor.")
-                        logging.info(f"TODO: Instruments of death")
+                        logging.debug(f"TODO: Instruments of death")
                         continue  # back to Zelda menu
                     except FileNotFoundError:
-                        logging.info(f"Can't find player '{look_up}'.")
+                        logging.debug(f"Can't find player '{look_up}'.")
                         break
                 # pay 1000 silver?
                 if pay == 'n':
-                    output('"Hmph..."')
+                    output('"Hmph..."', player)
                     break
 
         if command == 'r':
@@ -188,23 +156,23 @@ def main(client: dict, flag: dict, player_name: str):
             anonymous = ""
             while anonymous not in ["y", "n"]:
                 anonymous, last_command = input_prompt('"Dooo you wiiiiish to be unknowwwwwn?" [Y/N]:')
-            benefactor = f'{"somebody" if anonymous == "y" else f"{player_name}"}'
+            benefactor = f'{"somebody" if anonymous == "y" else f"{player.name}"}'
             message = f"""Zelda casts 'Monster Life' on {target}! Spell paid for by {benefactor}!"""
-            output(message)
+            output(message, player)
             # TODO: battle_log(message)
-            output(f"{character} and her cat get [really] weird...")
+            output(f"{npc_name} and her cat get [really] weird...")
             output("[TODO]: Resurrect player's monsters")
-            output('"It iiiisss doooooone!"')
+            output('"It iiiisss doooooone!"', player)
             continue  # back to menu
 
         if command == '?':
             zelda_menu()
             continue
         if command == 'l':
-            output(f'{character} crosses her arms. "Gooo away, you bother my caaaat..."')
+            output(f'{npc_name} crosses her arms. "Gooo away, you bother my caaaat..."')
             break  # return to bar
         else:
-            output(f'{character} stares at you. Her cat stares too.')
+            output(f'{npc_name} stares at you. Her cat stares too.')
 
     # TODO: could be a player editor skeleton
     """
