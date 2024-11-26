@@ -152,8 +152,8 @@ class UserHandler(socketserver.BaseRequestHandler):
                 traceback.print_exc(file=sys.stdout)
                 # TODO: log error with message, error code to client
                 self._send_data(Message(lines=["Terminating session."],
-                                       error_line=f"server side error ({e})",
-                                       error=Error.server2, mode=Mode.bye))
+                                        error_line=f"server side error ({e})",
+                                        error=Error.server2, mode=Mode.bye))
         if self.user is not None:
             user_id = self.user.id
             with server_lock:
@@ -163,10 +163,10 @@ class UserHandler(socketserver.BaseRequestHandler):
         logging.info("user_handler: disconnect %s (addr=%s)" % (user_id, self.sender))
 
     def _receive_data(self):
-        return nc.fromJSONB(self.request.recv(1024))
+        return nc.from_jsonb(self.request.recv(1024))
 
     def _send_data(self, data):
-        self.request.sendall(nc.toJSONB(data))
+        self.request.sendall(nc.to_jsonb(data))
 
     def _process_init(self, data):
         client_id = data.get('id')
@@ -246,6 +246,7 @@ class UserHandler(socketserver.BaseRequestHandler):
         self.login_history.succeed_user(user_id, save=True)
         return process_login_success(user_id)
 
+
 def prompt_request(self, lines, prompt: str, choices: dict):
     self._send_data(Message(lines=lines, prompt=prompt, choices=choices))
     return self._receive_data()
@@ -253,11 +254,13 @@ def prompt_request(self, lines, prompt: str, choices: dict):
     # base implementation for when testing net_client/net_server
     # NOTE: must be overridden by actual app (see client/server)
 
+
 def init_success_lines(self):
     """OVERRIDE in subclass
     First server message lines that user sees.  Should tell them to log in.
     """
     return ['Generic Server.', 'Please log in.']
+
 
 def login_fail_lines(self):
     """OVERRIDE in subclass
@@ -265,12 +268,14 @@ def login_fail_lines(self):
     """
     return ['please try again.']
 
+
 def process_login_success(self, user_id):
     """OVERRIDE in subclass
     First method called on successful login.
 Should do any user initialization and then return Message.
     """
     return Message(lines=[f"Welcome {user_id}."])
+
 
 def process_message(self, data):
     """OVERRIDE in subclass
@@ -284,6 +289,7 @@ Called on all subsequent Cmd messages from client.
         else:
             return Message(lines=["Unknown command."])
 
+
 def start(host, port, _id, key, protocol, handler_class):
     global server_id, server_key, server_protocol
     server_id = _id
@@ -296,7 +302,7 @@ def start(host, port, _id, key, protocol, handler_class):
         server_thread.start()
         running = True
         while running:
-            text = input()
+            text = input("Console command: ")
             if text in ['q', 'quit', 'exit']:
                 running = False
         server.shutdown()

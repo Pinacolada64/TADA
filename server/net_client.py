@@ -70,10 +70,10 @@ class Client(object):
             try:
                 self.clientSocket.connect((self.host, self.port))
                 logging.debug("Client.start: connected (%s:%s)" % (self.host, self.port))
-                self.clientSocket.sendall(nc.toJSONB(Init(**init_params)))
+                self.clientSocket.sendall(nc.to_jsonb(Init(**init_params)))
                 self.active = True
                 while self.active:
-                    request = nc.fromJSONB(self.clientSocket.recv(1024))
+                    request = nc.from_jsonb(self.clientSocket.recv(1024))
                     if request is None:
                         logging.debug("Client.start: no request.")
                         self.active = False
@@ -86,7 +86,7 @@ class Client(object):
         logging.info('Exiting.')
 
     def _send_data(self, data):
-        self.clientSocket.sendall(nc.toJSONB(data))
+        self.clientSocket.sendall(nc.to_jsonb(data))
 
     def _print_common(self, request):
         if request['error'] != '':

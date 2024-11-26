@@ -34,13 +34,13 @@ class Mode(str, enum.Enum):
     bye = 'bye'
 
 
-def toJSONB(obj):
+def to_jsonb(obj):
     """turn arbitrary object into JSON string"""
     json_out = json.dumps(obj, default=lambda o: o.__dict__)
     return bytes(json_out, 'utf-8')
 
 
-def fromJSONB(bytes):
+def from_jsonb(bytes):
     try:
         json_in = str(bytes, 'utf-8')
         if len(json_in) == 0:
