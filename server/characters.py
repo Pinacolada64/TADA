@@ -1,6 +1,9 @@
 import logging
 from dataclasses import dataclass
 
+from flags import Player
+
+
 # https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
 # http://pythonfiddle.com/text-based-rpg-code-python/
 
@@ -177,7 +180,7 @@ class Character:
             year = date.today().year - age
             return f"{month}/{day}/{year}"
 
-    def print_all_stats(self, char: Character):
+    def print_all_stats(self, char: Player):
         """
         >>> test = Character(stats={'chr': 8,
                                     'con': 15,

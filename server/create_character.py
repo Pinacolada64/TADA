@@ -1,10 +1,10 @@
 from tada_utilities import header, output, input_number_range, input_yes_no
 
-from players import Player
+from flags import Player, PlayerFlags, PlayerStat, Gender, PlayerClass, PlayerRace
 
 from random import randrange  # for age and generating random stats
 
-from datetime import date  # for birthday displays/calculations
+from datetime import date, datetime  # for birthday displays/calculations
 
 import calendar  # monthrange for validating # of days in month
 
@@ -30,10 +30,10 @@ def choose_gender(char: Player):
     while True:
         temp = input("Enter [M]ale or [F]emale: ").lower()
         if temp == 'm':
-            character.gender = 'male'
+            character.gender = Gender.MALE
             break
         if temp == 'f':
-            character.gender = 'female'
+            character.gender = Gender.FEMALE
             break
 
 
@@ -45,11 +45,13 @@ def edit_gender(char: Player):
 
     while True:
         # FIXME: this is probably a dirty hack
-        if char.gender == 'female':
-            char.gender = 'male'
+        if char.gender == Gender.FEMALE:
+            char.gender = Gender.MALE
+            logging.debug("edit_gender: changed from Female to Male")
             break
-        if char.gender == 'male':
-            char.gender = 'female'
+        if char.gender == Gender.MALE:
+            char.gender = Gender.FEMALE
+            logging.debug("edit_gender: changed from Male to Female")
             break
     output(f"{char.name} is now {char.gender}.", char)
 
@@ -205,44 +207,47 @@ def edit_class(p: Player):
 
 
 def validate_class_race_combo(p: Player):
-    """make sure selected class/race combination is allowed
+    """
+    make sure selected class & race combination is allowed
+
     :param p: Player object to validate class and race of
-    :returns: True if an acceptable combination, False if not"""
-    ok_combination = True
+    :return: True if an acceptable combination, False if not
+    """
+    bad_combination = False
     logging.info("validate_class_race_combo reached")
 
     # list of bad combinations:
-    if p.char_class == 'wizard' or 'witch':
-        if p.race in ['ogre', 'dwarf', 'orc']:
-            ok_combination = False
+    if p.character_class == PlayerClass.WIZARD:
+        if p.character_race in [PlayerRace.OGRE, PlayerRace.DWARF, PlayerRace.ORC]:
+            bad_combination = True
 
-    elif p.char_class == 'druid':
-        if p.race in ['ogre', 'orc']:
-            ok_combination = False
+    elif p.character_class == PlayerClass.DRUID:
+        if p.character_race in [PlayerRace.OGRE, PlayerRace.ORC]:
+            bad_combination = True
 
-    elif p.char_class == 'thief':
-        if p.race == 'elf':
-            ok_combination = False
+    elif p.character_class == PlayerClass.THIEF:
+        if p.character_race == PlayerRace.ELF:
+            bad_combination = True
 
-    elif p.char_class == 'archer':
-        if p.race in ['ogre', 'gnome', 'hobbit']:
-            ok_combination = False
+    elif p.character_class == PlayerClass.ARCHER:
+        if p.character_race in [PlayerRace.OGRE, PlayerRace.GNOME, PlayerRace.HOBBIT]:
+            bad_combination = True
 
-    elif p.char_class == 'assassin':
-        if p.race in ['gnome', 'elf', 'hobbit']:
-            ok_combination = False
+    elif p.character_class == PlayerClass.ASSASSIN:
+        if p.character_race in [PlayerRace.GNOME, PlayerRace.ELF, PlayerRace.HOBBIT]:
+            bad_combination = True
 
-    elif p.char_class == 'knight':
-        if p.race in ['ogre', 'orc']:
-            ok_combination = False
+    elif p.character_class == PlayerClass.KNIGHT:
+        if p.character_race in [PlayerRace.OGRE, PlayerRace.ORC]:
+            bad_combination = True
 
-    if ok_combination is False:
-        temp = f'''"{'An ' if p.race.startswith(('a', 'e', 'i', 'o', 'u')) else 'A '}'''
-        temp += f'{p.race} {p.char_class} does not a good adventurer make. Try again."'
+    if bad_combination is True:
+        temp = f'''"{'An ' if p.character_race.startswith(('a', 'e', 'i', 'o', 'u')) else 'A '}'''
+        temp += f'{p.character_race} {p.character_class} does not a good adventurer make. Try again."'
         output(temp, p)
     else:
         output('"Okay, fine with me," agrees Verus.', p)
-    return ok_combination
+    return bad_combination
 
 
 def choose_race(p: Player):
@@ -407,23 +412,24 @@ def validate_age(age: int, p: Player):
 
 def final_edit(p: Player):
     """allow player another chance to view/edit characteristics before saving"""
-    output(f"Summary of character '{p.name}':", p)
+    output(f"Your Summary:", p)
     options = 5
     while True:
         print()
         output(f'1.    Name: {p.name}', p)
-        output(f'2.  Gender: {p.gender.title()}', p)
-        output(f'3.   Class: {p.char_class.title()}', p)
-        output(f'4.    Race: {p.race.title()}', p)
-        if p.age == 0:
+        output(f'2.  Gender: {p.gender}', p)
+        output(f'3.   Class: {p.character_class}', p)
+        output(f'4.    Race: {p.character_race}', p)
+        # FIXME: this needs work
+        age = p.birthday.year - datetime.year
+        if age == 0:
             temp = "Unknown"
         else:
-            temp = p.age
+            temp = f"{age} years old"
         output(f'5.     Age: {temp}', p)
-        # print(f'5.     Age: {p.age()}')
-        # Birthday: tuple(month, day, year)
-        output(f'  Birthday: {p.birthday[0]}/{(p.birthday[1])}/'
-               f'{(p.birthday[2])}', p)
+        # TODO: date format setting in player profile (YYYY-MM-DD or DD-MM-YYYY, mainly)
+        output(f'  Birthday: {p.birthday.month}/{p.birthday.day}/'
+               f'{p.birthday.year}', p)
         print()
 
         temp = input(f"Option [1-{options}, {return_key}=Done]: ")
@@ -501,8 +507,9 @@ def roll_stats(p: Player):
         print()
         p.hit_points = 0
         # hp=((ps+pd+pt+pi+pw+pe)/6)+random(10)
-        p.hit_points = p.stats['chr'] + p.stats['con'] + p.stats['dex'] + p.stats['int'] \
-            + p.stats['str'] + p.stats['wis'] + p.stats['egy'] // 7 + randrange(10)
+        p.hit_points = (p.get_stat(PlayerStat.CHR) + p.get_stat(PlayerStat.CON) + p.get_stat(PlayerStat.DEX) +
+                        p.get_stat(PlayerStat.INT) + p.get_stat(PlayerStat.STR) + p.get_stat(PlayerStat.WIS) +
+                        p.get_stat(PlayerStat.EGY) // 7 + randrange(10))
         p.experience = 0
 
         if randrange(10) > 5:
@@ -680,19 +687,20 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
     logging.info("Logging is running")
 
-    global return_key  # so it can be modified in choose_client()
     return_key = '[Return]'
 
-    connection_id = 1
-    # FIXME: initially, we wouldn't know which Player object to output it to (hasn't been created yet)
-    #  so use IP address?  will use standard print() here until Player object is established
 
     character = Player()
     character.connection_id = 1
+    # FIXME: initially, we wouldn't know which Player object to output it to (hasn't been created yet)
+    #  so use IP address?  will use standard print() here until Player object is established
     # these are enabled for debugging info:
-    character.flags = {'dungeon_master': True, 'debug': True, 'expert_mode': False},
-    character.silver = {'in_hand': 0, 'in_bank': 0, 'in_bar': 0}
-    logging.debug("__main__: client columns: %i" % character.client['columns'])
+    character.set_flag(PlayerFlags.DUNGEON_MASTER)  # True
+    character.set_flag(PlayerFlags.DEBUG_MODE)  # True
+    character.clear_flag(PlayerFlags.EXPERT_MODE)  # False
+    # TODO: write character.set_silver() method
+    # character.silver = {'in_hand': 0, 'in_bank': 0, 'in_bar': 0}
+    # logging.debug("__main__: client columns: %i" % character.client['columns'])
 
     header("Introduction")
     output("Your faithful servant Verus appears at your side, as if by magic.",

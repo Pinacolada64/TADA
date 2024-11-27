@@ -335,8 +335,8 @@ if __name__ == '__main__':
     rulan.client_settings = {"type": "Commodore 64",
                              "return_key": "Return"}
 
-    # TODO: rulan.clear_flag(PlayerFlagTypes.EXPERT_MODE) # set to False
-    # TODO: rulan.set_flag(PlayerFlagTypes.DEBUG_MODE) # set to True
+    rulan.clear_flag(PlayerFlags.EXPERT_MODE) # set to False
+    rulan.set_flag(PlayerFlags.DEBUG_MODE) # set to True
 
     # once-per-day activities:
     rulan.once_per_day = []
@@ -388,7 +388,7 @@ if __name__ == '__main__':
             bump = True
             opponent = "The Blue Djinn"
             text = 'eyes you, hissing. "Are'
-        if bar.pos_y == 2 and bar.pos_x == 11:
+        if bar.pos_y == 2 and bar.pos_x == 10:
             # getting too close to Vinny the loan shark:
             bump = True
             opponent = "Mundo the bouncer"
