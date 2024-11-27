@@ -4,45 +4,48 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 import doctest
-from multiprocessing.managers import Value
-from types import NoneType
-from typing import Any
+from typing import Optional
+
 
 class ClientSettings(str, Enum):
     NAME = "name"
     ROWS = "rows"
     COLUMNS = "columns"
+    RETURN_KEY = "Return key"
     TRANSLATION = "Character translation"
     # colors for [bracket reader] text highlighting on C64/128:
     TEXT_COLOR = "Text color"
     HIGHLIGHT_COLOR = "Highlight color"
     BACKGROUND = "Background"
     BORDER = "border"
+
+
+@dataclass
+class ClientValues(int, Enum):
+    name: str
+    rows: int
+    columns: int
+    return_key: str
+    translation: str
+    # '1' or "white", possibly:
+    text_color: int | str
+    background: int | str
+    border: int | str
+
     """
-    def __init__(self):
-        self.name = "name"
-        self.rows = 25
-        self.columns = 40
-        self.translation = TranslationType.PETSCII
-        self.return_key = KeyName.RETURN | KeyName.ENTER
+    class ClientCommodore(BaseClient):
+        def __init__(self):
+            self.name = "name"
+            self.rows = 25
+            self.columns = 40
+            self.translation = TranslationType.PETSCII
+            self.return_key = KeyName.RETURN | KeyName.ENTER
     """
 
 
 class Gender(str, Enum):
     MALE = "Male"
     FEMALE = "Female"
-    
-    
-class PlayerClass(str, Enum):
-    WIZARD = "Wizard" # TODO: if player.gender == Gender.MALE else 'Witch'
-    DRUID = "Druid"
-    FIGHTER = "Fighter"
-    PALADIN = "Paladin"
-    RANGER = "Ranger"
-    THIEF = "Thief"
-    ARCHER = "Archer"
-    ASSASSIN = "Assassin"
-    KNIGHT = "Knight"
 
 
 class PlayerFlags(str, Enum):
@@ -186,7 +189,7 @@ class PlayerRace(str, Enum):
 
 
 @dataclass
-class Size(object):
+class Size(int, Enum):
     TINY = 1
     SHORT = 2
     SMALL = 3
@@ -219,20 +222,110 @@ class Pixie(BaseCharacterClass):
 
 
 @dataclass
-class Player(object):
+class PlayerClass(str, Enum):
+    # this player class will be referred to as Wizard even if the player's gender is female, making her a witch:
+    # FIXME: how do I do that? Python Player class can't be... added?
+    WIZARD = "Wizard" # TODO: if Player.gender == Gender.MALE else "Witch"
+    DRUID = "Druid"
+    FIGHTER = "Fighter"
+    PALADIN = "Paladin"
+    RANGER = "Ranger"
+    THIEF = "Thief"
+    ARCHER = "Archer"
+    ASSASSIN = "Assassin"
+    KNIGHT = "Knight"
+
+@dataclass
+class PlayerRace(str, Enum):
+    HUMAN = "Human"
+    OGRE = "Ogre"
+    GNOME = "Gnome"
+    ELF = "Elf"
+    HOBBIT = "Hobbit"
+    HALFLING = "Halfling"
+    DWARF = 'Dwarf'
+    ORC = 'Orc'
+    HALF_ELF = 'Half-Elf'
+
+@dataclass
+class BaseCharacter:
+    id_num: int
+    name: str
+
+
+class Alignment:
+    pass
+
+
+class BaseRace:
+    carrying_capacity: None
+    size: None
+    # TODO: can_fly property can apply to Pegasus mount, or after character has repaired the SPACE SUIT.
+    #  This also lets characters fly over bodies of water without needing a DINGHY.
+    # TODO: adding a HOT AIR BALLOON to "The Land of Oz" level could also allow characters to fly.
+    can_fly: False
+    natural_alignment: str  # TODO: Alignment.GOOD
+
+@dataclass
+class Size(int, Enum):
+    TINY = 1
+    SMALL = 2
+    MEDIUM_SIZED = 3
+    MAN_SIZED = 4
+    BIG = 5
+    LARGE = 6
+    HUGE = 7
+
+
+@dataclass
+class Player(BaseCharacter):
     # TODO: make some of these stats part of a generic Character base class
     name: str = None
-    gender: Gender = Gender.MALE
+    birthday: datetime = datetime.today()  # age is derived from datetime.now - birthday
+    gender: Gender = Gender.MALE  # no misogyny intended
+    hit_points: int = 0
+    experience: int = 0
+
+    # map stats:
+    map_level: int = 1 # cl = current level
+    room: int = 1  # cr = current room
+    # total moves made over the course of the character's life:
+    moves_made: int = 0
+    # tracks how many moves made during the game session to calculate experience points awarded at quit:
+    moves_today: int = 0
+
+
     character_class: PlayerClass = None
     character_race: PlayerRace = None
-    hit_points: int = 0
+
+    # the lower the Honor score, the more evil the character has become
+    # I think 1,000 honor points is equivalent to a Saintly Knight
+    honor: int = 1_000
+
+    # https://www.reddit.com/r/learnpython/comments/1gzmlqv/comment/lyxnpxc/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button
+
+    # Wizard Glow stuff:
+    # None if inactive
+    # != 0 is number of rounds left, decrement every turn
+    wizard_glow: Optional[int] = None
+
+    # things you can do only once per day (file_formats.txt)
+    # 'pr'    has PRAYed once
+    # 'pr2'   can PRAY twice per day (only if char_class is Druid)
+    # TODO: make these Enums, finish this list
     once_per_day: list[str] = field(default_factory=list)
+
     # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
     flags: dict[PlayerFlags, Flag] = field(default_factory=lambda: {i[0]: Flag(*i) for i in player_flag_data})
     # creates a new stats dict for each Player, zero all stats:
     stat: dict[PlayerStat, int] = field(default_factory=lambda: {i: 0 for i in PlayerStat})
     # same with silver FIXME: (set to 1_000 for testing purposes):
     silver: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1_000 for i in PlayerMoneyTypes})
+
+    # TODO: money types may be expanded to platinum, electrum in future
+    # in_bank: may be cleared on character death (TODO: look in TLOS source)
+    # in_bar: should be preserved after character's death (TODO: same)
+    # use Character.set_silver(PlayerMoneyTypes.<kind>, value)
     """
     Silver is a more reasonable default currency than gold -- most people in the Middle Ages didn't have gold.
     
@@ -245,7 +338,6 @@ class Player(object):
     
     TODO: Also possibly introduce platinum, electrum, copper pieces.
     """
-    birthday: datetime = datetime.today()
 
     # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
     combinations: dict[CombinationTypes, tuple] = field(
@@ -254,7 +346,12 @@ class Player(object):
             for combination_type in CombinationTypes
         }
     )
-    client_settings: dict[str, str | int] = field(default_factory=lambda: {k: v for k, v in enumerate(ClientSettings)})
+    client_settings: dict[ClientSettings, int | str] = field(
+        default_factory=lambda: {
+            client_option: {k: v for k, v in ClientValues}
+            for client_option in ClientSettings
+        }
+    )
 
     def adjust_silver(self, kind: PlayerMoneyTypes, adjustment: int):
         try:
@@ -265,7 +362,7 @@ class Player(object):
                                                                                   adjusted_total))
             self.silver[kind] = adjusted_total
         except IndexError:
-            logging.debug("adjust_silver: %s does not exist" % kind)
+            logging.error("adjust_silver: %s does not exist" % kind)
 
     def get_flag(self, name: PlayerFlags) -> Flag:
         """
@@ -558,11 +655,17 @@ if __name__ == '__main__':
         """
         print(f"{k:2>}. {name:.<10}: {amount:>9,}")
 
-    print("- Show random combinations:")
+    print("\n- Show random combinations:")
     for combination_name, combination_tuple in rulan.combinations.items():
         print(f"{combination_name.value:>15}: {'-'.join(str(digit) for digit in combination_tuple)}")
 
-    choice = input("Want to run the flag editor [y/n]")[0].lower()
+    print("\n- Show client settings:")
+    for i, client_setting in enumerate(ClientSettings):
+        value = ClientSettings[client_setting]
+        setting_name = client_setting.name.replace("_", " ").title()  # Improve readability
+        print(f"{i + 1}. {setting_name}: {value}")
+
+    choice = input("\nWant to run the flag editor [y/n]? ")[0].lower()
     if choice == 'y':
         flag_editor(player=rulan)
     else:
