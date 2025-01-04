@@ -96,16 +96,16 @@ class LoginHistory(object):
     def load(addr):
         path = LoginHistory._json_path(addr)
         if os.path.exists(path):
-            with open(path) as jsonF:
-                lh_data = json.load(jsonF)
+            with open(path) as json_file:
+                lh_data = json.load(json_file)
             return LoginHistory(**lh_data)
         else:
             return LoginHistory(addr)
 
     def save(self):
-        with open(LoginHistory._json_path(self.addr), 'w') as jsonF:
-            json.dump(self, jsonF, default=lambda o: {k: v for k, v
-                                                      in o.__dict__.items() if v}, indent=4)
+        with open(LoginHistory._json_path(self.addr), 'w') as json_file:
+            json.dump(self, json_file, default=lambda o: {k: v for k, v
+                                                         in o.__dict__.items() if v}, indent=4)
 
 
 class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -137,7 +137,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                     elif self.user is None:
                         response = self._process_login(request)
                     else:
-                        response = self.process_message(request)
+                        response = self._process_message(request)
                 except Exception as e:
                     traceback.print_exc(file=sys.stdout)
                     # TODO: log error with message, error code to client
@@ -175,7 +175,7 @@ class UserHandler(socketserver.BaseRequestHandler):
             if client_key == server_key:
                 # TODO: handle protocol difference
                 self.ready = True
-                return Message(lines=self.init_success_lines(), mode=Mode.login)
+                return Message(lines=init_success_lines(self), mode=Mode.login)
             else:
                 # TODO: record history in case want to ban
                 return None  # poser, ignore them
@@ -196,7 +196,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                            error=Error.login2, mode=Mode.bye)
 
         def error_login_failed():
-            return Message(lines=self.login_fail_lines(),
+            return Message(lines=login_fail_lines(),
                            error_line='Login failed.',
                            error=Error.login1, mode=Mode.login)
 
@@ -232,7 +232,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                 return Message(lines=['One connection allowed at a time.'],
                                error_line='Multiple connections.',
                                error=Error.multiple, mode=Mode.bye)
-        if not user.matchPassword(password):
+        if not user.match_password(password):
             logging.warning(f"bad password for '{user_id}'")
             banned = self.login_history.fail_password(user_id, save=True)
             if banned:
@@ -269,12 +269,12 @@ def login_fail_lines(self):
     return ['please try again.']
 
 
-def process_login_success(self, user_id):
+def process_login_success(self):
     """OVERRIDE in subclass
     First method called on successful login.
 Should do any user initialization and then return Message.
     """
-    return Message(lines=[f"Welcome {user_id}."])
+    return Message(lines=[f"Welcome, {self.user_id}."])
 
 
 def process_message(self, data):
