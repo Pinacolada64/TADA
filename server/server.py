@@ -599,16 +599,14 @@ class PlayerHandler(net_server.UserHandler):
 
     def process_login_success(self, user_id):
         player = Player.load(user_id)
-        logging.info("process_login_success: Login %s ('%s') (IP: %s)" \
-                     % (user_id, player.name, self.sender))
         if player is None:
             logging.debug("process_login_success: No player data, creating new character.")
             # TODO: create player
-            import create_player
+            #import create_player
             logging.debug("process_login_success: Running create_player...")
             valid_name = False
             while not valid_name:
-                reply = net_server.prompt_request(lines=["Choose your adventurer's name."], prompt='Name? ')
+                reply = self.prompt_request(["Choose your adventurer's name."], prompt='Name? ', choices = {})
                 name = reply['text'].strip()
                 if name != '':  # TODO: limitations on valid names
                     valid_name = True
@@ -623,6 +621,8 @@ class PlayerHandler(net_server.UserHandler):
             player.set_flag(PlayerFlags.ROOM_DESCRIPTIONS)
 
             player.save()
+        logging.info("process_login_success: Login %s ('%s') (IP: %s)" \
+                     % (user_id, player.name, self.sender))
         player = players[user_id] = player
         logging.info("login %s ('%s', IP addr=%s)" %
                      (user_id, player.name, self.sender))
