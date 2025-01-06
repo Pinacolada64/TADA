@@ -25,7 +25,6 @@ money_start = 1000
 
 compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up', 'd': 'Down'}
 
-
 @dataclass
 class Room(object):
     number: int
@@ -79,10 +78,10 @@ class Item(object):
         self.price = price
         # this field is optional:
         if flags:
-            logging.debug("Flags:")
+            logging.debug("item.__init__ Flags:")
             self.flags = flags
             for key, value in flags.items():
-                logging.debug("item_init: %s %s" % (key, value))
+                logging.debug("item.__init__: %s %s" % (key, value))
 
     @staticmethod
     def read_items(filename: str):
@@ -487,12 +486,13 @@ class PlayerHandler(net_server.UserHandler):
     def login_fail_lines(self):
         return ['Please try again.']
 
-    def room_msg(self, lines: list, changes: dict):
+    def room_msg(self, lines: str | list, changes: dict):
         """
         Display the room description and contents to the player in the room
 
         :param lines: text to output. each line is an element of a list.
-        :param changes: ...?
+        :param changes: K.Enum, what has changed and needs to be updated client-side
+            (e.g., if moved to a new room: K.name, K.desc)
         :return: Message object
         """
         # get room # that player is in
@@ -599,16 +599,14 @@ class PlayerHandler(net_server.UserHandler):
 
     def process_login_success(self, user_id):
         player = Player.load(user_id)
-        logging.info("process_login_success: Login %s ('%s') (IP: %s)" \
-                     % (user_id, player.name, self.sender))
         if player is None:
             logging.debug("process_login_success: No player data, creating new character.")
             # TODO: create player
-            import create_player
+            #import create_player
             logging.debug("process_login_success: Running create_player...")
             valid_name = False
             while not valid_name:
-                reply = net_server.prompt_request(lines=["Choose your adventurer's name."], prompt='Name? ')
+                reply = self.prompt_request(["Choose your adventurer's name."], prompt='Name? ', choices = {})
                 name = reply['text'].strip()
                 if name != '':  # TODO: limitations on valid names
                     valid_name = True
@@ -623,6 +621,8 @@ class PlayerHandler(net_server.UserHandler):
             player.set_flag(PlayerFlags.ROOM_DESCRIPTIONS)
 
             player.save()
+        logging.info("process_login_success: Login %s ('%s') (IP: %s)" \
+                     % (user_id, player.name, self.sender))
         player = players[user_id] = player
         logging.info("login %s ('%s', IP addr=%s)" %
                      (user_id, player.name, self.sender))
@@ -849,7 +849,10 @@ def break_handler(msg, event):
 
 if __name__ == "__main__":
     # set up logging
-    logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
+    log = logging.getLogger(__name__)
+
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(levelname)10s | %(funcName)15s() - %(message)s')
 
     import signal
 

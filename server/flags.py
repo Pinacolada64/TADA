@@ -46,6 +46,18 @@ class ClientValues(int, Enum):
 class Gender(str, Enum):
     MALE = "Male"
     FEMALE = "Female"
+    
+    
+class PlayerClass(str, Enum):
+    WIZARD = "Wizard" # TODO: if player.gender == Gender.MALE else 'Witch'
+    DRUID = "Druid"
+    FIGHTER = "Fighter"
+    PALADIN = "Paladin"
+    RANGER = "Ranger"
+    THIEF = "Thief"
+    ARCHER = "Archer"
+    ASSASSIN = "Assassin"
+    KNIGHT = "Knight"
 
 
 class PlayerFlags(str, Enum):
@@ -362,7 +374,7 @@ class Player(BaseCharacter):
                                                                                   adjusted_total))
             self.silver[kind] = adjusted_total
         except IndexError:
-            logging.error("adjust_silver: %s does not exist" % kind)
+            logging.debug("adjust_silver: %s does not exist" % kind)
 
     def get_flag(self, name: PlayerFlags) -> Flag:
         """

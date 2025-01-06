@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 import enum
@@ -41,6 +42,10 @@ def to_jsonb(obj):
 
 
 def from_jsonb(bytes):
+    """
+    :param bytes: data
+    :return None: if file not found
+    """
     try:
         json_in = str(bytes, 'utf-8')
         if len(json_in) == 0:
@@ -104,6 +109,7 @@ class User(object):
 
     @staticmethod
     def load(user_id):
+        logging.debug("in User.load")
         path = User._json_path(user_id)
         if os.path.exists(path):
             with open(path) as jsonF:

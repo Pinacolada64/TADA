@@ -30,6 +30,7 @@ class Login(object):
 
     @staticmethod
     def _json_path(user_id):
+        logging.debug("Entered _json_path: user_id: %s" % user_id)
         util.makeDirs(net_dir)
         return os.path.join(net_dir, f"login-{user_id}.json")
 
@@ -154,6 +155,12 @@ class Client(object):
 
 
 if __name__ == "__main__":
+    # set up logging:
+    log = logging.getLogger(__name__)
+
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(levelname)10s | %(funcName)15s() - %(message)s')
+
     user_id = sys.argv[1] if len(sys.argv) > 1 else None
     host = 'localhost'
     client = Client()
