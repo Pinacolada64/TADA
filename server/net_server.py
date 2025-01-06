@@ -244,50 +244,50 @@ class UserHandler(socketserver.BaseRequestHandler):
         with server_lock:
             connected_users.add(user_id)
         self.login_history.succeed_user(user_id, save=True)
-        return process_login_success(user_id)
+        return self.process_login_success(user_id)
 
 
-def prompt_request(self, lines, prompt: str, choices: dict):
-    self._send_data(Message(lines=lines, prompt=prompt, choices=choices))
-    return self._receive_data()
+    def prompt_request(self, lines, prompt: str, choices: dict):
+        self._send_data(Message(lines=lines, prompt=prompt, choices=choices))
+        return self._receive_data()
 
     # base implementation for when testing net_client/net_server
     # NOTE: must be overridden by actual app (see client/server)
 
 
-def init_success_lines(self):
-    """OVERRIDE in subclass
-    First server message lines that user sees.  Should tell them to log in.
-    """
-    return ['Generic Server.', 'Please log in.']
+    def init_success_lines(self):
+        """OVERRIDE in subclass
+        First server message lines that user sees.  Should tell them to log in.
+        """
+        return ['Generic Server.', 'Please log in.']
 
 
-def login_fail_lines(self):
-    """OVERRIDE in subclass
-    Login failure message lines back to user.
-    """
-    return ['please try again.']
+    def login_fail_lines(self):
+        """OVERRIDE in subclass
+        Login failure message lines back to user.
+        """
+        return ['please try again.']
 
 
-def process_login_success(self):
-    """OVERRIDE in subclass
-    First method called on successful login.
-Should do any user initialization and then return Message.
-    """
-    return Message(lines=[f"Welcome, {self.user_id}."])
+    def process_login_success(self, user_id):
+        """OVERRIDE in subclass
+        First method called on successful login.
+    Should do any user initialization and then return Message.
+        """
+        return Message(lines=[f"Welcome, {user_id}."])
 
 
-def process_message(self, data):
-    """OVERRIDE in subclass
-Called on all subsequent Cmd messages from client.
-    Should do any processing and return Message.
-    """
-    if 'text' in data:
-        cmd = data['text'].split(' ')
-        if cmd[0] in ['bye', 'logout']:
-            return Message(lines=["Goodbye."], mode=Mode.bye)
-        else:
-            return Message(lines=["Unknown command."])
+    def process_message(self, data):
+        """OVERRIDE in subclass
+    Called on all subsequent Cmd messages from client.
+        Should do any processing and return Message.
+        """
+        if 'text' in data:
+            cmd = data['text'].split(' ')
+            if cmd[0] in ['bye', 'logout']:
+                return Message(lines=["Goodbye."], mode=Mode.bye)
+            else:
+                return Message(lines=["Unknown command."])
 
 
 def start(host, port, _id, key, protocol, handler_class):
