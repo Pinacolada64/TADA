@@ -1,9 +1,8 @@
 import logging
-import textwrap
 
 # import net_server  # for promptRequest and Message
 from net_server import Message
-from server import Player
+from server.flags import Player, PlayerFlags
 
 """
 utilities such as:
@@ -49,30 +48,6 @@ def header(text: str):
     return Message(lines=[line])
 
 
-def output(string: str, conn: Player):
-    """
-    Print <string> word-wrapped to client's column width to Player
-
-    :param: string: string to output
-    :param: conn: connection to output text to
-    :return: none
-    """
-    """
-    TODO: implement cbmcodec2 ASCII -> PETSCII translation
-
-    TODO: implement different success messages for Player originating action vs. other Players in room
-    use player.
-    for cxn in all_players_in_room:
-        if char.(something, idk what at this point) == Player.who_performed_action:
-            output(f"You throw the snowball at {target}.", player)
-        else:
-            output(f"{actor} throws the snowball at {target}.", player)
-    """
-    if conn.client['translation'] == 'PETSCII':
-        pass  # until cbmcodecs2 is fixed
-    return Message(lines=[textwrap.fill(text=string, width=conn.client['columns'])])
-
-
 def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, default=None):
     """input 'prompt', accept numbers lo < value < hi
     e.g.
@@ -85,23 +60,23 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, d
     :param p: Player to output text to
     :param reminder: string to display if lo < temp < hi
     """
-    if default is not None and p.flag['expert_mode'] is False:
-        output(f"{return_key} keeps '{default}'.", p)
+    if default is not None and p.query_flag(PlayerFlags.EXPERT_MODE) is False:
+        p.output(f"{return_key} keeps '{default}'.")
     while True:
         temp = input(f"{prompt} [{lo}-{hi}]: ")
         # just hitting Return keeps original number
         if temp.isalpha():
-            output("Numbers only, please.", p)
+            p.output("Numbers only, please.")
         if default is not None and temp == '':
-            if p.flag['expert_mode'] is False:
-                output(f"(Keeping '{default}'.)", p)
+            if p.query_flag(PlayerFlags.EXPERT_MODE) is False:
+                p.output(f"(Keeping '{default}'.)")
             return default
         else:
             temp = int(temp)
             if lo - 1 < temp < hi + 1:
                 return temp
             else:
-                output(reminder, p)
+                p.output(reminder)
 
 
 def input_string(prompt: str, default: str, player: Player, reminder="Please enter something."):
@@ -117,17 +92,17 @@ def input_string(prompt: str, default: str, player: Player, reminder="Please ent
     :param player: Player to output text to
     :param reminder: what to display if edit_mode is False and null string entered
     """
-    if default and player.flag['expert_mode'] is False:
-        output(f"{player.return_key} keeps '{default}.'", player)
+    if default and player.query_flag(PlayerFlags.EXPERT_MODE) is False:
+        player.output(f"{player.return_key} keeps '{default}.'")
     while True:
         temp = input(f"{prompt}: ")
         # just hitting Return keeps original string
         if default and (temp == '' or temp == default):
-            if player.flag['expert_mode']:
-                output(f"(Keeping '{default}'.)", player)
+            if player.query_flag(PlayerFlags.EXPERT_MODE):
+                player.output(f"(Keeping '{default}'.)")
             return default
         else:
-            output(reminder, player)
+            player.output(reminder)
 
 
 def input_yes_no(prompt: str):
