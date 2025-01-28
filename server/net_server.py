@@ -175,7 +175,7 @@ class UserHandler(socketserver.BaseRequestHandler):
             if client_key == server_key:
                 # TODO: handle protocol difference
                 self.ready = True
-                return Message(lines=init_success_lines(self), mode=Mode.login)
+                return Message(lines=self.init_success_lines(), mode=Mode.login)
             else:
                 # TODO: record history in case want to ban
                 return None  # poser, ignore them
@@ -196,7 +196,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                            error=Error.login2, mode=Mode.bye)
 
         def error_login_failed():
-            return Message(lines=login_fail_lines(),
+            return Message(lines=self.login_fail_lines(),
                            error_line='Login failed.',
                            error=Error.login1, mode=Mode.login)
 
