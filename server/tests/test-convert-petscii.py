@@ -10,12 +10,9 @@ if __name__ == '__main__':
 
     try:
         with open(filename, encoding='petscii_c64en_lc') as f:
-            count = 0
-            for line in f:
-                count += 1
+            for count, line in enumerate(f, start=1):
                 if count % 20 == 0:
                     _ = input('Press Enter to continue: ')
-                    count = 0
                 print(line.strip('\n'))
     except FileNotFoundError:
         print(f'{filename} does not exist. Exiting.')
