@@ -37,3 +37,21 @@ The test client is able to automatically find and use the invite code.
 But in a real remote client, the user would need to type it in.
 
 Also, now you can pass the `user_id` argument when starting the client, and the client will use a previously cached password (convenient for testing and a remote C64 client would be able to do the same).
+
+## Revoking an invitation
+
+    net_admin.py invite --revoke a
+
+`a` is the user ID. If user `a`'s invitation exists, it will be deleted and the tool will output:
+
+    revoked invite for 'a'
+
+## Deleting a created user
+
+    net_admin.py user a --remove
+
+_There is currently no confirmation before the user is deleted._
+
+If user `a` exists, you see:
+
+    deleted user for 'a'
