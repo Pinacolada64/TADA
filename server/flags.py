@@ -444,13 +444,14 @@ class Player(BaseCharacter):
         except KeyError:
             logging.warning("show_flag: unknown flag: %s" % flag.name)
 
-    def show_flag_line_item(self, flag: PlayerFlags, leading_num: int) -> str:
+    def show_flag_line_item(self, flag: PlayerFlags, leading_num: Optional[int]) -> str:
         """
         Display the flag status based on its display_type string.
         The flag is listed prefixed with leading_number, "...:" and the status.
 
         :param flag: PlayerFlag name to display
-        :param leading_num: used with dot_leader, True prefixes the flag display with this number
+        :param leading_num: used with dot_leader, int prefixes the flag display with this number, None suppresses
+         the number
         :return: str
         """
         """
@@ -465,16 +466,20 @@ class Player(BaseCharacter):
             'Unconscious'
             """
             max_width = longest_flag_name()
-            logging.debug("show_flag_line_item: enter: flag: %s, "
-                          "leading_num: %i, max_width: %i" % (flag, leading_num, max_width))
+            logging.debug("enter: flag: %s, "
+                          "leading_num: %s, "
+                          "max_width: %i" % (flag, leading_num, max_width))
             temp = self.get_flag(flag)
             flag_name, display_type, status = temp.name.value, temp.display_type, temp.status
-            logging.debug("show_flag_line_item: flag_name=%s, "
+            logging.debug("flag_name=%s, "
                           "display_type=%s, status=%s" % (flag_name, display_type, status))
             result = self.show_flag_status(flag)
-            return f"{leading_num:>2}. {flag_name:.<{max_width}}: {result}"
+            # None is used here after building a menu of flag settings, the menu will number the items:
+            number = f"{leading_num:>2}. " if isinstance(leading_num, int) else ""
+            # return f"{leading_num:>2}. {flag_name:.<{max_width}}: {result}"
+            return f"{number} {flag_name:.<{max_width}}: {result}"
         except KeyError:
-            logging.warning("show_flag_line_item: unknown flag: %s" % flag.name)
+            logging.warning("unknown flag: %s" % flag.name)
 
     def show_flag_status(self, flag: PlayerFlags) -> str:
         """
@@ -496,7 +501,7 @@ class Player(BaseCharacter):
         elif temp.display_type is FlagDisplayTypes.TRUEFALSE:
             result = "True" if temp.status else "False"
         else:
-            logging.error("show_flag_status: invalid type %s for flag %s" % (temp.display_type, temp.name))
+            logging.error("invalid type %s for flag %s" % (temp.display_type, temp.name))
             result = "<<error>>"
         return result
 
