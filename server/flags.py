@@ -46,21 +46,44 @@ class ClientValues(int, Enum):
 class Gender(str, Enum):
     MALE = "Male"
     FEMALE = "Female"
-    
-    
+
+
 class PlayerClass(str, Enum):
-    WIZARD = "Wizard" # TODO: if player.gender == Gender.MALE else 'Witch'
-    DRUID = "Druid"
-    FIGHTER = "Fighter"
-    PALADIN = "Paladin"
-    RANGER = "Ranger"
-    THIEF = "Thief"
-    ARCHER = "Archer"
-    ASSASSIN = "Assassin"
-    KNIGHT = "Knight"
+    """
+    In the original Apple code, this was the variable 'pc' which could range from 1-9.
+    The class number is in a comment.
+    """
+    #  TODO: if player.gender == Gender.MALE else 'Witch'
+    WIZARD = "Wizard" # 1
+    DRUID = "Druid"   # 2
+    FIGHTER = "Fighter"  # 3
+    PALADIN = "Paladin"  # 4
+    RANGER = "Ranger"  # 5
+    THIEF = "Thief"  # 6
+    ARCHER = "Archer"  # 7
+    ASSASSIN = "Assassin"  # 8
+    KNIGHT = "Knight"  # 9
+
+
+@dataclass
+class PlayerRace(str, Enum):
+    """
+    In the original Apple code, this was the variable 'pr' which could range from 1-9.
+    The race number is in a comment.
+    """
+    HUMAN = "Human"  # 1
+    OGRE = "Ogre"  # 2
+    GNOME = "Gnome"  # 3
+    ELF = "Elf"  # 4
+    HOBBIT = "Hobbit"  # 5
+    HALFLING = "Halfling"  # 6
+    DWARF = 'Dwarf'  # 7
+    ORC = 'Orc'  # 8
+    HALF_ELF = 'Half-Elf'  # 9
 
 
 class PlayerFlags(str, Enum):
+    """Names of flags"""
     ADMIN = "Administrator"
     ARCHITECT = "Architect"
     DUNGEON_MASTER = "Dungeon Master"
@@ -87,14 +110,15 @@ class PlayerFlags(str, Enum):
     HAS_HORSE = "Has horse"
     MOUNTED = "Mounted on horse"
     # game states:
-    AMULET_OF_LIFE_ENERGIZED = "Amulet of Life energized",
-    COMPASS_USED = "Compass used",
-    DWARF_ALIVE = "Dwarf alive",
-    GAUNTLETS_WORN = "Gauntlets worn",
-    RING_WORN = "Ring worn",
-    SPUR_ALIVE = "SPUR alive",
-    THUG_ATTACK = "Thug attack",
-    WRAITH_KING_ALIVE = "Wraith King alive",
+    AMULET_OF_LIFE_ENERGIZED = "Amulet of Life energized"
+    COMPASS_USED = "Compass used"
+    DWARF_ALIVE = "Dwarf alive"
+    GAUNTLETS_WORN = "Gauntlets worn"
+    RING_WORN = "Ring worn"
+    SPUR_ALIVE = "SPUR alive"
+    THUG_ATTACK = "Thug attack"
+    WRAITH_KING_ALIVE = "Wraith King alive"
+    WRAITH_MASTER = "Wraith Master"
 
 
 def longest_flag_name() -> int:
@@ -112,6 +136,23 @@ def longest_flag_name() -> int:
 
 class PlayerMoneyTypes(str, Enum):
     # this is the dict element to reference money amounts
+    """
+    in_bank: may be cleared on character death (TODO: look in TLOS source)
+    in_bar: should be preserved after character's death (TODO: same)
+    use Character.set_silver(PlayerMoneyTypes.<kind>, value)
+    """
+    """
+    Silver is a more reasonable default currency than gold -- most people in the Middle Ages didn't have gold.
+
+    The Florentine florin was a gold coin struck from 1252 to 1533 with no significant change in its design or 
+    metal content standard during that time. - Wikipedia
+
+    The shilling is a historical coin, and the name of a unit of modern currencies formerly used in the United 
+    Kingdom, Australia, New Zealand, other British Commonwealth countries and Ireland, where they were generally 
+    equivalent to 12 pence or one-twentieth of a pound before being phased out during the 1960s and 1970s. - Wikipedia
+
+    TODO: Also possibly introduce platinum, electrum, copper pieces.
+    """
     IN_HAND = "IN_HAND"
     IN_BANK = "IN_BANK"
     IN_BAR = "IN_BAR"
@@ -142,10 +183,12 @@ class PlayerStat(str, Enum):
 
 @dataclass
 class FlagDisplayTypes(str, Enum):
-    # different flag states should be displayed with different wording.
-    # Displaying "Dungeon Master: Yes" reads better than "Dungeon Master: True",
-    # even though that's how the flag state is represented internally.
-    # Similarly, "Guild Follow: Off" reads better than "Guild Follow: False"
+    """
+    Different flag states should be displayed with different wording.
+    Displaying "Dungeon Master: Yes" reads better than "Dungeon Master: True",
+    even though that's how the flag state is represented internally.
+    Similarly, "Guild Follow: Off" reads better than "Guild Follow: False"
+    """
     YESNO: str = "Yes/No"
     TRUEFALSE: str = "true/false"
     ONOFF: str = "on/off"
@@ -177,7 +220,12 @@ player_flag_data = [
     (PlayerFlags.SPUR_ALIVE, FlagDisplayTypes.YESNO, True),
     (PlayerFlags.THUG_ATTACK, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.WRAITH_KING_ALIVE, FlagDisplayTypes.YESNO, True),
-]
+    (PlayerFlags.WRAITH_MASTER, FlagDisplayTypes.YESNO, True),
+    ]
+"""
+# TODO: flags:
+'tut_treasure': {'examined': False, 'taken': False}
+"""
 
 
 @dataclass
@@ -185,19 +233,6 @@ class Flag(object):
     name: str
     display_type: FlagDisplayTypes
     status: bool
-
-
-@dataclass
-class PlayerRace(str, Enum):
-    HUMAN = "Human"
-    OGRE = "Ogre"
-    GNOME = "Gnome"
-    ELF = "Elf"
-    HOBBIT = "Hobbit"
-    HALFLING = "Halfling"
-    DWARF = 'Dwarf'
-    ORC = 'Orc'
-    HALF_ELF = 'Half-Elf'
 
 
 @dataclass
@@ -223,7 +258,7 @@ class BaseCharacterClass(object):
     size: Size.MAN_SIZED
     carrying_capacity: 10
     natural_alignment: str  # FIXME: [good | neutral | evil] (depends on race)
-    honor: 1000  # TODO: look this up, I think that equates to Saintly for a Knight
+    honor: 1_000  # TODO: look this up, I think that equates to Saintly for a Knight
     # current_alignment is based on Honor score (the lower it is, the more evil the character is)
 
 @dataclass
@@ -234,63 +269,7 @@ class Pixie(BaseCharacterClass):
 
 
 @dataclass
-class PlayerClass(str, Enum):
-    # this player class will be referred to as Wizard even if the player's gender is female, making her a witch:
-    # FIXME: how do I do that? Python Player class can't be... added?
-    WIZARD = "Wizard" # TODO: if Player.gender == Gender.MALE else "Witch"
-    DRUID = "Druid"
-    FIGHTER = "Fighter"
-    PALADIN = "Paladin"
-    RANGER = "Ranger"
-    THIEF = "Thief"
-    ARCHER = "Archer"
-    ASSASSIN = "Assassin"
-    KNIGHT = "Knight"
-
-@dataclass
-class PlayerRace(str, Enum):
-    HUMAN = "Human"
-    OGRE = "Ogre"
-    GNOME = "Gnome"
-    ELF = "Elf"
-    HOBBIT = "Hobbit"
-    HALFLING = "Halfling"
-    DWARF = 'Dwarf'
-    ORC = 'Orc'
-    HALF_ELF = 'Half-Elf'
-
-@dataclass
-class BaseCharacter:
-    id_num: int
-    name: str
-
-
-class Alignment:
-    pass
-
-
-class BaseRace:
-    carrying_capacity: None
-    size: None
-    # TODO: can_fly property can apply to Pegasus mount, or after character has repaired the SPACE SUIT.
-    #  This also lets characters fly over bodies of water without needing a DINGHY.
-    # TODO: adding a HOT AIR BALLOON to "The Land of Oz" level could also allow characters to fly.
-    can_fly: False
-    natural_alignment: str  # TODO: Alignment.GOOD
-
-@dataclass
-class Size(int, Enum):
-    TINY = 1
-    SMALL = 2
-    MEDIUM_SIZED = 3
-    MAN_SIZED = 4
-    BIG = 5
-    LARGE = 6
-    HUGE = 7
-
-
-@dataclass
-class Player(BaseCharacter):
+class Player(object):
     # TODO: make some of these stats part of a generic Character base class
     name: str = None
     birthday: datetime = datetime.today()  # age is derived from datetime.now - birthday
@@ -306,7 +285,6 @@ class Player(BaseCharacter):
     # tracks how many moves made during the game session to calculate experience points awarded at quit:
     moves_today: int = 0
 
-
     character_class: PlayerClass = None
     character_race: PlayerRace = None
 
@@ -317,14 +295,16 @@ class Player(BaseCharacter):
     # https://www.reddit.com/r/learnpython/comments/1gzmlqv/comment/lyxnpxc/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button
 
     # Wizard Glow stuff:
-    # None if inactive
+    # None if inactive, or non-magic user
     # != 0 is number of rounds left, decrement every turn
     wizard_glow: Optional[int] = None
 
-    # things you can do only once per day (file_formats.txt)
-    # 'pr'    has PRAYed once
-    # 'pr2'   can PRAY twice per day (only if char_class is Druid)
+    """
+    Things you can only do once per day (file_formats.txt):
+    'pr'    has PRAYed once
+    'pr2'   can PRAY twice per day (only if char_class is Druid)
     # TODO: make these Enums, finish this list
+    """
     once_per_day: list[str] = field(default_factory=list)
 
     # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
@@ -332,24 +312,8 @@ class Player(BaseCharacter):
     # creates a new stats dict for each Player, zero all stats:
     stat: dict[PlayerStat, int] = field(default_factory=lambda: {i: 0 for i in PlayerStat})
     # same with silver FIXME: (set to 1_000 for testing purposes):
-    silver: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1_000 for i in PlayerMoneyTypes})
-
     # TODO: money types may be expanded to platinum, electrum in future
-    # in_bank: may be cleared on character death (TODO: look in TLOS source)
-    # in_bar: should be preserved after character's death (TODO: same)
-    # use Character.set_silver(PlayerMoneyTypes.<kind>, value)
-    """
-    Silver is a more reasonable default currency than gold -- most people in the Middle Ages didn't have gold.
-    
-    The Florentine florin was a gold coin struck from 1252 to 1533 with no significant change in its design or 
-    metal content standard during that time. - Wikipedia
-
-    The shilling is a historical coin, and the name of a unit of modern currencies formerly used in the United 
-    Kingdom, Australia, New Zealand, other British Commonwealth countries and Ireland, where they were generally 
-    equivalent to 12 pence or one-twentieth of a pound before being phased out during the 1960s and 1970s. - Wikipedia
-    
-    TODO: Also possibly introduce platinum, electrum, copper pieces.
-    """
+    silver: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1_000 for i in PlayerMoneyTypes})
 
     # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
     combinations: dict[CombinationTypes, tuple] = field(
@@ -358,23 +322,25 @@ class Player(BaseCharacter):
             for combination_type in CombinationTypes
         }
     )
+    # FIXME: this is broken
+    """
     client_settings: dict[ClientSettings, int | str] = field(
         default_factory=lambda: {
             client_option: {k: v for k, v in ClientValues}
             for client_option in ClientSettings
         }
     )
-
+    """
     def adjust_silver(self, kind: PlayerMoneyTypes, adjustment: int):
         try:
             current_total = self.silver[kind]
             adjusted_total = current_total + adjustment
             silver_kind = PlayerMoneyCategory[kind.name]
-            logging.debug("adjust_silver: kind: %s, adjustment: %i, total: %i" % (silver_kind, adjustment,
+            logging.debug("kind: %s, adjustment: %i, total: %i" % (silver_kind, adjustment,
                                                                                   adjusted_total))
             self.silver[kind] = adjusted_total
         except IndexError:
-            logging.debug("adjust_silver: %s does not exist" % kind)
+            logging.debug("%s does not exist" % kind)
 
     def get_flag(self, name: PlayerFlags) -> Flag:
         """
@@ -383,7 +349,7 @@ class Player(BaseCharacter):
         :return: Flag object
         """
         try:
-            logging.debug("get_flag: %s" % self.flags.get(name))
+            logging.debug("%s" % self.flags.get(name))
             return self.flags.get(name)
         except IndexError:
             logging.error("get_flag: no flag %s" % self.flags.get(name))
@@ -397,7 +363,7 @@ class Player(BaseCharacter):
         :return: None
         """
         try:
-            logging.debug("set_flag: setting flag %s to True" % flag.name)
+            logging.debug("setting flag %s to True" % flag.name)
             temp = self.get_flag(flag)
             self.put_flag(flag, status=True, display_type=temp.display_type)
         except KeyError:
@@ -412,7 +378,7 @@ class Player(BaseCharacter):
         :return: None
         """
         try:
-            logging.debug("clear_flag: clearing flag %s to False" % flag.name)
+            logging.debug("clearing flag %s to False" % flag.name)
             temp = self.get_flag(flag)
             self.put_flag(flag, status=False, display_type=temp.display_type)
         except KeyError:
@@ -438,7 +404,7 @@ class Player(BaseCharacter):
             flag_name = flag.value
             temp = self.get_flag(flag)
             display_type, status = temp.display_type, temp.status
-            logging.debug("show_flag: flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
+            logging.debug("flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
             result = self.show_flag_status(flag)
             return f"{flag_name}: {result}"
         except KeyError:
@@ -466,7 +432,7 @@ class Player(BaseCharacter):
             'Unconscious'
             """
             max_width = longest_flag_name()
-            logging.debug("enter: flag: %s, "
+            logging.debug("%s, "
                           "leading_num: %s, "
                           "max_width: %i" % (flag, leading_num, max_width))
             temp = self.get_flag(flag)
@@ -477,7 +443,7 @@ class Player(BaseCharacter):
             # None is used here after building a menu of flag settings, the menu will number the items:
             number = f"{leading_num:>2}. " if isinstance(leading_num, int) else ""
             # return f"{leading_num:>2}. {flag_name:.<{max_width}}: {result}"
-            return f"{number} {flag_name:.<{max_width}}: {result}"
+            return f"{number}{flag_name:.<{max_width}}: {result}"
         except KeyError:
             logging.warning("unknown flag: %s" % flag.name)
 
@@ -489,7 +455,7 @@ class Player(BaseCharacter):
         """
         """
         >>> rulan = Player()
-        
+
         >>> rulan.show_flag_status(PlayerFlagName.UNCONSCIOUS)
         'No'
         """
@@ -515,9 +481,9 @@ class Player(BaseCharacter):
         """
         try:
             result = self.get_flag(flag)
-            logging.debug("toggle_flag: Flag: %s before toggle: %s" % (flag.value, result.status))
+            logging.debug("Flag: %s before toggle: %s" % (flag.value, result.status))
             result.status = not result.status
-            logging.debug("toggle_flag: Flag: %s after toggle: %s" % (flag.value, result.status))
+            logging.debug("Flag: %s after toggle: %s" % (flag.value, result.status))
             self.put_flag(flag, result.display_type, result.status)
             if verbose:
                 # FIXME: I'm going to let this stand even though "UNCONSCIOUS are off"
@@ -530,7 +496,7 @@ class Player(BaseCharacter):
     def put_flag(self, name: PlayerFlags, display_type: FlagDisplayTypes, status: bool):
         # FIXME: seems like put_flag should know the display_type of the PlayerFlags object and
         #  not need to be specified in the function call
-        logging.debug("put_flag: %s put as %s" % (name, status))
+        logging.debug("%s put as %s" % (name, status))
         self.flags[name] = Flag(name, display_type, status)
 
     def query_flag(self, flag: PlayerFlags) -> bool:
@@ -546,17 +512,17 @@ class Player(BaseCharacter):
     def adjust_stat(self, stat_name: PlayerStat, adjustment):
         current = self.get_stat(stat_name)
         new = current + adjustment
-        logging.debug("adjust_stat: current: %s: %i, adjusted: %i" % (stat_name.name, current, new))
+        logging.debug("current: %s: %i, adjusted: %i" % (stat_name.name, current, new))
         self.put_stat(stat_name, new)
 
     def get_stat(self, stat_name: PlayerStat) -> int:
         for key, value in self.stat.items():
             if stat_name.value == key:
-                logging.debug("get_stat: get %s: %i" % (stat_name.value, value))
+                logging.debug("get %s: %i" % (stat_name.value, value))
                 return value
 
     def put_stat(self, stat_name: PlayerStat, value) -> None:
-        logging.debug("put_stat: put %s: %i" % (stat_name.value, value))
+        logging.debug("put %s: %i" % (stat_name.value, value))
         self.stat[stat_name] = value
 
 
@@ -576,7 +542,7 @@ def flag_editor(player: Player):
                 # look up the flag index in player_flag_data:
                 # value-1 accounts for lists being 0-indexed
                 # TODO: toggle_flag_by_index() function?
-                logging.debug("flag_editor: value: %i" % value)
+                logging.debug("value: %i" % value)
                 player.toggle_flag(player_flag_data[value - 1][0], verbose=True)
             else:
                 raise ValueError
@@ -587,7 +553,9 @@ def flag_editor(player: Player):
 if __name__ == '__main__':
     # thanks to you, volca. code has been simplified
     # set up logging level (this level or higher will output to console):
-    logging.basicConfig(level=logging.DEBUG)
+    # set up logging level:
+    logging.basicConfig(format='%(levelname)10s | %(funcName)20s() | %(message)s',
+                        level=logging.DEBUG)
 
     # set up doctest
     doctest.testmod(verbose=True)
@@ -666,7 +634,7 @@ if __name__ == '__main__':
         """
         >>> rulan.silver[PlayerMoneyTypes.IN_BAR]
         1000
-        
+
         >>> PlayerMoneyCategory.IN_HAND.value, rulan.silver[PlayerMoneyTypes.IN_HAND]
         ('In hand', 50000)
         """
