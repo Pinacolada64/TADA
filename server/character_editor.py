@@ -5,6 +5,7 @@ from typing import List
 
 from flags import Player, PlayerFlags
 
+
 class MainMenu(Enum):
     """Main menu options."""
     ALIGNMENT = "Alignment"
@@ -35,20 +36,28 @@ class ArmorShieldMenu(Enum):
 
 class FlagsCountersMenu(Enum):
     """Flags & counters configuration options."""
-    # HUNGRY_FLAG = player.show_flag_line_item(flag=PlayerFlags.HUNGER)
-    HUNGRY_FLAG = "Hunger"
+    # HUNGRY_FLAG = flags.Player.show_flag_line_item(flag=PlayerFlags.HUNGER, leading_num=None)
+    # THIRSTY_FLAG = flags.Player.show_flag_line_item(flag=PlayerFlags.THIRST, leading_num=None)
+    HUNGER_FLAG = "Hunger"
+    THIRSTY_FLAG = "Thirst"
+    TIRED_FLAG = "Tired"
 
 
-class DisplayMenu(Enum):
-    """Display configuration options."""
-    RESOLUTION = auto()
-    BRIGHTNESS = auto()
-    ORIENTATION = auto()
-    THEME = auto()
+def build_flags_menu(flags: dict) -> list:
+    """
+    Builds a menu of flags with formatted line items to display with show_menu().
+
+    :param flags: A dictionary of player flags.
+    :return: list: A list of formatted flag line items for the menu.
+    """
+    leading_number = None  # A clearer constant for leading number behavior
+    return [player.show_flag_line_item(flag=flag, leading_num=leading_number) for flag in flags]
 
 
-from enum import Enum
-import logging
+def dict_to_enum(name: Enum, items: dict) -> Enum:
+    """Convert a dict [from build_flags_menu()] into an Enum [for print_menu()] with numbered options."""
+    logging.debug("dict_to_enum: %s" % items)
+    return Enum(name, {i: item for i, item in enumerate(items)})
 
 
 def print_menu(menu_enum: Enum, columns: int = 1):
@@ -89,6 +98,7 @@ def print_menu(menu_enum: Enum, columns: int = 1):
 
 
 class MenuOption(Enum):
+    """Demo of the print_menu() function"""
     OPTION_1 = "Option 1"
     OPTION_2 = "Option 2"
     OPTION_3 = "Option 3"
@@ -98,14 +108,17 @@ class MenuOption(Enum):
     OPTION_7 = "Option 7"  # example of an odd number of items
 
 
-def get_user_choice(menu_enum, menu_stack):
+def get_user_choice(menu_enum: Enum, menu_stack: list):
     """Gets user input and validates it within the menu.
+
     :param menu_enum: the menu Enum to validate options against
-    :return enum_member: menu item selected, or None if Return hit
+    :param menu_stack: list representing how many menu levels deep we are,
+     used for displaying "Enter: Up a level"
+    :returns: enum_member: menu item selected, or None if Return hit
     """
     while True:
         try:
-            # first item in menu_stack is always MainMenu?
+            # first item in [menu_stack] is always <enum 'MainMenu'>
             logging.debug("menu_stack: %s" % menu_stack)
             if len(menu_stack) > 1:
                 print("Enter: Go up a level")
@@ -140,7 +153,6 @@ def main():
         # change current_menu to selection
         # current_menu = [MainMenu, AlignmentMenu, ArmorShieldMenu, None, None, FlagsCountersMenu,
         #                 None, None, None, None, None, None][int(choice)]
-        logging.debug("current_menu: %s" % current_menu)
 
         # Handle menu choices
         logging.debug("current_menu: %s" % current_menu)
@@ -160,16 +172,21 @@ def main():
                 menu_stack.append(FlagsCountersMenu)
                 print("Flags & Counters")
                 # display character flags:
-                # flags_menu = Enum({"test", [1, 2, 3, 4]})
 
-                flags_menu = list([])
-                for i, flag in enumerate(player.flags):
-                    # no leading number here, the menu will generate it:
-                    flags_menu.append(player.show_flag_line_item(flag=flag, leading_num=None))
-                # ... other FlagsCountersMenu choices
-                logging.debug(flags_menu)
-                print_menu(flags_menu)
-                flags_option = get_user_choice(flags_menu, menu_stack)
+                """
+                # Extracted function to build menu of flags
+                flags_list = build_flags_menu(player.flags)
+                logging.debug(flags_list)
+                flags_menu_enum = dict_to_enum("FlagCounterMenu", flags_list)
+                print_menu(flags_menu_enum)  # Display the menu
+                flags_option = get_user_choice(flags_menu_enum, menu_stack)
+                """
+                # Example usage
+                flags_list = ["Flag 1", "Flag 2", "Flag 3"]
+                flags_menu_enum = dict_to_enum(FlagsCountersMenu, flags_list)
+
+                # Now `FlagsMenuEnum` can be passed to `print_menu`
+                print_menu(flags_menu_enum)
 
             elif current_menu == ArmorShieldMenu:
                 # ... handle Armor & Shield choices
