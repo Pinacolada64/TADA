@@ -8,6 +8,7 @@ from flags import Player, PlayerFlags
 
 class MainMenu(Enum):
     """Main menu options."""
+    TITLE = "Main Menu"
     ALIGNMENT = "Alignment"
     ARMOR_SHIELD = "Armor & Shield"
     ATTRIBUTES = "Attributes"
@@ -24,18 +25,21 @@ class MainMenu(Enum):
 
 class AlignmentMenu(Enum):
     """Alignment information sub-menu options."""
+    TITLE = "Alignment Options"
     NATURAL_ALIGNMENT = "Natural Alignment"
     CURRENT_ALIGNMENT = "Current Alignment"
 
 
 class ArmorShieldMenu(Enum):
     """Armor and shield options."""
+    TITLE = "Armor & Shield Options"
     ARMOR_ITEMS = "Armor Items"
     SHIELD_ITEMS = "Shield Items"
 
 
 class FlagsCountersMenu(Enum):
     """Flags & counters configuration options."""
+    TITLE = "Flags & Counters"
     # HUNGRY_FLAG = flags.Player.show_flag_line_item(flag=PlayerFlags.HUNGER, leading_num=None)
     # THIRSTY_FLAG = flags.Player.show_flag_line_item(flag=PlayerFlags.THIRST, leading_num=None)
     HUNGER_FLAG = "Hunger"
@@ -62,9 +66,11 @@ def dict_to_enum(name: Enum, items: dict) -> Enum:
 
 def print_menu(menu_enum: Enum, columns: int = 1):
     """Prints the given menu with options."""
+    menu_list = list(menu_enum)[1:]  # Convert Enum to list for indexing
     print()
+    # display menu title:
+    print(menu_enum.TITLE.value)
     print("-" * (20 * columns))
-    menu_list = list(menu_enum)  # Convert Enum to list for indexing
 
     if columns == 2:
         logging.debug("Columns: 2")
@@ -91,7 +97,7 @@ def print_menu(menu_enum: Enum, columns: int = 1):
             print(line)
 
     else:
-        for num, option in enumerate(menu_enum, start=1):
+        for num, option in enumerate(menu_list, start=1):
             print(f"{num: >2}. {option.value.title()}")
 
     print("-" * (20 * columns))
@@ -99,6 +105,7 @@ def print_menu(menu_enum: Enum, columns: int = 1):
 
 class MenuOption(Enum):
     """Demo of the print_menu() function"""
+    TITLE = "Menu Options"
     OPTION_1 = "Option 1"
     OPTION_2 = "Option 2"
     OPTION_3 = "Option 3"
