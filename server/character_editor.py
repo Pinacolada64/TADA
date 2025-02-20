@@ -54,12 +54,12 @@ def build_flags_menu(flags: dict) -> list:
     :param flags: A dictionary of player flags.
     :return: list: A list of formatted flag line items for the menu.
     """
-    leading_number = None  # A clearer constant for leading number behavior
-    return [player.show_flag_line_item(flag=flag, leading_num=leading_number) for flag in flags]
+    # leading_num is None since print_menu() adds numbered items
+    return [player.show_flag_line_item(flag=flag, leading_num=None) for flag in flags]
 
 
-def dict_to_enum(name: Enum, items: dict) -> Enum:
-    """Convert a dict [from build_flags_menu()] into an Enum [for print_menu()] with numbered options."""
+def build_menu(name: Enum, items: dict) -> Enum:
+    """Convert a menu Enum [from build_flags_menu()] into an Enum [for print_menu()] with numbered options."""
     logging.debug("dict_to_enum: %s" % items)
     return Enum(name, {i: item for i, item in enumerate(items)})
 
@@ -129,7 +129,8 @@ def get_user_choice(menu_enum: Enum, menu_stack: list):
             logging.debug("menu_stack: %s" % menu_stack)
             if len(menu_stack) > 1:
                 print("Enter: Go up a level")
-            prompt = f"Enter your choice [1-{len(menu_enum)}]: "
+            # len()-1 accounts for the title item now:
+            prompt = f"Enter your choice [1-{len(menu_enum)-1}]: "
             choice = input(prompt)
             print()
             if not choice:  # Check for empty input (Enter key)
@@ -190,7 +191,7 @@ def main():
                 """
                 # Example usage
                 flags_list = ["Flag 1", "Flag 2", "Flag 3"]
-                flags_menu_enum = dict_to_enum(FlagsCountersMenu, flags_list)
+                flags_menu_enum = build_menu(FlagsCountersMenu, flags_list)
 
                 # Now `FlagsMenuEnum` can be passed to `print_menu`
                 print_menu(flags_menu_enum)
