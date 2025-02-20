@@ -129,7 +129,8 @@ def get_user_choice(menu_enum: Enum, menu_stack: list):
             logging.debug("menu_stack: %s" % menu_stack)
             if len(menu_stack) > 1:
                 print("Enter: Go up a level")
-            prompt = f"Enter your choice [1-{len(menu_enum)}]: "
+            # len()-1 accounts for first item being the menu title:
+            prompt = f"Enter your choice [1-{len(menu_enum)-1}]: "
             choice = input(prompt)
             print()
             if not choice:  # Check for empty input (Enter key)
