@@ -1,7 +1,7 @@
 import logging
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 from flags import Player, PlayerFlags
 
@@ -54,14 +54,22 @@ def build_flags_menu(flags: dict) -> list:
     :param flags: A dictionary of player flags.
     :return: list: A list of formatted flag line items for the menu.
     """
-    leading_number = None  # A clearer constant for leading number behavior
-    return [player.show_flag_line_item(flag=flag, leading_num=leading_number) for flag in flags]
+    # leading_num = None since print_menu() adds item numbers
+    return [player.show_flag_line_item(flag=flag, leading_num=None) for i, flag in enumerate(flags)]
 
 
 def dict_to_enum(name: Enum, items: dict) -> Enum:
     """Convert a dict [from build_flags_menu()] into an Enum [for print_menu()] with numbered options."""
     logging.debug("dict_to_enum: %s" % items)
     return Enum(name, {i: item for i, item in enumerate(items)})
+def list_menu(title: Optional[str], menu_items: list, columns: int = 1):
+    """Generate a menu from a list of strings"""
+    if title:
+        print(title)
+    print('-' * (20 * columns))
+    for i, v in enumerate(menu_items, start=1):
+        print(f"{i:>2}. {v}")
+    print('-' * (20 * columns))
 
 
 def print_menu(menu_enum: Enum, columns: int = 1):
@@ -130,14 +138,14 @@ def get_user_choice(menu_enum: Enum, menu_stack: list):
             if len(menu_stack) > 1:
                 print("Enter: Go up a level")
             # len()-1 accounts for first item being the menu title:
-            prompt = f"Enter your choice [1-{len(menu_enum)-1}]: "
+            prompt = f"Enter your choice [1-{len(menu_enum) - 1}]: "
             choice = input(prompt)
             print()
             if not choice:  # Check for empty input (Enter key)
                 return None  # Return None to indicate "go back"
             option_number = int(choice) - 1  # Corrected: subtract 1 for 0-based indexing
             if 0 <= option_number < len(menu_enum):  # Corrected: check against list length
-                return list(menu_enum)[option_number]  # Return the enum member
+                return list(menu_enum)[option_number + 1]  # Return the enum member
             else:
                 print("Invalid choice. Please try again.")
         except ValueError:
@@ -163,6 +171,7 @@ def main():
         #                 None, None, None, None, None, None][int(choice)]
 
         # Handle menu choices
+        # FIXME: this code is messy. refactor code to put each menu in a function call?
         logging.debug("current_menu: %s" % current_menu)
         logging.debug("choice: %s" % choice)
         if current_menu == MainMenu:
@@ -178,23 +187,14 @@ def main():
             elif choice == MainMenu.FLAGS_COUNTERS:
                 logging.debug("MainMenu.FLAGS_COUNTERS selected")
                 menu_stack.append(FlagsCountersMenu)
-                print("Flags & Counters")
                 # display character flags:
-
-                """
                 # Extracted function to build menu of flags
                 flags_list = build_flags_menu(player.flags)
                 logging.debug(flags_list)
-                flags_menu_enum = dict_to_enum("FlagCounterMenu", flags_list)
-                print_menu(flags_menu_enum)  # Display the menu
-                flags_option = get_user_choice(flags_menu_enum, menu_stack)
-                """
-                # Example usage
-                flags_list = ["Flag 1", "Flag 2", "Flag 3"]
-                flags_menu_enum = dict_to_enum(FlagsCountersMenu, flags_list)
-
-                # Now `FlagsMenuEnum` can be passed to `print_menu`
-                print_menu(flags_menu_enum)
+                # FIXME: should not also display FlagsCountersMenu, although that does
+                #  in fact work
+                list_menu(title="Flags & Counters", menu_items=flags_list)  # Display the menu
+                # flags_option = get_user_choice(flags_menu_enum, menu_stack)
 
             elif current_menu == ArmorShieldMenu:
                 # ... handle Armor & Shield choices
@@ -214,12 +214,14 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)10s | %(funcName)20s() | %(message)s')
 
-    player = Player(name="Rulan", id_num=1)
+    player = Player(name="Rulan")
 
-    # Example Usage:
-    print("Two columns:")
-    print_menu(MenuOption, columns=2)
-    print("One column:")
-    print_menu(MenuOption)
+    show_demo = False
+    if show_demo:
+        # Example Usage:
+        print("Two columns:")
+        print_menu(MenuOption, columns=2)
+        print("One column:")
+        print_menu(MenuOption)
 
     main()

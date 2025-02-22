@@ -220,7 +220,7 @@ player_flag_data = [
     (PlayerFlags.SPUR_ALIVE, FlagDisplayTypes.YESNO, True),
     (PlayerFlags.THUG_ATTACK, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.WRAITH_KING_ALIVE, FlagDisplayTypes.YESNO, True),
-    (PlayerFlags.WRAITH_MASTER, FlagDisplayTypes.YESNO, True),
+    (PlayerFlags.WRAITH_MASTER, FlagDisplayTypes.YESNO, False),
     ]
 """
 # TODO: flags:
