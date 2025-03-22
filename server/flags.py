@@ -84,15 +84,16 @@ class PlayerRace(str, Enum):
 
 class PlayerFlags(str, Enum):
     """Names of flags"""
+    # game states:
     ADMIN = "Administrator"
     ARCHITECT = "Architect"
     DUNGEON_MASTER = "Dungeon Master"
+    # speaker on a chat channel or in an amphitheater (public chat room):
+    ORATOR = "Orator"
     # guild stuff:
     GUILD_AUTODUEL = "Guild AutoDuel"
     GUILD_FOLLOW_MODE = "Guild Follow Mode"
     GUILD_MEMBER = "Guild Member"
-    # speaker on a chat channel or in an amphitheater (public chat room):
-    ORATOR = "Orator"
     # option toggles:
     DEBUG_MODE = "Debug Mode"
     EXPERT_MODE = "Expert Mode"
@@ -193,13 +194,15 @@ class FlagDisplayTypes(str, Enum):
     TRUEFALSE: str = "true/false"
     ONOFF: str = "on/off"
 
-
+# these are flag defaults for a new player:
 player_flag_data = [
+    # game state flags:
     (PlayerFlags.ADMIN, FlagDisplayTypes.YESNO, False),
     # can build things later:
     (PlayerFlags.ARCHITECT, FlagDisplayTypes.YESNO, False),
     # a level lower than Admin, different permissions to be determined:
     (PlayerFlags.DUNGEON_MASTER, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.ORATOR, FlagDisplayTypes.YESNO, False),
     # guild stuff:
     (PlayerFlags.GUILD_AUTODUEL, FlagDisplayTypes.ONOFF, False),
     (PlayerFlags.GUILD_FOLLOW_MODE, FlagDisplayTypes.ONOFF, False),
@@ -208,7 +211,7 @@ player_flag_data = [
     (PlayerFlags.DEBUG_MODE, FlagDisplayTypes.ONOFF, True),
     (PlayerFlags.EXPERT_MODE, FlagDisplayTypes.ONOFF, False),
     (PlayerFlags.HOURGLASS, FlagDisplayTypes.ONOFF, True),
-    (PlayerFlags.ORATOR, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.MORE_PROMPT, FlagDisplayTypes.ONOFF, True),
     (PlayerFlags.ROOM_DESCRIPTIONS, FlagDisplayTypes.ONOFF, True),
     (PlayerFlags.UNCONSCIOUS, FlagDisplayTypes.YESNO, False),
     # game states:
@@ -220,8 +223,20 @@ player_flag_data = [
     (PlayerFlags.SPUR_ALIVE, FlagDisplayTypes.YESNO, True),
     (PlayerFlags.THUG_ATTACK, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.WRAITH_KING_ALIVE, FlagDisplayTypes.YESNO, True),
-    (PlayerFlags.WRAITH_MASTER, FlagDisplayTypes.YESNO, True),
-    ]
+    (PlayerFlags.WRAITH_MASTER, FlagDisplayTypes.YESNO, False),
+
+    # health issues:
+    (PlayerFlags.DISEASE, FlagDisplayTypes.ONOFF, False),
+    (PlayerFlags.HUNGER, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.POISON, FlagDisplayTypes.ONOFF, False),
+    (PlayerFlags.THIRST, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.TIRED, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.UNCONSCIOUS, FlagDisplayTypes.YESNO, False),
+
+    # horse stuff:
+    (PlayerFlags.HAS_HORSE, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.MOUNTED, FlagDisplayTypes.YESNO, False)
+]
 """
 # TODO: flags:
 'tut_treasure': {'examined': False, 'taken': False}
