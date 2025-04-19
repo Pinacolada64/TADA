@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 import datetime
 import bcrypt
 
-# import util
+import util
 
 run_server_dir = 'run/server'
 invite_dir = os.path.join(run_server_dir, 'invite')

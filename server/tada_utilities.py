@@ -1,8 +1,12 @@
+import doctest
 import logging
+import random
 
 # import net_server  # for promptRequest and Message
-from net_server import Message
-from server.flags import Player, PlayerFlags
+from server.net_server import Message
+from server.characters import Player
+from server.flags import PlayerFlags
+from server.user_settings import Translation
 
 """
 utilities such as:
@@ -11,32 +15,74 @@ utilities such as:
 * prompt requiring yes/no response
 * prompt for a range of numbers
 * prompt with string editing
+* generate a random ID from 1-65536 (inclusive)
 """
 
 
-def grammatical_list(item_list):
-    result_list = []
-    for item in item_list:
-        if item.endswith("s"):
-            result_list.append(f"some {item}")
-        elif item.startswith(('a', 'e', 'i', 'o', 'u')):
-            result_list.append(f"an {item}")
-        else:
-            result_list.append(f"a {item}")
+def grammatical_list(item_list: str | list) -> str:
+    """
+    This function lists items in a room in a grammatically correct form,
+    handling multiple items (which themselves can be singular or plural in quantity),
+    or
 
+    if the object is singular (the name does not end in 's'):
+    'a (object starting with a consonant)', 'an (object starting with a vowel)'.
+    If the object is plural (the name ends in 's'): 'some <object>'
+    If there is one item in the list, print it.
+    If there are two items in the list, print the first, an Oxford comma, and the second.
+    If there are more than two items, print the first, second, [...] 'and {a|an} <object>'.
+    """
+    """
+    >>> items = ['orange', 'dry bones', 'book']
+    
+    >>> print(f'You see: {grammatical_list(items)}.')
+    You see: an orange, some dry bones, and a book.
+    """
+    result_list = []
+    if isinstance(item_list, str):
+        # assumes 1 item:
+        return f"You see: {i_dont_know_a_function_name(item_list)}."
+
+    # assumes a list of items (could still just be 1 item!):
+    for item in item_list:
+        result_list.append(i_dont_know_a_function_name(item))
     # tanabi: Add 'and' if we need it
     if len(result_list) > 1:
         result_list[-1] = f"and {result_list[-1]}"
     # Join it together
-    return Message(lines=[(", ".join(result_list))])
+    # return Message(lines=[(", ".join(result_list))])
+    return ", ".join(result_list)
 
+def i_dont_know_a_function_name(item: str):
+    if item.endswith("s"):
+        # plural:
+        return f"some {item}"
+    elif item.startswith(('a', 'e', 'i', 'o', 'u')):
+        return f"an {item}"
+    else:
+        return f"a {item}"
+
+
+def list_players_in_room(player_list: str | list):
+    """List players in room in a grammatically correct way:
+
+    "Rulan is here."
+    "Rulan and J'ee are here."
+    "Rulan, J'ee, and Argentilane are here."
+
+    TODO: Later, when players can lead/join parties, display e.g.,
+        "Rulan (and his party) are here."
+    """
+    pass
 
 def header(text: str):
     """
-    Show 'text' passed, a newline, and a line the length of 'text'
+    Show `text` passed, a newline, and a line the length of `text`
     e.g.,
+
     This is a header
     ----------------
+
     :param text: string to display
     :return: None
     """
@@ -49,7 +95,7 @@ def header(text: str):
 
 
 def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, default=None):
-    """input 'prompt', accept numbers lo < value < hi
+    """Display input 'prompt', accept numbers lo < value < hi
     e.g.
     "'prompt' ['lo'-'hi']: "
 
@@ -60,14 +106,14 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, d
     :param p: Player to output text to
     :param reminder: string to display if lo < temp < hi
     """
-    if default is not None and p.query_flag(PlayerFlags.EXPERT_MODE) is False:
-        p.output(f"{return_key} keeps '{default}'.")
+    if default is not None and not p.query_flag(PlayerFlags.EXPERT_MODE):
+        p.output(f"{p.client_settings.RETURN_KEY} keeps '{default}'.")
     while True:
         temp = input(f"{prompt} [{lo}-{hi}]: ")
         # just hitting Return keeps original number
         if temp.isalpha():
             p.output("Numbers only, please.")
-        if default is not None and temp == '':
+        if default is not None and not temp:
             if p.query_flag(PlayerFlags.EXPERT_MODE) is False:
                 p.output(f"(Keeping '{default}'.)")
             return default
@@ -76,10 +122,10 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, d
             if lo - 1 < temp < hi + 1:
                 return temp
             else:
-                p.output(reminder)
+                p.output(string=reminder)
 
 
-def input_string(prompt: str, default: str, player: Player, reminder="Please enter something."):
+def input_string(prompt: str, default: bool, player: Player, reminder="Please enter something."):
     """input 'prompt', accept numbers lo < value < hi
     e.g.:
     [Return] keeps 'Druid.'  # if expert mode off
@@ -93,11 +139,11 @@ def input_string(prompt: str, default: str, player: Player, reminder="Please ent
     :param reminder: what to display if edit_mode is False and null string entered
     """
     if default and player.query_flag(PlayerFlags.EXPERT_MODE) is False:
-        player.output(f"{player.return_key} keeps '{default}.'")
+        player.output(f"{player.terminal_settings.return_key} keeps '{default}.'")
     while True:
         temp = input(f"{prompt}: ")
         # just hitting Return keeps original string
-        if default and (temp == '' or temp == default):
+        if default and (not temp or temp == default):
             if player.query_flag(PlayerFlags.EXPERT_MODE):
                 player.output(f"(Keeping '{default}'.)")
             return default
@@ -105,7 +151,7 @@ def input_string(prompt: str, default: str, player: Player, reminder="Please ent
             player.output(reminder)
 
 
-def input_yes_no(prompt: str):
+def input_yes_no(prompt: str) -> bool:
     """input 'prompt', accept 'y' or 'n'
     e.g.
     "'prompt' [y/n]: "
@@ -121,7 +167,7 @@ def input_yes_no(prompt: str):
             return False
 
 
-def fileread(self, filename: str):
+def fileread(self, filename: str, player: Player):
     """
     display a file to a user in 40 or 80 columns with more_prompt paging
     also handles highlighting [text in brackets] via re and colorama
@@ -131,16 +177,15 @@ def fileread(self, filename: str):
     from colorama import Fore  # , Back, Style
     import re  # regular expressions library
 
-    p = self.player
     logging.info(f"fileread(): read {filename=}")
 
     self.line_count = 0
-    # cols = self.client['columns']
+    # FIXME: cols = player.client.terminal_settings.COLUMNS
     cols = 80
-    fh = f"{filename}-{cols}.txt"
-    logging.info(f"fileread: {fh=}")
+    file_handle = f"{filename}-{cols}.txt"
+    logging.info(f"fileread: {file_handle=}")
 
-    with open(f'{fh}', newline='\n') as file:
+    with open(f'{file_handle}', newline='\n') as file:
         try:
             reading = True
             while reading is True:
@@ -159,10 +204,11 @@ def fileread(self, filename: str):
                     # 'Hello !World! this !is a! test.'
                     new_line = re.sub(r'\[(.+?)]', f'{Fore.RED}' + r'\1' + f'{Fore.RESET}', string=line)
                     print(new_line)
-                    # if char.flag['more_prompt']:
+                    # FIXME: there is an itertools function which would simplify looping through 1...SCREEN_HEIGHT
+                    #    repeatedly -- what is it?
                     self.line_count += 1
-                    # if line_count == char.client['rows']:
-                    if self.line_count == 20:
+                    # FIXME: if line_count == player.client_settings.SCREEN_ROWS:
+                    if self.line_count == 20 and player.query_flag(PlayerFlags.MORE_PROMPT):
                         self.line_count = 0
                         """
                         This call is a little different: choices{} is empty because we don't want a menu,
@@ -172,14 +218,14 @@ def fileread(self, filename: str):
                         temp = UserHandler.prompt_request(self, lines=[],
                                                           prompt='[Enter]: Continue, [Q]uit: ',
                                                           choices={})
-                        logging.debug("fileread: temp = %s" % repr(temp))
+                        logging.debug("temp = %s" % repr(temp))
                         # returns dict('text': 'response')
                         choice = temp.get('text')
                         if choice.lower() == 'q':
                             return Message(lines=["(You quit reading.)"])
                         # otherwise, assume Enter was pressed and continue...
         except FileNotFoundError:
-            return Message(lines=[], error_line=f'File {fh} not found.')
+            return Message(lines=[], error_line=f'File {file_handle} not found.')
 
 
 def game_help(self, arg: list):
@@ -204,17 +250,28 @@ def game_help(self, arg: list):
     return Message(lines=["Done."])
 
 
-if __name__ == '__main__':
-    Player = server.Player()
-    Player.name = 'Darmok'
-    Player.flags = {'expert_mode': False}
-    Player.client = {'columns': 80, 'translation': 'PETSCII'}
+def make_random_id() -> int:
+    """Returns a random ID, 1-65536"""
+    random_id = random.randrange(1, 65536)  # 256 ** 2
+    logging.debug("%i" % random_id)
+    return random_id
 
-    return_key = '[Enter]'
+
+if __name__ == '__main__':
+    # set up logging level (this level or higher will output to console):
+    logging.basicConfig(format='%(levelname)10s | %(funcName)20s() | %(message)s',
+                        level=logging.DEBUG)
+
+    # set up doctest
+    doctest.testmod(verbose=True)
+
+    player = Player(name="Darmok")
+    player.clear_flag(PlayerFlags.EXPERT_MODE)
+    player.client_settings.SCREEN_WIDTH = 80
+    player.client_settings.SCREEN_HEIGHT = 25
+    player.client_settings.TRANSLATION = Translation.ANSI
+    player.client_settings.RETURN_KEY = '[Enter]'
 
     input_yes_no("Is this a good demo")
     n = input_number_range(prompt="Enter a value", default=18, lo=10, hi=45)
     print(f"Entered {n}")
-
-    items = ['orange', 'dry bones', 'book']
-    print(f'You see: {grammatical_list(items)}.')

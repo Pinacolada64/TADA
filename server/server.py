@@ -2,26 +2,29 @@
 
 import os
 import json
-import random
 import threading
 from dataclasses import dataclass, field
 import textwrap
 import logging
 from datetime import datetime
+from typing import Optional
 
 import net_server
 import net_common
 import common
 
-from flags import Player, PlayerFlags, PlayerMoneyTypes
+# TADA-specific imports
+from flags import PlayerFlags
+from characters import Player, PlayerMoneyTypes
+from server.items import Weapon
 
 K = common.K
 Mode = net_server.Mode
 Message = net_server.Message
 
 
-room_start = 1
-money_start = 1000
+# room_start = 1
+# money_start = 1000
 
 compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up', 'd': 'Down'}
 
@@ -163,34 +166,6 @@ class Monster(object):
             return None
 
 
-class Weapons(object):
-    def __init__(self, number, location, name, kind, sound_effect, stability, to_hit, price, weapon_class, **flags):
-        self.number = number
-        self.location = location
-        self.name = name
-        # this field is optional:
-        self.kind = kind
-        self.sound_effect = sound_effect
-        self.stability = stability
-        self.to_hit = to_hit
-        self.price = price
-        self.weapon_class = weapon_class
-        # this field is optional:
-        if flags is not None:
-            self.flags = flags
-
-    @staticmethod
-    def read_weapons(filename: str):
-        try:
-            with open(filename) as jsonF:
-                weapons = json.load(jsonF)
-                logging.debug("read_weapons: JSON data read")
-                return weapons
-        except FileNotFoundError:
-            logging.error(">>> read_weapons: File not found: %s" % filename)
-            return None
-
-
 @dataclass
 class Rations(object):
     number: int
@@ -199,6 +174,7 @@ class Rations(object):
     price: int
     flags: list
 
+    """
     def __init__(self, number, name, kind, price, **flags):
         self.number = number
         self.name = name
@@ -207,6 +183,7 @@ class Rations(object):
         # this field is optional:
         if flags is not None:
             self.flags = flags
+    """
 
     @staticmethod
     def read_rations(filename: str):
@@ -218,7 +195,6 @@ class Rations(object):
         except FileNotFoundError:
             logging.error(">>> read_rations: File not found: %s" % filename)
             return None
-
 
 server_lock = threading.Lock()
 
@@ -242,14 +218,8 @@ def players_in_room(room_id: int, exclude_id: str | None):
 players = {}
 
 
-def random_number():
-    number = random.randrange(1, 65535)
-    logging.debug("random_number: %i" % number)
-    return number
-
-
 @dataclass
-class Player:
+class OldPlayer:
     """
     Attributes, flags and other stuff about characters.
     """
@@ -257,73 +227,6 @@ class Player:
     id: str  # handle, for Player.connect
     # TODO: eventually, CommodoreServer Internet Protocol connection ID
     connection_id: int  # field(default_factory=random_number)
-    gender: str  # [ male | female ]
-    # set stats with Character.set_stat('xyz', val)
-    # stat: {'chr': int, 'con': int, 'dex': int, 'int': int,
-    #        'str': int, 'wis': int, 'egy': int}
-    stat: dict
-    """
-   'wraith_master': False,
-   'tut_treasure': {'examined': False, 'taken': False},
-
-   # magic items:
-   'gauntlets_worn': False,
-   'ring_worn': False,
-   'amulet_of_life': False,
-
-   # wizard_glow stuff:
-   # 0 if inactive
-   # != 0 is number of rounds left, decrement every turn
-   wizard_glow: int
-
-    # things you can only do once per day (file_formats.txt)
-    once_per_day: list
-    # 'pr'    has PRAYed once
-    # 'pr2'   can PRAY twice per day (only if char_class is Druid)
-    # TODO: finish this
-
-    # TODO: money types may be expanded to platinum, electrum in future
-    # creates a new silver dict for each Character:
-    # in_bank: may be cleared on character death (TODO: look in TLOS source)
-    # in_bar: should be preserved after character's death (TODO: same)
-    # use Character.set_silver("kind", value)
-
-    # 0 if unknown, otherwise age in years:
-    # age is derived from datetime.now() - birthday
-    birthday: datetime
-    # [civilian | fist | sword | claw | outlaw]:
-    guild: str
-
-    #                  1       2       3       4       5       6       7       8        9
-    char_class: str  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
-    race: str  # ......Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
-
-    # client info:
-    client: dict
-    
-    # host (i.e., Python, C64, C128...?)
-    'name': str,
-    # screen dimensions:
-    'rows': int,
-    'cols': int,
-    # {'translation': None | ASCII | ANSI | Commodore }
-    'translation': str,
-    # colors for [bracket reader] text highlighting on C64/128:
-    'text': int,
-    'highlight': int,
-    'background': int,
-    'border': int]
-    """
-    hit_points: int
-    experience: int
-
-    # map stats:
-    map_level: int  # cl = current level
-    room: int  # cr = current room
-    moves_made: int
-    # tracks how many moves made today for experience at quit:
-    moves_today: int
-
     # combat stats:
     armor: list
     # e.g., should it be its own class with attributes?
@@ -332,45 +235,33 @@ class Player:
     # TODO: weight (iron armor vs. padded leather armor will be different),
     #  could also define effectiveness, heavier armor absorbs more damage
 
-    shield: dict
-    shield_used: int  # shield item being USEd
-    shield_skill: dict  # dict['item': int, 'skill': int]
     # same:
     # Shield(object):
     #     def __init__(name, percent_left, shield_size, ...)
+    # shield: dict
+    # shield_used: bool  # shield item being USEd: True/False
+    # shield_skill: dict  # dict['item': int, 'skill': int]
+
     # TODO: weight (iron shield vs. wooden shield will be different),
     #  could also define effectiveness, heavier shields absorb more damage
 
-    weapon: dict
-    weapon_used: int  # if not None, this weapon READYed
-    weapon_skill: dict  # {weapon_item: int, weapon_skill: int}
-    weapon_left: int  # TODO: map this to a rating
+    # weapon: dict
+    weapon_used: Optional[Weapon]  # if not None, this weapon READYed
+    # weapon_skill: dict  # {weapon_item: int, weapon_skill: int}
+    # weapon_left: int  # TODO: map this to a rating
 
     # bad_hombre_rating is calculated from stats, not stored in player log
     honor_rating: int  # helps determine current_alignment
     formal_training: int
-    monsters_killed: list
+    monsters_killed: list[Monster]
     """
     monsters_killed is not always the same as dead_monsters[];
     still increment it if you re-kill a re-animated monster
     """
-    dead_monsters: list  # keeps track of monsters for Zelda in the bar to resurrect
-    monster_at_quit: str
+    dead_monsters: list[Monster]  # keeps track of monsters for Zelda in the bar to resurrect
+    monster_at_quit: Optional[Monster]
 
-    # ally stuff:
-    allies: list  # (list of tuples?)
-    ally_inv: list
-    ally_abilities: list
-    ally_flags: list
-
-    # horse stuff:
-    has_horse: bool
-    horse_name: str
-    horse_armor: dict  # {'name': name, 'armor_class': ac?}
-    has_saddlebags: bool
-    saddlebags: list  # these can carry items for GIVE and TAKE commands
-
-    vinny_loan: dict  # {'amount_payable': int, 'days_til_due': int}
+    vinny_loan: dict  # {'amount_payable': int, 'days_til_due': datetime}
 
     # inventory
     """
@@ -390,9 +281,8 @@ class Player:
     food: list
     drink: list
     spells: list  # list of dicts('spell_name': str, 'charges', 'chance_to_cast': int)
-    booby_traps: dict  # dict['room': int, 'combination': str]  # combo: '[a-i]'
+    booby_traps: list
 
-    times_played: int  # TODO: increment at Character.save()
     # FIXME: how to distinguish between offline characters and online?
     last_connection: datetime
 
@@ -403,12 +293,17 @@ class Player:
 
     last_command: list
 
+    def __init__(self):
+        self.silver = None
+
     def connect(self):
         with server_lock:
             # TODO: add last_connection as datetime.now()
             room_players[self.room].add(self.id)
-            # TODO: notify other players of connection
-
+            self.last_connection = datetime.now()
+            logging.info("%s connected at %s" % (self.name, self.last_connection))
+            # TODO: notify other players in same room of connection ("%s wakes up.")
+            # TODO: watchfor list: ("Somewhere in the land, %s has woken up / fallen asleep.")
 
     def move(self, next_room: int, direction=None):
         """
@@ -447,7 +342,6 @@ class Player:
     def _json_path(user_id):
         return os.path.join(net_common.run_server_dir, f"player-{user_id}.json")
 
-
     @staticmethod
     def load(user_id):
         try:
@@ -469,14 +363,6 @@ class Player:
                                                       # in o.__dict__.items() if v}, indent=4)
                                                       in o.__dict__.items()}, indent=4)
             logging.debug("Player.save: Saved '%s'." % self.name)
-
-
-    def make_random_id(self):
-        """return a random connection id, same as random_number()"""
-        # TODO: use one or the other; not both
-        random_id = random.randrange(1, 65535)
-        logging.debug("make_random_id: %i" % random_id)
-        return random_id
 
 
 class PlayerHandler(net_server.UserHandler):
@@ -518,7 +404,7 @@ class PlayerHandler(net_server.UserHandler):
         lines2.append(f"{f'#{room.number} ' if debug else ''}{room_name} [{temp}]\n")
 
         # FIXME: is anything wrong with this?
-        if player.flag['room_descs']:
+        if player.query_flag(PlayerFlags.ROOM_DESCRIPTIONS):
             lines2.append(f'{wrapper.fill(text=room.desc)}')
 
         # is an item in current room?
@@ -559,7 +445,7 @@ class PlayerHandler(net_server.UserHandler):
 
         # TODO: add grammatical list item (SOME MELONS, AN ORANGE)
 
-        debug = player.flag['debug']
+        debug = player.query_flag(PlayerFlags.DEBUG_MODE)
         exits_txt = room.exitsTxt(debug)
         if exits_txt is not None:
             lines2.append(f"Ye may travel: {exits_txt}\n")
@@ -602,7 +488,6 @@ class PlayerHandler(net_server.UserHandler):
         if player is None:
             logging.debug("process_login_success: No player data, creating new character.")
             # TODO: create player
-            #import create_player
             logging.debug("process_login_success: Running create_player...")
             valid_name = False
             while not valid_name:
@@ -686,7 +571,7 @@ class PlayerHandler(net_server.UserHandler):
                     # player.save()
                     room_name = game_map.rooms[player.room].name
                     return self.room_msg(lines=[f"You move {compass_txts[direction]}."],
-                                        changes={K.room_name: room_name})
+                                         changes={K.room_name: room_name})
 
             """
             This is the way the original Apple code handled up/down exits.
@@ -728,7 +613,7 @@ class PlayerHandler(net_server.UserHandler):
                         return Message(lines=["You move down."],
                                        changes={K.room_name: room.name,
                                                 K.room: room.desc}
-                        )
+                                       )
                     else:
                         logging.debug("parser: %s moves Down to Shoppe" % player.name)
                         player.move(next_room=room_transport, direction='d')
@@ -745,7 +630,7 @@ class PlayerHandler(net_server.UserHandler):
 
             if cmd[0] in ['bye', 'logout', 'quit']:
                 temp = net_server.UserHandler.prompt_request(self, lines=[], prompt='Really quit? ',
-                                                            choices={'y': 'yes', 'n': 'no'})
+                                                             choices={'y': 'yes', 'n': 'no'})
                 # returns a Cmd object?
                 logging.info(f'{temp=}')
                 # extract value from returned dict, e.g.: temp={'text': 'y'}
@@ -854,8 +739,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)10s | %(funcName)15s() - %(message)s')
 
-    import signal
-
     # exit gracefully when SIGINT is received
     # https://stackoverflow.com/questions/17550389/shut-down-socketserver-on-sig/18243619#18243619
     doneEvent = threading.Event()
@@ -887,7 +770,7 @@ if __name__ == "__main__":
     monsters = Monster.read_monsters("monsters.json")
 
     # load weapons
-    weapons = Weapons.read_weapons("weapons.json")
+    weapons = Weapon.read_weapons("weapons.json")
 
     # load rations
     rations = Rations.read_rations("rations.json")

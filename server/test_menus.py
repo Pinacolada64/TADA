@@ -2,16 +2,21 @@ import logging
 from dataclasses import dataclass, field
 from typing import List, Optional, Callable
 
-from flags import Player, PlayerFlags, PlayerStat
+# TADA-specific imports:
+from flags import PlayerFlags
+from characters import Player
+from tada_utilities import input_string
 
 
-def edit_string(prompt: str, data: str) -> str:
+def edit_string(prompt: str, current_string: str, player=Player) -> str:
     user_input = input(f"Edit {prompt}: ")
-    if user_input is None or user_input == data:
-        print(f"Keeping '{data}'.")
-        return data
+    if user_input is None or user_input == current_string:
+        if not player.query_flag(PlayerFlags.EXPERT_MODE):
+            print(f"Keeping '{current_string}'.")
+        return current_string
     else:
-        print(f"Changing '{data}' to '{user_input}.'")
+        if not player.query_flag(PlayerFlags.EXPERT_MODE):
+            print(f"Changing '{current_string}' to '{user_input}.'")
         return user_input
 
 
@@ -95,12 +100,15 @@ class CharacterNames(Menu):
         return player.name
 
     def edit_main_char_name(self):
-        name = edit_string("main character name", player.name)
+        name = input_string("Edit main character name", player.name)
         player.name = name
+
+    def edit_ally_1_name(self):
+        name = edit_string("ally 1's name", player.ally[1].name)
 
 
 class FlagsAndCounters(Menu):
-    """Demo of the print_menu() function"""
+    """Edit flags & counters"""
     def show_admin_flag(self):
         # we just want the result from the Admin flag query string,
         # so split string into "Administrator", ": ", "Yes/No".
@@ -588,6 +596,7 @@ def main():
     name_menu.add_item(MenuItem("Main Character", "m",
                                 dot_leader_handler=CharacterNames.show_main_char_name,
                                 edit_function=CharacterNames.edit_main_char_name))
+    name_menu.add_item(MenuItem("Ally 1 Name", "1", NameMenu.show_ally_1_name, NameMenu.edit_ally_1_name))
 
     main_menu = Menu("Main Menu", columns=2)
     main_menu.add_item(MenuItem("Alignment", edit_function=NotImplemented))
