@@ -1,65 +1,27 @@
+import json
 import logging
+import os
 import random
 import textwrap
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
-from typing import Optional
+from typing import Optional, Any
 import doctest
 
 # TADA-specific imports:
-from items import Item
 from flags import PlayerFlags, FlagDisplayTypes, Flag, new_player_default_flags
 from net_server import Message
+from base_classes import BaseCharacter, Size, CombinationTypes, PlayerMoneyTypes, PlayerMoneyCategory, Gender, \
+    PlayerClass, PlayerRace, PlayerStat
+from server import net_common
+from server.server import server_lock, room_players, compass_txts, players
 from tada_utilities import make_random_id
+
+
 # from server.user_settings import ClientSettingsNames, ClientValues
 
 # https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
 # http://pythonfiddle.com/text-based-rpg-code-python/
-
-class Size(int, Enum):
-    """Monster sizes"""
-    SWIFT = 0
-    TINY = 1
-    SHORT = 2
-    SMALL = 3
-    MEDIUM_SIZED = 4
-    MAN_SIZED = 5
-    BIG = 6
-    LARGE = 7
-    HUGE = 8
-
-
-class Alignment(str, Enum):
-    """Character alignments"""
-    GOOD = "Good"
-    NEUTRAL = "Neutral"
-    EVIL = "Evil"
-
-
-@dataclass
-class BaseCharacterRace(object):
-    name: str = None
-    """
-    'can_fly' can be set to True if mounted on a Pegasus, also if the SPACE SUIT is fixed;
-    this lets you navigate over bodies of water without the use of a DINGHY.
-    Also the HOT AIR BALLOON in 'The Land of Oz' level could allow flight.
-    If CharacterRace.PIXIE, 'can_fly' is also True.
-    """
-    can_fly: bool = False
-    size: Size = Size.MAN_SIZED
-    carrying_capacity: int = 10
-    natural_alignment: Alignment = Alignment.NEUTRAL  # (depends on race)
-    honor: int = 1_000  # TODO: look this up, I think that equates to Saintly for a Knight
-    # current_alignment is based on Honor score (the lower it is, the more evil the character is)
-
-
-@dataclass
-class BaseCharacter:
-    # common attributes of Characters
-    name: str
-    max_inventory: int = 5
-    inventory: list[str] = field(default_factory=list)  # TODO: list[Item]
 
 
 @dataclass
@@ -71,9 +33,8 @@ class Pixie(BaseCharacter):
 
 def longest_flag_name() -> int:
     """
-    Determine length of the longest PlayerFlag string, so the maximum
-    number of ellipses to display (including some padding) can be printed
-    by the calling routine; e.g.:
+    Determine the length of the longest PlayerFlag string, so the calling routine
+    can print the maximum number of ellipses to display (including some padding); e.g.:
 
     item_one......: foo
     item_two......: bar
@@ -82,103 +43,16 @@ def longest_flag_name() -> int:
     return len(max([x for x in PlayerFlags], key=len)) + 4
 
 
-class CombinationTypes(str, Enum):
-    CASTLE = "Castle"
-    ELEVATOR = "Elevator"  # Get this from SCRAP OF PAPER item in dungeon
-    LOCKER = "Locker"
-
-
-class Gender(str, Enum):
-    MALE = "Male"
-    FEMALE = "Female"
-
-
-class PlayerClass(str, Enum):
-    """
-    In the original Apple code, this was the variable 'pc' which could range from 1-9.
-    The class number is in a comment.
-    """
-    # this player class will be referred to as PlayerClass.WIZARD even if the player's gender is female, making her a witch:
-    # FIXME: how do I do that? Python Player class can't be... inherited? from that i can see?
-    #  TODO: "Wizard" if player.gender == Gender.MALE else 'Witch'
-    WIZARD = "Wizard"  # 1
-    DRUID = "Druid"  # 2
-    FIGHTER = "Fighter"  # 3
-    PALADIN = "Paladin"  # 4
-    RANGER = "Ranger"  # 5
-    THIEF = "Thief"  # 6
-    ARCHER = "Archer"  # 7
-    ASSASSIN = "Assassin"  # 8
-    KNIGHT = "Knight"  # 9
-
-
-class PlayerMoneyTypes(str, Enum):
-    # this is the dict element to reference money amounts
-    IN_HAND = "IN_HAND"
-    IN_BANK = "IN_BANK"
-    IN_BAR = "IN_BAR"
-
-
-class PlayerMoneyCategory(str, Enum):
-    # this refers to Player.silver{PlayerMoneyTypes.Enum} printable names
-    IN_HAND = "In hand"
-    IN_BANK = "In bank"
-    IN_BAR = "In bar"
-
-
 @dataclass
-class PlayerRace(str, Enum):
-    """
-    In the original Apple code, this was the variable 'pr' which could range from 1-9.
-    The race number is in a comment.
-    """
-    """
-    branch master/spur-code/LOGON.S:
-    1) Human    4) Elf        7) Dwarf
-    2) Ogre     5) Hobbit     8) Orc
-    3) Pixie    6) Gnome      9) Half-Elf
-
-    branch Skip/spur-code/SPUR.NEW.S:
-    new4
-     print \'Please Choose a Race:
-
-    1) Human    4) Elf        7) Dwarf
-    2) Ogre     5) Hobbit     8) Orc
-    3) Pixie    6) Gnome      9) Half-Elf
-    """
-    HUMAN = "Human"  # 1
-    OGRE = "Ogre"  # 2
-    PIXIE = "Pixie"  # 3
-    ELF = "Elf"  # 4
-    HOBBIT = "Hobbit"  # 5
-    # Apparently Halfling was a dream; could be added later
-    # HALFLING = "Halfling"  # 6
-    GNOME = "Gnome"  # 6
-    DWARF = 'Dwarf'  # 7
-    ORC = 'Orc'  # 8
-    HALF_ELF = 'Half-Elf'  # 9
-
-
-class PlayerStat(str, Enum):
-    CHR = "Charisma"
-    CON = "Constitution"
-    DEX = "Dexterity"
-    INT = "Intelligence"
-    STR = "Strength"
-    WIS = "Wisdom"
-    EGY = "Energy"
-
-
-@dataclass
-class Ally:
-    ally_inventory: list[str] = field(default_factory=list)  # TODO: list[Item]
-    ally_abilities: list[str] = field(default_factory=list)
-    ally_flags: list[str] = field(default_factory=list)
+class Ally(BaseCharacter):
+    inventory: list[str] = field(default_factory=list)  # TODO: list[Item]
+    abilities: list[str] = field(default_factory=list)
+    flags: list[str] = field(default_factory=list)
 
 
 class Horse(BaseCharacter):
     armor: list = field(default_factory=list)
-    # if has_saddlebags is True, Horse can carry additional things (via GIVE?):
+    # if Horse.has_saddlebags is True, Horse can carry additional things (via GIVE?):
     has_saddlebags: bool
     in_saddlebags: list[str] = field(default_factory=list)  # TODO: list[Item]
     has_saddle: bool
@@ -192,22 +66,36 @@ class Horse(BaseCharacter):
     """
 
 
-class Monster(Item):
-    def __init__(self, item_id: int, name: str, description: str, strength: int, alignment: str,
-                 owner: Optional[None] = None):
-        # TODO: the Owner is set only if the Monster joins the Player's party
-        # FIXME: 'owner: Player' is unresolved reference
-        super().__init__(item_id, name, description, owner, prefix="M")
-        self.strength = strength
-        self.alignment = alignment
+@dataclass
+class Monster(BaseCharacter):
+    # number: int
+    status: Optional[int]  # 1=alive, 0=dead?
+    name: str
+    size: Optional[Size]
+    strength: int
+    to_hit: int
+    special_weapon: Optional[int]
+    flags: list = field(default_factory=list)
+    # TODO: max_inventory: int, inventory: list, description: str, owner: Optional[None] = None
+    # alignment is in "flags": "evil", "good"
+    item_type = "M"
+    # TODO: the Owner is set only if the Monster joins the Player's party
+    # FIXME: 'owner = Player' is unresolved reference
+    owner = None
 
+    def load(self, json_filename: str):
+        pass
 
 @dataclass
 class Player(BaseCharacter):
-    # TODO: put some of these stats part of a generic BaseCharacter class
-    name: str = None
-    id_num: int = field(default_factory=lambda: make_random_id)
-    birthday: datetime = datetime.today()  # age is derived from datetime.now - birthday
+    # put some of these stats in a generic BaseCharacter class
+    super().__init__(item_type="Player", max_inventory=5, inventory=[])
+    id_number: int = field(default_factory=lambda: make_random_id)
+    # TODO: get user_id from json.load(user_id) somehow so we don't have to continually look up user_id by scanning the
+    #  player data directory
+    user_id: str = ""
+    # FIXME: self.get_age() method will use datetime.timedelta(datetime.today() - birthday)
+    birthday: datetime = datetime.today()
     gender: Gender = Gender.MALE  # no misogyny intended
     hit_points: int = 0
     experience: int = 0
@@ -226,14 +114,14 @@ class Player(BaseCharacter):
     character_race: PlayerRace = None
 
     # the lower the Honor score, the more evil the character has become
-    # I think 1,000 honor points is equivalent to a Saintly Knight
+    # TODO: check this - I think 1,000 honor points is equivalent to a Saintly Knight
     honor: int = 1_000
 
     # https://www.reddit.com/r/learnpython/comments/1gzmlqv/comment/lyxnpxc/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button
 
     # Wizard Glow stuff:
     # None if inactive, or non-magic user
-    # != 0 is number of rounds left, decrement every turn
+    # != 0 is the number of rounds left, decrement at every turn
     wizard_glow: Optional[int] = None
 
     """
@@ -246,9 +134,9 @@ class Player(BaseCharacter):
     """
     once_per_day: list[str] = field(default_factory=list)
 
-    # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
+    # Copy the list of Flag defaults from the PlayerFlag enum on Player instantiation:
     flags: dict[PlayerFlags, Flag] = field(default_factory=lambda: {i[0]: Flag(*i) for i in new_player_default_flags})
-    # creates a new stats dict for each Player, zero all stats:
+    # creates a new stats dict for each Player, plus zero all stats:
     stat: dict[PlayerStat, int] = field(default_factory=lambda: {i: 0 for i in PlayerStat})
     # same with silver FIXME: (set to 1_000 for testing purposes):
     # TODO: money types may be expanded to platinum, electrum in future
@@ -273,12 +161,21 @@ class Player(BaseCharacter):
     client_settings: dict[ClientSettingsNames, int | str] = field(
         default_factory=lambda: {i[0]: ClientValues for i in ClientSettingsNames})
     """
-    party: list = field(default_factory=list)
+    party: list = field(default_factory=list)  # TODO: list[Player or Monster]
     allies: list = field(default_factory=list)  # TODO: list[Ally]
 
-    def __init__(self):
-        self.guild = None
-        self.player_class = None
+    guild: str = "Blah"  # FIXME: Guild Enum
+
+    def __init__(self, id_prefix: str, id_number: int, name: str, max_inventory: int, inventory: list):
+        super().__init__(id_prefix, id_number, name, max_inventory, inventory)
+        # last_connection helps determine whether once_per_day events should be reset, but we just care about the day
+        # rolling over, not that 24 hours have passed.
+        # Also in the LASTON command to show when a player was last online.
+        # Player.connect() should set last_connection to datetime.now().
+        # Player.disconnect() should also set last_connection to datetime.now().
+        self.last_connection: datetime = datetime.now()
+        self.times_played = None
+        self.id = None
 
     def __post_init__(self):
         self.client_settings = None
@@ -328,6 +225,21 @@ class Player(BaseCharacter):
 
     def __repr__(self):
         return f"Player <{self.name}>"
+
+    def look_at(self, item: Any):
+        """
+        Print a string that shows the name of the object. If the Player owns the item,
+        or the Player's DEBUG or ADMIN flags are True, also show the ID prefix and number.
+        Example:
+            'Sword [Weapon #4]' if the Player owns the item, or the DEBUG or ADMIN flags are True
+            'Sword' if the Player does not own the item, or the DEBUG or ADMIN flags are False
+        """
+        if item.owner is self or (self.query_flag(PlayerFlags.DEBUG_MODE) or self.query_flag(PlayerFlags.ADMIN)):
+            print(f"{item.name} [{item.item_type} #{item.item_id}]")
+        else:
+            print(f"{item.name}")
+        if item.description:
+            print(item.description)
 
     def output(self, string: str) -> Message:
         """
@@ -384,6 +296,7 @@ class Player(BaseCharacter):
             return self.flags.get(flag_name)
         except IndexError:
             logging.warning("get_flag: no flag %s" % flag_name)
+            return None
 
     def set_flag(self, flag: PlayerFlags) -> None:
         """
@@ -440,6 +353,7 @@ class Player(BaseCharacter):
             return f"{flag_name}: {result}"
         except KeyError:
             logging.warning("unknown flag: %s" % flag.name)
+            return None
 
     def show_flag_line_item(self, flag: PlayerFlags, leading_num: Optional[int]) -> str | None:
         """
@@ -480,6 +394,7 @@ class Player(BaseCharacter):
             return f"{number}{flag_name.ljust(max_width, '.')}: {result}"
         except KeyError:
             logging.warning("unknown flag: %s" % flag.name)
+            return None
 
     def show_flag_status(self, flag: PlayerFlags) -> str:
         """
@@ -573,16 +488,18 @@ class Player(BaseCharacter):
             current_value = self.get_stat(stat_name)
             new_value = current_value + adjustment
             logging.debug("current %s: %i, adjusted: %i" %
-                          (stat_name.name, int(stat_name.value), new_value))
+                          (stat_name.name, stat_name.value, new_value))
             self.set_stat_absolute(stat_name, new_value)
+            return None
         except KeyError:
             logging.warning("%s not found" % stat_name)
+            return None
 
     def get_multiple_stats(self, stat_list: list[PlayerStat]) -> list | None:
         """get player stat <stat_list>
 
         :param stat_list: PlayerStat(s) to retrieve
-        :return: list of statistic values, None if stat_list empty, or IndexError is encountered
+        :return: list of statistic values, None if stat_list is empty, or IndexError is encountered
         """
         if not stat_list:
             logging.error("No stats provided")
@@ -596,6 +513,7 @@ class Player(BaseCharacter):
             return results
         except IndexError:
             logging.warning("get_stat: no such statistic %s" % stat_list)
+            return None
 
     def set_stat(self, stat_name: PlayerStat, new_value: int) -> None:
         """Directly set a statistic to new_value--contrast with adjust_stat()"""
@@ -628,7 +546,7 @@ class Player(BaseCharacter):
         """
 
         print(f"Name: {self.name:<30}"
-              f"Age: {'Unknown' if self.age is None else '{self.age}'}"
+              f"Age: {'Unknown' if self.get_age() is None else '{self.age}'}"
               # day / month / year (year = date.year - self.age)
               # TODO: locale formatting (YYYY-MM-DD, MM/DD/YYYY)
               f'\tBirthday: {self.birthday.month}/{self.birthday.day}/{self.birthday.year}\n'
@@ -664,9 +582,20 @@ class Player(BaseCharacter):
             print(f'{stat.title()}: {self.stat[stat]:2}   ', end='')
         print()
 
+    def print_one_stat(self, stat_name: PlayerStat, abbreviations: bool = False):
+        """
+        Print a single statistic. This is a convenience method for print_all_stats().
+
+        :param stat_name: stat to print
+        :param abbreviations: use full word for stat name (True: e.g., "Intelligence", False: "Int")
+        """
+        print(f'{stat_name.name}: {self.stat[stat_name]}')
+        if abbreviations:
+            print(f'{stat_name.title()}: {self.stat[stat_name]}')
+
     def get_silver(self, kind: PlayerMoneyTypes) -> int | None:
         """
-        get and return amount of silver player has
+        get and return the amount of silver player has
 
         :param kind: PlayerMoneyTypes.IN_HAND, PlayerMoneyTypes.IN_BANK, PlayerMoneyTypes.IN_BAR
         :return int: value of silver in that category
@@ -706,18 +635,18 @@ class Player(BaseCharacter):
         #   when gender changes -- can this be done with some logic in the __str__() method?
         return "Wizard" if self.gender is Gender.MALE else "Witch"
 
-    def set_stat_absolute(self, stat: PlayerStat | list[PlayerStat], absolute: int):
+    def set_stat_absolute(self, stat: PlayerStat, value: int):
         """
         Set a statistic to an absolute value: e.g., PlayerStat.CON = 10.
         To adjust a statistic +/- a certain number of points, use adj_stat_relative(PlayerStat.CON, -5) instead.
 
         :param stat: statistic in self.stat{} dict to adjust
-        :param absolute: value to set PlayerStat to
+        :param value: value to set PlayerStat to
         :return: stat
         """
         """
         TODO: maybe also return 'success': True if 0 > stat > limit)
-        TODO: adj_stat() to add/subtract value relative to its current value
+        TODO: adj_stat_relative() to add/subtract value relative to its current value
             i.e., set_stat_absolute(PlayerStat.INT, 5)  # sets INT to 5
                   adj_stat_relative(PlayerStat.INT, 20)  # adds 20 to whatever INT is
         """
@@ -726,13 +655,13 @@ class Player(BaseCharacter):
 
         >>> set_stat_test.set_stat_absolute(PlayerStat.INT, 15)
 
-        >>> set_stat_test.print_stat(PlayerStat.INT)
+        >>> set_stat_test.print_stat(PlayerStat.INT, abbreviated=True)
         Int: 15
 
-        >>> set_stat_test.set_stat_absolute(PlayerStat.WIS, 9})
+        >>> set_stat_test.set_stat_absolute(PlayerStat.WIS, 9)
 
-        >>> set_stat_test.print_stat(PlayerStat.WIS)
-        Wis: 9
+        >>> set_stat_test.print_stat(PlayerStat.WIS, abbreviated=False))
+        Wisdom: 9
 
         # test of Character.set_stat()
         >>> shaia = Player(name="Shaia",
@@ -740,107 +669,114 @@ class Player(BaseCharacter):
         ...                   client={'name': 'TADA', 'columns': 80, 'rows': 25},
         ...                   gender=Gender.FEMALE)
 
-        >>> shaia.set_stat_absolute(stat=PlayerStat.INT, absolute=18)
+        >>> shaia.set_stat_absolute(stat=PlayerStat.INT, value=18)
 
-        >>> print(f"{shaia.name} ...... {shaia.print_stat([PlayerStat.INT])}")
+        >>> print(f"{shaia.name} ...... {shaia.print_stat([PlayerStat.INT])}")  # the longer method
         Shaia ...... Int: 18
         """
         # TODO: example for doctest:
         #  to instantiate Test character, must have stat{} key present
 
-    def get_stat(self, stat: PlayerStat):
+    def get_stat(self, stat: PlayerStat) -> int | None:
         """
         if 'stat' is str: return value of single stat as str: 'stat'
+
+        :return: value of single stat as int: 'stat', or None if stat doesn't exist
         TODO: if 'stat' is list: sum up contents of list: [PlayerStat.STR, PlayerStat.WIS, PlayerStat.INT]...
-        -- avoids multiple function calls
+        TODO: refactor get_multiple_stats() to accept a list of PlayerStats, then for each stat, call get_stat()
+            -- avoids multiple confusing function calls trying to do too much
         """
-        if isinstance(stat, list):
-            total = 0  # 'sum' shadows built-in type
-            for k in stat:
-                if k not in PlayerStat:
-                    logging.warning("Stat '%s' doesn't exist." % k)
-                    # TODO: raise ValueError?
-                    return
-                total += self.stat[k]
-            logging.debug('[list]: stats: %s total: %i{stat=} {total=}')
-            return total
-        # otherwise, get just a single stat:
-        if stat not in PlayerStat:
-            logging.warning(f"get_stat: Stat '{stat}' doesn't exist.")
+        try:
+            return self.stat[stat]
+        except KeyError:
+            logging.warning("Stat '%s' doesn't exist." % k)
             # TODO: raise ValueError?
-            return
-        return self.stat[stat]
+            return None
 
-    def print_stat(self, stat: list[PlayerStat] | PlayerStat,
-                   full_word: bool):
+    def get_multiple_stats(self, stat_list: list[PlayerStat]) -> list | None:
         """
-        Print player stat in title case: '<Stat>: <value>'
+        :param stat_list: list of PlayerStat(s) to retrieve
+        :return: list of statistic values, None if stat_list empty, or IndexError is encountered
+        """
+        if not stat_list:
+            logging.error("No stats provided")
+            return None
+        try:
+            return [self.stat[stat] for stat in stat_list]
+        # FIXME: what is the difference between KeyError and IndexError?
+        except KeyError:
+            logging.warning("Stat '%s' doesn't exist." % stat_list)
+            return None
+        except IndexError:
+            logging.warning("get_stat: no such statistic %s" % stat_list)
+            return None
 
-        :param stat: either a single PlayerStat or list[PlayerStat] Enum(s) to report
-        :param full_word: False: 'Int', 'Str', 'Wis', etc. True: 'Intelligence', 'Strength', 'Wisdom', etc.
+    def print_stat(self, stat: PlayerStat, abbreviated: bool):
         """
-        """
-        >>> test = Player(name='test', stats={PlayerStat.CHR: 10})
+        Print player stat in title case: '<Stat>: <value>' on a single line.
+        Cha: 10
 
-        >>> test.print_stat(stat=PlayerStat.CHR, full_word=False)
-        Chr: 10
+        print_multiple_stats() uses this function as a helper:
+        Cha: 10   Dex: 15   Int: 9
+
+        :param stat: a single PlayerStat Enum(s) to report
+        :param abbreviated: False: 'Int', 'Str', 'Wis', etc. True: 'Intelligence', 'Strength', 'Wisdom', etc.
+        :return: None
         """
         # for doctest: if functions have a prerequisite function, call that first (just like real code)
+        """
+        >>> test = Player()
+        
+        >>> test.set_stat_absolute(PlayerStat.CHR, 10)  # set Charisma to 10
+
+        >>> test.print_stat(stat=PlayerStat.CHR, abbreviated=False)
+        Charisma: 10
+        """
+        long_stat_names = {PlayerStat.CON: "Constitution",
+                           PlayerStat.DEX: "Dexterity",
+                           PlayerStat.INT: "Intelligence",
+                           PlayerStat.STR: "Strength",
+                           PlayerStat.WIS: "Wisdom",
+                           PlayerStat.EGY: "Energy"}
         try:
-            pass
+            # TODO: map long words to PlayerStat short words...
+            if abbreviated:
+                print(f"{stat}: {stat.value}")
+            else:
+                print(f"{long_stat_names[stat]}")
         except IndexError:
             logging.warning("Stat '%s' doesn't exist." % stat)
             # TODO: raise ValueError?
-            return
+            return None
         # return e.g., "Int: 4"
-        if full_word:
+        if abbreviated:
             stat_names = [s for s in PlayerStat.name]
-            format = f"{stat_names:<12}"
+            stat_format = f"{stat_names:<12}"
         else:
-            stat_names = ["Cha", "Con", "Dex", "Int", "Str", "Wis", "Egy"]
-            format = f"{stat_names}"  # FIXME: finish this
+            # use abbreviations:
+            stat_names = ["Chr", "Con", "Dex", "Int", "Str", "Wis", "Egy"]
+            stat_format = f"{stat_names}"  # FIXME: finish this
         for k, stat in enumerate(self.stat):
-            print(f'{format:stat}: {self.stat[stat]:2} ', end='')
+            print(f'{stat_format:stat}: {self.stat[stat]:2} ', end='   ')
         print()
-        return
+        return None
 
-    def print_all_stats(self):
+    def print_multiple_stats(self, stat_list: list[PlayerStat],
+                             full_word: bool):
         """
-        print all player stats in title case: '<Stat>: <value>'
-
-        # test of Character.print_all_stats()
-        >>> test = Player(name="Test",
-        ...               stats={PlayerStat.CHR: 8,
-        ...                      PlayerStat.CON: 15,
-        ...                      PlayerStat.DEX: 3,
-        ...                      PlayerStat.INT: 5,
-        ...                      PlayerStat.STR: 8,
-        ...                      PlayerStat.WIS: 3,
-        ...                      PlayerStat.EGY: 3})
-
-        >>> test.print_all_stats(test)
-        r'Chr:  8   Int:  5   Egy:  3\n
-        Con: 15   Str:  8\n
-        Dex:  3   Wis:  3   '
-
-        # for doctest eventually
-        # FIXME: can't figure out how to test routines which have other function call prerequisites
-        #  note that print_all_stats returns three trailing spaces after integer
+        :param stat_list: list of PlayerStat(s) to report
+        :param full_word: False: 'Int', 'Str', 'Wis', etc. True: 'Intelligence', 'Strength', 'Wisdom', etc.
         """
-        for stat in [PlayerStat.CHR, PlayerStat.INT, PlayerStat.EGY]:
-            print(f'Method 1: {self.print_stat(stat, False)}', end='')
-            print(f'Method 2: {stat.title()}: {self.stat[stat]:2}   ', end='')
-        print()
-        for stat in [PlayerStat.CON, PlayerStat.STR]:
-            print(f'{stat.title()}: {self.stat[stat]:2}   ', end='')
-        print()
-        for stat in [PlayerStat.DEX, PlayerStat.WIS]:
-            print(f'{stat.title()}: {self.stat[stat]:2}   ', end='')
-        print()
+        """
+        :param stat_list: list of PlayerStat(s) to report
+        :param full_word: False: 'Int', 'Str', 'Wis', etc. True: 'Intelligence', 'Strength', 'Wisdom', etc.
+        """
+        for stat in stat_list:
+            self.print_stat(stat, full_word)
 
     def get_birthday(self):
         """
-        get character's birthday
+        get a character's birthday
         :return: str: "month/day" ("month/day/year" if age known)
         """
         """
@@ -866,11 +802,86 @@ class Player(BaseCharacter):
         """
         return f"{month}/{day}/{year}"
 
+    def get_age(self):
+        pass
+
+
+    def connect(self):
+        with server_lock:
+            # TODO: add last_connection as datetime.now()
+            room_players[self.room].add(self.id)
+            self.last_connection = datetime.now()
+            logging.info("%s connected at %s" % (self.name, self.last_connection))
+            # TODO: notify other players in same room of connection ("%s wakes up.")
+            # TODO: watchfor list: ("[Somewhere in the land, ]%s has woken up / fallen asleep.")
+            #    ("Somewhere in the land, " printed if not in the same room.)
+
+    def move(self, destination_room: int, direction=None):
+        """
+        remove player login id from list of players in current_room, add them to room next_room
+        :param destination_room: room to move to
+        :param direction: direction being moved in, for notifying other players of movement
+        if None, '#<room_number>' teleportation command (or, later, spell) was used and the
+        "<player> disappears in a flash of light" message is used instead
+        """
+        current_room = self.room
+        with server_lock:
+            logging.debug("Player.move: Before remove: %s" % room_players[current_room])
+            room_players[current_room].remove(self.id)
+            logging.debug("Player.move: After remove: %s" % room_players[current_room])
+
+            self.room = destination_room
+            logging.debug("Player.move: Before add: %s" % room_players[current_room])
+            room_players[self.room].add(self.id)
+            logging.debug("Player.move: After add: %s" % room_players[current_room])
+            logging.debug('Player.move: Moved %s from %s to %s' % (self.name, current_room, self.room))
+            if direction is None:
+                print(f'[{self.name} disappears in a flash of light.')
+            else:
+                print(f"{self.name} moves {compass_txts[direction]}.")
+
+    def disconnect(self):
+        with server_lock:
+            room_players[self.room].remove(self.id)
+            # increment times played:
+            self.times_played += 1
+            logging.info("Player.disconnect: %s disconnected. Times played: %i." % (players[self.id].name,
+                                                                                    self.times_played))
+            return Message(lines=[f'{players[self.id].name} falls asleep.'])
+
+    @staticmethod
+    def _json_path(user_id):
+        return os.path.join(net_common.run_server_dir, f"player-{user_id}.json")
+
+    @staticmethod
+    def load(user_id):
+        """Load player from the JSON file based on the user ID"""
+        try:
+            path = Player._json_path(user_id)
+            if os.path.exists(path):
+                with open(path) as json_file:
+                    lh_data = json.load(json_file)
+                    logging.debug(f"Player.load: Loaded '%s'." % lh_data['name'])
+                    return Player(**lh_data)
+            return None
+        except FileNotFoundError:
+            # Failure
+            logging.error("Player.load: '%s' not found" % user_id)
+            return None
+
+    def save(self):
+        # TODO: should a 'changes' flag be implemented to prevent saving if changes haven't been made?
+        with open(Player._json_path(self.id), 'w') as json_file:
+            json.dump(obj=self, fp=json_file, default=lambda o: {k: v for k, v
+                                                      # in o.__dict__.items() if v}, indent=4)
+                                                      in o.__dict__.items()}, indent=4)
+            logging.debug("Player.save: Saved '%s'." % self.name)
+
 
 def transfer_silver(from_char: Player, to_char: Player, amount: int,
                     from_where: PlayerMoneyTypes = PlayerMoneyTypes.IN_HAND,
                     to_where: PlayerMoneyTypes = PlayerMoneyTypes.IN_HAND,
-                    verbose: bool = True):
+                    verbose: bool = True) -> bool:
     """
     Transfer silver from one Player to another Player.
 
@@ -905,7 +916,7 @@ def transfer_silver(from_char: Player, to_char: Player, amount: int,
     True
     """
     # as suggested by Shaia:
-    # (will be useful for future bank, or future expansion: silver transfer spell?)
+    # (will be useful for a future bank, or future expansion: silver transfer spell?)
     if from_char.silver[from_where] >= amount:
         to_char.set_silver_absolute(to_where, amount)
         from_char.set_silver_absolute(from_where, -amount)
@@ -960,13 +971,13 @@ if __name__ == '__main__':
     print(f"\n- Set silver in hand to {wealth:,}")
     rulan.silver[PlayerMoneyTypes.IN_HAND] = wealth
 
-    rulan.adjust_silver_relative(PlayerMoneyTypes.IN_HAND, 100)
-    rulan.adjust_silver_relative(PlayerMoneyTypes.IN_BANK, 385)
+    rulan.adj_silver_relative(PlayerMoneyTypes.IN_HAND, 100)
+    rulan.adj_silver_relative(PlayerMoneyTypes.IN_BANK, 385)
 
     print(f"\n- Show money categories and values:")
-    for k, element_name in enumerate(PlayerMoneyTypes, start=1):
-        name = PlayerMoneyCategory[element_name].value
-        amount = rulan.silver[element_name]  # Directly access the value using the enum member
+    for k, category in enumerate(PlayerMoneyTypes, start=1):
+        name = PlayerMoneyCategory[category].value
+        amount = rulan.silver[name]  # Directly access the value using the enum member
         """
         >>> rulan.silver[PlayerMoneyTypes.IN_BAR]
         1000
@@ -981,6 +992,7 @@ if __name__ == '__main__':
         print(f"{combination_name.value:>15}: {'-'.join(str(digit) for digit in combination_tuple)}")
 
     """
+    # FIXME: doesn't work yet
     print("\n- Show client settings:")
     for i, client_setting in enumerate(ClientSettingsNames):
         value = ClientSettingsNames[client_setting]

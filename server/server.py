@@ -1,22 +1,20 @@
 #!/bin/env python3
 
-import os
-import json
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import textwrap
 import logging
 from datetime import datetime
 from typing import Optional
 
+# TADA-specific imports
 import net_server
-import net_common
 import common
 
-# TADA-specific imports
 from flags import PlayerFlags
-from characters import Player, PlayerMoneyTypes
-from server.items import Weapon
+from characters import Player, Monster
+from base_classes import PlayerMoneyTypes, Map
+from server.items import Weapon, Rations
 
 K = common.K
 Mode = net_server.Mode
@@ -27,174 +25,6 @@ Message = net_server.Message
 # money_start = 1000
 
 compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up', 'd': 'Down'}
-
-@dataclass
-class Room(object):
-    number: int
-    name: str
-    desc: str
-    exits: dict = field(default_factory=lambda: {})  # {n e s w rc rt}
-    monster: int = 0
-    item: int = 0
-    weapon: int = 0
-    food: int = 0
-    alignment: str = "neutral"  # default unless set to another guild
-
-    def __str__(self):
-        return f'#{self.number} {self.name}\n' \
-               f'{self.desc}\n{self.exits}'
-
-    def exits_txt(self, debug: bool):
-        """
-        Display exits in a comma-delimited list.
-        :param debug: display room #s if True
-        :return: joined list of exits
-        """
-        # connection/transport names, index by (connection, transport)
-        # rc = 1: Up     rt != 0: Room #
-        # rc = 2: Down   rt == 0: Shoppe
-        extra_txts = {(1, 0): 'Up to Shoppe',
-                      (2, 0): 'Down to Shoppe'}
-        exit_txts = []
-        for k in self.exits.keys():
-            if k in compass_txts:
-                exit_txts.append(compass_txts[k])
-        room_connection = self.exits.get('rc', 0)
-        room_transport = self.exits.get('rt', 0)
-        exit_extra = extra_txts.get((room_connection, room_transport))
-        if exit_extra:  # is not None:
-            exit_txts.append(exit_extra)
-        # example: level 1, room 20
-        if room_connection == 1 and room_transport != 0:
-            exit_txts.append(f"Up to #{room_transport}" if debug else "Up")
-        if room_connection == 2 and room_transport != 0:
-            exit_txts.append(f"Down to #{room_transport}" if debug else "Down")
-        return ", ".join(exit_txts)
-
-
-class Item(object):
-    def __init__(self, number, name, kind, price, **flags):
-        logging.debug("Item.__init__: Instantiate item '%s'" % name)
-        self.number = number
-        self.name = name
-        self.kind = kind
-        self.price = price
-        # this field is optional:
-        if flags:
-            logging.debug("item.__init__ Flags:")
-            self.flags = flags
-            for key, value in flags.items():
-                logging.debug("item.__init__: %s %s" % (key, value))
-
-    @staticmethod
-    def read_items(filename: str):
-        try:
-            with open(filename) as jsonF:
-                items: object = json.load(jsonF)
-                logging.debug("read_items: JSON data read")
-                return items
-        except FileNotFoundError:
-            logging.error(">>> read_items: %s not found" % filename)
-            return None
-
-
-class Map(object):
-    def __init__(self):
-        """
-        Define the level map layout
-        """
-        self.rooms = {}
-
-    def read_map(self, filename: str):
-        """
-        Data format on C64:
-        * Room number        (rm)
-        * Location name      (lo$)
-        * items: monster, item, weapon, food
-        * exits: north, east, south, west,
-          RC (room command: 1=move up,
-                            2=move down),
-          RT (Room exit transports you to:
-                 <>0: room #, or 0=Shoppe)
-        https://github.com/Pinacolada64/TADA/blob/master/text/s_t_level-1-data.txt
-        """
-        try:
-            with open(filename) as jsonF:
-                map_data = json.load(jsonF)
-                logging.debug("read_map: JSON data read")
-                for room_data in map_data['rooms']:
-                    room = Room(**room_data)
-                    self.rooms[room.number] = room
-                    logging.debug('%i: %s' % (room.number, room.name))
-        except FileNotFoundError:
-            logging.error(">>> read_map: File not found: '%s'" % filename)
-
-
-class Monster(object):
-    def __init__(self, number, status, name, size, strength, special_weapon, to_hit, **flags):
-        self.number = number
-        self.status = status
-        self.name = name
-        # this field is optional:
-        if size is not None:
-            self.size = size
-        self.strength = strength
-        # this field is optional:
-        if special_weapon is not None:
-            self.special_weapon = special_weapon
-        self.to_hit = to_hit
-        # this field is optional:
-        if flags is not None:
-            self.flags = flags
-
-    @staticmethod
-    def read_monsters(filename: str):
-        try:
-            with open(filename) as jsonF:
-                monsters = json.load(jsonF)
-                logging.debug("read_monsters: JSON data read")
-                """
-                'item' becomes a copy of each dict element on each iteration of the loop:
-                for count, item in enumerate(items, start=1):
-                    print(f'{count:3} {item["name"]}')  # this works
-                _ = input("Pause: ")
-                print(f'{items[61]["name"]}')  # Adventurer's Guide
-                """
-                return monsters
-        except FileNotFoundError:
-            logging.error(">>> read_monsters: File not found: %s" % filename)
-            return None
-
-
-@dataclass
-class Rations(object):
-    number: int
-    name: str
-    kind: str  # magical, standard, cursed
-    price: int
-    flags: list
-
-    """
-    def __init__(self, number, name, kind, price, **flags):
-        self.number = number
-        self.name = name
-        self.kind = kind
-        self.price = price
-        # this field is optional:
-        if flags is not None:
-            self.flags = flags
-    """
-
-    @staticmethod
-    def read_rations(filename: str):
-        try:
-            with open(filename) as jsonF:
-                rations = json.load(jsonF)
-                logging.debug("read_rations: JSON data read")
-                return rations
-        except FileNotFoundError:
-            logging.error(">>> read_rations: File not found: %s" % filename)
-            return None
 
 server_lock = threading.Lock()
 
@@ -296,74 +126,6 @@ class OldPlayer:
     def __init__(self):
         self.silver = None
 
-    def connect(self):
-        with server_lock:
-            # TODO: add last_connection as datetime.now()
-            room_players[self.room].add(self.id)
-            self.last_connection = datetime.now()
-            logging.info("%s connected at %s" % (self.name, self.last_connection))
-            # TODO: notify other players in same room of connection ("%s wakes up.")
-            # TODO: watchfor list: ("Somewhere in the land, %s has woken up / fallen asleep.")
-
-    def move(self, next_room: int, direction=None):
-        """
-        remove player login id from list of players in current_room, add them to room next_room
-        :param next_room: room to move to
-        :param direction: direction being moved in, for notifying other players of movement
-        if None, '#<room_number>' teleportation command (or, later, spell) was used and the
-        "<player> disappears in a flash of light" message is used instead
-        """
-        current_room = self.room
-        with server_lock:
-            logging.debug("Player.move: Before remove: %s" % room_players[current_room])
-            room_players[current_room].remove(self.id)
-            logging.debug("Player.move: After remove: %s" % room_players[current_room])
-
-            self.room = next_room
-            logging.debug("Player.move: Before add: %s" % room_players[current_room])
-            room_players[self.room].add(self.id)
-            logging.debug("Player.move: After add: %s" % room_players[current_room])
-            logging.debug('Player.move: Moved %s from %s to %s' % (self.name, current_room, self.room))
-            if direction is None:
-                print(f'[{self.name} disappears in a flash of light.')
-            else:
-                print(f"{self.name} moves {compass_txts[direction]}.")
-
-    def disconnect(self):
-        with server_lock:
-            room_players[self.room].remove(self.id)
-            # increment times played:
-            self.times_played += 1
-            logging.info("Player.disconnect: %s disconnected. Times played: %i." % (players[self.id].name,
-                                                                                    self.times_played))
-            return Message(lines=[f'{players[self.id].name} falls asleep.'])
-
-    @staticmethod
-    def _json_path(user_id):
-        return os.path.join(net_common.run_server_dir, f"player-{user_id}.json")
-
-    @staticmethod
-    def load(user_id):
-        try:
-            path = Player._json_path(user_id)
-            if os.path.exists(path):
-                with open(path) as jsonF:
-                    lh_data = json.load(jsonF)
-                    logging.debug(f"Player.load: Loaded '%s'." % lh_data['name'])
-                    return Player(**lh_data)
-        except FileNotFoundError:
-            # Failure
-            logging.error("Player.load: '%s' not found" % user_id)
-            return None
-
-
-    def save(self):
-        with open(Player._json_path(self.id), 'w') as json_file:
-            json.dump(obj=self, fp=json_file, default=lambda o: {k: v for k, v
-                                                      # in o.__dict__.items() if v}, indent=4)
-                                                      in o.__dict__.items()}, indent=4)
-            logging.debug("Player.save: Saved '%s'." % self.name)
-
 
 class PlayerHandler(net_server.UserHandler):
     def init_success_lines(self):
@@ -377,13 +139,14 @@ class PlayerHandler(net_server.UserHandler):
         Display the room description and contents to the player in the room
 
         :param lines: text to output. each line is an element of a list.
-        :param changes: K.Enum, what has changed and needs to be updated client-side
-            (e.g., if moved to a new room: K.name, K.desc)
+        :param changes: K.Enum (common.py). what has changed and needs to be updated client-side
+            (e.g., if moved to a new room: changes={K.name, K.desc}
+            # FIXME: I'm not sure a dict is the best data structure to use
         :return: Message object
         """
         # get room # that player is in
         try:
-            room = game_map.rooms[self.player.room]
+            room = game_map.rooms[player.room]
         except KeyError:
             logging.warning("room_msg: Room %i does not exist" % player.room)
 
@@ -498,7 +261,7 @@ class PlayerHandler(net_server.UserHandler):
             player = Player(id=user_id,
                             name=name,
                             map_level=1,
-                            room=room_start,
+                            room=1,
                             hit_points=100,
                             last_command=None)
             player.set_flag(PlayerFlags.DEBUG_MODE)
@@ -515,8 +278,9 @@ class PlayerHandler(net_server.UserHandler):
         lines = [f"Welcome, {player.name}.",
                  f"You have {silver:,} silver in hand.\n"]
 
-        # show/convert flags from json text 'true/false' to bool True/False
-        # (otherwise they're not recognized, and can't be toggled):
+        # show/convert flags from JSON text 'true/false' to bool True/False
+        # (otherwise they're not recognized and can't be toggled):
+        # TODO: move this to Player.load() ? and do the reverse in Player.save() ?
         for k, v in player.flag.items():
             if player.flag[k] == 'true':
                 player.flag[k] = True
@@ -588,17 +352,20 @@ class PlayerHandler(net_server.UserHandler):
                     if room_transport != 0:
                         logging.debug("parser: %s moves Up to %i" % (player.name, room_transport))
                         # player.room = room_transport
-                        player.move(next_room=room_transport, direction='u')
-                        return
+                        player.move(destination_room=room_transport, direction='u')
+                        return Message(lines=["You move up."],
+                                       changes={K.room_name: room.name,
+                                                K.room: room.desc}
+                                       )
                     else:
                         logging.debug("parser: %s moves Up to Shoppe" % player.name)
-                        player.move(next_room=room_transport, direction='u')
+                        player.move(destination_room=room_transport, direction='u')
                         # don't change player.room, return them to where they left
                         return Message(lines=["TODO: write Shoppe routine..."])
                 if cmd[0] == 'd' and room_connection == 2:
                     if room_transport != 0:
                         logging.debug("parser: %s moves Down to %i" % (player.name, room_transport))
-                        player.move(next_room=room_transport, direction='d')
+                        player.move(destination_room=room_transport, direction='d')
 
                         # get new room desc:
                         # FIXME: TypeError: 'Room' object is not subscriptable
@@ -616,7 +383,7 @@ class PlayerHandler(net_server.UserHandler):
                                        )
                     else:
                         logging.debug("parser: %s moves Down to Shoppe" % player.name)
-                        player.move(next_room=room_transport, direction='d')
+                        player.move(destination_room=room_transport, direction='d')
 
                         # don't change player.room, return them to where they left
                         return Message(lines=["TODO: write Shoppe routine..."])
@@ -626,7 +393,8 @@ class PlayerHandler(net_server.UserHandler):
 
             if cmd[0] in ['l', 'look']:
                 room = game_map.rooms[player.room]
-                return self.room_msg(lines=room.desc)
+                # FIXME: not sure this works
+                return self.room_msg(lines=K.desc, changes={K.room_name: room.name})
 
             if cmd[0] in ['bye', 'logout', 'quit']:
                 temp = net_server.UserHandler.prompt_request(self, lines=[], prompt='Really quit? ',
@@ -647,11 +415,12 @@ class PlayerHandler(net_server.UserHandler):
                 return Message(lines=["Done."])
 
             if cmd[0] in ['cheatcode']:
+                # Konami code!
                 return Message(lines=["↑ ↑ ↓ ↓ ← → ← → B A"])
 
             # toggle room descriptions:
-            if cmd[0] in ['r']:
-                player.toggle_flag(PlayerFlags.ROOM_DESCRIPTIONS, verbose=True)
+            if cmd[0] in ['r', 'roo', 'room']:
+                temp = player.query_flag(PlayerFlags.ROOM_DESCRIPTIONS)
                 return Message(lines=[f'[Room descriptions are now '
                                       f'{"off" if temp is False else "on"}.]'])
 
@@ -717,7 +486,7 @@ class PlayerHandler(net_server.UserHandler):
             return Message(lines=["I didn't understand that.  Try something else."])
         else:
             # otherwise, not a valid server message?:
-            logging.error("parser: unexpected message '%s'" % cmd)
+            logging.error("parser: unexpected message '%s'" % player.last_command)
             return Message(lines=["parser: Unexpected message '{cmd}'."], mode=Mode.bye)
 
 

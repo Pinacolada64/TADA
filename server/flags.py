@@ -4,7 +4,7 @@ from enum import Enum
 import doctest
 
 # TADA-specific imports:
-from characters import Player
+# from characters import Player
 
 class PlayerFlags(str, Enum):
     """Names of flags"""
@@ -106,7 +106,7 @@ new_player_default_flags = [
 
 
 @dataclass
-class Flag(object):
+class Flag:
     name: str
     display_type: FlagDisplayTypes
     status: bool

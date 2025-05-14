@@ -1,12 +1,11 @@
 import json
 import logging
-from dataclasses import dataclass, field
-from typing import Optional, Any
+from dataclasses import dataclass
 
 # TADA-specific imports:
+from base_classes import BaseItem
 from flags import PlayerFlags
 from characters import Player
-
 
 class IDNumber:
     """Save from having to manually specify an ID#"""
@@ -28,13 +27,39 @@ class BoobyTrap:
     buried_by: str  # Player  # so we can determine if they're DIGging up their own or someone else's stuff
 
 
-class Item:
-    def __init__(self, item_id: int, name: str, description: str, owner: Optional[str], prefix: str = "I"):
-        self.prefix = prefix
-        self.item_id = item_id
-        self.owner = owner  # TODO: can be a Player, but moving this after Player breaks inheritance
-        self.name = name
-        self.description = description
+class Item(BaseItem):
+    def __init__(self, **kwargs):
+        # item_id: int, name: str, description: str, owner: Optional[str],  id_prefix: str = "I"):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        self.id_prefix = "I"
+
+        """
+        class Item(object):
+            def __init__(self, number, name, kind, price, **flags):
+                logging.debug("Item.__init__: Instantiate item '%s'" % name)
+                self.number = number
+                self.name = name
+                self.kind = kind
+                self.price = price
+                # this field is optional:
+                if flags:
+                    logging.debug("item.__init__ Flags:")
+                    self.flags = flags
+                    for key, value in flags.items():
+                        logging.debug("item.__init__: %s %s" % (key, value))
+            """
+
+    @staticmethod
+    def read_items(filename: str) -> dict | None:
+        try:
+            with open(filename) as json_file:
+                items: dict = json.load(json_file)
+                logging.debug("JSON data read")
+                return items
+        except FileNotFoundError:
+            logging.error(">>> %s not found" % filename)
+            return None
 
     """
     def __str__(self, player: Player):
@@ -46,36 +71,65 @@ class Item:
             return f"{self.name}"
     """
 
-class Weapon:
-    def __init__(self, number, location, name, kind, sound_effect, stability, to_hit, price, weapon_class, **flags):
+
+class Weapon(BaseItem):
+    def __init__(self, **kwargs):
+        # id_number: int, location: int, name: str, kind: Optional[str], sound_effect: str, stability: int, to_hit: int,
+        #          price: int, weapon_class: WeaponClass, id_prefix: str = "W", **flags):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        self.id_prefix = "W"
+        
+    @staticmethod
+    def read_weapons(filename: str) -> dict | None:
+        try:
+            with open(filename) as json_file:
+                weapons = json.load(json_file)
+                logging.debug("JSON data read")
+                return weapons
+        except FileNotFoundError:
+            logging.error(">>> File not found: %s" % filename)
+            return None
+
+class NewWeapon(BaseItem):
+    def __init__(self, **kwargs):
+        # item_id: int, name: str, description: str, owner: str):
+        super().__init__(**kwargs)
+        # item_id, name, description, owner, prefix="W"
+
+
+class Rations(BaseItem):
+    def __init__(self, number, name, kind, price, **flags):
         self.number = number
-        self.location = location
         self.name = name
-        # this field is optional:
-        self.kind = kind
-        self.sound_effect = sound_effect
-        self.stability = stability
-        self.to_hit = to_hit
+        self.kind = kind  # food, drink, cursed
         self.price = price
-        self.weapon_class = weapon_class
         # this field is optional:
         if flags is not None:
             self.flags = flags
 
-    @staticmethod
-    def read_weapons(filename: str):
-        try:
-            with open(filename) as jsonF:
-                weapons = json.load(jsonF)
-                logging.debug("read_weapons: JSON data read")
-                return weapons
-        except FileNotFoundError:
-            logging.error(">>> read_weapons: File not found: %s" % filename)
-            return None
+    def __str__(self):
+        # TODO: only display '[<kind> #<number>]' if Player's DEBUG or ADMIN flags are True
+        if self.kind == "food":
+            return f"{self.name} [Food #{self.number}]"
+        elif self.kind == "drink":
+            return f"{self.name} [Drink #{self.number}]"
+        elif self.kind == "cursed":
+            return f"{self.name} [Cursed #{self.number}]"
+        else:
+            # unknown kind:
+            return f"{self.name} [Ration #{self.number}]"
 
-class OldWeapon(Item):
-    def __init__(self, item_id: int, name: str, description: str, owner: str):
-        super().__init__(item_id, name, description, owner, prefix="W")
+    @staticmethod
+    def read_rations(filename: str) -> dict | None:
+        try:
+            with open(filename) as json_file:
+                rations = json.load(json_file)
+                logging.debug("read_rations: JSON data read")
+                return rations
+        except FileNotFoundError:
+            logging.error(">>> read_rations: File not found: %s" % filename)
+            return None
 
 
 
@@ -84,18 +138,19 @@ if __name__ == '__main__':
     log = logging.getLogger(__name__)
 
     logging.basicConfig(level=logging.DEBUG,
-                        format='%(levelname)10s | %(funcName)15s() - %(message)s')
+                        format='%(levelname)10s | %(funcName)15s() | %(message)s')
 
     # Example usage
-    id_number = IDNumber(1)
-
     ylana = Player()
 
     rulan = Player()
     rulan.set_flag(PlayerFlags.DEBUG_MODE)
 
-    sword = Weapon(101, "Sword", "A sharp, steel sword.", None)
-    hammer = Weapon(102, "Hammer", "A metal claw on a stick.", None)
+    sword = Weapon(id_number=101, name="Sword", description="A sharp, steel sword.")
+    hammer = Weapon(id_number=102, name="Hammer", description="A metal claw on a stick.")
 
-    print(sword.__str__(rulan))  # Output: "Sword [#1]" (because Rulan owns the item AND Debug Mode is on)
-    print(hammer.__str__(rulan))  # Output: "Other Item" (because Rulan does not own the item)
+    rulan.add_item(sword)
+    ylana.add_item(hammer)
+
+    print(rulan.look_at(sword))  # Output: "Sword [W#1]" (because Rulan owns the item AND Debug Mode is on)
+    print(rulan.look_at(hammer))  # Output: "Hammer" (because Rulan does not own the item)

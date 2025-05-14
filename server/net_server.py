@@ -47,6 +47,16 @@ connected_users = set()
 
 @dataclass
 class LoginHistory(object):
+    """
+    Login history of player
+
+    :param addr: IP address?
+    :param no_user_attempts: user ID missing?
+    :param bad_password_attempts: wrong password entered?
+    :param fail_count: failed login?
+    :param ban_count: how many times player has been banned?
+    :param _fail_limit: how many times player can fail to log in before being banned
+    """
     addr: str
     no_user_attempts: dict = field(default_factory=lambda: {})
     bad_password_attempts: dict = field(default_factory=lambda: {})
@@ -55,7 +65,7 @@ class LoginHistory(object):
 
     _fail_limit: ClassVar[int] = 10
 
-    def banned(self, update, save=False):
+    def banned(self, update: bool, save=False):
         is_banned = self.fail_count >= LoginHistory._fail_limit
         if is_banned and update:
             self.ban_count += 1
@@ -103,7 +113,7 @@ class LoginHistory(object):
 
     def save(self):
         with open(LoginHistory._json_path(self.addr), 'w') as json_file:
-            json.dump(self, json_file, default=lambda o: {k: v for k, v
+            json.dump(fp=json_file, default=lambda o: {k: v for k, v
                                                          in o.__dict__.items() if v}, indent=4)
 
 
@@ -122,9 +132,10 @@ class UserHandler(socketserver.BaseRequestHandler):
         self.sender = f"{addr}:{port}"
         self.ready = None
         self.user = None
-        logging.info("UserHandler: handle: connect (addr=%s)" % self.sender)
+        logging.info("UserHandler.handle: connect (addr=%s)" % self.sender)
         running = True
         while running:
+            response = None
             try:
                 request = self._receive_data()
                 if request is None:
@@ -232,7 +243,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                                error_line='Multiple connections.',
                                error=Error.multiple, mode=Mode.bye)
         if not user.match_password(password):
-            logging.warning(f"bad password for '{user_id}'")
+            logging.warning("bad password for '%s'" % user_id)
             banned = self.login_history.fail_password(user_id, save=True)
             if banned:
                 logging.info(f"ban {self.sender}")
