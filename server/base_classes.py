@@ -3,11 +3,9 @@ import logging
 from dataclasses import dataclass, field
 from enum import StrEnum, IntEnum
 
-from server.server import compass_txts
-
 
 @dataclass
-class BaseItem(object):
+class BaseItem:
     """Base class for all items"""
     id_prefix: str = "I"
     id_number: int = 0
@@ -258,3 +256,6 @@ class Map(object):
                     logging.debug('%i: %s' % (room.number, room.name))
         except FileNotFoundError:
             logging.error(">>> read_map: File not found: '%s'" % filename)
+
+
+compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up', 'd': 'Down'}

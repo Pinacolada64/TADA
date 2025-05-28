@@ -13,8 +13,8 @@ import common
 
 from flags import PlayerFlags
 from characters import Player, Monster
-from base_classes import PlayerMoneyTypes, Map
-from server.items import Weapon, Rations
+from base_classes import PlayerMoneyTypes, Map, compass_txts
+from items import Weapon, Rations, Item
 
 K = common.K
 Mode = net_server.Mode
@@ -23,8 +23,6 @@ Message = net_server.Message
 
 # room_start = 1
 # money_start = 1000
-
-compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up', 'd': 'Down'}
 
 server_lock = threading.Lock()
 

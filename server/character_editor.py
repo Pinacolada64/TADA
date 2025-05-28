@@ -181,9 +181,6 @@ class FlagsCountersMenu(Menu, Player):
                            dot_leader_handler=lambda flag=flag: player.show_flag_line_item(flag, None),
                            submenu=None, edit_function=None) for flag in PlayerFlags]
 
-    def __post_init__(self):
-        pass
-
     def build_flags_menu(self, flags: dict) -> list:
         """
         Builds a menu of flags with formatted line items to display with show_menu().

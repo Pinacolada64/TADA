@@ -86,6 +86,7 @@ class Monster(BaseCharacter):
     def load(self, json_filename: str):
         pass
 
+
 @dataclass
 class Player(BaseCharacter):
     # put some of these stats in a generic BaseCharacter class
