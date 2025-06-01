@@ -481,7 +481,7 @@ class Player:
 
 class PlayerHandler(net_server.UserHandler):
     def init_success_lines(self):
-        return ['Welcome to:\n', 'Totally\nAwesome\nDungeon\nAdventure\n', 'Please log in.']
+        return ['Welcome to:\n', 'Totally\nAwesome\n{red}Dungeon\n{reset}Adventure\n', 'Please log in.']
 
     def login_fail_lines(self):
         return ['Please try again.']

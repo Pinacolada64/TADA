@@ -34,9 +34,10 @@ def loadInvite(id):
 
 def loadUser(id):
     user = nc.User.load(id)
-    if user is None:
+    if not user:
         print(f"ERROR:  there is no user '{id}'")
         sys.exit(1)
+    return user
 
 def showInvite(invite):
     print(f"invitation:")

@@ -9,6 +9,11 @@ import enum
 
 import net_common as nc
 import util
+import color_map
+
+
+cm = color_map.Player()
+cm.translation = color_map.Translation.ANSI
 
 K = nc.K
 Mode = nc.Mode
@@ -95,7 +100,7 @@ class Client(object):
             error_line = request['error_line']
             logging.error("%s: %s" % (error_line, error_code))
         for m in request['lines']:
-            print(m)
+            print(cm.output(m))
 
     def _process_mode(self, request):
         mode = request.get('mode')
