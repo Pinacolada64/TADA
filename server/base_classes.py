@@ -1,45 +1,16 @@
 import json
 import logging
 from dataclasses import dataclass, field
-from enum import StrEnum, IntEnum
+from enum import StrEnum, IntEnum, auto
 
 
-@dataclass
-class BaseItem:
-    """Base class for all items"""
-    id_prefix: str = "I"
-    id_number: int = 0
-    name: str = ""
-    description: str = ""
-    location: int = 0
-    owner = None  # could be a Player instance if a monster joins the party
-    flags: list = field(default_factory=list)
-
-class BaseCharacter:
-    """
-    Base class for all Characters, whether a Player, Monster or NPC, to hold common attributes
-
-    :param item_type: 'Undefined". Subclass and set to 'Monster' for a Monster, 'Player' for a Player, etc.
-    :param id_number: item number from JSON file
-    :param name: Character name
-    :param max_inventory: max number of items in inventory
-    :param inventory: Items in inventory
-    """
-    def __init__(self, item_type: str, id_number: int, name: str, max_inventory: int, inventory: list) -> None:
-        self.item_type = item_type
-        self.id_number = id_number
-        self.name = name  # str = None
-        self.max_inventory = max_inventory  # int = 5
-        self.inventory = inventory  # inventory: list[str] = field(default_factory=list)  # TODO: list[Item]
-
-    def __str__(self):
-        """
-        override to display a different ID prefix, e.g.:
-        P = Player
-        M = Monster
-        etc.
-        """
-        return f'{self.name} [P#{self.id_number}]'
+class Guild(IntEnum):
+    """Guild names"""
+    CIVILIAN = auto()
+    FIST = auto()
+    SWORD = auto()
+    CLAW = auto()
+    OUTLAW = auto()
 
 
 class Size(IntEnum):

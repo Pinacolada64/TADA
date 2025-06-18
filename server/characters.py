@@ -9,19 +9,77 @@ from typing import Optional, Any
 import doctest
 
 # TADA-specific imports:
+from base_variables import STAT_DATA
 from flags import PlayerFlags, FlagDisplayTypes, Flag, new_player_default_flags
 from net_server import Message
-from base_classes import BaseCharacter, Size, CombinationTypes, PlayerMoneyTypes, PlayerMoneyCategory, Gender, \
-    PlayerClass, PlayerRace, PlayerStat
-from server import net_common
-from server.server import server_lock, room_players, compass_txts, players
+from base_classes import Size, CombinationTypes, PlayerMoneyTypes, PlayerMoneyCategory, Gender, \
+    PlayerClass, PlayerRace, PlayerStat, Guild
+from server import server_lock, room_players, compass_txts, players
+import net_common
 from tada_utilities import make_random_id
-
 
 # from server.user_settings import ClientSettingsNames, ClientValues
 
 # https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
 # http://pythonfiddle.com/text-based-rpg-code-python/
+
+def set_up_flags():
+    flags = {flag_elements[0]: Flag(*flag_elements) for flag_elements in new_player_default_flags}
+    return flags
+
+def make_random_stat():
+    random_number = random.randint(1, 18)
+    logging.debug("%i", random_number)
+    return random_number
+
+def set_up_combinations():
+    combinations = {combination_name: {
+                combination_type: (random.randint(1, 99) for _ in range(3))
+                for combination_type in CombinationTypes
+            }}
+    logging.debug(combinations)
+    return combinations
+
+def set_up_silver() -> dict:
+    silver_types = {v: k * 1_000 for k, v in enumerate(PlayerMoneyTypes, start=1)}
+    logging.info("%s" % silver_types)
+    return silver_types
+
+def set_up_stats() -> dict:
+    stats = {k: make_random_stat() for k in PlayerStat}
+    logging.debug("%s" % stats)
+    return stats
+
+@dataclass
+class Client:
+    COLUMNS: int = 40
+
+
+class BaseCharacter:
+    """
+    Base class for all Characters, whether a Player, Monster or NPC, to hold common attributes.
+    Override the class to display a different id_prefix.
+
+    :param id_prefix: default 'C". Subclass and set to 'M' for a Monster, 'P' for a Player, etc.
+    :param id_number: item number from JSON file
+    :param name: Character name
+    :param max_inventory: max number of items in inventory
+    :param inventory: Items in inventory
+    """
+    def __init__(self, **kwargs) -> None:
+        self.id_prefix = kwargs.get('id_prefix', "C")
+        self.id_number = kwargs.get('id_number', make_random_id())
+        self.name = kwargs.get('name')
+        self.max_inventory = kwargs.get('max_inventory', 5)
+        self.inventory = kwargs.get('inventory')
+
+    def __str__(self):
+        """
+        P = Player
+        M = Monster
+        etc.
+        """
+        return f'{self.name} [{self.id_prefix}#{self.id_number}]'
 
 
 @dataclass
@@ -68,124 +126,200 @@ class Horse(BaseCharacter):
 
 @dataclass
 class Monster(BaseCharacter):
-    # number: int
-    status: Optional[int]  # 1=alive, 0=dead?
-    name: str
-    size: Optional[Size]
-    strength: int
-    to_hit: int
-    special_weapon: Optional[int]
-    flags: list = field(default_factory=list)
-    # TODO: max_inventory: int, inventory: list, description: str, owner: Optional[None] = None
-    # alignment is in "flags": "evil", "good"
-    item_type = "M"
-    # TODO: the Owner is set only if the Monster joins the Player's party
-    # FIXME: 'owner = Player' is unresolved reference
-    owner = None
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.status = kwargs.get('status', 1)  # 1=alive, 0=dead?
+        size: Optional[Size]
+        self.strength = kwargs.get('strength', 0)
+        self.to_hit = kwargs.get('to_hit', 0)
+        self.special_weapon = kwargs.get('special_weapon')
+        self.flags = kwargs.get('flags')
+        # TODO: max_inventory: int, inventory: list, description: str, owner: Optional[None] = None
+        # NOTE: alignment is in "flags": "evil", "good"
+        self.id_prefix = "M"
+        # TODO: the Owner is set only if the Monster joins the Player's party
+        # FIXME: 'owner = Player' is unresolved reference
+        self.owner = None
 
     def load(self, json_filename: str):
         pass
 
 
-@dataclass
-class Player(BaseCharacter):
-    # put some of these stats in a generic BaseCharacter class
-    super().__init__(item_type="Player", max_inventory=5, inventory=[])
-    id_number: int = field(default_factory=lambda: make_random_id)
-    # TODO: get user_id from json.load(user_id) somehow so we don't have to continually look up user_id by scanning the
-    #  player data directory
-    user_id: str = ""
-    # FIXME: self.get_age() method will use datetime.timedelta(datetime.today() - birthday)
-    birthday: datetime = datetime.today()
-    gender: Gender = Gender.MALE  # no misogyny intended
-    hit_points: int = 0
-    experience: int = 0
-
-    # map stats:
-    map_level: int = 1  # cl = current level
-    room: int = 1  # cr = current room
-    # total moves made over the course of the character's life:
-    moves_made: int = 0
-    # tracks how many moves made during the game session to calculate experience points awarded at quit:
-    moves_today: int = 0
-
-    size: Size = field(default_factory=lambda: Size.MAN_SIZED)
-
-    character_class: PlayerClass = None
-    character_race: PlayerRace = None
-
-    # the lower the Honor score, the more evil the character has become
-    # TODO: check this - I think 1,000 honor points is equivalent to a Saintly Knight
-    honor: int = 1_000
-
-    # https://www.reddit.com/r/learnpython/comments/1gzmlqv/comment/lyxnpxc/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button
-
-    # Wizard Glow stuff:
-    # None if inactive, or non-magic user
-    # != 0 is the number of rounds left, decrement at every turn
-    wizard_glow: Optional[int] = None
-
+class Player(object):
     """
-    Things you can only do once per day (file_formats.txt):
-    'pr'        has PRAYed once
-    'pr2'       has PRAYed twice per day (only if char_class is Druid)
-    'birthday'  Player's birthday is today and they've already got their birthday present
-                (prevents them from logging on multiple times per day and getting multiple presents)
-    # TODO: make these Enums, finish this list
+    Attributes, flags, and other stuff about players.
     """
-    once_per_day: list[str] = field(default_factory=list)
-
-    # Copy the list of Flag defaults from the PlayerFlag enum on Player instantiation:
-    flags: dict[PlayerFlags, Flag] = field(default_factory=lambda: {i[0]: Flag(*i) for i in new_player_default_flags})
-    # creates a new stats dict for each Player, plus zero all stats:
-    stat: dict[PlayerStat, int] = field(default_factory=lambda: {i: 0 for i in PlayerStat})
-    # same with silver FIXME: (set to 1_000 for testing purposes):
-    # TODO: money types may be expanded to platinum, electrum in future
-    silver: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1_000 for i in PlayerMoneyTypes})
-
-    # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
-    combinations: dict[CombinationTypes, tuple] = field(
-        default_factory=lambda: {
-            combination_type: (random.randint(1, 99) for _ in range(3))
-            for combination_type in CombinationTypes
-        }
-    )
-
-    # FIXME: this is broken
-    #  TODO: copy UserSetting class here:
     """
-    settings: UserSetting = field(default_factory=lambda: UserSetting())
-    Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
-    flags: dict[PlayerFlags, Flag] = field(default_factory=lambda: {i[0]: Flag(*i) for i in new_player_default_flags})
-
-    # Copy list of client_settings defaults from user_settings.py:
-    client_settings: dict[ClientSettingsNames, int | str] = field(
-        default_factory=lambda: {i[0]: ClientValues for i in ClientSettingsNames})
+    TODO: There should be methods here for Inventory:
+        Inventory.item_held(item): check player/ally inventory, return True or False
+            (is it important to know whether the player or ally is carrying an item?)
+            maybe return Player or Ally object if they hold it, or None if no-one holds it
     """
-    party: list = field(default_factory=list)  # TODO: list[Player or Monster]
-    allies: list = field(default_factory=list)  # TODO: list[Ally]
 
-    guild: str = "Blah"  # FIXME: Guild Enum
+    def __init__(self, **kwargs):
+        """this code is called when creating a new character"""
+        # FIXME: probably just forget this, net_server.py handles connected_users(set)
+        """
+        connection_id: list of CommodoreServer IDs: {'connection_id': id, 'name': 'name'}
+        for k in len(connection_ids):
+            if connection_id in connection_ids[1][k]:
+                logging.info(f'Player.__init__: duplicate {connection_id['id']} assigned to '
+                             f'{connection_ids[1][connection_id]}')
+            return
+        temp = {self.name, connection_id}
+        connection_ids.append({'name': name, connection_id})
+        logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
+        self.connection_id = connection_id  # 'id' shadows built-in name
+        """
+        """
+        The point behind all this is that dataclasses can't account for unknown parameters, and I'll
+        be adding attributes to the Player class definition for some time until it gets stable.
 
-    def __init__(self, id_prefix: str, id_number: int, name: str, max_inventory: int, inventory: list):
-        super().__init__(id_prefix, id_number, name, max_inventory, inventory)
+        The .get() method avoids KeyErrors since it replaces missing parameters with the 2nd param
+        """
+        self.connection_id = kwargs.get('connection_id', make_random_id())
+        # keep this until I figure out where it is in net_server.py
+        self.name = kwargs.get('name', "Generic Name")
+
+        self.gender = kwargs.get('gender', Gender.MALE)
+
+        # creates a new stats dict for each Player, zero all stats:
+        # set with Player.set_stat(PlayerStat.xyz, value)
+        self.stat = kwargs.get("stat", set_up_stats())
+        # flags:
+        self.flags = kwargs.get('flags', set_up_flags())
+
+        # creates a new silver dict for each Player:
+        # in_bank may be cleared on character death (TODO: look in TLOS source)
+        # in_bar should be preserved after character's death (TODO: same)
+        self.silver = kwargs.get('silver', set_up_silver())
+        if self.silver:
+            """
+            >>> print(f"{PlayerMoneyTypes.IN_HAND}: {silver_types[PlayerMoneyTypes.IN_HAND]:,}")
+            In hand: 1,000
+            """
+            silver_in_hand = self.get_silver(PlayerMoneyTypes.IN_HAND)
+            logging.info("Silver in hand: %i" % silver_in_hand)
+
+        # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
+        self.combinations = kwargs.get('combinations', set_up_combinations())
+        # client settings - set up some defaults
+        self.client = kwargs.get('client', Client())
+
+        self.times_played = kwargs.get('times_played', None)
         # last_connection helps determine whether once_per_day events should be reset, but we just care about the day
         # rolling over, not that 24 hours have passed.
         # Also in the LASTON command to show when a player was last online.
         # Player.connect() should set last_connection to datetime.now().
         # Player.disconnect() should also set last_connection to datetime.now().
-        self.last_connection: datetime = datetime.now()
-        self.times_played = None
+        self.last_connection = kwargs.get('last_connection', None)  # TODO: use datetime
+
+        """
+        proposed stats:
+        some (not all) other stats, still collecting them:
+
+        special_items[
+            SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
+            BOAT  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
+            ]
+        """
+        self.map_level = kwargs.get('map_level', 1)  # cl: current_level
+        self.map_room = kwargs.get('map_room', 1)  # cr: current_room
+        self.moves_made = kwargs.get('moves_made')
+        self.birthday = kwargs.get('birthday')  # TODO: use datetime
+        self.guild = kwargs.get('guild')  # [civilian | fist | sword | claw | outlaw]
+        #  1       2        3       4      5       6       7         8       9
+        self.char_class = kwargs.get('char_class')
+        # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
+        self.race = kwargs.get('char_race')
+        # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
+
+        self.inventory = kwargs.get('inventory')
+        # self.shield = kwargs.get('shield')
+        # self.armor = kwargs.get('armor')
+
+        self.hit_points = kwargs.get('hit_points', 0)
+        self.experience = kwargs.get('experience', 0)
+        """
+        Things you can only do once per day (file_formats.txt):
+        'pr'        has PRAYed once
+        'pr2'       has PRAYed twice per day (only if char_class is Druid)
+        'birthday'  Player's birthday is today and they've already got their birthday present
+                    (prevents them from logging on multiple times per day and getting multiple presents)
+        # TODO: make these Enums, finish this list
+        """
+        self.once_per_day = kwargs.get('once_per_day')
+
+        # FIXME: this is broken
+        #  TODO: copy UserSetting class here:
+        """
+        settings: UserSetting = field(default_factory=lambda: UserSetting())
+        # Copy list of client_settings defaults from user_settings.py:
+        client_settings: dict[ClientSettingsNames, int | str] = field(
+            default_factory=lambda: {i[0]: ClientValues for i in ClientSettingsNames})
+        """
+        self.party = kwargs.get('party')
+        self.allies = kwargs.get('allies')
+
+        self.guild = kwargs.get('guild')
+
+        """
+        TODO: MORE CLASSES
+        combat:
+            honor: int
+        class Weapon:
+            name: str
+            percent_left: int
+        class AmmoWeapon:
+            ammunition_for: Weapon
+            loaded_with: Ammunition
+        class Ammunition:
+            rounds_per_unit: int  # how many rounds
+
+        bad_hombre_rating (BHR) is calculated from stats, not stored in player log
+        """
+        # using Dataclasses and updating attributes:
+        # https://www.reddit.com/r/learnpython/comments/1gzmlqv/comment/lyxnpxc/
+
+        # Wizard Glow stuff:
+        # None if inactive, or non-magic user
+        # != 0 is the number of rounds left, decrement at every turn
+        self.wizard_glow = kwargs.get('wizard_glow')
         self.id = None
 
-    def __post_init__(self):
-        self.client_settings = None
+        self.unsaved_changes = False
+
+    def __str__(self):
+        """print formatted Player object (double-quoted since ' in string)"""
+        # TODO: locale formatting (YYYY-MM-DD, MM/DD/YYYY)
+        age = "Undetermined"
+        birthdate = "None"
+        if self.birthday:
+            delta = datetime.now() - self.birthday
+            age = f"{delta.days // 365} years"
+            date_format_string = "%a %b %d, %Y"  # weekday, month, date, year
+            birthdate = self.birthday.strftime(date_format_string)
+
+        _ = f"""
+        {'Name:'.rjust(20)} {self.name}
+        {'Age:'.rjust(20)} {age}
+        {'Gender:'.rjust(20)} {self.gender.title()}
+        {'Birthday:'.rjust(20)} {birthdate}
+        {'Silver: In hand:'.rjust(20)} {self.silver[PlayerMoneyTypes.IN_HAND]}
+        {'Guild:'.rjust(20)} {self.guild.title()}
+"""
+        return textwrap.dedent(_)
+
+    def __repr__(self):
+        return f"Player <{self.name}>"
 
     def add_item(self, item):
+        """Add item to inventory"""
         item.owner = self
         self.inventory.append(item)
 
     def has_item(self, item):
+        """Check if player has item"""
         return item in self.inventory
 
     def add_to_party(self, party_addition) -> bool:
@@ -224,9 +358,6 @@ class Player(BaseCharacter):
             for num, member in enumerate(self.party, start=1):
                 print(f"{num}. {member.name}")
 
-    def __repr__(self):
-        return f"Player <{self.name}>"
-
     def look_at(self, item: Any):
         """
         Print a string that shows the name of the object. If the Player owns the item,
@@ -244,7 +375,7 @@ class Player(BaseCharacter):
 
     def output(self, string: str) -> Message:
         """
-        Print <string> word-wrapped to client's column width to Player
+        Print <string> in client's Translation, word-wrapped to client's column width to Player
 
         :param: string: string to output
         :return: Message
@@ -457,44 +588,28 @@ class Player(BaseCharacter):
         x = self.get_stat(stat_name)
         return f"{stat_name.value}: {x}"
 
-    def adj_stat_relative(self, stat_name: PlayerStat, adjustment: int) -> None:
-        """adjust stat_name +/- the value of adjustment
-        set_stat_absolute(value) will set the stat to <value>
+    def adjust_stat(stat: PlayerStat, adjustment: int, verbose: bool = True, abbreviate: bool = True):
         """
-        try:
-            # adjust stat by <adjustment>:
-            current_value = self.get_stat(stat_name)
-            new_value = current_value + adjustment
-            logging.info("Stat: %s, Before: %i, After: %i" % (stat_name, current_value, new_value))
-            # self.flag.get("flag_name") returns None instead of KeyError if key doesn't exist:
-            if self.query_flag(PlayerFlags.EXPERT_MODE):
-                # returns tuples, is not subscriptable:
-                descriptive = zip([stat for k, stat in enumerate(PlayerStat)],
-                                  ['influential', 'hearty', 'agile', 'intelligent',
-                                   'strong', 'wise', 'energetic'])
-                # TODO: jwhoag suggested adding 'confidence' -> 'brave' -- good idea,
-                #  not sure where it can be added yet.
-                for n in descriptive:
-                    # returns a tuple: e.g., (PlayerStat.CON, 'hearty') -- etc.
-                    # FIXME: I don't know of a more efficient way to refer to a subscript in this case.
-                    #  This may be good enough, it's a small loop
-                    if n[0] == stat_name:
-                        print(f"You feel {'more' if new_value > current_value else 'less'} {n[1]}.")
-            self.stat[stat_name] = new_value
-        except IndexError:
-            logging.warning("Stat '%s' doesn't exist." % stat_name)
-            # TODO: raise ValueError?
-            return None
-        try:
-            current_value = self.get_stat(stat_name)
-            new_value = current_value + adjustment
-            logging.debug("current %s: %i, adjusted: %i" %
-                          (stat_name.name, stat_name.value, new_value))
-            self.set_stat_absolute(stat_name, new_value)
-            return None
-        except KeyError:
-            logging.warning("%s not found" % stat_name)
-            return None
+        Adjusts a player's statistic and prints the outcome.
+
+        :param stat: The statistic to be adjusted.
+        :param adjustment: The adjustment to stat.
+        :param verbose: Whether to tell about it or not (TODO: based on Expert Mode)
+        :param abbreviate: whether to use short (True) or long (False) statistic names
+        """
+        # Step 1: Look up all data for the given stat
+        if verbose:
+            stat_info = STAT_DATA[stat]
+            stat_name = stat_info["name"][abbreviate]
+
+            # Get the correct phrase based on the adjustment being positive or negative,
+            # using the 'is_positive' boolean as an index into the STAT_INFO dict:
+            is_positive = adjustment > 0
+            # print(f'{is_positive=}')
+            phrase = stat_info["phrases"][is_positive]
+
+            # Step 2: Display the updated outcome to the player
+            print(f"You feel {phrase}. ({stat_name} {adjustment:+})")
 
     def get_multiple_stats(self, stat_list: list[PlayerStat]) -> list | None:
         """get player stat <stat_list>
@@ -515,44 +630,6 @@ class Player(BaseCharacter):
         except IndexError:
             logging.warning("get_stat: no such statistic %s" % stat_list)
             return None
-
-    def set_stat(self, stat_name: PlayerStat, new_value: int) -> None:
-        """Directly set a statistic to new_value--contrast with adjust_stat()"""
-        original = self.get_stat(stat_name)
-        logging.debug("put %s: original: %i, new_value: %i" % (stat_name, original, new_value))
-        self.stat[stat_name] = new_value
-
-    def __str__(self):
-        """print formatted Character object"""
-
-        # FIXME: test of __str__ method:
-        """
-        >>> str_test = Player(name="str_test", connection_id=1,
-        ...                   client={'name': 'Commodore 128', 'columns': 80},
-        ...                   gender=Gender.MALE,
-        ...                   birthday=date(year=2022, month=4, day=13),
-        ...                   silver{PlayerMoneyTypes.IN_HAND: 2000},
-        ...                   guild="fist")
-
-        >>> str_test
-        
-        >>> print(f"Test of __str__ method:\n{StrTest}")
-        Test of __str__ method:
-        Name: StrTest        Age: 45    Birthday: 4/13/2022
-        Silver: In hand: 2,000
-        
-        _ += f'\tBirthday: {self.birthday[0]}/{self.birthday[1]}/{self.birthday[2] - }\n'
-        _ += f"Silver: In hand: {self.silver[PlayerMoneyTypes.IN_HAND]}\n"
-        _ += f'Guild: {self.guild}\n'
-        """
-
-        print(f"Name: {self.name:<30}"
-              f"Age: {'Unknown' if self.get_age() is None else '{self.age}'}"
-              # day / month / year (year = date.year - self.age)
-              # TODO: locale formatting (YYYY-MM-DD, MM/DD/YYYY)
-              f'\tBirthday: {self.birthday.month}/{self.birthday.day}/{self.birthday.year}\n'
-              f"Silver: In hand: {self.silver[PlayerMoneyTypes.IN_HAND]}\n"
-              f'Guild: {self.guild}\n')
 
     def print_all_stats(self):
         """
@@ -694,23 +771,20 @@ class Player(BaseCharacter):
             # TODO: raise ValueError?
             return None
 
-    def get_multiple_stats(self, stat_list: list[PlayerStat]) -> list | None:
+    def get_one_stat(self, stat: PlayerStat) -> str | None:
         """
-        :param stat_list: list of PlayerStat(s) to retrieve
-        :return: list of statistic values, None if stat_list empty, or IndexError is encountered
+        :param stat: PlayerStat to retrieve
+        :return: statistic value, or None if stat_list empty, or IndexError is encountered
         """
-        if not stat_list:
+        if not stat:
             logging.error("No stats provided")
             return None
         try:
-            return [self.stat[stat] for stat in stat_list]
-        # FIXME: what is the difference between KeyError and IndexError?
-        except KeyError:
-            logging.warning("Stat '%s' doesn't exist." % stat_list)
-            return None
+            return self.stat[stat]
         except IndexError:
-            logging.warning("get_stat: no such statistic %s" % stat_list)
+            logging.error("No stat %s" % stat)
             return None
+
 
     def print_stat(self, stat: PlayerStat, abbreviated: bool):
         """
@@ -733,47 +807,22 @@ class Player(BaseCharacter):
         >>> test.print_stat(stat=PlayerStat.CHR, abbreviated=False)
         Charisma: 10
         """
-        long_stat_names = {PlayerStat.CON: "Constitution",
-                           PlayerStat.DEX: "Dexterity",
-                           PlayerStat.INT: "Intelligence",
-                           PlayerStat.STR: "Strength",
-                           PlayerStat.WIS: "Wisdom",
-                           PlayerStat.EGY: "Energy"}
+
         try:
-            # TODO: map long words to PlayerStat short words...
-            if abbreviated:
-                print(f"{stat}: {stat.value}")
-            else:
-                print(f"{long_stat_names[stat]}")
+            print(f"{STAT_DATA['name'][abbreviated]}: {stat.value}")
         except IndexError:
             logging.warning("Stat '%s' doesn't exist." % stat)
             # TODO: raise ValueError?
             return None
-        # return e.g., "Int: 4"
-        if abbreviated:
-            stat_names = [s for s in PlayerStat.name]
-            stat_format = f"{stat_names:<12}"
-        else:
-            # use abbreviations:
-            stat_names = ["Chr", "Con", "Dex", "Int", "Str", "Wis", "Egy"]
-            stat_format = f"{stat_names}"  # FIXME: finish this
-        for k, stat in enumerate(self.stat):
-            print(f'{stat_format:stat}: {self.stat[stat]:2} ', end='   ')
-        print()
-        return None
 
     def print_multiple_stats(self, stat_list: list[PlayerStat],
-                             full_word: bool):
+                             abbreviate: bool):
         """
         :param stat_list: list of PlayerStat(s) to report
-        :param full_word: False: 'Int', 'Str', 'Wis', etc. True: 'Intelligence', 'Strength', 'Wisdom', etc.
-        """
-        """
-        :param stat_list: list of PlayerStat(s) to report
-        :param full_word: False: 'Int', 'Str', 'Wis', etc. True: 'Intelligence', 'Strength', 'Wisdom', etc.
+        :param abbreviate: False: 'Int', 'Str', 'Wis', etc. True: 'Intelligence', 'Strength', 'Wisdom', etc.
         """
         for stat in stat_list:
-            self.print_stat(stat, full_word)
+            self.print_stat(stat, abbreviate)
 
     def get_birthday(self):
         """
@@ -783,34 +832,24 @@ class Player(BaseCharacter):
         """
         >>> test = Player()  # birthday = datetime.now()
         
-        >>> self.get_birthday()
-        6/16/1976
-
-        >>> self.get_birthday(age=0, birthday=(6, 16, 1976))
+        >>> self.get_birthday(age=0, birthday=datetime.date(6, 16, 1976))
         6/16
         """
         # TODO: locale stuff where dates are in either month-day-year / year-month-day format?
         year = self.birthday.year
         month = self.birthday.month
         day = self.birthday.day
-        """
-        if age is None or age == 0:
-            # year unknown, don't print it
-            return f"{month}/{day}"
-        else:
-            # year known, get current year - age
-            year = datetime.today().year - age
-        """
         return f"{month}/{day}/{year}"
 
     def get_age(self):
+        # TODO: datetime.now() - self.birthday
         pass
 
 
     def connect(self):
         with server_lock:
             # TODO: add last_connection as datetime.now()
-            room_players[self.room].add(self.id)
+            room_players[self.map_room].add(self.id)
             self.last_connection = datetime.now()
             logging.info("%s connected at %s" % (self.name, self.last_connection))
             # TODO: notify other players in same room of connection ("%s wakes up.")
@@ -825,30 +864,30 @@ class Player(BaseCharacter):
         if None, '#<room_number>' teleportation command (or, later, spell) was used and the
         "<player> disappears in a flash of light" message is used instead
         """
-        current_room = self.room
+        current_room = self.map_room
         with server_lock:
             logging.debug("Player.move: Before remove: %s" % room_players[current_room])
             room_players[current_room].remove(self.id)
             logging.debug("Player.move: After remove: %s" % room_players[current_room])
 
-            self.room = destination_room
+            self.map_room = destination_room
             logging.debug("Player.move: Before add: %s" % room_players[current_room])
-            room_players[self.room].add(self.id)
+            room_players[self.map_room].add(self.id)
             logging.debug("Player.move: After add: %s" % room_players[current_room])
-            logging.debug('Player.move: Moved %s from %s to %s' % (self.name, current_room, self.room))
+            logging.debug('Player.move: Moved %s from %s to %s' % (self.name, current_room, self.map_room))
             if direction is None:
-                print(f'[{self.name} disappears in a flash of light.')
+                return Message([f'[{self.name} disappears in a flash of light.'])
             else:
-                print(f"{self.name} moves {compass_txts[direction]}.")
+                return Message([f"{self.name} moves {compass_txts[direction]}."])
 
     def disconnect(self):
         with server_lock:
-            room_players[self.room].remove(self.id)
+            room_players[self.map_room].remove(self.id)
             # increment times played:
             self.times_played += 1
             logging.info("Player.disconnect: %s disconnected. Times played: %i." % (players[self.id].name,
                                                                                     self.times_played))
-            return Message(lines=[f'{players[self.id].name} falls asleep.'])
+            return Message([f'{players[self.id].name} falls asleep.'])
 
     @staticmethod
     def _json_path(user_id):

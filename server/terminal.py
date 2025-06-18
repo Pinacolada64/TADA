@@ -1,11 +1,12 @@
 # Terminal declarations
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 
 import colorama
 from colorama import Fore
 
-from server.characters import Player
+# TADA imports
+from characters import Player
 
 
 class KeyboardKeyName(str, Enum):
@@ -65,26 +66,26 @@ class CBMColors(Enum):
 
 
 @dataclass
-class Client:
+class ClientSettings(Enum):
     # client (i.e., Python, C64, C128...?)
-    client: str
+    CLIENT = auto()
     # screen dimensions:
-    rows: int
-    columns: int
+    SCREEN_ROWS = auto()
+    SCREEN_COLUMNS = auto()
     # translation: None | ASCII | ANSI | Commodore
-    translation: str
+    TRANSLATION = auto()
     # colors for [bracket reader] text highlighting on C64/128:
-    # ColorName (e.g., Blue, Brown, Cyan, etc.)
-    text_color: str
-    highlight_color: str
-    background_color: str
-    border_color: str
+    # ColorName (e.g., Blue, Brown, Cyan, etc.) or ColorNumber?
+    TEXT_COLOR = auto()
+    HIGHLIGHT_COLOR = auto()
+    BACKGROUND_COLOR = auto()
+    BORDER_COLOR = auto()
     # whether the keyboard has a Return or Enter key:
-    return_key: str = KeyboardKeyName.ENTER
+    RETURN_KEY = auto()
     # graphics tricks:
-    has_color: bool = True
-    # start_underline: ...
-    # stop_underline: ...
+    HAS_COLOR = auto()
+    START_UNDERLINE = auto()
+    STOP_UNDERLINE = auto()
 
 
 class Translation(str, Enum):
@@ -94,7 +95,7 @@ class Translation(str, Enum):
 
 
 @dataclass
-class CommodoreClient(str, Enum):
+class CommodoreClient:
     # could be the PET with no color
     name: str = "Generic Commodore Client"
     rows: int = 25

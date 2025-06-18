@@ -1,9 +1,8 @@
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # TADA-specific imports:
-from base_classes import BaseItem
 from flags import PlayerFlags
 from characters import Player
 
@@ -25,6 +24,18 @@ class BoobyTrap:
     level: int
     combination: str  # letter A-I
     buried_by: str  # Player  # so we can determine if they're DIGging up their own or someone else's stuff
+
+
+@dataclass
+class BaseItem:
+    """Base class for all items"""
+    id_prefix: str = "I"
+    id_number: int = 0
+    name: str = None
+    description: str = None
+    location: int = 0
+    owner = None  # could be a Player instance if a monster joins the party
+    flags: list = field(default_factory=list)
 
 
 class Item(BaseItem):
