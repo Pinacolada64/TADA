@@ -4,7 +4,7 @@ from typing import List, Optional, Callable
 
 # TADA-specific imports:
 from flags import PlayerFlags
-from characters import Player
+from player import Player
 from tada_utilities import input_string
 
 

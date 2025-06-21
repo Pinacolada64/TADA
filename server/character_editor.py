@@ -3,7 +3,8 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Callable, NamedTuple
 
 from flags import PlayerFlags
-from characters import Player, PlayerStat, Alignment
+from characters import PlayerStat, Alignment
+from player import Player
 
 
 def line_item(item_name: str, item_value: str | int, width: int = 30):

@@ -2,11 +2,11 @@ import doctest
 import logging
 import random
 
-# import net_server  # for promptRequest and Message
-from server.net_server import Message
-from server.characters import Player
-from server.flags import PlayerFlags
-from server.user_settings import Translation
+import net_server  # for promptRequest and Message
+from net_server import Message
+from player import Player
+from flags import PlayerFlags
+from user_settings import Translation
 
 """
 utilities such as:
@@ -239,7 +239,7 @@ def game_help(self, arg: list):
     logging.info(f'game_help: {arg=}')
     if len(arg) == 0:
         fileread(self, filename="main-menu")
-        return
+        return None
     else:
         try:
             if callable(arg[0]):

@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import StrEnum, auto, Enum
 import doctest
 
 # TADA-specific imports:
@@ -46,15 +46,15 @@ class PlayerFlags(StrEnum):
     WRAITH_MASTER = "Wraith Master"
 
 
-class FlagDisplayTypes(StrEnum):
+class FlagDisplayTypes(Enum):
     """
     Different flag states should be displayed with different wording.
     Displaying "Dungeon Master: Yes" reads better than "Dungeon Master: True",
     even though that's how the flag state is represented internally.
     Similarly, "Guild Follow: Off" reads better than "Guild Follow: False"
     """
-    YESNO = "Yes/No"
-    ONOFF = "On/Off"
+    YESNO = auto()
+    ONOFF = auto()
 
 
 # these are flag defaults for a new player:

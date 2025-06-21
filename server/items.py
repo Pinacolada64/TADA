@@ -1,10 +1,13 @@
 import json
 import logging
 from dataclasses import dataclass, field
+from typing import Optional
 
+from base_classes import WeaponClass
 # TADA-specific imports:
 from flags import PlayerFlags
-from characters import Player
+from player import Player
+
 
 class IDNumber:
     """Save from having to manually specify an ID#"""
@@ -85,12 +88,18 @@ class Item(BaseItem):
 
 class Weapon(BaseItem):
     def __init__(self, **kwargs):
-        # id_number: int, location: int, name: str, kind: Optional[str], sound_effect: str, stability: int, to_hit: int,
-        #          price: int, weapon_class: WeaponClass, id_prefix: str = "W", **flags):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-        self.id_prefix = "W"
-        
+        super().__init__(**kwargs)
+        id_number: int
+        id_prefix: str = "W"
+        location: int
+        name: str
+        kind: Optional[str]
+        sound_effect: tuple[str, str]
+        stability: int
+        to_hit: int
+        price: int
+        weapon_class: WeaponClass
+
     @staticmethod
     def read_weapons(filename: str) -> dict | None:
         try:
@@ -101,12 +110,6 @@ class Weapon(BaseItem):
         except FileNotFoundError:
             logging.error(">>> File not found: %s" % filename)
             return None
-
-class NewWeapon(BaseItem):
-    def __init__(self, **kwargs):
-        # item_id: int, name: str, description: str, owner: str):
-        super().__init__(**kwargs)
-        # item_id, name, description, owner, prefix="W"
 
 
 class Rations(BaseItem):
@@ -160,8 +163,8 @@ if __name__ == '__main__':
     sword = Weapon(id_number=101, name="Sword", description="A sharp, steel sword.")
     hammer = Weapon(id_number=102, name="Hammer", description="A metal claw on a stick.")
 
-    rulan.add_item(sword)
-    ylana.add_item(hammer)
+    rulan.add_inventory_item(sword)
+    ylana.add_inventory_item(hammer)
 
     print(rulan.look_at(sword))  # Output: "Sword [W#1]" (because Rulan owns the item AND Debug Mode is on)
     print(rulan.look_at(hammer))  # Output: "Hammer" (because Rulan does not own the item)

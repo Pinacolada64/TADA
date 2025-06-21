@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 from dataclasses import dataclass, field
 from enum import StrEnum, IntEnum, auto
 
@@ -58,6 +59,35 @@ class CombinationTypes(StrEnum):
     CASTLE = "Castle"
     ELEVATOR = "Elevator"  # Get this from the SCRAP OF PAPER item in the dungeon
     LOCKER = "Locker"
+
+class Combination:
+    """
+    Represents a three-digit combination where each digit is between 1 and 99.
+    """
+    def __init__(self, name: CombinationTypes):
+        """
+        Initializes a combination with a given name and random numbers.
+        """
+        self.name = name
+        self.combination = tuple(random.randrange(1, 100) for _ in range(3)) # Changed to 100 to include 99
+        logging.debug("%s: %s" % (self.name, self.combination))
+
+    def __str__(self):
+        """
+        Returns a formatted string for the combination, e.g., "Castle: 08-72-49".
+        """
+        return f"{self.name.rjust(8)}: {self.combination[0]:02}-{self.combination[1]:02}-{self.combination[2]:02}"
+
+    @property
+    def has_single_digit(self) -> bool:
+        """
+        A property that checks if any number in the combination is less than 10.
+        Returns True if a single-digit number is found, otherwise False.
+        """
+        # any() is a clean way to check if any item in a sequence is True.
+        # The (num < 10 for num in self.combination) part is a generator expression,
+        # which is a memory-efficient way to perform this check.
+        return any(num < 10 for num in self.combination)
 
 
 class PlayerMoneyTypes(StrEnum):

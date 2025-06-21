@@ -12,7 +12,8 @@ import net_server
 import common
 
 from flags import PlayerFlags
-from characters import Player, Monster
+from characters import Monster
+from player import Player
 from base_classes import PlayerMoneyTypes, Map, compass_txts
 from items import Weapon, Rations, Item
 
@@ -51,11 +52,7 @@ class OldPlayer:
     """
     Attributes, flags and other stuff about characters.
     """
-    name: str  # in-game name
-    id: str  # handle, for Player.connect
-    # TODO: eventually, CommodoreServer Internet Protocol connection ID
-    connection_id: int  # field(default_factory=random_number)
-    # combat stats:
+    # inventory:
     armor: list
     # e.g., should it be its own class with attributes?
     # Armor(object):
@@ -64,11 +61,13 @@ class OldPlayer:
     #  could also define effectiveness, heavier armor absorbs more damage
 
     # same:
+    # @dataclass
     # Shield(object):
-    #     def __init__(name, percent_left, shield_size, ...)
-    # shield: dict
-    # shield_used: bool  # shield item being USEd: True/False
-    # shield_skill: dict  # dict['item': int, 'skill': int]
+    #     name: str
+    #     percent_left: int
+    #     shield_size: Size
+    #     shield_used: bool  # shield item being USEd: True/False
+    #     shield_skill: int
 
     # TODO: weight (iron shield vs. wooden shield will be different),
     #  could also define effectiveness, heavier shields absorb more damage
@@ -78,7 +77,6 @@ class OldPlayer:
     # weapon_skill: dict  # {weapon_item: int, weapon_skill: int}
     # weapon_left: int  # TODO: map this to a rating
 
-    # bad_hombre_rating is calculated from stats, not stored in player log
     honor_rating: int  # helps determine current_alignment
     formal_training: int
     monsters_killed: list[Monster]
@@ -89,7 +87,8 @@ class OldPlayer:
     dead_monsters: list[Monster]  # keeps track of monsters for Zelda in the bar to resurrect
     monster_at_quit: Optional[Monster]
 
-    vinny_loan: dict  # {'amount_payable': int, 'days_til_due': datetime}
+    # class VinneyLoan(self):
+    # dict  # {'amount_due': int, 'days_til_due': datetime}
 
     # inventory
     """
@@ -132,21 +131,20 @@ class PlayerHandler(net_server.UserHandler):
     def login_fail_lines(self):
         return ['Please try again.']
 
-    def room_msg(self, lines: str | list, changes: dict):
+    def room_msg(self, lines: str | list, changes: dict, player: Player):
         """
         Display the room description and contents to the player in the room
 
         :param lines: text to output. each line is an element of a list.
         :param changes: K.Enum (common.py). what has changed and needs to be updated client-side
-            (e.g., if moved to a new room: changes={K.name, K.desc}
-            # FIXME: I'm not sure a dict is the best data structure to use
+            (e.g., if moved to a new room: changes={K.name: room.name, K.desc: room.desc}
         :return: Message object
         """
         # get room # that player is in
         try:
             room = game_map.rooms[player.room]
         except KeyError:
-            logging.warning("room_msg: Room %i does not exist" % player.room)
+            logging.warning("room_msg: Room %i does not exist" % player.map_room)
 
         debug = player.query_flag(PlayerFlags.DEBUG_MODE)
         exits_txt = room.exits_Txt(debug)

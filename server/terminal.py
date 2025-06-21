@@ -6,7 +6,7 @@ import colorama
 from colorama import Fore
 
 # TADA imports
-from characters import Player
+from player import Player
 
 
 class KeyboardKeyName(str, Enum):
