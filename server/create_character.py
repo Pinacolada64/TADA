@@ -1,6 +1,10 @@
-from tada_utilities import header, input_number_range, input_yes_no
-
-from flags import PlayerMoneyTypes, Player, PlayerFlags, PlayerStat, Gender, PlayerClass, PlayerRace
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from player import Player
+    from base_classes import Gender, PlayerClass, PlayerRace, PlayerStat, PlayerMoneyTypes
+    from terminal import Translation
+    from tada_utilities import header, input_number_range, input_yes_no
+    from flags import PlayerFlags
 
 from random import randrange  # for age and generating random stats
 
@@ -26,7 +30,7 @@ Traceback (most recent call last):
 # https://www.dataquest.io/blog/python-datetime-tutorial/
 
 
-def choose_gender(character: Player):
+def choose_gender(character: "Player"):
     """step 1: choose character gender"""
     character.output('Verus squints myopically. "Are you a male or female?"')
     while True:
@@ -39,7 +43,7 @@ def choose_gender(character: Player):
             break
 
 
-def edit_gender(char: Player):
+def edit_gender(char: "Player"):
     """toggle existing character gender"""
     """
     :param char: Player to toggle gender of
@@ -58,7 +62,7 @@ def edit_gender(char: Player):
     char.output(f"{char.name} is now {char.gender}.")
 
 
-def choose_name(char: Player):
+def choose_name(char: "Player"):
     """step 2: choose character name"""
     if char.name:
         # this is repeated, so function:
@@ -69,13 +73,13 @@ def choose_name(char: Player):
         char.name = enter_name(char, edit_mode=False)
 
 
-def edit_name(char: Player):
+def edit_name(char: "Player"):
     """update character name"""
     # 'character' param shadows 'character' from outer scope
     char.name = enter_name(char, edit_mode=True)
 
 
-def enter_name(_char: Player, edit_mode: bool):
+def enter_name(_char: "Player", edit_mode: bool):
     """
     change character name. this can also be called during final player edit menu
 
@@ -84,30 +88,30 @@ def enter_name(_char: Player, edit_mode: bool):
                       False: no name assigned, entering new name
     :return: name: str
     """
-    if edit_mode is True:
-        print(f"({_char.settings.return_key} keeps '{_char.name}.')")
+    if edit_mode:
+        print(f"({_char.client_settings.return_key} keeps '{_char.name}.')")
     # TODO: this should be written as a generic edit prompt
     temp = input("What is your name: ")
     if edit_mode:
         # Return hit, or new string = old string:
-        if temp == "" or temp == _char.name:
+        if temp is None or temp == _char.name:
             _char.output(f"(Keeping the name of '{_char.name}'.)")
     _char.output(f'Verus checks to see if anyone else has heard of "{temp}" around '
-           'here...')
+                 'here...')
     # TODO: check for existing name
-    _ = f'"Seems to be okay." He '
+    _ = ['"Seems to be okay." He ']
     if edit_mode and _char.name != temp:
-        _ += "scratches out your old name and re-writes it"
+        _.append("scratches out your old name and re-writes it")
     else:
-        _ += "scribbles your name"
-    _ += " in a dusty book."
-    _char.output(_)
+        _.append("scribbles your name")
+    _.append("in a dusty book.")
+    _char.output(" ".join(_))
     return temp
 
 
-def choose_client(p: Player):
+def choose_client(p: "Player"):
     """step 0: choose (or update existing) client name and parameters"""
-    logging.info(f"{p.setting.NAME}")
+    logging.info(f"{p.client_settings.NAME}")
 
     options = 3
     # FIXME: this unintentionally wraps text (as it's supposed to) but loses newlines
@@ -116,45 +120,45 @@ def choose_client(p: Player):
     # output() discards newlines, so can't use it here - even literal \n's don't work:
 
     # the width of this string is >40 characters
-    output('"Which kind of client are you using?" Verus asks.')
+    p.output('"Which kind of client are you using?" Verus asks.')
     print()  # must be used in place of \n
-    output("## Client type     Screen size")
-    output("-- --------------- --------------------")
-    output("1. Commodore 64    40 columns x 25 rows")
-    output("2. Commodore 128   80 columns x 25 rows")
-    output("3. TADA client")
+    p.output("## Client type     Screen size")
+    p.output("-- --------------- --------------------")
+    p.output("1. Commodore 64    40 columns x 25 rows")
+    p.output("2. Commodore 128   80 columns x 25 rows")
+    p.output("3. TADA client")
     print()
     temp = input_number_range(prompt="Which client", lo=1, hi=options)
 
     if temp == 1:
-        p.client['name'] = 'Commodore 64'
-        p.client['columns'] = 40
-        p.client['rows'] = 25
-        p.client['translation'] = 'PETSCII'
+        p.client_settings.NAME = 'Commodore 64'
+        p.client_settings.COLUMNS = 40
+        p.client_settings.ROWS = 25
+        p.client_settings.TRANSLATION = Translation.PETSCII
     elif temp == 2:
-        p.client['name'] = 'Commodore 128'
-        p.client['columns'] = 80
-        p.client['rows'] = 25
-        p.client['translation'] = 'PETSCII'
+        p.client_settings.NAME = 'Commodore 128 (80 columns)'
+        p.client_settings.COLUMNS = 80
+        p.client_settings.ROWS = 25
+        p.client_settings.TRANSLATION = Translation.PETSCII
     elif temp == 3:
-        p.client['name'] = 'TADA Client'
-        p.client['columns'] = 80
-        p.client['rows'] = 25
-        p.client['translation'] = "ASCII"
+        p.client_settings.NAME = 'TADA Client'
+        p.client_settings.COLUMNS = 80
+        p.client_settings.ROWS = 25
+        p.client_settings.TRANSLATION = Translation.ASCII
 
     # FIXME: until below code gets fixed, {return_key} will be "Enter"
-    if p.client['translation'] == "PETSCII":
-        p.return_key = "Return"
+    if p.client_settings.TRANSLATION == Translation.PETSCII:
+        p.client_settings.RETURN_KEY = "Return"
     else:
-        p.return_key = "Enter"
-    p.output(f"Client set to: {p.client['name']}")
+        p.client_settings.RETURN_KEY = "Enter"
+    p.output(f"Client set to: {p.client_settings.NAME}")
 
 
-def choose_class(p: Player):
+def choose_class(p: "Player"):
     """step 3a: choose player class"""
     # NOTE: Player object 'class' attribute conflicts with built-in keyword
     # I am naming it 'PlayerClass' instead
-    pc = p.character_class
+    pc = p.char_class
     # just so we don't have to go through every char creation step...
     if p.query_flag(PlayerFlags.DEBUG_MODE):
         shortcut = PlayerClass.FIGHTER
@@ -174,7 +178,7 @@ def choose_class(p: Player):
                     'thief', 'archer', 'assassin', 'knight'][temp - 1]
 
 
-def display_classes(p: Player):
+def display_classes(p: "Player"):
     wizard = 'Wizard' if p.gender == Gender.MALE else 'Witch '
     p.output('"Choose a class," Verus instructs.')
     print()
@@ -184,7 +188,7 @@ def display_classes(p: Player):
     print()
 
 
-def edit_class(p: Player):
+def edit_class(p: "Player"):
     """
     this is called during final_edit() to change the class,
     then validate the resulting class/race combination
@@ -193,7 +197,7 @@ def edit_class(p: Player):
         display_classes(p)
         # TODO: Should be a help function to get help about individual classes.
         # Whether it's called up with "H1" or "1?" is undetermined.
-        pc = input_number_range("Character class: ", default=p.character_class.title(),
+        pc = input_number_range("Character class: ", default=p.char_class.title(),
                                 lo=1, hi=9,
                                 reminder='"Choose a class between 1 and 9,"'
                                          ' suggests Verus.')
@@ -212,15 +216,15 @@ def edit_class(p: Player):
         if valid:
             # class/race combo is good, set class:
             p.player_class = ['wizard' if p.gender == Gender.MALE else 'witch',
-                                      'druid', 'fighter', 'paladin', 'ranger',
-                                      'thief', 'archer', 'assassin', 'knight'][pc - 1]
+                              'druid', 'fighter', 'paladin', 'ranger',
+                              'thief', 'archer', 'assassin', 'knight'][pc - 1]
             # end loop
             break
 
 
-def validate_class_race_combo(p: Player) -> bool:
+def validate_class_race_combo(p: "Player") -> bool:
     """
-    make sure selected class & race combination is allowed
+    make sure the selected class & race combination is allowed
 
     :param p: Player object to validate class and race of
     :return: True if an acceptable combination, False if not
@@ -229,75 +233,84 @@ def validate_class_race_combo(p: Player) -> bool:
     logging.debug("validate_class_race_combo reached")
 
     # list of bad class & race combinations:
-    if p.character_class == PlayerClass.WIZARD:
-        if p.character_race in [PlayerRace.OGRE, PlayerRace.DWARF, PlayerRace.ORC]:
+    if p.char_class == PlayerClass.WIZARD:
+        if p.char_race in [PlayerRace.OGRE, PlayerRace.DWARF, PlayerRace.ORC]:
             bad_combination = True
 
-    elif p.character_class == PlayerClass.DRUID:
-        if p.character_race in [PlayerRace.OGRE, PlayerRace.ORC]:
+    elif p.char_class == PlayerClass.DRUID:
+        if p.char_race in [PlayerRace.OGRE, PlayerRace.ORC]:
             bad_combination = True
 
-    elif p.character_class == PlayerClass.THIEF:
-        if p.character_race == PlayerRace.ELF:
+    elif p.char_class == PlayerClass.THIEF:
+        if p.char_race == PlayerRace.ELF:
             bad_combination = True
 
-    elif p.character_class == PlayerClass.ARCHER:
-        if p.character_race in [PlayerRace.OGRE, PlayerRace.GNOME, PlayerRace.HOBBIT]:
+    elif p.char_class == PlayerClass.ARCHER:
+        if p.char_race in [PlayerRace.OGRE, PlayerRace.GNOME, PlayerRace.HOBBIT]:
             bad_combination = True
 
-    elif p.character_class == PlayerClass.ASSASSIN:
-        if p.character_race in [PlayerRace.GNOME, PlayerRace.ELF, PlayerRace.HOBBIT]:
+    elif p.char_class == PlayerClass.ASSASSIN:
+        if p.char_race in [PlayerRace.GNOME, PlayerRace.ELF, PlayerRace.HOBBIT]:
             bad_combination = True
 
-    elif p.character_class == PlayerClass.KNIGHT:
-        if p.character_race in [PlayerRace.OGRE, PlayerRace.ORC]:
+    elif p.char_class == PlayerClass.KNIGHT:
+        if p.char_race in [PlayerRace.OGRE, PlayerRace.ORC]:
             bad_combination = True
 
-    if bad_combination is True:
-        temp = f'''"{'An ' if p.character_race.startswith(('a', 'e', 'i', 'o', 'u')) else 'A '}'''
-        temp += f'{p.character_race} {p.character_class} does not a good adventurer make. Try again."'
-        output(temp)
+    if bad_combination:
+        temp = f'''"{'An ' if p.char_race.startswith(('a', 'e', 'i', 'o', 'u')) else 'A '}'''
+        temp += f'{p.char_race} {p.char_race} does not a good adventurer make. Try again."'
+        p.output(temp)
     else:
-        output('"Okay, fine with me," agrees Verus.')
+        p.output('"Okay, fine with me," agrees Verus.')
     return bad_combination
 
 
-def choose_race(p: Player):
+def choose_race(p: "Player"):
     """step 3b: choose player race"""
-    pr = p.character_race
+    pr = p.char_race
     # just so we don't have to go through every char creation step...
     if p.query_flag(PlayerFlags.DEBUG_MODE):
         shortcut = PlayerRace.ORC
-        answer = input_yes_no(f"Shortcut setting PR to {shortcut}?")
+        answer = input_yes_no(f"Shortcut setting Player Race to {shortcut}?")
         if answer:
-            p.character_race = shortcut
+            p.char_race = shortcut
             logging.debug("choose_race: Shortcut taken: set character_race: %s" % shortcut)
     while True:
         display_races(p)
         temp = input_number_range(prompt="Race", lo=1, hi=9,
                                   reminder='"Enter a race from 1-9," Verus says.')
         # TODO: help option here ("H1", "1?" or similar, want to avoid reading 9 races as in original
-        p.race = ['human', 'ogre', 'gnome', 'elf', 'hobbit', 'halfling',
-                  'dwarf', 'orc', 'half-elf'][temp - 1]
+        p.char_race = [PlayerRace.HUMAN,
+                       PlayerRace.OGRE,
+                       PlayerRace.GNOME,
+                       PlayerRace.ELF,
+                       PlayerRace.HOBBIT,
+                       PlayerRace.HALF_ELF,  # FIXME: Wrong race
+                       PlayerRace.DWARF,
+                       PlayerRace.ORC,
+                       PlayerRace.HALF_ELF]
+        # 'human', 'ogre', 'gnome', 'elf', 'hobbit', 'halfling',
+        #          'dwarf', 'orc', 'half-elf'][temp - 1]
         valid = validate_class_race_combo(p)
         if valid:
             break
 
 
-def display_races(p: Player):
-    output('"Choose a race," Verus instructs.')
+def display_races(p: "Player"):
+    p.output('"Choose a race," Verus instructs.')
     print()
-    output("(1) Human    (4) Elf      (7) Dwarf")
-    output("(2) Ogre     (5) Hobbit   (8) Orc")
-    output("(3) Gnome    (6) Halfling (9) Half-Elf")
+    p.output("(1) Human    (4) Elf      (7) Dwarf")
+    p.output("(2) Ogre     (5) Hobbit   (8) Orc")
+    p.output("(3) Gnome    (6) Halfling (9) Half-Elf")
     print()
     # TODO: Should be a help function to get help about individual races.
     #  Whether it's called up with "H1" or "1?" is undetermined.
 
 
-def edit_race(p: Player) -> None:
+def edit_race(p: "Player") -> None:
     race_valid = False
-    while race_valid is False:
+    while not race_valid:
         display_races(p)
         if p.race:
             temp = input_number_range("Race", 1, 9, p,
@@ -315,15 +328,15 @@ def edit_race(p: Player) -> None:
         # temp = int(temp)
         # valid = 1 < temp < 9
         # if valid:
-        p.race = ['human' 'ogre', 'gnome', 'elf', 'hobbit', 'halfling',
+        p.race = ['human', 'ogre', 'gnome', 'elf', 'hobbit', 'halfling',
                   'dwarf', 'orc', 'half-elf'][temp - 1]
         race_valid = validate_class_race_combo(p)
-        if race_valid is False:
-            output('"Try picking a different race," Verus suggests.')
+        if not race_valid:
+            p.output('"Try picking a different race," Verus suggests.')
     return None
 
 
-def choose_age(p: Player):
+def choose_age(p: "Player"):
     """
     step 4: allow player to select age and birthday
 
@@ -332,15 +345,15 @@ def choose_age(p: Player):
     age_valid = False
     temp_age = 0
     while age_valid is False:
-        output('Enter [0] to be of an unknown age.')
-        output('Enter [R] to select a random age between 15-50.')
+        p.output('Enter [0] to be of an unknown age.')
+        p.output('Enter [R] to select a random age between 15-50.')
         print()
         temp_age = input("Enter your age (0, R or 15-50): ")
         if temp_age.lower() == 'r':
             temp_age = randrange(15, 50)
             break
         if temp_age.isalpha():
-            output('Verus tsks. "Please enter a number."')
+            p.output('Verus tsks. "Please enter a number."')
         temp_age = int(temp_age)
         if temp_age == 0:
             """
@@ -355,26 +368,26 @@ def choose_age(p: Player):
 
         age_valid = validate_age(temp_age, p)
         if age_valid is False:
-            output('"Try again," suggests Verus.')
+            p.output('"Try again," suggests Verus.')
 
     temp = 'of an unknown' if temp_age == 0 else f'{temp_age} years of'
-    output(f'Verus studies you, and comments: "You\'re {temp} age."')
+    p.output(f'Verus studies you, and comments: "You\'re {temp} age."')
     p.age = temp_age
 
     # year = today.year - p.age FIXME: (if =0, what then?)
     _month = date.today().month
     _day = date.today().day
     _year = date.today().year
-    output(f'"Which would you like your birthday to be?" asks Verus.')
+    p.output(f'"Which would you like your birthday to be?" asks Verus.')
     print()
-    output(f"[T]oday ({_month}/{_day})")
-    output("[A]nother date (choose month and day)")
+    p.output(f"[T]oday ({_month}/{_day})")
+    p.output("[A]nother date (choose month and day)")
     print()
     temp = input("Which [T, A]: ").lower()
     if temp == 't':
-        # store as tuple:
-        p.birthday = (_month, _day, _year)
-        output(f'Set to today: {_month}/{_day}.')
+        # store as datetime:
+        p.birthday = datetime(_month, _day, _year)
+        p.output(f'Set to today: {_month}/{_day}.')
         print()
     if temp == 'a':
         # year is calculated for leap year in monthrange() below, and displaying later
@@ -388,8 +401,8 @@ def choose_age(p: Player):
 
         # store birthday as tuple: birthday[0] = month, [1] = day, [2] = year
         # store year anyway in case age = 0
-        p.birthday = (_month, _day, _year)
-        output(f"Birthday: {_month}/{_day}/{_year}")
+        p.birthday = datetime(_month, _day, _year)
+        p.output(f"Birthday: {_month}/{_day}/{_year}")
 
 
 # def validate_range(word, start, end, p=None):
@@ -410,7 +423,7 @@ def choose_age(p: Player):
 #         output("No, try again.", p)
 
 
-def validate_age(age: int, p: Player):
+def validate_age(age: int, p: "Player"):
     """
     validate that the age == 0, or 15 < age < 50
     :param p: Player to output message to
@@ -418,41 +431,42 @@ def validate_age(age: int, p: Player):
     :return: True if age == 0, or 15 < age 50, False if not
     """
     if age == 0:
-        output("You're of an unknown age.")
+        p.output("You're of an unknown age.")
         return True
-    if age < 15:
-        output('"Oh, come off it! You\'re not even old enough to handle a '
-               'Staff yet."')
+    elif age < 15:
+        p.output('"Oh, come off it! You\'re not even old enough to handle a '
+                 'Staff yet."')
         return False
-    if age > 50:
-        output('"Hmm, we seem to be out of Senior Adventurer life '
-               'insurance policies right now. Come back tomorrow!"')
+    elif age > 50:
+        p.output('"Hmm, we seem to be out of Senior Adventurer life '
+                 'insurance policies right now. Come back tomorrow!"')
         return False
+    return None
 
 
-def final_edit(p: Player):
+def final_edit(p: "Player"):
     """allow player another chance to view/edit characteristics before saving"""
-    output(f"Your Summary:")
+    p.output(f"Your Summary:")
     options = 5
     while True:
         print()
-        output(f'1.    Name: {p.name}')
-        output(f'2.  Gender: {p.gender}')
-        output(f'3.   Class: {p.character_class}')
-        output(f'4.    Race: {p.character_race}')
+        p.output(f'1.    Name: {p.name}')
+        p.output(f'2.  Gender: {p.gender}')
+        p.output(f'3.   Class: {p.char_class}')
+        p.output(f'4.    Race: {p.char_race}')
         # FIXME: this needs work
         age = p.birthday.year - datetime.year
         if age == 0:
             temp = "Unknown"
         else:
             temp = f"{age} years old"
-        output(f'5.     Age: {temp}')
+        p.output(f'5.     Age: {temp}')
         # TODO: date format setting in player profile (YYYY-MM-DD or DD-MM-YYYY, mainly)
-        output(f'  Birthday: {p.birthday.month}/{p.birthday.day}/'
-               f'{p.birthday.year}')
+        p.output(f'  Birthday: {p.birthday.month}/{p.birthday.day}/'
+                 f'{p.birthday.year}')
         print()
 
-        temp = input(f"Option [1-{options}, {return_key}=Done]: ")
+        temp = input(f"Option [1-{options}, {p.client_settings.RETURN_KEY}=Done]: ")
         print()
         if temp == '1':
             edit_name(p)
@@ -468,22 +482,22 @@ def final_edit(p: Player):
             break
 
 
-def choose_guild(p: Player):
+def choose_guild(p: "Player"):
     valid_guild = False
-    while valid_guild is False:
-        output('"Would you like to join a Guild?" asks Verus.')
+    while not valid_guild:
+        p.output('"Would you like to join a Guild?" asks Verus.')
         print()
-        output("    No, stay a [C]ivilian.")
+        p.output("    No, stay a [C]ivilian.")
         print()
-        output("""
+        p.output("""
         
     * You are safe from dueling by all but Outlaws.
     * You may only duel Outlaws.
     * You may remain in the Shoppe while you sleep.
 """)
-        output("    No, become an [O]utlaw")
-        output("   Yes, join a [G]uild")
-        output("""
+        p.output("    No, become an [O]utlaw")
+        p.output("   Yes, join a [G]uild")
+        p.output("""
     * You may seek refuge in your Guild headquarters,
       donating or taking items which other members have
       made available to you in your time of need.""")
@@ -494,29 +508,29 @@ def choose_guild(p: Player):
             guilds = {'c': 'civilian', 'o': 'outlaw'}
             p.guild = guilds[temp]
             _ = guilds[temp].title()
-            output(f'"You have chosen to be a {_}."')
+            p.output(f'"You have chosen to be a {_}."')
             valid_guild = True
             break
         if temp == 'g':
             while True:
                 """Indicate if you wish to join a Clan:
 
-        1) Join Mark of the Claw \|/
-        2) Join Mark of the Sword -}----
-        3) Join The Iron Fist ==[]
+        1) Join Mark of the Claw    \|/
+        2) Join Mark of the Sword   -}----
+        3) Join The Iron Fist       ==[]
         4) Become a Civilian. You are safe
            from dueling from all but Out-
            laws. You may only duel Outlaws.
            You may remain in the Shoppe while you sleep.
         5) Become an Outlaw."""
 
-                output('"Which guild would you like to join?" asks Verus expectantly.')
+                p.output('"Which guild would you like to join?" asks Verus expectantly.')
                 print()
-                output("Join the Iron [F]ist ==[]")
-                output("Join Mark of the [S]word =}----")
-                output("Join Mark of the [C]law \|/")
+                p.output("Join the Iron [F]ist ==[]")
+                p.output("Join Mark of the [S]word =}----")
+                p.output("Join Mark of the [C]law \|/")
                 print()
-                output("[N]one - changed my mind")
+                p.output("[N]one - changed my mind")
                 print()
                 temp = input("Which option [F, S, C, N]: ").lower()[0:1]
                 print()
@@ -524,19 +538,19 @@ def choose_guild(p: Player):
                     guilds = {'f': 'fist', 's': 'sword', 'c': 'claw'}
                     p.guild = guilds[temp]
                     _ = guilds[temp].title()
-                    output(f'"You have chosen the {_} guild."')
+                    p.output(f'"You have chosen the {_} guild."')
                     valid_guild = True
                     break
                 # N goes back to choose_guild()
                 if temp == 'n':
-                    output("Withdrawing guild choice.")
+                    p.output("Withdrawing guild choice.")
                     valid_guild = False
 
 
-def roll_stats(p: Player):
+def roll_stats(p: "Player"):
     roll_number = 0
     chances = 5
-    output(f"You will have {chances} chances to roll for {p.name}'s attributes.")
+    p.output(f"You will have {chances} chances to roll for {p.name}'s attributes.")
     while roll_number < chances:
         roll_number += 1
         print(f"Throw {roll_number} of {chances} - Rolling...", end='')
@@ -576,24 +590,25 @@ def roll_stats(p: Player):
         print(f"Armor.........: {f'{temp}%' if temp else 'None'}")
         print()
         temp = input_yes_no("Do you accept")  # returns True if 'yes'
-        if temp is True:
+        if temp:
             break
 
     if roll_number == chances:
-        output('"Sorry, you\'re stuck with these scores," Verus says.')
+        p.output('"Sorry, you\'re stuck with these scores," Verus says.')
 
 
 def getnum():
     """ACOS code:
 getnum
- zz$=rnd$:a=0   # rnd$ = random character
+ zz$=rnd$:a=0  # rnd$ = random character
 getnum1
  print ".";
  b=asc(rnd$)-64:if b>17 then b=b-7
  if b=>11 return
  a=a+1:if a<10 then zz$=rnd$:goto getnum1
  b=b+9:if b<11 goto getnum1
- return"""
+ return
+ """
     a = 0  # loop counter
     b = 0  # value returned
     while a < 10:
@@ -617,7 +632,7 @@ getnum1
     return b
 
 
-def class_bonuses(p: Player):
+def class_bonuses(p: "Player"):
     """
     adjust stats of Player p, based on player class
 
@@ -642,46 +657,47 @@ def class_bonuses(p: Player):
     }
     logging.debug('class_bonuses: Apply class bonuses: {adj=}')
     # Get bonus list based on player class
-    bonus_list = class_bonuses.get(p.character_class)
+    bonus_list = class_bonuses.get(p.char_class)
 
     if bonus_list:
         logging.debug("class_race_bonuses: Apply class bonuses: %s" % bonus_list)
         apply_bonuses(bonus_list, p)
     else:
-        logging.warning(f'class_race_bonuses: Unknown class {p.character_class}')
+        logging.warning(f'class_race_bonuses: Unknown class {p.char_class}')
 
-    def calculate_race_bonuses(p: Player):
-        pr = p.character_race
-        # if p.flags['debug']:
+def calculate_race_bonuses(p: "Player"):
+    pr = p.char_race
+    if p.query_flag(PlayerFlags.DEBUG_MODE):
         # just so we don't have to go through every char creation step...
+        p.output("fixme")
         # TODO: prompt using display_classes()
-        # pr = 'human'
-        # logging.info(f'Shortcut: set {pr=}')
+        pr = PlayerRace.HUMAN
+        logging.info(f'Shortcut: set {pr=}')
 
-        # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc     Half-Elf
-        # TODO: add Elf bow ability bonus
-        # these lists are all the same length because they loop through all
-        # player attributes and add or subtract the number in that position.
-        # if 0, the attribute is not modified.
-        # NOTE: compared to t.np, stat 4 (Ego) has been removed from these lists
-        #     chr con dex int str wis egy
-        race_bonuses = {PlayerRace.HUMAN: [0, +1, +2, +2, -1, 0, 0],  # race 1
-                        PlayerRace.OGRE: [0, +2, -1, -2, +3, -1, 0],  # race 2
-                        PlayerRace.PIXIE: [0, 0, -1, 0, +1, +1, 0],  # race 3
-                        PlayerRace.ELF: [0, -1, +2, +1, 0, +2, 0],  # race 4
-                        PlayerRace.HOBBIT: [0, 0, +1, +2, -1, 0, +1],  # race 5
-                        # FIXME: Gnome bonuses same as Human?:
-                        PlayerRace.GNOME: [0, +1, +2, +2, -1, 0, 0], # race 6
-                        PlayerRace.DWARF: [0, +1, -1, 0, +2, 0, 0],  # race 7
-                        PlayerRace.ORC: [0, 0, +1, -1, +2, -1, +2],  # race 8
-                        PlayerRace.HALF_ELF: [0, 0, +1, 0, 0, +1, 0],  # race 9
-                        }
+    # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc     Half-Elf
+    # TODO: add Elf bow ability bonus
+    # these lists are all the same length because they loop through all
+    # player attributes and add or subtract the number in that position.
+    # if 0, the attribute is not modified.
+    # NOTE: compared to t.np, stat 4 (Ego) has been removed from these lists
+    #     order of elements is: chr con dex int str wis egy
+    race_bonuses = {PlayerRace.HUMAN: [0, +1, +2, +2, -1, 0, 0],  # race 1
+                    PlayerRace.OGRE: [0, +2, -1, -2, +3, -1, 0],  # race 2
+                    PlayerRace.PIXIE: [0, 0, -1, 0, +1, +1, 0],  # race 3
+                    PlayerRace.ELF: [0, -1, +2, +1, 0, +2, 0],  # race 4
+                    PlayerRace.HOBBIT: [0, 0, +1, +2, -1, 0, +1],  # race 5
+                    # FIXME: Gnome bonuses same as Human?:
+                    PlayerRace.GNOME: [0, +1, +2, +2, -1, 0, 0],  # race 6
+                    PlayerRace.DWARF: [0, +1, -1, 0, +2, 0, 0],  # race 7
+                    PlayerRace.ORC: [0, 0, +1, -1, +2, -1, +2],  # race 8
+                    PlayerRace.HALF_ELF: [0, 0, +1, 0, 0, +1, 0],  # race 9
+                    }
+    adj = race_bonuses[p.char_race]
+    logging.info(f'Apply race bonuses: {adj=}')
+    apply_bonuses(adj, p)
 
-        logging.info(f'Apply race bonuses: {adj=}')
-        apply_bonuses(adj, p)
 
-
-def apply_bonuses(adj: list, p: Player):
+def apply_bonuses(adj: list, p: "Player"):
     """
     loop through stats, adjusting each based on p class & race bonuses & penalties
 
@@ -717,65 +733,77 @@ def apply_bonuses(adj: list, p: Player):
         logging.info("apply_bonuses: k=%i, before=%i, after=%i, maximum=%i" %
                      (k, before, after, maximum))
 
-    if __name__ == '__main__':
-        # init logging
-        logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')
-        logging.info("Logging is running")
+def main(player: "Player") -> "Player":
+    from flags import PlayerFlags
+    from base_classes import PlayerMoneyTypes
+    from tada_utilities import header
+    # test of using code from create_character from new_player_2.py
+    # FIXME: initially, we wouldn't know which Player object to output it to (hasn't been created yet)
+    #  so use IP address?  will use standard print() here until Player object is established
+    logging.debug("In main")
 
-        # FIXME: initially, we wouldn't know which Player object to output it to (hasn't been created yet)
-        #  so use IP address?  will use standard print() here until Player object is established
+    player.connection_id = 1
+    # these are enabled for debugging info:
+    player.set_flag(PlayerFlags.DUNGEON_MASTER)  # True
+    player.set_flag(PlayerFlags.DEBUG_MODE)  # True
+    player.clear_flag(PlayerFlags.EXPERT_MODE)  # False
 
-        character = Player()
-        character.client_settings.RETURN_KEY = "Enter"
+    player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 200)
+    player.set_silver_absolute(PlayerMoneyTypes.IN_BANK, 0)
 
-        character.connection_id = 1
-        # these are enabled for debugging info:
-        character.set_flag(PlayerFlags.DUNGEON_MASTER)  # True
-        character.set_flag(PlayerFlags.DEBUG_MODE)  # True
-        character.clear_flag(PlayerFlags.EXPERT_MODE)  # False
+    # TODO: preserve this money after character death somehow (save in a different file?)
+    player.set_silver_absolute(PlayerMoneyTypes.IN_BAR, 0)
 
-        character.adjust_silver_relative(PlayerMoneyTypes.IN_HAND, 200)
-        character.adjust_silver_relative(PlayerMoneyTypes.IN_BANK, 0)
+    player.client_settings.RETURN_KEY = "Enter"
 
-        # TODO: preserve this money after character death somehow (save in a different file?)
-        character.adjust_silver_relative(PlayerMoneyTypes.IN_BAR, 0)
+    header("Introduction")
+    player.output("Your faithful servant Verus appears at your side, as if by magic.")
+    player.output('Verus mentions, "Do not worry if ye answer wrong, ye can change thy answer later."')
 
-        # FIXME: logging.debug("__main__: client columns: %i" % character.ClientSettingsNames.COLUMNS)
+    header("0. Choose Client")
+    choose_client(player)  # TODO: net_server handles this
 
-        header("Introduction")
-        output("Your faithful servant Verus appears at your side, as if by magic.")
-        output('Verus mentions, "Do not worry if ye answer wrong, ye can change thy answer later."')
+    header("I. Choose Gender")
+    choose_gender(player)
 
-        header("0. Choose Client")
-        choose_client(character)  # TODO: net_server handles this
+    header("II. Choose Name")
+    choose_name(player)
 
-        header("I. Choose Gender")
-        choose_gender(character)
+    header("III. Choose Class")
+    choose_class(player)
 
-        header("II. Choose Name")
-        choose_name(character)
+    header("IV. Choose Race")
+    choose_race(player)
 
-        header("III. Choose Class")
-        choose_class(character)
+    header("V. Choose Age")
+    choose_age(player)
 
-        header("IV. Choose Race")
-        choose_race(character)
+    header("VI. Final Edit")
+    final_edit(player)
 
-        header("V. Choose Age")
-        choose_age(character)
+    header("Choose Guild")
+    choose_guild(player)
 
-        header("VI. Final Edit")
-        final_edit(character)
+    header("Roll Statistics")
+    roll_stats(player)
 
-        header("Choose Guild")
-        choose_guild(character)
+    header("Done!")
 
-        header("Roll Statistics")
-        roll_stats(character)
+    # FIXME: logging.debug("__main__: client columns: %i" % character.ClientSettingsNames.COLUMNS)
+    return player
 
-        header("Done!")
-        print()
-        logging.debug("Final stats: %s" % character)
-        # can't use output() because of \n's
-        # FIXME
-        # print(character)
+if __name__ == '__main__':
+    # Configure logging
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(levelname)10s | %(funcName)15s() | %(message)s')
+    logging.info("Logging is running")
+
+    import player
+    rulan_settings = player.set_up_rulan()
+    # expects dict:
+    rulan = player.Player(**rulan_settings)
+    main(rulan)
+    print()
+    logging.debug("Final stats: %s" % rulan)
+    # can't use output() because of \n's
+    # FIXME: print(character).__str__() method

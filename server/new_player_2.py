@@ -6,13 +6,15 @@ from enum import Enum, auto, StrEnum, IntEnum
 import textwrap
 import doctest
 
-# from player import Player
+import create_character
+import terminal
 from flags import Flag, new_player_default_flags
 from base_classes import Combination, CombinationTypes
 from base_variables import STAT_DATA
 
 
 class Translation(Enum):
+    ASCII = auto()
     COMMODORE = auto()
     ANSI = auto()
 
@@ -202,7 +204,7 @@ class Player(object):
             logging.info("Silver in hand: %i" % silver_in_hand)
 
         # client settings - set up some defaults
-        self.client = kwargs.get('client', Client())
+        self.client_settings = kwargs.get('client_settings', terminal.ClientSettings())
 
         self.times_played = kwargs.get('times_played')
         self.last_play_date = kwargs.get('last_play_date')  # like birthday
@@ -299,7 +301,6 @@ class Player(object):
         :param adj: adjustment (+x or -x)
         :return: stat, maybe also 'success': True if 0 > stat > <limit>
 
-        TODO: example for doctest:
         >>> rulan = Player(**set_up_rulan())
 
         >>> rulan.adjust_stat(PlayerStat.STR, -5)  # decrement Rulan's strength by 5
@@ -341,7 +342,7 @@ class Player(object):
             logging.info("Player stat %s does not exist" % stat)
             return False
 
-    def get_stat(self, stat: PlayerStat):
+    def get_stat(self, stat: "PlayerStat"):
         """
         if `stat` is str: return value of single stat as str: 'stat'
         if `stat` is list: return dict of stats: {PlayerStat.STR: 20, PlayerStat.WIS: 10, ...}
@@ -447,7 +448,7 @@ class Player(object):
         >>> rulan = Player(**set_up_rulan())
 
         >>> rulan.show_silver(PlayerMoneyTypes.IN_HAND)
-        "Silver in hand: 1,000"
+        "Silver In hand: 1,000"
         """
         try:
             amount = self.silver[kind]
@@ -520,7 +521,7 @@ class Player(object):
     def query_flag(self, flag: PlayerFlag):
         pass
 
-    def set_silver(self, IN_HAND, silver_amount):
+    def set_silver(self, kind: PlayerMoneyTypes, silver_amount: int):
         pass
 
 
@@ -545,8 +546,8 @@ if __name__ == '__main__':
         print(f"Set silver in hand to {silver_amount}.")
     if rulan.times_played is None:
         print("This is a new player.")
-    print(rulan)
-    print(rulan.client)
+    # print(rulan)
+    print(rulan.client_settings)
 
     # Statistic adjusting tests:
     # 1. Create a player instance
@@ -576,3 +577,6 @@ if __name__ == '__main__':
     print(rulan.show_silver(PlayerMoneyTypes.IN_HAND))
 
     rulan.print_all_stats()
+
+    logging.info("Running create_character")
+    create_character.main(rulan)

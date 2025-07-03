@@ -5,10 +5,6 @@ from enum import Enum, auto
 import colorama
 from colorama import Fore
 
-# TADA imports
-from player import Player
-
-
 class KeyboardKeyName(str, Enum):
     RETURN = "Return"
     ENTER = "Enter"
@@ -88,10 +84,10 @@ class ClientSettings(Enum):
     STOP_UNDERLINE = auto()
 
 
-class Translation(str, Enum):
-    PETSCII = "PetSCII"
-    ASCII = "ASCII"
-    ANSI = "ANSI"
+class Translation(Enum):
+    PETSCII = auto()
+    ASCII = auto()
+    ANSI = auto()
 
 
 @dataclass
@@ -117,6 +113,7 @@ if __name__ == '__main__':
     # Initialize colorama
     colorama.init()
 
+    from player import Player
     player = Player()
     player.colors = ANSIColors
 

@@ -2,12 +2,13 @@ import doctest
 import logging
 import random
 
-import net_server  # for promptRequest and Message
-from net_server import Message
-from player import Player
-from flags import PlayerFlags
-from user_settings import Translation
-
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from player import Player
+    import net_server  # for promptRequest and Message
+    from net_server import Message
+    from flags import PlayerFlags
+    from user_settings import Translation
 """
 utilities such as:
 * grammatically correct list output
@@ -76,6 +77,7 @@ def list_players_in_room(player_list: str | list):
     pass
 
 def header(text: str):
+    from server import Message
     """
     Show `text` passed, a newline, and a line the length of `text`
     e.g.,
@@ -94,7 +96,7 @@ def header(text: str):
     return Message(lines=[line])
 
 
-def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, default=None):
+def input_number_range(prompt: str, lo: int, hi: int, p: "Player", reminder=None, default=None):
     """Display input 'prompt', accept numbers lo < value < hi
     e.g.
     "'prompt' ['lo'-'hi']: "
@@ -110,11 +112,11 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, d
         p.output(f"{p.client_settings.RETURN_KEY} keeps '{default}'.")
     while True:
         temp = input(f"{prompt} [{lo}-{hi}]: ")
-        # just hitting Return keeps original number
+        # just hitting Return keeps the original number
         if temp.isalpha():
             p.output("Numbers only, please.")
         if default is not None and not temp:
-            if p.query_flag(PlayerFlags.EXPERT_MODE) is False:
+            if not p.query_flag(PlayerFlags.EXPERT_MODE):
                 p.output(f"(Keeping '{default}'.)")
             return default
         else:
@@ -125,7 +127,7 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, d
                 p.output(string=reminder)
 
 
-def input_string(prompt: str, default: bool, player: Player, reminder="Please enter something."):
+def input_string(prompt: str, default: bool, player: "Player", reminder="Please enter something."):
     """input 'prompt', accept numbers lo < value < hi
     e.g.:
     [Return] keeps 'Druid.'  # if expert mode off
@@ -139,10 +141,10 @@ def input_string(prompt: str, default: bool, player: Player, reminder="Please en
     :param reminder: what to display if edit_mode is False and null string entered
     """
     if default and player.query_flag(PlayerFlags.EXPERT_MODE) is False:
-        player.output(f"{player.terminal_settings.return_key} keeps '{default}.'")
+        player.output(f"{player.client_settings.return_key} keeps '{default}.'")
     while True:
         temp = input(f"{prompt}: ")
-        # just hitting Return keeps original string
+        # just hitting Return keeps the original string
         if default and (not temp or temp == default):
             if player.query_flag(PlayerFlags.EXPERT_MODE):
                 player.output(f"(Keeping '{default}'.)")
@@ -167,7 +169,7 @@ def input_yes_no(prompt: str) -> bool:
             return False
 
 
-def fileread(self, filename: str, player: Player):
+def fileread(self, filename: str, player: "Player"):
     """
     display a file to a user in 40 or 80 columns with more_prompt paging
     also handles highlighting [text in brackets] via re and colorama
@@ -188,10 +190,10 @@ def fileread(self, filename: str, player: Player):
     with open(f'{file_handle}', newline='\n') as file:
         try:
             reading = True
-            while reading is True:
+            while reading:
                 line = file.readline().rstrip('\n')
                 # comment lines in the file are skipped:
-                if line.startswith('#') is False:
+                if not line.startswith('#'):
                     if line == '':
                         reading = False  # EOF
                     # FIXME: how to output data to user without using 'return Message(lines=[])'?
@@ -238,7 +240,7 @@ def game_help(self, arg: list):
     # function name 'help' shadows built-in name
     logging.info(f'game_help: {arg=}')
     if len(arg) == 0:
-        fileread(self, filename="main-menu")
+        fileread(self, filename="main-menu", player=player)
         return None
     else:
         try:
@@ -258,6 +260,7 @@ def make_random_id() -> int:
 
 
 if __name__ == '__main__':
+    from player import Player
     # set up logging level (this level or higher will output to console):
     logging.basicConfig(format='%(levelname)10s | %(funcName)20s() | %(message)s',
                         level=logging.DEBUG)
