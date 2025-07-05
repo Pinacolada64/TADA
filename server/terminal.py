@@ -61,33 +61,33 @@ class CBMColors(Enum):
     RESET = MEDIUM_GRAY
 
 
-@dataclass
-class ClientSettings(Enum):
-    # client (i.e., Python, C64, C128...?)
-    CLIENT = auto()
-    # screen dimensions:
-    SCREEN_ROWS = auto()
-    SCREEN_COLUMNS = auto()
-    # translation: None | ASCII | ANSI | Commodore
-    TRANSLATION = auto()
-    # colors for [bracket reader] text highlighting on C64/128:
-    # ColorName (e.g., Blue, Brown, Cyan, etc.) or ColorNumber?
-    TEXT_COLOR = auto()
-    HIGHLIGHT_COLOR = auto()
-    BACKGROUND_COLOR = auto()
-    BORDER_COLOR = auto()
-    # whether the keyboard has a Return or Enter key:
-    RETURN_KEY = auto()
-    # graphics tricks:
-    HAS_COLOR = auto()
-    START_UNDERLINE = auto()
-    STOP_UNDERLINE = auto()
-
-
 class Translation(Enum):
     PETSCII = auto()
     ASCII = auto()
     ANSI = auto()
+
+
+@dataclass
+class ClientSettings:
+    # client (i.e., Python, C64, C128...?)
+    client: str = "Generic Client"
+    # screen dimensions:
+    screen_rows: int = 40
+    screen_columns: int = 25
+    # translation: None | ASCII | ANSI | Commodore
+    translation: Translation = Translation.ANSI
+    # colors for [bracket reader] text highlighting on C64/128:
+    # ColorName (e.g., Blue, Brown, Cyan, etc.) or ColorNumber?
+    text_color: int = 1
+    highlight_color: str = ""
+    background_color: str = ""
+    border_color: str = ""
+    # whether the keyboard has a Return or Enter key:
+    return_key: KeyboardKeyName = KeyboardKeyName.ENTER
+    # graphics tricks:
+    has_color: bool = True
+    start_underline: str = ""
+    stop_underline: str = ""
 
 
 @dataclass

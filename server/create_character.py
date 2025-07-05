@@ -32,6 +32,7 @@ Traceback (most recent call last):
 
 def choose_gender(character: "Player"):
     """step 1: choose character gender"""
+    from base_classes import Gender
     character.output('Verus squints myopically. "Are you a male or female?"')
     while True:
         temp = input("Enter [M]ale or [F]emale: ").lower()
@@ -111,7 +112,9 @@ def enter_name(_char: "Player", edit_mode: bool):
 
 def choose_client(p: "Player"):
     """step 0: choose (or update existing) client name and parameters"""
-    logging.info(f"{p.client_settings.NAME}")
+    from tada_utilities import input_number_range
+    from terminal import Translation
+    logging.info("Client: %s" % p.client_settings.client)
 
     options = 3
     # FIXME: this unintentionally wraps text (as it's supposed to) but loses newlines
@@ -128,47 +131,51 @@ def choose_client(p: "Player"):
     p.output("2. Commodore 128   80 columns x 25 rows")
     p.output("3. TADA client")
     print()
-    temp = input_number_range(prompt="Which client", lo=1, hi=options)
+    temp = input_number_range(prompt="Which client", p=p, lo=1, hi=options)
 
     if temp == 1:
-        p.client_settings.NAME = 'Commodore 64'
-        p.client_settings.COLUMNS = 40
-        p.client_settings.ROWS = 25
-        p.client_settings.TRANSLATION = Translation.PETSCII
+        p.client_settings.client = 'Commodore 64'
+        p.client_settings.screen_columns = 40
+        p.client_settings.screen_rows = 25
+        p.client_settings.translation = Translation.PETSCII
     elif temp == 2:
-        p.client_settings.NAME = 'Commodore 128 (80 columns)'
-        p.client_settings.COLUMNS = 80
-        p.client_settings.ROWS = 25
-        p.client_settings.TRANSLATION = Translation.PETSCII
+        p.client_settings.client = 'Commodore 128 (80 columns)'
+        p.client_settings.screen_columns = 80
+        p.client_settings.screen_rows = 25
+        p.client_settings.translation = Translation.PETSCII
     elif temp == 3:
-        p.client_settings.NAME = 'TADA Client'
-        p.client_settings.COLUMNS = 80
-        p.client_settings.ROWS = 25
-        p.client_settings.TRANSLATION = Translation.ASCII
+        p.client_settings.client = 'TADA Client'
+        p.client_settings.screen_columns = 80
+        p.client_settings.screen_rows = 25
+        p.client_settings.translation = Translation.ASCII
 
     # FIXME: until below code gets fixed, {return_key} will be "Enter"
-    if p.client_settings.TRANSLATION == Translation.PETSCII:
-        p.client_settings.RETURN_KEY = "Return"
+    if p.client_settings.translation == Translation.PETSCII:
+        p.client_settings.return_key = "Return"
     else:
-        p.client_settings.RETURN_KEY = "Enter"
-    p.output(f"Client set to: {p.client_settings.NAME}")
+        p.client_settings.return_key = "Enter"
+    p.output(f"Client set to: {p.client_settings.client}")
 
 
 def choose_class(p: "Player"):
     """step 3a: choose player class"""
     # NOTE: Player object 'class' attribute conflicts with built-in keyword
     # I am naming it 'PlayerClass' instead
+    from flags import PlayerFlags
+    from base_classes import PlayerClass
+    from tada_utilities import input_yes_no, input_number_range
     pc = p.char_class
     # just so we don't have to go through every char creation step...
     if p.query_flag(PlayerFlags.DEBUG_MODE):
         shortcut = PlayerClass.FIGHTER
-        answer = input_yes_no(f"Debug mode: Shortcut setting PC to {shortcut}?")
+        answer = input_yes_no(f"Debug mode: Shortcut setting Player Class to '{shortcut}'")
         if answer:
             pc = shortcut
-            logging.debug("choose_class: Shortcut taken: set character_class: %s" % shortcut)
+            logging.info("Shortcut taken: set character_class: %s" % shortcut)
+            p.char_class = pc
             return
     display_classes(p)
-    temp = input_number_range("Class", lo=1, hi=9,
+    temp = input_number_range("Class", 1, 9, p,
                               reminder='"Choose a class between 1 and 9," suggests Verus.')
     # was previously using 'temp = int(input(...))' but you can't cast a str -> int
     logging.info(f"{temp=}")
@@ -179,6 +186,8 @@ def choose_class(p: "Player"):
 
 
 def display_classes(p: "Player"):
+    from base_classes import Gender
+    # TODO: make this a __str__() method?
     wizard = 'Wizard' if p.gender == Gender.MALE else 'Witch '
     p.output('"Choose a class," Verus instructs.')
     print()
@@ -268,33 +277,40 @@ def validate_class_race_combo(p: "Player") -> bool:
 
 def choose_race(p: "Player"):
     """step 3b: choose player race"""
+    from base_classes import PlayerRace
+    from flags import PlayerFlags
+    from tada_utilities import input_yes_no, input_number_range
     pr = p.char_race
     # just so we don't have to go through every char creation step...
     if p.query_flag(PlayerFlags.DEBUG_MODE):
         shortcut = PlayerRace.ORC
-        answer = input_yes_no(f"Shortcut setting Player Race to {shortcut}?")
+        answer = input_yes_no(f"Shortcut setting Player Race to '{shortcut}'?")
         if answer:
             p.char_race = shortcut
-            logging.debug("choose_race: Shortcut taken: set character_race: %s" % shortcut)
-    while True:
-        display_races(p)
-        temp = input_number_range(prompt="Race", lo=1, hi=9,
-                                  reminder='"Enter a race from 1-9," Verus says.')
-        # TODO: help option here ("H1", "1?" or similar, want to avoid reading 9 races as in original
-        p.char_race = [PlayerRace.HUMAN,
-                       PlayerRace.OGRE,
-                       PlayerRace.GNOME,
-                       PlayerRace.ELF,
-                       PlayerRace.HOBBIT,
-                       PlayerRace.HALF_ELF,  # FIXME: Wrong race
-                       PlayerRace.DWARF,
-                       PlayerRace.ORC,
-                       PlayerRace.HALF_ELF]
+            logging.debug("Shortcut taken: set PlayerRace to '%s'" % shortcut)
+    else:
+        while True:
+            display_races(p)
+            temp = input_number_range(prompt="Race", lo=1, hi=9, p=p,
+                                      reminder='"Enter a race from 1-9," Verus says.')
+            # TODO: help option here ("H1", "1?" or similar, want to avoid reading 9 races as in original
+            p.char_race = [PlayerRace.HUMAN,
+                           PlayerRace.OGRE,
+                           PlayerRace.GNOME,
+                           PlayerRace.ELF,
+                           PlayerRace.HOBBIT,
+                           PlayerRace.HALF_ELF,  # FIXME: Wrong race
+                           PlayerRace.DWARF,
+                           PlayerRace.ORC,
+                           PlayerRace.HALF_ELF][temp - 1]
+            logging.debug("char_race: '%s'" % p.char_race)
+            break
+
         # 'human', 'ogre', 'gnome', 'elf', 'hobbit', 'halfling',
         #          'dwarf', 'orc', 'half-elf'][temp - 1]
         valid = validate_class_race_combo(p)
         if valid:
-            break
+            logging.info("FIXME: finish validation")
 
 
 def display_races(p: "Player"):
@@ -349,7 +365,7 @@ def choose_age(p: "Player"):
         p.output('Enter [R] to select a random age between 15-50.')
         print()
         temp_age = input("Enter your age (0, R or 15-50): ")
-        if temp_age.lower() == 'r':
+        if temp_age.lower()[0:1] == 'r':
             temp_age = randrange(15, 50)
             break
         if temp_age.isalpha():
@@ -367,7 +383,7 @@ def choose_age(p: "Player"):
             break
 
         age_valid = validate_age(temp_age, p)
-        if age_valid is False:
+        if not age_valid:
             p.output('"Try again," suggests Verus.')
 
     temp = 'of an unknown' if temp_age == 0 else f'{temp_age} years of'
@@ -383,7 +399,7 @@ def choose_age(p: "Player"):
     p.output(f"[T]oday ({_month}/{_day})")
     p.output("[A]nother date (choose month and day)")
     print()
-    temp = input("Which [T, A]: ").lower()
+    temp = input("Which [T, A]: ").lower()[0:1]
     if temp == 't':
         # store as datetime:
         p.birthday = datetime(_month, _day, _year)
@@ -399,11 +415,12 @@ def choose_age(p: "Player"):
         _day = input_number_range(prompt="Day", lo=1,
                                   hi=calendar.monthrange(year=_year, month=_month)[1])
 
-        # store birthday as tuple: birthday[0] = month, [1] = day, [2] = year
+        # store birthday as datetime: birthday.month = month, .day = day, .year = year
         # store year anyway in case age = 0
         p.birthday = datetime(_month, _day, _year)
         p.output(f"Birthday: {_month}/{_day}/{_year}")
-
+    else:
+        p.output("That's not a choice.")
 
 # def validate_range(word, start, end, p=None):
 #     """
@@ -715,9 +732,8 @@ def apply_bonuses(adj: list, p: "Player"):
         # maximum allowable value for chr, con, dex: 18
         # maximum allowable value for int, str, wis, egy: 25
         # y=v1+86:for x=1 to 8:b=18:if x>3 then b=25
+        maximum = 18
         if i < 3:
-            maximum = 18
-        else:
             maximum = 25
         # {:_276}
         # n=fn r(b):if n=1 then {:_276}
@@ -729,8 +745,9 @@ def apply_bonuses(adj: list, p: "Player"):
         # if n>b then n=b
         if after > maximum:
             after = maximum
+        # FIXME: apply stat here:
         p.set_stat_absolute(k, after)
-        logging.info("apply_bonuses: k=%i, before=%i, after=%i, maximum=%i" %
+        logging.info("k=%i, before=%i, after=%i, maximum=%i" %
                      (k, before, after, maximum))
 
 def main(player: "Player") -> "Player":
@@ -742,6 +759,7 @@ def main(player: "Player") -> "Player":
     #  so use IP address?  will use standard print() here until Player object is established
     logging.debug("In main")
 
+    player.client_settings.screen_columns = 80
     player.connection_id = 1
     # these are enabled for debugging info:
     player.set_flag(PlayerFlags.DUNGEON_MASTER)  # True
@@ -750,11 +768,8 @@ def main(player: "Player") -> "Player":
 
     player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 200)
     player.set_silver_absolute(PlayerMoneyTypes.IN_BANK, 0)
-
     # TODO: preserve this money after character death somehow (save in a different file?)
     player.set_silver_absolute(PlayerMoneyTypes.IN_BAR, 0)
-
-    player.client_settings.RETURN_KEY = "Enter"
 
     header("Introduction")
     player.output("Your faithful servant Verus appears at your side, as if by magic.")
