@@ -101,6 +101,7 @@ if __name__ == '__main__':
 
     doctest.testmod(verbose=True)
 
+    from new_player_2 import Player
     rulan = Player()
 
     print("- Adjust & show DEX score:")
