@@ -6,9 +6,8 @@ from enum import Enum, auto, StrEnum, IntEnum
 import textwrap
 import doctest
 
-# from player import Player
-from flags import Flag, new_player_default_flags
-from base_classes import Combination, CombinationTypes
+from flags import Flag, new_player_default_flags, FlagDisplayTypes
+from base_classes import Combination, CombinationTypes, Alignment
 from base_variables import STAT_DATA
 
 
@@ -304,6 +303,7 @@ class Player(object):
 
         >>> rulan.adjust_stat(PlayerStat.STR, -5)  # decrement Rulan's strength by 5
         """
+        from flags import PlayerFlags
         if stat not in self.stats:
             logging.warning(f"Stat {stat} doesn't exist.")
             # raise ValueError?

@@ -12,8 +12,7 @@ import net_server
 import common
 
 from flags import PlayerFlags
-from characters import Monster
-from player import Player
+# from new_player_2 import Player
 from base_classes import PlayerMoneyTypes, Map, compass_txts
 from items import Weapon, Rations, Item
 
@@ -52,6 +51,7 @@ class OldPlayer:
     """
     Attributes, flags and other stuff about characters.
     """
+    from characters import Monster
     # inventory:
     armor: list
     # e.g., should it be its own class with attributes?
@@ -140,6 +140,7 @@ class PlayerHandler(net_server.UserHandler):
             (e.g., if moved to a new room: changes={K.name: room.name, K.desc: room.desc}
         :return: Message object
         """
+        from new_player_2 import Player
         # get room # that player is in
         try:
             room = game_map.rooms[player.room]
@@ -243,6 +244,7 @@ class PlayerHandler(net_server.UserHandler):
         return Message(lines=lines2, changes=changes)
 
     def process_login_success(self, user_id):
+        from new_player_2 import Player
         player = Player.load(user_id)
         if player is None:
             logging.debug("process_login_success: No player data, creating new character.")
@@ -532,6 +534,7 @@ if __name__ == "__main__":
     items = Item.read_items("objects.json")
 
     # load monsters
+    from characters import Monster
     monsters = Monster.read_monsters("monsters.json")
 
     # load weapons

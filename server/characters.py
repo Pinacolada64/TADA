@@ -93,7 +93,6 @@ class Monster(BaseCharacter):
 
 
 if __name__ == '__main__':
-    from .player import Player
     # set up logging
     log = logging.getLogger(__name__)
 
