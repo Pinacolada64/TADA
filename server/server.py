@@ -131,7 +131,7 @@ class PlayerHandler(net_server.UserHandler):
     def login_fail_lines(self):
         return ['Please try again.']
 
-    def room_msg(self, lines: str | list, changes: dict, player: Player):
+    def room_msg(self, lines: str | list, changes: dict, player: "Player"):
         """
         Display the room description and contents to the player in the room
 

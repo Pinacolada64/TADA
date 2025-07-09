@@ -94,7 +94,7 @@ def header(text: str):
     return Message(lines=[line])
 
 
-def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, default=None):
+def input_number_range(prompt: str, lo: int, hi: int, p: Player, reminder=None, default=None):
     """Display input 'prompt', accept numbers lo < value < hi
     e.g.
     "'prompt' ['lo'-'hi']: "

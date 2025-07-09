@@ -97,12 +97,12 @@ class Translation(str, Enum):
 @dataclass
 class CommodoreClient:
     # could be the PET with no color
-    name: str = "Generic Commodore Client"
-    rows: int = 25
-    columns: int = 40
-    translation: Translation = Translation.PETSCII
-    return_key: KeyboardKeyName = KeyboardKeyName.RETURN
-    line_ending: LineEnding = LineEnding.CR
+    name: "Generic Commodore Client"
+    rows: 25
+    columns: 40
+    translation: Translation.PETSCII
+    return_key: KeyboardKeyName.RETURN
+    line_ending: LineEnding.CR
 
 
 class Commodore128_80Col:
