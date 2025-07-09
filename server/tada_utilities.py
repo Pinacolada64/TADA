@@ -110,7 +110,7 @@ def input_number_range(prompt: str, lo: int, hi: int, p=Player, reminder=None, d
         p.output(f"{p.client_settings.RETURN_KEY} keeps '{default}'.")
     while True:
         temp = input(f"{prompt} [{lo}-{hi}]: ")
-        # just hitting Return keeps original number
+        # just hitting Return keeps the original number
         if temp.isalpha():
             p.output("Numbers only, please.")
         if default is not None and not temp:

@@ -166,7 +166,7 @@ class PlayerHandler(net_server.UserHandler):
         if player.query_flag(PlayerFlags.ROOM_DESCRIPTIONS):
             lines2.append(f'{wrapper.fill(text=room.desc)}')
 
-        # is an item in current room?
+        # is an item in the current room?
         logging.debug('room_msg: %s' % room)  # raw room info
         obj_list = []  # TODO: for grammatical list and .join(",") later
         item = room.item

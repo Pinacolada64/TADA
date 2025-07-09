@@ -345,7 +345,7 @@ class Player(object):
         """
         if `stat` is str: return value of single stat as str: 'stat'
         if `stat` is list: return dict of stats: {PlayerStat.STR: 20, PlayerStat.WIS: 10, ...}
-        -- avoids multiple function calls
+        -- this avoids multiple function calls
         """
         if type(stat) is list:
             total = {}
