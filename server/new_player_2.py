@@ -86,10 +86,6 @@ class Guild(StrEnum):
     OUTLAW = "Outlaw"
 
 
-class PlayerFlag(IntEnum):
-    EXPERT_MODE = auto()
-
-
 def make_random_id():
     random_number = random.randint(1, 65_535)
     logging.debug("%i", random_number)
@@ -204,7 +200,7 @@ class Player(object):
         self.client = kwargs.get('client', Client())
 
         self.times_played = kwargs.get('times_played')
-        self.last_play_date = kwargs.get('last_play_date')  # like birthday
+        self.last_play_date = kwargs.get('last_play_date', datetime.datetime.today())  # like birthday
 
         """
         proposed stats:
@@ -219,7 +215,7 @@ class Player(object):
         self.moves_made = kwargs.get('moves_made', None)
         # tracks how many moves made during the game session to calculate experience points awarded at quit:
         self.moves_today = kwargs.get('moves_today', 0)
-        self.birthday = kwargs.get('birthday')  # TODO: use datetime
+        self.birthday = kwargs.get('birthday', datetime.datetime.today())  # TODO: use datetime
         self.guild = kwargs.get('guild', Guild.CIVILIAN)  # [civilian | fist | sword | claw | outlaw]
         # 1       2        3       4      5       6       7         8       9
         self.char_class = kwargs.get('char_class')
@@ -232,6 +228,11 @@ class Player(object):
         # the lower the Honor score, the more evil the character has become.
         # TODO: look it up, but I think 1,000 honor points is equivalent to a Saintly Knight.
         self.honor = kwargs.get('honor', 1_000)
+        self.natural_alignment = kwargs.get("natural_alignment", Alignment.NEUTRAL)
+        self.current_alignment = kwargs.get("current_alignment", Alignment.NEUTRAL)
+
+        self.allies = kwargs.get('allies')
+        self.horse = kwargs.get('horse')
 
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
@@ -301,7 +302,7 @@ class Player(object):
         TODO: example for doctest:
         >>> rulan = Player(**set_up_rulan())
 
-        >>> rulan.adjust_stat(PlayerStat.STR, -5)  # decrement Rulan's strength by 5
+        >>> rulan.adjust_stat_relative(PlayerStat.STR, -5)  # decrement Rulan's strength by 5
         """
         from flags import PlayerFlags
         if stat not in self.stats:
@@ -312,7 +313,7 @@ class Player(object):
         before = self.stats[stat]
         after = before + adj
         logging.info("set_stat: Before: %s %i" % (stat, after))
-        if not self.query_flag(PlayerFlag.EXPERT_MODE):
+        if not self.query_flag(PlayerFlags.EXPERT_MODE):
             pass
             # TODO: jwhoag suggested adding 'confidence' -> 'brave' -- good idea,
             #  not sure where it can be added yet.
@@ -517,10 +518,20 @@ class Player(object):
             logging.error("Stat '%s' does not exist for player '%s'." % (stat.name, self.name))
             return None
 
-    def query_flag(self, flag: PlayerFlag):
-        pass
+    def query_flag(self, flag: Flag):
+        if flag.display_type == FlagDisplayTypes.YESNO:
+            return "Yes" if flag.status else "No"
+        elif flag.display_type == FlagDisplayTypes.ONOFF:
+            return "On" if flag.status else "Off"
+        else:
+            return "<Bad flag type>"
+
 
     def set_silver(self, IN_HAND, silver_amount):
+        pass
+
+    @classmethod
+    def load(cls, user_id):
         pass
 
 
