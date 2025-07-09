@@ -91,6 +91,10 @@ class Monster(BaseCharacter):
     def load(self, json_filename: str):
         pass
 
+    @classmethod
+    def read_monsters(cls, param):
+        pass
+
 
 if __name__ == '__main__':
     # set up logging
