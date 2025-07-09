@@ -33,9 +33,7 @@ def grammatical_list(item_list: str | list) -> str:
     If there are more than two items, print the first, second, [...] 'and {a|an} <object>'.
     """
     """
-    >>> items = ['orange', 'dry bones', 'book']
-    
-    >>> print(f'You see: {grammatical_list(items)}.')
+    >>> print(f'You see: {grammatical_list(['orange', 'dry bones', 'book'])}.')
     You see: an orange, some dry bones, and a book.
     """
     result_list = []
