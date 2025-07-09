@@ -12,8 +12,7 @@ import net_server
 import common
 
 from flags import PlayerFlags
-from characters import Monster
-from player import Player
+# from new_player_2 import Player
 from base_classes import PlayerMoneyTypes, Map, compass_txts
 from items import Weapon, Rations, Item
 
@@ -52,6 +51,7 @@ class OldPlayer:
     """
     Attributes, flags and other stuff about characters.
     """
+    from characters import Monster
     # inventory:
     armor: list
     # e.g., should it be its own class with attributes?
@@ -131,7 +131,7 @@ class PlayerHandler(net_server.UserHandler):
     def login_fail_lines(self):
         return ['Please try again.']
 
-    def room_msg(self, lines: str | list, changes: dict, player: Player):
+    def room_msg(self, lines: str | list, changes: dict, player: "Player"):
         """
         Display the room description and contents to the player in the room
 
@@ -140,6 +140,7 @@ class PlayerHandler(net_server.UserHandler):
             (e.g., if moved to a new room: changes={K.name: room.name, K.desc: room.desc}
         :return: Message object
         """
+        from new_player_2 import Player
         # get room # that player is in
         try:
             room = game_map.rooms[player.room]
@@ -166,7 +167,7 @@ class PlayerHandler(net_server.UserHandler):
         if player.query_flag(PlayerFlags.ROOM_DESCRIPTIONS):
             lines2.append(f'{wrapper.fill(text=room.desc)}')
 
-        # is an item in current room?
+        # is an item in the current room?
         logging.debug('room_msg: %s' % room)  # raw room info
         obj_list = []  # TODO: for grammatical list and .join(",") later
         item = room.item
@@ -243,6 +244,7 @@ class PlayerHandler(net_server.UserHandler):
         return Message(lines=lines2, changes=changes)
 
     def process_login_success(self, user_id):
+        from new_player_2 import Player
         player = Player.load(user_id)
         if player is None:
             logging.debug("process_login_success: No player data, creating new character.")
@@ -532,6 +534,7 @@ if __name__ == "__main__":
     items = Item.read_items("objects.json")
 
     # load monsters
+    from characters import Monster
     monsters = Monster.read_monsters("monsters.json")
 
     # load weapons

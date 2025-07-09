@@ -1,359 +1,489 @@
+import json
 import logging
 from dataclasses import dataclass, field
+from enum import Enum
+from sys import flags
 from typing import List, Optional, Callable, NamedTuple
 
-from flags import PlayerFlags
-from characters import PlayerStat, Alignment
-from player import Player
+from base_classes import WeaponClass
+from new_player_2 import Player
+
+
+# Assuming these are defined in other files as per your imports
+# from flags import PlayerFlags
+# from characters import PlayerStat, Alignment
+# from player import Player
+
+# --- Mock Objects for Demonstration ---
+class PlayerFlags(Enum):
+    FLAG_1 = "Some Flag 1"
+    FLAG_2 = "Another Flag"
+
+
+class PlayerStat(Enum):
+    CHA = "Charisma"
+    CON = "Constitution"
+    DEX = "Dexterity"
+    INT = "Intelligence"
+    STR = "Strength"
+    WIS = "Wisdom"
+
+
+class Alignment(Enum):
+    LAWFUL_GOOD = "Lawful Good"
+    GOOD = "Good"
+    NEUTRAL = "Neutral"
+    EVIL = "Evil"
+    CHAOTIC_EVIL = "Chaotic Evil"
+
+
+class Armor(object):
+    def __init__(self, **kwargs):
+        self.name = kwargs.get('name', None)
+        self.defense = kwargs.get('defense')
+        self.weight = kwargs.get('weight', 0)
+        self.armor_class = kwargs.get('armor_class', 0)
+        self.readied = kwargs.get('readied', False)
+        logging.info("Armor '%s' created: defense=%i, weight=%i, readied=%s" % (self.name, self.defense, self.weight,
+                                                                                self.readied))
+
+
+class Shield(Armor):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        logging.info("Shield '%s' created." % self.name)
+
+
+class BaseItem(object):
+    pass
+
+
+class Weapon(BaseItem):
+    def __init__(self, **kwargs):
+        super().__init__()
+        id_number: int
+        id_prefix: str = "W"
+        location: int
+        name: str
+        kind: Optional[str]
+        sound_effect: tuple[str, str]
+        stability: int
+        to_hit: int
+        price: int
+        weapon_class: WeaponClass
+        owner: Optional[Player]
+
+    @staticmethod
+    def read_weapons(filename: str) -> dict | None:
+        try:
+            with open(filename) as json_file:
+                weapons = json.load(json_file)
+                logging.debug("JSON data read")
+                return weapons
+        except FileNotFoundError:
+            logging.error(">>> File not found: %s" % filename)
+            return None
+
+
+# --- End Mock Objects ---
+
+@dataclass
+class Ally:
+    """Base class for ally"""
+    name: str
+    inventory: field(default_factory=list)
+
+    def __post_init__(self):
+        logging.info("Ally '%s' created." % self.name)
+
+
+class Horse(Ally):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def __post_init__(self):
+        logging.info("Horse '%s' created." % self.name)
+
+
+"""@dataclass
+class Player:
+    name: str
+    natural_alignment: Alignment = Alignment.NEUTRAL
+    current_alignment: Alignment = Alignment.NEUTRAL
+    allies: list[Ally | Horse] = field(default_factory=list)
+    stats: dict = field(default_factory=lambda: {
+        PlayerStat.STRENGTH: 10,
+        PlayerStat.DEXTERITY: 12,
+        PlayerStat.INTELLIGENCE: 14
+    })
+    flags: dict = field(default_factory=lambda: {
+        PlayerFlags.FLAG_1: True,
+        PlayerFlags.FLAG_2: False
+    })
+
+    def __post_init__(self):
+        logging.info("Player '%s' created." % self.name)
+
+    def add_ally(self, ally: Ally):
+        if ally in self.allies:
+            logging.error("%s already in allies list!" % ally.name)
+        else:
+            self.allies.append(ally)
+            logging.info("%s added to allies list!" % ally.name)
+
+    def get_stat(self, stat: PlayerStat) -> int:
+        return self.stats.get(stat, 0)
+
+    def show_flag_line_item(self, flag: PlayerFlags, leading_num=None):
+         return f"{flag.value}: {self.flags.get(flag, False)}"
+
+    def show_flag(self, flag: PlayerFlags) -> str:
+        return flag.value
+"""
 
 
 def line_item(item_name: str, item_value: str | int, width: int = 30):
-    return f"{item_name:.>{width}}: {item_value}"
-
-
-@dataclass
-class Menu(object):
-    title: str = "Title"
-    menu_items: list = field(default_factory=list)
-
-
-class MenuItem(NamedTuple):
-    """
-    :param text: shortcut letters to type to select item (besides numeric item #)
-    """
-    # text of menu item:
-    text: str = None
-    # shortcut letters to type to select item (besides numeric item #):
-    shortcut: Optional[str] = None
-    # function which diplays line_item() value after dot leader:
-    # if None, do not display a dot leader and the result of this function.
-    dot_leader_handler: Optional[Callable] = None
-    # submenu to go to after item selected:
-    submenu: Optional[Menu] = None
-    # function to edit item if submenu is None:
-    edit_function: Optional[Callable] = None
+    return f"{item_name:.<{width}}: {item_value}"
 
 
 @dataclass
 class Menu:
     """Base class for menu systems with shared behavior."""
     title: str
-    columns: int = 1
-    menu_items: list[MenuItem] = field(default_factory=list)
-
-    def display_menu(self) -> None:
-        """Display menu options."""
-        print(f"{self.title}\n{'=' * len(self.title)}")
-        for index, (label, shortcut, _) in enumerate(self.menu_items, start=1):
-            print(f"{index}. [{shortcut:>2}] {label}")
-
-    def run_option(self, choice: str) -> None:
-        """Run the handler method for a given choice."""
-        for label, shortcut, handler in self.menu_items:
-            if choice == shortcut:
-                if callable(handler):
-                    handler()
-                else:
-                    print(f"No valid handler found for {label}")
-                return
-        print("Invalid option. Please try again.")
-
-
-# Refactored AlignmentMenu
-@dataclass
-class AlignmentMenu(Menu, Player):
-    """Menu for alignment information options."""
-    title = "Alignment Options"
-    # player: Player  # Accepting Player or compatible object
-
-    def __post_init__(self):
-        """Initialize menu-specific items."""
-        self.menu_items = [MenuItem("Natural Alignment", "n", self.show_natural_alignment, None, self.edit_natural_alignment),
-                           MenuItem["Current Alignment", "c", self.show_current_alignment, None, self.edit_current_alignment],
-                           ]
-
-    def show_natural_alignment(self) -> None:
-        """Show natural alignment"""
-        print(f"{self.player.natural_alignment}")
-
-    def show_current_alignment(self) -> None:
-        """Show current alignment"""
-        print(f"{self.player.natural_alignment}")
-
-    def edit_natural_alignment(self) -> None:
-        """Edit natural alignment"""
-        print(f"Natural Alignment is dependent on character class.")
-        print(f"{self.player.name}'s natural alignment (fixed) is {self.player.natural_alignment}.")
-
-    def edit_current_alignment(self) -> None:
-        """Edit current alignment"""
-        print(f"Current Alignment is {self.player.current_alignment}.")
-        print("Available alignments:")
-        for i, alignment in enumerate(Alignment):  # Iterating over the Alignment enum
-            print(f"- {alignment.value}")
-        print("Choose an alignment option:")
-        for i, alignment in enumerate(Alignment):
-            print(f"{i + 1}: {alignment.name}")
-        choice = input("Enter your choice: ").strip()
-        try:
-            alignment = Alignment(int(choice) - 1)
-            self.player.current_alignment = alignment
-            print(f"Current Alignment set to {self.player.current_alignment}.")
-        except (ValueError, IndexError):
-            print("Invalid alignment selected.")
-            print(f"Current Alignment set to {player.current_alignment}.")
-        else:
-            print("No alignment selected.")
-        return player.current_alignment
-
-
-class ArmorShieldMenu(Menu):
-    """Armor and shield options."""
-    title: str = "Armor & Shield Options"
-
-    def __post_init__(self):
-        self.menu_items = [MenuItem("Armor Items", "a", None, None, self.edit_armor_items),
-                           MenuItem("Shield Items", "s", None, None, self.edit_shield_items),
-                           ]
-
-    def edit_armor_items(self):
-        print("Editing armor items...")
-
-    def edit_shield_items(self):
-        print("Editing shield items...")
-
-
-class AttributeMenu(Menu):
-    """Show/edit player attributes."""
-    title = "Attributes"
+    player: Optional[Player] = None
     menu_items: list = field(default_factory=list)
+    columns: int = 1
+
+    def display(self) -> None:
+        """Displays the menu title and its menu items."""
+        print(f"\n{self.title}")
+        print("=" * len(self.title))
+        """
+        Don't tab over if no shortcuts in menu items:
+        e.g.,
+        1. No shortcut key
+        2. No shortcut key
+        
+        vs.
+        1. [i]  Item with shortcut
+        2.      Item without shortcut
+        """
+        # Check if any item in the menu has a shortcut defined.
+        has_any_shortcut = any(item.shortcuts for item in self.menu_items)
+
+        for i, item in enumerate(self.menu_items, 1):
+            # Join shortcuts for display, e.g., "[1I, I1]"
+            shortcut_str = f"[{','.join(item.shortcuts)}]" if item.shortcuts else ""
+
+            # Use the provided line_item for dot leader formatting
+            if item.dot_leader_handler and self.player:
+                # The handler now returns the value, line_item does the formatting
+                value = item.dot_leader_handler(self.player)
+                print(f"{i: >2}. {shortcut_str:<8} {line_item(item.text, value)}")
+            else:
+                print(f"{i: >2}. {shortcut_str:<8} {item.text}")
+
+    def get_choice(self):
+        """Gets and validates user input against the numeric input range, plus (possibly multiple) shortcut(s).
+
+        :return: None | MenuItem
+        """
+        num_items = len(self.menu_items)
+        if any(item.shortcuts in item for item in self.menu_items):
+            print("You may use shortcuts listed in [square brackets].")
+        prompt = f"Enter your choice [1-{num_items}]: "
+        while True:
+            choice_string = input(prompt).strip().lower()
+            if not choice_string:
+                return None  # Go back
+            # --- FIX FOR NUMERIC CHOICE ---
+            if choice_string.isnumeric():
+                choice_num = int(choice_string)
+                # Check if number is within the valid range of displayed options (1 to N)
+                if 1 <= choice_num <= len(self.menu_items):
+                    # Return the existing MenuItem from the list using the correct 0-based index
+                    return self.menu_items[choice_num - 1]
+
+            for item in self.menu_items:
+                # Check if the user's input is in the item's shortcut list
+                if choice_string in [sc.lower() for sc in item.shortcuts]:
+                    return item
+            print("Invalid choice, please try again.")
+
+
+class MenuItem(NamedTuple):
+    text: str
+    action: Optional[Callable] = None
+    submenu: Optional[Menu] = None
+    shortcuts: Optional[List[str]] = None
+    dot_leader_handler: Optional[Callable] = None
+
+
+@dataclass
+class AlignmentMenu(Menu):
+    title: str = "Alignment Options"
 
     def __post_init__(self):
         self.menu_items = [
-            line_item(stat.value, self.player.get_stat(stat), width=30) for stat in PlayerStat
+            MenuItem("Natural Alignment", self.edit_natural_alignment, shortcuts=['n'],
+                     dot_leader_handler=lambda p: p.natural_alignment.value),
+            MenuItem("Current Alignment", self.edit_current_alignment, shortcuts=['c'],
+                     dot_leader_handler=lambda p: p.current_alignment.value),
         ]
+
+    def edit_natural_alignment(self, player: Player):
+        print(f"\nNatural Alignment is dependent on character class.")
+        print(f"{player.name}'s natural alignment (fixed) is {player.natural_alignment.value}.")
+        # input("\nPress Enter to continue...")
+
+    def edit_current_alignment(self, player: Player):
+        print(f"\nCurrent Alignment is {player.current_alignment.value.title()}.")
+        alignments = list(Alignment)
+        print("Available alignments:")
+        for i, alignment in enumerate(alignments, 1):
+            print(f"{i}: {alignment.value.title()}")
+
+        try:
+            choice = int(input("Enter your choice: ").strip()) - 1
+            if 0 <= choice < len(alignments):
+                player.current_alignment = alignments[choice]
+                print(f"Current Alignment set to {player.current_alignment.value}.")
+            else:
+                print("Invalid alignment selected.")
+        except (ValueError, IndexError):
+            print("Invalid input.")
+        # input("\nPress Enter to continue...")
+
+
+def get_allies(player: Player) -> list:
+    """Return a list of 3 tuples("name", "display_name"): the player, the allies, and the horse"""
+    characters = [(player.name, "Main Character"),
+                  [(ally.name, f"Ally {i}") for i, ally in enumerate(player.allies, 1)],
+                  [(player.horse.name, "Horse")]]
+    return characters
+
+
+@dataclass
+class ArmorShieldMenu(Menu):
+    # Show READYed weapon, weapons in PC / Allies inventory
+    # READY a weapon before ye sleep, if ye can...
+    # TODO: ensure that multiple players cannot have the same item at once?
+    """
+    Proposed output:
+    * Both menu shortcuts should be usable; confusion (and individual preference)
+      between "is it I1 or 1I?" is possible, and frustrating.
+
+       <Main Character: Rulan>
+    1. [1I, I1] In Inventory:........: BANDED ARMOR
+                                       CLOTH ARMOR
+                                       SMALL SHIELD
+    2. [1R, R1] READYed..............: BANDED ARMOR
+       <Ally 1: SPOCK>
+    3. [2I, I2] In Inventory.........: POWER ARMOR
+    4. [2R, R2] READYed..............: None
+       <Horse: Strawberry>
+    5. [3I, I3] In Inventory.........: HORSE ARMOR (BARDING?)
+
+    """
+    title: str = "Armor & Shields"
+
+    def __post_init__(self):
+        """Builds the menu by iterating through the player, allies, and horse."""
+        self.menu_items = []
+        if not self.player:
+            return None
+
+        # Get a list of allies the player has:
+        allies = get_allies(self.player)
+
+        menu_items = []
+        item_index = 1
+
+        for owner_name, display_name in allies:
+            # 1. Add "In Inventory" menu item for the character
+            menu_items.append(MenuItem(
+                text=f"<{display_name}: {owner_name}> In Inventory",
+                shortcuts=[f"{item_index}I", f"I{item_index}"],
+                dot_leader_handler=self._get_inventory_handler(owner_name)
+            ))
+
+            # 2. Add "READYed" menu item for the character
+            menu_items.append(MenuItem(
+                text=f"<{display_name}: {owner_name}> READYed",
+                shortcuts=[f"{item_index}R", f"R{item_index}"],
+                dot_leader_handler=self._get_readied_handler(owner_name)
+            ))
+            item_index += 1
+
+        self.menu_items = menu_items
+
+    def _get_inventory_handler(self, owner_name: str) -> Callable:
+        """Returns a function that gets all armor for a given owner."""
+
+        def handler(player: Player) -> str:
+            items = [armor.name for armor in armory_list if armor.owner == owner_name]
+            return "\n".join(items) if items else "None"
+
+        return handler
+
+    def _get_readied_handler(self, owner_name: str) -> Callable:
+        """Returns a function that gets only readied armor for a given owner."""
+
+        def handler(player: Player) -> str:
+            items = [armor.name for armor in player.armor if armor.owner == owner_name and armor.readied]
+            return "\n".join(items) if items else "None"
+
+        return handler
+
+
+@dataclass
+class AttributeMenu(Menu):
+    title: str = "Attributes"
+
+    def __post_init__(self):
+        self.menu_items = [
+            MenuItem(stat.value, dot_leader_handler=lambda p, s=stat: p.get_stat(s)) for stat in PlayerStat
+        ]
+
+
+@dataclass
+class FlagsCountersMenu(Menu):
+    title: str = "Flags & Counters"
+
+    def __post_init__(self, p: Player):
+        self.menu_items = [
+            MenuItem(
+                text=flag.value,
+                dot_leader_handler=lambda p, f=flag: p.query_flag()
+            ) for flag in PlayerFlags
+        ]
+
+
+@dataclass
+class HitPointsMenu(Menu):
+    title: str = "Hit Points"
+
+    def __post_init__(self, player: Player):
+        logging.info("In %s" % __class__.__name__)
 
 
 class CharacterNamesMenu(Menu):
     title: str = "Character Names"
 
-    def __post_init__(self):
-        menu_items = [MenuItem["Main Character Name", "m", self.show_main_char_name, None, self.edit_main_char_name],
-                      MenuItem["Ally 1 Name", None, self.show_ally_1_name, None, self.edit_ally_1_name],
-                      MenuItem["Ally 2 Name", None, self.show_ally_2_name, None, self.edit_ally_2_name],
-                      MenuItem["Ally 3 Name", None, self.show_ally_3_name, None, self.edit_ally_3_name],
-                      MenuItem["Horse Name", None, self.show_horse_name, None, self.edit_horse_name],
-                      ]
-
-    def show_main_char_name(self):
-        print(f"{player.name}")
-
-    def edit_main_char_name(self):
-        print("Edit main character name")
-        new_name = input("Enter new name: ")
-        player.name = new_name
-        print(f"Main character name set to {player.name}.")
-        return player.name
-
-    def show_ally_1_name(self):
-        print(f"{player.ally_1_name}")
-
-    def edit_ally_1_name(self):
-        print("Edit ally 1 name")
-        new_name = input("Enter new name: ")
-        player.ally_1_name = new_name
-        print(f"Ally 1 name set to {player.ally_1_name}.")
-        return player.ally_1_name
-
-    def show_ally_2_name(self):
-        print(f"{player.ally_2_name}")
-
-    def edit_ally_2_name(self):
-        print("Edit ally 2 name")
-        new_name = input("Enter new name: ")
-        player.ally_2_name = new_name
-        print(f"Ally 2 name set to {player.ally_2_name}.")
-        return player.ally_2_name
-
-class FlagsCountersMenu(Menu, Player):
-    """Flags & counters configuration options."""
-    title: "Flags & Counters"
-    menu_items = [MenuItem(text=Player.show_flag(flag), shortcut=None,
-                           dot_leader_handler=lambda flag=flag: player.show_flag_line_item(flag, None),
-                           submenu=None, edit_function=None) for flag in PlayerFlags]
-
-    def build_flags_menu(self, flags: dict) -> list:
-        """
-        Builds a menu of flags with formatted line items to display with show_menu().
-
-        :param flags: A dictionary of player flags.
-        :return: list: A list of formatted flag line items for the menu.
-        """
-        # leading_num = None since print_menu() adds item numbers
-        return [player.show_flag_line_item(flag=flag, leading_num=None) for i, flag in enumerate(flags)]
+    def __post_init__(self, player: Player):
+        menu_items = []
 
 
-class MainMenu(Menu):
-    """Main menu options."""
-    # 'None' simply indicates code isn't ready yet.
-    title = "Main Menu"
-    menu_items = [MenuItem["Alignment", "al", None, AlignmentMenu, None],
-                  MenuItem["Armor & Shield", "ar", None, ArmorShieldMenu, None],
-                  MenuItem["Attributes", "at", None, AttributeMenu, None],
-                  MenuItem["Character Names", "cn", None, CharacterNamesMenu, None],
-                  MenuItem["Combinations", "co", None, None, None],
-                  MenuItem["Flags & Counters", "f", None, FlagsCountersMenu, None],
-                  MenuItem["Hit Points", "h", None, None, None],
-                  MenuItem["Map Info", "mi", None, None, None],
-                  MenuItem["Money", "mo", None, None, None],
-                  MenuItem["Statistics", "s", None, None, None],
-                  MenuItem["Weapons", "w", None, None, None],
-                  MenuItem["Quit", "q", None, None, None],
-                  ]
+class CombinationMenu(Menu):
+    title: str = "Combinations"
+
+    def __post_init__(self, player: Player):
+        logging.info("In %s" % __class__.__name__)
 
 
-def print_menu(title: Optional[str], menu_items: list, columns: int = 1):
-    """Prints the given menu with options."""
-    print()
-    num_items = len(menu_items)
-    # display menu title:
-    if title:
-        print(title)
-    print("-" * (20 * columns))
+class MapInfoMenu(Menu):
+    title: str = "Map Information"
 
-    if columns == 2:
-        logging.debug("Columns: 2")
-        midpoint = (num_items + 1) // 2  # Calculate midpoint for even/odd lists
-
-        for i in range(max(midpoint, num_items - midpoint)):  # Iterate up to the larger column size
-            column_1_num = i + 1
-            column_1_item = menu_items[i][0] if i < num_items else None
-
-            column_2_num = i + midpoint + 1
-            column_2_item = menu_items[i + midpoint][0] if i + midpoint < num_items else None
-
-            line = ""
-
-            if column_1_item:
-                line += f"{column_1_num: >2}. {column_1_item.title().ljust(20, ' ')}"
-            else:
-                line += " " * 24  # Add space padding to maintain alignment
-
-            if column_2_item:
-                line += f"{column_2_num: >2}. {column_2_item.title()}"
-
-            print(line)
-
-    else:
-        for num, option in enumerate(menu_items, start=1):
-            shortcut = f"[{option['shortcut']}] / " if option['shortcut'] else "      "
-            print(f"{shortcut} {num: >2}. {option['text'].title()}")
-
-    print("-" * (20 * columns))
+    def __post_init__(self, player: Player):
+        logging.info("In %s" % __class__.__name__)
 
 
-class MenuOptionDemo(Menu):
-    """Demo of the print_menu() function"""
-    title: str = "Menu Options Demo"
-    columns: int = 2
+class MoneyMenu(Menu):
+    title: str = "Money"
 
-    def __postinit__(self):
-        # example of an odd number of items:
-        self.menu_items = [MenuItem["Option 1", None, None, None, self.run_option_1],
-                     MenuItem["Option 2", None, None, None, self.run_option_2],
-                     MenuItem["Option 3", None, None, None, self.run_option_3],
-                     MenuItem["Option 4", None, None, None, MenuOptionDemo.run_option_4],
-                     MenuItem["Option 5", None, None, None, MenuOptionDemo.run_option_5],
-                     MenuItem["Option 6", None, None, None, MenuOptionDemo.run_option_6],
-                     MenuItem["Option 7", None, None, None, MenuOptionDemo.run_option_7],
-                     ]
-
-    def run_option_1(self):
-        print("Option 1 selected.")
-
-    def run_option_2(self):
-        print("Option 2 selected.")
-
-    def run_option_3(self):
-        print("Option 3 selected.")
-
-    def run_option_4(self):
-        print("Option 4 selected.")
-
-    def run_option_5(self):
-        print("Option 5 selected.")
-
-    def run_option_6(self):
-        print("Option 6 selected.")
-
-    def run_option_7(self):
-        print("Option 7 selected.")
+    def __post_init__(self, player: Player):
+        logging.info("In %s" % __class__.__name__)
 
 
-def get_user_choice(menu_items: list):
-    """
-    Gets the user's choice and calls the corresponding class method or a standalone function.
+class StatisticsMenu(Menu):
+    title: str = "Statistics"
 
-    :param menu_items: A list of menu items mapped to tuples (class_ref, method_name/function).
-    """
-    while True:
-        try:
-            # first item in [menu_stack] is always <enum 'MainMenu'>
-            logging.debug("menu_stack: %s" % menu_stack)
-            if len(menu_stack) > 1:
-                print("Enter: Go up a level")
-            # len()-1 accounts for first item being the menu title:
-            prompt = f"Enter your choice [1-{len(menu_enum) - 1}]: "
-            choice = input(prompt)
-            print()
-            if not choice:  # Check for empty input (Enter key)
-                return None  # Return None to indicate "go back"
-            option_number = int(choice) - 1  # Corrected: subtract 1 for 0-based indexing
-            if 0 <= option_number < len(menu_enum):  # Corrected: check against list length
-                return list(menu_enum)[option_number + 1]  # Return the enum member
-            else:
-                print("Invalid menu item configuration.")
-        elif callable(selected_item):
-            # Case 3: Direct callable function
-            selected_item()
-        else:
-            print("Unknown menu item type. Please verify the configuration.")
+    def __post_init__(self, player: Player):
+        logging.info("In %s" % __class__.__name__)
 
 
-def main():
+class WeaponsMenu(Menu):
+    title: str = "Weapons"
+
+    def __post_init__(self, player: Player):
+        logging.info("In %s" % __class__.__name__)
+
+
+def main(player: Player):
     """Main function to handle menu interactions."""
-    menu_stack: List[Menu] = [MainMenu]  # Use a stack to track menu depth
+    """
+    print" STATS FOR "q$a$(.)q$r$l$
+    print" 1:*ALIGNMENT        7:*HIT POINTS
+    print" 2:*ARMOR/SHIELD     8:*MAP INFORMATION
+    print" 3:*ATTRIBUTES       9:*MONEY
+    print" 4:*CHARACTER NAMES 10:*STATISTICS
+    print" 5:*COMBINATIONS    11:*WEAPONS
+    print" 6:*FLAGS/COUNTERS    (*=Sub-menu)"
+    """
+    main_menu_items = [
+        MenuItem("Alignment", submenu=AlignmentMenu, shortcuts=['al']),
+        MenuItem("Armor & Shield", submenu=ArmorShieldMenu, shortcuts=['ar']),
+        MenuItem("Attributes", submenu=AttributeMenu, shortcuts=['at']),
+        MenuItem("Character Names", submenu=CharacterNamesMenu, shortcuts=['al']),
+        MenuItem("Combinations", submenu=CombinationMenu, shortcuts=['c']),
+        MenuItem("Flags & Counters", submenu=FlagsCountersMenu, shortcuts=['f']),
+        MenuItem("Hit Points", submenu=HitPointsMenu, shortcuts=['h']),
+        MenuItem("Map Information", submenu=MapInfoMenu, shortcuts=['mi']),
+        MenuItem("Money", submenu=MoneyMenu, shortcuts=['mo']),
+        MenuItem("Statistics", submenu=StatisticsMenu, shortcuts=['s']),
+        MenuItem("Weapons", submenu=WeaponsMenu, shortcuts=['w']),
+        MenuItem("Quit", action=lambda p: exit("Exiting character editor."), shortcuts=['q']),
+    ]
+
+    menu_stack: List[Menu] = [Menu(title="Main Menu", menu_items=main_menu_items, player=player)]
+
     while menu_stack:
-        current_menu = menu_stack[-1]  # Get the current menu from top of stack
-        num_columns = 1 if len(current_menu) < 10 else 2
-        print_menu(current_menu, columns=num_columns)
-        get_user_choice(current_menu, menu_stack)
+        current_menu = menu_stack[-1]
+        current_menu.display()
+        choice = current_menu.get_choice()
 
-        if choice is None:  # Go back if Enter is pressed
-            menu_stack.pop()  # Remove the current menu from the stack
-            continue  # Go to the previous menu
+        if choice is None:
+            menu_stack.pop()
+            continue
 
-        # Handle menu choices
-        # FIXME: this code is messy. refactor code to put each menu in a function call?
-        logging.debug("current_menu: %s" % current_menu)
-        logging.debug("choice: %s" % choice)
+        if choice.submenu:
+            # Instantiate the submenu and pass the player object
+            submenu_instance = choice.submenu(player=current_menu.player)
+            logging.info("Player '%s' passed to %s" % (current_menu.player.name, choice.submenu))
+            menu_stack.append(submenu_instance)
+        elif choice.action:
+            choice.action(current_menu.player)
+        else:
+            print("This item has no action.")
+            # input("\nPress Enter to continue...")
 
 
 if __name__ == "__main__":
-    # set up logging
-    log = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO, format='%(levelname)-8s | %(funcName)-20s | %(message)s')
 
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(levelname)10s | %(funcName)20s() | %(message)s')
+    # Armor setup
+    cloth_armor_setup = {"name": "Cloth Armor", "defense": 3, "weight": 2, "armor_class": 6}
+    cloth_armor = Armor(**cloth_armor_setup)
+    horse_armor = Armor(name="Barding", defense=5, weight=40, armor_class=3)
+    banded_armor = Armor(name="Banded Armor", defense=10, weight=20, armor_class=5)
+    small_shield = Shield(name="Small Shield", defense=5, weight=8, armor_class=5)
+    power_armor = Armor(name="Power Armor", defense=50, weight=100, armor_class=1)
 
-    player = Player(name="Rulan", id_num=1)
+    phaser_setup = {"id_number": 1, "id_prefix": "W", "location": 1, "name": "Phaser",
+                    "sound_effect": ("zap", "fizzle"), "stability": 4, "to_hit": 5, "price": 250,
+                    "weapon_class": WeaponClass.ENERGY}
+    phaser = Weapon(**phaser_setup)
 
-    # Example Usage:
-    show_demo = False
-    if show_demo:
-        print("Two columns:")
-        print_menu(MenuOptionDemo, columns=2)
-        print("One column:")
-        print_menu(MenuOptionDemo, columns=1)
+    armory_list = [cloth_armor, horse_armor, banded_armor, small_shield, power_armor, phaser]
 
-    main()
+    strawberry_setup = {"name": "Strawberry", "inventory": [horse_armor], }
+    strawberry = Horse(**strawberry_setup)
+
+    spock_setup = {"name": "Spock", "inventory": [phaser], }
+    spock = Ally(**spock_setup)
+
+    rulan_setup = {"name": "Rulan", "allies": [spock, strawberry]}
+    rulan = Player(**rulan_setup)
+    print(rulan)  # uses __str__() property
+
+    main(rulan)

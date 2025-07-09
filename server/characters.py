@@ -91,9 +91,12 @@ class Monster(BaseCharacter):
     def load(self, json_filename: str):
         pass
 
+    @classmethod
+    def read_monsters(cls, param):
+        pass
+
 
 if __name__ == '__main__':
-    from .player import Player
     # set up logging
     log = logging.getLogger(__name__)
 
@@ -102,6 +105,7 @@ if __name__ == '__main__':
 
     doctest.testmod(verbose=True)
 
+    from new_player_2 import Player
     rulan = Player()
 
     print("- Adjust & show DEX score:")

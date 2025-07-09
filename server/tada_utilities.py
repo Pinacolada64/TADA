@@ -2,13 +2,12 @@ import doctest
 import logging
 import random
 
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from player import Player
-    import net_server  # for promptRequest and Message
-    from net_server import Message
-    from flags import PlayerFlags
-    from user_settings import Translation
+import net_server  # for promptRequest and Message
+from net_server import Message
+from new_player_2 import Player
+from flags import PlayerFlags
+from user_settings import Translation
+
 """
 utilities such as:
 * grammatically correct list output
@@ -34,9 +33,7 @@ def grammatical_list(item_list: str | list) -> str:
     If there are more than two items, print the first, second, [...] 'and {a|an} <object>'.
     """
     """
-    >>> items = ['orange', 'dry bones', 'book']
-    
-    >>> print(f'You see: {grammatical_list(items)}.')
+    >>> print(f'You see: {grammatical_list(['orange', 'dry bones', 'book'])}.')
     You see: an orange, some dry bones, and a book.
     """
     result_list = []
@@ -77,7 +74,6 @@ def list_players_in_room(player_list: str | list):
     pass
 
 def header(text: str):
-    from server import Message
     """
     Show `text` passed, a newline, and a line the length of `text`
     e.g.,
@@ -96,7 +92,7 @@ def header(text: str):
     return Message(lines=[line])
 
 
-def input_number_range(prompt: str, lo: int, hi: int, p: "Player", reminder=None, default=None):
+def input_number_range(prompt: str, lo: int, hi: int, p: Player, reminder=None, default=None):
     """Display input 'prompt', accept numbers lo < value < hi
     e.g.
     "'prompt' ['lo'-'hi']: "
@@ -127,7 +123,7 @@ def input_number_range(prompt: str, lo: int, hi: int, p: "Player", reminder=None
                 p.output(string=reminder)
 
 
-def input_string(prompt: str, default: bool, player: "Player", reminder="Please enter something."):
+def input_string(prompt: str, default: bool, player: Player, reminder="Please enter something."):
     """input 'prompt', accept numbers lo < value < hi
     e.g.:
     [Return] keeps 'Druid.'  # if expert mode off
@@ -140,8 +136,8 @@ def input_string(prompt: str, default: bool, player: "Player", reminder="Please 
     :param player: Player to output text to
     :param reminder: what to display if edit_mode is False and null string entered
     """
-    if default and player.query_flag(PlayerFlags.EXPERT_MODE) is False:
-        player.output(f"{player.client_settings.return_key} keeps '{default}.'")
+    if default and not player.query_flag(PlayerFlags.EXPERT_MODE):
+        player.output(f"{player.terminal_settings.return_key} keeps '{default}.'")
     while True:
         temp = input(f"{prompt}: ")
         # just hitting Return keeps the original string
@@ -169,7 +165,7 @@ def input_yes_no(prompt: str) -> bool:
             return False
 
 
-def fileread(self, filename: str, player: "Player"):
+def fileread(self, filename: str, player: Player):
     """
     display a file to a user in 40 or 80 columns with more_prompt paging
     also handles highlighting [text in brackets] via re and colorama
@@ -260,7 +256,6 @@ def make_random_id() -> int:
 
 
 if __name__ == '__main__':
-    from player import Player
     # set up logging level (this level or higher will output to console):
     logging.basicConfig(format='%(levelname)10s | %(funcName)20s() | %(message)s',
                         level=logging.DEBUG)

@@ -6,10 +6,8 @@ from enum import Enum, auto, StrEnum, IntEnum
 import textwrap
 import doctest
 
-import create_character
-import terminal
-from flags import Flag, new_player_default_flags
-from base_classes import Combination, CombinationTypes
+from flags import Flag, new_player_default_flags, FlagDisplayTypes
+from base_classes import Combination, CombinationTypes, Alignment
 from base_variables import STAT_DATA
 
 
@@ -87,10 +85,6 @@ class Guild(StrEnum):
     SWORD = "Sword"
     CLAW = "Claw"
     OUTLAW = "Outlaw"
-
-
-class PlayerFlag(IntEnum):
-    EXPERT_MODE = auto()
 
 
 def make_random_id():
@@ -204,10 +198,10 @@ class Player(object):
             logging.info("Silver in hand: %i" % silver_in_hand)
 
         # client settings - set up some defaults
-        self.client_settings = kwargs.get('client_settings', terminal.ClientSettings())
+        self.client = kwargs.get('client', Client())
 
         self.times_played = kwargs.get('times_played')
-        self.last_play_date = kwargs.get('last_play_date')  # like birthday
+        self.last_play_date = kwargs.get('last_play_date', datetime.datetime.today())  # like birthday
 
         """
         proposed stats:
@@ -222,7 +216,7 @@ class Player(object):
         self.moves_made = kwargs.get('moves_made', None)
         # tracks how many moves made during the game session to calculate experience points awarded at quit:
         self.moves_today = kwargs.get('moves_today', 0)
-        self.birthday = kwargs.get('birthday')  # TODO: use datetime
+        self.birthday = kwargs.get('birthday', datetime.datetime.today())  # use datetime
         self.guild = kwargs.get('guild', Guild.CIVILIAN)  # [civilian | fist | sword | claw | outlaw]
         # 1       2        3       4      5       6       7         8       9
         self.char_class = kwargs.get('char_class')
@@ -235,6 +229,11 @@ class Player(object):
         # the lower the Honor score, the more evil the character has become.
         # TODO: look it up, but I think 1,000 honor points is equivalent to a Saintly Knight.
         self.honor = kwargs.get('honor', 1_000)
+        self.natural_alignment = kwargs.get("natural_alignment", Alignment.NEUTRAL)
+        self.current_alignment = kwargs.get("current_alignment", Alignment.NEUTRAL)
+
+        self.allies = kwargs.get('allies')
+        self.horse = kwargs.get('horse')
 
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
@@ -301,10 +300,12 @@ class Player(object):
         :param adj: adjustment (+x or -x)
         :return: stat, maybe also 'success': True if 0 > stat > <limit>
 
+        TODO: example for doctest:
         >>> rulan = Player(**set_up_rulan())
 
-        >>> rulan.adjust_stat(PlayerStat.STR, -5)  # decrement Rulan's strength by 5
+        >>> rulan.adjust_stat_relative(PlayerStat.STR, -5)  # decrement Rulan's strength by 5
         """
+        from flags import PlayerFlags
         if stat not in self.stats:
             logging.warning(f"Stat {stat} doesn't exist.")
             # raise ValueError?
@@ -313,7 +314,7 @@ class Player(object):
         before = self.stats[stat]
         after = before + adj
         logging.info("set_stat: Before: %s %i" % (stat, after))
-        if not self.query_flag(PlayerFlag.EXPERT_MODE):
+        if not self.query_flag(PlayerFlags.EXPERT_MODE):
             pass
             # TODO: jwhoag suggested adding 'confidence' -> 'brave' -- good idea,
             #  not sure where it can be added yet.
@@ -342,11 +343,11 @@ class Player(object):
             logging.info("Player stat %s does not exist" % stat)
             return False
 
-    def get_stat(self, stat: "PlayerStat"):
+    def get_stat(self, stat: PlayerStat):
         """
         if `stat` is str: return value of single stat as str: 'stat'
         if `stat` is list: return dict of stats: {PlayerStat.STR: 20, PlayerStat.WIS: 10, ...}
-        -- avoids multiple function calls
+        -- this avoids multiple function calls
         """
         if type(stat) is list:
             total = {}
@@ -518,8 +519,13 @@ class Player(object):
             logging.error("Stat '%s' does not exist for player '%s'." % (stat.name, self.name))
             return None
 
-    def query_flag(self, flag: PlayerFlag):
-        pass
+    def query_flag(self, flag: Flag):
+        if flag.display_type == FlagDisplayTypes.YESNO:
+            return "Yes" if flag.status else "No"
+        elif flag.display_type == FlagDisplayTypes.ONOFF:
+            return "On" if flag.status else "Off"
+        else:
+            return "<Bad flag type>"
 
     def set_silver(self, kind: PlayerMoneyTypes, silver_amount: int):
         pass
@@ -546,8 +552,8 @@ if __name__ == '__main__':
         print(f"Set silver in hand to {silver_amount}.")
     if rulan.times_played is None:
         print("This is a new player.")
-    # print(rulan)
-    print(rulan.client_settings)
+    print(rulan)
+    print(rulan.client)
 
     # Statistic adjusting tests:
     # 1. Create a player instance
@@ -577,6 +583,3 @@ if __name__ == '__main__':
     print(rulan.show_silver(PlayerMoneyTypes.IN_HAND))
 
     rulan.print_all_stats()
-
-    logging.info("Running create_character")
-    create_character.main(rulan)

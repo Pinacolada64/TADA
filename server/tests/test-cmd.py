@@ -26,7 +26,7 @@ def longest_list_item_length(items: list):
     """
     Display items + a group of ellipses: how many elipses is determined by the length
     of the longest string in the list.
-    and something else afterwards is printed by the calling routine:
+    and something else afterward is printed by the calling routine:
     e.g.,
     item_one ...... foo
     item_two ...... bar
