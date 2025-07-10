@@ -80,34 +80,37 @@ def edit_name(char: "Player"):
     char.name = enter_name(char, edit_mode=True)
 
 
-def enter_name(_char: "Player", edit_mode: bool):
+def enter_name(p: "Player", edit_mode: bool):
     """
-    change character name. this can also be called during final player edit menu
+    Change character name. This can also be called during final player edit menu.
 
-    :param _char: Player object (trying to make _private to eliminate shadowing)
+    :param p: Player object
     :param edit_mode: True: editing existing name
                       False: no name assigned, entering new name
-    :return: name: str
+    :return: current_name: str
     """
     if edit_mode:
-        print(f"({_char.client_settings.return_key} keeps '{_char.name}.')")
+        print(f"({p.client_settings.return_key} keeps '{p.name}.')")
     # TODO: this should be written as a generic edit prompt
-    temp = input("What is your name: ")
+    logging.info("Edit mode: %s" % edit_mode)
+    current_name = input("What is your name: ").strip()
     if edit_mode:
         # Return hit, or new string = old string:
-        if temp is None or temp == _char.name:
-            _char.output(f"(Keeping the name of '{_char.name}'.)")
-    _char.output(f'Verus checks to see if anyone else has heard of "{temp}" around '
-                 'here...')
+        if current_name == "" or current_name == p.name:
+            current_name = p.name
+            p.output(f"(Keeping the name of '{current_name}'.)")
+
+    p.output(f'Verus checks to see if anyone else has heard of "{current_name}" around '
+              'here...')
     # TODO: check for existing name
-    _ = ['"Seems to be okay." He ']
-    if edit_mode and _char.name != temp:
+    _ = ['"Seems to be okay." He']
+    if edit_mode and p.name != current_name:
         _.append("scratches out your old name and re-writes it")
     else:
         _.append("scribbles your name")
     _.append("in a dusty book.")
-    _char.output(" ".join(_))
-    return temp
+    p.output(" ".join(_))
+    return current_name
 
 
 def choose_client(p: "Player"):
