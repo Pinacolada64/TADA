@@ -361,9 +361,10 @@ def choose_age(p: "Player"):
 
     if player.age = 0, it is displayed as 'Unknown'
     """
+    from tada_utilities import input_number_range
     age_valid = False
     temp_age = 0
-    while age_valid is False:
+    while not age_valid:
         p.output('Enter [0] to be of an unknown age.')
         p.output('Enter [R] to select a random age between 15-50.')
         print()
@@ -394,34 +395,37 @@ def choose_age(p: "Player"):
     p.age = temp_age
 
     # year = today.year - p.age FIXME: (if =0, what then?)
-    _month = date.today().month
-    _day = date.today().day
-    _year = date.today().year
-    p.output(f'"Which would you like your birthday to be?" asks Verus.')
+    birthday_month = date.today().month
+    birthday_day = date.today().day
+    birthday_year = date.today().year
+    p.output(f'Verus asks, "Would you like your birthday to be:"')
     print()
-    p.output(f"[T]oday ({_month}/{_day})")
+    p.output(f"[T]oday ({birthday_month}/{birthday_day})")
     p.output("[A]nother date (choose month and day)")
     print()
     temp = input("Which [T, A]: ").lower()[0:1]
     if temp == 't':
         # store as datetime:
-        p.birthday = datetime(_month, _day, _year)
-        p.output(f'Set to today: {_month}/{_day}.')
+        p.birthday = datetime(birthday_year, birthday_month, birthday_day)
+        p.output(f'Set to today: {birthday_month}/{birthday_day}.')
         print()
     if temp == 'a':
         # year is calculated for leap year in monthrange() below, and displaying later
         # FIXME: what to do about age = 0
-        _year = date.today().year - p.age
-        _month = input_number_range(prompt="Month", lo=1, hi=12)
+        birthday_year = date.today().year - p.age
+        # show menu items for months:
+        for month in range(1, 13):
+            print(f"{month:>2}. {calendar.month_name[month]}")
+        birthday_month = input_number_range(prompt="Month", lo=1, hi=12, p=p)
         # monthrange(year, day) returns tuple: (month, days_in_month)
         # we just need days_in_month, which is monthrange()[1]
-        _day = input_number_range(prompt="Day", lo=1,
-                                  hi=calendar.monthrange(year=_year, month=_month)[1])
+        days_in_month = calendar.monthrange(year=birthday_year, month=birthday_month)[1]
+        birthday_day = input_number_range(prompt="Day", lo=1, hi=days_in_month, p=p)
 
         # store birthday as datetime: birthday.month = month, .day = day, .year = year
         # store year anyway in case age = 0
-        p.birthday = datetime(_month, _day, _year)
-        p.output(f"Birthday: {_month}/{_day}/{_year}")
+        p.birthday = datetime(birthday_year, birthday_month, birthday_day)
+        p.output(f"Birthday: {birthday_month}/{birthday_day}/{birthday_year}")
     else:
         p.output("That's not a choice.")
 
@@ -446,9 +450,10 @@ def choose_age(p: "Player"):
 def validate_age(age: int, p: "Player"):
     """
     validate that the age == 0, or 15 < age < 50
+
     :param p: Player to output message to
     :param age: age entered
-    :return: True if age == 0, or 15 < age 50, False if not
+    :return: True if age == 0, or 15 < age < 50, False if not
     """
     if age == 0:
         p.output("You're of an unknown age.")
@@ -461,32 +466,32 @@ def validate_age(age: int, p: "Player"):
         p.output('"Hmm, we seem to be out of Senior Adventurer life '
                  'insurance policies right now. Come back tomorrow!"')
         return False
-    return None
+    return True
 
 
 def final_edit(p: "Player"):
     """allow player another chance to view/edit characteristics before saving"""
     p.output(f"Your Summary:")
-    options = 5
+    option_count = 5
     while True:
         print()
-        p.output(f'1.    Name: {p.name}')
-        p.output(f'2.  Gender: {p.gender}')
-        p.output(f'3.   Class: {p.char_class}')
-        p.output(f'4.    Race: {p.char_race}')
+        p.output(f'1.      Name: {p.name}')
+        p.output(f'2.    Gender: {p.gender}')
+        p.output(f'3.     Class: {p.char_class}')
+        p.output(f'4.      Race: {p.char_race}')
         # FIXME: this needs work
-        age = p.birthday.year - datetime.year
+        age = p.birthday.year - datetime.now().year
         if age == 0:
             temp = "Unknown"
         else:
             temp = f"{age} years old"
         p.output(f'5.     Age: {temp}')
         # TODO: date format setting in player profile (YYYY-MM-DD or DD-MM-YYYY, mainly)
-        p.output(f'  Birthday: {p.birthday.month}/{p.birthday.day}/'
+        p.output(f'5. Birthday: {p.birthday.month}/{p.birthday.day}/'
                  f'{p.birthday.year}')
         print()
 
-        temp = input(f"Option [1-{options}, {p.client_settings.RETURN_KEY}=Done]: ")
+        temp = input(f"Option [1-{option_count}, {p.client_settings.return_key}=Done]: ")
         print()
         if temp == '1':
             edit_name(p)
@@ -499,6 +504,7 @@ def final_edit(p: "Player"):
         if temp == '5':
             choose_age(p)
         if temp == '':
+            print("Done.")
             break
 
 
