@@ -9,6 +9,7 @@ import doctest
 from flags import Flag, new_player_default_flags, FlagDisplayTypes
 from base_classes import Combination, CombinationTypes, Alignment
 from base_variables import STAT_DATA
+from terminal import KeyboardKeyName
 
 
 class Translation(Enum):
@@ -138,6 +139,12 @@ def set_up_rulan() -> dict:
             }
 
 
+def set_up_terminal():
+    client_settings = terminal.ClientSettings()
+    logging.debug(client_settings)
+    return client_settings
+
+
 class Player(object):
     """
     Attributes, flags, and other stuff about players.
@@ -198,7 +205,8 @@ class Player(object):
             logging.info("Silver in hand: %i" % silver_in_hand)
 
         # client settings - set up some defaults
-        self.client = kwargs.get('client', Client())
+        self.client_settings = kwargs.get('client', set_up_terminal())
+        self.client_settings.return_key = KeyboardKeyName.ENTER
 
         self.times_played = kwargs.get('times_played')
         self.last_play_date = kwargs.get('last_play_date', datetime.datetime.today())  # like birthday
@@ -530,6 +538,10 @@ class Player(object):
     def set_silver(self, kind: PlayerMoneyTypes, silver_amount: int):
         pass
 
+    @classmethod
+    def load(cls, user_id):
+        pass
+
 
 if __name__ == '__main__':
     # set up logging
@@ -553,7 +565,7 @@ if __name__ == '__main__':
     if rulan.times_played is None:
         print("This is a new player.")
     print(rulan)
-    print(rulan.client)
+    print(rulan.client_settings)
 
     # Statistic adjusting tests:
     # 1. Create a player instance
