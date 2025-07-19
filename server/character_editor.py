@@ -1,41 +1,19 @@
 import json
 import logging
 from dataclasses import dataclass, field
-from enum import Enum
-from sys import flags
-from typing import List, Optional, Callable, NamedTuple
+from typing import List, Optional, Callable
 
-from base_classes import WeaponClass
-from new_player_2 import Player
-
-
+# TADA imports:
+from menu_system import Menu, MenuItem
+from base_classes import Alignment, WeaponClass
 # Assuming these are defined in other files as per your imports
-# from flags import PlayerFlags
-# from characters import PlayerStat, Alignment
-# from player import Player
+from characters import PlayerStat
+from flags import PlayerFlags
+from player import Player
+from tada_utilities import input_string
+
 
 # --- Mock Objects for Demonstration ---
-class PlayerFlags(Enum):
-    FLAG_1 = "Some Flag 1"
-    FLAG_2 = "Another Flag"
-
-
-class PlayerStat(Enum):
-    CHA = "Charisma"
-    CON = "Constitution"
-    DEX = "Dexterity"
-    INT = "Intelligence"
-    STR = "Strength"
-    WIS = "Wisdom"
-
-
-class Alignment(Enum):
-    LAWFUL_GOOD = "Lawful Good"
-    GOOD = "Good"
-    NEUTRAL = "Neutral"
-    EVIL = "Evil"
-    CHAOTIC_EVIL = "Chaotic Evil"
-
 
 class Armor(object):
     def __init__(self, **kwargs):
@@ -147,88 +125,15 @@ def line_item(item_name: str, item_value: str | int, width: int = 30):
 
 
 @dataclass
-class Menu:
-    """Base class for menu systems with shared behavior."""
-    title: str
-    player: Optional[Player] = None
-    menu_items: list = field(default_factory=list)
-    columns: int = 1
-
-    def display(self) -> None:
-        """Displays the menu title and its menu items."""
-        print(f"\n{self.title}")
-        print("=" * len(self.title))
-        """
-        Don't tab over if no shortcuts in menu items:
-        e.g.,
-        1. No shortcut key
-        2. No shortcut key
-        
-        vs.
-        1. [i]  Item with shortcut
-        2.      Item without shortcut
-        """
-        # Check if any item in the menu has a shortcut defined.
-        has_any_shortcut = any(item.shortcuts for item in self.menu_items)
-
-        for i, item in enumerate(self.menu_items, 1):
-            # Join shortcuts for display, e.g., "[1I, I1]"
-            shortcut_str = f"[{','.join(item.shortcuts)}]" if item.shortcuts else ""
-
-            # Use the provided line_item for dot leader formatting
-            if item.dot_leader_handler and self.player:
-                # The handler now returns the value, line_item does the formatting
-                value = item.dot_leader_handler(self.player)
-                print(f"{i: >2}. {shortcut_str:<8} {line_item(item.text, value)}")
-            else:
-                print(f"{i: >2}. {shortcut_str:<8} {item.text}")
-
-    def get_choice(self):
-        """Gets and validates user input against the numeric input range, plus (possibly multiple) shortcut(s).
-
-        :return: None | MenuItem
-        """
-        num_items = len(self.menu_items)
-        if any(item.shortcuts in item for item in self.menu_items):
-            print("You may use shortcuts listed in [square brackets].")
-        prompt = f"Enter your choice [1-{num_items}]: "
-        while True:
-            choice_string = input(prompt).strip().lower()
-            if not choice_string:
-                return None  # Go back
-            # --- FIX FOR NUMERIC CHOICE ---
-            if choice_string.isnumeric():
-                choice_num = int(choice_string)
-                # Check if number is within the valid range of displayed options (1 to N)
-                if 1 <= choice_num <= len(self.menu_items):
-                    # Return the existing MenuItem from the list using the correct 0-based index
-                    return self.menu_items[choice_num - 1]
-
-            for item in self.menu_items:
-                # Check if the user's input is in the item's shortcut list
-                if choice_string in [sc.lower() for sc in item.shortcuts]:
-                    return item
-            print("Invalid choice, please try again.")
-
-
-class MenuItem(NamedTuple):
-    text: str
-    action: Optional[Callable] = None
-    submenu: Optional[Menu] = None
-    shortcuts: Optional[List[str]] = None
-    dot_leader_handler: Optional[Callable] = None
-
-
-@dataclass
 class AlignmentMenu(Menu):
     title: str = "Alignment Options"
 
     def __post_init__(self):
         self.menu_items = [
-            MenuItem("Natural Alignment", self.edit_natural_alignment, shortcuts=['n'],
-                     dot_leader_handler=lambda p: p.natural_alignment.value),
-            MenuItem("Current Alignment", self.edit_current_alignment, shortcuts=['c'],
-                     dot_leader_handler=lambda p: p.current_alignment.value),
+            MenuItem("Natural Alignment", 'n', self.edit_natural_alignment,
+                     dot_leader_handler=lambda p: p.natural_alignment),
+            MenuItem("Current Alignment", 'c', self.edit_current_alignment,
+                     dot_leader_handler=lambda p: p.current_alignment),
         ]
 
     def edit_natural_alignment(self, player: Player):
@@ -239,15 +144,17 @@ class AlignmentMenu(Menu):
     def edit_current_alignment(self, player: Player):
         print(f"\nCurrent Alignment is {player.current_alignment.value.title()}.")
         alignments = list(Alignment)
-        print("Available alignments:")
-        for i, alignment in enumerate(alignments, 1):
-            print(f"{i}: {alignment.value.title()}")
-
+        current_alignment_menu = Menu("Available alignments")
+        # for i, alignment in enumerate(alignments, 1):
+        #     print(f"{i}: {alignment.title()}")
+        for i, a in enumerate(alignments, 1):
+            # current_alignment_menu.menu_items[i] = MenuItem(a, str(i))
+            current_alignment_menu.add_item(MenuItem(a, str(i)))
         try:
             choice = int(input("Enter your choice: ").strip()) - 1
             if 0 <= choice < len(alignments):
                 player.current_alignment = alignments[choice]
-                print(f"Current Alignment set to {player.current_alignment.value}.")
+                print(f"Current Alignment set to {player.current_alignment}.")
             else:
                 print("Invalid alignment selected.")
         except (ValueError, IndexError):
@@ -359,11 +266,160 @@ class FlagsCountersMenu(Menu):
         ]
 
 
+class CharacterNames(Menu):
+    def show_main_char_name(self):
+        return player.name
+
+    def edit_main_char_name(self, player):
+        name = input_string("Main character name", self.name, player, "reminder: player.name")
+        player.name = name
+
+
+class FlagsAndCounters(Menu):
+    """Edit player's flags and counters"""
+
+    def show_admin_flag(self, player: Player):
+        # we just want the result from the Admin flag query string,
+        # so split string into "Administrator....", ": ", "Yes/No",
+        # return list index 1 (the Yes/No, On/Off, True/False result)
+        return player.show_flag(PlayerFlags.ADMIN).split(": ")[1]
+
+    def edit_admin_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.ADMIN, True)
+
+    def show_architect_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.ARCHITECT).split(": ")[1]
+
+    def edit_architect_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.ARCHITECT, True)
+
+    def show_debug_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.DEBUG_MODE).split(": ")[1]
+
+    def edit_debug_flag(self, player: Player):
+        """
+        Cannot enable Debug Mode without first being a Dungeon Master or
+        Administrator.
+        :return:
+        """
+        if not player.query_flag(PlayerFlags.DEBUG_MODE):  # Check if DEBUG_MODE is off
+            # Check if both ADMIN and DUNGEON_MASTER are off:
+            if not player.query_flag(PlayerFlags.ADMIN) or not player.query_flag(PlayerFlags.DUNGEON_MASTER):
+                player.output("Debug Mode cannot be enabled unless either the Dungeon Master or"
+                              " Administrator flags are already enabled.")
+                return
+            player.set_flag(PlayerFlags.DEBUG_MODE)
+        else:
+            player.clear_flag(PlayerFlags.DEBUG_MODE)  # Toggle off if it is on.
+
+    def show_dm_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.DUNGEON_MASTER).split(": ")[1]
+
+    def edit_dm_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.DUNGEON_MASTER, True)
+
+    def show_expert_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.EXPERT_MODE).split(": ")[1]
+
+    def edit_expert_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.EXPERT_MODE, True)
+
+    def show_orator_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.ORATOR).split(": ")[1]
+
+    def edit_orator_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.ORATOR, True)
+
+    def show_has_horse_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.HAS_HORSE).split(": ")[1]
+
+    def edit_has_horse_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.HAS_HORSE, True)
+
+    def show_mounted_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.MOUNTED).split(": ")[1]
+
+    def edit_mounted_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.MOUNTED, True)
+
+    def show_hunger_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.HUNGER).split(": ")[1]
+
+    def edit_hunger_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.HUNGER, True)
+
+    def show_poison_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.POISON).split(": ")[1]
+
+    def edit_poison_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.POISON, True)
+
+    def show_thirst_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.THIRST).split(": ")[1]
+
+    def edit_thirst_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.THIRST, True)
+
+    def show_thug_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.THUG_ATTACK).split(": ")[1]
+
+    def edit_thug_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.THUG_ATTACK, True)
+
+    def show_tired_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.TIRED).split(": ")[1]
+
+    def edit_tired_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.TIRED, True)
+
+    def show_unconscious_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.UNCONSCIOUS).split(': ')[1]
+
+    def toggle_unconscious_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.UNCONSCIOUS, True)
+
+    def show_wraith_king_alive_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.WRAITH_KING_ALIVE).split(": ")[1]
+
+    def edit_wraith_king_alive_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.WRAITH_KING_ALIVE, True)
+
+    def show_wraith_master_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.WRAITH_MASTER).split(": ")[1]
+
+    def edit_wraith_master_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.HUNGER, True)
+
+    def show_more_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.MORE_PROMPT).split(": ")[1]
+
+    def edit_more_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.MORE_PROMPT, True)
+
+    def show_compass_used_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.COMPASS_USED).split(": ")[1]
+
+    def edit_compass_used_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.COMPASS_USED, True)
+
+    def show_disease_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.DISEASE).split(": ")[1]
+
+    def edit_disease_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.DISEASE)
+
+    def show_dwarf_alive_flag(self, player: Player):
+        return player.show_flag(PlayerFlags.DWARF_ALIVE).split(": ")[1]
+
+    def edit_dwarf_alive_flag(self, player: Player):
+        player.toggle_flag(PlayerFlags.DWARF_ALIVE, True)
+
+
 @dataclass
 class HitPointsMenu(Menu):
     title: str = "Hit Points"
 
-    def __post_init__(self, player: Player):
+    def __post_init__(self):
         logging.info("In %s" % __class__.__name__)
 
 
@@ -409,7 +465,7 @@ class WeaponsMenu(Menu):
         logging.info("In %s" % __class__.__name__)
 
 
-def main(player: Player):
+def old_menu_system(player: Player):
     """Main function to handle menu interactions."""
     """
     print" STATS FOR "q$a$(.)q$r$l$
@@ -421,26 +477,26 @@ def main(player: Player):
     print" 6:*FLAGS/COUNTERS    (*=Sub-menu)"
     """
     main_menu_items = [
-        MenuItem("Alignment", submenu=AlignmentMenu, shortcuts=['al']),
-        MenuItem("Armor & Shield", submenu=ArmorShieldMenu, shortcuts=['ar']),
-        MenuItem("Attributes", submenu=AttributeMenu, shortcuts=['at']),
-        MenuItem("Character Names", submenu=CharacterNamesMenu, shortcuts=['al']),
-        MenuItem("Combinations", submenu=CombinationMenu, shortcuts=['c']),
-        MenuItem("Flags & Counters", submenu=FlagsCountersMenu, shortcuts=['f']),
-        MenuItem("Hit Points", submenu=HitPointsMenu, shortcuts=['h']),
-        MenuItem("Map Information", submenu=MapInfoMenu, shortcuts=['mi']),
-        MenuItem("Money", submenu=MoneyMenu, shortcuts=['mo']),
-        MenuItem("Statistics", submenu=StatisticsMenu, shortcuts=['s']),
-        MenuItem("Weapons", submenu=WeaponsMenu, shortcuts=['w']),
-        MenuItem("Quit", action=lambda p: exit("Exiting character editor."), shortcuts=['q']),
+        MenuItem("Alignment", 'al', submenu=AlignmentMenu),
+        MenuItem("Armor & Shield", 'ar', submenu=ArmorShieldMenu),
+        MenuItem("Attributes", 'at', submenu=AttributeMenu),
+        MenuItem("Character Names", 'n', submenu=CharacterNamesMenu),
+        MenuItem("Combinations", 'c', submenu=CombinationMenu),
+        MenuItem("Flags & Counters", 'f', submenu=FlagsCountersMenu),
+        MenuItem("Hit Points", 'h', submenu=HitPointsMenu),
+        MenuItem("Map Information", 'mi', submenu=MapInfoMenu),
+        MenuItem("Money", 'mo', submenu=MoneyMenu),
+        MenuItem("Statistics", 's', submenu=StatisticsMenu),
+        MenuItem("Weapons", 'w', submenu=WeaponsMenu),
+        MenuItem("Quit", 'q', action=lambda p: exit("Exiting character editor.")),
     ]
 
-    menu_stack: List[Menu] = [Menu(title="Main Menu", menu_items=main_menu_items, player=player)]
+    menu_stack: List[Menu] = [Menu(title="Main Menu", menu_items=main_menu_items)]
 
     while menu_stack:
         current_menu = menu_stack[-1]
-        current_menu.display()
-        choice = current_menu.get_choice()
+        current_menu.display_menu()
+        choice = current_menu.get_user_choice()
 
         if choice is None:
             menu_stack.pop()
@@ -458,8 +514,146 @@ def main(player: Player):
             # input("\nPress Enter to continue...")
 
 
+def main(player: Player):
+    """Main function to handle menu interactions."""
+    # menu setup - menus must be defined in reverse order because of submenu dependencies
+    # (i.e., MainMenu references submenu SubMenu [which needs to be defined before MainMenu
+    # in order to work properly]
+    # FIXME: to display flag status with a dot leader, currently setting
+    #  text=player.show_flag_line_item(PlayerFlags.ADMIN, None) does not work. Not sure why.
+    # instead, use 'text="string"' and dot_leader_handler=<class.method>, as below.
+    flags_and_counters = Menu("Flags & Counters", columns=1)
+    """
+    This simply returns and displays 'None':
+    MenuItem("Debug Mode",
+           dot_leader_handler=player.show_flag_line_item(PlayerFlags.DEBUG_MODE, None),
+           action=player.toggle_flag(PlayerFlags.DEBUG_MODE, True)
+           ),
+    """
+    menu_items = [MenuItem("Section Header"),
+                  MenuItem(PlayerFlags.ADMIN.value,
+                           dot_leader_handler=lambda p: player.show_flag_status(PlayerFlags.ADMIN),
+                           action=FlagsAndCounters.edit_admin_flag),
+                  MenuItem(PlayerFlags.ARCHITECT.value,
+                           dot_leader_handler=FlagsAndCounters.show_architect_flag,
+                           action=FlagsAndCounters.edit_architect_flag),
+                  # can only enable Debug Mode if already Administrator or Dungeon Master:
+                  MenuItem(PlayerFlags.DEBUG_MODE.value,
+                           dot_leader_handler=FlagsAndCounters.show_debug_flag,
+                           action=FlagsAndCounters.edit_debug_flag),
+                  MenuItem(PlayerFlags.DUNGEON_MASTER.value,
+                                    dot_leader_handler=FlagsAndCounters.show_dm_flag,
+                                    action=FlagsAndCounters.edit_dm_flag),
+                  MenuItem(PlayerFlags.ORATOR.value,
+                                    dot_leader_handler=FlagsAndCounters.show_orator_flag,
+                                    action=FlagsAndCounters.edit_orator_flag),
+                  MenuItem("Guild"),
+                  MenuItem(PlayerFlags.GUILD_AUTODUEL.value,
+                           dot_leader_handler=FlagsAndCounters.show_autoduel_flag,
+                           action=FlagsAndCounters.edit_autoduel_flag),
+                  MenuItem(PlayerFlags.GUILD_FOLLOW_MODE.value,
+                           dot_leader_handler=FlagsAndCounters.show_guild_follow_flag,
+                           action=FlagsAndCounters.edit_guild_follow_flag),
+                  MenuItem(PlayerFlags.GUILD_MEMBER.value,
+                           dot_leader_handler=FlagsAndCounters.show_guild_member_flag,
+                           action=FlagsAndCounters.edit_guild_member_flag),
+                  MenuItem("Horse options"),
+                  MenuItem(PlayerFlags.HAS_HORSE.value,
+                           dot_leader_handler=FlagsAndCounters.show_has_horse_flag,
+                           action=FlagsAndCounters.edit_has_horse_flag),
+                  MenuItem(PlayerFlags.MOUNTED.value,
+                           dot_leader_handler=FlagsAndCounters.show_mounted_flag,
+                           action=FlagsAndCounters.edit_has_horse_flag),
+                  MenuItem("Option toggles"),
+                  MenuItem(PlayerFlags.EXPERT_MODE.value,
+                           dot_leader_handler=FlagsAndCounters.show_expert_flag,
+                           action=FlagsAndCounters.edit_expert_flag),
+                  MenuItem(PlayerFlags.HOURGLASS.value,
+                           dot_leader_handler=FlagsAndCounters.show_hourglass_flag,
+                           action=FlagsAndCounters.edit_hourglass_flag),
+                  MenuItem(PlayerFlags.MORE_PROMPT.value,
+                           dot_leader_handler=FlagsAndCounters.show_more_flag,
+                           action=FlagsAndCounters.edit_more_flag),
+                  MenuItem(PlayerFlags.ROOM_DESCRIPTIONS.value,
+                           dot_leader_handler=FlagsAndCounters.show_room_descs_flag,
+                           action=FlagsAndCounters.edit_room_descs_flag),
+                  MenuItem("Health issues"),
+                  MenuItem(PlayerFlags.DISEASE.value,
+                           dot_leader_handler=FlagsAndCounters.show_disease_flag,
+                           action=FlagsAndCounters.edit_disease_flag),
+                  MenuItem(PlayerFlags.HUNGER.value,
+                           dot_leader_handler=FlagsAndCounters.show_hunger_flag,
+                           action=FlagsAndCounters.edit_hunger_flag),
+                  MenuItem(PlayerFlags.POISON.value,
+                           dot_leader_handler=FlagsAndCounters.show_poison_flag,
+                           action=FlagsAndCounters.edit_poison_flag),
+                  MenuItem(PlayerFlags.THIRST.value,
+                           dot_leader_handler=FlagsAndCounters.show_thirst_flag,
+                           action=FlagsAndCounters.edit_thirst_flag),
+                  MenuItem(PlayerFlags.TIRED.value,
+                           dot_leader_handler=FlagsAndCounters.show_tired_flag,
+                           action=FlagsAndCounters.edit_tired_flag),
+                  MenuItem(PlayerFlags.UNCONSCIOUS.value,
+                           dot_leader_handler=FlagsAndCounters.show_unconscious_flag,
+                           action=FlagsAndCounters.edit_unconscious_flag),
+                  MenuItem("Game States"),
+                  MenuItem(PlayerFlags.AMULET_OF_LIFE_ENERGIZED.value,
+                           dot_leader_handler=FlagsAndCounters.show_amulet_energized_flag,
+                           action=FlagsAndCounters.edit_amulet_energized_flag),
+                  MenuItem(PlayerFlags.COMPASS_USED.value,
+                           dot_leader_handler=FlagsAndCounters.show_compass_used_flag,
+                           action=FlagsAndCounters.edit_compass_used_flag),
+                  MenuItem(PlayerFlags.DWARF_ALIVE.value,
+                           dot_leader_handler=FlagsAndCounters.show_dwarf_alive_flag,
+                           action=FlagsAndCounters.edit_dwarf_alive_flag),
+                  MenuItem(PlayerFlags.GAUNTLETS_WORN.value,
+                           dot_leader_handler=FlagsAndCounters.show_gauntlets_worn_flag,
+                           action=FlagsAndCounters.edit_gauntlets_worn_flag),
+                  MenuItem(PlayerFlags.RING_WORN.value,
+                           dot_leader_handler=FlagsAndCounters.show_ring_worn_flag,
+                           action=FlagsAndCounters.edit_ring_worn_flag),
+                  MenuItem(PlayerFlags.SPUR_ALIVE.value,
+                           dot_leader_handler=FlagsAndCounters.show_spur_alive_flag,
+                           action=FlagsAndCounters.edit_spur_alive_flag),
+                  MenuItem(PlayerFlags.THUG_ATTACK.value,
+                           dot_leader_handler=FlagsAndCounters.show_thug_flag,
+                           action=FlagsAndCounters.edit_thug_flag),
+                  MenuItem(PlayerFlags.WRAITH_KING_ALIVE.value,
+                           dot_leader_handler=FlagsAndCounters.show_wraith_king_alive_flag,
+                           action=FlagsAndCounters.edit_wraith_king_alive_flag),
+                  MenuItem(PlayerFlags.WRAITH_MASTER.value,
+                           dot_leader_handler=FlagsAndCounters.show_wraith_master_flag,
+                           action=FlagsAndCounters.edit_wraith_master_flag),
+                  ]
+
+    name_menu = Menu("Character Names", columns=1)
+    name_menu.add_item(MenuItem("Main Character", "m",
+                                dot_leader_handler=lambda p: player.name,
+                                action=CharacterNames.edit_main_char_name))
+
+    alignment_menu = Menu("Alignment Menu", columns=1)
+    alignment_menu.add_item(MenuItem("Natural Alignment", "N",
+                                     dot_leader_handler=lambda: {player.natural_alignment},
+                                     action=AlignmentMenu.edit_natural_alignment(player)))
+
+    main_menu = Menu("Main Menu", columns=2)
+    main_menu.add_item(MenuItem("Alignment", "A", submenu=AlignmentMenu))
+    main_menu.add_item(MenuItem("Armor & Shield", "A", action=NotImplemented))
+    main_menu.add_item(MenuItem("Attributes", "A", action=NotImplemented))
+    main_menu.add_item(MenuItem("Character Names", "C", submenu=name_menu))
+    main_menu.add_item(MenuItem("Combinations", "CO", action=NotImplemented))
+    main_menu.add_item(MenuItem("Flags & Counters", "F", submenu=flags_and_counters))
+    main_menu.add_item(MenuItem("Hit Points", "H", action=NotImplemented))
+    main_menu.add_item(MenuItem("Map Info", "M", action=NotImplemented))
+    main_menu.add_item(MenuItem("Silver", "S", action=NotImplemented))
+
+    # Use a stack to track menu depth
+    menu_stack: List[Menu] = [main_menu]
+    # initiate navigation:
+    main_menu.navigate_menu(menu_stack)
+
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(levelname)-8s | %(funcName)-20s | %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(levelname)-8s | %(funcName)20s() | %(message)s')
 
     # Armor setup
     cloth_armor_setup = {"name": "Cloth Armor", "defense": 3, "weight": 2, "armor_class": 6}
