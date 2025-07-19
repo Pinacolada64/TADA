@@ -5,13 +5,13 @@ from dataclasses import dataclass, field
 from enum import StrEnum, IntEnum, auto
 
 
-class Guild(IntEnum):
-    """Guild names"""
-    CIVILIAN = auto()
-    FIST = auto()
-    SWORD = auto()
-    CLAW = auto()
-    OUTLAW = auto()
+class Guild(StrEnum):
+    """Guild name strings"""
+    CIVILIAN = "Civilian"
+    FIST = "The Iron Fist"
+    SWORD = "Mark of the Sword"
+    CLAW = "Mark of the Claw"
+    OUTLAW = "Outlaw"
 
 
 class Size(IntEnum):
@@ -60,16 +60,18 @@ class CombinationTypes(StrEnum):
     ELEVATOR = "Elevator"  # Get this from the SCRAP OF PAPER item in the dungeon
     LOCKER = "Locker"
 
+
 class Combination:
     """
     Represents a three-digit combination where each digit is between 1 and 99.
     """
+
     def __init__(self, name: CombinationTypes):
         """
         Initializes a combination with a given name and random numbers.
         """
         self.name = name
-        self.combination = tuple(random.randrange(1, 100) for _ in range(3)) # Changed to 100 to include 99
+        self.combination = tuple(random.randrange(1, 100) for _ in range(3))  # Changed to 100 to include 99
         logging.debug("%s: %s" % (self.name, self.combination))
 
     def __str__(self):
@@ -140,6 +142,33 @@ class PlayerClass(StrEnum):
     KNIGHT = "Knight"  # 9
 
 
+class PlayerClassText(StrEnum):
+    WIZARD = """Wizard / Witch: Masters of arcane magic, wizards and witches study ancient texts and theories to cast 
+    powerful spells. They often specialize in destructive elemental magic, illusions, or mind control. While 
+    formidable in spellcasting, they're typically physically frail."""
+    DRUID = """Druid: Guardians of nature, druids draw their power from the natural world. They can heal, shapeshift
+    into animals, and wield primal magic that controls plants, weather, or the earth. They're often found in wild,
+    untamed lands."""
+    FIGHTER = """Fighter: The quintessential warrior, fighters excel in combat with various weapons and armor.They're 
+    resilient, skilled in tactical maneuvers, and can adapt to many fighting styles. They form the backbone of most 
+    adventuring parties."""
+    PALADIN = """Paladin: Holy warriors, paladins are bound by sacred oaths to uphold justice and protect the innocent.
+    They combine martial prowess with divine magic, capable of healing, smiting evil, and inspiring allies."""
+    RANGER = """Ranger: Skilled survivalists and trackers, rangers are at home in the wilderness. They often specialize in
+    archery and can commune with nature or animal companions. They excel at hunting, scouting, and ranged combat."""
+    THIEF = """Thief: Nimble and cunning, thieves operate in the shadows, specializing in stealth, lockpicking, disarming
+    traps, and sleight of hand. They're excellent at reconnaissance and finding hidden treasures, and can be surprisingly
+    deadly in a quick strike."""
+    ARCHER = """Archer: A specialist in ranged combat, the archer focuses entirely on mastery of the bow or crossbow. They
+ are precise, agile, and can unleash a barrage of arrows, often finding weak points in an enemy's defense."""
+    ASSASSIN = """Assassin: A darker counterpart to the thief, assassins are highly trained killers focused on
+     eliminating specific targets. They excel at stealth, disguise, and delivering devastating surprise attacks,
+      often utilizing poisons."""
+    KNIGHT = """Knight: A disciplined and honorable warrior, often serving a lord, kingdom, or an ideal. Knights are 
+    typically heavily armored and skilled in mounted combat, prioritizing defense and protecting their allies on the 
+    battlefield."""
+
+
 @dataclass
 class PlayerRace(StrEnum):
     """
@@ -165,12 +194,46 @@ class PlayerRace(StrEnum):
     PIXIE = "Pixie"  # 3
     ELF = "Elf"  # 4
     HOBBIT = "Hobbit"  # 5
-    # Apparently Halfling was a dream; could be added later
-    # HALFLING = "Halfling"  # 6
+    # Apparently Halfling is the same as a Hobbit
+    # HALFLING = "Halfling"  # 5
     GNOME = "Gnome"  # 6
     DWARF = 'Dwarf'  # 7
     ORC = 'Orc'  # 8
     HALF_ELF = 'Half-Elf'  # 9
+
+
+class PlayerRaceText(StrEnum):
+    HUMAN = """The most adaptable and widespread race, humans are known for their diversity, ambition, and
+     resilience. They can be found in almost any profession or land, often driven by innovation and a desire to explore."""
+    OGRE = """Large, powerful, and often fearsome, ogres are known for their immense strength and raw brute force. While
+     sometimes depicted as simple-minded, they are capable of incredible feats of power."""
+    PIXIE = """Pixies are tiny, humanoid creatures of the Fae folk, renowned for their small size, delicate insect-like
+     wings, and notoriously mischievous nature. They are often described as being no taller than a human hand, with
+      slender limbs, pointed ears, and bright, sparkling eyes that reflect their lively personalities. Their wings
+       shimmer with iridescent colors, often resembling those of a dragonfly or butterfly, allowing them to flit through
+        the air with incredible speed and agility."""
+    ELF = """Graceful and long-lived, elves are often associated with magic, nature, and the arts. They possess keen
+     senses and a natural affinity for archery and arcane knowledge, though they can sometimes seem aloof to
+      shorter-lived races."""
+    HOBBIT = """Small and good-natured, hobbits are known for their love of comfort, good food, and simple lives. They
+     are surprisingly agile and lucky, often making excellent thieves or unassuming adventurers."""
+    GNOME = """Small, inventive, and curious, gnomes are often fascinated by technology, illusions, and intricate 
+    mechanisms. They are known for their quick wit, practical jokes, and a love for discovery."""
+    DWARF = """Stout and resilient, dwarves are master artisans, miners, and warriors, with a strong connection to
+     mountains and stone. They are known for their stubbornness, honor, and exceptional craftsmanship in metalwork and
+      engineering."""
+    ORC = """Often depicted as fierce and warlike, orcs are strong and formidable in battle. They value strength and
+     tribal loyalty, typically preferring direct confrontation over subtle tactics."""
+    HALF_ELVES = """Half-elves are the offspring of a human and an elf. This union creates individuals who embody traits from both lineages
+        Like elves, half-elves often inherit a resistance to magical sleep and charm effects, a subtle nod to their fey bloodline.
+
+    Darkvision: Many half-elves inherit the ability to see in dim light and darkness, though usually not as far as a full elf.
+
+    Skill Versatility: In many game systems, half-elves are known for their broad skill set, able to pick up various proficiencies with relative ease. This further enhances their adaptable nature.
+
+    Archetypes: Half-elves make fine bards, rogues, rangers, or diplomats. Their unique perspective also makes them compelling heroes or anti-heroes who grapple with their identity.
+
+In essence, a half-elf embodies the strengths and challenges of a blended heritage, often navigating a world where they are both familiar and foreign, and constantly seeking their place within it."""
 
 
 class PlayerStat(StrEnum):
