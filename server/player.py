@@ -4,13 +4,12 @@ import os
 import random
 import textwrap
 import datetime
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import net_common
     import terminal
-    from base_classes import CombinationTypes, PlayerMoneyTypes, PlayerStat, Gender, compass_txts, Guild
+    from base_classes import CombinationTypes, PlayerMoneyTypes, PlayerStat, Gender, compass_txts, Guild, Alignment
     from base_variables import STAT_DATA
     from flags import Flag, new_player_default_flags, PlayerFlags, FlagDisplayTypes
     from net_server import Message
@@ -38,18 +37,19 @@ def make_random_stat():
 
 
 def set_up_client_settings():
-    import client
-    logging.debug("Calling client.Client()")
-    x = client.Client()
-    logging.debug(x)
-    return x
+    import terminal
+    logging.debug("Calling terminal.ClientSettings()")
+    terminal_settings = terminal.ClientSettings
+    logging.debug(terminal_settings)
+    return terminal_settings
+
 
 def set_up_combinations(combination_name=None):
-    from base_classes import CombinationTypes
-    combinations = {combination_name: {
-                combination_type: (random.randint(1, 99) for _ in range(3))
-                for combination_type in CombinationTypes
-            }}
+    from base_classes import Combination, CombinationTypes
+    # returns a dict of combinations: {<CombinationTypes.CASTLE: (40,10,5)}
+    combinations = {combination_name: Combination(combination_name) for combination_type in CombinationTypes}
+    # >>> print(Combination(CombinationTypes.LOCKER))
+    #   Locker: 21-83-91
     logging.debug(combinations)
     return combinations
 
@@ -110,7 +110,7 @@ class Player:
 
     def __init__(self, **kwargs):
         """this code is called when creating a new character"""
-        from base_classes import Guild, Gender, PlayerMoneyTypes
+        from base_classes import Alignment, Guild, Gender, PlayerMoneyTypes
         import terminal
         """
         The point behind all this is that dataclasses can't account for unknown parameters, and I'll
@@ -146,6 +146,9 @@ class Player:
         # combinations:
         self.combinations = kwargs.get('combinations', set_up_combinations())
 
+        self.natural_alignment = kwargs.get('natural_alignment', Alignment.NEUTRAL)
+        self.current_alignment = kwargs.get('current_alignment', Alignment.NEUTRAL)
+
         # creates a new silver dict for each Player:
         # IN_BANK may be cleared on character death (TODO: look in TLOS source)
         # IN_BAR should be preserved after character's death (TODO: same)
@@ -169,7 +172,7 @@ class Player:
         # Also in the LASTON command to show when a player was last online.
         # Player.connect() should set last_connection to datetime.now().
         # Player.disconnect() should also set last_connection to datetime.now().
-        self.last_connection = kwargs.get('last_connection')  # TODO: use datetime
+        self.last_connection = kwargs.get('last_connection', datetime.datetime.now() )  # TODO: use datetime
         """
         proposed stats:
         some (not all) other stats, still collecting them:
@@ -260,7 +263,7 @@ class Player:
         date_format_string = "%a %b %d, %Y"  # weekday month date, year
         combinations = [f'{c.name.rjust(15)}: {c.combination}' for c in self.combinations]
         if self.birthday:
-            delta = datetime.datetime.now() - self.birthday
+            delta = datetime.datetime.now() - datetime.datetime(self.birthday)
             age = f"{delta.days // 365} years"
             date_format_string = "%a %b %d, %Y"  # weekday, month, date, year
             birthdate = self.birthday.strftime(date_format_string)
@@ -375,11 +378,11 @@ class Player:
         if item.description:
             print(item.description)
 
-    def output(self, string: str) -> "Message":
+    def output(self, text_lines: str | list) -> "Message":
         """
-        Print <string> in client's Translation, word-wrapped to client's column width to Player
+        Print <text> in client's Translation, word-wrapped to client's column width to Player
 
-        :param: string: string to output
+        :param: text: text to output (can be either a list of strings or a single string)
         :return: Message
         """
         """
@@ -399,8 +402,60 @@ class Player:
             logging.debug(repr(temp))  # don't print Commodore color codes to Linux terminal
         """
         from server import Message
-        return Message(lines=[textwrap.fill(text=string,
-                                            width=self.client_settings.COLUMNS)])
+        from tada_utilities import text_pager
+
+        final_output_lines = []
+
+        if isinstance(text_lines, str):
+            # Process a single string, which might result in multiple wrapped lines
+            processed_lines = self.process_single_line(text_lines)
+            final_output_lines.extend(processed_lines) # Use extend for multiple lines from one input
+        elif isinstance(text_lines, list):
+            # Process each string in the list
+            for line in text_lines:
+                processed_lines = self.process_single_line(line)
+                final_output_lines.extend(processed_lines) # Use extend here too
+
+        # Use text_pager if lines > screen rows
+        if len(final_output_lines) >= self.client_settings.screen_rows:
+            text_pager(final_output_lines, self)
+        # otherwise, print each line from the flattened list without paging:
+        for line in final_output_lines:
+            print(line)
+
+        # The Message object should receive a flat list of strings
+        return Message(lines=final_output_lines)
+
+
+    def process_single_line(self, raw_input: str) -> list[str]: # Return type changed to list of strings
+        """Apply text wrap and highlighting to a single string, returning a list of wrapped lines."""
+        from colorama import Fore
+        import re
+        import logging # Ensure logging is imported
+
+        column_width = self.client_settings.screen_columns
+        logging.debug("width: %i | raw_input: %s" % (column_width, raw_input))
+
+        # Apply highlighting before wrapping to avoid breaking color codes
+        # TODO: handle player's highlight / normal color preferences
+        # This regex is correct for [text] -> RED text
+        highlighted_line_content = re.sub(r'\[(.+?)]', f'{Fore.RED}' + r'\1' + f'{Fore.RESET}', string=raw_input)
+
+        # textwrap.fill returns a single string, which might contain newline characters if the input
+        # had them or if it needed to break lines itself.
+        # To get a list of lines, use textwrap.wrap and then join or just handle it directly.
+        # textwrap.fill already handles wrapping, but if you want lines as separate strings,
+        # you might need to split it if it has internal newlines.
+        # Assuming textwrap.fill always returns a single string *without* internal newlines
+        # UNLESS the original raw_input had them, and we want to ensure each element in the
+        # returned list is a single visual line.
+
+        wrapped_text = textwrap.fill(text=highlighted_line_content, width=column_width)
+
+        # textwrap.fill *might* introduce newlines. We want to return a list of distinct lines.
+        # So, we split by newline to ensure each element is a single line.
+        return wrapped_text.splitlines()
+
 
     def set_silver_absolute(self, kind: "PlayerMoneyTypes", amount: int):
         try:
@@ -415,7 +470,7 @@ class Player:
         :param flag_name: name of flag
         :return: Flag object
 
-        >>> rulan = Player()  # instantiate player, show Admin flag object:
+        >>> rulan = Player()  # instantiate p, show Admin flag object:
 
         >>> print(f"- Show Admin flag object:")
         
@@ -513,7 +568,7 @@ class Player:
                           "max_width: %i" % (flag, leading_num, max_width))
             temp = self.get_flag(flag)
             flag_name: str = temp.name
-            display_type: str = temp.display_type
+            display_type: FlagDisplayTypes = temp.display_type
             status: bool = temp.status
             logging.debug("flag_name=%s, "
                           "display_type=%s, status=%s" % (flag_name, display_type, status))
@@ -538,6 +593,7 @@ class Player:
         >>> rulan.show_flag_status(PlayerFlagName.UNCONSCIOUS)
         'No'
         """
+        from flags import FlagDisplayTypes
         temp = self.flags[flag]
         if temp.display_type is FlagDisplayTypes.YESNO:
             result = "Yes" if temp.status else "No"
@@ -588,6 +644,7 @@ class Player:
         return f"{stat_name.value}: {x}"
 
     def adjust_stat(self, stat: "PlayerStat", adjustment: int, verbose: bool = True, abbreviate: bool = True):
+        from base_variables import STAT_DATA
         """
         Adjusts a player's statistic and prints the outcome.
 
@@ -926,7 +983,7 @@ class Player:
         logging.debug("TODO: move this in")
 
     def show_combinations(self):
-        pass
+        logging.info("Finish this")
 
 
 def transfer_silver(from_char: "Player", to_char: "Player", amount: int,
@@ -955,8 +1012,8 @@ def transfer_silver(from_char: "Player", to_char: "Player", amount: int,
 
     # Shaia doesn't have 500 silver in hand, so this will fail:
     >>> transfer_silver(from_char=shaia, to_char=rulan, amount=500,
-    ...                       from_where=PlayerMoneyTypes.IN_HAND,
-    ...                       to_where=PlayerMoneyTypes.IN_HAND)
+    ...                 from_where=PlayerMoneyTypes.IN_HAND,
+    ...                 to_where=PlayerMoneyTypes.IN_HAND)
     False
 
     # Rulan has 100 silver in hand, so this will succeed:
@@ -984,6 +1041,7 @@ def transfer_silver(from_char: "Player", to_char: "Player", amount: int,
         return False
 
 if __name__ == '__main__':
-    rulan_flags = {"name": "Rulan"}
-    rulan = Player(**rulan_flags)
+    from base_classes import PlayerStat
+    rulan_settings = {"name": "Rulan"}
+    rulan = Player(**rulan_settings)
     rulan.adjust_stat(PlayerStat.WIS, -5, True, True)
