@@ -325,7 +325,7 @@ def print_menu(menu: Menu):
         for i in range(max(midpoint, num_items - midpoint)):  # Iterate up to the larger column size
             """
             Introducing section headers:
-            If menu.menu_items[i].dot_leader_handler, .submenu and .edit_function are all None,
+            If menu.menu_items[i].dot_leader_handler, .submenu and .action are all None,
             the item is a section header, and no number should be displayed for it.
             """
             section_header_1 = is_section_header(menu.menu_items[i])
@@ -475,7 +475,7 @@ def navigate_menu(menu_stack: list[Menu]) -> None:
         elif choice.submenu:
             # Push the submenu onto the stack
             menu_stack.append(choice.submenu)
-        # TODO: handle choice.edit_function is NotImplemented -- flag as not done yet
+        # TODO: handle choice.action is NotImplemented -- flag as not done yet
         elif callable(choice.edit_function):
             # Call the edit function for this menu item
             choice.edit_function(player)
@@ -511,7 +511,7 @@ def main():
     This simply returns and displays 'None':
     flags_and_counters.add_item(MenuItem("Debug Mode",
                                          dot_leader_handler=player.show_flag_line_item(PlayerFlags.DEBUG_MODE, None),
-                                         edit_function=player.toggle_flag(PlayerFlags.DEBUG_MODE)
+                                         action=player.toggle_flag(PlayerFlags.DEBUG_MODE)
                                          ))
     """
     flags_and_counters.add_item(MenuItem("Guild Options"))
