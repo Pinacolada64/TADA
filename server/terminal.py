@@ -70,10 +70,10 @@ class Translation(Enum):
 @dataclass
 class ClientSettings:
     # client (i.e., Python, C64, C128...?)
-    client: str = "Generic Client"
+    name: str = "Generic Client"
     # screen dimensions:
-    screen_rows: int = 40
-    screen_columns: int = 25
+    screen_rows: int = 25
+    screen_columns: int = 40
     # translation: None | ASCII | ANSI | Commodore
     translation: Translation = Translation.ANSI
     # colors for [bracket reader] text highlighting on C64/128:

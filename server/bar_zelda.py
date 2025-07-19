@@ -2,9 +2,11 @@ import logging
 import glob
 import json
 
-from tada_utilities import output, input_string
+from tada_utilities import input_string
 
-from flags import PlayerFlags, Player, Gender
+from flags import PlayerFlags
+from player import Player
+from base_classes import Gender
 
 
 def get_player_info(stats: list, id_pattern="*") -> dict:

@@ -3,10 +3,10 @@ import random  # for random.choices
 from dataclasses import dataclass
 
 # this also imports the current Player class framework:
-# TODO: break Player stuff out of flags
-from flags import Player, PlayerFlags, PlayerMoneyTypes
+from flags import PlayerFlags
+from base_classes import PlayerMoneyTypes
 
-def bouncer(character: Player):
+def bouncer(character: "Player"):
     """
     Mundo the bouncer gets personal with the player.
     Also called when the Blue Djinn is insulted.
@@ -272,7 +272,7 @@ def prompt(character: Player, prompt: str):
         last_command = command
     if temp == '':
         command = last_command
-        if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
+        if not character.query_flag(PlayerFlags.EXPERT_MODE):
             print(f"(Repeating '{command}'.)\n")
     return last_command, command
 
