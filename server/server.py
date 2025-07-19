@@ -12,7 +12,7 @@ import net_server
 import common
 
 from flags import PlayerFlags
-# from new_player_2 import Player
+from player import Player
 from base_classes import PlayerMoneyTypes, Map, compass_txts
 from items import Weapon, Rations, Item
 
