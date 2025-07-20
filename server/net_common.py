@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 import enum
@@ -34,19 +35,23 @@ class Mode(str, enum.Enum):
     bye = 'bye'
 
 
-def toJSONB(obj):
+def to_jsonb(obj):
     """turn arbitrary object into JSON string"""
     json_out = json.dumps(obj, default=lambda o: o.__dict__)
     return bytes(json_out, 'utf-8')
 
 
-def fromJSONB(bytes):
+def from_jsonb(bytes):
+    """
+    :param bytes: data
+    :return None: if file not found
+    """
     try:
         json_in = str(bytes, 'utf-8')
         if len(json_in) == 0:
             return None
         return json.loads(json_in)
-    except:
+    except FileNotFoundError:
         return None
 
 
@@ -87,12 +92,12 @@ class User(object):
     salt: int = 0
     hash: str = ''
 
-    def hashPassword(self, password):
+    def hash_password(self, password):
         salt = bcrypt.gensalt()
         self.salt = salt.hex()
         self.hash = bcrypt.hashpw(bytes(password, 'utf-8'), salt).hex()
 
-    def matchPassword(self, password):
+    def match_password(self, password):
         salt = bytes.fromhex(self.salt)
         hash = bcrypt.hashpw(bytes(password, 'utf-8'), salt).hex()
         return self.hash == hash
@@ -104,6 +109,7 @@ class User(object):
 
     @staticmethod
     def load(user_id):
+        logging.debug("in User.load")
         path = User._json_path(user_id)
         if os.path.exists(path):
             with open(path) as jsonF:

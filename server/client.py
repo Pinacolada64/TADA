@@ -20,24 +20,27 @@ class Client(net_client.Client):
         if request['error'] != '':
             error_code = request['error']
             error_line = request['error_line']
-            logging.error(f"{error_line} ({error_code})")
+            logging.error("process_request: %s (%s)" % (error_line, error_code))
+        # update status bar:
         for f in [K.room_name, K.silver, K.hit_points, K.experience, K.last_command]:
             v = request.get('changes', {}).get(f)
             if v:
                 self.status[f] = v
+        # are there any multiple-choice options (like "Quit game? yes/no")
         choices = request.get('choices')
         if len(choices) > 0:
-            logging.info(f'{choices=}')
+            logging.debug("process_request: choices=%s" % choices)
         prompt = request.get('prompt')
         if prompt == '':
             # print("---< %(room_name)s | health %(health)d | xp %(xp)d | %(silver)d gold >---" % self.status)
-            logging.info(f'{self.status=}')
+            logging.debug("process_request: prompt: %s" % self.status)
             s = self.status[K.silver]  # returns set() item (as string)
-            logging.info(f'{s=}')
+            logging.debug("process_request: silver: %s" % s)
             print(f"---< {self.status[K.room_name]} | "
                   f"HP: {self.status[K.hit_points]} | "
                   f"Experience: {self.status[K.experience]} | "
-                  # FIXME: f"Silver in hand: {self.status[K.silver['in_hand']]}"
+                  # TODO: f"Silver in hand: {self.status[K.silver['in_hand']]}"
+                  f"Silver: {self.status[K.silver]}"                  
                   f" >---")
         for m in request['lines']:
             print(m)
@@ -50,7 +53,7 @@ class Client(net_client.Client):
         if prompt == '':
             prompt = default_prompt
         # if just one option, don't loop through checking choices:
-        multiple_choice = True if len(choices) > 0 else False
+        multiple_choice = len(choices) > 0
         if multiple_choice is False:
             # just one option:
             temp = request.get('last_command')
@@ -61,7 +64,7 @@ class Client(net_client.Client):
                 print(f"(Repeating '{temp}.')")
                 text = temp
             return Cmd(text=text)
-        else:
+        elif multiple_choice:
             # multiple options:
             while True:
                 text = input(prompt).lower()

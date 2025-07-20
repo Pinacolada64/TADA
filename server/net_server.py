@@ -6,7 +6,6 @@ import traceback
 import threading
 import socketserver
 import json
-import datetime
 from dataclasses import dataclass, field
 from typing import ClassVar
 import enum
@@ -48,6 +47,16 @@ connected_users = set()
 
 @dataclass
 class LoginHistory(object):
+    """
+    Login history of player
+
+    :param addr: IP address?
+    :param no_user_attempts: user ID missing?
+    :param bad_password_attempts: wrong password entered?
+    :param fail_count: failed login?
+    :param ban_count: how many times player has been banned?
+    :param _fail_limit: how many times player can fail to log in before being banned
+    """
     addr: str
     no_user_attempts: dict = field(default_factory=lambda: {})
     bad_password_attempts: dict = field(default_factory=lambda: {})
@@ -56,7 +65,7 @@ class LoginHistory(object):
 
     _fail_limit: ClassVar[int] = 10
 
-    def banned(self, update, save=False):
+    def banned(self, update: bool, save=False):
         is_banned = self.fail_count >= LoginHistory._fail_limit
         if is_banned and update:
             self.ban_count += 1
@@ -96,16 +105,16 @@ class LoginHistory(object):
     def load(addr):
         path = LoginHistory._json_path(addr)
         if os.path.exists(path):
-            with open(path) as jsonF:
-                lh_data = json.load(jsonF)
+            with open(path) as json_file:
+                lh_data = json.load(json_file)
             return LoginHistory(**lh_data)
         else:
             return LoginHistory(addr)
 
     def save(self):
-        with open(LoginHistory._json_path(self.addr), 'w') as jsonF:
-            json.dump(self, jsonF, default=lambda o: {k: v for k, v
-                                                      in o.__dict__.items() if v}, indent=4)
+        with open(LoginHistory._json_path(self.addr), 'w') as json_file:
+            json.dump(fp=json_file, default=lambda o: {k: v for k, v
+                                                         in o.__dict__.items() if v}, indent=4)
 
 
 class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -117,15 +126,16 @@ class UserHandler(socketserver.BaseRequestHandler):
         addr = self.client_address[0]
         self.login_history = LoginHistory.load(addr)
         if self.login_history.banned(True, save=True):
-            logging.info(f"ignoring banned {addr}")
+            logging.warning("UserHandler.handle: ignoring banned IP %s" % addr)
             return
         port = self.client_address[1]
         self.sender = f"{addr}:{port}"
         self.ready = None
         self.user = None
-        logging.info(f"connect (addr={self.sender})")
+        logging.info("UserHandler.handle: connect (addr=%s)" % self.sender)
         running = True
         while running:
+            response = None
             try:
                 request = self._receive_data()
                 if request is None:
@@ -137,36 +147,36 @@ class UserHandler(socketserver.BaseRequestHandler):
                     elif self.user is None:
                         response = self._process_login(request)
                     else:
-                        response = self.process_message(request)
+                        response = self._process_message(request)
                 except Exception as e:
                     traceback.print_exc(file=sys.stdout)
                     # TODO: log error with message, error code to client
-                    self._sendData(Message(lines=["Terminating session."],
-                                           error_line=f"server side error ({e})",
-                                           error=Error.server1, mode=Mode.bye))
+                    self._send_data(Message(lines=["Terminating session."],
+                                            error_line=f"server side error ({e})",
+                                            error=Error.server1, mode=Mode.bye))
                 if response is None:
                     running = False
                 else:
-                    self._sendData(response)
+                    self._send_data(response)
             except Exception as e:
                 traceback.print_exc(file=sys.stdout)
                 # TODO: log error with message, error code to client
                 self._send_data(Message(lines=["Terminating session."],
-                                       error_line=f"server side error ({e})",
-                                       error=Error.server2, mode=Mode.bye))
+                                        error_line=f"server side error ({e})",
+                                        error=Error.server2, mode=Mode.bye))
         if self.user is not None:
             user_id = self.user.id
             with server_lock:
                 connected_users.remove(user_id)
         else:
             user_id = '?'
-        logging.info(f"disconnect {user_id} (addr={self.sender})")
+        logging.info("user_handler: disconnect %s (addr=%s)" % (user_id, self.sender))
 
     def _receive_data(self):
-        return nc.fromJSONB(self.request.recv(1024))
+        return nc.from_jsonb(self.request.recv(1024))
 
     def _send_data(self, data):
-        self.request.sendall(nc.toJSONB(data))
+        self.request.sendall(nc.to_jsonb(data))
 
     def _process_init(self, data):
         client_id = data.get('id')
@@ -204,30 +214,27 @@ class UserHandler(socketserver.BaseRequestHandler):
         if user is None:
             invite = nc.Invite.load(user_id)
             if invite is None:
-                logging.warning(f"no user '{user_id}'")
+                logging.warning("process_login: login failed: no user '%s`" % user_id)
                 # when failing don't tell that have wrong user id
                 banned = self.login_history.no_user(user_id, save=True)
                 if banned:
                     logging.info(f"ban {self.sender}")
-                    return errorBan()
-                return errorLoginFailed()
                     return error_ban()
                 return error_login_failed()
             else:
                 # process new user with invite
                 if invite.code != invite_code:
-                    logging.warning(f'invalid invite code {invite_code}')
-                    banned = self.login_history.noUser(user_id, save=True)
+                    logging.warning(f"process_login: invalid invite code %s" % invite_code)
                     banned = self.login_history.no_user(user_id, save=True)
                     if banned:
-                        logging.info(f"ban {self.sender}")
-                        return errorBan()
-                    return errorLoginFailed()
-                    return error_login_failed()
+                        logging.info("process_login: ban %s" % self.sender)
+                        return error_ban()
+                    else:
+                        return error_login_failed()
                 else:
                     # create and save user
                     user = nc.User(user_id)
-                    user.hashPassword(password)
+                    user.hash_password(password)
                     user.save()
                     invite.delete()
         with server_lock:
@@ -235,28 +242,28 @@ class UserHandler(socketserver.BaseRequestHandler):
                 return Message(lines=['One connection allowed at a time.'],
                                error_line='Multiple connections.',
                                error=Error.multiple, mode=Mode.bye)
-        if not user.matchPassword(password):
-            logging.warning(f"bad password for '{user_id}'")
-            banned = self.login_history.failPassword(user_id, save=True)
+        if not user.match_password(password):
+            logging.warning("bad password for '%s'" % user_id)
+            banned = self.login_history.fail_password(user_id, save=True)
             if banned:
                 logging.info(f"ban {self.sender}")
-                return errorBan()
-            return errorLoginFailed()
                 return error_ban()
+            else:
+                return error_login_failed()
         self.user = user
         with server_lock:
             connected_users.add(user_id)
         self.login_history.succeed_user(user_id, save=True)
         return self.process_login_success(user_id)
 
-    def promptRequest(self, lines, prompt='', choices={}):
-        self._sendData(Message(lines=lines, prompt=prompt, choices=choices))
-        return self._receiveData()
+
     def prompt_request(self, lines, prompt: str, choices: dict):
+        self._send_data(Message(lines=lines, prompt=prompt, choices=choices))
         return self._receive_data()
 
     # base implementation for when testing net_client/net_server
     # NOTE: must be overridden by actual app (see client/server)
+
 
     def init_success_lines(self):
         """OVERRIDE in subclass
@@ -264,22 +271,25 @@ class UserHandler(socketserver.BaseRequestHandler):
         """
         return ['Generic Server.', 'Please log in.']
 
+
     def login_fail_lines(self):
         """OVERRIDE in subclass
         Login failure message lines back to user.
         """
         return ['please try again.']
 
+
     def process_login_success(self, user_id):
         """OVERRIDE in subclass
         First method called on successful login.
-        Should do any user initialization and then return Message.
+    Should do any user initialization and then return Message.
         """
-        return Message(lines=[f"Welcome {user_id}."])
+        return Message(lines=[f"Welcome, {user_id}."])
+
 
     def process_message(self, data):
         """OVERRIDE in subclass
-        Called on all subsequent Cmd messages from client.
+    Called on all subsequent Cmd messages from client.
         Should do any processing and return Message.
         """
         if 'text' in data:
@@ -296,13 +306,13 @@ def start(host, port, _id, key, protocol, handler_class):
     server_key = key
     server_protocol = protocol
     with Server((host, port), handler_class) as server:
-        logging.info(f"server running ({host}:{port})")
+        logging.info("Server.start: server running (%s:%s)" % (host, port))
         server_thread = threading.Thread(target=server.serve_forever)
         server_thread.daemon = True
         server_thread.start()
         running = True
         while running:
-            text = input()
+            text = input("Console command: ")
             if text in ['q', 'quit', 'exit']:
                 running = False
         server.shutdown()

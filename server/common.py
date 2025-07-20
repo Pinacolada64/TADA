@@ -30,7 +30,7 @@ class K(str, enum.Enum):
     # players
     password = 'password'
     silver = 'silver'
-    room = 'room'  # room number
+    room = 'room'  # room number player is in
     room_name = 'room_name'
     hit_points = 'hit_points'
     experience = 'experience'

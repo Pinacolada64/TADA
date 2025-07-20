@@ -3,10 +3,13 @@ import random  # for random.choices
 from dataclasses import dataclass
 
 # this also imports the current Player class framework:
-# TODO: break Player stuff out of flags
-from flags import Player, PlayerFlags, PlayerMoneyTypes
+from flags import PlayerFlags
+from base_classes import PlayerMoneyTypes
 
-def bouncer(character: Player):
+from players import Player
+
+
+def bouncer(character: "Player"):
     """
     Mundo the bouncer gets personal with the player.
     Also called when the Blue Djinn is insulted.
@@ -30,7 +33,7 @@ def blue_djinn(character: Player):
         blue_djinn_menu(character)
     print(f'{npc_name} sits behind the table.')
     while True:
-        command, character.previous_command = prompt(character, 'He hisses, "What do you want?":')
+        command, last_command = prompt(character, 'He hisses, "What do you want?":')
         if command == 'h':
             print('"Who do you want me to mess up?"')
             # TODO: finish Blue Djinn
@@ -90,7 +93,7 @@ def skip(character: Player):
 
         if command == 'c':
             # TODO: check/subtract silver
-            character.gold[PlayerMoneyTypes.IN_HAND] = character.gold[PlayerMoneyTypes.IN_HAND] - 2
+            character.silver[PlayerMoneyTypes.IN_HAND] = character.silver[PlayerMoneyTypes.IN_HAND] - 2
             print("The steaming mug of coffee is strangely satisfying.")
             character.clear_flag(PlayerFlags.TIRED)
             print("(You feel more awake.)")
@@ -169,7 +172,7 @@ monsters (for a hefty fee!) so they have to be fought again.
                 # studying themselves :)
                 print('"I suggesssst you uuuuuuuse a mirror!"')
             if command == '?':
-                list_players()
+                list_players(character)
                 continue
             else:
                 while True:
@@ -272,13 +275,13 @@ def prompt(character: Player, prompt: str):
         character.previous_command = command
     if temp == '':
         command = character.previous_command
-        if character.query_flag(PlayerFlags.EXPERT_MODE) is False:
+        if not character.query_flag(PlayerFlags.EXPERT_MODE):
             print(f"(Repeating '{command}'.)\n")
     return character.previous_command, command
 
 
 def bar_help(character: Player):
-    print("""
+    character.output("""
 This is the Wall Bar & Grill, a place where you (and your party, if you
 have others with you) can find food, drink, and various services to help
 yourself--or harm others, if you wish--in the Land.
@@ -331,12 +334,11 @@ class Bar(object):
 
 if __name__ == '__main__':
     # instantiate Player
-    rulan = Player(name="Rulan")
-    rulan.client_settings = {"type": "Commodore 64",
-                             "return_key": "Return"}
+    rulan_settings = {"name": "Rulan"}
+    rulan = Player(**rulan_settings)
 
-    # TODO: rulan.clear_flag(PlayerFlagTypes.EXPERT_MODE) # set to False
-    # TODO: rulan.set_flag(PlayerFlagTypes.DEBUG_MODE) # set to True
+    rulan.clear_flag(PlayerFlags.EXPERT_MODE) # set to False
+    rulan.set_flag(PlayerFlags.DEBUG_MODE) # set to True
 
     # once-per-day activities:
     rulan.once_per_day = []
@@ -367,6 +369,7 @@ if __name__ == '__main__':
 
         # look through 'locations' tuple to see if the player is in an
         # interactive spot
+        bar.can_go_here = False
         for place in bar.locations:
             # sorted by rows
             if bar.pos_y == place[0] and bar.pos_x == place[1]:
@@ -387,7 +390,7 @@ if __name__ == '__main__':
             bump = True
             opponent = "The Blue Djinn"
             text = 'eyes you, hissing. "Are'
-        if bar.pos_y == 2 and bar.pos_x == 11:
+        if bar.pos_y == 2 and bar.pos_x == 10:
             # getting too close to Vinny the loan shark:
             bump = True
             opponent = "Mundo the bouncer"
@@ -406,10 +409,10 @@ if __name__ == '__main__':
             else:
                 print(f'"Well then, WATCH it!" {opponent} glares at you.')
 
-        if rulan.query_flag(PlayerFlags.EXPERT_MODE) is False:
+        if not rulan.query_flag(PlayerFlags.EXPERT_MODE):
             show_menu(rulan)
             repeat_command = f"'{rulan.previous_command}'" if rulan.previous_command is not None else 'Invalid command'
-            print(f"[{rulan.client_settings['return_key']}]: {repeat_command}")
+            print(f"[{rulan.client_settings.return_key}]: {repeat_command}")
 
         print(f"[HP: {rulan.hit_points}] ", end='')
         # parser:

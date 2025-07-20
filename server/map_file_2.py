@@ -12,7 +12,7 @@ import json
 import textwrap
 from dataclasses import dataclass, field
 import logging
-# from players import Player
+# from characters import Character
 
 
 @dataclass
@@ -272,7 +272,8 @@ if __name__ == '__main__':
             print("exception: No such room yet (37, Bar?).")
 
         # FIXME: could all this be put in a room.header() __str__ method?
-        # if debug is True:  # player.flag['debug'] is True:
+        # if debug flag is enabled:
+        # player.query_flag(PlayerFlags.DEBUG):
         #     print(f'#{room_number} ', end='')
 
         # check for/trim room flags (currently only '->'):
@@ -393,7 +394,7 @@ if __name__ == '__main__':
 
         if cmd[:1] == "#":
             temp = cmd[1:]
-            if temp.isdigit() is False:
+            if not temp.isdigit():
                 print("(Room number required after '#'.)")
                 continue
             val = int(temp)

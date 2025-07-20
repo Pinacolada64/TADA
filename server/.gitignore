@@ -1,4 +1,6 @@
 # ignore generated files
 __pycache__/
 run/
-
+.venv/
+# PyCharm settings:
+.idea/
