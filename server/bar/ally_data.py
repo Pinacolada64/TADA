@@ -6,6 +6,7 @@ from enum import Enum, auto
 from logging import debug
 from typing import List, Optional
 
+
 class AllyFlags(Enum):
     GOD = auto()
     GODDESS = auto()
@@ -13,12 +14,14 @@ class AllyFlags(Enum):
     MECHANICAL = auto()
     # Add other flags as needed
 
+
 class AllyStatus(Enum):
     FREE = auto()
     SERVANT = auto()
     IN_PARTY = auto()
     UNCONSCIOUS = auto()
     DEAD = auto()
+
 
 # 1. Define a clear and robust data structure
 @dataclass
@@ -29,6 +32,7 @@ class Ally:
     to_hit: int  # This will be the multiplier (e.g., 4 for 40%)
     flags: Optional[List[AllyFlags]] = field(default_factory=list)
     status: AllyStatus = AllyStatus.FREE
+
 
 def find_duplicate_allies(ally_list: List[Ally]) -> List[str]:
     """
@@ -150,7 +154,7 @@ def load_allies() -> list:
         Ally("MARIAH CAREY", "f", 10, 5),
         # King Arthur's court wizard:
         Ally("MERLIN", "m", 10, 3, [AllyFlags.ELITE]),
-        Ally("MINICIUS ITALUS!", "m", 15, 6),
+        Ally("MINICIUS ITALUS", "m", 15, 6, [AllyFlags.ELITE]),
         # early childhood educator:
         Ally("MISTER ROGERS", "m", 10, 5),
         # alien from "Mork & Mindy" played by Robin Williams:
@@ -200,13 +204,15 @@ def load_allies() -> list:
         # FIXME: Typo? can't find "TAARNA"
         # Tarana Burke is an activist, started the "MeToo" movement
         Ally("TAARNA", "f", 12, 5),
-        Ally("TAYLOR DAYNE", "f", 6, 3),  # TODO: verify gender
+        # American singer:
+        Ally("TAYLOR DAYNE", "f", 6, 3),
         Ally("THE BISHOP", "m", 10, 7),
         Ally("THE BOGIEMAN", "m", 15, 5),
         Ally("THE IRON LADY", "f", 18, 9),
         # Character in, well, the movie of the same name:
         Ally("THE TERMINATOR", "m", 20, 5),
         Ally("TIMMY", "m", 7, 6),
+        # Bob Cratchit's son from "A Christmas Carol":
         Ally("TINY TIM", "m", 6, 5),
         Ally("TRAJAN OF DURA", "m", 15, 8),
         # character from "Hitchhiker's Guide to the Galaxy":
@@ -226,18 +232,20 @@ def load_allies() -> list:
         Ally("ZAPHOD BEEBLEBROX", "m", 5, 5),
         Ally("ZORBA THE GREEK", "m", 14, 6),
     ]
-    debug("allies: %i" % len(ally_data))
+    logging.debug("servants: %i" % len(ally_data))
     return ally_data
+
 
 def assign_random_statuses(ally_data: List[Ally]) -> List[Ally]:
     """Iterates through a list of allies and assigns a random status."""
-    status_options = list(AllyStatus) # Convert Enum to a list once
+    status_options = list(AllyStatus)  # Convert Enum to a list once
     for ally in ally_data:
-        # Assign to the .status attribute, don't .append()
         ally.status = random.choice(status_options)
-        if ally.status == AllyStatus.SERVANT:
-            logging.debug("%s" % ally.name)
+    # count how many SERVANT status allies there are:
+    servant_status = len([ally for ally in ally_data if ally.status == AllyStatus.SERVANT])
+    logging.debug("Servant status: %s" % servant_status)
     return ally_data
+
 
 def print_allies(ally_data: list) -> None:
     """Prints a formatted list of allies, including their status."""
