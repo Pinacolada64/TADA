@@ -6,6 +6,8 @@ import textwrap
 import datetime
 from typing import Any, Optional, TYPE_CHECKING
 
+from bar.ally_data import Ally
+
 if TYPE_CHECKING:
     import net_common
     import terminal
@@ -172,7 +174,7 @@ class Player:
         # Also in the LASTON command to show when a player was last online.
         # Player.connect() should set last_connection to datetime.now().
         # Player.disconnect() should also set last_connection to datetime.now().
-        self.last_connection = kwargs.get('last_connection', datetime.datetime.now() )  # TODO: use datetime
+        self.last_connection = kwargs.get('last_connection', datetime.datetime.now())
         """
         proposed stats:
         some (not all) other stats, still collecting them:
@@ -214,7 +216,7 @@ class Player:
                     (prevents them from logging on multiple times per day and getting multiple presents)
         # TODO: make these Enums, finish this list
         """
-        self.once_per_day = kwargs.get('once_per_day')
+        self.once_per_day = kwargs.get('once_per_day', list())
         self.last_play_date = kwargs.get('last_play_date')
 
         # FIXME: this is broken
@@ -225,8 +227,8 @@ class Player:
         client_settings: dict[ClientSettingsNames, int | str] = field(
             default_factory=lambda: {i[0]: ClientValues for i in ClientSettingsNames})
         """
-        self.party = kwargs.get('party')
-        self.allies = kwargs.get('allies')
+        self.party = kwargs.get('party', [])
+        self.allies = kwargs.get('allies', [])
 
         self.guild = kwargs.get('guild', Guild.CIVILIAN)
 
@@ -254,6 +256,11 @@ class Player:
         self.wizard_glow = kwargs.get('wizard_glow')
         self.id = None
 
+        # command history:
+        self.command = None
+        self.previous_command = None
+
+        # flag whether a save is required:
         self.unsaved_changes = False
 
     def __str__(self):
@@ -327,18 +334,26 @@ class Player:
         """Check if player has item"""
         return item in self.inventory
 
-    def add_to_party(self, party_addition) -> bool:
-        # FIXME: specifying 'party_addition: Monster | Player' leads to an unresolved reference error
+    def add_to_party(self, player: "Player", party_addition: Ally) -> bool:
+        """
+        Check if party_addition exists in Player's party; if not, add them and return True
+
+        :param player: Player object
+        :param party_addition: Ally, Monster or Player
+        :return: True: successful join, False: party_addition already exists in party (shouldn't happen but one
+            never knows)
+        """
+        # FIXME: specifying 'party_addition: Ally | Monster | Player' leads to an unresolved reference error
         # check that party_addition is not self:
         if party_addition is self:
-            print(f"This is getting a bit surreal. You can't add {self.name} to {self.name}'s party.")
+            player.output(f"This is getting a bit surreal. You can't add {self.name} to {self.name}'s party.")
             return False
         # make sure a party_addition is not already in the party:
         if party_addition in self.party:
-            print(f"Seeing another {party_addition.name} is already in your party, they turn sadly away.")
+            player.output(f"Seeing another {party_addition.name} is already in your party, they turn sadly away.")
             return False
         self.party.append(party_addition)
-        print(f"{party_addition.name} joins {self.name}'s party!")
+        player.output(f"{party_addition.name} joins {self.name}'s party!")
         return True
 
     def is_in_party(self, member, verbose: bool = True) -> bool:
@@ -380,9 +395,10 @@ class Player:
 
     def output(self, text_lines: str | list) -> "Message":
         """
-        Print <text> in client's Translation, word-wrapped to client's column width to Player
+        Print <text_lines> in client's Translation, word-wrapped to client's column width to Player.
+        A null string outputs a blank line.
 
-        :param: text: text to output (can be either a list of strings or a single string)
+        :param text_lines: text to output (can be either a list of strings or a single string)
         :return: Message
         """
         """
@@ -409,29 +425,41 @@ class Player:
         if isinstance(text_lines, str):
             # Process a single string, which might result in multiple wrapped lines
             processed_lines = self.process_single_line(text_lines)
-            final_output_lines.extend(processed_lines) # Use extend for multiple lines from one input
+            final_output_lines.extend(processed_lines)  # Use extend for multiple lines from one input
         elif isinstance(text_lines, list):
             # Process each string in the list
             for line in text_lines:
                 processed_lines = self.process_single_line(line)
-                final_output_lines.extend(processed_lines) # Use extend here too
+                final_output_lines.extend(processed_lines)  # Use extend here too
 
         # Use text_pager if lines > screen rows
         if len(final_output_lines) >= self.client_settings.screen_rows:
             text_pager(final_output_lines, self)
         # otherwise, print each line from the flattened list without paging:
         for line in final_output_lines:
-            print(line)
+            if line == '':
+                print()
+            else:
+                print(line)
 
         # The Message object should receive a flat list of strings
         return Message(lines=final_output_lines)
 
+    def process_single_line(self, raw_input: str) -> list[str]:
+        """
+        Apply text wrapping, bullet point formatting and highlighting to a single string,
+        returning a list of wrapped lines.
 
-    def process_single_line(self, raw_input: str) -> list[str]: # Return type changed to list of strings
-        """Apply text wrap and highlighting to a single string, returning a list of wrapped lines."""
+        :param self: Player object (to infer line ending options)
+        :param raw_input: string to process
+        """
         from colorama import Fore
         import re
-        import logging # Ensure logging is imported
+        from tada_utilities import bulleted_list_format
+
+        # turn empty string into newline (TODO: from player.client_settings.line_ending
+        if raw_input == '':
+            return [""]
 
         column_width = self.client_settings.screen_columns
         logging.debug("width: %i | raw_input: %s" % (column_width, raw_input))
@@ -452,10 +480,13 @@ class Player:
 
         wrapped_text = textwrap.fill(text=highlighted_line_content, width=column_width)
 
+        # process lines into bulleted text:
+        if wrapped_text.startswith("* "):
+            wrapped_text = bulleted_list_format(wrapped_text[2:], column_width)
+
         # textwrap.fill *might* introduce newlines. We want to return a list of distinct lines.
         # So, we split by newline to ensure each element is a single line.
         return wrapped_text.splitlines()
-
 
     def set_silver_absolute(self, kind: "PlayerMoneyTypes", amount: int):
         try:
@@ -756,21 +787,66 @@ class Player:
             logging.info("Bad type '%s'" % kind)
             return None
 
-    def adj_silver_relative(self, kind: "PlayerMoneyTypes", relative_amt: int) -> int | None:
+    def add_silver(self, kind: "PlayerMoneyTypes", amount: int) -> bool:
         """
-        :param kind: PlayerMoneyTypes Enum
-        :param relative_amt: amount to add to (<relative_amt>) or subtract from (-<relative_amt>) current silver total
-        # FIXME: flesh out error checking
+        Adds a specified amount of silver to an account.
+
+        :param kind: The account to modify (e.g., in_hand, in_bank).
+        :param amount: The positive amount of silver to add.
+        :return: True, as adding silver should always succeed.
         """
-        try:
-            current_value = self.silver[kind]
-            new_value = current_value + relative_amt
-            self.silver[kind] = new_value
-            logging.debug("new value: %i" % new_value)
-            return new_value
-        except IndexError:
-            logging.warning("bad kind: %s" % kind)
-            return None
+        from flags import PlayerFlags
+        # Use abs() to ensure the amount is always positive
+        original_amount = self.silver[kind]
+        amount_to_add = abs(amount)
+        total = original_amount + amount_to_add
+
+        self.silver[kind] += amount_to_add
+        logging.info("Before: %i, Added %i silver, total %i" % (original_amount, amount_to_add, total))
+        if not self.query_flag(PlayerFlags.EXPERT_MODE):
+            self.output(f"({amount_to_add:,} was added to your silver.)")
+
+        return True
+
+    def subtract_silver(self, kind: "PlayerMoneyTypes", amount: int) -> bool:
+        """
+        Subtracts a specified amount of silver from an account.
+
+        :param kind: The account to modify.
+        :param amount: The positive amount of silver to subtract.
+        :return: True if the subtraction was successful, False if there were insufficient funds.
+        """
+        from flags import PlayerFlags
+        from base_classes import PlayerMoneyTypes
+
+        logging.info("silver in hand: %i" % self.silver[PlayerMoneyTypes.IN_HAND])
+        # Use abs() to ensure the amount is always positive
+        amount_to_subtract = abs(amount)
+
+        # Check if the player has enough silver
+        logging.debug("price: %i, silver: %i" % (amount_to_subtract, self.silver[kind]))
+        if self.silver[kind] >= amount_to_subtract:
+            self.silver[kind] -= amount_to_subtract
+            if not self.query_flag(PlayerFlags.EXPERT_MODE):
+                self.output(f"({amount_to_subtract:,} was subtracted from your silver.)")
+            return True
+        else:
+            # Not enough silver
+            if not self.query_flag(PlayerFlags.EXPERT_MODE):
+                self.output("(You do not have enough silver for that.)")
+            return False
+
+    def adj_silver_relative(self, kind: "PlayerMoneyTypes", relative_amt: int) -> bool:
+        """
+        Adjusts silver by calling the add or subtract functions.
+        This maintains backward compatibility.
+        """
+        from flags import PlayerFlags
+        if relative_amt >= 0:
+            return self.add_silver(kind, relative_amt)
+        else:
+            # Pass the absolute value to subtract_silver
+            return self.subtract_silver(kind, abs(relative_amt))
 
     def is_magic_user(self):
         """
@@ -812,11 +888,11 @@ class Player:
 
         # test of Character.set_stat()
         >>> shaia = Player(name="Shaia",
-        ...                   connection_id=2,
-        ...                   client={'name': 'TADA', 'columns': 80, 'rows': 25},
-        ...                   gender=Gender.FEMALE)
+        ...                connection_id=2,
+        ...                client={'name': 'TADA', 'columns': 80, 'rows': 25},
+        ...                gender=Gender.FEMALE)
 
-        >>> shaia.set_stat_absolute(PlayerStat.INT, )
+        >>> shaia.set_stat_absolute(PlayerStat.INT, 18)
 
         >>> print(f"{shaia.name} ...... {shaia.print_stat([PlayerStat.INT])}")  # the longer method
         Shaia ...... Int: 18
@@ -852,7 +928,6 @@ class Player:
             logging.error("No stat %s" % stat)
             return None
 
-
     def print_stat(self, stat: "PlayerStat", abbreviated: bool):
         """
         Print player stat in title case: '<Stat>: <value>' on a single line.
@@ -864,6 +939,8 @@ class Player:
         :param stat: a single PlayerStat Enum(s) to report
         :param abbreviated: False: 'Int', 'Str', 'Wis', etc. True: 'Intelligence', 'Strength', 'Wisdom', etc.
         :return: None
+        """
+        """
         >>> test = Player()
         
         >>> test.set_stat_absolute(PlayerStat.CHR, 10)  # set Charisma to 10
@@ -871,6 +948,7 @@ class Player:
         >>> test.print_stat(stat=PlayerStat.CHR, abbreviated=False)
         Charisma: 10
         """
+        from base_variables import STAT_DATA
         try:
             print(f"{STAT_DATA['name'][abbreviated]}: {stat.value}")
         except IndexError:
@@ -906,12 +984,11 @@ class Player:
         # TODO: datetime.now() - self.birthday
         pass
 
-
     def connect(self):
         with server_lock:
             # TODO: add last_connection as datetime.now()
             room_players[self.map_room].add(self.id)
-            self.last_connection = datetime.now()
+            self.last_connection = datetime.datetime.now()
             logging.info("%s connected at %s" % (self.name, self.last_connection))
             # TODO: notify other players in same room of connection ("%s wakes up.")
             # TODO: watchfor list: ("[Somewhere in the land, ]%s has woken up / fallen asleep.")
@@ -975,8 +1052,8 @@ class Player:
         # TODO: should a 'changes' flag be implemented to prevent saving if changes haven't been made?
         with open(Player._json_path(self.id), 'w') as json_file:
             json.dump(obj=self, fp=json_file, default=lambda o: {k: v for k, v
-                                                      # in o.__dict__.items() if v}, indent=4)
-                                                      in o.__dict__.items()}, indent=4)
+                                                                 # in o.__dict__.items() if v}, indent=4)
+                                                                 in o.__dict__.items()}, indent=4)
             logging.debug("Player.save: Saved '%s'." % self.name)
 
     def adj_stat_relative(self, stat: "PlayerStat", adjustment: int):
@@ -1000,7 +1077,8 @@ def transfer_silver(from_char: "Player", to_char: "Player", amount: int,
     :param to_where: where silver is ('IN_HAND' is the default)
     :param verbose: True if you want to announce the success (or failure) of a transfer
     :return: True if `from_char` has `amount` silver, False if not
-
+    """
+    """
     # test of Character.transfer_silver:
     >>> shaia = Player()
 
@@ -1040,8 +1118,10 @@ def transfer_silver(from_char: "Player", to_char: "Player", amount: int,
             print(f"{from_char.name} doesn't have {amount:,} silver to give.")
         return False
 
+
 if __name__ == '__main__':
     from base_classes import PlayerStat
+
     rulan_settings = {"name": "Rulan"}
     rulan = Player(**rulan_settings)
     rulan.adjust_stat(PlayerStat.WIS, -5, True, True)
