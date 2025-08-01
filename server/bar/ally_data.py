@@ -3,8 +3,9 @@ import logging
 import random
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from logging import debug
 from typing import List, Optional
+
+from base_classes import Gender
 
 
 class AllyFlags(Enum):
@@ -26,12 +27,43 @@ class AllyStatus(Enum):
 # 1. Define a clear and robust data structure
 @dataclass
 class Ally:
+    """
+    :param name: name
+    :param gender: gender
+    :param strength: strength
+    :param to_hit: to-hit probability (x10, so 4 x10 = 40)
+    :param flags: AllyFlags class [optional]
+    """
+    # 1. Define fields in the order your data provides them, e.g.:
+    # Ally("ALAN OF YOR", "m", 9, 4),
     name: str
-    gender: str
+    gender: str  # Accept the raw string 'm' or 'f' first
     strength: int
-    to_hit: int  # This will be the multiplier (e.g., 4 for 40%)
+    to_hit: int
     flags: Optional[List[AllyFlags]] = field(default_factory=list)
-    status: AllyStatus = AllyStatus.FREE
+
+    def __post_init__(self):
+        """
+        This special method runs after the object is created.
+        It's the perfect place to transform input data.
+        """
+        self.status = AllyStatus.FREE  # Enum
+
+        # 2. Convert the gender string to the correct Gender enum
+        if self.gender == 'm':
+            self.gender = Gender.MALE
+        elif self.gender == 'f':
+            self.gender = Gender.FEMALE
+
+        self.hit_points = 0
+
+        # 3. Use an f-string for safer and more readable logging
+        #    Using .name on enums provides a clean string like "MALE"
+        logging.debug(
+            f"ALLY CREATED: name={self.name}, gender={self.gender.name}, "
+            f"str={self.strength}, to_hit={self.to_hit}, flags={self.flags}, "
+            f"status={self.status.name}, hp={self.hit_points}"
+        )
 
 
 def find_duplicate_allies(ally_list: List[Ally]) -> List[str]:
