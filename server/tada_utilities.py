@@ -2,12 +2,13 @@ import doctest
 import logging
 import random
 import textwrap
-import doctest
+from enum import Enum, auto
 
 import net_server  # for promptRequest and Message
+from base_classes import Gender
 from net_server import Message
-from player import Player
 from flags import PlayerFlags
+from player import Player
 from user_settings import Translation
 
 """
@@ -52,7 +53,7 @@ def bulleted_list_format(text: str, width: int, initial_indent: str = "* ", subs
     return formatted_text
 
 
-def file_read(filename: str, p: Player):
+def file_read(filename: str, p: "Player"):
     """
     Read a disk file in 40 or 80 columns with more_prompt paging.
     """
@@ -82,7 +83,7 @@ def file_read(filename: str, p: Player):
     return Message(lines=["(Finished reading.)"])
 
 
-def text_pager(text_lines: list, p: Player):
+def text_pager(text_lines: list, p: "Player"):
     """
     Display a list of strings in a paged fashion, accounting for Player's screen height
     and wrapping text using textwrap. Empty list elements are considered newlines.
@@ -323,7 +324,7 @@ def header(text: str):
     return Message(lines=[line])
 
 
-def input_number_range(prompt: str, lo: int, hi: int, p: Player, out_of_bounds=None, default=None):
+def input_number_range(prompt: str, lo: int, hi: int, p: "Player", out_of_bounds=None, default=None):
     """Display input 'prompt', accept numbers lo < value < hi
     e.g.
     "'prompt' ['lo'-'hi']: "
@@ -341,43 +342,64 @@ def input_number_range(prompt: str, lo: int, hi: int, p: Player, out_of_bounds=N
         temp = input(f"{prompt} [{lo}-{hi}]: ")
         # just hitting Return keeps the original number
         if temp.isalpha():
-            p.output("Numbers only, please.")
-        if default is not None and not temp:
-            if not p.query_flag(PlayerFlags.EXPERT_MODE):
-                p.output(f"(Keeping '{default}'.)")
-            return default
-        else:
-            temp = int(temp)
-            if lo - 1 < temp < hi + 1:
-                return temp
+            p.output('"Numbers only, please," Verus reminds you.')
+        if temp == '':
+            if default:
+                if not p.query_flag(PlayerFlags.EXPERT_MODE):
+                    p.output(f"(Keeping '{default}'.)")
+                return default
             else:
-                p.output()
+                return ''
+        elif temp.isdigit():
+            number = int(temp)
+            if lo <= number <= hi:
+                return number
+            else:
+                p.output(f"{out_of_bounds}")
+        else:
+            p.output(f"{out_of_bounds}")
+            logging.info("Edge case")
+            continue
 
 
-def input_string(prompt: str, default: bool, player: Player, reminder="Please enter something."):
-    """input 'prompt', accept numbers lo < value < hi
+def input_string(player: "Player", prompt: str, default_answer: str, allow_empty: bool,
+                 keep_msg: bool, reminder: str = "Please enter something."):
+    """
+    Input 'prompt', accept a string
     e.g.:
     [Return] keeps 'Druid.'  # if expert mode off
     "'prompt' : "
 
+    :param default_answer: this is returned if `answer` is null
     :param prompt: prompt user with this string
-    :param default: True: print/accept {return_key} keeps 'keep_string',
-     return 'string' if null string entered
-    :param default: [if expert mode off] print "Return keeps 'keep_string'"
+    :param keep_msg: True: print "{return_key} keeps 'default_string'"
+    :param allow_empty: True: allow hitting Return. False: Must enter a string.
     :param player: Player to output text to
-    :param reminder: what to display if edit_mode is False and null string entered
+    :param reminder: what to display if return_string is False and null string entered
     """
-    if default and not player.query_flag(PlayerFlags.EXPERT_MODE):
-        player.output(f"{player.client_settings.return_key} keeps '{default}.'")
+    # FIXME: this is kind of a mess
+    if keep_msg and not player.query_flag(PlayerFlags.EXPERT_MODE):
+        player.output(f"{player.client_settings.return_key} keeps '{default_answer}.'")
     while True:
-        temp = input(f"{prompt}: ")
-        # just hitting Return keeps the original string
-        if default and (not temp or temp == default):
-            if player.query_flag(PlayerFlags.EXPERT_MODE):
-                player.output(f"(Keeping '{default}'.)")
-            return default
+        answer = input(f"{prompt}: ")
+        # just hitting Return (or user types the original string) keeps the original string
+        if answer == '' or answer == default_answer:
+            # 1) empty response:
+            if allow_empty:
+                # a) [...]
+                return ""
+            # 2) empty response not allowed:
+            elif not allow_empty:
+                # have to enter something:
+                player.output(reminder)
+
+                if player.query_flag(PlayerFlags.EXPERT_MODE):
+                    answer = default_answer
+                    player.output(f"(Keeping '{answer}'.)")
+                return answer
         else:
-            player.output(reminder)
+            return answer
+            # player.output(reminder)
 
 
 def input_yes_no(prompt: str) -> bool:
@@ -399,7 +421,7 @@ def input_yes_no(prompt: str) -> bool:
             return False
 
 
-def fileread(self, filename: str, p: Player):
+def fileread(self, filename: str, p: "Player"):
     """
     display a file to a user in 40 or 80 columns with more_prompt paging
     also handles highlighting [text in brackets] via re and colorama
@@ -456,7 +478,7 @@ def fileread(self, filename: str, p: Player):
             return Message(lines=[], error_line=f'File {file_handle} not found.')
 
 
-def game_help(self, arg: list):
+def game_help(self, player: "Player", arg: list):
     from net_server import Message
     """
     Read the command's docstring as help text.
@@ -465,6 +487,7 @@ def game_help(self, arg: list):
     :param arg: what's typed after HELP <...>
     :return:
     """
+    from player import Player
     # function name 'help' shadows built-in name
     logging.info(f'game_help: {arg=}')
     if len(arg) == 0:
@@ -476,7 +499,6 @@ def game_help(self, arg: list):
                 print(arg[0].__docstring__)
         except not callable(arg[0]):
             print(f"Can't find help for {arg[0]}.")
-
     return Message(lines=["Done."])
 
 
@@ -485,6 +507,78 @@ def make_random_id() -> int:
     random_id = random.randrange(1, 65536)  # 256 ** 2
     logging.debug("%i" % random_id)
     return random_id
+
+
+class PronounType(Enum):
+    """Defines the grammatical type of pronoun needed."""
+    SUBJECTIVE = auto()           # e.g., "HE went to the store."
+    OBJECTIVE = auto()            # e.g., "I gave the book to HIM."
+    POSSESSIVE_ADJECTIVE = auto() # e.g., "That is HIS book."
+    POSSESSIVE_PRONOUN = auto()   # e.g., "The book is HIS."
+    REFLEXIVE = auto()            # e.g., "He did it HIMSELF."
+
+
+def get_pronoun(character: "Player", pronoun_type: PronounType, capitalize: bool = False):
+    """
+    Returns the correct pronoun based on character and grammatical type.
+
+    :param character: the Player, Ally, or Monster object to work with
+    :param pronoun_type: one of the PronounType Enums
+    :param capitalize: bool, whether to capitalize the pronoun or not
+    :return: string - The correct pronoun as a string, or an empty string if not found.
+
+    # Create some characters
+    >>> from base_variables import PRONOUN_MAP
+    >>> from tada_utilities import PronounType
+    >>> setup = {"name": "Arthur", "gender": Gender.MALE}
+    >>> arthur = Player(**setup)
+
+    >>> setup = {"name": "Guinevere", "gender": Gender.FEMALE}
+    >>> guinevere = Player(**setup)
+
+    >>> setup = {"name": "Merlin", "gender": Gender.MALE}
+    >>> merlin = Player(**setup)
+
+    # --- Demonstrations ---
+
+    # Subjective: "He/She/They"
+    >>> print(f"{arthur.name} draws {get_pronoun(arthur, PronounType.POSSESSIVE_PRONOUN)} sword. "
+    ...       f"{get_pronoun(arthur, PronounType.SUBJECTIVE).capitalize()} looks determined.")
+    Arthur draws his sword. He looks determined.
+
+    # Objective: "him/her/them"
+    >>> print(f"Merlin gives the message to {guinevere.name}. "
+    ...       f"{get_pronoun(merlin, PronounType.SUBJECTIVE)} gives it to {get_pronoun(guinevere, PronounType.OBJECTIVE)}.")
+    Merlin gives the message to Guinevere. He gives it to her.
+
+    # Possessive Adjective: "his/her/their"
+    >>> print(f"Merlin . "
+    ...       f"This is {get_pronoun(merlin, PronounType.POSSESSIVE_ADJECTIVE)} duty.")
+    The golem stands guard over the treasure. This is its duty.
+
+    # Possessive Pronoun: "his/hers/theirs"
+    >>> print(f"The crown belongs to Arthur. "
+    ...      f"It is {get_pronoun(arthur, PronounType.POSSESSIVE_PRONOUN)}.")
+    The crown belongs to Arthur. It is his.
+
+    >>> print(f"The castle belongs to Guinevere. "
+    ...      f"It is {get_pronoun(guinevere, PronounType.POSSESSIVE_PRONOUN)}.")
+    The castle belongs to Guinevere. It is hers.
+
+    # Reflexive: "himself/herself/themselves"
+    >>> print(f"Guinevere must handle this task {get_pronoun(guinevere, PronounType.REFLEXIVE)}.")
+    Guinevere must handle this task herself.
+    """
+    from base_variables import PRONOUN_MAP
+    try:
+        gender = character.gender
+        pronoun = PRONOUN_MAP[gender][pronoun_type]
+        return f"{pronoun}" if not capitalize else f"{pronoun.title()}"
+    except KeyError:
+        # This will happen if a character or pronoun type isn't in the map
+        logging.warning("Pronoun not found for character '%s' and type '%s'" %
+                        (character.name, pronoun_type.name))
+        return ""
 
 
 if __name__ == '__main__':
@@ -506,5 +600,5 @@ if __name__ == '__main__':
 
     lo, hi = 10, 45
     n = input_number_range("Enter a value", lo, hi, p=darmok,
-                           out_of_bounds="Try again ({lo}-{hi}).")
+                           out_of_bounds=f"Try again ({lo}-{hi}).")
     print(f"Entered the number {n}")

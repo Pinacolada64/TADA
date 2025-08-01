@@ -2,7 +2,7 @@ import json
 import logging
 import random
 from dataclasses import dataclass, field
-from enum import StrEnum, IntEnum, auto
+from enum import StrEnum, IntEnum, auto, Enum
 
 
 class Guild(StrEnum):
@@ -121,6 +121,15 @@ class WeaponClass(StrEnum):
 class Gender(StrEnum):
     MALE = "Male"
     FEMALE = "Female"
+
+
+class PronounType(Enum):
+    """Defines the grammatical type of pronoun needed."""
+    SUBJECTIVE = auto()           # e.g., "HE went to the store."
+    OBJECTIVE = auto()            # e.g., "I gave the book to HIM."
+    POSSESSIVE_ADJECTIVE = auto() # e.g., "That is HIS book."
+    POSSESSIVE_PRONOUN = auto()   # e.g., "The book is HIS."
+    REFLEXIVE = auto()            # e.g., "He did it HIMSELF."
 
 
 class PlayerClass(StrEnum):
