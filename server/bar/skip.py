@@ -20,7 +20,7 @@ def main(player: Player):
                 player.once_per_day.append(add_item)
                 player.output("Appended.")
     if add_item in player.once_per_day:
-        player.output(f'Skip suddenly looks annoyed. "Hey, you{apostrophe} already [been] here once today!" '
+        player.output(f'Skip suddenly looks annoyed. "Hey, you{apostrophe}ve already [been] here once today!" '
                       "He points angrily towards the exit, and you decide to heed his advice. "
                       "(Never argue with a man who has hot grease at his disposal.)")
         return
