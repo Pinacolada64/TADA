@@ -590,8 +590,8 @@ def choose_age(p: "Player"):
         # monthrange(year, day) returns tuple: (month, days_in_month)
         # we just need days_in_month, which is monthrange()[1]
         days_in_month = calendar.monthrange(year=birthday_year, month=birthday_month)[1]
-        birthday_day = input_number_range(prompt="Day", lo=1, hi=days_in_month, p=p)
-
+        birthday_day = input_number_range(prompt="Day", lo=1, hi=days_in_month, p=p,
+                                          out_of_bounds="Select a day of the month within range.")
         # store birthday as datetime: birthday.month = month, .day = day, .year = year
         # store year anyway in case age = 0
         p.birthday = datetime(birthday_year, birthday_month, birthday_day)

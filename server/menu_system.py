@@ -197,7 +197,8 @@ def is_header_item(menu_item: 'MenuItem') -> bool:
      6. Guild AutoDuel....................: Off
      7. Guild Follow Mode.................: Off
      8. Guild Member......................: No
-        Horse options
+        Horse Options
+     9. Has Horse.........................: Yes
     [...]
     """
     return bool(menu_item.text) and not menu_item.action and not menu_item.submenu

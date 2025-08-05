@@ -132,7 +132,7 @@ class Rations(BaseItem):
             return f"{self.name} [Cursed #{self.number}]"
         else:
             # unknown kind:
-            return f"{self.name} [Ration #{self.number}]"
+            return f"{self.name} [Unknown #{self.number}]"
 
     @staticmethod
     def read_rations(filename: str) -> dict | None:

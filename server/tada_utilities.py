@@ -581,6 +581,63 @@ def get_pronoun(character: "Player", pronoun_type: PronounType, capitalize: bool
         return ""
 
 
+def frame_text(p: 'Player', text: str, title: str = "", width: int = 60) -> list[str]:
+    """
+    Wraps a string in a text box using ANSI box-drawing characters and
+    sends it to the player's output.
+
+    :param p: The Player object, used for the output channel.
+    :param text: The string content to be framed.
+    :param title: An optional title to be centered on the top border.
+    :param width: The total maximum width of the box.
+    :return: list[string]
+    """
+    from base_variables import BOX_CHARS
+    # Calculate the inner width available for text, accounting for borders and padding.
+    # Box is: │<space>TEXT<space>│
+    inner_width = width - 4
+
+    # --- Build Top Border ---
+    if title:
+        # Center the title with padding and surround with the horizontal character
+        title_text = f"{title.title()} "
+        top_bar = title_text.center(width - 2, BOX_CHARS["horz"])
+    else:
+        top_bar = BOX_CHARS["horz"] * (width - 2)
+
+    top_border = BOX_CHARS["top_left"] + top_bar + BOX_CHARS["top_right"]
+
+    # --- Build Text Body ---
+    wrapped_text = textwrap.wrap(text, width=inner_width)
+    body_lines = []
+    for line in wrapped_text:
+        # Add side borders and padding to each line of text
+        padded_line = line.ljust(inner_width)
+        body_lines.append(f"{BOX_CHARS['vert']} {padded_line} {BOX_CHARS['vert']}")
+
+    # --- Build Bottom Border ---
+    bottom_border = BOX_CHARS["bottom_left"] + (BOX_CHARS["horz"] * (width - 2)) + BOX_CHARS["bottom_right"]
+
+    # --- Combine and return ---
+    return [top_border] + body_lines + [bottom_border]
+
+def tip(p: 'Player', title: str, message: str) -> list[str]:
+    """
+    Displays a helpful tip to the player in a formatted box, but only
+    if the player is NOT in expert mode.
+
+    :param p: The Player object, used to check flags and for output.
+    :param title: the title of the tip, centered in the box
+    :param message: The tip to be displayed.
+    :return: A list of strings for the tip box, or an empty list if in expert mode.
+    """
+    # This function will only run if the player does not have the EXPERT_MODE flag set.
+    if not p.query_flag(PlayerFlags.EXPERT_MODE):
+        return frame_text(p, message, f"Tip: {title}", p.client_settings.screen_columns)
+    else:
+        return []
+
+
 if __name__ == '__main__':
     # set up logging level (this level or higher will output to console):
     logging.basicConfig(format='%(levelname)10s | %(funcName)20s() | %(message)s',

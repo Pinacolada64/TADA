@@ -61,14 +61,14 @@ def buy_servant(player: "Player", allies: List["Ally"]) -> List[Ally]:
     from tada_utilities import input_number_range
     player.output("Buy servant")
     while True:
-        servants = filter_allies(allies, filter_by_status=AllyStatus.SERVANT)
+        servants = filter_allies(allies, AllyStatus.SERVANT)
         if not servants:
             player.output('Fat Olaf mutters, "Surry, ald solt ut!"')
             return servants
         logging.debug("Servants: %i" % len(servants))
 
         player.output(["Servants:", "",
-                       f"## {'Name'.ljust(20)} {'Strength'.rjust(8)} {'Price'.rjust(5)} Elite?"])
+                       f"## {'Name'.ljust(20)} {'Strength'.rjust(8)} {'Price'.rjust(5)} Special"])
         for i, servant in enumerate(servants, 1):
             name = servant.name
             strength = servant.strength
@@ -83,7 +83,7 @@ def buy_servant(player: "Player", allies: List["Ally"]) -> List[Ally]:
                 elite_str = "[Elite!]"
             if i % 20 == 0:
                 _ = input("Hit Return: ")
-            player.output(f"{i:>2} {name:.<20} {strength:>8} {price:>5,} {elite_str}")
+            player.output(f"{i:>2} {name.ljust(20, '.')} {strength:>8} {price:>5,} {elite_str}")
         apostrophe = "'"
         if not player.query_flag(PlayerFlags.EXPERT_MODE):
             # TODO: make this a function or @property or something, don't keep repeating yourself:

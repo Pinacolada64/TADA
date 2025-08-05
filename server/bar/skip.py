@@ -1,4 +1,7 @@
+import logging
+
 from bar.ally_data import Ally
+from bar.main import _display_menu_category, food_menu
 from base_classes import PlayerMoneyTypes, Gender, PronounType
 from flags import PlayerFlags
 from menu_system import MenuItem, Menu, display_menu
@@ -120,8 +123,22 @@ def menu(player: Player):
                    "[C]offee (5 silver)",
                    "[L]eave"])
 
+
 if __name__ == '__main__':
+    # Configure logging
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(levelname)10s | %(funcName)15s() | %(message)s')
+    logging.info("Logging is running")
+
+    # 1. Read the file.
+    from server import Rations
+
     player = Player()
     player.clear_flag(PlayerFlags.EXPERT_MODE)
     player.set_flag(PlayerFlags.TIRED)
+
+    foodstuffs = Rations.read_rations("../rations.json")
+    if foodstuffs:
+        food_menu(player, foodstuffs)
+
     main(player=player)

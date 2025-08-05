@@ -48,3 +48,14 @@ PRONOUN_MAP = {
         PronounType.REFLEXIVE: "herself",
     },
 }
+
+
+# A dictionary to hold the box-drawing characters for easy access and customization.
+BOX_CHARS = {
+    "horz": "─",
+    "vert": "│",
+    "top_left": "┌",
+    "top_right": "┐",
+    "bottom_left": "└",
+    "bottom_right": "┘",
+}

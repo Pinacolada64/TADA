@@ -503,7 +503,7 @@ class Player:
 
         >>> rulan = Player()  # instantiate p, show Admin flag object:
 
-        >>> print(f"- Show Admin flag object:")
+        >>> # - Show Admin flag object:
         
         >>> print(f"{rulan.get_flag(PlayerFlags.ADMIN)}")
         """
@@ -617,8 +617,7 @@ class Player:
         Show a flag's status.
         :param flag: PlayerFlagName to display the status of
         :return: Appropriate string for flag DisplayType
-        """
-        """
+
         >>> rulan = Player()
 
         >>> rulan.show_flag_status(PlayerFlagName.UNCONSCIOUS)
@@ -939,8 +938,7 @@ class Player:
         :param stat: a single PlayerStat Enum(s) to report
         :param abbreviated: False: 'Int', 'Str', 'Wis', etc. True: 'Intelligence', 'Strength', 'Wisdom', etc.
         :return: None
-        """
-        """
+
         >>> test = Player()
         
         >>> test.set_stat_absolute(PlayerStat.CHR, 10)  # set Charisma to 10

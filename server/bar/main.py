@@ -1,12 +1,12 @@
 import logging
 from dataclasses import dataclass
-from pprint import pprint
 
 # TADA imports:
 from player import Player
 from flags import PlayerFlags
 from tada_utilities import input_yes_no
-
+from bar.ally_data import Ally
+from items import Rations
 
 def bouncer(character: "Player"):
     """
@@ -24,6 +24,60 @@ def bouncer(character: "Player"):
     bar.valid_move = True  # to redisplay bar map
 
 
+def _display_menu_category(p: 'Player', title: str, items: list[Rations], start_num: int) -> int:
+    """
+    Helper function to format and display one category of the menu (e.g., "Drinks").
+
+    Args:
+        p: The player object, passed to text_pager.
+        title: The title to print for the category (e.g., "Drinks:").
+        items: A list of Rations objects to display.
+        start_num: The number to start enumerating from.
+
+    Returns:
+        The number of items that were displayed in this category.
+    """
+    from tada_utilities import text_pager
+    print(f"{' ' * 10}--- {title} ---")
+    if not items:
+        print("    (None available)")
+        return 0
+
+    menu_lines = [f"{i:>2}. {item.name.title():.<20} {item.price}"
+                  # Use attribute access (item.name) instead of dictionary keys
+                 for i, item in enumerate(items, start=start_num)]
+
+    text_pager(menu_lines, p)
+    return len(items)
+
+
+def food_menu(p: 'Player', foodstuffs: list[dict]) -> list[Rations]:
+    """
+    Converts, sorts, displays, and returns a master list of all menu items.
+    """
+    # Step 1: Convert all items to Rations objects
+    all_items = [Rations(1, data['name'], data['kind'], data['price']) for data in foodstuffs]
+    all_items.append(Rations(1, "COFFEE", "drink", 5))
+    all_items.append(Rations(1, "HASH", "food", 1))
+
+    # Step 2: Filter and sort into categories
+    drinks = sorted([item for item in all_items if item.kind == 'drink'], key=lambda item: item.name)
+    foods = sorted([item for item in all_items if item.kind == 'food'], key=lambda item: item.name)
+
+    # Step 3: Display the menu
+    num_displayed = _display_menu_category(p, "Drinks:", drinks, 1)
+    _display_menu_category(p, "\nFood:", foods, start_num=num_displayed + 1)
+
+    # Step 4: Return the final, combined list in the exact order it was displayed
+    return drinks + foods
+
+def select_ally(player: Player) -> Ally | None:
+    if player.party:
+        member_count = len(player.party)
+        for i, member in player.party:
+            player.output(f"{i:2}. {member.name}")
+
+
 def skip(player: Player):
     import bar.skip
     bar.skip.main(player)
@@ -35,6 +89,7 @@ def vinny(character: Player):
 
 
 def fat_olaf(character: Player):
+    """Slave trader; buy/sell servants, improve stats"""
     import bar.fat_olaf
     bar.fat_olaf.main(character)
 
@@ -292,11 +347,11 @@ if __name__ == '__main__':
                 print()
 
         if rulan.command == 'd':
-            rulan.toggle_flag(PlayerFlags.DEBUG_MODE, verbose=True)
+            rulan.toggle_flag(PlayerFlags.DEBUG_MODE, True)
             rulan.output("")
 
         if rulan.command == 'x':
-            rulan.toggle_flag(PlayerFlags.EXPERT_MODE, verbose=True)
+            rulan.toggle_flag(PlayerFlags.EXPERT_MODE, True)
             rulan.output("")
 
         if rulan.command == 'n':
