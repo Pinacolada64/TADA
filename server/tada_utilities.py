@@ -600,11 +600,11 @@ def frame_text(p: 'Player', text: str, title: str = "", width: int = 60) -> list
     # --- Build Top Border ---
     if title:
         # Center the title with padding and surround with the horizontal character
-        title_text = f"{title.title()} "
-        top_bar = title_text.center(width - 2, BOX_CHARS["horz"])
+        title_text = f" Tip: {title.title()} "
     else:
-        top_bar = BOX_CHARS["horz"] * (width - 2)
+        title_text = f" Tip: "
 
+    top_bar = title_text.center(width - 2, BOX_CHARS["horz"])
     top_border = BOX_CHARS["top_left"] + top_bar + BOX_CHARS["top_right"]
 
     # --- Build Text Body ---
@@ -633,7 +633,7 @@ def tip(p: 'Player', title: str, message: str) -> list[str]:
     """
     # This function will only run if the player does not have the EXPERT_MODE flag set.
     if not p.query_flag(PlayerFlags.EXPERT_MODE):
-        return frame_text(p, message, f"Tip: {title}", p.client_settings.screen_columns)
+        return frame_text(p, message, f"{title}", p.client_settings.screen_columns)
     else:
         return []
 
