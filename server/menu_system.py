@@ -277,19 +277,22 @@ def find_menu_item_by_number(choice: int, menu: Menu) -> int:
     :param menu: Menu object to iterate through to find correct choice
     :return internal_number: index of the menu_items (the option selected)
     """
-    items = [item for item in menu.menu_items if not is_header_item(item)]
+    items = [item for item in menu.menu_items]
     internal_number = 0  # menu numbering starts at 1
+    # iterate through menu items, skip over header items until choice == internal_number
     while internal_number < choice:
+        internal_number += 1
         if not is_header_item(items[internal_number]):
-            logging.debug("choice: %i, not header: %s" % (choice, items[internal_number].text))
             internal_number += 1
+            logging.debug("iterating - choice: %i, not header: %s" % (choice, items[internal_number].text))
     logging.debug("exit: internal_number: %i, item: %s" % (internal_number, items[internal_number]))
     return internal_number
 
 
 def print_menu(player: Player, menu: 'Menu'):
     """Prints the given menu with options, delegating formatting to a helper.
-    :param player:
+    :param player: Player object
+    :param menu: menu object
     """
     player.output(["", f"[{menu.title}]", "", ("-" * 40 * menu.columns)])
     check_shortcut_conflicts(menu)
@@ -350,8 +353,8 @@ def get_user_choice(player: Player, menu: Menu, stack_depth: int) -> Optional[Me
             option_num = int(choice)
             if 1 <= option_num <= len(menu.menu_items):
                 # account for unnumbered section headers if present:
-                option_num = find_menu_item_by_number(option_num, menu)
-                return menu.menu_items[option_num - 1]  # Correct index for user-friendly numbering.
+                selected_num = find_menu_item_by_number(option_num, menu)
+                return menu.menu_items[selected_num - 1]  # Correct index for user-friendly numbering.
         print("Invalid choice. Please try again.")
 
 
@@ -394,6 +397,7 @@ def navigate_menu(player: Player, menu_stack: list[Menu]) -> None:
             # Call the edit function for this menu item
             choice.action(player)
 
+        logging.debug("Unhandled edge case for %s" % choice)
 
 if __name__ == '__main__':
     # set up logging
