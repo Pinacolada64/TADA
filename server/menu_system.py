@@ -267,27 +267,42 @@ def find_menu_item_by_shortcut(choice: str, items: list[MenuItem]) -> Optional[M
     return None
 
 
-def find_menu_item_by_number(choice: int, menu: Menu) -> int:
+def find_menu_item_by_number(choice: int, menu: Menu) -> MenuItem | None:
     """
     Helper function to find a menu item by its option number.
     Since unnumbered section headers can be displayed, simply picking the index of a
     menu item won't work.
 
-    :param choice: option which the user selected
+    :param choice: The 1-based number the user selected.
     :param menu: Menu object to iterate through to find correct choice
-    :return internal_number: index of the menu_items (the option selected)
-    """
-    items = [item for item in menu.menu_items]
-    internal_number = 0  # menu numbering starts at 1
-    # iterate through menu items, skip over header items until choice == internal_number
-    while internal_number < choice:
-        internal_number += 1
-        if not is_header_item(items[internal_number]):
-            internal_number += 1
-            logging.debug("iterating - choice: %i, not header: %s" % (choice, items[internal_number].text))
-    logging.debug("exit: internal_number: %i, item: %s" % (internal_number, items[internal_number]))
-    return internal_number
 
+    :return: The index of the selected item, or None if not found.
+    """
+    option_count = 0  # This will count only the selectable (non-header) items.
+    # this keeps track of how many header items were iterated over, adds it to option_count
+    # to return the correct menu item:
+    header_count = 0
+    # Use enumerate to get both the index and the item at the same time.
+    for index, item in enumerate(menu.menu_items, start=1):
+        # Skip any item that is a header.
+        if is_header_item(item):
+            header_count += 1
+            logging.debug("header: %i, item: %s" % (header_count, item.text))
+            continue
+
+        # If it's a regular item, increment our option counter.
+        option_count += 1
+        logging.debug("  item: %i, item: %s" % (option_count, item.text))
+
+        # Check if this option number is the one the user chose.
+        if option_count == choice:
+            logging.debug(f"User choice '{choice}' matches option_count.")
+            # We found it! Return the index (but add header_count to get correct index).
+            return header_count + option_count
+
+    # If the loop finishes, the user's choice was larger than the number of items.
+    logging.warning(f"User choice '{choice}' is not a valid menu option.")
+    return None
 
 def print_menu(player: Player, menu: 'Menu'):
     """Prints the given menu with options, delegating formatting to a helper.
@@ -381,6 +396,7 @@ def navigate_menu(player: Player, menu_stack: list[Menu]) -> None:
         # Get the user's choice
         current_menu = menu_stack[-1]  # Top of the stack
         # pass depth of stack so that the message about what Enter does is more accurate:
+        # return 'choice', MenuItem to act upon:
         choice = get_user_choice(player, current_menu, len(menu_stack))
 
         if choice is None:
@@ -397,7 +413,7 @@ def navigate_menu(player: Player, menu_stack: list[Menu]) -> None:
             # Call the edit function for this menu item
             choice.action(player)
 
-        logging.debug("Unhandled edge case for %s" % choice)
+        logging.debug("Unhandled edge case for %s" % choice.text)
 
 if __name__ == '__main__':
     # set up logging
