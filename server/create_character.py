@@ -144,14 +144,14 @@ def choose_client(p: "Player"):
     print()
     """
     p.output(['"Which kind of client are you using?" Verus asks.',
-            "", # "" must be used in place of \n
-            "   Client type     Screen size",
-            "   --------------- --------------------",
-            "1. Commodore 64    40 columns x 25 rows",
-            "2. Commodore 128   80 columns x 25 rows",
-            "3. TADA client     80 columns x 25 rows",
-            "",
-            ])
+              "",  # "" must be used in place of \n
+              "   Client type     Screen size",
+              "   --------------- --------------------",
+              "1. Commodore 64    40 columns x 25 rows",
+              "2. Commodore 128   80 columns x 25 rows",
+              "3. TADA client     80 columns x 25 rows",
+              "",
+              ])
 
     temp = input_number_range(prompt="Which client", p=p, lo=1, hi=options)
 
@@ -561,7 +561,7 @@ def choose_age(p: "Player"):
     else:
         print("Edge case")
     temp = 'of an unknown' if age_input == 0 else f'{age_input} years of'
-    p.output(f'Verus studies you, and comments: "You\'re {temp} age."')
+    p.output(f'Verus studies you, and comments: "You{apostrophe}re {temp} age."')
     p.age = age_input
 
     # year = today.year - p.age FIXME: (if =0, what then?)
@@ -733,13 +733,13 @@ def choose_guild(p: "Player"):
     p.output(["", "--- Guild Selection ---"])
     while True:
         p.output(['',
-                'Join   Info',
-                " [C      IC]  Civilians",
-                " [O      IO]  Outlaws",
-                " [F      IF]  Iron Fist guild",
-                " [M      IM]  Mark of the Claw guild",
-                " [S      IS]  Mark of the Sword guild",
-                ''])
+                  'Join   Info',
+                  " [C      IC]  Civilians",
+                  " [O      IO]  Outlaws",
+                  " [F      IF]  Iron Fist guild",
+                  " [M      IM]  Mark of the Claw guild",
+                  " [S      IS]  Mark of the Sword guild",
+                  ''])
         # tada_utilities.text_pager(menu, p)
         guild_choice = input("Which option [C/IC, O/IO, F/IF, M/IM, S/IS]: ").lower()
         print()
@@ -791,6 +791,7 @@ def roll_stats(p: "Player"):
         print(f"Throw {roll_number} of {chances} - Rolling...", end='')
         # considering that running both these routines make unbelievably good 1st level stats,
         # i don't think they both need to be called.
+        p.output([f"Throw {roll_number} of {chances} - Rolling...", ""])
         # TODO: each routine needs to be tested/compared to see what a more realistic set of stats is
         # for k in p.stats:
         # p.stats[k] = getnum()
@@ -827,42 +828,62 @@ def roll_stats(p: "Player"):
         temp = input_yes_no("Do you accept")  # returns True if 'yes'
         if temp:
             break
+        shield = p.shield
+        armor = p.armor
+
+        p.output([f"Charisma......: {p.get_stat(PlayerStat.CHR)}",
+                  f"Constitution..: {p.get_stat(PlayerStat.CON)}",
+                  f"Dexterity.....: {p.get_stat(PlayerStat.DEX)}",
+                  f"Intelligence..: {p.get_stat(PlayerStat.INT)}",
+                  f"Strength......: {p.get_stat(PlayerStat.STR)}",
+                  f"Wisdom........: {p.get_stat(PlayerStat.WIS)}",
+                  f"",
+                  f"Hit Points....: {p.hit_points}",
+                  f"Energy Level..: {p.get_stat(PlayerStat.EGY)}",
+                  f"Shield........: {f'{shield}%' if shield else 'None'}",
+                  f"Armor.........: {f'{armor}%' if armor else 'None'}",
+                  ""])
 
     if roll_number == chances:
         p.output('"Sorry, you\'re stuck with these scores," Verus says.')
+        p.output(f'"Sorry, you{apostrophe}re stuck with these scores," Verus says.')
+
+
 
 
 def getnum():
-    """ACOS code:
-getnum
- zz$=rnd$:a=0  # rnd$ = random character
-getnum1
- print ".";
- b=asc(rnd$)-64:if b>17 then b=b-7
- if b=>11 return
- a=a+1:if a<10 then zz$=rnd$:goto getnum1
- b=b+9:if b<11 goto getnum1
- return
-"""
+    """
+    # ACOS code:
+    getnum
+     zz$=rnd$:a=0  # rnd$ = random character
+    getnum1
+     print ".";
+     b=asc(rnd$)-64:if b>17 then b=b-7
+     if b=>11 return
+     a=a+1:if a<10 then zz$=rnd$:goto getnum1
+     b=b+9:if b<11 goto getnum1
+     return
+    """
     a = 0  # loop counter
     b = 0  # value returned
     while a < 10:
-        print(".", end='')
-        b = randrange(1, 26)  # assuming 1-26 is rnd$'s limit
-        logging.debug("getnum: init: stat b = %i" % b)
+        logging.info('loop iteration: a=%i' % a)
+        # print(".", end='')
+        b = randrange(1, 27)  # assuming 1-26 is rnd$'s limit
+        logging.debug("stat b = %i" % b)
         if b > 17:
             b -= 7
-            logging.debug("getnum: stat b -= 7 (now %i)" % b)
+            logging.debug("stat b > 17: -= 7 (now %i)" % b)
         if b >= 11:
-            logging.debug("getnum: stat b >= 11 (now %i): return b" % b)
+            logging.debug("stat b >= 11 (now %i): return b" % b)
             return b
         a += 1
         b += 9
-        logging.debug("getnum: loop: a += 1 (now %i), stat: b += 9 (now %i)" % (a, b))
+        logging.debug("loop iteration: %i, stat: b += 9 (now %i)" % (a, b))
         if b > 11:
-            logging.debug("getnum: stat b > 9 (now %i), break" % b)
+            logging.debug("stat b > 9 (now %i), break" % b)
             break
-    logging.debug("getnum: stat b = %i, return" % b)
+    logging.debug("stat b = %i, return" % b)
     return b
 
 
@@ -870,7 +891,6 @@ def main(player: "Player") -> "Player":
     from flags import PlayerFlags
     from base_classes import PlayerMoneyTypes
     from tada_utilities import header
-    # test of using code from create_character from new_player_2.py
     # FIXME: initially, we wouldn't know which Player object to output it to (hasn't been created yet)
     #  so use IP address?  will use standard print() here until Player object is established
     logging.debug("In main")
@@ -892,7 +912,7 @@ def main(player: "Player") -> "Player":
     player.output('Verus mentions, "Do not worry if ye answer wrong, ye can change thy answer later."')
 
     header("0. Choose Client")
-    player = choose_client(player)  # TODO: net_server handles this
+    player = choose_client(player)  # TODO: net_server handles this handshaking
 
     header("00. Choose Settings")
     choose_settings(player)
@@ -916,10 +936,10 @@ def main(player: "Player") -> "Player":
     header("VI. Final Edit")
     final_edit(player)
 
-    header("Choose Guild")
+    header("VII. Choose Guild")
     choose_guild(player)
 
-    header("Roll Statistics")
+    header("VIII. Roll Statistics")
     roll_stats(player)
 
     header("Done!")
