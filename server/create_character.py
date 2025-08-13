@@ -600,24 +600,6 @@ def choose_age(p: "Player"):
         p.output("That's not a choice.")
 
 
-# def validate_range(word, start, end, p=None):
-#     """
-#     :param word: Edit <word>
-#     :param start: lowest number to allow
-#     :param end: highest number to allow
-#     :param p: Player object to output to
-#     :return: temp, the value input
-#     """
-#     while True:
-#         temp = input(f"{word} ({start}-{end}): ")
-#         if temp.isalpha():
-#             output("Numbers only, please.", p)
-#         temp = int(temp)
-#         if start - 1 < temp < end + 1:
-#             return temp
-#         output("No, try again.", p)
-
-
 def validate_age(age: int, p: "Player"):
     """
     validate that the age == 0, or 15 < age < 50
@@ -875,7 +857,6 @@ getnum1
             logging.debug("getnum: stat b >= 11 (now %i): return b" % b)
             return b
         a += 1
-        logging.info(f'loop {a=}')
         b += 9
         logging.debug("getnum: loop: a += 1 (now %i), stat: b += 9 (now %i)" % (a, b))
         if b > 11:
@@ -883,110 +864,6 @@ getnum1
             break
     logging.debug("getnum: stat b = %i, return" % b)
     return b
-
-
-def class_bonuses(p: "Player"):
-    """
-    adjust stats of Player p, based on player class
-
-    these lists are all the same length because they loop through all
-    player attributes and add or subtract the number in that position.
-    if 0, the attribute is not modified.
-    NOTE: compared to t.np, stat 4 (Ego) has been removed from these lists
-    """
-    from base_classes import PlayerClass, PlayerRace
-    # TODO: prompt using display_classes()
-
-    #     chr con dex int str wis egy
-    class_bonuses = {
-        PlayerClass.WIZARD: [0, -1, 0, +2, 0, 0],  # class 1
-        PlayerClass.DRUID: [0, 0, 0, +2, -1, +2],  # class 2
-        PlayerClass.FIGHTER: [0, +2, -1, -1, +2, 0, +2],  # class 3
-        PlayerClass.PALADIN: [0, 0, +1, +1, +1, +1, 0],  # class 4
-        PlayerClass.RANGER: [0, 0, 0, -1, +1, -1, 0],  # class 5
-        PlayerClass.THIEF: [0, 0, +1, 0, 0, 0, +2],  # class 6
-        PlayerClass.ARCHER: [0, 0, +2, 0, 0, 0, -1],  # class 7
-        PlayerClass.ASSASSIN: [0, 0, -1, 0, +2, 0, 0],  # class 8
-        PlayerClass.KNIGHT: [0, +1, 0, +1, 0, 0, -1],  # class 9
-    }
-    logging.debug('class_bonuses: Apply class bonuses: {adj=}')
-    # Get bonus list based on player class
-    bonus_list = class_bonuses.get(p.char_class)
-
-    if bonus_list:
-        logging.debug("Apply class bonuses: %s" % bonus_list)
-        apply_bonuses(bonus_list, p)
-    else:
-        logging.warning("Unknown class %s" % p.char_class)
-
-def calculate_race_bonuses(p: "Player"):
-    pr = p.char_race
-    if p.query_flag(PlayerFlags.DEBUG_MODE):
-        # just so we don't have to go through every char creation step...
-        logging.info("fixme")
-        # TODO: prompt using display_classes()
-        pr = PlayerRace.HUMAN
-        logging.info("Shortcut: set %s" % pr)
-
-    # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc     Half-Elf
-    # TODO: add Elf bow ability bonus
-    # these lists are all the same length because they loop through all
-    # player attributes and add or subtract the number in that position.
-    # if 0, the attribute is not modified.
-    # NOTE: compared to t.np, stat 4 (Ego) has been removed from these lists
-    #     order of elements is: chr con dex int str wis egy
-    race_bonuses = {PlayerRace.HUMAN: [0, +1, +2, +2, -1, 0, 0],  # race 1
-                    PlayerRace.OGRE: [0, +2, -1, -2, +3, -1, 0],  # race 2
-                    PlayerRace.PIXIE: [0, 0, -1, 0, +1, +1, 0],  # race 3
-                    PlayerRace.ELF: [0, -1, +2, +1, 0, +2, 0],  # race 4
-                    PlayerRace.HOBBIT: [0, 0, +1, +2, -1, 0, +1],  # race 5
-                    # FIXME: Gnome bonuses same as Human?:
-                    PlayerRace.GNOME: [0, +1, +2, +2, -1, 0, 0],  # race 6
-                    PlayerRace.DWARF: [0, +1, -1, 0, +2, 0, 0],  # race 7
-                    PlayerRace.ORC: [0, 0, +1, -1, +2, -1, +2],  # race 8
-                    PlayerRace.HALF_ELF: [0, 0, +1, 0, 0, +1, 0],  # race 9
-                    }
-    adj = race_bonuses[p.char_race]
-    logging.info(f'Apply race bonuses: {adj=}')
-    apply_bonuses(adj, p)
-
-
-def apply_bonuses(adj: list, p: "Player"):
-    """
-    loop through stats, adjusting each based on p class & race bonuses & penalties
-
-    :param adj: list of adjustments from class_bonuses() & race_bonuses()
-    :param p: Player object's stat_name to apply adjustments to
-    :return: None
-    """
-    from base_classes import PlayerStat
-    for i, k in enumerate(PlayerStat, start=1):
-        # class_calculate is not in skip's branch
-        # https://github.com/Pinacolada64/TADA/blob/skip/SPUR-code/SPUR.NEW.S
-        # nor spur.logon.s:
-        # https://github.com/Pinacolada64/TADA/blob/master/SPUR-code/SPUR.LOGON.S
-        # t.np:
-        # y=stat, x=counter, b=max value
-        # maximum allowable value for chr, con, dex: 18
-        # maximum allowable value for int, str, wis, egy: 25
-        # y=v1+86:for x=1 to 8:b=18:if x>3 then b=25
-        maximum = 18
-        if i < 3:
-            maximum = 25
-        # {:_276}
-        # n=fn r(b):if n=1 then {:_276}
-        before = randrange(2, maximum)
-        # n=n+val(mid$(a$,x*2-1,2)):if n<1 then {:_276}
-        # poke y,n:y=y+1:print ".";
-        # next:y=v1+86
-        after = before + adj[i]
-        # if n>b then n=b
-        if after > maximum:
-            after = maximum
-        # FIXME: apply stat here:
-        p.set_stat_absolute(k, after)
-        logging.info("k=%s, before=%i, after=%i, maximum=%i" %
-                     (k, before, after, maximum))
 
 
 def main(player: "Player") -> "Player":
