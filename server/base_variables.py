@@ -1,4 +1,4 @@
-from base_classes import PlayerStat, PronounType, Gender
+from base_classes import PlayerRace, PlayerClass, PlayerStat, PronounType, Gender
 
 # Step 1: Create a consolidated data dictionary.
 # The key is the PlayerStat member.
@@ -17,6 +17,10 @@ STAT_DATA = {
     PlayerStat.DEX: {
         "name": ("Dexterity", "Dex"),
         "phrases": ("less agile", "more agile")
+    },
+    PlayerStat.EGY: {
+        "name": ("Energy", "Egy"),
+        "phrases": ("less energetic", "more energetic")
     },
     PlayerStat.INT: {
         "name": ("Intelligence", "Int"),
