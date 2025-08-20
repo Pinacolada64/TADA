@@ -76,6 +76,14 @@ def buy_servant(player: "Player", allies: List["Ally"]) -> List[Ally]:
             flags = servant.flags
             elite_str = ""
             # This is the most Pythonic and reliable way to check for flags:
+            # TODO: display more flags
+            """
+            has_god_flag = any(flag.value in [AllyFlags.GOD.value, AllyFlags.GODDESS.value] for flag in flags)
+            if has_god_flag:
+                triple the price?
+                price *= 3
+                elite_str = '[God(dess)]'  # FIXME: display either God or Goddess
+            """
             has_elite_flag = any(flag.value == AllyFlags.ELITE.value for flag in flags)
             if has_elite_flag:
                 # double the price:
