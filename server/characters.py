@@ -54,6 +54,37 @@ class Ally(BaseCharacter):
     abilities: list[str] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
 
+    def __init__(self):
+        """
+        tactical_position (as in TLOS): empty=0, lurking=1, point=2, flank=2, rear=3,
+            (guard=4?), unconscious=5 [in python I will use AllyPosition(Enum)]
+        abilities[
+            'tracking': int  # '&': number of rooms away an ally can detect a target
+                             # TLOS: distance between tracker and target determined track strength.
+                             # target's last play date delta compared to date.today determines
+                             # "strength" of tracks: 1-3 days: very fresh, >3 days: weak (?)
+                             # https://docs.python.org/3/library/datetime.html
+             # TODO: look at Skip's branch on GitHub, it has more TRACKing stuff:
+                # https://github.com/Pinacolada64/TADA-old/blob/4c24c069139a495f97b2964d54c374b957c9eeab/SPUR-code/SPUR.MISC9.S
+            'ayf': int      # ally has a 1-ayf% chance of randomly finding sack of gold/diamond/etc.
+            'alignment': str # in TLOS: '(' good, ')' evil
+            ]
+        flags[              # | = TLOS ally string postfix, then:
+            'elite': bool   # ! display name as "Name [Elite]"
+            'mount': bool   # =
+            'body_build': int  # #nn <nn=1...25?> Not clear what this is for, Str improvement?
+            'god' # '('
+            'goddess' ')'
+
+             # TODO: find ally guild code
+            ]
+        silver: int
+        """
+        super().__init__()
+
+    def __str__(self):
+        flag_text = []
+        # TODO: if self.flags
 
 class Horse(BaseCharacter):
     armor: list = field(default_factory=list)
