@@ -46,10 +46,10 @@ def set_up_client_settings():
     return terminal_settings
 
 
-def set_up_combinations(combination_name=None):
+def set_up_combinations():
     from base_classes import Combination, CombinationTypes
-    # returns a dict of combinations: {<CombinationTypes.CASTLE: (40,10,5)}
-    combinations = {combination_name: Combination(combination_name) for combination_type in CombinationTypes}
+    # returns a list of 3 combinations: [<CombinationTypes.CASTLE: (40,10,5)]
+    combinations = [Combination(combination_type) for combination_type in CombinationTypes]
     # >>> print(Combination(CombinationTypes.LOCKER))
     #   Locker: 21-83-91
     logging.debug(combinations)
@@ -145,8 +145,10 @@ class Player:
         self.stats = kwargs.get("stats", set_up_stats())
         # flags:
         self.flags = kwargs.get('flags', set_up_flags())
-        # combinations:
+        # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
         self.combinations = kwargs.get('combinations', set_up_combinations())
+        # client settings - set up some defaults
+        self.client_settings = kwargs.get('client_settings', set_up_client_settings())
 
         self.natural_alignment = kwargs.get('natural_alignment', Alignment.NEUTRAL)
         self.current_alignment = kwargs.get('current_alignment', Alignment.NEUTRAL)
@@ -163,15 +165,10 @@ class Player:
             silver_in_hand = self.get_silver(PlayerMoneyTypes.IN_HAND)
             logging.info("Silver in hand: %i" % silver_in_hand)
 
-        # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
-        self.combinations = kwargs.get('combinations', set_up_combinations())
-        # client settings - set up some defaults
-        self.client_settings = kwargs.get('client_settings', set_up_client_settings())
-
-        self.times_played = kwargs.get('times_played')
+        self.times_played = kwargs.get('times_played', None)
         # last_connection helps determine whether once_per_day events should be reset, but we just care about the day
         # rolling over, not that 24 hours have passed.
-        # Also in the LASTON command to show when a player was last online.
+        # TODO: Also in the LASTON command to show when a player was last online.
         # Player.connect() should set last_connection to datetime.now().
         # Player.disconnect() should also set last_connection to datetime.now().
         self.last_connection = kwargs.get('last_connection', datetime.datetime.now())
@@ -198,8 +195,8 @@ class Player:
 
         self.inventory = kwargs.get('inventory')
 
-        self.hit_points = kwargs.get('hit_points', 0)
         # combat stuff:
+        self.hit_points = kwargs.get('hit_points', 0)
         # the lower the Honor score, the more evil the character has become.
         # TODO: look it up, but I think 1,000 honor points is equivalent to a Saintly Knight.
         self.honor = kwargs.get('honor', 1_000)
@@ -207,7 +204,7 @@ class Player:
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
         self.experience = kwargs.get('experience', 0)
-        self.dead_monsters = kwargs.get('dead_monsters')
+        self.dead_monsters = kwargs.get('dead_monsters', [])
         """
         Things you can only do once per day (file_formats.txt):
         'pr'        has PRAYed once
@@ -216,17 +213,9 @@ class Player:
                     (prevents them from logging on multiple times per day and getting multiple presents)
         # TODO: make these Enums, finish this list
         """
-        self.once_per_day = kwargs.get('once_per_day', list())
-        self.last_play_date = kwargs.get('last_play_date')
+        self.once_per_day = kwargs.get('once_per_day', [])
+        self.last_play_date = kwargs.get('last_play_date', datetime.datetime.now())
 
-        # FIXME: this is broken
-        #  TODO: copy UserSetting class here:
-        """
-        settings: UserSetting = field(default_factory=lambda: UserSetting())
-        # Copy list of client_settings defaults from user_settings.py:
-        client_settings: dict[ClientSettingsNames, int | str] = field(
-            default_factory=lambda: {i[0]: ClientValues for i in ClientSettingsNames})
-        """
         self.party = kwargs.get('party', [])
         self.allies = kwargs.get('allies', [])
 
@@ -254,14 +243,14 @@ class Player:
         # None if inactive, or non-magic user
         # != 0 is the number of rounds left, decrement at every turn
         self.wizard_glow = kwargs.get('wizard_glow')
-        self.id = None
+        self.id = None  # account id
 
         # command history:
         self.command = None
         self.previous_command = None
 
         # flag whether a save is required:
-        self.unsaved_changes = False
+        self.unsaved_changes: bool = False
 
     def __str__(self):
         """print formatted Player object (just random info for now to test)"""
@@ -1043,7 +1032,7 @@ class Player:
             return None
         except FileNotFoundError:
             # Failure
-            logging.error("Player.load: '%s' not found" % user_id)
+            logging.error("Player ID '%s' not found" % user_id)
             return None
 
     def save(self):
