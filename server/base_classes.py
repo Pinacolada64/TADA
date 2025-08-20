@@ -65,7 +65,6 @@ class Combination:
     """
     Represents a three-digit combination where each digit is between 1 and 99.
     """
-
     def __init__(self, name: CombinationTypes):
         """
         Initializes a combination with a given name and random numbers.
@@ -262,6 +261,34 @@ class PlayerStat(StrEnum):
     EGY = "Energy"
 
 
+class PlayerRaceBonuses(Enum):
+    # applied upon character creation, maybe elsewhere in future
+    HUMAN = {PlayerStat.CON: 1, PlayerStat.DEX: 2, PlayerStat.INT: 2, PlayerStat.STR: -1},
+    OGRE = {PlayerStat.CON: 2, PlayerStat.DEX: -1, PlayerStat.INT: -2, PlayerStat.STR: 3, PlayerStat.WIS: -1},
+    PIXIE = {PlayerStat.DEX: -1, PlayerStat.STR: 1, PlayerStat.WIS: 1},
+    ELF = {PlayerStat.DEX: 2, PlayerStat.INT: 1, PlayerStat.CON: -1, PlayerStat.WIS: 2},
+    HOBBIT = {PlayerStat.DEX: 1, PlayerStat.INT: 2, PlayerStat.STR: -1, PlayerStat.EGY: 1},
+    # FIXME: Gnome bonuses same as Human?:
+    GNOME = {PlayerStat.CON: 1, PlayerStat.DEX: 2, PlayerStat.INT: 2, PlayerStat.STR: -1},
+    DWARF = {PlayerStat.CON: 1, PlayerStat.DEX: -1, PlayerStat.CHR: 2},
+    ORC = {PlayerStat.DEX: 1, PlayerStat.INT: -1, PlayerStat.STR: 2, PlayerStat.WIS: -1, PlayerStat.EGY: 2},
+    HALF_ELF = {PlayerStat.DEX: 1, PlayerStat.WIS: 1}
+
+
+class PlayerClassBonuses(Enum):
+    # applied upon character creation, maybe elsewhere in future
+    WIZARD ={PlayerStat.CON: -1, PlayerStat.INT: 2},
+    DRUID ={PlayerStat.INT: 2, PlayerStat.STR: -1, PlayerStat.WIS: 2},
+    FIGHTER ={PlayerStat.CON: 2, PlayerStat.DEX: -1, PlayerStat.INT: -2, PlayerStat.STR: 2, PlayerStat.EGY: 2},
+    PALADIN ={PlayerStat.DEX: 1, PlayerStat.INT: 1, PlayerStat.STR: 1, PlayerStat.WIS: 1},
+    RANGER ={PlayerStat.INT: -1, PlayerStat.STR: 1, PlayerStat.WIS: -1},
+    THIEF ={PlayerStat.DEX: 1, PlayerStat.EGY: 2},
+    ARCHER ={PlayerStat.DEX: 2, PlayerStat.EGY: -2},
+    ASSASSIN ={PlayerStat.DEX: -1, PlayerStat.STR: 2},
+    KNIGHT ={PlayerStat.CON: 1, PlayerStat.INT: 1, PlayerStat.EGY: -1}
+
+
+
 @dataclass
 class Room(object):
     number: int
@@ -272,7 +299,7 @@ class Room(object):
     item: int = 0
     weapon: int = 0
     food: int = 0
-    alignment: str = "neutral"  # default unless set to another guild
+    alignment: str = Alignment.NEUTRAL  # default unless set to another guild
 
     def __str__(self):
         return f'#{self.number} {self.name}\n' \
