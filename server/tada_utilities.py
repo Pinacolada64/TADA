@@ -53,6 +53,41 @@ def bulleted_list_format(text: str, width: int, initial_indent: str = "* ", subs
     return formatted_text
 
 
+def set_logging_level(p: Player):
+    """
+    An action function that displays the current logging level,
+    prompts the user to select a new one, and applies the change.
+    """
+    root_logger = logging.getLogger()
+    levels = {
+        '1': logging.DEBUG,
+        '2': logging.INFO,
+        '3': logging.WARNING,
+        '4': logging.ERROR,
+        '5': logging.CRITICAL,
+    }
+
+    current_level_name = logging.getLevelName(root_logger.level)
+    p.output(["", f"--- Logging Level Control ---",
+              f"Current level: {current_level_name}",
+              "Select a new logging level:"])
+
+    for key, level_int in levels.items():
+        p.output(f"  {key}. {logging.getLevelName(level_int)}")
+
+    return_key = p.client_settings.return_key
+    choice = input_string(p, f"Enter choice (or press {return_key} to cancel):",
+                          default_answer=current_level_name, allow_empty = True, keep_msg=True)
+
+    if choice in levels:
+        new_level = levels[choice]
+        root_logger.setLevel(new_level)
+        p.output(f"Logging level has been changed to {logging.getLevelName(new_level)}.")
+    else:
+        p.output("Canceled. Logging level is unchanged.")
+
+
+
 def file_read(filename: str, p: "Player"):
     """
     Read a disk file in 40 or 80 columns with more_prompt paging.
@@ -349,7 +384,7 @@ def input_number_range(prompt: str, lo: int, hi: int, p: "Player", out_of_bounds
                     p.output(f"(Keeping '{default}'.)")
                 return default
             else:
-                return ''
+                return int(temp)
         elif temp.isdigit():
             number = int(temp)
             if lo <= number <= hi:
@@ -495,10 +530,9 @@ def game_help(self, player: "Player", arg: list):
         return None
     else:
         try:
-            if callable(arg[0]):
-                print(arg[0].__docstring__)
-        except not callable(arg[0]):
-            print(f"Can't find help for {arg[0]}.")
+            player.output(arg[0].__docstring__)
+        except NameError:
+            player.output(f"Can't find help for {arg[0]}.")
     return Message(lines=["Done."])
 
 
