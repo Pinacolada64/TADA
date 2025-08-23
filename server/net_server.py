@@ -113,12 +113,16 @@ class LoginHistory(object):
 
     def save(self):
         with open(LoginHistory._json_path(self.addr), 'w') as json_file:
-            json.dump(fp=json_file, default=lambda o: {k: v for k, v
-                                                         in o.__dict__.items() if v}, indent=4)
+            # json.dump(obj=self, default=lambda o: {k: v for k, v
+            #                                      in o.__dict__.items() if v}, indent=4)
+            json.dump(obj=self, fp=json_file, default=lambda o: {k: v for k, v
+                                                                 # in o.__dict__.items() if v}, indent=4)
+                                                                 in o.__dict__.items()}, indent=4)
+            logging.debug("Saved '%s'" % self.addr)
 
 
 class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
-    pass
+    allow_reuse_address = True
 
 
 class UserHandler(socketserver.BaseRequestHandler):
@@ -214,6 +218,13 @@ class UserHandler(socketserver.BaseRequestHandler):
         if user is None:
             invite = nc.Invite.load(user_id)
             if invite is None:
+                # For development: create user directly without invite
+                logging.info(f"process_login: Creating new user '{user_id}' without invite")
+                user = nc.User(user_id)
+                user.hash_password(password)
+                user.save()
+                # Original invite-required code:
+                """
                 logging.warning("process_login: login failed: no user '%s`" % user_id)
                 # when failing don't tell that have wrong user id
                 banned = self.login_history.no_user(user_id, save=True)
@@ -221,6 +232,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                     logging.info(f"ban {self.sender}")
                     return error_ban()
                 return error_login_failed()
+                """
             else:
                 # process new user with invite
                 if invite.code != invite_code:
