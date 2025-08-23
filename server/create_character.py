@@ -845,7 +845,6 @@ def roll_stats(p: "Player"):
                   ""])
 
     if roll_number == chances:
-        p.output('"Sorry, you\'re stuck with these scores," Verus says.')
         p.output(f'"Sorry, you{apostrophe}re stuck with these scores," Verus says.')
 
 
@@ -891,6 +890,8 @@ def main(player: "Player") -> "Player":
     from flags import PlayerFlags
     from base_classes import PlayerMoneyTypes
     from tada_utilities import header
+    apostrophe = "'"
+    quotation = '"'
     # FIXME: initially, we wouldn't know which Player object to output it to (hasn't been created yet)
     #  so use IP address?  will use standard print() here until Player object is established
     logging.debug("In main")

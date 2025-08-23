@@ -7,50 +7,12 @@ from enum import Enum
 # TADA-specific:
 import flags
 from flags import PlayerFlags
+from base_classes import Gender, PlayerMoneyTypes, PlayerMoneyCategory, PlayerStat
 
 
 # https://inventwithpython.com/blog/2014/12/02/why-is-object-oriented-programming-useful-with-a-role-playing-game-example/
 # http://pythonfiddle.com/text-based-rpg-code-python/
 
-
-class Gender(Enum, str):
-    MALE = "male"
-    FEMALE = "female"
-
-
-class PlayerMoneyTypes(str, Enum):
-    # this is the dict element to reference money amounts
-    IN_HAND = "IN_HAND"
-    IN_BANK = "IN_BANK"
-    IN_BAR = "IN_BAR"
-
-
-class PlayerMoneyCategory(str, Enum):
-    # this refers to Player.gold{PlayerMoneyTypes.Enum} printable names
-    IN_HAND = "In hand"
-    IN_BANK = "In bank"
-    IN_BAR = "In bar"
-
-
-class PlayerStatName(str, Enum):
-    CHR = "Charisma"
-    CON = "Constitution"
-    DEX = "Dexterity"
-    INT = "Intelligence"
-    STR = "Strength"
-    WIS = "Wisdom"
-
-
-class ClientSettings(Enum, str):
-    NAME = "name"
-    ROWS = "rows"
-    COLUMNS = "columns"
-    TRANSLATION = "Character translation"
-    # colors for [bracket reader] text highlighting on C64/128:
-    TEXT_COLOR = "Text color"
-    HIGHLIGHT_COLOR = "Highlight color"
-    BACKGROUND = "Background"
-    BORDER = "border"
 
 @dataclass
 class Character(object):
@@ -66,7 +28,7 @@ class Player(object):
     # TODO: make some of these stats part of a base class
     # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
     flags: dict[flags.PlayerFlags, flags.Flag] = field(default_factory=lambda: {i[0]: flags.Flag(*i) for i in flags.player_flag_data})
-    stat: dict[PlayerStatName, int] = field(default_factory=lambda: {i: 0 for i in PlayerStatName})
+    stat: dict[PlayerStat, int] = field(default_factory=lambda: {i: 0 for i in PlayerStat})
     """
     The Florentine florin was a gold coin struck from 1252 to 1533 with no significant change in its design or metal content standard during that time. Wikipedia
     """
@@ -194,24 +156,24 @@ class Player(object):
         # returned Flag object, return the status to caller:
         return result.status
 
-    def show_stat(self, stat_name: PlayerStatName) -> str:
+    def show_stat(self, stat_name: PlayerStat) -> str:
         logging.debug(f"show_stat: %s" % stat_name.value)
         x = self.get_stat(stat_name)
         return f"{stat_name.value}: {x}"
 
-    def adjust_stat(self, stat_name: PlayerStatName, adjustment):
+    def adjust_stat(self, stat_name: PlayerStat, adjustment):
         current = self.get_stat(stat_name)
         new = current + adjustment
         logging.debug("adjust_stat: current: %s: %i, adjusted: %i" % (stat_name.name, current, new))
         self.put_stat(stat_name, new)
 
-    def get_stat(self, stat_name: PlayerStatName) -> int:
+    def get_stat(self, stat_name: PlayerStat) -> int:
         for key, value in self.stat.items():
             if stat_name.value == key:
                 logging.debug("get_stat: get %s: %i" % (stat_name.value, value))
                 return value
 
-    def put_stat(self, stat_name: PlayerStatName, value) -> None:
+    def put_stat(self, stat_name: PlayerStat, value) -> None:
         logging.debug("put_stat: put %s: %i" % (stat_name.value, value))
         self.stat[stat_name] = value
 
@@ -252,7 +214,7 @@ class TodoPlayer(Character):
     gender: Gender
     """
     # stats: str = "abc"
-    # set with Player.set_stat(PlayerStatName.Enum, val)
+    # set with Player.set_stat(PlayerStat.Enum, val)
     logging.debug("Player.__init__: stats: %s" % stats)
     """
     logging.debug("Player.__init__: flags: %s" % flags)
@@ -299,7 +261,7 @@ class TodoPlayer(Character):
     # combat:
     honor: int
     # Weapon(weapon_percentage{'weapon': percentage [, ...]}
-    weapon_ammunition{'weapon': ammo_count [, ...]}
+    # weapon_ammunition{'weapon': ammo_count [, ...]}
     # bad_hombre_rating is calculated from stats, not stored in player log
         
     once_per_day: list  # things you can only do once per day (file_formats.txt)
@@ -325,10 +287,9 @@ class TodoPlayer(Character):
         TODO: example for doctest:
         >>> rulan = Player()
 
-        >>> rulan.set_stat[PlayerStatName.STR, -5]  # decrement Rulan's strength by 5
+        >>> rulan.set_stat[PlayerStat.STR, -5]  # decrement Rulan's strength by 5
         """
         try:
-            # self.stats = {'con': 0, 'dex': 0, 'ego': 0, 'int': 0, 'str': 0, 'wis': 0}
             # adjust stat by <adjustment>:
             before = self.stats[stat]
             after = before + adj
@@ -351,7 +312,7 @@ class TodoPlayer(Character):
             # TODO: raise ValueError?
             logging.warning("Player.set_stat: Stat %s doesn't exist." % stat)
 
-def get_stat(self, stat: ):
+    def get_stat(self, stat):
         """
         if 'stat' is str: return value of single stat as str: 'stat'
         TODO: if 'stat' is list: sum up contents of list: ['str', 'wis', 'int']...
