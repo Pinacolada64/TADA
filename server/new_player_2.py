@@ -7,39 +7,14 @@ import textwrap
 import doctest
 
 from flags import Flag, new_player_default_flags, FlagDisplayTypes
-from base_classes import Combination, CombinationTypes, Alignment
+from base_classes import Combination, CombinationTypes, Alignment, Gender, PlayerMoneyTypes, PlayerStat, Guild
 from base_variables import STAT_DATA
-from terminal import KeyboardKeyName
-
-
-class Translation(Enum):
-    ASCII = auto()
-    COMMODORE = auto()
-    ANSI = auto()
+from terminal import KeyboardKeyName, Translation
 
 
 class Color(Enum):
     BLACK = auto()
     WHITE = auto()
-
-
-class PlayerStat(StrEnum):
-    CHR = "Charisma"
-    CON = "Constitution"
-    DEX = "Dexterity"
-    EGY = "Energy"
-    INT = "Intelligence"
-    STR = "Strength"
-    WIS = "Wisdom"
-
-    def __repr__(self):
-        """
-        Returns a string representation of the player statistic.
-
-        Returns:
-            str: A formatted string containing the stat name
-        """
-        return f"<PlayerStat.{self.value}>"
 
 
 @dataclass
@@ -67,25 +42,6 @@ class Client:
 {'Border Color:'.rjust(17)} {self.border.name.title()}
 """
         return textwrap.dedent(settings)
-
-
-class Gender(StrEnum):
-    MALE = "Male"
-    FEMALE = "Female"
-
-
-class PlayerMoneyTypes(StrEnum):
-    IN_HAND = "In hand"
-    IN_BAR = "In bar"
-    IN_BANK = "In bank"
-
-
-class Guild(StrEnum):
-    CIVILIAN = "Civilian"
-    FIST = "Fist"
-    SWORD = "Sword"
-    CLAW = "Claw"
-    OUTLAW = "Outlaw"
 
 
 def make_random_id():
