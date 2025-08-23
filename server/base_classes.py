@@ -272,13 +272,15 @@ class Room(object):
     item: int = 0
     weapon: int = 0
     food: int = 0
-    alignment: str = "neutral"  # default unless set to another guild
+    # Here, Civilian is considered the "neutral" default, unless the room is aligned to another Guild.
+    # I don't want to add another Alignment-type class just for this purpose:
+    alignment: Guild = Guild.CIVILIAN
 
     def __str__(self):
         return f'#{self.number} {self.name}\n' \
                f'{self.desc}\n{self.exits}'
 
-    def exits_txt(self, debug: bool):
+    def exits_txt(self, debug: bool) -> str:
         """
         Display exits in a comma-delimited list.
         :param debug: display room #s if True
