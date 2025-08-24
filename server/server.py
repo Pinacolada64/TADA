@@ -46,84 +46,6 @@ def players_in_room(room_id: int, exclude_id: str | None):
 players = {}
 
 
-@dataclass
-class OldPlayer:
-    """
-    Attributes, flags and other stuff about characters.
-    """
-    from characters import Monster
-    # inventory:
-    armor: list
-    # e.g., should it be its own class with attributes?
-    # Armor(object):
-    #     def __init__(name, percent_left, armor_class, ...)
-    # TODO: weight (iron armor vs. padded leather armor will be different),
-    #  could also define effectiveness, heavier armor absorbs more damage
-
-    # same:
-    # @dataclass
-    # Shield(object):
-    #     name: str
-    #     percent_left: int
-    #     shield_size: Size
-    #     shield_used: bool  # shield item being USEd: True/False
-    #     shield_skill: int
-
-    # TODO: weight (iron shield vs. wooden shield will be different),
-    #  could also define effectiveness, heavier shields absorb more damage
-
-    # weapon: dict
-    weapon_used: Optional[Weapon]  # if not None, this weapon READYed
-    # weapon_skill: dict  # {weapon_item: int, weapon_skill: int}
-    # weapon_left: int  # TODO: map this to a rating
-
-    honor_rating: int  # helps determine current_alignment
-    formal_training: int
-    monsters_killed: list[Monster]
-    """
-    monsters_killed is not always the same as dead_monsters[];
-    still increment it if you re-kill a re-animated monster
-    """
-    dead_monsters: list[Monster]  # keeps track of monsters for Zelda in the bar to resurrect
-    monster_at_quit: Optional[Monster]
-
-    # class VinneyLoan(self):
-    # dict  # {'amount_due': int, 'days_til_due': datetime}
-
-    # inventory
-    """
-    # TODO: There should be methods here for Inventory:
-        Inventory.item_held(item): check player/ally inventory, return True or False
-     (is it important to know whether the player or ally is carrying an item?)
-     maybe return Character or Ally object if they hold it, or None if no-one holds it
-     Or could be written:
-
-     if 'armor' in Character.inventory and 'armor' in Character.used:
-     # meaning 'armor' is in 'inventory' and 'used' lists?
-     # could this be shortened? perhaps:
-     # if Character.ItemHeldUsed('armor'):
-    """
-    max_inv: int
-    # also see weapons[], armor[], shields[]
-    food: list
-    drink: list
-    spells: list  # list of dicts('spell_name': str, 'charges', 'chance_to_cast': int)
-    booby_traps: list
-
-    # FIXME: how to distinguish between offline characters and online?
-    last_connection: datetime
-
-    special_items: dict
-    # SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
-    # TODO: avoid placing objects in map "holes" where no room exists
-    # DINGHY  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
-
-    last_command: list
-
-    def __init__(self):
-        self.silver = None
-
-
 class PlayerHandler(net_server.UserHandler):
     def init_success_lines(self):
         return ['Welcome to:\n', 'Totally\nAwesome\nDungeon\nAdventure\n', 'Please log in.']
@@ -131,6 +53,10 @@ class PlayerHandler(net_server.UserHandler):
     def login_fail_lines(self):
         return ['Please try again.']
 
+    def output(self, lines):
+        logging.info("output: %s" % lines)
+        self._send_data(Message(lines=lines))
+    
     def room_msg(self, lines: str | list, changes: dict, player: "Player"):
         """
         Display the room description and contents to the player in the room
@@ -140,7 +66,7 @@ class PlayerHandler(net_server.UserHandler):
             (e.g., if moved to a new room: changes={K.name: room.name, K.desc: room.desc}
         :return: Message object
         """
-        from new_player_2 import Player
+        from player import Player
         # get room # that player is in
         try:
             room = game_map.rooms[player.room]
@@ -244,47 +170,15 @@ class PlayerHandler(net_server.UserHandler):
         return Message(lines=lines2, changes=changes)
 
     def process_login_success(self, user_id):
-        from new_player_2 import Player
+        from player import Player
         player = Player.load(user_id)
         if player is None:
-            logging.debug("process_login_success: No player data, creating new character.")
-            # TODO: create player
-            logging.debug("process_login_success: Running create_player...")
-            valid_name = False
-            while not valid_name:
-                reply = self.prompt_request(["Choose your adventurer's name."], prompt='Name? ', choices = {})
-                name = reply['text'].strip()
-                if name != '':  # TODO: limitations on valid names
-                    valid_name = True
-            player = Player(id=user_id,
-                            name=name,
-                            map_level=1,
-                            room=1,
-                            hit_points=100,
-                            last_command=None)
-            player.set_flag(PlayerFlags.DEBUG_MODE)
-            player.clear_flag(PlayerFlags.EXPERT_MODE)
-            player.set_flag(PlayerFlags.ROOM_DESCRIPTIONS)
-
-            player.save()
-        logging.info("process_login_success: Login %s ('%s') (IP: %s)" \
-                     % (user_id, player.name, self.sender))
-        player = players[user_id] = player
-        logging.info("login %s ('%s', IP addr=%s)" %
-                     (user_id, player.name, self.sender))
+            player = self.create_new_player()
+        players[user_id] = player
+        logging.info("login %s ('%s', IP addr=%s)" % (user_id, player.name, self.sender))
         silver = player.silver[PlayerMoneyTypes.IN_HAND]
         lines = [f"Welcome, {player.name}.",
-                 f"You have {silver:,} silver in hand.\n"]
-
-        # show/convert flags from JSON text 'true/false' to bool True/False
-        # (otherwise they're not recognized and can't be toggled):
-        # TODO: move this to Player.load() ? and do the reverse in Player.save() ?
-        for k, v in player.flag.items():
-            if player.flag[k] == 'true':
-                player.flag[k] = True
-            if player.flag[k] == 'false':
-                player.flag[k] = False
-            logging.debug("%s: %s" % (k, v))
+                 f"You have {silver:,} silver in hand.", ""]
 
         changes = {K.room_name: game_map.rooms[player.room].name,
                    K.silver: player.silver, K.hit_points: player.hit_points,
@@ -292,16 +186,36 @@ class PlayerHandler(net_server.UserHandler):
         player.connect()
         return self.room_msg(lines, changes)
 
+    def create_new_player(self) -> Player:
+        logging.info("No player data, creating new character.")
+        player = Player()
+        import create_character
+        logging.debug("Running create_character.debug_menu()")
+        # self.send_message("send_message to client", player)
+        valid_name = False
+        text = self.output(["This is a test of socket output."])
+        while not valid_name:
+            reply = self.prompt_request(["Choose your adventurer's name."], prompt='Name? ', choices = {})
+            name = reply['text'].strip()
+            if name != '':  # TODO: limitations on valid names
+                valid_name = True
+        player.set_flag(PlayerFlags.DEBUG_MODE, verbose=True)
+        player.clear_flag(PlayerFlags.EXPERT_MODE, verbose=True)
+        player.set_flag(PlayerFlags.ROOM_DESCRIPTIONS, verbose=True)
+        create_character.debug_menu(player)
+        player.save()
+        return player
+
     def process_message(self, data, player: Player):
         if 'text' in data:
             cmd = data['text'].lower().split(' ')
-            logging.debug("process_message: ID=%s, command=%s" % (player.id, cmd))
+            logging.debug("User ID=%s, command=%s" % (player.id, cmd))
             # update last command to repeat with Return/Enter
             # if an invalid command, set to None later
             # TODO: maybe maintain a history
             player.last_command = cmd
-            logging.debug("process_message: Player %s last cmd: %s" %
-                         (player.name, player.last_command))
+            logging.debug("User ID '%s' last cmd: %s" %
+                         (player.id, player.last_command))
 
             # TODO: handle commands with parser etc.
 
@@ -338,7 +252,7 @@ class PlayerHandler(net_server.UserHandler):
             """
             This is the way the original Apple code handled up/down exits.
             I'm fully aware up/down exits could just be a room number, or 0
-            for no connection--my -written level 8 map does exactly this.
+            for no connection--my self-written level 8 map does exactly this.
             """
             if cmd[0][:1] == 'u' or cmd[0][:1] == 'd':
                 room = game_map.rooms[player.room]
@@ -348,7 +262,7 @@ class PlayerHandler(net_server.UserHandler):
                 # example: level 1, room 20
                 if cmd[0] == 'u' and room_connection == 1:
                     if room_transport != 0:
-                        logging.debug("parser: %s moves Up to %i" % (player.name, room_transport))
+                        logging.debug("parser: %s moves Up to %i" % (player.id, room_transport))
                         # player.room = room_transport
                         player.move(destination_room=room_transport, direction='u')
                         return Message(lines=["You move up."],

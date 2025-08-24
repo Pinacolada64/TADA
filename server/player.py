@@ -4,9 +4,8 @@ import os
 import random
 import textwrap
 import datetime
+from dataclasses import dataclass, field
 from typing import Any, Optional, TYPE_CHECKING
-
-from bar.ally_data import Ally
 
 if TYPE_CHECKING:
     import net_common
@@ -334,7 +333,7 @@ class Player:
         """Check if player has item"""
         return item in self.inventory
 
-    def add_to_party(self, player: "Player", party_addition: Ally) -> bool:
+    def add_to_party(self, player: "Player", party_addition: "Ally") -> bool:
         """
         Check if party_addition exists in Player's party; if not, add them and return True
 
@@ -420,30 +419,31 @@ class Player:
         from server import Message
         from tada_utilities import text_pager
 
-        final_output_lines = []
+        formatted_lines = []
 
         if isinstance(text_lines, str):
             # Process a single string, which might result in multiple wrapped lines
             processed_lines = self.process_single_line(text_lines)
-            final_output_lines.extend(processed_lines)  # Use extend for multiple lines from one input
+            formatted_lines.extend(processed_lines)  # Use extend for multiple lines from one input
         elif isinstance(text_lines, list):
             # Process each string in the list
             for line in text_lines:
                 processed_lines = self.process_single_line(line)
-                final_output_lines.extend(processed_lines)  # Use extend here too
+                formatted_lines.extend(processed_lines)  # Use extend here too
 
         # Use text_pager if lines > screen rows
-        if len(final_output_lines) >= self.client_settings.screen_rows:
-            text_pager(final_output_lines, self)
+        if len(formatted_lines) >= self.client_settings.screen_rows:
+            text_pager(formatted_lines, self)
         # otherwise, print each line from the flattened list without paging:
+        """
         for line in final_output_lines:
             if line == '':
                 print()
             else:
                 print(line)
-
+        """
         # The Message object should receive a flat list of strings
-        return Message(lines=final_output_lines)
+        return Message(lines=formatted_lines)
 
     def process_single_line(self, raw_input: str) -> list[str]:
         """
@@ -916,7 +916,7 @@ class Player:
     def get_one_stat(self, stat: "PlayerStat") -> str | None:
         """
         :param stat: PlayerStat to retrieve
-        :return: statistic value, or None if stat_list empty, or IndexError is encountered
+        :return: statistic value, or None if stat doesn't exist
         """
         if not stat:
             logging.error("No stats provided")
@@ -1028,7 +1028,8 @@ class Player:
 
     @staticmethod
     def _json_path(user_id):
-        return os.path.join(net_common.run_server_dir, f"player-{user_id}.json")
+        from net_common import run_server_dir
+        return os.path.join(run_server_dir, f"player-{user_id}.json")
 
     @staticmethod
     def load(user_id):
@@ -1037,9 +1038,17 @@ class Player:
             path = Player._json_path(user_id)
             if os.path.exists(path):
                 with open(path) as json_file:
-                    lh_data = json.load(json_file)
-                    logging.debug(f"Player.load: Loaded '%s'." % lh_data['name'])
-                    return Player(**lh_data)
+                    player_data = json.load(json_file)
+                    logging.debug(f"Loaded '%s'." % player_data['name'])
+                    # show/convert flags from JSON text 'true/false' to bool True/False
+                    # (otherwise they're not recognized and can't be toggled):
+                    for k, v in player_data['flag'].items():
+                        if player_data['flag'][k] == 'true':
+                            player_data['flag'][k] = True
+                        if player_data['flag'][k] == 'false':
+                            player_data['flag'][k] = False
+                        logging.debug("%s: %s" % (k, v))
+                    return Player(**player_data)
             return None
         except FileNotFoundError:
             # Failure
