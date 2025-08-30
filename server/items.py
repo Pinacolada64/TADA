@@ -6,7 +6,7 @@ from typing import Optional
 from base_classes import WeaponClass
 # TADA-specific imports:
 from flags import PlayerFlags
-from new_player_2 import Player
+from player import Player
 
 
 class IDNumber:
