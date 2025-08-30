@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 import tada_utilities
 from menu_system import MenuItem, Menu, navigate_menu
+from server import PlayerHandler
 
 if TYPE_CHECKING:
     from player import Player
@@ -42,7 +43,7 @@ def choose_gender(character: "Player"):
     from base_classes import Gender
     character.output('Verus squints myopically. "Are you a male or female?"')
     while True:
-        temp = input("Enter [M]ale or [F]emale: ").lower()
+        temp = player_handler.prompt_request(["Enter [M]ale or [F]emale: "], prompt="", choices={}).lower()
         if temp == 'm':
             character.gender = Gender.MALE
             break

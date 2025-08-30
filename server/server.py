@@ -186,26 +186,39 @@ class PlayerHandler(net_server.UserHandler):
         player.connect()
         return self.room_msg(lines, changes)
 
-    def create_new_player(self) -> Player:
-        logging.info("No player data, creating new character.")
+    def create_new_player(self) -> None:
+        logging.info("No player data, entering create_new_player().")
         player = Player()
         import create_character
-        logging.debug("Running create_character.debug_menu()")
-        # self.send_message("send_message to client", player)
+        from flags import PlayerFlags
         valid_name = False
-        text = self.output(["This is a test of socket output."])
+        self.output(["create_new_player: This is a test of socket output."], player)
+        self.flush_output()
+        """
         while not valid_name:
-            reply = self.prompt_request(["Choose your adventurer's name."], prompt='Name? ', choices = {})
+            reply = self.prompt_request(["Choose your adventurer's name."], prompt='Name? ')
             name = reply['text'].strip()
             if name != '':  # TODO: limitations on valid names
                 valid_name = True
-        player.set_flag(PlayerFlags.DEBUG_MODE, verbose=True)
-        player.clear_flag(PlayerFlags.EXPERT_MODE, verbose=True)
-        player.set_flag(PlayerFlags.ROOM_DESCRIPTIONS, verbose=True)
-        create_character.debug_menu(player)
+        lines = ["Name: %s" % name]
+        player.name = name
+        """
+        lines = [f"User ID: {player.id}"]
+        player.set_flag(PlayerFlags.DEBUG_MODE)
+        # *** Debug Mode: On
+        lines.append(f"*** {player.show_flag(PlayerFlags.DEBUG_MODE)}")
+        player.clear_flag(PlayerFlags.EXPERT_MODE)
+        # *** Expert Mode: Off
+        lines.append(f"*** {player.show_flag(PlayerFlags.EXPERT_MODE)}")
+        player.set_flag(PlayerFlags.ROOM_DESCRIPTIONS)
+        # *** Room Descriptions: On
+        lines.append(f"*** {player.show_flag(PlayerFlags.ROOM_DESCRIPTIONS)}")
+        self.output(lines, player)
+        # Send accumulated output to client before entering debug menu
+        self.flush_output()
+        create_character.debug_menu(self, player)
         player.save()
-        return player
-
+        
     def process_message(self, data, player: Player):
         if 'text' in data:
             cmd = data['text'].lower().split(' ')
