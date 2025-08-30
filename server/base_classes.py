@@ -3,7 +3,7 @@ import logging
 import random
 from dataclasses import dataclass, field
 from enum import StrEnum, IntEnum, auto, Enum
-
+import datetime
 
 class Guild(StrEnum):
     """Guild name strings"""
@@ -338,6 +338,12 @@ class Map(object):
                     logging.debug('%i: %s' % (room.number, room.name))
         except FileNotFoundError:
             logging.error(">>> read_map: File not found: '%s'" % filename)
+
+
+class VinneyLoan(object):
+    def __init__(self, due_date: datetime.date, amount_due: int):
+        self.due_date = due_date
+        self.amount_due = amount_due
 
 
 compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up', 'd': 'Down'}
