@@ -5,7 +5,7 @@ from typing import List, Optional, Callable, Union
 
 from flags import PlayerFlags
 from player import Player
-
+from server import PlayerHandler
 
 def edit_string(prompt: str, data: str) -> str:
     user_input = input(f"Edit {prompt}: ")
@@ -96,12 +96,30 @@ class MenuItem:
 
 @dataclass
 class Menu:
-    """Base class for menu systems with shared behavior."""
+    """Base class for menu systems with shared behavior.
+    
+    :param title: The title of the menu.
+    :param columns: The number of columns to display the menu items in: 1 | 2.
+    :param menu_items: The list of MenuItem objects to display.
+    """
     title: str
     columns: int = 1
     menu_items: list[MenuItem] = field(default_factory=list)
 
     def add_item(self, item: MenuItem):
+        """Adds a MenuItem to the menu.
+        
+        Attributes [from MenuItem class]:
+
+        :param text: Text of the menu item.
+        :param shortcuts: Shortcut letters to type to select the item,
+            in addition to the numeric item number.
+        :param dot_leader_handler: Function which displays the
+            `line_item` value after the dot leader. If None, dot leaders
+            and the function result are not shown.
+        :param submenu: Submenu to navigate to after the item is selected.
+        :param action: Function to edit the item if a submenu is not present.
+        """
         self.menu_items.append(item)
 
     def get_choice(self):
@@ -304,106 +322,130 @@ def find_menu_item_by_number(choice: int, menu: Menu) -> MenuItem | None:
     logging.warning(f"User choice '{choice}' is not a valid menu option.")
     return None
 
-def print_menu(player: Player, menu: 'Menu'):
+def print_menu(player_handler: "PlayerHandler", player: Player, menu: "Menu") -> None:
     """Prints the given menu with options, delegating formatting to a helper.
+    :param player_handler: PlayerHandler object
     :param player: Player object
     :param menu: menu object
     """
-    player.output(["", f"[{menu.title}]", "", ("-" * 40 * menu.columns)])
+    menu_text = [ "",
+                  f"[{menu.title}]",
+                  ("-" * 40 * menu.columns)]
+                
     check_shortcut_conflicts(menu)
 
     # --- Pass 1: Generate all formatted lines ---
-    all_lines = []
-    item_number = 0
+    next_item_num = 0
     for item in menu.menu_items:
         # The item_number is updated on each iteration
-        formatted_line, item_number = format_menu_item(item, item_number, menu)
-        all_lines.append(formatted_line)
+        formatted_line, next_item_num = format_menu_item(item, next_item_num, menu)
+        # logging.debug(f"{formatted_line=}")
+        menu_text.append(formatted_line)
 
     # --- Pass 2: Arrange the generated lines into columns ---
     if menu.columns == 2:
-        midpoint = (len(all_lines) + 1) // 2
+        column_width = player.client_settings.screen_columns // 2
+        midpoint = (len(menu_text) + 1) // 2
         for i in range(midpoint):
-            col1 = all_lines[i]
+            col1 = menu_text[i]
             # Get the corresponding item for the second column, if it exists
-            col2 = all_lines[i + midpoint] if (i + midpoint) < len(all_lines) else ""
-            player.output(f"{col1:<40}{col2}")  # ljust provides consistent padding
+            col2 = menu_text[i + midpoint] if (i + midpoint) < len(menu_text) else ""
+            menu_text.append(f"{col1.ljust(column_width)}{col2.ljust(column_width)}")  # ljust provides consistent padding
     else:
-        # For a single column, only print each line
-        for line in all_lines:
-            player.output(line)
+        # For a single column, lines are already formatted correctly
+        menu_text = [line.strip() if line else "" for line in menu_text]
 
-    player.output("-" * 40 * menu.columns)
+    menu_text.append("-" * 40 * menu.columns)
+    player_handler.output(menu_text, player)
+    player_handler.flush_output()
 
-
-def get_user_choice(player: Player, menu: Menu, stack_depth: int) -> Optional[MenuItem]:
+def get_user_choice(player_handler: PlayerHandler, player: Player, menu: Menu, stack_depth: int) -> Optional[MenuItem]:
     """
     Gets the user's choice and returns either None, or the corresponding MenuItem object.
 
+    :param player_handler: PlayerHandler object
     :param player: Player object
     :param menu: A Menu object containing menu items.
     :param stack_depth: how many levels deep in the menu system we are
     :return: The selected MenuItem object, or None if the user chooses to go up a menu level/quit.
     """
     while True:
-        if not player.query_flag(PlayerFlags.EXPERT_MODE):
-            # count all non-header items in menu to give accurate item count:
-            num_items = len([item for item in menu.menu_items if not is_header_item(item)])
-            enter_function = "quit" if stack_depth == 1 else "go up a level"
-            player.output(f"Type the number of an option (1-{num_items}) or letters (shortcuts) to select an option, "
-                          f"or [Enter] to {enter_function}.")
-        choice = input(f"Choice: ").strip().lower()
-
-        if not choice:  # No input, user wants to go back.
+        # if not player.query_flag(PlayerFlags.EXPERT_MODE):
+        # count all non-header items in menu to give accurate item count:
+        num_items = len([item for item in menu.menu_items if not is_header_item(item)])
+        enter_key = player.return_key
+        enter_function = "quit" if stack_depth == 1 else "go up a level"
+        lines = (f"Type the option number (1-{num_items}) or letters (shortcuts) to select an option, "
+                 f"or [{enter_key}] to {enter_function}.")
+        # player_handler.output(lines, player)
+ 
+        choice = player_handler.prompt_request(lines, prompt="Choice: ")
+        if choice is None or choice['text'] is None:
+            # No input, user wants to go back.
+            # Have to return something, otherwise Exception: 'NoneType' object is not subscriptable
+            return None
+        
+        option = choice['text'].strip().lower()
+        
+        if not option:  # Empty string, user wants to go back
             return None
 
-        if choice.isalnum():  # combination of numbers and letters
-            shortcut_item = find_menu_item_by_shortcut(choice, menu.menu_items)
+        if option.isalnum():  # combination of numbers and letters
+            shortcut_item = find_menu_item_by_shortcut(option, menu.menu_items)
             if shortcut_item:  # Found a match based on shortcut.
-                logging.debug("Shortcut '%s' selected.", choice)
+                logging.debug("Shortcut '%s' selected.", option)
                 return shortcut_item
 
         # Check if user entered a valid menu item number:
-        if choice.isdigit():
-            option_num = int(choice)
+        if option.isdigit():
+            option_num = int(option)
             if 1 <= option_num <= len(menu.menu_items):
                 # account for unnumbered section headers if present:
                 selected_num = find_menu_item_by_number(option_num, menu)
                 return menu.menu_items[selected_num - 1]  # Correct index for user-friendly numbering.
-        print("Invalid choice. Please try again.")
+        player_handler.output("Invalid choice. Please try again.", player)
+        player_handler.flush_output()
 
-
-def display_menu(player: Player, menu_stack: list[Menu]) -> None:
-    """ Displays the current menu from the menu stack.
-    :param player:  Player object
+def display_menu(player_handler: PlayerHandler, player: Player, menu_stack: list[Menu]) -> None:
     """
+    Displays the current menu from the menu stack.
+
+    :param player_handler: PlayerHandler object
+    :param player: Player object
+    """
+    logging.debug("In display_menu()")
     current_menu = menu_stack[-1]  # Get the current menu (top of the stack)
-    print_menu(player, current_menu)
+    logging.debug("Current menu: %s" % current_menu)
+    menu_to_print = print_menu(player_handler, player, current_menu)
+    player_handler.output(menu_to_print, player)
+    player_handler.flush_output()
 
-
-def navigate_menu(player: Player, menu_stack: list[Menu]) -> None:
+def navigate_menu(player_handler: PlayerHandler, player: Player, menu_stack: list[Menu]) -> None:
     """
     Handles navigation through the current menu and its submenus.
 
+    :param player_handler: PlayerHandler object
     :param player: Player object
     :param menu_stack: A stack tracking the current menu depth.
     """
+    logging.debug("In navigate_menu()")
     while menu_stack:
-        logging.debug("%s" % menu_stack)
-        # Display the current menu
-        display_menu(player, menu_stack)
+        # logging.debug("%s" % menu_stack)
+        # Display the current menu and send to client
+        display_menu(player_handler, player, menu_stack)
 
         # Get the user's choice
         current_menu = menu_stack[-1]  # Top of the stack
         # pass depth of stack so that the message about what Enter does is more accurate:
         # return 'choice', MenuItem to act upon:
-        choice = get_user_choice(player, current_menu, len(menu_stack))
+        choice = get_user_choice(player_handler, player, current_menu, len(menu_stack))
 
-        if choice is None:
+        if choice is None or choice.text is None:
             # Go back to the previous menu (pop current menu)
             menu_stack.pop()
             if not menu_stack:
-                print("Exiting menu system.")
+                player_handler.output("Exiting menu system.", player)
+                player_handler.flush_output()
                 return  # No more menus left
         elif choice.submenu:
             # Push the submenu onto the stack
@@ -412,8 +454,34 @@ def navigate_menu(player: Player, menu_stack: list[Menu]) -> None:
         elif callable(choice.action):
             # Call the edit function for this menu item
             choice.action(player)
+            player_handler.flush_output()
 
         logging.debug("Unhandled edge case for %s" % choice.text)
+
+def run_menu(self, player: Player, player_handler: PlayerHandler, menu_hierarchy: list[Menu]) -> None:
+    """
+    Runs the menu system for the given player.
+    
+    If any sub-menus are defined in 'menu_hierarchy', they must be defined in reverse order, i.e.,
+    with the deepest menu defined first, and the top level menu last, since the top level menu will be
+    displayed first and contains a reference to the sub-menu.
+
+    :param player: Player object
+    :param player_handler: PlayerHandler object
+    :param menu_hierarchy: A list of Menu objects containing the menus to display."
+    """
+    # TODO: initialize some stuff commonly set up before calling menu_system.navigate_menu() 
+    # so it isn't necessary to do so every time. what is that stuff? i forget.
+    
+    # Initialize player_handler
+    player_handler = PlayerHandler(player)
+    # Initialize output buffer
+    player_handler.output_buffer = ""
+    # Initialize last output time
+    player_handler.last_output_time = datetime.datetime.now()
+    
+    # Call navigate_menu()
+    navigate_menu(player_handler, player, menu_hierarchy)
 
 if __name__ == '__main__':
     # set up logging

@@ -647,10 +647,10 @@ def main(player: Player):
     main_menu.add_item(MenuItem("Map Info", "M", action=NotImplemented))
     main_menu.add_item(MenuItem("Silver", "S", action=NotImplemented))
 
-    # Use a stack to track menu depth
-    menu_stack: List[Menu] = [main_menu]
+    # collect all the menus in the menu hierarchy:
+    menu_collection: List[Menu] = [main_menu]
     # initiate navigation:
-    main_menu.navigate_menu(menu_stack)
+    main_menu.run_menu(player, player_handler, menu_collection)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(levelname)-8s | %(funcName)20s() | %(message)s')
