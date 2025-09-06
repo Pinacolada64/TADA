@@ -6,7 +6,14 @@ modular command handling and easy registration of new commands.
 """
 
 import logging
+import sys
+from pathlib import Path
 from typing import Dict, Type, Any, Optional, List
+
+# Add the server directory to the Python path
+server_dir = str(Path(__file__).parent.parent.parent)
+if server_dir not in sys.path:
+    sys.path.insert(0, server_dir)
 
 from .base import Command, CommandResult
 from .manager import CommandManager, register_command

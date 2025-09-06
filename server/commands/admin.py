@@ -53,6 +53,9 @@ See Also:
 - help.py: Help command implementation
 """
 
+from server.locks import LockType
+
+
 class RestartCommand(Command):
     """Admin command to restart the server"""
     name = "restart"
@@ -178,14 +181,15 @@ class BootCommand(Command):
 class BanCommand(Command):
     """Admin command to ban players or IP addresses for a specified duration"""
     name = "ban"
-    # aliases = ["b"]
-    locks = [PlayerFlag.ADMINISTRATOR is True]
+    locks = [LockType.IS_ADMINISTRATOR]
 
     def help_text(self) -> str:
-        return (
-            f"Bans a player or IP address for a specified duration  . Only available to administrators.\n"
-            f"Usage: {self.name} <player_name> [duration] [reason]"
-        )
+        return ([
+            f"Bans a player or IP address, optionally for a specified duration. Only available to administrators."
+            f"{self.name} <player_name> [duration] [reason]\n"
+            f"{self.name} <ip_address> [duration] [reason]\n"
+            f"{self.name} #list \n"
+        ])
     
     async def _execute(self, data: Dict[str, Any]) -> CommandResult:
         # Get the user who executed the command
@@ -194,7 +198,7 @@ class BanCommand(Command):
         player_name = data.get('args', 'No player name provided')
         duration = data.get('args', 'No duration provided')
         reason = data.get('args', 'No reason provided')
-        show_ban_list = data.get('show_ban_list', "Not showing ban list")
+        show_ban_list = data.get('args', '#list', "Not showing ban list")
 
         # Check if the user has the required permissions
         if not user or not user.is_admin:
@@ -204,7 +208,7 @@ class BanCommand(Command):
                 data={"error": "insufficient_permissions"}
             )
 
-        if show_ban_list == "Y":
+        if show_ban_list == "#list":
             # TODO: locate ban list file and display it
             return CommandResult(
                 success=True,
@@ -232,19 +236,19 @@ class BanCommand(Command):
 class UnbanCommand(Command):
     """Admin command to unban players or IP addresses"""
     name = "unban"
-    aliases = ["ub"]
-    locks = [PlayerFlag.ADMINISTRATOR is True]
+    locks = [LockType.IS_ADMINISTRATOR]
 
     def help_text(self) -> str:
-        return (
+        return ([
             f"Unbans a player or IP address. Only available to administrators.\n"
-            f"Usage: {self.name} <player_name> [reason]"
-        )
+            f"{self.name} <player_name> [reason]"
+        ])
     
     async def _execute(self, data: Dict[str, Any]) -> CommandResult:
         # Get the user who executed the command
         user = data.get('user')
         player_name = data.get('args', 'No player name provided')
+        ip_address = data.get('ip_address', 'No IP address provided')
         reason = data.get('args', 'No reason provided')
 
         # Check if the user has the required permissions
@@ -256,10 +260,10 @@ class UnbanCommand(Command):
             )
             
         # Log the unban
-        logger.info(f"Player {player_name} unbanned by {user.name}. Reason: {reason}")
+        logger.info(f"Player {player_name} unbanned by {user.name}. Reason: {reason}. IP Address: {ip_address}")
         
         # Broadcast to all users
-        broadcast_message = f"Player {player_name} unbanned by {user.name}. Reason: {reason}"
+        broadcast_message = f"Player {player_name} unbanned by {user.name}. Reason: {reason}. IP Address: {ip_address}"
         
         # Perform unban (this would be implemented in your server code)
         # await server_unban(player_name, reason=reason, message=broadcast_message)

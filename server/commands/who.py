@@ -106,7 +106,7 @@ class WhoCommand(Command):
         
         return CommandResult(
             success=True,
-            message=f"{header}\nPlayers online ({count}):\n{'\n'.join(online_players)}",
+            message=[f"{header}", "Players online ({count}):", "\n".join(online_players)],
             data={
                 'type': 'who',
                 'players': online_players,

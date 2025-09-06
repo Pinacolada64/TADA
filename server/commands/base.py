@@ -118,7 +118,7 @@ class Command(ABC, Generic[T]):
     async def _execute(self, data: Dict[str, Any]) -> CommandResult:
         """Implementation of the command execution.
         
-        Subclasses must implement this method to provide the command's functionality.
+        This method must be implemented by subclasses to provide the command's functionality.
         
         Args:
             data: Dictionary containing command arguments and context
@@ -127,7 +127,34 @@ class Command(ABC, Generic[T]):
             CommandResult: The result of the command execution
         """
         pass
-    
+        
     def help_text(self) -> str:
         """Return the help text for this command."""
         return f"No help available for command '{self.name}'"
+
+
+def test_command():
+    """Test the Command class"""
+    class TestCommand(Command):
+        @property
+        def name(self) -> str:
+            return "test"
+            
+        async def _execute(self, data: Dict[str, Any]) -> CommandResult:
+            return CommandResult(success=True, message="Test command executed")
+    
+    command = TestCommand()
+    assert command.name == "test"
+    assert command.aliases == []
+    assert command.locks == []
+    
+    import asyncio
+    result = asyncio.run(command.execute({}))
+    assert result.success is True
+    assert result.message == "Test command executed"
+    
+    print("✅ TestCommand passed")
+    
+if __name__ == "__main__":
+    test_command()
+    

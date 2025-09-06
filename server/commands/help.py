@@ -4,8 +4,8 @@ from typing import Dict, Any, List
 import logging
 
 # TADA-specific imports:
-from base import Command, CommandResult
-from manager import command_manager
+from .base import Command, CommandResult
+from .manager import command_manager
 
 def oxford_comma_list(items: list) -> str:
     """

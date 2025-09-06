@@ -6,7 +6,7 @@ import json
 from typing import Dict, Any, List
 
 from .base import Command, CommandResult
-from net_common import Mode
+from server.net_common import Mode
 
 class LoginCommand(Command):
     """Handles user authentication."""
@@ -18,6 +18,21 @@ class LoginCommand(Command):
     @property
     def aliases(self) -> List[str]:
         return ["connect", "login"]
+    
+    @property
+    def help_text(self) -> str:
+        return """
+        Login Command
+        -------------
+        Usage: login <username> <password>
+        
+        Authenticates a user with the provided credentials.
+        
+        Example:
+          login myusername mypassword
+          
+        You will be prompted for your password if not provided.
+        """
 
     async def _execute(self, data: Dict[str, Any]) -> CommandResult:
         """Execute the login command.
@@ -112,3 +127,7 @@ class LoginCommand(Command):
 def register():
     """Register the login command."""
     return LoginCommand()
+
+# Register the command when the module is imported
+from server.commands import register_command
+register_command(LoginCommand())
