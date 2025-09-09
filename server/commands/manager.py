@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional, TypeVar
 import logging
 
 # TADA-specific imports:
-from .base import Command, CommandResult, oxford_comma_list
+from base import Command, CommandResult, oxford_comma_list
 
 T = TypeVar('T', bound=Command)
 
