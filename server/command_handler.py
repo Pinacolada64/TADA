@@ -4,9 +4,9 @@ Command handler for processing player commands in the server.
 import logging
 from typing import Dict, Any, Optional
 
-from commands.base import CommandResult
-from command_processor import CommandProcessor
-from player import Player
+from .commands.base import CommandResult
+from .command_processor import CommandProcessor
+from .player import Player
 
 class CommandHandler:
     """Handles player commands with the command processor."""

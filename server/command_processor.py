@@ -4,8 +4,8 @@ Command processor for handling and dispatching commands.
 import logging
 from typing import Dict, Any, Optional, Type, TypeVar, Generic, Callable, Awaitable
 
-from commands import command_manager, register_command
-from commands.base import Command, CommandResult
+from server.commands import command_manager
+from server.commands.base import Command, CommandResult
 
 T = TypeVar('T')
 
@@ -21,7 +21,7 @@ class CommandProcessor(Generic[T]):
     def _setup_commands(self):
         """Register all available commands."""
         # Import all command modules to register them
-        from commands import help, login, page, who, new_player
+        from server.commands import help, login, page, who, new_player
         
         # Register all commands
         self._commands = {}
