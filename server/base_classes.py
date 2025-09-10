@@ -2,7 +2,7 @@ import json
 import logging
 import random
 from dataclasses import dataclass, field
-from enum import StrEnum, IntEnum, auto, Enum
+from enum import Enum, StrEnum, IntEnum, auto
 import datetime
 
 class Guild(StrEnum):
