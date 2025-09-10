@@ -4,28 +4,9 @@ from typing import Dict, Any, List
 import logging
 
 # TADA-specific imports:
-from base import Command, CommandResult
+from server.commands.base import Command, CommandResult
 from server.command_manager import command_manager
-
-def oxford_comma_list(items: list) -> str:
-    """
-    >>> oxford_comma_list(["apple", "banana"])
-    'apple and banana'
-    >>> oxford_comma_list(["apple", "banana", "orange"])
-    'apple, banana, and orange'
-    >>> oxford_comma_list(["apple"])
-    'apple'
-    >>> oxford_comma_list([])
-    ''
-    """
-    if not items:
-        return ""
-    elif len(items) == 1:
-        return items[0]
-    elif len(items) == 2:
-        return f"{items[0]} and {items[1]}"
-    else:
-        return f"{', '.join(items[:-1])}, and {items[-1]}"
+from server.tada_utilities import oxford_comma_list
 
 
 def headline(text: str) -> str:
@@ -42,10 +23,17 @@ class HelpCommand(Command):
     
     @property
     def aliases(self) -> List[str]:
-        return ["h", "?"]
+        return ["h"]
     
-    def help_text(self) -> str:
-        return f"This is help text for the '{self.name}' command."
+    def help_text(self) -> List[str]:
+        """
+        Return one of two forms of help text for this command:
+        - The first list item should be a one-line summary.
+        - The second list item should be a full description.
+        """
+        return [f"This is the one-line summary for the '{self.name}' command.",
+                f"This is the full help text for the '{self.name}' command, which is "
+                "displayed when you use 'help {self.name}'. It can be as long as you like."]
 
     async def _execute(self, data: Dict[str, Any]) -> CommandResult:
         """Execute the help command.
@@ -94,21 +82,40 @@ class HelpCommand(Command):
                 data={'mode': 'help'}
             )
     
-    def help_text(self) -> str:
-        """Display one-line summaries of all registered commands when just "help" is called."""
+    def help_text(self, is_recursive=False) -> str:
+        """Display one-line summaries of all registered commands when just "help" is called.
+        
+        Args:
+            is_recursive: Internal flag to prevent recursion when getting help for the help command.
+        """
+        # Handle the case when help is called for the help command itself
+        if is_recursive:
+            return "Shows help about available commands.\nUse 'help <command>' for more info on a specific command."
+            
         help_texts = [headline("Help Command"),
-                     "Usage: 'help' or 'h'",
+                     "Usage: 'help'",
                      "Displays brief summaries of all available commands.",
+                     "",
+                     "Usage: 'help' [command]",
+                     "Displays detailed help for the specified command.",
                      "",
                      "Available commands:",
                      ""]
+        
+        # Get command manager from context
+        command_manager = self.context.get('command_manager') if hasattr(self, 'context') else None
+        if not command_manager:
+            return "\n".join(help_texts + ["Error: Command manager not available in context"])
         
         # Get all commands and calculate max name length for alignment
         try:
             logging.debug("Getting all commands from command manager...")
             commands_dict = command_manager.get_all_commands()
-            logging.debug(f"Raw commands from manager: {commands_dict}")
             
+            if not commands_dict:
+                help_texts.append("No commands currently registered.")
+                return "\n".join(help_texts)
+                
             # Convert to list of unique commands (since aliases point to same command)
             unique_commands = []
             seen = set()
@@ -117,37 +124,44 @@ class HelpCommand(Command):
                     seen.add(id(cmd))
                     unique_commands.append(cmd)
             
-            commands = unique_commands
+            commands = sorted(unique_commands, key=lambda c: c.name)
             logging.debug(f"Found {len(commands)} unique commands: {[c.name for c in commands]}")
             
+            # Calculate max name length for alignment
+            max_name_length = max((len(cmd.name) for cmd in commands), default=0)
+            
+            # Add each command's help summary
+            for cmd in commands:
+                # Skip adding help command to avoid recursion
+                if cmd.name == 'help':
+                    help_texts.append(f"  {cmd.name.ljust(max_name_length)}  Shows this help message")
+                    continue
+                    
+                # Get the first line of the command's help text
+                try:
+                    help_summary = cmd.help_text() if hasattr(cmd, 'help_text') else "No help available"
+                    if isinstance(help_summary, (list, tuple)):
+                        # If it's a list, the first item is the one-line summary
+                        first_line = help_summary[0] if help_summary else "No help available"
+                        if isinstance(first_line, (list, tuple)) and len(first_line) > 1:
+                            first_line = first_line[1]  # Get the description if available
+                    elif isinstance(help_summary, str):
+                        first_line = help_summary.split('\n', 1)[0].strip()
+                    else:
+                        first_line = str(help_summary).split('\n', 1)[0].strip()
+                        
+                    help_texts.append(f"  {cmd.name.ljust(max_name_length)}  {first_line}")
+                    
+                except Exception as e:
+                    logging.error(f"Error getting help for {cmd.name}: {str(e)}")
+                    help_texts.append(f"  {cmd.name.ljust(max_name_length)}  [Error getting help]")
+            
+            help_texts.extend(["", "Type 'help <command>' for more information about a specific command."])
+            return "\n".join(help_texts)
+            
         except Exception as e:
-            logging.exception("Error getting commands:")
+            logging.exception("Error in help command:")
             return "\n".join(help_texts + [f"Error: {str(e)}"])
-            
-        if not commands:
-            logging.warning("No commands found in command manager!")
-            return "\n".join(help_texts + ["No commands available"])
-            
-        max_name_length = max((len(cmd.name) for cmd in commands), default=0)
-        
-        # Add each command's help summary
-        for cmd in sorted(commands, key=lambda c: c.name):
-            # Get the first line of the command's help text
-            try:
-                help_text = cmd.help_text()
-                if isinstance(help_text, str):
-                    first_line = help_text.split('\n', 1)[0].strip()
-                else:
-                    first_line = str(help_text).split('\n', 1)[0].strip()
-                logging.debug(f"Help text for {cmd.name}: {first_line[:50]}...")
-            except Exception as e:
-                logging.error(f"Error getting help for {cmd.name}: {str(e)}")
-                first_line = "No help available"
-                
-            help_texts.append(f"  {cmd.name.ljust(max_name_length)}  {first_line}")
-        
-        help_texts.extend(["", "Type 'help <command>' for more info on a command."])
-        return "\n".join(help_texts)
         
         
     def register_command(command: Command):
@@ -167,13 +181,21 @@ def run_tests():
     )
     
     # Import needed components
-    from base import Command, CommandResult
-    from manager import CommandManager, command_manager
+    from server.commands.base import Command, CommandResult
+    from server.commands.manager import command_manager
     
     # Create test command class
     class TestCommand(Command):
-        name = "test"
-        aliases = ["t", "te", "tes"]
+        def __init__(self):
+            self.context = {}
+            
+        @property
+        def name(self) -> str:
+            return "test"
+            
+        @property
+        def aliases(self) -> list:
+            return ["t", "te", "tes"]
 
         def help_text(self) -> str:
             return f"This is help text for the {self.name} command."
@@ -181,7 +203,7 @@ def run_tests():
         async def _execute(self, data: Dict[str, Any]) -> CommandResult:
             return CommandResult(success=True, message="Test command executed")
 
-    # Use the global command manager for testing
+    # Create a fresh command manager for testing
     test_manager = command_manager
     test_manager._commands = {}  # Reset any existing commands
     
@@ -193,6 +215,10 @@ def run_tests():
     help_cmd = HelpCommand()
     test_cmd = TestCommand()
     
+    # Set up context for commands
+    help_cmd.context = {'command_manager': command_manager}
+    test_cmd.context = {}
+    
     # Test 1: Register commands
     print("\n" + headline("TEST 1: Registering commands"))
     print("Registering 'help' command...")
@@ -203,9 +229,6 @@ def run_tests():
     # Show current registered commands
     print("\nCurrent registered commands:")
     test_manager.show_registered_commands()
-    
-    # Set up context for help command
-    help_cmd.context = {'command_manager': test_manager}
     
     # Test 2: Get help for all commands
     print("\n" + headline("TEST 2: Help for all commands"))
