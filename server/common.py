@@ -4,10 +4,10 @@ import enum
 # more quickly drop bogus connections and know whether client and
 # server are using incompatible versions
 server_port = 5000
-app_id = 'TADA'
-app_key = '1234567890'
+app_id = 'test_server'  # TODO: change to 'TADA' when debugged
+app_key = 'test_key'  # TODO: change to '1234567890' when debugged
 app_protocol = 1
-
+translation = 'UTF-8'
 
 class K(str, enum.Enum):
     """keys for dictionary use, so that we can avoid 'stringly' typed
@@ -26,6 +26,8 @@ class K(str, enum.Enum):
     weapon = 'weapon'
     food = 'food'
     alignment = 'alignment'
+    # TODO: 'custom' is used for custom client status bar messages / formats
+    custom = 'custom'
 
     # players
     password = 'password'
@@ -35,8 +37,4 @@ class K(str, enum.Enum):
     hit_points = 'hit_points'
     experience = 'experience'
     last_command = 'last_command'
-
-# class Mode1(str, enum.Enum):
-#    prompt = 'prompt'
-#    choice = 'choice'
-#    cmd = 'cmd'
+    translation = 'translation'

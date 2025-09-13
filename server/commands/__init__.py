@@ -17,12 +17,13 @@ if server_dir not in sys.path:
 
 from .base import Command, CommandResult
 from .manager import CommandManager, register_command
+from .help import HelpCommand
 
 # Initialize the command manager
 command_manager = CommandManager()
 
 # Import all command modules to register them with the command manager
-from . import help, login, page, who
+from . import help, login, page, who, whisper
 
 # Re-export the command manager and register function
 __all__ = [
@@ -93,5 +94,9 @@ async def execute_command(
             message=f"An error occurred while executing the command: {str(e)}"
         )
 
+# Import register_commands to ensure all commands are registered
+from .register_commands import register_commands
+
 # Log the registered commands on import
+register_commands()
 logger.debug(f"Registered commands: {', '.join(command_manager.get_all_commands().keys())}")

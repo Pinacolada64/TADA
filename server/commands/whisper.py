@@ -1,36 +1,36 @@
 #!/bin/env python3
-"""Page command implementation."""
-import time
+"""Whisper command implementation."""
 from typing import Dict, Any, Optional, List, Set
 
 from .base import Command, CommandResult
 
-class PageCommand(Command):
-    """Handle the 'page' command for sending private messages."""
+class WhisperCommand(Command):
+    """Handle the 'whisper' command for sending private messages to nearby players."""
     
     def __init__(self, context=None):
         super().__init__(context)
-        self._page_recipients: Set[str] = set()
+        self._whisper_recipients: Set[str] = set()
     
     @property
     def name(self) -> str:
-        return "page"
+        return "whisper"
     
     @property
     def aliases(self) -> List[str]:
-        return ["tell", "msg", "p"]
+        # can't be 'w', because that's an alias for 'go west'
+        return ["wh"]
     
     async def _execute(self, data: Dict[str, Any]) -> CommandResult:
-        """Execute the page command.
+        """Execute the whisper command.
         
         Args:
             data: Dictionary containing command data including:
-                - target: The player to page (or 'reply' to reply to the last pager)
+                - target: The player to whisper to
                 - message: The message to send
-                - user_id: The ID of the user sending the page
+                - user_id: The ID of the user sending the whisper
                 
         Returns:
-            CommandResult: Result of the page command
+            CommandResult: Result of the whisper command
         """
         target = data.get('target')
         message = data.get('message')
@@ -40,16 +40,16 @@ class PageCommand(Command):
             return CommandResult(
                 success=False,
                 error='missing_target',
-                message='Usage: page <player> <message> or p <player> <message>'
+                message='Usage: whisper <player> <message> or w <player> <message>'
             )
             
         if not message:
             return CommandResult(
                 success=False,
                 error='missing_message',
-                message='Please provide a message.'
+                message='Please provide a message to whisper.'
             )
-        
+            
         # Get the client manager and user
         client_manager = self.context.get('client_manager')
         if not client_manager:
@@ -59,16 +59,6 @@ class PageCommand(Command):
                 message='Server error: Client manager not available.'
             )
             
-        # Check if this is a reply to the last page
-        if target.lower() == 'reply':
-            if not self._page_recipients:
-                return CommandResult(
-                    success=False,
-                    error='no_previous_page',
-                    message='No one to reply to. Use: page <player> <message>'
-                )
-            target = next(iter(self._page_recipients))
-        
         # Check if target is online
         if not client_manager.is_online(target):
             return CommandResult(
@@ -77,72 +67,56 @@ class PageCommand(Command):
                 message=f'{target} is not online.'
             )
             
-        # Check if target is ignoring pages from this user
+        # Check if target is ignoring whispers from this user
         if client_manager.is_ignoring(target, user_id):
             return CommandResult(
                 success=False,
                 error='ignored',
-                message=f'{target} is not accepting pages from you.'
+                message=f'{target} is not accepting whispers from you.'
             )
             
         # Check rate limiting
-        if client_manager.is_rate_limited(user_id, 'page'):
+        if client_manager.is_rate_limited(user_id, 'whisper'):
             return CommandResult(
                 success=False,
                 error='rate_limited',
-                message='You are sending pages too quickly. Please wait a moment.'
+                message='You are sending whispers too quickly. Please wait a moment.'
             )
             
         # Get the target client and send the message
         target_client = client_manager.get_client(target)
         if target_client:
-            # Format the page message
-            page_msg = {
-                'type': 'page',
+            # Format the whisper message
+            whisper_msg = {
+                'type': 'whisper',
                 'from': user_id,
                 'text': message,
-                'timestamp': time.time()
+                'timestamp': self.context.get('time', 0) if self.context else 0
             }
             
             # Send the message
-            await target_client.handler.send_async_message(page_msg)
+            await target_client.handler.send_async_message(whisper_msg)
             
-            # Update last paged time for rate limiting
-            client_manager.update_last_page(user_id, target)
+            # Update last whispered time for rate limiting
+            client_manager.update_last_whisper(user_id, target)
             
-            # Add to page history for reply
-            self._page_recipients.add(target)
+            # Add to whisper history
+            self._whisper_recipients.add(target)
             
             return CommandResult(
                 success=True,
-                message=f'You paged {target}: {message}'
+                message=f'You whisper to {target}: {message}'
             )
         
         return CommandResult(
             success=False,
             error='unknown_error',
-            message='Failed to send page.'
+            message='Failed to send whisper.'
         )
-    
-    def help_text(self) -> str:
-        return """\
-        Page Command
-        -----------
-        Usage: page <player> <message>
-               page reply <message>
-        
-        Sends a private message to another player.
-        
-        Examples:
-          page bob Hello there!     - Sends a message to 'bob'
-          page reply Got it!        - Replies to the last person who paged you
-        
-        Aliases: tell, msg
-        """
 
 def register():
-    """Register the page command with the command manager."""
+    """Register the whisper command with the command manager."""
     from .manager import command_manager
-    command = PageCommand()
+    command = WhisperCommand()
     command_manager.register_command(command)
     return command

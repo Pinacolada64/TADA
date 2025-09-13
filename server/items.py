@@ -3,10 +3,10 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-from base_classes import WeaponClass
 # TADA-specific imports:
-from flags import PlayerFlags
-from player import Player
+from server.base_classes import WeaponClass
+from server.flags import PlayerFlags
+from server.player import Player
 
 
 class IDNumber:
