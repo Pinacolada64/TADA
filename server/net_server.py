@@ -396,43 +396,54 @@ class UserHandler(socketserver.BaseRequestHandler):
         return bool(user_id and password)
         
     def _process_login(self, data):
-        user_id = data.get('user_id')
-        if not user_id:
-            self._send_data(Message(error=Error.user_id, error_line='missing user_id'))
-            return
+        from server.config import config
+        
+        user_id = data.get(K.user_id, '').lower()
+        password = data.get(K.password, '')
+        invite_code = data.get(K.invite)
 
-        if not self.login_history.is_allowed(user_id):
-            return self.error_ban()
-            
-        # Check if user file exists in run/server/net directory
-        user_file = Path('run' / 'server' / 'net' / f'login-{user_id}.json')
-        if not user_file.exists():
-            self.login_history.no_user(user_id, save=True)
-            logging.warning(f"Login attempt with non-existent user: {user_id}")
-            return Message(
-                error=Error.login2,
-                error_line='Invalid username or password',
-                lines=['Invalid username or password. Please try again.']
-            )
-
-        if not self.authenticate(user_id, data.get('password', '')):
-            banned = self.login_history.fail_password(user_id, save=True)
-            if banned:
-                logging.info(f"ban {self.sender}")
-                return self.error_ban()
+        # Check if user exists
+        user = nc.User.load(user_id)
+        
+        if user is None:
+            # New user - check if invites are required
+            if config.require_invites:
+                # Invites are required - verify the invite code
+                if not invite_code:
+                    self.login_history.no_user(user_id, save=True)
+                    return self.error_login_failed("Invite code required for registration")
+                    
+                invite = nc.Invite.load(user_id)
+                if not invite or invite.code != invite_code:
+                    self.login_history.no_user(user_id, save=True)
+                    return self.error_login_failed("Invalid or expired invite code")
+                
+                # Create new user
+                user = nc.User(id=user_id)
+                user.hash_password(password)
+                user.save()
+                
+                # Delete used invite
+                invite.delete()
             else:
-                return self.error_login_failed()
+                # No invite required - create new user directly
+                user = nc.User(id=user_id)
+                user.hash_password(password)
+                user.save()
+        else:
+            # Existing user - verify password
+            if not user.match_password(password):
+                self.login_history.bad_password(user_id, save=True)
+                return self.error_login_failed("Invalid username or password")
         
-        self.user_id = user_id
-        self.user = User(user_id)  # This would typically be a User object in a real implementation
-        
-        with server_lock:
-            connected_users.add(user_id)
-            
-        # Register with client manager
-        client_manager.add_client(user_id, self)
-        
+        # Update login history
         self.login_history.succeed_user(user_id, save=True)
+        
+        # Set user and mode
+        self.user = user
+        self.user_id = user_id
+        self.mode = Mode.app
+        
         return self.process_login_success(user_id)
 
     def prompt_request(self, lines: list[str], prompt: str, choices: Optional[dict[str, str]] = None):
@@ -459,12 +470,16 @@ class UserHandler(socketserver.BaseRequestHandler):
             lines=['Too many failed login attempts. Please try again later.']
         )
         
-    def error_login_failed(self):
-        """Return a Message indicating login failure."""
+    def error_login_failed(self, message="Login failed. Please check your credentials and try again."):
+        """Return a Message indicating login failure.
+        
+        Args:
+            message: Custom error message to display
+        """
         return Message(
-            error=Error.login2,
-            error_line='Invalid username or password',
-            lines=self.login_fail_lines()
+            lines=[message],
+            mode=Mode.login,
+            error="login_failed"
         )
         
     def init_success_lines(self):
