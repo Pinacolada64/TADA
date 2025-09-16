@@ -3,6 +3,11 @@ import logging
 from pathlib import Path
 import select
 import socket
+import json
+import threading
+
+# Set up logging
+logger = logging.getLogger(__name__)
 import sys
 import os
 import traceback
@@ -11,8 +16,9 @@ import socketserver
 import json
 import time
 from dataclasses import dataclass, field
-from typing import ClassVar, Optional, Dict, Any, Set
+from typing import ClassVar, Optional, Dict, Any, Set, List, Union, Tuple
 import enum
+import importlib.util
 
 # TADA-specific imports
 import server.net_common as nc
@@ -29,9 +35,11 @@ server_lock = threading.Lock()
 class Error(str, enum.Enum):
     server1 = 'server1'
     server2 = 'server2'
+    # missing user ID?:
     user_id = 'user_id'
     login1 = 'login1'
     login2 = 'login2'
+    # multiple connections:
     multiple = 'multiple'
 
 
@@ -168,10 +176,13 @@ class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 
 class UserHandler(socketserver.BaseRequestHandler):
+    """Handles client connections and command processing."""
+    
     def __init__(self, *args, **kwargs):
+        """Initialize the user handler with default values."""
         self.user = None
         self.user_id = None
-        self.mode = Mode.app
+        self.mode = Mode.init
         self.buffer = b''
         self.login_history = LoginHistory()
         self.initialized = False
@@ -179,25 +190,220 @@ class UserHandler(socketserver.BaseRequestHandler):
         self._message_lock = threading.Lock()
         self._running = True
         self._shutdown_event = threading.Event()
+        self._command_handlers = {}
+        
+        # Initialize command handlers
+        self._init_commands()
+        
         super().__init__(*args, **kwargs)
         
         # Register with server for proper cleanup on shutdown
         if hasattr(self.server, '_register_handler'):
             self.server._register_handler(self)
 
+    def _init_commands(self):
+        """Initialize command handlers for this connection."""
+        from .commands.network_commands import register_commands
+        
+        # Register all network commands
+        for cmd in register_commands():
+            self._command_handlers[cmd.name] = cmd
+            for alias in getattr(cmd, 'aliases', []):
+                self._command_handlers[alias] = cmd
+    
+    def _process_command(self, command: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Process a command with the given data.
+        
+        Args:
+            command: The command name
+            data: Command arguments and context
+            
+        Returns:
+            Optional[Dict]: Command result or None if command not found
+        """
+        handler = self._command_handlers.get(command.lower())
+        if not handler:
+            return None
+            
+        try:
+            # Set command context
+            handler.context = {
+                'user': self.user,
+                'user_id': self.user_id,
+                'mode': self.mode,
+                'handler': self
+            }
+            
+            # Execute the command
+            return handler.execute(data)
+        except Exception as e:
+            logging.error(f"Error executing command {command}: {e}", exc_info=True)
+            return {
+                'error': 'command_error',
+                'message': f'Error executing command: {str(e)}'
+            }
+    
+    def _send_message(self, message: Union[Dict, Message]) -> None:
+        """Send a message to the client.
+        
+        Args:
+            message: Message to send (dict or Message object)
+        """
+        if isinstance(message, Message):
+            message = message.to_dict()
+            
+        try:
+            # Ensure the message has the required fields
+            if 'type' not in message:
+                message['type'] = 'message'
+                
+            # Send the message using _send_data which handles length prefixing
+            self._send_data(message)
+        except Exception as e:
+            logging.error(f"Error sending message: {e}")
+            raise
+    
+    def _process_input(self, data: Dict[str, Any]) -> None:
+        """Process input from the client.
+        
+        Args:
+            data: Dictionary containing command data
+        """
+        try:
+            # Get the command and arguments
+            command = data.pop('command', '').lower()
+            if not command:
+                self._send_message({'error': 'no_command', 'message': 'No command specified'})
+                return
+            
+            # Process the command
+            result = self._process_command(command, data)
+            
+            # Send the response
+            if result is not None:
+                self._send_message(result)
+            
+        except Exception as e:
+            logging.error(f"Error processing input: {e}", exc_info=True)
+            self._send_message({
+                'error': 'processing_error',
+                'message': f'Error processing command: {str(e)}'
+            })
+            
+    def _process_standard_message(self, message: Dict[str, Any]) -> None:
+        """Process a standard message from the client.
+        
+        Args:
+            message: Dictionary containing the message data
+        """
+        try:
+            mode = message.get('mode')
+            
+            if not self.initialized:
+                logging.debug(f"Processing initial message, mode={mode}")
+                
+                if mode == Mode.init:
+                    response = self._process_init(message)
+                    if response:
+                        self._send_message(response)
+                    else:
+                        logging.warning(f"Invalid INIT from {self.client_address[0]}")
+                        self._shutdown_event.set()
+                elif mode == Mode.login:
+                    response = self._process_login(message)
+                    if response:
+                        self._send_message(response)
+                    else:
+                        logging.warning(f"Login failed for {self.client_address[0]}")
+                        self._shutdown_event.set()
+                else:
+                    logging.warning(f"Invalid initial mode from {self.client_address[0]}: {mode}")
+                    self._shutdown_event.set()
+            else:
+                # Process regular messages for authenticated users
+                response = self.process_message(message)
+                if response:
+                    self._send_message(response)
+                    
+        except Exception as e:
+            logging.error(f"Error processing standard message: {e}", exc_info=True)
+            self._send_message({
+                'error': 'processing_error',
+                'message': f'Error processing message: {str(e)}'
+            })
+    
     def handle(self):
+        """Handle a client connection."""
         client_address = self.client_address[0]
         logging.info(f"New connection from {client_address}")
+        
+        # Send welcome message
+        self._send_message({
+            'mode': 'init',
+            'lines': [
+                'Welcome to:',
+                ''
+                'Totally',
+                ' Awesome',
+                '  Dungeon',
+                '   Adventure',
+                ''
+            ]
+        })
         
         try:
             while self._running and not self._shutdown_event.is_set():
                 try:
                     # Check for incoming data with timeout
-                    data = self._receive_data(timeout=30.0)  # Increased to 30 seconds
+                    data = self._receive_data(timeout=30.0)  # 30 second timeout
                     
+                    # If we get None, it means the connection was closed or timed out
                     if data is None:
-                        # No data received within timeout, check if still running
-                        continue
+                        logger.debug("No data received, connection may be closed")
+                        break
+                    
+                    # Process the received data
+                    try:
+                        if not isinstance(data, dict):
+                            logger.error(f"Expected dict but got {type(data).__name__}: {data}")
+                            break
+                            
+                        # Handle different message types
+                        if 'command' in data:
+                            # Process as a command
+                            self._process_input(data)
+                        else:
+                            # Process as a standard message
+                            self._process_standard_message(data)
+                            
+                    except Exception as e:
+                        logger.error(f"Error processing message: {e}", exc_info=True)
+                        try:
+                            self._send_message({
+                                'error': 'processing_error',
+                                'message': f'Error processing message: {str(e)}'
+                            })
+                        except Exception as send_error:
+                            logger.error(f"Failed to send error message: {send_error}")
+                            break  # If we can't send, the connection is likely dead
+                    
+                    # Process any queued async messages if still connected
+                    if not self._shutdown_event.is_set():
+                        try:
+                            self._process_queued_messages()
+                        except Exception as e:
+                            logger.error(f"Error processing queued messages: {e}")
+                            break
+                    
+                except (ConnectionResetError, BrokenPipeError) as e:
+                    logger.info(f"Client {client_address} disconnected: {e}")
+                    break
+                except socket.timeout:
+                    # Expected when no data is available within timeout
+                    continue
+                except Exception as e:
+                    logger.error(f"Unexpected error handling client {client_address}: {e}", exc_info=True)
+                    break
                         
                     logging.debug(f"Processing message from {client_address}: {data}")
                     
@@ -228,17 +434,24 @@ class UserHandler(socketserver.BaseRequestHandler):
                             ))
                             break
                     else:
-                        if data.get('mode') == Mode.app and self.user_id and self.user_id in connected_users:
+                        mode = data.get('mode')
+                        if mode == Mode.bye:
+                            # Handle client disconnection
+                            logging.info(f"Client {getattr(self, 'user_id', 'unknown')} is disconnecting")
+                            if hasattr(self, 'user_id') and self.user_id in connected_users:
+                                connected_users.remove(self.user_id)
+                            return False  # Signal to close the connection
+                        elif mode == Mode.app and self.user_id and self.user_id in connected_users:
                             response = self.process_message(data)
                             if response:
                                 self._send_data(response)
-                            else:
-                                logging.error('Invalid mode or not logged in: %s' % data.get('mode'))
-                                self._send_data(Message(
-                                    error=Error.server2,
-                                    error_line='invalid mode or not logged in'
-                                ))
-                                break
+                        else:
+                            logging.error('Invalid mode or not logged in: %s' % mode)
+                            self._send_data(Message(
+                                lines=["Invalid mode or not logged in"],
+                                mode=Mode.bye  # Tell client to disconnect
+                            ))
+                            return False  # Close connection on invalid mode
                     
                     # Process any queued async messages
                     self._process_queued_messages()
@@ -308,84 +521,208 @@ class UserHandler(socketserver.BaseRequestHandler):
         client_manager.broadcast(message, exclude_user_ids or set())
 
     def _receive_data(self, timeout=30.0):  # Increased to 30 seconds to match client
-        """Receive data with optional timeout.
+        """Receive data with optional timeout using length-prefixed messages.
         
         Args:
-            timeout: Timeout in seconds, or None for blocking. Defaults to 0.5s.
-            
+            timeout: Timeout in seconds, or None for blocking. Defaults to 30s.
         Returns:
-            dict: Parsed JSON data, or None if no data was received within the timeout.
-            
-        Raises:
-            ConnectionError: If the connection was lost or an unrecoverable error occurred.
-            TimeoutError: If no data is received within the specified timeout.
+            dict or None: The parsed JSON message, or None if the connection was closed or an error occurred.
         """
         if self._shutdown_event.is_set():
-            logging.debug("Shutdown requested, stopping receive")
+            logger.debug("Shutdown requested, stopping receive")
             return None
             
+        old_timeout = None
         try:
-            # Set socket timeout
             old_timeout = self.request.gettimeout()
             self.request.settimeout(timeout)
             
-            # Check if we should still be running
-            if self._shutdown_event.is_set():
-                return None
+            # Read message length (4 bytes, big-endian)
+            length_bytes = b''
+            try:
+                # Log the start of receiving a new message
+                logger.debug("Waiting to receive message length (4 bytes)...")
                 
-            # Try to receive data
-            data = nc.from_jsonb_socket(self.request)
-            
-            # Check if we should still be running after potentially long operation
-            if self._shutdown_event.is_set():
-                return None
-                
-            # Restore original timeout
-            self.request.settimeout(old_timeout)
-            
-            if data:
-                logging.debug(f"Received data: {data}")
-                if 'mode' not in data:
-                    logging.warning(f"Received data without 'mode' key: {data}")
+                # Try to read exactly 4 bytes for the length
+                while len(length_bytes) < 4:
+                    chunk = self.request.recv(4 - len(length_bytes))
+                    if not chunk:
+                        logger.debug("Connection closed by peer while reading length")
+                        return None
+                    logger.debug(f"Received {len(chunk)} bytes of length prefix: {chunk.hex()}")
+                    length_bytes += chunk
+                    
+                # Verify we got exactly 4 bytes
+                if len(length_bytes) != 4:
+                    logger.warning(f"Invalid length prefix: got {len(length_bytes)} bytes, expected 4")
+                    logger.warning(f"Received bytes: {length_bytes.hex()}")
                     return None
-            return data
-            
-        except TimeoutError:
-            # This is expected when no data is available within the timeout
+                    
+                # Parse message length
+                length = int.from_bytes(length_bytes, 'big', signed=False)
+                logger.debug(f"Message length prefix: {length_bytes.hex()} = {length} bytes")
+                
+                # Sanity check for message length (10KB max)
+                if length <= 0 or length > 10 * 1024:
+                    logger.warning(f"Invalid message length: {length} bytes")
+                    logger.debug(f"Raw length bytes: {length_bytes.hex()}")
+                    # Try to read and discard the message to resync
+                    try:
+                        while length > 0:
+                            chunk = self.request.recv(min(4096, length))
+                            if not chunk:
+                                break
+                            length -= len(chunk)
+                    except:
+                        pass
+                    return None
+                
+                # Read message data with a reasonable chunk size
+                json_bytes = bytearray()
+                remaining = length
+                total_read = 0
+                
+                logger.debug(f"Reading {remaining} bytes of message data...")
+                
+                while remaining > 0:
+                    try:
+                        chunk_size = min(4096, remaining)
+                        chunk = self.request.recv(chunk_size)
+                        if not chunk:
+                            logger.debug("Connection closed by peer while reading message data")
+                            return None
+                            
+                        json_bytes.extend(chunk)
+                        remaining -= len(chunk)
+                        total_read += len(chunk)
+                        logger.debug(f"Read {len(chunk)} bytes of message data ({total_read}/{length} total)")
+                        
+                        # Log the first few chunks to help with debugging
+                        if total_read == len(chunk):  # First chunk
+                            logger.debug(f"First {min(32, len(chunk))} bytes of data: {chunk[:32].hex(' ')}")
+                        
+                    except TimeoutError:
+                        logger.error(f"Timeout while reading message data (read {total_read}/{length} bytes)")
+                        return None
+                    except ConnectionResetError:
+                        logger.error(f"Connection reset by peer while reading message data (read {total_read}/{length} bytes)")
+                        return None
+                        if not chunk:
+                            logger.debug("Connection closed by peer while reading data")
+                            return None
+                        json_bytes.extend(chunk)
+                        remaining -= len(chunk)
+                    except socket.timeout:
+                        logger.debug("Timeout while reading message data")
+                        return None
+                    except (ConnectionResetError, BrokenPipeError) as e:
+                        logger.debug(f"Connection lost while reading data: {e}")
+                        return None
+                
+                # Parse JSON data with extra validation
+                try:
+                    json_str = json_bytes.decode('utf-8')
+                    # Basic validation of JSON structure
+                    if not json_str.strip():
+                        logger.warning("Received empty JSON message")
+                        return None
+                        
+                    json_data = json.loads(json_str)
+                    if not isinstance(json_data, dict):
+                        logger.warning(f"Expected JSON object, got {type(json_data).__name__}")
+                        return None
+                        
+                    logger.debug(f"Received valid message: {json_data}")
+                    return json_data
+                    
+                except (UnicodeDecodeError, json.JSONDecodeError) as e:
+                    logger.error(f"Failed to parse JSON: {e}")
+                    logger.debug(f"Raw JSON bytes: {json_bytes[:100]}...")
+                    return None
+                    
+            except Exception as e:
+                logger.error(f"Error receiving message: {e}", exc_info=True)
+                return None
+                
+        except Exception as e:
+            logger.error(f"Unexpected error in _receive_data: {e}", exc_info=True)
             return None
             
-        except (ConnectionResetError, BrokenPipeError) as e:
-            logging.info(f"Connection closed by client: {e}")
-            raise ConnectionError("Connection lost") from e
-            
-        except Exception as e:
-            logging.error(f"Error receiving data: {e}", exc_info=True)
-            raise ConnectionError("Error receiving data") from e
+        finally:
+            # Always restore original timeout
+            if old_timeout is not None:
+                try:
+                    self.request.settimeout(old_timeout)
+                except Exception as e:
+                    logger.warning(f"Error restoring socket timeout: {e}")
+                    # Continue with cleanup even if this fails
 
     def _send_data(self, data):
-        self.request.sendall(nc.to_jsonb(data))
+        """Send data to the client using length-prefixed JSON format."""
+        try:
+            logger.debug(f"Sending data: {data}")
+            # Convert data to JSON and encode as bytes
+            json_data = json.dumps(data).encode('utf-8')
+            logger.debug(f"JSON data: {json_data}")
+            
+            # Create a length prefix (4-byte big-endian)
+            length = len(json_data)
+            length_prefix = length.to_bytes(4, byteorder='big')
+            logger.debug(f"Sending {length} bytes with prefix: {length_prefix}")
+            
+            # Send length prefix + JSON data
+            self.request.sendall(length_prefix + json_data)
+            logger.debug("Data sent successfully")
+            logger.debug(f"Sent data: {data}")
+        except Exception as e:
+            logger.error(f"Error sending data: {e}")
+            raise
 
     def _process_init(self, data):
-        logging.debug(f"_process_init: received data: {data}")
-        client_id = data.get('id')
-        logging.debug(f"_process_init: client_id={client_id}, server_id={server_id}")
-        if client_id == server_id:
-            client_key = data.get('key')
-            logging.debug(f"_process_init: client_key={client_key}, server_key={server_key}")
-            if client_key == server_key:
-                logging.debug("_process_init: client authenticated successfully")
-                self.initialized = True
-                response = Message(lines=self.init_success_lines(), mode=Mode.login)
-                logging.debug(f"_process_init: returning response: {response}")
-                return response
-            else:
-                logging.warning(f"_process_init: invalid key from client: {client_key}")
-                # TODO: record history in case want to ban
-                return None  # poser, ignore them
-        else:
-            logging.warning(f"_process_init: invalid client_id: {client_id}")
-            # TODO: record history in case want to ban
-            return None  # poser, ignore them
+        logging.debug(f"received data: {data}")
+        logging.debug(f"server_id={server_id}, server_key={server_key}")
+        
+        # Get client credentials from the data
+        client_id = data.get('server_id')
+        client_key = data.get('server_key')
+        client_protocol = data.get('protocol_version')
+        
+        logging.debug(f"client_id={client_id}, client_key={client_key}, client_protocol={client_protocol}")
+        
+        if not client_id:
+            logging.error("No client ID provided in initialization data")
+            return None
+            
+        if not client_key:
+            logging.error("No client key provided in initialization data")
+            return None
+            
+        if client_id != server_id:
+            logging.warning(f"client ID mismatch. Expected {server_id}, got {client_id}")
+            return None
+            
+        if client_key != server_key:
+            logging.warning(f"client key mismatch. Expected {server_key}, got {client_key}")
+            return None
+            
+        if client_protocol != server_protocol:
+            logging.warning(f"protocol version mismatch. Expected {server_protocol}, got {client_protocol}")
+            return None
+            
+        logging.debug("client authenticated successfully")
+        self.initialized = True
+        
+        try:
+            banner = self.init_success_lines()
+            response = {
+                'mode': 'login',
+                'lines': banner
+            }
+            logging.debug(f"returning response: {response}")
+            return response
+        except Exception as e:
+            logging.error(f"error generating success response: {e}", exc_info=True)
+            return None
 
     def authenticate(self, user_id, password):
         """Basic authentication method for testing.
@@ -499,14 +836,14 @@ class UserHandler(socketserver.BaseRequestHandler):
     def process_login_success(self, user_id):
         """OVERRIDE in subclass
         First method called on successful login.
-    Should do any user initialization and then return Message.
+        Should do any user initialization and then return Message.
         """
         return Message(lines=[f"Welcome, {user_id}."])
 
 
     def process_message(self, data):
         """OVERRIDE in subclass
-    Called on all subsequent Cmd messages from client.
+        Called on all subsequent Cmd messages from client.
         Should do any processing and return Message.
         """
         if 'text' in data:

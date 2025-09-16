@@ -3,17 +3,32 @@ import argparse
 import logging
 import os
 import readline  # For better command line editing
+import threading
 import sys
 import textwrap
+from pathlib import Path
 from typing import Optional, Dict, Any
+
+# Add the project root to the Python path
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from server.common import K
 from server.net_common import Mode
+from server.net_client import Client
+
+# Import client config
+try:
+    from client.config import config as client_config
+except ImportError:
+    # Fallback if client config is not available
+    client_config = None
 
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s() - %(message)s',
     handlers=[
         logging.StreamHandler(),
         logging.FileHandler(os.path.join(os.path.dirname(__file__), 'client.log'))
@@ -28,6 +43,8 @@ def print_banner():
     ╔══════════════════════════════════╗
     ║         TADA Game Client         ║
     ╚══════════════════════════════════╝
+    Revision 2025-09-16
+
     Type 'help' for available commands
     Press Ctrl+C or type 'quit' to exit
     """
@@ -35,23 +52,35 @@ def print_banner():
 
 def parse_arguments():
     """Parse command line arguments."""
+    # Get default values from config if available
+    default_host = client_config.get('server.host') if client_config else 'localhost'
+    default_port = client_config.get('server.port') if client_config else 5000
+    default_debug = client_config.get('client.debug') if client_config else False
+    
     parser = argparse.ArgumentParser(description='TADA Game Client')
     parser.add_argument('user_id', nargs='?', help='Your user ID')
-    parser.add_argument('--host', default='localhost', help='Server hostname')
-    parser.add_argument('--port', type=int, default=5000, 
-                       help=f'Server port (default: 5000)')
-    parser.add_argument('--debug', action='store_true', help='Enable debug logging')
+    parser.add_argument('password', nargs='?', help='Your password')
+    parser.add_argument('--host', default=default_host, 
+                       help=f'Server hostname (default: {default_host})')
+    parser.add_argument('--port', type=int, default=default_port, 
+                       help=f'Server port (default: {default_port})')
+    parser.add_argument('--debug', action='store_true', default=default_debug,
+                       help='Enable debug logging')
     return parser.parse_args()
 
-class TADA_Client:
-    """TADA Game Client with enhanced user experience."""
+class TADAClient(Client):
+    """TADA Game Client that extends the base Client with game-specific functionality."""
     
     def __init__(self, host: str = 'localhost', port: int = 5000, debug: bool = False):
-        self.user_id = None
+        # Initialize the base Client class
+        super().__init__()
+        
+        # Store connection details
         self.host = host
         self.port = port
-        self.mode = Mode.init
-        self.status = {
+        
+        # Game state
+        self.status_line = {
             K.room_name: 'Disconnected',
             K.silver: 0,
             K.hit_points: 0,
@@ -59,109 +88,25 @@ class TADA_Client:
             'last_command': ''
         }
         self.prompt = 'TADA> '
-        self.connected = False
-        self.server = None
         self.command_history = []
         self.max_history = 100
         
-        # Set up logging level
-        if debug:
-            logger.setLevel(logging.DEBUG)
-        logger.debug("TADA_Client initialized")
+        # Set up logging
+        log_level = logging.DEBUG if debug else logging.INFO
+        logger.setLevel(log_level)
+        logger.info("TADA client initialized")
         
     def show_help(self):
-        """Display available commands and usage."""
+        """Show help for local/offline commands and get help from server."""
         help_text = """
         Available Commands:
-          help      - Show this help message
-          status    - Show current game status
-          connect   - Connect to the game server
-          quit/exit - Exit the game
-          
-        Game Commands (when connected):
-          look      - Look around the current room
-          go [dir]  - Move in a direction (north, south, east, west, etc.)
-          take [item] - Pick up an item
-          drop [item] - Drop an item
-          inventory - Show your inventory
-          say [msg] - Say something to other players
+          edit .......... Edit client configuration
+          help .......... Show this help message
+          status ........ Show current game status
+          connect ....... Connect to the game server
+          quit / exit ... Exit the game
         """
         print(textwrap.dedent(help_text))
-        
-    def set_user(self, user_id):
-        """Set the current user ID."""
-        self.user_id = user_id
-        logging.debug(f"User set to: {user_id}")
-        
-    def connect(self, host: str = None, port: int = None, user_id: str = None, 
-               key: str = None, protocol: int = None, translation: str = None) -> bool:
-        """Connect to the TADA server.
-        
-        Args:
-            host: Server hostname or IP
-            port: Server port
-            user_id: User ID for authentication
-            key: Authentication key
-            protocol: Protocol version
-            translation: Translation settings
-            
-        Returns:
-            bool: True if connection was successful, False otherwise
-        """
-        if self.connected:
-            print("Already connected to the server.")
-            return True
-            
-        try:
-            from server.net_client import Client
-            from server.common import app_key, app_protocol, translation as default_translation
-            
-            # Use provided values or fall back to instance defaults
-            host = host or self.host
-            port = port or self.port
-            user_id = user_id or self.user_id
-            
-            if not user_id:
-                print("Error: No user ID provided. Please set a user ID first.")
-                return False
-                
-            print(f"Connecting to {host}:{port} as {user_id}...")
-            
-            self.server = Client()
-            self.server.set_user(user_id)
-            self.server.start(host, port, user_id, key or app_key, 
-                           protocol or app_protocol, 
-                           translation or default_translation)
-            self.connected = True
-            print("Connected successfully!")
-            return True
-            
-        except Exception as e:
-            print(f"Failed to connect: {str(e)}")
-            logger.exception("Connection error")
-            self.connected = False
-            return False
-            
-    def start(self, host: str = None, port: int = None, user_id: str = None, 
-             key: str = None, protocol: str = None, translation: str = None):
-        """Start the client and connect to the server.
-        
-        Args:
-            host: Server hostname or IP
-            port: Server port
-            user_id: User ID for authentication
-            key: Authentication key
-            protocol: Protocol version
-            translation: Translation settings
-        """
-        if user_id:
-            self.set_user(user_id)
-            
-        # Try to connect if we have all required parameters
-        if self.user_id and (host or self.host) and (port or self.port):
-            self.connect(host, port, self.user_id, key, protocol, translation)
-            
-        self._run_command_loop()
         
     def _process_command(self, command: str) -> bool:
         """Process a single command.
@@ -172,48 +117,59 @@ class TADA_Client:
         Returns:
             bool: True if the client should continue running, False to exit
         """
-        command = command.strip()
         if not command:
             return True
             
-        # Add to command history
+        # Add command to history
         self.command_history.append(command)
         if len(self.command_history) > self.max_history:
             self.command_history.pop(0)
             
+        # Convert command to lowercase for comparison
+        cmd = command.lower()
+        
         # Handle built-in commands
-        if command.lower() in ('quit', 'exit'):
-            print("Goodbye!")
+        if cmd in ('exit', 'quit'):
+            if self.connected and self.server:
+                try:
+                    # Send a bye message to the server
+                    logger.debug("Sending 'bye' mode to server...")
+                    self.server._send_data({'mode': Mode.bye})
+                    # Let the server close the connection
+                    # FIXME
+                    # self.connected = False
+                    logger.debug("Disconnected from server")
+                except Exception as e:
+                    logger.warning(f"Error during disconnect: {e}")
+            print("\nGoodbye!")
             return False
             
-        if command.lower() in ('help', '?'):
+        if cmd in ('help', '?'):
             self.show_help()
             return True
             
-        if command.lower() == 'status':
+        if cmd == 'status':
             self._show_status()
             return True
             
-        # Handle server commands
-        if self.connected and self.server:
+        # Handle game commands if connected and in app mode
+        if self.connected and self.server and self.mode == 'app':
             try:
                 self.server.default(command)
             except Exception as e:
                 print(f"Error executing command: {str(e)}")
-                logger.exception("Command execution error")
-        elif command.lower() == 'connect':
-            self.connect()
+        elif self.connected and self.mode == 'init':
+            print("Please complete login process first")
         else:
-            print("Not connected to server. Type 'connect' to connect or 'help' for more commands.")
+            print("Not connected to server. Type 'connect <username>' to connect or 'help' for more commands.")
             
         return True
         
     def _show_status(self):
         """Display current status information."""
         status = [
-            f"Status: {'Connected' if self.connected else 'Disconnected'}",
+            f"Status: {'Connected [{self.host}:{self.port}]' if self.connected else 'Disconnected'}",
             f"User: {self.user_id or 'Not set'}",
-            f"Server: {self.host}:{self.port}"
         ]
         
         if self.connected:
@@ -247,69 +203,74 @@ class TADA_Client:
                 print(f"Unexpected error: {str(e)}")
                 logger.exception("Unexpected error in command loop")
 
-    def process_request(self, request: Dict[str, Any]) -> None:
-        """Process a request from the server.
+def process_request(self, request: Dict[str, Any]):
+    """Process a request from the server.
+    
+    Args:
+        request: The request dictionary from the server
+    """
+    if not request:
+        return
         
-        Args:
-            request: The request dictionary from the server
-        """
-        try:
-            # Handle mode changes
-            if self.mode != request.get('mode'):
-                self.mode = request['mode']
-                logger.debug(f"Mode changed to: {self.mode}")
-                
-            # Handle errors
-            if request.get('error'):
-                error_code = request['error']
-                error_line = request.get('error_line', 'No error details')
-                logger.error(f"Server error: {error_line} (code: {error_code})")
-                print(f"\nError: {error_line}\n")
-                
-            # Update status from server
-            changes = request.get('changes', {})
-            for field in [K.room_name, K.silver, K.hit_points, K.experience, K.last_command, K.custom]:
-                if field in changes:
-                    self.status[field] = changes[field]
+    # Debug log the incoming request
+    logger.debug(f"Processing server request: {request}")
+    
+    try:
+        # Handle mode changes
+        if 'mode' in request:
+            mode = request['mode']
+            self.mode = mode  # Update current mode
             
-            # Handle multiple-choice prompts
-            choices = request.get('choices', {})
-            if choices:
-                logger.debug(f"Received choices: {choices}")
-                print("\n".join(f"  {k}: {v}" for k, v in choices.items()))
+            # Handle login responses
+            if mode == 'login':
+                if 'error' in request:
+                    print(f"Login failed: {request['error']}")
+                    self.mode = 'init'
+                else:
+                    print("Login successful!")
+                    self.mode = 'app'
             
-            # Display any message lines from the server
-            lines = request.get('lines')
-            if lines:
-                print("\n".join(lines))
-                
-            # Update the prompt to show current room if available
-            if K.room_name in changes:
-                self.prompt = f"{changes[K.room_name]}> "
-            
-            # Log detailed request for debugging
-            logger.debug(f"Processed request: {request}")
-            
-        except Exception as e:
-            logger.exception("Error processing server request")
-            print(f"Error processing server response: {str(e)}")
-        if self.status[K.hit_points]:
-            status_items.append(f"HP: {self.status[K.hit_points]}")
-        if self.status[K.experience]:
-            status_items.append(f"Experience: {self.status[K.experience]:,}")
-        if self.status[K.silver] or self.status[K.silver] == 0:
-            status_items.append(f"Silver: {self.status[K.silver]:,}")
-        if status_items:
-            status_line = " | ".join(status_items)
-            print(f"---< {status_line} >---")
-        if request.get('lines') is not None:
-            for m in request['lines']:
-                print(m)
+            # Update room name if provided
+            if 'changes' in request and K.room_name in request['changes']:
+                self.status[K.room_name] = request['changes'][K.room_name]
+                self.prompt = f"{self.status[K.room_name]}> "
         
+        # Display any message lines
+        if 'lines' in request and request['lines']:
+            print("\n".join(request['lines']))
+            
+        # Update status line if provided
+        if 'status_line' in request:
+            changes = request['status_line']
+            for key, value in changes.items():
+                if key in self.status:
+                    self.status[key] = value
+            
+            # Update status line display
+            status_items = []
+            if K.hit_points in changes:
+                status_items.append(f"HP: {changes[K.hit_points]}")
+            if K.experience in changes:
+                status_items.append(f"XP: {changes[K.experience]}")
+            if K.silver in changes:
+                status_items.append(f"Silver: {changes[K.silver]}")
+                
+            if status_items:
+                # if two items: item_1 | item_2
+                # if one item: item_1
+                if len(status_items) == 1:
+                    print(status_items[0])
+                else:
+                    print(" | ".join(status_items))
+                
+    except Exception as e:
+        logger.exception("Error processing server request")
+        print(f"Error processing server response: {str(e)}")    
         prompt = request.get('prompt')
         if prompt == '':
             logging.debug("prompt: %s" % default_prompt)
         
+        # TODO: move choices to server-side
         if choices is not None and len(choices) > 0:
             # ryan: changed 'choices' list to dict('option': 'text')
             for k, v in choices.items():
@@ -347,24 +308,46 @@ def main():
         args = parse_arguments()
         
         # Set up client with provided arguments
-        client = TADA_Client(
+        client = TADAClient(
             host=args.host,
             port=args.port,
             debug=args.debug
         )
         
-        # Import required modules
-        from server.common import app_key, app_protocol, translation as default_translation
+        # Set user and password if provided
+        if args.user_id:
+            client.set_user(args.user_id)
+        if args.password:
+            client.set_password(args.password)
         
-        # Start the client with the provided user ID and default settings
-        client.start(
+        # Import required modules
+        from server.common import app_key, app_protocol, translation
+        
+        # Connect to the server
+        client.connect(
             host=args.host,
             port=args.port,
-            user_id=args.user_id,
-            key=app_key,
-            protocol=app_protocol,
-            translation=default_translation
+            server_id='tada_client',  # This should be configured in your server settings
+            server_key=app_key,
+            protocol_version=app_protocol,
+            translation=translation
         )
+        
+        # Start the command loop
+        try:
+            while not client._shutdown_event.is_set():
+                try:
+                    command = input(client.prompt).strip()
+                    if command.lower() in ('quit', 'exit'):
+                        break
+                    # Process command here
+                    print(f"Command received: {command}")
+                except (KeyboardInterrupt, EOFError):
+                    print("\nUse 'quit' or 'exit' to disconnect.")
+        finally:
+            # Clean up
+            if hasattr(client, 'disconnect'):
+                client.disconnect()
         
     except KeyboardInterrupt:
         print("\nClient terminated by user.")
