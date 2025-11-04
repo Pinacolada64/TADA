@@ -1,12 +1,15 @@
 """
-Login command handler for user authentication.
+This is deprecated. Use commands/login.py instead.
 """
 import os
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Coroutine
 
-from net_common import Message, Mode, Error
-from .base import Command
+from commands.base_command import CommandResult
+from net_common import Message, Mode
+from .base_command import Command, CommandResult
+from .connect import ConnectCommand
+
 
 class LoginCommand(Command):
     """Handles user login functionality."""
@@ -15,7 +18,7 @@ class LoginCommand(Command):
     def name(self) -> str:
         return 'login'
     
-    async def execute(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def execute(self, data: Dict[str, Any]) -> dict[str, Any] | CommandResult | Message:
         """
         Execute the login command.
         
@@ -29,56 +32,28 @@ class LoginCommand(Command):
         password = data.get('password')
         
         if not user_id:
-            return Message(
-                error=Error.user_id,
-                error_line='Missing user_id',
-                lines=['Please enter a username.']
-            )
-            
+            return CommandResult(success=False, message='Please enter your username.').to_dict()
+
         if not password:
-            return Message(
-                error=Error.password,
-                error_line='Missing password',
-                lines=['Please enter your password.'],
-                prompt='Password: ',
-                mode=Mode.login
-            )
-            
+            return CommandResult(success=False, message='Please enter your password.').to_dict()
+
         # Check if user exists
         user_file = os.path.join('run', 'server', 'net', f'login-{user_id}.json')
         if not os.path.exists(user_file):
-            return Message(
-                error=Error.login2,
-                error_line='Invalid username or password',
-                lines=['Invalid username or password. Please try again.'],
-                mode=Mode.login
-            )
-            
+            return CommandResult(success=False, message='Invalid username or password.').to_dict()
+
         # Verify password (simplified - in real implementation, use proper password hashing)
         try:
             with open(user_file, 'r') as f:
                 user_data = json.load(f)
                 if user_data.get('password') != password:
-                    return Message(
-                        error=Error.login2,
-                        error_line='Invalid username or password',
-                        lines=['Invalid username or password. Please try again.'],
-                        mode=Mode.login
-                    )
+                    return CommandResult(success=False, message='Invalid username or password.').to_dict()
         except (json.JSONDecodeError, IOError) as e:
-            return Message(
-                error=Error.internal,
-                error_line='Error accessing user data',
-                lines=['An error occurred while accessing user data. Please try again later.']
-            )
-        
+            return CommandResult(success=False, message='Error accessing user data.').to_dict()
+
         # Login successful
-        return Message(
-            lines=[f'Welcome back, {user_id}!'],
-            mode=Mode.app,
-            changes={'authenticated': True, 'user_id': user_id}
-        )
-    
+        return CommandResult(success=True, message=f'Welcome back, {user_id}!', data={'authenticated': True, 'user_id': user_id, 'mode': Mode.app}).to_dict()
+
     def help_text(self) -> str:
         """Return help text for the login command."""
         return """\
@@ -94,6 +69,6 @@ class LoginCommand(Command):
         You will be prompted for your password if not provided.
         """
 
-def register():
-    """Register the login command."""
-    return LoginCommand()
+    def register(self):
+        """Register the connect / login command."""
+        return LoginCommand().register()

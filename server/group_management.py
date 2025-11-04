@@ -91,7 +91,8 @@ class Group:
                 print(f"{oxford_comma_list(self.groups[group].members)}")
             else:
                 return list(self.groups.keys())
-    
+        return None
+
     def player_add(self, player: 'Player') -> str | None:
         """
         Add a player to this group.

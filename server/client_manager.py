@@ -3,6 +3,7 @@ Client manager for handling connected clients and their sessions.
 """
 import json
 import logging
+from json import JSONEncoder
 from typing import Dict, Set, Optional, Any, Union
 
 class ClientManager:
@@ -92,7 +93,7 @@ class ClientManager:
         """
         return user_id in self._user_to_client
     
-    def get_online_players(self) -> Set[str]:
+    def get_online_player_ids(self) -> Set[str]:
         """Get a set of online player user IDs.
         
         Returns:
@@ -101,7 +102,27 @@ class ClientManager:
         with self._lock:
             return {client['user_id'] for client in self._clients.values() 
                    if 'user_id' in client}
-    
+
+    def get_online_player_names(self) -> Set[str]:
+        """Get a set of online player names.
+
+        Returns:
+            Set[str]: Set of online player names
+        """
+        with self._lock:
+            return {client['player_name'] for client in self._clients.values()
+                   if 'player_name' in client}
+
+    def get_online_client_info(self) -> Set[Dict[str, Any]]:
+        """Get a set of all online player info. This includes: user_id and player_name, ip_address, and any other info stored in the client dict.
+
+        Returns:
+            Set[Dict[str, Any]]: Set of online player info dicts
+        """
+        with self._lock:
+            return {client for client in self._clients.values()
+                   if 'user_id' in client and 'player_name' in client}
+
     def send_to(self, user_id: str, data: Dict[str, Any]) -> bool:
         """Send data to a specific user.
         
@@ -164,16 +185,17 @@ class ClientManager:
                                 "Error sending to client %s in room %s: %s", 
                                 client_id, room_id, e
                             )
-        except json.JSONEncodeError as e:
+        except JSONEncoder as e:
             logging.error("Failed to encode message for room %s: %s", room_id, e)
         except Exception as e:
             logging.error("Unexpected error in send_to_room: %s", e, exc_info=True)
+
     def broadcast(self, data: Dict[str, Any], exclude_user: Optional[str] = None) -> None:
         """Broadcast data to all connected clients.
         
         Args:
             data: The data to broadcast
-            exclude_user: Optional user ID to exclude from the broadcast
+            exclude_user: Optional user ID to exclude from the broadcast (i.e., the user who sent the message)
         """
         with self._lock:
             for client_id, client in list(self._clients.items()):

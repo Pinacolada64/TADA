@@ -4,7 +4,7 @@ Command manager for handling command registration and execution.
 import logging
 from typing import Dict, Optional, Type, TypeVar, Generic, Any
 
-from .commands.base import Command, CommandResult
+from commands.base_command import CommandResult, Command
 
 logger = logging.getLogger(__name__)
 
