@@ -5,7 +5,9 @@ from typing import List, Optional, Callable, Union
 
 from flags import PlayerFlags
 from player import Player
-from server import PlayerHandler
+from old_server import PlayerHandler
+from net_common import Message, to_jsonb, from_jsonb
+import asyncio
 
 def edit_string(prompt: str, data: str) -> str:
     user_input = input(f"Edit {prompt}: ")
@@ -147,6 +149,9 @@ class Menu:
                 if choice_string in [sc.lower() for sc in item.shortcuts]:
                     return item
             print("Invalid choice, please try again.")
+
+    def run_menu(self, player, menu_collection):
+        pass
 
 
 def check_shortcut_conflicts(menu: 'Menu'):
@@ -359,6 +364,49 @@ def print_menu(player_handler: "PlayerHandler", player: Player, menu: "Menu") ->
     player_handler.output(menu_text, player)
     player_handler.flush_output()
 
+async def async_print_menu(client, menu: 'Menu') -> None:
+    """Asynchronously send a menu to a connected client using client.writer.
+
+    This mirrors `print_menu()` but communicates over the client's writer/reader
+    using the project's Message JSON protocol. The client must expose `writer`.
+    """
+    # Reuse the same formatting logic as print_menu to produce lines
+    menu_text = [ "",
+                  f"[{menu.title}]",
+                  ("-" * 40 * menu.columns)]
+
+    check_shortcut_conflicts(menu)
+
+    next_item_num = 0
+    for item in menu.menu_items:
+        formatted_line, next_item_num = format_menu_item(item, next_item_num, menu)
+        menu_text.append(formatted_line)
+
+    if menu.columns == 2:
+        column_width = getattr(client, 'client_settings', {}).get('screen_columns', 80) // 2
+        midpoint = (len(menu_text) + 1) // 2
+        col_lines = []
+        for i in range(midpoint):
+            col1 = menu_text[i]
+            col2 = menu_text[i + midpoint] if (i + midpoint) < len(menu_text) else ""
+            col_lines.append(f"{col1.ljust(column_width)}{col2.ljust(column_width)}")
+        menu_text = col_lines
+    else:
+        menu_text = [line.strip() if line else "" for line in menu_text]
+
+    # send as a Message
+    try:
+        writer = getattr(client, 'writer', None)
+        if writer is None:
+            return
+        msg = Message(lines=menu_text, prompt='Choice: ')
+        writer.write(to_jsonb(msg) + b'\n')
+        await writer.drain()
+    except Exception:
+        # swallowing errors to avoid breaking server flow; caller may log
+        return
+
+
 def get_user_choice(player_handler: PlayerHandler, player: Player, menu: Menu, stack_depth: int) -> Optional[MenuItem]:
     """
     Gets the user's choice and returns either None, or the corresponding MenuItem object.
@@ -405,6 +453,62 @@ def get_user_choice(player_handler: PlayerHandler, player: Player, menu: Menu, s
                 return menu.menu_items[selected_num - 1]  # Correct index for user-friendly numbering.
         player_handler.output("Invalid choice. Please try again.", player)
         player_handler.flush_output()
+
+async def async_get_user_choice(client, menu: 'Menu', stack_depth: int) -> Optional[MenuItem]:
+    """Asynchronously prompt the client for a menu choice and return the matching MenuItem.
+
+    The function sends a prompt Message and awaits one reply from client.reader.
+    Returns a MenuItem or None if the user canceled.
+    """
+    writer = getattr(client, 'writer', None)
+    reader = getattr(client, 'reader', None)
+    if writer is None or reader is None:
+        return None
+
+    num_items = len([item for item in menu.menu_items if not is_header_item(item)])
+    enter_key = getattr(client, 'return_key', 'Enter')
+    enter_function = 'quit' if stack_depth == 1 else 'go up a level'
+    lines = [f"Type the option number (1-{num_items}) or letters (shortcuts) to select an option, or [{enter_key}] to {enter_function}."]
+
+    # send prompt
+    try:
+        msg = Message(lines=lines, prompt='Choice: ')
+        writer.write(to_jsonb(msg) + b'\n')
+        await writer.drain()
+        raw = await reader.readline()
+        if not raw:
+            return None
+        obj = from_jsonb(raw)
+        if not isinstance(obj, dict):
+            return None
+        # extract text
+        option = ''
+        if 'lines' in obj and isinstance(obj['lines'], list) and obj['lines']:
+            option = str(obj['lines'][0]).strip().lower()
+        elif 'text' in obj:
+            option = str(obj['text']).strip().lower()
+        else:
+            return None
+
+        if not option:
+            return None
+
+        # numeric selection
+        if option.isnumeric():
+            choice_num = int(option)
+            idx = find_menu_item_by_number(choice_num, menu)
+            if idx is None:
+                return None
+            # idx is the index into menu.menu_items (1-based adjusted), convert to 0-based
+            return menu.menu_items[idx - 1]
+
+        # try shortcut match
+        shortcut_item = find_menu_item_by_shortcut(option, menu.menu_items)
+        if shortcut_item:
+            return shortcut_item
+        return None
+    except Exception:
+        return None
 
 def display_menu(player_handler: PlayerHandler, player: Player, menu_stack: list[Menu]) -> None:
     """
