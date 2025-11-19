@@ -4,6 +4,10 @@ import random
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum, IntEnum, auto
 import datetime
+from enum import StrEnum, IntEnum, auto, Enum
+
+from items import BaseItem
+
 
 class Guild(StrEnum):
     """Guild name strings"""
@@ -91,6 +95,40 @@ class Combination:
         # which is a memory-efficient way to perform this check.
         return any(num < 10 for num in self.combination)
 
+    @classmethod
+    def from_string(cls, ans, combination_type: CombinationTypes = CombinationTypes.CASTLE):
+        import re
+        """
+        take the input string and split it into three digits separated by delimiters between digits
+        (so "11-11-11", "11.11.11", "11 11 11", "11 / 11 / 11", etc. are all valid).
+        Delimiter could be ".", "-", " ", etc.
+
+        :param ans: combination type we're parsing
+        :param combination_type: Type of combination (default is CASTLE)
+        :return: Combination instance or None if invalid format
+        """
+        re.compile('\d+')
+        parts = re.split(r'[\s\-.]+', ans.strip())
+        if len(parts) != 3:
+            return None
+        try:
+            numbers = tuple(int(part) for part in parts)
+            if all(1 <= num <= 99 for num in numbers):
+                combination = cls(name=combination_type)
+                combination.combination = numbers
+                return combination
+            else:
+                return None
+        except ValueError:
+            return None
+
+    def valid_combination(self, ans):
+        """
+        Check if the provided answer matches the combination.
+        :param ans: A tuple of three integers to check against the combination.
+        :return: True if the answer matches the combination, False otherwise.
+        """
+        return ans == self.combination
 
 class PlayerMoneyTypes(StrEnum):
     # this is the dict element to reference money amounts
