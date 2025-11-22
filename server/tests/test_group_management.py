@@ -9,9 +9,9 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Import after setting up the path
-from server.group_management import Group
-from server.player import Player, set_up_flags, set_up_silver
-from server.base_classes import PlayerStat, Gender
+from old_server.group_management import Group
+from old_server.player import Player, set_up_flags, set_up_silver
+from old_server.base_classes import PlayerStat, Gender
 
 class TestGroupManagement(unittest.TestCase):
     def setUp(self):
