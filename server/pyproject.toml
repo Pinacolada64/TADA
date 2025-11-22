@@ -1,0 +1,20 @@
+[tool.pytest.ini_options]
+minversion = "6.0"
+# Only look for tests under the tests/ directory
+testpaths = ["tests"]
+# Collect only files that look like tests
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+# Default options: quiet, show extra summary on failure
+addopts = "-q -r a"
+
+# Define markers so we can mark long-running or integration tests that start servers
+markers = [
+  "integration: marks tests that require starting external services or servers",
+  "slow: marks slow tests"
+]
+
+# Don't search these directories for tests or imports
+norecursedirs = [".venv", "build", "dist", ".git", "node_modules", "tools"]
+

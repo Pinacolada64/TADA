@@ -7,13 +7,14 @@ process raw input, dispatch commands to their respective handlers, and handle
 errors gracefully. Commands are automatically discovered using the `@command` decorator.
 """
 
+import asyncio
 import importlib
 import logging
 from typing import Type, List, Dict, Any, Generic, Optional, TypeVar, Callable
-from commands.context import Context
 
 # Required imports from the base file
 from commands.base_command import BaseCommand, CommandResult, HelpCategory
+from commands.context import Context
 
 # Type variable for generics
 T = TypeVar('T')
@@ -24,6 +25,7 @@ T = TypeVar('T')
 
 # Global storage for commands registered via the decorator
 _DECORATED_COMMANDS: Dict[str, Type[BaseCommand]] = {}
+
 
 def command(name: str,
             aliases: Optional[List[str]] = None,
@@ -40,6 +42,7 @@ def command(name: str,
     :param category: The help category for the command (see help.py: HelpCategory).
     :param summary: A brief summary for the command.
     """
+
     def decorator(cls: Type[BaseCommand]) -> Type[BaseCommand]:
         # 1. Attach metadata to the class object, overriding defaults in BaseCommand
         cls.name = name
@@ -52,6 +55,7 @@ def command(name: str,
         _DECORATED_COMMANDS[name.lower()] = cls
 
         return cls
+
     return decorator
 
 
@@ -87,6 +91,10 @@ class CommandProcessor(Generic[T]):
             import pkgutil
             import commands as _commands_pkg
             for finder, name, ispkg in pkgutil.iter_modules(_commands_pkg.__path__):
+                # Avoid importing test or private modules which may execute code at import-time
+                if name.startswith('_') or name.startswith('test') or 'test' in name:
+                    logging.debug(f"Skipping potentially unsafe module import: commands.{name}")
+                    continue
                 full_name = f"commands.{name}"
                 try:
                     importlib.import_module(full_name)
@@ -111,7 +119,6 @@ class CommandProcessor(Generic[T]):
 
         logging.info(f"Finished auto-discovery. Total unique commands loaded: {len(self.get_all_commands())}")
 
-
     def register_command(self, command_instance: BaseCommand) -> None:
         """
         Register a command instance with the processor so it is available to use.
@@ -132,12 +139,39 @@ class CommandProcessor(Generic[T]):
             if alias_lower in self._commands:
                 existing_cmd = self._commands[alias_lower]
                 logging.warning("Alias '%s' for command '%s' is already registered to '%s'",
-                             alias, command_instance.name, existing_cmd.name)
+                                alias, command_instance.name, existing_cmd.name)
                 continue
             # Store the same command instance under the alias
             self._commands[alias_lower] = command_instance
             self._aliases[alias_lower] = cmd_name_lower
             logging.debug("Registered alias '%s' for command '%s'", alias, command_instance.name)
+
+    def unregister_command(self, name: str) -> None:
+        """Remove a command (by name or alias) and its aliases from the processor.
+
+        This is safe to call even if the command isn't present.
+        """
+        if not name:
+            return
+        key = name.lower()
+        # Find the primary instance for the name (may be alias)
+        cmd_instance = self._commands.get(key)
+        if not cmd_instance:
+            return
+        # Remove all entries in _commands that point to this instance
+        keys_to_remove = [k for k, v in list(self._commands.items()) if v is cmd_instance]
+        for k in keys_to_remove:
+            try:
+                del self._commands[k]
+            except KeyError:
+                pass
+            # also remove alias mapping if present
+            try:
+                if k in self._aliases:
+                    del self._aliases[k]
+            except KeyError:
+                pass
+        logging.info("Unregistered command: %s", getattr(cmd_instance, 'name', name))
 
     def find_command(self, command_name: str) -> tuple[Optional[BaseCommand], bool]:
         """
@@ -220,6 +254,14 @@ class CommandProcessor(Generic[T]):
         command_name = command_parts[0].lower()
         args = command_parts[1:] if len(command_parts) > 1 else []
 
+        # Support shorthand admin teleport syntax: '#N' or '#NN' -> treat as command '#' with argument N
+        if not self.find_command(command_name)[0]:
+            # If token starts with '#' followed by digits, map to '#' command
+            if command_name.startswith('#') and command_name[1:].isdigit():
+                # Insert the '#' command as the command name and the number as an argument
+                args = [command_name[1:]] + args
+                command_name = '#'
+
         # Find the command instance
         command_instance, is_alias = self.find_command(command_name)
         if not command_instance:
@@ -229,10 +271,10 @@ class CommandProcessor(Generic[T]):
                 message=f"Unknown command: {command_name}"
             )
 
-        logging.debug("Executing %scommand: %s (aliases: %s)",
-                     'alias ' if is_alias else '',
-                     command_instance.name,
-                     ', '.join(getattr(command_instance, 'aliases', [])))
+        logging.debug("Executing %s command: %s (aliases: %s)",
+                      'alias ' if is_alias else '',
+                      command_instance.name,
+                      ', '.join(getattr(command_instance, 'aliases', [])))
 
         try:
             # Execute the command with the processor's context and the arguments
@@ -248,14 +290,24 @@ class CommandProcessor(Generic[T]):
             )
 
     async def process_input(self, input_text: str) -> CommandResult:
-        """
-        Process raw input text as a command.
+        """Process raw input text as a command.
 
         :param input_text: Raw input text from the user
 
         :return: CommandResult: The result of the command execution
         """
-        input_text = input_text.strip()
+        # Keep context up-to-date with current client state (player may be attached/detached later)
+        try:
+            # Update the context entries that may change during the client's lifecycle
+            self.context[Context.PLAYER] = getattr(self.client, 'player', None)
+            self.context['player'] = self.context.get(Context.PLAYER)
+            # Keep username in sync
+            self.context[Context.USERNAME] = getattr(self.client, 'username', self.context.get(Context.USERNAME))
+            self.context[Context.USERNAME.value] = self.context[Context.USERNAME]
+        except Exception:
+            pass
+
+        input_text = (input_text or '').strip()
         if not input_text:
             return CommandResult(
                 success=False,
@@ -289,11 +341,21 @@ def create_command_processor(client: Any, context: Optional[Dict[str, Any]] = No
     }
     # Keep string keys for backward compatibility
     processor_context.update({
-        'client': processor_context.get(Context.CLIENT),
-        'username': processor_context.get(Context.USERNAME),
-        'is_authenticated': processor_context.get(Context.IS_AUTHENTICATED),
-        'user_level': processor_context.get(Context.USER_LEVEL),
+        Context.CLIENT.value: processor_context.get(Context.CLIENT),
+        Context.USERNAME.value: processor_context.get(Context.USERNAME),
+        Context.IS_AUTHENTICATED.value: processor_context.get(Context.IS_AUTHENTICATED),
+        Context.USER_LEVEL.value: processor_context.get(Context.USER_LEVEL),
+        # If the client has a reference to its server, include it for commands that need it
+        'server': getattr(client, 'server', None)
     })
+    # Also include the Player object (if present) in the context for convenient access
+    try:
+        player_obj = getattr(client, 'player', None) or getattr(client, 'handler', None) and getattr(getattr(client, 'handler', None), 'player', None)
+    except Exception:
+        player_obj = None
+    processor_context[Context.PLAYER] = player_obj
+    # Backward-compatible string key
+    processor_context['player'] = player_obj
 
     # Create the command processor with the client and context
     processor = CommandProcessor(client=client, context=processor_context)
@@ -301,15 +363,208 @@ def create_command_processor(client: Any, context: Optional[Dict[str, Any]] = No
     # 1. Automatically register all decorated commands
     processor._autodiscover_commands()
 
+    # Ensure a minimal 'help' command is always present. Some environments
+    # may not register a dedicated HelpCommand class, so provide a small
+    # fallback that lists available commands from this processor.
+    try:
+        logging.info("Attempting to register inline help command")
+
+        class _InlineHelp(BaseCommand):
+            name = 'help'
+            aliases = ['h', '?']
+
+            async def execute(self, context, args=None):
+                # Normalize token
+                if args:
+                    cmd_name = args[0] if isinstance(args, (list, tuple)) else args
+                    cmd_name = str(cmd_name).strip().lower()
+                else:
+                    cmd_name = None
+
+                # If no token, show general help
+                if not cmd_name:
+                    lines = ['Available commands:']
+                    grouped = processor.get_commands_by_category()
+                    for cat, cmds in grouped.items():
+                        lines.append(f"\n{getattr(cat, 'name', str(cat))}:")
+                        for c in sorted(cmds, key=lambda x: x.name):
+                            summary = getattr(c, 'summary', '') or ''
+                            lines.append(f"  {c.name:<12} - {summary}")
+                    return CommandResult(success=True, message=lines)
+
+                # Try to find a registered command instance first
+                cmd_inst, _is_alias = processor.find_command(cmd_name)
+                if cmd_inst:
+                    logging.debug("InlineHelp: found registered command instance for '%s' -> %r", cmd_name, getattr(cmd_inst, 'name', None))
+
+                    # 1) help_text() method or attribute
+                    try:
+                        ht_attr = getattr(cmd_inst, 'help_text', None)
+                        if callable(ht_attr):
+                            logging.debug("InlineHelp: calling help_text() on %s", getattr(cmd_inst, 'name', None))
+                            ht = ht_attr()
+                            if asyncio.iscoroutine(ht):
+                                ht = await ht
+                            logging.debug("InlineHelp: help_text returned: %r", ht)
+                            return CommandResult(success=True, message=ht)
+                        elif ht_attr is not None:
+                            # non-callable help_text (string/list)
+                            logging.debug("InlineHelp: using non-callable help_text attribute on %s", getattr(cmd_inst,'name',None))
+                            return CommandResult(success=True, message=ht_attr)
+                    except Exception:
+                        logging.exception("InlineHelp: exception when retrieving help_text for %s", getattr(cmd_inst, 'name', None))
+
+                    # 2) structured help_info
+                    hi = getattr(cmd_inst, 'help_info', None)
+                    logging.debug("InlineHelp: help_info for %s = %r", getattr(cmd_inst, 'name', None), hi)
+                    if hi:
+                        parts = []
+                        if getattr(hi, 'summary', None):
+                            parts.append(str(hi.summary))
+                        if getattr(hi, 'description', None):
+                            parts.append(str(hi.description))
+                        if getattr(hi, 'usage', None):
+                            parts.append('\nUsage:')
+                            for u in hi.usage:
+                                parts.append(str(u))
+                        logging.debug("InlineHelp: help_info produced parts: %r", parts)
+                        return CommandResult(success=True, message='\n'.join(parts))
+
+                    # 3) docstring of execute
+                    doc = getattr(getattr(cmd_inst, 'execute', None), '__doc__', None)
+                    logging.debug("InlineHelp: execute doc for %s = %r", getattr(cmd_inst, 'name', None), doc)
+                    if doc:
+                        return CommandResult(success=True, message=doc.strip())
+
+                    # 4) module-level Help providers in the command's module
+                    try:
+                        modname = getattr(cmd_inst.__class__, '__module__', None)
+                        if modname:
+                            logging.debug("InlineHelp: looking for Help providers in module %s", modname)
+                            mod = importlib.import_module(modname)
+                            for attr_name in dir(mod):
+                                if not attr_name.lower().endswith('help'):
+                                    continue
+                                attr = getattr(mod, attr_name)
+                                if not isinstance(attr, type):
+                                    continue
+                                try:
+                                    helper = attr()
+                                except Exception:
+                                    logging.exception("InlineHelp: could not instantiate helper %s", attr_name)
+                                    continue
+                                # prefer helper.help_text()
+                                try:
+                                    # Only call help_text if the class actually defines/overrides it; avoid BaseHelpText.help_text default
+                                    if callable(getattr(helper, 'help_text', None)) and ('help_text' in getattr(helper.__class__, '__dict__', {})):
+                                        logging.debug("InlineHelp: calling helper %s.help_text()", attr_name)
+                                        ht = helper.help_text()
+                                        if asyncio.iscoroutine(ht):
+                                            ht = await ht
+                                        logging.debug("InlineHelp: helper.help_text returned: %r", ht)
+                                        return CommandResult(success=True, message=ht)
+                                except Exception:
+                                    logging.exception("InlineHelp: error calling help_text on helper %s", attr_name)
+                                # fallback to structured fields
+                                parts = []
+                                if getattr(helper, 'summary', None):
+                                    parts.append(str(helper.summary))
+                                if getattr(helper, 'description', None):
+                                    parts.append(str(helper.description))
+                                if getattr(helper, 'usage', None):
+                                    usage = helper.usage
+                                    if isinstance(usage, str):
+                                        parts.append(str(usage))
+                                    else:
+                                        parts.append('\nUsage:')
+                                        for u in usage:
+                                            parts.append(str(u))
+                                if parts:
+                                    logging.debug("InlineHelp: helper %s produced structured parts: %r", attr_name, parts)
+                                    return CommandResult(success=True, message='\n'.join(parts))
+                    except Exception:
+                        logging.exception("InlineHelp: module-level help lookup failed for %s", getattr(cmd_inst, 'name', None))
+
+                    # nothing found on the registered instance
+                    return CommandResult(success=False, message=f'No detailed help available for {cmd_name}')
+
+                # If we didn't find helpers in the command's module, also check commands.<cmd_name> explicitly
+                # If no registered command instance, try importing commands.<cmd_name> module and looking for helpers
+                try:
+                    modname = f"commands.{cmd_name}"
+                    logging.debug("InlineHelp: attempting to import module %s for help (fallback)", modname)
+                    cmd_module = importlib.import_module(modname)
+                    for attr_name in dir(cmd_module):
+                        if not attr_name.lower().endswith('help'):
+                            continue
+                        attr = getattr(cmd_module, attr_name)
+                        if not isinstance(attr, type):
+                            continue
+                        try:
+                            help_inst = attr()
+                        except Exception:
+                            logging.exception("InlineHelp: failed to instantiate %s from %s", attr_name, modname)
+                            continue
+                        # Only call help_text if class defines it explicitly
+                        try:
+                            if callable(getattr(help_inst, 'help_text', None)) and ('help_text' in getattr(help_inst.__class__, '__dict__', {})):
+                                ht = help_inst.help_text()
+                                if asyncio.iscoroutine(ht):
+                                    ht = await ht
+                                return CommandResult(success=True, message=ht)
+                        except Exception:
+                            logging.exception("InlineHelp: error calling help_text on %s from %s", attr_name, modname)
+                        parts = []
+                        if getattr(help_inst, 'summary', None):
+                            parts.append(str(help_inst.summary))
+                        if getattr(help_inst, 'description', None):
+                            parts.append(str(help_inst.description))
+                        if getattr(help_inst, 'usage', None):
+                            parts.append('\nUsage:')
+                            for u in help_inst.usage:
+                                parts.append(str(u))
+                        if parts:
+                            return CommandResult(success=True, message='\n'.join(parts))
+                except Exception:
+                    logging.exception("InlineHelp: failed to import or find helpers in %s", cmd_name)
+
+                # final fallback: no help found, show general list
+                lines = ['Available commands:']
+                grouped = processor.get_commands_by_category()
+                for cat, cmds in grouped.items():
+                    lines.append(f"\n{getattr(cat, 'name', str(cat))}:")
+                    for c in sorted(cmds, key=lambda x: x.name):
+                        summary = getattr(c, 'summary', '') or ''
+                        lines.append(f"  {c.name:<12} - {summary}")
+                return CommandResult(success=True, message=lines)
+
+        # Register the inline help (if not already present)
+        existing_help_names = [c.name.lower() for c in processor.get_all_commands()]
+        if 'help' in existing_help_names:
+            logging.info("Unregistering existing 'help' command so inline help can take precedence")
+            try:
+                processor.unregister_command('help')
+            except Exception:
+                logging.exception("Failed to unregister existing help command")
+
+        # Register inline help
+        processor.register_command(_InlineHelp())
+        logging.info("Inline help command registered on processor (overriding any previous help)")
+    except Exception:
+        logging.exception("Could not register inline help command; continuing.")
+
     # 2. Ensure core login-related commands are available even if not decorated.
     #    Import them safely and register if their classes exist. This guarantees
     #    that 'login'/'connect', 'new', and 'guest' commands are present for
     #    clients during the login flow.
     core_cmds = [
         ("commands.connect", "ConnectCommand"),
+        ("commands.connect", "QuitCommand"),
+        ("commands.editplayer", "EditPlayerCommand"),
         ("commands.new_player", "NewPlayerCommand"),
         ("commands.guest", "GuestCommand"),
         ("commands.guest_commands", "HelpCommand"),
+        ("commands.teleport", "TeleportCommand"),
     ]
     for mod_name, cls_name in core_cmds:
         try:
@@ -323,6 +578,25 @@ def create_command_processor(client: Any, context: Optional[Dict[str, Any]] = No
                     logging.debug(f"Could not instantiate/register {cls_name} from {mod_name}: {e}")
         except Exception:
             logging.debug(f"Core command module {mod_name} not available; skipping.")
+
+    # 3. Prune commands based on per-command attributes
+    # Commands may set `login_only = True` to indicate they should only be
+    # available during the login flow (e.g. guest/new). Likewise, commands
+    # may set `auth_only = True` to indicate they should only be available
+    # to authenticated users. We remove the inappropriate commands here.
+    try:
+        is_auth = bool(processor_context.get(Context.IS_AUTHENTICATED) or processor_context.get('is_authenticated'))
+        # take a snapshot of command instances (unique) to examine attributes
+        for cmd in list(set(processor.get_all_commands())):
+            try:
+                if is_auth and getattr(cmd, 'login_only', False):
+                    processor.unregister_command(cmd.name)
+                elif (not is_auth) and getattr(cmd, 'auth_only', False):
+                    processor.unregister_command(cmd.name)
+            except Exception:
+                logging.debug(f"Could not prune command {getattr(cmd, 'name', None)} based on auth state")
+    except Exception:
+        logging.exception("Error while pruning commands from processor based on attributes")
 
     # 3. Add any other commands that aren't decorated here if needed
 
