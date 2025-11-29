@@ -10,6 +10,7 @@ from commands.command_processor import command
 from commands.utils import get_player_from_context
 from commands.context import Context
 from flags import PlayerFlags, FlagDisplayTypes
+from base_classes import PlayerStat
 
 
 # Try to use the global client_manager if available (delegates to net_common if configured)
@@ -191,10 +192,15 @@ class EditPlayerCommand(BaseCommand):
             logging.debug("editplayer.execute: context keys=%s", list(context.keys()) if isinstance(context, dict) else str(type(context)))
         except Exception:
             pass
-        # Resolve actor
+        # Resolve actor (support Context enum keys and plain string keys)
         client = None
         if isinstance(context, dict):
-            client = context.get('client') or context.get('client')
+            # Try enum key, enum.value, then plain string
+            try:
+                client = context.get(Context.CLIENT) or context.get(Context.CLIENT.value) or context.get('client')
+            except Exception:
+                client = context.get('client') if isinstance(context, dict) else None
+
         try:
             logging.debug("editplayer.execute: client attrs=writer=%s reader=%s player=%s username=%s", getattr(client,'writer',None) is not None, getattr(client,'reader',None) is not None, getattr(client,'player',None), getattr(client,'username',None))
         except Exception:
@@ -220,16 +226,20 @@ class EditPlayerCommand(BaseCommand):
         if not args:
             # If we don't have a player resolved yet, try fallbacks so plain 'ep' works
             if player is None:
-                # 1) try client.player
+                # 1) try client.player using multiple context shapes
                 try:
+                    possible_client = None
                     if isinstance(context, dict):
-                        possible_client = context.get('client')
-                    else:
-                        possible_client = None
+                        possible_client = context.get(Context.CLIENT) or context.get(Context.CLIENT.value) or context.get('client')
                     if possible_client is None:
                         possible_client = client
                     if possible_client is not None:
                         player = getattr(possible_client, 'player', None)
+                        # handler.player fallback
+                        if player is None:
+                            handler = getattr(possible_client, 'handler', None)
+                            if handler is not None:
+                                player = getattr(handler, 'player', None)
                 except Exception:
                     player = None
 
@@ -238,7 +248,7 @@ class EditPlayerCommand(BaseCommand):
                 try:
                     username = None
                     if isinstance(context, dict):
-                        username = context.get(Context.USERNAME) or context.get(Context.USERNAME.value) or context.get('username')
+                        username = context.get(Context.USERNAME.value) or context.get('username')
                     if username:
                         found = _find_player_by_name(username)
                         if found:
@@ -252,7 +262,7 @@ class EditPlayerCommand(BaseCommand):
                     import net_common
                     nc_cm = getattr(net_common, 'client_manager', None)
                     if nc_cm and isinstance(context, dict):
-                        username = context.get(Context.USERNAME) or context.get('username')
+                        username = context.get(Context.PLAYER.USERNAME) or context.get('username')
                         if username:
                             cinfo = nc_cm.get_client_by_user(username) if hasattr(nc_cm, 'get_client_by_user') else nc_cm.get_client(username)
                             if cinfo:
@@ -265,7 +275,7 @@ class EditPlayerCommand(BaseCommand):
                     pass
 
             if player is None:
-                return CommandResult(success=False, error='no_player', message=['No player context available'])
+                return CommandResult(success=False, error='no_player', lines=['No player context available'])
 
             try:
                 display_name = getattr(client, 'username', getattr(player, 'name', 'you'))
@@ -276,13 +286,13 @@ class EditPlayerCommand(BaseCommand):
                 if client is not None and getattr(client, 'writer', None) and getattr(client, 'reader', None):
                     # Launch interactive menu; it will send its own messages.
                     await self._interactive_editplayer(context, client, player)
-                    return CommandResult(success=True, message=['Exiting editor'])
+                    return CommandResult(success=True, lines=['Exiting editor'])
             except Exception:
                 # fall back to non-interactive output
                 pass
 
             lines = _format_flags_list(player, client_name=display_name)
-            return CommandResult(success=True, message=lines)
+            return CommandResult(success=True, lines=lines)
 
         # If first arg looks like a username and we have 2+ args, treat as admin edit target
         target_player = player
@@ -414,7 +424,7 @@ class EditPlayerCommand(BaseCommand):
         else:
             lines = [f"{chosen_flag.name} set for {target_name}", f"Previous: {prev}", f"Now:     {now}"]
 
-        return CommandResult(success=True, message=lines, data={'flag': chosen_flag.name, 'value': new_status})
+        return CommandResult(success=True, lines=lines, data={'flag': chosen_flag.name, 'value': new_status})
 
     async def _interactive_editplayer(self, context: dict, client, player) -> None:
         """Run an interactive menu over the player's attributes via client's reader/writer.
