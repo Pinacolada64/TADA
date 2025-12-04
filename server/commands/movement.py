@@ -1,202 +1,335 @@
 # movement
+import asyncio
 import logging
-from abc import ABC
-from typing import T, List
+from typing import List, cast
 
-from net_common import Message, MessageType, K
-from commands.help import BaseHelpText, HelpCategory
-from commands.base_command import Command, CommandResult
+from commands.base_command import BaseCommand, CommandResult, HelpCategory
+from commands.command_processor import command
+from commands.help import BaseHelpText
+from net_common import Message, MessageType, Mode
+from player import Player
+from commands.utils import get_player_from_context
 
-# Fallback compass text mapping
+# human-friendly direction text
 compass_txts = {'n': 'north', 's': 'south', 'e': 'east', 'w': 'west', 'u': 'up', 'd': 'down'}
 
 
-class MovementCommand(Command, ABC):
-    """Handles player movement commands."""
+@command(name='move', aliases=['n', 's', 'e', 'w', 'u', 'd', 'north', 'south', 'east', 'west', 'up', 'down', 'go'],
+         summary="Move in compass directions")
+class MoveCommand(BaseCommand):
+    """Move the player's character between rooms.
 
-    def __init__(self, context: T = None):
-        super().__init__(context)
-        # client manager needed for broadcasting messages to other players in the room
-        # and for updating player locations in rooms
-        data = context if context else {}
-        self.writer = data.get('writer')
-        self.client_manager = None
+    The command accepts: 'n', 'north', 'go north', 'go n', etc.
+    It expects `context` to contain a 'client' (the server-side client object)
+    which has a reference to `server` (the Server instance) and a `room` attribute.
+    """
 
-    @property
-    def name(self) -> str:
-        return 'move'
+    async def execute(self, context: dict, args: List[str]) -> CommandResult:
+        # Resolve client and server/map
+        client = None
+        if isinstance(context, dict):
+            client = context.get('client') or context.get('client')
+        if client is None:
+            return CommandResult(success=False, error='no_client', message='No client in command context')
 
-    @property
-    def aliases(self) -> list:
-        return ['n', 's', 'e', 'w', 'u', 'd',
-                'go north', 'go south', 'go east', 'go west',
-                'go up', 'go down']
-
-    async def _execute(self, params: list[str], data: dict) -> CommandResult:
-        """Execute the movement command.
-
-        :param data: Dictionary containing command data
-        :return: CommandResult instance with the result of the command
-        """
-        cmd = data.get('cmd')
-        player = data.get('player')
-        game_map = data.get('game_map')
-        writer = data.get('writer')
-        client_manager = data.get('client_manager')
-
-        if not cmd or not player or not game_map or not writer or not client_manager:
-            return CommandResult(
-                success=False,
-                error='missing_data',
-                message='Missing required data for movement command.'
-            )
-
+        # Prefer server provided in the processor context (create_command_processor sets this),
+        # but fall back to client.server if present.
+        server = None
         try:
-            message = await self.move_command(self, args, player, game_map)
-            return CommandResult(
-                success=True,
-                message=message.lines if isinstance(message.lines, str) else '\n'.join(message.lines),
-                data={'changes': message.changes}
-            )
-        except Exception as e:
-            logging.exception("Error executing movement command: %s", e)
-            return CommandResult(
-                success=False,
-                error='command_error',
-                message=f"Error executing command {self.name}: {str(e)}"
-            )
+            if isinstance(context, dict):
+                server = context.get('server') or None
+        except Exception:
+            server = None
+        if server is None:
+            server = getattr(client, 'server', None)
+        if server is None:
+            # If server is not available, provide a helpful instruction to the caller
+            return CommandResult(success=False, error='no_server', message='Server not available in command context')
 
-    async def move_command(self, args: list, player, game_map) -> Message:
-        """
-        Handle player movement commands.
+        # Determine direction token
+        if not args:
+            # Try to pick up the raw input from context (processor sets RAW_INPUT)
+            token = None
+            try:
+                token = (context.get('raw_input') or '').strip().split()[0].lower()
+            except Exception:
+                token = None
+            if not token:
+                return CommandResult(success=False, error='no_direction', message='Usage: n|s|e|w|u|d or go <direction>')
+        else:
+            token = args[0].lower()
 
-        :param self: CommandHandler instance
-        :param args: List of command words (e.g., ['n'], ['go', 'north'])
-        :param player: Player instance
-        :param game_map: GameMap instance
-        :return: Message instance with the result of the command
-        """
-        logging.debug("movement command: %s" % args)
-        logging.debug("player location: %s" % player.room)
-        logging.debug("exits: %s" % game_map.rooms[player.room].exits)
-        if args in compass_txts:
-            room = game_map.rooms[player.room]
-            logging.debug("parser: current room #: %s" % player.room)
-            direction = arg[0]
-            logging.debug("parser: direction: %s" % direction)
-            # 'rooms' is a list of Room objects?
-            logging.debug("parser: exits: %s" % room.exits)
-            """
-            >>> exits = {'n': 1, 's': 3}
-        
-            >>> exits.keys()
-            dict_keys(['n', 's'])
-            >>> exits['n']
-            1
-            """
-            # json data (dict):
-            # check if 'direction' is in room exits
-            if direction in room.exits:  # rooms[player.room].exits.keys():
-                logging.debug("move %s => %s" % (direction, player.room))
-                # delete player from list of players in current room, then
-                # add player to list of players in room they moved to
-                self.client_manager.remove_player_from_room(player.id, player.room)
-                player.move(destination_room=room.exits[direction], direction=direction)
-                self.client_manager.add_player_to_room(player.id, player.room)
-                # update player.room to new room number
-                logging.debug("parser: new room #: %s" % player.room)
-                # player.room = room.exits[direction]
-                logging.debug("parser: moved %s to room %s" % (player.name, player.room))
-                # get new room desc:
-                # player.move(room.exits[direction], direction)
-                room_name = game_map.rooms[player.room].name
-                message = Message(lines=[f"You move {compass_txts[direction]}."],
-                                  type=MessageType.REGULAR)
-                await end_message(self.writer, message=message,
-                                     changes={K.room_name: room_name,
-                                              K.room: game_map.rooms[player.room].desc})
-                # tell other players in the room that player has entered
-                self.client_manager.players_in_room(
-                    Message(lines=f"{player.name} enters.",
-                            type=MessageType.ANNOUNCEMENT),
-                    room=player.room,
-                    exclude=[player.id]
-                )
+        if token in ('go', 'move') and len(args) > 1:
+            token = args[1].lower()
 
-        """
-        This is the way the original Apple code handled up/down exits.
-        I'm fully aware up/down exits could just be a room number, or 0
-        for no connection--my self-written level 8 map does exactly this.
-        """
-        if cmd[0][:1] == 'u' or cmd[0][:1] == 'd':
-            room = game_map.rooms[player.room]
-            room_exits = room.exits
-            room_connection = room_exits.get('rc', 0)
-            room_transport = room_exits.get('rt', 0)
-            # example: level 1, room 20
-            if cmd[0] == 'u' and room_connection == 1:
-                if room_transport != 0:
-                    logging.debug("parser: %s moves Up to %i" % (player.id, room_transport))
-                    # player.room = room_transport
-                    player.move(destination_room=room_transport, direction='u')
-                    return Message(lines=["You move up."],
-                                   changes={K.room_name: room.name,
-                                            K.room: room.desc}
-                                   )
+        # normalize to single-letter directions where possible
+        dir_map = {
+            'north': 'n', 'n': 'n',
+            'south': 's', 's': 's',
+            'east': 'e', 'e': 'e',
+            'west': 'w', 'w': 'w',
+            'up': 'u', 'u': 'u',
+            'down': 'd', 'd': 'd'
+        }
+
+        direction = dir_map.get(token)
+        if not direction:
+            return CommandResult(success=False, error='bad_direction', message=f'Unknown direction: {token}')
+
+        # Current room number
+        try:
+            cur_room_no = int(getattr(client, 'room', 1) or 1)
+        except Exception:
+            return CommandResult(success=False, error='bad_room', message='Invalid current room')
+
+        # Special-case: moving north from room 49 (to 37) should call the bar module
+        if direction == 'n' and cur_room_no == 49:
+            logging.info("Player in room 49 moving north: invoking bar module")
+            try:
+                import bar.main as bar_mod
+            except Exception as e:
+                logging.exception("Failed to import bar.main: %s", e)
+                return CommandResult(success=False, error='bar_import', message=f'Failed to import bar module: {e}')
+
+            original_room = cur_room_no
+            # mark as in bar room temporarily
+            client.room = 0
+
+            # Adapter to capture bar output
+            class _BarAdapter:
+                def __init__(self):
+                    self.buf = []
+                    class CS:
+                        screen_rows = 24
+                        screen_columns = 80
+                        translation = None
+                    self.client_settings = CS()
+
+                def output(self, text):
+                    if isinstance(text, list):
+                        for t in text:
+                            self.buf.append(str(t))
+                    else:
+                        self.buf.append(str(text))
+
+            adapter = _BarAdapter()
+            try:
+                if hasattr(bar_mod, 'bar_help'):
+                    # bar_help expects a Player; adapter provides the minimal output()/client_settings interface
+                    bar_mod.bar_help(cast(Player, adapter))
+                elif hasattr(bar_mod, 'main'):
+                    # try calling main with a Player-like object first, then fallback to no-arg call
+                    try:
+                        bar_mod.main(cast(Player, adapter))
+                    except TypeError:
+                        try:
+                            bar_mod.main()
+                        except Exception:
+                            logging.debug('bar.main() failed or is interactive; no workable entrypoint found')
+            except Exception:
+                logging.exception('bar module call failed')
+                client.room = original_room
+                return CommandResult(success=False, error='bar_error', message='Bar module execution failed')
+
+            # deliver adapter output via server helper if possible
+            try:
+                if hasattr(server, '_send_lines_to_client'):
+                    server._send_lines_to_client(client, adapter.buf)
+                    client.room = original_room
+                    return CommandResult(success=True, message='Bar displayed', data={'room': original_room})
                 else:
-                    logging.debug("parser: %s moves Up to Shoppe" % player.name)
-                    player.move(destination_room=room_transport, direction='u')
-                    # don't change player.room, return them to where they left
-                    return Message(lines=["TODO: write Shoppe routine..."])
-            if cmd[0] == 'd' and room_connection == 2:
-                if room_transport != 0:
-                    logging.debug("parser: %s moves Down to %i" % (player.name, room_transport))
-                    player.move(destination_room=room_transport, direction='d')
+                    client.room = original_room
+                    return CommandResult(success=True, message='\n'.join(adapter.buf), data={'room': original_room})
+            except Exception:
+                logging.exception('Failed to deliver bar output to client')
+                client.room = original_room
+                return CommandResult(success=False, error='bar_error', message='Failed to send bar output')
 
-                    # get new room desc:
-                    # FIXME: TypeError: 'Room' object is not subscriptable
-                    """
-                    temp = game_map.rooms[number]
-                    logging.info(f"room info: {temp}")
-                    desc = temp["desc"]
-                    logging.info(f"desc: {desc}")
-                    """
-                    # FIXME: see server.py, line 24:
-                    #  thought maybe this would show the new room desc
-                    return Message(lines=["You move down."],
-                                   changes={K.room_name: room.name,
-                                            K.room: room.desc}
-                                   )
+        game_map = getattr(server, 'game_map', None)
+        if not game_map or cur_room_no not in game_map.rooms:
+            return CommandResult(success=False, error='map_missing', message='Map not available')
+
+        room = game_map.rooms[cur_room_no]
+
+        # check exits
+        exits = getattr(room, 'exits', {}) or {}
+
+        # First, try explicit directional exits (n/e/s/w/u/d)
+        dest_no = None
+        if direction in exits and exits[direction]:
+            dest = exits[direction]
+            try:
+                dest_no = int(dest)
+            except Exception:
+                return CommandResult(success=False, error='bad_exit', message='Invalid exit target')
+        else:
+            # No explicit directional exit. Check for rc/rt transports when moving up/down
+            if direction in ('u', 'd'):
+                try:
+                    rc = int(exits.get('rc', 0) or 0)
+                except Exception:
+                    rc = 0
+                try:
+                    rt = int(exits.get('rt', 0) or 0)
+                except Exception:
+                    rt = 0
+
+                # rc==1 means Up, rc==2 means Down
+                if (rc == 1 and direction == 'u') or (rc == 2 and direction == 'd'):
+                    # transport to Shoppe
+                    if rt == 0:
+                        logging.info("Attempting to import shoppe.main for Shoppe handling")
+                        try:
+                            import shoppe.main as shop_mod
+                        except Exception as e:
+                            logging.exception("Failed to import shoppe.main: %s", e)
+                            return CommandResult(success=False, error='shoppe_error', message=f'Shoppe module import failed: {e}')
+
+                        # Remember current room to return player later
+                        original_room = cur_room_no
+                        # Mark client and player as being in virtual shoppe room (optional)
+                        try:
+                            client.room = 0
+                        except Exception:
+                            pass
+                        try:
+                            if player is not None:
+                                setattr(player, 'map_room', 0)
+                        except Exception:
+                            pass
+
+                        # If shop_mod provides a ShoppeCommand, use it for the interactive flow
+                        if hasattr(shop_mod, 'ShoppeCommand'):
+                            try:
+                                shop_cmd = shop_mod.ShoppeCommand()
+                                ctx = {'client': client, 'server': server}
+                                result = shop_cmd.execute(getattr(client, 'reader', None), getattr(client, 'writer', None), ctx, [])
+                                if asyncio.iscoroutine(result):
+                                    result = await result
+                            except Exception:
+                                logging.exception('ShoppeCommand execution failed')
+                                # restore room and return error
+                                client.room = original_room
+                                return CommandResult(success=False, error='shoppe_error', message='Shoppe interaction failed')
+
+                        # fallback: older modules may export a bar_help function that writes to an adapter
+                        elif hasattr(shop_mod, 'bar_help'):
+                            class _BarAdapter:
+                                def __init__(self):
+                                    self.buf = []
+                                    class CS:
+                                        screen_rows = 24
+                                        screen_columns = 80
+                                        translation = None
+                                    self.client_settings = CS()
+
+                                def output(self, text):
+                                    if isinstance(text, list):
+                                        for t in text:
+                                            self.buf.append(str(t))
+                                    else:
+                                        self.buf.append(str(text))
+
+                            adapter = _BarAdapter()
+                            try:
+                                shop_mod.bar_help(adapter)
+                            except Exception:
+                                logging.exception('bar_help failed')
+                                client.room = original_room
+                                return CommandResult(success=False, error='shoppe_error', message='Shoppe bar_help failed')
+
+                            # Send adapter output back to client via server API if available
+                            try:
+                                if hasattr(server, '_send_lines_to_client'):
+                                    server._send_lines_to_client(client, adapter.buf)
+                                else:
+                                    # If server can't send lines, return them in the CommandResult so caller can forward them
+                                    client.room = original_room
+                                    return CommandResult(success=True, message='\n'.join(adapter.buf), data={'room': original_room})
+                            except Exception:
+                                logging.exception('Failed to deliver bar_help output to client')
+                                client.room = original_room
+                                return CommandResult(success=False, error='shoppe_error', message='Failed to send shoppe output')
+
+                        else:
+                            # shoppe module didn't provide expected interfaces
+                            logging.error('shoppe.main has no ShoppeCommand or bar_help')
+                            client.room = original_room
+                            return CommandResult(success=False, error='shoppe_error', message='Shoppe module missing entry points')
+
+                        # After shoppe interaction completes, restore player's room to the original map room
+                        client.room = original_room
+                        # Describe the room to the player again
+                        try:
+                            lines = server._describe_room(client)
+                        except Exception:
+                            logging.exception('Failed to describe room after leaving shoppe')
+                            lines = ["You return to the map."]
+
+                        # Return description to caller
+                        return CommandResult(success=True, message=lines, data={'room': original_room})
                 else:
-                    logging.debug("parser: %s moves Down to Shoppe" % player.name)
-                    player.move(destination_room=room_transport, direction='d')
+                    return CommandResult(success=False, error='no_exit', message='You cannot go that way.')
 
-                    # don't change player.room, return them to where they left
-                    message = Message(lines=["TODO: write Shoppe routine..."])
-                    # return the placeholder message
-                    return message
+        # perform the move
+        old_room = cur_room_no
+        # Special handling: if moving up/down is represented via room.rc/rt rather than a directional exit
+        # and this destination is the Shoppe (rt == 0), invoke merchant annex (bar) module's non-interactive helpers
+        client.room = dest_no
 
-            else:
-                return Message(lines=["Ye cannot travel that way."])
-        return None
+        # announce to others (async broadcast)
+        try:
+            ann = Message(lines=[f"{getattr(client, 'username', 'Someone')} moves {compass_txts.get(direction, direction)}."],
+                          type=MessageType.ANNOUNCEMENT, mode=Mode.app)
+            # fire-and-forget but await so errors propagate in tests; server may handle exceptions
+            await server.broadcast_message(getattr(client, 'addr', None), ann)
+        except Exception:
+            logging.exception('Failed to broadcast movement announcement')
 
+        # Return the new room description to the mover
+        try:
+            lines = server._describe_room(client)
+        except Exception:
+            logging.exception('Failed to build room description after move')
+            lines = [f"You move {compass_txts.get(direction, direction)}."]
+
+        return CommandResult(success=True, message=lines, data={'room': dest_no})
+# --- Additional logic for rc/rt transports (Shoppe) ---
+# Note: rc/rt transports are encoded in room.exits as 'rc' and 'rt'.
+# If player attempted 'up' or 'down' and the room has rc==1/2 with rt==0 (Shoppe), handle specially.
+# We'll attempt to detect this earlier in the command execution to avoid no_exit for 'down' when rc exists.
 
 class MoveHelp(BaseHelpText):
-    name = "movement"
-    aliases = ["move"]
+    """Help provider for the 'move' command."""
+    name = 'move'
+    aliases = ['n', 's', 'e', 'w', 'u', 'd', 'go']
 
-    def __init__(self, context=None):
+    def __init__(self):
         super().__init__()
         self.category = HelpCategory.MOVEMENT
-        self.summary = "Move in compass directions"
-        self.usage = [("n/s/e/w/u/d", "Move in a direction")]
+        self.summary = 'Move in compass directions'
+        self.description = (
+            "Use movement commands to travel between rooms. You can use single-letter directions "
+            "(n, s, e, w, u, d) or the full words (north, south, east, west, up, down). You can also use "
+            "'go <direction>' or the alias 'go'."
+        )
+        self.usage = [
+            ("n|s|e|w|u|d", "Move one step in the specified compass direction"),
+            ("go <direction>", "Alternate form: go north / go n")
+        ]
         self.examples = [
-            ("n", "Move north if there is an exit in that direction."),
-            ("go east", "Move east if there is an exit in that direction."),
-            ("help move", "Show help for the 'move' command"),
+            ("n", "Move north"),
+            ("go west", "Move west using 'go'")
         ]
-        self.notes = [
-            "You can use either 'help' or '?' to access help.",
-            "Command names are case-insensitive.",
-            "Some commands may have aliases (shown in parentheses)."
-        ]
+
+    def help_text(self, is_recursive: bool = False) -> str:
+        return (
+            "Move Command\n"
+            "------------\n"
+            "Usage: n|s|e|w|u|d\n"
+            "       go <direction>\n\n"
+            "Move between connected rooms in the specified direction.\n\n"
+            "Examples:\n"
+            "  n            - Move north\n"
+            "  go south     - Move south using 'go'\n"
+        )
