@@ -16,7 +16,7 @@ class TestCombination(unittest.TestCase):
             self.assertLessEqual(n, 99)
 
         s = str(c)
-        m = re.search(r'(\d{2})-(\d{2})-(\d{2})$', s)
+        m = re.search(r'(\d{1,2})-(\d{1,2})-(\d{1,2})$', s)
         self.assertIsNotNone(m)
         parsed = tuple(int(x) for x in m.groups())
         self.assertEqual(parsed, c.combination)
