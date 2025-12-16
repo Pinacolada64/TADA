@@ -52,15 +52,29 @@ See Also:
 - manager.py: Command registration and execution
 - help.py: Help command implementation
 """
+import logging
+from typing import Dict, Any, List
 
-from server.locks import LockType
+# from locks import LockType
+from commands.base_command import CommandResult, Command
 
+
+class LockType:
+    IS_ADMINISTRATOR = "is_administrator"
+    CUSTOM = "custom"
+    PLAYER_FLAG = "player_flag"
+    EXIT = "exit"
+
+class Lock:
+    def __init__(self, lock_type: str, result: bool):
+        self.lock_type = lock_type
+        self.result = result
 
 class RestartCommand(Command):
     """Admin command to restart the server"""
     name = "restart"
     aliases = ["reboot", "shutdown"]
-    locks = [PlayerFlag.ADMINISTRATOR is True]
+    locks = [Lock(LockType.IS_ADMINISTRATOR, True)]
 
     def help_text(self) -> str:
         return (
@@ -83,14 +97,16 @@ class RestartCommand(Command):
             )
             
         # Log the restart
-        logger.warning(f"Server restart initiated by {user.name}. Reason: {reason}")
+        logging.warning(f"Server restart initiated by {user.name}. Reason: {reason}")
         
         # Broadcast to all users
         broadcast_message = f"Server restarting in 10 seconds (by {user.name}). Reason: {reason}"
         
         # Perform restart (this would be implemented in your server code)
         # await server_restart(delay=10, reason=reason, message=broadcast_message)
-        
+        from client_manager import ClientManager
+        ClientManager.broadcast(data, broadcast_message)
+
         return CommandResult(
             success=True,
             message="Server restart initiated. All users will be disconnected in 10 seconds.",
@@ -101,7 +117,7 @@ class ShutdownCommand(Command):
     """Admin command to shutdown the server"""
     name = "shutdown"
     aliases = ["shut"]
-    locks = [PlayerFlag.ADMINISTRATOR is True]
+    locks = [Lock(LockType.IS_ADMINISTRATOR, True)]
 
     def help_text(self) -> str:
         return (
@@ -110,6 +126,7 @@ class ShutdownCommand(Command):
         )
 
     async def _execute(self, data: Dict[str, Any]) -> CommandResult:
+        from client_manager import ClientManager
         # Get the user who executed the command
         user = data.get('user')
         reason = data.get('args', 'No reason provided')
@@ -123,11 +140,12 @@ class ShutdownCommand(Command):
             )
             
         # Log the shutdown
-        logger.warning(f"Server shutdown initiated by {user.name}. Reason: {reason}")
+        logging.warning(f"Server shutdown initiated by {user.name}. Reason: {reason}")
         
         # Broadcast to all users
         broadcast_message = f"Server shutting down in 10 seconds (by {user.name}). Reason: {reason}"
-        
+        ClientManager.broadcast(broadcast_message)
+
         # Perform shutdown (this would be implemented in your server code)
         # await server_shutdown(delay=10, reason=reason, message=broadcast_message)
         
@@ -141,7 +159,7 @@ class BootCommand(Command):
     """Admin command to boot ill-behaving players"""
     name = "boot"
     aliases = ["kick"]
-    locks = [PlayerFlag.ADMINISTRATOR is True]
+    locks = [Lock(LockType.IS_ADMINISTRATOR, True)]
 
     def help_text(self) -> str:
         return (
@@ -149,7 +167,7 @@ class BootCommand(Command):
             f"Usage: {self.name} <player_name> [reason]"
         )
     
-    async def _execute(self, data: Dict[str, Any]) -> CommandResult:
+    async def _execute(self, args: list[str], data: dict[str, Any]) -> CommandResult:
         # Get the user who executed the command
         user = data.get('user')
         player_name = data.get('args', 'No player name provided')
@@ -164,7 +182,9 @@ class BootCommand(Command):
             )
             
         # Log the boot
-        logger.warning(f"Player {player_name} booted by {user.name}. Reason: {reason}")
+        reason = f" Reason: {args[2]}" if len(args) > 2 else ''
+        message = f"Player {player_name} booted by {user.name}.{reason}"
+        logging.warning(f"{message}")
         
         # Broadcast to all users
         broadcast_message = f"Player {player_name} booted by {user.name}. Reason: {reason}"
@@ -198,7 +218,7 @@ class BanCommand(Command):
         player_name = data.get('args', 'No player name provided')
         duration = data.get('args', 'No duration provided')
         reason = data.get('args', 'No reason provided')
-        show_ban_list = data.get('args', '#list', "Not showing ban list")
+        show_ban_list = data.get('args', "Not showing ban list")
 
         # Check if the user has the required permissions
         if not user or not user.is_admin:
@@ -217,7 +237,7 @@ class BanCommand(Command):
             )
 
         # Log the ban
-        logger.warning(f"Player {player_name} banned by {user.name}. Duration: {duration}. Reason: {reason}. IP Address: {ip_address}")
+        logging.warning(f"Player {player_name} banned by {user.name}. Duration: {duration}. Reason: {reason}. IP Address: {ip_address}")
         
         # Broadcast to all users
         broadcast_message = f"Player {player_name} banned by {user.name}. Duration: {duration}. Reason: {reason}. IP Address: {ip_address}"
@@ -260,7 +280,7 @@ class UnbanCommand(Command):
             )
             
         # Log the unban
-        logger.info(f"Player {player_name} unbanned by {user.name}. Reason: {reason}. IP Address: {ip_address}")
+        logging.info(f"Player {player_name} unbanned by {user.name}. Reason: {reason}. IP Address: {ip_address}")
         
         # Broadcast to all users
         broadcast_message = f"Player {player_name} unbanned by {user.name}. Reason: {reason}. IP Address: {ip_address}"

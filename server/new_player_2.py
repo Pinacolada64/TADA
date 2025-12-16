@@ -2,14 +2,14 @@ import logging
 import random
 from dataclasses import dataclass
 import datetime
-from enum import Enum, auto, StrEnum, IntEnum
+from enum import Enum, auto
 import textwrap
 import doctest
 
+import terminal
 from flags import Flag, new_player_default_flags, FlagDisplayTypes
 from base_classes import Combination, CombinationTypes, Alignment, Gender, PlayerMoneyTypes, PlayerStat, Guild
-from base_variables import STAT_DATA
-from terminal import KeyboardKeyName, Translation
+from terminal import KeyboardKeyName, Translation, ClientSettings
 
 
 class Color(Enum):

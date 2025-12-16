@@ -3,6 +3,8 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum, auto
 import logging
 
+from simple_client import send_message
+
 # Try to import BaseHelpText from commands.help, but avoid hard dependency to prevent circular imports
 try:
     from commands.help import BaseHelpText
@@ -77,5 +79,11 @@ class HelpText(BaseHelpText):
         self.usage: str = "command [<parameter>]"
 
 
-class Command:
-    logging.info("Command called")
+class Command(BaseCommand):
+    async def execute(self, reader: 'asyncio.StreamReader', writer: 'asyncio.StreamWriter', context: Dict[str, Any], args: List[str]) -> CommandResult:
+        logging.info("Command called")
+        try:
+            await send_message(writer, "OK")
+        except Exception:
+            logging.exception("Failed to write to client")
+        return CommandResult(success=True, message="Command executed")

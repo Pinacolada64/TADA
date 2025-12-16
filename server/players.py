@@ -1,3 +1,5 @@
+# FIXME: PLAYERS.PY IS OUTDATED. MIGRATE BETTER CODE TO PLAYER.PY, THEN DELETE IT.
+
 import doctest
 import logging
 from dataclasses import dataclass, field
@@ -16,34 +18,29 @@ from base_classes import Gender, PlayerMoneyTypes, PlayerMoneyCategory, PlayerSt
 
 @dataclass
 class Character(object):
+    import flags  # new_player_default_flags
     name: str
-    flags: dict[flags.PlayerFlags, flags.Flag] = field(default_factory=lambda: {i[0] for i in
-                                                                                flags.player_flag_data})
-
-class Ally(Character):
-    pass
+    flags: dict[flags.PlayerFlags, flags.Flag] = field(default_factory=lambda: {i[0] for i in new_player_default_flags})
 
 @dataclass
-class Player(object):
-    # TODO: make some of these stats part of a base class
+class Player:
+    # TODO: THIS DOES NOT WORK ANYMORE. compare player.py and players.py; MOVE BETTER CODE INTO PLAYER.PY
     # Copy list of Flag defaults from PlayerFlag enum on Player instantiation:
+    from flags import Flag
     flags: dict[flags.PlayerFlags, flags.Flag] = field(default_factory=lambda: {i[0]: flags.Flag(*i) for i in flags.player_flag_data})
     stat: dict[PlayerStat, int] = field(default_factory=lambda: {i: 0 for i in PlayerStat})
-    """
-    The Florentine florin was a gold coin struck from 1252 to 1533 with no significant change in its design or metal content standard during that time. Wikipedia
-    """
-    gold: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1000 for i in PlayerMoneyTypes})
+    silver: dict[PlayerMoneyTypes, int] = field(default_factory=lambda: {i: 1_000 for i in PlayerMoneyTypes})
 
-    def get_flag(self, name: flags.PlayerFlagName) -> Flag:
+    def get_flag(self, name: PlayerFlags) -> Flag:
         """
         Given a PlayerFlagName, return the Flag object
         :param name: name of flag
         :return: Flag object
         """
-        logging.debug("get_flag: %s" % self.flags.get(name))
+        logging.debug("%s" % self.flags.get(name))
         return self.flags.get(name)
 
-    def show_flag(self, flag: flags.PlayerFlagName, ) -> str:
+    def show_flag(self, flag: PlayerFlags) -> str | None:
         """
         Display the flag name, ":", and its display_name status.
         :param flag: Flag name to display
@@ -66,13 +63,13 @@ class Player(object):
             # flag_name = temp.name
             display_type = temp.display_type
             status = temp.status
-            logging.debug("show_flag: flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
+            logging.debug("flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
             result = self.show_flag_status(flag)
             return f"{flag_name}: {result}"
         except KeyError:
             logging.warning("show_flag: unknown flag: %s" % flag.name)
 
-    def show_flag_line_item(self, flag: PlayerFlagName, leading_num: int) -> str:
+    def show_flag_line_item(self, flag: PlayerFlags, leading_num: int) -> str | None:
         """
         Display the flag status based on its display_type string.
         The flag is listed prefixed with leading_number, "...:" and the status.
@@ -83,7 +80,9 @@ class Player(object):
         :return: str
         """
         """
-        >>> test_player = Player(name="test")
+        >>> test_player = Player()
+        
+        >>> test_player.clear_flag(PlayerFlag.UNCONSCIOUS)
 
         >>> print(test_player.show_flag_line_item(PlayerFlagName.UNCONSCIOUS, leading_num=1))
          1. Unconscious...............: No
@@ -103,29 +102,30 @@ class Player(object):
         except KeyError:
             logging.warning("show_flag_line_item: unknown flag: %s" % flag.name)
 
-    def show_flag_status(self, flag: PlayerFlagName) -> str:
+    def show_flag_status(self, flag: PlayerFlags) -> str:
         """
         Show a flag's status.
         :param flag: PlayerFlagName to display the status of
         :return: Appropriate string for flag DisplayType
         """
         """
-        >>> rulan.show_flag_status(PlayerFlagName.UNCONSCIOUS)
+        >>> rulan = Player()
+
+        >>> rulan.show_flag_status(PlayerFlags.UNCONSCIOUS)
         'No'
         """
+        from flags import FlagDisplayTypes
         temp = self.flags[flag]
-        if temp.display_type is flags.FlagDisplayTypes.YESNO:
+        if temp.display_type is FlagDisplayTypes.YESNO:
             result = "Yes" if temp.status else "No"
-        elif temp.display_type is flags.FlagDisplayTypes.ONOFF:
+        elif temp.display_type is FlagDisplayTypes.ONOFF:
             result = "On" if temp.status else "Off"
-        elif temp.display_type is flags.FlagDisplayTypes.TRUEFALSE:
-            result = "True" if temp.status else "False"
         else:
             logging.error("show_flag_status: invalid type %s for flag %s" % (temp.display_type, temp.name))
             result = "<<error>>"
         return result
 
-    def toggle_flag(self, flag: PlayerFlagName, verbose=False):
+    def toggle_flag(self, flag: "PlayerFlags", verbose=False):
         """
         Toggle the status of a flag. If verbose=True, tell about it (like when a player
         toggles an option on or off)
@@ -135,25 +135,28 @@ class Player(object):
         """
         try:
             result = self.get_flag(flag)
-            logging.debug("toggle_flag: Flag: %s before toggle: %s" % (flag.value, result.status))
+            logging.debug("Flag: %s before toggle: %s" % (flag.value, result.status))
             result.status = not result.status
-            logging.debug("toggle_flag: Flag: %s after toggle: %s" % (flag.value, result.status))
-            self.put_flag(result.name, result.display_type, result.status)
+            logging.debug("Flag: %s after toggle: %s" % (flag.value, result.status))
+            self.put_flag(flag, result.display_type, result.status)
             if verbose:
                 # FIXME: I'm going to let this stand even though "UNCONSCIOUS are off"
-                # will never be displayed directly, maybe in a player editor program...
+                #  will never be displayed directly except maybe in a player editor program...
                 indefinite_article = "are" if flag.name.endswith("S") else "is"
                 print(f"{flag.value} {indefinite_article} now {self.show_flag_status(flag)}.")
         except KeyError:
             logging.warning("toggle_flag: Can't toggle unknown flag: %s" % flag.name)
 
-    def put_flag(self, name: flags.PlayerFlagName, display_type: flags.FlagDisplayTypes, status: bool):
-        logging.debug("put_flag: %s put as %s" % (name, status))
+    def put_flag(self, name: "PlayerFlags", display_type: "FlagDisplayTypes", status: bool):
+        from flags import Flag
+        # FIXME: seems like put_flag should know the display_type of the PlayerFlags object and
+        #  not need to be specified in the function call
+        logging.debug("%s put as %s" % (name, status))
         self.flags[name] = Flag(name, display_type, status)
 
-    def query_flag(self, flag: flags.PlayerFlagName) -> bool:
+    def query_flag(self, flag: "PlayerFlags") -> bool:
+        """Returns the status (True/False) of specified Flag object to caller"""
         result = self.get_flag(flag)
-        # returned Flag object, return the status to caller:
         return result.status
 
     def show_stat(self, stat_name: PlayerStat) -> str:
@@ -167,11 +170,12 @@ class Player(object):
         logging.debug("adjust_stat: current: %s: %i, adjusted: %i" % (stat_name.name, current, new))
         self.put_stat(stat_name, new)
 
-    def get_stat(self, stat_name: PlayerStat) -> int:
+    def get_stat(self, stat_name: PlayerStat) -> int | None:
         for key, value in self.stat.items():
             if stat_name.value == key:
                 logging.debug("get_stat: get %s: %i" % (stat_name.value, value))
                 return value
+        return None
 
     def put_stat(self, stat_name: PlayerStat, value) -> None:
         logging.debug("put_stat: put %s: %i" % (stat_name.value, value))
@@ -238,28 +242,6 @@ class TodoPlayer(Character):
     last_play_date: datetime # (month, day, year) like birthday
 
     special_items: list
-    """
-        SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
-        BOAT  # does not actually need to be carried around in inventory, I don't suppose, just a flag?
-        combinations{'elevator', 'locker', 'castle'}  # tuple? combo is 3 digits: (nn, nn, nn)
-    """
-
-    map_level: int  # cl
-    map_room: int  # cr
-    moves_made: int
-    """
-    self.guild = guild  # [civilian | fist | sword | claw | outlaw]
-        #                      1       2        3       4      5       6       7         8       9
-        self.char_class = char_class  # Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  Assassin Knight
-        self.race = race  # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
-
-        self.hit_points = hit_points
-        self.shield = shield
-        self.armor = armor
-        self.experience = experience
-        """
-    # combat:
-    honor: int
     # Weapon(weapon_percentage{'weapon': percentage [, ...]}
     # weapon_ammunition{'weapon': ammo_count [, ...]}
     # bad_hombre_rating is calculated from stats, not stored in player log
@@ -324,7 +306,7 @@ class TodoPlayer(Character):
                 if stat not in self.stats:
                     logging.warning(f"get_stat: Stat {stat} doesn't exist.")
                     # TODO: raise ValueError?
-                    return
+                    return None
                 total += self.stats[k]
             logging.info(f'get_stat[list]: {stat=} {total=}')
             return total
@@ -332,28 +314,23 @@ class TodoPlayer(Character):
         if stat not in self.stats:
             logging.warning(f"get_stat: Stat {stat} doesn't exist.")
             # TODO: raise ValueError?
-            return
+            return None
         return self.stats[stat]
 
     def print_stat(self, stat: str):
         """
-        print player stat in title case: '<Stat>: <value>'
+        # print player stat in title case: '<Stat>: <value>'
 
-        for doctest
-        FIXME: eventually. can't figure out how to test functions which have a prerequisite function
-        >>> Rulan = Player(name="Rulan",
-                           connection_id=1,
-                           client={'name': 'Commodore 64'},
-                           flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
-                           )
+        # for doctest
+        >>> rulan = Player(name="rulan")
 
-        >>> Rulan.print_stat('int')
+        >>> rulan.print_stat(PlayerStat.INT, abbreviate=True)
         Int: 5
         """
         if stat not in self.stats:
             logging.warning(f"get_stat: Stat {stat} doesn't exist.")
             # TODO: raise ValueError?
-            return
+            return None
         # return e.g., "Int: 4"
         return f'{stat.title()}: {self.stats[stat]}'
 
@@ -362,14 +339,9 @@ class TodoPlayer(Character):
         print all player stats in title case: '<Stat>: <value>'
 
         for doctest eventually
-        FIXME: can't figure out how to test routines which have other function call prerequisites
-        >>> Rulan = Player(name="Rulan",
-                           connection_id=1,
-                           client={'name': 'Commodore 64'},
-                           flags={'dungeon_master': True, 'debug': True, 'expert_mode': False}
-                           )
+        >>> Rulan = Player(name="rulan")
 
-        >>> Rulan.print_all_stats()
+        >>> rulan.print_all_stats()
         Chr:  8   Int:  5   Egy:  3
         Con: 15   Str:  8
         Dex:  3   Wis:  3
@@ -391,7 +363,7 @@ class TodoPlayer(Character):
         """
         if kind not in self.silver:
             logging.info(f"get_silver: Bad type '{kind}'.")
-            return
+            return None
         logging.info(f'get_silver: {self.silver[kind]}')
         return self.silver[kind]
 
@@ -437,16 +409,7 @@ class Ally(object):
         where (as in TLOS): empty=0, lurking=1, point=2, flank=2, rear=3,
             (guard=4?), unconscious=5 (in python I will spell out positions as strings)
         abilities[
-            'tracking': int  # number of rooms away an ally can detect a target
-                             # TLOS: distance between tracker and target determined track strength.
-                             # target's last play date delta compared to date.today determines
-                             # "strength" of tracks: 1-3 days: very fresh, >3 days: weak (?)
-                             # https://docs.python.org/3/library/datetime.html
-             # TODO: look at Skip's branch on GitHub, it has more TRACKing stuff:
-                # https://github.com/Pinacolada64/TADA-old/blob/4c24c069139a495f97b2964d54c374b957c9eeab/SPUR-code/SPUR.MISC9.S
-            'ayf': int      # ally has a 1-ayf% chance of randomly finding sack of gold/diamond/etc.
-            'alignment': str # in TLOS: '(' good, ')' evil
-            ]
+
         flags[              # | = TLOS ally string postfix, then:
             'elite': bool   # !
             'mount': bool   # =
@@ -480,29 +443,29 @@ if __name__ == '__main__':
 
     # connection_ids = []  # initialize empty list for logging connection_id's
 
-    Rulan = Player()
-    Rulan.name = "Rulan"
-    Rulan.connection_id = 1
-    Rulan.client = {'name': 'Commodore 128', 'columns': 80}
-    Rulan.flags = {'dungeon_master': True, 'debug': True, 'expert_mode': False}
+    rulan = Player()
+    rulan.name = "Rulan"
+    rulan.connection_id = 1
+    rulan.client = {'name': 'Commodore 128', 'columns': 80}
+    rulan.flags = {'dungeon_master': True, 'debug': True, 'expert_mode': False}
 
-    print(Rulan)
-    Rulan.set_stat('int', 5)
-    print(f"{Rulan.print_stat('int')}")  # show "Int: 5", this passes
+    print(rulan)
+    rulan.set_stat('int', 5)
+    print(f"{rulan.print_stat('int')}")  # show "Int: 5", this passes
 
-    Rulan.set_stat('int', 4)  # add to Rulan's Intelligence of 5, total 9
-    print(f"{Rulan.print_stat('int')}")  # show "Int: 9", this passes
+    rulan.set_stat('int', 4)  # add to rulan's Intelligence of 5, total 9
+    print(f"{rulan.print_stat('int')}")  # show "Int: 9", this passes
     # when print_stat returned None, had to do this:
-    # print(f'Rulan ...... ', end='')
-    # Rulan.print_stat('int')  # should print 'Rulan ...... Int: 9'
+    # print(f'rulan ...... ', end='')
+    # rulan.print_stat('int')  # should print 'rulan ...... Int: 9'
 
-    Rulan.set_silver(kind='in_hand', adj=100)
-    Rulan.set_silver(kind='in_bank', adj=200)
-    Rulan.set_silver(kind='in_bar', adj=300)
+    rulan.set_silver(kind='in_hand', adj=100)
+    rulan.set_silver(kind='in_bank', adj=200)
+    rulan.set_silver(kind='in_bar', adj=300)
 
-    print(f"Silver in bank: {Rulan.get_silver('in_bank')}")  # should print 200, this passes
+    print(f"Silver in bank: {rulan.get_silver('in_bank')}")  # should print 200, this passes
 
-    Rulan.print_all_stats()
+    rulan.print_all_stats()
 
     Shaia = Player(name="Shaia",
                    connection_id=2)
@@ -522,5 +485,5 @@ if __name__ == '__main__':
 
     Shaia.print_all_stats()
 
-    transfer_money(Shaia, Rulan, kind='in_hand', adj=500)  # should rightfully fail
-    transfer_money(Shaia, Rulan, kind='in_hand', adj=100)  # this passes
+    transfer_money(Shaia, rulan, kind='in_hand', adj=500)  # should rightfully fail
+    transfer_money(Shaia, rulan, kind='in_hand', adj=100)  # this passes

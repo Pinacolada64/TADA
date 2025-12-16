@@ -61,8 +61,8 @@ def main(player: Player):
                     total += 1
                     patrons.append(v)
                 display_menu(player, [hash_menu])
-                selection = input_number_range("Choose who to feed", 1, total, player,
-                                               "Try again.")
+                selection = input_number_range(player, prompt_msg="Choose who to feed", out_of_bounds_msg="Try again.",
+                                               min_value=1, max_value=total)
                 patron = patrons[selection - 1]
                 # "<name> decides..."
                 pronoun, plural = "", ""
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     logging.info("Logging is running")
 
     # 1. Read the file.
-    from server import Rations
+    from old_server import Rations
 
     player = Player()
     player.clear_flag(PlayerFlags.EXPERT_MODE)

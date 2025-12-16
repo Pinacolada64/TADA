@@ -1,12 +1,14 @@
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, TYPE_CHECKING, Any, Dict, Tuple
 
 # TADA-specific imports:
-from server.base_classes import WeaponClass
-from server.flags import PlayerFlags
-from server.player import Player
+if TYPE_CHECKING:
+    from base_classes import WeaponClass
+    from player import Player
+
+from flags import PlayerFlags
 
 
 class IDNumber:
@@ -20,6 +22,7 @@ class IDNumber:
         self.value += 1
         logging.debug(" exit: id=%i", self.value)
         return self.value
+
 
 @dataclass
 class BoobyTrap:
@@ -38,7 +41,8 @@ class BaseItem:
     description: str = None
     location: int = 0
     owner = None  # could be a Player instance if a monster joins the party
-    flags: list = field(default_factory=list)
+    # Accept either list or dict for flags (some data files use a dict)
+    flags: Any = field(default_factory=list)
 
 
 class Item(BaseItem):
@@ -48,34 +52,23 @@ class Item(BaseItem):
             setattr(self, key, value)
         self.id_prefix = "I"
 
-        """
-        class Item(object):
-            def __init__(self, number, name, kind, price, **flags):
-                logging.debug("Item.__init__: Instantiate item '%s'" % name)
-                self.number = number
-                self.name = name
-                self.kind = kind
-                self.price = price
-                # this field is optional:
-                if flags:
-                    logging.debug("item.__init__ Flags:")
-                    self.flags = flags
-                    for key, value in flags.items():
-                        logging.debug("item.__init__: %s %s" % (key, value))
-            """
-
     @staticmethod
-    def read_items(filename: str) -> dict | None:
+    def read(filename: str) -> dict | None:
         try:
             with open(filename) as json_file:
-                items: dict = json.load(json_file)
-                logging.debug("JSON data read")
-                return items
+                data = json.load(json_file)
+                logging.info("Read JSON data '%s'" % filename)
+                # objects.json historically has a top-level dict with key 'items': [...]
+                if isinstance(data, dict) and 'items' in data:
+                    return data['items']
+                # otherwise return the top-level structure (could already be a list)
+                return data
         except FileNotFoundError:
             logging.error(">>> %s not found" % filename)
             return None
 
     """
+    # TODO: re-implement this method in a way that works with the current Player class
     def __str__(self, player: Player):
         print(f"From {player.name}'s perspective:")
         print(f"\t{player.query_flag(PlayerFlags.DEBUG_MODE)=}, {player.query_flag(PlayerFlags.DUNGEON_MASTER)=}, {self.owner=}")
@@ -85,30 +78,31 @@ class Item(BaseItem):
             return f"{self.name}"
     """
 
-
 class Weapon(BaseItem):
     def __init__(self, **kwargs):
+        # Lazy import to avoid circular dependency
+        from base_classes import WeaponClass
         super().__init__(**kwargs)
-        id_number: int
-        id_prefix: str = "W"
-        location: int
-        name: str
-        kind: Optional[str]
-        sound_effect: tuple[str, str]
-        stability: int
-        to_hit: int
-        price: int
-        weapon_class: WeaponClass
+        self.id_number: int = kwargs.get('id_number', 0)
+        self.id_prefix: str = "W"
+        self.location: int = kwargs.get('location', 0)
+        self.name: str = kwargs.get('name', '')
+        self.kind: Optional[str] = kwargs.get('kind')
+        self.sound_effect: Tuple[str, str] = kwargs.get('sound_effect', ('', ''))
+        self.stability: int = kwargs.get('stability', 0)
+        self.to_hit: int = kwargs.get('to_hit', 0)
+        self.price: int = kwargs.get('price', 0)
+        self.weapon_class: WeaponClass = kwargs.get('weapon_class')
 
     @staticmethod
-    def read_weapons(filename: str) -> dict | None:
+    def read_weapons(filename: str) -> Optional[Dict[str, Any]]:
         try:
             with open(filename) as json_file:
                 weapons = json.load(json_file)
-                logging.debug("JSON data read")
+                logging.info("Read JSON data '%s'" % filename)
                 return weapons
         except FileNotFoundError:
-            logging.error(">>> File not found: %s" % filename)
+            logging.error(">>> File not found: '%s'" % filename)
             return None
 
 
@@ -135,14 +129,14 @@ class Rations(BaseItem):
             return f"{self.name} [Unknown #{self.number}]"
 
     @staticmethod
-    def read_rations(filename: str) -> dict | None:
+    def read_rations(filename: str) -> Optional[Dict[str, Any]]:
         try:
             with open(filename) as json_file:
                 rations = json.load(json_file)
-                logging.debug("read_rations: JSON data read")
+                logging.info("Read JSON data '%s'" % filename)
                 return rations
         except FileNotFoundError:
-            logging.error(">>> read_rations: File not found: %s" % filename)
+            logging.error(">>> File not found: %s" % filename)
             return None
 
 

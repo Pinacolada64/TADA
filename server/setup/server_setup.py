@@ -1,9 +1,9 @@
 import os
 import sys
 from pathlib import Path
-from server import menu_system
-from server.commands.help import headline
-from server.setup import GameConfig
+from old_server import menu_system
+from old_server.commands.help import headline
+from old_server.setup import GameConfig
 
 # Global flag to track if server is running
 server_running = False
@@ -44,7 +44,7 @@ def edit_news():
 
 def edit_server_config():
     """Edit server configuration."""
-    from server.config import config
+    from old_server.config import config
     
     def toggle_invites():
         current = config.require_invites

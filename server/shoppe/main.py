@@ -3,8 +3,12 @@ import asyncio
 from typing import Dict, List, Any
 
 from commands.base_command import Command, CommandResult
-from net_common import Message, to_jsonb
+from net_common import Message, to_jsonb, MessageType
 from menu_system import Menu, MenuItem, async_print_menu, async_get_user_choice
+from simple_client import send_message
+
+import shoppe.elevator as elevator_module
+from commands.utils import get_player_from_context
 
 
 class ShoppeCommand(Command):
@@ -17,6 +21,11 @@ class ShoppeCommand(Command):
                 # Build a simple shoppe menu using the menu_system Menu and MenuItem
                 shoppe_menu = Menu(title="Shoppe", columns=1)
 
+                # determine player from context (so nested handlers can use it)
+                player = get_player_from_context(context, None)
+                if player is None and context and isinstance(context, dict):
+                    player = context.get('player')
+
                 # Simple action handlers that will send a small response back to the client
                 async def visit_wizard():
                     msg = Message(lines=["You visit the wizened wizard. He studies you carefully."], prompt='')
@@ -24,25 +33,46 @@ class ShoppeCommand(Command):
                     await writer.drain()
 
                 async def bank():
+                    # TODO: implement a queue where multiple people in line must wait their turn to be served
                     msg = Message(lines=["You approach the Bank of SPUR. They smile and take your gold."], prompt='')
                     writer.write(to_jsonb(msg) + b"\n")
                     await writer.drain()
 
                 async def elevator():
-                    msg = Message(lines=["You step onto the elevator. It creaks but works."], prompt='')
-                    writer.write(to_jsonb(msg) + b"\n")
-                    await writer.drain()
+                    msg = Message(lines=["A burly guard stands here, his arms crossed. He looks you up and down..."], prompt='')
+                    # send message using server-style writer to avoid mixing helpers
+                    await send_message(writer, msg)
+                    # Debug: notify client we are about to call elevator.execute (SYSTEM so client displays immediately)
+                    try:
+                        pre = Message(lines=["DEBUG-SYSTEM: entering elevator.execute"], type=MessageType.SYSTEM)
+                        writer.write(to_jsonb(pre) + b"\n")
+                        await writer.drain()
+                        await elevator_module.execute(self, reader, writer, context={'player': player}, args=[])
+                        try:
+                            post = Message(lines=["DEBUG-SYSTEM: elevator.execute returned"], type=MessageType.SYSTEM)
+                            writer.write(to_jsonb(post) + b"\n")
+                            await writer.drain()
+                        except Exception:
+                            pass
+                    except Exception as e:
+                        # Report the exception back to the client so we can see it
+                        try:
+                            err = Message(lines=[f"ERROR in elevator.execute: {e}"], type=MessageType.SYSTEM)
+                            writer.write(to_jsonb(err) + b"\n")
+                            await writer.drain()
+                        except Exception:
+                            logging.exception("Failed to report elevator exception to client")
 
-                async def locker():
+                async def locker(reader=reader, writer=writer):
                     msg = Message(lines=["You open your locker and find it empty."], prompt='')
-                    writer.write(to_jsonb(msg) + b"\n")
-                    await writer.drain()
+                    await send_message(writer, msg)
 
                 # Add MenuItem objects. Note: Menu.add_item expects MenuItem instances.
-                shoppe_menu.add_item(MenuItem(text="Visit the Wizard", shortcuts="W", action=visit_wizard))
                 shoppe_menu.add_item(MenuItem(text="Ye Olde Bank of SPUR", shortcuts="B", action=bank))
+                # Run the elevator handler directly (it will be awaited by the menu loop)
                 shoppe_menu.add_item(MenuItem(text="Ride the Elevator", shortcuts="E", action=elevator))
                 shoppe_menu.add_item(MenuItem(text="Locker", shortcuts="L", action=locker))
+                shoppe_menu.add_item(MenuItem(text="Visit the Wizard", shortcuts="W", action=visit_wizard))
                 shoppe_menu.add_item(MenuItem(text="Exit Shoppe", shortcuts="X", action=None))
 
                 # Send the menu to the client and wait for a choice using the async helpers
@@ -53,27 +83,32 @@ class ShoppeCommand(Command):
                 client_like.return_key = 'Enter'
                 client_like.client_settings = {'screen_columns': 80}
 
-                # Use the async print function to present the menu
-                await async_print_menu(client_like, shoppe_menu)
+                while True:
+                    # Use the async print function to present the menu
+                    await async_print_menu(client_like, shoppe_menu)
 
-                # Get user choice
-                chosen = await async_get_user_choice(client_like, shoppe_menu, stack_depth=1)
+                    # Get user choice
+                    chosen = await async_get_user_choice(client_like, shoppe_menu, stack_depth=1)
 
-                if chosen is None:
-                    # user backed out or invalid; nothing to do
-                    result_msg = Message(lines=["You leave the shoppe."], prompt='')
-                    writer.write(to_jsonb(result_msg) + b"\n")
-                    await writer.drain()
-                else:
-                    # if the action is an async callable, await it; if sync, call it
-                    action = chosen.action
-                    if asyncio.iscoroutinefunction(action):
-                        await action()
-                    elif callable(action):
-                        # wrap sync call in executor if it might block; here we assume small
-                        maybe_result = action()
-                        if asyncio.iscoroutine(maybe_result):
-                            await maybe_result
+                    if chosen is None:
+                        # user backed out or invalid; nothing to do
+                        result_msg = Message(lines=["You leave the shoppe."], prompt='')
+                        writer.write(to_jsonb(result_msg) + b"\n")
+                        await writer.drain()
+                        break
+                    else:
+                        # if the action is an async callable, await it; if sync, call it
+                        action = chosen.action
+                        logging.info("Shoppe: invoking action %s", getattr(action, '__name__', repr(action)))
+                        if asyncio.iscoroutinefunction(action):
+                            await action()
+                            logging.info("Shoppe: action %s completed", getattr(action, '__name__', repr(action)))
+                        elif callable(action):
+                            # wrap sync call in executor if it might block; here we assume small
+                            maybe_result = action()
+                            if asyncio.iscoroutine(maybe_result):
+                                await maybe_result
+                                logging.info("Shoppe: sync action %s completed coroutine", getattr(action, '__name__', repr(action)))
 
             except Exception:
                 logging.exception("Failed to write to client")

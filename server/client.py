@@ -14,9 +14,9 @@ project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from server.common import K
-from server.net_common import Mode
-from server.net_client import Client
+from old_server.common import K
+from old_server.net_common import Mode
+from old_server.net_client import Client
 
 # Import client config
 try:
@@ -136,7 +136,6 @@ class TADAClient(Client):
                     logger.debug("Sending 'bye' mode to server...")
                     self.server._send_data({'mode': Mode.bye})
                     # Let the server close the connection
-                    # FIXME
                     # self.connected = False
                     logger.debug("Disconnected from server")
                 except Exception as e:
@@ -210,7 +209,7 @@ def process_request(self, request: Dict[str, Any]):
         request: The request dictionary from the server
     """
     if not request:
-        return
+        return None
         
     # Debug log the incoming request
     logger.debug(f"Processing server request: {request}")
@@ -321,7 +320,7 @@ def main():
             client.set_password(args.password)
         
         # Import required modules
-        from server.common import app_key, app_protocol, translation
+        from old_server.common import app_key, app_protocol, translation
         
         # Connect to the server
         client.connect(

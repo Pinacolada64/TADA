@@ -2,7 +2,8 @@
 """Whisper command implementation."""
 from typing import Dict, Any, Optional, List, Set
 
-from .base import Command, CommandResult
+from .base_command import Command, CommandResult
+from commands.utils import get_player_from_context
 
 class WhisperCommand(Command):
     """Handle the 'whisper' command for sending private messages to nearby players."""
@@ -52,6 +53,9 @@ class WhisperCommand(Command):
             
         # Get the client manager and user
         client_manager = self.context.get('client_manager')
+        client = self.context.get('client') if isinstance(self.context, dict) else None
+        player = get_player_from_context(self.context, client)
+
         if not client_manager:
             return CommandResult(
                 success=False,

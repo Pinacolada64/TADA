@@ -5,10 +5,8 @@ import os
 import json
 from typing import Dict, Any, Optional, Coroutine
 
-from commands.base_command import CommandResult
 from net_common import Message, Mode
 from .base_command import Command, CommandResult
-from .connect import ConnectCommand
 
 
 class LoginCommand(Command):

@@ -1,22 +1,20 @@
 """
 Login command implementation for handling user authentication.
 """
-import json
-from typing import Dict, Any, List, Coroutine
+from typing import Dict, Any, List
 from pathlib import Path
 
-import net_client
-from commands.base_command import CommandResult
-from net_common import Message, client_manager, User, Mode
+from net_common import Message, User, Mode
 from .base_command import Command, CommandResult, BaseCommand
 from .help import HelpCategory, BaseHelpText
+from commands.utils import get_player_from_context
+from commands.command_processor import command
 
 
+@command(name='connect', aliases=['conn', 'login'], category=HelpCategory.AUTHENTICATION, summary='Connect to the server')
 class ConnectCommand(Command):
     """Handles user authentication."""
-    name = 'connect'
-    aliases = ["con", "login"]
-    
+
     def __init__(self, context=None):
         super().__init__(context)
 
@@ -79,7 +77,7 @@ class ConnectCommand(Command):
 
     async def execute(self, context: Dict[str, Any], args: List[str]) -> dict[str, Any] | Any:
         """Execute the connect / login command.
-        
+
         :param context: Dictionary containing command context including:
             - user_id: The ID of the user attempting to log in
             - client: The client connection object
@@ -89,7 +87,8 @@ class ConnectCommand(Command):
         """
         # Get client from context
         client = context.get('client')
-        
+        player = get_player_from_context(context, client)
+
         # Handle no arguments - show usage information:
         if not args:
             message = Message(lines=["Please supply a username and password to log in, or 'login guest' to connect as a guest.",
@@ -97,15 +96,15 @@ class ConnectCommand(Command):
                               mode=Mode.login)
             failure = CommandResult(False, message)
             return await client.send(failure)
-            
+
         # Get username and password from args
         username = args[0].lower()
         password = args[1] if len(args) > 1 else None
-        
+
         # handle guest account ("connect guest")
         if username == 'guest' and password is None:
             return await self._handle_guest_connect(context)
-        
+
         if not password:
             if client:
                 await client.send("Password: ", hide_input=True)
@@ -116,7 +115,7 @@ class ConnectCommand(Command):
                     error='password_required',
                     message='Password is required for login.'
                 ).to_dict()
-        
+
         # Validate username and password
         if not username:
             return CommandResult(
@@ -124,7 +123,7 @@ class ConnectCommand(Command):
                 error='missing_username',
                 message='Please enter a username.'
             ).to_dict()
-            
+
         if not password:
             return CommandResult(
                 success=False,
@@ -135,7 +134,7 @@ class ConnectCommand(Command):
                     'mode': Mode.login
                 }
             ).to_dict()
-        
+
         # TODO: Implement actual authentication logic
         # Verify password (simplified - in real implementation, use proper password hashing)
         try:
@@ -184,7 +183,7 @@ class ConnectCommand(Command):
                     'mode': Mode.app
                 }
             ).to_dict()
-            
+
         # Authentication failed
         return CommandResult(
             success=False,
@@ -200,21 +199,21 @@ class ConnectCommand(Command):
     # TODO: keep this; will add multiple characters in User login-x.json file later
     async def _show_login_status(self, context: Dict[str, Any]) -> dict[str, Any] | CommandResult:
         """Show login status and available characters.
-        
+
         Args:
             context: Command context containing user session information
-            
+
         Returns:
             Dict containing the command result with login status
         """
         # Get user_id from context if available
         user_id = context.get('user_id')
-        
+
         # If user is already authenticated, show their characters
         if context.get('authenticated') and user_id:
             # TODO: Load available characters for this user
             characters = []  # This would come from your user data
-            
+
             if characters:
                 char_list = '\n  '.join(characters)
                 message = (
@@ -229,13 +228,13 @@ class ConnectCommand(Command):
                     'You don\'t have any characters yet.\n'
                     'To create a new character, type: new'
                 )
-                
+
             return CommandResult(
                 success=True,
                 message=message,
                 data={'mode': Mode.app}
             ).to_dict()
-        
+
         # Not logged in - show login/register options
         return CommandResult(
             success=True,
@@ -244,50 +243,47 @@ class ConnectCommand(Command):
                 'To log in to an existing character, use: login <username> <password>,',
                 'To log in as a guest, use: login guest',
                 'To create a new character, use: new',
-            ]),
+            ],
             data={'mode': Mode.login}
         ).to_dict()
 
+    @staticmethod
     def register() -> Command:
         """Factory function to create a ConnectCommand instance."""
         return ConnectCommand
 
-
-class QuitCommand(BaseCommand):
+class ConnectHelp(BaseHelpText):
+    """Help provider for the 'connect' command."""
     @property
     def name(self) -> str:
-        return "quit"
+        return "connect"
 
     @property
     def aliases(self):
-        return ["q", "exit", "bye"]
-
-    async def execute(self, context, args=None):
-        # todo: add 'quit' command which disconnects the user and closes the client connection
-        # this should be available in guest and logged-in modes
-        # ask "are you sure?" before quitting
-
-        return CommandResult(success=True, message="Goodbye!", data={'mode': Mode.bye})
-
-class QuitHelp(BaseHelpText):
-    @property
-    def name(self) -> str:
-        return "quit"
-
-    @property
-    def aliases(self):
-        return ["exit", "bye"]
+        return ["conn", "login"]
 
     @property
     def summary(self) -> str:
-        return "Quit the game and disconnect."
+        return "Connect to the server and log in."
+
+    @property
+    def usage(self) -> List[tuple[str, str]]:
+        return [
+            ("connect <username> <password>", "Connect with your username and password"),
+            ("connect guest", "Connect as a guest user")
+        ]
 
     def help_text(self) -> str:
         return """\
-        Quit Command
-        ------------
-        Usage: quit
+        Connect Command
+        ---------------
+        Usage: connect <username> <password>
+               connect guest
 
-        Disconnects you from the game and exits the client.
-        You can also use the aliases: q, exit, bye.
+        Connects you to the server. You can log in with your username and password,
+        or connect as a guest.
+
+        Examples:
+          connect admin password
+          connect guest
         """

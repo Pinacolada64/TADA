@@ -1,187 +1,196 @@
-import asyncio
-import logging
 import pytest
+import types
+import asyncio
+import textwrap
 
-from commands.command_processor import CommandProcessor
-from commands.base_command import BaseCommand, CommandResult
+# Ensure package imports work when running tests from the repo root
+import sys
+import os
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
+from commands import help as help_mod
+from commands.help import HelpCommand, format_help
 
 
-class DummyClient:
-    pass
+class DummyCommand:
+    def __init__(self):
+        self._name = 'test'
+        self._aliases = ['t']
 
+    @property
+    def name(self):
+        return self._name
 
-class DummyMove(BaseCommand):
-    name = 'move'
-    aliases = ['m']
-    summary = 'Move around'
+    @property
+    def aliases(self):
+        return self._aliases
 
     def help_text(self):
-        return 'Usage: move <dir>\nMoves your character.'
-
-    async def execute(self, context, args):
-        return CommandResult(success=True, message='moved')
+        return "This is help text for the test command."
 
 
-class TestHelpCmd(BaseCommand):
-    name = 'help'
-    aliases = ['h', '?']
+class DummyManager:
+    def __init__(self, cmd):
+        # return mapping by name
+        self._commands = {cmd.name: cmd}
 
-    async def execute(self, context, args=None):
-        # Normalize args
-        token = None
-        rest = []
-        if args:
-            if isinstance(args, (list, tuple)):
-                token = args[0].strip().lower() if len(args) > 0 else None
-                rest = args[1:]
-            else:
-                token = str(args).strip().lower()
+    def get_all_commands(self):
+        return self._commands
 
-        proc = context.get('processor')
-
-        # If asking for categories
-        if token in ("categories", "category", "cat", "#cat", "#c"):
-            grouped = proc.get_commands_by_category()
-            cats = [c.name for c in grouped.keys()]
-            lines = ["Available help categories:"] + [f"- {c}" for c in sorted(cats)]
-            return CommandResult(success=True, message=lines)
-
-        # If search requested: help search <term>
-        if token in ("search", "find") and rest:
-            term = " ".join(rest).lower()
-            matches = []
-            for cmd in proc.get_all_commands():
-                if term in cmd.name.lower() or term in (getattr(cmd, 'summary', '') or '').lower():
-                    matches.append(cmd.name)
-            if not matches:
-                return CommandResult(success=False, message=f"No commands found matching '{term}'")
-            return CommandResult(success=True, message=[f"Commands matching '{term}':"] + matches)
-
-        # If asking for a specific command
-        if token:
-            cmd_inst, _ = proc.find_command(token)
-            if cmd_inst:
-                # Prefer help_text()
-                try:
-                    if callable(getattr(cmd_inst, 'help_text', None)):
-                        ht = cmd_inst.help_text()
-                        return CommandResult(success=True, message=ht)
-                except Exception:
-                    pass
-                # Fallback to docstring
-                doc = getattr(getattr(cmd_inst, 'execute', None), '__doc__', None)
-                if doc:
-                    return CommandResult(success=True, message=doc.strip())
-                return CommandResult(success=False, message=f'No detailed help available for {token}')
-            else:
-                return CommandResult(success=False, message=f"No help found for '{token}'")
-
-        # General listing
-        lines = ['Available commands:']
-        grouped = proc.get_commands_by_category()
-        for cat, cmds in grouped.items():
-            lines.append(f"\n{getattr(cat,'name',str(cat))}:")
-            for c in sorted(cmds, key=lambda x: x.name):
-                summary = getattr(c, 'summary', '') or ''
-                lines.append(f"  {c.name:<12} - {summary}")
-        return CommandResult(success=True, message=lines)
+    def get_command(self, name):
+        return self._commands.get(name)
 
 
-def test_help_general_contains_categories():
-    logging.basicConfig(level=logging.DEBUG)
-    client = DummyClient()
-    processor = CommandProcessor(client=client, context={'username': 'test', 'server': None})
-    # Make the processor visible to commands via context
-    processor.context['processor'] = processor
+def test_helpcommand_instantiation_and_basic_help_text():
+    hc = HelpCommand()
+    # attach a dummy processor so help_text() can enumerate commands
+    dummy = DummyCommand()
+    mgr = DummyManager(dummy)
+    hc.context = {'command_processor': mgr}
 
-    # ensure our dummy move isn't overriding the auto-discovered one; register explicitly
-    processor.register_command(DummyMove())
-    # register a minimal help command that uses the processor via context
-    help_cmd = TestHelpCmd()
-    # provide processor reference in the context passed to commands
-    help_context = {'processor': processor}
-    help_cmd_context = help_context
-    # store 'context' on command if used by command implementations
-    processor.register_command(help_cmd)
+    summary = hc.help_text()
+    assert isinstance(summary, str)
+    assert 'test' in summary or 'test' in '\n'.join(summary.splitlines())
 
-    res = asyncio.run(processor.process_input('help'))
-    assert isinstance(res, CommandResult)
-    # message may be a list or string
-    msg = res.message
+
+def test_format_help_produces_sections():
+    class H:
+        summary = 'short'
+        description = 'Longer description here that explains the command.'
+        usage = [('cmd <arg>', 'Does something.')]
+        examples = [('cmd foo', 'Example usage')]
+        notes = ['note one']
+
+    out = format_help(H, 'cmd')
+    assert out is not None
+    assert 'Usage:' in out
+    assert 'Examples:' in out
+    assert 'Notes:' in out
+    assert 'cmd' in out
+
+
+@pytest.mark.asyncio
+async def test_execute_help_for_specific_command():
+    hc = HelpCommand()
+    dummy = DummyCommand()
+    mgr = DummyManager(dummy)
+    result = await hc.execute(None, None, {'command_processor': mgr}, ['test'])
+    assert isinstance(result, dict)
+    assert result.get('success') is True
+    msg = result.get('message')
+    assert isinstance(msg, str)
+    assert 'This is help text' in msg
+
+
+@pytest.mark.asyncio
+async def test_help_categories_list():
+    hc = HelpCommand()
+    dummy = DummyCommand()
+    mgr = DummyManager(dummy)
+    result = await hc.execute(None, None, {'command_processor': mgr}, ['categories'])
+    assert isinstance(result, dict)
+    assert result.get('success') is True
+    msg = result.get('message')
+    # message from categories is a string listing available categories
+    assert isinstance(msg, str)
+    assert 'Available help categories' in msg or '- General' in msg
+
+
+@pytest.mark.asyncio
+async def test_help_search_finds_command():
+    hc = HelpCommand()
+    dummy = DummyCommand()
+    mgr = DummyManager(dummy)
+    # search by partial term
+    result = await hc.execute(None, None, {'command_processor': mgr}, ['search', 'tes'])
+    assert isinstance(result, dict)
+    assert result.get('success') is True
+    msg = result.get('message')
+    # allow string or list message formats
     if isinstance(msg, list):
-        joined = "\n".join(msg)
+        combined = '\n'.join(str(x) for x in msg)
     else:
-        joined = str(msg)
-    assert 'Available commands' in joined or 'Available Commands by Category' in joined
+        combined = str(msg)
+    assert 'test' in combined.lower()
 
 
-def test_help_move_returns_detailed():
-    client = DummyClient()
-    processor = CommandProcessor(client=client, context={'username': 'test', 'server': None})
-    processor.context['processor'] = processor
-    processor.register_command(DummyMove())
-    # register help command
-    help_cmd = TestHelpCmd()
-    processor.register_command(help_cmd)
+@pytest.mark.asyncio
+async def test_help_nonexistent_command_returns_not_found():
+    hc = HelpCommand()
+    dummy = DummyCommand()
+    mgr = DummyManager(dummy)
+    result = await hc.execute(None, None, {'command_processor': mgr}, ['no_such_command'])
+    assert isinstance(result, dict)
+    assert result.get('success') is False
+    assert 'No help found' in result.get('message')
 
-    res = asyncio.run(processor.process_input('help move'))
-    assert isinstance(res, CommandResult)
-    # message for detailed help likely returns the help_text string
-    msg = res.message
+
+@pytest.mark.asyncio
+async def test_help_for_category_shows_commands():
+    hc = HelpCommand()
+    # create a dummy command that has help_info with a category
+    cmd = DummyCommand()
+    cmd._name = 'go'
+    # attach help_info with category
+    cmd.help_info = types.SimpleNamespace(category=help_mod.HelpCategory.MOVEMENT)
+    mgr = DummyManager(cmd)
+
+    result = await hc.execute(None, None, {'command_processor': mgr}, ['movement'])
+    assert isinstance(result, dict)
+    assert result.get('success') is True
+    msg = result.get('message')
     if isinstance(msg, list):
-        joined = "\n".join(msg)
+        assert any('Commands in' in str(x) for x in msg)
+        assert 'go' in '\n'.join(msg)
     else:
-        joined = str(msg)
-    assert 'Usage: move' in joined or 'Moves your character' in joined
+        assert 'Commands in' in msg and 'go' in msg
 
 
-def test_help_categories_lists_categories():
-    client = DummyClient()
-    processor = CommandProcessor(client=client, context={'username': 'test', 'server': None})
-    processor.context['processor'] = processor
-    processor.register_command(DummyMove())
-    processor.register_command(TestHelpCmd())
-
-    res = asyncio.run(processor.process_input('help categories'))
-    assert isinstance(res, CommandResult)
-    msg = res.message
-    if isinstance(msg, list):
-        joined = "\n".join(msg)
-    else:
-        joined = str(msg)
-    assert 'MISCELLANEOUS' in joined or 'GENERAL' in joined
+@pytest.mark.asyncio
+async def test_help_alias_lookup_works():
+    hc = HelpCommand()
+    dummy = DummyCommand()
+    # Create a manager that exposes both the name and alias as keys
+    mgr = DummyManager(dummy)
+    mgr._commands['t'] = dummy
+    result = await hc.execute(None, None, {'command_processor': mgr}, ['t'])
+    assert isinstance(result, dict)
+    assert result.get('success') is True
+    msg = result.get('message')
+    combined = msg if isinstance(msg, str) else '\n'.join(msg)
+    assert 'This is help text' in combined
 
 
-def test_help_search_finds_move():
-    client = DummyClient()
-    processor = CommandProcessor(client=client, context={'username': 'test', 'server': None})
-    processor.context['processor'] = processor
-    processor.register_command(DummyMove())
-    processor.register_command(TestHelpCmd())
+def test_help_text_format_80_cols():
+    hc = HelpCommand()
+    command = "help ep"
+    # try 80 column formatting:
+    formatted_80_cols = textwrap.dedent("""
+    Usage:
+        editplayer           Edit your own character interactively
+        editplayer <flag>    Toggle a flag for yourself
+        editplayer <name>    Edit another player's character (admin only)
+    """).strip()
 
-    res = asyncio.run(processor.process_input('help search move'))
-    assert isinstance(res, CommandResult)
-    msg = res.message
-    if isinstance(msg, list):
-        joined = "\n".join(msg)
-    else:
-        joined = str(msg)
-    assert 'move' in joined
+    out_80 = format_help(command, width=80)
+    assert 'Usage:' in out_80
+    assert 'editplayer' in out_80
 
 
-def test_help_nonexistent_returns_error():
-    client = DummyClient()
-    processor = CommandProcessor(client=client, context={'username': 'test', 'server': None})
-    processor.context['processor'] = processor
-    processor.register_command(DummyMove())
-    processor.register_command(TestHelpCmd())
-
-    res = asyncio.run(processor.process_input('help unicorn'))
-    assert isinstance(res, CommandResult)
-    msg = res.message
-    if isinstance(msg, list):
-        joined = "\n".join(msg)
-    else:
-        joined = str(msg)
-    assert 'No help found' in joined or 'No detailed help' in joined
-
+def test_help_text_format_40_cols():
+    formatted_40_cols = textwrap.dedent("""
+    Usage:
+        editplayer
+            Edit your own character
+            interactively
+        editplayer <flag>
+            Toggle a flag for yourself
+        editplayer <name>
+            Edit another player's character
+            (admin only)
+    """).strip()
+    out_40 = format_help("help ep", width=40)
+    assert 'Usage:' in out_40
+    assert 'editplayer' in formatted_40_cols

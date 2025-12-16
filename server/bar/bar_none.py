@@ -33,7 +33,7 @@ class Bartender(Ally):
 def main(character: Player):
     from base_classes import PlayerMoneyTypes
     from tada_utilities import tip
-
+    from items import Rations
     mae = Bartender("Mae", strength=4, to_hit=4, gender="f", flags=[])
     # TODO: bar brawls? attack other patrons/bartender?
     apostrophe = "'"
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     logging.info("Logging is running")
 
     # 1. Read the file.
-    from server import Rations
+    from old_server import Rations
 
     player = Player()
     player.clear_flag(PlayerFlags.EXPERT_MODE)

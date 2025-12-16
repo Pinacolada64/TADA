@@ -300,6 +300,34 @@ class PlayerStat(StrEnum):
     EGY = "Energy"
 
 
+class PlayerRaceBonuses(Enum):
+    # applied upon character creation, maybe elsewhere in future
+    HUMAN = {PlayerStat.CON: 1, PlayerStat.DEX: 2, PlayerStat.INT: 2, PlayerStat.STR: -1},
+    OGRE = {PlayerStat.CON: 2, PlayerStat.DEX: -1, PlayerStat.INT: -2, PlayerStat.STR: 3, PlayerStat.WIS: -1},
+    PIXIE = {PlayerStat.DEX: -1, PlayerStat.STR: 1, PlayerStat.WIS: 1},
+    ELF = {PlayerStat.DEX: 2, PlayerStat.INT: 1, PlayerStat.CON: -1, PlayerStat.WIS: 2},
+    HOBBIT = {PlayerStat.DEX: 1, PlayerStat.INT: 2, PlayerStat.STR: -1, PlayerStat.EGY: 1},
+    # FIXME: Gnome bonuses same as Human?:
+    GNOME = {PlayerStat.CON: 1, PlayerStat.DEX: 2, PlayerStat.INT: 2, PlayerStat.STR: -1},
+    DWARF = {PlayerStat.CON: 1, PlayerStat.DEX: -1, PlayerStat.CHR: 2},
+    ORC = {PlayerStat.DEX: 1, PlayerStat.INT: -1, PlayerStat.STR: 2, PlayerStat.WIS: -1, PlayerStat.EGY: 2},
+    HALF_ELF = {PlayerStat.DEX: 1, PlayerStat.WIS: 1}
+
+
+class PlayerClassBonuses(Enum):
+    # applied upon character creation, maybe elsewhere in future
+    WIZARD ={PlayerStat.CON: -1, PlayerStat.INT: 2},
+    DRUID ={PlayerStat.INT: 2, PlayerStat.STR: -1, PlayerStat.WIS: 2},
+    FIGHTER ={PlayerStat.CON: 2, PlayerStat.DEX: -1, PlayerStat.INT: -2, PlayerStat.STR: 2, PlayerStat.EGY: 2},
+    PALADIN ={PlayerStat.DEX: 1, PlayerStat.INT: 1, PlayerStat.STR: 1, PlayerStat.WIS: 1},
+    RANGER ={PlayerStat.INT: -1, PlayerStat.STR: 1, PlayerStat.WIS: -1},
+    THIEF ={PlayerStat.DEX: 1, PlayerStat.EGY: 2},
+    ARCHER ={PlayerStat.DEX: 2, PlayerStat.EGY: -2},
+    ASSASSIN ={PlayerStat.DEX: -1, PlayerStat.STR: 2},
+    KNIGHT ={PlayerStat.CON: 1, PlayerStat.INT: 1, PlayerStat.EGY: -1}
+
+
+
 @dataclass
 class Room(object):
     number: int
@@ -385,3 +413,61 @@ class VinneyLoan(object):
 
 
 compass_txts = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West', 'u': 'Up', 'd': 'Down'}
+
+
+class InventoryItem:
+    """Base class for all inventory items, such as weapons, armor, etc.
+     It holds Item object and the quantity of the item.
+    """
+    def __init__(self, item: BaseItem, quantity: int = 1):
+        """
+        Initialize the InventoryItem with an item and a quantity.
+        :param item: The item object (e.g., Weapon, Armor, etc.)
+        :param quantity: The number of this item in the inventory
+        """
+        self.item = item
+        self.quantity = quantity
+
+    def find_item(self, item_name: "InventoryItem") -> bool:
+        """
+        Check if the item string matches the given name.
+        :param item_name: The name of the item to check
+        :return: True if the item matches, False otherwise
+        """
+        return self.item.name.lower() == item_name.lower()
+
+    def __increment_quantity(self, amount: int = 1):
+        """
+        Increment the quantity of the item by a specified amount.
+        :param amount: The amount to increment the quantity by (default is 1)
+        """
+        if amount < 1:
+            raise ValueError("Amount must be at least 1")
+        self.quantity += amount
+
+    def __decrement_quantity(self, amount: int = 1):
+        """
+        Decrement the quantity of the item by a specified amount.
+        :param amount: The amount to decrement the quantity by (default is 1)
+        """
+        if amount < 1:
+            raise ValueError("Amount must be at least 1")
+        if self.quantity - amount < 0:
+            raise ValueError("Cannot decrement quantity below zero")
+        if self.quantity - amount == 0:
+            logging.debug(f"Removing {self.item.name} from inventory")
+            self.remove_item(self.item)
+            return None
+        self.quantity -= amount
+        return None
+
+    def __str__(self):
+        if self.quantity == 1:
+            return f"{self.item.name}"
+        elif self.quantity > 1:
+            return f"{self.item.name} (x{self.quantity})"
+        return None
+
+    def remove_item(self, item):
+        self.inventory.remove(item)
+

@@ -89,8 +89,9 @@ def buy_servant(player: "Player", allies: List["Ally"]) -> List[Ally]:
             # TODO: make this a function or @property or something, don't keep repeating yourself:
             return_key = player.client_settings.return_key.name
             player.output(f"[{return_key}] = Done")
-        num = input_number_range("Buy vich vun?", 1, len(servants),
-                                 player, f'"Whoa, dun{apostrophe}t hav that many!"')
+        num = input_number_range(player, prompt_msg="Buy vich vun?",
+                                 out_of_bounds_msg=f'"Whoa, dun{apostrophe}t hav that many!"', min_value=1,
+                                 max_value=len(servants))
         if num == '':
             player.output(f'Fat Olaf dismisses you with a wave. "Hokay, vine. See yu later!"')
             return servants  # callee expects it, even if unchanged

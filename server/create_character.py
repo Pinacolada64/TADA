@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 import net_server
 import tada_utilities
 from menu_system import MenuItem, Menu, navigate_menu
-from old_server import PlayerHandler
 
 if TYPE_CHECKING:
     from player import Player
@@ -155,7 +154,7 @@ def choose_client(p: "Player"):
               "",
               ])
 
-    temp = input_number_range(prompt="Which client", p=p, lo=1, hi=options)
+    temp = input_number_range(player=p, prompt_msg="Which client", min_value=1, max_value=options)
 
     if temp == 1:
         p.client_settings.name = 'Commodore 64'
@@ -521,8 +520,9 @@ def edit_race(p: "Player") -> None:
     while not race_valid:
         display_races(p)
         if p.char_race:
-            temp = input_number_range("Race", 1, 9, p,
-                                      out_of_bounds='"Enter a race from 1-9," Verus suggests.')
+            temp = input_number_range(p, prompt_msg="Race",
+                                      out_of_bounds_msg='"Enter a race from 1-9," Verus suggests.', min_value=1,
+                                      max_value=9)
             player_race = [r for r in PlayerRace][temp - 1]
             logging.info("'%s' race set to %s" % (p.name, player_race))
 
@@ -595,12 +595,13 @@ def choose_age(p: "Player"):
         # show menu items for months:
         for month in range(1, 13):
             print(f"{month:>2}. {calendar.month_name[month]}")
-        birthday_month = input_number_range(prompt="Month", lo=1, hi=12, p=p)
+        birthday_month = input_number_range(player=p, prompt_msg="Month", min_value=1, max_value=12)
         # monthrange(year, day) returns tuple: (month, days_in_month)
         # we just need days_in_month, which is monthrange()[1]
         days_in_month = calendar.monthrange(year=birthday_year, month=birthday_month)[1]
-        birthday_day = input_number_range(prompt="Day", lo=1, hi=days_in_month, p=p,
-                                          out_of_bounds="Select a day of the month within range.")
+        birthday_day = input_number_range(player=p, prompt_msg="Day",
+                                          out_of_bounds_msg="Select a day of the month within range.", min_value=1,
+                                          max_value=days_in_month)
         # store birthday as datetime: birthday.month = month, .day = day, .year = year
         # store year anyway in case age = 0
         p.birthday = datetime(birthday_year, birthday_month, birthday_day)
@@ -1065,7 +1066,7 @@ def debug_menu(p: "Player"):
                                      action=set_logging_level))
 
         menu_stack = [debug_menu]
-        navigate_menu(player, menu_stack)
+        navigate_menu(reader, writer, menu_stack, )
 
 
 if __name__ == '__main__':

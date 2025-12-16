@@ -6,197 +6,186 @@ import logging
 from json import JSONEncoder
 from typing import Dict, Set, Optional, Any, Union
 
+try:
+    import net_common
+    _DELEGATE = getattr(net_common, 'client_manager', None)
+except Exception:
+    _DELEGATE = None
+
 class ClientManager:
-    """Manages connected clients and their sessions."""
-    
+    """Wrapper ClientManager that delegates to net_common.client_manager when available.
+
+    This keeps the rest of the codebase using `from client_manager import ClientManager` working,
+    while ensuring there is a single shared registry (net_common.client_manager).
+    """
+
     def __init__(self):
-        """Initialize the client manager."""
-        self._clients: Dict[str, Dict[str, Any]] = {}
-        self._user_to_client: Dict[str, str] = {}
-        self._lock = None  # Will be set by the server
-    
+        if _DELEGATE is not None:
+            self._delegate = _DELEGATE
+            logging.debug("ClientManager: delegating to net_common.client_manager")
+        else:
+            self._delegate = None
+            logging.debug("ClientManager: operating in stand-alone mode")
+            self._clients: Dict[str, Dict[str, Any]] = {}
+            self._user_to_client: Dict[str, str] = {}
+            import threading
+            self._lock = threading.Lock()
+
     def set_lock(self, lock):
-        """Set the thread lock for thread-safe operations.
-        
-        Args:
-            lock: The threading.Lock instance to use
-        """
+        if self._delegate:
+            # delegate doesn't need external lock
+            return
         self._lock = lock
-    
+
     def add_client(self, client_id: str, client_data: Dict[str, Any]) -> None:
-        """Add a new client to the manager.
-        
-        Args:
-            client_id: Unique identifier for the client
-            client_data: Client data including transport, protocol, etc.
-        """
+        if self._delegate:
+            try:
+                # delegate expects (user_id, handler)
+                # if client_data contains 'handler' use it, otherwise pass the dict
+                handler = client_data.get('handler') if isinstance(client_data, dict) and 'handler' in client_data else client_data
+                self._delegate.add_client(client_id, handler)
+                return
+            except Exception:
+                logging.exception("Delegated add_client failed")
+        # fallback implementation
         with self._lock:
             self._clients[client_id] = client_data
+            if isinstance(client_data, dict) and 'user_id' in client_data:
+                self._user_to_client[client_data['user_id']] = client_id
             logging.debug("Added client %s", client_id)
-    
+
     def remove_client(self, client_id: str) -> None:
-        """Remove a client from the manager.
-        
-        Args:
-            client_id: The ID of the client to remove
-        """
+        if self._delegate:
+            try:
+                return self._delegate.remove_client(client_id)
+            except Exception:
+                logging.exception("Delegated remove_client failed")
         with self._lock:
             client = self._clients.pop(client_id, None)
-            if client and 'user_id' in client:
+            if client and isinstance(client, dict) and 'user_id' in client:
                 self._user_to_client.pop(client['user_id'], None)
             logging.debug("Removed client %s", client_id)
-    
+
     def authenticate_client(self, client_id: str, user_id: str) -> None:
-        """Authenticate a client with a user ID.
-        
-        Args:
-            client_id: The client ID
-            user_id: The user ID to authenticate with
-        """
+        if self._delegate:
+            try:
+                if hasattr(self._delegate, 'authenticate_client'):
+                    return self._delegate.authenticate_client(client_id, user_id)
+            except Exception:
+                logging.exception("Delegated authenticate_client failed")
         with self._lock:
             if client_id in self._clients:
                 self._clients[client_id]['user_id'] = user_id
                 self._user_to_client[user_id] = client_id
                 logging.info("Authenticated client %s as user %s", client_id, user_id)
-    
+
     def get_client(self, client_id: str) -> Optional[Dict[str, Any]]:
-        """Get client data by client ID.
-        
-        Args:
-            client_id: The client ID
-            
-        Returns:
-            Optional[Dict]: The client data, or None if not found
-        """
+        if self._delegate:
+            try:
+                c = self._delegate.get_client(client_id)
+                # net_common.ClientInfo -> return dict-like
+                if c is None:
+                    return None
+                try:
+                    return {
+                        'user_id': getattr(c, 'user_id', None),
+                        'handler': getattr(c, 'handler', None),
+                        'connected_time': getattr(c, 'connected_time', None),
+                        'last_active': getattr(c, 'last_active', None)
+                    }
+                except Exception:
+                    return None
+            except Exception:
+                logging.exception("Delegated get_client failed")
         return self._clients.get(client_id)
-    
+
     def get_client_by_user(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Get client data by user ID.
-        
-        Args:
-            user_id: The user ID
-            
-        Returns:
-            Optional[Dict]: The client data, or None if not found
-        """
+        if self._delegate:
+            try:
+                return self._delegate.get_client(user_id)
+            except Exception:
+                logging.exception("Delegated get_client_by_user failed")
         client_id = self._user_to_client.get(user_id)
         return self.get_client(client_id) if client_id else None
-    
+
     def is_online(self, user_id: str) -> bool:
-        """Check if a user is online.
-        
-        Args:
-            user_id: The user ID to check
-            
-        Returns:
-            bool: True if the user is online, False otherwise
-        """
+        if self._delegate:
+            try:
+                return self._delegate.is_online(user_id)
+            except Exception:
+                logging.exception("Delegated is_online failed")
         return user_id in self._user_to_client
-    
+
     def get_online_player_ids(self) -> Set[str]:
-        """Get a set of online player user IDs.
-        
-        Returns:
-            Set[str]: Set of online user IDs
-        """
+        if self._delegate:
+            try:
+                return set(self._delegate.get_online_player_ids())
+            except Exception:
+                logging.exception("Delegated get_online_player_ids failed")
         with self._lock:
-            return {client['user_id'] for client in self._clients.values() 
-                   if 'user_id' in client}
+            return {client['user_id'] for client in self._clients.values() if isinstance(client, dict) and 'user_id' in client}
 
     def get_online_player_names(self) -> Set[str]:
-        """Get a set of online player names.
-
-        Returns:
-            Set[str]: Set of online player names
-        """
+        if self._delegate:
+            try:
+                return set(self._delegate.get_online_player_names())
+            except Exception:
+                logging.exception("Delegated get_online_player_names failed")
         with self._lock:
-            return {client['player_name'] for client in self._clients.values()
-                   if 'player_name' in client}
+            return {client['player_name'] for client in self._clients.values() if isinstance(client, dict) and 'player_name' in client}
 
-    def get_online_client_info(self) -> Set[Dict[str, Any]]:
-        """Get a set of all online player info. This includes: user_id and player_name, ip_address, and any other info stored in the client dict.
-
-        Returns:
-            Set[Dict[str, Any]]: Set of online player info dicts
-        """
+    def get_online_client_info(self):
+        if self._delegate:
+            try:
+                return set(self._delegate.get_online_client_info())
+            except Exception:
+                logging.exception("Delegated get_online_client_info failed")
         with self._lock:
-            return {client for client in self._clients.values()
-                   if 'user_id' in client and 'player_name' in client}
+            return {client for client in self._clients.values() if isinstance(client, dict) and 'user_id' in client}
 
+    # Simple send helpers: these assume 'transport' holds a writer-like object accepting bytes
     def send_to(self, user_id: str, data: Dict[str, Any]) -> bool:
-        """Send data to a specific user.
-        
-        Args:
-            user_id: The user ID to send to
-            data: The data to send
-            
-        Returns:
-            bool: True if the data was sent, False otherwise
-        """
+        if self._delegate:
+            try:
+                return self._delegate.send_to(user_id, data)
+            except Exception:
+                logging.exception("Delegated send_to failed")
         client = self.get_client_by_user(user_id)
         if not client or 'transport' not in client:
             return False
-        
         try:
             client['transport'].write(data)
             return True
         except Exception as e:
             logging.error("Error sending data to user %s: %s", user_id, e)
             return False
-    
-    def send_to_room(
-        self, 
-        room_id: Union[str, int], 
-        data: Dict[str, Any], 
-        exclude_user: Optional[str] = None
-    ) -> None:
-        """Send data to all clients in a specific room.
-        
-        Args:
-            room_id: The ID of the room to send the message to
-            data: The data to send (will be JSON-encoded)
-            exclude_user: Optional user ID to exclude from receiving the message
-        """
+
+    def send_to_room(self, room_id: Union[str, int], data: Dict[str, Any], exclude_user: Optional[str] = None) -> None:
+        if self._delegate:
+            try:
+                return self._delegate.send_to_room(room_id, data, exclude_user)
+            except Exception:
+                logging.exception("Delegated send_to_room failed")
         if room_id is None:
             logging.warning("Attempted to send to room with no room_id")
             return
-            
-        room_id = str(room_id)  # Ensure room_id is a string for consistent comparison
-            
-        try:
-            # Convert data to JSON once
-            message = json.dumps(data).encode('utf-8')
-            
-            with self._lock:
-                for client_id, client in list(self._clients.items()):
-                    if ('transport' in client and 
-                        'user_id' in client and 
-                        'room_id' in client and 
-                        str(client['room_id']) == room_id):
-                        
-                        # Skip excluded user if specified
-                        if exclude_user and client.get('user_id') == exclude_user:
-                            continue
-                            
-                        try:
-                            client['transport'].write(message)
-                        except Exception as e:
-                            logging.error(
-                                "Error sending to client %s in room %s: %s", 
-                                client_id, room_id, e
-                            )
-        except JSONEncoder as e:
-            logging.error("Failed to encode message for room %s: %s", room_id, e)
-        except Exception as e:
-            logging.error("Unexpected error in send_to_room: %s", e, exc_info=True)
+        room_id = str(room_id)
+        with self._lock:
+            for client_id, client in list(self._clients.items()):
+                if ('transport' in client and 'user_id' in client and 'room_id' in client and str(client['room_id']) == room_id):
+                    if exclude_user and client.get('user_id') == exclude_user:
+                        continue
+                    try:
+                        client['transport'].write(data)
+                    except Exception as e:
+                        logging.error("Error sending to client %s in room %s: %s", client_id, room_id, e)
 
     def broadcast(self, data: Dict[str, Any], exclude_user: Optional[str] = None) -> None:
-        """Broadcast data to all connected clients.
-        
-        Args:
-            data: The data to broadcast
-            exclude_user: Optional user ID to exclude from the broadcast (i.e., the user who sent the message)
-        """
+        if self._delegate:
+            try:
+                return self._delegate.broadcast(data, exclude_user)
+            except Exception:
+                logging.exception("Delegated broadcast failed")
         with self._lock:
             for client_id, client in list(self._clients.items()):
                 if 'transport' in client and 'user_id' in client:
@@ -206,3 +195,6 @@ class ClientManager:
                         client['transport'].write(data)
                     except Exception as e:
                         logging.error("Error broadcasting to client %s: %s", client_id, e)
+
+# Provide module-level singleton for compatibility with older code
+client_manager = ClientManager()

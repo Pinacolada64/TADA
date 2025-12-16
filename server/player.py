@@ -4,17 +4,61 @@ import os
 import random
 import textwrap
 import datetime
-from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Optional, TYPE_CHECKING
+import threading
+
+from simple_client import send_message
+import net_common as nc
+from flags import PlayerFlags
+
+# Provide fallbacks for server-level globals. These modules may differ between
+# server implementations; prefer `simple_server` if available, otherwise `net_server`.
+try:
+    import simple_server as _ss
+except Exception:
+    _ss = None
+try:
+    import net_server as _ns
+except Exception:
+    _ns = None
+
+if _ss is not None:
+    server_lock = getattr(_ss, 'server_lock', threading.Lock())
+    room_players = getattr(_ss, 'room_players', {})
+    players = getattr(_ss, 'players', {})
+elif _ns is not None:
+    server_lock = getattr(_ns, 'server_lock', threading.Lock())
+    room_players = getattr(_ns, 'room_players', {})
+    players = getattr(_ns, 'players', {})
+else:
+    server_lock = threading.Lock()
+    room_players = {}
+    players = {}
+
+def _get_server_module():
+    """Return an available server module that exposes server_lock, room_players, players.
+    Prefer simple_server, then net_server, then old_server.
+    """
+    if _ss is not None:
+        return _ss
+    if _ns is not None:
+        return _ns
+    try:
+        import old_server as _os
+        return _os
+    except Exception:
+        return None
 
 if TYPE_CHECKING:
-    import net_common
     import terminal
-    from base_classes import CombinationTypes, PlayerMoneyTypes, PlayerStat, Gender, compass_txts, Guild, Alignment
+    from base_classes import (CombinationTypes, PlayerMoneyTypes, PlayerStat, Gender, compass_txts, Guild, Alignment,
+    InventoryItem)
     from base_variables import STAT_DATA
+    from players import Ally
     from flags import Flag, new_player_default_flags, PlayerFlags, FlagDisplayTypes
-    from net_server import Message
-    from server import server_lock, room_players, players
+    from net_common import Message
+    # from simple_server  import server_lock, room_players, players
     from tada_utilities import make_random_id
 
 
@@ -45,10 +89,10 @@ def set_up_client_settings():
     return terminal_settings
 
 
-def set_up_combinations(combination_name=None):
+def set_up_combinations():
     from base_classes import Combination, CombinationTypes
-    # returns a dict of combinations: {<CombinationTypes.CASTLE: (40,10,5)}
-    combinations = {combination_name: Combination(combination_name) for combination_type in CombinationTypes}
+    # returns a list of 3 combinations: [<CombinationTypes.CASTLE: (40,10,5)]
+    combinations = [Combination(combination_type) for combination_type in CombinationTypes]
     # >>> print(Combination(CombinationTypes.LOCKER))
     #   Locker: 21-83-91
     logging.debug(combinations)
@@ -73,7 +117,6 @@ def set_up_silver() -> dict:
     # numeric values can have underscores in them to separate thousands, trillions places in a localization-
     # agnostic way: 1_000 represents 1,000.00 or 1.000,00 depending on locale.
     # make a dict: {PlayerMoneyType.IN_BAR: 1_000, PlayerMoneyType.IN_BANK: 2_000, PlayerMoneyType.IN_HAND: 3_000}
-    #
     silver_types = {v: k * 1_000 for k, v in enumerate(PlayerMoneyTypes, start=1)}
     logging.info("%s" % silver_types)
     return silver_types
@@ -95,6 +138,7 @@ def longest_flag_name() -> int:
     item_two......: bar
     item_three....: baz
     """
+    from flags import PlayerFlags
     return len(max([x for x in PlayerFlags], key=len)) + 4
 
 
@@ -144,8 +188,10 @@ class Player:
         self.stats = kwargs.get("stats", set_up_stats())
         # flags:
         self.flags = kwargs.get('flags', set_up_flags())
-        # combinations:
+        # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
         self.combinations = kwargs.get('combinations', set_up_combinations())
+        # client settings - set up some defaults
+        self.client_settings = kwargs.get('client_settings', set_up_client_settings())
 
         self.natural_alignment = kwargs.get('natural_alignment', Alignment.NEUTRAL)
         self.current_alignment = kwargs.get('current_alignment', Alignment.NEUTRAL)
@@ -162,15 +208,10 @@ class Player:
             silver_in_hand = self.get_silver(PlayerMoneyTypes.IN_HAND)
             logging.info("Silver in hand: %i" % silver_in_hand)
 
-        # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
-        self.combinations = kwargs.get('combinations', set_up_combinations())
-        # client settings - set up some defaults
-        self.client_settings = kwargs.get('client_settings', set_up_client_settings())
-
-        self.times_played = kwargs.get('times_played')
+        self.times_played = kwargs.get('times_played', None)
         # last_connection helps determine whether once_per_day events should be reset, but we just care about the day
         # rolling over, not that 24 hours have passed.
-        # Also in the LASTON command to show when a player was last online.
+        # TODO: Also in the LASTON command to show when a player was last online.
         # Player.connect() should set last_connection to datetime.now().
         # Player.disconnect() should also set last_connection to datetime.now().
         self.last_connection = kwargs.get('last_connection', datetime.datetime.now())
@@ -195,10 +236,11 @@ class Player:
         self.char_race = kwargs.get('char_race')
         # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
 
-        self.inventory = kwargs.get('inventory')
+        self.inventory: list = kwargs.get('inventory')
+        self.max_inventory_size: int = kwargs.get('max_inventory_size', 10)
 
-        self.hit_points = kwargs.get('hit_points', 0)
         # combat stuff:
+        self.hit_points = kwargs.get('hit_points', 0)
         # the lower the Honor score, the more evil the character has become.
         # TODO: look it up, but I think 1,000 honor points is equivalent to a Saintly Knight.
         self.honor = kwargs.get('honor', 1_000)
@@ -206,7 +248,7 @@ class Player:
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
         self.experience = kwargs.get('experience', 0)
-        self.dead_monsters = kwargs.get('dead_monsters')
+        self.dead_monsters = kwargs.get('dead_monsters', [])
         """
         Things you can only do once per day (file_formats.txt):
         'pr'        has PRAYed once
@@ -215,17 +257,9 @@ class Player:
                     (prevents them from logging on multiple times per day and getting multiple presents)
         # TODO: make these Enums, finish this list
         """
-        self.once_per_day = kwargs.get('once_per_day', list())
-        self.last_play_date = kwargs.get('last_play_date')
+        self.once_per_day = kwargs.get('once_per_day', [])
+        self.last_play_date = kwargs.get('last_play_date', datetime.datetime.now())
 
-        # FIXME: this is broken
-        #  TODO: copy UserSetting class here:
-        """
-        settings: UserSetting = field(default_factory=lambda: UserSetting())
-        # Copy list of client_settings defaults from user_settings.py:
-        client_settings: dict[ClientSettingsNames, int | str] = field(
-            default_factory=lambda: {i[0]: ClientValues for i in ClientSettingsNames})
-        """
         self.party = kwargs.get('party', [])
         self.allies = kwargs.get('allies', [])
 
@@ -253,67 +287,46 @@ class Player:
         # None if inactive, or non-magic user
         # != 0 is the number of rounds left, decrement at every turn
         self.wizard_glow = kwargs.get('wizard_glow')
-        self.id = None
+        # Allow passing an explicit id via kwargs (e.g., player.Player(name=..., id=username)).
+        self.id = kwargs.get('id', None)  # account id
 
         # command history:
         self.command = None
         self.previous_command = None
 
         # flag whether a save is required:
-        self.unsaved_changes = False
+        self.unsaved_changes: bool = False
+
+        # If an id was provided, attempt to load persisted player state from disk
+        try:
+            if self.id:
+                self._load()
+        except Exception:
+            logging.debug('No saved player data loaded for %s' % (self.id or self.name))
 
     def __str__(self):
-        """print formatted Player object (just random info for now to test)"""
-        age = "Undetermined"
-        birthday = "Undetermined"
-        date_format_string = "%a %b %d, %Y"  # weekday month date, year
-        combinations = [f'{c.name.rjust(15)}: {c.combination}' for c in self.combinations]
-        if self.birthday:
-            delta = datetime.datetime.now() - datetime.datetime(self.birthday)
-            age = f"{delta.days // 365} years"
-            date_format_string = "%a %b %d, %Y"  # weekday, month, date, year
-            birthdate = self.birthday.strftime(date_format_string)
-            year_delta = datetime.date.today().year - self.birthday.year
-            age = f"{year_delta} years"
-            birthday = self.birthday.strftime(date_format_string)
-        if self.last_play_date:
-            last_play_date = self.last_play_date.strftime(date_format_string)
-
-        self.silver_total = self.silver[PlayerMoneyTypes.IN_HAND] + \
-                            self.silver[PlayerMoneyTypes.IN_BAR] + \
-                            self.silver[PlayerMoneyTypes.IN_BANK]
-
-        _ = f"""
-        {'Name:'.rjust(20)} {self.name}
-        {'Age:'.rjust(20)} {age}
-        {'Gender:'.rjust(20)} {self.gender.title()}
-        {'Age:'.rjust(20)} {age}
-        {'Birthday:'.rjust(20)} {birthday}
-        {'Silver: In hand:'.rjust(20)} {self.silver[PlayerMoneyTypes.IN_HAND]: >12,}
-        {'In bank:'.rjust(20)} {self.silver[PlayerMoneyTypes.IN_BANK]: >12,}
-        {'In bar :'.rjust(20)} {self.silver[PlayerMoneyTypes.IN_BAR]: >12,}
-        {'Total:'.rjust(20)} {self.silver_total: >12,}
-        
-        {'Guild:'.rjust(20)} {self.guild.title()}
-        {'Combinations:'.rjust(20)} {self.show_combinations()}
-        
-        {'Last played:'.rjust(20)} {last_play_date}
-        """
-        return textwrap.dedent(_)
+        """print representation of Player object"""
+        return f"{self.name} <Player>"
 
     def __repr__(self):
         return f"Player <{self.name}>"
 
-    def set_stat(self, stat: "PlayerStat", adj: int):
+    def set_stat(self, stat: "PlayerStat", adj: int, verbose: bool = False):
         """
-        :param stat: statistic in stats{} dict to adjust
+        Set stat <stat> to an absolute value. This has been provided for backwards compatibility
+        with adj_stat_relative().
+
+        :param stat: statistic in self.stats{} dict to adjust
         :param adj: adjustment (+x or -x)
+        :param verbose: True: tell about it, False: don't
         :return: stat, maybe also 'success': True if 0 > stat > <limit>
 
         >>> rulan = Player(**set_up_rulan())
 
-        >>> rulan.adjust_stat(PlayerStat.STR, -5)  # decrement Rulan's strength by 5
+        >>> rulan.adj_stat_relative(PlayerStat.STR, -5)  # decrement Rulan's strength by 5
         """
+        from flags import PlayerFlags
+        from base_variables import STAT_DATA
         if stat not in self.stats:
             logging.warning(f"Stat {stat} doesn't exist.")
             # raise ValueError?
@@ -321,12 +334,16 @@ class Player:
         # adjust stat by <adjustment>:
         before = self.stats[stat]
         after = before + adj
-        logging.info("set_stat: Before: %s %i" % (stat, after))
-        if not self.query_flag(PlayerFlags.EXPERT_MODE):
-            pass
+        logging.info("Before: %s %i" % (stat, after))
+        # TODO: call adjust_stat_relative() instead?
+        # self.adj
+        if not self.query_flag(PlayerFlags.EXPERT_MODE) or verbose:
+            # STAT_DATA structure: STAT_DATA[PlayerStat.X]['phrases'] -> (less, more)
+            phrase = STAT_DATA[stat]["phrases"][before < after]
+            self.output(f"You feel {phrase}")
             # TODO: jwhoag suggested adding 'confidence' -> 'brave' -- good idea,
             #  not sure where it can be added yet.
-        logging.info("set_stat: After: %s %i" % (stat, after))
+        logging.info("After: %s %i" % (stat, after))
         self.stats[stat] = after
 
     def has_item(self, item):
@@ -416,7 +433,7 @@ class Player:
             temp = string.encode(codec)
             logging.debug(repr(temp))  # don't print Commodore color codes to Linux terminal
         """
-        from server import Message
+        from net_server import Message
         from tada_utilities import text_pager
 
         formatted_lines = []
@@ -427,13 +444,22 @@ class Player:
             formatted_lines.extend(processed_lines)  # Use extend for multiple lines from one input
         elif isinstance(text_lines, list):
             # Process each string in the list
+            collected_lines = []
             for line in text_lines:
+                # if line == '':
+                #     collected_lines.append("\n")
                 processed_lines = self.process_single_line(line)
                 formatted_lines.extend(processed_lines)  # Use extend here too
 
         # Use text_pager if lines > screen rows
         if len(formatted_lines) >= self.client_settings.screen_rows:
-            text_pager(formatted_lines, self)
+            # text_pager(player, text_lines)
+            try:
+                text_pager(self, formatted_lines)
+            except Exception:
+                logging.debug("Unable to run text_pager (async) synchronously; falling back to direct output")
+                for ln in formatted_lines:
+                    print(ln)
         # otherwise, print each line from the flattened list without paging:
         """
         for line in final_output_lines:
@@ -452,6 +478,7 @@ class Player:
 
         :param self: Player object (to infer line ending options)
         :param raw_input: string to process
+        :return str: null string or text-wrapped strings
         """
         from colorama import Fore
         import re
@@ -489,374 +516,101 @@ class Player:
         return wrapped_text.splitlines()
 
     def set_silver_absolute(self, kind: "PlayerMoneyTypes", amount: int):
+        """
+        Set amount of silver in PlayerMoneyType[kind] to an absolute value.
+        To adjust by a relative amount, see adjust_silver_relative().
+        :param kind: PlayerMoneyTypes key
+        :param amount: amount to set
+        :return: None
+        """
         try:
             self.silver[kind] = amount
             logging.debug("kind: %s, amount: %i" % (kind, amount))
         except KeyError:
             logging.warning("kind: invalid type %s" % kind)
 
+    def get_silver(self, kind: "PlayerMoneyTypes") -> int:
+        """Return the silver amount for the given PlayerMoneyTypes key.
+
+        This method is resilient: it handles enum keys, string keys, and falls
+        back to 0 on any error.
+        """
+        try:
+            # Direct lookup (typical case: enum key)
+            val = self.silver.get(kind, 0)
+            return int(val) if val is not None else 0
+        except Exception:
+            # Try to match by string name / value in case the keys are stored differently
+            try:
+                kstr = str(kind)
+                for k, v in self.silver.items():
+                    try:
+                        if k == kind or str(k) == kstr or (hasattr(k, 'name') and k.name == kstr) or (hasattr(k, 'value') and str(k.value) == kstr):
+                            return int(v)
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+        return 0
+
     def get_flag(self, flag_name: "PlayerFlags") -> Optional["Flag"]:
         """
-        Given a PlayerFlagName Enum, return the Flag object
+        Given a PlayerFlag Enum, return the Flag object
         :param flag_name: name of flag
         :return: Flag object
-
-        >>> rulan = Player()  # instantiate p, show Admin flag object:
-
-        >>> # - Show Admin flag object:
-        
-        >>> print(f"{rulan.get_flag(PlayerFlags.ADMIN)}")
         """
         current = self.flags.get(flag_name)
         if current:
             logging.debug("flag: %s" % current)
             return current
         else:
-            logging.warning("get_flag: no flag %s" % flag_name)
+            logging.warning("no flag %s" % flag_name)
             return None
 
-    def set_flag(self, flag: "PlayerFlags") -> None:
-        """
-        # FIXME: fix this
-        Directly set the flag status to True.
+    def set_flag(self, flag: "PlayerFlags", status: bool = True):
+        """Set a flag on this player using the PlayerFlags enum (delegates to flags.set_flag).
 
-        :param flag: PlayerFlag to set
-        :return: None
+        Example: player.set_flag(PlayerFlags.ADMIN)  # sets True
+                 player.set_flag(PlayerFlags.ADMIN, False)  # clears
         """
         try:
-            logging.debug("setting flag %s to True" % flag.name)
-            current_flag = self.get_flag(flag)
-            self.put_flag(flag, status=True, display_type=current_flag.display_type)
-        except KeyError:
-            logging.error("flag %s not found" % flag.name)
-
-    def clear_flag(self, flag: "PlayerFlags") -> None:
-        """
-        # FIXME: fix this
-        Directly clear the flag status to False.
-
-        :param flag: PlayerFlag to clear
-        :return: None
-        """
-        try:
-            logging.debug("clearing flag %s to False" % flag.name)
-            current_flag = self.get_flag(flag)
-            self.put_flag(flag, status=False, display_type=current_flag.display_type)
-        except KeyError:
-            logging.error("flag %s not found" % flag.name)
-
-    def show_flag(self, flag: "PlayerFlags") -> str | None:
-        """
-        Display the flag name, ":", and its display_name status.
-        :param flag: Flag name to display
-        :return: str
-
-        >>> test_player = Player(name="test")
-
-        >>> print(test_player.show_flag(PlayerFlags.UNCONSCIOUS))
-        Unconscious: No
-        """
-        try:
-            """
-            >>> print(PlayerFlagName.UNCONSCIOUS.value)
-            'Unconscious'
-            """
-            flag_name = flag.value
-            current_flag = self.get_flag(flag)
-            display_type, status = current_flag.display_type, current_flag.status
-            logging.debug("flag_name=%s, display_type=%s, status=%s" % (flag_name, display_type, status))
-            result = self.show_flag_status(flag)
-            return f"{flag_name}: {result}"
-        except KeyError:
-            logging.warning("unknown flag: %s" % flag.name)
-            return None
-
-    def show_flag_line_item(self, flag: "PlayerFlags", leading_num: Optional[int]) -> str | None:
-        """
-        Display the flag name, a dot leader, and the flag status.
-        The flag is shown (optionally prefixed with <leading_number> if `leading_num` is of type `int`),
-         a dot leader ("...:") and the status: On/Off, Yes/No
-
-        :param flag: PlayerFlag Enum member to display
-        :param leading_num: used with `dot_leader`, type `int` prefixes the flag display with this number,
-         type `None` suppresses the number from being displayed
-        :return: a string displaying the flag status
-        """
-        """
-        >>> test_player = Player(name="test")
-
-        >>> print(test_player.show_flag_line_item(PlayerFlagName.UNCONSCIOUS, leading_num=1))
-         1. Unconscious...............: No
-        """
-        try:
-            """
-            >>> print(PlayerFlagName.UNCONSCIOUS.value)
-            'Unconscious'
-            """
-            max_width = longest_flag_name()
-            logging.debug("%s, "
-                          "leading_num: %s, "
-                          "max_width: %i" % (flag, leading_num, max_width))
-            temp = self.get_flag(flag)
-            flag_name: str = temp.name
-            display_type: FlagDisplayTypes = temp.display_type
-            status: bool = temp.status
-            logging.debug("flag_name=%s, "
-                          "display_type=%s, status=%s" % (flag_name, display_type, status))
-            result = self.show_flag_status(flag)
-            # leading_num=None is used here with character_editor.py to display a menu of flag settings.
-            # print_menu() will number the items:
-            number = f"{leading_num:>2}. " if isinstance(leading_num, int) else ""
-            return f"{number}{flag_name.ljust(max_width, '.')}: {result}"
-        except KeyError:
-            logging.warning("unknown flag: %s" % flag.name)
-            return None
-
-    def show_flag_status(self, flag: "PlayerFlags") -> str:
-        """
-        Show a flag's status.
-        :param flag: PlayerFlagName to display the status of
-        :return: Appropriate string for flag DisplayType
-
-        >>> rulan = Player()
-
-        >>> rulan.show_flag_status(PlayerFlagName.UNCONSCIOUS)
-        'No'
-        """
-        from flags import FlagDisplayTypes
-        temp = self.flags[flag]
-        if temp.display_type is FlagDisplayTypes.YESNO:
-            result = "Yes" if temp.status else "No"
-        elif temp.display_type is FlagDisplayTypes.ONOFF:
-            result = "On" if temp.status else "Off"
-        else:
-            logging.error("invalid type %s for flag %s" % (temp.display_type, temp.name))
-            result = "<<error>>"
-        return result
-
-    def toggle_flag(self, flag: "PlayerFlags", verbose=False):
-        """
-        Toggle the status of a flag. If verbose=True, tell about it (like when a player
-        toggles an option on or off)
-        :param flag: Flag to toggle
-        :param verbose: True=tell that the flag is being toggled
-        :return: None
-        """
-        try:
-            result = self.get_flag(flag)
-            logging.debug("Flag: %s before toggle: %s" % (flag.value, result.status))
-            result.status = not result.status
-            logging.debug("Flag: %s after toggle: %s" % (flag.value, result.status))
-            self.put_flag(flag, result.display_type, result.status)
-            if verbose:
-                # FIXME: I'm going to let this stand even though "UNCONSCIOUS are off"
-                #  will never be displayed directly except maybe in a player editor program...
-                indefinite_article = "are" if flag.name.endswith("S") else "is"
-                print(f"{flag.value} {indefinite_article} now {self.show_flag_status(flag)}.")
-        except KeyError:
-            logging.warning("toggle_flag: Can't toggle unknown flag: %s" % flag.name)
-
-    def put_flag(self, name: "PlayerFlags", display_type: "FlagDisplayTypes", status: bool):
-        from flags import Flag
-        # FIXME: seems like put_flag should know the display_type of the PlayerFlags object and
-        #  not need to be specified in the function call
-        logging.debug("%s put as %s" % (name, status))
-        self.flags[name] = Flag(name, display_type, status)
-
-    def query_flag(self, flag: "PlayerFlags") -> bool:
-        """Returns the status (True/False) of specified Flag object to caller"""
-        result = self.get_flag(flag)
-        return result.status
-
-    def show_stat(self, stat_name: "PlayerStat") -> str:
-        logging.debug(f"show_stat: %s" % stat_name.value)
-        x = self.get_stat(stat_name)
-        return f"{stat_name.value}: {x}"
-
-    def adjust_stat(self, stat: "PlayerStat", adjustment: int, verbose: bool = True, abbreviate: bool = True):
-        from base_variables import STAT_DATA
-        """
-        Adjusts a player's statistic and prints the outcome.
-
-        :param stat: The statistic to be adjusted.
-        :param adjustment: The adjustment to stat.
-        :param verbose: Whether to tell about it or not (TODO: based on Expert Mode)
-        :param abbreviate: whether to use short (True) or long (False) statistic names
-        """
-        # Step 1: Look up all data for the given stat
-        if verbose:
-            stat_info = STAT_DATA[stat]
-            stat_name = stat_info["name"][abbreviate]
-
-            # Get the correct phrase based on the adjustment being positive or negative,
-            # using the 'is_positive' boolean as an index into the STAT_INFO dict:
-            is_positive = adjustment > 0
-            # print(f'{is_positive=}')
-            phrase = stat_info["phrases"][is_positive]
-
-            # Step 2: Display the updated outcome to the player
-            print(f"You feel {phrase}. ({stat_name} {adjustment:+})")
-            # 'You feel less intelligent. (Intelligence -4)'
-
-    def get_multiple_stats(self, stat_list: list["PlayerStat"]) -> list | None:
-        """get player stat <stat_list>
-
-        :param stat_list: PlayerStat(s) to retrieve
-        :return: list of statistic values, None if stat_list is empty, or IndexError is encountered
-        """
-        if not stat_list:
-            logging.error("No stats provided")
-            return None
-        try:
-            results = []
-            for i in stat_list:
-                result = self.stats.get(i)
-                results.append(result)
-                logging.debug("get %s: %i" % (i, result))
-            return results
-        except IndexError:
-            logging.warning("get_stat: no such statistic %s" % stat_list)
-            return None
-
-    def print_all_stats(self, abbreviate=False):
-        """
-        Print all player stats in title case: '<Stat>: <value>'
-        Should call `print_stat()` to save overhead.
-        Let the calling routine worry about string justification.
-
-        >>> test = Player(stats={PlayerStat.CHR: 8,
-        ...                      PlayerStat.CON: 15,
-        ...                      PlayerStat.DEX: 3,
-        ...                      PlayerStat.INT: 5,
-        ...                      PlayerStat.STR: 8,
-        ...                      PlayerStat.WIS: 3,
-        ...                      PlayerStat.EGY: 3})
-
-        >>> test.print_all_stats()
-        Chr:  8   Int:  5   Egy:  3
-        Con: 15   Str:  8
-        Dex:  3   Wis:  3
-
-        >>> for stat in rulan.stats:
-        ...     print(f'{f"{stat}".rjust(15)}: {self.stats[stat]}')
-
-           Charisma: 2
-       Constitution: 2
-          Dexterity: 15
-             Energy: 18
-       Intelligence: 5
-           Strength: 15
-             Wisdom: 18
-"""
-
-        for stat in [PlayerStat.CHR, PlayerStat.INT, PlayerStat.EGY]:
-            print(f'Method 1: {self.print_stat(stat, False)}', end='')
-            print(f'Method 2: {stat.title()}: {self.stats[stat]:2}   ', end='')
-        print()
-        for stat in [PlayerStat.CON, PlayerStat.STR]:
-            print(f'{stat.title()}: {self.stats[stat]:2}   ', end='')
-        print()
-        for stat in [PlayerStat.DEX, PlayerStat.WIS]:
-            print(f'{stat.title()}: {self.stats[stat]:2}   ', end='')
-        print()
-
-    def print_one_stat(self, stat_name: "PlayerStat", abbreviations: bool = False):
-        """
-        Print a single statistic. This is a convenience method for print_all_stats().
-
-        :param stat_name: stat to print
-        :param abbreviations: use full word for stat name (True: e.g., "Intelligence", False: "Int")
-        """
-        print(f'{stat_name.name}: {self.stats[stat_name]}')
-        if abbreviations:
-            print(f'{stat_name.title()}: {self.stats[stat_name]}')
-
-    def get_silver(self, kind: "PlayerMoneyTypes") -> int | None:
-        """
-        Get the amount of silver the player has for a specific money type.
-
-        :param kind: PlayerMoneyTypes.IN_HAND, PlayerMoneyTypes.IN_BANK, PlayerMoneyTypes.IN_BAR
-        :return int: value of silver in that category
-        """
-        try:
-            silver = self.silver[kind]
-            logging.info("silver [%s]: %i" % (kind, silver))
-            return silver
-        except IndexError:
-            logging.info("Bad type '%s'" % kind)
-            return None
-
-    def add_silver(self, kind: "PlayerMoneyTypes", amount: int) -> bool:
-        """
-        Adds a specified amount of silver to an account.
-
-        :param kind: The account to modify (e.g., in_hand, in_bank).
-        :param amount: The positive amount of silver to add.
-        :return: True, as adding silver should always succeed.
-        """
-        from flags import PlayerFlags
-        # Use abs() to ensure the amount is always positive
-        original_amount = self.silver[kind]
-        amount_to_add = abs(amount)
-        total = original_amount + amount_to_add
-
-        self.silver[kind] += amount_to_add
-        logging.info("Before: %i, Added %i silver, total %i" % (original_amount, amount_to_add, total))
-        if not self.query_flag(PlayerFlags.EXPERT_MODE):
-            self.output(f"({amount_to_add:,} was added to your silver.)")
-
-        return True
-
-    def subtract_silver(self, kind: "PlayerMoneyTypes", amount: int) -> bool:
-        """
-        Subtracts a specified amount of silver from an account.
-
-        :param kind: The account to modify.
-        :param amount: The positive amount of silver to subtract.
-        :return: True if the subtraction was successful, False if there were insufficient funds.
-        """
-        from flags import PlayerFlags
-        from base_classes import PlayerMoneyTypes
-
-        logging.info("silver in hand: %i" % self.silver[PlayerMoneyTypes.IN_HAND])
-        # Use abs() to ensure the amount is always positive
-        amount_to_subtract = abs(amount)
-
-        # Check if the player has enough silver
-        logging.debug("price: %i, silver: %i" % (amount_to_subtract, self.silver[kind]))
-        if self.silver[kind] >= amount_to_subtract:
-            self.silver[kind] -= amount_to_subtract
-            if not self.query_flag(PlayerFlags.EXPERT_MODE):
-                self.output(f"({amount_to_subtract:,} was subtracted from your silver.)")
-            return True
-        else:
-            # Not enough silver
-            if not self.query_flag(PlayerFlags.EXPERT_MODE):
-                self.output("(You do not have enough silver for that.)")
+            # import locally to avoid circular imports at module import time
+            import flags as _flags
+            if status:
+                return _flags.set_flag(self, flag)
+            else:
+                return _flags.clear_flag(self, flag)
+        except Exception:
+            logging.exception('Failed to set flag')
             return False
 
-    def adj_silver_relative(self, kind: "PlayerMoneyTypes", relative_amt: int) -> bool:
-        """
-        Adjusts silver by calling the add or subtract functions.
-        This maintains backward compatibility.
-        """
-        from flags import PlayerFlags
-        if relative_amt >= 0:
-            return self.add_silver(kind, relative_amt)
-        else:
-            # Pass the absolute value to subtract_silver
-            return self.subtract_silver(kind, abs(relative_amt))
+    def clear_flag(self, flag: PlayerFlags):
+        """Clear (set False) the named flag on this player (delegates to flags.clear_flag)."""
+        try:
+            import flags as _flags
+            return _flags.clear_flag(self, flag)
+        except Exception:
+            logging.exception('Failed to clear flag')
+            return False
 
-    def is_magic_user(self):
-        """
-        Shorter than repeating "if char.class_name == 'witch' or char.class_name == 'wizard'"
+    def toggle_flag(self, flag):
+        """Toggle the named flag and return the new boolean status (delegates to flags.toggle_flag)."""
+        try:
+            import flags as _flags
+            return _flags.toggle_flag(self, flag)
+        except Exception:
+            logging.exception('Failed to toggle flag')
+            return False
 
-        :param self: self object
-        :return: gender-appropriate magic user class name (Witch or Wizard)
-        """
-        # FIXME: this is still undergoing testing - I want to have character creation display appropriate class
-        #   when gender changes -- can this be done with some logic in the __str__() method?
-        return "Wizard" if self.gender is Gender.MALE else "Witch"
+    def query_flag(self, flag) -> bool:
+        """Return the boolean state of the named flag (delegates to flags.query_flag)."""
+        try:
+            import flags as _flags
+            return bool(_flags.query_flag(self, flag))
+        except Exception:
+            logging.exception('Failed to query flag')
+            return False
+
 
     def set_stat_absolute(self, stat: "PlayerStat", value: int):
         """
@@ -909,14 +663,13 @@ class Player:
         try:
             return self.stats[stat]
         except KeyError:
-            logging.warning("Stat '%s' doesn't exist." % k)
-            # TODO: raise ValueError?
+            logging.warning("Stat '%s' doesn't exist." % stat)
             return None
 
     def get_one_stat(self, stat: "PlayerStat") -> str | None:
         """
         :param stat: PlayerStat to retrieve
-        :return: statistic value, or None if stat doesn't exist
+        :return: statistic value, or None if stat_list empty, or IndexError is encountered
         """
         if not stat:
             logging.error("No stats provided")
@@ -983,9 +736,13 @@ class Player:
         pass
 
     def connect(self):
-        with server_lock:
+        server = _get_server_module()
+        if server is None:
+            logging.error("connect: no server module available to register connection")
+            return
+        with getattr(server, 'server_lock'):
             # TODO: add last_connection as datetime.now()
-            room_players[self.map_room].add(self.id)
+            getattr(server, 'room_players')[self.map_room].add(self.id)
             self.last_connection = datetime.datetime.now()
             logging.info("%s connected at %s" % (self.name, self.last_connection))
             # TODO: notify other players in same room of connection ("%s wakes up.")
@@ -993,142 +750,205 @@ class Player:
             #    ("Somewhere in the land, " printed if not in the same room.)
 
     def move(self, destination_room: int, direction=None):
-        """
-        remove player login id from list of players in current_room, add them to room next_room
-
-        :param destination_room: room to move to
-        :param direction: the direction being moved in, for notifying other players of movement
-        if None, '#<room_number>' teleportation command (or, later, spell) was used and the
-        "<player> disappears in a flash of light" message is used instead
-        """
         current_room = self.map_room
-        with server_lock:
-            logging.debug("Player.move: Before remove: %s" % room_players[current_room])
-            room_players[current_room].remove(self.id)
-            logging.debug("Player.move: After remove: %s" % room_players[current_room])
+        server = _get_server_module()
+        if server is None:
+            logging.error("move: no server module available to update room_players")
+            return
+        with getattr(server, 'server_lock'):
+            logging.debug("Player.move: Before remove: %s" % getattr(server, 'room_players')[current_room])
+            getattr(server, 'room_players')[current_room].remove(self.id)
+            logging.debug("Player.move: After remove: %s" % getattr(server, 'room_players')[current_room])
 
             self.map_room = destination_room
-            logging.debug("Player.move: Before add: %s" % room_players[current_room])
-            room_players[self.map_room].add(self.id)
-            logging.debug("Player.move: After add: %s" % room_players[current_room])
+            logging.debug("Player.move: Before add: %s" % getattr(server, 'room_players')[self.map_room])
+            getattr(server, 'room_players')[self.map_room].add(self.id)
+            logging.debug("Player.move: After add: %s" % getattr(server, 'room_players')[self.map_room])
             logging.debug('Player.move: Moved %s from %s to %s' % (self.name, current_room, self.map_room))
+            # Use net_common.Message via module import to avoid import-time circular issues
             if direction is None:
-                return Message([f'[{self.name} disappears in a flash of light.'])
+                return nc.Message(lines=[f'[{self.name} disappears in a flash of light.'])
             else:
-                return Message([f"{self.name} moves {compass_txts[direction]}."])
+                # compass_txts is in base_classes; import lazily
+                from base_classes import compass_txts
+                return nc.Message(lines=[f"{self.name} moves {compass_txts[direction]}."])
 
-    def disconnect(self):
-        with server_lock:
-            room_players[self.map_room].remove(self.id)
+    async def disconnect(self, reader, writer):
+        server = _get_server_module()
+        # Use nc.Message via module import above
+        if server is None:
+            logging.error("disconnect: no server module available to update room_players")
+            # Attempt to save player even if server linkage isn't available
+            try:
+                self.save(force=True)
+            except Exception:
+                logging.exception("disconnect: failed to save player before disconnect (no server)")
+            # send dict compatible with to_jsonb
+            await send_message(writer, {'lines': [f'{self.name} disconnecting (no server linkage).']})
+        with getattr(server, 'server_lock'):
+            # Persist player state before removing from room and disconnecting
+            try:
+                self.save(force=True)
+            except Exception:
+                logging.exception("disconnect: failed to save player before disconnect")
+            try:
+                getattr(server, 'room_players')[self.map_room].remove(self.id)
+            except Exception:
+                logging.exception("disconnect: failed to remove player id from room_players")
             # increment times played:
-            self.times_played += 1
-            logging.info("Player.disconnect: %s disconnected. Times played: %i." % (players[self.id].name,
+            self.times_played = (self.times_played or 0) + 1
+            logging.info("Player.disconnect: %s disconnected. Times played: %i." % (getattr(server, 'players')[self.id].name,
                                                                                     self.times_played))
-            return Message([f'{players[self.id].name} falls asleep.'])
+            return nc.Message(lines=[f'{getattr(server, "players")[self.id].name} falls asleep.'])
+        return None
 
     @staticmethod
     def _json_path(user_id):
-        from net_common import run_server_dir
-        return os.path.join(run_server_dir, f"player-{user_id}.json")
-
-    @staticmethod
-    def load(user_id):
-        """Load player from the JSON file based on the user ID"""
+        # Resolve run directory at runtime from net_common (may be a Path or string)
         try:
-            path = Player._json_path(user_id)
-            if os.path.exists(path):
-                with open(path) as json_file:
-                    player_data = json.load(json_file)
-                    logging.debug(f"Loaded '%s'." % player_data['name'])
-                    # show/convert flags from JSON text 'true/false' to bool True/False
-                    # (otherwise they're not recognized and can't be toggled):
-                    for k, v in player_data['flag'].items():
-                        if player_data['flag'][k] == 'true':
-                            player_data['flag'][k] = True
-                        if player_data['flag'][k] == 'false':
-                            player_data['flag'][k] = False
-                        logging.debug("%s: %s" % (k, v))
-                    return Player(**player_data)
-            return None
-        except FileNotFoundError:
-            # Failure
-            logging.error("Player.load: '%s' not found" % user_id)
-            return None
+            import net_common
+            base = getattr(net_common, 'run_server_dir', None)
+        except Exception:
+            base = None
+        if base is None:
+            base = Path('./run/server')
+        # Ensure string path
+        base_path = str(base)
+        return os.path.join(base_path, f"player-{user_id}.json")
 
-    def save(self):
-        # TODO: should a 'changes' flag be implemented to prevent saving if changes haven't been made?
-        with open(Player._json_path(self.id), 'w') as json_file:
-            json.dump(obj=self, fp=json_file, default=lambda o: {k: v for k, v
-                                                                 # in o.__dict__.items() if v}, indent=4)
-                                                                 in o.__dict__.items()}, indent=4)
-            logging.debug("Player.save: Saved '%s'." % self.name)
+    def save(self, force: bool = False) -> bool:
+        """Persist player to disk. If force=True, ignore unsaved_changes."""
+        try:
+            if not force and not getattr(self, 'unsaved_changes', False):
+                logging.debug("Player.save: no changes to save for %s" % getattr(self, 'name', '<unknown>'))
+                return True
+            if self.id is None:
+                logging.error("Player.save: cannot save player without id: %s" % getattr(self, 'name', '<unknown>'))
+                return False
+            path = self._json_path(self.id)
+            parent = os.path.dirname(path)
+            if parent and not os.path.exists(parent):
+                os.makedirs(parent, exist_ok=True)
+            # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact
+            data_out = {k: v for k, v in self.__dict__.items()}
+            try:
+                import flags as _flags
+                data_out['flags'] = _flags.serialize_flags_for_save(self)
+            except Exception:
+                # If flags module isn't available or fails, fall back to previous behavior
+                try:
+                    # If self.flags is present and looks like mapping, attempt to convert simple entries
+                    if isinstance(self.flags, dict):
+                        simple = {}
+                        for kk, vv in list(self.flags.items()):
+                            try:
+                                name = vv.name if hasattr(vv, 'name') else (kk.value if hasattr(kk, 'value') else str(kk))
+                                simple[name] = {'name': name, 'status': bool(getattr(vv, 'status', False))}
+                            except Exception:
+                                continue
+                        data_out['flags'] = simple
+                except Exception:
+                    pass
+            with open(path, 'w') as jsonF:
+                json.dump(data_out, jsonF, default=lambda o: getattr(o, '__dict__', str(o)), indent=4)
+            self.unsaved_changes = False
+            logging.info("Player.save: Saved %s to %s" % (getattr(self, 'name', '<unknown>'), path))
+            return True
+        except Exception:
+            logging.exception("Player.save: Failed to save player %s" % getattr(self, 'name', '<unknown>'))
+            return False
 
-    def adj_stat_relative(self, stat: "PlayerStat", adjustment: int):
-        logging.debug("TODO: move this in")
+    def _load(self) -> bool:
+        """Attempt to load a saved player JSON file and merge values into this Player.
 
-    def show_combinations(self):
-        logging.info("Finish this")
+        Only a small, safe set of fields are merged to avoid overwriting runtime-only objects.
+        Returns True if a file was successfully loaded, False otherwise.
+        """
+        try:
+            path = self._json_path(self.id)
+            if not os.path.exists(path):
+                return False
+            with open(path, 'r') as f:
+                data = json.load(f)
 
+            # Merge simple scalar fields
+            simple_keys = ('map_room', 'map_level', 'times_played', 'moves_today')
+            for k in simple_keys:
+                if k in data:
+                    try:
+                        setattr(self, k, int(data[k]) if data[k] is not None else data[k])
+                    except Exception:
+                        setattr(self, k, data[k])
 
-def transfer_silver(from_char: "Player", to_char: "Player", amount: int,
-                    from_where: "PlayerMoneyTypes" = "PlayerMoneyTypes.IN_HAND",
-                    to_where: "PlayerMoneyTypes" = "PlayerMoneyTypes.IN_HAND",
-                    verbose: bool = True) -> bool:
-    """
-    Transfer silver from one Player to another Player.
+            # Merge stats and silver dicts where present
+            if 'stats' in data and isinstance(data['stats'], dict):
+                try:
+                    self.stats.update(data['stats'])
+                except Exception:
+                    pass
+            if 'silver' in data and isinstance(data['silver'], dict):
+                try:
+                    self.silver = data['silver']
+                except Exception:
+                    pass
 
-    :param from_char: Character to transfer <amount> silver from
-    :param to_char: Character to transfer <amount> silver to
-    :param amount: amount to transfer
-    :param from_where: which location is the money in? ('IN_HAND' is the default)
-    :param to_where: where silver is ('IN_HAND' is the default)
-    :param verbose: True if you want to announce the success (or failure) of a transfer
-    :return: True if `from_char` has `amount` silver, False if not
-    """
-    """
-    # test of Character.transfer_silver:
-    >>> shaia = Player()
+            # Flags: convert saved name->status mapping back into player's flags mapping
+            try:
+                import flags as _flags
+                if 'flags' in data and isinstance(data['flags'], dict):
+                    # ensure mapping exists
+                    _flags.ensure_player_flags(self)
+                    for fname, entry in data['flags'].items():
+                        try:
+                            status = bool(entry.get('status', False)) if isinstance(entry, dict) else bool(entry)
+                            # find enum by value
+                            pf = next((pf for pf in _flags.PlayerFlags if pf.value == fname), None)
+                            if pf is not None:
+                                if status:
+                                    _flags.set_flag(self, pf)
+                                else:
+                                    _flags.clear_flag(self, pf)
+                            else:
+                                # attach as legacy string entry
+                                existing = getattr(self, 'flags', {})
+                                existing[fname] = entry
+                                try:
+                                    self.flags = existing
+                                except Exception:
+                                    pass
+                        except Exception:
+                            continue
+            except Exception:
+                pass
 
-    >>> shaia.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 200)
+            return True
+        except Exception:
+            logging.exception('Failed to load player data for %s' % (self.id or '<unknown>'))
+            return False
 
-    >>> rulan = Player()
+    def quit(self):
+        """High-level quit helper: force-save the player and return.
+        Note: actual disconnect mechanics are server-specific and not invoked here.
+        """
+        try:
+            # If id is missing but name exists, use name as a fallback id and attempt to save.
+            if getattr(self, 'id', None) is None:
+                nm = getattr(self, 'name', None)
+                if nm:
+                    logging.info("Player.quit: id missing, using name as id fallback: %s" % nm)
+                    try:
+                        self.id = str(nm)
+                    except Exception:
+                        logging.exception("Failed to coerce player.name to id; skipping save")
+                        return False
+                else:
+                    logging.info("Player.quit: skipping save because player has no id or name")
+                    return False
 
-    >>> rulan.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 200)
-
-    # Shaia doesn't have 500 silver in hand, so this will fail:
-    >>> transfer_silver(from_char=shaia, to_char=rulan, amount=500,
-    ...                 from_where=PlayerMoneyTypes.IN_HAND,
-    ...                 to_where=PlayerMoneyTypes.IN_HAND)
-    False
-
-    # Rulan has 100 silver in hand, so this will succeed:
-    >>> transfer_silver(from_char=shaia, to_char=rulan, amount=100,
-    ...                 from_where=PlayerMoneyTypes.IN_HAND,
-    ...                 to_where=PlayerMoneyTypes.IN_HAND)
-    True
-    """
-    # as suggested by Shaia:
-    # (will be useful for a future bank, or future expansion: silver transfer spell?)
-    if from_char.silver[from_where] >= amount:
-        to_char.set_silver_absolute(to_where, amount)
-        from_char.set_silver_absolute(from_where, -amount)
-        logging.info(
-            # e.g.: "Transfer 100 silver in hand from Shaia to Rulan in hand"
-            "Transfer %i silver %s from %s to %s %s" % (
-                amount, from_where, from_char.name, to_char.name, to_char.silver[to_where]))
-        if verbose:
-            print(f'{from_char.name} transferred {amount:,} silver {from_where} to {to_char.name}.')
-            print(f'{to_char.name} now has {to_char.silver[to_where]}.')
-        return True
-    else:
-        if verbose:
-            print(f"{from_char.name} doesn't have {amount:,} silver to give.")
-        return False
-
-
-if __name__ == '__main__':
-    from base_classes import PlayerStat
-
-    rulan_settings = {"name": "Rulan"}
-    rulan = Player(**rulan_settings)
-    rulan.adjust_stat(PlayerStat.WIS, -5, True, True)
+            saved = self.save(force=True)
+            if not saved:
+                logging.warning("Player.quit: save returned False for %s (id=%s)" % (getattr(self, 'name', '<unknown>'), getattr(self, 'id', None)))
+            return bool(saved)
+        except Exception:
+            logging.exception("Exception while forcing save on quit for %s" % getattr(self, 'name', '<unknown>'))
+            return False

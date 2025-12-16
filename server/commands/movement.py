@@ -62,6 +62,12 @@ class MoveCommand(BaseCommand):
         if token in ('go', 'move') and len(args) > 1:
             token = args[1].lower()
 
+        # Resolve player object from context (may be used by modules called below)
+        try:
+            player = get_player_from_context(context, client)
+        except Exception:
+            player = getattr(client, 'player', None)
+
         # normalize to single-letter directions where possible
         dir_map = {
             'north': 'n', 'n': 'n',
@@ -92,8 +98,17 @@ class MoveCommand(BaseCommand):
                 return CommandResult(success=False, error='bar_import', message=f'Failed to import bar module: {e}')
 
             original_room = cur_room_no
-            # mark as in bar room temporarily
-            client.room = 0
+            # mark as in bar room temporarily (use server helper if present to sync Player too)
+            try:
+                if hasattr(server, '_sync_player_location'):
+                    server._sync_player_location(client, 0)
+                else:
+                    client.room = 0
+            except Exception:
+                try:
+                    client.room = 0
+                except Exception:
+                    pass
 
             # Adapter to capture bar output
             class _BarAdapter:
@@ -189,14 +204,20 @@ class MoveCommand(BaseCommand):
                         original_room = cur_room_no
                         # Mark client and player as being in virtual shoppe room (optional)
                         try:
-                            client.room = 0
+                            if hasattr(server, '_sync_player_location'):
+                                server._sync_player_location(client, 0)
+                            else:
+                                client.room = 0
+                                try:
+                                    if player is not None:
+                                        player.map_room = 0
+                                except Exception:
+                                    pass
                         except Exception:
-                            pass
-                        try:
-                            if player is not None:
-                                setattr(player, 'map_room', 0)
-                        except Exception:
-                            pass
+                            try:
+                                client.room = 0
+                            except Exception:
+                                pass
 
                         # If shop_mod provides a ShoppeCommand, use it for the interactive flow
                         if hasattr(shop_mod, 'ShoppeCommand'):
@@ -275,7 +296,29 @@ class MoveCommand(BaseCommand):
         old_room = cur_room_no
         # Special handling: if moving up/down is represented via room.rc/rt rather than a directional exit
         # and this destination is the Shoppe (rt == 0), invoke merchant annex (bar) module's non-interactive helpers
-        client.room = dest_no
+        # Use server helper to keep client and Player in sync
+        try:
+            if hasattr(server, '_sync_player_location'):
+                server._sync_player_location(client, dest_no)
+            else:
+                # fallback behavior if server helper not present
+                client.room = dest_no
+                try:
+                    player_obj = get_player_from_context(context, client)
+                    if player_obj is not None:
+                        try:
+                            player_obj.map_room = int(dest_no) if dest_no is not None else dest_no
+                            lv = getattr(client, 'map_level', None) or getattr(server, 'map_level', getattr(server, 'level', 1))
+                            try:
+                                player_obj.map_level = int(lv)
+                            except Exception:
+                                player_obj.map_level = lv
+                        except Exception:
+                            logging.exception('Failed to set player map_room/map_level (fallback)')
+                except Exception:
+                    logging.debug('No player object to update for movement (fallback)')
+        except Exception:
+            logging.exception('Failed to sync player location')
 
         # announce to others (async broadcast)
         try:

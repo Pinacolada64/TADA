@@ -73,15 +73,21 @@ class TeleportCommand(BaseCommand):
         if game_map and dest not in game_map.rooms:
             return CommandResult(success=False, error='bad_room', message=f'Room {dest} does not exist')
 
-        # Update client and player room information
+        # Update client and player room information using server helper
         try:
-            client.room = dest
-        except Exception:
-            pass
-        try:
-            player = get_player_from_context(context, client)
-            if player is not None:
-                setattr(player, 'map_room', dest)
+            if server and hasattr(server, '_sync_player_location'):
+                server._sync_player_location(client, dest)
+            else:
+                try:
+                    client.room = dest
+                except Exception:
+                    setattr(client, 'room', dest)
+                try:
+                    player = get_player_from_context(context, client)
+                    if player is not None:
+                        player.map_room = dest
+                except Exception:
+                    pass
         except Exception:
             pass
 

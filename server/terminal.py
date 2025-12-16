@@ -12,7 +12,6 @@ import textwrap
 # TADA-specific imports:
 from player import Player
 # import menu_system
-from menu_system import MenuItem
 from flags import FlagDisplayTypes
 from tada_utilities import input_number_range, input_yes_no
 try:
@@ -60,6 +59,7 @@ class CommodoreKeyCodes:
     CURSOR_RIGHT = chr(ord(CURSOR_LEFT) + 128)
     CURSOR_DOWN = chr(17)
     CURSOR_UP = chr(ord(CURSOR_DOWN) + 128)
+    # on the Commodore 128, anyway:
     TAB = chr(9)
 
 class ANSIGraphicsChars(StrEnum):
@@ -126,6 +126,7 @@ class ANSIColors(Enum):
     # text colors - if terminal cannot output a given color, it is set to None
     # TODO: in settings display, use ColorName instead of ANSIColors or CommodoreColors
     # Colorama: https://github.com/tartley/colorama
+    from colorama import Fore, Back, Style
     BLACK = Fore.BLACK
     WHITE = Fore.WHITE
     RED = Fore.RED
@@ -189,6 +190,7 @@ class TerminalColors:
         self.background_color: ColorName = ColorName.BLACK
     
 class ClientSettings:
+    from colorama import Fore, Back, Style
     # screen dimensions:
     screen_rows: int = 25
     screen_columns: int = 40
@@ -202,33 +204,37 @@ class ClientSettings:
     has_color: bool = True
     start_underline: None
     stop_underline: None
-    reverse_on: Back.WHITE + Style.DIM
-    reverse_off: Style.RESET_ALL
+    reverse_on: str = Back.WHITE + Style.DIM
+    reverse_off: str = Style.RESET_ALL
     tab_settings: TabSettings = TabSettings()
 
 def settings_menu(player: Player):
-    import menu_system as ms
+    import menu_system
     # sub-menu of Terminal Settings:
-    terminal_translation = ms.Menu(title="Terminal Translation")
-    terminal_translation.add_item(MenuItem("TR", "Translation", dot_leader_handler=player.client_settings.translation.name.title()))
-    terminal_translation.add_item(MenuItem("TC", "Text Colors", dot_leader_handler=player.client_settings.colors.text_color.name.title()))
-    terminal_translation.add_item(MenuItem("HC", "Highlight Color", dot_leader_handler=player.client_settings.colors.highlight_color.name.title()))
-    terminal_translation.add_item(MenuItem("BA", "Background Color", dot_leader_handler=player.client_settings.colors.background_color.name.title()))
-    terminal_translation.add_item(MenuItem("BO", "Border Color", dot_leader_handler=player.client_settings.colors.border_color.name.title()))
+    terminal_translation = menu_system.Menu(title="Terminal Translation")
+    p_c = player.client_settings
+    terminal_translation.add_item(MenuItem("TR", "Translation", dot_leader_handler=p_c.translation.name.title()))
+    terminal_translation.add_item(MenuItem("TC", "Text Colors", dot_leader_handler=p_c.colors.text_color.name.title()))
 
-    translation = ms.Menu("Translation Settings")
+    terminal_translation.add_item(MenuItem("HC", "Highlight Color", dot_leader_handler=p_c.colors.highlight_color.name.title()))
+    terminal_translation.add_item(MenuItem("BA", "Background Color", dot_leader_handler=p_c.colors.background_color.name.title()))
+    terminal_translation.add_item(MenuItem("BO", "Border Color", dot_leader_handler=p_c.colors.border_color.name.title()))
+
+    translation = menu_system.Menu("Translation Settings")
     for translation_type in Translation:
         translation.add_item(text=translation_type.name.title(),
-        shortcuts=translation_type.name[0],
-        dot_leader_handler=translation_type.name.title(),
-        edit_function=self.edit_translation(player.client_settings.translation))
+                             shortcuts=translation_type.name[0],
+                             dot_leader_handler=translation_type.name.title(),
+                             edit_function=self.edit_translation(player.client_settings.translation))
     
-    keyboard_settings = ms.Menu("Keyboard Settings")
-    keyboard_settings.add_item("K", "Return key is named", dot_leader_handler=player.client_settings.return_key.name.title(),
-                                edit_function=lambda: self.edit_return_key())
+    keyboard_settings = menu_system.Menu("Keyboard Settings")
+    keyboard_settings.add_item(shortcut="R",
+                               text="Return key is named",
+                               dot_leader_handler=p_c.return_key.name.title(),
+                               edit_function=lambda: self.edit_return_key())
 
     # top level menu:
-    terminal_settings = ms.Menu("Terminal Settings")
+    terminal_settings = menu_system.Menu("Terminal Settings")
     terminal_settings.add_item("N", "Client Name", dot_leader_handler=self.name)
     terminal_settings.add_item("R", "Screen Rows", dot_leader_handler=self.screen_rows,
                                edit_function=lambda: self.edit_screen_rows())
@@ -255,8 +261,10 @@ def settings_menu(player: Player):
 
 def tab_edit(player: Player):
     # tab width, in characters
-    player.client_settings.tab_settings.tab_width = input_number_range("Enter tab width", 0, player.client_settings.screen_columns,
-                                        out_of_bounds=f"Tab width must be between 0 and {player.client_settings.screen_columns}.")
+    player.client_settings.tab_settings.tab_width = input_number_range(prompt_msg="Enter tab width",
+                                                                       out_of_bounds_msg=f"Tab width must be between 0 and {player.client_settings.screen_columns}.",
+                                                                       min_value=0,
+                                                                       max_value=player.client_settings.screen_columns)
     # if Tab key is not available, simulate by printing {space * tab_width}
     player.client_settings.tab_settings.tab = " " * player.client_settings.tab_settings.tab_width
     
@@ -265,10 +273,9 @@ def tab_edit(player: Player):
     ms.run_menu(player, menu_collection)
 
     def edit_screen_columns(player: Player):
-        player.client_settings.screen_columns = input_number_range("Enter screen width (columns)", 1, 80,
-                                                default=player.client_settings.screen_columns,
-                                                empty_allowed=True,
-                                                out_of_bounds="Screen columns must be between 1 and 80.")
+        player.client_settings.screen_columns = input_number_range(prompt_msg="Enter screen width (columns)",
+                                                                   out_of_bounds_msg="Screen columns must be between 1 and 80.",
+                                                                   min_value=1, max_value=80)
 def horizontal_ruler(player: Player):
     """Display a horizontal ruler for x-position debugging"""
     #           1         2         3         4
@@ -297,10 +304,9 @@ def edit_screen_rows(player: Player):
     while True:
         for num in range(player.client_settings.screen_rows, 1):
             print(num)
-        player.client_settings.screen_rows = input_number_range("Enter the biggest number you see at the top of the screen", 1, 25,
-                                            default=player.client_settings.screen_rows,
-                                            empty_allowed=True,
-                                            out_of_bounds="Screen rows must be between 1 and 25.")
+        player.client_settings.screen_rows = input_number_range(
+            prompt_msg="Enter the biggest number you see at the top of the screen",
+            out_of_bounds_msg="Screen rows must be between 1 and 25.", min_value=1, max_value=25)
 
 
 def keyboard_settings(player: Player):

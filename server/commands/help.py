@@ -1,559 +1,749 @@
 #!/bin/env python3
-"""Help command implementation."""
+"""Help command implementation.
+
+This module provides helpers to format detailed help for commands and a
+HelpCommand implementation that integrates with the project's Command
+interface.
+"""
 
 import sys
 import os
 from enum import Enum
-from typing import Dict, Any, List, Tuple, Optional, LiteralString, Coroutine
+from typing import Dict, Any, List, Tuple, Optional
 import logging
 import textwrap
 from collections import defaultdict
+import asyncio
 
-# Add the project root to the Python path
+from commands.command_processor import CommandProcessor
+
+# Add the project root to the Python path (if necessary)
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# Import the required modules
-from commands.base_command import CommandResult, Command, HelpCategory
+# Import core command types
+from commands.base_command import CommandResult, Command
 
-# Import command_processor after all other imports
-try:
-    from commands import CommandProcessor
-except ImportError:
-    # Handle case where command_processor is not available
-    class CommandProcessor:
-        def __init__(self,
-                     summary: str,
-                     description: str,
-                     usage: list[tuple],
-                     examples: list[tuple],
-                     notes: str):
-            self.summary = summary or "(None available.)"
-            self.description = description or "(None available.)"
-            self.usage = usage or []
-            self.examples = examples or []
-            self.notes = notes or []
 
-def format_help(self, command_name: str, max_width: int = 80) -> LiteralString | None:
+# Provide a local HelpCategory with string values so formatting code can call .value.upper()
+class HelpCategory(Enum):
+    CONCEPT = "Concept"
+    GENERAL = "General"
+    MOVEMENT = "Movement"
+    COMMUNICATION = "Communication"
+    INTERACTION = "Interaction"
+    COMBAT = "Combat"
+    MISCELLANEOUS = "Miscellaneous"
+
+
+# File: `commands/help.py`
+from typing import List, Tuple, Optional
+import textwrap
+import logging
+from types import SimpleNamespace
+
+def format_help(help_obj, command_name: str = '', width: int = 80, max_width: Optional[int] = None) -> Optional[str]:
     """
-    Format the help text with proper wrapping.
+    Format a help object (has summary/description/usage/examples/notes) or a
+    usage-style list of tuples into a readable string wrapped at max_width.
 
-    Args:
-        command_name: The name of the command.
-        max_width: The maximum width for wrapping text.
-
-    Returns:
-        A formatted help string or None if no help information is available.
+    Accepts either `width=` (used by tests) or `max_width=` (used elsewhere).
+    If `help_obj` is a string it will be wrapped and returned.
     """
-    import textwrap
+    if help_obj is None:
+        return None
 
-    # Calculate indentation and wrap width
+    max_w = max_width or width or 80
     indent = 4
-    wrap_width = max_width - indent
+    wrap_width = max_w - indent
+    lines: List[str] = []
 
-    # Start building the help text
-    lines = []
+    # If a plain string was passed, just wrap and return
+    if isinstance(help_obj, str):
+        return textwrap.fill(help_obj.strip(), width=max_w)
 
-    # Add command name and summary
-    if self.summary:
-        lines.append(f"\n{command_name} - {self.summary}")
-        lines.append("-" * max_width)
+    # If a list/tuple of usage tuples was passed directly, normalize into a tmp object
+    if isinstance(help_obj, (list, tuple)):
+        try:
+            if all(isinstance(item, (list, tuple)) and len(item) >= 1 for item in help_obj):
+                tmp = SimpleNamespace()
+                tmp.summary = None
+                tmp.description = None
+                tmp.usage = [tuple(item) for item in help_obj]
+                tmp.examples = []
+                tmp.notes = []
+                help_obj = tmp
+            else:
+                # fallback: join simple list as lines
+                return "\n".join(str(x) for x in help_obj)
+        except Exception:
+            return "\n".join(str(x) for x in help_obj)
 
-    # Add description
-    if self.description:
-        wrapped = textwrap.fill(self.description.strip(), width=wrap_width)
-        lines.append(f"\n{wrapped}")
+    # From here on help_obj is expected to be an object with attributes
+    summary = getattr(help_obj, 'summary', None)
+    if summary:
+        lines.append(f"{command_name}\n" if command_name else "")
+        lines.append(textwrap.fill(str(summary).strip(), width=max_w))
+        lines.append("" + ("-" * max_w))
 
-    # Add usage section
-    if self.usage:
-        lines.append("\nUsage:")
-        for syntax, desc in self.usage:
-            # Format the syntax line
-            syntax_line = f"  {syntax}"
-            lines.append(syntax_line)
+    desc = getattr(help_obj, 'description', None)
+    if desc:
+        wrapped = textwrap.fill(str(desc).strip(), width=wrap_width)
+        lines.append("")
+        lines.append(wrapped)
 
-            # Format and indent the description
-            if desc:
+    usage = getattr(help_obj, 'usage', None)
+    if usage:
+        lines.append("")
+        lines.append("Usage:")
+        items: List[Tuple[str, str]] = []
+        for item in usage:
+            if isinstance(item, (list, tuple)) and len(item) >= 1:
+                syntax = str(item[0])
+                desc_text = str(item[1]) if len(item) > 1 and item[1] is not None else ""
+            else:
+                syntax = str(item)
+                desc_text = ""
+            items.append((syntax, desc_text))
+
+        max_syntax_len = max((len(s) for s, _ in items), default=0)
+        cap_left = max(12, int(max_w * 0.4))
+        left_col = min(max_syntax_len, cap_left)
+        left_col = max(left_col, 10)
+
+        right_col = max_w - indent - left_col - 2
+        if right_col < 20:
+            extra_needed = 20 - right_col
+            left_col = max(10, left_col - extra_needed)
+            right_col = max_w - indent - left_col - 2
+
+        for syntax, desc_text in items:
+            if desc_text:
+                wrapped_desc = textwrap.wrap(desc_text, width=right_col) or ['']
+                first_line = wrapped_desc[0]
+                lines.append(f"  {syntax.ljust(left_col)}  {first_line}")
+                for cont in wrapped_desc[1:]:
+                    lines.append(f"  {'':{left_col}}  {cont}")
+            else:
+                lines.append(f"  {syntax}")
+
+    examples = getattr(help_obj, 'examples', None)
+    if examples:
+        lines.append("")
+        lines.append("Examples:")
+        for item in examples:
+            if isinstance(item, (list, tuple)) and len(item) >= 1:
+                example = str(item[0])
+                desc_text = str(item[1]) if len(item) > 1 and item[1] is not None else ""
+            else:
+                example = str(item)
+                desc_text = ""
+            lines.append(f"  {example}")
+            if desc_text:
                 wrapped = textwrap.fill(
-                    desc,
+                    desc_text,
                     width=wrap_width,
                     initial_indent=' ' * (indent + 2),
                     subsequent_indent=' ' * (indent + 2)
                 )
                 lines.append(wrapped)
 
-        # Add examples section
-        if self.examples:
-            lines.append("\nExamples:")
-            for example, desc in self.examples:
-                # Format the example line
-                example_line = f"  {example}"
-                lines.append(example_line)
+    notes = getattr(help_obj, 'notes', None)
+    if notes:
+        lines.append("")
+        lines.append("Notes:")
+        for note in notes:
+            wrapped = textwrap.fill(str(note), width=wrap_width, initial_indent=' ' * indent, subsequent_indent=' ' * indent)
+            lines.append(wrapped)
 
-                # Format and indent the description
-                if desc:
-                    wrapped = textwrap.fill(
-                        desc,
-                        width=wrap_width,
-                        initial_indent=' ' * (indent + 2),
-                        subsequent_indent=' ' * (indent + 2)
-                    )
-                    lines.append(wrapped)
+    if not lines:
+        return None
+    else:
+        return "\n".join([l for l in lines if l is not None and l != ""])
 
-        # Add notes section
-        if self.notes:
-            lines.append("\nNotes:")
-            for note in self.notes:
-                wrapped = textwrap.fill(
-                    note,
-                    width=wrap_width,
-                    initial_indent=' ' * indent,
-                    subsequent_indent=' ' * indent
-                )
-                lines.append(wrapped)
+def _format_help_output(self, value, command_name: str):
+    """
+    Normalize and format help output from help_text() or help_info.
 
-        return "\n".join(lines)
-    return None
+    Accepts string, list of lines, or structured object with summary/description/usage.
+    Returns a single string suitable for Message/CommandResult.
+    """
+    try:
+        # Structured object: hand to format_help
+        if hasattr(value, 'summary') or hasattr(value, 'description') or hasattr(value, 'usage'):
+            formatted = format_help(value, command_name)
+            if formatted:
+                return formatted
+    except Exception:
+        pass
+
+    # If value is a list/tuple of tuples (usage/examples style), try to format it
+    if isinstance(value, (list, tuple)):
+        try:
+            if all(isinstance(item, (list, tuple)) and len(item) >= 1 for item in value):
+                Tmp = SimpleNamespace()
+                Tmp.summary = None
+                Tmp.description = None
+                Tmp.usage = [tuple(item) for item in value]
+                Tmp.examples = []
+                Tmp.notes = []
+                formatted = format_help(Tmp, command_name)
+                if formatted:
+                    return formatted
+        except Exception:
+            pass
+
+        logging.info("tuple: %s" % str(value))
+        return "\n".join(str(x) for x in value)
+
+    if isinstance(value, str):
+        return textwrap.fill(value, width=80)
+
+    return str(value)
 
 
 class BaseHelpText:
     """
-    The base class for a command's help text. It extends the Command class by
+    Base container for command help metadata and a small executor wrapper.
 
-    :param category: The help category this command belongs to (see the HelpCategory class)
-    :param summary: A brief summary of the command shown when just 'help' is called
-    :param description: A detailed description of the command shown when 'help <command>' is called
-    :param usage: A list of tuples (syntax, description) showing command usage
-    :param examples: A list of tuples (example, description) showing example usages
-    :param notes: Additional notes about the command
+    Design goals:
+    - Provide safe defaults stored on underscored backing fields (e.g. _name).
+    - Expose public properties (name, aliases, summary, description, usage, examples, notes)
+      with simple getters and setters so subclasses may override behavior safely.
+    - Keep execute() small and robust: resolve a command manager/processor from the
+      provided context (or fall back to common module-level singletons), then delegate
+      to internal helpers to produce the CommandResult dictionary.
     """
+
     def __init__(self):
+        # punctuation helpers
         self.quotation = '"'
         self.apostrophe = "'"
 
-        self.name = "help"
-        self.aliases = ["h", "?"]
-        self.category = HelpCategory.MISCELLANEOUS
-        self.summary = "A short summary of what the command is for."
-        self.description = """
-        The 'help' command provides information about available commands and their usage.
-        Commands are organized into categories for ease of finding different types of commands.
-        """
+        # Backing fields (always set) -- callers should use the public properties below.
+        self._name: str = getattr(self, '_name', 'help')
+        self._aliases: List[str] = getattr(self, '_aliases', ['h', '?'])
+        self._category = getattr(self, '_category', HelpCategory.MISCELLANEOUS)
+        self._summary: str = getattr(self, '_summary', 'A short summary of what the command is for.')
+        self._description: str = getattr(self, '_description', (
+            "The 'help' command provides information about available commands and their usage. "
+            "Commands are organized into categories for ease of finding different types of commands."
+        ))
 
-        """
-        Usage is split into tuples of (syntax, description) so that if the command explanation
-        is longer than the player's screen width, it can be displayed on another column:
+        self._usage: List[Tuple[str, Optional[str]]] = getattr(self, '_usage', [
+            ("help", "Show list of all available commands"),
+            ("help <command>", "Show detailed help for a specific command"),
+            ("help categories", "Show a list of all available categories"),
+            ("help <category>", "Show all commands in category <category>"),
+            ("help [search | find] <term>", "Search command names and descriptions for the text <term>")
+        ])
 
-        help          Show list of all available commands
-        help <command>
-                      Show detailed help for a specific command,
-                      second line of text,
-                      third line of text
+        self._examples: List[Tuple[str, Optional[str]]] = getattr(self, '_examples', [
+            ("help", "Show all available commands by category"),
+            ("help page", "Show help for the 'page' command"),
+            ("h go", "Show all movement-related commands"),
+            ("? look", "Alternative way to get help for the 'look' command"),
+            ("help comm", "Show all commands in the category starting with 'comm'")
+        ])
+
+        self._notes: List[str] = getattr(self, '_notes', [
+            "You can use either 'help', 'h' or '?' to access help.",
+            "Command names are case-insensitive.",
+            "Some commands may have aliases (shown in parentheses)."
+        ])
+
+    # Properties (read/write) -------------------------------------------------
+    @property
+    def name(self) -> str:
+        """Command name used in listings and lookups."""
+        return self._name
+
+    @name.setter
+    def name(self, value: str):
+        self._name = str(value)
+
+    @property
+    def aliases(self) -> List[str]:
+        return list(self._aliases)
+
+    @aliases.setter
+    def aliases(self, value: List[str]):
+        self._aliases = list(value) if value is not None else []
+
+    @property
+    def category(self):
+        return self._category
+
+    @category.setter
+    def category(self, value):
+        self._category = value
+
+    @property
+    def summary(self) -> str:
+        return self._summary
+
+    @summary.setter
+    def summary(self, value: str):
+        self._summary = str(value)
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+    @description.setter
+    def description(self, value: str):
+        self._description = str(value)
+
+    @property
+    def usage(self) -> List[Tuple[str, Optional[str]]]:
+        return list(self._usage)
+
+    @usage.setter
+    def usage(self, value: List[Tuple[str, Optional[str]]]):
+        self._usage = list(value) if value is not None else []
+
+    @property
+    def examples(self) -> List[Tuple[str, Optional[str]]]:
+        return list(self._examples)
+
+    @examples.setter
+    def examples(self, value: List[Tuple[str, Optional[str]]]):
+        self._examples = list(value) if value is not None else []
+
+    @property
+    def notes(self) -> List[str]:
+        return list(self._notes)
+
+    @notes.setter
+    def notes(self, value: List[str]):
+        self._notes = list(value) if value is not None else []
+
+    # Execution entry point --------------------------------------------------
+    async def execute(self, context: Dict[str, Any], args: List[str]) -> Dict[str, Any]:
         """
-        self.usage = [
-                ("help", "Show list of all available commands"),
-                ("help <command>", "Show detailed help for a specific command"),
-                ("help categories", "Show a list of all available categories"),
-                ("help <category>", "Show all commands in category <category>"),
-                ("help [search | find] <term>", "Search command names and descriptions for the text <term>")
-            ],
-        # Same format and formatting reasons here:
-        self.examples = [
-                ("help", "Show all available commands by category"),
-                ("help page", "Show help for the 'page' command"),
-                ("h go", "Show all movement-related commands"),
-                ("? look", "Alternative way to get help for the 'look' command"),
-                ("help comm", "Show all commands in the category starting with 'comm'")
-            ],
-        self.notes = [
-                "You can use either 'help', 'h' or '?' to access help.",
-                "Command names are case-insensitive.",
-                "Some commands may have aliases (shown in parentheses)."
-            ]
-    
-    async def execute(self, context: Dict[str, Any], args: List[str]) -> CommandResult | dict[str, Any]:
-        """Execute the help command.
-        
-        Args:
-            context: The command context
-            args: Command arguments [command_name or category]
-                
-        Returns:
-            Dict containing the help text result
+        Execute the help command: resolve the command manager/processor and
+        dispatch to the appropriate helper based on arguments.
         """
+        # Resolve command manager/processor from context or fallback imports.
+        command_manager = None
+        if isinstance(context, dict):
+            command_manager = context.get('command_processor') or context.get('command_manager') or context.get('processor')
+
+        if command_manager is None:
+            # try common module-level singletons used by the project
+            try:
+                from commands.command_processor import command_processor as global_cp
+                command_manager = global_cp
+            except Exception:
+                try:
+                    from commands.command_processor import command_manager as global_cm
+                    command_manager = global_cm
+                except Exception:
+                    command_manager = None
+
+        if command_manager is None:
+            return CommandResult(success=False, message="Help unavailable: command manager not found").to_dict()
+
+        # No args -> general help
         if not args:
-            # Show general help if no arguments
             return await self._show_general_help(command_manager, context)
-            
-        # Get the command or category name from args
-        command = args[0].lower()
-        params = args[1:] if len(args) > 1 else []
 
-        # Next, check if it's a category
-        for category in HelpCategory.__dict__.values():
-            if category.value.lower() == command:
-                return await self._show_category_help(command, command_manager)
-        
-        # Then check if it's a command
-        cmd = command_manager.get_command(command)
-        if cmd is not None:
-            return await self._show_command_help(command)
-            
-        # If we get here, it's neither a category nor a command
-        return CommandResult(
-            success=False,
-            message=f"No help found for '{command}'. Type 'help' for a list of commands."
-        ).to_dict()
+        # Handle special tokens
+        token = args[0].lower()
+        rest = args[1:]
+
+        if token in ("categories", "category", "cat", "#cat", "#c"):
+            if rest:
+                return await self._show_category_help(rest[0].lower(), command_manager)
+            cats = [c.value for c in HelpCategory]
+            return CommandResult(success=True, message="Available help categories:\n" + "\n".join(f"- {c}" for c in cats)).to_dict()
+
+        if token in ("search", "find") and rest:
+            term = " ".join(rest)
+            return await self._help_search(term, command_manager)
+
+        for cat in HelpCategory:
+            if token == cat.value.lower() or token == cat.name.lower():
+                return await self._show_category_help(cat.value.lower(), command_manager)
+
+        # Otherwise treat token as command name/alias
+        # We delegate the heavy lifting to the existing helper that looks up and formats help
+        return await self._dispatch_command_help(token, command_manager)
+
+    # Small helper to centralize command help dispatch
+    async def _dispatch_command_help(self, token: str, command_manager) -> Dict[str, Any]:
+        # Try different lookup strategies - helper methods in the module will handle formatting
+        cmd = None
+        try:
+            if hasattr(command_manager, 'get_command'):
+                cmd = command_manager.get_command(token)
+        except Exception:
+            cmd = None
+
+        if cmd is None and hasattr(command_manager, 'find_command'):
+            try:
+                inst, _ = command_manager.find_command(token)
+                if inst:
+                    cmd = inst
+            except Exception:
+                pass
+
+        if cmd is None and hasattr(command_manager, 'get_all_commands'):
+            try:
+                all_cmds = command_manager.get_all_commands()
+                if isinstance(all_cmds, dict):
+                    cmd = all_cmds.get(token)
+                else:
+                    for c in all_cmds:
+                        try:
+                            if getattr(c, 'name', '').lower() == token or token in [a.lower() for a in getattr(c, 'aliases', [])]:
+                                cmd = c
+                                break
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
+        if cmd is None:
+            return CommandResult(success=False, message=f"No help found for '{token}'. Type 'help' for a list of commands.").to_dict()
+
+        # Use the module-level helper _show_command_help (already present below in file)
+        return await self._show_command_help(token, command_manager)
 
     async def _help_search(self, term: str, command_manager) -> Dict[str, Any]:
-        """
-        Search for commands matching the given term in their name or description.
-
-        :param term: The search term
-        :param command_manager: The command manager instance
-        :return: CommandResult with search results
-        """
         term = term.lower()
         matches = []
+        all_cmds = {}
+        try:
+            all_cmds = command_manager.get_all_commands() or {}
+        except Exception:
+            try:
+                # try attribute name used by different processors
+                all_cmds = command_manager.commands or {}
+            except Exception:
+                all_cmds = {}
 
-        for cmd_name, cmd in command_manager.items():
-            if term in cmd_name.lower() or (hasattr(cmd, 'help_info') and term in cmd.help_info.description.lower()):
+        for cmd_name, cmd in all_cmds.items():
+            if term in cmd_name.lower():
                 matches.append(cmd_name)
+            else:
+                try:
+                    desc = getattr(cmd, 'help_info', None)
+                    if desc and hasattr(desc, 'description') and term in desc.description.lower():
+                        matches.append(cmd_name)
+                except Exception:
+                    pass
 
         if not matches:
-            return CommandResult(
-                success=False,
-                message=f"No commands found matching '{term}'."
-            ).to_dict()
+            return CommandResult(success=False, message=f"No commands found matching '{term}'.").to_dict()
 
-        return CommandResult(
-            success=True,
-            message=[f"Commands matching '{term}':",
-                     f"\n- ".join(matches)]).to_dict()
+        return CommandResult(success=True, message=[f"Commands matching '{term}':", "\n- " + "\n- ".join(matches)]).to_dict()
 
-    async def _show_category_help(self, params: List[str], command_manager) -> Dict[str, Any]:
+    async def _show_category_help(self, category_name: str, command_manager) -> Dict[str, Any]:
+        matched = None
+        for cat in HelpCategory:
+            if category_name == cat.value.lower() or category_name == cat.name.lower():
+                matched = cat
+                break
+        if not matched:
+            return CommandResult(success=False, message=f"No help category: {category_name}").to_dict()
+
+        cmd_names = []
+        for name, cmd in (command_manager.get_all_commands() or {}).items():
+            try:
+                cat = getattr(cmd, 'help_info', None)
+                if cat and getattr(cat, 'category', None) == matched:
+                    cmd_names.append(name)
+            except Exception:
+                continue
+
+        if not cmd_names:
+            return CommandResult(success=True, message=f"No commands in category {matched.value}.").to_dict()
+
+        cmd_names.sort()
+        return CommandResult(success=True, message=[f"Commands in {matched.value}:"] + cmd_names).to_dict()
+
+    def _format_help_output(self, value, command_name: str):
+        """Normalize and format help output from help_text() or help_info.
+
+        Accepts string, list of lines, or structured object with summary/description/usage.
+        Returns a single string suitable for Message/CommandResult.
         """
-        Show help for a specific category or list all categories.
+        try:
+            # Structured object: hand to format_help
+            if hasattr(value, 'summary') or hasattr(value, 'description') or hasattr(value, 'usage'):
+                formatted = format_help(value, command_name)
+                if formatted:
+                    return formatted
+        except Exception:
+            pass
 
-        :param params:
-        :param command_manager:
-        :return:
-        """
-        # help categories will not collide with regular commands, therefore we can eliminate "help #cat" as being a
-        # required parameter. one less thing to type.
-        # 'help cat' or 'help c' to list help categories
-        if params[0] in ["#cat", "#c"]:
-            if len(params) == 1:
-                # Show list of all categories
-                categories = [cat.value for cat in HelpCategory.items()]
-                return CommandResult(
-                    success=True,
-                    message="Available help categories:\n" + "\n".join(f"- {cat}" for cat in categories)
-                ).to_dict()
-            else:
-                # Show commands in the specified category
-                category_name = params[0].lower()
-                return await self._show_category_help(category_name, command_manager)
+        if isinstance(value, (list, tuple)):
+            logging.info("tuple: %s" % str(value))
+            return "\n".join(str(x) for x in value)
 
-    async def _show_command_help(self, command_name: str) -> Dict[str, Any]:
-        """Show detailed help for a specific command."""
-        cmd = command_manager.get_command(command_name)
+        if isinstance(value, str):
+            return textwrap.fill(value, width=80)
+
+        return str(value)
+
+    async def _show_command_help(self, command_name: str, command_manager) -> Dict[str, Any]:
+        cmd = None
+        try:
+            if hasattr(command_manager, 'get_command'):
+                cmd = command_manager.get_command(command_name)
+        except Exception:
+            cmd = None
+
+        if cmd is None and hasattr(command_manager, 'find_command'):
+            try:
+                inst, _ = command_manager.find_command(command_name)
+                if inst:
+                    cmd = inst
+            except Exception:
+                pass
+
+        if cmd is None and hasattr(command_manager, 'get_all_commands'):
+            try:
+                all_cmds = command_manager.get_all_commands()
+                if isinstance(all_cmds, dict):
+                    cmd = all_cmds.get(command_name)
+                else:
+                    for c in all_cmds:
+                        try:
+                            if getattr(c, 'name', '').lower() == command_name:
+                                cmd = c
+                                break
+                            if command_name in [a.lower() for a in getattr(c, 'aliases', [])]:
+                                cmd = c
+                                break
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
         if not cmd:
-            return CommandResult(
-                success=False,
-                error="command_not_found",
-                message=f"No help found for command: {command_name}"
-            ).to_dict()
-        
-        # Get the formatted help text
-        help_text = cmd.help_text
-        
-        return CommandResult(success=True, message=help_text).to_dict()
-            
+            return CommandResult(success=False, error="command_not_found", message=f"No help found for command: {command_name}").to_dict()
+
+        # Prefer a help_text() method/attribute if provided
+        try:
+            ht_attr = getattr(cmd, 'help_text', None)
+            if callable(ht_attr):
+                ht = ht_attr()
+                if asyncio.iscoroutine(ht):
+                    ht = await ht
+                formatted = self._format_help_output(ht, command_name)
+                return CommandResult(success=True, message=formatted).to_dict()
+            if ht_attr is not None:
+                formatted = self._format_help_output(ht_attr, command_name)
+                return CommandResult(success=True, message=formatted).to_dict()
+        except Exception:
+            pass
+
+        # Try structured help_info
+        hi = getattr(cmd, 'help_info', None)
+        if hi:
+            try:
+                formatted = format_help(hi, command_name)
+                if formatted:
+                    return CommandResult(success=True, message=formatted).to_dict()
+            except Exception:
+                parts = []
+                if getattr(hi, 'summary', None):
+                    parts.append(str(hi.summary))
+                if getattr(hi, 'description', None):
+                    parts.append(str(hi.description))
+                if getattr(hi, 'usage', None):
+                    parts.append('\nUsage:')
+                    for u in hi.usage:
+                        # format usage as example, explanation
+                        if isinstance(u, tuple):
+                            parts.append(f"{u[0]} {u[1]}") # parts.append(str(u))
+                return CommandResult(success=True, message="\n".join(parts)).to_dict()
+
+        # Try to find a module-local Help provider class
+        try:
+            import importlib
+            modname = getattr(cmd.__class__, '__module__', None)
+            if modname:
+                try:
+                    module = importlib.import_module(modname)
+                    for attr_name in dir(module):
+                        if not attr_name.lower().endswith('help'):
+                            continue
+                        attr = getattr(module, attr_name)
+                        try:
+                            if isinstance(attr, type):
+                                inst = None
+                                try:
+                                    inst = attr()
+                                except Exception:
+                                    continue
+                                if hasattr(inst, 'summary') or hasattr(inst, 'description') or hasattr(inst, 'usage') or callable(getattr(inst, 'help_text', None)):
+                                    ht = None
+                                    try:
+                                        if callable(getattr(inst, 'help_text', None)):
+                                            ht = inst.help_text()
+                                            if asyncio.iscoroutine(ht):
+                                                ht = await ht
+                                        else:
+                                            ht = inst
+                                            if ht:
+                                                # format and return inside the try so any formatting errors are caught
+                                                formatted = self._format_help_output(ht, command_name)
+                                                return CommandResult(success=True, message=formatted).to_dict()
+
+                                    except Exception:
+                                        continue
+                        except Exception:
+                            continue
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Fallback to execute docstring
+        doc = getattr(getattr(cmd, 'execute', None), '__doc__', None)
+        if doc:
+            return CommandResult(success=True, message=doc.strip()).to_dict()
+
+        return CommandResult(success=False, message=f"No detailed help available for {command_name}").to_dict()
 
     async def _show_general_help(self, command_manager, context):
-        """Show general help with commands organized by category.
-        
-        Args:
-            command_manager: The command manager instance
-            context: The command context
-            
-        Returns:
-            CommandResult with the formatted help text
-        """
-        help_texts = [
-            headline("Available Commands by Category"),
-            "Type 'help <category>' to see commands in a specific category.",
-            "Type 'help <command>' for detailed help about a specific command.\n"
-        ]
-        
+        help_texts: List[str] = []
+        help_texts.append(headline("Available Commands by Category"))
+        help_texts.append("Type 'help <category>' to see commands in a specific category.")
+        help_texts.append("Type 'help <command>' for detailed help about a specific command.\n")
+
         commands_by_category = defaultdict(list)
-        
-        # Group commands by category
-        for cmd_name, cmd in command_manager.items():
+
+        for cmd_name, cmd in (command_manager.get_all_commands() or {}).items():
             if hasattr(cmd, 'help_info') and hasattr(cmd.help_info, 'category'):
                 category = cmd.help_info.category
             else:
                 category = HelpCategory.GENERAL
             commands_by_category[category].append(cmd)
-        
-        # Sort categories alphabetically
+
         sorted_categories = sorted(commands_by_category.keys(), key=lambda c: c.value)
-        
-        # Generate help text for each category
+
         for category in sorted_categories:
             commands = sorted(commands_by_category[category], key=lambda c: c.name)
             help_texts.append(f"\n{category.value.upper()} (help {category.value.lower()}):")
-            help_texts.append("-" * (len(category.value) + 14))  # +14 for ' (help XXXX):'
-            
-            # Group commands in columns for better readability
+            help_texts.append("-" * (len(category.value) + 14))
+
             cmd_list = []
             for cmd in commands:
-                # Get aliases (excluding the command name itself)
-                aliases = [a for a in getattr(cmd, 'aliases', []) if a != cmd.name]
+                aliases = [a for a in getattr(cmd, 'aliases', []) if a != getattr(cmd, 'name', None)]
                 alias_text = f" ({', '.join(aliases)})" if aliases else ""
                 cmd_list.append(f"{cmd.name}{alias_text}")
-            
-            # Format commands in columns
-            col_width = max(len(cmd) for cmd in cmd_list) + 2  # +2 for padding
+
+            if cmd_list:
+                col_width = max(len(cmd) for cmd in cmd_list) + 2
+            else:
+                col_width = 20
             num_cols = max(1, min(3, 80 // (col_width + 2)))
-            
-            # Split commands into rows
+
             for i in range(0, len(cmd_list), num_cols):
                 row = cmd_list[i:i + num_cols]
-                # Format each command with consistent width
                 formatted_row = "  ".join(cmd.ljust(col_width) for cmd in row)
                 help_texts.append(f"  {formatted_row}")
-        
-        # Add footer with help for specific commands
-        help_texts.extend([
-            "",
-            "For more information on a specific command, type 'help <command>'.",
-            "For commands in a specific category, type 'help <category>'.",
-            "Example: 'help login' or 'help movement'",
-        ])
-        
-        return CommandResult(
-            success=True,
-            message="\n".join(help_texts)
-        )
 
-    def help_text(self, is_recursive=False) -> str:
-        """Display one-line summaries of all registered commands when just "help" is called.
-        
-        Args:
-            is_recursive: Internal flag to prevent recursion when getting help for the help command.
+        help_texts.extend(["", "For more information on a specific command, type 'help <command>'.", "For commands in a specific category, type 'help <category>'.", "Example: 'help login' or 'help movement'"])
+
+        return CommandResult(success=True, message="\n".join(help_texts)).to_dict()
+
+    def help_text(self, is_recursive: bool = False) -> str:
+        """Return a one-line summary list used for the top-level 'help' output.
+
+        If is_recursive is True, return a formatted manpage-style output for the help command itself.
         """
-        # Handle the case when help is called for the help command itself
         if is_recursive:
-            return "Shows help about available commands.\nUse 'help <command>' for more info on a specific command."
-            
-        help_texts = [headline("Help Command"),
-                     "Usage: 'help'",
-                     "Displays brief summaries of all available commands.",
-                     "",
-                     "Usage: 'help <command>'",
-                     "Displays detailed help for the specified command.",
-                     "",
-                     "Available commands:",
-                     ""]
-        
-        # Get command manager from context
-        command_manager = self.context.get('command_processor') if hasattr(self, 'context') else None
+            formatted = format_help(self, self.name, max_width=80)
+            if formatted:
+                return formatted
+            return "\n".join([headline("Help Command"), "Usage: help", "Displays help information."])
+
+        command_manager = getattr(self, 'context', {}).get('command_processor') if hasattr(self, 'context') else None
         if not command_manager:
+            help_texts = []
             return "\n".join(help_texts + ["Error: Command manager not available in context"])
-        
-        # Get all commands and calculate max name length for alignment
+
         try:
             logging.debug("Getting all commands from command manager...")
             commands_dict = command_manager.get_all_commands()
-            
+
             if not commands_dict:
-                help_texts.append("No commands currently registered.")
-                return "\n".join(help_texts)
-                
-            # Convert to list of unique commands (since aliases point to same command)
+                return "No commands currently registered."
+
             unique_commands = []
             seen = set()
             for cmd in commands_dict.values():
                 if id(cmd) not in seen:
                     seen.add(id(cmd))
                     unique_commands.append(cmd)
-            
+
             commands = sorted(unique_commands, key=lambda c: c.name)
-            logging.debug(f"Found {len(commands)} unique commands: {[c.name for c in commands]}")
-            
-            # Calculate max name length for alignment
             max_name_length = max((len(cmd.name) for cmd in commands), default=0)
-            
-            # Add each command's help summary
+
+            help_texts = []
             for cmd in commands:
-                # Skip adding help command to avoid recursion
                 if cmd.name == 'help':
                     help_texts.append(f"  {cmd.name.ljust(max_name_length)}  Shows this help message")
                     continue
-                    
-                # Get the short summary of the command's help text
                 try:
                     help_text = cmd.help_text()
                     if isinstance(help_text, (list, tuple)) and len(help_text) > 0:
-                        help_text = help_text[0]  # Get the one-line summary
+                        help_text = help_text[0]
                     elif not isinstance(help_text, str):
                         help_text = f"No help available for {getattr(cmd, 'name', 'unknown')}"
                     help_texts.append(f"  {cmd.name.ljust(max_name_length)}  {help_text}")
-                    
                 except Exception as e:
                     logging.error(f"Error getting help for {cmd.name}: {str(e)}")
                     help_texts.append(f"  {cmd.name.ljust(max_name_length)}  [Error getting help]")
-            
+
             help_texts.extend(["", "Type 'help <command>' for more information about a specific command."])
             return "\n".join(help_texts)
-            
         except Exception as e:
             logging.exception("Error in help command:")
-            return "\n".join(help_texts + [f"Error: {str(e)}"])
-        
-        
+            return "Error: " + str(e)
+
+
+# Minimal concrete HelpCommand that plugs into the project's Command API
+class HelpCommand(Command, BaseHelpText):
+    def __init__(self):
+        BaseHelpText.__init__(self)
+        self._name = 'help'
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def aliases(self) -> List[str]:
+        return getattr(self, 'aliases', [])
+
+    async def execute(self, reader=None, writer=None, context: Dict[str, Any] = None, args: List[str] = None):
+        # Delegate to BaseHelpText.execute which returns a dict (CommandResult.to_dict())
+        args = args or []
+        context = context or {}
+        result = await BaseHelpText.execute(self, context, args)
+        # If result is already a dict, return as-is
+        if isinstance(result, dict):
+            return result
+        # Otherwise, try to coerce
+        if isinstance(result, CommandResult):
+            return result.to_dict()
+        return CommandResult(success=True, message=str(result)).to_dict()
+
     @staticmethod
     def register():
-        """Register the 'help' command."""
         return HelpCommand()
 
 
 def headline(text, width=60, char='='):
-    """Create a formatted headline for test output."""
     return f"\n{text.center(width, char)}"
 
-def run_tests():
-    """Run all command registration and help system tests."""
-    # Set up logging
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler('command_tests.log', mode='w')
-        ]
-    )
-    
-    # Import needed components - use the same imports as at the top of the file
-    try:
-        from .base_command import Command, CommandResult
-        from ..command_manager import command_manager
-    except (ImportError, ValueError):
-        from old_server.commands.base_commands import Command, CommandResult
-        from old_server.command_processor import command_processor
-    
-    # Create test command class
-    class TestCommand(Command):
-        def __init__(self):
-            super().__init__(context={})
-            self._name = "test"
-            self._aliases = ["t"]
-
-        @property
-        def name(self) -> str:
-            return self._name
-            
-        @property
-        def aliases(self) -> List[str]:
-            return self._aliases
-            
-        @property
-        def help_summary(self) -> str:
-            return "A test command for the help system"
-            
-        def help_text(self) -> str:
-            return f"This is help text for the {self.name} command."
-            
-        async def execute(self, context: Dict[str, Any], args: List[str]) -> Dict[str, Any]:
-            """Execute the test command.
-            
-            Args:
-                context: The command context
-                args: Command arguments
-                
-            Returns:
-                Command result as a dictionary
-            """
-            return CommandResult(
-                success=True, 
-                message="Test command executed"
-            ).to_dict()
-
-    # Create a fresh command manager for testing
-    test_manager = command_manager
-    test_manager._commands = {}  # Reset any existing commands
-    
-    # Test 0: Initial state
-    print("\n" + headline("TEST 0: Initial state (should be empty)"))
-    print("Registered commands:", list(test_manager._commands.keys()))
-    print("Registered aliases:", test_manager._aliases)
-    
-    # Create command instances
-    help_cmd = HelpCommand()
-    test_cmd = TestCommand()
-    
-    # Set up context for commands
-    help_cmd.context = {'command_processor': command_manager}
-    test_cmd.context = {}
-    
-    # Test 1: Register commands
-    print("\n" + headline("TEST 1: Registering commands"))
-    print("Registering 'help' command...")
-    test_manager.register_command(help_cmd)
-    print("Registering 'test' command...")
-    test_manager.register_command(test_cmd)
-    
-    # Show current registered commands and aliases
-    print("\nCurrent registered commands:", list(test_manager._commands.keys()))
-    print("Current registered aliases:", test_manager._aliases)
-    
-    # Test 2: Get help for all commands
-    print("\n" + headline("TEST 2: Help for all commands"))
-    print(help_cmd.help_text())
-    
-    # Test 3: Get help for specific command
-    print("\n" + headline("TEST 3: Help for 'test' command"))
-    cmd = test_manager.get_command("test")
-    print(cmd.help_text() if cmd else "Command not found")
-    
-    # Test 4: Get help using alias
-    print("\n" + headline("TEST 4: Help using alias 't'"))
-    cmd = test_manager.get_command("t")
-    print(cmd.help_text() if cmd else "Command not found")
-    
-    # Test 5: Get non-existent command help
-    print("\n" + headline("TEST 5: Non-existent command"))
-    cmd = test_manager.get_command("nonexistent")
-    print(cmd.help_text if cmd else "Command not found")
-    
-    # Test 6: Try to register duplicate command (should show warning)
-    print("\n" + headline("TEST 6: Register duplicate command"))
-    print("Trying to register 'help' command again...")
-    test_manager.register_command(help_cmd)  # Should show warning
-    
-    # Test 7: Show final registered commands
-    print("\n" + headline("TEST 7: Final registered commands"))
-    print("Registered commands:", list(test_manager._commands.keys()))
-    print("Registered aliases:", test_manager._aliases)
-    
-    # Return the test manager for further inspection if needed
-    return test_manager
-
-if __name__ == "__main__":
-    run_tests()
-
-
-class HelpCategory(Enum):
-    """Enumeration of help categories."""
-    GENERAL = "General"
-    MOVEMENT = "Movement"
-    COMMUNICATION = "Communication"
-    INTERACTION = "Interaction"
-    COMBAT = "Combat"
-    ADMINISTRATION = "Administration"
-    SYSTEM = "System"
-    AUTHENTICATION = "Authentication"
-    MISCELLANEOUS = "Miscellaneous"
+if __name__ == '__main__':
+    hc = HelpCommand()
+    print(hc.help_text(is_recursive=True))

@@ -3,7 +3,35 @@ import logging
 from pathlib import Path
 
 import player
-from net_common import Message, MessageType, Mode, to_jsonb, from_jsonb
+import net_common as nc
+# Re-export common names for backward compatibility. Use guarded bindings so
+# partial/failed imports of net_common don't raise at import time; callers
+# should prefer accessing nc.<name> where possible.
+try:
+    Message = nc.Message
+except Exception:
+    Message = None
+
+try:
+    MessageType = nc.MessageType
+except Exception:
+    MessageType = None
+
+try:
+    Mode = nc.Mode
+except Exception:
+    Mode = None
+
+try:
+    to_jsonb = nc.to_jsonb
+except Exception:
+    to_jsonb = None
+
+try:
+    from_jsonb = nc.from_jsonb
+except Exception:
+    from_jsonb = None
+
 from net_client import Client
 from tada_utilities import a_or_an, grammatical_list, list_players_in_room, oxford_comma_list
 
@@ -535,7 +563,18 @@ class Server:
             while True:
                 data = await self.receive_message(reader)
                 if not data:
-                    logging.info(f"Connection closed by client {addr}.")
+                    # Connection closed by peer (abrupt disconnect). Attempt to let the
+                    # Player handle its own persistence and cleanup via its quit/disconnect
+                    # hooks rather than calling `player.save()` directly.
+                    try:
+                        pname = getattr(client, 'username', None) or getattr(getattr(client, 'player', None), 'name', None) or '<unknown>'
+                        logging.info(f"Connection closed by client {addr}. Invoking player quit for {pname}")
+                    except Exception:
+                        logging.info(f"Connection closed by client {addr}. Invoking player quit (unknown player)")
+                    try:
+                        await self._invoke_player_quit(client)
+                    except Exception:
+                        logging.exception("_invoke_player_quit failed during abrupt disconnect")
                     break
 
                 try:
@@ -545,7 +584,11 @@ class Server:
                     continue
 
                 if in_message.mode == Mode.bye:
-                    logging.info(f"Client {addr} sent 'bye'. Closing connection.")
+                    logging.info(f"Client {addr} sent 'bye'. Invoking player quit and closing connection.")
+                    try:
+                        await self._invoke_player_quit(client)
+                    except Exception:
+                        logging.exception("_invoke_player_quit failed while handling bye")
                     break
 
                 # Dispatch by mode
@@ -770,7 +813,8 @@ class Server:
                             client.mode = Mode.app
                             # recreate processor for guest (not authenticated)
                             try:
-                                client.player = player.Player(name=client.username)
+                                # Ensure Player.id is set to username so saving on quit works.
+                                client.player = player.Player(name=client.username, id=client.username)
                             except Exception:
                                 client.player = getattr(client, 'player', None)
                             client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': False})
@@ -782,7 +826,15 @@ class Server:
                                 logging.debug('Could not register client with client_manager')
                             # ensure they have a room set and send the room description
                             if not getattr(client, 'room', None):
-                                client.room = 1
+                                try:
+                                    # If the loaded Player has a saved map_room, restore it; otherwise default to 1
+                                    try:
+                                        initial_room = getattr(client.player, 'map_room', None) or 1
+                                    except Exception:
+                                        initial_room = 1
+                                    self._sync_player_location(client, initial_room)
+                                except Exception:
+                                    client.room = getattr(client.player, 'map_room', 1) or 1
                             room_lines = self._describe_room(client)
                             await self.send_message(writer, Message(lines=[f"Connected as {client.username}."] + room_lines, mode=Mode.app, prompt="main> "))
                             handled = True
@@ -793,7 +845,7 @@ class Server:
                             client.username = data.get('username', getattr(client, 'username', None)) or client.username
                             client.mode = Mode.app
                             try:
-                                client.player = player.Player(name=client.username)
+                                client.player = player.Player(name=client.username, id=client.username)
                             except Exception:
                                 client.player = getattr(client, 'player', None)
                             client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': True})
@@ -805,7 +857,15 @@ class Server:
                                 logging.debug('Could not register client with client_manager')
                             # ensure they have a room set and send the room description
                             if not getattr(client, 'room', None):
-                                client.room = 1
+                                try:
+                                    # If the loaded Player has a saved map_room, restore it; otherwise default to 1
+                                    try:
+                                        initial_room = getattr(client.player, 'map_room', None) or 1
+                                    except Exception:
+                                        initial_room = 1
+                                    self._sync_player_location(client, initial_room)
+                                except Exception:
+                                    client.room = getattr(client.player, 'map_room', 1) or 1
                             room_lines = self._describe_room(client)
                             await self.send_message(writer, Message(lines=[f"Login successful. Welcome, {client.username}."] + room_lines, mode=Mode.app, prompt="main> "))
                             handled = True
@@ -829,7 +889,7 @@ class Server:
                     client.mode = Mode.app
                     # Ensure a Player instance exists on the client for command context
                     try:
-                        client.player = player.Player(name=client.username)
+                        client.player = player.Player(name=client.username, id=client.username)
                     except Exception:
                         client.player = getattr(client, 'player', None)
                     client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': True})
@@ -839,11 +899,19 @@ class Server:
                         _nc.client_manager.add_client(client.username, client)
                     except Exception:
                         logging.debug('Could not register client with client_manager (connect path)')
-                    # ensure they have a room set and send the room description (consistent with processor path)
+                    # ensure they have a room set and send the room description
                     if not getattr(client, 'room', None):
-                        client.room = 1
+                        try:
+                            # If the loaded Player has a saved map_room, restore it; otherwise default to 1
+                            try:
+                                initial_room = getattr(client.player, 'map_room', None) or 1
+                            except Exception:
+                                initial_room = 1
+                            self._sync_player_location(client, initial_room)
+                        except Exception:
+                            client.room = getattr(client.player, 'map_room', 1) or 1
                     room_lines = self._describe_room(client)
-                    await self.send_message(writer, Message(lines=[f"Login successful. Welcome, {client.username}."] + room_lines, mode=Mode.app, prompt="main> "))
+                    await self.send_message(writer, Message(lines=[room_lines], mode=Mode.app, prompt="main> "))
                     await self.handle_login_command(writer, username=username)
                     handled = True
                     break
@@ -858,7 +926,7 @@ class Server:
                     client.username = f"{base}{n}"
                     client.mode = Mode.app
                     try:
-                        client.player = player.Player(name=client.username)
+                        client.player = player.Player(name=client.username, id=client.username)
                     except Exception:
                         client.player = getattr(client, 'player', None)
                     client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': False})
@@ -870,7 +938,15 @@ class Server:
                         logging.debug('Could not register client with client_manager (guest path)')
                     # ensure they have a room set and send the room description (consistent with processor path)
                     if not getattr(client, 'room', None):
-                        client.room = 1
+                        try:
+                            # If the loaded Player has a saved map_room, restore it; otherwise default to 1
+                            try:
+                                initial_room = getattr(client.player, 'map_room', None) or 1
+                            except Exception:
+                                initial_room = 1
+                            self._sync_player_location(client, initial_room)
+                        except Exception:
+                            client.room = getattr(client.player, 'map_room', 1) or 1
                     room_lines = self._describe_room(client)
                     await self.send_message(writer, Message(lines=[f"Connected as {client.username}."] + room_lines, mode=Mode.app, prompt="main> "))
                     await self.handle_login_command(writer, username=client.username)
@@ -888,7 +964,7 @@ class Server:
                     client.username = username
                     client.mode = Mode.app
                     try:
-                        client.player = player.Player(name=client.username)
+                        client.player = player.Player(name=client.username, id=client.username)
                     except Exception:
                         client.player = getattr(client, 'player', None)
                     client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': True})
@@ -900,7 +976,15 @@ class Server:
                         logging.debug('Could not register client with client_manager (new path)')
                     # ensure they have a room set and send the room description (consistent with processor path)
                     if not getattr(client, 'room', None):
-                        client.room = 1
+                        try:
+                            # If the loaded Player has a saved map_room, restore it; otherwise default to 1
+                            try:
+                                initial_room = getattr(client.player, 'map_room', None) or 1
+                            except Exception:
+                                initial_room = 1
+                            self._sync_player_location(client, initial_room)
+                        except Exception:
+                            client.room = getattr(client.player, 'map_room', 1) or 1
                     room_lines = self._describe_room(client)
                     await self.send_message(writer, Message(lines=[f"Login successful. Welcome, {client.username}."] + room_lines, mode=Mode.app, prompt="main> "))
                     await self.handle_login_command(writer, username=username)
@@ -957,7 +1041,8 @@ class Server:
                             client.mode = Mode.app
                             # recreate processor for guest (not authenticated)
                             try:
-                                client.player = player.Player(name=client.username)
+                                # Ensure Player.id is set to username so saving on quit works.
+                                client.player = player.Player(name=client.username, id=client.username)
                             except Exception:
                                 client.player = getattr(client, 'player', None)
                             client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': False})
@@ -970,7 +1055,7 @@ class Server:
                             client.mode = Mode.app
                             # recreate an authenticated command processor
                             try:
-                                client.player = player.Player(name=client.username)
+                                client.player = player.Player(name=client.username, id=client.username)
                             except Exception:
                                 client.player = getattr(client, 'player', None)
                             client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': True})
@@ -1097,13 +1182,94 @@ class Server:
             names = [n for n in names if n.lower() not in ('guest', 'new')]
         return names
 
+    async def _invoke_player_quit(self, client):
+        """Helper to invoke the player's quit/disconnect logic.
 
-if __name__ == '__main__':
-    # Configure basic logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s')
+        This is called when the server detects a disconnect or when a client sends a 'bye' message.
+        """
+        try:
+            if not client:
+                return
+            player_id = getattr(client, 'username', None) or '<unknown>'
+            pname = getattr(client, 'username', None) or '<unknown>'
+            logging.info(f"Invoking player quit for {pname}")
+            # Prefer calling player's quit()/handle_disconnect()/disconnect() hook if present.
+            player_obj = getattr(client, 'player', None)
+            if player_obj is None:
+                logging.debug("No player object attached to client; skipping player hooks")
+            else:
+                # Try methods in order without ever calling player.save() directly
+                for fn_name in ('quit', 'handle_disconnect', 'disconnect'):
+                    fn = getattr(player_obj, fn_name, None)
+                    if fn and callable(fn):
+                        try:
+                            res = fn()
+                            # If it's a coroutine, await it; otherwise treat return value as success flag
+                            if asyncio.iscoroutine(res):
+                                await res
+                                logging.info(f"Player.{fn_name}() awaited successfully for {pname}")
+                            else:
+                                logging.info(f"Player.{fn_name}() returned {res!r} for {pname}")
+                            # We called a handler; do not try further handlers
+                            break
+                        except Exception:
+                            logging.exception(f"Error calling player.{fn_name}() for {pname}")
+                            # try next available handler
+                else:
+                    logging.debug("No quit/handle_disconnect/disconnect hook found on player; relying on server cleanup")
+        except Exception:
+            logging.exception("Error in _invoke_player_quit")
+        finally:
+            # Ensure the client is removed from the server's client list
+            try:
+                addr = getattr(client, 'addr', None)
+                if addr in self.clients:
+                    del self.clients[addr]
+            except Exception:
+                logging.exception("Failed to remove client from server clients dict")
+            logging.info(f"Player quit processed for {pname}. Client removed.")
 
-    server = Server('127.0.0.1', 8888)
-    try:
-        asyncio.run(server.start())
-    except KeyboardInterrupt:
-        print("\nServer shut down.")
+    def _sync_player_location(self, client, room_no):
+        """Set client.room and keep the authoritative Player object in sync.
+
+        This should be used whenever code moves a client to a different room so that
+        Player.map_room and Player.map_level reflect the same location before any save.
+        """
+        try:
+            # set client-facing room first
+            try:
+                client.room = room_no
+            except Exception:
+                # some client implementations may not allow direct assignment
+                setattr(client, 'room', room_no)
+        except Exception:
+            logging.exception("Failed to set client.room")
+
+        # Try to update Player object if present
+        try:
+            player_obj = getattr(client, 'player', None)
+            if player_obj is None:
+                # Some handlers store player under handler attribute
+                handler = getattr(client, 'handler', None)
+                if handler is not None:
+                    player_obj = getattr(handler, 'player', None)
+            if player_obj is not None:
+                try:
+                    # map_room should be numeric when possible
+                    try:
+                        player_obj.map_room = int(room_no) if room_no is not None else room_no
+                    except Exception:
+                        player_obj.map_room = room_no
+                    # map_level preference order: client.map_level, server.map_level, server.level, default 1
+                    level_val = getattr(client, 'map_level', None)
+                    if level_val is None:
+                        level_val = getattr(self, 'map_level', None) or getattr(self, 'level', None) or 1
+                    try:
+                        player_obj.map_level = int(level_val)
+                    except Exception:
+                        player_obj.map_level = level_val
+                except Exception:
+                    logging.exception('Failed updating Player.map_room/map_level in _sync_player_location')
+        except Exception:
+            logging.exception('Exception while syncing player location')
+

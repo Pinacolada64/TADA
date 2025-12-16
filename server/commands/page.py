@@ -3,7 +3,11 @@
 import time
 from typing import Dict, Any, Optional, List, Set
 
-from .base import Command, CommandResult
+from .base_command import Command, CommandResult
+from commands.help import BaseHelpText, HelpCategory
+from commands import command_processor
+from commands.utils import get_player_from_context
+
 
 class PageCommand(Command):
     """Handle the 'page' command for sending private messages."""
@@ -52,6 +56,9 @@ class PageCommand(Command):
         
         # Get the client manager and user
         client_manager = self.context.get('client_manager')
+        # If available, derive the current player from the context for use by page handlers
+        client = self.context.get('client') if isinstance(self.context, dict) else None
+        player = get_player_from_context(self.context, client)
         if not client_manager:
             return CommandResult(
                 success=False,
@@ -124,25 +131,52 @@ class PageCommand(Command):
             message='Failed to send page.'
         )
     
+class PageHelp(BaseHelpText):
+    """Help provider for the 'page' command."""
+    name = "page"
+    aliases = ["p"]
+
+    def __init__(self):
+        super().__init__()
+        self.category = HelpCategory.COMMUNICATION
+        self.summary = "Send a private message to a player in either the same room as you, or another room."
+        self.description = (
+            "The 'page' command allows you to send a message to other players either in your current location, "
+            "or in another room."
+        )
+        self.usage = [
+            ("page <player> <message>", "Send a private message to <player>"),
+            ("page reply <message>", "Reply to the last person who paged you"),
+            ("page #last", "Show last paged players")
+        ]
+        self.examples = [
+            ("page bob Hello", "Send 'Hello' to player 'bob'"),
+            ("p alice Hi", "Alias 'p' is shorthand for page")
+        ]
+        self.notes = [
+            "You can use 'help page' to see this text.",
+            "Aliases: p, tell, msg"
+        ]
+
     def help_text(self) -> str:
-        return """\
-        Page Command
-        -----------
-        Usage: page <player> <message>
-               page reply <message>
-        
-        Sends a private message to another player.
-        
-        Examples:
-          page bob Hello there!     - Sends a message to 'bob'
-          page reply Got it!        - Replies to the last person who paged you
-        
-        Aliases: tell, msg
-        """
+        return (
+            "Page Command\n"
+            "-----------\n"
+            "Usage: page <player> <message>\n"
+            "       page reply <message>\n\n"
+            "Sends a private message to another player.\n\n"
+            "Examples:\n"
+            "  page bob Hello there!     - Sends a message to 'bob'\n"
+            "  p alice Are you there?    - Sends a message using alias 'p'\n"
+            "\nAliases: tell, msg, p"
+        )
 
 def register():
-    """Register the page command with the command manager."""
-    from .manager import command_manager
+    """Register the page command with the command processor."""
     command = PageCommand()
-    command_manager.register_command(command)
+    try:
+        command_processor.register_command(command)
+    except Exception:
+        # command_processor may not expose register_command at import time; ignore
+        pass
     return command

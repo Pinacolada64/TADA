@@ -130,10 +130,12 @@ class AlignmentMenu(Menu):
 
     def __post_init__(self):
         self.menu_items = [
-            MenuItem("Natural Alignment", 'n', self.edit_natural_alignment,
-                     dot_leader_handler=lambda p: p.natural_alignment),
-            MenuItem("Current Alignment", 'c', self.edit_current_alignment,
-                     dot_leader_handler=lambda p: p.current_alignment),
+            MenuItem("Natural Alignment", 'n',
+                     dot_leader_handler=lambda p: p.natural_alignment,
+                     action=lambda: self.edit_natural_alignment),
+            MenuItem("Current Alignment", 'c',
+                     dot_leader_handler=lambda p: p.current_alignment,
+                     action=lambda: self.edit_current_alignment)
         ]
 
     def edit_natural_alignment(self, player: Player):
@@ -223,6 +225,7 @@ class ArmorShieldMenu(Menu):
             item_index += 1
 
         self.menu_items = menu_items
+        return None
 
     def _get_inventory_handler(self, owner_name: str) -> Callable:
         """Returns a function that gets all armor for a given owner."""
@@ -268,6 +271,7 @@ class FlagsCountersMenu(Menu):
 
 class CharacterNames(Menu):
     def show_main_char_name(self):
+
         return player.name
 
     def edit_main_char_name(self, player):
@@ -650,7 +654,7 @@ def main(player: Player):
     # collect all the menus in the menu hierarchy:
     menu_collection: List[Menu] = [main_menu]
     # initiate navigation:
-    main_menu.run_menu(player, player_handler, menu_collection)
+    main_menu.run_menu(player, menu_collection)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(levelname)-8s | %(funcName)20s() | %(message)s')

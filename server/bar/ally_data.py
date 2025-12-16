@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import List, Optional
 
-from base_classes import Gender
+from base_classes import Gender, Alignment
 
 
 class AllyFlags(Enum):
@@ -13,7 +13,19 @@ class AllyFlags(Enum):
     GODDESS = auto()
     ELITE = auto()
     MECHANICAL = auto()
-    # Add other flags as needed
+    # Can track other characters:
+    TRACKING = auto()
+    FIND_THINGS = auto()
+    MOUNT = auto()
+    BODY_BUILD = auto()
+
+class AllyPosition(Enum):
+    """Tactical position"""
+    EMPTY = auto()
+    LURKING = auto()
+    POINT = auto()
+    FLANK = auto()
+    REAR = auto()
 
 
 class AllyStatus(Enum):
@@ -34,6 +46,8 @@ class Ally:
     :param to_hit: to-hit probability (x10, so 4 x10 = 40)
     :param flags: AllyFlags class [optional]
     """
+    from base_classes import Alignment
+
     # 1. Define fields in the order your data provides them, e.g.:
     # Ally("ALAN OF YOR", "m", 9, 4),
     name: str
@@ -47,7 +61,11 @@ class Ally:
         This special method runs after the object is created.
         It's the perfect place to transform input data.
         """
-        self.status = AllyStatus.FREE  # Enum
+        from base_classes import Alignment, Gender
+        self.status = self.AllyStatus = AllyStatus.FREE  # Enum
+        # # in TLoS: '(' good, ')' evil
+        self.alignment: Alignment = Alignment.NEUTRAL
+        self.position: AllyPosition = AllyPosition.EMPTY
 
         # 2. Convert the gender string to the correct Gender enum
         if self.gender == 'm':
@@ -55,8 +73,20 @@ class Ally:
         elif self.gender == 'f':
             self.gender = Gender.FEMALE
 
-        self.hit_points = 0
-
+        self.hit_points: int = 0
+        # 'ayf': int  # ally has a 1-ayf% chance of randomly finding sack of gold/diamond/etc.
+        self.find_percentage: int = 0
+        # TODO: look at Skip's branch on GitHub, it has more TRACKing stuff:
+        """
+        # https://github.com/Pinacolada64/TADA-old/blob/4c24c069139a495f97b2964d54c374b957c9eeab/SPUR-code/SPUR.MISC9.S
+        # number of rooms away an ally can detect a target
+        # TLOS: distance between tracker and target determined track strength.
+        # target's last play date delta compared to date.today determines
+        # "strength" of tracks: 1-3 days: very fresh, >3 days: weak (?)
+        # https://docs.python.org/3/library/datetime.html
+        """
+        self.tracking_range: int = 0
+        self.body_build: int = 0
         # 3. Use an f-string for safer and more readable logging
         #    Using .name on enums provides a clean string like "MALE"
         logging.debug(

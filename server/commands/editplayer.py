@@ -702,14 +702,37 @@ class EditPlayerCommand(BaseCommand):
             def make_combo_action(c):
                 async def action():
                     try:
+                        # Prompt the client and read one line. Support reader.readline returning bytes or a dict.
                         await send_message(writer, Message(
-                            lines=[f'Old {c.value} combination: {format_combo_display(player, c)}',
-                                   f"Enter new combination for {c.value} in format xx-xx-xx ({player.return_key} to cancel):"],
+                            lines=[f"Enter new combination for {c.value} in format xx-xx-xx (blank to cancel):"],
                             prompt=''))
+                        try:
+                            if hasattr(writer, 'drain'):
+                                await writer.drain()
+                        except Exception:
+                            pass
+
                         raw = await reader.readline()
                         if not raw:
                             return
-                        obj = from_jsonb(raw)
+
+                        # raw may already be a dict in some test harnesses; handle both
+                        if isinstance(raw, dict):
+                            obj = raw
+                        else:
+                            try:
+                                obj = from_jsonb(raw)
+                            except Exception:
+                                # try decoding as utf-8 then parse simple forms
+                                try:
+                                    txt = raw.decode('utf-8') if isinstance(raw, (bytes, bytearray)) else str(raw)
+                                    # If txt looks like JSON, attempt from_jsonb via bytes
+                                    try:
+                                        obj = from_jsonb(txt.encode('utf-8'))
+                                    except Exception:
+                                        obj = {'lines': [txt.strip()]}
+                                except Exception:
+                                    obj = None
                         if not isinstance(obj, dict):
                             return
                         new_val = None
@@ -746,7 +769,6 @@ class EditPlayerCommand(BaseCommand):
                             try:
                                 player.combinations[c] = combo_obj
                             except Exception:
-                                # some player impls may not accept enum keys; also store under name/value
                                 player.combinations[str(c)] = combo_obj
                             try:
                                 player.combinations[c.value] = combo_obj
@@ -762,11 +784,11 @@ class EditPlayerCommand(BaseCommand):
                                     player.combinations[str(c.name)] = combo_obj
                                 except Exception:
                                     pass
-                            # force the object's .combination attribute to the tuple in case of odd wrappers
+                            # ensure the stored object's .combination attribute is set
                             try:
                                 stored = player.combinations.get(c) or player.combinations.get(c.value) or player.combinations.get(c.name)
                                 if stored is not None and hasattr(stored, 'combination'):
-                                    stored.combination = tuple(int(d) for d in digits)
+                                    stored.combination = combo_obj.combination
                             except Exception:
                                 pass
                             # Debug: explicit log for the stored combo object and tuple
@@ -775,27 +797,36 @@ class EditPlayerCommand(BaseCommand):
                                 logging.debug("After storing combo for %s: stored=%r; type=%s; tuple=%r", c, stored, type(stored), getattr(stored, 'combination', None))
                             except Exception:
                                 logging.exception('Failed to debug-log stored combination')
+
+                            # send success confirmation to client
+                            try:
+                                await send_message(writer, Message(lines=[f"{c.value} combination set to {canonical}"], prompt=''))
+                                try:
+                                    if hasattr(writer, 'drain'):
+                                        await writer.drain()
+                                except Exception:
+                                    pass
+                            except Exception:
+                                logging.exception('Failed to send success message after storing combination')
                         except Exception:
-                            await send_message(writer,
-                                               Message(lines=[f"Failed to set combination for {c.value}"], prompt=''))
+                            logging.exception('Exception while storing combination')
+                            await send_message(writer, Message(lines=[f"Failed to set combination for {c.value}"], prompt=''))
                     except Exception:
+                        logging.exception('Unhandled exception in combination action')
                         try:
-                            await send_message(writer,
-                                               Message(lines=[f"Failed to set combination for {c.value}"], prompt=''))
+                            await send_message(writer, Message(lines=[f"Failed to set combination for {c.value}"], prompt=''))
                         except Exception:
                             pass
                 return action
 
-            for combo in CombinationTypes:
+            for combo in player.combinations:
                 # dot_leader_handler must accept an optional player parameter (menu formatting may pass it)
-                for combo in CombinationTypes:
-                    # dot_leader_handler must accept an optional player parameter (menu formatting may pass it)
-                    combinations_submenu.add_item(MenuItem(
-                        text=combo.value,
-                        shortcuts=combo.name[:1],
-                        action=make_combo_action(combo),
-                        dot_leader_handler=lambda p=None, c=combo: format_combo_display(p or player, c)
-                    ))
+                combinations_submenu.add_item(MenuItem(
+                    text=combo.value,
+                    shortcuts=combo.name[:1],
+                    action=make_combo_action(combo),
+                    dot_leader_handler=lambda p=player, c=combo: format_combo_display(p, c)
+                ))
 
             # Debug: temporary menu item to dump the player's combinations for interactive troubleshooting
             async def debug_combos_action():
@@ -805,20 +836,40 @@ class EditPlayerCommand(BaseCommand):
                     if not combos:
                         lines.append("(none)")
                     else:
-                        for k in list(combos):
-                            try:
-                                v = combos.get(k)
-                                if hasattr(v, 'combination'):
-                                    comb = v.combination
-                                    if isinstance(comb, (list, tuple)) and len(comb) == 3:
-                                        s = f"{int(comb[0]):02d}-{int(comb[1]):02d}-{int(comb[2]):02d}"
+                        if isinstance(combos, dict):
+                            for k, v in combos.items():
+                                try:
+                                    if hasattr(v, 'combination'):
+                                        comb = v.combination
+                                        if isinstance(comb, (list, tuple)) and len(comb) == 3:
+                                            s = f"{int(comb[0]):02d}-{int(comb[1]):02d}-{int(comb[2]):02d}"
+                                        else:
+                                            s = str(comb)
                                     else:
-                                        s = str(comb)
-                                else:
-                                    s = str(v)
+                                        s = str(v)
+                                except Exception:
+                                    s = '<error>'
+                                lines.append(f"{k}: {s}")
+                        elif isinstance(combos, list):
+                            for idx, v in enumerate(combos):
+                                try:
+                                    if hasattr(v, 'combination'):
+                                        comb = v.combination
+                                        if isinstance(comb, (list, tuple)) and len(comb) == 3:
+                                            # s = f"{int(comb[0]):02d}-{int(comb[1]):02d}-{int(comb[2]):02d}"
+                                            s = "-".join(f"{int(part):02d}" for part in comb)
+                                        else:
+                                            s = str(comb)
+                                    else:
+                                        s = str(v)
+                                except Exception:
+                                    s = '<error>'
+                                lines.append(f"[{idx}]: {s}")
+                        else:
+                            try:
+                                lines.append(str(combos))
                             except Exception:
-                                s = '<error>'
-                            lines.append(f"{k}: {s}")
+                                lines.append('<unprintable>')
                     await send_message(writer, Message(lines=lines, prompt=''))
                 except Exception:
                     logging.exception('debug_combos_action failed')

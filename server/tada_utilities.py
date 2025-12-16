@@ -1,15 +1,17 @@
+#!/bin/env python3
+
 import doctest
 import logging
 import random
 import textwrap
 from enum import Enum, auto
+from typing import TYPE_CHECKING, List
 
-import net_server  # for promptRequest and Message
-from base_classes import Gender
-from net_server import Message
-from flags import PlayerFlags
-from player import Player
-from user_settings import Translation
+from simple_client import send_message
+
+if TYPE_CHECKING:
+    from player import Player
+    from net_common import Message, to_jsonb, from_jsonb
 
 """
 utilities such as:
@@ -42,6 +44,7 @@ def bulleted_list_format(text: str, width: int, initial_indent: str = "* ", subs
     This function is primarily for *creating* bulleted content from raw text.
     It returns a single string that may contain newlines if the text wrapped.
     """
+    import textwrap
     logging.info(f"bulleted_list_format input text: '{text}', width: {width}")
     # Dedent only if needed, but for direct bullet content, strip is often more reliable
     dedented_text = textwrap.dedent(text).strip()
@@ -53,44 +56,78 @@ def bulleted_list_format(text: str, width: int, initial_indent: str = "* ", subs
     return formatted_text
 
 
-def file_read(filename: str, p: "Player"):
+def set_logging_level(p: "Player"):
     """
-    Read a disk file in 40 or 80 columns with more_prompt paging.
+    An action function that displays the current logging level,
+    prompts the user to select a new one, and applies the change.
     """
-    # Message class is defined at the top now, no need to import here
-    logging.info(f"Reading {filename=}")
+    root_logger = logging.getLogger()
+    levels = {
+        '1': logging.DEBUG,
+        '2': logging.INFO,
+        '3': logging.WARNING,
+        '4': logging.ERROR,
+        '5': logging.CRITICAL,
+    }
 
-    file_content_lines = []
-    cols = p.client_settings.screen_columns
-    file_handle_path = f"{filename}-{cols}.txt"
+    current_level_name = logging.getLevelName(root_logger.level)
+    p.output(["", f"--- Logging Level Control ---",
+              f"Current level: {current_level_name}",
+              "Select a new logging level:"])
 
-    logging.info(f"Reading '{file_handle_path}'")
+    for key, level_int in levels.items():
+        p.output(f"  {key}. {logging.getLevelName(level_int)}")
 
-    try:
-        with open(f'{file_handle_path}', newline='\n') as file:
-            for line in file:
-                clean_line = line.rstrip('\n')
-                # comment, just like Python:
-                if not clean_line.startswith('#'):
-                    file_content_lines.append(clean_line)
+    return_key = p.client_settings.return_key
+    choice = input_string(p, f"Enter choice (or press {return_key} to cancel):",
+                          default_answer=current_level_name, allow_empty = True, keep_msg=True)
 
-    except FileNotFoundError:
-        return Message(lines=[], error_line=f'File {file_handle_path} not found.')
-    except Exception as e:
-        logging.error(f"Error reading file {file_handle_path}: {e}")
-        return Message(lines=[], error_line=f'An error occurred while reading file {file_handle_path}.')
-
-    return Message(lines=["(Finished reading.)"])
+    if choice in levels:
+        new_level = levels[choice]
+        root_logger.setLevel(new_level)
+        p.output(f"Logging level has been changed to {logging.getLevelName(new_level)}.")
+    else:
+        p.output("Canceled. Logging level is unchanged.")
 
 
-def text_pager(text_lines: list, p: "Player"):
+
+def oxford_comma_list(items: list) -> str:
+    """
+    Returns a string that lists items in a grammatically correct form,
+    using the Oxford comma.
+
+    If there is one item in the list, return it.
+    If there are two items in the list, return the first, and the second (no Oxford comma).
+    If there are more than two items, return the first, second, [...] ', and last'.
+
+    >>> print(f"{oxford_comma_list(['apple', 'banana', 'cherry'])}")
+    apple, banana, and cherry
+    >>> print(f"{oxford_comma_list(['apple', 'banana'])}")
+    apple and banana
+    >>> print(f"{oxford_comma_list(['apple'])}")
+    apple
+    >>> print(f"{oxford_comma_list([])}")
+    (an empty string)
+    """
+    if not items:
+        return ""
+    elif len(items) == 1:
+        return items[0]
+    elif len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    else:
+        return f"{', '.join(items[:-1])}, and {items[-1]}"
+
+
+async def text_pager(player, text_lines: list, reader=None, writer=None):
+    # async def choose_class(player_obj, reader=None, writer=None):
     """
     Display a list of strings in a paged fashion, accounting for Player's screen height
     and wrapping text using textwrap. Empty list elements are considered newlines.
 
     :param text_lines: list of strings to display. Each string is treated as a paragraph
                        that needs to be wrapped.
-    :param p: Player object holding screen_height and screen_columns values.
+    :param player: Player object holding screen_height and screen_columns values.
     :return: None
     """
     """
@@ -100,8 +137,8 @@ def text_pager(text_lines: list, p: "Player"):
     """
     import re
     from colorama import Fore  # text foreground color
-    screen_height = p.client_settings.screen_rows
-    screen_width = p.client_settings.screen_columns
+    screen_height = player.client_settings.screen_rows
+    screen_width = player.client_settings.screen_columns
 
     wrapped_content = []
     for line_raw in text_lines:  # Renamed 'line' to 'line_raw' for clarity
@@ -152,7 +189,7 @@ def text_pager(text_lines: list, p: "Player"):
         lines_to_display = wrapped_content[current_line_index: current_line_index + lines_per_page]
 
         for display_line in lines_to_display:
-            print(display_line)
+            await send_message(writer, display_line)
 
         remaining_lines = total_display_lines - (current_line_index + len(lines_to_display))
 
@@ -171,7 +208,7 @@ def text_pager(text_lines: list, p: "Player"):
         status_message = f"-- More {page_info}--" if remaining_lines > 0 else f"-- End {page_info}--"
         prompt_message = f"{status_message} {', '.join(prompt_options)}: "
 
-        user_input = input(prompt_message).strip().lower()
+        user_input = await prompt_client(player_obj=prompt_message).strip().lower()
         print()  # Add a newline after user input for better readability
 
         if user_input == 'q':
@@ -301,92 +338,126 @@ def list_players_in_room(player_list: str | list) -> str:
     else:
         # More than two players (with Oxford comma)
         # Join all but the last player with commas, then add "and" before the last one
-        return f"{', '.join(player_list[:-1])}, and {player_list[-1]} are here."
+        return f"{oxford_comma_list(player_list)} are here."
 
 
-def header(text: str):
+async def header(player, reader = None, writer = None, header_text: str = None) -> None:
     """
-    Show `text` passed, a newline, and a line the length of `text`
+    Show `headline_text` passed, a newline, and a line the length of `text`
     e.g.,
 
     This is a header
     ----------------
 
-    :param text: string to display
+    :param player: Player object
+    :param reader:
+    :param header_text: string to display
     :return: None
     """
-    line = f"\n{text}\n{'=' * len(text)}\n"
-    # print()
-    # print(text)
-    # print("-" * len(text))
-    # print()
-    print(line)
-    return Message(lines=[line])
+    # TODO: underline_char = player.client_settings.charset.MIDLINE or something like it
+    await send_message(writer, f"\n{header_text}\n{'=' * len(header_text)}\n")
 
 
-def input_number_range(prompt: str, lo: int, hi: int, p: "Player", out_of_bounds=None, default=None):
+async def input_number_range(player: "Player",
+                             reader=None,
+                             writer=None,
+                             default: int = None,
+                             prompt_msg: str = None,
+                             min_value: int = 1,
+                             max_value: int = 10,
+                             out_of_bounds_msg: str = None) -> int:
     """Display input 'prompt', accept numbers lo < value < hi
     e.g.
     "'prompt' ['lo'-'hi']: "
 
-    :param prompt: prompt user with this string
-    :param default: if not None, and expert mode is False, {return_key} keeps 'default'
-    :param lo: lowest number accepted
-    :param hi: highest number accepted
-    :param p: Player to output text to
-    :param out_of_bounds: string to display if lo < temp < hi
+    :param reader: reader object
+    :param writer: writer object
+    :param player: Player to output text to
+    :param prompt_msg: prompt user with this string
+    :param default: number to return if user hits Return
+    :param min_value: lowest number accepted
+    :param max_value: highest number accepted
+    :param out_of_bounds_msg: string to display if lo < temp < hi
+    :return value: integer number of selection
     """
-    if default is not None and not p.query_flag(PlayerFlags.EXPERT_MODE):
-        p.output(f"{p.client_settings.return_key} keeps '{default}'.")
+    from flags import PlayerFlags
+    lines = []
+    if default is not None and not player.query_flag(PlayerFlags.EXPERT_MODE):
+        await send_message(writer, f"{player.client_settings.return_key} keeps '{default}'.")
     while True:
-        temp = input(f"{prompt} [{lo}-{hi}]: ")
-        # just hitting Return keeps the original number
+        temp = input(f"{prompt_msg} [{min_value}-{max_value}]: ")
         if temp.isalpha():
-            p.output('"Numbers only, please," Verus reminds you.')
+            await send_message(writer, '"Numbers only, please," Verus reminds you.')
+        # just hitting Return keeps the original number
         if temp == '':
             if default:
-                if not p.query_flag(PlayerFlags.EXPERT_MODE):
-                    p.output(f"(Keeping '{default}'.)")
-                return default
-            else:
-                return ''
+                if not player.query_flag(PlayerFlags.EXPERT_MODE):
+                    await send_message(writer, f"(Keeping '{default}'.)")
+            return default
         elif temp.isdigit():
             number = int(temp)
-            if lo <= number <= hi:
+            if min_value <= number <= max_value:
                 return number
             else:
-                p.output(f"{out_of_bounds}")
+                await send_message(writer, f"{out_of_bounds_msg}")
         else:
-            p.output(f"{out_of_bounds}")
+            await send_message(writer, f"{out_of_bounds_msg}")
             logging.info("Edge case")
             continue
 
 
-def input_string(player: "Player", prompt: str, default_answer: str, allow_empty: bool,
-                 keep_msg: bool, reminder: str = "Please enter something."):
+async def input_string(reader=None,
+                       writer=None,
+                       player="Player",
+                       default: str = "",
+                       prompt_msg: str = "",
+                       allow_empty: bool = True,
+                       keep_msg: bool = True,
+                       reminder: str = "Please enter something."):
     """
+
+    :param reader:
+    :param writer:
+    :param player:
+    :param default:
+    :param prompt_msg:
+    :param allow_empty:
+    :param keep_msg:
+    :param reminder:
+    :return:
+
+    # async def input_number_range(player: Player,
+                                 reader=None,
+                                 writer=None,
+                                 default: int = None,
+                                 prompt_msg: str = None,
+                                 min_value: int = 1,
+                                 max_value: int = 10,
+                                 out_of_bounds_msg: str = None) -> int:
+
     Input 'prompt', accept a string
     e.g.:
     [Return] keeps 'Druid.'  # if expert mode off
     "'prompt' : "
 
-    :param default_answer: this is returned if `answer` is null
+    :param default: this is returned if `answer` is null
     :param prompt: prompt user with this string
     :param keep_msg: True: print "{return_key} keeps 'default_string'"
     :param allow_empty: True: allow hitting Return. False: Must enter a string.
     :param player: Player to output text to
     :param reminder: what to display if return_string is False and null string entered
     """
+    from flags import PlayerFlags
     # FIXME: this is kind of a mess
     if keep_msg and not player.query_flag(PlayerFlags.EXPERT_MODE):
         player.output(f"{player.client_settings.return_key} keeps '{default_answer}.'")
     while True:
-        answer = input(f"{prompt}: ")
+        answer = await prompt_client(writer, player_obj=reader, prompt_text=f"{prompt}: ")
         # just hitting Return (or user types the original string) keeps the original string
         if answer == '' or answer == default_answer:
             # 1) empty response:
             if allow_empty:
-                # a) [...]
+                # FIXME a) [...]
                 return ""
             # 2) empty response not allowed:
             elif not allow_empty:
@@ -426,7 +497,7 @@ def fileread(self, filename: str, p: "Player"):
     display a file to a user in 40 or 80 columns with more_prompt paging
     also handles highlighting [text in brackets] via re and colorama
     """
-    from net_server import Message
+    from net_common import Message
     from net_server import UserHandler  # promptResponse and _sendData
     from colorama import Fore  # , Back, Style
     import re  # regular expressions library
@@ -638,6 +709,48 @@ def tip(p: 'Player', title: str, message: str) -> list[str]:
         return []
 
 
+# Centralized prompt helper: standardized signature uses (player, reader, writer, prompt_lines, prompt_text)
+async def prompt_client(reader=None,
+                        writer=None,
+                        player_obj=None,
+                        prompt_lines=None,
+                        prompt_text: str = '') -> str:
+    """
+    Send a prompt Message to the client and await a single-line response.
+
+    Returns the first line of the client's reply, or empty string on failure.
+    """
+    if prompt_lines is None:
+        prompt_lines = ['']
+    from net_common import Message, to_jsonb, from_jsonb
+    import textwrap
+
+    if not writer or not reader:
+        return ''
+    try:
+        # split and wrap prompt lines according to player's screen width
+        prompt_lines = '\n'.join(prompt_lines)
+        wrapped_lines = textwrap.wrap(prompt_lines, width=player_obj.client_settings.screen_columns)
+        prompt_lines = wrapped_lines if wrapped_lines else prompt_lines
+        msg = Message(lines=prompt_lines, prompt=prompt_text if prompt_text else '> ')
+        await send_message(writer, msg)
+        # Wait for a single line response
+        raw = await reader.readline()
+        if not raw:
+            return ''
+        obj = from_jsonb(raw)
+        if isinstance(obj, dict):
+            lines = obj.get('lines')
+            if isinstance(lines, list) and lines:
+                return str(lines[0]).strip()
+            # legacy: maybe it's direct text
+            return str(obj.get('text', '')).strip()
+        return ''
+    except Exception:
+        return ''
+
+
+
 if __name__ == '__main__':
     # set up logging level (this level or higher will output to console):
     logging.basicConfig(format='%(levelname)10s | %(funcName)20s() | %(message)s',
@@ -646,9 +759,12 @@ if __name__ == '__main__':
     # set up doctest
     doctest.testmod(verbose=True)
 
+    from player import Player
+    from flags import PlayerFlags
+    from terminal import Translation
     darmok = Player(name="Darmok")
     darmok.clear_flag(PlayerFlags.EXPERT_MODE)
-    darmok.client_settings.screen_rows = 80
+    darmok.client_settings.screen_columns = 80
     darmok.client_settings.screen_rows = 25
     darmok.client_settings.translation = Translation.ANSI
     darmok.client_settings.return_key = 'Enter'
@@ -656,6 +772,10 @@ if __name__ == '__main__':
     yn = input_yes_no("Is this a good demo")
 
     lo, hi = 10, 45
-    n = input_number_range("Enter a value", lo, hi, p=darmok,
-                           out_of_bounds=f"Try again ({lo}-{hi}).")
+    n = input_number_range(player=darmok,
+                           prompt_msg="Enter a value",
+                           out_of_bounds_msg=f"Try again ({lo}-{hi}).",
+                           min_value=lo,
+                           max_value=hi,
+                           default=42)
     print(f"Entered the number {n}")

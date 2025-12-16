@@ -33,7 +33,7 @@ class TestMessageRouter(unittest.TestCase):
     
     def test_register_handler(self):
         """Test that handlers can be registered."""
-        @self.router.register("test_message")
+        @self.router.register_command("test_message")
         def test_handler(message, client):
             return "test"
             
@@ -50,7 +50,7 @@ class TestMessageRouter(unittest.TestCase):
             return "test"
             
         # Register the mock handler using the message_router's register method
-        self.router.register("test")(mock_handler_func)
+        self.router.register_command("test")(mock_handler_func)
         
         test_message = {"type": "test", "data": "test data"}
         result = self.router.handle_message(test_message, self.mock_client)

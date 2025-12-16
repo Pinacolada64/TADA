@@ -1,5 +1,7 @@
+# File: `bar/main.py`
 import logging
 from dataclasses import dataclass
+import asyncio
 
 # TADA imports:
 from player import Player
@@ -7,6 +9,31 @@ from flags import PlayerFlags
 from tada_utilities import input_yes_no
 from bar.ally_data import Ally
 from items import Rations
+
+def send_message(player: Player, message):
+    """
+    Adapter to prefer player.send_message if present, otherwise fall back to player.output,
+    and finally to print if neither exists. Accepts string or list of lines.
+    """
+    try:
+        send = getattr(player, "send_message", None)
+        if callable(send):
+            send(message)
+            return
+    except Exception:
+        logging.exception("send_message() via send failed, falling back to output")
+
+    try:
+        out = getattr(player, "output", None)
+        if callable(out):
+            out(message)
+            return
+    except Exception:
+        logging.exception("send_message() via output failed, falling back to print")
+
+    # Last resort
+    print(message)
+
 
 def bouncer(character: "Player"):
     """
@@ -19,7 +46,7 @@ def bouncer(character: "Player"):
         action = "knocks you over the head with a baseball bat, and "
         # TODO: write 'character.adjust_hp' and put check for >=0 HP there...
         character.hit_points -= 5
-    character.output(f"At a signal, Mundo {action}throws you out into the street...")
+    send_message(character, f"At a signal, Mundo {action}throws you out into the street...")
     bar.pos_y, bar.pos_x = 0, 6
     bar.valid_move = True  # to redisplay bar map
 
@@ -75,7 +102,7 @@ def select_ally(player: Player) -> Ally | None:
     if player.party:
         member_count = len(player.party)
         for i, member in player.party:
-            player.output(f"{i:2}. {member.name}")
+            send_message(player, f"{i:2}. {member.name}")
 
 
 def skip(player: Player):
@@ -85,7 +112,7 @@ def skip(player: Player):
 
 def vinny(character: Player):
     """Loan shark"""
-    character.output("Vinny")
+    send_message(character, "Vinny")
 
 
 def fat_olaf(character: Player):
@@ -96,8 +123,8 @@ def fat_olaf(character: Player):
 
 def zelda(character: Player):
     """
-    * Spy on player's stats
-    * Raise other players' dead monsters
+    \* Spy on player's stats
+    \* Raise other players' dead monsters
     """
     import bar.zelda
     bar.zelda.main(character)
@@ -142,26 +169,28 @@ def prompt(character: Player, prompt_string: str):
     :param prompt_string: string to prompt for, minus space at end
     :return: tuple(previous_command, command) command: leftmost char of input, lowercase
     """
-    temp = input(f"{character.output(prompt_string)}: ")
-    character.output("")
+    # Display prompt to the player's message system, then read from stdin
+    send_message(character, prompt_string)
+    temp = input(": ")
+    send_message(character, "")
     if temp != '':
         command = temp[0].lower()
         character.previous_command = command
     if temp == '' and character.previous_command:
         command = character.previous_command
         if not character.query_flag(PlayerFlags.EXPERT_MODE):
-            character.output(f"(Repeating '{command}'.)")
+            send_message(character, f"(Repeating '{command}'.)")
     return character.previous_command, character.command
 
 
 def bar_help(character: Player):
-    character.output(["This is the Wall Bar & Grill, a place where you (and your party, if you "
+    send_message(character, ["This is the Wall Bar & Grill, a place where you (and your party, if you "
                       "have others with you) can find food, drink, and various services to help "
                       "yourself--or harm others, if you wish--in the Land.",
                       "",
                       "In the map of the bar:",
                       "",
-                      # all text in a bulleted list item [handled by format_bulleted_text()] should be
+                      # all text in a bulleted list item \[handled by format_bulleted_text()\] should be
                       # a single string to correctly indent text on subsequent_indent lines:
                       "* 'o' represents each person you can interact with, by moving in front "
                       "(or to the side) of them, then typing [G]o here.",
@@ -184,7 +213,7 @@ def blue_djinn(character: Player):
 
 def show_menu(character: Player):
     go_here = ", [G]o here" if bar.can_go_here else ''
-    character.output([f"[N]orth, [E]ast, [S]outh, [W]est{go_here}, [H]elp, [Q]uit",
+    send_message(character, [f"[N]orth, [E]ast, [S]outh, [W]est{go_here}, [H]elp, [Q]uit",
                       "Toggles: [D]ebug, e[X]pert Mode"])
 
 
@@ -258,7 +287,7 @@ if __name__ == '__main__':
 
     apostrophe = "'"
 
-    rulan.output(['You stand in the doorway of a smoky bar. A faded sign hanging on the wall above you reads: '
+    send_message(rulan, ['You stand in the doorway of a smoky bar. A faded sign hanging on the wall above you reads: '
                   '"WALL BAR AND GRILL."', ""])
 
     if not rulan.query_flag(PlayerFlags.EXPERT_MODE):
@@ -268,7 +297,7 @@ if __name__ == '__main__':
     obstacles = {char for line in bar_map for char in line if char != ' '}
 
     while True:
-        rulan.output("")
+        send_message(rulan, "")
         if rulan.query_flag(PlayerFlags.DEBUG_MODE):
             horizontal_ruler(rulan)
         for count, line in enumerate(bar_map):
@@ -289,12 +318,12 @@ if __name__ == '__main__':
                 _.append(f'{place[2]}')  # name
                 if rulan.query_flag(PlayerFlags.DEBUG_MODE):
                     _.append(f"  function: {place[3]}")  # function
-                rulan.output(" ".join(_))
+                send_message(rulan, " ".join(_))
                 bar.can_go_here = True
                 bar.go_routine = place[3]
 
         if rulan.query_flag(PlayerFlags.DEBUG_MODE):
-            rulan.output(f'(x: {bar.pos_x}, y: {bar.pos_y})')
+            send_message(rulan, f'(x: {bar.pos_x}, y: {bar.pos_y})')
 
         bump = False
         opponent = None
@@ -316,20 +345,20 @@ if __name__ == '__main__':
                     continue
                 else:
                     # TODO: Blue Djinn: finish this
-                    rulan.output(f"{opponent} something something...")
+                    send_message(rulan, f"{opponent} something something...")
             else:
-                rulan.output(f'"Well then, [watch] it!" {opponent} glares at you.')
+                send_message(rulan, f'"Well then, [watch] it!" {opponent} glares at you.')
 
         if not rulan.query_flag(PlayerFlags.EXPERT_MODE):
             show_menu(character=rulan)
             if rulan.previous_command:
                 repeat_command = f"'{rulan.previous_command}'" if rulan.previous_command is not None else 'Invalid command'
-                rulan.output(f"[{rulan.client_settings.return_key.value}] = '{repeat_command}'")
+                send_message(rulan, f"[{rulan.client_settings.return_key.value}] = '{repeat_command}'")
 
         print(f"[HP: {rulan.hit_points}] ", end='')
         # parser:
         rulan.command, rulan.previous_command = prompt(rulan, "What now?")
-        rulan.output("")
+        send_message(rulan, "")
 
         move_into_obstacle = False
 
@@ -348,11 +377,11 @@ if __name__ == '__main__':
 
         if rulan.command == 'd':
             rulan.toggle_flag(PlayerFlags.DEBUG_MODE, True)
-            rulan.output("")
+            send_message(rulan, "")
 
         if rulan.command == 'x':
             rulan.toggle_flag(PlayerFlags.EXPERT_MODE, True)
-            rulan.output("")
+            send_message(rulan, "")
 
         if rulan.command == 'n':
             # look up for an obstacle:
@@ -391,10 +420,10 @@ if __name__ == '__main__':
             break
 
         if move_into_obstacle:
-            rulan.output("Laughter fills the bar as you attempt to move through solid objects.")
+            send_message(rulan, "Laughter fills the bar as you attempt to move through solid objects.")
             rulan.hit_points -= 1
             if rulan.hit_points <= 0:
-                rulan.output("You have died.")
+                send_message(rulan, "You have died.")
                 # TODO: room_notify(f"{player.name} dies from bumping into something.")
                 break  # out of loop
             continue  # suppress the following message
@@ -403,6 +432,6 @@ if __name__ == '__main__':
             rulan.previous_command = rulan.previous_command
         else:
             # valid_move has been set to False above
-            rulan.output("The bar patrons look at you strangely as you do something incomprehensible.")
+            send_message(rulan, "The bar patrons look at you strangely as you do something incomprehensible.")
             rulan.previous_command = None
             # TODO: room_notify(f"{player.name} is confused.")

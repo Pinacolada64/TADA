@@ -1,9 +1,14 @@
 import logging
 import asyncio
+import sys
+import traceback
 from typing import Dict, List, Any, Optional, cast
 
 from commands.base_command import CommandResult
-from net_common import Message, from_jsonb, MessageType
+import net_common as nc
+Message = nc.Message
+from_jsonb = nc.from_jsonb
+MessageType = nc.MessageType
 from menu_system import Menu, MenuItem, async_print_menu, async_get_user_choice
 from simple_client import send_message
 from tada_utilities import prompt_client
@@ -129,58 +134,135 @@ async def execute(self, reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         "The House",
     ]
 
-    # allow provided combination via args[0] or context keys for non-interactive use
-    provided = None
     try:
-        if args and len(args) > 0 and args[0]:
-            provided = args[0]
-    except Exception:
+        # allow a provided combination via args[0] or context keys for non-interactive use
         provided = None
-    if provided is None and context and isinstance(context, dict):
-        provided = context.get('elevator_combination') or context.get('combination')
+        try:
+            if args and len(args) > 0 and args[0]:
+                provided = args[0]
+        except Exception:
+            provided = None
+        if provided is None and context and isinstance(context, dict):
+            provided = context.get('elevator_combination') or context.get('combination')
 
-    ok = await get_combination(reader, writer, player, provided_ans=provided)
-    if not ok:
-        return CommandResult(success=False, error='no_combination', message='Could not retrieve elevator combination')
+        # If no provided combination was given, run interactive prompting; otherwise use non-interactive check
+        if provided is None:
+            ok = await get_combination(reader, writer, player, is_interactive=True)
+        else:
+            ok = await get_combination(reader, writer, player, provided_ans=provided)
+        if not ok:
+            return CommandResult(success=False, error='no_combination', message='Could not retrieve elevator combination')
 
-    else:
-        # helper to send the elevator motion text (user-requested)
-        async def send_elevator_motion(target_level: int):
-            current = getattr(player, 'map_level', 1)
-            if target_level < 1 or target_level > len(level_names):
-                msg_text = level_out_of_range_message(target_level)
-                await send_message(writer, Message(lines=msg_text))
-                return
+        else:
+            # helper to send the elevator motion text (user-requested)
+            async def send_elevator_motion(target_level: int):
+                 current = getattr(player, 'map_level', 1)
+                 if target_level < 1 or target_level > len(level_names):
+                     msg_text = level_out_of_range_message(target_level)
+                     await send_message(writer, Message(lines=msg_text))
+                     return
 
-            # choose direction
-            direction = 'upwards' if target_level > current else 'downwards' if target_level < current else 'nowhere'
-            level_name = level_names[target_level - 1]
-            motion = (f'The guard closes the doors, throws a lever, and the elevator creaks {direction} towards {level_name}. '
-                      f'Once there, he opens the doors again.')
+                 # choose direction
+                 direction = 'upwards' if target_level > current else 'downwards' if target_level < current else 'nowhere'
+                 level_name = level_names[target_level - 1]
+                 motion = (f'The guard closes the doors, throws a lever, and the elevator creaks {direction} towards {level_name}. '
+                           f'Once there, he opens the doors again.')
 
-            # update player's current level
+                 # update player's current level
+                 try:
+                     setattr(player, 'map_level', target_level)
+                 except Exception:
+                     # ignore if player object doesn't support attribute assignment
+                     pass
+
+                 # Keep client-level state in sync if a client is present in context
+                 try:
+                     if isinstance(context, dict):
+                         client_obj = context.get('client') or getattr(player, 'client', None)
+                         if client_obj is not None:
+                             try:
+                                 client_obj.map_level = target_level
+                             except Exception:
+                                 try:
+                                     setattr(client_obj, 'map_level', target_level)
+                                 except Exception:
+                                     pass
+                 except Exception:
+                     pass
+
+                 await send_message(writer, Message(lines=motion, prompt=''))
+
+            # simple action handlers for menu items
+            async def list_levels():
+                lines = ["Available levels:"] + [f" {i+1}. {name}" for i, name in enumerate(level_names)]
+                await send_message(writer, Message(lines=lines, prompt=''))
+
+            async def go_up_level():
+                current = getattr(player, 'map_level', 1) or 1
+                target = min(current + 1, len(level_names))
+                await send_elevator_motion(target)
+
+            async def go_down_level():
+                current = getattr(player, 'map_level', 1) or 1
+                target = max(current - 1, 1)
+                await send_elevator_motion(target)
+
+            # If args include a target level number, use it directly (non-interactive)
+            target_level = None
             try:
-                setattr(player, 'map_level', target_level)
+                if args and len(args) > 0 and args[0]:
+                    # if provided combination was present earlier, args[0] would be combination; check second arg
+                    if len(args) > 1:
+                        target_level = int(args[1])
             except Exception:
-                # ignore if player object doesn't support attribute assignment
-                pass
+                target_level = None
 
-            await send_message(writer, Message(lines=motion, prompt=''))
+            if target_level is not None:
+                await send_elevator_motion(target_level)
+            else:
+                # Build interactive levels menu
+                lvl_menu = Menu(title='Elevator Levels', columns=1)
+                for idx, name in enumerate(level_names, start=1):
+                    def make_level_action(n):
+                        async def action():
+                            await send_elevator_motion(n)
+                        return action
+                    lvl_menu.add_item(MenuItem(text=f"{idx}. {name}", shortcuts=str(idx), action=make_level_action(idx)))
+                # add quit option
+                lvl_menu.add_item(MenuItem(text='Cancel', shortcuts='X', action=None))
 
-        # simple action handlers for menu items
-        async def list_levels():
-            lines = ["Available levels:"] + [f" {i+1}. {name}" for i, name in enumerate(level_names)]
-            await send_message(writer, Message(lines=lines, prompt=''))
+                # client-like object for menu helpers
+                client_like = type('ClientLike', (), {})()
+                client_like.writer = writer
+                client_like.reader = reader
+                client_like.return_key = 'Enter'
+                client_like.client_settings = getattr(context.get('client'), 'client_settings', {'screen_columns':80}) if isinstance(context, dict) and context.get('client') else {'screen_columns':80}
+                client_like.player = player
 
-        async def go_up_level():
-            current = getattr(player, 'map_level', 1) or 1
-            target = min(current + 1, len(level_names))
-            await send_elevator_motion(target)
+                # display menu and get choice
+                await async_print_menu(client_like, lvl_menu)
+                choice = await async_get_user_choice(client_like, lvl_menu, 1)
+                if choice and choice.action:
+                    act = choice.action
+                    if asyncio.iscoroutinefunction(act):
+                        await act()
+                    else:
+                        maybe = act()
+                        if asyncio.iscoroutine(maybe):
+                            await maybe
 
-        async def go_down_level():
-            current = getattr(player, 'map_level', 1) or 1
-            target = max(current - 1, 1)
-            await send_elevator_motion(target)
+    except Exception as exc:
+        # Extract the most relevant traceback frame to get filename and lineno
+        tb = sys.exc_info()[2]
+        try:
+            last = traceback.extract_tb(tb)[-1]
+            filename = last.filename
+            lineno = last.lineno
+        except Exception:
+            filename = '<unknown>'
+            lineno = 0
+        logging.error("Elevator.execute failed at %s:%d - %s", filename, lineno, exc, exc_info=True)
+        return CommandResult(success=False, error='execution_error', message=f'Failed to execute elevator command (at {filename}:{lineno})')
 
     # Completed elevator interaction
     return CommandResult(success=True, message='Elevator interaction complete')

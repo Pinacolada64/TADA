@@ -105,7 +105,8 @@ if __name__ == '__main__':
 
     doctest.testmod(verbose=True)
 
-    from new_player_2 import Player
+    # Use the central Player class from player.py for instantiation and testing
+    from player import Player
     rulan = Player()
 
     print("- Adjust & show DEX score:")

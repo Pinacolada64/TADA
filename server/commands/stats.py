@@ -8,6 +8,7 @@ from typing import Dict, Any, List
 from datetime import datetime, timedelta
 import logging
 
+from base_classes import PlayerMoneyTypes
 from commands.base_command import BaseCommand, CommandResult, HelpCategory
 from commands.command_processor import command
 
@@ -15,6 +16,7 @@ import net_common
 
 from commands.help import BaseHelpText
 from commands.utils import get_player_from_context
+from flags import PlayerFlags
 
 
 class StatsHelp(BaseHelpText):
@@ -24,7 +26,7 @@ class StatsHelp(BaseHelpText):
     def __init__(self):
         super().__init__()
         self.category = HelpCategory.COMMUNICATION
-        self.summary = 'List currently online players'
+        self.summary = 'List current player\'s stats'
         self.description = (
             "List player's stats with optional breakdown into sections."
             "Admins may see additional details like extended flags."
@@ -42,25 +44,33 @@ class StatsHelp(BaseHelpText):
 class StatCommand(BaseCommand):
     """List player's stats
     """
-    async def execute(self, context: Dict[str, Any], args: List[str]) -> CommandResult:
+    async def execute(self, reader, writer, player) -> CommandResult:
         try:
-            player = context['player']
-            client_manager = getattr(net_common, 'client_manager', None)
-            if client_manager is None:
-                return CommandResult(success=False, error='no_client_manager', message='Client manager not available')
-
             # Determine if caller is admin
-            caller = context.get('client') or context.get('caller') or None
-            player = get_player_from_context(context, caller)
-            is_admin = False
-            try:
-                is_admin = bool(getattr(caller, 'is_admin', False) or player.is_admin or context.get('is_admin', False) or context.get('user_level') == 'admin')
-            except Exception:
-                is_admin = False
-
+            caller = player.query_flag(PlayerFlags.ADMIN)
             # show player info: map level, room, stats, dwarf alive
-            lines = [f"{'Player':<20} {'Level':<5} {'Room':<20}", "Stats",
-                     f"{'Gold':<10} {'Experience':<12} {'Hit Points':<12} {'Monsters Killed':<16} {'Player Level':<13}"]
+            silver_total = sum(player.silver.values())
+            combinations = ', '.join(player.combinations) if player.combinations else 'None'
+            _ = f"""
+            {'Name:'.rjust(20)} {player.name}
+            {'Age:'.rjust(20)} {player.age}
+            {'Gender:'.rjust(20)} {self.gender.title()}
+            {'Birthday:'.rjust(20)} {player.birthday}
+            {'Silver: In hand:'.rjust(20)} {player.silver[PlayerMoneyTypes.IN_HAND]: >12,}
+            {'In bank:'.rjust(20)} {player.silver[PlayerMoneyTypes.IN_BANK]: >12,}
+            {'In bar :'.rjust(20)} {player.silver[PlayerMoneyTypes.IN_BAR]: >12,}
+            {'Total:'.rjust(20)} {player.silver_total: >12,}
+
+            {'Guild:'.rjust(20)} {self.guild.title()}
+            {'Monster kills:'.rjust(20)} {self.monster_kills}
+            {'Experience points:'.rjust(20)} {self.experience_points}
+            {'Map level:'.rjust(20)} {self.map_level}
+            {'Hit points:'.rjust(20)} {self.hit_points}
+            
+            {'Combinations:'.rjust(20)} {combinations}
+
+            {'Last played:'.rjust(20)} {self.last_play_date}
+            """
 
             # Placeholder for actual stats retrieval logic
             # This would typically involve querying the player's stats from the database or in-memory structures
