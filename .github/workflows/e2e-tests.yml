@@ -37,10 +37,23 @@ jobs:
           # Run only the focused E2E tests that start an in-process server
           pytest -q tests/test_network_e2e_real_login.py tests/test_network_e2e_reconnect.py tests/test_move_south_room1.py tests/test_abrupt_disconnect.py
 
+      - name: Run diagnostic report on failure
+        if: failure()
+        working-directory: server
+        run: |
+          mkdir -p artifacts
+          python diagnose_server.py --report > artifacts/diagnose_report.txt 2>&1 || true
+
+      - name: Upload diagnostic report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnose-report
+          path: server/artifacts/diagnose_report.txt
+
       - name: Upload test artifacts (player saves)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-run-server-files
           path: server/run/server
-

@@ -53,6 +53,20 @@ jobs:
           # produce junit xml for CI reporting and keep verbose logs
           pytest -q --junitxml=artifacts/junit.xml || true
 
+      - name: Run diagnostic report on failure
+        if: failure()
+        working-directory: server
+        run: |
+          mkdir -p artifacts
+          python diagnose_server.py --report > artifacts/diagnose_report.txt 2>&1 || true
+
+      - name: Upload diagnostic report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnose-report
+          path: server/artifacts/diagnose_report.txt
+
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -61,4 +75,3 @@ jobs:
           path: |
             server/run/server
             server/artifacts
-
