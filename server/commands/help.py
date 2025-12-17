@@ -579,6 +579,18 @@ class BaseHelpText:
         # Prefer a help_text() method/attribute if provided
         try:
             ht_attr = getattr(cmd, 'help_text', None)
+            # If the request was 'help help' prefer a manpage-style output
+            # from the module HelpCommand rather than relying on the registered
+            # inline help instance which may not provide rich help_text().
+            if command_name.lower() == 'help':
+                try:
+                    # Use this instance's help_text method to produce the recursive/manpage output.
+                    manpage = self.help_text(is_recursive=True)
+                    return CommandResult(success=True, message=manpage).to_dict()
+                except Exception:
+                    # fall back to existing strategies
+                    pass
+
             if callable(ht_attr):
                 ht = ht_attr()
                 if asyncio.iscoroutine(ht):

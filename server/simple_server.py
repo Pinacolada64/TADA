@@ -676,15 +676,35 @@ class Server:
             return None
 
     async def start(self):
-        """Starts the asyncio server."""
-        self.server = await asyncio.start_server(
-            self.handle_connection, self.host, self.port)
+        """Starts the asyncio server.
+
+        Wrap the bind call to provide a clear log message when the address is
+        already in use. If binding fails, the method logs and returns rather
+        than letting an unhandled Task exception propagate when started as a
+        background task.
+        """
+        try:
+            self.server = await asyncio.start_server(
+                self.handle_connection, self.host, self.port)
+        except OSError as e:
+            # Common cause: address already in use (Errno 98). Log a clear,
+            # actionable message and return so callers can handle the failure
+            # without an unobserved Task exception.
+            logging.error(f"Failed to bind server to %s:%s: %s", self.host, self.port, e)
+            return
 
         addr = self.server.sockets[0].getsockname()
         logging.info(f'Server listening on {addr}')
 
-        async with self.server:
-            await self.server.serve_forever()
+        try:
+            async with self.server:
+                await self.server.serve_forever()
+        except asyncio.CancelledError:
+            # Expected when the server is shut down; propagate so callers can
+            # handle cancellation normally.
+            raise
+        except Exception:
+            logging.exception('Unexpected error while serving clients')
 
     async def _handle_login(self, reader, writer, addr, client):
         # (commands imported dynamically by command processor when needed)
@@ -1115,20 +1135,29 @@ class Server:
                     # process_input expects the full input string
                     try:
                         result = await processor.process_input(line)
-                        # Convert CommandResult to messages; be conservative about structure
+                        # Convert CommandResult/dict to messages; be conservative about structure
                         result_lines = []
+                        # Support both dict results and object-like results
+                        if isinstance(result, dict):
+                            msg = result.get('message')
+                            err = result.get('error')
+                        else:
+                            msg = getattr(result, 'message', None)
+                            err = getattr(result, 'error', None)
+
                         # Normalize message: if it's a list, treat each element as a line.
-                        if result and getattr(result, 'message', None) is not None:
-                            msg = getattr(result, 'message')
+                        if msg is not None:
                             if isinstance(msg, list):
-                                # ensure all elements are strings
                                 result_lines.extend([str(x) for x in msg])
                             else:
                                 result_lines.append(str(msg))
-                        if result and getattr(result, 'error', None):
-                            result_lines.append(f"Error: {result.error}")
+
+                        if err:
+                            result_lines.append(f"Error: {err}")
+
                         if not result_lines:
                             result_lines = ["(no output)"]
+
                         await self.send_message(writer, Message(lines=result_lines, type=MessageType.SYSTEM, mode=Mode.app, prompt="main> "))
                         handled = True
                         break
@@ -1272,4 +1301,56 @@ class Server:
                     logging.exception('Failed updating Player.map_room/map_level in _sync_player_location')
         except Exception:
             logging.exception('Exception while syncing player location')
+
+
+if __name__ == '__main__':
+    import argparse
+    import asyncio
+    import logging
+
+    parser = argparse.ArgumentParser(description='Run simple_server.Server')
+    parser.add_argument('--host', default='127.0.0.1')
+    parser.add_argument('--port', type=int, default=34083)
+    parser.add_argument('--test-time', type=float, default=0.0,
+                        help='If >0, run the server for this many seconds and exit (useful for CI/diagnostics)')
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s')
+    server = Server(args.host, args.port)
+
+    async def _run():
+        # Start the server and optionally run for a short time then stop
+        task = asyncio.create_task(server.start())
+        try:
+            if args.test_time and args.test_time > 0:
+                # Wait for the test_time, then try to close server gracefully
+                await asyncio.sleep(args.test_time)
+                if getattr(server, 'server', None):
+                    server.server.close()
+                    await server.server.wait_closed()
+                # cancel the serve_forever task if still running
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+            else:
+                # Run until interrupted
+                await task
+        except asyncio.CancelledError:
+            pass
+        except KeyboardInterrupt:
+            logging.info('KeyboardInterrupt received, shutting down')
+            try:
+                if getattr(server, 'server', None):
+                    server.server.close()
+                    await server.server.wait_closed()
+            except Exception:
+                pass
+
+    try:
+        asyncio.run(_run())
+    except Exception:
+        logging.exception('Server terminated with exception')
 

@@ -279,11 +279,7 @@ class CommandProcessor(Generic[T]):
         Process a command (and its arguments).
         """
         if not command_parts:
-            return CommandResult(
-                success=False,
-                error='no_command',
-                message="No command specified"
-            )
+            return {'success': False, 'error': 'no_command', 'message': 'No command specified'}
 
         command_name = command_parts[0].lower()
         args = command_parts[1:] if len(command_parts) > 1 else []
@@ -299,11 +295,7 @@ class CommandProcessor(Generic[T]):
         # Find the command instance
         command_instance, is_alias = self.find_command(command_name)
         if not command_instance:
-            return CommandResult(
-                success=False,
-                error='unknown_command',
-                message=f"Unknown command: {command_name}"
-            )
+            return {'success': False, 'error': 'unknown_command', 'message': f"Unknown command: {command_name}"}
 
         logging.debug("Executing %s command: %s (aliases: %s)",
                       'alias ' if is_alias else '',
@@ -313,15 +305,24 @@ class CommandProcessor(Generic[T]):
         try:
             # Execute the command with the processor's context and the arguments
             result = await command_instance.execute(self.context, args)
-            return result
+            # Normalize result: CommandResult dataclass -> dict for callers
+            if isinstance(result, CommandResult):
+                return result.to_dict()
+            if isinstance(result, dict):
+                return result
+            # attempt to extract common attributes from other result-like objects
+            out = {}
+            for k in ('success', 'message', 'error', 'lines', 'data'):
+                if hasattr(result, k):
+                    out[k] = getattr(result, k)
+            if out:
+                return out
+            return {'success': True, 'message': str(result)}
+
         except Exception as e:
             logging.exception(f"Error executing command {command_name}")
             # Include the exception message for better diagnostics/testing
-            return CommandResult(
-                success=False,
-                error='command_error',
-                message=f"An error occurred while executing the command: {type(e).__name__}: {e}"
-            )
+            return {'success': False, 'error': 'command_error', 'message': f"An error occurred while executing the command: {type(e).__name__}: {e}"}
 
     async def process_input(self, input_text: str) -> CommandResult:
         """Process raw input text as a command.
@@ -343,11 +344,7 @@ class CommandProcessor(Generic[T]):
 
         input_text = (input_text or '').strip()
         if not input_text:
-            return CommandResult(
-                success=False,
-                error='empty_input',
-                message='Please enter a command.'
-            )
+            return {'success': False, 'error': 'empty_input', 'message': 'Please enter a command.'}
 
         # Parse the command and arguments
         parts = input_text.split()
@@ -356,6 +353,7 @@ class CommandProcessor(Generic[T]):
         self.context[Context.RAW_INPUT] = input_text
         self.context['raw_input'] = input_text
 
+        # process_command now returns a dict (normalized CommandResult)
         return await self.process_command(parts)
 
     def get_all_commands(self) -> List[BaseCommand]:
@@ -413,6 +411,8 @@ def create_command_processor(client: Any, context: Optional[Dict[str, Any]] = No
 
         class _InlineHelp(BaseCommand):
             name = 'help'
+            # Provide a brief summary so top-level help listings show a description
+            summary = 'Shows this help message'
             aliases = ['h', '?']
 
             async def execute(self, context, args=None):
@@ -430,11 +430,37 @@ def create_command_processor(client: Any, context: Optional[Dict[str, Any]] = No
                     for cat, cmds in grouped.items():
                         lines.append(f"\n{getattr(cat, 'name', str(cat))}:")
                         for c in sorted(cmds, key=lambda x: x.name):
-                            summary = getattr(c, 'summary', '') or ''
+                            # Prefer the short 'summary' attribute for the one-line
+                            # listing (keeps output concise). Only if that's empty
+                            # do we call help_text() as a fallback.
+                            try:
+                                summary = getattr(c, 'summary', '') or ''
+                                if not summary:
+                                    ht = getattr(c, 'help_text', None)
+                                    if callable(ht):
+                                        s = ht()
+                                        if asyncio.iscoroutine(s):
+                                            s = await s
+                                        if isinstance(s, (list, tuple)) and s:
+                                            s = s[0]
+                                        if isinstance(s, str):
+                                            summary = s.splitlines()[0]
+                            except Exception:
+                                summary = getattr(c, 'summary', '') or ''
                             lines.append(f"  {c.name:<12} - {summary}")
                     return CommandResult(success=True, message=lines)
 
                 # Try to find a registered command instance first
+                # Special-case asking for help about 'help' itself: prefer the
+                # canonical manpage-style output from HelpCommand.help_text()
+                if cmd_name == 'help':
+                    try:
+                        from commands.help import HelpCommand as _HC
+                        man = _HC().help_text(is_recursive=True)
+                        return {'success': True, 'message': man}
+                    except Exception:
+                        pass
+
                 cmd_inst, _is_alias = processor.find_command(cmd_name)
                 if cmd_inst:
                     logging.debug("InlineHelp: found registered command instance for '%s' -> %r", cmd_name, getattr(cmd_inst, 'name', None))
@@ -576,7 +602,23 @@ def create_command_processor(client: Any, context: Optional[Dict[str, Any]] = No
                 for cat, cmds in grouped.items():
                     lines.append(f"\n{getattr(cat, 'name', str(cat))}:")
                     for c in sorted(cmds, key=lambda x: x.name):
-                        summary = getattr(c, 'summary', '') or ''
+                        # Prefer the short 'summary' attribute for the one-line
+                        # listing (keeps output concise). Only if that's empty
+                        # do we call help_text() as a fallback.
+                        try:
+                            summary = getattr(c, 'summary', '') or ''
+                            if not summary:
+                                ht = getattr(c, 'help_text', None)
+                                if callable(ht):
+                                    s = ht()
+                                    if asyncio.iscoroutine(s):
+                                        s = await s
+                                    if isinstance(s, (list, tuple)) and s:
+                                        s = s[0]
+                                    if isinstance(s, str):
+                                        summary = s.splitlines()[0]
+                        except Exception:
+                            summary = getattr(c, 'summary', '') or ''
                         lines.append(f"  {c.name:<12} - {summary}")
                 return CommandResult(success=True, message=lines)
 
