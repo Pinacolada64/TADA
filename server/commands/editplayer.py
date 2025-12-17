@@ -819,13 +819,30 @@ class EditPlayerCommand(BaseCommand):
                             pass
                 return action
 
-            for combo in player.combinations:
-                # dot_leader_handler must accept an optional player parameter (menu formatting may pass it)
+            from base_classes import CombinationTypes
+            combos_src = getattr(player, 'combinations', {}) or {}
+            if isinstance(combos_src, dict):
+                keys = list(combos_src.keys())
+            elif isinstance(combos_src, list):
+                keys = list(combos_src)
+            else:
+                keys = [combos_src]
+            for combo_key in keys:
+                # try to resolve a CombinationTypes enum when stored as a string/key
+                c = combo_key
+                if isinstance(combo_key, str):
+                    for ct in CombinationTypes:
+                        if combo_key == ct.name or combo_key == ct.value or combo_key == str(ct):
+                            c = ct
+                            break
+                # friendly text and shortcut
+                text = getattr(c, 'value', str(c))
+                shortcut = (getattr(c, 'name', None) or str(text))[:1]
                 combinations_submenu.add_item(MenuItem(
-                    text=combo.value,
-                    shortcuts=combo.name[:1],
-                    action=make_combo_action(combo),
-                    dot_leader_handler=lambda p=player, c=combo: format_combo_display(p, c)
+                    text=text,
+                    shortcuts=shortcut,
+                    action=make_combo_action(c),
+                    dot_leader_handler=(lambda p=None, c=c: format_combo_display(p, c))
                 ))
 
             # Debug: temporary menu item to dump the player's combinations for interactive troubleshooting
