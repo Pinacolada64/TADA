@@ -327,8 +327,43 @@ class BaseHelpText:
         """
         # Resolve command manager/processor from context or fallback imports.
         command_manager = None
-        if isinstance(context, dict):
-            command_manager = context.get('command_processor') or context.get('command_manager') or context.get('processor')
+        # Accept mapping-like contexts and object-like contexts.
+        try:
+            from collections.abc import Mapping
+        except Exception:
+            Mapping = dict
+
+        if isinstance(context, Mapping):
+            # 1) prefer explicit string keys
+            for key in ('command_processor', 'command_manager', 'processor'):
+                try:
+                    val = context.get(key)
+                except Exception:
+                    val = None
+                if val:
+                    command_manager = val
+                    break
+
+            # 2) if not found, try keys that may be Enum members or other objects; check their str()
+            if command_manager is None:
+                for k, v in context.items():
+                    try:
+                        ks = str(k).lower()
+                    except Exception:
+                        ks = ''
+                    if ks.endswith('command_processor') or ks.endswith('command_manager') or ks.endswith('processor'):
+                        command_manager = v
+                        break
+        else:
+            # non-mapping: try attribute access
+            for attr in ('command_processor', 'command_manager', 'processor'):
+                try:
+                    val = getattr(context, attr)
+                except Exception:
+                    val = None
+                if val:
+                    command_manager = val
+                    break
 
         if command_manager is None:
             # try common module-level singletons used by the project
@@ -424,16 +459,25 @@ class BaseHelpText:
             except Exception:
                 all_cmds = {}
 
-        for cmd_name, cmd in all_cmds.items():
-            if term in cmd_name.lower():
-                matches.append(cmd_name)
-            else:
-                try:
-                    desc = getattr(cmd, 'help_info', None)
-                    if desc and hasattr(desc, 'description') and term in desc.description.lower():
-                        matches.append(cmd_name)
-                except Exception:
-                    pass
+        # all_cmds may be a dict (name->cmd) or a list of command instances
+        if isinstance(all_cmds, dict):
+            iterable = list(all_cmds.items())
+        else:
+            iterable = [(getattr(cmd, 'name', '').lower(), cmd) for cmd in (all_cmds or [])]
+
+        for cmd_name, cmd in iterable:
+            try:
+                if term in (cmd_name or '').lower():
+                    matches.append(cmd_name)
+                    continue
+            except Exception:
+                pass
+            try:
+                desc = getattr(cmd, 'help_info', None)
+                if desc and hasattr(desc, 'description') and term in desc.description.lower():
+                    matches.append(getattr(cmd, 'name', cmd_name))
+            except Exception:
+                pass
 
         if not matches:
             return CommandResult(success=False, message=f"No commands found matching '{term}'.").to_dict()
@@ -450,11 +494,17 @@ class BaseHelpText:
             return CommandResult(success=False, message=f"No help category: {category_name}").to_dict()
 
         cmd_names = []
-        for name, cmd in (command_manager.get_all_commands() or {}).items():
+        all_cmds = command_manager.get_all_commands() or {}
+        if isinstance(all_cmds, dict):
+            iterable = list(all_cmds.items())
+        else:
+            iterable = [(getattr(cmd, 'name', '').lower(), cmd) for cmd in all_cmds]
+
+        for name, cmd in iterable:
             try:
                 cat = getattr(cmd, 'help_info', None)
                 if cat and getattr(cat, 'category', None) == matched:
-                    cmd_names.append(name)
+                    cmd_names.append(getattr(cmd, 'name', name))
             except Exception:
                 continue
 
@@ -618,12 +668,22 @@ class BaseHelpText:
 
         commands_by_category = defaultdict(list)
 
-        for cmd_name, cmd in (command_manager.get_all_commands() or {}).items():
-            if hasattr(cmd, 'help_info') and hasattr(cmd.help_info, 'category'):
-                category = cmd.help_info.category
-            else:
-                category = HelpCategory.GENERAL
-            commands_by_category[category].append(cmd)
+        all_cmds = command_manager.get_all_commands() or []
+        # all_cmds may be a dict or list
+        if isinstance(all_cmds, dict):
+            cmds_iter = list(all_cmds.values())
+        else:
+            cmds_iter = list(all_cmds)
+
+        for cmd in cmds_iter:
+            try:
+                if hasattr(cmd, 'help_info') and hasattr(cmd.help_info, 'category'):
+                    category = cmd.help_info.category
+                else:
+                    category = HelpCategory.GENERAL
+                commands_by_category[category].append(cmd)
+            except Exception:
+                continue
 
         sorted_categories = sorted(commands_by_category.keys(), key=lambda c: c.value)
 
@@ -721,20 +781,67 @@ class HelpCommand(Command, BaseHelpText):
 
     @property
     def aliases(self) -> List[str]:
-        return getattr(self, 'aliases', [])
+        # Return the backing _aliases list defined by BaseHelpText to avoid
+        # infinite recursion from calling getattr(self, 'aliases', ...).
+        return list(getattr(self, '_aliases', ['h', '?']))
 
-    async def execute(self, reader=None, writer=None, context: Dict[str, Any] = None, args: List[str] = None):
-        # Delegate to BaseHelpText.execute which returns a dict (CommandResult.to_dict())
-        args = args or []
-        context = context or {}
-        result = await BaseHelpText.execute(self, context, args)
-        # If result is already a dict, return as-is
+    async def execute(self, *call_args, **call_kwargs):
+        """
+        Robustly accept either:
+        - command_instance.execute(context_dict, args_list)
+        - command_instance.execute(reader, writer, context_dict, args_list)
+        - command_instance.execute(context=context_dict, args=args_list)
+
+        Normalize to (context, args) and delegate to BaseHelpText.execute.
+        """
+        ctx = None
+        a = None
+
+        # Positional handling
+        if len(call_args) == 0:
+            ctx = call_kwargs.get('context') or call_kwargs.get('command_processor') or call_kwargs.get('command_manager')
+            a = call_kwargs.get('args')
+        elif len(call_args) == 1:
+            # called as (context,)
+            if isinstance(call_args[0], dict):
+                ctx = call_args[0]
+                a = call_kwargs.get('args')
+            else:
+                # unknown single arg; fall back to kwargs
+                ctx = call_kwargs.get('context')
+                a = call_kwargs.get('args')
+        else:
+            # If first positional is a dict assume (context, args)
+            if isinstance(call_args[0], dict):
+                ctx = call_args[0]
+                a = call_args[1] if len(call_args) > 1 else call_kwargs.get('args')
+            else:
+                # legacy: reader, writer, context, args -> find dict and list in call_args
+                for item in call_args:
+                    if isinstance(item, dict) and ctx is None:
+                        ctx = item
+                    if isinstance(item, (list, tuple)) and a is None:
+                        a = list(item)
+
+        # Final fallback to kwargs
+        ctx = ctx or call_kwargs.get('context') or call_kwargs.get('command_processor') or call_kwargs.get('command_manager') or {}
+        a = a or call_kwargs.get('args') or []
+
+        # Ensure types
+        if not isinstance(ctx, dict):
+            ctx = dict(ctx) if ctx is not None else {}
+        if not isinstance(a, (list, tuple)):
+            a = [a] if a is not None else []
+
+        result = await BaseHelpText.execute(self, ctx, list(a))
         if isinstance(result, dict):
             return result
-        # Otherwise, try to coerce
         if isinstance(result, CommandResult):
             return result.to_dict()
-        return CommandResult(success=True, message=str(result)).to_dict()
+        try:
+            return {'success': True, 'message': str(result)}
+        except Exception:
+            return {'success': True, 'message': ''}
 
     @staticmethod
     def register():

@@ -107,11 +107,18 @@ class CommandProcessor(Generic[T]):
             except Exception:
                 logging.debug("No example_commands module found or it failed to import; continuing.")
 
-        # Iterate over the command classes stored by the decorator
+        # Iterate over the command classes stored by the decorator.
+        # Avoid instantiating/registering multiple commands from the same class
+        # (can happen if decorated entries were duplicated). Use a set of seen
+        # classes to prevent duplicates.
+        seen_classes = set()
         for name, CommandClass in _DECORATED_COMMANDS.items():
+            if CommandClass in seen_classes:
+                logging.debug(f"Skipping duplicate decorated command class for '{name}'")
+                continue
+            seen_classes.add(CommandClass)
             # Create an instance and register it
             try:
-                # We register the instance, not the class
                 command_instance = CommandClass()
                 self.register_command(command_instance)
             except Exception as e:
@@ -128,18 +135,45 @@ class CommandProcessor(Generic[T]):
         if not getattr(command_instance, 'name', None):
             raise ValueError("Command instance must have a name set.")
 
-        # Register the main command name
+        # Avoid registering another instance of the same command class.
+        for existing in set(self._commands.values()):
+            try:
+                if existing.__class__ is command_instance.__class__:
+                    logging.debug("Command class %s already registered; skipping duplicate instance.", command_instance.__class__.__name__)
+                    return
+            except Exception:
+                continue
+
+        # Register the main command name (do not overwrite an existing different command)
         cmd_name_lower = command_instance.name.lower()
+        if cmd_name_lower in self._commands:
+            existing = self._commands[cmd_name_lower]
+            if existing.__class__ is command_instance.__class__:
+                logging.debug("Command '%s' already registered (same class); skipping.", command_instance.name)
+                return
+            else:
+                logging.warning("Command name '%s' already registered to %s; skipping registration of %s.", cmd_name_lower, getattr(existing,'name',None), command_instance.name)
+                return
+
         self._commands[cmd_name_lower] = command_instance
         logging.info("Registered command: %s", command_instance.name)
 
-        # Register all aliases
+        # Register all aliases; skip alias registration if it points to an existing command of the same class
         for alias in getattr(command_instance, 'aliases', []):
-            alias_lower = alias.lower()
+            try:
+                alias_lower = alias.lower()
+            except Exception:
+                continue
             if alias_lower in self._commands:
                 existing_cmd = self._commands[alias_lower]
-                logging.warning("Alias '%s' for command '%s' is already registered to '%s'",
-                                alias, command_instance.name, existing_cmd.name)
+                # If the alias maps to the same command class, it's harmless; skip silently
+                try:
+                    if existing_cmd.__class__ is command_instance.__class__:
+                        logging.debug("Alias '%s' already registered for same command class %s; skipping.", alias_lower, command_instance.__class__.__name__)
+                        continue
+                except Exception:
+                    pass
+                logging.warning("Alias '%s' for command '%s' is already registered to '%s'; skipping alias.", alias, command_instance.name, existing_cmd.name)
                 continue
             # Store the same command instance under the alias
             self._commands[alias_lower] = command_instance
@@ -359,6 +393,14 @@ def create_command_processor(client: Any, context: Optional[Dict[str, Any]] = No
 
     # Create the command processor with the client and context
     processor = CommandProcessor(client=client, context=processor_context)
+    # Expose the processor itself in the context for helpers (e.g., HelpCommand)
+    # This allows help implementations to lookup and list commands via the context
+    # under keys commonly expected ('command_processor', 'command_manager').
+    try:
+        processor.context['command_processor'] = processor
+        processor.context['command_manager'] = processor
+    except Exception:
+        pass
 
     # 1. Automatically register all decorated commands
     processor._autodiscover_commands()
@@ -564,6 +606,7 @@ def create_command_processor(client: Any, context: Optional[Dict[str, Any]] = No
         ("commands.new_player", "NewPlayerCommand"),
         ("commands.guest", "GuestCommand"),
         ("commands.guest_commands", "HelpCommand"),
+        ("commands.help", "HelpCommand"),
         ("commands.teleport", "TeleportCommand"),
     ]
     for mod_name, cls_name in core_cmds:
@@ -572,6 +615,11 @@ def create_command_processor(client: Any, context: Optional[Dict[str, Any]] = No
             cls = getattr(mod, cls_name, None)
             if cls:
                 try:
+                    # Skip if a command with this name is already present
+                    existing, _ = processor.find_command(getattr(cls, 'name', cls_name).lower())
+                    if existing:
+                        logging.debug(f"Core command {cls_name} from {mod_name} skipped because '{getattr(cls,'name',cls_name)}' is already registered")
+                        continue
                     instance = cls()
                     processor.register_command(instance)
                 except Exception as e:
