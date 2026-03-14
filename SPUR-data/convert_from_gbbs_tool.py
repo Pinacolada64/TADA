@@ -56,6 +56,16 @@ class RoomFlag(Enum):
     BLOCK_MOVE_EAST  = "block_east"
     BLOCK_MOVE_SOUTH = "block_south"
     BLOCK_MOVE_WEST  = "block_west"
+    WATER = "water"  # @@
+    # WATER_WITH_ROCKS? # @@!
+    # ROOM_58  # +@1 - exit in direction 1?
+    # UNKNOWN  # -
+
+    SNOW = "snow"  # **
+    RADIATION = "radiation"  # &
+    RADIATION_EXTREME = "radiation_extreme"  # &&
+    HIDDEN_EXIT_EAST = "hidden_exit_east"
+    HIDDEN_EXIT_WEST = "hidden_exit_west"
 
 # Maps the letter found after ']' in the room flag string to a RoomFlag
 DIRECTION_FLAGS = {
@@ -65,9 +75,9 @@ DIRECTION_FLAGS = {
     'W': RoomFlag.BLOCK_MOVE_WEST,
 }
 
-EXIT_KEYS = ['north', 'east', 'south', 'west', 'rc', 'rt']
+EXIT_KEYS = ['north', 'south', 'east', 'west', 'rc', 'rt']
 STAT_KEYS = ['name_csv', 'monster', 'item', 'weapon', 'food',
-             'exit_n', 'exit_e', 'exit_s', 'exit_w', 'exit_rc', 'exit_rt']
+             'exit_n', 'exit_s', 'exit_e', 'exit_w', 'exit_rc', 'exit_rt']
 
 
 # --- Dataclass ---
