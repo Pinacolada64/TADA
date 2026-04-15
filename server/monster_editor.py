@@ -174,7 +174,18 @@ def show_monster(m: dict, quotes: dict[int, str]):
 # Editors
 # ---------------------------------------------------------------------------
 
-def edit_basic(m: dict):
+def list_quotes(quotes: dict[int, str]) -> int | None:
+    """Display quotes in a numbered menu, return the selected quote number or None."""
+    # Build a list of (number, text) pairs so we can map selection back to quote number
+    items = sorted(quotes.items())  # list of (quote_number, text)
+    display = [f'#{num:>3}: {text}' for num, text in items]
+    idx = numbered_menu(display, 'Monster quotes')
+    if idx is None:
+        return None
+    logging.info("Quote number: %s", idx)
+    return items[idx][0]  # return the actual 1-based quote number
+
+def edit_basic(m: dict, quotes: dict[int, str]):
     """Edit non-flag attributes."""
     header(f"Edit attributes: {m['name']}")
     print('(Press Enter to keep current value)')
@@ -212,9 +223,16 @@ def edit_basic(m: dict):
         except ValueError:
             print(f'Invalid value for {attr}, unchanged.')
 
-    raw = prompt('Quote number (blank = none)', str(m.get('quote_number') or ''))
-    m['quote_number'] = int(raw) if raw.isdigit() else None
-
+    raw = prompt("Quote number (blank: none, '?': list)", str(m.get('quote_number') or ''))
+    if raw == '?':
+        chosen = list_quotes(quotes)
+        if chosen is not None:
+            # list_quotes() returns the 1-based list index:
+            m['quote_number'] = chosen
+    elif raw.isdigit():
+        m['quote_number'] = int(raw)
+    else:
+        m['quote_number'] = None
 
 def edit_flags(m: dict):
     """Toggle monster flags one at a time."""
@@ -252,7 +270,7 @@ def edit_monster(m: dict, quotes: dict[int, str]):
         print('  0. Back')
         choice = prompt('Choose')
         if choice == '1':
-            edit_basic(m)
+            edit_basic(m, quotes)
         elif choice == '2':
             edit_flags(m)
         elif choice == '0':
@@ -337,4 +355,5 @@ def main():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     main()
