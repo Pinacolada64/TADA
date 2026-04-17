@@ -17,10 +17,12 @@ from copy import deepcopy
 
 from convert_monster_data_fixed import ALL_FLAG_KEYS, MONSTER_SIZES
 
-JSON_FILE   = 'monsters.json'
-QUOTES_FILE = 'monster_quotes.json'
+MONSTER_FILE = 'monsters.json'
+QUOTES_FILE  = 'monster_quotes.json'
+WEAPONS_FILE = 'weapons.json'
 
 FLAG_LABELS = {
+    # flags with [?] are uncertain usage
     'heavy_armor':          'Heavy armor',
     'light_armor':          'Light armor',
     'chance_find_gold_2x':  '2x chance find gold',
@@ -38,11 +40,11 @@ FLAG_LABELS = {
     'diseased_attack':      'Diseased attack',
     'experience_drain':     'Experience drain',
     'magic_resistant':      'Magic resistant',
-    'appears_unaffected':   'Appears unaffected',
+    'appears_unaffected':   'Appears unaffected [?]',
     'fire_attack':          'Fire attack',
     'no_gold':              'No gold on body',
     'multiple_monsters':    'Multiple monsters',
-    'no_article':           'No article (suppress THE)',
+    'no_article':           'No article (suppress THE) [?]',
     'charmable':            'Charmable',
     'has_quote':            'Has quote',
 }
@@ -112,6 +114,13 @@ def numbered_menu(items: list[str], title: str = '') -> int | None:
 # Load / save
 # ---------------------------------------------------------------------------
 
+def load_monsters(path: str) -> list[dict]:
+    with open(path) as f:
+        monsters = json.load(f)
+    logging.info("Loaded %d monsters from '%s'", len(monsters), path)
+    return monsters
+
+
 def load_quotes(path: str) -> dict[int, str]:
     """Load quotes JSON into a dict keyed by quote number."""
     try:
@@ -124,9 +133,16 @@ def load_quotes(path: str) -> dict[int, str]:
         return {}
 
 
-def load_monsters(path: str) -> list[dict]:
-    with open(path) as f:
-        return json.load(f)
+def load_weapons(path: str) -> dict[int, str]:
+    """Load weapons JSON into a dict keyed by weapon number."""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        logging.info("Loaded %d weapons from '%s'", len(data), path)
+        return {w['number']: w['name'] for w in data}
+    except FileNotFoundError:
+        logging.warning("'%s' not found, weapon names unavailable.", path)
+        return {}
 
 
 def save_monsters(monsters: list[dict], path: str):
@@ -143,25 +159,33 @@ def active_flags(monster: dict) -> list[str]:
     return [k for k, v in monster.get('flags', {}).items() if v]
 
 
-def show_monster(m: dict, quotes: dict[int, str]):
+def show_monster(m: dict, quotes: dict[int, str], weapons: dict[int, str]):
     header(f"#{m['number']} {m['name']}")
     print(f"  Status  : {m['status']}")
     print(f"  Size    : {m['size'] or '(none)'}")
     print(f"  Strength: {m['strength']}")
-    print(f"  Spec.wpn: {m['special_weapon']}")
+
+    wpn_id = m['special_weapon']
+    wpn_name = weapons.get(wpn_id, f'(unknown #{wpn_id})') if wpn_id else '(none)'
+    print(f"  Spec.wpn: {wpn_name}")
+
     print(f"  To-hit %: {m['to_hit']}")
+
+    if m.get('description'):
+        print(f"  Desc    : {m['description']}")
 
     if m.get('flags', {}).get('has_quote'):
         qnum = m.get('quote_number')
+        prefix = '  Quote   : '
         if qnum is None:
-            print('  Quote   : (has_quote set but no quote_number)')
+            print(f'{prefix}(has_quote set but no quote_number)')
         else:
             text = quotes.get(qnum)
             if text is None:
-                print(f'  Quote #{qnum}: (not found in {QUOTES_FILE})')
+                print(f'{prefix}[{qnum}] (not found in {QUOTES_FILE})')
             else:
                 display = text.replace('$', '<player_name>')
-                print(f'  Quote #{qnum}: {display}')
+                print(f'{prefix}[{qnum}]: {display}')
 
     flags = active_flags(m)
     if flags:
@@ -182,10 +206,11 @@ def list_quotes(quotes: dict[int, str]) -> int | None:
     idx = numbered_menu(display, 'Monster quotes')
     if idx is None:
         return None
-    logging.info("Quote number: %s", idx)
-    return items[idx][0]  # return the actual 1-based quote number
+    logging.info("Selected quote index: %d", idx)
+    return items[idx][0]
 
-def edit_basic(m: dict, quotes: dict[int, str]):
+
+def edit_basic(m: dict, quotes: dict[int, str], weapons: dict[int, str]):
     """Edit non-flag attributes."""
     header(f"Edit attributes: {m['name']}")
     print('(Press Enter to keep current value)')
@@ -216,12 +241,39 @@ def edit_basic(m: dict, quotes: dict[int, str]):
         except ValueError:
             print('Invalid input, size unchanged.')
 
-    for attr in ('strength', 'special_weapon', 'to_hit'):
+    for attr in ('strength', 'to_hit'):
         raw = prompt(attr.replace('_', ' ').title(), str(m[attr]))
         try:
             m[attr] = int(raw)
         except ValueError:
             print(f'Invalid value for {attr}, unchanged.')
+
+    # Special weapon -- show menu if weapons loaded, else raw number
+    if weapons:
+        wpn_id = m['special_weapon']
+        current_name = weapons.get(wpn_id, '(none)') if wpn_id else '(none)'
+        print(f"\n  Current special weapon: {current_name}")
+        items = sorted(weapons.items())
+        display = [f'#{num:>3}: {name}' for num, name in items] + ['(none)']
+        raw = prompt("Special weapon ('?': list, Enter to keep)")
+        if raw == '?':
+            idx = numbered_menu(display, 'Special weapons')
+            if idx is not None:
+                if idx <= len(items):
+                    m['special_weapon'] = items[idx - 1][0]
+                else:
+                    m['special_weapon'] = 0
+        elif raw.isdigit():
+            m['special_weapon'] = int(raw)
+    else:
+        raw = prompt('Special weapon #', str(m['special_weapon']))
+        try:
+            m['special_weapon'] = int(raw)
+        except ValueError:
+            print('Invalid value for special_weapon, unchanged.')
+
+    raw = prompt('Description (blank = none)', m.get('description') or '')
+    m['description'] = raw if raw else None
 
     raw = prompt("Quote number (blank: none, '?': list)", str(m.get('quote_number') or ''))
     if raw == '?':
@@ -233,6 +285,7 @@ def edit_basic(m: dict, quotes: dict[int, str]):
         m['quote_number'] = int(raw)
     else:
         m['quote_number'] = None
+
 
 def edit_flags(m: dict):
     """Toggle monster flags one at a time."""
@@ -260,17 +313,17 @@ def edit_flags(m: dict):
             print('Invalid input.')
 
 
-def edit_monster(m: dict, quotes: dict[int, str]):
+def edit_monster(m: dict, quotes: dict[int, str], weapons: dict[int, str]):
     """Per-monster edit menu."""
     while True:
-        show_monster(m, quotes)
+        show_monster(m, quotes, weapons)
         print()
         print('  1. Edit attributes')
         print('  2. Edit flags')
         print('  0. Back')
         choice = prompt('Choose')
         if choice == '1':
-            edit_basic(m, quotes)
+            edit_basic(m, quotes, weapons)
         elif choice == '2':
             edit_flags(m)
         elif choice == '0':
@@ -283,12 +336,13 @@ def edit_monster(m: dict, quotes: dict[int, str]):
 
 def main():
     try:
-        monsters = load_monsters(JSON_FILE)
+        monsters = load_monsters(MONSTER_FILE)
     except FileNotFoundError:
-        print(f"'{JSON_FILE}' not found. Run convert_monster_data.py first.")
+        print(f"'{MONSTER_FILE}' not found. Run convert_monster_data.py first.")
         sys.exit(1)
 
     quotes  = load_quotes(QUOTES_FILE)
+    weapons = load_weapons(WEAPONS_FILE)
     original = deepcopy(monsters)
     dirty   = False
 
@@ -308,7 +362,7 @@ def main():
             idx = numbered_menu(names, 'Select Monster')
             if idx is not None:
                 before = deepcopy(monsters[idx - 1])
-                edit_monster(monsters[idx - 1], quotes)
+                edit_monster(monsters[idx - 1], quotes, weapons)
                 if monsters[idx - 1] != before:
                     dirty = True
 
@@ -324,7 +378,7 @@ def main():
                 if idx is not None:
                     chosen = results[idx - 1]
                     before = deepcopy(chosen)
-                    edit_monster(chosen, quotes)
+                    edit_monster(chosen, quotes, weapons)
                     if chosen != before:
                         dirty = True
 
@@ -344,7 +398,7 @@ def main():
                     pause()
 
         elif choice == '4':
-            save_monsters(monsters, JSON_FILE)
+            save_monsters(monsters, MONSTER_FILE)
             original = deepcopy(monsters)
             dirty = False
 
