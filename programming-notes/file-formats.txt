@@ -201,7 +201,7 @@ GUILD.STANDINGS
 HONOR		(record size: 10)
 	Holds Honor ratings. (vk)
 
-ITEMS
+ITEMS       (record size: 30)
 	1			(CB$, active=1)
 	T.ROCKS|081SLING
 	T.					Treasure flag
@@ -211,9 +211,7 @@ ITEMS
 			   SLING	Weapon it goes with (weapon name contains this)
 	next line:
 		price (x100)?
-	next line:
-		unknown
-	
+
 	Ammunition carrier:
 	1					(some flag)
 	T.357 BANDOLIER|064	(TLOS differs ammo from carriers by putting * 
@@ -251,7 +249,7 @@ Monster names & stats. SPUR.MISC4:rd.mons has an example.
 					(first byte=TY$, usually M)
 				* can be a number after M.: M.3XDRAGON! for example
 	5<$AC byte>		 MS (monster strength)
-				    ($AC is <cr> [$0D] w/high bit set*)
+				    ($AC is "," [$2c] with the high bit set: $2C | $80 = $AC)
 	0			 SW (special weapon)
 	8			 MA To-hit (1-9): [may or may not be present]
 					1: HUGE
