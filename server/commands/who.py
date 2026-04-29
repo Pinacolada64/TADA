@@ -4,7 +4,7 @@ from typing import Dict, Any, List
 from datetime import datetime, timedelta
 import logging
 
-from commands.base_command import BaseCommand, CommandResult, HelpCategory
+from commands.base_command import Command, CommandResult, HelpCategory
 from commands.command_processor import command
 
 import net_common
@@ -44,7 +44,7 @@ class WhoHelp(BaseHelpText):
 
 @command(name='who', category=HelpCategory.COMMUNICATION,
          summary='List currently online players')
-class WhoCommand(BaseCommand):
+class WhoCommand(Command):
     """List online players (who).
 
     Shows connected players, connected time and idle time. If the caller appears

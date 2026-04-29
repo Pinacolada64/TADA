@@ -3,7 +3,7 @@ import asyncio
 import logging
 from typing import List, cast
 
-from commands.base_command import BaseCommand, CommandResult, HelpCategory
+from commands.base_command import Command, CommandResult, HelpCategory
 from commands.command_processor import command
 from commands.help import BaseHelpText
 from net_common import Message, MessageType, Mode
@@ -16,7 +16,7 @@ compass_txts = {'n': 'north', 's': 'south', 'e': 'east', 'w': 'west', 'u': 'up',
 
 @command(name='move', aliases=['n', 's', 'e', 'w', 'u', 'd', 'north', 'south', 'east', 'west', 'up', 'down', 'go'],
          summary="Move in compass directions")
-class MoveCommand(BaseCommand):
+class MoveCommand(Command):
     """Move the player's character between rooms.
 
     The command accepts: 'n', 'north', 'go north', 'go n', etc.

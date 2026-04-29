@@ -3,11 +3,12 @@
 import logging
 from typing import List, Dict, Any
 
-from commands.base_command import BaseCommand, CommandResult, HelpCategory
+from commands.base_command import Command, CommandResult, HelpCategory
 from commands.context import Context
 # The @command decorator is imported from the main processor file
 from commands.command_processor import command
 from commands.help import BaseHelpText
+from context import GameContext
 from net_common import client_manager
 from commands.utils import get_player_from_context
 
@@ -15,13 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 @command(name="look", aliases=["l"], summary="Examines the current room or an object.")
-class LookCommand(BaseCommand):
+class LookCommand(Command):
     """
     The Look command is used to observe your immediate surroundings or inspect
     a specific object, creature, or player in the area.
     """
 
-    async def execute(self, context: Dict[str, Any], args: List[str]) -> CommandResult:
+    async def execute(self, ctx: GameContext, *args) -> CommandResult:
         """
 
         :param context: information passed to the command, including client and player info
@@ -80,17 +81,8 @@ class LookHelp(BaseHelpText):
             ("look <object>", "Inspect a specific object or player")
         ]
 
-    def help_text(self) -> str:
-        return (
-            "Look Command\n"
-            "------------\n"
-            "Usage: look\n"
-            "       look <object>\n\n"
-            "Describes your surroundings or inspects a target.\n"
-        )
-
 @command(name="say", aliases=['"'])
-class SayCommand(BaseCommand):
+class SayCommand(Command):
     async def execute(self, context: Dict[str, Any], args: List[str]) -> CommandResult:
         if not args:
             return CommandResult(success=False,
@@ -139,11 +131,31 @@ class SayHelp(BaseHelpText):
             ('"How are you?"', 'You ask, "How are you?"')
         ]
 
-    def help_text(self) -> str:
-        return (
-            "Say Command\n"
-            "-----------\n"
-            "Usage: say <message>\n"
-            "       \"<message>  (leading quote shorthand)\n\n"
-            "Broadcast a message to all players in your current room.\n"
-        )
+
+class TestCommand(Command):
+    """Test the Command class"""
+    def __init__(self):
+        self.name = 'test'
+        self.aliases = None
+        self.locks = []
+
+
+    async def execute(self, ctx: GameContext, *args) -> CommandResult:
+        return CommandResult(True, message="Test command executed")
+
+
+if __name__ == "__main__":
+    test_command = TestCommand()
+    command = TestCommand()
+    assert command.name == "test"
+    assert command.aliases == []
+    assert command.locks == []
+
+    import asyncio
+    from context import GameContext as ctx
+    result = asyncio.run(command.execute(ctx, ["bla", "bla"]))
+
+    assert result.success is True
+    assert result.message == "Test command executed"
+
+    print("✅ TestCommand passed")

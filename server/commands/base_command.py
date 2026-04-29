@@ -1,25 +1,20 @@
-from typing import List, Dict, Any
 from dataclasses import dataclass, field, asdict
 from enum import Enum, auto
 import logging
+from typing import Tuple, List, Dict, Any
 
-from simple_client import send_message
+from commands.command_processor import command
+from help import HelpCategory, format_help
 
-# Try to import BaseHelpText from commands.help, but avoid hard dependency to prevent circular imports
-try:
-    from commands.help import BaseHelpText
-except Exception:
-    # Minimal fallback for cases when help module isn't available at import time
-    class BaseHelpText:
-        def __init__(self):
-            self.name = "(no-help)"
-            self.aliases = []
-            self.category = None
-            self.summary = ""
-            self.description = ""
+"""
+To add a new command:
 
-from net_common import Message
+1. Create a new class in commands/ that inherits from Command.
+2. Implement the required methods (name, execute, help_text)
+3. Add the command class to register_commands() in server_commands.py
 
+Each command is self-contained and includes its own help text by overriding the HelpCommand class from help.py.
+"""
 
 # -----------------
 # 1. Command Result
@@ -27,10 +22,14 @@ from net_common import Message
 @dataclass
 class CommandResult:
     """Represents the outcome of a command execution."""
+    # whether the command succeeded (True) or not (False):
     success: bool
+    # any message to the player at the conclusion of executing the command:
     message: str = ""
+    # the error message, if an error occurred:
     error: str = ""
-    lines: List[str] = field(default_factory=list) # Added 'lines' for multi-line output
+
+    lines: List[str] = field(default_factory=list)  # Added 'lines' for multi-line output
     data: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -40,50 +39,24 @@ class CommandResult:
         return asdict(self)
 
 
-# -----------------
-# 2. Help Category
-# -----------------
-class HelpCategory(Enum):
-    """Categories for grouping commands."""
-    GENERAL = auto()
-    # n, e, s, w, u, d, etc.:
-    MOVEMENT = auto()
-    # page, whisper, etc.:
-    COMMUNICATION = auto()
-    # attack, etc.:
-    COMBAT = auto()
-    MISCELLANEOUS = auto()
-
-# -----------------
+# -------------------------
 # 3. Base Command Interface
-# -----------------
-class BaseCommand:
+# -------------------------
+class Command:
     """
     Base command interface. Metadata (name, aliases, category) is usually
     set by the @command decorator.
     """
-    name: str = ""
-    aliases: List[str] = field(default_factory=list)
+    from server.context import GameContext
+    help = Help()
 
-    async def execute(self, context: Dict[str, Any], args: List[str]) -> CommandResult:
-        """Execute the command with the given arguments and context."""
+    async def execute(self, ctx: GameContext, *args: str) -> CommandResult:
         raise NotImplementedError("Subclasses must implement execute()")
 
+    def help_text(self):
+        """One-line summary of command, when 'help' is executed to list all commands"""
+        return self.help.summary
 
-class HelpText(BaseHelpText):
-    def __init__(self):
-        super().__init__()
-        self.category: HelpCategory = HelpCategory.MISCELLANEOUS
-        self.summary: str = "A short summary of what the command is for."
-        self.description: str = "Command description"
-        self.usage: str = "command [<parameter>]"
-
-
-class Command(BaseCommand):
-    async def execute(self, reader: 'asyncio.StreamReader', writer: 'asyncio.StreamWriter', context: Dict[str, Any], args: List[str]) -> CommandResult:
-        logging.info("Command called")
-        try:
-            await send_message(writer, "OK")
-        except Exception:
-            logging.exception("Failed to write to client")
-        return CommandResult(success=True, message="Command executed")
+    def help_details(self):
+        """full formatted help, used by 'help <command>'"""
+        return format_help(self.help, command_name=self.name, max_width=width)

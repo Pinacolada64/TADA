@@ -6,52 +6,64 @@ Low-level binary file reader for GBBS/ACOS/SPUR data files.
 
 All SPUR data files share the same physical format:
   - Fixed-size records, null-padded to record_size bytes
-  - Fields within each record separated by CR (0x0D)
+  - Fields within each record separated by CR (0x0D) or
+    high-bit comma (0xAC = 0x2C | 0x80)
   - Record 0 is either all-nulls or contains a record count
   - Apple II DOS 'T' (text) files have the high bit set on every byte;
     other files are plain ASCII. We auto-detect which is which.
 
 Usage:
-    from gbbs_io import read_file, iter_records, RECORD_SIZES
+    import gbbs_io
+    from gbbs_io import read_file, iter_records, read_count
 
     data = read_file('monsters.txt')
-    for record_num, fields in iter_records(data, record_size=32):
+    for record_num, fields in iter_records(data, gbbs_io.RECORD_INFO['monsters'].record_size):
         status, info, strength, *rest = fields
 """
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
-from dataclasses import dataclass
+
 
 # ---------------------------------------------------------------------------
-# Known record sizes from file-formats.txt.
-# These are best guesses -- update as more files are confirmed.
+# RecordInfo -- describes the physical layout of a data file's records
 # ---------------------------------------------------------------------------
+
 @dataclass(frozen=True)
-class Record:
-    filename: str
-    record_size: int
-    record_count: int
-#                     filename,   rec_size, rec_count
-record_info = [Record('monsters',       32, 160),
-               Record('weapons',        34,   0),
-               Record('items',          30,   0),
-               Record('spur.monsters',  44,   0),
-               Record('spur.users',    130,   0),
-               Record('spur.status',    32,   0),
-               Record('spur.stores',    44,   0),
-               Record('spur.spells',    44,   0),
-               Record('spur.weapons',   64,   0),
-               Record('spur.allies',    78,   0),
-               Record('allies',         15,   0),
-               Record('ally.items',     84,   0),
-               Record('honor',          10,   0),
-               Record('misc.data',     250,   0),
-]
+class RecordInfo:
+    record_size:  int
+    field_count:  int
+    description:  str = ''    # optional, for documentation purposes
 
+
+# ---------------------------------------------------------------------------
+# Known record info from file-formats.txt.
+# field_count=0 means not yet reverse-engineered -- update as confirmed.
+# ---------------------------------------------------------------------------
+RECORD_INFO: dict[str, RecordInfo] = {
+    'items':         RecordInfo(30,  3, 'active, type.name, price'),
+    'monsters':      RecordInfo(32,  5, 'active, type.[size]name|flags, strength, special_weapon, to_hit'),
+    'weapons':       RecordInfo(34,  6, 'location, kind.sfx_class.name|flags, stability, to_hit, price, weapon_class'),
+    'spur.monsters': RecordInfo(44,  5, 'location, type.[size]name|flags, strength, special_weapon, to_hit'),
+    'spur.users':    RecordInfo(130, 0, ''),
+    'spur.status':   RecordInfo(32,  0, ''),
+    'spur.stores':   RecordInfo(44,  0, ''),
+    'spur.spells':   RecordInfo(44,  0, ''),
+    'spur.weapons':  RecordInfo(64,  0, ''),
+    'spur.allies':   RecordInfo(78,  0, ''),
+    'allies':        RecordInfo(15,  0, ''),
+    'ally.items':    RecordInfo(84,  0, ''),
+    'honor':         RecordInfo(10,  0, ''),
+    'misc.data':     RecordInfo(250, 0, ''),
+}
+
+
+# ---------------------------------------------------------------------------
 # High-bit detection threshold: if this fraction of non-null bytes
 # have bit 7 set, treat the whole file as Apple II high-bit encoded.
+# ---------------------------------------------------------------------------
 HIGH_BIT_THRESHOLD = 0.5
 
 
@@ -93,10 +105,17 @@ def normalize(data: bytes) -> bytes:
 def read_file(path: str | Path) -> bytes:
     """
     Read a SPUR data file and return normalized (7-bit ASCII) bytes.
-    High bits are stripped automatically if detected.
+    High-bit comma (0xAC) field separators are replaced with CR first,
+    before high-bit detection, since they appear regardless of whether
+    the rest of the file has high bits set.
+    High bits are then stripped automatically if detected.
     """
     data = Path(path).read_bytes()
     logging.info("Read %d bytes from '%s'", len(data), path)
+    # Replace 0xAC (high-bit comma, used as field separator) with CR
+    # before normalize() so it isn't counted in the high-bit ratio
+    # and isn't accidentally stripped to 0x2C (plain comma).
+    data = data.replace(b'\xac', b'\x0d')
     return normalize(data)
 
 
@@ -107,15 +126,19 @@ def read_file(path: str | Path) -> bytes:
 def _split_record(chunk: bytes) -> list[str]:
     """
     Split a raw record chunk into fields.
-    Strips null bytes, splits on CR (0x0D) or high-bit comma (0xAC),
-    strips whitespace from each field.
+    Strips null bytes, splits on CR (0x0D), strips whitespace from each field.
     Returns only non-empty fields.
+    Note: 0xAC (high-bit comma) separators are replaced with CR in
+    read_file() before records are split, so they don't need handling here.
     """
-    # Normalise 0xAC (high-bit comma) to 0x0D before splitting
-    clean = chunk.replace(b'\x00', b'').replace(b'\xac', b'\x0d')
+    logging.debug("Raw chunk: %s", chunk.hex(' '))
+    clean = chunk.replace(b'\x00', b'')
     fields = clean.split(b'\x0d')
-    return [f.decode('ascii', errors='replace').strip()
-            for f in fields if f.strip(b'\x00\x0d\x20')]
+    result = [f.decode('ascii', errors='replace').strip()
+              for f in fields if f.strip(b'\x00\x0d\x20')]
+    logging.debug("Fields: %r", result)
+    return result
+
 
 def iter_records(data: bytes,
                  record_size: int,
@@ -164,7 +187,7 @@ def read_count(data: bytes, record_size: int) -> int | None:
 
 
 # ---------------------------------------------------------------------------
-# Convenience: look up record size by filename
+# Convenience: look up record info by filename
 # ---------------------------------------------------------------------------
 
 def record_size_for(filename: str | Path) -> int | None:

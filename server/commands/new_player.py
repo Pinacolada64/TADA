@@ -14,7 +14,7 @@ from base_classes import PlayerRace, Gender
 from flags import PlayerFlags
 from menu_system import MenuItem
 from net_common import Mode, MessageType
-from commands.base_command import BaseCommand, CommandResult
+from commands.base_command import Command, CommandResult
 from commands.command_processor import command
 from net_common import Message, to_jsonb, from_jsonb
 from simple_client import send_message

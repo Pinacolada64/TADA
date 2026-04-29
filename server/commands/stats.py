@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import logging
 
 from base_classes import PlayerMoneyTypes
-from commands.base_command import BaseCommand, CommandResult, HelpCategory
+from commands.base_command import Command, CommandResult, HelpCategory
 from commands.command_processor import command
 
 import net_common
@@ -89,7 +89,7 @@ class StatCommand(BaseCommand):
 
 @command(name='who', category=HelpCategory.COMMUNICATION,
          summary='List currently online players')
-class StatsCommand(BaseCommand):
+class StatsCommand(Command):
     """List player's stats
     """
 

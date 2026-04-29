@@ -13,11 +13,11 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from commands.base_command import BaseCommand, CommandResult, HelpCategory
+from commands.base_command import Command, CommandResult, HelpCategory
 from commands.command_processor import CommandProcessor
 
 
-class TestCommand(BaseCommand):
+class TestCommand(Command):
     """A test command for unit testing."""
 
     def __init__(self, name: str, category=HelpCategory.GENERAL, aliases=None, summary=""):

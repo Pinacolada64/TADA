@@ -10,11 +10,11 @@ errors gracefully. Commands are automatically discovered using the `@command` de
 import asyncio
 import importlib
 import logging
-from typing import Type, List, Dict, Any, Generic, Optional, TypeVar, Callable
+from typing import Type, List, Dict, Any, Generic, Optional, TypeVar, Callable, Tuple
 
 # Required imports from the base file
-from commands.base_command import BaseCommand, CommandResult, HelpCategory
-from commands.context import Context
+from commands.base_command import Command, CommandResult, HelpCategory
+from server.context import GameContext
 
 # Type variable for generics
 T = TypeVar('T')
@@ -24,13 +24,14 @@ T = TypeVar('T')
 # ----------------------------------------------------
 
 # Global storage for commands registered via the decorator
-_DECORATED_COMMANDS: Dict[str, Type[BaseCommand]] = {}
+_DECORATED_COMMANDS: Dict[str, Type[Command]] = {}
 
 
 def command(name: str,
-            aliases: Optional[List[str]] = None,
+            aliases: Optional[List[str] | str] = None,
             category: HelpCategory = HelpCategory.MISCELLANEOUS,
-            summary: Optional[str] = None) -> Callable[[Type[BaseCommand]], Type[BaseCommand]]:
+            summary: Optional[str] = None,
+            example: Optional[Tuple[str, str]] = None) -> Callable[[Type[Command]], Type[Command]]:
     """
     Decorator to automatically register a command class.
 
@@ -38,12 +39,17 @@ def command(name: str,
     for later retrieval by the CommandProcessor.
 
     :param name: The primary name of the command (e.g., "look").
-    :param aliases: Optional list of aliases (e.g., ["l", "see"]).
+    :param aliases: Optional string (if no aliases), or list of aliases (e.g., "l", ["x", "examine"]).
     :param category: The help category for the command (see help.py: HelpCategory).
     :param summary: A brief summary for the command.
+    :param example: Examples (and parameters used), e.g.:
+         [("g", "get all items in room"),
+          ("get", "prompt which item to get"),
+          ("get unicorn", "if a unicorn is in the room, get it")
+         ]
     """
 
-    def decorator(cls: Type[BaseCommand]) -> Type[BaseCommand]:
+    def decorator(cls: Type[Command]) -> Type[Command]:
         # 1. Attach metadata to the class object, overriding defaults in BaseCommand
         cls.name = name
         cls.aliases = aliases or []
@@ -71,9 +77,10 @@ class CommandProcessor(Generic[T]):
         # Each CommandProcessor needs a concrete client instance here so
         # commands can access client methods like broadcast_to_all and tell_to_room
         self.client = client
-        self.context: Dict[str, Any] = context or {}
+        # GameContext contains server, player info
+        self.context: GameContext
         # Stores instantiated commands (for execution) mapped to their name/alias
-        self._commands: Dict[str, BaseCommand] = {}
+        self._commands: Dict[str, Command] = {}
         self._aliases: Dict[str, str] = {}
 
     def _autodiscover_commands(self) -> None:
@@ -126,7 +133,7 @@ class CommandProcessor(Generic[T]):
 
         logging.info(f"Finished auto-discovery. Total unique commands loaded: {len(self.get_all_commands())}")
 
-    def register_command(self, command_instance: BaseCommand) -> None:
+    def register_command(self, command_instance: Command) -> None:
         """
         Register a command instance with the processor so it is available to use.
 
@@ -207,7 +214,7 @@ class CommandProcessor(Generic[T]):
                 pass
         logging.info("Unregistered command: %s", getattr(cmd_instance, 'name', name))
 
-    def find_command(self, command_name: str) -> tuple[Optional[BaseCommand], bool]:
+    def find_command(self, command_name: str) -> tuple[Optional[Command], bool]:
         """
         Find a command instance by name or alias.
         """
@@ -225,11 +232,11 @@ class CommandProcessor(Generic[T]):
 
         return None, False
 
-    def get_commands_by_category(self, category: HelpCategory = None) -> dict[str, list[BaseCommand]]:
+    def get_commands_by_category(self, category: HelpCategory = None) -> dict[str, list[Command]]:
         """
         Get commands grouped by category.
         """
-        categories: dict[HelpCategory, list[BaseCommand]] = {}
+        categories: dict[HelpCategory, list[Command]] = {}
 
         # Use set(self._commands.values()) to get a list of unique command instances
         for cmd in set(self._commands.values()):
@@ -244,7 +251,7 @@ class CommandProcessor(Generic[T]):
 
         return categories
 
-    def search_commands(self, search_term: str) -> list[BaseCommand]:
+    def search_commands(self, search_term: str) -> list[Command]:
         """
         Search for commands by name, alias, or summary.
         """
@@ -356,7 +363,7 @@ class CommandProcessor(Generic[T]):
         # process_command now returns a dict (normalized CommandResult)
         return await self.process_command(parts)
 
-    def get_all_commands(self) -> List[BaseCommand]:
+    def get_all_commands(self) -> List[Command]:
         """Return a list of all registered command instances."""
         return list(set(self._commands.values()))
 
@@ -409,7 +416,7 @@ def create_command_processor(client: Any, context: Optional[Dict[str, Any]] = No
     try:
         logging.info("Attempting to register inline help command")
 
-        class _InlineHelp(BaseCommand):
+        class _InlineHelp(Command):
             name = 'help'
             # Provide a brief summary so top-level help listings show a description
             summary = 'Shows this help message'

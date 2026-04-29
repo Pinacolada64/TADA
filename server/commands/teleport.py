@@ -1,14 +1,14 @@
 from typing import Dict, Any, List
 import logging
 
-from commands.base_command import BaseCommand, CommandResult, HelpCategory
+from commands.base_command import Command, CommandResult, HelpCategory
 from commands.command_processor import command
 from commands.utils import get_player_from_context
 from flags import PlayerFlags
 
 
 @command(name='#', aliases=['teleport'], summary='Admin: teleport to a room number')
-class TeleportCommand(BaseCommand):
+class TeleportCommand(Command):
     """Teleport the caller (admin only) to the specified room number.
 
     Usage: # <room_number>

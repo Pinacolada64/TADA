@@ -18,11 +18,12 @@ We prefer decorator-based registration. The decorator `@command(...)` is defined
 Example (recommended):
 
 ```py
-from commands.base_command import BaseCommand, CommandResult
+from commands.base_command import Command, CommandResult
 from commands.command_processor import command
 
+
 @command(name='greet', aliases=['hello'], summary='Say hello')
-class GreetCommand(BaseCommand):
+class GreetCommand(Command):
     async def execute(self, context, args):
         name = args[0] if args else 'stranger'
         return CommandResult(success=True, message=f'Hello, {name}!')
@@ -129,11 +130,12 @@ p = create_command_processor(DummyClient(), context={'username': None})
 ## 8) Example minimal command (non-interactive)
 
 ```py
-from commands.base_command import BaseCommand, CommandResult
+from commands.base_command import Command, CommandResult
 from commands.command_processor import command
 
+
 @command('test', aliases=['t'], summary='Test command')
-class TestCommand(BaseCommand):
+class TestCommand(Command):
     async def execute(self, context, args):
         return CommandResult(success=True, message='Test OK')
 ```

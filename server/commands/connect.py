@@ -4,78 +4,29 @@ Login command implementation for handling user authentication.
 from typing import Dict, Any, List
 from pathlib import Path
 
+from context import GameContext
 from net_common import Message, User, Mode
-from .base_command import Command, CommandResult, BaseCommand
+from .base_command import CommandResult, Command
 from .help import HelpCategory, BaseHelpText
 from commands.utils import get_player_from_context
 from commands.command_processor import command
 
 
-@command(name='connect', aliases=['conn', 'login'], category=HelpCategory.AUTHENTICATION, summary='Connect to the server')
 class ConnectCommand(Command):
     """Handles user authentication."""
+    from commands.help import CommandHelp
 
-    def __init__(self, context=None):
-        super().__init__(context)
+    help = CommandHelp(
+        summary="Connect as a guest to look around",
+        category=HelpCategory.AUTHENTICATION,
+        usage=[("connect guest", "Connect as a guest character to look around without creating a new account")],
+        description="""The guest account has a number attached to the name 'Guest' which increments to the next 
+        available number, depending on how many guests are already logged in.
+        """,
+        examples=[("connect guest", "If two guests are already logged in, logging in as a guest would give you the player name 'Guest 3.'")]
+    )
 
-    async def _handle_guest_connect(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle guest user connection.
-
-        Args:
-            context: Command context containing client information
-
-        Returns:
-            Dict containing the command result for guest login
-        """
-        # Determine a unique guest name using the client/server state from context.
-        client = context.get('client') if isinstance(context, dict) else None
-
-        # Default fallback
-        username = 'Guest1'
-
-        try:
-            if client and getattr(client, 'server', None):
-                server = client.server
-                # Collect current usernames (may include None)
-                existing = {getattr(c, 'username', None) for c in server.clients.values()}
-                base = 'Guest'
-                n = 1
-                while f"{base}{n}" in existing:
-                    n += 1
-                username = f"{base}{n}"
-            else:
-                # if we don't have a server reference, try client_manager as a fallback
-                try:
-                    from net_common import client_manager as global_cm
-                    existing = {getattr(ci.handler, 'username', None) for ci in global_cm.clients.values()}
-                    base = 'Guest'
-                    n = 1
-                    while f"{base}{n}" in existing:
-                        n += 1
-                    username = f"{base}{n}"
-                except Exception:
-                    username = 'Guest1'
-        except Exception:
-            username = 'Guest1'
-
-        welcome_text = (
-            f"Welcome, {username}!\n"
-            "You are connected as a guest.\n"
-            "To create a new account, use: register <username> <password>\n"
-            "To log in, use: login <username> <password>"
-        )
-
-        return CommandResult(
-            success=True,
-            message=welcome_text,
-            data={
-                'authenticated': False,
-                'mode': Mode.guest,
-                'username': username
-            }
-        ).to_dict()
-
-    async def execute(self, context: Dict[str, Any], args: List[str]) -> dict[str, Any] | Any:
+    async def execute(self, context: GameContext, args: List[str]) -> dict[str, Any] | Any:
         """Execute the connect / login command.
 
         :param context: Dictionary containing command context including:

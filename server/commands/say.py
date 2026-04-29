@@ -1,19 +1,31 @@
 import time
 from typing import Dict, Any, List
 
-from commands.base_command import BaseCommand, CommandResult
-from net_common import Message, MessageType, Mode, client_manager
-from commands.help import BaseHelpText, HelpCategory
-from commands.utils import get_player_from_context
+from base_command import Command, CommandResult
+from commands.help import HelpCategory
 
 
-class SayCommand(BaseCommand):
+class SayCommand(Command):
     """Broadcast a message to other players in the same room.
 
     This command returns a CommandResult and relies on the server to handle
     broadcasting to other clients. It chooses the verb (say/ask/exclaim) based on
     punctuation.
     """
+    name = 'say'
+    aliases = ['"']
+    help = HelpCommand(
+        summary="Say something to players in your room.",
+        category=HelpCategory.COMMUNICATION,
+        usage=[
+            ("say <message>", "Speak aloud to everyone in the room"),
+            ("' <message>", "Shorthand for say"),
+        ],
+        examples=[
+            ("say Hello there!", "Everyone in the room hears you"),
+        ],
+    )
+
     def __init__(self, context: Dict[str, Any] = None):
         super().__init__()
         self.quotation_mark = '"'
