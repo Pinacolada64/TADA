@@ -8,10 +8,11 @@ import logging
 @dataclass
 class Weapons(object):
     number: int
-    location: int  # on player, in shoppe, in room
+    location: int  # 0=on player, 1=in room, 2=in shoppe
     name: str
     kind: str  # magical, standard, cursed
-    sound_effect: list  # hit/miss strings
+    # sound_effect should be derived from weapon class, not stored here
+    # sound_effect: list  # hit/miss strings
     stability: int  # aka "ease of use"
     to_hit: int  # 3-9 (*10% in game) aka "damage"
     price: int

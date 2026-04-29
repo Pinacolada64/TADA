@@ -73,10 +73,14 @@ def header(title: str):
     print(f'=== {title} ===')
 
 
-def numbered_menu(items: list[str], title: str = '') -> int | None:
+def numbered_menu(items: list[str], title: str = '',
+                  extra_inputs: set[str] | None = None) -> int | str | None:
     """
     Display a numbered list and return the 1-based choice, or None to cancel.
     Items are paginated 20 at a time.
+    If extra_inputs is provided, those strings are accepted as-is and returned
+    directly (e.g. extra_inputs={'*'} allows wildcard input).
+    :rtype: int | str | None
     """
     if title:
         header(title)
@@ -94,6 +98,8 @@ def numbered_menu(items: list[str], title: str = '') -> int | None:
         nav.append('0=cancel')
         print('  ' + '  '.join(nav))
         raw = prompt('Choose').upper()
+        if extra_inputs and raw in {s.upper() for s in extra_inputs}:
+            return raw
         if raw == 'N' and start + page_size < len(items):
             start += page_size
         elif raw == 'P' and start > 0:
@@ -287,6 +293,66 @@ def edit_basic(m: dict, quotes: dict[int, str], weapons: dict[int, str]):
         m['quote_number'] = None
 
 
+def search_by_attribute(monsters: list[dict], weapons: dict[int, str]):
+    """Search monsters by an exact attribute value."""
+    logging.info(f"entered")
+    # (attr_key, display_label, type)
+    searchable = [
+        ('status',         'Status',         int),
+        ('size',           'Size',           str),
+        ('strength',       'Strength',       int),
+        ('special_weapon', 'Special weapon', int),
+        ('to_hit',         'To-hit %',       int),
+    ]
+    labels = [label for _, label, _ in searchable]
+    idx = numbered_menu(labels, 'Search by attribute')
+    if idx is None:
+        return
+
+    attr, label, typ = searchable[idx - 1]
+
+    # For special_weapon, offer a weapon menu instead of raw input
+    if attr == 'special_weapon' and weapons:
+        items = sorted(weapons.items())
+        # Prepend option '*': monsters that require ANY special weapon
+        print('\n  *. Any non-zero special weapon')
+        display = [f'#{num:>3}: {name}' for num, name in items]
+        widx = numbered_menu(display, 'Select weapon', extra_inputs={'*'})
+        logging.debug("widx=%r", widx)
+        if widx is None:
+            return
+        if widx == '*':
+            results = [m for m in monsters if m.get('special_weapon', 0) != 0]
+            header('Monsters requiring any special weapon')  # also missing
+        elif isinstance(widx, int):
+            target_id = items[widx - 1][0]
+            results = [m for m in monsters if m.get('special_weapon') == target_id]
+            wpn_name = weapons.get(target_id, f'#{target_id}')
+            header(f'Monsters requiring special weapon: {wpn_name}')
+
+    elif typ == int:
+        raw = prompt(f'{label} (exact value)')
+        if not raw.lstrip('-').isdigit():
+            print('Invalid number.')
+            return
+        val = int(raw)
+        results = [m for m in monsters if m.get(attr) == val]
+        header(f'Monsters with {label} = {val}')
+    else:
+        raw = prompt(f'{label} (substring match)').lower()
+        results = [m for m in monsters if raw in str(m.get(attr, '')).lower()]
+        header(f'Monsters with {label} matching "{raw}"')
+
+    if not results:
+        print('  No matches.')
+    else:
+        for m in results:
+            wpn_id = m.get('special_weapon', 0)
+            wpn_str = f'  [{weapons.get(wpn_id, f"#{wpn_id}")}]' if wpn_id and weapons else ''
+            print(f"  #{m['number']:>3} {m['name']}{wpn_str}")
+    pause()
+
+
 def edit_flags(m: dict):
     """Toggle monster flags one at a time."""
     while True:
@@ -348,12 +414,13 @@ def main():
 
     while True:
         header('Monster Editor')
-        print(f'  Loaded: {len(monsters)} monsters  |  {"*UNSAVED CHANGES*" if dirty else "No changes"}')
+        print(f'  {"*UNSAVED CHANGES*" if dirty else "No changes"}')
         print()
         print('  1. List / edit monsters')
         print('  2. Search by name')
         print('  3. Search by flag')
-        print('  4. Save')
+        print('  4. Search by attribute')
+        print('  5. Save')
         print('  0. Quit')
         choice = prompt('Choose')
 
@@ -398,6 +465,9 @@ def main():
                     pause()
 
         elif choice == '4':
+            search_by_attribute(monsters, weapons)
+
+        elif choice == '5':
             save_monsters(monsters, MONSTER_FILE)
             original = deepcopy(monsters)
             dirty = False
@@ -409,5 +479,6 @@ def main():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(format='%(levelname)10s | %(funcName)20s() | %(message)s',
+                        level=logging.DEBUG)
     main()

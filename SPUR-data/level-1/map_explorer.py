@@ -19,36 +19,41 @@ import sys
 from dataclasses import dataclass, field
 from typing import Optional
 
+from tada_constants import (
+    RoomAlignment, ALIGNMENT_COLOURS, ALIGNMENT_SYMBOLS,
+    RoomFlag, FLAG_DISPLAY, FLAG_MINIMAP,
+    COMPASS, EXIT_KEYS,
+)
 
 # ── ANSI colours (no external deps) ──────────────────────────────────────────
 class C:
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
-    RED = "\033[31m"
-    YELLOW = "\033[33m"
-    CYAN = "\033[36m"
-    GREEN = "\033[32m"
+    WHITE   = "\033[97m"
+    RESET   = "\033[0m"
+    BOLD    = "\033[1m"
+    RED     = "\033[31m"
+    YELLOW  = "\033[33m"
+    CYAN    = "\033[36m"
+    GREEN   = "\033[32m"
     MAGENTA = "\033[35m"
-    DIM = "\033[2m"
+    DIM     = "\033[2m"
 
+def bold(s):
+    return f"{C.BOLD}{s}{C.RESET}"
 
-def bold(s):    return f"{C.BOLD}{s}{C.RESET}"
+def header(s):
+    return f"{C.BOLD}{C.CYAN}{s}{C.RESET}"
 
+def warn(s):
+    return f"{C.YELLOW}{s}{C.RESET}"
 
-def header(s):  return f"{C.BOLD}{C.CYAN}{s}{C.RESET}"
+def debug(s):
+    return f"{C.DIM}{C.MAGENTA}{s}{C.RESET}"
 
+def good(s):
+    return f"{C.GREEN}{s}{C.RESET}"
 
-def warn(s):    return f"{C.YELLOW}{s}{C.RESET}"
-
-
-def debug(s):   return f"{C.DIM}{C.MAGENTA}{s}{C.RESET}"
-
-
-def good(s):    return f"{C.GREEN}{s}{C.RESET}"
-
-
-def red(s):     return f"{C.RED}{s}{C.RESET}"
-
+def red(s):
+    return f"{C.RED}{s}{C.RESET}"
 
 # ── Level header parser ───────────────────────────────────────────────────────
 @dataclass
@@ -68,9 +73,9 @@ class LevelHeader:
         south = current_room + map_width
     """
     title: str = "Unknown"
-    total_rooms: int = 0  # stored in file; width * height, pre-computed
-    map_width: int = 0  # rooms per row — the navigation stride
-    map_height: int = 0  # derived: total_rooms // map_width
+    total_rooms: int = 0   # stored in file; width * height, pre-computed
+    map_width: int = 0     # rooms per row — the navigation stride
+    map_height: int = 0    # derived: total_rooms // map_width
     raw_map_data: bytes = field(default_factory=bytes)
 
     @classmethod
@@ -95,8 +100,8 @@ class LevelHeader:
                 else:
                     digits = b''
                     i = 0
-                    while i < len(remainder) and remainder[i:i + 1].isdigit():
-                        digits += remainder[i:i + 1]
+                    while i < len(remainder) and remainder[i:i+1].isdigit():
+                        digits += remainder[i:i+1]
                         i += 1
                     if digits:
                         hdr.map_width = int(digits.decode('ascii'))
@@ -118,26 +123,26 @@ class Room:
     name: str
     alignment: str
     flags: list
-    exits: dict  # e.g. {"north": 1, "east": 1, "rc": 2, "rt": 23}
-    monster: int  # index (1-based) into monsters list, 0 = none
-    item: int  # index (1-based) into items list, 0 = none
-    weapon: int  # index (1-based) into weapons list, 0 = none
-    food: int  # index (1-based) into food list, 0 = none
+    exits: dict        # e.g. {"north": 1, "east": 1, "rc": 2, "rt": 23}
+    monster: int       # index (1-based) into monsters list, 0 = none
+    item: int          # index (1-based) into items list, 0 = none
+    weapon: int        # index (1-based) into weapons list, 0 = none
+    food: int          # index (1-based) into food list, 0 = none
     desc: str
 
     @classmethod
     def from_dict(cls, d: dict) -> "Room":
         return cls(
-            number=d.get('number', 0),
-            name=d.get('name', 'Unknown Room'),
-            alignment=d.get('room_alignment', 'neutral'),
-            flags=d.get('flags', []),
-            exits=d.get('exits', {}),
-            monster=d.get('monster', 0),
-            item=d.get('item', 0),
-            weapon=d.get('weapon', 0),
-            food=d.get('food', 0),
-            desc=d.get('desc', ''),
+            number    = d.get('number', 0),
+            name      = d.get('name', 'Unknown Room'),
+            alignment = d.get('room_alignment', 'neutral'),
+            flags     = d.get('flags', []),
+            exits     = d.get('exits', {}),
+            monster   = d.get('monster', 0),
+            item      = d.get('item', 0),
+            weapon    = d.get('weapon', 0),
+            food      = d.get('food', 0),
+            desc      = d.get('desc', ''),
         )
 
     def exit_room_number(self, direction: str, map_width: int, total_rooms: int,
@@ -154,15 +159,15 @@ class Room:
         offsets = {
             'north': -map_width,
             'south': +map_width,
-            'east': +1,
-            'west': -1,
+            'east':  +1,
+            'west':  -1,
         }
 
         on_edge = {
             'north': self.number <= map_width,
             'south': self.number > total_rooms - map_width,
-            'west': self.number % map_width == 1,
-            'east': self.number % map_width == 0,
+            'west':  self.number % map_width == 1,
+            'east':  self.number % map_width == 0,
         }
 
         if on_edge.get(direction, False):
@@ -182,7 +187,6 @@ class Room:
         if dest < 1 or dest > total_rooms:
             return None
         return dest
-
 
 # ── Map loader ────────────────────────────────────────────────────────────────
 def load_map(filename: str) -> dict[int, Room]:
@@ -217,6 +221,7 @@ def load_json_list(filename: str, key: Optional[str] = None) -> list:
     return []
 
 
+
 # ── Wrap exits table (derived from MAP_1.TXT) ────────────────────────────────
 def build_wrap_exits(map_width: int, total_rooms: int) -> dict:
     """
@@ -232,31 +237,31 @@ def build_wrap_exits(map_width: int, total_rooms: int) -> dict:
     # ── East/West wraps ───────────────────────────────────────────────────────
     # (row, has_left_wrap, has_right_wrap)
     ew_rows = [
-        (2, True, True),
-        (5, True, True),
-        (7, True, False),  # room 73 can go west->84, but 84 has no east wrap
-        (8, True, True),
-        (9, True, True),
-        (10, True, True),
-        (11, True, True),
+        (2,  True,  True),
+        (5,  True,  True),
+        (7,  True,  False),  # room 73 can go west->84, but 84 has no east wrap
+        (8,  True,  True),
+        (9,  True,  True),
+        (10, True,  True),
+        (11, True,  True),
     ]
     for row, has_left, has_right in ew_rows:
-        left_room = (row - 1) * map_width + 1
+        left_room  = (row - 1) * map_width + 1
         right_room = row * map_width
         if has_left:
-            wraps[(left_room, 'west')] = right_room
+            wraps[(left_room,  'west')] = right_room
         if has_right:
             wraps[(right_room, 'east')] = left_room
 
     # ── North/South wraps ─────────────────────────────────────────────────────
     # (col, top_marker, bottom_marker)
     ns_cols = [
-        (2, '|', '|'),  # two-way
-        (3, '^', None),  # one-way north only: room 3->135, not back
-        (4, '|', '|'),  # two-way
-        (6, None, '|'),  # bottom only: room 138 wraps south->6
-        (8, None, 'v'),  # one-way south only: room 140->8, not back
-        (10, '|', '|'),  # two-way
+        (2,  '|',  '|'),    # two-way
+        (3,  '^',  None),   # one-way north only: room 3->135, not back
+        (4,  '|',  '|'),    # two-way
+        (6,  None, '|'),    # bottom only: room 138 wraps south->6
+        (8,  None, 'v'),    # one-way south only: room 140->8, not back
+        (10, '|',  '|'),    # two-way
     ]
     for col, top_marker, bot_marker in ns_cols:
         top_room = col
@@ -268,49 +273,92 @@ def build_wrap_exits(map_width: int, total_rooms: int) -> dict:
 
     return wraps
 
-
 # ── Display helpers ───────────────────────────────────────────────────────────
-COMPASS = {'north': 'North', 'south': 'South', 'east': 'East', 'west': 'West'}
-ALIGNMENT_COLOURS = {
-    'neutral': C.RESET,
-    'free_fire': C.RED,
-    'fist': C.YELLOW,
-    'sword': C.CYAN,
-    'claw': C.MAGENTA,
-    'outlaw': C.RED,
-}
+# COMPASS and ALIGNMENT_COLOURS imported from tada_constants
 
 
 def alignment_str(alignment: str) -> str:
     colour = ALIGNMENT_COLOURS.get(alignment.lower(), C.RESET)
     return f"{colour}{alignment.title()}{C.RESET}"
 
+def _room_flag_vals(room: "Room") -> list[str]:
+    """Return room.flags as a flat list of string values, regardless of storage format."""
+    if not room.flags:
+        return []
+    result = []
+    for f in room.flags:
+        if isinstance(f, str):
+            result.append(f)
+        elif hasattr(f, 'value'):
+            result.append(f.value)
+    return result
+
+
 
 # ── Map renderer ──────────────────────────────────────────────────────────────
 # Box-drawing characters
-_H = '─'
-_V = '│'
-_TL = '┌'
-_TR = '┐'
-_BL = '└'
-_BR = '┘'
-_TT = '┬'
-_BT = '┴'
-_LT = '├'
-_RT = '┤'
-_XX = '┼'
+_H  = '─'; _V  = '│'
+_TL = '┌'; _TR = '┐'; _BL = '└'; _BR = '┘'
+_TT = '┬'; _BT = '┴'; _LT = '├'; _RT = '┤'; _XX = '┼'
 
 
-def _content_flags(room: "Room") -> str:
-    """Return up to 2 coloured content-flag characters for a room."""
-    flags = ''
-    count = 0
-    if room.monster and count < 2: flags += red('M'); count += 1
-    if room.item and count < 2: flags += warn('I'); count += 1
-    if room.weapon and count < 2: flags += warn('W'); count += 1
-    if room.food and count < 2: flags += good('F'); count += 1
-    flags += ' ' * (2 - count)  # pad to 2 visible chars
-    return flags
+
+# ── Map renderer ─────────────────────────────────────────────────────────────
+#
+# Each cell is 5 chars wide × 3 content rows tall, sharing borders:
+#
+#   ┌─────┐
+#   │M   I│   row 0: Monster (top-left)   Item (top-right)
+#   │ nnn │   row 1: room number centred  (@nnn if player here)
+#   │W ~ F│   row 2: Weapon (btm-left)   terrain (btm-centre)   Food (btm-right)
+#   └─────┘
+#
+# East/west exit gaps appear in row 1 (the number row).
+# North/south exit gaps appear in the top/bottom border lines.
+# Bottom-centre terrain character: ~ water  * snow  ☢ radiation  etc.
+
+def _cell_contents(room: "Room", is_player: bool) -> tuple[str, str, str]:
+    """
+    Build the three interior rows of a visited cell.
+
+    Returns (row0, row1, row2) — each exactly 5 *visible* characters wide,
+    with ANSI colour codes added around individual characters as needed.
+    The caller wraps each row in │ ... │ (or a gap for east/west exits).
+
+    row0: Monster flag (top-left) + 3 spaces + Item flag (top-right)
+    row1: room number or @nnn centred in 5 chars
+    row2: Weapon flag (btm-left) + space + terrain (btm-centre) + space + Food flag (btm-right)
+    """
+    flag_vals = _room_flag_vals(room)
+
+    # ── Corner content flags ───────────────────────────────────────
+    m_char = red('M')   if room.monster else ' '
+    i_char = warn('I')  if room.item    else ' '
+    w_char = warn('W')  if room.weapon  else ' '
+    f_char = good('F')  if room.food    else ' '
+
+    # ── Terrain character (bottom-centre) ─────────────────────────
+    terrain = ' '
+    terrain_colour = C.RESET
+    for flag_val, cell_char, colour in FLAG_MINIMAP:
+        if flag_val in flag_vals:
+            terrain = cell_char
+            terrain_colour = colour
+            break
+
+    # ── Row 1: room number, centred in 5 visible chars ────────────
+    if is_player:
+        # "@nnn" = 4 chars, pad with one trailing space
+        num_str = f"{C.CYAN}{C.BOLD}@{room.number:<3}{C.RESET}"
+        row1 = f" {num_str}"   # 1 leading space + 4 visible chars = 5
+    else:
+        # plain room number, right-aligned in 3 chars, padded to 5
+        row1 = f"{C.DIM} {room.number:>3} {C.RESET}"
+
+    row0 = f"{m_char}   {i_char}"
+    row2 = f"{w_char} {terrain_colour}{terrain}{C.RESET} {f_char}"
+
+    return row0, row1, row2
 
 
 def render_minimap(player_room_no: int, rooms: dict,
@@ -322,15 +370,21 @@ def render_minimap(player_room_no: int, rooms: dict,
     """
     Render a viewport-sized minimap centred on the player's room.
 
-    Each cell is 5 chars wide x 1 content row tall (plus shared borders).
+    Each cell is 5 chars wide x 3 content rows tall (plus shared borders).
     Exits appear as gaps in the cell walls.
-    Cell interior layout: [room##] [MF] where M/I/W/F are content flags.
+    Cell interior layout:
 
+    +-----+
+    |M   I|   M=monster  I=item  (top corners)
+    |@nnn |   @nnn = player in room #nnn, nnn = other room number
+    |W ~ F|   W=weapon  ~=terrain flag  F=food  (bottom corners)
+    +-----+
+
+    TODO: display room names below map (all visited rooms in viewport)
     Returns a multi-line string ready to print.
     """
     map_height = total_rooms // map_width
 
-    # If no visited set provided, show all known rooms (useful for debug/testing)
     if visited is None:
         visited = set(rooms.keys())
 
@@ -348,10 +402,8 @@ def render_minimap(player_room_no: int, rooms: dict,
         r = rooms.get(rn)
         if not r:
             return False
-        # Check JSON exits
         if r.exits.get(direction):
             return True
-        # Check wrap exits
         if wrap_exits and (rn, direction) in wrap_exits:
             return True
         return False
@@ -367,88 +419,117 @@ def render_minimap(player_room_no: int, rooms: dict,
     for vr in range(viewport_rows):
         map_row = start_row + vr
 
-        # ── Top border of this row of cells ───────────────────────
+        # ── Top border ────────────────────────────────────────────
         top = ''
         for vc in range(viewport_cols):
-            map_col = start_col + vc
-            rn = cr_to_num(map_col, map_row)
+            map_col   = start_col + vc
+            rn        = cr_to_num(map_col, map_row)
             in_bounds = rn is not None
             north_exit = in_bounds and rn in visited and room_has_exit(rn, 'north')
 
-            # Junction character at top-left of this cell
-            if vr == 0 and vc == 0:
-                junc = _TL
-            elif vr == 0:
-                junc = _TT
-            elif vc == 0:
-                junc = _LT
-            else:
-                junc = _XX
+            if   vr == 0 and vc == 0: junc = _TL
+            elif vr == 0:             junc = _TT
+            elif vc == 0:             junc = _LT
+            else:                     junc = _XX
 
             if not in_bounds:
-                wall = '     '  # off-map: no wall drawn
+                wall = '     '
             elif north_exit:
-                wall = _H * 2 + '  ' + _H * 2  # gap in centre for exit
+                wall = _H*2 + '  ' + _H*2
             else:
-                wall = _H * 5
+                wall = _H*5
 
             top += junc + wall
 
         top += _TR if vr == 0 else _RT
         lines.append(top)
 
-        # ── Content row ───────────────────────────────────────────
-        mid = ''
+        # ── Build content rows for each cell in this map row ──────
+        # We need all three rows before we can assemble them left-to-right.
+        # Collect (row0, row1, row2) per column.
+        cell_rows = []
         for vc in range(viewport_cols):
-            map_col = start_col + vc
-            rn = cr_to_num(map_col, map_row)
+            map_col   = start_col + vc
+            rn        = cr_to_num(map_col, map_row)
             in_bounds = rn is not None
-            west_exit = in_bounds and rn in visited and room_has_exit(rn, 'west')
-
-            left_wall = ' ' if west_exit else _V
 
             if not in_bounds:
-                interior = '     '  # off-map
+                cell_rows.append(('     ', '     ', '     '))
             elif rn not in visited:
-                interior = f"{C.DIM}  ·· {C.RESET}"  # unvisited
+                d = C.DIM; r = C.RESET
+                cell_rows.append((f'{d} ··  {r}', f'{d}  ·· {r}', f'{d}  ·· {r}'))
             else:
                 room = rooms[rn]
-                flags = _content_flags(room)
-                if rn == player_room_no:
-                    interior = f"{C.CYAN}{C.BOLD} @{rn:02d}{C.RESET} {flags}"
+                r0, r1, r2 = _cell_contents(room, rn == player_room_no)
+                cell_rows.append((r0, r1, r2))
+
+        # ── Emit all three content rows ───────────────────────────
+        for row_idx in range(3):
+            line = ''
+            for vc, (r0, r1, r2) in enumerate(cell_rows):
+                map_col   = start_col + vc
+                rn        = cr_to_num(map_col, map_row)
+                in_bounds = rn is not None
+                west_exit = (in_bounds and rn is not None and rn in visited
+                             and room_has_exit(rn, 'west'))
+
+                # East/west exits only gap on row 1 (the number row)
+                if row_idx == 1 and west_exit:
+                    left_wall = ' '
                 else:
-                    interior = f"{C.DIM}{rn:3d}{C.RESET}  {flags}"
+                    left_wall = _V
 
-            mid += left_wall + interior
+                content = (r0, r1, r2)[row_idx]
+                line += left_wall + content
 
-        # Right wall of last cell in row
-        last_rn = cr_to_num(start_col + viewport_cols - 1, map_row)
-        east_exit = (last_rn is not None and last_rn in visited
-                     and room_has_exit(last_rn, 'east'))
-        mid += ' ' if east_exit else _V
-        lines.append(mid)
+            # Right wall — gap only on row 1 if the last cell has an east exit
+            last_rn = cr_to_num(start_col + viewport_cols - 1, map_row)
+            east_exit = (last_rn is not None and last_rn in visited
+                         and room_has_exit(last_rn, 'east'))
+            if row_idx == 1 and east_exit:
+                line += ' '
+            else:
+                line += _V
+            lines.append(line)
 
     # ── Bottom border ─────────────────────────────────────────────
     bot = ''
     for vc in range(viewport_cols):
-        map_col = start_col + vc
+        map_col   = start_col + vc
         map_row_b = start_row + viewport_rows - 1
-        rn = cr_to_num(map_col, map_row_b)
+        rn        = cr_to_num(map_col, map_row_b)
         in_bounds = rn is not None
         south_exit = in_bounds and rn in visited and room_has_exit(rn, 'south')
 
         junc = _BL if vc == 0 else _BT
-        wall = _H * 2 + '  ' + _H * 2 if south_exit else _H * 5
+        wall = _H*2 + '  ' + _H*2 if south_exit else _H*5
         bot += junc + wall
     bot += _BR
     lines.append(bot)
 
+    # ── Room name index (all visited rooms in viewport) ───────────
+    lines.append('')
+    name_lines = []
+    for vr in range(viewport_rows):
+        for vc in range(viewport_cols):
+            map_col = start_col + vc
+            map_row = start_row + vr
+            rn = cr_to_num(map_col, map_row)
+            if rn is not None and rn in visited and rn in rooms:
+                room = rooms[rn]
+                marker = f"{C.CYAN}{C.BOLD}@{C.RESET}" if rn == player_room_no else ' '
+                name_lines.append(f"  {marker}{rn:>3}: {room.name}")
+    if name_lines:
+        lines.extend(name_lines)
+
     # ── Legend ────────────────────────────────────────────────────
     lines.append('')
     lines.append(
-        f"  {C.CYAN}{C.BOLD}@NN{C.RESET}=you  "
+        f"  {C.CYAN}{C.BOLD}@{C.RESET}=you  "
         f"{red('M')}=monster  {warn('I')}=item  "
         f"{warn('W')}=weapon  {good('F')}=food  "
+        f"{C.CYAN}~{C.RESET}=water  {C.WHITE}*{C.RESET}=snow  "
+        f"{C.MAGENTA}?{C.RESET}=hidden  "
         f"{C.DIM}··{C.RESET}=unvisited"
     )
 
@@ -466,11 +547,26 @@ def describe_room(room: Room, rooms: dict, map_width: int, total_rooms: int,
     room_tag = debug(f"  [Room #{room.number}]") if debug_mode else ""
     print(f"{header(room.name)}{room_tag}  {alignment_str(room.alignment)}")
 
-    # ── Flags (debug) ─────────────────────────────────────────────
+    # ── Room flags ────────────────────────────────────────────────
+    # Always show gameplay-relevant flags (water, snow, hidden, etc.)
+    # Show debug-only flags (block_north etc.) only in debug mode
+    DEBUG_ONLY_FLAGS = {"block_north","block_east","block_south","block_west"}
+    room_flag_vals = _room_flag_vals(room)
+    visible_flags = [f for f in room_flag_vals if f not in DEBUG_ONLY_FLAGS]
+    debug_flags   = [f for f in room_flag_vals if f in DEBUG_ONLY_FLAGS]
+
+    if visible_flags:
+        print()
+        parts = []
+        for flag_val in visible_flags:
+            label, colour = FLAG_DISPLAY.get(flag_val, (flag_val, C.RESET))
+            parts.append(f"{colour}{label}{C.RESET}")
+        print("  " + "   ".join(parts))
+
     if debug_mode:
-        if room.flags:
-            print(debug(f"  Flags: {', '.join(str(f) for f in room.flags)}"))
-        else:
+        if debug_flags:
+            print(debug(f"  Movement blocks: {', '.join(debug_flags)}"))
+        if not room_flag_vals:
             print(debug("  Flags: (none)"))
 
     # ── Description ───────────────────────────────────────────────
@@ -567,28 +663,26 @@ def print_help():
 # ── Main explorer loop ────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="TADA Map Explorer")
-    parser.add_argument('--room', type=int, default=1, help="Starting room number (default: 1)")
-    parser.add_argument('--debug', action='store_true', help="Start with debug mode enabled")
-    parser.add_argument('--map', default='level-1.json', help="Map JSON file")
+    parser.add_argument('--room',  type=int, default=1,    help="Starting room number (default: 1)")
+    parser.add_argument('--debug', action='store_true',    help="Start with debug mode enabled")
+    parser.add_argument('--map',   default='level-1.json', help="Map JSON file")
     parser.add_argument('--level', default='D.LEVEL1', help="Binary level header file")
     # Optional data files — gracefully absent
-    parser.add_argument('--items', default='objects.json', help="Items JSON file")
-    parser.add_argument('--weapons', default='weapons.json', help="Weapons JSON file")
-    parser.add_argument('--food', default='rations.json', help="Rations JSON file")
+    parser.add_argument('--items',    default='objects.json',  help="Items JSON file")
+    parser.add_argument('--weapons',  default='weapons.json',  help="Weapons JSON file")
+    parser.add_argument('--food',     default='rations.json',  help="Rations JSON file")
     parser.add_argument('--monsters', default='monsters.json', help="Monsters JSON file")
     args = parser.parse_args()
 
     # ── Resolve file paths relative to this script's directory ────
     base = os.path.dirname(os.path.abspath(__file__))
-
-    def resolve(name):
-        return os.path.join(base, name)
+    def resolve(name): return os.path.join(base, name)
 
     # ── Load level header ──────────────────────────────────────────
     level_hdr = LevelHeader.read(resolve(args.level))
-    map_width = level_hdr.map_width if level_hdr.map_width > 0 else 12  # fallback
+    map_width   = level_hdr.map_width   if level_hdr.map_width   > 0 else 12   # fallback
     total_rooms = level_hdr.total_rooms if level_hdr.total_rooms > 0 else 144  # fallback
-    wrap_exits = build_wrap_exits(map_width, total_rooms)
+    wrap_exits  = build_wrap_exits(map_width, total_rooms)
 
     print()
     print(header(f"  {level_hdr.title}"))
@@ -603,9 +697,9 @@ def main():
         print(red(f"Error: map file '{args.map}' not found."))
         sys.exit(1)
 
-    items = load_json_list(resolve(args.items), key='items')
-    weapons = load_json_list(resolve(args.weapons), key='weapons')
-    food = load_json_list(resolve(args.food), key='rations')
+    items    = load_json_list(resolve(args.items),    key='items')
+    weapons  = load_json_list(resolve(args.weapons),  key='weapons')
+    food     = load_json_list(resolve(args.food),     key='rations')
     monsters = load_json_list(resolve(args.monsters), key='monsters')
 
     print(f"  Data loaded — items: {len(items)}, weapons: {len(weapons)}, "
@@ -614,7 +708,7 @@ def main():
     # ── State ──────────────────────────────────────────────────────
     current_room_no = args.room
     debug_mode = args.debug
-    visited = {current_room_no}  # rooms the player has seen
+    visited = {current_room_no}   # rooms the player has seen
 
     if current_room_no not in rooms:
         print(warn(f"Room {current_room_no} not found; starting at room 1."))
@@ -642,14 +736,10 @@ def main():
 
         # ── Navigation ─────────────────────────────────────────────
         direction = None
-        if raw in ('n', 'north'):
-            direction = 'north'
-        elif raw in ('s', 'south'):
-            direction = 'south'
-        elif raw in ('e', 'east'):
-            direction = 'east'
-        elif raw in ('w', 'west'):
-            direction = 'west'
+        if raw in ('n', 'north'):   direction = 'north'
+        elif raw in ('s', 'south'): direction = 'south'
+        elif raw in ('e', 'east'):  direction = 'east'
+        elif raw in ('w', 'west'):  direction = 'west'
 
         if direction:
             if not room.exits.get(direction):
@@ -740,7 +830,7 @@ def main():
             for num in sorted(rooms.keys()):
                 r = rooms[num]
                 exits_str = ' '.join(
-                    k[0].upper() for k in ['north', 'south', 'east', 'west']
+                    k[0].upper() for k in ['north','south','east','west']
                     if r.exits.get(k)
                 )
                 if r.exits.get('rc'):

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 class Room(object):
     number: int
     name: str
+    # TODO: flags
     exits: list  # {n e s w rc rt}
     desc: str
     monster: int = 0

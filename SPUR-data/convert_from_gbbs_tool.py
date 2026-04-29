@@ -64,8 +64,8 @@ class RoomFlag(Enum):
     SNOW = "snow"  # **
     RADIATION = "radiation"  # &
     RADIATION_EXTREME = "radiation_extreme"  # &&
-    HIDDEN_EXIT_EAST = "hidden_exit_east"
-    HIDDEN_EXIT_WEST = "hidden_exit_west"
+    HIDDEN_EXIT_EAST = "hidden_exit_east"  # ->
+    HIDDEN_EXIT_WEST = "hidden_exit_west"  # <-
 
 # Maps the letter found after ']' in the room flag string to a RoomFlag
 DIRECTION_FLAGS = {
@@ -117,7 +117,7 @@ def parse_name_field(raw_name: str) -> tuple[str, RoomAlignment, list[RoomFlag]]
         raw_name = raw_name[:pipe_match.start()]
         flag_str = pipe_match.group(1)
         # Extract each letter after ']'
-        for letter in re.findall(r'\]([NESW])', flag_str, re.IGNORECASE):
+        for letter in re.findall(r']([NESW])', flag_str, re.IGNORECASE):
             flag = DIRECTION_FLAGS.get(letter.upper())
             if flag:
                 flags.append(flag)
@@ -138,7 +138,7 @@ def parse_room_file(filepath: Path, room_number: int) -> Room | None:
     """
     Parse a single Msg-xxxx.txt file.
     Expected format:
-      Line 1: ROOM NAME[' +' or '\|/'][|]DIR flags],stat1,stat2,...,stat10
+      Line 1: ROOM NAME[' +' or '\\|/'][|]DIR flags],stat1,stat2,...,stat10
       Line 2+: Description text (multi-line, until EOF)
     """
     lines = filepath.read_text().splitlines()

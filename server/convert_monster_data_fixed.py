@@ -2,21 +2,25 @@
 """
 convert_monster_data.py
 
-Reads monsters.txt and writes monsters.json with a normalized schema:
-  - All keys always present (no omitted falsy fields)
-  - Flags stored as dict of {snake_case_key: bool} for O(1) lookup
-  - Longest-match-first flag parsing to avoid ;; vs ; and >> vs > ambiguity
-  - Quote flag stores its numeric argument separately
+Reads monsters.txt (SPUR binary, record size 32) and writes monsters.json.
+
+Schema per monster:
+  number, status, name, size, strength, special_weapon, to_hit,
+  flags: {snake_case: bool}, quote_number (int|null), description (null)
 """
 
 import json
 import logging
 from dataclasses import dataclass, field, asdict
 
+from gbbs_io import read_file, iter_records, read_count
+
+TXT_FILE  = 'monsters.txt'
+JSON_FILE = 'monsters.json'
+RECORD_SIZE = 32
 
 # ---------------------------------------------------------------------------
-# Flag definitions — ORDER MATTERS: longer keys must come before shorter ones
-# that share a prefix (e.g. ';;' before ';', '>>' before '>')
+# Flag definitions — ORDER MATTERS: longer keys before shorter prefix matches
 # ---------------------------------------------------------------------------
 MONSTER_FLAGS = [
     (';;',  'heavy_armor'),
@@ -40,12 +44,11 @@ MONSTER_FLAGS = [
     ('-',   'fire_attack'),
     ('X',   'no_gold'),
     ('$',   'multiple_monsters'),
-    ('?',   'no_article'),          # suppress "THE" before name
+    ('?',   'no_article'),
     ('AC',  'charmable'),
-    ('!',   'has_quote'),           # 2-digit quote number follows
+    ('!',   'has_quote'),
 ]
 
-# All valid flag keys, for use in the editor
 ALL_FLAG_KEYS = [v for _, v in MONSTER_FLAGS]
 
 MONSTER_SIZES = {
@@ -72,36 +75,10 @@ class Monster:
     to_hit:         int
     flags:          dict = field(default_factory=lambda: dict(EMPTY_FLAGS))
     quote_number:   int | None = None
+    description:    str | None = None
 
     def __str__(self):
         return f'#{self.number} {self.name}'
-
-
-# ---------------------------------------------------------------------------
-# File reading helpers
-# ---------------------------------------------------------------------------
-
-def diskin(fh):
-    """Read one non-comment line from fh, stripping newline."""
-    while True:
-        data = fh.readline().strip('\n')
-        if not data.startswith('#'):
-            logging.info(f'keep {data=}')
-            return data
-        logging.info(f'toss {data=}')
-
-
-def read_stanza(fh):
-    """
-    Read one 5-line monster stanza, skipping comment lines.
-    Stanzas are delimited by '^' lines (which are discarded by the caller).
-    """
-    lines = []
-    while len(lines) < 5:
-        line = diskin(fh)
-        if line != '^':
-            lines.append(line)
-    return lines
 
 
 # ---------------------------------------------------------------------------
@@ -110,11 +87,9 @@ def read_stanza(fh):
 
 def parse_flags(flag_str: str) -> tuple[dict, int | None]:
     """
-    Parse the flag string (everything after '|') into a flags dict.
+    Parse flag string (everything after '|') into a flags dict.
     Returns (flags_dict, quote_number_or_None).
-
-    Uses longest-match-first so ';;' is matched before ';', etc.
-    The '!' flag is followed immediately by a 2-digit quote number.
+    Longest-match-first avoids ;; vs ; and >> vs > ambiguity.
     """
     flags = dict(EMPTY_FLAGS)
     quote_number = None
@@ -126,87 +101,101 @@ def parse_flags(flag_str: str) -> tuple[dict, int | None]:
             if remaining.startswith(symbol):
                 flags[key] = True
                 remaining = remaining[len(symbol):]
-                if key == 'has_quote':
-                    # consume the 2-digit number that follows '!'
-                    if len(remaining) >= 2 and remaining[:2].isdigit():
-                        quote_number = int(remaining[:2])
-                        remaining = remaining[2:]
+                if key == 'has_quote' and len(remaining) >= 2 and remaining[:2].isdigit():
+                    quote_number = int(remaining[:2])
+                    remaining = remaining[2:]
                 matched = True
                 break
         if not matched:
-            logging.warning(f'Unknown flag character: {remaining[0]!r} in {flag_str!r}')
+            logging.warning('Unknown flag character: %r in %r', remaining[0], flag_str)
             remaining = remaining[1:]
 
     return flags, quote_number
 
 
 # ---------------------------------------------------------------------------
-# Main conversion
+# Record parsing
 # ---------------------------------------------------------------------------
 
-def convert(txt_filename: str, json_filename: str):
-    monster_list = []
+def parse_monster(record_num: int, fields: list[str]) -> Monster | None:
+    """Parse one monster record's fields into a Monster dataclass."""
+    if len(fields) < 3:
+        logging.warning('Record %d: too few fields (%d), skipping', record_num, len(fields))
+        return None
 
-    with open(txt_filename) as fh:
-        # First non-comment line is the monster count
-        num_monsters = int(diskin(fh))
-        logging.info(f'{num_monsters=}')
-        # Discard the '^' separator after the count
-        diskin(fh)
+    try:
+        status = int(fields[0])
+    except ValueError:
+        logging.warning('Record %d: non-integer status %r, skipping', record_num, fields[0])
+        return None
 
-        for count in range(1, num_monsters + 1):
-            data = read_stanza(fh)
+    info = fields[1]
 
-            status = int(data[0])
-            info   = data[1]
+    # Optional size digit after 'M.'
+    size_char = info[2] if len(info) > 2 else ''
+    if size_char.isdigit():
+        size  = MONSTER_SIZES.get(int(size_char))
+        start = 3
+    else:
+        size  = None
+        start = 2
 
-            # Parse optional size digit after 'M.'
-            size_char = info[2]
-            if size_char.isdigit():
-                size = MONSTER_SIZES.get(int(size_char))
-                start = 3
-            else:
-                size = None
-                start = 2
+    # Split name from flags at '|'
+    pipe = info.rfind('|')
+    if pipe == -1:
+        name        = info[start:].rstrip()
+        flags       = dict(EMPTY_FLAGS)
+        quote_num   = None
+    else:
+        name        = info[start:pipe].rstrip()
+        flags, quote_num = parse_flags(info[pipe + 1:])
 
-            # Split name from flags at '|'
-            pipe = info.rfind('|')
-            if pipe == -1:
-                name       = info[start:].rstrip()
-                flags      = dict(EMPTY_FLAGS)
-                quote_num  = None
-            else:
-                name       = info[start:pipe].rstrip()
-                flags, quote_num = parse_flags(info[pipe + 1:])
+    # Remaining numeric fields — some records omit to_hit
+    try:
+        strength       = int(fields[2]) if len(fields) > 2 else 0
+        special_weapon = int(fields[3]) if len(fields) > 3 else 0
+        to_hit         = int(fields[4]) if len(fields) > 4 else 0
+    except ValueError as e:
+        logging.warning('Record %d: numeric parse error: %s', record_num, e)
+        strength, special_weapon, to_hit = 0, 0, 0
 
-            strength       = int(data[2])
-            special_weapon = int(data[3])
-            to_hit         = int(data[4])
+    return Monster(
+        number         = record_num,
+        status         = status,
+        name           = name,
+        size           = size,
+        strength       = strength,
+        special_weapon = special_weapon,
+        to_hit         = to_hit,
+        flags          = flags,
+        quote_number   = quote_num,
+        description    = None,
+    )
 
-            # Discard trailing '^' (last monster has no trailing '^')
-            peek = diskin(fh)
-            if peek not in ('^', ''):
-                logging.warning(f'Expected ^ after monster {count}, got {peek!r}')
 
-            monster = Monster(
-                number         = count,
-                status         = status,
-                name           = name,
-                size           = size,
-                strength       = strength,
-                special_weapon = special_weapon,
-                to_hit         = to_hit,
-                flags          = flags,
-                quote_number   = quote_num,
-            )
-            logging.info(f'Parsed: {monster}')
-            monster_list.append(monster)
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
-    with open(json_filename, 'w') as out:
-        json.dump([asdict(m) for m in monster_list], out, indent=4)
-    print(f"Wrote {len(monster_list)} monsters to '{json_filename}'")
+def convert(txt_filename: str = TXT_FILE, json_filename: str = JSON_FILE):
+    data = read_file(txt_filename)
+    expected = read_count(data, RECORD_SIZE)
+
+    monsters = []
+    for record_num, fields in iter_records(data, RECORD_SIZE):
+        m = parse_monster(record_num, fields)
+        if m:
+            monsters.append(m)
+            logging.debug('Parsed: %s', m)
+
+    if expected and len(monsters) != expected:
+        logging.warning('Expected %d monsters, parsed %d', expected, len(monsters))
+
+    with open(json_filename, 'w') as f:
+        json.dump([asdict(m) for m in monsters], f, indent=4)
+    print(f"Wrote {len(monsters)} monsters to '{json_filename}'.")
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARNING, format='[%(levelname)s] %(message)s')
-    convert('monsters.txt', 'monsters.json')
+    convert()
