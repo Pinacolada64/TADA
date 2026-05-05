@@ -12,10 +12,11 @@ Schema per monster:
 import json
 import logging
 from dataclasses import dataclass, field, asdict
+from pathlib import Path
 
 from gbbs_io import read_file, iter_records, read_count
 
-TXT_FILE  = 'monsters.txt'
+TXT_FILE  = Path('..') / 'SPUR-data' / 'monsters.txt'
 JSON_FILE = 'monsters.json'
 RECORD_SIZE = 32
 
@@ -119,8 +120,9 @@ def parse_flags(flag_str: str) -> tuple[dict, int | None]:
 
 def parse_monster(record_num: int, fields: list[str]) -> Monster | None:
     """Parse one monster record's fields into a Monster dataclass."""
+    logging.debug('Record %d raw fields (%d): %r', record_num, len(fields), fields)
     if len(fields) < 3:
-        logging.warning('Record %d: too few fields (%d), skipping', record_num, len(fields))
+        logging.warning('Record %d: too few fields (%d): %r', record_num, len(fields), fields)
         return None
 
     try:
@@ -179,7 +181,9 @@ def parse_monster(record_num: int, fields: list[str]) -> Monster | None:
 
 def convert(txt_filename: str = TXT_FILE, json_filename: str = JSON_FILE):
     data = read_file(txt_filename)
+    logging.debug('Read %d bytes, first 64: %s', len(data), data[:64].hex(' '))
     expected = read_count(data, RECORD_SIZE)
+    logging.debug('Expected monster count: %s', expected)
 
     monsters = []
     for record_num, fields in iter_records(data, RECORD_SIZE):
@@ -197,5 +201,5 @@ def convert(txt_filename: str = TXT_FILE, json_filename: str = JSON_FILE):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.WARNING, format='[%(levelname)s] %(message)s')
+    logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s')
     convert()
