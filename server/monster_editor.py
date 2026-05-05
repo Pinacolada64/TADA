@@ -14,12 +14,14 @@ import json
 import logging
 import sys
 from copy import deepcopy
+from pathlib import Path
 
 from convert_monster_data_fixed import ALL_FLAG_KEYS, MONSTER_SIZES
 
 MONSTER_FILE = 'monsters.json'
 QUOTES_FILE  = 'monster_quotes.json'
 WEAPONS_FILE = 'weapons.json'
+LEVEL_FILES  = [Path("..") / "SPUR-data" / f'level-{i}' / f'level-{i}.json' for i in range(1, 8)]
 
 FLAG_LABELS = {
     # flags with [?] are uncertain usage
@@ -120,6 +122,37 @@ def numbered_menu(items: list[str], title: str = '',
 # Load / save
 # ---------------------------------------------------------------------------
 
+def load_monster_locations(level_files: list[str]) -> dict[int, list[tuple[int, int, str]]]:
+    """
+    Load all available level JSON files and build a lookup dict:
+        { monster_number: [(level, room_number, room_name), ...] }
+    Rooms with monster=0 are skipped. Missing level files are silently ignored.
+    """
+    locations: dict[int, list[tuple[int, int, str]]] = {}
+    for path in level_files:
+        # Extract level number from filename e.g. 'level-3.json' -> 3
+        try:
+            level_num = int(Path(path).stem.split('-')[1])
+        except (IndexError, ValueError):
+            logging.warning("Could not parse level number from '%s'", path)
+            continue
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            logging.debug("Level file not found, skipping: '%s'", path)
+            continue
+        for room in data.get('rooms', []):
+            mnum = room.get('monster', 0)
+            if mnum:
+                locations.setdefault(mnum, []).append(
+                    (level_num, room['number'], room.get('name', '?'))
+                )
+    loaded = [p for p in level_files if Path(p).exists()]
+    logging.info("Loaded monster locations from %d level file(s)", len(loaded))
+    return locations
+
+
 def load_monsters(path: str) -> list[dict]:
     with open(path) as f:
         monsters = json.load(f)
@@ -165,7 +198,8 @@ def active_flags(monster: dict) -> list[str]:
     return [k for k, v in monster.get('flags', {}).items() if v]
 
 
-def show_monster(m: dict, quotes: dict[int, str], weapons: dict[int, str]):
+def show_monster(m: dict, quotes: dict[int, str], weapons: dict[int, str],
+                 locations: dict[int, list[tuple[int, int, str]]]):
     header(f"#{m['number']} {m['name']}")
     print(f"  Status  : {m['status']}")
     print(f"  Size    : {m['size'] or '(none)'}")
@@ -176,6 +210,14 @@ def show_monster(m: dict, quotes: dict[int, str], weapons: dict[int, str]):
     print(f"  Spec.wpn: {wpn_name}")
 
     print(f"  To-hit %: {m['to_hit']}")
+
+    # Room locations across all loaded levels
+    locs = locations.get(m['number'], [])
+    if locs:
+        for level, room_num, room_name in sorted(locs):
+            print(f"  Location: Level {level}, Room {room_num} ({room_name})")
+    else:
+        print(f"  Location: (not placed on any loaded level)")
 
     if m.get('description'):
         print(f"  Desc    : {m['description']}")
@@ -379,10 +421,11 @@ def edit_flags(m: dict):
             print('Invalid input.')
 
 
-def edit_monster(m: dict, quotes: dict[int, str], weapons: dict[int, str]):
+def edit_monster(m: dict, quotes: dict[int, str], weapons: dict[int, str],
+                 locations: dict[int, list[tuple[int, int, str]]]):
     """Per-monster edit menu."""
     while True:
-        show_monster(m, quotes, weapons)
+        show_monster(m, quotes, weapons, locations)
         print()
         print('  1. Edit attributes')
         print('  2. Edit flags')
@@ -407,9 +450,10 @@ def main():
         print(f"'{MONSTER_FILE}' not found. Run convert_monster_data.py first.")
         sys.exit(1)
 
-    quotes  = load_quotes(QUOTES_FILE)
-    weapons = load_weapons(WEAPONS_FILE)
-    original = deepcopy(monsters)
+    quotes    = load_quotes(QUOTES_FILE)
+    weapons   = load_weapons(WEAPONS_FILE)
+    locations = load_monster_locations(LEVEL_FILES)
+    original  = deepcopy(monsters)
     dirty   = False
 
     while True:
@@ -429,7 +473,7 @@ def main():
             idx = numbered_menu(names, 'Select Monster')
             if idx is not None:
                 before = deepcopy(monsters[idx - 1])
-                edit_monster(monsters[idx - 1], quotes, weapons)
+                edit_monster(monsters[idx - 1], quotes, weapons, locations)
                 if monsters[idx - 1] != before:
                     dirty = True
 
@@ -445,7 +489,7 @@ def main():
                 if idx is not None:
                     chosen = results[idx - 1]
                     before = deepcopy(chosen)
-                    edit_monster(chosen, quotes, weapons)
+                    edit_monster(chosen, quotes, weapons, locations)
                     if chosen != before:
                         dirty = True
 
