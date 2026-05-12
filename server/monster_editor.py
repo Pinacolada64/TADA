@@ -201,7 +201,7 @@ def active_flags(monster: dict) -> list[str]:
 def show_monster(m: dict, quotes: dict[int, str], weapons: dict[int, str],
                  locations: dict[int, list[tuple[int, int, str]]]):
     header(f"#{m['number']} {m['name']}")
-    print(f"  Status  : {m['status']}")
+    print(f"  Status  : {'Active' if m['status'] == 1 else 'Inactive'}")
     print(f"  Size    : {m['size'] or '(none)'}")
     print(f"  Strength: {m['strength']}")
 
