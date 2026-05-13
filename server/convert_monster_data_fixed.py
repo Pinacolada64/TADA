@@ -135,9 +135,12 @@ def parse_monster(record_num: int, fields: list[str]) -> Monster | None:
 
     # Optional size digit after 'M.'
     size_char = info[2] if len(info) > 2 else ''
+
     if size_char.isdigit():
         size  = MONSTER_SIZES.get(int(size_char))
         start = 3
+        # logging.debug('Record %d info field: %r  info[2]=%r', record_num, info, info[2] if len(info) > 2 else '(too short)')
+        logging.debug('Record %d size: %s', record_num, size)
     else:
         size  = None
         start = 2
@@ -179,7 +182,7 @@ def parse_monster(record_num: int, fields: list[str]) -> Monster | None:
 # Main
 # ---------------------------------------------------------------------------
 
-def convert(txt_filename: str = TXT_FILE, json_filename: str = JSON_FILE):
+def convert(txt_filename: Path = TXT_FILE, json_filename: str = JSON_FILE):
     data = read_file(txt_filename)
     logging.debug('Read %d bytes, first 64: %s', len(data), data[:64].hex(' '))
     expected = read_count(data, RECORD_SIZE)

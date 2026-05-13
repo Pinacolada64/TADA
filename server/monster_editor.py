@@ -2,12 +2,8 @@
 """
 monster_editor.py
 
-Plain terminal editor for monsters.json.
-No curses/rich -- just input() and print(), so output is safe for
-any client including PetSCII translators.
-
-Menu structure is kept in simple functions so it can be replaced later
-with your menu_system.py library.
+Async terminal editor for monsters.json, using TerminalContext and menu_system.
+Run locally:  python3 monster_editor.py
 """
 
 import json
@@ -17,151 +13,23 @@ from copy import deepcopy
 from pathlib import Path
 
 from convert_monster_data_fixed import ALL_FLAG_KEYS, MONSTER_SIZES
+from monsters import monster_flag_labels, load_monsters, save_monsters
+from menu_system import Menu, MenuItem, run_menu
+from terminal_context import TerminalContext, run_local
+from tada_utilities import header, input_yes_no, input_number_range
 
 MONSTER_FILE = 'monsters.json'
 QUOTES_FILE  = 'monster_quotes.json'
 WEAPONS_FILE = 'weapons.json'
-LEVEL_FILES  = [Path("..") / "SPUR-data" / f'level-{i}' / f'level-{i}.json' for i in range(1, 8)]
-
-FLAG_LABELS = {
-    # flags with [?] are uncertain usage
-    'heavy_armor':          'Heavy armor',
-    'light_armor':          'Light armor',
-    'chance_find_gold_2x':  '2x chance find gold',
-    'chance_find_gold':     'Chance find gold',
-    'cast_multiple_spells': 'Cast multiple spells',
-    'cast_one_spell':       'Cast one spell',
-    'double_attacks':       'Double attacks',
-    'mechanical':           'Mechanical being',
-    'increase_strength':    'Increase strength',
-    'evil':                 'Evil',
-    'good':                 'Good',
-    're_animates':          'Re-animates',
-    'cast_turn_to_stone':   'Cast turn to stone',
-    'poisonous_attack':     'Poisonous attack',
-    'diseased_attack':      'Diseased attack',
-    'experience_drain':     'Experience drain',
-    'magic_resistant':      'Magic resistant',
-    'appears_unaffected':   'Appears unaffected [?]',
-    'fire_attack':          'Fire attack',
-    'no_gold':              'No gold on body',
-    'multiple_monsters':    'Multiple monsters',
-    'no_article':           'No article (suppress THE) [?]',
-    'charmable':            'Charmable',
-    'has_quote':            'Has quote',
-}
+LEVEL_FILES  = [Path('..') / 'SPUR-data' / f'level-{i}' / f'level-{i}.json'
+                for i in range(1, 8)]
 
 
 # ---------------------------------------------------------------------------
-# I/O helpers -- swap these out for menu_system.py calls later
+# Load helpers
 # ---------------------------------------------------------------------------
-
-def prompt(msg: str, default: str = '') -> str:
-    suffix = f' [{default}]' if default else ''
-    val = input(f'{msg}{suffix}: ').strip()
-    return val if val else default
-
-
-def confirm(msg: str) -> bool:
-    return prompt(f'{msg} (y/n)', 'n').lower() == 'y'
-
-
-def pause():
-    input('Press Enter to continue...')
-
-
-def header(title: str):
-    print()
-    print(f'=== {title} ===')
-
-
-def numbered_menu(items: list[str], title: str = '',
-                  extra_inputs: set[str] | None = None) -> int | str | None:
-    """
-    Display a numbered list and return the 1-based choice, or None to cancel.
-    Items are paginated 20 at a time.
-    If extra_inputs is provided, those strings are accepted as-is and returned
-    directly (e.g. extra_inputs={'*'} allows wildcard input).
-    :rtype: int | str | None
-    """
-    if title:
-        header(title)
-    page_size = 20
-    start = 0
-    while True:
-        chunk = items[start:start + page_size]
-        for i, item in enumerate(chunk, start=start + 1):
-            print(f'  {i:>3}. {item}')
-        nav = []
-        if start + page_size < len(items):
-            nav.append('N=next')
-        if start > 0:
-            nav.append('P=prev')
-        nav.append('0=cancel')
-        print('  ' + '  '.join(nav))
-        raw = prompt('Choose').upper()
-        if extra_inputs and raw in {s.upper() for s in extra_inputs}:
-            return raw
-        if raw == 'N' and start + page_size < len(items):
-            start += page_size
-        elif raw == 'P' and start > 0:
-            start -= page_size
-        elif raw == '0':
-            return None
-        else:
-            try:
-                choice = int(raw)
-                if 1 <= choice <= len(items):
-                    return choice
-            except ValueError:
-                pass
-            print('Invalid choice.')
-
-
-# ---------------------------------------------------------------------------
-# Load / save
-# ---------------------------------------------------------------------------
-
-def load_monster_locations(level_files: list[str]) -> dict[int, list[tuple[int, int, str]]]:
-    """
-    Load all available level JSON files and build a lookup dict:
-        { monster_number: [(level, room_number, room_name), ...] }
-    Rooms with monster=0 are skipped. Missing level files are silently ignored.
-    """
-    locations: dict[int, list[tuple[int, int, str]]] = {}
-    for path in level_files:
-        # Extract level number from filename e.g. 'level-3.json' -> 3
-        try:
-            level_num = int(Path(path).stem.split('-')[1])
-        except (IndexError, ValueError):
-            logging.warning("Could not parse level number from '%s'", path)
-            continue
-        try:
-            with open(path) as f:
-                data = json.load(f)
-        except FileNotFoundError:
-            logging.debug("Level file not found, skipping: '%s'", path)
-            continue
-        for room in data.get('rooms', []):
-            mnum = room.get('monster', 0)
-            if mnum:
-                locations.setdefault(mnum, []).append(
-                    (level_num, room['number'], room.get('name', '?'))
-                )
-    loaded = [p for p in level_files if Path(p).exists()]
-    logging.info("Loaded monster locations from %d level file(s)", len(loaded))
-    return locations
-
-
-def load_monsters(path: str) -> list[dict]:
-    with open(path) as f:
-        monsters = json.load(f)
-    logging.info("Loaded %d monsters from '%s'", len(monsters), path)
-    return monsters
-
 
 def load_quotes(path: str) -> dict[int, str]:
-    """Load quotes JSON into a dict keyed by quote number."""
     try:
         with open(path) as f:
             data = json.load(f)
@@ -173,7 +41,6 @@ def load_quotes(path: str) -> dict[int, str]:
 
 
 def load_weapons(path: str) -> dict[int, str]:
-    """Load weapons JSON into a dict keyed by weapon number."""
     try:
         with open(path) as f:
             data = json.load(f)
@@ -184,10 +51,25 @@ def load_weapons(path: str) -> dict[int, str]:
         return {}
 
 
-def save_monsters(monsters: list[dict], path: str):
-    with open(path, 'w') as f:
-        json.dump(monsters, f, indent=4)
-    print(f"Saved {len(monsters)} monsters to '{path}'.")
+def load_monster_locations(level_files: list) -> dict[int, list[tuple[int, int, str]]]:
+    locations: dict[int, list[tuple[int, int, str]]] = {}
+    for path in level_files:
+        try:
+            level_num = int(Path(path).stem.split('-')[1])
+        except (IndexError, ValueError):
+            continue
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            continue
+        for room in data.get('rooms', []):
+            mnum = room.get('monster', 0)
+            if mnum:
+                locations.setdefault(mnum, []).append(
+                    (level_num, room['number'], room.get('name', '?'))
+                )
+    return locations
 
 
 # ---------------------------------------------------------------------------
@@ -198,147 +80,345 @@ def active_flags(monster: dict) -> list[str]:
     return [k for k, v in monster.get('flags', {}).items() if v]
 
 
-def show_monster(m: dict, quotes: dict[int, str], weapons: dict[int, str],
-                 locations: dict[int, list[tuple[int, int, str]]]):
-    header(f"#{m['number']} {m['name']}")
-    print(f"  Status  : {'Active' if m['status'] == 1 else 'Inactive'}")
-    print(f"  Size    : {m['size'] or '(none)'}")
-    print(f"  Strength: {m['strength']}")
-
-    wpn_id = m['special_weapon']
+def format_monster(m: dict, quotes: dict[int, str],
+                   weapons: dict[int, str],
+                   locations: dict[int, list]) -> list[str]:
+    """Return a list of lines describing a monster (no I/O)."""
+    wpn_id   = m['special_weapon']
     wpn_name = weapons.get(wpn_id, f'(unknown #{wpn_id})') if wpn_id else '(none)'
-    print(f"  Spec.wpn: {wpn_name}")
+    locs     = locations.get(m['number'], [])
+    loc_str  = ', '.join(f'L{lv} R{rn} ({rname})'
+                         for lv, rn, rname in sorted(locs)) or '(not placed)'
 
-    print(f"  To-hit %: {m['to_hit']}")
-
-    # Room locations across all loaded levels
-    locs = locations.get(m['number'], [])
-    if locs:
-        for level, room_num, room_name in sorted(locs):
-            print(f"  Location: Level {level}, Room {room_num} ({room_name})")
-    else:
-        print(f"  Location: (not placed on any loaded level)")
-
-    if m.get('description'):
-        print(f"  Desc    : {m['description']}")
-
-    if m.get('flags', {}).get('has_quote'):
-        qnum = m.get('quote_number')
-        prefix = '  Quote   : '
-        if qnum is None:
-            print(f'{prefix}(has_quote set but no quote_number)')
-        else:
-            text = quotes.get(qnum)
-            if text is None:
-                print(f'{prefix}[{qnum}] (not found in {QUOTES_FILE})')
-            else:
-                display = text.replace('$', '<player_name>')
-                print(f'{prefix}[{qnum}]: {display}')
+    qnum  = m.get('quote_number')
+    qtext = ''
+    if m.get('flags', {}).get('has_quote') and qnum:
+        raw   = quotes.get(qnum, '')
+        qtext = raw.replace('$', '<player_name>')
 
     flags = active_flags(m)
-    if flags:
-        print(f"  Flags   : {', '.join(FLAG_LABELS.get(f, f) for f in flags)}")
-    else:
-        print('  Flags   : (none)')
+    flag_str = ', '.join(monster_flag_labels.get(f, f) for f in flags) or '(none)'
+
+    lines = [
+        f"  Status  : {'Active' if m['status'] == 1 else 'Inactive'}",
+        f"  Size    : {m['size'] or '(none)'}",
+        f"  Strength: {m['strength']}",
+        f"  Spec.wpn: {wpn_name}",
+        f"  To-hit %: {m['to_hit']}",
+        f"  Location: {loc_str}",
+    ]
+    if m.get('description'):
+        lines.append(f"  Desc    : {m['description']}")
+    if qtext:
+        lines.append(f"  Quote #{qnum}: {qtext}")
+    lines.append(f"  Flags   : {flag_str}")
+    return lines
+
+
+async def show_monster(ctx, m: dict, quotes: dict[int, str],
+                       weapons: dict[int, str],
+                       locations: dict[int, list]):
+    await header(ctx, f"#{m['number']} {m['name']}")
+    await ctx.send(format_monster(m, quotes, weapons, locations))
 
 
 # ---------------------------------------------------------------------------
-# Editors
+# Quote picker submenu
 # ---------------------------------------------------------------------------
 
-def list_quotes(quotes: dict[int, str]) -> int | None:
-    """Display quotes in a numbered menu, return the selected quote number or None."""
-    # Build a list of (number, text) pairs so we can map selection back to quote number
-    items = sorted(quotes.items())  # list of (quote_number, text)
-    display = [f'#{num:>3}: {text}' for num, text in items]
-    idx = numbered_menu(display, 'Monster quotes')
-    if idx is None:
-        return None
-    logging.info("Selected quote index: %d", idx)
-    return items[idx][0]
+def build_quote_menu(m: dict, quotes: dict[int, str],
+                     on_select) -> Menu:
+    """Build a submenu listing all quotes. on_select(ctx, qnum) called on pick."""
+    menu = Menu(title='Select Quote')
+    for qnum, text in sorted(quotes.items()):
+        display = text.replace('$', '<player_name>')
+        # capture qnum in default arg to avoid closure issue
+        def make_action(n=qnum):
+            async def _action(ctx):
+                await on_select(ctx, n)
+            return _action
+        menu.add_item(MenuItem(
+            text          = f'#{qnum:>3}: {display[:50]}',
+            dot_leader_handler = lambda ctx, n=qnum: '<<' if m.get('quote_number') == n else '',
+            action        = make_action(),
+        ))
+    return menu
 
 
-def edit_basic(m: dict, quotes: dict[int, str], weapons: dict[int, str]):
-    """Edit non-flag attributes."""
-    header(f"Edit attributes: {m['name']}")
-    print('(Press Enter to keep current value)')
+# ---------------------------------------------------------------------------
+# Flags submenu
+# ---------------------------------------------------------------------------
 
-    name = prompt('Name', m['name'])
-    m['name'] = name.upper()
+def build_flags_menu(m: dict, dirty_ref: list) -> Menu:
+    """
+    Build a flags toggle menu. dirty_ref is a one-element list so the
+    action closure can signal that a change was made.
+    """
+    menu = Menu(title=f"Flags: {m['name']}")
+    flags = m.setdefault('flags', {k: False for k in ALL_FLAG_KEYS})
 
-    raw = prompt('Status', str(m['status']))
-    try:
-        m['status'] = int(raw)
-    except ValueError:
-        print('Invalid status, unchanged.')
+    for key in ALL_FLAG_KEYS:
+        label = monster_flag_labels.get(key, key)
+        def make_action(k=key):
+            async def _toggle(ctx):
+                flags[k] = not flags.get(k, False)
+                state = 'ON' if flags[k] else 'off'
+                await ctx.send(f'  {monster_flag_labels.get(k, k)} -> {state}')
+                dirty_ref[0] = True
+            return _toggle
+        menu.add_item(MenuItem(
+            text               = label,
+            dot_leader_handler = lambda ctx, k=key: 'ON ' if flags.get(k) else 'off',
+            action             = make_action(),
+        ))
+    return menu
 
+
+# ---------------------------------------------------------------------------
+# Edit basic attributes menu
+# ---------------------------------------------------------------------------
+
+def build_edit_menu(m: dict, quotes: dict[int, str],
+                    weapons: dict[int, str], dirty_ref: list) -> Menu:
+    """
+    Build the per-field edit menu for a monster.
+    Each item shows the current value via dot_leader_handler and prompts
+    for a new value when selected.
+    """
+    menu = Menu(title=f"Edit: {m['name']}")
+
+    # --- Name ---
+    async def edit_name(ctx):
+        raw = await ctx.prompt(f"Name [{m['name']}]")
+        if raw:
+            m['name'] = raw.upper()
+            dirty_ref[0] = True
+
+    menu.add_item(MenuItem(
+        text               = 'Name',
+        shortcuts          = ['N'],
+        dot_leader_handler = lambda ctx: m['name'],
+        action             = edit_name,
+    ))
+
+    # --- Size ---
     size_options = list(MONSTER_SIZES.values()) + ['(none)']
-    current = m['size'] or '(none)'
-    print(f"\n  Current size: {current}")
-    for i, s in enumerate(size_options, 1):
-        print(f'    {i}. {s}')
-    raw = prompt(f'Choose size [1-{len(size_options)}, Enter to keep]')
-    if raw:
-        try:
+
+    async def edit_size(ctx):
+        await ctx.send('Sizes:')
+        for i, s in enumerate(size_options, 1):
+            await ctx.send(f'  {i}. {s}')
+        raw = await ctx.prompt(f'Choose [1-{len(size_options)}]')
+        if raw.isdigit():
             idx = int(raw) - 1
             if 0 <= idx < len(size_options):
-                chosen = size_options[idx]
+                chosen   = size_options[idx]
                 m['size'] = None if chosen == '(none)' else chosen
+                dirty_ref[0] = True
             else:
-                print('Out of range, size unchanged.')
-        except ValueError:
-            print('Invalid input, size unchanged.')
+                await ctx.send('Out of range, size unchanged.')
+        elif raw:
+            await ctx.send('Invalid input, size unchanged.')
 
-    for attr in ('strength', 'to_hit'):
-        raw = prompt(attr.replace('_', ' ').title(), str(m[attr]))
-        try:
-            m[attr] = int(raw)
-        except ValueError:
-            print(f'Invalid value for {attr}, unchanged.')
+    menu.add_item(MenuItem(
+        text               = 'Size',
+        shortcuts          = ['Z'],
+        dot_leader_handler = lambda ctx: m['size'] or '(none)',
+        action             = edit_size,
+    ))
 
-    # Special weapon -- show menu if weapons loaded, else raw number
-    if weapons:
-        wpn_id = m['special_weapon']
-        current_name = weapons.get(wpn_id, '(none)') if wpn_id else '(none)'
-        print(f"\n  Current special weapon: {current_name}")
-        items = sorted(weapons.items())
-        display = [f'#{num:>3}: {name}' for num, name in items] + ['(none)']
-        raw = prompt("Special weapon ('?': list, Enter to keep)")
-        if raw == '?':
-            idx = numbered_menu(display, 'Special weapons')
-            if idx is not None:
-                if idx <= len(items):
-                    m['special_weapon'] = items[idx - 1][0]
+    # --- Strength ---
+    async def edit_strength(ctx):
+        raw = await ctx.prompt(f"Strength [{m['strength']}]")
+        if raw.isdigit():
+            m['strength'] = int(raw)
+            dirty_ref[0]  = True
+        elif raw:
+            await ctx.send('Invalid number, unchanged.')
+
+    menu.add_item(MenuItem(
+        text               = 'Strength',
+        shortcuts          = ['S'],
+        dot_leader_handler = lambda ctx: str(m['strength']),
+        action             = edit_strength,
+    ))
+
+    # --- Special weapon ---
+    async def edit_weapon(ctx):
+        if weapons:
+            items = sorted(weapons.items())
+            await ctx.send('  *. Any / clear weapon')
+            for num, name in items:
+                await ctx.send(f'  {num:>3}. {name}')
+            raw = await ctx.prompt("Weapon # ('*' to clear)")
+            if raw == '*':
+                m['special_weapon'] = 0
+                dirty_ref[0] = True
+            elif raw.isdigit():
+                wid = int(raw)
+                if wid in dict(items):
+                    m['special_weapon'] = wid
+                    dirty_ref[0] = True
                 else:
-                    m['special_weapon'] = 0
-        elif raw.isdigit():
-            m['special_weapon'] = int(raw)
-    else:
-        raw = prompt('Special weapon #', str(m['special_weapon']))
-        try:
-            m['special_weapon'] = int(raw)
-        except ValueError:
-            print('Invalid value for special_weapon, unchanged.')
+                    await ctx.send('Unknown weapon number.')
+        else:
+            raw = await ctx.prompt(f"Special weapon # [{m['special_weapon']}]")
+            if raw.isdigit():
+                m['special_weapon'] = int(raw)
+                dirty_ref[0] = True
 
-    raw = prompt('Description (blank = none)', m.get('description') or '')
-    m['description'] = raw if raw else None
+    wpn_label = lambda ctx: (weapons.get(m['special_weapon'],
+                              f"#{m['special_weapon']}")
+                              if m['special_weapon'] else '(none)')
+    menu.add_item(MenuItem(
+        text               = 'Special weapon',
+        shortcuts          = ['W'],
+        dot_leader_handler = wpn_label,
+        action             = edit_weapon,
+    ))
 
-    raw = prompt("Quote number (blank: none, '?': list)", str(m.get('quote_number') or ''))
-    if raw == '?':
-        chosen = list_quotes(quotes)
-        if chosen is not None:
-            # list_quotes() returns the 1-based list index:
-            m['quote_number'] = chosen
-    elif raw.isdigit():
-        m['quote_number'] = int(raw)
-    else:
-        m['quote_number'] = None
+    # --- To-hit ---
+    async def edit_to_hit(ctx):
+        raw = await ctx.prompt(f"To-hit % [{m['to_hit']}]")
+        if raw.isdigit():
+            m['to_hit']  = int(raw)
+            dirty_ref[0] = True
+        elif raw:
+            await ctx.send('Invalid number, unchanged.')
+
+    menu.add_item(MenuItem(
+        text               = 'To-hit %',
+        shortcuts          = ['T'],
+        dot_leader_handler = lambda ctx: str(m['to_hit']),
+        action             = edit_to_hit,
+    ))
+
+    # --- Description ---
+    async def edit_desc(ctx):
+        current = m.get('description') or ''
+        raw     = await ctx.prompt(f'Description [{current or "none"}]')
+        if raw:
+            m['description'] = raw
+            dirty_ref[0]     = True
+        elif current:
+            clear = await input_yes_no(ctx, 'Clear description?')
+            if clear:
+                m['description'] = None
+                dirty_ref[0]     = True
+
+    menu.add_item(MenuItem(
+        text               = 'Description',
+        shortcuts          = ['D'],
+        dot_leader_handler = lambda ctx: (m.get('description') or '')[:40] or '(none)',
+        action             = edit_desc,
+    ))
+
+    # --- Quote ---
+    async def edit_quote(ctx):
+        if not quotes:
+            await ctx.send('No quotes loaded.')
+            return
+
+        async def on_select(ctx, qnum):
+            m['quote_number']            = qnum
+            m.setdefault('flags', {})['has_quote'] = True
+            dirty_ref[0]                 = True
+            await ctx.send(f'Quote #{qnum} selected.')
+
+        quote_menu = build_quote_menu(m, quotes, on_select)
+        await run_menu(ctx, quote_menu)
+
+    qnum = m.get('quote_number')
+    menu.add_item(MenuItem(
+        text               = 'Quote',
+        shortcuts          = ['Q'],
+        dot_leader_handler = lambda ctx: (f'#{m.get("quote_number")}' if m.get('quote_number') else '(none)'),
+        action             = edit_quote,
+    ))
+
+    # --- Flags (submenu) ---
+    async def open_flags(ctx):
+        flags_menu = build_flags_menu(m, dirty_ref)
+        await run_menu(ctx, flags_menu)
+
+    menu.add_item(MenuItem(
+        text               = 'Flags',
+        shortcuts          = ['F'],
+        dot_leader_handler = lambda ctx: ', '.join(active_flags(m)) or '(none)',
+        action             = open_flags,
+    ))
+
+    return menu
 
 
-def search_by_attribute(monsters: list[dict], weapons: dict[int, str]):
-    """Search monsters by an exact attribute value."""
-    logging.info(f"entered")
-    # (attr_key, display_label, type)
+# ---------------------------------------------------------------------------
+# Per-monster menu
+# ---------------------------------------------------------------------------
+
+def build_monster_list_menu(monsters, quotes, weapons, locations, dirty_ref) -> Menu:
+    menu = Menu(title='Select Monster')
+    for m in monsters:
+        async def show_and_edit(ctx, mon=m):
+            await show_monster(ctx, mon, quotes, weapons, locations)
+            await run_menu(ctx, build_edit_menu(mon, quotes, weapons, dirty_ref))
+        menu.add_item(MenuItem(
+            text      = f"#{m['number']:>3} {m['name']}",
+            shortcuts = [],
+            action    = show_and_edit,
+        ))
+    return menu
+
+
+# ---------------------------------------------------------------------------
+# Search helpers
+# ---------------------------------------------------------------------------
+
+async def search_by_name(ctx, monsters: list[dict],
+                         quotes, weapons, locations, dirty_ref):
+    term    = await ctx.prompt('Search name')
+    results = [m for m in monsters if term.upper() in m['name']]
+    if not results:
+        await ctx.send('No matches.')
+        return
+    menu = Menu(title=f'Results for "{term}"')
+    for m in results:
+        menu.add_item(MenuItem(
+            text      = f"#{m['number']:>3} {m['name']}",
+            shortcuts = [],
+            action    = lambda ctx, mon=m: run_menu(
+                ctx, build_monster_menu(mon, quotes, weapons, locations, dirty_ref)),
+        ))
+    await run_menu(ctx, menu)
+
+
+async def search_by_flag(ctx, monsters: list[dict]):
+    flag_menu = Menu(title='Select Flag')
+    for key in ALL_FLAG_KEYS:
+        label = monster_flag_labels.get(key, key)
+        count = sum(1 for m in monsters if m.get('flags', {}).get(key))
+
+        def make_action(k=key, lbl=label):
+            async def _show(ctx):
+                results = [m for m in monsters if m.get('flags', {}).get(k)]
+                if not results:
+                    await ctx.send(f'No monsters with flag: {lbl}')
+                    return
+                await ctx.send(f'\nMonsters with [{lbl}]:')
+                for m in results:
+                    await ctx.send(f"  #{m['number']:>3} {m['name']}")
+                await ctx.prompt('Press Enter to continue')
+            return _show
+
+        flag_menu.add_item(MenuItem(
+            text               = label,
+            dot_leader_handler = lambda ctx, k=key: str(
+                sum(1 for m in monsters if m.get('flags', {}).get(k))),
+            action             = make_action(),
+        ))
+    await run_menu(ctx, flag_menu)
+
+
+async def search_by_attribute(ctx, monsters: list[dict], weapons: dict[int, str]):
     searchable = [
         ('status',         'Status',         int),
         ('size',           'Size',           str),
@@ -346,183 +426,129 @@ def search_by_attribute(monsters: list[dict], weapons: dict[int, str]):
         ('special_weapon', 'Special weapon', int),
         ('to_hit',         'To-hit %',       int),
     ]
-    labels = [label for _, label, _ in searchable]
-    idx = numbered_menu(labels, 'Search by attribute')
-    if idx is None:
-        return
+    attr_menu = Menu(title='Search by attribute')
+    for attr, label, typ in searchable:
+        def make_action(a=attr, lbl=label, t=typ):
+            async def _search(ctx):
+                if a == 'special_weapon' and weapons:
+                    items = sorted(weapons.items())
+                    await ctx.send('  *. Any non-zero special weapon')
+                    for num, name in items:
+                        await ctx.send(f'  {num:>3}. {name}')
+                    raw = await ctx.prompt("Weapon # or '*' for any")
+                    if raw == '*':
+                        results = [m for m in monsters if m.get('special_weapon', 0)]
+                        await header(ctx, 'Monsters requiring any special weapon')
+                    elif raw.isdigit():
+                        tid  = int(raw)
+                        results = [m for m in monsters if m.get('special_weapon') == tid]
+                        await header(ctx, f'Monsters requiring: {weapons.get(tid, f"#{tid}")}')
+                    else:
+                        return
+                elif t == int:
+                    raw = await ctx.prompt(f'{lbl} (exact value)')
+                    if not raw.lstrip('-').isdigit():
+                        await ctx.send('Invalid number.')
+                        return
+                    val     = int(raw)
+                    results = [m for m in monsters if m.get(a) == val]
+                    await header(ctx, f'Monsters with {lbl} = {val}')
+                else:
+                    raw     = await ctx.prompt(f'{lbl} (substring match)')
+                    results = [m for m in monsters
+                               if raw.lower() in str(m.get(a, '')).lower()]
+                    await header(ctx, f'Monsters with {lbl} matching "{raw}"')
 
-    attr, label, typ = searchable[idx - 1]
+                if not results:
+                    await ctx.send('  No matches.')
+                else:
+                    for m in results:
+                        wpn_id  = m.get('special_weapon', 0)
+                        wpn_str = (f'  [{weapons.get(wpn_id, f"#{wpn_id}")}]'
+                                   if wpn_id and weapons else '')
+                        await ctx.send(f"  #{m['number']:>3} {m['name']}{wpn_str}")
+                await ctx.prompt('Press Enter to continue')
+            return _search
 
-    # For special_weapon, offer a weapon menu instead of raw input
-    if attr == 'special_weapon' and weapons:
-        items = sorted(weapons.items())
-        # Prepend option '*': monsters that require ANY special weapon
-        print('\n  *. Any non-zero special weapon')
-        display = [f'#{num:>3}: {name}' for num, name in items]
-        widx = numbered_menu(display, 'Select weapon', extra_inputs={'*'})
-        logging.debug("widx=%r", widx)
-        if widx is None:
-            return
-        if widx == '*':
-            results = [m for m in monsters if m.get('special_weapon', 0) != 0]
-            header('Monsters requiring any special weapon')  # also missing
-        elif isinstance(widx, int):
-            target_id = items[widx - 1][0]
-            results = [m for m in monsters if m.get('special_weapon') == target_id]
-            wpn_name = weapons.get(target_id, f'#{target_id}')
-            header(f'Monsters requiring special weapon: {wpn_name}')
-
-    elif typ == int:
-        raw = prompt(f'{label} (exact value)')
-        if not raw.lstrip('-').isdigit():
-            print('Invalid number.')
-            return
-        val = int(raw)
-        results = [m for m in monsters if m.get(attr) == val]
-        header(f'Monsters with {label} = {val}')
-    else:
-        raw = prompt(f'{label} (substring match)').lower()
-        results = [m for m in monsters if raw in str(m.get(attr, '')).lower()]
-        header(f'Monsters with {label} matching "{raw}"')
-
-    if not results:
-        print('  No matches.')
-    else:
-        for m in results:
-            wpn_id = m.get('special_weapon', 0)
-            wpn_str = f'  [{weapons.get(wpn_id, f"#{wpn_id}")}]' if wpn_id and weapons else ''
-            print(f"  #{m['number']:>3} {m['name']}{wpn_str}")
-    pause()
-
-
-def edit_flags(m: dict):
-    """Toggle monster flags one at a time."""
-    while True:
-        header(f"Flags: {m['name']}")
-        flags = m.setdefault('flags', {k: False for k in ALL_FLAG_KEYS})
-        for i, key in enumerate(ALL_FLAG_KEYS, 1):
-            state = 'ON ' if flags.get(key) else 'off'
-            label = FLAG_LABELS.get(key, key)
-            print(f'  {i:>2}. [{state}] {label}')
-        print('   0. Done')
-        raw = prompt('Toggle flag #')
-        if raw == '0':
-            break
-        try:
-            idx = int(raw) - 1
-            if 0 <= idx < len(ALL_FLAG_KEYS):
-                key = ALL_FLAG_KEYS[idx]
-                flags[key] = not flags.get(key, False)
-                state = 'ON' if flags[key] else 'off'
-                print(f'  {FLAG_LABELS.get(key, key)} -> {state}')
-            else:
-                print('Out of range.')
-        except ValueError:
-            print('Invalid input.')
-
-
-def edit_monster(m: dict, quotes: dict[int, str], weapons: dict[int, str],
-                 locations: dict[int, list[tuple[int, int, str]]]):
-    """Per-monster edit menu."""
-    while True:
-        show_monster(m, quotes, weapons, locations)
-        print()
-        print('  1. Edit attributes')
-        print('  2. Edit flags')
-        print('  0. Back')
-        choice = prompt('Choose')
-        if choice == '1':
-            edit_basic(m, quotes, weapons)
-        elif choice == '2':
-            edit_flags(m)
-        elif choice == '0':
-            break
+        attr_menu.add_item(MenuItem(text=label, action=make_action()))
+    await run_menu(ctx, attr_menu)
 
 
 # ---------------------------------------------------------------------------
 # Main menu
 # ---------------------------------------------------------------------------
 
-def main():
+async def main():
+    ctx = TerminalContext()
+
     try:
         monsters = load_monsters(MONSTER_FILE)
     except FileNotFoundError:
-        print(f"'{MONSTER_FILE}' not found. Run convert_monster_data.py first.")
+        await ctx.send(f"'{MONSTER_FILE}' not found. Run convert_monster_data.py first.")
         sys.exit(1)
 
     quotes    = load_quotes(QUOTES_FILE)
     weapons   = load_weapons(WEAPONS_FILE)
     locations = load_monster_locations(LEVEL_FILES)
-    original  = deepcopy(monsters)
-    dirty   = False
 
-    while True:
-        header('Monster Editor')
-        print(f'  {"*UNSAVED CHANGES*" if dirty else "No changes"}')
-        print()
-        print('  1. List / edit monsters')
-        print('  2. Search by name')
-        print('  3. Search by flag')
-        print('  4. Search by attribute')
-        print('  5. Save')
-        print('  0. Quit')
-        choice = prompt('Choose')
+    # dirty_ref: one-element list so closures can mutate it
+    dirty_ref = [False]
 
-        if choice == '1':
-            names = [f"#{m['number']:>3} {m['name']}" for m in monsters]
-            idx = numbered_menu(names, 'Select Monster')
-            if idx is not None:
-                before = deepcopy(monsters[idx - 1])
-                edit_monster(monsters[idx - 1], quotes, weapons, locations)
-                if monsters[idx - 1] != before:
-                    dirty = True
+    # --- Monster list submenu ---
+    def build_monster_list_menu() -> Menu:
+        menu = Menu(title='Select Monster')
+        for m in monsters:
+            menu.add_item(MenuItem(
+                text   = f"#{m['number']:>3} {m['name']}",
+                action = lambda ctx, mon=m: run_menu(
+                    ctx, build_monster_list_menu()),
+            ))
+        return menu
 
-        elif choice == '2':
-            term = prompt('Search name').upper()
-            results = [m for m in monsters if term in m['name']]
-            if not results:
-                print('No matches.')
-                pause()
-            else:
-                names = [f"#{m['number']:>3} {m['name']}" for m in results]
-                idx = numbered_menu(names, f'Results for "{term}"')
-                if idx is not None:
-                    chosen = results[idx - 1]
-                    before = deepcopy(chosen)
-                    edit_monster(chosen, quotes, weapons, locations)
-                    if chosen != before:
-                        dirty = True
+    # --- Main menu ---
+    main_menu = Menu(title='Monster Editor')
 
-        elif choice == '3':
-            labels = [FLAG_LABELS.get(k, k) for k in ALL_FLAG_KEYS]
-            idx = numbered_menu(labels, 'Select Flag')
-            if idx is not None:
-                key = ALL_FLAG_KEYS[idx - 1]
-                results = [m for m in monsters if m.get('flags', {}).get(key)]
-                if not results:
-                    print(f'No monsters with flag: {FLAG_LABELS.get(key, key)}')
-                    pause()
-                else:
-                    print(f'\nMonsters with [{FLAG_LABELS.get(key, key)}]:')
-                    for m in results:
-                        print(f"  #{m['number']:>3} {m['name']}")
-                    pause()
+    main_menu.add_item(MenuItem(
+        text               = 'Monster count',
+        dot_leader_handler = lambda ctx: str(len(monsters)),
+    ))
 
-        elif choice == '4':
-            search_by_attribute(monsters, weapons)
+    main_menu.add_item(MenuItem(
+        text               = 'Unsaved changes',
+        dot_leader_handler = lambda ctx: '*YES*' if dirty_ref[0] else 'No',
+    ))
 
-        elif choice == '5':
+    main_menu.add_item(MenuItem(text='List / edit monsters', shortcuts=['L'],
+                                action=lambda ctx: run_menu(ctx, build_monster_list_menu()
+                                                            )
+                                )
+                       )
+
+    main_menu.add_item(MenuItem(text='Search by name',      shortcuts=['N'],
+        action=lambda ctx: search_by_name(
+            ctx, monsters, quotes, weapons, locations, dirty_ref)))
+
+    main_menu.add_item(MenuItem(text='Search by flag',      shortcuts=['F'],
+        action=lambda ctx: search_by_flag(ctx, monsters)))
+
+    main_menu.add_item(MenuItem(text='Search by attribute', shortcuts=['A'],
+        action=lambda ctx: search_by_attribute(ctx, monsters, weapons)))
+
+    async def do_save(ctx):
+        save_monsters(monsters, MONSTER_FILE)
+        dirty_ref[0] = False
+        await ctx.send(f"Saved {len(monsters)} monsters to '{MONSTER_FILE}'.")
+
+    main_menu.add_item(MenuItem(text='Save', shortcuts=['S'], action=do_save))
+
+    await run_menu(ctx, main_menu)
+
+    if dirty_ref[0]:
+        if await input_yes_no(ctx, 'Unsaved changes. Save before quitting?'):
             save_monsters(monsters, MONSTER_FILE)
-            original = deepcopy(monsters)
-            dirty = False
-
-        elif choice == '0':
-            if dirty and not confirm('Unsaved changes. Quit anyway?'):
-                continue
-            break
 
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(levelname)10s | %(funcName)20s() | %(message)s',
                         level=logging.DEBUG)
-    main()
+    run_local(main())

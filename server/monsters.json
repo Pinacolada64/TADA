@@ -33,13 +33,14 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 2,
         "status": 1,
         "name": "RATTLESNAKE",
-        "size": "swift",
+        "size": null,
         "strength": 2,
         "special_weapon": 0,
         "to_hit": 8,
@@ -69,7 +70,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 3,
@@ -105,7 +107,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 4,
@@ -141,7 +144,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 5,
@@ -177,7 +181,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 6,
@@ -213,7 +218,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 7,
@@ -249,7 +255,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 8,
@@ -285,7 +292,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 9,
@@ -321,7 +329,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 10,
@@ -357,7 +366,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 11,
@@ -393,7 +403,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 12,
@@ -429,7 +440,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 13,
@@ -465,7 +477,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 14,
@@ -501,7 +514,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 15,
@@ -537,13 +551,14 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 16,
         "status": 1,
         "name": "SPITTING COBRA",
-        "size": "swift",
+        "size": null,
         "strength": 5,
         "special_weapon": 0,
         "to_hit": 8,
@@ -573,7 +588,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 17,
@@ -609,7 +625,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 18,
@@ -645,7 +662,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 19,
@@ -681,7 +699,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 20,
@@ -717,13 +736,14 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 21,
         "status": 1,
         "name": "PIXIE",
-        "size": "small",
+        "size": "huge",
         "strength": 3,
         "special_weapon": 0,
         "to_hit": 8,
@@ -753,7 +773,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 22,
@@ -789,7 +810,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 23,
@@ -825,7 +847,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 24,
@@ -861,7 +884,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 25,
@@ -897,7 +921,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 26,
@@ -933,7 +958,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 27,
@@ -969,7 +995,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 28,
@@ -1005,7 +1032,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 29,
@@ -1041,7 +1069,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 30,
@@ -1077,13 +1106,14 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 31,
         "status": 1,
         "name": "SPIDER",
-        "size": "swift",
+        "size": null,
         "strength": 3,
         "special_weapon": 0,
         "to_hit": 4,
@@ -1113,13 +1143,14 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 32,
         "status": 1,
         "name": "CROCODILE",
-        "size": "big",
+        "size": null,
         "strength": 6,
         "special_weapon": 0,
         "to_hit": 5,
@@ -1149,13 +1180,14 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 33,
         "status": 1,
         "name": "BLOB",
-        "size": "small",
+        "size": null,
         "strength": 9,
         "special_weapon": 0,
         "to_hit": 4,
@@ -1185,7 +1217,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 34,
@@ -1221,7 +1254,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 35,
@@ -1257,7 +1291,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 36,
@@ -1293,7 +1328,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 37,
@@ -1329,7 +1365,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 38,
@@ -1365,7 +1402,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 39,
@@ -1401,7 +1439,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 40,
@@ -1437,13 +1476,14 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 41,
         "status": 1,
         "name": "GIANT SHREW",
-        "size": null,
+        "size": "large",
         "strength": 8,
         "special_weapon": 0,
         "to_hit": 5,
@@ -1473,7 +1513,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 42,
@@ -1509,7 +1550,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 43,
@@ -1545,7 +1587,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 44,
@@ -1581,7 +1624,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 45,
@@ -1617,7 +1661,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 46,
@@ -1653,7 +1698,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 47,
@@ -1689,7 +1735,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 48,
@@ -1725,7 +1772,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 49,
@@ -1761,7 +1809,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 50,
@@ -1797,7 +1846,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 51,
@@ -1833,7 +1883,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 52,
@@ -1869,7 +1920,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 53,
@@ -1905,7 +1957,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 54,
@@ -1941,7 +1994,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 55,
@@ -1977,7 +2031,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 56,
@@ -2013,7 +2068,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 57,
@@ -2049,13 +2105,14 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 58,
         "status": 1,
         "name": "ITLETS",
-        "size": "small",
+        "size": "big",
         "strength": 10,
         "special_weapon": 0,
         "to_hit": 7,
@@ -2085,7 +2142,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 59,
@@ -2121,7 +2179,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 60,
@@ -2157,7 +2216,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 61,
@@ -2193,7 +2253,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 62,
@@ -2229,7 +2290,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 63,
@@ -2265,7 +2327,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 64,
@@ -2301,7 +2364,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 65,
@@ -2337,7 +2401,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 66,
@@ -2373,7 +2438,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 67,
@@ -2409,12 +2475,13 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 68,
         "status": 1,
-        "name": "SOMETHING",
+        "name": "SOMETHINGN",
         "size": null,
         "strength": 18,
         "special_weapon": 0,
@@ -2445,7 +2512,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 69,
@@ -2481,7 +2549,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 70,
@@ -2517,13 +2586,14 @@
             "charmable": false,
             "has_quote": true
         },
-        "quote_number": 51
+        "quote_number": 51,
+        "description": null
     },
     {
         "number": 71,
         "status": 1,
         "name": "GOLLUM",
-        "size": "short",
+        "size": "huge",
         "strength": 12,
         "special_weapon": 0,
         "to_hit": 6,
@@ -2553,13 +2623,14 @@
             "charmable": false,
             "has_quote": true
         },
-        "quote_number": 52
+        "quote_number": 52,
+        "description": null
     },
     {
         "number": 72,
         "status": 1,
         "name": "BATS",
-        "size": "swift",
+        "size": null,
         "strength": 5,
         "special_weapon": 0,
         "to_hit": 8,
@@ -2589,7 +2660,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 73,
@@ -2625,7 +2697,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 74,
@@ -2661,7 +2734,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 75,
@@ -2697,7 +2771,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 76,
@@ -2733,7 +2808,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 77,
@@ -2769,7 +2845,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 78,
@@ -2805,7 +2882,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 79,
@@ -2841,7 +2919,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 80,
@@ -2877,7 +2956,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 81,
@@ -2913,7 +2993,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 82,
@@ -2949,7 +3030,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 83,
@@ -2985,13 +3067,14 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 84,
         "status": 1,
         "name": "BIG CHIEF",
-        "size": null,
+        "size": "huge",
         "strength": 17,
         "special_weapon": 0,
         "to_hit": 5,
@@ -3021,7 +3104,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 85,
@@ -3057,7 +3141,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 86,
@@ -3093,7 +3178,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 87,
@@ -3129,7 +3215,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 88,
@@ -3165,7 +3252,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 89,
@@ -3201,12 +3289,13 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 90,
         "status": 1,
-        "name": "GIANT PIRANHA",
+        "name": "GIANT PIRANA",
         "size": null,
         "strength": 10,
         "special_weapon": 0,
@@ -3237,7 +3326,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 91,
@@ -3273,7 +3363,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 92,
@@ -3309,7 +3400,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 93,
@@ -3345,7 +3437,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 94,
@@ -3381,7 +3474,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 95,
@@ -3417,7 +3511,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 96,
@@ -3453,7 +3548,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 97,
@@ -3489,7 +3585,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 98,
@@ -3525,7 +3622,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 99,
@@ -3561,7 +3659,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 100,
@@ -3597,7 +3696,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 101,
@@ -3633,7 +3733,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 102,
@@ -3669,7 +3770,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 103,
@@ -3705,7 +3807,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 104,
@@ -3741,7 +3844,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 105,
@@ -3777,7 +3881,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 106,
@@ -3813,7 +3918,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 107,
@@ -3849,7 +3955,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 108,
@@ -3885,7 +3992,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 109,
@@ -3921,7 +4029,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 110,
@@ -3957,7 +4066,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 111,
@@ -3993,7 +4103,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 112,
@@ -4029,13 +4140,14 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 113,
         "status": 1,
         "name": "C-3-P-0",
-        "size": "man_sized",
+        "size": "huge",
         "strength": 3,
         "special_weapon": 0,
         "to_hit": 5,
@@ -4065,7 +4177,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 114,
@@ -4101,7 +4214,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 115,
@@ -4137,7 +4251,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 116,
@@ -4173,7 +4288,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 117,
@@ -4209,7 +4325,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 118,
@@ -4245,12 +4362,13 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 119,
         "status": 1,
-        "name": "SPACE AMOEBA",
+        "name": "SPACE AMEOBA",
         "size": null,
         "strength": 18,
         "special_weapon": 0,
@@ -4281,7 +4399,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 120,
@@ -4317,7 +4436,8 @@
             "charmable": true,
             "has_quote": true
         },
-        "quote_number": 53
+        "quote_number": 53,
+        "description": null
     },
     {
         "number": 121,
@@ -4353,25 +4473,26 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 122,
         "status": 1,
         "name": "TINMAN",
-        "size": "huge",
+        "size": "man_sized",
         "strength": 8,
         "special_weapon": 0,
         "to_hit": 5,
         "flags": {
             "heavy_armor": false,
-            "light_armor": false,
+            "light_armor": true,
             "chance_find_gold_2x": false,
             "chance_find_gold": false,
             "cast_multiple_spells": false,
             "cast_one_spell": false,
             "double_attacks": false,
-            "mechanical": false,
+            "mechanical": true,
             "increase_strength": false,
             "evil": false,
             "good": true,
@@ -4389,7 +4510,8 @@
             "charmable": true,
             "has_quote": true
         },
-        "quote_number": 55
+        "quote_number": 55,
+        "description": null
     },
     {
         "number": 123,
@@ -4425,7 +4547,8 @@
             "charmable": true,
             "has_quote": true
         },
-        "quote_number": 54
+        "quote_number": 54,
+        "description": null
     },
     {
         "number": 124,
@@ -4461,7 +4584,8 @@
             "charmable": true,
             "has_quote": true
         },
-        "quote_number": 59
+        "quote_number": 59,
+        "description": null
     },
     {
         "number": 125,
@@ -4497,7 +4621,8 @@
             "charmable": true,
             "has_quote": true
         },
-        "quote_number": 56
+        "quote_number": 56,
+        "description": null
     },
     {
         "number": 126,
@@ -4533,7 +4658,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 127,
@@ -4569,13 +4695,14 @@
             "charmable": true,
             "has_quote": true
         },
-        "quote_number": 58
+        "quote_number": 58,
+        "description": null
     },
     {
         "number": 128,
         "status": 1,
         "name": "ADAM & EVE",
-        "size": "man_sized",
+        "size": "huge",
         "strength": 5,
         "special_weapon": 0,
         "to_hit": 5,
@@ -4605,13 +4732,14 @@
             "charmable": true,
             "has_quote": true
         },
-        "quote_number": 57
+        "quote_number": 57,
+        "description": null
     },
     {
         "number": 129,
         "status": 1,
         "name": "BEE",
-        "size": "small",
+        "size": null,
         "strength": 5,
         "special_weapon": 0,
         "to_hit": 8,
@@ -4641,13 +4769,14 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 130,
         "status": 1,
         "name": "MUNCHKINS",
-        "size": "short",
+        "size": "huge",
         "strength": 8,
         "special_weapon": 0,
         "to_hit": 6,
@@ -4677,7 +4806,8 @@
             "charmable": true,
             "has_quote": true
         },
-        "quote_number": 60
+        "quote_number": 60,
+        "description": null
     },
     {
         "number": 131,
@@ -4713,7 +4843,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 132,
@@ -4749,7 +4880,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 133,
@@ -4785,7 +4917,8 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     },
     {
         "number": 134,
@@ -4821,42 +4954,7 @@
             "charmable": false,
             "has_quote": false
         },
-        "quote_number": null
-    },
-    {
-        "number": 135,
-        "status": 1,
-        "name": "MR. CLEAN",
-        "size": null,
-        "strength": 18,
-        "special_weapon": 0,
-        "to_hit": 7,
-        "flags": {
-            "heavy_armor": false,
-            "light_armor": false,
-            "chance_find_gold_2x": false,
-            "chance_find_gold": false,
-            "cast_multiple_spells": false,
-            "cast_one_spell": false,
-            "double_attacks": false,
-            "mechanical": false,
-            "increase_strength": false,
-            "evil": false,
-            "good": false,
-            "re_animates": false,
-            "cast_turn_to_stone": false,
-            "poisonous_attack": false,
-            "diseased_attack": false,
-            "experience_drain": false,
-            "magic_resistant": false,
-            "appears_unaffected": false,
-            "fire_attack": false,
-            "no_gold": false,
-            "multiple_monsters": false,
-            "no_article": false,
-            "charmable": false,
-            "has_quote": false
-        },
-        "quote_number": null
+        "quote_number": null,
+        "description": null
     }
 ]

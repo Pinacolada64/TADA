@@ -1,412 +1,261 @@
-# filepath: /home/ryan/Documents/c64/TADA/TADA/server/menu_system.py
+#!/bin/env python3
+"""
+menu_system.py
+
+Hierarchical menu system for TADA.
+All functions accept a GameContext (or TerminalContext) as their first
+argument, so the same menu code works both locally and over the network.
+
+Typical usage:
+    from menu_system import Menu, MenuItem, run_menu
+
+    main_menu = Menu(title='Main Menu')
+    main_menu.add_item(MenuItem(text='Edit monsters', shortcuts=['E'],
+                                action=some_async_fn))
+    main_menu.add_item(MenuItem(text='Quit',          shortcuts=['Q']))
+
+    await run_menu(ctx, [main_menu])
+"""
+
+import asyncio
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional, Callable, Union, Any
-import asyncio
+from typing import TYPE_CHECKING, Callable, List, Optional, Union
 
-# Bring in Player for type annotations and for callers that pass Player objects
-from player import Player
-import net_common as nc
-# Rebind commonly used symbols to preserve existing names
-Message = nc.Message
-to_jsonb = nc.to_jsonb
-from simple_client import send_message, receive_message
+if TYPE_CHECKING:
+    from context import GameContext
 
 
-# --- Menu data structures --------------------------------------------------
+# ---------------------------------------------------------------------------
+# Data structures
+# ---------------------------------------------------------------------------
+
 @dataclass
 class MenuItem:
     """
-    Represents a menu item in a hierarchical menu system.
-
-    This class defines a menu item with text, an optional shortcut, an optional
-    dot leader handler function, an optional submenu, and an optional edit function.
-    It is designed to facilitate menu system configuration and interaction by
-    providing pre-defined attributes and a method to display the menu item as a
-    formatted string. The menu item can either lead to a submenu, execute a function,
-    or display an edited output.
+    One entry in a Menu.
 
     Attributes:
-        text: Visible text for the item (or header)
-        shortcuts: list or single shortcut letter (e.g. 'E' or ['E','e'])
-        dot_leader_handler: optional callable to generate a dot-leader value
-        submenu: nested Menu when selecting this opens a submenu
-        action: callable executed when this item is chosen
+        text:               Visible label, or a callable that returns one.
+        shortcuts:          One or more mnemonic letters (e.g. ['E', 'e']).
+        dot_leader_handler: Optional callable returning a right-aligned value
+                            displayed after a dot leader, e.g. a current setting.
+        submenu:            A nested Menu opened when this item is chosen.
+        action:             Async (or sync) callable executed when chosen.
+                            Receives ctx as its only argument.
     """
-    text: Union[str, Callable] = ""
-    shortcuts: Union[str, List[str]] = field(default_factory=list)
-    dot_leader_handler: Optional[Callable] = None
-    # submenu to go to after item selected:
-    submenu: Optional['Menu'] = None
-    # function to call when item selected (if submenu is None):
-    action: Optional[Callable] = None
+    text:               Union[str, Callable]      = ''
+    shortcuts:          Union[str, List[str]]      = field(default_factory=list)
+    dot_leader_handler: Optional[Callable]         = None
+    submenu:            Optional['Menu']           = None
+    action:             Optional[Callable]         = None
 
     def __post_init__(self):
-        """
-        Ensures the 'shortcuts' attribute is always a list, required
-        for the check_shortcut_conflicts() function to work properly.
-        """
         if not self.shortcuts:
             self.shortcuts = []
         elif isinstance(self.shortcuts, str):
             self.shortcuts = [self.shortcuts]
 
+    @property
+    def is_header(self) -> bool:
+        """True if this item is a section header (no action or submenu)."""
+        return bool(self.text) and not self.action and not self.submenu
+
 
 @dataclass
 class Menu:
-    """Base class for menu systems with shared behavior.
-
-    :param title: The title of the menu.
-    :param columns: The number of columns to display the menu items in: 1 | 2.
-    :param menu_items: The list of MenuItem objects to display.
     """
-    title: str
-    columns: int = 1
+    A titled list of MenuItems.
+
+    Attributes:
+        title:      Displayed at the top of the menu.
+        columns:    1 (default) or 2 for a two-column layout.
+        menu_items: Ordered list of MenuItem objects.
+    """
+    title:      str            = ''
+    columns:    int            = 1
     menu_items: List[MenuItem] = field(default_factory=list)
 
-    def add_item(self, item: MenuItem):
-        """Adds a MenuItem to the menu.
-
-        :param item: MenuItem to add.
-        """
+    def add_item(self, item: MenuItem) -> None:
         self.menu_items.append(item)
 
+    @property
+    def selectable(self) -> List[MenuItem]:
+        """Items that can be selected (not headers)."""
+        return [i for i in self.menu_items if not i.is_header]
 
-# --- Formatting helpers ---------------------------------------------------
-def format_menu_lines(menu: Menu, columns: int = 1, screen_columns: int = 80, player: Optional[Player] = None) -> List[
-    str]:
-    """Return a list of formatted lines representing the menu.
 
-    Keeps formatting in one place so sync and async flows match.
+# ---------------------------------------------------------------------------
+# Formatting
+# ---------------------------------------------------------------------------
+
+def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
     """
-    lines: List[str] = ["", f"[{menu.title}]", "-" * 40]
+    Return a list of formatted strings representing the menu.
+    Screen width is read from ctx.player.client_settings.screen_columns.
+    """
+    try:
+        screen_columns = ctx.player.client_settings.screen_columns
+    except AttributeError:
+        screen_columns = 80
+
+    lines: List[str] = ['', f'[{menu.title}]', '-' * 40]
 
     selectable_count = 0
     for item in menu.menu_items:
-        # If an item has no action/submenu but has text, treat it as a header
-        if item.submenu is None and item.action is None and item.text:
+        if item.is_header:
             lines.append(str(item.text))
             continue
+
         selectable_count += 1
-        shortcuts = f"[{','.join(item.shortcuts)}]" if item.shortcuts else ""
-        base = f"{selectable_count:2d}. {shortcuts:8} {item.text}"
-        # If a dot_leader_handler is provided, call it and render a dot leader to the right
+        shortcuts = f"[{','.join(item.shortcuts)}]" if item.shortcuts else ''
+        label     = item.text() if callable(item.text) else str(item.text)
+        base      = f'{selectable_count:2d}. {shortcuts:8} {label}'
+
+        # Dot leader
         dot_text = None
-        try:
-            if item.dot_leader_handler is not None:
-                if callable(item.dot_leader_handler):
-                    # Prefer calling handler with player if it accepts a parameter; fallback to no-arg call
-                    try:
-                        dot_val = item.dot_leader_handler(player)
-                    except TypeError:
-                        # handler likely takes no arguments
-                        dot_val = item.dot_leader_handler()
-                else:
-                    dot_val = item.dot_leader_handler
-                if dot_val is not None:
-                    dot_text = str(dot_val)
-        except Exception:
-            # don't let a handler error break menu rendering
-            dot_text = None
+        if item.dot_leader_handler is not None:
+            try:
+                val = (item.dot_leader_handler(ctx)
+                       if callable(item.dot_leader_handler) else item.dot_leader_handler)
+                if val is not None:
+                    dot_text = str(val)
+            except Exception:
+                pass
 
         if dot_text:
-            # compute available space for dots between base and dot_text
             available = max(2, screen_columns - len(base) - len(dot_text) - 2)
-            dots = '.' * available
-            lines.append(f"{base} {dots} {dot_text}")
+            lines.append(f'{base} {"." * available} {dot_text}')
         else:
             lines.append(base)
 
-    lines.append("-" * 40)
+    lines.append('-' * 40)
 
-    # Two-column layout (basic implementation)
-    if columns == 2:
-        mid = (len(lines) + 1) // 2
+    if menu.columns == 2:
+        mid       = (len(lines) + 1) // 2
         col_width = max(20, screen_columns // 2)
-        col_lines = []
-        for i in range(mid):
-            a = lines[i] if i < len(lines) else ""
-            b = lines[i + mid] if (i + mid) < len(lines) else ""
-            col_lines.append(a.ljust(col_width) + b.ljust(col_width))
-        return col_lines
+        return [
+            (lines[i] if i < len(lines) else '').ljust(col_width) +
+            (lines[i + mid] if (i + mid) < len(lines) else '').ljust(col_width)
+            for i in range(mid)
+        ]
 
     return [ln.rstrip() for ln in lines]
 
 
-def is_header_item(menu_item: 'MenuItem') -> bool:
-    """A helper to determine if an item is just a text header."""
-    # A header is defined as an item with text but no action or submenu.
-    return bool(menu_item.text) and not menu_item.action and not menu_item.submenu
+# ---------------------------------------------------------------------------
+# Display
+# ---------------------------------------------------------------------------
+
+async def print_menu(ctx: 'GameContext', menu: 'Menu') -> None:
+    """Format and send the menu to the player via ctx.send()."""
+    await ctx.send(format_menu_lines(ctx, menu))
 
 
-# --- Synchronous server-side helpers --------------------------------------
-def print_menu(player_handler: Any, player: Player, menu: Menu) -> None:
-    """Print the menu to a server-side player handler.
+# ---------------------------------------------------------------------------
+# Input
+# ---------------------------------------------------------------------------
 
-    player_handler must provide output(lines, player) and flush_output().
-    Falls back to local printing if handler isn't available.
+async def get_user_choice(ctx: 'GameContext',
+                          menu: 'Menu',
+                          stack_depth: int = 1) -> Optional[MenuItem]:
     """
-    screen_columns = 80
+    Prompt the player for a menu choice and return the selected MenuItem,
+    or None if the player cancels (empty input).
+
+    Accepts:
+      - A number (1-based index into selectable items)
+      - A shortcut letter (matched case-insensitively)
+      - Empty input → returns None (go up / quit)
+    """
+    selectable = menu.selectable
+    num_items  = len(selectable)
     try:
-        cs = getattr(player, 'client_settings', None)
-        if isinstance(cs, dict):
-            screen_columns = cs.get('screen_columns', 80)
-        elif hasattr(cs, 'screen_columns'):
-            screen_columns = getattr(cs, 'screen_columns', 80)
-    except Exception:
-        screen_columns = 80
+        return_key = ctx.player.client_settings.return_key
+    except AttributeError:
+        return_key = 'Enter'
 
-    lines = format_menu_lines(menu, columns=menu.columns, screen_columns=screen_columns, player=player)
+    action = 'quit' if stack_depth == 1 else 'go up a level'
+    preamble = (f'Enter a number (1-{num_items}), a shortcut letter, '
+                f'or [{return_key}] to {action}.')
 
-    try:
-        player_handler.output(lines, player)
-        try:
-            player_handler.flush_output()
-        except Exception:
-            pass
-    except Exception:
-        for l in lines:
-            print(l)
-
-
-def get_user_choice(player_handler: Any, player: Player, menu: Menu, stack_depth: int) -> Optional[MenuItem]:
-    """Prompt the server-side player handler for a choice and return the MenuItem."""
-    num_items = len([i for i in menu.menu_items if not (i.submenu is None and i.action is None and i.text)])
-    enter_key = getattr(player, 'return_key', 'Enter')
-    enter_action = 'quit' if stack_depth == 1 else 'go up a level'
-    prompt_lines = f"Type the option number (1-{num_items}) or letters (shortcuts) to select an option, or [{enter_key}] to {enter_action}."
-
-    try:
-        choice = player_handler.prompt_request(prompt_lines, prompt='Choice: ')
-    except Exception:
-        try:
-            text = input('Choice: ')
-            choice = {'text': text}
-        except Exception:
-            return None
-
-    if choice is None or choice.get('text') is None:
+    raw = await ctx.prompt(prompt_text='Choice', preamble_lines=[preamble])
+    if not raw:
         return None
 
-    option = str(choice.get('text')).strip().lower()
-    if not option:
-        return None
+    option = raw.strip().lower()
 
-    if option.isnumeric():
+    # Numeric selection
+    if option.isdigit():
         idx = int(option)
-        selectable = [itm for itm in menu.menu_items if not (itm.submenu is None and itm.action is None and itm.text)]
-        if 1 <= idx <= len(selectable):
+        if 1 <= idx <= num_items:
             return selectable[idx - 1]
+        await ctx.send(f'Please enter a number between 1 and {num_items}.')
         return None
 
-    for itm in menu.menu_items:
-        if any(option == s.lower() for s in itm.shortcuts):
-            return itm
+    # Shortcut matching (case-insensitive)
+    for item in menu.menu_items:
+        if any(option == s.lower() for s in item.shortcuts):
+            return item
+
+    await ctx.send(f"'{raw}' is not a valid choice.")
     return None
 
 
-# --- Async client-side helpers (used by shoppe/main) ----------------------
-async def async_print_menu(client: Any, menu: Menu) -> None:
-    """Asynchronously send a menu to a connected client using client.writer."""
-    screen_columns = 80
-    try:
-        cs = getattr(client, 'client_settings', None)
-        if isinstance(cs, dict):
-            screen_columns = cs.get('screen_columns', 80)
-        elif hasattr(cs, 'screen_columns'):
-            screen_columns = getattr(cs, 'screen_columns', 80)
-    except Exception:
-        screen_columns = 80
+# ---------------------------------------------------------------------------
+# Navigation
+# ---------------------------------------------------------------------------
 
-    # try to acquire a player object from client (may be None)
-    p = getattr(client, 'player', None)
-    lines = format_menu_lines(menu, columns=menu.columns, screen_columns=screen_columns, player=p)
-
-    writer = getattr(client, 'writer', None)
-    if writer is None:
-        return
-    msg = Message(lines=lines, prompt='Choice: ')
-    try:
-        writer.write(to_jsonb(msg) + b"\n")
-        await writer.drain()
-    except Exception:
-        return
-
-
-async def async_get_user_choice(*args, **kwargs) -> Optional[MenuItem]:
-    """Prompt the remote client for a choice and return the selected MenuItem.
-
-    This function accepts two calling styles used in the codebase:
-      1) async_get_user_choice(reader, writer, client, menu, stack_depth)
-      2) async_get_user_choice(client, menu, stack_depth)
-    It also supports keyword arguments: reader=, writer=, client=, menu=, stack_depth=.
-
-    Returns the selected MenuItem or None when the user cancels/goes up.
+async def navigate_menu(ctx: 'GameContext',
+                        menu_stack: List['Menu']) -> None:
     """
-    # Parse positional and keyword args flexibly.
-    reader = kwargs.get('reader')
-    writer = kwargs.get('writer')
-    client = kwargs.get('client')
-    menu = kwargs.get('menu')
-    stack_depth = kwargs.get('stack_depth', 1)
-
-    # If called as async_get_user_choice(client, menu, stack_depth)
-    if not (reader or writer) and args:
-        first = args[0]
-        # If first arg looks like a client-like object (has writer/reader), use that style
-        if hasattr(first, 'writer') or hasattr(first, 'reader'):
-            client = first
-            if len(args) > 1:
-                menu = args[1]
-            if len(args) > 2:
-                stack_depth = args[2]
-        else:
-            # assume reader, writer, client, menu, stack_depth positional ordering
-            if len(args) > 0:
-                reader = args[0]
-            if len(args) > 1:
-                writer = args[1]
-            if len(args) > 2:
-                client = args[2]
-            if len(args) > 3:
-                menu = args[3]
-            if len(args) > 4:
-                stack_depth = args[4]
-
-    # Basic validation
-    if menu is None:
-        return None
-
-    if client is None:
-        # try to derive client from writer if possible
-        client = kwargs.get('client') or (None)
-
-    # derive writer/reader from client object when available
-    if (writer is None or reader is None) and client is not None:
-        try:
-            writer = getattr(client, 'writer', writer)
-            reader = getattr(client, 'reader', reader)
-        except Exception:
-            pass
-
-    if writer is None or reader is None or client is None:
-        return None
-
-    # count selectable items and build prompt
-    num_items = len([item for item in menu.menu_items if not is_header_item(item)])
-    enter_key = getattr(client, 'return_key', 'Enter')
-    enter_function = "quit" if stack_depth == 1 else "go up a level"
-    lines = (f"Type the option number (1-{num_items}) or letters (shortcuts) to select an option, "
-             f"or [{enter_key}] to {enter_function}.")
-
-    # ensure lines is a list so clients iterate over entries, not characters
-    msg = Message(lines=[lines], prompt='Choice: ')
-    try:
-        await send_message(writer, msg)
-        obj = await receive_message(reader)
-        option = ''
-        if isinstance(obj, dict) and 'lines' in obj and obj['lines']:
-            option = str(obj['lines'][0]).strip().lower()
-        elif isinstance(obj, dict) and 'text' in obj:
-            option = str(obj['text']).strip().lower()
-        if not option:
-            return None
-    except Exception:
-        return None
-
-    if option.isnumeric():
-        idx = int(option)
-        selectable = [itm for itm in menu.menu_items if not (itm.submenu is None and itm.action is None and itm.text)]
-        if 1 <= idx <= len(selectable):
-            return selectable[idx - 1]
-        return None
-
-    for itm in menu.menu_items:
-        # shortcuts may be a list
-        try:
-            shortcuts = itm.shortcuts or []
-            for s in shortcuts:
-                if option == str(s).lower():
-                    return itm
-        except Exception:
-            pass
-    return None
-
-
-# --- High-level navigation helpers ----------------------------------------
-def display_menu(player_handler: Any, player: Player, menu_stack: List[Menu]) -> None:
-    """Display the current menu (top of the stack) synchronously."""
-    if not menu_stack:
-        return
-    current = menu_stack[-1]
-    print_menu(player_handler, player, current)
-
-
-def navigate_menu(player_handler: Any, player: Player, menu_stack: List[Menu]) -> None:
-    """Interactive synchronous menu loop for server-side handlers."""
+    Interactive async menu loop.
+    Pushes submenus onto the stack; pops on empty input; exits when stack empty.
+    """
     while menu_stack:
-        display_menu(player_handler, player, menu_stack)
         current = menu_stack[-1]
-        choice = get_user_choice(player_handler, player, current, len(menu_stack))
+        await print_menu(ctx, current)
+
+        choice = await get_user_choice(ctx, current, stack_depth=len(menu_stack))
+
         if choice is None:
             menu_stack.pop()
             if not menu_stack:
-                try:
-                    player_handler.output(["Exiting menu system."], player)
-                except Exception:
-                    pass
-                try:
-                    player_handler.flush_output()
-                except Exception:
-                    pass
-                return
+                await ctx.send('Exiting menu.')
             continue
+
         if choice.submenu:
             menu_stack.append(choice.submenu)
             continue
-        if callable(choice.action):
+
+        if choice.action:
             try:
-                res = choice.action()
-                if asyncio.iscoroutine(res):
-                    asyncio.run(res)
+                result = choice.action(ctx)
+                if asyncio.iscoroutine(result):
+                    await result
             except Exception:
-                logging.exception('Menu action failed')
-            try:
-                player_handler.flush_output()
-            except Exception:
-                pass
+                logging.exception("Menu action '%s' raised an exception", choice.text)
             continue
 
+        # Item has neither submenu nor action — treat as cancel/back
+        menu_stack.pop()
 
-def run_menu(player: Player, player_handler: Any, menu_hierarchy: List[Menu]) -> None:
-    """Entry point for running a synchronous menu for a player."""
-    if player_handler is None:
-        class _Minimal:
-            def __init__(self, player_obj: Player):
-                self._player = player_obj
 
-            def output(self, lines, player_obj=None):
-                try:
-                    self._player.output(lines)
-                except Exception:
-                    if isinstance(lines, (list, tuple)):
-                        for l in lines:
-                            print(l)
-                    else:
-                        print(lines)
+async def run_menu(ctx: 'GameContext',
+                   menu_hierarchy: Union['Menu', List['Menu']]) -> None:
+    """
+    Entry point for running a menu hierarchy.
 
-            def prompt_request(self, prompt_lines, prompt: str = '', choices=None):
-                for l in (prompt_lines or []):
-                    print(l)
-                try:
-                    text = input(prompt)
-                except Exception:
-                    text = ''
-                return {'text': text}
+    :param ctx:            GameContext or TerminalContext
+    :param menu_hierarchy: A single Menu or a list of Menus (stack order,
+                           first item is shown first).
+    """
+    if isinstance(menu_hierarchy, Menu):
+        stack = [menu_hierarchy]
+    else:
+        stack = list(menu_hierarchy)
 
-        player_handler = _Minimal(player)
-
-    if not menu_hierarchy:
+    if not stack:
         return
-    menu_stack = menu_hierarchy[:] if isinstance(menu_hierarchy, list) else [menu_hierarchy]
-    navigate_menu(player_handler, player, menu_stack)
+
+    await navigate_menu(ctx, stack)
