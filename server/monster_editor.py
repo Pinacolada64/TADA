@@ -355,7 +355,11 @@ def build_edit_menu(m: dict, quotes: dict[int, str],
 # Per-monster menu
 # ---------------------------------------------------------------------------
 
-def build_monster_list_menu(monsters, quotes, weapons, locations, dirty_ref) -> Menu:
+def build_monster_list_menu(monsters: list[dict], quotes: dict[int, str],
+                            weapons: dict[int, str],
+                            locations: dict[int, list],
+                            dirty_ref: list) -> Menu:
+    """Build the monster list menu, each item going straight to the edit menu."""
     menu = Menu(title='Select Monster')
     for m in monsters:
         async def show_and_edit(ctx, mon=m):
@@ -494,17 +498,6 @@ async def main():
     # dirty_ref: one-element list so closures can mutate it
     dirty_ref = [False]
 
-    # --- Monster list submenu ---
-    def build_monster_list_menu() -> Menu:
-        menu = Menu(title='Select Monster')
-        for m in monsters:
-            menu.add_item(MenuItem(
-                text   = f"#{m['number']:>3} {m['name']}",
-                action = lambda ctx, mon=m: run_menu(
-                    ctx, build_monster_list_menu()),
-            ))
-        return menu
-
     # --- Main menu ---
     main_menu = Menu(title='Monster Editor')
 
@@ -519,10 +512,9 @@ async def main():
     ))
 
     main_menu.add_item(MenuItem(text='List / edit monsters', shortcuts=['L'],
-                                action=lambda ctx: run_menu(ctx, build_monster_list_menu()
-                                                            )
-                                )
-                       )
+        action=lambda ctx: run_menu(
+            ctx, build_monster_list_menu(
+                monsters, quotes, weapons, locations, dirty_ref))))
 
     main_menu.add_item(MenuItem(text='Search by name',      shortcuts=['N'],
         action=lambda ctx: search_by_name(
