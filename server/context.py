@@ -1,4 +1,5 @@
 # context.py
+import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -39,3 +40,33 @@ class GameContext:
                     msg = nc.Message(lines=list(lines), type=nc.MessageType.REGULAR,
                                      mode=nc.Mode.app, prompt="main> ")
                     await self.server.send_message(w, msg)
+
+    async def prompt(self, prompt_text: str = '',
+                     preamble_lines: list[str] | None = None) -> str:
+        """
+        Send optional preamble lines and a prompt to the client,
+        then await a single-line response.
+        Mirrors TerminalContext.prompt() so all ctx-aware code works identically.
+        """
+        from net_common import Message, from_jsonb
+        if preamble_lines:
+            await self.send(preamble_lines)
+        if not self.writer or not self.reader:
+            return ''
+        try:
+            msg = Message(lines=[], prompt=prompt_text or '> ')
+            await self.server.send_message(self.writer, msg)
+            raw = await self.reader.readline()
+            if not raw:
+                return ''
+            from net_common import from_jsonb
+            obj = from_jsonb(raw)
+            if isinstance(obj, dict):
+                lines = obj.get('lines')
+                if isinstance(lines, list) and lines:
+                    return str(lines[0]).strip()
+                return str(obj.get('text', '')).strip()
+            return ''
+        except Exception:
+            logging.exception('GameContext.prompt: error reading response')
+            return ''
