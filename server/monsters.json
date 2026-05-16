@@ -4368,7 +4368,7 @@
     {
         "number": 119,
         "status": 1,
-        "name": "SPACE AMEOBA",
+        "name": "SPACE AMOEBA",
         "size": null,
         "strength": 18,
         "special_weapon": 0,
@@ -4479,7 +4479,7 @@
     {
         "number": 122,
         "status": 1,
-        "name": "TINMAN",
+        "name": "TIN MAN",
         "size": "man_sized",
         "strength": 8,
         "special_weapon": 0,
