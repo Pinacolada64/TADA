@@ -25,6 +25,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from formatting import format_lines, codec_for_settings, flatten_send_args
+
 if TYPE_CHECKING:
     pass
 
@@ -118,18 +120,21 @@ class TerminalContext:
 
     async def send(self, *lines):
         """
-        Print lines to the terminal.
+        Format and print lines to the terminal.
         Accepts the same calling styles as GameContext.send():
             await ctx.send("one line")
             await ctx.send("line one", "line two")
             await ctx.send(["line one", "line two"])   # list as first arg
+
+        Lines are word-wrapped and bracket-highlighted according to the
+        player's ClientSettings before printing.
         """
-        for item in lines:
-            if isinstance(item, list):
-                for line in item:
-                    print(line)
-            else:
-                print(item)
+        # Flatten args into a single list of strings
+        raw        = flatten_send_args(*lines)
+        codec      = codec_for_settings(self.player.client_settings)
+        formatted  = format_lines(raw, self.player.client_settings, codec)
+        for line in formatted:
+            print(line)
 
     async def send_room(self, *lines, exclude_self: bool = False):
         """No-op for local terminal — no other players in the room."""
