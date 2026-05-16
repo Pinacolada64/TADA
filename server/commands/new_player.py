@@ -26,7 +26,7 @@ from commands.utils import get_player_from_context
 CREATION_ROOM = 5  # Default starting room
 
 
-async def prologue(self, reader, writer, player, client=None):
+async def prologue(self, ctx, *args):
     # step 0
     from tada_utilities import prompt_client
     lines = [
@@ -35,84 +35,92 @@ async def prologue(self, reader, writer, player, client=None):
         "You'll be guided through a series of steps to create your unique persona in this world.",
         "Your faithful servant Verus will assist you through this process.",
         "If you need help at any point, you can type 'help', 'h' or '?' for assistance.",
-        # "You may type "helpstaff" to summon a helper if you need assistance.",
-        # you may join the "new players" chat channel by typing "/join newplayers"
+        # TODO: "You may type "helpstaff" to summon a helper if you need assistance.",
+        # TODO: "You may join the "new players" chat channel by typing "chat #join newplayers"
     ]
-    await prompt_client(getattr(client, 'reader'), getattr(client, 'writer'), player, lines,
-                        prompt_text='prologue> ')
+    await prompt_client(ctx, *args, prompt_text='prologue> ')
 
 
-async def choose_client(self, reader, writer, player, client=None):
+async def choose_client(ctx, *args):
     # step 1
     from tada_utilities import prompt_client
     # If a client is present, run the interactive creation flow
-    if client and getattr(client, 'writer', None) and getattr(client, 'reader', None):
+    if ctx.player.client:
         # Ensure the user_dir exists
         user_dir = Path('run') / 'server' / 'net'
         user_dir.mkdir(parents=True, exist_ok=True)
         # Step 1a: choose client settings (screen size / translation mock)
         # if client told server which kind of client it is, skip this step
         # Provide simple client choices with screen dimensions: C64 (40x25), 128 (80x25), TADA (80x25, ANSI)')
+        # TODO: introspect the terminal types to get screen dimensions and translation:
         options = [
-            ('1', 'Commodore 64 (40x25, PETSCII)'),
-            ('2', 'Commodore 128 (40x25, PETSCII)'),
-            ('3', 'Commodore 128 (80x25, PETSCII)'),
+            ('1', 'Commodore 64 (40x25, PetSCII)'),
+            ('2', 'Commodore 128 (40x25, PetSCII)'),
+            ('3', 'Commodore 128 (80x25, PetSCII)'),
             ('4', 'TADA Client (80x25, ANSI)')
         ]
         while True:
-            lines = ['Which client will you use?'] + [f"{i + 1}. {o[1]}" for i, o in enumerate(options)]
-            ans = (await prompt_client(getattr(client, 'reader'), getattr(client, 'writer'), player, lines,
+
+            lines = ['Which client will you use?',
+                     '',
+                     '##  Type      Screen size   Translation'] + [f"{i + 1}. {o[1]}" for i, o in enumerate(options)]
+            ans = (await prompt_client(ctx, lines,
                                        prompt_text='client> ')).strip()
             if ans == '1':
-                player.client_settings.screen_columns = 40
-                player.client_settings.colors = CBMColors
-                player.client_settings.translation = Translation.PETSCII
+                ctx.player.client_settings.screen_columns = 40
+                ctx.player.client_settings.colors = CBMColors
+                ctx.player.client_settings.translation = Translation.PETSCII
                 # TODO: Apply terminal settings from Terminal class
                 # {'name': 'Commodore 64', 'screen_columns': 40, 'screen_rows': 25,
                 #  'translation': 'PETSCII', 'return_key': 'Return'}
                 break
             if ans == '2':
-                player.client_settings.screen_columns = 40
+                ctx.player.client_settings.screen_columns = 40
                 break
             if ans == '3':
-                player.client_settings.screen_columns = 80
+                ctx.player.client_settings.screen_columns = 80
                 # {'name': 'Commodore 128 (80 cols)', 'screen_columns': 80, 'screen_rows': 25,
                 #  'translation': 'PETSCII', 'return_key': 'Return'}
                 break
             if ans == '4':
                 # set common defaults:
-                player = set_defaults(player)
+                await set_defaults(ctx.player)
                 break
     # no client present, return some defaults:
-    if not client:
+    if not ctx.client:
         logging.info("No client; setting defaults")
-        player = set_defaults(player)
-    return player
+        await set_defaults(ctx.player)
+    # return player
 
 
-def set_defaults(player):
+async def set_defaults(self, ctx, *args):
     # set some default client settings
-    player.client_settings.colors = TerminalColors
-    player.client_settings.name = 'TADA Client'
-    player.client_settings.screen_rows = 25
-    player.client_settings.screen_columns = 80
-    player.client_settings.translation = Translation.ANSI
-    player.client_settings.return_key = 'Enter'
-    return player
+    from server.terminal import KeyboardKeyName, ClientSettings
+    ctx.player.client_settings.colors = TerminalColors
+    ctx.player.client_settings.name = 'TADA Client'
+    ctx.player.client_settings.screen_rows = 25
+    ctx.player.client_settings.screen_columns = 80
+    ctx.player.client_settings.translation = Translation.ANSI
+    ctx.player.client_settings.return_key = KeyboardKeyName.ENTER
+    await send_message("set_defaults: {pprint(ctx.player.client_settings)}")
 
 
-async def confirm_creation(player, reader=None, writer=None):
+async def confirm_creation(self, ctx, *args):
     """
-    Confirm final creation; standardized signature to accept (player, reader, writer).
+    Confirm final creation; standardized signature to accept ctx (includes player).
     Returns the player (caller can inspect attributes or set a flag).
     """
-    logging.info("Final character summary: %s", player)
+    logging.info("Final character '%s' summary: %s", (ctx.player.name, ctx.player))
     # For simplicity, always confirm in this mockup; set an attribute and return player
-    player.creation_confirmed = True
-    return player
+    # Setting this here allows a connection drop to resume char creation if they log in under the same
+    # account; Verus can then say something about "wanting to continue creation"
+    # this flag can get deleted on first login, it doesn't need to get saved beyond this point
+    ctx.player.creation_done = True
+    await send_message("Confirm creation: Finish this")
+    return ctx.player
 
 
-async def final_edit_prompt(player, reader, writer):
+async def final_edit_prompt(self, ctx, *args):
     """
     Display a summary of character, allow some editing options before final confirmation.
 
@@ -121,16 +129,16 @@ async def final_edit_prompt(player, reader, writer):
     :param writer:
     :return:
     """
-    await send_message(writer, "Blah, not done yet")
+    # TODO: finish this
+    logging.info("Not done yet")
+    await send_message("TODO: not done yet")
 
 
-async def check_info(player_input: str, reader=None, writer=None) -> int | bool:
+async def check_info(self, ctx, *args) -> int | bool:
     """Verify that the choice is a call for class / race info:
     the input starts with 'i', and is followed by a digit 1-9.
 
-    :param player_input: str - input from the player
-    :param reader: asyncio StreamReader (optional)
-    :param writer: asyncio StreamWriter (optional)
+    :param args['player_input']: str - input from the player
     :return: option int if input is "i#', False otherwise
     """
     # quick debug message if writer present
@@ -152,7 +160,7 @@ async def check_info(player_input: str, reader=None, writer=None) -> int | bool:
     low = choice.lower()
     if len(low) == 2 and low[0] == 'i' and low[1].isdigit():
         idx = int(low[1])
-        if idx >= 1 and idx <= 9:
+        if 1 <= idx <= 9:
             return idx
         # Not recognized
         msg = ("Verus shakes his head. 'That's not a choice I understand. "
@@ -168,14 +176,14 @@ async def check_info(player_input: str, reader=None, writer=None) -> int | bool:
         return False
     else:
         try:
-            player.output("Invalid choice.")
+            await send(ctx.player.output("Invalid choice.")
         except Exception:
             logging.info(msg)
     return False
 
 
 @command(name='new', aliases=['create', 'newplayer'], summary='Create a new character account')
-class NewPlayerCommand(BaseCommand):
+class NewPlayerCommand(Command):
     async def execute(self, context: Dict[str, Any], args: List[str]) -> CommandResult | None:
         """
         Handles new player creation in a non-blocking way.
@@ -474,12 +482,12 @@ async def choose_settings(self, player_obj, reader=None, writer=None):
         return None
 
 
-async def choose_race(self, player_obj, reader=None, writer=None):
+async def choose_race(ctx, *args):
     from base_classes import PlayerRace
     races = [race for race in PlayerRace]
     lines = ['Choose a race:'] + [f"{i + 1}. {r.name}" for i, r in enumerate(races)]
     while True:
-        ans = (await prompt_client(reader, writer, player_obj, lines, prompt_text='race> ')).strip()
+        ans = (await prompt_client(ctx, lines, 'race> ')).strip()
         if not ans:
             continue
         verified = (ans)
