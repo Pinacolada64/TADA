@@ -1,0 +1,484 @@
+#!/bin/env python3
+"""
+formatting.py
+
+Pure text formatting functions for TADA output.
+No I/O, no ctx, no network — just strings in, strings out.
+ctx.send() calls these before writing to the wire or terminal.
+
+Design goals:
+  - All functions are pure (no side effects, no global state)
+  - All functions accept a ClientSettings object for terminal parameters
+  - Color/graphics handling is pluggable via a ColorCodec protocol
+  - Works identically for ANSI terminals and PETSCII/Commodore
+
+Typical call chain (ANSI):
+    ctx.send("Hello [world]!")
+        -> format_lines(["Hello [world]!"], ctx.player.client_settings)
+            -> highlight_brackets()   # [world] -> ANSI color codes
+            -> wrap_text()            # word-wrap to screen width
+        -> write to wire / print
+
+Typical call chain (PETSCII):
+    ctx.send("Hello {red}world{reset}!")
+        -> format_lines(...)          # wrap, highlight brackets
+        -> petscii_encode(...)        # encode text + splice in raw control bytes
+        -> raw bytes to Commodore client
+"""
+
+import logging
+import re
+import textwrap
+from dataclasses import dataclass, field
+from typing import Protocol, runtime_checkable
+
+
+# ---------------------------------------------------------------------------
+# ClientSettings protocol
+# Defines the minimum interface formatting.py needs from a settings object.
+# Both terminal.ClientSettings and terminal_context.TerminalSettings satisfy it.
+# ---------------------------------------------------------------------------
+
+@runtime_checkable
+class HasClientSettings(Protocol):
+    screen_columns: int
+    screen_rows:    int
+
+
+# ---------------------------------------------------------------------------
+# ColorCodec protocol
+# A pluggable translation layer for color/graphics codes.
+# Implement this for ANSI, PETSCII, plain text, etc.
+# ---------------------------------------------------------------------------
+
+@runtime_checkable
+class ColorCodec(Protocol):
+    """
+    Translates abstract color/style tokens into terminal-specific strings.
+    Implement one per translation target (ANSI, PETSCII, plain, etc.)
+    """
+    def highlight_on(self)  -> str: ...
+    def highlight_off(self) -> str: ...
+    def reset(self)         -> str: ...
+
+
+@dataclass
+class ANSICodec:
+    """ANSI color codes via colorama."""
+    highlight_color: str = ''   # set at runtime from player prefs
+
+    def __post_init__(self):
+        try:
+            from colorama import Fore, Style
+            if not self.highlight_color:
+                self.highlight_color = Fore.RED
+            self._reset = Fore.RESET
+        except ImportError:
+            self.highlight_color = ''
+            self._reset          = ''
+
+    def highlight_on(self)  -> str: return self.highlight_color
+    def highlight_off(self) -> str: return self._reset
+    def reset(self)         -> str: return self._reset
+
+
+@dataclass
+class PlainCodec:
+    """No color codes — plain ASCII output."""
+    def highlight_on(self)  -> str: return ''
+    def highlight_off(self) -> str: return ''
+    def reset(self)         -> str: return ''
+
+
+@dataclass
+class PETSCIICodec:
+    """
+    Commodore PETSCII color/reverse codes.
+    Reverse video is used for [bracket] highlighting since it works on
+    all Commodore models without needing a specific color.
+    Full 16-color palette is available via {token} substitution in
+    petscii_encode() — see PETSCII_CONTROL_CODES below.
+    """
+    def highlight_on(self)  -> str: return chr(18)   # REVERSE ON
+    def highlight_off(self) -> str: return chr(146)  # REVERSE OFF
+    def reset(self)         -> str: return chr(146)  # REVERSE OFF
+
+
+# ---------------------------------------------------------------------------
+# PETSCII control code table
+# ---------------------------------------------------------------------------
+
+# Maps {token} names to raw Commodore control code byte values.
+# These are intentionally kept out of cbmcodecs2 encoding — they are
+# spliced into the output as raw bytes after text encoding.
+# Reference: https://sta.c64.org/cbm64petscii.html
+PETSCII_CONTROL_CODES: dict[str, int] = {
+    # 16-color palette (CBM color codes)
+    'black':        144,
+    'white':          5,
+    'red':           28,
+    'cyan':         159,
+    'purple':       156,
+    'green':         30,
+    'blue':          31,
+    'yellow':       158,
+    'orange':       129,
+    'brown':        149,
+    'light_red':    150,
+    'dark_gray':    151,
+    'mid_gray':     152,
+    'light_green':  153,
+    'light_blue':   154,
+    'light_gray':   155,
+
+    # Screen control
+    'reverse_on':    18,
+    'reverse_off':  146,
+    'clear':        147,   # clear screen + home
+    'home':          19,   # cursor home (no clear)
+    'reset':        146,   # alias for reverse_off
+
+    # Cursor movement
+    'cursor_up':    145,
+    'cursor_down':   17,
+    'cursor_left':  157,
+    'cursor_right':  29,
+
+    # Case switching
+    'lowercase':     14,   # switch to upper/lower charset
+    'uppercase':    142,   # switch to upper/graphics charset
+
+    # Insert/delete
+    'insert':       148,
+    'delete':        20,
+}
+
+# Reverse lookup: raw byte value -> token name (for display/debugging)
+PETSCII_CODE_NAMES: dict[int, str] = {
+    v: k for k, v in PETSCII_CONTROL_CODES.items()
+}
+
+_TOKEN_RE = re.compile(r'\{([a-z_]+)\}')
+
+
+def petscii_encode(text: str,
+                   codec_name: str = 'petscii_c64en_lc') -> bytes:
+    """
+    Encode a string for transmission to a Commodore client.
+
+    Text segments are encoded via cbmcodecs2 (handles PETSCII character
+    mapping). {token} color/control sequences are replaced with their raw
+    control byte values and spliced in *after* encoding, so cbmcodecs2
+    never sees them.
+
+    Unrecognised {tokens} are left as-is in the encoded text.
+
+    :param text:       Input string, may contain {token} sequences.
+    :param codec_name: cbmcodecs2 codec name. Defaults to lowercase C64.
+                       Use 'petscii_c64en_uc' for uppercase/graphics mode.
+    :return:           Raw bytes ready to send to the Commodore client.
+
+    >>> petscii_encode('{red}Hi{reset}')[0]   # first byte = red color code
+    28
+    >>> petscii_encode('{red}Hi{reset}')[-1]  # last byte = reverse off
+    146
+    """
+    try:
+        import cbmcodecs2  # noqa: F401 — registers the codec
+    except ImportError:
+        logging.warning('cbmcodecs2 not available; PETSCII output will be ASCII only.')
+        # Strip tokens and encode as plain ASCII fallback
+        clean = _TOKEN_RE.sub('', text)
+        return clean.encode('ascii', errors='replace')
+
+    result  = bytearray()
+    pos     = 0
+
+    for match in _TOKEN_RE.finditer(text):
+        # Encode plain text segment before this token
+        segment = text[pos:match.start()]
+        if segment:
+            result.extend(segment.encode(codec_name, errors='replace'))
+
+        token = match.group(1)
+        code  = PETSCII_CONTROL_CODES.get(token)
+        if code is not None:
+            result.append(code)          # raw control byte, bypasses codec
+        else:
+            # Unknown token — encode as literal text
+            logging.debug('petscii_encode: unknown token {%s}', token)
+            result.extend(f'{{{token}}}'.encode(codec_name, errors='replace'))
+
+        pos = match.end()
+
+    # Encode any remaining text after the last token
+    tail = text[pos:]
+    if tail:
+        result.extend(tail.encode(codec_name, errors='replace'))
+
+    return bytes(result)
+
+
+def petscii_encode_lines(lines: list[str],
+                         codec_name: str = 'petscii_c64en_lc',
+                         line_ending: bytes = b'\r') -> bytes:
+    """
+    Encode a list of formatted strings for a Commodore client.
+    Each line is encoded via petscii_encode() and joined with the
+    Commodore line ending (CR by default).
+
+    :param lines:       Formatted strings (output of format_lines()).
+    :param codec_name:  cbmcodecs2 codec name.
+    :param line_ending: Byte separator between lines (CR = b'\\r').
+    :return:            Raw bytes for the full block of text.
+
+    >>> result = petscii_encode_lines(['Hello', 'World'])
+    >>> result == b'Hello\\rWorld'  # simplified — real output is PETSCII encoded
+    True
+    """
+    """
+    # Game code:
+    await ctx.send("You find {red}a ruby{reset} on the floor.")
+    
+    # GameContext.send():
+    raw       = flatten_send_args(*lines)
+    codec     = PETSCIICodec()              # from codec_for_settings()
+    formatted = format_lines(raw, settings, codec)
+    # formatted = ["You find \x12a ruby\x92 on the floor."]
+    #   \x12 = REVERSE ON (bracket highlight for now, swap for color token later)
+    
+    # Then for PETSCII clients:
+    encoded = petscii_encode_lines(formatted)
+    # "You find " -> cbmcodecs2 -> PETSCII bytes
+    # "{red}"     -> chr(28) spliced in raw
+    # "a ruby"    -> cbmcodecs2 -> PETSCII bytes  
+    # "{reset}"   -> chr(146) spliced in raw
+    """
+    encoded = [petscii_encode(line, codec_name) for line in lines]
+    return line_ending.join(encoded)
+
+
+# ---------------------------------------------------------------------------
+# Core formatting functions
+# ---------------------------------------------------------------------------
+
+def highlight_brackets(text: str, codec: ColorCodec) -> str:
+    """
+    Replace [bracketed text] with color-coded equivalents.
+    Uses the codec's highlight_on/highlight_off to wrap matched text.
+
+    >>> codec = PlainCodec()
+    >>> highlight_brackets("Hello [world]!", codec)
+    'Hello world!'
+    >>> highlight_brackets("No brackets here.", codec)
+    'No brackets here.'
+    """
+    return re.sub(
+        r'\[(.+?)\]',
+        lambda m: f'{codec.highlight_on()}{m.group(1)}{codec.highlight_off()}',
+        text
+    )
+
+
+def wrap_text(text: str, width: int,
+              initial_indent:    str = '',
+              subsequent_indent: str = '') -> list[str]:
+    """
+    Word-wrap a single string to `width` columns.
+    Returns a list of wrapped lines.
+    Empty string input returns [''] (preserves intentional blank lines).
+
+    >>> wrap_text('Hello world', 5)
+    ['Hello', 'world']
+    >>> wrap_text('', 80)
+    ['']
+    """
+    if not text.strip():
+        return ['']
+    wrapped = textwrap.wrap(
+        text, width=width,
+        initial_indent=initial_indent,
+        subsequent_indent=subsequent_indent,
+    )
+    return wrapped if wrapped else ['']
+
+
+def format_bullet(text: str, width: int) -> list[str]:
+    """
+    Format a bullet point, wrapping continuation lines with hanging indent.
+    Input text should already have the '* ' prefix stripped.
+
+    >>> format_bullet('Short bullet', 40)
+    ['* Short bullet']
+    """
+    return wrap_text(text, width,
+                     initial_indent='* ',
+                     subsequent_indent='  ')
+
+
+def format_line(text: str, width: int, codec: ColorCodec) -> list[str]:
+    """
+    Format a single line of text:
+      1. Apply bracket highlighting
+      2. Detect bullet points
+      3. Word-wrap to width
+
+    Returns a list of output lines (may be more than one after wrapping).
+
+    >>> codec = PlainCodec()
+    >>> format_line('Hello [world]!', 80, codec)
+    ['Hello world!']
+    >>> format_line('* A bullet point', 20, codec)
+    ['* A bullet point']
+    >>> format_line('', 80, codec)
+    ['']
+    """
+    if not text.strip():
+        return ['']
+
+    highlighted = highlight_brackets(text, codec)
+
+    if highlighted.lstrip().startswith('* '):
+        # Strip the bullet prefix, wrap, re-add via format_bullet
+        content = highlighted.lstrip()[2:]
+        return format_bullet(content, width)
+
+    return wrap_text(highlighted, width)
+
+
+def format_lines(lines: list[str],
+                 settings: HasClientSettings,
+                 codec:    ColorCodec | None = None) -> list[str]:
+    """
+    Format a list of strings for output to a player's terminal.
+    Applies bracket highlighting, bullet formatting, and word-wrapping.
+
+    :param lines:    Input strings (one logical line each).
+    :param settings: ClientSettings-compatible object for screen dimensions.
+    :param codec:    ColorCodec to use; defaults to PlainCodec if not provided.
+    :return:         Flat list of output-ready strings.
+
+    >>> settings = _MockSettings(screen_columns=20, screen_rows=25)
+    >>> codec = PlainCodec()
+    >>> format_lines(['Hello world', ''], settings, codec)
+    ['Hello world', '']
+    """
+    if codec is None:
+        codec = PlainCodec()
+
+    width  = getattr(settings, 'screen_columns', 80)
+    result = []
+    for line in lines:
+        result.extend(format_line(line, width, codec))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Codec factory
+# ---------------------------------------------------------------------------
+
+def codec_for_settings(settings) -> ColorCodec:
+    """
+    Return the appropriate ColorCodec for a ClientSettings object.
+    Falls back to PlainCodec if the translation type can't be determined.
+    """
+    try:
+        from terminal import Translation
+        t = getattr(settings, 'translation', None)
+        if t == Translation.ANSI:
+            return ANSICodec()
+        if t == Translation.PETSCII:
+            return PETSCIICodec()
+    except ImportError:
+        pass
+    return PlainCodec()
+
+
+# ---------------------------------------------------------------------------
+# Header / rule helpers (pure, return list[str])
+# ---------------------------------------------------------------------------
+
+def make_header(text: str, char: str = '=') -> list[str]:
+    """
+    Return a two-line header: the text and an underline of equal length.
+
+    >>> make_header('Hello')
+    ['Hello', '=====']
+    >>> make_header('Hi', '-')
+    ['Hi', '--']
+    """
+    return [text, char * len(text)]
+
+
+def make_rule(width: int, char: str = '-') -> str:
+    """
+    Return a horizontal rule string of `width` characters.
+
+    >>> make_rule(5)
+    '-----'
+    """
+    return char * width
+
+
+def make_box(lines: list[str], title: str = '', width: int = 60) -> list[str]:
+    """
+    Wrap lines in a simple ASCII box with an optional title.
+    Returns a list of strings including the border lines.
+
+    >>> make_box(['Hello'], width=12)
+    ['+----------+', '| Hello    |', '+----------+']
+    """
+    inner  = width - 4   # account for '| ' and ' |'
+    h_bar  = '-' * (width - 2)
+    border = f'+{h_bar}+'
+
+    if title:
+        title_str = f' {title} '.center(width - 2, '-')
+        top = f'+{title_str}+'
+    else:
+        top = border
+
+    body = [f'| {line.ljust(inner)} |' for line in lines]
+    return [top] + body + [border]
+
+
+# ---------------------------------------------------------------------------
+# Doctest support
+# ---------------------------------------------------------------------------
+
+class _MockSettings:
+    """Minimal settings stub for doctests."""
+    def __init__(self, screen_columns: int = 80, screen_rows: int = 25):
+        self.screen_columns = screen_columns
+        self.screen_rows    = screen_rows
+
+
+def flatten_send_args(*args) -> list[str]:
+    """
+    Flatten the variable args passed to ctx.send() into a single list of strings.
+    Handles: single strings, multiple strings, lists of strings, mixed.
+    Shared by GameContext.send() and TerminalContext.send().
+
+    >>> flatten_send_args("hello")
+    ['hello']
+    >>> flatten_send_args("a", "b", "c")
+    ['a', 'b', 'c']
+    >>> flatten_send_args(["a", "b"])
+    ['a', 'b']
+    >>> flatten_send_args("a", ["b", "c"])
+    ['a', 'b', 'c']
+    """
+    result: list[str] = []
+    for item in args:
+        if isinstance(item, list):
+            result.extend(str(i) for i in item)
+        else:
+            result.append(str(item))
+    return result
+
+
+if __name__ == '__main__':
+    import doctest
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(levelname)10s | %(funcName)20s() | %(message)s')
+    doctest.testmod(verbose=True)
