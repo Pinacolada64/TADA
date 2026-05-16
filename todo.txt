@@ -382,3 +382,6 @@ core: chest that doesn't open until their birthday (1000 gold inside maybe)
 core: if user posts inappropriate things on a community room bulletin board, revoke their writing
     privilege: "There is no chalk here."
 core: have a per-player "state" of each room with objects/quest items
+
+2026-04-12
+A MUD-wide event: Trivia night!
