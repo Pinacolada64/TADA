@@ -4,3 +4,4 @@ run/
 .venv/
 # PyCharm settings:
 .idea/
+/tada-venv/
