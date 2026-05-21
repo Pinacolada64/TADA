@@ -15,6 +15,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
 from gbbs_io import read_file, iter_records, read_count
+from monsters import monster_flags, monster_sizes, empty_monster_flags
 
 TXT_FILE  = Path('..') / 'SPUR-data' / 'monsters.txt'
 JSON_FILE = 'monsters.json'
@@ -23,46 +24,6 @@ RECORD_SIZE = 32
 # ---------------------------------------------------------------------------
 # Flag definitions — ORDER MATTERS: longer keys before shorter prefix matches
 # ---------------------------------------------------------------------------
-MONSTER_FLAGS = [
-    (';;',  'heavy_armor'),
-    (';',   'light_armor'),
-    ('>>',  'chance_find_gold_2x'),
-    ('>',   'chance_find_gold'),
-    ('++',  'cast_multiple_spells'),
-    ('+',   'cast_one_spell'),
-    (']',   'double_attacks'),
-    (':',   'mechanical'),
-    ('.',   'increase_strength'),
-    ('E',   'evil'),
-    ('G',   'good'),
-    ('<',   're_animates'),
-    ('#',   'cast_turn_to_stone'),
-    ('*',   'poisonous_attack'),
-    ('@',   'diseased_attack'),
-    ('&',   'experience_drain'),
-    ('%',   'magic_resistant'),
-    ('~',   'appears_unaffected'),
-    ('-',   'fire_attack'),
-    ('X',   'no_gold'),
-    ('$',   'multiple_monsters'),
-    ('?',   'no_article'),
-    ('AC',  'charmable'),
-    ('!',   'has_quote'),
-]
-
-ALL_FLAG_KEYS = [v for _, v in MONSTER_FLAGS]
-
-MONSTER_SIZES = {
-    1: 'huge',
-    2: 'large',
-    3: 'big',
-    4: 'man_sized',
-    5: 'short',
-    6: 'small',
-    7: 'swift',
-}
-
-EMPTY_FLAGS = {k: False for k in ALL_FLAG_KEYS}
 
 
 @dataclass
@@ -74,7 +35,7 @@ class Monster:
     strength:       int
     special_weapon: int
     to_hit:         int
-    flags:          dict = field(default_factory=lambda: dict(EMPTY_FLAGS))
+    flags:          dict = field(default_factory=lambda: dict(empty_monster_flags))
     quote_number:   int | None = None
     description:    str | None = None
 
@@ -92,13 +53,13 @@ def parse_flags(flag_str: str) -> tuple[dict, int | None]:
     Returns (flags_dict, quote_number_or_None).
     Longest-match-first avoids ;; vs ; and >> vs > ambiguity.
     """
-    flags = dict(EMPTY_FLAGS)
+    flags = dict(empty_monster_flags)
     quote_number = None
     remaining = flag_str
 
     while remaining:
         matched = False
-        for symbol, key in MONSTER_FLAGS:
+        for symbol, key in monster_flags:
             if remaining.startswith(symbol):
                 flags[key] = True
                 remaining = remaining[len(symbol):]
@@ -137,7 +98,7 @@ def parse_monster(record_num: int, fields: list[str]) -> Monster | None:
     size_char = info[2] if len(info) > 2 else ''
 
     if size_char.isdigit():
-        size  = MONSTER_SIZES.get(int(size_char))
+        size  = monster_sizes.get(int(size_char))
         start = 3
         # logging.debug('Record %d info field: %r  info[2]=%r', record_num, info, info[2] if len(info) > 2 else '(too short)')
         logging.debug('Record %d size: %s', record_num, size)
@@ -149,7 +110,7 @@ def parse_monster(record_num: int, fields: list[str]) -> Monster | None:
     pipe = info.rfind('|')
     if pipe == -1:
         name        = info[start:].rstrip()
-        flags       = dict(EMPTY_FLAGS)
+        flags       = dict(empty_monster_flags)
         quote_num   = None
     else:
         name        = info[start:pipe].rstrip()

@@ -9,11 +9,9 @@ Run locally:  python3 monster_editor.py
 import json
 import logging
 import sys
-from copy import deepcopy
 from pathlib import Path
 
-from convert_monster_data_fixed import ALL_FLAG_KEYS, MONSTER_SIZES
-from monsters import monster_flag_labels, load_monsters, save_monsters
+from monsters import monster_flag_labels, load_monsters, save_monsters, monster_sizes, all_monster_keys
 from menu_system import Menu, MenuItem, run_menu
 from terminal_context import TerminalContext, run_local
 from tada_utilities import header, input_yes_no, input_number_range
@@ -87,7 +85,7 @@ def format_monster(m: dict, quotes: dict[int, str],
     wpn_id   = m['special_weapon']
     wpn_name = weapons.get(wpn_id, f'(unknown #{wpn_id})') if wpn_id else '(none)'
     locs     = locations.get(m['number'], [])
-    loc_str  = ', '.join(f'L{lv} R{rn} ({rname})'
+    loc_str  = ', '.join(f'Level {lv}, Room {rn} ({rname})'
                          for lv, rn, rname in sorted(locs)) or '(not placed)'
 
     qnum  = m.get('quote_number')
@@ -132,15 +130,19 @@ def build_quote_menu(m: dict, quotes: dict[int, str],
     menu = Menu(title='Select Quote')
     for qnum, text in sorted(quotes.items()):
         display = text.replace('$', '<player_name>')
+
         # capture qnum in default arg to avoid closure issue
         def make_action(n=qnum):
             async def _action(ctx):
                 await on_select(ctx, n)
+
             return _action
+
         menu.add_item(MenuItem(
-            text          = f'#{qnum:>3}: {display[:50]}',
-            dot_leader_handler = lambda ctx, n=qnum: '<<' if m.get('quote_number') == n else '',
-            action        = make_action(),
+            text=f'#{qnum:>3}: {display[:50]}',
+            # '<<' is selected quote
+            dot_leader_handler=lambda ctx, n=qnum: '<<' if m.get('quote_number') == n else '',
+            action=make_action(),
         ))
     return menu
 
@@ -155,17 +157,20 @@ def build_flags_menu(m: dict, dirty_ref: list) -> Menu:
     action closure can signal that a change was made.
     """
     menu = Menu(title=f"Flags: {m['name']}")
-    flags = m.setdefault('flags', {k: False for k in ALL_FLAG_KEYS})
+    flags = m.setdefault('flags', {k: False for k in all_monster_keys})
 
-    for key in ALL_FLAG_KEYS:
+    for key in all_monster_keys:
         label = monster_flag_labels.get(key, key)
+
         def make_action(k=key):
             async def _toggle(ctx):
                 flags[k] = not flags.get(k, False)
                 state = 'ON' if flags[k] else 'off'
                 await ctx.send(f'  {monster_flag_labels.get(k, k)} -> {state}')
                 dirty_ref[0] = True
+
             return _toggle
+
         menu.add_item(MenuItem(
             text               = label,
             dot_leader_handler = lambda ctx, k=key: 'ON ' if flags.get(k) else 'off',
@@ -178,31 +183,47 @@ def build_flags_menu(m: dict, dirty_ref: list) -> Menu:
 # Edit basic attributes menu
 # ---------------------------------------------------------------------------
 
+
 def build_edit_menu(m: dict, quotes: dict[int, str],
-                    weapons: dict[int, str], dirty_ref: list) -> Menu:
+                    weapons: dict[int, str],
+                    dirty_ref: list,
+                    monsters: list[dict]) -> Menu:
     """
     Build the per-field edit menu for a monster.
     Each item shows the current value via dot_leader_handler and prompts
     for a new value when selected.
+
+    The entire list of loaded monsters is passed in to prevent editing a monster
+    name to one which already exists.
     """
     menu = Menu(title=f"Edit: {m['name']}")
-
     # --- Name ---
     async def edit_name(ctx):
         raw = await ctx.prompt(f"Name [{m['name']}]")
         if raw:
-            m['name'] = raw.upper()
+            new_name = raw.upper()
+            duplicate = next(
+                (other for other in monsters
+                 if other['name'] == new_name and other['number'] != m['number']),
+                None
+            )
+            if duplicate:
+                await ctx.send(f"Warning: #{duplicate['number']} is already named {duplicate['name']}.")
+                confirm = await input_yes_no(ctx, 'Use this name anyway?')
+                if not confirm:
+                    return
+            m['name'] = new_name
             dirty_ref[0] = True
 
     menu.add_item(MenuItem(
-        text               = 'Name',
-        shortcuts          = ['N'],
-        dot_leader_handler = lambda ctx: m['name'],
-        action             = edit_name,
+        text='Name',
+        shortcuts=['N'],
+        dot_leader_handler=lambda ctx: m['name'],
+        action=edit_name,
     ))
 
     # --- Size ---
-    size_options = list(MONSTER_SIZES.values()) + ['(none)']
+    size_options = list(monster_sizes.values()) + ['(none)']
 
     async def edit_size(ctx):
         await ctx.send('Sizes:')
@@ -212,7 +233,7 @@ def build_edit_menu(m: dict, quotes: dict[int, str],
         if raw.isdigit():
             idx = int(raw) - 1
             if 0 <= idx < len(size_options):
-                chosen   = size_options[idx]
+                chosen = size_options[idx]
                 m['size'] = None if chosen == '(none)' else chosen
                 dirty_ref[0] = True
             else:
@@ -268,8 +289,9 @@ def build_edit_menu(m: dict, quotes: dict[int, str],
                 dirty_ref[0] = True
 
     wpn_label = lambda ctx: (weapons.get(m['special_weapon'],
-                              f"#{m['special_weapon']}")
-                              if m['special_weapon'] else '(none)')
+                                         f"#{m['special_weapon']}")
+                             if m['special_weapon'] else '(none)')
+
     menu.add_item(MenuItem(
         text               = 'Special weapon',
         shortcuts          = ['W'],
@@ -281,7 +303,7 @@ def build_edit_menu(m: dict, quotes: dict[int, str],
     async def edit_to_hit(ctx):
         raw = await ctx.prompt(f"To-hit % [{m['to_hit']}]")
         if raw.isdigit():
-            m['to_hit']  = int(raw)
+            m['to_hit'] = int(raw)
             dirty_ref[0] = True
         elif raw:
             await ctx.send('Invalid number, unchanged.')
@@ -364,7 +386,8 @@ def build_monster_list_menu(monsters: list[dict], quotes: dict[int, str],
     for m in monsters:
         async def show_and_edit(ctx, mon=m):
             await show_monster(ctx, mon, quotes, weapons, locations)
-            await run_menu(ctx, build_edit_menu(mon, quotes, weapons, dirty_ref))
+            await run_menu(ctx, build_edit_menu(mon, quotes, weapons, dirty_ref, monsters))
+
         menu.add_item(MenuItem(
             text      = f"#{m['number']:>3} {m['name']}",
             shortcuts = [],
@@ -376,6 +399,10 @@ def build_monster_list_menu(monsters: list[dict], quotes: dict[int, str],
 # ---------------------------------------------------------------------------
 # Search helpers
 # ---------------------------------------------------------------------------
+
+def build_monster_menu(mon, quotes, weapons, locations, dirty_ref):
+    logging.info("In build_monster_menu")
+
 
 async def search_by_name(ctx, monsters: list[dict],
                          quotes, weapons, locations, dirty_ref):
@@ -397,7 +424,9 @@ async def search_by_name(ctx, monsters: list[dict],
 
 async def search_by_flag(ctx, monsters: list[dict]):
     flag_menu = Menu(title='Select Flag')
-    for key in ALL_FLAG_KEYS:
+    flag_menu.add_item(MenuItem(text="Monster name", dot_leader_handler="Count"))
+
+    for key in all_monster_keys:
         label = monster_flag_labels.get(key, key)
         count = sum(1 for m in monsters if m.get('flags', {}).get(key))
 
@@ -411,6 +440,7 @@ async def search_by_flag(ctx, monsters: list[dict]):
                 for m in results:
                     await ctx.send(f"  #{m['number']:>3} {m['name']}")
                 await ctx.prompt('Press Enter to continue')
+
             return _show
 
         flag_menu.add_item(MenuItem(
@@ -444,7 +474,7 @@ async def search_by_attribute(ctx, monsters: list[dict], weapons: dict[int, str]
                         results = [m for m in monsters if m.get('special_weapon', 0)]
                         await header(ctx, 'Monsters requiring any special weapon')
                     elif raw.isdigit():
-                        tid  = int(raw)
+                        tid = int(raw)
                         results = [m for m in monsters if m.get('special_weapon') == tid]
                         await header(ctx, f'Monsters requiring: {weapons.get(tid, f"#{tid}")}')
                     else:
@@ -454,11 +484,11 @@ async def search_by_attribute(ctx, monsters: list[dict], weapons: dict[int, str]
                     if not raw.lstrip('-').isdigit():
                         await ctx.send('Invalid number.')
                         return
-                    val     = int(raw)
+                    val = int(raw)
                     results = [m for m in monsters if m.get(a) == val]
                     await header(ctx, f'Monsters with {lbl} = {val}')
                 else:
-                    raw     = await ctx.prompt(f'{lbl} (substring match)')
+                    raw = await ctx.prompt(f'{lbl} (substring match)')
                     results = [m for m in monsters
                                if raw.lower() in str(m.get(a, '')).lower()]
                     await header(ctx, f'Monsters with {lbl} matching "{raw}"')
@@ -467,11 +497,12 @@ async def search_by_attribute(ctx, monsters: list[dict], weapons: dict[int, str]
                     await ctx.send('  No matches.')
                 else:
                     for m in results:
-                        wpn_id  = m.get('special_weapon', 0)
+                        wpn_id = m.get('special_weapon', 0)
                         wpn_str = (f'  [{weapons.get(wpn_id, f"#{wpn_id}")}]'
                                    if wpn_id and weapons else '')
                         await ctx.send(f"  #{m['number']:>3} {m['name']}{wpn_str}")
                 await ctx.prompt('Press Enter to continue')
+
             return _search
 
         attr_menu.add_item(MenuItem(text=label, action=make_action()))
@@ -501,30 +532,30 @@ async def main():
     # --- Main menu ---
     main_menu = Menu(title='Monster Editor')
 
-    main_menu.add_item(MenuItem(
-        text               = 'Monster count',
-        dot_leader_handler = lambda ctx: str(len(monsters)),
-    ))
+    main_menu.add_item(MenuItem(text=f'  Monster count: {str(len(monsters))}'))
 
-    main_menu.add_item(MenuItem(
-        text               = 'Unsaved changes',
-        dot_leader_handler = lambda ctx: '*YES*' if dirty_ref[0] else 'No',
-    ))
+    main_menu.add_item(MenuItem(text=f'Unsaved changes: {"*YES*" if dirty_ref[0] else "No"}'))
 
-    main_menu.add_item(MenuItem(text='List / edit monsters', shortcuts=['L'],
-        action=lambda ctx: run_menu(
-            ctx, build_monster_list_menu(
-                monsters, quotes, weapons, locations, dirty_ref))))
+    main_menu.add_item(MenuItem(text='Edit monsters', shortcuts=['E'],
+                                action=lambda ctx: run_menu(ctx,
+                                                            build_monster_list_menu(monsters, quotes, weapons,
+                                                                                    locations, dirty_ref)
+                                                            )
+                                )
+                       )
 
-    main_menu.add_item(MenuItem(text='Search by name',      shortcuts=['N'],
-        action=lambda ctx: search_by_name(
-            ctx, monsters, quotes, weapons, locations, dirty_ref)))
+    main_menu.add_item(MenuItem(text='Search by name',
+                                shortcuts=['N'],
+                                action=lambda ctx: search_by_name(
+                                    ctx, monsters, quotes, weapons, locations, dirty_ref)))
 
-    main_menu.add_item(MenuItem(text='Search by flag',      shortcuts=['F'],
-        action=lambda ctx: search_by_flag(ctx, monsters)))
+    main_menu.add_item(MenuItem(text='Search by flag',
+                                shortcuts=['F'],
+                                action=lambda ctx: search_by_flag(ctx, monsters)))
 
-    main_menu.add_item(MenuItem(text='Search by attribute', shortcuts=['A'],
-        action=lambda ctx: search_by_attribute(ctx, monsters, weapons)))
+    main_menu.add_item(MenuItem(text='Search by attribute',
+                                shortcuts=['A'],
+                                action=lambda ctx: search_by_attribute(ctx, monsters, weapons)))
 
     async def do_save(ctx):
         save_monsters(monsters, MONSTER_FILE)
