@@ -173,7 +173,7 @@ async def main():
     """
     # NOTE: You may need to update the port (8888) if your server is running on a different one (e.g., 5000)
     try:
-        reader, writer = await asyncio.open_connection('127.0.0.1', 8888)
+        reader, writer = await asyncio.open_connection('127.0.0.1', 34083)
     except ConnectionRefusedError:
         print("Connection failed. Is the server running?")
         return

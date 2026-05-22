@@ -1,1356 +1,638 @@
+#!/bin/env python3
+"""
+simple_server.py
+
+Asyncio TCP server for TADA.
+
+Connection lifecycle:
+    TCP connect
+        -> terminal negotiation   (GameContext.for_guest or PETSCIINetworkContext.for_guest)
+        -> login                  (GuestPlayer -> real Player on success)
+        -> game loop              (ctx drives all I/O)
+
+Two ports:
+    DEFAULT_PORT  (34083) — JSON wire protocol (Python client, ANSI terminals)
+    PETSCII_PORT  (34064) — Raw PETSCII bytes  (Commodore 64/128)
+"""
+
 import asyncio
 import logging
 from pathlib import Path
 
-import player
 import net_common as nc
-# Re-export common names for backward compatibility. Use guarded bindings so
-# partial/failed imports of net_common don't raise at import time; callers
-# should prefer accessing nc.<name> where possible.
-try:
-    Message = nc.Message
-except Exception:
-    Message = None
-
-try:
-    MessageType = nc.MessageType
-except Exception:
-    MessageType = None
-
-try:
-    Mode = nc.Mode
-except Exception:
-    Mode = None
-
-try:
-    to_jsonb = nc.to_jsonb
-except Exception:
-    to_jsonb = None
-
-try:
-    from_jsonb = nc.from_jsonb
-except Exception:
-    from_jsonb = None
-
 from net_client import Client
+from network_context import GameContext, PETSCIINetworkContext, GuestPlayer
+from formatting import flatten_send_args, format_lines, codec_for_settings
 from tada_utilities import a_or_an, grammatical_list, list_players_in_room, oxford_comma_list
-
-# Game/map imports
-from terminal import Translation
 from base_classes import Map, compass_txts
 from items import Item, Rations, Weapon
 from characters import Monster
 from commands.command_processor import create_command_processor
+from terminal import Translation
+
+DEFAULT_PORT = 34083
+PETSCII_PORT = 34064
+
+
+# ---------------------------------------------------------------------------
+# Handshake Init object
+# ---------------------------------------------------------------------------
 
 class Init:
-    # server_id, server_key, protocol_version, type must all match between server + client.
-    # character translation (e.g. 'utf-8', 'petscii', etc.) can be whatever the client wants.
-    def __init__(self, server_id="test_server", server_key="test_key", protocol_version=1,
-                 translation=Translation.ANSI, type=MessageType.INIT):
-        self.type = type
-        self.server_id = server_id
-        self.server_key = server_key
+    """Exchanged between client and server to negotiate protocol version."""
+    def __init__(self, server_id='test_server', server_key='test_key',
+                 protocol_version=1, translation=Translation.ANSI):
+        self.type             = nc.MessageType.INIT
+        self.server_id        = server_id
+        self.server_key       = server_key
         self.protocol_version = protocol_version
-        self.translation: Translation = translation
-        self.type: MessageType = MessageType.INIT
+        self.translation      = translation
 
+
+# ---------------------------------------------------------------------------
+# Server
+# ---------------------------------------------------------------------------
 
 class Server:
-    """
-    Manages the server state and client connections.
-    """
-    # for use in strings:
-    quotation_mark = '"'
-    apostrophe = "'"
+    """Manages server state and all client connections."""
 
-    def __init__(self, host, port):
-        self.host = host
-        self.port = port
-        self.server = None
-        self.clients = {}  # A dictionary to store connected clients by address
+    def __init__(self, host: str,
+                 port: int         = DEFAULT_PORT,
+                 petscii_port: int = PETSCII_PORT):
+        self.host         = host
+        self.port         = port
+        self.petscii_port = petscii_port
+        self.clients: dict = {}   # addr -> Client
 
-        # Create the server-wide Init object ONCE
-        self.server_init_object = Init(
-            server_id="test_server",
-            server_key="test_key",
-            protocol_version=1,
-            translation=Translation.ANSI  # Default translation as enum
-        )
-        logging.info(f"Server configured with ID: {self.server_init_object.server_id}")
+        self.server_init = Init()
+        self._load_game_data()
 
-        # Load map and game data (level, objects, monsters, weapons, rations)
+    # -----------------------------------------------------------------------
+    # Game data
+    # -----------------------------------------------------------------------
+
+    def _load_game_data(self):
+        script_dir = Path(__file__).parent
         try:
-            script_dir = Path(__file__).parent
             self.game_map = Map()
-            self.game_map.read_map(str(script_dir / "level_1.json"))
-            try:
-                self.items = Item.read(str(script_dir / "objects.json"))
-            except Exception:
-                self.items = []
-            try:
-                self.monsters = Monster.read_monsters(str(script_dir / "monsters.json"))
-            except Exception:
-                self.monsters = []
-            try:
-                self.weapons = Weapon.read_weapons(str(script_dir / "weapons.json"))
-            except Exception:
-                self.weapons = []
-            try:
-                self.rations = Rations.read_rations(str(script_dir / "rations.json"))
-            except Exception:
-                self.rations = []
-            logging.info(f"Loaded map with {len(self.game_map.rooms)} rooms")
+            self.game_map.read_map(str(script_dir / 'level_1.json'))
         except Exception:
-            logging.exception("Failed to load map or game data; room descriptions will be unavailable")
+            logging.exception('Failed to load map')
+            self.game_map = None
 
-    def _register_client_global(self, client):
-        """Register a client in the global net_common.client_manager if not already present."""
+        def _try_load(cls, filename, method='read'):
+            try:
+                return getattr(cls, method)(str(script_dir / filename))
+            except Exception:
+                logging.warning("Could not load '%s'", filename)
+                return []
+
+        self.items    = _try_load(Item,    'objects.json')
+        self.monsters = _try_load(Monster, 'monsters.json', 'read_monsters')
+        self.weapons  = _try_load(Weapon,  'weapons.json',  'read_weapons')
+        self.rations  = _try_load(Rations, 'rations.json',  'read_rations')
+        logging.info('Map: %d rooms | %d monsters | %d items | %d weapons',
+                     len(self.game_map.rooms) if self.game_map else 0,
+                     len(self.monsters), len(self.items), len(self.weapons))
+
+    # -----------------------------------------------------------------------
+    # Wire I/O (low-level — use ctx.send() in game code instead)
+    # -----------------------------------------------------------------------
+
+    async def send_message(self, writer, obj) -> None:
+        """Serialize obj to JSON and write to writer. Used by GameContext."""
         try:
-            import net_common as _nc
-            uid = getattr(client, 'username', None)
-            if not uid:
-                return
-            # avoid re-registering existing user_id
-            if uid in _nc.client_manager.clients:
-                return
-            _nc.client_manager.add_client(uid, client)
-            logging.info(f"Registered client in global client_manager: {uid}")
+            data = nc.to_jsonb(obj)
+            writer.write(data + b'\n')
+            await writer.drain()
         except Exception:
-            logging.exception("Failed to register client in global client_manager")
+            logging.exception('send_message failed')
 
-    def _describe_room(self, client_or_player) -> list:
-        """Return a list of lines describing the client's current room.
-
-        Accepts either a Client-like object (as before) or a Player object (which
-        exposes .query_flag()). The function will detect the passed object and
-        prefer using the Player's .query_flag() to determine whether to show room
-        numbers in exits.
-        """
-        lines = []
+    async def receive_message(self, reader) -> dict | None:
+        """Read one newline-terminated JSON message from reader."""
         try:
-            # Normalize inputs:
-            # - If a Player object was passed (has query_flag), use it as player_obj.
-            # - Otherwise, try to get a Player from client_or_player.player if present.
-            player_obj = None
-            client = client_or_player
-            if hasattr(client_or_player, 'query_flag'):
-                player_obj = client_or_player
-                # If the Player object references a client/handler, expose it as client
-                client = getattr(client_or_player, 'client', client_or_player)
-            else:
-                player_obj = getattr(client_or_player, 'player', None)
-
-            room_no = getattr(client, 'room', 1) or 1
-            room = self.game_map.rooms.get(int(room_no)) if hasattr(self, 'game_map') else None
-            if not room:
-                return ["You are nowhere (map not loaded)."]
-
-            # Header: room name + guild alignment
-            header = [f"{room.name}", f" [{room.alignment}]" if getattr(room, 'alignment', None) else "Neutral"]
-            lines.append(''.join(header))
-
-            # Description
-            if getattr(room, 'desc', None):
-                lines.append("")
-                lines.append(room.desc)
-
-            # Build aggregated 'you see' list for objects in the room
-            seen = []
-
-            # Items: skip listing it in room contents if the item is already in the player's inventory.
-            try:
-                if getattr(room, 'item', 0):
-                    idx = int(room.item) - 1
-                    if 0 <= idx < len(self.items):
-                        seen.append(self.items[idx]['name'])
-            except Exception:
-                pass
-
-            # Food / rations
-            try:
-                if getattr(room, 'food', 0):
-                    idx = int(room.food) - 1
-                    if 0 <= idx < len(self.rations):
-                        seen.append(self.rations[idx]['name'])
-            except Exception:
-                pass
-
-            # Weapon
-            try:
-                if getattr(room, 'weapon', 0):
-                    idx = int(room.weapon) - 1
-                    if 0 <= idx < len(self.weapons):
-                        seen.append(self.weapons[idx]['name'])
-            except Exception:
-                pass
-
-            # Monster
-            try:
-                if getattr(room, 'monster', 0):
-                    idx = int(room.monster) - 1
-                    if 0 <= idx < len(self.monsters):
-                        m = self.monsters[idx]
-                        # don't list this monster if it is already in player's dead_monsters list:
-                        dead_monsters = getattr(client, 'dead_monsters', [])
-                        if isinstance(m, dict):
-                            m_id = m.get('id', None)
-                        mon_name = m.get('name', 'a monster') if isinstance(m, dict) else getattr(m, 'name', 'a monster')
-                        mon_size = m.get('size', None) if isinstance(m, dict) else getattr(m, 'size', None)
-                        lines.append("")
-                        lines.append(f"There is {mon_size} {mon_name} here.")
-            except Exception:
-                pass
-
-            # If any seen objects, add a combined line using grammatical_list (handles "a book", "an orange", "some coins")
-            if seen:
-                lines.append("")
-                try:
-                    seen_text = grammatical_list(seen)
-                except Exception:
-                    seen_text = ', '.join(seen)
-                lines.append(f"You see {seen_text}")
-
-            # List other players present in the same room (exclude the current player)
-            try:
-                import net_common as _nc
-                other_names = []
-                for uid, info in _nc.client_manager.clients.items():
-                    try:
-                        handler = info.handler
-                        # handler should be the client object stored earlier
-                        if handler is client:
-                            continue
-                        # TODO: compare room and level numbers if available
-                        if getattr(handler, 'room', None) is None:
-                            continue
-                        if int(getattr(handler, 'room')) == int(room_no):
-                            name = getattr(handler, 'username', None) or uid
-                            # skip if same as the current client username
-                            if name and name != getattr(client, 'username', None):
-                                other_names.append(name)
-                    except Exception:
-                        continue
-                if other_names:
-                    lines.append("")
-                    try:
-                        players_text = list_players_in_room(other_names)
-                    except Exception:
-                        players_text = (f"{other_names[0]} is here." if len(other_names) == 1 else f"{', '.join(other_names)} are here.")
-                    lines.append(players_text)
-            except Exception:
-                # fail silently if client_manager isn't available
-                pass
-
-            # Exits
-            try:
-                exits_list = []
-                # cardinal directions
-                for k in getattr(room, 'exits', {}).keys():
-                    if k in compass_txts:
-                        exits_list.append(compass_txts[k])
-                # up/down transport handling
-                try:
-                    rc = int(getattr(room, 'exits', {}).get('rc', 0) or 0)
-                except Exception:
-                    rc = 0
-                try:
-                    rt = int(getattr(room, 'exits', {}).get('rt', 0) or 0)
-                except Exception:
-                    rt = 0
-                if rc in (1, 2):
-                    dirname = 'Up' if rc == 1 else 'Down'
-                    if rt == 0:
-                        exits_list.append(f"{dirname} (to Shoppe)")
-                    else:
-                        # Determine whether to show room number using Player.query_flag() if available,
-                        # otherwise fall back to module-level player.debug_mode.
-                        try:
-                            debug_mode = False
-                            if player_obj and hasattr(player_obj, 'query_flag'):
-                                try:
-                                    debug_mode = bool(player_obj.query_flag('DEBUG_MODE'))
-                                except Exception:
-                                    try:
-                                        debug_mode = bool(player_obj.query_flag('debug_mode'))
-                                    except Exception:
-                                        debug_mode = getattr(player_obj, 'debug_mode', False)
-                            else:
-                                debug_mode = getattr(player, 'debug_mode', False)
-                        except Exception:
-                            debug_mode = False
-                        exits_list.append(f"{dirname}{f' (to #{rt})' if debug_mode else ''}")
-                if exits_list:
-                    lines.append("")
-                    try:
-                        # For two elements prefer explicit Oxford comma: 'A, and B'
-                        exits_text = oxford_comma_list(exits_list)
-                    except Exception:
-                        exits_text = ', '.join(exits_list)
-                    lines.append(f"Ye may travel {exits_text}.")
-            except Exception:
-                pass
-
-        except Exception:
-            logging.exception("Error building room description")
-            return ["(Error showing room)"]
-
-        return lines
-
-        # (self, client) -> list:
-        """Return a list of lines describing the client's current room.
-
-        Includes header information (usually room name and guild alignment) , description, exits, visible objects,
-         monsters.
-        """
-        lines = []
-        try:
-            room_no = getattr(client, 'room', 1) or 1
-            room = self.game_map.rooms.get(int(room_no)) if hasattr(self, 'game_map') else None
-            if not room:
-                return ["You are nowhere (map not loaded)."]
-
-            # Header: room name + guild alignment
-            header = [f"{room.name}", f" [{room.alignment}]" if getattr(room, 'alignment', None) else "Neutral"]
-            lines.append(''.join(header))
-
-            # Description
-            if getattr(room, 'desc', None):
-                lines.append("")
-                lines.append(room.desc)
-
-            # Build aggregated 'you see' list for objects in the room
-            seen = []
-
-            # Items: skip listing it in room contents if the item is already in the player's inventory.
-            # Historically, this was the way The Land of Spur did it. If  but it makes even more sense in a multiplayer
-            # game: one player could hoard an item and others wouldn't be able to acquire it.
-            try:
-                if getattr(room, 'item', 0):
-                    idx = int(room.item) - 1
-                    if 0 <= idx < len(self.items):
-                        seen.append(self.items[idx]['name'])
-            except Exception:
-                pass
-
-            # Food / rations
-            try:
-                if getattr(room, 'food', 0):
-                    idx = int(room.food) - 1
-                    if 0 <= idx < len(self.rations):
-                        seen.append(self.rations[idx]['name'])
-            except Exception:
-                pass
-
-            # Weapon
-            try:
-                if getattr(room, 'weapon', 0):
-                    idx = int(room.weapon) - 1
-                    if 0 <= idx < len(self.weapons):
-                        seen.append(self.weapons[idx]['name'])
-            except Exception:
-                pass
-
-            # Monster
-            try:
-                if getattr(room, 'monster', 0):
-                    idx = int(room.monster) - 1
-                    if 0 <= idx < len(self.monsters):
-                        m = self.monsters[idx]
-                        # don't list this monster if it is already in player's dead_monsters list:
-                        dead_monsters = getattr(client, 'dead_monsters', [])
-                        if isinstance(m, dict):
-                            m_id = m.get('id', None)
-                        mon_name = m.get('name', 'a monster') if isinstance(m, dict) else getattr(m, 'name', 'a monster')
-                        mon_size = m.get('size', None) if isinstance(m, dict) else getattr(m, 'size', None)
-                        lines.append("")
-                        lines.append(f"There is {mon_size} {mon_name} here.")
-            except Exception:
-                pass
-
-            # If any seen objects, add a combined line using grammatical_list (handles "a book", "an orange", "some coins")
-            if seen:
-                lines.append("")
-                try:
-                    seen_text = grammatical_list(seen)
-                except Exception:
-                    seen_text = ', '.join(seen)
-                lines.append(f"You see {seen_text}")
-
-            # List other players present in the same room (exclude the current player)
-            try:
-                import net_common as _nc
-                other_names = []
-                for uid, info in _nc.client_manager.clients.items():
-                    try:
-                        handler = info.handler
-                        # handler should be the client object stored earlier
-                        if handler is client:
-                            continue
-                        # TODO: compare room and level numbers if available
-                        if getattr(handler, 'room', None) is None:
-                            continue
-                        if int(getattr(handler, 'room')) == int(room_no):
-                            name = getattr(handler, 'username', None) or uid
-                            # skip if same as the current client username
-                            if name and name != getattr(client, 'username', None):
-                                other_names.append(name)
-                    except Exception:
-                        continue
-                if other_names:
-                    lines.append("")
-                    try:
-                        players_text = list_players_in_room(other_names)
-                    except Exception:
-                        players_text = (f"{other_names[0]} is here." if len(other_names) == 1 else f"{', '.join(other_names)} are here.")
-                    lines.append(players_text)
-            except Exception:
-                # fail silently if client_manager isn't available
-                pass
-
-            # Exits
-            try:
-                exits_list = []
-                # cardinal directions
-                for k in getattr(room, 'exits', {}).keys():
-                    if k in compass_txts:
-                        exits_list.append(compass_txts[k])
-                # up/down transport handling
-                try:
-                    rc = int(getattr(room, 'exits', {}).get('rc', 0) or 0)
-                except Exception:
-                    rc = 0
-                try:
-                    rt = int(getattr(room, 'exits', {}).get('rt', 0) or 0)
-                except Exception:
-                    rt = 0
-                if rc in (1, 2):
-                    dirname = 'Up' if rc == 1 else 'Down'
-                    if rt == 0:
-                        exits_list.append(f"{dirname} (to Shoppe)")
-                    else:
-                        # Check player's debug mode to decide whether to show room number
-                        debug_mode = getattr(player, 'debug_mode', False)
-                        # debug_mode = player.query_flag(PlayerFlag.DEBUG_MODE)
-                        # Append the exit description with or without the room number based on debug mode
-                        exits_list.append(f"{dirname}{f' (to #{rt})' if debug_mode else ''}")
-                if exits_list:
-                    lines.append("")
-                    try:
-                        # For two elements prefer explicit Oxford comma: 'A, and B'
-                        # if len(exits_list) == 1:
-                        #     exits_text = exits_list[0]
-                        # elif len(exits_list) == 2:
-                        #     exits_text = f"{exits_list[0]}, and {exits_list[1]}"
-                        # else:
-                        #     exits_text = oxford_comma_list(exits_list)
-                        exits_text = oxford_comma_list(exits_list)
-                    except Exception:
-                        exits_text = ', '.join(exits_list)
-                    lines.append(f"Ye may travel {exits_text}.")
-            except Exception:
-                pass
-
-        except Exception:
-            logging.exception("Error building room description")
-            return ["(Error showing room)"]
-
-        return lines
-
-    async def send_message(self, writer, obj):
-        try:
-            # Normalize Message.lines to a flat list of strings to avoid accidentally
-            # sending a single string that is the repr() of a list (causes double-brackets).
-            try:
-                if hasattr(obj, 'lines'):
-                    lines = getattr(obj, 'lines')
-                    # If lines is a single string, keep as-is; otherwise flatten
-                    if isinstance(lines, list):
-                        flat = []
-                        for item in lines:
-                            if isinstance(item, list):
-                                for sub in item:
-                                    flat.append(str(sub))
-                            else:
-                                flat.append(str(item))
-                        obj.lines = flat
-            except Exception:
-                # swallow normalization errors; we'll serialize anyway
-                pass
-
-            raw = to_jsonb(obj)
-        except Exception as e:
-            logging.exception(f"Failed to serialize object for send: {e}")
-            raise
-        # Log outgoing raw JSON bytes for debugging
-        logging.debug(f"Sending raw bytes to client {getattr(writer, 'get_extra_info', lambda k: None)('peername')}: {raw!r}")
-        writer.write(raw + b'\n')
-        await writer.drain()
-
-    async def receive_message(self, reader):
-        data = await reader.readline()
-        # Log raw incoming bytes for debugging
-        logging.debug(f"Received raw bytes from client: {data!r}")
-        if not data:
+            raw = await reader.readline()
+            if not raw:
+                return None
+            return nc.from_jsonb(raw.strip())
+        except asyncio.IncompleteReadError:
             return None
-        try:
-            obj = from_jsonb(data)
-            logging.debug(f"Decoded incoming object: {obj}")
-            # If the decoded object is a dict coming from a Message, convert
-            # known string fields into their Enum counterparts so the rest of
-            # the code can compare enums directly.
-            if isinstance(obj, dict):
-                # coerce mode
-                try:
-                    if 'mode' in obj and isinstance(obj['mode'], str):
-                        obj['mode'] = Mode(obj['mode'])
-                        logging.debug(f"Coerced 'mode' to enum: {obj['mode']}")
-                except Exception:
-                    logging.debug(f"Could not coerce mode value: {obj.get('mode')}")
-                # coerce type
-                try:
-                    if 'type' in obj and isinstance(obj['type'], str):
-                        tval = obj['type']
-                        # Try by member name first (case-sensitive), then case-insensitive name
-                        try:
-                            obj['type'] = MessageType[tval]
-                        except KeyError:
-                            # Try matching case-insensitive by name
-                            matched = None
-                            for m in MessageType:
-                                if m.name.lower() == str(tval).lower() or str(m.value).lower() == str(tval).lower():
-                                    matched = m
-                                    break
-                            if matched is not None:
-                                obj['type'] = matched
-                            else:
-                                # No MessageType match found; log and leave as string
-                                logging.debug(f"No MessageType match for value: {tval}")
-                        logging.debug(f"Coerced 'type' to enum: {obj['type']}")
-                except Exception:
-                    logging.debug(f"Could not coerce type value: {obj.get('type')}")
-            return obj
         except Exception:
-            logging.exception(f"Failed to decode incoming data: {data!r}")
-            # Return raw data for higher-level handling
+            logging.exception('receive_message failed')
             return None
+
+    # -----------------------------------------------------------------------
+    # Connection entry point
+    # -----------------------------------------------------------------------
 
     async def handle_connection(self, reader, writer):
-        """
-        This method is the primary callback for each new client connection.
-        It handles the entire lifecycle of a client.
-        """
-        addr = writer.get_extra_info('peername')
-        logging.info(f"New connection from {addr}.")
+        addr       = writer.get_extra_info('peername')
+        local_port = writer.get_extra_info('sockname')[1]
+        logging.info('New connection from %s on port %d', addr, local_port)
 
-        client = None
+        client = Client()
+        client.addr   = addr
+        client.reader = reader
+        client.writer = writer
+        client.server = self
+
+        # Choose context type based on which port was connected to
+        is_petscii = (local_port == self.petscii_port)
+        if is_petscii:
+            ctx = PETSCIINetworkContext.for_guest(reader, writer, self, client)
+            logging.info('%s: PETSCII connection (40 col)', addr)
+        else:
+            ctx = GameContext.for_guest(reader, writer, self, client)
+            logging.info('%s: ANSI/JSON connection', addr)
+
+        client.ctx = ctx
+        self.clients[addr] = client
+
         try:
-            # Perform the handshake
-            client = await self._perform_handshake(reader, writer, addr)
-            if not client:
-                # Handshake failed, connection is already closed.
-                return
+            if not is_petscii:
+                # JSON clients handshake first
+                if not await self._handshake(ctx):
+                    return
 
-            # Set initial mode to login
-            client.mode = Mode.login
-
-            # Store the authenticated client
-            self.clients[addr] = client
-            logging.info(f"Client {addr} handshake successful. Entering main loop.")
-
-            await self._handle_login(reader, writer, addr, client)
-
-            # Enter the main message processing loop for this client
-            while True:
-                data = await self.receive_message(reader)
-                if not data:
-                    # Connection closed by peer (abrupt disconnect). Attempt to let the
-                    # Player handle its own persistence and cleanup via its quit/disconnect
-                    # hooks rather than calling `player.save()` directly.
-                    try:
-                        pname = getattr(client, 'username', None) or getattr(getattr(client, 'player', None), 'name', None) or '<unknown>'
-                        logging.info(f"Connection closed by client {addr}. Invoking player quit for {pname}")
-                    except Exception:
-                        logging.info(f"Connection closed by client {addr}. Invoking player quit (unknown player)")
-                    try:
-                        await self._invoke_player_quit(client)
-                    except Exception:
-                        logging.exception("_invoke_player_quit failed during abrupt disconnect")
-                    break
-
-                try:
-                    in_message = Message(**data)
-                except Exception as e:
-                    logging.error(f"Could not decode message from {addr}: {e}")
-                    continue
-
-                if in_message.mode == Mode.bye:
-                    logging.info(f"Client {addr} sent 'bye'. Invoking player quit and closing connection.")
-                    try:
-                        await self._invoke_player_quit(client)
-                    except Exception:
-                        logging.exception("_invoke_player_quit failed while handling bye")
-                    break
-
-                # Dispatch by mode
-                if getattr(client, 'mode', Mode.login) == Mode.login:
-                    await self.handle_login_mode(client, in_message, writer)
-                else:
-                    await self.handle_app_mode(client, in_message, writer, addr)
+            await self._negotiate_terminal(ctx)
+            await self._login(ctx)
+            await self._game_loop(ctx)
 
         except asyncio.CancelledError:
-            logging.warning(f"Connection task for {addr} was cancelled.")
-        except Exception as e:
-            # Log full stack trace for unexpected errors so we can diagnose root cause
-            logging.exception(f"An unexpected error occurred with client {addr}:")
+            logging.warning('%s: connection task cancelled', addr)
+        except Exception:
+            logging.exception('%s: unexpected error', addr)
         finally:
             if addr in self.clients:
-                # attempt to remove from client_manager by username if present
+                del self.clients[addr]
+            logging.info('%s: connection closed. Total clients: %d',
+                         addr, len(self.clients))
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+
+    # -----------------------------------------------------------------------
+    # Handshake (JSON clients only)
+    # -----------------------------------------------------------------------
+
+    async def _handshake(self, ctx: GameContext) -> bool:
+        """
+        Exchange Init objects with a JSON client.
+        Returns True on success, False on failure.
+        PETSCII clients skip this entirely.
+        """
+        try:
+            await self.send_message(ctx.writer, self.server_init)
+
+            data = await self.receive_message(ctx.reader)
+            if not data:
+                logging.warning('%s: no Init received', ctx.client.addr)
+                return False
+
+            client_init = Init(**{k: v for k, v in data.items()
+                                  if k in ('server_id', 'server_key',
+                                           'protocol_version', 'translation')})
+
+            if client_init.server_id != self.server_init.server_id:
+                await ctx.send('Handshake failed: server ID mismatch.')
+                return False
+            if client_init.server_key != self.server_init.server_key:
+                await ctx.send('Handshake failed: server key mismatch.')
+                return False
+
+            await self.send_message(
+                ctx.writer,
+                nc.Message(lines=['Handshake successful.'], mode=nc.Mode.login),
+            )
+            logging.info('%s: handshake OK', ctx.client.addr)
+            return True
+
+        except Exception:
+            logging.exception('%s: handshake error', ctx.client.addr)
+            return False
+
+    # -----------------------------------------------------------------------
+    # Terminal negotiation
+    # -----------------------------------------------------------------------
+
+    async def _negotiate_terminal(self, ctx: GameContext) -> None:
+        """
+        Ask the player which terminal type / screen size they're using
+        and update ctx.player.client_settings accordingly.
+
+        PETSCII clients are already configured by PETSCIINetworkContext.for_guest();
+        this step lets them confirm or adjust screen width (40 vs 80 col C128).
+        """
+        translation = ctx.player.client_settings.translation
+
+        if translation == Translation.PETSCII:
+            await ctx.send(
+                'TADA server',
+                'Commodore client detected.',
+                '1. 40 columns (C64 / C128 40-col)',
+                '2. 80 columns (C128 80-col)',
+            )
+            raw = await ctx.prompt('Screen width')
+            if raw.strip() == '2':
+                ctx.player.client_settings.screen_columns = 80
+                await ctx.send('80 column mode set.')
+            else:
+                ctx.player.client_settings.screen_columns = 40
+                await ctx.send('40 column mode set.')
+        else:
+            # For ANSI/JSON clients, offer ANSI vs plain
+            await ctx.send(
+                '',
+                'TADA — Terminal negotiation',
+                '  A.  ANSI color (default)',
+                '  P.  Plain text (no color)',
+                '',
+            )
+            raw = await ctx.prompt('Terminal type [A/P]')
+            if raw.strip().upper() == 'P':
                 try:
-                    import net_common as _nc
-                    cobj = self.clients.get(addr)
-                    if cobj and getattr(cobj, 'username', None):
-                        _nc.client_manager.remove_client(cobj.username)
+                    ctx.player.client_settings.translation = Translation.ASCII
                 except Exception:
                     pass
-                del self.clients[addr]
-            logging.info(f"Closing connection for {addr}. Total clients: {len(self.clients)}")
-            writer.close()
-            await writer.wait_closed()
+                await ctx.send('Plain text mode set.')
+            else:
+                await ctx.send('ANSI color mode set.')
 
-    async def _perform_handshake(self, reader, writer, addr) -> Client | None:
+    # -----------------------------------------------------------------------
+    # Login
+    # -----------------------------------------------------------------------
+
+    async def _login(self, ctx: GameContext) -> None:
         """
-        Handles the initial handshake process with a new client.
-        Returns a Client object on success, or None on failure.
-        Only server_id and server_key are strictly checked; other fields are accepted as provided by the client.
+        Handle the login / character creation phase.
+        On success, replaces ctx.player with a real Player object.
         """
+        await ctx.send(
+            '',
+            'Welcome to:',
+            '',
+            '  Totally',
+            '   Awesome',
+            '    Dungeon',
+            '     Adventure',
+            '',
+            "Type 'connect <username> <password>' to log in.",
+            "Type 'connect guest' to look around as a guest.",
+            "Type 'new' to create a new character.",
+            "Type 'quit' to leave.",
+            '',
+        )
+        ctx.set_prompt('login> ')
+
+        while True:
+            raw = await ctx.prompt('login>')
+            parts = raw.strip().split()
+            if not parts:
+                continue
+
+            cmd = parts[0].lower()
+
+            if cmd == 'quit':
+                await ctx.send('Goodbye!')
+                return
+
+            if cmd == 'connect':
+                if len(parts) >= 2 and parts[1].lower() == 'guest':
+                    await ctx.send("Entering as guest. Type 'help' for commands.")
+                    ctx.client.username = 'guest'
+                    ctx.client.mode     = nc.Mode.app
+                    ctx.client.command_processor = create_command_processor(
+                        ctx.client,
+                        context={'username': 'guest', 'is_authenticated': False},
+                    )
+                    return
+
+                if len(parts) >= 3:
+                    username = parts[1]
+                    password = parts[2]
+                    player   = await self._authenticate(ctx, username, password)
+                    if player:
+                        ctx.player              = player
+                        ctx.client.username     = username
+                        ctx.client.mode         = nc.Mode.app
+                        ctx.client.command_processor = create_command_processor(
+                            ctx.client,
+                            context={'username': username, 'is_authenticated': True},
+                        )
+                        await ctx.send(f'Welcome back, {player.name}!')
+                        ctx.set_prompt('main> ')
+                        return
+                    # _authenticate sends its own error message
+                    continue
+
+                await ctx.send("Usage: connect <username> <password>  or  connect guest")
+                continue
+
+            if cmd == 'new':
+                await ctx.send("Character creation is not yet implemented. "
+                               "Use 'connect guest' for now.")
+                continue
+
+            await ctx.send(f"Unknown command '{cmd}'. "
+                           "Try 'connect', 'new', or 'quit'.")
+
+    async def _authenticate(self, ctx: GameContext,
+                            username: str, password: str):
+        """
+        Verify credentials and return a Player on success, None on failure.
+        Sends its own error message on failure so the caller can just check
+        the return value.
+        """
+        import os, json
+        user_file = Path('run') / 'server' / 'net' / f'login-{username}.json'
         try:
-            # Send the server's Init object to the client
-            await self.send_message(writer, self.server_init_object)
-
-            # Wait for the client's Init response
-            client_init_data = await self.receive_message(reader)
-            if not client_init_data:
-                # TODO: fall back to asking questions manually
-                logging.error(f"Handshake failed: Client {addr} disconnected before sending Init.")
+            if not user_file.exists():
+                await ctx.send('Invalid username or password.')
                 return None
-
-            # Expect a dict-like structure; instantiate Init with it
-            client_init = Init(**client_init_data)
-
-            # Strictly check server_id and server_key
-            if client_init.server_id != self.server_init_object.server_id:
-                raise ValueError("Server ID mismatch")
-            if client_init.server_key != self.server_init_object.server_key:
-                raise ValueError("Server key mismatch")
-            # protocol_version is not strictly checked, but you can add a warning if you want
-            if client_init.protocol_version != self.server_init_object.protocol_version:
-                logging.warning(
-                    f"Protocol version mismatch: client {client_init.protocol_version}, server {self.server_init_object.protocol_version}")
-
-            # Accept and store other fields (e.g., translation, screen size)
-            client = Client()
-            # Make the server instance available on the client object so commands
-            # can access server helpers like _describe_room and broadcast_message.
-            client.server = self
-            client.addr = addr
-            client.translation = client_init.translation
-            client.writer = writer
-            # Store the reader on the client so commands can prompt/read directly
-            client.reader = reader
-            # Create a per-client command processor with default guest permissions
-            client.command_processor = create_command_processor(client, context={'username': None, 'is_authenticated': False})
-
-            # TODO: If you want to support screen size, add: client.screen_size = getattr(client_init, 'screen_size', None)
-            logging.info(f"Client {addr} translation set to {client.translation}")
-
-            # Send success message and switch client to login mode
-            success_msg = Message(lines=["Handshake successful. Welcome!"], mode=Mode.login)
-            await self.send_message(writer, success_msg)
-
-            return client
-
-        except Exception as e:
-            logging.error(f"Handshake failed for {addr}: {e}")
-            failure_msg = Message(lines=[f"Handshake failed: {str(e)}"], mode=Mode.bye)
-            await self.send_message(writer, failure_msg)
+            with open(user_file) as f:
+                data = json.load(f)
+            if data.get('password') != password:
+                await ctx.send('Invalid username or password.')
+                return None
+            # Load or create the Player object
+            from player import Player
+            p = Player(name=username, id=username)
+            logging.info('%s: authenticated as %s', ctx.client.addr, username)
+            return p
+        except Exception:
+            logging.exception('Authentication error for %s', username)
+            await ctx.send('Error accessing user data. Please try again.')
             return None
 
-    async def start(self):
-        """Starts the asyncio server.
+    # -----------------------------------------------------------------------
+    # Game loop
+    # -----------------------------------------------------------------------
 
-        Wrap the bind call to provide a clear log message when the address is
-        already in use. If binding fails, the method logs and returns rather
-        than letting an unhandled Task exception propagate when started as a
-        background task.
-        """
+    async def _game_loop(self, ctx: GameContext) -> None:
+        """Main command loop for an authenticated (or guest) player."""
+        await self._show_room(ctx)
+
+        while True:
+            raw = await ctx.prompt('main>')
+            if not raw:
+                continue
+
+            parts = raw.strip().split()
+            cmd   = parts[0].lower()
+            args  = parts[1:]
+
+            if cmd == 'quit':
+                await ctx.send('Goodbye!')
+                await self._player_quit(ctx)
+                return
+
+            if cmd in ('l', 'look'):
+                await self._show_room(ctx)
+                continue
+
+            if cmd == 'say' and args:
+                text = ' '.join(args)
+                broadcast = nc.Message(
+                    lines  = [f"{ctx.client.username or 'Someone'} says, '{text}'"],
+                    type   = nc.MessageType.REGULAR,
+                    mode   = nc.Mode.app,
+                    prompt = 'main> ',
+                )
+                await self.broadcast(ctx.client.addr, broadcast)
+                await ctx.send(f"You say: {text}")
+                continue
+
+            if cmd in ('n', 's', 'e', 'w', 'u', 'd'):
+                await self._move(ctx, cmd)
+                continue
+
+            # Delegate to the per-client command processor
+            processor = getattr(ctx.client, 'command_processor', None)
+            if processor:
+                try:
+                    result     = await processor.process_input(raw)
+                    msg        = getattr(result, 'message', None) or (result.get('message') if isinstance(result, dict) else None)
+                    err        = getattr(result, 'error',   None) or (result.get('error')   if isinstance(result, dict) else None)
+                    out_lines  = []
+                    if msg:
+                        out_lines.extend(msg if isinstance(msg, list) else [str(msg)])
+                    if err:
+                        out_lines.append(f'Error: {err}')
+                    await ctx.send(out_lines or ['(no output)'])
+                except Exception:
+                    logging.exception('%s: command processor error', ctx.client.addr)
+                    await ctx.send('Command error. See server log.')
+                continue
+
+            await ctx.send(f"Unknown command '{cmd}'. Type 'help' for a list.")
+
+    # -----------------------------------------------------------------------
+    # Room display
+    # -----------------------------------------------------------------------
+
+    async def _show_room(self, ctx: GameContext) -> None:
+        """Build and send the room description to ctx."""
+        lines = self._describe_room(ctx.client)
+        await ctx.send(lines)
+
+    def _describe_room(self, client) -> list[str]:
+        """Return a list of strings describing the client's current room."""
+        lines    = []
+        room_no  = getattr(client, 'room', 1) or 1
+        room     = (self.game_map.rooms.get(int(room_no))
+                    if self.game_map else None)
+        if not room:
+            return ['You are nowhere (map not loaded).']
+
+        alignment = getattr(room, 'alignment', None)
+        lines.append(f"{room.name}{f'  [{alignment}]' if alignment else ''}")
+
+        if getattr(room, 'desc', None):
+            lines += ['', room.desc]
+
+        seen = []
+
+        # Items: skip listing it in room contents if the item is already in the player's inventory.
+        # Historically, this was the way The Land of Spur did it. It it makes even more sense in a multiplayer
+        # game: one player could hoard an item and others wouldn't be able to acquire it.
+
+        for attr, collection in (('item',    self.items),
+                                  ('food',    self.rations),
+                                  ('weapon',  self.weapons)):
+            try:
+                idx = int(getattr(room, attr, 0) or 0) - 1
+                if 0 <= idx < len(collection):
+                    name = (collection[idx].get('name')
+                            if isinstance(collection[idx], dict)
+                            else getattr(collection[idx], 'name', None))
+                    if name:
+                        seen.append(name)
+            except Exception:
+                pass
+
         try:
-            self.server = await asyncio.start_server(
-                self.handle_connection, self.host, self.port)
-        except OSError as e:
-            # Common cause: address already in use (Errno 98). Log a clear,
-            # actionable message and return so callers can handle the failure
-            # without an unobserved Task exception.
-            logging.error(f"Failed to bind server to %s:%s: %s", self.host, self.port, e)
+            mon_idx = int(getattr(room, 'monster', 0) or 0) - 1
+            if 0 <= mon_idx < len(self.monsters):
+                m = self.monsters[mon_idx]
+                name = m.get('name') if isinstance(m, dict) else getattr(m, 'name', 'a monster')
+                size = m.get('size') if isinstance(m, dict) else getattr(m, 'size', None)
+                lines += ['', f"There is {f'{size} ' if size else ''}{name} here."]
+        except Exception:
+            pass
+
+        if seen:
+            lines += ['', f"You see {grammatical_list(seen)}."]
+
+        # Other players in the room
+        try:
+            others = [
+                getattr(c, 'username', None) or 'someone'
+                for addr, c in self.clients.items()
+                if c is not client and getattr(c, 'room', None) == room_no
+            ]
+            if others:
+                lines += ['', list_players_in_room(others)]
+        except Exception:
+            pass
+
+        # TODO: Items: skip listing it in room contents if the item is already in the player's inventory.
+        # Historically, this was the way The Land of Spur did it. It makes even more sense in a multiplayer
+        # game: one player could hoard an item and others wouldn't be able to acquire it.
+
+        try:
+            exits = [compass_txts[k]
+                     for k in getattr(room, 'exits', {})
+                     if k in compass_txts]
+            rc = int(getattr(room, 'exits', {}).get('rc', 0) or 0)
+            if rc == 1:
+                exits.append('Up')
+            elif rc == 2:
+                exits.append('Down')
+            if exits:
+                lines += ['', f"Ye may travel {oxford_comma_list(exits)}."]
+        except Exception:
+            pass
+
+        return lines
+
+    # -----------------------------------------------------------------------
+    # Movement
+    # -----------------------------------------------------------------------
+
+    async def _move(self, ctx: GameContext, direction: str) -> None:
+        """Move the player in the given direction."""
+        room_no = getattr(ctx.client, 'room', 1) or 1
+        room    = (self.game_map.rooms.get(int(room_no))
+                   if self.game_map else None)
+        if not room:
+            await ctx.send("Can't go there.")
             return
 
-        addr = self.server.sockets[0].getsockname()
-        logging.info(f'Server listening on {addr}')
+        dest = getattr(room, 'exits', {}).get(direction)
+        if not dest:
+            await ctx.send(f"Can't go {compass_txts[direction].lower()}.")
+            return
 
-        try:
-            async with self.server:
-                await self.server.serve_forever()
-        except asyncio.CancelledError:
-            # Expected when the server is shut down; propagate so callers can
-            # handle cancellation normally.
-            raise
-        except Exception:
-            logging.exception('Unexpected error while serving clients')
+        ctx.client.room = int(dest)
+        await self._show_room(ctx)
 
-    async def _handle_login(self, reader, writer, addr, client):
-        # (commands imported dynamically by command processor when needed)
-        logging.info("In _handle_login()")
-        # Display the login welcome message and options
-        login_text = [
-            "Welcome to:",
-            "",
-            "Totally",
-            " Awesome",
-            "  Dungeon",
-            "   Adventure",
-            "",
-            "To connect to an existing character, type 'connect <username> <password>'.",
-            "To look around as a guest, type 'connect guest'.",
-            "To create a new character, type 'new'.",
-            "To leave, type 'quit'."
-        ]
-        login_message = Message(lines=login_text, mode=Mode.login, prompt="login> ", type=MessageType.REGULAR)
-        await self.send_message(writer, login_message)
-        # handle commands in login mode until the client switches to app mode
-        # The main loop in handle_connection will now receive the next client message;
-        # do not pre-consume it here.
+    # -----------------------------------------------------------------------
+    # Broadcast
+    # -----------------------------------------------------------------------
 
-    async def handle_login_command(self, writer, username=None):
-        # This is a mock login handler. In a real system, you'd check credentials here.
-        logging.info("username: %s" % username)
-        if not username:
-            username = "Guest"
-
-        login_lines = [
-            f"Login successful! Welcome, {username}.",
-            '',
-            "Here are the commands you can use:",
-            '',
-            "To test message types, type 'testmsg'.",
-            f"To talk to everyone in the same room, type 'say <message>' or '{self.quotation_mark}<message>",
-            # "To connect to an existing character, type 'connect <username> <password>'",
-            # "To look around as a guest, type 'guest'.",
-            # "To create a new character, type 'new <username>'."
-            "To move around, type a direction (n, e, s, w, u, d).",
-        ]
-        login_message = Message(lines=login_lines, mode=Mode.login, type=MessageType.REGULAR, prompt="main> ")
-        await self.send_message(writer, login_message)
-
-    async def handle_login_mode(self, client, in_message, writer):
-        logging.info("In _handle_login_mode()")
-        handled = False
-        if in_message.lines and isinstance(in_message.lines, list):
-            for line in in_message.lines:
-                raw = line.strip()
-                cmd = raw.lower()
-                args = raw.split()
-
-                # 1) Try the per-client command processor first (preferred)
-                processor = getattr(client, 'command_processor', None)
-                if processor:
-                    try:
-                        result = await processor.process_input(raw)
-                        logging.debug(f"Processor returned (raw): {result!r}")
-                    except Exception as e:
-                        logging.exception("Error executing login command via processor")
-                        await self.send_message(writer, Message(lines=[f"Login command error: {e}"], type=MessageType.SYSTEM if hasattr(MessageType, 'SYSTEM') else MessageType.REGULAR, mode=Mode.login, prompt="login> "))
-                        continue
-
-                    # Normalize result to a dict-like structure
-                    try:
-                        if result is None:
-                            # No output from command
-                            success = False
-                            message = None
-                            data = {}
-                            error = None
-                        elif isinstance(result, dict):
-                            success = result.get('success', False)
-                            message = result.get('message')
-                            data = result.get('data', {})
-                            error = result.get('error')
-                        elif hasattr(result, 'to_dict'):
-                            # dataclass-like CommandResult
-                            rdict = result.to_dict() if callable(getattr(result, 'to_dict', None)) else None
-                            if isinstance(rdict, dict):
-                                success = rdict.get('success', False)
-                                message = rdict.get('message')
-                                data = rdict.get('data', {}) or {}
-                                error = rdict.get('error')
-                            else:
-                                success = getattr(result, 'success', False)
-                                message = getattr(result, 'message', None)
-                                data = getattr(result, 'data', {}) or {}
-                                error = getattr(result, 'error', None)
-                        elif isinstance(result, str):
-                            # simple string -> send as message
-                            success = True
-                            message = result
-                            data = {}
-                            error = None
-                        else:
-                            # Fallback: try attribute access; this may raise and be caught below
-                            success = getattr(result, 'success', False)
-                            message = getattr(result, 'message', None)
-                            data = getattr(result, 'data', {}) or {}
-                            error = getattr(result, 'error', None)
-                    except Exception:
-                        # Log full debug info and continue without crashing the server
-                        logging.exception("Failed to normalize processor result")
-                        await self.send_message(writer, Message(lines=["Internal server error while processing command."], type=MessageType.SYSTEM if hasattr(MessageType, 'SYSTEM') else MessageType.REGULAR, mode=Mode.login, prompt="login> "))
-                        continue
-
-                    # Send returned message(s)
-                    out_lines = []
-                    if isinstance(message, list):
-                        out_lines.extend(message)
-                    elif message is not None:
-                        out_lines.append(str(message))
-                    if error:
-                        out_lines.append(f"Error: {error}")
-                    if out_lines:
-                        await self.send_message(writer, Message(lines=out_lines, type=MessageType.SYSTEM, mode=Mode.login, prompt="login> "))
-
-                    # If the command returned data indicating a state change, apply it
-                    if data:
-                        # Guest: set username and switch to app
-                        if data.get('mode') == Mode.guest or (data.get('authenticated') is False and data.get('username', '').lower().startswith('guest')):
-                            client.username = data.get('username', getattr(client, 'username', 'Guest'))
-                            client.mode = Mode.app
-                            # recreate processor for guest (not authenticated)
-                            try:
-                                # Ensure Player.id is set to username so saving on quit works.
-                                client.player = player.Player(name=client.username, id=client.username)
-                            except Exception:
-                                client.player = getattr(client, 'player', None)
-                            client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': False})
-                            # Register into global client_manager for 'who' and broadcasts
-                            try:
-                                import net_common as _nc
-                                _nc.client_manager.add_client(client.username, client)
-                            except Exception:
-                                logging.debug('Could not register client with client_manager')
-                            # ensure they have a room set and send the room description
-                            if not getattr(client, 'room', None):
-                                try:
-                                    # If the loaded Player has a saved map_room, restore it; otherwise default to 1
-                                    try:
-                                        initial_room = getattr(client.player, 'map_room', None) or 1
-                                    except Exception:
-                                        initial_room = 1
-                                    self._sync_player_location(client, initial_room)
-                                except Exception:
-                                    client.room = getattr(client.player, 'map_room', 1) or 1
-                            room_lines = self._describe_room(client)
-                            await self.send_message(writer, Message(lines=[f"Connected as {client.username}."] + room_lines, mode=Mode.app, prompt="main> "))
-                            handled = True
-                            break
-
-                        # Authenticated/login success
-                        if data.get('authenticated') is True or data.get('mode') == Mode.app:
-                            client.username = data.get('username', getattr(client, 'username', None)) or client.username
-                            client.mode = Mode.app
-                            try:
-                                client.player = player.Player(name=client.username, id=client.username)
-                            except Exception:
-                                client.player = getattr(client, 'player', None)
-                            client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': True})
-                            # Register into global client_manager for 'who' and broadcasts
-                            try:
-                                import net_common as _nc
-                                _nc.client_manager.add_client(client.username, client)
-                            except Exception:
-                                logging.debug('Could not register client with client_manager')
-                            # ensure they have a room set and send the room description
-                            if not getattr(client, 'room', None):
-                                try:
-                                    # If the loaded Player has a saved map_room, restore it; otherwise default to 1
-                                    try:
-                                        initial_room = getattr(client.player, 'map_room', None) or 1
-                                    except Exception:
-                                        initial_room = 1
-                                    self._sync_player_location(client, initial_room)
-                                except Exception:
-                                    client.room = getattr(client.player, 'map_room', 1) or 1
-                            room_lines = self._describe_room(client)
-                            await self.send_message(writer, Message(lines=[f"Login successful. Welcome, {client.username}."] + room_lines, mode=Mode.app, prompt="main> "))
-                            handled = True
-                            break
-
-                    # If processor handled the command (success) but didn't switch modes, mark handled
-                    if success:
-                        handled = True
-                        break
-
-                # 2) Fallback to old inline handlers if processor didn't handle it
-                # inline connect <username> <password>
-                if cmd.startswith('connect') and len(args) >= 2:
-                    username = args[1]
-                    usernames = {getattr(c, 'username', None) for c in self.clients.values()}
-                    if username in usernames:
-                        await self.send_message(writer, Message(lines=[f"Username '{username}' is already taken."], type=MessageType.SYSTEM, mode=Mode.login, prompt="login> "))
-                        handled = True
-                        break
-                    client.username = username
-                    client.mode = Mode.app
-                    # Ensure a Player instance exists on the client for command context
-                    try:
-                        client.player = player.Player(name=client.username, id=client.username)
-                    except Exception:
-                        client.player = getattr(client, 'player', None)
-                    client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': True})
-                    # Register into global client_manager so 'who' and broadcasts include this client
-                    try:
-                        import net_common as _nc
-                        _nc.client_manager.add_client(client.username, client)
-                    except Exception:
-                        logging.debug('Could not register client with client_manager (connect path)')
-                    # ensure they have a room set and send the room description
-                    if not getattr(client, 'room', None):
-                        try:
-                            # If the loaded Player has a saved map_room, restore it; otherwise default to 1
-                            try:
-                                initial_room = getattr(client.player, 'map_room', None) or 1
-                            except Exception:
-                                initial_room = 1
-                            self._sync_player_location(client, initial_room)
-                        except Exception:
-                            client.room = getattr(client.player, 'map_room', 1) or 1
-                    room_lines = self._describe_room(client)
-                    await self.send_message(writer, Message(lines=[room_lines], mode=Mode.app, prompt="main> "))
-                    await self.handle_login_command(writer, username=username)
-                    handled = True
-                    break
-
-                # inline guest fallback (if no processor handled it)
-                if cmd == 'guest':
-                    base = "Guest"
-                    n = 1
-                    usernames = {getattr(c, 'username', None) for c in self.clients.values()}
-                    while f"{base}{n}" in usernames:
-                        n += 1
-                    client.username = f"{base}{n}"
-                    client.mode = Mode.app
-                    try:
-                        client.player = player.Player(name=client.username, id=client.username)
-                    except Exception:
-                        client.player = getattr(client, 'player', None)
-                    client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': False})
-                    # Register guest into global client_manager
-                    try:
-                        import net_common as _nc
-                        _nc.client_manager.add_client(client.username, client)
-                    except Exception:
-                        logging.debug('Could not register client with client_manager (guest path)')
-                    # ensure they have a room set and send the room description (consistent with processor path)
-                    if not getattr(client, 'room', None):
-                        try:
-                            # If the loaded Player has a saved map_room, restore it; otherwise default to 1
-                            try:
-                                initial_room = getattr(client.player, 'map_room', None) or 1
-                            except Exception:
-                                initial_room = 1
-                            self._sync_player_location(client, initial_room)
-                        except Exception:
-                            client.room = getattr(client.player, 'map_room', 1) or 1
-                    room_lines = self._describe_room(client)
-                    await self.send_message(writer, Message(lines=[f"Connected as {client.username}."] + room_lines, mode=Mode.app, prompt="main> "))
-                    await self.handle_login_command(writer, username=client.username)
-                    handled = True
-                    break
-
-                # inline new <username>
-                if cmd.startswith('new') and len(args) >= 2:
-                    username = args[1]
-                    usernames = {getattr(c, 'username', None) for c in self.clients.values()}
-                    if username in usernames:
-                        await self.send_message(writer, Message(lines=[f"Username '{username}' is already taken."], type=MessageType.SYSTEM, mode=Mode.login, prompt="login> "))
-                        handled = True
-                        break
-                    client.username = username
-                    client.mode = Mode.app
-                    try:
-                        client.player = player.Player(name=client.username, id=client.username)
-                    except Exception:
-                        client.player = getattr(client, 'player', None)
-                    client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': True})
-                    # Register new player into client_manager
-                    try:
-                        import net_common as _nc
-                        _nc.client_manager.add_client(client.username, client)
-                    except Exception:
-                        logging.debug('Could not register client with client_manager (new path)')
-                    # ensure they have a room set and send the room description (consistent with processor path)
-                    if not getattr(client, 'room', None):
-                        try:
-                            # If the loaded Player has a saved map_room, restore it; otherwise default to 1
-                            try:
-                                initial_room = getattr(client.player, 'map_room', None) or 1
-                            except Exception:
-                                initial_room = 1
-                            self._sync_player_location(client, initial_room)
-                        except Exception:
-                            client.room = getattr(client.player, 'map_room', 1) or 1
-                    room_lines = self._describe_room(client)
-                    await self.send_message(writer, Message(lines=[f"Login successful. Welcome, {client.username}."] + room_lines, mode=Mode.app, prompt="main> "))
-                    await self.handle_login_command(writer, username=username)
-                    handled = True
-                    break
-        if not handled:
-            # If a command processor exists on the client, hand the raw lines to it.
-            processor = getattr(client, 'command_processor', None)
-            if processor:
-                # Process each incoming line through the per-client processor.
-                for line in in_message.lines:
-                    # update last_activity in client_manager
-                    try:
-                        import net_common as _nc
-                        if getattr(client, 'username', None):
-                            _nc.client_manager.update_activity(client.username)
-                    except Exception:
-                        pass
-                    try:
-                        result = await processor.process_input(line)
-                    except Exception as e:
-                        logging.exception("Error executing login command via processor")
-                        await self.send_message(writer, Message(lines=[f"Login command error: {e}"], type=MessageType.SYSTEM if hasattr(MessageType, 'SYSTEM') else MessageType.REGULAR, mode=Mode.login, prompt="login> "))
-                        continue
-
-                    # normalize result (commands may return dicts or CommandResult objects)
-                    if isinstance(result, dict):
-                        success = result.get('success', False)
-                        message = result.get('message')
-                        data = result.get('data', {})
-                        error = result.get('error')
-                    else:
-                        success = getattr(result, 'success', False)
-                        message = getattr(result, 'message', None)
-                        data = getattr(result, 'data', {}) or {}
-                        error = getattr(result, 'error', None)
-
-                    # Send any returned text back to client in login mode
-                    out_lines = []
-                    if isinstance(message, list):
-                        out_lines.extend(message)
-                    elif message is not None:
-                        out_lines.append(str(message))
-                    if error:
-                        out_lines.append(f"Error: {error}")
-                    if out_lines:
-                        await self.send_message(writer, Message(lines=out_lines, type=MessageType.SYSTEM, mode=Mode.login, prompt="login> "))
-
-                    # If command returned data indicating a state change, apply it
-                    if data:
-                        # handle guest/login/new success cases
-                        if data.get('mode') == Mode.guest or data.get('authenticated') is False and data.get('username') == 'guest':
-                            client.username = data.get('username', getattr(client, 'username', 'Guest'))
-                            client.mode = Mode.app
-                            # recreate processor for guest (not authenticated)
-                            try:
-                                # Ensure Player.id is set to username so saving on quit works.
-                                client.player = player.Player(name=client.username, id=client.username)
-                            except Exception:
-                                client.player = getattr(client, 'player', None)
-                            client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': False})
-                            # send a welcome in app mode
-                            await self.send_message(writer, Message(lines=[f"Connected as {client.username}."], mode=Mode.app, prompt="main> "))
-                            handled = True
-                            break
-                        if data.get('authenticated') is True or data.get('mode') == Mode.app:
-                            client.username = data.get('username', getattr(client, 'username', None)) or client.username
-                            client.mode = Mode.app
-                            # recreate an authenticated command processor
-                            try:
-                                client.player = player.Player(name=client.username, id=client.username)
-                            except Exception:
-                                client.player = getattr(client, 'player', None)
-                            client.command_processor = create_command_processor(client, context={'username': client.username, 'is_authenticated': True})
-                            # send a welcome in app mode
-                            await self.send_message(writer, Message(lines=[f"Login successful. Welcome, {client.username}."], mode=Mode.app, prompt="main> "))
-                            handled = True
-                            break
-
-                if not handled:
-                    # If none of the commands transitioned the client, prompt again
-                    await self.send_message(writer, Message(lines=["Please enter 'login <user> <pass>', 'login guest', or 'new <username>'."], type=MessageType.SYSTEM, mode=Mode.login, prompt="login> "))
-            else:
-                # Default: keep looping asking for login info
-                response = Message(lines=[f"Please supply a user name and password: 'login <username> <password>', "
-                                          "or 'guest' to connect as a guest, or 'new <username>' to create a new "
-                                          "character."], type=MessageType.SYSTEM, mode=Mode.login, prompt="login> ")
-                await self.send_message(writer, response)
-
-    async def handle_app_mode(self, client, in_message, writer, addr):
-        logging.info("In _handle_app_mode()")
-        handled = False
-        if in_message.lines and isinstance(in_message.lines, list):
-            for line in in_message.lines:
-                args = line.strip().split()
-                if not args:
-                    continue
-
-                cmd = args[0].lower()
-
-                # Built-in test command (sends all MessageType examples)
-                if cmd == 'testmsg':
-                    for msg in MessageType:
-                        msg_type = msg.name.capitalize()
-                        test_line = f"[{msg_type}] This is a test of {a_or_an(msg_type)} message."
-                        test_message = Message(lines=[test_line], type=msg, mode=Mode.app)
-                        await self.send_message(writer, test_message)
-                    handled = True
-                    # send message about the next command prompt will return to an echo server
-                    await self.send_message(writer, Message(lines=["Returning to echo server mode."],
-                                                            type=MessageType.SYSTEM, mode=Mode.app, prompt="main> "))
-                    break
-
-                # Built-in say command: broadcast to all OTHER clients
-                if cmd == 'say' and len(args) >= 2:
-                    say_text = ' '.join(args[1:])
-                    broadcast_msg = Message(lines=[f"{getattr(client, 'username', 'Someone')} says, '{say_text}'"],
-                                            type=MessageType.REGULAR, mode=Mode.app, prompt="main> ")
-                    await self.broadcast_message(addr, broadcast_msg)
-                    # Acknowledge locally to sender (optional): send a simple prompt
-                    await self.send_message(writer, Message(lines=["You say: " + say_text], type=MessageType.REGULAR, mode=Mode.app, prompt="main> "))
-                    handled = True
-                    break
-
-                # If a per-client command processor exists, hand off the raw line to it
-                processor = getattr(client, 'command_processor', None)
-                if processor:
-                    # process_input expects the full input string
-                    try:
-                        result = await processor.process_input(line)
-                        # Convert CommandResult/dict to messages; be conservative about structure
-                        result_lines = []
-                        # Support both dict results and object-like results
-                        if isinstance(result, dict):
-                            msg = result.get('message')
-                            err = result.get('error')
-                        else:
-                            msg = getattr(result, 'message', None)
-                            err = getattr(result, 'error', None)
-
-                        # Normalize message: if it's a list, treat each element as a line.
-                        if msg is not None:
-                            if isinstance(msg, list):
-                                result_lines.extend([str(x) for x in msg])
-                            else:
-                                result_lines.append(str(msg))
-
-                        if err:
-                            result_lines.append(f"Error: {err}")
-
-                        if not result_lines:
-                            result_lines = ["(no output)"]
-
-                        await self.send_message(writer, Message(lines=result_lines, type=MessageType.SYSTEM, mode=Mode.app, prompt="main> "))
-                        handled = True
-                        break
-                    except Exception as e:
-                        logging.exception("Error processing command via processor")
-                        await self.send_message(writer, Message(lines=[f"Command error: {e}"], type=MessageType.SYSTEM, mode=Mode.app, prompt="main> "))
-                        handled = True
-                        break
-
-                # Look command: describe the current room
-                if cmd in ['l', 'look']:
-                    # send room description
-                    room_lines = self._describe_room(client)
-                    await self.send_message(writer, Message(lines=room_lines, type=MessageType.REGULAR, mode=Mode.app, prompt="main> "))
-                    handled = True
-                    break
-
-                # Default: echo response in app mode
-                response = Message(lines=[f"[APP] Echo: {line.strip()}"], type=MessageType.REGULAR, mode=Mode.app, prompt="main> ")
-                await self.send_message(writer, response)
-                handled = True
-                break
-
-    async def broadcast_message(self, sender_addr, message_obj):
-        """Send a Message object to all connected clients except the sender."""
+    async def broadcast(self, sender_addr, message_obj) -> None:
+        """Send a Message to all clients except the sender."""
         for addr, client in list(self.clients.items()):
-            try:
-                if addr == sender_addr:
-                    continue
-                writer = getattr(client, 'writer', None)
-                if writer:
-                    await self.send_message(writer, message_obj)
-            except Exception:
-                logging.exception(f"Failed to send broadcast to {addr}")
-
-    def show_available_commands(self, client):
-        """Return a sorted list of available command names for the client's command processor."""
-        processor = getattr(client, 'command_processor', None)
-        if not processor:
-            return []
-        # Gather unique command names
-        names = sorted([c.name for c in processor.get_all_commands()])
-        # If client is authenticated, filter out login-only commands
-        is_auth = False
-        try:
-            ctx = getattr(processor, 'context', {})
-            is_auth = bool(ctx.get('is_authenticated') or ctx.get('is_authenticated') or ctx.get('is_authenticated', False))
-        except Exception:
-            is_auth = False
-        if is_auth:
-            names = [n for n in names if n.lower() not in ('guest', 'new')]
-        return names
-
-    async def _invoke_player_quit(self, client):
-        """Helper to invoke the player's quit/disconnect logic.
-
-        This is called when the server detects a disconnect or when a client sends a 'bye' message.
-        """
-        try:
-            if not client:
-                return
-            player_id = getattr(client, 'username', None) or '<unknown>'
-            pname = getattr(client, 'username', None) or '<unknown>'
-            logging.info(f"Invoking player quit for {pname}")
-            # Prefer calling player's quit()/handle_disconnect()/disconnect() hook if present.
-            player_obj = getattr(client, 'player', None)
-            if player_obj is None:
-                logging.debug("No player object attached to client; skipping player hooks")
+            if addr == sender_addr:
+                continue
+            # Prefer sending via the client's own ctx if available
+            client_ctx = getattr(client, 'ctx', None)
+            if client_ctx:
+                await client_ctx.send(message_obj.lines)
             else:
-                # Try methods in order without ever calling player.save() directly
-                for fn_name in ('quit', 'handle_disconnect', 'disconnect'):
-                    fn = getattr(player_obj, fn_name, None)
-                    if fn and callable(fn):
-                        try:
-                            res = fn()
-                            # If it's a coroutine, await it; otherwise treat return value as success flag
-                            if asyncio.iscoroutine(res):
-                                await res
-                                logging.info(f"Player.{fn_name}() awaited successfully for {pname}")
-                            else:
-                                logging.info(f"Player.{fn_name}() returned {res!r} for {pname}")
-                            # We called a handler; do not try further handlers
-                            break
-                        except Exception:
-                            logging.exception(f"Error calling player.{fn_name}() for {pname}")
-                            # try next available handler
-                else:
-                    logging.debug("No quit/handle_disconnect/disconnect hook found on player; relying on server cleanup")
-        except Exception:
-            logging.exception("Error in _invoke_player_quit")
-        finally:
-            # Ensure the client is removed from the server's client list
+                w = getattr(client, 'writer', None)
+                if w:
+                    await self.send_message(w, message_obj)
+
+    # -----------------------------------------------------------------------
+    # Player quit
+    # -----------------------------------------------------------------------
+
+    async def _player_quit(self, ctx: GameContext) -> None:
+        """Save player state and clean up on quit or disconnect."""
+        player = ctx.player
+        if player and not isinstance(player, GuestPlayer):
             try:
-                addr = getattr(client, 'addr', None)
-                if addr in self.clients:
-                    del self.clients[addr]
+                player.save(force=True)
+                logging.info('%s: player %s saved on quit',
+                             ctx.client.addr, player.name)
             except Exception:
-                logging.exception("Failed to remove client from server clients dict")
-            logging.info(f"Player quit processed for {pname}. Client removed.")
+                logging.exception('Failed to save player on quit')
 
-    def _sync_player_location(self, client, room_no):
-        """Set client.room and keep the authoritative Player object in sync.
+    # -----------------------------------------------------------------------
+    # Server startup
+    # -----------------------------------------------------------------------
 
-        This should be used whenever code moves a client to a different room so that
-        Player.map_room and Player.map_level reflect the same location before any save.
-        """
+    async def start(self) -> None:
+        """Start both the JSON and PETSCII listeners."""
         try:
-            # set client-facing room first
-            try:
-                client.room = room_no
-            except Exception:
-                # some client implementations may not allow direct assignment
-                setattr(client, 'room', room_no)
-        except Exception:
-            logging.exception("Failed to set client.room")
+            json_server = await asyncio.start_server(
+                self.handle_connection, self.host, self.port)
+            petscii_server = await asyncio.start_server(
+                self.handle_connection, self.host, self.petscii_port)
+        except OSError:
+            logging.exception('Failed to bind server')
+            return
 
-        # Try to update Player object if present
-        try:
-            player_obj = getattr(client, 'player', None)
-            if player_obj is None:
-                # Some handlers store player under handler attribute
-                handler = getattr(client, 'handler', None)
-                if handler is not None:
-                    player_obj = getattr(handler, 'player', None)
-            if player_obj is not None:
-                try:
-                    # map_room should be numeric when possible
-                    try:
-                        player_obj.map_room = int(room_no) if room_no is not None else room_no
-                    except Exception:
-                        player_obj.map_room = room_no
-                    # map_level preference order: client.map_level, server.map_level, server.level, default 1
-                    level_val = getattr(client, 'map_level', None)
-                    if level_val is None:
-                        level_val = getattr(self, 'map_level', None) or getattr(self, 'level', None) or 1
-                    try:
-                        player_obj.map_level = int(level_val)
-                    except Exception:
-                        player_obj.map_level = level_val
-                except Exception:
-                    logging.exception('Failed updating Player.map_room/map_level in _sync_player_location')
-        except Exception:
-            logging.exception('Exception while syncing player location')
+        logging.info('JSON server listening on %s:%d', self.host, self.port)
+        logging.info('PETSCII server listening on %s:%d',
+                     self.host, self.petscii_port)
 
+        async with json_server, petscii_server:
+            await asyncio.gather(
+                json_server.serve_forever(),
+                petscii_server.serve_forever(),
+            )
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
     import argparse
-    import asyncio
-    import logging
 
-    parser = argparse.ArgumentParser(description='Run simple_server.Server')
-    parser.add_argument('--host', default='127.0.0.1')
-    parser.add_argument('--port', type=int, default=34083)
-    parser.add_argument('--test-time', type=float, default=0.0,
+    parser = argparse.ArgumentParser(description='TADA server')
+    parser.add_argument('--host',         default='127.0.0.1')
+    parser.add_argument('--port',         type=int, default=DEFAULT_PORT)
+    parser.add_argument('--petscii-port', type=int, default=PETSCII_PORT,
+                        dest='petscii_port')
+    parser.add_argument('--test-time',    type=float, default=0.0,
                         help='If >0, run the server for this many seconds and exit (useful for CI/diagnostics)')
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s')
-    server = Server(args.host, args.port)
+    logging.basicConfig(
+        level  = logging.INFO,
+        format = '%(asctime)s %(levelname)s %(funcName)s: %(message)s',
+    )
+
+    server = Server(args.host, args.port, args.petscii_port)
 
     async def _run():
-        # Start the server and optionally run for a short time then stop
         task = asyncio.create_task(server.start())
-        try:
-            if args.test_time and args.test_time > 0:
-                # Wait for the test_time, then try to close server gracefully
-                await asyncio.sleep(args.test_time)
-                if getattr(server, 'server', None):
-                    server.server.close()
-                    await server.server.wait_closed()
-                # cancel the serve_forever task if still running
-                if not task.done():
-                    task.cancel()
-                    try:
-                        await task
-                    except asyncio.CancelledError:
-                        pass
-            else:
-                # Run until interrupted
-                await task
-        except asyncio.CancelledError:
-            pass
-        except KeyboardInterrupt:
-            logging.info('KeyboardInterrupt received, shutting down')
+        if args.test_time > 0:
+            await asyncio.sleep(args.test_time)
+            task.cancel()
             try:
-                if getattr(server, 'server', None):
-                    server.server.close()
-                    await server.server.wait_closed()
-            except Exception:
+                await task
+            except asyncio.CancelledError:
                 pass
+        else:
+            await task
 
     try:
         asyncio.run(_run())
-    except Exception:
-        logging.exception('Server terminated with exception')
-
+    except KeyboardInterrupt or BrokenPipeError:
+        logging.info('Server shut down.')

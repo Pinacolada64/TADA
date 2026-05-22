@@ -45,9 +45,15 @@ class Client:
 
     def __init__(self):
         from net_common import Mode
+        self.host = None
+        self.port = None
+        self.protocol_version = None
+        self.server_key = None
+        self.server_id = None
         self.user_id = None
         self.password = None
         self.mode = Mode.init
+        self.translation = None
         self._connected = False
         self._shutdown_event = threading.Event()
         self.client_socket = None
