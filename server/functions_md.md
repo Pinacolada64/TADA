@@ -99,27 +99,31 @@ Hierarchical menu system. All functions now take `ctx` (GameContext or TerminalC
 Pure text formatting functions. No I/O, no ctx — strings in, strings out.
 Called by `ctx.send()` before writing to wire or terminal.
 
-| Function / Class                                       | Notes                                                                                                 |
-|--------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
-| `HasClientSettings` (Protocol)                         | Minimum interface needed from a settings object: `screen_columns`, `screen_rows`                      |
-| `ColorCodec` (Protocol)                                | Pluggable color translation: `highlight_on()`, `highlight_off()`, `reset()`                           |
-| `ANSICodec` (dataclass)                                | ANSI color codes via colorama                                                                         |
-| `PlainCodec` (dataclass)                               | No color — plain ASCII output                                                                         |
-| `PETSCIICodec` (dataclass)                             | Commodore reverse-video highlighting; full palette TODO                                               |
-| `codec_for_settings(settings)`                         | Returns appropriate `ColorCodec` for a `ClientSettings` object                                        |
-| `highlight_brackets(text, codec)`                      | Wraps `[bracketed text]` with codec color codes                                                       |
-| `wrap_text(text, width, ...)`                          | Word-wraps a string, returns `list[str]`                                                              |
-| `format_bullet(text, width)`                           | Formats a bullet point with hanging indent                                                            |
-| `format_line(text, width, codec)`                      | Highlights + wraps one logical line, returns `list[str]`                                              |
-| `format_lines(lines, settings, codec)`                 | Formats a list of lines for a player's terminal                                                       |
-| `PETSCII_CONTROL_CODES` (dict)                         | `{token}` name → raw Commodore control byte value (colors, cursor, case)                              |
-| `PETSCII_CODE_NAMES` (dict)                            | Reverse lookup: raw byte → token name, for debugging                                                  |
-| `petscii_encode(text, codec_name)`                     | Encodes a string for Commodore: text via cbmcodecs2, `{tokens}` as raw control bytes spliced in after |
-| `petscii_encode_lines(lines, codec_name, line_ending)` | Encodes a list of formatted strings, joined with CR for Commodore line endings                        |
-| `flatten_send_args(*args)`                             | Flattens `ctx.send()` args into `list[str]`; shared by both context classes                           |
-| `make_header(text, char)`                              | Returns `[text, underline]` as `list[str]`                                                            |
-| `make_rule(width, char)`                               | Returns a horizontal rule string                                                                      |
-| `make_box(lines, title, width)`                        | Wraps lines in an ASCII box, returns `list[str]`                                                      |
+| Function / Class                                       | Notes                                                                                                                      |
+|--------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------|
+| `HasClientSettings` (Protocol)                         | Minimum interface needed from a settings object: `screen_columns`, `screen_rows`                                           |
+| `ColorCodec` (Protocol)                                | Pluggable color translation: `highlight_on()`, `highlight_off()`, `reset()`                                                |
+| `ANSICodec` (dataclass)                                | ANSI color codes via colorama                                                                                              |
+| `PlainCodec` (dataclass)                               | No color — plain ASCII output                                                                                              |
+| `PETSCIICodec` (dataclass)                             | Commodore reverse-video highlighting; full palette TODO                                                                    |
+| `codec_for_settings(settings)`                         | Returns appropriate `ColorCodec` for a `ClientSettings` object                                                             |
+| `highlight_brackets(text, codec)`                      | Wraps `[bracketed text]` with codec color codes                                                                            |
+| `wrap_text(text, width, ...)`                          | Word-wraps a string, returns `list[str]`                                                                                   |
+| `format_bullet(text, width)`                           | Formats a bullet point with hanging indent                                                                                 |
+| `format_line(text, width, codec)`                      | Highlights + wraps one logical line, returns `list[str]`                                                                   |
+| `format_lines(lines, settings, codec)`                 | Formats a list of lines for a player's terminal                                                                            |
+| `COLOR_NAME_TO_TOKEN` (dict)                           | Maps `terminal.ColorName` enum values to `{token}` names; bridge between player-facing color names and the encode pipeline |
+| `ANSI_COLOR_CODES` (dict)                              | `{token}` name → colorama ANSI escape string; token names match `PETSCII_CONTROL_CODES`                                    |
+| `ansi_encode(text)`                                    | Replaces `{token}` sequences with ANSI escape codes; unknown tokens left as-is                                             |
+| `ansi_encode_lines(lines)`                             | Applies `ansi_encode()` to each line in a list; use after `format_lines()` in `GameContext.send()`                         |
+| `PETSCII_CONTROL_CODES` (dict)                         | `{token}` name → raw Commodore control byte value (colors, cursor, case)                                                   |
+| `PETSCII_CODE_NAMES` (dict)                            | Reverse lookup: raw byte → token name, for debugging                                                                       |
+| `petscii_encode(text, codec_name)`                     | Encodes a string for Commodore: text via cbmcodecs2, `{tokens}` as raw control bytes spliced in after                      |
+| `petscii_encode_lines(lines, codec_name, line_ending)` | Encodes a list of formatted strings, joined with CR for Commodore line endings                                             |
+| `flatten_send_args(*args)`                             | Flattens `ctx.send()` args into `list[str]`; shared by both context classes                                                |
+| `make_header(text, char)`                              | Returns `[text, underline]` as `list[str]`                                                                                 |
+| `make_rule(width, char)`                               | Returns a horizontal rule string                                                                                           |
+| `make_box(lines, title, width)`                        | Wraps lines in an ASCII box, returns `list[str]`                                                                           |
 
 ## monsters.py
 Monster data and flag definitions. Shared by editor and game server.

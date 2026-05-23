@@ -25,8 +25,14 @@ Typical call chain (PETSCII):
         -> petscii_encode(...)        # encode text + splice in raw control bytes
         -> raw bytes to Commodore client
 """
-
 import logging
+
+try:
+    from colorama import Fore, Style
+    _COLORAMA_AVAILABLE = True
+except ImportError:
+    _COLORAMA_AVAILABLE = False
+    logging.warning('colorama not available; ANSI color output will be plain text.')
 import re
 import textwrap
 from dataclasses import dataclass, field
@@ -153,6 +159,8 @@ PETSCII_CONTROL_CODES: dict[str, int] = {
     'delete':        20,
 }
 
+from terminal import CBMColors, ColorName
+
 # Reverse lookup: raw byte value -> token name (for display/debugging)
 PETSCII_CODE_NAMES: dict[int, str] = {
     v: k for k, v in PETSCII_CONTROL_CODES.items()
@@ -259,8 +267,116 @@ def petscii_encode_lines(lines: list[str],
 
 
 # ---------------------------------------------------------------------------
-# Core formatting functions
+# ANSI color code table
 # ---------------------------------------------------------------------------
+
+# Maps {token} names to colorama ANSI escape strings.
+# Token names deliberately match PETSCII_CONTROL_CODES so game strings
+# like "{red}text{reset}" work the same way regardless of terminal type.
+ANSI_COLOR_CODES: dict[str, str] = {
+    'black':         Fore.BLACK         if _COLORAMA_AVAILABLE else '',
+    'white':         Fore.WHITE         if _COLORAMA_AVAILABLE else '',
+    'red':           Fore.RED           if _COLORAMA_AVAILABLE else '',
+    'cyan':          Fore.CYAN          if _COLORAMA_AVAILABLE else '',
+    'green':         Fore.GREEN         if _COLORAMA_AVAILABLE else '',
+    'blue':          Fore.BLUE          if _COLORAMA_AVAILABLE else '',
+    'yellow':        Fore.YELLOW        if _COLORAMA_AVAILABLE else '',
+    'magenta':       Fore.MAGENTA       if _COLORAMA_AVAILABLE else '',
+    'light_red':     Fore.LIGHTRED_EX   if _COLORAMA_AVAILABLE else '',
+    'light_green':   Fore.LIGHTGREEN_EX if _COLORAMA_AVAILABLE else '',
+    'light_blue':    Fore.LIGHTBLUE_EX  if _COLORAMA_AVAILABLE else '',
+    'light_cyan':    Fore.LIGHTCYAN_EX  if _COLORAMA_AVAILABLE else '',
+    'light_yellow':  Fore.LIGHTYELLOW_EX if _COLORAMA_AVAILABLE else '',
+    'light_white':   Fore.LIGHTWHITE_EX if _COLORAMA_AVAILABLE else '',
+    'dark_gray':     Fore.LIGHTBLACK_EX if _COLORAMA_AVAILABLE else '',
+    'orange':        Fore.YELLOW        if _COLORAMA_AVAILABLE else '',  # closest ANSI approximation
+    'purple':        Fore.MAGENTA       if _COLORAMA_AVAILABLE else '',  # closest ANSI approximation
+    'reverse_on':    Style.BRIGHT       if _COLORAMA_AVAILABLE else '',
+    'reverse_off':   Style.RESET_ALL    if _COLORAMA_AVAILABLE else '',
+    'bold':          Style.BRIGHT       if _COLORAMA_AVAILABLE else '',
+    'dim':           Style.DIM          if _COLORAMA_AVAILABLE else '',
+    'reset':         Fore.RESET         if _COLORAMA_AVAILABLE else '',
+}
+
+
+def ansi_encode(text: str) -> str:
+    """
+    Replace {token} color sequences with ANSI escape codes.
+    Text passes through unchanged except for recognised {tokens}.
+    Unrecognised tokens are left as-is.
+    Falls back to stripping tokens if colorama is unavailable.
+
+    >>> ansi_encode('Hello {reset}world')  # no color, just reset
+    'Hello \\x1b[39mworld'
+    >>> ansi_encode('no tokens here')
+    'no tokens here'
+    >>> ansi_encode('{unknown}text')
+    '{unknown}text'
+    """
+    def _replace(match) -> str:
+        token = match.group(1)
+        code  = ANSI_COLOR_CODES.get(token)
+        if code is not None:
+            return code
+        logging.debug('ansi_encode: unknown token {%s}', token)
+        return match.group(0)   # leave unknown tokens intact
+
+    return _TOKEN_RE.sub(_replace, text)
+
+
+def ansi_encode_lines(lines: list[str]) -> list[str]:
+    """
+    Apply ansi_encode() to each line in a list.
+    Use this in GameContext.send() after format_lines() for ANSI clients.
+
+    >>> ansi_encode_lines(['hello', '{red}world{reset}'])  # doctest: +ELLIPSIS
+    ['hello', '...world...']
+    """
+    return [ansi_encode(line) for line in lines]
+
+
+# ---------------------------------------------------------------------------
+# ColorName -> token bridge
+# ---------------------------------------------------------------------------
+
+# Maps terminal.ColorName enum values to {token} names used in
+# ANSI_COLOR_CODES and PETSCII_CONTROL_CODES.
+# ColorName is the player-facing name ("Dark Green");
+# the token is the encode-pipeline key ("green").
+# Import lazily to avoid circular imports with terminal.py.
+def _build_color_name_to_token() -> dict:
+    try:
+        from terminal import ColorName
+        return {
+            ColorName.BLACK:        'black',
+            ColorName.WHITE:        'white',
+            ColorName.RED:          'red',
+            ColorName.CYAN:         'cyan',
+            ColorName.PURPLE:       'purple',
+            ColorName.DARK_GREEN:   'green',
+            ColorName.DARK_BLUE:    'blue',
+            ColorName.YELLOW:       'yellow',
+            ColorName.ORANGE:       'orange',
+            ColorName.BROWN:        'dark_gray',    # closest ANSI approximation
+            ColorName.LIGHT_RED:    'light_red',
+            ColorName.DARK_GRAY:    'dark_gray',
+            ColorName.MEDIUM_GRAY:  'light_white',
+            ColorName.LIGHT_GREEN:  'light_green',
+            ColorName.LIGHT_BLUE:   'light_blue',
+            ColorName.LIGHT_GRAY:   'light_gray',
+            ColorName.RESET:        'reset',
+            ColorName.REVERSE_ON:   'reverse_on',
+            ColorName.REVERSE_OFF:  'reverse_off',
+        }
+    except ImportError:
+        logging.warning('terminal.ColorName not available; COLOR_NAME_TO_TOKEN will be empty.')
+        return {}
+
+
+# Built once at import time; safe because terminal.py has no runtime
+# dependency on formatting.py (only TYPE_CHECKING).
+COLOR_NAME_TO_TOKEN: dict = _build_color_name_to_token()
+
 
 def highlight_brackets(text: str, codec: ColorCodec) -> str:
     """

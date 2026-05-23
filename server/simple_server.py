@@ -22,7 +22,7 @@ from pathlib import Path
 import net_common as nc
 from net_client import Client
 from network_context import GameContext, PETSCIINetworkContext, GuestPlayer
-from formatting import flatten_send_args, format_lines, codec_for_settings
+from formatting import flatten_send_args, format_lines, codec_for_settings, ANSI_COLOR_CODES
 from tada_utilities import a_or_an, grammatical_list, list_players_in_room, oxford_comma_list
 from base_classes import Map, compass_txts
 from items import Item, Rations, Weapon
@@ -335,6 +335,16 @@ class Server:
                                "Use 'connect guest' for now.")
                 continue
 
+            if cmd == 'colors':
+                from formatting import ANSI_COLOR_CODES, COLOR_NAME_TO_TOKEN
+                reset = ANSI_COLOR_CODES.get('reset', '')
+                lines = ['Available colors:', '']
+                for color_name, token in COLOR_NAME_TO_TOKEN.items():
+                    code = ANSI_COLOR_CODES.get(token, '')
+                    lines.append(f'{code}{color_name.value}{reset}')
+                await ctx.send(lines)
+                continue
+                
             await ctx.send(f"Unknown command '{cmd}'. "
                            "Try 'connect', 'new', or 'quit'.")
 
