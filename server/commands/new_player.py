@@ -14,15 +14,18 @@ from base_classes import PlayerRace, Gender
 from flags import PlayerFlags
 from menu_system import MenuItem
 from net_common import Mode, MessageType
-from commands.base_command import Command, CommandResult
-from commands.command_processor import command
+from base_command import Command, CommandResult
+from command_processor import command
 from net_common import Message, to_jsonb, from_jsonb
+from network_context import GameContext
+from player import Player
 from simple_client import send_message
 from tada_utilities import prompt_client, text_pager
-from terminal import Translation, TerminalColors, CBMColors
-from commands.utils import get_player_from_context
+from terminal import Translation, TerminalColors, CBMColors, KeyboardKeyName
+from utils import get_player_from_context
 
 # Room where new players will be placed after creation
+# (this is a "hole" in map level 1 where there is no room)
 CREATION_ROOM = 5  # Default starting room
 
 
@@ -68,11 +71,12 @@ async def choose_client(ctx, *args):
                                        prompt_text='client> ')).strip()
             if ans == '1':
                 ctx.player.client_settings.screen_columns = 40
+                ctx.player.client_settings.screen_rows = 25
+
+                # TODO: Apply terminal settings from Terminal class
                 ctx.player.client_settings.colors = CBMColors
                 ctx.player.client_settings.translation = Translation.PETSCII
-                # TODO: Apply terminal settings from Terminal class
-                # {'name': 'Commodore 64', 'screen_columns': 40, 'screen_rows': 25,
-                #  'translation': 'PETSCII', 'return_key': 'Return'}
+                ctx.player.client_settings.return_key = KeyboardKeyName.RETURN
                 break
             if ans == '2':
                 ctx.player.client_settings.screen_columns = 40
@@ -105,50 +109,42 @@ async def set_defaults(self, ctx, *args):
     await send_message("set_defaults: {pprint(ctx.player.client_settings)}")
 
 
-async def confirm_creation(self, ctx, *args):
+async def confirm_creation(self, ctx: GameContext, *args) -> Player:
     """
     Confirm final creation; standardized signature to accept ctx (includes player).
     Returns the player (caller can inspect attributes or set a flag).
     """
     logging.info("Final character '%s' summary: %s", (ctx.player.name, ctx.player))
-    # For simplicity, always confirm in this mockup; set an attribute and return player
+    # TODO: For simplicity, always confirm in this mockup; set an attribute and return player
     # Setting this here allows a connection drop to resume char creation if they log in under the same
     # account; Verus can then say something about "wanting to continue creation"
     # this flag can get deleted on first login, it doesn't need to get saved beyond this point
     ctx.player.creation_done = True
-    await send_message("Confirm creation: Finish this")
+    await ctx.send("Confirm creation: Finish this")
     return ctx.player
 
 
-async def final_edit_prompt(self, ctx, *args):
+async def final_edit_prompt(self, ctx: GameContext, *args):
     """
     Display a summary of character, allow some editing options before final confirmation.
 
-    :param player:
-    :param reader:
-    :param writer:
+    :param ctx:
+    :param args:
     :return:
     """
     # TODO: finish this
     logging.info("Not done yet")
-    await send_message("TODO: not done yet")
+    await ctx.send("TODO: not done yet")
 
 
-async def check_info(self, ctx, *args) -> int | bool:
+async def check_info(self, ctx: GameContext, *args) -> int | bool:
     """Verify that the choice is a call for class / race info:
     the input starts with 'i', and is followed by a digit 1-9.
 
-    :param args['player_input']: str - input from the player
-    :return: option int if input is "i#', False otherwise
+    :param ctx: str - input from the player
+    :return: option int if input is 'i#', False otherwise
     """
-    # quick debug message if writer present
-    if writer:
-        await send_message(writer, Message(lines=[f"Checking command '{player_input}'..."], type=MessageType.REGULAR))
-
-    if not player_input:
-        return False
-
-    choice = player_input.strip()
+    choice = await ctx.prompt("Prompt: ")  # FIXME - is a prompt necessary here?
     # Numeric choice: select option by number
     if choice.isdigit():
         try:
@@ -166,25 +162,13 @@ async def check_info(self, ctx, *args) -> int | bool:
         msg = ("Verus shakes his head. 'That's not a choice I understand. "
                "Try a number 1-9, or I followed by a number 1-9: e.g., 1 or I1.'")
         # TODO: support inputting digit followed by I, also
-        if writer:
-            await send_message(writer, Message(lines=[msg], type=MessageType.REGULAR))
-        else:
-            try:
-                await send_message(writer, msg)
-            except Exception:
-                logging.info(msg)
-        return False
-    else:
-        try:
-            await send(ctx.player.output("Invalid choice.")
-        except Exception:
-            logging.info(msg)
+        await ctx.send(msg)
     return False
 
 
 @command(name='new', aliases=['create', 'newplayer'], summary='Create a new character account')
 class NewPlayerCommand(Command):
-    async def execute(self, context: Dict[str, Any], args: List[str]) -> CommandResult | None:
+    async def execute(self, ctx: GameContext, *args) -> CommandResult | None:
         """
         Handles new player creation in a non-blocking way.
 
@@ -195,7 +179,7 @@ class NewPlayerCommand(Command):
         login_only = True
 
         # Validate arguments; support interactive prompting if a real client is present
-        client = context.get('client') or context.get('client')
+        client = ctx.get('client') or context.get('client')
         player_context = get_player_from_context(context, client)
         # Case: interactive prompting if args incomplete and client supports prompts
 
@@ -235,44 +219,39 @@ async def choose_settings(self, player_obj, reader=None, writer=None):
             return player_obj
 
         # Standardized helper: choose age & birthday - now returns the player with attributes set
-        async def choose_age_prompt(player_obj, reader=None, writer=None):
+        async def choose_age_prompt(ctx: GameContext):
             from datetime import date, datetime
             from random import randrange
             import calendar
             while True:
-                ans = (await prompt_client(reader, writer, player_obj, ["Enter age (0=Unknown, (R)andom, 15-50)"],
-                                           prompt_text='age> ')).strip().lower()
+                ans = await ctx.prompt("Enter age (0=Unknown, [R]andom, 15-50)").strip().lower()
                 if not ans:
                     continue
                 if ans == 'r':
                     age = randrange(15, 51)
-                    player_obj.age = age
-                    player_obj.birthday = datetime.now()
-                    return player_obj
+                    ctx.player.age = age
+                    ctx.player.birthday = datetime.now()
+                    return ctx
                 if ans.isdigit():
                     age = int(ans)
                     player_obj.age = age
                     # quick birthday flow
                     today = date.today()
-                    temp = (await prompt_client(reader, writer, player_obj,
-                                                [f"Use [T]oday's date ({today}) or [A]nother date for birthday? (T/A)"],
-                                                prompt_text='bday> ')).strip().lower()
+                    temp = await ctx.prompt(f"Use [T]oday's date ({today}) or [A]nother date for birthday? (T/A)")
                     if temp in ('t', 'today'):
-                        player_obj.birthday = datetime(date.today().year, date.today().month, date.today().day)
+                        ctx.player.birthday = datetime(date.today().year, date.today().month, date.today().day)
                         logging.info(f"Set birthday to today: {player_obj.birthday}")
-                        return player_obj
+                        return ctx
                     # custom date
-                    months = [f"{i + 1}. {calendar.month_name[i + 1]}" for i in range(12)]
-                    await send_message(writer, months)
-                    m = (await prompt_client(reader, writer, player_obj, ["Enter birth month (1-12):"],
-                                             prompt_text='birthday month> ')).strip()
+                    months = ["Select month:", ""] + [f"{i + 1}. {calendar.month_name[i + 1]}" for i in range(12)]
+                    await ctx.send(months)
+                    m = await ctx.prompt("Enter birth month (1-12):")
                     try:
                         m_i = max(1, min(12, int(m)))
-                    except Exception:
+                    except ValueError:
                         m_i = date.today().month
                     days_in_month = calendar.monthrange(date.today().year, m_i)[1]
-                    d = (await prompt_client(reader, writer, player_obj, [f"Enter birth day (1-{days_in_month}):"],
-                                             prompt_text='birthday day> ')).strip()
+                    d = await ctx.prompt(f"Enter birth day (1-{days_in_month}):")
                     try:
                         d_i = max(1, min(days_in_month, int(d)))
                     except Exception:
@@ -281,8 +260,7 @@ async def choose_settings(self, player_obj, reader=None, writer=None):
                     return player_obj
                 # else loop until valid
 
-            # Final edit prompt: summary and simple edits using standardized helper functions
-            # Final edit prompt: summary and simple edits using prompt_client
+            # Final edit prompt: summary and simple edits using ctx.prompt
             async def final_edit_prompt(player: Player) -> None:
                 while True:
                     # Show summary and give edit options
