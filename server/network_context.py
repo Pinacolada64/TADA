@@ -132,7 +132,7 @@ class GameContext(BaseContext):
         server:  Server instance  (type-checked only, no runtime import)
         client:  Client object    (type-checked only, no runtime import)
     """
-    player: 'Player'
+    player: 'Player | GuestPlayer'
     reader: object      # asyncio.StreamReader
     writer: object      # asyncio.StreamWriter
     server: 'Server'    # no runtime import — see TYPE_CHECKING above
@@ -200,7 +200,7 @@ class GameContext(BaseContext):
         try:
             raw = await self.reader.readline()
             if not raw:
-                return ''
+                return None     # EOF — client disconnected cleanly
             obj = from_jsonb(raw)
             if isinstance(obj, dict):
                 lines = obj.get('lines')
@@ -208,9 +208,11 @@ class GameContext(BaseContext):
                     return str(lines[0]).strip()
                 return str(obj.get('text', '')).strip()
             return ''
+        except asyncio.IncompleteReadError:
+            return None         # EOF mid-stream — client dropped
         except Exception:
             logging.exception('GameContext.prompt: error reading response')
-            return ''
+            return None         # treat unrecoverable errors as disconnect
 
     # -----------------------------------------------------------------------
     # Helpers
@@ -280,10 +282,10 @@ class PETSCIINetworkContext(GameContext):
             raw  = await self.reader.readuntil(b'\r')
             return raw.rstrip(b'\r\x00').decode('ascii', errors='replace').strip()
         except asyncio.IncompleteReadError:
-            return ''
+            return None         # EOF — Commodore client disconnected
         except Exception:
             logging.exception('PETSCIINetworkContext.prompt: read error')
-            return ''
+            return None
 
     async def send_room(self, *lines, exclude_self: bool = False) -> None:
         """Broadcast via each recipient's own ctx so encoding is correct."""

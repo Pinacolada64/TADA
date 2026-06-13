@@ -82,9 +82,10 @@ class Server:
 
         def _try_load(cls, filename, method='read'):
             try:
-                return getattr(cls, method)(str(script_dir / filename))
-            except Exception:
-                logging.warning("Could not load '%s'", filename)
+                result = getattr(cls, method)(str(script_dir / filename))
+                return result if result is not None else []
+            except Exception as e:
+                logging.warning("Could not load '%s' via %s.%s: %s", filename, cls.__name__, method, e)
                 return []
 
         self.items    = _try_load(Item,    'objects.json')
@@ -235,6 +236,8 @@ class Server:
                 '2. 80 columns (C128 80-col)',
             )
             raw = await ctx.prompt('Screen width')
+            if raw is None:
+                return
             if raw.strip() == '2':
                 ctx.player.client_settings.screen_columns = 80
                 await ctx.send('80 column mode set.')
@@ -251,6 +254,8 @@ class Server:
                 '',
             )
             raw = await ctx.prompt('Terminal type [A/P]')
+            if raw is None:
+                return
             if raw.strip().upper() == 'P':
                 try:
                     ctx.player.client_settings.translation = Translation.ASCII
@@ -288,6 +293,8 @@ class Server:
 
         while True:
             raw = await ctx.prompt('login>')
+            if raw is None:          # None = clean EOF / disconnect
+                return
             parts = raw.strip().split()
             if not parts:
                 continue
@@ -298,7 +305,7 @@ class Server:
                 await ctx.send('Goodbye!')
                 return
 
-            if cmd == 'connect':
+            if cmd in ['connect', 'con', 'c']:
                 if len(parts) >= 2 and parts[1].lower() == 'guest':
                     await ctx.send("Entering as guest. Type 'help' for commands.")
                     ctx.client.username = 'guest'
@@ -386,6 +393,9 @@ class Server:
 
         while True:
             raw = await ctx.prompt('main>')
+            if raw is None:          # None = clean EOF / disconnect
+                await self._player_quit(ctx)
+                return
             if not raw:
                 continue
 
@@ -644,5 +654,5 @@ if __name__ == '__main__':
 
     try:
         asyncio.run(_run())
-    except KeyboardInterrupt or BrokenPipeError:
+    except (KeyboardInterrupt, BrokenPipeError):
         logging.info('Server shut down.')
