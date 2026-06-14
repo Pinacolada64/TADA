@@ -1,161 +1,218 @@
-"""Example commands for the game (look, say, etc.)."""
+"""commands/example_commands.py
+
+Example commands: colors, look, say, test.
+Auto-discovered by CommandProcessor.discover().
+"""
 
 import logging
-from typing import List, Dict, Any
+from typing import List
 
-from commands.base_command import Command, CommandResult, HelpCategory
-from commands.context import Context
-# The @command decorator is imported from the main processor file
-from commands.command_processor import command
-from commands.help import BaseHelpText
-from context import GameContext
-from net_common import client_manager
-from commands.utils import get_player_from_context
+from commands.base_command import Command, CommandResult, Mode
+from commands.help import Help, HelpCategory
+from network_context import GameContext
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
-@command(name="look", aliases=["l"], summary="Examines the current room or an object.")
+# ---------------------------------------------------------------------------
+# colors
+# ---------------------------------------------------------------------------
+
+class ColorsCommand(Command):
+    """Display all available color names rendered in their own color."""
+
+    name    = "colors"
+    aliases = ["colour", "colours", "color"]
+    modes   = {Mode.LOGIN, Mode.GAME}
+
+    help = Help(
+        summary  = "Show all available color names.",
+        category = HelpCategory.MISCELLANEOUS,
+        usage    = [("colors", "List every color rendered in its own color.")],
+        notes    = ["Has no effect in plain-text mode."],
+    )
+
+    async def execute(self, ctx, *args) -> CommandResult:
+        from formatting import ANSI_COLOR_CODES, COLOR_NAME_TO_TOKEN
+
+        reset = ANSI_COLOR_CODES.get('reset', '')
+        lines = ['Available colors:', '']
+        for color_name, token in COLOR_NAME_TO_TOKEN.items():
+            code = ANSI_COLOR_CODES.get(token, '')
+            lines.append(f'  {code}{color_name.value}{reset}')
+
+        if len(lines) == 2:
+            lines.append('  (no colors available — plain text mode)')
+
+        await ctx.send(lines)
+        return CommandResult.ok()
+
+
+# ---------------------------------------------------------------------------
+# look
+# ---------------------------------------------------------------------------
+
 class LookCommand(Command):
-    """
-    The Look command is used to observe your immediate surroundings or inspect
-    a specific object, creature, or player in the area.
-    """
+    """Describe the current room, or inspect an object or player."""
+
+    name    = "look"
+    aliases = ["l"]
+    modes   = {Mode.GAME}
+
+    help = Help(
+        summary     = "Examine the current room or an object.",
+        description = (
+            "Without arguments, describes your current location. "
+            "With a target, inspects that object or player."
+        ),
+        category = HelpCategory.MOVEMENT,
+        usage    = [
+            ("look",           "Describe the current room."),
+            ("look <target>",  "Inspect an object or player."),
+        ],
+        examples = [
+            ("look",        "See where you are."),
+            ("look sword",  "Examine the sword."),
+        ],
+    )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
-        """
+        positional, _ = self.parse_args(*args)
 
-        :param context: information passed to the command, including client and player info
-        :param args:
-        :return:
-        """
-        # Check if the command was run via an alias
-        command_used = context.get('raw_input', '').split()[0]
+        if not positional:
+            # TODO: pull room description from ctx.client.room
+            await ctx.send("You look around.  (room description not yet wired up)")
+            return CommandResult.ok()
 
-        # Attempt to use the server's room description helper if a client+server are available
-        client = None
-        if isinstance(context, dict):
-            client = context.get(Context.CLIENT) or context.get('client')
-        player = get_player_from_context(context, client)
+        target = " ".join(positional)
+        # TODO: search room inventory and players for target
+        await ctx.send(f"You look at {target}.  (object inspection not yet wired up)")
+        return CommandResult.ok()
 
-        if not args:
-            if client and getattr(client, 'server', None) and hasattr(client.server, '_describe_room'):
-                try:
-                    lines = client.server._describe_room(client)
-                    # return the room description as the message list so the server will send each line
-                    return CommandResult(success=True, message=lines)
-                except Exception:
-                    logging.exception('LookCommand: error calling server._describe_room')
-                    # fall through to fallback description
-            # no server/help available; use a simple fallback description
-            return CommandResult(success=True, lines=[
-                "You are in a dimly lit chamber.",
-                "A large wooden door is to the north.",
-                f"You used the alias '{command_used}' to look around."
-            ], message="Look successful.")
 
-        # args present: inspect a specific target
-        target = args[0]
-        if target.lower() in ["me", "self"]:
-            return CommandResult(success=True,
-                                 message=f"You examine yourself. Your username is {context.get('username', 'a guest')}.")
-        return CommandResult(success=True,
-                             message=f"You use '{command_used}' to inspect {target}. It appears to be... ordinary.")
+# ---------------------------------------------------------------------------
+# say
+# ---------------------------------------------------------------------------
 
-class LookHelp(BaseHelpText):
-    """Help provider for the 'look' command."""
-    name = 'look'
-    aliases = ['l']
-
-    def __init__(self):
-        super().__init__()
-        # Use a safe default category from base_command.HelpCategory
-        self.category = HelpCategory.MISCELLANEOUS
-        self.summary = 'Examine the current room or an object.'
-        self.description = (
-            "Use 'look' or 'l' to see a description of your current location or inspect an item. "
-            "Without arguments it describes the room; with a target it inspects that object or player."
-        )
-        self.usage = [
-            ("look", "Describe current room"),
-            ("look <object>", "Inspect a specific object or player")
-        ]
-
-@command(name="say", aliases=['"'])
 class SayCommand(Command):
-    async def execute(self, context: Dict[str, Any], args: List[str]) -> CommandResult:
-        if not args:
-            return CommandResult(success=False,
-                                 error="no_message",
-                                 message="What would you like to say?")
+    """Say something to everyone in your room."""
 
-        message = " ".join(args)
-        verb = "say"
-        if message.endswith("?"):
-            verb = "ask"
-        elif message.endswith("!"):
-            verb = "exclaim"
-        quotation = '"'
+    name    = "say"
+    modes   = {Mode.GAME}
 
-        broadcast_message = f"{context.get('username', 'Guest')} "
-        logger.info(f"Broadcast: {context.get('username', 'Guest')} {verb}s, {quotation}{message}{quotation}")
+    help = Help(
+        summary  = "Say something to everyone in your room.",
+        category = HelpCategory.COMMUNICATION,
+        usage    = [("say <message>", "Speak aloud to everyone here.")],
+        examples = [("say Hello!", "Greet everyone in the room.")],
+    )
 
-        # tell all users in the room except the player saying something what they said:
-        client_manager.tell_room(message=message, exclude=context.get('username'))
+    async def execute(self, ctx: GameContext, *args: List[str]) -> CommandResult:
+        positional, _ = self.parse_args(*args)
+        text = " ".join(positional).strip()
 
+        if not text:
+            await ctx.send("Say what?")
+            return CommandResult.fail("No message.", error="missing_args")
+
+        await ctx.send(f'You say: "{text}"')
+        await ctx.send_room(
+            f'{ctx.player.name} says, "{text}"',
+            exclude_self=True,
+        )
+        return CommandResult.ok()
+
+
+# ---------------------------------------------------------------------------
+# quit
+# ---------------------------------------------------------------------------
+
+class QuitCommand(Command):
+    """Disconnect from the server."""
+
+    name    = "quit"
+    aliases = ["q", "bye", "exit"]
+    modes   = {Mode.ANY}
+
+    help = Help(
+        summary  = "Disconnect from the server.",
+        category = HelpCategory.GENERAL,
+        usage    = [("quit", "Close your connection.")],
+    )
+
+    async def execute(self, ctx: GameContext, *args) -> CommandResult:
+        await ctx.send("Goodbye!")
         return CommandResult(
             success=True,
-            message=f"You tell the room: '{message}'",
-            data={'text': message}
+            message="Disconnected.",
+            data={"quit": True},
         )
 
-class SayHelp(BaseHelpText):
-    """Help provider for the 'say' command (example module)."""
-    name = 'say'
-    aliases = ['"']
 
-    def __init__(self):
-        super().__init__()
-        self.category = HelpCategory.COMMUNICATION
-        self.summary = "Speak a message to everyone in the room."
-        self.description = (
-            "The 'say' command broadcasts a message to everyone in your current room. "
-            "Punctuation determines whether it's a question or exclamation."
-        )
-        self.usage = [
-            ("say <message>", "Speak the message to your current room"),
-            ('"<message>', "Shorthand using a leading quote")
-        ]
-        self.examples = [
-            ("say Hello!", 'You exclaim, "Hello!"'),
-            ('"How are you?"', 'You ask, "How are you?"')
-        ]
-
+# ---------------------------------------------------------------------------
+# test  (developer utility — remove before release)
+# ---------------------------------------------------------------------------
 
 class TestCommand(Command):
-    """Test the Command class"""
-    def __init__(self):
-        self.name = 'test'
-        self.aliases = None
-        self.locks = []
+    """Smoke-test the command pipeline."""
+
+    name    = "test"
+    aliases: List[str] = []
+    modes   = {Mode.ANY}
+
+    help = Help(
+        summary  = "Developer smoke-test for the command pipeline.",
+        category = HelpCategory.MISCELLANEOUS,
+        usage    = [
+            ("test [args] [#switches]", "Echo args and switches back."),
+            ("test 42",                 "Trigger the Easter egg."),
+            ("test #feep",              "Feep forever."),
+        ],
+    )
+
+    async def execute(self, ctx: GameContext, *args: List[str]) -> CommandResult:
+        positional, switches = self.parse_args(*args)
+
+        await ctx.send(
+            "Test command executed.",
+            f"  Args:     {positional or 'none'}",
+            f"  Switches: {switches or 'none'}",
+        )
+        if "#feep" in switches:
+            await ctx.send("  Feeps forever!")
+        if "42" in positional:
+            await ctx.send("  The answer to Life, the Universe, and Everything.")
+
+        return CommandResult.ok("Test command executed.")
 
 
-    async def execute(self, ctx: GameContext, *args) -> CommandResult:
-        return CommandResult(True, message="Test command executed")
-
+# ---------------------------------------------------------------------------
+# Quick self-test (python -m commands.example_commands)
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    test_command = TestCommand()
-    command = TestCommand()
-    assert command.name == "test"
-    assert command.aliases == []
-    assert command.locks == []
-
     import asyncio
-    from context import GameContext as ctx
-    result = asyncio.run(command.execute(ctx, ["bla", "bla"]))
+    from unittest.mock import AsyncMock, MagicMock
 
-    assert result.success is True
-    assert result.message == "Test command executed"
+    ctx = MagicMock()
+    ctx.send      = AsyncMock()
+    ctx.send_room = AsyncMock()
+    ctx.player    = MagicMock(name="Tester")
 
+    cmd    = TestCommand()
+    result = asyncio.run(cmd.execute(ctx, "hello", "42", "#feep"))
+    assert result.success
+    assert result.message == "Test command executed."
     print("✅ TestCommand passed")
+
+    cmd    = SayCommand()
+    result = asyncio.run(cmd.execute(ctx, "hello", "world"))
+    assert result.success
+    print("✅ SayCommand passed")
+
+    cmd    = SayCommand()
+    result = asyncio.run(cmd.execute(ctx))
+    assert not result.success
+    print("✅ SayCommand (no args) passed")
+
+    print("All self-tests passed.")
