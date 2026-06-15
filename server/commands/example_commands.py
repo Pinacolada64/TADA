@@ -23,7 +23,7 @@ class ColorsCommand(Command):
 
     name    = "colors"
     aliases = ["colour", "colours", "color"]
-    modes   = {Mode.LOGIN, Mode.GAME}
+    modes   = {Mode.ANY}
 
     help = Help(
         summary  = "Show all available color names.",

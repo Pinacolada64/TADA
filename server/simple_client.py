@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from net_common import Message, Mode, to_jsonb, from_jsonb  # Assumes these are defined elsewhere
+from net_common import Message, MessageType, Mode, to_jsonb, from_jsonb  # Assumes these are defined elsewhere
 from typing import Dict, Any, Optional
 
 from colorama import Fore, Back
@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def print_message(msg: Message):
     if msg:
-        logging.info("In print_message()")
+        # logging.info("In print_message()")
         for line in msg.lines:
             print(line)
 
@@ -277,8 +277,10 @@ async def main():
                     prefix = f"{color}[{type_str}]{RESET_COLOR} "
 
                 for line in in_message.lines:
-                    # Print the line with color/prefix
-                    print(f"{prefix}{line}")
+                    # Print the line with color/prefix except if it's a regular message:
+                    output = f"{prefix.title()}{line}" if in_message.type == MessageType.REGULAR else \
+                        f"{prefix.title()}{line}"
+                    print(f"{prefix.title()}{line}")
     except Exception as e:
         logging.exception(f"Unexpected exception in client main loop: {e}")
     finally:

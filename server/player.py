@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Optional, TYPE_CHECKING
 import threading
 
-from simple_client import send_message
 import net_common as nc
 from flags import PlayerFlags
 
@@ -60,6 +59,7 @@ if TYPE_CHECKING:
     from net_common import Message
     # from simple_server  import server_lock, room_players, players
     from tada_utilities import make_random_id
+    from network_context import GameContext
 
 
 def set_up_flags():
@@ -311,21 +311,45 @@ class Player:
     def __repr__(self):
         return f"Player <{self.name}>"
 
-    def set_stat(self, stat: "PlayerStat", adj: int, verbose: bool = False):
+    @property
+    def is_expert(self) -> bool:
+        """
+        Check whether the player is in Expert Mode or not
+        (more concise than "if player.query_flag(PlayerFlag.EXPERT_MODE)" all over the place)
+        If so, extra prompts and information are displayed to help the player
+        """
+        return self.query_flag(PlayerFlags.EXPERT_MODE)
+
+    @property
+    def is_debug(self) -> bool:
+        """
+        Check whether the player is in Debug Mode or not:
+        (same reasoning as above)
+        If so, extra logging messages are displayed to help the programmer"""
+        return self.query_flag(PlayerFlags.DEBUG_MODE)
+
+    @property
+    def is_future_expansion(self) -> None:
+        """TODO: Another such shortcut, to be determined"""
+        return None
+
+    def set_stat(self, ctx: 'GameContext', stat: "PlayerStat", adj: int, verbose: bool = False):
         """
         Set stat <stat> to an absolute value. This has been provided for backwards compatibility
         with adj_stat_relative().
 
+        :param ctx: GameContext
         :param stat: statistic in self.stats{} dict to adjust
-        :param adj: adjustment (+x or -x)
+        :param adj: relative adjustment (+x or -x)
         :param verbose: True: tell about it, False: don't
-        :return: stat, maybe also 'success': True if 0 > stat > <limit>
+        :return: stat, TODO: maybe also 'success': True if 0 > stat > <limit>
 
         >>> rulan = Player(**set_up_rulan())
 
-        >>> rulan.adj_stat_relative(PlayerStat.STR, -5)  # decrement Rulan's strength by 5
+        >>> rulan.adj_stat_relative(PlayerStat.STR, -5, True)  # decrement Rulan's strength by 5, notify
+        'You feel weaker.'
         """
-        from flags import PlayerFlags
+        from flags import PlayerFlag
         from base_variables import STAT_DATA
         if stat not in self.stats:
             logging.warning(f"Stat {stat} doesn't exist.")
@@ -336,11 +360,10 @@ class Player:
         after = before + adj
         logging.info("Before: %s %i" % (stat, after))
         # TODO: call adjust_stat_relative() instead?
-        # self.adj
-        if not self.query_flag(PlayerFlags.EXPERT_MODE) or verbose:
+        if not self.is_expert or not verbose:
             # STAT_DATA structure: STAT_DATA[PlayerStat.X]['phrases'] -> (less, more)
             phrase = STAT_DATA[stat]["phrases"][before < after]
-            self.output(f"You feel {phrase}")
+            ctx.send(f"You feel {phrase}.")
             # TODO: jwhoag suggested adding 'confidence' -> 'brave' -- good idea,
             #  not sure where it can be added yet.
         logging.info("After: %s %i" % (stat, after))
@@ -480,7 +503,7 @@ class Player:
         :param raw_input: string to process
         :return str: null string or text-wrapped strings
         """
-        from colorama import Fore
+        import colorama
         import re
         from tada_utilities import bulleted_list_format
 
@@ -773,34 +796,25 @@ class Player:
                 from base_classes import compass_txts
                 return nc.Message(lines=[f"{self.name} moves {compass_txts[direction]}."])
 
-    async def disconnect(self, reader, writer):
-        server = _get_server_module()
-        # Use nc.Message via module import above
-        if server is None:
-            logging.error("disconnect: no server module available to update room_players")
-            # Attempt to save player even if server linkage isn't available
+    async def disconnect(self, ctx: 'GameContext'):
             try:
                 self.save(force=True)
             except Exception:
                 logging.exception("disconnect: failed to save player before disconnect (no server)")
             # send dict compatible with to_jsonb
-            await send_message(writer, {'lines': [f'{self.name} disconnecting (no server linkage).']})
-        with getattr(server, 'server_lock'):
-            # Persist player state before removing from room and disconnecting
+            await ctx.send(f'{self.name} disconnecting (no server linkage).')
+            logging.exception("disconnect: failed to save player before disconnect")
             try:
-                self.save(force=True)
-            except Exception:
-                logging.exception("disconnect: failed to save player before disconnect")
-            try:
-                getattr(server, 'room_players')[self.map_room].remove(self.id)
+                getattr(ctx.server, 'room_players')[self.map_room].remove(self.id)
             except Exception:
                 logging.exception("disconnect: failed to remove player id from room_players")
             # increment times played:
             self.times_played = (self.times_played or 0) + 1
             logging.info("Player.disconnect: %s disconnected. Times played: %i." % (getattr(server, 'players')[self.id].name,
                                                                                     self.times_played))
-            return nc.Message(lines=[f'{getattr(server, "players")[self.id].name} falls asleep.'])
-        return None
+            await ctx.send(f"{self.id.name} falls asleep.")
+            await ctx.send_room(f"{self.id.name} falls asleep.")
+        # TODO: announce to players watching for this player the character has fallen asleep.
 
     @staticmethod
     def _json_path(user_id):

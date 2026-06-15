@@ -3,10 +3,11 @@ This is deprecated. Use commands/login.py instead.
 """
 import os
 import json
-from typing import Dict, Any, Optional, Coroutine
+from typing import Dict, Any, Optional, List
 
 from net_common import Message, Mode
-from .base_command import Command, CommandResult
+from network_context import GameContext
+from .base_command import Command
 
 
 class LoginCommand(Command):
@@ -16,7 +17,7 @@ class LoginCommand(Command):
     def name(self) -> str:
         return 'login'
     
-    async def execute(self, data: Dict[str, Any]) -> dict[str, Any] | CommandResult | Message:
+    async def execute(self, ctx: GameContext, args: List[str]):
         """
         Execute the login command.
         
@@ -52,7 +53,7 @@ class LoginCommand(Command):
         # Login successful
         return CommandResult(success=True, message=f'Welcome back, {user_id}!', data={'authenticated': True, 'user_id': user_id, 'mode': Mode.app}).to_dict()
 
-    def help_text(self) -> str:
+    def help_summary(self) -> str:
         """Return help text for the login command."""
         return """\
         Login Command

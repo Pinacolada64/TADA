@@ -159,7 +159,7 @@ PETSCII_CONTROL_CODES: dict[str, int] = {
     'delete':        20,
 }
 
-from terminal import CBMColors, ColorName
+# from terminal import CBMColors, ColorName
 
 # Reverse lookup: raw byte value -> token name (for display/debugging)
 PETSCII_CODE_NAMES: dict[int, str] = {
@@ -346,7 +346,7 @@ def ansi_encode_lines(lines: list[str]) -> list[str]:
 # Import lazily to avoid circular imports with terminal.py.
 def _build_color_name_to_token() -> dict:
     try:
-        from terminal import ColorName
+        from ..terminal import ColorName
         return {
             ColorName.BLACK:        'black',
             ColorName.WHITE:        'white',

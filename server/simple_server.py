@@ -28,6 +28,7 @@ from base_classes import Map, compass_txts
 from items import Item, Rations, Weapon
 from characters import Monster
 from commands.command_processor import create_command_processor
+from commands.base_command import Mode
 from terminal import Translation
 
 DEFAULT_PORT = 34083
@@ -156,6 +157,13 @@ class Server:
                     return
 
             await self._negotiate_terminal(ctx)
+
+            ctx.client.command_processor = create_command_processor(
+                ctx.client,
+                context={'is_authenticated': False},
+                mode=Mode.LOGIN,
+            )
+
             await self._login(ctx)
             await self._game_loop(ctx)
 
@@ -272,7 +280,11 @@ class Server:
     async def _login(self, ctx: GameContext) -> None:
         """
         Handle the login / character creation phase.
-        On success, replaces ctx.player with a real Player object.
+        Dispatches all pre-login input through the LOGIN-mode command processor.
+        Commands signal a successful login by returning data={'authenticated': True}
+        and setting ctx.player to a real Player object.
+        On success, the processor is switched to GAME mode and we return to
+        handle_connection which then calls _game_loop.
         """
         await ctx.send(
             '',
@@ -286,74 +298,38 @@ class Server:
             "Type 'connect <username> <password>' to log in.",
             "Type 'connect guest' to look around as a guest.",
             "Type 'new' to create a new character.",
-            "Type 'quit' to leave.",
+            "Type 'help' for help.  Type 'quit' to leave.",
             '',
         )
+
+        processor = ctx.client.command_processor
         ctx.set_prompt('login> ')
 
         while True:
             raw = await ctx.prompt('login>')
-            if raw is None:          # None = clean EOF / disconnect
+            if raw is None:
+                return                          # clean disconnect
+            if not raw.strip():
+                continue
+
+            result = await processor.process_input(raw, ctx=ctx)
+
+            if not result.success and result.error == 'unknown_command':
+                await ctx.send(
+                    f"Unknown command '{raw.strip().split()[0]}'. "
+                    "Try 'connect', 'new', 'help', or 'quit'."
+                )
+                continue
+
+            # ConnectCommand (and future auth commands) signal success via data
+            if result.data.get('authenticated'):
+                processor.current_mode = Mode.GAME
+                ctx.set_prompt('main> ')
                 return
-            parts = raw.strip().split()
-            if not parts:
-                continue
 
-            cmd = parts[0].lower()
-
-            if cmd == 'quit':
-                await ctx.send('Goodbye!')
+            # QuitCommand signals that we should drop the connection
+            if result.data.get('quit'):
                 return
-
-            if cmd in ['connect', 'con', 'c']:
-                if len(parts) >= 2 and parts[1].lower() == 'guest':
-                    await ctx.send("Entering as guest. Type 'help' for commands.")
-                    ctx.client.username = 'guest'
-                    ctx.client.mode     = nc.Mode.app
-                    ctx.client.command_processor = create_command_processor(
-                        ctx.client,
-                        context={'username': 'guest', 'is_authenticated': False},
-                    )
-                    return
-
-                if len(parts) >= 3:
-                    username = parts[1]
-                    password = parts[2]
-                    player   = await self._authenticate(ctx, username, password)
-                    if player:
-                        ctx.player              = player
-                        ctx.client.username     = username
-                        ctx.client.mode         = nc.Mode.app
-                        ctx.client.command_processor = create_command_processor(
-                            ctx.client,
-                            context={'username': username, 'is_authenticated': True},
-                        )
-                        await ctx.send(f'Welcome back, {player.name}!')
-                        ctx.set_prompt('main> ')
-                        return
-                    # _authenticate sends its own error message
-                    continue
-
-                await ctx.send("Usage: connect <username> <password>  or  connect guest")
-                continue
-
-            if cmd == 'new':
-                await ctx.send("Character creation is not yet implemented. "
-                               "Use 'connect guest' for now.")
-                continue
-
-            if cmd == 'colors':
-                from formatting import ANSI_COLOR_CODES, COLOR_NAME_TO_TOKEN
-                reset = ANSI_COLOR_CODES.get('reset', '')
-                lines = ['Available colors:', '']
-                for color_name, token in COLOR_NAME_TO_TOKEN.items():
-                    code = ANSI_COLOR_CODES.get(token, '')
-                    lines.append(f'{code}{color_name.value}{reset}')
-                await ctx.send(lines)
-                continue
-                
-            await ctx.send(f"Unknown command '{cmd}'. "
-                           "Try 'connect', 'new', or 'quit'.")
 
     async def _authenticate(self, ctx: GameContext,
                             username: str, password: str):
@@ -391,62 +367,26 @@ class Server:
         """Main command loop for an authenticated (or guest) player."""
         await self._show_room(ctx)
 
+        processor = ctx.client.command_processor
+
         while True:
             raw = await ctx.prompt('main>')
-            if raw is None:          # None = clean EOF / disconnect
+            if raw is None:                     # clean EOF / disconnect
                 await self._player_quit(ctx)
                 return
-            if not raw:
+            if not raw.strip():
                 continue
 
-            parts = raw.strip().split()
-            cmd   = parts[0].lower()
-            args  = parts[1:]
+            result = await processor.process_input(raw, ctx=ctx)
 
-            if cmd == 'quit':
-                await ctx.send('Goodbye!')
+            # QuitCommand sets data={'quit': True} to signal clean exit
+            if result.data.get('quit'):
                 await self._player_quit(ctx)
                 return
 
-            if cmd in ('l', 'look'):
-                await self._show_room(ctx)
-                continue
-
-            if cmd == 'say' and args:
-                text = ' '.join(args)
-                broadcast = nc.Message(
-                    lines  = [f"{ctx.client.username or 'Someone'} says, '{text}'"],
-                    type   = nc.MessageType.REGULAR,
-                    mode   = nc.Mode.app,
-                    prompt = 'main> ',
-                )
-                await self.broadcast(ctx.client.addr, broadcast)
-                await ctx.send(f"You say: {text}")
-                continue
-
-            if cmd in ('n', 's', 'e', 'w', 'u', 'd'):
-                await self._move(ctx, cmd)
-                continue
-
-            # Delegate to the per-client command processor
-            processor = getattr(ctx.client, 'command_processor', None)
-            if processor:
-                try:
-                    result     = await processor.process_input(raw)
-                    msg        = getattr(result, 'message', None) or (result.get('message') if isinstance(result, dict) else None)
-                    err        = getattr(result, 'error',   None) or (result.get('error')   if isinstance(result, dict) else None)
-                    out_lines  = []
-                    if msg:
-                        out_lines.extend(msg if isinstance(msg, list) else [str(msg)])
-                    if err:
-                        out_lines.append(f'Error: {err}')
-                    await ctx.send(out_lines or ['(no output)'])
-                except Exception:
-                    logging.exception('%s: command processor error', ctx.client.addr)
-                    await ctx.send('Command error. See server log.')
-                continue
-
-            await ctx.send(f"Unknown command '{cmd}'. Type 'help' for a list.")
+            if not result.success and result.error == 'unknown_command':
+                await ctx.send(f"Unknown command '{raw.strip().split()[0]}'. "
+                               "Type 'help' for a list.")
 
     # -----------------------------------------------------------------------
     # Room display

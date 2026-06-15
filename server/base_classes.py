@@ -162,7 +162,7 @@ class Gender(StrEnum):
 
 
 class PronounType(Enum):
-    """Defines the grammatical type of pronoun needed."""
+    """Defines the grammatical type of pronoun needed for Pronoun."""
     SUBJECTIVE = auto()           # e.g., "HE went to the store."
     OBJECTIVE = auto()            # e.g., "I gave the book to HIM."
     POSSESSIVE_ADJECTIVE = auto() # e.g., "That is HIS book."
