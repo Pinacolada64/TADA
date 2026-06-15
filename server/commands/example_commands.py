@@ -32,7 +32,7 @@ class ColorsCommand(Command):
         notes    = ["Has no effect in plain-text mode."],
     )
 
-    async def execute(self, ctx, *args) -> CommandResult:
+    async def execute(self, ctx: GameContext, *args) -> CommandResult:
         from formatting import ANSI_COLOR_CODES, COLOR_NAME_TO_TOKEN
 
         reset = ANSI_COLOR_CODES.get('reset', '')
@@ -142,10 +142,8 @@ class QuitCommand(Command):
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         await ctx.send("Goodbye!")
-        return CommandResult(
-            success=True,
+        return CommandResult.ok(
             message="Disconnected.",
-            data={"quit": True},
         )
 
 
