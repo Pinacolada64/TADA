@@ -79,7 +79,7 @@ class Help:
 # Formatter  (pure — no I/O)
 # ---------------------------------------------------------------------------
 
-def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> Optional[str]:
+def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> List[str] | None:
     """Format a Help instance into a display string.
 
     Parameters
@@ -91,7 +91,8 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> Opti
     if help_obj is None:
         return None
     if isinstance(help_obj, str):
-        return textwrap.fill(help_obj.strip(), width=width)
+        lines = list(textwrap.fill(help_obj.strip(), width=width).split('\n'))
+        return lines
 
     wrap_width = width - 4
     lines: List[str] = []
@@ -158,8 +159,8 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> Opti
                 subsequent_indent=" " * 4,
             ))
 
-    return "\n".join(lines) if lines else None
-
+    help_output = lines if lines else None
+    return help_output
 
 # ---------------------------------------------------------------------------
 # HelpCommand
@@ -277,7 +278,7 @@ class HelpCommand(Command):
                 lines.append("  " + "  ".join(e.ljust(col_w) for e in entries[i : i + n_cols]))
 
         lines += ["", "Type 'help <command>' for more detail."]
-        await ctx.send("\n".join(lines))
+        await ctx.send(*lines)
         return CommandResult.ok("General help displayed.")
 
     async def _show_category_help(self, ctx, category_name: str, processor) -> Any:
@@ -341,14 +342,14 @@ class HelpCommand(Command):
         if help_obj and hasattr(help_obj, "summary"):
             formatted = format_help(help_obj, command_name=command_name, width=width)
             if formatted:
-                await ctx.send(formatted)
-                return CommandResult.ok(formatted)
+                await ctx.send(*formatted)
+                return CommandResult.ok("Category help displayed.")
 
         # Fallback: docstring of execute()
         doc = getattr(getattr(cmd, "execute", None), "__doc__", None)
         if doc:
-            await ctx.send(doc.strip())
-            return CommandResult.ok(doc.strip())
+            await ctx.send(*doc.strip().splitlines())
+            return CommandResult.ok("docstring help displayed.")
 
         await ctx.send(f"No detailed help available for '{command_name}'.")
         return CommandResult.fail(error="no_help")
