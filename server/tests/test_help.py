@@ -1,196 +1,301 @@
-import pytest
-import types
-import asyncio
-import textwrap
+#!/usr/bin/env python3
+"""tests/test_help.py
 
-# Ensure package imports work when running tests from the repo root
-import sys
+Unit tests for commands/help.py.
+
+Run with:
+    python -m pytest tests/test_help.py -v
+    python -m unittest tests.test_help
+"""
+
+from __future__ import annotations
+
 import os
+import sys
+import types
+import unittest
+from unittest.mock import AsyncMock, MagicMock
+
+# ---------------------------------------------------------------------------
+# 1. Fix sys.path FIRST so 'commands/' is findable from tests/
+#    __file__ is  .../server/tests/test_help.py
+#    ROOT  is  .../server/
+# ---------------------------------------------------------------------------
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from commands import help as help_mod
-from commands.help import HelpCommand, format_help
+# ---------------------------------------------------------------------------
+# 2. Stub out heavy server modules before any TADA import touches them
+# ---------------------------------------------------------------------------
+for _name in ["network_context", "net_common"]:
+    sys.modules.setdefault(_name, types.ModuleType(_name))
+
+# ---------------------------------------------------------------------------
+# 3. Now import from commands/ — path is correct, stubs are in place
+# ---------------------------------------------------------------------------
+from commands.help import Help, HelpCategory, HelpCommand, format_help
+from commands.base_command import CommandResult
+import commands.help as help_mod
 
 
-class DummyCommand:
-    def __init__(self):
-        self._name = 'test'
-        self._aliases = ['t']
+# ---------------------------------------------------------------------------
+# Shared test helpers
+# ---------------------------------------------------------------------------
 
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    def help_text(self):
-        return "This is help text for the test command."
+def _make_ctx(screen_columns: int = 78):
+    ctx = MagicMock()
+    ctx.send  = AsyncMock()
+    ctx.player.client_settings.screen_columns = screen_columns
+    return ctx
 
 
-class DummyManager:
-    def __init__(self, cmd):
-        # return mapping by name
-        self._commands = {cmd.name: cmd}
-
-    def get_all_commands(self):
-        return self._commands
-
-    def get_command(self, name):
-        return self._commands.get(name)
-
-
-def test_helpcommand_instantiation_and_basic_help_text():
-    hc = HelpCommand()
-    # attach a dummy processor so help_text() can enumerate commands
-    dummy = DummyCommand()
-    mgr = DummyManager(dummy)
-    hc.context = {'command_processor': mgr}
-
-    summary = hc.help_text()
-    assert isinstance(summary, str)
-    assert 'test' in summary or 'test' in '\n'.join(summary.splitlines())
+def _make_processor(*commands):
+    """Return a minimal processor-like stub pre-loaded with commands."""
+    proc     = MagicMock()
+    cmd_dict = {getattr(c, "name", str(i)): c for i, c in enumerate(commands)}
+    proc.get_all_commands.return_value = cmd_dict
+    proc.find_command.side_effect      = lambda name: (
+        cmd_dict.get(name), name in cmd_dict
+    )
+    proc.search_commands.side_effect   = lambda term: [
+        c for c in cmd_dict.values()
+        if term.lower() in getattr(c, "name", "").lower()
+        or term.lower() in getattr(getattr(c, "help", None), "summary", "").lower()
+    ]
+    return proc
 
 
-def test_format_help_produces_sections():
-    class H:
-        summary = 'short'
-        description = 'Longer description here that explains the command.'
-        usage = [('cmd <arg>', 'Does something.')]
-        examples = [('cmd foo', 'Example usage')]
-        notes = ['note one']
-
-    out = format_help(H, 'cmd')
-    assert out is not None
-    assert 'Usage:' in out
-    assert 'Examples:' in out
-    assert 'Notes:' in out
-    assert 'cmd' in out
+def _make_cmd(name: str, aliases=None,
+              category=HelpCategory.GENERAL, summary: str = ""):
+    """Return a minimal command stub with a Help instance attached."""
+    cmd         = MagicMock()
+    cmd.name    = name
+    cmd.aliases = aliases or []
+    cmd.help    = Help(
+        summary  = summary or f"Summary for {name}.",
+        category = category,
+        usage    = [(f"{name} <arg>", "Does something.")],
+    )
+    return cmd
 
 
-@pytest.mark.asyncio
-async def test_execute_help_for_specific_command():
-    hc = HelpCommand()
-    dummy = DummyCommand()
-    mgr = DummyManager(dummy)
-    result = await hc.execute(None, None, {'command_processor': mgr}, ['test'])
-    assert isinstance(result, dict)
-    assert result.get('success') is True
-    msg = result.get('message')
-    assert isinstance(msg, str)
-    assert 'This is help text' in msg
+def _ctx_with_processor(*commands):
+    ctx  = _make_ctx()
+    proc = _make_processor(*commands)
+    ctx.client.command_processor = proc
+    ctx.command_processor        = proc
+    return ctx, proc
 
 
-@pytest.mark.asyncio
-async def test_help_categories_list():
-    hc = HelpCommand()
-    dummy = DummyCommand()
-    mgr = DummyManager(dummy)
-    result = await hc.execute(None, None, {'command_processor': mgr}, ['categories'])
-    assert isinstance(result, dict)
-    assert result.get('success') is True
-    msg = result.get('message')
-    # message from categories is a string listing available categories
-    assert isinstance(msg, str)
-    assert 'Available help categories' in msg or '- General' in msg
+# ---------------------------------------------------------------------------
+# format_help() — pure formatter, no I/O
+# ---------------------------------------------------------------------------
+
+class TestFormatHelp(unittest.TestCase):
+
+    def test_none_returns_none(self):
+        self.assertIsNone(format_help(None))
+
+    def test_plain_string_is_word_wrapped(self):
+        out = format_help("short string")
+        self.assertIsInstance(out, str)
+        self.assertIn("short string", out)
+
+    def test_summary_appears_in_output(self):
+        h = Help(summary="Does the thing.")
+        self.assertIn("Does the thing.", format_help(h))
+
+    def test_command_name_appears_as_header(self):
+        h = Help(summary="Thing.")
+        self.assertIn("mytool", format_help(h, command_name="mytool"))
+
+    def test_usage_section_present(self):
+        h = Help(usage=[("cmd <arg>", "Does something.")])
+        self.assertIn("Usage:", format_help(h))
+
+    def test_single_example_label(self):
+        h = Help(examples=[("cmd foo", "one example")])
+        out = format_help(h)
+        self.assertIn("Example:", out)
+        self.assertNotIn("Examples:", out)
+
+    def test_multiple_examples_label(self):
+        h = Help(examples=[("cmd foo", "first"), ("cmd bar", "second")])
+        self.assertIn("Examples:", format_help(h))
+
+    def test_notes_section_present(self):
+        h = Help(notes=["A useful note."])
+        self.assertIn("Notes:", format_help(h))
+        self.assertIn("A useful note.", format_help(h))
+
+    def test_all_sections_together(self):
+        h = Help(
+            summary     = "Short summary.",
+            description = "Longer description.",
+            usage       = [("cmd <arg>", "Does something.")],
+            examples    = [("cmd foo", "An example.")],
+            notes       = ["A note."],
+        )
+        out = format_help(h, command_name="cmd")
+        for expected in ("Usage:", "Example:", "Notes:", "cmd <arg>", "A note."):
+            self.assertIn(expected, out)
+
+    def test_width_80_no_line_exceeds(self):
+        h = Help(summary="x", usage=[("editplayer", "Edit your character interactively.")])
+        for line in format_help(h, width=80).splitlines():
+            self.assertLessEqual(len(line), 80, f"Line too long: {line!r}")
+
+    def test_width_40_no_line_exceeds(self):
+        h = Help(summary="x", usage=[("editplayer", "Edit your character.")])
+        for line in format_help(h, width=40).splitlines():
+            self.assertLessEqual(len(line), 40, f"Line too long: {line!r}")
 
 
-@pytest.mark.asyncio
-async def test_help_search_finds_command():
-    hc = HelpCommand()
-    dummy = DummyCommand()
-    mgr = DummyManager(dummy)
-    # search by partial term
-    result = await hc.execute(None, None, {'command_processor': mgr}, ['search', 'tes'])
-    assert isinstance(result, dict)
-    assert result.get('success') is True
-    msg = result.get('message')
-    # allow string or list message formats
-    if isinstance(msg, list):
-        combined = '\n'.join(str(x) for x in msg)
-    else:
-        combined = str(msg)
-    assert 'test' in combined.lower()
+# ---------------------------------------------------------------------------
+# HelpCategory
+# ---------------------------------------------------------------------------
+
+class TestHelpCategory(unittest.TestCase):
+
+    def test_expected_categories_present(self):
+        names = {c.name for c in HelpCategory}
+        for expected in ("GENERAL", "COMMUNICATION", "MOVEMENT",
+                         "AUTHENTICATION", "COMBAT", "ADMINISTRATIVE"):
+            self.assertIn(expected, names)
+
+    def test_values_are_strings(self):
+        for cat in HelpCategory:
+            self.assertIsInstance(cat.value, str)
 
 
-@pytest.mark.asyncio
-async def test_help_nonexistent_command_returns_not_found():
-    hc = HelpCommand()
-    dummy = DummyCommand()
-    mgr = DummyManager(dummy)
-    result = await hc.execute(None, None, {'command_processor': mgr}, ['no_such_command'])
-    assert isinstance(result, dict)
-    assert result.get('success') is False
-    assert 'No help found' in result.get('message')
+# ---------------------------------------------------------------------------
+# HelpCommand.execute() dispatch
+# ---------------------------------------------------------------------------
+
+class TestHelpCommandExecute(unittest.IsolatedAsyncioTestCase):
+
+    # --- no args → general help ---
+
+    async def test_no_args_shows_general_help(self):
+        ctx, _ = _ctx_with_processor(
+            _make_cmd("say",  category=HelpCategory.COMMUNICATION),
+            _make_cmd("look", category=HelpCategory.MOVEMENT),
+        )
+        result = await HelpCommand().execute(ctx)
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("Available Commands by Category", output)
+
+    # --- specific command ---
+
+    async def test_specific_command_shows_help(self):
+        ctx, _ = _ctx_with_processor(_make_cmd("say", summary="Say something."))
+        result = await HelpCommand().execute(ctx, "say")
+        self.assertTrue(result.success)
+        self.assertIn("say", result.message)
+
+    async def test_nonexistent_command_fails(self):
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "no_such_command")
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, "no_help")
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("No help found", output)
+
+    async def test_alias_resolves_to_command(self):
+        cmd  = _make_cmd("test", aliases=["t"])
+        ctx  = _make_ctx()
+        proc = MagicMock()
+        proc.find_command.return_value     = (cmd, True)
+        proc.get_all_commands.return_value = {"test": cmd}
+        proc.search_commands.return_value  = []
+        ctx.client.command_processor = proc
+        ctx.command_processor        = proc
+        result = await HelpCommand().execute(ctx, "t")
+        self.assertTrue(result.success)
+
+    # --- categories ---
+
+    async def test_categories_token_lists_all(self):
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "categories")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("General",  output)
+        self.assertIn("Movement", output)
+
+    async def test_category_name_shows_its_commands(self):
+        ctx, _ = _ctx_with_processor(_make_cmd("go", category=HelpCategory.MOVEMENT))
+        result = await HelpCommand().execute(ctx, "movement")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("go", output)
+
+    async def test_unknown_category_fails(self):
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "#cat", "nonexistentcat")
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, "unknown_category")
+
+    # --- search ---
+
+    async def test_search_finds_matching_command(self):
+        ctx, _ = _ctx_with_processor(_make_cmd("test", summary="A test command."))
+        result = await HelpCommand().execute(ctx, "search", "tes")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("test", output)
+
+    async def test_search_no_results(self):
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "search", "xyzzy")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("No commands found", output)
+
+    # --- edge cases ---
+
+    async def test_graceful_without_processor(self):
+        ctx = _make_ctx()
+        ctx.client = MagicMock(spec=[])   # no command_processor attribute
+        ctx.command_processor = None
+        result = await HelpCommand().execute(ctx)
+        self.assertTrue(result.success)
+
+    async def test_falls_back_to_docstring_when_no_help_obj(self):
+        cmd             = MagicMock()
+        cmd.name        = "nodoc"
+        cmd.aliases     = []
+        cmd.help        = None
+        cmd.execute.__doc__ = "Docstring help text."
+
+        ctx  = _make_ctx()
+        proc = MagicMock()
+        proc.find_command.return_value     = (cmd, False)
+        proc.get_all_commands.return_value = {"nodoc": cmd}
+        proc.search_commands.return_value  = []
+        ctx.client.command_processor = proc
+        ctx.command_processor        = proc
+
+        result = await HelpCommand().execute(ctx, "nodoc")
+        self.assertTrue(result.success)
+        self.assertIn("Docstring", result.message)
+
+    # --- HelpCategory accessible via the module reference ---
+
+    def test_help_mod_has_helpcategory(self):
+        self.assertTrue(hasattr(help_mod, "HelpCategory"))
+        self.assertIn(help_mod.HelpCategory.MOVEMENT,
+                      list(help_mod.HelpCategory))
 
 
-@pytest.mark.asyncio
-async def test_help_for_category_shows_commands():
-    hc = HelpCommand()
-    # create a dummy command that has help_info with a category
-    cmd = DummyCommand()
-    cmd._name = 'go'
-    # attach help_info with category
-    cmd.help_info = types.SimpleNamespace(category=help_mod.HelpCategory.MOVEMENT)
-    mgr = DummyManager(cmd)
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
-    result = await hc.execute(None, None, {'command_processor': mgr}, ['movement'])
-    assert isinstance(result, dict)
-    assert result.get('success') is True
-    msg = result.get('message')
-    if isinstance(msg, list):
-        assert any('Commands in' in str(x) for x in msg)
-        assert 'go' in '\n'.join(msg)
-    else:
-        assert 'Commands in' in msg and 'go' in msg
-
-
-@pytest.mark.asyncio
-async def test_help_alias_lookup_works():
-    hc = HelpCommand()
-    dummy = DummyCommand()
-    # Create a manager that exposes both the name and alias as keys
-    mgr = DummyManager(dummy)
-    mgr._commands['t'] = dummy
-    result = await hc.execute(None, None, {'command_processor': mgr}, ['t'])
-    assert isinstance(result, dict)
-    assert result.get('success') is True
-    msg = result.get('message')
-    combined = msg if isinstance(msg, str) else '\n'.join(msg)
-    assert 'This is help text' in combined
-
-
-def test_help_text_format_80_cols():
-    hc = HelpCommand()
-    command = "help ep"
-    # try 80 column formatting:
-    formatted_80_cols = textwrap.dedent("""
-    Usage:
-        editplayer           Edit your own character interactively
-        editplayer <flag>    Toggle a flag for yourself
-        editplayer <name>    Edit another player's character (admin only)
-    """).strip()
-
-    out_80 = format_help(command, width=80)
-    assert 'Usage:' in out_80
-    assert 'editplayer' in out_80
-
-
-def test_help_text_format_40_cols():
-    formatted_40_cols = textwrap.dedent("""
-    Usage:
-        editplayer
-            Edit your own character
-            interactively
-        editplayer <flag>
-            Toggle a flag for yourself
-        editplayer <name>
-            Edit another player's character
-            (admin only)
-    """).strip()
-    out_40 = format_help("help ep", width=40)
-    assert 'Usage:' in out_40
-    assert 'editplayer' in formatted_40_cols
+if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.DEBUG,
+                        format="%(levelname)s %(name)s: %(message)s")
+    unittest.main()
