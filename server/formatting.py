@@ -29,6 +29,7 @@ import logging
 
 try:
     from colorama import Fore, Style
+
     _COLORAMA_AVAILABLE = True
 except ImportError:
     _COLORAMA_AVAILABLE = False
@@ -48,7 +49,7 @@ from typing import Protocol, runtime_checkable
 @runtime_checkable
 class HasClientSettings(Protocol):
     screen_columns: int
-    screen_rows:    int
+    screen_rows: int
 
 
 # ---------------------------------------------------------------------------
@@ -63,15 +64,18 @@ class ColorCodec(Protocol):
     Translates abstract color/style tokens into terminal-specific strings.
     Implement one per translation target (ANSI, PETSCII, plain, etc.)
     """
-    def highlight_on(self)  -> str: ...
+
+    def highlight_on(self) -> str: ...
+
     def highlight_off(self) -> str: ...
-    def reset(self)         -> str: ...
+
+    def reset(self) -> str: ...
 
 
 @dataclass
 class ANSICodec:
     """ANSI color codes via colorama."""
-    highlight_color: str = ''   # set at runtime from player prefs
+    highlight_color: str = ''  # set at runtime from player prefs
 
     def __post_init__(self):
         try:
@@ -81,19 +85,27 @@ class ANSICodec:
             self._reset = Fore.RESET
         except ImportError:
             self.highlight_color = ''
-            self._reset          = ''
+            self._reset = ''
 
-    def highlight_on(self)  -> str: return self.highlight_color
-    def highlight_off(self) -> str: return self._reset
-    def reset(self)         -> str: return self._reset
+    def highlight_on(self) -> str:
+        return self.highlight_color
+
+    def highlight_off(self) -> str:
+        return self._reset
+
+    def reset(self) -> str:
+        return self._reset
 
 
 @dataclass
 class PlainCodec:
     """No color codes — plain ASCII output."""
-    def highlight_on(self)  -> str: return ''
+
+    def highlight_on(self) -> str: return ''
+
     def highlight_off(self) -> str: return ''
-    def reset(self)         -> str: return ''
+
+    def reset(self) -> str: return ''
 
 
 @dataclass
@@ -105,9 +117,12 @@ class PETSCIICodec:
     Full 16-color palette is available via {token} substitution in
     petscii_encode() — see PETSCII_CONTROL_CODES below.
     """
-    def highlight_on(self)  -> str: return chr(18)   # REVERSE ON
+
+    def highlight_on(self) -> str: return chr(18)  # REVERSE ON
+
     def highlight_off(self) -> str: return chr(146)  # REVERSE OFF
-    def reset(self)         -> str: return chr(146)  # REVERSE OFF
+
+    def reset(self) -> str: return chr(146)  # REVERSE OFF
 
 
 # ---------------------------------------------------------------------------
@@ -120,46 +135,44 @@ class PETSCIICodec:
 # Reference: https://sta.c64.org/cbm64petscii.html
 PETSCII_CONTROL_CODES: dict[str, int] = {
     # 16-color palette (CBM color codes)
-    'black':        144,
-    'white':          5,
-    'red':           28,
-    'cyan':         159,
-    'purple':       156,
-    'green':         30,
-    'blue':          31,
-    'yellow':       158,
-    'orange':       129,
-    'brown':        149,
-    'light_red':    150,
-    'dark_gray':    151,
-    'mid_gray':     152,
-    'light_green':  153,
-    'light_blue':   154,
-    'light_gray':   155,
+    'black': 144,
+    'white': 5,
+    'red': 28,
+    'cyan': 159,
+    'purple': 156,
+    'green': 30,
+    'blue': 31,
+    'yellow': 158,
+    'orange': 129,
+    'brown': 149,
+    'light_red': 150,
+    'dark_gray': 151,
+    'mid_gray': 152,
+    'light_green': 153,
+    'light_blue': 154,
+    'light_gray': 155,
 
     # Screen control
-    'reverse_on':    18,
-    'reverse_off':  146,
-    'clear':        147,   # clear screen + home
-    'home':          19,   # cursor home (no clear)
-    'reset':        146,   # alias for reverse_off
+    'reverse_on': 18,
+    'reverse_off': 146,
+    'clear': 147,  # clear screen + home
+    'home': 19,  # cursor home (no clear)
+    'reset': 146,  # alias for reverse_off
 
     # Cursor movement
-    'cursor_up':    145,
-    'cursor_down':   17,
-    'cursor_left':  157,
-    'cursor_right':  29,
+    'cursor_up': 145,
+    'cursor_down': 17,
+    'cursor_left': 157,
+    'cursor_right': 29,
 
     # Case switching
-    'lowercase':     14,   # switch to upper/lower charset
-    'uppercase':    142,   # switch to upper/graphics charset
+    'lowercase': 14,  # switch to upper/lower charset
+    'uppercase': 142,  # switch to upper/graphics charset
 
     # Insert/delete
-    'insert':       148,
-    'delete':        20,
+    'insert': 148,
+    'delete': 20,
 }
-
-# from terminal import CBMColors, ColorName
 
 # Reverse lookup: raw byte value -> token name (for display/debugging)
 PETSCII_CODE_NAMES: dict[int, str] = {
@@ -199,8 +212,8 @@ def petscii_encode(text: str,
         clean = _TOKEN_RE.sub('', text)
         return clean.encode('ascii', errors='replace')
 
-    result  = bytearray()
-    pos     = 0
+    result = bytearray()
+    pos = 0
 
     for match in _TOKEN_RE.finditer(text):
         # Encode plain text segment before this token
@@ -209,9 +222,9 @@ def petscii_encode(text: str,
             result.extend(segment.encode(codec_name, errors='replace'))
 
         token = match.group(1)
-        code  = PETSCII_CONTROL_CODES.get(token)
+        code = PETSCII_CONTROL_CODES.get(token)
         if code is not None:
-            result.append(code)          # raw control byte, bypasses codec
+            result.append(code)  # raw control byte, bypasses codec
         else:
             # Unknown token — encode as literal text
             logging.debug('petscii_encode: unknown token {%s}', token)
@@ -247,14 +260,14 @@ def petscii_encode_lines(lines: list[str],
     """
     # Game code:
     await ctx.send("You find {red}a ruby{reset} on the floor.")
-    
+
     # GameContext.send():
     raw       = flatten_send_args(*lines)
     codec     = PETSCIICodec()              # from codec_for_settings()
     formatted = format_lines(raw, settings, codec)
     # formatted = ["You find \x12a ruby\x92 on the floor."]
     #   \x12 = REVERSE ON (bracket highlight for now, swap for color token later)
-    
+
     # Then for PETSCII clients:
     encoded = petscii_encode_lines(formatted)
     # "You find " -> cbmcodecs2 -> PETSCII bytes
@@ -274,28 +287,28 @@ def petscii_encode_lines(lines: list[str],
 # Token names deliberately match PETSCII_CONTROL_CODES so game strings
 # like "{red}text{reset}" work the same way regardless of terminal type.
 ANSI_COLOR_CODES: dict[str, str] = {
-    'black':         Fore.BLACK         if _COLORAMA_AVAILABLE else '',
-    'white':         Fore.WHITE         if _COLORAMA_AVAILABLE else '',
-    'red':           Fore.RED           if _COLORAMA_AVAILABLE else '',
-    'cyan':          Fore.CYAN          if _COLORAMA_AVAILABLE else '',
-    'green':         Fore.GREEN         if _COLORAMA_AVAILABLE else '',
-    'blue':          Fore.BLUE          if _COLORAMA_AVAILABLE else '',
-    'yellow':        Fore.YELLOW        if _COLORAMA_AVAILABLE else '',
-    'magenta':       Fore.MAGENTA       if _COLORAMA_AVAILABLE else '',
-    'light_red':     Fore.LIGHTRED_EX   if _COLORAMA_AVAILABLE else '',
-    'light_green':   Fore.LIGHTGREEN_EX if _COLORAMA_AVAILABLE else '',
-    'light_blue':    Fore.LIGHTBLUE_EX  if _COLORAMA_AVAILABLE else '',
-    'light_cyan':    Fore.LIGHTCYAN_EX  if _COLORAMA_AVAILABLE else '',
-    'light_yellow':  Fore.LIGHTYELLOW_EX if _COLORAMA_AVAILABLE else '',
-    'light_white':   Fore.LIGHTWHITE_EX if _COLORAMA_AVAILABLE else '',
-    'dark_gray':     Fore.LIGHTBLACK_EX if _COLORAMA_AVAILABLE else '',
-    'orange':        Fore.YELLOW        if _COLORAMA_AVAILABLE else '',  # closest ANSI approximation
-    'purple':        Fore.MAGENTA       if _COLORAMA_AVAILABLE else '',  # closest ANSI approximation
-    'reverse_on':    Style.BRIGHT       if _COLORAMA_AVAILABLE else '',
-    'reverse_off':   Style.RESET_ALL    if _COLORAMA_AVAILABLE else '',
-    'bold':          Style.BRIGHT       if _COLORAMA_AVAILABLE else '',
-    'dim':           Style.DIM          if _COLORAMA_AVAILABLE else '',
-    'reset':         Fore.RESET         if _COLORAMA_AVAILABLE else '',
+    'black': Fore.BLACK if _COLORAMA_AVAILABLE else '',
+    'white': Fore.WHITE if _COLORAMA_AVAILABLE else '',
+    'red': Fore.RED if _COLORAMA_AVAILABLE else '',
+    'cyan': Fore.CYAN if _COLORAMA_AVAILABLE else '',
+    'green': Fore.GREEN if _COLORAMA_AVAILABLE else '',
+    'blue': Fore.BLUE if _COLORAMA_AVAILABLE else '',
+    'yellow': Fore.YELLOW if _COLORAMA_AVAILABLE else '',
+    'magenta': Fore.MAGENTA if _COLORAMA_AVAILABLE else '',
+    'light_red': Fore.LIGHTRED_EX if _COLORAMA_AVAILABLE else '',
+    'light_green': Fore.LIGHTGREEN_EX if _COLORAMA_AVAILABLE else '',
+    'light_blue': Fore.LIGHTBLUE_EX if _COLORAMA_AVAILABLE else '',
+    'light_cyan': Fore.LIGHTCYAN_EX if _COLORAMA_AVAILABLE else '',
+    'light_yellow': Fore.LIGHTYELLOW_EX if _COLORAMA_AVAILABLE else '',
+    'light_white': Fore.LIGHTWHITE_EX if _COLORAMA_AVAILABLE else '',
+    'dark_gray': Fore.LIGHTBLACK_EX if _COLORAMA_AVAILABLE else '',
+    'orange': Fore.YELLOW if _COLORAMA_AVAILABLE else '',  # closest ANSI approximation
+    'purple': Fore.MAGENTA if _COLORAMA_AVAILABLE else '',  # closest ANSI approximation
+    'reverse_on': Style.BRIGHT if _COLORAMA_AVAILABLE else '',
+    'reverse_off': Style.RESET_ALL if _COLORAMA_AVAILABLE else '',
+    'bold': Style.BRIGHT if _COLORAMA_AVAILABLE else '',
+    'dim': Style.DIM if _COLORAMA_AVAILABLE else '',
+    'reset': Fore.RESET if _COLORAMA_AVAILABLE else '',
 }
 
 
@@ -313,13 +326,14 @@ def ansi_encode(text: str) -> str:
     >>> ansi_encode('{unknown}text')
     '{unknown}text'
     """
+
     def _replace(match) -> str:
         token = match.group(1)
-        code  = ANSI_COLOR_CODES.get(token)
+        code = ANSI_COLOR_CODES.get(token)
         if code is not None:
             return code
         logging.debug('ansi_encode: unknown token {%s}', token)
-        return match.group(0)   # leave unknown tokens intact
+        return match.group(0)  # leave unknown tokens intact
 
     return _TOKEN_RE.sub(_replace, text)
 
@@ -337,45 +351,62 @@ def ansi_encode_lines(lines: list[str]) -> list[str]:
 
 # ---------------------------------------------------------------------------
 # ColorName -> token bridge
+
 # ---------------------------------------------------------------------------
 
 # Maps terminal.ColorName enum values to {token} names used in
 # ANSI_COLOR_CODES and PETSCII_CONTROL_CODES.
 # ColorName is the player-facing name ("Dark Green");
 # the token is the encode-pipeline key ("green").
-# Import lazily to avoid circular imports with terminal.py.
+# Imported lazily inside _build_color_name_to_token() to avoid the
+# circular import:  formatting -> terminal -> player -> formatting
 def _build_color_name_to_token() -> dict:
     try:
-        from ..terminal import ColorName
+        from terminal import ColorName
+        logging.debug('_build_color_name_to_token: ColorName loaded OK')
         return {
-            ColorName.BLACK:        'black',
-            ColorName.WHITE:        'white',
-            ColorName.RED:          'red',
-            ColorName.CYAN:         'cyan',
-            ColorName.PURPLE:       'purple',
-            ColorName.DARK_GREEN:   'green',
-            ColorName.DARK_BLUE:    'blue',
-            ColorName.YELLOW:       'yellow',
-            ColorName.ORANGE:       'orange',
-            ColorName.BROWN:        'dark_gray',    # closest ANSI approximation
-            ColorName.LIGHT_RED:    'light_red',
-            ColorName.DARK_GRAY:    'dark_gray',
-            ColorName.MEDIUM_GRAY:  'light_white',
-            ColorName.LIGHT_GREEN:  'light_green',
-            ColorName.LIGHT_BLUE:   'light_blue',
-            ColorName.LIGHT_GRAY:   'light_gray',
-            ColorName.RESET:        'reset',
-            ColorName.REVERSE_ON:   'reverse_on',
-            ColorName.REVERSE_OFF:  'reverse_off',
+            ColorName.BLACK: 'black',
+            ColorName.WHITE: 'white',
+            ColorName.RED: 'red',
+            ColorName.CYAN: 'cyan',
+            ColorName.PURPLE: 'purple',
+            ColorName.DARK_GREEN: 'green',
+            ColorName.DARK_BLUE: 'blue',
+            ColorName.YELLOW: 'yellow',
+            ColorName.ORANGE: 'orange',
+            ColorName.BROWN: 'dark_gray',  # closest ANSI approximation
+            ColorName.LIGHT_RED: 'light_red',
+            ColorName.DARK_GRAY: 'dark_gray',
+            ColorName.MEDIUM_GRAY: 'light_white',
+            ColorName.LIGHT_GREEN: 'light_green',
+            ColorName.LIGHT_BLUE: 'light_blue',
+            ColorName.LIGHT_GRAY: 'light_gray',
+            ColorName.RESET: 'reset',
+            ColorName.REVERSE_ON: 'reverse_on',
+            ColorName.REVERSE_OFF: 'reverse_off',
         }
-    except ImportError:
-        logging.warning('terminal.ColorName not available; COLOR_NAME_TO_TOKEN will be empty.')
+    except ImportError as e:
+        logging.warning('terminal.ColorName not available; COLOR_NAME_TO_TOKEN will be empty. (%s)', e)
+        return {}
+    except Exception as e:
+        logging.warning('COLOR_NAME_TO_TOKEN build failed: %s: %s', type(e).__name__, e)
         return {}
 
 
-# Built once at import time; safe because terminal.py has no runtime
-# dependency on formatting.py (only TYPE_CHECKING).
-COLOR_NAME_TO_TOKEN: dict = _build_color_name_to_token()
+# Lazy cache — built on first access via module __getattr__ below.
+# This avoids the circular import that occurs when formatting.py is
+# still initialising and terminal.py tries to import back from it.
+_COLOR_NAME_TO_TOKEN_CACHE: dict | None = None
+
+
+def __getattr__(name: str):
+    """PEP 562 module __getattr__: called when attribute lookup fails normally."""
+    global _COLOR_NAME_TO_TOKEN_CACHE
+    if name == 'COLOR_NAME_TO_TOKEN':
+        if _COLOR_NAME_TO_TOKEN_CACHE is None:
+            _COLOR_NAME_TO_TOKEN_CACHE = _build_color_name_to_token()
+        return _COLOR_NAME_TO_TOKEN_CACHE
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def highlight_brackets(text: str, codec: ColorCodec) -> str:
@@ -397,7 +428,7 @@ def highlight_brackets(text: str, codec: ColorCodec) -> str:
 
 
 def wrap_text(text: str, width: int,
-              initial_indent:    str = '',
+              initial_indent: str = '',
               subsequent_indent: str = '') -> list[str]:
     """
     Word-wrap a single string to `width` columns.
@@ -464,7 +495,7 @@ def format_line(text: str, width: int, codec: ColorCodec) -> list[str]:
 
 def format_lines(lines: list[str],
                  settings: HasClientSettings,
-                 codec:    ColorCodec | None = None) -> list[str]:
+                 codec: ColorCodec | None = None) -> list[str]:
     """
     Format a list of strings for output to a player's terminal.
     Applies bracket highlighting, bullet formatting, and word-wrapping.
@@ -482,7 +513,7 @@ def format_lines(lines: list[str],
     if codec is None:
         codec = PlainCodec()
 
-    width  = getattr(settings, 'screen_columns', 80)
+    width = getattr(settings, 'screen_columns', 80)
     result = []
     for line in lines:
         result.extend(format_line(line, width, codec))
@@ -544,8 +575,8 @@ def make_box(lines: list[str], title: str = '', width: int = 60) -> list[str]:
     >>> make_box(['Hello'], width=12)
     ['+----------+', '| Hello    |', '+----------+']
     """
-    inner  = width - 4   # account for '| ' and ' |'
-    h_bar  = '-' * (width - 2)
+    inner = width - 4  # account for '| ' and ' |'
+    h_bar = '-' * (width - 2)
     border = f'+{h_bar}+'
 
     if title:
@@ -564,9 +595,10 @@ def make_box(lines: list[str], title: str = '', width: int = 60) -> list[str]:
 
 class _MockSettings:
     """Minimal settings stub for doctests."""
+
     def __init__(self, screen_columns: int = 80, screen_rows: int = 25):
         self.screen_columns = screen_columns
-        self.screen_rows    = screen_rows
+        self.screen_rows = screen_rows
 
 
 def flatten_send_args(*args) -> list[str]:
@@ -595,6 +627,7 @@ def flatten_send_args(*args) -> list[str]:
 
 if __name__ == '__main__':
     import doctest
+
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)10s | %(funcName)20s() | %(message)s')
     doctest.testmod(verbose=True)

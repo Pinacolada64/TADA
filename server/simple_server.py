@@ -272,6 +272,26 @@ class Server:
                 await ctx.send('Plain text mode set.')
             else:
                 await ctx.send('ANSI color mode set.')
+            while True:
+                raw = await ctx.prompt('Terminal type [A/P]')
+                if raw is None:
+                    return
+                if raw.strip().upper() == 'P':
+                    try:
+                        ctx.player.client_settings.translation = Translation.ASCII
+                        await ctx.send('Plain text mode set.')
+                        logging.info("Address %s: Plain text mode set." % ctx.client.host)
+                        break
+                    except Exception:
+                        pass
+                if raw.strip().upper() == 'A':
+                    try:
+                        ctx.player.client_settings.translation = Translation.ANSI
+                        await ctx.send('ANSI color mode set.')
+                        logging.info("Address %s: ANSI color mode set." % ctx.client.client_socket)
+                        break
+                    except Exception:
+                        pass
 
     # -----------------------------------------------------------------------
     # Login
@@ -288,18 +308,18 @@ class Server:
         """
         await ctx.send(
             '',
-            'Welcome to:',
+            '{green}Welcome to:',
             '',
-            '  Totally',
-            '   Awesome',
-            '    Dungeon',
-            '     Adventure',
-            '',
+              '{red}  Totally',
+            '{white}   Awesome',
+              '{red}    Dungeon',
+            '{white}     Adventure',
+            '{green}',
             "Type 'connect <username> <password>' to log in.",
             "Type 'connect guest' to look around as a guest.",
             "Type 'new' to create a new character.",
             "Type 'help' for help.  Type 'quit' to leave.",
-            '',
+            '{light_blue}',
         )
 
         processor = ctx.client.command_processor
