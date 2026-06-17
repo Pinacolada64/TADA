@@ -1,663 +1,933 @@
+"""commands/new_player.py
+
+New player creation flow.
+
+`NewPlayerCommand` is the entry point — it is auto-discovered by
+CommandProcessor and available in Mode.LOGIN.  It drives the player
+through a linear series of prompts (prologue → username/password →
+client settings → age → gender → name → class → race → guild →
+stat roll → review → confirm) using only ctx.send() and ctx.prompt().
+
+All helper coroutines take (ctx) only and operate on ctx.player directly.
+They return True on success and False if the player abandoned the step
+(e.g. disconnected mid-flow).
+
+Design notes
+------------
+- No reader/writer/player_obj arguments anywhere — everything is on ctx.
+- No nested function definitions — all helpers are module-level coroutines.
+- `main_flow()` is the sequencer; NewPlayerCommand.execute() calls it.
+- On completion, returns CommandResult with data={'authenticated': True,
+  'username': ..., 'room': CREATION_ROOM} so _login in simple_server.py
+  switches the processor to GAME mode exactly the same way ConnectCommand does.
+
+TODOs
+-----
+* summoning help staff for assistance
+* #newbies chat channel
 """
-New player command implementation for handling new player creation.
-This will be a room on the map where new players can create their characters.
-It also allows helpstaff or other player to be summoned to assist the new player.
-The room description will change to the text of the step in the creation process,
-so the client can just display the room description as the prompt.
-"""
+
+from __future__ import annotations
+
+import calendar
+import json
 import logging
-from typing import Dict, Any, List, Coroutine
-from pathlib import Path
 import random
+from datetime import date, datetime
+from pathlib import Path
+from typing import Optional
 
-from base_classes import PlayerRace, Gender
-from flags import PlayerFlags
-from menu_system import MenuItem
-from net_common import Mode, MessageType
-from base_command import Command, CommandResult
-from command_processor import command
-from net_common import Message, to_jsonb, from_jsonb
+from base_classes import PlayerRace
+from commands.base_command import Command, CommandResult, Mode
+from commands.help import Help, HelpCategory
+from create_character import validate_class_race_combo
 from network_context import GameContext
-from player import Player
-from simple_client import send_message
-from tada_utilities import prompt_client, text_pager
-from terminal import Translation, TerminalColors, CBMColors, KeyboardKeyName
-from utils import get_player_from_context
 
-# Room where new players will be placed after creation
-# (this is a "hole" in map level 1 where there is no room)
-CREATION_ROOM = 5  # Default starting room
+log = logging.getLogger(__name__)
 
+# Room where newly created players are placed after finishing creation.
+# This is a "hole" in map level 1 — no normal room occupies slot 5.
+CREATION_ROOM = 5
 
-async def prologue(self, ctx, *args):
-    # step 0
-    from tada_utilities import prompt_client
-    lines = [
-        "Welcome to 'Totally Awesome Dungeon Adventure', or TADA for short!",
-        "Before you begin your adventure, let's set up your character.",
-        "You'll be guided through a series of steps to create your unique persona in this world.",
-        "Your faithful servant Verus will assist you through this process.",
-        "If you need help at any point, you can type 'help', 'h' or '?' for assistance.",
-        # TODO: "You may type "helpstaff" to summon a helper if you need assistance.",
-        # TODO: "You may join the "new players" chat channel by typing "chat #join newplayers"
-    ]
-    await prompt_client(ctx, *args, prompt_text='prologue> ')
+# Where per-user credential files live.
+_USER_DIR = Path("run") / "server" / "net"
 
 
-async def choose_client(ctx, *args):
-    # step 1
-    from tada_utilities import prompt_client
-    # If a client is present, run the interactive creation flow
-    if ctx.player.client:
-        # Ensure the user_dir exists
-        user_dir = Path('run') / 'server' / 'net'
-        user_dir.mkdir(parents=True, exist_ok=True)
-        # Step 1a: choose client settings (screen size / translation mock)
-        # if client told server which kind of client it is, skip this step
-        # Provide simple client choices with screen dimensions: C64 (40x25), 128 (80x25), TADA (80x25, ANSI)')
-        # TODO: introspect the terminal types to get screen dimensions and translation:
-        options = [
-            ('1', 'Commodore 64 (40x25, PetSCII)'),
-            ('2', 'Commodore 128 (40x25, PetSCII)'),
-            ('3', 'Commodore 128 (80x25, PetSCII)'),
-            ('4', 'TADA Client (80x25, ANSI)')
-        ]
-        while True:
+# ---------------------------------------------------------------------------
+# NewPlayerCommand
+# ---------------------------------------------------------------------------
 
-            lines = ['Which client will you use?',
-                     '',
-                     '##  Type      Screen size   Translation'] + [f"{i + 1}. {o[1]}" for i, o in enumerate(options)]
-            ans = (await prompt_client(ctx, lines,
-                                       prompt_text='client> ')).strip()
-            if ans == '1':
-                ctx.player.client_settings.screen_columns = 40
-                ctx.player.client_settings.screen_rows = 25
-
-                # TODO: Apply terminal settings from Terminal class
-                ctx.player.client_settings.colors = CBMColors
-                ctx.player.client_settings.translation = Translation.PETSCII
-                ctx.player.client_settings.return_key = KeyboardKeyName.RETURN
-                break
-            if ans == '2':
-                ctx.player.client_settings.screen_columns = 40
-                break
-            if ans == '3':
-                ctx.player.client_settings.screen_columns = 80
-                # {'name': 'Commodore 128 (80 cols)', 'screen_columns': 80, 'screen_rows': 25,
-                #  'translation': 'PETSCII', 'return_key': 'Return'}
-                break
-            if ans == '4':
-                # set common defaults:
-                await set_defaults(ctx.player)
-                break
-    # no client present, return some defaults:
-    if not ctx.client:
-        logging.info("No client; setting defaults")
-        await set_defaults(ctx.player)
-    # return player
-
-
-async def set_defaults(self, ctx, *args):
-    # set some default client settings
-    from server.terminal import KeyboardKeyName, ClientSettings
-    ctx.player.client_settings.colors = TerminalColors
-    ctx.player.client_settings.name = 'TADA Client'
-    ctx.player.client_settings.screen_rows = 25
-    ctx.player.client_settings.screen_columns = 80
-    ctx.player.client_settings.translation = Translation.ANSI
-    ctx.player.client_settings.return_key = KeyboardKeyName.ENTER
-    await send_message("set_defaults: {pprint(ctx.player.client_settings)}")
-
-
-async def confirm_creation(self, ctx: GameContext, *args) -> Player:
-    """
-    Confirm final creation; standardized signature to accept ctx (includes player).
-    Returns the player (caller can inspect attributes or set a flag).
-    """
-    logging.info("Final character '%s' summary: %s", (ctx.player.name, ctx.player))
-    # TODO: For simplicity, always confirm in this mockup; set an attribute and return player
-    # Setting this here allows a connection drop to resume char creation if they log in under the same
-    # account; Verus can then say something about "wanting to continue creation"
-    # this flag can get deleted on first login, it doesn't need to get saved beyond this point
-    ctx.player.creation_done = True
-    await ctx.send("Confirm creation: Finish this")
-    return ctx.player
-
-
-async def final_edit_prompt(self, ctx: GameContext, *args):
-    """
-    Display a summary of character, allow some editing options before final confirmation.
-
-    :param ctx:
-    :param args:
-    :return:
-    """
-    # TODO: finish this
-    logging.info("Not done yet")
-    await ctx.send("TODO: not done yet")
-
-
-async def check_info(self, ctx: GameContext, *args) -> int | bool:
-    """Verify that the choice is a call for class / race info:
-    the input starts with 'i', and is followed by a digit 1-9.
-
-    :param ctx: str - input from the player
-    :return: option int if input is 'i#', False otherwise
-    """
-    choice = await ctx.prompt("Prompt: ")  # FIXME - is a prompt necessary here?
-    # Numeric choice: select option by number
-    if choice.isdigit():
-        try:
-            number_choice = int(choice)
-        except ValueError:
-            return False
-
-    # Info request: I# or i#
-    low = choice.lower()
-    if len(low) == 2 and low[0] == 'i' and low[1].isdigit():
-        idx = int(low[1])
-        if 1 <= idx <= 9:
-            return idx
-        # Not recognized
-        msg = ("Verus shakes his head. 'That's not a choice I understand. "
-               "Try a number 1-9, or I followed by a number 1-9: e.g., 1 or I1.'")
-        # TODO: support inputting digit followed by I, also
-        await ctx.send(msg)
-    return False
-
-
-@command(name='new', aliases=['create', 'newplayer'], summary='Create a new character account')
 class NewPlayerCommand(Command):
-    async def execute(self, ctx: GameContext, *args) -> CommandResult | None:
-        """
-        Handles new player creation in a non-blocking way.
+    """Create a new player account via an interactive guided flow."""
 
-        The command expects `new <username> <password>` and returns a CommandResult
-        with data describing changes the server should apply (authenticated, username, mode).
-        """
-        # Only available during login/creation flow
-        login_only = True
+    name    = "new"
+    aliases = ["create", "newplayer"]
+    modes   = {Mode.LOGIN}
 
-        # Validate arguments; support interactive prompting if a real client is present
-        client = ctx.get('client') or context.get('client')
-        player_context = get_player_from_context(context, client)
-        # Case: interactive prompting if args incomplete and client supports prompts
+    help = Help(
+        summary     = "Create a new character account.",
+        description = (
+            "Guides you through a series of steps to create your character: "
+            "username, password, client settings, age, gender, name, class, "
+            "race, guild, and stat roll.  Your faithful servant Verus will "
+            "assist you through the process."
+        ),
+        category = HelpCategory.AUTHENTICATION,
+        usage    = [
+            ("new",                        "Start the interactive creation flow."),
+            ("new <username> <password>",  "Skip the username/password prompts."),
+        ],
+        notes = [
+            "Type 'help', 'h', or '?' at any prompt for assistance.",
+            "You may type 'quit' at any time to abandon character creation.",
+        ],
+    )
 
-        if not args or len(args) < 2:
-            from tada_utilities import prompt_client
-            if client and getattr(client, 'writer', None) and getattr(client, 'reader', None):
-                # ask for username if missing
-                if not args or len(args) == 0:
-                    user_id = await prompt_client(getattr(client, 'reader'), getattr(client, 'writer'), None,
-                                                  ['Choose a username:'], prompt_text='username> ')
-                else:
-                    user_id = args[0]
-                # ask for password
-                # TODO: call SetPasswordCommand (which asks twice, verifies match)
-                password = await prompt_client(getattr(client, 'reader'), getattr(client, 'writer'), None,
-                                               ['Choose a password (will be echoed):'], prompt_text='password> ')
-                if not user_id or not password:
-                    return CommandResult(success=False, error='missing_args', message='Username and password required.',
-                                         data={'mode': Mode.login})
-            else:
-                return CommandResult(success=False, error='missing_args', message='Usage: new <username> <password>',
-                                     data={'mode': Mode.login})
-        else:
-            user_id = args[0]
-            password = args[1]
-        # Simple player representation
-        from player import Player
-        player = Player()
+    async def execute(self, ctx, *args) -> CommandResult:
+        positional, _ = self.parse_args(*args)
 
-async def choose_settings(self, player_obj, reader=None, writer=None):
-        # Standardized helper: choose settings prompt
-        async def choose_settings_prompt(player_obj, reader=None, writer=None):
-            lines = ['Settings: choose any to toggle (not persisted in this simple flow)']
-            lines += ['1. Regional Settings', '2. Colors', '3. Other Settings', '', "Press Enter to continue"]
-            await prompt_client(reader, writer, player_obj, ['Settings (press Enter to continue)'],
-                                prompt_text='settings> ')
-            return player_obj
+        # Pre-supply username / password if given on the command line.
+        prefill_username = positional[0] if len(positional) > 0 else None
+        prefill_password = positional[1] if len(positional) > 1 else None
 
-        # Standardized helper: choose age & birthday - now returns the player with attributes set
-        async def choose_age_prompt(ctx: GameContext):
-            from datetime import date, datetime
-            from random import randrange
-            import calendar
-            while True:
-                ans = await ctx.prompt("Enter age (0=Unknown, [R]andom, 15-50)").strip().lower()
-                if not ans:
-                    continue
-                if ans == 'r':
-                    age = randrange(15, 51)
-                    ctx.player.age = age
-                    ctx.player.birthday = datetime.now()
-                    return ctx
-                if ans.isdigit():
-                    age = int(ans)
-                    player_obj.age = age
-                    # quick birthday flow
-                    today = date.today()
-                    temp = await ctx.prompt(f"Use [T]oday's date ({today}) or [A]nother date for birthday? (T/A)")
-                    if temp in ('t', 'today'):
-                        ctx.player.birthday = datetime(date.today().year, date.today().month, date.today().day)
-                        logging.info(f"Set birthday to today: {player_obj.birthday}")
-                        return ctx
-                    # custom date
-                    months = ["Select month:", ""] + [f"{i + 1}. {calendar.month_name[i + 1]}" for i in range(12)]
-                    await ctx.send(months)
-                    m = await ctx.prompt("Enter birth month (1-12):")
-                    try:
-                        m_i = max(1, min(12, int(m)))
-                    except ValueError:
-                        m_i = date.today().month
-                    days_in_month = calendar.monthrange(date.today().year, m_i)[1]
-                    d = await ctx.prompt(f"Enter birth day (1-{days_in_month}):")
-                    try:
-                        d_i = max(1, min(days_in_month, int(d)))
-                    except Exception:
-                        d_i = date.today().day
-                    player_obj.birthday = datetime(date.today().year, m_i, d_i)
-                    return player_obj
-                # else loop until valid
-
-            # Final edit prompt: summary and simple edits using ctx.prompt
-            async def final_edit_prompt(player: Player) -> None:
-                while True:
-                    # Show summary and give edit options
-                    from menu_system import Menu
-                    edit_menu = Menu(title=f"{player.name}'s Summary")
-                    edit_menu.add_item(MenuItem(shortcuts=['1', 'n'],
-                                                text='Name',
-                                                dot_leader_handler=lambda: player.name,
-                                                action=choose_name
-                                                ))
-                    edit_menu.add_item(MenuItem(shortcuts=['2', 'a'],
-                                                text='Age',
-                                                dot_leader_handler=lambda: player.age,
-                                                action=choose_age_prompt
-                                                ))
-                    edit_menu.add_item(MenuItem(shortcuts=['3', 'ge'],
-                                                text='Gender',
-                                                dot_leader_handler=lambda: player.gender
-                                                )),
-                    edit_menu.add_item(MenuItem(shortcuts=['4', 'c'],
-                                                text='Class',
-                                                dot_leader_handler=lambda: player.char_class
-                                                )),
-                    edit_menu.add_item(MenuItem(shortcuts=['5', 'r', ],
-                                                text='Race',
-                                                dot_leader_handler=lambda: player.char_race,
-                                                action=edit_race
-                                                ))
-                    edit_menu.add_item(MenuItem(shortcuts=['6', 'gu'],
-                                                text='Guild',
-                                                dot_leader_handler=lambda: player.guild
-                                                ))
-                    edit_menu.add_item(MenuItem(shortcuts=['7', player.return_key],
-                                                text='Accept and Finish Creation')
-                                       )
-
-                    lines.append("Stats:")
-                    for idx, (k, v) in enumerate(player.stats.items(), 1):
-                        lines.append(f"  {idx}. {k}: {v}")
-                    lines.append('Enter number to edit, or press Enter to accept:')
-                    ans = (await prompt_client(lines, player_obj=player, prompt_text='edit> ')).strip()
-                    if ans == '1':
-                        player.name = await choose_name(reader, writer)
-                    elif ans == '2':
-                        gender = await prompt_client(writer, ['M or F:'], reader, prompt_text='gender> ')
-                        player.gender = Gender.MALE if gender == 'm' else Gender.FEMALE
-                    elif ans == '3':
-                        player.char_class = await choose_class
-                    elif ans == '4':
-                        player.char_race = await edit_race
-                    elif ans == '5':
-                        player.guild = await choose_guild
-                    elif ans == '':
-                        break
-                    else:
-                        # invalid, loop
-                        continue
-
-            return None
-
-        # Option 1: edit race
-
-        async def edit_race(player_obj, reader=None, writer=None):
-            # simple informational response
-            if writer:
-                await send_message(writer,
-                                   Message(lines=['Called by Menu, just a simple line of text to display to the user.'],
-                                           type=MessageType.REGULAR))
-            return player_obj
-
-        async def choose_gender(player_obj, reader=None, writer=None) -> Player:
-            while True:
-                ans = (await prompt_client(reader, writer, player_obj, ["Are you Male or Female? (M/F)"],
-                                           prompt_text='gender> ')).strip().lower()
-                if ans in ['m', 'male']:
-                    if writer:
-                        await send_message(writer,
-                                           Message(lines=[f"{player_obj.name} is male."], type=MessageType.REGULAR))
-                    player_obj.gender = Gender.MALE
-                    return player_obj
-                if ans in ['f', 'female']:
-                    if writer:
-                        await send_message(writer,
-                                           Message(lines=[f"{player_obj.name} is female."], type=MessageType.REGULAR))
-                    player_obj.gender = Gender.FEMALE
-                    return player_obj
-                # invalid, re-prompt
-
-        async def choose_name(player_obj, reader=None, writer=None):
-            while True:
-                name = (await prompt_client(reader, writer, player_obj,
-                                            ["Enter a character name (or 'R' for a random name):"],
-                                            prompt_text='name> ')).strip()
-                if not name:
-                    continue
-                if name.lower() == 'r':
-                    try:
-                        # pass player_obj to determine player's gender for proper gender-aware name generation
-                        name = generate_random_name(player_obj)
-                    except Exception:
-                        name = f"Player{random.randint(1000, 9999)}"
-                user_file = Path(user_dir) / f'login-{name}.json'
-                if user_file.exists():
-                    await send_message(writer,
-                                       Message(f"There is someone already here by that name. Choose another.",
-                                               type=MessageType.REGULAR),
-                                       )
-                    continue
-                player_obj.name = name
-                return player_obj
-
-        async def check_is_digit(player_input: str, reader=None, writer=None) -> bool:
-            """Verify that the choice is a digit 1-9.
-
-            :param player_input: str - input from the player
-            :param reader: asyncio StreamReader (optional)
-            :param writer: asyncio StreamWriter (optional)
-            :return: bool: True if player_input is within range, False otherwise
-            """
-            # quick debug message if writer present
-            if writer:
-                await send_message(writer, Message(lines=['Checking choice...'], type=MessageType.REGULAR))
-
-            if not player_input:
-                await send_message(writer, Message(lines=['No input provided.'], type=MessageType.REGULAR))
-                return False
-
-            choice = player_input.strip()
-            if choice.isdigit():
-                try:
-                    number_choice = int(choice)
-                    if 1 <= number_choice <= 9:
-                        return True
-                except ValueError:
-                    return False
-
-            # Not recognized
-            msg = "Verus shakes his head. 'That's not a choice I understand. Try a number 1-9.'"
-            if writer:
-                await send_message(writer, Message(lines=msg, type=MessageType.REGULAR))
-            else:
-                try:
-                    player_obj.output(msg)
-                except Exception:
-                    logging.info(msg)
-            return False
-
-        async def set_class(player_obj, class_name: str, reader=None, writer=None):
-            # called from either edit_class or choose_class
-            from base_classes import PlayerClass
-
-        async def choose_class(player_obj, reader=None, writer=None):
-            from base_classes import PlayerClass
-            if not player_obj.query_flag(PlayerFlags.EXPERT_MODE):
-                # Beginner mode: display prompts, info on what classes are:
-                # TODO: rewrite tada_utilities.paged_text to support async and use send_message
-                await send_message(writer, Message(lines=["Classes Overview:"]))
-                from base_classes import PlayerClassText
-                for class_text in PlayerClassText:
-                    await send_message(writer, Message(lines=[str(class_text)]))
-            lines = ['Verus says, "Choose a class by number, or I# for info."']
-            classes = [c for c in PlayerClass.name]
-            lines += [f"{i + 1}. {c}" for i, c in enumerate(classes)]
-            while True:
-                ans = (await prompt_client(reader, writer, player_obj, lines, prompt_text='class> ')).strip()
-                if not ans:
-                    continue
-                # check for numeric choice:
-                number = await check_is_digit(ans, reader, writer)
-                if number and player_obj.char_class:
-                    player_obj.char_class = [c for c in classes][number - 1]
-                # check for 'i#' choice:
-                info = await check_info(ans, reader, writer)
-                if info:
-                    from base_classes import PlayerClassText
-                    await send_message(writer, Message(lines=[ct for ct in PlayerClassText][number - 1]))
-            classes = [c for c in PlayerClass.name]
-            lines = ['Verus says, "Choose a class:"', [f"{i + 1}. {c}" for i, c in enumerate(classes)]]
-            while True:
-                ans = (await prompt_client(reader, writer, player_obj, lines, prompt_text='class> ')).strip()
-                if not ans:
-                    continue
-                # TODO: validate input in range 1 < ans < len(classes), show info if requested
-                if ans.isdigit():
-                    idx = int(ans) - 1
-                    if 0 <= idx < len(classes):
-                        player_obj.char_class = classes[idx]
-                        return player_obj
-                for c in classes:
-                    if ans.lower() == c.lower():
-                        player_obj.char_class = c
-                        return player_obj
-                msg = f'To get class info, enter I followed by a number between 1 and {len(classes)}.'
-                if writer:
-                    await send_message(writer, Message(lines=[msg], type=MessageType.REGULAR))
-
-        return None
+        return await main_flow(ctx,
+                               prefill_username=prefill_username,
+                               prefill_password=prefill_password)
 
 
-async def choose_race(ctx, *args):
-    from base_classes import PlayerRace
-    races = [race for race in PlayerRace]
-    lines = ['Choose a race:'] + [f"{i + 1}. {r.name}" for i, r in enumerate(races)]
-    while True:
-        ans = (await prompt_client(ctx, lines, 'race> ')).strip()
-        if not ans:
-            continue
-        verified = (ans)
-        try:
-            races = [r.name for r in PlayerRace]
-        except Exception:
-            races = ['Human', 'Elf', 'Dwarf']
-        race_lines = ['Choose a race:'] + [f"{i + 1}. {r}" for i, r in enumerate(races)]
-        while True:
-            ans = (await prompt_client(reader, writer, player, race_lines, prompt_text='race> ')).strip()
-            if not ans:
-                await send_message(writer, "Please enter a choice.")
-                continue
-            race = check_selection(ans)
-            if race:
-                idx = int(race) - 1
-                if 0 <= idx < len(races):
-                    player.char_race = races[idx]
-                    break
-            info = await check_info(ans, reader, writer)
-            if info:
-                from base_classes import PlayerClassText, PlayerClass
-                texts = list(PlayerClassText)
-                if 1 <= idx <= len(texts):
-                    class_text = texts[idx - 1]
-                    # class_text may be a long string or structure; output it
-                    if writer:
-                        await text_pager(reader, writer, class_text)
-                        # paged_text(writer, Message(lines=[str(class_text)], type=MessageType.REGULAR))
-                    else:
-                        try:
-                            print(class_text)
-                        except Exception:
-                            logging.info(str(class_text))
+# ---------------------------------------------------------------------------
+# main_flow — sequencer
+# ---------------------------------------------------------------------------
 
+async def main_flow(ctx,
+                    prefill_username: Optional[str] = None,
+                    prefill_password: Optional[str] = None) -> CommandResult:
+    """Run the full creation sequence.  Returns a CommandResult."""
 
-async def choose_guild(player_obj, reader=None, writer=None):
-    guilds = [
-        ('C', 'Civilian'),
-        ('M', 'Mark of the Claw'),
-        ('F', 'Iron Fist'),
-        ('S', 'Mark of the Sword'),
-        ('O', 'Outlaw')
+    await _prologue(ctx)
+
+    # --- username & password ---
+    username = await _choose_username(ctx, prefill=prefill_username)
+    if not username:
+        return CommandResult.fail("Character creation abandoned.", error="abandoned")
+
+    password = await _choose_password(ctx, prefill=prefill_password)
+    if not password:
+        return CommandResult.fail("Character creation abandoned.", error="abandoned")
+
+    # Initialise a bare Player stub on ctx so later steps can write to it.
+    # The real Player object is created/persisted in _confirm_creation().
+    ctx.player.name = username
+
+    # --- creation steps ---
+    steps = [
+        _edit_settings,
+        _choose_client_settings,
+        _choose_age,
+        _choose_gender,
+        _choose_name,
+        _choose_class,
+        _choose_race,
+        _choose_guild,
+        _roll_stats,
+        _final_review,
     ]
-    lines = ['Choose a guild:'] + [f"{i + 1}. {g[1]}" for i, g in enumerate(guilds)]
-    short_lines = ['Options:'] + [f"{g[0]} => {g[1]}" for g in guilds]
-    while True:
-        ans = (await prompt_client(reader, writer, player_obj, lines + short_lines,
-                                   prompt_text='guild> ')).strip().lower()
-        if ans.isdigit():
-            idx = int(ans) - 1
-            if 0 <= idx < len(guilds):
-                player_obj.guild = guilds[idx][1]
-                return player_obj
-        for short, name in guilds:
-            if ans == short.lower() or ans == name.lower():
-                player_obj.guild = name
-                return player_obj
+    for step in steps:
+        ok = await step(ctx)
+        if not ok:
+            return CommandResult.fail("Character creation abandoned.", error="abandoned")
 
+    # --- persist and confirm ---
+    ok = await _confirm_creation(ctx, username, password)
+    if not ok:
+        return CommandResult.fail("Character creation failed.", error="creation_failed")
 
-async def roll_stats_enhanced(player_obj, reader=None, writer=None):
-    import random
-    order = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
+    await ctx.send(
+        "",
+        f"Welcome to TADA, {ctx.player.name}!",
+        "Your adventure begins now.",
+        "",
+    )
+    log.info("New player %r created, placed in room %d", ctx.player.name, CREATION_ROOM)
 
-    def one_roll():
-        rolls = [random.randint(1, 6) for _ in range(4)]
-        rolls.sort()
-        return sum(rolls[1:]), rolls
-
-    while True:
-        stats = {}
-        details = []
-        for s in order:
-            val, rolls = one_roll()
-            stats[s] = val
-            details.append(f"{s}: {val} (rolls: {rolls})")
-
-        bonus_lines = ['(Bonuses preview not implemented in full)']
-        lines = ['Rolled stats:', details, bonus_lines]
-        await send_message(writer, lines)
-        accept_msg = 'Accept these stats? (Y)es / (R)eroll'
-        ans = (await prompt_client(reader, writer, player_obj, accept_msg, prompt_text='stats> ')).strip().lower()
-        if ans in ('y', 'yes', ''):
-            player_obj.stats = stats
-            return player_obj
-        # else reroll
-
-
-def check_selection(ans: str) -> int | bool:
-    """Check if the answer is a valid selection digit 1-9.
-
-    :param ans: str - input from the player
-    :return: int if valid selection, False otherwise
-    """
-    if ans.isdigit():
-        try:
-            number_choice = int(ans)
-            if 1 <= number_choice <= 9:
-                return number_choice
-        except ValueError:
-            return False
-    return False
-
-
-async def main_flow(player, client=None) -> CommandResult:
-    # Run the standardized flow, wiring reader/writer from client when available
-    reader = getattr(client, 'reader', None)
-    writer = getattr(client, 'writer', None)
-
-    # Settings
-    player = await choose_settings_prompt(player, reader, writer)
-
-    # Age and birthday
-    player = await choose_age_prompt(player, reader, writer)
-
-    # Gender
-    player = await choose_gender(player, reader, writer)
-
-    # Name
-    player = await choose_name(player, reader, writer)
-
-    # Class
-    player = await choose_class(player, reader, writer)
-
-    # Race selection (inline)
-
-    # Guild
-    player = await choose_guild(player, reader, writer)
-
-    # Roll stats
-    player = await roll_stats_enhanced(player, reader, writer)
-
-    # Final review/edit
-    player = await final_edit_prompt(player, reader, writer)
-
-    # Confirm creation
-    player = await confirm_creation(player, reader, writer)
-
-    # return success with data for server to persist or act upon
-    return CommandResult(success=True, message='Player created',
-                         data={'player': player, 'mode': Mode.app, 'room': CREATION_ROOM})
-
-
-# interactive path (no client reader/writer): return success and leave it to server
-def help_text(self) -> str:
-    return (
-        "New Player Command\n"
-        "-----------------\n"
-        "Creates a new player account.\n\n"
-        "Usage: new <username> <password>\n"
+    return CommandResult(
+        success=True,
+        message=f"Character '{ctx.player.name}' created.",
+        data={
+            "authenticated": True,
+            "username":      username,
+            "room":          CREATION_ROOM,
+        },
     )
 
 
-def generate_random_name(player) -> str:
-    import random
-    male_given_names = [
-        'Aldric', 'Baldwin', 'Cedric', 'Dunstan', 'Edric', 'Falk', 'Godwin', 'Harold', 'Ivo',
-        'Jasper', 'Kenric', 'Lancel', 'Merrick', 'Osric', 'Peregrin', 'Quentin', 'Roderick',
-        'Sigurd', 'Theobald', 'Ulric', 'Wulfric'
-    ]
+# ---------------------------------------------------------------------------
+# Step 0 — prologue
+# ---------------------------------------------------------------------------
 
-    female_given_names = [
-        'Alina', 'Beatrice', 'Cecily', 'Dawn', 'Edith', 'Gwen', 'Jacqueline', 'Matilda', 'Rosamund',
-        'Rhiannon', 'Sybil'
+async def _prologue(ctx) -> bool:
+    prologue =[
+        "",
+        "{yellow}Welcome to {white}'Totally Awesome Dungeon Adventure'{yellow}, "
+        "or {white}TADA{yellow} for short!",
+        "",
+        "Before you begin your adventure, let's set up your character.",
+        "You'll be guided through a series of steps to create your unique",
+        "persona in this world.  Your faithful servant {light_green}Verus{yellow} will assist you.",
+        "",
+        "If you need help at any point, type {white}'help'{yellow}, {white}'h'{yellow}, or {white}'?'{yellow}.",
+        # TODO: "Type 'helpstaff' to summon a live helper.",
+        # TODO: "Type 'chat #join newplayers' to join the new-player chat channel.",
+        "",
     ]
+    await ctx.send(prologue)
+    return True
 
+# ---------------------------------------------------------------------------
+# Username & password
+# ---------------------------------------------------------------------------
+
+async def _choose_username(ctx, prefill: Optional[str] = None) -> Optional[str]:
+    """Prompt for a username; return it or None on disconnect/quit."""
+    if prefill:
+        username = prefill.strip().lower()
+        if _username_taken(username):
+            await ctx.send(f"The name '{username}' is already taken.  Please choose another.")
+            prefill = None
+        else:
+            return username
+
+    # TODO: capture this from CommodoreServer account name
+    while True:
+        raw = await ctx.prompt(
+            "Choose a username",
+            preamble_lines=["", " ('quit' or 'q' abandons choosing a user name.)",
+                            "Your name must be at least 3 characters.",
+                            "Choose a username (letters and numbers only).",
+                            ""],
+        )
+        if raw is None:
+            return None
+        username = raw.strip().lower()
+        if not username:
+            continue
+        if username in ("quit", "q"):
+            return None
+        if not username.isalnum():
+            await ctx.send("Usernames may only contain letters and numbers.  Try again.")
+            continue
+        if len(username) < 3:
+            await ctx.send("Username must be at least 3 characters.  Try again.")
+            continue
+        if _username_taken(username):
+            await ctx.send(f"'{username}' is already taken.  Please choose another.")
+            continue
+        return username
+
+async def _validate_password(ctx: GameContext, pw: str) -> bool:
+    """Ensure passwords meet requirements; return True if valid."""
+    password = pw.strip()
+    if len(password) < 4:
+        await ctx.send("Password must be at least 4 characters.  Try again.")
+        return False
+    return True
+
+
+async def _choose_password(ctx, prefill: Optional[str] = None) -> Optional[str]:
+    """Prompt for a password twice; return it or None on disconnect/quit."""
+    if prefill:
+        return prefill
+
+    while True:
+        pw1 = await ctx.prompt(
+            "Choose a password",
+            preamble_lines=[
+                "",
+                "Choose a password, or 'R' for a random pronounceable one:",
+            ],
+        )
+        if pw1 is None:
+            return None
+        pw1 = pw1.strip()
+        if pw1 in ("quit", "q"):
+            return None
+
+        if pw1.lower() == "r":
+            # Mirror BASIC line 3172: generate, show, ask, loop until accepted.
+            while True:
+                pw = _random_pronounceable_password()
+                ans = await ctx.prompt(
+                    "Y/N",
+                    preamble_lines=[f"Your random password is: {pw}", "Is this OK?"],
+                )
+                if ans is None:
+                    return None
+                if ans.strip().lower() in ("y", "yes", ""):
+                    return pw
+                # any other input → generate a new one
+            continue
+
+        if not await _validate_password(ctx, pw1):
+            continue
+
+        pw2 = await ctx.prompt("Confirm password")
+        if pw2 is None:
+            return None
+        if pw2.strip() != pw1.strip():
+            await ctx.send("Passwords do not match.  Try again.")
+            continue
+        return pw1
+
+
+def _username_taken(username: str) -> bool:
+    """Return True if a credential file already exists for this username."""
+    return (_USER_DIR / f"login-{username}.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# Step 1 — user preferences / client settings
+# ---------------------------------------------------------------------------
+
+async def _edit_settings(ctx) -> bool:
+    """Edit things like Debug Mode, Expert Mode, etc."""
+    # text color
+    # tutorial mode, maybe (include command-line practice? 'tutorial #loud' -> 'LOUD TUTORIAL!'
+    #    partial matching on base commands (wh = whisper, can't be just 'w' -- short for 'west')
+    #    movement, other things...
+
+    expert_mode = ["If you have played this game before, you can enable Expert Mode, if you wish. "
+                   "If enabled, Expert mode bypasses displaying in-depth instructions or information "
+                   "about commands or features in the game."
+                  ]
+    await ctx.send(expert_mode)
+
+async def _choose_client_settings(ctx) -> bool:
+    """Let the player declare their terminal type so we can set screen dimensions,
+    translation options, etc."""
+    from table import Table
+
+    lines = [
+        "",
+        "Which client are you connecting from?",
+        "",
+    ]
+    await ctx.send(lines)
+
+    while True:
+        options = [
+            ("1", "Commodore 64",  40, 25, "PETSCII"),
+            ("2", "Commodore 128", 40, 25, "PETSCII"),
+            ("3", "Commodore 128", 80, 25, "PETSCII"),
+            ("4", "TADA Client",   80, 25, "ANSI"),
+        ]
+        t = Table(headers=["##", "Computer Type", "Screen Size", "Translation"])
+
+        for k in options:
+            t.add_row([k[0], k[1], f"{k[2]} x {k[3]}", k[4]])
+        await ctx.send(*t.render(width=ctx.player.client_settings.screen_columns))
+
+        raw = await ctx.prompt("client", preamble_lines=lines)
+        if raw is None:
+            return False
+        ans = raw.strip()
+        if not ans:
+            continue
+
+        for key, label, cols, rows, encoding in options:
+            if ans == key:
+                cs = ctx.player.client_settings
+                cs.screen_columns = cols
+                cs.screen_rows    = rows
+                # Translation is stored as a string here; network_context
+                # resolves the actual codec when formatting output.
+                cs.translation    = encoding
+                await ctx.send(f"Client set to: {label}, {cols}x{rows} screen size")
+                return True
+
+        await ctx.send(f"{blue}Please enter a number between {white}1{blue} and {white}{len(options)}{blue}.")
+
+
+# ---------------------------------------------------------------------------
+# Step 2 — age
+# ---------------------------------------------------------------------------
+
+async def _choose_age(ctx) -> bool:
+    """Prompt for age (15–50) and optionally a birthday."""
+    preamble = [
+        "",
+        "How old is your character?",
+        "Enter a number (15–50), or 'R' for a random age:",
+    ]
+    while True:
+        raw = await ctx.prompt("age", preamble_lines=preamble)
+        if raw is None:
+            return False
+        ans = raw.strip().lower()
+        if not ans:
+            continue
+        if ans in ("quit", "q"):
+            return False
+
+        if ans == "r":
+            # TODO: per-class age minimum-maximum limits
+            age = random.randint(15, 50)
+        elif ans.isdigit() and 15 <= int(ans) <= 50:
+            age = int(ans)
+        else:
+            await ctx.send("Please enter a number between 15 and 50, or 'R' for random.")
+            continue
+
+        ctx.player.age = age
+        await ctx.send(f"Age set to {age}.")
+
+        # Optional birthday
+        raw2 = await ctx.prompt(
+            "T/A",
+            preamble_lines=[f"Use [T]oday's date for birthday, or enter [A]nother date? (T/A)"],
+        )
+        if raw2 is None:
+            return False
+        choice = raw2.strip().lower()
+
+        if choice in ("t", "today", ""):
+            ctx.player.birthday = datetime.now()
+        else:
+            # Month
+            month_lines = ["", "Select birth month:"] + [
+                f"  {i+1:2}.  {calendar.month_name[i+1]}" for i in range(12)
+            ]
+            raw_m = await ctx.prompt("month (1-12)", preamble_lines=month_lines)
+            if raw_m is None:
+                return False
+            try:
+                m = max(1, min(12, int(raw_m.strip())))
+            except ValueError:
+                m = date.today().month
+
+            # Day
+            days = calendar.monthrange(date.today().year, m)[1]
+            raw_d = await ctx.prompt(f"day (1-{days})")
+            if raw_d is None:
+                return False
+            try:
+                d = max(1, min(days, int(raw_d.strip())))
+            except ValueError:
+                d = date.today().day
+
+            ctx.player.birthday = datetime(date.today().year, m, d)
+
+        await ctx.send(f"Birthday set to {ctx.player.birthday.strftime('%B %d')}.")
+        return True
+
+
+# ---------------------------------------------------------------------------
+# Step 3 — gender
+# ---------------------------------------------------------------------------
+
+async def _choose_gender(ctx) -> bool:
+    """Prompt for character gender."""
+    try:
+        from base_classes import Gender
+    except ImportError:
+        Gender = None
+
+    preamble = ["", 'Verus squints myopically. "Is your character Male or Female?"']
+    while True:
+        raw = await ctx.prompt("M/F", preamble_lines=preamble)
+        if raw is None:
+            return False
+        ans = raw.strip().lower()
+        if ans in ("m", "male"):
+            ctx.player.gender = Gender.MALE if Gender else "male"
+            await ctx.send("Gender set to Male.")
+            return True
+        if ans in ("f", "female"):
+            ctx.player.gender = Gender.FEMALE if Gender else "female"
+            await ctx.send("Gender set to Female.")
+            return True
+        await ctx.send("Please enter 'M' for Male or 'F' for Female.")
+
+
+# ---------------------------------------------------------------------------
+# Step 4 — character name
+# ---------------------------------------------------------------------------
+
+async def _choose_name(ctx) -> bool:
+    """Prompt for the in-world character name (distinct from login username)."""
+    preamble = [
+        "{reset}Choose a name for your character.",
+        "{blue}Enter a name, or {white}'R'{blue} for a random one:",
+    ]
+    while True:
+        raw = await ctx.prompt("name", preamble_lines=preamble)
+        if raw is None:
+            return False
+        name = raw.strip()
+        if not name:
+            continue
+        if name.lower() in ("quit", "q"):
+            return False
+
+        if name.lower() == "r":
+            name = _generate_random_name(ctx.player)
+            await ctx.send(f"Random name chosen: {name}")
+
+        # Character names share the same namespace as usernames.
+        if _username_taken(name.lower()):
+            await ctx.send(f"There is already someone named '{name}'.  Choose another.")
+            continue
+
+        ctx.player.name = name
+        await ctx.send(f"Character name set to '{name}'.")
+        return True
+
+
+# ---------------------------------------------------------------------------
+# Step 5 — class
+# ---------------------------------------------------------------------------
+
+async def _choose_class(ctx) -> int | None:
+    """Prompt for character class.
+
+    :return: int for character class, None for connection drop"""
+
+    async def help(ctx, class_names):
+        """Show some help on how to display class information."""
+        # pick random class:
+        random_class_num = random.randint(0, len(class_names) - 1)
+        help = [f"Enter a number 1–{len(class_names)}, or 'I' and a number "
+                "to show more information about that class.",
+                "",
+                f"Example: Type 'i{random_class_num}' for class info."
+                "",
+                f"<shows information about the {class_names[random_class_num]}...>",
+                ]
+        await ctx.send(help)
+
+    apostrophe = "'"
+    class_names = [""]
+    try:
+        from base_classes import PlayerClass, PlayerClassText
+        classes     = list(PlayerClass)
+        class_names = [c.name for c in classes]
+        class_texts = list(PlayerClassText)
+    except ImportError:
+        classes     = ["Fighter", "Mage", "Cleric", "Thief"]
+        class_texts = ["Fighters fight", "Mages mage", "Clerics cleric", "Thieves thieve"]
+
+    # Show class overview in non-expert mode
+    if not ctx.player.expert_mode: # getattr(ctx.player, "expert_mode", False):
+        overview = ["",
+                    f'Verus says: "Choose a class by number in one of the following ways:",'
+                    f'',
+                    f'* Type {apostrophe}6{apostrophe}) to choose a {class_names[6]}, '
+                    f'* Type {apostrophe}I{apostrophe}"'
+                    f'"or {apostrophe}I{apostrophe} followed by the class number "'
+                    f'"(e.g., {apostrophe}i5{apostrophe})  for info."',
+                    "",
+                   ]
+
+        for i, name in enumerate(class_names):
+            desc = str(class_texts[i]) if i < len(class_texts) else ""
+            overview.append(f"  {i+1}. {name}" + (f" — {desc}" if desc else ""))
+        await ctx.send(*overview)
+    else:
+        expert_list = ["", "Available classes:"]
+        for i, name in enumerate(class_names):
+            expert_list.append(f"  {i+1}. {name}")
+        await ctx.send(*expert_list)
+
+    while True:
+        raw = await ctx.prompt("class")
+        if raw is None:
+            return False
+        ans = raw.strip().lower()
+        if ans in ['?', 'h', 'help']:
+            await help(ctx, class_names)
+        if not ans:
+            # TODO: check for valid class/race combinations
+            if isinstance(ctx.player.char_race, PlayerRace):
+                # this indicates they are editing during the final edit step,
+                # therefore perform the class/race check
+                pass
+            continue
+
+        # I# — show class info
+        info_idx = _parse_info_request(ans)
+        if info_idx is not None:
+            if 1 <= info_idx <= len(class_texts):
+                await ctx.send(str(class_texts[info_idx - 1]))
+            else:
+                await ctx.send(f"Enter I followed by a number 1–{len(class_names)}.")
+            continue
+
+        # Numeric selection
+        sel = _parse_selection(ans, len(class_names))
+        if sel is not None:
+            ctx.player.char_class = class_names[sel - 1]
+            await ctx.send(f"Class set to {ctx.player.char_class}.")
+            return True
+
+
+
+# ---------------------------------------------------------------------------
+# Step 6 — race
+# ---------------------------------------------------------------------------
+
+async def _choose_race(ctx) -> int | None:
+    """Prompt for character race."""
+    async def help_msg(ctx, msg):
+        await ctx.send(msg)
+
+    try:
+        from base_classes import PlayerRace, PlayerRaceText
+        races      = list(PlayerRace)
+        race_names = [r.name for r in races]
+        race_texts = list(PlayerRaceText)
+    except ImportError:
+        race_names = ["Human", "Elf", "Dwarf", "Halfling"]
+        race_texts = []
+
+    lines = [
+        "",
+        'Verus says: "Choose your race, or I# for info."',
+        "",
+    ] + [f"  {i+1}. {r}" for i, r in enumerate(race_names)]
+
+    help_text = 'Some combinations of classes and races cannot be selected together.'
+
+    # TODO: limit the available races shown to the player, based on the chosen race so they can't choose
+    #   an invalid combination?
+    # something like:
+    valid_class_and_race = validate_class_race_combo(ctx)  # from create_character.py: returns bool
+
+    while True:
+        raw = await ctx.prompt("race", preamble_lines=lines)
+        if raw is None:
+            return False
+        ans = raw.strip()
+        if not ans:
+            continue
+        if ans in ['?', 'h', 'help']:
+            help_msg(ctx, help_text)
+
+        info_idx = _parse_info_request(ans)
+        if info_idx is not None:
+            if 1 <= info_idx <= len(race_texts):
+                await ctx.send(str(race_texts[info_idx - 1]))
+            else:
+                await help_msg(ctx, f"Enter I followed by a number 1–{len(race_names)}.")
+            continue
+
+        sel = _parse_selection(ans, len(race_names))
+        if sel is not None:
+            # TODO: validate class/race combo (create_character.py does this)
+            ctx.player.char_race = race_names[sel - 1]
+            await ctx.send(f"Race set to {ctx.player.char_race}.")
+            return True
+
+        await ctx.send(f"Enter a number 1–{len(race_names)}, or I# for race info.")
+
+
+# ---------------------------------------------------------------------------
+# Step 7 — guild
+# ---------------------------------------------------------------------------
+
+_GUILDS = [
+    ("C", "Civilian"),
+    ("M", "Mark of the Claw"),
+    ("F", "Iron Fist"),
+    ("S", "Mark of the Sword"),
+    ("O", "Outlaw"),
+]
+
+async def _choose_guild(ctx) -> int | None:
+    """Prompt for guild membership."""
+    lines = [
+        "",
+        "Wouldst thou join a guild, remain a civilian, or become an Outlaw?",
+        "Choose an affiliation:",
+        "",
+    ] + [f"  {i+1}. {name}  ({short})" for i, (short, name) in enumerate(_GUILDS)]
+
+    while True:
+        raw = await ctx.prompt("guild", preamble_lines=lines)
+        if raw is None:
+            return None  # lost connection
+        ans = raw.strip().lower()
+        if not ans:
+            continue
+
+        # Numeric
+        sel = _parse_selection(ans, len(_GUILDS))
+        if sel is not None:
+            ctx.player.guild = _GUILDS[sel - 1][1]
+            await ctx.send(f"Guild set to {ctx.player.guild}.")
+            return ctx
+
+        # Short letter
+        for short, name in _GUILDS:
+            if ans in (short.lower(), name.lower()):
+                ctx.player.guild = name
+                await ctx.send(f"Guild set to {name}.")
+                return ctx
+
+        await ctx.send(f"Please enter a number 1–{len(_GUILDS)}, or a letter: "
+                       f"({', '.join(s for s, _ in _GUILDS)}).")
+
+
+# ---------------------------------------------------------------------------
+# Step 8 — roll stats
+# ---------------------------------------------------------------------------
+
+_STAT_ORDER = ["STR", "DEX", "CON", "INT", "WIS", "CHA"]
+
+
+def _roll_one_stat() -> tuple[int, list[int]]:
+    """Roll 4d6 drop lowest; return (total, all_four_rolls)."""
+    rolls = sorted(random.randint(1, 6) for _ in range(4))
+    return sum(rolls[1:]), rolls
+
+
+async def _roll_stats(ctx) -> bool:
+    """Roll stats and let the player accept or re-roll."""
+    while True:
+        stats   = {}
+        details = []
+        for stat in _STAT_ORDER:
+            total, rolls = _roll_one_stat()
+            stats[stat]  = total
+            details.append(f"  {stat}: {total:2d}  (rolled {rolls}, dropped {min(rolls)})")
+
+        lines = ["", "Rolled stats:", ""] + details + [""]
+        raw = await ctx.prompt(
+            "Y/R",
+            preamble_lines=lines + ["Accept these stats? ([Y]es / [R]e-roll)"],
+        )
+        if raw is None:
+            return False
+        ans = raw.strip().lower()
+        if ans in ("y", "yes", ""):
+            ctx.player.stats = stats
+            await ctx.send("Stats accepted.")
+            return True
+        if ans in ("r", "reroll", "re-roll"):
+            continue
+        await ctx.send("Enter 'Y' to accept or 'R' to re-roll.")
+
+
+# ---------------------------------------------------------------------------
+# Step 9 — final review
+# ---------------------------------------------------------------------------
+
+async def _final_review(ctx) -> bool:
+    """Show a summary and let the player make last-minute edits."""
+    p = ctx.player
+    while True:
+        lines = [
+            "",
+            f"  Character summary for {getattr(p, 'name', '?')}",
+            "  " + "-" * 40,
+            f"  Username : {getattr(p, 'name',       '?')}",
+            f"  Age      : {getattr(p, 'age',        '?')}",
+            f"  Gender   : {getattr(p, 'gender',     '?')}",
+            f"  Class    : {getattr(p, 'char_class', '?')}",
+            f"  Race     : {getattr(p, 'char_race',  '?')}",
+            f"  Guild    : {getattr(p, 'guild',      '?')}",
+            "",
+            "  Stats:",
+        ]
+        for stat, val in getattr(p, "stats", {}).items():
+            lines.append(f"    {stat}: {val}")
+
+        lines += [
+            "",
+            "  Options:",
+            "    1. Edit settings",
+            "    2. Edit name",
+            "    3. Edit age",
+            "    4. Edit gender",
+            "    5. Edit class",
+            "    6. Edit race",
+            "    7. Edit guild",
+            "    8. Re-roll stats",
+            "    Enter / Y — Accept and finish",
+        ]
+
+        raw = await ctx.prompt("edit / Y", preamble_lines=lines)
+        if raw is None:
+            return False
+        ans = raw.strip().lower()
+
+        if ans in ("", "y", "yes", "7"):  # '7' is accept in the menu shown
+            return True
+
+        dispatch = {
+            "1": _edit_settings,
+            "2": _choose_name,
+            "3": _choose_age,
+            "4": _choose_gender,
+            "5": _choose_class,
+            "6": _choose_race,
+            "7": _choose_guild,
+            "8": _roll_stats,
+        }
+        # remap '7' to re-roll only when explicitly picking that option
+        fn = dispatch.get(ans)
+        if fn:
+            await fn(ctx)   # re-run that step; loop back to summary afterwards
+        else:
+            await ctx.send(f"Enter a number 1–{len(dispatch)}, or press Enter to accept.")
+
+
+# ---------------------------------------------------------------------------
+# Confirm & persist
+# ---------------------------------------------------------------------------
+
+async def _confirm_creation(ctx, username: str, password: str) -> bool:
+    """Write the credential file and mark creation complete."""
+    _USER_DIR.mkdir(parents=True, exist_ok=True)
+    cred_file = _USER_DIR / f"login-{username}.json"
+    try:
+        cred_file.write_text(json.dumps({
+            "password":     password,
+            "char_name":    getattr(ctx.player, "name",       username),
+            "char_class":   getattr(ctx.player, "char_class", ""),
+            "char_race":    getattr(ctx.player, "char_race",  ""),
+            "guild":        getattr(ctx.player, "guild",      ""),
+            "stats":        getattr(ctx.player, "stats",      {}),
+            "age":          getattr(ctx.player, "age",        0),
+            "gender":       str(getattr(ctx.player, "gender", "")),
+            "created":      datetime.now().isoformat(),
+        }, indent=2))
+    except Exception:
+        log.exception("Failed to write credential file for %r", username)
+        await ctx.send("An error occurred saving your character.  Please try again.")
+        return False
+
+    ctx.player.creation_done = True
+    log.info("Created new player %r", username)
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Pure helpers
+# ---------------------------------------------------------------------------
+
+def _random_pronounceable_password() -> str:
+    """Generate a random 10-character pronounceable password.
+
+    Translated from BASIC (line 3178):
+        v$="AEIOU" : c$="STTRSHSCBLFL" : n$="NTRSB"
+    Pattern: CC-V CC-V CC-V N  (three consonant-digraph/vowel pairs + ending consonant)
+    Examples: STABLITREN, SHOBLUFLES, TRAFLOSTEN
+    """
+    vowels   = "AEIOU"
+    digraphs = "STTRSHSCBLFL"   # pairs: ST TR SH SC BL FL
+    endings  = "NTRSB"
+
+    def pick_digraph() -> str:
+        idx = random.randint(0, len(digraphs) // 2 - 1)
+        return digraphs[idx * 2 : idx * 2 + 2]
+
+    return (
+        pick_digraph() + random.choice(vowels) +
+        pick_digraph() + random.choice(vowels) +
+        pick_digraph() + random.choice(vowels) +
+        random.choice(endings)
+    )
+
+
+def _parse_selection(ans: str, max_n: int) -> Optional[int]:
+    """Return 1-based int if ans is a digit in range 1..max_n, else None."""
+    if ans.isdigit():
+        n = int(ans)
+        if 1 <= n <= max_n:
+            return n
+    return None
+
+
+def _parse_info_request(ans: str) -> Optional[int]:
+    """Return 1-based int if ans matches 'I#' or 'i#', else None."""
+    low = ans.lower()
+    if len(low) == 2 and low[0] == "i" and low[1].isdigit():
+        return int(low[1])
+    return None
+
+
+def _generate_random_name(player) -> str:
+    """Return a random medieval-ish name appropriate to the player's gender."""
+    try:
+        from base_classes import Gender
+        is_male = getattr(player, "gender", None) == Gender.MALE
+    except ImportError:
+        is_male = getattr(player, "gender", "male") in ("male", "m")
+
+    male_names = [
+        "Aldric", "Baldwin", "Cedric", "Dunstan", "Edric", "Falk", "Godwin",
+        "Harold", "Ivo", "Jasper", "Kenric", "Lancel", "Merrick", "Osric",
+        "Peregrin", "Quentin", "Roderick", "Sigurd", "Theobald", "Ulric", "Wulfric",
+    ]
+    female_names = [
+        "Alina", "Beatrice", "Cecily", "Dawn", "Edith", "Gwen", "Jacqueline",
+        "Matilda", "Rosamund", "Rhiannon", "Sybil",
+    ]
     surnames = [
-        'Cooper', 'Smith', 'Baker', 'Fletcher', 'Cartwright', 'Sawyer', 'Fuller', 'Tanner',
-        'Chandler', 'Taylor', 'Clarke', 'Hayward', 'Miller', 'Harper', 'Turner', 'Marsh',
-        'Langley', 'Hawthorne', 'Ashby', 'Blackwood', 'Stone', 'Kingsley', 'Oakenshield', 'Ironmonger'
+        "Cooper", "Smith", "Baker", "Fletcher", "Cartwright", "Sawyer", "Fuller",
+        "Tanner", "Chandler", "Taylor", "Clarke", "Hayward", "Miller", "Harper",
+        "Turner", "Marsh", "Langley", "Hawthorne", "Ashby", "Blackwood", "Stone",
+        "Kingsley", "Oakenshield", "Ironmonger",
     ]
 
-    # choose a random given name based on the player's gender
-    first_name = male_given_names if player.gender == Gender.MALE else female_given_names
-
-    # 75% chance to include a surname
+    first = random.choice(male_names if is_male else female_names)
     if random.random() < 0.75:
-        return f"{first_name} {random.choice(surnames)}"
-    return first_name
+        return f"{first} {random.choice(surnames)}"
+    return first
 
 
-if __name__ == '__main__':
+# ---------------------------------------------------------------------------
+# Quick self-test  (python -m commands.new_player)
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
     import asyncio
-    from tada_utilities import MockClient
+    from unittest.mock import AsyncMock, MagicMock
 
+    async def _run():
+        ctx              = MagicMock()
+        ctx.send         = AsyncMock()
+        ctx.player       = MagicMock()
+        ctx.player.name  = ""
+        ctx.player.stats = {}
+        ctx.player.expert_mode = False
+        ctx.player.client_settings = MagicMock(
+            screen_columns=80, screen_rows=25
+        )
 
-    async def test_new_player_command():
-        cmd = NewPlayerCommand()
-        mock_client = MockClient()
-        context = {'client': mock_client}
-        result = await cmd.execute(context, ['testuser', 'testpass'])
-        print('Result:', result)
+        # Feed scripted answers for every prompt
+        answers = iter([
+            "testuser",   # username
+            "pass1234",   # password
+            "pass1234",   # confirm password
+            "4",          # client: TADA
+            "25",         # age
+            "t",          # birthday: today
+            "m",          # gender
+            "testuser",   # char name
+            "1",          # class: first option
+            "1",          # race: first option
+            "1",          # guild: first option
+            "y",          # accept stats
+            "y",          # accept summary
+        ])
+        ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(answers, "y"))
 
+        cmd    = NewPlayerCommand()
+        result = await cmd.execute(ctx)
+        assert result.success, f"Expected success, got: {result}"
+        assert result.data.get("authenticated")
+        print("✅ NewPlayerCommand self-test passed")
+        print(f"   result.message = {result.message!r}")
+        print(f"   result.data    = {result.data}")
 
-    asyncio.run(test_new_player_command())
+    asyncio.run(_run())
