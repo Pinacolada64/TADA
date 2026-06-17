@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING
 import net_common as nc
 from formatting import (
     format_lines, codec_for_settings, flatten_send_args,
-    petscii_encode_lines,
+    ansi_encode_lines, petscii_encode_lines, ANSICodec, PlainCodec,
 )
 
 if TYPE_CHECKING:
@@ -103,6 +103,7 @@ class BaseContext:
     """
 
     async def send(self, *lines) -> None:
+        """Send lines to the player, paginating automatically if they exceed screen height."""
         raise NotImplementedError
 
     async def send_room(self, *lines, exclude_self: bool = False) -> None:
@@ -149,17 +150,76 @@ class GameContext(BaseContext):
         Format and send text to this player over the JSON wire.
         Lines are word-wrapped and bracket-highlighted for this player's
         terminal settings before being packed into a Message.
+        Automatically paginates when output exceeds the player's screen height.
         """
-        raw       = flatten_send_args(*lines)
-        codec     = codec_for_settings(self.player.client_settings)
+        from formatting import (
+            format_lines, codec_for_settings, flatten_send_args,
+            ansi_encode_lines, plain_encode_lines, petscii_encode_lines, ANSICodec, PlainCodec,
+        )
+        raw = flatten_send_args(*lines)
+        codec = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
+        if isinstance(codec, ANSICodec):
+            formatted = ansi_encode_lines(formatted)
+        elif isinstance(codec, PlainCodec):
+            formatted = plain_encode_lines(formatted)
+
+        page_size = max(1, self.player.client_settings.screen_rows - 1)
+        if len(formatted) > page_size:
+            await self._paginate(formatted, page_size)
+        else:
+            await self._send_formatted(formatted)
+
+    async def _send_formatted(self, formatted: list[str]) -> None:
+        """Send pre-formatted lines over the JSON wire without pagination."""
         msg = nc.Message(
-            lines  = formatted,
-            type   = nc.MessageType.REGULAR,
-            mode   = nc.Mode.app,
-            prompt = self._prompt,
+            lines=formatted,
+            type=nc.MessageType.REGULAR,
+            mode=nc.Mode.app,
+            prompt=self._prompt,
         )
         await self.server.send_message(self.writer, msg)
+
+    async def _paginate(self, formatted: list[str], page_size: int) -> None:
+        """Send formatted lines one screenful at a time with navigation.
+
+        Enter / empty — next page
+        B or -        — previous page
+        Q             — stop reading early
+        """
+        total      = len(formatted)
+        total_pgs  = max(1, (total + page_size - 1) // page_size)
+        idx        = 0
+
+        while True:
+            page   = formatted[idx:idx + page_size]
+            await self._send_formatted(page)
+
+            at_end    = idx + len(page) >= total
+            cur_pg    = (idx // page_size) + 1
+            pg_info   = f'({cur_pg}/{total_pgs}) ' if total_pgs > 1 else ''
+            status    = f'-- {"End" if at_end else "More"} {pg_info}--'
+
+            opts: list[str] = []
+            if not at_end:
+                opts.append('Enter')
+            if idx > 0:
+                opts.append('B/-: back')
+            opts.append('Q: quit')
+
+            ui = await self.prompt(f'{status} {", ".join(opts)}')
+            if ui is None:
+                return
+            ui = ui.lower().strip()
+
+            if ui == 'q':
+                return
+            elif ui in ('b', '-') and idx > 0:
+                idx = max(0, idx - page_size)
+            elif at_end:
+                return
+            else:
+                idx += page_size
 
     async def send_room(self, *lines, exclude_self: bool = False) -> None:
         """Send text to all players in the same room, formatted per recipient."""
@@ -194,7 +254,7 @@ class GameContext(BaseContext):
         if preamble_lines:
             await self.send(preamble_lines)
 
-        msg = nc.Message(lines=[], prompt=prompt_text or '> ')
+        msg = nc.Message(lines=[], prompt=f"{prompt_text}> " or '> ')
         await self.server.send_message(self.writer, msg)
 
         try:
@@ -254,19 +314,29 @@ class PETSCIINetworkContext(GameContext):
     CODEC_NAME:  str   = 'petscii_c64en_lc'
 
     async def send(self, *lines) -> None:
-        """Encode and send as raw PETSCII bytes — no JSON envelope."""
+        """Encode and send as raw PETSCII bytes — no JSON envelope.
+        Automatically paginates when output exceeds the player's screen height."""
         from formatting import PETSCIICodec
         raw       = flatten_send_args(*lines)
         codec     = PETSCIICodec()
         formatted = format_lines(raw, self.player.client_settings, codec)
-        encoded   = petscii_encode_lines(formatted,
-                                         codec_name  = self.CODEC_NAME,
-                                         line_ending = self.LINE_ENDING)
+
+        page_size = max(1, self.player.client_settings.screen_rows - 1)
+        if len(formatted) > page_size:
+            await self._paginate(formatted, page_size)
+        else:
+            await self._send_formatted(formatted)
+
+    async def _send_formatted(self, formatted: list[str]) -> None:
+        """Send pre-formatted lines as raw PETSCII bytes without pagination."""
+        encoded = petscii_encode_lines(formatted,
+                                       codec_name  = self.CODEC_NAME,
+                                       line_ending = self.LINE_ENDING)
         try:
             self.writer.write(encoded)
             await self.writer.drain()
         except Exception:
-            logging.exception('PETSCIINetworkContext.send: write error')
+            logging.exception('PETSCIINetworkContext._send_formatted: write error')
 
     async def prompt(self,
                      prompt_text:    str            = '',

@@ -5,14 +5,13 @@ import logging
 import random
 import textwrap
 from enum import Enum, auto
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
-from flags import PlayerFlag
-from terminal_context import TerminalContext
+from terminal_context import GameContext
 
 if TYPE_CHECKING:
     from player import Player
-    from context import GameContext
+    from network_context import GameContext
 
 """
 utilities such as:
@@ -228,84 +227,6 @@ async def set_logging_level(ctx: 'GameContext') -> None:
         await ctx.send(f'Logging level changed to {logging.getLevelName(levels[choice])}.')
     else:
         await ctx.send('Cancelled. Logging level unchanged.')
-
-
-# ---------------------------------------------------------------------------
-# Pager
-# ---------------------------------------------------------------------------
-
-async def text_pager(ctx: 'GameContext', text_lines: list[str]) -> None:
-    """
-    Display a list of strings in a paged fashion, accounting for the player's
-    screen height and wrapping text using textwrap.
-    Empty list elements are considered newlines.
-
-    :param ctx: GameContext
-    :param text_lines: list of strings to display
-    """
-    import re
-    from colorama import Fore  # text foreground color
-    screen_height = ctx.player.client_settings.screen_rows
-    screen_width = ctx.player.client_settings.screen_columns
-
-    # Build wrapped content
-    wrapped: list[str] = []
-    for line_raw in text_lines:
-        if not line_raw.strip():
-            wrapped.append('')
-            continue
-        highlighted = re.sub(r'\[(.+?)]',
-                              f'{Fore.RED}' + r'\1' + f'{Fore.RESET}',
-                              string=line_raw)
-        if highlighted.strip().startswith('* '):
-            content = highlighted.strip()[2:].strip()
-            wrapped.extend(textwrap.wrap(content, width=screen_width,
-                                         initial_indent='* ',
-                                         subsequent_indent='  '))
-        else:
-            wrapped.extend(textwrap.wrap(highlighted, width=screen_width))
-
-    total_lines    = len(wrapped)
-    lines_per_page = max(1, screen_height - 1)
-    total_pages    = max(1, (total_lines + lines_per_page - 1) // lines_per_page)
-    current_idx    = 0
-
-    while True:
-        current_page = (current_idx // lines_per_page) + 1
-        page_slice   = wrapped[current_idx:current_idx + lines_per_page]
-
-        for line in page_slice:
-            await ctx.send(line)
-
-        remaining = total_lines - (current_idx + len(page_slice))
-        page_info = f'(Page {current_page}/{total_pages}) ' if total_pages > 1 else ''
-        status    = f'-- More {page_info}--' if remaining > 0 else f'-- End {page_info}--'
-
-        options = []
-        if remaining > 0:
-            options.append('[Enter]: Continue')
-        if current_idx > 0:
-            options.append('[-, B]: Back')
-        options.append('[Q]: Quit')
-
-        user_input = await prompt_client(ctx,
-                                         prompt_text=f'{status} {", ".join(options)}: ')
-        ui = user_input.lower()
-
-        if ui == 'q':
-            await ctx.send('(You quit reading.)')
-            break
-        elif ui == '' and remaining > 0:
-            current_idx += lines_per_page
-        elif ui == '' and remaining <= 0:
-            await ctx.send('(Done.)')
-            break
-        elif ui in ('b', '-'):
-            current_idx = max(0, current_idx - lines_per_page)
-        else:
-            return_key = ctx.player.client_settings.return_key
-            await ctx.send(f"Invalid input. Use '{return_key}' to continue, "
-                           f"'B' to go back, or 'Q' to quit.")
 
 
 # ---------------------------------------------------------------------------
@@ -543,7 +464,9 @@ def tip(p: 'Player', title: str, message: str) -> list[str]:
 
 async def fileread(ctx: 'GameContext', filename: str) -> None:
     """
-    Display a text file to the player using text_pager.
+    Display a text file to the player.
+    Pagination is handled automatically by ctx.send() when the file
+    has more lines than the player's screen height.
     TODO: handle column-specific filenames (e.g. main-menu-80.txt)
     TODO: handle [bracketed] highlight syntax
     """
@@ -553,7 +476,7 @@ async def fileread(ctx: 'GameContext', filename: str) -> None:
         with open(file_path, newline='\n') as fh:
             lines = [line.rstrip('\n') for line in fh
                      if not line.startswith('#')]
-        await text_pager(ctx, lines)
+        await ctx.send(*lines)
     except FileNotFoundError:
         await ctx.send(f'File not found: {file_path}')
 
