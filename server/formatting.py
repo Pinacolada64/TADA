@@ -26,6 +26,7 @@ Typical call chain (PETSCII):
         -> raw bytes to Commodore client
 """
 import logging
+from _codecs import ascii_encode
 
 try:
     from colorama import Fore, Style
@@ -349,6 +350,16 @@ def ansi_encode_lines(lines: list[str]) -> list[str]:
     return [ansi_encode(line) for line in lines]
 
 
+_TOKEN_STRIP_RE = re.compile(r'\{[a-z_]+\}')
+
+def plain_encode(text: str) -> str:
+    """Strip all {token} sequences for plain-text clients."""
+    return _TOKEN_STRIP_RE.sub('', text)
+
+def plain_encode_lines(lines: list[str]) -> list[str]:
+    """Apply plain_encode() to each line."""
+    return [plain_encode(line) for line in lines]
+
 # ---------------------------------------------------------------------------
 # ColorName -> token bridge
 
@@ -536,6 +547,8 @@ def codec_for_settings(settings) -> ColorCodec:
             return ANSICodec()
         if t == Translation.PETSCII:
             return PETSCIICodec()
+        if t == Translation.ASCII:
+            return PlainCodec()
     except ImportError:
         pass
     return PlainCodec()
