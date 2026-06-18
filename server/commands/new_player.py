@@ -37,11 +37,13 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
+# TADA imports:
 from base_classes import PlayerRace
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from create_character import validate_class_race_combo
 from network_context import GameContext
+from flags import PlayerFlag
 
 log = logging.getLogger(__name__)
 
@@ -90,9 +92,9 @@ class NewPlayerCommand(Command):
         prefill_username = positional[0] if len(positional) > 0 else None
         prefill_password = positional[1] if len(positional) > 1 else None
 
-        return await main_flow(ctx,
-                               prefill_username=prefill_username,
-                               prefill_password=prefill_password)
+        from player import Player
+        player_skeleton = Player()
+        return await main_flow(ctx, player=player_skeleton, prefill_username=prefill_username, prefill_password=prefill_password)
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +102,7 @@ class NewPlayerCommand(Command):
 # ---------------------------------------------------------------------------
 
 async def main_flow(ctx,
+                    player=None,
                     prefill_username: Optional[str] = None,
                     prefill_password: Optional[str] = None) -> CommandResult:
     """Run the full creation sequence.  Returns a CommandResult."""
@@ -115,9 +118,15 @@ async def main_flow(ctx,
     if not password:
         return CommandResult.fail("Character creation abandoned.", error="abandoned")
 
-    # Initialise a bare Player stub on ctx so later steps can write to it.
-    # The real Player object is created/persisted in _confirm_creation().
-    ctx.player.name = username
+    # Swap the GuestPlayer stub for a real Player so all creation steps have
+    # access to full Player methods from here on.
+    if player is not None:
+        player.id             = username   # used by Player.save()
+        player.name           = username
+        player.client_settings = ctx.player.client_settings
+        ctx.player            = player
+    else:
+        ctx.player.name = username
 
     # --- creation steps ---
     steps = [
@@ -168,14 +177,14 @@ async def main_flow(ctx,
 async def _prologue(ctx) -> bool:
     prologue =[
         "",
-        "{yellow}Welcome to {white}'Totally Awesome Dungeon Adventure'{yellow}, "
-        "or {white}TADA{yellow} for short!",
+        "|yellow|Welcome to |white|'Totally Awesome Dungeon Adventure'|yellow|, "
+        "or |white|TADA|yellow| for short!",
         "",
         "Before you begin your adventure, let's set up your character.",
         "You'll be guided through a series of steps to create your unique",
-        "persona in this world.  Your faithful servant {light_green}Verus{yellow} will assist you.",
+        "persona in this world.  Your faithful servant |light_green|Verus|yellow| will assist you.",
         "",
-        "If you need help at any point, type {white}'help'{yellow}, {white}'h'{yellow}, or {white}'?'{yellow}.",
+        "If you need help at any point, type |white|'help'|yellow|, |white|'h'|yellow|, or |white|'?'|yellow|.",
         # TODO: "Type 'helpstaff' to summon a live helper.",
         # TODO: "Type 'chat #join newplayers' to join the new-player chat channel.",
         "",
@@ -257,13 +266,18 @@ async def _choose_password(ctx, prefill: Optional[str] = None) -> Optional[str]:
             while True:
                 pw = _random_pronounceable_password()
                 ans = await ctx.prompt(
-                    "Y/N",
-                    preamble_lines=[f"Your random password is: {pw}", "Is this OK?"],
+                    "Y/N/Q",
+                    preamble_lines=[f"Your random password is: {pw}", "Is this OK?",
+                                    "[Y]es, [N]o, or [Q]uit generating random passwords:"],
                 )
                 if ans is None:
                     return None
                 if ans.strip().lower() in ("y", "yes", ""):
+                    await ctx.send("Accepted password.")
                     return pw
+                if ans.strip().lower() in ("q", "quit"):
+                    await ctx.send("Stop generating random passwords.")
+                    break
                 # any other input → generate a new one
             continue
 
@@ -289,17 +303,48 @@ def _username_taken(username: str) -> bool:
 # ---------------------------------------------------------------------------
 
 async def _edit_settings(ctx) -> bool:
-    """Edit things like Debug Mode, Expert Mode, etc."""
-    # text color
-    # tutorial mode, maybe (include command-line practice? 'tutorial #loud' -> 'LOUD TUTORIAL!'
-    #    partial matching on base commands (wh = whisper, can't be just 'w' -- short for 'west')
-    #    movement, other things...
+    """Prompt for Expert Mode (and future settings like Debug Mode, text color, etc.).
+    TODO: text color
+    TODO: tutorial mode, maybe (include command-line practice? 'tutorial #loud' -> 'LOUD TUTORIAL!'
+       partial matching on base commands (wh = whisper, can't be just 'w' -- short for 'west')
+       movement, other things...
+    """
+    from formatting import codec_for_settings, make_box
 
-    expert_mode = ["If you have played this game before, you can enable Expert Mode, if you wish. "
-                   "If enabled, Expert mode bypasses displaying in-depth instructions or information "
-                   "about commands or features in the game."
-                  ]
-    await ctx.send(expert_mode)
+    codec = codec_for_settings(ctx.player.client_settings)
+    box = make_box(lines=["You find a sword!", "Take it?"],
+                   frame_color="blue", title_color="white", text_color="yellow",
+                   title="Item", width=38, codec=codec)
+    await ctx.send(*box)
+    another_box = make_box(
+        ['Choose your destiny.'],
+        title='Welcome',
+        width=40,
+        codec=codec,
+        frame_color='cyan',
+        title_color='yellow',
+        text_color='white',
+    )
+    await ctx.send(*another_box)
+
+    raw = await ctx.prompt(
+        "Enable Expert Mode? [Y/N]",
+        preamble_lines=[
+            "",
+            "If you have played TADA before, you can enable Expert Mode.",
+            "Expert Mode bypasses in-depth instructions and extra prompts.",
+            "Tip: You can turn Expert Mode on or off (i.e. 'toggle') by typing 'XM'.",
+            "",
+        ],
+    )
+    if raw is None:
+        return False
+    enabled = raw.strip().lower() in ("y", "yes")
+    if enabled:
+        ctx.player.set_flag(PlayerFlag.EXPERT_MODE)
+    else:
+        ctx.player.clear_flag(PlayerFlag.EXPERT_MODE)
+    return True
 
 async def _choose_client_settings(ctx) -> bool:
     """Let the player declare their terminal type so we can set screen dimensions,
@@ -344,7 +389,7 @@ async def _choose_client_settings(ctx) -> bool:
                 await ctx.send(f"Client set to: {label}, {cols}x{rows} screen size")
                 return True
 
-        await ctx.send(f"{blue}Please enter a number between {white}1{blue} and {white}{len(options)}{blue}.")
+        await ctx.send(f"|blue|Please enter a number between |white|1|blue| and |white|{len(options)}|blue|.")
 
 
 # ---------------------------------------------------------------------------
@@ -455,8 +500,8 @@ async def _choose_gender(ctx) -> bool:
 async def _choose_name(ctx) -> bool:
     """Prompt for the in-world character name (distinct from login username)."""
     preamble = [
-        "{reset}Choose a name for your character.",
-        "{blue}Enter a name, or {white}'R'{blue} for a random one:",
+        "|reset|Choose a name for your character.",
+        "|blue|Enter a name, or |white|'R'|blue| for a random one:",
     ]
     while True:
         raw = await ctx.prompt("name", preamble_lines=preamble)
@@ -785,27 +830,26 @@ async def _final_review(ctx) -> bool:
 # ---------------------------------------------------------------------------
 
 async def _confirm_creation(ctx, username: str, password: str) -> bool:
-    """Write the credential file and mark creation complete."""
+    """Persist credentials and player state. ctx.player is already a real Player."""
+    player = ctx.player
+    player.creation_done   = True
+    player.unsaved_changes = True
+
+    # Credential file — login only needs the password; full state lives in player-<id>.json
     _USER_DIR.mkdir(parents=True, exist_ok=True)
-    cred_file = _USER_DIR / f"login-{username}.json"
     try:
-        cred_file.write_text(json.dumps({
-            "password":     password,
-            "char_name":    getattr(ctx.player, "name",       username),
-            "char_class":   getattr(ctx.player, "char_class", ""),
-            "char_race":    getattr(ctx.player, "char_race",  ""),
-            "guild":        getattr(ctx.player, "guild",      ""),
-            "stats":        getattr(ctx.player, "stats",      {}),
-            "age":          getattr(ctx.player, "age",        0),
-            "gender":       str(getattr(ctx.player, "gender", "")),
-            "created":      datetime.now().isoformat(),
-        }, indent=2))
+        (_USER_DIR / f"login-{username}.json").write_text(
+            json.dumps({"password": password}, indent=2)
+        )
     except Exception:
         log.exception("Failed to write credential file for %r", username)
         await ctx.send("An error occurred saving your character.  Please try again.")
         return False
 
-    ctx.player.creation_done = True
+    if not player.save(force=True):
+        await ctx.send("An error occurred saving your character.  Please try again.")
+        return False
+
     log.info("Created new player %r", username)
     return True
 

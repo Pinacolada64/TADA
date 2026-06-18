@@ -20,7 +20,7 @@ Typical call chain (ANSI):
         -> write to wire / print
 
 Typical call chain (PETSCII):
-    ctx.send("Hello {red}world{reset}!")
+    ctx.send("Hello |red|world|reset|!")
         -> format_lines(...)          # wrap, highlight brackets
         -> petscii_encode(...)        # encode text + splice in raw control bytes
         -> raw bytes to Commodore client
@@ -115,7 +115,7 @@ class PETSCIICodec:
     Commodore PETSCII color/reverse codes.
     Reverse video is used for [bracket] highlighting since it works on
     all Commodore models without needing a specific color.
-    Full 16-color palette is available via {token} substitution in
+    Full 16-color palette is available via |token| substitution in
     petscii_encode() — see PETSCII_CONTROL_CODES below.
     """
 
@@ -130,7 +130,7 @@ class PETSCIICodec:
 # PETSCII control code table
 # ---------------------------------------------------------------------------
 
-# Maps {token} names to raw Commodore control code byte values.
+# Maps |token| names to raw Commodore control code byte values.
 # These are intentionally kept out of cbmcodecs2 encoding — they are
 # spliced into the output as raw bytes after text encoding.
 # Reference: https://sta.c64.org/cbm64petscii.html
@@ -180,7 +180,7 @@ PETSCII_CODE_NAMES: dict[int, str] = {
     v: k for k, v in PETSCII_CONTROL_CODES.items()
 }
 
-_TOKEN_RE = re.compile(r'\{([a-z_]+)\}')
+_TOKEN_RE = re.compile(r'\|([a-z_]+)\|')
 
 
 def petscii_encode(text: str,
@@ -189,20 +189,20 @@ def petscii_encode(text: str,
     Encode a string for transmission to a Commodore client.
 
     Text segments are encoded via cbmcodecs2 (handles PETSCII character
-    mapping). {token} color/control sequences are replaced with their raw
+    mapping). |token| color/control sequences are replaced with their raw
     control byte values and spliced in *after* encoding, so cbmcodecs2
     never sees them.
 
-    Unrecognised {tokens} are left as-is in the encoded text.
+    Unrecognised |token| sequences are left as-is in the encoded text.
 
-    :param text:       Input string, may contain {token} sequences.
+    :param text:       Input string, may contain |token| sequences.
     :param codec_name: cbmcodecs2 codec name. Defaults to lowercase C64.
                        Use 'petscii_c64en_uc' for uppercase/graphics mode.
     :return:           Raw bytes ready to send to the Commodore client.
 
-    >>> petscii_encode('{red}Hi{reset}')[0]   # first byte = red color code
+    >>> petscii_encode('|red|Hi|reset|')[0]   # first byte = red color code
     28
-    >>> petscii_encode('{red}Hi{reset}')[-1]  # last byte = reverse off
+    >>> petscii_encode('|red|Hi|reset|')[-1]  # last byte = reverse off
     146
     """
     try:
@@ -228,8 +228,8 @@ def petscii_encode(text: str,
             result.append(code)  # raw control byte, bypasses codec
         else:
             # Unknown token — encode as literal text
-            logging.debug('petscii_encode: unknown token {%s}', token)
-            result.extend(f'{{{token}}}'.encode(codec_name, errors='replace'))
+            logging.warning('petscii_encode: unknown token |%s|', token)
+            result.extend(f'|{token}|'.encode(codec_name, errors='replace'))
 
         pos = match.end()
 
@@ -260,7 +260,7 @@ def petscii_encode_lines(lines: list[str],
     """
     """
     # Game code:
-    await ctx.send("You find {red}a ruby{reset} on the floor.")
+    await ctx.send("You find |red|a ruby|reset| on the floor.")
 
     # GameContext.send():
     raw       = flatten_send_args(*lines)
@@ -272,9 +272,9 @@ def petscii_encode_lines(lines: list[str],
     # Then for PETSCII clients:
     encoded = petscii_encode_lines(formatted)
     # "You find " -> cbmcodecs2 -> PETSCII bytes
-    # "{red}"     -> chr(28) spliced in raw
-    # "a ruby"    -> cbmcodecs2 -> PETSCII bytes  
-    # "{reset}"   -> chr(146) spliced in raw
+    # "|red|"     -> chr(28) spliced in raw
+    # "a ruby"    -> cbmcodecs2 -> PETSCII bytes
+    # "|reset|"   -> chr(146) spliced in raw
     """
     encoded = [petscii_encode(line, codec_name) for line in lines]
     return line_ending.join(encoded)
@@ -284,9 +284,9 @@ def petscii_encode_lines(lines: list[str],
 # ANSI color code table
 # ---------------------------------------------------------------------------
 
-# Maps {token} names to colorama ANSI escape strings.
+# Maps |token| names to colorama ANSI escape strings.
 # Token names deliberately match PETSCII_CONTROL_CODES so game strings
-# like "{red}text{reset}" work the same way regardless of terminal type.
+# like "|red|text|reset|" work the same way regardless of terminal type.
 ANSI_COLOR_CODES: dict[str, str] = {
     'black': Fore.BLACK if _COLORAMA_AVAILABLE else '',
     'white': Fore.WHITE if _COLORAMA_AVAILABLE else '',
@@ -315,17 +315,17 @@ ANSI_COLOR_CODES: dict[str, str] = {
 
 def ansi_encode(text: str) -> str:
     """
-    Replace {token} color sequences with ANSI escape codes.
-    Text passes through unchanged except for recognised {tokens}.
-    Unrecognised tokens are left as-is.
+    Replace |token| color sequences with ANSI escape codes.
+    Text passes through unchanged except for recognised |token| sequences.
+    Unrecognised tokens are left as-is and logged at WARNING.
     Falls back to stripping tokens if colorama is unavailable.
 
-    >>> ansi_encode('Hello {reset}world')  # no color, just reset
+    >>> ansi_encode('Hello |reset|world')  # no color, just reset
     'Hello \\x1b[39mworld'
     >>> ansi_encode('no tokens here')
     'no tokens here'
-    >>> ansi_encode('{unknown}text')
-    '{unknown}text'
+    >>> ansi_encode('|unknown|text')
+    '|unknown|text'
     """
 
     def _replace(match) -> str:
@@ -333,7 +333,7 @@ def ansi_encode(text: str) -> str:
         code = ANSI_COLOR_CODES.get(token)
         if code is not None:
             return code
-        logging.debug('ansi_encode: unknown token {%s}', token)
+        logging.warning('ansi_encode: unknown token |%s|', token)
         return match.group(0)  # leave unknown tokens intact
 
     return _TOKEN_RE.sub(_replace, text)
@@ -350,10 +350,10 @@ def ansi_encode_lines(lines: list[str]) -> list[str]:
     return [ansi_encode(line) for line in lines]
 
 
-_TOKEN_STRIP_RE = re.compile(r'\{[a-z_]+\}')
+_TOKEN_STRIP_RE = re.compile(r'\|[a-z_]+\|')
 
 def plain_encode(text: str) -> str:
-    """Strip all {token} sequences for plain-text clients."""
+    """Strip all |token| sequences for plain-text clients."""
     return _TOKEN_STRIP_RE.sub('', text)
 
 def plain_encode_lines(lines: list[str]) -> list[str]:
@@ -365,7 +365,7 @@ def plain_encode_lines(lines: list[str]) -> list[str]:
 
 # ---------------------------------------------------------------------------
 
-# Maps terminal.ColorName enum values to {token} names used in
+# Maps terminal.ColorName enum values to |token| names used in
 # ANSI_COLOR_CODES and PETSCII_CONTROL_CODES.
 # ColorName is the player-facing name ("Dark Green");
 # the token is the encode-pipeline key ("green").
@@ -438,11 +438,18 @@ def highlight_brackets(text: str, codec: ColorCodec) -> str:
     )
 
 
+def _visible_len(text: str) -> int:
+    """`|token|` sequences are zero-width on screen — strip them before measuring."""
+    return len(_TOKEN_STRIP_RE.sub('', text))
+
+
 def wrap_text(text: str, width: int,
               initial_indent: str = '',
               subsequent_indent: str = '') -> list[str]:
     """
-    Word-wrap a single string to `width` columns.
+    Word-wrap a single string to `width` visible columns.
+    `|token|` color sequences are treated as zero-width so they don't
+    cause premature line breaks.
     Returns a list of wrapped lines.
     Empty string input returns [''] (preserves intentional blank lines).
 
@@ -450,15 +457,36 @@ def wrap_text(text: str, width: int,
     ['Hello', 'world']
     >>> wrap_text('', 80)
     ['']
+    >>> wrap_text('|yellow|Hello |white|world|reset|', 12)
+    ['|yellow|Hello |white|world|reset|']
+    >>> wrap_text('|red|One two three|reset|', 7)
+    ['|red|One two', 'three|reset|']
     """
     if not text.strip():
         return ['']
-    wrapped = textwrap.wrap(
-        text, width=width,
-        initial_indent=initial_indent,
-        subsequent_indent=subsequent_indent,
-    )
-    return wrapped if wrapped else ['']
+
+    words = text.split(' ')
+    lines: list[str] = []
+    current: list[str] = []
+    indent = initial_indent
+    vis_len = len(indent)
+
+    for word in words:
+        word_vis = _visible_len(word)
+        space = 1 if current else 0
+        if current and vis_len + space + word_vis > width:
+            lines.append(indent + ' '.join(current))
+            indent = subsequent_indent
+            current = [word]
+            vis_len = len(indent) + word_vis
+        else:
+            vis_len += space + word_vis
+            current.append(word)
+
+    if current:
+        lines.append(indent + ' '.join(current))
+
+    return lines if lines else ['']
 
 
 def format_bullet(text: str, width: int) -> list[str]:
@@ -580,26 +608,65 @@ def make_rule(width: int, char: str = '-') -> str:
     return char * width
 
 
-def make_box(lines: list[str], title: str = '', width: int = 60) -> list[str]:
+def _col(text: str, color: str | None) -> str:
+    """Wrap text in a |color|…|reset| token pair, or return it unchanged."""
+    return f'|{color}|{text}|reset|' if color else text
+
+
+def make_box(lines: list[str], title: str = '', width: int = 60,
+             codec: 'ColorCodec | None' = None,
+             frame_color: str | None = None,
+             title_color: str | None = None,
+             text_color:  str | None = None) -> list[str]:
     """
-    Wrap lines in a simple ASCII box with an optional title.
-    Returns a list of strings including the border lines.
+    Wrap lines in a box with an optional title.
+
+    Border characters match the terminal type:
+      ANSICodec    → Unicode single-line box-drawing (┌─┐ │ └─┘)
+      PETSCIICodec → PETSCII line-drawing characters
+      PlainCodec / None → plain ASCII (+ - |)
+
+    Color parameters accept |token| names ('cyan', 'yellow', etc.) or None:
+      frame_color  — border characters
+      title_color  — title text
+      text_color   — body lines
 
     >>> make_box(['Hello'], width=12)
     ['+----------+', '| Hello    |', '+----------+']
+    >>> make_box(['Hi'], width=12, frame_color='cyan')
+    ['|cyan|+----------+|reset|', '|cyan|||reset| Hi       |cyan|||reset|', '|cyan|+----------+|reset|']
     """
-    inner = width - 4  # account for '| ' and ' |'
-    h_bar = '-' * (width - 2)
-    border = f'+{h_bar}+'
+    from table import ASCII as _ASCII, SINGLE as _SINGLE, PETSCII as _PETSCII
+
+    if isinstance(codec, PETSCIICodec):
+        b = _PETSCII
+    elif isinstance(codec, ANSICodec):
+        b = _SINGLE
+    else:
+        b = _ASCII
+
+    inner = width - 4  # '| ' and ' |'
 
     if title:
-        title_str = f' {title} '.center(width - 2, '-')
-        top = f'+{title_str}+'
+        title_str  = f' {title} '
+        pad        = width - 2 - len(title_str)
+        left_pad   = pad // 2
+        right_pad  = pad - left_pad
+        top = (
+            _col(b.top_left + b.h * left_pad, frame_color)
+            + _col(title_str, title_color)
+            + _col(b.h * right_pad + b.top_right, frame_color)
+        )
     else:
-        top = border
+        top = _col(b.top_left + b.h * (width - 2) + b.top_right, frame_color)
 
-    body = [f'| {line.ljust(inner)} |' for line in lines]
-    return [top] + body + [border]
+    bot  = _col(b.bot_left + b.h * (width - 2) + b.bot_right, frame_color)
+    body = [
+        _col(b.v, frame_color) + ' ' + _col(line.ljust(inner), text_color) + ' ' + _col(b.v, frame_color)
+        for line in lines
+    ]
+
+    return [top] + body + [bot]
 
 
 # ---------------------------------------------------------------------------

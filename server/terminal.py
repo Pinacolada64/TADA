@@ -1,17 +1,19 @@
 # Terminal declarations
 from dataclasses import dataclass
 from enum import Enum, auto, StrEnum
+from typing import TYPE_CHECKING
 
-# Back style is used for reverse text
-# Style is used for underline and reverse
-# from colorama import Fore, Back, Style
-import colorama
+if TYPE_CHECKING:
+    # Back style is used for reverse text
+    # Style is used for underline and reverse
+    try:
+        from colorama import Fore, Back, Style
+    except ModuleNotFoundError:
+        print("colorama not available.")
 import logging
-import textwrap
 
 # TADA-specific imports:
 from player import Player
-# import menu_system
 from flags import FlagDisplayTypes
 from tada_utilities import input_number_range, input_yes_no
 try:
@@ -19,6 +21,7 @@ try:
 except ImportError:
     print("cbmcodecs2 not found, Commodore graphics will not be available")
 
+# --- Keyboard settings -------------------------------------------------------------------
 class KeyboardKeyName(str, Enum):
     RETURN = "Return"
     ENTER = "Enter"
@@ -62,6 +65,7 @@ class CommodoreKeyCodes:
     # on the Commodore 128, anyway:
     TAB = chr(9)
 
+# --- Graphics characters ------------------------------------------------------------
 class ANSIGraphicsChars(StrEnum):
     # TODO make sure this is using UTF-8
     CORNER_UPPER_LEFT = "╔"
@@ -126,27 +130,31 @@ class ANSIColors(Enum):
     # text colors - if terminal cannot output a given color, it is set to None
     # TODO: in settings display, use ColorName instead of ANSIColors or CommodoreColors
     # Colorama: https://github.com/tartley/colorama
-    from colorama import Fore, Back, Style
-    BLACK = Fore.BLACK
-    WHITE = Fore.WHITE
-    RED = Fore.RED
-    CYAN = Fore.CYAN
-    PURPLE = None
-    DARK_GREEN = Fore.GREEN
-    DARK_BLUE = Fore.BLUE
-    YELLOW = Fore.YELLOW
-    ORANGE = None
-    BROWN = None
-    LIGHT_RED = Fore.LIGHTRED_EX
-    DARK_GRAY = Fore.LIGHTBLACK_EX
-    MEDIUM_GRAY = Fore.LIGHTBLACK_EX
-    LIGHT_GREEN = Fore.LIGHTGREEN_EX
-    LIGHT_BLUE = Fore.LIGHTBLUE_EX
-    LIGHT_GRAY = Fore.LIGHTBLACK_EX
-    RESET = Fore.RESET
-    # changing background color to white and resetting style to reverse off:
-    REVERSE_ON = Back.WHITE + Style.DIM
-    REVERSE_OFF = Style.RESET_ALL
+    try:
+        from colorama import Fore, Back, Style
+        BLACK = Fore.BLACK
+        WHITE = Fore.WHITE
+        RED = Fore.RED
+        CYAN = Fore.CYAN
+        PURPLE = None
+        DARK_GREEN = Fore.GREEN
+        DARK_BLUE = Fore.BLUE
+        YELLOW = Fore.YELLOW
+        ORANGE = None
+        BROWN = None
+        LIGHT_RED = Fore.LIGHTRED_EX
+        DARK_GRAY = Fore.LIGHTBLACK_EX
+        MEDIUM_GRAY = Fore.LIGHTBLACK_EX
+        LIGHT_GREEN = Fore.LIGHTGREEN_EX
+        LIGHT_BLUE = Fore.LIGHTBLUE_EX
+        LIGHT_GRAY = Fore.LIGHTBLACK_EX
+        RESET = Fore.RESET
+        # changing background color to white and resetting style to reverse off:
+        REVERSE_ON = Back.WHITE + Style.DIM
+        REVERSE_OFF = Style.RESET_ALL
+    except ImportError:
+        logging.debug("ANSIColors: Colorama not installed")
+
 
 class CBMColors(Enum):
     BLACK = chr(144)
@@ -209,7 +217,7 @@ class ClientSettings:
     tab_settings: TabSettings = TabSettings()
 
 def settings_menu(player: Player):
-    import menu_system
+    from menu_system import Menu, MenuItem
     # sub-menu of Terminal Settings:
     terminal_translation = menu_system.Menu(title="Terminal Translation")
     p_c = player.client_settings
@@ -332,9 +340,9 @@ def color_settings(player: Player):
         joined_reverse_string_sample[i].append(f"{reverse_mode[i % 2]}{line}{line}{line}")
     print(joined_reverse_string_sample)
 
-    color_string_sample = ("{red}Red {orange}Orange {yellow}Yellow {dark_green}Green "
-                            "{dark_blue}Blue {purple}Purple {cyan}Cyan {light_green}-"
-                            "{dark_green}-{reset}! {plum}")
+    color_string_sample = ("|red|Red |orange|Orange |yellow|Yellow |dark_green|Green "
+                            "|dark_blue|Blue |purple|Purple |cyan|Cyan |light_green|-"
+                            "|dark_green|-|reset|! |plum|")
     
     color_settings = ms.Menu("Color Settings")
     color_settings.add_item("Type:", dot_leader_handler="Name")
@@ -372,8 +380,8 @@ def color_settings(player: Player):
     
 
 def test_graphics_output(player: Player):
-    color_string = ("{red}Red {orange}Orange {yellow}Yellow {dark_green}Green {dark_blue}Blue {purple}Purple "
-                    "{cyan}Cyan {light_green}-{dark_green}-{reset}! {plum}")
+    color_string = ("|red|Red |orange|Orange |yellow|Yellow |dark_green|Green |dark_blue|Blue |purple|Purple "
+                    "|cyan|Cyan |light_green|-|dark_green|-|reset|! |plum|")
     player.output(color_string)
 
 @dataclass

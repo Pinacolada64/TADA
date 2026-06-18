@@ -254,7 +254,7 @@ class PETSCIINetworkContext(GameContext):
     GameContext variant for Commodore 64/128 clients.
 
     Instead of wrapping output in JSON Message objects, sends raw PETSCII
-    bytes directly. {token} color sequences are spliced in as control bytes;
+    bytes directly. |token| color sequences are spliced in as control bytes;
     text is encoded via cbmcodecs2.
 
     Terminal negotiation should set:

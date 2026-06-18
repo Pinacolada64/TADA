@@ -261,17 +261,6 @@ class Server:
                 '  P.  Plain text (no color)',
                 '',
             )
-            raw = await ctx.prompt('Terminal type [A/P]')
-            if raw is None:
-                return
-            if raw.strip().upper() == 'P':
-                try:
-                    ctx.player.client_settings.translation = Translation.ASCII
-                except Exception:
-                    pass
-                await ctx.send('Plain text mode set.')
-            else:
-                await ctx.send('ANSI color mode set.')
             while True:
                 raw = await ctx.prompt('Terminal type [A/P]')
                 if raw is None:
@@ -308,25 +297,25 @@ class Server:
         """
         await ctx.send(
             '',
-            '{green}Welcome to:',
+            '|green|Welcome to:',
             '',
-              '{red}  Totally',
-            '{white}   Awesome',
-              '{red}    Dungeon',
-            '{white}     Adventure',
-            '{green}',
+              '|red|  Totally',
+            '|white|   Awesome',
+              '|red|    Dungeon',
+            '|white|     Adventure',
+            '|green|',
             "Type 'connect <username> <password>' to log in.",
             "Type 'connect guest' to look around as a guest.",
             "Type 'new' to create a new character.",
             "Type 'help' for help.  Type 'quit' to leave.",
-            '{light_blue}',
+            '|light_blue|',
         )
 
         processor = ctx.client.command_processor
-        ctx.set_prompt('login> ')
+        ctx.set_prompt('login')
 
         while True:
-            raw = await ctx.prompt('login>')
+            raw = await ctx.prompt('login')
             if raw is None:
                 return                          # clean disconnect
             if not raw.strip():
@@ -335,16 +324,20 @@ class Server:
             result = await processor.process_input(raw, ctx=ctx)
 
             if not result.success and result.error == 'unknown_command':
+                available = sorted(
+                    f"'{name}'" for name, cmd in processor.get_all_commands().items()
+                    if cmd.is_available_in(processor.current_mode)
+                )
                 await ctx.send(
-                    f"Unknown command '{raw.strip().split()[0]}'. "
-                    "Try 'connect', 'new', 'help', or 'quit'."
+                    f"Unknown command '{raw.strip().split()[0]}'.",
+                    f"Available commands: {', '.join(available)}",
                 )
                 continue
 
             # ConnectCommand (and future auth commands) signal success via data
             if result.data.get('authenticated'):
                 processor.current_mode = Mode.GAME
-                ctx.set_prompt('main> ')
+                ctx.set_prompt('main')
                 return
 
             # QuitCommand signals that we should drop the connection
@@ -358,7 +351,7 @@ class Server:
         Sends its own error message on failure so the caller can just check
         the return value.
         """
-        import os, json
+        import json
         user_file = Path('run') / 'server' / 'net' / f'login-{username}.json'
         try:
             if not user_file.exists():
@@ -390,7 +383,7 @@ class Server:
         processor = ctx.client.command_processor
 
         while True:
-            raw = await ctx.prompt('main>')
+            raw = await ctx.prompt('main')
             if raw is None:                     # clean EOF / disconnect
                 await self._player_quit(ctx)
                 return
