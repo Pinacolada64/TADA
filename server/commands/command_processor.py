@@ -52,14 +52,14 @@ class CommandProcessor:
     """
 
     def __init__(self, client=None, current_mode: Mode = Mode.GAME):
-        self.client = client
+        self.client       = client
         self.current_mode = current_mode
         self.context: dict = {}
 
         # Primary registry: canonical name → Command instance.
         # Aliases are stored separately so we can distinguish them.
-        self._commands: Dict[str, Command] = {}  # name  → Command
-        self._aliases: Dict[str, str] = {}  # alias → canonical name
+        self._commands: Dict[str, Command] = {}   # name  → Command
+        self._aliases:  Dict[str, str]     = {}   # alias → canonical name
 
     # ------------------------------------------------------------------
     # Registration
@@ -81,6 +81,15 @@ class CommandProcessor:
                 f"({self._commands[name]!r})."
             )
         self._commands[name] = cmd
+
+        modes = getattr(cmd, "modes", None)
+        if modes is not None and not isinstance(modes, set):
+            log.warning(
+                "Command %r has modes=%r — should be a set like {Mode.GAME}. "
+                "Wrapping automatically.",
+                cmd.name, modes,
+            )
+            cmd.modes = {modes}
 
         for alias in (cmd.aliases or []):
             alias = alias.lower()
@@ -149,8 +158,8 @@ class CommandProcessor:
 
         Search is case-insensitive and returns deduplicated Command instances.
         """
-        term = term.lower()
-        seen: set = set()
+        term  = term.lower()
+        seen:   set      = set()
         result: List[Command] = []
 
         for cmd in self._commands.values():
@@ -171,8 +180,8 @@ class CommandProcessor:
 
             # Help text match (summary / description)
             help_obj = getattr(cmd, "help", None)
-            summary = getattr(help_obj, "summary", "") or ""
-            desc = getattr(help_obj, "description", "") or ""
+            summary  = getattr(help_obj, "summary",     "") or ""
+            desc     = getattr(help_obj, "description", "") or ""
             if term in summary.lower() or term in desc.lower():
                 seen.add(id(cmd))
                 result.append(cmd)
@@ -212,6 +221,7 @@ class CommandProcessor:
             return CommandResult.fail("No command given.", error="no_command")
 
         cmd, _ = self.find_command(parts[0])
+        args   = parts[1:]
         if cmd is None:
             return CommandResult.fail(
                 f"Unknown command '{parts[0]}'.",
@@ -225,10 +235,13 @@ class CommandProcessor:
                 error="wrong_mode",
             )
 
+        log.debug("dispatch: %r -> %s.%s (mode=%s, args=%r)",
+                  parts[0], cmd.__class__.__module__, cmd.__class__.__name__,
+                  self.current_mode.name, args)
+
         # Use the live ctx when available; fall back to the stored dict for tests.
         effective_ctx = ctx if ctx is not None else self.context
 
-        args = parts[1:]
         try:
             result = await cmd.execute(effective_ctx, *args)
             # Tolerate commands that forget to return a CommandResult
@@ -249,41 +262,120 @@ class CommandProcessor:
     def discover(self, package_name: str = "commands") -> None:
         """Scan *package_name* for Command subclasses and register them.
 
-        Any module inside the package that defines a concrete subclass of
-        Command (i.e. not abstract, has a non-empty `name`) is registered.
-        Import errors are logged and skipped rather than crashing startup.
+        Walks every module in the package (recursively), finds all concrete
+        Command subclasses, and registers them.  Every failure mode is caught
+        and logged individually so one bad module never prevents the rest from
+        loading.
+
+        Common failure modes handled:
+          - package not importable (missing directory or syntax error in __init__)
+          - missing __init__.py  (namespace package — no __path__)
+          - individual module import error (bad import, syntax error, etc.)
+          - getattr() raising on a module attribute (rare but possible)
+          - command class that raises in __init__
+          - duplicate name / alias (logged at WARNING, skipped)
         """
+        # --- import the package itself ---
         try:
             package = importlib.import_module(package_name)
-        except ImportError:
-            log.error("Could not import command package %r", package_name)
+        except ImportError as exc:
+            log.error(
+                "Could not import command package %r: %s. "
+                "Check that the directory exists and is on sys.path.",
+                package_name, exc,
+            )
+            return
+        except Exception:
+            log.exception("Unexpected error importing command package %r", package_name)
             return
 
+        # --- guard against namespace packages (missing __init__.py) ---
+        if not hasattr(package, "__path__"):
+            log.error(
+                "Command package %r has no __path__. "
+                "It is probably a namespace package because %s/__init__.py "
+                "is missing. Create an empty __init__.py and restart.",
+                package_name, package_name,
+            )
+            return
+
+        registered:  list[str] = []
+        skipped_mod: list[str] = []
+        skipped_cls: list[str] = []
+
         prefix = package.__name__ + "."
-        for finder, module_name, _ in pkgutil.walk_packages(
-                package.__path__, prefix=prefix
+        for _finder, module_name, _is_pkg in pkgutil.walk_packages(
+            package.__path__, prefix=prefix
         ):
+            # --- skip the processor module itself to avoid self-registration ---
+            if module_name == __name__:
+                continue
+
+            # --- import the module ---
             try:
                 module = importlib.import_module(module_name)
             except Exception:
-                log.exception("Failed to import command module %r", module_name)
+                log.exception("Failed to import command module %r — skipping", module_name)
+                skipped_mod.append(module_name)
                 continue
 
+            # --- walk every name in the module ---
             for attr_name in dir(module):
-                obj = getattr(module, attr_name)
-                if (
-                        isinstance(obj, type)
-                        and issubclass(obj, Command)
-                        and obj is not Command
-                        and not getattr(obj, "__abstractmethods__", None)
-                        and getattr(obj, "name", "")
+                # getattr can raise on dynamic descriptors
+                try:
+                    obj = getattr(module, attr_name)
+                except Exception:
+                    log.debug("getattr(%r, %r) raised — skipping", module_name, attr_name)
+                    continue
+
+                # filter: must be a concrete Command subclass with a name,
+                # defined in *this* module (not just imported into it)
+                if not (
+                    isinstance(obj, type)
+                    and issubclass(obj, Command)
+                    and obj is not Command
+                    and not getattr(obj, "__abstractmethods__", None)
+                    and getattr(obj, "name", "")
                 ):
-                    try:
-                        self.register_command(obj())
-                    except ValueError:
-                        pass  # already registered (e.g. imported in multiple places)
-                    except Exception:
-                        log.exception("Failed to register %r", obj)
+                    continue
+
+                # skip classes that were merely imported into this module
+                if getattr(obj, "__module__", None) != module_name:
+                    continue
+
+                # --- instantiate and register ---
+                try:
+                    instance = obj()
+                except Exception:
+                    log.exception(
+                        "Failed to instantiate command class %r from %r — skipping",
+                        attr_name, module_name,
+                    )
+                    skipped_cls.append(f"{module_name}.{attr_name}")
+                    continue
+
+                try:
+                    self.register_command(instance)
+                    registered.append(instance.name)
+                except ValueError:
+                    # duplicate name/alias — already registered from another module
+                    log.debug("Command %r already registered — skipping duplicate in %r",
+                              instance.name, module_name)
+                except Exception:
+                    log.exception("Failed to register %r from %r", attr_name, module_name)
+                    skipped_cls.append(f"{module_name}.{attr_name}")
+
+        # --- summary log so startup is easy to diagnose ---
+        log.info(
+            "discover(%r): registered %d command(s): %s",
+            package_name, len(registered), registered or "(none)",
+        )
+        if skipped_mod:
+            log.warning("discover(%r): skipped %d module(s) due to import errors: %s",
+                        package_name, len(skipped_mod), skipped_mod)
+        if skipped_cls:
+            log.warning("discover(%r): skipped %d class(es) due to errors: %s",
+                        package_name, len(skipped_cls), skipped_cls)
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +383,7 @@ class CommandProcessor:
 # ---------------------------------------------------------------------------
 
 def create_command_processor(client=None, context: dict | None = None,
-                             mode: Mode = Mode.GAME) -> CommandProcessor:
+                              mode: Mode = Mode.GAME) -> CommandProcessor:
     """Create a CommandProcessor, run auto-discovery, and return it."""
     processor = CommandProcessor(client=client, current_mode=mode)
     if context:
