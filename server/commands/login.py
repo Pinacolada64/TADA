@@ -1,73 +1,53 @@
 """
-This is deprecated. Use commands/login.py instead.
+commands/login.py.
 """
-import os
 import json
-from typing import Dict, Any, Optional, List
+from pathlib import Path
+from typing import List
 
-from net_common import Message, Mode
+from net_common import Mode
 from network_context import GameContext
-from .base_command import Command
+from .base_command import Command, CommandResult
 
 
 class LoginCommand(Command):
     """Handles user login functionality."""
     
-    @property
-    def name(self) -> str:
-        return 'login'
-    
-    async def execute(self, ctx: GameContext, args: List[str]):
+    async def execute(self, ctx: GameContext, *args: List[str]):
         """
         Execute the login command.
         
         Args:
-            data: Dictionary containing command data including 'user_id' and 'password'
+            ctx: The game context
+            args: List containing command data including 'user_id' and 'password'
             
         Returns:
-            Optional[Dict]: Response message or None if login failed
+            CommandResult: Response message or None if login failed
         """
-        user_id = data.get('user_id')
-        password = data.get('password')
+        user_id = args[1] if args else ''   # user name
+        password = args[2] if args else ''  # password
         
         if not user_id:
-            return CommandResult(success=False, message='Please enter your username.').to_dict()
+            return CommandResult.fail('Please enter your username.')
 
         if not password:
-            return CommandResult(success=False, message='Please enter your password.').to_dict()
+            return CommandResult.fail('Please enter your password.')
 
         # Check if user exists
-        user_file = os.path.join('run', 'server', 'net', f'login-{user_id}.json')
-        if not os.path.exists(user_file):
-            return CommandResult(success=False, message='Invalid username or password.').to_dict()
+        user_file = Path('run') / 'server' / 'net' / f'login-{user_id}.json'
+        if not user_file.exists():
+            return CommandResult.fail('Invalid username or password.')
 
         # Verify password (simplified - in real implementation, use proper password hashing)
         try:
-            with open(user_file, 'r') as f:
+            with open(user_file, mode='r') as f:
                 user_data = json.load(f)
                 if user_data.get('password') != password:
-                    return CommandResult(success=False, message='Invalid username or password.').to_dict()
+                    return CommandResult.fail('Invalid username or password.')
+
         except (json.JSONDecodeError, IOError) as e:
-            return CommandResult(success=False, message='Error accessing user data.').to_dict()
+            return CommandResult.fail('Error accessing user data.')
 
         # Login successful
-        return CommandResult(success=True, message=f'Welcome back, {user_id}!', data={'authenticated': True, 'user_id': user_id, 'mode': Mode.app}).to_dict()
-
-    def help_summary(self) -> str:
-        """Return help text for the login command."""
-        return """\
-        Login Command
-        -------------
-        Usage: login <username> <password>
-        
-        Authenticates a user with the provided credentials.
-        
-        Example:
-          login myusername mypassword
-          
-        You will be prompted for your password if not provided.
-        """
-
-    def register(self):
-        """Register the connect / login command."""
-        return LoginCommand().register()
+        return CommandResult.ok(['', f'Welcome back, {user_id}!', ''],
+                                data={'authenticated': True, 'user_id': user_id, 'mode': Mode.GAME})
