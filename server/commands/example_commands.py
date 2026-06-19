@@ -164,7 +164,8 @@ class TestCommand(Command):
         usage    = [
             ("test [args] [#switches]", "Echo args and switches back."),
             ("test 42",                 "Trigger the Easter egg."),
-            ("test #feep",              "Feep forever."),
+            ("test #feep",              "Feeps forever."),
+            ("test #box",               "Test box-drawing functions."),
         ],
     )
 
@@ -177,12 +178,65 @@ class TestCommand(Command):
             f"  Switches: {switches or 'none'}",
         )
         if "#feep" in switches:
-            await ctx.send("  Feeps forever!")
+            await ctx.send(['  "Feeping creatures" is a Spoonerism of "creeping features.",'
+                            '  Feature creep is the excessive ongoing expansion or addition '
+                            'of new features in a product, especially in computer software, '
+                            'video games and consumer and business electronics. ([Wikipedia])',
+                            '  Feeps forever!'])
+
+        if "#box" in switches:
+            from formatting import make_box_for_settings
+            settings = ctx.player.client_settings
+            box = make_box_for_settings(settings,
+                                        lines=["You find a sword!", "Take it?"],
+                                        frame_color="blue",
+                                        title_color="white",
+                                        text_color="yellow",
+                                        title="Item")
+            await ctx.send(*box)
+            another_box = make_box_for_settings(
+                settings,
+                lines=['Choose your destiny.'],
+                title='Welcome',
+                frame_color='cyan',
+                title_color='yellow',
+                text_color='white',
+            )
+            await ctx.send(*another_box)
+
         if "42" in positional:
             await ctx.send("  The answer to Life, the Universe, and Everything.")
 
         return CommandResult.ok("Test command executed.")
 
+class TableCommand(Command):
+    name = "table"
+    aliases = ['']
+    modes = {Mode.ANY}
+
+    help = Help(summary="Display a table of all available commands.",
+                description="The 'table' command shows a list of commands.",
+                examples=[("table", "Show the table.")],
+                category=HelpCategory.MISCELLANEOUS
+                )
+    async def execute(self, ctx: GameContext, *args: List[str]) -> CommandResult:
+        from table import Table, Column, Align
+
+        # In a command's execute():
+        t = Table(
+            [
+                Column("Command", min_width=8),
+                Column("Description", align=Align.LEFT),
+            ],
+            title="Available Commands",
+        )
+        processor = getattr(getattr(ctx, "client", None), "command_processor", None)
+        for name, cmd in (processor.get_all_commands().items() if processor else []):
+            summary = getattr(getattr(cmd, "help", None), "summary", "")
+            t.add_row([name, summary])
+
+        await ctx.send(*t.render(width=ctx.player.client_settings.screen_columns))
+        return CommandResult.ok("Seems fine to me, maybe.")
 
 # ---------------------------------------------------------------------------
 # Quick self-test (python -m commands.example_commands)
@@ -198,13 +252,13 @@ if __name__ == "__main__":
     ctx.player    = MagicMock(name="Tester")
 
     cmd    = TestCommand()
-    result = asyncio.run(cmd.execute(ctx, "hello", "42", "#feep"))
+    result = asyncio.run(cmd.execute(ctx, ["hello", "42", "#feep"]))
     assert result.success
     assert result.message == "Test command executed."
     print("✅ TestCommand passed")
 
     cmd    = SayCommand()
-    result = asyncio.run(cmd.execute(ctx, "hello", "world"))
+    result = asyncio.run(cmd.execute(ctx, ["hello", "world"]))
     assert result.success
     print("✅ SayCommand passed")
 
