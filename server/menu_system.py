@@ -99,12 +99,20 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
     except AttributeError:
         screen_columns = 80
 
-    lines: List[str] = ['', f'[{menu.title}]', '-' * 40]
+    _H = {'single': '─', 'double': '═'}
+    try:
+        h_char = _H.get(ctx.player.client_settings.border_style, '-')
+    except AttributeError:
+        h_char = '-'
+    rule = h_char * screen_columns
 
+    # --- Pass 1: build base strings and evaluate all dot leaders ---
     selectable_count = 0
+    item_rows = []  # (item, base | None, dot_text | None)
+
     for item in menu.menu_items:
         if item.is_header:
-            lines.append(str(item.text))
+            item_rows.append((item, None, None))
             continue
 
         selectable_count += 1
@@ -112,7 +120,6 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
         label     = item.text() if callable(item.text) else str(item.text)
         base      = f'{selectable_count:2d}. {shortcuts:8} {label}'
 
-        # Dot leader
         dot_text = None
         if item.dot_leader_handler is not None:
             try:
@@ -123,13 +130,32 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
             except Exception:
                 pass
 
+        item_rows.append((item, base, dot_text))
+
+    # --- Compute uniform dot geometry across all items that have values ---
+    # 3 = one space before dots + colon + one space after colon
+    max_base  = max((len(b) for _, b, d in item_rows if b and d), default=0)
+    max_val   = max((len(d) for _, b, d in item_rows if b and d), default=0)
+    dot_width = max(0, screen_columns - max_base - max_val - 3)
+
+    # --- Pass 2: render ---
+    lines: List[str] = ['', f'[{menu.title}]', rule]
+
+    for item, base, dot_text in item_rows:
+        if item.is_header:
+            lines.append(str(item.text))
+            continue
+
         if dot_text:
-            available = max(2, screen_columns - len(base) - len(dot_text) - 2)
-            lines.append(f'{base} {"." * available} {dot_text}')
+            item_dots = max_base + dot_width - len(base)
+            if item_dots > 0:
+                lines.append(f'{base} {"." * item_dots}: {dot_text}')
+            else:
+                lines.append(f'{base}: {dot_text}'[:screen_columns])
         else:
             lines.append(base)
 
-    lines.append('-' * 40)
+    lines.append(rule)
 
     if menu.columns == 2:
         mid       = (len(lines) + 1) // 2
