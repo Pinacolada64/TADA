@@ -68,7 +68,7 @@ async def prefs_menu(ctx) -> bool:
     Loops until the player presses Enter (or disconnects).
     Returns True on clean exit, False on disconnect.
     """
-    from formatting import codec_for_settings, ANSICodec, PETSCIICodec
+    from formatting import border_style_for_ctx, codec_for_settings, ANSICodec, PETSCIICodec
     from table import Table
 
     codec      = codec_for_settings(ctx.player.client_settings)
@@ -84,7 +84,7 @@ async def prefs_menu(ctx) -> bool:
         border_key = getattr(cs, 'border_style', 'single')
 
         t = Table(headers=['Key', 'Setting', 'Current Value'],
-                  border_style='petscii' if is_petscii else border_key)
+                  border_style=border_style_for_ctx(ctx))
         t.add_row(['X', 'Expert Mode', 'On' if expert else 'Off'])
         t.add_row(['H', 'Hourglass Display', 'On' if hourglass else 'Off'])
         if not is_petscii:
@@ -207,7 +207,7 @@ async def _pick_colors(ctx, is_petscii: bool = False) -> None:
 
     def _palette_rows() -> list[str]:
         t = Table(headers=['#', 'Color', 'Sample'],
-                  border_style='petscii' if is_petscii else 'single')
+                  border_style=border_style_for_ctx(ctx))
         for i, cn in enumerate(palette, 1):
             token  = COLOR_NAME_TO_TOKEN.get(cn, '')
             swatch = f'|{token}|{cn.value}|reset|' if token else cn.value

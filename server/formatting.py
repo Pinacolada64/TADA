@@ -595,6 +595,18 @@ def codec_for_settings(settings) -> ColorCodec:
     return PlainCodec()
 
 
+def border_style_for_ctx(ctx) -> str:
+    """Return the right Table/make_box border style name for this context.
+
+    Returns 'petscii' for C64 clients, otherwise the player's chosen
+    border_style ('single', 'double', 'ascii').
+    """
+    cs = ctx.player.client_settings
+    if isinstance(codec_for_settings(cs), PETSCIICodec):
+        return 'petscii'
+    return getattr(cs, 'border_style', 'single')
+
+
 # ---------------------------------------------------------------------------
 # Header / rule helpers (pure, return list[str])
 # ---------------------------------------------------------------------------

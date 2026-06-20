@@ -219,10 +219,9 @@ class TableCommand(Command):
                 )
     async def execute(self, ctx: GameContext, *args: List[str]) -> CommandResult:
         from table import Table, Column, Align
-        from formatting import codec_for_settings, PETSCIICodec
+        from formatting import border_style_for_ctx
 
-        cs = ctx.player.client_settings
-        border = 'petscii' if isinstance(codec_for_settings(cs), PETSCIICodec) else getattr(cs, 'border_style', 'single')
+        border = border_style_for_ctx(ctx)
 
         t = Table(
             [
