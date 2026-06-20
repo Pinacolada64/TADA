@@ -219,14 +219,18 @@ class TableCommand(Command):
                 )
     async def execute(self, ctx: GameContext, *args: List[str]) -> CommandResult:
         from table import Table, Column, Align
+        from formatting import codec_for_settings, PETSCIICodec
 
-        # In a command's execute():
+        cs = ctx.player.client_settings
+        border = 'petscii' if isinstance(codec_for_settings(cs), PETSCIICodec) else getattr(cs, 'border_style', 'single')
+
         t = Table(
             [
                 Column("Command", min_width=8),
                 Column("Description", align=Align.LEFT),
             ],
             title="Available Commands",
+            border_style=border,
         )
         processor = getattr(getattr(ctx, "client", None), "command_processor", None)
         for name, cmd in (processor.get_all_commands().items() if processor else []):
