@@ -189,7 +189,7 @@ async def _pick_colors(ctx, is_petscii: bool = False) -> None:
     color on ANSI terminals.
     """
     from terminal import ColorName
-    from formatting import COLOR_NAME_TO_TOKEN
+    from formatting import COLOR_NAME_TO_TOKEN, border_style_for_ctx
     from table import Table
 
     _SKIP   = {ColorName.RESET, ColorName.REVERSE_ON, ColorName.REVERSE_OFF}
