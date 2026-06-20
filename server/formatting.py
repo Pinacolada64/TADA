@@ -246,16 +246,21 @@ def petscii_encode(text: str,
 
 def petscii_encode_lines(lines: list[str],
                          codec_name: str = 'petscii_c64en_lc',
-                         line_ending: bytes = b'\r') -> bytes:
+                         line_ending: bytes = b'\r',
+                         screen_columns: int = 0) -> bytes:
     """
     Encode a list of formatted strings for a Commodore client.
     Each line is encoded via petscii_encode() and joined with the
     Commodore line ending (CR by default).
 
-    :param lines:       Formatted strings (output of format_lines()).
-    :param codec_name:  cbmcodecs2 codec name.
-    :param line_ending: Byte separator between lines (CR = b'\\r').
-    :return:            Raw bytes for the full block of text.
+    :param lines:          Formatted strings (output of format_lines()).
+    :param codec_name:     cbmcodecs2 codec name.
+    :param line_ending:    Byte separator between lines (CR = b'\\r').
+    :param screen_columns: When non-zero, suppress the CR after any line whose
+                           visible length fills the screen — the hardware wrap
+                           already advances the cursor, and a CR would cause an
+                           extra blank line.
+    :return:               Raw bytes for the full block of text.
 
     >>> result = petscii_encode_lines(['Hello', 'World'])
     >>> result == b'Hello\\rWorld'  # simplified — real output is PETSCII encoded
@@ -279,8 +284,13 @@ def petscii_encode_lines(lines: list[str],
     # "a ruby"    -> cbmcodecs2 -> PETSCII bytes
     # "|reset|"   -> chr(146) spliced in raw
     """
-    encoded = [petscii_encode(line, codec_name) for line in lines]
-    return line_ending.join(encoded)
+    result = bytearray()
+    for i, line in enumerate(lines):
+        result.extend(petscii_encode(line, codec_name))
+        if i < len(lines) - 1:
+            if not (screen_columns and _visible_len(line) >= screen_columns):
+                result.extend(line_ending)
+    return bytes(result)
 
 
 # ---------------------------------------------------------------------------

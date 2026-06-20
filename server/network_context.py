@@ -330,8 +330,9 @@ class PETSCIINetworkContext(GameContext):
     async def _send_formatted(self, formatted: list[str]) -> None:
         """Send pre-formatted lines as raw PETSCII bytes without pagination."""
         encoded = petscii_encode_lines(formatted,
-                                       codec_name  = self.CODEC_NAME,
-                                       line_ending = self.LINE_ENDING)
+                                       codec_name     = self.CODEC_NAME,
+                                       line_ending    = self.LINE_ENDING,
+                                       screen_columns = self.player.client_settings.screen_columns)
         try:
             self.writer.write(encoded)
             await self.writer.drain()

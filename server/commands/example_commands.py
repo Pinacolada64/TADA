@@ -33,13 +33,11 @@ class ColorsCommand(Command):
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
-        from formatting import ANSI_COLOR_CODES, COLOR_NAME_TO_TOKEN
+        from formatting import COLOR_NAME_TO_TOKEN
 
-        reset = ANSI_COLOR_CODES.get('reset', '')
         lines = ['Available colors:', '']
         for color_name, token in COLOR_NAME_TO_TOKEN.items():
-            code = ANSI_COLOR_CODES.get(token, '')
-            lines.append(f'  {code}{color_name.value}{reset}')
+            lines.append(f'  |{token}|{color_name.value}|reset|')
 
         if len(lines) == 2:
             lines.append('  (no colors available — plain text mode)')
