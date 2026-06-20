@@ -348,7 +348,7 @@ class PETSCIINetworkContext(GameContext):
             await self.send(preamble_lines)
         if prompt_text:
             # CR before prompt so it starts on a fresh line
-            self.writer.write(self.LINE_ENDING + petscii_encode(prompt_text, self.CODEC_NAME))
+            self.writer.write(self.LINE_ENDING + petscii_encode(prompt_text + ' > ', self.CODEC_NAME))
             await self.writer.drain()
         try:
             raw = await self.reader.readuntil(b'\r')
