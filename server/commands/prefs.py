@@ -138,7 +138,7 @@ async def prefs_menu(ctx) -> bool:
             await _pick_border_style(ctx, codec)
 
         elif ans == 'c':
-            await _pick_colors(ctx, is_petscii)
+            await _pick_colors(ctx)
 
         else:
             await ctx.send(f'Enter {",".join(valid_keys)}, or press Enter to save and exit.')
@@ -182,7 +182,7 @@ async def _pick_border_style(ctx, codec) -> None:
     await ctx.send('Border style unchanged.')
 
 
-async def _pick_colors(ctx, is_petscii: bool = False) -> None:
+async def _pick_colors(ctx) -> None:
     """Pick text color and [bracket] highlight color from a numbered palette.
 
     Colors are shown as live |token| swatches so they render in the actual
