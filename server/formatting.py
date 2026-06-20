@@ -126,11 +126,11 @@ class PETSCIICodec:
     petscii_encode() — see PETSCII_CONTROL_CODES below.
     """
 
-    def highlight_on(self) -> str: return chr(18)  # REVERSE ON
+    def highlight_on(self) -> str: return '|reverse_on|'
 
-    def highlight_off(self) -> str: return chr(146)  # REVERSE OFF
+    def highlight_off(self) -> str: return '|reverse_off|'
 
-    def reset(self) -> str: return chr(146)  # REVERSE OFF
+    def reset(self) -> str: return '|reset|'
 
 
 # ---------------------------------------------------------------------------
