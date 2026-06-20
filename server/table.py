@@ -28,10 +28,17 @@ Features
 
 from __future__ import annotations
 
+import re
 import textwrap
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Iterable, List, Optional, Sequence
+
+# Strip |pipe-token| color markers before measuring visible width.
+_TOKEN_RE = re.compile(r'\|[a-z_]+\|')
+
+def _visible_len(text: str) -> int:
+    return len(_TOKEN_RE.sub('', text))
 
 
 # ---------------------------------------------------------------------------
@@ -82,13 +89,22 @@ DOUBLE = Border(
     h="═", v="║",
 )
 
-# PETSCII line-drawing characters — mirrors terminal.CommodoreGraphicsChars
+# PETSCII line-drawing characters.
+# Use Unicode box-drawing chars (U+2500 block) — cbmcodecs2 maps these to
+# the correct PETSCII graphics bytes (e.g. '┌' → byte 240, '─' → byte 192).
 PETSCII = Border(
-    top_left=chr(176), top_mid=chr(178), top_right=chr(174),
-    mid_left=chr(178), cross=chr(219),   mid_right=chr(181),
-    bot_left=chr(173), bot_mid=chr(180), bot_right=chr(189),
-    h=chr(221), v=chr(186),
+    top_left='┌', top_mid='┬', top_right='┐',
+    mid_left='├', cross='┼',   mid_right='┤',
+    bot_left='└', bot_mid='┴', bot_right='┘',
+    h='─', v='│',
 )
+
+_BORDER_BY_NAME: dict = {
+    'ascii':   ASCII,
+    'single':  SINGLE,
+    'double':  DOUBLE,
+    'petscii': PETSCII,
+}
 
 
 @dataclass
@@ -105,19 +121,28 @@ class Column:
 # ---------------------------------------------------------------------------
 
 def _fit(text: str, width: int, align: Align) -> str:
-    """Pad/truncate *text* to exactly *width* characters."""
-    if len(text) > width:
-        # Hard-truncate with ellipsis marker; shouldn't happen after wrapping
+    """Pad/truncate *text* to exactly *width* visible characters.
+
+    Token sequences (|yellow|…|reset|) are zero-width on screen, so padding
+    is calculated from the visible length rather than len().
+    """
+    vis = _visible_len(text)
+    if vis > width:
+        # Strip tokens first so we can truncate visible chars cleanly.
+        text = _TOKEN_RE.sub('', text)
         text = text[: max(width - 1, 0)] + ("…" if width > 1 else "")
+        vis  = len(text)
+    pad = width - vis
     if align == Align.RIGHT:
-        return text.rjust(width)
+        return ' ' * pad + text
     if align == Align.CENTER:
-        return text.center(width)
-    return text.ljust(width)
+        left_pad = pad // 2
+        return ' ' * left_pad + text + ' ' * (pad - left_pad)
+    return text + ' ' * pad
 
 
 def _wrap_cell(text: str, width: int) -> list[str]:
-    """Word-wrap *text* into lines of at most *width* chars."""
+    """Word-wrap *text* into lines of at most *width* visible chars."""
     if width <= 0:
         return [""]
     if not text:
@@ -126,6 +151,9 @@ def _wrap_cell(text: str, width: int) -> list[str]:
     for paragraph in text.splitlines() or [""]:
         if paragraph == "":
             lines.append("")
+        elif _visible_len(paragraph) <= width:
+            # Visible content fits — don't wrap (tokens inflate len() artificially).
+            lines.append(paragraph)
         else:
             lines.extend(textwrap.wrap(paragraph, width=width) or [""])
     return lines
@@ -182,7 +210,10 @@ class Table:
         self.title        = title
         self.show_header  = show_header
         self.border       = border
-        self.border_style = border_style
+        self.border_style = (
+            _BORDER_BY_NAME.get(border_style.lower(), ASCII)
+            if isinstance(border_style, str) else border_style
+        )
         self.padding      = max(0, padding)
         self._footer: str = ""
 
@@ -344,7 +375,7 @@ class Table:
             col_cells = [row[i] for row in self._rows] if self._rows else []
             w = max(
                 len(col.header),
-                max((len(c) for c in col_cells), default=0),
+                max((_visible_len(c) for c in col_cells), default=0),
                 col.min_width,
             )
             if col.max_width > 0:
