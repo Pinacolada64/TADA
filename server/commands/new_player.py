@@ -43,7 +43,7 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from create_character import validate_class_race_combo
 from network_context import GameContext
-from flags import PlayerFlag
+from flags import PlayerFlags
 
 log = logging.getLogger(__name__)
 
@@ -180,8 +180,8 @@ async def _prologue(ctx) -> bool:
         "|yellow|Welcome to |white|'Totally Awesome Dungeon Adventure'|yellow|, "
         "or |white|TADA|yellow| for short!",
         "",
-        "Before you begin your adventure, let's set up your character.",
-        "You'll be guided through a series of steps to create your unique",
+        "Before you begin your adventure, let's set up your character. "
+        "You'll be guided through a series of steps to create your unique "
         "persona in this world.  Your faithful servant |light_green|Verus|yellow| will assist you.",
         "",
         "If you need help at any point, type |white|'help'|yellow|, |white|'h'|yellow|, or |white|'?'|yellow|.",
@@ -210,7 +210,7 @@ async def _choose_username(ctx, prefill: Optional[str] = None) -> Optional[str]:
     while True:
         raw = await ctx.prompt(
             "Choose a username",
-            preamble_lines=["", " ('quit' or 'q' abandons choosing a user name.)",
+            preamble_lines=["", "('quit' or 'q' abandons choosing a user name.)",
                             "Your name must be at least 3 characters.",
                             "Choose a username (letters and numbers only).",
                             ""],
@@ -252,7 +252,7 @@ async def _choose_password(ctx, prefill: Optional[str] = None) -> Optional[str]:
             "Choose a password",
             preamble_lines=[
                 "",
-                "Choose a password, or 'R' for a random pronounceable one:",
+                "Choose a password, or 'R' for a random pronounceable one.",
             ],
         )
         if pw1 is None:
@@ -268,7 +268,7 @@ async def _choose_password(ctx, prefill: Optional[str] = None) -> Optional[str]:
                 ans = await ctx.prompt(
                     "Y/N/Q",
                     preamble_lines=[f"Your random password is: {pw}", "Is this OK?",
-                                    "[Y]es, [N]o, or [Q]uit generating random passwords:"],
+                                    "[Y]es, [N]o, or [Q]uit generating random passwords."],
                 )
                 if ans is None:
                     return None
@@ -299,57 +299,19 @@ def _username_taken(username: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Step 1 — user preferences / client settings
+# Step 1 — user preferences
 # ---------------------------------------------------------------------------
 
 async def _edit_settings(ctx) -> bool:
-    """Prompt for Expert Mode (and future settings like Debug Mode, text color, etc.).
-    TODO: text color
-    TODO: tutorial mode, maybe (include command-line practice? 'tutorial #loud' -> 'LOUD TUTORIAL!'
-       partial matching on base commands (wh = whisper, can't be just 'w' -- short for 'west')
-       movement, other things...
-    """
-    from formatting import codec_for_settings, make_box
-
-    codec = codec_for_settings(ctx.player.client_settings)
-    box = make_box(lines=["You find a sword!", "Take it?"],
-                   frame_color="blue", title_color="white", text_color="yellow",
-                   title="Item", width=38, codec=codec)
-    await ctx.send(*box)
-    another_box = make_box(
-        ['Choose your destiny.'],
-        title='Welcome',
-        width=40,
-        codec=codec,
-        frame_color='cyan',
-        title_color='yellow',
-        text_color='white',
-    )
-    await ctx.send(*another_box)
-
-    raw = await ctx.prompt(
-        "Enable Expert Mode? [Y/N]",
-        preamble_lines=[
-            "",
-            "If you have played TADA before, you can enable Expert Mode.",
-            "Expert Mode bypasses in-depth instructions and extra prompts.",
-            "Tip: You can turn Expert Mode on or off (i.e. 'toggle') by typing 'XM'.",
-            "",
-        ],
-    )
-    if raw is None:
-        return False
-    enabled = raw.strip().lower() in ("y", "yes")
-    if enabled:
-        ctx.player.set_flag(PlayerFlag.EXPERT_MODE)
-    else:
-        ctx.player.clear_flag(PlayerFlag.EXPERT_MODE)
-    return True
+    """Delegate to the shared preferences menu (commands/prefs.py)."""
+    from commands.prefs import prefs_menu
+    return await prefs_menu(ctx)
 
 async def _choose_client_settings(ctx) -> bool:
     """Let the player declare their terminal type so we can set screen dimensions,
     translation options, etc."""
     from table import Table
+    from formatting import border_style_for_ctx
 
     lines = [
         "",
@@ -365,7 +327,8 @@ async def _choose_client_settings(ctx) -> bool:
             ("3", "Commodore 128", 80, 25, "PETSCII"),
             ("4", "TADA Client",   80, 25, "ANSI"),
         ]
-        t = Table(headers=["##", "Computer Type", "Screen Size", "Translation"])
+        t = Table(headers=["##", "Computer Type", "Screen Size", "Translation"],
+                  border_style=border_style_for_ctx(ctx))
 
         for k in options:
             t.add_row([k[0], k[1], f"{k[2]} x {k[3]}", k[4]])
@@ -561,7 +524,7 @@ async def _choose_class(ctx) -> int | None:
         class_texts = ["Fighters fight", "Mages mage", "Clerics cleric", "Thieves thieve"]
 
     # Show class overview in non-expert mode
-    if not ctx.player.expert_mode: # getattr(ctx.player, "expert_mode", False):
+    if not ctx.player.is_expert():
         overview = ["",
                     f'Verus says: "Choose a class by number in one of the following ways:",'
                     f'',
@@ -678,47 +641,137 @@ async def _choose_race(ctx) -> int | None:
 # Step 7 — guild
 # ---------------------------------------------------------------------------
 
-_GUILDS = [
-    ("C", "Civilian"),
-    ("M", "Mark of the Claw"),
-    ("F", "Iron Fist"),
-    ("S", "Mark of the Sword"),
-    ("O", "Outlaw"),
-]
+# Keyed by Guild enum member: (letter, short_description)
+_GUILD_INFO = {
+    'C': (
+        'Civilian',
+        'The Path of Peace',
+        [
+            "Do you prefer a quieter existence, free from the entanglements of guild "
+            "wars? As a Civilian, you walk a path of peace and prosperity.",
+            "",
+            "* You are safe from dueling by all but Outlaws, and may only duel Outlaws.",
+            "* You may remain in the Shoppe while you sleep — a secure refuge.",
+            "* Recommended for first-time players.",
+        ],
+    ),
+    'M': (
+        'Mark of the Claw',
+        'Embrace the Wild Within',
+        [
+            "For the soul intertwined with nature, for the mystic who commands the "
+            "untamed forces of the world, the Mark of the Claw calls.",
+            "",
+            "This guild is a sanctuary for Druids, Rangers, and mystical scholars — "
+            "guardians of the natural balance, masters of forms both fey and fearsome.",
+        ],
+    ),
+    'F': (
+        'Iron Fist',
+        'Dominate and Conquer',
+        [
+            "For those who seek undeniable power, for leaders who forge destiny through "
+            "sheer will, the Iron Fist extends its grip.",
+            "",
+            "We are the architects of empire — tacticians, warlords, and those who bend "
+            "others to their will.  Join us and reshape the Land under unyielding command!",
+        ],
+    ),
+    'S': (
+        'Mark of the Sword',
+        'Forge Your Legend in Steel',
+        [
+            "For the unyielding spirit, for the warrior whose heart beats with the "
+            "rhythm of battle, the Mark of the Sword awaits.",
+            "",
+            "A bastion of strength and honor, a brotherhood of Fighters and Knights "
+            "who stand as the Land's shield.  Draw your blade and carve your saga!",
+        ],
+    ),
+    'O': (
+        'Outlaw',
+        'The Path of Defiance',
+        [
+            "For the lone wolf, for the rebel who bows to no one — but be warned, "
+            "this path is not for the faint of heart!",
+            "",
+            "As an Outlaw you thrive on defiance, making enemies of most others in "
+            "the Land.  You are a target for many, but unique solo opportunities await.",
+            "",
+            "* Not recommended for first-time players.",
+        ],
+    ),
+}
 
-async def _choose_guild(ctx) -> int | None:
-    """Prompt for guild membership."""
-    lines = [
+
+async def _choose_guild(ctx) -> bool:
+    """Prompt for guild membership.
+
+    Letter selects directly (C/M/F/S/O).
+    I<letter> shows the full info blurb for that guild.
+    """
+    from base_classes import Guild
+    from table import Table, Column
+    from formatting import border_style_for_ctx
+    from tada_utilities import a_or_an
+
+    # Map letter → Guild enum
+    _LETTER_TO_GUILD = {
+        'C': Guild.CIVILIAN,
+        'M': Guild.CLAW,
+        'F': Guild.FIST,
+        'S': Guild.SWORD,
+        'O': Guild.OUTLAW,
+    }
+
+    # Overview preamble — sent as one batch so pagination fires if needed
+    overview = [
         "",
-        "Wouldst thou join a guild, remain a civilian, or become an Outlaw?",
-        "Choose an affiliation:",
+        'Verus leans forward. "Wouldst thou join a Guild, remain a Civilian, or become an Outlaw?"',
         "",
-    ] + [f"  {i+1}. {name}  ({short})" for i, (short, name) in enumerate(_GUILDS)]
+        "Joining a Guild introduces dueling, territory control, and guild headquarters access.",
+        "Civilians are safe from all dueling except by Outlaws.",
+        "Outlaws stand alone — at war with everyone.",
+        "",
+    ]
+
+    t = Table(headers=["Key", "Guild", "Theme"], border_style=border_style_for_ctx(ctx))
+    for letter, (name, theme, _) in _GUILD_INFO.items():
+        t.add_row([letter, name, theme])
+    overview += t.render(width=ctx.player.client_settings.screen_columns)
+    overview += ["", "Type a letter to join, or I<letter> for details  (e.g. IC, IM, IS …)", ""]
+    await ctx.send(*overview)
 
     while True:
-        raw = await ctx.prompt("guild", preamble_lines=lines)
+        raw = await ctx.prompt("guild")
         if raw is None:
-            return None  # lost connection
+            return False
         ans = raw.strip().lower()
         if not ans:
             continue
+        if ans in ('q', 'quit'):
+            return False
 
-        # Numeric
-        sel = _parse_selection(ans, len(_GUILDS))
-        if sel is not None:
-            ctx.player.guild = _GUILDS[sel - 1][1]
-            await ctx.send(f"Guild set to {ctx.player.guild}.")
-            return ctx
+        # I<letter> — show info blurb
+        if len(ans) == 2 and ans[0] == 'i' and ans[1].upper() in _GUILD_INFO:
+            letter = ans[1].upper()
+            name, theme, blurb = _GUILD_INFO[letter]
+            await ctx.send(*([f"|yellow|{name}|reset| — {theme}", ""] + blurb + [""]))
+            continue
 
-        # Short letter
-        for short, name in _GUILDS:
-            if ans in (short.lower(), name.lower()):
-                ctx.player.guild = name
-                await ctx.send(f"Guild set to {name}.")
-                return ctx
+        # Single letter — join that guild
+        letter = ans.upper()
+        if letter in _LETTER_TO_GUILD:
+            guild = _LETTER_TO_GUILD[letter]
+            ctx.player.guild = guild
+            name = _GUILD_INFO[letter][0]
+            if letter in ('C', 'O'):
+                await ctx.send(f"You have chosen to be {a_or_an(name)}.")
+            else:
+                await ctx.send(f"You have chosen to join the {name}.")
+            return True
 
-        await ctx.send(f"Please enter a number 1–{len(_GUILDS)}, or a letter: "
-                       f"({', '.join(s for s, _ in _GUILDS)}).")
+        await ctx.send(f"Enter a letter (C/M/F/S/O) to choose, or I<letter> for info.")
 
 
 # ---------------------------------------------------------------------------
