@@ -347,11 +347,17 @@ class PETSCIINetworkContext(GameContext):
         if preamble_lines:
             await self.send(preamble_lines)
         if prompt_text:
-            self.writer.write(petscii_encode(prompt_text, self.CODEC_NAME))
+            # CR before prompt so it starts on a fresh line
+            self.writer.write(self.LINE_ENDING + petscii_encode(prompt_text, self.CODEC_NAME))
             await self.writer.drain()
         try:
-            raw  = await self.reader.readuntil(b'\r')
-            return raw.rstrip(b'\r\x00').decode('ascii', errors='replace').strip()
+            raw = await self.reader.readuntil(b'\r')
+            text = raw.rstrip(b'\r\x00').decode('ascii', errors='replace').strip()
+            # Echo input back so the player sees what they typed, then CR to
+            # advance the cursor before any response is sent.
+            self.writer.write(text.encode('ascii', errors='replace') + self.LINE_ENDING)
+            await self.writer.drain()
+            return text
         except asyncio.IncompleteReadError:
             return None         # EOF — Commodore client disconnected
         except Exception:
