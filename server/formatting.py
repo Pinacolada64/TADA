@@ -35,6 +35,13 @@ try:
 except ImportError:
     _COLORAMA_AVAILABLE = False
     logging.warning('colorama not available; ANSI color output will be plain text.')
+
+try:
+    import cbmcodecs2 as _cbmcodecs2  # noqa: F401 — registers the codec
+    _CBMCODECS2_AVAILABLE = True
+except ImportError:
+    _CBMCODECS2_AVAILABLE = False
+    logging.warning('cbmcodecs2 not available; PETSCII output will be ASCII only.')
 import re
 import textwrap
 from dataclasses import dataclass, field
@@ -205,11 +212,7 @@ def petscii_encode(text: str,
     >>> petscii_encode('|red|Hi|reset|')[-1]  # last byte = reverse off
     146
     """
-    try:
-        import cbmcodecs2  # noqa: F401 — registers the codec
-    except ImportError:
-        logging.warning('cbmcodecs2 not available; PETSCII output will be ASCII only.')
-        # Strip tokens and encode as plain ASCII fallback
+    if not _CBMCODECS2_AVAILABLE:
         clean = _TOKEN_RE.sub('', text)
         return clean.encode('ascii', errors='replace')
 
@@ -615,9 +618,10 @@ def _col(text: str, color: str | None) -> str:
 
 def make_box(lines: list[str], title: str = '', width: int = 60,
              codec: 'ColorCodec | None' = None,
-             frame_color: str | None = None,
-             title_color: str | None = None,
-             text_color:  str | None = None) -> list[str]:
+             frame_color:  str | None = None,
+             title_color:  str | None = None,
+             text_color:   str | None = None,
+             border_style: str | None = None) -> list[str]:
     """
     Wrap lines in a box with an optional title.
 
@@ -636,11 +640,15 @@ def make_box(lines: list[str], title: str = '', width: int = 60,
     >>> make_box(['Hi'], width=12, frame_color='cyan')
     ['|cyan|+----------+|reset|', '|cyan|||reset| Hi       |cyan|||reset|', '|cyan|+----------+|reset|']
     """
-    from table import ASCII as _ASCII, SINGLE as _SINGLE, PETSCII as _PETSCII
+    from table import ASCII as _ASCII, SINGLE as _SINGLE, DOUBLE as _DOUBLE, PETSCII as _PETSCII
 
     if isinstance(codec, PETSCIICodec):
         b = _PETSCII
-    elif isinstance(codec, ANSICodec):
+    elif border_style == 'double':
+        b = _DOUBLE
+    elif border_style == 'ascii':
+        b = _ASCII
+    elif isinstance(codec, ANSICodec) or border_style == 'single':
         b = _SINGLE
     else:
         b = _ASCII
@@ -667,6 +675,35 @@ def make_box(lines: list[str], title: str = '', width: int = 60,
     ]
 
     return [top] + body + [bot]
+
+
+def make_box_for_settings(settings,
+                          lines:       list[str],
+                          title:       str       = '',
+                          frame_color: str | None = None,
+                          title_color: str | None = None,
+                          text_color:  str | None = None) -> list[str]:
+    """Convenience wrapper: build a box sized and styled for *settings*.
+
+    Reads ``screen_columns``, ``border_style``, and the translation codec
+    from the settings object so callers don't have to pass them manually.
+
+    Usage::
+
+        await ctx.send(*make_box_for_settings(
+            ctx.player.client_settings,
+            ['You have 5 new messages.'],
+            title='Inbox',
+        ))
+    """
+    codec        = codec_for_settings(settings)
+    width        = getattr(settings, 'screen_columns', 60)
+    border_style = getattr(settings, 'border_style', None)
+    return make_box(lines, title=title, width=width, codec=codec,
+                    border_style=border_style,
+                    frame_color=frame_color,
+                    title_color=title_color,
+                    text_color=text_color)
 
 
 # ---------------------------------------------------------------------------
