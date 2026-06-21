@@ -140,9 +140,7 @@ class QuitCommand(Command):
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         await ctx.send("Goodbye!")
-        return CommandResult.ok(
-            message="Disconnected.",
-        )
+        return CommandResult(success=True, message="Disconnected.", data={'quit': True})
 
 
 # ---------------------------------------------------------------------------
