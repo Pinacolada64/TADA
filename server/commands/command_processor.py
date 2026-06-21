@@ -242,6 +242,11 @@ class CommandProcessor:
         # Use the live ctx when available; fall back to the stored dict for tests.
         effective_ctx = ctx if ctx is not None else self.context
 
+        # Record the token the player actually typed so commands like MoveCommand
+        # can distinguish which direction alias was used when args are empty.
+        if hasattr(effective_ctx, '__dict__'):
+            effective_ctx._invoked_as = parts[0].lower()
+
         try:
             result = await cmd.execute(effective_ctx, *args)
             # Tolerate commands that forget to return a CommandResult
