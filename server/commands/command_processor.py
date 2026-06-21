@@ -220,6 +220,12 @@ class CommandProcessor:
         if not parts:
             return CommandResult.fail("No command given.", error="no_command")
 
+        # Split '#37' into ['#', '37'] so TeleportCommand receives the room
+        # number as its first argument regardless of whether the player typed
+        # '#37' (no space) or '# 37' (with space).
+        if len(parts[0]) > 1 and parts[0].startswith('#'):
+            parts = ['#', parts[0][1:]] + parts[1:]
+
         cmd, _ = self.find_command(parts[0])
         args   = parts[1:]
         if cmd is None:

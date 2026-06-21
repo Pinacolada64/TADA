@@ -5,6 +5,9 @@ MoveCommand — move the player between rooms.
 Handles bare direction aliases (n, s, e, w, u, d) and 'go <direction>'.
 The direction is resolved from the first positional arg when present
 (e.g. 'go north'), otherwise from ctx._invoked_as (e.g. bare 'n').
+
+Special exits (shoppe elevator, bar) are checked here before delegating
+normal movement to ctx.server._move().
 """
 
 from commands.base_command import Command, CommandResult, Mode
@@ -19,6 +22,27 @@ _DIR_ALIASES: dict[str, str] = {
     'u': 'u', 'up':    'u',
     'd': 'd', 'down':  'd',
 }
+
+# Rooms that trigger a sub-area module when entered, keyed by room number.
+_BAR_ROOM    = 37   # Wall Bar & Grill
+_SHOPPE_ROOM = None  # Shoppe is reached via rc/rt elevator, not a map room
+
+
+async def _enter_shoppe(ctx: GameContext) -> None:
+    """Player takes the elevator down to the Merchant Shoppe."""
+    # TODO: adapt shoppe/main.py ShoppeCommand to async ctx interface
+    await ctx.send(
+        'You follow the sloping passageway downward into the merchant\'s annex.',
+        '',
+        '(Merchant Shoppe not yet available.)',
+    )
+
+
+async def _enter_bar(ctx: GameContext) -> None:
+    """Player enters the Wall Bar & Grill (room 37)."""
+    # TODO: adapt bar/main.py to async ctx interface
+    ctx.client.room = _BAR_ROOM
+    await ctx.server._show_room(ctx)
 
 
 class MoveCommand(Command):
@@ -58,6 +82,26 @@ class MoveCommand(Command):
         if not direction:
             await ctx.send('Go where? (n/s/e/w/u/d)')
             return CommandResult.fail('No direction.', error='no_direction')
+
+        # Check for special exits before normal movement
+        game_map = getattr(ctx.server, 'game_map', None)
+        room_no  = getattr(ctx.client, 'room', 1) or 1
+        room     = game_map.rooms.get(int(room_no)) if game_map else None
+
+        if room:
+            exits = getattr(room, 'exits', {})
+
+            # rc/rt transport system: rc=1 → Up, rc=2 → Down (no normal exit key)
+            rc = int(exits.get('rc', 0) or 0)
+            if (direction == 'u' and rc == 1) or (direction == 'd' and rc == 2):
+                await _enter_shoppe(ctx)
+                return CommandResult.ok()
+
+            # Special destination: entering the bar
+            dest = exits.get(direction)
+            if dest and int(dest) == _BAR_ROOM:
+                await _enter_bar(ctx)
+                return CommandResult.ok()
 
         await ctx.server._move(ctx, direction)
         return CommandResult.ok()

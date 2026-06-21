@@ -492,7 +492,11 @@ class Server:
     # -----------------------------------------------------------------------
 
     async def _move(self, ctx: GameContext, direction: str) -> None:
-        """Move the player in the given direction."""
+        """Move the player one step in direction — normal map exits only.
+
+        Special exits (shoppe elevator, bar) are handled in MoveCommand
+        before this method is called.
+        """
         room_no = getattr(ctx.client, 'room', 1) or 1
         room    = (self.game_map.rooms.get(int(room_no))
                    if self.game_map else None)
