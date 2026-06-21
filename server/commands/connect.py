@@ -201,7 +201,7 @@ class ConnectCommand(Command):
             processor.current_mode = Mode.GAME
             processor.context.update({"username": username, "is_authenticated": True})
 
-        await ctx.send(f"Welcome back, {username}!")
+        await ctx.send(f"Welcome back, {ctx.player.name}!")
         await ctx.send(f"You last connected on {ctx.player.last_connection}.")
         log.info("User %r authenticated from %s", username,
                  getattr(ctx.client, "addr", "unknown"))
