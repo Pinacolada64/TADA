@@ -164,8 +164,8 @@ class Server:
                 mode=Mode.LOGIN,
             )
 
-            await self._login(ctx)
-            await self._game_loop(ctx)
+            if await self._login(ctx):
+                await self._game_loop(ctx)
 
         except asyncio.CancelledError:
             logging.warning('%s: connection task cancelled', addr)
@@ -286,14 +286,11 @@ class Server:
     # Login
     # -----------------------------------------------------------------------
 
-    async def _login(self, ctx: GameContext) -> None:
+    async def _login(self, ctx: GameContext) -> bool:
         """
         Handle the login / character creation phase.
-        Dispatches all pre-login input through the LOGIN-mode command processor.
-        Commands signal a successful login by returning data={'authenticated': True}
-        and setting ctx.player to a real Player object.
-        On success, the processor is switched to GAME mode and we return to
-        handle_connection which then calls _game_loop.
+        Returns True if the player authenticated and should enter the game loop.
+        Returns False on quit or disconnect.
         """
         await ctx.send(
             '',
@@ -317,7 +314,7 @@ class Server:
         while True:
             raw = await ctx.prompt('login')
             if raw is None:
-                return                          # clean disconnect
+                return False                    # clean disconnect
             if not raw.strip():
                 continue
 
@@ -338,11 +335,11 @@ class Server:
             if result.data.get('authenticated'):
                 processor.current_mode = Mode.GAME
                 ctx.set_prompt('main')
-                return
+                return True
 
             # QuitCommand signals that we should drop the connection
             if result.data.get('quit'):
-                return
+                return False
 
     async def _authenticate(self, ctx: GameContext,
                             username: str, password: str):
