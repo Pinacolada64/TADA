@@ -185,7 +185,8 @@ class ConnectCommand(Command):
         # Replace the GuestPlayer stub with a real Player, preserving the
         # terminal settings that were negotiated before login.
         from player import Player
-        player = Player(name=username)
+        char_name = creds.get('char_name') or username
+        player = Player(name=char_name)
         guest_cs = getattr(ctx.player, 'client_settings', None)
         if guest_cs is not None:
             cs = player.client_settings

@@ -286,11 +286,13 @@ def petscii_encode_lines(lines: list[str],
     # "|reset|"   -> chr(146) spliced in raw
     """
     result = bytearray()
-    for i, line in enumerate(lines):
+    for line in lines:
         result.extend(petscii_encode(line, codec_name))
-        if i < len(lines) - 1:
-            if not (screen_columns and _visible_len(line) >= screen_columns):
-                result.extend(line_ending)
+        # Always CR after each line so consecutive send() calls don't run
+        # together — except when the line fills the full screen width, where
+        # the C64 hardware-wraps and a CR would produce an extra blank line.
+        if not (screen_columns and _visible_len(line) >= screen_columns):
+            result.extend(line_ending)
     return bytes(result)
 
 

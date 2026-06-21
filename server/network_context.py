@@ -298,6 +298,33 @@ class GameContext(BaseContext):
 
 
 # ---------------------------------------------------------------------------
+# PETSCII input helpers
+# ---------------------------------------------------------------------------
+
+def _petscii_input_to_ascii(data: bytes) -> str:
+    """Convert raw PETSCII keyboard bytes to an ASCII string.
+
+    cbmcodecs2 maps 0x41-0x5A to lowercase letters in petscii_c64en_lc,
+    which is correct for display but wrong for keyboard input (the C64
+    unshifted keys always send 0x41-0x5A regardless of charset mode).
+    This function handles the three relevant ranges:
+      0x20-0x5A  space, punctuation, digits, and unshifted A-Z
+      0x61-0x7A  a-z (shifted in uppercase charset / unshifted in some modes)
+      0xC1-0xDA  A-Z shifted in lowercase charset (0xC1 = 'A', 0xDA = 'Z')
+    Everything else (control codes, graphics) is discarded.
+    """
+    chars = []
+    for b in data:
+        if 0x20 <= b <= 0x5A:          # space … Z  (same as ASCII)
+            chars.append(chr(b))
+        elif 0x61 <= b <= 0x7A:        # a-z
+            chars.append(chr(b))
+        elif 0xC1 <= b <= 0xDA:        # shifted A-Z in lowercase charset
+            chars.append(chr(b - 0x80))
+    return ''.join(chars)
+
+
+# ---------------------------------------------------------------------------
 # PETSCIINetworkContext — raw bytes for Commodore clients
 # ---------------------------------------------------------------------------
 
@@ -347,21 +374,15 @@ class PETSCIINetworkContext(GameContext):
         if preamble_lines:
             await self.send(preamble_lines)
         if prompt_text:
-            # CR before prompt so it starts on a fresh line
-            self.writer.write(self.LINE_ENDING + petscii_encode(prompt_text + ' > ', self.CODEC_NAME))
+            # No leading CR needed — petscii_encode_lines() now always
+            # terminates each send() with CR, so the cursor is already
+            # on a fresh line.
+            self.writer.write(petscii_encode(prompt_text + ' > ', self.CODEC_NAME))
             await self.writer.drain()
         try:
             raw = await self.reader.readuntil(b'\r')
-            raw_bytes = raw.rstrip(b'\r\x00')
-            # Decode via cbmcodecs2 so shifted/high PETSCII bytes (e.g. 0xD2
-            # for shifted-R in lowercase charset) map to the correct letter
-            # rather than being replaced with '?' by a plain ASCII decode.
-            try:
-                text = raw_bytes.decode(self.CODEC_NAME, errors='replace').strip()
-            except LookupError:
-                text = raw_bytes.decode('ascii', errors='replace').strip()
-            # Echo input back so the player sees what they typed, then CR to
-            # advance the cursor before any response is sent.
+            text = _petscii_input_to_ascii(raw.rstrip(b'\r\x00')).strip()
+            # Echo input back so the player sees what they typed.
             self.writer.write(text.encode('ascii', errors='replace') + self.LINE_ENDING)
             await self.writer.drain()
             return text
