@@ -2,11 +2,9 @@ import asyncio
 import logging
 from net_common import Message, MessageType, Mode, to_jsonb, from_jsonb  # Assumes these are defined elsewhere
 from typing import Dict, Any, Optional
+import argparse
 
 from colorama import Fore, Back
-
-# Configure basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s')
 
 
 def print_message(msg: Message):
@@ -215,11 +213,6 @@ async def main():
                 logging.exception(f"Unexpected error while reading input: {e}")
                 break
             text_input = command.strip()
-            if text_input.lower() == 'quit':
-                print("Sending 'bye' message and closing connection.")
-                bye_message = Message(lines=[], mode=Mode.bye)
-                await send_message(writer, bye_message)
-                break
 
             # Send the user's command as a Message with the current mode
             out_message = Message(lines=[text_input], mode=current_mode)
@@ -241,7 +234,7 @@ async def main():
                     break
 
                 if response_data is None:
-                    print("Connection lost.")
+                    print("Connection closed by server.")
                     return
 
                 try:
@@ -270,17 +263,17 @@ async def main():
                     print(f"{color_prefix('error')}[ERROR]{RESET_COLOR} Server Error: {in_message.error}")
 
                 prefix = ''
-                # Handle message type prefixing and coloring
-                if in_message.type:
-                    type_str = in_message.type.upper()
+                msg_type = in_message.type
+                # Normalise to string — the field may be an enum or a plain string after deserialisation
+                type_str = msg_type.name if hasattr(msg_type, 'name') else str(msg_type)
+
+                if type_str.upper() != 'REGULAR':
                     color = color_prefix(type_str)
-                    prefix = f"{color}[{type_str}]{RESET_COLOR} "
+                    prefix = f"{color}[{type_str.title()}]{RESET_COLOR} "
 
                 for line in in_message.lines:
-                    # Print the line with color/prefix except if it's a regular message:
-                    output = f"{prefix.title()}{line}" if in_message.type == MessageType.REGULAR else \
-                        f"{prefix.title()}{line}"
-                    print(f"{prefix.title()}{line}")
+                    print(f"{prefix}{line}" if prefix else line)
+
     except Exception as e:
         logging.exception(f"Unexpected exception in client main loop: {e}")
     finally:
@@ -293,6 +286,22 @@ async def main():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="TADA client")
+    parser.add_argument(
+        '--log',
+        default='WARNING',
+        metavar='LEVEL',
+        help='Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL (default: WARNING)',
+    )
+    args = parser.parse_args()
+
+    level = getattr(logging, args.log.upper(), logging.WARNING)
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s',
+        force=True,      # override the basicConfig() call at the top of the file
+    )
+
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
