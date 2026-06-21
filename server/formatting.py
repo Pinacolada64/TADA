@@ -141,6 +141,7 @@ class PETSCIICodec:
 # These are intentionally kept out of cbmcodecs2 encoding — they are
 # spliced into the output as raw bytes after text encoding.
 # Reference: https://sta.c64.org/cbm64petscii.html
+
 PETSCII_CONTROL_CODES: dict[str, int] = {
     # 16-color palette (CBM color codes)
     'black': 144,
@@ -316,6 +317,9 @@ ANSI_COLOR_CODES: dict[str, str] = {
     'light_yellow': Fore.LIGHTYELLOW_EX if _COLORAMA_AVAILABLE else '',
     'light_white': Fore.LIGHTWHITE_EX if _COLORAMA_AVAILABLE else '',
     'dark_gray': Fore.LIGHTBLACK_EX if _COLORAMA_AVAILABLE else '',
+    'mid_gray': Fore.LIGHTWHITE_EX if _COLORAMA_AVAILABLE else '',
+    'light_gray': Fore.WHITE if _COLORAMA_AVAILABLE else '',
+    'brown': Fore.YELLOW if _COLORAMA_AVAILABLE else '',
     'orange': Fore.YELLOW if _COLORAMA_AVAILABLE else '',  # closest ANSI approximation
     'purple': Fore.MAGENTA if _COLORAMA_AVAILABLE else '',  # closest ANSI approximation
     'reverse_on': Style.BRIGHT if _COLORAMA_AVAILABLE else '',
@@ -398,10 +402,10 @@ def _build_color_name_to_token() -> dict:
             ColorName.DARK_BLUE: 'blue',
             ColorName.YELLOW: 'yellow',
             ColorName.ORANGE: 'orange',
-            ColorName.BROWN: 'dark_gray',  # closest ANSI approximation
+            ColorName.BROWN: 'brown',
             ColorName.LIGHT_RED: 'light_red',
             ColorName.DARK_GRAY: 'dark_gray',
-            ColorName.MEDIUM_GRAY: 'light_white',
+            ColorName.MEDIUM_GRAY: 'mid_gray',
             ColorName.LIGHT_GREEN: 'light_green',
             ColorName.LIGHT_BLUE: 'light_blue',
             ColorName.LIGHT_GRAY: 'light_gray',
@@ -596,11 +600,7 @@ def codec_for_settings(settings) -> ColorCodec:
 
 
 def border_style_for_ctx(ctx) -> str:
-    """Return the right Table/make_box border style name for this context.
-
-    Returns 'petscii' for C64 clients, otherwise the player's chosen
-    border_style ('single', 'double', 'ascii').
-    """
+    """Return the right Table/make_box border style name for this context."""
     cs = ctx.player.client_settings
     if isinstance(codec_for_settings(cs), PETSCIICodec):
         return 'petscii'
