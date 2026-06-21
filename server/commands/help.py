@@ -23,10 +23,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+from commands.base_command import Command, Mode
+
 if TYPE_CHECKING:
     from network_context import GameContext
-
-from commands.base_command import Command, Mode
 
 log = logging.getLogger(__name__)
 
@@ -76,10 +76,24 @@ class Help:
 
 
 # ---------------------------------------------------------------------------
+# Helper function - guards against Mode.NONE instead of a set {Mode.NONE}
+# ---------------------------------------------------------------------------
+
+def _is_available(cmd, mode) -> bool:
+    """Safe wrapper around cmd.is_available_in() — guards against modes=None or modes=Mode."""
+    modes = getattr(cmd, "modes", None)
+    if modes is None:
+        return True   # no restriction declared → show it
+    if isinstance(modes, set):
+        from commands.base_command import Mode
+        return Mode.ANY in modes or mode in modes
+    return False      # misconfigured — hide it and log
+
+# ---------------------------------------------------------------------------
 # Formatter  (pure — no I/O)
 # ---------------------------------------------------------------------------
 
-def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> List[str] | None:
+def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> Optional[str]:
     """Format a Help instance into a display string.
 
     Parameters
@@ -91,8 +105,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> List
     if help_obj is None:
         return None
     if isinstance(help_obj, str):
-        lines = list(textwrap.fill(help_obj.strip(), width=width).split('\n'))
-        return lines
+        return textwrap.fill(help_obj.strip(), width=width)
 
     wrap_width = width - 4
     lines: List[str] = []
@@ -102,14 +115,14 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> List
     if summary:
         if command_name:
             lines.append(command_name)
-        lines.append(textwrap.fill(str(summary).strip(), width=width))
+        lines.extend(textwrap.wrap(str(summary).strip(), width=width))
         lines.append("-" * width)
 
     # Description
     desc = getattr(help_obj, "description", None)
     if desc and desc != "No description available.":
         lines.append("")
-        lines.append(textwrap.fill(str(desc).strip(), width=wrap_width))
+        lines.extend(textwrap.wrap(str(desc).strip(), width=wrap_width))
 
     # Usage
     usage = getattr(help_obj, "usage", None)
@@ -139,7 +152,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> List
         for item in examples:
             lines.append(f"  {item[0]}")
             if len(item) > 1 and item[1]:
-                lines.append(textwrap.fill(
+                lines.extend(textwrap.wrap(
                     str(item[1]),
                     width=wrap_width,
                     initial_indent=" " * 6,
@@ -152,15 +165,15 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> List
         lines.append("")
         lines.append("Notes:")
         for note in notes:
-            lines.append(textwrap.fill(
+            lines.extend(textwrap.wrap(
                 str(note),
                 width=wrap_width,
                 initial_indent=" " * 4,
                 subsequent_indent=" " * 4,
             ))
 
-    help_output = lines if lines else None
-    return help_output
+    return lines if lines else None
+
 
 # ---------------------------------------------------------------------------
 # HelpCommand
@@ -255,7 +268,11 @@ class HelpCommand(Command):
         lines = [f"\n{'Available Commands by Category':^{width}}",
                  "  help <command>  detailed help   |   help #cat  list categories\n"]
 
-        all_cmds = processor.get_all_commands().values() if processor else []
+        current_mode = getattr(processor, "current_mode", None)
+        all_cmds = [
+            cmd for cmd in (processor.get_all_commands().values() if processor else [])
+    if current_mode is None or _is_available(cmd, current_mode)
+        ]
         by_cat: Dict = defaultdict(list)
         for cmd in all_cmds:
             help_obj = getattr(cmd, "help", None)
@@ -295,7 +312,11 @@ class HelpCommand(Command):
             )
             return CommandResult.fail(error="unknown_category")
 
-        all_cmds = processor.get_all_commands().values() if processor else []
+        current_mode = getattr(processor, "current_mode", None)
+        all_cmds = [
+            cmd for cmd in (processor.get_all_commands().values() if processor else [])
+            if current_mode is None or cmd.is_available_in(current_mode)
+        ]
         names = []
         for cmd in all_cmds:
             help_obj = getattr(cmd, "help", None)
@@ -343,13 +364,13 @@ class HelpCommand(Command):
             formatted = format_help(help_obj, command_name=command_name, width=width)
             if formatted:
                 await ctx.send(*formatted)
-                return CommandResult.ok("Category help displayed.")
+                return CommandResult.ok("\n".join(formatted))
 
         # Fallback: docstring of execute()
         doc = getattr(getattr(cmd, "execute", None), "__doc__", None)
         if doc:
             await ctx.send(*doc.strip().splitlines())
-            return CommandResult.ok("docstring help displayed.")
+            return CommandResult.ok(doc.strip())
 
         await ctx.send(f"No detailed help available for '{command_name}'.")
         return CommandResult.fail(error="no_help")
