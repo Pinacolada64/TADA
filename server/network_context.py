@@ -352,7 +352,14 @@ class PETSCIINetworkContext(GameContext):
             await self.writer.drain()
         try:
             raw = await self.reader.readuntil(b'\r')
-            text = raw.rstrip(b'\r\x00').decode('ascii', errors='replace').strip()
+            raw_bytes = raw.rstrip(b'\r\x00')
+            # Decode via cbmcodecs2 so shifted/high PETSCII bytes (e.g. 0xD2
+            # for shifted-R in lowercase charset) map to the correct letter
+            # rather than being replaced with '?' by a plain ASCII decode.
+            try:
+                text = raw_bytes.decode(self.CODEC_NAME, errors='replace').strip()
+            except LookupError:
+                text = raw_bytes.decode('ascii', errors='replace').strip()
             # Echo input back so the player sees what they typed, then CR to
             # advance the cursor before any response is sent.
             self.writer.write(text.encode('ascii', errors='replace') + self.LINE_ENDING)

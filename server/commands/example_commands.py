@@ -47,48 +47,6 @@ class ColorsCommand(Command):
 
 
 # ---------------------------------------------------------------------------
-# look
-# ---------------------------------------------------------------------------
-
-class LookCommand(Command):
-    """Describe the current room, or inspect an object or player."""
-
-    name    = "look"
-    aliases = ["l"]
-    modes   = {Mode.GAME}
-
-    help = Help(
-        summary     = "Examine the current room or an object.",
-        description = (
-            "Without arguments, describes your current location. "
-            "With a target, inspects that object or player."
-        ),
-        category = HelpCategory.MOVEMENT,
-        usage    = [
-            ("look",           "Describe the current room."),
-            ("look <target>",  "Inspect an object or player."),
-        ],
-        examples = [
-            ("look",        "See where you are."),
-            ("look sword",  "Examine the sword."),
-        ],
-    )
-
-    async def execute(self, ctx: GameContext, *args) -> CommandResult:
-        positional, _ = self.parse_args(*args)
-
-        if not positional:
-            # TODO: pull room description from ctx.client.room
-            await ctx.send("You look around.  (room description not yet wired up)")
-            return CommandResult.ok()
-
-        target = " ".join(positional)
-        # TODO: search room inventory and players for target
-        await ctx.send(f"You look at {target}.  (object inspection not yet wired up)")
-        return CommandResult.ok()
-
-
-# ---------------------------------------------------------------------------
 # say
 # ---------------------------------------------------------------------------
 
@@ -172,6 +130,7 @@ class TestCommand(Command):
             "Test command executed.",
             f"  Args:     {positional or 'none'}",
             f"  Switches: {switches or 'none'}",
+            ""
         )
         if "#feep" in switches:
             await ctx.send(['  "Feeping creatures" is a Spoonerism of "creeping features.",'

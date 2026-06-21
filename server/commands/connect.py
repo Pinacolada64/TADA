@@ -70,7 +70,7 @@ class ConnectCommand(Command):
             ("connect guest",         "If two guests are online you become 'Guest 3'."),
         ],
         notes = [
-            "Passwords are case-sensitive.",
+            "Passwords are not case-sensitive.",
             "Type 'new' to create a new account.",
         ],
     )
@@ -169,7 +169,9 @@ class ConnectCommand(Command):
             )
 
         # TODO: replace with constant-time hash comparison (bcrypt).
-        if creds.get("password") != password:
+        # Passwords are compared case-insensitively — C64 keyboards send
+        # uppercase by default, so 'FESCUE' must match stored 'fescue'.
+        if creds.get("password", "").lower() != password.lower():
             await ctx.send("Invalid username or password.")
             log.warning("Bad password for user %r", username)
             return CommandResult.fail(
