@@ -41,6 +41,8 @@ async def _enter_shoppe(ctx: GameContext) -> None:
 async def _enter_bar(ctx: GameContext) -> None:
     """Player enters the Wall Bar & Grill (room 37)."""
     # TODO: adapt bar/main.py to async ctx interface
+    await ctx.send("[in _enter_bar()")
+    # TODO: update ctx.client.where() to display "In Wall Bar & Grill"
     ctx.client.room = _BAR_ROOM
     await ctx.server._show_room(ctx)
 
