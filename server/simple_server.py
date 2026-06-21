@@ -510,6 +510,8 @@ class Server:
             return
 
         ctx.client.room = int(dest)
+        ctx.player.map_room = int(dest)
+        ctx.player.unsaved_changes = True
         await self._show_room(ctx)
 
     # -----------------------------------------------------------------------
@@ -539,6 +541,12 @@ class Server:
         player = ctx.player
         if player and not isinstance(player, GuestPlayer):
             try:
+                # Sync room from client to player as a safety net in case any
+                # movement path forgot to update player.map_room directly.
+                current_room = getattr(ctx.client, 'room', None)
+                if current_room is not None:
+                    player.map_room = int(current_room)
+                player.unsaved_changes = True
                 player.save(force=True)
                 logging.info('%s: player %s saved on quit',
                              ctx.client.addr, player.name)
