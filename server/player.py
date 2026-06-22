@@ -82,11 +82,8 @@ def make_random_stat():
 
 
 def set_up_client_settings():
-    import terminal
-    logging.debug("Calling terminal.ClientSettings()")
-    terminal_settings = terminal.ClientSettings
-    logging.debug(terminal_settings)
-    return terminal_settings
+    from terminal import ClientSettings
+    return ClientSettings()
 
 
 def set_up_combinations():
@@ -349,7 +346,6 @@ class Player:
         >>> rulan.adj_stat_relative(PlayerStat.STR, -5, True)  # decrement Rulan's strength by 5, notify
         'You feel weaker.'
         """
-        from flags import PlayerFlag
         from base_variables import STAT_DATA
         if stat not in self.stats:
             logging.warning(f"Stat {stat} doesn't exist.")
@@ -590,40 +586,38 @@ class Player:
             logging.warning("no flag %s" % flag_name)
             return None
 
-    def set_flag(self, flag: "PlayerFlags", status: bool = True):
-        """Set a flag on this player using the PlayerFlags enum (delegates to flags.set_flag).
-
-        Example: player.set_flag(PlayerFlags.ADMIN)  # sets True
-                 player.set_flag(PlayerFlags.ADMIN, False)  # clears
-        """
+    def set_flag(self, flag: "PlayerFlags", verbose: bool = False) -> tuple[bool, str | None]:
+        """Set a flag to True. Returns (True, message) if verbose, (True, None) otherwise."""
         try:
-            # import locally to avoid circular imports at module import time
             import flags as _flags
-            if status:
-                return _flags.set_flag(self, flag)
-            else:
-                return _flags.clear_flag(self, flag)
+            _flags.set_flag(self, flag)
+            msg = f"{getattr(flag, 'value', flag)}: On." if verbose else None
+            return True, msg
         except Exception:
             logging.exception('Failed to set flag')
-            return False
+            return False, None
 
-    def clear_flag(self, flag: PlayerFlags):
-        """Clear (set False) the named flag on this player (delegates to flags.clear_flag)."""
+    def clear_flag(self, flag: "PlayerFlags", verbose: bool = False) -> tuple[bool, str | None]:
+        """Set a flag to False. Returns (False, message) if verbose, (False, None) otherwise."""
         try:
             import flags as _flags
-            return _flags.clear_flag(self, flag)
+            _flags.clear_flag(self, flag)
+            msg = f"{getattr(flag, 'value', flag)}: Off." if verbose else None
+            return False, msg
         except Exception:
             logging.exception('Failed to clear flag')
-            return False
+            return False, None
 
-    def toggle_flag(self, flag):
-        """Toggle the named flag and return the new boolean status (delegates to flags.toggle_flag)."""
+    def toggle_flag(self, flag, verbose: bool = False) -> tuple[bool, str | None]:
+        """Toggle a flag. Returns (new_state, message) if verbose, (new_state, None) otherwise."""
         try:
             import flags as _flags
-            return _flags.toggle_flag(self, flag)
+            new_state = _flags.toggle_flag(self, flag)
+            msg = f"{getattr(flag, 'value', flag)}: {'On' if new_state else 'Off'}." if verbose else None
+            return new_state, msg
         except Exception:
             logging.exception('Failed to toggle flag')
-            return False
+            return False, None
 
     def query_flag(self, flag) -> bool:
         """Return the boolean state of the named flag (delegates to flags.query_flag)."""
