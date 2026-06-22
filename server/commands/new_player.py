@@ -38,12 +38,11 @@ from pathlib import Path
 from typing import Optional
 
 # TADA imports:
-from base_classes import PlayerRace
+from base_classes import PlayerRace, PlayerClass
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from create_character import validate_class_race_combo
 from network_context import GameContext
-from flags import PlayerFlags
+from tada_utilities import a_or_an
 
 log = logging.getLogger(__name__)
 
@@ -54,6 +53,38 @@ CREATION_ROOM = 5
 # Where per-user credential files live.
 _USER_DIR = Path("run") / "server" / "net"
 
+
+# Standalone helpers:
+
+def validate_class_race_combo(ctx) -> tuple[bool, str | None]:
+    """
+    Returns (ok, message).
+      (True,  None)  — valid, or race not set yet (skipped)
+      (False, str)   — invalid combination; str is the Verus quip to send
+    """
+    player = ctx.player
+    if player.char_class is None or player.char_race is None:
+        return True, None          # nothing to validate yet
+
+    from base_classes import PlayerClass, PlayerRace
+    from tada_utilities import a_or_an
+
+    bad = {
+        PlayerClass.WIZARD:   [PlayerRace.OGRE, PlayerRace.DWARF, PlayerRace.ORC],
+        PlayerClass.DRUID:    [PlayerRace.OGRE, PlayerRace.ORC],
+        PlayerClass.THIEF:    [PlayerRace.ELF],
+        PlayerClass.ARCHER:   [PlayerRace.OGRE, PlayerRace.GNOME, PlayerRace.HOBBIT],
+        PlayerClass.ASSASSIN: [PlayerRace.GNOME, PlayerRace.ELF, PlayerRace.HOBBIT],
+        PlayerClass.KNIGHT:   [PlayerRace.OGRE, PlayerRace.ORC],
+    }
+    if player.char_race in bad.get(player.char_class, []):
+        msg = (f'Verus remarks, "{a_or_an(player.char_race, capitalize=True)} '
+               f'{player.char_class} doth not a good adventurer make. Try again."')
+        logging.info("%s picked a bad class/race combination: %s %s",
+                     player.name, player.char_class, player.char_race)
+        return False, msg
+
+    return True, None
 
 # ---------------------------------------------------------------------------
 # NewPlayerCommand
@@ -512,30 +543,32 @@ async def _choose_class(ctx) -> int | None:
                 ]
         await ctx.send(help)
 
-    apostrophe = "'"
     class_names = [""]
     try:
         from base_classes import PlayerClass, PlayerClassText
         classes     = list(PlayerClass)
-        class_names = [c.name for c in classes]
+        class_names = [c.value for c in classes]
         class_texts = list(PlayerClassText)
     except ImportError:
         classes     = ["Fighter", "Mage", "Cleric", "Thief"]
         class_texts = ["Fighters fight", "Mages mage", "Clerics cleric", "Thieves thieve"]
 
     # Show class overview in non-expert mode
-    if not ctx.player.is_expert():
+    if not ctx.player.is_expert:
+        class_number = random.randint(0, len(class_names) - 1)
         overview = ["",
-                    f'Verus says: "Choose a class by number in one of the following ways:",'
+                    f'Verus says, "Choose a class by number in one of the following ways:"',
                     f'',
-                    f'* Type {apostrophe}6{apostrophe}) to choose a {class_names[6]}, '
-                    f'* Type {apostrophe}I{apostrophe}"'
-                    f'"or {apostrophe}I{apostrophe} followed by the class number "'
-                    f'"(e.g., {apostrophe}i5{apostrophe})  for info."',
+                    f"* Type a number, e.g., '{class_number}', to choose a class "
+                    f"(in this case, {class_names[class_number]}).",
+                    f"* Type 'I' followed by the class number (e.g., 'I{class_number}'), "
+                    "for information on that class:",
+                    "",
+                    f"{class_texts[class_number]}",
                     "",
                    ]
 
-        for i, name in enumerate(class_names):
+        for i, name in enumerate(class_names, start=1):
             desc = str(class_texts[i]) if i < len(class_texts) else ""
             overview.append(f"  {i+1}. {name}" + (f" — {desc}" if desc else ""))
         await ctx.send(*overview)
@@ -553,11 +586,6 @@ async def _choose_class(ctx) -> int | None:
         if ans in ['?', 'h', 'help']:
             await help(ctx, class_names)
         if not ans:
-            # TODO: check for valid class/race combinations
-            if isinstance(ctx.player.char_race, PlayerRace):
-                # this indicates they are editing during the final edit step,
-                # therefore perform the class/race check
-                pass
             continue
 
         # I# — show class info
@@ -566,7 +594,7 @@ async def _choose_class(ctx) -> int | None:
             if 1 <= info_idx <= len(class_texts):
                 await ctx.send(str(class_texts[info_idx - 1]))
             else:
-                await ctx.send(f"Enter I followed by a number 1–{len(class_names)}.")
+                await ctx.send(f'Verus reminds you, "Enter I followed by a number 1–{len(class_names)}."')
             continue
 
         # Numeric selection
@@ -577,13 +605,14 @@ async def _choose_class(ctx) -> int | None:
             return True
 
 
-
 # ---------------------------------------------------------------------------
 # Step 6 — race
 # ---------------------------------------------------------------------------
 
 async def _choose_race(ctx) -> int | None:
     """Prompt for character race."""
+    from tada_utilities import a_or_an
+
     async def help_msg(ctx, msg):
         await ctx.send(msg)
 
@@ -598,16 +627,12 @@ async def _choose_race(ctx) -> int | None:
 
     lines = [
         "",
-        'Verus says: "Choose your race, or I# for info."',
-        "",
+        'Verus says: "Choose your race, or I# for info. ',
+        'Some combinations of classes and races cannot be selected together."',
     ] + [f"  {i+1}. {r}" for i, r in enumerate(race_names)]
-
-    help_text = 'Some combinations of classes and races cannot be selected together.'
 
     # TODO: limit the available races shown to the player, based on the chosen race so they can't choose
     #   an invalid combination?
-    # something like:
-    valid_class_and_race = validate_class_race_combo(ctx)  # from create_character.py: returns bool
 
     while True:
         raw = await ctx.prompt("race", preamble_lines=lines)
@@ -617,7 +642,8 @@ async def _choose_race(ctx) -> int | None:
         if not ans:
             continue
         if ans in ['?', 'h', 'help']:
-            help_msg(ctx, help_text)
+            await help_msg(ctx, 'Some combinations of classes and races cannot be selected together.')
+            continue
 
         info_idx = _parse_info_request(ans)
         if info_idx is not None:
@@ -629,8 +655,12 @@ async def _choose_race(ctx) -> int | None:
 
         sel = _parse_selection(ans, len(race_names))
         if sel is not None:
-            # TODO: validate class/race combo (create_character.py does this)
             ctx.player.char_race = race_names[sel - 1]
+            ok, msg = validate_class_race_combo(ctx)
+            if not ok:
+                await ctx.send(msg)
+                ctx.player.char_race = None   # reset so they can repick
+                continue
             await ctx.send(f"Race set to {ctx.player.char_race}.")
             return True
 
@@ -651,7 +681,7 @@ _GUILD_INFO = {
             "wars? As a Civilian, you walk a path of peace and prosperity.",
             "",
             "* You are safe from dueling by all but Outlaws, and may only duel Outlaws.",
-            "* You may remain in the Shoppe while you sleep — a secure refuge.",
+            "* You may remain in the Shoppe while you sleep - a secure refuge.",
             "* Recommended for first-time players.",
         ],
     ),
@@ -838,6 +868,11 @@ async def _final_review(ctx) -> bool:
         for stat, val in getattr(p, "stats", {}).items():
             lines.append(f"    {stat}: {val}")
 
+        ok, combo_msg = validate_class_race_combo(ctx)
+        if not ok:
+            lines += ["", f"  |red|WARNING: {combo_msg}|reset|",
+                         "  |red|(Edit class or race before accepting.)|reset|"]
+
         lines += [
             "",
             "  Options:",
@@ -849,6 +884,7 @@ async def _final_review(ctx) -> bool:
             "    6. Edit race",
             "    7. Edit guild",
             "    8. Re-roll stats",
+            ""
             "    Enter / Y — Accept and finish",
         ]
 
@@ -857,7 +893,10 @@ async def _final_review(ctx) -> bool:
             return False
         ans = raw.strip().lower()
 
-        if ans in ("", "y", "yes", "7"):  # '7' is accept in the menu shown
+        if ans in ("", "y", "yes"):
+            if not ok:
+                await ctx.send("Please fix the class/race combination before accepting (options 5 or 6).")
+                continue
             return True
 
         dispatch = {
@@ -1003,6 +1042,7 @@ if __name__ == "__main__":
 
         # Feed scripted answers for every prompt
         answers = iter([
+            "",           # accept default settings
             "testuser",   # username
             "pass1234",   # password
             "pass1234",   # confirm password

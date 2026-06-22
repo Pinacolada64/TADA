@@ -191,6 +191,19 @@ PETSCII_CODE_NAMES: dict[int, str] = {
 _TOKEN_RE = re.compile(r'\|([a-z_]+)\|')
 
 
+def _encode_petscii_segment(text: str, codec_name: str) -> bytes:
+    """Encode a plain text segment, mapping '_' → PETSCII $64 (underline glyph)."""
+    if '_' not in text:
+        return text.encode(codec_name, errors='replace')
+    parts = text.split('_')
+    buf = bytearray()
+    for i, part in enumerate(parts):
+        buf.extend(part.encode(codec_name, errors='replace'))
+        if i < len(parts) - 1:
+            buf.append(0x64)
+    return bytes(buf)
+
+
 def petscii_encode(text: str,
                    codec_name: str = 'petscii_c64en_lc') -> bytes:
     """
@@ -224,7 +237,7 @@ def petscii_encode(text: str,
         # Encode plain text segment before this token
         segment = text[pos:match.start()]
         if segment:
-            result.extend(segment.encode(codec_name, errors='replace'))
+            result.extend(_encode_petscii_segment(segment, codec_name))
 
         token = match.group(1)
         code = PETSCII_CONTROL_CODES.get(token)
@@ -240,7 +253,7 @@ def petscii_encode(text: str,
     # Encode any remaining text after the last token
     tail = text[pos:]
     if tail:
-        result.extend(tail.encode(codec_name, errors='replace'))
+        result.extend(_encode_petscii_segment(tail, codec_name))
 
     return bytes(result)
 
