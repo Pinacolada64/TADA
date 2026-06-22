@@ -222,25 +222,20 @@ class GameContext(BaseContext):
                 idx += page_size
 
     async def send_room(self, *lines, exclude_self: bool = False) -> None:
-        """Send text to all players in the same room, formatted per recipient."""
-        my_room = getattr(self.client, 'room', None)
-        raw     = flatten_send_args(*lines)
+        """Send text to all players in the same room via each recipient's ctx.
 
+        Dispatching through ctx.send() ensures each client gets the right
+        encoding (JSON for ANSI clients, raw PETSCII bytes for C64 clients).
+        """
+        my_room = getattr(self.client, 'room', None)
         for addr, other_client in self.server.clients.items():
             if exclude_self and other_client is self.client:
                 continue
             if getattr(other_client, 'room', None) != my_room:
                 continue
-            w = getattr(other_client, 'writer', None)
-            if not w:
-                continue
-            other_player   = getattr(other_client, 'player', self.player)
-            other_codec    = codec_for_settings(other_player.client_settings)
-            formatted      = format_lines(raw, other_player.client_settings,
-                                          other_codec)
-            msg = nc.Message(lines=formatted, type=nc.MessageType.REGULAR,
-                             mode=nc.Mode.app, prompt=self._prompt)
-            await self.server.send_message(w, msg)
+            other_ctx = getattr(other_client, 'ctx', None)
+            if other_ctx:
+                await other_ctx.send(*lines)
 
     async def prompt(self,
                      prompt_text:    str            = '',
