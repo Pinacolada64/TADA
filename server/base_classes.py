@@ -7,6 +7,7 @@ import datetime
 from enum import StrEnum, IntEnum, auto, Enum
 
 from items import BaseItem
+from network_context import GameContext
 
 
 class Guild(StrEnum):
@@ -190,30 +191,30 @@ class PlayerClass(StrEnum):
 
 
 class PlayerClassText(StrEnum):
-    WIZARD = ("Wizard / Witch: Masters of arcane magic, wizards and witches study ancient texts and theories to cast "
+    WIZARD = ("Masters of arcane magic, wizards and witches study ancient texts and theories to cast "
               "powerful spells. They often specialize in destructive elemental magic, illusions, or mind control. While "
               "formidable in spellcasting, they're typically physically frail.")
-    DRUID = ("Druid: Guardians of nature, druids draw their power from the natural world. They can heal, shapeshift "
+    DRUID = ("Guardians of nature, druids draw their power from the natural world. They can heal, shapeshift "
              "into animals, and wield primal magic that controls plants, weather, or the earth. They're often found in "
              "wild, untamed lands.")
-    FIGHTER = ("Fighter: The quintessential warrior, fighters excel in combat with various weapons and armor.They're "
+    FIGHTER = ("The quintessential warrior, fighters excel in combat with various weapons and armor.They're "
                "resilient, skilled in tactical maneuvers, and can adapt to many fighting styles. They form the "
                "backbone of most adventuring parties.")
-    PALADIN = ("Paladin: Holy warriors, paladins are bound by sacred oaths to uphold justice and protect the innocent. "
+    PALADIN = ("Holy warriors, paladins are bound by sacred oaths to uphold justice and protect the innocent. "
                "They combine martial prowess with divine magic, capable of healing, smiting evil, and inspiring allies.")
-    RANGER = ("Ranger: Skilled survivalists and trackers, rangers are at home in the wilderness. They often specialize "
+    RANGER = ("Skilled survivalists and trackers, rangers are at home in the wilderness. They often specialize "
               "in archery and can commune with nature or animal companions. They excel at hunting, scouting, and "
               "ranged combat.")
-    THIEF = ("Thief: Nimble and cunning, thieves operate in the shadows, specializing in stealth, lock-picking, "
+    THIEF = ("Nimble and cunning, thieves operate in the shadows, specializing in stealth, lock-picking, "
              "disarming traps, and sleight of hand. They're excellent at reconnaissance and finding hidden treasures, "
              "and can be surprisingly deadly in a quick strike.")
-    ARCHER = ("Archer: A specialist in ranged combat, the archer focuses entirely on mastery of the bow or crossbow. "
+    ARCHER = ("A specialist in ranged combat, the archer focuses entirely on mastery of the bow or crossbow. "
               "They are precise, agile, and can unleash a barrage of arrows, often finding weak points in an enemy's "
               "defense.")
-    ASSASSIN = ("Assassin: A darker counterpart to the thief, assassins are highly trained killers focused on "
+    ASSASSIN = ("A darker counterpart to the thief, assassins are highly trained killers focused on "
                 "eliminating specific targets. They excel at stealth, disguise, and delivering devastating surprise "
                 "attacks, often utilizing poisons.")
-    KNIGHT = ("Knight: A disciplined and honorable warrior, often serving a lord, kingdom, or an ideal. Knights are "
+    KNIGHT = ("A disciplined and honorable warrior, often serving a lord, kingdom, or an ideal. Knights are "
               "typically heavily armored and skilled in mounted combat, prioritizing defense and protecting their "
               "allies on the battlefield.")
 
@@ -288,6 +289,62 @@ class PlayerRaceText(StrEnum):
     ""
     "In essence, a half-elf embodies the strengths and challenges of a blended heritage, often navigating a world "
     "where they are both familiar and foreign, and constantly seeking their place within it.")
+    """
+
+def class_and_race_combinations(ctx: GameContext):
+    """
+
+    :param ctx:
+    :return: True: indicates a valid class/race combination
+    """
+    # if either ctx.player.char_class or ctx.player.char_race are None, character setup
+    # is incomplete, and this should silently return True to allow char creation/editing
+    # to continue until both char_class and char_race contain something to evaluate:
+
+    if ctx.player.char_class is None or ctx.player.char_race is None:
+        return True
+
+    # list of bad class & race combinations:
+    # TODO: use in Annex to change class/race?
+
+    #       player class        disallowed player races
+    test = {PlayerClass.WIZARD: [PlayerRace.OGRE, PlayerRace.DWARF, PlayerRace.ORC],
+            PlayerClass.DRUID: [PlayerRace.OGRE, PlayerRace.ORC],
+            PlayerClass.THIEF: [PlayerRace.ELF],
+            PlayerClass.ARCHER: [PlayerRace.OGRE, PlayerRace.GNOME, PlayerRace.HOBBIT],
+            PlayerClass.ASSASSIN: [PlayerRace.GNOME, PlayerRace.ELF, PlayerRace.HOBBIT],
+            PlayerClass.KNIGHT: [PlayerRace.OGRE, PlayerRace.ORC]}
+
+    """
+    # find PlayerClass key in test dict:
+    for class, races in test.items():
+        if ctx.player.char_class in test:
+
+    if ctx.player.char_class == PlayerClass.WIZARD:
+        logging.info("-=> Wizard")
+        if ctx.player.char_race in [PlayerRace.OGRE, PlayerRace.DWARF, PlayerRace.ORC]:
+            logging.info("-=> %s: bad" % ctx.player.char_race)
+            good_combination = False
+
+    elif ctx.player.char_class == PlayerClass.DRUID:
+        if ctx.player.char_race in [PlayerRace.OGRE, PlayerRace.ORC]:
+            good_combination = False
+
+    elif ctx.player.char_class == PlayerClass.THIEF:
+        if ctx.player.char_race == PlayerRace.ELF:
+            good_combination = False
+
+    elif ctx.player.char_class == PlayerClass.ARCHER:
+        if ctx.player.char_race in [PlayerRace.OGRE, PlayerRace.GNOME, PlayerRace.HOBBIT]:
+            good_combination = False
+
+    elif ctx.player.char_class == PlayerClass.ASSASSIN:
+        if ctx.player.char_race in [PlayerRace.GNOME, PlayerRace.ELF, PlayerRace.HOBBIT]:
+            good_combination = False
+
+    elif ctx.player.char_class == PlayerClass.KNIGHT:
+        if ctx.player.char_race in [PlayerRace.OGRE, PlayerRace.ORC]:
+            good_combination = False
     """
 
 class PlayerStat(StrEnum):
