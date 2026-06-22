@@ -95,9 +95,8 @@ async def _bar_none(ctx: GameContext, bar: Bar) -> None:
 
 
 async def _fat_olaf(ctx: GameContext, bar: Bar) -> None:
-    log.info("Calling fat_olaf module")
-    # TODO: adapt bar/fat_olaf.py to async ctx interface
-    await ctx.send("Fat Olaf grins greedily. (not yet available)")
+    from bar.fat_olaf import main as fat_olaf_main
+    await fat_olaf_main(ctx, bar)
 
 
 async def _zelda(ctx: GameContext, bar: Bar) -> None:

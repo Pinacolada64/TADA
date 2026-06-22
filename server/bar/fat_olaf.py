@@ -1,146 +1,178 @@
-import json
+"""bar/fat_olaf.py — Fat Olaf's Servant Trade."""
 import logging
-import pathlib
-from enum import Enum, auto
-from pathlib import Path
 from typing import List
 
 from bar.ally_data import AllyFlags, assign_random_statuses, AllyStatus, Ally, load_allies
 from base_classes import PlayerMoneyTypes
-from player import Player
 from flags import PlayerFlags
-from bar.main import prompt
+from network_context import GameContext
+
+log = logging.getLogger(__name__)
+
+_NPC = "Fat Olaf"
+_AP = "'"
 
 
-def sell_servant(player):
-    pass
+async def _fat_olaf_menu(ctx: GameContext) -> None:
+    return_key = ctx.player.client_settings.return_key
+    await ctx.send(
+        f"[B]uy, [S]ell, or [M]aintain a servant; "
+        f"[?] / [H]: Help; "
+        f"[L] / [{return_key}]: Leave"
+    )
 
 
-def main(player: Player):
-    apostrophe = "'"
-    npc_name = "Fat Olaf"
-    from ally_data import load_allies, assign_random_statuses
-    # set up sample data:
-    master_ally_list = load_allies()
-    # assign some to SERVANT status:
-    random_status = assign_random_statuses(master_ally_list)
-    master_ally_list = random_status
-    player.output(f"The slave trader {npc_name} sits behind a table, gnawing a chicken leg.")
-    if not player.query_flag(PlayerFlags.EXPERT_MODE):
-        player.output(['"I buy und sell servants yu can add tu your party! ',
-                       'They need tu be fed und paid on a veekly basis tu remain loyal tu yu, though!"'])
-        print()
-        fat_olaf_menu(player)
-        print()
-    while True:
-        command, last_command = prompt(player, "Vot kin I du ver ya?")
-        if command in ['', 'l']:
-            print(f'"Hokey dokey." {npc_name} watches you leave.')
-            return
-
-        if command in ["?", "h"]:
-            fat_olaf_menu(player)
-            continue
-        if command in ["b"]:
-            from ally_data import load_allies, assign_random_statuses
-            # FIXME: for data population - eventually load from "allies.json" or something
-            # master ally list was "loaded" and random statuses assigned above in main()
-            master_ally_list = buy_servant(player, master_ally_list)
-            continue
-        if command in ["s"]:
-            sell_servant(player)
-            continue
-        if command in ["m"]:
-            player.output("[FIXME]: That hasn't been written yet.")
-            continue
-        else:
-            print(f'{npc_name} looks puzzled. "Vot?"')
+async def _sell_servant(ctx: GameContext) -> None:
+    # TODO: implement sell servant
+    await ctx.send(f'{_NPC} shrugs. "Zelling ist not yet available."')
 
 
-def buy_servant(player: "Player", allies: List["Ally"]) -> List[Ally]:
-    from tada_utilities import input_number_range
-    player.output("Buy servant")
+async def _buy_servant(ctx: GameContext, allies: List[Ally]) -> List[Ally]:
+    """Let the player browse and purchase a servant. Returns the (possibly updated) ally list."""
+    await ctx.send("Buy servant")
+
     while True:
         servants = filter_allies(allies, AllyStatus.SERVANT)
         if not servants:
-            player.output('Fat Olaf mutters, "Surry, ald solt ut!"')
+            await ctx.send(f'{_NPC} mutters, "Surry, ald solt ut!"')
             return servants
-        logging.debug("Servants: %i" % len(servants))
 
-        player.output(["Servants:", "",
-                       f"## {'Name'.ljust(20)} {'Strength'.rjust(8)} {'Price'.rjust(5)} Special"])
+        log.debug("Servants available: %i", len(servants))
+
+        lines = [
+            "Servants:", "",
+            f"## {'Name'.ljust(20)} {'Strength'.rjust(8)} {'Price'.rjust(5)} Special",
+        ]
         for i, servant in enumerate(servants, 1):
-            name = servant.name
-            strength = servant.strength
             price = servant.strength * 100
-            flags = servant.flags
             elite_str = ""
-            # This is the most Pythonic and reliable way to check for flags:
-            has_elite_flag = any(flag.value == AllyFlags.ELITE.value for flag in flags)
-            if has_elite_flag:
-                # double the price:
+            if any(f.value == AllyFlags.ELITE.value for f in servant.flags):
                 price *= 2
                 elite_str = "[Elite!]"
-            if i % 20 == 0:
-                _ = input("Hit Return: ")
-            player.output(f"{i:>2} {name.ljust(20, '.')} {strength:>8} {price:>5,} {elite_str}")
-        apostrophe = "'"
-        if not player.query_flag(PlayerFlags.EXPERT_MODE):
-            # TODO: make this a function or @property or something, don't keep repeating yourself:
-            return_key = player.client_settings.return_key.name
-            player.output(f"[{return_key}] = Done")
-        num = input_number_range(player, prompt_msg="Buy vich vun?",
-                                 out_of_bounds_msg=f'"Whoa, dun{apostrophe}t hav that many!"', min_value=1,
-                                 max_value=len(servants))
-        if num == '':
-            player.output(f'Fat Olaf dismisses you with a wave. "Hokay, vine. See yu later!"')
-            return servants  # callee expects it, even if unchanged
+            lines.append(
+                f"{i:>2} {servant.name.ljust(20, '.')} "
+                f"{servant.strength:>8} {price:>5,} {elite_str}"
+            )
+        if not ctx.player.query_flag(PlayerFlags.EXPERT_MODE):
+            return_key = ctx.player.client_settings.return_key
+            lines.append(f"[{return_key}] = Done")
+        await ctx.send(lines)
+
+        # Number selection
+        total = len(servants)
+        selection = None
+        while True:
+            raw = await ctx.prompt(f'"Buy vich vun?" (1-{total})')
+            if raw is None or raw.strip() == '':
+                await ctx.send(f'{_NPC} dismisses you with a wave. "Hokay, vine. See yu later!"')
+                # TODO: should return full allies list so status updates are visible next time
+                return servants
+            try:
+                num = int(raw.strip())
+                if 1 <= num <= total:
+                    selection = num
+                    break
+            except ValueError:
+                pass
+            await ctx.send(f'"Whoa, dun{_AP}t hav that many!"')
+
+        chosen_servant = servants[selection - 1]
+        price = chosen_servant.strength * 100 * (2 if AllyFlags.ELITE in chosen_servant.flags else 1)
+
+        if ctx.player.subtract_silver(PlayerMoneyTypes.IN_HAND, price):
+            await ctx.send(f"You bought {chosen_servant.name}.")
+            log.debug("servants before purchase: %i", len(servants))
+            chosen_servant.status = AllyStatus.IN_PARTY
+            log.debug("%s status → IN_PARTY", chosen_servant.name)
+            for i, servant in enumerate(servants):
+                if servant == chosen_servant:
+                    servants[i] = chosen_servant
+                    log.debug("servant %i %s status updated in list", i, chosen_servant.name)
+            await ctx.player.party.add(ctx, ctx.player, chosen_servant)
+            log.debug("servants after purchase: %i", len(servants))
         else:
-            chosen_servant = servants[num - 1]
-            price = chosen_servant.strength * 100 * (2 if AllyFlags.ELITE in chosen_servant.flags else 1)
-            can_afford = player.subtract_silver(PlayerMoneyTypes.IN_HAND, price)
-            if can_afford:
-                player.output(f"You bought {chosen_servant.name}.")
-                logging.debug("servants before: %i" % len(servants))
-                # update servant's status:
-                chosen_servant.status = AllyStatus.IN_PARTY
-                logging.debug("%s servant status: %s" % (chosen_servant.name, chosen_servant.status))
-                # update servant in ally list:
-                updated_servants = servants
-                for i, servant in enumerate(updated_servants):
-                    if servant == chosen_servant:
-                        updated_servants[i] = chosen_servant
-                        logging.debug("servant %i %s status updated" % (i, chosen_servant.name))
-                ok, msg = player.party.add_member(player, chosen_servant)
-                if msg:
-                    player.output(msg)
-                if ok:
-                    logging.debug("servants after: %i" % len(servants))
-            else:
-                # can't afford:
-                player.output("Some snarky remark")
+            await ctx.send(f'{_NPC} shakes his head. "Yu can{_AP}t afford zat vun, friend."')
 
 
 def filter_allies(ally_list: List[Ally], filter_by_status: AllyStatus) -> List[Ally]:
-    """Filters a list of allies by a specific status."""
-    filtered_list = [ally for ally in ally_list if ally.status.name == filter_by_status.name]
-    logging.debug(f"Found {len(filtered_list)} allies with status '{filter_by_status.name}'.")
-    return filtered_list
+    """Return allies matching *filter_by_status* — pure, sync."""
+    filtered = [a for a in ally_list if a.status.name == filter_by_status.name]
+    log.debug("filter_allies: %i with status %r", len(filtered), filter_by_status.name)
+    return filtered
 
-def fat_olaf_menu(character: Player) -> None:
-    return_key = character.client_settings.return_key.name
-    character.output([f"[B]uy, [S]ell, or [M]aintain a servant; "
-                      f"[?] / [H]: Help; "
-                      f"[L] / [{return_key}]: Leave"])
 
+async def main(ctx: GameContext, bar=None) -> None:
+    """Fat Olaf's Servant Trade interaction loop."""
+    player = ctx.player
+
+    master_ally_list = load_allies()
+    master_ally_list = assign_random_statuses(master_ally_list)
+
+    await ctx.send(f"The slave trader {_NPC} sits behind a table, gnawing a chicken leg.")
+    if not player.query_flag(PlayerFlags.EXPERT_MODE):
+        await ctx.send([
+            '"I buy und sell servants yu can add tu your party! ',
+            'They need tu be fed und paid on a veekly basis tu remain loyal tu yu, though!"',
+        ])
+        await _fat_olaf_menu(ctx)
+
+    while True:
+        await ctx.send("")
+        raw = await ctx.prompt(f'"Vot kin I du ver ya?"')
+        if raw is None:
+            break
+
+        inp = raw.strip().lower()
+        if not inp:
+            if player.previous_command:
+                inp = player.previous_command
+                if not player.query_flag(PlayerFlags.EXPERT_MODE):
+                    await ctx.send(f"(Repeating '{inp}'.)")
+            else:
+                continue
+
+        command = inp[0]
+        player.previous_command = command
+
+        if command in ('l', 'q'):
+            await ctx.send(f'"Hokey dokey." {_NPC} watches you leave.')
+            break
+        elif command in ('?', 'h'):
+            await _fat_olaf_menu(ctx)
+        elif command == 'b':
+            master_ally_list = await _buy_servant(ctx, master_ally_list)
+        elif command == 's':
+            await _sell_servant(ctx)
+        elif command == 'm':
+            await ctx.send("[FIXME]: That hasn't been written yet.")
+        else:
+            await ctx.send(f'{_NPC} looks puzzled. "Vot?"')
+
+
+# ---------------------------------------------------------------------------
+# Standalone smoke-test
+# ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    # Configure logging
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from party import Party
+
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)10s | %(funcName)15s() | %(message)s')
-    logging.info("Logging is running")
 
-    player = Player()
-    player.client_settings.screen_columns = 80
-    player.add_silver(PlayerMoneyTypes.IN_HAND, 20_000)
-    main(player)
+    ctx = MagicMock()
+    ctx.player = MagicMock()
+    ctx.player.name = 'Rulan'
+    ctx.player.hit_points = 20
+    ctx.player.party = Party()
+    ctx.player.client_settings = MagicMock(return_key='Return')
+    ctx.player.query_flag = lambda _: False
+    ctx.player.subtract_silver = lambda *_: True
+    ctx.send = AsyncMock()
+
+    answers = iter(['b', '1', 'l'])
+    ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(answers, 'l'))
+
+    asyncio.run(main(ctx))
+    print("Standalone fat_olaf test complete.")
