@@ -375,6 +375,8 @@ class Server:
 
     async def _game_loop(self, ctx: GameContext) -> None:
         """Main command loop for an authenticated (or guest) player."""
+        if not getattr(ctx.client, 'room', None):
+            ctx.client.room = int(getattr(ctx.player, 'map_room', 1) or 1)
         await self._show_room(ctx)
 
         processor = ctx.client.command_processor
@@ -457,11 +459,13 @@ class Server:
 
         # Other players in the room
         try:
-            others = [
-                getattr(c, 'username', None) or 'someone'
-                for addr, c in self.clients.items()
-                if c is not client and getattr(c, 'room', None) == room_no
-            ]
+            others = []
+            for addr, c in self.clients.items():
+                if c is client or getattr(c, 'room', None) != room_no:
+                    continue
+                player = getattr(getattr(c, 'ctx', None), 'player', None)
+                name = getattr(player, 'name', None) or getattr(c, 'username', None) or 'someone'
+                others.append(name)
             if others:
                 lines += ['', list_players_in_room(others)]
         except Exception:
