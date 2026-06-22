@@ -76,7 +76,7 @@ class RestartCommand(Command):
     aliases = ["reboot", "shutdown"]
     locks = [Lock(LockType.IS_ADMINISTRATOR, True)]
 
-    def help_text(self) -> str:
+    def help_summary(self) -> str:
         return (
             f"Restarts the server. Only available to administrators.\n"
             f"Usage: {self.name} [reason]"
@@ -119,7 +119,7 @@ class ShutdownCommand(Command):
     aliases = ["shut"]
     locks = [Lock(LockType.IS_ADMINISTRATOR, True)]
 
-    def help_text(self) -> str:
+    def help_summary(self) -> str:
         return (
             f"Shuts down the server. Only available to administrators.\n"
             f"Usage: {self.name} [reason]"
@@ -161,7 +161,7 @@ class BootCommand(Command):
     aliases = ["kick"]
     locks = [Lock(LockType.IS_ADMINISTRATOR, True)]
 
-    def help_text(self) -> str:
+    def help_summary(self) -> str:
         return (
             f"Boots a player. Only available to administrators.\n"
             f"Usage: {self.name} <player_name> [reason]"
@@ -203,7 +203,7 @@ class BanCommand(Command):
     name = "ban"
     locks = [LockType.IS_ADMINISTRATOR]
 
-    def help_text(self) -> str:
+    def help_summary(self) -> str:
         return ([
             f"Bans a player or IP address, optionally for a specified duration. Only available to administrators."
             f"{self.name} <player_name> [duration] [reason]\n"
@@ -258,7 +258,7 @@ class UnbanCommand(Command):
     name = "unban"
     locks = [LockType.IS_ADMINISTRATOR]
 
-    def help_text(self) -> str:
+    def help_summary(self) -> str:
         return ([
             f"Unbans a player or IP address. Only available to administrators.\n"
             f"{self.name} <player_name> [reason]"

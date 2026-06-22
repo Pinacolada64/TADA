@@ -67,10 +67,10 @@ class GuestCommand(Command):
         quit: Lock(LockType.MODE, [Mode.LOGIN, Mode.APP], True)
 
         'edit' should only be executable by an Administrator (an authenticated user with the Administrator flag set).
-        edit: Lock(LockType.PLAYER_FLAG, PlayerFlag.ADMINISTRATOR, True)
+        edit: Lock(LockType.PLAYER_FLAG, PlayerFlags.ADMIN, True)
 
         # A LockType class is implemented to handle such locks as:
-        # reboot: Lock(LockType.PLAYER_FLAG, PlayerFlag.ADMINISTRATOR, True)
+        # reboot: Lock(LockType.PLAYER_FLAG, PlayerFlags.ADMIN, True)
         # connect: Lock(LockType.MODE, Mode.LOGIN, True)
 
         # TODO: Prevent certain players from going north:
@@ -108,7 +108,7 @@ class GuestCommand(Command):
         """
         return CommandResult(False, error="Not implemented", message="This command is not yet implemented.")
 
-    def help_text(self) -> str:
+    def help_summary(self) -> str:
         """Return the help text for this command."""
         return f"No help available for command '{self.name}'"
 
