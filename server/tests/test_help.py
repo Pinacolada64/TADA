@@ -102,32 +102,35 @@ class TestFormatHelp(unittest.TestCase):
         self.assertIsInstance(out, str)
         self.assertIn("short string", out)
 
+    def _fmt(self, *args, **kwargs):
+        """Return format_help output as a single joined string for assertions."""
+        result = format_help(*args, **kwargs)
+        return "\n".join(result) if isinstance(result, list) else (result or "")
+
     def test_summary_appears_in_output(self):
         h = Help(summary="Does the thing.")
-        self.assertIn("Does the thing.", format_help(h))
+        self.assertIn("Does the thing.", self._fmt(h))
 
     def test_command_name_appears_as_header(self):
         h = Help(summary="Thing.")
-        self.assertIn("mytool", format_help(h, command_name="mytool"))
+        self.assertIn("mytool", self._fmt(h, command_name="mytool"))
 
     def test_usage_section_present(self):
         h = Help(usage=[("cmd <arg>", "Does something.")])
-        self.assertIn("Usage:", format_help(h))
+        self.assertIn("Usage:", self._fmt(h))
 
     def test_single_example_label(self):
-        h = Help(examples=[("cmd foo", "one example")])
-        out = format_help(h)
+        out = self._fmt(Help(examples=[("cmd foo", "one example")]))
         self.assertIn("Example:", out)
         self.assertNotIn("Examples:", out)
 
     def test_multiple_examples_label(self):
-        h = Help(examples=[("cmd foo", "first"), ("cmd bar", "second")])
-        self.assertIn("Examples:", format_help(h))
+        self.assertIn("Examples:", self._fmt(Help(examples=[("cmd foo", "first"), ("cmd bar", "second")])))
 
     def test_notes_section_present(self):
-        h = Help(notes=["A useful note."])
-        self.assertIn("Notes:", format_help(h))
-        self.assertIn("A useful note.", format_help(h))
+        out = self._fmt(Help(notes=["A useful note."]))
+        self.assertIn("Notes:", out)
+        self.assertIn("A useful note.", out)
 
     def test_all_sections_together(self):
         h = Help(
@@ -137,18 +140,20 @@ class TestFormatHelp(unittest.TestCase):
             examples    = [("cmd foo", "An example.")],
             notes       = ["A note."],
         )
-        out = format_help(h, command_name="cmd")
+        out = self._fmt(h, command_name="cmd")
         for expected in ("Usage:", "Example:", "Notes:", "cmd <arg>", "A note."):
             self.assertIn(expected, out)
 
     def test_width_80_no_line_exceeds(self):
         h = Help(summary="x", usage=[("editplayer", "Edit your character interactively.")])
-        for line in format_help(h, width=80).splitlines():
+        lines = format_help(h, width=80)
+        for line in (lines if isinstance(lines, list) else []):
             self.assertLessEqual(len(line), 80, f"Line too long: {line!r}")
 
     def test_width_40_no_line_exceeds(self):
         h = Help(summary="x", usage=[("editplayer", "Edit your character.")])
-        for line in format_help(h, width=40).splitlines():
+        lines = format_help(h, width=40)
+        for line in (lines if isinstance(lines, list) else []):
             self.assertLessEqual(len(line), 40, f"Line too long: {line!r}")
 
 

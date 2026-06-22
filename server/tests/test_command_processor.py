@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Unit tests for the CommandProcessor class."""
-
+import logging
 import unittest
 from unittest.mock import MagicMock
 from typing import Dict, Any, List
@@ -9,11 +9,14 @@ import asyncio
 # Add the project root to the Python path
 import sys
 import os
+
+from commands.help import HelpCategory
+
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from commands.base_command import Command, CommandResult, HelpCategory
+from commands.base_command import Command, CommandResult
 from commands.command_processor import CommandProcessor
 
 
@@ -219,9 +222,10 @@ class TestCommandProcessor(unittest.IsolatedAsyncioTestCase):
 
 # import a sample command to ensure decorators run during discovery if needed
 try:
-    from commands.example_commands import LookCommand
-except Exception:
-    pass
+    from commands.example_commands import TestCommand
+except Exception as e:
+    logging.exception(e)
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     unittest.main()
