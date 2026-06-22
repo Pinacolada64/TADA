@@ -3,8 +3,12 @@ from dataclasses import dataclass, field
 from enum import StrEnum, auto, Enum
 from typing import Optional
 
-# Reuse PlayerFlag from player_flag.py to avoid duplication and circular imports
-from player_flag import get_flag_display_type, PlayerFlag
+# Naming guide — two distinct things, do not confuse them:
+#   PlayerFlags  (this file) — StrEnum of flag *names* used as dict keys.
+#                               e.g. PlayerFlags.EXPERT_MODE
+#   Flag         (this file) — dataclass holding one flag's runtime state
+#                               (name, display_type, status bool).
+# player_flag.py exists as a standalone helper; flags.py no longer imports it.
 
 
 class PlayerFlags(StrEnum):
