@@ -1,144 +1,192 @@
+"""bar/skip.py — Skip's Eats: hash and coffee at the Wall Bar & Grill."""
 import logging
 
 from bar.ally_data import Ally
-from bar.main import _display_menu_category, food_menu
-from base_classes import PlayerMoneyTypes, Gender, PronounType
+from base_classes import PlayerMoneyTypes, PronounType
 from flags import PlayerFlags
-from menu_system import MenuItem, Menu, display_menu
-from player import Player
-from tada_utilities import input_string, input_yes_no, input_number_range, get_pronoun
+from network_context import GameContext
+from tada_utilities import get_pronoun
+
+log = logging.getLogger(__name__)
+
+_NPC = "Skip"
+_AP = "'"   # apostrophe shorthand used in Skip's dialogue
 
 
-def main(player: Player):
-    """Order hash or coffee from Skip"""
-    apostrophe = "'"
-    print("Skip sweats over a hot grill, muttering under his breath...")
+async def _skip_menu(ctx: GameContext) -> None:
+    await ctx.send([
+        f"[H]ash   (1 silver),",
+        "[C]offee (5 silver),",
+        "[L]eave",
+    ])
+
+
+async def main(ctx: GameContext, bar=None) -> None:
+    """Skip's Eats interaction loop."""
+    player = ctx.player
+
+    await ctx.send(f"{_NPC} sweats over a hot grill, muttering under his breath...")
 
     # TODO: make handling once-daily events a general function
-    add_item = "Skip"
+    add_item = _NPC
     if player.query_flag(PlayerFlags.DEBUG_MODE):
-        add_skip = input_yes_no(f"Add '{add_item}' to once-per-day activities? ")
-        if add_skip:
+        raw = await ctx.prompt('Y/N', preamble_lines=[f"Add '{add_item}' to once-per-day activities?"])
+        if raw is not None and raw.strip().lower() in ('y', 'yes'):
             if add_item not in player.once_per_day:
                 player.once_per_day.append(add_item)
-                player.output("Appended.")
+                await ctx.send("Appended.")
+
     if add_item in player.once_per_day:
-        player.output(f'Skip suddenly looks annoyed. "Hey, you{apostrophe}ve already [been] here once today!" '
-                      "He points angrily towards the exit, and you decide to heed his advice. "
-                      "(Never argue with a man who has hot grease at his disposal.)")
+        await ctx.send(
+            f'Skip suddenly looks annoyed. "Hey, you{_AP}ve already [been] here once today!" '
+            "He points angrily towards the exit, and you decide to heed his advice. "
+            "(Never argue with a man who has hot grease at his disposal.)"
+        )
         return
 
     if not player.query_flag(PlayerFlags.EXPERT_MODE):
-        menu(player)
+        await _skip_menu(ctx)
 
     pay_9_grand = False
     if player.query_flag(PlayerFlags.DEBUG_MODE):
-        pay_9_grand = input_yes_no("Pay 9,000 for something to trigger failure cases")
+        raw = await ctx.prompt('Y/N', preamble_lines=["Pay 9,000 to trigger failure cases?"])
+        pay_9_grand = raw is not None and raw.strip().lower() in ('y', 'yes')
 
     while True:
-        player.output("")
-        command = input_string(player, f'"What{apostrophe}ll ya have, {player.name}?"',
-                               None, True, keep_msg=False)
-        menu_item = command.lower()  # no problem doing this with a null string
-        player.output("")
+        await ctx.send("")
+        raw = await ctx.prompt(f'"What{_AP}ll ya have, {player.name}?"')
+        if raw is None:
+            break
+
+        # No repeat-last-command here (keep_msg=False in original)
+        menu_item = raw.strip().lower()
+        if not menu_item:
+            continue
+
+        await ctx.send("")
 
         if menu_item == 'h':
-            player.add_to_party(player, Ally("Michelle", "f", 4, 5))
-            player.add_to_party(player, Ally("King Brian", "m", 5, 6))
-            party_count: int = len(player.party)
-            if party_count == 0:
-                # just the Player themselves, so "you decide":
-                first_or_third_person = "you"
-                pronoun = get_pronoun(player, PronounType.SUBJECTIVE)
-                plural = ""
-            else:
-                hash_menu = Menu("Patrons")
-                hash_menu.add_item(MenuItem(f"1. {player.name}"))
-                patrons = [player]
-                total = 1
-                for i, v in enumerate(player.party, 2):
-                    hash_menu.add_item(MenuItem(text=f"{i}. {v.name}"))
-                    total += 1
-                    patrons.append(v)
-                display_menu(player, [hash_menu])
-                selection = input_number_range(player, prompt_msg="Choose who to feed", out_of_bounds_msg="Try again.",
-                                               min_value=1, max_value=total)
+            # Debug only: seed test allies so the party-selection path can be exercised
+            if player.query_flag(PlayerFlags.DEBUG_MODE):
+                # TODO: add_to_party calls player.output() internally (legacy sync API)
+                player.add_to_party(player, Ally("Michelle", "f", 4, 5))
+                player.add_to_party(player, Ally("King Brian", "m", 5, 6))
+
+            # Default: feed the player themselves
+            patron = player
+            first_or_third_person = "you"
+            pronoun = get_pronoun(player, PronounType.SUBJECTIVE)
+            plural = ""
+
+            if player.party:
+                patrons = [player] + list(player.party)
+                lines = [f"{i}. {p.name}" for i, p in enumerate(patrons, 1)]
+                await ctx.send(["Who to feed:"] + lines)
+
+                total = len(patrons)
+                selection = None
+                while True:
+                    raw_sel = await ctx.prompt(f"Choose who to feed (1-{total})")
+                    if raw_sel is None:
+                        break
+                    try:
+                        sel = int(raw_sel.strip())
+                        if 1 <= sel <= total:
+                            selection = sel
+                            break
+                    except ValueError:
+                        pass
+                    await ctx.send("Try again.")
+                if selection is None:
+                    break
+
                 patron = patrons[selection - 1]
-                # "<name> decides..."
-                pronoun, plural = "", ""
-                if isinstance(patron, Player):
-                    # TODO: determine first-person ("you") vs third-person ("he"/"she") pronouns
+                if isinstance(patron, Ally):
+                    first_or_third_person = get_pronoun(patron, PronounType.SUBJECTIVE)
+                    pronoun = first_or_third_person.capitalize()
+                    plural = "s"
+                else:
+                    # Another Player in the party
+                    first_or_third_person = (
+                        "you" if selection == 1
+                        else get_pronoun(patron, PronounType.SUBJECTIVE)
+                    )
                     pronoun = get_pronoun(patron, PronounType.SUBJECTIVE).capitalize()
                     plural = ""
-                    first_or_third_person = "you" if selection == 1 else get_pronoun(patron, PronounType.SUBJECTIVE)
-                elif isinstance(patron, Ally):
-                    first_or_third_person = get_pronoun(patron, PronounType.SUBJECTIVE)
-                    plural = "s"
-            # returns True if successful:
-            if player.subtract_silver(PlayerMoneyTypes.IN_HAND, 9_000 if pay_9_grand else 1):
-                player.output(f"Skip pushes a chipped plate with some hash sitting on it towards {patron.name}. "
-                              f"Hesitantly, {first_or_third_person} decide{plural} to sample Skip's wares. "
-                              f"The hash is greasy, but hot and nourishing.")
+
+            cost = 9_000 if pay_9_grand else 1
+            if player.subtract_silver(PlayerMoneyTypes.IN_HAND, cost):
+                await ctx.send(
+                    f"Skip pushes a chipped plate with some hash sitting on it towards {patron.name}. "
+                    f"Hesitantly, {first_or_third_person} decide{plural} to sample {_NPC}{_AP}s wares. "
+                    f"The hash is greasy, but hot and nourishing."
+                )
                 current_hp = patron.hit_points
                 adjusted_hp = current_hp + 5
                 patron.hit_points = adjusted_hp
                 if not player.query_flag(PlayerFlags.EXPERT_MODE):
-                    # TODO: again, first-person ("Your") vs. third-person ("her", "his", possessive adjective)
-                    # selection == 1 will always be the main player character:
-                    pronoun = "Your" if selection == 1 else get_pronoun(patron, PronounType.POSSESSIVE_ADJECTIVE)
-                    player.output(f"({pronoun.capitalize()} hit points have gone up by 5, from {current_hp} to "
-                                  f"{adjusted_hp}.)")
+                    poss = (
+                        "Your" if patron is player
+                        else get_pronoun(patron, PronounType.POSSESSIVE_ADJECTIVE).capitalize()
+                    )
+                    await ctx.send(
+                        f"({poss} hit points have gone up by 5, from {current_hp} to {adjusted_hp}.)"
+                    )
             else:
-                player.output(f'"Sorry, pal," Skip mutters, "I{apostrophe}m not running a charity here."')
+                await ctx.send(f'"Sorry, pal," {_NPC} mutters, "I{_AP}m not running a charity here."')
 
         elif menu_item == 'c':
-            if player.subtract_silver(PlayerMoneyTypes.IN_HAND, 9_000 if pay_9_grand else 5):
-                # can afford it:
-                player.output("Skip sets a chipped mug filled with viscous black... something... "
-                              "on the counter in front of you. "
-                              "Oddly enough, the steaming mug of coffee is strangely satisfying.")
+            cost = 9_000 if pay_9_grand else 5
+            if player.subtract_silver(PlayerMoneyTypes.IN_HAND, cost):
+                await ctx.send(
+                    "Skip sets a chipped mug filled with viscous black... something... "
+                    "on the counter in front of you. "
+                    "Oddly enough, the steaming mug of coffee is strangely satisfying."
+                )
                 if player.query_flag(PlayerFlags.TIRED):
                     player.clear_flag(PlayerFlags.TIRED)
                     if not player.query_flag(PlayerFlags.EXPERT_MODE):
-                        print("(You feel more awake.)")
+                        await ctx.send("(You feel more awake.)")
             else:
-                # can't afford it:
-                player.output('Skip wipes a nonexistent spot on the luncheon counter with a rag. '
-                              '"I know, times are tough."')
-            continue
+                await ctx.send(
+                    f'{_NPC} wipes a nonexistent spot on the luncheon counter with a rag. '
+                    f'"I know, times are tough."'
+                )
 
         elif menu_item == '?':
-            menu(player)
-            continue
+            await _skip_menu(ctx)
 
-        elif menu_item in ['l', '']:
-            player.output(f'"Yeah, well... take {apostrophe}er easy..." Skip mumbles.')
-            return
+        elif menu_item in ('l', 'q'):
+            await ctx.send(f'"Yeah, well... take {_AP}er easy..." {_NPC} mumbles.')
+            break
+
         else:
-            print(f'"That ain{apostrophe}t on the menu," Skip mutters.')
+            await ctx.send(f'"That ain{_AP}t on the menu," {_NPC} mutters.')
 
 
-def menu(player: Player):
-    player.output(["[H]ash   (1 silver),",
-                   "[C]offee (5 silver)",
-                   "[L]eave"])
-
+# ---------------------------------------------------------------------------
+# Standalone smoke-test
+# ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    # Configure logging
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)10s | %(funcName)15s() | %(message)s')
-    logging.info("Logging is running")
 
-    # 1. Read the file.
-    from old_server import Rations
+    ctx = MagicMock()
+    ctx.player = MagicMock()
+    ctx.player.name = 'Rulan'
+    ctx.player.hit_points = 20
+    ctx.player.once_per_day = []
+    ctx.player.party = []
+    ctx.player.query_flag = lambda _: False
+    ctx.player.subtract_silver = lambda *_: True
+    ctx.send = AsyncMock()
 
-    player = Player()
-    player.clear_flag(PlayerFlags.EXPERT_MODE)
-    player.set_flag(PlayerFlags.TIRED)
+    answers = iter(['h', 'c', 'l'])
+    ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(answers, 'l'))
 
-    foodstuffs = Rations.read_rations("../rations.json")
-    if foodstuffs:
-        food_menu(player, foodstuffs)
-
-    main(player=player)
+    asyncio.run(main(ctx))
+    print("Standalone skip test complete.")

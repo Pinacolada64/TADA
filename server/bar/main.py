@@ -84,9 +84,8 @@ async def _vinny(ctx: GameContext, bar: Bar) -> None:
 
 
 async def _skip(ctx: GameContext, bar: Bar) -> None:
-    log.info("Calling skip module")
-    # TODO: adapt bar/skip.py to async ctx interface
-    await ctx.send("Skip waves you over to his counter. (not yet available)")
+    from bar.skip import main as skip_main
+    await skip_main(ctx, bar)
 
 
 async def _bar_none(ctx: GameContext, bar: Bar) -> None:
