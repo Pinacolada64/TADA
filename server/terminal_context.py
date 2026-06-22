@@ -27,6 +27,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from flags import PlayerFlags
 from formatting import (
     format_lines, codec_for_settings, flatten_send_args
     )
@@ -77,6 +78,7 @@ class _GuestSettings:
     screen_rows:    int   = 24
     return_key:     str   = 'Enter'
     translation:    object = None   # set during terminal negotiation
+    border_style:   str   = 'single'
 
     def __post_init__(self):
         try:
@@ -196,12 +198,16 @@ class GameContext(BaseContext):
         """
         Send optional preamble lines and a prompt, then await a single-line
         response from the client. Returns the stripped response string.
+
+        Shows Hourglass (game time) if player has enabled it
         """
         from net_common import from_jsonb
-
+        from time import strftime
         if preamble_lines:
             await self.send(preamble_lines)
 
+        if self.player.query_flag(PlayerFlags.HOURGLASS):
+            prompt_text = f"[{strftime('%H:%M')}] {prompt_text}"
         # Send the prompt as a Message with no lines, just a prompt field
         msg = nc.Message(lines=[], prompt=prompt_text or '> ')
         await self.server.send_message(self.writer, msg)

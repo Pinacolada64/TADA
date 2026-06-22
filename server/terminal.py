@@ -208,6 +208,7 @@ class ClientSettings:
     # ColorName (e.g., Blue, Brown, Cyan, etc.) or ColorNumber?
     # TODO: ensure text_color cannot be the same as background_color to avoid invisible text
     colors: TerminalColors = TerminalColors()
+    border_style: str = 'single'   # 'ascii' | 'single' | 'double'
     # graphics tricks:
     has_color: bool = True
     start_underline: None
