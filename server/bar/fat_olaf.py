@@ -111,9 +111,10 @@ def buy_servant(player: "Player", allies: List["Ally"]) -> List[Ally]:
                     if servant == chosen_servant:
                         updated_servants[i] = chosen_servant
                         logging.debug("servant %i %s status updated" % (i, chosen_servant.name))
-                # add_to_party returns False if chosen_servant is already in party:
-                result = player.add_to_party(player, chosen_servant)
-                if result:
+                ok, msg = player.party.add_member(player, chosen_servant)
+                if msg:
+                    player.output(msg)
+                if ok:
                     logging.debug("servants after: %i" % len(servants))
             else:
                 # can't afford:

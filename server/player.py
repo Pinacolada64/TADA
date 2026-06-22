@@ -10,6 +10,7 @@ import threading
 
 import net_common as nc
 from flags import PlayerFlags
+from party import Party
 
 # Provide fallbacks for server-level globals. These modules may differ between
 # server implementations; prefer `simple_server` if available, otherwise `net_server`.
@@ -257,7 +258,7 @@ class Player:
         self.once_per_day = kwargs.get('once_per_day', [])
         self.last_play_date = kwargs.get('last_play_date', datetime.datetime.now())
 
-        self.party = kwargs.get('party', [])
+        self.party = Party.from_json(kwargs.get('party', []))
         self.allies = kwargs.get('allies', [])
 
         self.guild = kwargs.get('guild', Guild.CIVILIAN)
@@ -368,50 +369,6 @@ class Player:
     def has_item(self, item):
         """Check if player has item"""
         return item in self.inventory
-
-    def add_to_party(self, player: "Player", party_addition: "Ally") -> bool:
-        """
-        Check if party_addition exists in Player's party; if not, add them and return True
-
-        :param player: Player object
-        :param party_addition: Ally, Monster or Player
-        :return: True: successful join, False: party_addition already exists in party (shouldn't happen but one
-            never knows)
-        """
-        # FIXME: specifying 'party_addition: Ally | Monster | Player' leads to an unresolved reference error
-        # check that party_addition is not self:
-        if party_addition is self:
-            player.output(f"This is getting a bit surreal. You can't add {self.name} to {self.name}'s party.")
-            return False
-        # make sure a party_addition is not already in the party:
-        if party_addition in self.party:
-            player.output(f"Seeing another {party_addition.name} is already in your party, they turn sadly away.")
-            return False
-        self.party.append(party_addition)
-        player.output(f"{party_addition.name} joins {self.name}'s party!")
-        return True
-
-    def is_in_party(self, member, verbose: bool = True) -> bool:
-        """
-        Checks if 'member' already in 'party', returns bool
-        :param member: Player | Monster
-        :param verbose: whether to tell about it
-        """
-        party_member = member in self.party
-        if party_member and verbose:
-            print(f"{member.name} beams with pride.")
-        elif verbose:
-            print(f"{member.name} scowls!")
-        return party_member
-
-    def list_party_members(self):
-        if not self.party:
-            print(f"There are no other members in {self.name}'s party.")
-            return
-        else:
-            print(f"Members of {self.name}'s party:")
-            for num, member in enumerate(self.party, start=1):
-                print(f"{num}. {member.name}")
 
     def look_at(self, item: Any):
         """
@@ -839,6 +796,7 @@ class Player:
                 os.makedirs(parent, exist_ok=True)
             # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact
             data_out = {k: v for k, v in self.__dict__.items()}
+            data_out['party'] = self.party.to_json()
             try:
                 import flags as _flags
                 data_out['flags'] = _flags.serialize_flags_for_save(self)

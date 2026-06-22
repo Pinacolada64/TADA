@@ -68,9 +68,8 @@ async def main(ctx: GameContext, bar=None) -> None:
         if menu_item == 'h':
             # Debug only: seed test allies so the party-selection path can be exercised
             if player.query_flag(PlayerFlags.DEBUG_MODE):
-                # TODO: add_to_party calls player.output() internally (legacy sync API)
-                player.add_to_party(player, Ally("Michelle", "f", 4, 5))
-                player.add_to_party(player, Ally("King Brian", "m", 5, 6))
+                await player.party.add(ctx, player, Ally("Michelle", "f", 4, 5))
+                await player.party.add(ctx, player, Ally("King Brian", "m", 5, 6))
 
             # Default: feed the player themselves
             patron = player
@@ -180,7 +179,8 @@ if __name__ == '__main__':
     ctx.player.name = 'Rulan'
     ctx.player.hit_points = 20
     ctx.player.once_per_day = []
-    ctx.player.party = []
+    from party import Party
+    ctx.player.party = Party()
     ctx.player.query_flag = lambda _: False
     ctx.player.subtract_silver = lambda *_: True
     ctx.send = AsyncMock()
