@@ -1,437 +1,343 @@
 # File: `bar/main.py`
 import logging
-from dataclasses import dataclass
-import asyncio
+from dataclasses import dataclass, field
+from typing import Callable, Optional
 
-# TADA imports:
+from network_context import GameContext
 from player import Player
 from flags import PlayerFlags
-from tada_utilities import input_yes_no
-from bar.ally_data import Ally
 from items import Rations
 
-def send_message(player: Player, message):
-    """
-    Adapter to prefer player.send_message if present, otherwise fall back to player.output,
-    and finally to print if neither exists. Accepts string or list of lines.
-    """
-    try:
-        send = getattr(player, "send_message", None)
-        if callable(send):
-            send(message)
-            return
-    except Exception:
-        logging.exception("send_message() via send failed, falling back to output")
-
-    try:
-        out = getattr(player, "output", None)
-        if callable(out):
-            out(message)
-            return
-    except Exception:
-        logging.exception("send_message() via output failed, falling back to print")
-
-    # Last resort
-    print(message)
+log = logging.getLogger(__name__)
 
 
-def bouncer(character: "Player"):
-    """
-    Mundo the bouncer gets personal with the player.
-    Also called when the Blue Djinn is insulted.
-    """
-    # if player's HP < 5, don't attack with baseball bat:
-    action = ''
-    if character.hit_points > 5:
-        action = "knocks you over the head with a baseball bat, and "
-        # TODO: write 'character.adjust_hp' and put check for >=0 HP there...
-        character.hit_points -= 5
-    send_message(character, f"At a signal, Mundo {action}throws you out into the street...")
-    bar.pos_y, bar.pos_x = 0, 6
-    bar.valid_move = True  # to redisplay bar map
-
-
-def _display_menu_category(p: 'Player', title: str, items: list[Rations], start_num: int) -> int:
-    """
-    Helper function to format and display one category of the menu (e.g., "Drinks").
-
-    Args:
-        p: The player object, passed to text_pager.
-        title: The title to print for the category (e.g., "Drinks:").
-        items: A list of Rations objects to display.
-        start_num: The number to start enumerating from.
-
-    Returns:
-        The number of items that were displayed in this category.
-    """
-    from tada_utilities import text_pager
-    print(f"{' ' * 10}--- {title} ---")
-    if not items:
-        print("    (None available)")
-        return 0
-
-    menu_lines = [f"{i:>2}. {item.name.title():.<20} {item.price}"
-                  # Use attribute access (item.name) instead of dictionary keys
-                 for i, item in enumerate(items, start=start_num)]
-
-    text_pager(menu_lines, p)
-    return len(items)
-
-
-def food_menu(p: 'Player', foodstuffs: list[dict]) -> list[Rations]:
-    """
-    Converts, sorts, displays, and returns a master list of all menu items.
-    """
-    # Step 1: Convert all items to Rations objects
-    all_items = [Rations(1, data['name'], data['kind'], data['price']) for data in foodstuffs]
-    all_items.append(Rations(1, "COFFEE", "drink", 5))
-    all_items.append(Rations(1, "HASH", "food", 1))
-
-    # Step 2: Filter and sort into categories
-    drinks = sorted([item for item in all_items if item.kind == 'drink'], key=lambda item: item.name)
-    foods = sorted([item for item in all_items if item.kind == 'food'], key=lambda item: item.name)
-
-    # Step 3: Display the menu
-    num_displayed = _display_menu_category(p, "Drinks:", drinks, 1)
-    _display_menu_category(p, "\nFood:", foods, start_num=num_displayed + 1)
-
-    # Step 4: Return the final, combined list in the exact order it was displayed
-    return drinks + foods
-
-def select_ally(player: Player) -> Ally | None:
-    if player.party:
-        member_count = len(player.party)
-        for i, member in player.party:
-            send_message(player, f"{i:2}. {member.name}")
-
-
-def skip(player: Player):
-    import bar.skip
-    bar.skip.main(player)
-
-
-def vinny(character: Player):
-    """Loan shark"""
-    send_message(character, "Vinny")
-
-
-def fat_olaf(character: Player):
-    """Slave trader; buy/sell servants, improve stats"""
-    import bar.fat_olaf
-    bar.fat_olaf.main(character)
-
-
-def zelda(character: Player):
-    """
-    \* Spy on player's stats
-    \* Raise other players' dead monsters
-    """
-    import bar.zelda
-    bar.zelda.main(character)
-
-
-def list_players(character: Player):
-    """List players in game"""
-    import glob
-    player_list = glob.glob('./server/run/server/player-*.json')
-    # TODO: get names from JSON files
-    if player_list is None:
-        print("There are no players.")
-        return
-    else:
-        for player_name, index in enumerate(player_list):
-            print(f'{index: 2}. {player_name}')
-
-
-def horizontal_ruler(player: Player):
-    """Display a horizontal ruler for x-position debugging"""
-    #           1         2         3         4
-    # 01234567890123456789012345678901234567890 etc.
-    # TODO: This will come in handy for text editor .Column display
-    bar_map = Bar.bar_map[player.client_settings.translation]
-    ruler_length = len(bar_map[0])
-    digits = "0123456789"
-    print("   ", end='')
-    print(" ", end='')  # extra space for first '0'
-    highest_tens_digit = int(str(ruler_length)[0])
-    for tens in range(1, highest_tens_digit + 1):
-        print(f'{tens:> 10}', end='')
-    print()
-    print("   ", end='')
-    print((digits * 10)[:ruler_length])
-
-
-def prompt(character: Player, prompt_string: str):
-    """
-    Prompt user for something, accept input
-
-    :param character: Player to prompt, also for client_settings.return_key string
-    :param prompt_string: string to prompt for, minus space at end
-    :return: tuple(previous_command, command) command: leftmost char of input, lowercase
-    """
-    # Display prompt to the player's message system, then read from stdin
-    send_message(character, prompt_string)
-    temp = input(": ")
-    send_message(character, "")
-    if temp != '':
-        command = temp[0].lower()
-        character.previous_command = command
-    if temp == '' and character.previous_command:
-        command = character.previous_command
-        if not character.query_flag(PlayerFlags.EXPERT_MODE):
-            send_message(character, f"(Repeating '{command}'.)")
-    return character.previous_command, character.command
-
-
-def bar_help(character: Player):
-    send_message(character, ["This is the Wall Bar & Grill, a place where you (and your party, if you "
-                      "have others with you) can find food, drink, and various services to help "
-                      "yourself--or harm others, if you wish--in the Land.",
-                      "",
-                      "In the map of the bar:",
-                      "",
-                      # all text in a bulleted list item \[handled by format_bulleted_text()\] should be
-                      # a single string to correctly indent text on subsequent_indent lines:
-                      "* 'o' represents each person you can interact with, by moving in front "
-                      "(or to the side) of them, then typing [G]o here.",
-                      "* [] represents a desk sitting in front of the person.",
-                      "* 'M' represents Mundo, the bar bouncer.",
-                      "* Lastly, 'X' represents you (plus your party, if applicable)."])
-
-
-def bar_none(character: Player):
-    logging.info("Calling bar_none module")
-    import bar.bar_none
-    bar.bar_none.main(character)
-
-
-def blue_djinn(character: Player):
-    logging.info("Calling blue_djinn module")
-    import bar.blue_djinn
-    bar.blue_djinn.main(character)
-
-
-def show_menu(character: Player):
-    go_here = ", [G]o here" if bar.can_go_here else ''
-    send_message(character, [f"[N]orth, [E]ast, [S]outh, [W]est{go_here}, [H]elp, [Q]uit",
-                      "Toggles: [D]ebug, e[X]pert Mode"])
-
+# ---------------------------------------------------------------------------
+# Bar state
+# ---------------------------------------------------------------------------
 
 @dataclass
-class Bar(object):
-    from terminal import Translation
-    # initial x-coordinate of player:
+class Bar:
     pos_x: int = 6
-    # initial y-coordinate of player:
     pos_y: int = 0
-    # True: a person to interact with is in an adjacent square
-    # and '[G]o Here' will be shown in the hotkey options
     can_go_here: bool = False
-
     valid_move: bool = True
+    go_routine: Optional[Callable] = field(default=None, repr=False)
 
-    # 'M' is the marker for Mundo, the bar's bouncer
-    # 'o' is the marker for various NPCs sitting behind tables
-    bar_map = {Translation.ASCII: ["+----| |----+",
-                                   "|o[]     []o|",
-                                   "|          M|",
-                                   "|  +--+  []o|",
-                                   "|  |oo|  []o|",
-                                   "+-----------+"
-                                   ],
-               # https://en.wikipedia.org/wiki/Box-drawing_characters
-               Translation.ANSI: ["┌────┤ ├────┐",
-                                  "│o[]     []o│",
-                                  "│          M│",
-                                  "│  ┌──┐  []o│",
-                                  "│  │oo│  []o│",
-                                  "└──┴──┴─────┘"
-                                  ]}
+    # 'M' = Mundo the bouncer, 'o' = NPC, 'X' = player (injected at render time)
+    bar_map = {
+        'ascii': [
+            "+----| |----+",
+            "|o[]     []o|",
+            "|          M|",
+            "|  +--+  []o|",
+            "|  |oo|  []o|",
+            "+-----------+",
+        ],
+        'ansi': [
+            "┌────┤ ├────┐",
+            "│o[]     []o│",
+            "│          M│",
+            "│  ┌──┐  []o│",
+            "│  │oo│  []o│",
+            "└──┴──┴─────┘",
+        ],
+    }
 
-    # tuple is: y-coordinate, x-coordinate, name, routine to call:
-    # TODO: if Expert Mode off, display a letter instead of 'o'
-    locations = [(0, 6, "Exit", None),
-                 (1, 4, "The Blue Djinn", blue_djinn),
-                 (1, 8, "Vinny the Loan Shark", vinny),
-                 (2, 4, "Skip's Eats", skip),
-                 (2, 5, "Bar None", bar_none),
-                 (3, 8, "Fat Olaf's Slave Trade", fat_olaf),
-                 (4, 8, "Madame Zelda's", zelda)]
+    # (row, col, display_name, async_routine | None)
+    # None routine = Exit (no interaction)
+    locations = [
+        (0, 6,  "Exit",                   None),
+        (1, 4,  "The Blue Djinn",         '_blue_djinn'),
+        (1, 8,  "Vinny the Loan Shark",   '_vinny'),
+        (2, 4,  "Skip's Eats",            '_skip'),
+        (2, 5,  "Bar None",               '_bar_none'),
+        (3, 8,  "Fat Olaf's Slave Trade", '_fat_olaf'),
+        (4, 8,  "Madame Zelda's",         '_zelda'),
+    ]
 
 
-if __name__ == '__main__':
-    # Configure logging
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(levelname)10s | %(funcName)15s() | %(message)s')
-    logging.info("Logging is running")
+# ---------------------------------------------------------------------------
+# NPC stubs  (each becomes a full async sub-module later)
+# ---------------------------------------------------------------------------
 
-    # instantiate Player
-    rulan_settings = {'name': 'Rulan'}
-    rulan = Player(**rulan_settings)
-    rulan.client_settings.screen_columns = 80
+async def _bouncer(ctx: GameContext, bar: Bar) -> None:
+    """Mundo ejects the player."""
+    player = ctx.player
+    action = ''
+    if player.hit_points > 5:
+        action = "knocks you over the head with a baseball bat, and "
+        player.hit_points -= 5
+    await ctx.send(f"At a signal, Mundo {action}throws you out into the street...")
+    bar.pos_y, bar.pos_x = 0, 6
+    bar.valid_move = True
 
-    rulan.clear_flag(PlayerFlags.EXPERT_MODE)  # set to False
-    rulan.set_flag(PlayerFlags.DEBUG_MODE)  # set to True
 
-    # once-per-day activities:
-    rulan.once_per_day = []
+async def _blue_djinn(ctx: GameContext) -> None:
+    log.info("Calling blue_djinn module")
+    # TODO: adapt bar/blue_djinn.py to async ctx interface
+    await ctx.send("The Blue Djinn eyes you suspiciously. (not yet available)")
 
-    # must be assigned for 'global' in prompt() to work:
-    rulan.command = None
-    rulan.previous_command = None
 
-    rulan.hit_points = 20
+async def _vinny(ctx: GameContext) -> None:
+    log.info("Calling vinny")
+    # TODO: Vinny the loan shark
+    await ctx.send('Vinny looks up. "Whatcha want?" (not yet available)')
 
-    # instantiate Bar, place player at (x=6, y=0)
-    bar = Bar()
 
-    apostrophe = "'"
+async def _skip(ctx: GameContext) -> None:
+    log.info("Calling skip module")
+    # TODO: adapt bar/skip.py to async ctx interface
+    await ctx.send("Skip waves you over to his counter. (not yet available)")
 
-    send_message(rulan, ['You stand in the doorway of a smoky bar. A faded sign hanging on the wall above you reads: '
-                  '"WALL BAR AND GRILL."', ""])
 
-    if not rulan.query_flag(PlayerFlags.EXPERT_MODE):
-        bar_help(rulan)
+async def _bar_none(ctx: GameContext) -> None:
+    log.info("Calling bar_none module")
+    # TODO: adapt bar/bar_none.py to async ctx interface
+    await ctx.send("The bar stool creaks as you sit. (not yet available)")
 
-    bar_map = Bar.bar_map[rulan.client_settings.translation]
-    obstacles = {char for line in bar_map for char in line if char != ' '}
+
+async def _fat_olaf(ctx: GameContext) -> None:
+    log.info("Calling fat_olaf module")
+    # TODO: adapt bar/fat_olaf.py to async ctx interface
+    await ctx.send("Fat Olaf grins greedily. (not yet available)")
+
+
+async def _zelda(ctx: GameContext) -> None:
+    log.info("Calling zelda module")
+    # TODO: adapt bar/zelda.py to async ctx interface
+    await ctx.send("Madame Zelda stares into her crystal ball. (not yet available)")
+
+
+# Map from location name strings to async routines
+_ROUTINES = {
+    '_blue_djinn': _blue_djinn,
+    '_vinny':      _vinny,
+    '_skip':       _skip,
+    '_bar_none':   _bar_none,
+    '_fat_olaf':   _fat_olaf,
+    '_zelda':      _zelda,
+}
+
+
+# ---------------------------------------------------------------------------
+# Display helpers
+# ---------------------------------------------------------------------------
+
+async def _bar_help(ctx: GameContext) -> None:
+    await ctx.send([
+        "This is the Wall Bar & Grill, a place where you (and your party, if you "
+        "have others with you) can find food, drink, and various services to help "
+        "yourself--or harm others, if you wish--in the Land.",
+        "",
+        "In the map of the bar:",
+        "",
+        "* 'o' represents each person you can interact with, by moving in front "
+        "(or to the side) of them, then typing [G]o here.",
+        "* [] represents a desk sitting in front of the person.",
+        "* 'M' represents Mundo, the bar bouncer.",
+        "* Lastly, 'X' represents you (plus your party, if applicable).",
+    ])
+
+
+async def _show_menu(ctx: GameContext, bar: Bar) -> None:
+    go_here = ", [G]o here" if bar.can_go_here else ''
+    await ctx.send(f"[N]orth, [E]ast, [S]outh, [W]est{go_here}, [H]elp, [Q]uit")
+
+
+def _render_map(bar: Bar, bar_map: list[str], debug: bool) -> list[str]:
+    """Return the bar map with the player marker ('X') inserted."""
+    lines = []
+    if debug:
+        width  = len(bar_map[0])
+        prefix = '   '   # matches the f'{row:2} ' row prefix
+        tens = ''.join(str(i // 10) if i % 10 == 0 and i > 0 else ' ' for i in range(width))
+        ones = ''.join(str(i % 10) for i in range(width))
+        lines += [prefix + tens, prefix + ones]
+    for row, line in enumerate(bar_map):
+        prefix = f'{row:2} ' if debug else ''
+        if row == bar.pos_y:
+            rendered = f'{line[:bar.pos_x]}X{line[bar.pos_x + 1:]}'
+        else:
+            rendered = line
+        lines.append(f'{prefix}{rendered}')
+    return lines
+
+
+def _pick_map(ctx) -> list[str]:
+    """Choose ASCII/ANSI bar map based on the client's translation setting."""
+    try:
+        from terminal import Translation
+        t = ctx.player.client_settings.translation
+        if t == Translation.ANSI:
+            return Bar.bar_map['ansi']
+    except Exception:
+        pass
+    return Bar.bar_map['ascii']
+
+
+# ---------------------------------------------------------------------------
+# Food menu (kept sync — only called from __main__ standalone test)
+# ---------------------------------------------------------------------------
+
+def food_menu(p: 'Player', foodstuffs: list[dict]) -> list[Rations]:
+    all_items = [Rations(1, d['name'], d['kind'], d['price']) for d in foodstuffs]
+    all_items.append(Rations(1, "COFFEE", "drink", 5))
+    all_items.append(Rations(1, "HASH",   "food",  1))
+    drinks = sorted([i for i in all_items if i.kind == 'drink'], key=lambda i: i.name)
+    foods  = sorted([i for i in all_items if i.kind == 'food'],  key=lambda i: i.name)
+    return drinks + foods
+
+
+# ---------------------------------------------------------------------------
+# Main async entry point — called from commands/movement.py _enter_bar()
+# ---------------------------------------------------------------------------
+
+async def enter_bar(ctx: GameContext) -> None:
+    """Run the Wall Bar & Grill interaction loop for the given ctx."""
+    player  = ctx.player
+    bar     = Bar()
+    bar_map = _pick_map(ctx)
+    obstacles = {ch for line in bar_map for ch in line if ch not in (' ', 'X')}
+
+    await ctx.send([
+        'You stand in the doorway of a smoky bar.  A faded sign hanging on '
+        'the wall above you reads: "WALL BAR AND GRILL."',
+        "",
+    ])
+
+    if not player.is_expert:
+        await _bar_help(ctx)
 
     while True:
-        send_message(rulan, "")
-        if rulan.query_flag(PlayerFlags.DEBUG_MODE):
-            horizontal_ruler(rulan)
-        for count, line in enumerate(bar_map):
-            if rulan.query_flag(PlayerFlags.DEBUG_MODE):
-                print(f'{count: 2} ', end='')
-            if count == bar.pos_y:
-                print(f'{line[:bar.pos_x]}X{line[bar.pos_x + 1:]}')
-            else:
-                print(line)
+        debug = player.is_debug
+        await ctx.send([''] + _render_map(bar, bar_map, debug))
 
-        # look through 'locations' tuple to see if the player is in an
-        # interactive spot
+        # Check for an interactive location at the player's position
         bar.can_go_here = False
-        _ = []
-        for place in bar.locations:
-            # sorted by rows
-            if bar.pos_y == place[0] and bar.pos_x == place[1]:
-                _.append(f'{place[2]}')  # name
-                if rulan.query_flag(PlayerFlags.DEBUG_MODE):
-                    _.append(f"  function: {place[3]}")  # function
-                send_message(rulan, " ".join(_))
-                bar.can_go_here = True
-                bar.go_routine = place[3]
+        bar.go_routine  = None
+        for row, col, name, routine_key in Bar.locations:
+            if bar.pos_y == row and bar.pos_x == col:
+                await ctx.send(name)
+                if routine_key:
+                    bar.can_go_here = True
+                    bar.go_routine  = _ROUTINES.get(routine_key)
+                if debug:
+                    await ctx.send(f"  (routine: {routine_key})")
 
-        if rulan.query_flag(PlayerFlags.DEBUG_MODE):
-            send_message(rulan, f'(x: {bar.pos_x}, y: {bar.pos_y})')
+        if debug:
+            await ctx.send(f'(x: {bar.pos_x}, y: {bar.pos_y})')
 
-        bump = False
-        opponent = None
-        text = None
+        # Proximity bump checks
+        # TODO: add other players here
+        bump, opponent, bump_text = False, '', ''
         if bar.pos_y == 2 and bar.pos_x == 1:
-            bump = True
-            opponent = "The Blue Djinn"
-            text = 'eyes you, hissing. "Are'
-        if bar.pos_y == 2 and bar.pos_x == 10:
-            # getting too close to Vinny the loan shark:
-            bump = True
-            opponent = "Mundo the bouncer"
-            text = 'looks up from the floor. "Hey,'
+            bump, opponent, bump_text = True, "The Blue Djinn", 'eyes you, hissing. "Are'
+        elif bar.pos_y == 2 and bar.pos_x == 10:
+            bump, opponent, bump_text = True, "Mundo the bouncer", 'looks up from the floor. "Hey,'
         if bump:
-            response = input_yes_no(f'{opponent} {text} you looking for a fight?"')
-            if response:
+            raw = await ctx.prompt('Y/N', preamble_lines=[
+                f'{opponent} {bump_text} you looking for a fight?"',
+            ])
+            if raw and raw.strip().lower() in ('y', 'yes'):
                 if opponent.startswith("Mundo"):
-                    bouncer(rulan)  # also called from blue djinn
+                    await _bouncer(ctx, bar)
                     continue
                 else:
-                    # TODO: Blue Djinn: finish this
-                    send_message(rulan, f"{opponent} something something...")
+                    await ctx.send(f"{opponent} draws back, ready to fight... (combat not yet available)")
             else:
-                send_message(rulan, f'"Well then, [watch] it!" {opponent} glares at you.')
+                await ctx.send(f'"Well then, [watch] it!" {opponent} glares at you.')
 
-        if not rulan.query_flag(PlayerFlags.EXPERT_MODE):
-            show_menu(character=rulan)
-            if rulan.previous_command:
-                repeat_command = f"'{rulan.previous_command}'" if rulan.previous_command is not None else 'Invalid command'
-                send_message(rulan, f"[{rulan.client_settings.return_key.value}] = '{repeat_command}'")
+        # Menu and prompt
+        if not player.is_expert:
+            await _show_menu(ctx, bar)
+            if player.previous_command:
+                await ctx.send(f"[{player.client_settings.return_key}] = '{player.previous_command}'")
 
-        print(f"[HP: {rulan.hit_points}] ", end='')
-        # parser:
-        rulan.command, rulan.previous_command = prompt(rulan, "What now?")
-        send_message(rulan, "")
+        raw = await ctx.prompt('bar', preamble_lines=[f'[HP: {player.hit_points}]'])
+        if raw is None:
+            break
+        inp = raw.strip().lower()
+
+        # Repeat last command on empty input
+        if not inp:
+            if player.previous_command:
+                inp = player.previous_command
+                if not player.is_expert:
+                    await ctx.send(f"(Repeating '{inp}'.)")
+            else:
+                continue
+
+        command = inp[0]
+        player.previous_command = command
 
         move_into_obstacle = False
 
-        if rulan.command == '?':
-            show_menu(rulan)
-
-        if rulan.command == 'h':
-            bar_help(rulan)
-
-        if bar.can_go_here and rulan.command == "g":
-            # exit doesn't have a function
-            if callable(bar.go_routine):
-                # FIXME:  mutable parameter list
-                bar.go_routine(rulan)  # call routine with Character object
-                print()
-
-        if rulan.command == 'd':
-            rulan.toggle_flag(PlayerFlags.DEBUG_MODE, True)
-            send_message(rulan, "")
-
-        if rulan.command == 'x':
-            rulan.toggle_flag(PlayerFlags.EXPERT_MODE, True)
-            send_message(rulan, "")
-
-        if rulan.command == 'n':
-            # look up for an obstacle:
-            obstacle = bar_map[bar.pos_y - 1][bar.pos_x]
-            if obstacle not in obstacles:
+        if command in ('?', 'h'):
+            await _bar_help(ctx)
+        elif command == 'g' and bar.can_go_here and callable(bar.go_routine):
+            await bar.go_routine(ctx)
+        elif command == 'd':
+            player.toggle_flag(PlayerFlags.DEBUG_MODE, True)
+        elif command == 'x':
+            player.toggle_flag(PlayerFlags.EXPERT_MODE, True)
+        elif command == 'q':
+            break
+        elif command == 'n':
+            if bar.pos_y > 0 and bar_map[bar.pos_y - 1][bar.pos_x] not in obstacles:
                 bar.pos_y -= 1
-                bar.valid_move = True
             else:
-                bar.move_into_obstacle = True
-
-        if rulan.command == 's':
-            # look down for an obstacle:
-            obstacle = bar_map[bar.pos_y + 1][bar.pos_x]
-            if obstacle not in obstacles:
+                move_into_obstacle = True
+        elif command == 's':
+            if bar.pos_y < len(bar_map) - 1 and bar_map[bar.pos_y + 1][bar.pos_x] not in obstacles:
                 bar.pos_y += 1
             else:
                 move_into_obstacle = True
-
-        if rulan.command == 'e':
-            # look right for an obstacle:
-            obstacle = bar_map[bar.pos_y][bar.pos_x + 1]
-            if obstacle not in obstacles:
+        elif command == 'e':
+            if bar.pos_x < len(bar_map[0]) - 1 and bar_map[bar.pos_y][bar.pos_x + 1] not in obstacles:
                 bar.pos_x += 1
             else:
                 move_into_obstacle = True
-
-        if rulan.command == 'w':
-            # look left for an obstacle:
-            obstacle = bar_map[bar.pos_y][bar.pos_x - 1]
-            if obstacle not in obstacles:
+        elif command == 'w':
+            if bar.pos_x > 0 and bar_map[bar.pos_y][bar.pos_x - 1] not in obstacles:
                 bar.pos_x -= 1
             else:
                 move_into_obstacle = True
-
-        if rulan.command == "q":
-            break
+        else:
+            await ctx.send('Hm? (N/S/E/W to move, H for help, Q to leave)')
 
         if move_into_obstacle:
-            send_message(rulan, "Laughter fills the bar as you attempt to move through solid objects.")
-            rulan.hit_points -= 1
-            if rulan.hit_points <= 0:
-                send_message(rulan, "You have died.")
-                # TODO: room_notify(f"{player.name} dies from bumping into something.")
-                break  # out of loop
-            continue  # suppress the following message
+            await ctx.send("Laughter fills the bar as you attempt to move through solid objects.")
+            player.hit_points -= 1
+            if player.hit_points <= 0:
+                await ctx.send("You have died.")
+                break
 
-        if bar.valid_move:
-            rulan.previous_command = rulan.previous_command
-        else:
-            # valid_move has been set to False above
-            send_message(rulan, "The bar patrons look at you strangely as you do something incomprehensible.")
-            rulan.previous_command = None
-            # TODO: room_notify(f"{player.name} is confused.")
+
+# ---------------------------------------------------------------------------
+# Standalone smoke-test  (python -m bar.main)
+# ---------------------------------------------------------------------------
+
+if __name__ == '__main__':
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(levelname)10s | %(funcName)15s() | %(message)s')
+
+    ctx               = MagicMock()
+    ctx.player        = MagicMock()
+    ctx.player.name   = 'Rulan'
+    ctx.player.hit_points = 20
+    ctx.player.previous_command = None
+    ctx.player.client_settings  = MagicMock(
+        screen_columns=80, translation=None, return_key='Return'
+    )
+    ctx.player.query_flag = lambda _flag: False
+    ctx.player.toggle_flag = lambda _flag, _v: None
+    ctx.send  = AsyncMock()
+
+    answers = iter(['n', 'e', 'g', 'q'])
+    ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(answers, 'q'))
+
+    asyncio.run(enter_bar(ctx))
+    print("Standalone bar test complete.")
