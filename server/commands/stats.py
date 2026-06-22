@@ -17,6 +17,7 @@ import net_common
 from commands.help import BaseHelpText
 from commands.utils import get_player_from_context
 from flags import PlayerFlags
+from terminal_context import GameContext
 
 
 class StatsHelp(BaseHelpText):
@@ -77,42 +78,28 @@ class StatCommand(BaseCommand):
 
             return CommandResult(success=True, message=lines, data={'type': 'stats', 'count': len(lines)})
 
-    def help_text(self) -> str:
-        return (
-            "Stats Command\n"
-            "-----------\n"
-            "Usage: stat\n\n"
-            "Displays currently connected players, their connection time, and idle time.\n"
-            "Admins may see additional information such as IP addresses.\n"
-        )
 
-
-@command(name='who', category=HelpCategory.COMMUNICATION,
+@command(category=HelpCategory.GENERAL,
          summary='List currently online players')
 class StatsCommand(Command):
     """List player's stats
     """
 
-    async def execute(self, context: Dict[str, Any], args: List[str]) -> CommandResult:
+    async def execute(self, ctx: GameContext, args: List[str]) -> CommandResult:
+        player = ctx.player
+        # Determine if caller is admin
+        caller = context.get('client') or context.get('caller') or None
+        player = get_player_from_context(context, caller)
+        is_admin = False
         try:
-            player = context['player']
-            client_manager = getattr(net_common, 'client_manager', None)
-            if client_manager is None:
-                return CommandResult(success=False, error='no_client_manager', message='Client manager not available')
-
-            # Determine if caller is admin
-            caller = context.get('client') or context.get('caller') or None
-            player = get_player_from_context(context, caller)
+            is_admin = bool(getattr(caller, 'is_admin', False) or context.get('is_admin', False) or context.get('user_level') == 'admin')
+        except Exception:
             is_admin = False
-            try:
-                is_admin = bool(getattr(caller, 'is_admin', False) or context.get('is_admin', False) or context.get('user_level') == 'admin')
-            except Exception:
-                is_admin = False
 
-            # show player info: map level, room, stats, dwarf alive
-            lines = [f"{'Player':<20} {'Level':<5} {'Room':<20}", "Stats"]
+        # show player info: map level, room, stats, dwarf alive
+        lines = [f"{'Player':<20} {'Level':<5} {'Room':<20}", "Stats"]
 
-            """
+        """
 status
  setint(1)
  print \n1$"'s Current Stats: (BHR="hp+(xp*2)+((pe+pd+ps)/2)+((sh+ar)/4)")"\
@@ -165,14 +152,5 @@ no.guild
  print \"Hourglass: "(ex/60)" mins."
  return
 ;
-"""
-            return CommandResult(success=True, message=lines, data={'type': 'who', 'count': len(players_lines)})
-
-        except Exception as e:
-            logging.exception("Error in WhoCommand.execute")
-            return CommandResult(success=False, error='command_error', message=f'Error running who: {e}')
-
-
-def register():
-    """Compatibility helper for older registration codepaths."""
-    return WhoCommand()
+        """
+        return CommandResult.ok()

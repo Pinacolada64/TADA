@@ -133,11 +133,13 @@ class TestCommand(Command):
             ""
         )
         if "#feep" in switches:
-            await ctx.send(['  "Feeping creatures" is a Spoonerism of "creeping features.",'
-                            '  Feature creep is the excessive ongoing expansion or addition '
+            await ctx.send(['"Feeping creatures" is a Spoonerism of "creeping features."',
+                            '',
+                            'Feature creep is the excessive ongoing expansion or addition '
                             'of new features in a product, especially in computer software, '
-                            'video games and consumer and business electronics. ([Wikipedia])',
-                            '  Feeps forever!'])
+                            'video games, and consumer or business electronics. ([Wikipedia])',
+                            '',
+                            'Feeps forever!'])
 
         if "#box" in switches:
             from formatting import make_box_for_settings

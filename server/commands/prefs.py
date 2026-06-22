@@ -76,7 +76,7 @@ async def prefs_menu(ctx) -> bool:
     cs         = ctx.player.client_settings
 
     while True:
-        expert     = ctx.player.query_flag(PlayerFlags.EXPERT_MODE)
+        expert     = ctx.player.is_expert # query_flag(PlayerFlags.EXPERT_MODE)
         hourglass  = ctx.player.query_flag(PlayerFlags.HOURGLASS)
         colors     = getattr(cs, 'colors', None)
         text_col   = getattr(colors, 'text_color',      'White') if colors else 'White'
@@ -97,7 +97,7 @@ async def prefs_menu(ctx) -> bool:
         menu = (
             ['', '|yellow|User Preferences|reset|', '']
             + t.render(width=cs.screen_columns)
-            + ['', f"{keys_str} to change  —  {return_key} to save and exit", '']
+            + ['', f"{keys_str} to change, {return_key} to save and exit", '']
         )
 
         raw = await ctx.prompt('prefs', preamble_lines=menu)
@@ -107,11 +107,11 @@ async def prefs_menu(ctx) -> bool:
 
         if ans == '?':
             await ctx.send(
-                'X — toggle Expert Mode',
-                'H — toggle Hourglass (clock display)',
-                'B — choose border style (ANSI only)',
-                'C — choose text and highlight colors',
-                f'{return_key} — save and exit',
+                'X - toggle Expert Mode',
+                'H - toggle Hourglass (clock display)',
+                'B - choose border style (ANSI only)',
+                'C - choose text and highlight colors',
+                f'{return_key} - save and exit',
             )
             continue
 
@@ -119,20 +119,22 @@ async def prefs_menu(ctx) -> bool:
             return True
 
         if ans == 'x':
+            option = "|white|Expert Mode: "
             if ctx.player.query_flag(PlayerFlags.EXPERT_MODE):
                 ctx.player.clear_flag(PlayerFlags.EXPERT_MODE)
-                await ctx.send('Expert Mode: |red|Off|reset|')
+                await ctx.send(f'{option}|red|Off|reset|')
             else:
                 ctx.player.set_flag(PlayerFlags.EXPERT_MODE)
-                await ctx.send('Expert Mode: |green|On|reset|')
+                await ctx.send(f'{option}|green|On|reset|')
 
         elif ans == 'h':
+            option = "|white|Hourglass display: "
             if ctx.player.query_flag(PlayerFlags.HOURGLASS):
                 ctx.player.clear_flag(PlayerFlags.HOURGLASS)
-                await ctx.send('[Hourglass display:] |white|Off|reset|')
+                await ctx.send(f'{option}|red|Off|reset|')
             else:
                 ctx.player.set_flag(PlayerFlags.HOURGLASS)
-                await ctx.send('[Hourglass display:] |white|On|reset|')
+                await ctx.send(f'{option}|green|On|reset|')
 
         elif ans == 'b' and not is_petscii:
             await _pick_border_style(ctx, codec)
@@ -141,7 +143,7 @@ async def prefs_menu(ctx) -> bool:
             await _pick_colors(ctx)
 
         else:
-            await ctx.send(f'Enter {",".join(valid_keys)}, or press Enter to save and exit.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
 
 
 # ---------------------------------------------------------------------------
@@ -158,12 +160,12 @@ async def _pick_border_style(ctx, codec) -> None:
 
     cs = ctx.player.client_settings
     options = [
-        ('1', 'ascii'),
-        ('2', 'single'),
-        ('3', 'double'),
+        (['1', 'a'], 'ASCII'),
+        (['2', 's'], 'Single'),
+        (['3', 'd'], 'Double'),
     ]
 
-    lines = ['', '|yellow|Border Style|reset|', '']
+    lines = ['', '|yellow|Border Style:|reset|', '']
     for num, key in options:
         top = make_box([''], width=14, codec=codec, border_style=key)[0]
         lines.append(f'  {num}. {key.title():<8} {top}')
@@ -175,7 +177,7 @@ async def _pick_border_style(ctx, codec) -> None:
         return
     ans = raw.strip()
     for num, key in options:
-        if ans == num or ans.lower() == key:
+        if ans == num or ans.lower() in key:
             cs.border_style = key
             await ctx.send(f'Border style set to {key.title()}.')
             return
@@ -230,6 +232,6 @@ async def _pick_colors(ctx) -> None:
                     setattr(colors, attr, chosen)
                 await ctx.send(f'{label} color set to {chosen.value}.')
             else:
-                await ctx.send(f'{label} color unchanged — number out of range.')
+                await ctx.send(f'{label} color unchanged - number out of range.')
         else:
             await ctx.send(f'{label} color unchanged.')
