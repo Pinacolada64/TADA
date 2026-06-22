@@ -72,39 +72,38 @@ async def _bouncer(ctx: GameContext, bar: Bar) -> None:
     bar.valid_move = True
 
 
-async def _blue_djinn(ctx: GameContext) -> None:
-    log.info("Calling blue_djinn module")
-    # TODO: adapt bar/blue_djinn.py to async ctx interface
-    await ctx.send("The Blue Djinn eyes you suspiciously. (not yet available)")
+async def _blue_djinn(ctx: GameContext, bar: Bar) -> None:
+    from bar.blue_djinn import main as blue_djinn_main
+    await blue_djinn_main(ctx, bar)
 
 
-async def _vinny(ctx: GameContext) -> None:
+async def _vinny(ctx: GameContext, bar: Bar) -> None:
     log.info("Calling vinny")
     # TODO: Vinny the loan shark
     await ctx.send('Vinny looks up. "Whatcha want?" (not yet available)')
 
 
-async def _skip(ctx: GameContext) -> None:
+async def _skip(ctx: GameContext, bar: Bar) -> None:
     log.info("Calling skip module")
     # TODO: adapt bar/skip.py to async ctx interface
     await ctx.send("Skip waves you over to his counter. (not yet available)")
 
 
-async def _bar_none(ctx: GameContext) -> None:
+async def _bar_none(ctx: GameContext, bar: Bar) -> None:
     log.info("Calling bar_none module")
     # TODO: adapt bar/bar_none.py to async ctx interface
     await ctx.send("The bar stool creaks as you sit. (not yet available)")
 
 
-async def _fat_olaf(ctx: GameContext) -> None:
+async def _fat_olaf(ctx: GameContext, bar: Bar) -> None:
     log.info("Calling fat_olaf module")
     # TODO: adapt bar/fat_olaf.py to async ctx interface
     await ctx.send("Fat Olaf grins greedily. (not yet available)")
 
 
-async def _zelda(ctx: GameContext) -> None:
+async def _zelda(ctx: GameContext, bar: Bar) -> None:
     from bar.zelda import main as zelda_main
-    await zelda_main(ctx)
+    await zelda_main(ctx, bar)
 
 
 # Map from location name strings to async routines
@@ -274,7 +273,7 @@ async def enter_bar(ctx: GameContext) -> None:
         if command in ('?', 'h'):
             await _bar_help(ctx)
         elif command == 'g' and bar.can_go_here and callable(bar.go_routine):
-            await bar.go_routine(ctx)
+            await bar.go_routine(ctx, bar)
         elif command == 'd':
             player.toggle_flag(PlayerFlags.DEBUG_MODE, True)
         elif command == 'x':

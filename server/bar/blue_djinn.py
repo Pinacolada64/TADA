@@ -1,43 +1,94 @@
-import bar.main
-from bar.main import prompt
+"""bar/blue_djinn.py — The Blue Djinn: hire thugs to attack other players."""
+import logging
 import random
+
 from flags import PlayerFlags
-from player import Player
+from network_context import GameContext
 
-def main(character: Player):
-    """Hire thugs to attack other players"""
-    npc_name = "The Blue Djinn"
-    if not character.query_flag(PlayerFlags.EXPERT_MODE):
-        character.output(f"For a price, {npc_name} can attack other players.")
-        blue_djinn_menu(character)
-    character.output(f'{npc_name} sits behind the table.')
+log = logging.getLogger(__name__)
+
+_NPC = "The Blue Djinn"
+
+
+async def _blue_djinn_menu(ctx: GameContext) -> None:
+    await ctx.send("Options: [H]ire, [I]nsult, [L]eave")
+
+
+async def main(ctx: GameContext, bar=None) -> None:
+    """The Blue Djinn interaction loop."""
+    player = ctx.player
+
+    if not player.query_flag(PlayerFlags.EXPERT_MODE):
+        await ctx.send(f"For a price, {_NPC} can attack other players.")
+        await _blue_djinn_menu(ctx)
+
+    await ctx.send(f"{_NPC} sits behind the table.")
+
     while True:
-        command, last_command = prompt(character, 'He hisses, "What do you want?":')
-        if command == 'h':
-            character.output('"Who do you want me to mess up?"')
-            # TODO: finish Blue Djinn
-            continue
-        if command == 'i':
-            # choice insults:
-            # convert list element random.choices returns to a string:
-            random_insult = random.choices(["lineage", "dog's appearance", "parenting skills"])[0]
-            character.output(f"You say something deeply insulting about {npc_name}'s {random_insult}. "
-                             f"{npc_name}'s eyes narrow...")
-            bar.main.bouncer(character)
-            continue
-        if command in ['l', '']:
-            print(f"{npc_name} looks relieved.")
-            break  # out of loop
-        if command in ['h', '?']:
-            blue_djinn_menu(character)
-            continue
-        else:
-            print(f"{npc_name} looks amused.")
-            continue
+        await ctx.send("")
+        raw = await ctx.prompt(f'{_NPC} hisses, "What do you want?"')
+        if raw is None:
+            break
 
-def blue_djinn_menu(character: Player):
-    character.output("Options: [H]ire [I]nsult [L]eave")
+        inp = raw.strip().lower()
+        if not inp:
+            if player.previous_command:
+                inp = player.previous_command
+                if not player.query_flag(PlayerFlags.EXPERT_MODE):
+                    await ctx.send(f"(Repeating '{inp}'.)")
+            else:
+                continue
+
+        command = inp[0]
+        player.previous_command = command
+
+        if command == 'h':
+            await ctx.send('"Who do you want me to mess up?"')
+            # TODO: finish Blue Djinn hire logic
+        elif command == 'i':
+            insult_target = random.choice(["lineage", "dog's appearance", "parenting skills"])
+            await ctx.send(
+                f"You say something deeply insulting about {_NPC}'s {insult_target}. "
+                f"{_NPC}'s eyes narrow..."
+            )
+            from bar.main import _bouncer
+            if bar is not None:
+                await _bouncer(ctx, bar)
+            else:
+                if player.hit_points > 5:
+                    player.hit_points -= 5
+                await ctx.send("Mundo throws you out into the street...")
+            break
+        elif command == '?':
+            await _blue_djinn_menu(ctx)
+        elif command in ('l', 'q'):
+            await ctx.send(f"{_NPC} looks relieved.")
+            break
+        else:
+            await ctx.send(f"{_NPC} looks amused.")
+
+
+# ---------------------------------------------------------------------------
+# Standalone smoke-test
+# ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    player = Player()
-    main(character=player)
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(levelname)10s | %(funcName)15s() | %(message)s')
+
+    ctx = MagicMock()
+    ctx.player = MagicMock()
+    ctx.player.name = 'Rulan'
+    ctx.player.hit_points = 20
+    ctx.player.previous_command = None
+    ctx.player.query_flag = lambda _: False
+    ctx.send = AsyncMock()
+
+    answers = iter(['i', 'l'])
+    ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(answers, 'l'))
+
+    asyncio.run(main(ctx))
+    print("Standalone blue_djinn test complete.")

@@ -180,7 +180,7 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
 # Main async entry point
 # ---------------------------------------------------------------------------
 
-async def main(ctx: GameContext) -> None:
+async def main(ctx: GameContext, bar=None) -> None:
     """Madame Zelda interaction loop."""
     player = ctx.player
 
