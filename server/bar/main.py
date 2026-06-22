@@ -103,9 +103,8 @@ async def _fat_olaf(ctx: GameContext) -> None:
 
 
 async def _zelda(ctx: GameContext) -> None:
-    log.info("Calling zelda module")
-    # TODO: adapt bar/zelda.py to async ctx interface
-    await ctx.send("Madame Zelda stares into her crystal ball. (not yet available)")
+    from bar.zelda import main as zelda_main
+    await zelda_main(ctx)
 
 
 # Map from location name strings to async routines
