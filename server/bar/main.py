@@ -89,9 +89,8 @@ async def _skip(ctx: GameContext, bar: Bar) -> None:
 
 
 async def _bar_none(ctx: GameContext, bar: Bar) -> None:
-    log.info("Calling bar_none module")
-    # TODO: adapt bar/bar_none.py to async ctx interface
-    await ctx.send("The bar stool creaks as you sit. (not yet available)")
+    from bar.bar_none import main as bar_none_main
+    await bar_none_main(ctx, bar)
 
 
 async def _fat_olaf(ctx: GameContext, bar: Bar) -> None:
