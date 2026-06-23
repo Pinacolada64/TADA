@@ -403,31 +403,37 @@ class Room(object):
         return f'#{self.number} {self.name}\n' \
                f'{self.desc}\n{self.exits}'
 
-    def exits_txt(self, debug: bool) -> str:
+    def exits_txt(self, debug: bool = False) -> str:
+        """Return exits as a comma-delimited string.
+
+        rc/rt semantics (historical TADA map format):
+          rc == 1: Up connection   rt == 0: Shoppe   rt > 0: room number
+          rc == 2: Down connection
+        String values from JSON are coerced to int defensively.
         """
-        Display exits in a comma-delimited list.
-        :param debug: display room #s if True
-        :return: joined list of exits
-        """
-        # connection/transport names, index by (connection, transport)
-        # rc = 1: Up     rt != 0: Room #
-        # rc = 2: Down   rt == 0: Shoppe
-        extra_txts = {(1, 0): 'Up to Shoppe',
-                      (2, 0): 'Down to Shoppe'}
-        exit_txts = []
-        for k in self.exits.keys():
-            if k in compass_txts:
-                exit_txts.append(compass_txts[k])
-        room_connection = self.exits.get('rc', 0)
-        room_transport = self.exits.get('rt', 0)
-        exit_extra = extra_txts.get((room_connection, room_transport))
-        if exit_extra:  # is not None:
-            exit_txts.append(exit_extra)
-        # example: level 1, room 20
-        if room_connection == 1 and room_transport != 0:
-            exit_txts.append(f"Up to #{room_transport}" if debug else "Up")
-        if room_connection == 2 and room_transport != 0:
-            exit_txts.append(f"Down to #{room_transport}" if debug else "Down")
+        exit_txts = [compass_txts[k] for k in self.exits if k in compass_txts]
+        try:
+            rc = int(self.exits.get('rc', 0) or 0)
+        except (ValueError, TypeError):
+            rc = 0
+        try:
+            rt = int(self.exits.get('rt', 0) or 0)
+        except (ValueError, TypeError):
+            rt = 0
+        if rc == 1:
+            if rt == 0:
+                exit_txts.append('Up to Shoppe')
+            elif debug:
+                exit_txts.append(f'Up to #{rt}')
+            else:
+                exit_txts.append('Up')
+        elif rc == 2:
+            if rt == 0:
+                exit_txts.append('Down to Shoppe')
+            elif debug:
+                exit_txts.append(f'Down to #{rt}')
+            else:
+                exit_txts.append('Down')
         return ", ".join(exit_txts)
 
 
