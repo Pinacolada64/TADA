@@ -1,9 +1,9 @@
 from __future__ import annotations
 from typing import List, Dict, TYPE_CHECKING
-from .tada_utilities import oxford_comma_list, input_yes_no
+from tada_utilities import oxford_comma_list, input_yes_no
 
 if TYPE_CHECKING:
-    from .player import Player
+    from player import Player
 
 """
 Group players together so they can be addressed by the group name instead of individually.
