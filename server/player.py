@@ -525,6 +525,17 @@ class Player:
                 pass
         return 0
 
+    def subtract_silver(self, kind: "PlayerMoneyTypes", amount: int) -> bool:
+        """Deduct amount from the given silver pool if the player can afford it.
+
+        Returns True and deducts if the player has enough; returns False otherwise.
+        """
+        current = self.get_silver(kind)
+        if current < amount:
+            return False
+        self.set_silver_absolute(kind, current - amount)
+        return True
+
     def get_flag(self, flag_name: "PlayerFlags") -> Optional["Flag"]:
         """
         Given a PlayerFlag Enum, return the Flag object
