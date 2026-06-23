@@ -24,34 +24,24 @@ class TestCommand(Command):
     """A test command for unit testing."""
 
     def __init__(self, name: str, category=HelpCategory.GENERAL, aliases=None, summary=""):
+        from commands.help import Help
         super().__init__()
-        self._name = name  # Store the name in a private variable
-        self._category = category
+        self._name = name
         self._aliases = aliases or []
-        self._summary = summary
-        # The mock may return either a CommandResult or an awaitable
+        self.help = Help(summary=summary, category=category)
         self.execute_mock = MagicMock(return_value=CommandResult(True, f"{name} executed"))
 
-    # these properties are overridden here so they can be set
     @property
     def name(self) -> str:
         return self._name
 
     @property
-    def category(self):
-        return self._category
-
-    @property
     def aliases(self):
         return self._aliases
 
-    @property
-    def summary(self):
-        return self._summary
-
-    async def execute(self, context: Dict[str, Any], args: List[str] = None) -> CommandResult:
+    async def execute(self, ctx, *args) -> CommandResult:
         """Execute the command. Support sync or async mocks."""
-        res = self.execute_mock(context, args)
+        res = self.execute_mock(ctx, list(args))
         if asyncio.iscoroutine(res):
             return await res
         return res
@@ -91,11 +81,11 @@ class TestCommandProcessor(unittest.IsolatedAsyncioTestCase):
         self.assertIn("test1", self.processor._commands)
         self.assertEqual(self.processor._commands["test1"].name, "test1")
         
-        # Test aliases
-        self.assertIn("t1", self.processor._commands)
-        self.assertIn("t1a", self.processor._commands)
-        self.assertIn("t2", self.processor._commands)
-        
+        # Test aliases (stored in _aliases, not _commands)
+        self.assertIn("t1", self.processor._aliases)
+        self.assertIn("t1a", self.processor._aliases)
+        self.assertIn("t2", self.processor._aliases)
+
         # Test alias mapping
         self.assertEqual(self.processor._aliases["t1"], "test1")
         self.assertEqual(self.processor._aliases["t1a"], "test1")
@@ -208,7 +198,7 @@ class TestCommandProcessor(unittest.IsolatedAsyncioTestCase):
         # Create a command that raises an exception
         error_cmd = TestCommand("error_cmd")
         # Make the mock raise an exception when called
-        def raise_exc(ctx, args):
+        def raise_exc(ctx, args_list):
             raise Exception("Test error")
         error_cmd.execute_mock.side_effect = raise_exc
         self.processor.register_command(error_cmd)
@@ -222,7 +212,7 @@ class TestCommandProcessor(unittest.IsolatedAsyncioTestCase):
 
 # import a sample command to ensure decorators run during discovery if needed
 try:
-    from commands.example_commands import TestCommand
+    from commands.example_commands import TestCommand as _ExampleTestCommand  # noqa: F401
 except Exception as e:
     logging.exception(e)
 
