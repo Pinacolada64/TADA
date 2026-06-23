@@ -44,11 +44,7 @@ def _get_server_module():
         return _ss
     if _ns is not None:
         return _ns
-    try:
-        import old_server as _os
-        return _os
-    except Exception:
-        return None
+    return None
 
 if TYPE_CHECKING:
     import terminal

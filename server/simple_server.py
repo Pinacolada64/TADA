@@ -476,14 +476,26 @@ class Server:
         # game: one player could hoard an item and others wouldn't be able to acquire it.
 
         try:
-            exits = [compass_txts[k]
-                     for k in getattr(room, 'exits', {})
-                     if k in compass_txts]
-            rc = int(getattr(room, 'exits', {}).get('rc', 0) or 0)
+            room_exits = getattr(room, 'exits', {})
+            exits = [compass_txts[k] for k in room_exits if k in compass_txts]
+            rc = int(room_exits.get('rc', 0) or 0)
+            rt = int(room_exits.get('rt', 0) or 0)
+            player = getattr(getattr(client, 'ctx', None), 'player', None)
+            debug = getattr(player, 'is_debug', False)
             if rc == 1:
-                exits.append('Up')
+                if rt == 0:
+                    exits.append('Up to Shoppe')
+                elif debug:
+                    exits.append(f'Up to #{rt}')
+                else:
+                    exits.append('Up')
             elif rc == 2:
-                exits.append('Down')
+                if rt == 0:
+                    exits.append('Down to Shoppe')
+                elif debug:
+                    exits.append(f'Down to #{rt}')
+                else:
+                    exits.append('Down')
             if exits:
                 lines += ['', f"Ye may travel {oxford_comma_list(exits)}."]
         except Exception:
