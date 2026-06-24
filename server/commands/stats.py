@@ -1,156 +1,256 @@
 #!/bin/env python3
-"""
-stats command implementation.
+"""stats command — port of the 'status' subroutine in SPUR.MISC5.S."""
+from typing import List
 
-Shows player statustics, quests, and achievements.
-"""
-from typing import Dict, Any, List
-from datetime import datetime, timedelta
-import logging
-
-from base_classes import PlayerMoneyTypes
-from commands.base_command import Command, CommandResult, HelpCategory
-from commands.command_processor import command
-
-import net_common
-
-from commands.help import BaseHelpText
-from commands.utils import get_player_from_context
+from base_classes import (
+    Alignment, Guild, PlayerClass, PlayerMoneyTypes, PlayerRace, PlayerStat,
+)
+from commands.base_command import Command, CommandResult
+from commands.help import Help, HelpCategory
 from flags import PlayerFlags
-from terminal_context import GameContext
+from network_context import GameContext
+
+_AP = "'"
 
 
-class StatsHelp(BaseHelpText):
-    name = 'stats'
-    aliases = []
+# ---------------------------------------------------------------------------
+# Natural alignment (from race, matching SPUR.MISC5.S lines 196-199)
+# Original used "Bad" for Ogre/Orc but Alignment enum has Good/Neutral/Evil.
+# ---------------------------------------------------------------------------
 
-    def __init__(self):
-        super().__init__()
-        self.category = HelpCategory.COMMUNICATION
-        self.summary = 'List current player\'s stats'
-        self.description = (
-            "List player's stats with optional breakdown into sections."
-            "Admins may see additional details like extended flags."
+_RACE_NATURAL_ALIGNMENT: dict[str, Alignment] = {
+    'Ogre':  Alignment.EVIL,
+    'Orc':   Alignment.EVIL,
+    'Pixie': Alignment.GOOD,
+    'Elf':   Alignment.GOOD,
+}
+
+
+def _natural_alignment(race) -> Alignment:
+    # Use str(race) so both PlayerRace enum values and plain strings match.
+    return _RACE_NATURAL_ALIGNMENT.get(str(race), Alignment.NEUTRAL)
+
+
+# ---------------------------------------------------------------------------
+# Current alignment from honor points (vk, lines 199-201)
+# ---------------------------------------------------------------------------
+
+def _current_alignment(honor: int) -> str:
+    """Map honor points to a display label (SPUR.MISC5.S lines 199-201).
+
+    The honor scale has five bands; the middle three map to Alignment but
+    the extremes ('Saintly' and the implied lowest evil) don't fit the
+    three-value enum so we keep them as plain strings here.
+    """
+    if honor > 1600:
+        return 'Saintly'
+    if honor > 1200:
+        return str(Alignment.GOOD)
+    if honor > 799:
+        return str(Alignment.NEUTRAL)
+    if honor > 399:
+        return 'Bad'
+    return str(Alignment.EVIL)
+
+
+# ---------------------------------------------------------------------------
+# BHR formula: hp + (level*2) + ((energy+dex+str)/2) + ((shield+armor)/4)
+# (SPUR.MISC5.S line 174)
+# ---------------------------------------------------------------------------
+
+def _bhr(player) -> int:
+    stats    = getattr(player, 'stats', {})
+    energy   = stats.get(PlayerStat.EGY, 0) or 0
+    dex      = stats.get(PlayerStat.DEX, 0) or 0
+    strength = stats.get(PlayerStat.STR, 0) or 0
+    shield   = getattr(player, 'shield', 0) or 0
+    armor    = getattr(player, 'armor',  0) or 0
+    return int(
+        player.hit_points
+        + (player.map_level * 2)
+        + (energy + dex + strength) / 2
+        + (shield + armor) / 4
+    )
+
+
+# ---------------------------------------------------------------------------
+# Core display — returns list[str], no I/O
+# ---------------------------------------------------------------------------
+
+def _build_stats_lines(player) -> list[str]:
+    stats  = getattr(player, 'stats', {})
+    qf     = player.query_flag
+
+    def st(key) -> int:
+        return int(stats.get(key, 0) or 0)
+
+    ps = st(PlayerStat.STR)
+    pt = st(PlayerStat.CON)
+    pi = st(PlayerStat.INT)
+    pd = st(PlayerStat.DEX)
+    pw = st(PlayerStat.WIS)
+    pe = st(PlayerStat.EGY)
+    sh = int(getattr(player, 'shield', 0) or 0)
+    ar = int(getattr(player, 'armor',  0) or 0)
+
+    silver_hand = player.get_silver(PlayerMoneyTypes.IN_HAND)
+    silver_bank = player.get_silver(PlayerMoneyTypes.IN_BANK)
+    experience  = int(getattr(player, 'experience',    0) or 0)
+    mk          = int(getattr(player, 'monster_kills', 0) or 0)
+    honor       = int(getattr(player, 'honor',         0) or 0)
+    level       = int(getattr(player, 'map_level',     1) or 1)
+
+    guild           = getattr(player, 'guild',      Guild.CIVILIAN)
+    char_class      = getattr(player, 'char_class', None)
+    char_race       = getattr(player, 'char_race',  None)
+
+    bhr = _bhr(player)
+
+    lines: list[str] = []
+
+    # Header
+    lines += [
+        f"{player.name}{_AP}s Current Stats: (BHR={bhr})",
+        '',
+    ]
+
+    # Gold
+    lines += [
+        f"{'Gold - In Hand:':>20} {silver_hand:>12,}",
+        f"{'In Bank:':>20} {silver_bank:>12,}",
+        '',
+    ]
+
+    # Experience / HP / kills / level
+    lines += [
+        f"{'Experience Pts:':>16} {experience:>5}   {'Hit Points:':>12} {player.hit_points:>3}",
+        f"{'Monsters Kills:':>16} {mk:>5}   {'Player Level:':>12} {level:>3}",
+        '',
+    ]
+
+    # Six ability scores, two per line (value + percentage)
+    def stat_pair(label_l, val_l, label_r, val_r) -> str:
+        pct_l = val_l * 4
+        pct_r = val_r * 4
+        return (
+            f"{label_l:<10} {val_l:>2} {pct_l:>4}%   "
+            f"{label_r:<10} {val_r:>2} {pct_r:>4}%"
         )
-        self.usage = [
-            ("stat", "Show statistics of connected player"),
-            ("stat <player>", "(Optional) View statistics for <player>")
-        ]
-        self.examples = [
-            ("stat", "List stats for currently connected player"),
-        ]
 
-@command(name='stat', category=HelpCategory.GENERAL,
-         summary='List player\'s stats')
-class StatCommand(BaseCommand):
-    """List player's stats
-    """
-    async def execute(self, reader, writer, player) -> CommandResult:
-        try:
-            # Determine if caller is admin
-            caller = player.query_flag(PlayerFlags.ADMIN)
-            # show player info: map level, room, stats, dwarf alive
-            silver_total = sum(player.silver.values())
-            combinations = ', '.join(player.combinations) if player.combinations else 'None'
-            _ = f"""
-            {'Name:'.rjust(20)} {player.name}
-            {'Age:'.rjust(20)} {player.age}
-            {'Gender:'.rjust(20)} {self.gender.title()}
-            {'Birthday:'.rjust(20)} {player.birthday}
-            {'Silver: In hand:'.rjust(20)} {player.silver[PlayerMoneyTypes.IN_HAND]: >12,}
-            {'In bank:'.rjust(20)} {player.silver[PlayerMoneyTypes.IN_BANK]: >12,}
-            {'In bar :'.rjust(20)} {player.silver[PlayerMoneyTypes.IN_BAR]: >12,}
-            {'Total:'.rjust(20)} {player.silver_total: >12,}
+    lines += [
+        stat_pair("Strength:",  ps, "Const'n  :", pt),
+        stat_pair("Intel   :",  pi, "Dexterity:", pd),
+        stat_pair("Wisdom  :",  pw, "Energy   :", pe),
+        '',
+    ]
 
-            {'Guild:'.rjust(20)} {self.guild.title()}
-            {'Monster kills:'.rjust(20)} {self.monster_kills}
-            {'Experience points:'.rjust(20)} {self.experience_points}
-            {'Map level:'.rjust(20)} {self.map_level}
-            {'Hit points:'.rjust(20)} {self.hit_points}
-            
-            {'Combinations:'.rjust(20)} {combinations}
+    # Shield / armor
+    lines += [
+        f"{'Shield  :':>10}    {sh:>3}%   {'Armor    :':>10}   {ar:>3}%",
+    ]
 
-            {'Last played:'.rjust(20)} {self.last_play_date}
-            """
+    # Shield skill (1 + level; Paladin doubles it; formal training flag)
+    shield_skill = 1 + level
+    if char_class == PlayerClass.PALADIN:
+        shield_skill *= 2
+    shield_flag = getattr(PlayerFlags, 'SHIELD_TRAINED', None)
+    shield_trained = ('YES' if qf(shield_flag) else 'NO') if shield_flag else 'NO'
+    lines += [
+        f"Shield skill: {shield_skill}, Formal training- {shield_trained}",
+        '',
+    ]
 
-            # Placeholder for actual stats retrieval logic
-            # This would typically involve querying the player's stats from the database or in-memory structures
+    # Class and race
+    class_name = str(char_class).split('.')[-1].title() if char_class else 'Unknown'
+    race_name  = str(char_race).split('.')[-1].title()  if char_race  else 'Unknown'
+    lines += [
+        f"Class : {class_name:<10}  Race: {race_name}",
+    ]
 
-            return CommandResult(success=True, message=lines, data={'type': 'stats', 'count': len(lines)})
+    # Alignment
+    nat_align = _natural_alignment(char_race)
+    cur_align = _current_alignment(honor)
+    lines += [
+        f"Natural Alignment: {_AP}{nat_align}{_AP}.  "
+        f"Current alignment: {cur_align} ({honor} Honor points)",
+        '',
+    ]
+
+    # Guild follower (only for guild members, vv>=3 in original)
+    if guild not in (Guild.CIVILIAN, Guild.OUTLAW):
+        follower = 'YES' if getattr(player, 'guild_follower', False) else 'NO'
+        lines.append(f"GUILD FOLLOWER? {follower}")
+
+    # Status conditions
+    lines.append('POISONED!'    if qf(PlayerFlags.POISON)  else 'Not poisoned')
+    lines.append('DISEASED!'    if qf(PlayerFlags.DISEASE) else 'Not diseased')
+
+    if qf(PlayerFlags.RING_WORN):
+        lines.append('Ring worn..')
+    if qf(PlayerFlags.GAUNTLETS_WORN):
+        lines.append('Gauntlets worn..')
+
+    # Amulet of life
+    if qf(PlayerFlags.AMULET_OF_LIFE_ENERGIZED):
+        lines.append('Amulet of life -  ENERGIZED!')
+    else:
+        # TODO: check if player (or ally) carries item #076 (Amulet of Life)
+        pass
+
+    # Wizard's glow
+    if getattr(player, 'wizard_glow_active', False):
+        lines.append("Wizard{_AP}s Glow spell active!".format(_AP=_AP))
+
+    lines.append('')
+
+    # World bosses
+    lines.append(
+        'King of the Wraiths: '
+        + ('Dead..' if not qf(PlayerFlags.WRAITH_KING_ALIVE) else 'Alive..')
+    )
+    lines.append(
+        'SPUR: ' + ('Alive!' if qf(PlayerFlags.SPUR_ALIVE) else 'Dead...')
+    )
+
+    # Dwarf
+    dwarf_alive = qf(PlayerFlags.DWARF_ALIVE)
+    if dwarf_alive:
+        dwarf_gold = player.get_silver(PlayerMoneyTypes.DWARF) if hasattr(PlayerMoneyTypes, 'DWARF') else 0
+        lines.append(f'Dwarf: Alive!  [{dwarf_gold:,} gold]')
+    else:
+        lines.append('Dwarf: Dead...')
+
+    # Tut's treasure
+    tuts_looted = getattr(player, 'tuts_treasure_looted', False)
+    lines.append("Tut{_AP}s Treasure: {status}".format(
+        _AP=_AP, status='Looted..' if tuts_looted else 'Somewhere..'
+    ))
+
+    # Hourglass / time remaining
+    time_remaining = getattr(player, 'time_remaining_minutes', None)
+    if time_remaining is not None:
+        lines.append(f'Hourglass: {time_remaining} mins.')
+
+    return lines
 
 
-@command(category=HelpCategory.GENERAL,
-         summary='List currently online players')
-class StatsCommand(Command):
-    """List player's stats
-    """
+# ---------------------------------------------------------------------------
+# Command
+# ---------------------------------------------------------------------------
+
+class StatCommand(Command):
+    help = Help(
+        category = HelpCategory.GENERAL,
+        summary  = "Show your current character stats",
+        description = (
+            "Displays your character sheet: gold, ability scores, alignment, "
+            "status conditions, and world-state flags."
+        ),
+        usage    = [('stat', 'Show your stats')],
+        examples = [('stat', 'Display your character sheet')],
+    )
 
     async def execute(self, ctx: GameContext, args: List[str]) -> CommandResult:
-        player = ctx.player
-        # Determine if caller is admin
-        caller = context.get('client') or context.get('caller') or None
-        player = get_player_from_context(context, caller)
-        is_admin = False
-        try:
-            is_admin = bool(getattr(caller, 'is_admin', False) or context.get('is_admin', False) or context.get('user_level') == 'admin')
-        except Exception:
-            is_admin = False
-
-        # show player info: map level, room, stats, dwarf alive
-        lines = [f"{'Player':<20} {'Level':<5} {'Room':<20}", "Stats"]
-
-        """
-status
- setint(1)
- print \n1$"'s Current Stats: (BHR="hp+(xp*2)+((pe+pd+ps)/2)+((sh+ar)/4)")"\
- g1=gh:g2=gl:gosub prt.gold
- print "Gold - In Hand:"gd$
- g1=bh:g2=bl:gosub prt.gold
- print "       In Bank:"gd$
- print \"Experience Pts :"right$("   "+str$(ep),5)"   Hit Points :"right$("   "+str$(hp),3)
- print "Monsters Kills :"right$("   "+str$(mk),5)" Player Level :"right$("   "+str$(xp),3)
- a=ps*4:print \"Strength: "right$("  "+str$(ps),2)right$("    "+str$(a),4)"%   ";
- a=pt*4:print "Const'n  :"right$("  "+str$(pt),2)right$("    "+str$(a),4)"%"
- a=pi*4:print "Intel   : "right$("  "+str$(pi),2)right$("    "+str$(a),4)"%   ";
- a=pd*4:print "Dexterity:"right$("  "+str$(pd),2)right$("    "+str$(a),4)"%"
- a=pw*4:print "Wisdom  : "right$("  "+str$(pw),2)right$("    "+str$(a),4)"%   ";
- a=pe*4:print "Energy   :"right$("  "+str$(pe),2)right$("    "+str$(a),4)"%"
- print \"Shield  :    "right$("  "+str$(sh),3)"%   ";
- print "Armor    :   "right$("  "+str$(ar),3)"%"
- if instr(left$(zu$,1),"BC") i$="YES":else i$="NO"
- a=1+xp:if pc=4 a=a*2
- print "Shield skill: "a", Formal training- "i$
- i$="Wizard  Druid   Fighter Paladin Ranger  Thief   Archer  AssassinKnight  "
- print \"Class : "mid$(i$,pc*8-7,8);
- i$="Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc     Half-Elf"
- print " Race: ";mid$(i$,pr*8-7,8)
- i$="Neutral":if (pr=2) or (pr=8) i$="Bad"
- if (pr=3) or (pr=4) i$="Good"
- print "Natural Alignment: '"i$"'.";
- i$="Evil":if vk>399 i$="Bad":if vk>799 i$="Neutral"
- if vk>1200 i$="Good":if vk>1600 i$="Saintly"
- print " Current alignment: "i$" ("vk" Honor points)"
- if vv<3 goto no.guild
- print \"GUILD FOLLOWER? ";
- if mid$(zu$,10,1)="1" print "YES":else print "NO"
-no.guild
- if mid$(zu$,3,1)="1" print \"POISONED!":else print \"Not poisoned"
- if mid$(zu$,4,1)="1" print "DISEASED!":else print "Not diseased"
- if mid$(zu$,2,1)="1" print "Ring worn.."
- if mid$(zu$,6,1)="1" print "Gauntlets worn.."
- i$=mid$(zu$,8,1):zs=instr("076,",xi$):zr=instr("076,",ai$)
- if i$="1" print "Amulet of life -  ENERGIZED!"
- if i$="0" then if zs+zr>0 print "[][] AMULET OF LIFE NOT ENERGIZED! [][]":if zr>0 print "(Your ally carries it!)"
- if instr(mid$(zu$,7,1),"23") print "Wizard's Glow spell active!"
- print \"King of the Wraiths : ";
- if instr(mid$(zu$,7,1),"12") print "Dead..":else print "Alive.."
- print "SPUR : ";:if (sr) print "Alive!":else print "Dead..."
- g1=dh:g2=dl:gosub prt.gold
- print "Dwarf: ";:if (df) print "Alive!  ["gd$" gold]":else print "Dead..."
- print "Tut's Treasure: ";:if mid$(zu$,9,1)="2" print "Looted..":else print "Somewhere.."
- ex=clock(1)-ew:ex=ev-ex:if ex<0 ex=0
- print \"Hourglass: "(ex/60)" mins."
- return
-;
-        """
+        lines = _build_stats_lines(ctx.player)
+        await ctx.send(lines)
         return CommandResult.ok()
