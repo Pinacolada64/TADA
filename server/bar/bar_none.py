@@ -46,8 +46,9 @@ async def main(ctx: GameContext, bar=None) -> None:
     player = ctx.player
     mae = Bartender(_NPC, strength=4, to_hit=4, gender="f", flags=[])
 
-    if not player.query_flag(PlayerFlags.EXPERT_MODE):
-        tip_lines = tip(player, "Mae the Bartender",
+    tip_lines = []
+    if not player.is_expert:
+        tip_lines = tip(ctx, "Mae the Bartender",
                         "Mae is the owner and bartender of 'Bar None.' "
                         "You can (L)ist the menu at any time, or enter a number to buy something.")
         description_lines = []

@@ -4,9 +4,9 @@ import doctest
 import logging
 import random
 import textwrap
-from enum import Enum, auto
 from typing import TYPE_CHECKING
 
+from base_classes import PronounType
 from terminal_context import GameContext
 
 if TYPE_CHECKING:
@@ -352,15 +352,6 @@ def make_random_id() -> int:
 
 # ---------------------------------------------------------------------------
 # Player-aware display utilities (return list[str], no I/O)
-# ---------------------------------------------------------------------------
-
-class PronounType(Enum):
-    """Defines the grammatical type of pronoun needed."""
-    SUBJECTIVE           = auto()  # e.g., "HE went to the store."
-    OBJECTIVE            = auto()  # e.g., "I gave the book to HIM."
-    POSSESSIVE_ADJECTIVE = auto()  # e.g., "That is HIS book."
-    POSSESSIVE_PRONOUN   = auto()  # e.g., "The book is HIS."
-    REFLEXIVE            = auto()  # e.g., "He did it HIMSELF."
 
 
 def get_pronoun(character: 'Player',
@@ -417,16 +408,24 @@ def get_pronoun(character: 'Player',
     """
 
     from base_variables import PRONOUN_MAP
+    from base_classes import Gender
+    _STR_TO_GENDER = {
+        'm': Gender.MALE, 'M': Gender.MALE, 'Male': Gender.MALE,
+        'f': Gender.FEMALE, 'F': Gender.FEMALE, 'Female': Gender.FEMALE,
+    }
     try:
-        pronoun = PRONOUN_MAP[character.gender][pronoun_type]
+        gender = getattr(character, 'gender', None)
+        if isinstance(gender, str) and not isinstance(gender, Gender):
+            gender = _STR_TO_GENDER.get(gender)
+        pronoun = PRONOUN_MAP[gender][pronoun_type]
         return pronoun.title() if capitalize else pronoun
-    except KeyError:
+    except (KeyError, TypeError):
         logging.warning("Pronoun not found for '%s' type '%s'",
-                        character.name, pronoun_type.name)
+                        getattr(character, 'name', '?'), pronoun_type.name)
         return ''
 
 
-def frame_text(p: 'Player', text: str, title: str = '', width: int = 60) -> list[str]:
+def frame_text(ctx: GameContext, text: str, title: str = '') -> list[str]:
     """
     Wrap a string in a box using box-drawing characters.
     Returns a list of strings; does not send to player directly.
@@ -434,27 +433,28 @@ def frame_text(p: 'Player', text: str, title: str = '', width: int = 60) -> list
     from base_variables import BOX_CHARS
     # Calculate the inner width available for text, accounting for borders and padding.
     # Box is: │<space>TEXT<space>│
-    inner_width = width - 4
+    screen_width = ctx.player.client_settings.screen_columns
+    inner_width = screen_width - 4
     title_text  = f' {title.title()} ' if title else ' '
-    top_bar     = title_text.center(width - 2, BOX_CHARS['horz'])
+    top_bar     = title_text.center(screen_width - 2, BOX_CHARS['horz'])
     top_border  = BOX_CHARS['top_left'] + top_bar + BOX_CHARS['top_right']
     body_lines  = [
         f"{BOX_CHARS['vert']} {line.ljust(inner_width)} {BOX_CHARS['vert']}"
         for line in textwrap.wrap(text, width=inner_width)
     ]
     bottom_border = (BOX_CHARS['bottom_left'] +
-                     BOX_CHARS['horz'] * (width - 2) +
+                     BOX_CHARS['horz'] * (screen_width - 2) +
                      BOX_CHARS['bottom_right'])
     return [top_border] + body_lines + [bottom_border]
 
 
-def tip(p: 'Player', title: str, message: str) -> list[str]:
+def tip(ctx: GameContext, title: str, message: str) -> list[str]:
     """
     Return a formatted tip box, or [] if the player is in expert mode.
     Caller is responsible for sending the returned lines.
     """
-    if not p.query_flag(PlayerFlags.EXPERT_MODE):
-        return frame_text(p, message, title, p.client_settings.screen_columns)
+    if not ctx.player.is_expert:
+        return frame_text(ctx, message, title)
     return []
 
 
