@@ -30,12 +30,9 @@ _SHOPPE_ROOM = None  # Shoppe is reached via rc/rt elevator, not a map room
 
 async def _enter_shoppe(ctx: GameContext) -> None:
     """Player takes the elevator down to the Merchant Shoppe."""
-    # TODO: adapt shoppe/main.py ShoppeCommand to async ctx interface
-    await ctx.send(
-        'You follow the sloping passageway downward into the merchant\'s annex.',
-        '',
-        '(Merchant Shoppe not yet available.)',
-    )
+    from shoppe.main import main as shoppe_main
+    await shoppe_main(ctx)
+    await ctx.server._show_room(ctx)
 
 
 async def _enter_bar(ctx: GameContext) -> None:
