@@ -1,4 +1,4 @@
-"""shoppe/main.py — Merchant Shoppe entry point."""
+"""shoppe/main.py — Merchant Shoppe entry point (SPUR.SHOP.S port)."""
 import logging
 
 from network_context import GameContext
@@ -7,20 +7,52 @@ log = logging.getLogger(__name__)
 
 _AP = "'"
 
+# Shoppe is closed on level 7 (matches SPUR.SHOP.S main1 level-gate)
+_CLOSED_LEVELS = {7}
+
 
 # ---------------------------------------------------------------------------
 # Sub-section stubs
 # ---------------------------------------------------------------------------
 
-async def _bank(ctx: GameContext) -> None:
+async def _armory(ctx: GameContext) -> None:
+    """Buy and sell weapons. Max 6 weapons per player."""
     await ctx.send(
-        'You approach the Bank of SPUR.',
+        'The weaponsmith looks up from his grindstone.',
+        '',
+        '(Armory not yet available.)',
+    )
+
+
+async def _protection(ctx: GameContext) -> None:
+    """Buy armor and shields. Max 5 items per player."""
+    await ctx.send(
+        'Racks of armor line the walls.',
+        '',
+        '(Protection shop not yet available.)',
+    )
+
+
+async def _general_store(ctx: GameContext) -> None:
+    """Buy general goods. Max 10 unique items per player."""
+    await ctx.send(
+        'Shelves of supplies stretch from floor to ceiling.',
+        '',
+        '(General store not yet available.)',
+    )
+
+
+async def _bank(ctx: GameContext) -> None:
+    """Deposit, withdraw, or transfer gold between players (level 2+ for transfers)."""
+    await ctx.send(
+        'You approach the Bank of SPUR.  A teller looks up with a practiced smile.',
         '',
         '(Banking not yet available.)',
     )
 
 
 async def _wizard(ctx: GameContext) -> None:
+    """Learn spells. Wizards pay half price, Druids two-thirds. Max 10 spells."""
     await ctx.send(
         'The wizened wizard studies you carefully.',
         '',
@@ -28,28 +60,51 @@ async def _wizard(ctx: GameContext) -> None:
     )
 
 
-async def _locker(ctx: GameContext) -> None:
+async def _clan(ctx: GameContext) -> None:
+    """Change guild affiliation (Claw, Sword, Fist, Civilian, Outlaw). Costs gold and honor."""
     await ctx.send(
-        'You open your locker and find it empty.',
+        'A stern-faced registrar eyes you from behind a heavy desk.',
         '',
-        '(Locker not yet available.)',
+        '(Clan/Guild office not yet available.)',
     )
 
 
 async def _elevator(ctx: GameContext) -> None:
+    """Ride the elevator to levels 1–5."""
     from shoppe.elevator import main as elevator_main
     await elevator_main(ctx)
 
 
+async def _pawn_shop(ctx: GameContext) -> None:
+    """Sell (not buy) items to the pawn merchant."""
+    await ctx.send(
+        'A wiry merchant peers at you over a pile of odds and ends.',
+        '',
+        '(Pawn shop not yet available.)',
+    )
+
+
+async def _player_list(ctx: GameContext) -> None:
+    """Browse online and offline players, filtered by name."""
+    await ctx.send(
+        '(Player list not yet available.)',
+    )
+
+
 # ---------------------------------------------------------------------------
-# Menu helpers
+# Menu
 # ---------------------------------------------------------------------------
 
 _MENU = (
-    ('B', 'Bank of SPUR',      _bank),
-    ('E', 'Elevator',          _elevator),
-    ('L', 'Locker',            _locker),
-    ('W', 'Visit the Wizard',  _wizard),
+    ('A', 'Armory',          _armory),
+    ('P', 'Protection',      _protection),
+    ('G', 'General Store',   _general_store),
+    ('B', 'Bank of SPUR',    _bank),
+    ('W', 'Wizard',          _wizard),
+    ('C', 'Clan / Guild',    _clan),
+    ('E', 'Elevator',        _elevator),
+    ('V', 'Pawn Shop',       _pawn_shop),
+    ('L', 'Player List',     _player_list),
 )
 
 
@@ -69,8 +124,16 @@ async def main(ctx: GameContext) -> None:
     """Run the Merchant Shoppe interaction loop."""
     player = ctx.player
 
+    level = getattr(player, 'map_level', 1) or 1
+    if level in _CLOSED_LEVELS:
+        await ctx.send(
+            'Shoppe closed due to lack of interest on this level. '
+            'Look for our stores in levels 1-5!!!'
+        )
+        return
+
     await ctx.send(
-        'You follow the sloping passageway downward into the merchant{_AP}s annex.'.format(_AP=_AP),
+        f'You follow the sloping passageway downward into the merchant{_AP}s annex.',
         '',
         'Torchlight flickers across rows of stalls lining the walls.  The smell '
         'of old parchment and coin mingles in the cool underground air.',
@@ -89,14 +152,15 @@ async def main(ctx: GameContext) -> None:
             continue
 
         if cmd == 'x':
-            await ctx.send('You climb back up the passageway into the daylight.')
+            await ctx.send(f'You climb back up the passageway into the daylight.')
             break
 
         matched = next((fn for key, _, fn in _MENU if key.lower() == cmd), None)
         if matched:
             await matched(ctx)
         else:
-            await ctx.send(f'"{raw.strip()}"? (B/E/L/W to choose, X to leave)')
+            keys = '/'.join(k for k, _, _ in _MENU)
+            await ctx.send(f'"{raw.strip()}"? ({keys}/X to choose)')
 
 
 # ---------------------------------------------------------------------------
@@ -113,10 +177,11 @@ if __name__ == '__main__':
     ctx = MagicMock()
     ctx.player = MagicMock()
     ctx.player.name = 'Rulan'
+    ctx.player.map_level = 1
     ctx.player.is_expert = True
     ctx.send = AsyncMock()
 
-    answers = iter(['b', 'l', 'w', 'x'])
+    answers = iter(['a', 'p', 'g', 'b', 'w', 'c', 'v', 'l', 'x'])
     ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(answers, None))
 
     asyncio.run(main(ctx))

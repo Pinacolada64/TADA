@@ -124,6 +124,14 @@ async def main(ctx: GameContext) -> None:
     """Run the elevator interaction loop."""
     player = ctx.player
 
+    # Elevator serves levels 1–5 only (matches SPUR.SHOP.S elevator section)
+    current_level = getattr(player, 'map_level', 1) or 1
+    if current_level > 5:
+        await ctx.send(
+            f'The guard shakes his head. "Elevator doesn{_AP}t run up here, friend."'
+        )
+        return
+
     await ctx.send(
         'A burly guard stands here, his arms crossed. He looks you up and down.',
     )
@@ -132,10 +140,13 @@ async def main(ctx: GameContext) -> None:
     if not ok:
         return
 
+    # Only levels 1–5 are reachable by elevator
+    available = _LEVEL_NAMES[:5]
+
     while True:
         lines = ['', 'Elevator — choose a level:', '']
-        for i, name in enumerate(_LEVEL_NAMES, 1):
-            marker = ' <--' if i == getattr(player, 'map_level', 1) else ''
+        for i, name in enumerate(available, 1):
+            marker = ' <--' if i == current_level else ''
             lines.append(f'  {i}. {name}{marker}')
         lines += ['', '  [X] Cancel', '']
         await ctx.send(lines)
@@ -151,10 +162,13 @@ async def main(ctx: GameContext) -> None:
 
         try:
             target = int(cmd)
-            await _travel_to(ctx, target)
-            break
+            if 1 <= target <= len(available):
+                await _travel_to(ctx, target)
+                break
+            else:
+                await ctx.send(f'Please choose a level between 1 and {len(available)}.')
         except ValueError:
-            await ctx.send(f'Please enter a level number (1–{len(_LEVEL_NAMES)}) or X to cancel.')
+            await ctx.send(f'Please enter a level number (1–{len(available)}) or X to cancel.')
 
 
 # ---------------------------------------------------------------------------
