@@ -37,9 +37,8 @@ async def _locker(ctx: GameContext) -> None:
 
 
 async def _elevator(ctx: GameContext) -> None:
-    from shoppe.elevator import execute as elevator_execute
-    context = {'player': ctx.player, 'client': ctx.client}
-    await elevator_execute(None, ctx.reader, ctx.writer, context=context, args=[])
+    from shoppe.elevator import main as elevator_main
+    await elevator_main(ctx)
 
 
 # ---------------------------------------------------------------------------
