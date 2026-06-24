@@ -29,6 +29,17 @@ def _wrong_combination_msg() -> str:
     return f'The guard frowns. "That{_AP}s not the right combination."'
 
 
+def _find_combination(player, kind: CombinationTypes):
+    """Return the Combination of the given type from the player's list, or None."""
+    combos = getattr(player, 'combinations', None)
+    if not combos:
+        return None
+    if isinstance(combos, dict):
+        return combos.get(kind)
+    # list of Combination objects (standard initialisation via set_up_combinations)
+    return next((c for c in combos if c.name == kind), None)
+
+
 async def get_combination(ctx: GameContext, *,
                           is_interactive: bool = False,
                           provided_ans: Optional[str] = None) -> bool:
@@ -37,10 +48,10 @@ async def get_combination(ctx: GameContext, *,
     Returns True if correct, False otherwise.
     """
     player = ctx.player
-    if not hasattr(player, 'combinations'):
+    if not getattr(player, 'combinations', None):
         player.combinations = set_up_combinations()
 
-    scrap = player.combinations.get(CombinationTypes.ELEVATOR)
+    scrap = _find_combination(player, CombinationTypes.ELEVATOR)
     if not scrap:
         await ctx.send(
             f'The burly guard crosses his arms. '
