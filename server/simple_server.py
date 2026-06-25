@@ -132,11 +132,14 @@ class Server:
         local_port = writer.get_extra_info('sockname')[1]
         logging.info('New connection from %s on port %d', addr, local_port)
 
+        from datetime import datetime
         client = Client()
-        client.addr   = addr
-        client.reader = reader
-        client.writer = writer
-        client.server = self
+        client.addr         = addr
+        client.reader       = reader
+        client.writer       = writer
+        client.server       = self
+        client.connected_at = datetime.now()
+        client.last_input   = datetime.now()
 
         # Choose context type based on which port was connected to
         is_petscii = (local_port == self.petscii_port)
@@ -389,6 +392,8 @@ class Server:
             if not raw.strip():
                 continue
 
+            from datetime import datetime
+            ctx.client.last_input = datetime.now()
             result = await processor.process_input(raw, ctx=ctx)
 
             # QuitCommand sets data={'quit': True} to signal clean exit
