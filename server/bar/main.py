@@ -41,6 +41,16 @@ class Bar:
             "│  │oo│  []o│",
             "└──┴──┴─────┘",
         ],
+        # cbmcodecs2 maps Unicode box chars to PETSCII graphics bytes, but
+        # '[' and ']' are not in petscii_c64en_lc — use '(' and ')' instead.
+        'petscii': [
+            "┌────┤ ├────┐",
+            "│o()     ()o│",
+            "│          M│",
+            "│  ┌──┐  ()o│",
+            "│  │oo│  ()o│",
+            "└──┴──┴─────┘",
+        ],
     }
 
     # (row, col, display_name, async_routine | None)
@@ -163,8 +173,13 @@ def _pick_map(ctx) -> list[str]:
     try:
         from terminal import Translation
         t = ctx.player.client_settings.translation
+        # PETSCII uses the same Unicode box chars as ANSI — cbmcodecs2 maps
+        # them to the correct PETSCII graphics bytes.  Plain ASCII '|' is not
+        # in the PETSCII charset and renders as '?' on a C64.
         if t == Translation.ANSI:
             return Bar.bar_map['ansi']
+        if t == Translation.PETSCII:
+            return Bar.bar_map['petscii']
     except Exception:
         pass
     return Bar.bar_map['ascii']
