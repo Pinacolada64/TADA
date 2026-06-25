@@ -147,6 +147,9 @@ async def main(ctx: GameContext) -> None:
         'A burly guard stands here, his arms crossed. He looks you up and down.',
     )
 
+    if ctx.player.is_debug:
+        elevator_combo = _find_combination(ctx.player, CombinationTypes.ELEVATOR) or "None"
+        await ctx.send(f"[Debug] Combination for {elevator_combo}")
     ok = await get_combination(ctx, is_interactive=True)
     if not ok:
         return
