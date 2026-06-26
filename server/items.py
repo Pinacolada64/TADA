@@ -1,7 +1,15 @@
 import json
 import logging
 from dataclasses import dataclass, field
+from enum import auto
 from typing import Optional, TYPE_CHECKING, Any, Dict, Tuple
+
+try:
+    from enum import StrEnum
+except ImportError:
+    from enum import Enum
+    class StrEnum(str, Enum):
+        pass
 
 # TADA-specific imports:
 if TYPE_CHECKING:
@@ -9,6 +17,16 @@ if TYPE_CHECKING:
     from player import Player
 
 from flags import PlayerFlags
+
+
+class ItemCategory(StrEnum):
+    ITEM      = "Item"
+    FOOD      = "Food"
+    DRINK     = "Drink"
+    WEAPON    = "Weapon"
+    SPELL     = "Spell"
+    ARMOR     = "Armor"
+    CONTAINER = "Container"
 
 
 class IDNumber:
@@ -43,6 +61,7 @@ class BaseItem:
     owner = None  # could be a Player instance if a monster joins the party
     # Accept either list or dict for flags (some data files use a dict)
     flags: Any = field(default_factory=list)
+    category: Optional[ItemCategory] = None
 
 
 class Item(BaseItem):
@@ -51,6 +70,11 @@ class Item(BaseItem):
         for key, value in kwargs.items():
             setattr(self, key, value)
         self.id_prefix = "I"
+        if not hasattr(self, 'category'):
+            self.category = ItemCategory.ITEM
+        # capacity > 0 makes this a container (bag of holding, etc.)
+        if not hasattr(self, 'capacity'):
+            self.capacity: int = 0
 
     @staticmethod
     def read(filename: str) -> dict | None:
@@ -139,6 +163,31 @@ class Rations(BaseItem):
             logging.error(">>> File not found: %s" % filename)
             return None
 
+
+@dataclass
+class Spell(BaseItem):
+    """A spell that can be cast, with a finite number of charges."""
+    charges: int = 0
+    max_charges: int = 0
+
+    def __post_init__(self):
+        self.id_prefix = "S"
+        self.category  = ItemCategory.SPELL
+
+    def use(self) -> bool:
+        """Consume one charge. Returns False if already depleted."""
+        if self.charges <= 0:
+            return False
+        self.charges -= 1
+        return True
+
+    @property
+    def is_depleted(self) -> bool:
+        return self.charges <= 0
+
+    def __str__(self):
+        pct = int(self.charges / self.max_charges * 100) if self.max_charges else 0
+        return f"{self.name} [{self.charges}/{self.max_charges} charges, {pct}%]"
 
 
 if __name__ == '__main__':

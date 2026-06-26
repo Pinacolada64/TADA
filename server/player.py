@@ -230,8 +230,16 @@ class Player:
         self.char_race = kwargs.get('char_race')
         # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc      Half-Elf
 
-        self.inventory: list = kwargs.get('inventory')
-        self.max_inventory_size: int = kwargs.get('max_inventory_size', 10)
+        from inventory import Inventory, class_inventory_limit
+        _raw_inv = kwargs.get('inventory')
+        _class_limit = class_inventory_limit(self.char_class)
+        self.max_inventory_size: int = kwargs.get('max_inventory_size', _class_limit)
+        if isinstance(_raw_inv, Inventory):
+            self.inventory: Inventory = _raw_inv
+        elif isinstance(_raw_inv, list):
+            self.inventory = Inventory.from_json(_raw_inv, capacity=self.max_inventory_size)
+        else:
+            self.inventory = Inventory(capacity=self.max_inventory_size)
 
         # combat stuff:
         self.hit_points = kwargs.get('hit_points', 0)
