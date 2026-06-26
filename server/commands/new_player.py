@@ -38,7 +38,8 @@ from pathlib import Path
 from typing import Optional
 
 # TADA imports:
-from base_classes import PlayerRace, PlayerClass
+from base_classes import PlayerRace, PlayerClass, PlayerStat
+from characters import apply_race_class_deltas
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from network_context import GameContext
@@ -410,11 +411,21 @@ async def _choose_age(ctx) -> bool:
         if ans == "r":
             # TODO: per-class age minimum-maximum limits
             age = random.randint(15, 50)
-        elif ans.isdigit() and 15 <= int(ans) <= 50:
+        elif ans.isdigit():
             age = int(ans)
-        else:
-            await ctx.send("Please enter a number between 15 and 50, or 'R' for random.")
-            continue
+            help_msg = "Please enter a number between 15 and 50, or 'R' to choose a random age."
+            if age < 15:
+                apostrophe = "'"
+                ctx.send(f'"Oh, come off it! You{apostrophe}re not even old enough to handle a '
+                         f'Staff yet."')
+                continue
+            elif ans > 50:
+                ctx.send('"Hmm, we seem to be out of Senior Adventurer life '
+                         'insurance policies right now. Come back tomorrow!"',
+                         '',
+                         f"{help_msg}")
+                continue
+
 
         ctx.player.age = age
         await ctx.send(f"Age set to {age}.")
@@ -808,7 +819,10 @@ async def _choose_guild(ctx) -> bool:
 # Step 8 — roll stats
 # ---------------------------------------------------------------------------
 
-_STAT_ORDER = ["STR", "DEX", "CON", "INT", "WIS", "CHA"]
+_STAT_ORDER = [
+    PlayerStat.STR, PlayerStat.DEX, PlayerStat.CON,
+    PlayerStat.INT, PlayerStat.WIS, PlayerStat.EGY,
+]
 
 
 def _roll_one_stat() -> tuple[int, list[int]]:
@@ -825,7 +839,7 @@ async def _roll_stats(ctx) -> bool:
         for stat in _STAT_ORDER:
             total, rolls = _roll_one_stat()
             stats[stat]  = total
-            details.append(f"  {stat}: {total:2d}  (rolled {rolls}, dropped {min(rolls)})")
+            details.append(f"  {stat.name:<4} {total:2d}  (rolled {rolls}, dropped {min(rolls)})")
 
         lines = ["", "Rolled stats:", ""] + details + [""]
         raw = await ctx.prompt(
@@ -837,6 +851,7 @@ async def _roll_stats(ctx) -> bool:
         ans = raw.strip().lower()
         if ans in ("y", "yes", ""):
             ctx.player.stats = stats
+            apply_race_class_deltas(ctx.player)
             await ctx.send("Stats accepted.")
             return True
         if ans in ("r", "reroll", "re-roll"):

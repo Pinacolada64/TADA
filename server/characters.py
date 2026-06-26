@@ -150,6 +150,20 @@ def base_stats_for(race, char_class) -> dict[PlayerStat, int]:
     return stats
 
 
+def apply_race_class_deltas(player) -> None:
+    """Add race and class stat deltas to whatever stats are already on the player.
+
+    Used after stat rolling: the rolled values stay, and race/class adjustments
+    are added on top.  Safe to call whenever race and class are both set.
+    """
+    stats = dict(getattr(player, 'stats', {}) or {})
+    for stat, delta in race_bonuses(getattr(player, 'char_race', None)).items():
+        stats[stat] = stats.get(stat, 0) + delta
+    for stat, delta in class_bonuses(getattr(player, 'char_class', None)).items():
+        stats[stat] = stats.get(stat, 0) + delta
+    player.stats = stats
+
+
 def apply_creation_bonuses(player) -> bool:
     """Set player.stats to the race/class starting values.
 
