@@ -151,7 +151,7 @@ class Inventory:
         return iter(self._entries)
 
     def __bool__(self) -> bool:
-        return bool(self._entries)
+        return True
 
     # -----------------------------------------------------------------------
     # Serialization

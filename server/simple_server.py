@@ -93,6 +93,8 @@ class Server:
         self.monsters = _try_load(Monster, 'monsters.json', 'read_monsters')
         self.weapons  = _try_load(Weapon,  'weapons.json',  'read_weapons')
         self.rations  = _try_load(Rations, 'rations.json',  'read_rations')
+        # Items dropped by players during this session: room_number → list of InventoryEntry
+        self.room_items: dict[int, list] = {}
         logging.info('Map: %d rooms | %d monsters | %d items | %d weapons',
                      len(self.game_map.rooms) if self.game_map else 0,
                      len(self.monsters), len(self.items), len(self.weapons))
@@ -448,6 +450,12 @@ class Server:
                         seen.append(name)
             except Exception:
                 pass
+
+        # Items dropped by players this session
+        for entry in self.room_items.get(int(room_no), []):
+            name = getattr(entry.item, 'name', None)
+            if name:
+                seen.append(name)
 
         try:
             mon_idx = int(getattr(room, 'monster', 0) or 0) - 1

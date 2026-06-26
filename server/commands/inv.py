@@ -105,7 +105,7 @@ def _container_lines(entry: InventoryEntry) -> list[str]:
 
 class InvCommand(Command):
     name    = 'inv'
-    aliases = ['inventory']
+    aliases = ['inventory', 'i']
     modes   = {Mode.GAME}
 
     help = Help(
@@ -137,7 +137,7 @@ class InvCommand(Command):
             inventory = getattr(ctx.player, 'inventory', None)
             capacity  = getattr(ctx.player, 'max_inventory_size', None)
 
-        if not inventory:
+        if inventory is None or len(inventory) == 0:
             await ctx.send('You are carrying nothing.')
             return CommandResult.ok()
 
