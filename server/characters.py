@@ -4,7 +4,11 @@ from typing import Optional
 import doctest
 
 # TADA-specific imports:
-from base_classes import Size, PlayerMoneyTypes, PlayerMoneyCategory, PlayerStat
+from base_classes import (
+    Size, PlayerMoneyTypes, PlayerMoneyCategory, PlayerStat,
+    PlayerClass, PlayerClassBonuses,
+    PlayerRace, PlayerRaceBonuses,
+)
 # from server import server_lock, room_players, compass_txts, players
 from tada_utilities import make_random_id
 
@@ -94,6 +98,72 @@ class Monster(BaseCharacter):
     @classmethod
     def read_monsters(cls, param):
         pass
+
+
+# ---------------------------------------------------------------------------
+# Starting stat generation
+# ---------------------------------------------------------------------------
+
+# Baseline before any race/class modifier.  All stats start at 10.
+_BASE_STATS: dict[PlayerStat, int] = {stat: 10 for stat in PlayerStat}
+
+
+def _as_dict(enum_member) -> dict[PlayerStat, int]:
+    """Normalize PlayerRaceBonuses / PlayerClassBonuses values.
+
+    Entries with a trailing comma in the Enum definition are stored as
+    1-tuples; entries without are plain dicts.
+    """
+    v = enum_member.value
+    return v[0] if isinstance(v, tuple) else v
+
+
+def race_bonuses(race) -> dict[PlayerStat, int]:
+    """Stat deltas for a race.  Returns {} for unknown races."""
+    name = race.name if hasattr(race, 'name') else str(race).upper()
+    try:
+        return _as_dict(PlayerRaceBonuses[name])
+    except KeyError:
+        return {}
+
+
+def class_bonuses(char_class) -> dict[PlayerStat, int]:
+    """Stat deltas for a class.  Returns {} for unknown classes."""
+    name = char_class.name if hasattr(char_class, 'name') else str(char_class).upper()
+    try:
+        return _as_dict(PlayerClassBonuses[name])
+    except KeyError:
+        return {}
+
+
+def base_stats_for(race, char_class) -> dict[PlayerStat, int]:
+    """Full starting stat block for a race/class combination.
+
+    Applies race deltas first, then class deltas, on top of _BASE_STATS.
+    Pure function — does not touch any Player object.
+    """
+    stats = dict(_BASE_STATS)
+    for stat, delta in race_bonuses(race).items():
+        stats[stat] = stats.get(stat, 0) + delta
+    for stat, delta in class_bonuses(char_class).items():
+        stats[stat] = stats.get(stat, 0) + delta
+    return stats
+
+
+def apply_creation_bonuses(player) -> bool:
+    """Set player.stats to the race/class starting values.
+
+    Skipped if the player already has any non-zero stat (loaded from save
+    or already initialised).  Returns True if applied, False if skipped.
+    """
+    existing = getattr(player, 'stats', {}) or {}
+    if any(v != 0 for v in existing.values()):
+        return False
+    player.stats = base_stats_for(
+        getattr(player, 'char_race',  None),
+        getattr(player, 'char_class', None),
+    )
+    return True
 
 
 if __name__ == '__main__':
