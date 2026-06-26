@@ -24,6 +24,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from commands.base_command import Command, Mode
+from formatting import hrule_char
 
 if TYPE_CHECKING:
     from network_context import GameContext
@@ -93,14 +94,14 @@ def _is_available(cmd, mode) -> bool:
 # Formatter  (pure — no I/O)
 # ---------------------------------------------------------------------------
 
-def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> Optional[str]:
+def format_help(help_obj: Help, command_name: str = "", width: int = 78,
+                rule_char: str = "-") -> Optional[str]:
     """Format a Help instance into a display string.
 
-    Parameters
-    ----------
-    help_obj     : Help (or a str, or None)
-    command_name : shown as a header when present
-    width        : total line width; defaults to 78 columns
+    :param help_obj: Help (or a str, or None)
+    :param command_name: shown as a header when present
+    :param width: total line width; defaults to 78 columns
+    :param rule_char: character to use for a horizontal rule line
     """
     if help_obj is None:
         return None
@@ -114,9 +115,18 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78) -> Opti
     summary = getattr(help_obj, "summary", None)
     if summary:
         if command_name:
-            lines.append(command_name)
+            cat      = getattr(help_obj, "category", None)
+            cat_str  = f"Category: {cat.value.title()}" if cat else ""
+            # Left: command name  Right: category label — padded to width
+            gap      = width - len(command_name) - len(cat_str)
+            if gap >= 1:
+                lines.append(command_name + " " * gap + cat_str)
+            else:
+                lines.append(command_name)
+                if cat_str:
+                    lines.append(cat_str.rjust(width))
         lines.extend(textwrap.wrap(str(summary).strip(), width=width))
-        lines.append("-" * width)
+        lines.append(rule_char * width)
 
     # Description
     desc = getattr(help_obj, "description", None)
@@ -265,8 +275,9 @@ class HelpCommand(Command):
         from commands.base_command import CommandResult
 
         width = self._screen_width(ctx)
+        rchar = hrule_char(ctx)
         lines = [f"\n{'Available Commands by Category':^{width}}",
-                 "  help <command>  detailed help   |   help #cat  list categories\n"]
+                 "  help <command>: detailed help   |   help #cat: list categories\n"]
 
         current_mode = getattr(processor, "current_mode", None)
         all_cmds = [
@@ -282,7 +293,7 @@ class HelpCommand(Command):
         for cat in sorted(by_cat, key=lambda c: c.value):
             cmds = sorted(by_cat[cat], key=lambda c: getattr(c, "name", ""))
             lines.append(f"\n{cat.value.upper()}:")
-            lines.append("-" * (len(cat.value) + 1))
+            lines.append(rchar * (len(cat.value) + 1))
             entries = []
             for cmd in cmds:
                 name = getattr(cmd, "name", "?")
@@ -358,10 +369,12 @@ class HelpCommand(Command):
             return CommandResult.fail(error="no_help")
 
         width    = self._screen_width(ctx)
+        rchar    = hrule_char(ctx)
         help_obj = getattr(cmd, "help", None)
 
         if help_obj and hasattr(help_obj, "summary"):
-            formatted = format_help(help_obj, command_name=command_name, width=width)
+            formatted = format_help(help_obj, command_name=command_name, width=width,
+                                    rule_char=rchar)
             if formatted:
                 await ctx.send(*formatted)
                 return CommandResult.ok("\n".join(formatted))

@@ -622,6 +622,23 @@ def border_style_for_ctx(ctx) -> str:
     return getattr(cs, 'border_style', 'single')
 
 
+_HRULE_CHAR: dict[str, str] = {
+    'single':  '─',   # U+2500 box drawings light horizontal
+    'double':  '═',   # U+2550 box drawings double horizontal
+    'petscii': '─',   # cbmcodecs2 maps U+2500 to C64 horizontal line
+    'ascii':   '-',
+}
+
+
+def hrule_char(ctx) -> str:
+    """Return the single horizontal-rule character for this client's border style."""
+    try:
+        style = border_style_for_ctx(ctx)
+    except AttributeError:
+        return '-'
+    return _HRULE_CHAR.get(style, '-')
+
+
 # ---------------------------------------------------------------------------
 # Header / rule helpers (pure, return list[str])
 # ---------------------------------------------------------------------------
