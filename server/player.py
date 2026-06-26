@@ -251,6 +251,7 @@ class Player:
         self.armor = kwargs.get('armor')
         self.experience = kwargs.get('experience', 0)
         self.monsters_killed: list[int] = kwargs.get('monsters_killed', [])
+        self.readied_weapon = None  # currently readied weapon (BaseItem or None)
         """
         Things you can only do once per day (file_formats.txt):
         'pr'        has PRAYed once
