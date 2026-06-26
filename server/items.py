@@ -166,9 +166,22 @@ class Rations(BaseItem):
 
 @dataclass
 class Spell(BaseItem):
-    """A spell that can be cast, with a finite number of charges."""
+    """A spell that can be cast, with a finite number of charges.
+
+    Fields ported from SPUR.MISC3.S spell records (q$, q2$, q3, q4):
+      cast_chance     — probability of success, 0-100 (q3 * 10 in SPUR display)
+      effect_type     — single letter: S=Str W=Wis D=Dex C=Con E=Egy I=Int
+                        T=Transfer P=Player-HP M=Monster L=LevelDown U=LevelUp
+                        R=Shop(teleport) G=SPUR(teleport) A=Aura
+      effect_magnitude — numeric modifier applied on success (q2$ second char)
+      aux_param        — extra parameter used by aura/time spells (q4)
+    """
     charges: int = 0
     max_charges: int = 0
+    cast_chance: int = 0       # 0-100 percent
+    effect_type: str = ''
+    effect_magnitude: int = 0
+    aux_param: int = 0
 
     def __post_init__(self):
         self.id_prefix = "S"
@@ -186,8 +199,12 @@ class Spell(BaseItem):
         return self.charges <= 0
 
     def __str__(self):
-        pct = int(self.charges / self.max_charges * 100) if self.max_charges else 0
-        return f"{self.name} [{self.charges}/{self.max_charges} charges, {pct}%]"
+        charge_pct = int(self.charges / self.max_charges * 100) if self.max_charges else 0
+        return (
+            f"{self.name} "
+            f"[{self.charges}/{self.max_charges} charges, {charge_pct}%"
+            f" | cast: {self.cast_chance}%]"
+        )
 
 
 if __name__ == '__main__':
