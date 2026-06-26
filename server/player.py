@@ -813,6 +813,9 @@ class Player:
             # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact
             data_out = {k: v for k, v in self.__dict__.items()}
             data_out['party'] = self.party.to_json()
+            from inventory import Inventory
+            if isinstance(self.inventory, Inventory):
+                data_out['inventory'] = self.inventory.to_json()
             try:
                 import flags as _flags
                 data_out['flags'] = _flags.serialize_flags_for_save(self)
@@ -861,6 +864,16 @@ class Player:
                         setattr(self, k, int(data[k]) if data[k] is not None else data[k])
                     except Exception:
                         setattr(self, k, data[k])
+
+            # Inventory
+            if 'inventory' in data and isinstance(data['inventory'], list):
+                try:
+                    from inventory import Inventory
+                    self.inventory = Inventory.from_json(
+                        data['inventory'], capacity=self.max_inventory_size
+                    )
+                except Exception:
+                    logging.exception("Player._load: failed to restore inventory for %s", self.name)
 
             # Merge stats and silver dicts where present
             if 'stats' in data and isinstance(data['stats'], dict):
