@@ -1,11 +1,9 @@
 #!/bin/env python3
 """stats command — port of the 'status' subroutine in SPUR.MISC5.S."""
-from typing import List
-
 from base_classes import (
     Alignment, Guild, PlayerClass, PlayerMoneyTypes, PlayerRace, PlayerStat,
 )
-from commands.base_command import Command, CommandResult
+from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
 from network_context import GameContext
@@ -96,7 +94,7 @@ def _build_stats_lines(player) -> list[str]:
     silver_hand = player.get_silver(PlayerMoneyTypes.IN_HAND)
     silver_bank = player.get_silver(PlayerMoneyTypes.IN_BANK)
     experience  = int(getattr(player, 'experience',    0) or 0)
-    mk          = int(getattr(player, 'monster_kills', 0) or 0)
+    mk          = len(getattr(player, 'monsters_killed', []) or [])
     honor       = int(getattr(player, 'honor',         0) or 0)
     level       = int(getattr(player, 'map_level',     1) or 1)
 
@@ -198,7 +196,7 @@ def _build_stats_lines(player) -> list[str]:
         pass
 
     # Wizard's glow
-    if getattr(player, 'wizard_glow_active', False):
+    if getattr(player, 'wizard_glow', False):
         lines.append("Wizard{_AP}s Glow spell active!".format(_AP=_AP))
 
     lines.append('')
@@ -239,9 +237,13 @@ def _build_stats_lines(player) -> list[str]:
 # ---------------------------------------------------------------------------
 
 class StatCommand(Command):
+    name    = 'stat'
+    aliases = ['stats', 'status', 'score']
+    modes   = {Mode.GAME}
+
     help = Help(
-        category = HelpCategory.GENERAL,
-        summary  = "Show your current character stats",
+        category    = HelpCategory.GENERAL,
+        summary     = "Show your current character stats",
         description = (
             "Displays your character sheet: gold, ability scores, alignment, "
             "status conditions, and world-state flags."
@@ -250,7 +252,7 @@ class StatCommand(Command):
         examples = [('stat', 'Display your character sheet')],
     )
 
-    async def execute(self, ctx: GameContext, args: List[str]) -> CommandResult:
+    async def execute(self, ctx: GameContext, *args) -> CommandResult:
         lines = _build_stats_lines(ctx.player)
         await ctx.send(lines)
         return CommandResult.ok()

@@ -250,7 +250,7 @@ class Player:
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
         self.experience = kwargs.get('experience', 0)
-        self.dead_monsters = kwargs.get('dead_monsters', [])
+        self.monsters_killed: list[int] = kwargs.get('monsters_killed', [])
         """
         Things you can only do once per day (file_formats.txt):
         'pr'        has PRAYed once

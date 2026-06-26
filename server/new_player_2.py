@@ -202,7 +202,7 @@ class Player(object):
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
         self.experience = kwargs.get('experience', 0)
-        self.dead_monsters = kwargs.get('dead_monsters')
+        self.monsters_killed: list[int] = kwargs.get('monsters_killed', [])
         """
         TODO: MORE CLASSES
         combat:
