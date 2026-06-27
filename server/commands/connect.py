@@ -12,6 +12,8 @@ import json
 import logging
 from pathlib import Path
 
+from base_classes import Guild, PlayerRace
+from flags import PlayerFlags
 from network_context import GameContext
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
@@ -23,6 +25,32 @@ log = logging.getLogger(__name__)
 # Each file must contain at least {"password": "<plaintext>"}.
 # TODO: replace plaintext passwords with a proper hash (bcrypt / argon2).
 _USER_DIR = Path("run") / "server" / "net"
+
+# Carrying capacity by race, matching original SPUR values.
+# TODO: enforce this cap in inventory add/pickup logic.
+# Stored as tuples because PlayerRace (StrEnum) is not hashable.
+_CARRY_CAPACITY = [
+    (PlayerRace.ELF,    9),
+    (PlayerRace.DWARF,  9),
+    (PlayerRace.ORC,    9),
+    (PlayerRace.HOBBIT, 8),
+    (PlayerRace.GNOME,  8),
+    (PlayerRace.PIXIE,  7),
+]
+_DEFAULT_CARRY_CAPACITY = 10
+
+def _carry_capacity(race) -> int:
+    for key, cap in _CARRY_CAPACITY:
+        if race == key:
+            return cap
+    return _DEFAULT_CARRY_CAPACITY
+
+# Guild welcome messages matching original SPUR symbols.
+_GUILD_WELCOME = {
+    Guild.CLAW:  ("The Guild of the Claw bids",   r"you, 'Welcome!' \|/"),
+    Guild.SWORD: ("The Guild of the Sword bids",   "you, 'Welcome!' -}----"),
+    Guild.FIST:  ("The Guild of the Iron Fist bids", "you, 'Welcome!' ==[]"),
+}
 
 
 def _load_credentials(username: str) -> dict | None:
@@ -75,10 +103,6 @@ class ConnectCommand(Command):
         ],
     )
 
-    # ------------------------------------------------------------------
-    # execute
-    # ------------------------------------------------------------------
-
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         positional, _ = self.parse_args(*args)
 
@@ -98,11 +122,9 @@ class ConnectCommand(Command):
 
         logging.debug(f"{username}:{password}")
 
-        # --- guest ---
         if username == "guest":
             return await self._handle_guest(ctx)
 
-        # --- full login: prompt for password if not supplied ---
         if password is None:
             password = await ctx.prompt("Password")
             if not password:
@@ -112,10 +134,6 @@ class ConnectCommand(Command):
                 )
 
         return await self._authenticate(ctx, username, password)
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
 
     async def _handle_guest(self, ctx: GameContext) -> CommandResult:
         """Set up a guest session."""
@@ -156,11 +174,10 @@ class ConnectCommand(Command):
 
     async def _authenticate(self, ctx: GameContext,
                             username: str, password: str) -> CommandResult:
-        """Verify credentials and, on success, transition to GAME mode."""
+        """Verify credentials, load player state, and transition to GAME mode."""
         creds = _load_credentials(username)
 
         if creds is None:
-            # Don't reveal whether the username exists.
             await ctx.send("Invalid username or password.")
             log.warning("Login attempt for unknown user %r", username)
             return CommandResult.fail(
@@ -179,14 +196,24 @@ class ConnectCommand(Command):
                 error="authentication_failed",
             )
 
-        # --- success ---
-        ctx.client.username = username
+        # Flavor text while loading — original SPUR displayed this while
+        # reading the player record from disk.
+        await ctx.send(
+            "There is a large .. well .. illusion here, obviously from the great SPUR",
+            "himself.  Somehow you are told to wait, until your ..death(??!!) papers are",
+            "completely in order.  A tingling runs up your spine as you wonder if your",
+            "spine will be there, in one piece tomorrow.",
+        )
 
+        # --- success ---
         # Replace the GuestPlayer stub with a real Player, preserving the
         # terminal settings that were negotiated before login.
         from player import Player
         char_name = creds.get('char_name') or username
         player = Player(name=char_name, id=username)
+        player._load()
+
+        # Carry over terminal settings negotiated before login.
         guest_cs = getattr(ctx.player, 'client_settings', None)
         if guest_cs is not None:
             cs = player.client_settings
@@ -194,6 +221,12 @@ class ConnectCommand(Command):
                 if hasattr(guest_cs, attr):
                     setattr(cs, attr, getattr(guest_cs, attr))
         ctx.player = player
+        ctx.client.username = username
+
+        # Set carrying capacity by race.
+        # TODO: enforce cap in inventory add/pickup; currently just stored on player.
+        race = getattr(player, 'race', None)
+        player.max_inventory_size = _carry_capacity(race)
 
         # Switch the shared processor to GAME mode — no new processor needed.
         processor = getattr(ctx.client, "command_processor", None)
@@ -201,8 +234,73 @@ class ConnectCommand(Command):
             processor.current_mode = Mode.GAME
             processor.context.update({"username": username, "is_authenticated": True})
 
-        await ctx.send(f"Welcome back, {ctx.player.name}!")
-        await ctx.send(f"You last connected on {ctx.player.last_connection}.")
+        # --- Welcome message ---
+        # TODO: append ", Wraith Master of Spur!" if player has WRAITH_MASTER flag.
+        wraith = player.query_flag(PlayerFlags.WRAITH_MASTER)
+        title  = ", Wraith Master of Spur!" if wraith else "!"
+        await ctx.send(f"Welcome {player.name}{title}")
+
+        # TODO: track and display "The last Adventurer was {name}" (requires a
+        # global last-player record written on quit, e.g. run/server/last_player.txt).
+
+        # Guild welcome.
+        guild = getattr(player, 'guild', Guild.CIVILIAN)
+        if guild in _GUILD_WELCOME:
+            line1, line2 = _GUILD_WELCOME[guild]
+            await ctx.send(line1, line2)
+
+        await ctx.send(f"You last connected on {player.last_connection}.")
+
+        # --- Status summary ---
+        lines = ["Current status:", ""]
+
+        room_desc = player.query_flag(PlayerFlags.ROOM_DESCRIPTIONS)
+        lines.append(f"Room descriptions: {'ON' if room_desc else 'OFF'}")
+
+        poisoned = player.query_flag(PlayerFlags.POISON)
+        lines.append(f"You {'ARE' if poisoned else 'are NOT'} poisoned.")
+
+        diseased = player.query_flag(PlayerFlags.DISEASE)
+        lines.append(f"You {'ARE' if diseased else 'are NOT'} diseased.")
+
+        autoduel = player.query_flag(PlayerFlags.GUILD_AUTODUEL)
+        lines.append(f"Auto duel: {'ON' if autoduel else 'OFF'}")
+
+        # TODO: show "Your character WILL/WILL NOT follow other guild members"
+        #       once GUILD_FOLLOW_MODE is fully wired into movement.
+
+        # TODO: show "You followed {name} to your current location" — requires
+        #       storing the guild-follow leader name in player/misc data.
+
+        # TODO: warn if Amulet of Life has expired (AMULET_OF_LIFE_ENERGIZED flag
+        #       cleared between sessions based on time elapsed).
+
+        # TODO: warn if Wizard's Glow spell has dissipated (spell decay on logout).
+
+        await ctx.send(lines)
+
+        # Party members waiting.
+        party = getattr(player, 'party', None)
+        if party:
+            members = list(party)
+            if members:
+                names = [m.name for m in members]
+                if len(names) == 1:
+                    waiting = names[0]
+                elif len(names) == 2:
+                    waiting = f"{names[0]} and {names[1]}"
+                else:
+                    waiting = ", ".join(names[:-1]) + f" and {names[-1]}"
+                verb = "are" if len(names) > 1 else "is"
+                await ctx.send(f"{waiting} {verb} waiting for you!")
+
+        # TODO: daily time limit check — if today's play time >= limit, show
+        #       "Alas...the sun has set on yet another adventurer..." and disconnect.
+        #       Requires tracking eu (elapsed time today) in player data.
+
+        # Broadcast to room so other players see the arrival.
+        await ctx.send_room(f'{player.name} has awakened.', exclude_self=True)
+
         log.info("User %r authenticated from %s", username,
                  getattr(ctx.client, "addr", "unknown"))
         return CommandResult(
