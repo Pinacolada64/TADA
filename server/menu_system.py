@@ -1,403 +1,287 @@
+#!/bin/env python3
+"""
+menu_system.py
+
+Hierarchical menu system for TADA.
+All functions accept a GameContext (or TerminalContext) as their first
+argument, so the same menu code works both locally and over the network.
+
+Typical usage:
+    from menu_system import Menu, MenuItem, run_menu
+
+    main_menu = Menu(title='Main Menu')
+    main_menu.add_item(MenuItem(text='Edit monsters', shortcuts=['E'],
+                                action=some_async_fn))
+    main_menu.add_item(MenuItem(text='Quit',          shortcuts=['Q']))
+
+    await run_menu(ctx, [main_menu])
+"""
+
+import asyncio
 import logging
-from collections import Counter
 from dataclasses import dataclass, field
-from typing import List, Optional, Callable, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Union
 
-from flags import PlayerFlags
-from player import Player
+if TYPE_CHECKING:
+    from context import GameContext
 
 
-def edit_string(prompt: str, data: str) -> str:
-    user_input = input(f"Edit {prompt}: ")
-    if user_input in ['', data]:
-        print(f"Keeping '{data}'.")
-        return data
-    else:
-        print(f"Changing '{data}' to '{user_input}.'")
-        return user_input
-
+# ---------------------------------------------------------------------------
+# Data structures
+# ---------------------------------------------------------------------------
 
 @dataclass
 class MenuItem:
     """
-    Represents a menu item in a hierarchical menu system.
-
-    This class defines a menu item with text, an optional shortcut, an optional
-    dot leader handler function, an optional submenu, and an optional edit function.
-    It is designed to facilitate menu system configuration and interaction by
-    providing pre-defined attributes and a method to display the menu item as a
-    formatted string. The menu item can either lead to a submenu, execute a function,
-    or display an edited output.
+    One entry in a Menu.
 
     Attributes:
-        text (str): Text of the menu item.
-        shortcuts (Optional[str | list]): Shortcut letters to type to select the item,
-            in addition to the numeric item number.
-        dot_leader_handler (Optional[Callable]): Function which displays the
-            `line_item` value after the dot leader. If None, dot leaders
-            and the function result are not shown.
-        submenu (Optional[Menu]): Submenu to navigate to after the item is
-            selected.
-        action (Optional[Callable]): Function to edit the item if
-            a submenu is not present.
+        text:               Visible label, or a callable that returns one.
+        shortcuts:          One or more mnemonic letters (e.g. ['E', 'e']).
+        dot_leader_handler: Optional callable returning a right-aligned value
+                            displayed after a dot leader, e.g. a current setting.
+        submenu:            A nested Menu opened when this item is chosen.
+        action:             Async (or sync) callable executed when chosen.
+                            Receives ctx as its only argument.
     """
-    # text of menu item:
-    text: str | Callable = None
-    # shortcut letters to type to select item (besides numeric item #):
-    # Allow a single string OR a list of strings during creation
-    shortcuts: Union[str, List[str]] = ""
-    # function which displays line_item() value after dot leader:
-    # if None, do not display a dot leader and the result of this function.
-    dot_leader_handler: Optional[Callable] = None
-    # submenu to go to after item selected:
-    submenu: Optional['Menu'] = None
-    # function to call when item selected (if submenu is None):
-    action: Optional[Callable] = None
+    text:               Union[str, Callable]      = ''
+    shortcuts:          Union[str, List[str]]      = field(default_factory=list)
+    dot_leader_handler: Optional[Callable]         = None
+    submenu:            Optional['Menu']           = None
+    action:             Optional[Callable]         = None
 
     def __post_init__(self):
-        """
-        Ensures the 'shortcuts' attribute is always a list, required
-        for the check_shortcut_conflicts() function to work properly.
-        """
         if not self.shortcuts:
             self.shortcuts = []
         elif isinstance(self.shortcuts, str):
-            # If a single string was provided, convert it to a list
             self.shortcuts = [self.shortcuts]
 
-    def line_item(self, width: int = 40):
-        """
-        Returns a formatted line item with optional dot leaders.
-
-        This method generates a line item string, optionally formatted with
-        dot leaders, based on the provided width and the presence of
-        a dot leader handler. If text is provided and a custom
-        dot leader handler function is defined, the formatted output
-        will ensure alignment and use the handler as necessary.
-
-        Parameters:
-            width (int, optional): The total width of the formatted line. Defaults to 40.
-
-        Returns:
-            str: The formatted line item, either as the plain text or with dot leaders
-            and custom handling if applicable.
-        """
-        logging.debug("width: %s" % width)
-        # e.g., calling player.flag_line_item() to handle the entire line of menu text:
-        if self.text is None:
-            self.text = ""
-        if self.dot_leader_handler is None:
-            return f"{self.text.ljust(width, ' ')}"
-        elif callable(self.dot_leader_handler):
-            logging.debug("dot_leader_handler: %s" % self.dot_leader_handler)
-            return f"{self.text.ljust(width, '.')}: {self.dot_leader_handler(self)}"
-        return None
+    @property
+    def is_header(self) -> bool:
+        """True if this item is a section header (no action or submenu)."""
+        return bool(self.text) and not self.action and not self.submenu
 
 
 @dataclass
 class Menu:
-    """Base class for menu systems with shared behavior."""
-    title: str
-    columns: int = 1
-    menu_items: list[MenuItem] = field(default_factory=list)
+    """
+    A titled list of MenuItems.
 
-    def add_item(self, item: MenuItem):
+    Attributes:
+        title:      Displayed at the top of the menu.
+        columns:    1 (default) or 2 for a two-column layout.
+        menu_items: Ordered list of MenuItem objects.
+    """
+    title:      str            = ''
+    columns:    int            = 1
+    menu_items: List[MenuItem] = field(default_factory=list)
+
+    def add_item(self, item: MenuItem) -> None:
         self.menu_items.append(item)
 
-    def get_choice(self):
-        """Gets and validates user input against the numeric input range, plus (possibly multiple) shortcut(s).
-
-        :return: None | MenuItem
-        """
-        num_items = len(self.menu_items)
-        if any(item.shortcuts in item for item in self.menu_items):
-            print("You may use shortcuts listed in [square brackets].")
-        prompt = f"Enter your choice [1-{num_items}]: "
-        while True:
-            choice_string = input(prompt).strip().lower()
-            if not choice_string:
-                return None  # Go back
-            if choice_string.isnumeric():
-                choice_num = int(choice_string)
-                # Check if number is within the valid range of displayed options (1 to N)
-                if 1 <= choice_num <= len(self.menu_items):
-                    # Return the existing MenuItem from the list using the correct 0-based index
-                    return self.menu_items[choice_num - 1]
-
-            for item in self.menu_items:
-                # Check if the user's input is in the item's shortcut list
-                if choice_string in [sc.lower() for sc in item.shortcuts]:
-                    return item
-            print("Invalid choice, please try again.")
+    @property
+    def selectable(self) -> List[MenuItem]:
+        """Items that can be selected (not headers)."""
+        return [i for i in self.menu_items if not i.is_header]
 
 
-def check_shortcut_conflicts(menu: 'Menu'):
+# ---------------------------------------------------------------------------
+# Formatting
+# ---------------------------------------------------------------------------
+
+def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
     """
-    Finds duplicate shortcuts, flags the item text, and disambiguate
-    the shortcut by adding an incremental number.
+    Return a list of formatted strings representing the menu.
+    Screen width is read from ctx.player.client_settings.screen_columns.
     """
-    logging.info("Checking for shortcut conflicts...")
+    try:
+        screen_columns = ctx.player.client_settings.screen_columns
+    except AttributeError:
+        screen_columns = 80
 
-    # 1. Get a flat list of all non-empty shortcuts
-    all_shortcuts = [
-        s.lower() for item in menu.menu_items for s in item.shortcuts if s
-    ]
+    _H = {'single': '─', 'double': '═'}
+    try:
+        h_char = _H.get(ctx.player.client_settings.border_style, '-')
+    except AttributeError:
+        h_char = '-'
+    rule = h_char * screen_columns
 
-    # 2. Count occurrences to find which shortcuts are duplicates
-    shortcut_counts = Counter(all_shortcuts)
-    duplicates = {
-        shortcut for shortcut, count in shortcut_counts.items() if count > 1
-    }
+    # --- Pass 1: build base strings and evaluate all dot leaders ---
+    selectable_count = 0
+    item_rows = []  # (item, base | None, dot_text | None)
 
-    if not duplicates:
-        return  # No conflicts found, nothing to do.
-
-    logging.warning("Duplicate shortcuts found: %s" % " ".join(duplicates))
-
-    # 3. Iterate through items to apply changes where needed
-    disambiguation_counters = Counter()
     for item in menu.menu_items:
-        # We need to modify the item's shortcut list in place
-        new_shortcuts = []
-        modified = False
-        for shortcut in item.shortcuts:
-            if shortcut.lower() in duplicates:
-                modified = True
-                disambiguation_counters.update([shortcut.lower()])
-                count = disambiguation_counters[shortcut.lower()]
-                new_shortcut = f"{shortcut}{count}"
-                new_shortcuts.append(new_shortcut)
-                logging.info("Updated '%s' to '%s'" % (shortcut, new_shortcut))
+        if item.is_header:
+            item_rows.append((item, None, None))
+            continue
+
+        selectable_count += 1
+        shortcuts = f"[{','.join(item.shortcuts)}]" if item.shortcuts else ''
+        label     = item.text() if callable(item.text) else str(item.text)
+        base      = f'{selectable_count:2d}. {shortcuts:8} {label}'
+
+        dot_text = None
+        if item.dot_leader_handler is not None:
+            try:
+                val = (item.dot_leader_handler(ctx)
+                       if callable(item.dot_leader_handler) else item.dot_leader_handler)
+                if val is not None:
+                    dot_text = str(val)
+            except Exception:
+                pass
+
+        item_rows.append((item, base, dot_text))
+
+    # --- Compute uniform dot geometry across all items that have values ---
+    # 3 = one space before dots + colon + one space after colon
+    max_base  = max((len(b) for _, b, d in item_rows if b and d), default=0)
+    max_val   = max((len(d) for _, b, d in item_rows if b and d), default=0)
+    dot_width = max(0, screen_columns - max_base - max_val - 3)
+
+    # --- Pass 2: render ---
+    lines: List[str] = ['', f'[{menu.title}]', rule]
+
+    for item, base, dot_text in item_rows:
+        if item.is_header:
+            lines.append(str(item.text))
+            continue
+
+        if dot_text:
+            item_dots = max_base + dot_width - len(base)
+            if item_dots > 0:
+                lines.append(f'{base} {"." * item_dots}: {dot_text}')
             else:
-                new_shortcuts.append(shortcut)
+                lines.append(f'{base}: {dot_text}'[:screen_columns])
+        else:
+            lines.append(base)
 
-        if modified:
-            # Add the warning text only if it's not already there
-            if "[duplicate shortcut]" not in item.text:
-                item.text += " [duplicate shortcut]"
-            item.shortcuts = new_shortcuts
+    lines.append(rule)
+
+    if menu.columns == 2:
+        mid       = (len(lines) + 1) // 2
+        col_width = max(20, screen_columns // 2)
+        return [
+            (lines[i] if i < len(lines) else '').ljust(col_width) +
+            (lines[i + mid] if (i + mid) < len(lines) else '').ljust(col_width)
+            for i in range(mid)
+        ]
+
+    return [ln.rstrip() for ln in lines]
 
 
-def is_header_item(menu_item: 'MenuItem') -> bool:
-    """A helper to determine if an item is just a text header."""
-    # A header is defined as an item with text but no action or submenu.
+# ---------------------------------------------------------------------------
+# Display
+# ---------------------------------------------------------------------------
+
+async def print_menu(ctx: 'GameContext', menu: 'Menu') -> None:
+    """Format and send the menu to the player via ctx.send()."""
+    await ctx.send(format_menu_lines(ctx, menu))
+
+
+# ---------------------------------------------------------------------------
+# Input
+# ---------------------------------------------------------------------------
+
+async def get_user_choice(ctx: 'GameContext',
+                          menu: 'Menu',
+                          stack_depth: int = 1) -> Optional[MenuItem]:
     """
-    In the example below, "Section Header," "Guild," and "Horse Options"
-    are header items (and thus are not numbered, since they can't be selected):
-    
-    Flags & Counters
-    --------------------
-        Section Header
-     1. Administrator.....................: No
-     2. Architect.........................: No
-     3. Debug Mode........................: On
-     4. Dungeon Master....................: No
-     5. Orator............................: No
-        Guild
-     6. Guild AutoDuel....................: Off
-     7. Guild Follow Mode.................: Off
-     8. Guild Member......................: No
-        Horse options
-    [...]
+    Prompt the player for a menu choice and return the selected MenuItem,
+    or None if the player cancels (empty input).
+
+    Accepts:
+      - A number (1-based index into selectable items)
+      - A shortcut letter (matched case-insensitively)
+      - Empty input → returns None (go up / quit)
     """
-    return bool(menu_item.text) and not menu_item.action and not menu_item.submenu
+    selectable = menu.selectable
+    num_items  = len(selectable)
+    try:
+        return_key = ctx.player.client_settings.return_key
+    except AttributeError:
+        return_key = 'Enter'
 
+    action = 'quit' if stack_depth == 1 else 'go up a level'
+    preamble = (f'Enter a number (1-{num_items}), a shortcut letter, '
+                f'or [{return_key}] to {action}.')
 
-def format_menu_item(menu_item: 'MenuItem', current_item_num: int, menu: 'Menu') -> (str, int):
-    """
-    Formats a single menu item into a string and returns the next item number.
+    raw = await ctx.prompt(prompt_text='Choice', preamble_lines=[preamble])
+    if not raw:
+        return None
 
-    Args:
-        menu_item: The MenuItem object to format.
-        current_item_num: The number of the last real item that was printed.
-        menu: The parent Menu object, used for column width context.
+    option = raw.strip().lower()
 
-    Returns:
-        A tuple containing the formatted string line and the updated item number.
-    """
-    """
-    TODO: Don't tab over if no shortcuts in menu items:
-    e.g.,
-    1. No shortcut key
-    2. No shortcut key
+    # Numeric selection
+    if option.isdigit():
+        idx = int(option)
+        if 1 <= idx <= num_items:
+            return selectable[idx - 1]
+        await ctx.send(f'Please enter a number between 1 and {num_items}.')
+        return None
 
-    vs.
-    1. [i]  Item with shortcut
-    2.      Item without shortcut
-    """
-    header = is_header_item(menu_item)
-    next_item_num = current_item_num
-
-    if header:
-        # For headers, only return the text, indented.
-        return f"    {menu_item.text}", next_item_num
-
-    # For regular items, increment the number and format the line
-    next_item_num += 1
-    num_str = f"{next_item_num: >2}."
-
-    # Format shortcuts, handling cases with none, one, or multiple
-    if menu_item.shortcuts:
-        shortcut_str = f'[{",".join(menu_item.shortcuts)}]'
-    else:
-        shortcut_str = ""
-
-    # Combine all parts into the final display line
-    # Note: Using menu_item.text instead of a .line_item() method
-    display_text = f"{num_str} {shortcut_str:<10} {menu_item.text}"
-    return display_text, next_item_num
-
-
-def find_menu_item_by_shortcut(choice: str, items: list[MenuItem]) -> Optional[MenuItem]:
-    """Helper function to find a menu item by its shortcut."""
-    logging.info("choice: %s" % choice)
-    # Convert the user's choice to lowercase once for efficiency.
-    choice_lower = choice.lower()
-    logging.info(f"Searching for choice: '{choice_lower}'")
-
-    for item in items:
-        # Create a new list of lowercase shortcuts for comparison.
-        lowercase_shortcuts = [s.lower() for s in item.shortcuts]
-
-        # Check if the user's lowercase choice is in the new lowercase list.
-        if choice_lower in lowercase_shortcuts:
-            logging.debug(f"Shortcut '{choice_lower}' found in item: {item.text}")
+    # Shortcut matching (case-insensitive)
+    for item in menu.menu_items:
+        if any(option == s.lower() for s in item.shortcuts):
             return item
+
+    await ctx.send(f"'{raw}' is not a valid choice.")
     return None
 
 
-def find_menu_item_by_number(choice: int, menu: Menu) -> int:
+# ---------------------------------------------------------------------------
+# Navigation
+# ---------------------------------------------------------------------------
+
+async def navigate_menu(ctx: 'GameContext',
+                        menu_stack: List['Menu']) -> None:
     """
-    Helper function to find a menu item by its option number.
-    Since unnumbered section headers can be displayed, simply picking the index of a
-    menu item won't work.
-
-    :param choice: option which the user selected
-    :param menu: Menu object to iterate through to find correct choice
-    :return internal_number: index of the menu_items (the option selected)
-    """
-    items = [item for item in menu.menu_items if not is_header_item(item)]
-    internal_number = 0  # menu numbering starts at 1
-    while internal_number < choice:
-        if not is_header_item(items[internal_number]):
-            logging.debug("choice: %i, not header: %s" % (choice, items[internal_number].text))
-            internal_number += 1
-    logging.debug("exit: internal_number: %i, item: %s" % (internal_number, items[internal_number]))
-    return internal_number
-
-
-def print_menu(player: Player, menu: 'Menu'):
-    """Prints the given menu with options, delegating formatting to a helper.
-    :param player:
-    """
-    player.output(["", f"[{menu.title}]", "", ("-" * 40 * menu.columns)])
-    check_shortcut_conflicts(menu)
-
-    # --- Pass 1: Generate all formatted lines ---
-    all_lines = []
-    item_number = 0
-    for item in menu.menu_items:
-        # The item_number is updated on each iteration
-        formatted_line, item_number = format_menu_item(item, item_number, menu)
-        all_lines.append(formatted_line)
-
-    # --- Pass 2: Arrange the generated lines into columns ---
-    if menu.columns == 2:
-        midpoint = (len(all_lines) + 1) // 2
-        for i in range(midpoint):
-            col1 = all_lines[i]
-            # Get the corresponding item for the second column, if it exists
-            col2 = all_lines[i + midpoint] if (i + midpoint) < len(all_lines) else ""
-            player.output(f"{col1:<40}{col2}")  # ljust provides consistent padding
-    else:
-        # For a single column, only print each line
-        for line in all_lines:
-            player.output(line)
-
-    player.output("-" * 40 * menu.columns)
-
-
-def get_user_choice(player: Player, menu: Menu, stack_depth: int) -> Optional[MenuItem]:
-    """
-    Gets the user's choice and returns either None, or the corresponding MenuItem object.
-
-    :param player: Player object
-    :param menu: A Menu object containing menu items.
-    :param stack_depth: how many levels deep in the menu system we are
-    :return: The selected MenuItem object, or None if the user chooses to go up a menu level/quit.
-    """
-    while True:
-        if not player.query_flag(PlayerFlags.EXPERT_MODE):
-            # count all non-header items in menu to give accurate item count:
-            num_items = len([item for item in menu.menu_items if not is_header_item(item)])
-            enter_function = "quit" if stack_depth == 1 else "go up a level"
-            player.output(f"Type the number of an option (1-{num_items}) or letters (shortcuts) to select an option, "
-                          f"or [Enter] to {enter_function}.")
-        choice = input(f"Choice: ").strip().lower()
-
-        if not choice:  # No input, user wants to go back.
-            return None
-
-        if choice.isalnum():  # combination of numbers and letters
-            shortcut_item = find_menu_item_by_shortcut(choice, menu.menu_items)
-            if shortcut_item:  # Found a match based on shortcut.
-                logging.debug("Shortcut '%s' selected.", choice)
-                return shortcut_item
-
-        # Check if user entered a valid menu item number:
-        if choice.isdigit():
-            option_num = int(choice)
-            if 1 <= option_num <= len(menu.menu_items):
-                # account for unnumbered section headers if present:
-                option_num = find_menu_item_by_number(option_num, menu)
-                return menu.menu_items[option_num - 1]  # Correct index for user-friendly numbering.
-        print("Invalid choice. Please try again.")
-
-
-def display_menu(player: Player, menu_stack: list[Menu]) -> None:
-    """ Displays the current menu from the menu stack.
-    :param player:  Player object
-    """
-    current_menu = menu_stack[-1]  # Get the current menu (top of the stack)
-    print_menu(player, current_menu)
-
-
-def navigate_menu(player: Player, menu_stack: list[Menu]) -> None:
-    """
-    Handles navigation through the current menu and its submenus.
-
-    :param player: Player object
-    :param menu_stack: A stack tracking the current menu depth.
+    Interactive async menu loop.
+    Pushes submenus onto the stack; pops on empty input; exits when stack empty.
     """
     while menu_stack:
-        logging.debug("%s" % menu_stack)
-        # Display the current menu
-        display_menu(player, menu_stack)
+        current = menu_stack[-1]
+        await print_menu(ctx, current)
 
-        # Get the user's choice
-        current_menu = menu_stack[-1]  # Top of the stack
-        # pass depth of stack so that the message about what Enter does is more accurate:
-        choice = get_user_choice(player, current_menu, len(menu_stack))
+        choice = await get_user_choice(ctx, current, stack_depth=len(menu_stack))
 
         if choice is None:
-            # Go back to the previous menu (pop current menu)
             menu_stack.pop()
             if not menu_stack:
-                print("Exiting menu system.")
-                return  # No more menus left
-        elif choice.submenu:
-            # Push the submenu onto the stack
+                await ctx.send('Exiting menu.')
+            continue
+
+        if choice.submenu:
             menu_stack.append(choice.submenu)
-        # TODO: handle choice.action is NotImplemented -- flag as not done yet
-        elif callable(choice.action):
-            # Call the edit function for this menu item
-            choice.action(player)
+            continue
+
+        if choice.action:
+            try:
+                result = choice.action(ctx)
+                if asyncio.iscoroutine(result):
+                    await result
+            except Exception:
+                logging.exception("Menu action '%s' raised an exception", choice.text)
+            continue
+
+        # Item has neither submenu nor action — treat as cancel/back
+        menu_stack.pop()
 
 
-if __name__ == '__main__':
-    # set up logging
-    log = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.INFO,
-                        format='%(levelname)10s | %(funcName)20s() | %(message)s')
+async def run_menu(ctx: 'GameContext',
+                   menu_hierarchy: Union['Menu', List['Menu']]) -> None:
+    """
+    Entry point for running a menu hierarchy.
 
-    player = Player(name="Rulan")
+    :param ctx:            GameContext or TerminalContext
+    :param menu_hierarchy: A single Menu or a list of Menus (stack order,
+                           first item is shown first).
+    """
+    if isinstance(menu_hierarchy, Menu):
+        stack = [menu_hierarchy]
+    else:
+        stack = list(menu_hierarchy)
+
+    if not stack:
+        return
+
+    await navigate_menu(ctx, stack)
