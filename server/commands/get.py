@@ -2,56 +2,61 @@
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from inventory import InventoryEntry
-from items import Item, ItemCategory, Rations, Weapon
+from items import Item, ItemCategory
 from network_context import GameContext
 
 
 def _room_available_items(ctx: GameContext) -> list[tuple]:
-    """Return a list of (display_name, InventoryEntry, remove_fn) for everything
-    the player can pick up in the current room.
+    """Return (display_name, InventoryEntry, remove_fn) for items the player can pick up.
 
-    remove_fn() is called after the item is successfully added to inventory.
+    Static map items already in the player's picked_up_items list are hidden.
+    remove_fn() records the pickup for static items; pops the entry for dropped items.
     """
     server  = ctx.server
+    player  = ctx.player
     room_no = getattr(ctx.client, 'room', None)
     room    = (server.game_map.rooms.get(int(room_no))
                if server.game_map and room_no else None)
     if not room:
         return []
 
+    picked_up = getattr(player, 'picked_up_items', [])
     available = []
 
-    # Static room items from the map (item / weapon / food fields are 1-based indices)
+    # Static room items (item / weapon / food are 1-based indices into server collections)
     for attr, collection, category in (
         ('item',   server.items,   ItemCategory.ITEM),
         ('weapon', server.weapons, ItemCategory.WEAPON),
         ('food',   server.rations, ItemCategory.FOOD),
     ):
         idx = int(getattr(room, attr, 0) or 0) - 1
-        if 0 <= idx < len(collection):
-            raw = collection[idx]
-            name = (raw.get('name') if isinstance(raw, dict)
-                    else getattr(raw, 'name', None))
-            if not name:
-                continue
-            item_id = (raw.get('id_number', idx + 1) if isinstance(raw, dict)
-                       else getattr(raw, 'id_number', idx + 1))
+        if not (0 <= idx < len(collection)):
+            continue
+        raw = collection[idx]
+        name = (raw.get('name') if isinstance(raw, dict)
+                else getattr(raw, 'name', None))
+        if not name:
+            continue
+        item_id = (raw.get('id_number', idx + 1) if isinstance(raw, dict)
+                   else getattr(raw, 'id_number', idx + 1))
 
-            item = Item(id_number=item_id, name=name, category=category)
-            entry = InventoryEntry(item=item)
+        if item_id in picked_up:
+            continue
 
-            captured_room  = room
-            captured_attr  = attr
-            def _remove(r=captured_room, a=captured_attr):
-                setattr(r, a, 0)
+        item  = Item(id_number=item_id, name=name, category=category)
+        entry = InventoryEntry(item=item)
 
-            available.append((name, entry, _remove))
+        def _record(iid=item_id, p=player):
+            if iid not in p.picked_up_items:
+                p.picked_up_items.append(iid)
 
-    # Items dropped by players this session
+        available.append((name, entry, _record))
+
+    # Items dropped by players this session (global — real transfers between players)
     dropped = server.room_items.get(int(room_no) if room_no else -1, [])
     for i, entry in enumerate(dropped):
         name = getattr(entry.item, 'name', '?')
-        captured_i = i
+        captured_i       = i
         captured_room_no = int(room_no)
         def _remove_dropped(ri=captured_i, rn=captured_room_no):
             lst = server.room_items.get(rn, [])
@@ -91,7 +96,6 @@ class GetCommand(Command):
             await ctx.send('There is nothing here to pick up.')
             return CommandResult.ok()
 
-        # If a name was given, try to match directly
         if args:
             target = ' '.join(args).lower()
             matches = [(name, entry, rm) for name, entry, rm in available
@@ -101,10 +105,8 @@ class GetCommand(Command):
                 return CommandResult.ok()
             if len(matches) == 1:
                 return await self._pick_up(ctx, inventory, *matches[0])
-            # Multiple matches — fall through to numbered list
             available = matches
 
-        # Show numbered list and prompt
         lines = ['You see:', '']
         for i, (name, entry, _) in enumerate(available, 1):
             lines.append(f'  {i:>2}. {name}')
@@ -130,12 +132,11 @@ class GetCommand(Command):
         player  = ctx.player
         item_id = getattr(entry.item, 'id_number', None)
 
-        # Anti-hoarding: refuse if player already carries this item
+        # Anti-hoarding: block if already in inventory OR already picked up this session
         if item_id and inventory is not None and inventory.find(item_id=item_id):
             await ctx.send(f'You already have {name}.')
             return CommandResult.ok()
 
-        # Capacity check
         if inventory is not None and inventory.is_full():
             await ctx.send('You can carry no more.')
             return CommandResult.ok()

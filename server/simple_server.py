@@ -437,16 +437,21 @@ class Server:
         # Historically, this was the way The Land of Spur did it. It it makes even more sense in a multiplayer
         # game: one player could hoard an item and others wouldn't be able to acquire it.
 
+        player     = getattr(getattr(client, 'ctx', None), 'player', None)
+        picked_up  = getattr(player, 'picked_up_items', [])
+
         for attr, collection in (('item',    self.items),
                                   ('food',    self.rations),
                                   ('weapon',  self.weapons)):
             try:
                 idx = int(getattr(room, attr, 0) or 0) - 1
                 if 0 <= idx < len(collection):
-                    name = (collection[idx].get('name')
-                            if isinstance(collection[idx], dict)
-                            else getattr(collection[idx], 'name', None))
-                    if name:
+                    raw     = collection[idx]
+                    name    = (raw.get('name') if isinstance(raw, dict)
+                               else getattr(raw, 'name', None))
+                    item_id = (raw.get('id_number', idx + 1) if isinstance(raw, dict)
+                               else getattr(raw, 'id_number', idx + 1))
+                    if name and item_id not in picked_up:
                         seen.append(name)
             except Exception:
                 pass
@@ -484,12 +489,11 @@ class Server:
         except Exception:
             pass
 
-        # TODO: Items: skip listing it in room contents if the item is already in the player's inventory.
+        # Items: skip listing it in room contents if the item is already in the player's inventory.
         # Historically, this was the way The Land of Spur did it. It makes even more sense in a multiplayer
         # game: one player could hoard an item and others wouldn't be able to acquire it.
 
         try:
-            player = getattr(getattr(client, 'ctx', None), 'player', None)
             debug = getattr(player, 'is_debug', False)
             exits_str = room.exits_txt(debug)
             if exits_str:
