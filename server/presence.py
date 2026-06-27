@@ -1,4 +1,4 @@
-"""shoppe/presence.py — Virtual-location occupancy for non-room areas.
+"""presence.py — Virtual-location occupancy for non-room areas.
 
 Areas currently using this:
     'elevator' — elevator car (shoppe/elevator.py)
@@ -7,7 +7,7 @@ Areas currently using this:
 
 Usage pattern
 -------------
-    from shoppe.presence import enter_area, leave_area, broadcast_area
+    from presence import enter_area, leave_area, broadcast_area
 
     async def main(ctx):
         player_name = ctx.player.name

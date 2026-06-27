@@ -214,6 +214,9 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)10s | %(funcName)15s() | %(message)s')
 
+    # from inventory import Inventory, InventoryEntry
+    from player import Player
+
     # Example usage
     ylana = Player()
 
@@ -223,8 +226,8 @@ if __name__ == '__main__':
     sword = Weapon(id_number=101, name="Sword", description="A sharp, steel sword.")
     hammer = Weapon(id_number=102, name="Hammer", description="A metal claw on a stick.")
 
-    rulan.add_inventory_item(sword)
-    ylana.add_inventory_item(hammer)
+    rulan.inventory.add(sword)
+    ylana.inventory.add(hammer)
 
     print(rulan.look_at(sword))  # Output: "Sword [W#1]" (because Rulan owns the item AND Debug Mode is on)
     print(rulan.look_at(hammer))  # Output: "Hammer" (because Rulan does not own the item)

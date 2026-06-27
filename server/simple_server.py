@@ -481,6 +481,8 @@ class Server:
             for addr, c in self.clients.items():
                 if c is client or getattr(c, 'room', None) != room_no:
                     continue
+                if getattr(c, 'virtual_location', None):
+                    continue
                 player = getattr(getattr(c, 'ctx', None), 'player', None)
                 name = getattr(player, 'name', None) or getattr(c, 'username', None) or 'someone'
                 others.append(name)
