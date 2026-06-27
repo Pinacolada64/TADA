@@ -884,6 +884,10 @@ class Player:
                 except Exception:
                     logging.exception("Player._load: failed to restore inventory for %s", self.name)
 
+            # Picked-up static room items — must survive logout so they don't reappear
+            if 'picked_up_items' in data and isinstance(data['picked_up_items'], list):
+                self.picked_up_items = [int(i) for i in data['picked_up_items'] if isinstance(i, (int, float))]
+
             # Command settings
             if 'command_settings' in data and isinstance(data['command_settings'], dict):
                 try:

@@ -468,6 +468,7 @@ class Server:
 
         player     = getattr(getattr(client, 'ctx', None), 'player', None)
         picked_up  = getattr(player, 'picked_up_items', [])
+        inventory  = getattr(player, 'inventory', None)
 
         for attr, collection in (('item',    self.items),
                                   ('food',    self.rations),
@@ -480,7 +481,9 @@ class Server:
                                else getattr(raw, 'name', None))
                     item_id = (raw.get('id_number', idx + 1) if isinstance(raw, dict)
                                else getattr(raw, 'id_number', idx + 1))
-                    if name and item_id not in picked_up:
+                    in_inventory = (inventory is not None and
+                                    inventory.find(item_id=item_id) is not None)
+                    if name and item_id not in picked_up and not in_inventory:
                         seen.append(name)
             except Exception:
                 pass

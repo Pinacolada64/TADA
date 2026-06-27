@@ -49,6 +49,7 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
         def _record(iid=item_id, p=player):
             if iid not in p.picked_up_items:
                 p.picked_up_items.append(iid)
+                p.unsaved_changes = True
 
         available.append((name, entry, _record))
 
