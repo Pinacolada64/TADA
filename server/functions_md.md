@@ -264,6 +264,232 @@ One-shot script to patch descriptions into monsters.json.
 
 ---
 
+## presence.py
+Virtual-location occupancy tracker for non-room areas (shoppe, elevator, bar).
+Sets `client.virtual_location` so `_describe_room` can skip in-area players.
+
+| Function                              | Notes                                                                             |
+|---------------------------------------|-----------------------------------------------------------------------------------|
+| `occupants(server, area)`             | Returns list of all clients with `virtual_location == area`                       |
+| `others_present(ctx, area)`           | Returns names of other players in *area*, excluding the caller; used for "Also here:" display |
+| `broadcast_area(ctx, area, message)`  | async — sends *message* to every co-occupant of *area* except the sender          |
+| `enter_area(ctx, area)`               | async — sets `client.virtual_location`, notifies existing occupants               |
+| `leave_area(ctx, area)`               | async — clears `client.virtual_location`, notifies remaining occupants            |
+
+Usage pattern: call `enter_area` before the interaction loop, `leave_area` in a `finally` block.
+
+---
+
+## shoppe/main.py
+Merchant's annex interaction loop. Entry point: `main(ctx)`.
+
+| Function / Symbol              | Notes                                                                                      |
+|--------------------------------|--------------------------------------------------------------------------------------------|
+| `main(ctx)`                    | async — broadcasts `send_room` entry message, calls `enter_area('shoppe')`, runs session  |
+| `_shoppe_session(ctx, player)` | async — inner loop: shows menu, dispatches keypress to sub-function, exits on `x`/EOF      |
+| `_show_menu(ctx)`              | async — lists shoppe options + "Also here:" names from `others_present()`                  |
+| `_MENU` (tuple)                | Dispatch table: `(key, label, async_fn)` entries; `x`/exit handled separately             |
+| `_armory`, `_protection`, `_general_store`, `_bank`, `_wizard`, `_clan`, `_pawn_shop`, `_player_list` | async stubs — each will become a full sub-module |
+| `_elevator(ctx)`               | async — delegates to `shoppe.elevator.main(ctx)`                                          |
+
+---
+
+## shoppe/elevator.py
+Elevator car: floor selection, combination lock, travel between dungeon levels.
+
+| Function / Symbol                                  | Notes                                                                                             |
+|----------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `main(ctx)`                                        | async — broadcasts `send_room` entry/exit messages, calls `enter_area('elevator')`, runs session |
+| `_elevator_session(ctx, player)`                   | async — inner loop: look, go, quit commands                                                       |
+| `get_combination(ctx, *, kind, prompt_text)`       | async — prompts for floor/level combination; validates against player's stored combination        |
+| `_travel_to(ctx, target)`                          | async — moves player to target level, checks level bounds and obstacles                           |
+| `_find_combination(player, kind)`                  | Pure — looks up player's combination for *kind* (`CombinationTypes`)                             |
+| `_wrong_combination_msg()`                         | Pure — returns a random wrong-combination message                                                 |
+| `_out_of_range(obstacle)`                          | Pure — returns error text for out-of-range floor                                                  |
+| `CombinationTypes` (Enum)                          | `ELEVATOR`, `DUNGEON_DOOR` — selects which combination field to check                            |
+
+---
+
+## bar/main.py
+Wall Bar & Grill interaction loop. Entry point: `enter_bar(ctx)`.
+
+| Function / Symbol          | Notes                                                                                                        |
+|----------------------------|--------------------------------------------------------------------------------------------------------------|
+| `enter_bar(ctx)`           | async — entry `send_room` broadcast, `enter_area('bar')`, movement/location/obstacle loop, exit broadcast    |
+| `Bar` (dataclass)          | Runtime state: `pos_x`, `pos_y`, `can_go_here`, `valid_move`, `go_routine`; `bar_map` and `locations` class attrs |
+| `Bar.bar_map` (dict)       | `'ascii'`/`'ansi'`/`'petscii'` variants of the 6-row bar floor map                                          |
+| `Bar.locations` (list)     | `(row, col, display_name, routine_key)` — interactive spots on the map                                       |
+| `_render_map(bar, bar_map, debug)` | Pure — inserts player marker `X` at `(pos_y, pos_x)`; adds row/col rulers in debug mode           |
+| `_pick_map(ctx)`           | Pure — selects ascii/ansi/petscii map based on `client_settings.translation`                                 |
+| `_show_menu(ctx, bar)`     | async — prints movement menu; includes `[G]o here` when `bar.can_go_here`                                    |
+| `_bar_help(ctx)`           | async — prints bar help text                                                                                  |
+| `food_menu(p, foodstuffs)` | Pure sync — builds sorted `list[Rations]` (drinks then food) from raw dicts                                  |
+| `_bouncer(ctx, bar)`       | async — Mundo ejects player (HP penalty + move to exit)                                                       |
+| `_vinny(ctx, bar)`         | async — Vinny stub; broadcasts approach/leave to bar area                                                     |
+| `_blue_djinn/_skip/_bar_none/_fat_olaf/_zelda` | async — delegates to respective sub-module `main(ctx, bar)`             |
+| `_ROUTINES` (dict)         | Maps routine key strings to async callables for dispatch                                                      |
+| `_DIRECTION_NAMES` (dict)  | `'n'→'north'` etc.; used in movement broadcast messages                                                       |
+
+---
+
+## bar/blue_djinn.py
+The Blue Djinn interaction: drinks, gambling, combat challenge.
+
+| Function         | Notes                                                                                         |
+|------------------|-----------------------------------------------------------------------------------------------|
+| `main(ctx, bar)` | async — approach `broadcast_area`, interaction loop, ejection via Mundo or leave broadcast    |
+
+---
+
+## bar/skip.py
+Skip's Eats: once-per-day meal counter.
+
+| Function         | Notes                                                                                              |
+|------------------|----------------------------------------------------------------------------------------------------|
+| `main(ctx, bar)` | async — once-per-day gate; approach `broadcast_area` fires only after gate passes; leave broadcast |
+
+---
+
+## bar/bar_none.py
+Bar None (Mae the Bartender): drinks menu.
+
+| Function         | Notes                                                                              |
+|------------------|------------------------------------------------------------------------------------|
+| `main(ctx, bar)` | async — approach `broadcast_area`; leave broadcast on empty input only (not on EOF) |
+
+---
+
+## bar/fat_olaf.py
+Fat Olaf's Servant Trade: buy/sell party allies.
+
+| Function                              | Notes                                                                    |
+|---------------------------------------|--------------------------------------------------------------------------|
+| `main(ctx, bar)`                      | async — approach `broadcast_area`, buy/sell loop, leave broadcast        |
+| `_buy_servant(ctx, allies)`           | async — numbered menu to select and purchase a servant                   |
+| `_sell_servant(ctx)`                  | async stub                                                               |
+| `filter_allies(ally_list, status)`    | Pure — returns allies matching `AllyStatus`                              |
+
+---
+
+## bar/zelda.py
+Madame Zelda's: spy on player stats or resurrect monsters.
+
+| Function                   | Notes                                                                    |
+|----------------------------|--------------------------------------------------------------------------|
+| `main(ctx, bar)`           | async — approach `broadcast_area`, command loop, leave broadcast         |
+| `_study_player(ctx)`       | async — prompts for target player name, charges 1,000 silver, shows stats from disk |
+| `_resurrect_monsters(ctx)` | async — charges 6,000 silver, writes to battle log (TODO)                |
+| `get_player_info(stats, id_pattern)` | Pure sync — reads player JSON from `run/server/player-<id>.json` |
+| `_zelda_menu(ctx)`         | async — prints available options                                          |
+
+---
+
+## bar/ally_data.py
+Ally/servant data definitions used by Fat Olaf.
+
+| Symbol / Function                        | Notes                                         |
+|------------------------------------------|-----------------------------------------------|
+| `AllyFlags`, `AllyStatus` (Enum)         | Flags and lifecycle states for allies         |
+| `Ally` (dataclass)                       | `name`, `strength`, `status`, `flags`         |
+| `load_allies()`                          | Returns `list[Ally]` from JSON                |
+| `assign_random_statuses(allies)`         | Pure — randomly assigns `SERVANT`/`IN_PARTY`  |
+
+---
+
+## commands/
+All commands are `Command` subclasses auto-discovered by `command_processor.py`.
+
+| Module / Class      | Keyword(s)            | Notes                                                                                  |
+|---------------------|-----------------------|----------------------------------------------------------------------------------------|
+| `GetCommand`        | `get`, `g`            | Pick up items from current room; tracks per-player pickup in `player.picked_up_items`  |
+| `DropCommand`       | `drop`                | Drop inventory item into current room                                                  |
+| `ReadyCommand`      | `ready`, `wield`, `equip` | Select and ready a weapon from inventory; shows weapon class/race bonuses          |
+| `WhereatCommand`    | `whereat`, `wa`       | Show all connected players with room/virtual-location; restricted to privileged players |
+| `TeleportCommand`   | `teleport`, `tp`      | Move player to target room; flash-of-light `send`+`send_room` at origin and destination |
+| `StatsCommand`      | `stats`, `st`         | Show player stats; uses `characters.py` race/class bonus tables                        |
+| `InvCommand`        | `inv`, `i`            | Show inventory; persisted across save/load via `player.inventory`                      |
+| `LookCommand`       | `look`, `l`           | Describe room; skips players whose `virtual_location` is set (ghost-player fix)        |
+
+---
+
+## item_system.py
+Weapon and item data layer: loading from JSON, class/race bonuses, async display helpers.
+
+| Symbol / Function                              | Notes                                                                                   |
+|------------------------------------------------|-----------------------------------------------------------------------------------------|
+| `WeaponKind` (StrEnum)                         | `SWORD`, `AXE`, `BOW`, etc.                                                             |
+| `WeaponClass` (StrEnum)                        | `FIGHTER`, `MAGIC_USER`, etc. — who can use the weapon                                  |
+| `ItemType` (StrEnum)                           | `WEAPON`, `ARMOR`, `MISC`, etc.                                                         |
+| `Weapon` (dataclass)                           | Full weapon schema: `name`, `kind`, `damage`, `sfx_index`, `class_bonuses`, `race_bonuses` |
+| `Item` (dataclass)                             | Full item schema: `name`, `item_type`, `flags`, `value`                                 |
+| `load_weapons(path)`                           | Returns `list[Weapon]` from JSON                                                        |
+| `load_items(path)`                             | Returns `list[Item]` from JSON                                                          |
+| `weapon_sfx(weapon)`                           | Pure — returns `(miss_sfx, hit_sfx)` strings                                            |
+| `weapon_bonus(weapon, player_class, player_race)` | Pure — returns `(attack_bonus, damage_bonus)` from class/race bonus tables          |
+| `active_item_flags(item)`                      | Pure — returns list of active flag key names                                            |
+| `show_weapon(ctx, weapon)`                     | async — formatted weapon stat display                                                   |
+| `list_weapons(ctx, weapon_list)`               | async — table of weapons                                                                |
+| `ready_weapon(ctx, player, weapons_data)`      | async — interactive weapon selection; sets `player.readied_weapon`                      |
+| `show_item(ctx, item)`                         | async — formatted item display                                                          |
+| `list_items(ctx, item_list)`                   | async — table of items                                                                  |
+
+---
+
+## items.py
+Runtime item classes used in player inventory and room contents.
+
+| Class / Symbol       | Notes                                                                                  |
+|----------------------|----------------------------------------------------------------------------------------|
+| `ItemCategory` (StrEnum) | `WEAPON`, `ARMOR`, `RATIONS`, `SPELL`, etc.                                        |
+| `IDNumber` (dataclass) | Wraps item number with validation                                                    |
+| `BoobyTrap` (dataclass) | Trap definition attached to an item                                                 |
+| `BaseItem` (dataclass) | Common fields: `number`, `name`, `category`, `booby_trap`                           |
+| `Item(BaseItem)`     | General item; adds `quantity`, `picked_up` tracking                                   |
+| `Weapon(BaseItem)`   | Weapon item; adds `damage`, `sfx`; `read_weapons(path)` class method                 |
+| `Rations(BaseItem)`  | Food/drink; adds `kind`, `price`; `read_rations(path)` class method                  |
+| `Spell(BaseItem)`    | Spell; adds `cast_chance`, `effect`                                                   |
+
+---
+
+## characters.py
+Race and class stat bonus tables, and character-creation helpers.
+
+| Function / Class                         | Notes                                                                             |
+|------------------------------------------|-----------------------------------------------------------------------------------|
+| `BaseCharacter` (dataclass)              | Common fields: `name`, `race`, `character_class`, `stat` (dict of `PlayerStat`)  |
+| `Pixie`, `Ally`, `Horse`, `Monster`      | Concrete character subclasses                                                     |
+| `race_bonuses(race)`                     | Pure — returns `dict[PlayerStat, int]` bonuses for a race                         |
+| `class_bonuses(char_class)`              | Pure — returns `dict[PlayerStat, int]` bonuses for a class                        |
+| `base_stats_for(race, char_class)`       | Pure — merges race + class bonus dicts                                            |
+| `apply_race_class_deltas(player)`        | Mutates player stats in-place by applying race+class bonuses                      |
+| `apply_creation_bonuses(player)`         | Mutates player stats in-place from character-creation rolls; returns bool success |
+
+---
+
+## table.py
+Terminal-safe table renderer. Pure — no I/O, no ctx.
+
+| Symbol / Function                   | Notes                                                                               |
+|-------------------------------------|-------------------------------------------------------------------------------------|
+| `Align` (Enum)                      | `LEFT`, `RIGHT`, `CENTER`                                                           |
+| `Border` (dataclass)                | Full border spec: corners, edges, intersections; includes `ascii`, `ansi`, `petscii` presets |
+| `Column` (dataclass)                | `header`, `width`, `align`                                                          |
+| `Table` (dataclass)                 | `columns`, `rows`, `border`, `title`; `render()` returns `list[str]`               |
+| `make_table(columns, rows, ...)`    | Convenience constructor: accepts plain dicts/lists, returns `list[str]`             |
+| `_fit(text, width, align)`          | Pure — pads/truncates a cell value                                                  |
+| `_wrap_cell(text, width)`           | Pure — wraps long cell text across multiple lines                                   |
+
+---
+
+## simple_server.py
+Async TCP server. Manages client connections and room broadcasting.
+
+| Key change (monster-editor branch)    | Notes                                                                                |
+|---------------------------------------|--------------------------------------------------------------------------------------|
+| `_describe_room` ghost-player fix     | Skips clients with `virtual_location` set — prevents in-area players appearing in room `look` output |
+
+---
+
 ## Legend
 | Symbol      | Meaning                                  |
 |-------------|------------------------------------------|
