@@ -140,6 +140,7 @@ class Server:
         client.reader       = reader
         client.writer       = writer
         client.server       = self
+        # to track connect/idle time for WHO:
         client.connected_at = datetime.now()
         client.last_input   = datetime.now()
 
@@ -147,7 +148,7 @@ class Server:
         is_petscii = (local_port == self.petscii_port)
         if is_petscii:
             ctx = PETSCIINetworkContext.for_guest(reader, writer, self, client)
-            logging.info('%s: PETSCII connection (40 col)', addr)
+            logging.info('%s: PETSCII connection', addr)
         else:
             ctx = GameContext.for_guest(reader, writer, self, client)
             logging.info('%s: ANSI/JSON connection', addr)
@@ -161,7 +162,8 @@ class Server:
                 if not await self._handshake(ctx):
                     return
 
-            await self._negotiate_terminal(ctx)
+            if not await self._negotiate_terminal(ctx):
+                return
 
             ctx.client.command_processor = create_command_processor(
                 ctx.client,
@@ -231,32 +233,48 @@ class Server:
     # Terminal negotiation
     # -----------------------------------------------------------------------
 
-    async def _negotiate_terminal(self, ctx: GameContext) -> None:
+    async def _negotiate_terminal(self, ctx: GameContext) -> bool:
         """
         Ask the player which terminal type / screen size they're using
         and update ctx.player.client_settings accordingly.
 
         PETSCII clients are already configured by PETSCIINetworkContext.for_guest();
         this step lets them confirm or adjust screen width (40 vs 80 col C128).
+
+        Returns True to continue to login, False to disconnect immediately.
         """
         translation = ctx.player.client_settings.translation
 
         if translation == Translation.PETSCII:
-            await ctx.send(
-                'TADA server',
-                'Commodore client detected.',
-                '1. 40 columns (C64 / C128 40-col)',
-                '2. 80 columns (C128 80-col)',
-            )
-            raw = await ctx.prompt('Screen width')
-            if raw is None:
-                return
-            if raw.strip() == '2':
-                ctx.player.client_settings.screen_columns = 80
-                await ctx.send('80 column mode set.')
-            else:
-                ctx.player.client_settings.screen_columns = 40
-                await ctx.send('40 column mode set.')
+            while True:
+                await ctx.send(
+                    'TADA server',
+                    '',
+                    'Commodore client detected.',
+                    '',
+                    '4. 40 columns (C64 / C128 40-col)',
+                    '8. 80 columns (C128 80-col)',
+                    'Q. Quit',
+                    ''
+                    # TODO: in case client connected to wrong port or user's terminal in wrong mode,
+                    #  offer option to switch to ASCII/ANSI
+                )
+                raw = await ctx.prompt('Screen width [4/8]')
+                if raw is None:
+                    return False
+                if raw.strip() == '8':
+                    ctx.player.client_settings.screen_columns = 80
+                    await ctx.send('80 column mode set.')
+                    logging.info('%s: 80-column PETSCII mode set.', ctx.writer.get_extra_info('peername'))
+                    break
+                elif raw.strip() == '4':
+                    ctx.player.client_settings.screen_columns = 40
+                    await ctx.send('40 column mode set.')
+                    logging.info('%s: 40-column PETSCII mode set.', ctx.writer.get_extra_info('peername'))
+                    break
+                elif raw.strip().lower() == 'q':
+                    await ctx.send('Disconnecting - hope to see you again soon!')
+                    return False
         else:
             # For ANSI/JSON clients, offer ANSI vs plain
             await ctx.send(
@@ -264,28 +282,34 @@ class Server:
                 'TADA — Terminal negotiation',
                 '  A.  ANSI color (default)',
                 '  P.  Plain text (no color)',
+                '  Q.  Quit',
                 '',
             )
             while True:
-                raw = await ctx.prompt('Terminal type [A/P]')
+                raw = await ctx.prompt('Terminal type [A/P/Q]')
                 if raw is None:
-                    return
-                if raw.strip().upper() == 'P':
+                    return False
+                choice = raw.strip().upper()
+                if choice == 'P':
                     try:
                         ctx.player.client_settings.translation = Translation.ASCII
                         await ctx.send('Plain text mode set.')
-                        logging.info("Address %s: Plain text mode set." % ctx.client.host)
+                        logging.info('%s: Plain text mode set.', ctx.writer.get_extra_info('peername'))
                         break
                     except Exception:
                         pass
-                if raw.strip().upper() == 'A':
+                elif choice == 'A':
                     try:
                         ctx.player.client_settings.translation = Translation.ANSI
                         await ctx.send('ANSI color mode set.')
-                        logging.info("Address %s: ANSI color mode set." % ctx.client.client_socket)
+                        logging.info('%s: ANSI color mode set.', ctx.writer.get_extra_info('peername'))
                         break
                     except Exception:
                         pass
+                elif choice == 'Q':
+                    await ctx.send('Disconnecting - hope to see you again soon!')
+                    return False
+        return True
 
     # -----------------------------------------------------------------------
     # Login
