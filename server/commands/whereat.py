@@ -45,12 +45,12 @@ class WhereatCommand(Command):
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
-        args, _switches = self.parse_args(*args)
+        args, switches = self.parse_args(*args)
         player = ctx.player
 
-        # Sub-commands: #hide / #show
-        if args and args[0].startswith('#'):
-            sub = args[0].lstrip('#').lower()
+        # Sub-commands: #hide / #show (routed into switches by parse_args)
+        if switches:
+            sub = switches[0].lstrip('#').lower()
             cs = getattr(player, 'command_settings', None)
             if cs is None:
                 await ctx.send('Command settings not available.')
