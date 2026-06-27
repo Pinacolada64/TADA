@@ -199,10 +199,10 @@ class ConnectCommand(Command):
         # Flavor text while loading — original SPUR displayed this while
         # reading the player record from disk.
         await ctx.send(
-            "There is a large .. well .. illusion here, obviously from the great SPUR",
-            "himself.  Somehow you are told to wait, until your ..death(??!!) papers are",
-            "completely in order.  A tingling runs up your spine as you wonder if your",
-            "spine will be there, in one piece tomorrow.",
+            "There is a large... well... illusion here, obviously from the great SPUR "
+            "himself.  Somehow you are told to wait until your... death (?!) papers are "
+            "completely in order.  A tingling runs up your spine as you wonder if your "
+            "spine will be there, in one piece tomorrow."
         )
 
         # --- success ---
@@ -234,37 +234,42 @@ class ConnectCommand(Command):
             processor.current_mode = Mode.GAME
             processor.context.update({"username": username, "is_authenticated": True})
 
-        # --- Welcome message ---
+        # --- Aggregate all login text into one send so the C64 terminal
+        #     doesn't scroll past the welcome block before the player can read it.
+        login_lines: list[str] = []
+
+        # Welcome message.
         # TODO: append ", Wraith Master of Spur!" if player has WRAITH_MASTER flag.
         wraith = player.query_flag(PlayerFlags.WRAITH_MASTER)
         title  = ", Wraith Master of Spur!" if wraith else "!"
-        await ctx.send(f"Welcome {player.name}{title}")
+        login_lines.append(f"Welcome {player.name}{title}")
 
         # TODO: track and display "The last Adventurer was {name}" (requires a
-        # global last-player record written on quit, e.g. run/server/last_player.txt).
+        #  global last-player record written on quit, e.g. run/server/last_player.txt).
 
         # Guild welcome.
         guild = getattr(player, 'guild', Guild.CIVILIAN)
         if guild in _GUILD_WELCOME:
             line1, line2 = _GUILD_WELCOME[guild]
-            await ctx.send(line1, line2)
+            login_lines += [line1, line2]
 
-        await ctx.send(f"You last connected on {player.last_connection}.")
+        login_lines.append(f"You last connected on {player.last_connection}.")
+        login_lines.append("")
 
         # --- Status summary ---
-        lines = ["Current status:", ""]
+        login_lines += ["Current status:", ""]
 
         room_desc = player.query_flag(PlayerFlags.ROOM_DESCRIPTIONS)
-        lines.append(f"Room descriptions: {'ON' if room_desc else 'OFF'}")
+        login_lines.append(f"Room descriptions: {'On' if room_desc else 'Off'}")
 
         poisoned = player.query_flag(PlayerFlags.POISON)
-        lines.append(f"You {'ARE' if poisoned else 'are NOT'} poisoned.")
+        login_lines.append(f"You {'ARE' if poisoned else 'are NOT'} poisoned.")
 
         diseased = player.query_flag(PlayerFlags.DISEASE)
-        lines.append(f"You {'ARE' if diseased else 'are NOT'} diseased.")
+        login_lines.append(f"You {'ARE' if diseased else 'are NOT'} diseased.")
 
         autoduel = player.query_flag(PlayerFlags.GUILD_AUTODUEL)
-        lines.append(f"Auto duel: {'ON' if autoduel else 'OFF'}")
+        login_lines.append(f"Auto duel: {'ON' if autoduel else 'OFF'}")
 
         # TODO: show "Your character WILL/WILL NOT follow other guild members"
         #       once GUILD_FOLLOW_MODE is fully wired into movement.
@@ -276,8 +281,6 @@ class ConnectCommand(Command):
         #       cleared between sessions based on time elapsed).
 
         # TODO: warn if Wizard's Glow spell has dissipated (spell decay on logout).
-
-        await ctx.send(lines)
 
         # Party members waiting.
         party = getattr(player, 'party', None)
@@ -292,7 +295,9 @@ class ConnectCommand(Command):
                 else:
                     waiting = ", ".join(names[:-1]) + f" and {names[-1]}"
                 verb = "are" if len(names) > 1 else "is"
-                await ctx.send(f"{waiting} {verb} waiting for you!")
+                login_lines.append(f"{waiting} {verb} waiting for you!")
+
+        await ctx.send(login_lines)
 
         # TODO: daily time limit check — if today's play time >= limit, show
         #       "Alas...the sun has set on yet another adventurer..." and disconnect.

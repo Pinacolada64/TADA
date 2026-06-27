@@ -31,7 +31,7 @@ class QuitCommand(Command):
         player = ctx.player
 
         # Confirmation prompt
-        raw = await ctx.prompt('Leave SPUR?', preamble_lines=[''])
+        raw = await ctx.prompt('Leave SPUR [Y/N]?', preamble_lines=['Y: Yes', "N: No"])
         if raw is None or raw.strip().upper() != 'Y':
             await ctx.send('(Returning to the game.)')
             return CommandResult.ok()
@@ -73,7 +73,7 @@ class QuitCommand(Command):
 
         # Save message — shown before _player_quit() writes to disk
         await ctx.send(
-            "SPUR says hold whilst your adventure\n"
+            "SPUR says hold whilst your adventure "
             "is written in the BOOK of SPUR...."
         )
 
