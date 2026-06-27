@@ -90,8 +90,11 @@ async def _blue_djinn(ctx: GameContext, bar: Bar) -> None:
 
 async def _vinny(ctx: GameContext, bar: Bar) -> None:
     log.info("Calling vinny")
+    name = ctx.player.name
+    await broadcast_area(ctx, 'bar', f'{name} walks up to Vinny the Loan Shark.')
     # TODO: Vinny the loan shark
     await ctx.send('Vinny looks up. "Whatcha want?" (not yet available)')
+    await broadcast_area(ctx, 'bar', f'{name} backs away from Vinny.')
 
 
 async def _skip(ctx: GameContext, bar: Bar) -> None:
