@@ -225,6 +225,7 @@ async def main():
             # short receive timeout gathers responses sent immediately by the server and
             # then returns control to the user prompt.
             aggregated_messages = []
+            server_closed = False
             read_timeout = 0.5  # seconds; slightly longer to allow nested menu responses to arrive
             while True:
                 try:
@@ -234,8 +235,10 @@ async def main():
                     break
 
                 if response_data is None:
-                    print("Connection closed by server.")
-                    return
+                    # Server closed the connection — display whatever was already collected
+                    # before exiting, so farewell messages aren't silently discarded.
+                    server_closed = True
+                    break
 
                 try:
                     in_message = Message(**response_data)
@@ -273,6 +276,10 @@ async def main():
 
                 for line in in_message.lines:
                     print(f"{prefix}{line}" if prefix else line)
+
+            if server_closed:
+                print("Connection closed by server.")
+                return
 
     except Exception as e:
         logging.exception(f"Unexpected exception in client main loop: {e}")
