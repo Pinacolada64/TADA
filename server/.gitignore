@@ -5,3 +5,5 @@ run/
 # PyCharm settings:
 .idea/
 /tada-venv/
+# bot session logs
+*.log
