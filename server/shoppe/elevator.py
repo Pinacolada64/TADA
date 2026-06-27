@@ -162,6 +162,10 @@ async def main(ctx: GameContext) -> None:
     await ctx.send(
         'A burly guard stands here, his arms crossed. He looks you up and down.',
     )
+    await ctx.send_room(
+        f'{player.name} steps up to the elevator.',
+        exclude_self=True,
+    )
 
     await enter_area(ctx, 'elevator')
     try:
@@ -199,6 +203,10 @@ async def _elevator_session(ctx: GameContext, player) -> None:
 
         if not cmd or cmd in ('x', 'l', 'leave'):
             await ctx.send('The guard steps aside as you leave.')
+            await ctx.send_room(
+                f'{player.name} steps away from the elevator.',
+                exclude_self=True,
+            )
             break
 
         if cmd == 'u':
