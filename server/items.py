@@ -1,12 +1,32 @@
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from enum import auto
+from typing import Optional, TYPE_CHECKING, Any, Dict, Tuple
 
-from base_classes import WeaponClass
+try:
+    from enum import StrEnum
+except ImportError:
+    from enum import Enum
+    class StrEnum(str, Enum):
+        pass
+
 # TADA-specific imports:
+if TYPE_CHECKING:
+    from base_classes import WeaponClass
+    from player import Player
+
 from flags import PlayerFlags
-from new_player_2 import Player
+
+
+class ItemCategory(StrEnum):
+    ITEM      = "Item"
+    FOOD      = "Food"
+    DRINK     = "Drink"
+    WEAPON    = "Weapon"
+    SPELL     = "Spell"
+    ARMOR     = "Armor"
+    CONTAINER = "Container"
 
 
 class IDNumber:
@@ -20,6 +40,7 @@ class IDNumber:
         self.value += 1
         logging.debug(" exit: id=%i", self.value)
         return self.value
+
 
 @dataclass
 class BoobyTrap:
@@ -38,7 +59,9 @@ class BaseItem:
     description: str = None
     location: int = 0
     owner = None  # could be a Player instance if a monster joins the party
-    flags: list = field(default_factory=list)
+    # Accept either list or dict for flags (some data files use a dict)
+    flags: Any = field(default_factory=list)
+    category: Optional[ItemCategory] = None
 
 
 class Item(BaseItem):
@@ -47,35 +70,29 @@ class Item(BaseItem):
         for key, value in kwargs.items():
             setattr(self, key, value)
         self.id_prefix = "I"
-
-        """
-        class Item(object):
-            def __init__(self, number, name, kind, price, **flags):
-                logging.debug("Item.__init__: Instantiate item '%s'" % name)
-                self.number = number
-                self.name = name
-                self.kind = kind
-                self.price = price
-                # this field is optional:
-                if flags:
-                    logging.debug("item.__init__ Flags:")
-                    self.flags = flags
-                    for key, value in flags.items():
-                        logging.debug("item.__init__: %s %s" % (key, value))
-            """
+        if not hasattr(self, 'category'):
+            self.category = ItemCategory.ITEM
+        # capacity > 0 makes this a container (bag of holding, etc.)
+        if not hasattr(self, 'capacity'):
+            self.capacity: int = 0
 
     @staticmethod
-    def read_items(filename: str) -> dict | None:
+    def read(filename: str) -> dict | None:
         try:
             with open(filename) as json_file:
-                items: dict = json.load(json_file)
-                logging.debug("JSON data read")
-                return items
+                data = json.load(json_file)
+                logging.info("Read JSON data '%s'" % filename)
+                # objects.json historically has a top-level dict with key 'items': [...]
+                if isinstance(data, dict) and 'items' in data:
+                    return data['items']
+                # otherwise return the top-level structure (could already be a list)
+                return data
         except FileNotFoundError:
             logging.error(">>> %s not found" % filename)
             return None
 
     """
+    # TODO: re-implement this method in a way that works with the current Player class
     def __str__(self, player: Player):
         print(f"From {player.name}'s perspective:")
         print(f"\t{player.query_flag(PlayerFlags.DEBUG_MODE)=}, {player.query_flag(PlayerFlags.DUNGEON_MASTER)=}, {self.owner=}")
@@ -85,30 +102,31 @@ class Item(BaseItem):
             return f"{self.name}"
     """
 
-
 class Weapon(BaseItem):
     def __init__(self, **kwargs):
+        # Lazy import to avoid circular dependency
+        from base_classes import WeaponClass
         super().__init__(**kwargs)
-        id_number: int
-        id_prefix: str = "W"
-        location: int
-        name: str
-        kind: Optional[str]
-        sound_effect: tuple[str, str]
-        stability: int
-        to_hit: int
-        price: int
-        weapon_class: WeaponClass
+        self.id_number: int = kwargs.get('id_number', 0)
+        self.id_prefix: str = "W"
+        self.location: int = kwargs.get('location', 0)
+        self.name: str = kwargs.get('name', '')
+        self.kind: Optional[str] = kwargs.get('kind')
+        self.sound_effect: Tuple[str, str] = kwargs.get('sound_effect', ('', ''))
+        self.stability: int = kwargs.get('stability', 0)
+        self.to_hit: int = kwargs.get('to_hit', 0)
+        self.price: int = kwargs.get('price', 0)
+        self.weapon_class: WeaponClass = kwargs.get('weapon_class')
 
     @staticmethod
-    def read_weapons(filename: str) -> dict | None:
+    def read_weapons(filename: str) -> Optional[Dict[str, Any]]:
         try:
             with open(filename) as json_file:
                 weapons = json.load(json_file)
-                logging.debug("JSON data read")
+                logging.info("Read JSON data '%s'" % filename)
                 return weapons
         except FileNotFoundError:
-            logging.error(">>> File not found: %s" % filename)
+            logging.error(">>> File not found: '%s'" % filename)
             return None
 
 
@@ -132,19 +150,61 @@ class Rations(BaseItem):
             return f"{self.name} [Cursed #{self.number}]"
         else:
             # unknown kind:
-            return f"{self.name} [Ration #{self.number}]"
+            return f"{self.name} [Unknown #{self.number}]"
 
     @staticmethod
-    def read_rations(filename: str) -> dict | None:
+    def read_rations(filename: str) -> Optional[Dict[str, Any]]:
         try:
             with open(filename) as json_file:
                 rations = json.load(json_file)
-                logging.debug("read_rations: JSON data read")
+                logging.info("Read JSON data '%s'" % filename)
                 return rations
         except FileNotFoundError:
-            logging.error(">>> read_rations: File not found: %s" % filename)
+            logging.error(">>> File not found: %s" % filename)
             return None
 
+
+@dataclass
+class Spell(BaseItem):
+    """A spell that can be cast, with a finite number of charges.
+
+    Fields ported from SPUR.MISC3.S spell records (q$, q2$, q3, q4):
+      cast_chance     — probability of success, 0-100 (q3 * 10 in SPUR display)
+      effect_type     — single letter: S=Str W=Wis D=Dex C=Con E=Egy I=Int
+                        T=Transfer P=Player-HP M=Monster L=LevelDown U=LevelUp
+                        R=Shop(teleport) G=SPUR(teleport) A=Aura
+      effect_magnitude — numeric modifier applied on success (q2$ second char)
+      aux_param        — extra parameter used by aura/time spells (q4)
+    """
+    charges: int = 0
+    max_charges: int = 0
+    cast_chance: int = 0       # 0-100 percent
+    effect_type: str = ''
+    effect_magnitude: int = 0
+    aux_param: int = 0
+
+    def __post_init__(self):
+        self.id_prefix = "S"
+        self.category  = ItemCategory.SPELL
+
+    def use(self) -> bool:
+        """Consume one charge. Returns False if already depleted."""
+        if self.charges <= 0:
+            return False
+        self.charges -= 1
+        return True
+
+    @property
+    def is_depleted(self) -> bool:
+        return self.charges <= 0
+
+    def __str__(self):
+        charge_pct = int(self.charges / self.max_charges * 100) if self.max_charges else 0
+        return (
+            f"{self.name} "
+            f"[{self.charges}/{self.max_charges} charges, {charge_pct}%"
+            f" | cast: {self.cast_chance}%]"
+        )
 
 
 if __name__ == '__main__':
@@ -153,6 +213,9 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG,
                         format='%(levelname)10s | %(funcName)15s() | %(message)s')
+
+    # from inventory import Inventory, InventoryEntry
+    from player import Player
 
     # Example usage
     ylana = Player()
@@ -163,8 +226,8 @@ if __name__ == '__main__':
     sword = Weapon(id_number=101, name="Sword", description="A sharp, steel sword.")
     hammer = Weapon(id_number=102, name="Hammer", description="A metal claw on a stick.")
 
-    rulan.add_inventory_item(sword)
-    ylana.add_inventory_item(hammer)
+    rulan.inventory.add(sword)
+    ylana.inventory.add(hammer)
 
     print(rulan.look_at(sword))  # Output: "Sword [W#1]" (because Rulan owns the item AND Debug Mode is on)
     print(rulan.look_at(hammer))  # Output: "Hammer" (because Rulan does not own the item)

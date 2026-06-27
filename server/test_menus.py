@@ -82,6 +82,7 @@ class MenuItem:
         elif callable(self.dot_leader_handler):
             logging.debug("dot_leader_handler: %s" % self.dot_leader_handler)
             return f"{self.text.ljust(width, '.')}: {self.dot_leader_handler(self)}"
+        return None
 
 
 @dataclass

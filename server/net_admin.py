@@ -4,8 +4,8 @@ import sys
 import argparse
 import uuid
 
-import net_common as nc
-import util
+from old_server import net_common as nc
+from old_server import util
 
 K = nc.K
 

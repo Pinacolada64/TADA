@@ -4,9 +4,26 @@ import enum
 # more quickly drop bogus connections and know whether client and
 # server are using incompatible versions
 server_port = 5000
-app_id = 'TADA'
-app_key = '1234567890'
+app_id = 'test_server'  # TODO: change to 'TADA' when debugged
+app_key = 'test_key'  # TODO: change to '1234567890' when debugged
 app_protocol = 1
+translation = 'UTF-8'
+from enum import StrEnum
+
+
+class Context(StrEnum):
+    """Common keys used in command context dictionaries.
+
+    Use this enum to avoid scattered string literals for context keys.
+    Commands should accept either the enum or the equivalent string key for
+    backward compatibility.
+    """
+    CLIENT = "client"
+    USERNAME = "username"
+    IS_AUTHENTICATED = "is_authenticated"
+    USER_LEVEL = "user_level"
+    RAW_INPUT = "raw_input"
+    CLIENT_FLAGS = "client_flags"
 
 
 class K(str, enum.Enum):
@@ -26,6 +43,8 @@ class K(str, enum.Enum):
     weapon = 'weapon'
     food = 'food'
     alignment = 'alignment'
+    # TODO: 'custom' is used for custom client status bar messages / formats
+    custom = 'custom'
 
     # players
     password = 'password'
@@ -35,8 +54,4 @@ class K(str, enum.Enum):
     hit_points = 'hit_points'
     experience = 'experience'
     last_command = 'last_command'
-
-# class Mode1(str, enum.Enum):
-#    prompt = 'prompt'
-#    choice = 'choice'
-#    cmd = 'cmd'
+    translation = 'translation'

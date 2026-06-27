@@ -2,44 +2,19 @@ import logging
 import random
 from dataclasses import dataclass
 import datetime
-from enum import Enum, auto, StrEnum, IntEnum
+from enum import Enum, auto
 import textwrap
 import doctest
 
+import terminal
 from flags import Flag, new_player_default_flags, FlagDisplayTypes
-from base_classes import Combination, CombinationTypes, Alignment
-from base_variables import STAT_DATA
-from terminal import KeyboardKeyName
-
-
-class Translation(Enum):
-    ASCII = auto()
-    COMMODORE = auto()
-    ANSI = auto()
+from base_classes import Combination, CombinationTypes, Alignment, Gender, PlayerMoneyTypes, PlayerStat, Guild
+from terminal import KeyboardKeyName, Translation, ClientSettings
 
 
 class Color(Enum):
     BLACK = auto()
     WHITE = auto()
-
-
-class PlayerStat(StrEnum):
-    CHR = "Charisma"
-    CON = "Constitution"
-    DEX = "Dexterity"
-    EGY = "Energy"
-    INT = "Intelligence"
-    STR = "Strength"
-    WIS = "Wisdom"
-
-    def __repr__(self):
-        """
-        Returns a string representation of the player statistic.
-
-        Returns:
-            str: A formatted string containing the stat name
-        """
-        return f"<PlayerStat.{self.value}>"
 
 
 @dataclass
@@ -67,25 +42,6 @@ class Client:
 {'Border Color:'.rjust(17)} {self.border.name.title()}
 """
         return textwrap.dedent(settings)
-
-
-class Gender(StrEnum):
-    MALE = "Male"
-    FEMALE = "Female"
-
-
-class PlayerMoneyTypes(StrEnum):
-    IN_HAND = "In hand"
-    IN_BAR = "In bar"
-    IN_BANK = "In bank"
-
-
-class Guild(StrEnum):
-    CIVILIAN = "Civilian"
-    FIST = "Fist"
-    SWORD = "Sword"
-    CLAW = "Claw"
-    OUTLAW = "Outlaw"
 
 
 def make_random_id():
@@ -246,7 +202,7 @@ class Player(object):
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
         self.experience = kwargs.get('experience', 0)
-        self.dead_monsters = kwargs.get('dead_monsters')
+        self.monsters_killed: list[int] = kwargs.get('monsters_killed', [])
         """
         TODO: MORE CLASSES
         combat:

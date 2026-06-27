@@ -1,10 +1,15 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum, auto, Enum
-import doctest
+from typing import Optional
 
-# TADA-specific imports:
-# from characters import Player
+# Naming guide — two distinct things, do not confuse them:
+#   PlayerFlags  (this file) — StrEnum of flag *names* used as dict keys.
+#                               e.g. PlayerFlags.EXPERT_MODE
+#   Flag         (this file) — dataclass holding one flag's runtime state
+#                               (name, display_type, status bool).
+# player_flag.py exists as a standalone helper; flags.py no longer imports it.
+
 
 class PlayerFlags(StrEnum):
     """Names of flags"""
@@ -99,10 +104,13 @@ new_player_default_flags = [
     (PlayerFlags.HAS_HORSE, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.MOUNTED, FlagDisplayTypes.YESNO, False)
 ]
-"""
+
 # TODO: flags:
-'tut_treasure': {'examined': False, 'taken': False}
-"""
+@dataclass
+class TutTreasure:
+    examined: bool = False
+    taken: bool = False
+
 
 
 @dataclass
@@ -112,11 +120,173 @@ class Flag:
     status: bool
 
 
+# Player.set_flag() and Player.query_flag() should use PlayerFlags enum values.
+# mock call would be:
+# player.set_flag(PlayerFlags.ADMIN) # assumed True
+# player.clear_flag(PlayerFlags.ADMIN) # assumed False
+# is_admin = player.query_flag(PlayerFlags.ADMIN) # returns bool
+# player.toggle_flag(PlayerFlags.ADMIN) # flips value
+# player.query_flag(PlayerFlags.ADMIN) # returns bool
+
+
+# --- Centralized flag helpers -------------------------------------------------
+def _make_flag_from_tuple(tup):
+    """Create a Flag from the new_player_default_flags tuple entry."""
+    try:
+        flag_enum, display_type, default_status = tup
+        return Flag(name=flag_enum.value, display_type=display_type, status=bool(default_status))
+    except Exception:
+        return None
+
+
+def ensure_player_flags(player):
+    """Ensure a player object has a populated flags mapping.
+
+    The mapping is: PlayerFlags -> Flag dataclass instance.
+    If the player already has flags, return them unchanged.
+    """
+    if player is None:
+        return {}
+    try:
+        existing = getattr(player, 'flags', None)
+        if existing and isinstance(existing, dict) and len(existing) > 0:
+            return existing
+        # build defaults
+        mapping = {}
+        for tup in new_player_default_flags:
+            f = _make_flag_from_tuple(tup)
+            if f is not None:
+                # find the enum used as key by matching name
+                # prefer using PlayerFlags member as key
+                try:
+                    # reverse lookup: PlayerFlags member for this name
+                    key = next((pf for pf in PlayerFlags if pf.value == f.name), None)
+                except Exception:
+                    key = None
+                if key is None:
+                    # fallback to storing by string name
+                    mapping[f.name] = f
+                else:
+                    mapping[key] = f
+        # attach to player
+        try:
+            player.flags = mapping
+        except Exception:
+            pass
+        return mapping
+    except Exception:
+        return {}
+
+
+def set_flag(player, flag: PlayerFlags):
+    """Set the named flag on player to True (create it if missing).
+
+    Use `clear_flag(player, flag)` to clear it. This keeps the API simple: callers
+    without an explicit boolean parameter should use set_flag/clear_flag.
+    """
+    if player is None or flag is None:
+        return False
+    try:
+        flags_map = ensure_player_flags(player)
+        # Find existing Flag by enum key
+        existing = flags_map.get(flag)
+        if existing:
+            existing.status = True
+            return True
+        default_entry = next((t for t in new_player_default_flags if t[0] == flag), None)
+        if default_entry:
+            f = _make_flag_from_tuple(default_entry)
+            f.status = True
+        else:
+            f = Flag(name=flag.value, display_type=FlagDisplayTypes.ONOFF, status=True)
+        flags_map[flag] = f
+        try:
+            player.flags = flags_map
+        except Exception:
+            pass
+        return True
+    except Exception:
+        return False
+
+
+def clear_flag(player, flag: PlayerFlags):
+    """Clear (set False) the named flag on player."""
+    if player is None or flag is None:
+        return False
+    try:
+        flags_map = ensure_player_flags(player)
+        existing = flags_map.get(flag)
+        if existing:
+            existing.status = False
+            return False
+        # If missing, create it with False status (so future queries are consistent)
+        default_entry = next((t for t in new_player_default_flags if t[0] == flag), None)
+        if default_entry:
+            f = _make_flag_from_tuple(default_entry)
+            f.status = False
+        else:
+            f = Flag(name=flag.value, display_type=FlagDisplayTypes.ONOFF, status=False)
+        flags_map[flag] = f
+        try:
+            player.flags = flags_map
+        except Exception:
+            pass
+        return False
+    except Exception:
+        return False
+
+
+def toggle_flag(player, flag: PlayerFlags):
+    """Toggle the named flag and return the new boolean status."""
+    if player is None or flag is None:
+        return False
+    try:
+        flags_map = ensure_player_flags(player)
+        f = flags_map.get(flag)
+        if f:
+            f.status = not bool(f.status)
+            return bool(f.status)
+        # if missing, set to True
+        set_flag(player, flag)
+        return True
+    except Exception:
+        return False
+
+
+def query_flag(player, flag: PlayerFlags) -> bool:
+    """Return True/False for the given PlayerFlags member on the player."""
+    if player is None or flag is None:
+        return False
+    try:
+        flags_map = ensure_player_flags(player)
+        f = flags_map.get(flag)
+        if f:
+            return bool(f.status)
+        return False
+    except Exception:
+        return False
+
+
+def serialize_flags_for_save(player) -> dict:
+    """Return a JSON-serializable mapping of flag-name -> {name,status} for saving."""
+    out = {}
+    try:
+        flags_map = ensure_player_flags(player)
+        for k, v in list(flags_map.items()):
+            try:
+                name = v.name if hasattr(v, 'name') else (k.value if hasattr(k, 'value') else str(k))
+                out[name] = {'name': name, 'status': bool(getattr(v, 'status', False))}
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return out
+
+# --- end helpers -------------------------------------------------------------
+
+
 if __name__ == '__main__':
     # thanks to you, volca. code has been simplified
     # set up logging level (this level or higher will output to console):
     logging.basicConfig(format='%(levelname)10s | %(funcName)20s() | %(message)s',
                         level=logging.DEBUG)
-
-    # set up doctest
-    doctest.testmod(verbose=True)

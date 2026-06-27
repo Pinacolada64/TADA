@@ -62,3 +62,5 @@ Hopefully this will reduce the code complexity and number of variables used as c
 
 ## Want to play the original game?
 It's telnettable: telnet://dura-bbs.net:6359
+
+[Screenshots of the game](https://www.mobygames.com/game/37226/land-of-spur/screenshots/apple2/) are available on MobyGames.

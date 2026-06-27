@@ -1,0 +1,1934 @@
+{
+    "rooms": [
+        {
+            "number": 1,
+            "name": "Merchant Lobby",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "rc": 2
+            },
+            "monster": 0,
+            "item": 62,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are at the entrance to the store.  There is a passage leading downward to the market area."
+        },
+        {
+            "number": 2,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 3,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 4,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 6,
+            "name": "Sand-Dollar Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 1,
+            "item": 35,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The hot sand burns your feet..."
+        },
+        {
+            "number": 7,
+            "name": "Lonely Pathway",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 20,
+            "food": 0,
+            "desc": "The passage here is a narrow one.  It stretches from east to west..."
+        },
+        {
+            "number": 8,
+            "name": "Fiery Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There are dead cactii all around.  The walls are covered with soot from a crevice exposing hot lava."
+        },
+        {
+            "number": 10,
+            "name": "North Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 32,
+            "item": 24,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Clouds gather overhead, warning of impending danger!"
+        },
+        {
+            "number": 13,
+            "name": "Cavern Head",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 3,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have reached the entrance to a large cavern."
+        },
+        {
+            "number": 14,
+            "name": "Burial Grounds",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 38,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Here lie the remains of the inhabitants of the cavern.  It appears to be a sacred burial ground, that still shows some recent use."
+        },
+        {
+            "number": 15,
+            "name": "Cavern Amphitheatre",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 26,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are standing in a large room...every sound echos off the wall. A strange message is spray painted on the wall: 'SSSWWN'"
+        },
+        {
+            "number": 16,
+            "name": "Cavern Passage",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 2,
+            "item": 0,
+            "weapon": 0,
+            "food": 4,
+            "desc": "The walls contain myserious markings from an ancient civilation."
+        },
+        {
+            "number": 17,
+            "name": "Cavern Hole",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 15,
+            "weapon": 27,
+            "food": 0,
+            "desc": "You can see a glimmer of light to the west as you approach an exit."
+        },
+        {
+            "number": 18,
+            "name": "Cavern Entrance",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 30,
+            "weapon": 0,
+            "food": 15,
+            "desc": "You have reached to entrance to a large cavern.  You see large bats flying in and out of the cave...  Dare you enter this dark forbidden place?"
+        },
+        {
+            "number": 20,
+            "name": "Volcano Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "rc": 2,
+                "rt": 23
+            },
+            "monster": 10,
+            "item": 29,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are able to maneuver around the hot molten lava from recent volcano activity in the area."
+        },
+        {
+            "number": 21,
+            "name": "Sulphur Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 14,
+            "food": 1,
+            "desc": "You gasp for air as sulphur fumes overwhelm you..."
+        },
+        {
+            "number": 22,
+            "name": "Glass Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 36,
+            "weapon": 25,
+            "food": 0,
+            "desc": "You are in a room with glass walls. There is one open place, however, you can't make it out completely except for the \"Mr. Yuk\" sticker by the enterance. (south)"
+        },
+        {
+            "number": 23,
+            "name": "Junction",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 6,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have reached a major intersection.  The path continues in many directions to different areas within the dungeon.  A faded sign seems to read: 'Fo- a go-d t-me g- SSSSSENNEN'"
+        },
+        {
+            "number": 24,
+            "name": "Gloomy Path",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 10,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are on a lonely, narrow, dark path.  Treasures, perils, and mysteries await the adventuresome..."
+        },
+        {
+            "number": 27,
+            "name": "Cavern Well",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 4,
+            "item": 8,
+            "weapon": 0,
+            "food": 0,
+            "desc": "...bar...bar..."
+        },
+        {
+            "number": 30,
+            "name": "Edge Of Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 29,
+            "food": 6,
+            "desc": "You have reached the edge of a large underground forest."
+        },
+        {
+            "number": 32,
+            "name": "Ash Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The floor of this room is covered by several feet of volcanic ash..."
+        },
+        {
+            "number": 33,
+            "name": "Coal Mine",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 24,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This appears to be the entrance to a large coal mine.  Abandoned many years ago, the mine was once the source of fuel for those of the Enchanted Land."
+        },
+        {
+            "number": 34,
+            "name": "The Room Of Houses",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 161,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a room with a scroll that sits on a desk.  There is a note by it saying \"BEWARE!  All who read must work to come back!\" There is an exit to the north"
+        },
+        {
+            "number": 35,
+            "name": "Igneous Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 39,
+            "weapon": 0,
+            "food": 22,
+            "desc": "Large igneous rocks abound..."
+        },
+        {
+            "number": 37,
+            "name": "Wall Bar & Grill",
+            "exits":{
+                "south": 1
+            },
+            "desc": "You stand in the doorway of a smoke-filled bar. A sign on the wall reads: \"Wall Bar & Grill.\""
+        },
+        {
+            "number": 39,
+            "name": "Cavern Ledge",
+            "room_alignment": "sword",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You see a deep chasm below..."
+        },
+        {
+            "number": 40,
+            "name": "Cavern Peak",
+            "room_alignment": "sword",
+            "flags": ["HQ"],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 12,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have reached the highest point of the cavern.  A deep underground forest can be seen below. There is a large Mark of the Sword carved in the rock.."
+        },
+        {
+            "number": 41,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 88,
+            "weapon": 0,
+            "food": 3,
+            "desc": "You are deep within an underground forest..."
+        },
+        {
+            "number": 42,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 26,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are deep within an underground forest..."
+        },
+        {
+            "number": 43,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 20,
+            "item": 0,
+            "weapon": 19,
+            "food": 0,
+            "desc": "You are deep within a large underground forest..."
+        },
+        {
+            "number": 45,
+            "name": "Mine Shaft",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 2,
+            "desc": "You can see the bright sun beaming in from above through the narrow shaft."
+        },
+        {
+            "number": 46,
+            "name": "Storage Room",
+            "room_alignment": "claw",
+            "flags": ["HQ"],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "All supplies for operations were stored here. A large Mark of the Claw is on the wall.."
+        },
+        {
+            "number": 47,
+            "name": "Ruby Room",
+            "room_alignment": "claw",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The walls of this room are adorned with precious gems."
+        },
+        {
+            "number": 49,
+            "name": "Mineral Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Rich mineral deposits form this room. A strange door is North.."
+        },
+        {
+            "number": 50,
+            "name": "Stalactite Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Large stalactites are hanging from the ceiling."
+        },
+        {
+            "number": 51,
+            "name": "Stalagmite Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 22,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Large stalagmites extend upward from the cavern floor."
+        },
+        {
+            "number": 52,
+            "name": "Edge Of Forest",
+            "room_alignment": "sword",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 11,
+            "food": 0,
+            "desc": "You are at the edge of a large underground forest."
+        },
+        {
+            "number": 53,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 9,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are deep within a large underground forest..."
+        },
+        {
+            "number": 54,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 14,
+            "weapon": 16,
+            "food": 0,
+            "desc": "You are deep within a large underground forest..."
+        },
+        {
+            "number": 55,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 5,
+            "desc": "You are deep within a large underground forest..."
+        },
+        {
+            "number": 57,
+            "name": "Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 9,
+            "item": 22,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The mine tunnel runs north and south..."
+        },
+        {
+            "number": 58,
+            "name": "Control Room",
+            "room_alignment": "claw",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 28,
+            "food": 9,
+            "desc": "A large control panel is mounted in the wall.  All operations of the mine were controlled from this room. ONTROL ROOM \\|/,0,0,28,9,1,0,0,1,0,0 A large control panel is mounted in the wall.  All operations of the mine were controlled from this room."
+        },
+        {
+            "number": 59,
+            "name": "Breezy Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 11,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A cool, brisk wind blows through the room...chilling you to the bone!"
+        },
+        {
+            "number": 60,
+            "name": "Bat Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 5,
+            "item": 32,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have reached the opening to a large cavern.  Vampire bats fly overhead!"
+        },
+        {
+            "number": 61,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 17,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 62,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 23,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 63,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 64,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 69,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 65,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are deep within a large underground forest..."
+        },
+        {
+            "number": 66,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are deep within a large underground forest..."
+        },
+        {
+            "number": 67,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 7,
+            "desc": "You are deep within a large underground forest..."
+        },
+        {
+            "number": 68,
+            "name": "Edge Of Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have reached the entrance to a large underground forest."
+        },
+        {
+            "number": 69,
+            "name": "Loading Dock",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 14,
+            "item": 28,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is where the coal was brought out from the mine and shipped to the people of the Enchanted Land."
+        },
+        {
+            "number": 70,
+            "name": "Smoky Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 31,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You look down into a large hole in the middle of the room.  Certainly there is way down into that pit..."
+        },
+        {
+            "number": 71,
+            "name": "Top Ledge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 21,
+            "food": 8,
+            "desc": "You are at the top of a deep mine shaft."
+        },
+        {
+            "number": 72,
+            "name": "Mine Opening",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 42,
+            "desc": "Through a small opening you are able to gain entrance to this old abandoned coal mine."
+        },
+        {
+            "number": 73,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 74,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 27,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 75,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "rc": 2,
+                "rt": 93
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 31,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 76,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 77,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 17,
+            "weapon": 12,
+            "food": 0,
+            "desc": "You are deep within a large underground forest..."
+        },
+        {
+            "number": 78,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1,
+                "rc": 2,
+                "rt": 96
+            },
+            "monster": 12,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are deep within a large underground forest..."
+        },
+        {
+            "number": 79,
+            "name": "Underground Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are deep within a large underground forest..."
+        },
+        {
+            "number": 80,
+            "name": "Mine Entrance",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 11,
+            "desc": "You have reached the main entrance to a coal mine."
+        },
+        {
+            "number": 81,
+            "name": "Mine Exit",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 91,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are at the exit of a large coal mine."
+        },
+        {
+            "number": 82,
+            "name": "Inner Mine",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 21,
+            "desc": "The mine tunnel continues east to west."
+        },
+        {
+            "number": 83,
+            "name": "Deep Shaft",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 18,
+            "food": 0,
+            "desc": "A deep shaft is in the center of the room."
+        },
+        {
+            "number": 84,
+            "name": "Pit",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 8,
+            "item": 0,
+            "weapon": 0,
+            "food": 65,
+            "desc": "The bones of mine workers, apparently buried in a cave-in, can be seen in the corner of the room."
+        },
+        {
+            "number": 85,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 86,
+            "name": "Dark Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a dimly-lit room.  It is hard to get a sense of direction...you do detect an impending danger!"
+        },
+        {
+            "number": 87,
+            "name": "Antechamber Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 13,
+            "item": 20,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This room was once used for the deceased.  The smell of the dead remains..."
+        },
+        {
+            "number": 88,
+            "name": "Cool Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 68,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are chilled to the bone from sounds coming from another room close by! A sign is stuck into the earth. It is written in strange handwritting, but you think you can make out the words; \"dO yOu wAnNa TrAvEl tO fAr aWay pLaCes? tHen gO eAsT!\""
+        },
+        {
+            "number": 89,
+            "name": "Teleport Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You hear a noise as if a distant wind is rapidly aproaching. You ponder the wisdom of leaving this room pronto... But you also notice a strangly drawn symbol on the EASTERN wall. Even though it looks like there is no exit that way, you feel a strange compulsion to go East anyway!!"
+        },
+        {
+            "number": 90,
+            "name": "Gate Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 7,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have reached the entrance to the Enchanted Land."
+        },
+        {
+            "number": 91,
+            "name": "Hallway",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 27,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A voice whispers, \"Welcome, Adventurers, venture forth into my Land with care!\""
+        },
+        {
+            "number": 92,
+            "name": "Pathway",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 11,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are on a narrow path that enters the Enchanted Land."
+        },
+        {
+            "number": 93,
+            "name": "Cabana",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in the cabana just outside the Enchanted Land."
+        },
+        {
+            "number": 94,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 95,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 96,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1,
+                "rc": 2,
+                "rt": 117
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 97,
+            "name": "Well Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There is a deep well here which once supplied the people of the Enchanted Land with fresh water."
+        },
+        {
+            "number": 98,
+            "name": "Supply Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 44,
+            "food": 12,
+            "desc": "This room was used to store food."
+        },
+        {
+            "number": 99,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "rc": 2,
+                "rt": 123
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 100,
+            "name": "Damp Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 15,
+            "weapon": 0,
+            "food": 10,
+            "desc": "This is an eerie, damp place."
+        },
+        {
+            "number": 101,
+            "name": "Library",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 33,
+            "weapon": 15,
+            "food": 0,
+            "desc": "There are many books in this room.  The people were apparently a learned group."
+        },
+        {
+            "number": 102,
+            "name": "Grand Ballroom",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 18,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are standing in a large room that once was used for large gala affairs."
+        },
+        {
+            "number": 103,
+            "name": "East Hall",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 7,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is an L-shaped room with a fireplace in the corner."
+        },
+        {
+            "number": 104,
+            "name": "Hallway Entrance",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 24,
+            "food": 45,
+            "desc": "This is the entrance to the main ballrooms."
+        },
+        {
+            "number": 105,
+            "name": "Storage House",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 16,
+            "item": 0,
+            "weapon": 50,
+            "food": 0,
+            "desc": "This room was once used to store supplies."
+        },
+        {
+            "number": 106,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "rc": 2,
+                "rt": 130
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 107,
+            "name": "Furnace Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 33,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There is a large furnace in the room.  It was used to heat the dungeons."
+        },
+        {
+            "number": 108,
+            "name": "Boiler Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 84,
+            "weapon": 0,
+            "food": 43,
+            "desc": "There is an old boiler in the corner."
+        },
+        {
+            "number": 109,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 30,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 110,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 19,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 111,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 14,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 113,
+            "name": "Pearl Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are confused...how did you get here?"
+        },
+        {
+            "number": 114,
+            "name": "Study",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 21,
+            "item": 0,
+            "weapon": 0,
+            "food": 15,
+            "desc": "You are in a large study."
+        },
+        {
+            "number": 115,
+            "name": "Pipe Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 18,
+            "item": 25,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There is a large pipe organ here."
+        },
+        {
+            "number": 116,
+            "name": "Music Antechamber",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 15,
+            "item": 0,
+            "weapon": 0,
+            "food": 18,
+            "desc": "Small concertos were once held in this room."
+        },
+        {
+            "number": 117,
+            "name": "South Hallway",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Rooms are off in various directions..."
+        },
+        {
+            "number": 119,
+            "name": "Gas Room",
+            "room_alignment": "fist",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This room was once the source of natural gas for the inhabitants."
+        },
+        {
+            "number": 120,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "rc": 2,
+                "rt": 147
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 121,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 28,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 122,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 123,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 16,
+            "weapon": 0,
+            "food": 19,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 124,
+            "name": "Basement",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have reached the basement."
+        },
+        {
+            "number": 125,
+            "name": "Stone Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 19,
+            "item": 82,
+            "weapon": 0,
+            "food": 0,
+            "desc": "For some reason, all items in this room are made of stone!"
+        },
+        {
+            "number": 126,
+            "name": "Oval Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 16,
+            "desc": "You are in a large, oval-shaped room."
+        },
+        {
+            "number": 127,
+            "name": "Game Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 23,
+            "item": 6,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in the game room."
+        },
+        {
+            "number": 128,
+            "name": "Long Passage",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a long passageway..."
+        },
+        {
+            "number": 129,
+            "name": "Angled Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 17,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a strangely-shaped room."
+        },
+        {
+            "number": 130,
+            "name": "Tea Room",
+            "room_alignment": "fist",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A small table sits in the middle of this room.  It was once used as an for small social gatherings."
+        },
+        {
+            "number": 131,
+            "name": "Secluded Room",
+            "room_alignment": "fist",
+            "flags": ["HQ"],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 31,
+            "weapon": 22,
+            "food": 0,
+            "desc": "You are in a large room...  there is a strange symbol on the wall!"
+        },
+        {
+            "number": 132,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 13,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 133,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 74,
+            "weapon": 23,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 134,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 135,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 136,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 92,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 137,
+            "name": "Fix Me Room 137",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "FIXME"
+        },
+        {
+            "number": 138,
+            "name": "Transport Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There is a sign on the wall...  You can make out only a few of the words \"...The land of no return..\""
+        },
+        {
+            "number": 139,
+            "name": "Morning Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 20,
+            "desc": "There is a large hole in the roof and the sun comes gleaming through..."
+        },
+        {
+            "number": 140,
+            "name": "Long Passage",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a long passageway..."
+        },
+        {
+            "number": 141,
+            "name": "Sign Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A bizarre neon sign is propped up on the ground. It reads: \"START TODAY! DON'T DELAY! TRAVEL FAR, BEYOUND THE STARS WIN THE GAME, ENJOY THE FAME!\""
+        },
+        {
+            "number": 142,
+            "name": "Garden Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 19,
+            "desc": "Here are the remains of a once-beautiful garden."
+        }
+    ]
+}

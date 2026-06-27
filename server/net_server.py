@@ -1,269 +1,442 @@
 #!/bin/env python3
-import logging
-import sys
-import os
-import traceback
-import threading
-import socketserver
-import json
-from dataclasses import dataclass, field
-from typing import ClassVar
+import asyncio
 import enum
+import logging
+from pathlib import Path
+import select
+import socket
+import json
+import threading
+
+from net_client import Client
+from commands.command_processor import create_command_processor
+# Avoid importing Init/MessageType/Message at module-import time to prevent circular imports
+# Use net_common as nc (imported later) and define a small local Init dataclass for handshake
+from dataclasses import dataclass
 
 import net_common as nc
-import util
-
-K = nc.K
 Mode = nc.Mode
+import socketserver
+from dataclasses import field
 
-server_id = None
-server_key = None
-server_protocol = None
+
+@dataclass
+class Init:
+    server_id: str = "test_server"
+    server_key: str = "test_key"
+    protocol_version: int = 1
+    translation: object = None
+    type: str = 'init'
+
+
+connected_users = set()
 server_lock = threading.Lock()
 
 
 class Error(str, enum.Enum):
     server1 = 'server1'
     server2 = 'server2'
+    # missing user ID?:
     user_id = 'user_id'
     login1 = 'login1'
     login2 = 'login2'
+    # multiple connections:
+    # can't have multiple connections with same user id
     multiple = 'multiple'
 
 
-@dataclass
-class Message(object):
-    lines: list
-    mode: Mode = Mode.app
-    changes: dict = field(default_factory=lambda: {})
-    choices: dict = field(default_factory=lambda: {})
-    prompt: str = ''
-    error: str = ''
-    error_line: str = ''
-
-
-connected_users = set()
-
-
-@dataclass
-class LoginHistory(object):
-    """
-    Login history of player
-
-    :param addr: IP address?
-    :param no_user_attempts: user ID missing?
-    :param bad_password_attempts: wrong password entered?
-    :param fail_count: failed login?
-    :param ban_count: how many times player has been banned?
-    :param _fail_limit: how many times player can fail to log in before being banned
-    """
-    addr: str
-    no_user_attempts: dict = field(default_factory=lambda: {})
-    bad_password_attempts: dict = field(default_factory=lambda: {})
-    fail_count: int = 0
-    ban_count: int = 0
-
-    _fail_limit: ClassVar[int] = 10
-
-    def banned(self, update: bool, save=False):
-        is_banned = self.fail_count >= LoginHistory._fail_limit
-        if is_banned and update:
-            self.ban_count += 1
-            if save:
-                self.save()
-        return is_banned
-
-    def no_user(self, user_id, save=False):
-        self.fail_count += 1
-        attempts = self.no_user_attempts.get(user_id, 0)
-        self.no_user_attempts[user_id] = attempts + 1
-        if save:
-            self.save()
-        return self.banned(True, save=save)
-
-    def fail_password(self, user_id, save=False):
-        self.fail_count += 1
-        attempts = self.bad_password_attempts.get(user_id, 0)
-        self.bad_password_attempts[user_id] = attempts + 1
-        if save:
-            self.save()
-        return self.banned(True, save=save)
-
-    def succeed_user(self, user_id, save=False):
-        self.fail_count = 0
-        if user_id in self.bad_password_attempts:
-            self.bad_password_attempts.pop(user_id)
-        if save:
-            self.save()
-
-    @staticmethod
-    def _json_path(addr):
-        util.makeDirs(nc.net_dir)
-        return os.path.join(nc.net_dir, f"client-{addr}.json")
-
-    @staticmethod
-    def load(addr):
-        path = LoginHistory._json_path(addr)
-        if os.path.exists(path):
-            with open(path) as json_file:
-                lh_data = json.load(json_file)
-            return LoginHistory(**lh_data)
-        else:
-            return LoginHistory(addr)
-
-    def save(self):
-        with open(LoginHistory._json_path(self.addr), 'w') as json_file:
-            json.dump(fp=json_file, default=lambda o: {k: v for k, v
-                                                         in o.__dict__.items() if v}, indent=4)
+# Use net_common.Message as the authoritative Message type
+Message = nc.Message
 
 
 class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
-    pass
+    class Server:
+        """
+        Manages the server state and client connections.
+        From simple_server.py
+        1. self.handle_new_connection: Accepts new client connections.
+        2. self._perform_handshake: Performs handshake and authentication.
+        3. self.handle_<xxx>_mode: Manages client modes (login, app).
+        4. self.process_message: Processes messages from clients based on their mode.
+        5. self.broadcast Broadcasts messages to all connected clients.
+        6. self._disconnect: Handles client disconnections and cleanup.
+        7. Uses asyncio for asynchronous I/O operations.
+        8. Uses JSON (wrapped in a Message class) for message serialization.
+        """
+        # for use in strings:
+        quotation_mark = '"'
+        apostrophe = "'"
 
+        def __init__(self, host, port):
+            self.host = host
+            self.port = port
+            self.server = None
+            self.clients = {}  # A dictionary to store connected clients by address
 
-class UserHandler(socketserver.BaseRequestHandler):
-    def handle(self):
-        addr = self.client_address[0]
-        self.login_history = LoginHistory.load(addr)
-        if self.login_history.banned(True, save=True):
-            logging.warning("UserHandler.handle: ignoring banned IP %s" % addr)
-            return
-        port = self.client_address[1]
-        self.sender = f"{addr}:{port}"
-        self.ready = None
-        self.user = None
-        logging.info("UserHandler.handle: connect (addr=%s)" % self.sender)
-        running = True
-        while running:
-            response = None
+            # Create the server-wide Init object ONCE
+            self.server_init_object = Init(
+                server_id="test_server",
+                server_key="test_key",
+                protocol_version=1,
+                translation=Translation.ANSI  # Default translation
+            )
+            logging.info(f"Server configured with ID: {self.server_init_object.server_id}")
+
+            # Load map and game data (level, objects, monsters, weapons, rations)
             try:
-                request = self._receive_data()
-                if request is None:
-                    running = False
-                    break
-                try:
-                    if self.ready is None:  # assume init message
-                        response = self._process_init(request)
-                    elif self.user is None:
-                        response = self._process_login(request)
+                script_dir = Path(__file__).parent
+                self.game_map = Map()
+                self.game_map.read_map(str(script_dir / "level_1.json"))
+                logging.info(f"Loaded map with {len(self.game_map.rooms)} rooms")
+            except Exception:
+                logging.exception("Failed to load map or game data; room descriptions may be limited")
+
+        async def send_message(self, writer, obj):
+            writer.write(nc.to_jsonb(obj) + b'\n')
+            await writer.drain()
+
+        async def receive_message(self, reader):
+            data = await reader.readline()
+            if not data:
+                return None
+            return nc.from_jsonb(data)
+
+        async def handle_connection(self, reader, writer):
+            """
+            This method is the primary callback for each new client connection.
+            It handles the entire lifecycle of a client.
+            """
+            addr = writer.get_extra_info('peername')
+            logging.info(f"New connection from {addr}.")
+
+            client = None
+            try:
+                # Perform the handshake
+                client = await self._perform_handshake(reader, writer, addr)
+                if not client:
+                    # Handshake failed, connection is already closed.
+                    return
+
+                # Set initial mode to login
+                client.mode = Mode.login
+
+                # Store the authenticated client
+                self.clients[addr] = client
+                logging.info(f"Client {addr} handshake successful. Entering main loop.")
+
+                await self._handle_login(reader, writer, addr, client)
+
+                # Enter the main message processing loop for this client
+                while True:
+                    data = await self.receive_message(reader)
+                    if not data:
+                        logging.info(f"Connection closed by client {addr}.")
+                        break
+
+                    try:
+                        in_message = Message(**data)
+                    except Exception as e:
+                        logging.error(f"Could not decode message from {addr}: {e}")
+                        continue
+
+                    if in_message.mode == Mode.bye:
+                        logging.info(f"Client {addr} sent 'bye'. Closing connection.")
+                        # Delegate persistence to the centralized helper which prefers quit()
+                        try:
+                            await self._save_client_state(client)
+                        except Exception:
+                            logging.exception(f"Failed to persist state for client {addr} on bye")
+                        break
+
+                    # Dispatch by mode
+                    if getattr(client, 'mode', Mode.login) == Mode.login:
+                        await self.handle_login_mode(client, in_message, writer)
+                        # If the client was promoted to app mode during login handling, ensure a CommandProcessor is attached
+                        if getattr(client, 'mode', None) == Mode.app and not getattr(client, 'command_processor', None):
+                            try:
+                                client.command_processor = create_command_processor(client)
+                            except Exception:
+                                logging.exception("Failed to create command processor for client")
                     else:
-                        response = self._process_message(request)
-                except Exception as e:
-                    traceback.print_exc(file=sys.stdout)
-                    # TODO: log error with message, error code to client
-                    self._send_data(Message(lines=["Terminating session."],
-                                            error_line=f"server side error ({e})",
-                                            error=Error.server1, mode=Mode.bye))
-                if response is None:
-                    running = False
-                else:
-                    self._send_data(response)
+                        await self.handle_app_mode(client, in_message, writer, addr)
+
+            except asyncio.CancelledError:
+                logging.warning(f"Connection task for {addr} was cancelled.")
             except Exception as e:
-                traceback.print_exc(file=sys.stdout)
-                # TODO: log error with message, error code to client
-                self._send_data(Message(lines=["Terminating session."],
-                                        error_line=f"server side error ({e})",
-                                        error=Error.server2, mode=Mode.bye))
-        if self.user is not None:
-            user_id = self.user.id
-            with server_lock:
-                connected_users.remove(user_id)
-        else:
-            user_id = '?'
-        logging.info("user_handler: disconnect %s (addr=%s)" % (user_id, self.sender))
+                logging.error(f"An unexpected error occurred with client {addr}: {e}")
+            finally:
+                if addr in self.clients:
+                    del self.clients[addr]
+                logging.info(f"Closing connection for {addr}. Total clients: {len(self.clients)}")
+                writer.close()
+                await writer.wait_closed()
 
-    def _receive_data(self):
-        return nc.from_jsonb(self.request.recv(1024))
+        async def _perform_handshake(self, reader, writer, addr) -> Client | None:
+            """
+            Handles the initial handshake process with a new client.
+            Returns a Client object on success, or None on failure.
+            Only server_id and server_key are strictly checked; other fields are accepted as provided by the client.
+            """
+            try:
+                # Send the server's Init object to the client
+                await self.send_message(writer, self.server_init_object)
 
-    def _send_data(self, data):
-        self.request.sendall(nc.to_jsonb(data))
+                # Wait for the client's Init response
+                client_init_data = await self.receive_message(reader)
+                if not client_init_data:
+                    logging.error(f"Handshake failed: Client {addr} disconnected before sending Init.")
+                    return None
 
-    def _process_init(self, data):
-        client_id = data.get('id')
-        if client_id == server_id:
-            client_key = data.get('key')
-            if client_key == server_key:
-                # TODO: handle protocol difference
-                self.ready = True
-                return Message(lines=self.init_success_lines(), mode=Mode.login)
-            else:
-                # TODO: record history in case want to ban
-                return None  # poser, ignore them
-        else:
-            # TODO: record history in case want to ban
-            return None  # poser, ignore them
+                client_init = Init(**client_init_data)
 
-    def _process_login(self, data):
-        user_id, password, invite_code = data['login']
-        if user_id == '':
-            return Message(lines=['User id required.'],
-                           error_line='No user id.',
-                           error=Error.user_id, mode=Mode.bye)
+                # Strictly check server_id and server_key
+                if client_init.server_id != self.server_init_object.server_id:
+                    raise ValueError("Server ID mismatch")
+                if client_init.server_key != self.server_init_object.server_key:
+                    raise ValueError("Server key mismatch")
+                # protocol_version is not strictly checked, but you can add a warning if you want
+                if client_init.protocol_version != self.server_init_object.protocol_version:
+                    logging.warning(
+                        f"Protocol version mismatch: client {client_init.protocol_version}, server {self.server_init_object.protocol_version}")
 
-        def error_ban():
-            return Message(lines=[],
-                           error_line='Too many failed attempts.',
-                           error=Error.login2, mode=Mode.bye)
+                # Accept and store other fields (e.g., translation, screen size)
+                client = Client()
+                client.addr = addr
+                client.translation = client_init.translation
+                client.writer = writer
+                client.server = self
+                # default starting room
+                client.room = 1
+                logging.info(f"Client {addr} translation set to {client.translation}")
 
-        def error_login_failed():
-            return Message(lines=self.login_fail_lines(),
-                           error_line='Login failed.',
-                           error=Error.login1, mode=Mode.login)
+                # Send success message and switch client to login mode
+                success_msg = Message(lines=["Handshake successful. Welcome!"], mode=Mode.login)
+                await self.send_message(writer, success_msg)
 
-        user = nc.User.load(user_id)
-        if user is None:
-            invite = nc.Invite.load(user_id)
-            if invite is None:
-                logging.warning("process_login: login failed: no user '%s`" % user_id)
-                # when failing don't tell that have wrong user id
-                banned = self.login_history.no_user(user_id, save=True)
-                if banned:
-                    logging.info(f"ban {self.sender}")
-                    return error_ban()
-                return error_login_failed()
-            else:
-                # process new user with invite
-                if invite.code != invite_code:
-                    logging.warning(f"process_login: invalid invite code %s" % invite_code)
-                    banned = self.login_history.no_user(user_id, save=True)
-                    if banned:
-                        logging.info("process_login: ban %s" % self.sender)
-                        return error_ban()
-                    else:
-                        return error_login_failed()
-                else:
-                    # create and save user
-                    user = nc.User(user_id)
-                    user.hash_password(password)
-                    user.save()
-                    invite.delete()
-        with server_lock:
-            if user_id in connected_users:
-                return Message(lines=['One connection allowed at a time.'],
-                               error_line='Multiple connections.',
-                               error=Error.multiple, mode=Mode.bye)
-        if not user.match_password(password):
-            logging.warning("bad password for '%s'" % user_id)
-            banned = self.login_history.fail_password(user_id, save=True)
-            if banned:
-                logging.info(f"ban {self.sender}")
-                return error_ban()
-            else:
-                return error_login_failed()
-        self.user = user
-        with server_lock:
-            connected_users.add(user_id)
-        self.login_history.succeed_user(user_id, save=True)
-        return self.process_login_success(user_id)
+                return client
 
+            except Exception as e:
+                logging.error(f"Handshake failed for {addr}: {e}")
+                failure_msg = Message(lines=[f"Handshake failed: {str(e)}"], mode=Mode.bye)
+                await self.send_message(writer, failure_msg)
+                return None
 
-    def prompt_request(self, lines, prompt: str, choices: dict):
-        self._send_data(Message(lines=lines, prompt=prompt, choices=choices))
-        return self._receive_data()
+        async def start(self):
+            """Starts the asyncio server."""
+            self.server = await asyncio.start_server(
+                self.handle_connection, self.host, self.port)
 
-    # base implementation for when testing net_client/net_server
-    # NOTE: must be overridden by actual app (see client/server)
+            addr = self.server.sockets[0].getsockname()
+            logging.info(f'Server listening on {addr}')
 
+            async with self.server:
+                await self.server.serve_forever()
+
+        async def _handle_login(self, reader, writer, addr, client):
+            login_text = [
+                "Welcome to:",
+                "",
+                "Totally",
+                " Awesome",
+                "  Dungeon",
+                "   Adventure",
+                "",
+                "To connect to an existing character, type 'connect <username> <password>'.",
+                "To look around as a guest, type 'guest'.",
+                "To create a new character, type 'new'."
+            ]
+            login_message = Message(lines=login_text, mode=Mode.login, prompt="login> ", type=nc.MessageType.REGULAR)
+            await self.send_message(writer, login_message)
+
+        async def handle_login_command(self, writer, username=None):
+            # This is a mock login handler. In a real system, you'd check credentials here.
+            await asyncio.sleep(1)  # Simulate some processing delay
+            if not username:
+                username = "Guest"
+
+            login_lines = [
+                f"Login successful! Welcome, {username}.",
+                "Here are some commands you can use:",
+                "To test message types, type 'testmsg'.",
+                f"To talk to everyone, type 'say <message>' or '{self.quotation_mark}<message>",
+                # "To connect to an existing character, type 'connect <username> <password>'",
+                # "To look around as a guest, type 'guest'.",
+                # "To create a new character, type 'new <username>'."
+            ]
+            login_message = Message(lines=login_lines, mode=Mode.login, type=MessageType.REGULAR, prompt="main> ")
+            await self.send_message(writer, login_message)
+
+        async def handle_login_mode(self, client, in_message, writer):
+            handled = False
+            if in_message.lines and isinstance(in_message.lines, list):
+                for line in in_message.lines:
+                    cmd = line.strip().lower()
+                    args = line.strip().split()
+                    if cmd.startswith('connect') and len(args) >= 2:
+                        username = args[1]
+                        password = args[2] if len(args) >= 3 else ''
+                        usernames = {getattr(c, 'username', None) for c in self.clients.values()}
+                        if username in usernames:
+                            await self.send_message(writer, Message(lines=[f"Username '{username}' is already taken."],
+                                                                    type=MessageType.SYSTEM, mode=Mode.login,
+                                                                    prompt="login> "))
+                            handled = True
+                            break
+                        client.username = username
+                        client.mode = Mode.app  # Set mode before sending login command
+                        await self.handle_login_command(writer, username=username)
+                        handled = True
+                        break
+                    elif cmd == 'guest':
+                        base = "Guest"
+                        n = 1
+                        usernames = {getattr(c, 'username', None) for c in self.clients.values()}
+                        while f"{base}{n}" in usernames:
+                            n += 1
+                        client.username = f"{base}{n}"
+                        client.mode = Mode.app  # Set mode before sending login command
+                        await self.handle_login_command(writer, username=client.username)
+                        handled = True
+                        break
+                    elif cmd.startswith('new') and len(args) >= 2:
+                        username = args[1]
+                        usernames = {getattr(c, 'username', None) for c in self.clients.values()}
+                        if username in usernames:
+                            await self.send_message(writer, Message(lines=[f"Username '{username}' is already taken."],
+                                                                    type=MessageType.SYSTEM, mode=Mode.login,
+                                                                    prompt="login> "))
+                            handled = True
+                            break
+                        client.username = username
+                        client.mode = Mode.app  # Set mode before sending login command
+                        await self.handle_login_command(writer, username=username)
+                        handled = True
+                        break
+            if not handled:
+                # Default: echo response in login mode
+                response = Message(lines=[f"[LOGIN] Echo: {' '.join(in_message.lines)}"], type=MessageType.REGULAR,
+                                   mode=Mode.login, prompt="login> ")
+                await self.send_message(writer, response)
+
+        async def handle_app_mode(self, client, in_message, writer, addr):
+            # Ensure a command processor exists for this client
+            if not getattr(client, 'command_processor', None):
+                try:
+                    client.command_processor = create_command_processor(client)
+                except Exception:
+                    logging.exception("Failed to create command processor for client in app mode")
+
+            proc = getattr(client, 'command_processor', None)
+            if in_message.lines and isinstance(in_message.lines, list):
+                for line in in_message.lines:
+                    text = (line or '').strip()
+                    if not text:
+                        # Ignore empty input but still send prompt
+                        await self.send_message(writer, Message(lines=[], mode=Mode.app, prompt="main> "))
+                        continue
+
+                    # Process the input line via CommandProcessor
+                    try:
+                        if proc is None:
+                            # Fallback echo if no processor
+                            result = None
+                        else:
+                            result = await proc.process_input(text)
+                    except Exception:
+                        logging.exception("Command processing raised an exception")
+                        result = None
+
+                    if result is None:
+                        # Could not process; echo back
+                        await self.send_message(writer, Message(lines=[f"[APP] Echo: {text}"], mode=Mode.app, prompt="main> "))
+                        continue
+
+                    # Normalize CommandResult -> Message
+                    lines_out = []
+                    try:
+                        # Prefer explicit lines
+                        if getattr(result, 'lines', None):
+                            lines_out = list(result.lines)
+                        elif getattr(result, 'message', None):
+                            msg = result.message
+                            if isinstance(msg, list):
+                                lines_out = msg
+                            else:
+                                lines_out = [str(msg)]
+                    except Exception:
+                        logging.exception("Failed to normalize CommandResult to lines")
+                        lines_out = [str(getattr(result, 'message', ''))]
+
+                    # Build response Message
+                    msg_obj = Message(lines=lines_out, mode=Mode.app, prompt="main> ")
+                    # If command signaled disconnect via context, or processor moved client.mode, honor it
+                    try:
+                        await self.send_message(writer, msg_obj)
+                    except Exception:
+                        logging.exception("Failed to send command response to client")
+
+        async def _save_client_state(self, client):
+            """Persist minimal client state to disk under ./player_data/<username>.json."""
+            try:
+                def _sync_save():
+                    try:
+                        base_dir = Path(__file__).parent / "player_data"
+                        base_dir.mkdir(parents=True, exist_ok=True)
+        
+                        username = getattr(client, "username", None)
+                        if not username:
+                            addr = getattr(client, "addr", None)
+                            username = f"guest_{addr[0]}_{addr[1]}" if isinstance(addr, (list, tuple)) and len(addr) >= 2 else "guest"
+        
+                        # sanitize filename
+                        safe_name = "".join(c if (c.isalnum() or c in "-_") else "_" for c in str(username))
+                        filename = base_dir / f"{safe_name}.json"
+        
+                        data = {}
+                        for k, v in getattr(client, "__dict__", {}).items():
+                            # Skip non-serializable / runtime-only attributes
+                            if k in ("writer", "server", "command_processor"):
+                                continue
+                            try:
+                                # attempt to JSON-serialize directly
+                                json.dumps(v)
+                                data[k] = v
+                            except TypeError:
+                                # fallback to string representation
+                                data[k] = str(v)
+        
+                        with filename.open("w", encoding="utf-8") as fh:
+                            json.dump(data, fh, indent=2, ensure_ascii=False)
+        
+                        logging.info(f"Saved state for {username} -> {filename}")
+                    except Exception:
+                        logging.exception("Error during synchronous client state save")
+        
+                await asyncio.to_thread(_sync_save)
+            except Exception:
+                logging.exception("Failed to save client state")
+                return False
+            return True
+
+    def error_ban(self):
+        """Return a Message indicating the user is banned."""
+        return Message(
+            error=Error.login1,
+            error_line='Too many failed login attempts. You are temporarily banned.',
+            lines=['Too many failed login attempts. Please try again later.']
+        )
+
+    def error_login_failed(self, message="Login failed. Please check your credentials and try again."):
+        """Return a Message indicating login failure.
+
+        Args:
+            message: Custom error message to display
+        """
+        return Message(
+            lines=[message],
+            mode=Mode.login,
+            error="login_failed"
+        )
 
     def init_success_lines(self):
         """OVERRIDE in subclass
@@ -276,20 +449,20 @@ class UserHandler(socketserver.BaseRequestHandler):
         """OVERRIDE in subclass
         Login failure message lines back to user.
         """
-        return ['please try again.']
+        return ['Please try again.']
 
 
     def process_login_success(self, user_id):
         """OVERRIDE in subclass
         First method called on successful login.
-    Should do any user initialization and then return Message.
+        Should do any user initialization and then return Message.
         """
         return Message(lines=[f"Welcome, {user_id}."])
 
 
     def process_message(self, data):
         """OVERRIDE in subclass
-    Called on all subsequent Cmd messages from client.
+        Called on all subsequent Cmd messages from client.
         Should do any processing and return Message.
         """
         if 'text' in data:
@@ -298,29 +471,42 @@ class UserHandler(socketserver.BaseRequestHandler):
                 return Message(lines=["Goodbye."], mode=Mode.bye)
             else:
                 return Message(lines=["Unknown command."])
+        return None
+
+
+async def handle_new_connection(self, reader, writer):
+        pass
 
 
 def start(host, port, _id, key, protocol, handler_class):
-    global server_id, server_key, server_protocol
+    global server_id, server_key, server_protocol, server_instance
     server_id = _id
     server_key = key
     server_protocol = protocol
-    with Server((host, port), handler_class) as server:
-        logging.info("Server.start: server running (%s:%s)" % (host, port))
-        server_thread = threading.Thread(target=server.serve_forever)
-        server_thread.daemon = True
+
+    # Prefer the asyncio reader/writer-based Server implementation (inner Server.Server)
+    # and run it on a dedicated event loop in a background thread. This modernizes
+    # the server to use the newer async `handle_connection(reader, writer)` flow.
+    try:
+        # Instantiate the asyncio-style server class defined inside this module
+        async_server = Server.Server(host, port)
+        server_instance = async_server
+
+        # Create and run an event loop dedicated to the server in a background thread
+        loop = asyncio.new_event_loop()
+
+        def _run_loop():
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(async_server.start())
+            except Exception:
+                logging.exception("Async server loop terminated with an error")
+
+        server_thread = threading.Thread(target=_run_loop, name="net_server_async", daemon=False)
         server_thread.start()
-        running = True
-        while running:
-            text = input("Console command: ")
-            if text in ['q', 'quit', 'exit']:
-                running = False
-        server.shutdown()
-        logging.info('server shutdown.')
 
+        logging.info("Async server.start launched (%s:%s)" % (host, port))
+        return server_instance
 
-if __name__ == '__main__':
-    """a test of the stub net server"""
-    host = 'localhost'
-    start(host, nc.Test.server_port, nc.Test.id, nc.Test.key, nc.Test.protocol,
-          UserHandler)
+    except Exception:
+        logging.exception("Failed to start async server; falling back to socketserver start() not implemented")

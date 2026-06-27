@@ -1,15 +1,16 @@
 import doctest
 from typing import TYPE_CHECKING
 
+import net_server
 import tada_utilities
 from menu_system import MenuItem, Menu, navigate_menu
 
 if TYPE_CHECKING:
     from player import Player
     from base_classes import Gender, PlayerClass, PlayerRace, PlayerStat, PlayerMoneyTypes, Guild, PlayerClassText, \
-        PlayerRaceText
+        PlayerRaceText, PlayerRaceBonuses, PlayerClassBonuses
     from terminal import Translation
-    from tada_utilities import header, input_number_range, input_yes_no, a_or_an
+    from tada_utilities import header, input_number_range, input_yes_no, a_or_an, set_logging_level
     from flags import PlayerFlags
 
 from random import randrange  # for age and generating random stats
@@ -42,7 +43,7 @@ def choose_gender(character: "Player"):
     from base_classes import Gender
     character.output('Verus squints myopically. "Are you a male or female?"')
     while True:
-        temp = input("Enter [M]ale or [F]emale: ").lower()
+        temp = player_handler.prompt_request(["Enter [M]ale or [F]emale: "], prompt="", choices={}).lower()
         if temp == 'm':
             character.gender = Gender.MALE
             break
@@ -144,16 +145,16 @@ def choose_client(p: "Player"):
     print()
     """
     p.output(['"Which kind of client are you using?" Verus asks.',
-            "", # "" must be used in place of \n
-            "   Client type     Screen size",
-            "   --------------- --------------------",
-            "1. Commodore 64    40 columns x 25 rows",
-            "2. Commodore 128   80 columns x 25 rows",
-            "3. TADA client     80 columns x 25 rows",
-            "",
-            ])
+              "",  # "" must be used in place of \n
+              "   Client type     Screen size",
+              "   --------------- --------------------",
+              "1. Commodore 64    40 columns x 25 rows",
+              "2. Commodore 128   80 columns x 25 rows",
+              "3. TADA client     80 columns x 25 rows",
+              "",
+              ])
 
-    temp = input_number_range(prompt="Which client", p=p, lo=1, hi=options)
+    temp = input_number_range(player=p, prompt_msg="Which client", min_value=1, max_value=options)
 
     if temp == 1:
         p.client_settings.name = 'Commodore 64'
@@ -188,7 +189,7 @@ def choose_class(p: "Player"):
     # I am naming it 'PlayerClass' instead
     from flags import PlayerFlags
     from base_classes import PlayerClass, PlayerClassText
-    from tada_utilities import input_yes_no
+    from tada_utilities import input_yes_no, a_or_an
 
     # Provide initial class explanation unless in expert mode
     # so we don't have to go through every character creation step...
@@ -215,8 +216,19 @@ def choose_class(p: "Player"):
         if choice.isdigit():  # Check if the input is purely a number
             number_choice = int(choice)
             if 1 <= number_choice <= 9:  # Correct range check for 1 to 9 inclusive
+                # TODO: print the character class name, set p.char_class to e.g., PlayerClass.ASSASSIN
+                # FIXME: p.char_class = PlayerClass.ASSASSIN
+                # printable_name = "Assassin"
+                # !!! def some_method(self):
+                #     # Send message directly
+                #     self._send_data(Message(lines=["Immediate message"]))
+                #
+                #     # Continue processing...
+                #     return Message(lines=["Final response"])
                 p.char_class = [c for c in PlayerClass][number_choice - 1]
                 logging.debug("Class: %s" % p.char_class)
+                char_class = [v.value for k, v in enumerate(PlayerClass, start=1)][number_choice]
+                p.output(f'"You{apostrophe}ve chosen to be {a_or_an(char_class)}," notes Verus.')
                 return  # Exit the loop and function as a valid choice was made
             else:
                 p.output('"Choose a class between 1 and 9," suggests Verus.')
@@ -324,6 +336,7 @@ def edit_class(p: "Player"):
         if the character creation process has only asked for the class so far,
         race will be None, and we shouldn't validate the combination
         """
+        # FIXME: Intercept "i1" info commands
         char_class = int(choice)
         p.char_class = [c for c in PlayerClass][char_class - 1]
         logging.debug("player_class: %s" % p.char_class)
@@ -408,6 +421,7 @@ def choose_race(p: "Player"):
     while True:
         display_races(p)
         # TODO: make this into a subroutine
+        # TODO: "Enter 'C' to choose another class" if class/race combo is invalid
         choice = input("Race [1-9, I1-I9]: ").lower().strip()
 
         if choice.isdigit():  # Check if the input is purely a number
@@ -415,6 +429,8 @@ def choose_race(p: "Player"):
             if 1 <= number_choice <= 9:  # Correct range check for 1 to 9 inclusive
                 p.char_race = [c for c in PlayerRace][number_choice - 1]
                 logging.debug("Race: %s" % p.char_class)
+                char_race = [v.value for k, v in enumerate(PlayerRace, start=1)][number_choice]
+                p.output(f'"You{apostrophe}ve chosen to be {a_or_an(char_race)}," notes Verus.')
                 return  # Exit the loop and function as a valid choice was made
             else:
                 p.output('"Choose a race between 1 and 9," suggests Verus.')
@@ -499,27 +515,22 @@ def display_races(p: "Player"):
 
 def edit_race(p: "Player") -> None:
     from tada_utilities import input_number_range
+    from base_classes import PlayerRace
     race_valid = False
     while not race_valid:
         display_races(p)
         if p.char_race:
-            temp = input_number_range("Race", 1, 9, p,
-                                      out_of_bounds='"Enter a race from 1-9," Verus suggests.')
-            logging.info("'%s' race set to %s" % (p.name, PlayerRace[temp - 1]))
-            p.char_race = PlayerRace[temp - 1]
-            # output(f"{return_key} keeps '{p.race.title()}'.", p)
+            temp = input_number_range(p, prompt_msg="Race",
+                                      out_of_bounds_msg='"Enter a race from 1-9," Verus suggests.', min_value=1,
+                                      max_value=9)
+            player_race = [r for r in PlayerRace][temp - 1]
+            logging.info("'%s' race set to %s" % (p.name, player_race))
+
+            p.char_race = player_race.name
+            # TODO: make 'return_key' a method so it doesn't have to be repeated
+            return_key = p.client_settings.return_key.name
+            p.output(f"{return_key} keeps '{player_race.name}'.")
             print()
-        # print("Race [1-9]", end='')
-        # temp = input(": ")
-        # TODO: make subroutine that validates isalpha() and allowable range:
-        # if temp.isalpha():
-        #     output(f'"Numbers only, please."', p)
-        # if temp == '':
-        #     output(f"Keeping '{p.race.title()}'.", p)
-        # TODO: help option here ("H1", "1?" or similar, want to avoid reading 9 races as in original
-        # temp = int(temp)
-        # valid = 1 < temp < 9
-        # if valid:
         if not validate_class_race_combo(p):
             p.output('"Try picking a different race," Verus suggests.')
 
@@ -539,7 +550,7 @@ def choose_age(p: "Player"):
         print()
         age_input = input("Enter your age (0, R or 15-50): ")
         if age_input.lower()[0:1] == 'r':
-            age_input = randrange(15, 50)
+            age_input = randrange(15, 51)
             break
         if age_input.isalpha():
             p.output('Verus tsks. "Please enter a number."')
@@ -558,10 +569,8 @@ def choose_age(p: "Player"):
     age_valid = validate_age(age_input, p)
     if not age_valid:
         p.output('"Try again," suggests Verus.')
-    else:
-        print("Edge case")
     temp = 'of an unknown' if age_input == 0 else f'{age_input} years of'
-    p.output(f'Verus studies you, and comments: "You\'re {temp} age."')
+    p.output(f'Verus studies you, and comments: "You{apostrophe}re {temp} age."')
     p.age = age_input
 
     # year = today.year - p.age FIXME: (if =0, what then?)
@@ -586,36 +595,19 @@ def choose_age(p: "Player"):
         # show menu items for months:
         for month in range(1, 13):
             print(f"{month:>2}. {calendar.month_name[month]}")
-        birthday_month = input_number_range(prompt="Month", lo=1, hi=12, p=p)
+        birthday_month = input_number_range(player=p, prompt_msg="Month", min_value=1, max_value=12)
         # monthrange(year, day) returns tuple: (month, days_in_month)
         # we just need days_in_month, which is monthrange()[1]
         days_in_month = calendar.monthrange(year=birthday_year, month=birthday_month)[1]
-        birthday_day = input_number_range(prompt="Day", lo=1, hi=days_in_month, p=p)
-
+        birthday_day = input_number_range(player=p, prompt_msg="Day",
+                                          out_of_bounds_msg="Select a day of the month within range.", min_value=1,
+                                          max_value=days_in_month)
         # store birthday as datetime: birthday.month = month, .day = day, .year = year
         # store year anyway in case age = 0
         p.birthday = datetime(birthday_year, birthday_month, birthday_day)
         p.output(f"Birthday: {birthday_month}/{birthday_day}/{birthday_year}")
-    else:
-        p.output("That's not a choice.")
-
-
-# def validate_range(word, start, end, p=None):
-#     """
-#     :param word: Edit <word>
-#     :param start: lowest number to allow
-#     :param end: highest number to allow
-#     :param p: Player object to output to
-#     :return: temp, the value input
-#     """
-#     while True:
-#         temp = input(f"{word} ({start}-{end}): ")
-#         if temp.isalpha():
-#             output("Numbers only, please.", p)
-#         temp = int(temp)
-#         if start - 1 < temp < end + 1:
-#             return temp
-#         output("No, try again.", p)
+    # else:
+    #     p.output("That's not a choice.")
 
 
 def validate_age(age: int, p: "Player"):
@@ -630,8 +622,8 @@ def validate_age(age: int, p: "Player"):
         p.output("You're of an unknown age.")
         return True
     elif age < 15:
-        p.output('"Oh, come off it! You\'re not even old enough to handle a '
-                 'Staff yet."')
+        p.output(f'"Oh, come off it! You{apostrophe}re not even old enough to handle a '
+                 f'Staff yet."')
         return False
     elif age > 50:
         p.output('"Hmm, we seem to be out of Senior Adventurer life '
@@ -645,11 +637,11 @@ def final_edit(p: "Player"):
     p.output(f"Your Summary:")
     option_count = 6
     while True:
-        print()
-        p.output(f'1.     Name: {p.name}')
-        p.output(f'2.   Gender: {p.gender}')
-        p.output(f'3.    Class: {p.char_class}')
-        p.output(f'4.     Race: {p.char_race}')
+        p.output(["",
+                  f'1.     Name: {p.name}',
+                  f'2.   Gender: {p.gender}',
+                  f'3.    Class: {p.char_class}',
+                  f'4.     Race: {p.char_race}'])
         # FIXME: this needs work
         age = datetime.now().year - p.birthday.year
 
@@ -659,10 +651,9 @@ def final_edit(p: "Player"):
         else:
             temp = f"{age} years old"
             birthday = f"{p.birthday.month}/{p.birthday.day}/{p.birthday.year}"
-        p.output(f'5.      Age: {temp}')
-        # TODO: date format setting in player profile (YYYY-MM-DD or DD-MM-YYYY, mainly)
-        p.output(f'6. Birthday: {birthday}')
-        print()
+        p.output([f'5.      Age: {temp}',
+                  # TODO: date format setting in player profile (YYYY-MM-DD or DD-MM-YYYY, mainly)
+                  f'6. Birthday: {birthday}', ""])
 
         temp = input(f"Option [1-{option_count}, {p.client_settings.return_key}=Done]: ")
         print()
@@ -751,13 +742,13 @@ def choose_guild(p: "Player"):
     p.output(["", "--- Guild Selection ---"])
     while True:
         p.output(['',
-                'Join   Info',
-                " [C      IC]  Civilians",
-                " [O      IO]  Outlaws",
-                " [F      IF]  Iron Fist guild",
-                " [M      IM]  Mark of the Claw guild",
-                " [S      IS]  Mark of the Sword guild",
-                ''])
+                  'Join   Info',
+                  " [C      IC]  Civilians",
+                  " [O      IO]  Outlaws",
+                  " [F      IF]  Iron Fist guild",
+                  " [M      IM]  Mark of the Claw guild",
+                  " [S      IS]  Mark of the Sword guild",
+                  ''])
         # tada_utilities.text_pager(menu, p)
         guild_choice = input("Which option [C/IC, O/IO, F/IF, M/IM, S/IS]: ").lower()
         print()
@@ -801,27 +792,30 @@ def choose_guild(p: "Player"):
 
 
 def roll_stats(p: "Player"):
+    from base_classes import PlayerStat, PlayerClassBonuses, PlayerRaceBonuses
+    from tada_utilities import input_yes_no
     roll_number = 0
     chances = 5
     p.output(f"You will have {chances} chances to roll for {p.name}'s attributes.")
     while roll_number < chances:
         roll_number += 1
-        print(f"Throw {roll_number} of {chances} - Rolling...", end='')
-        # considering that running both these routines make unbelievably good 1st level stats,
-        # i don't think they both need to be called.
+        p.output([f"Throw {roll_number} of {chances} - Rolling...", ""])
+        # FIXME: Player().__init__() rolls some random statistics [for now]; replace with getnum() call:
+        for stat in p.stats:
+            p.adj_stat_relative(stat, getnum())
+        # FIXME: considering that running both these routines make unbelievably good 1st level stats,
+        #  I don't think they both need to be called.
         # TODO: each routine needs to be tested/compared to see what a more realistic set of stats is
-        # for k in p.stats:
-        # p.stats[k] = getnum()
-        # logging.info(f'{k=} {p.stats[k]=}')
-        class_bonuses(p)
-        print()
-        p.hit_points = 0
-        # hp=((ps+pd+pt+pi+pw+pe)/6)+random(10)
-        p.hit_points = (p.get_stat(PlayerStat.CHR) + p.get_stat(PlayerStat.CON) + p.get_stat(PlayerStat.DEX) +
-                        p.get_stat(PlayerStat.INT) + p.get_stat(PlayerStat.STR) + p.get_stat(PlayerStat.WIS) +
-                        p.get_stat(PlayerStat.EGY) // 7 + randrange(10))
+        # TLoS: hp=((ps+pd+pt+pi+pw+pe)/6)+random(10)
+        random_factor = randrange(10)
+        p.hit_points = sum(p.stats.values()) // 7 + random_factor
+        logging.debug("hit points: %d" % p.hit_points)
         p.experience = 0
 
+        # TODO: There should be checks for racial inability to hold shield/armor
+        #  (Pixie comes to mind)
+        # TODO: p.shield / p.armor should be an inventory item (a Shield or Armor object),
+        #  not just a number here
         if randrange(10) > 5:
             p.shield = 0
             p.armor = 0
@@ -829,173 +823,157 @@ def roll_stats(p: "Player"):
             p.shield = randrange(30)
             p.armor = randrange(30)
 
-        print(f"Charisma......: {p.get_stat(PlayerStat.CHR)}")
-        print(f"Constitution..: {p.get_stat(PlayerStat.CON)}")
-        print(f"Dexterity.....: {p.get_stat(PlayerStat.DEX)}")
-        print(f"Intelligence..: {p.get_stat(PlayerStat.INT)}")
-        print(f"Strength......: {p.get_stat(PlayerStat.STR)}")
-        print(f"Wisdom........: {p.get_stat(PlayerStat.WIS)}\n")
-        print(f"Hit Points....: {p.hit_points}")
-        print(f"Energy Level..: {p.get_stat(PlayerStat.EGY)}")
-        temp = p.shield
-        print(f"Shield........: {f'{temp}%' if temp else 'None'}")
-        temp = p.armor
-        print(f"Armor.........: {f'{temp}%' if temp else 'None'}")
-        print()
-        temp = input_yes_no("Do you accept")  # returns True if 'yes'
-        if temp:
-            break
+        shield = p.shield
+        armor = p.armor
+
+        p.output([f"Charisma......: {p.get_stat(PlayerStat.CHR)}",
+                  f"Constitution..: {p.get_stat(PlayerStat.CON)}",
+                  f"Dexterity.....: {p.get_stat(PlayerStat.DEX)}",
+                  f"Intelligence..: {p.get_stat(PlayerStat.INT)}",
+                  f"Strength......: {p.get_stat(PlayerStat.STR)}",
+                  f"Wisdom........: {p.get_stat(PlayerStat.WIS)}",
+                  f"",
+                  f"Hit Points....: {p.hit_points}",
+                  f"Energy Level..: {p.get_stat(PlayerStat.EGY)}",
+                  f"Shield........: {f'{shield}%' if shield else 'None'}",
+                  f"Armor.........: {f'{armor}%' if armor else 'None'}",
+                  ""])
+        # TODO: add Elf bow ability bonus
+
+        # --- Main Logic ---
+        race_bonuses = dict()
+        class_bonuses = dict()
+
+        # Get bonuses without applying them yet
+        if p.char_race:
+            race_bonuses = PlayerRaceBonuses[p.char_race.name].value
+        if p.char_class:
+            class_bonuses = PlayerClassBonuses[p.char_class.name].value
+
+        # Show the user what their final stats will be
+        final_stats = preview_stats_with_bonuses(p, race_bonuses, class_bonuses)
+
+        # Ask for confirmation
+        if input_yes_no("Do you accept these final stats"):
+            # User said YES. Now, apply the changes for real.
+            print("Applying final stats...")
+            for stat, value in final_stats.items():
+                p.adjust_stat(stat, value, True, False)
+            break  # out of the loop
+        else:
+            # User said NO. No changes were made, so nothing needs to be reverted.
+            p.output("Stats discarded. You can keep re-rolling.")
+            # break or send the user back to a previous menu
 
     if roll_number == chances:
-        p.output('"Sorry, you\'re stuck with these scores," Verus says.')
+        p.output(f'"Sorry, you{apostrophe}re stuck with these scores," Verus says.')
+
+
+def preview_stats_with_bonuses(p, class_bonuses, race_bonuses):
+    """Calculates and prints a preview of final stats without changing the original player stats."""
+    from base_classes import PlayerStat
+    from flags import PlayerFlags
+    # run output through paged_text() if necessary:
+    text = ["", "--- Bonuses Preview ---"]
+
+    # Create a copy of current stats
+    final_stats = {}
+    for stat in PlayerStat:
+        final_stats[stat] = p.get_stat(stat)
+
+    all_bonuses = [class_bonuses, race_bonuses]
+    # iterate through the list of tuples
+    for k, bonus_tuple in enumerate(all_bonuses):
+        # 1. Get the dictionary from the tuple at index 0
+        bonus_dict = bonus_tuple[0]
+
+        # Make sure the dictionary isn't empty or None
+        if bonus_dict:
+            # Loop through the stats and bonuses in the current dictionary
+            # Determine the bonus type using the index 'k'
+            bonus_type = [f"{p.char_class} class", f"{p.char_race} race"][k]
+            text.append("")
+            text.append(f"* Applying {bonus_type} bonuses:")
+
+            # 2. Use .items() on the dictionary to get both stat and amount
+            for stat, amount in bonus_dict.items():
+                old = p.get_stat(stat)
+                new = old + amount
+                final_stats[stat] += amount
+                adjustment = "bonus" if amount > 0 else "penalty"
+                logging.info(f"stat: {stat.value}, {adjustment}: {amount}")
+                if not p.query_flag(PlayerFlags.EXPERT_MODE):
+                    text.append(f"Applied {adjustment} to {stat.value}: {old} + ({amount}) -> {new}")
+    """
+    >>> bonus_dict = {PlayerStat.DEX: 1, PlayerStat.INT: -1, PlayerStat.STR: 2,
+    ...               PlayerStat.WIS: -1, PlayerStat.EGY: 2}
+
+    >>> for stat, amount in bonus_dict.items():
+    ...    print(stat, bonus)
+        
+    Dexterity 1
+    Intelligence -1
+    Strength 2
+    Wisdom -1
+    Energy 2
+    """
+    # Print the preview
+    for stat in PlayerStat:
+        original = p.get_stat(stat)
+        new = final_stats[stat]
+        if original != new:
+            text.append(f"{stat.value:.<15}: {original} -> {new}")
+        else:
+            text.append(f"{stat.value:.<15}: {original}")
+    p.output(text)
+    return final_stats
 
 
 def getnum():
-    """ACOS code:
-getnum
- zz$=rnd$:a=0  # rnd$ = random character
-getnum1
- print ".";
- b=asc(rnd$)-64:if b>17 then b=b-7
- if b=>11 return
- a=a+1:if a<10 then zz$=rnd$:goto getnum1
- b=b+9:if b<11 goto getnum1
- return
-"""
+    """
+    # ACOS code:
+    getnum
+     zz$=rnd$:a=0  # rnd$ = random character
+    getnum1
+     print ".";
+     b=asc(rnd$)-64:if b>17 then b=b-7
+     if b=>11 return
+     a=a+1:if a<10 then zz$=rnd$:goto getnum1
+     b=b+9:if b<11 goto getnum1
+     return
+    """
     a = 0  # loop counter
     b = 0  # value returned
     while a < 10:
-        print(".", end='')
-        b = randrange(1, 26)  # assuming 1-26 is rnd$'s limit
-        logging.debug("getnum: init: stat b = %i" % b)
+        logging.info('loop iteration: a=%i' % a)
+        # print(".", end='')
+        b = randrange(1, 27)  # assuming 1-26 is rnd$'s limit
+        logging.debug("stat b = %i" % b)
         if b > 17:
             b -= 7
-            logging.debug("getnum: stat b -= 7 (now %i)" % b)
+            logging.debug("stat b > 17: -= 7 (now %i)" % b)
         if b >= 11:
-            logging.debug("getnum: stat b >= 11 (now %i): return b" % b)
+            logging.debug("stat b >= 11 (now %i): return b" % b)
             return b
         a += 1
-        logging.info(f'loop {a=}')
         b += 9
-        logging.debug("getnum: loop: a += 1 (now %i), stat: b += 9 (now %i)" % (a, b))
+        logging.debug("loop iteration: %i, stat: b += 9 (now %i)" % (a, b))
         if b > 11:
-            logging.debug("getnum: stat b > 9 (now %i), break" % b)
+            logging.debug("stat b > 9 (now %i), break" % b)
             break
-    logging.debug("getnum: stat b = %i, return" % b)
+    logging.debug("stat b = %i, return" % b)
     return b
-
-
-def class_bonuses(p: "Player"):
-    """
-    adjust stats of Player p, based on player class
-
-    these lists are all the same length because they loop through all
-    player attributes and add or subtract the number in that position.
-    if 0, the attribute is not modified.
-    NOTE: compared to t.np, stat 4 (Ego) has been removed from these lists
-    """
-    from base_classes import PlayerClass, PlayerRace
-    # TODO: prompt using display_classes()
-
-    #     chr con dex int str wis egy
-    class_bonuses = {
-        PlayerClass.WIZARD: [0, -1, 0, +2, 0, 0],  # class 1
-        PlayerClass.DRUID: [0, 0, 0, +2, -1, +2],  # class 2
-        PlayerClass.FIGHTER: [0, +2, -1, -1, +2, 0, +2],  # class 3
-        PlayerClass.PALADIN: [0, 0, +1, +1, +1, +1, 0],  # class 4
-        PlayerClass.RANGER: [0, 0, 0, -1, +1, -1, 0],  # class 5
-        PlayerClass.THIEF: [0, 0, +1, 0, 0, 0, +2],  # class 6
-        PlayerClass.ARCHER: [0, 0, +2, 0, 0, 0, -1],  # class 7
-        PlayerClass.ASSASSIN: [0, 0, -1, 0, +2, 0, 0],  # class 8
-        PlayerClass.KNIGHT: [0, +1, 0, +1, 0, 0, -1],  # class 9
-    }
-    logging.debug('class_bonuses: Apply class bonuses: {adj=}')
-    # Get bonus list based on player class
-    bonus_list = class_bonuses.get(p.char_class)
-
-    if bonus_list:
-        logging.debug("Apply class bonuses: %s" % bonus_list)
-        apply_bonuses(bonus_list, p)
-    else:
-        logging.warning("Unknown class %s" % p.char_class)
-
-def calculate_race_bonuses(p: "Player"):
-    pr = p.char_race
-    if p.query_flag(PlayerFlags.DEBUG_MODE):
-        # just so we don't have to go through every char creation step...
-        logging.info("fixme")
-        # TODO: prompt using display_classes()
-        pr = PlayerRace.HUMAN
-        logging.info("Shortcut: set %s" % pr)
-
-    # Human   Ogre    Pixie   Elf     Hobbit  Gnome   Dwarf   Orc     Half-Elf
-    # TODO: add Elf bow ability bonus
-    # these lists are all the same length because they loop through all
-    # player attributes and add or subtract the number in that position.
-    # if 0, the attribute is not modified.
-    # NOTE: compared to t.np, stat 4 (Ego) has been removed from these lists
-    #     order of elements is: chr con dex int str wis egy
-    race_bonuses = {PlayerRace.HUMAN: [0, +1, +2, +2, -1, 0, 0],  # race 1
-                    PlayerRace.OGRE: [0, +2, -1, -2, +3, -1, 0],  # race 2
-                    PlayerRace.PIXIE: [0, 0, -1, 0, +1, +1, 0],  # race 3
-                    PlayerRace.ELF: [0, -1, +2, +1, 0, +2, 0],  # race 4
-                    PlayerRace.HOBBIT: [0, 0, +1, +2, -1, 0, +1],  # race 5
-                    # FIXME: Gnome bonuses same as Human?:
-                    PlayerRace.GNOME: [0, +1, +2, +2, -1, 0, 0],  # race 6
-                    PlayerRace.DWARF: [0, +1, -1, 0, +2, 0, 0],  # race 7
-                    PlayerRace.ORC: [0, 0, +1, -1, +2, -1, +2],  # race 8
-                    PlayerRace.HALF_ELF: [0, 0, +1, 0, 0, +1, 0],  # race 9
-                    }
-    adj = race_bonuses[p.char_race]
-    logging.info(f'Apply race bonuses: {adj=}')
-    apply_bonuses(adj, p)
-
-
-def apply_bonuses(adj: list, p: "Player"):
-    """
-    loop through stats, adjusting each based on p class & race bonuses & penalties
-
-    :param adj: list of adjustments from class_bonuses() & race_bonuses()
-    :param p: Player object's stat_name to apply adjustments to
-    :return: None
-    """
-    from base_classes import PlayerStat
-    for i, k in enumerate(PlayerStat, start=1):
-        # class_calculate is not in skip's branch
-        # https://github.com/Pinacolada64/TADA/blob/skip/SPUR-code/SPUR.NEW.S
-        # nor spur.logon.s:
-        # https://github.com/Pinacolada64/TADA/blob/master/SPUR-code/SPUR.LOGON.S
-        # t.np:
-        # y=stat, x=counter, b=max value
-        # maximum allowable value for chr, con, dex: 18
-        # maximum allowable value for int, str, wis, egy: 25
-        # y=v1+86:for x=1 to 8:b=18:if x>3 then b=25
-        maximum = 18
-        if i < 3:
-            maximum = 25
-        # {:_276}
-        # n=fn r(b):if n=1 then {:_276}
-        before = randrange(2, maximum)
-        # n=n+val(mid$(a$,x*2-1,2)):if n<1 then {:_276}
-        # poke y,n:y=y+1:print ".";
-        # next:y=v1+86
-        after = before + adj[i]
-        # if n>b then n=b
-        if after > maximum:
-            after = maximum
-        # FIXME: apply stat here:
-        p.set_stat_absolute(k, after)
-        logging.info("k=%s, before=%i, after=%i, maximum=%i" %
-                     (k, before, after, maximum))
 
 
 def main(player: "Player") -> "Player":
     from flags import PlayerFlags
     from base_classes import PlayerMoneyTypes
     from tada_utilities import header
-    # test of using code from create_character from new_player_2.py
-    # FIXME: initially, we wouldn't know which Player object to output it to (hasn't been created yet)
-    #  so use IP address?  will use standard print() here until Player object is established
+    apostrophe = "'"
+    quotation = '"'
+    from net_server import UserHandler
+    from net_common import Message
+
     logging.debug("In main")
 
     player.client_settings.screen_columns = 80
@@ -1011,11 +989,11 @@ def main(player: "Player") -> "Player":
     player.set_silver_absolute(PlayerMoneyTypes.IN_BAR, 0)
 
     header("Introduction")
-    player.output("Your faithful servant Verus appears at your side, as if by magic.")
-    player.output('Verus mentions, "Do not worry if ye answer wrong, ye can change thy answer later."')
+    player.output(["Your faithful servant Verus appears at your side, as if by magic.",
+                   'Verus mentions, "Do not worry if ye answer wrong, ye can change thy answer later."'])
 
     header("0. Choose Client")
-    player = choose_client(player)  # TODO: net_server handles this
+    player = choose_client(player)  # TODO: net_server handles this handshaking
 
     header("00. Choose Settings")
     choose_settings(player)
@@ -1039,10 +1017,10 @@ def main(player: "Player") -> "Player":
     header("VI. Final Edit")
     final_edit(player)
 
-    header("Choose Guild")
+    header("VII. Choose Guild")
     choose_guild(player)
 
-    header("Roll Statistics")
+    header("VIII. Roll Statistics")
     roll_stats(player)
 
     header("Done!")
@@ -1053,6 +1031,7 @@ def main(player: "Player") -> "Player":
 
 def debug_menu(p: "Player"):
     from flags import PlayerFlags
+    from tada_utilities import set_logging_level
     if p.query_flag(PlayerFlags.DEBUG_MODE):
         debug_menu = Menu(title="*** Debug Menu ***", columns=1)
         # in the case of a shortcut conflict (illustrated below), append an incremental number to the shortcut
@@ -1078,9 +1057,16 @@ def debug_menu(p: "Player"):
                                      action=final_edit))
         debug_menu.add_item(MenuItem("Jump to Choose Guild", "JG",
                                      action=choose_guild))
+        debug_menu.add_item(MenuItem("Jump to Roll Stats", "JR",
+                                     action=roll_stats))
+        debug_menu.add_item(MenuItem(f"Logging Level: {logging.getLevelName(logging.getLogger().level)}", "L",
+                                     # Pass a function that gets the CURRENT level name
+                                     # FIXME: dot_leader_handler=lambda: logging.getLevelName(logging.getLogger().level),
+                                     # Pass the function REFERENCE, don't call it
+                                     action=set_logging_level))
 
         menu_stack = [debug_menu]
-        navigate_menu(player, menu_stack)
+        navigate_menu(reader, writer, menu_stack, )
 
 
 if __name__ == '__main__':

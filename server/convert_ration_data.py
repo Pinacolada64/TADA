@@ -1,21 +1,18 @@
 #!/bin/env python3
 
 import json
-from dataclasses import dataclass
 import logging
+from pathlib import Path
 
+from base_classes import Ration
+from gbbs_io import read_file, iter_records, read_count
 
-@dataclass
-class Rations(object):
-    number: int
-    name: str
-    kind: str  # magical, standard, cursed
-    price: int
-    flags: list
+txt_file  = 'stores.txt'
+json_file = 'rations.json'
 
-    def __str__(self):
-        return f'#{self.number} {self.name}'
-
+item_types = {'F': 'food',
+              'D': 'drink',
+              'C': 'cursed'}
 
 def read_stanza(filename):
     """
@@ -28,7 +25,7 @@ def read_stanza(filename):
     line = []
     while count < 3:
         # 'diskin()' discards '#'-style comments
-        temp = diskin(filename)
+        temp = iter_records(filename)
         if temp != "^":
             line.append(temp)
             count += 1
@@ -51,14 +48,7 @@ def diskin(filename):
             logging.info(f'toss {data=}')
 
 
-def convert(txt_filename, ration_json_filename):
-    write = True
-
-    ration_kind = {"F.": "food",
-                   "D.": "drink",
-                   "C.": "cursed"}
-
-    ration_flags = {"x": "future expansion"}
+def convert(txt_filename: Path, ration_json_filename: Path, write: bool):
 
     with open(txt_filename) as file:
         debug = False
@@ -154,7 +144,7 @@ def convert(txt_filename, ration_json_filename):
                     flags = '(None)'
                 logging.info(f'{count=} {name=} {kind=} {flags=}')
             # add based on dataclass:
-            ration = Rations(**ration_data)
+            ration = Ration(**ration_data)
             logging.info(f"*** processed ration '{ration_data['name']}'")
             ration_list.append(ration)
             if debug:

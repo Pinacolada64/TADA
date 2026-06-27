@@ -1,7 +1,7 @@
 # fake data - make sure keys match those in Room class
 # these are nice room descriptions, but not sure where they can be used
 
-from server.common import K  # keys
+from old_server.common import K  # keys
 
 roomsData = [
     {K.number: 1,

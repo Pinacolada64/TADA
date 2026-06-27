@@ -1,4 +1,4 @@
-from base_classes import PlayerStat
+from base_classes import PlayerStat, PronounType, Gender
 
 # Step 1: Create a consolidated data dictionary.
 # The key is the PlayerStat member.
@@ -30,4 +30,32 @@ STAT_DATA = {
         "name": ("Wisdom", "Wis"),
         "phrases": ("less wise", "wiser")
     },
+}
+
+PRONOUN_MAP = {
+    Gender.MALE: {
+        PronounType.SUBJECTIVE: "he",
+        PronounType.OBJECTIVE: "him",
+        PronounType.POSSESSIVE_ADJECTIVE: "his",
+        PronounType.POSSESSIVE_PRONOUN: "his",
+        PronounType.REFLEXIVE: "himself",
+    },
+    Gender.FEMALE: {
+        PronounType.SUBJECTIVE: "she",
+        PronounType.OBJECTIVE: "her",
+        PronounType.POSSESSIVE_ADJECTIVE: "her",
+        PronounType.POSSESSIVE_PRONOUN: "hers",
+        PronounType.REFLEXIVE: "herself",
+    },
+}
+
+
+# A dictionary to hold the box-drawing characters for easy access and customization.
+BOX_CHARS = {
+    "horz": "─",
+    "vert": "│",
+    "top_left": "┌",
+    "top_right": "┐",
+    "bottom_left": "└",
+    "bottom_right": "┘",
 }
