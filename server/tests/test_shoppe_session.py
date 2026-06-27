@@ -19,6 +19,7 @@ def make_ctx(player, prompts: list) -> MagicMock:
     ctx               = MagicMock()
     ctx.player        = player
     ctx.send          = AsyncMock()
+    ctx.send_room     = AsyncMock()
     ctx.server.clients = {}
 
     it = iter(prompts)
