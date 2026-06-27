@@ -13,7 +13,7 @@ from pathlib import Path
 
 from monsters import monster_flag_labels, load_monsters, save_monsters, monster_sizes, all_monster_keys
 from menu_system import Menu, MenuItem, run_menu
-from terminal_context import TerminalContext, run_local
+from terminal_context import GameContext as TerminalContext, run_local
 from tada_utilities import header, input_yes_no, input_number_range
 
 MONSTER_FILE = 'monsters.json'
@@ -513,14 +513,15 @@ async def search_by_attribute(ctx, monsters: list[dict], weapons: dict[int, str]
 # Main menu
 # ---------------------------------------------------------------------------
 
-async def main():
-    ctx = TerminalContext()
+async def main(ctx=None):
+    if ctx is None:
+        ctx = TerminalContext()
 
     try:
         monsters = load_monsters(MONSTER_FILE)
     except FileNotFoundError:
         await ctx.send(f"'{MONSTER_FILE}' not found. Run convert_monster_data.py first.")
-        sys.exit(1)
+        return
 
     quotes    = load_quotes(QUOTES_FILE)
     weapons   = load_weapons(WEAPONS_FILE)
