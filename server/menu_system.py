@@ -173,6 +173,7 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
     max_val   = max((len(d)      for _, b, d in item_rows if b and d), default=0)
     dot_width = max(0, screen_columns - max_base - max_val - 3)
 
+
     # --- Pass 2: render ---
     lines: List[str] = ['', f'[{menu.title}]', rule]
 
