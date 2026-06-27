@@ -382,7 +382,8 @@ def ansi_encode_lines(lines: list[str]) -> list[str]:
     return [ansi_encode(line) for line in lines]
 
 
-_TOKEN_STRIP_RE = re.compile(r'\|[a-z_]+\|')
+_TOKEN_STRIP_RE   = re.compile(r'\|[a-z_]+\|')
+_ANSI_ESCAPE_RE   = re.compile(r'\x1b\[[^a-zA-Z]*[a-zA-Z]')
 
 def plain_encode(text: str) -> str:
     """Strip all |token| sequences for plain-text clients."""
@@ -471,8 +472,10 @@ def highlight_brackets(text: str, codec: ColorCodec) -> str:
 
 
 def _visible_len(text: str) -> int:
-    """`|token|` sequences are zero-width on screen — strip them before measuring."""
-    return len(_TOKEN_STRIP_RE.sub('', text))
+    """Count visible columns: strips |token| sequences and raw ANSI escape codes."""
+    text = _TOKEN_STRIP_RE.sub('', text)
+    text = _ANSI_ESCAPE_RE.sub('', text)
+    return len(text)
 
 
 def wrap_text(text: str, width: int,
