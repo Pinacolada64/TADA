@@ -143,6 +143,10 @@ async def main(ctx: GameContext) -> None:
         'Torchlight flickers across rows of stalls lining the walls.  The smell '
         'of old parchment and coin mingles in the cool underground air.',
     )
+    await ctx.send_room(
+        f'{player.name} follows the sloping passageway downward into the merchant{_AP}s annex.',
+        exclude_self=True,
+    )
 
     await enter_area(ctx, 'shoppe')
     try:
@@ -167,6 +171,10 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
 
         if cmd == 'x':
             await ctx.send(f'You climb back up the passageway into the daylight.')
+            await ctx.send_room(
+                f'{player.name} climbs back up the passageway into the daylight.',
+                exclude_self=True,
+            )
             break
 
         matched = next((fn for key, _, fn in _MENU if key.lower() == cmd), None)
