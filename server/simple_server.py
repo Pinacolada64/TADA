@@ -248,7 +248,10 @@ class Server:
         if translation == Translation.PETSCII:
             while True:
                 await ctx.send(
-                    'TADA server',
+                    # Switch C64 to lowercase/uppercase character set so that
+                    # bytes 0x41-0x5A display as lowercase a-z instead of
+                    # uppercase A-Z (the default uppercase/graphics mode).
+                    '|lowercase|TADA server',
                     '',
                     'Commodore client detected.',
                     '',

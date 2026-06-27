@@ -246,9 +246,11 @@ class CommandProcessor:
                 error="wrong_mode",
             )
 
-        log.debug("dispatch: %r -> %s.%s (mode=%s, args=%r)",
+        username    = getattr(getattr(ctx, 'player', None), 'name', None) if ctx else None
+        translation = getattr(getattr(getattr(ctx, 'player', None), 'client_settings', None), 'translation', None)
+        log.debug("dispatch: %r -> %s.%s (mode=%s, args=%r, user=%r, translation=%s)",
                   parts[0], cmd.__class__.__module__, cmd.__class__.__name__,
-                  self.current_mode.name, args)
+                  self.current_mode.name, args, username, translation)
 
         # Use the live ctx when available; fall back to the stored dict for tests.
         effective_ctx = ctx if ctx is not None else self.context

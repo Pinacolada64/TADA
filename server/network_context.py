@@ -310,11 +310,13 @@ def _petscii_input_to_ascii(data: bytes) -> str:
     """
     chars = []
     for b in data:
-        if 0x20 <= b <= 0x5A:          # space … Z  (same as ASCII)
+        if 0x20 <= b <= 0x40:          # space, punctuation, digits
             chars.append(chr(b))
-        elif 0x61 <= b <= 0x7A:        # a-z
+        elif 0x41 <= b <= 0x5A:        # unshifted letter keys → lowercase a-z
+            chars.append(chr(b + 0x20))
+        elif 0x61 <= b <= 0x7A:        # a-z (some terminal modes)
             chars.append(chr(b))
-        elif 0xC1 <= b <= 0xDA:        # shifted A-Z in lowercase charset
+        elif 0xC1 <= b <= 0xDA:        # shifted A-Z in lowercase charset → uppercase
             chars.append(chr(b - 0x80))
     return ''.join(chars)
 
@@ -378,7 +380,10 @@ class PETSCIINetworkContext(GameContext):
             raw = await self.reader.readuntil(b'\r')
             text = _petscii_input_to_ascii(raw.rstrip(b'\r\x00')).strip()
             # Echo input back so the player sees what they typed.
-            self.writer.write(text.encode('ascii', errors='replace') + self.LINE_ENDING)
+            # Use petscii_encode so lowercase letters send PETSCII bytes
+            # 0x41-0x5A, which display correctly in lowercase charset mode.
+            from formatting import petscii_encode
+            self.writer.write(petscii_encode(text, self.CODEC_NAME) + self.LINE_ENDING)
             await self.writer.drain()
             return text
         except asyncio.IncompleteReadError:
