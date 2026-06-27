@@ -8,6 +8,7 @@ from base_classes import PlayerMoneyTypes
 from flags import PlayerFlags
 from items import Rations
 from network_context import GameContext
+from presence import broadcast_area
 from tada_utilities import get_pronoun, PronounType, get_article_and_quantity, tip
 
 log = logging.getLogger(__name__)
@@ -76,6 +77,7 @@ async def main(ctx: GameContext, bar=None) -> None:
     displayed_items = food_menu(player, foodstuffs)
     log.debug("Displayed items: %i", len(displayed_items))
     await _bar_none_menu(ctx, displayed_items)
+    await broadcast_area(ctx, 'bar', f'{player.name} pulls up a stool at {_NPC}\'s bar.')
 
     while True:
         raw = await ctx.prompt(f"1-{len(displayed_items)}, [L]ist, [X]pert")
@@ -86,6 +88,7 @@ async def main(ctx: GameContext, bar=None) -> None:
         menu_item = raw.strip()
         if not menu_item:
             await ctx.send(f'{mae.name} nods as you head for the door. "See you around."')
+            await broadcast_area(ctx, 'bar', f'{player.name} gets up from the bar.')
             break
 
         if menu_item.lower() in ('?', 'l', 'list'):

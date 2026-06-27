@@ -6,6 +6,7 @@ from bar.ally_data import AllyFlags, assign_random_statuses, AllyStatus, Ally, l
 from base_classes import PlayerMoneyTypes
 from flags import PlayerFlags
 from network_context import GameContext
+from presence import broadcast_area
 
 log = logging.getLogger(__name__)
 
@@ -109,6 +110,7 @@ async def main(ctx: GameContext, bar=None) -> None:
     master_ally_list = assign_random_statuses(master_ally_list)
 
     await ctx.send(f"The slave trader {_NPC} sits behind a table, gnawing a chicken leg.")
+    await broadcast_area(ctx, 'bar', f'{player.name} sits down across from {_NPC}.')
     if not player.query_flag(PlayerFlags.EXPERT_MODE):
         await ctx.send([
             '"I buy und sell servants yu can add tu your party! ',
@@ -136,6 +138,7 @@ async def main(ctx: GameContext, bar=None) -> None:
 
         if command in ('l', 'q'):
             await ctx.send(f'"Hokey dokey." {_NPC} watches you leave.')
+            await broadcast_area(ctx, 'bar', f'{player.name} gets up from {_NPC}\'s table.')
             break
         elif command in ('?', 'h'):
             await _fat_olaf_menu(ctx)

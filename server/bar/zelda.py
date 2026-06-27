@@ -7,6 +7,7 @@ from pathlib import Path
 from flags import PlayerFlags
 from base_classes import Gender, PlayerStat, PlayerMoneyTypes
 from network_context import GameContext
+from presence import broadcast_area
 
 log = logging.getLogger(__name__)
 
@@ -185,6 +186,7 @@ async def main(ctx: GameContext, bar=None) -> None:
     player = ctx.player
 
     await ctx.send(f'{_NPC} and her cat sit in front of a crystal ball.')
+    await broadcast_area(ctx, 'bar', f'{player.name} sits down in front of {_NPC}.')
     if not player.query_flag(PlayerFlags.EXPERT_MODE):
         await ctx.send([
             "",
@@ -221,6 +223,7 @@ async def main(ctx: GameContext, bar=None) -> None:
             await _zelda_menu(ctx)
         elif command in ('l', 'q'):
             await ctx.send(f'{_NPC} crosses her arms. "Gooo away, you bother my caaaat..."')
+            await broadcast_area(ctx, 'bar', f'{player.name} gets up from {_NPC}\'s table.')
             break
         else:
             await ctx.send(f'{_NPC} stares at you. Her cat stares too.')
