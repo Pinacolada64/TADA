@@ -274,6 +274,7 @@ class Server:
                     break
                 elif raw.strip().lower() == 'q':
                     await ctx.send('Disconnecting - hope to see you again soon!')
+                    await self._graceful_close(ctx.writer)
                     return False
         else:
             # For ANSI/JSON clients, offer ANSI vs plain
@@ -308,6 +309,7 @@ class Server:
                         pass
                 elif choice == 'Q':
                     await ctx.send('Disconnecting - hope to see you again soon!')
+                    await self._graceful_close(ctx.writer)
                     return False
         return True
 
@@ -559,6 +561,24 @@ class Server:
     # -----------------------------------------------------------------------
     # Broadcast
     # -----------------------------------------------------------------------
+
+    @staticmethod
+    async def _graceful_close(writer) -> None:
+        """Flush pending writes and close the write-side of the socket.
+
+        Calling writer.close() immediately after a send() can race with the
+        client reading the last message: if there is still unread data in the
+        receive buffer the OS may send RST instead of FIN, discarding data in
+        the send buffer before the client sees it.  Draining then waiting for
+        the close to complete gives the TCP stack time to deliver the farewell
+        message before tearing down the connection.
+        """
+        try:
+            await writer.drain()
+            writer.close()
+            await writer.wait_closed()
+        except Exception:
+            pass
 
     async def broadcast(self, sender_addr, message_obj) -> None:
         """Send a Message to all clients except the sender."""
