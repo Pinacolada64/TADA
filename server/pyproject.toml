@@ -7,7 +7,7 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 # Default options: quiet, show extra summary on failure
-addopts = "-q -r a"
+addopts = "-v -r a"
 
 # Define markers so we can mark long-running or integration tests that start servers
 markers = [
