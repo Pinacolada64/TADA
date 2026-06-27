@@ -2,7 +2,7 @@
 import logging
 
 from network_context import GameContext
-from presence import enter_area, leave_area
+from presence import enter_area, leave_area, others_present
 
 log = logging.getLogger(__name__)
 
@@ -111,6 +111,10 @@ _MENU = (
 
 async def _show_menu(ctx: GameContext) -> None:
     lines = ['', 'Merchant Shoppe:', '']
+    other_names = others_present(ctx, 'shoppe')
+    if other_names:
+        lines.append(f'  Also here: {", ".join(other_names)}')
+        lines.append('')
     for key, label, _ in _MENU:
         lines.append(f'  [{key}] {label}')
     lines += ['  [X] Leave the Shoppe', '']

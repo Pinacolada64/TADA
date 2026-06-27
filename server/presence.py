@@ -29,6 +29,19 @@ def occupants(server, area: str) -> list:
             if getattr(c, 'virtual_location', None) == area]
 
 
+def others_present(ctx, area: str) -> list[str]:
+    """Return names of other players in *area*, excluding the caller."""
+    names = []
+    for client in occupants(ctx.server, area):
+        if client is ctx.client:
+            continue
+        player = getattr(getattr(client, 'ctx', None), 'player', None)
+        name   = getattr(player, 'name', None)
+        if name:
+            names.append(name)
+    return names
+
+
 async def broadcast_area(ctx, area: str, message: str) -> None:
     """Send *message* to every occupant of *area* except the sender."""
     for client in occupants(ctx.server, area):

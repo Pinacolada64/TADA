@@ -177,6 +177,18 @@ class TestElevatorLook(unittest.IsolatedAsyncioTestCase):
 
     @_PATCH_COMBO
     @_PATCH_ULINE
+    async def test_l00k_not_recognised(self, *_):
+        """l00k (with zeros) should fall through to the processor, not trigger look."""
+        processor = MagicMock()
+        processor.process_input = AsyncMock(return_value=MagicMock())
+        player = make_player()
+        ctx    = make_ctx(player, ['l00k', 'l'], processor=processor)
+        await _elevator_session(ctx, player)
+        processor.process_input.assert_awaited_once_with('l00k', ctx=ctx)
+        self.assertNotIn('iron cage', _sent(ctx))
+
+    @_PATCH_COMBO
+    @_PATCH_ULINE
     async def test_look_does_not_exit(self, *_):
         player = make_player()
         ctx    = make_ctx(player, ['look', 'l'])

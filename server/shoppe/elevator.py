@@ -6,7 +6,7 @@ from formatting import hrule_char, underline
 from network_context import GameContext
 from player import Player, set_up_combinations
 from base_classes import CombinationTypes, Combination
-from presence import enter_area, leave_area, broadcast_area
+from presence import enter_area, leave_area, broadcast_area, others_present
 
 log = logging.getLogger(__name__)
 
@@ -215,8 +215,12 @@ async def _elevator_session(ctx: GameContext, player) -> None:
                 await _travel_to(ctx, current_level - 1)
             continue
 
-        if cmd in ('look', 'lo', 'loo', 'l00k'):
-            await ctx.send(_ELEVATOR_DESCRIPTION)
+        if cmd in ('look', 'lo', 'loo'):
+            others = others_present(ctx, 'elevator')
+            msg = [_ELEVATOR_DESCRIPTION]
+            if others:
+                msg.append(f'Also here: {", ".join(others)}.')
+            await ctx.send(msg)
             continue
 
         try:
