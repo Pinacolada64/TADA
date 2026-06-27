@@ -7,6 +7,7 @@ from network_context import GameContext
 from player import Player
 from flags import PlayerFlags
 from items import Rations
+from presence import enter_area, leave_area, broadcast_area
 
 log = logging.getLogger(__name__)
 
@@ -202,6 +203,9 @@ def food_menu(p: 'Player', foodstuffs: list[dict]) -> list[Rations]:
 # Main async entry point — called from commands/movement.py _enter_bar()
 # ---------------------------------------------------------------------------
 
+_DIRECTION_NAMES = {'n': 'north', 's': 'south', 'e': 'east', 'w': 'west'}
+
+
 async def enter_bar(ctx: GameContext) -> None:
     """Run the Wall Bar & Grill interaction loop for the given ctx."""
     player  = ctx.player
@@ -214,113 +218,137 @@ async def enter_bar(ctx: GameContext) -> None:
         'the wall above you reads: "WALL BAR AND GRILL."',
         "",
     ])
+    await ctx.send_room(
+        f'{player.name} wanders into the Wall Bar & Grill.',
+        exclude_self=True,
+    )
 
     if not player.is_expert:
         await _bar_help(ctx)
 
-    while True:
-        debug = player.is_debug
-        await ctx.send([''] + _render_map(bar, bar_map, debug))
+    await enter_area(ctx, 'bar')
+    try:
+        while True:
+            debug = player.is_debug
+            await ctx.send([''] + _render_map(bar, bar_map, debug))
 
-        # Check for an interactive location at the player's position
-        bar.can_go_here = False
-        bar.go_routine  = None
-        for row, col, name, routine_key in Bar.locations:
-            if bar.pos_y == row and bar.pos_x == col:
-                await ctx.send(name)
-                if routine_key:
-                    bar.can_go_here = True
-                    bar.go_routine  = _ROUTINES.get(routine_key)
-                if debug:
-                    await ctx.send(f"  (routine: {routine_key})")
+            # Check for an interactive location at the player's position
+            bar.can_go_here = False
+            bar.go_routine  = None
+            for row, col, name, routine_key in Bar.locations:
+                if bar.pos_y == row and bar.pos_x == col:
+                    await ctx.send(name)
+                    if routine_key:
+                        bar.can_go_here = True
+                        bar.go_routine  = _ROUTINES.get(routine_key)
+                    if debug:
+                        await ctx.send(f"  (routine: {routine_key})")
 
-        if debug:
-            await ctx.send(f'(x: {bar.pos_x}, y: {bar.pos_y})')
+            if debug:
+                await ctx.send(f'(x: {bar.pos_x}, y: {bar.pos_y})')
 
-        # Proximity bump checks
-        # TODO: add other players here
-        bump, opponent, bump_text = False, '', ''
-        if bar.pos_y == 2 and bar.pos_x == 1:
-            bump, opponent, bump_text = True, "The Blue Djinn", 'eyes you, hissing. "Are'
-        elif bar.pos_y == 2 and bar.pos_x == 10:
-            bump, opponent, bump_text = True, "Mundo the bouncer", 'looks up from the floor. "Hey,'
-        if bump:
-            raw = await ctx.prompt('Y/N', preamble_lines=[
-                f'{opponent} {bump_text} you looking for a fight?"',
-            ])
-            if raw and raw.strip().lower() in ('y', 'yes'):
-                if opponent.startswith("Mundo"):
-                    await _bouncer(ctx, bar)
-                    continue
+            # Proximity bump checks
+            # TODO: add other players here
+            bump, opponent, bump_text = False, '', ''
+            if bar.pos_y == 2 and bar.pos_x == 1:
+                bump, opponent, bump_text = True, "The Blue Djinn", 'eyes you, hissing. "Are'
+            elif bar.pos_y == 2 and bar.pos_x == 10:
+                bump, opponent, bump_text = True, "Mundo the bouncer", 'looks up from the floor. "Hey,'
+            if bump:
+                raw = await ctx.prompt('Y/N', preamble_lines=[
+                    f'{opponent} {bump_text} you looking for a fight?"',
+                ])
+                if raw and raw.strip().lower() in ('y', 'yes'):
+                    if opponent.startswith("Mundo"):
+                        await _bouncer(ctx, bar)
+                        continue
+                    else:
+                        await ctx.send(f"{opponent} draws back, ready to fight... (combat not yet available)")
                 else:
-                    await ctx.send(f"{opponent} draws back, ready to fight... (combat not yet available)")
-            else:
-                await ctx.send(f'"Well then, [watch] it!" {opponent} glares at you.')
+                    await ctx.send(f'"Well then, [watch] it!" {opponent} glares at you.')
 
-        # Menu and prompt
-        if not player.is_expert:
-            await _show_menu(ctx, bar)
-            if player.previous_command:
-                await ctx.send(f"[{player.client_settings.return_key}] = '{player.previous_command}'")
+            # Menu and prompt
+            if not player.is_expert:
+                await _show_menu(ctx, bar)
+                if player.previous_command:
+                    await ctx.send(f"[{player.client_settings.return_key}] = '{player.previous_command}'")
 
-        raw = await ctx.prompt('bar', preamble_lines=[f'[HP: {player.hit_points}]'])
-        if raw is None:
-            break
-        inp = raw.strip().lower()
-
-        # Repeat last command on empty input
-        if not inp:
-            if player.previous_command:
-                inp = player.previous_command
-                if not player.is_expert:
-                    await ctx.send(f"(Repeating '{inp}'.)")
-            else:
-                continue
-
-        command = inp[0]
-        player.previous_command = command
-
-        move_into_obstacle = False
-
-        if command in ('?', 'h'):
-            await _bar_help(ctx)
-        elif command == 'g' and bar.can_go_here and callable(bar.go_routine):
-            await bar.go_routine(ctx, bar)
-        elif command == 'd':
-            player.toggle_flag(PlayerFlags.DEBUG_MODE, True)
-        elif command == 'x':
-            player.toggle_flag(PlayerFlags.EXPERT_MODE, True)
-        elif command == 'q':
-            break
-        elif command == 'n':
-            if bar.pos_y > 0 and bar_map[bar.pos_y - 1][bar.pos_x] not in obstacles:
-                bar.pos_y -= 1
-            else:
-                move_into_obstacle = True
-        elif command == 's':
-            if bar.pos_y < len(bar_map) - 1 and bar_map[bar.pos_y + 1][bar.pos_x] not in obstacles:
-                bar.pos_y += 1
-            else:
-                move_into_obstacle = True
-        elif command == 'e':
-            if bar.pos_x < len(bar_map[0]) - 1 and bar_map[bar.pos_y][bar.pos_x + 1] not in obstacles:
-                bar.pos_x += 1
-            else:
-                move_into_obstacle = True
-        elif command == 'w':
-            if bar.pos_x > 0 and bar_map[bar.pos_y][bar.pos_x - 1] not in obstacles:
-                bar.pos_x -= 1
-            else:
-                move_into_obstacle = True
-        else:
-            await ctx.send('Hm? (N/S/E/W to move, H for help, Q to leave)')
-
-        if move_into_obstacle:
-            await ctx.send("Laughter fills the bar as you attempt to move through solid objects.")
-            player.hit_points -= 1
-            if player.hit_points <= 0:
-                await ctx.send("You have died.")
+            raw = await ctx.prompt('bar', preamble_lines=[f'[HP: {player.hit_points}]'])
+            if raw is None:
                 break
+            inp = raw.strip().lower()
+
+            # Repeat last command on empty input
+            if not inp:
+                if player.previous_command:
+                    inp = player.previous_command
+                    if not player.is_expert:
+                        await ctx.send(f"(Repeating '{inp}'.)")
+                else:
+                    continue
+
+            command = inp[0]
+            player.previous_command = command
+
+            move_into_obstacle = False
+            moved_direction    = None
+
+            if command in ('?', 'h'):
+                await _bar_help(ctx)
+            elif command == 'g' and bar.can_go_here and callable(bar.go_routine):
+                await bar.go_routine(ctx, bar)
+            elif command == 'd':
+                player.toggle_flag(PlayerFlags.DEBUG_MODE, True)
+            elif command == 'x':
+                player.toggle_flag(PlayerFlags.EXPERT_MODE, True)
+            elif command == 'q':
+                await ctx.send("You head back out to the street.")
+                await ctx.send_room(
+                    f'{player.name} heads back out into the street.',
+                    exclude_self=True,
+                )
+                break
+            elif command == 'n':
+                if bar.pos_y > 0 and bar_map[bar.pos_y - 1][bar.pos_x] not in obstacles:
+                    bar.pos_y -= 1
+                    moved_direction = 'north'
+                else:
+                    move_into_obstacle = True
+            elif command == 's':
+                if bar.pos_y < len(bar_map) - 1 and bar_map[bar.pos_y + 1][bar.pos_x] not in obstacles:
+                    bar.pos_y += 1
+                    moved_direction = 'south'
+                else:
+                    move_into_obstacle = True
+            elif command == 'e':
+                if bar.pos_x < len(bar_map[0]) - 1 and bar_map[bar.pos_y][bar.pos_x + 1] not in obstacles:
+                    bar.pos_x += 1
+                    moved_direction = 'east'
+                else:
+                    move_into_obstacle = True
+            elif command == 'w':
+                if bar.pos_x > 0 and bar_map[bar.pos_y][bar.pos_x - 1] not in obstacles:
+                    bar.pos_x -= 1
+                    moved_direction = 'west'
+                else:
+                    move_into_obstacle = True
+            else:
+                await ctx.send('Hm? (N/S/E/W to move, H for help, Q to leave)')
+
+            if moved_direction:
+                await broadcast_area(ctx, 'bar',
+                                     f'{player.name} moves {moved_direction}.')
+
+            if move_into_obstacle:
+                await ctx.send("Laughter fills the bar as you attempt to move through solid objects.")
+                player.hit_points -= 1
+                if player.hit_points <= 0:
+                    await broadcast_area(ctx, 'bar',
+                                         f'{player.name} has died walking into solid objects.')
+                    await ctx.send("You have died.")
+                    break
+    finally:
+        await leave_area(ctx, 'bar')
 
 
 # ---------------------------------------------------------------------------
