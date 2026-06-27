@@ -64,10 +64,13 @@ class TeleportCommand(Command):
             await ctx.send(f'Room {dest} does not exist.')
             return CommandResult.fail(f'Room {dest} not found.', error='bad_room')
 
-        old_room     = getattr(ctx.client, 'room', None)
+        old_room        = getattr(ctx.client, 'room', None)
+        name            = ctx.player.name
+        await ctx.send(f'{name} disappears in a flash of light.')
+        await ctx.send_room(f'{name} disappears in a flash of light.', exclude_self=True)
         ctx.client.room = dest
-        log.info('%s teleported from room %s to room %s',
-                 ctx.player.name, old_room, dest)
-        await ctx.send(f'You teleport to room {dest}.')
+        log.info('%s teleported from room %s to room %s', name, old_room, dest)
+        await ctx.send(f'{name} appears in a flash of light.')
+        await ctx.send_room(f'{name} appears in a flash of light.', exclude_self=True)
         await ctx.server._show_room(ctx)
         return CommandResult.ok()
