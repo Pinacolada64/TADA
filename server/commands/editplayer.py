@@ -273,7 +273,7 @@ def _flags_menu(ctx) -> Menu:
 
     # Groups mirror the BASIC's two-page layout (lines {:3010} and {:3115}).
     _groups = [
-        ('Game Options', [
+        ('Option Toggles', [
             PlayerFlags.EXPERT_MODE,
             PlayerFlags.HOURGLASS,
             PlayerFlags.MORE_PROMPT,
