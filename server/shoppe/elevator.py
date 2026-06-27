@@ -93,6 +93,19 @@ async def get_combination(ctx: GameContext, *,
 
 
 # ---------------------------------------------------------------------------
+# Elevator description
+# ---------------------------------------------------------------------------
+
+_ELEVATOR_DESCRIPTION = (
+    'You are inside a cramped iron cage, barely large enough for a few people '
+    'and their gear. Thick cables vanish into the darkness above and below. '
+    'A lever mounted on the wall rattles with each subtle sway of the car. '
+    'Through the gaps in the ironwork you can glimpse rough stone walls '
+    'sliding past — or standing still, depending on your perspective.'
+)
+
+
+# ---------------------------------------------------------------------------
 # Elevator motion
 # ---------------------------------------------------------------------------
 
@@ -202,6 +215,10 @@ async def _elevator_session(ctx: GameContext, player) -> None:
                 await _travel_to(ctx, current_level - 1)
             continue
 
+        if cmd in ('look', 'lo', 'loo', 'l00k'):
+            await ctx.send(_ELEVATOR_DESCRIPTION)
+            continue
+
         try:
             target = int(cmd)
             if 1 <= target <= len(available):
@@ -209,7 +226,11 @@ async def _elevator_session(ctx: GameContext, player) -> None:
             else:
                 await ctx.send(f'Please choose a level between 1 and {len(available)}.')
         except ValueError:
-            await ctx.send(f'Please enter a level number (1–{len(available)}) or L to leave.')
+            processor = getattr(ctx.client, 'command_processor', None)
+            if processor:
+                await processor.process_input(raw.strip(), ctx=ctx)
+            else:
+                await ctx.send(f'Please enter a level number (1–{len(available)}) or L to leave.')
 
 
 # ---------------------------------------------------------------------------
