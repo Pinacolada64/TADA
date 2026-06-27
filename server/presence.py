@@ -55,6 +55,29 @@ async def broadcast_area(ctx, area: str, message: str) -> None:
                 log.warning('presence.broadcast_area: send failed for %s', client)
 
 
+async def broadcast_open_room(ctx, message: str) -> None:
+    """Send *message* to players in the same map room who are NOT in any virtual sub-area.
+
+    Use this for entranceway events (e.g. "X steps up to the elevator") that
+    should be visible to players standing in the open room but not to those
+    already inside a sub-area (elevator, shoppe, bar, etc.).
+    """
+    my_room = getattr(ctx.client, 'room', None)
+    for client in ctx.server.clients.values():
+        if client is ctx.client:
+            continue
+        if getattr(client, 'room', None) != my_room:
+            continue
+        if getattr(client, 'virtual_location', None) is not None:
+            continue
+        peer_ctx = getattr(client, 'ctx', None)
+        if peer_ctx:
+            try:
+                await peer_ctx.send(message)
+            except Exception:
+                log.warning('presence.broadcast_open_room: send failed for %s', client)
+
+
 async def enter_area(ctx, area: str) -> None:
     """Mark this client as being in *area* and notify other occupants."""
     ctx.client.virtual_location = area
@@ -63,7 +86,8 @@ async def enter_area(ctx, area: str) -> None:
 
 
 async def leave_area(ctx, area: str) -> None:
-    """Clear this client's virtual location and notify remaining occupants."""
+    """Clear this client's virtual location and notify remaining occupants and the open room."""
     ctx.client.virtual_location = None
     name = getattr(ctx.player, 'name', '???')
     await broadcast_area(ctx, area, f'{name} steps out of the {area}.')
+    await broadcast_open_room(ctx, f'{name} steps out of the {area}.')

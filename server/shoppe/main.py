@@ -2,7 +2,7 @@
 import logging
 
 from network_context import GameContext
-from presence import enter_area, leave_area, others_present
+from presence import enter_area, leave_area, broadcast_open_room, others_present
 
 log = logging.getLogger(__name__)
 
@@ -143,9 +143,8 @@ async def main(ctx: GameContext) -> None:
         'Torchlight flickers across rows of stalls lining the walls.  The smell '
         'of old parchment and coin mingles in the cool underground air.',
     )
-    await ctx.send_room(
-        f'{player.name} follows the sloping passageway downward into the merchant{_AP}s annex.',
-        exclude_self=True,
+    await broadcast_open_room(
+        ctx, f'{player.name} follows the sloping passageway downward into the merchant{_AP}s annex.',
     )
 
     await enter_area(ctx, 'shoppe')
@@ -171,10 +170,6 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
 
         if cmd == 'x':
             await ctx.send(f'You climb back up the passageway into the daylight.')
-            await ctx.send_room(
-                f'{player.name} climbs back up the passageway into the daylight.',
-                exclude_self=True,
-            )
             break
 
         matched = next((fn for key, _, fn in _MENU if key.lower() == cmd), None)
