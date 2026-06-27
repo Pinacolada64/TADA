@@ -186,6 +186,11 @@ class Player:
         self.combinations = kwargs.get('combinations', set_up_combinations())
         # client settings - set up some defaults
         self.client_settings = kwargs.get('client_settings', set_up_client_settings())
+        # per-player command preferences (whereat visibility, etc.)
+        from command_settings import CommandSettings
+        _cs_raw = kwargs.get('command_settings', {})
+        self.command_settings = (CommandSettings.from_dict(_cs_raw)
+                                 if isinstance(_cs_raw, dict) else CommandSettings())
 
         self.natural_alignment = kwargs.get('natural_alignment', Alignment.NEUTRAL)
         self.current_alignment = kwargs.get('current_alignment', Alignment.NEUTRAL)
@@ -817,6 +822,9 @@ class Player:
             from inventory import Inventory
             if isinstance(self.inventory, Inventory):
                 data_out['inventory'] = self.inventory.to_json()
+            from command_settings import CommandSettings
+            if isinstance(self.command_settings, CommandSettings):
+                data_out['command_settings'] = self.command_settings.to_dict()
             try:
                 import flags as _flags
                 data_out['flags'] = _flags.serialize_flags_for_save(self)
@@ -875,6 +883,14 @@ class Player:
                     )
                 except Exception:
                     logging.exception("Player._load: failed to restore inventory for %s", self.name)
+
+            # Command settings
+            if 'command_settings' in data and isinstance(data['command_settings'], dict):
+                try:
+                    from command_settings import CommandSettings
+                    self.command_settings = CommandSettings.from_dict(data['command_settings'])
+                except Exception:
+                    logging.exception("Player._load: failed to restore command_settings for %s", self.name)
 
             # Merge stats and silver dicts where present
             if 'stats' in data and isinstance(data['stats'], dict):
