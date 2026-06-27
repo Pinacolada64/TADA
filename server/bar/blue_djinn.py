@@ -4,6 +4,7 @@ import random
 
 from flags import PlayerFlags
 from network_context import GameContext
+from presence import broadcast_area
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ async def main(ctx: GameContext, bar=None) -> None:
         await _blue_djinn_menu(ctx)
 
     await ctx.send(f"{_NPC} sits behind the table.")
+    await broadcast_area(ctx, 'bar', f'{player.name} sits down with {_NPC}.')
 
     while True:
         await ctx.send("")
@@ -58,11 +60,13 @@ async def main(ctx: GameContext, bar=None) -> None:
                 if player.hit_points > 5:
                     player.hit_points -= 5
                 await ctx.send("Mundo throws you out into the street...")
+            await broadcast_area(ctx, 'bar', f'Mundo throws {player.name} out of the bar.')
             break
         elif command == '?':
             await _blue_djinn_menu(ctx)
         elif command in ('l', 'q'):
             await ctx.send(f"{_NPC} looks relieved.")
+            await broadcast_area(ctx, 'bar', f'{player.name} gets up from {_NPC}.')
             break
         else:
             await ctx.send(f"{_NPC} looks amused.")
