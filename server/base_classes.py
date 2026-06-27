@@ -8,7 +8,6 @@ from enum import StrEnum, IntEnum, auto, Enum
 
 from items import BaseItem
 from network_context import GameContext
-from tada_utilities import oxford_comma_list
 
 
 class Guild(StrEnum):
@@ -435,6 +434,7 @@ class Room(object):
                 exit_txts.append(f'Down to #{rt}')
             else:
                 exit_txts.append('Down')
+        from tada_utilities import oxford_comma_list
         return oxford_comma_list(exit_txts)
 
 

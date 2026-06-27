@@ -19,8 +19,24 @@ Typical usage:
 
 import asyncio
 import logging
+import re as _re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable, List, Optional, Union
+
+_BRACKET_RE    = _re.compile(r'\[([^\]]*)\]')   # matches [text] in menu strings
+_TOKEN_RE_MENU = _re.compile(r'\|[a-z_]+\|')    # matches |token| color sequences
+
+
+def _vis_len(s: str) -> int:
+    """Visible column width of a menu string.
+
+    Strips |token| color sequences (zero-width) and converts [text] → text
+    (highlight_brackets removes the bracket delimiters), matching what the
+    terminal actually renders.
+    """
+    s = _TOKEN_RE_MENU.sub('', s)
+    s = _BRACKET_RE.sub(r'\1', s)
+    return len(s)
 
 if TYPE_CHECKING:
     from context import GameContext
@@ -106,7 +122,16 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
         h_char = '-'
     rule = h_char * screen_columns
 
-    # --- Pass 1: build base strings and evaluate all dot leaders ---
+    # --- Pass 1a: measure shortcut column width from this menu's items ---
+    # Use the widest shortcut string (visible width) so the column is as
+    # narrow as possible — e.g. [gui] = 5 vis chars, not the old fixed 8.
+    max_sc_vis = max(
+        (_vis_len(f"[{','.join(i.shortcuts)}]") for i in menu.menu_items
+         if not i.is_header and i.shortcuts),
+        default=0,
+    )
+
+    # --- Pass 1b: build base strings and evaluate all dot leaders ---
     selectable_count = 0
     item_rows = []  # (item, base | None, dot_text | None)
 
@@ -116,9 +141,17 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
             continue
 
         selectable_count += 1
-        shortcuts = f"[{','.join(item.shortcuts)}]" if item.shortcuts else ''
-        label     = item.text() if callable(item.text) else str(item.text)
-        base      = f'{selectable_count:2d}. {shortcuts:8} {label}'
+        label = item.text() if callable(item.text) else str(item.text)
+        if item.shortcuts:
+            sc_raw = f"[{','.join(item.shortcuts)}]"
+            # Pad so the visible shortcut occupies max_sc_vis columns.
+            # sc_raw has 2 extra chars ([…]) that highlight_brackets removes,
+            # so we add those back as spaces to keep visual alignment.
+            padding = max_sc_vis - _vis_len(sc_raw)
+            base = f'{selectable_count:2d}. {sc_raw}{" " * padding} {label}'
+        else:
+            indent = ' ' * (max_sc_vis + 1) if max_sc_vis else ''
+            base = f'{selectable_count:2d}. {indent}{label}'
 
         dot_text = None
         if item.dot_leader_handler is not None:
@@ -132,10 +165,12 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
 
         item_rows.append((item, base, dot_text))
 
-    # --- Compute uniform dot geometry across all items that have values ---
+    # --- Compute uniform dot geometry using VISIBLE lengths ---
+    # highlight_brackets() removes the [/] delimiters (2 chars per shortcut),
+    # so use _vis_len() for all measurements to match what the terminal sees.
     # 3 = one space before dots + colon + one space after colon
-    max_base  = max((len(b) for _, b, d in item_rows if b and d), default=0)
-    max_val   = max((len(d) for _, b, d in item_rows if b and d), default=0)
+    max_base  = max((_vis_len(b) for _, b, d in item_rows if b and d), default=0)
+    max_val   = max((len(d)      for _, b, d in item_rows if b and d), default=0)
     dot_width = max(0, screen_columns - max_base - max_val - 3)
 
     # --- Pass 2: render ---
@@ -147,11 +182,24 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
             continue
 
         if dot_text:
-            item_dots = max_base + dot_width - len(base)
+            # Alignment: push all values to the same visible column.
+            # Fit cap: never exceed screen_columns visible chars.
+            # 3 = space-before-dots + colon + space-after-colon
+            vis_base   = _vis_len(base)
+            align_dots = max_base + dot_width - vis_base
+            fit_dots   = screen_columns - vis_base - 3 - len(dot_text)
+            item_dots  = max(0, min(align_dots, fit_dots))
             if item_dots > 0:
                 lines.append(f'{base} {"." * item_dots}: {dot_text}')
             else:
-                lines.append(f'{base}: {dot_text}'[:screen_columns])
+                # No room for dots; truncate the label, never the value.
+                suffix     = f': {dot_text}'
+                keep_vis   = screen_columns - len(suffix)
+                # Trim base until its visible length fits.
+                trimmed    = base
+                while _vis_len(trimmed) > keep_vis and trimmed:
+                    trimmed = trimmed[:-1]
+                lines.append(f'{trimmed}{suffix}')
         else:
             lines.append(base)
 
