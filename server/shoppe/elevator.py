@@ -2,9 +2,11 @@
 import logging
 from typing import Optional
 
+from formatting import hrule_char, underline
 from network_context import GameContext
 from player import Player, set_up_combinations
 from base_classes import CombinationTypes, Combination
+from presence import enter_area, leave_area, broadcast_area
 
 log = logging.getLogger(__name__)
 
@@ -97,7 +99,7 @@ async def get_combination(ctx: GameContext, *,
 def _out_of_range(obstacle: str) -> str:
     return (
         f'The guard looks alarmed. "Not on your life, we{_AP}d go straight through the {obstacle}!" '
-        f'He pauses, scratching his chin. "That would be kind of fun, but I don{_AP}t '
+        f'He pauses, scratching his chin. "That [would] be kind of fun, but I don{_AP}t '
         f'think my boss would be very happy with me."'
     )
 
@@ -120,12 +122,13 @@ async def _travel_to(ctx: GameContext, target: int) -> None:
         f'The guard closes the doors, throws a lever, and the elevator creaks '
         f'{direction} towards {level_name}. Once there, he opens the doors again.'
     )
+    await broadcast_area(ctx, 'elevator',
+                         f'{player.name} travels {direction} to {level_name}.')
     player.map_level = target
     try:
         ctx.client.map_level = target
     except Exception:
         pass
-
 
 # ---------------------------------------------------------------------------
 # Main entry point — called from shoppe/main.py _elevator()
@@ -147,6 +150,15 @@ async def main(ctx: GameContext) -> None:
         'A burly guard stands here, his arms crossed. He looks you up and down.',
     )
 
+    await enter_area(ctx, 'elevator')
+    try:
+        await _elevator_session(ctx, player)
+    finally:
+        await leave_area(ctx, 'elevator')
+
+
+async def _elevator_session(ctx: GameContext, player) -> None:
+    """Inner elevator loop, called after presence is established."""
     if ctx.player.is_debug:
         elevator_combo = _find_combination(ctx.player, CombinationTypes.ELEVATOR) or "None"
         await ctx.send(f"[Debug] Combination for {elevator_combo}")
@@ -158,31 +170,46 @@ async def main(ctx: GameContext) -> None:
     available = _LEVEL_NAMES[:5]
 
     while True:
-        lines = ['', 'Elevator — choose a level:', '']
-        for i, name in enumerate(available, 1):
-            marker = ' <--' if i == current_level else ''
-            lines.append(f'  {i}. {name}{marker}')
-        lines += ['', '  [X] Cancel', '']
+        current_level = getattr(player, 'map_level', 1) or 1
+        lines = ['', *underline('Elevator', ctx), '',
+                 f"* [U]p a level, [D]own a level, or choose a level (1-{len(available)}):"]
+        for i, name in reversed(list(enumerate(available, 1))):
+            marker = '->' if i == current_level else '  '
+            lines.append(f'{marker} {i}. {name}')
+        lines += ['', '  [L]eave elevator', '']
         await ctx.send(lines)
 
-        raw = await ctx.prompt('Level')
+        raw = await ctx.prompt('Level (or L to leave)')
         if raw is None:
             break
         cmd = raw.strip().lower()
 
-        if not cmd or cmd == 'x':
+        if not cmd or cmd in ('x', 'l', 'leave'):
             await ctx.send('The guard steps aside as you leave.')
             break
+
+        if cmd == 'u':
+            if current_level >= len(available):
+                await ctx.send(_out_of_range('ceiling'))
+            else:
+                await _travel_to(ctx, current_level + 1)
+            continue
+
+        if cmd == 'd':
+            if current_level <= 1:
+                await ctx.send(_out_of_range('floor'))
+            else:
+                await _travel_to(ctx, current_level - 1)
+            continue
 
         try:
             target = int(cmd)
             if 1 <= target <= len(available):
                 await _travel_to(ctx, target)
-                break
             else:
                 await ctx.send(f'Please choose a level between 1 and {len(available)}.')
         except ValueError:
-            await ctx.send(f'Please enter a level number (1–{len(available)}) or X to cancel.')
+            await ctx.send(f'Please enter a level number (1–{len(available)}) or L to leave.')
 
 
 # ---------------------------------------------------------------------------

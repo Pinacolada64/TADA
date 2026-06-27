@@ -2,6 +2,7 @@
 import logging
 
 from network_context import GameContext
+from presence import enter_area, leave_area
 
 log = logging.getLogger(__name__)
 
@@ -139,6 +140,15 @@ async def main(ctx: GameContext) -> None:
         'of old parchment and coin mingles in the cool underground air.',
     )
 
+    await enter_area(ctx, 'shoppe')
+    try:
+        await _shoppe_session(ctx, player)
+    finally:
+        await leave_area(ctx, 'shoppe')
+
+
+async def _shoppe_session(ctx: GameContext, player) -> None:
+    """Inner shoppe loop, called after presence is established."""
     while True:
         if not player.is_expert:
             await _show_menu(ctx)

@@ -655,6 +655,11 @@ def make_header(text: str, char: str = '=') -> list[str]:
     return [text, char * len(text)]
 
 
+def underline(text: str, ctx) -> list[str]:
+    """Return [text, rule] where the rule character matches the client's border style."""
+    return [text, hrule_char(ctx) * len(text)]
+
+
 def make_rule(width: int, char: str = '-') -> str:
     """
     Return a horizontal rule string of `width` characters.
