@@ -5,6 +5,7 @@ from bar.ally_data import Ally
 from base_classes import PlayerMoneyTypes, PronounType
 from flags import PlayerFlags
 from network_context import GameContext
+from presence import broadcast_area
 from tada_utilities import get_pronoun
 
 log = logging.getLogger(__name__)
@@ -43,6 +44,8 @@ async def main(ctx: GameContext, bar=None) -> None:
             "(Never argue with a man who has hot grease at his disposal.)"
         )
         return
+
+    await broadcast_area(ctx, 'bar', f'{player.name} sits down at {_NPC}\'s counter.')
 
     if not player.query_flag(PlayerFlags.EXPERT_MODE):
         await _skip_menu(ctx)
@@ -157,6 +160,7 @@ async def main(ctx: GameContext, bar=None) -> None:
 
         elif menu_item in ('l', 'q'):
             await ctx.send(f'"Yeah, well... take {_AP}er easy..." {_NPC} mumbles.')
+            await broadcast_area(ctx, 'bar', f'{player.name} gets up from {_NPC}\'s counter.')
             break
 
         else:
