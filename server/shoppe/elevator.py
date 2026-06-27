@@ -2,6 +2,7 @@
 import logging
 from typing import Optional
 
+from flags import PlayerFlags
 from formatting import hrule_char, underline
 from network_context import GameContext
 from player import Player, set_up_combinations
@@ -159,6 +160,8 @@ async def main(ctx: GameContext) -> None:
         )
         return
 
+    if player.query_flag(PlayerFlags.ROOM_DESCRIPTIONS):
+        await ctx.send(_ELEVATOR_DESCRIPTION)
     await ctx.send(
         'A burly guard stands here, his arms crossed. He looks you up and down.',
     )
