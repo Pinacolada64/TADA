@@ -36,6 +36,7 @@ def make_ctx(player, prompts: list, *, processor=None) -> MagicMock:
     ctx              = MagicMock()
     ctx.player       = player
     ctx.send         = AsyncMock()
+    ctx.send_room    = AsyncMock()
     ctx.server.clients = {}           # no other occupants → no presence broadcasts
 
     ctx.client.map_level = player.map_level
@@ -210,6 +211,8 @@ class TestElevatorLeave(unittest.IsolatedAsyncioTestCase):
         ctx    = make_ctx(player, ['l'])
         await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
+        ctx.send_room.assert_awaited_once()
+        self.assertIn('steps away', ctx.send_room.await_args.args[0])
 
     @_PATCH_COMBO
     @_PATCH_ULINE
@@ -218,6 +221,7 @@ class TestElevatorLeave(unittest.IsolatedAsyncioTestCase):
         ctx    = make_ctx(player, ['x'])
         await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
+        ctx.send_room.assert_awaited_once()
 
     @_PATCH_COMBO
     @_PATCH_ULINE
@@ -226,6 +230,7 @@ class TestElevatorLeave(unittest.IsolatedAsyncioTestCase):
         ctx    = make_ctx(player, ['leave'])
         await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
+        ctx.send_room.assert_awaited_once()
 
     @_PATCH_COMBO
     @_PATCH_ULINE
@@ -234,6 +239,7 @@ class TestElevatorLeave(unittest.IsolatedAsyncioTestCase):
         ctx    = make_ctx(player, [''])
         await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
+        ctx.send_room.assert_awaited_once()
 
     @_PATCH_COMBO
     @_PATCH_ULINE
