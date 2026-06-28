@@ -260,9 +260,19 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
 async def _tell_fortune(ctx: GameContext) -> None:
     from random import choice
     while True:
-        fortunes = ["Post no bills.",
-                    "As you slide down the banister of life, make sure the splinters are facing the right way.",
-                    "Ask me no questions and I'll tell you no lies."]
+        fortunes = [
+            "Post no bills.",
+            "As you slide down the banister of life, make sure the splinters are facing the right way.",
+            "Ask me no questions and I'll tell you no lies.",
+            "The monster you fear most is already behind you.  No, don't look.",
+            "Help!  I am trapped inside a crystal ball!",
+            "Today is a good day to not be eaten.",
+            "A fool and his silver are soon parted.  You seem quite attached to yours.",
+            "Your lucky direction today: not down.",
+            "The secret to happiness is low expectations and good armor.",
+            "You will meet a tall, dark stranger.  He will attempt to pick your pocket.",
+            "The cat sees something you cannot.  The cat is usually right.",
+        ]
 
         a_fortune = choice(fortunes)
         # e.g., "Railbender gets his fortune read."
