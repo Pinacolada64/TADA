@@ -19,6 +19,7 @@ from command_settings import CommandSettings
 from commands.messaging import (
     parse_targets, expand_groups, find_online,
     online_player_names, is_online, player_exists, find_players,
+    prompt_player_choice,
 )
 from commands.groups import GroupsCommand
 from commands.whisper import WhisperCommand
@@ -54,6 +55,7 @@ class _FakeCtx:
         self.client = client
         self.server = server
         self._sent: list = []
+        self._prompt_answer: str = ''
 
     async def send(self, *args):
         for a in args:
@@ -61,6 +63,9 @@ class _FakeCtx:
                 self._sent.extend(a)
             else:
                 self._sent.append(a)
+
+    async def prompt(self, *args, **kwargs) -> str:
+        return self._prompt_answer
 
     def sent_text(self) -> str:
         """Joined text of everything sent to this ctx."""
@@ -286,6 +291,73 @@ class TestOnlineHelpers(unittest.TestCase):
         server = _make_server()
         _add_player(server, 'Bob')
         self.assertTrue(player_exists(server, 'B?b'))
+
+
+class TestPromptPlayerChoice(unittest.TestCase):
+    """Tests for prompt_player_choice — numbered list + selection."""
+
+    def _ctx_with(self, *names):
+        server = _make_server()
+        ctx = _add_player(server, 'Rulan')
+        for n in names:
+            _add_player(server, n)
+        return ctx
+
+    def _run(self, ctx, pattern='*', answer=''):
+        ctx._prompt_answer = answer
+        return asyncio.run(prompt_player_choice(ctx, pattern))
+
+    def test_no_matches_returns_none(self):
+        ctx = self._ctx_with()
+        result = self._run(ctx, 'Xyzzy_*')
+        self.assertIsNone(result)
+        self.assertIn('No players', ctx.sent_text())
+
+    def test_cancel_empty_input(self):
+        ctx = self._ctx_with('Alice')
+        result = self._run(ctx, '*', answer='')
+        self.assertIsNone(result)
+
+    def test_pick_by_number(self):
+        ctx = self._ctx_with('Alice')
+        # find_players returns sorted list; Alice should appear
+        matches = find_players(ctx.server, '*')
+        idx = str(matches.index('Alice') + 1)
+        result = self._run(ctx, '*', answer=idx)
+        self.assertEqual(result, 'Alice')
+
+    def test_pick_by_name(self):
+        ctx = self._ctx_with('Alice')
+        result = self._run(ctx, '*', answer='Alice')
+        self.assertEqual(result, 'Alice')
+
+    def test_pick_by_name_case_insensitive(self):
+        ctx = self._ctx_with('Alice')
+        result = self._run(ctx, '*', answer='alice')
+        self.assertEqual(result, 'Alice')
+
+    def test_out_of_range_number(self):
+        ctx = self._ctx_with('Alice')
+        result = self._run(ctx, '*', answer='9999')
+        self.assertIsNone(result)
+        self.assertIn('between 1 and', ctx.sent_text())
+
+    def test_name_not_in_list(self):
+        ctx = self._ctx_with('Alice')
+        result = self._run(ctx, 'Alice', answer='Bob')
+        self.assertIsNone(result)
+        self.assertIn('not in the list', ctx.sent_text())
+
+    def test_list_shows_numbers(self):
+        ctx = self._ctx_with('Alice')
+        self._run(ctx, '*', answer='')
+        self.assertRegex(ctx.sent_text(), r'\d+\.')
+
+    def test_online_player_marked(self):
+        ctx = self._ctx_with('Alice')
+        self._run(ctx, '*', answer='')
+        # Alice is online (added via _add_player), should be marked *
+        self.assertIn('*', ctx.sent_text())
 
 
 class TestFindPlayers(unittest.TestCase):

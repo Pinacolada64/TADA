@@ -3,11 +3,12 @@
 parse_targets()       — split a comma/space/quoted target string into a name list
 expand_groups()       — replace #groupname tokens with stored member lists
 find_online()         — map name list to live GameContext objects
-online_player_names() — list all currently connected player names
-known_player_names()  — list names from save files (online or not)
-is_online()           — check whether a specific name is currently connected
-player_exists()       — check online clients and save files; supports ? and * wildcards
-find_players()        — return sorted names matching a pattern (? and * wildcards)
+online_player_names()   — list all currently connected player names
+known_player_names()    — list names from save files (online or not)
+is_online()             — check whether a specific name is currently connected
+find_players()          — return sorted names matching a pattern (? and * wildcards)
+player_exists()         — check online clients and save files; supports ? and * wildcards
+prompt_player_choice()  — display a numbered player list and return the user's pick
 """
 import fnmatch
 import shlex
@@ -163,6 +164,56 @@ def find_players(server, pattern: str) -> list[str]:
                 results.append(name)
 
     return sorted(results, key=str.lower)
+
+
+async def prompt_player_choice(ctx, pattern: str = '*', *,
+                               prompt_text: str = 'Choose a player') -> 'str | None':
+    """Show a numbered, wildcard-filtered player list and prompt for a choice.
+
+    Displays all players matching *pattern* (? and * wildcards), with online
+    players marked *.  The user may enter a list number or type a name.
+    Returns the chosen name, or None if the user cancels (empty input) or the
+    list is empty.
+
+    Typical usage:
+        name = await prompt_player_choice(ctx, 'r*', prompt_text='Study whom')
+        if name is None:
+            return   # cancelled or no matches
+    """
+    matches = find_players(ctx.server, pattern)
+    if not matches:
+        await ctx.send(f'No players found matching "{pattern}".')
+        return None
+
+    online = {n.lower() for n in online_player_names(ctx.server)}
+    lines  = [f'Players matching "{pattern}" (* = online):', '']
+    for i, name in enumerate(matches, 1):
+        marker = '*' if name.lower() in online else ' '
+        lines.append(f'  {i:>3}.{marker} {name}')
+    lines.append('')
+    await ctx.send(lines)
+
+    raw = await ctx.prompt(f'{prompt_text} (number or name, Enter to cancel)')
+    if not raw:
+        return None
+    raw = raw.strip()
+    if not raw:
+        return None
+
+    if raw.isdigit():
+        idx = int(raw) - 1
+        if 0 <= idx < len(matches):
+            return matches[idx]
+        await ctx.send(f'Please enter a number between 1 and {len(matches)}.')
+        return None
+
+    # Name typed directly — must be in the filtered list
+    needle = raw.lower()
+    for name in matches:
+        if name.lower() == needle:
+            return name
+    await ctx.send(f'"{raw}" is not in the list.')
+    return None
 
 
 def player_exists(server, name: str) -> bool:

@@ -88,18 +88,16 @@ async def _pawn_shop(ctx: GameContext) -> None:
 async def _player_list(ctx: GameContext) -> None:
     """Browse online and offline players, optionally filtered by a wildcard pattern.
 
-    Enter a name or pattern at the prompt:
-      *        — list all players
-      r*       — players whose name starts with R
-      ?al*     — names with any first letter followed by 'al'
+    * matches any string; ? matches one character.
+    Examples:  *  lists everyone;  r*  lists players starting with R.
     """
-    from commands.messaging import find_players, online_player_names
+    from commands.messaging import prompt_player_choice
 
     await ctx.send([
         'Player List',
         '',
-        'Enter a name or pattern to search (* matches any string, ? matches one character).',
-        'Examples:  *  lists everyone;  r*  lists players starting with R.',
+        '* matches any string, ? matches one character.',
+        'Examples:  *  (everyone),  r*  (names starting with R).',
         '',
     ])
     raw = await ctx.prompt('Search pattern (or * for all)')
@@ -107,18 +105,9 @@ async def _player_list(ctx: GameContext) -> None:
         return
     pattern = raw.strip() or '*'
 
-    matches = find_players(ctx.server, pattern)
-    if not matches:
-        await ctx.send(f'No players found matching "{pattern}".')
-        return
-
-    online  = {n.lower() for n in online_player_names(ctx.server)}
-    lines   = [f'Players matching "{pattern}" (* = online):', '']
-    for name in matches:
-        marker = '*' if name.lower() in online else ' '
-        lines.append(f'  {marker} {name}')
-    lines.append('')
-    await ctx.send(lines)
+    chosen = await prompt_player_choice(ctx, pattern, prompt_text='Select player')
+    if chosen:
+        await ctx.send(f'Selected: {chosen}')
 
 
 # ---------------------------------------------------------------------------

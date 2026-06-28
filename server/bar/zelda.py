@@ -6,7 +6,7 @@ from pathlib import Path
 
 from flags import PlayerFlags
 from base_classes import Gender, PlayerStat, PlayerMoneyTypes
-from commands.messaging import find_players, player_exists
+from commands.messaging import player_exists, prompt_player_choice
 from network_context import GameContext
 from presence import broadcast_area
 
@@ -41,7 +41,10 @@ def get_player_info(stats: list[str], id_pattern: str = "*") -> dict | None:
         try:
             with open(player_filename) as f:
                 data = json.load(f)
-            result = {'id': data['id']}
+            # 'id' may be absent in older save files; derive it from the filename
+            stem = Path(player_filename).stem  # 'player-railbender'
+            fallback_id = stem[len('player-'):] if stem.startswith('player-') else stem
+            result = {'id': data.get('id', fallback_id)}
             for stat in stats:
                 try:
                     result[stat] = data[stat]
@@ -68,23 +71,6 @@ async def _zelda_menu(ctx: GameContext) -> None:
     ])
 
 
-def _player_list_lines(ctx: GameContext, pattern: str = '*') -> list[str]:
-    """Return formatted player list lines, optionally filtered by pattern.
-
-    Supports * and ? wildcards.  Online players are marked with *.
-    """
-    from commands.messaging import find_players, online_player_names
-    matches = find_players(ctx.server, pattern)
-    if not matches:
-        return [f'(No players matching "{pattern}".)']
-    online = {n.lower() for n in online_player_names(ctx.server)}
-    lines  = [f'Players matching "{pattern}" (* = online):', '']
-    for name in matches:
-        marker = '*' if name.lower() in online else ' '
-        lines.append(f'  {marker} {name}')
-    return lines
-
-
 async def _study_player(ctx: GameContext) -> None:
     """Let the player spy on another character's stats for 1,000 silver."""
     player = ctx.player
@@ -102,17 +88,16 @@ async def _study_player(ctx: GameContext) -> None:
         await ctx.send('She looks you up and down. "I suggesssst youuuuuu uuuuuuuse a mirror!"')
         return
 
-    if look_up == '?':
-        await ctx.send(_player_list_lines(ctx))
-        return
+    # ? or wildcard: let them pick from a numbered list
+    if look_up == '?' or '*' in look_up or '?' in look_up:
+        pattern = '*' if look_up == '?' else look_up
+        look_up = await prompt_player_choice(ctx, pattern,
+                                             prompt_text='Study whom')
+        if look_up is None:
+            return
 
-    # Wildcard: show matches and let them pick instead of charging
-    if '*' in look_up or '?' in look_up:
-        await ctx.send(_player_list_lines(ctx, look_up))
-        return
-
-    # Validate name before asking for payment
-    if not player_exists(ctx.server, look_up):
+    # Validate exact name before asking for payment
+    elif not player_exists(ctx.server, look_up):
         await ctx.send(f'{_NPC} peers into the ball. "I seeee no oooone by thaaaaat name..."')
         return
 
@@ -137,43 +122,84 @@ async def _study_player(ctx: GameContext) -> None:
 
     await ctx.send(f'{_NPC} hunkers down over the ball.. "I seeeee..."')
 
-    stats = ['name', 'gender', 'map_level', 'hit_points', 'experience',
-             'shield', 'armor', 'stat']
-    info = get_player_info(stats, id_pattern=look_up)
+    fields = ['name', 'gender', 'char_class', 'char_race', 'guild',
+              'natural_alignment', 'current_alignment',
+              'map_level', 'map_room', 'hit_points', 'experience', 'honor',
+              'shield', 'armor', 'silver', 'monsters_killed', 'times_played',
+              'stats']
+    info = get_player_info(fields, id_pattern=look_up)
     if info is None:
         await ctx.send(f'{_NPC} frowns. "I cannot seeee thiiiiis person..."')
         return
 
-    pronoun = "She" if info.get('gender') == Gender.FEMALE else "He"
-    await ctx.send([
-        f"{info['name']} is on dungeon level {info.get('map_level', '?')}. "
-        f"{pronoun} has {info.get('hit_points', '?')} hit points.",
-        "",
-    ])
+    pronoun     = "She" if info.get('gender') == Gender.FEMALE else "He"
+    target_name = info.get('name', look_up)
 
-    # TODO: stat keys from JSON are strings, not PlayerStat enums — needs mapping
-    stat_block = info.get('stat', {})
+    # Identity line
+    parts = [target_name]
+    if info.get('char_race'):
+        parts.append(str(info['char_race']))
+    if info.get('char_class'):
+        parts.append(str(info['char_class']))
+    if info.get('guild'):
+        parts.append(f"({info['guild']})")
+    await ctx.send(' '.join(parts))
+
+    # Alignment
+    nat = info.get('natural_alignment', '?')
+    cur = info.get('current_alignment', '?')
+    await ctx.send(f"Alignment: {nat} (natural) / {cur} (current)")
+
+    # Location & vitals
+    await ctx.send(
+        f"{pronoun} is on dungeon level {info.get('map_level', '?')}, "
+        f"room {info.get('map_room', '?')}, "
+        f"with {info.get('hit_points', '?')} hit points."
+    )
+
+    # Ability scores
+    stat_block = info.get('stats', {})
     if stat_block:
         await ctx.send(
             f"{pronoun} has "
-            f"charisma of {stat_block.get(str(PlayerStat.CHR), '?')}, "
-            f"constitution of {stat_block.get(str(PlayerStat.CON), '?')}, "
-            f"dexterity of {stat_block.get(str(PlayerStat.DEX), '?')}, "
-            f"energy of {stat_block.get(str(PlayerStat.EGY), '?')}, "
-            f"intelligence of {stat_block.get(str(PlayerStat.INT), '?')}, "
-            f"strength of {stat_block.get(str(PlayerStat.STR), '?')}, "
-            f"and wisdom of {stat_block.get(str(PlayerStat.WIS), '?')}."
+            f"charisma {stat_block.get(str(PlayerStat.CHR), '?')}, "
+            f"constitution {stat_block.get(str(PlayerStat.CON), '?')}, "
+            f"dexterity {stat_block.get(str(PlayerStat.DEX), '?')}, "
+            f"energy {stat_block.get(str(PlayerStat.EGY), '?')}, "
+            f"intelligence {stat_block.get(str(PlayerStat.INT), '?')}, "
+            f"strength {stat_block.get(str(PlayerStat.STR), '?')}, "
+            f"and wisdom {stat_block.get(str(PlayerStat.WIS), '?')}."
         )
 
+    # Progress
     await ctx.send(
-        f"{info['name']} has achieved {info.get('experience', '?')} experience in the land."
+        f"{pronoun} has {info.get('experience', '?')} experience "
+        f"and {info.get('honor', '?')} honor."
     )
 
+    # Monsters killed
+    mk = info.get('monsters_killed')
+    if mk:
+        count = len(mk) if isinstance(mk, list) else mk
+        await ctx.send(f"{pronoun} has slain {count} monster type(s).")
+
+    # Equipment
     sh = info.get('shield', 'none')
     ar = info.get('armor',  'none')
     shield = f'{sh}%' if str(sh).isnumeric() else 'no'
     armor  = f'{ar}%' if str(ar).isnumeric() else 'no'
-    await ctx.send(f"{pronoun} has {shield} shield, and {armor} armor.")
+    await ctx.send(f"{pronoun} has {shield} shield and {armor} armor.")
+
+    # Silver
+    silver = info.get('silver', {})
+    if isinstance(silver, dict):
+        in_hand = silver.get('IN_HAND', 0)
+        in_bank = silver.get('IN_BANK', 0)
+        await ctx.send(f"{pronoun} carries {in_hand} silver and has {in_bank} in the bank.")
+
+    # Times played
+    if info.get('times_played'):
+        await ctx.send(f"{pronoun} has played {info['times_played']} time(s).")
 
 
 async def _resurrect_monsters(ctx: GameContext) -> None:
@@ -190,15 +216,14 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
     if not target:
         return
 
-    if target == '?':
-        await ctx.send(_player_list_lines(ctx))
-        return
+    if target == '?' or '*' in target or '?' in target:
+        pattern = '*' if target == '?' else target
+        target  = await prompt_player_choice(ctx, pattern,
+                                             prompt_text='Resurrect whose monsters')
+        if target is None:
+            return
 
-    if '*' in target or '?' in target:
-        await ctx.send(_player_list_lines(ctx, target))
-        return
-
-    if not player_exists(ctx.server, target):
+    elif not player_exists(ctx.server, target):
         await ctx.send(f'{_NPC} shakes her head. "Theeeeere are no monsters to raissse for thaaaaat one..."')
         return
 
