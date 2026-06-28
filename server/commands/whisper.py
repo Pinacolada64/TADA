@@ -1,126 +1,84 @@
-#!/bin/env python3
-"""Whisper command implementation."""
-from typing import Dict, Any, Optional, List, Set
+"""commands/whisper.py — Whisper a private message to a player in the same room.
 
-from .base_command import Command, CommandResult
-from commands.utils import get_player_from_context
+Syntax:  whisper <name>=<message>
+Example: whisper Bob=Did you see that?
+
+The '=' delimiter separates the target name from the message body so that
+names or messages containing spaces work without quoting.
+"""
+from commands.base_command import Command, CommandResult, Mode
+from commands.help import Help, HelpCategory
+from network_context import GameContext
+
 
 class WhisperCommand(Command):
-    """Handle the 'whisper' command for sending private messages to nearby players."""
-    
-    def __init__(self, context=None):
-        super().__init__(context)
-        self._whisper_recipients: Set[str] = set()
-    
-    @property
-    def name(self) -> str:
-        return "whisper"
-    
-    @property
-    def aliases(self) -> List[str]:
-        # can't be 'w', because that's an alias for 'go west'
-        return ["wh"]
-    
-    async def _execute(self, data: Dict[str, Any]) -> CommandResult:
-        """Execute the whisper command.
-        
-        Args:
-            data: Dictionary containing command data including:
-                - target: The player to whisper to
-                - message: The message to send
-                - user_id: The ID of the user sending the whisper
-                
-        Returns:
-            CommandResult: Result of the whisper command
-        """
-        target = data.get('target')
-        message = data.get('message')
-        user_id = data.get('user_id')
-        
-        if not target:
-            return CommandResult(
-                success=False,
-                error='missing_target',
-                message='Usage: whisper <player> <message> or w <player> <message>'
-            )
-            
+    name    = 'whisper'
+    # can't be 'w' — that's an alias for 'go west'
+    aliases = ['wh']
+    modes   = {Mode.GAME}
+
+    help = Help(
+        summary  = "Whisper a private message to a player in your room.",
+        category = HelpCategory.COMMUNICATION,
+        usage    = [
+            ('whisper <name>=<message>', 'Send a private whisper to <name>'),
+        ],
+        examples = [
+            ('whisper Bob=Did you see that?', 'Only Bob hears your whisper'),
+        ],
+    )
+
+    async def execute(self, ctx: GameContext, *args) -> CommandResult:
+        args, _switches = self.parse_args(*args)
+
+        if not args:
+            await ctx.send('Whisper to whom?  Usage: whisper <name>=<message>')
+            return CommandResult.fail('No arguments.')
+
+        raw = ' '.join(args)
+
+        if '=' not in raw:
+            await ctx.send('Usage: whisper <name>=<message>')
+            return CommandResult.fail('Missing =.')
+
+        target_name, _, message = raw.partition('=')
+        target_name = target_name.strip()
+        message     = message.strip()
+
+        if not target_name:
+            await ctx.send('Whisper to whom?  Usage: whisper <name>=<message>')
+            return CommandResult.fail('Missing target name.')
+
         if not message:
-            return CommandResult(
-                success=False,
-                error='missing_message',
-                message='Please provide a message to whisper.'
-            )
-            
-        # Get the client manager and user
-        client_manager = self.context.get('client_manager')
-        client = self.context.get('client') if isinstance(self.context, dict) else None
-        player = get_player_from_context(self.context, client)
+            await ctx.send('Whisper what?  Usage: whisper <name>=<message>')
+            return CommandResult.fail('Missing message.')
 
-        if not client_manager:
-            return CommandResult(
-                success=False,
-                error='server_error',
-                message='Server error: Client manager not available.'
-            )
-            
-        # Check if target is online
-        if not client_manager.is_online(target):
-            return CommandResult(
-                success=False,
-                error='player_offline',
-                message=f'{target} is not online.'
-            )
-            
-        # Check if target is ignoring whispers from this user
-        if client_manager.is_ignoring(target, user_id):
-            return CommandResult(
-                success=False,
-                error='ignored',
-                message=f'{target} is not accepting whispers from you.'
-            )
-            
-        # Check rate limiting
-        if client_manager.is_rate_limited(user_id, 'whisper'):
-            return CommandResult(
-                success=False,
-                error='rate_limited',
-                message='You are sending whispers too quickly. Please wait a moment.'
-            )
-            
-        # Get the target client and send the message
-        target_client = client_manager.get_client(target)
-        if target_client:
-            # Format the whisper message
-            whisper_msg = {
-                'type': 'whisper',
-                'from': user_id,
-                'text': message,
-                'timestamp': self.context.get('time', 0) if self.context else 0
-            }
-            
-            # Send the message
-            await target_client.handler.send_async_message(whisper_msg)
-            
-            # Update last whispered time for rate limiting
-            client_manager.update_last_whisper(user_id, target)
-            
-            # Add to whisper history
-            self._whisper_recipients.add(target)
-            
-            return CommandResult(
-                success=True,
-                message=f'You whisper to {target}: {message}'
-            )
-        
-        return CommandResult(
-            success=False,
-            error='unknown_error',
-            message='Failed to send whisper.'
-        )
+        my_name = ctx.player.name
+        if target_name.lower() == my_name.lower():
+            await ctx.send('You mutter to yourself, but no one notices.')
+            return CommandResult.ok()
 
-def register():
-    """Register the whisper command with the command manager."""
-    from .manager import command_manager
-    command = WhisperCommand()
-    command_manager.register_command(command)
-    return command
+        my_room = getattr(ctx.client, 'room', None)
+
+        target_ctx = None
+        for other_client in ctx.server.clients.values():
+            if other_client is ctx.client:
+                continue
+            if getattr(other_client, 'room', None) != my_room:
+                continue
+            other_ctx = getattr(other_client, 'ctx', None)
+            if other_ctx is None:
+                continue
+            other_name = getattr(getattr(other_ctx, 'player', None), 'name', '')
+            if other_name.lower() == target_name.lower():
+                target_ctx = other_ctx
+                break
+
+        if target_ctx is None:
+            await ctx.send(f'{target_name} is not here.')
+            return CommandResult.fail('Target not in room.')
+
+        real_name = target_ctx.player.name
+        await ctx.send(f'You whisper to {real_name}, "{message}"')
+        await target_ctx.send(f'{my_name} whispers to you, "{message}"')
+        return CommandResult.ok()
