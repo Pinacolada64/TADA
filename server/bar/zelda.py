@@ -5,10 +5,11 @@ import logging
 from pathlib import Path
 
 from flags import PlayerFlags
-from base_classes import Gender, PlayerStat, PlayerMoneyTypes
+from base_classes import Gender, PlayerStat, PlayerMoneyTypes, PronounType
 from commands.messaging import player_exists, prompt_player_choice
 from network_context import GameContext
 from presence import broadcast_area
+from tada_utilities import get_pronoun
 
 log = logging.getLogger(__name__)
 
@@ -65,8 +66,10 @@ def get_player_info(stats: list[str], id_pattern: str = "*") -> dict | None:
 async def _zelda_menu(ctx: GameContext) -> None:
     return_key = getattr(ctx.player.client_settings, 'return_key', 'Enter')
     await ctx.send([
-        "[S]tudy a player (1,000 silver)",
-        "[R]esurrect monsters (6,000 silver), or",
+        "[R]esurrect monsters ..... 6,000 silver",
+        "[S]tudy a player ......... 1,000 silver",
+        "[T]ell your fortune ............. Free!",
+        ""
         f"[{return_key}] / [L] Leave",
     ])
 
@@ -103,22 +106,23 @@ async def _study_player(ctx: GameContext) -> None:
 
     # Confirm payment (skip in debug mode)
     if player.query_flag(PlayerFlags.DEBUG_MODE):
-        pay = True
-        log.info("Debug: bypassing payment confirmation")
+        skip_paying = True
+        log.debug("Bypassing payment confirmation")
     else:
         raw2 = await ctx.prompt('Y/N', preamble_lines=[
             '"It willlll cossssst 1,000 silver.  Is thaaaaaat okayyyyy?"',
         ])
         pay = raw2 is not None and raw2.strip().lower() in ('y', 'yes')
 
-    if not pay:
-        await ctx.send('"Hmph..."')
-        return
+        if not pay:
+            await ctx.send('"Hmph..."')
+            await ctx.send_room(f"{ctx.player.name} refuses to pay Zelda for her services.")
+            return
 
-    # TODO: verify player.subtract_silver sign convention (positive = deduct)
-    if not player.subtract_silver(PlayerMoneyTypes.IN_HAND, 1_000):
-        await ctx.send('"You don\'t have enough silver!"')
-        return
+        # TODO: verify player.subtract_silver sign convention (positive = deduct)
+        if not player.subtract_silver(PlayerMoneyTypes.IN_HAND, 1_000):
+            await ctx.send('"You don\'t have enough silver!"')
+            return
 
     await ctx.send(f'{_NPC} hunkers down over the ball.. "I seeeee..."')
 
@@ -227,13 +231,21 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
         await ctx.send(f'{_NPC} shakes her head. "Theeeeere are no monsters to raissse for thaaaaat one..."')
         return
 
+    mk_info = get_player_info(['monsters_killed'], id_pattern=target)
+    mk = mk_info.get('monsters_killed') if mk_info else None
+    if not mk:
+        await ctx.send(f'{_NPC} peers into the ball. "Thiiiiis one has no dead monstersss to raissse..."')
+        return
+
     raw2 = await ctx.prompt('Y/N', preamble_lines=['"Dooo you wiiiiish to be unknowwwwwn?"'])
     anonymous = raw2 is not None and raw2.strip().lower() in ('y', 'yes')
     benefactor = "somebody" if anonymous else player.name
+    if not anonymous:
+        await broadcast_area(ctx, 'bar', f"{player.name} pays Zelda to raise {target}'s slain monsters back to life!")
 
     message = f'Zelda casts "Monster Life" on {target}!  Spell paid for by {benefactor}!'
     await ctx.send(message)
-    # TODO: write to battle log
+    # TODO: write to event log
 
     # TODO: verify player.subtract_silver sign convention
     player.subtract_silver(PlayerMoneyTypes.IN_HAND, 6_000)
@@ -244,6 +256,22 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
         '"It iiiisss doooooone!"',
     ])
 
+
+async def _tell_fortune(ctx: GameContext) -> None:
+    from random import choice
+    while True:
+        fortunes = ["Post no bills.",
+                    "As you slide down the banister of life, make sure the splinters are facing the right way.",
+                    "Ask me no questions and I'll tell you no lies."]
+
+        a_fortune = choice(fortunes)
+        # e.g., "Railbender gets his fortune read."
+        # use broadcast_area() for "virtual" rooms not in the map like the bar:
+        await broadcast_area(ctx, 'bar', f"{ctx.player} gets {get_pronoun(ctx.player, PronounType.POSSESSIVE_ADJECTIVE)} fortune read.")
+        await ctx.send(f'Zelda consults the tea leaves, finally announcing: "{a_fortune}"')
+        ans = await ctx.prompt("Another fortune?")
+        if not ans or ans not in ['y', 'yes']:
+            break
 
 # ---------------------------------------------------------------------------
 # Main async entry point
@@ -260,7 +288,7 @@ async def main(ctx: GameContext, bar=None) -> None:
             "",
             "She can either show other players' statistics (which costs 1,000 silver), "
             "or resurrect their dead monsters so they must be fought again "
-            "(which costs 6,000 silver).",
+            "(which costs 6,000 silver), or tell your fortune.",
             "",
         ])
     await _zelda_menu(ctx)
@@ -287,6 +315,8 @@ async def main(ctx: GameContext, bar=None) -> None:
             await _study_player(ctx)
         elif command == 'r':
             await _resurrect_monsters(ctx)
+        elif command == 't':
+            await _tell_fortune(ctx)
         elif command == '?':
             await _zelda_menu(ctx)
         elif command in ('l', 'q'):

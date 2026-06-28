@@ -165,15 +165,27 @@ def color_prefix(msg_type):
     return color
 
 
-async def main():
+async def main(host='127.0.0.1', port=34083, *,
+               auto_player=None, auto_password=None, plain=False):
     """
     Main coroutine to connect, handshake, and handle the message loop.
+
+    auto_player/auto_password: if set, automatically send
+        'connect <player> <password>' after the login banner so the user
+        doesn't have to type credentials interactively every session.
+    plain: suppress ANSI colour output.
     """
-    # NOTE: You may need to update the port (8888) if your server is running on a different one (e.g., 5000)
+    # plain-mode: replace all colour codes with empty strings
+    global RESET_COLOR
+    if plain:
+        for key in COLOR_MAP:
+            COLOR_MAP[key] = ''
+        RESET_COLOR = ''
+
     try:
-        reader, writer = await asyncio.open_connection('127.0.0.1', 34083)
+        reader, writer = await asyncio.open_connection(host, port)
     except ConnectionRefusedError:
-        print("Connection failed. Is the server running?")
+        print(f"Connection failed ({host}:{port}). Is the server running?")
         return
 
     # 1. Perform the handshake before doing anything else and get the login banner
@@ -198,6 +210,36 @@ async def main():
 
     loop = asyncio.get_running_loop()
     current_mode = Mode.login  # Start in login mode
+
+    # Auto-login: feed credentials without requiring interactive typing
+    if auto_player and auto_password:
+        connect_cmd = f'connect {auto_player} {auto_password}'
+        out_message = Message(lines=[connect_cmd], mode=current_mode)
+        await send_message(writer, out_message)
+        logging.info("Auto-login sent for player %r", auto_player)
+        # Collect and display the server's response before entering the input loop
+        read_timeout = 1.0
+        while True:
+            try:
+                response_data = await asyncio.wait_for(receive_message(reader), timeout=read_timeout)
+            except asyncio.TimeoutError:
+                break
+            if response_data is None:
+                print("Connection closed by server.")
+                writer.close()
+                await writer.wait_closed()
+                return
+            try:
+                in_message = Message(**response_data)
+            except TypeError:
+                in_message = Message(lines=[str(response_data)])
+            if in_message.mode:
+                current_mode = in_message.mode
+            if getattr(in_message, 'prompt', None):
+                last_prompt = in_message.prompt or last_prompt
+            for line in in_message.lines:
+                print(line)
+
     try:
         while True:
             # Prompt immediately (server is usually waiting for input at login prompt)
@@ -293,7 +335,19 @@ async def main():
 
 
 if __name__ == '__main__':
+    import getpass as _getpass
+
     parser = argparse.ArgumentParser(description="TADA client")
+    parser.add_argument('--host', default='127.0.0.1',
+                        help='Server hostname or IP (default: 127.0.0.1)')
+    parser.add_argument('--port', type=int, default=34083,
+                        help='Server port (default: 34083)')
+    parser.add_argument('--player', '-u', metavar='NAME',
+                        help='Auto-login with this player name')
+    parser.add_argument('--password', '-p', metavar='PASS',
+                        help='Password for --player (prompted securely if omitted)')
+    parser.add_argument('--plain', action='store_true',
+                        help='Disable ANSI color output')
     parser.add_argument(
         '--log',
         default='WARNING',
@@ -309,7 +363,14 @@ if __name__ == '__main__':
         force=True,      # override the basicConfig() call at the top of the file
     )
 
+    # If --player given without --password, prompt securely so it doesn't land in shell history
+    auto_password = args.password
+    if args.player and not auto_password:
+        auto_password = _getpass.getpass(f'Password for {args.player}: ')
+
     try:
-        asyncio.run(main())
+        asyncio.run(main(host=args.host, port=args.port,
+                         auto_player=args.player, auto_password=auto_password,
+                         plain=args.plain))
     except KeyboardInterrupt:
         print("\nClient shut down.")
