@@ -14,13 +14,15 @@ Usage::
     # In a command:
     ctx.player.command_settings.whereat_hidden = True
 """
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 
 @dataclass
 class CommandSettings:
     """Player-controlled command preferences."""
     whereat_hidden: bool = False
+    # Named groups for whisper/page: group_name (lower) → list of player names
+    groups: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return asdict(self)

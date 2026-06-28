@@ -1,13 +1,18 @@
-"""commands/whisper.py — Whisper a private message to a player in the same room.
+"""commands/whisper.py — Whisper a private message to one or more players in the same room.
 
-Syntax:  whisper <name>=<message>
-Example: whisper Bob=Did you see that?
+Syntax:  whisper <targets>=<message>
+Targets: a comma- or space-delimited list of names; quote names that contain
+         spaces; use #groupname to address everyone in a saved group.
 
-The '=' delimiter separates the target name from the message body so that
-names or messages containing spaces work without quoting.
+Examples:
+    whisper Bob=Did you see that?
+    whisper Alice,Bob=Let's sneak out
+    whisper "Dark Lord"=I come in peace
+    whisper #friends=Meet at the inn
 """
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
+from commands.messaging import parse_targets, expand_groups, find_online
 from network_context import GameContext
 
 
@@ -18,67 +23,72 @@ class WhisperCommand(Command):
     modes   = {Mode.GAME}
 
     help = Help(
-        summary  = "Whisper a private message to a player in your room.",
+        summary  = 'Whisper a private message to one or more players in your room.',
         category = HelpCategory.COMMUNICATION,
         usage    = [
-            ('whisper <name>=<message>', 'Send a private whisper to <name>'),
+            ('whisper <name>=<message>',           'Whisper to one player'),
+            ('whisper <name>,<name2>=<message>',   'Whisper to multiple players'),
+            ('whisper #<group>=<message>',         'Whisper to everyone in a group'),
         ],
         examples = [
-            ('whisper Bob=Did you see that?', 'Only Bob hears your whisper'),
+            ('whisper Bob=Did you see that?',      'Only Bob hears you'),
+            ('whisper Alice,Bob=Lets go',          'Both Alice and Bob hear you'),
+            ('whisper #friends=Meet at the inn',   'Everyone in your "friends" group hears you'),
         ],
+        notes = ['Target must be in the same room.  Use [page] for cross-room messages.'],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
-        args, _switches = self.parse_args(*args)
-
+        # Don't call parse_args: #groupname tokens start with '#' and would be
+        # classified as switches, breaking the targets=message syntax.
         if not args:
-            await ctx.send('Whisper to whom?  Usage: whisper <name>=<message>')
+            await ctx.send('Whisper to whom?  Usage: whisper <name[,name2]>=<message>')
             return CommandResult.fail('No arguments.')
 
         raw = ' '.join(args)
 
         if '=' not in raw:
-            await ctx.send('Usage: whisper <name>=<message>')
+            await ctx.send('Usage: whisper <name[,name2]>=<message>')
             return CommandResult.fail('Missing =.')
 
-        target_name, _, message = raw.partition('=')
-        target_name = target_name.strip()
-        message     = message.strip()
-
-        if not target_name:
-            await ctx.send('Whisper to whom?  Usage: whisper <name>=<message>')
-            return CommandResult.fail('Missing target name.')
+        targets_str, _, message = raw.partition('=')
+        message = message.strip()
 
         if not message:
-            await ctx.send('Whisper what?  Usage: whisper <name>=<message>')
+            await ctx.send('Whisper what?  Usage: whisper <name[,name2]>=<message>')
             return CommandResult.fail('Missing message.')
 
+        target_names = parse_targets(targets_str)
+        if not target_names:
+            await ctx.send('Whisper to whom?  Usage: whisper <name[,name2]>=<message>')
+            return CommandResult.fail('Missing target name.')
+
         my_name = ctx.player.name
-        if target_name.lower() == my_name.lower():
+
+        # Remove self from target list silently
+        target_names = [n for n in target_names if n.lower() != my_name.lower()]
+        if not target_names:
             await ctx.send('You mutter to yourself, but no one notices.')
             return CommandResult.ok()
 
-        my_room = getattr(ctx.client, 'room', None)
+        # Expand group tokens
+        target_names, unknown_groups = expand_groups(ctx.player, target_names)
+        for g in unknown_groups:
+            await ctx.send(f'You have no group named "{g[1:]}".')
 
-        target_ctx = None
-        for other_client in ctx.server.clients.values():
-            if other_client is ctx.client:
-                continue
-            if getattr(other_client, 'room', None) != my_room:
-                continue
-            other_ctx = getattr(other_client, 'ctx', None)
-            if other_ctx is None:
-                continue
-            other_name = getattr(getattr(other_ctx, 'player', None), 'name', '')
-            if other_name.lower() == target_name.lower():
-                target_ctx = other_ctx
-                break
+        if not target_names:
+            return CommandResult.ok()
 
-        if target_ctx is None:
-            await ctx.send(f'{target_name} is not here.')
-            return CommandResult.fail('Target not in room.')
+        found_ctxs, not_found = find_online(ctx, target_names, same_room_only=True)
+        for n in not_found:
+            await ctx.send(f'{n} is not here.')
 
-        real_name = target_ctx.player.name
-        await ctx.send(f'You whisper to {real_name}, "{message}"')
-        await target_ctx.send(f'{my_name} whispers to you, "{message}"')
+        if not found_ctxs:
+            return CommandResult.ok()
+
+        names_str = ', '.join(tctx.player.name for tctx in found_ctxs)
+        await ctx.send(f'You whisper to {names_str}, "{message}"')
+        for tctx in found_ctxs:
+            await tctx.send(f'{my_name} whispers to you, "{message}"')
+
         return CommandResult.ok()
