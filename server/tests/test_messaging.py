@@ -18,7 +18,7 @@ import unittest
 from command_settings import CommandSettings
 from commands.messaging import (
     parse_targets, expand_groups, find_online,
-    online_player_names, is_online, player_exists,
+    online_player_names, is_online, player_exists, find_players,
 )
 from commands.groups import GroupsCommand
 from commands.whisper import WhisperCommand
@@ -272,6 +272,75 @@ class TestOnlineHelpers(unittest.TestCase):
     def test_player_exists_not_found(self):
         server = _make_server()
         self.assertFalse(player_exists(server, 'Completely_Unknown_Xyzzy'))
+
+    def test_player_exists_wildcard_match(self):
+        server = _make_server()
+        _add_player(server, 'Alice')
+        self.assertTrue(player_exists(server, 'Al*'))
+
+    def test_player_exists_wildcard_no_match(self):
+        server = _make_server()
+        self.assertFalse(player_exists(server, 'Xyzzy_Unknown_*'))
+
+    def test_player_exists_question_mark(self):
+        server = _make_server()
+        _add_player(server, 'Bob')
+        self.assertTrue(player_exists(server, 'B?b'))
+
+
+class TestFindPlayers(unittest.TestCase):
+
+    def test_finds_online_player(self):
+        server = _make_server()
+        _add_player(server, 'Alice')
+        self.assertIn('Alice', find_players(server, '*'))
+
+    def test_star_returns_all(self):
+        server = _make_server()
+        _add_player(server, 'Alice')
+        _add_player(server, 'Bob')
+        results = find_players(server, '*')
+        self.assertIn('Alice', results)
+        self.assertIn('Bob', results)
+
+    def test_prefix_wildcard(self):
+        server = _make_server()
+        _add_player(server, 'Alice')
+        _add_player(server, 'Bob')
+        results = find_players(server, 'a*')
+        self.assertIn('Alice', results)
+        self.assertNotIn('Bob', results)
+
+    def test_question_mark(self):
+        server = _make_server()
+        _add_player(server, 'Bob')
+        results = find_players(server, '?ob')
+        self.assertIn('Bob', results)
+
+    def test_no_match_returns_empty(self):
+        server = _make_server()
+        self.assertEqual(find_players(server, 'Xyzzy_*'), [])
+
+    def test_case_insensitive(self):
+        server = _make_server()
+        _add_player(server, 'Alice')
+        self.assertIn('Alice', find_players(server, 'ALICE'))
+
+    def test_deduplicates_online_and_saved(self):
+        # A player who is both online and has a save file should appear once.
+        # 'railbender' has a real save file; add it online too.
+        server = _make_server()
+        _add_player(server, 'railbender')
+        results = find_players(server, 'railbender')
+        self.assertEqual(results.count('railbender'), 1)
+
+    def test_returns_sorted(self):
+        server = _make_server()
+        _add_player(server, 'Zelda')
+        _add_player(server, 'Alice')
+        results = find_players(server, '*')
+        names = [r for r in results if r in ('Alice', 'Zelda')]
+        self.assertEqual(names, sorted(names, key=str.lower))
 
 
 # ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from flags import PlayerFlags
 from base_classes import Gender, PlayerStat, PlayerMoneyTypes
+from commands.messaging import find_players, player_exists
 from network_context import GameContext
 from presence import broadcast_area
 
@@ -67,13 +68,30 @@ async def _zelda_menu(ctx: GameContext) -> None:
     ])
 
 
+def _player_list_lines(ctx: GameContext, pattern: str = '*') -> list[str]:
+    """Return formatted player list lines, optionally filtered by pattern.
+
+    Supports * and ? wildcards.  Online players are marked with *.
+    """
+    from commands.messaging import find_players, online_player_names
+    matches = find_players(ctx.server, pattern)
+    if not matches:
+        return [f'(No players matching "{pattern}".)']
+    online = {n.lower() for n in online_player_names(ctx.server)}
+    lines  = [f'Players matching "{pattern}" (* = online):', '']
+    for name in matches:
+        marker = '*' if name.lower() in online else ' '
+        lines.append(f'  {marker} {name}')
+    return lines
+
+
 async def _study_player(ctx: GameContext) -> None:
     """Let the player spy on another character's stats for 1,000 silver."""
     player = ctx.player
     if not player.query_flag(PlayerFlags.EXPERT_MODE):
-        await ctx.send('[?] lists players.')
+        await ctx.send('[?] lists players.  Wildcards * and ? are supported.')
 
-    raw = await ctx.prompt('"Study which player?"')
+    raw = await ctx.prompt('"Study which player?" (? to list, wildcards * and ? ok)')
     if raw is None:
         return
     look_up = raw.strip()
@@ -85,7 +103,17 @@ async def _study_player(ctx: GameContext) -> None:
         return
 
     if look_up == '?':
-        await ctx.send("[TODO]: List players")
+        await ctx.send(_player_list_lines(ctx))
+        return
+
+    # Wildcard: show matches and let them pick instead of charging
+    if '*' in look_up or '?' in look_up:
+        await ctx.send(_player_list_lines(ctx, look_up))
+        return
+
+    # Validate name before asking for payment
+    if not player_exists(ctx.server, look_up):
+        await ctx.send(f'{_NPC} peers into the ball. "I seeee no oooone by thaaaaat name..."')
         return
 
     # Confirm payment (skip in debug mode)
@@ -152,11 +180,26 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
     """Resurrect a player's dead monsters for 6,000 silver."""
     player = ctx.player
 
-    raw = await ctx.prompt('"Whooose monsters shall I briiiiing back to liiiiife?"')
+    if not player.query_flag(PlayerFlags.EXPERT_MODE):
+        await ctx.send('[?] lists players.  Wildcards * and ? are supported.')
+
+    raw = await ctx.prompt('"Whooose monsters shall I briiiiing back to liiiiife?" (? to list)')
     if raw is None:
         return
     target = raw.strip()
     if not target:
+        return
+
+    if target == '?':
+        await ctx.send(_player_list_lines(ctx))
+        return
+
+    if '*' in target or '?' in target:
+        await ctx.send(_player_list_lines(ctx, target))
+        return
+
+    if not player_exists(ctx.server, target):
+        await ctx.send(f'{_NPC} shakes her head. "Theeeeere are no monsters to raissse for thaaaaat one..."')
         return
 
     raw2 = await ctx.prompt('Y/N', preamble_lines=['"Dooo you wiiiiish to be unknowwwwwn?"'])

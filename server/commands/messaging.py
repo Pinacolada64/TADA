@@ -4,8 +4,12 @@ parse_targets()       — split a comma/space/quoted target string into a name l
 expand_groups()       — replace #groupname tokens with stored member lists
 find_online()         — map name list to live GameContext objects
 online_player_names() — list all currently connected player names
+known_player_names()  — list names from save files (online or not)
 is_online()           — check whether a specific name is currently connected
+player_exists()       — check online clients and save files; supports ? and * wildcards
+find_players()        — return sorted names matching a pattern (? and * wildcards)
 """
+import fnmatch
 import shlex
 
 
@@ -129,8 +133,45 @@ def is_online(server, name: str) -> bool:
     return any(n.lower() == needle for n in online_player_names(server))
 
 
+def find_players(server, pattern: str) -> list[str]:
+    """Return sorted names matching pattern, checking online clients then save files.
+
+    Supports shell-style wildcards: * matches any string, ? matches one character.
+    Matching is case-insensitive.  Each name appears at most once.
+
+    Examples:
+        find_players(server, '*')       → all known players
+        find_players(server, 'ral*')    → ['railbender'] (if that save file exists)
+        find_players(server, 'r?lan')   → ['Rulan'] (if online or saved)
+    """
+    pat  = pattern.lower()
+    seen: set[str] = set()
+    results: list[str] = []
+
+    for name in online_player_names(server):
+        if fnmatch.fnmatch(name.lower(), pat):
+            key = name.lower()
+            if key not in seen:
+                seen.add(key)
+                results.append(name)
+
+    for name in known_player_names():
+        if fnmatch.fnmatch(name.lower(), pat):
+            key = name.lower()
+            if key not in seen:
+                seen.add(key)
+                results.append(name)
+
+    return sorted(results, key=str.lower)
+
+
 def player_exists(server, name: str) -> bool:
-    """Return True if the name belongs to an online player or has a save file."""
+    """Return True if the name belongs to an online player or has a save file.
+
+    Supports ? and * wildcards — returns True if any player matches.
+    """
+    if '*' in name or '?' in name:
+        return bool(find_players(server, name))
     if is_online(server, name):
         return True
     needle = name.lower()
