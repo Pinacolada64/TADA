@@ -1,8 +1,10 @@
-"""commands/messaging.py — Shared utilities for whisper and page.
+"""commands/messaging.py — Shared utilities for whisper, page, and groups.
 
-parse_targets()  — split a comma/space/quoted target string into a name list
-expand_groups()  — replace #groupname tokens with stored member lists
-find_online()    — map name list to live GameContext objects
+parse_targets()       — split a comma/space/quoted target string into a name list
+expand_groups()       — replace #groupname tokens with stored member lists
+find_online()         — map name list to live GameContext objects
+online_player_names() — list all currently connected player names
+is_online()           — check whether a specific name is currently connected
 """
 import shlex
 
@@ -88,3 +90,48 @@ def find_online(ctx, target_names: list[str], *,
             not_found.append(name)
 
     return found, not_found
+
+
+def online_player_names(server) -> list[str]:
+    """Return display names of all currently connected players."""
+    names = []
+    for client in server.clients.values():
+        ctx  = getattr(client, 'ctx', None)
+        name = getattr(getattr(ctx, 'player', None), 'name', '')
+        if name:
+            names.append(name)
+    return names
+
+
+def known_player_names() -> list[str]:
+    """Return ids of all players that have a save file, online or not.
+
+    Names are derived from the filename: run/server/player-<name>.json.
+    """
+    import glob
+    import os
+    try:
+        import net_common
+        base = getattr(net_common, 'run_server_dir', None) or './run/server'
+    except Exception:
+        base = './run/server'
+    names = []
+    for path in glob.glob(os.path.join(str(base), 'player-*.json')):
+        stem = os.path.basename(path)[len('player-'):-len('.json')]
+        if stem:
+            names.append(stem)
+    return names
+
+
+def is_online(server, name: str) -> bool:
+    """Return True if a player with this name is currently connected."""
+    needle = name.lower()
+    return any(n.lower() == needle for n in online_player_names(server))
+
+
+def player_exists(server, name: str) -> bool:
+    """Return True if the name belongs to an online player or has a save file."""
+    if is_online(server, name):
+        return True
+    needle = name.lower()
+    return any(n.lower() == needle for n in known_player_names())

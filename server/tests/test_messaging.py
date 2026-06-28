@@ -16,7 +16,10 @@ import asyncio
 import unittest
 
 from command_settings import CommandSettings
-from commands.messaging import parse_targets, expand_groups, find_online
+from commands.messaging import (
+    parse_targets, expand_groups, find_online,
+    online_player_names, is_online, player_exists,
+)
 from commands.groups import GroupsCommand
 from commands.whisper import WhisperCommand
 from commands.page import PageCommand
@@ -229,6 +232,49 @@ class TestFindOnline(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# online_player_names / is_online / player_exists
+# ---------------------------------------------------------------------------
+
+class TestOnlineHelpers(unittest.TestCase):
+
+    def test_online_player_names(self):
+        server = _make_server()
+        _add_player(server, 'Alice')
+        _add_player(server, 'Bob')
+        names = online_player_names(server)
+        self.assertIn('Alice', names)
+        self.assertIn('Bob', names)
+
+    def test_online_player_names_empty(self):
+        server = _make_server()
+        self.assertEqual(online_player_names(server), [])
+
+    def test_is_online_true(self):
+        server = _make_server()
+        _add_player(server, 'Alice')
+        self.assertTrue(is_online(server, 'Alice'))
+
+    def test_is_online_case_insensitive(self):
+        server = _make_server()
+        _add_player(server, 'Alice')
+        self.assertTrue(is_online(server, 'alice'))
+        self.assertTrue(is_online(server, 'ALICE'))
+
+    def test_is_online_false(self):
+        server = _make_server()
+        self.assertFalse(is_online(server, 'Ghost'))
+
+    def test_player_exists_online(self):
+        server = _make_server()
+        _add_player(server, 'Alice')
+        self.assertTrue(player_exists(server, 'Alice'))
+
+    def test_player_exists_not_found(self):
+        server = _make_server()
+        self.assertFalse(player_exists(server, 'Completely_Unknown_Xyzzy'))
+
+
+# ---------------------------------------------------------------------------
 # CommandSettings — groups field
 # ---------------------------------------------------------------------------
 
@@ -308,15 +354,23 @@ class TestGroupsCommand(unittest.TestCase):
         self._run(ctx, 'empty')
         self.assertIn('empty', ctx.sent_text().lower())
 
+    def _ctx_with_online(self, *names):
+        """Return a sender ctx with named players available online."""
+        server = _make_server()
+        ctx = _add_player(server, 'Rulan')
+        for name in names:
+            _add_player(server, name)
+        return ctx
+
     # add
     def test_add_creates_group(self):
-        ctx = self._ctx()
+        ctx = self._ctx_with_online('Alice')
         self._run(ctx, '#add', 'pals', 'Alice')
         self.assertIn('Alice', ctx.player.command_settings.groups.get('pals', []))
         self.assertTrue(ctx.player.unsaved_changes)
 
     def test_add_multiple_players(self):
-        ctx = self._ctx()
+        ctx = self._ctx_with_online('Alice', 'Bob', 'Carol')
         self._run(ctx, '#add', 'pals', 'Alice', 'Bob', 'Carol')
         members = ctx.player.command_settings.groups.get('pals', [])
         self.assertIn('Alice', members)
@@ -324,15 +378,31 @@ class TestGroupsCommand(unittest.TestCase):
         self.assertIn('Carol', members)
         self.assertTrue(ctx.player.unsaved_changes)
 
-    def test_add_duplicate_noop(self):
+    def test_add_unknown_player_rejected(self):
         ctx = self._ctx()
+        self._run(ctx, '#add', 'pals', 'Xyzzy_Unknown')
+        self.assertIn('Unknown player', ctx.sent_text())
+        self.assertNotIn('Xyzzy_Unknown',
+                         ctx.player.command_settings.groups.get('pals', []))
+
+    def test_add_mixed_known_unknown(self):
+        ctx = self._ctx_with_online('Alice')
+        self._run(ctx, '#add', 'pals', 'Alice', 'Xyzzy_Unknown')
+        members = ctx.player.command_settings.groups.get('pals', [])
+        self.assertIn('Alice', members)
+        self.assertNotIn('Xyzzy_Unknown', members)
+        self.assertIn('Unknown player', ctx.sent_text())
+        self.assertIn('Alice', ctx.sent_text())
+
+    def test_add_duplicate_noop(self):
+        ctx = self._ctx_with_online('Alice')
         ctx.player.command_settings.groups = {'pals': ['Alice']}
         self._run(ctx, '#add', 'pals', 'Alice')
         self.assertEqual(ctx.player.command_settings.groups['pals'].count('Alice'), 1)
-        self.assertIn('nobody new', ctx.sent_text())
+        self.assertIn('nobody new', ctx.sent_text().lower())
 
     def test_add_partial_duplicates(self):
-        ctx = self._ctx()
+        ctx = self._ctx_with_online('Alice', 'Bob')
         ctx.player.command_settings.groups = {'pals': ['Alice']}
         self._run(ctx, '#add', 'pals', 'Alice', 'Bob')
         members = ctx.player.command_settings.groups['pals']
@@ -388,6 +458,19 @@ class TestGroupsCommand(unittest.TestCase):
         self.assertIn('Usage', ctx.sent_text())
 
     # unknown switch
+    def test_list_switch(self):
+        ctx = self._ctx()
+        ctx.player.command_settings.groups = {'pals': ['Alice']}
+        self._run(ctx, '#list')
+        self.assertIn('pals', ctx.sent_text())
+
+    def test_list_switch_with_name(self):
+        ctx = self._ctx()
+        ctx.player.command_settings.groups = {'pals': ['Alice', 'Bob']}
+        self._run(ctx, '#list', 'pals')
+        self.assertIn('Alice', ctx.sent_text())
+        self.assertIn('Bob', ctx.sent_text())
+
     def test_unknown_switch(self):
         ctx = self._ctx()
         self._run(ctx, '#frobnicate')
