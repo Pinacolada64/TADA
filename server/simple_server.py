@@ -27,6 +27,7 @@ from tada_utilities import a_or_an, grammatical_list, list_players_in_room, oxfo
 from base_classes import Map, compass_txts
 from items import Item, Rations, Weapon
 from characters import Monster
+from monsters import load_monsters
 from commands.command_processor import create_command_processor
 from commands.base_command import Mode
 from terminal import Translation
@@ -90,7 +91,11 @@ class Server:
                 return []
 
         self.items    = _try_load(Item,    'objects.json')
-        self.monsters = _try_load(Monster, 'monsters.json', 'read_monsters')
+        try:
+            self.monsters = load_monsters(str(script_dir / 'monsters.json'))
+        except Exception as e:
+            logging.warning("Could not load 'monsters.json': %s", e)
+            self.monsters = []
         self.weapons  = _try_load(Weapon,  'weapons.json',  'read_weapons')
         self.rations  = _try_load(Rations, 'rations.json',  'read_rations')
         # Items dropped by players during this session: room_number → list of InventoryEntry
