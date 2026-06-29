@@ -8,6 +8,29 @@ from network_context import GameContext
 
 _MIN_STR = 4
 
+# Battle experience tiers (mirrors SPUR.WEAPON.S vp thresholds).
+# VETERAN (+1 to-hit, +1 damage) at 40; ELITE (+2 to-hit, +xp damage) at 99.
+_TIERS = [
+    (99, 'ELITE',   '|light_cyan|'),
+    (40, 'VETERAN', '|yellow|'),
+    ( 0, 'GREEN',   '|green|'),
+]
+
+
+def _battle_exp(player, weapon) -> int:
+    """Return player's battle experience (0-99) with this weapon."""
+    wid = str(getattr(weapon, 'id_number', 0))
+    exp = getattr(player, 'weapon_experience', {})
+    return int(exp.get(wid, 0))
+
+
+def _tier_label(vp: int) -> str:
+    """Return a colour-coded tier badge for display, e.g. '|yellow|[ VETERAN ]|reset|'."""
+    for threshold, name, color in _TIERS:
+        if vp >= threshold:
+            return f'{color}[ {name} ]|reset|'
+    return ''
+
 
 def _weapon_entries(player):
     """Return InventoryEntry list for weapons the player carries."""
@@ -107,7 +130,9 @@ class ReadyCommand(Command):
                 name    = getattr(e.item, 'name', '?')
                 wc      = getattr(e.item, 'weapon_class', None)
                 wc_str  = (wc.value if hasattr(wc, 'value') else str(wc)) if wc else ''
-                lines.append(f'  {i:>2}. {name:<22} {wc_str}')
+                vp      = _battle_exp(player, e.item)
+                badge   = _tier_label(vp)
+                lines.append(f'  {i:>2}. {name:<22} {wc_str:<18} {badge}')
             lines.append('')
             await ctx.send(lines)
             raw = await ctx.prompt(f'Ready which weapon (1-{len(entries)}, Enter to cancel)')
@@ -146,6 +171,8 @@ class ReadyCommand(Command):
         skill = getattr(weapon, 'to_hit', None)
         if skill is not None:
             info.append(f'Ease of use : {100 - skill}%')
+        vp = _battle_exp(player, weapon)
+        info.append(f'Battle exp. : {vp} {_tier_label(vp)}')
 
         # Class/race bonuses
         char_class = getattr(player, 'char_class', None)

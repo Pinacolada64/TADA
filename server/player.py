@@ -258,6 +258,9 @@ class Player:
         self.monsters_killed: list[int] = kwargs.get('monsters_killed', [])
         self.picked_up_items: list[int] = kwargs.get('picked_up_items', [])
         self.readied_weapon = None  # currently readied weapon (BaseItem or None)
+        # Battle experience per weapon type, keyed by str(id_number), value 0-99.
+        # Persists independently of inventory so experience survives dropping/selling.
+        self.weapon_experience: dict = kwargs.get('weapon_experience', {})
         """
         Things you can only do once per day (file_formats.txt):
         'pr'        has PRAYed once
@@ -550,6 +553,18 @@ class Player:
             return False
         self.set_silver_absolute(kind, current - amount)
         return True
+
+    def gain_weapon_experience(self, weapon_id_number: int) -> int:
+        """Increment battle experience for weapon_id_number by 1 (cap 99).
+
+        Returns the new value.  Marks unsaved_changes so it is persisted.
+        """
+        key = str(weapon_id_number)
+        current = int(self.weapon_experience.get(key, 0))
+        if current < 99:
+            self.weapon_experience[key] = current + 1
+            self.unsaved_changes = True
+        return int(self.weapon_experience.get(key, current))
 
     def get_flag(self, flag_name: "PlayerFlags") -> Optional["Flag"]:
         """
@@ -905,6 +920,11 @@ class Player:
             if 'silver' in data and isinstance(data['silver'], dict):
                 try:
                     self.silver = data['silver']
+                except Exception:
+                    pass
+            if 'weapon_experience' in data and isinstance(data['weapon_experience'], dict):
+                try:
+                    self.weapon_experience = {str(k): int(v) for k, v in data['weapon_experience'].items()}
                 except Exception:
                     pass
 
