@@ -11,6 +11,21 @@ from tada_utilities import PronounType, get_pronoun
 _SELF_TARGETS = {'me', 'self', 'myself'}
 
 
+def _examine_item(name: str, item) -> str:
+    """Return a one-line flavour description for *item*. Mirrors SPUR.MISC3.S exam3."""
+    uname = name.upper()
+    if 'STORM' in uname:
+        return f'There is much power in the {name}!'
+    if 'POTION' in uname:
+        return 'It is a magic potion!'
+    kind = str(getattr(item, 'kind', '') or '').lower()
+    if kind == 'magic':
+        return f'This {name} is Magical.'
+    if kind == 'cursed':
+        return f'This {name} is Cursed.'
+    return 'It looks pretty ordinary..'
+
+
 class LookCommand(Command):
     """Examine the current room or inspect a target."""
 
@@ -57,5 +72,15 @@ class LookCommand(Command):
             await ctx.send_room(f'{name} examines {reflexive}.', exclude_self=True)
             return CommandResult.ok()
 
-        await ctx.send(f'You look at {target}.  (object inspection not yet wired up)')
+        # Search inventory for a matching item.
+        inv = getattr(ctx.player, 'inventory', None)
+        if inv is not None:
+            for entry in inv.entries():
+                item = entry.item
+                iname = (getattr(item, 'name', '') or '').strip()
+                if target in iname.lower():
+                    await ctx.send(_examine_item(iname, item))
+                    return CommandResult.ok()
+
+        await ctx.send(f"You don't see any '{target}' here.")
         return CommandResult.ok()
