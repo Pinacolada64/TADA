@@ -1,5 +1,7 @@
 """shoppe/main.py — Merchant Shoppe entry point (SPUR.SHOP.S port)."""
+import json
 import logging
+import os
 
 from network_context import GameContext
 from presence import enter_area, leave_area, broadcast_open_room, others_present
@@ -34,13 +36,99 @@ async def _protection(ctx: GameContext) -> None:
     )
 
 
+def _load_store_rations() -> list[dict]:
+    """Load the first 10 rations from rations.json (all safe items, SPUR general subroutine)."""
+    path = os.path.join(os.path.dirname(__file__), '..', 'rations.json')
+    try:
+        with open(os.path.normpath(path)) as fh:
+            data = json.load(fh)
+        return [r for r in data if r.get('number', 99) <= 10]
+    except Exception:
+        log.error('Failed to load rations.json for general store')
+        return []
+
+
 async def _general_store(ctx: GameContext) -> None:
-    """Buy general goods. Max 10 unique items per player."""
-    await ctx.send(
-        'Shelves of supplies stretch from floor to ceiling.',
-        '',
-        '(General store not yet available.)',
-    )
+    """Buy food and drink supplies. Mirrors SPUR.SHOP.S `general` subroutine.
+
+    Shows only items 1-10 from rations.json (guaranteed safe).  Each item may
+    be purchased at most once per player (SPUR: instr duplicate check).
+    """
+    from base_classes import PlayerMoneyTypes
+    from items import Rations
+
+    player = ctx.player
+    inv = getattr(player, 'inventory', None)
+
+    store_items = _load_store_rations()
+    if not store_items:
+        await ctx.send('The shelves are bare. Come back later.')
+        return
+
+    while True:
+        silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
+
+        # Build list of items player does not already own (SPUR duplicate check).
+        carried_ids = {
+            getattr(e.item, 'id_number', None)
+            for e in (inv.entries() if inv else [])
+        }
+
+        lines = ['Shelves of supplies stretch from floor to ceiling.', '',
+                 f'Silver in hand: {silver}', '',
+                 'Available items:', '']
+        available = []
+        for r in store_items:
+            num  = r['number']
+            name = r['name']
+            kind = r['kind'].capitalize()
+            price = r['price']
+            if num in carried_ids:
+                lines.append(f'  {"":>2}  {name:<20} {kind:<6}  {price:>4}s  (you have one)')
+            else:
+                available.append(r)
+                lines.append(f'  {len(available):>2}. {name:<20} {kind:<6}  {price:>4}s')
+        lines += ['', '[Enter] to leave', '']
+        await ctx.send(lines)
+
+        if not available:
+            await ctx.send('You already carry everything the store sells.')
+            return
+
+        raw = await ctx.prompt(f'Buy which item (1-{len(available)}, Enter to leave)')
+        if not raw or not raw.strip():
+            return
+
+        try:
+            choice = int(raw.strip()) - 1
+            if not (0 <= choice < len(available)):
+                raise ValueError
+        except ValueError:
+            await ctx.send('Invalid selection.')
+            continue
+
+        chosen = available[choice]
+        price  = chosen['price']
+
+        silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
+        if silver < price:
+            await ctx.send(f"You can't afford that. (Need {price}s, have {silver}s.)")
+            continue
+
+        from inventory import PACK_FULL_MESSAGE
+        item = Rations(
+            number=chosen['number'],
+            name=chosen['name'],
+            kind=chosen['kind'],
+            price=chosen['price'],
+        )
+        if inv is None or not inv.add(item):
+            await ctx.send(PACK_FULL_MESSAGE)
+            continue
+
+        player.subtract_silver(PlayerMoneyTypes.IN_HAND, price)
+        player.unsaved_changes = True
+        await ctx.send(f"You buy the {chosen['name']} for {price}s.")
 
 
 async def _bank(ctx: GameContext) -> None:

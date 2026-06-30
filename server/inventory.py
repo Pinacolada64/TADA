@@ -23,6 +23,9 @@ _CLASS_LIMITS: dict[str, int] = {
 _DEFAULT_LIMIT = 10
 
 
+PACK_FULL_MESSAGE = "Your pack is full. You can't carry any more."
+
+
 def class_inventory_limit(char_class) -> int:
     """Return the default slot limit for a given PlayerClass (or class name string)."""
     return _CLASS_LIMITS.get(str(char_class), _DEFAULT_LIMIT)

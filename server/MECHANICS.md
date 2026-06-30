@@ -135,7 +135,12 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 ### Not Implemented
 - **Stealth / sneak** — player class affects how likely monsters are to lose sight of them (classes 6/8 get `z=50` instead of class-based roll, `SPUR.COMBAT.S:24–28`)
 - **Room travel** — N/S/E/W/U/D movement between rooms
-- **Room flags** — monster blocking (`.`), no-flee (`@@`, `**`, `<<`), evil/good alignment (`E`/`G`), monster casting (`+`), stone (`#`), fire (`-`), poison (`*`), disease (`@`), drain (`&`), heavy armor (`;;`), random encounter (`]`)
+- **Room flags** — monster blocking (`.`), no-flee (`@@`, `**`, `<<`), random encounter (`]`) — other flags (`+`, `#`, `-`, `*`, `@`, `&`, `E`/`G`, `;;`) belong to monsters, not rooms; see monster abilities in the Combat section above
+- **Orator / Moderator player flag** — a player flag (name TBD — `Orator` or `Moderator`) that
+  designates the speaker in an auditorium-type room.  While a flagged player is present, other
+  players in the room cannot use `say`; instead they submit questions or comments via a `q` command
+  which queues them for the Orator to address.  Good for town halls and structured announcements.
+  Planned as one auditorium room per level for convenience; exact map placement TBD.
 
 ---
 
@@ -171,5 +176,49 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Gates** — zone gate travel (`SPUR.GATES.S`)
 - **Annex** — visitor area (`SPUR.ANNEX.S`)
 - **Shop** — buy/sell items, ammo, shields (`SPUR.SHOP.S`)
-- **Bulletin board / news log** (`SPUR.MISC2.S`)
+- **Bulletin board / news log** (`SPUR.MISC2.S`) — see expanded design in **News & Mail** section below
 - **Pray / Rest** — recover HP or stats out of combat (`SPUR.MISC2.S`)
+
+---
+
+## News & Mail
+
+### News / Bulletin Board
+
+#### Future
+- **Startup display** — active news items are shown automatically when a player logs in, before the
+  game loop starts.
+- **`news` command** — lets players re-read current news at any time during a session.
+- **Post editing** — sysops/admins create and edit posts via `text_editor.py` (the shared
+  line-editor already used elsewhere in TADA).
+- **Display lifetime** — each post carries one of three lifetime modes:
+  - *One-time* — shown once per player, then silently suppressed on subsequent logins.
+  - *Permanent* — always shown until manually deleted.
+  - *Date range* — active only between a `start_date` and `end_date`; invisible outside that window.
+- **Storage** — posts stored as JSON (e.g. `news.json`); each record: `id`, `body`, `lifetime`
+  (`once` / `permanent` / `range`), optional `start_date` / `end_date`, and a `seen_by` list of
+  player names (used for one-time suppression).
+
+### Mail / Paging
+
+#### Future
+- **`page` command** — sends an instant message to an online player (appears in their session
+  immediately).
+- **Offline fallback** — if the target player is not online, prompt the sender to optionally
+  deliver the message as mail instead.
+- **Mail inbox** — unread mail is shown at login (similar to news display); a `mail` command lets
+  players read, reply to, and delete messages mid-session.
+- **Storage** — mailboxes stored per-player (e.g. `mail/<playername>.json`); each message: `from`,
+  `timestamp`, `subject` (optional), `body`, `read` flag.
+
+---
+
+## Economy / Currency
+
+### Future / Research Needed
+- **Multi-denomination currency** — replace the current flat silver system with a period-appropriate
+  coin hierarchy (e.g. copper → silver → electrum → gold → platinum, or whatever breakdown best
+  matches common Middle Ages monetary conventions).  Need to research the actual exchange rates and
+  relative prevalence of each denomination before committing to a design.  The existing
+  `PlayerMoneyTypes` enum and `player.silver` dict are the main touch-points; shop prices,
+  bank transfers, and all display strings would also need updating.
