@@ -434,6 +434,15 @@ async def _pick_from_matches(ctx, matches: list, label_fn) -> Optional[object]:
 
     Returns the selected item, or None if the user cancels or there are
     no matches.  Single-match lists are returned immediately without prompting.
+
+    Use this anywhere you need to let the admin pick one item from a
+    filtered list — weapons, rations, allies, items, etc.  Example:
+
+        matches = [a for a in allies if term in a.name.lower()]
+        chosen  = await _pick_from_matches(
+            ctx, matches,
+            lambda a: f'{a.name}  [{a.strength} str]',
+        )
     """
     if not matches:
         return None
