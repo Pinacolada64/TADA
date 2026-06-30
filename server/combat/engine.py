@@ -150,6 +150,9 @@ class CombatSession:
         self.attackers : list[GameContext] = []
         self._done     = asyncio.Event()
         self._lock     = asyncio.Lock()
+        # How many times the monster has attacked this fight (SPUR vu).
+        # Used by: STORM asserts its will (vu<6) and scare check (vu<=1).
+        self._monster_attack_count = 0
 
     # ------------------------------------------------------------------
     # Public API
@@ -232,22 +235,34 @@ class CombatSession:
         )
 
         while not self._done.is_set():
-            # ---- player prompt ----
-            raw = await ctx.prompt(
-                f'[A]ttack  [F]lee  (HP:{getattr(player, "hit_points", "?")}'
-                f'  {mname} HP:{_monster_hp(self.monster)})',
-            )
-            if raw is None:
-                # Client disconnected mid-fight
-                break
+            # ---- STORM asserts its will (SPUR.COMBAT.S line 59) ----
+            # Early in the fight (monster attacked fewer than 6 times), a Storm
+            # weapon has a 30% chance of auto-attacking without waiting for input.
+            weapon = getattr(player, 'readied_weapon', None)
+            weapon_name_upper = (getattr(weapon, 'name', '') or '').upper()
+            auto_attack = False
+            if (self._monster_attack_count < 6
+                    and 'STORM' in weapon_name_upper
+                    and not self._done.is_set()):
+                if random.randint(1, 10) <= 3:   # SPUR: z<4 out of rnd.10z (1-10)
+                    await ctx.send(f'THE {weapon_name_upper} ASSERTS ITS WILL!!')
+                    auto_attack = True
 
-            cmd = (raw.strip().lower() or 'a')[0]
-
-            if cmd == 'f':
-                fled = await self.flee(ctx)
-                if fled:
-                    return
-                continue
+            # ---- player prompt (skipped if weapon auto-attacked) ----
+            if not auto_attack:
+                raw = await ctx.prompt(
+                    f'[A]ttack  [F]lee  (HP:{getattr(player, "hit_points", "?")}'
+                    f'  {mname} HP:{_monster_hp(self.monster)})',
+                )
+                if raw is None:
+                    # Client disconnected mid-fight
+                    break
+                cmd = (raw.strip().lower() or 'a')[0]
+                if cmd == 'f':
+                    fled = await self.flee(ctx)
+                    if fled:
+                        return
+                    continue
 
             # Default: attack
             async with self._lock:
@@ -258,6 +273,23 @@ class CombatSession:
                 result = self._swing(ctx)
                 _add_exp(ctx, exp_per_swing())
                 await self._narrate_player_swing(ctx, result)
+
+                # Scare: loud weapon frightens monster away early in fight
+                # (SPUR.COMBAT.S scare subroutine, lines 423-430)
+                if result.monster_scared:
+                    mname_scare = self.monster.get('name', 'The monster')
+                    await ctx.send(
+                        f'THE THUNDERING NOISE OF THE {result.weapon_name} '
+                        f'SCARES THE {mname_scare} AWAY!'
+                    )
+                    await ctx.send_room(
+                        f'The {mname_scare} flees in terror from the noise!',
+                        exclude_self=True,
+                    )
+                    self._done.set()
+                    self._remove_attacker(ctx)
+                    return
+
                 _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
                 if result.weapon_id:
                     _award_weapon_exp(ctx, result.weapon_id)
@@ -281,6 +313,7 @@ class CombatSession:
                 m_result = monster_attacks(self.monster, player)
                 await self._narrate_monster_swing(ctx, m_result)
                 self._apply_monster_damage(ctx, m_result)
+                self._monster_attack_count += 1
 
                 if getattr(player, 'hit_points', 1) <= 0:
                     await self._player_dies(ctx)
@@ -308,6 +341,7 @@ class CombatSession:
             class_to_hit=class_to_hit,
             class_damage=class_damage,
             weapons_data=weapons_data,
+            monster_attack_count=self._monster_attack_count,
         )
 
     # ------------------------------------------------------------------
@@ -464,6 +498,12 @@ class CombatSession:
             f'{_player_name(ctx)} slays the {mname}!',
             exclude_self=True,
         )
+
+        # STORM weapon glee on kill (SPUR.COMBAT.S line 197)
+        weapon = getattr(ctx.player, 'readied_weapon', None)
+        wname  = (getattr(weapon, 'name', '') or '').upper()
+        if 'STORM' in wname:
+            await ctx.send(f'THE {wname} SCREAMS IN GLEE!!')
 
         # Gold loot (probability + amount from rewards.py / SPUR.MISC.S p.a4)
         player = ctx.player

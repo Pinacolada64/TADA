@@ -131,6 +131,9 @@ class SpecialWeaponResult:
       wr$==sw$ → guaranteed_hit + bonus 2   (lines 135, 151)
       EXCALIBUR vs evil/good → damage_multiplier   (lines 147-148)
       WRAITH DAGGER vs #70  → damage_flat_bonus=40 (line 150)
+      STORM/CANNON/hack-slash → storm_penetration  (line 158: b=b+xp after armor)
+      STORM early-fight       → is_storm           (asserts its will, glee on kill)
+      loud weapon hit sound   → scare_eligible     (scare subroutine lines 423-430)
     """
     required_weapon_name: str   = ''     # '' → no special weapon required (sw$="")
     is_ineffective:       bool  = False  # wrong weapon → attack cancelled
@@ -139,6 +142,9 @@ class SpecialWeaponResult:
     damage_bonus:         int   = 0      # +2 for using the required weapon
     damage_multiplier:    float = 1.0    # EXCALIBUR vs evil (×2) or good (×0.5)
     damage_flat_bonus:    int   = 0      # WRAITH DAGGER +40
+    storm_penetration:    int   = 0      # SPUR line 158: +xp_level after armor (STORM/CANNON/hack-slash)
+    is_storm:             bool  = False  # weapon name contains "STORM"
+    scare_eligible:       bool  = False  # loud hit sound → 10% monster-scare check
 
 
 @dataclass
@@ -152,8 +158,9 @@ class AttackResult:
     ease_helped:   bool = False  # "(EASE OF USE HELPS!)" fast-path triggered
     is_surprise:   bool = False
     is_critical:   bool = False  # Assassin class critical hit
-    ineffective:   bool = False  # special weapon required but wrong weapon used
-    instant_kill:  bool = False  # STORM weapon vs special-weapon monster
+    ineffective:     bool = False  # special weapon required but wrong weapon used
+    instant_kill:    bool = False  # STORM weapon vs special-weapon monster
+    monster_scared:  bool = False  # loud weapon scared monster away (scare subroutine)
 
 
 @dataclass
@@ -212,6 +219,30 @@ def check_special_weapon(
     flags          = monster.get('flags', {}) or {}
 
     result = SpecialWeaponResult()
+
+    # --- STORM weapon flags (always apply) ---
+    # is_storm drives asserts-its-will (engine.py), glee-on-kill (engine.py), and the
+    # armor-penetration bonus computed below.
+    result.is_storm = 'STORM' in weapon_name
+
+    # Scare-eligible: loud hit sound can frighten a monster away early in the fight.
+    # SPUR.COMBAT.S scare subroutine (lines 423-430) checks vr∈{31,37,55} which
+    # correspond to sound groups BLAM!!, FIZZLE, and BRRRT! in the SPUR sound table.
+    hit_sound = ''
+    if weapon:
+        sf = getattr(weapon, 'sound_effect', ('', ''))
+        hit_sound = (sf[1] if len(sf) > 1 else '').upper()
+    _LOUD = ('BLAM', 'BRRRT', 'BOOM', 'FIZZL', 'KA-PW', 'CRACK')
+    result.scare_eligible = any(kw in hit_sound for kw in _LOUD)
+
+    # Armor-penetration bonus (SPUR.COMBAT.S line 158):
+    #   if (instr("STORM",wr$)) or (instr("CANNON",wr$)) or (wa=2) then b=b+xp
+    # wa=2 in SPUR is hack/slash/bash.  storm_penetration is set to xp_level in
+    # player_attacks (where xp_level is known); we just flag the eligibility here.
+    wc = getattr(weapon, 'weapon_class', None) if weapon else None
+    wc_str = (wc.value if hasattr(wc, 'value') else str(wc)).lower() if wc else ''
+    if result.is_storm or 'CANNON' in weapon_name or wc_str == 'hack_slash_bash':
+        result.storm_penetration = -1   # sentinel: player_attacks will fill in xp_level
 
     # --- Named-weapon specials (always apply, independent of sw$) ---
     if 'EXCALIBUR' in weapon_name:
@@ -279,15 +310,16 @@ def check_special_weapon(
 
 def player_attacks(
     player,
-    weapon,             # Weapon item or None (unarmed)
+    weapon,                      # Weapon item or None (unarmed)
     monster: dict,
     *,
-    is_surprise:  bool = False,
-    is_lurking:   bool = False,
-    xp_level:     int  = 1,      # TODO: derive from player.experience once levelling exists
-    class_to_hit: int  = 0,      # pre-computed from item_system.weapon_bonus()
-    class_damage: int  = 0,
-    weapons_data: list = None,   # server.weapons list; required for special-weapon checks
+    is_surprise:         bool = False,
+    is_lurking:          bool = False,
+    xp_level:            int  = 1,    # TODO: derive from player.experience once levelling exists
+    class_to_hit:        int  = 0,    # pre-computed from item_system.weapon_bonus()
+    class_damage:        int  = 0,
+    weapons_data:        list = None, # server.weapons list; required for special-weapon checks
+    monster_attack_count: int = 0,   # how many times monster has attacked this fight (SPUR vu)
 ) -> AttackResult:
     """
     Resolve one player attack swing.
@@ -312,6 +344,10 @@ def player_attacks(
 
     # Special weapon check (SPUR.COMBAT.S lines 127-151)
     sw = check_special_weapon(weapon, monster, weapons_data or [])
+    # Resolve storm_penetration sentinel: fill in actual xp_level now that we have it.
+    # SPUR.COMBAT.S line 158: b=b+xp after armor for STORM/CANNON/hack-slash weapons.
+    if sw.storm_penetration == -1:
+        sw.storm_penetration = xp_level
 
     # Ineffective: wrong weapon for this monster, attack cancelled (SPUR line 134)
     if sw.is_ineffective:
@@ -348,27 +384,34 @@ def player_attacks(
     if ease_helped:
         dmg = _calc_player_damage(ws, wd, zv, monster, xp_level,
                                    is_surprise=is_surprise,
-                                   char_class=getattr(player, 'char_class', None))
+                                   char_class=getattr(player, 'char_class', None),
+                                   storm_penetration=sw.storm_penetration)
         dmg = _apply_special_weapon_damage(dmg, sw)
+        scared = _scare_check(sw, monster, monster_attack_count)
         return AttackResult(
             hit=True, damage=dmg,
             weapon_name=weapon_name, weapon_id=weapon_id,
             attacker_name=getattr(player, 'name', ''),
             ease_helped=True, is_surprise=is_surprise,
+            monster_scared=scared,
         )
 
     # Miss check (SPUR line 141: if a > p2-vq → missed)
     if a > p2:
+        # Scare can still fire on a miss (SPUR line 141 calls gosub scare before p.a1)
+        scared = _scare_check(sw, monster, monster_attack_count)
         return AttackResult(
             hit=False, damage=0,
             weapon_name=weapon_name, weapon_id=weapon_id,
             attacker_name=getattr(player, 'name', ''),
+            monster_scared=scared,
         )
 
     # Hit
     char_class = getattr(player, 'char_class', None)
     dmg = _calc_player_damage(ws, wd, zv, monster, xp_level,
-                               is_surprise=is_surprise, char_class=char_class)
+                               is_surprise=is_surprise, char_class=char_class,
+                               storm_penetration=sw.storm_penetration)
     dmg = _apply_special_weapon_damage(dmg, sw)
 
     # Assassin critical hit: 1-in-10 chance to double damage (SPUR line 146)
@@ -381,11 +424,16 @@ def player_attacks(
     except Exception:
         pass
 
+    # Scare check: loud weapon in early fight can frighten monster away after a hit
+    # (SPUR.COMBAT.S lines 423-430, called from both hit and miss paths)
+    scared = _scare_check(sw, monster, monster_attack_count)
+
     return AttackResult(
         hit=True, damage=dmg,
         weapon_name=weapon_name, weapon_id=weapon_id,
         attacker_name=getattr(player, 'name', ''),
         is_surprise=is_surprise, is_critical=is_critical,
+        monster_scared=scared,
     )
 
 
@@ -397,8 +445,35 @@ def _apply_special_weapon_damage(dmg: int, sw: SpecialWeaponResult) -> int:
     return max(0, result)
 
 
+def _scare_check(sw: SpecialWeaponResult, monster: dict,
+                 monster_attack_count: int) -> bool:
+    """
+    SPUR.COMBAT.S scare subroutine (lines 423-430).
+
+    A loud weapon (BLAM/BRRRT/BOOM/FIZZLE) has a 10% chance of frightening
+    a non-armored monster away during the first two exchanges of combat.
+
+      if (random(10)<>5) or (vu>1) return     ← 10% chance, vu<=1 only
+      if (vr<>31) and (vr<>55) and (vr<>37)  ← must be a loud-sound weapon
+      if (instr(":",wy$) or instr(".",wy$))   ← armored monsters immune
+    """
+    if not sw.scare_eligible:
+        return False
+    if monster_attack_count > 1:              # SPUR: vu>1 → return
+        return False
+    flags = monster.get('flags', {}) or {}
+    if flags.get('heavy_armor') or flags.get('light_armor'):
+        return False
+    triggered = (random.randint(1, 10) == 5)  # SPUR: random(10)<>5 → skip (10% fire)
+    if triggered:
+        log.info('scare: %r frightened by %r (loud weapon, early combat)',
+                 monster.get('name', 'monster'), sw.scare_eligible)
+    return triggered
+
+
 def _calc_player_damage(ws: float, wd: float, zv: int, monster: dict, xp_level: int,
-                         is_surprise: bool = False, char_class=None) -> int:
+                         is_surprise: bool = False, char_class=None,
+                         storm_penetration: int = 0) -> int:
     """
     Damage formula (SPUR.COMBAT.S p.a5, lines 126, 143-163):
         b = random(2.0 … wd+2)             ← wd = to_hit/10 (3-9), base damage roll
@@ -414,12 +489,17 @@ def _calc_player_damage(ws: float, wd: float, zv: int, monster: dict, xp_level: 
     if b > 10:
         b = (b * 4) / 5
 
-    # Monster armor reduces damage by xp_level-scaled amounts (SPUR lines 154-158)
+    # Monster armor reduces damage by xp_level-scaled amounts (SPUR lines 154-158).
+    # After armor, STORM/CANNON/hack-slash add back xp_level (storm_penetration).
+    #   Light armor (SPUR line 155): if wa<10 b=b-(xp*2)
+    #   Heavy armor (SPUR line 156): b=(b-2)-xp  (additional on top of light)
+    #   Penetration (SPUR line 158): b=b+xp  (STORM/CANNON/hack-slash offset)
     flags = monster.get('flags', {})
     if flags.get('heavy_armor'):
         b = b - (xp_level * 2) - 2 - xp_level
     elif flags.get('light_armor'):
         b = b - (xp_level * 2)
+    b += storm_penetration
 
     return max(0, int(b))
 
