@@ -57,7 +57,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Wisdom gain on kill** — player `pw` increases by 1 on every non-ally kill (`SPUR.COMBAT.S:188`)
 
 #### Status effects / survival
-- **Hunger / thirst** — `ps` (food) and `pe` (energy/water) deplete each game tick; "VERY HUNGRY", "FAINT" warnings; starvation death when both reach 0 (`SPUR.COMBAT.S:12–19`)
+- ✅ **Hunger / thirst** — `food` and `drink` deplete every 10 commands; "VERY HUNGRY/THIRSTY", "FAINT" warnings; starvation death when both reach 0; `eat` and `drink` commands restore them (`survival.py`, `commands/eat.py`, `commands/drink.py`, `SPUR.COMBAT.S:12–19`)
 - **Poison** — tick damage (−2 HP); 30% chance per tick; tick also reduces STR if ring is worn (`SPUR.COMBAT.S:15`)
 - **Disease** — tick damage (−1 HP); 30% chance per tick (`SPUR.COMBAT.S:16`)
 - **Ring of power weakening** — wearing the ring has a 10% per-tick chance to reduce STR/WIS (`SPUR.COMBAT.S:14`)
