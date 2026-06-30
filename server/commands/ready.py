@@ -1,4 +1,6 @@
 """commands/ready.py — Ready (equip) a weapon from inventory."""
+import random
+
 from base_classes import PlayerStat
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
@@ -161,6 +163,37 @@ class ReadyCommand(Command):
                     "(You feel dumber)",
                 )
                 player.set_stat(ctx, PlayerStat.INT, -2)
+                return CommandResult.ok()
+
+            # STORM weapon refuses to be replaced — zaps and disintegrates.
+            # Mirrors SPUR.WEAPON.S lines 26 and spec4 (169-194).
+            cur_name = getattr(current, 'name', '') or ''
+            if 'STORM' in cur_name.upper():
+                dmg = random.randint(1, 10)
+                await ctx.send([
+                    f'THE {cur_name.upper()} HOWLS IN RAGE!',
+                    "'I REFUSE! YOU ARE MINE!!'",
+                    '',
+                    'A BOLT OF POWER BLASTS YOU BACKWARDS!',
+                    f'YOU TAKE {dmg} DAMAGE!',
+                ])
+                hp = getattr(player, 'hit_points', 0) - dmg
+                player.hit_points = hp
+                player.unsaved_changes = True
+                inv = getattr(player, 'inventory', None)
+                if inv is not None:
+                    inv.remove(current)
+                player.readied_weapon = None
+                await ctx.send([
+                    f'THE {cur_name.upper()} DISINTEGRATES!',
+                    '(No weapon readied..)',
+                ])
+                if hp <= 0:
+                    player.hit_points = 0
+                    await ctx.send([
+                        '|red|The blast was fatal. You have perished!|reset|',
+                        'Your adventure ends here...',
+                    ])
                 return CommandResult.ok()
 
         # Display weapon info
