@@ -20,12 +20,19 @@ names are noted in comments where the mapping is non-obvious:
     ms   monster current HP / strength, monster['strength']
     p2   hit-probability threshold the d10 roll must exceed
     p1   monster attack threshold the d10 roll must not reach
+
+Special weapon (sw / sw$) — SPUR.MISC4.S lines 132-137, SPUR.COMBAT.S lines 127-151:
+    sw   weapon number stored in the monster record (0 = no requirement)
+    sw$  name of that weapon, looked up from the weapons file by record sw
 """
 from __future__ import annotations
 
+import logging
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
+
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from player import Player
@@ -110,6 +117,31 @@ def hit_threshold(weapon_class_str: str, monster_size: int,
 # ---------------------------------------------------------------------------
 
 @dataclass
+class SpecialWeaponResult:
+    """Output of check_special_weapon().
+
+    Encodes which SPUR.COMBAT.S special-weapon branch applies for one swing.
+    engine.py reads this to choose narration; resolution.py applies it to
+    the AttackResult before returning.
+
+    SPUR source references:
+      sw$=""  → no_requirement=True         (line 127: goto p.a0)
+      STORM in wr$ + sw$!="" → instant_kill (lines 128-129: ms=0)
+      wr$!=sw$ → is_ineffective             (line 134: goto advent)
+      wr$==sw$ → guaranteed_hit + bonus 2   (lines 135, 151)
+      EXCALIBUR vs evil/good → damage_multiplier   (lines 147-148)
+      WRAITH DAGGER vs #70  → damage_flat_bonus=40 (line 150)
+    """
+    required_weapon_name: str   = ''     # '' → no special weapon required (sw$="")
+    is_ineffective:       bool  = False  # wrong weapon → attack cancelled
+    instant_kill:         bool  = False  # STORM weapon → monster hp → 0
+    guaranteed_hit:       bool  = False  # correct weapon → p2=10
+    damage_bonus:         int   = 0      # +2 for using the required weapon
+    damage_multiplier:    float = 1.0    # EXCALIBUR vs evil (×2) or good (×0.5)
+    damage_flat_bonus:    int   = 0      # WRAITH DAGGER +40
+
+
+@dataclass
 class AttackResult:
     """Outcome of one player (or bystander) swing at a monster."""
     hit:           bool
@@ -120,6 +152,8 @@ class AttackResult:
     ease_helped:   bool = False  # "(EASE OF USE HELPS!)" fast-path triggered
     is_surprise:   bool = False
     is_critical:   bool = False  # Assassin class critical hit
+    ineffective:   bool = False  # special weapon required but wrong weapon used
+    instant_kill:  bool = False  # STORM weapon vs special-weapon monster
 
 
 @dataclass
@@ -153,6 +187,93 @@ class FleeResult:
 
 
 # ---------------------------------------------------------------------------
+# Special weapon check (SPUR.COMBAT.S lines 127-151, SPUR.MISC4.S lines 132-137)
+# ---------------------------------------------------------------------------
+
+def check_special_weapon(
+    weapon,
+    monster: dict,
+    weapons_data: list,
+) -> SpecialWeaponResult:
+    """
+    Determine which special-weapon branch applies for one player swing.
+
+    monster['special_weapon'] is the weapon number (SPUR sw); 0 = no requirement.
+    The required weapon name is looked up from weapons_data by that number (SPUR sw$).
+
+    Named-weapon specials (EXCALIBUR, WRAITH DAGGER) are checked independently
+    of the sw$ requirement and always apply when the weapon name matches.
+
+    All interactions are logged at INFO level so they appear in the server console.
+    """
+    weapon_name    = (getattr(weapon, 'name', '') or '').upper() if weapon else ''
+    monster_name   = monster.get('name', 'monster')
+    monster_number = monster.get('number', 0) or 0
+    flags          = monster.get('flags', {}) or {}
+
+    result = SpecialWeaponResult()
+
+    # --- Named-weapon specials (always apply, independent of sw$) ---
+    if 'EXCALIBUR' in weapon_name:
+        if flags.get('evil'):
+            result.damage_multiplier = 2.0
+            log.info('special_weapon: EXCALIBUR vs evil %r → damage ×2', monster_name)
+        elif flags.get('good'):
+            result.damage_multiplier = 0.5
+            log.info('special_weapon: EXCALIBUR vs good %r → damage ÷2', monster_name)
+
+    if 'WRAITH DAGGER' in weapon_name and monster_number == 70:
+        result.damage_flat_bonus += 40
+        log.info('special_weapon: WRAITH DAGGER vs wraith → +40 damage')
+
+    # --- Required-weapon check (sw / sw$) ---
+    sw = monster.get('special_weapon', 0) or 0
+    if not sw:
+        return result   # no requirement; normal combat
+
+    sw_name = ''
+    for w in (weapons_data or []):
+        if w.get('number') == sw:
+            sw_name = (w.get('name') or '').upper()
+            break
+    if not sw_name:
+        log.warning(
+            'check_special_weapon: monster %r requires weapon #%d but not found in weapons_data',
+            monster_name, sw,
+        )
+        return result
+
+    result.required_weapon_name = sw_name
+
+    # STORM weapon: instant kill when a special weapon is required (SPUR.COMBAT.S lines 128-129)
+    if 'STORM' in weapon_name:
+        result.instant_kill = True
+        log.info(
+            'special_weapon: STORM weapon %r vs %r (requires %r) → instant kill',
+            weapon_name, monster_name, sw_name,
+        )
+        return result
+
+    # Wrong weapon: attack is ineffective (SPUR.COMBAT.S line 134)
+    if weapon_name != sw_name:
+        result.is_ineffective = True
+        log.info(
+            'special_weapon: %r is ineffective against %r (requires %r)',
+            weapon_name or '(unarmed)', monster_name, sw_name,
+        )
+        return result
+
+    # Correct special weapon: guaranteed hit + damage bonus (SPUR.COMBAT.S lines 135, 151)
+    result.guaranteed_hit = True
+    result.damage_bonus   = 2
+    log.info(
+        'special_weapon: %r is the required weapon for %r → guaranteed hit, +2 damage',
+        weapon_name, monster_name,
+    )
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Player attacks monster
 # ---------------------------------------------------------------------------
 
@@ -161,11 +282,12 @@ def player_attacks(
     weapon,             # Weapon item or None (unarmed)
     monster: dict,
     *,
-    is_surprise: bool = False,
-    is_lurking:  bool = False,
-    xp_level:    int  = 1,      # TODO: derive from player.experience once levelling exists
-    class_to_hit: int = 0,      # pre-computed from item_system.weapon_bonus()
-    class_damage: int = 0,
+    is_surprise:  bool = False,
+    is_lurking:   bool = False,
+    xp_level:     int  = 1,      # TODO: derive from player.experience once levelling exists
+    class_to_hit: int  = 0,      # pre-computed from item_system.weapon_bonus()
+    class_damage: int  = 0,
+    weapons_data: list = None,   # server.weapons list; required for special-weapon checks
 ) -> AttackResult:
     """
     Resolve one player attack swing.
@@ -188,6 +310,26 @@ def player_attacks(
     vp       = int(exp_dict.get(str(weapon_id), 0))
     zu, zv   = assemble_zu_zv(weapon, vp, xp_level, class_to_hit, class_damage)
 
+    # Special weapon check (SPUR.COMBAT.S lines 127-151)
+    sw = check_special_weapon(weapon, monster, weapons_data or [])
+
+    # Ineffective: wrong weapon for this monster, attack cancelled (SPUR line 134)
+    if sw.is_ineffective:
+        return AttackResult(
+            hit=False, damage=0, ineffective=True,
+            weapon_name=weapon_name, weapon_id=weapon_id,
+            attacker_name=getattr(player, 'name', ''),
+        )
+
+    # Instant kill: STORM weapon vs special-weapon monster (SPUR lines 128-129: ms=0)
+    if sw.instant_kill:
+        monster_hp = int(monster.get('strength') or monster.get('hit_points') or 9999)
+        return AttackResult(
+            hit=True, damage=monster_hp, instant_kill=True,
+            weapon_name=weapon_name, weapon_id=weapon_id,
+            attacker_name=getattr(player, 'name', ''),
+        )
+
     ma = monster.get('to_hit') or 4              # SPUR ma
     p2 = hit_threshold(wc_str, ma, zu, xp_level)
     if is_surprise:
@@ -195,15 +337,19 @@ def player_attacks(
     # Lurking behind allies reduces effective hit skill (SPUR vq=2 → p2-vq)
     if is_lurking:
         p2 -= 2
+    # Correct special weapon → guaranteed hit (SPUR line 135: p2=10)
+    if sw.guaranteed_hit:
+        p2 = 10
 
     a = random.randint(1, 10)                    # SPUR rnd.10a
 
     # Fast-path: "ease of use helps!" (SPUR line 139: if a > ws+2)
-    ease_helped = not is_lurking and (a > ws + 2)
+    ease_helped = not is_lurking and not sw.guaranteed_hit and (a > ws + 2)
     if ease_helped:
         dmg = _calc_player_damage(ws, wd, zv, monster, xp_level,
                                    is_surprise=is_surprise,
                                    char_class=getattr(player, 'char_class', None))
+        dmg = _apply_special_weapon_damage(dmg, sw)
         return AttackResult(
             hit=True, damage=dmg,
             weapon_name=weapon_name, weapon_id=weapon_id,
@@ -223,6 +369,7 @@ def player_attacks(
     char_class = getattr(player, 'char_class', None)
     dmg = _calc_player_damage(ws, wd, zv, monster, xp_level,
                                is_surprise=is_surprise, char_class=char_class)
+    dmg = _apply_special_weapon_damage(dmg, sw)
 
     # Assassin critical hit: 1-in-10 chance to double damage (SPUR line 146)
     is_critical = False
@@ -240,6 +387,14 @@ def player_attacks(
         attacker_name=getattr(player, 'name', ''),
         is_surprise=is_surprise, is_critical=is_critical,
     )
+
+
+def _apply_special_weapon_damage(dmg: int, sw: SpecialWeaponResult) -> int:
+    """Apply special-weapon damage modifiers after base damage is computed."""
+    result = dmg + sw.damage_bonus
+    result = int(result * sw.damage_multiplier)
+    result = result + sw.damage_flat_bonus
+    return max(0, result)
 
 
 def _calc_player_damage(ws: float, wd: float, zv: int, monster: dict, xp_level: int,

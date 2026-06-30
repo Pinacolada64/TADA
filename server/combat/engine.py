@@ -32,6 +32,7 @@ from combat.resolution import (
     ally_attacks,
     flee_attempt,
     assemble_zu_zv,
+    check_special_weapon,
 )
 from combat.rewards import gold_from_monster, exp_per_swing
 
@@ -301,10 +302,12 @@ class CombatSession:
                 class_to_hit, class_damage = weapon_bonus(weapon, cls_str, race_str)
             except Exception:
                 pass
+        weapons_data = getattr(ctx.server, 'weapons', None) or []
         return player_attacks(
             player, weapon, self.monster,
             class_to_hit=class_to_hit,
             class_damage=class_damage,
+            weapons_data=weapons_data,
         )
 
     # ------------------------------------------------------------------
@@ -364,7 +367,13 @@ class CombatSession:
         if result.ease_helped:
             await ctx.send('(Ease of use helps!)')
 
-        if result.hit:
+        if result.instant_kill:
+            msg  = f'Fire flashes from the {result.weapon_name}!  The {mname} is destroyed!'
+            room = f'Fire flashes from {pname}\'s {result.weapon_name}!  The {mname} is destroyed!'
+        elif result.ineffective:
+            msg  = f'The {result.weapon_name} is ineffective against the {mname}!'
+            room = f'{pname}\'s {result.weapon_name} is ineffective against the {mname}!'
+        elif result.hit:
             crit = '  CRITICAL HIT!' if result.is_critical else ''
             surp = '  (Surprise!)' if result.is_surprise else ''
             msg  = f'You strike the {mname} for {result.damage} damage!{crit}{surp}'
