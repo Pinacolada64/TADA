@@ -176,7 +176,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Gates** — zone gate travel (`SPUR.GATES.S`)
 - **Annex** — visitor area (`SPUR.ANNEX.S`)
 - **Shop** — buy/sell items, ammo, shields (`SPUR.SHOP.S`)
-- **Bulletin board / news log** (`SPUR.MISC2.S`) — see expanded design in **News & Mail** section below
+- **Bulletin board / news log** (`SPUR.MISC2.S`) — see expanded design in **News & Mail** and **Threaded Message Boards** sections below
 - **Pray / Rest** — recover HP or stats out of combat (`SPUR.MISC2.S`)
 
 ---
@@ -210,6 +210,38 @@ implemented, or not yet started. Source references are to files under `SPUR-code
   players read, reply to, and delete messages mid-session.
 - **Storage** — mailboxes stored per-player (e.g. `mail/<playername>.json`); each message: `from`,
   `timestamp`, `subject` (optional), `body`, `read` flag.
+
+---
+
+## Threaded Message Boards
+
+### Skeleton — `server/threaded_messages.py`
+A working prototype of a per-room threaded message system.  Current state:
+
+- **Storage** — one JSON file per thread (`thread_<timestamp>.json`); each file holds `title`,
+  `to`, `from`, `date`, `message`, and a `replies` array.  Currently written to a hardcoded
+  scratch path; needs to be relocated to a proper data directory and scoped per room or board.
+- **Operations** — create thread, reply to thread, list threads, view thread with N/P/R/Q
+  in-message navigation.
+- **Anonymous posting** — author prefixed with `?` to post anonymously; admins / Dungeon Masters
+  see the real name behind the `?` (flag check stubbed with a TODO).
+- **Input** — currently uses raw `input()` / `print()`; needs to be ported to `ctx.prompt` /
+  `ctx.send` for the async game loop.
+
+### Design Ideas (not yet decided)
+- **`bulletin_board` room flag** — any room tagged `bulletin_board` would expose a board command
+  (e.g. `board` or `bb`); the board's thread files would be stored under a key tied to that room.
+- **Guild HQ boards** — each guild hall gets its own board; guild membership could gate who can
+  post vs. who can only read.
+- **Convergence with News & Mail** — the news system (see above) is single-author / broadcast;
+  threaded boards are multi-author / conversational.  They share the JSON-per-post idea but serve
+  different purposes and should stay separate.
+
+### Future
+- Relocate storage from the scratch path to `data/boards/<board_id>/`.
+- Port all I/O to async `ctx` methods.
+- Wire `bulletin_board` flag into the room system once room travel exists.
+- Add `text_editor.py` for composing longer posts.
 
 ---
 
