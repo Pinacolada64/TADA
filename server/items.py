@@ -75,6 +75,9 @@ class Item(BaseItem):
         # capacity > 0 makes this a container (bag of holding, etc.)
         if not hasattr(self, 'capacity'):
             self.capacity: int = 0
+        # BaseItem dataclass __repr__ always reads self.flags; guarantee it exists.
+        if not hasattr(self, 'flags'):
+            self.flags = []
 
     @staticmethod
     def read(filename: str) -> dict | None:

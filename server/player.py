@@ -831,8 +831,10 @@ class Player:
             parent = os.path.dirname(path)
             if parent and not os.path.exists(parent):
                 os.makedirs(parent, exist_ok=True)
-            # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact
-            data_out = {k: v for k, v in self.__dict__.items()}
+            # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact.
+            # Exclude session-only attributes that hold live objects and are not restored on load.
+            _SESSION_ONLY = {'readied_weapon'}
+            data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
             from inventory import Inventory
             if isinstance(self.inventory, Inventory):
