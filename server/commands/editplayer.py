@@ -424,14 +424,44 @@ def _statistics_menu(ctx) -> Menu:
 
 
 # ---------------------------------------------------------------------------
-# Inventory management (give weapons / list all weapons)
+# Inventory management
 # ---------------------------------------------------------------------------
+
+async def _pick_from_matches(ctx, matches: list, label_fn) -> Optional[object]:
+    """Generic disambiguation prompt for a list of matches.
+
+    label_fn(item) → str   — formats one item for the numbered list.
+
+    Returns the selected item, or None if the user cancels or there are
+    no matches.  Single-match lists are returned immediately without prompting.
+    """
+    if not matches:
+        return None
+    if len(matches) == 1:
+        return matches[0]
+
+    lines = [f'{len(matches)} matches:']
+    for i, item in enumerate(matches, 1):
+        lines.append(f'  {i:>2}. {label_fn(item)}')
+    await ctx.send(lines)
+
+    raw = await ctx.prompt(f'Choose 1-{len(matches)}, or blank to cancel')
+    if not raw or not raw.strip():
+        return None
+    try:
+        idx = int(raw.strip()) - 1
+        if not (0 <= idx < len(matches)):
+            raise ValueError
+    except ValueError:
+        await ctx.send('Invalid selection.')
+        return None
+    return matches[idx]
+
 
 def _weapon_from_dict(d: dict):
     """Build a Weapon item object from a weapons.json dict."""
     from items import Weapon
     from base_classes import WeaponClass
-    # Map the JSON weapon_class string to WeaponClass enum
     _wc_map = {wc.value.lower(): wc for wc in WeaponClass}
     wc_str  = (d.get('weapon_class') or '').lower()
     wc      = _wc_map.get(wc_str)
@@ -452,7 +482,7 @@ def _inventory_action(ctx):
     async def action(ctx):
         while True:
             raw = await ctx.prompt(
-                '[G]ive weapon  [L]ist weapons  [I]nventory  [Q]uit',
+                '[G]ive weapon  [R]ation  [L]ist weapons  [I]nventory  [Q]uit',
             )
             if raw is None:
                 break
@@ -466,6 +496,8 @@ def _inventory_action(ctx):
                 await _list_weapons(ctx)
             elif cmd == 'g':
                 await _give_weapon(ctx)
+            elif cmd == 'r':
+                await _give_ration(ctx)
             else:
                 await ctx.send('Unknown option.')
 
@@ -490,25 +522,20 @@ async def _show_inventory(ctx) -> None:
 async def _list_weapons(ctx) -> None:
     """List all weapons, optionally filtered by a search term."""
     weapons = getattr(ctx.server, 'weapons', []) or []
-    raw = await ctx.prompt('Search (blank = show all)')
+    raw  = await ctx.prompt('Search (blank = show all)')
     term = (raw or '').strip().lower()
+    hits = [w for w in weapons if term in (w.get('name') or '').lower()] if term else weapons
 
-    matches = [
-        w for w in weapons
-        if term in (w.get('name') or '').lower()
-    ] if term else weapons
-
-    if not matches:
+    if not hits:
         await ctx.send(f'No weapons matching "{term}".')
         return
 
-    lines = [f'Weapons ({len(matches)} found):']
-    for w in matches:
-        num  = w.get('number', '?')
-        name = w.get('name', '?')
-        wc   = w.get('weapon_class', '')
-        stb  = w.get('stability', 0)
-        lines.append(f'  #{num:>3}  {name:<22}  {wc:<12}  stability {stb}')
+    lines = [f'Weapons ({len(hits)} found):']
+    for w in hits:
+        lines.append(
+            f'  #{w.get("number","?"):>3}  {w.get("name","?"):<22}'
+            f'  {w.get("weapon_class",""):<12}  stability {w.get("stability", 0)}'
+        )
     await ctx.send(lines)
 
 
@@ -522,39 +549,63 @@ async def _give_weapon(ctx) -> None:
     raw = await ctx.prompt('Weapon name (or part of name)')
     if not raw or not raw.strip():
         return
+
     term    = raw.strip().lower()
     matches = [w for w in weapons if term in (w.get('name') or '').lower()]
-
     if not matches:
         await ctx.send(f'No weapons matching "{raw.strip()}".')
         return
 
-    if len(matches) == 1:
-        chosen = matches[0]
-    else:
-        lines = [f'{len(matches)} matches:']
-        for i, w in enumerate(matches, 1):
-            lines.append(f'  {i:>2}. {w.get("name","?")}')
-        await ctx.send(lines)
-        pick_raw = await ctx.prompt(f'Choose 1-{len(matches)}, or blank to cancel')
-        if not pick_raw or not pick_raw.strip():
-            return
-        try:
-            idx = int(pick_raw.strip()) - 1
-            if not (0 <= idx < len(matches)):
-                raise ValueError
-        except ValueError:
-            await ctx.send('Invalid selection.')
-            return
-        chosen = matches[idx]
+    chosen = await _pick_from_matches(ctx, matches, lambda w: w.get('name', '?'))
+    if chosen is None:
+        return
 
     inv = getattr(ctx.player, 'inventory', None)
     if inv is None:
         await ctx.send('Player has no inventory object.')
         return
 
-    weapon = _weapon_from_dict(chosen)
-    if inv.add(weapon):
+    if inv.add(_weapon_from_dict(chosen)):
+        ctx.player.unsaved_changes = True
+        await ctx.send(f'Added {chosen["name"]} to {ctx.player.name}\'s inventory.')
+    else:
+        await ctx.send('Inventory is full.')
+
+
+async def _give_ration(ctx) -> None:
+    """Search for a ration by name and add it to the player's inventory."""
+    from items import Rations
+    rations = getattr(ctx.server, 'rations', []) or []
+    if not rations:
+        await ctx.send('No ration data loaded on server.')
+        return
+
+    raw = await ctx.prompt('Ration name (or part of name, blank = show all)')
+    term    = (raw or '').strip().lower()
+    matches = [r for r in rations if term in (r.get('name') or '').lower()] if term else rations
+    if not matches:
+        await ctx.send(f'No rations matching "{raw.strip()}".')
+        return
+
+    def _label(r):
+        return f'{r.get("name","?"):<24}  [{r.get("kind","?")}]'
+
+    chosen = await _pick_from_matches(ctx, matches, _label)
+    if chosen is None:
+        return
+
+    inv = getattr(ctx.player, 'inventory', None)
+    if inv is None:
+        await ctx.send('Player has no inventory object.')
+        return
+
+    item = Rations(
+        number = chosen.get('number', 0),
+        name   = chosen.get('name', '?'),
+        kind   = chosen.get('kind', 'food'),
+        price  = chosen.get('price', 0),
+    )
+    if inv.add(item):
         ctx.player.unsaved_changes = True
         await ctx.send(f'Added {chosen["name"]} to {ctx.player.name}\'s inventory.')
     else:
