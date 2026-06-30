@@ -441,6 +441,15 @@ class Server:
                 await ctx.send(f"Unknown command '{raw.strip().split()[0]}'. "
                                "Type 'help' for a list.")
 
+            # Hunger/thirst tick (SPUR.COMBAT.S:12-20).
+            from survival import survival_tick
+            warnings = survival_tick(ctx.player)
+            if warnings:
+                await ctx.send(warnings)
+            if getattr(ctx.player, 'hit_points', 1) <= 0:
+                await self._player_quit(ctx)
+                return
+
     # -----------------------------------------------------------------------
     # Room display
     # -----------------------------------------------------------------------

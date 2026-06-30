@@ -139,6 +139,7 @@ class Weapon(BaseItem):
 class Rations(BaseItem):
     def __init__(self, number, name, kind, price, **flags):
         self.number = number
+        self.id_number = number  # alias so inventory.remove() can match by id
         self.name = name
         self.kind = kind  # food, drink, cursed
         self.price = price

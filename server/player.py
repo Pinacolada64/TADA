@@ -248,6 +248,10 @@ class Player:
 
         # combat stuff:
         self.hit_points = kwargs.get('hit_points', 0)
+        # Survival: food (ps in SPUR) and drink (pe in SPUR), each 0-20.
+        # Both deplete over time; starvation kills when both reach 0.
+        self.food  = kwargs.get('food',  20)
+        self.drink = kwargs.get('drink', 20)
         # the lower the Honor score, the more evil the character has become.
         # TODO: look it up, but I think 1,000 honor points is equivalent to a Saintly Knight.
         self.honor = kwargs.get('honor', 1_000)
