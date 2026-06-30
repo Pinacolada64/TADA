@@ -489,9 +489,11 @@ def _weapon_from_dict(d: dict):
 def _inventory_action(ctx):
     """Return an async action that drives the inventory management flow."""
     async def action(ctx):
+        await _show_inventory(ctx)
         while True:
             raw = await ctx.prompt(
-                '[G]ive weapon  [R]ation  [L]ist weapons  [I]nventory  [Q]uit',
+                '[G]ive weapon  [A]rmor  [S]pell  [O]bject  [B]ook  [R]ation'
+                '  [L]ist weapons  [I]nventory  [Q]uit',
             )
             if raw is None:
                 break
@@ -507,6 +509,16 @@ def _inventory_action(ctx):
                 await _give_weapon(ctx)
             elif cmd == 'r':
                 await _give_ration(ctx)
+            elif cmd == 'a':
+                await _give_object(ctx, {'armor', 'shield'}, 'armor/shield')
+            elif cmd == 'b':
+                await _give_object(ctx, {'book'}, 'book')
+            elif cmd == 'o':
+                _OBJ_TYPES = {'treasure', 'compass', 'container', 'ammunition',
+                              'power', 'cursed'}
+                await _give_object(ctx, _OBJ_TYPES, 'object')
+            elif cmd == 's':
+                await ctx.send('Spell giving not ready yet.')
             else:
                 await ctx.send('Unknown option.')
 
@@ -613,6 +625,56 @@ async def _give_ration(ctx) -> None:
         name   = chosen.get('name', '?'),
         kind   = chosen.get('kind', 'food'),
         price  = chosen.get('price', 0),
+    )
+    if inv.add(item):
+        ctx.player.unsaved_changes = True
+        await ctx.send(f'Added {chosen["name"]} to {ctx.player.name}\'s inventory.')
+    else:
+        await ctx.send('Inventory is full.')
+
+
+async def _give_object(ctx, type_filter: set, label: str) -> None:
+    """Search objects.json for items matching type_filter and add to inventory.
+
+    Use this for any item category sourced from objects.json (server.items):
+        armor/shield → _give_object(ctx, {'armor','shield'}, 'armor/shield')
+        books        → _give_object(ctx, {'book'}, 'book')
+        misc objects → _give_object(ctx, {'treasure','compass',...}, 'object')
+    """
+    from items import Item, ItemCategory
+    all_objects = getattr(ctx.server, 'items', []) or []
+    pool = [o for o in all_objects if (o.get('type') or '').lower() in type_filter]
+    if not pool:
+        await ctx.send(f'No {label} data loaded on server.')
+        return
+
+    raw = await ctx.prompt(f'{label.capitalize()} name (or part of name)')
+    if not raw or not raw.strip():
+        return
+
+    term    = raw.strip().lower()
+    matches = [o for o in pool if term in (o.get('name') or '').lower()]
+    if not matches:
+        await ctx.send(f'No {label} matching "{raw.strip()}".')
+        return
+
+    def _label(o):
+        return f'{o.get("name","?"):<28}  [{o.get("type","?")}]'
+
+    chosen = await _pick_from_matches(ctx, matches, _label)
+    if chosen is None:
+        return
+
+    inv = getattr(ctx.player, 'inventory', None)
+    if inv is None:
+        await ctx.send('Player has no inventory object.')
+        return
+
+    item = Item(
+        id_number = chosen.get('number', 0),
+        name      = chosen.get('name', '?'),
+        flags     = chosen.get('flags', {}),
+        category  = ItemCategory.ITEM,
     )
     if inv.add(item):
         ctx.player.unsaved_changes = True

@@ -106,11 +106,14 @@ class Weapon(BaseItem):
     def __init__(self, **kwargs):
         # Lazy import to avoid circular dependency
         from base_classes import WeaponClass
-        super().__init__(**kwargs)
+        # BaseItem is a dataclass — pass only the fields it declares.
+        _base_fields = {'id_prefix', 'id_number', 'name', 'description', 'location', 'flags', 'category'}
+        super().__init__(**{k: v for k, v in kwargs.items() if k in _base_fields})
         self.id_number: int = kwargs.get('id_number', 0)
         self.id_prefix: str = "W"
         self.location: int = kwargs.get('location', 0)
         self.name: str = kwargs.get('name', '')
+        self.category = kwargs.get('category', ItemCategory.WEAPON)
         self.kind: Optional[str] = kwargs.get('kind')
         self.sound_effect: Tuple[str, str] = kwargs.get('sound_effect', ('', ''))
         self.stability: int = kwargs.get('stability', 0)

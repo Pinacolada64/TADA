@@ -10,7 +10,8 @@ names are noted in comments where the mapping is non-obvious:
                                 5=projectile, 6=proximity, 10=energy)
     ma   monster size / attack rating (1=huge … 7=swift), stored as
          monster['to_hit'] in our JSON
-    ws   weapon stability (damage base), weapon.stability
+    ws   ease-of-use score (5-9); stored as weapon.stability / 10 (JSON has ×10 form)
+    wd   base damage score (3-9); stored as weapon.to_hit / 10   (JSON has ×10 form)
     zu   assembled to-hit skill  (class/race bonus + battle-exp bonus)
     zv   assembled damage bonus  (class/race bonus + battle-exp bonus)
     xp   player experience LEVEL (not raw points) — placeholder=1 until
@@ -176,7 +177,10 @@ def player_attacks(
     """
     weapon_name = getattr(weapon, 'name', 'fists') if weapon else 'fists'
     weapon_id   = getattr(weapon, 'id_number', 0)  if weapon else 0
-    ws          = getattr(weapon, 'stability', 1)   if weapon else 1
+    # Weapon JSON stores stability and to_hit as the SPUR raw digit × 10 (50-90).
+    # SPUR.COMBAT.S expects the raw digit (5-9), so divide by 10 here.
+    ws          = (getattr(weapon, 'stability', 50) / 10) if weapon else 5  # SPUR ws: ease of use, 5-9
+    wd          = (getattr(weapon, 'to_hit',    50) / 10) if weapon else 5  # SPUR wd: base damage,  3-9
     wc          = getattr(weapon, 'weapon_class', None) if weapon else None
     wc_str      = (wc.value if hasattr(wc, 'value') else str(wc)) if wc else 'hack_slash_bash'
 
@@ -197,7 +201,7 @@ def player_attacks(
     # Fast-path: "ease of use helps!" (SPUR line 139: if a > ws+2)
     ease_helped = not is_lurking and (a > ws + 2)
     if ease_helped:
-        dmg = _calc_player_damage(ws, zv, monster, xp_level,
+        dmg = _calc_player_damage(ws, wd, zv, monster, xp_level,
                                    is_surprise=is_surprise,
                                    char_class=getattr(player, 'char_class', None))
         return AttackResult(
@@ -217,7 +221,7 @@ def player_attacks(
 
     # Hit
     char_class = getattr(player, 'char_class', None)
-    dmg = _calc_player_damage(ws, zv, monster, xp_level,
+    dmg = _calc_player_damage(ws, wd, zv, monster, xp_level,
                                is_surprise=is_surprise, char_class=char_class)
 
     # Assassin critical hit: 1-in-10 chance to double damage (SPUR line 146)
@@ -238,17 +242,17 @@ def player_attacks(
     )
 
 
-def _calc_player_damage(ws: int, zv: int, monster: dict, xp_level: int,
+def _calc_player_damage(ws: float, wd: float, zv: int, monster: dict, xp_level: int,
                          is_surprise: bool = False, char_class=None) -> int:
     """
-    Damage formula (SPUR.COMBAT.S p.a5, lines 143-163):
-        b = random(2.0 … ws+2)
-        b = (b * ws / 10) + zv - 1
+    Damage formula (SPUR.COMBAT.S p.a5, lines 126, 143-163):
+        b = random(2.0 … wd+2)             ← wd = to_hit/10 (3-9), base damage roll
+        b = (b * ws / 10) + zv - 1         ← ws = stability/10 (5-9), ease-of-use scale
         if surprise: b += 3
         if b > 10: b = (b * 4) // 5        ← soft damage cap
         armor reduction from monster flags
     """
-    b = random.uniform(2.0, ws + 2.0)
+    b = random.uniform(2.0, wd + 2.0)
     b = (b * ws / 10) + zv - 1
     if is_surprise:
         b += 3
