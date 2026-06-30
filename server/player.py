@@ -903,6 +903,10 @@ class Player:
             if 'picked_up_items' in data and isinstance(data['picked_up_items'], list):
                 self.picked_up_items = [int(i) for i in data['picked_up_items'] if isinstance(i, (int, float))]
 
+            # Per-player kill list (each entry is a monster number)
+            if 'monsters_killed' in data and isinstance(data['monsters_killed'], list):
+                self.monsters_killed = [int(i) for i in data['monsters_killed'] if isinstance(i, (int, float))]
+
             # Command settings
             if 'command_settings' in data and isinstance(data['command_settings'], dict):
                 try:
