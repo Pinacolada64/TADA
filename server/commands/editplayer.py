@@ -92,6 +92,23 @@ async def _prompt_int(ctx, label: str, current: int,
 
 
 # ---------------------------------------------------------------------------
+# Hit-points action
+# ---------------------------------------------------------------------------
+
+def _hp_action(ctx):
+    async def action(ctx):
+        p   = ctx.player
+        cur = int(getattr(p, 'hit_points', 0) or 0)
+        await ctx.send(f'Current HP: {cur}')
+        val = await _prompt_int(ctx, 'Hit Points', cur, 0, 999)
+        if val is not None:
+            p.hit_points = val
+            p.unsaved_changes = True
+            await ctx.send(f'Hit points set to {val}.')
+    return action
+
+
+# ---------------------------------------------------------------------------
 # Main menu
 # ---------------------------------------------------------------------------
 
@@ -103,7 +120,7 @@ def _build_main_menu(ctx) -> Menu:
     menu.add_item(MenuItem('Character Names',  shortcuts='cn', submenu=_names_menu(ctx)))
     menu.add_item(MenuItem('Combinations',     shortcuts='co', submenu=_combinations_menu(ctx)))
     menu.add_item(MenuItem('Flags/Counters',   shortcuts='fl', submenu=_flags_menu(ctx)))
-    menu.add_item(MenuItem('Hit Points',       shortcuts='hp', action=_not_implemented))
+    menu.add_item(MenuItem('Hit Points',       shortcuts='hp', action=_hp_action(ctx)))
     menu.add_item(MenuItem('Inventory',        shortcuts='in', action=_inventory_action(ctx)))
     menu.add_item(MenuItem('Map Information',  shortcuts='mi', action=_not_implemented))
     menu.add_item(MenuItem('Money',            shortcuts='mo', action=_not_implemented))
