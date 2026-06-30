@@ -4,7 +4,7 @@ import random
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from network_context import GameContext
-from survival import ration_restore, restore_drink
+from survival import apply_poison, cure_poison, ration_restore, restore_drink
 
 _DRINK_MAX = 20
 
@@ -72,14 +72,30 @@ class DrinkCommand(Command):
 
         item   = entry.item
         name   = getattr(item, 'name', '?')
-        gs     = ration_restore(item)
-        amount = (random.randint(0, gs) % 6) + 1
-        restore_drink(player, amount)
-        new_drink = getattr(player, 'drink', _DRINK_MAX)
+        uname  = name.upper()
 
         inv = getattr(player, 'inventory', None)
         if inv is not None:
             inv.remove(item)
+
+        # GREEN MOONSHINE — causes poison (SPUR.SUB.S moonshin subroutine).
+        if 'MOONSHINE' in uname:
+            apply_poison(player)
+            await ctx.send([f'You drink the {name}.', 'BAD STUFF! Now you are poisoned!'])
+            return CommandResult.ok()
+
+        # RED SERUM — cures poison (SPUR.SUB.S serum subroutine).
+        if 'SERUM' in uname:
+            cure_poison(player)
+            await ctx.send([f'You drink the {name}.', 'Yuk, it tastes awful!',
+                            'Poison - gone!' if not getattr(player, 'poisoned', True)
+                            else '(You were not poisoned.)'])
+            return CommandResult.ok()
+
+        gs     = ration_restore(item)
+        amount = (random.randint(0, gs) % 6) + 1
+        restore_drink(player, amount)
+        new_drink = getattr(player, 'drink', _DRINK_MAX)
 
         await ctx.send(f'You drink the {name}. You feel refreshed.')
         if new_drink > 14:

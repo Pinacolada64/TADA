@@ -4,7 +4,7 @@ import random
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from network_context import GameContext
-from survival import ration_restore, restore_food
+from survival import apply_disease, cure_disease, ration_restore, restore_food
 
 _FOOD_MAX = 20
 
@@ -72,14 +72,30 @@ class EatCommand(Command):
 
         item   = entry.item
         name   = getattr(item, 'name', '?')
-        gs     = ration_restore(item)
-        amount = (random.randint(0, gs) % 8) + 1
-        restore_food(player, amount)
-        new_food = getattr(player, 'food', _FOOD_MAX)
+        uname  = name.upper()
 
         inv = getattr(player, 'inventory', None)
         if inv is not None:
             inv.remove(item)
+
+        # OLD HAMBURGER — causes disease (SPUR.SUB.S old subroutine).
+        if 'OLD ' in uname:
+            apply_disease(player)
+            await ctx.send([f'You eat the {name}.', 'GROSS! Now you are diseased!!'])
+            return CommandResult.ok()
+
+        # BLUE PILL — cures disease (SPUR.SUB.S pill subroutine).
+        if 'PILL' in uname:
+            cure_disease(player)
+            await ctx.send([f'You eat the {name}.', 'Yech, gross!',
+                            'Disease - gone!' if not getattr(player, 'diseased', True)
+                            else '(You were not diseased.)'])
+            return CommandResult.ok()
+
+        gs     = ration_restore(item)
+        amount = (random.randint(0, gs) % 8) + 1
+        restore_food(player, amount)
+        new_food = getattr(player, 'food', _FOOD_MAX)
 
         if new_food >= 15:
             await ctx.send([f'You eat the {name}.', 'Your appetite is satisfied.'])
