@@ -213,6 +213,53 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 
 ---
 
+## Server Configuration
+
+### In Progress — `setup/server_setup.py`
+- **Invite toggle** — `config.require_invites` flag; toggled via the setup menu; controls whether
+  new players need an invite code to register.
+- **Invite management** — generate, list, and revoke invite codes (stubs in place).
+- **Password encryption** — not yet wired up; plain-text passwords should be hashed before the
+  server goes public.
+- **Time zone** — server location / timezone configurable; feeds into the game clock (see Reactive
+  Rooms below).
+- **MOTD editor** — `edit_motd()` stub; edits `motd.txt` displayed at login (tie into
+  `text_editor.py` when ready).
+- **News editor** — `edit_news()` stub; separate from the in-game news system but could converge
+  with `news.json` design in the **News & Mail** section above.
+
+### Future
+- Wire all stubs to `text_editor.py` and a proper `server_config.json` schema.
+- Expose invite management as an in-game sysop command, not just a setup-time CLI option.
+
+---
+
+## Reactive Room Descriptions
+
+### Prototype — `server/main.py` (Gemini AI, early 2025)
+`main.py` contains a well-developed prototype worth preserving and eventually integrating into
+`simple_server.py`:
+
+- **`GameClock`** — singleton; wraps `astral` + `pytz`; can run on wall-clock time or advance a
+  configurable number of minutes per player action.
+- **`Season`** enum — `SPRING / SUMMER / AUTUMN / WINTER`; derived from current date.
+- **`Terrain`** enum — `OUTDOORS / IN_BUILDING / INDOORS_CAVE / SNOWY / FOREST / WATER / DESERT`;
+  rooms would carry a terrain tag.
+- **Sun / moon position** — `astral` provides sunrise, sunset, moon phase for the configured
+  server location; used to pick day/dusk/night/dawn description variants.
+- **Reactive descriptions** — room descriptions vary by season, time of day, and terrain; e.g. a
+  forest room reads differently at dawn in winter than at noon in summer.
+
+### Future
+- Move `GameClock`, `Season`, and `Terrain` out of `main.py` into a dedicated `game_clock.py`
+  module so `simple_server.py` can import them cleanly.
+- Attach terrain tag to room records; pipe current season + time-of-day into the room description
+  renderer.
+- Server timezone (from `server_setup.py`) should be the single source of truth passed to
+  `GameClock` at startup.
+
+---
+
 ## Economy / Currency
 
 ### Future / Research Needed
