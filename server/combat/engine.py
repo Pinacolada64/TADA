@@ -188,12 +188,32 @@ class CombatSession:
             mname = self.monster.get('name', 'The monster')
             await ctx.send(f'{mname} blocks your escape!')
             return False
-        await ctx.send('You manage to escape!')
+
+        # Pick a random navigable exit and move the player there.
+        direction = self._random_exit(ctx)
+        if direction:
+            await ctx.send(f'You flee {direction}!')
+        else:
+            await ctx.send('You manage to escape!')
         await ctx.send_room(f'{_player_name(ctx)} flees the battle!', exclude_self=True)
         self._remove_attacker(ctx)
         if not self.attackers:
             self._done.set()
+        if direction:
+            await ctx.server._move(ctx, direction)
         return True
+
+    def _random_exit(self, ctx: 'GameContext') -> str | None:
+        """Return a random navigable exit direction from the player's current room, or None."""
+        import random
+        room_no = getattr(ctx.client, 'room', None)
+        game_map = getattr(ctx.server, 'game_map', None)
+        room = game_map.rooms.get(int(room_no)) if game_map and room_no else None
+        if not room:
+            return None
+        exits = getattr(room, 'exits', {}) or {}
+        choices = [d for d, dest in exits.items() if dest]
+        return random.choice(choices) if choices else None
 
     # ------------------------------------------------------------------
     # Internal: turn loop
