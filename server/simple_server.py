@@ -503,9 +503,21 @@ class Server:
             mon_idx = int(getattr(room, 'monster', 0) or 0) - 1
             if 0 <= mon_idx < len(self.monsters):
                 m = self.monsters[mon_idx]
-                name = m.get('name') if isinstance(m, dict) else getattr(m, 'name', 'a monster')
-                size = m.get('size') if isinstance(m, dict) else getattr(m, 'size', None)
-                lines += ['', f"There is {f'{size} ' if size else ''}{name} here."]
+                name    = m.get('name') if isinstance(m, dict) else getattr(m, 'name', 'a monster')
+                size    = m.get('size') if isinstance(m, dict) else getattr(m, 'size', None)
+                flags   = (m.get('flags') or {}) if isinstance(m, dict) else {}
+                mon_num = m.get('number') if isinstance(m, dict) else None
+                player  = getattr(getattr(client, 'ctx', None), 'player', None)
+                mk      = getattr(player, 'monsters_killed', []) if player else []
+                if mon_num is not None and mon_num in mk:
+                    # Monster is dead for this player
+                    if flags.get('mechanical'):
+                        lines += ['', f'The wrecked remains of {name} lie here.']
+                    else:
+                        lines += ['', f'You see a dead {name} here.']
+                    # TODO: fled (md=2) case — show tracks when monster-flee is implemented
+                else:
+                    lines += ['', f"There is {f'{size} ' if size else ''}{name} here."]
         except Exception:
             pass
 

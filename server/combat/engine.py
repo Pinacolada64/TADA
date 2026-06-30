@@ -95,7 +95,7 @@ def _add_exp(ctx: 'GameContext', amount: int) -> None:
 
 def _record_kill(player, monster: dict) -> None:
     """Record the monster ID in player.monsters_killed (no duplicates)."""
-    mid = monster.get('id_number') or monster.get('id')
+    mid = monster.get('number') or monster.get('id_number') or monster.get('id')
     if mid is None:
         return
     mk = getattr(player, 'monsters_killed', None)
