@@ -104,6 +104,7 @@ def _build_main_menu(ctx) -> Menu:
     menu.add_item(MenuItem('Combinations',     shortcuts='co', submenu=_combinations_menu(ctx)))
     menu.add_item(MenuItem('Flags/Counters',   shortcuts='fl', submenu=_flags_menu(ctx)))
     menu.add_item(MenuItem('Hit Points',       shortcuts='hp', action=_not_implemented))
+    menu.add_item(MenuItem('Inventory',        shortcuts='in', action=_inventory_action(ctx)))
     menu.add_item(MenuItem('Map Information',  shortcuts='mi', action=_not_implemented))
     menu.add_item(MenuItem('Money',            shortcuts='mo', action=_not_implemented))
     menu.add_item(MenuItem('Statistics',       shortcuts='st', submenu=_statistics_menu(ctx)))
@@ -420,3 +421,141 @@ def _statistics_menu(ctx) -> Menu:
     menu.add_item(MenuItem('Moves to date',   shortcuts='mo', action=_not_implemented))
     menu.add_item(MenuItem('Monsters killed', shortcuts='mk', action=_not_implemented))
     return menu
+
+
+# ---------------------------------------------------------------------------
+# Inventory management (give weapons / list all weapons)
+# ---------------------------------------------------------------------------
+
+def _weapon_from_dict(d: dict):
+    """Build a Weapon item object from a weapons.json dict."""
+    from items import Weapon
+    from base_classes import WeaponClass
+    # Map the JSON weapon_class string to WeaponClass enum
+    _wc_map = {wc.value.lower(): wc for wc in WeaponClass}
+    wc_str  = (d.get('weapon_class') or '').lower()
+    wc      = _wc_map.get(wc_str)
+    return Weapon(
+        id_number   = d.get('number', 0),
+        name        = d.get('name', '?'),
+        kind        = d.get('kind'),
+        stability   = d.get('stability', 0),
+        to_hit      = d.get('to_hit', 0),
+        price       = d.get('price', 0),
+        weapon_class= wc,
+        sound_effect= tuple(d.get('sound_effect') or ('', '')),
+    )
+
+
+def _inventory_action(ctx):
+    """Return an async action that drives the inventory management flow."""
+    async def action(ctx):
+        while True:
+            raw = await ctx.prompt(
+                '[G]ive weapon  [L]ist weapons  [I]nventory  [Q]uit',
+            )
+            if raw is None:
+                break
+            cmd = raw.strip().lower()[:1]
+
+            if cmd in ('q', ''):
+                break
+            elif cmd == 'i':
+                await _show_inventory(ctx)
+            elif cmd == 'l':
+                await _list_weapons(ctx)
+            elif cmd == 'g':
+                await _give_weapon(ctx)
+            else:
+                await ctx.send('Unknown option.')
+
+    return action
+
+
+async def _show_inventory(ctx) -> None:
+    """Display the player's current inventory."""
+    inv = getattr(ctx.player, 'inventory', None)
+    entries = list(inv.entries()) if inv and hasattr(inv, 'entries') else []
+    if not entries:
+        await ctx.send('Inventory is empty.')
+        return
+    lines = ['Current inventory:']
+    for e in entries:
+        name = getattr(e.item, 'name', '?')
+        qty  = getattr(e, 'quantity', 1)
+        lines.append(f'  {name}' + (f' ×{qty}' if qty > 1 else ''))
+    await ctx.send(lines)
+
+
+async def _list_weapons(ctx) -> None:
+    """List all weapons, optionally filtered by a search term."""
+    weapons = getattr(ctx.server, 'weapons', []) or []
+    raw = await ctx.prompt('Search (blank = show all)')
+    term = (raw or '').strip().lower()
+
+    matches = [
+        w for w in weapons
+        if term in (w.get('name') or '').lower()
+    ] if term else weapons
+
+    if not matches:
+        await ctx.send(f'No weapons matching "{term}".')
+        return
+
+    lines = [f'Weapons ({len(matches)} found):']
+    for w in matches:
+        num  = w.get('number', '?')
+        name = w.get('name', '?')
+        wc   = w.get('weapon_class', '')
+        stb  = w.get('stability', 0)
+        lines.append(f'  #{num:>3}  {name:<22}  {wc:<12}  stability {stb}')
+    await ctx.send(lines)
+
+
+async def _give_weapon(ctx) -> None:
+    """Search for a weapon by name and add it to the player's inventory."""
+    weapons = getattr(ctx.server, 'weapons', []) or []
+    if not weapons:
+        await ctx.send('No weapon data loaded on server.')
+        return
+
+    raw = await ctx.prompt('Weapon name (or part of name)')
+    if not raw or not raw.strip():
+        return
+    term    = raw.strip().lower()
+    matches = [w for w in weapons if term in (w.get('name') or '').lower()]
+
+    if not matches:
+        await ctx.send(f'No weapons matching "{raw.strip()}".')
+        return
+
+    if len(matches) == 1:
+        chosen = matches[0]
+    else:
+        lines = [f'{len(matches)} matches:']
+        for i, w in enumerate(matches, 1):
+            lines.append(f'  {i:>2}. {w.get("name","?")}')
+        await ctx.send(lines)
+        pick_raw = await ctx.prompt(f'Choose 1-{len(matches)}, or blank to cancel')
+        if not pick_raw or not pick_raw.strip():
+            return
+        try:
+            idx = int(pick_raw.strip()) - 1
+            if not (0 <= idx < len(matches)):
+                raise ValueError
+        except ValueError:
+            await ctx.send('Invalid selection.')
+            return
+        chosen = matches[idx]
+
+    inv = getattr(ctx.player, 'inventory', None)
+    if inv is None:
+        await ctx.send('Player has no inventory object.')
+        return
+
+    weapon = _weapon_from_dict(chosen)
+    if inv.add(weapon):
+        ctx.player.unsaved_changes = True
+        await ctx.send(f'Added {chosen["name"]} to {ctx.player.name}\'s inventory.')
+    else:
+        await ctx.send('Inventory is full.')
