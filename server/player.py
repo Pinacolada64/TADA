@@ -258,6 +258,10 @@ class Player:
         # TODO: look it up, but I think 1,000 honor points is equivalent to a Saintly Knight.
         self.honor = kwargs.get('honor', 1_000)
 
+        # Vinny the Loan Shark debt tracking (t_bar_vinney.lbl / SPUR.BAR3.S)
+        self.loan_amount: int = kwargs.get('loan_amount', 0)   # silver owed to Vinny
+        self.loan_days:   int = kwargs.get('loan_days',   0)   # days remaining to repay
+
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
         self.experience = kwargs.get('experience', 0)
