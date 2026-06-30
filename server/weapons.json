@@ -832,5 +832,19 @@
         "to_hit": 90,
         "price": 600,
         "weapon_class": "energy"
+    },
+    {
+        "number": 61,
+        "location": 1,
+        "name": "DOG REPELLENT",
+        "kind": "magic",
+        "sound_effect": [
+            "PSSSST!",
+            "PSSSST!"
+        ],
+        "stability": 80,
+        "to_hit": 60,
+        "price": 500,
+        "weapon_class": "proximity"
     }
 ]
