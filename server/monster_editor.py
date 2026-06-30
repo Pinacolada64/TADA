@@ -401,7 +401,7 @@ def build_monster_list_menu(monsters: list[dict], quotes: dict[int, str],
 # ---------------------------------------------------------------------------
 
 def build_monster_menu(mon, quotes, weapons, locations, dirty_ref):
-    logging.info("In build_monster_menu")
+    return build_edit_menu(mon, quotes, weapons, dirty_ref, [])
 
 
 async def search_by_name(ctx, monsters: list[dict],
@@ -450,6 +450,20 @@ async def search_by_flag(ctx, monsters: list[dict]):
             action             = make_action(),
         ))
     await run_menu(ctx, flag_menu)
+
+
+async def show_special_weapons(ctx, monsters: list[dict], weapons: dict[int, str]):
+    """List every monster that requires a specific weapon to be harmed."""
+    results = [(m, m['special_weapon']) for m in monsters if m.get('special_weapon')]
+    if not results:
+        await ctx.send('No monsters currently require a special weapon.')
+        await ctx.prompt('Press Enter to continue')
+        return
+    await header(ctx, f'Special weapons ({len(results)} monsters)')
+    for m, wid in results:
+        wname = weapons.get(wid, f'#{wid} (unknown)')
+        await ctx.send(f"  #{m['number']:>3}  {m['name']:<25}  requires: {wname}")
+    await ctx.prompt('Press Enter to continue')
 
 
 async def search_by_attribute(ctx, monsters: list[dict], weapons: dict[int, str]):
@@ -557,6 +571,10 @@ async def main(ctx=None):
     main_menu.add_item(MenuItem(text='Search by attribute',
                                 shortcuts=['A'],
                                 action=lambda ctx: search_by_attribute(ctx, monsters, weapons)))
+
+    main_menu.add_item(MenuItem(text='Special weapons',
+                                shortcuts=['W'],
+                                action=lambda ctx: show_special_weapons(ctx, monsters, weapons)))
 
     async def do_save(ctx):
         save_monsters(monsters, MONSTER_FILE)
