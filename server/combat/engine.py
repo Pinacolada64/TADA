@@ -335,6 +335,12 @@ class CombatSession:
                 class_to_hit, class_damage = weapon_bonus(weapon, cls_str, race_str)
             except Exception:
                 pass
+        # Storm servant bonus: +2 to skill/damage granted when player readied this
+        # STORM weapon and it accepted them (SPUR.WEAPON.S spec5 servant path).
+        sb = getattr(player, 'storm_servant_bonus', None)
+        if sb:
+            class_to_hit += sb[0]
+            class_damage  += sb[1]
         weapons_data = getattr(ctx.server, 'weapons', None) or []
         return player_attacks(
             player, weapon, self.monster,

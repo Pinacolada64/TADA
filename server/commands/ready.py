@@ -34,6 +34,19 @@ def _tier_label(vp: int) -> str:
     return ''
 
 
+def _find_storm_in_inventory(player, excluding_id=None):
+    """Return the first STORM weapon in inventory that isn't *excluding_id*."""
+    inv = getattr(player, 'inventory', None)
+    if inv is None:
+        return None
+    for entry in inv.entries():
+        item = entry.item
+        if 'STORM' in (getattr(item, 'name', '') or '').upper():
+            if excluding_id is None or getattr(item, 'id_number', None) != excluding_id:
+                return item
+    return None
+
+
 def _weapon_entries(player):
     """Return InventoryEntry list for weapons the player carries."""
     inv = getattr(player, 'inventory', None)
@@ -212,6 +225,7 @@ class ReadyCommand(Command):
         char_race  = getattr(player, 'char_race',  None)
         class_str  = (char_class.value if hasattr(char_class, 'value') else str(char_class)) if char_class else 'Fighter'
         race_str   = (char_race.value  if hasattr(char_race,  'value') else str(char_race))  if char_race  else 'Human'
+        skill_b = dmg_b = 0
         try:
             skill_b, dmg_b = weapon_bonus(weapon, class_str, race_str)
             if skill_b:
@@ -227,6 +241,89 @@ class ReadyCommand(Command):
         if info:
             await ctx.send(info)
 
+        new_is_storm = 'STORM' in name.upper()
+
+        # --- STORM jealousy / servant / rejection (SPUR.WEAPON.S lines 156-163) ---
+        #
+        # These fire AFTER we've confirmed the new weapon is different from the current
+        # one and the current weapon is not itself a STORM (that case is handled above).
+
+        if not new_is_storm:
+            # Jealous rage: a STORM weapon sits unreadied in inventory and howls
+            # when ignored.  It zaps the player, disintegrates, and the ready is
+            # aborted — the player ends up with no weapon readied.
+            # Mirrors SPUR.WEAPON.S line 156 → spec5 → spec4 → spec6.
+            storm_in_inv = _find_storm_in_inventory(
+                player, excluding_id=getattr(weapon, 'id_number', None)
+            )
+            if storm_in_inv is not None:
+                sname = storm_in_inv.name.upper()
+                dmg   = random.randint(1, 10)
+                await ctx.send([
+                    f'THE STORM WEAPON YOU IGNORED,',
+                    f'HOWLS IN JEALOUS RAGE!!',
+                    '',
+                    'A BOLT OF POWER BLASTS YOU BACKWARDS!',
+                    f'YOU TAKE {dmg} DAMAGE!',
+                ])
+                hp = getattr(player, 'hit_points', 0) - dmg
+                player.hit_points = hp
+                player.unsaved_changes = True
+                inv = getattr(player, 'inventory', None)
+                if inv is not None:
+                    inv.remove(storm_in_inv)
+                player.readied_weapon = None
+                await ctx.send([
+                    f'THE {sname} DISINTEGRATES!',
+                    '(No weapon readied..)',
+                ])
+                if hp <= 0:
+                    player.hit_points = 0
+                    await ctx.send([
+                        '|red|The blast was fatal. You have perished!|reset|',
+                        'Your adventure ends here...',
+                    ])
+                return CommandResult.ok()
+
+        else:
+            # New weapon IS a STORM weapon.
+            # "YOU ARE NOT MINE": class/race has no affinity for this weapon.
+            # Mirrors SPUR.WEAPON.S line 158 → spec3 → spec4.
+            if skill_b + dmg_b < 1:
+                dmg = random.randint(1, 10)
+                await ctx.send([
+                    f'A THUNDERING HOWL OF RAGE BLASTS FROM',
+                    f'THE {name.upper()}! \'YOU ARE NOT MINE!!\'',
+                    '',
+                    'A BOLT OF POWER BLASTS YOU BACKWARDS!',
+                    f'YOU TAKE {dmg} DAMAGE!',
+                ])
+                hp = getattr(player, 'hit_points', 0) - dmg
+                player.hit_points = hp
+                player.unsaved_changes = True
+                if hp <= 0:
+                    player.hit_points = 0
+                    await ctx.send([
+                        '|red|The blast was fatal. You have perished!|reset|',
+                        'Your adventure ends here...',
+                    ])
+                return CommandResult.ok()
+
+            # Servant: STORM weapon accepts the player.  Grants +2 to skill and
+            # damage bonus for this session (stored on player, used by _swing()).
+            # Mirrors SPUR.WEAPON.S lines 161-163.
+            await ctx.send([
+                'THUNDERING LAUGHTER SHRIEKS FROM THE',
+                f'{name.upper()}! \'I ACCEPT THEE AS',
+                'MY SERVANT!\'',
+                '',
+                'A jolt of power surges up your arm..',
+            ])
+            player.storm_servant_bonus = (2, 2)
+
         player.readied_weapon = weapon
+        # Clear servant bonus when switching to any non-STORM weapon.
+        if not new_is_storm:
+            player.storm_servant_bonus = None
         await ctx.send(f'{name.upper()} READIED.')
         return CommandResult.ok()

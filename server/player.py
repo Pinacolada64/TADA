@@ -833,7 +833,7 @@ class Player:
                 os.makedirs(parent, exist_ok=True)
             # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact.
             # Exclude session-only attributes that hold live objects and are not restored on load.
-            _SESSION_ONLY = {'readied_weapon'}
+            _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus'}
             data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
             from inventory import Inventory
