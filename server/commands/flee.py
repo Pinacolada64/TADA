@@ -11,7 +11,7 @@ class FleeCommand(Command):
 
     help = Help(
         summary  = 'Try to escape from a fight.',
-        category = HelpCategory.GENERAL,
+        category = HelpCategory.COMBAT,
         usage    = [('flee', 'Attempt to flee the current battle.')],
     )
 

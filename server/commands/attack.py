@@ -42,7 +42,7 @@ class AttackCommand(Command):
 
     help = Help(
         summary  = 'Attack the monster in your current room.',
-        category = HelpCategory.GENERAL,
+        category = HelpCategory.COMBAT,
         usage    = [
             ('attack',          'Attack the monster here.'),
             ('attack <name>',   'Attack if name matches the monster here.'),
@@ -51,6 +51,21 @@ class AttackCommand(Command):
             ('attack',         'Begin or join a fight.'),
             ('attack goblin',  'Attack the goblin (must be in this room).'),
             ('k',              'Shortcut: same as attack.'),
+        ],
+        description = (
+            'Engages the monster in your current room in melee combat. '
+            'Other players in the same room can join the fight automatically.'
+        ),
+        notes = [
+            'Damage per hit is low at level 1 (~1 avg) and scales with '
+            'player level and weapon experience. Expect 8-10 swings to kill '
+            'a basic monster.',
+            'Weapon ease-of-use (stability) and base damage (to-hit rating) '
+            'both come from the weapon record. A Long Sword hits ~68% of the '
+            'time against average monsters at level 1.',
+            'You earn +1 experience point per swing (hit or miss). At 40 '
+            'swings with a weapon you gain VETERAN status (+1 to-hit, +1 '
+            'damage); at 99 swings ELITE (+2 to-hit, +level damage bonus).',
         ],
     )
 
