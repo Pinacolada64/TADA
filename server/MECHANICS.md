@@ -171,13 +171,73 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 
 ### Not Implemented
 - **Guilds** — three guilds (Claw, Sword, Iron Fist); bank, food locker, item locker, weapon box, chalk board, log (`SPUR.GUILD.S`)
-- **Bar** — ally hiring, drink/food purchase (`SPUR.BAR.S`, `SPUR.BAR2.S`, `SPUR.BAR3.S`)
-- **Ship** — travel between zones (`SPUR.SHIP.S`)
+- **Bar** — ally hiring, drink/food purchase (`SPUR.BAR.S`, `SPUR.BAR2.S`, `SPUR.BAR3.S`) — see **Bar** section below
+- **Ship / Space level** — space-themed level (likely level 7); room data in `SPUR-data/level-7/` (requires gbbs-io to decode); `SPUR.SHIP.S` handles its specific mechanics (`SPACE SUIT` replaces `BOAT` for water-room traversal at level 6+, per `SPUR.MAIN.S:158`)
 - **Gates** — zone gate travel (`SPUR.GATES.S`)
-- **Annex** — visitor area (`SPUR.ANNEX.S`)
-- **Shop** — buy/sell items, ammo, shields (`SPUR.SHOP.S`)
+- **Annex** — visitor area (`SPUR.ANNEX.S`) — see **Annex** section below
+- **Shop** — buy/sell items, ammo, shields (`SPUR.SHOP.S`) — see **Merchant Shoppe** section below
 - **Bulletin board / news log** (`SPUR.MISC2.S`) — see expanded design in **News & Mail** and **Threaded Message Boards** sections below
 - **Pray / Rest** — recover HP or stats out of combat (`SPUR.MISC2.S`)
+- **READ command** — read a book item from inventory; increases Wisdom on completion (`SPUR.MISC3.S`; tips.txt: "READ books to increase your wisdom!")
+- **QUOTE command** — player sets a short quote displayed to others who encounter their parked character; referenced in `t_main.lbl` command list and tips.txt
+- **LOOT command** — search an unconscious player's inventory; one item per session; Civilians barred from the Shoppe after looting (tips.txt); see also Items section above
+- **The Dwarf** — permanent NPC on a fixed room on level 1; steals gold from all players until killed; killing him awards all accumulated stolen gold; room does not change between sessions (tips.txt)
+- **Special room traversal requirements** — snow/mountain rooms (`**` flag) require a Great Coat (item #78) or player freezes; water rooms (`@@` flag) require a Boat (levels 1–5) or Space Suit (level 6+); checks in `SPUR.MAIN.S:313–319` and `t_main.lbl`
+- **Wraith Master title** — players with `WRAITH_MASTER` flag get ", Wraith Master of Spur!" appended to their name at login (stubbed in `commands/connect.py:242`)
+- **WHO command** — lists currently online players; replaces the SPUR "last adventurer" login display (stubbed in `commands/connect.py:247`)
+- **Guild follow** — player character automatically follows guild members to their location when logged off; toggle in settings (stubbed in `commands/connect.py:274`)
+
+---
+
+## Merchant Shoppe (`server/shoppe/main.py`)
+
+### Implemented
+- ✅ **General Store** — sells rations 1–10 (safe food/drink); duplicate check; silver deduction; pack-full guard
+- ✅ **Elevator** — travel between levels 1–5 (`shoppe/elevator.py`)
+- ✅ **Player List** — browse online/offline players by wildcard pattern
+
+### Stubs (not yet implemented)
+- **Armory** — buy and sell weapons; max 6 weapons per player (`SPUR.SHOP.S`)
+- **Protection** — buy armor and shields; max 5 items per player (`SPUR.SHOP.S`)
+- **Bank of SPUR** — deposit, withdraw, transfer gold; level 2+ required for transfers (`SPUR.SHIP.S bank`)
+- **Wizard** — buy spells; Wizards pay half price, Druids two-thirds; max 10 spells (`SPUR.SHOP.S`)
+- **Clan / Guild office** — change guild affiliation (Claw, Sword, Iron Fist, Civilian, Outlaw); costs gold and honor (`SPUR.SHOP.S`)
+- **Pawn Shop** — sell (not buy) items to the merchant; all found items are sellable (tips.txt) (`SPUR.SHOP.S`)
+
+---
+
+## Merchant's Annex (`server/annex/main.py`)
+
+All sections are stubs. Source: `SPUR.ANNEX.S`.
+
+### Stubs (not yet implemented)
+- **School info** — character class descriptions and stat bonuses
+- **System message** — sysop broadcast message of the day
+- **Tips** — in-game tips display (content from `SPUR-data/tips.txt`)
+- **School spells** — list of spells available to the player's class
+- **Recent news / Older news** — two-tier news log (ties into News & Mail design)
+- **Guild standings** — ranking of guilds by kills/XP
+- **Personal records** — player's own stats history
+- **System data view** — server-level statistics (total players, kills, etc.)
+- **Message boards (×3)** — three separate threaded boards (ties into Threaded Message Boards design)
+- **Player rosters** — separate lists for Civilians, Mark of the Claw, Mark of the Sword, Iron Fist, and Outlaws
+
+---
+
+## Bar (`server/bar/main.py`)
+
+### Partially Implemented
+- ✅ **Fat Olaf** — slave/servant trader; buy allies; sell servant stub present (`bar/fat_olaf.py`)
+- ✅ **Food/drink menu** — `food_menu()` helper exists; rations list rendered
+
+### Stubs (not yet implemented)
+- **Vinny** — loan shark NPC; apply for loans, pay back, store gold in bar (`t_bar_vinney.lbl`); stub present, full dialog not wired
+- **Skip** — NPC stub (role TBD)
+- **Bar None** — NPC stub (role TBD; likely bar keep / general service)
+- **Zelda** — NPC stub (role TBD)
+- **Blue Djinn** — NPC stub (role TBD)
+- **Bouncer** — enforces entry rules; role partially referenced
+- **Bar brawl / PvP** — fighting other players in the bar; stub message "combat not yet available" (`bar/main.py:269`)
 
 ---
 
@@ -210,6 +270,69 @@ implemented, or not yet started. Source references are to files under `SPUR-code
   players read, reply to, and delete messages mid-session.
 - **Storage** — mailboxes stored per-player (e.g. `mail/<playername>.json`); each message: `from`,
   `timestamp`, `subject` (optional), `body`, `read` flag.
+
+---
+
+## Horses
+
+Source references: `text-listings/t_mount.lbl`, `t_charge.lbl`, `t_main.lbl`, `t_stat.lbl`,
+`t_startup.lbl`, `t_ma_blacksmith.lbl`.
+
+### Overview
+A horse occupies **ally slot 4** (`a$(4)`).  The string `"---"` in that slot means no horse.
+At login, if the player has a horse, it is announced: *"Your faithful steed `<name>` is here."*
+`[MOUNTED]` is shown in the player status line when the mounted bit is set.
+
+### Not Implemented
+
+#### Acquiring a horse
+- **Stable** — horses are bought/stabled somewhere on level 6 (exact room TBD).
+- **Naming** — the horse has a name stored in the ally-4 name field (e.g. `STRAWBERRY`); player
+  presumably names it at purchase time.
+
+#### MOUNT / DISMOUNT
+- `MOUNT` — checks `a$(4) <> "---"` (horse exists); checks mounted bit (bit 4 of `v1+65`);
+  handles water rooms gracefully ("(Luckily, `<name>` can swim.)"); sets mounted bit and prints
+  "You leap upon your noble steed, `<name>`..."
+  - TODO in source: check character class size for mounting difficulty; check for saddle; check
+    player strength vs. weight of armor.
+- `DISMOUNT` — clears mounted bit.  Source notes that MOUNT and DISMOUNT may be folded into one
+  toggle command.
+
+#### CHARGE
+- Requires horse in slot 4; fails with "You don't have a horse."
+- Requires a live monster present; fails with a sarcastic message if nothing to charge toward.
+- Water room: special joke message ("Clopping two coconut halves...").
+- Horse strength gate: `peek(v1+119) < 5` → "Your horse is too weak to charge."
+- Class attack bonuses: Fighter/Thief/Archer (cl 1/6/7): −25; Paladin (cl 3): +25; Assassin
+  (cl 8): +35.
+- Roll determines hit/miss; damage = `rnd(roll/4)`.
+- TODOs in source: consider monster size (missing over its head); Knight lance bonus; player or
+  horse taking return-attack damage; being unseated without a saddle on a heavy blow.
+
+#### Horse stats & equipment
+- **Constitution & HP** — displayed on the stat screen alongside armor; "looks sick" / "looks
+  weak" messages when low (same health-check loop as allies).
+- **Armor** — horse has an armor rating; displayed in stat screen; no shield slot.
+- **Race** — horse has a race (bits 6–0 of `v2+189`); cross-breeding possible by setting multiple
+  bits (noted in source: "Thanks for the idea, DracoSilv").
+- **Saddlebags** — bit 7 of `v2+189`; without saddlebags the horse carries no gold and no items;
+  with saddlebags it can carry things (extra inventory).  Gold display routines explicitly check
+  for this flag before showing horse gold.
+- **Saddle** — referenced in MOUNT and CHARGE TODOs; affects mounting checks and unseating risk;
+  presumably a purchasable item.
+- **Lasso** — referenced by the user; likely used to catch/acquire a horse (exact mechanic TBD).
+- **Horseshoes** — listed as a TODO service at the Blacksmith (`t_ma_blacksmith.lbl:
+  "todo: shoe horse"`); effect on speed or armor TBD.
+- **Food** — horses presumably need feeding (appropriate food items TBD; ties into the
+  food/ration system).
+
+### Future
+- Decide on stable location (level 6 per user notes) and lasso / purchase flow.
+- Implement `MOUNT` / `DISMOUNT` as toggle or separate commands.
+- Implement `CHARGE` with class bonuses, horse-strength gate, and unseating risk.
+- Wire saddlebags into inventory as an extra carry slot on the horse.
+- Add horseshoe service to the Blacksmith shoppe section.
 
 ---
 
