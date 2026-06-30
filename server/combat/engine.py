@@ -33,6 +33,7 @@ from combat.resolution import (
     flee_attempt,
     assemble_zu_zv,
 )
+from combat.rewards import gold_from_monster, exp_per_swing
 
 if TYPE_CHECKING:
     from network_context import GameContext
@@ -83,6 +84,13 @@ def _award_weapon_exp(ctx: 'GameContext', weapon_id: int) -> None:
         ctx.player.gain_weapon_experience(weapon_id)
     except Exception:
         log.exception('_award_weapon_exp: error awarding exp to %s', _player_name(ctx))
+
+
+def _add_exp(ctx: 'GameContext', amount: int) -> None:
+    """Add experience points to the player."""
+    player = ctx.player
+    player.experience = int(getattr(player, 'experience', 0) or 0) + amount
+    player.unsaved_changes = True
 
 
 def _record_kill(player, monster: dict) -> None:
@@ -163,6 +171,7 @@ class CombatSession:
             if self._done.is_set():
                 return
             result = self._swing(ctx)
+            _add_exp(ctx, exp_per_swing())
             await self._narrate_player_swing(ctx, result, bystander=True)
             _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
             if result.weapon_id:
@@ -224,8 +233,9 @@ class CombatSession:
                 if self._done.is_set():
                     break
 
-                # Player swings
+                # Player swings — +1 ep per attempt (SPUR.COMBAT.S line 103)
                 result = self._swing(ctx)
+                _add_exp(ctx, exp_per_swing())
                 await self._narrate_player_swing(ctx, result)
                 _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
                 if result.weapon_id:
@@ -426,30 +436,20 @@ class CombatSession:
             exclude_self=True,
         )
 
-        # Rewards to the leader
+        # Gold loot (probability + amount from rewards.py / SPUR.MISC.S p.a4)
         player = ctx.player
-        silver = int(self.monster.get('silver') or 0)
-        exp    = int(self.monster.get('experience') or 0)
-        if silver:
-            _give_silver(player, silver)
-            await ctx.send(f'You gain {silver} silver.')
-        if exp:
-            player.experience = int(getattr(player, 'experience', 0) or 0) + exp
-            player.unsaved_changes = True
-            await ctx.send(f'You gain {exp} experience.')
+        gold = gold_from_monster(self.monster)
+        if gold:
+            _give_silver(player, gold)
+            await ctx.send(f'You find {gold} gold pieces on the {mname}!')
 
         _record_kill(player, self.monster)
 
-        # Notify bystanders of their exp gain
+        # Notify bystanders of the kill (they earned exp per-swing already)
         for b_ctx in self.attackers:
             if b_ctx is ctx:
                 continue
-            bexp = exp // 2 if exp else 0  # bystanders get half exp
-            if bexp:
-                b_player = b_ctx.player
-                b_player.experience = int(getattr(b_player, 'experience', 0) or 0) + bexp
-                b_player.unsaved_changes = True
-                await b_ctx.send(f'|green|{mname} is slain!  You gain {bexp} experience.|reset|')
+            await b_ctx.send(f'|green|{mname} is slain!|reset|')
 
     async def _player_dies(self, ctx: 'GameContext') -> None:
         """Handle player death during combat."""
