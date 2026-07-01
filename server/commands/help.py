@@ -175,12 +175,15 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         lines.append("")
         lines.append("Notes:")
         for note in notes:
-            lines.extend(textwrap.wrap(
-                str(note),
-                width=wrap_width,
-                initial_indent=" " * 4,
-                subsequent_indent=" " * 4,
-            ))
+            if note == '':
+                lines.append('')
+            else:
+                lines.extend(textwrap.wrap(
+                    str(note),
+                    width=wrap_width,
+                    initial_indent=" " * 4,
+                    subsequent_indent=" " * 4,
+                ))
 
     return lines if lines else None
 
