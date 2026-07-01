@@ -956,6 +956,7 @@ class Player:
                 if 'flags' in data and isinstance(data['flags'], dict):
                     # ensure mapping exists
                     _flags.ensure_player_flags(self)
+                    restored_true: list[str] = []
                     for fname, entry in data['flags'].items():
                         try:
                             status = bool(entry.get('status', False)) if isinstance(entry, dict) else bool(entry)
@@ -964,6 +965,7 @@ class Player:
                             if pf is not None:
                                 if status:
                                     _flags.set_flag(self, pf)
+                                    restored_true.append(fname)
                                 else:
                                     _flags.clear_flag(self, pf)
                             else:
@@ -975,9 +977,10 @@ class Player:
                                 except Exception:
                                     pass
                         except Exception:
-                            continue
+                            logging.exception('Player._load: error restoring flag %r', fname)
+                    logging.debug('Player._load: restored flags (True): %s', restored_true)
             except Exception:
-                pass
+                logging.exception('Player._load: flags block failed')
 
             return True
         except Exception:

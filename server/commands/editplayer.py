@@ -109,6 +109,44 @@ def _hp_action(ctx):
 
 
 # ---------------------------------------------------------------------------
+# Money menu
+# ---------------------------------------------------------------------------
+
+def _money_menu(ctx) -> Menu:
+    from base_classes import PlayerMoneyTypes
+    p    = ctx.player
+    menu = Menu(title='Money')
+
+    _entries = [
+        (PlayerMoneyTypes.IN_HAND, 'In Hand', 'ih'),
+        (PlayerMoneyTypes.IN_BANK, 'In Bank', 'ib'),
+        (PlayerMoneyTypes.IN_BAR,  'In Bar',  'ir'),
+    ]
+
+    def _get(kind):
+        return int(p.get_silver(kind) or 0)
+
+    def make_action(kind, label):
+        async def action(ctx):
+            cur = _get(kind)
+            val = await _prompt_int(ctx, label, cur, 0, 9_999_999)
+            if val is not None:
+                p.set_silver_absolute(kind, val)
+                p.unsaved_changes = True
+                await ctx.send(f'{label} set to {val:,} silver.')
+        return action
+
+    for kind, label, sc in _entries:
+        menu.add_item(MenuItem(
+            label,
+            shortcuts=sc,
+            dot_leader_handler=lambda ctx, k=kind: f'{_get(k):,}',
+            action=make_action(kind, label),
+        ))
+    return menu
+
+
+# ---------------------------------------------------------------------------
 # Main menu
 # ---------------------------------------------------------------------------
 
@@ -123,7 +161,7 @@ def _build_main_menu(ctx) -> Menu:
     menu.add_item(MenuItem('Hit Points',       shortcuts='hp', action=_hp_action(ctx)))
     menu.add_item(MenuItem('Inventory',        shortcuts='in', action=_inventory_action(ctx)))
     menu.add_item(MenuItem('Map Information',  shortcuts='mi', action=_not_implemented))
-    menu.add_item(MenuItem('Money',            shortcuts='mo', action=_not_implemented))
+    menu.add_item(MenuItem('Money',            shortcuts='mo', submenu=_money_menu(ctx)))
     menu.add_item(MenuItem('Statistics',       shortcuts='st', submenu=_statistics_menu(ctx)))
     menu.add_item(MenuItem('Weapons',          shortcuts='we', action=_not_implemented))
     return menu
@@ -341,6 +379,7 @@ def _flags_menu(ctx) -> Menu:
     def make_toggle(flag: PlayerFlags):
         async def toggle(ctx):
             p.toggle_flag(flag)
+            p.unsaved_changes = True
             await ctx.send(f'{flag.value}: {_flag_status(p, flag)}')
         return toggle
 
