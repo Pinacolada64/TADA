@@ -167,6 +167,11 @@ async def main(ctx: GameContext) -> None:
             'OUTLAW':   Guild.OUTLAW,
         }
         player.guild = guild_map[guild_key]
+        from flags import PlayerFlags
+        if guild_key in ('CLAW', 'SWORD', 'FIST'):
+            player.set_flag(PlayerFlags.GUILD_MEMBER)
+        else:
+            player.clear_flag(PlayerFlags.GUILD_MEMBER)
         player.unsaved_changes = True
 
         # "JOINED" vs "REJOINED": first-time guild joiner gets a waiting-for-GM note

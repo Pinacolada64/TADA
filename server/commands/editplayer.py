@@ -435,6 +435,12 @@ def _statistics_menu(ctx) -> Menu:
         idx = int(raw.strip()) - 1
         if 0 <= idx < len(options):
             p.guild = options[idx]
+            from flags import PlayerFlags
+            if options[idx] in (Guild.CLAW, Guild.SWORD, Guild.FIST):
+                p.set_flag(PlayerFlags.GUILD_MEMBER)
+            else:
+                p.clear_flag(PlayerFlags.GUILD_MEMBER)
+            p.unsaved_changes = True
             await ctx.send(f'Guild set to {options[idx].value}.')
 
     async def edit_race(ctx) -> None:

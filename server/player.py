@@ -933,6 +933,17 @@ class Player:
                 except Exception:
                     logging.exception("Player._load: failed to restore command_settings for %s", self.name)
 
+            # Guild — stored as the enum's string value; reverse-look up the member.
+            if 'guild' in data:
+                try:
+                    from base_classes import Guild
+                    saved = data['guild']
+                    matched = next((g for g in Guild if g.value == saved), None)
+                    if matched is not None:
+                        self.guild = matched
+                except Exception:
+                    pass
+
             # Merge stats and silver dicts where present
             if 'stats' in data and isinstance(data['stats'], dict):
                 try:
