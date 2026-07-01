@@ -225,7 +225,7 @@ async def enter_bar(ctx: GameContext) -> None:
     if not player.is_expert:
         await _bar_help(ctx)
 
-    await enter_area(ctx, 'bar')
+    await enter_area(ctx, 'Bar')
     try:
         while True:
             debug = player.is_debug
@@ -347,7 +347,7 @@ async def enter_bar(ctx: GameContext) -> None:
                     await ctx.send("You have died.")
                     break
     finally:
-        await leave_area(ctx, 'bar')
+        await leave_area(ctx, 'Bar')
 
 
 # ---------------------------------------------------------------------------

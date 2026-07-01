@@ -223,11 +223,11 @@ async def main(ctx: GameContext) -> None:
         ctx, f'{player.name} follows the sloping passageway downward into the merchant{_AP}s annex.',
     )
 
-    await enter_area(ctx, 'shoppe')
+    await enter_area(ctx, 'Shoppe')
     try:
         await _shoppe_session(ctx, player)
     finally:
-        await leave_area(ctx, 'shoppe')
+        await leave_area(ctx, 'Shoppe')
 
 
 async def _shoppe_session(ctx: GameContext, player) -> None:

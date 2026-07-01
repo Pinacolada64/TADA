@@ -14,7 +14,7 @@ def _location_label(client, server) -> str:
     """Resolve a human-readable location string for a connected client."""
     vl = getattr(client, 'virtual_location', None)
     if vl:
-        return vl.title()
+        return vl
     ctx = getattr(client, 'ctx', None)
     player = getattr(ctx, 'player', None)
     room_no = getattr(client, 'room', None) or getattr(player, 'map_room', None)

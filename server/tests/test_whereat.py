@@ -1,4 +1,9 @@
 """tests/test_whereat.py — Unit tests for commands/whereat.py"""
+import sys, pathlib
+if __name__ == '__main__':
+    sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+
+import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -102,12 +107,12 @@ class TestIsPrivileged(unittest.TestCase):
 class TestLocationLabel(unittest.TestCase):
 
     def test_virtual_location_wins(self):
-        client = make_client(make_player('Alice'), virtual_location='elevator')
+        client = make_client(make_player('Alice'), virtual_location='Elevator')
         server = make_server(client)
         self.assertEqual(_location_label(client, server), 'Elevator')
 
-    def test_virtual_location_is_title_cased(self):
-        client = make_client(make_player('Alice'), virtual_location='wall bar')
+    def test_virtual_location_returned_as_is(self):
+        client = make_client(make_player('Alice'), virtual_location='Wall Bar')
         server = make_server(client)
         self.assertEqual(_location_label(client, server), 'Wall Bar')
 
@@ -138,7 +143,7 @@ class TestLocationLabel(unittest.TestCase):
         self.assertEqual(_location_label(client, server), '(unknown)')
 
     def test_virtual_location_overrides_room(self):
-        client = make_client(make_player('Alice'), virtual_location='shoppe', room=5)
+        client = make_client(make_player('Alice'), virtual_location='Shoppe', room=5)
         server = make_server(client, rooms={5: make_room('Town Square')})
         self.assertEqual(_location_label(client, server), 'Shoppe')
 
@@ -238,7 +243,7 @@ class TestWhereatListing(unittest.IsolatedAsyncioTestCase):
     async def test_hidden_player_shows_real_location_to_admin(self):
         admin  = make_player('Admin', admin=True)
         bob    = make_player('Bob', hidden=True)
-        cb     = make_client(bob, virtual_location='elevator')
+        cb     = make_client(bob, virtual_location='Elevator')
         server = make_server(make_client(admin), cb)
         ctx    = make_ctx(admin, server)
         await WhereatCommand().execute(ctx)
@@ -257,7 +262,7 @@ class TestWhereatListing(unittest.IsolatedAsyncioTestCase):
     async def test_dm_sees_through_hidden(self):
         dm     = make_player('DM', dm=True)
         bob    = make_player('Bob', hidden=True)
-        cb     = make_client(bob, virtual_location='shoppe')
+        cb     = make_client(bob, virtual_location='Shoppe')
         server = make_server(make_client(dm), cb)
         ctx    = make_ctx(dm, server)
         await WhereatCommand().execute(ctx)
@@ -274,7 +279,7 @@ class TestWhereatListing(unittest.IsolatedAsyncioTestCase):
 
     async def test_virtual_location_shown_in_listing(self):
         alice  = make_player('Alice')
-        ca     = make_client(alice, virtual_location='elevator')
+        ca     = make_client(alice, virtual_location='Elevator')
         server = make_server(ca)
         ctx    = make_ctx(alice, server)
         await WhereatCommand().execute(ctx)
@@ -315,5 +320,173 @@ class TestWhereatMeta(unittest.TestCase):
         self.assertGreater(len(WhereatCommand.help.summary), 0)
 
 
+# ---------------------------------------------------------------------------
+# Bulk scenario: ~12 players, mixed virtual/room locations, ~10% hidden
+# ---------------------------------------------------------------------------
+
+class TestWhereatBulkListing(unittest.IsolatedAsyncioTestCase):
+    """Exercises the full listing with a realistic mix of players."""
+
+    ROOMS = {
+        2:  'Forest Path',
+        5:  'Town Square',
+        7:  'Misty Vale',
+        12: 'Dark Forest',
+        33: 'The Ruins',
+        44: 'Crystal Cavern',
+        99: 'Shadow Keep',
+    }
+
+    # (name, virtual_location, room_no, hidden)
+    # 1 hidden out of 12 ≈ 8%, within the ~10% target
+    ROSTER = [
+        ('Alice',  None,                  5,    False),
+        ('Bob',    None,                  12,   False),
+        ('Carol',  'Bar',                 None, False),
+        ('Dave',   'Shoppe',              None, False),
+        ('Eve',    'Elevator',            None, False),
+        ('Frank',  None,                  33,   True),   # hidden
+        ('Grace',  'Mark of the Claw HQ', None, False),
+        ('Hank',   None,                  7,    False),
+        ('Iris',   None,                  44,   False),
+        ('Jack',   'Iron Fist HQ',        None, False),
+        ('Kay',    None,                  2,    False),
+        ('Leo',    None,                  99,   False),
+    ]
+
+    def _build(self, *, observer='Alice', admin=False):
+        players = {}
+        clients = {}
+        for name, vl, room_no, hidden in self.ROSTER:
+            is_admin = admin and name == observer
+            p = make_player(name, admin=is_admin, hidden=hidden)
+            c = make_client(p, virtual_location=vl, room=room_no)
+            players[name] = p
+            clients[name] = c
+
+        rooms_mock = {n: make_room(label) for n, label in self.ROOMS.items()}
+        server = make_server(*clients.values(), rooms=rooms_mock)
+        ctx = make_ctx(players[observer], server)
+        return ctx
+
+    # --- fixture sanity ---
+
+    def test_roster_has_twelve_players(self):
+        self.assertEqual(len(self.ROSTER), 12)
+
+    def test_roughly_ten_percent_hidden(self):
+        hidden = sum(1 for *_, h in self.ROSTER if h)
+        pct = hidden / len(self.ROSTER)
+        self.assertGreaterEqual(pct, 0.05)
+        self.assertLessEqual(pct, 0.20)
+
+    # --- visible players ---
+
+    async def test_visible_names_appear(self):
+        ctx = self._build()
+        await WhereatCommand().execute(ctx)
+        out = _sent_text(ctx)
+        for name, _, _, hidden in self.ROSTER:
+            if not hidden:
+                self.assertIn(name, out)
+
+    async def test_hidden_player_name_still_listed(self):
+        ctx = self._build()
+        await WhereatCommand().execute(ctx)
+        self.assertIn('Frank', _sent_text(ctx))
+
+    async def test_hidden_location_masked_from_normal_player(self):
+        ctx = self._build()
+        await WhereatCommand().execute(ctx)
+        self.assertIn('(Hidden)', _sent_text(ctx))
+
+    async def test_hidden_room_not_visible_to_normal_player(self):
+        ctx = self._build()
+        await WhereatCommand().execute(ctx)
+        self.assertNotIn('The Ruins', _sent_text(ctx))
+
+    # --- virtual areas ---
+
+    async def test_virtual_areas_shown(self):
+        ctx = self._build()
+        await WhereatCommand().execute(ctx)
+        out = _sent_text(ctx)
+        for label in ('Bar', 'Shoppe', 'Elevator', 'Mark of the Claw HQ', 'Iron Fist HQ'):
+            self.assertIn(label, out)
+
+    # --- map rooms ---
+
+    async def test_room_names_shown(self):
+        ctx = self._build()
+        await WhereatCommand().execute(ctx)
+        out = _sent_text(ctx)
+        for room_no, room_name in self.ROOMS.items():
+            if room_no == 33:
+                continue    # Frank's room — hidden from normal players
+            self.assertIn(room_name, out)
+
+    # --- sort order ---
+
+    async def test_output_is_sorted_alphabetically(self):
+        ctx = self._build()
+        await WhereatCommand().execute(ctx)
+        out = _sent_text(ctx)
+        positions = {name: out.index(name)
+                     for name, *_ in self.ROSTER if name in out}
+        ordered = sorted(positions, key=lambda n: (positions[n], n.lower()))
+        self.assertEqual(ordered, sorted(ordered, key=lambda n: positions[n]))
+
+    # --- admin perspective ---
+
+    async def test_admin_sees_hidden_players_real_room(self):
+        ctx = self._build(observer='Alice', admin=True)
+        await WhereatCommand().execute(ctx)
+        out = _sent_text(ctx)
+        self.assertIn('The Ruins', out)
+        self.assertNotIn('(Hidden)', out)
+
+    async def test_admin_sees_hidden_annotation(self):
+        ctx = self._build(observer='Alice', admin=True)
+        await WhereatCommand().execute(ctx)
+        self.assertIn('[hidden]', _sent_text(ctx))
+
+    async def test_header_present(self):
+        ctx = self._build()
+        await WhereatCommand().execute(ctx)
+        self.assertIn('Whereat', _sent_text(ctx))
+
+
 if __name__ == '__main__':
+    async def _demo():
+        """Print whereat output for the bulk scenario — normal and admin views."""
+        cls   = TestWhereatBulkListing
+        rooms = {n: make_room(label) for n, label in cls.ROOMS.items()}
+
+        for title, observer, admin in [
+            ('Normal player (Alice)', 'Alice', False),
+            ('Admin view',            'Alice', True),
+        ]:
+            players_map  = {}
+            clients_list = []
+            for name, vl, room_no, hidden in cls.ROSTER:
+                p = make_player(name, admin=(admin and name == observer), hidden=hidden)
+                c = make_client(p, virtual_location=vl, room=room_no)
+                players_map[name] = p
+                clients_list.append(c)
+
+            server = make_server(*clients_list, rooms=rooms)
+            ctx    = make_ctx(players_map[observer], server)
+
+            collected = []
+            async def _collect(*args, _buf=collected):
+                for a in args:
+                    _buf.extend(str(x) for x in a) if isinstance(a, list) else _buf.append(str(a))
+            ctx.send = _collect
+
+            await WhereatCommand().execute(ctx)
+            print(f'\n=== {title} ===')
+            print('\n'.join(collected))
+
+    asyncio.run(_demo())
+    print()
     unittest.main()

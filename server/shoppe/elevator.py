@@ -167,11 +167,11 @@ async def main(ctx: GameContext) -> None:
     )
     await broadcast_open_room(ctx, f'{player.name} steps up to the elevator.')
 
-    await enter_area(ctx, 'elevator')
+    await enter_area(ctx, 'Elevator')
     try:
         await _elevator_session(ctx, player)
     finally:
-        await leave_area(ctx, 'elevator')
+        await leave_area(ctx, 'Elevator')
 
 
 async def _elevator_session(ctx: GameContext, player) -> None:

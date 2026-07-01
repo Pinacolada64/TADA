@@ -590,7 +590,7 @@ async def main(ctx: GameContext, guild_key: str) -> None:
         player.unsaved_changes = True
         await ctx.send('(Energy: +4)')
 
-    area_key = f"{info['name']} HQ"
+    area_key = info['name'].removeprefix('The ') + ' HQ'
     await enter_area(ctx, area_key)
     try:
         await _hq_session(ctx, player, guild_key, info)
