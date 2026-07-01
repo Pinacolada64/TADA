@@ -13,38 +13,6 @@ _AP = "'"
 # Shoppe is closed on level 7 (matches SPUR.SHOP.S main1 level-gate)
 _CLOSED_LEVELS = {7}
 
-_SPELL_MAX  = 10     # SPUR xs=10 gate
-_SPELL_NON_ADEPT_MAX = 6  # SPUR if pc>2 then if xs>5 goto wiz2b
-
-
-# Hardcoded from SPUR-data/spells.txt (21 records; last is dummy sentinel).
-# Fields: number, name, effect_type, effect_magnitude, cast_chance, price
-# effect_type codes: S=Str W=Wis D=Dex C=Con E=Egy I=Int T=Transfer
-#   P=Player-HP M=Monster L=LevelDown U=LevelUp R=Shop G=SPUR A=Aura
-_SPELLS: list[dict] = [
-    {'number':  1, 'name': 'ESP',                'effect': 'I', 'magnitude': 4, 'cast_chance': 70, 'price': 100},
-    {'number':  2, 'name': 'WHEATIES',           'effect': 'S', 'magnitude': 6, 'cast_chance': 70, 'price': 150},
-    {'number':  3, 'name': 'HAPPY FEET',         'effect': 'E', 'magnitude': 6, 'cast_chance': 50, 'price': 100},
-    {'number':  4, 'name': 'KILL',               'effect': 'M', 'magnitude': 6, 'cast_chance': 60, 'price': 140},
-    {'number':  5, 'name': 'ELEVATOR UP',        'effect': 'U', 'magnitude': 7, 'cast_chance': 70, 'price': 800},
-    {'number':  6, 'name': 'KNOWLEDGE',          'effect': 'W', 'magnitude': 4, 'cast_chance': 70, 'price': 75},
-    {'number':  7, 'name': 'DESTROYER',          'effect': 'M', 'magnitude': 8, 'cast_chance': 70, 'price': 250},
-    {'number':  8, 'name': 'SLAUGHTER',          'effect': 'M', 'magnitude': 4, 'cast_chance': 90, 'price': 100},
-    {'number':  9, 'name': 'DEPOSIT',            'effect': 'T', 'magnitude': 4, 'cast_chance': 80, 'price': 50},
-    {'number': 10, 'name': 'WELL-BEING',         'effect': 'C', 'magnitude': 9, 'cast_chance': 70, 'price': 170},
-    {'number': 11, 'name': 'BALANCE',            'effect': 'D', 'magnitude': 4, 'cast_chance': 60, 'price': 80},
-    {'number': 12, 'name': 'ELEVATOR DOWN',      'effect': 'L', 'magnitude': 5, 'cast_chance': 80, 'price': 1000},
-    {'number': 13, 'name': 'ENDURANCE',          'effect': 'P', 'magnitude': 8, 'cast_chance': 70, 'price': 140},
-    {'number': 14, 'name': 'TRANSPORT TO SHOPPE','effect': 'R', 'magnitude': 8, 'cast_chance': 80, 'price': 250},
-    {'number': 15, 'name': 'SUMMONS SPUR',       'effect': 'G', 'magnitude': 7, 'cast_chance': 90, 'price': 2000},
-    {'number': 16, 'name': 'DISPELL POISON',     'effect': 'A', 'magnitude': 5, 'cast_chance': 90, 'price': 100},
-    {'number': 17, 'name': 'APPLE A DAY',        'effect': 'A', 'magnitude': 7, 'cast_chance': 90, 'price': 100},
-    {'number': 18, 'name': 'DRUID HEALTH',       'effect': 'A', 'magnitude': 9, 'cast_chance': 90, 'price': 200,  'druid_only': True},
-    {'number': 19, 'name': "WIZARD'S GLOW",      'effect': 'A', 'magnitude': 9, 'cast_chance': 90, 'price': 200,  'wizard_only': True},
-    {'number': 20, 'name': 'BOOTS OF SPEED',     'effect': 'A', 'magnitude': 9, 'cast_chance': 50, 'price': 2000},
-]
-
-
 from shoppe.armory import main as _armory, protection as _protection
 
 
@@ -143,22 +111,14 @@ async def _general_store(ctx: GameContext) -> None:
         await ctx.send(f"You buy the {chosen['name']} for {price}s.")
 
 
-async def _bank(ctx: GameContext) -> None:
-    """Deposit, withdraw, or transfer gold between players (level 2+ for transfers)."""
-    await ctx.send(
-        'You approach the Bank of SPUR.  A teller looks up with a practiced smile.',
-        '',
-        '(Banking not yet available.)',
-    )
+def _bank(ctx: GameContext):
+    from shoppe.bank import main as bank_main
+    return bank_main(ctx)
 
 
-async def _wizard(ctx: GameContext) -> None:
-    """Learn spells. Wizards pay half price, Druids two-thirds. Max 10 spells."""
-    await ctx.send(
-        'The wizened wizard studies you carefully.',
-        '',
-        '(Wizard not yet available.)',
-    )
+def _wizard(ctx: GameContext):
+    from shoppe.wizard import main as wizard_main
+    return wizard_main(ctx)
 
 
 async def _clan(ctx: GameContext) -> None:
