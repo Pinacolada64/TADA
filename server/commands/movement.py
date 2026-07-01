@@ -35,6 +35,13 @@ async def _enter_shoppe(ctx: GameContext) -> None:
     await ctx.server._show_room(ctx)
 
 
+async def _enter_guild_hq(ctx: GameContext, guild_key: str) -> None:
+    """Player enters a room aligned to their guild's HQ."""
+    from guild_hq.main import main as hq_main
+    await hq_main(ctx, guild_key)
+    await ctx.server._show_room(ctx)
+
+
 async def _enter_bar(ctx: GameContext) -> None:
     """Player enters the Wall Bar & Grill (room 37)."""
     ctx.client.room = _BAR_ROOM
@@ -101,6 +108,17 @@ class MoveCommand(Command):
             if dest and int(dest) == _BAR_ROOM:
                 await _enter_bar(ctx)
                 return CommandResult.ok()
+
+            # Guild-aligned rooms trigger the guild HQ
+            if dest:
+                from base_classes import Guild
+                dest_room = game_map.rooms.get(int(dest)) if game_map else None
+                align = getattr(dest_room, 'alignment', Guild.CIVILIAN) if dest_room else Guild.CIVILIAN
+                _GUILD_KEY = {Guild.CLAW: 'CLAW', Guild.SWORD: 'SWORD', Guild.FIST: 'FIST'}
+                gkey = _GUILD_KEY.get(align)
+                if gkey:
+                    await _enter_guild_hq(ctx, gkey)
+                    return CommandResult.ok()
 
         await ctx.server._move(ctx, direction)
         return CommandResult.ok()
