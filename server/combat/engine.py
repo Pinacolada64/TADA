@@ -87,11 +87,55 @@ def _award_weapon_exp(ctx: 'GameContext', weapon_id: int) -> None:
         log.exception('_award_weapon_exp: error awarding exp to %s', _player_name(ctx))
 
 
-def _add_exp(ctx: 'GameContext', amount: int) -> None:
-    """Add experience points to the player."""
+async def _add_exp(ctx: 'GameContext', amount: int) -> None:
+    """Add experience points; announce level-up if threshold crossed.
+
+    SPUR.COMBAT.S line 9: if ep>(999+(xp*100)) xp=xp+1:ep=1:gosub lvl.msg
+    Threshold grows by 100 per level, so level N requires 999+(N×100) to advance.
+    """
     player = ctx.player
     player.experience = int(getattr(player, 'experience', 0) or 0) + amount
     player.unsaved_changes = True
+    level = int(getattr(player, 'map_level', 1) or 1)
+    if player.experience > 999 + level * 100:
+        player.map_level   = level + 1
+        player.experience  = 1
+        player.unsaved_changes = True
+        log.info('level_up: %s is now level %d', _player_name(ctx), player.map_level)
+        await ctx.send(f'Congratulations!  You are now a Level {player.map_level} player!')
+
+
+def _apply_dex_change(player, delta: int) -> None:
+    """Apply a DEX adjustment capped at [0, 25] (SPUR pd stat).  No I/O."""
+    try:
+        stats   = getattr(player, 'stats', None) or {}
+        current = int(stats.get('Dexterity', 10) or 10)
+        new_val = max(0, min(25, current + delta))
+        if new_val != current:
+            player.stats['Dexterity'] = new_val
+            player.unsaved_changes = True
+    except Exception:
+        log.exception('_apply_dex_change: failed (delta=%d)', delta)
+
+
+def _survival_warnings(player) -> list[str]:
+    """Return hunger/thirst/faint warnings to display each combat round.
+
+    SPUR.COMBAT.S lines 21-25 (shown each trip through advent):
+      pe<7 → thirsty; pe<4 → very thirsty
+      ps<7 → hungry;  ps<4 → very hungry
+      (pe<3) or (ps<3) → becoming faint
+    """
+    food  = int(getattr(player, 'food',  20) or 20)
+    drink = int(getattr(player, 'drink', 20) or 20)
+    msgs: list[str] = []
+    if drink < 7:
+        msgs.append('You are thirsty.' + ('  VERY THIRSTY!' if drink < 4 else ''))
+    if food < 7:
+        msgs.append('You are hungry.' + ('  VERY HUNGRY!' if food < 4 else ''))
+    if food < 3 or drink < 3:
+        msgs.append('You are becoming faint!')
+    return msgs
 
 
 def _record_kill(player, monster: dict) -> None:
@@ -175,7 +219,7 @@ class CombatSession:
             if self._done.is_set():
                 return
             result = self._swing(ctx)
-            _add_exp(ctx, exp_per_swing())
+            await _add_exp(ctx, exp_per_swing())
             await self._narrate_player_swing(ctx, result, bystander=True)
             _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
             if result.weapon_id:
@@ -235,6 +279,19 @@ class CombatSession:
         )
 
         while not self._done.is_set():
+            # ---- Per-round status warnings (SPUR.COMBAT.S lines 21-25, 88) ----
+            hp = getattr(player, 'hit_points', 1)
+            if hp < 9:
+                await ctx.send('[+] HP DANGEROUSLY LOW [+]  (FLEE might be wiser!)')
+            for warn in _survival_warnings(player):
+                await ctx.send(warn)
+
+            # Too weak to wield: low food/stamina forces weapon drop
+            # (SPUR.COMBAT.S: if ps<4 then wr$="":print "YOU ARE TOO WEAK TO WIELD YOUR WEAPON!")
+            if getattr(player, 'food', 20) < 4 and getattr(player, 'readied_weapon', None) is not None:
+                player.readied_weapon = None
+                await ctx.send('You are too weak to wield your weapon!')
+
             # ---- STORM asserts its will (SPUR.COMBAT.S line 59) ----
             # Early in the fight (monster attacked fewer than 6 times), a Storm
             # weapon has a 30% chance of auto-attacking without waiting for input.
@@ -271,8 +328,12 @@ class CombatSession:
 
                 # Player swings — +1 ep per attempt (SPUR.COMBAT.S line 103)
                 result = self._swing(ctx)
-                _add_exp(ctx, exp_per_swing())
+                await _add_exp(ctx, exp_per_swing())
                 await self._narrate_player_swing(ctx, result)
+
+                # Apply DEX improvement from a significant hit
+                if result.dex_improved:
+                    _apply_dex_change(player, +1)
 
                 # Scare: loud weapon frightens monster away early in fight
                 # (SPUR.COMBAT.S scare subroutine, lines 423-430)
@@ -290,7 +351,9 @@ class CombatSession:
                     self._remove_attacker(ctx)
                     return
 
-                _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
+                # Total damage = direct + FIREBALL secondary heat
+                total_player_dmg = result.damage + result.fireball_secondary
+                _set_monster_hp(self.monster, _monster_hp(self.monster) - total_player_dmg)
                 if result.weapon_id:
                     _award_weapon_exp(ctx, result.weapon_id)
                     # Bystanders in the attacker list also get exp for this weapon
@@ -299,21 +362,56 @@ class CombatSession:
                             _award_weapon_exp(b_ctx, result.weapon_id)
 
                 if _monster_hp(self.monster) <= 0:
-                    await self._monster_dies(ctx)
+                    await self._monster_dies(ctx, player_killed=True)
                     return
 
                 # Ally swings (party members)
                 await self._ally_swings(ctx)
 
                 if _monster_hp(self.monster) <= 0:
-                    await self._monster_dies(ctx)
+                    await self._monster_dies(ctx, player_killed=False)
                     return
 
                 # Monster swings back at leader
                 m_result = monster_attacks(self.monster, player)
-                await self._narrate_monster_swing(ctx, m_result)
-                self._apply_monster_damage(ctx, m_result)
+
+                # Druid regeneration: when nearly dead, 10% chance to heal
+                # instead of taking damage (SPUR.COMBAT.S lines 204-207:
+                # pc=2, (hp+a)<30, rnd.10z z=5 → "YO! YOU REGENERATE HIT POINTS!")
+                druid_regen = False
+                if m_result.hit and m_result.damage > 0:
+                    try:
+                        from base_classes import PlayerClass
+                        hp_now = int(getattr(player, 'hit_points', 1) or 1)
+                        if (getattr(player, 'char_class', None) == PlayerClass.DRUID
+                                and (hp_now + m_result.damage) < 30
+                                and random.randint(1, 10) == 5):
+                            druid_regen = True
+                    except Exception:
+                        pass
+
+                if druid_regen:
+                    hp_now = int(getattr(player, 'hit_points', 1) or 1)
+                    player.hit_points = hp_now + m_result.damage
+                    player.unsaved_changes = True
+                    await ctx.send('YO!  YOU REGENERATE HIT POINTS!')
+                else:
+                    await self._narrate_monster_swing(ctx, m_result)
+                    self._apply_monster_damage(ctx, m_result)
+
                 self._monster_attack_count += 1
+
+                # Double attack: some monsters swing twice per round (SPUR: ] flag, 40%)
+                # (SPUR.COMBAT.S: if instr("]",wy$) rnd.10a: if a<5 → DOUBLE ATTACK!)
+                m_flags = self.monster.get('flags', {}) or {}
+                if (m_flags.get('double_attacks')
+                        and random.randint(1, 10) <= 4
+                        and not self._done.is_set()):
+                    m_result2 = monster_attacks(self.monster, player)
+                    await ctx.send('DOUBLE ATTACK!')
+                    await self._narrate_monster_swing(ctx, m_result2)
+                    self._apply_monster_damage(ctx, m_result2)
+                    self._monster_attack_count += 1
 
                 if getattr(player, 'hit_points', 1) <= 0:
                     await self._player_dies(ctx)
@@ -431,6 +529,17 @@ class CombatSession:
             for other in others:
                 await other.send(room)
 
+        # FIREBALL secondary heat burst (SPUR.COMBAT.S lines 162-163)
+        if result.fireball_secondary > 0:
+            mname = self.monster.get('name', 'the monster')
+            await ctx.send(
+                f'Secondary heat damage to {mname} +{result.fireball_secondary}!'
+            )
+
+        # DEX improvement notification (SPUR.COMBAT.S line 164)
+        if result.dex_improved:
+            await ctx.send('(You feel a bit more dexterous.)')
+
     async def _narrate_monster_swing(
         self, ctx: 'GameContext', result
     ) -> None:
@@ -459,6 +568,18 @@ class CombatSession:
             lines.append('|yellow|You feel a burning sensation -- you have been POISONED!|reset|')
         if result.diseased:
             lines.append('|yellow|You feel sick -- you have been DISEASED!|reset|')
+        # SPUR medusa section: fire_attack flag → burn damage bypassing armor
+        if result.fire_damage > 0:
+            lines.append(f'|red|FIRE!  You are scorched for {result.fire_damage} additional damage!|reset|')
+        # SPUR & flag: experience drain
+        if result.experience_drained > 0:
+            lines.append(
+                f'|yellow|ARRGG!  The {mname}\'s attack drains you!  '
+                f'(-{result.experience_drained} experience)|reset|'
+            )
+        # SPUR line 212: DEX reduction on a heavy hit
+        if result.dex_lost:
+            lines.append('(You feel a bit less dexterous.)')
 
         await ctx.send(lines)
         await ctx.send_room(
@@ -489,13 +610,28 @@ class CombatSession:
         elif result.armor_degraded:
             player.armor = max(0, int(getattr(player, 'armor', 0) or 0) - result.armor_degraded)
 
-        # HP loss
+        # HP loss (normal damage + fire damage which bypasses armor)
         hp = int(getattr(player, 'hit_points', 1) or 1)
-        player.hit_points = hp - result.damage
+        player.hit_points = hp - result.damage - result.fire_damage
         player.unsaved_changes = True
 
-    async def _monster_dies(self, ctx: 'GameContext') -> None:
-        """Handle monster death: rewards, records, cleanup."""
+        # Experience drain (SPUR & flag): reduce player.experience
+        if result.experience_drained > 0:
+            ep = int(getattr(player, 'experience', 0) or 0)
+            player.experience = max(1, ep - result.experience_drained)
+            player.unsaved_changes = True
+
+        # DEX reduction on a hard hit (SPUR.COMBAT.S line 212)
+        if result.dex_lost:
+            _apply_dex_change(player, -1)
+
+    async def _monster_dies(self, ctx: 'GameContext', *, player_killed: bool = True) -> None:
+        """Handle monster death: rewards, records, cleanup.
+
+        player_killed: True when the player dealt the killing blow (not an ally).
+        Controls whether WIS is awarded (SPUR: if x1 goto p.a3 skips WIS gain
+        when x1 is set by an ally kill).
+        """
         self._done.set()
         mname = self.monster.get('name', 'The monster')
 
@@ -519,6 +655,17 @@ class CombatSession:
             await ctx.send(f'You find {gold} gold pieces on the {mname}!')
 
         _record_kill(player, self.monster)
+
+        # WIS improvement on solo kill (SPUR.COMBAT.S line 194):
+        #   if x1 goto p.a3  ← skip WIS if ally dealt killing blow (x1 set in p.a1)
+        #   if pw<12 then pw=pw+1:print "(YOU FEEL A BIT WISER)"
+        if player_killed:
+            pw = int((getattr(player, 'stats', None) or {}).get('Wisdom', 10))
+            if pw < 12:
+                player.stats['Wisdom'] = pw + 1
+                player.unsaved_changes = True
+                if not getattr(player, 'is_expert', False):
+                    await ctx.send('(You feel a bit wiser.)')
 
         # Notify bystanders of the kill (they earned exp per-swing already)
         for b_ctx in self.attackers:

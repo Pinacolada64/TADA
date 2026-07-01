@@ -161,6 +161,10 @@ class AttackResult:
     ineffective:     bool = False  # special weapon required but wrong weapon used
     instant_kill:    bool = False  # STORM weapon vs special-weapon monster
     monster_scared:  bool = False  # loud weapon scared monster away (scare subroutine)
+    # SPUR.COMBAT.S lines 162-163: FIREBALL weapons get 10%-chance secondary heat burst
+    fireball_secondary: int  = 0
+    # SPUR.COMBAT.S line 164: hitting for >4 damage has a 60% chance of raising player DEX
+    dex_improved:       bool = False
 
 
 @dataclass
@@ -177,6 +181,12 @@ class MonsterAttackResult:
     # special effects — handled by effects.py after engine applies damage
     poisoned:  bool = False
     diseased:  bool = False
+    # SPUR medusa section: fire_attack flag → extra burn damage bypassing armor
+    fire_damage:        int  = 0
+    # SPUR & flag (experience_drain): drains ep on a hit (~20% chance)
+    experience_drained: int  = 0
+    # SPUR line 212: taking damage > 4 has a chance to reduce player DEX
+    dex_lost:           bool = False
 
 
 @dataclass
@@ -428,12 +438,30 @@ def player_attacks(
     # (SPUR.COMBAT.S lines 423-430, called from both hit and miss paths)
     scared = _scare_check(sw, monster, monster_attack_count)
 
+    # FIREBALL secondary heat burst (SPUR.COMBAT.S lines 162-163):
+    #   if (vr=43) or (instr("FIREBALL",wr$)) gosub rnd.10z: if z=5 → secondary damage
+    #   z = rnd.10z/2 * xp_level + 1
+    fireball_secondary = 0
+    if 'FIREBALL' in weapon_name.upper() and random.randint(1, 10) == 5:
+        z = random.randint(1, 10)
+        fireball_secondary = max(1, int(z / 2 * xp_level + 1))
+
+    # DEX improvement on a significant hit (SPUR.COMBAT.S line 164):
+    #   if (b>4) and (pd<15) then gosub rnd.10z: if z<6 pd=pd+1
+    dex_improved = False
+    if dmg > 4:
+        pd = int((getattr(player, 'stats', None) or {}).get('Dexterity', 10))
+        if pd < 15 and random.randint(1, 10) < 6:
+            dex_improved = True
+
     return AttackResult(
         hit=True, damage=dmg,
         weapon_name=weapon_name, weapon_id=weapon_id,
         attacker_name=getattr(player, 'name', ''),
         is_surprise=is_surprise, is_critical=is_critical,
         monster_scared=scared,
+        fireball_secondary=fireball_secondary,
+        dex_improved=dex_improved,
     )
 
 
@@ -581,12 +609,41 @@ def monster_attacks(monster: dict, player) -> MonsterAttackResult:
         if flags.get('diseased_attack') and random.randint(1, 10) < 3:
             diseased = True
 
+    # Fire attack / laser (SPUR medusa section): bypasses armor entirely.
+    # SPUR: a=2 (fire) or a=5 (lazer, cl>5); plasma cannon (;;) adds 4 more.
+    fire_damage = 0
+    if flags.get('fire_attack'):
+        fire_damage = 2 + random.randint(0, 3)
+        if flags.get('heavy_armor'):    # plasma cannon variant (SPUR: z=4 extra)
+            fire_damage += 2
+
+    # Experience drain (SPUR & flag): ~20% chance on a solid hit to drain xp
+    # SPUR: if instr("&",wy$) and ep>(xp*13) and z<3: ep=ep-(xp*13)
+    experience_drained = 0
+    if damage > 0 and flags.get('experience_drain') and random.randint(1, 10) < 3:
+        xp_lv = max(1, int(getattr(player, 'map_level', 1) or 1))
+        drain = xp_lv * 13
+        ep = int(getattr(player, 'experience', 0) or 0)
+        if ep > drain:
+            experience_drained = drain
+
+    # DEX loss on a hard hit (SPUR.COMBAT.S line 212):
+    #   if (a>4) and (pd>0) then pd=pd-1
+    dex_lost = False
+    if damage > 4:
+        pd = int((getattr(player, 'stats', None) or {}).get('Dexterity', 10))
+        if pd > 0:
+            dex_lost = True
+
     return MonsterAttackResult(
         hit=True, damage=damage,
         shield_blocked=shield_blocked, armor_blocked=armor_blocked,
         shield_degraded=shield_degraded, armor_degraded=armor_degraded,
         shield_destroyed=shield_destroyed, armor_destroyed=armor_destroyed,
         poisoned=poisoned, diseased=diseased,
+        fire_damage=fire_damage,
+        experience_drained=experience_drained,
+        dex_lost=dex_lost,
     )
 
 
