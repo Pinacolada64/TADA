@@ -109,13 +109,14 @@ class MoveCommand(Command):
                 await _enter_bar(ctx)
                 return CommandResult.ok()
 
-            # Guild-aligned rooms trigger the guild HQ
+            # Guild-aligned rooms trigger the guild HQ.
+            # Room alignment is stored as a lowercase string ('fist', 'claw',
+            # 'sword') from the JSON — not a Guild enum value.
             if dest:
-                from base_classes import Guild
                 dest_room = game_map.rooms.get(int(dest)) if game_map else None
-                align = getattr(dest_room, 'alignment', Guild.CIVILIAN) if dest_room else Guild.CIVILIAN
-                _GUILD_KEY = {Guild.CLAW: 'CLAW', Guild.SWORD: 'SWORD', Guild.FIST: 'FIST'}
-                gkey = _GUILD_KEY.get(align)
+                align = getattr(dest_room, 'alignment', None) if dest_room else None
+                _GUILD_KEY = {'claw': 'CLAW', 'sword': 'SWORD', 'fist': 'FIST'}
+                gkey = _GUILD_KEY.get(str(align).lower()) if align else None
                 if gkey:
                     await _enter_guild_hq(ctx, gkey)
                     return CommandResult.ok()
