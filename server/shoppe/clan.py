@@ -141,8 +141,8 @@ async def main(ctx: GameContext) -> None:
         # Check funds
         in_hand = player.get_silver(PlayerMoneyTypes.IN_HAND)
         if in_hand < fee:
-            await ctx.send('Ye do not have enough gold.')
-            return
+            await ctx.send(f'Ye do not have enough silver (need {fee}, have {in_hand}).')
+            continue
 
         # Confirm
         sigil_str = f' {sigil}' if sigil else ''
