@@ -270,8 +270,8 @@ async def _login(
     # Handshake
     await _send_message(writer, {
         'mode':             'init',
-        'server_id':        'tada',
-        'server_key':       'tada_key',
+        'server_id':        'test_server',
+        'server_key':       'test_key',
         'protocol_version': 1,
         'translation':      'UTF-8',
     })
