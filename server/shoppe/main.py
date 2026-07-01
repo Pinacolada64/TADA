@@ -121,13 +121,9 @@ def _wizard(ctx: GameContext):
     return wizard_main(ctx)
 
 
-async def _clan(ctx: GameContext) -> None:
-    """Change guild affiliation (Claw, Sword, Fist, Civilian, Outlaw). Costs gold and honor."""
-    await ctx.send(
-        'A stern-faced registrar eyes you from behind a heavy desk.',
-        '',
-        '(Clan/Guild office not yet available.)',
-    )
+def _clan(ctx: GameContext):
+    from shoppe.clan import main as clan_main
+    return clan_main(ctx)
 
 
 async def _elevator(ctx: GameContext) -> None:
