@@ -217,9 +217,11 @@ class Server:
                                            'protocol_version', 'translation')})
 
             if client_init.server_id != self.server_init.server_id:
+                logging.warning('%s: handshake failed — server ID mismatch (got %r)', ctx.client.addr, client_init.server_id)
                 await ctx.send('Handshake failed: server ID mismatch.')
                 return False
             if client_init.server_key != self.server_init.server_key:
+                logging.warning('%s: handshake failed — server key mismatch', ctx.client.addr)
                 await ctx.send('Handshake failed: server key mismatch.')
                 return False
 
