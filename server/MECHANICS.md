@@ -187,6 +187,13 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **WHO command** — lists currently online players; replaces the SPUR "last adventurer" login display (stubbed in `commands/connect.py:247`)
 - **Guild follow** — player character automatically follows guild members to their location when logged off; toggle in settings (stubbed in `commands/connect.py:274`)
 
+### Future
+- **Chat channels** — named, persistent channels players can join/leave (e.g. `#general`, `#claw`,
+  `#trade`); guild channels auto-populated by membership; messages broadcast to all online
+  subscribers; history stored server-side so joiners can see recent backlog.  Ties naturally into
+  the prompt_toolkit split-pane client work: incoming channel messages scroll the output pane
+  while the player types in the input area.
+
 ---
 
 ## Merchant Shoppe (`server/shoppe/main.py`)
