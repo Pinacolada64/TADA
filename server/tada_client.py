@@ -361,7 +361,7 @@ async def run(host: str, port: int, user_id: str, password: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description='TADA prompt_toolkit client')
     parser.add_argument('host',     nargs='?', default='localhost')
-    parser.add_argument('port',     nargs='?', type=int, default=4000)
+    parser.add_argument('port',     nargs='?', type=int, default=34083)
     parser.add_argument('--user',   default='')
     parser.add_argument('--guest',  action='store_true')
     parser.add_argument('--debug',  action='store_true')
