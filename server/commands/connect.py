@@ -210,8 +210,7 @@ class ConnectCommand(Command):
         # terminal settings that were negotiated before login.
         from player import Player
         char_name = creds.get('char_name') or username
-        player = Player(name=char_name, id=username)
-        player._load()
+        player = Player(name=char_name, id=username)  # __init__ calls _load() internally
 
         # Carry over terminal settings negotiated before login.
         guest_cs = getattr(ctx.player, 'client_settings', None)
