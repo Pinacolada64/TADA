@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import net_common as nc
+from flags import PlayerFlags
 from formatting import (
     format_lines, codec_for_settings, flatten_send_args,
     ansi_encode_lines, petscii_encode_lines, ANSICodec, PlainCodec,
@@ -245,10 +246,13 @@ class GameContext(BaseContext):
         JSON response. Returns the stripped response string.
         """
         from net_common import from_jsonb
+        from time import strftime
 
         if preamble_lines:
             await self.send(preamble_lines)
 
+        if self.player.query_flag(PlayerFlags.HOURGLASS):
+            prompt_text = f"[{strftime('%H:%M')}] {prompt_text}"
         msg = nc.Message(lines=[], prompt=f"{prompt_text}> " or '> ')
         await self.server.send_message(self.writer, msg)
 
@@ -368,8 +372,11 @@ class PETSCIINetworkContext(GameContext):
                      preamble_lines: list[str] | None = None) -> str:
         """Send raw PETSCII prompt, read CR-terminated response."""
         from formatting import petscii_encode
+        from time import strftime
         if preamble_lines:
             await self.send(preamble_lines)
+        if self.player.query_flag(PlayerFlags.HOURGLASS):
+            prompt_text = f"[{strftime('%H:%M')}] {prompt_text}"
         if prompt_text:
             # No leading CR needed — petscii_encode_lines() now always
             # terminates each send() with CR, so the cursor is already
