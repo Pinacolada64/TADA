@@ -326,6 +326,12 @@ class Player:
         except Exception:
             logging.debug('No saved player data loaded for %s' % (self.id or self.name))
 
+        # hit_points defaulted to 0 since 62391c4 ("Updating old code - added
+        # player.py"), causing _game_loop to quit the player after every command.
+        # Revive anyone saved at 0 HP so they aren't permanently stuck.
+        if self.hit_points <= 0:
+            self.hit_points = 10
+
     def __str__(self):
         """print representation of Player object"""
         return f"{self.name} <Player>"
