@@ -28,18 +28,18 @@ class Bar:
     bar_map = {
         'ascii': [
             "+----| |----+",
-            "|o[]     []o|",
+            "|o()     ()o|",
             "|          M|",
-            "|  +--+  []o|",
-            "|  |oo|  []o|",
+            "|  +--+  ()o|",
+            "|  |oo|  ()o|",
             "+-----------+",
         ],
         'ansi': [
             "┌────┤ ├────┐",
-            "│o[]     []o│",
+            "│o()     ()o│",
             "│          M│",
-            "│  ┌──┐  []o│",
-            "│  │oo│  []o│",
+            "│  ┌──┐  ()o│",
+            "│  │oo│  ()o│",
             "└──┴──┴─────┘",
         ],
         # cbmcodecs2 maps Unicode box chars to PETSCII graphics bytes, but
@@ -138,7 +138,7 @@ async def _bar_help(ctx: GameContext) -> None:
         "",
         "* 'o' represents each person you can interact with, by moving in front "
         "(or to the side) of them, then typing [G]o here.",
-        "* [] represents a desk sitting in front of the person.",
+        "* '()' represents a table sitting in front of the person.",
         "* 'M' represents Mundo, the bar bouncer.",
         "* Lastly, 'X' represents you (plus your party, if applicable).",
     ])
