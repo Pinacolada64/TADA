@@ -196,6 +196,15 @@ class ConnectCommand(Command):
                 error="authentication_failed",
             )
 
+        # Ban check — after password so we don't reveal which accounts exist,
+        # but before loading player data.
+        from commands.ban import is_banned
+        banned, ban_msg = is_banned(username)
+        if banned:
+            await ctx.send(ban_msg)
+            log.warning("Blocked banned user %r from logging in", username)
+            return CommandResult.fail("Account suspended.", error="banned")
+
         # Flavor text while loading — original SPUR displayed this while
         # reading the player record from disk.
         await ctx.send(
