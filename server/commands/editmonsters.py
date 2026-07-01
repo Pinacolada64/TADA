@@ -11,7 +11,7 @@ class EditMonstersCommand(Command):
 
     help = Help(
         summary  = 'Open the monster editor (admin only).',
-        category = HelpCategory.GENERAL,
+        category = HelpCategory.ADMINISTRATIVE,
         usage    = [('editmonsters', 'Browse and edit monsters.json in-game.')],
         notes    = ['Requires the Administrator flag.'],
     )

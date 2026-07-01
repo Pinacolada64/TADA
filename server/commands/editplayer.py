@@ -42,7 +42,7 @@ class EditPlayerCommand(Command):
     help = Help(
         summary     = 'Edit player attributes, flags, and settings.',
         description = 'Interactive editor for player data. Mirrors the original C64 player editor.',
-        category    = HelpCategory.MISCELLANEOUS,
+        category    = HelpCategory.ADMINISTRATIVE,
         usage       = [('editplayer', 'Open the interactive player editor.')],
     )
 

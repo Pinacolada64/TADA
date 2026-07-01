@@ -171,7 +171,7 @@ class BanCommand(Command):
             'Admin only. Bans prevent login at the next connect attempt; '
             'does not disconnect a player who is already online.'
         ),
-        category = HelpCategory.GENERAL,
+        category = HelpCategory.ADMINISTRATIVE,
         usage = [
             ('ban <user> [reason]',                       'Permanent ban with optional reason.'),
             ('ban <user> until <date> [reason]',          'Temporary ban expiring at date.'),
