@@ -114,5 +114,17 @@ class TeleportCommand(Command):
         log.info('%s teleported from room %s to room %s', name, old_room, dest)
         await ctx.send(f'{name} appears in a flash of light.')
         await ctx.send_room(f'{name} appears in a flash of light.', exclude_self=True)
-        await ctx.server._show_room(ctx)
+
+        # If the destination is a guild-aligned room, trigger the HQ session
+        # the same way movement.py does when walking into it.
+        game_map = getattr(ctx.server, 'game_map', None)
+        dest_room = game_map.rooms.get(dest) if game_map else None
+        align = getattr(dest_room, 'alignment', None)
+        _GUILD_KEY = {'claw': 'CLAW', 'sword': 'SWORD', 'fist': 'FIST'}
+        gkey = _GUILD_KEY.get(str(align).lower()) if align else None
+        if gkey:
+            from commands.movement import _enter_guild_hq
+            await _enter_guild_hq(ctx, gkey)
+        else:
+            await ctx.server._show_room(ctx)
         return CommandResult.ok()
