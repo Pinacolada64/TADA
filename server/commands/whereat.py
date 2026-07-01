@@ -32,7 +32,7 @@ class WhereatCommand(Command):
 
     help = Help(
         summary  = 'Show where all online players are located.',
-        category = HelpCategory.GENERAL,
+        category = HelpCategory.COMMUNICATION,
         usage    = [
             ('whereat',       'List all visible online players and their locations'),
             ('wa #hide',      'Hide your location from other players'),
