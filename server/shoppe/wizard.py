@@ -13,27 +13,64 @@ _SPELL_NON_ADEPT_MAX =  6  # SPUR if pc>2 then if xs>5 goto wiz2b
 # effect_type codes: S=Str W=Wis D=Dex C=Con E=Egy I=Int T=Transfer
 #   P=Player-HP M=Monster L=LevelDown U=LevelUp R=Shop G=SPUR A=Aura
 SPELLS: list[dict] = [
-    {'number':  1, 'name': 'ESP',                 'effect': 'I', 'magnitude': 4, 'cast_chance': 70, 'price': 100},
-    {'number':  2, 'name': 'WHEATIES',            'effect': 'S', 'magnitude': 6, 'cast_chance': 70, 'price': 150},
-    {'number':  3, 'name': 'HAPPY FEET',          'effect': 'E', 'magnitude': 6, 'cast_chance': 50, 'price': 100},
-    {'number':  4, 'name': 'KILL',                'effect': 'M', 'magnitude': 6, 'cast_chance': 60, 'price': 140},
-    {'number':  5, 'name': 'ELEVATOR UP',         'effect': 'U', 'magnitude': 7, 'cast_chance': 70, 'price': 800},
-    {'number':  6, 'name': 'KNOWLEDGE',           'effect': 'W', 'magnitude': 4, 'cast_chance': 70, 'price': 75},
-    {'number':  7, 'name': 'DESTROYER',           'effect': 'M', 'magnitude': 8, 'cast_chance': 70, 'price': 250},
-    {'number':  8, 'name': 'SLAUGHTER',           'effect': 'M', 'magnitude': 4, 'cast_chance': 90, 'price': 100},
-    {'number':  9, 'name': 'DEPOSIT',             'effect': 'T', 'magnitude': 4, 'cast_chance': 80, 'price': 50},
-    {'number': 10, 'name': 'WELL-BEING',          'effect': 'C', 'magnitude': 9, 'cast_chance': 70, 'price': 170},
-    {'number': 11, 'name': 'BALANCE',             'effect': 'D', 'magnitude': 4, 'cast_chance': 60, 'price': 80},
-    {'number': 12, 'name': 'ELEVATOR DOWN',       'effect': 'L', 'magnitude': 5, 'cast_chance': 80, 'price': 1000},
-    {'number': 13, 'name': 'ENDURANCE',           'effect': 'P', 'magnitude': 8, 'cast_chance': 70, 'price': 140},
-    {'number': 14, 'name': 'TRANSPORT TO SHOPPE', 'effect': 'R', 'magnitude': 8, 'cast_chance': 80, 'price': 250},
-    {'number': 15, 'name': 'SUMMONS SPUR',        'effect': 'G', 'magnitude': 7, 'cast_chance': 90, 'price': 2000},
-    {'number': 16, 'name': 'DISPELL POISON',      'effect': 'A', 'magnitude': 5, 'cast_chance': 90, 'price': 100},
-    {'number': 17, 'name': 'APPLE A DAY',         'effect': 'A', 'magnitude': 7, 'cast_chance': 90, 'price': 100},
-    {'number': 18, 'name': 'DRUID HEALTH',        'effect': 'A', 'magnitude': 9, 'cast_chance': 90, 'price': 200,  'druid_only': True},
-    {'number': 19, 'name': "WIZARD'S GLOW",       'effect': 'A', 'magnitude': 9, 'cast_chance': 90, 'price': 200,  'wizard_only': True},
-    {'number': 20, 'name': 'BOOTS OF SPEED',      'effect': 'A', 'magnitude': 9, 'cast_chance': 50, 'price': 2000},
+    {'number':  1, 'name': 'ESP',                 'effect': 'I', 'magnitude': 4, 'cast_chance': 70, 'price':  100,
+     'description': 'Boosts Intelligence, sharpening your mind and magical aptitude.'},
+    {'number':  2, 'name': 'WHEATIES',            'effect': 'S', 'magnitude': 6, 'cast_chance': 70, 'price':  150,
+     'description': 'Grants a surge of Strength — what champions eat for breakfast.'},
+    {'number':  3, 'name': 'HAPPY FEET',          'effect': 'E', 'magnitude': 6, 'cast_chance': 50, 'price':  100,
+     'description': 'Restores Energy, putting a spring back in your step.'},
+    {'number':  4, 'name': 'KILL',                'effect': 'M', 'magnitude': 6, 'cast_chance': 60, 'price':  140,
+     'description': 'Deals direct damage to a monster in combat.'},
+    {'number':  5, 'name': 'ELEVATOR UP',         'effect': 'U', 'magnitude': 7, 'cast_chance': 70, 'price':  800,
+     'description': 'Transports you up one dungeon level without the elevator.'},
+    {'number':  6, 'name': 'KNOWLEDGE',           'effect': 'W', 'magnitude': 4, 'cast_chance': 70, 'price':   75,
+     'description': 'Increases Wisdom, improving judgment and resistance to magic.'},
+    {'number':  7, 'name': 'DESTROYER',           'effect': 'M', 'magnitude': 8, 'cast_chance': 70, 'price':  250,
+     'description': 'A devastating monster attack — hits harder than KILL.'},
+    {'number':  8, 'name': 'SLAUGHTER',           'effect': 'M', 'magnitude': 4, 'cast_chance': 90, 'price':  100,
+     'description': 'High-accuracy monster attack. Less power than KILL, but rarely misses.'},
+    {'number':  9, 'name': 'DEPOSIT',             'effect': 'T', 'magnitude': 4, 'cast_chance': 80, 'price':   50,
+     'description': 'Instantly transfers your gold to the bank from anywhere in the dungeon.'},
+    {'number': 10, 'name': 'WELL-BEING',          'effect': 'C', 'magnitude': 9, 'cast_chance': 70, 'price':  170,
+     'description': 'Improves Constitution, boosting health and stamina.'},
+    {'number': 11, 'name': 'BALANCE',             'effect': 'D', 'magnitude': 4, 'cast_chance': 60, 'price':   80,
+     'description': 'Sharpens Dexterity, making you nimbler in combat and harder to hit.'},
+    {'number': 12, 'name': 'ELEVATOR DOWN',       'effect': 'L', 'magnitude': 5, 'cast_chance': 80, 'price': 1000,
+     'description': 'Transports you down one dungeon level without the elevator.'},
+    {'number': 13, 'name': 'ENDURANCE',           'effect': 'P', 'magnitude': 8, 'cast_chance': 70, 'price':  140,
+     'description': 'Restores hit points — handy in a tight spot.'},
+    {'number': 14, 'name': 'TRANSPORT TO SHOPPE', 'effect': 'R', 'magnitude': 8, 'cast_chance': 80, 'price':  250,
+     'description': 'Teleports you directly to the Merchant Shoppe from anywhere in the dungeon.'},
+    {'number': 15, 'name': 'SUMMON SPUR',         'effect': 'G', 'magnitude': 7, 'cast_chance': 90, 'price': 2000,
+     'description': 'Powerful summoning spell that calls forth the spirit of SPUR itself.'},
+    {'number': 16, 'name': 'DISPEL POISON',       'effect': 'A', 'magnitude': 5, 'cast_chance': 90, 'price':  100,
+     'description': 'Aura spell that neutralizes poison affecting the caster.'},
+    {'number': 17, 'name': 'APPLE A DAY',         'effect': 'A', 'magnitude': 7, 'cast_chance': 90, 'price':  100,
+     'description': 'Healing aura that slowly restores health over time.'},
+    {'number': 18, 'name': 'DRUID HEALTH',        'effect': 'A', 'magnitude': 9, 'cast_chance': 90, 'price':  200, 'druid_only': True,
+     'description': 'Druid-only aura. Channels nature to significantly restore hit points.'},
+    {'number': 19, 'name': "WIZARD'S GLOW",       'effect': 'A', 'magnitude': 9, 'cast_chance': 90, 'price':  200, 'wizard_only': True,
+     'description': "Wizard-only aura. Surrounds the caster in magical light, enhancing all spell effects."},
+    {'number': 20, 'name': 'BOOTS OF SPEED',      'effect': 'A', 'magnitude': 9, 'cast_chance': 50, 'price': 2000,
+     'description': 'Aura spell that dramatically increases movement and combat speed. Rare and expensive.'},
 ]
+
+
+# Short label shown in the Effect column of the spell list table.
+_EFFECT_LABELS: dict[str, str] = {
+    'I': 'INT',     'S': 'STR',     'E': 'EGY',    'C': 'CON',
+    'D': 'DEX',     'W': 'WIS',     'P': 'HP',     'M': 'Combat',
+    'U': 'Level +', 'L': 'Level -', 'T': 'Bank',   'R': 'Teleport',
+    'G': 'Summon',  'A': 'Aura',
+}
+
+
+def _parse_info_request(ans: str) -> 'int | None':
+    """Return spell number if ans matches i<number> (e.g. i3, i15), else None."""
+    low = ans.lower()
+    if low.startswith('i') and len(low) > 1 and low[1:].isdigit():
+        return int(low[1:])
+    return None
 
 
 async def main(ctx: GameContext) -> None:
@@ -64,14 +101,34 @@ async def main(ctx: GameContext) -> None:
         return base
 
     def _spell_list_lines() -> list[str]:
-        lines = ['', 'Available spells:', '']
+        from table import Table, Column, Align
+        try:
+            width = ctx.player.client_settings.screen_columns
+        except AttributeError:
+            width = 78
+
+        t = Table(
+            headers=[
+                Column('#',      align=Align.RIGHT,  min_width=2),
+                Column('Name',                       min_width=10),
+                Column('Effect',                     min_width=6),
+                Column('Cost',   align=Align.RIGHT,  min_width=4),
+            ],
+            title='Available Spells  (i# for description)',
+            border=True,
+        )
         for sp in SPELLS:
-            tag   = ' [Wizard only]' if sp.get('wizard_only') else (
-                    ' [Druid only]'  if sp.get('druid_only')  else '')
+            tag   = ' *' if sp.get('wizard_only') else (' †' if sp.get('druid_only') else '')
+            known = ' ✓' if _has_spell(sp['number']) else ''
             price = _adjusted_price(sp['price'])
-            known = ' (known)' if _has_spell(sp['number']) else ''
-            lines.append(f"  {sp['number']:>2}. {sp['name']:<24} {price:>5}s{tag}{known}")
-        return lines
+            t.add_row([
+                str(sp['number']),
+                sp['name'] + tag + known,
+                _EFFECT_LABELS.get(sp['effect'], sp['effect']),
+                f"{price}s",
+            ])
+        t.set_footer('* Wizard only   † Druid only   ✓ known')
+        return [''] + t.render(width=width) + ['']
 
     await ctx.send([
         '',
@@ -102,20 +159,38 @@ async def main(ctx: GameContext) -> None:
             await ctx.send('Sorry, Non-Adepts can only learn six spells..')
             return
 
-        raw = await ctx.prompt('Learn which spell? (?=List, Q to leave)')
+        raw = await ctx.prompt('Learn which spell? (?=List, i#=Info, Q to leave)')
         if raw is None:
             return
-        choice = raw.strip().upper()
-        if not choice or choice == 'Q':
+        choice = raw.strip()
+        if not choice or choice.upper() == 'Q':
             return
         if choice == '?':
             await ctx.send(_spell_list_lines())
             continue
 
+        info_num = _parse_info_request(choice)
+        if info_num is not None:
+            sp_info = next((s for s in SPELLS if s['number'] == info_num), None)
+            if sp_info:
+                known = ' (known)' if _has_spell(sp_info['number']) else ''
+                price = _adjusted_price(sp_info['price'])
+                await ctx.send([
+                    '',
+                    f"  Spell {sp_info['number']}: {sp_info['name']}{known}",
+                    f"  Effect  : {_EFFECT_LABELS.get(sp_info['effect'], sp_info['effect'])}",
+                    f"  Cost    : {price}s",
+                    f"  {sp_info['description']}",
+                    '',
+                ])
+            else:
+                await ctx.send(f'No spell number {info_num}.')
+            continue
+
         try:
             num = int(choice)
         except ValueError:
-            await ctx.send('Enter a spell number, ? to list, or Q to leave.')
+            await ctx.send('Enter a spell number, ? to list, i# for info, or Q to leave.')
             continue
 
         sp = next((s for s in SPELLS if s['number'] == num), None)
