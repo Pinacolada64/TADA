@@ -16,6 +16,7 @@ Two ports:
 """
 
 import asyncio
+import contextvars
 import logging
 from pathlib import Path
 
@@ -34,6 +35,20 @@ from terminal import Translation
 
 DEFAULT_PORT = 34083
 PETSCII_PORT = 34064
+
+# ---------------------------------------------------------------------------
+# Per-connection logging context
+# ---------------------------------------------------------------------------
+
+# Set once per asyncio task; logging.Filter injects it into every LogRecord
+# so the format string can show %(player)s without touching individual calls.
+_player_ctx: contextvars.ContextVar[str] = contextvars.ContextVar('player', default='-')
+
+
+class _PlayerFilter(logging.Filter):
+    def filter(self, record):
+        record.player = _player_ctx.get()
+        return True
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +152,8 @@ class Server:
     async def handle_connection(self, reader, writer):
         addr       = writer.get_extra_info('peername')
         local_port = writer.get_extra_info('sockname')[1]
-        logging.debug('ENTER addr=%s port=%d', addr, local_port)
+        _player_ctx.set(str(addr))
+        logging.debug('ENTER port=%d', local_port)
         logging.info('New connection from %s on port %d', addr, local_port)
 
         from datetime import datetime
@@ -205,14 +221,14 @@ class Server:
         Returns True on success, False on failure.
         PETSCII clients skip this entirely.
         """
-        logging.debug('ENTER addr=%s', ctx.client.addr)
+        logging.debug('ENTER')
         try:
             await self.send_message(ctx.writer, self.server_init)
 
             data = await self.receive_message(ctx.reader)
             if not data:
-                logging.warning('%s: no Init received', ctx.client.addr)
-                logging.debug('EXIT False (no Init received) addr=%s', ctx.client.addr)
+                logging.warning('no Init received')
+                logging.debug('EXIT False (no Init received)')
                 return False
 
             client_init = Init(**{k: v for k, v in data.items()
@@ -220,27 +236,27 @@ class Server:
                                            'protocol_version', 'translation')})
 
             if client_init.server_id != self.server_init.server_id:
-                logging.warning('%s: handshake failed — server ID mismatch (got %r)', ctx.client.addr, client_init.server_id)
+                logging.warning('handshake failed — server ID mismatch (got %r)', client_init.server_id)
                 await ctx.send('Handshake failed: server ID mismatch.')
-                logging.debug('EXIT False (server_id mismatch) addr=%s', ctx.client.addr)
+                logging.debug('EXIT False (server_id mismatch)')
                 return False
             if client_init.server_key != self.server_init.server_key:
-                logging.warning('%s: handshake failed — server key mismatch', ctx.client.addr)
+                logging.warning('handshake failed — server key mismatch')
                 await ctx.send('Handshake failed: server key mismatch.')
-                logging.debug('EXIT False (server_key mismatch) addr=%s', ctx.client.addr)
+                logging.debug('EXIT False (server_key mismatch)')
                 return False
 
             await self.send_message(
                 ctx.writer,
                 nc.Message(lines=['Handshake successful.'], mode=nc.Mode.login),
             )
-            logging.info('%s: handshake OK', ctx.client.addr)
-            logging.debug('EXIT True addr=%s', ctx.client.addr)
+            logging.info('handshake OK')
+            logging.debug('EXIT True')
             return True
 
         except Exception:
-            logging.exception('%s: handshake error', ctx.client.addr)
-            logging.debug('EXIT False (exception) addr=%s', ctx.client.addr)
+            logging.exception('handshake error')
+            logging.debug('EXIT False (exception)')
             return False
 
     # -----------------------------------------------------------------------
@@ -257,7 +273,7 @@ class Server:
 
         Returns True to continue to login, False to disconnect immediately.
         """
-        logging.debug('ENTER addr=%s', ctx.client.addr)
+        logging.debug('ENTER')
         translation = ctx.player.client_settings.translation
 
         if translation == Translation.PETSCII:
@@ -279,22 +295,22 @@ class Server:
                 )
                 raw = await ctx.prompt('Screen width [4/8]')
                 if raw is None:
-                    logging.debug('EXIT False (disconnect) addr=%s', ctx.client.addr)
+                    logging.debug('EXIT False (disconnect)')
                     return False
                 if raw.strip() == '8':
                     ctx.player.client_settings.screen_columns = 80
                     await ctx.send('80 column mode set.')
-                    logging.info('%s: 80-column PETSCII mode set.', ctx.writer.get_extra_info('peername'))
+                    logging.info('80-column PETSCII mode set.')
                     break
                 elif raw.strip() == '4':
                     ctx.player.client_settings.screen_columns = 40
                     await ctx.send('40 column mode set.')
-                    logging.info('%s: 40-column PETSCII mode set.', ctx.writer.get_extra_info('peername'))
+                    logging.info('40-column PETSCII mode set.')
                     break
                 elif raw.strip().lower() == 'q':
                     await ctx.send('Disconnecting - hope to see you again soon!')
                     await self._graceful_close(ctx.writer)
-                    logging.debug('EXIT False (quit) addr=%s', ctx.client.addr)
+                    logging.debug('EXIT False (quit)')
                     return False
         else:
             # For ANSI/JSON clients, offer ANSI vs plain
@@ -309,14 +325,14 @@ class Server:
             while True:
                 raw = await ctx.prompt('Terminal type [A/P/Q]')
                 if raw is None:
-                    logging.debug('EXIT False (disconnect) addr=%s', ctx.client.addr)
+                    logging.debug('EXIT False (disconnect)')
                     return False
                 choice = raw.strip().upper()
                 if choice == 'P':
                     try:
                         ctx.player.client_settings.translation = Translation.ASCII
                         await ctx.send('Plain text mode set.')
-                        logging.info('%s: Plain text mode set.', ctx.writer.get_extra_info('peername'))
+                        logging.info('Plain text mode set.')
                         break
                     except Exception:
                         pass
@@ -324,16 +340,16 @@ class Server:
                     try:
                         ctx.player.client_settings.translation = Translation.ANSI
                         await ctx.send('ANSI color mode set.')
-                        logging.info('%s: ANSI color mode set.', ctx.writer.get_extra_info('peername'))
+                        logging.info('ANSI color mode set.')
                         break
                     except Exception:
                         pass
                 elif choice == 'Q':
                     await ctx.send('Disconnecting - hope to see you again soon!')
                     await self._graceful_close(ctx.writer)
-                    logging.debug('EXIT False (quit) addr=%s', ctx.client.addr)
+                    logging.debug('EXIT False (quit)')
                     return False
-        logging.debug('EXIT True addr=%s', ctx.client.addr)
+        logging.debug('EXIT True')
         return True
 
     # -----------------------------------------------------------------------
@@ -346,7 +362,7 @@ class Server:
         Returns True if the player authenticated and should enter the game loop.
         Returns False on quit or disconnect.
         """
-        logging.debug('ENTER addr=%s', ctx.client.addr)
+        logging.debug('ENTER')
         await ctx.send(
             '',
             '|green|Welcome to:',
@@ -369,12 +385,12 @@ class Server:
         while True:
             raw = await ctx.prompt('login')
             if raw is None:
-                logging.debug('EXIT False (disconnect) addr=%s', ctx.client.addr)
+                logging.debug('EXIT False (disconnect)')
                 return False                    # clean disconnect
             if not raw.strip():
                 continue
 
-            logging.debug('login input: %r addr=%s', raw.strip(), ctx.client.addr)
+            logging.debug('login input: %r', raw.strip())
             result = await processor.process_input(raw, ctx=ctx)
 
             if not result.success and result.error == 'unknown_command':
@@ -392,12 +408,13 @@ class Server:
             if result.data.get('authenticated'):
                 processor.current_mode = Mode.GAME
                 ctx.set_prompt('main')
-                logging.debug('EXIT True (authenticated) addr=%s', ctx.client.addr)
+                _player_ctx.set(getattr(ctx.player, 'name', str(ctx.client.addr)))
+                logging.debug('EXIT True (authenticated)')
                 return True
 
             # QuitCommand signals that we should drop the connection
             if result.data.get('quit'):
-                logging.debug('EXIT False (quit) addr=%s', ctx.client.addr)
+                logging.debug('EXIT False (quit)')
                 return False
 
     async def _authenticate(self, ctx: GameContext,
@@ -407,30 +424,30 @@ class Server:
         Sends its own error message on failure so the caller can just check
         the return value.
         """
-        logging.debug('ENTER username=%r addr=%s', username, ctx.client.addr)
+        logging.debug('ENTER username=%r', username)
         import json
         user_file = Path('run') / 'server' / 'net' / f'login-{username}.json'
         try:
             if not user_file.exists():
                 await ctx.send('Invalid username or password.')
-                logging.debug('EXIT None (no user file) addr=%s', ctx.client.addr)
+                logging.debug('EXIT None (no user file)')
                 return None
             with open(user_file) as f:
                 data = json.load(f)
             if data.get('password') != password:
                 await ctx.send('Invalid username or password.')
-                logging.debug('EXIT None (wrong password) addr=%s', ctx.client.addr)
+                logging.debug('EXIT None (wrong password)')
                 return None
             # Load or create the Player object
             from player import Player
             p = Player(name=username, id=username)
-            logging.info('%s: authenticated as %s', ctx.client.addr, username)
-            logging.debug('EXIT Player(name=%r, hit_points=%r) addr=%s', username, getattr(p, 'hit_points', '?'), ctx.client.addr)
+            logging.info('authenticated as %s', username)
+            logging.debug('EXIT Player(name=%r, hit_points=%r)', username, getattr(p, 'hit_points', '?'))
             return p
         except Exception:
-            logging.exception('Authentication error for %s', username)
+            logging.exception('authentication error for %s', username)
             await ctx.send('Error accessing user data. Please try again.')
-            logging.debug('EXIT None (exception) addr=%s', ctx.client.addr)
+            logging.debug('EXIT None (exception)')
             return None
 
     # -----------------------------------------------------------------------
@@ -439,7 +456,7 @@ class Server:
 
     async def _game_loop(self, ctx: GameContext) -> None:
         """Main command loop for an authenticated (or guest) player."""
-        logging.debug('ENTER player=%r addr=%s', getattr(ctx.player, 'name', '?'), ctx.client.addr)
+        logging.debug('ENTER')
         if not getattr(ctx.client, 'room', None):
             ctx.client.room = int(getattr(ctx.player, 'map_room', 1) or 1)
         await self._show_room(ctx)
@@ -449,22 +466,20 @@ class Server:
         while True:
             raw = await ctx.prompt('main')
             if raw is None:                     # clean EOF / disconnect
-                logging.debug('EXIT (disconnect) player=%r addr=%s', getattr(ctx.player, 'name', '?'), ctx.client.addr)
+                logging.debug('EXIT (disconnect)')
                 await self._player_quit(ctx)
                 return
             if not raw.strip():
                 continue
 
-            logging.debug('command: %r player=%r hp=%r addr=%s',
-                          raw.strip(), getattr(ctx.player, 'name', '?'),
-                          getattr(ctx.player, 'hit_points', '?'), ctx.client.addr)
+            logging.debug('command: %r hp=%r', raw.strip(), getattr(ctx.player, 'hit_points', '?'))
             from datetime import datetime
             ctx.client.last_input = datetime.now()
             result = await processor.process_input(raw, ctx=ctx)
 
             # QuitCommand sets data={'quit': True} to signal clean exit
             if result.data.get('quit'):
-                logging.debug('EXIT (quit command) player=%r addr=%s', getattr(ctx.player, 'name', '?'), ctx.client.addr)
+                logging.debug('EXIT (quit command)')
                 await self._player_quit(ctx)
                 return
 
@@ -477,13 +492,12 @@ class Server:
             warnings = survival_tick(ctx.player)
             if warnings:
                 await ctx.send(warnings)
-            logging.debug('survival tick: hp=%r food=%r drink=%r player=%r',
+            logging.debug('survival tick: hp=%r food=%r drink=%r',
                           getattr(ctx.player, 'hit_points', '?'),
                           getattr(ctx.player, 'food', '?'),
-                          getattr(ctx.player, 'drink', '?'),
-                          getattr(ctx.player, 'name', '?'))
+                          getattr(ctx.player, 'drink', '?'))
             if getattr(ctx.player, 'hit_points', 1) <= 0:
-                logging.debug('death triggered player=%r addr=%s', getattr(ctx.player, 'name', '?'), ctx.client.addr)
+                logging.debug('death triggered')
                 await self._player_dies(ctx)
 
     # -----------------------------------------------------------------------
@@ -492,7 +506,7 @@ class Server:
 
     async def _show_room(self, ctx: GameContext) -> None:
         """Build and send the room description to ctx."""
-        logging.debug('ENTER room=%r player=%r', getattr(ctx.client, 'room', '?'), getattr(ctx.player, 'name', '?'))
+        logging.debug('ENTER room=%r', getattr(ctx.client, 'room', '?'))
         lines = self._describe_room(ctx.client)
         await ctx.send(lines)
         logging.debug('EXIT room=%r lines=%d', getattr(ctx.client, 'room', '?'), len(lines))
@@ -613,7 +627,7 @@ class Server:
         Special exits (shoppe elevator, bar) are handled in MoveCommand
         before this method is called.
         """
-        logging.debug('ENTER direction=%r room=%r player=%r', direction, getattr(ctx.client, 'room', '?'), getattr(ctx.player, 'name', '?'))
+        logging.debug('ENTER direction=%r room=%r', direction, getattr(ctx.client, 'room', '?'))
         room_no = getattr(ctx.client, 'room', 1) or 1
         room    = (self.game_map.rooms.get(int(room_no))
                    if self.game_map else None)
@@ -631,7 +645,7 @@ class Server:
         ctx.client.room = int(dest)
         ctx.player.map_room = int(dest)
         ctx.player.unsaved_changes = True
-        logging.debug('EXIT moved to room=%r player=%r', dest, getattr(ctx.player, 'name', '?'))
+        logging.debug('EXIT moved to room=%r', dest)
         await self._show_room(ctx)
 
     # -----------------------------------------------------------------------
@@ -682,7 +696,7 @@ class Server:
         Poison and disease are cleared (death cures everything).
         The game loop continues after this returns — no disconnect.
         """
-        logging.debug('ENTER player=%r addr=%s', getattr(ctx.player, 'name', '?'), ctx.client.addr)
+        logging.debug('ENTER hp=%r', getattr(ctx.player, 'hit_points', '?'))
         player = ctx.player
 
         await ctx.send([
@@ -699,7 +713,7 @@ class Server:
                 player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 0)
                 await ctx.send(f'You lost {lost:,} silver.')
         except Exception:
-            logging.exception('_player_dies: could not strip silver')
+            logging.exception('could not strip silver')
 
         # Death cures poison and disease.
         player.poisoned = False
@@ -716,7 +730,7 @@ class Server:
         player.unsaved_changes = True
 
         await ctx.send('You wake up at the entrance, confused but alive.')
-        logging.debug('EXIT (respawned at room 1) player=%r addr=%s', getattr(ctx.player, 'name', '?'), ctx.client.addr)
+        logging.debug('EXIT (respawned at room 1)')
         await self._show_room(ctx)
 
     # -----------------------------------------------------------------------
@@ -725,10 +739,7 @@ class Server:
 
     async def _player_quit(self, ctx: GameContext) -> None:
         """Save player state and clean up on quit or disconnect."""
-        logging.debug('ENTER player=%r hp=%r addr=%s',
-                      getattr(ctx.player, 'name', '?'),
-                      getattr(ctx.player, 'hit_points', '?'),
-                      ctx.client.addr)
+        logging.debug('ENTER hp=%r', getattr(ctx.player, 'hit_points', '?'))
         player = ctx.player
         if player and not isinstance(player, GuestPlayer):
             try:
@@ -739,11 +750,10 @@ class Server:
                     player.map_room = int(current_room)
                 player.unsaved_changes = True
                 player.save(force=True)
-                logging.info('%s: player %s saved on quit',
-                             ctx.client.addr, player.name)
+                logging.info('player saved on quit')
             except Exception:
-                logging.exception('Failed to save player on quit')
-        logging.debug('EXIT player=%r addr=%s', getattr(ctx.player, 'name', '?'), ctx.client.addr)
+                logging.exception('failed to save player on quit')
+        logging.debug('EXIT')
 
     # -----------------------------------------------------------------------
     # Server startup
@@ -789,8 +799,9 @@ if __name__ == '__main__':
 
     logging.basicConfig(
         level  = logging.DEBUG,
-        format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s: %(message)s',
+        format = '%(asctime)s %(levelname)s %(player)-16s %(module)s.%(funcName)s: %(message)s',
     )
+    logging.getLogger().handlers[0].addFilter(_PlayerFilter())
 
     server = Server(args.host, args.port, args.petscii_port)
 
