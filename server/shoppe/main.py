@@ -132,13 +132,9 @@ async def _elevator(ctx: GameContext) -> None:
     await elevator_main(ctx)
 
 
-async def _pawn_shop(ctx: GameContext) -> None:
-    """Sell (not buy) items to the pawn merchant."""
-    await ctx.send(
-        'A wiry merchant peers at you over a pile of odds and ends.',
-        '',
-        '(Pawn shop not yet available.)',
-    )
+def _pawn_shop(ctx: GameContext):
+    from shoppe.pawn import main as pawn_main
+    return pawn_main(ctx)
 
 
 async def _player_list(ctx: GameContext) -> None:
