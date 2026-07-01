@@ -117,7 +117,9 @@ def _parse_stored_date(value: Optional[str]) -> Optional[date]:
 # Matches "until <date>" at the start of the remainder text after the username.
 _UNTIL_RE  = re.compile(r'^until\s+(.+?)(?:\s{2,}|\s*$)(.*)', re.IGNORECASE | re.DOTALL)
 # Matches "from <date> to <date>" at the start.
-_FROM_RE   = re.compile(r'^(from\s+\S.*?\bto\b\s+\S+?)(?:\s{2,}|\s*$)(.*)', re.IGNORECASE | re.DOTALL)
+# End date may be multi-word (e.g. "Jul 31 2026"); lazy repetition stops at
+# double-space separator or end of string.
+_FROM_RE   = re.compile(r'^(from\s+\S.*?\bto\b\s+(?:\S+(?:\s+\S+)*?))(?:\s{2,}|\s*$)(.*)', re.IGNORECASE | re.DOTALL)
 
 
 def _parse_ban_args(tokens: list[str]) -> tuple[Optional[date], Optional[date], str]:
@@ -192,11 +194,14 @@ class BanCommand(Command):
             await ctx.send('You lack the authority to do that.')
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
-        positional, _ = self.parse_args(*args)
+        positional, switches = self.parse_args(*args)
         invoked_as = getattr(ctx, '_invoked_as', self.name)
 
         if invoked_as == 'unban':
             return await self._unban(ctx, positional)
+
+        if '#view' in switches:
+            return await self._view(ctx)
 
         if not positional:
             await ctx.send(
@@ -204,9 +209,6 @@ class BanCommand(Command):
                 '|  ban #view  |  unban <user>'
             )
             return CommandResult.fail('No argument.', error='missing_args')
-
-        if positional[0] == '#view':
-            return await self._view(ctx)
 
         return await self._ban(ctx, positional)
 
