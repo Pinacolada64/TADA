@@ -458,17 +458,22 @@ def highlight_brackets(text: str, codec: ColorCodec) -> str:
     Replace [bracketed text] with color-coded equivalents.
     Uses the codec's highlight_on/highlight_off to wrap matched text.
 
+    Double brackets [[like this]] are an escape: they render as a literal
+    [like this] without any colour applied.
+
     >>> codec = PlainCodec()
     >>> highlight_brackets("Hello [world]!", codec)
     'Hello world!'
     >>> highlight_brackets("No brackets here.", codec)
     'No brackets here.'
+    >>> highlight_brackets("Usage: cmd [[optional]]", codec)
+    'Usage: cmd [optional]'
     """
-    return re.sub(
-        r'\[(.+?)\]',
-        lambda m: f'{codec.highlight_on()}{m.group(1)}{codec.highlight_off()}',
-        text
-    )
+    def _replace(m: re.Match) -> str:
+        if m.group(1) is not None:      # [[...]] escape → literal [...]
+            return f'[{m.group(1)}]'
+        return f'{codec.highlight_on()}{m.group(2)}{codec.highlight_off()}'
+    return re.sub(r'\[\[(.+?)\]\]|\[(.+?)\]', _replace, text)
 
 
 def _visible_len(text: str) -> int:

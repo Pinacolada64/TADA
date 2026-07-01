@@ -17,6 +17,7 @@ Attach a Help() instance to every Command subclass:
 from __future__ import annotations
 
 import logging
+import re
 import textwrap
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -94,6 +95,11 @@ def _is_available(cmd, mode) -> bool:
 # Formatter  (pure — no I/O)
 # ---------------------------------------------------------------------------
 
+def _esc(text: str) -> str:
+    """Escape [optional] syntax notation so highlight_brackets renders it literally."""
+    return re.sub(r'\[([^\[\]]+)\]', r'[[\1]]', text)
+
+
 def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                 rule_char: str = "-") -> Optional[str]:
     """Format a Help instance into a display string.
@@ -146,6 +152,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         right_col = width - 4 - left_col - 2
 
         for syntax, desc_text in items:
+            syntax = _esc(syntax)
             if desc_text:
                 wrapped = textwrap.wrap(desc_text, width=right_col) or [""]
                 lines.append(f"  {syntax.ljust(left_col)}  {wrapped[0]}")
@@ -160,7 +167,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         lines.append("")
         lines.append("Example:" if len(examples) == 1 else "Examples:")
         for item in examples:
-            lines.append(f"  {item[0]}")
+            lines.append(f"  {_esc(item[0])}")
             if len(item) > 1 and item[1]:
                 lines.extend(textwrap.wrap(
                     str(item[1]),
