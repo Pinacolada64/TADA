@@ -247,7 +247,7 @@ class Player:
             self.inventory = Inventory(capacity=self.max_inventory_size)
 
         # combat stuff:
-        self.hit_points = kwargs.get('hit_points', 0)
+        self.hit_points = kwargs.get('hit_points', 10)
         # Survival: food (ps in SPUR) and drink (pe in SPUR), each 0-20.
         # Both deplete over time; starvation kills when both reach 0.
         self.food     = kwargs.get('food',     20)
@@ -893,7 +893,7 @@ class Player:
                 data = json.load(f)
 
             # Merge simple scalar fields
-            simple_keys = ('map_room', 'map_level', 'times_played', 'moves_today')
+            simple_keys = ('map_room', 'map_level', 'times_played', 'moves_today', 'hit_points')
             for k in simple_keys:
                 if k in data:
                     try:
