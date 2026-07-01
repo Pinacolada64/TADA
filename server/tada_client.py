@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tada_client.py — prompt_toolkit-based async client for the TADA server.
+"""tada_client.py — prompt_toolkit-based async client for the TADA server (Totally Awesome Dungeon Adventure).
 
 Layout
 ------
@@ -25,9 +25,8 @@ from datetime import datetime
 
 from prompt_toolkit import Application
 from prompt_toolkit.buffer import Buffer
-from prompt_toolkit.document import Document
 from prompt_toolkit.filters import is_done
-from prompt_toolkit.formatted_text import ANSI
+from prompt_toolkit.formatted_text import ANSI, to_formatted_text
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout.containers import HSplit, Window, ConditionalContainer
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
@@ -70,21 +69,19 @@ class ClientState:
 
 
 # ---------------------------------------------------------------------------
-# Output buffer helpers
+# Output list helpers
 # ---------------------------------------------------------------------------
 
-_SCROLLBACK = 2000   # maximum lines kept in the output buffer
+_SCROLLBACK = 2000   # maximum lines kept in the output list
 
-def _append_output(output_buffer: Buffer, lines: list[str]) -> None:
-    """Append lines to the output buffer, trimming old content if needed."""
-    text = output_buffer.text
-    existing = text.split('\n') if text else []
-    existing.extend(lines)
-    if len(existing) > _SCROLLBACK:
-        existing = existing[-_SCROLLBACK:]
-    new_text = '\n'.join(existing)
-    # Move cursor to end so new content is visible
-    output_buffer.set_document(Document(new_text, len(new_text)), bypass_readonly=True)
+def _append_output(output_lines: list, lines: list[str], output_window=None) -> None:
+    """Append lines to the output list, trimming old content if needed."""
+    output_lines.extend(lines)
+    if len(output_lines) > _SCROLLBACK:
+        del output_lines[:-_SCROLLBACK]
+    # Pin scroll to bottom so new content is always visible
+    if output_window is not None:
+        output_window.vertical_scroll = 10 ** 9
 
 
 # ---------------------------------------------------------------------------
@@ -115,16 +112,16 @@ async def _send_message(writer: asyncio.StreamWriter, obj: dict) -> None:
 # ---------------------------------------------------------------------------
 
 async def _receive_loop(
-    reader:        asyncio.StreamReader,
-    output_buffer: Buffer,
-    state:         ClientState,
-    app:           Application,
+    reader:       asyncio.StreamReader,
+    output_lines: list,
+    state:        ClientState,
+    app:          Application,
 ) -> None:
-    """Read messages from the server and push them into the output buffer."""
+    """Read messages from the server and push them into the output list."""
     while True:
         msg = await _recv_message(reader)
         if msg is None:
-            _append_output(output_buffer, ['', '[disconnected from server]'])
+            _append_output(output_lines, ['', '[disconnected from server]'], app._output_window)
             state.connected = False
             app.invalidate()
             break
@@ -134,7 +131,7 @@ async def _receive_loop(
             lines = [lines]
 
         if lines:
-            _append_output(output_buffer, lines)
+            _append_output(output_lines, lines, app._output_window)
 
         if 'mode' in msg:
             state.mode = msg['mode']
@@ -152,17 +149,23 @@ async def _receive_loop(
 # Build the prompt_toolkit Application
 # ---------------------------------------------------------------------------
 
-def _build_app(state: ClientState) -> tuple[Application, Buffer, Buffer]:
-    """Return (app, output_buffer, input_buffer)."""
+def _build_app(state: ClientState) -> tuple[Application, list, Buffer]:
+    """Return (app, output_lines, input_buffer)."""
 
-    # --- output area (read-only, scrollable) ---
-    output_buffer = Buffer(name='output', read_only=True)
+    # --- output area (ANSI-aware, scrollable) ---
+    # Store raw lines (may contain ANSI escape codes); FormattedTextControl
+    # parses them on each render so colours display correctly.
+    output_lines: list = []
+
+    def _get_output_text():
+        result = []
+        for line in output_lines:
+            result.extend(to_formatted_text(ANSI(line)))
+            result.append(('', '\n'))
+        return result
 
     output_window = Window(
-        content=BufferControl(
-            buffer=output_buffer,
-            focusable=False,
-        ),
+        content=FormattedTextControl(text=_get_output_text, focusable=False),
         wrap_lines=True,
         style='class:output-field',
     )
@@ -233,8 +236,9 @@ def _build_app(state: ClientState) -> tuple[Application, Buffer, Buffer]:
         full_screen=True,
         mouse_support=False,
     )
-    app._input_future = None
-    return app, output_buffer, input_buffer
+    app._output_window = output_window
+    app._input_future  = None
+    return app, output_lines, input_buffer
 
 
 # ---------------------------------------------------------------------------
@@ -259,12 +263,12 @@ async def _get_input(app: Application) -> str | None:
 # ---------------------------------------------------------------------------
 
 async def _login(
-    writer:        asyncio.StreamWriter,
-    output_buffer: Buffer,
-    state:         ClientState,
-    app:           Application,
-    user_id:       str,
-    password:      str,
+    writer:       asyncio.StreamWriter,
+    output_lines: list,
+    state:        ClientState,
+    app:          Application,
+    user_id:      str,
+    password:     str,
 ) -> bool:
     """Send handshake + credentials; return True on success."""
     # Handshake
@@ -275,7 +279,7 @@ async def _login(
         'protocol_version': 1,
         'translation':      'UTF-8',
     })
-    _append_output(output_buffer, [f'Connecting to {state.host}:{state.port}...'])
+    _append_output(output_lines, [f'Connecting to {state.host}:{state.port}...'], app._output_window)
     app.invalidate()
 
     # Credentials
@@ -300,10 +304,10 @@ async def _login(
 # ---------------------------------------------------------------------------
 
 async def _input_loop(
-    writer:        asyncio.StreamWriter,
-    output_buffer: Buffer,
-    state:         ClientState,
-    app:           Application,
+    writer:       asyncio.StreamWriter,
+    output_lines: list,
+    state:        ClientState,
+    app:          Application,
 ) -> None:
     """Read lines from the input area and send them to the server."""
     while state.connected:
@@ -314,7 +318,7 @@ async def _input_loop(
 
         # Echo what the user typed into the output pane
         if text:
-            _append_output(output_buffer, [f'> {text}'])
+            _append_output(output_lines, [f'> {text}'], app._output_window)
             app.invalidate()
 
         if text.lower() in ('quit', 'exit', '/quit'):
@@ -342,13 +346,24 @@ async def run(host: str, port: int, user_id: str, password: str) -> None:
         print(f'Connection failed: {e}', file=sys.stderr)
         return
 
-    app, output_buffer, input_buffer = _build_app(state)
+    app, output_lines, input_buffer = _build_app(state)
 
-    await _login(writer, output_buffer, state, app, user_id, password)
+    _append_output(output_lines, [
+        ' ╔══════════════════════════════════════════════════╗',
+        ' ║  TADA — Totally Awesome Dungeon Adventure        ║',
+        ' ║  prompt_toolkit client                           ║',
+        ' ║                                                  ║',
+        ' ║  PgUp / PgDn  scroll output                      ║',
+        ' ║  Ctrl-C / Ctrl-Q  quit   •   or type: quit       ║',
+        ' ╚══════════════════════════════════════════════════╝',
+        '',
+    ], app._output_window)
+
+    await _login(writer, output_lines, state, app, user_id, password)
 
     async with asyncio.TaskGroup() as tg:
-        tg.create_task(_receive_loop(reader, output_buffer, state, app))
-        tg.create_task(_input_loop(writer, output_buffer, state, app))
+        tg.create_task(_receive_loop(reader, output_lines, state, app))
+        tg.create_task(_input_loop(writer, output_lines, state, app))
         tg.create_task(app.run_async())
 
     try:
