@@ -422,6 +422,98 @@ A working prototype of a per-room threaded message system.  Current state:
 
 ---
 
+## Administration
+
+Admin access is controlled by `PlayerFlags.ADMIN`.  Set it on a player via
+`editplayer → Flags → Administrator` or with `editplayer` in-game.  The flag is
+checked at the start of every admin command; non-admins receive "You lack the
+authority to do that."
+
+### Implemented
+
+#### Player management
+- **`editplayer` (`ep`)** — full in-game player editor: alignment, attributes,
+  character names, combinations, flags/counters, hit points, inventory, money
+  (In Hand / In Bank / In Bar), statistics, weapons (`commands/editplayer.py`).
+  Changes are written on save/quit.
+- **`ban <user> [reason]`** — permanently suspend an account; player is rejected
+  at login with a "permanently suspended" message (`commands/ban.py`,
+  `commands/connect.py`).
+- **`ban <user> until <date> [reason]`** — temporary ban expiring at the given
+  date; player is told when they may log in again.
+- **`ban <user> from <date> to <date> [reason]`** — ban active only within a
+  date window; outside the window the account is not blocked.
+- **`unban <user>`** — lifts any ban immediately.
+- **`ban #view`** — lists all ban entries with issue date, period, issuing admin,
+  and reason; expired / pending bans are marked `[EXPIRED]` / `[pending]`.
+- Ban storage: `run/server/net/ban-list.json`.
+  Date parsing uses `parse_date.py` (see **Date Parsing Utility** below).
+
+#### Navigation
+- **`teleport <room>` / `t <room>` / `#<room>`** — instant movement to any room
+  by number or name fragment.  Name search lists matches; unique match teleports
+  immediately.  Guild-aligned destination rooms launch the guild HQ session
+  (same as walking in). Admin only (`commands/teleport.py`).
+
+#### World editing
+- **`editmonsters`** — in-game monster editor; admin only (`commands/editmonsters.py`).
+
+#### Visibility
+- **`whereat`** — shows location of every online player; available to admins and
+  players with DEBUG flag (`commands/whereat.py`).
+- **`who`** — lists online players; admins see the player's account ID in addition
+  to character name (`commands/who.py`).
+
+### Not Implemented / Future
+
+- **`kick <user>`** — disconnect an online player immediately without banning;
+  useful for stuck sessions or rule violations that don't warrant a ban.
+- **`broadcast <message>`** — send a server-wide message to all online players
+  (equivalent to a SPUR sysop page).
+- **`mute <user> [duration]`** — prevent a player from using `say`/`shout`/`page`
+  for a given period.
+- **`freeze <user>`** — temporarily prevent all actions (movement, combat) without
+  disconnecting; useful for in-game moderation.
+- **Invite management** — generate, list, and revoke invite codes via an in-game
+  command rather than the setup CLI (see **Server Configuration** above).
+- **Log viewer** — in-game or web utility to search and filter the pipe-delimited
+  server log by player, level, module, and date range; `parse_date.py` is ready
+  to back the date-range picker.
+- **MOTD editor** — edit the login message-of-the-day from in-game rather than
+  via `setup/server_setup.py`.
+- **Audit trail** — dedicated admin-action log (ban/unban/kick/editplayer) separate
+  from the main server log so moderation history is easy to review.
+
+---
+
+## Date Parsing Utility
+
+`server/parse_date.py` — backed by `python-dateutil`.
+
+### API
+- **`parse_date(text)`** → `date | None` — parse a single date string.
+- **`parse_date_range(text)`** → `tuple[date, date] | None` — parse a range.
+- **`DATE_HELP`** — ready-made help string listing all accepted formats; embed in
+  any prompt that accepts a date.
+
+### Supported formats
+| Input | Parsed as |
+|---|---|
+| `7/1/26` | 2026-07-01 (M/D/YY) |
+| `7/1/2026` | 2026-07-01 (M/D/YYYY) |
+| `7/1` | 2026-07-01 (current year assumed) |
+| `2026-07-01` | 2026-07-01 (ISO 8601) |
+| `Jul 1` | 2026-07-01 |
+| `July 1 2026` | 2026-07-01 |
+
+Range separators accepted: `to`, ` - ` (spaced hyphen), `–` (en-dash), `—` (em-dash).
+Leading `from` is stripped.  Example: `from Jul 1 to Dec 31`.
+
+**Ambiguity note:** dash-separated numbers (`1-7-26`) are read M-D-YY, so
+`1-7-26 = January 7`.  Use slashes or month names to be unambiguous.
+
+---
+
 ## Economy / Currency
 
 ### Future / Research Needed
