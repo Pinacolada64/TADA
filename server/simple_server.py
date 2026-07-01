@@ -800,6 +800,7 @@ if __name__ == '__main__':
     logging.basicConfig(
         level  = logging.DEBUG,
         format = '%(asctime)s %(levelname)s %(player)-16s %(module)s.%(funcName)s: %(message)s',
+        force  = True,   # override any basicConfig() called by imported modules
     )
     logging.getLogger().handlers[0].addFilter(_PlayerFilter())
 
