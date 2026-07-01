@@ -74,13 +74,13 @@ class ClientState:
 
 _SCROLLBACK = 2000   # maximum lines kept in the output list
 
-def _append_output(output_lines: list, lines: list[str], output_window=None) -> None:
+def _append_output(output_lines: list, lines: list[str], output_window=None, pinned: list | None = None) -> None:
     """Append lines to the output list, trimming old content if needed."""
     output_lines.extend(lines)
     if len(output_lines) > _SCROLLBACK:
         del output_lines[:-_SCROLLBACK]
-    # Pin scroll to bottom so new content is always visible
-    if output_window is not None:
+    # Only pin to bottom when the user hasn't scrolled up
+    if output_window is not None and (pinned is None or pinned[0]):
         output_window.vertical_scroll = 10 ** 9
 
 
@@ -121,7 +121,7 @@ async def _receive_loop(
     while True:
         msg = await _recv_message(reader)
         if msg is None:
-            _append_output(output_lines, ['', '[disconnected from server]'], app._output_window)
+            _append_output(output_lines, ['', '[disconnected from server]'], app._output_window, app._pinned)
             state.connected = False
             app.invalidate()
             break
@@ -131,7 +131,7 @@ async def _receive_loop(
             lines = [lines]
 
         if lines:
-            _append_output(output_lines, lines, app._output_window)
+            _append_output(output_lines, lines, app._output_window, app._pinned)
 
         if 'mode' in msg:
             state.mode = msg['mode']
@@ -149,13 +149,14 @@ async def _receive_loop(
 # Build the prompt_toolkit Application
 # ---------------------------------------------------------------------------
 
-def _build_app(state: ClientState) -> tuple[Application, list, Buffer]:
-    """Return (app, output_lines, input_buffer)."""
+def _build_app(state: ClientState) -> tuple[Application, list, list, Buffer]:
+    """Return (app, output_lines, pinned, input_buffer)."""
 
     # --- output area (ANSI-aware, scrollable) ---
     # Store raw lines (may contain ANSI escape codes); FormattedTextControl
     # parses them on each render so colours display correctly.
     output_lines: list = []
+    pinned = [True]   # mutable flag: auto-scroll to bottom unless user has scrolled up
 
     def _get_output_text():
         result = []
@@ -209,13 +210,23 @@ def _build_app(state: ClientState) -> tuple[Application, list, Buffer]:
 
     @kb.add('pageup')
     def _page_up(event):
-        output_window.vertical_scroll -= (output_window.render_info.window_height - 2
-                                          if output_window.render_info else 10)
+        info = output_window.render_info
+        step = (info.window_height - 2) if info else 10
+        # Read the actual clamped scroll position, not our stored value which may be 10**9
+        current = info.vertical_scroll if info else output_window.vertical_scroll
+        output_window.vertical_scroll = max(0, current - step)
+        pinned[0] = False   # user scrolled up; stop auto-pinning to bottom
 
     @kb.add('pagedown')
     def _page_down(event):
-        output_window.vertical_scroll += (output_window.render_info.window_height - 2
-                                          if output_window.render_info else 10)
+        info = output_window.render_info
+        step = (info.window_height - 2) if info else 10
+        current = info.vertical_scroll if info else output_window.vertical_scroll
+        output_window.vertical_scroll = current + step
+        # If we've scrolled back to the bottom, resume auto-pinning
+        if info and (current + step) >= (info.vertical_scroll + info.window_height):
+            pinned[0] = True
+            output_window.vertical_scroll = 10 ** 9
 
     @kb.add('enter')
     def _send(event):
@@ -237,8 +248,9 @@ def _build_app(state: ClientState) -> tuple[Application, list, Buffer]:
         mouse_support=False,
     )
     app._output_window = output_window
+    app._pinned        = pinned
     app._input_future  = None
-    return app, output_lines, input_buffer
+    return app, output_lines, pinned, input_buffer
 
 
 # ---------------------------------------------------------------------------
@@ -279,20 +291,14 @@ async def _login(
         'protocol_version': 1,
         'translation':      'UTF-8',
     })
-    _append_output(output_lines, [f'Connecting to {state.host}:{state.port}...'], app._output_window)
+    _append_output(output_lines, [f'Connecting to {state.host}:{state.port}...'], app._output_window, app._pinned)
     app.invalidate()
 
-    # Credentials
+    # Credentials — server's _login() prompts "connect <user> <pass>" as a text command
     if user_id == 'guest':
-        await _send_message(writer, {
-            'mode': 'guest', 'type': 'command',
-            'text': 'guest', 'user_id': 'guest', 'password': 'guest',
-        })
+        await _send_message(writer, {'mode': 'login', 'type': 'command', 'text': 'connect guest'})
     else:
-        await _send_message(writer, {
-            'mode': 'login', 'type': 'command',
-            'user_id': user_id, 'password': password,
-        })
+        await _send_message(writer, {'mode': 'login', 'type': 'command', 'text': f'connect {user_id} {password}'})
 
     state.user_id = user_id
     state.mode    = 'login'
@@ -318,7 +324,7 @@ async def _input_loop(
 
         # Echo what the user typed into the output pane
         if text:
-            _append_output(output_lines, [f'> {text}'], app._output_window)
+            _append_output(output_lines, [f'> {text}'], app._output_window, app._pinned)
             app.invalidate()
 
         if text.lower() in ('quit', 'exit', '/quit'):
@@ -346,7 +352,7 @@ async def run(host: str, port: int, user_id: str, password: str) -> None:
         print(f'Connection failed: {e}', file=sys.stderr)
         return
 
-    app, output_lines, input_buffer = _build_app(state)
+    app, output_lines, pinned, input_buffer = _build_app(state)
 
     _append_output(output_lines, [
         ' ╔══════════════════════════════════════════════════╗',
@@ -357,7 +363,7 @@ async def run(host: str, port: int, user_id: str, password: str) -> None:
         ' ║  Ctrl-C / Ctrl-Q  quit   •   or type: quit       ║',
         ' ╚══════════════════════════════════════════════════╝',
         '',
-    ], app._output_window)
+    ], app._output_window, pinned)
 
     await _login(writer, output_lines, state, app, user_id, password)
 
