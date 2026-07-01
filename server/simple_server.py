@@ -483,9 +483,8 @@ class Server:
                           getattr(ctx.player, 'drink', '?'),
                           getattr(ctx.player, 'name', '?'))
             if getattr(ctx.player, 'hit_points', 1) <= 0:
-                logging.debug('EXIT (hp<=0) player=%r addr=%s', getattr(ctx.player, 'name', '?'), ctx.client.addr)
-                await self._player_quit(ctx)
-                return
+                logging.debug('death triggered player=%r addr=%s', getattr(ctx.player, 'name', '?'), ctx.client.addr)
+                await self._player_dies(ctx)
 
     # -----------------------------------------------------------------------
     # Room display
@@ -670,6 +669,55 @@ class Server:
                 w = getattr(client, 'writer', None)
                 if w:
                     await self.send_message(w, message_obj)
+
+    # -----------------------------------------------------------------------
+    # Player death
+    # -----------------------------------------------------------------------
+
+    async def _player_dies(self, ctx: GameContext) -> None:
+        """Handle player death: send messages, strip penalties, respawn at room 1.
+
+        Mirrors SPUR's DIE routine: player keeps their character but loses
+        silver in hand and is returned to the starting room with minimum HP.
+        Poison and disease are cleared (death cures everything).
+        The game loop continues after this returns — no disconnect.
+        """
+        logging.debug('ENTER player=%r addr=%s', getattr(ctx.player, 'name', '?'), ctx.client.addr)
+        player = ctx.player
+
+        await ctx.send([
+            '',
+            '|red|* * * Y O U   H A V E   D I E D * * *|reset|',
+            '',
+        ])
+
+        # Lose all silver carried in hand (SPUR death penalty).
+        try:
+            from base_classes import PlayerMoneyTypes
+            lost = player.get_silver(PlayerMoneyTypes.IN_HAND)
+            if lost:
+                player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 0)
+                await ctx.send(f'You lost {lost:,} silver.')
+        except Exception:
+            logging.exception('_player_dies: could not strip silver')
+
+        # Death cures poison and disease.
+        player.poisoned = False
+        player.diseased = False
+
+        # Revive with minimum HP and full food/drink.
+        player.hit_points = 10
+        player.food       = 20
+        player.drink      = 20
+
+        # Respawn at room 1.
+        player.map_room   = 1
+        ctx.client.room   = 1
+        player.unsaved_changes = True
+
+        await ctx.send('You wake up at the entrance, confused but alive.')
+        logging.debug('EXIT (respawned at room 1) player=%r addr=%s', getattr(ctx.player, 'name', '?'), ctx.client.addr)
+        await self._show_room(ctx)
 
     # -----------------------------------------------------------------------
     # Player quit
