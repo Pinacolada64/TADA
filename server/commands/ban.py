@@ -200,7 +200,7 @@ class BanCommand(Command):
         if invoked_as == 'unban':
             return await self._unban(ctx, positional)
 
-        if '#view' in switches:
+        if '#view' in switches or '#list' in switches:
             return await self._view(ctx)
 
         if not positional:
