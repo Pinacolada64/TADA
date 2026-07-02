@@ -100,10 +100,13 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 
 ## Item USE
 
+### Implemented
+- ✅ **USE command** — item list + numbered picker; delegates to type-specific handlers (`commands/use.py`)
+- ✅ **Ammo loading** — `USE <ammo item>` loads rounds into readied weapon; checks `used_with`; sets `player.ammo_rounds`/`player.ammo_damage`; STORM refuses physical ammo (`SPUR.USE.S:147–162`)
+- ✅ **Shield use** — `USE <shield item>` adds to shield rating; class/race caps (Wizard 25, Thief/Assassin/Pixie 35, Hobbit/Gnome 50, others 100); Battle/Lazer shield +20 to all caps (`SPUR.USE.S:34–43`)
+- ✅ **Compass** — toggle `player.compass_active`; "USE again to return to pack" hint (`SPUR.USE.S:44–50`)
+
 ### Not Implemented
-- **Ammo loading** — `USE <ammo item>` loads rounds into readied ranged weapon (`SPUR.USE.S:147–162`)
-- **Shield use** — `USE <shield item>` activates shield; class/race caps max rating (`SPUR.USE.S:34–43`)
-- **Compass** — toggle compass on/off; compass can be damaged in combat (`SPUR.USE.S:44–50`, `SPUR.COMBAT.S druid`)
 - **Ring of invisibility** — USE toggles ring worn/off; makes player hard to see; evil alignment penalty (`SPUR.USE.S:52–56`)
 - **Potion** — restore HP or stats (`SPUR.USE.S`)
 - **Grenade** — single-use explosive (`SPUR.USE.S:15`)
@@ -114,6 +117,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Slippers of Galad** — location-specific item effect (`SPUR.USE.S:25`)
 - **Palintar** — links to misc6 (`SPUR.USE.S:20`)
 - **Crystal vial** — location-specific effect (`SPUR.USE.S:23–24`)
+- **Ammo consumption in combat** — `player.ammo_rounds` loaded but not yet decremented per shot; "NO AMMO READY" check not enforced (`SPUR.COMBAT.S:44`, `SPUR.COMBAT.S:84`)
 
 ---
 

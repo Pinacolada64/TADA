@@ -264,6 +264,9 @@ class Player:
 
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
+        # Loaded ammo state (set by USE command, consumed by combat).
+        self.ammo_rounds: int = kwargs.get('ammo_rounds', 0)
+        self.ammo_damage: int = kwargs.get('ammo_damage', 0)
         self.experience = kwargs.get('experience', 0)
         self.monsters_killed: list[int] = kwargs.get('monsters_killed', [])
         self.picked_up_items: list[int] = kwargs.get('picked_up_items', [])
@@ -849,7 +852,7 @@ class Player:
                 os.makedirs(parent, exist_ok=True)
             # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact.
             # Exclude session-only attributes that hold live objects and are not restored on load.
-            _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus'}
+            _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'compass_active'}
             data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
             from inventory import Inventory
