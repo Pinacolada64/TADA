@@ -161,6 +161,7 @@ class AttackResult:
     ineffective:     bool = False  # special weapon required but wrong weapon used
     instant_kill:    bool = False  # STORM weapon vs special-weapon monster
     monster_scared:  bool = False  # loud weapon scared monster away (scare subroutine)
+    bad_weapon_choice: bool = False  # p2<3: weapon is a poor match for this monster (SPUR.COMBAT.S:119)
     # SPUR.COMBAT.S lines 162-163: FIREBALL weapons get 10%-chance secondary heat burst
     fireball_secondary: int  = 0
     # SPUR.COMBAT.S line 164: hitting for >4 damage has a 60% chance of raising player DEX
@@ -187,6 +188,8 @@ class MonsterAttackResult:
     experience_drained: int  = 0
     # SPUR line 212: taking damage > 4 has a chance to reduce player DEX
     dex_lost:           bool = False
+    # SPUR.COMBAT.S:307: ps=ps-(a/2) — taking damage reduces player Strength (ps) by damage/2
+    strength_lost:      int  = 0
 
 
 @dataclass
@@ -387,6 +390,9 @@ def player_attacks(
     if sw.guaranteed_hit:
         p2 = 10
 
+    # Bad weapon choice: hit threshold is too low to be effective (SPUR.COMBAT.S:119)
+    bad_weapon_choice = p2 < 3 and not sw.guaranteed_hit
+
     a = random.randint(1, 10)                    # SPUR rnd.10a
 
     # Fast-path: "ease of use helps!" (SPUR line 139: if a > ws+2)
@@ -403,6 +409,7 @@ def player_attacks(
             weapon_name=weapon_name, weapon_id=weapon_id,
             attacker_name=getattr(player, 'name', ''),
             ease_helped=True, is_surprise=is_surprise,
+            bad_weapon_choice=bad_weapon_choice,
             monster_scared=scared,
         )
 
@@ -414,6 +421,7 @@ def player_attacks(
             hit=False, damage=0,
             weapon_name=weapon_name, weapon_id=weapon_id,
             attacker_name=getattr(player, 'name', ''),
+            bad_weapon_choice=bad_weapon_choice,
             monster_scared=scared,
         )
 
@@ -459,6 +467,7 @@ def player_attacks(
         weapon_name=weapon_name, weapon_id=weapon_id,
         attacker_name=getattr(player, 'name', ''),
         is_surprise=is_surprise, is_critical=is_critical,
+        bad_weapon_choice=bad_weapon_choice,
         monster_scared=scared,
         fireball_secondary=fireball_secondary,
         dex_improved=dex_improved,
@@ -635,6 +644,10 @@ def monster_attacks(monster: dict, player) -> MonsterAttackResult:
         if pd > 0:
             dex_lost = True
 
+    # Strength drain on hit (SPUR.COMBAT.S:307: ps=ps-(a/2))
+    # ps = Player Strength; taking damage grinds the player down physically.
+    strength_lost = max(1, damage // 2) if damage > 0 else 0
+
     return MonsterAttackResult(
         hit=True, damage=damage,
         shield_blocked=shield_blocked, armor_blocked=armor_blocked,
@@ -644,6 +657,7 @@ def monster_attacks(monster: dict, player) -> MonsterAttackResult:
         fire_damage=fire_damage,
         experience_drained=experience_drained,
         dex_lost=dex_lost,
+        strength_lost=strength_lost,
     )
 
 

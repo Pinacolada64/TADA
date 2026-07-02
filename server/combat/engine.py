@@ -502,6 +502,8 @@ class CombatSession:
         mname = self.monster.get('name', 'the monster')
         pname = _player_name(ctx)
 
+        if result.bad_weapon_choice:
+            await ctx.send('(bad weapon choice)')
         if result.ease_helped:
             await ctx.send('(Ease of use helps!)')
 
@@ -580,6 +582,9 @@ class CombatSession:
         # SPUR line 212: DEX reduction on a heavy hit
         if result.dex_lost:
             lines.append('(You feel a bit less dexterous.)')
+        # SPUR.COMBAT.S:307: strength drain on any hit
+        if result.strength_lost:
+            lines.append(f'(The blow saps your strength. -{result.strength_lost} STR)')
 
         await ctx.send(lines)
         await ctx.send_room(
@@ -624,6 +629,16 @@ class CombatSession:
         # DEX reduction on a hard hit (SPUR.COMBAT.S line 212)
         if result.dex_lost:
             _apply_dex_change(player, -1)
+
+        # Strength drain (SPUR.COMBAT.S:307: ps=ps-(a/2))
+        if result.strength_lost:
+            try:
+                stats   = getattr(player, 'stats', None) or {}
+                current = int(stats.get('Strength', 10) or 10)
+                player.stats['Strength'] = max(0, current - result.strength_lost)
+                player.unsaved_changes = True
+            except Exception:
+                log.exception('_apply_monster_damage: failed to apply strength_lost')
 
     async def _monster_dies(self, ctx: 'GameContext', *, player_killed: bool = True) -> None:
         """Handle monster death: rewards, records, cleanup.

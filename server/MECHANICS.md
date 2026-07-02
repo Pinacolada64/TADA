@@ -34,7 +34,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **LURK mode** — player fires over allies' shoulders; to-hit penalty; requires at least one living ally (`SPUR.COMBAT.S:87–96`)
 - **Assassin critical hit** — class 8 (Assassin), 10% chance to double damage (`SPUR.COMBAT.S:135`)
 - **Ease-of-use help message** — "(EASE OF USE HELPS!)" when roll barely misses and weapon skill is high (`SPUR.COMBAT.S:139`)
-- **Bad weapon choice warning** — "(bad weapon choice)" when `p2 < 3` (`SPUR.COMBAT.S:119`)
+- ✅ **Bad weapon choice warning** — "(bad weapon choice)" when `p2 < 3` (`SPUR.COMBAT.S:119`)
 
 #### Defence
 - **Shield** — blocks some incoming damage; degrades; can be destroyed; max rating varies by class/race; shield items usable via USE command (`SPUR.COMBAT.S`, `SPUR.USE.S:34–43`)
@@ -61,7 +61,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Poison** — tick damage (−2 HP); 30% chance per tick; tick also reduces STR if ring is worn (`SPUR.COMBAT.S:15`)
 - **Disease** — tick damage (−1 HP); 30% chance per tick (`SPUR.COMBAT.S:16`)
 - **Ring of power weakening** — wearing the ring has a 10% per-tick chance to reduce STR/WIS (`SPUR.COMBAT.S:14`)
-- **Fatigue** — taking damage also depletes food (`ps`) proportionally (`SPUR.COMBAT.S:307`)
+- ✅ **Strength drain on hit** — taking damage reduces player Strength by `damage/2` (`ps=ps-(a/2)`); `ps` = Player Strength, not food (`SPUR.COMBAT.S:307`)
 - **Too weak to wield** — if `ps < 4` (extremely hungry), weapon is automatically unreadied (`SPUR.COMBAT.S:321`)
 - **Dusk warning** — message when session time < 120 ticks remain (`SPUR.COMBAT.S:11`)
 
