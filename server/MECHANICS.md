@@ -246,6 +246,7 @@ All sections are stubs. Source: `SPUR.ANNEX.S`.
 - **System data view** — server-level statistics (total players, kills, etc.)
 - **Message boards (×3)** — three separate threaded boards (ties into Threaded Message Boards design)
 - **Player rosters** — separate lists for Civilians, Mark of the Claw, Mark of the Sword, Iron Fist, and Outlaws
+- **Locker** — personal item storage in the Annex; combination-locked (`SPUR.ANNEX.S`; also referenced in `SPUR.SHOP.S` and `SPUR.MISC2.S`)
 
 ---
 
