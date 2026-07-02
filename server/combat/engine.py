@@ -226,6 +226,9 @@ class CombatSession:
                 rounds = int(getattr(bystander_player, 'ammo_rounds', 0) or 0)
                 bystander_player.ammo_rounds = max(0, rounds - 1)
                 bystander_player.unsaved_changes = True
+                if not result.hit:
+                    await self._stray_round(ctx, result.weapon_name,
+                                            weapon_id=result.weapon_id)
             _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
             if result.weapon_id:
                 _award_weapon_exp(ctx, result.weapon_id)
@@ -353,6 +356,9 @@ class CombatSession:
                     rounds = int(getattr(player, 'ammo_rounds', 0) or 0)
                     player.ammo_rounds = max(0, rounds - 1)
                     player.unsaved_changes = True
+                    if not result.hit:
+                        await self._stray_round(ctx, result.weapon_name,
+                                                weapon_id=result.weapon_id)
 
                 # Apply DEX improvement from a significant hit
                 if result.dex_improved:
@@ -735,6 +741,74 @@ class CombatSession:
     # ------------------------------------------------------------------
     # Internal: participant tracking
     # ------------------------------------------------------------------
+
+    async def _stray_round(self, ctx: 'GameContext', weapon_name: str,
+                           weapon_id: int = 0) -> None:
+        """Missed ammo/energy round may hit a party ally or bystander.
+
+        Chance scales with weapon experience (lower skill = more likely):
+          GREEN   (vp  0-39): 1-in-3
+          VETERAN (vp 40-98): 1-in-6
+          ELITE   (vp    99): 1-in-10
+
+        Targets: living Ally NPCs in the shooter's party, plus other player
+        attackers in the same room (bystanders who joined the fight).
+        Damage: 1–4 HP (stray round, not a clean shot).
+        """
+        import random as _random
+        from bar.ally_data import Ally, AllyStatus
+
+        exp_dict = getattr(ctx.player, 'weapon_experience', {}) or {}
+        vp = int(exp_dict.get(str(weapon_id), 0))
+        if vp >= 99:
+            chance = 10   # ELITE: 1-in-10
+        elif vp >= 40:
+            chance = 6    # VETERAN: 1-in-6
+        else:
+            chance = 3    # GREEN: 1-in-3
+
+        if _random.randint(1, chance) != 1:
+            return
+
+        # Build candidate pool: living allies then other player attackers.
+        ally_targets = [
+            m for m in (getattr(ctx.player, 'party', None) or [])
+            if isinstance(m, Ally)
+            and m.status not in (AllyStatus.DEAD, AllyStatus.UNCONSCIOUS)
+            and (m.hit_points or 0) > 0
+        ]
+        player_targets = [c for c in self.attackers if c is not ctx]
+
+        if not ally_targets and not player_targets:
+            return
+
+        dmg = _random.randint(1, 4)
+
+        if ally_targets and (not player_targets or _random.randint(0, 1)):
+            target_ally = _random.choice(ally_targets)
+            target_ally.hit_points = max(0, (target_ally.hit_points or 0) - dmg)
+            ctx.player.unsaved_changes = True
+            await ctx.send(
+                f'Stray round from the {weapon_name} clips {target_ally.name}!'
+                f'  (-{dmg} HP)'
+            )
+            if target_ally.hit_points <= 0:
+                target_ally.status = AllyStatus.DEAD
+                await ctx.send(f'{target_ally.name} has been killed by friendly fire!')
+        else:
+            target_ctx = _random.choice(player_targets)
+            tplayer = target_ctx.player
+            hp = int(getattr(tplayer, 'hit_points', 1) or 1)
+            tplayer.hit_points = max(0, hp - dmg)
+            tplayer.unsaved_changes = True
+            tname = getattr(tplayer, 'name', 'Someone')
+            await ctx.send(
+                f'Stray round from the {weapon_name} hits {tname}!  (-{dmg} HP)'
+            )
+            await target_ctx.send(
+                f'A stray round from {_player_name(ctx)}\'s {weapon_name} hits you!'
+                f'  (-{dmg} HP)'
+            )
 
     async def _join_attacker(self, ctx: 'GameContext') -> None:
         if ctx not in self.attackers:
