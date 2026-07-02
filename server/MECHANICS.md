@@ -186,6 +186,23 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Wraith Master title** — players with `WRAITH_MASTER` flag get ", Wraith Master of Spur!" appended to their name at login (stubbed in `commands/connect.py:242`)
 - **WHO command** — lists currently online players; replaces the SPUR "last adventurer" login display (stubbed in `commands/connect.py:247`)
 - **Guild follow** — player character automatically follows guild members to their location when logged off; toggle in settings (stubbed in `commands/connect.py:274`)
+- **DIG command** — dig for buried items or gold (`SPUR.MAIN.S`)
+- **WEAKEN command** — sysop-only stat reduction command (`SPUR.MAIN.S`)
+- **GET command** — pick up items, food, monsters, cursed items, or another player from the room (`SPUR.MISC.S`)
+- **DROP command** — drop items, compass, or weapons into the room (`SPUR.MISC.S`)
+- **GIVE / TAKE** — transfer items to and from allies in your party (`SPUR.MISC.S`)
+- **Booby-trapped items** — items that trigger a trap effect when picked up (`SPUR.MISC.S`)
+- **Pandora's Box** — special item with unique pickup/open effect (`SPUR.MISC.S`)
+- **ORDER command** — rearrange the tactical order of allies in the party (point / flank / rear) (`SPUR.MISC2.S`)
+- **Ally payment** — allies require weekly payment (gold) to remain loyal; non-payment triggers desertion (`SPUR.MISC2.S`)
+- **Allies joining you** — conditions under which free allies in a room may voluntarily join the party (`SPUR.MISC2.S`)
+- **Ally searching** — allies can autonomously find and return gold to the player (`SPUR.MISC6.S`)
+- **Ally desertion / death** — allies may die or leave if unpaid, injured, or mistreated; status reverts to FREE (`SPUR.MISC6.S`)
+- **Random events** — location-triggered events: little girl encounter, meteor strike, Enforcer arrival, Galadriel appearance (`SPUR.MISC6.S`)
+- **Statue carving** — player action to carve a permanent statue in a room (`SPUR.MISC6.S`)
+- **AMMO command** — view and manage ammunition counts (`SPUR.MISC5.S`)
+- **STATS / STAT2** — two-level stat display; STAT2 shows extended information (`SPUR.MISC5.S`)
+- **FOLLOW ME command** — causes nearby players or allies to follow the player (`SPUR.MISC5.S`)
 
 ### Future
 - **Chat channels** — named, persistent channels players can join/leave (e.g. `#general`, `#claw`,
@@ -210,6 +227,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Wizard** — buy spells; Wizards pay half price, Druids two-thirds; max 10 spells (`SPUR.SHOP.S`)
 - **Clan / Guild office** — change guild affiliation (Claw, Sword, Iron Fist, Civilian, Outlaw); costs gold and honor (`SPUR.SHOP.S`)
 - **Pawn Shop** — sell (not buy) items to the merchant; all found items are sellable (tips.txt) (`SPUR.SHOP.S`)
+- **Olly's Ammo** — buy ammunition for ranged and energy weapons (`SPUR.SHOP.S`)
 
 ---
 
@@ -238,11 +256,11 @@ All sections are stubs. Source: `SPUR.ANNEX.S`.
 - ✅ **Food/drink menu** — `food_menu()` helper exists; rations list rendered
 
 ### Stubs (not yet implemented)
-- **Vinny** — loan shark NPC; apply for loans, pay back, store gold in bar (`t_bar_vinney.lbl`); stub present, full dialog not wired
-- **Skip** — NPC stub (role TBD)
-- **Bar None** — NPC stub (role TBD; likely bar keep / general service)
-- **Zelda** — NPC stub (role TBD)
-- **Blue Djinn** — NPC stub (role TBD)
+- **Vinny** — loan shark; apply for loans, pay back, store gold in bar; also arranges thugs (`SPUR.BAR.S`, `SPUR.BAR3.S`); stub present, full dialog not wired
+- **Skip** — sells hash or coffee; simple food/drink vendor (`SPUR.BAR2.S`)
+- **Bar None** — Guss the barkeep; coin flips, blackjack (`SPUR.BAR2.S`); our stub is `bar/bar_none.py`
+- **Zelda** — reanimates monsters for players; studies and displays player stats (`SPUR.BAR.S`)
+- **Blue Djinn** — hired hits; pay to have another player attacked (`SPUR.BAR.S`)
 - **Bouncer** — enforces entry rules; role partially referenced
 - **Bar brawl / PvP** — fighting other players in the bar; stub message "combat not yet available" (`bar/main.py:269`)
 
