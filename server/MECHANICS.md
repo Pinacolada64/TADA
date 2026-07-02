@@ -117,7 +117,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Slippers of Galad** — location-specific item effect (`SPUR.USE.S:25`)
 - **Palintar** — links to misc6 (`SPUR.USE.S:20`)
 - **Crystal vial** — location-specific effect (`SPUR.USE.S:23–24`)
-- **Ammo consumption in combat** — `player.ammo_rounds` loaded but not yet decremented per shot; "NO AMMO READY" check not enforced (`SPUR.COMBAT.S:44`, `SPUR.COMBAT.S:84`)
+- ✅ **Ammo consumption in combat** — projectile/energy weapons check `player.ammo_rounds` before swinging; "NO AMMO READY" blocks attack; `ammo_damage` added to hit damage; one round decremented per swing (`SPUR.COMBAT.S:44,84,99,144`)
 
 ---
 

@@ -221,6 +221,11 @@ class CombatSession:
             result = self._swing(ctx)
             await _add_exp(ctx, exp_per_swing())
             await self._narrate_player_swing(ctx, result, bystander=True)
+            if result.ammo_used:
+                bystander_player = ctx.player
+                rounds = int(getattr(bystander_player, 'ammo_rounds', 0) or 0)
+                bystander_player.ammo_rounds = max(0, rounds - 1)
+                bystander_player.unsaved_changes = True
             _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
             if result.weapon_id:
                 _award_weapon_exp(ctx, result.weapon_id)
@@ -342,6 +347,12 @@ class CombatSession:
                 result = self._swing(ctx)
                 await _add_exp(ctx, exp_per_swing())
                 await self._narrate_player_swing(ctx, result)
+
+                # Ammo consumed this swing (SPUR.COMBAT.S:99 vn=vn-1)
+                if result.ammo_used:
+                    rounds = int(getattr(player, 'ammo_rounds', 0) or 0)
+                    player.ammo_rounds = max(0, rounds - 1)
+                    player.unsaved_changes = True
 
                 # Apply DEX improvement from a significant hit
                 if result.dex_improved:
@@ -514,6 +525,11 @@ class CombatSession:
         mname = self.monster.get('name', 'the monster')
         pname = _player_name(ctx)
 
+        if result.no_ammo:
+            wn = result.weapon_name or 'weapon'
+            await ctx.send(f'NO AMMO READY for the {wn}!')
+            await ctx.send('(Try USE to load ammunition first.)')
+            return
         if result.bad_weapon_choice:
             await ctx.send('(bad weapon choice)')
         if result.ease_helped:

@@ -166,6 +166,8 @@ class AttackResult:
     fireball_secondary: int  = 0
     # SPUR.COMBAT.S line 164: hitting for >4 damage has a 60% chance of raising player DEX
     dex_improved:       bool = False
+    no_ammo:  bool = False  # projectile/energy weapon fired with 0 rounds (SPUR.COMBAT.S:84)
+    ammo_used: bool = False  # one round consumed this swing (SPUR.COMBAT.S:99: vn=vn-1)
 
 
 @dataclass
@@ -356,6 +358,19 @@ def player_attacks(
     vp       = int(exp_dict.get(str(weapon_id), 0))
     zu, zv   = assemble_zu_zv(weapon, vp, xp_level, class_to_hit, class_damage)
 
+    # Ammo check: projectile and energy weapons consume one round per swing.
+    # STORM bypasses ammo entirely (SPUR.COMBAT.S:44–45, 84, 99).
+    _needs_ammo = (wc_str in ('projectile', 'energy')
+                   and 'STORM' not in weapon_name.upper())
+    ammo_rounds = int(getattr(player, 'ammo_rounds', 0) or 0)
+    ammo_damage = int(getattr(player, 'ammo_damage', 0) or 0)
+    if _needs_ammo and ammo_rounds < 1:
+        return AttackResult(
+            hit=False, damage=0, no_ammo=True,
+            weapon_name=weapon_name, weapon_id=weapon_id,
+            attacker_name=getattr(player, 'name', ''),
+        )
+
     # Special weapon check (SPUR.COMBAT.S lines 127-151)
     sw = check_special_weapon(weapon, monster, weapons_data or [])
     # Resolve storm_penetration sentinel: fill in actual xp_level now that we have it.
@@ -369,6 +384,7 @@ def player_attacks(
             hit=False, damage=0, ineffective=True,
             weapon_name=weapon_name, weapon_id=weapon_id,
             attacker_name=getattr(player, 'name', ''),
+            ammo_used=_needs_ammo,
         )
 
     # Instant kill: STORM weapon vs special-weapon monster (SPUR lines 128-129: ms=0)
@@ -378,6 +394,7 @@ def player_attacks(
             hit=True, damage=monster_hp, instant_kill=True,
             weapon_name=weapon_name, weapon_id=weapon_id,
             attacker_name=getattr(player, 'name', ''),
+            ammo_used=_needs_ammo,
         )
 
     ma = monster.get('to_hit') or 4              # SPUR ma
@@ -404,6 +421,7 @@ def player_attacks(
                                    char_class=getattr(player, 'char_class', None),
                                    storm_penetration=sw.storm_penetration)
         dmg = _apply_special_weapon_damage(dmg, sw)
+        dmg += ammo_damage  # SPUR.COMBAT.S:144 b=b+vm
         scared = _scare_check(sw, monster, monster_attack_count)
         return AttackResult(
             hit=True, damage=dmg,
@@ -412,6 +430,7 @@ def player_attacks(
             ease_helped=True, is_surprise=is_surprise,
             bad_weapon_choice=bad_weapon_choice,
             monster_scared=scared,
+            ammo_used=_needs_ammo,
         )
 
     # Miss check (SPUR line 141: if a > p2-vq → missed)
@@ -424,6 +443,7 @@ def player_attacks(
             attacker_name=getattr(player, 'name', ''),
             bad_weapon_choice=bad_weapon_choice,
             monster_scared=scared,
+            ammo_used=_needs_ammo,
         )
 
     # Hit
@@ -432,6 +452,7 @@ def player_attacks(
                                is_surprise=is_surprise, char_class=char_class,
                                storm_penetration=sw.storm_penetration)
     dmg = _apply_special_weapon_damage(dmg, sw)
+    dmg += ammo_damage  # SPUR.COMBAT.S:144 b=b+vm
 
     # Assassin critical hit: 1-in-10 chance to double damage (SPUR line 146)
     is_critical = False
@@ -472,6 +493,7 @@ def player_attacks(
         monster_scared=scared,
         fireball_secondary=fireball_secondary,
         dex_improved=dex_improved,
+        ammo_used=_needs_ammo,
     )
 
 
