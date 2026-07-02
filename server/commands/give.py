@@ -51,6 +51,36 @@ def _players_in_room(ctx: GameContext) -> list:
 
 
 _FOOD_KINDS = {'food', 'ration', 'drink'}
+
+# Strength threshold below which a hungry ally benefits from food (SPUR: a[123] < 11)
+_BODY_BUILD_STR_CAP = 11
+
+
+async def _try_body_build(ctx: GameContext, ally, item) -> None:
+    """If *item* is food/drink, attempt ally body building.
+
+    Poisoned food (kind='cursed') harms the ally instead of helping.
+    Normal food only boosts strength when the ally is below _BODY_BUILD_STR_CAP.
+    """
+    ikind = (getattr(item, 'kind', '') or '').lower()
+    aname = ally.name
+
+    if ikind == 'cursed':
+        # Cursed ration — poisons the ally regardless of strength
+        ally.strength = max(1, ally.strength - 1)
+        await ctx.send(f'{aname} clutches their stomach — something was wrong with that food!')
+        return
+
+    if ikind not in _FOOD_KINDS:
+        return
+
+    if ally.strength >= _BODY_BUILD_STR_CAP:
+        return
+
+    ally.strength += 1
+    await ctx.send(f'{aname} eats hungrily and looks stronger!  (Str {ally.strength})')
+
+
 # Monsters known for hoarding gold
 _GREEDY_KEYWORDS = ('DRAGON', 'GOBLIN', 'ORC', 'TROLL', 'KOBOLD', 'PIRATE')
 # Keywords that suggest a valuable trinket a greedy monster would keep
@@ -227,6 +257,7 @@ class GiveCommand(Command):
             ally.items.append(entry)
             await ctx.send(f'You give the {iname} to {ally.name}.')
             await ctx.send(f'{ally.name} takes the {iname} and tucks it away.')
+            await _try_body_build(ctx, ally, item)
             return CommandResult.ok()
 
         # --- Other player in room ---

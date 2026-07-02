@@ -20,6 +20,14 @@ Coverage:
     - give item name not in inventory → error message
     - interactive item selection (no name arg)
 
+  BODY BUILDING (give food to ally)
+    - weak ally (str < 11) eats food → strength +1, message shown
+    - weak ally eats drink → strength +1
+    - strong ally (str >= 11) eats food → no strength change, no message
+    - non-food item given to weak ally → no strength change
+    - cursed ration → strength -1, sickness message
+    - cursed ration on ally at str 1 → strength floors at 1
+
   TAKE
     - take item from ally → item in player inv, removed from ally.items
     - take by partial item name
@@ -443,6 +451,82 @@ class TestGetNoLongerAliasesTake(unittest.TestCase):
     def test_take_not_in_get_aliases(self):
         from commands.get import GetCommand
         self.assertNotIn('take', GetCommand.aliases)
+
+
+# ---------------------------------------------------------------------------
+# Body building: give food/drink to a weak ally
+# ---------------------------------------------------------------------------
+
+class TestBodyBuilding(unittest.IsolatedAsyncioTestCase):
+
+    def _setup(self, ally_strength=8):
+        player = _make_player()
+        ally   = _make_ally(name='ALAN OF YOR', strength=ally_strength)
+        player.party.add_member(player, ally)
+        ctx    = _FakeCtx(player)
+        cmd    = GiveCommand()
+        return player, ally, ctx, cmd
+
+    async def test_food_boosts_weak_ally_strength(self):
+        player, ally, ctx, cmd = self._setup(ally_strength=8)
+        food = _make_item('RATION', item_id=1, kind='food')
+        player.inventory.add(food)
+        await cmd.execute(ctx, 'ration', 'to', 'alan')
+        self.assertEqual(ally.strength, 9)
+
+    async def test_drink_boosts_weak_ally_strength(self):
+        player, ally, ctx, cmd = self._setup(ally_strength=6)
+        drink = _make_item('ALE', item_id=2, kind='drink')
+        player.inventory.add(drink)
+        await cmd.execute(ctx, 'ale', 'to', 'alan')
+        self.assertEqual(ally.strength, 7)
+
+    async def test_food_boost_shows_message(self):
+        player, ally, ctx, cmd = self._setup(ally_strength=8)
+        food = _make_item('RATION', item_id=1, kind='food')
+        player.inventory.add(food)
+        await cmd.execute(ctx, 'ration', 'to', 'alan')
+        self.assertIn('stronger', ctx.sent().lower())
+
+    async def test_strong_ally_no_boost(self):
+        """Ally at or above strength cap gets no bonus."""
+        player, ally, ctx, cmd = self._setup(ally_strength=11)
+        food = _make_item('RATION', item_id=1, kind='food')
+        player.inventory.add(food)
+        await cmd.execute(ctx, 'ration', 'to', 'alan')
+        self.assertEqual(ally.strength, 11)
+        self.assertNotIn('stronger', ctx.sent().lower())
+
+    async def test_non_food_no_boost(self):
+        """Non-food items do not trigger body building."""
+        player, ally, ctx, cmd = self._setup(ally_strength=8)
+        sword = _make_item('SHORT SWORD', item_id=3, kind='', category=ItemCategory.WEAPON)
+        player.inventory.add(sword)
+        await cmd.execute(ctx, 'sword', 'to', 'alan')
+        self.assertEqual(ally.strength, 8)
+
+    async def test_cursed_food_weakens_ally(self):
+        """Poisoned (cursed) ration reduces ally strength by 1."""
+        player, ally, ctx, cmd = self._setup(ally_strength=8)
+        cursed = _make_item('CURSED RATION', item_id=4, kind='cursed')
+        player.inventory.add(cursed)
+        await cmd.execute(ctx, 'cursed', 'to', 'alan')
+        self.assertEqual(ally.strength, 7)
+
+    async def test_cursed_food_shows_sickness_message(self):
+        player, ally, ctx, cmd = self._setup(ally_strength=8)
+        cursed = _make_item('CURSED RATION', item_id=4, kind='cursed')
+        player.inventory.add(cursed)
+        await cmd.execute(ctx, 'cursed', 'to', 'alan')
+        self.assertIn('wrong with that food', ctx.sent().lower())
+
+    async def test_cursed_food_floors_at_one(self):
+        """Strength cannot drop below 1 from cursed food."""
+        player, ally, ctx, cmd = self._setup(ally_strength=1)
+        cursed = _make_item('CURSED RATION', item_id=4, kind='cursed')
+        player.inventory.add(cursed)
+        await cmd.execute(ctx, 'cursed', 'to', 'alan')
+        self.assertEqual(ally.strength, 1)
 
 
 # ---------------------------------------------------------------------------
