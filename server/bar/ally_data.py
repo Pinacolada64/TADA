@@ -29,11 +29,10 @@ class AllyPosition(Enum):
 
 
 class AllyStatus(Enum):
-    FREE = auto()
-    SERVANT = auto()
-    IN_PARTY = auto()
-    UNCONSCIOUS = auto()
-    DEAD = auto()
+    FREE        = auto()   # available for sale; also free spirits (not purchasable back)
+    SERVANT     = auto()   # bought from Olaf; reverts to FREE if they desert
+    UNCONSCIOUS = auto()   # knocked out in combat
+    DEAD        = auto()   # killed in combat
 
 
 # 1. Define a clear and robust data structure

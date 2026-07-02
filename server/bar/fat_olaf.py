@@ -44,9 +44,9 @@ def filter_allies(
 
     Pass filter_by_status=None to get all allies unfiltered.
     Examples:
-        filter_allies(all_allies, AllyStatus.FREE)        # available for sale
-        filter_allies(all_allies, AllyStatus.IN_PARTY)    # owned by someone
-        filter_allies(all_allies)                          # everyone
+        filter_allies(all_allies, AllyStatus.FREE)     # available for sale
+        filter_allies(all_allies, AllyStatus.SERVANT)  # owned by someone
+        filter_allies(all_allies)                       # everyone
     """
     if filter_by_status is None:
         return list(ally_list)
@@ -84,17 +84,12 @@ def _owned_allies(player) -> List[Ally]:
 
 
 def _purchased_allies(player) -> List[Ally]:
-    """Allies this player purchased (status IN_PARTY or SERVANT, not FREE).
-
-    SPUR.BAR.S checks zs==0 to refuse 'free spirits'; here we approximate by
-    accepting any ally with IN_PARTY or SERVANT status since those are always
-    set during a purchase flow.
-    """
+    """Allies this player purchased (SERVANT status), excluding free spirits (FREE)."""
     from bar.ally_data import Ally as AllyType
     return [
         m for m in player.party
         if isinstance(m, AllyType)
-        and m.status in (AllyStatus.IN_PARTY, AllyStatus.SERVANT)
+        and m.status == AllyStatus.SERVANT
     ]
 
 
@@ -191,7 +186,7 @@ async def _buy_servant(ctx: GameContext, master_list: List[Ally]) -> None:
             f'{_AP}Yu hav {silver}s left.{_AP}'
         )
         player.unsaved_changes = True
-        chosen.status = AllyStatus.IN_PARTY
+        chosen.status = AllyStatus.SERVANT
         # Strength +5 on hire (SPUR.BAR.S: a1=x2+5 — ally is emboldened by new contract)
         chosen.strength = chosen.strength + 5
         await player.party.add(ctx, player, chosen)
