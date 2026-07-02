@@ -160,6 +160,18 @@ def _give_silver(player, amount: int) -> None:
         log.exception('_give_silver: error giving %d silver', amount)
 
 
+def _ammo_term(weapon_name: str) -> str:
+    """Return the appropriate ammo noun for a weapon (singular)."""
+    n = weapon_name.upper()
+    if 'SLING' in n:
+        return 'stone'
+    if 'BLOWGUN' in n:
+        return 'dart'
+    if 'BOW' in n:
+        return 'arrow'
+    return 'bullet'
+
+
 def _monster_hp(monster: dict) -> int:
     return int(monster.get('strength') or monster.get('hit_points') or 5)
 
@@ -401,6 +413,34 @@ class CombatSession:
                     await self._monster_dies(ctx, player_killed=False)
                     return
 
+                # Missile first strike: if ammo is loaded and monster hasn't
+                # attacked yet, player's opening shot counts as first strike
+                # and the monster skips its swing this round (SPUR.COMBAT.S:219).
+                if (self._monster_attack_count == 0
+                        and int(getattr(player, 'ammo_rounds', 0) or 0) > 0):
+                    await ctx.send('MISSILE: FIRST STRIKE!')
+                    self._monster_attack_count += 1
+                    continue
+
+                # Pole weapon first strike: chance to outreach monster on the
+                # first exchange. Roll + (monster agility × 3) + 2 < player DEX
+                # → first strike; otherwise monster still swings (SPUR.COMBAT.S:221).
+                if self._monster_attack_count == 0:
+                    _pw = getattr(player, 'readied_weapon', None)
+                    _wc = getattr(_pw, 'weapon_class', None)
+                    _wc_val = (_wc.value if hasattr(_wc, 'value') else str(_wc)).lower()
+                    if _wc_val == 'pole/range':
+                        _ma  = int(self.monster.get('to_hit', 4) or 4)
+                        _pd  = int((getattr(player, 'stats', None) or {}).get('Dexterity', 10))
+                        _roll = random.randint(1, 10)
+                        await ctx.send('POLE WEAPON: ', end='')
+                        if _roll + (_ma * 3) + 2 < _pd:
+                            await ctx.send('YOU MANAGE TO GET FIRST STRIKE!')
+                            self._monster_attack_count += 1
+                            continue
+                        else:
+                            await ctx.send("OOPS, DIDN'T GET FIRST STRIKE..")
+
                 # Monster swings back at leader
                 m_result = monster_attacks(self.monster, player)
 
@@ -532,8 +572,9 @@ class CombatSession:
         pname = _player_name(ctx)
 
         if result.no_ammo:
-            wn = result.weapon_name or 'weapon'
-            await ctx.send(f'NO AMMO READY for the {wn}!')
+            wn   = result.weapon_name or 'weapon'
+            term = _ammo_term(wn).upper() + 'S'
+            await ctx.send(f'NO {term} READY for the {wn}!')
             await ctx.send('(Try USE to load ammunition first.)')
             return
         if result.bad_weapon_choice:
@@ -716,11 +757,47 @@ class CombatSession:
                 if not getattr(player, 'is_expert', False):
                     await ctx.send('(You feel a bit wiser.)')
 
+        # Ammo recovery for bows/slings/blowguns (SPUR.MISC.S:427)
+        await self._recover_ammo(ctx)
+
         # Notify bystanders of the kill (they earned exp per-swing already)
         for b_ctx in self.attackers:
             if b_ctx is ctx:
                 continue
             await b_ctx.send(f'|green|{mname} is slain!|reset|')
+
+    async def _recover_ammo(self, ctx: 'GameContext') -> None:
+        """After combat, bow/sling/blowgun weapons may recover spent rounds (SPUR.MISC.S:427).
+
+        Conditions: projectile weapon, not STORM, ammo_max >= 3, weapon name
+        contains BOW/SLING/BLOWGUN.  Recovers 1–ammo_max rounds, capped at ammo_max.
+        """
+        player = ctx.player
+        weapon = getattr(player, 'readied_weapon', None)
+        if weapon is None:
+            return
+        wname = (getattr(weapon, 'name', '') or '').upper()
+        if 'STORM' in wname:
+            return
+        wc     = getattr(weapon, 'weapon_class', None)
+        wc_val = (wc.value if hasattr(wc, 'value') else str(wc)).lower() if wc else ''
+        if wc_val != 'projectile':
+            return
+        ammo_max = int(getattr(player, 'ammo_max', 0) or 0)
+        if ammo_max < 3:
+            return
+        if not any(kw in wname for kw in ('BOW', 'SLING', 'BLOWGUN')):
+            return
+        current = int(getattr(player, 'ammo_rounds', 0) or 0)
+        recovered = random.randint(1, ammo_max)
+        new_total = min(ammo_max, current + recovered)
+        actual = new_total - current
+        if actual > 0:
+            player.ammo_rounds = new_total
+            player.unsaved_changes = True
+            term = _ammo_term(wname)
+            noun = term + ('s' if actual != 1 else '')
+            await ctx.send(f'YOU RECOVER {actual} {noun.upper()}.')
 
     async def _player_dies(self, ctx: 'GameContext') -> None:
         """Handle player death during combat."""

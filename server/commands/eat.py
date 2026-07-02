@@ -78,6 +78,17 @@ class EatCommand(Command):
         if inv is not None:
             inv.remove(item)
 
+        # Monster meat — restores food; diseased monster's meat has 30% chance to infect
+        # (SPUR.MISC3.S:369 fd=69 fd$=m$+" MEAT"; mon.des disease check).
+        if uname.endswith(' MEAT'):
+            if getattr(item, 'diseased_meat', False) and random.randint(1, 10) < 3:
+                apply_disease(player)
+                await ctx.send([f'You eat the {name}.', 'YUK!  YOU PICKED UP A DISEASE FROM THE THING!'])
+            else:
+                restore_food(player, random.randint(2, 6))
+                await ctx.send(f'You eat the {name}.  (Tastes like chicken.)')
+            return CommandResult.ok()
+
         # OLD HAMBURGER — causes disease (SPUR.SUB.S old subroutine).
         if 'OLD ' in uname:
             apply_disease(player)

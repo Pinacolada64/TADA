@@ -1,9 +1,73 @@
 """commands/get.py — Pick up an item from the current room."""
+import random
+
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from inventory import InventoryEntry
 from items import Item, ItemCategory
 from network_context import GameContext
+
+# Weapon id_numbers for fireballs and staves (weapons.json)
+_FIREBALL_IDS = {14, 15, 39}   # FIREBALL, LARGE FIREBALL, SMALL FIREBALL
+_STAFF_IDS    = {3, 47}         # WOOD STAFF, STORM STAFF
+_GAUNTLETS_ID = 68              # gauntlets (objects.json)
+
+# Special item id_numbers (objects.json)
+_BOOBY_TRAP_IDS = {70, 72}     # strange weapon, funny doll — explode on pickup (SPUR.MISC.S:282)
+_PANDORAS_BOX   = 71            # Pandora's box (SPUR.MISC.S:283)
+_GOLD_ROSE      = 41            # gold rose — poisoned stickers (SPUR.MISC.S get.itm)
+_FIREPLACE      = 81            # fireplace — USE only (SPUR.MISC.S:285)
+_OBELISK        = 139           # huge black obelisk — too large (SPUR.MISC.S:287)
+
+
+def _hp5_effect(player) -> tuple[str, ...]:
+    """SPUR hp.5: reduce INT by 5, reduce HP to 5. Returns message lines."""
+    msgs = []
+    stats = getattr(player, 'stats', None) or {}
+    pi = int(stats.get('Intelligence', 10))
+    if pi > 5:
+        stats['Intelligence'] = pi - 5
+        player.stats = stats
+        msgs.append('You feel dumber!')
+    hp = int(getattr(player, 'hit_points', 1) or 1)
+    if hp > 5:
+        msgs.append(f'You take {hp - 5} damage!')
+        player.hit_points = 5
+    player.unsaved_changes = True
+    return tuple(msgs)
+
+
+def _monster_in_room(ctx: GameContext) -> dict | None:
+    """Return the monster dict for the current room, or None if none present."""
+    game_map = getattr(ctx.server, 'game_map', None)
+    monsters = getattr(ctx.server, 'monsters', [])
+    if not game_map or not monsters:
+        return None
+    room_no = getattr(ctx.client, 'room', None)
+    if room_no is None:
+        return None
+    room    = game_map.rooms.get(int(room_no))
+    if not room:
+        return None
+    mon_idx = int(getattr(room, 'monster', 0) or 0) - 1
+    if 0 <= mon_idx < len(monsters):
+        return monsters[mon_idx]
+    return None
+
+
+def _players_in_room(ctx: GameContext) -> list:
+    """Return player objects for other players sharing this room."""
+    my_room = getattr(ctx.client, 'room', None)
+    results = []
+    for client in ctx.server.clients.values():
+        if client is ctx.client:
+            continue
+        if getattr(client, 'room', None) != my_room:
+            continue
+        p = getattr(client, 'player', None)
+        if p:
+            results.append(p)
+    return results
 
 
 def _room_available_items(ctx: GameContext) -> list[tuple]:
@@ -70,7 +134,7 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
 
 class GetCommand(Command):
     name    = 'get'
-    aliases = ['g', 'take', 'pick']
+    aliases = ['g', 'pick']
     modes   = {Mode.GAME}
 
     help = Help(
@@ -93,20 +157,25 @@ class GetCommand(Command):
 
         available = _room_available_items(ctx)
 
-        if not available:
-            await ctx.send('There is nothing here to pick up.')
-            return CommandResult.ok()
-
         if args:
             target = ' '.join(args).lower()
             matches = [(name, entry, rm) for name, entry, rm in available
                        if target in name.lower()]
+
+            # No item matched — check for a monster or other player by that name
             if not matches:
-                await ctx.send(f'You do not see any "{" ".join(args)}" here.')
-                return CommandResult.ok()
+                return await self._try_get_living(ctx, target)
+
             if len(matches) == 1:
                 return await self._pick_up(ctx, inventory, *matches[0])
             available = matches
+
+        if not available:
+            # "get" with no args and nothing on the ground — mention monster/players too
+            await self._try_get_living(ctx, '*')
+            if not _monster_in_room(ctx) and not _players_in_room(ctx):
+                await ctx.send('There is nothing here to pick up.')
+            return CommandResult.ok()
 
         lines = ['You see:', '']
         for i, (name, entry, _) in enumerate(available, 1):
@@ -128,6 +197,54 @@ class GetCommand(Command):
 
         return await self._pick_up(ctx, inventory, *available[choice])
 
+    async def _try_get_living(self, ctx: GameContext, target: str) -> CommandResult:
+        """Handle attempts to GET a monster or another player (SPUR.MISC.S get.b / get.plyr)."""
+        from inventory import InventoryEntry
+        matched = False
+
+        # Monster
+        monster = _monster_in_room(ctx)
+        if monster:
+            mname = monster.get('name', 'the monster')
+            if target == '*' or target in mname.lower():
+                matched = True
+                m_hp = int(monster.get('strength') or monster.get('hit_points') or 1)
+                if m_hp > 0:
+                    await ctx.send(f'THE {mname.upper()} WON\'T LET YOU!')
+                else:
+                    await ctx.send(f'YOU HACK UP THE {mname.upper()} INTO {mname.upper()} STEAKS..')
+                    # Add meat to room so it can be picked up and eaten (SPUR.MISC3.S:369)
+                    room_no = getattr(ctx.client, 'room', None)
+                    if room_no is not None:
+                        is_diseased = bool((monster.get('flags') or {}).get('diseased_attack'))
+                        meat = Item(
+                            id_number = 69,
+                            name      = f'{mname} MEAT',
+                            kind      = 'food',
+                            category  = ItemCategory.FOOD,
+                            diseased_meat = is_diseased,
+                        )
+                        meat_entry = InventoryEntry(item=meat)
+                        room_items = getattr(ctx.server, 'room_items', None)
+                        if room_items is not None:
+                            room_items.setdefault(int(room_no), []).append(meat_entry)
+
+        # Other players in room
+        for other in _players_in_room(ctx):
+            pname = getattr(other, 'name', 'Someone')
+            if target == '*' or target in pname.lower():
+                matched = True
+                hp = int(getattr(other, 'hit_points', 1) or 1)
+                if hp > 0:
+                    await ctx.send(f'{pname} SKUTTLES OUT OF REACH!')
+                else:
+                    await ctx.send(f'{pname} WON\'T FIT IN YOUR SACK..')
+
+        if not matched and target != '*':
+            await ctx.send(f'You do not see any "{target}" here.')
+
+        return CommandResult.ok()
+
     async def _pick_up(self, ctx: GameContext, inventory,
                        name: str, entry: InventoryEntry, remove_fn) -> CommandResult:
         player  = ctx.player
@@ -142,6 +259,78 @@ class GetCommand(Command):
             await ctx.send('You can carry no more.')
             return CommandResult.ok()
 
+        # --- Fireplace: USE only (SPUR.MISC.S:285) ---
+        if item_id == _FIREPLACE:
+            await ctx.send('You can only USE this..')
+            return CommandResult.ok()
+
+        # --- Obelisk: too large to move (SPUR.MISC.S:287) ---
+        if item_id == _OBELISK:
+            await ctx.send(f'The {name} is MUCH too large to get!')
+            return CommandResult.ok()
+
+        # --- Booby trap: explodes on pickup (SPUR.MISC.S strange, items 70/72) ---
+        if item_id in _BOOBY_TRAP_IDS:
+            remove_fn()
+            await ctx.send('ARGG!!  It is booby trapped!  It blows up!')
+            await ctx.send('BOOOMM!!')
+            for msg in _hp5_effect(player):
+                await ctx.send(msg)
+            return CommandResult.ok()
+
+        # --- Pandora's Box: smoke, XP/CON/INT/HP penalties (SPUR.MISC.S pandora) ---
+        if item_id == _PANDORAS_BOX:
+            remove_fn()
+            await ctx.send("FOOL!!  YOU SHOULD NOT DO THAT!!")
+            await ctx.send('STRANGE SMOKE BILLOWS OUT!')
+            ep = int(getattr(player, 'experience', 0) or 0)
+            if ep > 100:
+                await ctx.send(f'You lose {ep - 100} experience!')
+                player.experience = 100
+            stats = getattr(player, 'stats', None) or {}
+            pt = int(stats.get('Constitution', 10))
+            if pt > 5:
+                stats['Constitution'] = 5
+                player.stats = stats
+                await ctx.send('Your constitution is reduced to 5!')
+            for msg in _hp5_effect(player):
+                await ctx.send(msg)
+            return CommandResult.ok()
+
+        # --- Gold Rose: poisoned stickers — DEX check (SPUR.MISC.S rose) ---
+        if item_id == _GOLD_ROSE:
+            pd  = int((getattr(player, 'stats', None) or {}).get('Dexterity', 10))
+            roll = random.randint(1, 16) + 12   # random(16)+12, SPUR range ~12-27
+            if pd > roll:
+                await ctx.send('Whew!  You are dextrous enough to avoid the poisoned stickers!')
+            else:
+                await ctx.send('Akk!  You prick your finger!')
+                await ctx.send('Poison!!')
+                hp = int(getattr(player, 'hit_points', 1) or 1)
+                player.hit_points = max(0, hp - 5)
+                player.unsaved_changes = True
+                from survival import apply_poison
+                apply_poison(player)
+            # item still picked up regardless
+
+        # --- Fireball: burns non-Wizards unless gauntlets are worn (SPUR.WEAPON.S:30) ---
+        if item_id in _FIREBALL_IDS:
+            from base_classes import PlayerClass
+            if getattr(player, 'char_class', None) != PlayerClass.WIZARD:
+                gauntlets = (inventory.find(item_id=_GAUNTLETS_ID)
+                             if inventory else None)
+                if gauntlets:
+                    await ctx.send('THE GAUNTLETS TAKE THE HEAT..')
+                    if random.randint(1, 10) == 1:
+                        inventory.remove(gauntlets.item)
+                        await ctx.send('THE GAUNTLETS ARE DESTROYED!!')
+                else:
+                    dmg = random.randint(1, 4)
+                    hp  = int(getattr(player, 'hit_points', 1) or 1)
+                    player.hit_points = max(0, hp - dmg)
+                    player.unsaved_changes = True
+                    await ctx.send(f'Yelp!  You burn your fingers!  (-{dmg} HP)')
+
         if inventory is not None:
             inventory.add(entry.item,
                           quantity=getattr(entry, 'quantity', 1),
@@ -149,4 +338,11 @@ class GetCommand(Command):
 
         remove_fn()
         await ctx.send(f'You pick up {name}.')
+
+        # --- Staff: Wizards get a reminder that it enhances spellcasting (SPUR.MISC3.S:47) ---
+        if item_id in _STAFF_IDS:
+            from base_classes import PlayerClass
+            if getattr(player, 'char_class', None) == PlayerClass.WIZARD:
+                await ctx.send('(This staff will enhance your spell casting!)')
+
         return CommandResult.ok()

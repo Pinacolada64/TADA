@@ -78,6 +78,7 @@ class Ally:
             self.gender = Gender.FEMALE
 
         self.hit_points: int = 0
+        self.items: list = []   # items given by player via GIVE (ephemeral; not persisted)
         # 'ayf': int  # ally has a 1-ayf% chance of randomly finding sack of gold/diamond/etc.
         self.find_percentage: int = 0
         # TODO: look at Skip's branch on GitHub, it has more TRACKing stuff:

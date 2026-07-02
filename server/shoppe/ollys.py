@@ -191,6 +191,40 @@ async def _booby_section(ctx: GameContext, player, inv, objects_by_num: dict) ->
 
 
 # ---------------------------------------------------------------------------
+# Help section
+# ---------------------------------------------------------------------------
+
+async def _help_section(ctx: GameContext) -> None:
+    await ctx.send([
+        '',
+        '[]=-=-=-=-=-=-=[ AMMUNITION GUIDE ]=-=-=-=-=-=-=[]',
+        '',
+        'HOW AMMO WORKS',
+        '--------------',
+        'Projectile and energy weapons require ammunition to fire.',
+        'Purchase ammo here, then USE the ammo item to load it into',
+        'your readied weapon.  Rounds are consumed one-per-swing in',
+        'combat.  When you run out you cannot attack until you reload.',
+        '',
+        '  Storm weapons do NOT use physical ammo.',
+        '',
+        'STRAY ROUNDS / FRIENDLY FIRE',
+        '-----------------------------',
+        'A missed ammo shot may go wide and hit a party member or',
+        'another player in the same room.  The chance depends on your',
+        'experience with that weapon:',
+        '',
+        '  GREEN   (  0-39 exp)  1-in-3  chance of a stray round',
+        '  VETERAN ( 40-98 exp)  1-in-6  chance of a stray round',
+        '  ELITE   (99+    exp)  1-in-10 chance of a stray round',
+        '',
+        'Stray rounds deal 1-4 damage.  Train your weapon skill to',
+        'reduce the risk to your allies.',
+        '',
+    ])
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -208,7 +242,7 @@ async def main(ctx: GameContext) -> None:
     )
 
     while True:
-        raw = await ctx.prompt('[A]mmo, [B]ooby traps, or Q to leave')
+        raw = await ctx.prompt('[A]mmo, [B]ooby traps, [H]elp, or Q to leave')
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -218,5 +252,7 @@ async def main(ctx: GameContext) -> None:
             await _ammo_section(ctx, player, inv, objects_by_num)
         elif cmd == 'B':
             await _booby_section(ctx, player, inv, objects_by_num)
+        elif cmd == 'H':
+            await _help_section(ctx)
         else:
-            await ctx.send('A)mmo, B)ooby traps, or Q to leave.')
+            await ctx.send('A)mmo, B)ooby traps, H)elp, or Q to leave.')

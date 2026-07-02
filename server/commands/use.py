@@ -5,23 +5,45 @@ Mirrors SPUR.USE.S. Supported item types:
   shield     — add to shield rating; class/race caps apply; item consumed
   ammunition — load rounds into readied weapon; item consumed
   power      — same as ammunition (energy-weapon charges)
+  grenade    — hurl at monster; single-use explosive (SPUR.USE.S:91)
+  ring       — ring of invisibility toggle; CON penalty when worn (SPUR.USE.S use4)
   book       — redirect to READ
   (other)    — "You play with the <name>.."
 
-Not yet implemented (deferred):
-  grenade / rocket — single-use combat items; need active-combat context
-  ring of invisibility — needs ring-worn state and alignment penalty
+Not yet implemented (deferred — level 6 or requires unbuilt systems):
+  rocket — single-use ranged explosive; needs rocket item type
   security cards — level-6 items
   spacesuit assembly, communicator repair — level-6 crafting
   slippers of Galad / crystal vial / palintar — special room items
 """
 from __future__ import annotations
 
+import random
+
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from item_system import Item, ItemType
 from items import ItemCategory
 from network_context import GameContext
+
+_GRENADE_ID = 16   # hand grenade (objects.json)
+_RING_ID    = 67   # ring of invisibility (objects.json)
+
+
+def _char_level(player) -> int:
+    """Character XP level derived from experience.
+
+    TODO: player needs a dedicated xp_level field separate from map_level
+    (dungeon floor).  For now, reconstruct from accumulated experience using
+    the same 999+(N×100) threshold the engine uses.
+    """
+    ep = int(getattr(player, 'experience', 0) or 0)
+    level = 1
+    threshold = 1099  # 999 + 1*100
+    while ep > threshold:
+        level += 1
+        threshold += level * 100
+    return level
 
 # SPUR.USE.S: max shield % by class/race (sh cap).
 # cap_bonus is added for BATTLE SHIELD and LAZER SHIELD (a=20 in SPUR).
@@ -94,6 +116,7 @@ def _apply_item(item: Item, player) -> list[str]:
         damage = int((item.flags or {}).get('damage', 0))
         player.ammo_rounds = rounds
         player.ammo_damage = damage
+        player.ammo_max    = rounds
         player.unsaved_changes = True
         if inv:
             inv.remove(item)
@@ -137,6 +160,36 @@ class UseCommand(Command):
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         args, _ = self.parse_args(*args)
         player  = ctx.player
+
+        # ---- Fireplace: room feature detected via description (SPUR.USE.S:8,187) --
+        # If the player types 'use fireplace' or is in a fireplace room and types 'use'
+        # with no args, handle the fire before showing the item list.
+        _use_fireplace = False
+        if args and 'fireplace'.startswith(' '.join(args).lower()):
+            _use_fireplace = True
+        elif not args:
+            room_no  = getattr(ctx.client, 'room', None)
+            game_map = getattr(ctx.server, 'game_map', None)
+            room     = game_map.rooms.get(int(room_no)) if game_map and room_no else None
+            if room and 'fireplace' in (getattr(room, 'desc', '') or '').lower():
+                _use_fireplace = True
+
+        if _use_fireplace:
+            pname = getattr(player, 'name', 'Someone')
+            await ctx.send('You sit and warm yourself by the fire..')
+            await ctx.send_room(f'{pname} sits by the fireplace.', exclude_self=True)
+            stats = getattr(player, 'stats', None) or {}
+            ps = int(stats.get('Strength', 10))
+            if ps < 20:
+                stats['Strength'] = 20
+                player.stats = stats
+                player.unsaved_changes = True
+                await ctx.send('Feeling the strength return..')
+                hp = int(getattr(player, 'hit_points', 1) or 1)
+                if hp < 20:
+                    player.hit_points = hp + 4
+            return CommandResult.ok()
+
         entries = _usable_entries(player)
 
         if not entries:
@@ -170,7 +223,53 @@ class UseCommand(Command):
                 return CommandResult.ok()
             entry = entries[idx]
 
-        item = entry.item
+        item    = entry.item
+        item_no = getattr(item, 'number', None) or getattr(item, 'id_number', None)
+
+        # ---- Grenade (#16): hurl at monster (SPUR.USE.S:91 grenade) ----------
+        if item_no == _GRENADE_ID:
+            inv = getattr(player, 'inventory', None)
+            if inv:
+                inv.remove(item)
+            await ctx.send('You hurl the grenade!')
+            room_no = getattr(ctx.client, 'room', None)
+            session = (getattr(ctx.server, 'active_combats', {}) or {}).get(room_no)
+            if session is None or session._done.is_set():
+                await ctx.send('It explodes harmlessly.')
+            else:
+                from combat.engine import _monster_hp, _set_monster_hp
+                await ctx.send('KABOOM!!')
+                xp = _char_level(player)
+                dmg = random.randint(1, 10) + 5 + (xp * 2)
+                mname = session.monster.get('name', 'the monster')
+                await ctx.send(f'{mname} takes {dmg} damage..')
+                new_hp = _monster_hp(session.monster) - dmg
+                _set_monster_hp(session.monster, new_hp)
+                if new_hp <= 0:
+                    await session._monster_dies(ctx, player_killed=True)
+            return CommandResult.ok()
+
+        # ---- Ring of invisibility (#67): toggle worn (SPUR.USE.S use4) -------
+        if item_no == _RING_ID:
+            worn = getattr(player, 'ring_worn', False)
+            if not worn:
+                player.ring_worn = True
+                player.unsaved_changes = True
+                await ctx.send('Ring worn!  You are hard to see!')
+                await ctx.send('(USE again to remove)')
+                await ctx.send('THE EVIL SENSES YOU MORE CLEARLY!')
+                stats = getattr(player, 'stats', None) or {}
+                pt = int(stats.get('Constitution', 10))
+                if pt > 5:
+                    stats['Constitution'] = pt - 2
+                    player.stats = stats
+                    await ctx.send('(You feel a bit less healthy!)')
+            else:
+                player.ring_worn = False
+                player.unsaved_changes = True
+                await ctx.send('Ring returned to your pack.')
+            return CommandResult.ok()
+
         if not isinstance(item, Item):
             await ctx.send(f'You play with the {getattr(item, "name", "it")}..')
             return CommandResult.ok()

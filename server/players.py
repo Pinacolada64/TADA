@@ -20,7 +20,8 @@ from base_classes import Gender, PlayerMoneyTypes, PlayerMoneyCategory, PlayerSt
 class Character(object):
     import flags  # new_player_default_flags
     name: str
-    flags: dict[flags.PlayerFlags, flags.Flag] = field(default_factory=lambda: {i[0] for i in new_player_default_flags})
+    flags: dict[flags.PlayerFlags, flags.Flag] = field(default_factory=lambda: {i[0] for i in
+                                                                                flags.new_player_default_flags})
 
 @dataclass
 class Player:

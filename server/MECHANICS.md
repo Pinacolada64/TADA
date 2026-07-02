@@ -25,15 +25,17 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 ### Not Implemented
 
 #### Weapon / attack mechanics
-- **Ammo system** — `vn`/`vl`/`vm` tracking; "NO AMMO READY" check for projectile/energy weapons; burst/auto-fire modes (S/B/A prompt, `SPUR.COMBAT.S:98–101`); ammo consumed per shot; STORM bypasses ammo (`SPUR.USE.S:155`, `SPUR.COMBAT.S:44`, `SPUR.COMBAT.S:84`)
-- **Ammo recovery** — after combat, ranged weapons (non-STORM) have a chance to recover spent rounds (`SPUR.MISC.S:427`)
-- **USE ammo command** — loads ammo into a readied ranged weapon (`SPUR.USE.S:147–162`)
-- **Missile: first strike** — when ammo is loaded and enemy hasn't attacked yet, player gets a free first strike (`SPUR.COMBAT.S:219`)
-- **Pole weapon: first strike** — chance to get first strike based on dexterity vs. monster agility (`SPUR.COMBAT.S:221`)
+- ✅ **Ammo system (core)** — "NO AMMO READY" blocks attack for projectile/energy weapons; ammo consumed per shot; `ammo_damage` added to hit; STORM bypasses ammo (`SPUR.COMBAT.S:44,84,144`, `resolution.py`, `engine.py`)
+- **Ammo — burst/auto-fire modes** — S/B/A fire-mode prompt; burst and auto consume multiple rounds per swing (`SPUR.COMBAT.S:98–101`)
+- ✅ **Stray round / friendly fire** — missed ammo shot may hit ally or bystander; chance scales by weapon XP: GREEN 1-in-3, VETERAN 1-in-6, ELITE 1-in-10; 1–4 HP damage; ally killed if HP reaches 0 (`engine.py` `_stray_round()`)
+- ✅ **Ammo recovery** — after killing a monster, bow/sling/blowgun weapons recover 1–max random rounds; message uses weapon-specific term (arrows/stones/darts) (`SPUR.MISC.S:427`, `engine.py` `_recover_ammo()`)
+- ✅ **USE ammo command** — loads ammo into a readied ranged weapon; checks `used_with`; STORM refuses physical ammo (`SPUR.USE.S:147–162`, `commands/use.py`)
+- ✅ **Missile: first strike** — when ammo is loaded and monster hasn't attacked yet, monster skips its first swing; "MISSILE: FIRST STRIKE!" message (`SPUR.COMBAT.S:219`, `engine.py`)
+- ✅ **Pole weapon: first strike** — roll + (monster agility × 3) + 2 < player DEX → first strike; otherwise monster swings normally (`SPUR.COMBAT.S:221`, `engine.py`)
 - **Fireball/energy weapon secondary damage** — 10% chance of secondary heat damage (`SPUR.COMBAT.S:143`)
 - **LURK mode** — player fires over allies' shoulders; to-hit penalty; requires at least one living ally (`SPUR.COMBAT.S:87–96`)
 - ✅ **Assassin critical hit** — class 8 (Assassin), 10% chance to double damage (`SPUR.COMBAT.S:135`, `resolution.py:435`)
-- **Ease-of-use help message** — "(EASE OF USE HELPS!)" when roll barely misses and weapon skill is high (`SPUR.COMBAT.S:139`)
+- ✅ **Ease-of-use help message** — "(Ease of use helps!)" when roll barely misses and ease-of-use score would have made the difference (`SPUR.COMBAT.S:139`, `resolution.py:416`, `engine.py:541`)
 - ✅ **Bad weapon choice warning** — "(bad weapon choice)" when `p2 < 3` (`SPUR.COMBAT.S:119`)
 
 #### Defence
@@ -48,9 +50,9 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Monster spellcasting** — monsters with `+` flag in `wy$` can cast spells when low HP (`SPUR.COMBAT.S` `lnk.msc4`)
 - **Turn to stone** — monsters with `#` flag; 10% chance per attack; player dies if fails second roll (`SPUR.COMBAT.S:229–235`)
 - **Monster fire/laser** — monsters with `-` flag shoot fire; laser-equipped rooms use laser fire (`SPUR.COMBAT.S:240–248`)
-- **Poison on hit** — monsters with `*` flag; 30% chance to poison player (`SPUR.COMBAT.S:312–313`)
-- **Disease on hit** — monsters with `@` flag; 30% chance to disease player (`SPUR.COMBAT.S:315–316`)
-- **Experience drain on hit** — monsters with `&` flag; drains XP×13 experience (`SPUR.COMBAT.S:317`)
+- ✅ **Poison on hit** — monsters with `poisonous_attack` flag; 30% chance per hit (`SPUR.COMBAT.S:312–313`, `resolution.py:639`, `engine.py:603`)
+- ✅ **Disease on hit** — monsters with `diseased_attack` flag; 30% chance per hit (`SPUR.COMBAT.S:315–316`, `resolution.py:641`, `engine.py:605`)
+- ✅ **Experience drain on hit** — monsters with `experience_drain` flag; drains XP on hit (`SPUR.COMBAT.S:317`, `resolution.py:655`, `engine.py:611`)
 - **Multiple guards** — if player is treacherous in a guard room, whistles summon more guards and monster HP multiplies (`SPUR.COMBAT.S mad.gd`)
 - ✅ **Dexterity loss on heavy hit** — taking >4 damage reduces player DEX by 1 (`SPUR.COMBAT.S:318`, `engine.py:583`)
 - ✅ **Dexterity gain** — dealing >4 damage has small chance to increase player DEX (`SPUR.COMBAT.S:143`, `engine.py:335`)
@@ -107,10 +109,10 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - ✅ **Compass** — toggle `player.compass_active`; "USE again to return to pack" hint (`SPUR.USE.S:44–50`)
 
 ### Not Implemented
-- **Ring of invisibility** — USE toggles ring worn/off; makes player hard to see; evil alignment penalty (`SPUR.USE.S:52–56`)
+- ✅ **Ring of invisibility** — USE toggles `ring_worn`; worn: CON−2, "hard to see", evil senses warning; remove: "returned to pack"; penalty persists (`SPUR.USE.S use4`, `commands/use.py`)
+- ✅ **Grenade** — hurl at room monster; damage = 1d10 + 5 + (xp_level × 2); no monster: "harmlessly"; kills monster if HP reaches 0; item consumed (`SPUR.USE.S:91`, `commands/use.py`)
 - **Potion** — restore HP or stats (`SPUR.USE.S`)
-- **Grenade** — single-use explosive (`SPUR.USE.S:15`)
-- **Rocket** — single-use ranged explosive (`SPUR.USE.S:28`)
+- **Rocket** — single-use ranged explosive; several variants (TOW, LAW, Redeye, plasma, nuclear) (`SPUR.USE.S:97–130`)
 - **Scrolls / spellcasting** (`SPUR.MISC3.S`)
 - **Spacesuit assembly** — combine parts 134 + 135 with tool into item 122 (`SPUR.USE.S:58–72`)
 - **Communicator repair** — USE tool on item 141 produces item 66 (`SPUR.USE.S:70`)
@@ -192,9 +194,15 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Guild follow** — player character automatically follows guild members to their location when logged off; toggle in settings (stubbed in `commands/connect.py:274`)
 - **DIG command** — dig for buried items or gold (`SPUR.MAIN.S`)
 - **WEAKEN command** — sysop-only stat reduction command (`SPUR.MAIN.S`)
-- **GET command** — pick up items, food, monsters, cursed items, or another player from the room (`SPUR.MISC.S`)
+- ✅ **GET command** — pick up items from the room; static room items and session-dropped items both handled (`commands/get.py`)
+- ✅ **Fireball pickup burn** — non-Wizards picking up a fireball take 1–4 heat damage; gauntlets (item #68) absorb the hit with 10% chance of destruction (`SPUR.WEAPON.S:30`, `commands/get.py`)
+- ✅ **Staff spellcasting hint** — Wizards picking up a staff see a reminder that it enhances spell casting (`SPUR.MISC3.S:47`, `commands/get.py`)
+- ✅ **Monsters/players as GET targets** — live monster: "WON'T LET YOU!"; dead monster: hacked into `<name> MEAT` item placed in room; active player: "SKUTTLES OUT OF REACH!"; unconscious player: "WON'T FIT IN YOUR SACK.." (`SPUR.MISC.S get.b/get.plyr`, `commands/get.py`)
+- ✅ **Monster meat** — eating `<name> MEAT` restores 2–6 food; monsters with `diseased_attack` flag have 30% chance to infect the eater (`SPUR.MISC3.S:369`, `commands/eat.py`)
+- ✅ **Booby-trapped item pickup** — strange weapon (#70) / funny doll (#72): "BOOOMM!!" → INT−5, HP→5; Pandora's Box (#71): smoke → XP capped at 100, CON→5, INT−5, HP→5; Gold Rose (#41): DEX check, fail → −5 HP + poison; Fireplace (#81): "USE only" (can't be picked up); Obelisk (#139): too large (`SPUR.MISC.S get.itm`, `commands/get.py`)
+- ✅ **Fireplace USE** — room 103 "East Hall"; `use` or `use fireplace` while in room: restores Strength to 20 and heals +4 HP if both were low; room message shown to bystanders (`SPUR.USE.S:187`, `commands/use.py`)
 - **DROP command** — drop items, compass, or weapons into the room (`SPUR.MISC.S`)
-- **GIVE / TAKE** — transfer items to and from allies in your party (`SPUR.MISC.S`)
+- ✅ **GIVE / TAKE** — `give <item> to <ally/player/monster>` transfers item to ally's carried list or co-located player's inventory; giving to a monster yields humorous responses (food eaten, gold kept by greedy types, etc.); `take [<item>] from <ally>` retrieves items ally is holding (`SPUR.MISC.S`, `commands/give.py`, `commands/take.py`)
 - **Booby-trapped items** — items that trigger a trap effect when picked up (`SPUR.MISC.S`)
 - **Pandora's Box** — special item with unique pickup/open effect (`SPUR.MISC.S`)
 - **ORDER command** — rearrange the tactical order of allies in the party (point / flank / rear) (`SPUR.MISC2.S`)
@@ -231,7 +239,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Wizard** — buy spells; Wizards pay half price, Druids two-thirds; max 10 spells (`SPUR.SHOP.S`)
 - **Clan / Guild office** — change guild affiliation (Claw, Sword, Iron Fist, Civilian, Outlaw); costs gold and honor (`SPUR.SHOP.S`)
 - **Pawn Shop** — sell (not buy) items to the merchant; all found items are sellable (tips.txt) (`SPUR.SHOP.S`)
-- **Olly's Ammo** — buy ammunition for ranged and energy weapons (`SPUR.SHOP.S`)
+- ✅ **Olly's Ammo** — buy ammo and ammo carriers; booby trap purchase; [H]elp explains ammo system and friendly fire (`shoppe/ollys.py`)
 
 ---
 

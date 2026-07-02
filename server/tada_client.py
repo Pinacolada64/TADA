@@ -25,6 +25,7 @@ from datetime import datetime
 
 from prompt_toolkit import Application
 from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.document import Document
 from prompt_toolkit.filters import is_done
 from prompt_toolkit.formatted_text import ANSI, to_formatted_text
 from prompt_toolkit.key_binding import KeyBindings
@@ -33,6 +34,7 @@ from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.dimension import Dimension
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.layout.processors import Processor, Transformation
+from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import TextArea
 
@@ -48,6 +50,23 @@ _STYLE = Style.from_dict({
     'input-field':  'bg:#0f3460 #e0e0e0',
     'prompt-mark':  '#f0a500 bold',
 })
+
+# ---------------------------------------------------------------------------
+# ANSI lexer for the output buffer
+# ---------------------------------------------------------------------------
+
+class _AnsiLexer(Lexer):
+    """Interpret ANSI escape sequences stored in the output Buffer per line."""
+    def lex_document(self, document):
+        lines = document.lines
+        def get_line(lineno):
+            if 0 <= lineno < len(lines):
+                try:
+                    return list(to_formatted_text(ANSI(lines[lineno])))
+                except Exception:
+                    return [('', lines[lineno])]   # fall back to plain text
+            return []
+        return get_line
 
 # ---------------------------------------------------------------------------
 # Application state
@@ -69,19 +88,51 @@ class ClientState:
 
 
 # ---------------------------------------------------------------------------
-# Output list helpers
+# Clean shutdown helper
 # ---------------------------------------------------------------------------
 
-_SCROLLBACK = 2000   # maximum lines kept in the output list
+def _force_quit(app: 'Application', writer: asyncio.StreamWriter | None = None) -> None:
+    """Cancel all blocking waits and exit the app in one shot.
 
-def _append_output(output_lines: list, lines: list[str], output_window=None, pinned: list | None = None) -> None:
-    """Append lines to the output list, trimming old content if needed."""
-    output_lines.extend(lines)
-    if len(output_lines) > _SCROLLBACK:
-        del output_lines[:-_SCROLLBACK]
-    # Only pin to bottom when the user hasn't scrolled up
-    if output_window is not None and (pinned is None or pinned[0]):
-        output_window.vertical_scroll = 10 ** 9
+    Cancels the pending input future  → _input_loop wakes and breaks.
+    Closes the writer (transport)     → reader.readline() returns b'' → _receive_loop breaks.
+    Calls app.exit()                  → app.run_async() returns.
+    """
+    fut = getattr(app, '_input_future', None)
+    if fut and not fut.done():
+        try:
+            fut.get_loop().call_soon_threadsafe(fut.cancel)
+        except Exception:
+            pass
+    w = writer or getattr(app, '_writer', None)
+    if w:
+        try:
+            w.close()
+        except Exception:
+            pass
+    try:
+        app.exit()
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Output buffer helpers
+# ---------------------------------------------------------------------------
+
+_SCROLLBACK = 2000   # maximum lines kept in the output buffer
+
+def _append_output(output_buffer: Buffer, lines: list[str]) -> None:
+    """Append lines to the output buffer, trimming old content if needed."""
+    text = output_buffer.text
+    existing = text.split('\n') if text else []
+    existing.extend(lines)
+    if len(existing) > _SCROLLBACK:
+        existing = existing[-_SCROLLBACK:]
+    new_text = '\n'.join(existing)
+    # Cursor at end: BufferControl auto-scrolls to keep cursor in view,
+    # which pins the output to the bottom — exactly like a terminal.
+    output_buffer.set_document(Document(new_text, len(new_text)), bypass_readonly=True)
 
 
 # ---------------------------------------------------------------------------
@@ -112,35 +163,40 @@ async def _send_message(writer: asyncio.StreamWriter, obj: dict) -> None:
 # ---------------------------------------------------------------------------
 
 async def _receive_loop(
-    reader:       asyncio.StreamReader,
-    output_lines: list,
-    state:        ClientState,
-    app:          Application,
+    reader:        asyncio.StreamReader,
+    output_buffer: Buffer,
+    state:         ClientState,
+    app:           Application,
 ) -> None:
-    """Read messages from the server and push them into the output list."""
+    """Read messages from the server and push them into the output buffer."""
     while True:
         msg = await _recv_message(reader)
         if msg is None:
-            _append_output(output_lines, ['', '[disconnected from server]'], app._output_window, app._pinned)
+            _append_output(output_buffer, ['', '[disconnected from server]'])
             state.connected = False
             app.invalidate()
+            _force_quit(app)   # unblock _input_loop so the TaskGroup can exit
             break
 
-        lines = msg.get('lines', [])
-        if isinstance(lines, str):
-            lines = [lines]
+        try:
+            lines = msg.get('lines', [])
+            if isinstance(lines, str):
+                lines = [lines]
 
-        if lines:
-            _append_output(output_lines, lines, app._output_window, app._pinned)
+            if lines:
+                _append_output(output_buffer, lines)
 
-        if 'mode' in msg:
-            state.mode = msg['mode']
+            if 'mode' in msg:
+                state.mode = msg['mode']
 
-        if 'user_id' in msg:
-            state.user_id = msg['user_id']
+            if 'user_id' in msg:
+                state.user_id = msg['user_id']
 
-        if msg.get('mode') == 'bye':
-            state.connected = False
+            if msg.get('mode') == 'bye':
+                state.connected = False
+                _force_quit(app)   # unblock _input_loop so the TaskGroup can exit
+        except Exception:
+            log.exception('_receive_loop: error processing message: %r', msg)
 
         app.invalidate()
 
@@ -149,24 +205,20 @@ async def _receive_loop(
 # Build the prompt_toolkit Application
 # ---------------------------------------------------------------------------
 
-def _build_app(state: ClientState) -> tuple[Application, list, list, Buffer]:
-    """Return (app, output_lines, pinned, input_buffer)."""
+def _build_app(state: ClientState) -> tuple[Application, Buffer, Buffer]:
+    """Return (app, output_buffer, input_buffer)."""
 
     # --- output area (ANSI-aware, scrollable) ---
-    # Store raw lines (may contain ANSI escape codes); FormattedTextControl
-    # parses them on each render so colours display correctly.
-    output_lines: list = []
-    pinned = [True]   # mutable flag: auto-scroll to bottom unless user has scrolled up
-
-    def _get_output_text():
-        result = []
-        for line in output_lines:
-            result.extend(to_formatted_text(ANSI(line)))
-            result.append(('', '\n'))
-        return result
+    # BufferControl auto-scrolls by keeping cursor in view. _AnsiLexer
+    # interprets ANSI escape sequences so colours render correctly.
+    output_buffer = Buffer(name='output', read_only=True)
 
     output_window = Window(
-        content=FormattedTextControl(text=_get_output_text, focusable=False),
+        content=BufferControl(
+            buffer=output_buffer,
+            lexer=_AnsiLexer(),
+            focusable=False,
+        ),
         wrap_lines=True,
         style='class:output-field',
     )
@@ -206,27 +258,34 @@ def _build_app(state: ClientState) -> tuple[Application, list, list, Buffer]:
     @kb.add('c-c')
     @kb.add('c-q')
     def _exit(event):
-        event.app.exit()
+        _force_quit(event.app)
 
     @kb.add('pageup')
     def _page_up(event):
+        # Move the cursor up by one page; BufferControl scrolls to follow it.
         info = output_window.render_info
         step = (info.window_height - 2) if info else 10
-        # Read the actual clamped scroll position, not our stored value which may be 10**9
-        current = info.vertical_scroll if info else output_window.vertical_scroll
-        output_window.vertical_scroll = max(0, current - step)
-        pinned[0] = False   # user scrolled up; stop auto-pinning to bottom
+        doc  = output_buffer.document
+        # Count back `step` newlines from the current cursor position
+        before = doc.text[:doc.cursor_position]
+        lines  = before.split('\n')
+        target = '\n'.join(lines[:-step]) if len(lines) > step else ''
+        output_buffer.set_document(Document(doc.text, len(target)), bypass_readonly=True)
 
     @kb.add('pagedown')
     def _page_down(event):
+        # Move the cursor down by one page; clamp to end of buffer.
         info = output_window.render_info
         step = (info.window_height - 2) if info else 10
-        current = info.vertical_scroll if info else output_window.vertical_scroll
-        output_window.vertical_scroll = current + step
-        # If we've scrolled back to the bottom, resume auto-pinning
-        if info and (current + step) >= (info.vertical_scroll + info.window_height):
-            pinned[0] = True
-            output_window.vertical_scroll = 10 ** 9
+        doc  = output_buffer.document
+        before = doc.text[:doc.cursor_position]
+        after  = doc.text[doc.cursor_position:]
+        down_lines = after.split('\n')
+        if len(down_lines) <= step:
+            new_pos = len(doc.text)   # already at or near bottom
+        else:
+            new_pos = doc.cursor_position + len('\n'.join(down_lines[:step]))
+        output_buffer.set_document(Document(doc.text, new_pos), bypass_readonly=True)
 
     @kb.add('enter')
     def _send(event):
@@ -247,10 +306,8 @@ def _build_app(state: ClientState) -> tuple[Application, list, list, Buffer]:
         full_screen=True,
         mouse_support=False,
     )
-    app._output_window = output_window
-    app._pinned        = pinned
-    app._input_future  = None
-    return app, output_lines, pinned, input_buffer
+    app._input_future = None
+    return app, output_buffer, input_buffer
 
 
 # ---------------------------------------------------------------------------
@@ -275,12 +332,12 @@ async def _get_input(app: Application) -> str | None:
 # ---------------------------------------------------------------------------
 
 async def _login(
-    writer:       asyncio.StreamWriter,
-    output_lines: list,
-    state:        ClientState,
-    app:          Application,
-    user_id:      str,
-    password:     str,
+    writer:        asyncio.StreamWriter,
+    output_buffer: Buffer,
+    state:         ClientState,
+    app:           Application,
+    user_id:       str,
+    password:      str,
 ) -> bool:
     """Send handshake + credentials; return True on success."""
     # Handshake
@@ -291,7 +348,7 @@ async def _login(
         'protocol_version': 1,
         'translation':      'UTF-8',
     })
-    _append_output(output_lines, [f'Connecting to {state.host}:{state.port}...'], app._output_window, app._pinned)
+    _append_output(output_buffer, [f'Connecting to {state.host}:{state.port}...'])
     app.invalidate()
 
     # Credentials — server's _login() prompts "connect <user> <pass>" as a text command
@@ -310,10 +367,10 @@ async def _login(
 # ---------------------------------------------------------------------------
 
 async def _input_loop(
-    writer:       asyncio.StreamWriter,
-    output_lines: list,
-    state:        ClientState,
-    app:          Application,
+    writer:        asyncio.StreamWriter,
+    output_buffer: Buffer,
+    state:         ClientState,
+    app:           Application,
 ) -> None:
     """Read lines from the input area and send them to the server."""
     while state.connected:
@@ -324,7 +381,7 @@ async def _input_loop(
 
         # Echo what the user typed into the output pane
         if text:
-            _append_output(output_lines, [f'> {text}'], app._output_window, app._pinned)
+            _append_output(output_buffer, [f'> {text}'])
             app.invalidate()
 
         if text.lower() in ('quit', 'exit', '/quit'):
@@ -352,9 +409,10 @@ async def run(host: str, port: int, user_id: str, password: str) -> None:
         print(f'Connection failed: {e}', file=sys.stderr)
         return
 
-    app, output_lines, pinned, input_buffer = _build_app(state)
+    app, output_buffer, input_buffer = _build_app(state)
+    app._writer = writer   # lets _force_quit close the transport from key bindings
 
-    _append_output(output_lines, [
+    _append_output(output_buffer, [
         ' ╔══════════════════════════════════════════════════╗',
         ' ║  TADA — Totally Awesome Dungeon Adventure        ║',
         ' ║  prompt_toolkit client                           ║',
@@ -363,14 +421,20 @@ async def run(host: str, port: int, user_id: str, password: str) -> None:
         ' ║  Ctrl-C / Ctrl-Q  quit   •   or type: quit       ║',
         ' ╚══════════════════════════════════════════════════╝',
         '',
-    ], app._output_window, pinned)
+    ])
 
-    await _login(writer, output_lines, state, app, user_id, password)
+    await _login(writer, output_buffer, state, app, user_id, password)
+
+    async def _run_app_safe():
+        try:
+            await app.run_async()
+        except Exception:
+            log.exception('app.run_async() raised')
 
     async with asyncio.TaskGroup() as tg:
-        tg.create_task(_receive_loop(reader, output_lines, state, app))
-        tg.create_task(_input_loop(writer, output_lines, state, app))
-        tg.create_task(app.run_async())
+        tg.create_task(_receive_loop(reader, output_buffer, state, app))
+        tg.create_task(_input_loop(writer, output_buffer, state, app))
+        tg.create_task(_run_app_safe())
 
     try:
         writer.close()

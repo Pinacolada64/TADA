@@ -267,6 +267,8 @@ class Player:
         # Loaded ammo state (set by USE command, consumed by combat).
         self.ammo_rounds: int = kwargs.get('ammo_rounds', 0)
         self.ammo_damage: int = kwargs.get('ammo_damage', 0)
+        self.ammo_max:    int = kwargs.get('ammo_max', 0)    # vl: total rounds when loaded (recovery cap)
+        self.ring_worn:  bool = kwargs.get('ring_worn', False)  # zu$[2]: ring of invisibility worn
         self.experience = kwargs.get('experience', 0)
         self.monsters_killed: list[int] = kwargs.get('monsters_killed', [])
         self.picked_up_items: list[int] = kwargs.get('picked_up_items', [])
