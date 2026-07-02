@@ -176,7 +176,7 @@ class BanCommand(Command):
             ('ban <user> [reason]',                       'Permanent ban with optional reason.'),
             ('ban <user> until <date> [reason]',          'Temporary ban expiring at date.'),
             ('ban <user> from <date> to <date> [reason]', 'Ban active only in date window.'),
-            ('ban #view',                                 'List all bans.'),
+            ('ban #view',                                 'List all bans (also: ban #list).'),
             ('unban <user>',                              'Remove a ban.'),
         ],
         notes = [
