@@ -15,7 +15,7 @@ import logging
 import random
 from typing import List, Optional
 
-from bar.ally_data import AllyFlags, AllyStatus, Ally, load_allies
+from bar.ally_data import AllyFlags, AllyStatus, Ally, load_allies, save_ally_roster
 from bar.allies import pick_ally
 from base_classes import PlayerMoneyTypes
 from flags import PlayerFlags
@@ -92,6 +92,20 @@ def _purchased_allies(player) -> List[Ally]:
         if isinstance(m, AllyType)
         and m.status == AllyStatus.SERVANT
     ]
+
+
+def _sync_to_roster(master_list: List[Ally], name: str,
+                    status: AllyStatus, owner: Optional[str],
+                    strength: Optional[int] = None) -> None:
+    """Update the named ally in master_list and persist the roster."""
+    for a in master_list:
+        if a.name == name:
+            a.status = status
+            a.owner  = owner
+            if strength is not None:
+                a.strength = strength
+            break
+    save_ally_roster(master_list)
 
 
 def _free_allies_for_sale(master_list: List[Ally], player) -> List[Ally]:
@@ -188,8 +202,10 @@ async def _buy_servant(ctx: GameContext, master_list: List[Ally]) -> None:
         )
         player.unsaved_changes = True
         chosen.status = AllyStatus.SERVANT
+        chosen.owner  = player.name
         # Strength +5 on hire (SPUR.BAR.S: a1=x2+5 — ally is emboldened by new contract)
         chosen.strength = chosen.strength + 5
+        save_ally_roster(master_list)
         await player.party.add(ctx, player, chosen)
         await ctx.send(f'{_NPC}: {_AP}May {chosen.name} serve yu vell!{_AP}')
 
@@ -206,7 +222,7 @@ async def _buy_servant(ctx: GameContext, master_list: List[Ally]) -> None:
 # "You wound me!" come from t_bar_olaf.lbl (2012 version).
 # ---------------------------------------------------------------------------
 
-async def _sell_servant(ctx: GameContext) -> None:
+async def _sell_servant(ctx: GameContext, master_list: List[Ally]) -> None:
     player   = ctx.player
     for_sale = _purchased_allies(player)
 
@@ -260,6 +276,8 @@ async def _sell_servant(ctx: GameContext) -> None:
 
     player.party.remove(chosen)
     chosen.status = AllyStatus.FREE
+    chosen.owner  = None
+    _sync_to_roster(master_list, chosen.name, AllyStatus.FREE, None, chosen.strength)
     player.subtract_silver(PlayerMoneyTypes.IN_HAND, -offer)   # negative = add silver
     player.unsaved_changes = True
     silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
@@ -278,7 +296,7 @@ async def _sell_servant(ctx: GameContext) -> None:
 # TADA fills in the cost and stat increase details.
 # ---------------------------------------------------------------------------
 
-async def _maintain_servant(ctx: GameContext) -> None:
+async def _maintain_servant(ctx: GameContext, master_list: List[Ally]) -> None:
     player = ctx.player
     owned  = _purchased_allies(player)
 
@@ -320,6 +338,7 @@ async def _maintain_servant(ctx: GameContext) -> None:
     # Strengthen (SPUR.BAR.S: updates x2 new-strength back into slot)
     gain = random.randint(1, 3)
     chosen.strength += gain
+    _sync_to_roster(master_list, chosen.name, chosen.status, chosen.owner, chosen.strength)
     # Honour bonus for investing in servant (SPUR.BAR.S: vk=vk+5 if vk<2000)
     if getattr(player, 'honor', 0) < 2000:
         player.honor = getattr(player, 'honor', 0) + _HONOR_MAINTAIN_GAIN
@@ -378,9 +397,9 @@ async def main(ctx: GameContext, bar=None) -> None:
         elif cmd == 'b':
             await _buy_servant(ctx, master_list)
         elif cmd == 's':
-            await _sell_servant(ctx)
+            await _sell_servant(ctx, master_list)
         elif cmd == 'm':
-            await _maintain_servant(ctx)
+            await _maintain_servant(ctx, master_list)
         else:
             await ctx.send(f'{_NPC}: {_AP}Kud yu spek up, young{_AP}un?{_AP}')
 

@@ -1,11 +1,15 @@
 import collections
+import json
 import logging
 import random
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from pathlib import Path
 from typing import List, Optional
 
 from base_classes import Gender, Alignment
+
+_ROSTER_FILE = Path('run') / 'server' / 'net' / 'ally-roster.json'
 
 
 class AllyFlags(Enum):
@@ -62,6 +66,7 @@ class Ally:
         """
         from base_classes import Alignment, Gender
         self.status = self.AllyStatus = AllyStatus.FREE  # Enum
+        self.owner: Optional[str] = None                 # player name when SERVANT
         # # in TLoS: '(' good, ')' evil
         self.alignment: Alignment = Alignment.NEUTRAL
         self.position: AllyPosition = AllyPosition.EMPTY
@@ -122,6 +127,35 @@ def find_duplicate_allies(ally_list: List[Ally]) -> List[str]:
         print("✅ No duplicate allies found.")
 
     return duplicates
+
+
+def load_ally_roster() -> dict:
+    """Return the persisted ally ownership/stat overrides.  Empty dict if missing."""
+    try:
+        if _ROSTER_FILE.exists():
+            return json.loads(_ROSTER_FILE.read_text())
+    except Exception:
+        log.exception('Failed to load ally roster')
+    return {}
+
+
+def save_ally_roster(allies: List['Ally']) -> None:
+    """Persist ownership and mutable stats for every non-baseline ally.
+
+    Only allies with a non-FREE status or a set owner are written; FREE allies
+    with no owner and default stats are omitted so the file stays compact.
+    """
+    roster = {}
+    for a in allies:
+        if a.status != AllyStatus.FREE or a.owner:
+            roster[a.name] = {
+                'owner':      a.owner,
+                'status':     a.status.name,
+                'strength':   a.strength,
+                'hit_points': a.hit_points,
+            }
+    _ROSTER_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _ROSTER_FILE.write_text(json.dumps(roster, indent=2))
 
 
 def load_allies() -> list:
@@ -294,6 +328,23 @@ def load_allies() -> list:
         Ally("ZORBA THE GREEK", "m", 14, 6),
     ]
     logging.debug("servants: %i" % len(ally_data))
+
+    # Merge persisted ownership/stat overrides from the roster file
+    roster   = load_ally_roster()
+    by_name  = {a.name: a for a in ally_data}
+    for name, entry in roster.items():
+        a = by_name.get(name)
+        if a is None:
+            continue
+        a.owner = entry.get('owner')
+        status_str = entry.get('status', 'FREE')
+        if status_str in AllyStatus.__members__:
+            a.status = AllyStatus[status_str]
+        if 'strength' in entry:
+            a.strength = entry['strength']
+        if 'hit_points' in entry:
+            a.hit_points = entry['hit_points']
+
     return ally_data
 
 
