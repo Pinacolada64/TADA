@@ -74,6 +74,10 @@ class EatCommand(Command):
         name   = getattr(item, 'name', '?')
         uname  = name.upper()
 
+        from ally_events import try_hungry_ally
+        if await try_hungry_ally(ctx, item, 'HUNGRY'):
+            return CommandResult.ok()
+
         inv = getattr(player, 'inventory', None)
         if inv is not None:
             inv.remove(item)

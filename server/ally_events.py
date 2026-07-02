@@ -1,10 +1,8 @@
-"""bar/ally_events.py — Random per-move events triggered by party allies.
+"""ally_events.py — Ally-triggered events.
 
-SPUR reference: MISC6.S lines 152-158 (event pool) and 541-591 (al.find / dead.al).
-
-Events are tried once each time the player moves to a new room.  Each event
-is gated so it fires at most once per day (player.once_per_day tag), matching
-the semantics already used by prayer and pawn shop visits.
+  try_ally_find_gold   — random per-move gold-finding (SPUR MISC6.S al.find)
+  try_hungry_ally      — intercept player eating/drinking for a hungry ally
+                         (SPUR SUB.S hun.slv)
 """
 from __future__ import annotations
 
@@ -92,3 +90,67 @@ async def try_ally_find_gold(ctx: GameContext) -> None:
         f'({amount} gp)',
         f'{ally_name} swaggers proudly.',
     ])
+
+
+# Strength threshold: allies below this are considered hungry/weak (SPUR: a[123] < 11)
+_HUNGRY_STR_CAP = 11
+
+
+async def try_hungry_ally(ctx: 'GameContext', item, kind: str) -> bool:
+    """Intercept player eating/drinking on behalf of a hungry ally.
+
+    Call this BEFORE removing the item from the player's inventory.
+    Returns True if the ally claimed the item (caller should skip normal
+    consumption); False if the player should proceed as usual.
+
+    *kind* is 'HUNGRY' or 'THIRSTY' and is shown in the ally's complaint.
+    Elite allies (AllyFlags.ELITE) never complain (SPUR: ``instr("!",zt$)``).
+    """
+    from bar.allies import owned_allies
+    from bar.ally_data import AllyFlags
+    from commands.give import _try_body_build
+
+    player = ctx.player
+    allies = owned_allies(player)
+
+    # Find the weakest eligible ally: non-elite, strength < cap (a1 priority)
+    hungry = None
+    for ally in allies:
+        if AllyFlags.ELITE in (ally.flags or []):
+            continue
+        if ally.strength < _HUNGRY_STR_CAP:
+            if hungry is None or ally.strength < hungry.strength:
+                hungry = ally
+
+    if hungry is None:
+        return False
+
+    iname = getattr(item, 'name', 'that')
+    await ctx.send(f"'{iname} sure looks good!' says {hungry.name}.")
+    raw = await ctx.prompt(f'Give it to {hungry.name}? [Y/n]')
+    if raw and raw.strip().upper() == 'N':
+        # Honor penalty for refusing a hungry ally (SPUR hun.slv2: vk=vk-a)
+        current_honor = getattr(player, 'honor', 0)
+        if current_honor > 2:
+            player.honor = current_honor - 2
+            player.unsaved_changes = True
+            await ctx.send('You feel less honorable.')
+        return False
+
+    # Ally claims the item
+    inv = getattr(player, 'inventory', None)
+    if inv is not None:
+        inv.remove(item)
+    await ctx.send(f"'Thank you!' says {hungry.name}.")
+
+    # Honor bonus for feeding a hungry ally (SPUR: a=2:if xf=1 a=5; vk=vk+a)
+    from survival import ration_restore
+    honor_gain = 5 if ration_restore(item) >= 5 else 2
+    current_honor = getattr(player, 'honor', 0)
+    if current_honor < 2000:
+        player.honor = min(2000, current_honor + honor_gain)
+        player.unsaved_changes = True
+        await ctx.send(f'You feel more honorable. (+{honor_gain})')
+
+    await _try_body_build(ctx, hungry, item)
+    return True
