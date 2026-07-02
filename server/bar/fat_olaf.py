@@ -16,6 +16,7 @@ import random
 from typing import List, Optional
 
 from bar.ally_data import AllyFlags, AllyStatus, Ally, load_allies
+from bar.allies import pick_ally
 from base_classes import PlayerMoneyTypes
 from flags import PlayerFlags
 from network_context import GameContext
@@ -224,28 +225,15 @@ async def _sell_servant(ctx: GameContext) -> None:
             )
         return
 
-    lines = ['Your current servants:', '']
-    for i, a in enumerate(for_sale, 1):
-        offer = _ally_sellback(a)
-        elite_tag = '  [Elite]' if _is_elite(a) else ''
-        lines.append(f'  {i:>2}. {a.name:<22}  Str {a.strength:>2}  (offer: {offer}s){elite_tag}')
-    lines.append('')
-    await ctx.send(lines)
-
-    raw = await ctx.prompt(f'Sell which servant? (1-{len(for_sale)}, Enter to cancel)')
-    if not raw or not raw.strip():
+    await ctx.send('Your current servants:')
+    chosen = await pick_ally(
+        ctx, for_sale, 'Sell which servant?',
+        extra_fn=lambda a: f'(offer: {_ally_sellback(a)}s)',
+        # invalid_msg=f'{_NPC}: {_AP}I tink yu must be drinking teu moch!{_AP}',
+    )
+    if chosen is None:
         await ctx.send(f'{_NPC} shrugs.')
         return
-
-    try:
-        idx = int(raw.strip()) - 1
-        if not (0 <= idx < len(for_sale)):
-            raise ValueError
-    except ValueError:
-        await ctx.send(f'{_NPC}: {_AP}I tink yu must be drinking teu moch!{_AP}')
-        return
-
-    chosen  = for_sale[idx]
     others  = [a for a in _owned_allies(player) if a is not chosen]
     offer   = _ally_sellback(chosen)
 
@@ -301,34 +289,17 @@ async def _maintain_servant(ctx: GameContext) -> None:
             await ctx.send(f'{_NPC} shrugs. {_AP}Yu hav no servants to maintain!{_AP}')
         return
 
-    lines = ['Servant condition:', '']
-    for i, a in enumerate(owned, 1):
-        hp_str    = f'HP: {a.hit_points}' if a.hit_points else 'HP: unknown'
-        cost      = a.strength * _STRENGTHEN_BASE_COST
-        lines.append(
-            f'  {i:>2}. {a.name:<22}  Str {a.strength:>2}  {hp_str}  '
-            f'(strengthen: {cost}s)'
-        )
-    lines.append('')
-    await ctx.send(lines)
-
-    raw = await ctx.prompt(
-        f'{_NPC}: {_AP}Vich servant du yu vish to strengthen? '
-        f'(1-{len(owned)}, Enter to cancel){_AP}'
+    await ctx.send('Servant condition:')
+    chosen = await pick_ally(
+        ctx, owned,
+        f'{_NPC}: {_AP}Vich servant du yu vish to strengthen?{_AP}',
+        extra_fn=lambda a: (f'HP: {a.hit_points}' if a.hit_points else 'HP: unknown')
+                           + f'  (strengthen: {a.strength * _STRENGTHEN_BASE_COST}s)',
+        # invalid_msg=f'{_NPC}: {_AP}Com com, 1 teu {{len(owned)}}! (Enter aborts){_AP}',
     )
-    if not raw or not raw.strip():
+    if chosen is None:
         await ctx.send(f'{_NPC} shrugs.')
         return
-
-    try:
-        idx = int(raw.strip()) - 1
-        if not (0 <= idx < len(owned)):
-            raise ValueError
-    except ValueError:
-        await ctx.send(f'{_NPC}: {_AP}Com com, 1 teu {len(owned)}! (Enter aborts){_AP}')
-        return
-
-    chosen = owned[idx]
     cost   = chosen.strength * _STRENGTHEN_BASE_COST
     silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
 

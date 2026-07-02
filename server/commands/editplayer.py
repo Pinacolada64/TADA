@@ -245,6 +245,9 @@ def _attributes_menu(ctx) -> Menu:
 
 
 def _names_menu(ctx) -> Menu:
+    from bar.allies import owned_allies
+    from bar.ally_data import AllyStatus
+
     p    = ctx.player
     menu = Menu(title='Character Names')
 
@@ -259,15 +262,26 @@ def _names_menu(ctx) -> Menu:
         p.name = raw.strip()
         await ctx.send(f'Name changed to: {p.name}')
 
+    def _ally_label(slot: int) -> str:
+        allies = owned_allies(p)
+        if slot >= len(allies):
+            return '(empty)'
+        a = allies[slot]
+        tag = f' [{a.status.name}]' if a.status in (AllyStatus.UNCONSCIOUS, AllyStatus.DEAD) else ''
+        return f'{a.name}  Str {a.strength}{tag}'
+
     menu.add_item(MenuItem(
         'Player Name', shortcuts='p',
         dot_leader_handler=lambda ctx: p.name,
         action=edit_name,
     ))
-    menu.add_item(MenuItem('Ally 1', shortcuts='1', action=_not_implemented))
-    menu.add_item(MenuItem('Ally 2', shortcuts='2', action=_not_implemented))
-    menu.add_item(MenuItem('Ally 3', shortcuts='3', action=_not_implemented))
-    menu.add_item(MenuItem('Horse',  shortcuts='h', action=_not_implemented))
+    for i in range(3):
+        menu.add_item(MenuItem(
+            f'Ally {i + 1}', shortcuts=str(i + 1),
+            dot_leader_handler=lambda ctx, s=i: _ally_label(s),
+            action=_not_implemented,
+        ))
+    menu.add_item(MenuItem('Horse', shortcuts='h', action=_not_implemented))
     return menu
 
 
