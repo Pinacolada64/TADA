@@ -56,12 +56,13 @@ class RoomFlag(Enum):
     BLOCK_MOVE_EAST  = "block_east"
     BLOCK_MOVE_SOUTH = "block_south"
     BLOCK_MOVE_WEST  = "block_west"
-    WATER = "water"  # @@
+    WATER    = "water"    # @@ -- requires Boat (lvl 1-5) or Spacesuit (lvl 6+); no flee (SPUR.COMBAT.S:74)
     # WATER_WITH_ROCKS? # @@!
     # ROOM_58  # +@1 - exit in direction 1?
     # UNKNOWN  # -
 
-    SNOW = "snow"  # **
+    SNOW     = "snow"     # ** -- requires Great Coat; no flee (SPUR.COMBAT.S:74)
+    NO_FLEE  = "no_flee"  # << -- cannot flee from this room (SPUR.COMBAT.S:74)
     RADIATION = "radiation"  # &
     RADIATION_EXTREME = "radiation_extreme"  # &&
     HIDDEN_EXIT_EAST = "hidden_exit_east"  # ->
@@ -121,6 +122,20 @@ def parse_name_field(raw_name: str) -> tuple[str, RoomAlignment, list[RoomFlag]]
             flag = DIRECTION_FLAGS.get(letter.upper())
             if flag:
                 flags.append(flag)
+
+    # Extract traversal/restriction flags embedded directly in the name string.
+    # Order matters: check longer tokens before shorter ones to avoid partial matches.
+    inline_flags = [
+        ('@@', RoomFlag.WATER),
+        ('**', RoomFlag.SNOW),
+        ('<<', RoomFlag.NO_FLEE),
+        ('->', RoomFlag.HIDDEN_EXIT_EAST),
+        ('<-', RoomFlag.HIDDEN_EXIT_WEST),
+    ]
+    for token, flag in inline_flags:
+        if token in raw_name:
+            raw_name = raw_name.replace(token, '').strip()
+            flags.append(flag)
 
     # Check for room alignment symbol suffix (e.g. '+', '\|/')
     # These are literal strings, not regex patterns, so use plain 'in' check

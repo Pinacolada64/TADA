@@ -231,7 +231,13 @@ class CombatSession:
         """Attempt to flee.  Returns True if the player escaped."""
         if self._done.is_set():
             return True
-        result = flee_attempt(ctx.player, self.monster, monster_is_following=True)
+        room_no   = getattr(ctx.client, 'room', None)
+        game_map  = getattr(ctx.server, 'game_map', None)
+        room      = game_map.rooms.get(int(room_no)) if game_map and room_no else None
+        result    = flee_attempt(ctx.player, self.monster, monster_is_following=True, room=room)
+        if result.impassable_room:
+            await ctx.send("Can't flee from here.")
+            return False
         if result.blocked_by_monster:
             mname = self.monster.get('name', 'The monster')
             await ctx.send(f'{mname} blocks your escape!')

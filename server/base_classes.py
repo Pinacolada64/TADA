@@ -398,6 +398,9 @@ class Room(object):
     # Here, Civilian is considered the "neutral" default, unless the room is aligned to another Guild.
     # I don't want to add another Alignment-type class just for this purpose:
     alignment: Guild = Guild.CIVILIAN
+    # List of RoomFlag values (as strings) parsed from SPUR room data.
+    # e.g. ["water"], ["snow"], ["no_flee"], ["block_north", "block_east"]
+    flags: list = field(default_factory=list)
 
     def __str__(self):
         return f'#{self.number} {self.name}\n' \

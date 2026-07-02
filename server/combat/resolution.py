@@ -204,6 +204,7 @@ class AllyAttackResult:
 class FleeResult:
     escaped:            bool
     blocked_by_monster: bool = False
+    impassable_room:    bool = False  # room flagged @@, **, or << (SPUR.COMBAT.S:74)
 
 
 # ---------------------------------------------------------------------------
@@ -698,14 +699,23 @@ def ally_attacks(ally_name: str, ally_strength: int, monster: dict,
 # Flee attempt (SPUR.COMBAT.S flee section, line 75)
 # ---------------------------------------------------------------------------
 
-def flee_attempt(player, monster: dict, monster_is_following: bool = True) -> FleeResult:
+_NO_FLEE_ROOM_FLAGS = {'water', 'snow', 'no_flee'}
+
+
+def flee_attempt(player, monster: dict, monster_is_following: bool = True,
+                 room=None) -> FleeResult:
     """
     Can the player escape?
 
-    Monster blocks the path if all of:
-      hp > 7, monster is following, monster is not mechanical,
+    Impassable if room has any of: water (@@), snow (**), no_flee (<<)
+    Monster blocks path if all of: hp > 7, monster is following, not mechanical,
       random(1-10) < xp_level / 3
     """
+    # Impassable room check (SPUR.COMBAT.S:74)
+    room_flags = set(getattr(room, 'flags', None) or [])
+    if room_flags & _NO_FLEE_ROOM_FLAGS:
+        return FleeResult(escaped=False, impassable_room=True)
+
     hp    = int(getattr(player, 'hit_points', 1) or 1)
     xp    = 1   # TODO: replace with derived xp_level once levelling exists
     flags = monster.get('flags', {})

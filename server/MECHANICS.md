@@ -75,7 +75,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 ### Not Implemented
 - **Monster blocks path** — if player HP > 7 and room has `.` flag, monster may block flee (`SPUR.COMBAT.S:75`)
 - ✅ **Energy cost** — fleeing costs 1 energy (`SPUR.COMBAT.S:76`, `engine.py` `flee()`)
-- **Impassable rooms** — rooms flagged `@@`, `**`, or `<<` cannot be fled from (`SPUR.COMBAT.S:74`)
+- ✅ **Impassable rooms** — rooms flagged `@@` (water), `**` (snow), or `<<` (no_flee) cannot be fled from (`SPUR.COMBAT.S:74`, `resolution.py` `flee_attempt()`); flags parsed by `convert_from_gbbs_tool.py` and stored as `Room.flags`
 
 ---
 
