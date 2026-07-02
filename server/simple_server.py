@@ -647,6 +647,8 @@ class Server:
         ctx.player.unsaved_changes = True
         logging.debug('EXIT moved to room=%r', dest)
         await self._show_room(ctx)
+        from ally_events import try_ally_find_gold
+        await try_ally_find_gold(ctx)
 
     # -----------------------------------------------------------------------
     # Broadcast
