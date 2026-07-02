@@ -32,7 +32,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Pole weapon: first strike** — chance to get first strike based on dexterity vs. monster agility (`SPUR.COMBAT.S:221`)
 - **Fireball/energy weapon secondary damage** — 10% chance of secondary heat damage (`SPUR.COMBAT.S:143`)
 - **LURK mode** — player fires over allies' shoulders; to-hit penalty; requires at least one living ally (`SPUR.COMBAT.S:87–96`)
-- **Assassin critical hit** — class 8 (Assassin), 10% chance to double damage (`SPUR.COMBAT.S:135`)
+- ✅ **Assassin critical hit** — class 8 (Assassin), 10% chance to double damage (`SPUR.COMBAT.S:135`, `resolution.py:435`)
 - **Ease-of-use help message** — "(EASE OF USE HELPS!)" when roll barely misses and weapon skill is high (`SPUR.COMBAT.S:139`)
 - ✅ **Bad weapon choice warning** — "(bad weapon choice)" when `p2 < 3` (`SPUR.COMBAT.S:119`)
 
@@ -52,17 +52,17 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Disease on hit** — monsters with `@` flag; 30% chance to disease player (`SPUR.COMBAT.S:315–316`)
 - **Experience drain on hit** — monsters with `&` flag; drains XP×13 experience (`SPUR.COMBAT.S:317`)
 - **Multiple guards** — if player is treacherous in a guard room, whistles summon more guards and monster HP multiplies (`SPUR.COMBAT.S mad.gd`)
-- **Dexterity loss on heavy hit** — taking >4 damage reduces player DEX by 1 (`SPUR.COMBAT.S:318`)
-- **Dexterity gain** — dealing >4 damage has small chance to increase player DEX (`SPUR.COMBAT.S:143`)
-- **Wisdom gain on kill** — player `pw` increases by 1 on every non-ally kill (`SPUR.COMBAT.S:188`)
+- ✅ **Dexterity loss on heavy hit** — taking >4 damage reduces player DEX by 1 (`SPUR.COMBAT.S:318`, `engine.py:583`)
+- ✅ **Dexterity gain** — dealing >4 damage has small chance to increase player DEX (`SPUR.COMBAT.S:143`, `engine.py:335`)
+- ✅ **Wisdom gain on kill** — player `pw` increases by 1 on every non-ally kill (`SPUR.COMBAT.S:188`, `engine.py:676`)
 
 #### Status effects / survival
 - ✅ **Hunger / thirst** — `food` and `drink` deplete every 10 commands; "VERY HUNGRY/THIRSTY", "FAINT" warnings; starvation death when both reach 0; `eat` and `drink` commands restore them (`survival.py`, `commands/eat.py`, `commands/drink.py`, `SPUR.COMBAT.S:12–19`)
-- **Poison** — tick damage (−2 HP); 30% chance per tick; tick also reduces STR if ring is worn (`SPUR.COMBAT.S:15`)
-- **Disease** — tick damage (−1 HP); 30% chance per tick (`SPUR.COMBAT.S:16`)
+- ✅ **Poison** — tick damage (−2 HP); 30% chance per tick (`SPUR.COMBAT.S:15`, `survival.py:41`); STR reduction if ring worn is not yet implemented
+- ✅ **Disease** — tick damage (−1 HP); 30% chance per tick (`SPUR.COMBAT.S:16`, `survival.py:50`)
 - **Ring of power weakening** — wearing the ring has a 10% per-tick chance to reduce STR/WIS (`SPUR.COMBAT.S:14`)
 - ✅ **Strength drain on hit** — taking damage reduces player Strength by `damage/2` (`ps=ps-(a/2)`); `ps` = Player Strength, not food (`SPUR.COMBAT.S:307`)
-- **Too weak to wield** — if `ps < 4` (extremely hungry), weapon is automatically unreadied (`SPUR.COMBAT.S:321`)
+- ✅ **Too weak to wield** — if player Strength < 4, weapon is automatically unreadied (`SPUR.COMBAT.S:321`, `engine.py:290`)
 - **Dusk warning** — message when session time < 120 ticks remain (`SPUR.COMBAT.S:11`)
 
 ---
@@ -74,7 +74,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 
 ### Not Implemented
 - **Monster blocks path** — if player HP > 7 and room has `.` flag, monster may block flee (`SPUR.COMBAT.S:75`)
-- **Energy cost** — fleeing costs 1 energy (`SPUR.COMBAT.S:76`)
+- ✅ **Energy cost** — fleeing costs 1 energy (`SPUR.COMBAT.S:76`, `engine.py` `flee()`)
 - **Impassable rooms** — rooms flagged `@@`, `**`, or `<<` cannot be fled from (`SPUR.COMBAT.S:74`)
 
 ---
@@ -91,8 +91,8 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **UNREADY command** — clears readied weapon (`SPUR.MAIN.S`)
 
 ### Not Implemented
-- **Battle experience accumulation** — `vp`/`weapon_experience` incremented each time weapon is used in combat; VETERAN at 40, ELITE at 99 (`SPUR.WEAPON.S`)
-- **ELITE damage scaling** — ELITE tier grants +XP damage instead of flat +1 (`SPUR.WEAPON.S`)
+- ✅ **Battle experience accumulation** — `vp`/`weapon_experience` incremented each time weapon is used in combat; VETERAN at 40, ELITE at 99 (`SPUR.WEAPON.S`, `player.py:573`, `engine.py:85`)
+- ✅ **ELITE damage scaling** — ELITE tier grants +XP damage instead of flat +1 (`SPUR.WEAPON.S`, `resolution.py` `battle_exp_bonuses()`)
 - **Dexterity requirement** — weapons have a minimum DEX to wield (`ws+4`); player refused if below threshold (`SPUR.WEAPON.S:46`)
 - **STORM — duel behavior** — deferred until duels are implemented
 
@@ -183,7 +183,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **LOOT command** — search an unconscious player's inventory; one item per session; Civilians barred from the Shoppe after looting (tips.txt); see also Items section above
 - **The Dwarf** — permanent NPC on a fixed room on level 1; steals gold from all players until killed; killing him awards all accumulated stolen gold; room does not change between sessions (tips.txt)
 - **Special room traversal requirements** — snow/mountain rooms (`**` flag) require a Great Coat (item #78) or player freezes; water rooms (`@@` flag) require a Boat (levels 1–5) or Space Suit (level 6+); checks in `SPUR.MAIN.S:313–319` and `t_main.lbl`
-- **Wraith Master title** — players with `WRAITH_MASTER` flag get ", Wraith Master of Spur!" appended to their name at login (stubbed in `commands/connect.py:242`)
+- ✅ **Wraith Master title** — players with `WRAITH_MASTER` flag get ", Wraith Master of Spur!" appended to their name at login (`commands/connect.py:251`)
 - **WHO command** — lists currently online players; replaces the SPUR "last adventurer" login display (stubbed in `commands/connect.py:247`)
 - **Guild follow** — player character automatically follows guild members to their location when logged off; toggle in settings (stubbed in `commands/connect.py:274`)
 - **DIG command** — dig for buried items or gold (`SPUR.MAIN.S`)

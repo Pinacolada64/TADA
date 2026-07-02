@@ -237,6 +237,11 @@ class CombatSession:
             await ctx.send(f'{mname} blocks your escape!')
             return False
 
+        # Fleeing costs 1 energy (SPUR.COMBAT.S:76: pe=pe-1).
+        player = ctx.player
+        current_drink = int(getattr(player, 'drink', 0) or 0)
+        player.drink = max(0, current_drink - 1)
+
         # Pick a random navigable exit and move the player there.
         direction = self._random_exit(ctx)
         if direction:
@@ -286,9 +291,10 @@ class CombatSession:
             for warn in _survival_warnings(player):
                 await ctx.send(warn)
 
-            # Too weak to wield: low food/stamina forces weapon drop
+            # Too weak to wield: low Strength forces weapon drop
             # (SPUR.COMBAT.S: if ps<4 then wr$="":print "YOU ARE TOO WEAK TO WIELD YOUR WEAPON!")
-            if getattr(player, 'food', 20) < 4 and getattr(player, 'readied_weapon', None) is not None:
+            _ps = int((getattr(player, 'stats', None) or {}).get('Strength', 10) or 10)
+            if _ps < 4 and getattr(player, 'readied_weapon', None) is not None:
                 player.readied_weapon = None
                 await ctx.send('You are too weak to wield your weapon!')
 
