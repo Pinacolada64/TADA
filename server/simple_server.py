@@ -80,6 +80,8 @@ class Server:
         self.port         = port
         self.petscii_port = petscii_port
         self.clients: dict = {}   # addr -> Client
+        self.server         = None   # set in start(): the JSON asyncio.Server
+        self.petscii_server = None   # set in start(): the PETSCII asyncio.Server
 
         self.server_init = Init()
         self._load_game_data()
@@ -774,6 +776,11 @@ class Server:
         except OSError:
             logging.exception('Failed to bind server')
             return
+
+        # Exposed so callers/tests can discover the bound port (self.port may
+        # be 0 for an ephemeral port) via self.server.sockets[0].getsockname().
+        self.server         = json_server
+        self.petscii_server = petscii_server
 
         logging.info('JSON server listening on %s:%d', self.host, self.port)
         logging.info('PETSCII server listening on %s:%d',
