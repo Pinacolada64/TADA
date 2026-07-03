@@ -1,6 +1,10 @@
 The Land of Spur General Usage Variable Listing
 Updated 2/Feb/2014 21:51 (Seahawks win Superbowl!)
 Updated 7/Mar/2016 16:03 -- some corrections made
+Updated 2/Jul/2026 -- ally name-string flag sigils, monster flag sigils (wy$),
+	b1/xu$ additions, and *MNT confirmed for ys$, all found while porting
+	allies/mounts to the Python server. See SPUR.MISC7.S, SPUR.MAIN.S,
+	SPUR.COMBAT.S, SPUR.USE.S, SPUR.MISC2.S (skip branch).
 
 a	Time limit: initially 180. If caller's bps rate=300: 300.
 a1	Point man	(ally 1)
@@ -15,6 +19,12 @@ ai$	Ally inventory in xxx,yyy,[...] format (xxx/yyy=object #)
 ar	main char ARmor percentage
         
 b	value of random character
+b1	SPUR.COMBAT.S m.attack: mounted first-strike/CHARGE state for the
+	current exchange (local to combat, likely reused elsewhere in the
+	usual single/double-letter-variable way):
+		0: not mounted, or lost the first-strike roll
+		1: mounted, won the first-strike roll -- CHARGE is allowed
+		2: mounted, first-strike roll not yet resolved this exchange
 bd	Bottom BBS screen mask display
         
 cb$	Flag for something (*=non-existent object)
@@ -28,9 +38,23 @@ cs	opponent's strength
 ct	opponent's constitution
 cw	opponent's wisdom
         
-d1$	Name of ally 1
-d2$	Name of ally 2
-d3$	Name of ally 3
+d1$	Name of ally 1 -- but really "name + flag sigils", format is
+d2$	Name of ally 2 	<name>|<sigils>, e.g. "STARDUST|=@$!". The "|" only
+d3$	Name of ally 3 	appears once a sigil has been added; cln.ally strips
+		everything from "|" onward before display. Sigils seen so far
+		(same sigil means the same thing whether the ally was bought
+		from Fat Olaf, trained at the Allys Guild, or lassoed/equipped
+		at Jake's Stable):
+			=	MOUNT (only settable via LASSO)
+			@	SADDLED (Jake's Stable: USE Saddle on a mount)
+			$	ARMORED (Jake's Stable Horse Armor, or Allys
+				Guild Armor training -- same sigil either way)
+			!	ELITE / Discipline trained (Allys Guild), or
+				"trained mount" (Jake's Stable Train Horse --
+				same sigil, same underlying flag)
+			&	TRACKING trained (Allys Guild; refused for MOUNT)
+			%	COMBAT trained (Allys Guild)
+			#N	Body Build level 1-8 (Allys Guild; N is a digit)
 dc$	Last command
 df	Dwarf room (0=dead)
 dh	Dwarf gold, high amount (dh*10,000+dl)
@@ -139,7 +163,7 @@ tc$	Following characters on level 3
 td	Display BBS user stats on top of sysop screen
 td$	Following characters on level 4? 
 te$	Following characters on level 5? 
-tf$	Following characters? “>:” is default for TA/TB/TC/TD/TE/TF/TH$
+tf$	Following characters? ï¿½>:ï¿½ is default for TA/TB/TC/TD/TE/TF/TH$
 tg$	Can be copy of any T?$
 th$	Following characters on level 6? 
 tm	Counter for wizard glow?
@@ -183,7 +207,20 @@ wp	Weapon in room
 ww$	Copy of room name (stuff before pipe)
 wr$	Weapon readied
 wx$	>:x (x=current room) - another flag for who's present in a room?
-wy$	monster flags
+wy$	monster flags. Full sigil table (from the Python port's monsters.py,
+	itself derived from parsing this field across the monster roster):
+		;;	heavy_armor		++	cast_multiple_spells
+		;	light_armor		+	cast_one_spell
+		>>	chance_find_gold_2x	]	double_attacks
+		>	chance_find_gold	:	mechanical
+		.	increase_strength	E	evil
+		G	good			<	re_animates
+		#	cast_turn_to_stone	*	poisonous_attack
+		@	diseased_attack		&	experience_drain
+		%	magic_resistant		~	appears_unaffected
+		-	fire_attack		X	no_gold
+		$	multiple_monsters	?	no_article (suppress "THE")
+		AC	charmable		!	has_quote
         
 xf	# of food items in char's inventory
 xi	# of inventory items
@@ -201,6 +238,17 @@ xs$	Spells main character has
 xt	Something inventory/scroll-related...
 xt$	Same here
 xu	Guild.standings: Claw loss points
+	Also reused in SPUR.MISC2.S's elev subroutine as a scratch numeric
+	((random(890)/10)+10, roughly 10-98) for building xu$ -- unrelated
+	to the guild-standings meaning, just recycled.
+xu$	The scrap-of-paper elevator combination: three segments like
+	xu$ built above, joined with "-" (e.g. "45-72-33"). Generated once
+	when item #69 "scrap of paper" is READ, printed to the player, and
+	written to a per-player-indexed record in the "elevator" file
+	(position #1, pn, 10) so SPUR.SHIP.S's elevator subroutine can
+	check what the player types against it later. Never redisplayed
+	after the initial reveal -- forgetting it is a dead end even in
+	the original game.
 xv$	How allies are ORDERed?
 xw	# of weapons main char has
 	guild.standings: Fist victory points
@@ -227,6 +275,9 @@ ys$	What events have occurred this session
           LAZ.SH Lazer Shield used
           LOOT   Looted character
           me     meteor
+          MNT    Mounted (SPUR.MISC7.S mount/dismount; SPUR.MAIN.S checks
+                 it every move for auto-dismount/water-room block, and
+                 halves move-time-cost while set)
           OUTLAW Outlaws can LOOT twice
           pr1    Can only pray once per session
           pr2    Can pray twice (pc=2 or 4)
@@ -273,11 +324,15 @@ zu$	10 characters:
 		8: Amulet of Life
 		9: Tut's Treasure
 		    0 - not examined
-		    1 – examined
+		    1 ï¿½ examined
 	   10: Guild Follow
 zu	Skill with currently readied weapon
 zv	Damage with currently readied weapon
 zw	Opponent weapon class (from spur.duel2.s:opnt.wp)
+	Also reused in SPUR.COMBAT.S's CHARGE branch as a one-shot "this
+	attack is a charge" flag (zw=1 set right before falling through to
+	p.attack) -- unrelated to the duel meaning above, just the same
+	two letters recycled in a different overlay.
 zw$	Temp for class/race display
 zz	temp variable
 zz$	random character
