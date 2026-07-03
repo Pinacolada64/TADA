@@ -5,7 +5,7 @@ from typing import Optional
 from flags import PlayerFlags
 from formatting import hrule_char, underline
 from network_context import GameContext
-from player import Player, set_up_combinations
+from player import Player
 from base_classes import CombinationTypes, Combination
 from presence import enter_area, leave_area, broadcast_area, broadcast_open_room, others_present
 
@@ -51,9 +51,11 @@ async def get_combination(ctx: GameContext, *,
     Returns True if correct, False otherwise.
     """
     player = ctx.player
-    if not getattr(player, 'combinations', None):
-        player.combinations = set_up_combinations()
 
+    # No auto-generation here: the ELEVATOR combination only exists once the player
+    # has READ the scrap of paper (item #69, commands/read.py). Without that, the
+    # guard simply refuses -- matching SPUR.MISC2.S, where the elevator's combination
+    # check has no fallback.
     scrap = _find_combination(player, CombinationTypes.ELEVATOR)
     if not scrap:
         await ctx.send(

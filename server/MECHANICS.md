@@ -249,52 +249,40 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 
 ## Elevator Combination (Scrap of Paper)
 
-Deferred as its own task; not started. Full mechanic traced from `SPUR.MISC2.S:296-352`
-(`elev` subroutine, triggered by `READ`ing item #69) and `SPUR.SHIP.S:375-388`
-(`elevator`/`elev.1`, the actual coordinate check at the Shoppe elevator).
+✅ Implemented. Mechanic traced from `SPUR.MISC2.S:296-352` (`elev` subroutine, triggered
+by `READ`ing item #69) and `SPUR.SHIP.S:375-388` (`elevator`/`elev.1`, the actual
+coordinate check at the Shoppe elevator).
 
-### Findings so far
-
-- **Item #69 "scrap of paper" (type `book`) already exists in `objects.json`** and is
-  already placed in level 1, room 64 ("Labyrinth") -- unlike the wild horse, this needs
-  no placement/randomization work; the data is already correct.
-- **Original mechanic**: `READ`ing the scrap triggers two flavor Y/N prompts ("Art thou
-  true of heart?", "Good or Evil?" -- answering Evil costs 2 honor if honor > 2, no other
-  branching), generates a random 3-segment combination (`(random(890)/10)+10` per
-  segment), prints it once, persists it to a per-player-indexed file keyed by player
-  number, and the item disappears. Later, the Shoppe elevator reads the stored value back
-  and requires the player to type it in exactly ("Wrong!" on mismatch, no re-display).
-- **Current port's gaps**:
-  - `player.py`'s `set_up_combinations()` is called as `kwargs.get('combinations',
-    set_up_combinations())` in `Player.__init__` -- the default-argument expression is
-    evaluated eagerly on *every* construction (wasteful, and see next point).
-  - `player.py` builds `self.combinations` as a **list**; `commands/editplayer.py`
-    already treats `p.combinations` as a **dict** (`p.combinations[combo_type] = combo`)
-    -- these disagree today.
-  - `Player._load()`'s restorable-field whitelist doesn't include `combinations` at all,
-    so today a login always regenerates a fresh random combination rather than restoring
-    whatever the player last discovered -- a real, pre-existing bug independent of
-    anything else here.
-  - `shoppe/elevator.py` already calls a `get_combination()` helper -- check what it
-    currently does before writing anything new; may be partially built already.
-
-### Decisions made (for whoever picks this up)
-
-- **Shape**: `player.combinations` should be a `dict[CombinationTypes, Combination]`,
-  matching `editplayer.py`'s existing usage -- not the list `set_up_combinations()`
-  currently returns.
-- **Persistence**: store combinations directly on the `Player` object and round-trip
-  them through the normal `save()`/`_load()` flow, rather than SPUR's separate
-  per-player-indexed `elevator` file.
-- **Deviating from source on purpose**: the scrap of paper should **not** be consumed on
-  read. In the original, once it disappears the combination is never shown again anywhere
-  (the elevator only checks typed input against the stored value, it doesn't redisplay
-  it) -- forgetting it is a dead end even in SPUR. Keeping the item in inventory as a
-  re-readable reference (`READ` again just re-prints the already-generated combination,
-  doesn't reroll) fixes that without needing any new command or UI.
-- **RNG range**: SPUR's `(random(890)/10)+10` yields roughly 10-98 per segment; the
-  current `Combination` class uses `random.randrange(1, 100)` (1-99) -- close but not
-  identical; reconcile or leave as a minor intentional difference.
+- **Item #69 "scrap of paper"** (type `book`) is placed in level 1, room 64
+  ("Labyrinth"); no placement/randomization work was needed.
+- **`commands/read.py`** (new) implements `READ`: lists book-type inventory items, or
+  reads one by name/number. Item #69 is special-cased: the first read asks the two SPUR
+  flavor prompts ("Art thou true of heart?" Y/N, "Good or Evil?" G/E -- answering Evil
+  costs 2 honor if honor > 2, no other branching), generates a random `CombinationTypes.
+  ELEVATOR` entry, and prints it. Subsequent reads just re-print the same combination
+  rather than rerolling.
+- **Deviation from source, on purpose**: the scrap of paper is **not** consumed on read
+  (SPUR's item disappears after the one-time reveal, making a forgotten combination an
+  unrecoverable dead end even in the original). It stays in inventory as a re-readable
+  reference.
+- **Shape fixed**: `player.combinations` is now a `dict[CombinationTypes, Combination]`
+  (was a list), matching `commands/editplayer.py`'s existing usage.
+  `player.set_up_combinations()` seeds CASTLE and LOCKER at character creation but
+  deliberately omits ELEVATOR -- that key only appears once the scrap has been read, so
+  `shoppe/elevator.py`'s guard correctly refuses access to anyone who hasn't found it
+  (the old code auto-generated a default combination for everyone, silently defeating the
+  guard).
+- **Persistence fixed**: `Player._load()` now restores `combinations` from the save file
+  (previously not in the restorable-field whitelist, so every login silently regenerated
+  a fresh random combination). Restoration accepts both the current dict shape and the
+  older list-of-dicts shape already written to disk by existing player saves, so no
+  migration script is needed.
+- **Known pre-existing issue, not fixed here**: `Inventory.remove()` matches by
+  `id_number`, but `item_system.Item` (used for `objects.json` entries, including books)
+  never sets that attribute -- so `inv.remove(item)` silently no-ops for these items
+  today. This doesn't block the scrap of paper (which is intentionally never removed),
+  but it likely also affects `commands/use.py`'s shield/grenade/ring/saddle consumption
+  paths. Worth its own followup.
 
 ---
 

@@ -85,9 +85,14 @@ def set_up_client_settings():
 
 def set_up_combinations():
     from base_classes import Combination, CombinationTypes
-    # returns a list of 3 combinations: [<CombinationTypes.CASTLE: (40,10,5)]
-    combinations = [Combination(combination_type) for combination_type in CombinationTypes]
-    # >>> print(Combination(CombinationTypes.LOCKER))
+    # Returns a dict of CombinationTypes -> Combination, e.g. {CombinationTypes.CASTLE: <40-10-05>}.
+    # ELEVATOR is deliberately omitted here: unlike Castle/Locker, it isn't known to the
+    # player from the start -- it's only generated when the SCRAP OF PAPER (item #69) is
+    # READ (see commands/read.py), matching SPUR.MISC2.S's `elev` subroutine.
+    combinations = {combination_type: Combination(combination_type)
+                     for combination_type in CombinationTypes
+                     if combination_type != CombinationTypes.ELEVATOR}
+    # >>> print(set_up_combinations()[CombinationTypes.LOCKER])
     #   Locker: 21-83-91
     logging.debug(combinations)
     return combinations
@@ -182,8 +187,9 @@ class Player:
         self.stats = kwargs.get("stats", set_up_stats())
         # flags:
         self.flags = kwargs.get('flags', set_up_flags())
-        # generate a dict of 3 {<combination_type>, tuple(three random digits ranging from 0-99)}:
-        self.combinations = kwargs.get('combinations', set_up_combinations())
+        # dict of CombinationTypes -> Combination (ELEVATOR is added later, on-demand,
+        # by reading the scrap of paper -- see set_up_combinations()):
+        self.combinations = kwargs.get('combinations') or set_up_combinations()
         # client settings - set up some defaults
         self.client_settings = kwargs.get('client_settings', set_up_client_settings())
         # per-player command preferences (whereat visibility, etc.)
@@ -943,6 +949,38 @@ class Player:
             # Per-player kill list (each entry is a monster number)
             if 'monsters_killed' in data and isinstance(data['monsters_killed'], list):
                 self.monsters_killed = [int(i) for i in data['monsters_killed'] if isinstance(i, (int, float))]
+
+            # Combinations — accepts both the current dict shape ({name: {...}})
+            # and the older list-of-dicts shape ([{'name': ..., 'combination': [...]}])
+            # written before player.combinations became a dict keyed by CombinationTypes.
+            if 'combinations' in data:
+                try:
+                    from base_classes import Combination, CombinationTypes
+                    raw = data['combinations']
+                    if isinstance(raw, dict):
+                        entries = raw.values()
+                    elif isinstance(raw, list):
+                        entries = raw
+                    else:
+                        entries = []
+                    restored = {}
+                    for entry in entries:
+                        if not isinstance(entry, dict):
+                            continue
+                        saved_name = entry.get('name')
+                        combo_type = next((ct for ct in CombinationTypes
+                                           if ct.value == saved_name or ct.name == saved_name), None)
+                        if combo_type is None:
+                            continue
+                        values = entry.get('combination')
+                        if not (isinstance(values, (list, tuple)) and len(values) == 3):
+                            continue
+                        combo = Combination(combo_type)
+                        combo.combination = tuple(int(v) for v in values)
+                        restored[combo_type] = combo
+                    self.combinations = restored
+                except Exception:
+                    logging.exception("Player._load: failed to restore combinations for %s", self.name)
 
             # Command settings
             if 'command_settings' in data and isinstance(data['command_settings'], dict):
