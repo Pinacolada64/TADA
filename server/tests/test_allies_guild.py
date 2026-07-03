@@ -1,7 +1,9 @@
 """tests/test_allies_guild.py
 
-Unit tests for bar/allies_guild.py (the Allys Guild, ported from the skip
-branch's SPUR.MISC8.S s.guild/s.disc/s.armor/s.wep/s.track/s.bod).
+Unit tests for bar/allies_guild.py (the Allies' Guild, ported from the skip
+branch's SPUR.MISC8.S s.guild/s.disc/s.armor/s.wep/s.track/s.bod), plus its
+hardcoded level/room/direction interception in commands/movement.py (mirrors
+SPUR.MAIN.S: "if cl=4 if cr=42 if di=3 ...").
 
 Coverage:
   - no owned allies -> greets and exits immediately
@@ -12,6 +14,8 @@ Coverage:
   - body building caps at level 8
   - insufficient gold blocks training (no flag applied)
   - declining the confirmation prompt blocks training (no flag applied)
+  - movement hook: level 4, room 42, moving east -> triggers the guild;
+    wrong level/room/direction -> falls through to normal movement
 
 Run with:
     python -m pytest tests/test_allies_guild.py -v
@@ -20,7 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import sys, types
 
@@ -35,6 +39,7 @@ from bar.allies_guild import (
     _MAX_BODY_BUILD_LEVEL, _BODY_BUILD_STR_BONUS, _BODY_BUILD_BASE_COST,
     _COST_DISCIPLINE, _COST_ARMOR, _COST_COMBAT, _COST_TRACKING,
 )
+from commands.movement import MoveCommand
 
 
 def _make_ally(name='BARDA', flags=None) -> Ally:
@@ -224,7 +229,53 @@ class TestAllyGuildMain(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(player)
         ctx.set_answers([''])   # blank input at the main menu -> leave
         await guild_main(ctx)
-        self.assertIn('ALLYS GUILD', ctx.sent())
+        self.assertIn("ALLIES' GUILD", ctx.sent())
+
+
+def _make_movement_ctx(map_level=1, room=1):
+    ctx = MagicMock()
+    ctx.player = MagicMock()
+    ctx.player.map_level = map_level
+    ctx.client = MagicMock()
+    ctx.client.room = room
+    ctx.server = MagicMock()
+    ctx.server.game_map = MagicMock()
+    ctx.server.game_map.rooms = {}
+    ctx.server._move = AsyncMock()
+    ctx.server._show_room = AsyncMock()
+    ctx.send = AsyncMock()
+    return ctx
+
+
+class TestAllyGuildMovementHook(unittest.IsolatedAsyncioTestCase):
+
+    async def test_level4_room42_east_triggers_guild(self):
+        ctx = _make_movement_ctx(map_level=4, room=42)
+        with patch('bar.allies_guild.main', new=AsyncMock()) as mock_main:
+            await MoveCommand().execute(ctx, 'e')
+        mock_main.assert_awaited_once_with(ctx)
+        ctx.server._move.assert_not_awaited()
+
+    async def test_wrong_level_falls_through(self):
+        ctx = _make_movement_ctx(map_level=1, room=42)
+        with patch('bar.allies_guild.main', new=AsyncMock()) as mock_main:
+            await MoveCommand().execute(ctx, 'e')
+        mock_main.assert_not_awaited()
+        ctx.server._move.assert_awaited_once_with(ctx, 'e')
+
+    async def test_wrong_room_falls_through(self):
+        ctx = _make_movement_ctx(map_level=4, room=1)
+        with patch('bar.allies_guild.main', new=AsyncMock()) as mock_main:
+            await MoveCommand().execute(ctx, 'e')
+        mock_main.assert_not_awaited()
+        ctx.server._move.assert_awaited_once_with(ctx, 'e')
+
+    async def test_wrong_direction_falls_through(self):
+        ctx = _make_movement_ctx(map_level=4, room=42)
+        with patch('bar.allies_guild.main', new=AsyncMock()) as mock_main:
+            await MoveCommand().execute(ctx, 'n')
+        mock_main.assert_not_awaited()
+        ctx.server._move.assert_awaited_once_with(ctx, 'n')
 
 
 if __name__ == '__main__':
