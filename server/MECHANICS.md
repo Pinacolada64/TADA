@@ -79,7 +79,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 ### Not Implemented
 - **Monster blocks path** — if player HP > 7 and room has `.` flag, monster may block flee (`SPUR.COMBAT.S:75`)
 - ✅ **Energy cost** — fleeing costs 1 energy (`SPUR.COMBAT.S:76`, `engine.py` `flee()`)
-- ✅ **Impassable rooms** — rooms flagged `@@` (water), `**` (snow), or `<<` (no_flee) cannot be fled from (`SPUR.COMBAT.S:74`, `resolution.py` `flee_attempt()`); flags parsed by `convert_from_gbbs_tool.py` and stored as `Room.flags`
+- ✅ **Impassable rooms** — rooms flagged `@@` (water), `**` (snow), or `<<` (no_flee) cannot be fled from (`SPUR.COMBAT.S:74`, `resolution.py` `flee_attempt()`); flags parsed by `convert_from_gbbs_tool.py` and stored as `Room.flags`. **Note**: on level 6, `@@` doesn't mean water at all — see "Special room traversal requirements" below.
 
 ---
 
@@ -181,7 +181,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 ### Not Implemented
 - **Guilds** — three guilds (Claw, Sword, Iron Fist); bank, food locker, item locker, weapon box, chalk board, log (`SPUR.GUILD.S`)
 - **Bar** — ally hiring, drink/food purchase (`SPUR.BAR.S`, `SPUR.BAR2.S`, `SPUR.BAR3.S`) — see **Bar** section below
-- **Ship / Space level** — space-themed level (likely level 7); room data in `SPUR-data/level-7/` (requires gbbs-io to decode); `SPUR.SHIP.S` handles its specific mechanics (`SPACE SUIT` replaces `BOAT` for water-room traversal at level 6+, per `SPUR.MAIN.S:158`)
+- **Ship / Space level** — space-themed level; confirmed as level 6 ("A Brave New World" per `shoppe/elevator.py`'s `_LEVEL_NAMES`; `level_6.json` has 86 rooms literally named "Outer Space" plus "Engineering"/"Between Dimensions" areas); `SPUR.SHIP.S` handles its specific mechanics (`SPACE SUIT` replaces `BOAT` for `@@`-flagged room traversal at level 6+, per `SPUR.MAIN.S:158` — see the flag-naming note under "Special room traversal requirements" below)
 - **Gates** — zone gate travel (`SPUR.GATES.S`)
 - **Annex** — visitor area (`SPUR.ANNEX.S`) — see **Annex** section below
 - **Shop** — buy/sell items, ammo, shields (`SPUR.SHOP.S`) — see **Merchant Shoppe** section below
@@ -191,7 +191,23 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **QUOTE command** — player sets a short quote displayed to others who encounter their parked character; referenced in `t_main.lbl` command list and tips.txt
 - **LOOT command** — search an unconscious player's inventory; one item per session; Civilians barred from the Shoppe after looting (tips.txt); see also Items section above
 - **The Dwarf** — permanent NPC on a fixed room on level 1; steals gold from all players until killed; killing him awards all accumulated stolen gold; room does not change between sessions (tips.txt)
-- **Special room traversal requirements** — snow/mountain rooms (`**` flag) require a Great Coat (item #78) or player freezes; water rooms (`@@` flag) require a Boat (levels 1–5) or Space Suit (level 6+); checks in `SPUR.MAIN.S:313–319` and `t_main.lbl`
+- **Special room traversal requirements** — snow/mountain rooms (`**` flag) require a Great Coat (item #78) or player freezes; water rooms (`@@` flag) require a Boat (levels 1–5) or Space Suit (level 6+); checks in `SPUR.MAIN.S:313–319` and `t_main.lbl`.
+  **`@@`/`water` is a reused, misleading flag name on level 6**: SPUR's source
+  literally swaps the requirement string at `SPUR.MAIN.S:158,179` --
+  `i$="BOAT":if cl=6 i$="SPACE SUIT"` -- so the *same* `@@` room-condition token
+  means "needs a Boat" on levels 1–5 and "needs a Spacesuit" on level 6. Confirmed
+  against data: all 86 rooms named "Outer Space" in `level_6.json` (black-void
+  vacuum descriptions) are flagged `water`/`water_with_rocks`, not some separate
+  space-specific flag. There *is* a distinct `outer_space` `RoomFlag` (`=+` token,
+  see `convert_from_gbbs_tool.py`), but it lands on unrelated rooms ("Engineering",
+  "Between Dimensions") -- it does not mark the vacuum rooms.
+  **TODO**: give this a level-aware label wherever it's surfaced to the player or
+  used in game logic (e.g. a helper like `room_hazard_label(level, flags)` returning
+  "water"/"Boat" below level 6 and "vacuum"/"Spacesuit" at level 6+), rather than
+  hardcoding the string `"water"` in messages or comparisons. `commands/mount.py`'s
+  MOUNT/auto-dismount water check (`_WATER_FLAGS`) is one place already doing a raw
+  `water`/`water_with_rocks` flag check that would misfire (talk about a horse
+  "refusing to go in the water") if a mount were ever brought aboard the ship level.
 - ✅ **Wraith Master title** — players with `WRAITH_MASTER` flag get ", Wraith Master of Spur!" appended to their name at login (`commands/connect.py:251`)
 - **WHO command** — lists currently online players; replaces the SPUR "last adventurer" login display (stubbed in `commands/connect.py:247`)
 - **Guild follow** — player character automatically follows guild members to their location when logged off; toggle in settings (stubbed in `commands/connect.py:274`)

@@ -18,6 +18,20 @@ the current `level_6.json`). Anyone implementing these will likely need to re-de
 room numbering from the original `SPUR-data/level-N` binaries rather than trust the
 `cr=` literals verbatim.
 
+**Another gotcha, relevant to quests #2 and #6 below**: the `@@` room-condition
+flag (our port's `RoomFlag.WATER`/`water_with_rocks`) is reused by SPUR to mean two
+different things depending on level. `SPUR.MAIN.S:158,179` literally swaps the
+requirement string: `i$="BOAT":if cl=6 i$="SPACE SUIT"`. So on levels 1–5, a
+`water`-flagged room needs a Boat; on level 6, the *same* flag on a room means it's
+vacuum and needs a Spacesuit instead. Confirmed against data: all 86 rooms literally
+named "Outer Space" in `level_6.json` (black-void descriptions) carry the `water`/
+`water_with_rocks` flag, not some dedicated space flag. **TODO**: give this a
+level-aware label wherever it reaches the player or game logic (e.g.
+`room_hazard_label(level, flags)` → "water"/"Boat" below level 6, "vacuum"/
+"Spacesuit" at level 6+) instead of hardcoding `"water"` — see MECHANICS.md
+"Special room traversal requirements" for the full note, including a heads-up about
+`commands/mount.py`'s water check being one place that would misfire on level 6.
+
 ---
 
 ## Quest Table
@@ -25,7 +39,7 @@ room numbering from the original `SPUR-data/level-N` binaries rather than trust 
 | # | Quest | Required Item(s) | Reward | Branch | Confidence |
 |---|-------|-------------------|--------|--------|------------|
 | 1 | Headhunter's Island | Defeat "BIG CHIEF" (monster #84) | #40 Black Diamond, #78 Great Coat, weapon #57 Wraith Dagger | master | Confirmed (map/combat gauntlet, not a scripted fetch quest) |
-| 2 | Spacesuit Repair | #133 Tool Kit + #134 Broken Spacesuit + #135 Spacesuit Parts | #122 Spacesuit (needed to survive water/vacuum rooms on level 6+) | master + skip | Confirmed |
+| 2 | Spacesuit Repair | #133 Tool Kit + #134 Broken Spacesuit + #135 Spacesuit Parts | #122 Spacesuit (needed to survive `@@`-flagged vacuum rooms on level 6+ — see the flag-naming gotcha above) | master + skip | Confirmed |
 | 3 | Communicator Repair | #133 Tool Kit + #141 Broken Communicator | #66 Communicator (USE to beam up to level 6, room 1) | master + skip | Confirmed |
 | 4 | Security Cards | Search (`~*`) qualifying level-6 rooms | #131 Red Card (opens east doors) / #132 Green Card (opens west doors) | master | Confirmed mechanic; room placement is a loose end |
 | 5 | Radiation Suit + Geiger Counter | — | #124 Radiation Suit (damage protection), #123 Geiger Counter (early warning) | master | Confirmed |
@@ -63,7 +77,9 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
 - **Trigger**: `USE` the tool kit while carrying both parts.
 - **Required**: #133 Tool Kit + #134 Broken Spacesuit + #135 Spacesuit Parts.
 - **Reward**: consumes #134+#135, adds #122 Spacesuit — required to traverse
-  water/vacuum (`@@`) rooms at level ≥ 6 (`SPUR.MAIN.S:151–159, 301–309`).
+  `@@`-flagged vacuum rooms at level ≥ 6 (`SPUR.MAIN.S:151–159, 301–309`; see the
+  flag-naming gotcha at the top of this doc — these are `RoomFlag.WATER` in the
+  converted JSON, not literal water).
 - **Item locations**: Tool Kit (133) — "Dingy Closet" (room 40); Broken Spacesuit
   (134) — "Equipment Locker" (room 48, "One very broken looking suit..."); Spacesuit
   Parts (135) — "Storage Locker" (52) or "Vent Duct" (63).
@@ -114,7 +130,8 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
 ### 6. Space Tracker
 - **Source**: `SPUR.MAIN.S:153–156, 511–514` (`tracker` subroutine).
 - **Item**: #138 Space Tracker — found in "Security Bunker" (level 6, room 108).
-- **Reward**: while traveling a `@@` (space) room at level 6, carrying the tracker
+- **Reward**: while traveling a `@@`-flagged (i.e. `water`-flagged — see gotcha
+  above) vacuum room at level 6, carrying the tracker
   prints "The SPACE TRACKER powers up! (Giving galactic space coordinates)" and
   appends `[GC:<room>]` to the status line; without it: "(Too bad you don't have a
   SPACE TRACKER..)".
