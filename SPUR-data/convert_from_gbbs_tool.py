@@ -57,16 +57,31 @@ class RoomFlag(Enum):
     BLOCK_MOVE_SOUTH = "block_south"
     BLOCK_MOVE_WEST  = "block_west"
     WATER    = "water"    # @@ -- requires Boat (lvl 1-5) or Spacesuit (lvl 6+); no flee (SPUR.COMBAT.S:74)
-    # WATER_WITH_ROCKS? # @@!
-    # ROOM_58  # +@1 - exit in direction 1?
-    # UNKNOWN  # -
+    WATER_WITH_ROCKS = "water_with_rocks"  # @@! -- per programming-notes/file-formats.txt
 
     SNOW     = "snow"     # ** -- requires Great Coat; no flee (SPUR.COMBAT.S:74)
     NO_FLEE  = "no_flee"  # << -- cannot flee from this room (SPUR.COMBAT.S:74)
+    BLOCK_LEVEL_TRAVEL_SPELL = "block_level_travel_spell"  # >> -- blocks spell-based up/down
+                                                            # level travel; also blocks fleeing,
+                                                            # like << (file-formats.txt)
     RADIATION = "radiation"  # &
     RADIATION_EXTREME = "radiation_extreme"  # &&
     HIDDEN_EXIT_EAST = "hidden_exit_east"  # ->
     HIDDEN_EXIT_WEST = "hidden_exit_west"  # <-
+    OUTER_SPACE = "outer_space"  # =+
+    HIDDEN_ITEM = "hidden_item"  # ~*
+    HIDDEN_DOOR_NORTH = "hidden_door_north"  # ~*N
+    HIDDEN_DOOR_EAST  = "hidden_door_east"   # ~*E
+    HIDDEN_DOOR_SOUTH = "hidden_door_south"  # ~*S
+    HIDDEN_DOOR_WEST  = "hidden_door_west"   # ~*W
+    # ROOM_58  # +@1 - exit in direction 1? (uncertain -- file-formats.txt says the digit means
+    #            "direction of travel after exiting vehicle", seen mostly in water rooms; not
+    #            implemented until that's pinned down further)
+    # UNKNOWN  # - (file-formats.txt says unknown too -- not resolved)
+    # T (room transports you / "wave of nausea") -- "must be last flag, apparently"; not
+    #   implemented as an inline_flags token because a bare "T" would false-positive-match
+    #   almost any room name as a substring (e.g. "THE DESERT"). Needs a suffix-anchored
+    #   check (only after the "|", as the literal last character) rather than `in`.
 
 # Maps the letter found after ']' in the room flag string to a RoomFlag
 DIRECTION_FLAGS = {
@@ -74,6 +89,14 @@ DIRECTION_FLAGS = {
     'E': RoomFlag.BLOCK_MOVE_EAST,
     'S': RoomFlag.BLOCK_MOVE_SOUTH,
     'W': RoomFlag.BLOCK_MOVE_WEST,
+}
+
+# Maps the letter found after '~*' in the room flag string to a hidden-door RoomFlag.
+HIDDEN_DOOR_FLAGS = {
+    'N': RoomFlag.HIDDEN_DOOR_NORTH,
+    'E': RoomFlag.HIDDEN_DOOR_EAST,
+    'S': RoomFlag.HIDDEN_DOOR_SOUTH,
+    'W': RoomFlag.HIDDEN_DOOR_WEST,
 }
 
 EXIT_KEYS = ['north', 'south', 'east', 'west', 'rc', 'rt']
@@ -105,40 +128,68 @@ class Room:
 def parse_name_field(raw_name: str) -> tuple[str, RoomAlignment, list[RoomFlag]]:
     """
     Parse a raw room name like:
-      'THE DESERT|]S]W'  -> ('The Desert', RoomAlignment.NEUTRAL, [BLOCK_SOUTH, BLOCK_WEST])
-      'THE PLAIN +'      -> ('The Plain', RoomAlignment.FREE_FIRE, [])
-      'WOODED GLEN'      -> ('Wooded Glen', RoomAlignment.NEUTRAL, [])
+      'THE DESERT|]S]W'      -> ('The Desert', RoomAlignment.NEUTRAL, [BLOCK_SOUTH, BLOCK_WEST])
+      'THE PLAIN +'          -> ('The Plain', RoomAlignment.FREE_FIRE, [])
+      'THE OCEAN |@@!'       -> ('The Ocean', RoomAlignment.NEUTRAL, [WATER_WITH_ROCKS])
+      'WOODED GLEN'          -> ('Wooded Glen', RoomAlignment.NEUTRAL, [])
+
+    Per programming-notes/file-formats.txt (confirmed by Ryan directly): every one of
+    these room-condition flags -- @@, **, <<, >>, ->, <-, &, &&, =+, ~* -- only ever
+    appears AFTER a "|" in the raw name. FIX: this function used to check these tokens
+    against the pre-pipe name (already truncated by the block-move-flag step below),
+    so they never matched anything and were silently dropped for every room that used
+    them -- confirmed against level 5 room 157 ("THE OCEAN |@@!"), which the live
+    level_5.json shows with flags: [] despite the raw data. '+' (free-fire) is the one
+    documented exception -- file-formats.txt says explicitly it is "not after |".
     """
     flags = []
     room_alignment = RoomAlignment.NEUTRAL
 
-    # Check for block-move flags: pipe followed by ]DIR pairs e.g. |]S]W
+    # Check for the pipe-suffix flag section: everything after "|" is a condition/
+    # block-move flag, never part of the display name.
     pipe_match = re.search(r'\|(.+)$', raw_name)
     if pipe_match:
         raw_name = raw_name[:pipe_match.start()]
         flag_str = pipe_match.group(1)
-        # Extract each letter after ']'
+
+        # Block-move flags: pipe followed by ]DIR pairs e.g. |]S]W
         for letter in re.findall(r']([NESW])', flag_str, re.IGNORECASE):
             flag = DIRECTION_FLAGS.get(letter.upper())
             if flag:
                 flags.append(flag)
+        remaining = re.sub(r']\w', '', flag_str)
 
-    # Extract traversal/restriction flags embedded directly in the name string.
-    # Order matters: check longer tokens before shorter ones to avoid partial matches.
-    inline_flags = [
-        ('@@', RoomFlag.WATER),
-        ('**', RoomFlag.SNOW),
-        ('<<', RoomFlag.NO_FLEE),
-        ('->', RoomFlag.HIDDEN_EXIT_EAST),
-        ('<-', RoomFlag.HIDDEN_EXIT_WEST),
-    ]
-    for token, flag in inline_flags:
-        if token in raw_name:
-            raw_name = raw_name.replace(token, '').strip()
-            flags.append(flag)
+        # Hidden-door flags: ~* followed by a direction letter, e.g. ~*E
+        for letter in re.findall(r'~\*([NESW])', remaining, re.IGNORECASE):
+            flag = HIDDEN_DOOR_FLAGS.get(letter.upper())
+            if flag:
+                flags.append(flag)
+        remaining = re.sub(r'~\*[NESW]', '', remaining, flags=re.IGNORECASE)
 
-    # Check for room alignment symbol suffix (e.g. '+', '\|/')
-    # These are literal strings, not regex patterns, so use plain 'in' check
+        # Traversal/restriction flags embedded in the pipe suffix.
+        # Order matters: longer/more-specific tokens first to avoid partial matches
+        # (e.g. '@@!' before '@@', bare '~*' only after the ~*DIR variants above).
+        inline_flags = [
+            ('@@!', RoomFlag.WATER_WITH_ROCKS),
+            ('@@',  RoomFlag.WATER),
+            ('**',  RoomFlag.SNOW),
+            ('<<',  RoomFlag.NO_FLEE),
+            ('>>',  RoomFlag.BLOCK_LEVEL_TRAVEL_SPELL),
+            ('->',  RoomFlag.HIDDEN_EXIT_EAST),
+            ('<-',  RoomFlag.HIDDEN_EXIT_WEST),
+            ('&&',  RoomFlag.RADIATION_EXTREME),
+            ('&',   RoomFlag.RADIATION),
+            ('=+',  RoomFlag.OUTER_SPACE),
+            ('~*',  RoomFlag.HIDDEN_ITEM),
+        ]
+        for token, flag in inline_flags:
+            if token in remaining:
+                remaining = remaining.replace(token, '', 1)
+                flags.append(flag)
+
+    # Check for room alignment symbol suffix (e.g. '+', '\|/') on the pre-pipe name.
+    # These are literal strings, not regex patterns, so use plain 'in' check.
+    # '+' (free-fire) is documented as the one flag NOT gated behind "|".
     for symbol, align_value in ALIGNMENT_SYMBOLS.items():
         if symbol in raw_name:
             raw_name = raw_name.replace(symbol, '').strip()
