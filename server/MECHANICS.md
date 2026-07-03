@@ -391,7 +391,8 @@ At login, if the player has a horse, it is announced: *"Your faithful steed `<na
 These pieces come from a different source generation than the `t_mount.lbl`/`t_charge.lbl`
 listings above — the skip branch's `SPUR.USE.S` (`lasso`/`eq.horse`) and `SPUR.MISC8.S`
 (`jakes`), where a mount is a regular party-slot ally flagged `MOUNT` rather than a
-dedicated "ally slot 4". `MOUNT`/`DISMOUNT`/`CHARGE` below are still unimplemented either way.
+dedicated "ally slot 4". `MOUNT`/`DISMOUNT` (Phase 1 below) follow this same
+party-slot-ally model; `CHARGE` is still unimplemented either way.
 
 #### Acquiring a horse
 - ✅ **LASSO capture** — during combat against a horse-named monster (e.g. `WILD HORSE`,
@@ -405,14 +406,31 @@ dedicated "ally slot 4". `MOUNT`/`DISMOUNT`/`CHARGE` below are still unimplement
   section below); sells Oats/Sugar Cube/Lasso/Saddle/Horse Armor and offers Train Horse
   (`SPUR.MISC8.S` `jakes`, `street/jakes.py`)
 
-#### MOUNT / DISMOUNT
-- `MOUNT` — checks `a$(4) <> "---"` (horse exists); checks mounted bit (bit 4 of `v1+65`);
-  handles water rooms gracefully ("(Luckily, `<name>` can swim.)"); sets mounted bit and prints
-  "You leap upon your noble steed, `<name>`..."
-  - TODO in source: check character class size for mounting difficulty; check for saddle; check
-    player strength vs. weight of armor.
-- `DISMOUNT` — clears mounted bit.  Source notes that MOUNT and DISMOUNT may be folded into one
-  toggle command.
+#### MOUNT / DISMOUNT — Phase 1 of 3 ✅
+Implemented against the block-diagram plan traced from the skip branch's `SPUR.USE.S`/
+`SPUR.MISC8.S` party-slot-ally model, not the `t_mount.lbl` bit-flag design above.
+- ✅ **State tracking**: `PlayerFlags.MOUNTED` (already existed in `flags.py`, already
+  wired into `commands/editplayer.py` and generic save/load via
+  `flags.serialize_flags_for_save()`) — no new `Player` field needed.
+- ✅ **`MOUNT`** (`commands/mount.py`) — refuses without a MOUNT-flagged ally
+  (`bar.allies.find_mount()`), refuses if already mounted, refuses in a water room
+  (`SPUR.COMBAT.S:74` — water needs a Boat, not a horse). Sets the flag and prints
+  "You climb onto `<name>`."
+- ✅ **`DISMOUNT`** (`commands/dismount.py`) — unconditional while mounted; no-ops with a
+  message otherwise.
+- ✅ **Auto-dismount** (`commands/movement.py` `_auto_dismount_if_needed()`, called after
+  every successful move) — clears the flag if the mount ally is gone from the party, or
+  DEAD/UNCONSCIOUS but still in it (a combat loss leaves the corpse in `player.party` —
+  see `combat/engine.py`), or if the destination room is flagged `water`/
+  `water_with_rocks`.
+- ⏸️ **Not implemented — half move-time while mounted**: the plan called for halving
+  travel time on horseback, but this server has no move-time/tick system to halve
+  (`player.moves_today` exists as a field but is never incremented anywhere; there's no
+  session-elapsed-time tracking at all). Revisit if/when a real time budget exists;
+  faking one just for this would be backwards.
+- ⏸️ **Not implemented — mounting difficulty/saddle/strength checks**: the `t_mount.lbl`
+  TODOs (character size, saddle requirement, strength vs. armor weight) weren't carried
+  over; `MOUNT` only checks for a live MOUNT ally, water, and double-mounting.
 
 #### CHARGE
 - Requires horse in slot 4; fails with "You don't have a horse."
@@ -447,8 +465,12 @@ dedicated "ally slot 4". `MOUNT`/`DISMOUNT`/`CHARGE` below are still unimplement
   food/ration system).
 
 ### Future
-- Implement `MOUNT` / `DISMOUNT` as toggle or separate commands.
-- Implement `CHARGE` with class bonuses, horse-strength gate, and unseating risk.
+- Implement `CHARGE` (Phase 2) with class bonuses, horse-strength gate, and unseating
+  risk — blocked on pinning down SPUR.COMBAT.S's `p.attack`/`zw` first-strike bonus
+  formula from source.
+- Phase 3: mounted-combat flavor (miss-over-the-top, mount redirects a hit) and the
+  unseat check (stat roll + saddle save on a "jarring hit" — trigger condition not yet
+  pinned down from source).
 - Wire saddlebags into inventory as an extra carry slot on the horse.
 - Add horseshoe service to the Blacksmith shoppe section.
 

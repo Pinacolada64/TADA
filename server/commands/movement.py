@@ -13,7 +13,10 @@ normal movement to ctx.server._move().
 from base_classes import RoomAlignment
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
+from flags import PlayerFlags
 from network_context import GameContext
+
+_WATER_FLAGS = {'water', 'water_with_rocks'}
 
 _DIR_ALIASES: dict[str, str] = {
     'n': 'n', 'north': 'n',
@@ -41,6 +44,33 @@ _ALLY_GUILD_ROOM  = 42
 # SPUR.MAIN.S: "if cl=5 if cr=157 if di=3 i$=\"JAKES\":...link dy$"
 _JAKES_LEVEL = 5
 _JAKES_ROOM  = 157
+
+
+async def _auto_dismount_if_needed(ctx: GameContext) -> None:
+    """After a move, drop the player off their horse if it's no longer valid
+    or if they've walked into a water room (SPUR.COMBAT.S:74 -- water rooms
+    need a Boat, not a horse). No-op if the player isn't currently mounted.
+    """
+    player = ctx.player
+    if not player.query_flag(PlayerFlags.MOUNTED):
+        return
+
+    from bar.allies import find_mount
+    if find_mount(player) is None:
+        player.clear_flag(PlayerFlags.MOUNTED)
+        player.unsaved_changes = True
+        await ctx.send('Your horse is gone -- you find yourself on foot.')
+        return
+
+    game_map = getattr(ctx.server, 'game_map', None)
+    level    = getattr(player, 'map_level', 1) or 1
+    room_no  = getattr(ctx.client, 'room', 1) or 1
+    room     = game_map.get_room(int(level), int(room_no)) if game_map else None
+    room_flags = getattr(room, 'flags', None) or [] if room else []
+    if any(f in _WATER_FLAGS for f in room_flags):
+        player.clear_flag(PlayerFlags.MOUNTED)
+        player.unsaved_changes = True
+        await ctx.send('Your horse balks at the water -- you dismount.')
 
 
 async def _enter_shoppe(ctx: GameContext) -> None:
@@ -169,4 +199,5 @@ class MoveCommand(Command):
                     return CommandResult.ok()
 
         await ctx.server._move(ctx, direction)
+        await _auto_dismount_if_needed(ctx)
         return CommandResult.ok()

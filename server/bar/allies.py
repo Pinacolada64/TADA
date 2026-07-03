@@ -42,6 +42,23 @@ def purchased_allies(player) -> List[Ally]:
     ]
 
 
+def find_mount(player) -> Optional[Ally]:
+    """Return the player's active MOUNT-flagged ally, or None.
+
+    Excludes a mount that's DEAD/UNCONSCIOUS (still in player.party after a
+    combat loss -- see combat/engine.py) or already FREE (should have been
+    removed from party, but this is a defensive belt-and-suspenders check).
+    Used to gate MOUNT and to detect when a mounted player should be
+    auto-dismounted because their horse is no longer serviceable.
+    """
+    return next(
+        (a for a in owned_allies(player)
+         if AllyFlags.MOUNT in (a.flags or [])
+         and a.status == AllyStatus.SERVANT),
+        None,
+    )
+
+
 async def pick_ally(
     ctx: 'GameContext',
     allies: List[Ally],
