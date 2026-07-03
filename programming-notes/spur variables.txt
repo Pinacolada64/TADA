@@ -54,7 +54,18 @@ d3$	Name of ally 3 	appears once a sigil has been added; cln.ally strips
 				same sigil, same underlying flag)
 			&	TRACKING trained (Allys Guild; refused for MOUNT)
 			%	COMBAT trained (Allys Guild)
-			#N	Body Build level 1-8 (Allys Guild; N is a digit)
+			#N	Body Build level 1-8 (Allys Guild; N is a digit;
+				cln.ally reads N and multiplies by 3 -- matches
+				the Allys Guild's "+3 STR per level" wording)
+			(	GOOD alignment
+			)	EVIL alignment
+			>xx	GOD (xx = message # from the MESSAGES file,
+				printed when the ally is first found; also
+				flags that the party may not hold two
+				gods/goddesses at once -- SPUR.MISC2.S:no.fem)
+			+xx	GODDESS (same xx meaning as >xx above)
+	(from programming-notes/file-formats.txt's ALLIES section, which has the
+	full example "PERSEPHONE|#3 >42 ( +" and the cln.ally listing verbatim)
 dc$	Last command
 df	Dwarf room (0=dead)
 dh	Dwarf gold, high amount (dh*10,000+dl)
@@ -221,6 +232,13 @@ wy$	monster flags. Full sigil table (from the Python port's monsters.py,
 		-	fire_attack		X	no_gold
 		$	multiple_monsters	?	no_article (suppress "THE")
 		AC	charmable		!	has_quote
+
+	- (fire_attack) detail, confirmed against SPUR.COMBAT.S:239-243:
+		FIRE! (2 dmg) vs LAZER FIRE! (5 dmg) is decided by the dungeon
+		LEVEL the fight is on (cl>5, the sci-fi levels), NOT by any flag
+		on the monster. If the monster also has ;; (heavy_armor), the
+		attack is upgraded again to "IT'S PLASMA CANNON!" with a further
+		+4 damage. No monster flag selects fire vs laser directly.
         
 xf	# of food items in char's inventory
 xi	# of inventory items
