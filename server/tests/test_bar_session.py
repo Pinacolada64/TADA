@@ -71,7 +71,7 @@ class TestBarPresenceLifecycle(unittest.IsolatedAsyncioTestCase):
         with patch('bar.main.enter_area', new=AsyncMock()) as ea, \
              patch('bar.main.leave_area', new=AsyncMock()):
             await enter_bar(ctx)
-            ea.assert_awaited_once_with(ctx, 'bar')
+            ea.assert_awaited_once_with(ctx, 'Bar')
 
     @_PATCH_HELP
     @_PATCH_MENU
@@ -83,7 +83,7 @@ class TestBarPresenceLifecycle(unittest.IsolatedAsyncioTestCase):
         with patch('bar.main.enter_area', new=AsyncMock()), \
              patch('bar.main.leave_area', new=AsyncMock()) as la:
             await enter_bar(ctx)
-            la.assert_awaited_once_with(ctx, 'bar')
+            la.assert_awaited_once_with(ctx, 'Bar')
 
     @_PATCH_HELP
     @_PATCH_MENU
@@ -95,7 +95,7 @@ class TestBarPresenceLifecycle(unittest.IsolatedAsyncioTestCase):
         with patch('bar.main.enter_area', new=AsyncMock()), \
              patch('bar.main.leave_area', new=AsyncMock()) as la:
             await enter_bar(ctx)
-            la.assert_awaited_once_with(ctx, 'bar')
+            la.assert_awaited_once_with(ctx, 'Bar')
 
     @_PATCH_HELP
     @_PATCH_MENU
@@ -109,7 +109,7 @@ class TestBarPresenceLifecycle(unittest.IsolatedAsyncioTestCase):
              patch('bar.main.leave_area', new=AsyncMock()) as la:
             with self.assertRaises(RuntimeError):
                 await enter_bar(ctx)
-            la.assert_awaited_once_with(ctx, 'bar')
+            la.assert_awaited_once_with(ctx, 'Bar')
 
 
 # ---------------------------------------------------------------------------
@@ -321,7 +321,7 @@ class TestBarObstacleDeath(unittest.IsolatedAsyncioTestCase):
              patch('bar.main.leave_area', new=AsyncMock()) as la, \
              patch('bar.main.broadcast_area', new=AsyncMock()):
             await enter_bar(ctx)
-        la.assert_awaited_once_with(ctx, 'bar')
+        la.assert_awaited_once_with(ctx, 'Bar')
 
     @_PATCH_HELP
     @_PATCH_MENU

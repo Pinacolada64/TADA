@@ -24,9 +24,16 @@ log = logging.getLogger(__name__)
 
 
 def occupants(server, area: str) -> list:
-    """Return all server-side clients currently in *area*."""
+    """Return all server-side clients currently in *area*.
+
+    Matching is case-insensitive: enter_area() may store a display-friendly
+    capitalization (e.g. 'Bar', for the whereat command's output) while
+    other call sites broadcast/query using a lowercase area name ('bar').
+    Both refer to the same area.
+    """
+    area_lower = area.lower()
     return [c for c in server.clients.values()
-            if getattr(c, 'virtual_location', None) == area]
+            if (getattr(c, 'virtual_location', None) or '').lower() == area_lower]
 
 
 def others_present(ctx, area: str) -> list[str]:

@@ -263,7 +263,7 @@ class TestShoppeMain(unittest.IsolatedAsyncioTestCase):
         with patch('shoppe.main.enter_area', new=AsyncMock()) as ea, \
              patch('shoppe.main.leave_area', new=AsyncMock()):
             await main(ctx)
-            ea.assert_awaited_once_with(ctx, 'shoppe')
+            ea.assert_awaited_once_with(ctx, 'Shoppe')
 
     @_PATCH_STUBS
     async def test_leave_area_called_on_exit(self, **_):
@@ -273,7 +273,7 @@ class TestShoppeMain(unittest.IsolatedAsyncioTestCase):
         with patch('shoppe.main.enter_area', new=AsyncMock()), \
              patch('shoppe.main.leave_area', new=AsyncMock()) as la:
             await main(ctx)
-            la.assert_awaited_once_with(ctx, 'shoppe')
+            la.assert_awaited_once_with(ctx, 'Shoppe')
 
     @_PATCH_STUBS
     async def test_leave_area_called_even_on_exception(self, **_):
@@ -285,7 +285,7 @@ class TestShoppeMain(unittest.IsolatedAsyncioTestCase):
              patch('shoppe.main.leave_area', new=AsyncMock()) as la:
             with self.assertRaises(RuntimeError):
                 await main(ctx)
-            la.assert_awaited_once_with(ctx, 'shoppe')
+            la.assert_awaited_once_with(ctx, 'Shoppe')
 
 
 if __name__ == '__main__':
