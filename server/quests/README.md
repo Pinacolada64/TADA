@@ -1,0 +1,243 @@
+# Quests
+
+A survey of multi-step item-fetch/repair/riddle mechanics found in the SPUR BASIC
+source (`SPUR-code/*.S`), traced across both `master` and the `skip` branch (skip
+sometimes has a fuller version of a mechanic that master only stubs — same pattern
+as `SPUR.COMBAT.S`'s CHARGE, MOUNT, etc.). None of what's documented here is
+implemented in the Python port yet — this is a research/planning doc to work from.
+
+**Sourcing rule**: `.S` files are authoritative. `.lbl` files (`text-listings/`) are
+from an abandoned, incompatible C64 porting attempt — flavor-text hints only, never
+a mechanic source.
+
+**A recurring blocker**: several quests hardcode room numbers (`cr=`) against
+SPUR's *original* room-numbering scheme, which doesn't line up 1:1 with the already
+-converted `server/level_N.json` files (see the room-1 gap investigation in git
+history, and the confirmed case below where quest room 582 doesn't exist at all in
+the current `level_6.json`). Anyone implementing these will likely need to re-derive
+room numbering from the original `SPUR-data/level-N` binaries rather than trust the
+`cr=` literals verbatim.
+
+---
+
+## Quest Table
+
+| # | Quest | Required Item(s) | Reward | Branch | Confidence |
+|---|-------|-------------------|--------|--------|------------|
+| 1 | Headhunter's Island | Defeat "BIG CHIEF" (monster #84) | #40 Black Diamond, #78 Great Coat, weapon #57 Wraith Dagger | master | Confirmed (map/combat gauntlet, not a scripted fetch quest) |
+| 2 | Spacesuit Repair | #133 Tool Kit + #134 Broken Spacesuit + #135 Spacesuit Parts | #122 Spacesuit (needed to survive water/vacuum rooms on level 6+) | master + skip | Confirmed |
+| 3 | Communicator Repair | #133 Tool Kit + #141 Broken Communicator | #66 Communicator (USE to beam up to level 6, room 1) | master + skip | Confirmed |
+| 4 | Security Cards | Search (`~*`) qualifying level-6 rooms | #131 Red Card (opens east doors) / #132 Green Card (opens west doors) | master | Confirmed mechanic; room placement is a loose end |
+| 5 | Radiation Suit + Geiger Counter | — | #124 Radiation Suit (damage protection), #123 Geiger Counter (early warning) | master | Confirmed |
+| 6 | Space Tracker | #138 Space Tracker | Shows galactic coordinates while traveling space rooms on level 6 | master | Confirmed |
+| 7 | Ruby Slippers (Wizard of Oz) | #145 Broomstick, dropped in front of an NPC at level 6 room 582 | #144 Ruby Slippers (USE to teleport home to level 1, room 1) | master | Confirmed mechanic; broomstick acquisition and NPC identity untraced; room 582 doesn't exist in current `level_6.json` |
+| 8 | Test of Galadriel | None (random encounter; riddle) | #143 Galadriel's Vial (full) | master | Confirmed |
+| 9 | Fountain of Youth / Galadriel's Vial | #142 Empty Vial (to fill); #76 Amulet of Life (to arm) | Full stat restore + cures poison/disease; vial is a portable one-shot charge | master | Confirmed |
+| 10 | Excalibur / Sword in the Stone | Class = Knight (`pc=9`) AND Honor ≥ 1200 | Weapon #17 Excalibur | master | Confirmed |
+| 11 | Palintar (Enlightenment) | #96 Palantir; Enlightenment score `(INT+WIS)×level` ≥ 240 | Reveals room/level layout (monsters, items, exits) | **skip only** | Confirmed in skip; master is a stub |
+| 12 | Lasso/Saddle/Armor a Horse | #161 Lasso (on a HORSE monster), then #162 Saddle / #163 Horse Armor | Named mount ally (already ported — see MECHANICS.md "Horses") | **skip only** | Confirmed — already implemented in this port |
+| 13 | Power Armor / Shield Recharge | #112 Armor Power Pak / #117 Shield Power Pak | Recharges shield/armor to full (120%) effectiveness | **skip only** | Confirmed in skip; master's shield system is simpler (flat % add, no recharge) |
+
+Quest #12 is already implemented (LASSO, Saddle/Horse Armor, MOUNT/DISMOUNT/CHARGE —
+see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
+
+---
+
+## Quest Details
+
+### 1. Headhunter's Island
+- **Source**: no scripted `.S` logic — purely map data. `server/level_5.json` rooms
+  139–141 (`Isle Of Headhunters` → `Village` → `The Chief's Treasure Room`).
+- **Trigger**: sail to room 139; monster #83 HEADHUNTER present.
+- **Mechanic**: defeating monster #84 BIG CHIEF in the Village room reveals a hidden
+  east exit (`hidden_exit_east` flag) into the treasure room.
+- **Reward**: #40 Black Diamond in the Village; #78 Great Coat + weapon #57 Wraith
+  Dagger in the treasure room.
+- **Flavor**: "This is apparently the head hunters village... surround a large fire
+  pit"; "various odd artifacts lie about" in the treasure room.
+- Note: #78 Great Coat is separately required to survive `**` (snow/mountain) rooms
+  generally (see MECHANICS.md), so this isn't its only use.
+
+### 2. Spacesuit Repair
+- **Source**: `SPUR.USE.S:58–72` (`tool` subroutine); confirmed on both branches.
+- **Trigger**: `USE` the tool kit while carrying both parts.
+- **Required**: #133 Tool Kit + #134 Broken Spacesuit + #135 Spacesuit Parts.
+- **Reward**: consumes #134+#135, adds #122 Spacesuit — required to traverse
+  water/vacuum (`@@`) rooms at level ≥ 6 (`SPUR.MAIN.S:151–159, 301–309`).
+- **Item locations**: Tool Kit (133) — "Dingy Closet" (room 40); Broken Spacesuit
+  (134) — "Equipment Locker" (room 48, "One very broken looking suit..."); Spacesuit
+  Parts (135) — "Storage Locker" (52) or "Vent Duct" (63).
+- **Flavor**: "You don't have all the parts to the spacesuit." / "Bingo! Using the
+  tools, you repair the spacesuit!"
+
+### 3. Communicator Repair
+- **Source**: `SPUR.USE.S:70` (same `tool` subroutine, chained after the spacesuit
+  check).
+- **Required**: #141 Broken Communicator + #133 Tool Kit (same kit as the spacesuit).
+- **Reward**: consumes #141, adds #66 Communicator. `USE`ing it calls the `comm`
+  subroutine (`SPUR.USE.S:128–140`) to teleport the player to level 6, room 1.
+- **Malfunction branch**: 10–30% chance of "buzzing"/malfunction on use — strips the
+  working communicator back to broken (#141) and drops the player on a random level
+  (`malfunction`, `SPUR.USE.S:221–231`).
+- **skip-branch difference**: the tool kit is consumed/exhausted after fixing the
+  communicator (tracked via a `"*TO"` flag in `ys$`); master's tool kit is reusable
+  indefinitely.
+
+### 4. Security Cards
+- **Source**: `SPUR.USE.S:74–83` (`card`/`no.cd`); discovery via `SPUR.MISC3.S:333`
+  (`hidden` search subroutine).
+- **Items**: #131 Red Security Card (opens east doors, room `lo$` contains `->`),
+  #132 Green Security Card (opens west doors, `lo$` contains `<-`).
+- **Trigger**: search (`~*`) a qualifying room at level 6; source hardcodes room
+  `cr=752` for the red card discovery.
+- **Penalty**: wrong card in a slot → "Sticking the wrong card in the slot gives you
+  an electric shock!" for 4 HP.
+- **Caveat**: hardcoded `cr` values (752, 93, 180, 557) use SPUR's original room
+  numbering, which doesn't map cleanly to `server/level_6.json`'s 292 compacted
+  entries — needs the `SPUR-data/level-6` binary re-decoded to place these correctly.
+
+### 5. Radiation Suit + Geiger Counter
+- **Source**: `SPUR.MAIN.S:311,314–317`, `SPUR.USE.S:125` (nuke sequence),
+  `SPUR.MISC3.S:334–335` (discovery).
+- **Items**: #124 Radiation Suit (protects against radiation damage/poisoning), #123
+  Geiger Counter (early warning: "[Tick... tick...]" in `&` radiation-flagged rooms).
+- **Mechanic**: entering an `&&` (extreme radiation) room without the suit → "You
+  feel funny!" plus HP/energy/strength drain. Carrying the counter without the suit
+  gives only a vague warning ("You have a strange feeling that you should know
+  something..").
+- **Nuke event**: a nuclear rocket triggers a blast; the radiation suit negates the
+  "radiation poisoning" outcome, "power armor" negates blast damage outright.
+- **Room example**: `level_6.json` room 93 "Vent Duct" — flagged `radiation_extreme`,
+  monster #107 GUARD DROID present (room `desc` reads "Hey! This fellow looks
+  familiar!" — see Loose Ends).
+
+### 6. Space Tracker
+- **Source**: `SPUR.MAIN.S:153–156, 511–514` (`tracker` subroutine).
+- **Item**: #138 Space Tracker — found in "Security Bunker" (level 6, room 108).
+- **Reward**: while traveling a `@@` (space) room at level 6, carrying the tracker
+  prints "The SPACE TRACKER powers up! (Giving galactic space coordinates)" and
+  appends `[GC:<room>]` to the status line; without it: "(Too bad you don't have a
+  SPACE TRACKER..)".
+
+### 7. Ruby Slippers (Wizard of Oz chain)
+- **Source**: `SPUR.MISC.S:120–158` (`drop.b`/`drp.itm3`/`broom` chain),
+  `SPUR.MISC3.S:336` (discovery), `SPUR.USE.S:142–145` (`slippers`); map data
+  `level_6.json` rooms 115/116/118 ("Witches Coven", "Witches House", "Chamber Of
+  Oz"), `monsters.json` #125 OZ, #126 WICKED WITCH.
+- **Item placement**: #145 Broomstick is placed at level 6, room 557
+  (`SPUR-code/SPUR.MISC3.S:336`).
+- **Trigger**: dropping/giving *any* item routes through `drp.itm3`, which checks
+  `if a=145 goto broom`. The `broom` subroutine only fires when: a monster/NPC is
+  present in the room (`mw` truthy — the NPC's identity isn't named near this label,
+  presumed to be the Oz figure or witch), the player is specifically at level 6, room
+  582, and the player doesn't already hold #144 (checked against both player and ally
+  inventories, so the reward can't double-grant).
+- **Reward**: #144 Ruby Slippers. `USE`ing them (or an automatic check elsewhere,
+  `SPUR.MISC3.S:328–330`) teleports the player home to level 1, room 1 — "The
+  slippers glow strangely!"
+- **Known gap**: **room 582 does not exist in the current `server/level_6.json`**
+  (rooms only go up to ~292) — the delivery location isn't reachable in the current
+  port at all. The broomstick's *acquisition* trigger (witch-kill drop vs. static
+  room item) also wasn't fully traced.
+
+### 8. Test of Galadriel
+- **Source**: `SPUR.MISC6.S:504–534` (`galad` subroutine), triggered from a random
+  -event table (`SPUR.MISC6.S:139–158`).
+- **Trigger**: random encounter roll (~0–15% band of the event table), or a manual
+  sysop test via the `random` menu.
+- **Mechanic**: NPC Galadriel asks a riddle (5 variants, messages #25–29); player
+  picks 1 of 4 answers. Correct → awarded #143 Galadriel's Vial (full). Wrong →
+  "Return when Ye are worthy," sent home empty-handed.
+- **Gate**: only offered if the player doesn't already have #142/#143, or a `*GAL`
+  "already met her" flag.
+- **Logged**: pass/fail written to `battle.log` as "PASSed/FAILed the Test Of
+  Galadriel!" (server-wide log, same pattern as a boss-kill announcement).
+
+### 9. Fountain of Youth / Galadriel's Vial cycle
+- **Source**: `SPUR.SUB.S:83–137` (`drink`/`fountain`/`pool`), `SPUR.USE.S:234–247`
+  (`vial`/`fl.vial`).
+- **Location**: level 5, room 105 — "the fountain."
+- **Mechanic**:
+  - Drinking directly at the fountain fully restores all seven stats (HP, STR, CON,
+    INT, Energy, WIS, DEX) to max-for-level and cures poison/disease.
+  - Carrying #76 Amulet of Life to the fountain permanently "arms" it if not already
+    charged (see Loose Ends — prevents one permanent death later).
+  - `USE`ing #142 Empty Vial while at the fountain converts it to #143 Full Vial —
+    "You kneel and fill the vial with precious water from the pool."
+  - `USE`ing #143 anywhere grants the same full-restore effect away from the
+    fountain, then reverts to #142 (a portable one-shot fountain charge).
+
+### 10. Excalibur / Sword in the Stone
+- **Source**: `SPUR.MISC.S:255–278` (`get.wpn`/`excalibur`).
+- **Item**: weapon #17 Excalibur (level 1).
+- **Required**: character class Knight (`pc=9`) **and** Honor ≥ 1200.
+- **Failure text**: wrong class or low honor → "YOU CAN NOT PULL THE SWORD OUT!";
+  right class but honor 1000–1199 → "A VOICE BOOMS, 'THOU ARE NOT WORTHY!'"
+- **Reward**: Excalibur added to the weapon rack; logged to `battle.log` as "PULLED
+  EXCALIBUR OUT OF THE STONE!!" (server-wide bragging-rights announcement).
+- **Related honor gate**: Knight with Honor > 1600 makes death non-permanent — "THE
+  SAINTLY KNIGHT WAS REVIVED BY THE GODS!!" (`SPUR.MISC6.S:108,112`).
+
+### 11. Palintar (Enlightenment) — skip branch only
+- **Source**: master `SPUR.USE.S:20` is a bare stub (just links to misc6); **skip**
+  has the full mechanic (`SPUR.USE.S` `room.dsp` + `pal`).
+- **Item**: #96 Palantir.
+- **Mechanic**: `USE`ing it computes an Enlightenment score `(INT+WIS) × level`, with
+  class/race bonuses (Druid +20, Pixie +30, Elf +20, Half-Elf +10). Score ≥ 240
+  reveals the current room number, level dimensions, and a scrollable room-by-room
+  listing (monsters/items/weapons/food/exits) — effectively a stat-gated "reveal
+  map" tool. Below threshold: "Thou are not enlightened enough to use the Great
+  Palintar!" (with an option to see the formula).
+- **Secondary use**: also gates a "travel intel" bonus affecting monster-blocking
+  rolls during travel (`SPUR.MAIN.S:162`, `SPUR.MISC7.S:516–524`).
+- Recommend porting the skip version outright rather than master's stub — same
+  pattern as CHARGE.
+
+### 12. Lasso/Saddle/Armor a Horse — skip branch only, already implemented
+- **Source**: skip-only `SPUR.USE.S` (`lasso`, `name.hrs`, `eq.horse`) — absent from
+  master entirely.
+- Already ported in this codebase — see `MECHANICS.md` "Horses" for the full writeup
+  (LASSO, Saddle/Horse Armor, MOUNT/DISMOUNT/CHARGE). Listed here for completeness
+  since it fits this table's shape.
+
+### 13. Power Armor / Shield Recharge — skip branch only
+- **Source**: skip-only `SPUR.USE.S` (`power.up`, `power.sh`, `get.sh`,
+  `store.sh`/`store.pw`); master's shield logic (`SPUR.USE.S:34–43`) is a simpler
+  flat "add %" system with no recharge.
+- **Items**: #112 Armor Power Pak, #117 Shield Power Pak (has a `rounds: 6` flag in
+  `objects.json` — limited uses). Shields/armor above a size/bulk threshold need a
+  power pak to reach full (120%) effectiveness.
+- **Persistence**: charge state is stored per-player in `misc.data` (position 217,
+  14-char encoded string), surviving repacking — sturdier than master's ad-hoc
+  per-session tracking.
+
+---
+
+## Loose Ends
+
+Items whose purpose was inferred from source usage but that don't belong to one of
+the named quests above:
+
+| Item # | Name | Inferred Purpose | Source |
+|---|---|---|---|
+| 76 | Amulet of Life | Prevents one permanent death (armed at the Fountain, quest #9); halves duel/combat penalty vs. the Amulet of Death | `SPUR.LOGON.S:237`, `SPUR.DUEL.S:146,155`, `SPUR.DUEL2.S:161,165`, `SPUR.WEAPON.S:70`, `SPUR.SUB.S:122` |
+| 97 | Ice Crystal | Blocks one fire attack per encounter (10% chance monster "puts on anti-fire glasses" and negates it) | `SPUR.MISC4.S:180–184` |
+| 82 | Crystal Pendant | Blocks one turn-to-stone attack per encounter (same 10% counter-mechanic as Ice Crystal) | `SPUR.MISC4.S:186–189` |
+| 146 | Salvage Parts | Sell-only; redeemable for gold (×40 multiplier) at the Ship's Salvage Bay (level-6 alt-shoppe) | `SPUR.SHIP.S:460–500` |
+| 151 | Shovel | Speeds up DIG (60 min vs. 180 min bare-handed) | `SPUR.MISC7.S:161–189` |
+| 44/45/65/68 | Red Serum, Blue Pill, Potion of Skill, Charm Potion (rations.json) | Excluded from the "you should eat/drink something" hunger nag during PRAY — treated as non-nutritive magic consumables | `SPUR.MISC2.S:194–211` |
+| 57 | Wraith Dagger (weapon) | Only found in the Headhunter's Chief's Treasure Room; no other reference found — likely just a strong reward weapon | `level_5.json` room 141 |
+| — | Monster #107 GUARD DROID | Room `desc` ("Hey! This fellow looks familiar!") reads like a recurring/storyline encounter — not traced further | `level_6.json` room 93 |
+| — | Monster #103 ("guardian") | Repeat-encounter monster that "remembers" a previous player loss and returns stronger (`ms=ms+xp*6`) | `SPUR.MISC4.S:198–199` |
+| — | Monsters #125/#126 (OZ, Wicked Witch) | Tied to the Ruby Slippers chain (quest #7) but the broomstick's first-acquisition trigger wasn't fully traced (witch-kill drop vs. static item) | `level_6.json` rooms 115/118 |
+
+---
+
+## On Flavor Text
+
+Numbered `gosub messages` calls (e.g. `a=2,3,4,19,20,21,22,24,25–29,33`) pull prose
+from a binary message-data file not present in the already-converted JSON files.
+Full flavor text for the Fountain, Excalibur, the slippers-teleport, and the
+Galadriel riddles beyond what's inline in the `.S` `print` statements above will need
+the same `gbbs-io` decode path already used for `SPUR-data/level-N` room data (see
+`MECHANICS.md`).
