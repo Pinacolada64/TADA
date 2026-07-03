@@ -28,6 +28,7 @@ _NPC        = "Fat Olaf"
 _AP         = "'"
 _MAX_ALLIES = 3
 _STRENGTHEN_BASE_COST = 20   # cost per point of current strength (TADA extension)
+_HP_PER_STRENGTH      = 2    # hit_points seeded as strength × this on purchase (TADA extension)
 _HONOR_SELL_LOSS      = 50   # honour lost when selling (t_bar_olaf.lbl :185)
 _HONOR_MAINTAIN_GAIN  = 5    # honour gained when maintaining (SPUR.BAR.S maint)
 
@@ -205,6 +206,12 @@ async def _buy_servant(ctx: GameContext, master_list: List[Ally]) -> None:
         chosen.owner  = player.name
         # Strength +5 on hire (SPUR.BAR.S: a1=x2+5 — ally is emboldened by new contract)
         chosen.strength = chosen.strength + 5
+        # Allies are created with hit_points=0 (bar/ally_data.py) and nothing else
+        # initializes it, which left purchased allies unable to fight or take
+        # damage (combat/engine.py gates ally participation on hit_points > 0).
+        # Seed HP from strength on purchase (TADA extension; no canonical SPUR
+        # source found for this formula).
+        chosen.hit_points = chosen.strength * _HP_PER_STRENGTH
         save_ally_roster(master_list)
         await player.party.add(ctx, player, chosen)
         await ctx.send(f'{_NPC}: {_AP}May {chosen.name} serve yu vell!{_AP}')
