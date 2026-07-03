@@ -579,7 +579,9 @@
             "number": 39,
             "name": "In The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "west": 1
             },

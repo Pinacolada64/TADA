@@ -50,7 +50,9 @@
             "number": 4,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -67,7 +69,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_west",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -87,7 +90,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -108,7 +112,8 @@
             "flags": [
                 "block_east",
                 "block_south",
-                "block_north"
+                "block_north",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -128,7 +133,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_east",
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -148,7 +154,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_west",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -167,7 +174,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "block_east",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -187,7 +195,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_east"
+                "block_east",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -205,7 +214,9 @@
             "number": 12,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -299,7 +310,9 @@
             "number": 18,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -316,7 +329,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_east",
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -336,7 +350,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_west",
-                "block_north"
+                "block_north",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -356,7 +371,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_east",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -377,7 +393,8 @@
             "flags": [
                 "block_north",
                 "block_east",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -395,7 +412,9 @@
             "number": 23,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -488,7 +507,9 @@
             "number": 29,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -505,7 +526,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_west",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -525,7 +547,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_east",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -603,7 +626,9 @@
             "number": 36,
             "name": "Crew Quarters",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_item"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -618,7 +643,9 @@
             "number": 37,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -677,7 +704,9 @@
             "number": 41,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -692,7 +721,9 @@
             "number": 42,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -707,7 +738,9 @@
             "number": 43,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -722,7 +755,9 @@
             "number": 44,
             "name": "Engineering",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -738,7 +773,10 @@
             "number": 45,
             "name": "Engineering",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_exit_east",
+                "outer_space"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -753,7 +791,9 @@
             "number": 46,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -768,7 +808,9 @@
             "number": 47,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -797,7 +839,10 @@
             "number": 49,
             "name": "Engineering",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_exit_west",
+                "outer_space"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -812,7 +857,10 @@
             "number": 50,
             "name": "Engineering",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space",
+                "hidden_item"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -827,7 +875,10 @@
             "number": 51,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_door_west",
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -856,7 +907,9 @@
             "number": 53,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -871,7 +924,9 @@
             "number": 54,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -886,7 +941,9 @@
             "number": 55,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -901,7 +958,9 @@
             "number": 56,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -916,7 +975,9 @@
             "number": 57,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -931,7 +992,9 @@
             "number": 58,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -946,7 +1009,9 @@
             "number": 59,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -961,7 +1026,9 @@
             "number": 60,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -976,7 +1043,9 @@
             "number": 61,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -991,7 +1060,9 @@
             "number": 62,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "east": 1
             },
@@ -1005,7 +1076,9 @@
             "number": 63,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1020,7 +1093,9 @@
             "number": 64,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1036,7 +1111,9 @@
             "number": 65,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1051,7 +1128,9 @@
             "number": 66,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -1066,7 +1145,9 @@
             "number": 67,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -1081,7 +1162,9 @@
             "number": 68,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -1096,7 +1179,9 @@
             "number": 69,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "west": 1
             },
@@ -1110,7 +1195,9 @@
             "number": 70,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1126,7 +1213,9 @@
             "number": 71,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -1141,7 +1230,9 @@
             "number": 72,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -1156,7 +1247,9 @@
             "number": 73,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -1171,7 +1264,9 @@
             "number": 74,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -1186,7 +1281,9 @@
             "number": 75,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -1202,7 +1299,9 @@
             "number": 76,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1217,7 +1316,9 @@
             "number": 77,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -1232,7 +1333,9 @@
             "number": 78,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -1247,7 +1350,10 @@
             "number": 79,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_exit_east",
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1
             },
@@ -1261,7 +1367,9 @@
             "number": 80,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -1277,7 +1385,9 @@
             "number": 81,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1292,7 +1402,9 @@
             "number": 82,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -1307,7 +1419,9 @@
             "number": 83,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -1323,7 +1437,9 @@
             "number": 84,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1339,7 +1455,9 @@
             "number": 85,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -1354,7 +1472,9 @@
             "number": 86,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "west": 1
             },
@@ -1368,7 +1488,9 @@
             "number": 87,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1383,7 +1505,9 @@
             "number": 88,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -1399,7 +1523,9 @@
             "number": 89,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1414,7 +1540,9 @@
             "number": 90,
             "name": "Main Reactor",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -1429,7 +1557,9 @@
             "number": 91,
             "name": "Main Reactor",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -1444,7 +1574,9 @@
             "number": 92,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1459,7 +1591,9 @@
             "number": 93,
             "name": "Vent Duct",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1474,7 +1608,9 @@
             "number": 94,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1
             },
@@ -1488,7 +1624,9 @@
             "number": 95,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -1504,7 +1642,9 @@
             "number": 96,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -1531,7 +1671,9 @@
             "number": 98,
             "name": "Main Reactor",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1547,7 +1689,10 @@
             "number": 99,
             "name": "Main Reactor",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_exit_east",
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1577,7 +1722,9 @@
             "number": 101,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1
             },
@@ -1591,7 +1738,9 @@
             "number": 102,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -1607,7 +1756,9 @@
             "number": 103,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -1622,7 +1773,9 @@
             "number": 104,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -1637,7 +1790,9 @@
             "number": 105,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1653,7 +1808,9 @@
             "number": 106,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "west": 1
             },
@@ -1693,7 +1850,10 @@
             "number": 109,
             "name": "Main Reactor",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_exit_west",
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -1708,7 +1868,9 @@
             "number": 110,
             "name": "Main Reactor",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "radiation_extreme"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1723,7 +1885,9 @@
             "number": 111,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -1738,7 +1902,9 @@
             "number": 112,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1753,7 +1919,9 @@
             "number": 113,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -1768,7 +1936,9 @@
             "number": 114,
             "name": "Dark Woods",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1783,7 +1953,10 @@
             "number": 115,
             "name": "Witches Coven",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee",
+                "hidden_exit_east"
+            ],
             "exits": {
                 "north": 1
             },
@@ -1797,7 +1970,10 @@
             "number": 116,
             "name": "Witches House",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee",
+                "hidden_item"
+            ],
             "exits": {
                 "west": 1
             },
@@ -1811,7 +1987,9 @@
             "number": 117,
             "name": "Shimmering Portal",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "rc": 1,
@@ -1827,7 +2005,10 @@
             "number": 118,
             "name": "Chamber Of Oz",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_door_north",
+                "no_flee"
+            ],
             "exits": {
                 "south": 1
             },
@@ -1841,7 +2022,9 @@
             "number": 119,
             "name": "Emerald City",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -1856,7 +2039,9 @@
             "number": 120,
             "name": "Emerald City",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1,
@@ -1873,7 +2058,9 @@
             "number": 121,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -1888,7 +2075,9 @@
             "number": 122,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -1903,7 +2092,9 @@
             "number": 123,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -1918,7 +2109,9 @@
             "number": 124,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -1933,7 +2126,9 @@
             "number": 125,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -1948,7 +2143,9 @@
             "number": 126,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -1964,7 +2161,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north"
+                "block_north",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -1984,7 +2182,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_east"
+                "block_east",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2002,7 +2201,9 @@
             "number": 129,
             "name": "Gateway",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -2017,7 +2218,10 @@
             "number": 130,
             "name": "Emerald City",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee",
+                "hidden_item"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -2032,7 +2236,9 @@
             "number": 131,
             "name": "Emerald City",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2048,7 +2254,9 @@
             "number": 132,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -2063,7 +2271,9 @@
             "number": 133,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -2078,7 +2288,9 @@
             "number": 134,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -2093,7 +2305,9 @@
             "number": 135,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -2108,7 +2322,9 @@
             "number": 136,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -2123,7 +2339,9 @@
             "number": 137,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -2138,7 +2356,9 @@
             "number": 138,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -2153,7 +2373,9 @@
             "number": 139,
             "name": "Old House",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -2170,7 +2392,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2190,7 +2413,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2210,7 +2434,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2229,7 +2454,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2248,7 +2474,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "block_east",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2266,7 +2493,9 @@
             "number": 145,
             "name": "Thundering Mist",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -2281,7 +2510,9 @@
             "number": 146,
             "name": "Strange Room",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -2296,7 +2527,9 @@
             "number": 147,
             "name": "Emerald City",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -2311,7 +2544,9 @@
             "number": 148,
             "name": "Yellow Brick Road",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -2326,7 +2561,9 @@
             "number": 149,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -2341,7 +2578,9 @@
             "number": 150,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -2356,7 +2595,9 @@
             "number": 151,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2372,7 +2613,9 @@
             "number": 152,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -2387,7 +2630,9 @@
             "number": 153,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -2402,7 +2647,9 @@
             "number": 154,
             "name": "Rocky Path",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1
             },
@@ -2416,7 +2663,9 @@
             "number": 155,
             "name": "Rocky Path",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -2434,7 +2683,8 @@
             "flags": [
                 "block_west",
                 "block_south",
-                "block_east"
+                "block_east",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2452,7 +2702,9 @@
             "number": 157,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2469,7 +2721,9 @@
             "number": 158,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2487,7 +2741,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2506,7 +2761,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2526,7 +2782,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2547,7 +2804,8 @@
             "flags": [
                 "block_north",
                 "block_east",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2565,7 +2823,9 @@
             "number": 163,
             "name": "Between Dimensions",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -2580,7 +2840,9 @@
             "number": 164,
             "name": "Between Dimensions",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -2624,7 +2886,9 @@
             "number": 167,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -2639,7 +2903,9 @@
             "number": 168,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -2654,7 +2920,9 @@
             "number": 169,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2670,7 +2938,9 @@
             "number": 170,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -2685,7 +2955,9 @@
             "number": 171,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1
             },
@@ -2699,7 +2971,9 @@
             "number": 172,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -2714,7 +2988,9 @@
             "number": 173,
             "name": "Rocky Path",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -2729,7 +3005,9 @@
             "number": 174,
             "name": "Rocky Path",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2747,7 +3025,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_west",
-                "block_north"
+                "block_north",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2765,7 +3044,9 @@
             "number": 176,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2782,7 +3063,9 @@
             "number": 177,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2799,7 +3082,9 @@
             "number": 178,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2816,7 +3101,9 @@
             "number": 179,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2833,7 +3120,9 @@
             "number": 180,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2850,7 +3139,9 @@
             "number": 181,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2868,7 +3159,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "block_east",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -2886,7 +3178,9 @@
             "number": 183,
             "name": "Between Dimensions",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -2901,7 +3195,9 @@
             "number": 184,
             "name": "Between Dimensions",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -2930,7 +3226,10 @@
             "number": 186,
             "name": "A Strange Room",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee",
+                "hidden_exit_east"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -2945,7 +3244,9 @@
             "number": 187,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1
             },
@@ -2959,7 +3260,9 @@
             "number": 188,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2975,7 +3278,9 @@
             "number": 189,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -2990,7 +3295,9 @@
             "number": 190,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -3005,7 +3312,9 @@
             "number": 191,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -3020,7 +3329,9 @@
             "number": 192,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -3035,7 +3346,9 @@
             "number": 193,
             "name": "Rocky Path",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -3050,7 +3363,9 @@
             "number": 194,
             "name": "Rocky Path",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -3066,7 +3381,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3084,7 +3400,9 @@
             "number": 196,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3101,7 +3419,9 @@
             "number": 197,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3118,7 +3438,9 @@
             "number": 198,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3135,7 +3457,9 @@
             "number": 199,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -3152,7 +3476,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3171,7 +3496,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3191,7 +3517,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_east",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3209,7 +3536,9 @@
             "number": 203,
             "name": "Between Dimensions",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -3224,7 +3553,9 @@
             "number": 204,
             "name": "Between Dimensions",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -3239,7 +3570,9 @@
             "number": 205,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1
             },
@@ -3253,7 +3586,9 @@
             "number": 206,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -3268,7 +3603,9 @@
             "number": 207,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -3283,7 +3620,9 @@
             "number": 208,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3300,7 +3639,9 @@
             "number": 209,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -3315,7 +3656,9 @@
             "number": 210,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -3330,7 +3673,9 @@
             "number": 211,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -3345,7 +3690,9 @@
             "number": 212,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -3360,7 +3707,9 @@
             "number": 213,
             "name": "Rocky Path",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -3376,7 +3725,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3394,7 +3744,9 @@
             "number": 215,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3411,7 +3763,9 @@
             "number": 216,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3428,7 +3782,9 @@
             "number": 217,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -3460,7 +3816,9 @@
             "number": 219,
             "name": "The Bridge",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_item"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -3475,7 +3833,9 @@
             "number": 220,
             "name": "Between Dimensions",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -3490,7 +3850,9 @@
             "number": 221,
             "name": "Between Dimensions",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -3505,7 +3867,9 @@
             "number": 222,
             "name": "Between Dimensions",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "west": 1
             },
@@ -3519,7 +3883,9 @@
             "number": 223,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3535,7 +3901,9 @@
             "number": 224,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -3550,7 +3918,9 @@
             "number": 225,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -3565,7 +3935,9 @@
             "number": 226,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3581,7 +3953,9 @@
             "number": 227,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -3596,7 +3970,9 @@
             "number": 228,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3615,7 +3991,8 @@
             "flags": [
                 "block_north",
                 "block_west",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3635,7 +4012,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3654,7 +4032,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north"
+                "block_north",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3673,7 +4052,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "block_east",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3691,7 +4071,9 @@
             "number": 233,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3708,7 +4090,9 @@
             "number": 234,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3772,7 +4156,9 @@
             "number": 238,
             "name": "Between Dimensions",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -3787,7 +4173,9 @@
             "number": 239,
             "name": "Between Dimensions",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -3802,7 +4190,9 @@
             "number": 240,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1
             },
@@ -3816,7 +4206,9 @@
             "number": 241,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1
             },
@@ -3830,7 +4222,9 @@
             "number": 242,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -3846,7 +4240,9 @@
             "number": 243,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -3861,7 +4257,9 @@
             "number": 244,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1
             },
@@ -3875,7 +4273,9 @@
             "number": 245,
             "name": "Garden Of Eden",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -3893,7 +4293,8 @@
             "flags": [
                 "block_west",
                 "block_north",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3913,7 +4314,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3932,7 +4334,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3949,7 +4352,9 @@
             "number": 249,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3967,7 +4372,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -3985,7 +4391,9 @@
             "number": 251,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4051,7 +4459,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4071,7 +4480,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4092,7 +4502,8 @@
             "flags": [
                 "block_east",
                 "block_north",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4110,7 +4521,9 @@
             "number": 258,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "east": 1
             },
@@ -4125,7 +4538,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "block_east",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4145,7 +4559,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_west",
-                "block_north"
+                "block_north",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4163,7 +4578,9 @@
             "number": 261,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4181,7 +4598,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "block_east",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4199,7 +4617,9 @@
             "number": 263,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4216,7 +4636,9 @@
             "number": 264,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -4311,7 +4733,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_west",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4331,7 +4754,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_east",
-                "block_north"
+                "block_north",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4351,7 +4775,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_east",
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4370,7 +4795,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4389,7 +4815,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "block_east",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4407,7 +4834,9 @@
             "number": 275,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4424,7 +4853,11 @@
             "number": 276,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_door_east",
+                "water_with_rocks",
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4440,7 +4873,9 @@
             "number": 277,
             "name": "Air Lock",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_door_west"
+            ],
             "exits": {
                 "east": 1
             },
@@ -4454,7 +4889,9 @@
             "number": 278,
             "name": "A Corridor",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_door_west"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -4515,7 +4952,9 @@
             "number": 282,
             "name": "Access Tunnel",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -4532,7 +4971,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4552,7 +4992,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_north",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4572,7 +5013,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_east",
-                "block_south"
+                "block_south",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4592,7 +5034,8 @@
             "room_alignment": "neutral",
             "flags": [
                 "block_east",
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4611,7 +5054,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west"
+                "block_west",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4630,7 +5074,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "block_east",
+                "water"
             ],
             "exits": {
                 "north": 1,
@@ -4648,7 +5093,9 @@
             "number": 289,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4665,7 +5112,9 @@
             "number": 290,
             "name": "Outer Space",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,

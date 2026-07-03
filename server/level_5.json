@@ -163,7 +163,9 @@
             "number": 10,
             "name": "Above The Clouds",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -178,7 +180,9 @@
             "number": 11,
             "name": "Path In The Clouds",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -485,7 +489,9 @@
             "number": 29,
             "name": "Rocky Path",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -500,7 +506,9 @@
             "number": 30,
             "name": "Path In The Clouds",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -516,7 +524,9 @@
             "number": 31,
             "name": "Path In The Clouds",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -809,7 +819,9 @@
             "number": 48,
             "name": "Steep Footpath",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -824,7 +836,9 @@
             "number": 49,
             "name": "Icy Footpath",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -839,7 +853,9 @@
             "number": 50,
             "name": "Blinding Snow Storm",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "south": 1
             },
@@ -1119,7 +1135,9 @@
             "number": 66,
             "name": "Icy Mountains",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1135,7 +1153,9 @@
             "number": 67,
             "name": "Icy Pathway",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -1151,7 +1171,9 @@
             "number": 68,
             "name": "Icy Pathway",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1426,7 +1448,9 @@
             "number": 84,
             "name": "Rocky Shore Line",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -1441,7 +1465,9 @@
             "number": 85,
             "name": "Cold Cave",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_exit_east"
+            ],
             "exits": {
                 "north": 1
             },
@@ -1455,7 +1481,9 @@
             "number": 86,
             "name": "Inner Cave",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -1716,7 +1744,10 @@
             "number": 102,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water",
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -1731,7 +1762,9 @@
             "number": 103,
             "name": "Back Of Cave",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1
             },
@@ -1745,7 +1778,9 @@
             "number": 104,
             "name": "Inner Cave",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -1975,7 +2010,9 @@
             "number": 118,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1991,7 +2028,9 @@
             "number": 119,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2007,7 +2046,9 @@
             "number": 120,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2023,7 +2064,9 @@
             "number": 121,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -2170,7 +2213,9 @@
             "number": 130,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -2185,7 +2230,9 @@
             "number": 131,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2201,7 +2248,9 @@
             "number": 132,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2217,7 +2266,9 @@
             "number": 133,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2233,7 +2284,9 @@
             "number": 134,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2250,7 +2303,9 @@
             "number": 135,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2267,7 +2322,9 @@
             "number": 136,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2284,7 +2341,9 @@
             "number": 137,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2301,7 +2360,9 @@
             "number": 138,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2333,7 +2394,9 @@
             "number": 140,
             "name": "Village",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_exit_east"
+            ],
             "exits": {
                 "west": 1
             },
@@ -2446,7 +2509,9 @@
             "number": 147,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -2461,7 +2526,9 @@
             "number": 148,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2477,7 +2544,9 @@
             "number": 149,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -2493,7 +2562,9 @@
             "number": 150,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2510,7 +2581,9 @@
             "number": 151,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2527,7 +2600,9 @@
             "number": 152,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2557,7 +2632,9 @@
             "number": 154,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2573,7 +2650,9 @@
             "number": 155,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2590,7 +2669,9 @@
             "number": 156,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2607,7 +2688,9 @@
             "number": 157,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2748,7 +2831,9 @@
             "number": 166,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2764,7 +2849,9 @@
             "number": 167,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2781,7 +2868,9 @@
             "number": 168,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -2796,7 +2885,9 @@
             "number": 169,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -2811,7 +2902,9 @@
             "number": 170,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -2827,7 +2920,9 @@
             "number": 171,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2844,7 +2939,9 @@
             "number": 172,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -2860,7 +2957,9 @@
             "number": 173,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2877,7 +2976,9 @@
             "number": 174,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2894,7 +2995,9 @@
             "number": 175,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2911,7 +3014,9 @@
             "number": 176,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2928,7 +3033,9 @@
             "number": 177,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -2977,7 +3084,9 @@
             "number": 180,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -2992,7 +3101,9 @@
             "number": 181,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -3008,7 +3119,9 @@
             "number": 182,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -3024,7 +3137,9 @@
             "number": 183,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -3040,7 +3155,9 @@
             "number": 184,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -3056,7 +3173,9 @@
             "number": 185,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -3072,7 +3191,9 @@
             "number": 186,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -3117,7 +3238,9 @@
             "number": 189,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3133,7 +3256,9 @@
             "number": 190,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3150,7 +3275,9 @@
             "number": 191,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3167,7 +3294,9 @@
             "number": 192,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3184,7 +3313,9 @@
             "number": 193,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3201,7 +3332,9 @@
             "number": 194,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3218,7 +3351,9 @@
             "number": 195,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3235,7 +3370,9 @@
             "number": 196,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3252,7 +3389,9 @@
             "number": 197,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3269,7 +3408,9 @@
             "number": 198,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3286,7 +3427,9 @@
             "number": 199,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3303,7 +3446,9 @@
             "number": 200,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -3319,7 +3464,9 @@
             "number": 201,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -3335,7 +3482,9 @@
             "number": 202,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -3414,7 +3563,9 @@
             "number": 207,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3430,7 +3581,9 @@
             "number": 208,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3447,7 +3600,9 @@
             "number": 209,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -3463,7 +3618,9 @@
             "number": 210,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3480,7 +3637,9 @@
             "number": 211,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3497,7 +3656,9 @@
             "number": 212,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3514,7 +3675,9 @@
             "number": 213,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3531,7 +3694,9 @@
             "number": 214,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3548,7 +3713,9 @@
             "number": 215,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3565,7 +3732,9 @@
             "number": 216,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3582,7 +3751,9 @@
             "number": 217,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -3714,7 +3885,9 @@
             "number": 225,
             "name": "Nowhere",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "south": 1
             },
@@ -3728,7 +3901,9 @@
             "number": 226,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3744,7 +3919,9 @@
             "number": 227,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3774,7 +3951,9 @@
             "number": 229,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3791,7 +3970,9 @@
             "number": 230,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3808,7 +3989,9 @@
             "number": 231,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3825,7 +4008,9 @@
             "number": 232,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3842,7 +4027,9 @@
             "number": 233,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3859,7 +4046,9 @@
             "number": 234,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3876,7 +4065,9 @@
             "number": 235,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -4010,7 +4201,9 @@
             "number": 243,
             "name": "Nowhere",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "outer_space"
+            ],
             "exits": {
                 "north": 1
             },
@@ -4024,7 +4217,9 @@
             "number": 244,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -4039,7 +4234,9 @@
             "number": 245,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4056,7 +4253,9 @@
             "number": 246,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -4072,7 +4271,9 @@
             "number": 247,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4089,7 +4290,9 @@
             "number": 248,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4106,7 +4309,9 @@
             "number": 249,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4123,7 +4328,9 @@
             "number": 250,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4140,7 +4347,9 @@
             "number": 251,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4157,7 +4366,9 @@
             "number": 252,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4323,7 +4534,9 @@
             "number": 262,
             "name": "Kings Chamber",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1
             },
@@ -4337,7 +4550,9 @@
             "number": 263,
             "name": "Carpeted Hallway",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -4352,7 +4567,9 @@
             "number": 264,
             "name": "Drawing Room",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1
             },
@@ -4366,7 +4583,9 @@
             "number": 265,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -4381,7 +4600,9 @@
             "number": 266,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4398,7 +4619,9 @@
             "number": 267,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4415,7 +4638,9 @@
             "number": 268,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4432,7 +4657,9 @@
             "number": 269,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4449,7 +4676,9 @@
             "number": 270,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4466,7 +4695,9 @@
             "number": 271,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4483,7 +4714,9 @@
             "number": 272,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -4669,7 +4902,9 @@
             "number": 283,
             "name": "Castle Kitchen",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1
             },
@@ -4683,7 +4918,9 @@
             "number": 284,
             "name": "Maze Of Hallways",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -4698,7 +4935,9 @@
             "number": 285,
             "name": "Maze Of Hallways",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -4713,7 +4952,9 @@
             "number": 286,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -4728,7 +4969,9 @@
             "number": 287,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -4744,7 +4987,9 @@
             "number": 288,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4761,7 +5006,9 @@
             "number": 289,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4778,7 +5025,9 @@
             "number": 290,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4795,7 +5044,9 @@
             "number": 291,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -4812,7 +5063,9 @@
             "number": 292,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -5016,7 +5269,9 @@
             "number": 304,
             "name": "Maze Of Hallways",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1
             },
@@ -5030,7 +5285,9 @@
             "number": 305,
             "name": "Maze Of Hallways",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -5045,7 +5302,9 @@
             "number": 306,
             "name": "Maze Of Hallways",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1
             },
@@ -5059,7 +5318,9 @@
             "number": 307,
             "name": "Maze Of Hallways",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 1
             },
@@ -5073,7 +5334,9 @@
             "number": 308,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -5089,7 +5352,9 @@
             "number": 309,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -5106,7 +5371,9 @@
             "number": 310,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -5123,7 +5390,9 @@
             "number": 311,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -5140,7 +5409,9 @@
             "number": 312,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -5157,7 +5428,9 @@
             "number": 313,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "west": 1
             },
@@ -5360,7 +5633,9 @@
             "number": 325,
             "name": "Hidden Passagway",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1
             },
@@ -5374,7 +5649,9 @@
             "number": 326,
             "name": "Room Of Mirrors",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -5390,7 +5667,9 @@
             "number": 327,
             "name": "Tricky Hallway",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "west": 1
             },
@@ -5404,7 +5683,9 @@
             "number": 328,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -5420,7 +5701,9 @@
             "number": 329,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -5437,7 +5720,9 @@
             "number": 330,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -5453,7 +5738,9 @@
             "number": 331,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -5469,7 +5756,9 @@
             "number": 332,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -5707,7 +5996,9 @@
             "number": 346,
             "name": "Long Corridor",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "east": 1
             },
@@ -5721,7 +6012,9 @@
             "number": 347,
             "name": "Grand Entry Way",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "north": 1
             },
@@ -5735,7 +6028,9 @@
             "number": 348,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -5750,7 +6045,9 @@
             "number": 349,
             "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -6011,7 +6308,9 @@
             "number": 364,
             "name": "The Great Door",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -6026,7 +6325,9 @@
             "number": 365,
             "name": "Icy Head Waters",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1

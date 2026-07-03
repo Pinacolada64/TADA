@@ -108,7 +108,9 @@
             "number": 8,
             "name": "Underground Stream",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1
             },
@@ -122,7 +124,9 @@
             "number": 9,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "west": 1
             },
@@ -136,7 +140,9 @@
             "number": 10,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "west": 1
             },
@@ -150,7 +156,9 @@
             "number": 11,
             "name": "Underground Stream",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -165,7 +173,9 @@
             "number": 12,
             "name": "Underground Stream",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -180,7 +190,9 @@
             "number": 13,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "west": 1
             },
@@ -194,7 +206,9 @@
             "number": 14,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1
             },
@@ -208,7 +222,9 @@
             "number": 15,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "west": 1
             },
@@ -222,7 +238,9 @@
             "number": 16,
             "name": "Underground Stream",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -237,7 +255,9 @@
             "number": 17,
             "name": "Underground Stream",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -252,7 +272,9 @@
             "number": 18,
             "name": "Underground Pool",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -268,7 +290,9 @@
             "number": 19,
             "name": "Underground Pool",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -345,7 +369,9 @@
             "number": 24,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -360,7 +386,9 @@
             "number": 25,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -376,7 +404,9 @@
             "number": 26,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -392,7 +422,9 @@
             "number": 27,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -407,7 +439,9 @@
             "number": 28,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -422,7 +456,9 @@
             "number": 29,
             "name": "Underground River",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -437,7 +473,9 @@
             "number": 30,
             "name": "Underground River",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -452,7 +490,9 @@
             "number": 31,
             "name": "Quiet Pool",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -468,7 +508,9 @@
             "number": 32,
             "name": "Underground Pool",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -542,7 +584,9 @@
             "number": 37,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -558,7 +602,9 @@
             "number": 38,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -575,7 +621,9 @@
             "number": 39,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -592,7 +640,9 @@
             "number": 40,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -609,7 +659,9 @@
             "number": 41,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1,
@@ -625,7 +677,9 @@
             "number": 42,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -642,7 +696,9 @@
             "number": 43,
             "name": "Small Pond",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -657,7 +713,9 @@
             "number": 44,
             "name": "Underground River",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -672,7 +730,9 @@
             "number": 45,
             "name": "Underground Pool",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -687,7 +747,9 @@
             "number": 46,
             "name": "Underground Pool",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -781,7 +843,9 @@
             "number": 52,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -796,7 +860,9 @@
             "number": 53,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -813,7 +879,9 @@
             "number": 54,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -830,7 +898,9 @@
             "number": 55,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -847,7 +917,9 @@
             "number": 56,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -864,7 +936,9 @@
             "number": 57,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -895,7 +969,10 @@
             "number": 59,
             "name": "Underground River",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water",
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -910,7 +987,10 @@
             "number": 60,
             "name": "Underground River",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water",
+                "snow"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -925,7 +1005,10 @@
             "number": 61,
             "name": "Underground River",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water",
+                "snow"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -998,7 +1081,9 @@
             "number": 66,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -1013,7 +1098,9 @@
             "number": 67,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -1029,7 +1116,9 @@
             "number": 68,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1046,7 +1135,9 @@
             "number": 69,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1063,7 +1154,9 @@
             "number": 70,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1109,7 +1202,9 @@
             "number": 73,
             "name": "Underground Ledge",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -1200,7 +1295,9 @@
             "number": 79,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -1216,7 +1313,9 @@
             "number": 80,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1233,7 +1332,9 @@
             "number": 81,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1418,7 +1519,9 @@
             "number": 93,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1
@@ -1433,7 +1536,9 @@
             "number": 94,
             "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 1,
                 "west": 1
@@ -2360,7 +2465,9 @@
             "number": 155,
             "name": "Burial Chamber",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "hidden_exit_east"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -2390,7 +2497,11 @@
             "number": 157,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow",
+                "hidden_exit_east",
+                "hidden_exit_west"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1
@@ -2419,7 +2530,9 @@
             "number": 159,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -2434,7 +2547,9 @@
             "number": 160,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -2617,7 +2732,9 @@
             "number": 172,
             "name": "Mummy'S Tome",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "east": 1,
@@ -2633,7 +2750,9 @@
             "number": 173,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "east": 1,
                 "west": 1
@@ -2648,7 +2767,9 @@
             "number": 174,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -3087,7 +3208,9 @@
             "number": 203,
             "name": "Quiet Pool",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "east": 1
@@ -3117,7 +3240,9 @@
             "number": 205,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "south": 1
             },
@@ -3131,7 +3256,9 @@
             "number": 206,
             "name": "Underground Stream",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "south": 1,
                 "west": 1
@@ -3146,7 +3273,9 @@
             "number": 207,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "south": 1
             },
@@ -3160,7 +3289,9 @@
             "number": 208,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "west": 1
             },
