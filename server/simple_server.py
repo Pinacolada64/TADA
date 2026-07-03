@@ -18,6 +18,7 @@ Two ports:
 import asyncio
 import contextvars
 import logging
+import random
 from pathlib import Path
 
 import net_common as nc
@@ -35,6 +36,13 @@ from terminal import Translation
 
 DEFAULT_PORT = 34083
 PETSCII_PORT = 34064
+
+# Wild horse (monsters.json #136, a TADA extension -- no canonical SPUR
+# placement exists) is randomized to one of these level-1 "Edge of Forest"
+# rooms each time the server starts. Not persisted to level_1.json, so it
+# moves on every restart. See MECHANICS.md's Horses section.
+_WILD_HORSE_ROOMS = (30, 52, 68)
+_WILD_HORSE_MONSTER_NUMBER = 136
 
 # ---------------------------------------------------------------------------
 # Per-connection logging context
@@ -102,6 +110,8 @@ class Server:
             logging.exception('Failed to load map')
             self.game_map = None
 
+        self._place_wild_horse()
+
         def _try_load(cls, filename, method='read'):
             try:
                 result = getattr(cls, method)(str(script_dir / filename))
@@ -123,6 +133,20 @@ class Server:
         logging.info('Map: %d rooms | %d monsters | %d items | %d weapons',
                      len(self.game_map.rooms) if self.game_map else 0,
                      len(self.monsters), len(self.items), len(self.weapons))
+
+    def _place_wild_horse(self) -> None:
+        """Randomize which level-1 room holds the wild horse this session.
+
+        Mutates the live Room object only -- never written back to
+        level_1.json, so the location resets on every server restart.
+        """
+        if not self.game_map:
+            return
+        room_no = random.choice(_WILD_HORSE_ROOMS)
+        room = self.game_map.rooms.get(room_no)
+        if room:
+            room.monster = _WILD_HORSE_MONSTER_NUMBER
+            logging.info('Wild horse this session: room %d (%s)', room_no, room.name)
 
     # -----------------------------------------------------------------------
     # Wire I/O (low-level — use ctx.send() in game code instead)
