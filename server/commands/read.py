@@ -1,7 +1,11 @@
 """commands/read.py — READ: read a book-type item from inventory.
 
-Mirrors SPUR.MAIN.S's book-reading dispatch (`read.bk`) and, for item #69
-specifically, SPUR.MISC2.S:296-352's `elev` subroutine.
+Mirrors SPUR.MISC2.S's `read` subroutine (line ~285) and, for item #69
+specifically, the `elev` subroutine (line ~296-352).
+
+Intelligence gate: SPUR's `read` subroutine opens with
+`if pi<6 print "Not smart enough to read!":goto advent` -- too low
+Intelligence blocks the command entirely, before even listing books.
 
 Special case — item #69 "scrap of paper": READing it the first time asks
 two flavor Y/N prompts ("Art thou true of heart?", "Good or Evil?" —
@@ -16,13 +20,14 @@ just acknowledges the attempt.
 """
 from __future__ import annotations
 
-from base_classes import Combination, CombinationTypes
+from base_classes import Combination, CombinationTypes, PlayerStat
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from item_system import ItemType
 from network_context import GameContext
 
 _SCRAP_OF_PAPER_ID = 69
+_MIN_INTELLIGENCE  = 6   # SPUR.MISC2.S read: `if pi<6 ... "Not smart enough to read!"`
 
 _AP = "'"
 
@@ -86,6 +91,13 @@ class ReadCommand(Command):
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         args, _ = self.parse_args(*args)
         player  = ctx.player
+
+        stats = getattr(player, 'stats', None) or {}
+        intelligence = int(stats.get(PlayerStat.INT, 10) or 0)
+        if intelligence < _MIN_INTELLIGENCE:
+            await ctx.send('Not smart enough to read!')
+            return CommandResult.ok()
+
         entries = _book_entries(player)
 
         if not entries:

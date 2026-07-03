@@ -255,6 +255,9 @@ coordinate check at the Shoppe elevator).
 
 - **Item #69 "scrap of paper"** (type `book`) is placed in level 1, room 64
   ("Labyrinth"); no placement/randomization work was needed.
+- **Intelligence gate**: SPUR.MISC2.S's `read` subroutine opens with `if pi<6 print
+  "Not smart enough to read!":goto advent` -- Intelligence below 6 blocks `READ`
+  entirely, before even listing books. Ported as-is.
 - **`commands/read.py`** (new) implements `READ`: lists book-type inventory items, or
   reads one by name/number. Item #69 is special-cased: the first read asks the two SPUR
   flavor prompts ("Art thou true of heart?" Y/N, "Good or Evil?" G/E -- answering Evil

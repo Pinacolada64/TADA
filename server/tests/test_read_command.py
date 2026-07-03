@@ -23,7 +23,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
-from base_classes import Combination, CombinationTypes
+from base_classes import Combination, CombinationTypes, PlayerStat
 from commands.read import ReadCommand
 from inventory import Inventory
 from item_system import Item, ItemType
@@ -32,12 +32,13 @@ from shoppe.elevator import get_combination
 _SCRAP_ID = 69
 
 
-def make_player(*, with_scrap: bool = True, honor: int = 1000) -> MagicMock:
+def make_player(*, with_scrap: bool = True, honor: int = 1000, intelligence: int = 10) -> MagicMock:
     p = MagicMock()
     p.name = 'TestPlayer'
     p.honor = honor
     p.combinations = {}
     p.unsaved_changes = False
+    p.stats = {PlayerStat.INT: intelligence}
     p.inventory = Inventory(capacity=10)
     if with_scrap:
         p.inventory.add(Item(number=_SCRAP_ID, name='scrap of paper', type=ItemType.BOOK, price=4))
@@ -71,6 +72,24 @@ class TestReadCommandNoBooks(unittest.IsolatedAsyncioTestCase):
         res = await ReadCommand().execute(ctx)
         self.assertTrue(res.success)
         self.assertIn('no books', _sent(ctx).lower())
+
+
+class TestIntelligenceGate(unittest.IsolatedAsyncioTestCase):
+    """SPUR.MISC2.S read: `if pi<6 print "Not smart enough to read!":goto advent`."""
+
+    async def test_low_intelligence_blocks_reading_entirely(self):
+        player = make_player(intelligence=5)
+        ctx = make_ctx(player, [])
+        res = await ReadCommand().execute(ctx, 'scrap')
+        self.assertTrue(res.success)
+        self.assertIn('not smart enough', _sent(ctx).lower())
+        self.assertNotIn(CombinationTypes.ELEVATOR, player.combinations)
+
+    async def test_intelligence_at_threshold_allows_reading(self):
+        player = make_player(intelligence=6)
+        ctx = make_ctx(player, [])
+        res = await ReadCommand().execute(ctx)
+        self.assertNotIn('not smart enough', _sent(ctx).lower())
 
 
 class TestReadOrdinaryBook(unittest.IsolatedAsyncioTestCase):
@@ -177,6 +196,7 @@ class TestCombinationPersistence(unittest.IsolatedAsyncioTestCase):
         from player import Player
 
         p = Player(id='combo-roundtrip-user', name='Tester')
+        p.stats[PlayerStat.INT] = 10  # ensure the intelligence gate doesn't block reading
         p.inventory.add(Item(number=_SCRAP_ID, name='scrap of paper', type=ItemType.BOOK, price=4))
         ctx = make_ctx(p, ['Y', 'G'])
         await ReadCommand().execute(ctx, 'scrap')
