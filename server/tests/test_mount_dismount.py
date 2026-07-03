@@ -8,6 +8,7 @@ Coverage:
   - MOUNT requires a MOUNT-flagged ally; refuses without one
   - MOUNT refuses if already mounted
   - MOUNT refuses in a water room
+  - MOUNT refuses for Pixie characters (too small -- design addition, not from SPUR)
   - MOUNT succeeds and sets PlayerFlags.MOUNTED
   - DISMOUNT clears the flag; no-ops if not mounted
   - auto-dismount: mount ally gone (dead/removed) -> cleared with a message
@@ -23,7 +24,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock
 
 from bar.ally_data import Ally, AllyFlags, AllyStatus
-from base_classes import Map, Room
+from base_classes import Map, PlayerRace, Room
 from commands.dismount import DismountCommand
 from commands.mount import MountCommand
 from commands.movement import _auto_dismount_if_needed
@@ -103,6 +104,15 @@ class TestMountCommand(unittest.IsolatedAsyncioTestCase):
         res = await MountCommand().execute(ctx)
         self.assertFalse(res.success)
         self.assertEqual(res.error, 'water_room')
+
+    async def test_refuses_pixie_character(self):
+        player = make_player()
+        player.char_race = PlayerRace.PIXIE
+        ctx = make_ctx(player)
+        res = await MountCommand().execute(ctx)
+        self.assertFalse(res.success)
+        self.assertEqual(res.error, 'too_small')
+        self.assertFalse(player.query_flag(PlayerFlags.MOUNTED))
         self.assertFalse(player.query_flag(PlayerFlags.MOUNTED))
 
 

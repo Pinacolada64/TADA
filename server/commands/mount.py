@@ -8,10 +8,14 @@ water rooms need a Boat, not a horse).
 
 State is tracked via PlayerFlags.MOUNTED (flags.py), which already
 round-trips through save/load generically -- no new Player field needed.
+
+Design addition (not from SPUR source): Pixies are excluded from
+mounting -- too small for a horse.
 """
 from __future__ import annotations
 
 from bar.allies import find_mount
+from base_classes import PlayerRace
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
@@ -51,6 +55,10 @@ class MountCommand(Command):
         if player.query_flag(PlayerFlags.MOUNTED):
             await ctx.send("You're already mounted.")
             return CommandResult.ok()
+
+        if getattr(player, 'char_race', None) == PlayerRace.PIXIE:
+            await ctx.send("You're far too small to mount a horse!")
+            return CommandResult.fail(error='too_small')
 
         mount = find_mount(player)
         if mount is None:

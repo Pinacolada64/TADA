@@ -416,6 +416,8 @@ Implemented against the block-diagram plan traced from the skip branch's `SPUR.U
   (`bar.allies.find_mount()`), refuses if already mounted, refuses in a water room
   (`SPUR.COMBAT.S:74` — water needs a Boat, not a horse). Sets the flag and prints
   "You climb onto `<name>`."
+- ✅ **Pixie exclusion** (design addition, not from SPUR source) — Pixies are too small to
+  mount a horse; `MOUNT` refuses with "You're far too small to mount a horse!"
 - ✅ **`DISMOUNT`** (`commands/dismount.py`) — unconditional while mounted; no-ops with a
   message otherwise.
 - ✅ **Auto-dismount** (`commands/movement.py` `_auto_dismount_if_needed()`, called after
