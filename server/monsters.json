@@ -4956,5 +4956,42 @@
         },
         "quote_number": null,
         "description": null
+    },
+    {
+        "number": 135,
+        "status": 1,
+        "name": "WILD HORSE",
+        "size": "large",
+        "strength": 15,
+        "special_weapon": 0,
+        "to_hit": 4,
+        "flags": {
+            "heavy_armor": false,
+            "light_armor": false,
+            "chance_find_gold_2x": false,
+            "chance_find_gold": false,
+            "cast_multiple_spells": false,
+            "cast_one_spell": false,
+            "double_attacks": false,
+            "mechanical": false,
+            "increase_strength": false,
+            "evil": false,
+            "good": false,
+            "re_animates": false,
+            "cast_turn_to_stone": false,
+            "poisonous_attack": false,
+            "diseased_attack": false,
+            "experience_drain": false,
+            "magic_resistant": false,
+            "appears_unaffected": false,
+            "fire_attack": false,
+            "no_gold": true,
+            "multiple_monsters": false,
+            "no_article": false,
+            "charmable": true,
+            "has_quote": false
+        },
+        "quote_number": null,
+        "description": "A wild horse eyes you warily, hooves stamping the ground -- looks like it could be tamed with the right approach."
     }
 ]

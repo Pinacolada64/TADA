@@ -282,6 +282,90 @@ class CombatSession:
             await ctx.server._move(ctx, direction)
         return True
 
+    async def lasso(self, ctx: 'GameContext') -> bool:
+        """Attempt to capture the monster as a mount ally (SPUR.USE.S "lasso").
+
+        Only works against a monster whose name contains "HORSE"; requires an
+        open party slot and no existing mount ally.  Returns True if captured
+        (combat ends -- the horse is tamed, not killed).
+        """
+        if self._done.is_set():
+            return False
+
+        mname = self.monster.get('name', '')
+        if 'HORSE' not in mname.upper():
+            await ctx.send('You practice with the lasso.')
+            return False
+
+        from bar.ally_data import Ally, AllyFlags, AllyStatus
+        from bar.allies import owned_allies
+
+        player = ctx.player
+        allies = owned_allies(player)
+        if len(allies) >= 3:
+            await ctx.send('Only 3 allies allowed, use ORDER to dismiss one.')
+            return False
+        if any(AllyFlags.MOUNT in (a.flags or []) for a in allies):
+            await ctx.send('Only 1 mount per customer.')
+            return False
+
+        await ctx.send('You capture the horse!')
+        name = await self._prompt_horse_name(ctx)
+        if name is None:
+            return False
+
+        # SPUR lasso.b: ms (monster strength) + 5, h1=0 -- unlike a purchased
+        # ally, a freshly-lassoed mount starts with unseeded hit_points.
+        strength = _monster_hp(self.monster) + 5
+        mount = Ally(name=name, gender='m', strength=strength, to_hit=0,
+                     flags=[AllyFlags.MOUNT])
+        mount.status     = AllyStatus.SERVANT
+        mount.owner      = player.name
+        mount.hit_points  = 0
+        player.party.append(mount)
+        player.unsaved_changes = True
+
+        await ctx.send(f'{name} joins your party as a mount!')
+        self._append_capture_log(player.name, name)
+
+        self._done.set()
+        self._remove_attacker(ctx)
+        return True
+
+    async def _prompt_horse_name(self, ctx: 'GameContext') -> str | None:
+        """Prompt for a horse name (4-12 chars, no symbols).  None on cancel."""
+        _FORBIDDEN = set('!@#$%^&*()_-+=[{]}\\|:;<,>.?/')
+        while True:
+            raw = await ctx.prompt('Name your horse (4-12 chars, Enter to cancel)')
+            if not raw or not raw.strip():
+                return None
+            name = raw.strip()
+            if len(name) < 4 or len(name) > 12:
+                await ctx.send('Name must be 4-12 characters.')
+                continue
+            bad = _FORBIDDEN.intersection(name)
+            if bad:
+                await ctx.send(f'"{next(iter(bad))}" not allowed in name.')
+                continue
+            return name
+
+    def _append_capture_log(self, player_name: str, horse_name: str) -> None:
+        """SPUR.USE.S lasso.b: appends a MOUNT entry to battle.log."""
+        import datetime
+        import os
+        try:
+            import net_common
+            base = getattr(net_common, 'run_server_dir', None)
+        except Exception:
+            base = None
+        path = os.path.join(str(base or './run/server'), 'battle.log')
+        try:
+            with open(path, 'a') as fh:
+                stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
+                fh.write(f'[{stamp}] {player_name} got a mount!  Name of the mount - {horse_name}\n')
+        except Exception:
+            log.exception('Failed to write battle.log')
+
     def _random_exit(self, ctx: 'GameContext') -> str | None:
         """Return a random navigable exit direction from the player's current room, or None."""
         import random

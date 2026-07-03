@@ -37,6 +37,11 @@ _SHOPPE_ROOM = None  # Shoppe is reached via rc/rt elevator, not a map room
 _ALLY_GUILD_LEVEL = 4
 _ALLY_GUILD_ROOM  = 42
 
+# Jake's Stable: same hardcoded-interception mechanism, one level over.
+# SPUR.MAIN.S: "if cl=5 if cr=157 if di=3 i$=\"JAKES\":...link dy$"
+_JAKES_LEVEL = 5
+_JAKES_ROOM  = 157
+
 
 async def _enter_shoppe(ctx: GameContext) -> None:
     """Player takes the elevator down to the Merchant Shoppe."""
@@ -49,6 +54,13 @@ async def _enter_allies_guild(ctx: GameContext) -> None:
     """Player finds Bubba's Allys Guild down the alley (level 4, room 42, east)."""
     from bar.allies_guild import main as allies_guild_main
     await allies_guild_main(ctx)
+    await ctx.server._show_room(ctx)
+
+
+async def _enter_jakes_stable(ctx: GameContext) -> None:
+    """Player finds Jake's Stable (level 5, room 157, east)."""
+    from bar.jakes import main as jakes_main
+    await jakes_main(ctx)
     await ctx.server._show_room(ctx)
 
 
@@ -117,6 +129,12 @@ class MoveCommand(Command):
         if (direction == 'e' and player_level == _ALLY_GUILD_LEVEL
                 and int(room_no) == _ALLY_GUILD_ROOM):
             await _enter_allies_guild(ctx)
+            return CommandResult.ok()
+
+        # Jake's Stable: same hardcoded interception (see _JAKES_LEVEL / _JAKES_ROOM).
+        if (direction == 'e' and player_level == _JAKES_LEVEL
+                and int(room_no) == _JAKES_ROOM):
+            await _enter_jakes_stable(ctx)
             return CommandResult.ok()
 
         room = game_map.rooms.get(int(room_no)) if game_map else None

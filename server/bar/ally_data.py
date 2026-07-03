@@ -25,6 +25,9 @@ class AllyFlags(Enum):
     # Allys Guild training (SPUR.MISC8.S s.armor/s.wep, skip branch):
     ARMORED = auto()
     COMBAT_TRAINED = auto()
+    # Jake's Stable mount equipping (SPUR.USE.S eq.horse "@" sigil).
+    # ARMORED ("$") doubles as horse armor -- same sigil, same flag either way.
+    SADDLED = auto()
 
 class AllyPosition(Enum):
     """Tactical position"""

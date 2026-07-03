@@ -26,8 +26,10 @@ from item_system import Item, ItemType
 from items import ItemCategory
 from network_context import GameContext
 
-_GRENADE_ID = 16   # hand grenade (objects.json)
-_RING_ID    = 67   # ring of invisibility (objects.json)
+_GRENADE_ID     = 16    # hand grenade (objects.json)
+_RING_ID        = 67    # ring of invisibility (objects.json)
+_SADDLE_ID      = 162   # saddle (objects.json) -- Jake's Stable
+_HORSE_ARMOR_ID = 163   # horse armour (objects.json) -- Jake's Stable
 
 
 def _char_level(player) -> int:
@@ -257,6 +259,34 @@ class UseCommand(Command):
                 player.ring_worn = False
                 player.unsaved_changes = True
                 await ctx.send('Ring returned to your pack.')
+            return CommandResult.ok()
+
+        # ---- Saddle (#162) / Horse Armor (#163): equip a mount ally ----------
+        # (SPUR.USE.S eq.horse)
+        if item_no in (_SADDLE_ID, _HORSE_ARMOR_ID):
+            from bar.ally_data import AllyFlags
+            from bar.allies import owned_allies
+
+            allies = owned_allies(player)
+            mount = next((a for a in allies if AllyFlags.MOUNT in (a.flags or [])), None)
+            if mount is None:
+                await ctx.send('Need a mount first..')
+                return CommandResult.ok()
+
+            flag  = AllyFlags.SADDLED if item_no == _SADDLE_ID else AllyFlags.ARMORED
+            label = 'Saddle' if item_no == _SADDLE_ID else 'Horse Armor'
+            if flag in (mount.flags or []):
+                await ctx.send('Horse already has one.')
+                return CommandResult.ok()
+
+            if mount.flags is None:
+                mount.flags = []
+            mount.flags.append(flag)
+            player.unsaved_changes = True
+            inv = getattr(player, 'inventory', None)
+            if inv:
+                inv.remove(item)
+            await ctx.send(f'You put the {label} on the horse..')
             return CommandResult.ok()
 
         if not isinstance(item, Item):
