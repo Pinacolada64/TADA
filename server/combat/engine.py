@@ -96,13 +96,13 @@ async def _add_exp(ctx: 'GameContext', amount: int) -> None:
     player = ctx.player
     player.experience = int(getattr(player, 'experience', 0) or 0) + amount
     player.unsaved_changes = True
-    level = int(getattr(player, 'map_level', 1) or 1)
+    level = int(getattr(player, 'xp_level', 1) or 1)
     if player.experience > 999 + level * 100:
-        player.map_level   = level + 1
+        player.xp_level    = level + 1
         player.experience  = 1
         player.unsaved_changes = True
-        log.info('level_up: %s is now level %d', _player_name(ctx), player.map_level)
-        await ctx.send(f'Congratulations!  You are now a Level {player.map_level} player!')
+        log.info('level_up: %s is now level %d', _player_name(ctx), player.xp_level)
+        await ctx.send(f'Congratulations!  You are now a Level {player.xp_level} player!')
 
 
 def _apply_dex_change(player, delta: int) -> None:
@@ -465,8 +465,8 @@ class CombatSession:
                     player.unsaved_changes = True
                     await ctx.send('YO!  YOU REGENERATE HIT POINTS!')
                 else:
-                    await self._narrate_monster_swing(ctx, m_result)
-                    self._apply_monster_damage(ctx, m_result)
+                    if await self._resolve_monster_hit(ctx, m_result):
+                        return
 
                 self._monster_attack_count += 1
 
@@ -478,8 +478,8 @@ class CombatSession:
                         and not self._done.is_set()):
                     m_result2 = monster_attacks(self.monster, player)
                     await ctx.send('DOUBLE ATTACK!')
-                    await self._narrate_monster_swing(ctx, m_result2)
-                    self._apply_monster_damage(ctx, m_result2)
+                    if await self._resolve_monster_hit(ctx, m_result2):
+                        return
                     self._monster_attack_count += 1
 
                 if getattr(player, 'hit_points', 1) <= 0:
@@ -616,6 +616,29 @@ class CombatSession:
         # DEX improvement notification (SPUR.COMBAT.S line 164)
         if result.dex_improved:
             await ctx.send('(You feel a bit more dexterous.)')
+
+    async def _resolve_monster_hit(self, ctx: 'GameContext', result) -> bool:
+        """Narrate and apply one monster swing, giving allies a death-save chance first.
+
+        Returns True if the fight is over (a GOD/GODDESS ally whisked the
+        player to safety) and the caller should stop the combat loop
+        immediately; False if the hit was narrated/applied as normal.
+
+        SPUR.COMBAT.S "dragon" label: sac.ally is only tried when the
+        incoming blow would drop HP to 0 or below (`if a>hp-1`).
+        """
+        player = ctx.player
+        hp = int(getattr(player, 'hit_points', 1) or 1)
+        if result.hit and (result.damage + result.fire_damage) >= hp:
+            from ally_events import try_ally_death_save
+            if await try_ally_death_save(ctx, result.damage + result.fire_damage):
+                self._done.set()
+                self._remove_attacker(ctx)
+                return True
+
+        await self._narrate_monster_swing(ctx, result)
+        self._apply_monster_damage(ctx, result)
+        return False
 
     async def _narrate_monster_swing(
         self, ctx: 'GameContext', result

@@ -69,7 +69,7 @@ async def main(ctx: GameContext) -> None:
     while True:
         in_bank = player.get_silver(PlayerMoneyTypes.IN_BANK)
         in_hand = player.get_silver(PlayerMoneyTypes.IN_HAND)
-        level   = int(getattr(player, 'map_level', 1) or 1)
+        level   = int(getattr(player, 'xp_level', 1) or 1)
 
         await ctx.send([
             '',

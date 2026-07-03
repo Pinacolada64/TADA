@@ -1,0 +1,4712 @@
+{
+    "rooms": [
+        {
+            "number": 1,
+            "name": "A Corridor",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "rc": 2
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a large corridor. The ship's Stores area is visible thru a manhole below you..."
+        },
+        {
+            "number": 2,
+            "name": "The Infirmary",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 45,
+            "desc": "More shelves, more musty smells...."
+        },
+        {
+            "number": 3,
+            "name": "The Infirmary",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 44,
+            "desc": "There are neat little shelves on the walls, some with bottles still on them.."
+        },
+        {
+            "number": 4,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The air is crisp and quiet, you imagine you hear footsteps behind.."
+        },
+        {
+            "number": 5,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 6,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.. Something very strange is to the 'east'..."
+        },
+        {
+            "number": 7,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east",
+                "block_south",
+                "block_north"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 139,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Something very strange floats here.."
+        },
+        {
+            "number": 8,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east",
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 9,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 10,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 11,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_east"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 12,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The ship looms to the east.."
+        },
+        {
+            "number": 13,
+            "name": "The Mess Hall",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 108,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Oddly enough, there is a very dead looking fellow sitted at this table, munching on something gross looking, and reading the funnies.."
+        },
+        {
+            "number": 14,
+            "name": "The Mess Hall",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 17,
+            "desc": "More litter, more tables, and a few odd scraps of food preserved in their rad-paks.."
+        },
+        {
+            "number": 15,
+            "name": "A Corridor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor continues to run in a north south direction, with doorways on either side..."
+        },
+        {
+            "number": 16,
+            "name": "Crew Quarters",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A scribbled sign over the doorway, aluding to an obscure sexual practice, together with strewn dirty laundry, makes it apparent that this is/was the crews quarters.."
+        },
+        {
+            "number": 17,
+            "name": "Crew Quarters",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Not muche here, except bunks and lots of dirty laundry. Some of it bloody.."
+        },
+        {
+            "number": 18,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 136,
+            "weapon": 0,
+            "food": 0,
+            "desc": "On you trudge, wondering how long this tunnel lasts. Your earthbound mind doesn't even wonder at the artifical gravity which keeps your feet to the 'floor'..  You almost stumble over the little book on the 'floor'..."
+        },
+        {
+            "number": 19,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east",
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 20,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west",
+                "block_north"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 21,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 22,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_east",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 23,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 140,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A huge turrent from the ship blocks progress to the 'south'. The ships main hull looms to the 'east'. The turrent seems to be some sort of weapons platform.."
+        },
+        {
+            "number": 24,
+            "name": "Heavy Weapons Armory",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 126,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Large rockets are stacked up neatly...."
+        },
+        {
+            "number": 25,
+            "name": "Heavy Weapons Armory",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 107,
+            "item": 127,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is odviously where the heavy stuff is kept. At least, judging by the number of guard droids..."
+        },
+        {
+            "number": 26,
+            "name": "A Corridor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor continues in a north/south direction. Gently humming of distant machinery is all that can be heard..."
+        },
+        {
+            "number": 27,
+            "name": "Crew Quarters",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You move cautiously thru the crew quarters. Bones lie about, which you pointedly ignore.."
+        },
+        {
+            "number": 28,
+            "name": "Crew Quarters",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 32,
+            "desc": "You feel touched, as you notice the little human touches. Pictures of girlfriends, playing cards.. All the signs that humans passed this way before."
+        },
+        {
+            "number": 29,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The air is crisp and clean. You wonder how it could be so fresh, with nobody thru here in such a long time."
+        },
+        {
+            "number": 30,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 31,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 32,
+            "name": "Heavy Weapons Armory",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 128,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The room is strangely quiet. Somehow, you think there should be the shouting of some platoon sargeant at some hapless GI cleaning the rockets.."
+        },
+        {
+            "number": 33,
+            "name": "Heavy Weapons Armory",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 129,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The smell of grease preservetive is in the air. The rockets, are nice and shiny thanks to the gooey stuff.."
+        },
+        {
+            "number": 34,
+            "name": "A Corridor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 111,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor abruptly turns here. A fuzzy little thing is on the floor.."
+        },
+        {
+            "number": 35,
+            "name": "Crew Quarters",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 112,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A very strange looking fellow lounges in the corner.."
+        },
+        {
+            "number": 36,
+            "name": "Crew Quarters",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 34,
+            "desc": "Yet more refuse of human occupation. Sombodies ancient unwash socks dangle in front of your nose..."
+        },
+        {
+            "number": 37,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The air hangs in ghostly clouds in front of your laboring mouth. Again and again, you stop to listen for noises following..."
+        },
+        {
+            "number": 38,
+            "name": "A Corridor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A small round window is to the west. Peering thru it, you gasp to see millions and millions of stars, in a sky coal black.. A doorway is to the south, the word ENGINEERING is over the door."
+        },
+        {
+            "number": 39,
+            "name": "A Corridor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor continues in an east-west direction. 'This building is REALLY big! And apparently made of all metal!' you muse to yourself..."
+        },
+        {
+            "number": 40,
+            "name": "Dingy Closet",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 0,
+            "item": 133,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stand in a dimly lit closet. Lots of tools and junk are stacked about.."
+        },
+        {
+            "number": 41,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Another curve in the tunnel. 'What is on the other side of this thing?' you muse idly to yourself. Ice hangs on the walls of the tunnel."
+        },
+        {
+            "number": 42,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "On and on and on you trudge. You wonder idly what in hell you are doing here."
+        },
+        {
+            "number": 43,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 115,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The hideous black shape of the creature here, makes you wonder if he is from out-of-state.."
+        },
+        {
+            "number": 44,
+            "name": "Engineering",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The light is very dim in this room. Large metalic objects loom in the darkness. A large purring noise is in the air."
+        },
+        {
+            "number": 45,
+            "name": "Engineering",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 109,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Junk, and more junk lie about. Some of it looks like it is moving.."
+        },
+        {
+            "number": 46,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Yet another curve in the tunnel. You begin to wonder if you are traveling in circles.."
+        },
+        {
+            "number": 47,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Ice litters the floor, apparently shaken off by some past happening."
+        },
+        {
+            "number": 48,
+            "name": "Equipment Locker",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 134,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Not much in this locker. Looks like most of it was hurridly ransacked. One very broken looking suit of some sort is hanging on the rack.."
+        },
+        {
+            "number": 49,
+            "name": "Engineering",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There is a very strong looking door to the west. You can find no handles, though there is a slot in the middle with a GREEN band around it.."
+        },
+        {
+            "number": 50,
+            "name": "Engineering",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Piles of junk litter the floor. Most of it very destroyed.."
+        },
+        {
+            "number": 51,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The tunnel dissapears into the icy mist to the south. A bend is visible to the north.."
+        },
+        {
+            "number": 52,
+            "name": "Storage Locker",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 135,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stand in a dingy storage locker. Just odds and ends lying about. It has long since been looted..."
+        },
+        {
+            "number": 53,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 116,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A strange looking, er... being is here.."
+        },
+        {
+            "number": 54,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "On, and on, and on the tunnel goes. You start to feel lonely.."
+        },
+        {
+            "number": 55,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The frost in the air is cool, but not bitingly so.."
+        },
+        {
+            "number": 56,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A distant thumping can be heard, as of distant thunder.."
+        },
+        {
+            "number": 57,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 107,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Hmm... This droid looks strangely familiar..."
+        },
+        {
+            "number": 58,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Yet another corner. Whoever designed this place must have been smoking something strong. You again imagine you hear noises, this time in front of you!"
+        },
+        {
+            "number": 59,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Something smells rather.... ripe around here..."
+        },
+        {
+            "number": 60,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 108,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The smell is somewhat more intense here..."
+        },
+        {
+            "number": 61,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Cold air here. Not as cold as you remember it further back in the tunnel though. Machinery can be heard in the distance.."
+        },
+        {
+            "number": 62,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 137,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Another dead end!  %$##@!!!"
+        },
+        {
+            "number": 63,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 135,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Nothing much here but a small scrap heap.."
+        },
+        {
+            "number": 64,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Yet another branch in the metal tunnel. You imagine you hear shuffling noises behind you.."
+        },
+        {
+            "number": 65,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The strange metal tunnel is quite curvy here.."
+        },
+        {
+            "number": 66,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "On you trudge, rather pleased to be leaving the smelly area.."
+        },
+        {
+            "number": 67,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The air is nicely warm here. 'Thump-thump..' goes the distant thunder.."
+        },
+        {
+            "number": 68,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You must crawl on your hands and knees here. Crawl... crawl..."
+        },
+        {
+            "number": 69,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 96,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Well, this strange little tunnel ends here! And where did this stupid rat come from anyway? Well never mind, you are almost glad to see it. If it wern't trying to eat you..."
+        },
+        {
+            "number": 70,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The mysterious metal tunnel branches here. Which way to go?"
+        },
+        {
+            "number": 71,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "'Rumble rumble' goes the distant noise, perhaps a bit louder here..."
+        },
+        {
+            "number": 72,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 130,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A pile of old gadgets lie in the room. Looks like the scene of some sort of weird battle.."
+        },
+        {
+            "number": 73,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You feel quite warm actualy. You open your tunic as you trudge onwards..."
+        },
+        {
+            "number": 74,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The tunnel is a little smaller here. A distant thumping is all that you can hear. After a while, you realize it is your heart pumping away. For some reason you begin listening to it to make sure it doesn't stop.."
+        },
+        {
+            "number": 75,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The duct branches in two directions here. One way seems as promising as another..."
+        },
+        {
+            "number": 76,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 113,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Well, so you decided to see what lies this way, eh?"
+        },
+        {
+            "number": 77,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Not much in this area, as usual..."
+        },
+        {
+            "number": 78,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "On and on the tunnel goes. \"Hi-ho, hi-ho, it's off to work we go..\" You stop short as you realize you are singing that silly little diddy. Feeling foolish, you look around to see if anybody heard. They didn't..."
+        },
+        {
+            "number": 79,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The access tunnel ends here! There is a huge blast door to the south which is fused shut. A smaller day is to the East. A sign over it says, 'VENTILATION'. It is locked, but there is a small slot in it's center surrounded by a RED band...."
+        },
+        {
+            "number": 80,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in the ships vast ventilation system. The air is quite warm here."
+        },
+        {
+            "number": 81,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 117,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The vent is a little larger here, you can even feel a little air flowing past. It is quite refreshing.. There is a rather strange looking individual here.."
+        },
+        {
+            "number": 82,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Yet another winding corner, 'How much of this damn tunnel did that Trajan put IN here anyway?' you find yourself muttering.."
+        },
+        {
+            "number": 83,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Three ways to go here, which way would James Bond have taken?"
+        },
+        {
+            "number": 84,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 67,
+            "desc": "Egad, a dead bug on the floor! Should you squash it, or eat it?"
+        },
+        {
+            "number": 85,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The vent rounds a corner. It is very quiet here."
+        },
+        {
+            "number": 86,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The vent comes to an abrupt end here, something violent has squashed it flat to the east.."
+        },
+        {
+            "number": 87,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Also, the air is stirring. There is a noticable breeze blowing against your RAD suit. (I trust you are wearing your RAD suit...)"
+        },
+        {
+            "number": 88,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The air is noticably warmer here. That distant thumping noise, is louder too."
+        },
+        {
+            "number": 89,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Wow! Look at this! The tunnel turns here!"
+        },
+        {
+            "number": 90,
+            "name": "Main Reactor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The walls curve to the south and east from here. They are warm to the touch. (what? You touched them?)"
+        },
+        {
+            "number": 91,
+            "name": "Main Reactor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Gadd! What is this?! A tremendous cavern looms to the south and west. You can feel the presense of power in the air. This must be close to the source of the drumming noise.."
+        },
+        {
+            "number": 92,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Wow! The noise is really louder here! The wind is almost rushing thru the tunnel, making headway difficult. Which way to go?"
+        },
+        {
+            "number": 93,
+            "name": "Vent Duct",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 107,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Hey! This fellow looks familiar!"
+        },
+        {
+            "number": 94,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 48,
+            "desc": "A huge ant hill lies in front of you. The ants look tasty, sort of.."
+        },
+        {
+            "number": 95,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Sheer granite walls bar any progress to the north.."
+        },
+        {
+            "number": 96,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You somehow sense that you are very deep in the dark woods now. Maybe it is that sign along the dim path that says; \"YOU ARE VERY DEEP IN THE DARK WOODS\".."
+        },
+        {
+            "number": 97,
+            "name": "",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {},
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": ""
+        },
+        {
+            "number": 98,
+            "name": "Main Reactor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Huge mechanical devices tower on either side of you. It is hard to imagine human beings in a place like this, and you feel suddenly lonely.."
+        },
+        {
+            "number": 99,
+            "name": "Main Reactor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 118,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "So, this place is the hot spot for weirdos....."
+        },
+        {
+            "number": 100,
+            "name": "Storage Closet",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 0,
+            "item": 132,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a tiny storage closet. Vacu-Brooms, and spray cans of Windex lie on the floor.."
+        },
+        {
+            "number": 101,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 132,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The dim pathway ends here, among a crude campsite.."
+        },
+        {
+            "number": 102,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You can just make out a division in the pathway here. Odd sounds greet your ears from all directions.."
+        },
+        {
+            "number": 103,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path is extremely crooked, winding in and out of huge old trees."
+        },
+        {
+            "number": 104,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 132,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Ech, something smells here. Well, smells worse than the rest of these dark woods..."
+        },
+        {
+            "number": 105,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "It is quite dark here. Also, there is something else..... you can't quite put your finger on it.."
+        },
+        {
+            "number": 106,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 132,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Oh gawd.. not another of these blasted Orc campsites.."
+        },
+        {
+            "number": 107,
+            "name": "",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {},
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": ""
+        },
+        {
+            "number": 108,
+            "name": "Security Bunker",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 138,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is some sort of hidy-hole, looks like it was a place to hide when the contraptions in the cavern outside blew up or something....."
+        },
+        {
+            "number": 109,
+            "name": "Main Reactor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 110,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "It is also hard to imagine anybody building the hideous contraption here.."
+        },
+        {
+            "number": 110,
+            "name": "Main Reactor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You wander around the cavern, trying to imagine the people who built it.."
+        },
+        {
+            "number": 111,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You find yourself in a dark woods. A secret doorway is to the south, leading into the Emerald City. A dim path leads to the east.."
+        },
+        {
+            "number": 112,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You can barely see your hand in front of your face, things are so dark in here."
+        },
+        {
+            "number": 113,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 51,
+            "desc": "Mushy sounds greet you as your feet trudge thru some water.."
+        },
+        {
+            "number": 114,
+            "name": "Dark Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path takes a turn here. You busily swat at misquitoes.."
+        },
+        {
+            "number": 115,
+            "name": "Witches Coven",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 126,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stand before a rather um.... run-down house. A rather peculiar woman is here.."
+        },
+        {
+            "number": 116,
+            "name": "Witches House",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are inside the witches house. Gaad... Junk piled high everywhere.."
+        },
+        {
+            "number": 117,
+            "name": "Shimmering Portal",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "rc": 1,
+                "rt": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are at the top of a plateu. A swirling ball of light hangs majestically over head! Seathing energy plays accross it surface, and you are certain you can see images inside. Images who seem to be calling to you...."
+        },
+        {
+            "number": 118,
+            "name": "Chamber Of Oz",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 125,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stand inside a magnificant building. A huge face shines from a screen on the eastern wall. A skinny little man is behind a little curtain, pretending to be the man in the screen."
+        },
+        {
+            "number": 119,
+            "name": "Emerald City",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are near the downtown area of the city. Busy shops are to the east.."
+        },
+        {
+            "number": 120,
+            "name": "Emerald City",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1,
+                "rc": 2,
+                "rt": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This looks to be the center of the cities commerce district. Oddly familiar buildings are all around.."
+        },
+        {
+            "number": 121,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Strange animal noises greet your ears from all sides. It looks like the sun hasn't shown thru these trees in a long time.."
+        },
+        {
+            "number": 122,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The trees are huge and dark here."
+        },
+        {
+            "number": 123,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 122,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There is another extremely odd looking individual here. \"They sure are weird looking here abouts\", you mumble to yourself.."
+        },
+        {
+            "number": 124,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are now on the outskirts of the farming country. Trees start to grow to the west."
+        },
+        {
+            "number": 125,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a very odd road indeed! It is made entirely of yellow bricks. Still, the country side seems nice enough. Farmlands on either side."
+        },
+        {
+            "number": 126,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 130,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a very odd sort of village. There are people standing about gawking at you. They are um.. short.."
+        },
+        {
+            "number": 127,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 128,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_east"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 129,
+            "name": "Gateway",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The pathway struggles up and up, thru dark clouds, and searing lightning bolts. You can only see a few feet in front of you. Torrential rain blasts at your face."
+        },
+        {
+            "number": 130,
+            "name": "Emerald City",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a quiet side street. Main street is to the east, a very large building looms to the north.."
+        },
+        {
+            "number": 131,
+            "name": "Emerald City",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "People throng the sidewalks, oblivious to your passage. For all they know, you have not just arrived from the far side of the universe.."
+        },
+        {
+            "number": 132,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The edge of the forest ends abruptly to the east. You now travel in a large field of flowers. You fight off the urge to sleep. A shining city is visible away to the southeast.."
+        },
+        {
+            "number": 133,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 124,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Lots and lots of animal noises here.."
+        },
+        {
+            "number": 134,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 131,
+            "item": 0,
+            "weapon": 0,
+            "food": 78,
+            "desc": "These trees here, are down right spooky.."
+        },
+        {
+            "number": 135,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The trees are quite thick, and rather dark. You feel vaguely uneasy.."
+        },
+        {
+            "number": 136,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 123,
+            "item": 0,
+            "weapon": 0,
+            "food": 77,
+            "desc": "Corn as tall as your nose, and a rather odd looking fellow to guard it. The crows don't seem to afraid of him."
+        },
+        {
+            "number": 137,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The road continues thru pleasent rolling hills, covered with corn fields."
+        },
+        {
+            "number": 138,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 127,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You continue to follow the road, for lack of anything better to do."
+        },
+        {
+            "number": 139,
+            "name": "Old House",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stand inside of a very old house. It is quite strange looking, everything is in black and white!! A rocky path is visible thru the doorway to the south, and a wildly colorful garden is visible thru a northern door.."
+        },
+        {
+            "number": 140,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 141,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 142,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 143,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 144,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 145,
+            "name": "Thundering Mist",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Wind tears at your cloak, it is difficult to see where you are going. A doorway can barely be seen to the east. It is a doorway, but there doesn't seem to be a building around it. A passage climbs steeply to the north."
+        },
+        {
+            "number": 146,
+            "name": "Strange Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a very strange little room. Their is a doorway to the north which seems to be glowing with a ruby light. In the western wall, there is an opening which seems to lead.... to a land of mist."
+        },
+        {
+            "number": 147,
+            "name": "Emerald City",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stand near the eastern gate of this beautiful city. The street winds northwards.."
+        },
+        {
+            "number": 148,
+            "name": "Yellow Brick Road",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stand before the gates of a large city. A face peers at you thru a peep hole in the gate.."
+        },
+        {
+            "number": 149,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path meanders off to the south here."
+        },
+        {
+            "number": 150,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 76,
+            "desc": "Some of the trees are heavily laden with fresh fruit.."
+        },
+        {
+            "number": 151,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Another branch in the pathway. Which way now?"
+        },
+        {
+            "number": 152,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path leads east and west. The sun shines warmly upon your arms.."
+        },
+        {
+            "number": 153,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path turns a corner. You imagine you hear a slithering noise close by.."
+        },
+        {
+            "number": 154,
+            "name": "Rocky Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 91,
+            "item": 0,
+            "weapon": 0,
+            "food": 36,
+            "desc": "The path comes to an end here. It looks like something uses this place for a home.."
+        },
+        {
+            "number": 155,
+            "name": "Rocky Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The rocks are not too harsh here. Little tufts of grass sprout up here and there. There is a very odd looking old house to the north. It looks like it has been dropped out of the sky or something.."
+        },
+        {
+            "number": 156,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west",
+                "block_south",
+                "block_east"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 157,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 158,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 159,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 160,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 161,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 162,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_east",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 163,
+            "name": "Between Dimensions",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The black area is almost drowning out the swirling colors here."
+        },
+        {
+            "number": 164,
+            "name": "Between Dimensions",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The colors are almost gone here. The black is engulfing everything. You kind of miss the cheerful colors.."
+        },
+        {
+            "number": 165,
+            "name": "A Strange Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a bizarre sight after your recent journies... You suddenly find yourself in a very clean, quiet room. The floors and walls are of a white color, and all the furniture is of some sort of early American style..."
+        },
+        {
+            "number": 166,
+            "name": "A Strange Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in the northeast corner of the strange room. There is somebody else in the southeast corner.."
+        },
+        {
+            "number": 167,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A soft sunshine plays across your face, playing catch with fleeting shadows from treebranches over head.."
+        },
+        {
+            "number": 168,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Soft pathways meander lazily thru the lush undergrowths."
+        },
+        {
+            "number": 169,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path branches here. You begin to wonder if it really matters which way you go.."
+        },
+        {
+            "number": 170,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "More birds chirping, chirping.. Won't the little beggers ever shut up?"
+        },
+        {
+            "number": 171,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path finally peters out alltogether here. The underbrush is just too thick."
+        },
+        {
+            "number": 172,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The garden is becoming quite thick here, making passage difficult."
+        },
+        {
+            "number": 173,
+            "name": "Rocky Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path is quite steep here. Strange noises can be heard in the distance.. A crude sign is stuck into the rocks, it says; \"DUH! DO NOT BUG ME!\""
+        },
+        {
+            "number": 174,
+            "name": "Rocky Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Jumbled rocks tower on either side of you. The path divides here.."
+        },
+        {
+            "number": 175,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west",
+                "block_north"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 176,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 177,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The ship is visible as a small shape to the south east... All else is blackness.."
+        },
+        {
+            "number": 178,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 179,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 180,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 181,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 182,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 183,
+            "name": "Between Dimensions",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A dark area seems to be growing amongst the swirling colors."
+        },
+        {
+            "number": 184,
+            "name": "Between Dimensions",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are astounded to see a wrinkled old woman staring into your space vizor. \"Have you seen a little girl floating around in a house?\" She cackles strangly than flys off on some sort of space-broom."
+        },
+        {
+            "number": 185,
+            "name": "A Strange Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in the southeast corner of the strange room. There is somebody else to the east.."
+        },
+        {
+            "number": 186,
+            "name": "A Strange Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 120,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is the southeast corner of the strange room. The strange man is sitting in in the strange corner."
+        },
+        {
+            "number": 187,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You find yourself in a lush garden. Birds sing softly in the distance.."
+        },
+        {
+            "number": 188,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Many small paths wander off under the trees."
+        },
+        {
+            "number": 189,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Sweet smells abound upon the gentle breeze, making you wonder why you just don't lay down and take a nap.."
+        },
+        {
+            "number": 190,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are on a plateu. The garden is still green and lush, though not quite as lush as that that can be seen in the distance beneath you.."
+        },
+        {
+            "number": 191,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path is again raising, this time from west to east.."
+        },
+        {
+            "number": 192,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are definitly close to the edge of the Great Garden. A chill wind blows from the east.."
+        },
+        {
+            "number": 193,
+            "name": "Rocky Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stumble along over the rocky path, the faint of flowers in the air.."
+        },
+        {
+            "number": 194,
+            "name": "Rocky Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 51,
+            "desc": "Recent rains left a small pool of water along side the path.."
+        },
+        {
+            "number": 195,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 196,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 197,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 198,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 199,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.. A strange quiet voice crackles in your suit radio. It seems to be addressing somebody outside the ship... \"Without your helmet Dave, I think you will find that rather difficult..\" A short pause, \"HAL!! I won't argue with you anymore! Open the Pod Bay Doors!\" The voices drift out as you move out of range.."
+        },
+        {
+            "number": 200,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.. The ship is barely visible to the 'southwest'..."
+        },
+        {
+            "number": 201,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 202,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 203,
+            "name": "Between Dimensions",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You begin to wonder about the wisdom of pursuing this line of work."
+        },
+        {
+            "number": 204,
+            "name": "Between Dimensions",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A small voice crackles thru the spacesuits earphones, \"Aren't you glad you are not one of those schmucks who turn their room discription off? They can not read this stuff.\""
+        },
+        {
+            "number": 205,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The pathway peters out here. There is a battered old sign nailed to a large tree. Peering closer, you can just make out the words; \"Help Dura! Post post!\""
+        },
+        {
+            "number": 206,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "On you trudge... trudge, trudge, trudge.."
+        },
+        {
+            "number": 207,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path rounds a small hill here. Thich grass grows on the hill, dotted by small yellow flowers."
+        },
+        {
+            "number": 208,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Paths in all directions! Which way to go?"
+        },
+        {
+            "number": 209,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a tiny open glen in the garden. The grass is almost waist high here."
+        },
+        {
+            "number": 210,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are on a winding path gradually ascending to the north. Portions of the garden can be viewed from above.."
+        },
+        {
+            "number": 211,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The ground is gradually rising here to the north..."
+        },
+        {
+            "number": 212,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are at the outermost boundry of the Great Garden, which stretches to the west. A barren landscape is visible to the east."
+        },
+        {
+            "number": 213,
+            "name": "Rocky Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is the end of a barren path, struggling thru rocky terrain to the northeast. A beautiful garden is visible in the distance to the west."
+        },
+        {
+            "number": 214,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 215,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 216,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 217,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.. The ships bridge looms to the 'south'. It's lights look cheerful and inviting."
+        },
+        {
+            "number": 218,
+            "name": "The Bridge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The only thing here, is one gigantic screen covering the bulkhead. On the screen, there is a large blue globe hanging against a black backdrop. Swirling white pattarns cover most of the globe. For some reason, you feel homesick.."
+        },
+        {
+            "number": 219,
+            "name": "The Bridge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "More lights and panels. The panel in front of this chair also contains several levers and switches. One large screen in particular is quite impressive. It has objects moving about on it. The sign on the chair says, 'Weapons Officer'."
+        },
+        {
+            "number": 220,
+            "name": "Between Dimensions",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "On and on you float. You get the strange urge for some popcorn. Buttered.."
+        },
+        {
+            "number": 221,
+            "name": "Between Dimensions",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Swirling lights surround you."
+        },
+        {
+            "number": 222,
+            "name": "Between Dimensions",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a strange place.."
+        },
+        {
+            "number": 223,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 128,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A very naive looking couple is standing here. They don't seem in the least embarrassed by the fact that they are stark naked.."
+        },
+        {
+            "number": 224,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There seem to be two people to the west. They don't seem to be wearing much."
+        },
+        {
+            "number": 225,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Even the flies buzzing around your head, seem innocent and friendly.."
+        },
+        {
+            "number": 226,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 129,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "More flowers, bees busily buzzing from plant to plant. You idly wonder what they are up to."
+        },
+        {
+            "number": 227,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "On and on the garden goes. Where it stops, nobody knows. (well if he does, he ain't telling..)"
+        },
+        {
+            "number": 228,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Yet another 'Y' in the path. Now which way? You get out your little bag of dice, and carefully toss one of the green ones on the ground. Bending over, you read the results...."
+        },
+        {
+            "number": 229,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_west",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 230,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 231,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 232,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 233,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 234,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are near the extreme bow of the spacecraft. It stretches out to the south for a mile or more. To the 'north' is sheer blackness, puntuacted by thousands of points of light. For some reason, you think of a bush. 'East', is the foward section of the ships bridge, portholes aglow with light.."
+        },
+        {
+            "number": 235,
+            "name": "The Bridge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "More and yet more little lights and buzzers. The buzzers are making a lot of noise. The back of the chair in front of you says, 'Damage Control Officer'."
+        },
+        {
+            "number": 236,
+            "name": "The Bridge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 125,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is the center of The Bridge. A very imposing swivel chair sits on top of a raised platform. It is lavishly covered in red leather. A gold embossed sign on the back says simply, 'Captain'. There is a very decayed corps in the chair! A book still in it's lap...."
+        },
+        {
+            "number": 237,
+            "name": "The Bridge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A small speaker hidden among the glowing little screens is speaking, but you can not understand the words. The back of this chair says, 'Communications Officer.'"
+        },
+        {
+            "number": 238,
+            "name": "Between Dimensions",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "More and more swirling lights. A little girl peeks at you from out of an old house floating by in the breeze. \"Have you seen Aunt Em?\" she shouts."
+        },
+        {
+            "number": 239,
+            "name": "Between Dimensions",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A message written in a cloud of light says, \"Dave was here..\""
+        },
+        {
+            "number": 240,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path ends against a sheer granite wall here."
+        },
+        {
+            "number": 241,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The pathway ends here, towering trees lie in front of you, the undergrowth a tangled web.."
+        },
+        {
+            "number": 242,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path divides here. Tall trees are visible to the west, and more gentle flower fields are visible to the east."
+        },
+        {
+            "number": 243,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You wander among thousands of flowers."
+        },
+        {
+            "number": 244,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Hmpth... Another dead. I guess I was wrong.."
+        },
+        {
+            "number": 245,
+            "name": "Garden Of Eden",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You can feel a fresh breeze blowing on your face. You keeningly sense the edge of this garden just to the west.."
+        },
+        {
+            "number": 246,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west",
+                "block_north",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 247,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 248,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 249,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 250,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 251,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The windows of the bridge continue to glow cheerfully to the east.."
+        },
+        {
+            "number": 252,
+            "name": "The Bridge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Many, many little screens showing different parts of the ship are on the wall here. Some of them don't seem to be working anymore. The sign on the back of the chair says, 'Security Officer'."
+        },
+        {
+            "number": 253,
+            "name": "The Bridge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 107,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stand at the entrance to the ships bridge. You are dazzled by the immense display of lights. Ships security might frown on your presense..."
+        },
+        {
+            "number": 254,
+            "name": "The Bridge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stand before many screens containing strange displays. A sign on back of the dust covered chair says 'Navigation Officer'."
+        },
+        {
+            "number": 255,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 256,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 257,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east",
+                "block_north",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 258,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 259,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 260,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west",
+                "block_north"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 261,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 262,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 263,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 264,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The spacecraft's bridge gleams at you thru tiny portholes in the hull.."
+        },
+        {
+            "number": 265,
+            "name": "The Bridge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There seem to be a lot of red lights flashing on and off on the panal in front of a chair that says, 'Engineering Officer'."
+        },
+        {
+            "number": 266,
+            "name": "A Corridor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor branches 4 ways here. There is a doorway to the north."
+        },
+        {
+            "number": 267,
+            "name": "A Corridor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor runs east and west, with a doorway to the south.."
+        },
+        {
+            "number": 268,
+            "name": "A Corridor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 114,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The broad corridor ends here. A much smaller corridor continues to the east. A sign over it proclaiming 'Maintainence tunnel'."
+        },
+        {
+            "number": 269,
+            "name": "Small Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The air is much colder in here, apparently the ship's computer shut off heat to un-used areas..."
+        },
+        {
+            "number": 270,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 271,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east",
+                "block_north"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 272,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east",
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 273,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 274,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 275,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The spaceship is in the distance, to the east.."
+        },
+        {
+            "number": 276,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Blackness stretches before you. So black, yet so alive with mysteries. You are outside main air lock of the spacecraft Starburst.."
+        },
+        {
+            "number": 277,
+            "name": "Air Lock",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stand in the main AIR LOCK. Again, a door is to the west, also bolted shut similar to the one to the east."
+        },
+        {
+            "number": 278,
+            "name": "A Corridor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor continues, shiny and bright. As if made yesterday. A doorway is to the south. A massive door is to the west. It is securely fastened. You are tempted to examine it to see if you can figure it out. A small round window is in the middle, reveiling a tiny strange room beyound."
+        },
+        {
+            "number": 279,
+            "name": "A Corridor",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a north/south corridor."
+        },
+        {
+            "number": 280,
+            "name": "The Infirmary",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is obviously the infirmary. The smell of disinfectant still lingers vaguely in the air..."
+        },
+        {
+            "number": 281,
+            "name": "The Infirmery",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 108,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There are cots here. Long un-used. Well, except for that one of course..."
+        },
+        {
+            "number": 282,
+            "name": "Access Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The maintainence tunnel winds away to the south. The air is fridged, you must be near the outer hull.."
+        },
+        {
+            "number": 283,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 284,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_north",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 285,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east",
+                "block_south"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 286,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east",
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 287,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_west"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 288,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [
+                "block_east"
+            ],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 289,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a black void.."
+        },
+        {
+            "number": 290,
+            "name": "Outer Space",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The vast bulk of the strange spacecraft drifts peacefully to your east.."
+        },
+        {
+            "number": 291,
+            "name": "The Mess Hall",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 29,
+            "desc": "Dirty dishes, and long rotted food lay about. Some though, still in vacu-wrap, seems ok..."
+        },
+        {
+            "number": 292,
+            "name": "The Mess Hall",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stand at the entrance of what was obviously the mess hall of the great ship.. Tables are everywhere."
+        }
+    ]
+}

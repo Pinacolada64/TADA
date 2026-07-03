@@ -653,7 +653,7 @@ def monster_attacks(monster: dict, player) -> MonsterAttackResult:
     # SPUR: if instr("&",wy$) and ep>(xp*13) and z<3: ep=ep-(xp*13)
     experience_drained = 0
     if damage > 0 and flags.get('experience_drain') and random.randint(1, 10) < 3:
-        xp_lv = max(1, int(getattr(player, 'map_level', 1) or 1))
+        xp_lv = max(1, int(getattr(player, 'xp_level', 1) or 1))
         drain = xp_lv * 13
         ep = int(getattr(player, 'experience', 0) or 0)
         if ep > drain:

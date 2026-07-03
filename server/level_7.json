@@ -1,0 +1,420 @@
+{
+    "rooms": [
+        {
+            "number": 1,
+            "name": "The Foyer",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "rc": 2
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are outside the large house, on the porch.  There is a loose panel (down) to the shop.  To the south, off the porch is the garden, and through the door (east) is the .. well the house!"
+        },
+        {
+            "number": 2,
+            "name": "The Foyer",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are inside the house, at the foyer.  To the west is the porch and to the east is the reception area."
+        },
+        {
+            "number": 3,
+            "name": "The Reception Area",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in the grand enterance.  Lavish gold and silver furnature line this area.  The foyer is to the west.  There is a huge staircase going up to the south, and a cloak room to the east."
+        },
+        {
+            "number": 4,
+            "name": "The Cloak Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 30,
+            "food": 0,
+            "desc": "You are in what appears to be a cloak room.  The light is dim, but there is enough light to see that this room is very much empty!  There is a bathroom to the south and to the west is the entery."
+        },
+        {
+            "number": 5,
+            "name": "",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {},
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": ""
+        },
+        {
+            "number": 6,
+            "name": "The Garden",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 29,
+            "desc": "You are in .. uhh... well, a garden.  It looks like it could use, uhh.. ALOT of work.  There is some food here.  Better watch out, though. To your north is the porch."
+        },
+        {
+            "number": 7,
+            "name": "The 1St Level Stairs",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are on the first level of the stairs.  The stairs go up to the north, and down to the south."
+        },
+        {
+            "number": 8,
+            "name": "The Bathroom",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a well lit half-bathroom.  The toilet has gold lining on it, the sink looks out of a mansion.  The cloak room is to the north."
+        },
+        {
+            "number": 9,
+            "name": "Mid-Stairs",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is the middle of the grand staircase.  You may go south to the 2nd floor, or north to go down to the 1st platform."
+        },
+        {
+            "number": 10,
+            "name": "The Pool Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in the pool room.  The pool balls were  stacked neatly with care, with visions of getting knocked togther .... oops.  Reality check. The game room is to the south."
+        },
+        {
+            "number": 11,
+            "name": "The Large Shower",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 135,
+            "item": 162,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in an old, large shower.  Mold is all around you (yuck!) and there are several rats scurrying around.  The bathroom is to the east."
+        },
+        {
+            "number": 12,
+            "name": "The Bathroom",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a grungey little bathroom.  It smells, it stinks, it is NOT a good place to visit. There is even a more disgusting shower to the west, and a very inviting place to the east"
+        },
+        {
+            "number": 13,
+            "name": "The Upper Hallway",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are it the top of the stairs, you look around and see an ugly bathroom to the west.  There seems to be a game room to the east, judgeing from the amount of games.  To the south, there is a large hallway."
+        },
+        {
+            "number": 14,
+            "name": "The Game Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a little game room.  There are several familar games around here, namely Yahtzee, Monopoly, and  |L|I|F|E|.  There is a billard room to the north and the hallway to the west."
+        },
+        {
+            "number": 15,
+            "name": "The End Of The Hall",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The hall ends abruptly here.  Looks like it's under construction."
+        },
+        {
+            "number": 16,
+            "name": "The Grand Hallway",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a massive, long hallway that runs east-west.  The stairs are to the north."
+        },
+        {
+            "number": 17,
+            "name": "The Hallway",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a long east-west hallway.  It looks longer to the east."
+        },
+        {
+            "number": 18,
+            "name": "The Hallway",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a long east-west hallway."
+        },
+        {
+            "number": 19,
+            "name": "The Hallway",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a long east-west hallway."
+        },
+        {
+            "number": 20,
+            "name": "The Hallway",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are near the east end of a long west-east hallway."
+        },
+        {
+            "number": 21,
+            "name": "The Upside-Down \"T\"",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in the long hallway.  There is a room to the south with a sign above it: \"Warning:  Diaster Area\" The hallway continues to the east.  The hallway also goes to the west."
+        },
+        {
+            "number": 22,
+            "name": "The End Of The Hall",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are at the end of a long hallway.  The hallway goes back to the west."
+        },
+        {
+            "number": 23,
+            "name": "The Giant Bathroom",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 14,
+            "desc": "You are in a gigantic bathroom.  The work of kings it looks like.  Behind a glass door to the south is the shower."
+        },
+        {
+            "number": 24,
+            "name": "Teenager'S Dope Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 134,
+            "item": 0,
+            "weapon": 0,
+            "food": 28,
+            "desc": "This is a large room, obiously of a teenager, judgeing from the amount of heavy metal posters, including \"Digital Underground\" and \"Anthrax\" .. wasn't that some kind of livestock disease? The hallway is to the north.  A door is open to the west, apparently a bathroom.  Your hear beeping to the south.  What could be the other way! Look out!  Don't wake the dog... uh-oh."
+        },
+        {
+            "number": 25,
+            "name": "X",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "YOU SEE A LARGE AMOUNT OF SECURITY! Whoever made this room obiously studied Fort Knox. There is a door to the south!"
+        },
+        {
+            "number": 26,
+            "name": "The Large Shower",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in the shower. YOU HAVE A WEIRD IDEA OF SINGING! :)"
+        },
+        {
+            "number": 27,
+            "name": "The Computer Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 89,
+            "item": 141,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in the computer room.  The computer screen says: First Nexus BBS -*- Waiting for call -*-"
+        },
+        {
+            "number": 28,
+            "name": "The Secured Room <Click>",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 107,
+            "item": 34,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a very secured room, obiously this Josh guy's treasure area. There is an exit to the north."
+        }
+    ]
+}

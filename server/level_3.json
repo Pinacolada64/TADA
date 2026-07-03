@@ -1,0 +1,1374 @@
+{
+    "rooms": [
+        {
+            "number": 1,
+            "name": "Shadowed Area",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "rc": 2
+            },
+            "monster": 0,
+            "item": 11,
+            "weapon": 0,
+            "food": 0,
+            "desc": "All around the land is covered in shadows. Dark, mysterious and forboding. You have come this far, there can be no turning back. There is noise and light coming from below you but you cannot see through the gloom."
+        },
+        {
+            "number": 2,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 38,
+            "food": 0,
+            "desc": "Low hills are all around you. In the distance you see a dark shape but are unable to see it clearly."
+        },
+        {
+            "number": 3,
+            "name": "Quiet Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 17,
+            "food": 0,
+            "desc": "You are in the depts of the woods. There is a small clearing here, with sunlight streaming into the middle."
+        },
+        {
+            "number": 4,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 45,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are beside a stream in the hills. There is evidence of many creatures having passed this way and stopping to drink."
+        },
+        {
+            "number": 5,
+            "name": "Quiet Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A deep bog is impassable all around. The only path is back into the woods."
+        },
+        {
+            "number": 6,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "rc": 2,
+                "rt": 48
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 34,
+            "food": 0,
+            "desc": "Green rolling hills surround you. An old sewer pipe runs into the side of the nearest hill...."
+        },
+        {
+            "number": 7,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 11,
+            "desc": "Rolling hills surround you. You see a forest in the distance."
+        },
+        {
+            "number": 8,
+            "name": "Edge Of Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are at the edge of a dense forest. The air is as thick as the forest is dense. There is an opening here and many have passed before you."
+        },
+        {
+            "number": 9,
+            "name": "Edge Of Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 68,
+            "desc": "Here you see to your south many objects strewn about but are too far away to make them out clearly. The forest is to dense here to enter."
+        },
+        {
+            "number": 10,
+            "name": "Worn Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 43,
+            "desc": "As the path leads southward you notice a small rise that appears to go down into a ravine."
+        },
+        {
+            "number": 11,
+            "name": "A Ravine",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Water long past has carved out this shallow ravine. It is cluttered with stones and dead brush."
+        },
+        {
+            "number": 12,
+            "name": "East Bank",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 42,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are on the east bank of the ravine. Hills gently slope off in all directions."
+        },
+        {
+            "number": 13,
+            "name": "Quiet Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 133,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Yep, things are definitly stranger in here..."
+        },
+        {
+            "number": 14,
+            "name": "Quiet Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Deep, deep into the woods. Thing seem strange in here. Animal noises are quiet but different.."
+        },
+        {
+            "number": 15,
+            "name": "Quiet Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are deep in the woods. The shade is cool on your skin."
+        },
+        {
+            "number": 16,
+            "name": "Quiet Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A bird can be heard faintly in the distant tree tops. All else is soft silence."
+        },
+        {
+            "number": 17,
+            "name": "Quiet Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You clamber over a huge fallen tree. A squirrel scolds you from a safe distance."
+        },
+        {
+            "number": 18,
+            "name": "Dense Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 36,
+            "item": 66,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A dense forest surrounds you. Dim light streams through the thick roof of foliage. Dark shadows are cast everywhere."
+        },
+        {
+            "number": 19,
+            "name": "Edge Of Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1,
+                "rc": 1,
+                "rt": 24
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Here at the edge of a dark, dense forest you see evidence of a great battle having been fought. Many dried bones and destroyed battle equipment lay about. There is an opening in the forest that has a well worn path leading to it."
+        },
+        {
+            "number": 20,
+            "name": "West Bank",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 38,
+            "item": 12,
+            "weapon": 14,
+            "food": 45,
+            "desc": "You are on the west bank of the ravine. You can see clearly down the ravine, but there is nothing of interest within sight."
+        },
+        {
+            "number": 21,
+            "name": "Overlooking Ravine",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 25,
+            "desc": "You are on a small rocky crag that overlooks a ravine."
+        },
+        {
+            "number": 22,
+            "name": "Foot Of Mountain",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You find yourself once again on the outside at the foot of the mountain."
+        },
+        {
+            "number": 23,
+            "name": "Narrow Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 46,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This tunnel is very narrow and short. You must crawl to get through."
+        },
+        {
+            "number": 24,
+            "name": "Pitch Black",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 40,
+            "item": 0,
+            "weapon": 18,
+            "food": 0,
+            "desc": "It is pitch black here, but your instinct says go south."
+        },
+        {
+            "number": 25,
+            "name": "Quiet Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Thick brush bars any further progress in this direction.."
+        },
+        {
+            "number": 26,
+            "name": "Quite Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a quiet woods. Tall trees are all around."
+        },
+        {
+            "number": 27,
+            "name": "Quiet Woods",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The silence is stiffling. The tall trees block out the sunlight. Only moss and needles are under your feet."
+        },
+        {
+            "number": 28,
+            "name": "Dense Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There is an opening in a high wall of shrubs ahead. The forest seems to stop here."
+        },
+        {
+            "number": 29,
+            "name": "Tunnel Up",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path up the tunnel is steeper here. The glow from the wall has changed to a pulsing, making the tunnel seem almost alive with movement."
+        },
+        {
+            "number": 30,
+            "name": "Tunnel Down",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There is a gentle slope downward here. The floor of the tunnel is slippery from the mold and slime that have oozed down off its walls."
+        },
+        {
+            "number": 31,
+            "name": "Circular Pit",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 44,
+            "food": 0,
+            "desc": "You have fallen into a small circular pit. The walls are smooth but there is an exit."
+        },
+        {
+            "number": 32,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a high walled maze of thorny shrubs...."
+        },
+        {
+            "number": 33,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 43,
+            "item": 0,
+            "weapon": 55,
+            "food": 0,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 34,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 66,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 35,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 36,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 0,
+            "item": 40,
+            "weapon": 0,
+            "food": 26,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 37,
+            "name": "Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 50,
+            "weapon": 0,
+            "food": 27,
+            "desc": "This tunnel is dim but there is enough light from the glow of the walls to see your way."
+        },
+        {
+            "number": 38,
+            "name": "Dim Room",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a dimly lit room. There is light coming from the south and from the north a foul smell is carried on a light breeze."
+        },
+        {
+            "number": 39,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1,
+                "rc": 1,
+                "rt": 100
+            },
+            "monster": 47,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 40,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 41,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 1
+            },
+            "monster": 0,
+            "item": 48,
+            "weapon": 0,
+            "food": 28,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 42,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 26,
+            "food": 0,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 43,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 44,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 45,
+            "name": "Far Side Of Cavern",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 52,
+            "item": 0,
+            "weapon": 35,
+            "food": 0,
+            "desc": "You are on the far side of the cavern. The tunnel goes on from here."
+        },
+        {
+            "number": 46,
+            "name": "Cavern",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 45,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A large cavern whose ceiling is not visible extends into the gloom. There are signs of it having been inhabited at one time. Debris is strewn around the floor."
+        },
+        {
+            "number": 47,
+            "name": "Western Slope",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 40,
+            "food": 0,
+            "desc": "You are on the western slope of the mountain. Loose rock here makes for difficult footing. It is apparent that few have been this way before."
+        },
+        {
+            "number": 48,
+            "name": "Top Of Mountain",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 41,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have reached the summit. The view to the west is breathtaking but everywhere else is shrouded in clouds and shadows."
+        },
+        {
+            "number": 49,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 50,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 51,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 41,
+            "item": 0,
+            "weapon": 0,
+            "food": 14,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 52,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a high walled maze of thorny shrubs..."
+        },
+        {
+            "number": 53,
+            "name": "Dank Cave",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 104,
+            "item": 97,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a musty little cave, junk lies about.."
+        },
+        {
+            "number": 54,
+            "name": "Cavern Center",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have reached the center of the cavern. You can see to the top here. There appears to be a hole at the top of the cavern. A dim light streams through. A narrow opening is to the south.."
+        },
+        {
+            "number": 55,
+            "name": "Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Inside this dark tunnel things are very dim and unclear. The wind seems to be coming from within and there is an strange glow emanating from the walls."
+        },
+        {
+            "number": 56,
+            "name": "Tunnel Entrance",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have arrived at the entrance to a tunnel. There is a dim glow from within and a foul stench in the air. UNNEL DNTRANCE,0,0,0,0,1,0,0,1,0,0 You have arrived at the entrance to a tunnel. There is a dim glow from within and a foul stench in the air."
+        },
+        {
+            "number": 57,
+            "name": "Near The Top",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are almost at the top of the mountain. Clouds obscure your view of the valley floor."
+        },
+        {
+            "number": 58,
+            "name": "Mountain Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Here the path splits again. One way continues up, the other appears to lead down to the other side of the mountain."
+        },
+        {
+            "number": 59,
+            "name": "Downward Slope",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 94,
+            "weapon": 20,
+            "food": 0,
+            "desc": "The path leads down to the base of the mountain. It is steep but not un-managable."
+        },
+        {
+            "number": 60,
+            "name": "Dense Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 47,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The forest is less dense here. There appears to be an clearing of sorts to the east but the shadows make it difficult to be sure."
+        },
+        {
+            "number": 61,
+            "name": "High Shrubs",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 21,
+            "food": 0,
+            "desc": "You are outside of what appears to be a high wall of shrubs. There is an opening in front of you just wide enough for you to pass."
+        },
+        {
+            "number": 62,
+            "name": "Narrow Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 96,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The tunnel is quite narrow here, scrapping noises are heard.."
+        },
+        {
+            "number": 63,
+            "name": "Narrow Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a narrow rocky tunnel, you must duck your head to proceed.."
+        },
+        {
+            "number": 64,
+            "name": "Outside Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 42,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Here there is an entrance to a tunnel into the mountain. It is dark and there is a foul wind blowing from it."
+        },
+        {
+            "number": 65,
+            "name": "Branch",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 23,
+            "desc": "There is a worn path here on the side of the mountain. It branches in two directions. Which branch to take?"
+        },
+        {
+            "number": 66,
+            "name": "Narrow Ledge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1
+            },
+            "monster": 48,
+            "item": 0,
+            "weapon": 33,
+            "food": 0,
+            "desc": "This narrow ledge goes around and out of sight up the mountain. There is no room to turn around."
+        },
+        {
+            "number": 67,
+            "name": "Ledge",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path along the ledge steepens here. You can see far down onto the valley floor. A dense forest is far to the east past the rolling hills at the base of the mountain."
+        },
+        {
+            "number": 68,
+            "name": "Side Of Mountain",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are near the base of the mountain. The mountain is ominous above, and welcome easy rolling hills are below."
+        },
+        {
+            "number": 69,
+            "name": "Dense Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 50,
+            "item": 0,
+            "weapon": 0,
+            "food": 29,
+            "desc": "The forest is so tightly woven that it is barely passable. The path that others have taken is unclear.."
+        },
+        {
+            "number": 70,
+            "name": "Dense Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 44,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A dense forest surrounds you. Dark shadows are cast everywhere and the light is very dim."
+        },
+        {
+            "number": 71,
+            "name": "Narrow Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The narrow tunnel decends to the north.."
+        },
+        {
+            "number": 72,
+            "name": "Narrow Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The tunnel curves here, faint noises are heard.."
+        },
+        {
+            "number": 73,
+            "name": "Wandering Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 36,
+            "food": 0,
+            "desc": "The path forks to the east and the west. You can still make out the trees in the distance."
+        },
+        {
+            "number": 74,
+            "name": "Shale",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "It is slippery here. The loose rock and shale make for very precarious footing. For every step forward you slide back some."
+        },
+        {
+            "number": 75,
+            "name": "Base Of The Mountain",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "west": 1
+            },
+            "monster": 37,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The mountain looms above you. Its craggy bluffs and steep incline will be a difficult climb."
+        },
+        {
+            "number": 76,
+            "name": "Base Of Mountain",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 49,
+            "weapon": 0,
+            "food": 30,
+            "desc": "You are at the base of the dark mountain. Hills roll off in all directions."
+        },
+        {
+            "number": 77,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 39,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Green, grassy hills are all around you. The air is fresh and clear. Ominous clouds obscure the top of the mountain behind you and all the land is covered in shadows."
+        },
+        {
+            "number": 78,
+            "name": "Edge Of Forest",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 37,
+            "food": 0,
+            "desc": "You are at the edge of a dense forest. There is an opening in the thicket that will let you pass."
+        },
+        {
+            "number": 79,
+            "name": "Adventurer'S Campsite",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1
+            },
+            "monster": 53,
+            "item": 61,
+            "weapon": 0,
+            "food": 36,
+            "desc": "You have stumbled upon an abandoned adventurer's campsite."
+        },
+        {
+            "number": 80,
+            "name": "Wandering Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 24,
+            "desc": "The path now leads southward. This shadowed land hides itself behind clouds and haze and gloom."
+        },
+        {
+            "number": 81,
+            "name": "Wandering Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 43,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You find yourself on a path that seems to wander aimlessly. You can see trees to your north. To your east it is hazy and unclear."
+        },
+        {
+            "number": 82,
+            "name": "A Sloping Hill",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 51,
+            "food": 19,
+            "desc": "You are on a hill that slopes downward. Before you lay many such small rolling hills that act as stepping stones to the base of an ominous mountain shrouded in dark clouds."
+        },
+        {
+            "number": 83,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1
+            },
+            "monster": 49,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You wander along the rolling hills headed in the general direction of the mountain."
+        },
+        {
+            "number": 84,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Green rolling hills surround you. You are near the base of a dark mountain."
+        },
+        {
+            "number": 85,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 44,
+            "item": 73,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Green rolling hills surround you."
+        },
+        {
+            "number": 86,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1,
+                "west": 1,
+                "rc": 1,
+                "rt": 141
+            },
+            "monster": 0,
+            "item": 71,
+            "weapon": 39,
+            "food": 0,
+            "desc": "To the northwest you see a dark mountain. All around you are green rolling hills."
+        },
+        {
+            "number": 87,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Green rolling hills surround you. You see a dense forest in the distance."
+        },
+        {
+            "number": 88,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "south": 1,
+                "east": 1
+            },
+            "monster": 0,
+            "item": 24,
+            "weapon": 45,
+            "food": 0,
+            "desc": "You are near the forest. These rolling hills are beginning to get to you."
+        },
+        {
+            "number": 89,
+            "name": "Rolling Hills",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 0,
+            "item": 151,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are coming out of the rolling hills. There is a path that leads east before you."
+        },
+        {
+            "number": 90,
+            "name": "Worn Path",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 1,
+                "west": 1
+            },
+            "monster": 46,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A well worn path is beneath your feet. It forks here and the lesser worn fork is to the south."
+        }
+    ]
+}

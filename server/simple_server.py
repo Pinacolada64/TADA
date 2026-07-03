@@ -92,7 +92,10 @@ class Server:
         script_dir = Path(__file__).parent
         try:
             self.game_map = Map()
-            self.game_map.read_map(str(script_dir / 'level_1.json'))
+            for lvl in range(1, 8):
+                level_file = script_dir / f'level_{lvl}.json'
+                if level_file.exists():
+                    self.game_map.read_map(str(level_file), level=lvl)
         except Exception:
             logging.exception('Failed to load map')
             self.game_map = None

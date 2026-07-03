@@ -222,7 +222,8 @@ class Player:
             SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
             BOAT does not actually need to be carried around in inventory, I don't suppose, just a flag?
         """
-        self.map_level = kwargs.get('map_level', 1)  # cl (current level)
+        self.map_level = kwargs.get('map_level', 1)  # cl (current dungeon level, 1-7)
+        self.xp_level = kwargs.get('xp_level', 1)  # SPUR's xp/yn (character level, from experience)
         self.map_room = kwargs.get('map_room', 1)  # cr (current room)
         self.moves_made = kwargs.get('moves_made')
         # tracks how many moves made during the game session to calculate experience points awarded at quit:
@@ -904,13 +905,26 @@ class Player:
                 data = json.load(f)
 
             # Merge simple scalar fields
-            simple_keys = ('map_room', 'map_level', 'times_played', 'moves_today', 'hit_points')
+            simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points')
             for k in simple_keys:
                 if k in data:
                     try:
                         setattr(self, k, int(data[k]) if data[k] is not None else data[k])
                     except Exception:
                         setattr(self, k, data[k])
+
+            # Migrate saves written before xp_level existed: map_level used to be
+            # overloaded as both dungeon floor (SPUR's cl) and character level
+            # (SPUR's xp/yn -- see combat/engine.py's old level-up code). Any
+            # save missing xp_level was written under that conflation, so its
+            # map_level value is really the character's xp_level; the dungeon
+            # floor for such saves resets to 1 (no floor-travel history to trust).
+            if 'xp_level' not in data and 'map_level' in data:
+                try:
+                    self.xp_level = int(data['map_level'])
+                except Exception:
+                    self.xp_level = 1
+                self.map_level = 1
 
             # Inventory
             if 'inventory' in data and isinstance(data['inventory'], list):

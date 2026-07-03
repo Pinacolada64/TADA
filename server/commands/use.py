@@ -31,19 +31,8 @@ _RING_ID    = 67   # ring of invisibility (objects.json)
 
 
 def _char_level(player) -> int:
-    """Character XP level derived from experience.
-
-    TODO: player needs a dedicated xp_level field separate from map_level
-    (dungeon floor).  For now, reconstruct from accumulated experience using
-    the same 999+(N×100) threshold the engine uses.
-    """
-    ep = int(getattr(player, 'experience', 0) or 0)
-    level = 1
-    threshold = 1099  # 999 + 1*100
-    while ep > threshold:
-        level += 1
-        threshold += level * 100
-    return level
+    """Character XP level (SPUR's xp/yn; separate from map_level, the dungeon floor)."""
+    return int(getattr(player, 'xp_level', 1) or 1)
 
 # SPUR.USE.S: max shield % by class/race (sh cap).
 # cap_bonus is added for BATTLE SHIELD and LAZER SHIELD (a=20 in SPUR).

@@ -3,6 +3,7 @@ import logging
 import random
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum, IntEnum, auto
+from typing import Optional
 import datetime
 from enum import StrEnum, IntEnum, auto, Enum
 
@@ -385,6 +386,23 @@ class PlayerClassBonuses(Enum):
 
 
 
+class RoomAlignment(StrEnum):
+    """Territorial affiliation of a *room* -- distinct from Guild, which is a
+    *player/NPC's* own guild membership. SPUR never stores this as a discrete
+    field: guild-territory checks are live substring tests on the room name
+    (e.g. instr("=[]",ww$) for Fist, instr("\\|/",ww$) for Claw -- see
+    SPUR.MAIN.S:589-592, SPUR.GUILD.S:12-15, SPUR.DUEL2.S:21/94/102/202/297/377),
+    with no explicit "else" branch when nothing matches. NEUTRAL is this
+    port's name for that fall-through case, not a state SPUR itself sets.
+    """
+    NEUTRAL   = "neutral"    # no marker -- open to all, no special rules
+    FREE_FIRE = "free_fire"  # '+' suffix -- combat allowed regardless of guild
+    FIST      = "fist"       # '=[]' suffix -- Fist guild territory
+    CLAW      = "claw"       # '\|/' suffix -- Claw guild territory
+    SWORD     = "sword"      # '-}----' suffix -- Sword guild territory
+    HQ        = "hq"         # 'HQ' marker -- headquarters of whichever guild owns the room
+
+
 @dataclass
 class Room(object):
     number: int
@@ -395,9 +413,10 @@ class Room(object):
     item: int = 0
     weapon: int = 0
     food: int = 0
-    # Here, Civilian is considered the "neutral" default, unless the room is aligned to another Guild.
-    # I don't want to add another Alignment-type class just for this purpose:
-    alignment: Guild = Guild.CIVILIAN
+    # Territorial alignment of this room (Fist/Claw/Sword turf, free-fire
+    # zone, guild HQ, or neutral). Not to be confused with Guild, which is a
+    # player/NPC's own guild membership -- see RoomAlignment's docstring.
+    alignment: RoomAlignment = RoomAlignment.NEUTRAL
     # List of RoomFlag values (as strings) parsed from SPUR room data.
     # e.g. ["water"], ["snow"], ["no_flee"], ["block_north", "block_east"]
     flags: list = field(default_factory=list)
@@ -441,14 +460,31 @@ class Room(object):
         return oxford_comma_list(exit_txts)
 
 
+def _parse_room_alignment(value) -> RoomAlignment:
+    """Coerce a JSON alignment value to a RoomAlignment, defaulting to NEUTRAL.
+
+    Two JSON shapes exist in the wild:
+      - level_1.json (hand/earlier-tooled): bare lowercase strings like
+        'fist'/'claw'/'sword', keyed 'alignment'.
+      - convert_from_gbbs_tool.py output: the same value set plus
+        'free_fire'/'hq', keyed 'room_alignment'.
+    Both use RoomAlignment's own string values, so a direct lookup covers both.
+    """
+    try:
+        return RoomAlignment(str(value).lower())
+    except ValueError:
+        return RoomAlignment.NEUTRAL
+
+
 class Map(object):
     def __init__(self):
         """
         Define the level map layout
         """
-        self.rooms = {}
+        self.rooms = {}    # backward-compat alias: same dict as self.levels[1]
+        self.levels = {}   # {map_level (1-7): {room_number: Room}}
 
-    def read_map(self, filename: str):
+    def read_map(self, filename: str, level: int = 1):
         """
         Data format on C64:
         * Room number        (rm)
@@ -460,17 +496,37 @@ class Map(object):
           RT (Room exit transports you to:
                  <>0: room #, or 0=Shoppe)
         https://github.com/Pinacolada64/TADA/blob/master/text/s_t_level-1-data.txt
+
+        *level* selects which dungeon floor (SPUR's cl, 1-7) this file's rooms
+        belong to; room numbers are only unique within a single level.  Pass
+        level=1 (the default) for the original single-level JSON shape.
         """
         try:
             with open(filename) as jsonF:
                 map_data = json.load(jsonF)
                 logging.debug("read_map: JSON data read")
+                rooms = {}
                 for room_data in map_data['rooms']:
-                    room = Room(**room_data)
-                    self.rooms[room.number] = room
+                    room_kwargs = dict(room_data)
+                    # convert_from_gbbs_tool.py keys this 'room_alignment';
+                    # level_1.json keys it plain 'alignment' -- normalize both
+                    # to a real RoomAlignment enum member.
+                    raw_alignment = room_kwargs.pop('room_alignment', None)
+                    if raw_alignment is None:
+                        raw_alignment = room_kwargs.get('alignment')
+                    room_kwargs['alignment'] = _parse_room_alignment(raw_alignment)
+                    room = Room(**room_kwargs)
+                    rooms[room.number] = room
                     logging.debug('%i: %s' % (room.number, room.name))
+                self.levels[level] = rooms
+                if level == 1:
+                    self.rooms = rooms
         except FileNotFoundError:
             logging.error(">>> read_map: File not found: '%s'" % filename)
+
+    def get_room(self, level: int, room_number: int) -> Optional['Room']:
+        """Look up a room on a specific dungeon level, or None if not loaded."""
+        return self.levels.get(level, {}).get(room_number)
 
 
 class VinneyLoan(object):

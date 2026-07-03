@@ -108,8 +108,8 @@ async def _show_menu(ctx: GameContext) -> None:
 
 
 def _player_level(player) -> int:
-    """Best available proxy for character level (map_level matches SPUR's yn)."""
-    return max(1, getattr(player, 'map_level', 1))
+    """Character level (SPUR's yn)."""
+    return max(1, getattr(player, 'xp_level', 1))
 
 
 # ---------------------------------------------------------------------------
@@ -172,7 +172,7 @@ async def _hire(ctx: GameContext) -> None:
             target_name = names[idx]
 
         # Calculate price from target's level.  We can't load offline players
-        # without a full profile fetch, so we use map_level of the current
+        # without a full profile fetch, so we use xp_level of the current
         # player as a fallback if the target is offline.
         target_level = 1
         online_clients = getattr(ctx.server, 'clients', [])
@@ -322,7 +322,7 @@ if __name__ == '__main__':
     ctx.player = MagicMock()
     ctx.player.name = 'Rulan'
     ctx.player.hit_points = 20
-    ctx.player.map_level  = 3
+    ctx.player.xp_level   = 3
     ctx.player.previous_command = None
     ctx.player.client_settings  = MagicMock(return_key='Return')
     ctx.player.query_flag = lambda _: False

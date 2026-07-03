@@ -65,7 +65,7 @@ def _bhr(player) -> int:
     armor    = getattr(player, 'armor',  0) or 0
     return int(
         player.hit_points
-        + (player.map_level * 2)
+        + (int(getattr(player, 'xp_level', 1) or 1) * 2)
         + (energy + dex + strength) / 2
         + (shield + armor) / 4
     )
@@ -96,7 +96,7 @@ def _build_stats_lines(player) -> list[str]:
     experience  = int(getattr(player, 'experience',    0) or 0)
     mk          = len(getattr(player, 'monsters_killed', []) or [])
     honor       = int(getattr(player, 'honor',         0) or 0)
-    level       = int(getattr(player, 'map_level',     1) or 1)
+    level       = int(getattr(player, 'xp_level',      1) or 1)
 
     guild           = getattr(player, 'guild',      Guild.CIVILIAN)
     char_class      = getattr(player, 'char_class', None)

@@ -13,6 +13,7 @@ Admin-only.
 
 import logging
 
+from base_classes import RoomAlignment
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
@@ -120,8 +121,12 @@ class TeleportCommand(Command):
         game_map = getattr(ctx.server, 'game_map', None)
         dest_room = game_map.rooms.get(dest) if game_map else None
         align = getattr(dest_room, 'alignment', None)
-        _GUILD_KEY = {'claw': 'CLAW', 'sword': 'SWORD', 'fist': 'FIST'}
-        gkey = _GUILD_KEY.get(str(align).lower()) if align else None
+        _GUILD_KEY = {
+            RoomAlignment.CLAW:  'CLAW',
+            RoomAlignment.SWORD: 'SWORD',
+            RoomAlignment.FIST:  'FIST',
+        }
+        gkey = _GUILD_KEY.get(align)
         if gkey:
             from commands.movement import _enter_guild_hq
             await _enter_guild_hq(ctx, gkey)

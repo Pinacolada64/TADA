@@ -86,8 +86,11 @@ class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
             try:
                 script_dir = Path(__file__).parent
                 self.game_map = Map()
-                self.game_map.read_map(str(script_dir / "level_1.json"))
-                logging.info(f"Loaded map with {len(self.game_map.rooms)} rooms")
+                for lvl in range(1, 8):
+                    level_file = script_dir / f"level_{lvl}.json"
+                    if level_file.exists():
+                        self.game_map.read_map(str(level_file), level=lvl)
+                        logging.info(f"Loaded level {lvl} map with {len(self.game_map.levels[lvl])} rooms")
             except Exception:
                 logging.exception("Failed to load map or game data; room descriptions may be limited")
 

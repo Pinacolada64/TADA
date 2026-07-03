@@ -1,8 +1,11 @@
 """ally_events.py — Ally-triggered events.
 
-  try_ally_find_gold   — random per-move gold-finding (SPUR MISC6.S al.find)
-  try_hungry_ally      — intercept player eating/drinking for a hungry ally
-                         (SPUR SUB.S hun.slv)
+  try_ally_find_gold    — random per-move gold-finding (SPUR MISC6.S al.find)
+  try_hungry_ally       — intercept player eating/drinking for a hungry ally
+                          (SPUR SUB.S hun.slv)
+  try_ally_death_save   — ally intercession when a monster blow would kill
+                          the player (SPUR.COMBAT.S "dragon" -> sac.ally,
+                          ported from the skip branch's SPUR.MISC9.S)
 """
 from __future__ import annotations
 
@@ -154,3 +157,100 @@ async def try_hungry_ally(ctx: 'GameContext', item, kind: str) -> bool:
 
     await _try_body_build(ctx, hungry, item)
     return True
+
+
+# ---------------------------------------------------------------------------
+# Ally death-save (SPUR.COMBAT.S "dragon" label: if a>hp-1 then if
+# a1+a2+a3>0 gosub sac.ally; sac.ally itself lives in the skip branch's
+# SPUR.MISC9.S, which added the GOD/GODDESS teleport-save on top of the
+# base game's flee/stand-and-take-it roll.)
+# ---------------------------------------------------------------------------
+
+def _free_ally_in_roster(name: str, status, owner) -> None:
+    """Sync a single ally's status/owner into the persisted roster.
+
+    Mirrors bar.fat_olaf._sync_to_roster: the master ally list is reloaded
+    fresh (it's small and static + a JSON overlay), the matching entry is
+    updated, and the whole roster is rewritten.
+    """
+    from bar.ally_data import load_allies, save_ally_roster
+
+    master_list = load_allies()
+    for a in master_list:
+        if a.name == name:
+            a.status = status
+            a.owner  = owner
+            break
+    save_ally_roster(master_list)
+
+
+async def try_ally_death_save(ctx: 'GameContext', incoming_damage: int) -> bool:
+    """Give the player's allies a chance to intervene before a killing blow.
+
+    Call this BEFORE applying monster damage that would drop the player to
+    0 HP or below.  Returns True if a GOD/GODDESS ally teleported the player
+    to safety (the blow never lands — caller must skip narration and damage
+    entirely, matching SPUR's `pop:goto flee3`).  Returns False otherwise —
+    the incoming damage should still be applied normally.
+
+    Allies are tried one at a time in party order (SPUR's a1/a2/a3 priority):
+      - GOD/GODDESS: always saves the player, then departs for good.
+      - Otherwise: a courage roll (200-999, elites get -100) is compared
+        against the player's honor. Losing the roll means the ally flees
+        (freed back to AllyStatus.FREE) and the NEXT ally gets a turn.
+      - Winning the roll means the ally "leaps in front to take the death
+        blow" and is marked DEAD -- but per SPUR.MISC9.S this is flavor
+        only: nothing in the source actually cancels the incoming damage
+        for a non-GOD save, so the cascade stops there and the hit still
+        lands. Only a GOD/GODDESS ally can truly prevent the player's death.
+    """
+    from bar.ally_data import AllyFlags, AllyStatus
+    from bar.allies import owned_allies
+
+    player = ctx.player
+    hp = int(getattr(player, 'hit_points', 1) or 1)
+    if incoming_damage < hp:
+        return False
+
+    allies = owned_allies(player)
+    if not allies:
+        return False
+
+    honor = int(getattr(player, 'honor', 0) or 0)
+
+    for ally in list(allies):
+        flags = ally.flags or []
+        is_god = AllyFlags.GOD in flags or AllyFlags.GODDESS in flags
+
+        player.party.remove(ally)
+
+        if is_god:
+            ally.status = AllyStatus.FREE
+            ally.owner  = None
+            _free_ally_in_roster(ally.name, AllyStatus.FREE, None)
+            player.unsaved_changes = True
+            await ctx.send([
+                f'{ally.name}, seeing you are about to die, whisks you away!',
+                f"'Goodbye, {getattr(player, 'name', 'friend')}!'",
+            ])
+            return True
+
+        courage = random.randint(200, 999)
+        if AllyFlags.ELITE in flags:
+            courage -= 100
+
+        if courage > honor:
+            ally.status = AllyStatus.FREE
+            ally.owner  = None
+            _free_ally_in_roster(ally.name, AllyStatus.FREE, None)
+            player.unsaved_changes = True
+            await ctx.send(f'{ally.name} sees you are about to die, and runs away!')
+            continue
+
+        ally.status = AllyStatus.DEAD
+        _free_ally_in_roster(ally.name, AllyStatus.DEAD, None)
+        player.unsaved_changes = True
+        await ctx.send(f'{ally.name}, seeing you are about to die, leaps in front to take the death blow!')
+        return False
+
+    return False

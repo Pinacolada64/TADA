@@ -10,6 +10,7 @@ Special exits (shoppe elevator, bar) are checked here before delegating
 normal movement to ctx.server._move().
 """
 
+from base_classes import RoomAlignment
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from network_context import GameContext
@@ -27,11 +28,27 @@ _DIR_ALIASES: dict[str, str] = {
 _BAR_ROOM    = 37   # Wall Bar & Grill
 _SHOPPE_ROOM = None  # Shoppe is reached via rc/rt elevator, not a map room
 
+# The Allys Guild (skip branch SPUR.MISC8.S s.guild) is a hardcoded
+# interception in the original source, not a normal data-driven room exit:
+# SPUR.MAIN.S: "if cl=4 if cr=42 if di=3 i$=\"SRV.GUILD\":...link dy$"
+# (cl=level, cr=room, di=3 means the player typed East). Level 4 room 42
+# ("A Maze Of Alleys") has no east exit in the room data for exactly this
+# reason -- moving east there is caught here instead of by ctx.server._move().
+_ALLY_GUILD_LEVEL = 4
+_ALLY_GUILD_ROOM  = 42
+
 
 async def _enter_shoppe(ctx: GameContext) -> None:
     """Player takes the elevator down to the Merchant Shoppe."""
     from shoppe.main import main as shoppe_main
     await shoppe_main(ctx)
+    await ctx.server._show_room(ctx)
+
+
+async def _enter_allies_guild(ctx: GameContext) -> None:
+    """Player finds Bubba's Allys Guild down the alley (level 4, room 42, east)."""
+    from bar.allies_guild import main as allies_guild_main
+    await allies_guild_main(ctx)
     await ctx.server._show_room(ctx)
 
 
@@ -92,7 +109,17 @@ class MoveCommand(Command):
         # Check for special exits before normal movement
         game_map = getattr(ctx.server, 'game_map', None)
         room_no  = getattr(ctx.client, 'room', 1) or 1
-        room     = game_map.rooms.get(int(room_no)) if game_map else None
+        player_level = getattr(ctx.player, 'map_level', 1) or 1
+
+        # Allys Guild: hardcoded level/room/direction interception (see
+        # _ALLY_GUILD_LEVEL / _ALLY_GUILD_ROOM above), matching SPUR's own
+        # hardcoded check rather than a data-driven room exit.
+        if (direction == 'e' and player_level == _ALLY_GUILD_LEVEL
+                and int(room_no) == _ALLY_GUILD_ROOM):
+            await _enter_allies_guild(ctx)
+            return CommandResult.ok()
+
+        room = game_map.rooms.get(int(room_no)) if game_map else None
 
         if room:
             exits = getattr(room, 'exits', {})
@@ -110,13 +137,15 @@ class MoveCommand(Command):
                 return CommandResult.ok()
 
             # Guild-aligned rooms trigger the guild HQ.
-            # Room alignment is stored as a lowercase string ('fist', 'claw',
-            # 'sword') from the JSON — not a Guild enum value.
             if dest:
                 dest_room = game_map.rooms.get(int(dest)) if game_map else None
                 align = getattr(dest_room, 'alignment', None) if dest_room else None
-                _GUILD_KEY = {'claw': 'CLAW', 'sword': 'SWORD', 'fist': 'FIST'}
-                gkey = _GUILD_KEY.get(str(align).lower()) if align else None
+                _GUILD_KEY = {
+                    RoomAlignment.CLAW:  'CLAW',
+                    RoomAlignment.SWORD: 'SWORD',
+                    RoomAlignment.FIST:  'FIST',
+                }
+                gkey = _GUILD_KEY.get(align)
                 if gkey:
                     await _enter_guild_hq(ctx, gkey)
                     return CommandResult.ok()

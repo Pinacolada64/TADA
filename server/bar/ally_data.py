@@ -22,6 +22,9 @@ class AllyFlags(Enum):
     FIND_THINGS = auto()
     MOUNT = auto()
     BODY_BUILD = auto()
+    # Allys Guild training (SPUR.MISC8.S s.armor/s.wep, skip branch):
+    ARMORED = auto()
+    COMBAT_TRAINED = auto()
 
 class AllyPosition(Enum):
     """Tactical position"""
