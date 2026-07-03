@@ -19,6 +19,8 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Surprise attack** — when monster has not yet spotted player, +2 to-hit + damage for player (`resolution.py`)
 - **Double attack** — 40% chance of a second monster attack in rooms marked `]` (`engine.py`)
 - **Allies** — up to 3 allies attack each round; morale failure / sacrifice on near-death (`engine.py`)
+- ✅ **Ally death-save** — before a blow that would kill the player lands, an owned ally gets a chance to intervene: GOD/GODDESS allies always teleport the player to safety and depart for good; others roll courage (vs. player honor, elites get a bonus) and either flee (freed) or "leap in front" as flavor — only a GOD/GODDESS save actually cancels the damage, matching SPUR.MISC9.S exactly (`SPUR.COMBAT.S` `dragon`/`sac.ally`, `ally_events.py` `try_ally_death_save()`, `engine.py` `_resolve_monster_hit()`)
+- ✅ **LASSO — capture a mount** — during combat against a horse-named monster, `lasso` captures it as a new MOUNT-flagged ally (name prompt with SPUR's length/character validation); blocked by a full party or an existing mount (`SPUR.USE.S` `lasso`, `commands/lasso.py`, `engine.py` `CombatSession.lasso()`)
 - **XP gain per swing** (`engine.py`)
 - **Monster kill rewards** — gold and XP awarded on kill (`engine.py`, `combat/rewards.py`)
 
@@ -155,6 +157,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 ### Implemented
 - **Level-up** — XP threshold `999 + (xp_level × 100)` triggers level-up message (`SPUR.COMBAT.S:10`)
 - **Stat rolling** — race/class bonuses applied at character creation (`characters.py`)
+- ✅ **`xp_level` split from `map_level`** — these were conflated in one field (`player.map_level`), used correctly as the dungeon floor (SPUR's `cl`) by the elevator/shoppe but incorrectly reused as character level (SPUR's `xp`/`yn`) by combat level-up, the BHR stat formula, the XP-drain formula, Blue Djinn's hire pricing, and the bank transfer gate. `player.xp_level` is now the single source for character level; old saves migrate their `map_level` value into `xp_level` on load and reset `map_level` to 1 (`player.py`, `combat/engine.py`, `combat/resolution.py`, `commands/stats.py`, `bar/blue_djinn.py`, `shoppe/bank.py`)
 
 ### Not Implemented
 - **Level-up stat grants** — what increases on level-up (HP, stats) (`SPUR.COMBAT.S lvl.msg`)
@@ -278,6 +281,25 @@ All sections are stubs. Source: `SPUR.ANNEX.S`.
 - **Bouncer** — enforces entry rules; role partially referenced
 - **Bar brawl / PvP** — fighting other players in the bar; stub message "combat not yet available" (`bar/main.py:269`)
 
+### Street NPCs (not part of `bar/main.py`'s room grid)
+
+Unlike the NPCs above, these two are reached via a hardcoded level/room/direction
+interception in `commands/movement.py` — mirroring how SPUR itself hooks them into
+`SPUR.MAIN.S`'s dispatch (`if cl=<level> if cr=<room> if di=3 ...`) rather than as a
+normal data-driven room exit. Both target rooms have no east exit in their room data
+for exactly this reason.
+
+- ✅ **Allies' Guild** (Bubba, level 4 / room 42 "A Maze Of Alleys" / east) — pay gold to
+  train an owned ally: Armor (600g → `AllyFlags.ARMORED`), Discipline (1,000g →
+  `AllyFlags.ELITE`), Body building (incremental, level 1–8, +3 STR per level, cost scales
+  with level), Combat training (800g → `AllyFlags.COMBAT_TRAINED`), Tracking (750g →
+  `AllyFlags.TRACKING`, refused for MOUNT allies) (`SPUR.MISC8.S` `s.guild`, skip branch,
+  `street/allies_guild.py`)
+- ✅ **Jake's Stable** (level 5 / room 157 "The Ocean" / east) — buy Oats/Sugar Cube
+  (rations.json), Lasso/Saddle/Horse Armor (objects.json, ×100 gold); Train Horse
+  (2,000 gold, requires a MOUNT ally that is already SADDLED + ARMORED, applies
+  `AllyFlags.ELITE`); Tips (`SPUR.MISC8.S` `jakes`, skip branch, `street/jakes.py`)
+
 ---
 
 ## News & Mail
@@ -322,12 +344,24 @@ A horse occupies **ally slot 4** (`a$(4)`).  The string `"---"` in that slot mea
 At login, if the player has a horse, it is announced: *"Your faithful steed `<name>` is here."*
 `[MOUNTED]` is shown in the player status line when the mounted bit is set.
 
-### Not Implemented
+### Implemented
+
+These pieces come from a different source generation than the `t_mount.lbl`/`t_charge.lbl`
+listings above — the skip branch's `SPUR.USE.S` (`lasso`/`eq.horse`) and `SPUR.MISC8.S`
+(`jakes`), where a mount is a regular party-slot ally flagged `MOUNT` rather than a
+dedicated "ally slot 4". `MOUNT`/`DISMOUNT`/`CHARGE` below are still unimplemented either way.
 
 #### Acquiring a horse
-- **Stable** — horses are bought/stabled somewhere on level 6 (exact room TBD).
-- **Naming** — the horse has a name stored in the ally-4 name field (e.g. `STRAWBERRY`); player
-  presumably names it at purchase time.
+- ✅ **LASSO capture** — during combat against a horse-named monster (e.g. `WILD HORSE`,
+  added to `monsters.json` as a TADA extension — no canonical stats existed in the
+  SPUR-data dumps), `lasso` captures it as a new `MOUNT`-flagged ally; player names it
+  (4–12 chars, SPUR's own forbidden-character list); blocked by a full party or an
+  existing mount (`SPUR.USE.S` `lasso`, `commands/lasso.py`, `engine.py`
+  `CombatSession.lasso()`)
+- ✅ **Jake's Stable** — level 5, room 157 ("The Ocean"), reached by moving east (same
+  hardcoded level/room/direction interception as the Allies' Guild — see the **Bar**
+  section below); sells Oats/Sugar Cube/Lasso/Saddle/Horse Armor and offers Train Horse
+  (`SPUR.MISC8.S` `jakes`, `street/jakes.py`)
 
 #### MOUNT / DISMOUNT
 - `MOUNT` — checks `a$(4) <> "---"` (horse exists); checks mounted bit (bit 4 of `v1+65`);
@@ -358,16 +392,19 @@ At login, if the player has a horse, it is announced: *"Your faithful steed `<na
 - **Saddlebags** — bit 7 of `v2+189`; without saddlebags the horse carries no gold and no items;
   with saddlebags it can carry things (extra inventory).  Gold display routines explicitly check
   for this flag before showing horse gold.
-- **Saddle** — referenced in MOUNT and CHARGE TODOs; affects mounting checks and unseating risk;
-  presumably a purchasable item.
-- **Lasso** — referenced by the user; likely used to catch/acquire a horse (exact mechanic TBD).
+- ✅ **Saddle / Horse Armor** — bought at Jake's Stable, then `USE`d on a mount ally to
+  equip it (`AllyFlags.SADDLED` / `AllyFlags.ARMORED` — the latter shared with the
+  Allies' Guild's Armor training, same "$" sigil in SPUR either way); refuses without a
+  mount or on a duplicate (`SPUR.USE.S` `eq.horse`, `commands/use.py`)
+- ✅ **Train Horse** — 2,000 gold at Jake's Stable; requires the mount already be
+  `SADDLED` and `ARMORED`; applies `AllyFlags.ELITE` (`SPUR.MISC8.S` `train`,
+  `street/jakes.py` `_train_horse()`)
 - **Horseshoes** — listed as a TODO service at the Blacksmith (`t_ma_blacksmith.lbl:
   "todo: shoe horse"`); effect on speed or armor TBD.
 - **Food** — horses presumably need feeding (appropriate food items TBD; ties into the
   food/ration system).
 
 ### Future
-- Decide on stable location (level 6 per user notes) and lasso / purchase flow.
 - Implement `MOUNT` / `DISMOUNT` as toggle or separate commands.
 - Implement `CHARGE` with class bonuses, horse-strength gate, and unseating risk.
 - Wire saddlebags into inventory as an extra carry slot on the horse.

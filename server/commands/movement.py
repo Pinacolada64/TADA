@@ -52,14 +52,14 @@ async def _enter_shoppe(ctx: GameContext) -> None:
 
 async def _enter_allies_guild(ctx: GameContext) -> None:
     """Player finds Bubba's Allys Guild down the alley (level 4, room 42, east)."""
-    from bar.allies_guild import main as allies_guild_main
+    from street.allies_guild import main as allies_guild_main
     await allies_guild_main(ctx)
     await ctx.server._show_room(ctx)
 
 
 async def _enter_jakes_stable(ctx: GameContext) -> None:
     """Player finds Jake's Stable (level 5, room 157, east)."""
-    from bar.jakes import main as jakes_main
+    from street.jakes import main as jakes_main
     await jakes_main(ctx)
     await ctx.server._show_room(ctx)
 

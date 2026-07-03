@@ -39,7 +39,7 @@ from combat.engine import CombatSession
 from commands.lasso import LassoCommand
 from commands.use import UseCommand
 from commands.movement import MoveCommand
-from bar.jakes import _train_horse
+from street.jakes import _train_horse
 
 
 def _make_ally(name='BARDA', flags=None) -> Ally:
@@ -345,28 +345,28 @@ class TestJakesStableMovementHook(unittest.IsolatedAsyncioTestCase):
 
     async def test_level5_room157_east_triggers_stable(self):
         ctx = _make_movement_ctx(map_level=5, room=157)
-        with patch('bar.jakes.main', new=AsyncMock()) as mock_main:
+        with patch('street.jakes.main', new=AsyncMock()) as mock_main:
             await MoveCommand().execute(ctx, 'e')
         mock_main.assert_awaited_once_with(ctx)
         ctx.server._move.assert_not_awaited()
 
     async def test_wrong_level_falls_through(self):
         ctx = _make_movement_ctx(map_level=1, room=157)
-        with patch('bar.jakes.main', new=AsyncMock()) as mock_main:
+        with patch('street.jakes.main', new=AsyncMock()) as mock_main:
             await MoveCommand().execute(ctx, 'e')
         mock_main.assert_not_awaited()
         ctx.server._move.assert_awaited_once_with(ctx, 'e')
 
     async def test_wrong_room_falls_through(self):
         ctx = _make_movement_ctx(map_level=5, room=1)
-        with patch('bar.jakes.main', new=AsyncMock()) as mock_main:
+        with patch('street.jakes.main', new=AsyncMock()) as mock_main:
             await MoveCommand().execute(ctx, 'e')
         mock_main.assert_not_awaited()
         ctx.server._move.assert_awaited_once_with(ctx, 'e')
 
     async def test_wrong_direction_falls_through(self):
         ctx = _make_movement_ctx(map_level=5, room=157)
-        with patch('bar.jakes.main', new=AsyncMock()) as mock_main:
+        with patch('street.jakes.main', new=AsyncMock()) as mock_main:
             await MoveCommand().execute(ctx, 'n')
         mock_main.assert_not_awaited()
         ctx.server._move.assert_awaited_once_with(ctx, 'n')
