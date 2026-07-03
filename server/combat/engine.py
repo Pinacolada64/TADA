@@ -35,6 +35,7 @@ from combat.resolution import (
     check_special_weapon,
 )
 from combat.rewards import gold_from_monster, exp_per_swing
+from flags import PlayerFlags
 
 if TYPE_CHECKING:
     from network_context import GameContext
@@ -54,6 +55,26 @@ def _weapon_class_str(weapon) -> str:
     if wc is None:
         return 'hack_slash_bash'
     return wc.value if hasattr(wc, 'value') else str(wc)
+
+
+def _roll_charge_first_strike(player, monster: dict) -> bool:
+    """Mounted first-strike roll (skip branch SPUR.COMBAT.S m.attack):
+
+        a = rnd.10a; a -= 4 if projectile weapon else a += 4
+        eligible if a + (monster_agility * 4) < player Dexterity
+
+    Only called on the first exchange; determines CHARGE eligibility.
+    """
+    from combat.resolution import _WA
+    weapon  = getattr(player, 'readied_weapon', None)
+    wc_str  = _weapon_class_str(weapon)
+    wa      = _WA.get(wc_str.lower(), 1)
+    roll    = random.randint(1, 10)
+    roll    = roll - 4 if wa == 5 else roll + 4   # wa=5: projectile ("POLE WEAPON" label in source)
+    roll    = max(1, roll)
+    ma      = int(monster.get('to_hit', 4) or 4)
+    pd      = int((getattr(player, 'stats', None) or {}).get('Dexterity', 10))
+    return roll + (ma * 4) < pd
 
 
 def _class_race_strs(player) -> tuple[str, str]:
@@ -209,6 +230,10 @@ class CombatSession:
         # How many times the monster has attacked this fight (SPUR vu).
         # Used by: STORM asserts its will (vu<6) and scare check (vu<=1).
         self._monster_attack_count = 0
+        # Mounted CHARGE: whether this round's first-strike roll succeeded
+        # (skip branch SPUR.COMBAT.S m.attack instr("*MNT",ys$) branch).
+        # Only ever True on the first exchange (monster_attack_count == 0).
+        self._charge_eligible = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -421,21 +446,41 @@ class CombatSession:
                     await ctx.send(f'THE {weapon_name_upper} ASSERTS ITS WILL!!')
                     auto_attack = True
 
+            # ---- Mounted CHARGE eligibility roll (skip branch SPUR.COMBAT.S
+            # m.attack, instr("*MNT",ys$) branch) -- only checked on the
+            # first exchange. Independent of whether the player then picks
+            # CHARGE or a plain attack, achieving first strike here means
+            # the monster doesn't get to retaliate this round (see the
+            # missile/pole first-strike checks below).
+            self._charge_eligible = False
+            if self._monster_attack_count == 0 and player.query_flag(PlayerFlags.MOUNTED):
+                self._charge_eligible = _roll_charge_first_strike(player, self.monster)
+                if self._charge_eligible:
+                    await ctx.send('MOUNTED- YOU MANAGE TO GET FIRST STRIKE! (CHARGE if you want)')
+                else:
+                    await ctx.send("MOUNTED- OOPS, DIDN'T GET FIRST STRIKE..")
+
             # ---- player prompt (skipped if weapon auto-attacked) ----
+            is_charge = False
             if not auto_attack:
+                charge_opt = '  [C]harge' if self._charge_eligible else ''
                 raw = await ctx.prompt(
-                    f'[A]ttack  [F]lee  (HP:{getattr(player, "hit_points", "?")}'
+                    f'[A]ttack{charge_opt}  [F]lee  (HP:{getattr(player, "hit_points", "?")}'
                     f'  {mname} HP:{_monster_hp(self.monster)})',
                 )
                 if raw is None:
                     # Client disconnected mid-fight
                     break
                 cmd = (raw.strip().lower() or 'a')[0]
+                if cmd == 'c' and not self._charge_eligible:
+                    await ctx.send('You can not CHARGE now.')
+                    continue
                 if cmd == 'f':
                     fled = await self.flee(ctx)
                     if fled:
                         return
                     continue
+                is_charge = cmd == 'c'
 
             # Default: attack
             async with self._lock:
@@ -443,7 +488,7 @@ class CombatSession:
                     break
 
                 # Player swings — +1 ep per attempt (SPUR.COMBAT.S line 103)
-                result = self._swing(ctx)
+                result = self._swing(ctx, is_charge=is_charge)
                 await _add_exp(ctx, exp_per_swing())
                 await self._narrate_player_swing(ctx, result)
 
@@ -496,6 +541,22 @@ class CombatSession:
                 if _monster_hp(self.monster) <= 0:
                     await self._monster_dies(ctx, player_killed=False)
                     return
+
+                # Unseat check: charging risks being thrown from the saddle,
+                # win or lose (skip branch SPUR.COMBAT.S unmount, reached
+                # after the charge attack sequence resolves).
+                if is_charge:
+                    if await self._charge_unseat_check(ctx):
+                        return
+
+                # Mounted first strike achieved this round (see the CHARGE
+                # eligibility roll at the top of the loop) -- the monster's
+                # retaliation is skipped regardless of whether the player
+                # chose CHARGE or a plain attack (SPUR.COMBAT.S m.attack:
+                # achieving first strike `return`s before the real attack).
+                if self._charge_eligible:
+                    self._monster_attack_count += 1
+                    continue
 
                 # Missile first strike: if ammo is loaded and monster hasn't
                 # attacked yet, player's opening shot counts as first strike
@@ -574,7 +635,7 @@ class CombatSession:
     # Internal: single swing
     # ------------------------------------------------------------------
 
-    def _swing(self, ctx: 'GameContext') -> AttackResult:
+    def _swing(self, ctx: 'GameContext', is_charge: bool = False) -> AttackResult:
         """Compute one player attack swing."""
         player  = ctx.player
         weapon  = getattr(player, 'readied_weapon', None)
@@ -599,6 +660,8 @@ class CombatSession:
             class_damage=class_damage,
             weapons_data=weapons_data,
             monster_attack_count=self._monster_attack_count,
+            is_mounted=player.query_flag(PlayerFlags.MOUNTED),
+            is_charge=is_charge,
         )
 
     # ------------------------------------------------------------------
@@ -666,12 +729,18 @@ class CombatSession:
         if result.ease_helped:
             await ctx.send('(Ease of use helps!)')
 
+        if result.is_charge:
+            await ctx.send(f'YOU THUNDER DOWN UPON {mname}!')
+
         if result.instant_kill:
             msg  = f'Fire flashes from the {result.weapon_name}!  The {mname} is destroyed!'
             room = f'Fire flashes from {pname}\'s {result.weapon_name}!  The {mname} is destroyed!'
         elif result.ineffective:
             msg  = f'The {result.weapon_name} is ineffective against the {mname}!'
             room = f'{pname}\'s {result.weapon_name} is ineffective against the {mname}!'
+        elif result.miss_over_top:
+            msg  = f'You miss over the top of {mname}!'
+            room = f'{pname} misses over the top of {mname}!'
         elif result.hit:
             crit = '  CRITICAL HIT!' if result.is_critical else ''
             surp = '  (Surprise!)' if result.is_surprise else ''
@@ -712,6 +781,9 @@ class CombatSession:
         incoming blow would drop HP to 0 or below (`if a>hp-1`).
         """
         player = ctx.player
+        if result.hit and await self._try_redirect_to_mount(ctx):
+            return False
+
         hp = int(getattr(player, 'hit_points', 1) or 1)
         if result.hit and (result.damage + result.fire_damage) >= hp:
             from ally_events import try_ally_death_save
@@ -722,6 +794,100 @@ class CombatSession:
 
         await self._narrate_monster_swing(ctx, result)
         self._apply_monster_damage(ctx, result)
+        return False
+
+    async def _try_redirect_to_mount(self, ctx: 'GameContext') -> bool:
+        """Skip branch SPUR.COMBAT.S lurk.a: a mounted player's horse can
+        take a monster's hit instead of the player. Roll d10 vs monster
+        agility; success redirects.
+
+        Narrative-only: this port doesn't yet track meaningful mount HP
+        (a freshly-lassoed mount's hit_points is seeded to 0 -- see
+        CombatSession.lasso -- and Horse Constitution/HP display is still
+        unported, per MECHANICS.md "Horses"), so the redirect simply means
+        the player takes no damage from this hit rather than applying
+        damage to the mount.
+        """
+        player = ctx.player
+        if not player.query_flag(PlayerFlags.MOUNTED):
+            return False
+
+        from bar.allies import find_mount
+        mount = find_mount(player)
+        if mount is None:
+            return False
+
+        ma = int(self.monster.get('to_hit', 4) or 4)
+        if random.randint(1, 10) >= ma:
+            return False
+
+        mname = self.monster.get('name', 'The monster')
+        await ctx.send(f'{mname} attacks you, but strikes {mount.name} instead!')
+        await ctx.send_room(
+            f'{mname} attacks {_player_name(ctx)}, but strikes {mount.name} instead!',
+            exclude_self=True,
+        )
+        return True
+
+    async def _charge_unseat_check(self, ctx: 'GameContext') -> bool:
+        """Skip branch SPUR.COMBAT.S unmount/unmount2: risk of being thrown
+        from the saddle after a CHARGE, win or lose. Returns True if the
+        fall killed the player (caller should stop the combat loop).
+
+        score = d100 + HP + STR + CON + INT + EGY + DEX + (level x 3),
+        plus class/race modifiers; score > 160 keeps the seat. Otherwise
+        a Saddle gives one more (~40%) save roll before the player is
+        thrown and takes 2-11 fall damage.
+        """
+        player = ctx.player
+        if not player.query_flag(PlayerFlags.MOUNTED):
+            return False
+
+        from base_classes import PlayerClass, PlayerRace, PlayerStat
+        stats = getattr(player, 'stats', None) or {}
+        hp = int(getattr(player, 'hit_points', 1) or 1)
+        score = random.randint(1, 100) + hp
+        score += int(stats.get(PlayerStat.STR, 10) or 10)
+        score += int(stats.get(PlayerStat.CON, 10) or 10)
+        score += int(stats.get(PlayerStat.INT, 10) or 10)
+        score += int(stats.get(PlayerStat.EGY, 10) or 10)
+        score += int(stats.get(PlayerStat.DEX, 10) or 10)
+        score += int(getattr(player, 'xp_level', 1) or 1) * 3
+
+        char_class = getattr(player, 'char_class', None)
+        char_race  = getattr(player, 'char_race', None)
+        if char_class == PlayerClass.KNIGHT:
+            score += 35
+        if char_class == PlayerClass.PALADIN:
+            score += 25
+        if char_race == PlayerRace.ELF:
+            score += 25
+        if char_race in (PlayerRace.OGRE, PlayerRace.DWARF, PlayerRace.ORC):
+            score -= 25
+
+        if score > 160:
+            await ctx.send('(You retain your mount!)')
+            return False
+
+        from bar.allies import find_mount
+        from bar.ally_data import AllyFlags
+        mount = find_mount(player)
+        if mount is not None and AllyFlags.SADDLED in (mount.flags or []):
+            if random.randint(1, 100) > 60:
+                await ctx.send('The saddle saves you from being unseated!')
+                return False
+
+        await ctx.send('The jar knocks you from your mount!')
+        player.clear_flag(PlayerFlags.MOUNTED)
+        player.unsaved_changes = True
+
+        fall_damage = min(random.randint(1, 10) + 1, hp)
+        player.hit_points = hp - fall_damage
+        player.unsaved_changes = True
+        await ctx.send(f'You take {fall_damage} damage from the fall.')
+        if player.hit_points <= 0:
+            await self._player_dies(ctx)
+            return True
         return False
 
     async def _narrate_monster_swing(

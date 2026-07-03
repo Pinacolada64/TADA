@@ -168,6 +168,9 @@ class AttackResult:
     dex_improved:       bool = False
     no_ammo:  bool = False  # projectile/energy weapon fired with 0 rounds (SPUR.COMBAT.S:84)
     ammo_used: bool = False  # one round consumed this swing (SPUR.COMBAT.S:99: vn=vn-1)
+    # Mounted CHARGE (skip branch SPUR.COMBAT.S m.attack/p.attack):
+    is_charge:     bool = False  # CHARGE bonus applied (+2 hit threshold, x2 damage)
+    miss_over_top: bool = False  # mounted + melee weapon whiffed clean over a small monster
 
 
 @dataclass
@@ -336,6 +339,8 @@ def player_attacks(
     class_damage:        int  = 0,
     weapons_data:        list = None, # server.weapons list; required for special-weapon checks
     monster_attack_count: int = 0,   # how many times monster has attacked this fight (SPUR vu)
+    is_mounted:          bool = False,  # player currently MOUNTED (skip branch instr("*MNT",ys$))
+    is_charge:           bool = False,  # player invoked CHARGE this swing
 ) -> AttackResult:
     """
     Resolve one player attack swing.
@@ -398,12 +403,30 @@ def player_attacks(
         )
 
     ma = monster.get('to_hit') or 4              # SPUR ma
+    wa = _WA.get(wc_str.lower(), 1)
+
+    # Miss over the top (skip branch SPUR.COMBAT.S:156): mounted with a melee
+    # weapon (wa<5 -- hack/slash/bash, poke/jab, pole/range) can whiff clean
+    # over a small/agile monster, independent of the normal hit roll.
+    if is_mounted and wa < 5:
+        top_roll = random.randint(1, 10)
+        if top_roll < ma:
+            return AttackResult(
+                hit=False, damage=0, miss_over_top=True,
+                weapon_name=weapon_name, weapon_id=weapon_id,
+                attacker_name=getattr(player, 'name', ''),
+                ammo_used=_needs_ammo,
+            )
+
     p2 = hit_threshold(wc_str, ma, zu, xp_level)
     if is_surprise:
         p2 += 2
     # Lurking behind allies reduces effective hit skill (SPUR vq=2 → p2-vq)
     if is_lurking:
         p2 -= 2
+    # CHARGE: +2 hit threshold (skip branch SPUR.COMBAT.S:139: if zw=1 p2=p2+2)
+    if is_charge:
+        p2 += 2
     # Correct special weapon → guaranteed hit (SPUR line 135: p2=10)
     if sw.guaranteed_hit:
         p2 = 10
@@ -422,6 +445,9 @@ def player_attacks(
                                    storm_penetration=sw.storm_penetration)
         dmg = _apply_special_weapon_damage(dmg, sw)
         dmg += ammo_damage  # SPUR.COMBAT.S:144 b=b+vm
+        # CHARGE: double damage (skip branch SPUR.COMBAT.S:170: if zw=1 b=b*2)
+        if is_charge:
+            dmg *= 2
         scared = _scare_check(sw, monster, monster_attack_count)
         return AttackResult(
             hit=True, damage=dmg,
@@ -431,6 +457,7 @@ def player_attacks(
             bad_weapon_choice=bad_weapon_choice,
             monster_scared=scared,
             ammo_used=_needs_ammo,
+            is_charge=is_charge,
         )
 
     # Miss check (SPUR line 141: if a > p2-vq → missed)
@@ -464,6 +491,10 @@ def player_attacks(
     except Exception:
         pass
 
+    # CHARGE: double damage (skip branch SPUR.COMBAT.S:170: if zw=1 b=b*2)
+    if is_charge:
+        dmg *= 2
+
     # Scare check: loud weapon in early fight can frighten monster away after a hit
     # (SPUR.COMBAT.S lines 423-430, called from both hit and miss paths)
     scared = _scare_check(sw, monster, monster_attack_count)
@@ -494,6 +525,7 @@ def player_attacks(
         fireball_secondary=fireball_secondary,
         dex_improved=dex_improved,
         ammo_used=_needs_ammo,
+        is_charge=is_charge,
     )
 
 

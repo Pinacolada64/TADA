@@ -432,7 +432,7 @@ Implemented against the block-diagram plan traced from the skip branch's `SPUR.U
   TODOs (character size, saddle requirement, strength vs. armor weight) weren't carried
   over; `MOUNT` only checks for a live MOUNT ally, water, and double-mounting.
 
-#### CHARGE
+#### CHARGE (`t_charge.lbl` design — NOT what was implemented; kept for reference)
 - Requires horse in slot 4; fails with "You don't have a horse."
 - Requires a live monster present; fails with a sarcastic message if nothing to charge toward.
 - Water room: special joke message ("Clopping two coconut halves...").
@@ -442,6 +442,51 @@ Implemented against the block-diagram plan traced from the skip branch's `SPUR.U
 - Roll determines hit/miss; damage = `rnd(roll/4)`.
 - TODOs in source: consider monster size (missing over its head); Knight lance bonus; player or
   horse taking return-attack damage; being unseated without a saddle on a heavy blow.
+
+#### CHARGE — Phase 2 of 3 ✅
+Implemented from the skip branch's `SPUR.COMBAT.S` (`m.attack`/`p.attack`), which has a
+CHARGE mechanic entirely distinct from the `t_charge.lbl` design above (no water-room
+joke, no horse-strength gate, no per-class attack bonus table) — the master branch's
+`SPUR.COMBAT.S` has no CHARGE at all.
+- ✅ **Eligibility roll** (`combat/engine.py` `_roll_charge_first_strike()`) — only checked
+  on the first exchange (`monster_attack_count == 0`) while `PlayerFlags.MOUNTED`: d10
+  roll, −4 for a projectile weapon or +4 otherwise, eligible if
+  `roll + (monster_agility × 4) < player Dexterity`. Printed before the prompt each round
+  ("MOUNTED- YOU MANAGE TO GET FIRST STRIKE! (CHARGE if you want)" / "...OOPS, DIDN'T GET
+  FIRST STRIKE.."), and offered as `[C]harge` in the attack prompt when eligible.
+  Independent of whether the player then picks CHARGE or a plain attack, achieving first
+  strike skips the monster's retaliation this round (same effect as the existing
+  missile/pole first-strike checks).
+- ✅ **CHARGE bonus** (`combat/resolution.py` `player_attacks(is_charge=True)`) — +2 to the
+  hit threshold and ×2 final damage (both the "ease of use" fast path and the normal hit
+  roll), plus "YOU THUNDER DOWN UPON `<monster>`!" narration.
+- ⏸️ **Known gap in `_WA` weapon-class lookup**: `combat/resolution.py`'s `_WA` dict keys
+  (`'poke_jab'`, `'pole_range'`, `'hack_slash_bash'`) don't match the real
+  `WeaponClass.value` strings (`'poke/jab'`, `'pole/range'`, `'bash/slash'` — punctuation
+  differs), so `hit_threshold()` silently falls back to the hack/slash/bash formula for
+  Poke/Jab and Pole/Range weapons instead of their own size-dependent formulas. Discovered
+  while building CHARGE's projectile-vs-melee check (which is unaffected, since
+  `'projectile'`/`'energy'`/`'proximity'` have no punctuation and match correctly) — a
+  separate, pre-existing bug, not fixed here.
+
+#### Mounted combat flavor & unseating — Phase 3 of 3 ✅
+- ✅ **Miss over the top** (`combat/resolution.py` `player_attacks()`) — mounted with a
+  melee weapon (hack/slash/bash, poke/jab, pole/range) can whiff clean over a small/agile
+  monster: d10 roll vs. monster agility, independent of the normal hit roll. Doesn't apply
+  to projectile/energy/proximity weapons or when not mounted.
+- ✅ **Mount redirects a hit** (`combat/engine.py` `CombatSession._try_redirect_to_mount()`)
+  — a monster's attack that would hit the player can instead strike the mount ally: d10
+  roll vs. monster agility. **Narrative-only**: this port doesn't yet track meaningful
+  mount HP (a freshly-lassoed mount's `hit_points` is seeded to 0 — see
+  `CombatSession.lasso` — and Horse Constitution/HP display is still unported, see "Horse
+  stats & equipment" below), so a successful redirect just means the player takes no
+  damage from that hit rather than applying damage to the mount.
+- ✅ **Unseat check** (`combat/engine.py` `CombatSession._charge_unseat_check()`) — risk of
+  being thrown from the saddle after a CHARGE, win or lose (triggers whenever CHARGE was
+  used this round, not on every hit). Formula: `d100 + HP + STR + CON + INT + EGY + DEX +
+  (level × 3)`, +35 Knight / +25 Paladin / +25 Elf / −25 Ogre-Dwarf-Orc; score > 160 keeps
+  the seat. Otherwise a Saddle gives one more (~40%) save roll; failing both throws the
+  player, clears `PlayerFlags.MOUNTED`, and deals 2-11 fall damage (can kill).
 
 #### Horse stats & equipment
 - **Constitution & HP** — displayed on the stat screen alongside armor; "looks sick" / "looks
@@ -465,12 +510,11 @@ Implemented against the block-diagram plan traced from the skip branch's `SPUR.U
   food/ration system).
 
 ### Future
-- Implement `CHARGE` (Phase 2) with class bonuses, horse-strength gate, and unseating
-  risk — blocked on pinning down SPUR.COMBAT.S's `p.attack`/`zw` first-strike bonus
-  formula from source.
-- Phase 3: mounted-combat flavor (miss-over-the-top, mount redirects a hit) and the
-  unseat check (stat roll + saddle save on a "jarring hit" — trigger condition not yet
-  pinned down from source).
+- Fix the `_WA` weapon-class string mismatch in `combat/resolution.py` (see CHARGE
+  Phase 2 above) so Poke/Jab and Pole/Range weapons get their own hit-threshold formulas
+  instead of silently falling back to hack/slash/bash's.
+- Seed real mount Constitution/HP so "mount redirects a hit" can apply actual damage
+  instead of being narrative-only.
 - Wire saddlebags into inventory as an extra carry slot on the horse.
 - Add horseshoe service to the Blacksmith shoppe section.
 
