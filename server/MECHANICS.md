@@ -160,7 +160,18 @@ implemented, or not yet started. Source references are to files under `SPUR-code
   wrong monsters/exits resolved). Fixed across `simple_server.py`
   (`_describe_room()`, `_move()`), `ally_events.py`, and `commands/{drop,attack,
   give,movement,get,whereat,use,teleport}.py`. Left as-is (correctly): `simple_
-  server.py`'s `_place_wild_horse()`, which is deliberately level-1-only.
+  server.py`'s `_place_wild_horse()`, which is deliberately level-1-only. A second
+  spot was missed in this same pass: `commands/teleport.py`'s room-existence check
+  (`dest not in game_map.rooms`) and its name-search listing, fixed the same way.
+- ✅ **Fixed bug: "Ye may travel:" never printed for full-word exit keys** — `Room.
+  exits_txt()` looked up `compass_txts`, which is keyed by short direction forms
+  (`n`/`s`/`e`/`w`) used for typed movement commands. Room *data*, however, stores
+  exits under full words (`north`/`south`/`east`/`west` --
+  `convert_from_gbbs_tool.py`'s `EXIT_KEYS`, used by every level 2-7 and by
+  level_1.json since its reconciliation onto the modern schema), so the exit list
+  was always empty and the line silently never printed. `exits_txt()` now
+  normalizes full-word keys to short form before the `compass_txts` lookup
+  (`base_classes.py`).
 - **Room flags** — monster blocking (`.`), no-flee (`@@`, `**`, `<<`), random encounter (`]`) — other flags (`+`, `#`, `-`, `*`, `@`, `&`, `E`/`G`, `;;`) belong to monsters, not rooms; see monster abilities in the Combat section above
 - **Orator / Moderator player flag** — a player flag (name TBD — `Orator` or `Moderator`) that
   designates the speaker in an auditorium-type room.  While a flagged player is present, other

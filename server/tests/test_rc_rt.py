@@ -54,3 +54,25 @@ def test_exits_invalid_rc_rt():
     assert 'Down' not in txt
     assert 'Shoppe' not in txt
     assert '#' not in txt
+
+
+def test_exits_full_word_keys():
+    # convert_from_gbbs_tool.py's EXIT_KEYS format (levels 2-7, and level_1.json
+    # since its reconciliation onto the modern schema) -- full words, not the
+    # short forms compass_txts is keyed by. Regression test: before the fix,
+    # this silently produced an empty string, so "Ye may travel:" never
+    # printed anything for any room using this key format.
+    room = Room(number=157, name="The Ocean", desc="",
+                exits={'north': 1, 'south': 1, 'west': 1})
+    txt = room.exits_txt()
+    assert 'North' in txt
+    assert 'South' in txt
+    assert 'West' in txt
+
+
+def test_exits_full_word_keys_with_rc_rt():
+    room = Room(number=6, name="MixedKeys", desc="",
+                exits={'east': 7, 'rc': 1, 'rt': 0})
+    txt = room.exits_txt(debug=True)
+    assert 'East' in txt
+    assert 'Up to Shoppe' in txt

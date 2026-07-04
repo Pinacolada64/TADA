@@ -432,8 +432,21 @@ class Room(object):
           rc == 1: Up connection   rt == 0: Shoppe   rt > 0: room number
           rc == 2: Down connection
         String values from JSON are coerced to int defensively.
+
+        Room data stores exits under full-word keys (north/south/east/west --
+        convert_from_gbbs_tool.py's EXIT_KEYS, used by every level including
+        level_1.json since its reconciliation onto the modern schema), but
+        compass_txts is keyed by the short forms used for typed movement
+        commands (n/s/e/w). Without normalizing here, this always produced an
+        empty exit list -- "Ye may travel:" silently never printed anything.
         """
-        exit_txts = [compass_txts[k] for k in self.exits if k in compass_txts]
+        _full_to_short = {'north': 'n', 'south': 's', 'east': 'e', 'west': 'w',
+                          'up': 'u', 'down': 'd'}
+        exit_txts = [
+            compass_txts[_full_to_short.get(k, k)]
+            for k in self.exits
+            if _full_to_short.get(k, k) in compass_txts
+        ]
         try:
             rc = int(self.exits.get('rc', 0) or 0)
         except (ValueError, TypeError):
