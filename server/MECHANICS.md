@@ -240,8 +240,24 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - ✅ **Ally body building** — giving food/drink to an ally with strength < 11 raises their strength by 1; cursed rations poison the ally instead (strength −1, floor 1) (`SPUR.SUB.S hun.slv`, `commands/give.py _try_body_build()`)
 - **Ally desertion / death** — allies may die or leave if unpaid, injured, or mistreated; status reverts to FREE (`SPUR.MISC6.S`)
 - **Random events** — location-triggered events: little girl encounter, meteor strike, Enforcer arrival, Galadriel appearance (`SPUR.MISC6.S`)
-- **Statue memorial file (turned-to-stone death)** — dying with cause `z=6` ("TURNED TO STONE BY `<monster>`!", e.g. Medusa) triggers the `statue` subroutine: not a player action, an automatic consequence of death. It creates/appends a file named after the killing monster (`dx$+m$`, stripping a leading "THE ") and writes the player's name into it — a permanent per-monster victim log (`SPUR.MISC6.S:113,123-126`)
-- **Statue as room decoration (monster turned to stone)** — separately, when a monster itself is defeated via a turn-to-stone effect (the `#` flag in its status string), its corpse becomes a permanent "statue of `<name>`" object left in the room: too heavy to pick up ("THE STATUE IS MUCH TOO HEAVY!"), examinable ("It is made of stone, and is kind of ugly.") (`SPUR.MAIN.S:386,532-536`, `SPUR.MISC.S:221,234`, `SPUR.MISC3.S:281,289`)
+- ✅ **Turn to stone attack** — a `cast_turn_to_stone`-flagged monster (e.g. Medusa) has a
+  20% chance per attack to attempt petrification instead of a normal swing, 10% chance to
+  succeed once attempted; either way this replaces the normal hit/damage roll entirely for
+  that round (`SPUR.COMBAT.S` "medusa" section, `combat/resolution.py` `monster_attacks()`)
+- ✅ **Statue memorial file (turned-to-stone death)** — a successful petrification is a
+  distinct death flow, not a normal kill: "...ARGG!! YOU ARE TURNED TO STONE!", not a
+  player action, an automatic consequence of death. Creates/appends a file named after the
+  killing monster (stripping a leading "THE "), one victim name per line — a permanent
+  per-monster victim log (`SPUR.MISC6.S:113,123-126`, `combat/engine.py`
+  `CombatSession._player_petrified()` / `_record_statue()`)
+- ⏸️ **Statue as room decoration (monster turned to stone)** — separately, when a monster
+  itself is defeated via a turn-to-stone effect (the `#` flag in its status string), its
+  corpse becomes a permanent "statue of `<name>`" object left in the room: too heavy to
+  pick up ("THE STATUE IS MUCH TOO HEAVY!"), examinable ("It is made of stone, and is kind
+  of ugly.") (`SPUR.MAIN.S:386,532-536`, `SPUR.MISC.S:221,234`, `SPUR.MISC3.S:281,289`).
+  Only a flavor line is implemented so far (`_monster_dies()` prints "`<monster>` turns to
+  stone as it dies!" for these monsters) — a lasting, examinable/GET-blocked room object
+  needs a corpse/room-object persistence system this port doesn't have yet.
 - **AMMO command** — view and manage ammunition counts (`SPUR.MISC5.S`)
 - **STATS / STAT2** — two-level stat display; STAT2 shows extended information (`SPUR.MISC5.S`)
 - **FOLLOW ME command** — causes nearby players or allies to follow the player (`SPUR.MISC5.S`)

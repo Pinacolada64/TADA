@@ -1,0 +1,222 @@
+"""tests/test_turn_to_stone.py
+
+Unit tests for the turn-to-stone mechanic (SPUR.COMBAT.S "medusa" section)
+and the two statue mechanisms it feeds into (SPUR.MISC6.S `statue` /
+SPUR.MAIN.S+SPUR.MISC.S+SPUR.MISC3.S `statue`):
+
+  - combat.resolution.monster_attacks(): a cast_turn_to_stone monster has a
+    20% chance per attack to attempt petrification, 10% chance to succeed
+    once attempted; either way this replaces the normal hit/damage roll
+    entirely for that round.
+  - combat.engine._record_statue(): per-monster memorial file, one victim
+    name appended per line, "THE " prefix stripped from the filename.
+  - CombatSession._player_petrified(): death flow on a successful
+    petrification -- distinct flavor text from a normal kill, records the
+    statue, zeroes hit_points.
+  - CombatSession._monster_dies(): a cast_turn_to_stone monster's own death
+    gets an extra "turns to stone" flavor line.
+
+Run with:
+    python -m pytest tests/test_turn_to_stone.py -v
+"""
+from __future__ import annotations
+
+import os
+import tempfile
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import sys, types
+
+nc_stub = types.ModuleType('network_context')
+nc_stub.GameContext = object
+sys.modules.setdefault('network_context', nc_stub)
+
+from combat.engine import CombatSession, _record_statue
+from combat.resolution import monster_attacks
+
+
+class _FakePlayer:
+    def __init__(self, hit_points=30):
+        self.name = 'Rulan'
+        self.hit_points = hit_points
+        self.unsaved_changes = False
+        self.stats = {}
+        self.shield = 0
+        self.armor = 0
+
+
+class _FakeClient:
+    room = 1
+
+
+class _FakeServer:
+    def __init__(self):
+        self.clients = {}
+        self.active_combats = {}
+
+
+class _FakeCtx:
+    def __init__(self, player):
+        self.player = player
+        self.client = _FakeClient()
+        self.server = _FakeServer()
+        self._sent: list[str] = []
+
+    async def send(self, msg, **kwargs):
+        if isinstance(msg, list):
+            self._sent.extend(str(m) for m in msg)
+        else:
+            self._sent.append(str(msg))
+
+    async def send_room(self, msg, **kwargs):
+        pass
+
+    def sent(self) -> str:
+        return '\n'.join(self._sent)
+
+
+# ---------------------------------------------------------------------------
+# monster_attacks(): turn-to-stone roll
+# ---------------------------------------------------------------------------
+
+class TestTurnToStoneRoll(unittest.TestCase):
+    def test_no_attempt_without_the_flag(self):
+        monster = {'name': 'GOBLIN', 'to_hit': 4, 'strength': 10, 'flags': {}}
+        with patch('combat.resolution.random.randint', return_value=1):
+            result = monster_attacks(monster, _FakePlayer())
+        self.assertFalse(result.turn_to_stone_attempted)
+
+    def test_attempt_and_success(self):
+        monster = {'name': 'MEDUSA', 'to_hit': 4, 'strength': 10,
+                   'flags': {'cast_turn_to_stone': True}}
+        with patch('combat.resolution.random.randint', side_effect=[2, 1]):
+            result = monster_attacks(monster, _FakePlayer())
+        self.assertTrue(result.turn_to_stone_attempted)
+        self.assertTrue(result.turned_to_stone)
+        self.assertFalse(result.hit)
+        self.assertEqual(result.damage, 0)
+
+    def test_attempt_and_fail(self):
+        monster = {'name': 'MEDUSA', 'to_hit': 4, 'strength': 10,
+                   'flags': {'cast_turn_to_stone': True}}
+        with patch('combat.resolution.random.randint', side_effect=[2, 5]):
+            result = monster_attacks(monster, _FakePlayer())
+        self.assertTrue(result.turn_to_stone_attempted)
+        self.assertFalse(result.turned_to_stone)
+
+    def test_flagged_monster_can_still_attack_normally(self):
+        # roll(1,10) > 2 -> no petrification attempt this round at all
+        monster = {'name': 'MEDUSA', 'to_hit': 4, 'strength': 10,
+                   'flags': {'cast_turn_to_stone': True}}
+        with patch('combat.resolution.random.randint', return_value=9):
+            result = monster_attacks(monster, _FakePlayer())
+        self.assertFalse(result.turn_to_stone_attempted)
+        self.assertFalse(result.turned_to_stone)
+
+
+# ---------------------------------------------------------------------------
+# _record_statue(): memorial file
+# ---------------------------------------------------------------------------
+
+class TestRecordStatue(unittest.TestCase):
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp(prefix='tada-statue-test-')
+        import net_common
+        self._orig = getattr(net_common, 'run_server_dir', None)
+        net_common.run_server_dir = self.tmpdir
+
+    def tearDown(self):
+        import net_common, shutil
+        net_common.run_server_dir = self._orig
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_strips_leading_the(self):
+        _record_statue('THE MEDUSA', 'Rulan')
+        path = os.path.join(self.tmpdir, 'statues', 'MEDUSA.txt')
+        self.assertTrue(os.path.exists(path))
+        self.assertEqual(open(path).read().strip(), 'Rulan')
+
+    def test_appends_multiple_victims(self):
+        _record_statue('MEDUSA', 'Rulan')
+        _record_statue('MEDUSA', 'Bilbo')
+        path = os.path.join(self.tmpdir, 'statues', 'MEDUSA.txt')
+        self.assertEqual(open(path).read().splitlines(), ['Rulan', 'Bilbo'])
+
+    def test_sanitizes_unsafe_filename_characters(self):
+        _record_statue('THE GUARD ==[]', 'Rulan')
+        path = os.path.join(self.tmpdir, 'statues', 'GUARD.txt')
+        self.assertTrue(os.path.exists(path))
+
+    def test_does_not_raise_on_io_error(self):
+        import net_common
+        net_common.run_server_dir = '/nonexistent-path-hopefully/subdir'
+        try:
+            _record_statue('MEDUSA', 'Rulan')  # should log and swallow, not raise
+        except Exception as e:
+            self.fail(f'_record_statue raised unexpectedly: {e}')
+
+
+# ---------------------------------------------------------------------------
+# CombatSession._player_petrified()
+# ---------------------------------------------------------------------------
+
+class TestPlayerPetrified(unittest.IsolatedAsyncioTestCase):
+    async def test_petrified_flow(self):
+        self.tmpdir = tempfile.mkdtemp(prefix='tada-statue-test-')
+        import net_common
+        orig = getattr(net_common, 'run_server_dir', None)
+        net_common.run_server_dir = self.tmpdir
+        try:
+            player = _FakePlayer(hit_points=20)
+            ctx = _FakeCtx(player)
+            session = CombatSession({'name': 'MEDUSA', 'strength': 10}, room_no=1)
+
+            await session._player_petrified(ctx)
+
+            self.assertEqual(player.hit_points, 0)
+            self.assertTrue(session._done.is_set())
+            self.assertIn('TURNED TO STONE', ctx.sent())
+            self.assertIn('Carving your statue', ctx.sent())
+
+            path = os.path.join(self.tmpdir, 'statues', 'MEDUSA.txt')
+            self.assertEqual(open(path).read().strip(), 'Rulan')
+        finally:
+            import shutil
+            net_common.run_server_dir = orig
+            shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+
+# ---------------------------------------------------------------------------
+# CombatSession._monster_dies(): statue flavor for cast_turn_to_stone monsters
+# ---------------------------------------------------------------------------
+
+class TestMonsterTurnsToStoneOnDeath(unittest.IsolatedAsyncioTestCase):
+    async def test_flavor_line_for_cast_turn_to_stone_monster(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(player)
+        session = CombatSession(
+            {'name': 'MEDUSA', 'strength': 0, 'flags': {'cast_turn_to_stone': True}},
+            room_no=1,
+        )
+        with patch.object(session, '_recover_ammo', new=AsyncMock()), \
+             patch('combat.engine._record_kill'), \
+             patch('combat.engine._give_silver'), \
+             patch('combat.rewards.gold_from_monster', return_value=0):
+            await session._monster_dies(ctx)
+        self.assertIn('turns to stone', ctx.sent().lower())
+
+    async def test_no_flavor_line_for_ordinary_monster(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN', 'strength': 0, 'flags': {}}, room_no=1)
+        with patch.object(session, '_recover_ammo', new=AsyncMock()), \
+             patch('combat.engine._record_kill'), \
+             patch('combat.engine._give_silver'), \
+             patch('combat.rewards.gold_from_monster', return_value=0):
+            await session._monster_dies(ctx)
+        self.assertNotIn('turns to stone', ctx.sent().lower())
+
+
+if __name__ == '__main__':
+    unittest.main()

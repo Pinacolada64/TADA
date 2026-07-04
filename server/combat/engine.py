@@ -23,6 +23,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import re
+from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 from combat.resolution import (
@@ -160,6 +162,31 @@ async def _add_exp(ctx: 'GameContext', amount: int) -> None:
         player.unsaved_changes = True
         log.info('level_up: %s is now level %d', _player_name(ctx), player.xp_level)
         await ctx.send(f'Congratulations!  You are now a Level {player.xp_level} player!')
+
+
+def _record_statue(monster_name: str, player_name: str) -> None:
+    """Append player_name to a per-monster memorial file (SPUR.MISC6.S `statue`
+    subroutine): dy$=dx$+m$ (stripping a leading "THE "), one victim name
+    appended per line, never cleared. No I/O errors should interrupt combat,
+    so failures are logged and swallowed.
+    """
+    try:
+        import net_common
+        base = getattr(net_common, 'run_server_dir', None) or Path('./run/server')
+        base = Path(base)
+        statues_dir = base / 'statues'
+        statues_dir.mkdir(parents=True, exist_ok=True)
+
+        name = monster_name.strip()
+        if name.upper().startswith('THE '):
+            name = name[4:]
+        safe_name = re.sub(r'[^A-Za-z0-9 _-]', '', name).strip() or 'unknown'
+
+        path = statues_dir / f'{safe_name}.txt'
+        with open(path, 'a') as f:
+            f.write(f'{player_name}\n')
+    except Exception:
+        log.exception('_record_statue: failed to record %s petrified by %s', player_name, monster_name)
 
 
 def _apply_dex_change(player, delta: int) -> None:
@@ -630,6 +657,18 @@ class CombatSession:
                 # Monster swings back at leader
                 m_result = monster_attacks(self.monster, player)
 
+                # Turn to stone (SPUR.COMBAT.S "medusa" section): replaces the
+                # rest of the monster's attack this round entirely.
+                if m_result.turn_to_stone_attempted:
+                    mname_ts = self.monster.get('name', 'The monster')
+                    await ctx.send(f'{mname_ts} CASTS TURN TO STONE ON YOU!')
+                    if m_result.turned_to_stone:
+                        await self._player_petrified(ctx)
+                        return
+                    await ctx.send('...IT FAILED!')
+                    self._monster_attack_count += 1
+                    continue
+
                 # Druid regeneration: when nearly dead, 10% chance to heal
                 # instead of taking damage (SPUR.COMBAT.S lines 204-207:
                 # pc=2, (hp+a)<30, rnd.10z z=5 → "YO! YOU REGENERATE HIT POINTS!")
@@ -1040,6 +1079,16 @@ class CombatSession:
         mname = self.monster.get('name', 'The monster')
 
         await ctx.send(f'|green|You have slain the {mname}!|reset|')
+
+        # A monster that can itself cast turn-to-stone becomes a statue upon
+        # death, appropriately (SPUR.MAIN.S/SPUR.MISC.S/SPUR.MISC3.S: any
+        # monster flagged "#" leaves "a statue of <name>" behind in the room --
+        # too heavy to GET, examined as "made of stone, and kind of ugly").
+        # Not yet persisted as a lasting room object (no corpse/room-object
+        # tracking system exists in this port yet) -- flavor only for now.
+        if (self.monster.get('flags', {}) or {}).get('cast_turn_to_stone'):
+            await ctx.send(f'{mname} turns to stone as it dies!')
+
         await ctx.send_room(
             f'{_player_name(ctx)} slays the {mname}!',
             exclude_self=True,
@@ -1126,6 +1175,29 @@ class CombatSession:
             exclude_self=True,
         )
         # Mark player dead (caller handles disconnect/respawn flow)
+        ctx.player.hit_points = 0
+
+    async def _player_petrified(self, ctx: 'GameContext') -> None:
+        """Handle death by petrification (SPUR.MISC6.S death cause z=6).
+
+        Unlike a normal kill, this doesn't announce "slain by" -- the flavor
+        is that the player is turned to stone. Also writes a permanent
+        memorial: a file named after the monster (stripped of a leading
+        "THE "), one player name appended per victim, mirroring the original
+        `statue` subroutine's `dy$=dx$+m$ ... print #1,n1$`.
+        """
+        self._done.set()
+        mname = self.monster.get('name', 'The monster')
+        await ctx.send([
+            f'|red|...ARGG!! YOU ARE TURNED TO STONE!|reset|',
+            'Your adventure ends here...',
+        ])
+        await ctx.send_room(
+            f'|red|{_player_name(ctx)} has been turned to stone by {mname}!|reset|',
+            exclude_self=True,
+        )
+        await ctx.send('(Carving your statue!)')
+        _record_statue(mname, _player_name(ctx))
         ctx.player.hit_points = 0
         ctx.player.unsaved_changes = True
 
