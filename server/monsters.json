@@ -253,9 +253,9 @@
             "multiple_monsters": false,
             "no_article": false,
             "charmable": false,
-            "has_quote": false
+            "has_quote": true
         },
-        "quote_number": null,
+        "quote_number": 20,
         "description": null
     },
     {
@@ -697,9 +697,9 @@
             "multiple_monsters": false,
             "no_article": false,
             "charmable": false,
-            "has_quote": false
+            "has_quote": true
         },
-        "quote_number": null,
+        "quote_number": 41,
         "description": null
     },
     {
@@ -2029,9 +2029,9 @@
             "multiple_monsters": false,
             "no_article": false,
             "charmable": false,
-            "has_quote": false
+            "has_quote": true
         },
-        "quote_number": null,
+        "quote_number": 33,
         "description": null
     },
     {
@@ -3953,9 +3953,9 @@
             "multiple_monsters": false,
             "no_article": false,
             "charmable": false,
-            "has_quote": false
+            "has_quote": true
         },
-        "quote_number": null,
+        "quote_number": 42,
         "description": null
     },
     {
@@ -4656,9 +4656,9 @@
             "multiple_monsters": false,
             "no_article": false,
             "charmable": false,
-            "has_quote": false
+            "has_quote": true
         },
-        "quote_number": null,
+        "quote_number": 31,
         "description": null
     },
     {
