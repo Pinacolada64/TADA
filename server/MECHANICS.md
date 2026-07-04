@@ -184,6 +184,20 @@ implemented, or not yet started. Source references are to files under `SPUR-code
   computes the candidate and confirms it actually exists before allowing the move
   (level 1's numbering has real gaps) — logs a debug message either way
   (`simple_server.py` `_move()`/`_hidden_exit_target()`).
+- Fixed data bug: `level_1.json` room 89's name carried a stray `"TELEPORT
+  ROOM|->"` suffix — a leftover flag-recovery artifact from the level 1
+  reconciliation (`parse_name_field()` used the `|->` marker to recover the
+  `hidden_exit_east` flag, but the marker was never meant to display).
+  Cleaned to plain `"TELEPORT ROOM"`; distinct from level 1's legitimate
+  alignment symbols (`+`, `-]----`, `HQ`) which are intentionally kept visible.
+- ✅ **Debug mode room-flags display** — when `player.is_debug` is true,
+  `_describe_room()` appends a `[DEBUG] Room flags: ...` line listing the
+  room's raw flags (e.g. `hidden_exit_east`) right after the "Ye may travel"
+  exits line; omitted for non-debug players and for flagless rooms
+  (`simple_server.py` `_describe_room()`).
+- ✅ **`DBG` command** (`commands/dbg.py`) — shortcut for
+  `player.toggle_flag(PlayerFlags.DEBUG_MODE)`; same underlying flag
+  EditPlayer's flags menu already toggles, just without the menu hops.
 - **Orator / Moderator player flag** — a player flag (name TBD — `Orator` or `Moderator`) that
   designates the speaker in an auditorium-type room.  While a flagged player is present, other
   players in the room cannot use `say`; instead they submit questions or comments via a `q` command

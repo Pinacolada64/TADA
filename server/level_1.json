@@ -1119,7 +1119,7 @@
         },
         {
             "number": 89,
-            "name": "TELEPORT ROOM|->",
+            "name": "TELEPORT ROOM",
             "room_alignment": "neutral",
             "flags": [
                 "hidden_exit_east"

@@ -655,6 +655,10 @@ class Server:
             exits_str = room.exits_txt(debug)
             if exits_str:
                 lines += ['', f"Ye may travel {exits_str}."]
+            if debug:
+                room_flags = getattr(room, 'flags', None) or []
+                if room_flags:
+                    lines.append(f"[DEBUG] Room flags: {', '.join(room_flags)}")
         except Exception:
             pass
 
