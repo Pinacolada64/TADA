@@ -44,6 +44,15 @@ PETSCII_PORT = 34064
 _WILD_HORSE_ROOMS = (30, 52, 68)
 _WILD_HORSE_MONSTER_NUMBER = 136
 
+# Hidden exits (SPUR.MISC.S:419 "->"/"<-" markers): the marker only sets a
+# boolean "exit exists" flag on the room, not a target -- the destination
+# follows the same +/-1 room-number adjacency as ordinary same-row exits.
+# Confirmed against level 5 room 140 -> 141 (Headhunter's Island's Village ->
+# Chief's Treasure Room) and level 1 room 89 -> 90 (Teleport Room -> Gate
+# Room, whose own description narrates the hidden passage).
+_HIDDEN_EXIT_FLAGS = {'e': 'hidden_exit_east', 'w': 'hidden_exit_west'}
+_HIDDEN_EXIT_DELTA = {'e': 1, 'w': -1}
+
 # ---------------------------------------------------------------------------
 # Per-connection logging context
 # ---------------------------------------------------------------------------
@@ -674,6 +683,9 @@ class Server:
 
         dest = getattr(room, 'exits', {}).get(direction)
         if not dest:
+            dest = self._hidden_exit_target(room, direction, level)
+
+        if not dest:
             await ctx.send(f"Can't go {compass_txts[direction].lower()}.")
             logging.debug('EXIT (no exit) direction=%r room=%r', direction, room_no)
             return
@@ -685,6 +697,31 @@ class Server:
         await self._show_room(ctx)
         from ally_events import try_ally_find_gold
         await try_ally_find_gold(ctx)
+
+    def _hidden_exit_target(self, room, direction: str, level: int) -> int | None:
+        """Resolve a hidden_exit_east/west flag to a target room, if any.
+
+        See _HIDDEN_EXIT_FLAGS/_HIDDEN_EXIT_DELTA above for the reasoning:
+        the flag only says an exit exists, not where it goes, so this
+        computes room_number +/-1 and confirms that room actually exists
+        before allowing the move (level 1's numbering has real gaps).
+        """
+        flag = _HIDDEN_EXIT_FLAGS.get(direction)
+        room_flags = getattr(room, 'flags', None) or []
+        if not flag or flag not in room_flags:
+            return None
+
+        candidate = int(room.number) + _HIDDEN_EXIT_DELTA[direction]
+        target = self.game_map.get_room(level, candidate) if self.game_map else None
+        if target:
+            logging.debug('Hidden exit %r found in room %s (level %s) -> room %s',
+                          direction, room.number, level, candidate)
+            return candidate
+
+        logging.debug('Hidden exit %r found in room %s (level %s), but target '
+                      'room %s does not exist -- blocking the move',
+                      direction, room.number, level, candidate)
+        return None
 
     # -----------------------------------------------------------------------
     # Broadcast

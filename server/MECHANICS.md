@@ -173,6 +173,17 @@ implemented, or not yet started. Source references are to files under `SPUR-code
   normalizes full-word keys to short form before the `compass_txts` lookup
   (`base_classes.py`).
 - **Room flags** — monster blocking (`.`), no-flee (`@@`, `**`, `<<`), random encounter (`]`) — other flags (`+`, `#`, `-`, `*`, `@`, `&`, `E`/`G`, `;;`) belong to monsters, not rooms; see monster abilities in the Combat section above
+- ✅ **Hidden exits** (`hidden_exit_east`/`hidden_exit_west`) — `SPUR.MISC.S:419`'s
+  `"->"`/`"<-"` markers only set a boolean "exit exists" flag on the room; the
+  original source never stores a target room number for them. The destination
+  follows the same `room_number ± 1` adjacency ordinary same-row exits already use
+  in the converted data — confirmed against two real cases: level 5 room 140
+  "Village" → 141 "The Chief's Treasure Room" (the Headhunter's Island quest
+  reward), and level 1 room 89 "Teleport Room" → 90 "Gate Room" (room 89's own
+  description narrates noticing the hidden passage). `Server._hidden_exit_target()`
+  computes the candidate and confirms it actually exists before allowing the move
+  (level 1's numbering has real gaps) — logs a debug message either way
+  (`simple_server.py` `_move()`/`_hidden_exit_target()`).
 - **Orator / Moderator player flag** — a player flag (name TBD — `Orator` or `Moderator`) that
   designates the speaker in an auditorium-type room.  While a flagged player is present, other
   players in the room cannot use `say`; instead they submit questions or comments via a `q` command
