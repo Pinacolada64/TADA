@@ -62,6 +62,8 @@ _FRIENDLY_RANGE = (61, 71)
 _FRIENDLY_EVIL_RACES = {'Ogre', 'Half-Elf'}
 _FRIENDLY_GOOD_RACES = {'Pixie', 'Elf'}
 
+_CRYSTAL_PENDANT_ID = 82   # objects.json -- blocks turn-to-stone (SPUR.MISC4.S)
+
 
 def _pick_monster_quote(ctx: 'GameContext', monster: dict) -> Optional[str]:
     """Return a monster quote string (player name substituted for '$'), or None
@@ -297,6 +299,11 @@ class CombatSession:
         # (skip branch SPUR.COMBAT.S m.attack instr("*MNT",ys$) branch).
         # Only ever True on the first exchange (monster_attack_count == 0).
         self._charge_eligible = False
+        # Crystal Pendant (item #82): resolved once per encounter (SPUR.MISC4.S
+        # mon.set/stone, called when the monster is first set up, not per
+        # round) -- if it blocks, the monster can never attempt turn-to-stone
+        # for the rest of this fight. See _check_crystal_pendant().
+        self._turn_to_stone_blocked = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -454,6 +461,36 @@ class CombatSession:
         except Exception:
             log.exception('Failed to write battle.log')
 
+    async def _check_crystal_pendant(self, ctx: 'GameContext') -> None:
+        """Crystal Pendant (item #82): if the monster can cast turn-to-stone
+        and the player carries the pendant, roll once (not per-round) for
+        whether it blocks that ability for the rest of this encounter.
+
+        SPUR.MISC4.S mon.set/stone: 90% chance ("The CRYSTAL PENDANT flashes,
+        preventing TURN TO STONE by <monster>!") permanently disables the
+        monster's turn-to-stone for this fight; 10% chance the monster
+        "happens to see" the pendant and counters it this one time (turn-to-
+        stone remains possible for the rest of the fight either way).
+        """
+        if not (self.monster.get('flags', {}) or {}).get('cast_turn_to_stone'):
+            return
+        player = ctx.player
+        inventory = getattr(player, 'inventory', None)
+        if not inventory or not inventory.find(item_id=_CRYSTAL_PENDANT_ID):
+            return
+
+        mname = self.monster.get('name', 'The monster')
+        if random.randint(1, 10) != 5:
+            self._turn_to_stone_blocked = True
+            await ctx.send(f'The CRYSTAL PENDANT flashes, preventing TURN TO STONE by {mname}!')
+        else:
+            await ctx.send([
+                f'{mname} happens to see you are',
+                'wearing the CRYSTAL PENDANT, and',
+                'quickly puts on ANTI-CRYSTAL PENDANT',
+                'glasses!',
+            ])
+
     def _random_exit(self, ctx: 'GameContext') -> str | None:
         """Return a random navigable exit direction from the player's current room, or None."""
         import random
@@ -485,6 +522,10 @@ class CombatSession:
         quote = _pick_monster_quote(ctx, self.monster)
         if quote:
             await ctx.send(f"'{quote}'")
+
+        # Crystal Pendant (SPUR.MISC4.S mon.set/stone) -- resolved once, here,
+        # when the monster is first set up for this encounter.
+        await self._check_crystal_pendant(ctx)
 
         while not self._done.is_set():
             # ---- Per-round status warnings (SPUR.COMBAT.S lines 21-25, 88) ----
@@ -655,7 +696,8 @@ class CombatSession:
                             await ctx.send("OOPS, DIDN'T GET FIRST STRIKE..")
 
                 # Monster swings back at leader
-                m_result = monster_attacks(self.monster, player)
+                m_result = monster_attacks(self.monster, player,
+                                           stone_blocked=self._turn_to_stone_blocked)
 
                 # Turn to stone (SPUR.COMBAT.S "medusa" section): replaces the
                 # rest of the monster's attack this round entirely.
@@ -701,9 +743,17 @@ class CombatSession:
                 if (m_flags.get('double_attacks')
                         and random.randint(1, 10) <= 4
                         and not self._done.is_set()):
-                    m_result2 = monster_attacks(self.monster, player)
+                    m_result2 = monster_attacks(self.monster, player,
+                                                stone_blocked=self._turn_to_stone_blocked)
                     await ctx.send('DOUBLE ATTACK!')
-                    if await self._resolve_monster_hit(ctx, m_result2):
+                    if m_result2.turn_to_stone_attempted:
+                        mname_ts2 = self.monster.get('name', 'The monster')
+                        await ctx.send(f'{mname_ts2} CASTS TURN TO STONE ON YOU!')
+                        if m_result2.turned_to_stone:
+                            await self._player_petrified(ctx)
+                            return
+                        await ctx.send('...IT FAILED!')
+                    elif await self._resolve_monster_hit(ctx, m_result2):
                         return
                     self._monster_attack_count += 1
 

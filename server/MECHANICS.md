@@ -43,7 +43,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - ✅ **USE ammo command** — loads ammo into a readied ranged weapon; checks `used_with`; STORM refuses physical ammo (`SPUR.USE.S:147–162`, `commands/use.py`)
 - ✅ **Missile: first strike** — when ammo is loaded and monster hasn't attacked yet, monster skips its first swing; "MISSILE: FIRST STRIKE!" message (`SPUR.COMBAT.S:219`, `engine.py`)
 - ✅ **Pole weapon: first strike** — roll + (monster agility × 3) + 2 < player DEX → first strike; otherwise monster swings normally (`SPUR.COMBAT.S:221`, `engine.py`)
-- **Fireball/energy weapon secondary damage** — 10% chance of secondary heat damage (`SPUR.COMBAT.S:143`)
+- ✅ **Fireball/energy weapon secondary damage** — 10% chance of secondary heat damage (`SPUR.COMBAT.S:143`, `resolution.py:511-514`)
 - **LURK mode** — player fires over allies' shoulders; to-hit penalty; requires at least one living ally (`SPUR.COMBAT.S:87–96`)
 - ✅ **Assassin critical hit** — class 8 (Assassin), 10% chance to double damage (`SPUR.COMBAT.S:135`, `resolution.py:435`)
 - ✅ **Ease-of-use help message** — "(Ease of use helps!)" when roll barely misses and ease-of-use score would have made the difference (`SPUR.COMBAT.S:139`, `resolution.py:416`, `engine.py:541`)
@@ -56,10 +56,10 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Wizard's glow** — item `zu$[7]` values 2/3 reduce incoming damage by 2 (`SPUR.COMBAT.S:266`)
 - **Lazer shield** — energized shield variant; blocks laser fire at half damage (`SPUR.USE.S:86`)
 - **Power armor** — specific item; halves blast damage (`SPUR.USE.S:124`)
+- ✅ **Crystal Pendant** (item #82) — resolved once per encounter, not per round (`SPUR.MISC4.S` `mon.set`/`stone`, called when the monster is first set up): if the player carries it and the monster can `cast_turn_to_stone`, 90% chance to permanently disable that monster's turn-to-stone for the rest of the fight ("The CRYSTAL PENDANT flashes, preventing TURN TO STONE by `<monster>`!"), 10% chance the monster "happens to see" it and dons anti-pendant glasses that one time (petrification remains possible for the rest of the fight either way) (`combat/engine.py` `CombatSession._check_crystal_pendant()`)
 
 #### Monster abilities
 - **Monster spellcasting** — monsters with `+` flag in `wy$` can cast spells when low HP (`SPUR.COMBAT.S` `lnk.msc4`)
-- **Turn to stone** — monsters with `#` flag; 10% chance per attack; player dies if fails second roll (`SPUR.COMBAT.S:229–235`)
 - **Monster fire/laser** — monsters with `-` flag shoot fire; laser-equipped rooms use laser fire (`SPUR.COMBAT.S:240–248`)
 - ✅ **Poison on hit** — monsters with `poisonous_attack` flag; 30% chance per hit (`SPUR.COMBAT.S:312–313`, `resolution.py:639`, `engine.py:603`)
 - ✅ **Disease on hit** — monsters with `diseased_attack` flag; 30% chance per hit (`SPUR.COMBAT.S:315–316`, `resolution.py:641`, `engine.py:605`)
@@ -97,10 +97,10 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 ### Implemented
 - **Ready command** — choose weapon from inventory; display class/weapon stats (`commands/ready.py`)
 - **Battle experience tiers** — GREEN / VETERAN / ELITE thresholds displayed on ready (`commands/ready.py`)
-- **STORM — howls in rage** — refuses to be switched away from; zaps player; disintegrates (`commands/ready.py`)
-- **STORM — jealous rage** — unreadied STORM in inventory howls when player readies something else (`commands/ready.py`)
-- **STORM — servant** — accepts player with good class/race affinity; grants +2 skill/damage (`commands/ready.py`, `combat/engine.py`)
-- **STORM — YOU ARE NOT MINE** — rejects player with no class/race affinity (`commands/ready.py`)
+- ✅ **STORM — howls in rage** — refuses to be switched away from; zaps player; disintegrates (`commands/ready.py`)
+- ✅ **STORM — jealous rage** — unreadied STORM in inventory howls when player readies something else (`commands/ready.py`)
+- ✅ **STORM — servant** — accepts player with good class/race affinity; grants +2 skill/damage (`commands/ready.py`, `combat/engine.py`)
+- ✅ **STORM — YOU ARE NOT MINE** — rejects player with no class/race affinity (`commands/ready.py`)
 - **UNREADY command** — clears readied weapon (`SPUR.MAIN.S`)
 
 ### Not Implemented

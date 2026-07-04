@@ -606,10 +606,15 @@ def _calc_player_damage(ws: float, wd: float, zv: int, monster: dict, xp_level: 
 # Monster attacks player
 # ---------------------------------------------------------------------------
 
-def monster_attacks(monster: dict, player) -> MonsterAttackResult:
+def monster_attacks(monster: dict, player, *, stone_blocked: bool = False) -> MonsterAttackResult:
     """
     Resolve one monster attack against the player.
     (SPUR.COMBAT.S m.attack / medusa section, lines 217-322)
+
+    stone_blocked: True once the Crystal Pendant has blocked this monster's
+    turn-to-stone for the rest of the encounter (SPUR.MISC4.S mon.set/stone
+    -- resolved once per encounter by the caller, not per attack; see
+    combat/engine.py CombatSession._check_crystal_pendant()).
 
     Returns MonsterAttackResult.  Caller applies hp loss, shield/armor
     degradation, and passes poisoned/diseased to effects.py.
@@ -618,7 +623,9 @@ def monster_attacks(monster: dict, player) -> MonsterAttackResult:
     # monster has a 20% chance per attack to attempt this instead of a normal
     # swing; on attempt, a 10% chance to succeed. Either way this replaces the
     # rest of the attack for this round -- no normal hit/damage roll happens.
-    if (monster.get('flags', {}) or {}).get('cast_turn_to_stone') and random.randint(1, 10) <= 2:
+    if (not stone_blocked
+            and (monster.get('flags', {}) or {}).get('cast_turn_to_stone')
+            and random.randint(1, 10) <= 2):
         succeeded = random.randint(1, 10) == 1
         return MonsterAttackResult(
             hit=False, damage=0,

@@ -36,14 +36,23 @@ from combat.engine import CombatSession, _record_statue
 from combat.resolution import monster_attacks
 
 
+class _FakeInventory:
+    def __init__(self, item_ids=None):
+        self._item_ids = set(item_ids or [])
+
+    def find(self, *, item_id=None, **kwargs):
+        return ['present'] if item_id in self._item_ids else []
+
+
 class _FakePlayer:
-    def __init__(self, hit_points=30):
+    def __init__(self, hit_points=30, item_ids=None):
         self.name = 'Rulan'
         self.hit_points = hit_points
         self.unsaved_changes = False
         self.stats = {}
         self.shield = 0
         self.armor = 0
+        self.inventory = _FakeInventory(item_ids)
 
 
 class _FakeClient:
@@ -113,6 +122,15 @@ class TestTurnToStoneRoll(unittest.TestCase):
             result = monster_attacks(monster, _FakePlayer())
         self.assertFalse(result.turn_to_stone_attempted)
         self.assertFalse(result.turned_to_stone)
+
+    def test_stone_blocked_prevents_any_attempt(self):
+        # Crystal Pendant has permanently blocked this monster's ability --
+        # no attempt roll should even happen, regardless of dice.
+        monster = {'name': 'MEDUSA', 'to_hit': 4, 'strength': 10,
+                   'flags': {'cast_turn_to_stone': True}}
+        with patch('combat.resolution.random.randint', return_value=1):
+            result = monster_attacks(monster, _FakePlayer(), stone_blocked=True)
+        self.assertFalse(result.turn_to_stone_attempted)
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +203,63 @@ class TestPlayerPetrified(unittest.IsolatedAsyncioTestCase):
             import shutil
             net_common.run_server_dir = orig
             shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+
+# ---------------------------------------------------------------------------
+# CombatSession._check_crystal_pendant()
+# ---------------------------------------------------------------------------
+
+class TestCrystalPendant(unittest.IsolatedAsyncioTestCase):
+    async def test_no_check_without_the_monster_flag(self):
+        player = _FakePlayer(item_ids=[82])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN', 'flags': {}}, room_no=1)
+        await session._check_crystal_pendant(ctx)
+        self.assertFalse(session._turn_to_stone_blocked)
+        self.assertEqual(ctx.sent(), '')
+
+    async def test_no_check_without_the_pendant(self):
+        player = _FakePlayer(item_ids=[])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'MEDUSA', 'flags': {'cast_turn_to_stone': True}}, room_no=1)
+        with patch('combat.engine.random.randint', return_value=1):
+            await session._check_crystal_pendant(ctx)
+        self.assertFalse(session._turn_to_stone_blocked)
+        self.assertEqual(ctx.sent(), '')
+
+    async def test_pendant_blocks_on_success_roll(self):
+        player = _FakePlayer(item_ids=[82])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'MEDUSA', 'flags': {'cast_turn_to_stone': True}}, room_no=1)
+        with patch('combat.engine.random.randint', return_value=1):  # != 5 -> blocks
+            await session._check_crystal_pendant(ctx)
+        self.assertTrue(session._turn_to_stone_blocked)
+        self.assertIn('CRYSTAL PENDANT flashes', ctx.sent())
+
+    async def test_monster_counters_on_five_roll(self):
+        player = _FakePlayer(item_ids=[82])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'MEDUSA', 'flags': {'cast_turn_to_stone': True}}, room_no=1)
+        with patch('combat.engine.random.randint', return_value=5):  # countered
+            await session._check_crystal_pendant(ctx)
+        self.assertFalse(session._turn_to_stone_blocked)
+        self.assertIn('ANTI-CRYSTAL PENDANT', ctx.sent())
+
+    async def test_blocked_state_feeds_into_monster_attacks(self):
+        # End-to-end: pendant blocks once, then no petrification attempt for
+        # the rest of the encounter regardless of dice.
+        player = _FakePlayer(item_ids=[82])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'MEDUSA', 'to_hit': 4, 'strength': 10,
+                                 'flags': {'cast_turn_to_stone': True}}, room_no=1)
+        with patch('combat.engine.random.randint', return_value=1):
+            await session._check_crystal_pendant(ctx)
+        self.assertTrue(session._turn_to_stone_blocked)
+
+        with patch('combat.resolution.random.randint', return_value=1):
+            result = monster_attacks(session.monster, player,
+                                     stone_blocked=session._turn_to_stone_blocked)
+        self.assertFalse(result.turn_to_stone_attempted)
 
 
 # ---------------------------------------------------------------------------
