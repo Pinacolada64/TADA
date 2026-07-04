@@ -11,7 +11,7 @@ import logging
 import sys
 from pathlib import Path
 
-from monsters import monster_flag_labels, load_monsters, save_monsters, monster_sizes, all_monster_keys
+from monsters import monster_flag_labels, load_monsters, save_monsters, load_quotes, monster_sizes, all_monster_keys
 from menu_system import Menu, MenuItem, run_menu
 from terminal_context import GameContext as TerminalContext, run_local
 from tada_utilities import header, input_yes_no, input_number_range
@@ -26,17 +26,6 @@ LEVEL_FILES  = [Path('..') / 'SPUR-data' / f'level-{i}' / f'level-{i}.json'
 # ---------------------------------------------------------------------------
 # Load helpers
 # ---------------------------------------------------------------------------
-
-def load_quotes(path: str) -> dict[int, str]:
-    try:
-        with open(path) as f:
-            data = json.load(f)
-        logging.info("Loaded %d quotes from '%s'", len(data), path)
-        return {q['number']: q['quote'] for q in data}
-    except FileNotFoundError:
-        logging.warning("'%s' not found, quotes unavailable.", path)
-        return {}
-
 
 def load_weapons(path: str) -> dict[int, str]:
     try:

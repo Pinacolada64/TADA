@@ -50,6 +50,42 @@ def _player_name(ctx: 'GameContext') -> str:
     return getattr(ctx.player, 'name', 'Someone')
 
 
+# Monster-quote pools (SPUR.MISC4.S mon.ret / perm.qt): a monster picks a fixed
+# quote if one is assigned (monster['quote_number']), otherwise a random one --
+# aggressive taunt (1-52) normally, or a friendly greeting (61-71) if the
+# player's race is thematically simpatico with the monster's alignment flag
+# (Ogre/Half-Elf + an evil monster, or Pixie/Elf + a good monster).
+_TAUNT_RANGE    = (1, 52)
+_FRIENDLY_RANGE = (61, 71)
+_FRIENDLY_EVIL_RACES = {'Ogre', 'Half-Elf'}
+_FRIENDLY_GOOD_RACES = {'Pixie', 'Elf'}
+
+
+def _pick_monster_quote(ctx: 'GameContext', monster: dict) -> Optional[str]:
+    """Return a monster quote string (player name substituted for '$'), or None
+    if no quotes are loaded."""
+    quotes = getattr(ctx.server, 'monster_quotes', None) or {}
+    if not quotes:
+        return None
+
+    quote_number = monster.get('quote_number')
+    if not quote_number:
+        m_flags = monster.get('flags', {}) or {}
+        race = str(getattr(ctx.player, 'char_race', '') or '')
+        friendly = ((m_flags.get('evil') and race in _FRIENDLY_EVIL_RACES) or
+                    (m_flags.get('good') and race in _FRIENDLY_GOOD_RACES))
+        lo, hi = _FRIENDLY_RANGE if friendly else _TAUNT_RANGE
+        available = [n for n in range(lo, hi + 1) if n in quotes]
+        if not available:
+            return None
+        quote_number = random.choice(available)
+
+    text = quotes.get(quote_number)
+    if not text:
+        return None
+    return text.replace('$', _player_name(ctx))
+
+
 def _weapon_class_str(weapon) -> str:
     wc = getattr(weapon, 'weapon_class', None)
     if wc is None:
@@ -417,6 +453,11 @@ class CombatSession:
             f'{_player_name(ctx)} attacks the {mname}!',
             exclude_self=True,
         )
+
+        # Monster taunt/greeting (SPUR.MISC4.S mon.ret/perm.qt)
+        quote = _pick_monster_quote(ctx, self.monster)
+        if quote:
+            await ctx.send(f"'{quote}'")
 
         while not self._done.is_set():
             # ---- Per-round status warnings (SPUR.COMBAT.S lines 21-25, 88) ----

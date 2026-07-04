@@ -23,6 +23,15 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - ✅ **LASSO — capture a mount** — during combat against a horse-named monster, `lasso` captures it as a new MOUNT-flagged ally (name prompt with SPUR's length/character validation); blocked by a full party or an existing mount (`SPUR.USE.S` `lasso`, `commands/lasso.py`, `engine.py` `CombatSession.lasso()`)
 - **XP gain per swing** (`engine.py`)
 - **Monster kill rewards** — gold and XP awarded on kill (`engine.py`, `combat/rewards.py`)
+- ✅ **Monster taunts/greetings** — when combat begins, the monster picks a quote from
+  `monster_quotes.json` (71 real lines recovered from `SPUR-data/MONSTER.QUOTE.TXT`, a
+  flat 170-byte-record file, plus a captured play transcript): a fixed
+  `monster['quote_number']` always wins if set (none currently are); otherwise a random
+  aggressive taunt (quotes 1–52), or — if the player's race is thematically simpatico with
+  the monster's alignment (Ogre/Half-Elf vs. an `evil`-flagged monster, Pixie/Elf vs. a
+  `good`-flagged monster) — a random friendly greeting (quotes 61–71) instead. `'$'` in the
+  quote is replaced with the player's name (`SPUR.MISC4.S` `mon.ret`/`perm.qt`, skip
+  branch; `monsters.py` `load_quotes()`, `combat/engine.py` `_pick_monster_quote()`)
 
 ### Not Implemented
 

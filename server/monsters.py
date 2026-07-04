@@ -81,3 +81,15 @@ def save_monsters(monsters: list[dict], path: str):
     with open(path, 'w') as f:
         json.dump(monsters, f, indent=4)
     logging.info(f"Saved %d monsters to '%s'.", len(monsters), path)
+
+
+def load_quotes(path: str) -> dict[int, str]:
+    """Load monster_quotes.json into {number: quote} (SPUR.MISC4.S monster.quote file)."""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        logging.info("Loaded %d quotes from '%s'", len(data), path)
+        return {q['number']: q['quote'] for q in data}
+    except FileNotFoundError:
+        logging.warning("'%s' not found, quotes unavailable.", path)
+        return {}
