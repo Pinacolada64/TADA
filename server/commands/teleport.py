@@ -62,6 +62,7 @@ class TeleportCommand(Command):
             return CommandResult.fail('No room specified.', error='missing_args')
 
         game_map = getattr(ctx.server, 'game_map', None)
+        level    = int(getattr(ctx.player, 'map_level', 1) or 1)
 
         # Numeric arg → direct teleport (existing behaviour).
         try:
@@ -70,8 +71,8 @@ class TeleportCommand(Command):
             dest = None
 
         if dest is not None:
-            if game_map and dest not in game_map.rooms:
-                await ctx.send(f'Room {dest} does not exist.')
+            if game_map and game_map.get_room(level, dest) is None:
+                await ctx.send(f'Room {dest} does not exist on level {level}.')
                 return CommandResult.fail(f'Room {dest} not found.', error='bad_room')
             return await self._teleport(ctx, dest)
 
@@ -81,9 +82,10 @@ class TeleportCommand(Command):
             await ctx.send('Map not loaded.')
             return CommandResult.fail('No map.', error='no_map')
 
+        level_rooms = game_map.levels.get(level, {})
         matches = [
             (num, room)
-            for num, room in sorted(game_map.rooms.items())
+            for num, room in sorted(level_rooms.items())
             if query in getattr(room, 'name', '').lower()
         ]
 

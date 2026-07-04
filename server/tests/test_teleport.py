@@ -18,6 +18,8 @@ def make_ctx(*, is_admin=True, room=1, rooms=None):
 
     server = MagicMock()
     server.game_map.rooms = rooms
+    server.game_map.levels = {1: rooms}
+    server.game_map.get_room = lambda level, room_no: rooms.get(room_no)
     server._show_room = AsyncMock()
 
     client = MagicMock()
