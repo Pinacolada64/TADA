@@ -550,7 +550,9 @@ class Server:
         logging.debug('ENTER room=%r', getattr(client, 'room', '?'))
         lines    = []
         room_no  = getattr(client, 'room', 1) or 1
-        room     = (self.game_map.rooms.get(int(room_no))
+        player   = getattr(getattr(client, 'ctx', None), 'player', None)
+        level    = int(getattr(player, 'map_level', 1) or 1)
+        room     = (self.game_map.get_room(level, int(room_no))
                     if self.game_map else None)
         if not room:
             return ['You are nowhere (map not loaded).']
@@ -567,7 +569,6 @@ class Server:
         # Historically, this was the way The Land of Spur did it. It it makes even more sense in a multiplayer
         # game: one player could hoard an item and others wouldn't be able to acquire it.
 
-        player     = getattr(getattr(client, 'ctx', None), 'player', None)
         picked_up  = getattr(player, 'picked_up_items', [])
         inventory  = getattr(player, 'inventory', None)
 
@@ -663,7 +664,8 @@ class Server:
         """
         logging.debug('ENTER direction=%r room=%r', direction, getattr(ctx.client, 'room', '?'))
         room_no = getattr(ctx.client, 'room', 1) or 1
-        room    = (self.game_map.rooms.get(int(room_no))
+        level   = int(getattr(ctx.player, 'map_level', 1) or 1)
+        room    = (self.game_map.get_room(level, int(room_no))
                    if self.game_map else None)
         if not room:
             await ctx.send("Can't go there.")

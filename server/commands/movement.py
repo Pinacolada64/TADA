@@ -167,7 +167,7 @@ class MoveCommand(Command):
             await _enter_jakes_stable(ctx)
             return CommandResult.ok()
 
-        room = game_map.rooms.get(int(room_no)) if game_map else None
+        room = game_map.get_room(player_level, int(room_no)) if game_map else None
 
         if room:
             exits = getattr(room, 'exits', {})
@@ -186,7 +186,7 @@ class MoveCommand(Command):
 
             # Guild-aligned rooms trigger the guild HQ.
             if dest:
-                dest_room = game_map.rooms.get(int(dest)) if game_map else None
+                dest_room = game_map.get_room(player_level, int(dest)) if game_map else None
                 align = getattr(dest_room, 'alignment', None) if dest_room else None
                 _GUILD_KEY = {
                     RoomAlignment.CLAW:  'CLAW',

@@ -15,7 +15,8 @@ def _monster_in_room(ctx: GameContext) -> dict | None:
     if room_no is None:
         return None
 
-    room = game_map.rooms.get(int(room_no))
+    level = int(getattr(ctx.player, 'map_level', 1) or 1)
+    room  = game_map.get_room(level, int(room_no))
     if not room:
         return None
 

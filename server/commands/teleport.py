@@ -119,7 +119,8 @@ class TeleportCommand(Command):
         # If the destination is a guild-aligned room, trigger the HQ session
         # the same way movement.py does when walking into it.
         game_map = getattr(ctx.server, 'game_map', None)
-        dest_room = game_map.rooms.get(dest) if game_map else None
+        level = int(getattr(ctx.player, 'map_level', 1) or 1)
+        dest_room = game_map.get_room(level, dest) if game_map else None
         align = getattr(dest_room, 'alignment', None)
         _GUILD_KEY = {
             RoomAlignment.CLAW:  'CLAW',

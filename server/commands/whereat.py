@@ -19,7 +19,8 @@ def _location_label(client, server) -> str:
     player = getattr(ctx, 'player', None)
     room_no = getattr(client, 'room', None) or getattr(player, 'map_room', None)
     if room_no is not None and getattr(server, 'game_map', None):
-        room = server.game_map.rooms.get(int(room_no))
+        level = int(getattr(player, 'map_level', 1) or 1)
+        room = server.game_map.get_room(level, int(room_no))
         if room:
             return f'{room.name} ({room_no})'
     return '(unknown)'

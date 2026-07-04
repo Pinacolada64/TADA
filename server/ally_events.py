@@ -44,8 +44,9 @@ async def try_ally_find_gold(ctx: GameContext) -> None:
 
     # Guard: water room (SPUR skips al.find in water rooms)
     room_no  = int(getattr(ctx.client, 'room', 0) or 0)
+    level    = int(getattr(player, 'map_level', 1) or 1)
     game_map = getattr(ctx.server, 'game_map', None)
-    room     = game_map.rooms.get(room_no) if game_map and room_no else None
+    room     = game_map.get_room(level, room_no) if game_map and room_no else None
     if room and _is_water_room(room):
         return
 

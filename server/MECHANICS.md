@@ -151,7 +151,16 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 
 ### Not Implemented
 - **Stealth / sneak** — player class affects how likely monsters are to lose sight of them (classes 6/8 get `z=50` instead of class-based roll, `SPUR.COMBAT.S:24–28`)
-- **Room travel** — N/S/E/W/U/D movement between rooms
+- ✅ **Room travel** — N/S/E/W/U/D movement between rooms (`commands/movement.py`, `simple_server.py` `_move()`)
+- ✅ **Fixed bug: room lookups ignored the player's dungeon level** — nearly every
+  room lookup across the codebase used `game_map.rooms.get(n)` (the level-1-only
+  alias -- `Map.rooms` is just `Map.levels[1]`) instead of the multi-level-aware
+  `game_map.get_room(level, n)`. Symptom: after taking the elevator to level 2+ and
+  returning to the dungeon, the player appeared stuck on level 1 (wrong room shown,
+  wrong monsters/exits resolved). Fixed across `simple_server.py`
+  (`_describe_room()`, `_move()`), `ally_events.py`, and `commands/{drop,attack,
+  give,movement,get,whereat,use,teleport}.py`. Left as-is (correctly): `simple_
+  server.py`'s `_place_wild_horse()`, which is deliberately level-1-only.
 - **Room flags** — monster blocking (`.`), no-flee (`@@`, `**`, `<<`), random encounter (`]`) — other flags (`+`, `#`, `-`, `*`, `@`, `&`, `E`/`G`, `;;`) belong to monsters, not rooms; see monster abilities in the Combat section above
 - **Orator / Moderator player flag** — a player flag (name TBD — `Orator` or `Moderator`) that
   designates the speaker in an auditorium-type room.  While a flagged player is present, other

@@ -160,8 +160,9 @@ class UseCommand(Command):
             _use_fireplace = True
         elif not args:
             room_no  = getattr(ctx.client, 'room', None)
+            level    = int(getattr(ctx.player, 'map_level', 1) or 1)
             game_map = getattr(ctx.server, 'game_map', None)
-            room     = game_map.rooms.get(int(room_no)) if game_map and room_no else None
+            room     = game_map.get_room(level, int(room_no)) if game_map and room_no else None
             if room and 'fireplace' in (getattr(room, 'desc', '') or '').lower():
                 _use_fireplace = True
 

@@ -66,6 +66,9 @@ class _FakeMap:
     def get(self, room_no):
         return self._room
 
+    def get_room(self, level, room_no):
+        return self._room
+
     @property
     def rooms(self):
         return self

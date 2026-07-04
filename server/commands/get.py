@@ -46,7 +46,8 @@ def _monster_in_room(ctx: GameContext) -> dict | None:
     room_no = getattr(ctx.client, 'room', None)
     if room_no is None:
         return None
-    room    = game_map.rooms.get(int(room_no))
+    level   = int(getattr(ctx.player, 'map_level', 1) or 1)
+    room    = game_map.get_room(level, int(room_no))
     if not room:
         return None
     mon_idx = int(getattr(room, 'monster', 0) or 0) - 1
@@ -79,7 +80,8 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
     server  = ctx.server
     player  = ctx.player
     room_no = getattr(ctx.client, 'room', None)
-    room    = (server.game_map.rooms.get(int(room_no))
+    level   = int(getattr(player, 'map_level', 1) or 1)
+    room    = (server.game_map.get_room(level, int(room_no))
                if server.game_map and room_no else None)
     if not room:
         return []
