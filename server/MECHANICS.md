@@ -258,7 +258,6 @@ implemented, or not yet started. Source references are to files under `SPUR-code
   Only a flavor line is implemented so far (`_monster_dies()` prints "`<monster>` turns to
   stone as it dies!" for these monsters) — a lasting, examinable/GET-blocked room object
   needs a corpse/room-object persistence system this port doesn't have yet.
-- **AMMO command** — view and manage ammunition counts (`SPUR.MISC5.S`)
 - **STATS / STAT2** — two-level stat display; STAT2 shows extended information (`SPUR.MISC5.S`)
 - **FOLLOW ME command** — causes nearby players or allies to follow the player (`SPUR.MISC5.S`)
 
@@ -285,7 +284,7 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 - **Wizard** — buy spells; Wizards pay half price, Druids two-thirds; max 10 spells (`SPUR.SHOP.S`)
 - **Clan / Guild office** — change guild affiliation (Claw, Sword, Iron Fist, Civilian, Outlaw); costs gold and honor (`SPUR.SHOP.S`)
 - **Pawn Shop** — sell (not buy) items to the merchant; all found items are sellable (tips.txt) (`SPUR.SHOP.S`)
-- ✅ **Olly's Ammo** — buy ammo and ammo carriers; booby trap purchase; [H]elp explains ammo system and friendly fire (`shoppe/ollys.py`)
+- ✅ **Olly's Ammo** — buy ammo and ammo carriers; booby trap purchase; [H]elp explains ammo system and friendly fire. Reached in the original by typing `AMMO` (`SPUR.MISC5.S:16: if i$="AMMO" goto ammo`, `ammo` subroutine — "Olly greets you, 'Welcome, ...'"), not a separate ammo-count command (`shoppe/ollys.py`)
 
 ---
 
