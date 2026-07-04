@@ -51,6 +51,7 @@ level-aware label wherever it reaches the player or game logic (e.g.
 | 11 | Palintar (Enlightenment) | #96 Palantir; Enlightenment score `(INT+WIS)×level` ≥ 240 | Reveals room/level layout (monsters, items, exits) | **skip only** | Confirmed in skip; master is a stub |
 | 12 | Lasso/Saddle/Armor a Horse | #161 Lasso (on a HORSE monster), then #162 Saddle / #163 Horse Armor | Named mount ally (already ported — see MECHANICS.md "Horses") | **skip only** | Confirmed — already implemented in this port |
 | 13 | Power Armor / Shield Recharge | #112 Armor Power Pak / #117 Shield Power Pak | Recharges shield/armor to full (120%) effectiveness | **skip only** | Confirmed in skip; master's shield system is simpler (flat % add, no recharge) |
+| 14 | Copper Key / Wraith Master | #80 Copper Key, `USE`d in a specific level-5 room | Grants Wraith Master status (`PlayerFlags.WRAITH_MASTER`) | master | Confirmed mechanic; room placement and flavor text untraced (see below) |
 
 Quest #12 is already implemented (LASSO, Saddle/Horse Armor, MOUNT/DISMOUNT/CHARGE —
 see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
@@ -227,6 +228,23 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
 - **Persistence**: charge state is stored per-player in `misc.data` (position 217,
   14-char encoded string), surviving repacking — sturdier than master's ad-hoc
   per-session tracking.
+
+### 14. Copper Key / Wraith Master
+- **Source**: `SPUR.USE.S:19,182-185` (`key` subroutine).
+- **Item**: #80 Copper Key. `USE`ing it only does anything at a hardcoded location
+  (`if x=80 then if cl=5 then if cr=390 goto key`) — anywhere else on level 5, or on
+  any other level, it just prints "(Not here!)".
+- **Mechanic**: checks the player's Wraith Master status via `zu$[7]` (`"1"` or
+  `"2"`); if already a Wraith Master, prints "There are only ruins here!" and stops.
+  Otherwise prints message #4 (flavor text lost — no `MESSAGES.TXT` data file
+  exists, see the top of this doc) and sets `n=1`, granting the status.
+- **Already implemented, separately**: `PlayerFlags.WRAITH_MASTER` and its login
+  title ("`, Wraith Master of Spur!`") are fully ported (`flags.py`,
+  `commands/connect.py`) — only the *acquisition* path (this key) is missing.
+- **Known gap**: `cr=390` uses SPUR's original room-numbering scheme, which (like
+  the security-card rooms and Jake's Stable) doesn't map 1:1 onto the converted
+  `level_5.json`. Needs the same re-derivation from source data as those other
+  hardcoded rooms before this can be wired up.
 
 ---
 
