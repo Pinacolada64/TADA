@@ -126,7 +126,7 @@ class Room:
 # --- Parsing helpers ---
 
 def parse_name_field(raw_name: str) -> tuple[str, RoomAlignment, list[RoomFlag]]:
-    """
+    r"""
     Parse a raw room name like:
       'THE DESERT|]S]W'      -> ('The Desert', RoomAlignment.NEUTRAL, [BLOCK_SOUTH, BLOCK_WEST])
       'THE PLAIN +'          -> ('The Plain', RoomAlignment.FREE_FIRE, [])
@@ -141,13 +141,23 @@ def parse_name_field(raw_name: str) -> tuple[str, RoomAlignment, list[RoomFlag]]
     them -- confirmed against level 5 room 157 ("THE OCEAN |@@!"), which the live
     level_5.json shows with flags: [] despite the raw data. '+' (free-fire) is the one
     documented exception -- file-formats.txt says explicitly it is "not after |".
+
+    FIX: the pipe-suffix search used to match ANY "|", including the one embedded in
+    the '\|/' Claw guild alignment symbol -- e.g. 'STORAGE ROOM \|/ HQ' would get
+    truncated at that pipe, leaving 'STORAGE ROOM \' (missing the rest of the symbol)
+    for the ALIGNMENT_SYMBOLS check below, so Claw never matched. Confirmed: every
+    level_N.json this project has generated so far has zero Claw-aligned rooms, and
+    level 1 (which does have Claw territory) was the first real test of this path.
+    The lookbehind below skips a "|" immediately preceded by "\" so it only matches
+    the real condition-flag delimiter, not the one inside '\|/'.
     """
     flags = []
     room_alignment = RoomAlignment.NEUTRAL
 
     # Check for the pipe-suffix flag section: everything after "|" is a condition/
-    # block-move flag, never part of the display name.
-    pipe_match = re.search(r'\|(.+)$', raw_name)
+    # block-move flag, never part of the display name. (?<!\\) excludes the pipe
+    # inside the '\|/' Claw alignment symbol -- see FIX note above.
+    pipe_match = re.search(r'(?<!\\)\|(.+)$', raw_name)
     if pipe_match:
         raw_name = raw_name[:pipe_match.start()]
         flag_str = pipe_match.group(1)
