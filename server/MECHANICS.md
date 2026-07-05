@@ -192,10 +192,8 @@ implemented, or not yet started. Source references are to files under `SPUR-code
   `Room.hidden_exit_east`/`hidden_exit_west` (`base_classes.py`) hold the
   *confirmed* destination once traced — a bare room number for a same-level
   exit, or `{"room": n, "level": n}` for a cross-level one — resolved by
-  `Room.hidden_exit()` and `Server._move()`/`Server._teleport_to()`. Confirmed
-  so far:
-    - Level 5 room 140 "Village" → 141 "The Chief's Treasure Room" (the
-      Headhunter's Island quest reward), same level.
+  `Room.hidden_exit()` and `Server._move()`/`Server._teleport_to()`. All 12
+  currently-known hidden-exit rooms are now confirmed:
     - Level 1 room 89 "Teleport Room" → level 5 ("Land of the Wraiths") room
       41 — `SPUR.MISC.S:448`: `if (cl=1) and (cr=89) then a=18:gosub
       message:cl=5:cr=41:goto travel4`. Prints message #18 ("Suddenly, you
@@ -208,13 +206,39 @@ implemented, or not yet started. Source references are to files under `SPUR-code
       this port deliberately simplifies that to "only the flagged direction
       resolves the hidden exit," matching every other hidden exit — other
       directions out of room 89 just say "Can't go \<dir\>." now.
-  The remaining 10 rooms carrying the legacy `hidden_exit_east`/`west` flag
-  *string* only — level 2 rooms 155 & 157, level 5 room 85, and level 6
-  rooms 45, 49, 79, 99, 109, 115 & 186 — have no confirmed field yet, so
-  `Server._hidden_exit_target()` still guesses via `room_number ± 1`
-  adjacency for them — unverified, flagged as a guess in its own docstring,
-  kept only so those rooms don't regress to being unreachable while the
-  real destinations get traced.
+    - The other 11 rooms are ordinary same-level `cr ± 1` adjacency, derived
+      from `SPUR.MAIN.S:169-171`'s row arithmetic (`cr=cr+1-((y=0)*ri)` for
+      east, `cr=cr+((y=1)*ri)-1` for west, `y=cr mod ri`) using each level's
+      real row width `ri` read straight from `D.LEVEL{2,5,6}.TXT`'s header
+      (`225¬15` for level 2, `400¬20` for level 5, `900¬30` for level 6).
+      Each is corroborated by the actual room data — a guarded room leads to
+      an unguarded connector/reward room right next to it, often sharing a
+      flag or holding the reward item:
+      - Level 2: 155 "Burial Chamber" (monster 97) → 156 "Narrow Tunnel";
+        157 "Mummy's Tomb" (monster 102) → 158 "Secret Chamber" (item 86)
+        east, → 156 "Narrow Tunnel" west (both 155 and 157 flank the tunnel).
+      - Level 5: 85 "Cold Cave" (monster 91) → 86 "Inner Cave".
+      - Level 6: 45 "Engineering" (monster 109) → 46 "Access Tunnel"; 49
+        "Engineering" → 48 "Equipment Locker" (item 134) west; 79 "Access
+        Tunnel" → 80 "Vent Duct" (shared `radiation_extreme`); 99 "Main
+        Reactor" (monster 118) → 100 "Storage Closet" (item 132); 109 "Main
+        Reactor" (monster 110) → 108 "Security Bunker" (item 138) west; 115
+        "Witches Coven" (monster 126) → 116 "Witches House"; 186 "A Strange
+        Room" (monster 120) → 187 "Garden Of Eden" (shared `no_flee`).
+      - Level 5 room 140 "Village" (monster 84, BIG CHIEF) → 141 "The
+        Chief's Treasure Room" (item 78, weapon 57 — the documented
+        Headhunter's Island quest reward) is the one exception worth
+        flagging: room 140 sits exactly on a row boundary (`140 = 7×20`,
+        the last column of its row), so the row-arithmetic formula would
+        technically wrap it to room 121 ("The Ocean") instead of 141. Kept
+        as `cr+1` anyway — 141's reward items and room 140's guarding
+        monster are too strong a match to override with the formula, and
+        every other one of these 12 rooms fits the "guarded room → very
+        next room number" pattern with zero exceptions. Documented here as
+        a known discrepancy rather than silently resolved either way.
+  `Server._hidden_exit_target()`'s `room_number ± 1` guess remains in the
+  code only as a fallback for any new hidden-exit room found later that
+  hasn't been traced yet — see its docstring.
 - ✅ **Hidden exit reveal message** — `SPUR.MISC.S:419-420`, right after
   `gosub rec.ammo` in the dead-monster routine (`p.a3`/`p.a4`/`no.robot`):
   killing any monster (except THE DWARF, which short-circuits earlier) in a

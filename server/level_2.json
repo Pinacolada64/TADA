@@ -2465,9 +2465,8 @@
             "number": 155,
             "name": "Burial Chamber",
             "room_alignment": "neutral",
-            "flags": [
-                "hidden_exit_east"
-            ],
+            "flags": [],
+            "hidden_exit_east": 156,
             "exits": {
                 "south": 1,
                 "west": 1
@@ -2498,10 +2497,10 @@
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [
-                "snow",
-                "hidden_exit_east",
-                "hidden_exit_west"
+                "snow"
             ],
+            "hidden_exit_east": 158,
+            "hidden_exit_west": 156,
             "exits": {
                 "north": 1,
                 "south": 1

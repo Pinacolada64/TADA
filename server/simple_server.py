@@ -48,11 +48,15 @@ _WILD_HORSE_MONSTER_NUMBER = 136
 # sets a boolean "exit exists" flag on the room, never a target, so the real
 # destination has to be traced per-room against the SPUR source. Room.
 # hidden_exit_east/west (base_classes.py) hold the *confirmed* destination
-# once that tracing has been done (see level_1.json room 89 and level_5.json
-# room 140 for the two rooms confirmed so far). For rooms that still only
-# carry the legacy hidden_exit_east/west flag string with no confirmed
-# field, _hidden_exit_target() below falls back to a +/-1 room-number guess
-# -- unverified, flagged as such in its own docstring.
+# once that tracing has been done. All 12 currently-known hidden-exit rooms
+# are confirmed this way (see MECHANICS.md's Hidden exits entries) -- 10 via
+# SPUR.MAIN.S:169-171's row arithmetic (cr +/-1, using each level's real row
+# width from D.LEVEL{n}.TXT's header), one (level 1 room 89) via a hardcoded
+# cross-level override, and one (level 5 room 140) kept as the well-evidenced
+# cr+1 despite sitting on a row-arithmetic boundary -- see MECHANICS.md.
+# _HIDDEN_EXIT_FLAGS/_HIDDEN_EXIT_DELTA and _hidden_exit_target() below
+# remain only as a +/-1 guess fallback in case a new hidden-exit room turns
+# up that hasn't been traced yet.
 _HIDDEN_EXIT_FLAGS = {'e': 'hidden_exit_east', 'w': 'hidden_exit_west'}
 _HIDDEN_EXIT_DELTA = {'e': 1, 'w': -1}
 

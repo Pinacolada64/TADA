@@ -65,7 +65,8 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
   139–141 (`Isle Of Headhunters` → `Village` → `The Chief's Treasure Room`).
 - **Trigger**: sail to room 139; monster #83 HEADHUNTER present.
 - **Mechanic**: defeating monster #84 BIG CHIEF in the Village room reveals a hidden
-  east exit (`hidden_exit_east` flag) into the treasure room.
+  east exit (`Room.hidden_exit_east = 141`, MECHANICS.md's Hidden exits entry) into
+  the treasure room.
 - **Reward**: #40 Black Diamond in the Village; #78 Great Coat + weapon #57 Wraith
   Dagger in the treasure room.
 - **Flavor**: "This is apparently the head hunters village... surround a large fire

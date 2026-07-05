@@ -1465,9 +1465,8 @@
             "number": 85,
             "name": "Cold Cave",
             "room_alignment": "neutral",
-            "flags": [
-                "hidden_exit_east"
-            ],
+            "flags": [],
+            "hidden_exit_east": 86,
             "exits": {
                 "north": 1
             },

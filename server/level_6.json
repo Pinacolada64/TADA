@@ -774,9 +774,9 @@
             "name": "Engineering",
             "room_alignment": "neutral",
             "flags": [
-                "hidden_exit_east",
                 "outer_space"
             ],
+            "hidden_exit_east": 46,
             "exits": {
                 "south": 1,
                 "west": 1
@@ -840,9 +840,9 @@
             "name": "Engineering",
             "room_alignment": "neutral",
             "flags": [
-                "hidden_exit_west",
                 "outer_space"
             ],
+            "hidden_exit_west": 48,
             "exits": {
                 "north": 1,
                 "east": 1
@@ -1351,9 +1351,9 @@
             "name": "Access Tunnel",
             "room_alignment": "neutral",
             "flags": [
-                "hidden_exit_east",
                 "radiation_extreme"
             ],
+            "hidden_exit_east": 80,
             "exits": {
                 "north": 1
             },
@@ -1690,9 +1690,9 @@
             "name": "Main Reactor",
             "room_alignment": "neutral",
             "flags": [
-                "hidden_exit_east",
                 "radiation_extreme"
             ],
+            "hidden_exit_east": 100,
             "exits": {
                 "north": 1,
                 "south": 1,
@@ -1851,9 +1851,9 @@
             "name": "Main Reactor",
             "room_alignment": "neutral",
             "flags": [
-                "hidden_exit_west",
                 "radiation_extreme"
             ],
+            "hidden_exit_west": 108,
             "exits": {
                 "north": 1,
                 "east": 1
@@ -1954,9 +1954,9 @@
             "name": "Witches Coven",
             "room_alignment": "neutral",
             "flags": [
-                "no_flee",
-                "hidden_exit_east"
+                "no_flee"
             ],
+            "hidden_exit_east": 116,
             "exits": {
                 "north": 1
             },
@@ -3227,9 +3227,9 @@
             "name": "A Strange Room",
             "room_alignment": "neutral",
             "flags": [
-                "no_flee",
-                "hidden_exit_east"
+                "no_flee"
             ],
+            "hidden_exit_east": 187,
             "exits": {
                 "north": 1,
                 "west": 1
