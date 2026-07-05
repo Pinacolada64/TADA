@@ -21,7 +21,7 @@ computed `a=` values a literal grep can't catch, or genuinely unused slots.
 | 3 | `fountain`→arm (`SPUR.SUB.S:122`) | Amulet of Life "comes alive" flavor at the Fountain of Youth | Quest #9 — text now available, not yet wired into code |
 | 4 | `key` (`SPUR.USE.S:185`) | Copper Key / Wraith Master ruins entry ("Fool!! You dare to enter my castle?!??") | Quest #14 — text now available, not yet wired into code |
 | 6 | `school.2` confirm (`SPUR.MISC2.S:434`) | Class re-training result flavor | Not yet documented as a quest/mechanic — new find |
-| 7 | `wraith` victory (`SPUR.MISC2.S:373`) | **Wraith King final-boss defeat cinematic** — castle collapsing, Lady of the Mist reward (+1 level) | Not yet documented anywhere — new find, likely the game's actual ending sequence |
+| 7 | `wraith` victory (`SPUR.MISC2.S:373`) | **Wraith King final-boss defeat cinematic** — castle collapsing, Lady of the Mist reward (+1 level) | Quest #15 (`quests/README.md`) — full trigger traced, not yet wired into code |
 | 8 | `school` intro (`SPUR.MISC2.S:418`) | Class re-training camp intro flavor | Not yet documented — new find |
 | 9 | `new` (`SPUR.LOGON.S:50`) | New-player login MOTD/welcome text | Not yet wired in (current login flow has its own welcome text) |
 | 10 | login banner (`SPUR.LOGON.S:27`) | Original BBS-door splash/credits screen | Historical only, not applicable to this port |
@@ -36,9 +36,15 @@ computed `a=` values a literal grep can't catch, or genuinely unused slots.
 | 24–29 | `galad`/riddle (`SPUR.MISC6.S:506–518`) | ✅ Test of Galadriel's exact riddle text — #24 intro, #25–29 are 5 random Tolkien trivia riddles with answers baked into the source (`zz$`) | Quest #8 — text now available, not yet wired into code |
 | 33 | `revive` SAINT (`SPUR.MISC6.S:132`) | Saint-class-specific death-save flavor ("So, this is what God looks like") | Not yet documented — new find |
 
-The Wraith King ending (#7) in particular looks like previously-untracked,
-significant content — worth a dedicated follow-up to trace `wraith`'s trigger
-condition and consider implementing it as the game's actual win state.
+The Wraith King ending (#7) trigger has since been fully traced — see
+`quests/README.md`'s quest #15 ("Wraith King / RONNEY"). Monster #93 "RONNEY"
+(`monsters.json`) is a disguised identity for the King, placed at level 5 room
+262 "Kings Chamber." Killing it advances the *same* `zu$[7]` status field quest
+#14's Copper Key checks, prints message #7, logs a `battle.log` announcement,
+grants +1 level and +100 Honor (capped 1900), and teleports the player to
+level 5 room 390 — the exact room the Copper Key is hardcoded to. The two
+quests converge on one location and one status field. Room 390 itself is a
+gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 
 ---
 

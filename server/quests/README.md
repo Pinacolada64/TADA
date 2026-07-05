@@ -52,6 +52,7 @@ level-aware label wherever it reaches the player or game logic (e.g.
 | 12 | Lasso/Saddle/Armor a Horse | #161 Lasso (on a HORSE monster), then #162 Saddle / #163 Horse Armor | Named mount ally (already ported — see MECHANICS.md "Horses") | **skip only** | Confirmed — already implemented in this port |
 | 13 | Power Armor / Shield Recharge | #112 Armor Power Pak / #117 Shield Power Pak | Recharges shield/armor to full (120%) effectiveness | **skip only** | Confirmed in skip; master's shield system is simpler (flat % add, no recharge) |
 | 14 | Copper Key / Wraith Master | #80 Copper Key, `USE`d in a specific level-5 room | Grants Wraith Master status (`PlayerFlags.WRAITH_MASTER`) | master | Confirmed mechanic; room placement and flavor text untraced (see below) |
+| 15 | Wraith King / RONNEY | Defeat monster #93 "RONNEY" (disguised King of the Wraiths) at level 5 room 262 "Kings Chamber" | +1 level, Honor (`vk`) +100 (capped 1900), advances the same `zu$[7]` status tier as quest #14, teleport to level 5 room 390 (the same ruins location quest #14's Copper Key checks) | master | Confirmed trigger and full effects; not yet implemented; room 390's actual content is a gap (see below) |
 
 Quest #12 is already implemented (LASSO, Saddle/Horse Armor, MOUNT/DISMOUNT/CHARGE —
 see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
@@ -289,10 +290,62 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
 - **Already implemented, separately**: `PlayerFlags.WRAITH_MASTER` and its login
   title ("`, Wraith Master of Spur!`") are fully ported (`flags.py`,
   `commands/connect.py`) — only the *acquisition* path (this key) is missing.
-- **Known gap**: `cr=390` uses SPUR's original room-numbering scheme, which (like
-  the security-card rooms and Jake's Stable) doesn't map 1:1 onto the converted
-  `level_5.json`. Needs the same re-derivation from source data as those other
-  hardcoded rooms before this can be wired up.
+- **Known gap**: `cr=390` — see quest #15 below; this is the *same* room quest #15's
+  Wraith King fight teleports the player to. Room 390 doesn't exist in the current
+  `level_5.json` at all (see quest #15's gap note) — this isn't a renumbering issue
+  like the security-card rooms or Jake's Stable, the room data for it is simply
+  missing from this level's conversion.
+- **Same status field as quest #15**: `zu$[7]` is shared between this key and the
+  Wraith King kill — `"0"` (never done either) → `"1"` (done one of them) → `"2"`
+  (done both/killed him after already doing this). This port's
+  `PlayerFlags.WRAITH_MASTER` is currently a plain boolean, so it doesn't yet model
+  that third tier.
+
+### 15. Wraith King / RONNEY
+- **Source**: `SPUR.MISC.S:422` (dead-monster routine's `if m=93 i$="wraith":link
+  dy$`), `SPUR.MISC2.S:369-380` (`wraith` subroutine).
+- **Trigger**: killing monster #93, named plainly **"RONNEY"** in `monsters.json` —
+  a disguised identity for the King of the Wraiths, revealed only by the death
+  flavor text (same pattern as monster #120's "old man" → young man reveal, see
+  MECHANICS.md). Placed at level 5 ("Land of the Wraiths"), room 262 "Kings
+  Chamber" (`no_flee` flagged) — description: "This is a very richly decorated
+  chamber indeed. There is a rather handsome fellow glaring at you from his
+  throne..."
+- **On death**:
+  - `zu$[7]` status tier advances — see quest #14 above (shared field): `"0"→"1"`,
+    or `"1"→"2"` if the player already did the Copper Key.
+  - Prints message #7 (recovered, `server/messages.json`): "The body of the King
+    of the Wraiths suddenly implodes upon itself. Searing flame quickly replaces
+    it. The room is filled with foul black smoke. You back out the door to the
+    throne room only to discover that the whole castle has become engulfed in
+    flame... All the guards and Wraiths have disappeared... The walls are
+    collapsing now... You are hit by a falling stone, and are knocked out cold...
+    A pale young girl holds you in her warm hands... 'I, the Lady of the Mist,
+    have long been held prisoner by the Wraith King, my son.. Through powerful
+    black magic, he transformed me into the castle that is now dying... I can see
+    you safely out, and reward you with some of my power..' (+1 level) / You
+    awaken... outside the castle. The castle which is now in ruins..."
+  - Global `battle.log` announcement (same convention as the Dwarf kill /
+    Excalibur pull): "THE LADY OF THE MIST BECAME PART OF \<player\>, AFTER THE
+    DEATH OF KING OF THE WRAITHS. (+1 level)".
+  - Honor (`vk`) +100, capped at 1900 — `vk` is very likely this port's Honor stat
+    (same variable gates the Excalibur quest's Honor≥1200 check).
+  - An actual character level: `xp=xp+1`.
+  - Teleports the player to level 5, room 390 (`i$="travel1"`) — same level, no
+    level change — which is the exact same `cl=5, cr=390` quest #14's Copper Key
+    subroutine checks. The two quests converge on the same location and the same
+    status field; they're not independent.
+- **Known gap**: level 5's own header (`D.LEVEL5.TXT`) declares `nr=400` rooms,
+  but the current `level_5.json` only has rooms 1–373 — room 390 falls in the
+  missing 374–400 range and doesn't exist in this port's data at all. Its actual
+  content (presumably the ruins/castle-aftermath room both quests point to) can't
+  be verified from the source alone; would need re-extraction from the original
+  level 5 export data (or, if unavailable, invented as a reasonable "ruins of the
+  castle" room and cross-linked from both quests).
+- **Not yet implemented**: no code currently hooks monster #93's death to any of
+  the above — `PlayerFlags.WRAITH_KING_ALIVE` (`flags.py`) exists as an
+  EditPlayer-toggleable stats-display flag only (`commands/stats.py`), nothing
+  currently sets it to false on a real kill.
 
 ---
 
@@ -314,7 +367,6 @@ the named quests above:
 | — | Monster #107 GUARD DROID | Room `desc` ("Hey! This fellow looks familiar!") reads like a recurring/storyline encounter — not traced further | `level_6.json` room 93 |
 | — | Monster #103 ("guardian") | Repeat-encounter monster that "remembers" a previous player loss and returns stronger (`ms=ms+xp*6`) | `SPUR.MISC4.S:198–199` |
 | — | Monsters #125/#126 (OZ, Wicked Witch) | Tied to the Ruby Slippers chain (quest #7) but the broomstick's first-acquisition trigger wasn't fully traced (witch-kill drop vs. static item) | `level_6.json` rooms 115/118 |
-| — | **Wraith King ending** | Message #7 (recovered, `server/messages.json`) reads like the game's actual win-state cinematic: defeating the Wraith King causes the castle to collapse in flame, the "Lady of the Mist" (his prisoner/mother) reveals herself, grants +1 level, and the castle is left "in ruins." Not documented anywhere else in this doc — worth a dedicated follow-up to trace `wraith`'s trigger condition (`SPUR.MISC2.S:373`) and consider implementing as the game's ending | `SPUR.MISC2.S:373` |
 | — | School / re-training | Pay gold + lose 1 level to re-pick character class; flavor recovered as messages #8 (camp intro) and #6 (result) | `SPUR.MISC2.S:418,434` |
 | — | Shield training (Odin the Shield Master) | Pay gold for permanent shield bonus (20% less chance of a monster getting past your shield, +1 protection); flavor recovered as message #13 | `SPUR.MISC2.S:460` |
 | — | Duel help text | Full `H`elp screen for the duel (PvP) system recovered as message #16 — not yet ported into `commands/` duel help | `SPUR.DUEL.S:26,43` |
