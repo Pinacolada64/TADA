@@ -5,6 +5,43 @@ implemented, or not yet started. Source references are to files under `SPUR-code
 
 ---
 
+## Recovered SPUR Messages (`server/messages.json`)
+
+`SPUR-data/SPUR Messages.txt` (a raw sysop-console dump, message # → flavor text)
+recovered 54 messages (#2–#55; #1 and #23, #50–#55 are blank/unreadable in the
+dump). Parsed into `server/messages.json` as `{"N": ["paragraph", ...], ...}`,
+one entry per `gosub messages` call site's `a=N` in the SPUR source. Every
+number below is cross-referenced to where the master branch actually prints it
+(`a=N:gosub messages` / `gosub message`); ~33 recovered numbers have no
+identified call site yet (no hits in the skip branch either) — likely either
+computed `a=` values a literal grep can't catch, or genuinely unused slots.
+
+| # | Subroutine (file:line) | Feature | Status |
+|---|---|---|---|
+| 3 | `fountain`→arm (`SPUR.SUB.S:122`) | Amulet of Life "comes alive" flavor at the Fountain of Youth | Quest #9 — text now available, not yet wired into code |
+| 4 | `key` (`SPUR.USE.S:185`) | Copper Key / Wraith Master ruins entry ("Fool!! You dare to enter my castle?!??") | Quest #14 — text now available, not yet wired into code |
+| 6 | `school.2` confirm (`SPUR.MISC2.S:434`) | Class re-training result flavor | Not yet documented as a quest/mechanic — new find |
+| 7 | `wraith` victory (`SPUR.MISC2.S:373`) | **Wraith King final-boss defeat cinematic** — castle collapsing, Lady of the Mist reward (+1 level) | Not yet documented anywhere — new find, likely the game's actual ending sequence |
+| 8 | `school` intro (`SPUR.MISC2.S:418`) | Class re-training camp intro flavor | Not yet documented — new find |
+| 9 | `new` (`SPUR.LOGON.S:50`) | New-player login MOTD/welcome text | Not yet wired in (current login flow has its own welcome text) |
+| 10 | login banner (`SPUR.LOGON.S:27`) | Original BBS-door splash/credits screen | Historical only, not applicable to this port |
+| 11 | `quote` (`SPUR.LOGON.S:619`) | QUOTE command instructions | `commands/quote.py` likely has its own help text already |
+| 13 | shield training confirm (`SPUR.MISC2.S:460`) | Shield training (Odin the Shield Master) result flavor | Not yet documented — new find |
+| 16 | duel `H`elp (`SPUR.DUEL.S:26,43`) | Duel help screen text | Duels are implemented (`## Duels (PvP)`); this specific help text not yet ported |
+| 17 | monster #120 death (`SPUR.MISC.S:417`) | Disguised-old-man-monster transform-on-death flavor | Already tracked separately per this session's earlier GOD/GODDESS message work |
+| 18 | room 89 teleport (`SPUR.MISC.S:448`) | ✅ Implemented — level 1 Teleport Room → level 5 | `level_1.json` room 89's `hidden_exit_east.message` |
+| 19 | `slippers` (`SPUR.USE.S:144`) | Ruby Slippers teleport-home flavor ("There is no place like home...") | Quest #7 — text now available, not yet wired into code |
+| 20 | `revive` default (`SPUR.MISC6.S:132`) | Amulet-of-Life death-save flavor | Ties to item #76 Amulet of Life; not yet wired into code |
+| 21 | `revive` `flag(7)` (`SPUR.MISC6.S:132`) | Alternate "Chosen One" death-save flavor (condition behind `flag(7)` untraced) | Not yet documented — new find |
+| 24–29 | `galad`/riddle (`SPUR.MISC6.S:506–518`) | ✅ Test of Galadriel's exact riddle text — #24 intro, #25–29 are 5 random Tolkien trivia riddles with answers baked into the source (`zz$`) | Quest #8 — text now available, not yet wired into code |
+| 33 | `revive` SAINT (`SPUR.MISC6.S:132`) | Saint-class-specific death-save flavor ("So, this is what God looks like") | Not yet documented — new find |
+
+The Wraith King ending (#7) in particular looks like previously-untracked,
+significant content — worth a dedicated follow-up to trace `wraith`'s trigger
+condition and consider implementing it as the game's actual win state.
+
+---
+
 ## Combat
 
 ### Implemented

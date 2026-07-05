@@ -153,7 +153,12 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
   inventories, so the reward can't double-grant).
 - **Reward**: #144 Ruby Slippers. `USE`ing them (or an automatic check elsewhere,
   `SPUR.MISC3.S:328–330`) teleports the player home to level 1, room 1 — "The
-  slippers glow strangely!"
+  slippers glow strangely!", then message #19 (recovered, `server/messages.json`):
+  "You slip the slippers on your feet (they fit, amazingly enough). For some
+  reason, you start mumbling: 'There is no place like home. There is no place
+  like home...' Then you start clicking your heels together, for all the world
+  like some sort of Gestapo trooper. / The area fades from view..." — not yet
+  wired into code.
 - **Known gap**: **room 582 does not exist in the current `server/level_6.json`**
   (rooms only go up to ~292) — the delivery location isn't reachable in the current
   port at all. The broomstick's *acquisition* trigger (witch-kill drop vs. static
@@ -167,6 +172,32 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
 - **Mechanic**: NPC Galadriel asks a riddle (5 variants, messages #25–29); player
   picks 1 of 4 answers. Correct → awarded #143 Galadriel's Vial (full). Wrong →
   "Return when Ye are worthy," sent home empty-handed.
+- **Intro (message #24, recovered)**: "A soft vision floats before your eyes!
+  She peers at you curiously for a long moment, before speaking. 'I am
+  Galadriel, Lady of Lorien. I have journeyed far to give a gift of some
+  importance to one of worth. Could Ye be such a person?' She is quite tall,
+  with a grave sort of beauty. Clad all in white, with bright golden hair
+  flowing over slender shoulders."
+- **The five riddles (recovered, `server/messages.json`; correct answer is baked
+  into the source as `zz$`, not derivable from the text alone)**:
+  1. #25 — "Who lies in the tomb of Moria? 1) Khazad-dum 2) Gimli 3) Balin
+     4) EntWood" — correct: **3**.
+  2. #26 — "In what great battle was Sting first used? (Spiders don't count)
+     1) Battle of Helms Deep 2) Battle of the Five Armies 3) Siege of Minas
+     Tirith 4) Battle of The Pygmies" — correct: **2**.
+  3. #27 — "What is a Treebeard? 1) Ent the earthborn, old as mountains 2) A
+     type of moss found on old trees, with poisonous nettles 3) An old dwarf,
+     famous for his earthy sense of humor 4) A fruit, famous for its woody
+     flavor." — correct: **1**.
+  4. #28 — "What is a Gollum? 1) A short, slimy creature who has a taste for
+     some types of jewelry. 2) A powerful evil warrior, clad entirely in black
+     armor. 3) A type of wheel barrow, useful in Middle earth for carrying
+     computers. 4) The guardian of Helm's Keep." — correct: **1**.
+  5. #29 — "Who is Sharkey? 1) The leader of the Five Armies. 2) A fisherman
+     famous for catching sharks with his hands. 3) Frodo's personal servant.
+     4) A big ruffian, who lived in Bag End." — correct: **4**.
+  One is picked at random each time the test is offered. Not yet wired into
+  code.
 - **Gate**: only offered if the player doesn't already have #142/#143, or a `*GAL`
   "already met her" flag.
 - **Logged**: pass/fail written to `battle.log` as "PASSed/FAILed the Test Of
@@ -180,7 +211,16 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
   - Drinking directly at the fountain fully restores all seven stats (HP, STR, CON,
     INT, Energy, WIS, DEX) to max-for-level and cures poison/disease.
   - Carrying #76 Amulet of Life to the fountain permanently "arms" it if not already
-    charged (see Loose Ends — prevents one permanent death later).
+    charged (see Loose Ends — prevents one permanent death later), printing message
+    #3 (recovered, `server/messages.json`): "Vaguely at first, than with increasing
+    fury, the AMULET OF LIFE comes alive! You drop it in horror, as it seethes and
+    pulsates with a fierce blue light. You are slowly backing away from it, when a
+    thundering lightning bolt strikes the amulet. The blast knocks you flat. You lie
+    there for long moments before you realize that all is again quiet, except for
+    the chirping of birds (who do not seem in the least upset by this turn of
+    events). / Approaching the amulet, you see it is again quiet, except for a soft
+    bluish glow. Gently, you pick it up, and place it in your pack..." Not yet wired
+    into code.
   - `USE`ing #142 Empty Vial while at the fountain converts it to #143 Full Vial —
     "You kneel and fill the vial with precious water from the pool."
   - `USE`ing #143 anywhere grants the same full-restore effect away from the
@@ -237,8 +277,15 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
   any other level, it just prints "(Not here!)".
 - **Mechanic**: checks the player's Wraith Master status via `zu$[7]` (`"1"` or
   `"2"`); if already a Wraith Master, prints "There are only ruins here!" and stops.
-  Otherwise prints message #4 (flavor text lost — no `MESSAGES.TXT` data file
-  exists, see the top of this doc) and sets `n=1`, granting the status.
+  Otherwise prints message #4 (recovered, `server/messages.json`: "You insert the
+  key into the lock and give it a twist. Slowly, slowly.... the great door swings
+  silently inwards.. / So quiet is it, that the sudden voice laughing in your ear
+  causes you to look around, even though you know that there is nobody but you
+  here.. / 'Fool!! You dare to enter my castle?!?? Har, har! Be warned, my little
+  pet: once you enter, you shall not leave again, til one of us is dead. It won't
+  be me!! Har, har, har!' / The voice dies away, leaving you facing the open door
+  north, pondering...") and sets `n=1`, granting the status. Not yet wired into
+  code.
 - **Already implemented, separately**: `PlayerFlags.WRAITH_MASTER` and its login
   title ("`, Wraith Master of Spur!`") are fully ported (`flags.py`,
   `commands/connect.py`) — only the *acquisition* path (this key) is missing.
@@ -256,7 +303,7 @@ the named quests above:
 
 | Item # | Name | Inferred Purpose | Source |
 |---|---|---|---|
-| 76 | Amulet of Life | Prevents one permanent death (armed at the Fountain, quest #9); halves duel/combat penalty vs. the Amulet of Death | `SPUR.LOGON.S:237`, `SPUR.DUEL.S:146,155`, `SPUR.DUEL2.S:161,165`, `SPUR.WEAPON.S:70`, `SPUR.SUB.S:122` |
+| 76 | Amulet of Life | Prevents one permanent death (armed at the Fountain, quest #9); halves duel/combat penalty vs. the Amulet of Death. Death-save flavor recovered as message #20 (`server/messages.json`, `revive` subroutine, `SPUR.MISC6.S:132`); a second variant (message #21, "Thou are one of the Chosen Ones") fires instead when `flag(7)` is set — condition untraced | `SPUR.LOGON.S:237`, `SPUR.DUEL.S:146,155`, `SPUR.DUEL2.S:161,165`, `SPUR.WEAPON.S:70`, `SPUR.SUB.S:122` |
 | 97 | Ice Crystal | Blocks one fire attack per encounter (10% chance monster "puts on anti-fire glasses" and negates it) | `SPUR.MISC4.S:180–184` |
 | 82 | Crystal Pendant | ✅ Implemented — 90% chance to permanently block a `cast_turn_to_stone` monster's petrification for the rest of the encounter (resolved once, not per round); 10% chance the monster counters it that one time | `SPUR.MISC4.S:186–189`, `combat/engine.py` `_check_crystal_pendant()` |
 | 146 | Salvage Parts | Sell-only; redeemable for gold (×40 multiplier) at the Ship's Salvage Bay (level-6 alt-shoppe) | `SPUR.SHIP.S:460–500` |
@@ -267,6 +314,10 @@ the named quests above:
 | — | Monster #107 GUARD DROID | Room `desc` ("Hey! This fellow looks familiar!") reads like a recurring/storyline encounter — not traced further | `level_6.json` room 93 |
 | — | Monster #103 ("guardian") | Repeat-encounter monster that "remembers" a previous player loss and returns stronger (`ms=ms+xp*6`) | `SPUR.MISC4.S:198–199` |
 | — | Monsters #125/#126 (OZ, Wicked Witch) | Tied to the Ruby Slippers chain (quest #7) but the broomstick's first-acquisition trigger wasn't fully traced (witch-kill drop vs. static item) | `level_6.json` rooms 115/118 |
+| — | **Wraith King ending** | Message #7 (recovered, `server/messages.json`) reads like the game's actual win-state cinematic: defeating the Wraith King causes the castle to collapse in flame, the "Lady of the Mist" (his prisoner/mother) reveals herself, grants +1 level, and the castle is left "in ruins." Not documented anywhere else in this doc — worth a dedicated follow-up to trace `wraith`'s trigger condition (`SPUR.MISC2.S:373`) and consider implementing as the game's ending | `SPUR.MISC2.S:373` |
+| — | School / re-training | Pay gold + lose 1 level to re-pick character class; flavor recovered as messages #8 (camp intro) and #6 (result) | `SPUR.MISC2.S:418,434` |
+| — | Shield training (Odin the Shield Master) | Pay gold for permanent shield bonus (20% less chance of a monster getting past your shield, +1 protection); flavor recovered as message #13 | `SPUR.MISC2.S:460` |
+| — | Duel help text | Full `H`elp screen for the duel (PvP) system recovered as message #16 — not yet ported into `commands/` duel help | `SPUR.DUEL.S:26,43` |
 
 ---
 

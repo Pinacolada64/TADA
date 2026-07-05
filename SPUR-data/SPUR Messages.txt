@@ -1,0 +1,780 @@
+c:messages. Message #2
+[ Un-readable! ]
+
+Continue? [Y]/n:
+
+c:messages. Message #3
+
+Vaguely at first, than with increasing fury, the AMULET OF LIFE comes alive!
+You drop it in horror, as it seethes and pulsates with a fierce blue light. You
+are slowly backing away from it, when a thundering lightning bolt strikes the
+amulet. The blast knocks you flat. You lie there for long moments before you
+realize that all is again quiet, except for the chirping of birds (who do not
+seem in the least upset by this turn of events).
+
+Approaching the amulet, you see it is again quiet, except for a soft bluish
+glow. Gently, you pick it up, and place it in your pack...
+
+Continue? [Y]/n:
+
+c:messages. Message #4
+
+You insert the key into the lock and give it a twist. Slowly, slowly.... the
+great door swings silently inwards..
+
+So quiet is it, that the sudden voice laughing in your ear causes you to look
+around, even though you know that there is nobody but you here..
+
+"Fool!! You dare to enter my castle?!?? Har, har! Be warned, my little pet:
+once you enter, you shall not leave again, til one of us is dead. It
+won't be me!! Har, har, har!"
+
+The voice dies away, leaving you facing the open door north, pondering...
+
+
+Continue? [Y]/n:
+
+c:messages. Message #5
+You sip the sweet water from the vial, a warm glow of well-being flowing into
+your limbs. The feeling brings back memories of a gentle pool...
+
+Continue? [Y]/n:
+
+c:messages. Message #6
+
+He pockets the gold, and leads you into the training camp...
+
+Many, many arduous days pass. Many times you regret your decision as the strange
+person continuously pushes you to your limits, and beyond. You learn things
+you did not dream of, and slowly make progress, until one momentous day,
+your instructor actually looks at you with something approaching approval in
+his ancient eyes! It is then only a matter of time until he quietly shows
+you back through the gate of the training camp, bows and withdraws...
+
+
+Continue? [Y]/n:
+
+c:messages. Message #7
+
+The body of the King of the Wraiths suddenly implodes upon itself. Searing
+flame quickly replaces it. The room is filled with foul black smoke. You back
+out the door to the throne room only to discover that the whole castle has
+become engulfed in flame. Shrieking... a terrible shrieking seems to come from
+the very walls, as you stagger out through the smoke and flame. All the guards and Wraiths have disappeared...
+
+The walls are collapsing now. You fight onwards, but it is no use. You are hit
+by a falling stone, and are knocked out cold. You dream. Gentle, gentle dreams.
+A pale young girl holds you in her warm hands. She breathes life into you, and
+speaks... "I, the Lady of the Mist, have long been held prisoner by the Wraith King, my son.. Through powerful black magic, he transformed me into the castle that is now dying. The castle is dying, and it is me. But I am at least free, and I thank you. Before I leave, I can see you safely out, and reward you with some of my power.." (+1 level)
+
+You awaken from the dream and discover that you are again outside the castle.
+The castle which is now in ruins...
+
+Continue? [Y]/n:
+
+c:messages. Message #8
+
+You enter the training camp of Spur. A rather scary looking individual greets
+you at the gate. "So, you want to be re-trained eh?" He looks you over with
+a slight sneer. "Well, I suppose there have been more improbable events! But
+be warned that re-training will cost ye ONE level of experience (unless ye are
+still a greenhorn anyway), and 2000 in gold! Do ye still wish to re-train?"
+
+
+Continue? [Y]/n:
+
+c:messages. Message #9
+      Welcome to the Land of SPUR!
+
+Here your abilities will be challenged to their utmost. You are pitted
+against the ALMIGHTY and OMNIPOTENT SPUR and all the demons and monsters of
+his land. Many creatures guard his dungeon of treasures and await the
+eager adventurer.
+
+To succeed in this adventure you must seek out the Almighty SPUR and defeat
+him. You must then escape from the dungeon by climbing UP the ladder in
+the first level. You may also be required to find a MAGIC TREASURE and
+acquire a degree of wealth before you are allowed to escape! New perils
+and new treasures await you on each level.
+
+You will not be supplied with a map. That information can only be acquired
+by exploring the many levels within the land. You will be allowed to purchase
+weapons, shields, armor, spells and rations to aid you in your quest. Your
+gold will be limited at the start, but, you can quickly obtain more through
+your ventures.
+
+SPUR will evaluate your abilities when you enter the land. Take care to
+always know what your status levels are and be watchful of certain objects in
+the dungeon - they may be CURSED! Your attributes will determine your fighting
+and reasoning ability at all times.
+
+Traps and treasures can be found everywhere. Monsters may be found
+roaming throughout the LAND and some can only be killed with special
+weapons. Books in the LAND can hold valuable clues to the game.
+
+Continue, brave adventurer, GOOD LUCK in...
+
+           The Land of SPUR!
+
+Continue? [Y]/n:
+
+c:messages. Message #10
+
+[]=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=-=[]
+
+        DURA-EUROPOS PRESENTS:
+
+          /)
+        _//                /
+      , /    __.  ____  __/
+      (/___ (_/|_/ / <_(_/_
+                  /)
+             ____//
+            (_) /__
+               />
+              </
+          ()
+          /\
+         /  )  _   , , __
+        /__/__/_)_(_/_/ (_
+             /
+            /
+
+          Copyright 1987 by
+     Greg Davis/Peripherals Plus
+
+      ENHANCED for the users of
+
+            DURA-EUROPOS
+
+
+Continue? [Y]/n:
+
+c:messages. Message #11
+Enter a quote which you want to have your charcter to say to passers-by in
+the dungeon. 60 character max. Hit <CR> to "be silent". Note that a $ in the
+quote will be replaced by the name of the person reading it. Be sure to put
+a space, comma, etc after the $. Use QUOTE in Dungeon to View/Change it.
+
+Continue? [Y]/n:
+
+c:messages. Message #12
+[------------------------------------]
+[        Sysop Maintenance Menu      ]
+[------------------------------------]
+[      [D] Display SPUR Log          ]
+[      [U] Spur Sysop Utilities      ]
+[      [*] Spur Sysop Control        ]
+[                                    ]
+[    [P]layers         [S]pells      ]
+[    [I]tems           [M]onsters    ]
+[    [W]eapons         [A]llies      ]
+[    [L]evels          [F]ood/Drink  ]
+[    [R]ooms           [Q]uit        ]
+[------------------------------------]
+
+Continue? [Y]/n:
+
+c:messages. Message #13
+
+A jolly huge Paladin slaps you on the back, nearly knocking you over. "Well! So
+ye wants to get a bit o' school-houzins with your shield, eh?" He looks you
+over with a critical eye, "Hmm.. Well, never let it be said that Odin ever
+turned down a student! Follow me!"
+
+Weeks follow under the careful instruction of Odin the Shield Master. He
+sometimes loses his jolly smile, but he never loses faith that you 'can'
+improve on your natural talents.
+
+Finally, the day comes when you can last 10 minutes without Odin knocking you
+flat with a shield bash. "Ahh, my fine Student! I think the time has come, when
+Odin can let ye go without worrying that a lowly Troll might knock ye flat!
+Fair journey to Ye!"
+
+(20% less chance of a monster getting past your shield, +1 protection at no
+additional cost in damage to your shield. Reduced chance of a large monster
+ripping off your shield.)
+
+
+Continue? [Y]/n:
+
+c:messages. Message #14
+
+Shields in Monster Combat
+
+There are two phases: First it is determined whether or not you deflected part
+of the attack with your shield, or the monster managed to slip past it. If you
+did deflect part of the attack, the second phase is to determine how much
+damage was absorbed by the shield.
+
+Phase 1; did the shield take hits.
+Base probability = 20 + (player level times 10). Maximum base of 80%
+Formal shield training: +20%
+Small monster: -10%
+Swift monster: -20%
+Large monster: +10%
+Huge monster:  +20%
+
+Phase 2; assuming the shield takes damage, how much.
+Base damage absorbed = 3 + (% shield/25)
+  ie: for every 25% of shield, 1 additional damage point is absorbed.
+
+Formal shield training: +1 damage
+Paladin: +2 damage
+
+There is a chance that larger monsters may rip the shield out of your hands.
+Probability: Huge=16%, Large=13%, Big=10%, Man sized=6%
+If Formal shield training: probability -3%
+
+Notice that your shield size affects its ability to absorb damage. Also not
+that this is reduced every time it does take damage.
+
+Continue? [Y]/n:
+
+c:messages. Message #15
+If you join a Guild, you may expect the following changes:
+
+1) You may no longer remain in the shop when you leave the game.
+
+2) You will have access to the  Guild's H.Q.  In this HQ you will find a  stock
+   pile of items, food and  gold. These things are left  there by  fellow Guild
+   members to help out members in need. You will be  expected  to  leave  items
+   in  turn for those who  follow.  You gain  entry to  the HQ, by traveling to
+   the guild's  HQ square. Once  there, you will be asked if you want to enter.
+
+3) If you leave your character in  your Guilds turf when you leave the game, he
+   will get a duel bonus if attacked in your absence. The bonus is higher  in a
+   guild's HQ square than in the  other ones. (A guilds square is  identifiable
+   by the guild's symbol, the HQ  after the symbol identifying the HQ.
+
+4) If you leave your  character in  the same square as a  fellow Guild  member,
+   you will also receive a duel  bonus. The size of the  bonus  depending  upon
+   how many guild  members are  present when  you  are  attacked. This  applies
+   regardless of who is  attacking  and who is defending.
+
+5) If a fellow guild member  is present while you are lying unconscious  (having
+   lost a duel), he  will  protect  you from being LOOTed during your  absence.
+
+6) Any duels you  fight  with  opposing guilds, will be  counted  towards  your
+   guild's duel rating.
+
+7) You will have access to your guild's private sub.
+
+8) There  is a 400 experience point and Honor penalty for leaving a guild!
+
+9) Guild members have 3 added commands. These are FOLLOW ME, FL and STAY.
+
+   >FOLLOW ME will ask guild members in the same room to follow you. Those that
+    are conscious and have their FL on will do so.
+   
+   >FL lets you tell your character if he/she is to follow other guild members
+    in your absence. This defaults to NO when you first join a guild.
+   >STAY deposits any following guild members in your current room.
+     NOTE: You may 'pick up' unconscious guild members if you already have one
+   guild member following, or if you have an ally with a strength of 11 or
+   higher.
+
+10) Following guild members give the same bonus in DUEL as guild members who
+    were already present in the room.
+
+Continue? [Y]/n:
+
+c:messages. Message #16
+[]=-=-=-=-=[ SPUR DUEL HELP ]=-=-=-=-=[]
+
+You will have two operating menus, the main one is active when you are standing
+up. The secondary one is active when you are lying on the ground.
+
+The main menu is:
+
+(A] P,B,F,R,H,?)
+
+A: Is an all out attack against your opponent. It can inflict more hits, but
+leaves you more vulnerable to shield bashes and Attacks by your opponent.
+
+P: Parry with your weapon. This represents a dodging, darting sort of tactic.
+It will be harder for your opponent to hit you, and if he does, he will not do
+quite as much damage. If you should Parry the same turn that your opponent
+tries to Shield bash, there is a chance you will catch him off guard and trip
+him. Making HIM the one to fall down.
+   You may still score a hit on your opponent while Parrying, though at
+somewhat reduced effectiveness.
+
+B: Shield bash and attempt to knock your opponent down. If you knock him down,
+you will strike at much enhanced effectiveness in the turn in which he falls,
+and also in the next turn when he tries to stand back up!
+   To see how various factors affect the shield bash, turn your 'V' on to
+see a  running commentary.
+
+F: Flee from Duel (You cannot use this if dueling to the death!)
+
+R: Ready a weapon. You must have a weapon readied unless fighting with fists.
+---------------------------------------
+If you are knocked down, your secondary menu will be activated. It contains:
+"S]tand up, R)oll, H)"  Standing up, attempts to stand back up. R)oll, rolls
+on the ground. This is a combination defensive, offensive maneuver. At worst,
+it reduces somewhat, the damage you will take. At best, your opponent will trip
+over you if he either attacks or bashes (but not parries). If he trips over
+you, you are both on the ground, and must stand up. There is also a chance you
+may strike from the ground when rolling, though at reduced effectiveness. 'H'
+gets this help message.
+----------------------------------------
+Note that rooms with '+' following their title are FREE FIRE zones. That means
+that anybody may challenge anybody else as long as they are conscious. It also
+means that Autoduel is not effective in those squares.
+----------------------------------------
+Sizes:
+  10-Humans, Ogres, Half-elves
+   9-Elfs, Dwarves, Orcs
+   8-Hobbits, Gnomes
+   7-Pixies
+-----------------------------------------
+Tips:
+   > Keep your energy and dexterity up (especially when leaving the game!). If  
+     you are tired or clumsy, you will probably spend a lot of time on the ground.
+> Keep in mind that the smaller races have an advantage when maneuvering
+during a shield bash (smaller size makes them quicker).
+> If you have the Ring, USE it before leaving the game (or when dueling
+somebody else). This will make you harder to see, and there is a chance they
+will 'lose sight of you' when they swing.
+
+Continue? [Y]/n:
+
+c:messages. Message #17
+
+The body of the old man suddenly is engulfed in a shimmering glow. Before your
+amazed eyes, the glow raises above the body, and takes on the form of a young
+man. The glow still has the friendly smile of the old man in its eyes. "Thank
+you! Oh, thank you for releasing me. Now I can go, but before I do, I will let
+YOU go also! Fare well my friend..."
+
+With that, the glow disappears...
+
+Continue? [Y]/n:
+
+c:messages. Message #18
+
+Suddenly, you are lifted bodily by a
+incredibly powerful gust of wind!
+
+A terrible howling fills your ears as
+the wind sucks you through a pulsating
+blue ball of light. Only dimly do you
+realize that the howling is coming from
+your mouth.
+
+Downwards and downwards you fly. Just
+as you become resigned to a rather 
+messy death, a strange force gently
+slows your descent, until your sudden
+plop face down into hot sand injures
+only your dignity...
+
+
+Continue? [Y]/n:
+
+c:messages. Message #19
+You slip the slippers on your feet (they fit, amazingly enough). For some
+reason, you start mumbling: "There is no place like home. There is no place
+like home..." Then you start clicking your heels together, for all the world
+like some sort of Gestapo trooper.
+
+The area fades from view...
+
+Continue? [Y]/n:
+
+c:messages. Message #20
+
+The last light of your consciousness is puzzled to note that the Amulet of Life
+is again stirring! Its powerful blue flame reminds you of the time in the
+desert at the Fountain of Youth (funny what one thinks of when one is dying).
+
+Somehow, its fiery power is comforting, you vaguely realize that you are totally
+engulfed in it. It seems to be carrying you somewhere, but you black out.
+
+Eons later, you slowly awaken. Amazed that you are still alive, you see that
+you are in the shop. The Amulet is now drained of all energy...
+
+Continue? [Y]/n:
+
+c:messages. Message #21
+
+You slowly fade off into death, wondering about the bright light growing all
+around you. "So, this is what death is like.." you muse idly.
+
+But the bright light continues to grow, until it becomes uncomfortable even
+for a dead person. A soft voice whispers in your ears, "Thou are one of the
+Chosen Ones, Thou may not die yet!"
+
+You begin to protest to the voice, but before you know it, you awaken - still
+alive it seems...
+
+Continue? [Y]/n:
+
+c:messages. Message #22
+
+"Aha!" The man calling himself Oz scrambles over and scoops up the broomstick. "I KNEW you could do it!" he beams at you. "And in return, I have a little present for YOU!" Grinning from ear to ear, he scurries behind the little curtain in the corner, and returns with some rather garish looking shoes.
+
+"These are the Ruby Slippers of legend! They have special powers. I want you
+to have them!"
+
+Placing the slippers at your feet, he continues, "Not only can these get you
+home again, but they can also show you the way to your ultimate destiny, if you
+but only examine the doorway with them in your possession."
+
+As you turn and leave, he shouts, "Remember... examine the doorway..."
+
+
+Continue? [Y]/n:
+
+c:messages. Message #23
+
+Continue? [Y]/n:
+
+c:messages. Message #24
+
+A soft vision floats before your eyes! She peers at you curiously for a
+long moment, before speaking.
+
+"I am Galadriel, Lady of Lorien. I have journeyed far to give a gift of
+some importance to one of worth. Could Ye be such a person?"
+
+She is quite tall, with a grave sort of beauty. Clad all in white, with
+bright golden hair flowing over slender shoulders.
+
+
+Continue? [Y]/n:
+
+c:messages. Message #25
+
+Who lies in the tomb of Moria?
+
+1) Khazad-dum
+2) Gimli
+3) Balin
+4) EntWood
+
+Continue? [Y]/n:
+
+c:messages. Message #26
+
+In what great battle was Sting first used? (Spiders don't count)
+
+1) Battle of Helms Deep
+2) Battle of the Five Armies
+3) Siege of Minas Tirith
+4) Battle of The Pygmies
+
+Continue? [Y]/n:
+
+c:messages. Message #27
+
+What is a Treebeard?
+
+1) Ent the earthborn, old as mountains
+2) A type of moss found on old trees, with poisonous nettles
+3) An old dwarf, famous for his earthy sense of humor
+4) A fruit, famous for its woody flavor.
+
+Continue? [Y]/n:
+
+c:messages. Message #28
+What is a Gollum?
+
+1)  A short, slimy creature who has a taste for some types of jewelry.
+2)  A powerful evil warrior, clad entirely in black armor.
+3)  A type of wheel barrow, useful in Middle earth for carrying computers.
+4)  The guardian of Helm's Keep.
+
+Continue? [Y]/n:
+
+c:messages. Message #29
+Who is Sharkey?
+
+1) The leader of the Five Armies.
+2) A fisherman famous for catching sharks with his hands.
+3) Frodo's personal servant.
+4) A big ruffian, who lived in Bag End.
+
+Continue? [Y]/n:
+
+c:messages. Message #30
+
+PU= Print users.           B= Backup & Restore of player files.
+WF= Weapons file check.   AF= Ally file check.
+ E= Edit user files.       S= Spur system program. 
+ M= Messages               V= View/edit spur.data.
+AN= goto ANNEX             G= Goto Guild program
+PF= Player /RAM file check LM=List Message file.
+
+Continue? [Y]/n:
+
+c:messages. Message #31
+              SPUR ANNEX
+[]=-=-=-=-=-=-=[ LOS ]=-=-=-=-=-=-=[]
+
+ 1) SPUR HELP         2) DUEL HELP
+ 3) SURVIVAL TIPS     4) SPELLS
+ 5) The Horse         6) New News
+ 7) Old News          8) Guild Ratings
+ 9) Personal Ratings 10) Weapons list
+11) GUILD HELP       12) Shields
+13) EXAMINE Command  14) TRACK Command
+
+            MEMBERSHIPS
+
+15) CIVILIAN        16) CLAW \|/
+17) SWORD -}----    18) FIST  ==[]
+19) OUTLAWS
+
+Continue? [Y]/n:
+
+c:messages. Message #32
+The EXAMINE command in Spur.
+
+The EXAMINE command is the act of looking at an object closely. You may specify
+the object to be examined by typing the name after it (ie: EXAMINE ROCKS) or
+simply enter EXAMINE to examine everything in the room. NOTE: simply entering
+X is the same as entering EXAMINE.
+  As some objects lying about are cursed, booby-trapped, or otherwise unhealthy
+to pick up, it is a good idea to examine every object you want to pick up,
+until you get an idea of what is safe, and what is not.
+  Successfully examining an object that is not healthy for you, will raise your
+intelligence (up to 25). This is a good tactic to use to get smarter, even if
+you already know an object is bad from a previous examination.
+  Often, your attempt at examining an object will fail. Just keep re-examining
+it and you will succeed sooner or later.
+  Examine dead monsters! Sometimes, you will discover hidden treasure on them,
+and sometimes you will decide that they are (ugh) edible. Dwarves are more
+likely to find hidden treasure, while Orcs and Ogres are more likely to decide
+that they are edible (Elves and half-elves are less likely to eat dead
+monsters). Note that there is a small chance that you will pick up a disease
+from examining a dead monster! (Apple a Day spell and the Blue Pill cures
+disease).
+  Examining another player in your room, will reveal much information about
+that character.
+  While on The Space Ship it is a GOOD idea to examine EVERY room, even if
+there doesn't appear to be anything there. This is also true to some extent in
+the Land of Oz.
+
+Continue? [Y]/n:
+
+c:messages. Message #33
+A white glow appears before your fading eyes. "So, this is what God looks like"
+you muse to yourself. The glow smiles, "Heh heh.. You wish! Your work is not
+done yet, the land needs a saintly person as yourself. You must return..."
+
+The glow fades, and you drift off to sleep for a short time.
+
+Continue? [Y]/n:
+
+c:messages. Message #34
+Jake peers at your horse with a skeptical eye. Then, after a long moment, he
+draws himself up to his full height, almost looking the horse in the eye.
+"Come on, fella. Jake has not met a horse yet that he could not train!"
+
+Jake casts you an eye that tells you that you are not being fair to him, but
+he takes the reins of the horse and leads him away...
+
+After a while, and much strange mutterings and bursts of light from the back
+room, Jake leads the horse back to you. The horse definitely looks different
+somehow, he looks like he is ready to kick butt and take names...
+
+Continue? [Y]/n:
+
+c:messages. Message #35
+Jake squints at you through his glasses. For a moment, you are not sure he can
+actually see you through the grime...
+
+"Well sir, they call me the horse master hereabouts, and there ain't much
+I don't know about the noble beasts."  He pauses and pours himself a cup of
+coffee. You are tempted to ask for a cup, until you get a smell of it...
+
+Jake sips on the coffee, blanches slightly, and continues. "For instance, I
+know of their favorite haunts, which is a narrow grassy canyon to the northwest.
+But they are hard to find. You might find one if you keep looking long
+enough, but if I were you I would take some of my sugar cubes, and commence
+dropping them on the ground. Chances are that after a time or two, one of those
+horses will come up to eat it, and you will have yer chance!"
+
+Jake peers into his coffee cup, and decides against another sip. "One more
+thing, when ye do find one of the critters, ye will have to USE one of my
+lassos to catch them."
+
+Continue? [Y]/n:
+
+c:messages. Message #36
+The Space Tracker suddenly blazes in a bright ball of yellow light. A seething
+bolt of energy blazes out of a hidden lens in its side, and blasts a hole in
+the floor! Then it goes quiet again.
+
+Continue? [Y]/n:
+
+c:messages. Message #37
+A voice whispers in your ear, as if from a place far, far away....
+"HAHAHAHAHAHAHA!!!! You twit! Can't you see that the Witch has cast a
+protective spell over this hut that only the Space Tracker can dispel?"
+
+The voice snickers to itself some more, than fades away...
+
+Continue? [Y]/n:
+
+c:messages. Message #38
+Vinney's Rules:
+
+Money borrowed from Vinney -will- be paid back. If not by you, then by your
+heirs, as your debt will paid by any subsequent character you start in the
+event of the death of your current character.
+
+Money saved with Vinney will likewise be saved for your heirs in the event your
+current character dies. The exception to this is suicides. If you use the D)ie
+command, any money you saved with Vinney, will be lost (this to stop the
+rules-lawyer tactic of starting several new characters and saving their
+starting 1000 gold with Vinney, then committing suicide, starting another new
+one, saving his 1000 gold with Vinney, etc. etc.
+
+Minimum payment installment is 200 gold (unless you owe less, of course). You
+will not be allowed back into the bar unless you make payment. Also, Vinney's
+"associate" the Blue Djinn will be checking up on you, and will encourage you
+to make payments..
+
+Continue? [Y]/n:
+
+c:messages. Message #39
+A small buzzing is heard in your ear. It is faint at first, but quickly grows
+in volume until it fills the hut. "HAHAHAHAHAHAHAHAHAHAHAHA"
+
+The strange buzzing fades away once again, leaving you pondering its
+significance. 
+
+You stare stupidly at the floor, getting the strange feeling that if you had
+the Space Tracker, it might do something strange here...
+
+Continue? [Y]/n:
+
+c:messages. Message #40
+A red glow suddenly surrounds your Space Tracker! It grows brighter and
+brighter until it bathes the hut in a ruby red light. Suddenly, a red beam
+flashes out of a hidden lens in its side, and burns a large hole in the floor.
+Then it goes dead once again.
+
+Continue? [Y]/n:
+
+c:messages. Message #41
+The Track Command:
+
+This command allows you to attempt to track down other players in the dungeon.
+
+You have a base track range (in squares) of 12. This is modified as follows:
+
+You are a Wizard           : -2
+You are a Ranger           : +5
+You are a Thief            : +2
+You are an Assassin        : +2
+You have a TRACKER ally    : +5
+Your player level          : +1 for each level.
+
+Target is an Elf           : -2
+Target is a Hobbit         : -3
+Target is a Gnome          : -3
+Target is a Pixie          : -5
+Target is a fighter        : +2
+Target is a Knight         : +2
+Targets player level       : -1 for each level.
+
+Range is calculated to the target as the sum of the squares in two directions.
+Ie: if he were 3 squares east, and 6 squares south, the range would be 9.
+If the range to the target is equal or less than, your tracking range as
+determined about, you are considered to have detected the target. A general
+range and direction will be given. (ie: YOU DETECT JOE-BLOW TO THE NORTHEAST AT
+A CONSIDERABLE DISTANCE).
+
+You should check this file periodically for any changes to the routine.
+
+Continue? [Y]/n:
+
+c:messages. Message #42
+She is a slender, ethereal young woman with pale skin, long black hair and dark
+eyes, dressed in a simple white gown. On her head is a golden crown. In her
+right hand she holds a pomegranate, split open to show its multitude of seeds.
+In her left hand a bunch of white narcissi flowers trail to the ground.
+
+Continue? [Y]/n:
+
+c:messages. Message #43
+She is a severely beautiful young woman, dressed in silver helmet and battle
+armor. In her right hand she holds an upright sword, on her left shoulder sits
+a large owl that can see and hunt its prey in the dark. She has pale hair and
+snow white robes.
+
+Continue? [Y]/n:
+
+c:messages. Message #44
+He is a handsome, virile man with curling auburn hair, blue eyes and ruddy
+complexion. He is dressed in bronze armour, bronze helmet and a blood-red
+tunic. At his hip is a bronze shield, and at his side is balanced a large
+spear.
+
+Continue? [Y]/n:
+
+c:messages. Message #45
+He is a figure shrouded in black robes, his face hidden beneath a dark helmet.
+
+Continue? [Y]/n:
+
+c:messages. Message #46
+He is half man and half goat, dancing to the music of the pipes which he
+holds in his left hand. In his right, he grasps a large conch shell.
+
+Continue? [Y]/n:
+
+c:messages. Message #47
+She is a beautiful black-haired young woman garbed in rainbow-colored robes,
+and bearing wings of many hues. In her hands she holds two cups: one of gold
+and one of silver, and pours water from one to the other.
+
+Continue? [Y]/n:
+
+c:messages. Message #48
+She is a beautiful earthy woman with rich flowing brown hair. Her gown is woven
+of many different plants, and hemmed with leafy boughs. Around her neck is a
+necklace of twelve precious stones. She is crowned with a diadem of castles and
+towers. 
+  Demeter is a matriarchal goddess, an image of the power within the earth
+itself.
+
+Continue? [Y]/n:
+
+c:messages. Message #49
+He is a classically handsome, beautifully proportioned man with golden hair,
+crowned with laurel leaves and bearing on his head the golden disc of the sun.
+He has golden wings and wears a short robe of dazzling white. In his right hand
+he holds a bow and a quiver of arrows; in his left he cradles a lyre.
+
+Continue? [Y]/n:
+
+c:messages. Message #50
+
+Continue? [Y]/n:
+
+c:messages. Message #51
+
+Continue? [Y]/n:
+
+c:messages. Message #52
+
+Continue? [Y]/n:
+
+c:messages. Message #53
+
+Continue? [Y]/n:
+
+c:messages. Message #54
+
+Continue? [Y]/n:
+
+c:messages. Message #55
+
+Continue? [Y]/n:N
+
+Sysop command (?=help):
