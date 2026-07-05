@@ -3,7 +3,7 @@ import logging
 import random
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum, IntEnum, auto
-from typing import Optional
+from typing import NamedTuple, Optional
 import datetime
 from enum import StrEnum, IntEnum, auto, Enum
 
@@ -403,6 +403,20 @@ class RoomAlignment(StrEnum):
     HQ        = "hq"         # 'HQ' marker -- headquarters of whichever guild owns the room
 
 
+# Room.exits is keyed by full words (north/south/east/west/up/down), but
+# typed movement commands resolve to short forms (n/s/e/w/u/d) -- see
+# Room.get_exit() and commands/movement.py's _DIR_ALIASES.
+_SHORT_TO_FULL_DIRECTION = {'n': 'north', 's': 'south', 'e': 'east',
+                            'w': 'west', 'u': 'up', 'd': 'down'}
+
+
+class HiddenExitTarget(NamedTuple):
+    """A confirmed hidden-exit destination -- see Room.hidden_exit()."""
+    level: int
+    room: int
+    message: Optional[list] = None
+
+
 @dataclass
 class Room(object):
     number: int
@@ -420,10 +434,55 @@ class Room(object):
     # List of RoomFlag values (as strings) parsed from SPUR room data.
     # e.g. ["water"], ["snow"], ["no_flee"], ["block_north", "block_east"]
     flags: list = field(default_factory=list)
+    # Confirmed hidden-exit destinations (SPUR.MISC.S:419 "->"/"<-" markers --
+    # the marker itself only says an exit exists, not where it goes, so this
+    # is filled in per-room only once the real destination has been traced
+    # against the SPUR source). Either a bare room number (same level) or
+    # {"room": n, "level": n, "message": [...]} for a cross-level destination
+    # like level 1 room 89's hardcoded teleport (SPUR.MISC.S:448) -- "message"
+    # is optional, a list of paragraphs recovered from SPUR-data/SPUR
+    # Messages.txt, printed before the move. None if unconfirmed -- see
+    # Server._hidden_exit_target()'s +/-1 guess fallback for rooms that only
+    # carry the legacy hidden_exit_east/west flag string.
+    hidden_exit_east: Optional[object] = None
+    hidden_exit_west: Optional[object] = None
 
     def __str__(self):
         return f'#{self.number} {self.name}\n' \
                f'{self.desc}\n{self.exits}'
+
+    def hidden_exit(self, direction: str, current_level: int) -> Optional['HiddenExitTarget']:
+        """Return a HiddenExitTarget for a *confirmed* hidden exit, or None.
+
+        Accepts short ('e'/'w') or full ('east'/'west') direction forms.
+        """
+        attr = {'e': 'hidden_exit_east', 'east': 'hidden_exit_east',
+                'w': 'hidden_exit_west', 'west': 'hidden_exit_west'}.get(direction)
+        value = getattr(self, attr, None) if attr else None
+        if value is None:
+            return None
+        if isinstance(value, dict):
+            return HiddenExitTarget(
+                level=int(value.get('level', current_level)),
+                room=int(value['room']),
+                message=value.get('message'),
+            )
+        return HiddenExitTarget(level=current_level, room=int(value))
+
+    def get_exit(self, direction: str) -> Optional[int]:
+        """Look up an exit room number by direction, short or full form.
+
+        Room data stores exits under full-word keys (north/south/east/west),
+        but typed movement commands resolve to short forms (n/s/e/w/u/d)
+        before reaching here -- see commands/movement.py's _DIR_ALIASES.
+        Without normalizing, exits.get(direction) always missed and every
+        real exit silently behaved like a dead end.
+        """
+        full = _SHORT_TO_FULL_DIRECTION.get(direction, direction)
+        dest = self.exits.get(direction)
+        if dest is None:
+            dest = self.exits.get(full)
+        return int(dest) if dest else None
 
     def exits_txt(self, debug: bool = False) -> str:
         """Return exits as a comma-delimited string.
@@ -440,8 +499,7 @@ class Room(object):
         commands (n/s/e/w). Without normalizing here, this always produced an
         empty exit list -- "Ye may travel:" silently never printed anything.
         """
-        _full_to_short = {'north': 'n', 'south': 's', 'east': 'e', 'west': 'w',
-                          'up': 'u', 'down': 'd'}
+        _full_to_short = {v: k for k, v in _SHORT_TO_FULL_DIRECTION.items()}
         exit_txts = [
             compass_txts[_full_to_short.get(k, k)]
             for k in self.exits

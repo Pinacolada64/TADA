@@ -2394,9 +2394,8 @@
             "number": 140,
             "name": "Village",
             "room_alignment": "neutral",
-            "flags": [
-                "hidden_exit_east"
-            ],
+            "flags": [],
+            "hidden_exit_east": 141,
             "exits": {
                 "west": 1
             },

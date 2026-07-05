@@ -179,7 +179,7 @@ class MoveCommand(Command):
                 return CommandResult.ok()
 
             # Special destination: entering the bar
-            dest = exits.get(direction)
+            dest = room.get_exit(direction)
             if dest and int(dest) == _BAR_ROOM:
                 await _enter_bar(ctx)
                 return CommandResult.ok()

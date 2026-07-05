@@ -172,18 +172,57 @@ implemented, or not yet started. Source references are to files under `SPUR-code
   was always empty and the line silently never printed. `exits_txt()` now
   normalizes full-word keys to short form before the `compass_txts` lookup
   (`base_classes.py`).
+- ✅ **Fixed bug: real exits silently behaved like dead ends** — `commands/
+  movement.py` always resolves typed directions to short forms (`n`/`s`/`e`/`w`/
+  `u`/`d` — `_DIR_ALIASES`) before calling `Server._move()`, but every level's
+  `exits` dict is keyed by full words (same `EXIT_KEYS` format as the "Ye may
+  travel:" bug above). `exits.get(direction)` with a short-form direction
+  against a full-word-keyed dict always returned `None`, so **every real exit,
+  on every room, always failed to resolve** — masked in prior tests only
+  because the hidden-exit `±1` fallback formula happened to produce the same
+  destination room number in those specific fixtures. Added `Room.get_exit()`
+  (`base_classes.py`), which checks both short and full forms; `Server._move()`
+  and `commands/movement.py`'s bar-entry check now use it instead of a bare
+  `.get(direction)`.
 - **Room flags** — monster blocking (`.`), no-flee (`@@`, `**`, `<<`), random encounter (`]`) — other flags (`+`, `#`, `-`, `*`, `@`, `&`, `E`/`G`, `;;`) belong to monsters, not rooms; see monster abilities in the Combat section above
 - ✅ **Hidden exits** (`hidden_exit_east`/`hidden_exit_west`) — `SPUR.MISC.S:419`'s
   `"->"`/`"<-"` markers only set a boolean "exit exists" flag on the room; the
-  original source never stores a target room number for them. The destination
-  follows the same `room_number ± 1` adjacency ordinary same-row exits already use
-  in the converted data — confirmed against two real cases: level 5 room 140
-  "Village" → 141 "The Chief's Treasure Room" (the Headhunter's Island quest
-  reward), and level 1 room 89 "Teleport Room" → 90 "Gate Room" (room 89's own
-  description narrates noticing the hidden passage). `Server._hidden_exit_target()`
-  computes the candidate and confirms it actually exists before allowing the move
-  (level 1's numbering has real gaps) — logs a debug message either way
-  (`simple_server.py` `_move()`/`_hidden_exit_target()`).
+  original source never stores a target room number for them, so the real
+  destination has to be traced per-room against the SPUR source. Data-driven:
+  `Room.hidden_exit_east`/`hidden_exit_west` (`base_classes.py`) hold the
+  *confirmed* destination once traced — a bare room number for a same-level
+  exit, or `{"room": n, "level": n}` for a cross-level one — resolved by
+  `Room.hidden_exit()` and `Server._move()`/`Server._teleport_to()`. Confirmed
+  so far:
+    - Level 5 room 140 "Village" → 141 "The Chief's Treasure Room" (the
+      Headhunter's Island quest reward), same level.
+    - Level 1 room 89 "Teleport Room" → level 5 ("Land of the Wraiths") room
+      41 — `SPUR.MISC.S:448`: `if (cl=1) and (cr=89) then a=18:gosub
+      message:cl=5:cr=41:goto travel4`. Prints message #18 ("Suddenly, you
+      are lifted bodily by a incredibly powerful gust of wind!..." —
+      recovered from `SPUR-data/SPUR Messages.txt`, stored as the `"message"`
+      list on room 89's `hidden_exit_east` field), then "You have entered
+      Land of the Wraiths!". Note: `SPUR.MAIN.S:174`'s
+      `if (cl=1) then if (cr=89) goto travel3` is a catch-all in the original
+      that fires for *any* blocked direction out of the room, not just east;
+      this port deliberately simplifies that to "only the flagged direction
+      resolves the hidden exit," matching every other hidden exit — other
+      directions out of room 89 just say "Can't go \<dir\>." now.
+  The remaining 10 rooms carrying the legacy `hidden_exit_east`/`west` flag
+  *string* only — level 2 rooms 155 & 157, level 5 room 85, and level 6
+  rooms 45, 49, 79, 99, 109, 115 & 186 — have no confirmed field yet, so
+  `Server._hidden_exit_target()` still guesses via `room_number ± 1`
+  adjacency for them — unverified, flagged as a guess in its own docstring,
+  kept only so those rooms don't regress to being unreachable while the
+  real destinations get traced.
+- ✅ **Hidden exit reveal message** — `SPUR.MISC.S:419-420`, right after
+  `gosub rec.ammo` in the dead-monster routine (`p.a3`/`p.a4`/`no.robot`):
+  killing any monster (except THE DWARF, which short-circuits earlier) in a
+  room flagged `hidden_exit_east`/`hidden_exit_west` (legacy flag string *or*
+  confirmed `Room.hidden_exit_east`/`west` field) unconditionally prints
+  "A search reveals a secret hole, east!"/"...west!" — no other gate.
+  `CombatSession._reveal_hidden_exit()`, called from `_monster_dies()`
+  (`combat/engine.py`).
 - Fixed data bug: `level_1.json` room 89's name carried a stray `"TELEPORT
   ROOM|->"` suffix — a leftover flag-recovery artifact from the level 1
   reconciliation (`parse_name_field()` used the `|->` marker to recover the

@@ -1173,11 +1173,38 @@ class CombatSession:
         # Ammo recovery for bows/slings/blowguns (SPUR.MISC.S:427)
         await self._recover_ammo(ctx)
 
+        # Hidden exit reveal (SPUR.MISC.S:419-420, right after "gosub
+        # rec.ammo" in the source): killing a monster in a room flagged
+        # hidden_exit_east/west reveals the secret passage it was guarding.
+        await self._reveal_hidden_exit(ctx)
+
         # Notify bystanders of the kill (they earned exp per-swing already)
         for b_ctx in self.attackers:
             if b_ctx is ctx:
                 continue
             await b_ctx.send(f'|green|{mname} is slain!|reset|')
+
+    async def _reveal_hidden_exit(self, ctx: 'GameContext') -> None:
+        """Reveal a hidden_exit_east/west room's secret passage on monster death.
+
+        SPUR.MISC.S:419-420: unconditional for any non-Dwarf kill in a room
+        whose raw name field carried the "->"/"<-" marker -- no other gate.
+        """
+        game_map = getattr(ctx.server, 'game_map', None)
+        room_no  = getattr(ctx.client, 'room', None)
+        if not game_map or not room_no:
+            return
+        level = int(getattr(ctx.player, 'map_level', 1) or 1)
+        room  = game_map.get_room(level, int(room_no))
+        if not room:
+            return
+        room_flags = getattr(room, 'flags', None) or []
+        has_east = 'hidden_exit_east' in room_flags or getattr(room, 'hidden_exit_east', None) is not None
+        has_west = 'hidden_exit_west' in room_flags or getattr(room, 'hidden_exit_west', None) is not None
+        if has_east:
+            await ctx.send('A search reveals a secret hole, east!')
+        if has_west:
+            await ctx.send('A search reveals a secret hole, west!')
 
     async def _recover_ammo(self, ctx: 'GameContext') -> None:
         """After combat, bow/sling/blowgun weapons may recover spent rounds (SPUR.MISC.S:427).

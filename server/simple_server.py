@@ -44,12 +44,15 @@ PETSCII_PORT = 34064
 _WILD_HORSE_ROOMS = (30, 52, 68)
 _WILD_HORSE_MONSTER_NUMBER = 136
 
-# Hidden exits (SPUR.MISC.S:419 "->"/"<-" markers): the marker only sets a
-# boolean "exit exists" flag on the room, not a target -- the destination
-# follows the same +/-1 room-number adjacency as ordinary same-row exits.
-# Confirmed against level 5 room 140 -> 141 (Headhunter's Island's Village ->
-# Chief's Treasure Room) and level 1 room 89 -> 90 (Teleport Room -> Gate
-# Room, whose own description narrates the hidden passage).
+# Hidden exits (SPUR.MISC.S:419 "->"/"<-" markers): the marker itself only
+# sets a boolean "exit exists" flag on the room, never a target, so the real
+# destination has to be traced per-room against the SPUR source. Room.
+# hidden_exit_east/west (base_classes.py) hold the *confirmed* destination
+# once that tracing has been done (see level_1.json room 89 and level_5.json
+# room 140 for the two rooms confirmed so far). For rooms that still only
+# carry the legacy hidden_exit_east/west flag string with no confirmed
+# field, _hidden_exit_target() below falls back to a +/-1 room-number guess
+# -- unverified, flagged as such in its own docstring.
 _HIDDEN_EXIT_FLAGS = {'e': 'hidden_exit_east', 'w': 'hidden_exit_west'}
 _HIDDEN_EXIT_DELTA = {'e': 1, 'w': -1}
 
@@ -659,6 +662,10 @@ class Server:
                 room_flags = getattr(room, 'flags', None) or []
                 if room_flags:
                     lines.append(f"[DEBUG] Room flags: {', '.join(room_flags)}")
+                for attr, label in (('hidden_exit_east', 'east'), ('hidden_exit_west', 'west')):
+                    value = getattr(room, attr, None)
+                    if value is not None:
+                        lines.append(f"[DEBUG] Hidden exit {label} -> {value}")
         except Exception:
             pass
 
@@ -685,13 +692,23 @@ class Server:
             logging.debug('EXIT (no room) direction=%r', direction)
             return
 
-        dest = getattr(room, 'exits', {}).get(direction)
+        dest = room.get_exit(direction)
+        target_level = level
+        hidden_message = None
         if not dest:
-            dest = self._hidden_exit_target(room, direction, level)
+            hidden = room.hidden_exit(direction, level)
+            if hidden:
+                target_level, dest, hidden_message = hidden.level, hidden.room, hidden.message
+            else:
+                dest = self._hidden_exit_target(room, direction, level)
 
         if not dest:
             await ctx.send(f"Can't go {compass_txts[direction].lower()}.")
             logging.debug('EXIT (no exit) direction=%r room=%r', direction, room_no)
+            return
+
+        if target_level != level:
+            await self._teleport_to(ctx, target_level, int(dest), message=hidden_message)
             return
 
         ctx.client.room = int(dest)
@@ -703,12 +720,14 @@ class Server:
         await try_ally_find_gold(ctx)
 
     def _hidden_exit_target(self, room, direction: str, level: int) -> int | None:
-        """Resolve a hidden_exit_east/west flag to a target room, if any.
+        """Guess a hidden_exit_east/west flag's target room via +/-1 adjacency.
 
-        See _HIDDEN_EXIT_FLAGS/_HIDDEN_EXIT_DELTA above for the reasoning:
-        the flag only says an exit exists, not where it goes, so this
-        computes room_number +/-1 and confirms that room actually exists
-        before allowing the move (level 1's numbering has real gaps).
+        Fallback only, for rooms that carry the legacy hidden_exit_east/west
+        flag string but have no confirmed Room.hidden_exit_east/west field
+        yet (see base_classes.py). Unverified against the SPUR source -- see
+        _HIDDEN_EXIT_FLAGS/_HIDDEN_EXIT_DELTA above. Confirms the candidate
+        room actually exists before allowing the move (level 1's numbering
+        has real gaps).
         """
         flag = _HIDDEN_EXIT_FLAGS.get(direction)
         room_flags = getattr(room, 'flags', None) or []
@@ -718,14 +737,42 @@ class Server:
         candidate = int(room.number) + _HIDDEN_EXIT_DELTA[direction]
         target = self.game_map.get_room(level, candidate) if self.game_map else None
         if target:
-            logging.debug('Hidden exit %r found in room %s (level %s) -> room %s',
+            logging.debug('Hidden exit %r found in room %s (level %s) -> room %s (guessed)',
                           direction, room.number, level, candidate)
             return candidate
 
-        logging.debug('Hidden exit %r found in room %s (level %s), but target '
-                      'room %s does not exist -- blocking the move',
+        logging.debug('Hidden exit %r found in room %s (level %s), but guessed '
+                      'target room %s does not exist -- blocking the move',
                       direction, room.number, level, candidate)
         return None
+
+    async def _teleport_to(self, ctx: GameContext, target_level: int, target_room: int,
+                            *, message: list | None = None) -> None:
+        """Move the player to a confirmed cross-level hidden-exit destination.
+
+        Prints the room's own pre-move message (e.g. level 1 room 89's
+        message #18, recovered from SPUR-data/SPUR Messages.txt) if any,
+        then the same "YOU HAVE ENTERED <level>!" banner SPUR's travel4
+        always shows on a level change (SPUR.MISC.S:457-464).
+        """
+        if message:
+            await ctx.send(message)
+        ctx.player.map_level = target_level
+        try:
+            ctx.client.map_level = target_level
+        except Exception:
+            pass
+        ctx.client.room = target_room
+        ctx.player.map_room = target_room
+        ctx.player.unsaved_changes = True
+        from shoppe.elevator import level_name
+        name = level_name(target_level)
+        if name:
+            await ctx.send(f'You have entered {name}!')
+        logging.debug('Cross-level hidden exit -> level=%s room=%s', target_level, target_room)
+        await self._show_room(ctx)
+        from ally_events import try_ally_find_gold
+        await try_ally_find_gold(ctx)
 
     # -----------------------------------------------------------------------
     # Broadcast

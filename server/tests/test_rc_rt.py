@@ -76,3 +76,77 @@ def test_exits_full_word_keys_with_rc_rt():
     txt = room.exits_txt(debug=True)
     assert 'East' in txt
     assert 'Up to Shoppe' in txt
+
+
+class TestGetExit:
+    """Room.get_exit(): the actual movement lookup, not just the display text.
+
+    Regression coverage for a real bug: commands/movement.py always resolves
+    typed directions to short forms (n/s/e/w/u/d -- see _DIR_ALIASES) before
+    calling Server._move(), but every level's exits dict is keyed by full
+    words (convert_from_gbbs_tool.py's EXIT_KEYS). exits.get(direction) with
+    a short-form direction against a full-word-keyed dict always returned
+    None, so every real exit silently behaved like a dead end -- masked in
+    prior tests only because the hidden-exit +/-1 fallback formula happened
+    to produce the same destination room number in those specific fixtures.
+    """
+
+    def test_short_direction_resolves_full_word_key(self):
+        room = Room(number=1, name="Test", desc="", exits={'east': 2})
+        assert room.get_exit('e') == 2
+
+    def test_full_word_direction_still_works(self):
+        room = Room(number=1, name="Test", desc="", exits={'east': 2})
+        assert room.get_exit('east') == 2
+
+    def test_short_key_data_still_works(self):
+        room = Room(number=1, name="Test", desc="", exits={'e': 2})
+        assert room.get_exit('e') == 2
+
+    def test_no_exit_that_direction_returns_none(self):
+        room = Room(number=1, name="Test", desc="", exits={'east': 2})
+        assert room.get_exit('w') is None
+
+    def test_zero_destination_treated_as_no_exit(self):
+        room = Room(number=1, name="Test", desc="", exits={'east': 0})
+        assert room.get_exit('e') is None
+
+
+class TestHiddenExit:
+    """Room.hidden_exit(): confirmed hidden-exit destinations.
+
+    Data-driven replacement for guessing target rooms via +/-1 adjacency --
+    see MECHANICS.md's Hidden exits entries. A bare int means same-level;
+    a {"room": n, "level": n} dict means a cross-level destination like
+    level 1 room 89's hardcoded teleport.
+    """
+
+    def test_same_level_bare_int(self):
+        room = Room(number=140, name="Village", desc="", hidden_exit_east=141)
+        target = room.hidden_exit('e', current_level=5)
+        assert (target.level, target.room, target.message) == (5, 141, None)
+
+    def test_full_word_direction(self):
+        room = Room(number=140, name="Village", desc="", hidden_exit_east=141)
+        target = room.hidden_exit('east', current_level=5)
+        assert (target.level, target.room) == (5, 141)
+
+    def test_cross_level_dict(self):
+        room = Room(number=89, name="Teleport Room", desc="",
+                    hidden_exit_east={'room': 41, 'level': 5})
+        target = room.hidden_exit('e', current_level=1)
+        assert (target.level, target.room) == (5, 41)
+
+    def test_cross_level_dict_with_message(self):
+        room = Room(number=89, name="Teleport Room", desc="",
+                    hidden_exit_east={'room': 41, 'level': 5, 'message': ['Whoosh!']})
+        target = room.hidden_exit('e', current_level=1)
+        assert target.message == ['Whoosh!']
+
+    def test_unconfirmed_direction_returns_none(self):
+        room = Room(number=140, name="Village", desc="", hidden_exit_east=141)
+        assert room.hidden_exit('w', current_level=5) is None
+
+    def test_no_hidden_exits_at_all(self):
+        room = Room(number=1, name="Plain Room", desc="")
+        assert room.hidden_exit('e', current_level=1) is None

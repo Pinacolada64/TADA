@@ -7,11 +7,12 @@ The "->"/"<-" marker in a room's raw name only sets a boolean "exit
 exists" flag in the original source -- it never stores a target room
 number. The actual destination follows the same room_number +/-1
 adjacency ordinary same-row exits already use in the converted data,
-confirmed against two real cases:
-  - level 5 room 140 "Village" -> 141 "The Chief's Treasure Room"
-    (Headhunter's Island's quest reward)
-  - level 1 room 89 "Teleport Room" -> 90 "Gate Room" (room 89's own
-    description narrates noticing the hidden passage)
+confirmed against level 5 room 140 "Village" -> 141 "The Chief's Treasure
+Room" (Headhunter's Island's quest reward).
+
+Level 1 room 89 "Teleport Room" also carries the hidden_exit_east flag but
+is NOT a +/-1 case -- SPUR.MISC.S:448 hardcodes it as a cross-level
+teleport to level 5 room 41. See tests/test_room_89_teleport.py.
 
 Coverage:
   - moving into the flagged direction resolves to room_number +/-1
@@ -105,6 +106,32 @@ class TestHiddenExitTarget:
 
 
 import unittest
+
+
+class TestConfirmedHiddenExitTakesPriority(unittest.IsolatedAsyncioTestCase):
+    """A confirmed Room.hidden_exit_east/west field wins over the +/-1 guess."""
+
+    async def test_confirmed_destination_used_instead_of_guess(self):
+        # Room 10's +/-1 guess would be room 11 (adjacent), but a confirmed
+        # field says the real destination is room 50 -- confirmed data wins.
+        server = Server('127.0.0.1', 0)
+        m = Map()
+        rooms = {
+            10: Room(number=10, name='Start', desc='',
+                     hidden_exit_east=50),
+            11: Room(number=11, name='Middle', desc=''),
+            50: Room(number=50, name='Real Destination', desc=''),
+        }
+        m.levels[1] = rooms
+        m.rooms = rooms
+        server.game_map = m
+        ctx = MagicMock()
+        ctx.client.room = 10
+        ctx.player.map_level = 1
+        ctx.send = AsyncMock()
+        ctx.send_room = AsyncMock()
+        await server._move(ctx, 'e')
+        self.assertEqual(ctx.client.room, 50)
 
 
 class TestMoveThroughHiddenExit(unittest.IsolatedAsyncioTestCase):

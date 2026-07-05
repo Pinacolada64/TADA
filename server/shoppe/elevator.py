@@ -24,6 +24,13 @@ _LEVEL_NAMES = [
 ]
 
 
+def level_name(level: int) -> Optional[str]:
+    """Return the display name for a dungeon level, or None if out of range."""
+    if 1 <= level <= len(_LEVEL_NAMES):
+        return _LEVEL_NAMES[level - 1]
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Combination check
 # ---------------------------------------------------------------------------
