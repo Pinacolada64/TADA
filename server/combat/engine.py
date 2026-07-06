@@ -320,6 +320,12 @@ class CombatSession:
         if self._done.is_set():
             await ctx.send('That monster is already dead.')
             return
+        if self.leader is not None and self.leader is not ctx:
+            mname = self.monster.get('name', 'the monster')
+            await ctx.send_room(
+                f'{_player_name(ctx)} joins {_player_name(self.leader)} in fighting the {mname}!',
+                exclude_self=True,
+            )
         await self._join_attacker(ctx)
         # Bystanders fire one swing then wait; the leader's loop drives the fight.
         async with self._lock:

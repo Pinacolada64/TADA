@@ -83,6 +83,13 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   — "Railbender is fighting TROLL here!" — so the ongoing fight is obvious at a
   glance. Checks `Server.active_combats[room_no]`'s `attackers` against the
   room's player list (`simple_server.py` `_describe_room()`).
+- ✅ **Bystander join announced to the room** — another TADA multiplayer addition:
+  when a bystander joins a fight already underway (typing `attack <monster>` on
+  a monster someone else is already fighting), the room is told who's joining
+  whom — "Rulan joins Railbender in fighting the TROLL!" — instead of the new
+  attacker silently appearing in the fight. Sent once, right when the bystander
+  joins, naming `CombatSession.leader` as the original attacker
+  (`CombatSession.join()`, `combat/engine.py`).
 - ✅ **Monster taunts/greetings** — when combat begins, the monster picks a quote from
   `monster_quotes.json` (71 real lines recovered from `SPUR-data/MONSTER.QUOTE.TXT`, a
   flat 170-byte-record file, plus a captured play transcript): a fixed
