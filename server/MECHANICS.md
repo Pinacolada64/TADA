@@ -152,6 +152,14 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   unless they've divined it via a specific spell or magic item (mechanic
   TBD, not yet designed). Until that spell/item exists, the bar should just
   show the monster's name without a number.
+  - **Candidate spell: ESP** — proposed as the divining spell, but note SPUR
+    already has a real spell of that exact name (`SPUR-data/spells.txt`:
+    `ESP: Raises your intelligence`, type `I` per `SPELL.TYPE.TXT`'s
+    Player/Intelligence coding) with no monster-HP-related purpose in the
+    original game. Using this name for HP-divining would be a deliberate
+    TADA repurposing, not a restoration of existing SPUR behavior — worth
+    keeping in mind if the original INT-raising ESP is ever ported too
+    (name collision to resolve one way or the other before implementing).
   - **Debug-mode exceptions** (gated on `PlayerFlags.DEBUG_MODE`, same flag
     as `dbg`/the `[DEBUG] Room flags` line): a `[DEBUG]`-prefixed line in
     the combat prompt still shows the monster's exact HP regardless of
