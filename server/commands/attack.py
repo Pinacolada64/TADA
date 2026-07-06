@@ -79,12 +79,13 @@ class AttackCommand(Command):
             await ctx.send("You're dead. You can't fight in this condition.")
             return CommandResult.fail(error='player_dead')
 
-        # Join an existing fight if one is running
+        # Join an existing fight if one is running -- also how an already
+        # -joined bystander keeps swinging: CombatSession.join() gives a
+        # bystander exactly one swing per call ("Bystanders fire one swing
+        # then wait; the leader's loop drives the fight."), so re-typing
+        # 'attack' each round is how they keep fighting, not an error.
         session = _active_session(ctx)
         if session:
-            if ctx in session.attackers:
-                await ctx.send("You're already in this fight!")
-                return CommandResult.ok()
             mname = session.monster.get('name', 'the monster')
             if args:
                 pattern = ' '.join(args).lower()

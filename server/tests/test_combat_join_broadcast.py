@@ -72,6 +72,26 @@ class TestCombatJoinBroadcast(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(msg, 'Rulan joins Railbender in fighting the TROLL!')
         self.assertTrue(kwargs.get('exclude_self'))
 
+    async def test_repeat_swing_by_already_joined_bystander_not_re_announced(self):
+        # commands/attack.py now calls join() every round for an
+        # already-joined bystander's next swing -- the room-join
+        # announcement must only fire once, not every round.
+        leader_ctx = _FakeCtx(_FakePlayer('Railbender'))
+        joiner_ctx = _FakeCtx(_FakePlayer('Rulan'))
+
+        session = CombatSession({'name': 'TROLL', 'strength': 0, 'flags': {}}, room_no=1)
+        session.leader = leader_ctx
+        session.attackers = [leader_ctx]
+
+        with patch.object(session, '_swing', return_value=_no_op_swing_result()), \
+             patch('combat.engine._add_exp', new=AsyncMock()), \
+             patch.object(session, '_narrate_player_swing', new=AsyncMock()), \
+             patch.object(session, '_monster_dies', new=AsyncMock()):
+            await session.join(joiner_ctx)   # first swing -- joins, announces
+            await session.join(joiner_ctx)   # second swing -- already joined
+
+        self.assertEqual(len(joiner_ctx._room_sent), 1)
+
     async def test_leader_joining_their_own_fight_is_not_announced(self):
         # start() calls _join_attacker() directly, never join() -- but guard
         # against the degenerate case defensively (leader is ctx).

@@ -316,11 +316,19 @@ class CombatSession:
         await self._run_loop(ctx)
 
     async def join(self, ctx: 'GameContext') -> None:
-        """A bystander joins mid-fight (they typed 'attack <monster>')."""
+        """A bystander joins mid-fight (they typed 'attack <monster>').
+
+        Also how an already-joined bystander takes their next swing --
+        commands/attack.py calls this every time a bystander re-types
+        'attack', not just the first time (see AttackCommand.execute()'s
+        docstring note) -- so the room-join announcement only fires once,
+        on the swing where they weren't already in self.attackers.
+        """
         if self._done.is_set():
             await ctx.send('That monster is already dead.')
             return
-        if self.leader is not None and self.leader is not ctx:
+        is_new_attacker = ctx not in self.attackers
+        if is_new_attacker and self.leader is not None and self.leader is not ctx:
             mname = self.monster.get('name', 'the monster')
             await ctx.send_room(
                 f'{_player_name(ctx)} joins {_player_name(self.leader)} in fighting the {mname}!',

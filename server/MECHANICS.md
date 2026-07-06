@@ -90,6 +90,14 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   attacker silently appearing in the fight. Sent once, right when the bystander
   joins, naming `CombatSession.leader` as the original attacker
   (`CombatSession.join()`, `combat/engine.py`).
+- ✅ **Fixed bug: an already-joined bystander couldn't keep swinging** —
+  `CombatSession.join()` gives a bystander exactly one swing per call
+  ("Bystanders fire one swing then wait; the leader's loop drives the
+  fight."), so re-typing `attack` each round is how a bystander keeps
+  fighting, not a mistake — but `commands/attack.py` treated a repeat
+  `attack` from someone already in `session.attackers` as an error
+  ("You're already in this fight!") and did nothing. Now it just calls
+  `session.join()` again for another swing (`commands/attack.py`).
 - ✅ **Monster taunts/greetings** — when combat begins, the monster picks a quote from
   `monster_quotes.json` (71 real lines recovered from `SPUR-data/MONSTER.QUOTE.TXT`, a
   flat 170-byte-record file, plus a captured play transcript): a fixed
