@@ -76,11 +76,13 @@ def test_serialize_returns_string_keys_and_minimal_values(tmp_path):
 
 def test_player_delegator_accepts_optional_status():
     p = Player(name='u5', id='u5')
-    # by default set_flag turns on
+    # set_flag always turns on; its optional second param is verbose (a
+    # message flag), not a desired on/off state -- clear_flag is the way
+    # to turn a flag off.
     p.set_flag(PlayerFlags.ADMIN)
     assert p.query_flag(PlayerFlags.ADMIN) is True
-    # be explicit and clear using optional status param
-    p.set_flag(PlayerFlags.ADMIN, False)
+    # be explicit and clear using optional verbose param
+    p.clear_flag(PlayerFlags.ADMIN, False)
     assert p.query_flag(PlayerFlags.ADMIN) is False
     # p.clear_flag works too
     p.set_flag(PlayerFlags.ADMIN)

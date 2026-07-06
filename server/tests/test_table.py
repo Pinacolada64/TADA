@@ -14,6 +14,8 @@ import os
 import sys
 import unittest
 
+import cbmcodecs2  # noqa: F401 -- registers the petscii_c64en_lc codec
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
@@ -375,12 +377,20 @@ class TestBorderStyles(unittest.TestCase):
         self.assertTrue(lines[-1].startswith("╚"))
 
     def test_petscii_top_corner(self):
+        # Table.render() returns Unicode box-drawing chars even for PETSCII
+        # style -- cbmcodecs2 maps them to real PETSCII graphics bytes only
+        # at wire-encode time (see table.py's PETSCII Border comment), so
+        # the actual byte value has to be checked through that codec, not
+        # assumed. '┌' encodes to byte 240, not chr(176).
         lines = self._make(PETSCII).render(width=40)
-        self.assertTrue(lines[1].startswith(chr(176)))
+        self.assertTrue(lines[1].startswith('┌'))
+        self.assertEqual(lines[1][0].encode('petscii_c64en_lc'), bytes([240]))
 
     def test_petscii_bot_corner(self):
+        # '└' encodes to byte 237, not chr(173).
         lines = self._make(PETSCII).render(width=40)
-        self.assertTrue(lines[-1].startswith(chr(173)))
+        self.assertTrue(lines[-1].startswith('└'))
+        self.assertEqual(lines[-1][0].encode('petscii_c64en_lc'), bytes([237]))
 
     def test_all_styles_consistent_line_width(self):
         for style in (ASCII, SINGLE, DOUBLE, PETSCII):

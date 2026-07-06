@@ -209,37 +209,41 @@ class TestElevatorLeave(unittest.IsolatedAsyncioTestCase):
     async def test_l_exits(self, *_):
         player = make_player()
         ctx    = make_ctx(player, ['l'])
-        await _elevator_session(ctx, player)
+        with patch('shoppe.elevator.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
+            await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
-        ctx.send_room.assert_awaited_once()
-        self.assertIn('steps away', ctx.send_room.await_args.args[0])
+        broadcast_mock.assert_awaited_once()
+        self.assertIn('steps away', broadcast_mock.await_args.args[1])
 
     @_PATCH_COMBO
     @_PATCH_ULINE
     async def test_x_exits(self, *_):
         player = make_player()
         ctx    = make_ctx(player, ['x'])
-        await _elevator_session(ctx, player)
+        with patch('shoppe.elevator.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
+            await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
-        ctx.send_room.assert_awaited_once()
+        broadcast_mock.assert_awaited_once()
 
     @_PATCH_COMBO
     @_PATCH_ULINE
     async def test_leave_word_exits(self, *_):
         player = make_player()
         ctx    = make_ctx(player, ['leave'])
-        await _elevator_session(ctx, player)
+        with patch('shoppe.elevator.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
+            await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
-        ctx.send_room.assert_awaited_once()
+        broadcast_mock.assert_awaited_once()
 
     @_PATCH_COMBO
     @_PATCH_ULINE
     async def test_empty_input_exits(self, *_):
         player = make_player()
         ctx    = make_ctx(player, [''])
-        await _elevator_session(ctx, player)
+        with patch('shoppe.elevator.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
+            await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
-        ctx.send_room.assert_awaited_once()
+        broadcast_mock.assert_awaited_once()
 
     @_PATCH_COMBO
     @_PATCH_ULINE

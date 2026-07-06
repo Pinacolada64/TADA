@@ -21,13 +21,12 @@ def test_toggle_and_player_delegator(tmp_path):
     new2 = flags.toggle_flag(p, PlayerFlags.EXPERT_MODE)
     assert new2 == before
 
-    # Using Player delegator
-    # Ensure delegator returns same boolean toggled state
+    # Using Player delegator -- each returns (new_state, message)
     p.set_flag(PlayerFlags.DEBUG_MODE)
     assert p.query_flag(PlayerFlags.DEBUG_MODE) is True
-    t = p.toggle_flag(PlayerFlags.DEBUG_MODE)
+    t, _ = p.toggle_flag(PlayerFlags.DEBUG_MODE)
     assert t is False
-    c = p.clear_flag(PlayerFlags.DEBUG_MODE)
+    c, _ = p.clear_flag(PlayerFlags.DEBUG_MODE)
     assert c is False
 
 

@@ -212,6 +212,7 @@ async def _elevator_session(ctx: GameContext, player) -> None:
 
         if not cmd or cmd in ('x', 'l', 'leave'):
             await ctx.send('The guard steps aside as you leave.')
+            await broadcast_open_room(ctx, f'{player.name} steps away from the elevator.')
             break
 
         if cmd == 'u':

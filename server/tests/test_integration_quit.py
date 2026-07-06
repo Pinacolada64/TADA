@@ -1,106 +1,68 @@
+"""tests/test_integration_quit.py
+
+Integration test: QuitCommand.execute() + Server._player_quit() together
+save a real Player to disk.
+
+Rewritten against the current architecture. The previous version of this
+test called QuitCommand.execute(None, None, context, []) with an old
+dict-shaped context ({'client': ..., 'player': ...}) and expected the
+command itself to set client.mode = Mode.bye and context['disconnect'] =
+True -- none of that exists anymore. QuitCommand.execute(ctx, *args) now
+only handles the interaction (Y/N prompt, session bonus, party farewells,
+stat restoration) and signals intent to quit via
+CommandResult(success=True, data={'quit': True}); the actual save-to-disk
+happens in a separate step, Server._player_quit(ctx), called by the game
+loop when it sees that data flag (simple_server.py's _game_loop()).
+"""
 import asyncio
-import tempfile
-from pathlib import Path
-import sys
-import types
 import json
-from dataclasses import dataclass, field
+import sys
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
-# Ensure server package root is importable
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+# See test_wild_horse_placement.py: force a clean reimport regardless of
+# what stubbed sys.modules['network_context']/['net_common'] before us.
+for _mod in ('network_context', 'net_common', 'simple_server'):
+    sys.modules.pop(_mod, None)
 
-# Create a minimal net_common stub before importing commands.quit to avoid circular imports
-net_common = types.ModuleType('net_common')
-from enum import Enum
-class Mode(Enum):
-    init = 'init'
-    guest = 'guest'
-    new_player = 'new_player'
-    login = 'login'
-    app = 'app'
-    bye = 'bye'
-net_common.Mode = Mode
-net_common.BYE = 'bye'
-net_common.run_server_dir = None
-
-@dataclass
-class Message:
-    lines: list | str = field(default_factory=list)
-    changes: dict = field(default_factory=dict)
-    choices: dict = field(default_factory=dict)
-    prompt: str = ''
-    error: str = ''
-    error_line: str = ''
-    mode: Mode = Mode.app
-
-net_common.Message = Message
-sys.modules['net_common'] = net_common
-
-# Create a minimal simple_client stub so player import doesn't try to load heavy network code
-simple_client = types.ModuleType('simple_client')
-async def send_message(writer, obj):
-    return None
-simple_client.send_message = send_message
-sys.modules['simple_client'] = simple_client
-
-# Now import the QuitCommand
+from simple_server import Server
 from commands.quit import QuitCommand
 
 
 def test_quit_command_calls_player_quit_and_saves(tmp_path):
-    # Prepare temporary run dir for saved files
+    import net_common
     run_dir = tmp_path / 'run' / 'server'
     run_dir.mkdir(parents=True)
     net_common.run_server_dir = run_dir
 
-    # Use the real Player implementation for this integration test
     from player import Player
-
-    # instantiate a real Player (defaults are fine), set deterministic id
     player = Player(name='IntegrationTest')
     player.id = 'test123'
-    # Mark unsaved_changes so save() actually writes
     player.unsaved_changes = True
 
-    # Fake client with player attribute and mode
-    class FakeClient:
-        def __init__(self, player):
-            self.player = player
-            self.mode = None
-
-    client = FakeClient(player)
-
-    # Context as the command expects (dict or handler)
-    context = {'client': client, 'player': player}
+    ctx = MagicMock()
+    ctx.player = player
+    ctx.client.room = 1
+    ctx.send = AsyncMock()
+    ctx.send_room = AsyncMock()
+    ctx.prompt = AsyncMock(return_value='Y')   # confirm the "Leave SPUR [Y/N]?" prompt
 
     cmd = QuitCommand()
+    result = asyncio.run(cmd.execute(ctx))
 
-    # Run the async execute
-    result = asyncio.run(cmd.execute(None, None, context, []))
+    assert result.success is True
+    assert result.data.get('quit') is True
 
-    # Assert CommandResult indicates success
-    assert getattr(result, 'success', True) is True
+    # The game loop's job after seeing data['quit'] -- actually persists
+    # the player to disk (simple_server.py's _game_loop()).
+    server = Server('127.0.0.1', 0)
+    asyncio.run(server._player_quit(ctx))
 
-    # The real Player implementation should have saved the file on quit
-    # and cleared the unsaved_changes flag.
     assert player.unsaved_changes is False
 
-    # The command should set client.mode to bye (using net_common.Mode.bye) and mark disconnect
-    assert client.mode == net_common.Mode.bye
-    assert context.get('disconnect') is True
-
-    # Ensure save file was created by player.quit()
     expected_file = run_dir / 'player-test123.json'
     assert expected_file.exists()
 
-    # Basic contents
     with open(expected_file) as f:
         data = json.load(f)
     assert data.get('name') == 'IntegrationTest'
-
-
-if __name__ == '__main__':
-    # allow running the test directly
-    import pytest
-    pytest.main([__file__])

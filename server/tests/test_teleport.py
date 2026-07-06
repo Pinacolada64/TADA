@@ -72,11 +72,14 @@ class TestTeleportArgs(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(res.error, 'missing_args')
 
     async def test_bad_room_number_fails(self):
+        # Non-numeric input is treated as a name search, not a malformed
+        # room number -- "abc" matches no room name, so this fails as
+        # 'no_match', not a separate 'bad_args' code.
         cmd = TeleportCommand()
         ctx = make_ctx()
         res = await cmd.execute(ctx, 'abc')
         self.assertFalse(res.success)
-        self.assertEqual(res.error, 'bad_args')
+        self.assertEqual(res.error, 'no_match')
 
     async def test_nonexistent_room_fails(self):
         cmd = TeleportCommand()

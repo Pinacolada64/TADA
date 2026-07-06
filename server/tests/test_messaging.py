@@ -30,10 +30,16 @@ from commands.page import PageCommand
 # Fake infrastructure
 # ---------------------------------------------------------------------------
 
+class _FakeClientSettings:
+    def __init__(self):
+        self.return_key = 'Return'
+
+
 class _FakePlayer:
     def __init__(self, name: str):
         self.name            = name
         self.command_settings = CommandSettings()
+        self.client_settings  = _FakeClientSettings()
         self.unsaved_changes  = False
 
 

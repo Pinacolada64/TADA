@@ -204,8 +204,8 @@ class TestMenuStructure(unittest.TestCase):
 
     # -- main menu --
 
-    def test_main_menu_has_eleven_selectable_items(self):
-        self.assertEqual(len(_build_main_menu(self.ctx).selectable), 11)
+    def test_main_menu_has_twelve_selectable_items(self):
+        self.assertEqual(len(_build_main_menu(self.ctx).selectable), 12)
 
     def test_main_menu_contains_expected_labels(self):
         labels = {i.text for i in _build_main_menu(self.ctx).selectable}
@@ -243,7 +243,7 @@ class TestMenuStructure(unittest.TestCase):
 
     def test_flags_menu_section_headers_present(self):
         headers = {i.text for i in _flags_menu(self.ctx).menu_items if i.is_header}
-        self.assertIn('— Game Options —',    headers)
+        self.assertIn('— Option Toggles —',  headers)
         self.assertIn('— Player Status —',   headers)
         self.assertIn('— Game Objectives —', headers)
 
@@ -542,8 +542,8 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.success)
 
     async def test_edit_age_via_navigation(self):
-        # Main → Statistics (10) → Age (1) → 30 → up → up
-        ctx = _MockCtx(responses=['10', '1', '30', '', ''])
+        # Main → Statistics (11) → Age (1) → 30 → up → up
+        ctx = _MockCtx(responses=['11', '1', '30', '', ''])
         await EditPlayerCommand().execute(ctx)
         self.assertEqual(ctx.player.age, 30)
 

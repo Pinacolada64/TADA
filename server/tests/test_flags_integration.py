@@ -12,12 +12,12 @@ def test_flags_save_minimal(tmp_path):
     net_common.run_server_dir = str(tmp_path / 'run' / 'server')
     # create player and manipulate flags
     p = Player(name='flagtester', id='flagtester1')
-    # Use Player delegators (thin wrappers)
-    assert p.set_flag(flags.PlayerFlags.ADMIN) is True
+    # Use Player delegators (thin wrappers) -- each returns (new_state, message)
+    assert p.set_flag(flags.PlayerFlags.ADMIN)[0] is True
     assert p.query_flag(flags.PlayerFlags.ADMIN) is True
-    assert p.toggle_flag(flags.PlayerFlags.ADMIN) is False
+    assert p.toggle_flag(flags.PlayerFlags.ADMIN)[0] is False
     assert p.query_flag(flags.PlayerFlags.ADMIN) is False
-    assert p.clear_flag(flags.PlayerFlags.ADMIN) is False
+    assert p.clear_flag(flags.PlayerFlags.ADMIN)[0] is False
     assert p.query_flag(flags.PlayerFlags.ADMIN) is False
 
     # set another flag
