@@ -854,13 +854,20 @@ authority to do that."
   `importlib.import_module()`, which returns Python's cached module object
   unchanged even after the `.py` file on disk has changed — a new connection
   doesn't help either, same reason. This forces `importlib.reload()` on the
-  named module(s), then rebuilds every connected client's `CommandProcessor`
-  so the change takes effect immediately, no reconnect/restart needed. A bare
-  name like `movement` expands to `commands.movement`; dotted names (e.g.
-  `base_classes`) are used as-is. Caveat: only the named module(s) are
-  re-executed — if a command module imports something else that also changed,
-  name that too (`reload movement base_classes`) or the stale version stays
-  in effect. Admin only (`commands/reload.py`).
+  named module(s), then calls `CommandProcessor.clear()` + `discover()` on
+  every connected client's *existing* `CommandProcessor` object so the change
+  takes effect immediately, no reconnect/restart needed. Mutating in place
+  (rather than assigning a fresh `CommandProcessor` to `client.command_
+  processor`) is required: `simple_server.py`'s per-connection game/login loop
+  reads that attribute into a local variable once, at loop start, and keeps
+  using that same reference for the connection's lifetime — reassigning the
+  attribute is invisible to an already-running session, confirmed by testing
+  against the actual live server. A bare name like `movement` expands to
+  `commands.movement`; dotted names (e.g. `base_classes`) are used as-is.
+  Caveat: only the named module(s) are re-executed — if a command module
+  imports something else that also changed, name that too (`reload movement
+  base_classes`) or the stale version stays in effect. Admin only
+  (`commands/reload.py`).
 - ✅ **`reload #list`** — lists every module under `commands/` (loaded vs. not
   yet imported) plus other first-party project modules currently loaded
   (stdlib/venv packages excluded) — a quick reference for what's a valid
