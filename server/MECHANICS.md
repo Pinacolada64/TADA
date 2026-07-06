@@ -16,6 +16,16 @@ number below is cross-referenced to where the master branch actually prints it
 identified call site yet (no hits in the skip branch either) — likely either
 computed `a=` values a literal grep can't catch, or genuinely unused slots.
 
+✅ **Display function**: `messages.py`'s `load_messages()` (loaded once into
+`Server.messages` alongside `monster_quotes`, same pattern) and
+`send_message(ctx, number)` — the single way any feature should print a
+recovered message, rather than embedding a duplicate copy of the text. Data
+referencing a message uses `"message_number": N`, not inline text — e.g.
+`level_1.json` room 89's `hidden_exit_east` (`Room.hidden_exit()` returns a
+`HiddenExitTarget` with a `message_number` field; `Server._teleport_to()`
+calls `send_message()` with it). `tests/test_messages.py` covers the loader
+and display function directly.
+
 | # | Subroutine (file:line) | Feature | Status |
 |---|---|---|---|
 | 3 | `fountain`→arm (`SPUR.SUB.S:122`) | Amulet of Life "comes alive" flavor at the Fountain of Youth | Quest #9 — text now available, not yet wired into code |
@@ -29,7 +39,7 @@ computed `a=` values a literal grep can't catch, or genuinely unused slots.
 | 13 | shield training confirm (`SPUR.MISC2.S:460`) | Shield training (Odin the Shield Master) result flavor | Not yet documented — new find |
 | 16 | duel `H`elp (`SPUR.DUEL.S:26,43`) | Duel help screen text | Duels are implemented (`## Duels (PvP)`); this specific help text not yet ported |
 | 17 | monster #120 death (`SPUR.MISC.S:417`) | Disguised-old-man-monster transform-on-death flavor | Already tracked separately per this session's earlier GOD/GODDESS message work |
-| 18 | room 89 teleport (`SPUR.MISC.S:448`) | ✅ Implemented — level 1 Teleport Room → level 5 | `level_1.json` room 89's `hidden_exit_east.message` |
+| 18 | room 89 teleport (`SPUR.MISC.S:448`) | ✅ Implemented — level 1 Teleport Room → level 5 | `level_1.json` room 89's `hidden_exit_east.message_number` |
 | 19 | `slippers` (`SPUR.USE.S:144`) | Ruby Slippers teleport-home flavor ("There is no place like home...") | Quest #7 — text now available, not yet wired into code |
 | 20 | `revive` default (`SPUR.MISC6.S:132`) | Amulet-of-Life death-save flavor | Ties to item #76 Amulet of Life; not yet wired into code |
 | 21 | `revive` `flag(7)` (`SPUR.MISC6.S:132`) | Alternate "Chosen One" death-save flavor (condition behind `flag(7)` untraced) | Not yet documented — new find |
@@ -234,16 +244,18 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   destination has to be traced per-room against the SPUR source. Data-driven:
   `Room.hidden_exit_east`/`hidden_exit_west` (`base_classes.py`) hold the
   *confirmed* destination once traced — a bare room number for a same-level
-  exit, or `{"room": n, "level": n}` for a cross-level one — resolved by
-  `Room.hidden_exit()` and `Server._move()`/`Server._teleport_to()`. All 12
-  currently-known hidden-exit rooms are now confirmed:
+  exit, or `{"room": n, "level": n, "message_number": n}` for a cross-level
+  one (`message_number` optional, a `server/messages.json` key printed via
+  `messages.py`'s `send_message()`) — resolved by `Room.hidden_exit()` and
+  `Server._move()`/`Server._teleport_to()`. All 12 currently-known
+  hidden-exit rooms are now confirmed:
     - Level 1 room 89 "Teleport Room" → level 5 ("Land of the Wraiths") room
       41 — `SPUR.MISC.S:448`: `if (cl=1) and (cr=89) then a=18:gosub
       message:cl=5:cr=41:goto travel4`. Prints message #18 ("Suddenly, you
       are lifted bodily by a incredibly powerful gust of wind!..." —
-      recovered from `SPUR-data/SPUR Messages.txt`, stored as the `"message"`
-      list on room 89's `hidden_exit_east` field), then "You have entered
-      Land of the Wraiths!". Note: `SPUR.MAIN.S:174`'s
+      recovered from `SPUR-data/SPUR Messages.txt`, referenced by number
+      (`"message_number": 18`) on room 89's `hidden_exit_east` field), then
+      "You have entered Land of the Wraiths!". Note: `SPUR.MAIN.S:174`'s
       `if (cl=1) then if (cr=89) goto travel3` is a catch-all in the original
       that fires for *any* blocked direction out of the room, not just east;
       this port deliberately simplifies that to "only the flagged direction

@@ -30,6 +30,7 @@ from base_classes import Map, compass_txts
 from items import Item, Rations, Weapon
 from characters import Monster
 from monsters import load_monsters, load_quotes
+from messages import load_messages, send_message
 from commands.command_processor import create_command_processor
 from commands.base_command import Mode
 from terminal import Translation
@@ -149,6 +150,11 @@ class Server:
         except Exception as e:
             logging.warning("Could not load 'monster_quotes.json': %s", e)
             self.monster_quotes = {}
+        try:
+            self.messages = load_messages(str(script_dir / 'messages.json'))
+        except Exception as e:
+            logging.warning("Could not load 'messages.json': %s", e)
+            self.messages = {}
         # Items dropped by players during this session: room_number → list of InventoryEntry
         self.room_items: dict[int, list] = {}
         logging.info('Map: %d rooms | %d monsters | %d items | %d weapons',
@@ -698,11 +704,11 @@ class Server:
 
         dest = room.get_exit(direction)
         target_level = level
-        hidden_message = None
+        message_number = None
         if not dest:
             hidden = room.hidden_exit(direction, level)
             if hidden:
-                target_level, dest, hidden_message = hidden.level, hidden.room, hidden.message
+                target_level, dest, message_number = hidden.level, hidden.room, hidden.message_number
             else:
                 dest = self._hidden_exit_target(room, direction, level)
 
@@ -712,7 +718,7 @@ class Server:
             return
 
         if target_level != level:
-            await self._teleport_to(ctx, target_level, int(dest), message=hidden_message)
+            await self._teleport_to(ctx, target_level, int(dest), message_number=message_number)
             return
 
         ctx.client.room = int(dest)
@@ -751,16 +757,16 @@ class Server:
         return None
 
     async def _teleport_to(self, ctx: GameContext, target_level: int, target_room: int,
-                            *, message: list | None = None) -> None:
+                            *, message_number: int | None = None) -> None:
         """Move the player to a confirmed cross-level hidden-exit destination.
 
         Prints the room's own pre-move message (e.g. level 1 room 89's
-        message #18, recovered from SPUR-data/SPUR Messages.txt) if any,
-        then the same "YOU HAVE ENTERED <level>!" banner SPUR's travel4
-        always shows on a level change (SPUR.MISC.S:457-464).
+        message #18, server/messages.json) if any, then the same "YOU HAVE
+        ENTERED <level>!" banner SPUR's travel4 always shows on a level
+        change (SPUR.MISC.S:457-464).
         """
-        if message:
-            await ctx.send(message)
+        if message_number is not None:
+            await send_message(ctx, message_number)
         ctx.player.map_level = target_level
         try:
             ctx.client.map_level = target_level

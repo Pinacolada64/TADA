@@ -124,7 +124,7 @@ class TestHiddenExit:
     def test_same_level_bare_int(self):
         room = Room(number=140, name="Village", desc="", hidden_exit_east=141)
         target = room.hidden_exit('e', current_level=5)
-        assert (target.level, target.room, target.message) == (5, 141, None)
+        assert (target.level, target.room, target.message_number) == (5, 141, None)
 
     def test_full_word_direction(self):
         room = Room(number=140, name="Village", desc="", hidden_exit_east=141)
@@ -137,11 +137,11 @@ class TestHiddenExit:
         target = room.hidden_exit('e', current_level=1)
         assert (target.level, target.room) == (5, 41)
 
-    def test_cross_level_dict_with_message(self):
+    def test_cross_level_dict_with_message_number(self):
         room = Room(number=89, name="Teleport Room", desc="",
-                    hidden_exit_east={'room': 41, 'level': 5, 'message': ['Whoosh!']})
+                    hidden_exit_east={'room': 41, 'level': 5, 'message_number': 18})
         target = room.hidden_exit('e', current_level=1)
-        assert target.message == ['Whoosh!']
+        assert target.message_number == 18
 
     def test_unconfirmed_direction_returns_none(self):
         room = Room(number=140, name="Village", desc="", hidden_exit_east=141)

@@ -414,7 +414,7 @@ class HiddenExitTarget(NamedTuple):
     """A confirmed hidden-exit destination -- see Room.hidden_exit()."""
     level: int
     room: int
-    message: Optional[list] = None
+    message_number: Optional[int] = None
 
 
 @dataclass
@@ -438,10 +438,10 @@ class Room(object):
     # the marker itself only says an exit exists, not where it goes, so this
     # is filled in per-room only once the real destination has been traced
     # against the SPUR source). Either a bare room number (same level) or
-    # {"room": n, "level": n, "message": [...]} for a cross-level destination
-    # like level 1 room 89's hardcoded teleport (SPUR.MISC.S:448) -- "message"
-    # is optional, a list of paragraphs recovered from SPUR-data/SPUR
-    # Messages.txt, printed before the move. None if unconfirmed -- see
+    # {"room": n, "level": n, "message_number": n} for a cross-level
+    # destination like level 1 room 89's hardcoded teleport (SPUR.MISC.S:448)
+    # -- "message_number" is optional, a server/messages.json key (see
+    # messages.py) printed before the move. None if unconfirmed -- see
     # Server._hidden_exit_target()'s +/-1 guess fallback for rooms that only
     # carry the legacy hidden_exit_east/west flag string.
     hidden_exit_east: Optional[object] = None
@@ -462,10 +462,11 @@ class Room(object):
         if value is None:
             return None
         if isinstance(value, dict):
+            msg_num = value.get('message_number')
             return HiddenExitTarget(
                 level=int(value.get('level', current_level)),
                 room=int(value['room']),
-                message=value.get('message'),
+                message_number=int(msg_num) if msg_num is not None else None,
             )
         return HiddenExitTarget(level=current_level, room=int(value))
 

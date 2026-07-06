@@ -1125,11 +1125,7 @@
             "hidden_exit_east": {
                 "room": 41,
                 "level": 5,
-                "message": [
-                    "Suddenly, you are lifted bodily by a incredibly powerful gust of wind!",
-                    "A terrible howling fills your ears as the wind sucks you through a pulsating blue ball of light. Only dimly do you realize that the howling is coming from your mouth.",
-                    "Downwards and downwards you fly. Just as you become resigned to a rather messy death, a strange force gently slows your descent, until your sudden plop face down into hot sand injures only your dignity..."
-                ]
+                "message_number": 18
             },
             "exits": {
                 "west": 88
