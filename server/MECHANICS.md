@@ -74,6 +74,14 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - **Allies** — up to 3 allies attack each round; morale failure / sacrifice on near-death (`engine.py`)
 - ✅ **Ally death-save** — before a blow that would kill the player lands, an owned ally gets a chance to intervene: GOD/GODDESS allies always teleport the player to safety and depart for good; others roll courage (vs. player honor, elites get a bonus) and either flee (freed) or "leap in front" as flavor — only a GOD/GODDESS save actually cancels the damage, matching SPUR.MISC9.S exactly (`SPUR.COMBAT.S` `dragon`/`sac.ally`, `ally_events.py` `try_ally_death_save()`, `engine.py` `_resolve_monster_hit()`)
 - ✅ **LASSO — capture a mount** — during combat against a horse-named monster, `lasso` captures it as a new MOUNT-flagged ally (name prompt with SPUR's length/character validation); blocked by a full party or an existing mount (`SPUR.USE.S` `lasso`, `commands/lasso.py`, `engine.py` `CombatSession.lasso()`)
+- ✅ **Druid/Ranger passive taming** — a TADA original mechanic, not from
+  SPUR: fighting a wild horse as a Druid or Ranger gives a 15% chance each
+  round of taming it outright, without ever using LASSO — "A certain look
+  passes between the two of you, and the horse seems to accept you as its
+  master/mistress!" (gender-correct). Same full-party/existing-mount guard
+  as LASSO, but silent on failure (no spam every round); checked for both
+  the fight's leader and any bystander who joins (`CombatSession.
+  _try_class_tame()`, `engine.py`).
 - **XP gain per swing** (`engine.py`)
 - **Monster kill rewards** — gold and XP awarded on kill (`engine.py`, `combat/rewards.py`)
 - ✅ **Fights called out by name in the room description** — a TADA multiplayer
@@ -613,7 +621,10 @@ for exactly this reason.
 - ✅ **Jake's Stable** (level 5 / room 157 "The Ocean" / east) — buy Oats/Sugar Cube
   (rations.json), Lasso/Saddle/Horse Armor (objects.json, ×100 gold); Train Horse
   (2,000 gold, requires a MOUNT ally that is already SADDLED + ARMORED, applies
-  `AllyFlags.ELITE`); Tips (`SPUR.MISC8.S` `jakes`, skip branch, `street/jakes.py`)
+  `AllyFlags.ELITE`); Tips (`SPUR.MISC8.S` `jakes`, skip branch, `street/jakes.py`).
+  Room 157's description hints at the stable before the player tries the hardcoded
+  east interception — "You can see a faint trail sloping down to the east, where a
+  horse paddock can be seen." (`level_5.json`, a TADA addition, not from SPUR).
 
 ---
 

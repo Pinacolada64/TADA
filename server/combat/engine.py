@@ -335,6 +335,12 @@ class CombatSession:
                 exclude_self=True,
             )
         await self._join_attacker(ctx)
+
+        # Druid/Ranger passive taming (TADA original, not SPUR) -- checked
+        # for bystanders too, same as the leader's per-round check.
+        if await self._try_class_tame(ctx):
+            return
+
         # Bystanders fire one swing then wait; the leader's loop drives the fight.
         async with self._lock:
             if self._done.is_set():
@@ -406,19 +412,44 @@ class CombatSession:
             await ctx.send('You practice with the lasso.')
             return False
 
-        from bar.ally_data import Ally, AllyFlags, AllyStatus
-        from bar.allies import owned_allies
-
-        player = ctx.player
-        allies = owned_allies(player)
-        if len(allies) >= 3:
-            await ctx.send('Only 3 allies allowed, use ORDER to dismiss one.')
-            return False
-        if any(AllyFlags.MOUNT in (a.flags or []) for a in allies):
-            await ctx.send('Only 1 mount per customer.')
+        if not await self._mount_slot_available(ctx, verbose=True):
             return False
 
         await ctx.send('You capture the horse!')
+        return await self._finalize_mount_capture(ctx)
+
+    async def _mount_slot_available(self, ctx: 'GameContext', *, verbose: bool) -> bool:
+        """True if ctx.player has room for a new mount ally.
+
+        verbose=True sends the usual refusal message on failure (used by the
+        explicit LASSO command); verbose=False stays silent (used by the
+        passive Druid/Ranger taming check, which shouldn't spam a message
+        every round just because the player's party happens to be full).
+        """
+        from bar.ally_data import AllyFlags
+        from bar.allies import owned_allies
+
+        allies = owned_allies(ctx.player)
+        if len(allies) >= 3:
+            if verbose:
+                await ctx.send('Only 3 allies allowed, use ORDER to dismiss one.')
+            return False
+        if any(AllyFlags.MOUNT in (a.flags or []) for a in allies):
+            if verbose:
+                await ctx.send('Only 1 mount per customer.')
+            return False
+        return True
+
+    async def _finalize_mount_capture(self, ctx: 'GameContext') -> bool:
+        """Prompt for a horse name and, if given, add it as a MOUNT ally.
+
+        Shared tail end of both LASSO and the passive Druid/Ranger taming
+        event -- ends combat and removes ctx from the attacker list on
+        success. Returns True if the horse was actually captured.
+        """
+        from bar.ally_data import Ally, AllyFlags, AllyStatus
+
+        player = ctx.player
         name = await self._prompt_horse_name(ctx)
         if name is None:
             return False
@@ -440,6 +471,41 @@ class CombatSession:
         self._done.set()
         self._remove_attacker(ctx)
         return True
+
+    # Per-round chance (not a guaranteed capture like LASSO): Druids and
+    # Rangers, being especially attuned to animals, may simply win a wild
+    # horse's trust mid-fight -- a TADA original mechanic, not from SPUR.
+    async def _try_class_tame(self, ctx: 'GameContext') -> bool:
+        """Give a Druid/Ranger a per-round chance to tame a wild horse
+        outright, without needing LASSO. Silent no-op for any other class,
+        any other monster, or if the player has no room for a new mount.
+        Returns True if the horse was tamed (combat ends).
+        """
+        if self._done.is_set():
+            return False
+
+        mname = self.monster.get('name', '')
+        if 'HORSE' not in mname.upper():
+            return False
+
+        from base_classes import PlayerClass
+        player = ctx.player
+        if getattr(player, 'char_class', None) not in (PlayerClass.DRUID, PlayerClass.RANGER):
+            return False
+
+        if not await self._mount_slot_available(ctx, verbose=False):
+            return False
+
+        if random.randint(1, 100) > 15:   # 15% chance per round
+            return False
+
+        from base_classes import Gender
+        title = 'mistress' if getattr(player, 'gender', None) == Gender.FEMALE else 'master'
+        await ctx.send(
+            f'A certain look passes between the two of you, and the horse '
+            f'seems to accept you as its {title}!'
+        )
+        return await self._finalize_mount_capture(ctx)
 
     async def _prompt_horse_name(self, ctx: 'GameContext') -> str | None:
         """Prompt for a horse name (4-12 chars, no symbols).  None on cancel."""
@@ -542,6 +608,10 @@ class CombatSession:
         await self._check_crystal_pendant(ctx)
 
         while not self._done.is_set():
+            # ---- Druid/Ranger passive taming (TADA original, not SPUR) ----
+            if await self._try_class_tame(ctx):
+                return
+
             # ---- Per-round status warnings (SPUR.COMBAT.S lines 21-25, 88) ----
             hp = getattr(player, 'hit_points', 1)
             if hp < 9:
