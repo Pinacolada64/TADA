@@ -848,6 +848,24 @@ authority to do that."
 #### World editing
 - **`editmonsters`** — in-game monster editor; admin only (`commands/editmonsters.py`).
 
+#### Development / ops
+- ✅ **`reload <module> [module...]`** — hot-reload command/support modules
+  without restarting the server. `CommandProcessor.discover()` re-imports via
+  `importlib.import_module()`, which returns Python's cached module object
+  unchanged even after the `.py` file on disk has changed — a new connection
+  doesn't help either, same reason. This forces `importlib.reload()` on the
+  named module(s), then rebuilds every connected client's `CommandProcessor`
+  so the change takes effect immediately, no reconnect/restart needed. A bare
+  name like `movement` expands to `commands.movement`; dotted names (e.g.
+  `base_classes`) are used as-is. Caveat: only the named module(s) are
+  re-executed — if a command module imports something else that also changed,
+  name that too (`reload movement base_classes`) or the stale version stays
+  in effect. Admin only (`commands/reload.py`).
+- ✅ **`reload #list`** — lists every module under `commands/` (loaded vs. not
+  yet imported) plus other first-party project modules currently loaded
+  (stdlib/venv packages excluded) — a quick reference for what's a valid
+  `reload` target.
+
 #### Visibility
 - **`whereat`** — shows location of every online player; available to admins and
   players with DEBUG flag (`commands/whereat.py`).
