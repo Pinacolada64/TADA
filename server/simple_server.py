@@ -734,6 +734,8 @@ class Server:
             logging.debug('EXIT (no exit) direction=%r room=%r', direction, room_no)
             return
 
+        self._leave_combat_on_move(ctx, room_no)
+
         if target_level != level:
             await self._teleport_to(ctx, target_level, int(dest), message_number=message_number)
             return
@@ -745,6 +747,21 @@ class Server:
         await self._show_room(ctx)
         from ally_events import try_ally_find_gold
         await try_ally_find_gold(ctx)
+
+    def _leave_combat_on_move(self, ctx: GameContext, room_no) -> None:
+        """Drop *ctx* from an active fight's attacker list when they move
+        away from the room it's in (bystanders only in practice -- the
+        leader's connection is occupied by CombatSession._run_loop()'s
+        own prompt for the fight's duration, so it can't normally reach
+        _move() mid-fight). Without this, a bystander who joined then
+        walked away stays in CombatSession.attackers -- e.g. still
+        getting the "monster is slain!" notice, still eligible for a
+        stray-round hit -- despite no longer being in the room.
+        """
+        active  = getattr(self, 'active_combats', {})
+        session = active.get(room_no)
+        if session and not session._done.is_set() and ctx in session.attackers:
+            session._remove_attacker(ctx)
 
     def _hidden_exit_target(self, room, direction: str, level: int) -> int | None:
         """Guess a hidden_exit_east/west flag's target room via +/-1 adjacency.

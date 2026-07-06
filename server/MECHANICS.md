@@ -98,6 +98,16 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   `attack` from someone already in `session.attackers` as an error
   ("You're already in this fight!") and did nothing. Now it just calls
   `session.join()` again for another swing (`commands/attack.py`).
+- ✅ **Leaving the room drops you from the fight** — another TADA
+  multiplayer addition: a bystander who joined a fight then moves out of
+  the room is removed from `CombatSession.attackers`, so they stop being
+  eligible for the "monster is slain!" notice, stray-round hits, etc. once
+  they're no longer actually present. Checked on every successful move,
+  keyed off the room being left, before the destination room is applied
+  (`Server._leave_combat_on_move()`, `simple_server.py`). Mainly relevant
+  to bystanders — the fight's leader is normally occupied by
+  `CombatSession._run_loop()`'s own prompt for the fight's duration and
+  can't reach `_move()` mid-fight.
 - ✅ **Monster taunts/greetings** — when combat begins, the monster picks a quote from
   `monster_quotes.json` (71 real lines recovered from `SPUR-data/MONSTER.QUOTE.TXT`, a
   flat 170-byte-record file, plus a captured play transcript): a fixed
