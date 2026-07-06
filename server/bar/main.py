@@ -222,11 +222,26 @@ async def enter_bar(ctx: GameContext) -> None:
         exclude_self=True,
     )
 
-    if not player.is_expert:
-        await _bar_help(ctx)
-
     await enter_area(ctx, 'Bar')
     try:
+        # Outstanding loan: Mundo checks the books at the door and, if
+        # anything is owed, escorts the player straight to Vinny instead of
+        # letting them wander in (SPUR.BAR.S:16-18: "Mundo checks your
+        # books.." / "if (g7>0) or (g8>0) ... 'He escorts you over to
+        # Vinney!' ... goto mundo.ck", which jumps straight to Vinny's tile
+        # (yy=1, yw=9) and links into spur.bar3 -- no return to the normal
+        # move loop). Re-checked every entry, so this repeats until the loan
+        # is paid off.
+        if player.loan_amount > 0:
+            await ctx.send('Mundo checks your books..')
+            await ctx.send("He 'escorts' you over to Vinney!")
+            bar.pos_y, bar.pos_x = 1, 8   # Vinny the Loan Shark's tile
+            await _vinny(ctx, bar)
+            return
+
+        if not player.is_expert:
+            await _bar_help(ctx)
+
         while True:
             debug = player.is_debug
             await ctx.send([''] + _render_map(bar, bar_map, debug))

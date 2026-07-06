@@ -572,6 +572,15 @@ All sections are stubs. Source: `SPUR.ANNEX.S`.
 ### Partially Implemented
 - ✅ **Fat Olaf** — slave/servant trader; buy allies; sell servant stub present (`bar/fat_olaf.py`)
 - ✅ **Food/drink menu** — `food_menu()` helper exists; rations list rendered
+- ✅ **Mundo escorts a debtor straight to Vinny** — `SPUR.BAR.S:16-18`:
+  "Mundo checks your books.." / `if (g7>0) or (g8>0) ... "He 'escorts' you
+  over to Vinney!" ... goto mundo.ck` (jumps straight to Vinny's tile and
+  links into `spur.bar3` — no return to the normal move loop). Ported as:
+  on every `enter_bar()` call, if `player.loan_amount > 0`, print the same
+  two lines, place the player on Vinny's tile, and go straight into the
+  Vinny interaction — skipping the help text and the normal movement loop
+  entirely for that entry. Repeats on every subsequent entry until the loan
+  is paid off (`bar/main.py` `enter_bar()`).
 
 ### Stubs (not yet implemented)
 - **Vinny** — loan shark; apply for loans, pay back, store gold in bar; also arranges thugs (`SPUR.BAR.S`, `SPUR.BAR3.S`); stub present, full dialog not wired

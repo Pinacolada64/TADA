@@ -24,6 +24,7 @@ def make_player(*, name='TestPlayer', hp=20, is_expert=True, is_debug=False):
     p.client_settings.translation = None
     p.query_flag  = MagicMock(return_value=False)
     p.toggle_flag = MagicMock()
+    p.loan_amount = 0   # real int so enter_bar()'s Mundo/Vinny check works
     return p
 
 
@@ -110,6 +111,109 @@ class TestBarPresenceLifecycle(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(RuntimeError):
                 await enter_bar(ctx)
             la.assert_awaited_once_with(ctx, 'Bar')
+
+
+# ---------------------------------------------------------------------------
+# Outstanding loan: Mundo escorts the player straight to Vinny
+# (SPUR.BAR.S:16-18 -- "Mundo checks your books.." / "if (g7>0) or (g8>0)
+# ... 'He escorts you over to Vinney!' ... goto mundo.ck")
+# ---------------------------------------------------------------------------
+
+class TestMundoEscortsToVinny(unittest.IsolatedAsyncioTestCase):
+
+    @_PATCH_HELP
+    @_PATCH_MENU
+    @_PATCH_RENDER
+    async def test_no_loan_skips_escort(self, *_):
+        from bar.main import enter_bar
+        player = make_player()
+        player.loan_amount = 0
+        ctx = make_ctx(player, ['q'])
+        with patch('bar.main.enter_area', new=AsyncMock()), \
+             patch('bar.main.leave_area', new=AsyncMock()), \
+             patch('bar.main._vinny', new=AsyncMock()) as vinny:
+            await enter_bar(ctx)
+            vinny.assert_not_awaited()
+        self.assertNotIn('Mundo checks your books..', _sent(ctx))
+
+    @_PATCH_HELP
+    @_PATCH_MENU
+    @_PATCH_RENDER
+    async def test_outstanding_loan_triggers_escort(self, *_):
+        from bar.main import enter_bar
+        player = make_player()
+        player.loan_amount = 2500
+        ctx = make_ctx(player, [])
+        with patch('bar.main.enter_area', new=AsyncMock()), \
+             patch('bar.main.leave_area', new=AsyncMock()), \
+             patch('bar.main._vinny', new=AsyncMock()) as vinny:
+            await enter_bar(ctx)
+            vinny.assert_awaited_once()
+
+        sent = _sent(ctx)
+        self.assertIn('Mundo checks your books..', sent)
+        self.assertIn("He 'escorts' you over to Vinney!", sent)
+
+    @_PATCH_HELP
+    @_PATCH_MENU
+    @_PATCH_RENDER
+    async def test_escort_places_player_on_vinnys_tile(self, *_):
+        from bar.main import enter_bar, Bar
+        player = make_player()
+        player.loan_amount = 2500
+        ctx = make_ctx(player, [])
+        with patch('bar.main.enter_area', new=AsyncMock()), \
+             patch('bar.main.leave_area', new=AsyncMock()), \
+             patch('bar.main._vinny', new=AsyncMock()) as vinny:
+            await enter_bar(ctx)
+
+        vinny_loc = next(loc for loc in Bar.locations if loc[2] == 'Vinny the Loan Shark')
+        (_, bar_arg), _kwargs = vinny.await_args
+        self.assertEqual((bar_arg.pos_y, bar_arg.pos_x), (vinny_loc[0], vinny_loc[1]))
+
+    @_PATCH_HELP
+    @_PATCH_MENU
+    @_PATCH_RENDER
+    async def test_escort_skips_help_and_normal_loop(self, *_):
+        from bar.main import enter_bar
+        player = make_player()
+        player.loan_amount = 2500
+        ctx = make_ctx(player, [])   # no prompt answers queued -- loop must never run
+        with patch('bar.main.enter_area', new=AsyncMock()), \
+             patch('bar.main.leave_area', new=AsyncMock()), \
+             patch('bar.main._bar_help', new=AsyncMock()) as help_mock, \
+             patch('bar.main._vinny', new=AsyncMock()):
+            await enter_bar(ctx)
+            help_mock.assert_not_awaited()
+        ctx.prompt.assert_not_awaited()
+
+    @_PATCH_HELP
+    @_PATCH_MENU
+    @_PATCH_RENDER
+    async def test_leave_area_still_called_after_escort(self, *_):
+        from bar.main import enter_bar
+        player = make_player()
+        player.loan_amount = 2500
+        ctx = make_ctx(player, [])
+        with patch('bar.main.enter_area', new=AsyncMock()), \
+             patch('bar.main.leave_area', new=AsyncMock()) as la, \
+             patch('bar.main._vinny', new=AsyncMock()):
+            await enter_bar(ctx)
+            la.assert_awaited_once_with(ctx, 'Bar')
+
+    @_PATCH_HELP
+    @_PATCH_MENU
+    @_PATCH_RENDER
+    async def test_escort_repeats_every_entry_while_loan_outstanding(self, *_):
+        from bar.main import enter_bar
+        player = make_player()
+        player.loan_amount = 2500
+        with patch('bar.main.enter_area', new=AsyncMock()), \
+             patch('bar.main.leave_area', new=AsyncMock()), \
+             patch('bar.main._vinny', new=AsyncMock()) as vinny:
+            await enter_bar(make_ctx(player, []))
+            await enter_bar(make_ctx(player, []))
+            self.assertEqual(vinny.await_count, 2)
 
 
 # ---------------------------------------------------------------------------
