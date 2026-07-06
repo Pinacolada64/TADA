@@ -812,26 +812,6 @@ class Player:
                 from base_classes import compass_txts
                 return nc.Message(lines=[f"{self.name} moves {compass_txts[direction]}."])
 
-    async def disconnect(self, ctx: 'GameContext'):
-            try:
-                self.save(force=True)
-            except Exception:
-                logging.exception("disconnect: failed to save player before disconnect (no server)")
-            # send dict compatible with to_jsonb
-            await ctx.send(f'{self.name} disconnecting (no server linkage).')
-            logging.exception("disconnect: failed to save player before disconnect")
-            try:
-                getattr(ctx.server, 'room_players')[self.map_room].remove(self.id)
-            except Exception:
-                logging.exception("disconnect: failed to remove player id from room_players")
-            # increment times played:
-            self.times_played = (self.times_played or 0) + 1
-            logging.info("Player.disconnect: %s disconnected. Times played: %i." % (getattr(server, 'players')[self.id].name,
-                                                                                    self.times_played))
-            await ctx.send(f"{self.id.name} falls asleep.")
-            await ctx.send_room(f"{self.id.name} falls asleep.")
-        # TODO: announce to players watching for this player the character has fallen asleep.
-
     @staticmethod
     def _json_path(user_id):
         # Resolve run directory at runtime from net_common (may be a Path or string)
