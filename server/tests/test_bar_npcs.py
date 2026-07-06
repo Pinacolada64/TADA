@@ -40,11 +40,13 @@ def make_ctx(player, prompts: list) -> MagicMock:
 
 def _approach_calls(mock_ba):
     return [c for c in mock_ba.await_args_list if 'sits down' in str(c.args)
-            or 'pulls up' in str(c.args)]
+            or 'pulls up' in str(c.args)
+            or 'bellies up' in str(c.args)]
 
 
 def _leave_calls(mock_ba):
-    return [c for c in mock_ba.await_args_list if 'gets up' in str(c.args)]
+    return [c for c in mock_ba.await_args_list if 'gets up' in str(c.args)
+            or 'tips a hat' in str(c.args)]
 
 
 # ---------------------------------------------------------------------------
@@ -130,8 +132,7 @@ class TestFatOlafBroadcasts(unittest.IsolatedAsyncioTestCase):
 
     async def test_approach_broadcast_sent(self):
         with self._patch() as mock_ba, \
-             patch('bar.fat_olaf.load_allies', return_value=[]), \
-             patch('bar.fat_olaf.assign_random_statuses', side_effect=lambda x: x):
+             patch('bar.fat_olaf.load_allies', return_value=[]):
             from bar.fat_olaf import main
             player = make_player(name='Rulan', expert=True)
             ctx    = make_ctx(player, ['l'])
@@ -141,8 +142,7 @@ class TestFatOlafBroadcasts(unittest.IsolatedAsyncioTestCase):
 
     async def test_approach_broadcast_includes_player_name(self):
         with self._patch() as mock_ba, \
-             patch('bar.fat_olaf.load_allies', return_value=[]), \
-             patch('bar.fat_olaf.assign_random_statuses', side_effect=lambda x: x):
+             patch('bar.fat_olaf.load_allies', return_value=[]):
             from bar.fat_olaf import main
             player = make_player(name='Railbender', expert=True)
             ctx    = make_ctx(player, ['l'])
@@ -151,8 +151,7 @@ class TestFatOlafBroadcasts(unittest.IsolatedAsyncioTestCase):
 
     async def test_approach_broadcast_targets_bar_area(self):
         with self._patch() as mock_ba, \
-             patch('bar.fat_olaf.load_allies', return_value=[]), \
-             patch('bar.fat_olaf.assign_random_statuses', side_effect=lambda x: x):
+             patch('bar.fat_olaf.load_allies', return_value=[]):
             from bar.fat_olaf import main
             player = make_player(expert=True)
             ctx    = make_ctx(player, ['l'])
@@ -161,8 +160,7 @@ class TestFatOlafBroadcasts(unittest.IsolatedAsyncioTestCase):
 
     async def test_leave_broadcast_on_l(self):
         with self._patch() as mock_ba, \
-             patch('bar.fat_olaf.load_allies', return_value=[]), \
-             patch('bar.fat_olaf.assign_random_statuses', side_effect=lambda x: x):
+             patch('bar.fat_olaf.load_allies', return_value=[]):
             from bar.fat_olaf import main
             player = make_player(expert=True)
             ctx    = make_ctx(player, ['l'])
@@ -171,8 +169,7 @@ class TestFatOlafBroadcasts(unittest.IsolatedAsyncioTestCase):
 
     async def test_leave_broadcast_on_q(self):
         with self._patch() as mock_ba, \
-             patch('bar.fat_olaf.load_allies', return_value=[]), \
-             patch('bar.fat_olaf.assign_random_statuses', side_effect=lambda x: x):
+             patch('bar.fat_olaf.load_allies', return_value=[]):
             from bar.fat_olaf import main
             player = make_player(expert=True)
             ctx    = make_ctx(player, ['q'])
@@ -181,8 +178,7 @@ class TestFatOlafBroadcasts(unittest.IsolatedAsyncioTestCase):
 
     async def test_leave_broadcast_includes_player_name(self):
         with self._patch() as mock_ba, \
-             patch('bar.fat_olaf.load_allies', return_value=[]), \
-             patch('bar.fat_olaf.assign_random_statuses', side_effect=lambda x: x):
+             patch('bar.fat_olaf.load_allies', return_value=[]):
             from bar.fat_olaf import main
             player = make_player(name='Rulan', expert=True)
             ctx    = make_ctx(player, ['l'])
@@ -191,8 +187,7 @@ class TestFatOlafBroadcasts(unittest.IsolatedAsyncioTestCase):
 
     async def test_no_leave_broadcast_on_eof(self):
         with self._patch() as mock_ba, \
-             patch('bar.fat_olaf.load_allies', return_value=[]), \
-             patch('bar.fat_olaf.assign_random_statuses', side_effect=lambda x: x):
+             patch('bar.fat_olaf.load_allies', return_value=[]):
             from bar.fat_olaf import main
             player = make_player(expert=True)
             ctx    = make_ctx(player, [None])
