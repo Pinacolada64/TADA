@@ -65,6 +65,19 @@ class CommandProcessor:
     # Registration
     # ------------------------------------------------------------------
 
+    def clear(self) -> None:
+        """Empty the command/alias registry so discover() can be re-run.
+
+        Needed for hot-reloading (commands/reload.py): the per-connection
+        game loop reads self.client.command_processor into a local variable
+        once, at loop start, so reassigning that attribute to a brand-new
+        CommandProcessor has no effect on an already-running session --
+        only mutating *this* instance in place (clear() then discover())
+        is visible to it.
+        """
+        self._commands.clear()
+        self._aliases.clear()
+
     def register_command(self, cmd: Command) -> None:
         """Register a command and all its aliases.
 

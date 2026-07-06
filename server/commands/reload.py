@@ -9,10 +9,19 @@ connection creating a new CommandProcessor doesn't help either, for the
 same reason. Only importlib.reload() actually re-executes a module's code
 from disk.
 
-This command forces that reload for the named module(s), then rebuilds
-every currently-connected client's CommandProcessor (discover() again,
-now seeing the freshly-reloaded module) so the change takes effect
-immediately -- no one needs to reconnect, let alone the server restart.
+This command forces that reload for the named module(s), then re-runs
+discover() on every currently-connected client's *existing*
+CommandProcessor so the change takes effect immediately -- no one needs
+to reconnect, let alone the server restart.
+
+Important: each client's CommandProcessor must be mutated in place
+(clear() + discover()), not replaced with a new instance. The per
+-connection game loop (simple_server.py's _game_loop()/login loop) reads
+`ctx.client.command_processor` into a local variable once, at loop start
+-- reassigning that attribute on an already-running session has no
+effect, since the loop keeps using its own stale local reference. Only
+mutating the object every session already holds a reference to is
+actually visible to it.
 
 Caveat: only the module(s) actually named are re-executed. If a command
 module imports something else that also changed (e.g. base_classes.py),
@@ -26,7 +35,6 @@ import sys
 from pathlib import Path
 
 from commands.base_command import Command, CommandResult, Mode
-from commands.command_processor import create_command_processor
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
 from network_context import GameContext
@@ -129,16 +137,19 @@ class ReloadCommand(Command):
                 log.exception('reload: failed to reload %r', module_name)
                 failed.append(f'{module_name} ({e})')
 
-        # Rebuild every connected client's command table so the change takes
-        # effect immediately, without anyone reconnecting.
+        # Mutate every connected client's *existing* CommandProcessor in
+        # place (see module docstring for why reassigning the attribute
+        # instead would silently not take effect for already-running
+        # sessions) so the change takes effect immediately, without
+        # anyone reconnecting.
         rebuilt = 0
         for client in getattr(ctx.server, 'clients', {}).values():
             processor = getattr(client, 'command_processor', None)
             if processor is None:
                 continue
             try:
-                client.command_processor = create_command_processor(
-                    client=client, mode=processor.current_mode)
+                processor.clear()
+                processor.discover()
                 rebuilt += 1
             except Exception:
                 log.exception('reload: failed to rebuild command processor for a client')

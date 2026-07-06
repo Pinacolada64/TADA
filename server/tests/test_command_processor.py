@@ -94,7 +94,25 @@ class TestCommandProcessor(unittest.IsolatedAsyncioTestCase):
         # Test duplicate alias
         with self.assertLogs(level='WARNING'):
             self.processor.register_command(TestCommand("duplicate", aliases=["t1"]))
-    
+
+    def test_clear(self):
+        """clear() empties both registries so discover() can re-run without
+        ValueError on already-registered names (see commands/reload.py --
+        hot-reloading mutates an existing CommandProcessor in place rather
+        than replacing it, since already-running sessions hold a reference
+        to this exact instance)."""
+        self.assertTrue(self.processor._commands)
+        self.assertTrue(self.processor._aliases)
+
+        self.processor.clear()
+
+        self.assertEqual(self.processor._commands, {})
+        self.assertEqual(self.processor._aliases, {})
+
+        # Re-registering after clear() must not raise (no stale duplicates).
+        self.processor.register_command(self.command1)
+        self.assertIn("test1", self.processor._commands)
+
     def test_find_command(self):
         """Test finding commands by name or alias."""
         # Test direct command name
