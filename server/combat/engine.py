@@ -842,11 +842,19 @@ class CombatSession:
             )
             if result.hit:
                 dmg = result.damage
-                await ctx.send(f'{member.name} strikes for {dmg} damage!')
-                await ctx.send_room(
-                    f'{member.name} strikes the {self.monster.get("name", "monster")} for {dmg} damage!',
-                    exclude_self=True,
-                )
+                mname = self.monster.get("name", "monster")
+                if dmg == 0:
+                    await ctx.send(f'{member.name} strikes the {mname}, but inflicts no damage!')
+                    await ctx.send_room(
+                        f'{member.name} strikes the {mname}, but inflicts no damage!',
+                        exclude_self=True,
+                    )
+                else:
+                    await ctx.send(f'{member.name} strikes for {dmg} damage!')
+                    await ctx.send_room(
+                        f'{member.name} strikes the {mname} for {dmg} damage!',
+                        exclude_self=True,
+                    )
                 _set_monster_hp(self.monster, _monster_hp(self.monster) - dmg)
                 if _monster_hp(self.monster) <= 0:
                     return
@@ -889,8 +897,12 @@ class CombatSession:
         elif result.hit:
             crit = '  CRITICAL HIT!' if result.is_critical else ''
             surp = '  (Surprise!)' if result.is_surprise else ''
-            msg  = f'You strike the {mname} for {result.damage} damage!{crit}{surp}'
-            room = f'{pname} strikes the {mname} for {result.damage} damage!{crit}'
+            if result.damage == 0:
+                msg  = f'You strike the {mname}, but inflict no damage!{crit}{surp}'
+                room = f'{pname} strikes the {mname}, but inflicts no damage!{crit}'
+            else:
+                msg  = f'You strike the {mname} for {result.damage} damage!{crit}{surp}'
+                room = f'{pname} strikes the {mname} for {result.damage} damage!{crit}'
         else:
             msg  = f'You miss the {mname}.'
             room = f'{pname} misses the {mname}.'

@@ -133,6 +133,11 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Assassin critical hit** — class 8 (Assassin), 10% chance to double damage (`SPUR.COMBAT.S:135`, `resolution.py:435`)
 - ✅ **Ease-of-use help message** — "(Ease of use helps!)" when roll barely misses and ease-of-use score would have made the difference (`SPUR.COMBAT.S:139`, `resolution.py:416`, `engine.py:541`)
 - ✅ **Bad weapon choice warning** — "(bad weapon choice)" when `p2 < 3` (`SPUR.COMBAT.S:119`)
+- ✅ **Zero-damage hit phrasing** — a landed hit that rolls 0 damage reads
+  "You strike the TROLL, but inflict no damage!" (and the equivalent
+  bystander/room broadcast and ally-swing message), not "...for 0
+  damage!" — a TADA wording improvement, not from SPUR source
+  (`combat/engine.py` `_narrate_player_swing()` and the ally-attack loop).
 
 #### Defence
 - **Shield** — blocks some incoming damage; degrades; can be destroyed; max rating varies by class/race; shield items usable via USE command (`SPUR.COMBAT.S`, `SPUR.USE.S:34–43`)
