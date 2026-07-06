@@ -643,7 +643,10 @@ class Server:
         if seen:
             lines += ['', f"You see {grammatical_list(seen)}."]
 
-        # Other players in the room
+        # Other players in the room -- fighters get called out by name against
+        # the monster they're fighting, rather than blending into the plain
+        # "X is here" list, so someone walking in immediately sees a fight
+        # already in progress.
         try:
             others = []
             for addr, c in self.clients.items():
@@ -654,8 +657,22 @@ class Server:
                 player = getattr(getattr(c, 'ctx', None), 'player', None)
                 name = getattr(player, 'name', None) or getattr(c, 'username', None) or 'someone'
                 others.append(name)
-            if others:
-                lines += ['', list_players_in_room(others)]
+
+            session = (getattr(self, 'active_combats', {}) or {}).get(room_no)
+            fighting = set()
+            if session and not session._done.is_set():
+                for a_ctx in session.attackers:
+                    a_name = getattr(getattr(a_ctx, 'player', None), 'name', None)
+                    if a_name in others:
+                        fighting.add(a_name)
+
+            bystanders = [n for n in others if n not in fighting]
+            if bystanders:
+                lines += ['', list_players_in_room(bystanders)]
+            if fighting:
+                mname = session.monster.get('name', 'a monster')
+                verb  = 'is' if len(fighting) == 1 else 'are'
+                lines += ['', f'{oxford_comma_list(sorted(fighting))} {verb} fighting {mname} here!']
         except Exception:
             pass
 

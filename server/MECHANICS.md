@@ -76,6 +76,13 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **LASSO — capture a mount** — during combat against a horse-named monster, `lasso` captures it as a new MOUNT-flagged ally (name prompt with SPUR's length/character validation); blocked by a full party or an existing mount (`SPUR.USE.S` `lasso`, `commands/lasso.py`, `engine.py` `CombatSession.lasso()`)
 - **XP gain per swing** (`engine.py`)
 - **Monster kill rewards** — gold and XP awarded on kill (`engine.py`, `combat/rewards.py`)
+- ✅ **Fights called out by name in the room description** — a TADA multiplayer
+  addition, not from SPUR source: when a player walks into (or looks at) a room
+  where someone is already fighting a monster, that fighter is called out by
+  name against the monster instead of blending into the plain "X is here" list
+  — "Railbender is fighting TROLL here!" — so the ongoing fight is obvious at a
+  glance. Checks `Server.active_combats[room_no]`'s `attackers` against the
+  room's player list (`simple_server.py` `_describe_room()`).
 - ✅ **Monster taunts/greetings** — when combat begins, the monster picks a quote from
   `monster_quotes.json` (71 real lines recovered from `SPUR-data/MONSTER.QUOTE.TXT`, a
   flat 170-byte-record file, plus a captured play transcript): a fixed
