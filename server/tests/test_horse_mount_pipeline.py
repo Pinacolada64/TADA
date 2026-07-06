@@ -1,8 +1,13 @@
-"""tests/test_lasso.py
+"""tests/test_horse_mount_pipeline.py
 
 Unit tests for CombatSession.lasso (SPUR.USE.S "lasso" subroutine) and the
 LassoCommand wiring, plus the Saddle/Horse Armor equip branch added to
 commands/use.py (SPUR.USE.S "eq.horse") and Jake's Stable's Train Horse.
+
+For a connected, real-command player journey through this same pipeline
+(room -> combat -> capture -> Jake's Stable -> training), see
+test_horse_journey_e2e.py -- this file stays at the unit level, exercising
+each piece of the pipeline in isolation.
 
 Coverage:
   - non-horse monster -> "You practice with the lasso", not captured
@@ -20,7 +25,7 @@ Coverage:
     level/room/direction -> falls through to normal movement
 
 Run with:
-    python -m pytest tests/test_lasso.py -v
+    python -m pytest tests/test_horse_mount_pipeline.py -v
 """
 from __future__ import annotations
 

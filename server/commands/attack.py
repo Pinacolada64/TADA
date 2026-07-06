@@ -20,10 +20,11 @@ def _monster_in_room(ctx: GameContext) -> dict | None:
     if not room:
         return None
 
-    mon_idx = int(getattr(room, 'monster', 0) or 0) - 1   # 1-based → 0-based
-    if 0 <= mon_idx < len(monsters):
-        return monsters[mon_idx]
-    return None
+    mon_number = int(getattr(room, 'monster', 0) or 0)
+    if not mon_number:
+        return None
+    from monsters import get_monster
+    return get_monster(monsters, mon_number)
 
 
 def _active_session(ctx: GameContext):

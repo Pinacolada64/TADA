@@ -77,6 +77,16 @@ def load_monsters(path: str) -> list[dict]:
     return monsters
 
 
+def get_monster(monsters: list[dict], number: int) -> dict | None:
+    """Look up a monster by its 'number' field.
+
+    monsters.json's numbering has gaps (e.g. #135 doesn't exist), so a
+    monster's position in the list doesn't equal number - 1 -- callers must
+    not index the list positionally by a room's stored monster number.
+    """
+    return next((m for m in monsters if m.get('number') == number), None)
+
+
 def save_monsters(monsters: list[dict], path: str):
     with open(path, 'w') as f:
         json.dump(monsters, f, indent=4)

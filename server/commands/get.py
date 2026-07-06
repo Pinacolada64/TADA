@@ -50,10 +50,11 @@ def _monster_in_room(ctx: GameContext) -> dict | None:
     room    = game_map.get_room(level, int(room_no))
     if not room:
         return None
-    mon_idx = int(getattr(room, 'monster', 0) or 0) - 1
-    if 0 <= mon_idx < len(monsters):
-        return monsters[mon_idx]
-    return None
+    mon_number = int(getattr(room, 'monster', 0) or 0)
+    if not mon_number:
+        return None
+    from monsters import get_monster
+    return get_monster(monsters, mon_number)
 
 
 def _players_in_room(ctx: GameContext) -> list:

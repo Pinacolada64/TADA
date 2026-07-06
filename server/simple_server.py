@@ -29,7 +29,7 @@ from tada_utilities import a_or_an, grammatical_list, list_players_in_room, oxfo
 from base_classes import Map, compass_txts
 from items import Item, Rations, Weapon
 from characters import Monster
-from monsters import load_monsters, load_quotes
+from monsters import load_monsters, load_quotes, get_monster
 from messages import load_messages, send_message
 from commands.command_processor import create_command_processor
 from commands.base_command import Mode
@@ -619,9 +619,9 @@ class Server:
                 seen.append(name)
 
         try:
-            mon_idx = int(getattr(room, 'monster', 0) or 0) - 1
-            if 0 <= mon_idx < len(self.monsters):
-                m = self.monsters[mon_idx]
+            mon_number = int(getattr(room, 'monster', 0) or 0)
+            m = get_monster(self.monsters, mon_number) if mon_number else None
+            if m is not None:
                 name    = m.get('name') if isinstance(m, dict) else getattr(m, 'name', 'a monster')
                 size    = m.get('size') if isinstance(m, dict) else getattr(m, 'size', None)
                 flags   = (m.get('flags') or {}) if isinstance(m, dict) else {}

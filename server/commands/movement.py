@@ -153,6 +153,8 @@ class MoveCommand(Command):
         room_no  = getattr(ctx.client, 'room', 1) or 1
         player_level = getattr(ctx.player, 'map_level', 1) or 1
 
+        # TODO: handle live monster blocking player's movement
+
         # Allys Guild: hardcoded level/room/direction interception (see
         # _ALLY_GUILD_LEVEL / _ALLY_GUILD_ROOM above), matching SPUR's own
         # hardcoded check rather than a data-driven room exit.

@@ -312,13 +312,13 @@ class TestGiveToMonster(unittest.IsolatedAsyncioTestCase):
     def _make_ctx_with_monster(self, monster_name='TROLL', m_hp=10):
         # Build a minimal game_map stub
         room_stub = MagicMock()
-        room_stub.monster = 1   # 1-indexed → monsters[0]
+        room_stub.monster = 1   # matches monsters[0]'s 'number' below
         game_map = MagicMock()
         game_map.rooms.get.return_value = room_stub
 
         server = _FakeServer(
             game_map=game_map,
-            monsters=[{'name': monster_name, 'strength': m_hp}],
+            monsters=[{'number': 1, 'name': monster_name, 'strength': m_hp}],
         )
         player = _make_player()
         return player, _FakeCtx(player, server=server, room=1)
