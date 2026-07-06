@@ -144,6 +144,21 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Dexterity gain** — dealing >4 damage has small chance to increase player DEX (`SPUR.COMBAT.S:143`, `engine.py:335`)
 - ✅ **Wisdom gain on kill** — player `pw` increases by 1 on every non-ally kill (`SPUR.COMBAT.S:188`, `engine.py:676`)
 
+#### UI / information display
+- **Planned: hide monster HP by default** — the combat prompt bar
+  (`_run_loop()`, `combat/engine.py:591`) currently always shows the
+  monster's exact HP (`{mname} HP:{_monster_hp(self.monster)}`). Plan is to
+  stop showing it by default — a player shouldn't know a monster's exact HP
+  unless they've divined it via a specific spell or magic item (mechanic
+  TBD, not yet designed). Until that spell/item exists, the bar should just
+  show the monster's name without a number.
+  - **Debug-mode exceptions** (gated on `PlayerFlags.DEBUG_MODE`, same flag
+    as `dbg`/the `[DEBUG] Room flags` line): a `[DEBUG]`-prefixed line in
+    the combat prompt still shows the monster's exact HP regardless of
+    whether it's been divined, plus two new debug-only menu options on the
+    same prompt bar: `[R]esurrect` and `[K]ill monster` (instant win/loss
+    for testing combat flow without grinding out a real fight).
+
 #### Status effects / survival
 - ✅ **Hunger / thirst** — `food` and `drink` deplete every 10 commands; "VERY HUNGRY/THIRSTY", "FAINT" warnings; starvation death when both reach 0; `eat` and `drink` commands restore them (`survival.py`, `commands/eat.py`, `commands/drink.py`, `SPUR.COMBAT.S:12–19`)
 - ✅ **Poison** — tick damage (−2 HP); 30% chance per tick (`SPUR.COMBAT.S:15`, `survival.py:41`); STR reduction if ring worn is not yet implemented

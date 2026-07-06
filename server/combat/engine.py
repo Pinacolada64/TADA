@@ -588,7 +588,8 @@ class CombatSession:
             if not auto_attack:
                 charge_opt = '  [C]harge' if self._charge_eligible else ''
                 raw = await ctx.prompt(
-                    f'[A]ttack{charge_opt}  [F]lee  (HP:{getattr(player, "hit_points", "?")}'
+                    f'[A]ttack{charge_opt}  [F]lee  Enter/Return: Exit this menu  '
+                    f'(HP:{getattr(player, "hit_points", "?")}'
                     f'  {mname} HP:{_monster_hp(self.monster)})',
                 )
                 if raw is None:
