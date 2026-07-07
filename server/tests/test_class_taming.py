@@ -30,6 +30,7 @@ sys.modules.setdefault('network_context', nc_stub)
 
 from base_classes import Gender, PlayerClass
 from combat.engine import CombatSession
+from party import Party
 
 
 class _FakePlayer:
@@ -38,7 +39,9 @@ class _FakePlayer:
         self.name = name
         self.char_class = char_class
         self.gender = gender
-        self.party = list(allies or [])
+        # A real Party, not a bare list -- see test_horse_mount_pipeline.py's
+        # _FakePlayer for why (Party has no .append(), only add_member()).
+        self.party = Party(allies)
         self.unsaved_changes = False
 
 
@@ -86,7 +89,7 @@ class TestClassTaming(unittest.IsolatedAsyncioTestCase):
         with patch('combat.engine.random.randint', return_value=1):   # would succeed if eligible
             tamed = await session._try_class_tame(ctx)
         self.assertFalse(tamed)
-        self.assertEqual(player.party, [])
+        self.assertEqual(list(player.party), [])
 
     async def test_non_horse_monster_no_op(self, _log):
         player = _FakePlayer(char_class=PlayerClass.DRUID)
@@ -125,7 +128,7 @@ class TestClassTaming(unittest.IsolatedAsyncioTestCase):
             tamed = await session._try_class_tame(ctx)
         self.assertFalse(tamed)
         self.assertFalse(session._done.is_set())
-        self.assertEqual(player.party, [])
+        self.assertEqual(list(player.party), [])
 
     async def test_full_party_blocks_silently(self, _log):
         from bar.ally_data import Ally, AllyStatus

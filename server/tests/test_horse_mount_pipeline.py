@@ -41,6 +41,7 @@ sys.modules.setdefault('network_context', nc_stub)
 
 from bar.ally_data import Ally, AllyFlags, AllyStatus
 from combat.engine import CombatSession
+from party import Party
 from commands.lasso import LassoCommand
 from commands.use import UseCommand
 from commands.movement import MoveCommand
@@ -63,7 +64,10 @@ def _make_mount(name='SILVER', flags=None) -> Ally:
 class _FakePlayer:
     def __init__(self, gold=10_000, allies=None, name='Rulan'):
         self.name = name
-        self.party = list(allies or [])
+        # A real Party, not a bare list -- Party has no .append(), only
+        # add_member()/add(), and combat/engine.py's mount-capture code
+        # calls the real API. A plain list here would silently mask that.
+        self.party = Party(allies)
         self.unsaved_changes = False
         self.inventory = MagicMock()
         self.inventory.entries = MagicMock(return_value=[])

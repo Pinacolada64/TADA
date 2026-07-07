@@ -981,6 +981,41 @@ class Player:
                 except Exception:
                     pass
 
+            # char_class / char_race / gender -- stored as the enum's string
+            # value, same as guild above. These were never restored at all:
+            # every login silently reset them to defaults (char_class=None,
+            # char_race=None, gender=Gender.MALE) regardless of what the
+            # player actually chose at creation -- discovered by round-
+            # tripping a real Player through Player(id=..., name=...) the
+            # same way commands/connect.py's login flow does it.
+            if 'char_class' in data and data['char_class'] is not None:
+                try:
+                    from base_classes import PlayerClass
+                    saved = data['char_class']
+                    matched = next((c for c in PlayerClass if c.value == saved), None)
+                    if matched is not None:
+                        self.char_class = matched
+                except Exception:
+                    pass
+            if 'char_race' in data and data['char_race'] is not None:
+                try:
+                    from base_classes import PlayerRace
+                    saved = data['char_race']
+                    matched = next((r for r in PlayerRace if r.value == saved), None)
+                    if matched is not None:
+                        self.char_race = matched
+                except Exception:
+                    pass
+            if 'gender' in data and data['gender'] is not None:
+                try:
+                    from base_classes import Gender
+                    saved = data['gender']
+                    matched = next((g for g in Gender if g.value == saved), None)
+                    if matched is not None:
+                        self.gender = matched
+                except Exception:
+                    pass
+
             # Merge stats and silver dicts where present
             if 'stats' in data and isinstance(data['stats'], dict):
                 try:

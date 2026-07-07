@@ -57,6 +57,7 @@ from simple_server import Server, _WILD_HORSE_ROOMS, _WILD_HORSE_MONSTER_NUMBER
 from base_classes import Gender, PlayerClass
 from bar.ally_data import AllyFlags
 from commands.attack import AttackCommand
+from party import Party
 from commands.lasso import LassoCommand
 from commands.movement import MoveCommand
 from commands.use import UseCommand
@@ -69,7 +70,11 @@ class _FakePlayer:
         self.name = name
         self.char_class = char_class
         self.gender = gender
-        self.party = list(allies or [])
+        # A real Party, not a bare list -- Party has no .append(), only
+        # add_member()/add(); a plain list here would (and did) mask
+        # combat/engine.py's mount-capture code calling the wrong API
+        # against a real Player.
+        self.party = Party(allies)
         self.map_level = 1
         self.hit_points = 30
         self.readied_weapon = None

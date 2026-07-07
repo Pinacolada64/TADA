@@ -462,7 +462,11 @@ class CombatSession:
         mount.status     = AllyStatus.SERVANT
         mount.owner      = player.name
         mount.hit_points  = 0
-        player.party.append(mount)
+        # Party has no .append() -- it's not a plain list (see party.py's
+        # add_member()/add()). Discovered live: unit tests fake player.party
+        # as a bare list, which masked this raising AttributeError against a
+        # real Player for every real capture attempt.
+        player.party.add_member(player, mount)
         player.unsaved_changes = True
 
         await ctx.send(f'{name} joins your party as a mount!')
