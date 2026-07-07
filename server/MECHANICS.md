@@ -982,6 +982,13 @@ authority to do that."
   via `setup/server_setup.py`.
 - **Audit trail** — dedicated admin-action log (ban/unban/kick/editplayer) separate
   from the main server log so moderation history is easy to review.
+- **Fix: age/birthday can disagree** — `editplayer`'s Age and Birthday fields
+  (`commands/editplayer.py`) and character creation's age and birthday prompts
+  (`commands/new_player.py`) each set `player.age`/`player.birthday`
+  independently, so an admin or new player can end up with a birth year that
+  doesn't match the stated age (e.g. age 20 with a birthday in 1950). Should
+  derive the birth year from `current_year - age` instead of accepting a
+  freely-entered year, so the two fields can't drift out of sync.
 
 ---
 
