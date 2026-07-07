@@ -903,7 +903,13 @@ authority to do that."
 - **`editplayer` (`ep`)** — full in-game player editor: alignment, attributes,
   character names, combinations, flags/counters, hit points, inventory, money
   (In Hand / In Bank / In Bar), statistics, weapons (`commands/editplayer.py`).
-  Changes are written on save/quit.
+  Changes are written on save/quit. Editing class or race warns (non-blocking)
+  if the combination isn't normally valid, and always re-reports natural
+  alignment — which depends only on race, per `SPUR.MISC5.S:196–199` (Ogre/Orc
+  → Evil, Pixie/Elf → Good, else Neutral) — as "updated to X" or "unchanged
+  (X)" (`characters.is_class_race_compatible()`,
+  `characters.apply_natural_alignment()`; same table backs character
+  creation's class/race validation in `commands/new_player.py`).
 - **`ban <user> [reason]`** — permanently suspend an account; player is rejected
   at login with a "permanently suspended" message (`commands/ban.py`,
   `commands/connect.py`).

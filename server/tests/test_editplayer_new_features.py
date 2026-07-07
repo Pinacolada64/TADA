@@ -17,7 +17,7 @@ from __future__ import annotations
 import unittest
 from datetime import datetime
 
-from base_classes import PlayerClass, PlayerRace
+from base_classes import Alignment, PlayerClass, PlayerRace
 from bar.ally_data import Ally, AllyFlags, AllyStatus
 from commands.editplayer import (
     _armor_shield_menu,
@@ -435,6 +435,58 @@ class TestClassRaceCompatibilityWarning(unittest.IsolatedAsyncioTestCase):
         menu = _statistics_menu(ctx)
         await _find_item(menu, 'Class').action(ctx)
         self.assertNotIn('not normally a valid combination', '\n'.join(ctx.sent))
+
+
+# ---------------------------------------------------------------------------
+# Natural alignment reporting on class/race edit
+# (characters.apply_natural_alignment(), see tests/test_characters.py for
+# the underlying table)
+# ---------------------------------------------------------------------------
+
+class TestNaturalAlignmentReporting(unittest.IsolatedAsyncioTestCase):
+
+    async def test_setting_race_to_ogre_reports_updated(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['2'], player=player)   # 2 = Ogre
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Race').action(ctx)
+        self.assertEqual(player.natural_alignment, Alignment.EVIL)
+        self.assertIn('Natural alignment updated to Evil.', ctx.sent)
+
+    async def test_setting_race_to_human_reports_unchanged(self):
+        # Human's natural alignment (Neutral) matches the player's unset
+        # (None) starting value... no: unset -> None != NEUTRAL, so this
+        # is still an update the first time. Confirm a *second* edit that
+        # doesn't change the resulting alignment reports "unchanged".
+        player = _FakePlayer()
+        player.char_race = PlayerRace.HUMAN
+        player.natural_alignment = Alignment.NEUTRAL
+        ctx = _FakeCtx(responses=['3'], player=player)   # 3 = Fighter
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Class').action(ctx)
+        self.assertIn('Natural alignment unchanged (Neutral).', ctx.sent)
+
+    async def test_setting_class_alone_still_reports_alignment(self):
+        # Alignment is race-driven only, but editing class re-reports the
+        # (unchanged) alignment so an admin sees consistent feedback either
+        # way (SPUR.MISC5.S:196-199).
+        player = _FakePlayer()
+        player.char_race = PlayerRace.OGRE
+        player.natural_alignment = Alignment.EVIL
+        ctx = _FakeCtx(responses=['1'], player=player)   # 1 = Wizard
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Class').action(ctx)
+        self.assertIn('Natural alignment unchanged (Evil).', ctx.sent)
+
+    async def test_switching_race_updates_alignment(self):
+        player = _FakePlayer()
+        player.char_race = PlayerRace.OGRE
+        player.natural_alignment = Alignment.EVIL
+        ctx = _FakeCtx(responses=['4'], player=player)   # 4 = Elf
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Race').action(ctx)
+        self.assertEqual(player.natural_alignment, Alignment.GOOD)
+        self.assertIn('Natural alignment updated to Good.', ctx.sent)
 
 
 if __name__ == '__main__':

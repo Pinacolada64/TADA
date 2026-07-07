@@ -12,24 +12,6 @@ _AP = "'"
 
 
 # ---------------------------------------------------------------------------
-# Natural alignment (from race, matching SPUR.MISC5.S lines 196-199)
-# Original used "Bad" for Ogre/Orc but Alignment enum has Good/Neutral/Evil.
-# ---------------------------------------------------------------------------
-
-_RACE_NATURAL_ALIGNMENT: dict[str, Alignment] = {
-    'Ogre':  Alignment.EVIL,
-    'Orc':   Alignment.EVIL,
-    'Pixie': Alignment.GOOD,
-    'Elf':   Alignment.GOOD,
-}
-
-
-def _natural_alignment(race) -> Alignment:
-    # Use str(race) so both PlayerRace enum values and plain strings match.
-    return _RACE_NATURAL_ALIGNMENT.get(str(race), Alignment.NEUTRAL)
-
-
-# ---------------------------------------------------------------------------
 # Current alignment from honor points (vk, lines 199-201)
 # ---------------------------------------------------------------------------
 
@@ -166,7 +148,8 @@ def _build_stats_lines(player) -> list[str]:
     ]
 
     # Alignment
-    nat_align = _natural_alignment(char_race)
+    from characters import natural_alignment_for_race
+    nat_align = natural_alignment_for_race(char_race)
     cur_align = _current_alignment(honor)
     lines += [
         f"Natural Alignment: {_AP}{nat_align}{_AP}.  "

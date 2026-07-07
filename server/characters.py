@@ -5,7 +5,7 @@ import doctest
 
 # TADA-specific imports:
 from base_classes import (
-    Size, PlayerMoneyTypes, PlayerMoneyCategory, PlayerStat,
+    Alignment, Size, PlayerMoneyTypes, PlayerMoneyCategory, PlayerStat,
     PlayerClass, PlayerClassBonuses,
     PlayerRace, PlayerRaceBonuses,
 )
@@ -207,6 +207,48 @@ def is_class_race_compatible(char_class, char_race) -> bool:
     if char_class is None or char_race is None:
         return True
     return char_race not in _BAD_CLASS_RACE_COMBOS.get(char_class, [])
+
+
+# ---------------------------------------------------------------------------
+# Natural alignment (from race, not class -- SPUR.MISC5.S lines 196-199)
+# ---------------------------------------------------------------------------
+
+# Original used "Bad" for Ogre/Orc, but this port's Alignment enum only has
+# Good/Neutral/Evil, so "Bad" maps to EVIL. Moved here from the private copy
+# in commands/stats.py so any editor (character creation, EditPlayer) shares
+# the same table.
+_RACE_NATURAL_ALIGNMENT: dict[str, Alignment] = {
+    'Ogre':  Alignment.EVIL,
+    'Orc':   Alignment.EVIL,
+    'Pixie': Alignment.GOOD,
+    'Elf':   Alignment.GOOD,
+}
+
+
+def natural_alignment_for_race(race) -> Alignment:
+    """The natural alignment a given race implies (SPUR.MISC5.S:196-199).
+
+    str(race) so both PlayerRace members and plain value-strings match;
+    anything else (unset, unrecognized) is Neutral.
+    """
+    return _RACE_NATURAL_ALIGNMENT.get(str(race), Alignment.NEUTRAL)
+
+
+def apply_natural_alignment(player) -> tuple[bool, Alignment]:
+    """Recompute player.natural_alignment from their current char_race.
+
+    Call this after char_race (or char_class, which doesn't itself affect
+    the result but may prompt a recheck) changes. Mutates the player
+    directly, no I/O -- mirrors apply_race_class_deltas()'s style. Returns
+    (changed, new_alignment) so the caller can report whether anything
+    actually changed instead of silently overwriting a player-visible value.
+    """
+    new_alignment = natural_alignment_for_race(getattr(player, 'char_race', None))
+    old_alignment = getattr(player, 'natural_alignment', None)
+    changed = new_alignment != old_alignment
+    if changed:
+        player.natural_alignment = new_alignment
+    return changed, new_alignment
 
 
 if __name__ == '__main__':

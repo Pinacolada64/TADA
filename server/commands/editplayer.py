@@ -69,6 +69,23 @@ def _flag_status(player, flag: PlayerFlags) -> str:
     return 'On' if status else 'Off'
 
 
+async def _apply_and_report_alignment(ctx, player) -> None:
+    """Recompute natural_alignment from the player's current race and say so.
+
+    Race, not class, actually drives this (SPUR.MISC5.S:196-199) -- called
+    after either edit anyway so an admin sees the same message regardless
+    of which field they touched, and editing class alone correctly reports
+    "unchanged" since it never affects the result.
+    """
+    from characters import apply_natural_alignment
+    changed, new_alignment = apply_natural_alignment(player)
+    if changed:
+        player.unsaved_changes = True
+        await ctx.send(f'Natural alignment updated to {new_alignment.value}.')
+    else:
+        await ctx.send(f'Natural alignment unchanged ({new_alignment.value}).')
+
+
 async def _warn_if_incompatible(ctx, player) -> None:
     """Flag a class/race combo character creation would refuse outright.
 
@@ -608,6 +625,7 @@ def _statistics_menu(ctx) -> Menu:
             p.unsaved_changes = True
             await ctx.send(f'Class set to {options[idx].value}.')
             await _warn_if_incompatible(ctx, p)
+            await _apply_and_report_alignment(ctx, p)
 
     async def edit_guild(ctx) -> None:
         from base_classes import Guild
@@ -646,6 +664,7 @@ def _statistics_menu(ctx) -> Menu:
             p.unsaved_changes = True
             await ctx.send(f'Race set to {options[idx].value}.')
             await _warn_if_incompatible(ctx, p)
+            await _apply_and_report_alignment(ctx, p)
 
     async def edit_birthday(ctx) -> None:
         import calendar

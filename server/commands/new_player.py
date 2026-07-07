@@ -624,7 +624,7 @@ async def _choose_race(ctx) -> int | None:
         race_names = [r.name for r in races]
         race_texts = list(PlayerRaceText)
     except ImportError:
-        race_names = ["Human", "Elf", "Dwarf", "Halfling"]
+        races      = race_names = ["Human", "Elf", "Dwarf", "Halfling"]
         race_texts = []
 
     lines = [
@@ -657,7 +657,14 @@ async def _choose_race(ctx) -> int | None:
 
         sel = _parse_selection(ans, len(race_names))
         if sel is not None:
-            ctx.player.char_race = race_names[sel - 1]
+            # Store the real PlayerRace member (its .name is used only for
+            # the numbered menu labels above) -- storing race_names[sel-1]
+            # here instead stored the enum's .name ("OGRE") rather than its
+            # .value ("Ogre"); since StrEnum equality compares against
+            # .value, that silently broke every "in [PlayerRace.X, ...]"
+            # membership check downstream (validate_class_race_combo(),
+            # natural alignment) for every race choice, forever.
+            ctx.player.char_race = races[sel - 1]
             ok, msg = validate_class_race_combo(ctx)
             if not ok:
                 await ctx.send(msg)
