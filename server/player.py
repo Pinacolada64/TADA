@@ -585,6 +585,12 @@ class Player:
     def gain_weapon_experience(self, weapon_id_number: int) -> int:
         """Increment battle experience for weapon_id_number by 1 (cap 99).
 
+        Call this only when the weapon lands a killing blow (SPUR.MISC.S:384
+        "p.a3" is the ONLY place SPUR's vp is ever incremented -- there's no
+        per-swing accrual). See combat/engine.py's _monster_dies() for the
+        one call site; general per-swing character XP is a separate counter
+        (player.experience, combat/engine.py's _add_exp()).
+
         Returns the new value.  Marks unsaved_changes so it is persisted.
         """
         key = str(weapon_id_number)

@@ -65,9 +65,11 @@ class AttackCommand(Command):
             'Weapon ease-of-use (stability) and base damage (to-hit rating) '
             'both come from the weapon record. A Long Sword hits ~68% of the '
             'time against average monsters at level 1.',
-            'You earn +1 experience point per swing (hit or miss). At 40 '
-            'swings with a weapon you gain VETERAN status (+1 to-hit, +1 '
-            'damage); at 99 swings ELITE (+2 to-hit, +level damage bonus).',
+            'You earn +1 character experience point per swing (hit or '
+            'miss). Battle experience with your readied weapon is separate '
+            'and only grows by landing the killing blow: at 40 kills with '
+            'a weapon you gain VETERAN status (+1 to-hit, +1 damage); at '
+            '99 kills, ELITE (+2 to-hit, +level damage bonus).',
         ],
     )
 

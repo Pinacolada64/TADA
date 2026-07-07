@@ -141,7 +141,15 @@ def _room_ctxs(ctx: 'GameContext', exclude: Optional['GameContext'] = None) -> l
 
 
 def _award_weapon_exp(ctx: 'GameContext', weapon_id: int) -> None:
-    """Award one point of battle exp to player for weapon_id."""
+    """Award one point of battle (weapon-specific) exp to player for weapon_id.
+
+    SPUR.MISC.S:384 (`p.a3`, the monster-just-died cleanup routine) is the
+    ONLY place `vp` is ever incremented in the whole source -- confirmed by
+    grepping every .S file for `vp=vp+1` / `vp = vp+1`. There is no per-swing
+    accrual; `ep` (general character XP, SPUR.COMBAT.S:103) is the per-swing
+    counter and is a completely separate variable (see _add_exp()). Call
+    this only from _monster_dies(), gated on player_killed, never per-swing.
+    """
     try:
         ctx.player.gain_weapon_experience(weapon_id)
     except Exception:
@@ -377,8 +385,6 @@ class CombatSession:
                     await self._stray_round(ctx, result.weapon_name,
                                             weapon_id=result.weapon_id)
             _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
-            if result.weapon_id:
-                _award_weapon_exp(ctx, result.weapon_id)
             if _monster_hp(self.monster) <= 0:
                 await self._monster_dies(ctx)
 
@@ -760,12 +766,6 @@ class CombatSession:
                 # Total damage = direct + FIREBALL secondary heat
                 total_player_dmg = result.damage + result.fireball_secondary
                 _set_monster_hp(self.monster, _monster_hp(self.monster) - total_player_dmg)
-                if result.weapon_id:
-                    _award_weapon_exp(ctx, result.weapon_id)
-                    # Bystanders in the attacker list also get exp for this weapon
-                    for b_ctx in self.attackers:
-                        if b_ctx is not ctx and result.weapon_id:
-                            _award_weapon_exp(b_ctx, result.weapon_id)
 
                 if _monster_hp(self.monster) <= 0:
                     await self._monster_dies(ctx, player_killed=True)
@@ -1309,6 +1309,15 @@ class CombatSession:
                 if not getattr(player, 'is_expert', False):
                     await ctx.send('(You feel a bit wiser.)')
 
+            # Battle experience (vp, SPUR.MISC.S:384 "p.a3"): +1 for
+            # whatever weapon is currently readied, capped at 99 -- landing
+            # the killing blow, not per swing (see _award_weapon_exp()'s
+            # docstring for why -- vp is only ever incremented here in the
+            # whole SPUR source).
+            weapon_id = getattr(weapon, 'id_number', None)
+            if weapon_id is not None:
+                _award_weapon_exp(ctx, weapon_id)
+
         # Ammo recovery for bows/slings/blowguns (SPUR.MISC.S:427)
         await self._recover_ammo(ctx)
 
@@ -1317,7 +1326,10 @@ class CombatSession:
         # hidden_exit_east/west reveals the secret passage it was guarding.
         await self._reveal_hidden_exit(ctx)
 
-        # Notify bystanders of the kill (they earned exp per-swing already)
+        # Notify bystanders of the kill. Only the ctx that landed the killing
+        # blow gains weapon exp (above) or the general per-swing ep exp
+        # (CombatSession._swing()'s own callers) -- a bystander watching
+        # someone else's fight doesn't get credit for either.
         for b_ctx in self.attackers:
             if b_ctx is ctx:
                 continue

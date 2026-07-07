@@ -153,7 +153,10 @@ class AttackResult:
     hit:           bool
     damage:        int          # 0 on miss
     weapon_name:   str  = ''
-    weapon_id:     int  = 0     # for awarding weapon battle exp to participants
+    weapon_id:     int  = 0     # weapon used this swing (id_number); not itself
+                                # how battle exp is awarded -- see
+                                # CombatSession._monster_dies(), which reads
+                                # ctx.player.readied_weapon directly on a kill
     attacker_name: str  = ''
     ease_helped:   bool = False  # "(EASE OF USE HELPS!)" fast-path triggered
     is_surprise:   bool = False

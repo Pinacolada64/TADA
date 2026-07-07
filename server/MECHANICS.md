@@ -230,7 +230,7 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **UNREADY command** — clears readied weapon; "No weapon readied!" if nothing's equipped (`SPUR.MAIN.S:84-85`, `commands/unready.py`)
 
 ### Not Implemented
-- ✅ **Battle experience accumulation** — `vp`/`weapon_experience` incremented each time weapon is used in combat; VETERAN at 40, ELITE at 99 (`SPUR.WEAPON.S`, `player.py:573`, `engine.py:85`)
+- ✅ **Battle experience accumulation** — `vp`/`weapon_experience` for the currently-readied weapon goes up by 1 only on landing the killing blow (not per swing -- `vp=vp+1` is only ever reached at SPUR.MISC.S:384 `p.a3`, confirmed by grepping every .S file); VETERAN at 40 kills, ELITE at 99 (`SPUR.MISC.S:384`, `player.py` `gain_weapon_experience()`, `engine.py` `_monster_dies()`). Corrected this session -- an earlier version incremented it after every swing (hit or miss) and even credited every other attacker in the room for the swinger's weapon; see `tests/test_battle_experience.py`.
 - ✅ **ELITE damage scaling** — ELITE tier grants +XP damage instead of flat +1 (`SPUR.WEAPON.S`, `resolution.py` `battle_exp_bonuses()`)
 - **Dexterity requirement** — weapons have a minimum DEX to wield (`ws+4`); player refused if below threshold (`SPUR.WEAPON.S:46`)
 - **STORM — duel behavior** — deferred until duels are implemented
