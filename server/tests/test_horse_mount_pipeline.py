@@ -45,7 +45,7 @@ from party import Party
 from commands.lasso import LassoCommand
 from commands.use import UseCommand
 from commands.movement import MoveCommand
-from street.jakes import _train_horse
+from street.jakes import _train_horse, _tips
 
 
 def _make_ally(name='BARDA', flags=None) -> Ally:
@@ -324,6 +324,30 @@ class TestTrainHorse(unittest.IsolatedAsyncioTestCase):
         await _train_horse(ctx)
         self.assertIn(AllyFlags.ELITE, mount.flags)
         self.assertEqual(player._gold, 3000)
+        self.assertIn('prances proudly', ctx.sent())
+
+    async def test_successful_training_falls_back_without_message_34(self):
+        # _FakeServer carries no .messages dict, so send_message() can't find
+        # #34 -- must not blow up, and should still say *something*.
+        mount = _make_mount(flags=[AllyFlags.SADDLED, AllyFlags.ARMORED])
+        player = _FakePlayer(allies=[mount], gold=5000)
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['Y'])
+        await _train_horse(ctx)
+        self.assertIn('back room', ctx.sent())
+
+    async def test_successful_training_prints_real_message_34(self):
+        from messages import load_messages
+        mount = _make_mount(flags=[AllyFlags.SADDLED, AllyFlags.ARMORED])
+        player = _FakePlayer(allies=[mount], gold=5000)
+        ctx = _FakeCtx(player)
+        ctx.server.messages = load_messages('messages.json')
+        ctx.set_answers(['Y'])
+        await _train_horse(ctx)
+        sent = ctx.sent()
+        self.assertIn('Jake peers at your horse with a skeptical eye', sent)
+        self.assertIn('kick butt and take names', sent)
+        self.assertIn('prances proudly', sent)
 
     async def test_insufficient_gold_refused(self):
         mount = _make_mount(flags=[AllyFlags.SADDLED, AllyFlags.ARMORED])
@@ -333,6 +357,26 @@ class TestTrainHorse(unittest.IsolatedAsyncioTestCase):
         await _train_horse(ctx)
         self.assertNotIn(AllyFlags.ELITE, mount.flags)
         self.assertIn('not have enough gold', ctx.sent())
+
+
+class TestTips(unittest.IsolatedAsyncioTestCase):
+
+    async def test_falls_back_without_message_35(self):
+        player = _FakePlayer(allies=[])
+        ctx = _FakeCtx(player)
+        await _tips(ctx)
+        self.assertIn('saddle', ctx.sent().lower())
+
+    async def test_prints_real_message_35(self):
+        from messages import load_messages
+        player = _FakePlayer(allies=[])
+        ctx = _FakeCtx(player)
+        ctx.server.messages = load_messages('messages.json')
+        await _tips(ctx)
+        sent = ctx.sent()
+        self.assertIn('narrow grassy canyon to the northwest', sent)
+        self.assertIn('dropping them on the ground', sent)
+        self.assertIn('USE one of my lassos', sent)
 
 
 def _make_movement_ctx(map_level=1, room=1):

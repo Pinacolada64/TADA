@@ -15,6 +15,12 @@ SPUR notes:
   - Train Horse: 2,000 gold. Requires an owned MOUNT ally that is already
     SADDLED and ARMORED; applies AllyFlags.ELITE ("!" sigil -- SPUR reuses
     the same "trained" flag allies get from Discipline training).
+  - Train Horse's flavor text and the Tips menu option both print
+    server/messages.json entries #34/#35 (SPUR.MISC8.S: `a=34:gosub
+    messages`/`a=35:gosub messages`) via messages.send_message(), rather
+    than reproducing the text inline -- see MECHANICS.md's "Recovered SPUR
+    Messages" table. The final "prances proudly" line after #34 is this
+    port's own addition, naming the specific mount.
 """
 import logging
 
@@ -35,6 +41,10 @@ _SADDLE_ITEM_NUM      = 162
 _HORSE_ARMOR_ITEM_NUM = 163
 
 _TRAIN_COST = 2000
+
+# server/messages.json entries (SPUR.MISC8.S: `train` -> a=34, `tips` -> a=35).
+_TRAIN_MESSAGE_NUM = 34
+_TIPS_MESSAGE_NUM  = 35
 
 
 # ---------------------------------------------------------------------------
@@ -173,6 +183,10 @@ async def _train_horse(ctx: GameContext) -> None:
 
     player.unsaved_changes = True
     mount.flags.append(AllyFlags.ELITE)
+
+    from messages import send_message
+    if not await send_message(ctx, _TRAIN_MESSAGE_NUM):
+        await ctx.send("Jake leads your horse into the back room, and returns some time later.")
     await ctx.send(f'{mount.name} prances proudly -- fully trained and ready to ride!')
 
 
@@ -181,10 +195,12 @@ async def _train_horse(ctx: GameContext) -> None:
 # ---------------------------------------------------------------------------
 
 async def _tips(ctx: GameContext) -> None:
-    await ctx.send(
-        f'{_NPC} leans on the fence post. '
-        '"A good mount needs a saddle AND armor before I can train it up proper."'
-    )
+    from messages import send_message
+    if not await send_message(ctx, _TIPS_MESSAGE_NUM):
+        await ctx.send(
+            f'{_NPC} leans on the fence post. '
+            '"A good mount needs a saddle AND armor before I can train it up proper."'
+        )
 
 
 # ---------------------------------------------------------------------------

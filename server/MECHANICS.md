@@ -45,6 +45,8 @@ and display function directly.
 | 21 | `revive` `flag(7)` (`SPUR.MISC6.S:132`) | Alternate "Chosen One" death-save flavor (condition behind `flag(7)` untraced) | Not yet documented — new find |
 | 24–29 | `galad`/riddle (`SPUR.MISC6.S:506–518`) | ✅ Test of Galadriel's exact riddle text — #24 intro, #25–29 are 5 random Tolkien trivia riddles with answers baked into the source (`zz$`) | Quest #8 — text now available, not yet wired into code |
 | 33 | `revive` SAINT (`SPUR.MISC6.S:132`) | Saint-class-specific death-save flavor ("So, this is what God looks like") | Not yet documented — new find |
+| 34 | `train` (skip branch `SPUR.MISC8.S:88`) | ✅ Implemented — Jake's Stable Train Horse success flavor ("kick butt and take names"), followed by this port's own "X prances proudly" line naming the specific mount | `street/jakes.py` `_train_horse()` |
+| 35 | `tips` (skip branch `SPUR.MISC8.S:91`) | ✅ Implemented — Jake's Stable Tips menu option: the "narrow grassy canyon" hint and the sugar-cube/lasso how-to | `street/jakes.py` `_tips()` |
 
 The Wraith King ending (#7) trigger has since been fully traced — see
 `quests/README.md`'s quest #15 ("Wraith King / RONNEY"). Monster #93 "RONNEY"
