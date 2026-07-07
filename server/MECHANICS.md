@@ -224,6 +224,9 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **STORM — jealous rage** — unreadied STORM in inventory howls when player readies something else (`commands/ready.py`)
 - ✅ **STORM — servant** — accepts player with good class/race affinity; grants +2 skill/damage (`commands/ready.py`, `combat/engine.py`)
 - ✅ **STORM — YOU ARE NOT MINE** — rejects player with no class/race affinity (`commands/ready.py`)
+- ✅ **Excalibur — Knight/honor gate** — readying weapon #17 requires Knight class + honor >= 1200; an unworthy player gets the same rejection blast as an unfit STORM ready, a worthy one gets unique "fiery sheen" flavor text (`SPUR.WEAPON.S:27`, `commands/ready.py`)
+- ✅ **Death Amulet — readying gamble** — readying weapon #56 (matched by name) is a Y/N confirm with a 20% instant-death roll, reduced to 10% if carrying the Amulet of Life (#76) (`SPUR.WEAPON.S:31, 64-73`, `commands/ready.py`)
+- ✅ **"Best targets" combat bonus** — the weapon-class-vs-monster-size table hinted at in the ready display's `[ Best targets ]` line is a real to-hit bonus/penalty during combat, not just flavor (`SPUR.COMBAT.S:110-118`, `combat/resolution.py` `hit_threshold()`); the `[ Best targets ]` hint itself only shows for non-expert players — experts get the terser "Weapon class: X" line alone (`commands/ready.py` `_weapon_class_line()`)
 - **UNREADY command** — clears readied weapon (`SPUR.MAIN.S`)
 
 ### Not Implemented

@@ -1,7 +1,17 @@
-"""commands/ready.py — Ready (equip) a weapon from inventory."""
+"""commands/ready.py — Ready (equip) a weapon from inventory.
+
+Special-cased weapons (SPUR.WEAPON.S):
+  - STORM weapons: jealousy/rejection/servant mechanics (lines 156-194).
+  - Excalibur (#17): Knight class + honor >= 1200 gate (line 27, spec3/spec4)
+    -- an unworthy player gets the same rejection blast as a STORM weapon;
+    a worthy one gets unique flavor text on success.
+  - Death Amulet (#56, matched by name): readying it is a gamble -- 20%
+    instant death, reduced to 10% if carrying the Amulet of Life (#76)
+    (lines 31, 64-73).
+"""
 import random
 
-from base_classes import PlayerStat
+from base_classes import PlayerClass, PlayerStat
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from item_system import weapon_bonus
@@ -9,6 +19,16 @@ from items import ItemCategory
 from network_context import GameContext
 
 _MIN_STR = 4
+
+# Amulet of Life (objects.json #76) -- carrying it (not necessarily
+# "energized") halves the Death Amulet's death odds, per SPUR.WEAPON.S:69.
+_AMULET_OF_LIFE_ID = 76
+
+# Excalibur (weapons.json #17): requires Knight class + honor >= 1200 to
+# ready (SPUR.WEAPON.S:27 gate; skip branch adds nothing beyond a gm=1
+# god-mode bypass). Below the bar, it rejects the player the same way a
+# STORM weapon rejects an unworthy class (spec3/spec4).
+_EXCALIBUR_MIN_HONOR = 1200
 
 # Battle experience tiers (mirrors SPUR.WEAPON.S vp thresholds).
 # VETERAN (+1 to-hit, +1 damage) at 40; ELITE (+2 to-hit, +xp damage) at 99.
@@ -60,7 +80,14 @@ def _stat(player, key) -> int:
     return int(stats.get(key, 0) or 0)
 
 
-def _weapon_class_line(weapon) -> str:
+def _weapon_class_line(weapon, show_best_targets: bool = True) -> str:
+    """Build the 'Weapon class: X' line shown when readying.
+
+    The '[ Best targets ]' hint (which monster sizes this weapon class
+    favors -- see combat/resolution.py's hit_threshold() for the real
+    to-hit bonus/penalty it's describing) is only shown in non-expert
+    mode; expert players get the terser line without it.
+    """
     wc = getattr(weapon, 'weapon_class', None)
     if wc is None:
         return ''
@@ -75,7 +102,7 @@ def _weapon_class_line(weapon) -> str:
     }
     best = targets.get(wc_str.lower(), '')
     line = f'Weapon class: {wc_str}'
-    if best:
+    if best and show_best_targets:
         line += f'  [ Best targets ]: {best}'
     return line
 
@@ -209,8 +236,69 @@ class ReadyCommand(Command):
                     ])
                 return CommandResult.ok()
 
+        # --- Excalibur: Knight/honor gate (SPUR.WEAPON.S:27, spec3/spec4) ---
+        # Checked before anything else touches the new weapon -- an unworthy
+        # player never even gets to see its stats.
+        if name.upper() == 'EXCALIBUR':
+            honor = int(getattr(player, 'honor', 0) or 0)
+            if getattr(player, 'char_class', None) != PlayerClass.KNIGHT or honor < _EXCALIBUR_MIN_HONOR:
+                dmg = random.randint(1, 10)
+                await ctx.send([
+                    'A THUNDERING HOWL OF RAGE BLASTS FROM',
+                    "THE EXCALIBUR! 'YOU ARE NOT MINE!!'",
+                    '',
+                    'A BOLT OF POWER BLASTS YOU BACKWARDS!',
+                    f'YOU TAKE {dmg} DAMAGE!',
+                ])
+                hp = getattr(player, 'hit_points', 0) - dmg
+                player.hit_points = hp
+                player.unsaved_changes = True
+                if hp <= 0:
+                    player.hit_points = 0
+                    await ctx.send([
+                        '|red|The blast was fatal. You have perished!|reset|',
+                        'Your adventure ends here...',
+                    ])
+                return CommandResult.ok()
+            await ctx.send([
+                'A fiery sheen engulfs the huge sword, as sweet music hums',
+                'softly from its terrible sharp blade..',
+            ])
+
+        # --- Death Amulet: readying gamble (SPUR.WEAPON.S:31, 64-73) ---
+        if 'DEATH AMULET' in name.upper():
+            inv = getattr(player, 'inventory', None)
+            has_amulet_of_life = bool(inv and inv.find(item_id=_AMULET_OF_LIFE_ID))
+            death_chance = 0.10 if has_amulet_of_life else 0.20
+
+            warn = [
+                '',
+                'WARNING!!!',
+                '',
+                'Readying the Death Amulet has a 20%',
+                'possibility of instant death!!',
+            ]
+            if has_amulet_of_life:
+                warn.append('The AMULET OF LIFE reduces this to 10%!')
+            await ctx.send(warn)
+
+            raw = await ctx.prompt('Still want to?!? (Y/N)')
+            if not raw or raw.strip().upper() != 'Y':
+                return CommandResult.ok()
+
+            await ctx.send(['', 'DEADLY POWER STIRS. IT LIVES..'])
+            if random.random() < death_chance:
+                await ctx.send([
+                    '', 'ARGH!! IT TURNS ON YOU!!',
+                    'YOU ARE TORN TO PIECES...',
+                ])
+                player.hit_points = 0
+                player.unsaved_changes = True
+                return CommandResult.ok()
+            await ctx.send('YOU LIVE!')
+
         # Display weapon info
-        info = [_weapon_class_line(weapon)]
+        info = [_weapon_class_line(weapon, show_best_targets=not player.is_expert)]
         dmg = getattr(weapon, 'stability', None)
         if dmg is not None:
             info.append(f'Base damage : {dmg}')
