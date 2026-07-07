@@ -10,6 +10,11 @@ Water-room handling (SPUR room flag |@@):
 
   Well rooms (names containing 'WELL') behave differently: everything dropped
   into a well sinks regardless — it's a vertical shaft, not a lake surface.
+
+Sugar Cube handling (SPUR.MISC.S "d.sugar"):
+  Dropping the Sugar Cube ration is a separate special case, handled by
+  wild_horse_events.try_sugar_cube_drop() -- see that module for the
+  'grassy'-room / wild-horse mechanic.
 """
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
@@ -35,6 +40,16 @@ _SINK_KEYWORDS = (
 
 # Weapon-name fragments that suggest wooden construction (floats despite WEAPON category).
 _WOOD_WEAPON_KEYWORDS = ('BOW', 'STAFF', 'WOOD', 'CROSSBOW')
+
+# "CUBE OF SUGAR" (rations.json) -- matches street/jakes.py's
+# _SUGAR_CUBE_RATION_NUM. Dropping it is handled by wild_horse_events.py
+# (SPUR.MISC.S "d.sugar") instead of the normal room-item placement below.
+_SUGAR_CUBE_RATION_NUM = 16
+
+
+def _is_sugar_cube(item) -> bool:
+    from items import Rations
+    return isinstance(item, Rations) and getattr(item, 'number', None) == _SUGAR_CUBE_RATION_NUM
 
 
 def _is_water_room(room) -> bool:
@@ -201,6 +216,11 @@ class DropCommand(Command):
         level    = int(getattr(ctx.player, 'map_level', 1) or 1)
         game_map = getattr(ctx.server, 'game_map', None)
         room     = game_map.get_room(level, room_no) if game_map and room_no else None
+
+        if _is_sugar_cube(entry.item):
+            from wild_horse_events import try_sugar_cube_drop
+            await try_sugar_cube_drop(ctx, room)
+            return CommandResult.ok()
 
         if room and (_is_water_room(room) or _is_well_room(room)):
             msgs, lost = _water_drop_messages(entry.item, room)

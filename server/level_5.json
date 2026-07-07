@@ -3516,7 +3516,9 @@
             "number": 204,
             "name": "Tiny Meadow",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "grassy"
+            ],
             "exits": {
                 "east": 1
             },

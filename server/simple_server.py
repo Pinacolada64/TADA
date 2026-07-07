@@ -747,6 +747,8 @@ class Server:
         await self._show_room(ctx)
         from ally_events import try_ally_find_gold
         await try_ally_find_gold(ctx)
+        from wild_horse_events import try_wandering_horse_encounter
+        await try_wandering_horse_encounter(ctx)
 
     def _leave_combat_on_move(self, ctx: GameContext, room_no) -> None:
         """Drop *ctx* from an active fight's attacker list when they move
@@ -817,6 +819,8 @@ class Server:
         await self._show_room(ctx)
         from ally_events import try_ally_find_gold
         await try_ally_find_gold(ctx)
+        from wild_horse_events import try_wandering_horse_encounter
+        await try_wandering_horse_encounter(ctx)
 
     # -----------------------------------------------------------------------
     # Broadcast

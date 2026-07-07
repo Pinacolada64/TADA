@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from unittest.mock import patch
 
 import sys, types
 nc_stub = types.ModuleType('network_context')
@@ -81,6 +82,9 @@ class _FakeCtx:
             self._sent.extend(str(m) for m in msg)
         else:
             self._sent.append(str(msg))
+
+    async def send_room(self, msg, **kwargs):
+        pass
 
     async def prompt(self, *args, **kwargs):
         return self._prompt_answer
@@ -408,6 +412,40 @@ class TestDropCommand(unittest.IsolatedAsyncioTestCase):
         await cmd.execute(ctx, 'ration')
         combined = ctx.sent().lower()
         self.assertTrue('well' in combined or 'splash' in combined)
+
+    # --- Sugar Cube / wild horse (SPUR.MISC.S "d.sugar") ---
+
+    def _sugar_cube(self, item_id=4):
+        from items import Rations
+        return Rations(number=16, name='CUBE OF SUGAR', kind='food', price=1)
+
+    async def test_sugar_cube_not_grassy_does_no_good(self):
+        room = _Room(name='EAST HALL', flags=[])
+        player, server, ctx, cmd = self._setup(room=room)
+        player.inventory.add(self._sugar_cube())
+        await cmd.execute(ctx, 'sugar')
+        self.assertIn('does no good', ctx.sent().lower())
+        self.assertEqual(len(player.inventory.entries()), 0, 'cube is consumed either way')
+        self.assertEqual(server.room_items, {}, 'never placed on the ground')
+
+    async def test_sugar_cube_grassy_failure_roll(self):
+        room = _Room(name='TINY MEADOW', flags=['grassy'])
+        player, server, ctx, cmd = self._setup(room=room)
+        player.inventory.add(self._sugar_cube())
+        with patch('wild_horse_events.random.randint', return_value=1):   # <=50 -> fails
+            await cmd.execute(ctx, 'sugar')
+        self.assertIn('nothing', ctx.sent().lower())
+        self.assertEqual(room.monster if hasattr(room, 'monster') else 0, 0)
+
+    async def test_sugar_cube_grassy_success_places_horse(self):
+        room = _Room(name='TINY MEADOW', flags=['grassy'])
+        room.monster = 0
+        player, server, ctx, cmd = self._setup(room=room)
+        player.inventory.add(self._sugar_cube())
+        with patch('wild_horse_events.random.randint', return_value=100):   # >50 -> succeeds
+            await cmd.execute(ctx, 'sugar')
+        self.assertIn('gallops up', ctx.sent().lower())
+        self.assertEqual(room.monster, 136)
 
 
 # ---------------------------------------------------------------------------

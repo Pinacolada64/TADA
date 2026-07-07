@@ -433,6 +433,16 @@ class Room(object):
     alignment: RoomAlignment = RoomAlignment.NEUTRAL
     # List of RoomFlag values (as strings) parsed from SPUR room data.
     # e.g. ["water"], ["snow"], ["no_flee"], ["block_north", "block_east"]
+    #
+    # "grassy" is the one exception: in SPUR, checks like the sugar-cube/
+    # wild-horse mechanics (SPUR.MISC.S d.sugar, SPUR.MAIN.S's `horse`
+    # subroutine) test `instr("GRASSY", ww$)`, where ww$ is just the room's
+    # own NAME text -- not a real structured flag. No room in the ported
+    # data is actually named with "GRASSY" (the original room may not have
+    # survived conversion), so this port retrofits the flag onto level 5
+    # room 204 "Tiny Meadow" (ravine + "rich grass" in its description) as
+    # the closest existing match, rather than reproducing a name-substring
+    # check against nonexistent data.
     flags: list = field(default_factory=list)
     # Confirmed hidden-exit destinations (SPUR.MISC.S:419 "->"/"<-" markers --
     # the marker itself only says an exit exists, not where it goes, so this
