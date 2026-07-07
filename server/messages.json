@@ -166,8 +166,8 @@
   ],
   "34": [
     "Jake peers at your horse with a skeptical eye. Then, after a long moment, he draws himself up to his full height, almost looking the horse in the eye. \"Come on, fella. Jake has not met a horse yet that he could not train!\"",
-    "Jake casts you an eye that tells you that you are not being fair to him, but he takes the reins of the horse and leads him away...",
-    "After a while, and much strange mutterings and bursts of light from the back room, Jake leads the horse back to you. The horse definitely looks different somehow, he looks like he is ready to kick butt and take names..."
+    "Jake casts you an eye that tells you that you are not being fair to him, but he takes the reins of the horse and leads {HORSE_OBJECTIVE} away...",
+    "After a while, and much strange mutterings and bursts of light from the back room, Jake leads the horse back to you. The horse definitely looks different somehow, {HORSE_SUBJECTIVE} looks like {HORSE_SUBJECTIVE} is ready to kick butt and take names..."
   ],
   "35": [
     "Jake squints at you through his glasses. For a moment, you are not sure he can actually see you through the grime...",

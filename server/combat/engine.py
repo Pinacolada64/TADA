@@ -269,6 +269,26 @@ def _set_monster_hp(monster: dict, hp: int) -> None:
         monster['hit_points'] = hp
 
 
+# Classic-sounding horse names for the 'R' random-name option (SPUR original
+# has no equivalent -- mounts weren't gendered there at all). All 4-12
+# characters, no punctuation, so they pass _prompt_horse_name()'s own rules.
+_MALE_HORSE_NAMES = (
+    'THUNDER', 'SHADOW', 'BLAZE', 'RANGER', 'SPIRIT',
+    'MAJOR', 'TROOPER', 'STORM', 'BARON', 'DUKE',
+    'CHAMPION', 'MAVERICK',
+)
+_FEMALE_HORSE_NAMES = (
+    'BELLE', 'WILLOW', 'DAISY', 'SIERRA', 'MYSTIC',
+    'HONEY', 'GINGER', 'PRINCESS', 'ANGEL', 'STARLIGHT',
+    'CHERRY', 'MEADOW',
+)
+
+
+def _random_horse_name(gender: str) -> str:
+    names = _FEMALE_HORSE_NAMES if gender == 'f' else _MALE_HORSE_NAMES
+    return random.choice(names)
+
+
 # ---------------------------------------------------------------------------
 # CombatSession
 # ---------------------------------------------------------------------------
@@ -450,14 +470,22 @@ class CombatSession:
         from bar.ally_data import Ally, AllyFlags, AllyStatus
 
         player = ctx.player
-        name = await self._prompt_horse_name(ctx)
+
+        # SPUR never tracked a mount's own gender (lasso.b stores mounts as
+        # packed name+flag strings with no gender slot, so its flavor text
+        # just always says "he"/"him") -- this port gives Ally a real
+        # .gender field, so roll it for real instead of hardcoding male.
+        gender = random.choice(('m', 'f'))
+        await ctx.send(f"Your horse seems to be a {'male' if gender == 'm' else 'female'}.")
+
+        name = await self._prompt_horse_name(ctx, gender)
         if name is None:
             return False
 
         # SPUR lasso.b: ms (monster strength) + 5, h1=0 -- unlike a purchased
         # ally, a freshly-lassoed mount starts with unseeded hit_points.
         strength = _monster_hp(self.monster) + 5
-        mount = Ally(name=name, gender='m', strength=strength, to_hit=0,
+        mount = Ally(name=name, gender=gender, strength=strength, to_hit=0,
                      flags=[AllyFlags.MOUNT])
         mount.status     = AllyStatus.SERVANT
         mount.owner      = player.name
@@ -511,14 +539,24 @@ class CombatSession:
         )
         return await self._finalize_mount_capture(ctx)
 
-    async def _prompt_horse_name(self, ctx: 'GameContext') -> str | None:
-        """Prompt for a horse name (4-12 chars, no symbols).  None on cancel."""
+    async def _prompt_horse_name(self, ctx: 'GameContext', gender: str = 'm') -> str | None:
+        """Prompt for a horse name (4-12 chars, no symbols).  None on cancel.
+
+        'R' picks a random gender-appropriate name (mirrors 'R' for a random
+        pronounceable password in commands/new_player.py's character
+        creation) -- checked before the length/forbidden-char rules so a
+        bare 'R' doesn't get rejected as "too short".
+        """
         _FORBIDDEN = set('!@#$%^&*()_-+=[{]}\\|:;<,>.?/')
         while True:
-            raw = await ctx.prompt('Name your horse (4-12 chars, Enter to cancel)')
+            raw = await ctx.prompt("Name your horse (4-12 chars, 'R' for random, Enter to cancel)")
             if not raw or not raw.strip():
                 return None
             name = raw.strip()
+            if name.upper() == 'R':
+                name = _random_horse_name(gender)
+                await ctx.send(f'Random name chosen: {name}')
+                return name
             if len(name) < 4 or len(name) > 12:
                 await ctx.send('Name must be 4-12 characters.')
                 continue

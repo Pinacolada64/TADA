@@ -21,6 +21,13 @@ SPUR notes:
     than reproducing the text inline -- see MECHANICS.md's "Recovered SPUR
     Messages" table. The final "prances proudly" line after #34 is this
     port's own addition, naming the specific mount.
+  - #34's two references to the horse itself ("leads {HORSE_OBJECTIVE}
+    away", "{HORSE_SUBJECTIVE} looks... ready") are named placeholders,
+    not hardcoded "him"/"he" -- send_message() fills them in via
+    tada_utilities.get_pronoun() against the actual mount's gender, so a
+    mare reads correctly too. The message text itself stays inert data
+    (no function calls embedded in the JSON); only this call site decides
+    what to resolve and pass in.
 """
 import logging
 
@@ -185,7 +192,13 @@ async def _train_horse(ctx: GameContext) -> None:
     mount.flags.append(AllyFlags.ELITE)
 
     from messages import send_message
-    if not await send_message(ctx, _TRAIN_MESSAGE_NUM):
+    from tada_utilities import get_pronoun, PronounType
+    sent = await send_message(
+        ctx, _TRAIN_MESSAGE_NUM,
+        HORSE_OBJECTIVE=get_pronoun(mount, PronounType.OBJECTIVE),
+        HORSE_SUBJECTIVE=get_pronoun(mount, PronounType.SUBJECTIVE),
+    )
+    if not sent:
         await ctx.send("Jake leads your horse into the back room, and returns some time later.")
     await ctx.send(f'{mount.name} prances proudly -- fully trained and ready to ride!')
 

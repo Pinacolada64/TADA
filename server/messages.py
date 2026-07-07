@@ -36,11 +36,32 @@ def get_message(ctx: 'GameContext', number: int) -> Optional[list[str]]:
     return messages.get(number)
 
 
-async def send_message(ctx: 'GameContext', number: int) -> bool:
-    """Print message `number` to ctx, if loaded. Returns whether it was sent."""
+async def send_message(ctx: 'GameContext', number: int, **context) -> bool:
+    """Print message `number` to ctx, if loaded. Returns whether it was sent.
+
+    Some recovered messages reference a specific character's pronoun (e.g.
+    #34's "leads {HORSE_OBJECTIVE} away", where the horse's own gender
+    should decide the word, not a hardcoded "him"). Pass named placeholders
+    as kwargs -- e.g. `send_message(ctx, 34, HORSE_OBJECTIVE=get_pronoun(mount,
+    PronounType.OBJECTIVE))` -- and they're substituted via str.format().
+
+    Deliberately NOT a mini-expression-language (no function calls embedded
+    in the JSON text) -- the message data stays inert, plain text; only the
+    caller decides what values to resolve and pass in. Messages that don't
+    reference any placeholder are unaffected -- formatting is skipped
+    entirely when no context is given, so a stray "{" in ordinary prose
+    (there isn't one today, but nothing guarantees there won't be) can't
+    raise on calls that don't opt into this.
+    """
     paragraphs = get_message(ctx, number)
     if not paragraphs:
         logging.warning("send_message: message #%d not found or unloaded", number)
         return False
+    if context:
+        try:
+            paragraphs = [p.format(**context) for p in paragraphs]
+        except (KeyError, IndexError):
+            logging.exception(
+                "send_message: failed to format message #%d with %r", number, context)
     await ctx.send(paragraphs)
     return True

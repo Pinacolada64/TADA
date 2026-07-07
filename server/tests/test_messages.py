@@ -72,6 +72,30 @@ class TestSendMessage(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result)
         ctx.send.assert_not_awaited()
 
+    async def test_context_kwargs_substituted_via_format(self):
+        ctx = _ctx({34: ['leads {HORSE_OBJECTIVE} away',
+                          '{HORSE_SUBJECTIVE} looks ready']})
+        result = await send_message(ctx, 34, HORSE_OBJECTIVE='her', HORSE_SUBJECTIVE='She')
+        self.assertTrue(result)
+        ctx.send.assert_awaited_once_with(['leads her away', 'She looks ready'])
+
+    async def test_no_context_leaves_placeholders_and_other_messages_untouched(self):
+        # Messages with no {placeholder} at all must be completely unaffected
+        # -- formatting is opt-in per call, not attempted by default.
+        ctx = _ctx({18: ['a message with a { stray brace, not a placeholder']})
+        result = await send_message(ctx, 18)
+        self.assertTrue(result)
+        ctx.send.assert_awaited_once_with(['a message with a { stray brace, not a placeholder'])
+
+    async def test_incomplete_context_logs_and_falls_back_to_raw_text(self):
+        # Two placeholders in the text, but the caller only supplied one --
+        # .format() raises KeyError on the missing one; don't crash the
+        # whole feature, just send the unformatted paragraphs instead.
+        ctx = _ctx({34: ['leads {HORSE_OBJECTIVE} away, {HORSE_SUBJECTIVE} runs']})
+        result = await send_message(ctx, 34, HORSE_OBJECTIVE='her')   # missing HORSE_SUBJECTIVE
+        self.assertTrue(result)
+        ctx.send.assert_awaited_once_with(['leads {HORSE_OBJECTIVE} away, {HORSE_SUBJECTIVE} runs'])
+
 
 if __name__ == '__main__':
     unittest.main()

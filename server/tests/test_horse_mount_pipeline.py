@@ -54,9 +54,9 @@ def _make_ally(name='BARDA', flags=None) -> Ally:
     return a
 
 
-def _make_mount(name='SILVER', flags=None) -> Ally:
+def _make_mount(name='SILVER', flags=None, gender='m') -> Ally:
     flags = [AllyFlags.MOUNT] + (flags or [])
-    a = Ally(name=name, gender='m', strength=20, to_hit=0, flags=flags)
+    a = Ally(name=name, gender=gender, strength=20, to_hit=0, flags=flags)
     a.status = AllyStatus.SERVANT
     return a
 
@@ -149,6 +149,56 @@ class TestLassoCapture(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(mount.strength, 20)   # 15 + 5
         self.assertEqual(mount.hit_points, 0)
         self.assertTrue(session._done.is_set())
+
+    async def test_gender_rolled_male_announced_and_set_on_mount(self, _mock_log):
+        from base_classes import Gender
+        player = _FakePlayer(allies=[])
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['STARDUST'])
+        session = CombatSession({'name': 'WILD HORSE', 'strength': 15}, room_no=1)
+        with patch('combat.engine.random.choice', return_value='m'):
+            captured = await session.lasso(ctx)
+        self.assertTrue(captured)
+        self.assertEqual(player.party[0].gender, Gender.MALE)
+        self.assertIn('seems to be a male', ctx.sent())
+        self.assertNotIn('female', ctx.sent())
+
+    async def test_gender_rolled_female_announced_and_set_on_mount(self, _mock_log):
+        from base_classes import Gender
+        player = _FakePlayer(allies=[])
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['STARDUST'])
+        session = CombatSession({'name': 'WILD HORSE', 'strength': 15}, room_no=1)
+        with patch('combat.engine.random.choice', return_value='f'):
+            captured = await session.lasso(ctx)
+        self.assertTrue(captured)
+        self.assertEqual(player.party[0].gender, Gender.FEMALE)
+        self.assertIn('seems to be a female', ctx.sent())
+
+    async def test_random_name_r_picks_from_male_list(self, _mock_log):
+        from combat.engine import _MALE_HORSE_NAMES
+        player = _FakePlayer(allies=[])
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['R'])
+        session = CombatSession({'name': 'WILD HORSE', 'strength': 15}, room_no=1)
+        with patch('combat.engine.random.choice', side_effect=['m', 'BARON']):
+            captured = await session.lasso(ctx)
+        self.assertTrue(captured)
+        self.assertEqual(player.party[0].name, 'BARON')
+        self.assertIn('BARON', _MALE_HORSE_NAMES)
+        self.assertIn('Random name chosen: BARON', ctx.sent())
+
+    async def test_random_name_r_picks_from_female_list(self, _mock_log):
+        from combat.engine import _FEMALE_HORSE_NAMES
+        player = _FakePlayer(allies=[])
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['R'])
+        session = CombatSession({'name': 'WILD HORSE', 'strength': 15}, room_no=1)
+        with patch('combat.engine.random.choice', side_effect=['f', 'WILLOW']):
+            captured = await session.lasso(ctx)
+        self.assertTrue(captured)
+        self.assertEqual(player.party[0].name, 'WILLOW')
+        self.assertIn('WILLOW', _FEMALE_HORSE_NAMES)
 
     async def test_full_party_blocks_capture(self, _mock_log):
         allies = [_make_ally('A'), _make_ally('B'), _make_ally('C')]
@@ -348,6 +398,31 @@ class TestTrainHorse(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Jake peers at your horse with a skeptical eye', sent)
         self.assertIn('kick butt and take names', sent)
         self.assertIn('prances proudly', sent)
+
+    async def test_message_34_uses_male_mount_pronouns(self):
+        from messages import load_messages
+        mount = _make_mount(flags=[AllyFlags.SADDLED, AllyFlags.ARMORED], gender='m')
+        player = _FakePlayer(allies=[mount], gold=5000)
+        ctx = _FakeCtx(player)
+        ctx.server.messages = load_messages('messages.json')
+        ctx.set_answers(['Y'])
+        await _train_horse(ctx)
+        sent = ctx.sent()
+        self.assertIn('leads him away', sent)
+        self.assertIn('he looks like he is ready', sent)
+
+    async def test_message_34_uses_female_mount_pronouns(self):
+        from messages import load_messages
+        mount = _make_mount(flags=[AllyFlags.SADDLED, AllyFlags.ARMORED], gender='f')
+        player = _FakePlayer(allies=[mount], gold=5000)
+        ctx = _FakeCtx(player)
+        ctx.server.messages = load_messages('messages.json')
+        ctx.set_answers(['Y'])
+        await _train_horse(ctx)
+        sent = ctx.sent()
+        self.assertIn('leads her away', sent)
+        self.assertIn('she looks like she is ready', sent)
+        self.assertNotIn('leads him away', sent)
 
     async def test_insufficient_gold_refused(self):
         mount = _make_mount(flags=[AllyFlags.SADDLED, AllyFlags.ARMORED])
