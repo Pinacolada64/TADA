@@ -603,11 +603,19 @@ def _statistics_menu(ctx) -> Menu:
     menu = Menu(title='Statistics')
 
     async def edit_age(ctx) -> None:
+        from characters import birthday_for_age
         cur = getattr(p, 'age', 0) or 0
         val = await _prompt_int(ctx, 'Age', cur, 15, 50)
         if val is not None:
             p.age = val
+            p.unsaved_changes = True
             await ctx.send(f'Age set to {val}.')
+            # Keep birthday's year consistent with the new age -- same
+            # month/day, recomputed year (see edit_birthday()).
+            old_birthday = getattr(p, 'birthday', None)
+            if old_birthday is not None:
+                p.birthday = birthday_for_age(val, old_birthday.month, old_birthday.day)
+                await ctx.send(f'Birthday adjusted to {p.birthday.strftime("%B %d, %Y")}.')
 
     async def edit_class(ctx) -> None:
         from base_classes import PlayerClass
@@ -668,12 +676,16 @@ def _statistics_menu(ctx) -> Menu:
 
     async def edit_birthday(ctx) -> None:
         import calendar
-        from datetime import date, datetime
+        from characters import birthday_for_age
         cur = getattr(p, 'birthday', None)
         cur_str = cur.strftime('%B %d, %Y') if cur else '(not set)'
         raw = await ctx.prompt(
-            'Birthday (MM-DD or MM-DD-YYYY)',
-            preamble_lines=[f'Current: {cur_str}', 'Blank to cancel:'],
+            'Birthday (MM-DD)',
+            preamble_lines=[
+                f'Current: {cur_str}',
+                f"Birth year is derived from age ({getattr(p, 'age', 0) or 0}); enter month/day only.",
+                'Blank to cancel:',
+            ],
         )
         if not raw or not raw.strip():
             await ctx.send('Birthday unchanged.')
@@ -682,16 +694,18 @@ def _statistics_menu(ctx) -> Menu:
         try:
             month = int(parts[0])
             day   = int(parts[1])
-            year  = int(parts[2]) if len(parts) > 2 else (cur.year if cur else date.today().year)
             if not (1 <= month <= 12):
                 raise ValueError
-            max_day = calendar.monthrange(year, month)[1]
+            # Validate against a leap year so Feb 29 is always accepted here;
+            # birthday_for_age() falls back to Feb 28 if the derived year
+            # (from age) isn't itself a leap year.
+            max_day = calendar.monthrange(2000, month)[1]
             if not (1 <= day <= max_day):
                 raise ValueError
         except (ValueError, IndexError):
-            await ctx.send('Invalid date — expected MM-DD or MM-DD-YYYY.')
+            await ctx.send('Invalid date — expected MM-DD.')
             return
-        p.birthday = datetime(year, month, day)
+        p.birthday = birthday_for_age(getattr(p, 'age', 0), month, day)
         p.unsaved_changes = True
         await ctx.send(f'Birthday set to {p.birthday.strftime("%B %d, %Y")}.')
 

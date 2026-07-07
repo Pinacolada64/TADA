@@ -982,13 +982,17 @@ authority to do that."
   via `setup/server_setup.py`.
 - **Audit trail** — dedicated admin-action log (ban/unban/kick/editplayer) separate
   from the main server log so moderation history is easy to review.
-- **Fix: age/birthday can disagree** — `editplayer`'s Age and Birthday fields
+- ✅ **Fix: age/birthday can disagree** — `editplayer`'s Age and Birthday fields
   (`commands/editplayer.py`) and character creation's age and birthday prompts
-  (`commands/new_player.py`) each set `player.age`/`player.birthday`
-  independently, so an admin or new player can end up with a birth year that
-  doesn't match the stated age (e.g. age 20 with a birthday in 1950). Should
-  derive the birth year from `current_year - age` instead of accepting a
-  freely-entered year, so the two fields can't drift out of sync.
+  (`commands/new_player.py`) used to set `player.age`/`player.birthday`
+  independently, letting a birth year silently contradict the stated age.
+  Birth year is now always derived as `current_year - age`
+  (`characters.birthday_for_age()`), so only month/day is ever prompted;
+  `editplayer`'s Age editor also recomputes an already-set birthday's year
+  when age changes, keeping the two in sync. Along the way, fixed a real bug
+  in `commands/new_player.py`'s age prompt: `elif ans > 50` compared the raw
+  input string to an int, raising `TypeError` for every age entered as a
+  digit — was `elif age > 50`.
 
 ---
 

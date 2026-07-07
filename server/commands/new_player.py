@@ -33,7 +33,7 @@ import calendar
 import json
 import logging
 import random
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
@@ -407,14 +407,14 @@ async def _choose_age(ctx) -> bool:
             help_msg = "Please enter a number between 15 and 50, or 'R' to choose a random age."
             if age < 15:
                 apostrophe = "'"
-                ctx.send(f'"Oh, come off it! You{apostrophe}re not even old enough to handle a '
-                         f'Staff yet."')
+                await ctx.send(f'"Oh, come off it! You{apostrophe}re not even old enough to handle a '
+                               f'Staff yet."')
                 continue
-            elif ans > 50:
-                ctx.send('"Hmm, we seem to be out of Senior Adventurer life '
-                         'insurance policies right now. Come back tomorrow!"',
-                         '',
-                         f"{help_msg}")
+            elif age > 50:
+                await ctx.send('"Hmm, we seem to be out of Senior Adventurer life '
+                                'insurance policies right now. Come back tomorrow!"',
+                                '',
+                                f"{help_msg}")
                 continue
 
 
@@ -430,8 +430,10 @@ async def _choose_age(ctx) -> bool:
             return False
         choice = raw2.strip().lower()
 
+        from characters import birthday_for_age
+
         if choice in ("t", "today", ""):
-            ctx.player.birthday = datetime.now()
+            ctx.player.birthday = birthday_for_age(age, date.today().month, date.today().day)
         else:
             # Month
             month_lines = ["", "Select birth month:"] + [
@@ -455,7 +457,7 @@ async def _choose_age(ctx) -> bool:
             except ValueError:
                 d = date.today().day
 
-            ctx.player.birthday = datetime(date.today().year, m, d)
+            ctx.player.birthday = birthday_for_age(age, m, d)
 
         await ctx.send(f"Birthday set to {ctx.player.birthday.strftime('%B %d')}.")
         return True

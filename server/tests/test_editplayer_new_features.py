@@ -15,7 +15,7 @@ Run with:
 from __future__ import annotations
 
 import unittest
-from datetime import datetime
+from datetime import date, datetime
 
 from base_classes import Alignment, PlayerClass, PlayerRace
 from bar.ally_data import Ally, AllyFlags, AllyStatus
@@ -43,6 +43,7 @@ class _FakeServer:
 class _FakePlayer:
     def __init__(self):
         self.name = 'Rulan'
+        self.age = 0
         self.armor = 0
         self.shield = 0
         self.map_level = 1
@@ -266,21 +267,36 @@ class TestNamesMenuAllyAndHorse(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 class TestStatisticsBirthday(unittest.IsolatedAsyncioTestCase):
+    """Birthday's year is always derived from age (current_year - age) --
+    see characters.birthday_for_age() -- so only MM-DD is ever prompted."""
 
-    async def test_set_birthday_month_day_year(self):
+    async def test_set_birthday_derives_year_from_age(self):
         player = _FakePlayer()
-        ctx = _FakeCtx(responses=['06-16-1976'], player=player)
+        player.age = 30
+        ctx = _FakeCtx(responses=['06-16'], player=player)
         menu = _statistics_menu(ctx)
         await _find_item(menu, 'Birthday').action(ctx)
-        self.assertEqual(player.birthday, datetime(1976, 6, 16))
+        self.assertEqual(player.birthday.month, 6)
+        self.assertEqual(player.birthday.day, 16)
+        self.assertEqual(player.birthday.year, date.today().year - 30)
 
-    async def test_set_birthday_month_day_only_uses_current_year(self):
+    async def test_set_birthday_month_day_only(self):
         player = _FakePlayer()
         ctx = _FakeCtx(responses=['12-25'], player=player)
         menu = _statistics_menu(ctx)
         await _find_item(menu, 'Birthday').action(ctx)
         self.assertEqual(player.birthday.month, 12)
         self.assertEqual(player.birthday.day, 25)
+
+    async def test_extra_year_component_is_ignored(self):
+        # Old MM-DD-YYYY format still parses (only the first two parts are
+        # used) -- the year is always derived from age, never accepted.
+        player = _FakePlayer()
+        player.age = 30
+        ctx = _FakeCtx(responses=['06-16-1901'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Birthday').action(ctx)
+        self.assertEqual(player.birthday.year, date.today().year - 30)
 
     async def test_invalid_birthday_rejected(self):
         player = _FakePlayer()
@@ -295,6 +311,29 @@ class TestStatisticsBirthday(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(responses=[''], player=player)
         menu = _statistics_menu(ctx)
         await _find_item(menu, 'Birthday').action(ctx)
+        self.assertIsNone(player.birthday)
+
+
+class TestStatisticsAgeKeepsBirthdayInSync(unittest.IsolatedAsyncioTestCase):
+
+    async def test_changing_age_recomputes_birthday_year(self):
+        player = _FakePlayer()
+        player.age = 30
+        player.birthday = datetime(date.today().year - 30, 6, 16)
+        ctx = _FakeCtx(responses=['40'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Age').action(ctx)
+        self.assertEqual(player.age, 40)
+        self.assertEqual(player.birthday.month, 6)
+        self.assertEqual(player.birthday.day, 16)
+        self.assertEqual(player.birthday.year, date.today().year - 40)
+
+    async def test_changing_age_with_no_birthday_set_is_a_no_op(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['25'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Age').action(ctx)
+        self.assertEqual(player.age, 25)
         self.assertIsNone(player.birthday)
 
 

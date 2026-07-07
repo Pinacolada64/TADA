@@ -251,6 +251,31 @@ def apply_natural_alignment(player) -> tuple[bool, Alignment]:
     return changed, new_alignment
 
 
+# ---------------------------------------------------------------------------
+# Age / birthday
+# ---------------------------------------------------------------------------
+
+def birthday_for_age(age, month: int, day: int, today=None):
+    """Build a birthday consistent with age (year = current_year - age).
+
+    Character creation and EditPlayer used to let age and birthday drift
+    out of sync -- a freely-entered birth year (EditPlayer), or the current
+    year regardless of age (character creation) -- so age and birthday
+    could openly contradict each other. Deriving the year here keeps them
+    tied together; callers only ever collect month/day from the player.
+
+    Falls back to Feb 28 if the derived year isn't a leap year and
+    month/day is Feb 29.
+    """
+    from datetime import date, datetime
+    today = today or date.today()
+    year = today.year - int(age or 0)
+    try:
+        return datetime(year, month, day)
+    except ValueError:
+        return datetime(year, month, 28)
+
+
 if __name__ == '__main__':
     # set up logging
     log = logging.getLogger(__name__)
