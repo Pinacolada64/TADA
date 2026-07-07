@@ -1,0 +1,441 @@
+"""tests/test_editplayer_new_features.py
+
+Unit tests for the nine commands/editplayer.py menu items that were stubbed
+out with _not_implemented() before this session:
+
+  - Armor/Shield menu    (main menu)
+  - Map Information menu (main menu)
+  - Weapons menu         (main menu: readied weapon, battle experience)
+  - Character Names      (Ally 1-3, Horse rename)
+  - Statistics           (Birthday, Experience, Moves to date, Monsters killed)
+
+Run with:
+    python -m pytest tests/test_editplayer_new_features.py -v
+"""
+from __future__ import annotations
+
+import unittest
+from datetime import datetime
+
+from base_classes import PlayerClass, PlayerRace
+from bar.ally_data import Ally, AllyFlags, AllyStatus
+from commands.editplayer import (
+    _armor_shield_menu,
+    _map_info_menu,
+    _names_menu,
+    _statistics_menu,
+    _weapons_menu,
+)
+
+
+class _FakeWeapon:
+    def __init__(self, id_number, name):
+        self.id_number = id_number
+        self.name = name
+
+
+class _FakeServer:
+    def __init__(self, weapons=None, monsters=None):
+        self.weapons = weapons or []
+        self.monsters = monsters or []
+
+
+class _FakePlayer:
+    def __init__(self):
+        self.name = 'Rulan'
+        self.armor = 0
+        self.shield = 0
+        self.map_level = 1
+        self.map_room = 1
+        self.readied_weapon = None
+        self.weapon_experience: dict = {}
+        self.birthday = None
+        self.xp_level = 1
+        self.experience = 0
+        self.moves_today = 0
+        self.monsters_killed: list = []
+        self.party: list = []
+        self.unsaved_changes = False
+        self.char_class = None
+        self.char_race = None
+        self.guild = None
+
+
+class _FakeCtx:
+    def __init__(self, responses=None, player=None, server=None):
+        self._q = list(responses or [])
+        self.sent: list[str] = []
+        self.player = player or _FakePlayer()
+        self.server = server or _FakeServer()
+
+    async def send(self, *args) -> None:
+        for a in args:
+            if isinstance(a, (list, tuple)):
+                self.sent.extend(str(x) for x in a)
+            else:
+                self.sent.append(str(a))
+
+    async def prompt(self, prompt_text: str = '', preamble_lines=None) -> str:
+        if preamble_lines:
+            await self.send(preamble_lines)
+        return self._q.pop(0) if self._q else ''
+
+
+def _find_item(menu, label):
+    return next(i for i in menu.menu_items if getattr(i, 'text', None) == label)
+
+
+def _make_mount(name='SILVER'):
+    a = Ally(name=name, gender='m', strength=20, to_hit=0, flags=[AllyFlags.MOUNT])
+    a.status = AllyStatus.SERVANT
+    return a
+
+
+def _make_ally(name='DOC BROWN'):
+    a = Ally(name=name, gender='m', strength=10, to_hit=5, flags=[])
+    a.status = AllyStatus.SERVANT
+    return a
+
+
+# ---------------------------------------------------------------------------
+# Armor/Shield
+# ---------------------------------------------------------------------------
+
+class TestArmorShieldMenu(unittest.IsolatedAsyncioTestCase):
+
+    async def test_set_armor(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['40'], player=player)
+        menu = _armor_shield_menu(ctx)
+        await _find_item(menu, 'Armor').action(ctx)
+        self.assertEqual(player.armor, 40)
+        self.assertTrue(player.unsaved_changes)
+
+    async def test_set_shield(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['25'], player=player)
+        menu = _armor_shield_menu(ctx)
+        await _find_item(menu, 'Shield').action(ctx)
+        self.assertEqual(player.shield, 25)
+
+    async def test_cancel_leaves_unchanged(self):
+        player = _FakePlayer()
+        player.armor = 10
+        ctx = _FakeCtx(responses=[''], player=player)
+        menu = _armor_shield_menu(ctx)
+        await _find_item(menu, 'Armor').action(ctx)
+        self.assertEqual(player.armor, 10)
+
+
+# ---------------------------------------------------------------------------
+# Map Information
+# ---------------------------------------------------------------------------
+
+class TestMapInfoMenu(unittest.IsolatedAsyncioTestCase):
+
+    async def test_set_dungeon_level(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['5'], player=player)
+        menu = _map_info_menu(ctx)
+        await _find_item(menu, 'Dungeon Level').action(ctx)
+        self.assertEqual(player.map_level, 5)
+
+    async def test_dungeon_level_rejects_out_of_range(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['9', ''], player=player)
+        menu = _map_info_menu(ctx)
+        await _find_item(menu, 'Dungeon Level').action(ctx)
+        self.assertEqual(player.map_level, 1)   # unchanged -- 9 rejected, then cancel
+
+    async def test_set_room_number(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['157'], player=player)
+        menu = _map_info_menu(ctx)
+        await _find_item(menu, 'Room Number').action(ctx)
+        self.assertEqual(player.map_room, 157)
+
+
+# ---------------------------------------------------------------------------
+# Weapons
+# ---------------------------------------------------------------------------
+
+class TestWeaponsMenu(unittest.IsolatedAsyncioTestCase):
+
+    async def test_readied_weapon_dot_leader_shows_none(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(player=player)
+        menu = _weapons_menu(ctx)
+        item = _find_item(menu, 'Readied Weapon')
+        self.assertEqual(item.dot_leader_handler(ctx), '(none)')
+
+    async def test_readied_weapon_dot_leader_shows_name(self):
+        player = _FakePlayer()
+        player.readied_weapon = _FakeWeapon(1, 'LONG SWORD')
+        ctx = _FakeCtx(player=player)
+        menu = _weapons_menu(ctx)
+        item = _find_item(menu, 'Readied Weapon')
+        self.assertEqual(item.dot_leader_handler(ctx), 'LONG SWORD')
+
+    async def test_clear_readied_weapon(self):
+        player = _FakePlayer()
+        player.readied_weapon = _FakeWeapon(1, 'LONG SWORD')
+        ctx = _FakeCtx(player=player)
+        menu = _weapons_menu(ctx)
+        await _find_item(menu, 'Readied Weapon').action(ctx)
+        self.assertIsNone(player.readied_weapon)
+        self.assertIn('unreadied', ctx.sent[-1].lower())
+
+    async def test_clear_readied_weapon_when_none_readied(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(player=player)
+        menu = _weapons_menu(ctx)
+        await _find_item(menu, 'Readied Weapon').action(ctx)
+        self.assertIn('No weapon readied', ctx.sent[-1])
+
+    async def test_set_battle_experience(self):
+        player = _FakePlayer()
+        server = _FakeServer(weapons=[{'number': 42, 'name': 'LONG SWORD'}])
+        ctx = _FakeCtx(responses=['LONG SWORD', '50'], player=player, server=server)
+        menu = _weapons_menu(ctx)
+        await _find_item(menu, 'Battle Experience').action(ctx)
+        self.assertEqual(player.weapon_experience.get('42'), 50)
+
+    async def test_battle_experience_no_match(self):
+        player = _FakePlayer()
+        server = _FakeServer(weapons=[{'number': 42, 'name': 'LONG SWORD'}])
+        ctx = _FakeCtx(responses=['NONEXISTENT'], player=player, server=server)
+        menu = _weapons_menu(ctx)
+        await _find_item(menu, 'Battle Experience').action(ctx)
+        self.assertEqual(player.weapon_experience, {})
+        self.assertIn('No weapons matching', ctx.sent[-1])
+
+
+# ---------------------------------------------------------------------------
+# Character Names — Ally slots + Horse
+# ---------------------------------------------------------------------------
+
+class TestNamesMenuAllyAndHorse(unittest.IsolatedAsyncioTestCase):
+
+    async def test_rename_ally_in_slot(self):
+        ally = _make_ally('DOC BROWN')
+        player = _FakePlayer()
+        player.party = [ally]
+        ctx = _FakeCtx(responses=['MARTY'], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertEqual(ally.name, 'MARTY')
+        self.assertTrue(player.unsaved_changes)
+
+    async def test_empty_ally_slot_reports_no_ally(self):
+        player = _FakePlayer()
+        player.party = []
+        ctx = _FakeCtx(player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertIn('No ally in that slot', ctx.sent[-1])
+
+    async def test_rename_ally_cancel_leaves_unchanged(self):
+        ally = _make_ally('DOC BROWN')
+        player = _FakePlayer()
+        player.party = [ally]
+        ctx = _FakeCtx(responses=[''], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertEqual(ally.name, 'DOC BROWN')
+
+    async def test_rename_horse(self):
+        mount = _make_mount('SILVER')
+        player = _FakePlayer()
+        player.party = [mount]
+        ctx = _FakeCtx(responses=['SHADOWFAX'], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Horse').action(ctx)
+        self.assertEqual(mount.name, 'SHADOWFAX')
+
+    async def test_no_horse_owned(self):
+        player = _FakePlayer()
+        player.party = [_make_ally('DOC BROWN')]   # no MOUNT flag
+        ctx = _FakeCtx(player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Horse').action(ctx)
+        self.assertIn('No horse owned', ctx.sent[-1])
+
+
+# ---------------------------------------------------------------------------
+# Statistics — Birthday, Experience, Moves to date, Monsters killed
+# ---------------------------------------------------------------------------
+
+class TestStatisticsBirthday(unittest.IsolatedAsyncioTestCase):
+
+    async def test_set_birthday_month_day_year(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['06-16-1976'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Birthday').action(ctx)
+        self.assertEqual(player.birthday, datetime(1976, 6, 16))
+
+    async def test_set_birthday_month_day_only_uses_current_year(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['12-25'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Birthday').action(ctx)
+        self.assertEqual(player.birthday.month, 12)
+        self.assertEqual(player.birthday.day, 25)
+
+    async def test_invalid_birthday_rejected(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['13-40'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Birthday').action(ctx)
+        self.assertIsNone(player.birthday)
+        self.assertIn('Invalid date', ctx.sent[-1])
+
+    async def test_cancel_leaves_birthday_unset(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=[''], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Birthday').action(ctx)
+        self.assertIsNone(player.birthday)
+
+
+class TestStatisticsExperience(unittest.IsolatedAsyncioTestCase):
+
+    async def test_set_level_and_experience(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['5', '1200'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Experience').action(ctx)
+        self.assertEqual(player.xp_level, 5)
+        self.assertEqual(player.experience, 1200)
+
+    async def test_cancel_level_still_allows_experience(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['', '500'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Experience').action(ctx)
+        self.assertEqual(player.xp_level, 1)   # unchanged
+        self.assertEqual(player.experience, 500)
+
+    async def test_dot_leader_shows_level_and_experience(self):
+        player = _FakePlayer()
+        player.xp_level = 3
+        player.experience = 42
+        ctx = _FakeCtx(player=player)
+        menu = _statistics_menu(ctx)
+        item = _find_item(menu, 'Experience')
+        self.assertEqual(item.dot_leader_handler(ctx), 'L3 / 42')
+
+
+class TestStatisticsMoves(unittest.IsolatedAsyncioTestCase):
+
+    async def test_set_moves_today(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['999'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Moves to date').action(ctx)
+        self.assertEqual(player.moves_today, 999)
+
+
+class TestStatisticsMonstersKilled(unittest.IsolatedAsyncioTestCase):
+
+    def _server(self):
+        return _FakeServer(monsters=[
+            {'number': 1, 'name': 'GOBLIN'},
+            {'number': 2, 'name': 'TROLL'},
+        ])
+
+    async def test_add_monster(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['a', 'GOBLIN', 'q'], player=player, server=self._server())
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Monsters killed').action(ctx)
+        self.assertEqual(player.monsters_killed, [1])
+
+    async def test_add_duplicate_monster_refused(self):
+        player = _FakePlayer()
+        player.monsters_killed = [1]
+        ctx = _FakeCtx(responses=['a', 'GOBLIN', 'q'], player=player, server=self._server())
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Monsters killed').action(ctx)
+        self.assertEqual(player.monsters_killed, [1])
+        self.assertIn('already on the kill list', '\n'.join(ctx.sent))
+
+    async def test_remove_monster(self):
+        player = _FakePlayer()
+        player.monsters_killed = [1, 2]
+        ctx = _FakeCtx(responses=['r', '1', 'q'], player=player, server=self._server())
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Monsters killed').action(ctx)
+        self.assertEqual(player.monsters_killed, [2])
+
+    async def test_dot_leader_shows_count(self):
+        player = _FakePlayer()
+        player.monsters_killed = [1, 2, 3]
+        ctx = _FakeCtx(player=player)
+        menu = _statistics_menu(ctx)
+        item = _find_item(menu, 'Monsters killed')
+        self.assertEqual(item.dot_leader_handler(ctx), '3')
+
+    async def test_quit_immediately_makes_no_changes(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['q'], player=player, server=self._server())
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Monsters killed').action(ctx)
+        self.assertEqual(player.monsters_killed, [])
+
+
+# ---------------------------------------------------------------------------
+# Class/Race compatibility warning (characters.is_class_race_compatible(),
+# shared with commands/new_player.py's validate_class_race_combo())
+# ---------------------------------------------------------------------------
+
+class TestClassRaceCompatibilityWarning(unittest.IsolatedAsyncioTestCase):
+
+    async def test_setting_class_onto_incompatible_race_warns(self):
+        player = _FakePlayer()
+        player.char_race = PlayerRace.OGRE
+        ctx = _FakeCtx(responses=['1'], player=player)   # 1 = Wizard
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Class').action(ctx)
+        self.assertEqual(player.char_class, PlayerClass.WIZARD)
+        self.assertIn('not normally a valid combination', '\n'.join(ctx.sent))
+
+    async def test_setting_race_onto_incompatible_class_warns(self):
+        player = _FakePlayer()
+        player.char_class = PlayerClass.WIZARD
+        ctx = _FakeCtx(responses=['2'], player=player)   # 2 = Ogre
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Race').action(ctx)
+        self.assertEqual(player.char_race, PlayerRace.OGRE)
+        self.assertIn('not normally a valid combination', '\n'.join(ctx.sent))
+
+    async def test_compatible_combo_no_warning(self):
+        player = _FakePlayer()
+        player.char_race = PlayerRace.HUMAN
+        ctx = _FakeCtx(responses=['3'], player=player)   # 3 = Fighter
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Class').action(ctx)
+        self.assertEqual(player.char_class, PlayerClass.FIGHTER)
+        self.assertNotIn('not normally a valid combination', '\n'.join(ctx.sent))
+
+    async def test_incompatible_combo_still_applies_the_change(self):
+        # Non-blocking by design: an admin editing class/race one field at a
+        # time can end up with an "invalid" combo mid-edit; this only warns.
+        player = _FakePlayer()
+        player.char_race = PlayerRace.OGRE
+        ctx = _FakeCtx(responses=['1'], player=player)   # 1 = Wizard
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Class').action(ctx)
+        self.assertEqual(player.char_class, PlayerClass.WIZARD)   # not reverted
+        self.assertTrue(player.unsaved_changes)
+
+    async def test_race_not_yet_set_no_warning(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['1'], player=player)   # 1 = Wizard, no race set
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Class').action(ctx)
+        self.assertNotIn('not normally a valid combination', '\n'.join(ctx.sent))
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

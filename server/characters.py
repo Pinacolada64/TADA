@@ -180,6 +180,35 @@ def apply_creation_bonuses(player) -> bool:
     return True
 
 
+# ---------------------------------------------------------------------------
+# Class / race compatibility
+# ---------------------------------------------------------------------------
+
+# Race choices that don't make sense for a given class (flavor-driven, not a
+# stat mechanic). Originally lived only in commands/new_player.py's
+# validate_class_race_combo(); moved here so any editor (character creation,
+# EditPlayer) checks the same table instead of maintaining its own copy.
+_BAD_CLASS_RACE_COMBOS: dict[PlayerClass, list[PlayerRace]] = {
+    PlayerClass.WIZARD:   [PlayerRace.OGRE, PlayerRace.DWARF, PlayerRace.ORC],
+    PlayerClass.DRUID:    [PlayerRace.OGRE, PlayerRace.ORC],
+    PlayerClass.THIEF:    [PlayerRace.ELF],
+    PlayerClass.ARCHER:   [PlayerRace.OGRE, PlayerRace.GNOME, PlayerRace.HOBBIT],
+    PlayerClass.ASSASSIN: [PlayerRace.GNOME, PlayerRace.ELF, PlayerRace.HOBBIT],
+    PlayerClass.KNIGHT:   [PlayerRace.OGRE, PlayerRace.ORC],
+}
+
+
+def is_class_race_compatible(char_class, char_race) -> bool:
+    """True if char_class/char_race is a sensible combination.
+
+    True (nothing to flag) if either is None -- callers with a
+    not-yet-fully-set-up character shouldn't treat that as an error.
+    """
+    if char_class is None or char_race is None:
+        return True
+    return char_race not in _BAD_CLASS_RACE_COMBOS.get(char_class, [])
+
+
 if __name__ == '__main__':
     # set up logging
     log = logging.getLogger(__name__)

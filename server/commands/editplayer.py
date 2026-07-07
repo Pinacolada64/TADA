@@ -6,16 +6,18 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
 
   Player Editor
   ├─  1. Alignment         natural + current alignment
-  ├─  2. Armor/Shield      (stub)
+  ├─  2. Armor/Shield      armor / shield protection values
   ├─  3. Attributes        stats (CHA, CON, DEX, EGO, INT, STR, WIS, Energy)
-  ├─  4. Character Names   player name; allies and horse (stubs)
+  ├─  4. Character Names   player name; rename allies and horse
   ├─  5. Combinations      locker, elevator, castle, booby traps
   ├─  6. Flags/Counters    all PlayerFlags grouped by category
-  ├─  7. Hit Points        (stub)
-  ├─  8. Map Information   (stub)
-  ├─  9. Money             (stub)
-  ├─ 10. Statistics        age, class, guild, race, ...
-  └─ 11. Weapons           (stub)
+  ├─  7. Hit Points        current HP
+  ├─  8. Inventory         give weapons/armor/rations/objects
+  ├─  9. Map Information   dungeon level, room number
+  ├─ 10. Money             in hand / in bank / in bar
+  ├─ 11. Statistics        age, birthday, class, experience, guild, race,
+  │                        moves to date, monsters killed
+  └─ 12. Weapons           readied weapon, per-weapon battle experience
 """
 
 import logging
@@ -67,8 +69,23 @@ def _flag_status(player, flag: PlayerFlags) -> str:
     return 'On' if status else 'Off'
 
 
-async def _not_implemented(ctx) -> None:
-    await ctx.send('|yellow|Not implemented yet.|reset|')
+async def _warn_if_incompatible(ctx, player) -> None:
+    """Flag a class/race combo character creation would refuse outright.
+
+    Same table as commands/new_player.py's validate_class_race_combo() (both
+    call characters.is_class_race_compatible()), but non-blocking here — an
+    admin editing class and race as two separate menu actions may well want
+    an "invalid" combo mid-edit, or deliberately for testing, so this only
+    warns instead of rejecting the change.
+    """
+    from characters import is_class_race_compatible
+    char_class = getattr(player, 'char_class', None)
+    char_race  = getattr(player, 'char_race', None)
+    if not is_class_race_compatible(char_class, char_race):
+        await ctx.send(
+            f'|yellow|Warning: {char_race.value} {char_class.value} is not '
+            'normally a valid combination.|reset|'
+        )
 
 
 async def _prompt_int(ctx, label: str, current: int,
@@ -153,17 +170,143 @@ def _money_menu(ctx) -> Menu:
 def _build_main_menu(ctx) -> Menu:
     menu = Menu(title=f'Player Editor — {ctx.player.name}')
     menu.add_item(MenuItem('Alignment',        shortcuts='al', submenu=_alignment_menu(ctx)))
-    menu.add_item(MenuItem('Armor/Shield',     shortcuts='as', action=_not_implemented))
+    menu.add_item(MenuItem('Armor/Shield',     shortcuts='as', submenu=_armor_shield_menu(ctx)))
     menu.add_item(MenuItem('Attributes',       shortcuts='at', submenu=_attributes_menu(ctx)))
     menu.add_item(MenuItem('Character Names',  shortcuts='cn', submenu=_names_menu(ctx)))
     menu.add_item(MenuItem('Combinations',     shortcuts='co', submenu=_combinations_menu(ctx)))
     menu.add_item(MenuItem('Flags/Counters',   shortcuts='fl', submenu=_flags_menu(ctx)))
     menu.add_item(MenuItem('Hit Points',       shortcuts='hp', action=_hp_action(ctx)))
     menu.add_item(MenuItem('Inventory',        shortcuts='in', action=_inventory_action(ctx)))
-    menu.add_item(MenuItem('Map Information',  shortcuts='mi', action=_not_implemented))
+    menu.add_item(MenuItem('Map Information',  shortcuts='mi', submenu=_map_info_menu(ctx)))
     menu.add_item(MenuItem('Money',            shortcuts='mo', submenu=_money_menu(ctx)))
     menu.add_item(MenuItem('Statistics',       shortcuts='st', submenu=_statistics_menu(ctx)))
-    menu.add_item(MenuItem('Weapons',          shortcuts='we', action=_not_implemented))
+    menu.add_item(MenuItem('Weapons',          shortcuts='we', submenu=_weapons_menu(ctx)))
+    return menu
+
+
+# ---------------------------------------------------------------------------
+# Armor/Shield menu
+# ---------------------------------------------------------------------------
+
+def _armor_shield_menu(ctx) -> Menu:
+    p    = ctx.player
+    menu = Menu(title='Armor/Shield')
+
+    def _get(attr: str) -> int:
+        return int(getattr(p, attr, 0) or 0)
+
+    def make_action(attr: str, label: str):
+        async def action(ctx):
+            cur = _get(attr)
+            val = await _prompt_int(ctx, label, cur, 0, 999)
+            if val is not None:
+                setattr(p, attr, val)
+                p.unsaved_changes = True
+                await ctx.send(f'{label} set to {val}.')
+        return action
+
+    menu.add_item(MenuItem(
+        'Armor', shortcuts='ar',
+        dot_leader_handler=lambda ctx: str(_get('armor')),
+        action=make_action('armor', 'Armor'),
+    ))
+    menu.add_item(MenuItem(
+        'Shield', shortcuts='sh',
+        dot_leader_handler=lambda ctx: str(_get('shield')),
+        action=make_action('shield', 'Shield'),
+    ))
+    return menu
+
+
+# ---------------------------------------------------------------------------
+# Map Information menu
+# ---------------------------------------------------------------------------
+
+def _map_info_menu(ctx) -> Menu:
+    p    = ctx.player
+    menu = Menu(title='Map Information')
+
+    async def edit_level(ctx) -> None:
+        cur = int(getattr(p, 'map_level', 1) or 1)
+        val = await _prompt_int(ctx, 'Dungeon Level', cur, 1, 7)
+        if val is not None:
+            p.map_level = val
+            p.unsaved_changes = True
+            await ctx.send(f'Dungeon Level set to {val}.')
+
+    async def edit_room(ctx) -> None:
+        cur = int(getattr(p, 'map_room', 1) or 1)
+        val = await _prompt_int(ctx, 'Room Number', cur, 1, 999)
+        if val is not None:
+            p.map_room = val
+            p.unsaved_changes = True
+            await ctx.send(f'Room Number set to {val}.')
+
+    menu.add_item(MenuItem(
+        'Dungeon Level', shortcuts='dl',
+        dot_leader_handler=lambda ctx: str(getattr(p, 'map_level', '?')),
+        action=edit_level,
+    ))
+    menu.add_item(MenuItem(
+        'Room Number', shortcuts='rn',
+        dot_leader_handler=lambda ctx: str(getattr(p, 'map_room', '?')),
+        action=edit_room,
+    ))
+    return menu
+
+
+# ---------------------------------------------------------------------------
+# Weapons menu — readied weapon + per-weapon battle experience
+# ---------------------------------------------------------------------------
+
+def _weapons_menu(ctx) -> Menu:
+    p    = ctx.player
+    menu = Menu(title='Weapons')
+
+    def _readied_label() -> str:
+        w = getattr(p, 'readied_weapon', None)
+        return getattr(w, 'name', None) or '(none)'
+
+    async def clear_readied(ctx) -> None:
+        weapon = getattr(p, 'readied_weapon', None)
+        if weapon is None:
+            await ctx.send('No weapon readied.')
+            return
+        name = getattr(weapon, 'name', '?')
+        p.readied_weapon = None
+        p.unsaved_changes = True
+        await ctx.send(f'{name} unreadied.')
+
+    async def edit_battle_exp(ctx) -> None:
+        weapons = getattr(ctx.server, 'weapons', []) or []
+        raw = await ctx.prompt('Weapon name (or part of name)')
+        if not raw or not raw.strip():
+            return
+        term    = raw.strip().lower()
+        matches = [w for w in weapons if term in (w.get('name') or '').lower()]
+        chosen  = await _pick_from_matches(ctx, matches, lambda w: w.get('name', '?'))
+        if chosen is None:
+            if not matches:
+                await ctx.send(f'No weapons matching "{raw.strip()}".')
+            return
+        key = str(chosen.get('number', 0))
+        exp = getattr(p, 'weapon_experience', None)
+        if exp is None:
+            exp = {}
+            p.weapon_experience = exp
+        cur = int(exp.get(key, 0))
+        val = await _prompt_int(ctx, f'Battle Exp — {chosen["name"]}', cur, 0, 99)
+        if val is not None:
+            exp[key] = val
+            p.unsaved_changes = True
+            await ctx.send(f'Battle experience with {chosen["name"]} set to {val}.')
+
+    menu.add_item(MenuItem(
+        'Readied Weapon', shortcuts='rw',
+        dot_leader_handler=lambda ctx: _readied_label(),
+        action=clear_readied,
+    ))
+    menu.add_item(MenuItem('Battle Experience', shortcuts='be', action=edit_battle_exp))
     return menu
 
 
@@ -244,9 +387,23 @@ def _attributes_menu(ctx) -> Menu:
     return menu
 
 
+async def _rename_ally(ctx, ally) -> None:
+    raw = await ctx.prompt(
+        f"{ally.name}'s New Name",
+        preamble_lines=[f'Current: {ally.name}', 'Blank to cancel:'],
+    )
+    if not raw or not raw.strip():
+        await ctx.send('Name unchanged.')
+        return
+    old = ally.name
+    ally.name = raw.strip()
+    ctx.player.unsaved_changes = True
+    await ctx.send(f'{old} renamed to {ally.name}.')
+
+
 def _names_menu(ctx) -> Menu:
     from bar.allies import owned_allies
-    from bar.ally_data import AllyStatus
+    from bar.ally_data import AllyFlags, AllyStatus
 
     p    = ctx.player
     menu = Menu(title='Character Names')
@@ -270,6 +427,20 @@ def _names_menu(ctx) -> Menu:
         tag = f' [{a.status.name}]' if a.status in (AllyStatus.UNCONSCIOUS, AllyStatus.DEAD) else ''
         return f'{a.name}  Str {a.strength}{tag}'
 
+    async def edit_ally(ctx, slot: int) -> None:
+        allies = owned_allies(p)
+        if slot >= len(allies):
+            await ctx.send('No ally in that slot.')
+            return
+        await _rename_ally(ctx, allies[slot])
+
+    async def edit_horse(ctx) -> None:
+        mount = next((a for a in owned_allies(p) if AllyFlags.MOUNT in (a.flags or [])), None)
+        if mount is None:
+            await ctx.send('No horse owned.')
+            return
+        await _rename_ally(ctx, mount)
+
     menu.add_item(MenuItem(
         'Player Name', shortcuts='p',
         dot_leader_handler=lambda ctx: p.name,
@@ -279,9 +450,9 @@ def _names_menu(ctx) -> Menu:
         menu.add_item(MenuItem(
             f'Ally {i + 1}', shortcuts=str(i + 1),
             dot_leader_handler=lambda ctx, s=i: _ally_label(s),
-            action=_not_implemented,
+            action=lambda ctx, s=i: edit_ally(ctx, s),
         ))
-    menu.add_item(MenuItem('Horse', shortcuts='h', action=_not_implemented))
+    menu.add_item(MenuItem('Horse', shortcuts='h', action=edit_horse))
     return menu
 
 
@@ -434,7 +605,9 @@ def _statistics_menu(ctx) -> Menu:
         idx = int(raw.strip()) - 1
         if 0 <= idx < len(options):
             p.char_class = options[idx]
+            p.unsaved_changes = True
             await ctx.send(f'Class set to {options[idx].value}.')
+            await _warn_if_incompatible(ctx, p)
 
     async def edit_guild(ctx) -> None:
         from base_classes import Guild
@@ -470,20 +643,152 @@ def _statistics_menu(ctx) -> Menu:
         idx = int(raw.strip()) - 1
         if 0 <= idx < len(options):
             p.char_race = options[idx]
+            p.unsaved_changes = True
             await ctx.send(f'Race set to {options[idx].value}.')
+            await _warn_if_incompatible(ctx, p)
+
+    async def edit_birthday(ctx) -> None:
+        import calendar
+        from datetime import date, datetime
+        cur = getattr(p, 'birthday', None)
+        cur_str = cur.strftime('%B %d, %Y') if cur else '(not set)'
+        raw = await ctx.prompt(
+            'Birthday (MM-DD or MM-DD-YYYY)',
+            preamble_lines=[f'Current: {cur_str}', 'Blank to cancel:'],
+        )
+        if not raw or not raw.strip():
+            await ctx.send('Birthday unchanged.')
+            return
+        parts = raw.strip().split('-')
+        try:
+            month = int(parts[0])
+            day   = int(parts[1])
+            year  = int(parts[2]) if len(parts) > 2 else (cur.year if cur else date.today().year)
+            if not (1 <= month <= 12):
+                raise ValueError
+            max_day = calendar.monthrange(year, month)[1]
+            if not (1 <= day <= max_day):
+                raise ValueError
+        except (ValueError, IndexError):
+            await ctx.send('Invalid date — expected MM-DD or MM-DD-YYYY.')
+            return
+        p.birthday = datetime(year, month, day)
+        p.unsaved_changes = True
+        await ctx.send(f'Birthday set to {p.birthday.strftime("%B %d, %Y")}.')
+
+    async def edit_experience(ctx) -> None:
+        cur_level = int(getattr(p, 'xp_level', 1) or 1)
+        level = await _prompt_int(ctx, 'Character Level', cur_level, 1, 99)
+        if level is not None:
+            p.xp_level = level
+            p.unsaved_changes = True
+
+        cur_exp = int(getattr(p, 'experience', 0) or 0)
+        exp = await _prompt_int(ctx, 'Experience Points', cur_exp, 0, 999_999)
+        if exp is not None:
+            p.experience = exp
+            p.unsaved_changes = True
+
+        await ctx.send(
+            f'Level set to {getattr(p, "xp_level", "?")}, '
+            f'Experience set to {getattr(p, "experience", "?")}.'
+        )
+
+    async def edit_moves(ctx) -> None:
+        cur = int(getattr(p, 'moves_today', 0) or 0)
+        val = await _prompt_int(ctx, 'Moves to Date', cur, 0, 999_999)
+        if val is not None:
+            p.moves_today = val
+            p.unsaved_changes = True
+            await ctx.send(f'Moves to date set to {val}.')
+
+    async def edit_monsters_killed(ctx) -> None:
+        monsters = getattr(ctx.server, 'monsters', []) or []
+        killed = getattr(p, 'monsters_killed', None)
+        if killed is None:
+            killed = []
+            p.monsters_killed = killed
+
+        def _name_for(num) -> str:
+            m = next((m for m in monsters if m.get('number') == num), None)
+            return m.get('name', f'#{num}') if m else f'#{num}'
+
+        while True:
+            if killed:
+                lines = ['Monsters killed:'] + [
+                    f'  {i + 1}. {_name_for(n)}' for i, n in enumerate(killed)
+                ]
+            else:
+                lines = ['Monsters killed: (none)']
+            await ctx.send(lines)
+
+            raw = await ctx.prompt('[A]dd  [R]emove  [Q]uit')
+            if not raw or not raw.strip():
+                break
+            cmd = raw.strip().lower()[:1]
+
+            if cmd == 'q':
+                break
+            elif cmd == 'a':
+                term_raw = await ctx.prompt('Monster name (or part of name)')
+                if not term_raw or not term_raw.strip():
+                    continue
+                term    = term_raw.strip().lower()
+                matches = [m for m in monsters if term in (m.get('name') or '').lower()]
+                chosen  = await _pick_from_matches(ctx, matches, lambda m: m.get('name', '?'))
+                if chosen is None:
+                    if not matches:
+                        await ctx.send(f'No monsters matching "{term_raw.strip()}".')
+                    continue
+                num = chosen.get('number')
+                if num in killed:
+                    await ctx.send(f'{chosen["name"]} is already on the kill list.')
+                else:
+                    killed.append(num)
+                    p.unsaved_changes = True
+                    await ctx.send(f'Added {chosen["name"]} to kill list.')
+            elif cmd == 'r':
+                if not killed:
+                    await ctx.send('Nothing to remove.')
+                    continue
+                idx_raw = await ctx.prompt(f'Remove which (1-{len(killed)})')
+                try:
+                    idx = int((idx_raw or '').strip()) - 1
+                    if not (0 <= idx < len(killed)):
+                        raise ValueError
+                except ValueError:
+                    await ctx.send('Invalid selection.')
+                    continue
+                removed = killed.pop(idx)
+                p.unsaved_changes = True
+                await ctx.send(f'Removed {_name_for(removed)} from kill list.')
+            else:
+                await ctx.send('Unknown option.')
 
     menu.add_item(MenuItem(
         'Age', shortcuts='ag',
         dot_leader_handler=lambda ctx: str(getattr(p, 'age', '?')),
         action=edit_age,
     ))
-    menu.add_item(MenuItem('Birthday',   shortcuts='bi', action=_not_implemented))
+    menu.add_item(MenuItem(
+        'Birthday', shortcuts='bi',
+        dot_leader_handler=lambda ctx: (
+            p.birthday.strftime('%b %d, %Y') if getattr(p, 'birthday', None) else '(not set)'
+        ),
+        action=edit_birthday,
+    ))
     menu.add_item(MenuItem(
         'Class', shortcuts='cl',
         dot_leader_handler=lambda ctx: str(getattr(p, 'char_class', '?')),
         action=edit_class,
     ))
-    menu.add_item(MenuItem('Experience', shortcuts='ex', action=_not_implemented))
+    menu.add_item(MenuItem(
+        'Experience', shortcuts='ex',
+        dot_leader_handler=lambda ctx: (
+            f'L{getattr(p, "xp_level", "?")} / {getattr(p, "experience", "?")}'
+        ),
+        action=edit_experience,
+    ))
     menu.add_item(MenuItem(
         'Guild', shortcuts='gu',
         dot_leader_handler=lambda ctx: str(getattr(p, 'guild', '?')),
@@ -494,8 +799,16 @@ def _statistics_menu(ctx) -> Menu:
         dot_leader_handler=lambda ctx: str(getattr(p, 'char_race', '?')),
         action=edit_race,
     ))
-    menu.add_item(MenuItem('Moves to date',   shortcuts='mo', action=_not_implemented))
-    menu.add_item(MenuItem('Monsters killed', shortcuts='mk', action=_not_implemented))
+    menu.add_item(MenuItem(
+        'Moves to date', shortcuts='mo',
+        dot_leader_handler=lambda ctx: str(getattr(p, 'moves_today', '?')),
+        action=edit_moves,
+    ))
+    menu.add_item(MenuItem(
+        'Monsters killed', shortcuts='mk',
+        dot_leader_handler=lambda ctx: str(len(getattr(p, 'monsters_killed', None) or [])),
+        action=edit_monsters_killed,
+    ))
     return menu
 
 

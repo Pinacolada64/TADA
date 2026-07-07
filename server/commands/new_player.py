@@ -62,30 +62,21 @@ def validate_class_race_combo(ctx) -> tuple[bool, str | None]:
     Returns (ok, message).
       (True,  None)  — valid, or race not set yet (skipped)
       (False, str)   — invalid combination; str is the Verus quip to send
+
+    The actual compatibility table lives in characters.is_class_race_compatible()
+    so commands/editplayer.py can check the same rule without duplicating it.
     """
     player = ctx.player
-    if player.char_class is None or player.char_race is None:
-        return True, None          # nothing to validate yet
+    from characters import is_class_race_compatible
+    if is_class_race_compatible(player.char_class, player.char_race):
+        return True, None
 
-    from base_classes import PlayerClass, PlayerRace
     from tada_utilities import a_or_an
-
-    bad = {
-        PlayerClass.WIZARD:   [PlayerRace.OGRE, PlayerRace.DWARF, PlayerRace.ORC],
-        PlayerClass.DRUID:    [PlayerRace.OGRE, PlayerRace.ORC],
-        PlayerClass.THIEF:    [PlayerRace.ELF],
-        PlayerClass.ARCHER:   [PlayerRace.OGRE, PlayerRace.GNOME, PlayerRace.HOBBIT],
-        PlayerClass.ASSASSIN: [PlayerRace.GNOME, PlayerRace.ELF, PlayerRace.HOBBIT],
-        PlayerClass.KNIGHT:   [PlayerRace.OGRE, PlayerRace.ORC],
-    }
-    if player.char_race in bad.get(player.char_class, []):
-        msg = (f'Verus remarks, "{a_or_an(player.char_race, capitalize=True)} '
-               f'{player.char_class} doth not a good adventurer make. Try again."')
-        logging.info("%s picked a bad class/race combination: %s %s",
-                     player.name, player.char_class, player.char_race)
-        return False, msg
-
-    return True, None
+    msg = (f'Verus remarks, "{a_or_an(player.char_race, capitalize=True)} '
+           f'{player.char_class} doth not a good adventurer make. Try again."')
+    logging.info("%s picked a bad class/race combination: %s %s",
+                 player.name, player.char_class, player.char_race)
+    return False, msg
 
 # ---------------------------------------------------------------------------
 # NewPlayerCommand

@@ -220,7 +220,6 @@ class PlayerClassText(StrEnum):
               "allies on the battlefield.")
 
 
-@dataclass
 class PlayerRace(StrEnum):
     """
     In the original Apple code, this was the variable 'pr' which could range from 1-9.
