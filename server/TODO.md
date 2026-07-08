@@ -27,4 +27,15 @@
     placeholders -- like shell expansion, but restricted to a fixed set
     of known-safe substitutions rather than arbitrary code/lookup, so
     nothing player-authored can execute or read anything it shouldn't.
+- commands/password.py's "New password" prompt: bare Enter (blank input)
+  currently falls into the "must be at least 4 characters" error and
+  reprompts. Should instead recognize blank as "keep the current
+  password", print "Password unchanged.", and return/exit cleanly
+  instead of looping.
+- new_player.py's _choose_race() menu (around line 676): `race_names =
+  [r.name for r in races]` uses the enum's .name ("DRUID") for the
+  displayed menu text instead of .value ("Druid"). Selection/storage
+  already correctly uses the real enum member (races[sel-1]) since the
+  .name-vs-.value bug fix earlier this session -- this is just the
+  display string, which should read race.value instead of race.name.
 
