@@ -27,6 +27,9 @@ jobs:
           if [ -f server/requirements.txt ]; then
             pip install -r server/requirements.txt
           fi
+          # test tools -- not in requirements.txt, which only lists the
+          # server's runtime dependencies (matches ci.yml's install step)
+          pip install pytest pytest-asyncio
 
       - name: Run network E2E tests
         working-directory: server

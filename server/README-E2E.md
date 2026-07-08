@@ -28,15 +28,22 @@ Quick local run (from `server/`):
 python -m venv .venv
 source .venv/bin/activate
 
-# install dependencies (project already contains requirements.txt)
+# install the server's runtime dependencies
 pip install -r requirements.txt
+
+# install test tools -- requirements.txt only lists runtime dependencies,
+# not pytest itself (a past e2e-tests.yml revision forgot this step and
+# the job failed until it was added back)
+pip install pytest pytest-asyncio
 
 # run the E2E tests only
 pytest -q tests/test_network_e2e_real_login.py tests/test_network_e2e_reconnect.py tests/test_move_south_room1.py tests/test_abrupt_disconnect.py
 
 CI advice
 - Run the above pytest command on a Linux runner that provides a Python 3.11+ environment.
-- Use the repository's `requirements.txt` to install test dependencies.
+- `requirements.txt` only installs the server's runtime dependencies; install
+  `pytest`/`pytest-asyncio` separately (both workflows in `.github/workflows/`
+  do this).
 - If you want to run only a single test file in CI, use the same pytest command but pass only that file.
 
 Notes
