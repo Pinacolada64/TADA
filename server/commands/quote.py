@@ -15,6 +15,26 @@ from tada_utilities import format_quote, input_yes_no
 _MAX_QUOTE_LEN = 60
 
 
+async def confirm_dollar_quote(ctx, text: str) -> bool | None:
+    """If *text* contains a "$", show a rendered preview (substituted
+    with the player's own name, as a stand-in reader) and ask for
+    confirmation before it's used -- the $-placement is easy to get
+    subtly wrong (e.g. no space after it running two words together).
+
+    Returns True if there's nothing to preview (no "$") or the player
+    accepted it, False if they rejected it (caller should let them
+    re-enter the quote), or None if the connection dropped mid-prompt.
+
+    Shared by QuoteCommand._write() (the in-game 'quote' command) and
+    new_player.py's _choose_quote() (the character-creation step).
+    """
+    if '$' not in text:
+        return True
+    preview = format_quote(text, ctx.player.name)
+    await ctx.send('That will look like:', preview)
+    return await input_yes_no(ctx, 'Accept this?', default=True)
+
+
 class QuoteCommand(Command):
     """View or change your personal quote."""
 
@@ -83,19 +103,11 @@ class QuoteCommand(Command):
                 await ctx.send('No change..')
                 return
 
-            # If the quote contains a "$", show the player how it'll
-            # actually render (substituted with a reader's name -- their
-            # own, as a stand-in example) before committing, since the
-            # $-placement is easy to get subtly wrong (e.g. no space
-            # after it running two words together).
-            if '$' in text:
-                preview = format_quote(text, player.name)
-                await ctx.send('That will look like:', preview)
-                satisfied = await input_yes_no(ctx, 'Accept this?', default=True)
-                if satisfied is None:
-                    return
-                if not satisfied:
-                    continue
+            satisfied = await confirm_dollar_quote(ctx, text)
+            if satisfied is None:
+                return
+            if not satisfied:
+                continue
 
             player.quote = text
             player.unsaved_changes = True

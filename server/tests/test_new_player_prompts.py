@@ -247,6 +247,7 @@ class TestMainFlowOrdering(unittest.IsolatedAsyncioTestCase):
             '1',           # race
             'c',           # guild: Civilian
             'y',           # accept stats
+            '',            # quote: blank -> silent
             'y',           # accept summary
             '',            # username: blank -> defaults to character name
             'pass1234',    # password

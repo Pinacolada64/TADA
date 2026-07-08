@@ -9,17 +9,11 @@
   instead of guessing a name.
 
 7/8/26:
-- Add SPUR's QUOTE command (SPUR.MISC2.S:488-503, and the "gosub quote"
-  step during new-character creation in SPUR.LOGON.S:410,618-624): each
-  player has a personal one-line quote (60 char max) shown to other
-  players who view them. A "$" in the quote is replaced by the handle of
-  whoever is *reading* it, not the author (SPUR.MISC2.S:491,496-497:
-  "$ will be replaced by your handle" when viewing; "will be replaced by
-  the reading players handle" when writing) -- e.g. author writes "Hello
-  $, welcome!" and each viewer sees their own name substituted in.
-  Needs: a `quote` field on Player, a QUOTE command (View/Write/Quit, per
-  SPUR), and wherever quotes get displayed (looking at a player, "who",
-  etc.), the "$" substitution.
+- [DONE] SPUR's QUOTE command (SPUR.MISC2.S:488-503, in-game View/Write/
+  Quit) and the "gosub quote" character-creation step (SPUR.LOGON.S:410,
+  618-624, wired into new_player.py's main_flow()/_final_review()) are
+  both implemented, including the "$" reading-player-handle substitution
+  and a preview/confirm loop before saving a "$"-containing quote.
   - Longer-term idea (Ryan): generalize this into the existing pronoun
     substitution machinery (tada_utilities.get_pronoun(),
     messages.py's send_message() str.format() templating) so quotes and

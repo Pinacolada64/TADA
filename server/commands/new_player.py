@@ -48,9 +48,10 @@ from base_classes import PlayerRace, PlayerClass, PlayerStat
 from characters import apply_race_class_deltas
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
+from commands.quote import confirm_dollar_quote
 from net_common import hash_password, user_dir
 from network_context import GameContext
-from tada_utilities import a_or_an, input_yes_no
+from tada_utilities import a_or_an, format_quote, input_yes_no
 
 log = logging.getLogger(__name__)
 
@@ -160,6 +161,7 @@ async def main_flow(ctx,
         _choose_race,
         _choose_guild,
         _roll_stats,
+        _choose_quote,
         _final_review,
     ]
     for step in steps:
@@ -909,6 +911,47 @@ async def _roll_stats(ctx) -> bool:
         await ctx.send("Enter 'Y' to accept or 'R' to re-roll.")
 
 
+_MAX_QUOTE_LEN = 60
+
+
+async def _choose_quote(ctx) -> bool:
+    """SPUR.LOGON.S:410,618-624's creation-time "quote" step.
+
+    Unlike the in-game QuoteCommand._write() (blank input = "No change..",
+    a cancel), blank input here is an explicit choice to be silent -- SPUR
+    prints "Ok, you will be silent.." and leaves the quote unset.
+    """
+    player = ctx.player
+    preamble = [
+        "",
+        f"Enter quote now, {_MAX_QUOTE_LEN} char max. A $ in the quote will "
+        "be replaced by the reading player's handle (leave a space, comma, "
+        "etc, after the $). Leave blank to stay silent.",
+    ]
+    while True:
+        raw = await ctx.prompt("Enter quote", preamble_lines=preamble)
+        if raw is None:
+            return False
+        text = raw.strip()
+        if len(text) > _MAX_QUOTE_LEN:
+            await ctx.send("TOO LONG!")
+            continue
+        if not text:
+            player.quote = None
+            await ctx.send("Ok, you will be silent..")
+            return True
+
+        satisfied = await confirm_dollar_quote(ctx, text)
+        if satisfied is None:
+            return False
+        if not satisfied:
+            continue
+
+        player.quote = text
+        await ctx.send("Quote set.")
+        return True
+
+
 # ---------------------------------------------------------------------------
 # Step 9 — final review
 # ---------------------------------------------------------------------------
@@ -933,6 +976,9 @@ async def _final_review(ctx) -> bool:
         for stat, val in getattr(p, "stats", {}).items():
             lines.append(f"    {stat}: {val}")
 
+        quote_preview = format_quote(getattr(p, "quote", None), getattr(p, "name", "?"))
+        lines += ["", f"  Quote    : {quote_preview if quote_preview else '(silent)'}"]
+
         ok, combo_msg = validate_class_race_combo(ctx)
         if not ok:
             lines += ["", f"  |red|WARNING: {combo_msg}|reset|",
@@ -949,6 +995,7 @@ async def _final_review(ctx) -> bool:
             "    6. Edit race",
             "    7. Edit guild",
             "    8. Re-roll stats",
+            "    9. Edit quote",
             ""
             "    Enter / Y — Accept and finish",
         ]
@@ -973,6 +1020,7 @@ async def _final_review(ctx) -> bool:
             "6": _choose_race,
             "7": _choose_guild,
             "8": _roll_stats,
+            "9": _choose_quote,
         }
         # remap '7' to re-roll only when explicitly picking that option
         fn = dispatch.get(ans)
