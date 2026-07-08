@@ -81,4 +81,17 @@
   Given the complexity/risk here (this is genuinely one of the more
   finicky things to get right in a network server), worth prototyping
   against a throwaway echo server before touching the real one.
+- editplayer's Flags/Counters menu (commands/editplayer.py's
+  _flags_menu()) lets an admin toggle any flag with no prerequisite
+  check, even ones that only make sense if the player actually
+  possesses the relevant item/entity. E.g. PlayerFlags.
+  AMULET_OF_LIFE_ENERGIZED can be flipped on for a player who was never
+  given the Amulet of Life (objects.json #76, see commands/ready.py's
+  _AMULET_OF_LIFE_ID and commands/stats.py:178's matching TODO to check
+  it there too). Same class of issue likely applies to RING_WORN /
+  GAUNTLETS_WORN (need the ring/gauntlets in inventory) and HAS_HORSE /
+  MOUNTED (need an actual horse Ally). Should check the prerequisite
+  before toggling on, and show something like "Not held" in place of
+  On/Off in the menu when the player doesn't have the item, instead of
+  silently allowing an inconsistent state.
 
