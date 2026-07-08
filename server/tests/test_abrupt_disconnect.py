@@ -1,17 +1,21 @@
-import asyncio
 import json
 import os
 import time
+import asyncio
+
+from conftest import perform_login, seed_test_account
+
+_USERNAME = 'e2eabrupt'
+_PASSWORD = 'e2epass'
 
 
 def test_abrupt_disconnect_saves_player(tmp_path):
-    """Start server, connect as guest, then close socket without sending 'bye'. Verify player JSON saved."""
+    """Start server, log in, then close socket without sending 'bye'. Verify player JSON saved."""
     import net_common
     net_common.run_server_dir = str(tmp_path / 'run' / 'server')
+    seed_test_account(_USERNAME, _PASSWORD)
 
     from simple_server import Server
-    from simple_client import perform_handshake, send_message, receive_message
-    from net_common import Message, Mode
     from player import Player
 
     server = Server('127.0.0.1', 0)
@@ -26,28 +30,9 @@ def test_abrupt_disconnect_saves_player(tmp_path):
         port = server.server.sockets[0].getsockname()[1]
 
         reader, writer = await asyncio.open_connection('127.0.0.1', port)
-        await perform_handshake(reader, writer)
-        # request guest connection
-        await send_message(writer, Message(lines=['guest'], mode=Mode.login))
+        logged_in = await perform_login(reader, writer, _USERNAME, _PASSWORD)
+        assert logged_in
 
-        # capture assigned username
-        assigned_username = None
-        start = time.time()
-        while time.time() - start < 3:
-            msg = await receive_message(reader)
-            if not msg:
-                break
-            lines = msg.get('lines') if isinstance(msg, dict) else None
-            if lines:
-                for ln in lines:
-                    if isinstance(ln, str) and ln.startswith('Connected as '):
-                        assigned_username = ln.split()[2].strip('.').strip()
-                        break
-            if assigned_username:
-                break
-        assert assigned_username is not None
-
-        # Optionally perform an action so player state may change; we'll just close abruptly now
         # Abruptly close the transport to simulate network failure
         try:
             transport = writer.transport
@@ -69,12 +54,10 @@ def test_abrupt_disconnect_saves_player(tmp_path):
         except asyncio.CancelledError:
             pass
 
-        return assigned_username
+    asyncio.run(asyncio.wait_for(run_scenario(), timeout=10))
 
-    assigned = asyncio.run(run_scenario())
-
-    p = Player(name='probe', id=assigned)
-    path = p._json_path(assigned)
+    p = Player(name='probe', id=_USERNAME)
+    path = p._json_path(_USERNAME)
 
     # wait up to 2s for file to appear
     deadline = time.time() + 2
@@ -87,11 +70,10 @@ def test_abrupt_disconnect_saves_player(tmp_path):
         data = json.load(f)
 
     # basic sanity: id/name present
-    assert data.get('id') == assigned or data.get('name') == assigned
+    assert data.get('id') == _USERNAME or data.get('name') == _USERNAME
 
     # cleanup
     try:
         os.remove(path)
     except Exception:
         pass
-

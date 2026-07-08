@@ -1,15 +1,20 @@
 import asyncio
 import json
 import os
-import time
+
+from conftest import perform_login, seed_test_account
+
+_USERNAME = 'e2emover'
+_PASSWORD = 'e2epass'
 
 
 def test_move_south_from_room1_goes_to_13_and_saves(tmp_path):
     import net_common
     net_common.run_server_dir = str(tmp_path / 'run' / 'server')
+    seed_test_account(_USERNAME, _PASSWORD, map_room=1)
 
     from simple_server import Server
-    from simple_client import perform_handshake, send_message, receive_message
+    from simple_client import send_message
     from net_common import Message, Mode
     from player import Player
 
@@ -24,41 +29,26 @@ def test_move_south_from_room1_goes_to_13_and_saves(tmp_path):
         port = server.server.sockets[0].getsockname()[1]
 
         reader, writer = await asyncio.open_connection('127.0.0.1', port)
-        await perform_handshake(reader, writer)
-        # request guest connection
-        await send_message(writer, Message(lines=['guest'], mode=Mode.login))
-
-        assigned_username = None
-        start = time.time()
-        while time.time() - start < 3:
-            msg = await receive_message(reader)
-            if not msg:
-                break
-            lines = msg.get('lines') if isinstance(msg, dict) else None
-            if lines:
-                for ln in lines:
-                    if isinstance(ln, str) and ln.startswith('Connected as '):
-                        assigned_username = ln.split()[2].strip('.').strip()
-                        break
-            if assigned_username:
-                break
-        assert assigned_username is not None
+        logged_in = await perform_login(reader, writer, _USERNAME, _PASSWORD)
+        assert logged_in
 
         # send 's' to move south
         await send_message(writer, Message(lines=['s'], mode=Mode.app))
         # give server a moment to process
         await asyncio.sleep(0.1)
 
-        # inspect server client to confirm room change
+        # inspect server client to confirm room change. The player lives at
+        # client.ctx.player (never client.player -- that attribute is never
+        # set anywhere in the codebase).
         server_client = None
         for addr, c in server.clients.items():
-            if getattr(c, 'username', None) == assigned_username:
+            if getattr(c, 'username', None) == _USERNAME:
                 server_client = c
                 break
         assert server_client is not None, 'server client not found'
         # both client.room and player.map_room should be 13 per level_1.json
         assert getattr(server_client, 'room', None) == 13
-        assert getattr(getattr(server_client, 'player', None), 'map_room', None) == 13
+        assert getattr(getattr(server_client, 'ctx', None).player, 'map_room', None) == 13
 
         # send bye to save and close
         await send_message(writer, Message(lines=[], mode=Mode.bye))
@@ -72,13 +62,12 @@ def test_move_south_from_room1_goes_to_13_and_saves(tmp_path):
             await server_task
         except asyncio.CancelledError:
             pass
-        return assigned_username
 
-    assigned = asyncio.run(run_scenario())
+    asyncio.run(asyncio.wait_for(run_scenario(), timeout=10))
 
     # Check saved JSON
-    p = Player(name='probe', id=assigned)
-    path = p._json_path(assigned)
+    p = Player(name='probe', id=_USERNAME)
+    path = p._json_path(_USERNAME)
     assert os.path.exists(path)
     with open(path, 'r') as f:
         data = json.load(f)
@@ -88,4 +77,3 @@ def test_move_south_from_room1_goes_to_13_and_saves(tmp_path):
         os.remove(path)
     except Exception:
         pass
-

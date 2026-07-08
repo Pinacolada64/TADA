@@ -34,7 +34,7 @@ _stub("commands.command_processor",
       create_command_processor=MagicMock(return_value=MagicMock()))
 
 from commands.base_command import Command, CommandResult, Mode
-from commands.connect import ConnectCommand, _load_credentials, _USER_DIR
+from commands.connect import ConnectCommand, _load_credentials
 
 
 # ---------------------------------------------------------------------------

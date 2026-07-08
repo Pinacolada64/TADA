@@ -1,17 +1,22 @@
 import asyncio
 import json
 import os
-import time
 
 from pprint import pprint
+
+from conftest import perform_login, seed_test_account
+
+_USERNAME = 'e2erealogin'
+_PASSWORD = 'e2epass'
 
 
 def test_network_e2e_real_login_and_save(tmp_path):
     import net_common
     net_common.run_server_dir = str(tmp_path / 'run' / 'server')
+    seed_test_account(_USERNAME, _PASSWORD)
 
     from simple_server import Server
-    from simple_client import perform_handshake, send_message, receive_message
+    from simple_client import send_message
     from net_common import Message, Mode
 
     server = Server('127.0.0.1', 0)
@@ -30,33 +35,10 @@ def test_network_e2e_real_login_and_save(tmp_path):
 
         port = server.server.sockets[0].getsockname()[1]
 
-        # connect as a client and run handshake
+        # connect as a client, handshake, and log in with real credentials
         reader, writer = await asyncio.open_connection('127.0.0.1', port)
-        # perform handshake (this will send client init and consume server init)
-        banner = await perform_handshake(reader, writer)
-        # after handshake we should get a login banner; now request guest connection
-        await send_message(writer, Message(lines=['guest'], mode=Mode.login))
-
-        # collect messages until we see 'Connected as' or timeout
-        assigned_username = None
-        start = time.time()
-        while time.time() - start < 3:
-            msg = await receive_message(reader)
-            if not msg:
-                break
-            # msg is a dict representing Message; look at its 'lines'
-            lines = msg.get('lines') if isinstance(msg, dict) else None
-            if lines:
-                for ln in lines:
-                    if isinstance(ln, str) and ln.startswith('Connected as '):
-                        # format: "Connected as Guest1."
-                        parts = ln.split()
-                        if len(parts) >= 3:
-                            assigned_username = parts[2].strip('.').strip()
-                            break
-            if assigned_username:
-                break
-        assert assigned_username is not None, 'Did not receive Connected as message'
+        logged_in = await perform_login(reader, writer, _USERNAME, _PASSWORD)
+        assert logged_in, 'Did not receive login confirmation'
 
         # send a bye message to trigger player quit/save
         await send_message(writer, Message(lines=[], mode=Mode.bye))
@@ -77,14 +59,12 @@ def test_network_e2e_real_login_and_save(tmp_path):
         except asyncio.CancelledError:
             pass
 
-        return assigned_username
-
-    assigned_username = asyncio.run(run_scenario())
+    asyncio.run(asyncio.wait_for(run_scenario(), timeout=10))
 
     # check for saved player file
     from player import Player
-    temp_player = Player(name='probe', id=assigned_username)
-    path = temp_player._json_path(assigned_username)
+    temp_player = Player(name='probe', id=_USERNAME)
+    path = temp_player._json_path(_USERNAME)
     assert os.path.exists(path), f'Player file {path} not found'
 
     with open(path, 'r') as f:
@@ -101,4 +81,3 @@ def test_network_e2e_real_login_and_save(tmp_path):
         os.remove(path)
     except Exception:
         pass
-

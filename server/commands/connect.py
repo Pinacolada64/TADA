@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 
 from base_classes import Guild, PlayerRace
 from flags import PlayerFlags
+from net_common import user_dir
 from network_context import GameContext
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
@@ -21,10 +21,9 @@ from commands.help import Help, HelpCategory
 log = logging.getLogger(__name__)
 
 # Path pattern for per-user credential files.
-# Expected layout: run/server/net/login-<username>.json
+# Expected layout: <run_server_dir>/net/login-<username>.json
 # Each file must contain at least {"password": "<plaintext>"}.
 # TODO: replace plaintext passwords with a proper hash (bcrypt / argon2).
-_USER_DIR = Path("run") / "server" / "net"
 
 # Carrying capacity by race, matching original SPUR values.
 # TODO: enforce this cap in inventory add/pickup logic.
@@ -55,7 +54,7 @@ _GUILD_WELCOME = {
 
 def _load_credentials(username: str) -> dict | None:
     """Return the credential dict for *username*, or None if not found."""
-    path = _USER_DIR / f"login-{username}.json"
+    path = user_dir() / f"login-{username}.json"
     if not path.exists():
         return None
     try:

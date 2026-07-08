@@ -34,7 +34,6 @@ import json
 import logging
 import random
 from datetime import date
-from pathlib import Path
 from typing import Optional
 
 # TADA imports:
@@ -42,6 +41,7 @@ from base_classes import PlayerRace, PlayerClass, PlayerStat
 from characters import apply_race_class_deltas
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
+from net_common import user_dir
 from network_context import GameContext
 from tada_utilities import a_or_an
 
@@ -51,8 +51,9 @@ log = logging.getLogger(__name__)
 # This is a "hole" in map level 1 — no normal room occupies slot 5.
 CREATION_ROOM = 5
 
-# Where per-user credential files live.
-_USER_DIR = Path("run") / "server" / "net"
+# Where per-user credential files live: user_dir() resolves this at call
+# time via net_common.run_server_dir, so tests can isolate them, same as
+# Player._json_path().
 
 
 # Standalone helpers:
@@ -318,7 +319,7 @@ async def _choose_password(ctx, prefill: Optional[str] = None) -> Optional[str]:
 
 def _username_taken(username: str) -> bool:
     """Return True if a credential file already exists for this username."""
-    return (_USER_DIR / f"login-{username}.json").exists()
+    return (user_dir() / f"login-{username}.json").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -943,9 +944,10 @@ async def _confirm_creation(ctx, username: str, password: str) -> bool:
     player.unsaved_changes = True
 
     # Credential file — login only needs the password; full state lives in player-<id>.json
-    _USER_DIR.mkdir(parents=True, exist_ok=True)
+    udir = user_dir()
+    udir.mkdir(parents=True, exist_ok=True)
     try:
-        (_USER_DIR / f"login-{username}.json").write_text(
+        (udir / f"login-{username}.json").write_text(
             json.dumps({"password": password}, indent=2)
         )
     except Exception:

@@ -10,22 +10,34 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-# Minimal net_common stub so Player._json_path finds our temp directory at runtime
-net_common = types.ModuleType('net_common')
-net_common.run_server_dir = None  # will set later in test
-sys.modules['net_common'] = net_common
+# This file has no test_* functions -- it's a standalone debug harness meant
+# to be run directly (`python tests/test_e2e_network_quit.py`), not through
+# pytest. But its filename matches pytest's test_*.py collection pattern, so
+# pytest still imports it during collection. The stub setup below used to
+# run at module level, which meant merely importing this file permanently
+# overwrote sys.modules['net_common']/['simple_client'] with stubs lacking
+# real functionality (e.g. net_common.user_dir()) for every other test in
+# the same pytest session. Guarded behind a function now, only called from
+# run_e2e_test()/__main__, so importing this module for collection is a no-op.
 
-# Minimal simple_client stub to satisfy imports
-simple_client = types.ModuleType('simple_client')
-async def send_message(writer, obj):
-    return None
-simple_client.send_message = send_message
-sys.modules['simple_client'] = simple_client
+def _install_stubs():
+    """Minimal net_common/simple_client stubs so Player._json_path finds our
+    temp directory at runtime without pulling in the real modules."""
+    net_common = types.ModuleType('net_common')
+    net_common.run_server_dir = None  # will set later in test
+    sys.modules['net_common'] = net_common
 
-from player import Player
+    simple_client = types.ModuleType('simple_client')
+    async def send_message(writer, obj):
+        return None
+    simple_client.send_message = send_message
+    sys.modules['simple_client'] = simple_client
+    return net_common
+
 
 async def server_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     # Very small server handler to emulate required server behavior for E2E test
+    from player import Player
     addr = writer.get_extra_info('peername')
     try:
         # 1) Read initial handshake (a JSON line)
@@ -72,6 +84,7 @@ async def server_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWri
 
 
 def run_e2e_test():
+    net_common = _install_stubs()
     with tempfile.TemporaryDirectory() as td:
         run_dir = Path(td) / 'run' / 'server'
         run_dir.mkdir(parents=True)

@@ -1,15 +1,20 @@
 import asyncio
 import json
 import os
-import time
+
+from conftest import perform_login, seed_test_account
+
+_USERNAME = 'e2ereconnect'
+_PASSWORD = 'e2epass'
 
 
 def test_network_e2e_reconnect_restores_room(tmp_path):
     import net_common
     net_common.run_server_dir = str(tmp_path / 'run' / 'server')
+    seed_test_account(_USERNAME, _PASSWORD, map_room=1)
 
     from simple_server import Server
-    from simple_client import perform_handshake, send_message, receive_message
+    from simple_client import send_message
     from net_common import Message, Mode
     from player import Player
 
@@ -28,64 +33,12 @@ def test_network_e2e_reconnect_restores_room(tmp_path):
         port = server.server.sockets[0].getsockname()[1]
 
         reader, writer = await asyncio.open_connection('127.0.0.1', port)
-        await perform_handshake(reader, writer)
-        await send_message(writer, Message(lines=['guest'], mode=Mode.login))
+        logged_in = await perform_login(reader, writer, _USERNAME, _PASSWORD)
+        assert logged_in
 
-        # capture assigned username
-        assigned_username = None
-        start = time.time()
-        while time.time() - start < 3:
-            msg = await receive_message(reader)
-            if not msg:
-                break
-            lines = msg.get('lines') if isinstance(msg, dict) else None
-            if lines:
-                for ln in lines:
-                    if isinstance(ln, str) and ln.startswith('Connected as '):
-                        parts = ln.split()
-                        if len(parts) >= 3:
-                            assigned_username = parts[2].strip('.').strip()
-                            break
-            if assigned_username:
-                break
-        assert assigned_username is not None
-
-        # Try to move using common directions. We'll try 'e' then 'n' then 's' until one reports movement.
-        dest_room = None
-        tried_dirs = ['e', 'n', 's', 'w', 'u', 'd']
-        for d in tried_dirs:
-            await send_message(writer, Message(lines=[d], mode=Mode.app))
-            # wait for a response and inspect if room changed in returned description
-            got = await receive_message(reader)
-            if not got:
-                continue
-            # If server returned data with 'lines' containing 'You move' or similar, assume moved
-            lines = got.get('lines') if isinstance(got, dict) else []
-            joined = ' '.join([str(x) for x in (lines or [])])
-            if 'moves' in joined or 'move' in joined or 'You move' in joined:
-                # best-effort: read saved file later; for now assume move succeeded and break
-                dest_room = 'moved'
-                break
-        # If movement didn't work, set player's map_room directly on server to a sentinel (avoid relying on map data)
-        if dest_room is None:
-            # find the client object on server and sync player's location via server helper
-            for addr, client in list(server.clients.items()):
-                if getattr(client, 'username', None) and client.username == assigned_username:
-                    try:
-                        # Use server API to keep client.room and player.map_room consistent
-                        server._sync_player_location(client, 9999)
-                        expected_room = 9999
-                    except Exception:
-                        # fallback if helper unavailable
-                        try:
-                            client.player.map_room = 9999
-                            expected_room = 9999
-                        except Exception:
-                            expected_room = 1
-                    break
-        else:
-            # we don't know the exact numeric room; read saved player file later and compare changed value
-            expected_room = None
+        # Move south from room 1 to room 13, per level_1.json's exits.
+        await send_message(writer, Message(lines=['s'], mode=Mode.app))
+        await asyncio.sleep(0.1)
 
         # send bye to save
         await send_message(writer, Message(lines=[], mode=Mode.bye))
@@ -103,22 +56,15 @@ def test_network_e2e_reconnect_restores_room(tmp_path):
         except asyncio.CancelledError:
             pass
 
-        return assigned_username, expected_room
+    asyncio.run(asyncio.wait_for(run_scenario(), timeout=10))
 
-    assigned_username, expected_room = asyncio.run(run_scenario())
-
-    # confirm saved file exists
-    p = Player(name='probe', id=assigned_username)
-    path = p._json_path(assigned_username)
+    # confirm saved file exists and reflects the move
+    p = Player(name='probe', id=_USERNAME)
+    path = p._json_path(_USERNAME)
     assert os.path.exists(path), f'Player file {path} missing'
     with open(path, 'r') as f:
         data = json.load(f)
-
-    # If we set expected_room explicitly, verify saved map_room matches it; otherwise expect map_room to be present
-    if expected_room is not None:
-        assert data.get('map_room') == expected_room
-    else:
-        assert 'map_room' in data
+    assert data.get('map_room') == 13
 
     # Now reconnect and login as same user and check server player object restores room
     # Start server again
@@ -133,48 +79,43 @@ def test_network_e2e_reconnect_restores_room(tmp_path):
         port = server2.server.sockets[0].getsockname()[1]
 
         r2, w2 = await asyncio.open_connection('127.0.0.1', port)
-        await perform_handshake(r2, w2)
-        # attempt to login: connect <username>
-        await send_message(w2, Message(lines=[f'connect {assigned_username}'], mode=Mode.login))
+        logged_in = await perform_login(r2, w2, _USERNAME, _PASSWORD)
+        assert logged_in
 
-        # read responses until we see a welcome or room description
-        got_room = None
-        start = time.time()
-        while time.time() - start < 3:
-            msg = await receive_message(r2)
-            if not msg:
+        # check server's internal client player. The player lives at
+        # client.ctx.player (never client.player -- that attribute is
+        # never set anywhere in the codebase).
+        restored_room = None
+        for addr, client in list(server2.clients.items()):
+            if getattr(client, 'username', None) == _USERNAME:
+                pl = getattr(getattr(client, 'ctx', None), 'player', None)
+                if pl:
+                    restored_room = getattr(pl, 'map_room', None)
                 break
-            lines = msg.get('lines') if isinstance(msg, dict) else None
-            if lines:
-                for ln in lines:
-                    if isinstance(ln, str) and ln.startswith('Login successful'):
-                        # After login the server sends room description; we'll try to parse numeric room if present in data file
-                        pass
-            # check server's internal client player if available
-            for addr, client in list(server2.clients.items()):
-                if getattr(client, 'username', None) == assigned_username:
-                    pl = getattr(client, 'player', None)
-                    if pl:
-                        return getattr(pl, 'map_room', None)
-        # shutdown
+
+        # Close our client connection before cancelling the server -- on
+        # Python 3.12+, Server.wait_closed() (called by start()'s "async
+        # with json_server, petscii_server:" teardown) also waits for
+        # existing client connections to close, so leaving w2 open here
+        # hangs the cancellation forever.
+        try:
+            w2.close()
+            await w2.wait_closed()
+        except Exception:
+            pass
+
         server_task.cancel()
         try:
             await server_task
         except asyncio.CancelledError:
             pass
-        return None
+        return restored_room
 
-    restored_room = asyncio.run(reconnect_scenario())
-
-    # If we had an explicit expected_room, compare; otherwise compare saved file vs restored_room
-    if expected_room is not None:
-        assert restored_room == expected_room
-    else:
-        assert restored_room == data.get('map_room', restored_room)
+    restored_room = asyncio.run(asyncio.wait_for(reconnect_scenario(), timeout=10))
+    assert restored_room == 13
 
     # cleanup
     try:
         os.remove(path)
     except Exception:
         pass
-

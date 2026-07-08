@@ -7,6 +7,25 @@ from typing import Any, Dict, List, Optional, Set
 import threading
 import time
 
+# Tests point this at a tmp_path to isolate saved player/credential files;
+# defaults to './run/server' otherwise. Read dynamically (not at import
+# time) by user_dir() and Player._json_path() so tests can set it after
+# these modules are already imported.
+run_server_dir: str | None = None
+
+
+def user_dir() -> Path:
+    """Directory holding per-account login-<username>.json credential files.
+
+    Resolved at call time from run_server_dir (the same run directory
+    Player._json_path() uses) rather than a fixed relative path, so
+    anything that sets run_server_dir to an isolated tmp_path (e2e tests)
+    also isolates credential files instead of writing into the real
+    project directory.
+    """
+    base = run_server_dir or Path('run') / 'server'
+    return Path(base) / 'net'
+
 
 class K(str, Enum):
     id = 'id'
