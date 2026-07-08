@@ -4,9 +4,15 @@ New player creation flow.
 
 `NewPlayerCommand` is the entry point — it is auto-discovered by
 CommandProcessor and available in Mode.LOGIN.  It drives the player
-through a linear series of prompts (prologue → username/password →
-client settings → age → gender → name → class → race → guild →
-stat roll → review → confirm) using only ctx.send() and ctx.prompt().
+through a linear series of prompts (prologue → client settings → age →
+gender → name → class → race → guild → stat roll → review →
+username/password → confirm) using only ctx.send() and ctx.prompt().
+
+Username/password come *after* the character name, not before: username
+is a separate login/account identifier (intended for a planned link to a
+CommodoreServer.com account) rather than the in-world character name, but
+it defaults to that name (sanitized to letters/numbers) since they'll
+usually match.
 
 All helper coroutines take (ctx) only and operate on ctx.player directly.
 They return True on success and False if the player abandoned the step
@@ -33,6 +39,7 @@ import calendar
 import json
 import logging
 import random
+import re
 from datetime import date
 from typing import Optional
 
@@ -43,7 +50,7 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from net_common import user_dir
 from network_context import GameContext
-from tada_utilities import a_or_an
+from tada_utilities import a_or_an, input_yes_no
 
 log = logging.getLogger(__name__)
 
@@ -94,9 +101,10 @@ class NewPlayerCommand(Command):
         summary     = "Create a new character account.",
         description = (
             "Guides you through a series of steps to create your character: "
-            "username, password, client settings, age, gender, name, class, "
-            "race, guild, and stat roll.  Your faithful servant Verus will "
-            "assist you through the process."
+            "client settings, age, gender, name, class, race, guild, stat "
+            "roll, and finally username/password (defaults to your "
+            "character name).  Your faithful servant Verus will assist you "
+            "through the process."
         ),
         category = HelpCategory.AUTHENTICATION,
         usage    = [
@@ -133,24 +141,13 @@ async def main_flow(ctx,
 
     await _prologue(ctx)
 
-    # --- username & password ---
-    username = await _choose_username(ctx, prefill=prefill_username)
-    if not username:
-        return CommandResult.fail("Character creation abandoned.", error="abandoned")
-
-    password = await _choose_password(ctx, prefill=prefill_password)
-    if not password:
-        return CommandResult.fail("Character creation abandoned.", error="abandoned")
-
-    # Swap the GuestPlayer stub for a real Player so all creation steps have
-    # access to full Player methods from here on.
+    # Swap the GuestPlayer stub for a real Player immediately so every
+    # creation step below (including choosing a character name) has access
+    # to full Player methods. id/name aren't known yet -- those are set
+    # once a username is chosen, after the character name (see below).
     if player is not None:
-        player.id             = username   # used by Player.save()
-        player.name           = username
         player.client_settings = ctx.player.client_settings
         ctx.player            = player
-    else:
-        ctx.player.name = username
 
     # --- creation steps ---
     steps = [
@@ -169,6 +166,23 @@ async def main_flow(ctx,
         ok = await step(ctx)
         if not ok:
             return CommandResult.fail("Character creation abandoned.", error="abandoned")
+
+    # --- username & password ---
+    # Username is a separate login/account identifier -- intended for a
+    # planned link to a CommodoreServer.com account -- distinct from the
+    # in-world character name chosen above, but it usually matches, so it
+    # defaults to the character name (letters/numbers only) and blank
+    # Enter accepts that default.
+    username = await _choose_username(ctx, prefill=prefill_username, default=ctx.player.name)
+    if not username:
+        return CommandResult.fail("Character creation abandoned.", error="abandoned")
+
+    password = await _choose_password(ctx, prefill=prefill_password)
+    if not password:
+        return CommandResult.fail("Character creation abandoned.", error="abandoned")
+
+    if player is not None:
+        player.id = username   # used by Player.save()
 
     # --- persist and confirm ---
     ok = await _confirm_creation(ctx, username, password)
@@ -220,8 +234,17 @@ async def _prologue(ctx) -> bool:
 # Username & password
 # ---------------------------------------------------------------------------
 
-async def _choose_username(ctx, prefill: Optional[str] = None) -> Optional[str]:
-    """Prompt for a username; return it or None on disconnect/quit."""
+async def _choose_username(ctx, prefill: Optional[str] = None,
+                           default: Optional[str] = None) -> Optional[str]:
+    """Prompt for a username; return it or None on disconnect/quit.
+
+    :param default: character name to derive a fallback from (letters/
+                     numbers only, lowercased) -- blank Enter accepts it.
+                     Username is a separate account identifier -- intended
+                     for a planned link to a CommodoreServer.com account --
+                     so it's allowed to differ from the character name, but
+                     usually won't.
+    """
     if prefill:
         username = prefill.strip().lower()
         if _username_taken(username):
@@ -230,19 +253,28 @@ async def _choose_username(ctx, prefill: Optional[str] = None) -> Optional[str]:
         else:
             return username
 
+    default_username = None
+    if default:
+        candidate = re.sub(r"[^a-z0-9]", "", default.lower())
+        if len(candidate) >= 3 and not _username_taken(candidate):
+            default_username = candidate
+
+    preamble = ["", "('quit' or 'q' abandons choosing a user name.)",
+                "Your name must be at least 3 characters.",
+                "Choose a username (letters and numbers only)."]
+    if default_username:
+        preamble.append(f"Press Enter to use '{default_username}'.")
+    preamble.append("")
+
     # TODO: capture this from CommodoreServer account name
     while True:
-        raw = await ctx.prompt(
-            "Choose a username",
-            preamble_lines=["", "('quit' or 'q' abandons choosing a user name.)",
-                            "Your name must be at least 3 characters.",
-                            "Choose a username (letters and numbers only).",
-                            ""],
-        )
+        raw = await ctx.prompt("Choose a username", preamble_lines=preamble)
         if raw is None:
             return None
         username = raw.strip().lower()
         if not username:
+            if default_username:
+                return default_username
             continue
         if username in ("quit", "q"):
             return None
@@ -402,7 +434,13 @@ async def _choose_age(ctx) -> bool:
 
         if ans == "r":
             # TODO: per-class age minimum-maximum limits
-            age = random.randint(15, 50)
+            while True:
+                age = random.randint(15, 50)
+                accepted = await input_yes_no(ctx, f"Random age: {age}. Accept?", default=True)
+                if accepted is None:
+                    return False
+                if accepted:
+                    break
         elif ans.isdigit():
             age = int(ans)
             help_msg = "Please enter a number between 15 and 50, or 'R' to choose a random age."
@@ -513,8 +551,15 @@ async def _choose_name(ctx) -> bool:
             return False
 
         if name.lower() == "r":
-            name = _generate_random_name(ctx.player)
-            await ctx.send(f"Random name chosen: {name}")
+            while True:
+                name = _generate_random_name(ctx.player)
+                if _username_taken(name.lower()):
+                    continue  # collision -- silently reroll
+                accepted = await input_yes_no(ctx, f"Random name chosen: {name}. Accept?", default=True)
+                if accepted is None:
+                    return False
+                if accepted:
+                    break
 
         # Character names share the same namespace as usernames.
         if _username_taken(name.lower()):
@@ -560,20 +605,21 @@ async def _choose_class(ctx) -> int | None:
 
     # Show class overview in non-expert mode
     if not ctx.player.is_expert:
-        class_number = random.randint(0, len(class_names) - 1)
+        class_idx    = random.randint(0, len(class_names) - 1)
+        class_number = class_idx + 1   # 1-based, matching what the player types
         overview = ["",
                     f'Verus says, "Choose a class by number in one of the following ways:"',
                     f'',
                     f"* Type a number, e.g., '{class_number}', to choose a class "
-                    f"(in this case, {class_names[class_number]}).",
+                    f"(in this case, {class_names[class_idx]}).",
                     f"* Type 'I' followed by the class number (e.g., 'I{class_number}'), "
                     "for information on that class:",
                     "",
-                    f"{class_texts[class_number]}",
+                    f"{class_texts[class_idx]}",
                     "",
                    ]
 
-        for i, name in enumerate(class_names, start=1):
+        for i, name in enumerate(class_names):
             desc = str(class_texts[i]) if i < len(class_texts) else ""
             overview.append(f"  {i+1}. {name}" + (f" — {desc}" if desc else ""))
         await ctx.send(*overview)
@@ -1060,9 +1106,6 @@ if __name__ == "__main__":
         # Feed scripted answers for every prompt
         answers = iter([
             "",           # accept default settings
-            "testuser",   # username
-            "pass1234",   # password
-            "pass1234",   # confirm password
             "4",          # client: TADA
             "25",         # age
             "t",          # birthday: today
@@ -1070,9 +1113,12 @@ if __name__ == "__main__":
             "testuser",   # char name
             "1",          # class: first option
             "1",          # race: first option
-            "1",          # guild: first option
+            "c",          # guild: Civilian
             "y",          # accept stats
             "y",          # accept summary
+            "testuser",   # username (defaults to char name; typed here anyway)
+            "pass1234",   # password
+            "pass1234",   # confirm password
         ])
         ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(answers, "y"))
 

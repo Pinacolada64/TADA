@@ -176,18 +176,28 @@ async def input_number_range(ctx: 'GameContext',
         await ctx.send(oob)
 
 
-async def input_yes_no(ctx: 'GameContext', prompt: str) -> bool:
+async def input_yes_no(ctx: 'GameContext', prompt: str,
+                       default: bool | None = None) -> bool | None:
     """
     Prompt for a yes/no response, returning True for 'y' and False for 'n'.
     Loops until a valid response is given.
 
     :param ctx: GameContext
-    :param prompt: prompt text (without the [y/n] suffix)
-    :return: True if yes, False if no
+    :param prompt: question text (without the [y/n] suffix)
+    :param default: if given, blank input (Enter) returns this instead of
+                     re-prompting; the suffix shown reflects it ('[Y/n]' /
+                     '[y/N]'). None (the default) requires an explicit y/n.
+    :return: True if yes, False if no, None if the connection dropped
+             mid-prompt
     """
+    suffix = {True: '[Y/n]', False: '[y/N]', None: '[y/n]'}[default]
     while True:
-        raw = await ctx.prompt(prompt_text=f'{prompt} [y/n]: ')
-        ch  = raw[:1].lower()
+        raw = await ctx.prompt('y/n', preamble_lines=[f'{prompt} {suffix}'])
+        if raw is None:
+            return None
+        ch = raw.strip()[:1].lower()
+        if not ch and default is not None:
+            return default
         if ch == 'y':
             return True
         if ch == 'n':
