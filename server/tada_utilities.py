@@ -344,6 +344,33 @@ def list_players_in_room(player_list: str | list) -> str:
     return f'{oxford_comma_list(player_list)} are here.'
 
 
+def format_quote(quote_text: str | None, reader_name: str) -> str | None:
+    """Format a player's personal quote for display to *reader_name*.
+
+    A "$" in the quote is replaced by the *reading* player's name, not
+    the quote's author (SPUR.MISC2.S:491,496-497 / SPUR.MAIN.S:480-483)
+    -- e.g. the author writes "Hello $, welcome!" and each viewer sees
+    their own name substituted in. Only the first "$" is replaced,
+    matching SPUR's instr()-based single-substitution behavior.
+
+    :param quote_text: the author's saved quote, or None/empty if unset
+    :param reader_name: the name of whoever is viewing the quote
+    :return: the quote wrapped in single quotes, or None if unset
+
+    >>> format_quote("Hello $, welcome!", "Rulan")
+    "'Hello Rulan, welcome!'"
+    >>> format_quote("Trespassers will be shot.", "Rulan")
+    "'Trespassers will be shot.'"
+    >>> format_quote(None, "Rulan") is None
+    True
+    """
+    if not quote_text:
+        return None
+    if '$' in quote_text:
+        quote_text = quote_text.replace('$', reader_name, 1)
+    return f"'{quote_text}'"
+
+
 def bulleted_list_format(text: str, width: int,
                          initial_indent: str = '* ',
                          subsequent_indent: str = '  ') -> str:

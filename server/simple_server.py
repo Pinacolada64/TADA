@@ -25,7 +25,7 @@ import net_common as nc
 from net_client import Client
 from network_context import GameContext, PETSCIINetworkContext, GuestPlayer
 from formatting import flatten_send_args, format_lines, codec_for_settings, ANSI_COLOR_CODES
-from tada_utilities import a_or_an, grammatical_list, list_players_in_room, oxford_comma_list
+from tada_utilities import a_or_an, format_quote, grammatical_list, list_players_in_room, oxford_comma_list
 from base_classes import Map, compass_txts
 from items import Item, Rations, Weapon
 from characters import Monster
@@ -654,21 +654,36 @@ class Server:
                     continue
                 if getattr(c, 'virtual_location', None):
                     continue
-                player = getattr(getattr(c, 'ctx', None), 'player', None)
-                name = getattr(player, 'name', None) or getattr(c, 'username', None) or 'someone'
-                others.append(name)
+                # NOTE: named other_player, not player -- this used to
+                # reassign the outer `player` (the viewer, set above at
+                # this method's top) to whichever other client was seen
+                # last in this loop, so anything read from `player` below
+                # this block (e.g. the debug-mode flag check further
+                # down) silently used a random *other* occupant's data
+                # instead of the viewer's own, whenever the room wasn't
+                # empty.
+                other_player = getattr(getattr(c, 'ctx', None), 'player', None)
+                name = getattr(other_player, 'name', None) or getattr(c, 'username', None) or 'someone'
+                others.append((name, other_player))
 
             session = (getattr(self, 'active_combats', {}) or {}).get(room_no)
             fighting = set()
             if session and not session._done.is_set():
                 for a_ctx in session.attackers:
                     a_name = getattr(getattr(a_ctx, 'player', None), 'name', None)
-                    if a_name in others:
+                    if a_name in (n for n, _ in others):
                         fighting.add(a_name)
 
-            bystanders = [n for n in others if n not in fighting]
+            bystanders = [(n, p) for n, p in others if n not in fighting]
             if bystanders:
-                lines += ['', list_players_in_room(bystanders)]
+                lines += ['', list_players_in_room([n for n, _ in bystanders])]
+                # Each bystander's personal quote (SPUR.MAIN.S:398's
+                # gosub ply.loc7, shown right under "X is here" there);
+                # "$" in it becomes the *viewer's* name, not the author's.
+                for n, p in bystanders:
+                    quote = format_quote(getattr(p, 'quote', None), player.name)
+                    if quote:
+                        lines.append(f'{n}: {quote}')
             if fighting:
                 mname = session.monster.get('name', 'a monster')
                 verb  = 'is' if len(fighting) == 1 else 'are'

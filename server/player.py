@@ -180,6 +180,13 @@ class Player:
         # keep this until I figure out where it is in net_server.py:
         self.name = kwargs.get('name', "Generic Name")
 
+        # Personal one-line quote (60 char max) shown to other players who
+        # see this player in a room (SPUR.MISC2.S:488-503's QUOTE command;
+        # commands/quote.py). None/unset means "silent" -- no quote line
+        # shown, matching SPUR's "is silent.." fallback rather than a
+        # stored "blank" sentinel string.
+        self.quote = kwargs.get('quote')
+
         self.gender = kwargs.get('gender', Gender.MALE)
 
         # creates a new stats dict for each Player, creates random stats:
@@ -897,7 +904,7 @@ class Player:
                 data = json.load(f)
 
             # Merge simple scalar fields
-            simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points')
+            simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote')
             for k in simple_keys:
                 if k in data:
                     try:
