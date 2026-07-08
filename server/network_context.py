@@ -166,10 +166,18 @@ class GameContext(BaseContext):
             formatted = plain_encode_lines(formatted)
 
         page_size = max(1, self.player.client_settings.screen_rows - 1)
-        if len(formatted) > page_size:
+        if self._wants_pagination(formatted, page_size):
             await self._paginate(formatted, page_size)
         else:
             await self._send_formatted(formatted)
+
+    def _wants_pagination(self, formatted: list[str], page_size: int) -> bool:
+        """Whether output should pause between screenfuls (PlayerFlags.MORE_PROMPT)
+        instead of being sent all at once regardless of length."""
+        return (
+            len(formatted) > page_size
+            and self.player.query_flag(PlayerFlags.MORE_PROMPT)
+        )
 
     async def _send_formatted(self, formatted: list[str]) -> None:
         """Send pre-formatted lines over the JSON wire without pagination."""
@@ -350,7 +358,7 @@ class PETSCIINetworkContext(GameContext):
         formatted = format_lines(raw, self.player.client_settings, codec)
 
         page_size = max(1, self.player.client_settings.screen_rows - 1)
-        if len(formatted) > page_size:
+        if self._wants_pagination(formatted, page_size):
             await self._paginate(formatted, page_size)
         else:
             await self._send_formatted(formatted)

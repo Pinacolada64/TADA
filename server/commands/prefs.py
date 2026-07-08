@@ -12,8 +12,14 @@ prefs_menu(ctx)         — standalone coroutine used by new_player._edit_settin
 
 Settings managed here
 ---------------------
-  X  Expert Mode      PlayerFlags.EXPERT_MODE   (On / Off)
-  H  Clock Display    PlayerFlags.HOURGLASS      (12-hour / 24-hour)
+  X  Expert Mode      PlayerFlags.EXPERT_MODE    (On / Off)
+  H  Clock Display    PlayerFlags.HOURGLASS      (On / Off)
+                      — just shows/hides a clock; doesn't yet control
+                        12-hour (AM/PM) vs 24-hour format or timezone.
+                        TODO: add those as real settings.
+  M  More Prompt      PlayerFlags.MORE_PROMPT    (On / Off) — pause between
+                      screenfuls of output; also toggleable via the
+                      standalone 'mp' command (commands/more_prompt.py)
   B  Border Style     ctx.player.border_style    (ascii / single / double)
                       — ANSI terminals only; PETSCII has one fixed style
   C  Colors           client_settings.colors.text_color
@@ -25,6 +31,55 @@ from __future__ import annotations
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
+
+# Detailed per-setting explanations shown by typing 'h' + the setting's key
+# (e.g. 'hx', 'hb') at the prefs menu prompt -- one entry per key in
+# prefs_menu()'s valid_keys, keyed by lowercase letter.
+_SETTING_HELP: dict[str, list[str]] = {
+    'x': [
+        '',
+        '|yellow|Expert Mode|reset|',
+        "Hides beginner-oriented tips, hints, and confirmation text "
+        "throughout the game once you're comfortable with the commands. "
+        "Affects things like READY's weapon-class breakdown and various "
+        "menu prompts -- the underlying commands work the same either way.",
+        '',
+    ],
+    'h': [
+        '',
+        '|yellow|Hourglass Display|reset|',
+        "Shows the current time in front of your command prompt. Purely "
+        "a visual clock -- it doesn't yet affect in-game time limits or "
+        "control 12-hour (AM/PM) vs 24-hour formatting or timezone.",
+        '',
+    ],
+    'm': [
+        '',
+        '|yellow|More Prompt|reset|',
+        "When output would be longer than one screen, pauses with a "
+        "'-- More --' prompt between pages: Enter for the next page, "
+        "B or - to go back a page, Q to stop reading early. When off, "
+        "everything is sent at once and scrolls by regardless of length. "
+        "Same setting as the standalone 'mp' command.",
+        '',
+    ],
+    'b': [
+        '',
+        '|yellow|Border Style|reset|',
+        "Controls the box-drawing characters used around tables and "
+        "boxed text (ASCII, Single-line, or Double-line). ANSI terminals "
+        "only -- PETSCII (C64/C128) clients always use one fixed style.",
+        '',
+    ],
+    'c': [
+        '',
+        '|yellow|Colors|reset|',
+        "Sets the text color and highlight color used for |white|[bracketed]"
+        "|reset| text throughout your session, e.g. item names or emphasis "
+        "in messages.",
+        '',
+    ],
+}
 
 
 class PrefsCommand(Command):
@@ -38,7 +93,8 @@ class PrefsCommand(Command):
         summary     = 'Open the player preferences menu.',
         description = (
             'Lets you adjust display and gameplay preferences: Expert Mode, '
-            'clock format, box border style, and terminal colors.  '
+            'clock format, More Prompt (pause between screenfuls of output), '
+            'box border style, and terminal colors.  '
             'Changes take effect immediately.'
         ),
         category = HelpCategory.GENERAL,
@@ -48,6 +104,8 @@ class PrefsCommand(Command):
         notes = [
             "Press Enter at the menu prompt to save and exit.",
             "Type 'XM' in-game to toggle Expert Mode quickly.",
+            "Type 'h' followed by a setting's key (e.g. 'hx', 'hm') at the "
+            "menu prompt for a fuller explanation of what it does.",
         ],
     )
 
@@ -76,28 +134,31 @@ async def prefs_menu(ctx) -> bool:
     cs         = ctx.player.client_settings
 
     while True:
-        expert     = ctx.player.is_expert # query_flag(PlayerFlags.EXPERT_MODE)
-        hourglass  = ctx.player.query_flag(PlayerFlags.HOURGLASS)
-        colors     = getattr(cs, 'colors', None)
-        text_col   = getattr(colors, 'text_color',      'White') if colors else 'White'
-        hi_col     = getattr(colors, 'highlight_color', 'Red')   if colors else 'Red'
-        border_key = getattr(cs, 'border_style', 'single')
+        expert      = ctx.player.is_expert # query_flag(PlayerFlags.EXPERT_MODE)
+        hourglass   = ctx.player.query_flag(PlayerFlags.HOURGLASS)
+        more_prompt = ctx.player.query_flag(PlayerFlags.MORE_PROMPT)
+        colors      = getattr(cs, 'colors', None)
+        text_col    = getattr(colors, 'text_color',      'White') if colors else 'White'
+        hi_col      = getattr(colors, 'highlight_color', 'Red')   if colors else 'Red'
+        border_key  = getattr(cs, 'border_style', 'single')
 
-        t = Table(headers=['Key', 'Setting', 'Current Value'],
+        t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
                   border_style=border_style_for_ctx(ctx))
-        t.add_row(['X', 'Expert Mode', 'On' if expert else 'Off'])
-        t.add_row(['H', 'Hourglass Display', 'On' if hourglass else 'Off'])
+        t.add_row(['X', 'Expert Mode', 'On' if expert else 'Off', 'hx'])
+        t.add_row(['H', 'Hourglass Display', 'On' if hourglass else 'Off', 'hh'])
+        t.add_row(['M', 'More Prompt', 'On' if more_prompt else 'Off', 'hm'])
         if not is_petscii:
-            t.add_row(['B', 'Border Style',  border_key.title()])
-        t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight'])
+            t.add_row(['B', 'Border Style',  border_key.title(), 'hb'])
+        t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight', 'hc'])
 
-        valid_keys = ['X', 'H', 'C'] if is_petscii else ['X', 'H', 'B', 'C']
+        valid_keys = ['X', 'H', 'M', 'C'] if is_petscii else ['X', 'H', 'M', 'B', 'C']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
             ['', '|yellow|User Preferences|reset|', '']
             + t.render(width=cs.screen_columns)
-            + ['', f"{keys_str} to change, {return_key} to save and exit", '']
+            + ['', f"{keys_str} to change, h<key> for details (e.g. h{valid_keys[0].lower()}), "
+                   f"{return_key} to save and exit", '']
         )
 
         raw = await ctx.prompt('prefs', preamble_lines=menu)
@@ -109,14 +170,20 @@ async def prefs_menu(ctx) -> bool:
             await ctx.send(
                 'X - toggle Expert Mode',
                 'H - toggle Hourglass (clock display)',
+                "M - toggle More Prompt (pause between screenfuls; also 'mp' in-game)",
                 'B - choose border style (ANSI only)',
                 'C - choose text and highlight colors',
+                f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
                 f'{return_key} - save and exit',
             )
             continue
 
         if not ans or ans in ('q', 'quit', 'done', 'exit'):
             return True
+
+        if len(ans) == 2 and ans[0] == 'h' and ans[1].upper() in valid_keys:
+            await ctx.send(*_SETTING_HELP[ans[1]])
+            continue
 
         if ans == 'x':
             option = "|white|Expert Mode: "
@@ -136,6 +203,9 @@ async def prefs_menu(ctx) -> bool:
                 ctx.player.set_flag(PlayerFlags.HOURGLASS)
                 await ctx.send(f'{option}|green|On|reset|')
 
+        elif ans == 'm':
+            await toggle_more_prompt(ctx)
+
         elif ans == 'b' and not is_petscii:
             await _pick_border_style(ctx, codec)
 
@@ -144,6 +214,18 @@ async def prefs_menu(ctx) -> bool:
 
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
+
+
+async def toggle_more_prompt(ctx) -> None:
+    """Toggle PlayerFlags.MORE_PROMPT; shared by the 'M' menu key and the
+    standalone 'mp' quick-toggle command (commands/more_prompt.py)."""
+    option = "|white|More Prompt: "
+    if ctx.player.query_flag(PlayerFlags.MORE_PROMPT):
+        ctx.player.clear_flag(PlayerFlags.MORE_PROMPT)
+        await ctx.send(f'{option}|red|Off|reset|')
+    else:
+        ctx.player.set_flag(PlayerFlags.MORE_PROMPT)
+        await ctx.send(f'{option}|green|On|reset|')
 
 
 # ---------------------------------------------------------------------------
