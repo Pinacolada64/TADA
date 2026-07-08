@@ -347,6 +347,24 @@ class TestHelpTopics(unittest.IsolatedAsyncioTestCase):
         self.assertIn("First paragraph here.", joined)
         self.assertIn("Second paragraph here.", joined)
 
+    async def test_rooms_topic_explains_outdoor_rooms(self):
+        for alias in ("rooms", "room"):
+            ctx, _ = _ctx_with_processor()
+            result = await HelpCommand().execute(ctx, alias)
+            self.assertTrue(result.success)
+            self.assertIn("outdoors", result.message)
+
+    async def test_categories_list_includes_descriptions(self):
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "categories")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        normalized = " ".join(output.split())
+        # Every category's one-line description should be present (normalize
+        # whitespace since long descriptions wrap across lines).
+        self.assertIn("Attacking, fleeing", normalized)      # Combat
+        self.assertIn("not tied to one command", normalized)  # Concept
+
 
 # ---------------------------------------------------------------------------
 # Entry point

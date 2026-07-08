@@ -49,6 +49,20 @@ class HelpCategory(Enum):
     MOVEMENT       = "Movement"         # cardinal directions, teleport
 
 
+# One-line description of each category, shown by "help categories"/"help #cat".
+_CATEGORY_DESCRIPTIONS: Dict["HelpCategory", str] = {
+    HelpCategory.ADMINISTRATIVE: "Admin-only tools: banning, editing players/monsters, server control.",
+    HelpCategory.AUTHENTICATION: "Logging in, creating a character, and connecting to the game.",
+    HelpCategory.COMBAT:         "Attacking, fleeing, and other fighting mechanics.",
+    HelpCategory.COMMUNICATION:  "Talking to other players: say, shout, whisper, page, mail.",
+    HelpCategory.CONCEPT:        "Explanations of game terms and ideas, not tied to one command.",
+    HelpCategory.GENERAL:        "Everyday actions: inventory, items, equipment, food and drink.",
+    HelpCategory.INTERACTION:    "Interacting with objects, allies, and the world around you.",
+    HelpCategory.MISCELLANEOUS:  "Commands that don't fit neatly into another category.",
+    HelpCategory.MOVEMENT:       "Moving around the world: compass directions, looking, teleporting.",
+}
+
+
 # ---------------------------------------------------------------------------
 # Help metadata dataclass
 # ---------------------------------------------------------------------------
@@ -117,6 +131,31 @@ register_topic(
         ],
         notes=[
             "The original game is still playable: telnet://dura-bbs.net:6359",
+        ],
+    ),
+)
+
+register_topic(
+    "rooms", "room",
+    help_obj=Help(
+        summary="What's a \"room\"?",
+        description=(
+            "In TADA (and MUDs generally), \"room\" is the traditional term "
+            "for any single space you can occupy -- it doesn't mean an "
+            "indoor space with four walls. A forest clearing, a mountain "
+            "ledge, a stretch of open road, and an actual indoor chamber "
+            "are all \"rooms\": each one is just a distinct location with "
+            "its own description, exits, and contents.\n\n"
+            "This comes from the genre's text-adventure roots, where the "
+            "world is a network of discrete locations connected by exits "
+            "(north, south, up, down, ...) rather than a continuous map. "
+            "Don't take \"room\" too literally -- outdoors, underground, "
+            "in a building, it's all the same concept under the hood."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("look",  "Show the room you're currently in again."),
+            ("n/s/e/w/u/d", "Move to an adjacent room in that direction."),
         ],
     ),
 )
@@ -305,9 +344,7 @@ class HelpCommand(Command):
         if token in ("categories", "category", "cat", "#cat", "#c"):
             if rest:
                 return await self._show_category_help(ctx, rest[0].lower(), processor)
-            cats = [c.value for c in HelpCategory]
-            await ctx.send("Available categories:\n" + "\n".join(f"  {c}" for c in cats))
-            return CommandResult.ok()
+            return await self._show_categories_list(ctx)
 
         # Search
         if token in ("search", "find") and rest:
@@ -375,6 +412,25 @@ class HelpCommand(Command):
         lines += ["", "Type 'help <command>' for more detail."]
         await ctx.send(*lines)
         return CommandResult.ok("General help displayed.")
+
+    async def _show_categories_list(self, ctx) -> Any:
+        from commands.base_command import CommandResult
+
+        width    = self._screen_width(ctx)
+        name_col = max(len(c.value) for c in HelpCategory) + 2
+        desc_col = max(width - 2 - name_col, 20)
+
+        lines = ["Available categories:", ""]
+        for cat in HelpCategory:
+            desc    = _CATEGORY_DESCRIPTIONS.get(cat, "")
+            wrapped = textwrap.wrap(desc, width=desc_col) or [""]
+            lines.append(f"  {cat.value.ljust(name_col)}{wrapped[0]}")
+            for cont in wrapped[1:]:
+                lines.append(f"  {'':{name_col}}{cont}")
+
+        lines += ["", "Type 'help #cat <category>' to list its commands/topics."]
+        await ctx.send("\n".join(lines))
+        return CommandResult.ok()
 
     async def _show_category_help(self, ctx, category_name: str, processor) -> Any:
         from commands.base_command import CommandResult
