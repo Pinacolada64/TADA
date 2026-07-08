@@ -82,13 +82,13 @@ def seed_test_account(username: str, password: str, *,
     before calling this, same as Player._json_path()/net_common.user_dir().
     """
     import json
-    from net_common import user_dir
+    from net_common import hash_password, user_dir
     from player import Player
 
     udir = user_dir()
     udir.mkdir(parents=True, exist_ok=True)
     (udir / f'login-{username}.json').write_text(
-        json.dumps({'password': password}, indent=2)
+        json.dumps({'password': hash_password(password)}, indent=2)
     )
 
     player = Player(name=username, id=username)

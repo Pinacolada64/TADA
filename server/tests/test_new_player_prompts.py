@@ -27,6 +27,7 @@ Run with:
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from commands.new_player import _choose_age, _choose_class, _choose_name, _choose_username, main_flow
 from tada_utilities import input_yes_no
@@ -142,15 +143,24 @@ class TestChooseUsernameDefaultsToCharacterName(unittest.IsolatedAsyncioTestCase
     but blank Enter accepts the sanitized character name."""
 
     def setUp(self):
+        # Patches commands.new_player.user_dir directly (not net_common's
+        # run_server_dir global) because some test modules elsewhere in the
+        # suite pop and re-import net_common at collection time to dodge
+        # *other* files' stale sys.modules stubs, leaving this module
+        # holding a second, divergent copy -- see the identical note in
+        # tests/test_connect.py's TestConnectAuthentication.setUp().
         import tempfile
-        import net_common
+        from pathlib import Path
         self._tmpdir = tempfile.TemporaryDirectory()
-        self._old_run_dir = net_common.run_server_dir
-        net_common.run_server_dir = self._tmpdir.name
+        fake_user_dir = Path(self._tmpdir.name) / 'net'
+        fake_user_dir.mkdir(parents=True, exist_ok=True)
+        self._user_dir_patcher = patch(
+            'commands.new_player.user_dir', return_value=fake_user_dir,
+        )
+        self._user_dir_patcher.start()
 
     def tearDown(self):
-        import net_common
-        net_common.run_server_dir = self._old_run_dir
+        self._user_dir_patcher.stop()
         self._tmpdir.cleanup()
 
     async def test_blank_accepts_sanitized_character_name(self):
@@ -178,12 +188,33 @@ class TestMainFlowOrdering(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         import tempfile
         import net_common
+        from pathlib import Path
         self._tmpdir = tempfile.TemporaryDirectory()
+
+        # Player.save()/_json_path() re-import net_common at call time (a
+        # local `import net_common` inside the method), so this global is
+        # safe to set directly -- it's read fresh on every call, unlike a
+        # `from net_common import X` binding captured once at another
+        # module's own import time.
         self._old_run_dir = net_common.run_server_dir
         net_common.run_server_dir = self._tmpdir.name
 
+        # commands.new_player's credential-file writes go through a `from
+        # net_common import user_dir` binding instead, which *isn't* safe
+        # against the module-duplication some other test files cause (see
+        # the note in test_connect.py's TestConnectAuthentication.setUp())
+        # -- patch it directly so this test can't touch the real project's
+        # run/server/net/ directory regardless of full-suite ordering.
+        fake_user_dir = Path(self._tmpdir.name) / 'net'
+        fake_user_dir.mkdir(parents=True, exist_ok=True)
+        self._user_dir_patcher = patch(
+            'commands.new_player.user_dir', return_value=fake_user_dir,
+        )
+        self._user_dir_patcher.start()
+
     def tearDown(self):
         import net_common
+        self._user_dir_patcher.stop()
         net_common.run_server_dir = self._old_run_dir
         self._tmpdir.cleanup()
 

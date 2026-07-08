@@ -13,7 +13,7 @@ import logging
 
 from base_classes import Guild, PlayerRace
 from flags import PlayerFlags
-from net_common import user_dir
+from net_common import user_dir, verify_password
 from network_context import GameContext
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
@@ -22,8 +22,10 @@ log = logging.getLogger(__name__)
 
 # Path pattern for per-user credential files.
 # Expected layout: <run_server_dir>/net/login-<username>.json
-# Each file must contain at least {"password": "<plaintext>"}.
-# TODO: replace plaintext passwords with a proper hash (bcrypt / argon2).
+# Each file must contain at least {"password": "<bcrypt hash>"} -- see
+# net_common.hash_password()/verify_password(). Older accounts created
+# before hashing was added store plaintext there; verify_password()
+# handles both and signals an upgrade hash on a successful legacy match.
 
 # Carrying capacity by race, matching original SPUR values.
 # TODO: enforce this cap in inventory add/pickup logic.
@@ -184,16 +186,26 @@ class ConnectCommand(Command):
                 error="authentication_failed",
             )
 
-        # TODO: replace with constant-time hash comparison (bcrypt).
-        # Passwords are compared case-insensitively — C64 keyboards send
-        # uppercase by default, so 'FESCUE' must match stored 'fescue'.
-        if creds.get("password", "").lower() != password.lower():
+        matched, rehashed = verify_password(password, creds.get("password", ""))
+        if not matched:
             await ctx.send("Invalid username or password.")
             log.warning("Bad password for user %r", username)
             return CommandResult.fail(
                 "Invalid username or password.",
                 error="authentication_failed",
             )
+
+        # Transparently upgrade a legacy plaintext account to a bcrypt hash
+        # now that we know the password is correct.
+        if rehashed:
+            try:
+                creds["password"] = rehashed
+                (user_dir() / f"login-{username}.json").write_text(
+                    json.dumps(creds, indent=2)
+                )
+                log.info("Upgraded legacy plaintext password to bcrypt for %r", username)
+            except Exception:
+                log.exception("Failed to upgrade password hash for %r", username)
 
         # Ban check — after password so we don't reveal which accounts exist,
         # but before loading player data.

@@ -157,6 +157,34 @@ class TestConnectGuest(unittest.IsolatedAsyncioTestCase):
 class TestConnectAuthentication(unittest.IsolatedAsyncioTestCase):
     """connect <user> <password> — credential checking."""
 
+    def setUp(self):
+        # A successful login against a plaintext (legacy) password writes an
+        # upgraded bcrypt hash back to disk (see _authenticate()'s "rehashed"
+        # handling) -- isolate that write to a tmp dir so these tests can't
+        # touch the real project's run/server/net/ directory.
+        #
+        # Patches commands.connect.user_dir directly (not net_common's
+        # run_server_dir global) because some test modules elsewhere in the
+        # suite pop and re-import net_common at collection time to dodge
+        # *other* files' stale sys.modules stubs, which leaves this module
+        # holding a second, divergent copy -- setting the attribute on
+        # whichever copy `import net_common` resolves to here wouldn't
+        # necessarily be the copy commands.connect's own `from net_common
+        # import user_dir` bound to at its own import time.
+        import tempfile
+        from pathlib import Path
+        self._tmpdir = tempfile.TemporaryDirectory()
+        fake_user_dir = Path(self._tmpdir.name) / "net"
+        fake_user_dir.mkdir(parents=True, exist_ok=True)
+        self._user_dir_patcher = patch(
+            "commands.connect.user_dir", return_value=fake_user_dir,
+        )
+        self._user_dir_patcher.start()
+
+    def tearDown(self):
+        self._user_dir_patcher.stop()
+        self._tmpdir.cleanup()
+
     def _creds_file(self, password: str) -> str:
         return json.dumps({"password": password})
 
@@ -254,8 +282,10 @@ class TestLoadCredentials(unittest.TestCase):
         self.assertEqual(result, {"password": "abc"})
 
     def test_returns_none_on_json_error(self):
+        # Path.open, not builtins.open -- _load_credentials calls
+        # `path.open()`, matching test_returns_dict_for_existing_file above.
         with patch.object(Path, "exists", return_value=True), \
-             patch("builtins.open", mock_open(read_data="not json")):
+             patch.object(Path, "open", mock_open(read_data="not json")):
             result = _load_credentials("alexa")
         self.assertIsNone(result)
 

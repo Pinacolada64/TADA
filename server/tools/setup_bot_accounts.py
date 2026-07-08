@@ -66,7 +66,9 @@ def make_account(name: str, char_class, gender) -> None:
         return
 
     _USER_DIR.mkdir(parents=True, exist_ok=True)
-    (_USER_DIR / f'login-{name}.json').write_text(json.dumps({'password': _PASSWORD}, indent=2))
+    (_USER_DIR / f'login-{name}.json').write_text(
+        json.dumps({'password': net_common.hash_password(_PASSWORD)}, indent=2)
+    )
     print(f'Created {name} ({char_class.value}, {gender.value}) -- '
           f'password {_PASSWORD!r}, elevator combo {"-".join(f"{n:02}" for n in _ELEVATOR_COMBO)}')
 

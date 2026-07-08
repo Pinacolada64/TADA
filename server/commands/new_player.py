@@ -48,7 +48,7 @@ from base_classes import PlayerRace, PlayerClass, PlayerStat
 from characters import apply_race_class_deltas
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from net_common import user_dir
+from net_common import hash_password, user_dir
 from network_context import GameContext
 from tada_utilities import a_or_an, input_yes_no
 
@@ -261,7 +261,10 @@ async def _choose_username(ctx, prefill: Optional[str] = None,
 
     preamble = ["", "('quit' or 'q' abandons choosing a user name.)",
                 "Your name must be at least 3 characters.",
-                "Choose a username (letters and numbers only)."]
+                "Choose a username (letters and numbers only).",
+                "(This is for a planned integration with CommodoreServer.com "
+                "<http://www.commodoreserver.com> and has no bearing on "
+                "gameplay yet.)"]
     if default_username:
         preamble.append(f"Press Enter to use '{default_username}'.")
     preamble.append("")
@@ -994,7 +997,7 @@ async def _confirm_creation(ctx, username: str, password: str) -> bool:
     udir.mkdir(parents=True, exist_ok=True)
     try:
         (udir / f"login-{username}.json").write_text(
-            json.dumps({"password": password}, indent=2)
+            json.dumps({"password": hash_password(password)}, indent=2)
         )
     except Exception:
         log.exception("Failed to write credential file for %r", username)

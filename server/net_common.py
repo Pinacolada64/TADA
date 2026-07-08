@@ -27,6 +27,50 @@ def user_dir() -> Path:
     return Path(base) / 'net'
 
 
+# ---------------------------------------------------------------------------
+# Password hashing
+# ---------------------------------------------------------------------------
+# Bcrypt hashes always start with one of these prefixes; anything else in a
+# credential file's "password" field is a legacy plaintext account created
+# before hashing was added.
+_BCRYPT_PREFIXES = ('$2a$', '$2b$', '$2y$')
+
+
+def hash_password(password: str) -> str:
+    """Hash *password* for storage in a login-<username>.json credential file.
+
+    Lowercased first: passwords have always been compared case-insensitively
+    here, because C64 keyboards send uppercase by default, so a password
+    typed as 'FESCUE' on a C64 must still match one created as 'fescue'.
+    """
+    import bcrypt
+    return bcrypt.hashpw(password.lower().encode('utf-8'), bcrypt.gensalt()).decode('ascii')
+
+
+def verify_password(password: str, stored: str) -> tuple[bool, Optional[str]]:
+    """Check *password* against *stored*, from a credential file.
+
+    *stored* may be a bcrypt hash (current format) or plaintext (a legacy
+    account created before hashing was added). Returns (matched,
+    rehashed) -- rehashed is a freshly-hashed replacement the caller should
+    persist when a legacy plaintext account matches, migrating it to a
+    hash transparently on its next successful login. rehashed is None
+    whenever no rewrite is needed (already hashed, or the match failed).
+    """
+    import bcrypt
+    candidate = password.lower().encode('utf-8')
+    if stored.startswith(_BCRYPT_PREFIXES):
+        try:
+            return bcrypt.checkpw(candidate, stored.encode('utf-8')), None
+        except ValueError:
+            return False, None
+    # Legacy plaintext account -- same case-insensitive comparison this
+    # project always used, offering an upgrade hash on success.
+    if stored.lower() == password.lower():
+        return True, hash_password(password)
+    return False, None
+
+
 class K(str, Enum):
     id = 'id'
     password = 'password'
