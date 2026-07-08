@@ -78,6 +78,51 @@ class Help:
 
 
 # ---------------------------------------------------------------------------
+# Standalone help topics — not tied to any Command, so they work anywhere
+# 'help' does, including the LOGIN prompt (help itself is Mode.ANY) before a
+# player has even connected. Use for background/concept explanations that
+# don't belong to one specific command (HelpCategory.CONCEPT).
+# ---------------------------------------------------------------------------
+
+_TOPICS: Dict[str, Help] = {}
+
+
+def register_topic(*names: str, help_obj: Help) -> None:
+    """Register a standalone help topic under one or more names/aliases."""
+    for n in names:
+        _TOPICS[n.lower()] = help_obj
+
+
+register_topic(
+    "about", "tada", "mud", "whatisthis",
+    help_obj=Help(
+        summary="What is TADA?",
+        description=(
+            "TADA -- \"Totally Awesome Dungeon Adventure\" -- is a MUD "
+            "(Multi-User Dungeon): a text-based, multi-player online game "
+            "world you explore, fight monsters, and talk to other players "
+            "in, all through typed commands.\n\n"
+            "It's a modern re-implementation of \"The Land of Spur,\" a "
+            "1980s Apple BBS door game, originally single-player and "
+            "played one at a time over dial-up. TADA rebuilds it as a real "
+            "multi-player game with a Python client/server (and, "
+            "eventually, a native Commodore 64 client) so many "
+            "adventurers can share the same dungeon at once."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("connect guest",              "Look around without an account."),
+            ("new",                        "Create a character and dive in."),
+            ("help",                       "See what commands are available."),
+        ],
+        notes=[
+            "The original game is still playable: telnet://dura-bbs.net:6359",
+        ],
+    ),
+)
+
+
+# ---------------------------------------------------------------------------
 # Helper function - guards against Mode.NONE instead of a set {Mode.NONE}
 # ---------------------------------------------------------------------------
 
@@ -134,11 +179,17 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         lines.extend(textwrap.wrap(str(summary).strip(), width=width))
         lines.append(rule_char * width)
 
-    # Description
+    # Description — blank lines in the source string (\n\n) become paragraph
+    # breaks; each paragraph is wrapped independently so multi-paragraph
+    # descriptions (e.g. concept topics) don't collapse into one block.
     desc = getattr(help_obj, "description", None)
     if desc and desc != "No description available.":
         lines.append("")
-        lines.extend(textwrap.wrap(str(desc).strip(), width=wrap_width))
+        paragraphs = str(desc).strip().split("\n\n")
+        for i, para in enumerate(paragraphs):
+            if i:
+                lines.append("")
+            lines.extend(textwrap.wrap(" ".join(para.split()), width=wrap_width))
 
     # Usage
     usage = getattr(help_obj, "usage", None)
@@ -267,6 +318,12 @@ class HelpCommand(Command):
             if token in (cat.value.lower(), cat.name.lower()):
                 return await self._show_category_help(ctx, token, processor)
 
+        # Standalone concept topic (e.g. "help about") -- not tied to a
+        # Command, so this works even at the LOGIN prompt before a player
+        # has connected.
+        if token in _TOPICS:
+            return await self._show_topic_help(ctx, token)
+
         # Specific command
         return await self._show_command_help(ctx, token, processor)
 
@@ -345,11 +402,20 @@ class HelpCommand(Command):
             if cat == matched:
                 names.append(getattr(cmd, "name", "?"))
 
-        if not names:
+        # Standalone topics (e.g. "about") registered under this category —
+        # these aren't Commands, so they're listed separately from names above.
+        topics = sorted({n for n, h in _TOPICS.items() if h.category == matched})
+
+        if not names and not topics:
             await ctx.send(f"No commands in category '{matched.value}'.")
             return CommandResult.ok()
 
-        await ctx.send(f"Commands in {matched.value}:\n  " + "\n  ".join(sorted(names)))
+        lines = [f"Commands in {matched.value}:"]
+        lines += [f"  {n}" for n in sorted(names)]
+        if topics:
+            lines.append("Topics:")
+            lines += [f"  {n}" for n in topics]
+        await ctx.send("\n".join(lines))
         return CommandResult.ok()
 
     async def _help_search(self, ctx, term: str, processor) -> Any:
@@ -396,4 +462,21 @@ class HelpCommand(Command):
             return CommandResult.ok(doc.strip())
 
         await ctx.send(f"No detailed help available for '{command_name}'.")
+        return CommandResult.fail(error="no_help")
+
+    async def _show_topic_help(self, ctx, topic_name: str) -> Any:
+        """Display a standalone concept topic (e.g. 'help about') -- not
+        backed by a Command, so this works before login too."""
+        from commands.base_command import CommandResult
+
+        width     = self._screen_width(ctx)
+        rchar     = hrule_char(ctx)
+        help_obj  = _TOPICS[topic_name]
+        formatted = format_help(help_obj, command_name=topic_name, width=width,
+                                rule_char=rchar)
+        if formatted:
+            await ctx.send(*formatted)
+            return CommandResult.ok("\n".join(formatted))
+
+        await ctx.send(f"No detailed help available for '{topic_name}'.")
         return CommandResult.fail(error="no_help")

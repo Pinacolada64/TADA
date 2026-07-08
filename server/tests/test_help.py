@@ -296,6 +296,59 @@ class TestHelpCommandExecute(unittest.IsolatedAsyncioTestCase):
 
 
 # ---------------------------------------------------------------------------
+# Standalone concept topics (e.g. "help about") -- not tied to any Command,
+# so they work at the LOGIN prompt too (help itself is Mode.ANY).
+# ---------------------------------------------------------------------------
+
+class TestHelpTopics(unittest.IsolatedAsyncioTestCase):
+
+    async def test_about_topic_shows_up(self):
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "about")
+        self.assertTrue(result.success)
+        self.assertIn("MUD", result.message)
+        self.assertIn("Land of Spur", result.message)
+
+    async def test_topic_aliases_all_resolve(self):
+        for alias in ("about", "tada", "mud", "whatisthis"):
+            ctx, _ = _ctx_with_processor()
+            result = await HelpCommand().execute(ctx, alias)
+            self.assertTrue(result.success, f"'{alias}' should resolve to the about topic")
+
+    async def test_topic_works_with_no_processor_state(self):
+        # No real commands registered at all -- the LOGIN-mode scenario
+        # this topic exists for still needs to work.
+        ctx  = _make_ctx()
+        proc = MagicMock()
+        proc.find_command.return_value     = (None, False)
+        proc.get_all_commands.return_value = {}
+        proc.search_commands.return_value  = []
+        ctx.client.command_processor = proc
+        ctx.command_processor        = proc
+
+        result = await HelpCommand().execute(ctx, "about")
+        self.assertTrue(result.success)
+
+    async def test_concept_category_lists_topics(self):
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "concept")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("about", output)
+
+    def test_multi_paragraph_description_preserves_blank_line(self):
+        help_obj = Help(
+            summary="Multi-paragraph test.",
+            description="First paragraph here.\n\nSecond paragraph here.",
+        )
+        formatted = format_help(help_obj)
+        self.assertIn("", formatted)  # blank line between paragraphs
+        joined = "\n".join(formatted)
+        self.assertIn("First paragraph here.", joined)
+        self.assertIn("Second paragraph here.", joined)
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

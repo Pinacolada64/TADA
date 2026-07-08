@@ -431,7 +431,7 @@ class Server:
             "Type 'connect <username> <password>' to log in.",
             "Type 'connect guest' to look around as a guest.",
             "Type 'new' to create a new character.",
-            "Type 'help' for help.  Type 'quit' to leave.",
+            "Type 'help' for help, 'help about' to learn what this is, or 'quit' to leave.",
             '|light_blue|',
         )
 
