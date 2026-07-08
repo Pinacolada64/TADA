@@ -184,6 +184,38 @@ def _esc(text: str) -> str:
     return re.sub(r'\[([^\[\]]+)\]', r'[[\1]]', text)
 
 
+def format_two_column(items: List[Tuple[str, str]], width: int) -> List[str]:
+    """Render (left, right) pairs as an aligned two-column block.
+
+    `left` is left-padded to a shared column width; `right` is word-wrapped
+    to fit what's left of `width`, with continuation lines aligned under it.
+    Every returned line already fits within `width`, so it's safe to send
+    each one as its own ctx.send() argument -- the client-side formatter
+    re-wraps by splitting on spaces, which would otherwise mangle manual
+    alignment (and ignore embedded '\\n's) if lines were pre-joined into one
+    string instead.
+
+    Used for Usage/Examples-style (syntax, description) listings in
+    format_help(), and for HelpCommand's category listing.
+    """
+    out: List[str] = []
+    if not items:
+        return out
+    left_col  = min(max(len(s) for s, _ in items), int(width * 0.4), 30)
+    left_col  = max(left_col, 10)
+    right_col = max(width - 4 - left_col - 2, 10)
+
+    for left, right in items:
+        if right:
+            wrapped = textwrap.wrap(right, width=right_col) or [""]
+            out.append(f"  {left.ljust(left_col)}  {wrapped[0]}")
+            for cont in wrapped[1:]:
+                out.append(f"  {'':{left_col}}  {cont}")
+        else:
+            out.append(f"  {left}")
+    return out
+
+
 def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                 rule_char: str = "-") -> Optional[str]:
     """Format a Help instance into a display string.
@@ -235,21 +267,9 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     if usage:
         lines.append("")
         lines.append("Usage:")
-        items = [(str(u[0]), str(u[1]) if len(u) > 1 and u[1] else "")
+        items = [(_esc(str(u[0])), str(u[1]) if len(u) > 1 and u[1] else "")
                  for u in usage]
-        left_col  = min(max(len(s) for s, _ in items), int(width * 0.4), 30)
-        left_col  = max(left_col, 10)
-        right_col = width - 4 - left_col - 2
-
-        for syntax, desc_text in items:
-            syntax = _esc(syntax)
-            if desc_text:
-                wrapped = textwrap.wrap(desc_text, width=right_col) or [""]
-                lines.append(f"  {syntax.ljust(left_col)}  {wrapped[0]}")
-                for cont in wrapped[1:]:
-                    lines.append(f"  {'':{ left_col}}  {cont}")
-            else:
-                lines.append(f"  {syntax}")
+        lines.extend(format_two_column(items, width))
 
     # Examples
     examples = getattr(help_obj, "examples", None)
@@ -416,20 +436,20 @@ class HelpCommand(Command):
     async def _show_categories_list(self, ctx) -> Any:
         from commands.base_command import CommandResult
 
-        width    = self._screen_width(ctx)
-        name_col = max(len(c.value) for c in HelpCategory) + 2
-        desc_col = max(width - 2 - name_col, 20)
+        # format_two_column() returns lines already wrapped to fit width, so
+        # sending each as its own ctx.send() argument (not pre-joined into
+        # one string) reaches the player intact -- ctx.send() re-wraps every
+        # item to the player's actual screen width by splitting on spaces,
+        # which would otherwise mangle manual alignment and treat embedded
+        # '\n' characters as just more text instead of line breaks.
+        width = self._screen_width(ctx)
+        items = [(cat.value, _CATEGORY_DESCRIPTIONS.get(cat, "")) for cat in HelpCategory]
 
         lines = ["Available categories:", ""]
-        for cat in HelpCategory:
-            desc    = _CATEGORY_DESCRIPTIONS.get(cat, "")
-            wrapped = textwrap.wrap(desc, width=desc_col) or [""]
-            lines.append(f"  {cat.value.ljust(name_col)}{wrapped[0]}")
-            for cont in wrapped[1:]:
-                lines.append(f"  {'':{name_col}}{cont}")
-
-        lines += ["", "Type 'help #cat <category>' to list its commands/topics."]
-        await ctx.send("\n".join(lines))
+        lines.extend(format_two_column(items, width))
+        lines.append("")
+        lines.append("Type 'help #cat <category>' to list its commands/topics.")
+        await ctx.send(*lines)
         return CommandResult.ok()
 
     async def _show_category_help(self, ctx, category_name: str, processor) -> Any:
@@ -471,7 +491,7 @@ class HelpCommand(Command):
         if topics:
             lines.append("Topics:")
             lines += [f"  {n}" for n in topics]
-        await ctx.send("\n".join(lines))
+        await ctx.send(*lines)
         return CommandResult.ok()
 
     async def _help_search(self, ctx, term: str, processor) -> Any:
@@ -483,7 +503,8 @@ class HelpCommand(Command):
             return CommandResult.ok()
 
         names = sorted(getattr(c, "name", "?") for c in matches)
-        await ctx.send(f"Commands matching '{term}':\n  " + "\n  ".join(names))
+        lines = [f"Commands matching '{term}':"] + [f"  {n}" for n in names]
+        await ctx.send(*lines)
         return CommandResult.ok()
 
     async def _show_command_help(self, ctx, command_name: str, processor) -> Any:
