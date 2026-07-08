@@ -102,8 +102,7 @@ async def perform_login(reader, writer, username: str, password: str,
                          timeout: float = 3.0) -> bool:
     """Complete handshake + terminal negotiation, then log in with real credentials.
 
-    Returns True once the server confirms the login (its 'Welcome <name>!'
-    line -- note no comma, unlike the guest 'Welcome, <name>!' line).
+    Returns True once the server confirms the login (its 'Welcome, <name>!' line).
     """
     import time
     from simple_client import perform_handshake, send_message, receive_message
@@ -119,7 +118,7 @@ async def perform_login(reader, writer, username: str, password: str,
         if not msg:
             break
         lines = msg.get('lines') if isinstance(msg, dict) else None
-        if lines and any(isinstance(ln, str) and ln.startswith(f'Welcome {username}')
+        if lines and any(isinstance(ln, str) and ln.startswith(f'Welcome, {username}')
                           for ln in lines):
             return True
     return False

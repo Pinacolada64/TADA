@@ -249,7 +249,7 @@ class ConnectCommand(Command):
         # TODO: append ", Wraith Master of Spur!" if player has WRAITH_MASTER flag.
         wraith = player.query_flag(PlayerFlags.WRAITH_MASTER)
         title  = ", Wraith Master of Spur!" if wraith else "!"
-        login_lines.append(f"Welcome {player.name}{title}")
+        login_lines.append(f"Welcome, {player.name}{title}")
 
         # TODO: track and display "The last Adventurer was {name}" (requires a
         #  global last-player record written on quit, e.g. run/server/last_player.txt).
