@@ -15,6 +15,12 @@ paper is NOT consumed and the combination is NOT rerolled on subsequent
 reads, so forgetting it isn't a dead end (see MECHANICS.md's "Elevator
 Combination" section for the reasoning).
 
+Special case — item #164 "brass claim tag" (shoppe/locker.py): READing it
+displays the player's own LOCKER combination, engraved on the tag by the
+locker attendant when it was handed over. Simpler than the scrap of paper:
+no flavor prompts, since the combination already exists by the time the
+tag does (see shoppe/locker.py's `_first_visit()`).
+
 Other books have no flavor text in the data model yet, so READing them
 just acknowledges the attempt.
 """
@@ -27,16 +33,38 @@ from item_system import ItemType
 from network_context import GameContext
 
 _SCRAP_OF_PAPER_ID = 69
+_CLAIM_TAG_ID      = 164  # objects.json "brass claim tag" -- shoppe/locker.py
 _MIN_INTELLIGENCE  = 6   # SPUR.MISC2.S read: `if pi<6 ... "Not smart enough to read!"`
 
 _AP = "'"
+
+# Special-cased by id rather than a shared `type`/`category` field: items
+# picked up via commands/get.py or handed over directly (items.Item, e.g. the
+# claim tag) only set `.category` (ItemCategory), never `.type` (ItemType) --
+# so the ItemType.BOOK check below never actually matches a real in-play
+# scrap of paper, only ones constructed directly in tests. Listing known
+# readable ids here sidesteps that mismatch rather than fixing the deeper
+# two-Item-class split (a bigger, separate cleanup).
+_READABLE_IDS = {_SCRAP_OF_PAPER_ID, _CLAIM_TAG_ID}
+
+
+def _item_number(item):
+    """Return the item's catalog number, whichever attribute it's stored under.
+
+    item_system.Item (load_items()) uses `.number`; items.Item
+    (commands/get.py, shoppe/locker.py, etc.) uses `.id_number`.
+    """
+    number = getattr(item, 'number', None)
+    return number if number is not None else getattr(item, 'id_number', None)
 
 
 def _book_entries(player):
     inv = getattr(player, 'inventory', None)
     if inv is None:
         return []
-    return [e for e in inv.entries() if getattr(e.item, 'type', None) == ItemType.BOOK]
+    return [e for e in inv.entries()
+            if getattr(e.item, 'type', None) == ItemType.BOOK
+            or _item_number(e.item) in _READABLE_IDS]
 
 
 async def _read_scrap_of_paper(ctx: GameContext, player) -> None:
@@ -69,6 +97,19 @@ async def _read_scrap_of_paper(ctx: GameContext, player) -> None:
     else:
         digits = '-'.join(f'{n:02}' for n in existing.combination)
         await ctx.send(f'It reads: Your personal combination to the Elevator is: {digits}')
+
+
+async def _read_claim_tag(ctx: GameContext, player) -> None:
+    combos = getattr(player, 'combinations', None) or {}
+    combo  = combos.get(CombinationTypes.LOCKER)
+    if combo is None:
+        # Shouldn't normally happen -- the tag is only ever handed over
+        # alongside the combination -- but don't crash if a save somehow
+        # has one without the other.
+        await ctx.send("The engraving has worn smooth -- you can't quite make it out.")
+        return
+    digits = '-'.join(f'{n:02}' for n in combo.combination)
+    await ctx.send(f'Engraved on the tag: your Locker combination is {digits}.')
 
 
 class ReadCommand(Command):
@@ -130,9 +171,13 @@ class ReadCommand(Command):
                 return CommandResult.ok()
             entry = entries[idx]
 
-        item = entry.item
-        if getattr(item, 'number', None) == _SCRAP_OF_PAPER_ID:
+        item   = entry.item
+        number = _item_number(item)
+        if number == _SCRAP_OF_PAPER_ID:
             await _read_scrap_of_paper(ctx, player)
+            return CommandResult.ok()
+        if number == _CLAIM_TAG_ID:
+            await _read_claim_tag(ctx, player)
             return CommandResult.ok()
 
         await ctx.send(f'You read the {item.name}, but there{_AP}s nothing more to learn from it.')

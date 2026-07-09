@@ -553,9 +553,22 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
     **brass claim tag** (objects.json #164) as a keepsake, and opens the locker
     directly that first time. Later visits must enter the combination (5 attempts,
     same shape as the Elevator guard) before P)ut/T)ake/L)ook is available.
-  - The claim tag is deliberately a different kind of item from the Elevator's
-    scrap of paper (a keepsake handed over by an NPC, not a `READ`-able book) so
-    the two on-demand-combination mechanics don't get confused with each other.
+  - The claim tag is a distinct item from the Elevator's scrap of paper (handed
+    over by an NPC on first visit, not found in a room) so the two
+    on-demand-combination mechanics don't get confused with each other, but is
+    likewise `READ`-able (`commands/read.py`): it re-displays the player's own
+    LOCKER combination, no flavor prompts needed since the combination already
+    exists by the time the tag does.
+    - **Bug fixed along the way**: `commands/read.py`'s book list only matched
+      `ItemType.BOOK` (`item_system.Item`'s field), but items actually placed in
+      `player.inventory` via `commands/get.py`/`shoppe/locker.py` are
+      `items.Item`, which only sets `.category` (`ItemCategory`), never `.type`
+      -- so a genuinely-picked-up scrap of paper was silently invisible to
+      `READ` (only test doubles constructing `item_system.Item` directly ever
+      exercised the `ItemType.BOOK` branch). Fixed by also special-casing known
+      readable ids (`_READABLE_IDS = {69, 164}`) alongside the `ItemType.BOOK`
+      check, rather than fixing the deeper two-Item-class split (a bigger,
+      separate cleanup).
   - `player.locker` persists through `Player.save()`/`_load()` the same way
     `player.inventory` does (explicit `Inventory.to_json()`/`from_json()`
     round-trip alongside the generic `__dict__` dump).

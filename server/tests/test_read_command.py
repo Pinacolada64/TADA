@@ -227,5 +227,63 @@ class TestCombinationPersistence(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(p.combinations[CombinationTypes.CASTLE].combination, (42, 87, 10))
 
 
+_CLAIM_TAG_ID = 164
+
+
+def _make_claim_tag():
+    """The real item, as constructed by shoppe/locker.py -- items.Item with
+    only `.category` set, no `.type` -- to catch the ItemType.BOOK-only
+    filter mismatch rather than a test double that sidesteps it."""
+    from items import Item as RealItem, ItemCategory
+    return RealItem(id_number=_CLAIM_TAG_ID, name='brass claim tag', category=ItemCategory.ITEM)
+
+
+class TestReadClaimTag(unittest.IsolatedAsyncioTestCase):
+
+    def _player_with_tag_and_combo(self, combo_digits=(11, 22, 33)):
+        p = make_player(with_scrap=False)
+        p.inventory.add(_make_claim_tag())
+        combo = Combination(CombinationTypes.LOCKER)
+        combo.combination = combo_digits
+        p.combinations[CombinationTypes.LOCKER] = combo
+        return p
+
+    async def test_claim_tag_listed_despite_no_type_attribute(self):
+        """Regression: items.Item (the real construction path, via
+        shoppe/locker.py) never sets `.type`, only `.category` -- the old
+        ItemType.BOOK-only filter would silently hide it from `read`."""
+        p = self._player_with_tag_and_combo()
+        ctx = make_ctx(p, [''])
+        await ReadCommand().execute(ctx)
+        self.assertIn('brass claim tag', _sent(ctx))
+
+    async def test_reading_claim_tag_shows_locker_combination(self):
+        p = self._player_with_tag_and_combo((11, 22, 33))
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertIn('11-22-33', _sent(ctx))
+
+    async def test_reading_claim_tag_does_not_consume_it(self):
+        p = self._player_with_tag_and_combo()
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertEqual(len(p.inventory.find(name='brass claim tag')), 1)
+
+    async def test_reading_by_name(self):
+        p = self._player_with_tag_and_combo((5, 6, 7))
+        ctx = make_ctx(p, [])
+        await ReadCommand().execute(ctx, 'brass', 'claim', 'tag')
+        self.assertIn('05-06-07', _sent(ctx))
+
+    async def test_claim_tag_without_combination_does_not_crash(self):
+        """Shouldn't normally happen -- the tag is only ever handed over
+        alongside the combination -- but must not raise if it does."""
+        p = make_player(with_scrap=False)
+        p.inventory.add(_make_claim_tag())
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertIn("can't quite make it out", _sent(ctx))
+
+
 if __name__ == '__main__':
     unittest.main()
