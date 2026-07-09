@@ -22,6 +22,9 @@ _CLASS_LIMITS: dict[str, int] = {
 }
 _DEFAULT_LIMIT = 10
 
+# SPUR.MISC6.S locker: `if zt>9 print "The locker is full!"` -- fixed 10-slot
+# capacity for everyone, unlike inventory (which varies by class).
+LOCKER_CAPACITY = 10
 
 PACK_FULL_MESSAGE = "Your pack is full. You can't carry any more."
 

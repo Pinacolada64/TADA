@@ -1112,6 +1112,12 @@
             "name": "horse armour",
             "type": "treasure",
             "price": 8
+        },
+        {
+            "number": 164,
+            "name": "brass claim tag",
+            "type": "treasure",
+            "price": 0
         }
     ]
 }

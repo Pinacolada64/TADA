@@ -86,14 +86,14 @@ def set_up_client_settings():
 def set_up_combinations():
     from base_classes import Combination, CombinationTypes
     # Returns a dict of CombinationTypes -> Combination, e.g. {CombinationTypes.CASTLE: <40-10-05>}.
-    # ELEVATOR is deliberately omitted here: unlike Castle/Locker, it isn't known to the
-    # player from the start -- it's only generated when the SCRAP OF PAPER (item #69) is
-    # READ (see commands/read.py), matching SPUR.MISC2.S's `elev` subroutine.
+    # ELEVATOR and LOCKER are deliberately omitted here: unlike Castle, neither is known to
+    # the player from the start. ELEVATOR is only generated when the SCRAP OF PAPER (item
+    # #69) is READ (see commands/read.py), matching SPUR.MISC2.S's `elev` subroutine.
+    # LOCKER is granted (and its combination handed over) by the locker attendant on a
+    # player's first visit to the Shoppe's Private Locker -- see shoppe/locker.py.
     combinations = {combination_type: Combination(combination_type)
                      for combination_type in CombinationTypes
-                     if combination_type != CombinationTypes.ELEVATOR}
-    # >>> print(set_up_combinations()[CombinationTypes.LOCKER])
-    #   Locker: 21-83-91
+                     if combination_type not in (CombinationTypes.ELEVATOR, CombinationTypes.LOCKER)}
     logging.debug(combinations)
     return combinations
 
@@ -259,6 +259,18 @@ class Player:
             self.inventory = Inventory.from_json(_raw_inv, capacity=self.max_inventory_size)
         else:
             self.inventory = Inventory(capacity=self.max_inventory_size)
+
+        # Private Shoppe locker (SPUR.MISC6.S "locker" subroutine; shoppe/locker.py).
+        # None until the locker attendant sets one up on the player's first visit --
+        # see set_up_combinations()'s comment on CombinationTypes.LOCKER.
+        from inventory import LOCKER_CAPACITY
+        _raw_locker = kwargs.get('locker')
+        if isinstance(_raw_locker, Inventory):
+            self.locker: Inventory = _raw_locker
+        elif isinstance(_raw_locker, list):
+            self.locker = Inventory.from_json(_raw_locker, capacity=LOCKER_CAPACITY)
+        else:
+            self.locker = None
 
         # combat stuff:
         self.hit_points = kwargs.get('hit_points', 10)
@@ -860,6 +872,8 @@ class Player:
             from inventory import Inventory
             if isinstance(self.inventory, Inventory):
                 data_out['inventory'] = self.inventory.to_json()
+            if isinstance(self.locker, Inventory):
+                data_out['locker'] = self.locker.to_json()
             from command_settings import CommandSettings
             if isinstance(self.command_settings, CommandSettings):
                 data_out['command_settings'] = self.command_settings.to_dict()
@@ -934,6 +948,14 @@ class Player:
                     )
                 except Exception:
                     logging.exception("Player._load: failed to restore inventory for %s", self.name)
+
+            # Private Annex locker (only present once the attendant has set one up)
+            if 'locker' in data and isinstance(data['locker'], list):
+                try:
+                    from inventory import Inventory, LOCKER_CAPACITY
+                    self.locker = Inventory.from_json(data['locker'], capacity=LOCKER_CAPACITY)
+                except Exception:
+                    logging.exception("Player._load: failed to restore locker for %s", self.name)
 
             # Picked-up static room items — must survive logout so they don't reappear
             if 'picked_up_items' in data and isinstance(data['picked_up_items'], list):

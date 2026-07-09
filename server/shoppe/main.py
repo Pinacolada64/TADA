@@ -132,6 +132,12 @@ async def _elevator(ctx: GameContext) -> None:
     await elevator_main(ctx)
 
 
+async def _locker(ctx: GameContext) -> None:
+    """Visit the Private Locker (SPUR.MISC6.S's `LOCKER` command)."""
+    from shoppe.locker import main as locker_main
+    await locker_main(ctx)
+
+
 def _pawn_shop(ctx: GameContext):
     from shoppe.pawn import main as pawn_main
     return pawn_main(ctx)
@@ -193,7 +199,7 @@ async def _show_menu(ctx: GameContext) -> None:
         lines.append('')
     for key, label, _ in _MENU:
         lines.append(f'  [{key}] {label}')
-    lines += ['  [X] Leave the Shoppe', '']
+    lines += ['  [LOCKER] Private Locker', '  [X] Leave the Shoppe', '']
     await ctx.send(lines)
 
 
@@ -239,10 +245,19 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
         raw = await ctx.prompt('Shoppe')
         if raw is None:
             break
-        cmd = raw.strip().lower()[:1]
+        full = raw.strip().lower()
 
-        if not cmd:
+        if not full:
             continue
+
+        # LOCKER is a free-text command word (SPUR.MISC6.S's `if i$="LOCKER"`),
+        # not one of the Shoppe's lettered menu options, so check the full
+        # word before truncating to a single character below.
+        if full in ('locker', 'lock'):
+            await _locker(ctx)
+            continue
+
+        cmd = full[:1]
 
         if cmd == 'x':
             await ctx.send(f'You climb back up the passageway into the daylight.')
