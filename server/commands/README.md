@@ -1,157 +1,234 @@
-# Commands — How to register, write, and respond to a command
+# Commands — How to register, write, and test a command
 
-This README explains the current command system used by the server and shows how to:
+This README explains the command system as it actually works today: how a
+command gets discovered and registered, what a command class looks like,
+how it talks to the player, and how to test it.
 
-- register a command (decorator-based)
-- write a command class
-- return outputs (CommandResult)
-- implement interactive prompts (server-driven) so a command can prompt the connected client
+`commands/example_commands.py` (the `colors`, `test`, and `table` commands)
+is a working, up-to-date reference — when in doubt, read that file.
 
 This guide assumes you are working in `server/commands/`.
 
 ---
 
-## 1) Command registration (auto-discovered)
+## 1) Command registration — auto-discovery, no decorator
 
-We prefer decorator-based registration. The decorator `@command(...)` is defined in `commands/command_processor.py` and collects metadata for automatic discovery.
+There is no `@command(...)` decorator. `CommandProcessor.discover()`
+(`commands/command_processor.py`) walks every module in `commands/`,
+imports it, and registers **any concrete `Command` subclass that has a
+non-empty `name` class attribute and is defined directly in that module**
+(classes merely imported into a module, like `from commands.base_command
+import Command`, are skipped). One command class per file is the
+convention, but nothing enforces it.
 
-Example (recommended):
+There is no special naming rule for which files get scanned — every
+importable module in `commands/` is walked, including one named
+`test_something.py`. Keep test files in `tests/`, not `commands/`.
 
 ```py
-from commands.base_command import Command, CommandResult
-from commands.command_processor import command
+from commands.base_command import Command, CommandResult, Mode
+from commands.help import Help, HelpCategory
 
 
-@command(name='greet', aliases=['hello'], summary='Say hello')
 class GreetCommand(Command):
-    async def execute(self, context, args):
+    name    = 'greet'
+    aliases = ['hello']
+    modes   = {Mode.GAME}
+
+    help = Help(
+        summary  = 'Say hello.',
+        category = HelpCategory.COMMUNICATION,
+        usage    = [('greet <name>', 'Greet someone by name.')],
+    )
+
+    async def execute(self, ctx, *args) -> CommandResult:
+        args, _ = self.parse_args(*args)
         name = args[0] if args else 'stranger'
-        return CommandResult(success=True, message=f'Hello, {name}!')
+        await ctx.send(f'Hello, {name}!')
+        return CommandResult.ok()
 ```
 
-- The decorator registers the class so `create_command_processor()` will instantiate and register it.
-- The command class should inherit `BaseCommand` and implement `async def execute(self, context, args)`.
-- `context` is the processor context and will contain `context['client']` (the Client instance) if the command is executed within a live connection.
+- Subclass `Command` (`commands/base_command.py`) and implement
+  `async def execute(self, ctx, *args) -> CommandResult`.
+- `ctx` is a `GameContext` (`network_context.py`) — see §3.
+- `discover()` catches and logs failures per-module and per-class (bad
+  import, duplicate name/alias, exception in `__init__`) so one broken
+  command file never takes the rest down with it.
 
 
-## 2) Command result and shapes
+## 2) Class attributes
 
-Commands return `CommandResult` (dataclass) or a plain dict with the same keys. The fields used by the server are:
+| Attribute | Type          | Required? | Notes |
+|-----------|---------------|-----------|-------|
+| `name`    | `str`         | yes       | Primary command word, case-insensitive. |
+| `aliases` | `list[str]`   | no        | Alternate names; default `[]`. |
+| `modes`   | `set[Mode]`   | no        | Default `{Mode.GAME}`. See `Mode` below. |
+| `help`    | `Help`        | no, but expected | See §4 — every real command has one. |
 
-- `success` (bool) — whether the command succeeded
-- `message` (str | list[str]) — the main return text shown to player(s)
-- `error` (str) — a short error code
-- `data` (dict) — additional structured data; server uses `data['changes']` or `data['authenticated']` etc.
+### `Mode` (`commands/base_command.py`)
 
-Example:
+Gates whether a command is dispatchable in the player's current connection
+state:
+
+- `Mode.LOGIN` — before authentication (`connect`, `new`, `quit`)
+- `Mode.GAME`  — authenticated and in the game world (the default)
+- `Mode.ADMIN` — requires administrative privileges
+- `Mode.ANY`   — no restriction (`help`, `quit`)
+
+A command can list more than one, e.g. `modes = {Mode.LOGIN, Mode.GAME}`
+for something usable both pre- and post-login (see `commands/more_prompt.py`).
+
+
+## 3) `ctx` — talking to the player
+
+Commands never touch sockets, `reader`/`writer`, or raw JSON directly.
+Everything goes through the `GameContext` passed as `ctx`
+(`network_context.py`):
+
+- `await ctx.send(*lines)` — send one or more lines (or a `list[str]`) to
+  the player. Handles pagination automatically based on
+  `PlayerFlags.MORE_PROMPT`.
+- `await ctx.send_room(*lines, exclude_self=False)` — broadcast to
+  everyone else in the same room.
+- `await ctx.prompt(prompt_text='', preamble_lines=None) -> str | None` —
+  send an optional preamble, then block *this command's coroutine* (not
+  the whole server — other connections keep running concurrently) for a
+  single-line reply. Returns `None` on disconnect; always check for that
+  before using the result.
+- `ctx.player` — the `Player` instance.
+- `ctx.client` — the `Client` (room, connection state, etc.).
+
+Multi-step interactive flows are just `await ctx.prompt(...)` calls in a
+loop, checking each answer as it comes back. See `commands/quote.py`'s
+`QuoteCommand._write()` or `commands/new_player.py`'s step functions for
+real examples — there's no separate "prompt helper" abstraction to learn
+beyond `ctx.prompt()` itself.
+
+
+## 4) `Help` and `HelpCategory` (`commands/help.py`)
+
+Every real command in this codebase declares a `help = Help(...)`
+attribute — the `help`/`table` commands and the login-time "help
+categories" listing all read it. Fields:
 
 ```py
-from commands.base_command import CommandResult
-return CommandResult(success=True, message=['Line 1', 'Line 2'], data={'changes': {'mode': 'app'}})
+help = Help(
+    summary     = 'One-line summary shown in listings.',
+    description = 'Longer explanation shown by `help <command>`.',
+    category    = HelpCategory.COMMUNICATION,   # groups commands in listings
+    usage       = [('say <message>', 'Speak aloud.')],
+    examples    = [('say Hello!', 'Greet everyone nearby.')],
+    notes       = ['Shouting reaches adjacent rooms.'],
+)
 ```
 
-If you return a dict instead of CommandResult, use the same key names.
+All fields except `category` default to empty/placeholder values, so a
+minimal `Help(summary=..., category=...)` is fine to start with.
+`HelpCategory` is an `Enum` in `commands/help.py` (not `command_types.py`
+— that file no longer exists); see it for the current category list and
+one-line descriptions.
 
 
-## 3) Non-interactive vs interactive commands
-
-- Non-interactive commands accept all needed arguments in `args` and immediately return a `CommandResult`.
-- Interactive commands (server-driven prompts) may send a `Message` prompt to the client and wait for a single reply. This is implemented by the helper pattern used in `new_player.py`.
-
-Important: interactive commands require the `Client` object to expose both `writer` and `reader` on `context['client']`.
-The server (`simple_server.py`) sets `client.writer = writer` and `client.reader = reader` in the handshake so interactive commands can use them.
-
-
-## 4) Prompt helper pattern (server-driven prompt)
-
-The `NewPlayerCommand` demonstrates a safe way to prompt the connected client without blocking the whole server. The pattern:
-
-1. Build a `Message` for the prompt:
+## 5) `CommandResult` (`commands/base_command.py`)
 
 ```py
-from net_common import Message, to_jsonb
-msg = Message(lines=['What is your name?'], prompt='name> ')
-writer.write(to_jsonb(msg) + b'\n')
-await writer.drain()
+@dataclass
+class CommandResult:
+    success: bool
+    message: str = ''
+    error:   str = ''
+    data:    dict = field(default_factory=dict)
 ```
 
-2. Read a single JSON message reply from the client's reader:
+Use the classmethods rather than constructing it by hand:
 
 ```py
-raw = await reader.readline()
-obj = from_jsonb(raw)
-# obj likely contains {'lines': ['the response'], 'prompt':'', ...}
-response_line = obj.get('lines', [''])[0]
+return CommandResult.ok()                       # success, no message
+return CommandResult.ok('Done.')                # success, with a message
+return CommandResult.fail('Not enough gold.')   # failure
+return CommandResult.fail('Not enough gold.', error='insufficient_funds')
 ```
 
-This pattern is encapsulated in `prompt_client()` in `new_player.py`. Use that helper or copy the logic — it keeps your command implementation small and readable.
+`message` is a single string, not `str | list[str]` — send multi-line
+output to the player via `ctx.send(*lines)` as you go; `CommandResult`'s
+`message` is a short final status, and is often left empty (`ok()`) when
+the command already sent everything it needed to via `ctx.send`.
 
 
-## 5) Step-based interactive flows (example: `new` command)
+## 6) Testing a command
 
-`new` was implemented as an interactive, step-driven flow. High-level flow:
+The common pattern: build a small fake (or real) `ctx` and call
+`SomeCommand().execute(ctx, *args)` directly — no `CommandProcessor`
+needed for a single command's unit tests. See `tests/test_more_prompt.py`
+or `tests/test_quote.py` for two real, current examples. Shape:
 
-1. If `new <username> <password>` provided, run non-interactive branch (create user immediately).
-2. Otherwise if `context['client']` has `reader`/`writer`, prompt sequence:
-   - Choose username
-   - Choose password
-   - Choose gender
-   - Choose name (or random)
-   - Choose class
-   - Choose race
-   - Roll stats (4d6 drop lowest) with option to reroll
-   - Confirmation
+```py
+import unittest
+from unittest.mock import AsyncMock
+from commands.your_command import YourCommand
 
-On success, the command returns a `CommandResult` with `data['player']` and `data['changes']` telling the server to switch mode and set `username`.
-The server then sends a welcome in `Mode.app` and the player continues.
+class _FakeCtx:
+    def __init__(self, responses, player):
+        self._q = list(responses)   # queued ctx.prompt() replies, in order
+        self.sent = []
+        self.player = player
+
+    async def send(self, *args):
+        for a in args:
+            self.sent.extend(a) if isinstance(a, list) else self.sent.append(a)
+
+    async def prompt(self, prompt_text='', preamble_lines=None):
+        if preamble_lines:
+            self.sent.extend(preamble_lines)
+        return self._q.pop(0) if self._q else None   # None == disconnect
 
 
-## 6) Writing tests for commands
+class TestYourCommand(unittest.IsolatedAsyncioTestCase):
+    async def test_basic(self):
+        ctx = _FakeCtx(['some input'], player=your_test_player)
+        result = await YourCommand().execute(ctx)
+        self.assertTrue(result.success)
+```
 
-- Create a `CommandProcessor` instance using `create_command_processor()` with a stub client object when testing non-interactive commands. Example:
+For registration/dispatch-level tests (does discovery find your command,
+does it respect `modes`, alias collisions, etc.) use
+`create_command_processor()` (`commands/command_processor.py`) instead,
+which runs real `discover()` against the actual `commands/` package:
 
 ```py
 from commands.command_processor import create_command_processor
-class DummyClient: pass
-p = create_command_processor(DummyClient(), context={'username': None})
-# now call p.process_input('new alice secret')
-```
 
-- For interactive flow tests, you need to simulate client-side `reader` and `writer` streams (in-memory pipes). Tests can use `asyncio` streams backed by `StreamReader`/`StreamWriter` pair via `asyncio.open_connection` against a local test server or use `asyncio.StreamReaderProtocol` wrappers; these are advanced but doable.
+processor = create_command_processor()
+cmd, is_alias = processor.find_command('greet')
+```
 
 
 ## 7) Best practices
 
-- Keep command logic pure where possible: do I/O only when necessary and return structured `data` for server state changes.
-- Use the decorator and the provided `CommandResult` dataclass for consistency.
-- For interactive flows, separate the prompt UI (prompt_client) from the state machine (choose_gender, choose_class, etc.). It makes the code easier to test and reuse.
+- One command class per file, named after the command (`commands/quote.py`
+  → `QuoteCommand`), matching the rest of the package.
+- Keep `execute()` focused on I/O and dispatch; push real logic into plain
+  functions/helpers in the same module so it's testable without a `ctx` at
+  all where possible.
+- Always set `help` — it costs nothing and both `help <command>` and the
+  categorized `help` listing depend on it.
+- Don't forget `modes` if a command shouldn't be available everywhere —
+  the default `{Mode.GAME}` is usually right, but login-time or
+  admin-only commands need to say so explicitly.
 
 
-## 8) Example minimal command (non-interactive)
+## 8) Troubleshooting
 
-```py
-from commands.base_command import Command, CommandResult
-from commands.command_processor import command
-
-
-@command('test', aliases=['t'], summary='Test command')
-class TestCommand(Command):
-    async def execute(self, context, args):
-        return CommandResult(success=True, message='Test OK')
-```
-
-Place this in `commands/`, restart the server, and `help` should list it (or the inline help will show it even without restart if imported).
-
-
-## 9) Troubleshooting
-
-- If a command does not appear in the processor's list:
-  - Ensure the module is imported (auto-discovery imports modules in `commands/` except those starting with `test` or `_`).
-  - Ensure the class is decorated with `@command` or explicitly instantiated/registered in `create_command_processor`.
-
-- If interactive prompting fails, confirm the running server assigned `client.reader` and `client.writer` and that the client responds with JSON messages (the TADA client and `simple_client.py` adhere to that contract).
-
----
-
-If you'd like, I can also add a small example test harness that simulates an interactive client and runs through the `new` command flow automatically.
-
+- **Command doesn't show up**: check the server log for `discover()`
+  warnings — a duplicate `name`/alias, an exception in `__init__`, or an
+  import error in that module will all be logged and the command silently
+  skipped rather than crashing the server.
+- **Command class defined but not registered**: confirm it's actually
+  defined in that file (not just imported) and that `name` is set and
+  non-empty — both are required by `discover()`'s filter.
+- **Live server, code already changed**: use the admin `reload` command
+  (`commands/reload.py`) to re-import specific modules and rebuild
+  connected clients' command tables without a restart — but reload every
+  module that changed, including anything the command imports that also
+  changed (a stale dependency module can cause confusing import errors on
+  reload; a full restart is simpler when in doubt).

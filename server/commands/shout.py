@@ -2,7 +2,6 @@
 
 # TADA imports
 from commands.base_command import Command, CommandResult
-from commands.command_types import command
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
 
