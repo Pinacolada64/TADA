@@ -89,3 +89,18 @@
   On/Off in the menu when the player doesn't have the item, instead of
   silently allowing an inconsistent state.
 
+7/9/26:
+- Implement DIG/BURY (SPUR.MISC7.S `dig.a` onward — see `shoppe/ollys.py`'s
+  `_help_section()` docstring and MECHANICS.md's "DIG command" entry for the
+  full data-model writeup). Booby trap items already exist and are
+  purchasable at Olly's (objects.json #152-160, `shoppe/ollys.py`); only the
+  bury/dig side is missing. Planned deliberate deviations from SPUR, to
+  build in from the start rather than bolt on later:
+  - Record which player buried each thing (SPUR doesn't).
+  - Paid Olly "recall" service: lists a player's own buried caches
+    (level/room/position/disarm code) in case they forget.
+  - Possibly let Thieves disarm someone else's booby trap outright on
+    dig-up, playing to the class's stealth/lock-picking flavor — not
+    confirmed anywhere in the SPUR source reviewed so far, so treat as a
+    new TADA class perk to design, not a restoration.
+

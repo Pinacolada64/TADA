@@ -150,8 +150,8 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   (`combat/engine.py` `_narrate_player_swing()` and the ally-attack loop).
 
 #### Defence
-- **Shield** — blocks some incoming damage; degrades; can be destroyed; max rating varies by class/race; shield items usable via USE command (`SPUR.COMBAT.S`, `SPUR.USE.S:34–43`)
-- **Armor** — degrades each hit; "ARMOR GONE" when reaches 0; heavy armor blocks more but is not penetrated by STORM/CANNON (`SPUR.COMBAT.S:289–302`)
+- ✅ **Shield** — blocks some incoming damage; degrades; can be destroyed; shield items usable via USE command (`SPUR.COMBAT.S`, `SPUR.USE.S:34–43`, `combat/resolution.py` `monster_attacks()`, `combat/engine.py`)
+- ✅ **Armor** — degrades each hit; destroyed when it reaches 0; (`SPUR.COMBAT.S:289–302`, `combat/resolution.py` `monster_attacks()`, `combat/engine.py`)
 - **Gauntlets** — absorb one hit (10% chance destroyed) when player takes a hit (`SPUR.COMBAT.S:210–217`, `SPUR.WEAPON.S:spec4`)
 - **Wizard's glow** — item `zu$[7]` values 2/3 reduce incoming damage by 2 (`SPUR.COMBAT.S:266`)
 - **Lazer shield** — energized shield variant; blocks laser fire at half damage (`SPUR.USE.S:86`)
@@ -209,7 +209,7 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - Basic flee command exists (`commands/flee.py`)
 
 ### Not Implemented
-- **Monster blocks path** — if player HP > 7 and room has `.` flag, monster may block flee (`SPUR.COMBAT.S:75`)
+- ✅ **Monster blocks path** — if player HP > 7 and the monster is following, may block flee (`SPUR.COMBAT.S:75`, `combat/resolution.py` `flee_attempt()`, `combat/engine.py` — "`{mname} blocks your escape!`"). **Note**: the XP-scaling term in SPUR's formula (`random(1,10) < xp/3`) is currently hardcoded to `xp=1` (`resolution.py:800`, `# TODO: replace with derived xp_level`), so higher-level players don't yet get an easier time slipping past — the core block-or-not mechanic works, but the level scaling isn't wired up.
 - ✅ **Energy cost** — fleeing costs 1 energy (`SPUR.COMBAT.S:76`, `engine.py` `flee()`)
 - ✅ **Impassable rooms** — rooms flagged `@@` (water), `**` (snow), or `<<` (no_flee) cannot be fled from (`SPUR.COMBAT.S:74`, `resolution.py` `flee_attempt()`); flags parsed by `convert_from_gbbs_tool.py` and stored as `Room.flags`. **Note**: on level 6, `@@` doesn't mean water at all — see "Special room traversal requirements" below.
 
@@ -407,7 +407,6 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 ### Not Implemented
 - **Level-up stat grants** — what increases on level-up (HP, stats) (`SPUR.COMBAT.S lvl.msg`)
 - **Time limit** — session clock `ev`; player is forced to quit when time expires (`SPUR.COMBAT.S tim.chk`)
-- **Battle experience** — weapon-specific kill counter; VETERAN/ELITE tiers (`SPUR.WEAPON.S`)
 
 ---
 
@@ -424,16 +423,16 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 ## Social / World
 
 ### Not Implemented
-- **Guilds** — three guilds (Claw, Sword, Iron Fist); bank, food locker, item locker, weapon box, chalk board, log (`SPUR.GUILD.S`)
-- **Bar** — ally hiring, drink/food purchase (`SPUR.BAR.S`, `SPUR.BAR2.S`, `SPUR.BAR3.S`) — see **Bar** section below
+- ✅ **Guilds** — three guilds (Claw, Sword, Iron Fist); bank, food locker, item locker, weapon box, chalk board, log (`SPUR.GUILD.S`; `guild_hq/main.py` — `_guild_bank()`, `_food_locker()`, `_item_locker()`, `_chalkboard()`; `guild_hq/state.py` for persistence)
+- ✅ **Bar** — ally hiring, drink/food purchase, loans, gambling, hired hits (`SPUR.BAR.S`, `SPUR.BAR2.S`, `SPUR.BAR3.S`) — see **Bar** section below (only PvP brawling remains unimplemented there)
 - **Ship / Space level** — space-themed level; confirmed as level 6 ("A Brave New World" per `shoppe/elevator.py`'s `_LEVEL_NAMES`; `level_6.json` has 86 rooms literally named "Outer Space" plus "Engineering"/"Between Dimensions" areas); `SPUR.SHIP.S` handles its specific mechanics (`SPACE SUIT` replaces `BOAT` for `@@`-flagged room traversal at level 6+, per `SPUR.MAIN.S:158` — see the flag-naming note under "Special room traversal requirements" below)
 - **Gates** — zone gate travel (`SPUR.GATES.S`)
 - **Annex** — visitor area (`SPUR.ANNEX.S`) — see **Annex** section below
 - **Shop** — buy/sell items, ammo, shields (`SPUR.SHOP.S`) — see **Merchant Shoppe** section below
 - **Bulletin board / news log** (`SPUR.MISC2.S`) — see expanded design in **News & Mail** and **Threaded Message Boards** sections below
 - **Pray / Rest** — recover HP or stats out of combat (`SPUR.MISC2.S`)
-- **READ command** — read a book item from inventory; increases Wisdom on completion (`SPUR.MISC3.S`; tips.txt: "READ books to increase your wisdom!")
-- **QUOTE command** — player sets a short quote displayed to others who encounter their parked character; referenced in `t_main.lbl` command list and tips.txt
+- ✅ **READ command** — lists/reads book-type inventory items; item #69 "scrap of paper" is special-cased (see **Elevator Combination** section) (`commands/read.py`). **Not yet implemented**: the tips.txt claim that reading "increases your wisdom" — other books currently just print "there's nothing more to learn from it," per `read.py`'s own docstring (`SPUR.MISC3.S`; tips.txt: "READ books to increase your wisdom!")
+- ✅ **QUOTE command** — player sets a short quote (60 char max) shown to others who see them in a room; `$` substituted with the *reading* player's name; View/Write/Quit menu (`SPUR.MISC2.S:488-503`; also wired into character creation, `SPUR.LOGON.S:410,618-624`) (`commands/quote.py`, `commands/new_player.py`)
 - **LOOT command** — search an unconscious player's inventory; one item per session; Civilians barred from the Shoppe after looting (tips.txt); see also Items section above
 - **The Dwarf** — permanent NPC on a fixed room on level 1; steals gold from all players until killed; killing him awards all accumulated stolen gold; room does not change between sessions (tips.txt)
 - **Special room traversal requirements** — snow/mountain rooms (`**` flag) require a Great Coat (item #78) or player freezes; water rooms (`@@` flag) require a Boat (levels 1–5) or Space Suit (level 6+); checks in `SPUR.MAIN.S:313–319` and `t_main.lbl`.
@@ -456,7 +455,21 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Wraith Master title** — players with `WRAITH_MASTER` flag get ", Wraith Master of Spur!" appended to their name at login (`commands/connect.py:251`)
 - **WHO command** — lists currently online players; replaces the SPUR "last adventurer" login display (stubbed in `commands/connect.py:247`)
 - **Guild follow** — player character automatically follows guild members to their location when logged off; toggle in settings (stubbed in `commands/connect.py:274`)
-- **DIG command** — dig for buried items or gold (`SPUR.MAIN.S`)
+- **DIG command** — dig for buried items or gold (`SPUR.MISC7.S` `dig.a`
+  onward, not `SPUR.MAIN.S`). SPUR's data model: one `bury.<level>` file per
+  dungeon level (1-5 only — DIG refuses on level 6+), one record per room,
+  five slots per room (North/South/East/West/Center) each holding what's
+  buried there (gold amount or item number — a planted booby trap, see
+  `shoppe/ollys.py`, is just an ordinary buried item; its A-I disarm code is
+  fixed by which of the 9 "booby trap (code X)" items it is, objects.json
+  #152-160, not stored again in the bury record). SPUR itself never records
+  *who* buried something — anyone digging the right spot finds it.
+  **Planned TADA deviations** (design notes only, nothing built yet — see
+  `shoppe/ollys.py`'s `_help_section()` docstring): record the burying
+  player per slot; a paid Olly "recall" service listing a player's own
+  buried caches (level/room/position/code); possibly let Thieves disarm
+  someone else's trap outright on dig-up (not confirmed in SPUR source —
+  would be a new class perk, not a restoration).
 - **WEAKEN command** — sysop-only stat reduction command (`SPUR.MAIN.S`)
 - ✅ **GET command** — pick up items from the room; static room items and session-dropped items both handled (`commands/get.py`)
 - ✅ **Fireball pickup burn** — non-Wizards picking up a fireball take 1–4 heat damage; gauntlets (item #68) absorb the hit with 10% chance of destruction (`SPUR.WEAPON.S:30`, `commands/get.py`)
@@ -467,8 +480,6 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Fireplace USE** — room 103 "East Hall"; `use` or `use fireplace` while in room: restores Strength to 20 and heals +4 HP if both were low; room message shown to bystanders (`SPUR.USE.S:187`, `commands/use.py`)
 - ✅ **DROP command** — drop items into the room; water rooms (`@@` flag or keyword match on name/desc) show float/sink messages: metal weapons and heavy items sink and are lost, wooden weapons/food/books/darts/arrows float and remain retrievable; well rooms always lose the item; buoyancy inferred from category+name until a per-item flag exists (`SPUR.MISC.S`, `commands/drop.py`)
 - ✅ **GIVE / TAKE** — `give <item> to <ally/player/monster>` transfers item to ally's carried list or co-located player's inventory; giving to a monster yields humorous responses (food eaten, gold kept by greedy types, etc.); `take [<item>] from <ally>` retrieves items ally is holding (`SPUR.MISC.S`, `commands/give.py`, `commands/take.py`)
-- **Booby-trapped items** — items that trigger a trap effect when picked up (`SPUR.MISC.S`)
-- **Pandora's Box** — special item with unique pickup/open effect (`SPUR.MISC.S`)
 - **ORDER command** — rearrange the tactical order of allies in the party (point / flank / rear) (`SPUR.MISC2.S`)
 - **Ally payment** — allies require weekly payment (gold) to remain loyal; non-payment triggers desertion (`SPUR.MISC2.S`)
 - **Allies joining you** — conditions under which free allies in a room may voluntarily join the party (`SPUR.MISC2.S`)
@@ -508,19 +519,56 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 
 ## Merchant Shoppe (`server/shoppe/main.py`)
 
+> **Naming note**: `shoppe/main.py`'s own entry flavor text says the player
+> "follows the sloping passageway downward into the merchant's annex" — the
+> Shoppe *calls itself* "the merchant's annex" in-fiction, which collides
+> with the separate `annex/main.py` module ("The Annex" — bulletin board,
+> guild standings, message boards, etc.). These are two distinct rooms/
+> modules in SPUR (`SPUR.SHOP.S` vs `SPUR.ANNEX.S`) that happen to share
+> very similar names. Worth renaming one of them for clarity eventually
+> (e.g. `annex/` -> `bulletin/` or similar) -- not done here.
+
 ### Implemented
 - ✅ **General Store** — sells rations 1–10 (safe food/drink); duplicate check; silver deduction; pack-full guard
 - ✅ **Elevator** — travel between levels 1–5 (`shoppe/elevator.py`)
 - ✅ **Player List** — browse online/offline players by wildcard pattern
+- ✅ **Private Locker** (`shoppe/locker.py`) — personal item storage, reached
+  by typing `LOCKER` at the Shoppe prompt (a free-text command, like
+  SPUR.MISC6.S's `if i$="LOCKER" goto locker`, not one of the Shoppe's
+  lettered menu options — checked ahead of the normal single-letter menu-key
+  truncation so it doesn't collide with `L` = Player List). Ported from
+  SPUR.MISC6.S:276-345's `locker`/`put.loc`/`tak.loc`/`look` subroutines
+  (which itself returns to the Shoppe via `lnk.shop`, confirming the locker
+  belongs here and not in the Annex): P)ut, T)ake, L)ook move items between
+  `player.inventory` and a new `player.locker` (both `Inventory` instances),
+  with a fixed 10-slot cap on the locker side (`inventory.LOCKER_CAPACITY`,
+  matching SPUR's `if zt>9 ... "The locker is full!"`).
+  - **Combination lock is a deliberate homebrew addition, not ported from SPUR** —
+    the original `locker` subroutine has no access check at all; every player's
+    locker record already exists from character creation and is opened directly by
+    player number. This port adds a combination-lock layer mirroring the Elevator's
+    guard (`shoppe/elevator.py`): a new character has no `CombinationTypes.LOCKER`
+    entry (`player.set_up_combinations()` omits it, same as ELEVATOR), so the
+    *first* visit is instead met by an attendant who assigns one, hands over a
+    **brass claim tag** (objects.json #164) as a keepsake, and opens the locker
+    directly that first time. Later visits must enter the combination (5 attempts,
+    same shape as the Elevator guard) before P)ut/T)ake/L)ook is available.
+  - The claim tag is deliberately a different kind of item from the Elevator's
+    scrap of paper (a keepsake handed over by an NPC, not a `READ`-able book) so
+    the two on-demand-combination mechanics don't get confused with each other.
+  - `player.locker` persists through `Player.save()`/`_load()` the same way
+    `player.inventory` does (explicit `Inventory.to_json()`/`from_json()`
+    round-trip alongside the generic `__dict__` dump).
+- ✅ **Armory** — buy and sell weapons; max 6 weapons per player (`SPUR.SHOP.S`; `shoppe/armory.py`)
+- ✅ **Protection** — buy armor and shields; max 5 items per player (`SPUR.SHOP.S`; `shoppe/armory.py`'s `protection()`)
+- ✅ **Bank of SPUR** — deposit, withdraw, transfer gold; level 2+ required for transfers (`SPUR.SHIP.S bank`; `shoppe/bank.py`)
+- ✅ **Wizard** — buy spells; Wizards pay half price, Druids two-thirds; max 10 spells (`SPUR.SHOP.S`; `shoppe/wizard.py`)
+- ✅ **Clan / Guild office** — change guild affiliation (Claw, Sword, Iron Fist, Civilian, Outlaw); costs gold and honor (`SPUR.SHOP.S`; `shoppe/clan.py`)
+- ✅ **Pawn Shop** — sell (not buy) items to the merchant; all found items are sellable (tips.txt) (`SPUR.SHOP.S`; `shoppe/pawn.py`)
+- ✅ **Olly's Ammo** — buy ammo and ammo carriers; booby trap purchase; [H]elp explains ammo system and friendly fire. Reached in the original by typing `AMMO` (`SPUR.MISC5.S:16: if i$="AMMO" goto ammo`, `ammo` subroutine — "Olly greets you, 'Welcome, ...'"), not a separate ammo-count command (`shoppe/ollys.py`)
 
 ### Stubs (not yet implemented)
-- **Armory** — buy and sell weapons; max 6 weapons per player (`SPUR.SHOP.S`)
-- **Protection** — buy armor and shields; max 5 items per player (`SPUR.SHOP.S`)
-- **Bank of SPUR** — deposit, withdraw, transfer gold; level 2+ required for transfers (`SPUR.SHIP.S bank`)
-- **Wizard** — buy spells; Wizards pay half price, Druids two-thirds; max 10 spells (`SPUR.SHOP.S`)
-- **Clan / Guild office** — change guild affiliation (Claw, Sword, Iron Fist, Civilian, Outlaw); costs gold and honor (`SPUR.SHOP.S`)
-- **Pawn Shop** — sell (not buy) items to the merchant; all found items are sellable (tips.txt) (`SPUR.SHOP.S`)
-- ✅ **Olly's Ammo** — buy ammo and ammo carriers; booby trap purchase; [H]elp explains ammo system and friendly fire. Reached in the original by typing `AMMO` (`SPUR.MISC5.S:16: if i$="AMMO" goto ammo`, `ammo` subroutine — "Olly greets you, 'Welcome, ...'"), not a separate ammo-count command (`shoppe/ollys.py`)
+- None currently known — all `_MENU` entries in `shoppe/main.py` route to implemented modules.
 
 ---
 
@@ -568,7 +616,10 @@ coordinate check at the Shoppe elevator).
 
 ## Merchant's Annex (`server/annex/main.py`)
 
-All sections are stubs. Source: `SPUR.ANNEX.S`.
+All sections are stubs. Source: `SPUR.ANNEX.S`. See the naming note under
+"Merchant Shoppe" above -- this is a *different* room from the Shoppe (whose
+own flavor text also calls itself "the merchant's annex"), and the Private
+Locker belongs to the Shoppe (`shoppe/locker.py`), not here.
 
 ### Stubs (not yet implemented)
 - **School info** — character class descriptions and stat bonuses
@@ -581,13 +632,12 @@ All sections are stubs. Source: `SPUR.ANNEX.S`.
 - **System data view** — server-level statistics (total players, kills, etc.)
 - **Message boards (×3)** — three separate threaded boards (ties into Threaded Message Boards design)
 - **Player rosters** — separate lists for Civilians, Mark of the Claw, Mark of the Sword, Iron Fist, and Outlaws
-- **Locker** — personal item storage in the Annex; combination-locked (`SPUR.ANNEX.S`; also referenced in `SPUR.SHOP.S` and `SPUR.MISC2.S`)
 
 ---
 
 ## Bar (`server/bar/main.py`)
 
-### Partially Implemented
+### Implemented
 - ✅ **Fat Olaf** — slave/servant trader; buy allies; sell servant stub present (`bar/fat_olaf.py`)
 - ✅ **Food/drink menu** — `food_menu()` helper exists; rations list rendered
 - ✅ **Mundo escorts a debtor straight to Vinny** — `SPUR.BAR.S:16-18`:
@@ -599,15 +649,24 @@ All sections are stubs. Source: `SPUR.ANNEX.S`.
   Vinny interaction — skipping the help text and the normal movement loop
   entirely for that entry. Repeats on every subsequent entry until the loan
   is paid off (`bar/main.py` `enter_bar()`).
+- ✅ **Bouncer** — Mundo throws the player out (with HP damage if it's a
+  rough exit) (`bar/main.py` `_bouncer()`)
+- ✅ **Vinny** — loan shark; apply for loans, pay back, store/withdraw gold
+  in the bar (`SPUR.BAR.S`, `SPUR.BAR3.S`; `bar/vinny.py` — `_apply_loan()`,
+  `_pay_loan()`, `_store_money()`, `_get_money()`)
+- ✅ **Skip** — food/drink vendor (`SPUR.BAR2.S`; `bar/skip.py`)
+- ✅ **Bar None** — Guss the barkeep; coin flips, blackjack (`SPUR.BAR2.S`; `bar/bar_none.py`)
+- ✅ **Zelda** — reanimates monsters for players; studies and displays player stats (`SPUR.BAR.S`; `bar/zelda.py`)
+- ✅ **Blue Djinn** — hire another player attacked; contract persisted to
+  `hit_contracts.json` (`SPUR.BAR.S`; `bar/blue_djinn.py` `_hire()`,
+  `add_contract()`/`pending_contracts()`). **Not yet implemented**:
+  *resolving* a contract (actually carrying out the hit when the target next
+  logs in) — `resolve_contract()` exists but nothing calls it yet; per the
+  module's own header comment this is a known TODO. Hiring works; the hit
+  itself doesn't happen.
 
 ### Stubs (not yet implemented)
-- **Vinny** — loan shark; apply for loans, pay back, store gold in bar; also arranges thugs (`SPUR.BAR.S`, `SPUR.BAR3.S`); stub present, full dialog not wired
-- **Skip** — sells hash or coffee; simple food/drink vendor (`SPUR.BAR2.S`)
-- **Bar None** — Guss the barkeep; coin flips, blackjack (`SPUR.BAR2.S`); our stub is `bar/bar_none.py`
-- **Zelda** — reanimates monsters for players; studies and displays player stats (`SPUR.BAR.S`)
-- **Blue Djinn** — hired hits; pay to have another player attacked (`SPUR.BAR.S`)
-- **Bouncer** — enforces entry rules; role partially referenced
-- **Bar brawl / PvP** — fighting other players in the bar; stub message "combat not yet available" (`bar/main.py:269`)
+- **Bar brawl / PvP** — fighting other players in the bar; stub message "combat not yet available" (`bar/main.py:280`)
 
 ### Street NPCs (not part of `bar/main.py`'s room grid)
 

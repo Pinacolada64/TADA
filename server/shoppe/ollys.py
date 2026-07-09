@@ -195,6 +195,39 @@ async def _booby_section(ctx: GameContext, player, inv, objects_by_num: dict) ->
 # ---------------------------------------------------------------------------
 
 async def _help_section(ctx: GameContext) -> None:
+    """Show the ammo/booby-trap help text.
+
+    Booby-trap disarm codes (A-I) aren't stored separately anywhere -- each
+    code is baked into which of the nine "booby trap (code X)" items
+    (objects.json #152-160) the player bought, so the code travels with the
+    item itself.
+
+    DIG/bury are not implemented yet. SPUR's own data model (SPUR.MISC7.S
+    dig.a / bury.add / wr.bury) is one "bury.<level>" file per dungeon level
+    (1-5 only -- DIG refuses on level 6+), one record per room, with five
+    slots per room (North, South, East, West, Center) each holding whatever
+    is buried there (a gold amount or an item number) -- and, notably,
+    *no* record of who buried it: anyone who digs in the right spot finds
+    it, whoever they are.
+
+    Deliberate TADA deviations planned for whenever DIG/BURY get built (none
+    of this exists yet -- noted here so the eventual implementation builds
+    it in from the start rather than bolting it on after):
+      - Record the burying player alongside each slot (extending the record
+        with an owner id/name) -- SPUR itself does not.
+      - Give Olly a paid "recall" service -- he goes quiet for a moment as
+        if lost in thought, then lists everywhere *you've* buried something
+        (level, room, position, and its disarm code) in case you forget.
+      - Give Thieves a chance to disarm someone else's booby trap outright
+        (no code needed) when digging one up, playing to the class's
+        stealth/lock-picking flavor (`base_classes.py`'s THIEF description).
+        Not found in the SPUR source reviewed so far (`SPUR.MISC7.S`'s
+        `disarm.a`/`disarm.b` timing-based key-press challenge applies to
+        every class alike) -- this would be a new TADA class perk, not a
+        restoration of existing SPUR behavior. Flagging the uncertainty
+        rather than assuming; worth confirming against source before
+        committing to the mechanic.
+    """
     await ctx.send([
         '',
         '[]=-=-=-=-=-=-=[ AMMUNITION GUIDE ]=-=-=-=-=-=-=[]',
@@ -220,6 +253,17 @@ async def _help_section(ctx: GameContext) -> None:
         '',
         'Stray rounds deal 1-4 damage.  Train your weapon skill to',
         'reduce the risk to your allies.',
+        '',
+        'BOOBY TRAPS',
+        '-----------',
+        'Each trap you buy comes with its own disarm code (A-I) fixed',
+        'at purchase -- pick carefully, it can\'t be changed later.',
+        '',
+        '  NOTE: the DIG command needed to bury a trap (or anything',
+        '  else) is not implemented yet -- buying one here is all you',
+        '  can currently do with it. Once DIG exists, Olly is planned',
+        '  to offer a paid memory-jogging service if you forget where',
+        '  you buried something (or which code it needs).',
         '',
     ])
 
