@@ -672,11 +672,26 @@ Locker belongs to the Shoppe (`shoppe/locker.py`), not here.
 - ✅ **Zelda** — reanimates monsters for players; studies and displays player stats (`SPUR.BAR.S`; `bar/zelda.py`)
 - ✅ **Blue Djinn** — hire another player attacked; contract persisted to
   `hit_contracts.json` (`SPUR.BAR.S`; `bar/blue_djinn.py` `_hire()`,
-  `add_contract()`/`pending_contracts()`). **Not yet implemented**:
-  *resolving* a contract (actually carrying out the hit when the target next
-  logs in) — `resolve_contract()` exists but nothing calls it yet; per the
-  module's own header comment this is a known TODO. Hiring works; the hit
-  itself doesn't happen.
+  `add_contract()`/`pending_contracts()`). Hiring sets `PlayerFlags.THUG_ATTACK`
+  on the target via `set_thug_flag_on_target()` — works whether the target is
+  online (mutates their live `Player` directly) or offline (loads/edits/saves
+  their save file). **Resolution** (`bar/thug_attack.py`
+  `maybe_trigger_thug_attack()`, called from `simple_server.py`'s
+  `_game_loop()` right before the room is shown): if the flag is set, a THUG
+  (monster #60) ambushes the player via `combat.enter_combat()`, naming
+  whichever hire's `attacker_display` is first pending; the flag is cleared
+  and every pending contract against that player resolved
+  (`resolve_all_pending_contracts()`) once the fight is over, win or lose. A
+  player with `PlayerFlags.DEBUG_MODE` set gets an explicit Y/N to skip the
+  ambush for testing — skipping leaves the flag/contracts pending so it can
+  be retried on a later login.
+  Also fixed while wiring this up: three spots in `blue_djinn.py` read
+  `client.player` instead of `client.ctx.player` (`simple_server.py` sets
+  `client.ctx = ctx` on connect; `Client` has no bare `.player` at all), so
+  online-target detection for both hire pricing and the "* = online" matched
+  -player list silently never worked — same bug class as
+  `commands/messaging.py`'s `online_player_names()`, which already had it
+  right.
 
 ### Stubs (not yet implemented)
 - **Bar brawl / PvP** — fighting other players in the bar; stub message "combat not yet available" (`bar/main.py:280`)

@@ -8,7 +8,9 @@ SPUR notes:
   - Contracts are stored in a shared 'thug' file keyed by target (SPUR.BAR.S).
     TADA uses data/hit_contracts.json instead.
   - Insult → Mundo the bouncer throws you out (−5 HP, teleport to door).
-  - Resolution (carrying out the hit when the target logs in) is a TODO.
+  - Resolution (carrying out the hit when the target logs in) happens in
+    bar/thug_attack.py, triggered from simple_server.py's _game_loop() via
+    PlayerFlags.THUG_ATTACK, set on the target here in _hire().
 """
 import datetime
 import json
@@ -96,6 +98,50 @@ def resolve_contract(target_name: str, index: int) -> None:
         _save_contracts(data)
 
 
+def resolve_all_pending_contracts(target_name: str) -> None:
+    """Mark every unresolved contract against target_name resolved.
+
+    Used by bar/thug_attack.py once the login-time ambush plays out --
+    win, lose, or flee, the hit was attempted, so every stacked contract
+    against this target is considered carried out at once rather than
+    resolving them one at a time.
+    """
+    data = _load_contracts()
+    key  = target_name.lower()
+    for entry in data.get(key, []):
+        entry['resolved'] = True
+    _save_contracts(data)
+
+
+def set_thug_flag_on_target(ctx: GameContext, target_name: str) -> None:
+    """Set PlayerFlags.THUG_ATTACK on target_name, online or not.
+
+    Online: mutate their live Player object directly (their own session
+    will persist it on its next save/logout) -- creating a second Player
+    instance for the same save file here would risk clobbering whatever
+    that live session writes next.
+    Offline: load their save file into a throwaway Player, set the flag,
+    and save immediately -- safe only because there's no live session for
+    that save file to race against.
+    """
+    online_clients = getattr(ctx.server, 'clients', {})
+    for client in online_clients.values():
+        # Client stores the live session as .ctx (simple_server.py sets
+        # client.ctx = ctx on connect), never a bare .player -- see
+        # commands/messaging.py's online_player_names() for the same
+        # pattern this module previously got wrong in three places.
+        tp = getattr(getattr(client, 'ctx', None), 'player', None)
+        if tp and getattr(tp, 'name', '').lower() == target_name.lower():
+            tp.set_flag(PlayerFlags.THUG_ATTACK)
+            tp.unsaved_changes = True
+            return
+
+    from player import Player
+    offline_player = Player(name=target_name, id=target_name)
+    offline_player.set_flag(PlayerFlags.THUG_ATTACK)
+    offline_player.save(force=True)
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -148,9 +194,16 @@ async def _hire(ctx: GameContext) -> None:
             target_name = names[0]
         else:
             # Multiple matches — show a numbered list
+            # server.clients is addr -> Client; iterate .values() (not the
+            # dict itself, which yields addrs), and read the live player
+            # off client.ctx.player (simple_server.py sets client.ctx = ctx
+            # on connect -- Client has no bare .player attribute at all,
+            # so online players always showed as offline here before this
+            # fix, same bug fixed below for target_level and
+            # set_thug_flag_on_target()).
             online_set = {n.lower() for n in (
-                [c.player.name for c in getattr(ctx.server, 'clients', [])
-                 if getattr(c, 'player', None)]
+                [c.ctx.player.name for c in getattr(ctx.server, 'clients', {}).values()
+                 if getattr(getattr(c, 'ctx', None), 'player', None)]
                 if hasattr(ctx, 'server') else []
             )}
             lines = ['', 'Matching players (* = online):', '']
@@ -175,9 +228,9 @@ async def _hire(ctx: GameContext) -> None:
         # without a full profile fetch, so we use xp_level of the current
         # player as a fallback if the target is offline.
         target_level = 1
-        online_clients = getattr(ctx.server, 'clients', [])
-        for c in online_clients:
-            tp = getattr(c, 'player', None)
+        online_clients = getattr(ctx.server, 'clients', {})
+        for c in online_clients.values():
+            tp = getattr(getattr(c, 'ctx', None), 'player', None)
             if tp and tp.name.lower() == target_name.lower():
                 target_level = _player_level(tp)
                 break
@@ -224,6 +277,7 @@ async def _hire(ctx: GameContext) -> None:
             attacker_real   = player.name,
             gold_paid       = price,
         )
+        set_thug_flag_on_target(ctx, target_name)
 
         await ctx.send(
             f'{_NPC} bows. {_AP}The agreement shall be carried out..{_AP}'

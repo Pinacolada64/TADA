@@ -523,6 +523,17 @@ class Server:
         logging.debug('ENTER')
         if not getattr(ctx.client, 'room', None):
             ctx.client.room = int(getattr(ctx.player, 'map_room', 1) or 1)
+
+        # A pending Blue Djinn hit contract (bar/blue_djinn.py's HIRE flow)
+        # ambushes the target here, before the room is shown -- see
+        # bar/thug_attack.py. Runs before _show_room() so combat happens
+        # first, room description second (like waking up mid-fight).
+        from bar.thug_attack import maybe_trigger_thug_attack
+        await maybe_trigger_thug_attack(ctx)
+        if getattr(ctx.player, 'hit_points', 1) <= 0:
+            logging.debug('death triggered by thug ambush')
+            await self._player_dies(ctx)
+
         await self._show_room(ctx)
 
         processor = ctx.client.command_processor
