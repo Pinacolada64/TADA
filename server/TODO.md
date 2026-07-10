@@ -217,3 +217,53 @@
   `compass_active`; porting the Palintar item + its glow-check formula;
   and gating the Ranger override on `PlayerClass.RANGER`.
 
+7/10/26:
+- Two dead rc/rt "Up" connections on level 3, found while fixing the
+  rc/rt movement bug (see MECHANICS.md's "Flee / Travel" section):
+  room 39 ("Labyrinth", `rt: 100`) and room 86 ("Rolling Hills",
+  `rt: 141`) both point to room numbers absent from `level_3.json`.
+  Traced both back to SPUR's own original `SPUR-data/ROOM.LEVEL3.TXT`
+  database (via `SPUR-data/level-2/tada_level_builder.py`'s
+  `parse_message()`/`extract_messages()`) -- confirmed genuine in the
+  source, not a conversion artifact:
+    - Room 39's raw CSV line is literally
+      `LABYRINTH,47,0,0,0,1,1,1,1,1,100` -- `rt=100` is correct as far
+      as SPUR's own data goes. `D.LEVEL3.TXT`'s header (`LevelHeader.
+      read()`) declares `total_rooms=100` and its room-number bitfield
+      *does* flag room 100 as existing. But only 90 of those ~100
+      flagged rooms' messages were ever recoverable from
+      `ROOM.LEVEL3.TXT` (`extract_messages()` returns exactly 90) --
+      room 100's actual name/description/exits are gone, almost
+      certainly lost from the original GBBS message database decades
+      ago (a real archival gap, not a bug in the extraction code, which
+      correctly found every message that's still there). Not fixable
+      without the lost content; could stub in a placeholder room 100
+      but its real contents are unknown.
+    - Room 86's raw CSV line is `ROLLING HILLS,0,71,39,0,1,1,1,1,1,141`
+      -- `rt=141` is *also* exactly what SPUR's own data says, but 141
+      is out of level 3's own numbering range entirely (header's own
+      `total_rooms=100`). Unlike room 39's case, this isn't a
+      known-but-missing room -- it looks like a genuine bug/typo already
+      present in SPUR's original level 3 design (maybe a leftover
+      reference from an earlier draft of the level with more rooms).
+      No confident fix without more information than the source data
+      itself provides.
+  Until/unless addressed, going Up from either room leaves the player
+  stuck on a "You are nowhere (map not loaded)." room with no exits --
+  `Server._describe_room()` degrades gracefully rather than crashing,
+  but there's no way back out except a teleport.
+
+  Unproven theory (Ryan): both `rt` values might be a dropped/extra
+  trailing-digit transcription error -- `rt: 100` meant `rt: 10`, and
+  `rt: 141` meant `rt: 14`. Both candidates are in-range and otherwise
+  unreferenced, and hold up thematically:
+    - Room 39 "Labyrinth" -> room 10 "Worn Path" ("As the path leads
+      southward you notice a small rise that appears to go down into a
+      ravine." -- a worn path as the way out of a maze fits).
+    - Room 86 "Rolling Hills" -> room 14 "Quiet Woods" (room 86's own
+      description already mentions "a dark mountain" to the northwest;
+      rolling hills leading up into deep woods fits too).
+  No SPUR source confirms either link -- purely circumstantial (thematic
+  fit + a plausible corruption pattern common to both). Not applied to
+  level_3.json; revisit if better evidence turns up.
+

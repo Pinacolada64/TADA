@@ -61,6 +61,25 @@ _WILD_HORSE_MONSTER_NUMBER = 136
 _HIDDEN_EXIT_FLAGS = {'e': 'hidden_exit_east', 'w': 'hidden_exit_west'}
 _HIDDEN_EXIT_DELTA = {'e': 1, 'w': -1}
 
+# Shown when an exit resolves to a room number with no actual data behind
+# it (see Server._move()'s guard, and MECHANICS.md's "Flee / Travel" section
+# for the level 3 rooms 39/86 rc/rt case this exists for) -- in-character
+# flavor rather than a bare error, blaming SPUR's own legendary ineptitude
+# as level architect rather than breaking immersion with a raw bug report.
+_BLOCKED_ROOM_MESSAGES = [
+    "A translucent hand reaches out of nowhere and gently pushes you back. "
+    "\"Not that way just yet,\" booms a voice. \"One of my elves is still "
+    "finishing the crayon work on that room.\" -- SPUR",
+    "You feel a soft, ghostly resistance, like walking into a wall of "
+    "pudding. \"Ah -- yes -- that passage,\" SPUR's voice mutters. \"We're "
+    "aware of a 'computer programming bug,' whatever that is. The elves "
+    "assure me it's nearly fixed.\"",
+    "An invisible hand steadies you before you can wander off the edge of "
+    "the known universe. \"Whoops!\" says SPUR. \"That room didn't survive "
+    "the move to the new filing cabinet. Try the art gallery instead -- "
+    "my crayon self-portrait is finally finished.\"",
+]
+
 # ---------------------------------------------------------------------------
 # Per-connection logging context
 # ---------------------------------------------------------------------------
@@ -771,8 +790,36 @@ class Server:
                 dest = self._hidden_exit_target(room, direction, level)
 
         if not dest:
+            # rc/rt transport system (see commands/movement.py's own rc/rt
+            # comment): rc=1 -> Up, rc=2 -> Down, rt>0 -> real staircase to
+            # that room number on the same level. rt==0 (shoppe elevator) is
+            # intercepted before MoveCommand ever calls _move(), so only the
+            # real-connection case reaches here.
+            exits = getattr(room, 'exits', {})
+            rc = int(exits.get('rc', 0) or 0)
+            rt = int(exits.get('rt', 0) or 0)
+            if rt and ((direction == 'u' and rc == 1) or (direction == 'd' and rc == 2)):
+                dest = rt
+
+        if not dest:
             await ctx.send(f"Can't go {compass_txts[direction].lower()}.")
             logging.debug('EXIT (no exit) direction=%r room=%r', direction, room_no)
+            return
+
+        if not self.game_map.get_room(target_level, int(dest)):
+            # Exit data points at a room number with no actual data behind
+            # it (see MECHANICS.md's "Flee / Travel" section -- e.g. level 3
+            # rooms 39/86's rc/rt targets, lost or broken in SPUR's own
+            # original data decades ago). Block the move instead of leaving
+            # the player stranded on a "You are nowhere" room they can only
+            # escape via teleport.
+            logging.warning(
+                'Blocked move into room with no data: level=%r room=%r '
+                '(player=%r, direction=%r, from room=%r)',
+                target_level, dest, getattr(ctx.player, 'name', '?'), direction, room_no,
+            )
+            await ctx.send(random.choice(_BLOCKED_ROOM_MESSAGES))
+            logging.debug('EXIT (blocked, no room data) direction=%r dest=%r', direction, dest)
             return
 
         self._leave_combat_on_move(ctx, room_no)

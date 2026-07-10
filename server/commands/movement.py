@@ -174,14 +174,23 @@ class MoveCommand(Command):
         if room:
             exits = getattr(room, 'exits', {})
 
-            # rc/rt transport system: rc=1 → Up, rc=2 → Down (no normal exit key)
+            # rc/rt transport system: rc=1 -> Up, rc=2 -> Down (no normal exit
+            # key). rt==0 means the shoppe elevator; rt>0 is a real up/down
+            # staircase to that room number on the same level (labyrinth
+            # ladders, pits, etc.) -- only the rt==0 case goes to the shoppe
+            # here. A nonzero rt falls through to ctx.server._move(), which
+            # also consults rc/rt when resolving the destination.
             rc = int(exits.get('rc', 0) or 0)
+            rt = int(exits.get('rt', 0) or 0)
             if (direction == 'u' and rc == 1) or (direction == 'd' and rc == 2):
-                await _enter_shoppe(ctx)
-                return CommandResult.ok()
+                if not rt:
+                    await _enter_shoppe(ctx)
+                    return CommandResult.ok()
 
             # Special destination: entering the bar
             dest = room.get_exit(direction)
+            if not dest and rt and ((direction == 'u' and rc == 1) or (direction == 'd' and rc == 2)):
+                dest = rt
             if dest and int(dest) == _BAR_ROOM:
                 await _enter_bar(ctx)
                 return CommandResult.ok()

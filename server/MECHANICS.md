@@ -310,6 +310,45 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   (`base_classes.py`), which checks both short and full forms; `Server._move()`
   and `commands/movement.py`'s bar-entry check now use it instead of a bare
   `.get(direction)`.
+- ✅ **Fixed bug: rc/rt Up/Down connections with a real destination always
+  went to the shoppe** — `rc`/`rt` on a room's `exits` dict is a separate
+  transport system from compass exits: `rc=1` → Up, `rc=2` → Down, `rt=0` →
+  the shoppe elevator, `rt>0` → a real same-level staircase to that room
+  number (labyrinth ladders, pits, volcano-room lava tubes, etc. — display
+  side already correct, see `Room.exits_txt()`'s "Up to #N"/"Down to #N" in
+  `tests/test_rc_rt.py`). `commands/movement.py`'s `MoveCommand` checked only
+  `rc`, never `rt`, so *any* room with `rc` set — real staircase or not — was
+  unconditionally routed into the shoppe, silently swallowing every real
+  rc/rt connection in the game (level 1 room 20 "Volcano Room" → room 23 was
+  the one actually reported; the same bug affects at least 6 more rooms on
+  level 1 alone, and others on levels 2–5). Fixed: `MoveCommand` now only
+  intercepts to the shoppe when `rt==0`; a nonzero `rt` falls through to
+  `Server._move()`, which now also resolves `rc`/`rt` as a destination when
+  the normal exit/hidden-exit lookups come up empty. While auditing all
+  `rc`/`rt` data across every level for this fix, found two also-broken `rt`
+  targets on level 3 — room 39 (`rt: 100`) and room 86 (`rt: 141`) — that
+  are a separate *data* problem, not a code one, and traced both back to
+  SPUR's own original `ROOM.LEVEL3.TXT` database (see TODO.md's 7/10/26
+  entry for the full trace): room 100 is a genuinely lost room (flagged as
+  existing in `D.LEVEL3.TXT`'s header bitfield, but its message was never
+  recoverable — only 90 of ~100 flagged rooms' data survived in the
+  archive), while `rt: 141` is out of level 3's own numbering range
+  entirely and looks like a bug already present in SPUR's original design.
+  Neither is a conversion artifact, and neither has a confident fix without
+  content that may simply no longer exist (an unproven "dropped trailing
+  digit" theory for both — `rt: 10`/`rt: 14` — is written up in TODO.md,
+  not applied).
+- ✅ **Guard against moving into a room with no data** — `Server._move()`
+  now checks that a resolved destination (normal exit, hidden exit, *or*
+  rc/rt) actually has room data on the target level before committing the
+  move, covering exactly the level 3 rooms 39/86 case above (and any other
+  exit that turns out to point nowhere). Blocked instead of leaving the
+  player stranded on a "You are nowhere" room they could only escape via
+  teleport: logs a `logging.warning()` (so a real broken exit stays
+  diagnosable) and shows one of a few in-character `_BLOCKED_ROOM_MESSAGES`
+  — an invisible hand of SPUR gently pushing the player back, blaming his
+  elves/crayon art skills/a "computer programming bug" rather than
+  breaking immersion with a raw error.
 - **Room flags** — monster blocking (`.`), no-flee (`@@`, `**`, `<<`), random encounter (`]`) — other flags (`+`, `#`, `-`, `*`, `@`, `&`, `E`/`G`, `;;`) belong to monsters, not rooms; see monster abilities in the Combat section above
 - ✅ **Hidden exits** (`hidden_exit_east`/`hidden_exit_west`) — `SPUR.MISC.S:419`'s
   `"->"`/`"<-"` markers only set a boolean "exit exists" flag on the room; the
