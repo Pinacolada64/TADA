@@ -135,4 +135,20 @@
   implemented — would need confirming which level/room "Mummy's Scroll"
   should actually teleport to in this port's map data before porting the
   mechanic; noted here so it isn't lost.
+- Spiff up `SPUR-data/level-1/map_explorer.py` (the standalone offline CLI
+  map-JSON viewer -- move/look/minimap over a loaded level, used for
+  verifying converted map data, not part of the live game server).
+  Also: SPUR itself used `#` as the in-game command for the Ranger class's
+  map ability (`SPUR.MISC5.S:13: if i$="#" goto ranger` -> `ranger`
+  subroutine, gated on `xp>2`/level 3+, shows a `map.<level>` file via
+  `show.file`, plus a same-key "Room #<n>" position readout and an
+  approximate Dwarf-location hint on level 1). This port has since
+  claimed `#` for the admin `TeleportCommand` (`commands/teleport.py`),
+  so the original Ranger binding is gone. Worth redesigning as a real
+  in-game `MAP` command (Ranger-gated, mirroring the level-3 requirement)
+  rather than trying to reclaim the bare `#` key from teleport --
+  map_explorer.py's `render_minimap()` (viewport-centered ASCII minimap,
+  already handles wrap-around exits/visited-room tracking) is a natural
+  starting point to adapt for in-game rendering instead of building a
+  renderer from scratch.
 
