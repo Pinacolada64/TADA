@@ -495,11 +495,25 @@ def _combinations_menu(ctx) -> Menu:
             f'{combo_type.value} (xx-xx-xx)',
             preamble_lines=[
                 f'Current: {_fmt(combo_type)}',
-                'Enter three numbers like 04-05-09, or blank to cancel:',
+                'Enter three numbers like 04-05-09, X to clear, or blank to cancel:',
             ],
         )
         if not raw or not raw.strip():
             await ctx.send('Combination unchanged.')
+            return
+        if raw.strip().lower() == 'x':
+            if isinstance(p.combinations, dict):
+                obj = (p.combinations.get(combo_type)
+                       or p.combinations.get(combo_type.value)
+                       or p.combinations.get(combo_type.name))
+                if obj is not None:
+                    # All three alias keys (enum/.value/.name) point at the
+                    # same Combination instance -- clearing .combination on
+                    # it updates every alias at once, no dict surgery needed,
+                    # and _fmt() already renders a None combination as
+                    # '(none)'.
+                    obj.combination = None
+            await ctx.send(f'{combo_type.value} cleared.')
             return
         digits = re.findall(r'\d{1,2}', raw.strip())
         if len(digits) != 3:
@@ -889,6 +903,16 @@ async def _pick_from_matches(ctx, matches: list, label_fn) -> Optional[object]:
     return matches[idx]
 
 
+async def _send_labeled_list(ctx, header: str, items: list, label_fn) -> None:
+    """Format and send *items* one per line via label_fn(item), matching
+    _pick_from_matches()'s own labeling convention. Shared by the '?'
+    inline listing in _give_ration()/_give_object()."""
+    lines = [f'{header} ({len(items)}):']
+    for item in items:
+        lines.append(f'  {label_fn(item)}')
+    await ctx.send(lines)
+
+
 def _weapon_from_dict(d: dict):
     """Build a Weapon item object from a weapons.json dict."""
     from items import Weapon
@@ -914,8 +938,11 @@ def _inventory_action(ctx):
         await _show_inventory(ctx)
         while True:
             raw = await ctx.prompt(
-                '[G]ive weapon  [A]rmor  [S]pell  [O]bject  [B]ook  [R]ation'
-                '  [L]ist weapons  [I]nventory  [Q]uit',
+                'Command',
+                preamble_lines=[
+                    '[W]eapon  [A]rmor  [S]pell  [O]bject  [B]ook  [R]ation',
+                    '[L]ist weapons  [I]nventory  [Q]uit',
+                ],
             )
             if raw is None:
                 break
@@ -927,7 +954,7 @@ def _inventory_action(ctx):
                 await _show_inventory(ctx)
             elif cmd == 'l':
                 await _list_weapons(ctx)
-            elif cmd == 'g':
+            elif cmd == 'w':
                 await _give_weapon(ctx)
             elif cmd == 'r':
                 await _give_ration(ctx)
@@ -962,6 +989,18 @@ async def _show_inventory(ctx) -> None:
     await ctx.send(lines)
 
 
+async def _send_weapon_list(ctx, weapons) -> None:
+    """Format and send a list of weapon dicts. Shared by _list_weapons()
+    (the 'L' menu option) and _give_weapon()'s inline '?' listing."""
+    lines = [f'Weapons ({len(weapons)}):']
+    for w in weapons:
+        lines.append(
+            f'  #{w.get("number","?"):>3}  {w.get("name","?"):<22}'
+            f'  {w.get("weapon_class",""):<12}  stability {w.get("stability", 0)}'
+        )
+    await ctx.send(lines)
+
+
 async def _list_weapons(ctx) -> None:
     """List all weapons, optionally filtered by a search term."""
     weapons = getattr(ctx.server, 'weapons', []) or []
@@ -973,13 +1012,7 @@ async def _list_weapons(ctx) -> None:
         await ctx.send(f'No weapons matching "{term}".')
         return
 
-    lines = [f'Weapons ({len(hits)} found):']
-    for w in hits:
-        lines.append(
-            f'  #{w.get("number","?"):>3}  {w.get("name","?"):<22}'
-            f'  {w.get("weapon_class",""):<12}  stability {w.get("stability", 0)}'
-        )
-    await ctx.send(lines)
+    await _send_weapon_list(ctx, hits)
 
 
 async def _give_weapon(ctx) -> None:
@@ -989,7 +1022,12 @@ async def _give_weapon(ctx) -> None:
         await ctx.send('No weapon data loaded on server.')
         return
 
-    raw = await ctx.prompt('Weapon name (or part of name)')
+    while True:
+        raw = await ctx.prompt("Weapon name (or part of name, '?' to list all)")
+        if raw and raw.strip() == '?':
+            await _send_weapon_list(ctx, weapons)
+            continue
+        break
     if not raw or not raw.strip():
         return
 
@@ -1023,15 +1061,20 @@ async def _give_ration(ctx) -> None:
         await ctx.send('No ration data loaded on server.')
         return
 
-    raw = await ctx.prompt('Ration name (or part of name, blank = show all)')
+    def _label(r):
+        return f'{r.get("name","?"):<24}  [{r.get("kind","?")}]'
+
+    while True:
+        raw = await ctx.prompt("Ration name (or part of name, blank = show all, '?' to list all)")
+        if raw and raw.strip() == '?':
+            await _send_labeled_list(ctx, 'Rations', rations, _label)
+            continue
+        break
     term    = (raw or '').strip().lower()
     matches = [r for r in rations if term in (r.get('name') or '').lower()] if term else rations
     if not matches:
         await ctx.send(f'No rations matching "{raw.strip()}".')
         return
-
-    def _label(r):
-        return f'{r.get("name","?"):<24}  [{r.get("kind","?")}]'
 
     chosen = await _pick_from_matches(ctx, matches, _label)
     if chosen is None:
@@ -1070,7 +1113,15 @@ async def _give_object(ctx, type_filter: set, label: str) -> None:
         await ctx.send(f'No {label} data loaded on server.')
         return
 
-    raw = await ctx.prompt(f'{label.capitalize()} name (or part of name)')
+    def _label(o):
+        return f'{o.get("name","?"):<28}  [{o.get("type","?")}]'
+
+    while True:
+        raw = await ctx.prompt(f"{label.capitalize()} name (or part of name, '?' to list all)")
+        if raw and raw.strip() == '?':
+            await _send_labeled_list(ctx, label.capitalize(), pool, _label)
+            continue
+        break
     if not raw or not raw.strip():
         return
 
@@ -1079,9 +1130,6 @@ async def _give_object(ctx, type_filter: set, label: str) -> None:
     if not matches:
         await ctx.send(f'No {label} matching "{raw.strip()}".')
         return
-
-    def _label(o):
-        return f'{o.get("name","?"):<28}  [{o.get("type","?")}]'
 
     chosen = await _pick_from_matches(ctx, matches, _label)
     if chosen is None:

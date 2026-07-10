@@ -21,6 +21,11 @@ from base_classes import Alignment, PlayerClass, PlayerRace
 from bar.ally_data import Ally, AllyFlags, AllyStatus
 from commands.editplayer import (
     _armor_shield_menu,
+    _combinations_menu,
+    _give_object,
+    _give_ration,
+    _give_weapon,
+    _inventory_action,
     _map_info_menu,
     _names_menu,
     _statistics_menu,
@@ -526,6 +531,150 @@ class TestNaturalAlignmentReporting(unittest.IsolatedAsyncioTestCase):
         await _find_item(menu, 'Race').action(ctx)
         self.assertEqual(player.natural_alignment, Alignment.GOOD)
         self.assertIn('Natural alignment updated to Good.', ctx.sent)
+
+
+class TestCombinationsMenuClear(unittest.IsolatedAsyncioTestCase):
+    """'X' in the Combinations menu clears a combination by setting its
+    .combination (the 3-number tuple) to None -- it does NOT remove the
+    Combination object or any of its dict alias keys (combo_type/.value/
+    .name all point at the same object), so _fmt()'s existing 'obj is
+    None -> (none)' fallback isn't what renders it as cleared; rather
+    str(None or '(none)') does, once .combination itself is None."""
+
+    def _seeded_player(self):
+        from base_classes import Combination, CombinationTypes
+        player = _FakePlayer()
+        combo_type = CombinationTypes.CASTLE
+        combo = Combination(combo_type)
+        combo.combination = (40, 10, 5)
+        player.combinations = {
+            combo_type: combo,
+            combo_type.value: combo,
+            combo_type.name: combo,
+        }
+        return player, combo_type
+
+    async def test_x_clears_the_combination_tuple(self):
+        from base_classes import CombinationTypes
+        player, combo_type = self._seeded_player()
+        ctx = _FakeCtx(responses=['x'], player=player)
+        menu = _combinations_menu(ctx)
+        await _find_item(menu, combo_type.value).action(ctx)
+
+        self.assertIsNone(player.combinations[CombinationTypes.CASTLE].combination)
+        self.assertIn(f'{combo_type.value} cleared.', ctx.sent)
+
+    async def test_clear_updates_all_alias_keys_at_once(self):
+        """All three keys reference the same object, so clearing via any
+        one of them is visible through the other two as well."""
+        player, combo_type = self._seeded_player()
+        ctx = _FakeCtx(responses=['x'], player=player)
+        menu = _combinations_menu(ctx)
+        await _find_item(menu, combo_type.value).action(ctx)
+
+        self.assertIsNone(player.combinations[combo_type.value].combination)
+        self.assertIsNone(player.combinations[combo_type.name].combination)
+
+    async def test_clear_with_no_existing_combination_does_not_crash(self):
+        player = _FakePlayer()
+        player.combinations = {}
+        ctx = _FakeCtx(responses=['x'], player=player)
+        menu = _combinations_menu(ctx)
+        from base_classes import CombinationTypes
+        await _find_item(menu, CombinationTypes.CASTLE.value).action(ctx)
+        self.assertIn(f'{CombinationTypes.CASTLE.value} cleared.', ctx.sent)
+
+    async def test_blank_leaves_combination_unchanged(self):
+        player, combo_type = self._seeded_player()
+        ctx = _FakeCtx(responses=[''], player=player)
+        menu = _combinations_menu(ctx)
+        await _find_item(menu, combo_type.value).action(ctx)
+
+        self.assertEqual(player.combinations[combo_type].combination, (40, 10, 5))
+        self.assertIn('Combination unchanged.', ctx.sent)
+
+    async def test_setting_new_combination_after_clear(self):
+        player, combo_type = self._seeded_player()
+        ctx = _FakeCtx(responses=['x'], player=player)
+        menu = _combinations_menu(ctx)
+        await _find_item(menu, combo_type.value).action(ctx)
+
+        ctx2 = _FakeCtx(responses=['07-08-09'], player=player)
+        menu2 = _combinations_menu(ctx2)
+        await _find_item(menu2, combo_type.value).action(ctx2)
+
+        self.assertEqual(player.combinations[combo_type].combination, (7, 8, 9))
+
+
+class TestInventoryActionPreamble(unittest.IsolatedAsyncioTestCase):
+    """The inventory menu's option list moved from the prompt_text (which
+    word-wrapped on narrower screens) into preamble_lines."""
+
+    async def test_options_in_preamble_not_prompt_text(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['q'], player=player)
+        await _inventory_action(ctx)(ctx)
+
+        # First prompt() call is the menu prompt (after _show_inventory's
+        # own ctx.send()); its preamble should carry every option, and the
+        # prompt text itself should be short.
+        prompt_calls = [c for c in ctx.sent]  # _FakeCtx.send() records preamble too
+        flat = '\n'.join(prompt_calls)
+        self.assertIn('[W]eapon', flat)
+        self.assertIn('[L]ist weapons', flat)
+        self.assertIn('[Q]uit', flat)
+
+    async def test_quit_exits_the_loop(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['q'], player=player)
+        await _inventory_action(ctx)(ctx)  # would hang/raise if the loop didn't exit
+
+    async def test_unknown_command_reports_and_reprompts(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['z', 'q'], player=player)
+        await _inventory_action(ctx)(ctx)
+        self.assertIn('Unknown option.', ctx.sent)
+
+
+class TestGiveItemQuestionMarkListsAll(unittest.IsolatedAsyncioTestCase):
+    """'?' at any 'type part of the name' prompt lists every item of that
+    type, then re-prompts for a name -- instead of only being reachable
+    via the separate top-level 'L' (list weapons) menu option."""
+
+    async def test_give_weapon_question_mark_lists_all(self):
+        server = _FakeServer(weapons=[
+            {'number': 1, 'name': 'Sword', 'weapon_class': 'hack_slash_bash', 'stability': 10},
+            {'number': 2, 'name': 'Axe', 'weapon_class': 'hack_slash_bash', 'stability': 12},
+        ])
+        ctx = _FakeCtx(responses=['?', ''], player=_FakePlayer(), server=server)
+        await _give_weapon(ctx)
+        self.assertIn('Weapons (2):', ctx.sent)
+        self.assertTrue(any('Sword' in s for s in ctx.sent))
+        self.assertTrue(any('Axe' in s for s in ctx.sent))
+
+    async def test_give_ration_question_mark_lists_all(self):
+        server = _FakeServer()
+        server.rations = [
+            {'number': 1, 'name': 'Bread', 'kind': 'food'},
+            {'number': 2, 'name': 'Water', 'kind': 'drink'},
+        ]
+        ctx = _FakeCtx(responses=['?', ''], player=_FakePlayer(), server=server)
+        await _give_ration(ctx)
+        self.assertIn('Rations (2):', ctx.sent)
+        self.assertTrue(any('Bread' in s for s in ctx.sent))
+        self.assertTrue(any('Water' in s for s in ctx.sent))
+
+    async def test_give_object_question_mark_lists_all(self):
+        server = _FakeServer()
+        server.items = [
+            {'number': 1, 'name': 'Ring', 'type': 'treasure'},
+            {'number': 2, 'name': 'Compass', 'type': 'compass'},
+        ]
+        ctx = _FakeCtx(responses=['?', ''], player=_FakePlayer(), server=server)
+        await _give_object(ctx, {'treasure', 'compass'}, 'object')
+        self.assertIn('Object (2):', ctx.sent)
+        self.assertTrue(any('Ring' in s for s in ctx.sent))
+        self.assertTrue(any('Compass' in s for s in ctx.sent))
 
 
 if __name__ == '__main__':
