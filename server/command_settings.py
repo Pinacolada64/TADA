@@ -23,6 +23,9 @@ class CommandSettings:
     whereat_hidden: bool = False
     # Named groups for whisper/page: group_name (lower) → list of player names
     groups: dict = field(default_factory=dict)
+    # False (default): show only news posted since the player's last login.
+    # True: show the full directory of currently-active news items every login.
+    news_show_all: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)

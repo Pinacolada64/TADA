@@ -8,6 +8,7 @@ in-game).  Auto-discovered by CommandProcessor.discover().
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 
@@ -65,6 +66,45 @@ def guild_welcome_line(guild) -> str | None:
     """
     parts = _GUILD_WELCOME.get(guild)
     return f"{parts[0]} {parts[1]}" if parts else None
+
+
+def _login_news_lines(player) -> list[str]:
+    """Build the login-time news display for *player*, honoring their
+    command_settings.news_show_all preference (full directory every login
+    vs. just what's new since player.last_connection). Marks 'once' items
+    as seen and persists that back to news.json.
+
+    Reuses news.py's helpers directly rather than commands/news.py's
+    NewsCommand, since this runs before the player has a live prompt loop.
+    """
+    import news as news_store
+
+    items = news_store.load_news()
+    if not items:
+        return []
+
+    today   = datetime.date.today()
+    since   = getattr(player, 'last_connection', None)
+    show_all = getattr(player.command_settings, 'news_show_all', False)
+
+    visible = [it for it in items if news_store.is_visible(it, player.name, today)]
+    if show_all:
+        to_show = visible
+    else:
+        to_show = [it for it in visible if news_store.is_new_since(it, since)]
+
+    if not to_show:
+        return []
+
+    lines = ['', '|yellow|--- News ---|reset|']
+    for it in to_show:
+        lines += news_store.format_item(it)
+        lines.append('')
+        if it.get('lifetime') == 'once':
+            news_store.mark_seen(it, player.name)
+
+    news_store.save_news(items)
+    return lines
 
 
 def _load_credentials(username: str) -> dict | None:
@@ -287,6 +327,15 @@ class ConnectCommand(Command):
 
         login_lines.append(f"You last connected on {player.last_connection}.")
         login_lines.append("")
+
+        # News since last login -- see news.py for storage/visibility rules
+        # and commands/news.py for the standalone 'news' command that reuses
+        # the same helpers.
+        news_lines = _login_news_lines(player)
+        if news_lines:
+            login_lines += news_lines
+        player.last_connection = datetime.datetime.now()
+        player.unsaved_changes = True
 
         # --- Status summary ---
         login_lines += ["Current status:", ""]

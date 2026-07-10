@@ -981,6 +981,18 @@ class Player:
             if 'read_books' in data and isinstance(data['read_books'], list):
                 self.read_books = [int(i) for i in data['read_books'] if isinstance(i, (int, float))]
 
+            # Previous session's login time -- save() writes this via str(datetime),
+            # which is also a valid fromisoformat() input (space instead of 'T').
+            # Without this restore, self.last_connection stays at its __init__
+            # default (datetime.now() at construction time), so it always reads
+            # as "just now" and news.py's "since last login" comparison would
+            # never find anything older to compare against.
+            if 'last_connection' in data and isinstance(data['last_connection'], str):
+                try:
+                    self.last_connection = datetime.datetime.fromisoformat(data['last_connection'])
+                except ValueError:
+                    logging.exception("Player._load: failed to restore last_connection for %s", self.name)
+
             # Per-player kill list (each entry is a monster number)
             if 'monsters_killed' in data and isinstance(data['monsters_killed'], list):
                 self.monsters_killed = [int(i) for i in data['monsters_killed'] if isinstance(i, (int, float))]

@@ -709,19 +709,27 @@ for exactly this reason.
 
 ### News / Bulletin Board
 
+#### Implemented
+- ✅ **Startup display** — `commands/connect.py`'s `_login_news_lines()` shows applicable news
+  items automatically at login, before the game loop starts.
+- ✅ **`news` command** (`commands/news.py`) — `news` lists currently-active items, `news <id>`
+  reads one in full, `news post` / `news edit <id>` / `news delete <id>` are admin-only.
+- ✅ **Display lifetime** — each post (`news.py`) carries one of three lifetime modes:
+  - *once* — shown once per player, then silently suppressed (tracked via `seen_by`).
+  - *permanent* — always shown until manually deleted.
+  - *range* — active only between `start_date` and `end_date`; invisible outside that window.
+- ✅ **Storage** — posts stored as JSON (`run/server/news.json`); each record: `id`, `title`,
+  `body`, `author`, `posted_at`, `lifetime` (`once` / `permanent` / `range`), optional
+  `start_date` / `end_date`, and a `seen_by` list of player names.
+- ✅ **Per-player display preference** — `command_settings.news_show_all` (PREFS key `N`)
+  chooses between a full directory every login vs. just what's new since
+  `player.last_connection`.
+
 #### Future
-- **Startup display** — active news items are shown automatically when a player logs in, before the
-  game loop starts.
-- **`news` command** — lets players re-read current news at any time during a session.
-- **Post editing** — sysops/admins create and edit posts via `text_editor.py` (the shared
-  line-editor already used elsewhere in TADA).
-- **Display lifetime** — each post carries one of three lifetime modes:
-  - *One-time* — shown once per player, then silently suppressed on subsequent logins.
-  - *Permanent* — always shown until manually deleted.
-  - *Date range* — active only between a `start_date` and `end_date`; invisible outside that window.
-- **Storage** — posts stored as JSON (e.g. `news.json`); each record: `id`, `body`, `lifetime`
-  (`once` / `permanent` / `range`), optional `start_date` / `end_date`, and a `seen_by` list of
-  player names (used for one-time suppression).
+- **Post editing via a real line editor** — admin authoring in `commands/news.py` currently uses
+  a plain `END`-terminated multi-line prompt (same convention as `threaded_messages.py`'s
+  `create_new_thread()`), not `text_editor.py` (the shared line-editor prototyped on the
+  not-yet-merged `text_editor` branch). Swap it in once that branch lands.
 
 ### Mail / Paging
 

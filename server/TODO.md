@@ -164,3 +164,29 @@
   the above as a starting guess, not a spec, until that conversation
   happens.
 
+7/9/26:
+- NEWS command (news.py, commands/news.py) implemented per MECHANICS.md's
+  "News & Mail" > "News / Bulletin Board" design: news.json storage,
+  once/permanent/range lifetime modes, per-item seen_by list, a
+  command_settings.news_show_all preference (wired into PREFS as key 'N')
+  controlling whether login shows a full directory every time or just
+  what's posted since player.last_connection. commands/connect.py calls
+  into news.py directly to build the login-time display.
+  - Admin post/edit authoring in commands/news.py currently uses a plain
+    'END'-terminated multi-line prompt (same convention as
+    threaded_messages.py's create_new_thread()), not a real line editor.
+    Swap this out for the real thing once the `text_editor` branch
+    (remotes/origin/text_editor: server/text_editor/{text_editor,
+    dot_commands, functions, ctrl_functions}.py -- an ed-style line buffer
+    with dot-commands) is merged into master.
+  - Fixed a real bug found while building this: Player._load() never
+    restored last_connection from the save file (only __init__'s
+    kwargs.get(..., datetime.now()) default applied), so it always read
+    as "just now" on every login regardless of the previous session --
+    silently defeating any future "since last login" comparison. Now
+    parsed back via datetime.fromisoformat() in _load().
+  - threaded_messages.py (the per-room/per-board threaded message
+    skeleton referenced in MECHANICS.md's "Threaded Message Boards"
+    section) is a separate, not-yet-ported prototype -- NEWS does not use
+    it and remains a distinct, simpler single-stream bulletin board.
+

@@ -24,6 +24,7 @@ Settings managed here
                       — ANSI terminals only; PETSCII has one fixed style
   C  Colors           client_settings.colors.text_color
                       client_settings.colors.highlight_color
+  N  News Display     command_settings.news_show_all  (New only / Full directory)
 """
 
 from __future__ import annotations
@@ -77,6 +78,15 @@ _SETTING_HELP: dict[str, list[str]] = {
         "Sets the text color and highlight color used for |white|[bracketed]"
         "|reset| text throughout your session, e.g. item names or emphasis "
         "in messages.",
+        '',
+    ],
+    'n': [
+        '',
+        '|yellow|News Display|reset|',
+        "Controls what the NEWS command shows you at login. 'New only' (the "
+        "default) shows just what's posted since your last login. 'Full "
+        "directory' shows every currently-active news item every time you "
+        "log in, whether you've seen it before or not.",
         '',
     ],
 }
@@ -150,8 +160,10 @@ async def prefs_menu(ctx) -> bool:
         if not is_petscii:
             t.add_row(['B', 'Border Style',  border_key.title(), 'hb'])
         t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight', 'hc'])
+        news_all = getattr(ctx.player.command_settings, 'news_show_all', False)
+        t.add_row(['N', 'News Display', 'Full directory' if news_all else 'New only', 'hn'])
 
-        valid_keys = ['X', 'H', 'M', 'C'] if is_petscii else ['X', 'H', 'M', 'B', 'C']
+        valid_keys = ['X', 'H', 'M', 'C', 'N'] if is_petscii else ['X', 'H', 'M', 'B', 'C', 'N']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -173,6 +185,7 @@ async def prefs_menu(ctx) -> bool:
                 "M - toggle More Prompt (pause between screenfuls; also 'mp' in-game)",
                 'B - choose border style (ANSI only)',
                 'C - choose text and highlight colors',
+                'N - toggle News Display (new only / full directory)',
                 f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
                 f'{return_key} - save and exit',
             )
@@ -211,6 +224,12 @@ async def prefs_menu(ctx) -> bool:
 
         elif ans == 'c':
             await _pick_colors(ctx)
+
+        elif ans == 'n':
+            option = "|white|News Display: "
+            cs2 = ctx.player.command_settings
+            cs2.news_show_all = not getattr(cs2, 'news_show_all', False)
+            await ctx.send(f"{option}{'|green|Full directory' if cs2.news_show_all else '|green|New only'}|reset|")
 
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
