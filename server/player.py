@@ -938,6 +938,16 @@ class Player:
             with open(path, 'r') as f:
                 data = json.load(f)
 
+            # Display name, as last saved -- e.g. after an EditPlayer rename
+            # (commands/editplayer.py's _names_menu() edit_name()).  Without
+            # this, connect.py's _authenticate() always reconstructs Player
+            # with name=char_name, which falls back to the lowercased login
+            # username (creds.get('char_name') is never actually written
+            # anywhere), so any case-preserving rename was silently
+            # discarded on the very next login.
+            if 'name' in data and isinstance(data['name'], str) and data['name'].strip():
+                self.name = data['name']
+
             # Merge simple scalar fields
             simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote')
             for k in simple_keys:

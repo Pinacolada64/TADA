@@ -13,6 +13,10 @@ test constructs a Player (or fake) with char_class/gender passed directly
 as constructor kwargs, never round-tripping through save() -> a fresh
 Player(id=...) the way a real reconnect does.
 
+Same bug class found again later for `name` (see
+test_renamed_display_name_survives_a_relogin below): a case-preserving
+EditPlayer rename reverted to lowercase on the next login.
+
 Run with:
     python -m pytest tests/test_player_login_restores_class.py -v
 """
@@ -51,3 +55,41 @@ def test_missing_char_class_defaults_gracefully(tmp_path):
 
     relogged = Player(name='noclasstest', id='noclasstest')
     assert relogged.char_class is None
+
+
+def test_renamed_display_name_survives_a_relogin(tmp_path):
+    """Same bug class as char_class/race/gender above, found live: EditPlayer's
+    Character Names > rename (commands/editplayer.py's edit_name()) sets
+    player.name and it gets saved, but commands/connect.py's _authenticate()
+    always reconstructs Player(name=char_name, id=username), where char_name
+    comes from creds.get('char_name') -- a credentials-file key nothing ever
+    actually writes, so it's always None and falls back to the lowercased
+    login username. Without _load() restoring name from the save file, a
+    case-preserving rename (e.g. 'railbender' -> 'Railbender') was silently
+    discarded on the very next login, always reverting to lowercase."""
+    import net_common
+    net_common.run_server_dir = str(tmp_path / 'run' / 'server')
+
+    original = Player(id='railbender', name='railbender')
+    original.name = 'Railbender'
+    original.unsaved_changes = True
+    assert original.save(force=True)
+
+    # Simulate a fresh reconnect exactly the way commands/connect.py does:
+    # Player(name=char_name, id=username) -- char_name always falls back
+    # to the lowercased login username since nothing ever populates
+    # creds['char_name'].
+    relogged = Player(name='railbender', id='railbender')
+
+    assert relogged.name == 'Railbender'
+
+
+def test_new_character_with_no_save_file_keeps_constructor_name(tmp_path):
+    """A brand-new character (no save file yet) must still get its name
+    from the constructor kwarg -- _load() only overrides it once a save
+    file with a 'name' field actually exists."""
+    import net_common
+    net_common.run_server_dir = str(tmp_path / 'run' / 'server')
+
+    brand_new = Player(name='Freshman', id='freshman')
+    assert brand_new.name == 'Freshman'

@@ -483,6 +483,7 @@ def _names_menu(ctx) -> Menu:
             await ctx.send('Name unchanged.')
             return
         p.name = raw.strip()
+        p.unsaved_changes = True
         await ctx.send(f'Name changed to: {p.name}')
 
     def _ally_label(slot: int) -> str:
