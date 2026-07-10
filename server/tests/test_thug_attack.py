@@ -2,7 +2,10 @@
 
 Unit tests for bar/thug_attack.py -- resolves a pending Blue Djinn hit
 contract (PlayerFlags.THUG_ATTACK, set by bar/blue_djinn.py's HIRE flow)
-at login.
+at login. Also covers both directions of the flag/hit_contracts.json
+desync edge case (see TestFlagWithNoContractRecord and
+TestContractWithNoFlagSet) -- either signal alone is enough to trigger
+the ambush.
 
 Run with:
     python -m pytest tests/test_thug_attack.py -v
@@ -130,6 +133,118 @@ class TestNormalAmbush(_RunDirMixin, unittest.IsolatedAsyncioTestCase):
             await maybe_trigger_thug_attack(ctx)
 
         mock_combat.assert_not_awaited()
+        player.clear_flag.assert_called_once_with(PlayerFlags.THUG_ATTACK)
+
+
+class TestFlagWithNoContractRecord(_RunDirMixin, unittest.IsolatedAsyncioTestCase):
+    """Edge case: THUG_ATTACK is set (e.g. toggled directly via EditPlayer's
+    Flags/Counters menu, or a contract was deleted/resolved without
+    clearing the flag) but hit_contracts.json has no matching record.
+    Should still ambush -- the flag alone is authoritative -- just with a
+    generic attacker name, and it must not crash."""
+
+    async def test_still_ambushes_with_generic_attacker(self):
+        from bar.thug_attack import maybe_trigger_thug_attack
+
+        player = _make_player(thug_attack=True, name='NoRecordVictim')
+        ctx = _make_ctx(player)
+        # No add_contract() call -- hit_contracts.json has nothing for this name.
+
+        with patch('combat.enter_combat', new_callable=AsyncMock) as mock_combat:
+            await maybe_trigger_thug_attack(ctx)
+
+        mock_combat.assert_awaited_once()
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('someone', sent)
+        player.clear_flag.assert_called_once_with(PlayerFlags.THUG_ATTACK)
+
+    async def test_logs_warning_about_the_desync(self):
+        from bar.thug_attack import maybe_trigger_thug_attack
+
+        player = _make_player(thug_attack=True, name='NoRecordVictim')
+        ctx = _make_ctx(player)
+
+        with patch('combat.enter_combat', new_callable=AsyncMock), \
+             self.assertLogs('bar.thug_attack', level='WARNING') as cm:
+            await maybe_trigger_thug_attack(ctx)
+
+        self.assertTrue(any('no pending hit contract' in msg for msg in cm.output))
+
+    async def test_does_not_crash_resolving_contracts_that_do_not_exist(self):
+        from bar.blue_djinn import pending_contracts
+        from bar.thug_attack import maybe_trigger_thug_attack
+
+        player = _make_player(thug_attack=True, name='NoRecordVictim')
+        ctx = _make_ctx(player)
+
+        with patch('combat.enter_combat', new_callable=AsyncMock):
+            await maybe_trigger_thug_attack(ctx)
+
+        # resolve_all_pending_contracts() on a name with no entries is a no-op.
+        self.assertEqual(pending_contracts('NoRecordVictim'), [])
+
+
+class TestContractWithNoFlagSet(_RunDirMixin, unittest.IsolatedAsyncioTestCase):
+    """The reverse desync: hit_contracts.json has a pending record but
+    THUG_ATTACK was never set (e.g. a contract placed by an older build
+    that predates set_thug_flag_on_target(), or the flag cleared without
+    resolving the contract). Must still ambush -- otherwise the contract
+    would sit unresolved forever, since nothing else ever triggers this
+    module -- and must not crash trying to clear a flag that isn't set."""
+
+    async def test_still_ambushes_using_the_contract(self):
+        from bar.blue_djinn import add_contract
+        from bar.thug_attack import maybe_trigger_thug_attack
+
+        add_contract('UnflaggedVictim', 'Some Enemy', 'RealHirer', 500)
+        player = _make_player(thug_attack=False, name='UnflaggedVictim')
+        ctx = _make_ctx(player)
+
+        with patch('combat.enter_combat', new_callable=AsyncMock) as mock_combat:
+            await maybe_trigger_thug_attack(ctx)
+
+        mock_combat.assert_awaited_once()
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('Some Enemy', sent)
+
+    async def test_resolves_the_contract_afterward(self):
+        from bar.blue_djinn import add_contract, pending_contracts
+        from bar.thug_attack import maybe_trigger_thug_attack
+
+        add_contract('UnflaggedVictim', 'SOMEBODY', 'Hirer1', 500)
+        player = _make_player(thug_attack=False, name='UnflaggedVictim')
+        ctx = _make_ctx(player)
+
+        with patch('combat.enter_combat', new_callable=AsyncMock):
+            await maybe_trigger_thug_attack(ctx)
+
+        self.assertEqual(pending_contracts('UnflaggedVictim'), [])
+
+    async def test_logs_warning_about_the_desync(self):
+        from bar.blue_djinn import add_contract
+        from bar.thug_attack import maybe_trigger_thug_attack
+
+        add_contract('UnflaggedVictim', 'SOMEBODY', 'Hirer1', 500)
+        player = _make_player(thug_attack=False, name='UnflaggedVictim')
+        ctx = _make_ctx(player)
+
+        with patch('combat.enter_combat', new_callable=AsyncMock), \
+             self.assertLogs('bar.thug_attack', level='WARNING') as cm:
+            await maybe_trigger_thug_attack(ctx)
+
+        self.assertTrue(any('THUG_ATTACK is not set' in msg for msg in cm.output))
+
+    async def test_does_not_crash_clearing_flag_that_was_never_set(self):
+        from bar.blue_djinn import add_contract
+        from bar.thug_attack import maybe_trigger_thug_attack
+
+        add_contract('UnflaggedVictim', 'SOMEBODY', 'Hirer1', 500)
+        player = _make_player(thug_attack=False, name='UnflaggedVictim')
+        ctx = _make_ctx(player)
+
+        with patch('combat.enter_combat', new_callable=AsyncMock):
+            await maybe_trigger_thug_attack(ctx)   # must not raise
+
         player.clear_flag.assert_called_once_with(PlayerFlags.THUG_ATTACK)
 
 

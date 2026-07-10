@@ -677,14 +677,18 @@ Locker belongs to the Shoppe (`shoppe/locker.py`), not here.
   online (mutates their live `Player` directly) or offline (loads/edits/saves
   their save file). **Resolution** (`bar/thug_attack.py`
   `maybe_trigger_thug_attack()`, called from `simple_server.py`'s
-  `_game_loop()` right before the room is shown): if the flag is set, a THUG
-  (monster #60) ambushes the player via `combat.enter_combat()`, naming
-  whichever hire's `attacker_display` is first pending; the flag is cleared
-  and every pending contract against that player resolved
-  (`resolve_all_pending_contracts()`) once the fight is over, win or lose. A
-  player with `PlayerFlags.DEBUG_MODE` set gets an explicit Y/N to skip the
-  ambush for testing — skipping leaves the flag/contracts pending so it can
-  be retried on a later login.
+  `_game_loop()` right before the room is shown): if the flag is set *or*
+  there's a pending contract, a THUG (monster #60) ambushes the player via
+  `combat.enter_combat()`, naming whichever hire's `attacker_display` is
+  first pending; the flag is cleared and every pending contract against that
+  player resolved (`resolve_all_pending_contracts()`) once the fight is
+  over, win or lose. Either signal alone is enough to trigger — a mismatch
+  (flag set with no contract record, or a contract with no flag, e.g. one
+  placed by an older build before `set_thug_flag_on_target()` existed) logs
+  a warning but still ambushes rather than leaving a contract unresolved
+  forever or a flag stuck on. A player with `PlayerFlags.DEBUG_MODE` set
+  gets an explicit Y/N to skip the ambush for testing — skipping leaves the
+  flag/contracts pending so it can be retried on a later login.
   Also fixed while wiring this up: three spots in `blue_djinn.py` read
   `client.player` instead of `client.ctx.player` (`simple_server.py` sets
   `client.ctx = ctx` on connect; `Client` has no bare `.player` at all), so
