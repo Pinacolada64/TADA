@@ -932,6 +932,24 @@ def _weapon_from_dict(d: dict):
     )
 
 
+_READ_NUMBER_RE = re.compile(r'r\s*(\d+)', re.IGNORECASE)
+
+
+async def _read_numbered_item(ctx, number: int) -> None:
+    """Read inventory slot *number* (1-based, matching _show_inventory()'s
+    numbering) by delegating to the real ReadCommand -- reuses all of its
+    dispatch (scrap of paper/claim tag/scrolls/recovered book text)
+    instead of duplicating any of it here."""
+    inv = getattr(ctx.player, 'inventory', None)
+    entries = list(inv.entries()) if inv and hasattr(inv, 'entries') else []
+    if not (1 <= number <= len(entries)):
+        await ctx.send('No such inventory item.')
+        return
+    name = getattr(entries[number - 1].item, 'name', '')
+    from commands.read import ReadCommand
+    await ReadCommand().execute(ctx, *name.split())
+
+
 def _inventory_action(ctx):
     """Return an async action that drives the inventory management flow."""
     async def action(ctx):
@@ -940,13 +958,20 @@ def _inventory_action(ctx):
             raw = await ctx.prompt(
                 'Command',
                 preamble_lines=[
-                    '[W]eapon  [A]rmor  [S]pell  [O]bject  [B]ook  [R]ation',
+                    '[W]eapon  [A]rmor  [S]pell  [O]bject  [B]ook (r<#>=Read)  [R]ation',
                     '[L]ist weapons  [I]nventory  [Q]uit',
                 ],
             )
             if raw is None:
                 break
-            cmd = raw.strip().lower()[:1]
+            stripped = raw.strip()
+
+            read_match = _READ_NUMBER_RE.fullmatch(stripped)
+            if read_match:
+                await _read_numbered_item(ctx, int(read_match.group(1)))
+                continue
+
+            cmd = stripped.lower()[:1]
 
             if cmd in ('q', ''):
                 break
@@ -975,17 +1000,18 @@ def _inventory_action(ctx):
 
 
 async def _show_inventory(ctx) -> None:
-    """Display the player's current inventory."""
+    """Display the player's current inventory, numbered so 'r<#>' can
+    read a book straight out of this list (see _inventory_action())."""
     inv = getattr(ctx.player, 'inventory', None)
     entries = list(inv.entries()) if inv and hasattr(inv, 'entries') else []
     if not entries:
         await ctx.send('Inventory is empty.')
         return
     lines = ['Current inventory:']
-    for e in entries:
+    for i, e in enumerate(entries, 1):
         name = getattr(e.item, 'name', '?')
         qty  = getattr(e, 'quantity', 1)
-        lines.append(f'  {name}' + (f' ×{qty}' if qty > 1 else ''))
+        lines.append(f'  {i:>2}. {name}' + (f' ×{qty}' if qty > 1 else ''))
     await ctx.send(lines)
 
 

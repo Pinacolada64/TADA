@@ -161,6 +161,12 @@ class Server:
         except Exception as e:
             logging.warning("Could not load 'books.json': %s", e)
             self.books = {}
+        try:
+            from banner import load_banner
+            self.banner = load_banner(str(script_dir / 'graphics' / 'banner.ans'))
+        except Exception as e:
+            logging.warning("Could not load 'graphics/banner.ans': %s", e)
+            self.banner = []
         # Items dropped by players during this session: room_number → list of InventoryEntry
         self.room_items: dict[int, list] = {}
         logging.info('Map: %d rooms | %d monsters | %d items | %d weapons',
@@ -425,20 +431,16 @@ class Server:
         Returns False on quit or disconnect.
         """
         logging.debug('ENTER')
+        banner = getattr(self, 'banner', None)
+        if banner:
+            await ctx.send(banner)
         await ctx.send(
             '',
-            '|green|Welcome to:',
-            '',
-              '|red|  Totally',
-            '|white|   Awesome',
-              '|red|    Dungeon',
-            '|white|     Adventure',
-            '|green|',
             "Type 'connect <username> <password>' to log in.",
             "Type 'connect guest' to look around as a guest.",
             "Type 'new' to create a new character.",
             "Type 'help' for help, 'help about' to learn what this is, or 'quit' to leave.",
-            '|light_blue|',
+            '',
         )
 
         processor = ctx.client.command_processor

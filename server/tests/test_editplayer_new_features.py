@@ -60,6 +60,7 @@ class _FakePlayer:
         self.experience = 0
         self.moves_today = 0
         self.monsters_killed: list = []
+        self.read_books: list = []
         self.party: list = []
         self.unsaved_changes = False
         self.char_class = None
@@ -675,6 +676,59 @@ class TestGiveItemQuestionMarkListsAll(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Object (2):', ctx.sent)
         self.assertTrue(any('Ring' in s for s in ctx.sent))
         self.assertTrue(any('Compass' in s for s in ctx.sent))
+
+
+class TestInventoryReadNumberedBook(unittest.IsolatedAsyncioTestCase):
+    """'r<#>' at the inventory prompt reads inventory slot # (matching
+    _show_inventory()'s numbering) by delegating to the real ReadCommand --
+    a plain 'r' with no number still means Ration, unaffected."""
+
+    def _player_with_books(self):
+        from inventory import Inventory
+        from items import Item, ItemCategory
+        from item_system import ItemType
+
+        player = _FakePlayer()
+        player.stats = {}
+        player.inventory = Inventory(capacity=10)
+        sword = Item(id_number=1, name='Sword', category=ItemCategory.WEAPON)
+        book = Item(id_number=30, name='The Howling', category=ItemCategory.ITEM)
+        book.type = ItemType.BOOK
+        player.inventory.add(sword)
+        player.inventory.add(book)
+        return player
+
+    async def test_show_inventory_numbers_entries(self):
+        player = self._player_with_books()
+        ctx = _FakeCtx(responses=[], player=player)
+        from commands.editplayer import _show_inventory
+        await _show_inventory(ctx)
+        flat = '\n'.join(ctx.sent)
+        self.assertIn('1. Sword', flat)
+        self.assertIn('2. The Howling', flat)
+
+    async def test_r_number_reads_that_book(self):
+        player = self._player_with_books()
+        # '2' picks the book from ReadCommand's own book list (only one
+        # BOOK-typed entry, so it's listed as choice 1 there).
+        ctx = _FakeCtx(responses=['r2', '1', 'q'], player=player)
+        await _inventory_action(ctx)(ctx)
+        flat = '\n'.join(ctx.sent)
+        self.assertIn('Howling', flat)
+
+    async def test_bare_r_still_means_ration(self):
+        player = self._player_with_books()
+        server = _FakeServer()
+        server.rations = []
+        ctx = _FakeCtx(responses=['r', 'q'], player=player, server=server)
+        await _inventory_action(ctx)(ctx)
+        self.assertIn('No ration data loaded on server.', ctx.sent)
+
+    async def test_out_of_range_number_reports_error(self):
+        player = self._player_with_books()
+        ctx = _FakeCtx(responses=['r99', 'q'], player=player)
+        await _inventory_action(ctx)(ctx)
+        self.assertIn('No such inventory item.', ctx.sent)
 
 
 if __name__ == '__main__':
