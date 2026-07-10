@@ -82,6 +82,7 @@ class _FakePlayer:
         self.unsaved_changes = False
         self.inventory = MagicMock()
         self.inventory.entries = MagicMock(return_value=[])
+        self.return_key = 'Enter'
         self._gold = gold
 
     def get_silver(self, kind):

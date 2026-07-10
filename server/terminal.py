@@ -216,6 +216,9 @@ class ClientSettings:
     reverse_on: str = Back.WHITE + Style.DIM
     reverse_off: str = Style.RESET_ALL
     tab_settings: TabSettings = TabSettings()
+    # Label for the client's Enter/Return key, shown in prompts like
+    # "(Enter: Attack)" or "press Return to cancel" -- see Player.return_key.
+    return_key: str = 'Enter'
 
 def settings_menu(player: Player):
     from menu_system import Menu, MenuItem

@@ -705,11 +705,15 @@ class CombatSession:
             is_charge = False
             if not auto_attack:
                 charge_opt = '  [C]harge' if self._charge_eligible else ''
-                raw = await ctx.prompt(
-                    f'[A]ttack{charge_opt}  [F]lee  Enter/Return: Exit this menu  '
+                # Options go in the preamble, not the prompt line itself --
+                # with [C]harge/[R]eady/e[X]it all present the full line
+                # ran past narrow screen widths (e.g. 40-column PETSCII).
+                preamble = [
+                    f'[A]ttack{charge_opt}  [F]lee  [R]eady  e[X]it  ({player.return_key}: Attack)',
                     f'(HP:{getattr(player, "hit_points", "?")}'
                     f'  {mname} HP:{_monster_hp(self.monster)})',
-                )
+                ]
+                raw = await ctx.prompt('Command', preamble_lines=preamble)
                 if raw is None:
                     # Client disconnected mid-fight
                     break
@@ -721,6 +725,14 @@ class CombatSession:
                     fled = await self.flee(ctx)
                     if fled:
                         return
+                    continue
+                if cmd == 'r':
+                    from commands.ready import ReadyCommand
+                    await ReadyCommand().execute(ctx)
+                    continue
+                if cmd == 'x':
+                    # Exit this menu for the round: no attack, no flee
+                    # attempt -- just skip the turn and re-prompt.
                     continue
                 is_charge = cmd == 'c'
 

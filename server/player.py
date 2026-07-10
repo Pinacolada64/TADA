@@ -388,6 +388,15 @@ class Player:
         return self.query_flag(PlayerFlags.DEBUG_MODE)
 
     @property
+    def return_key(self) -> str:
+        """The player's negotiated Enter/Return key label (e.g. 'Enter' or
+        'Return'), for prompts like "(Enter: Attack)" or "press X to cancel".
+        Shortcut for client_settings.return_key so callers don't have to
+        repeat that whole path (see the TODO this replaces in
+        create_character.py:530)."""
+        return getattr(self.client_settings, 'return_key', 'Enter')
+
+    @property
     def is_future_expansion(self) -> None:
         """TODO: Another such shortcut, to be determined"""
         return None
