@@ -26,6 +26,13 @@ class CommandSettings:
     # False (default): show only news posted since the player's last login.
     # True: show the full directory of currently-active news items every login.
     news_show_all: bool = False
+    # PAGE command preferences (commands/page.py)
+    # True: block ALL incoming pages ('page #haven' / 'page #unhaven').
+    haven: bool = False
+    # Names blocked from paging this player ('page #ignore <name>' /
+    # 'page #unignore <name>'); stored with original casing, compared
+    # case-insensitively.
+    ignored_pagers: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)

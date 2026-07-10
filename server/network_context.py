@@ -115,6 +115,19 @@ class BaseContext:
                      preamble_lines: list[str] | None = None) -> str:
         raise NotImplementedError
 
+    def _pop_pending_pages(self) -> list[str]:
+        """Pop and format any pages queued while this player was busy (in
+        combat -- see commands/messaging.py's is_in_combat() and
+        commands/page.py). Called at the top of prompt() in both
+        GameContext and PETSCIINetworkContext so queued pages surface with
+        the next prompt instead of interrupting mid-exchange."""
+        pending = getattr(self.player, 'pending_pages', None)
+        if not pending:
+            return []
+        lines = [f'[PAGE] {msg}' for msg in pending]
+        pending.clear()
+        return lines
+
 
 # ---------------------------------------------------------------------------
 # GameContext — JSON wire protocol
@@ -256,6 +269,10 @@ class GameContext(BaseContext):
         from net_common import from_jsonb
         from time import strftime
 
+        pending = self._pop_pending_pages()
+        if pending:
+            preamble_lines = pending + list(preamble_lines or [])
+
         if preamble_lines:
             await self.send(preamble_lines)
 
@@ -381,6 +398,9 @@ class PETSCIINetworkContext(GameContext):
         """Send raw PETSCII prompt, read CR-terminated response."""
         from formatting import petscii_encode
         from time import strftime
+        pending = self._pop_pending_pages()
+        if pending:
+            preamble_lines = pending + list(preamble_lines or [])
         if preamble_lines:
             await self.send(preamble_lines)
         if self.player.query_flag(PlayerFlags.HOURGLASS):

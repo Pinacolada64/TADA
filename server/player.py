@@ -306,6 +306,11 @@ class Player:
         # re-reading the same reference book). See commands/read.py.
         self.read_books: list[int] = kwargs.get('read_books', [])
         self.readied_weapon = None  # currently readied weapon (BaseItem or None)
+        # Page messages queued while busy (currently: in combat -- see
+        # commands/messaging.py's is_in_combat() and commands/page.py).
+        # Flushed and shown by network_context.py's prompt() the next time
+        # this player is prompted, instead of interrupting combat mid-round.
+        self.pending_pages: list[str] = []
         # Battle experience per weapon type, keyed by str(id_number), value 0-99.
         # Persists independently of inventory so experience survives dropping/selling.
         self.weapon_experience: dict = kwargs.get('weapon_experience', {})
@@ -882,7 +887,7 @@ class Player:
                 os.makedirs(parent, exist_ok=True)
             # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact.
             # Exclude session-only attributes that hold live objects and are not restored on load.
-            _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'compass_active'}
+            _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'compass_active', 'pending_pages'}
             data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
             from inventory import Inventory

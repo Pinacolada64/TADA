@@ -733,15 +733,36 @@ for exactly this reason.
 
 ### Mail / Paging
 
+#### Implemented
+- ✅ **`page` command** (`commands/page.py`) — sends an instant message to one or more online
+  players (appears in their session immediately, same as `shout`), crossing rooms; supports
+  comma/space-delimited target lists and `#groupname` (shared with `whisper`,
+  `commands/groups.py`).
+- ✅ **Combat courtesy queueing** — a page to a player who's an active combat participant
+  (`commands.messaging.is_in_combat()`, checked against `server.active_combats[room].attackers`
+  — a room *bystander* to someone else's fight still gets pages normally) isn't delivered
+  immediately. Instead the sender gets a short "you sense you have a page waiting for you"
+  notice, and the full message is queued on `player.pending_pages`; `network_context.py`'s
+  `prompt()` (both `GameContext` and `PETSCIINetworkContext`) flushes it as `[PAGE] ...` lines
+  the next time that player is prompted, so it surfaces after the fight's current prompt instead
+  of interrupting a round mid-exchange.
+- ✅ **`#ignore` / `#unignore`** — `page #ignore <name>` blocks a specific player from paging you
+  (`command_settings.ignored_pagers`); their own page attempt is silently dropped and they're told
+  "`<you>` is ignoring your pages." `page #unignore <name>` reverses it.
+- ✅ **`#haven` / `#unhaven`** — `page #haven` blocks *all* incoming pages
+  (`command_settings.haven`); senders are told you're "not accepting pages right now."
+  `page #unhaven` reverses it. `#ignore`/`#unignore`/`#haven`/`#unhaven` are reserved words, so a
+  saved group can't use those names.
+- ✅ **Offline fallback** — if a target isn't online, `page` offers to leave the message as mail
+  (declines silently if the player doesn't exist at all). Accepting appends a record to
+  `run/server/mail/<name>.json` in the schema below.
+- ✅ **Storage** — mailboxes stored per-player (`run/server/mail/<name>.json`); each message:
+  `from`, `timestamp`, `body`, `read` flag (no `subject` yet — pages are one-liners).
+
 #### Future
-- **`page` command** — sends an instant message to an online player (appears in their session
-  immediately).
-- **Offline fallback** — if the target player is not online, prompt the sender to optionally
-  deliver the message as mail instead.
 - **Mail inbox** — unread mail is shown at login (similar to news display); a `mail` command lets
-  players read, reply to, and delete messages mid-session.
-- **Storage** — mailboxes stored per-player (e.g. `mail/<playername>.json`); each message: `from`,
-  `timestamp`, `subject` (optional), `body`, `read` flag.
+  players read, reply to, and delete messages mid-session. Nothing reads `run/server/mail/*.json`
+  yet — `page`'s offline fallback writes to it, but there's no way to read it back in-game.
 
 ---
 

@@ -13,7 +13,9 @@ Run with:
 from __future__ import annotations
 
 import asyncio
+import json
 import unittest
+import unittest.mock
 
 from command_settings import CommandSettings
 from commands.messaging import (
@@ -41,6 +43,7 @@ class _FakePlayer:
         self.command_settings = CommandSettings()
         self.client_settings  = _FakeClientSettings()
         self.unsaved_changes  = False
+        self.pending_pages: list = []
 
 
 class _FakeClient:
@@ -809,6 +812,222 @@ class TestPageCommand(unittest.TestCase):
         alice_ctx   = _add_player(server, 'Alice', room=1)
         self._run(ctx, 'alice=hi')
         self.assertIn('Rulan', alice_ctx.sent_text())
+
+
+# ---------------------------------------------------------------------------
+# PageCommand — #ignore / #unignore / #haven / #unhaven
+# ---------------------------------------------------------------------------
+
+class TestPageControlWords(unittest.TestCase):
+
+    def _run(self, ctx, *args):
+        return asyncio.run(PageCommand().execute(ctx, *args))
+
+    def test_haven_blocks_all_pages(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        result = self._run(ctx, '#haven')
+        self.assertTrue(result.success)
+        self.assertTrue(ctx.player.command_settings.haven)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+        sender_ctx = _add_player(server, 'Alice', room=1)
+        self._run(sender_ctx, 'Rulan=hi')
+        self.assertIn('not accepting pages', sender_ctx.sent_text())
+        self.assertNotIn('hi', ctx.sent_text())
+
+    def test_unhaven_reverses_haven(self):
+        ctx, _ = _setup_sender('Rulan')
+        ctx.player.command_settings.haven = True
+        result = self._run(ctx, '#unhaven')
+        self.assertTrue(result.success)
+        self.assertFalse(ctx.player.command_settings.haven)
+
+    def test_ignore_blocks_specific_sender(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        result = self._run(ctx, '#ignore', 'Bob')
+        self.assertTrue(result.success)
+        self.assertIn('Bob', ctx.player.command_settings.ignored_pagers)
+
+        bob_ctx = _add_player(server, 'Bob', room=1)
+        self._run(bob_ctx, 'Rulan=hi there')
+        self.assertIn('is ignoring your pages', bob_ctx.sent_text())
+        self.assertNotIn('hi there', ctx.sent_text())
+
+    def test_ignore_does_not_block_others(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        self._run(ctx, '#ignore', 'Bob')
+        alice_ctx = _add_player(server, 'Alice', room=1)
+        self._run(alice_ctx, 'Rulan=hi from alice')
+        self.assertIn('hi from alice', ctx.sent_text())
+
+    def test_unignore_reverses_ignore(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        ctx.player.command_settings.ignored_pagers = ['Bob']
+        result = self._run(ctx, '#unignore', 'Bob')
+        self.assertTrue(result.success)
+        self.assertNotIn('Bob', ctx.player.command_settings.ignored_pagers)
+
+        bob_ctx = _add_player(server, 'Bob', room=1)
+        self._run(bob_ctx, 'Rulan=hi again')
+        self.assertIn('hi again', ctx.sent_text())
+
+    def test_ignore_missing_name(self):
+        ctx, _ = _setup_sender()
+        result = self._run(ctx, '#ignore')
+        self.assertFalse(result.success)
+
+
+class TestPageCombatQueueing(unittest.TestCase):
+    """A page to a player who's actively fighting (commands.messaging.
+    is_in_combat()) gets queued on player.pending_pages instead of
+    interrupting mid-round, and surfaces via network_context.py's
+    prompt()-level flush the next time they're prompted."""
+
+    def _run(self, ctx, *args):
+        return asyncio.run(PageCommand().execute(ctx, *args))
+
+    def _put_in_combat(self, target_ctx):
+        target_ctx.server.active_combats = {
+            target_ctx.client.room: type('FakeSession', (), {'attackers': [target_ctx]})()
+        }
+
+    def test_page_to_fighting_player_is_queued_not_sent(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        bob_ctx = _add_player(server, 'Bob', room=1)
+        self._put_in_combat(bob_ctx)
+
+        self._run(ctx, 'Bob=Look out!')
+
+        self.assertNotIn('Look out!', bob_ctx.sent_text())
+        self.assertIn('sense you have a page waiting', bob_ctx.sent_text())
+        self.assertEqual(bob_ctx.player.pending_pages,
+                          ['Rulan pages you, "Look out!"'])
+        self.assertIn('in combat', ctx.sent_text().lower())
+
+    def test_page_to_idle_player_delivered_immediately(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        bob_ctx = _add_player(server, 'Bob', room=1)
+
+        self._run(ctx, 'Bob=hello')
+
+        self.assertIn('hello', bob_ctx.sent_text())
+        self.assertEqual(bob_ctx.player.pending_pages, [])
+
+    def test_bystander_in_combat_room_not_queued(self):
+        """Being in the same room as a fight (not an attacker) is not
+        'in combat' -- is_in_combat() only counts CombatSession.attackers."""
+        ctx, server = _setup_sender('Rulan', room=1)
+        bob_ctx = _add_player(server, 'Bob', room=1)
+        other_fighter_ctx = _add_player(server, 'Someone', room=1)
+        bob_ctx.server.active_combats = {
+            1: type('FakeSession', (), {'attackers': [other_fighter_ctx]})()
+        }
+
+        self._run(ctx, 'Bob=hello')
+
+        self.assertIn('hello', bob_ctx.sent_text())
+        self.assertEqual(bob_ctx.player.pending_pages, [])
+
+
+class TestPromptFlushesPendingPages(unittest.TestCase):
+    """network_context.py's GameContext.prompt() should surface queued
+    pages ('[PAGE] ...') the next time the player is prompted, and clear
+    the queue so they aren't shown twice."""
+
+    def test_pop_pending_pages_formats_and_clears(self):
+        from network_context import GameContext
+
+        class _Player:
+            pending_pages = ['Alice pages you, "hi"', 'Bob pages you, "yo"']
+
+        ctx = GameContext.__new__(GameContext)
+        ctx.player = _Player()
+
+        lines = ctx._pop_pending_pages()
+        self.assertEqual(lines, ['[PAGE] Alice pages you, "hi"',
+                                  '[PAGE] Bob pages you, "yo"'])
+        self.assertEqual(_Player.pending_pages, [])
+
+    def test_pop_pending_pages_empty_when_none_queued(self):
+        from network_context import GameContext
+
+        class _Player:
+            pending_pages = []
+
+        ctx = GameContext.__new__(GameContext)
+        ctx.player = _Player()
+        self.assertEqual(ctx._pop_pending_pages(), [])
+
+    def test_prompt_prepends_and_clears_pending_pages(self):
+        from player import Player
+        from network_context import GameContext
+
+        class _FakeWriter:
+            async def drain(self):
+                pass
+            def write(self, data):
+                pass
+
+        class _FakeReader:
+            async def readline(self):
+                return b'{"lines": ["ok"]}\n'
+
+        class _FakeServerObj:
+            sent_messages: list = []
+            async def send_message(self, writer, msg):
+                self.sent_messages.append(msg)
+
+        player = Player()
+        player.pending_pages = ['Alice pages you, "hi"']
+        server = _FakeServerObj()
+
+        ctx = GameContext(player=player, reader=_FakeReader(),
+                           writer=_FakeWriter(), server=server,
+                           client=_FakeClient())
+
+        result = asyncio.run(ctx.prompt('Command'))
+        self.assertEqual(result, 'ok')
+        self.assertEqual(player.pending_pages, [])
+        # The preamble send happened before the prompt send -- two messages.
+        self.assertEqual(len(server.sent_messages), 2)
+        self.assertTrue(any('PAGE' in line for line in server.sent_messages[0].lines))
+
+
+class TestPageOfflineMail(unittest.TestCase):
+
+    def _run(self, ctx, *args):
+        return asyncio.run(PageCommand().execute(ctx, *args))
+
+    def test_unknown_player_no_mail_offer(self):
+        ctx, _ = _setup_sender()
+        self._run(ctx, 'NoSuchPlayer=hello')
+        self.assertIn('no such player exists', ctx.sent_text().lower())
+
+    def test_known_offline_player_declines_mail(self):
+        ctx, _ = _setup_sender()
+        ctx._prompt_answer = 'n'
+        with unittest.mock.patch('commands.page.player_exists', return_value=True):
+            self._run(ctx, 'Offline=hello')
+        self.assertIn('not online', ctx.sent_text())
+        self.assertNotIn('Message left', ctx.sent_text())
+
+    def test_known_offline_player_accepts_mail(self):
+        import tempfile
+        from pathlib import Path
+
+        ctx, _ = _setup_sender('Rulan')
+        ctx._prompt_answer = 'y'
+        with tempfile.TemporaryDirectory() as tmp:
+            mail_dir = Path(tmp) / 'mail'
+            with unittest.mock.patch('commands.page.player_exists', return_value=True), \
+                 unittest.mock.patch('commands.page._MAIL_DIR', mail_dir):
+                self._run(ctx, 'Offline=hello there')
+            self.assertIn('Message left', ctx.sent_text())
+            saved = json.loads((mail_dir / 'offline.json').read_text())
+            self.assertEqual(len(saved), 1)
+            self.assertEqual(saved[0]['from'], 'Rulan')
+            self.assertEqual(saved[0]['body'], 'hello there')
+            self.assertFalse(saved[0]['read'])
 
 
 if __name__ == '__main__':

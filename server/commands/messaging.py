@@ -9,6 +9,7 @@ is_online()             — check whether a specific name is currently connected
 find_players()          — return sorted names matching a pattern (? and * wildcards)
 player_exists()         — check online clients and save files; supports ? and * wildcards
 prompt_player_choice()  — display a numbered player list and return the user's pick
+is_in_combat()          — whether a ctx's player is an active combat participant
 """
 import fnmatch
 import shlex
@@ -214,6 +215,27 @@ async def prompt_player_choice(ctx, pattern: str = '*', *,
             return name
     await ctx.send(f'"{raw}" is not in the list.')
     return None
+
+
+def is_in_combat(ctx) -> bool:
+    """Whether ctx's player is currently an active combat participant.
+
+    Used by commands/page.py to decide whether to queue a page (surfaced
+    on the recipient's next prompt via network_context.py's prompt(),
+    which flushes player.pending_pages) instead of delivering it
+    immediately -- getting a wall of page text mid-exchange is a bad time.
+
+    Checks ctx.server.active_combats[room].attackers, the same structure
+    combat/engine.py's CombatSession already maintains -- being in the
+    same room as a fight (a bystander) doesn't count, only actually
+    fighting does.
+    """
+    active  = getattr(ctx.server, 'active_combats', None) or {}
+    room    = getattr(ctx.client, 'room', None)
+    session = active.get(room)
+    if session is None:
+        return False
+    return ctx in getattr(session, 'attackers', [])
 
 
 def player_exists(server, name: str) -> bool:
