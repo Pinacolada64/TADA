@@ -89,6 +89,50 @@ def _ctx_with_processor(*commands):
 
 
 # ---------------------------------------------------------------------------
+# Color helpers -- |token| markup for headings/rules/commands/aliases
+# ---------------------------------------------------------------------------
+
+class TestColorHelpers(unittest.TestCase):
+
+    def test_heading_is_yellow(self):
+        self.assertEqual(help_mod._heading("Usage:"), "|yellow|Usage:|reset|")
+
+    def test_rule_is_dark_gray(self):
+        self.assertEqual(help_mod._rule("---"), "|dark_gray|---|reset|")
+
+    def test_cmd_is_cyan(self):
+        self.assertEqual(help_mod._cmd("quote"), "|cyan|quote|reset|")
+
+    def test_alias_is_darker_than_command(self):
+        """The user's one explicit ask: aliases render in a slightly
+        darker color than the command name itself."""
+        cmd_color   = help_mod._cmd("quote")
+        alias_color = help_mod._alias("(q)")
+        self.assertIn("|cyan|", cmd_color)
+        self.assertIn("|dark_gray|", alias_color)
+        self.assertNotEqual(cmd_color.split("|")[1], alias_color.split("|")[1])
+
+    def test_all_color_tokens_render_on_ansi_and_petscii(self):
+        """Every token used here must exist in both ANSI_COLOR_CODES and
+        PETSCII_CONTROL_CODES -- otherwise it'd silently break (or worse,
+        show a literal '|token|' string) on one terminal type."""
+        from formatting import ANSI_COLOR_CODES, PETSCII_CONTROL_CODES
+        for token in ("yellow", "dark_gray", "cyan"):
+            self.assertIn(token, ANSI_COLOR_CODES)
+            self.assertIn(token, PETSCII_CONTROL_CODES)
+
+    def test_vis_ljust_ignores_token_markup(self):
+        colored = help_mod._cmd("go")  # 2 visible chars, much longer raw string
+        padded  = help_mod._vis_ljust(colored, 10)
+        from formatting import _visible_len
+        self.assertEqual(_visible_len(padded), 10)
+
+    def test_vis_ljust_no_padding_needed(self):
+        text = "already-long-enough"
+        self.assertEqual(help_mod._vis_ljust(text, 5), text)
+
+
+# ---------------------------------------------------------------------------
 # format_help() — pure formatter, no I/O
 # ---------------------------------------------------------------------------
 
@@ -145,16 +189,20 @@ class TestFormatHelp(unittest.TestCase):
             self.assertIn(expected, out)
 
     def test_width_80_no_line_exceeds(self):
+        # Lines may carry |token| color markup now (headings/rules/command
+        # names) -- assert on visible width, not raw string length.
+        from formatting import _visible_len
         h = Help(summary="x", usage=[("editplayer", "Edit your character interactively.")])
         lines = format_help(h, width=80)
         for line in (lines if isinstance(lines, list) else []):
-            self.assertLessEqual(len(line), 80, f"Line too long: {line!r}")
+            self.assertLessEqual(_visible_len(line), 80, f"Line too long: {line!r}")
 
     def test_width_40_no_line_exceeds(self):
+        from formatting import _visible_len
         h = Help(summary="x", usage=[("editplayer", "Edit your character.")])
         lines = format_help(h, width=40)
         for line in (lines if isinstance(lines, list) else []):
-            self.assertLessEqual(len(line), 40, f"Line too long: {line!r}")
+            self.assertLessEqual(_visible_len(line), 40, f"Line too long: {line!r}")
 
 
 # ---------------------------------------------------------------------------

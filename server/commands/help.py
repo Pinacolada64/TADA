@@ -25,12 +25,47 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from commands.base_command import Command, Mode
-from formatting import hrule_char
+from formatting import hrule_char, _visible_len
 
 if TYPE_CHECKING:
     from network_context import GameContext
 
 log = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Color scheme -- |token| markup, resolved per-terminal by
+# formatting.ansi_encode()/petscii_encode() downstream in ctx.send(). Same
+# four tokens render correctly on both ANSI and PETSCII (see
+# formatting.ANSI_COLOR_CODES / PETSCII_CONTROL_CODES).
+# ---------------------------------------------------------------------------
+
+def _heading(text: str) -> str:
+    """Section headings and titles: 'Usage:', category names, etc."""
+    return f'|yellow|{text}|reset|'
+
+
+def _rule(text: str) -> str:
+    """Horizontal rule lines."""
+    return f'|dark_gray|{text}|reset|'
+
+
+def _cmd(text: str) -> str:
+    """A command (or topic) name."""
+    return f'|cyan|{text}|reset|'
+
+
+def _alias(text: str) -> str:
+    """A command's alias(es) -- deliberately darker/dimmer than _cmd()."""
+    return f'|dark_gray|{text}|reset|'
+
+
+def _vis_ljust(text: str, width: int) -> str:
+    """Left-justify *text* to *width* visible columns, ignoring |token| markup
+    (str.ljust() would otherwise pad based on raw length, under-padding any
+    colored text and breaking column alignment)."""
+    pad = width - _visible_len(text)
+    return text + (' ' * pad if pad > 0 else '')
 
 
 # ---------------------------------------------------------------------------
@@ -240,15 +275,17 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
             cat      = getattr(help_obj, "category", None)
             cat_str  = f"Category: {cat.value.title()}" if cat else ""
             # Left: command name  Right: category label — padded to width
+            # (gap computed from the plain, uncolored lengths -- color
+            # markup is applied after, so it doesn't throw off the math)
             gap      = width - len(command_name) - len(cat_str)
             if gap >= 1:
-                lines.append(command_name + " " * gap + cat_str)
+                lines.append(_cmd(command_name) + " " * gap + _heading(cat_str))
             else:
-                lines.append(command_name)
+                lines.append(_cmd(command_name))
                 if cat_str:
-                    lines.append(cat_str.rjust(width))
+                    lines.append(_heading(cat_str.rjust(width)))
         lines.extend(textwrap.wrap(str(summary).strip(), width=width))
-        lines.append(rule_char * width)
+        lines.append(_rule(rule_char * width))
 
     # Description — blank lines in the source string (\n\n) become paragraph
     # breaks; each paragraph is wrapped independently so multi-paragraph
@@ -266,7 +303,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     usage = getattr(help_obj, "usage", None)
     if usage:
         lines.append("")
-        lines.append("Usage:")
+        lines.append(_heading("Usage:"))
         items = [(_esc(str(u[0])), str(u[1]) if len(u) > 1 and u[1] else "")
                  for u in usage]
         lines.extend(format_two_column(items, width))
@@ -275,7 +312,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     examples = getattr(help_obj, "examples", None)
     if examples:
         lines.append("")
-        lines.append("Example:" if len(examples) == 1 else "Examples:")
+        lines.append(_heading("Example:" if len(examples) == 1 else "Examples:"))
         for item in examples:
             lines.append(f"  {_esc(item[0])}")
             if len(item) > 1 and item[1]:
@@ -290,7 +327,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     notes = getattr(help_obj, "notes", None)
     if notes:
         lines.append("")
-        lines.append("Notes:")
+        lines.append(_heading("Notes:"))
         for note in notes:
             if note == '':
                 lines.append('')
@@ -400,7 +437,8 @@ class HelpCommand(Command):
 
         width = self._screen_width(ctx)
         rchar = hrule_char(ctx)
-        lines = [f"\n{'Available Commands by Category':^{width}}",
+        title = f"{'Available Commands by Category':^{width}}"
+        lines = [f"\n{_heading(title)}",
                  "  help <command>: detailed help   |   help #cat: list categories\n"]
 
         current_mode = getattr(processor, "current_mode", None)
@@ -416,18 +454,19 @@ class HelpCommand(Command):
 
         for cat in sorted(by_cat, key=lambda c: c.value):
             cmds = sorted(by_cat[cat], key=lambda c: getattr(c, "name", ""))
-            lines.append(f"\n{cat.value.upper()}:")
-            lines.append(rchar * (len(cat.value) + 1))
+            lines.append(f"\n{_heading(cat.value.upper() + ':')}")
+            lines.append(_rule(rchar * (len(cat.value) + 1)))
             entries = []
             for cmd in cmds:
                 name = getattr(cmd, "name", "?")
                 als  = [a for a in (getattr(cmd, "aliases", []) or []) if a != name]
-                entries.append(name + (f" ({', '.join(als)})" if als else ""))
+                alias_str = f" ({', '.join(als)})" if als else ""
+                entries.append(_cmd(name) + (_alias(alias_str) if alias_str else ""))
 
-            col_w  = max(len(e) for e in entries) + 2
+            col_w  = max(_visible_len(e) for e in entries) + 2
             n_cols = max(1, min(3, (width - 4) // (col_w + 2)))
             for i in range(0, len(entries), n_cols):
-                lines.append("  " + "  ".join(e.ljust(col_w) for e in entries[i : i + n_cols]))
+                lines.append("  " + "  ".join(_vis_ljust(e, col_w) for e in entries[i : i + n_cols]))
 
         lines += ["", "Type 'help <command>' for more detail."]
         await ctx.send(*lines)
@@ -445,7 +484,7 @@ class HelpCommand(Command):
         width = self._screen_width(ctx)
         items = [(cat.value, _CATEGORY_DESCRIPTIONS.get(cat, "")) for cat in HelpCategory]
 
-        lines = ["Available categories:", ""]
+        lines = [_heading("Available categories:"), ""]
         lines.extend(format_two_column(items, width))
         lines.append("")
         lines.append("Type 'help #cat <category>' to list its commands/topics.")
@@ -486,11 +525,11 @@ class HelpCommand(Command):
             await ctx.send(f"No commands in category '{matched.value}'.")
             return CommandResult.ok()
 
-        lines = [f"Commands in {matched.value}:"]
-        lines += [f"  {n}" for n in sorted(names)]
+        lines = [_heading(f"Commands in {matched.value}:")]
+        lines += [f"  {_cmd(n)}" for n in sorted(names)]
         if topics:
-            lines.append("Topics:")
-            lines += [f"  {n}" for n in topics]
+            lines.append(_heading("Topics:"))
+            lines += [f"  {_cmd(n)}" for n in topics]
         await ctx.send(*lines)
         return CommandResult.ok()
 
@@ -503,7 +542,7 @@ class HelpCommand(Command):
             return CommandResult.ok()
 
         names = sorted(getattr(c, "name", "?") for c in matches)
-        lines = [f"Commands matching '{term}':"] + [f"  {n}" for n in names]
+        lines = [_heading(f"Commands matching '{term}':")] + [f"  {_cmd(n)}" for n in names]
         await ctx.send(*lines)
         return CommandResult.ok()
 
