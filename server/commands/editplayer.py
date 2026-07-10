@@ -14,7 +14,7 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
   ├─  7. Hit Points        current HP
   ├─  8. Inventory         give weapons/armor/rations/objects
   ├─  9. Map Information   dungeon level, room number
-  ├─ 10. Money             in hand / in bank / in bar
+  ├─ 10. Money             in hand / in bank / in bar / Vinny Loan status
   ├─ 11. Statistics        age, birthday, class, experience, guild, race,
   │                        moves to date, monsters killed
   └─ 12. Weapons           readied weapon, per-weapon battle experience
@@ -30,6 +30,19 @@ from flags import FlagDisplayTypes, PlayerFlags, new_player_default_flags
 from menu_system import Menu, MenuItem, run_menu
 
 log = logging.getLogger(__name__)
+
+
+def _titled_menu(ctx, title: str) -> Menu:
+    """Build a Menu whose title grows an '(unsaved changes)' tag whenever
+    ctx.player.unsaved_changes is set. A callable title is re-evaluated on
+    every redraw (see menu_system.Menu.rendered_title), so the tag appears
+    the moment an edit happens and clears once the player saves, without
+    needing to rebuild the menu."""
+    def render():
+        if getattr(ctx.player, 'unsaved_changes', False):
+            return f'{title} |red|(unsaved changes)|reset|'
+        return title
+    return Menu(title=render)
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +162,7 @@ def _hp_action(ctx):
 def _money_menu(ctx) -> Menu:
     from base_classes import PlayerMoneyTypes
     p    = ctx.player
-    menu = Menu(title='Money')
+    menu = _titled_menu(ctx, 'Money')
 
     _entries = [
         (PlayerMoneyTypes.IN_HAND, 'In Hand', 'ih'),
@@ -177,6 +190,42 @@ def _money_menu(ctx) -> Menu:
             dot_leader_handler=lambda ctx, k=kind: f'{_get(k):,}',
             action=make_action(kind, label),
         ))
+
+    def _loan_status(ctx) -> str:
+        amount = int(getattr(p, 'loan_amount', 0) or 0)
+        if not amount:
+            return 'None'
+        days = int(getattr(p, 'loan_days', 0) or 0)
+        return f'{amount:,}s, {days} day{"s" if days != 1 else ""} left'
+
+    async def _edit_vinny_loan(ctx) -> None:
+        # Vinny the Loan Shark debt tracking (bar/vinny.py, t_bar_vinney.lbl
+        # / SPUR.BAR3.S) -- player.loan_amount (silver owed) and
+        # player.loan_days (days left to repay).
+        cur_amount = int(getattr(p, 'loan_amount', 0) or 0)
+        await ctx.send(f'Current loan: {_loan_status(ctx)}')
+        amount = await _prompt_int(ctx, 'Loan amount', cur_amount, 0, 9_999_999)
+        if amount is None:
+            return
+        p.loan_amount = amount
+        if amount == 0:
+            p.loan_days = 0
+            p.unsaved_changes = True
+            await ctx.send('Loan cleared.')
+            return
+        cur_days = int(getattr(p, 'loan_days', 0) or 0)
+        days = await _prompt_int(ctx, 'Days to repay', cur_days, 0, 999)
+        if days is not None:
+            p.loan_days = days
+        p.unsaved_changes = True
+        await ctx.send(f'Loan set to {_loan_status(ctx)}.')
+
+    menu.add_item(MenuItem(
+        'Vinny Loan',
+        shortcuts='vl',
+        dot_leader_handler=_loan_status,
+        action=_edit_vinny_loan,
+    ))
     return menu
 
 
@@ -185,7 +234,7 @@ def _money_menu(ctx) -> Menu:
 # ---------------------------------------------------------------------------
 
 def _build_main_menu(ctx) -> Menu:
-    menu = Menu(title=f'Player Editor — {ctx.player.name}')
+    menu = _titled_menu(ctx, f'Player Editor — {ctx.player.name}')
     menu.add_item(MenuItem('Alignment',        shortcuts='al', submenu=_alignment_menu(ctx)))
     menu.add_item(MenuItem('Armor/Shield',     shortcuts='as', submenu=_armor_shield_menu(ctx)))
     menu.add_item(MenuItem('Attributes',       shortcuts='at', submenu=_attributes_menu(ctx)))
@@ -207,7 +256,7 @@ def _build_main_menu(ctx) -> Menu:
 
 def _armor_shield_menu(ctx) -> Menu:
     p    = ctx.player
-    menu = Menu(title='Armor/Shield')
+    menu = _titled_menu(ctx, 'Armor/Shield')
 
     def _get(attr: str) -> int:
         return int(getattr(p, attr, 0) or 0)
@@ -241,7 +290,7 @@ def _armor_shield_menu(ctx) -> Menu:
 
 def _map_info_menu(ctx) -> Menu:
     p    = ctx.player
-    menu = Menu(title='Map Information')
+    menu = _titled_menu(ctx, 'Map Information')
 
     async def edit_level(ctx) -> None:
         cur = int(getattr(p, 'map_level', 1) or 1)
@@ -278,7 +327,7 @@ def _map_info_menu(ctx) -> Menu:
 
 def _weapons_menu(ctx) -> Menu:
     p    = ctx.player
-    menu = Menu(title='Weapons')
+    menu = _titled_menu(ctx, 'Weapons')
 
     def _readied_label() -> str:
         w = getattr(p, 'readied_weapon', None)
@@ -334,7 +383,7 @@ def _weapons_menu(ctx) -> Menu:
 def _alignment_menu(ctx) -> Menu:
     from base_classes import Alignment
     p    = ctx.player
-    menu = Menu(title='Alignment')
+    menu = _titled_menu(ctx, 'Alignment')
 
     async def edit_alignment(ctx, attr: str, label: str) -> None:
         options  = list(Alignment)
@@ -369,7 +418,7 @@ def _alignment_menu(ctx) -> Menu:
 def _attributes_menu(ctx) -> Menu:
     from base_classes import PlayerStat
     p    = ctx.player
-    menu = Menu(title='Attributes')
+    menu = _titled_menu(ctx, 'Attributes')
 
     # Per the BASIC: attributes 1-7 are capped at 18, Energy at 25.
     _range = {PlayerStat.EGY: (1, 25)}
@@ -423,7 +472,7 @@ def _names_menu(ctx) -> Menu:
     from bar.ally_data import AllyFlags, AllyStatus
 
     p    = ctx.player
-    menu = Menu(title='Character Names')
+    menu = _titled_menu(ctx, 'Character Names')
 
     async def edit_name(ctx) -> None:
         raw = await ctx.prompt(
@@ -476,7 +525,7 @@ def _names_menu(ctx) -> Menu:
 def _combinations_menu(ctx) -> Menu:
     from base_classes import Combination, CombinationTypes
     p    = ctx.player
-    menu = Menu(title='Combinations')
+    menu = _titled_menu(ctx, 'Combinations')
 
     def _fmt(combo_type) -> str:
         combos = getattr(p, 'combinations', None) or {}
@@ -541,7 +590,7 @@ def _combinations_menu(ctx) -> Menu:
 
 def _flags_menu(ctx) -> Menu:
     p    = ctx.player
-    menu = Menu(title='Flags/Counters')
+    menu = _titled_menu(ctx, 'Flags/Counters')
 
     # Groups mirror the BASIC's two-page layout (lines {:3010} and {:3115}).
     _groups = [
@@ -614,7 +663,7 @@ def _flags_menu(ctx) -> Menu:
 
 def _statistics_menu(ctx) -> Menu:
     p    = ctx.player
-    menu = Menu(title='Statistics')
+    menu = _titled_menu(ctx, 'Statistics')
 
     async def edit_age(ctx) -> None:
         from characters import birthday_for_age

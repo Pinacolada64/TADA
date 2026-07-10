@@ -42,6 +42,19 @@ if TYPE_CHECKING:
     from context import GameContext
 
 
+class _InvalidChoice:
+    """Sentinel returned by get_user_choice() for an invalid selection (bad
+    number, unrecognized shortcut) -- distinct from None, which means the
+    player pressed Enter to go up a level. navigate_menu() uses this to
+    redisplay the same menu with an 'Invalid choice.' message instead of
+    popping the menu stack."""
+    def __repr__(self):
+        return 'INVALID_CHOICE'
+
+
+INVALID_CHOICE = _InvalidChoice()
+
+
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
@@ -84,13 +97,21 @@ class Menu:
     A titled list of MenuItems.
 
     Attributes:
-        title:      Displayed at the top of the menu.
+        title:      Displayed at the top of the menu. May be a plain string,
+                    or a callable (re-evaluated on every redraw, same
+                    convention as MenuItem.text) for a title that needs to
+                    reflect live state -- e.g. EditPlayer appending an
+                    unsaved-changes marker.
         columns:    1 (default) or 2 for a two-column layout.
         menu_items: Ordered list of MenuItem objects.
     """
-    title:      str            = ''
+    title:      Union[str, Callable] = ''
     columns:    int            = 1
     menu_items: List[MenuItem] = field(default_factory=list)
+
+    @property
+    def rendered_title(self) -> str:
+        return self.title() if callable(self.title) else str(self.title)
 
     def add_item(self, item: MenuItem) -> None:
         self.menu_items.append(item)
@@ -175,7 +196,7 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
 
 
     # --- Pass 2: render ---
-    lines: List[str] = ['', f'[{menu.title}]', rule]
+    lines: List[str] = ['', f'[{menu.rendered_title}]', rule]
 
     for item, base, dot_text in item_rows:
         if item.is_header:
@@ -235,13 +256,14 @@ async def get_user_choice(ctx: 'GameContext',
                           menu: 'Menu',
                           stack_depth: int = 1) -> Optional[MenuItem]:
     """
-    Prompt the player for a menu choice and return the selected MenuItem,
-    or None if the player cancels (empty input).
+    Prompt the player for a menu choice and return the selected MenuItem.
 
     Accepts:
       - A number (1-based index into selectable items)
       - A shortcut letter (matched case-insensitively)
       - Empty input → returns None (go up / quit)
+      - Anything else unrecognized → returns INVALID_CHOICE (stay on this
+        menu; navigate_menu() reports 'Invalid choice.' and redisplays it)
     """
     selectable = menu.selectable
     num_items  = len(selectable)
@@ -265,16 +287,14 @@ async def get_user_choice(ctx: 'GameContext',
         idx = int(option)
         if 1 <= idx <= num_items:
             return selectable[idx - 1]
-        await ctx.send(f'Please enter a number between 1 and {num_items}.')
-        return None
+        return INVALID_CHOICE
 
     # Shortcut matching (case-insensitive)
     for item in menu.menu_items:
         if any(option == s.lower() for s in item.shortcuts):
             return item
 
-    await ctx.send(f"'{raw}' is not a valid choice.")
-    return None
+    return INVALID_CHOICE
 
 
 # ---------------------------------------------------------------------------
@@ -292,6 +312,10 @@ async def navigate_menu(ctx: 'GameContext',
         await print_menu(ctx, current)
 
         choice = await get_user_choice(ctx, current, stack_depth=len(menu_stack))
+
+        if choice is INVALID_CHOICE:
+            await ctx.send('Invalid choice.')
+            continue
 
         if choice is None:
             menu_stack.pop()

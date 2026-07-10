@@ -9,6 +9,7 @@ import re
 import pytest
 
 from menu_system import (
+    INVALID_CHOICE,
     Menu, MenuItem,
     _vis_len,
     format_menu_lines,
@@ -379,17 +380,17 @@ class TestGetUserChoice:
         self._patch_prompt(ctx, [''])
         assert self._run(get_user_choice(ctx, menu)) is None
 
-    def test_out_of_range_returns_none(self):
+    def test_out_of_range_returns_invalid_choice(self):
         ctx  = _make_ctx()
         menu = _make_menu('Only one')
         self._patch_prompt(ctx, ['99'])
-        assert self._run(get_user_choice(ctx, menu)) is None
+        assert self._run(get_user_choice(ctx, menu)) is INVALID_CHOICE
 
-    def test_invalid_input_returns_none(self):
+    def test_invalid_input_returns_invalid_choice(self):
         ctx  = _make_ctx()
         menu = _make_menu('Alpha')
         self._patch_prompt(ctx, ['???'])
-        assert self._run(get_user_choice(ctx, menu)) is None
+        assert self._run(get_user_choice(ctx, menu)) is INVALID_CHOICE
 
 
 # ---------------------------------------------------------------------------
@@ -447,3 +448,46 @@ class TestRunMenu:
         self._patch_prompt(ctx, ['S', ''])
         self._run(run_menu(ctx, menu))
         assert called == [True]
+
+    def test_invalid_choice_redisplays_same_menu_instead_of_exiting(self):
+        """An invalid choice must NOT pop the menu stack -- it should stay
+        on the same menu, report 'Invalid choice.', and only go up a level
+        once Enter (empty input) is actually pressed."""
+        ctx    = _make_ctx()
+        called = []
+        async def leaf_action(ctx):
+            called.append(True)
+        menu = Menu(title='Test')
+        menu.add_item(MenuItem(text='Leaf', shortcuts=['L'], action=leaf_action))
+        # 'zzz' is invalid -> should redisplay Test menu, not exit;
+        # 'L' should then still work because we never left the menu.
+        self._patch_prompt(ctx, ['zzz', 'L', ''])
+        self._run(run_menu(ctx, menu))
+        assert called == [True]
+        assert any('Invalid choice' in str(s) for s in ctx._sends)
+
+    def test_invalid_choice_in_submenu_does_not_pop_to_parent(self):
+        ctx     = _make_ctx()
+        visited = []
+        async def leaf_action(ctx):
+            visited.append('leaf')
+        sub  = Menu(title='Sub')
+        sub.add_item(MenuItem(text='Leaf', shortcuts=['L'], action=leaf_action))
+        main = Menu(title='Main')
+        main.add_item(MenuItem(text='Go sub', shortcuts=['S'], submenu=sub))
+        # In the submenu: an invalid choice should NOT bounce back to Main.
+        self._patch_prompt(ctx, ['S', 'bogus', 'L', '', ''])
+        self._run(run_menu(ctx, main))
+        assert visited == ['leaf']
+
+    def test_out_of_range_number_redisplays_menu(self):
+        ctx    = _make_ctx()
+        called = []
+        async def leaf_action(ctx):
+            called.append(True)
+        menu = Menu(title='Test')
+        menu.add_item(MenuItem(text='Leaf', shortcuts=['L'], action=leaf_action))
+        self._patch_prompt(ctx, ['99', 'L', ''])
+        self._run(run_menu(ctx, menu))
+        assert called == [True]
+        assert any('Invalid choice' in str(s) for s in ctx._sends)
