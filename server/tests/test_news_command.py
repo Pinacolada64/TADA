@@ -36,6 +36,7 @@ class _FakePlayer:
 def make_ctx(player=None, prompts=None):
     ctx = MagicMock()
     ctx.player = player or _FakePlayer()
+    ctx.client.virtual_location = None
     ctx.send = AsyncMock()
     ctx.prompt = AsyncMock(side_effect=prompts or [])
     return ctx
@@ -64,10 +65,67 @@ class TestList(NewsCommandTestCase):
     def test_lists_visible_items(self):
         self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
                       'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        ctx = make_ctx(prompts=[''])
+        run(NewsCommand().execute(ctx))
+        sent = str(ctx.prompt.call_args)
+        self.assertIn('Patch Notes', sent)
+
+    def test_blank_input_exits_the_listing_loop(self):
+        self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        ctx = make_ctx(prompts=[''])
+        result = run(NewsCommand().execute(ctx))
+        self.assertTrue(result.success)
+        self.assertEqual(ctx.prompt.await_count, 1)
+
+    def test_reading_an_item_returns_to_the_listing(self):
+        self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        ctx = make_ctx(prompts=['1', ''])
+        run(NewsCommand().execute(ctx))
+        # First prompt reads item 1, second exits -- listing redisplayed
+        # in between means prompt() was called twice.
+        self.assertEqual(ctx.prompt.await_count, 2)
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('x', sent)   # the item body was actually shown
+
+    def test_invalid_choice_stays_in_listing(self):
+        self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        ctx = make_ctx(prompts=['bogus', ''])
+        run(NewsCommand().execute(ctx))
+        self.assertEqual(ctx.prompt.await_count, 2)
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('not a valid news id', sent)
+
+    def test_virtual_location_set_while_listing(self):
+        self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        seen_location = {}
+
+        async def _prompt(*a, **kw):
+            seen_location['during'] = ctx.client.virtual_location
+            return ''
+
+        ctx = make_ctx()
+        ctx.prompt = _prompt
+        run(NewsCommand().execute(ctx))
+
+        self.assertEqual(seen_location['during'], 'Reading news')
+        self.assertIsNone(ctx.client.virtual_location)   # restored after
+
+    def test_virtual_location_restored_to_prior_value(self):
+        self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        ctx = make_ctx(prompts=[''])
+        ctx.client.virtual_location = 'somewhere else'
+        run(NewsCommand().execute(ctx))
+        self.assertEqual(ctx.client.virtual_location, 'somewhere else')
+
+    def test_no_news_does_not_set_virtual_location(self):
         ctx = make_ctx()
         run(NewsCommand().execute(ctx))
-        sent = str(ctx.send.call_args)
-        self.assertIn('Patch Notes', sent)
+        self.assertIsNone(ctx.client.virtual_location)
 
 
 class TestReadOne(NewsCommandTestCase):

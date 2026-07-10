@@ -55,6 +55,8 @@ class NewsCommand(Command):
         notes = [
             "Whether NEWS shows just what's new since your last login or "
             "a full directory every time is controlled by PREFS (key N).",
+            "Bare 'news' stays in the listing -- press Enter with no "
+            "number to leave it.",
         ],
     )
 
@@ -78,6 +80,11 @@ class NewsCommand(Command):
     # ------------------------------------------------------------------
 
     async def _list(self, ctx) -> CommandResult:
+        """Show the news listing and stay in it -- reading an item just
+        redisplays the listing -- until the player presses Enter to leave.
+        While active, the player's virtual location (commands/whereat.py)
+        reads 'Reading news'.
+        """
         items = news_store.load_news()
         today = datetime.date.today()
         visible = [it for it in items if news_store.is_visible(it, ctx.player.name, today)]
@@ -86,14 +93,36 @@ class NewsCommand(Command):
             await ctx.send('No news right now.')
             return CommandResult.ok('No news.')
 
-        lines = ['', '|yellow|News|reset|', '']
-        for it in visible:
-            posted = it.get('posted_at', '')[:10]
-            lines.append(f"  {it['id']:>3}. {it.get('title', '(untitled)')}  ({posted})")
-        lines.append('')
-        lines.append("Type 'news <id>' to read one.")
-        await ctx.send(lines)
-        return CommandResult.ok('Listed news.')
+        previous_location = getattr(ctx.client, 'virtual_location', None)
+        ctx.client.virtual_location = 'Reading news'
+        try:
+            while True:
+                items = news_store.load_news()
+                visible = [it for it in items if news_store.is_visible(it, ctx.player.name, today)]
+                if not visible:
+                    await ctx.send('No more news to read.')
+                    return CommandResult.ok('No news.')
+
+                lines = ['', '|yellow|News|reset|', '']
+                for it in visible:
+                    posted = it.get('posted_at', '')[:10]
+                    lines.append(f"  {it['id']:>3}. {it.get('title', '(untitled)')}  ({posted})")
+                lines.append('')
+
+                raw = await ctx.prompt(
+                    'Read which (# or Enter to exit)',
+                    preamble_lines=lines,
+                )
+                if raw is None or not raw.strip():
+                    return CommandResult.ok('Exited news.')
+
+                choice = raw.strip()
+                if choice.isdigit():
+                    await self._read_one(ctx, int(choice))
+                else:
+                    await ctx.send(f"'{choice}' is not a valid news id.")
+        finally:
+            ctx.client.virtual_location = previous_location
 
     async def _read_one(self, ctx, item_id: int) -> CommandResult:
         items = news_store.load_news()
