@@ -151,4 +151,16 @@
   already handles wrap-around exits/visited-room tracking) is a natural
   starting point to adapt for in-game rendering instead of building a
   renderer from scratch.
+- Add a screenreader-friendly terminal mode. `terminal.Translation`
+  currently has three members (PETSCII, ASCII, ANSI) -- ASCII already
+  gets a player plain, uncolored text (`PlainCodec` in formatting.py), so
+  it's a starting point, but likely not sufficient on its own: a real
+  screenreader mode probably also needs to avoid box-drawing/decorative
+  characters and ASCII art (the room-border styles, `table.py`'s
+  rendering, the new login banner) that read poorly or not at all aloud,
+  possibly simplified/more verbose prompts, and other adjustments not
+  yet identified. Ryan knows a visually-impaired player and wants to ask
+  him directly what he'd actually need before designing this -- treat
+  the above as a starting guess, not a spec, until that conversation
+  happens.
 
