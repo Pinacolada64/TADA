@@ -1,9 +1,10 @@
 import json
 import logging
 import random
+import re
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum, IntEnum, auto
-from typing import NamedTuple, Optional
+from typing import Dict, NamedTuple, Optional
 import datetime
 from enum import StrEnum, IntEnum, auto, Enum
 
@@ -400,6 +401,57 @@ class RoomAlignment(StrEnum):
     CLAW      = "claw"       # '\|/' suffix -- Claw guild territory
     SWORD     = "sword"      # '-}----' suffix -- Sword guild territory
     HQ        = "hq"         # 'HQ' marker -- headquarters of whichever guild owns the room
+
+
+# Human-readable labels for displaying a room's alignment to players (e.g.
+# simple_server.py's _describe_room()). Kept separate from the enum's own
+# .value strings, which _parse_room_alignment() matches directly against
+# lowercase JSON tokens ('free_fire', 'fist', ...) -- renaming the .value
+# strings themselves would break that parsing.
+_ROOM_ALIGNMENT_LABELS: Dict["RoomAlignment", str] = {
+    RoomAlignment.FREE_FIRE: "Free-Fire",
+    RoomAlignment.FIST:      "Fist Territory",
+    RoomAlignment.CLAW:      "Claw Territory",
+    RoomAlignment.SWORD:     "Sword Territory",
+    RoomAlignment.HQ:        "HQ",
+}
+
+
+def room_alignment_label(alignment: Optional["RoomAlignment"]) -> Optional[str]:
+    """Human-readable label for *alignment*, or None if it shouldn't be shown.
+
+    NEUTRAL means "no marker" (see RoomAlignment's docstring) and is never
+    displayed -- every ordinary room defaults to NEUTRAL, so showing it would
+    tag nearly every room in the game for no reason.
+    """
+    return _ROOM_ALIGNMENT_LABELS.get(alignment)
+
+
+# level_1.json (the earliest, GBBS-tool-converted data) bakes SPUR's own
+# ASCII sigil directly into some room names, e.g. 'CAVERN LEDGE -]----' or
+# 'SECLUDED ROOM ==[] HQ'. Later, hand-authored levels (2-7) never do this
+# -- their free_fire rooms are just plain names ('Tiny Town', 'The Foyer',
+# ...). Display code renders its own colorized, terminal-appropriate sigil
+# from room.alignment (see formatting.guild_sigil_for()) instead, so this
+# legacy text needs stripping first to avoid showing the sigil twice.
+_LEGACY_ALIGNMENT_SUFFIX_RE = re.compile(
+    r'\s*(?:\+|-\]-+|-\}-+|==\[\]|//>|\\\|/)(\s+HQ)?\s*$'
+)
+
+
+def strip_legacy_alignment_suffix(name: str) -> tuple[str, bool]:
+    """Strip a baked-in legacy SPUR sigil suffix from *name*, if present.
+
+    Returns (clean_name, is_hq) -- is_hq is True if the suffix included a
+    trailing 'HQ' marker (e.g. 'CAVERN PEAK -]---- HQ'), since that fact
+    isn't tracked anywhere else (no room's `alignment` field is ever
+    actually RoomAlignment.HQ in practice; HQ only ever appears as this
+    bit of trailing name text alongside a guild alignment).
+    """
+    match = _LEGACY_ALIGNMENT_SUFFIX_RE.search(name)
+    if not match:
+        return name, False
+    return _LEGACY_ALIGNMENT_SUFFIX_RE.sub('', name).rstrip(), bool(match.group(1))
 
 
 # Room.exits is keyed by full words (north/south/east/west/up/down), but

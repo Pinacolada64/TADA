@@ -34,7 +34,7 @@ _stub("commands.command_processor",
       create_command_processor=MagicMock(return_value=MagicMock()))
 
 from commands.base_command import Command, CommandResult, Mode
-from commands.connect import ConnectCommand, _load_credentials
+from commands.connect import ConnectCommand, _load_credentials, guild_welcome_line
 
 
 # ---------------------------------------------------------------------------
@@ -315,6 +315,37 @@ class TestShowLoginStatus(unittest.IsolatedAsyncioTestCase):
             for a in call.args
         )
         self.assertIn("alexa", all_output)
+
+
+class TestGuildWelcomeLine(unittest.TestCase):
+    """Regression: the guild welcome used to be sent as two separate
+    ctx.send() lines (login_lines += [line1, line2]), breaking the
+    sentence in half mid-message. It must render as one continuous line."""
+
+    def test_fist_is_one_line(self):
+        from base_classes import Guild
+        line = guild_welcome_line(Guild.FIST)
+        self.assertEqual(
+            line, "The Guild of the Iron Fist bids you, 'Welcome!' ==[]"
+        )
+
+    def test_claw_is_one_line(self):
+        from base_classes import Guild
+        line = guild_welcome_line(Guild.CLAW)
+        self.assertEqual(
+            line, r"The Guild of the Claw bids you, 'Welcome!' \|/"
+        )
+
+    def test_sword_is_one_line(self):
+        from base_classes import Guild
+        line = guild_welcome_line(Guild.SWORD)
+        self.assertEqual(
+            line, "The Guild of the Sword bids you, 'Welcome!' -}----"
+        )
+
+    def test_civilian_has_no_welcome(self):
+        from base_classes import Guild
+        self.assertIsNone(guild_welcome_line(Guild.CIVILIAN))
 
 
 if __name__ == "__main__":

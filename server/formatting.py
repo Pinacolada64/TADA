@@ -648,6 +648,80 @@ def hrule_char(ctx) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Guild territory sigils
+#
+# ANSI/ASCII terminals get the classic SPUR ASCII glyphs -- just in full
+# color now. PETSCII/Commodore terminals get a couple of real C64
+# box-drawing glyphs instead, where cbmcodecs2 actually has a PETSCII slot
+# for them (verified by direct encode against 'petscii_c64en_lc', the
+# upper/lowercase charset mode -- NOT the upper/graphics mode, which maps
+# some of these code points to different glyphs):
+#   '├' (U+251C, left tee)      -> encodes fine, used for the sword's hilt
+#   '─' (U+2500, horizontal)    -> encodes fine, used for the sword's blade
+#   '│' (U+2502, vertical)      -> encodes fine
+#   '\' and ASCII '|' (pipe)    -> NEITHER has a PETSCII slot at all, in
+#                                  either charset mode (cbmcodecs2 raises
+#                                  UnicodeEncodeError for both) -- not just
+#                                  a charset-mode mismatch, they simply
+#                                  don't exist as C64 screen codes.
+#   '╲' / '╱' (diagonal lines)  -> also no PETSCII slot; there is exactly
+#                                  one double-quadrant block on the C64
+#                                  ('▚' U+259E-adjacent, NW+SE quadrants
+#                                  filled) and no mirrored NE+SW version.
+# Claw's original SPUR sigil ('\|/') is therefore unrenderable as-is on a
+# real Commodore -- replaced with '/))' (claw-scratch curves), which is
+# plain ASCII and renders identically, and correctly, on both terminal
+# types.
+#
+# NOTE for later: real thick diagonal-line PETSCII glyphs *do* exist on the
+# C64, but only as raw screen/CHR$ codes 0x4D ('\'-ish, upper-left to
+# lower-right) and 0x43 ('/'-ish, lower-left to upper-right) in the
+# upper/graphics charset (the '|uppercase|' control token, PETSCII code
+# 142) -- NOT the upper/lowercase mode this codebase uses by default (see
+# 'lowercase'/'uppercase' entries in PETSCII_CONTROL_CODES above). Since
+# they're graphics-only glyphs, cbmcodecs2 doesn't expose them via a
+# distinct Unicode codepoint through 'petscii_c64en_uc' (it decodes those
+# byte values back to plain ASCII 'M'/'C' instead) -- using them for real
+# would mean splicing the raw bytes directly, the same way
+# PETSCII_CONTROL_CODES' control codes bypass the codec, and switching the
+# client to graphics mode first. Not attempted here since this codebase
+# intentionally stays in upper/lowercase mode; worth revisiting if that
+# ever changes.
+# ---------------------------------------------------------------------------
+
+_GUILD_SIGIL_ANSI: dict = {
+    'free_fire': '|red|+|reset|',
+    'claw':      '|magenta|/))|reset|',
+    'sword':     '|cyan|-}===>|reset|',
+    'fist':      '|light_red|==[]|reset|',
+    'hq':        '|yellow|HQ|reset|',
+}
+
+_GUILD_SIGIL_PETSCII: dict = {
+    'free_fire': '|red|+|reset|',
+    'claw':      '|purple|/))|reset|',
+    'sword':     '|yellow|├|mid_gray|──|light_gray|>|reset|',
+    'fist':      '|light_red|==[]|reset|',
+    'hq':        '|yellow|HQ|reset|',
+}
+
+
+def guild_sigil_for(ctx, alignment) -> str | None:
+    """Return a colorized guild-territory sigil for *alignment*, styled for
+    ctx's terminal type. None for NEUTRAL/unset/unrecognized -- NEUTRAL means
+    "no marker" (see base_classes.RoomAlignment's docstring).
+
+    *alignment* may be a RoomAlignment member or its raw string value.
+    """
+    if not alignment or str(getattr(alignment, 'value', alignment)) == 'neutral':
+        return None
+    key = str(getattr(alignment, 'value', alignment))
+    codec = codec_for_settings(ctx.player.client_settings)
+    table = _GUILD_SIGIL_PETSCII if isinstance(codec, PETSCIICodec) else _GUILD_SIGIL_ANSI
+    return table.get(key)
+
+
+# ---------------------------------------------------------------------------
 # Header / rule helpers (pure, return list[str])
 # ---------------------------------------------------------------------------
 

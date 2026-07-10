@@ -579,8 +579,15 @@ class Server:
         if not room:
             return ['You are nowhere (map not loaded).']
 
-        alignment = getattr(room, 'alignment', None)
-        lines.append(f"{room.name}{f'  [{alignment}]' if alignment else ''}")
+        from base_classes import RoomAlignment, strip_legacy_alignment_suffix
+        from formatting import guild_sigil_for
+        clean_name, is_hq = strip_legacy_alignment_suffix(room.name)
+        client_ctx = getattr(client, 'ctx', None)
+        sigil = guild_sigil_for(client_ctx, getattr(room, 'alignment', None)) if client_ctx else None
+        if is_hq and client_ctx:
+            hq_sigil = guild_sigil_for(client_ctx, RoomAlignment.HQ)
+            sigil = f'{sigil} {hq_sigil}' if sigil else hq_sigil
+        lines.append(f"{clean_name}{f'  {sigil}' if sigil else ''}")
 
         if getattr(room, 'desc', None):
             lines += ['', room.desc]

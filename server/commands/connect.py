@@ -46,12 +46,25 @@ def _carry_capacity(race) -> int:
             return cap
     return _DEFAULT_CARRY_CAPACITY
 
-# Guild welcome messages matching original SPUR symbols.
+# Guild welcome messages matching original SPUR symbols. Stored as a
+# (lead-in, sign-off) pair since SPUR itself prints them as two `print`
+# statements, but they're one continuous sentence -- see guild_welcome_line().
 _GUILD_WELCOME = {
     Guild.CLAW:  ("The Guild of the Claw bids",   r"you, 'Welcome!' \|/"),
     Guild.SWORD: ("The Guild of the Sword bids",   "you, 'Welcome!' -}----"),
     Guild.FIST:  ("The Guild of the Iron Fist bids", "you, 'Welcome!' ==[]"),
 }
+
+
+def guild_welcome_line(guild) -> str | None:
+    """Return the one-line SPUR guild welcome message for *guild*, or None
+    if *guild* has no welcome message (Civilian, Outlaw).
+
+    The two halves must render as a single sentence on one line -- sending
+    them as two separate ctx.send() lines breaks it mid-sentence.
+    """
+    parts = _GUILD_WELCOME.get(guild)
+    return f"{parts[0]} {parts[1]}" if parts else None
 
 
 def _load_credentials(username: str) -> dict | None:
@@ -268,9 +281,9 @@ class ConnectCommand(Command):
 
         # Guild welcome.
         guild = getattr(player, 'guild', Guild.CIVILIAN)
-        if guild in _GUILD_WELCOME:
-            line1, line2 = _GUILD_WELCOME[guild]
-            login_lines += [line1, line2]
+        welcome = guild_welcome_line(guild)
+        if welcome:
+            login_lines.append(welcome)
 
         login_lines.append(f"You last connected on {player.last_connection}.")
         login_lines.append("")
