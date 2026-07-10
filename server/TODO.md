@@ -189,4 +189,31 @@
     skeleton referenced in MECHANICS.md's "Threaded Message Boards"
     section) is a separate, not-yet-ported prototype -- NEWS does not use
     it and remains a distinct, simpler single-stream bulletin board.
+- Implement SPUR's "getting lost" / hidden-exits mechanic (SPUR.MAIN.S
+  `rd.room2`-`rd.room4`, lines ~297-339) -- currently unported;
+  `simple_server.py:717` always unconditionally prints "Ye may travel
+  <exits>." regardless of stats, room, or items. Real rule, in order:
+  1. If (Wisdom + Intelligence) >= 10 *and* the room name doesn't contain
+     "DESERT" or "LABYR" (Labyrinth) and isn't a special "@@"-flagged
+     room (open water / outer space) -- exits are always shown normally.
+  2. Otherwise (low WIS+INT, or in a Desert/Labyrinth/@@ room), the
+     player only sees exits if one of these overrides fires (each prints
+     its own flavor line first):
+     - Compass active (`USE`d on -- already tracked as
+       `player.compass_active` in `commands/use.py`, but nothing reads it
+       yet) -- "[Reading COMPASS...]"
+     - Wearing/carrying the Palintar item (SPUR item #96, `pal`
+       subroutine at SPUR.MAIN.S:516 -- (WIS+INT)*xp_level plus small
+       race/class bonuses, gated at a 240 threshold; NOT YET PORTED to
+       objects.json at all) -- "[Your PALINTAR glows...]"
+     - Ranger class (`pc=5`) -- "[Using Ranger Tracking...]" (this is
+       likely the "ranger tracking ability" Ryan was thinking of)
+  3. If none of those apply: print "You lost your sense of direction."
+     (Astronaut class 6 gets its own "Star-filled blackness engulfs
+     you." line) and show NO exits at all that turn.
+  Needs: reading `player.stats[PlayerStat.WIS] + player.stats[PlayerStat.INT]`
+  and checking the current room's name/flags in the exits-display path
+  (`simple_server.py`'s room-description code, near line 717); wiring in
+  `compass_active`; porting the Palintar item + its glow-check formula;
+  and gating the Ranger override on `PlayerClass.RANGER`.
 

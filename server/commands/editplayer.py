@@ -1133,6 +1133,7 @@ async def _give_object(ctx, type_filter: set, label: str) -> None:
         misc objects → _give_object(ctx, {'treasure','compass',...}, 'object')
     """
     from items import Item, ItemCategory
+    from item_system import ItemType
     all_objects = getattr(ctx.server, 'items', []) or []
     pool = [o for o in all_objects if (o.get('type') or '').lower() in type_filter]
     if not pool:
@@ -1172,6 +1173,16 @@ async def _give_object(ctx, type_filter: set, label: str) -> None:
         flags     = chosen.get('flags', {}),
         category  = ItemCategory.ITEM,
     )
+    # Preserve objects.json's own "type" field (e.g. "book") as a real
+    # ItemType -- read.py's book list keys off this (same fix as
+    # commands/get.py's pickup path); without it an admin-granted book
+    # would never show up as readable.
+    raw_type = chosen.get('type')
+    if raw_type:
+        try:
+            item.type = ItemType(raw_type)
+        except ValueError:
+            pass
     if inv.add(item):
         ctx.player.unsaved_changes = True
         await ctx.send(f'Added {chosen["name"]} to {ctx.player.name}\'s inventory.')

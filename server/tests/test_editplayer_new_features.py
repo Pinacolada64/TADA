@@ -730,6 +730,32 @@ class TestInventoryReadNumberedBook(unittest.IsolatedAsyncioTestCase):
         await _inventory_action(ctx)(ctx)
         self.assertIn('No such inventory item.', ctx.sent)
 
+    async def test_admin_granted_book_is_readable(self):
+        """A book added via the [B]ook sub-option (_give_object) must carry
+        a real ItemType.BOOK, same as a book found in the world via get.py --
+        otherwise read.py's _book_entries() never sees it and 'r<#>' (or
+        the standalone READ command) wrongly reports 'You have no books!'"""
+        from inventory import Inventory
+
+        player = _FakePlayer()
+        player.stats = {}
+        player.inventory = Inventory(capacity=10)
+        server = _FakeServer()
+        server.items = [{'number': 30, 'name': 'The Howling', 'type': 'book'}]
+
+        ctx = _FakeCtx(responses=['howling', '1'], player=player, server=server)
+        await _give_object(ctx, {'book'}, 'book')
+
+        entries = list(player.inventory.entries())
+        self.assertEqual(len(entries), 1)
+        from item_system import ItemType
+        self.assertEqual(entries[0].item.type, ItemType.BOOK)
+
+        ctx2 = _FakeCtx(responses=['r1', '1', 'q'], player=player)
+        await _inventory_action(ctx2)(ctx2)
+        self.assertNotIn('You have no books!', ctx2.sent)
+        self.assertTrue(any('Howling' in s for s in ctx2.sent))
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
