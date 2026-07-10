@@ -155,6 +155,12 @@ class Server:
         except Exception as e:
             logging.warning("Could not load 'messages.json': %s", e)
             self.messages = {}
+        try:
+            from books import load_books
+            self.books = load_books(str(script_dir / 'books.json'))
+        except Exception as e:
+            logging.warning("Could not load 'books.json': %s", e)
+            self.books = {}
         # Items dropped by players during this session: room_number → list of InventoryEntry
         self.room_items: dict[int, list] = {}
         logging.info('Map: %d rooms | %d monsters | %d items | %d weapons',

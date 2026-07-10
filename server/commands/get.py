@@ -4,6 +4,7 @@ import random
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from inventory import InventoryEntry
+from item_system import ItemType
 from items import Item, ItemCategory
 from network_context import GameContext
 
@@ -111,6 +112,17 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
             continue
 
         item  = Item(id_number=item_id, name=name, category=category)
+        # Preserve objects.json's own "type" field (e.g. "book") as a real
+        # ItemType -- read.py's book list keys off this, and without it a
+        # room-found book (a scroll, say) would never show up there at all;
+        # weapon/ration dicts have no comparable "type" key, so this is a
+        # harmless no-op for those.
+        raw_type = raw.get('type') if isinstance(raw, dict) else None
+        if raw_type:
+            try:
+                item.type = ItemType(raw_type)
+            except ValueError:
+                pass
         entry = InventoryEntry(item=item)
 
         def _record(iid=item_id, p=player):

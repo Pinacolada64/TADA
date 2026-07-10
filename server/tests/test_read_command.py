@@ -39,6 +39,7 @@ def make_player(*, with_scrap: bool = True, honor: int = 1000, intelligence: int
     p.combinations = {}
     p.unsaved_changes = False
     p.stats = {PlayerStat.INT: intelligence}
+    p.read_books = []
     p.inventory = Inventory(capacity=10)
     if with_scrap:
         p.inventory.add(Item(number=_SCRAP_ID, name='scrap of paper', type=ItemType.BOOK, price=4))
@@ -49,6 +50,7 @@ def make_ctx(player, prompts: list) -> MagicMock:
     ctx = MagicMock()
     ctx.player = player
     ctx.send = AsyncMock()
+    ctx.server.books = {}  # no recovered book text by default; tests opt in explicitly
     it = iter(prompts)
     ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(it, None))
     return ctx
@@ -101,6 +103,90 @@ class TestReadOrdinaryBook(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(res.success)
         self.assertNotIn(CombinationTypes.ELEVATOR, player.combinations)
         self.assertIn('howling', _sent(ctx).lower())
+
+    async def test_reading_other_book_does_not_consume_it(self):
+        """Deliberate deviation from SPUR: reference books stay re-readable
+        instead of vanishing after one read."""
+        player = make_player(with_scrap=False)
+        player.inventory.add(Item(number=30, name='The Howling', type=ItemType.BOOK, price=1))
+        ctx = make_ctx(player, [])
+        await ReadCommand().execute(ctx, 'howling')
+        self.assertEqual(len(player.inventory.find(name='The Howling')), 1)
+
+
+class TestReadingWisdomBonus(unittest.IsolatedAsyncioTestCase):
+    """SPUR.MISC2.S:316's `if pw<25 pw=pw+1:print "(You feel wiser..)"` --
+    fires on every consumed book there (scroll or not); ported as a
+    first-read-only bonus (player.read_books) since reference books stay
+    re-readable in this port instead of being consumed."""
+
+    def _player_with_book(self, wis=10):
+        player = make_player(with_scrap=False)
+        player.stats = {PlayerStat.INT: 10, PlayerStat.WIS: wis}
+        player.inventory.add(Item(number=30, name='The Howling', type=ItemType.BOOK, price=1))
+        return player
+
+    async def test_first_read_grants_one_wisdom(self):
+        player = self._player_with_book(wis=10)
+        ctx = make_ctx(player, [])
+        await ReadCommand().execute(ctx, 'howling')
+        self.assertEqual(player.stats[PlayerStat.WIS], 11)
+        self.assertIn('You feel wiser..', _sent(ctx))
+        self.assertEqual(player.read_books, [30])
+
+    async def test_second_read_of_same_book_grants_nothing(self):
+        player = self._player_with_book(wis=10)
+        ctx1 = make_ctx(player, [])
+        await ReadCommand().execute(ctx1, 'howling')
+        ctx2 = make_ctx(player, [])
+        await ReadCommand().execute(ctx2, 'howling')
+        self.assertEqual(player.stats[PlayerStat.WIS], 11)  # only +1, not +2
+        self.assertNotIn('You feel wiser..', _sent(ctx2))
+
+    async def test_no_bonus_at_or_above_cap(self):
+        player = self._player_with_book(wis=25)
+        ctx = make_ctx(player, [])
+        await ReadCommand().execute(ctx, 'howling')
+        self.assertEqual(player.stats[PlayerStat.WIS], 25)
+        self.assertNotIn('You feel wiser..', _sent(ctx))
+        # Still marked read, even though no points were gained.
+        self.assertEqual(player.read_books, [30])
+
+    async def test_scroll_of_endurance_also_grants_wisdom(self):
+        from base_classes import PlayerRace
+        player = make_player(with_scrap=False)
+        player.stats = {PlayerStat.INT: 10, PlayerStat.WIS: 10}
+        player.xp_level = 1
+        player.char_race = PlayerRace.HUMAN
+        player.inventory.add(_make_scroll(89, 'Scroll of Endurance'))
+        ctx = make_ctx(player, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertEqual(player.stats[PlayerStat.WIS], 11)
+        self.assertIn('You feel wiser..', _sent(ctx))
+
+    async def test_scrap_of_paper_grants_wisdom_too(self):
+        """SPUR's `a=69` branch also reaches scroll.b's Wisdom gain."""
+        player = make_player(with_scrap=True, honor=1000)
+        player.stats[PlayerStat.WIS] = 10
+        # '1' selects the scrap of paper from the book list; then the two
+        # scrap-of-paper flavor prompts (Art thou true of heart / Good or Evil).
+        ctx = make_ctx(player, ['1', '', 'G'])
+        await ReadCommand().execute(ctx)
+        self.assertEqual(player.stats[PlayerStat.WIS], 11)
+        self.assertIn('You feel wiser..', _sent(ctx))
+
+    async def test_claim_tag_does_not_grant_wisdom(self):
+        """A TADA-original item, no SPUR precedent for a reading bonus."""
+        p = make_player(with_scrap=False)
+        p.stats[PlayerStat.WIS] = 10
+        p.inventory.add(_make_claim_tag())
+        combo = Combination(CombinationTypes.LOCKER)
+        combo.combination = (1, 2, 3)
+        p.combinations[CombinationTypes.LOCKER] = combo
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertEqual(p.stats[PlayerStat.WIS], 10)
+        self.assertEqual(p.read_books, [])
 
 
 class TestReadScrapOfPaper(unittest.IsolatedAsyncioTestCase):
@@ -283,6 +369,86 @@ class TestReadClaimTag(unittest.IsolatedAsyncioTestCase):
         ctx = make_ctx(p, ['1'])
         await ReadCommand().execute(ctx)
         self.assertIn("can't quite make it out", _sent(ctx))
+
+
+def _make_scroll(number, name):
+    """A scroll as it actually arrives in inventory via commands/get.py:
+    items.Item with only .category set -- .type gets tagged on separately
+    (see commands/get.py's raw_type handling), matching the real pickup
+    path rather than a test double that sidesteps it."""
+    from items import Item as RealItem, ItemCategory
+    item = RealItem(id_number=number, name=name, category=ItemCategory.ITEM)
+    item.type = ItemType.BOOK
+    return item
+
+
+class TestReadScroll(unittest.IsolatedAsyncioTestCase):
+
+    def _player_with_scroll(self, number, name, **attrs):
+        p = make_player(with_scrap=False)
+        p.inventory.add(_make_scroll(number, name))
+        for k, v in attrs.items():
+            setattr(p, k, v)
+        return p
+
+    async def test_scroll_of_endurance_sets_hp(self):
+        from base_classes import PlayerRace
+        p = self._player_with_scroll(89, 'Scroll of Endurance',
+                                     xp_level=5, char_race=PlayerRace.HUMAN,
+                                     hit_points=1)
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertEqual(p.hit_points, 35)  # 30 + xp_level(5), no Ogre bonus
+
+    async def test_scroll_of_endurance_ogre_bonus(self):
+        from base_classes import PlayerRace
+        p = self._player_with_scroll(92, 'Scroll of Endurance',  # the "other" duplicate
+                                     xp_level=5, char_race=PlayerRace.OGRE,
+                                     hit_points=1)
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertEqual(p.hit_points, 37)  # 30 + 5 + 2 (Ogre)
+
+    async def test_scroll_of_endurance_consumed(self):
+        p = self._player_with_scroll(89, 'Scroll of Endurance', xp_level=1)
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertEqual(len(p.inventory.find(name='Scroll of Endurance')), 0)
+        self.assertIn('The scroll catches fire and burns..', _sent(ctx))
+
+    async def test_scroll_of_anti_magic_clears_spells(self):
+        from items import Item as RealItem, ItemCategory
+        p = self._player_with_scroll(88, 'Scroll of Anti-Magic')
+        spell = RealItem(id_number=1, name='Fireball', category=ItemCategory.SPELL)
+        p.inventory.add(spell)
+        self.assertEqual(len(p.inventory.entries(category=str(ItemCategory.SPELL))), 1)
+
+        # Books list only shows BOOK-typed entries; the spell isn't one, so
+        # the scroll is still the only (and first) entry shown.
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertEqual(len(p.inventory.entries(category=str(ItemCategory.SPELL))), 0)
+
+    async def test_scroll_of_doorways_not_yet_implemented(self):
+        p = self._player_with_scroll(90, 'Scroll of Doorways')
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        flat = _sent(ctx)
+        self.assertIn("isn't available yet", flat)
+        # Still consumed like any other scroll, matching SPUR.
+        self.assertEqual(len(p.inventory.find(name='Scroll of Doorways')), 0)
+
+    async def test_unrelated_scroll_gets_generic_burn_message_only(self):
+        """A scroll name matching none of the three special substrings
+        still gets consumed with the generic burn message (SPUR: every
+        'SCROLL'-named book goes through scroll.b regardless)."""
+        p = self._player_with_scroll(93, "Some Other Scroll")
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        flat = _sent(ctx)
+        self.assertIn('The scroll catches fire and burns..', flat)
+        self.assertNotIn('invigorated', flat)
+        self.assertNotIn('fade from memory', flat)
 
 
 if __name__ == '__main__':

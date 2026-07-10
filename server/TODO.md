@@ -103,4 +103,36 @@
     dig-up, playing to the class's stealth/lock-picking flavor — not
     confirmed anywhere in the SPUR source reviewed so far, so treat as a
     new TADA class perk to design, not a restoration.
+- objects.json has two separate "Scroll of Endurance" entries (#89, price
+  6; #92, price 5) — confirmed a genuine duplicate already present in the
+  original SPUR objects.txt (not a conversion bug): source line 92 and
+  line 95 both literally read "B,Scroll of Endurance ,6"/"...,5". SPUR's
+  `scroll` subroutine (SPUR.MISC2.S:321-325) dispatches purely by a
+  substring match on the item's *name*, never its number, so both entries
+  are mechanically identical regardless — reading either sets HP the same
+  way. Left as-is in objects.json, faithfully; `commands/read.py` handles
+  both under the same "ENDURANCE" match.
+- `commands/read.py`'s scroll handling doesn't cover "Scroll of Doorways"
+  yet (SPUR.MISC2.S `scroll.a`): it unconditionally sets that room's
+  n/s/e/w exit-availability flags to 1 for a chosen direction — the same
+  variables SPUR.MAIN.S's own room-exit-computation code reads to compute
+  the destination room via row-width grid arithmetic — letting the player
+  walk through a wall with no real exit there. This port's `Room.exits` is
+  a static per-room dict with no "temporarily passable, computed live"
+  concept, so porting this needs a wider movement-system change (some way
+  to grant a session/room-scoped exit override, plus grid-adjacency math
+  our level data doesn't obviously expose yet). Currently just prints a
+  "fizzles, not available yet" message and still consumes the scroll
+  (matching SPUR's always-consumed behavior for anything named "SCROLL").
+- Also noticed while in `read.py`: SPUR.MISC2.S's `drp.itm3` (reached
+  after *any* consumed book, not just scrolls) checks the book's name for
+  "MUMMY'S SCROLL" / "WRAITH'S SCROLL" / "THE HOUSE" / "RETURN" and
+  teleports the player to a specific level+room instead of the normal
+  room redisplay. objects.json has "Mummy's Scroll" (#91) but no "Wraith's
+  Scroll" counterpart, and whatever items #161/#162 were called "house"/
+  "back.house" for in the original SPUR numbering got reassigned to
+  unrelated items in this port's conversion (lasso/saddle). Not
+  implemented — would need confirming which level/room "Mummy's Scroll"
+  should actually teleport to in this port's map data before porting the
+  mechanic; noted here so it isn't lost.
 

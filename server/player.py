@@ -298,6 +298,13 @@ class Player:
         self.experience = kwargs.get('experience', 0)
         self.monsters_killed: list[int] = kwargs.get('monsters_killed', [])
         self.picked_up_items: list[int] = kwargs.get('picked_up_items', [])
+        # Item numbers already granted their one-time +1 Wisdom bonus for
+        # being read (SPUR.MISC2.S:316's `if pw<25 pw=pw+1` -- fires on
+        # every consumed book there, scroll or not; this port keeps
+        # non-scroll books re-readable instead of consuming them, so the
+        # bonus is tracked per item instead to prevent farming it by
+        # re-reading the same reference book). See commands/read.py.
+        self.read_books: list[int] = kwargs.get('read_books', [])
         self.readied_weapon = None  # currently readied weapon (BaseItem or None)
         # Battle experience per weapon type, keyed by str(id_number), value 0-99.
         # Persists independently of inventory so experience survives dropping/selling.
@@ -969,6 +976,10 @@ class Player:
             # Picked-up static room items — must survive logout so they don't reappear
             if 'picked_up_items' in data and isinstance(data['picked_up_items'], list):
                 self.picked_up_items = [int(i) for i in data['picked_up_items'] if isinstance(i, (int, float))]
+
+            # Books already granted their one-time reading Wisdom bonus
+            if 'read_books' in data and isinstance(data['read_books'], list):
+                self.read_books = [int(i) for i in data['read_books'] if isinstance(i, (int, float))]
 
             # Per-player kill list (each entry is a monster number)
             if 'monsters_killed' in data and isinstance(data['monsters_killed'], list):
