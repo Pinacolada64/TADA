@@ -228,6 +228,99 @@ class TestCommandProcessor(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Test error", result.message)
 
 
+def _make_ctx_with_flags(*, admin=False, dm=False, with_send=False):
+    """Minimal ctx stub with a controllable query_flag(), for
+    TestVersionSwitch -- a bare MagicMock's query_flag() would otherwise
+    return a truthy MagicMock by default, silently acting 'privileged'
+    regardless of what the test intends."""
+    from flags import PlayerFlags
+
+    ctx = MagicMock()
+    ctx.player.query_flag = lambda flag: (
+        (admin and flag == PlayerFlags.ADMIN)
+        or (dm and flag == PlayerFlags.DUNGEON_MASTER)
+    )
+    if with_send:
+        ctx.send = unittest.mock.AsyncMock()
+    else:
+        del ctx.send
+    return ctx
+
+
+class TestVersionSwitch(unittest.IsolatedAsyncioTestCase):
+    """The universal '#version'/'#ver' switch (command_version.py):
+    reports a command's own last-changed date instead of running it,
+    handled centrally in process_command() so no individual command
+    needs to implement it. Gated to PlayerFlags.ADMIN/DUNGEON_MASTER."""
+
+    def setUp(self):
+        self.processor = CommandProcessor(client=None)
+        self.processor.context = {}
+        self.cmd = TestCommand(name="attack")
+        self.processor.register_command(self.cmd)
+
+    async def test_version_switch_short_circuits_execute_for_admin(self):
+        ctx = _make_ctx_with_flags(admin=True)
+        with unittest.mock.patch('command_version.get_command_version', return_value='2026-07-09'):
+            result = await self.processor.process_command(["attack", "#version"], ctx=ctx)
+        self.cmd.execute_mock.assert_not_called()
+        self.assertTrue(result.success)
+        self.assertIn('2026-07-09', result.message)
+        self.assertIn('attack', result.message)
+
+    async def test_version_switch_works_for_dungeon_master_too(self):
+        ctx = _make_ctx_with_flags(dm=True)
+        with unittest.mock.patch('command_version.get_command_version', return_value='2026-07-09'):
+            result = await self.processor.process_command(["attack", "#version"], ctx=ctx)
+        self.cmd.execute_mock.assert_not_called()
+        self.assertIn('2026-07-09', result.message)
+
+    async def test_ver_alias_also_triggers_it(self):
+        ctx = _make_ctx_with_flags(admin=True)
+        with unittest.mock.patch('command_version.get_command_version', return_value='2026-07-09'):
+            result = await self.processor.process_command(["attack", "#ver"], ctx=ctx)
+        self.cmd.execute_mock.assert_not_called()
+        self.assertIn('2026-07-09', result.message)
+
+    async def test_non_privileged_player_falls_through_to_normal_dispatch(self):
+        """A non-admin/DM typing '#version' should NOT get version info --
+        it's treated as just another (unrecognized) switch, and the
+        command runs normally."""
+        ctx = _make_ctx_with_flags(admin=False, dm=False)
+        with unittest.mock.patch('command_version.get_command_version', return_value='2026-07-09'):
+            result = await self.processor.process_command(["attack", "#version"], ctx=ctx)
+        self.cmd.execute_mock.assert_called_once()
+        self.assertNotIn('2026-07-09', result.message)
+
+    async def test_no_player_at_all_falls_through_to_normal_dispatch(self):
+        """process_command()'s plain-dict context fallback (no ctx passed,
+        e.g. some existing tests) has no player at all -- must not crash,
+        and must not be treated as privileged."""
+        with unittest.mock.patch('command_version.get_command_version', return_value='2026-07-09'):
+            await self.processor.process_command(["attack", "#version"])
+        self.cmd.execute_mock.assert_called_once()
+
+    async def test_normal_dispatch_unaffected_without_the_switch(self):
+        ctx = _make_ctx_with_flags(admin=True)
+        with unittest.mock.patch('command_version.get_command_version', return_value='2026-07-09'):
+            await self.processor.process_command(["attack", "goblin"], ctx=ctx)
+        self.cmd.execute_mock.assert_called_once()
+
+    async def test_sends_to_ctx_when_available(self):
+        ctx = _make_ctx_with_flags(admin=True, with_send=True)
+        with unittest.mock.patch('command_version.get_command_version', return_value='2026-07-09'):
+            await self.processor.process_command(["attack", "#version"], ctx=ctx)
+        ctx.send.assert_awaited_once()
+        self.assertIn('2026-07-09', ctx.send.await_args.args[0])
+
+    async def test_case_insensitive_switch(self):
+        ctx = _make_ctx_with_flags(admin=True)
+        with unittest.mock.patch('command_version.get_command_version', return_value='2026-07-09'):
+            result = await self.processor.process_command(["attack", "#VERSION"], ctx=ctx)
+        self.cmd.execute_mock.assert_not_called()
+        self.assertIn('2026-07-09', result.message)
+
+
 # import a sample command to ensure decorators run during discovery if needed
 try:
     from commands.example_commands import TestCommand as _ExampleTestCommand  # noqa: F401

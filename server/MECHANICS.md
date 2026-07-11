@@ -1058,6 +1058,34 @@ authority to do that."
 
 ### Implemented
 
+#### `#version` / `#ver` — any command, Admin/Dungeon Master only
+A command accepts a bare `#version`/`#ver` switch anywhere in its arguments
+(e.g. `attack #version`) that reports when that command's own source file was
+last changed, instead of actually running it — but only for a viewer with
+`PlayerFlags.ADMIN` or `DUNGEON_MASTER` set (`command_processor._is_admin_or_dm()`).
+For anyone else the switch is left alone and the command runs normally, same
+as any other unrecognized `#`-token. Handled centrally in
+`commands/command_processor.py`'s `process_command()` — right after the
+command is resolved and mode-gated, before `execute()` is called — so no
+individual command needs to implement it. `command_version.py`'s
+`get_command_version()` resolves the date via one lazy `git log -1 --format=
+%ad --date=short` call per command file (cached for the process's lifetime,
+so each command is looked up via git at most once per run); falls back to the
+file's own mtime, clearly labeled, if git isn't available (e.g. a production
+deploy shipped without a `.git` directory) or the file isn't tracked yet.
+Mentioned in `help commandline`'s concept topic, but only for privileged
+viewers — see `Help.admin_notes` below.
+
+#### `Help.admin_notes` — admin/DM-gated help text
+`Help` (`commands/help.py`) has a second notes list, `admin_notes`, rendered
+in the same "Notes:" section as `notes` but only when the viewer has
+`PlayerFlags.ADMIN` or `DUNGEON_MASTER` set (`_is_privileged_viewer(ctx)`,
+checked by both `_show_command_help()` and `_show_topic_help()` before
+calling `format_help(..., is_privileged=...)`). Use it for admin-only
+details that would just be noise (or an unwanted hint) for a regular
+player — e.g. the `commandline` concept topic's mention of `#version`/`#ver`
+above.
+
 #### Player management
 - **`editplayer` (`ep`)** — full in-game player editor: alignment, attributes,
   character names, combinations, flags/counters, hit points, inventory, money

@@ -176,6 +176,30 @@ class TestFormatHelp(unittest.TestCase):
         self.assertIn("Notes:", out)
         self.assertIn("A useful note.", out)
 
+    def test_admin_notes_hidden_by_default(self):
+        h = Help(notes=["Regular note."], admin_notes=["Admin-only note."])
+        out = self._fmt(h)
+        self.assertIn("Regular note.", out)
+        self.assertNotIn("Admin-only note.", out)
+
+    def test_admin_notes_shown_when_privileged(self):
+        h = Help(notes=["Regular note."], admin_notes=["Admin-only note."])
+        out = self._fmt(h, is_privileged=True)
+        self.assertIn("Regular note.", out)
+        self.assertIn("Admin-only note.", out)
+
+    def test_admin_notes_alone_still_shows_notes_heading_when_privileged(self):
+        h = Help(admin_notes=["Admin-only note."])
+        out = self._fmt(h, is_privileged=True)
+        self.assertIn("Notes:", out)
+        self.assertIn("Admin-only note.", out)
+
+    def test_admin_notes_alone_produces_no_notes_section_when_not_privileged(self):
+        h = Help(admin_notes=["Admin-only note."])
+        out = self._fmt(h, is_privileged=False)
+        self.assertNotIn("Notes:", out)
+        self.assertNotIn("Admin-only note.", out)
+
     def test_all_sections_together(self):
         h = Help(
             summary     = "Short summary.",
@@ -384,6 +408,7 @@ class TestHelpTopics(unittest.IsolatedAsyncioTestCase):
         output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
         self.assertIn("about", output)
 
+
     def test_multi_paragraph_description_preserves_blank_line(self):
         help_obj = Help(
             summary="Multi-paragraph test.",
@@ -412,6 +437,44 @@ class TestHelpTopics(unittest.IsolatedAsyncioTestCase):
         # whitespace since long descriptions wrap across lines).
         self.assertIn("Attacking, fleeing", normalized)      # Combat
         self.assertIn("not tied to one command", normalized)  # Concept
+
+
+class TestCommandLineTopicAdminGating(unittest.IsolatedAsyncioTestCase):
+    """'help commandline' concept topic -- its admin_notes (mentioning
+    #version/#ver) should only show for Admin/Dungeon Master viewers."""
+
+    async def test_regular_player_does_not_see_version_note(self):
+        ctx, _ = _ctx_with_processor()
+        ctx.player.query_flag = lambda flag: False
+        result = await HelpCommand().execute(ctx, "commandline")
+        self.assertTrue(result.success)
+        self.assertNotIn("#version", result.message)
+
+    async def test_admin_sees_version_note(self):
+        from flags import PlayerFlags
+        ctx, _ = _ctx_with_processor()
+        ctx.player.query_flag = lambda flag: flag == PlayerFlags.ADMIN
+        result = await HelpCommand().execute(ctx, "commandline")
+        self.assertIn("#version", result.message)
+
+    async def test_dungeon_master_sees_version_note(self):
+        from flags import PlayerFlags
+        ctx, _ = _ctx_with_processor()
+        ctx.player.query_flag = lambda flag: flag == PlayerFlags.DUNGEON_MASTER
+        result = await HelpCommand().execute(ctx, "commandline")
+        self.assertIn("#version", result.message)
+
+    async def test_general_content_visible_to_everyone(self):
+        ctx, _ = _ctx_with_processor()
+        ctx.player.query_flag = lambda flag: False
+        result = await HelpCommand().execute(ctx, "commandline")
+        self.assertIn("switch", result.message.lower())
+
+    async def test_alias_switches_also_resolves(self):
+        ctx, _ = _ctx_with_processor()
+        ctx.player.query_flag = lambda flag: False
+        result = await HelpCommand().execute(ctx, "switches")
+        self.assertTrue(result.success)
 
 
 # ---------------------------------------------------------------------------

@@ -38,6 +38,22 @@ from commands.base_command import Command, CommandResult, Mode
 log = logging.getLogger(__name__)
 
 
+def _is_admin_or_dm(ctx) -> bool:
+    """Whether ctx's player has PlayerFlags.ADMIN or DUNGEON_MASTER set --
+    gates the '#version'/'#ver' switch. Safe to call with a ctx that has
+    no real player (e.g. process_command()'s plain-dict test fallback):
+    returns False rather than raising."""
+    player     = getattr(ctx, 'player', None)
+    query_flag = getattr(player, 'query_flag', None)
+    if not callable(query_flag):
+        return False
+    from flags import PlayerFlags
+    try:
+        return bool(query_flag(PlayerFlags.ADMIN) or query_flag(PlayerFlags.DUNGEON_MASTER))
+    except Exception:
+        return False
+
+
 class CommandProcessor:
     """Holds a registry of Command instances and dispatches input to them.
 
@@ -272,6 +288,20 @@ class CommandProcessor:
         # can distinguish which direction alias was used when args are empty.
         if hasattr(effective_ctx, '__dict__'):
             effective_ctx._invoked_as = parts[0].lower()
+
+        # Universal '#version'/'#ver' switch: report the command's own last
+        # -changed date instead of running it. Handled centrally here so no
+        # individual command needs to implement it -- see command_version.py.
+        # Admin/Dungeon Master only -- for anyone else, '#version' is left
+        # alone and falls through to normal dispatch (an unrecognized switch
+        # most commands just ignore, same as any other unknown '#' token).
+        if any(a.lower() in ('#version', '#ver') for a in args) and _is_admin_or_dm(effective_ctx):
+            from command_version import get_command_version
+            version_msg = f'{cmd.name}: {get_command_version(cmd)}'
+            send = getattr(effective_ctx, 'send', None)
+            if callable(send):
+                await send(version_msg)
+            return CommandResult.ok(version_msg)
 
         try:
             result = await cmd.execute(effective_ctx, *args)

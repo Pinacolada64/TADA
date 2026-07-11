@@ -124,6 +124,11 @@ class Help:
     usage:       List[Tuple[str, str]] = field(default_factory=list)
     examples:    List[Tuple[str, str]] = field(default_factory=list)
     notes:       List[str]             = field(default_factory=list)
+    # Extra notes appended only for viewers with PlayerFlags.ADMIN or
+    # DUNGEON_MASTER set -- e.g. admin-only switches or behavior that would
+    # just be noise (or an unwanted hint) for a regular player. See
+    # format_help()'s is_privileged parameter / _is_privileged_viewer().
+    admin_notes: List[str]             = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -171,6 +176,47 @@ register_topic(
 )
 
 register_topic(
+    "commandline", "command-line", "switches", "parameters",
+    help_obj=Help(
+        summary="How command syntax works: switches vs. parameters",
+        description=(
+            "Most commands take plain words as parameters -- the actual "
+            "thing you're acting on, like a player name, item name, or "
+            "number: `page Alice=Hello`, `teleport 42`.\n\n"
+            "A token starting with '#' is a switch instead: a flag or "
+            "sub-option that changes how the command behaves, rather than "
+            "data the command acts on. Switches are usually specific to "
+            "the command they're used with -- `groups #add friends Alice`, "
+            "`ban #view`, `wa #hide` -- so check a command's own `help "
+            "<command>` for what its switches do."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("<command> <parameter>",  "Plain words: data the command acts on."),
+            ("<command> #<switch>",    "A '#'-prefixed flag: changes command behavior."),
+        ],
+        examples=[
+            ("page Alice=Hello",        "'Alice=Hello' is the parameter."),
+            ("groups #add friends Bob", "'#add' is the switch; 'friends Bob' are its own parameters."),
+        ],
+        notes=[
+            "A command-specific switch (like '#hide' or '#add') only makes "
+            "sense to the command that defines it -- see that command's "
+            "own help for details.",
+        ],
+        # Admin/DM-only -- #version/#ver is itself gated to those flags in
+        # commands/command_processor.py, so regular players don't need (or
+        # get shown) this detail. See format_help()'s is_privileged param.
+        admin_notes=[
+            "'#version'/'#ver' works the same way on every command (e.g. "
+            "'attack #version') -- reports when that command's own code "
+            "was last changed instead of running it. Handled centrally in "
+            "command_processor.py, gated to Admin/Dungeon Master.",
+        ],
+    ),
+)
+
+register_topic(
     "rooms", "room",
     help_obj=Help(
         summary="What's a \"room\"?",
@@ -209,6 +255,23 @@ def _is_available(cmd, mode) -> bool:
         from commands.base_command import Mode
         return Mode.ANY in modes or mode in modes
     return False      # misconfigured — hide it and log
+
+
+def _is_privileged_viewer(ctx) -> bool:
+    """Whether ctx's player has PlayerFlags.ADMIN or DUNGEON_MASTER set --
+    gates Help.admin_notes (see format_help()'s is_privileged param).
+    Safe to call with a ctx that has no real player (e.g. the LOGIN-mode
+    fallback dict some tests pass): returns False rather than raising.
+    """
+    player     = getattr(ctx, "player", None)
+    query_flag = getattr(player, "query_flag", None)
+    if not callable(query_flag):
+        return False
+    from flags import PlayerFlags
+    try:
+        return bool(query_flag(PlayerFlags.ADMIN) or query_flag(PlayerFlags.DUNGEON_MASTER))
+    except Exception:
+        return False
 
 # ---------------------------------------------------------------------------
 # Formatter  (pure — no I/O)
@@ -252,13 +315,16 @@ def format_two_column(items: List[Tuple[str, str]], width: int) -> List[str]:
 
 
 def format_help(help_obj: Help, command_name: str = "", width: int = 78,
-                rule_char: str = "-") -> Optional[str]:
+                rule_char: str = "-", is_privileged: bool = False) -> Optional[str]:
     """Format a Help instance into a display string.
 
     :param help_obj: Help (or a str, or None)
     :param command_name: shown as a header when present
     :param width: total line width; defaults to 78 columns
     :param rule_char: character to use for a horizontal rule line
+    :param is_privileged: when True, help_obj.admin_notes are appended to
+        the Notes section (see Help.admin_notes) -- pass
+        _is_privileged_viewer(ctx) from a call site that has a live ctx.
     """
     if help_obj is None:
         return None
@@ -323,8 +389,11 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                     subsequent_indent=" " * 6,
                 ))
 
-    # Notes
-    notes = getattr(help_obj, "notes", None)
+    # Notes (admin_notes appended only for privileged viewers -- see
+    # Help.admin_notes / this function's is_privileged parameter)
+    notes = list(getattr(help_obj, "notes", None) or [])
+    if is_privileged:
+        notes += list(getattr(help_obj, "admin_notes", None) or [])
     if notes:
         lines.append("")
         lines.append(_heading("Notes:"))
@@ -566,7 +635,7 @@ class HelpCommand(Command):
 
         if help_obj and hasattr(help_obj, "summary"):
             formatted = format_help(help_obj, command_name=command_name, width=width,
-                                    rule_char=rchar)
+                                    rule_char=rchar, is_privileged=_is_privileged_viewer(ctx))
             if formatted:
                 await ctx.send(*formatted)
                 return CommandResult.ok("\n".join(formatted))
@@ -589,7 +658,7 @@ class HelpCommand(Command):
         rchar     = hrule_char(ctx)
         help_obj  = _TOPICS[topic_name]
         formatted = format_help(help_obj, command_name=topic_name, width=width,
-                                rule_char=rchar)
+                                rule_char=rchar, is_privileged=_is_privileged_viewer(ctx))
         if formatted:
             await ctx.send(*formatted)
             return CommandResult.ok("\n".join(formatted))
