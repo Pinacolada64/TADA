@@ -138,6 +138,35 @@ async def _prompt_int(ctx, label: str, current: int,
         await ctx.send(f'Enter a number between {lo} and {hi}.')
 
 
+async def _prompt_battle_exp_value(ctx, label: str, current: int,
+                                   lo: int = 0, hi: int = 99) -> Optional[int]:
+    """Prompt for a battle-experience value: an absolute number in
+    [lo, hi], or a +N/-N adjustment relative to *current*. Returns None
+    on cancel/blank. int() already parses a leading +/- as a sign, so
+    'current + int(text)' handles both the absolute and relative forms
+    with the same line of code.
+    """
+    while True:
+        raw = await ctx.prompt(
+            f'{label} battle experience',
+            preamble_lines=[
+                f'Current: {current}  (enter {lo}-{hi}, or +N/-N to adjust)  '
+                '—  blank to cancel'
+            ],
+        )
+        if raw is None or not raw.strip():
+            return None
+        text = raw.strip()
+        try:
+            val = current + int(text) if text[0] in '+-' else int(text)
+        except ValueError:
+            await ctx.send('Please enter a number, or +N/-N to adjust.')
+            continue
+        if lo <= val <= hi:
+            return val
+        await ctx.send(f'Result must stay between {lo} and {hi}.')
+
+
 # ---------------------------------------------------------------------------
 # Hit-points action
 # ---------------------------------------------------------------------------
@@ -333,46 +362,82 @@ def _weapons_menu(ctx) -> Menu:
         w = getattr(p, 'readied_weapon', None)
         return getattr(w, 'name', None) or '(none)'
 
-    async def clear_readied(ctx) -> None:
-        weapon = getattr(p, 'readied_weapon', None)
-        if weapon is None:
-            await ctx.send('No weapon readied.')
-            return
-        name = getattr(weapon, 'name', '?')
-        p.readied_weapon = None
-        p.unsaved_changes = True
-        await ctx.send(f'{name} unreadied.')
+    async def edit_readied_weapon(ctx) -> None:
+        """Ready a weapon from inventory, or unready the current one.
 
-    async def edit_battle_exp(ctx) -> None:
-        weapons = getattr(ctx.server, 'weapons', []) or []
-        raw = await ctx.prompt('Weapon name (or part of name)')
-        if not raw or not raw.strip():
-            return
-        term    = raw.strip().lower()
-        matches = [w for w in weapons if term in (w.get('name') or '').lower()]
-        chosen  = await _pick_from_matches(ctx, matches, lambda w: w.get('name', '?'))
-        if chosen is None:
-            if not matches:
-                await ctx.send(f'No weapons matching "{raw.strip()}".')
-            return
-        key = str(chosen.get('number', 0))
-        exp = getattr(p, 'weapon_experience', None)
-        if exp is None:
-            exp = {}
-            p.weapon_experience = exp
-        cur = int(exp.get(key, 0))
-        val = await _prompt_int(ctx, f'Battle Exp — {chosen["name"]}', cur, 0, 99)
-        if val is not None:
-            exp[key] = val
-            p.unsaved_changes = True
-            await ctx.send(f'Battle experience with {chosen["name"]} set to {val}.')
+        Delegates to the real ReadyCommand/UnreadyCommand (bare, no args)
+        instead of reimplementing weapon selection here -- reuses their
+        inventory scan/numbered picker and all of ready.py's special-case
+        mechanics (STORM, Excalibur, Death Amulet, strength gate) rather
+        than the previous action, which only ever cleared the readied
+        weapon and never let an admin actually pick one from inventory.
+        """
+        from commands.ready import ReadyCommand
+        from commands.unready import UnreadyCommand
+
+        current = getattr(p, 'readied_weapon', None)
+        if current is not None:
+            raw = await ctx.prompt(
+                f"Currently readied: {getattr(current, 'name', '?')}. "
+                "[C]hange, [U]nready, or Enter to cancel"
+            )
+            if not raw or not raw.strip():
+                return
+            choice = raw.strip().lower()
+            if choice.startswith('u'):
+                await UnreadyCommand().execute(ctx)
+                return
+            if not choice.startswith('c'):
+                await ctx.send('Unchanged.')
+                return
+
+        await ReadyCommand().execute(ctx)
 
     menu.add_item(MenuItem(
         'Readied Weapon', shortcuts='rw',
         dot_leader_handler=lambda ctx: _readied_label(),
-        action=clear_readied,
+        action=edit_readied_weapon,
     ))
-    menu.add_item(MenuItem('Battle Experience', shortcuts='be', action=edit_battle_exp))
+    menu.add_item(MenuItem(
+        'Battle Experience', shortcuts='be',
+        submenu=_battle_experience_menu(ctx),
+    ))
+    return menu
+
+
+def _battle_experience_menu(ctx) -> Menu:
+    """One row per known weapon, dot-leader showing this player's current
+    battle experience with it -- browse/pick instead of guessing a weapon
+    name (the old edit_battle_exp() required typing a name/substring)."""
+    p       = ctx.player
+    weapons = getattr(getattr(ctx, 'server', None), 'weapons', None) or []
+    menu    = _titled_menu(ctx, 'Battle Experience')
+
+    def _exp() -> dict:
+        exp = getattr(p, 'weapon_experience', None)
+        if exp is None:
+            exp = {}
+            p.weapon_experience = exp
+        return exp
+
+    def make_action(key: str, label: str):
+        async def action(ctx):
+            cur = int(_exp().get(key, 0))
+            val = await _prompt_battle_exp_value(ctx, label, cur)
+            if val is not None:
+                _exp()[key] = val
+                p.unsaved_changes = True
+                await ctx.send(f'Battle experience with {label} set to {val}.')
+        return action
+
+    for w in weapons:
+        key   = str(w.get('number', 0))
+        label = w.get('name', '?')
+        menu.add_item(MenuItem(
+            label,
+            dot_leader_handler=lambda ctx, k=key: str(_exp().get(k, 0)),
+            action=make_action(key, label),
+        ))
     return menu
 
 

@@ -17,7 +17,7 @@ from __future__ import annotations
 import unittest
 from datetime import date, datetime
 
-from base_classes import Alignment, PlayerClass, PlayerRace
+from base_classes import Alignment, PlayerClass, PlayerRace, PlayerStat
 from bar.ally_data import Ally, AllyFlags, AllyStatus
 from commands.editplayer import (
     _armor_shield_menu,
@@ -66,6 +66,7 @@ class _FakePlayer:
         self.char_class = None
         self.char_race = None
         self.guild = None
+        self.is_expert = True
 
 
 class _FakeCtx:
@@ -183,38 +184,141 @@ class TestWeaponsMenu(unittest.IsolatedAsyncioTestCase):
         item = _find_item(menu, 'Readied Weapon')
         self.assertEqual(item.dot_leader_handler(ctx), 'LONG SWORD')
 
-    async def test_clear_readied_weapon(self):
+    async def test_unready_via_change_prompt(self):
+        """Bug fix: this menu action used to only ever clear the readied
+        weapon -- it now offers Change/Unready when one is already
+        readied, reusing the real UnreadyCommand for the 'U' choice."""
         player = _FakePlayer()
         player.readied_weapon = _FakeWeapon(1, 'LONG SWORD')
-        ctx = _FakeCtx(player=player)
+        ctx = _FakeCtx(responses=['u'], player=player)
         menu = _weapons_menu(ctx)
         await _find_item(menu, 'Readied Weapon').action(ctx)
         self.assertIsNone(player.readied_weapon)
-        self.assertIn('unreadied', ctx.sent[-1].lower())
+        self.assertIn('repack', ctx.sent[-1].lower())
 
-    async def test_clear_readied_weapon_when_none_readied(self):
+    async def test_cancel_leaves_readied_weapon_unchanged(self):
+        player = _FakePlayer()
+        weapon = _FakeWeapon(1, 'LONG SWORD')
+        player.readied_weapon = weapon
+        ctx = _FakeCtx(responses=[''], player=player)
+        menu = _weapons_menu(ctx)
+        await _find_item(menu, 'Readied Weapon').action(ctx)
+        self.assertIs(player.readied_weapon, weapon)
+
+    async def test_no_weapons_to_ready_when_none_readied_and_inventory_empty(self):
         player = _FakePlayer()
         ctx = _FakeCtx(player=player)
         menu = _weapons_menu(ctx)
         await _find_item(menu, 'Readied Weapon').action(ctx)
-        self.assertIn('No weapon readied', ctx.sent[-1])
+        self.assertIn('no weapons to ready', ctx.sent[-1].lower())
 
-    async def test_set_battle_experience(self):
+    async def test_selecting_a_weapon_from_inventory_readies_it(self):
+        """The actual bug: 'Readied Weapon' must scan inventory and let
+        an admin pick a weapon to ready, not just clear the current one."""
+        from inventory import Inventory
+        from items import Weapon
+
+        player = _FakePlayer()
+        player.inventory = Inventory(capacity=10)
+        player.stats = {PlayerStat.STR: 10}
+        sword = Weapon(id_number=5, name='Long Sword', stability=10, to_hit=5)
+        player.inventory.add(sword)
+
+        ctx = _FakeCtx(responses=['1'], player=player)
+        menu = _weapons_menu(ctx)
+        await _find_item(menu, 'Readied Weapon').action(ctx)
+
+        self.assertIsNotNone(player.readied_weapon)
+        self.assertEqual(getattr(player.readied_weapon, 'name', ''), 'Long Sword')
+
+    async def test_change_prompt_can_switch_to_a_different_weapon(self):
+        from inventory import Inventory
+        from items import Weapon
+
+        player = _FakePlayer()
+        player.inventory = Inventory(capacity=10)
+        player.stats = {PlayerStat.STR: 10}
+        old = Weapon(id_number=1, name='Dagger')
+        new = Weapon(id_number=2, name='Axe')
+        player.readied_weapon = old
+        player.inventory.add(new)
+
+        # 'c' to change, then '1' to pick the (only) weapon in inventory.
+        ctx = _FakeCtx(responses=['c', '1'], player=player)
+        menu = _weapons_menu(ctx)
+        await _find_item(menu, 'Readied Weapon').action(ctx)
+
+        self.assertEqual(getattr(player.readied_weapon, 'name', ''), 'Axe')
+
+    async def test_battle_experience_is_a_submenu_of_weapons(self):
+        server = _FakeServer(weapons=[{'number': 42, 'name': 'LONG SWORD'}])
+        ctx = _FakeCtx(server=server)
+        menu = _weapons_menu(ctx)
+        item = _find_item(menu, 'Battle Experience')
+        self.assertIsNotNone(item.submenu)
+        self.assertEqual(item.submenu.rendered_title, 'Battle Experience')
+
+    async def test_battle_experience_lists_every_weapon(self):
+        server = _FakeServer(weapons=[
+            {'number': 42, 'name': 'LONG SWORD'},
+            {'number': 7, 'name': 'DAGGER'},
+        ])
+        ctx = _FakeCtx(server=server)
+        menu = _weapons_menu(ctx)
+        be_menu = _find_item(menu, 'Battle Experience').submenu
+        labels = [i.text for i in be_menu.menu_items]
+        self.assertIn('LONG SWORD', labels)
+        self.assertIn('DAGGER', labels)
+
+    async def test_battle_experience_dot_leader_shows_current_value(self):
+        player = _FakePlayer()
+        player.weapon_experience = {'42': 30}
+        server = _FakeServer(weapons=[{'number': 42, 'name': 'LONG SWORD'}])
+        ctx = _FakeCtx(player=player, server=server)
+        menu = _weapons_menu(ctx)
+        be_menu = _find_item(menu, 'Battle Experience').submenu
+        item = _find_item(be_menu, 'LONG SWORD')
+        self.assertEqual(item.dot_leader_handler(ctx), '30')
+
+    async def test_set_battle_experience_absolute(self):
         player = _FakePlayer()
         server = _FakeServer(weapons=[{'number': 42, 'name': 'LONG SWORD'}])
-        ctx = _FakeCtx(responses=['LONG SWORD', '50'], player=player, server=server)
+        ctx = _FakeCtx(responses=['50'], player=player, server=server)
         menu = _weapons_menu(ctx)
-        await _find_item(menu, 'Battle Experience').action(ctx)
+        be_menu = _find_item(menu, 'Battle Experience').submenu
+        await _find_item(be_menu, 'LONG SWORD').action(ctx)
         self.assertEqual(player.weapon_experience.get('42'), 50)
 
-    async def test_battle_experience_no_match(self):
+    async def test_battle_experience_relative_increase(self):
         player = _FakePlayer()
+        player.weapon_experience = {'42': 30}
         server = _FakeServer(weapons=[{'number': 42, 'name': 'LONG SWORD'}])
-        ctx = _FakeCtx(responses=['NONEXISTENT'], player=player, server=server)
+        ctx = _FakeCtx(responses=['+10'], player=player, server=server)
         menu = _weapons_menu(ctx)
-        await _find_item(menu, 'Battle Experience').action(ctx)
-        self.assertEqual(player.weapon_experience, {})
-        self.assertIn('No weapons matching', ctx.sent[-1])
+        be_menu = _find_item(menu, 'Battle Experience').submenu
+        await _find_item(be_menu, 'LONG SWORD').action(ctx)
+        self.assertEqual(player.weapon_experience.get('42'), 40)
+
+    async def test_battle_experience_relative_decrease(self):
+        player = _FakePlayer()
+        player.weapon_experience = {'42': 30}
+        server = _FakeServer(weapons=[{'number': 42, 'name': 'LONG SWORD'}])
+        ctx = _FakeCtx(responses=['-10'], player=player, server=server)
+        menu = _weapons_menu(ctx)
+        be_menu = _find_item(menu, 'Battle Experience').submenu
+        await _find_item(be_menu, 'LONG SWORD').action(ctx)
+        self.assertEqual(player.weapon_experience.get('42'), 20)
+
+    async def test_battle_experience_relative_out_of_range_rejected(self):
+        player = _FakePlayer()
+        player.weapon_experience = {'42': 95}
+        server = _FakeServer(weapons=[{'number': 42, 'name': 'LONG SWORD'}])
+        ctx = _FakeCtx(responses=['+10', ''], player=player, server=server)
+        menu = _weapons_menu(ctx)
+        be_menu = _find_item(menu, 'Battle Experience').submenu
+        await _find_item(be_menu, 'LONG SWORD').action(ctx)
+        self.assertEqual(player.weapon_experience.get('42'), 95)   # unchanged
+        self.assertIn('between 0 and 99', ctx.sent[-2])
 
 
 # ---------------------------------------------------------------------------

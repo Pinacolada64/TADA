@@ -2,11 +2,12 @@
 - Murder Motel level in dungeon
 
 7/7/26:
-- editplayer's Weapons > Battle Experience editor (commands/editplayer.py,
-  edit_battle_exp()) currently requires typing a weapon name/substring to
-  search. Nicer: list all weapons with their current battle experience in
-  a numbered menu (only nonzero, or all, TBD) so an admin can browse/pick
-  instead of guessing a name.
+- [DONE 7/11/26] editplayer's Weapons > Battle Experience editor
+  (commands/editplayer.py) now lists every weapon in a numbered submenu
+  (_battle_experience_menu()), dot-leader showing current experience per
+  weapon, instead of requiring a typed name/substring search. Picking one
+  accepts either an absolute value or a +N/-N adjustment relative to the
+  current value (_prompt_battle_exp_value()).
 
 7/8/26:
 - [DONE] SPUR's QUOTE command (SPUR.MISC2.S:488-503, in-game View/Write/
@@ -267,3 +268,6 @@
   fit + a plausible corruption pattern common to both). Not applied to
   level_3.json; revisit if better evidence turns up.
 
+7/10/2026
+- editplayer: show room/level name in MI menu, allow listing with '?'
+- editplayer: generate random combination with 'R' in CO menu
