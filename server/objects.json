@@ -747,7 +747,7 @@
         },
         {
             "number": 111,
-            "name": "A.P. arrows",
+            "name": "Armor Piercing arrows",
             "type": "ammunition",
             "flags": {
                 "rounds": 6,

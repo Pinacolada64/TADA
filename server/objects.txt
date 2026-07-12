@@ -112,8 +112,11 @@ T,.45 mm|406machine gun,5
 T,9 mm|503uzi          ,4
 T,shell|029cannon      ,1
 T,stones|101sling      ,1
-# Not sure what a.p. stands for: advanced poison?
-T,A.P. arrows|062 bow  ,3
+# A.P. = Armor Piercing (damage 2 vs. plain arrows' damage 1, at 3x the
+# price -- a straightforward "hits harder" upgrade, no poison mechanic
+# attached anywhere). SPUR's own source never spells it out; this is the
+# best-supported reading of the stats, not a confirmed source fact.
+T,Armor Piercing arrows|062 bow  ,3
 # space level:
 T,armor power pak      ,1
 A,battle armor         ,7
