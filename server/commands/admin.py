@@ -197,59 +197,6 @@ class BootCommand(Command):
             message="Player booted successfully.",
             data={"booted_player": player_name}
         )
-        
-class BanCommand(Command):
-    """Admin command to ban players or IP addresses for a specified duration"""
-    name = "ban"
-    locks = [LockType.IS_ADMINISTRATOR]
-
-    def help_summary(self) -> str:
-        return ([
-            f"Bans a player or IP address, optionally for a specified duration. Only available to administrators."
-            f"{self.name} <player_name> [duration] [reason]\n"
-            f"{self.name} <ip_address> [duration] [reason]\n"
-            f"{self.name} #list \n"
-        ])
-    
-    async def _execute(self, data: Dict[str, Any]) -> CommandResult:
-        # Get the user who executed the command
-        user = data.get('user')
-        ip_address = data.get('ip_address', 'No IP address provided')
-        player_name = data.get('args', 'No player name provided')
-        duration = data.get('args', 'No duration provided')
-        reason = data.get('args', 'No reason provided')
-        show_ban_list = data.get('args', "Not showing ban list")
-
-        # Check if the user has the required permissions
-        if not user or not user.is_admin:
-            return CommandResult(
-                success=False,
-                message="Error: This command requires administrator privileges.",
-                data={"error": "insufficient_permissions"}
-            )
-
-        if show_ban_list == "#list":
-            # TODO: locate ban list file and display it
-            return CommandResult(
-                success=True,
-                message="Ban list displayed.",
-                data={"ban_list": "Ban list displayed."}
-            )
-
-        # Log the ban
-        logging.warning(f"Player {player_name} banned by {user.name}. Duration: {duration}. Reason: {reason}. IP Address: {ip_address}")
-        
-        # Broadcast to all users
-        broadcast_message = f"Player {player_name} banned by {user.name}. Duration: {duration}. Reason: {reason}. IP Address: {ip_address}"
-        
-        # Perform ban (this would be implemented in your server code)
-        # await server_ban(player_name, duration=duration, reason=reason, message=broadcast_message)
-        
-        return CommandResult(
-            success=True,
-            message="Player banned successfully.",
-            data={"banned_player": player_name}
-        )
 
 # other admin type commands
 
