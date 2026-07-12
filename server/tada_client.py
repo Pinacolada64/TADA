@@ -20,6 +20,7 @@ import asyncio
 import getpass
 import json
 import logging
+import re
 import sys
 from datetime import datetime
 
@@ -43,6 +44,12 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Style
 # ---------------------------------------------------------------------------
+
+# commands/connect.py sends "Welcome, <name>!" (or "Welcome, <name>,
+# Wraith Master of Spur!" for that title) on successful login, and
+# "Welcome, <guest name>!" for guests -- stop at the first ',' or '!' so
+# both forms yield just the name.
+_WELCOME_RE = re.compile(r'^Welcome, ([^,!]+)')
 
 _STYLE = Style.from_dict({
     'output-field': 'bg:#1a1a2e #e0e0e0',
@@ -73,18 +80,31 @@ class _AnsiLexer(Lexer):
 # ---------------------------------------------------------------------------
 
 class ClientState:
-    def __init__(self):
-        self.mode       = 'init'
-        self.user_id    = None
-        self.connected  = False
-        self.host       = ''
-        self.port       = 0
+    def __init__(self, debug: bool = False):
+        self.mode            = 'init'
+        self.user_id         = None
+        self.character_name  = None   # set once login succeeds -- see _receive_loop()
+        self.connected       = False
+        self.host            = ''
+        self.port            = 0
+        self.debug           = debug
 
     @property
     def status_text(self) -> str:
-        conn = f'{self.host}:{self.port}' if self.connected else 'disconnected'
-        user = self.user_id or '(not logged in)'
-        return f' TADA  {conn}  |  {user}  |  {self.mode} '
+        # Before login succeeds (character_name unknown yet), show the
+        # original connection/mode status.
+        if not self.character_name:
+            conn = f'{self.host}:{self.port}' if self.connected else 'disconnected'
+            user = self.user_id or '(not logged in)'
+            return f' TADA  {conn}  |  {user}  |  {self.mode} '
+
+        # Logged in: simple "TADA | host:port | character" line. Mode is
+        # only shown with --debug, since it's not something a player needs
+        # to see day to day.
+        text = f' TADA | {self.host}:{self.port} | {self.character_name} '
+        if self.debug:
+            text = text.rstrip() + f' | {self.mode} '
+        return text
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +205,11 @@ async def _receive_loop(
 
             if lines:
                 _append_output(output_buffer, lines)
+                for line in lines:
+                    match = _WELCOME_RE.match(line)
+                    if match:
+                        state.character_name = match.group(1)
+                        break
 
             if 'mode' in msg:
                 state.mode = msg['mode']
@@ -408,8 +433,8 @@ async def _input_loop(
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def run(host: str, port: int, user_id: str, password: str) -> None:
-    state = ClientState()
+async def run(host: str, port: int, user_id: str, password: str, debug: bool = False) -> None:
+    state = ClientState(debug=debug)
     state.host = host
     state.port = port
 
@@ -476,7 +501,7 @@ def main() -> int:
         password = getpass.getpass('Password: ') if user_id != 'guest' else 'guest'
 
     try:
-        asyncio.run(run(args.host, args.port, user_id, password))
+        asyncio.run(run(args.host, args.port, user_id, password, debug=args.debug))
     except KeyboardInterrupt:
         pass
 
