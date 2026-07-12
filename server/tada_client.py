@@ -263,8 +263,17 @@ def _build_app(state: ClientState) -> tuple[Application, Buffer, Buffer]:
     @kb.add('pageup')
     def _page_up(event):
         # Move the cursor up by one page; BufferControl scrolls to follow it.
+        #
+        # step must be the FULL window_height, not window_height - 2: the
+        # cursor starts at the last visible line (bottom of the viewport),
+        # so a jump of only window_height - 2 lines still lands inside the
+        # *current* viewport -- prompt_toolkit only scrolls when the cursor
+        # actually leaves the visible range, so that first press was a
+        # silent no-op and the viewport only caught up on the second press.
+        # A full-window_height jump always lands at least one line outside
+        # the old viewport, so every press scrolls immediately.
         info = output_window.render_info
-        step = (info.window_height - 2) if info else 10
+        step = info.window_height if info else 10
         doc  = output_buffer.document
         # Count back `step` newlines from the current cursor position
         before = doc.text[:doc.cursor_position]
@@ -275,8 +284,10 @@ def _build_app(state: ClientState) -> tuple[Application, Buffer, Buffer]:
     @kb.add('pagedown')
     def _page_down(event):
         # Move the cursor down by one page; clamp to end of buffer.
+        # See _page_up's comment: must be a full window_height, not
+        # window_height - 2, or the first press is a silent no-op.
         info = output_window.render_info
-        step = (info.window_height - 2) if info else 10
+        step = info.window_height if info else 10
         doc  = output_buffer.document
         before = doc.text[:doc.cursor_position]
         after  = doc.text[doc.cursor_position:]
