@@ -448,6 +448,8 @@ class HelpCommand(Command):
         notes = [
             "You can use 'help', 'h', or '?' interchangeably.",
             "Command names are case-insensitive.",
+            "'help #cat <name>' accepts a substring if it's unambiguous, "
+            "e.g. 'help #cat admin' for Administrative.",
         ],
     )
 
@@ -563,11 +565,30 @@ class HelpCommand(Command):
     async def _show_category_help(self, ctx, category_name: str, processor) -> Any:
         from commands.base_command import CommandResult
 
+        # Exact match first (full category name/value, case-insensitive).
         matched = next(
             (c for c in HelpCategory
              if category_name in (c.value.lower(), c.name.lower())),
             None,
         )
+
+        # Fall back to substring match (e.g. 'admin' -> Administrative) --
+        # only when exactly one category matches; more than one is ambiguous.
+        if matched is None:
+            substring_matches = [
+                c for c in HelpCategory
+                if category_name in c.value.lower() or category_name in c.name.lower()
+            ]
+            if len(substring_matches) == 1:
+                matched = substring_matches[0]
+            elif len(substring_matches) > 1:
+                names = ", ".join(c.value for c in substring_matches)
+                await ctx.send(
+                    f"'{category_name}' matches more than one category: {names}. "
+                    "Type more of the name to narrow it down."
+                )
+                return CommandResult.fail(error="ambiguous_category")
+
         if not matched:
             await ctx.send(
                 f"Unknown category '{category_name}'. Type 'help #cat' for a list."
@@ -583,12 +604,22 @@ class HelpCommand(Command):
         for cmd in all_cmds:
             help_obj = getattr(cmd, "help", None)
             cat      = getattr(help_obj, "category", HelpCategory.GENERAL)
-            if cat == matched:
+            # Compare by .name, not identity: a command module that predates
+            # (or postdates) the last 'reload commands.help' holds a
+            # reference to a *different* HelpCategory class object than
+            # `matched` here, even for "the same" category -- enums compare
+            # by identity by default, so cat == matched can silently miss
+            # commands whose module wasn't reloaded in lockstep with this
+            # one. Matching on the plain string name survives that.
+            if getattr(cat, "name", None) == matched.name:
                 names.append(getattr(cmd, "name", "?"))
 
         # Standalone topics (e.g. "about") registered under this category —
         # these aren't Commands, so they're listed separately from names above.
-        topics = sorted({n for n, h in _TOPICS.items() if h.category == matched})
+        topics = sorted({
+            n for n, h in _TOPICS.items()
+            if getattr(h.category, "name", None) == matched.name
+        })
 
         if not names and not topics:
             await ctx.send(f"No commands in category '{matched.value}'.")

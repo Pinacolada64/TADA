@@ -315,6 +315,64 @@ class TestHelpCommandExecute(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result.success)
         self.assertEqual(result.error, "unknown_category")
 
+    async def test_category_substring_matches_unambiguously(self):
+        ctx, _ = _ctx_with_processor(_make_cmd("ban", category=HelpCategory.ADMINISTRATIVE))
+        result = await HelpCommand().execute(ctx, "#cat", "admin")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("ban", output)
+
+    async def test_category_substring_can_match_anywhere_in_name(self):
+        ctx, _ = _ctx_with_processor(_make_cmd("go", category=HelpCategory.MOVEMENT))
+        result = await HelpCommand().execute(ctx, "#cat", "move")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("go", output)
+
+    async def test_category_substring_ambiguous_reports_all_matches(self):
+        ctx, _ = _ctx_with_processor()
+        # 'c' matches Combat, Communication, and Concept -- all start with 'c'.
+        result = await HelpCommand().execute(ctx, "#cat", "c")
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, "ambiguous_category")
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("Combat", output)
+        self.assertIn("Communication", output)
+        self.assertIn("Concept", output)
+
+    async def test_category_matches_across_reloaded_enum_identity(self):
+        """Regression: 'reload commands.help' creates a brand-new
+        HelpCategory class. Any command module that wasn't reloaded in
+        the same breath still holds a reference to the *old*
+        HelpCategory.ADMINISTRATIVE object -- enums compare by identity,
+        so a naive `cat == matched` silently drops that command from its
+        own category listing. Simulate that here with a separate Enum
+        class sharing the same member name, standing in for the stale
+        reference."""
+        import enum
+
+        class _StaleHelpCategory(enum.Enum):
+            ADMINISTRATIVE = "Administrative"
+
+        self.assertIsNot(_StaleHelpCategory.ADMINISTRATIVE, HelpCategory.ADMINISTRATIVE)
+
+        stale_cmd = _make_cmd("ban", category=_StaleHelpCategory.ADMINISTRATIVE)
+        ctx, _ = _ctx_with_processor(stale_cmd)
+        result = await HelpCommand().execute(ctx, "administrative")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("ban", output)
+
+    async def test_category_exact_match_still_wins_over_substring(self):
+        """'general' is itself a full category name -- exact match must
+        take priority even though it's also technically a substring of
+        nothing else here; this guards the exact-match-first ordering."""
+        ctx, _ = _ctx_with_processor(_make_cmd("look", category=HelpCategory.GENERAL))
+        result = await HelpCommand().execute(ctx, "general")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("look", output)
+
     # --- search ---
 
     async def test_search_finds_matching_command(self):

@@ -27,6 +27,20 @@ Caveat: only the module(s) actually named are re-executed. If a command
 module imports something else that also changed (e.g. base_classes.py),
 that dependency keeps its old, cached definitions unless it's named too --
 pass multiple module names in one call: `reload movement base_classes`.
+
+Sharper version of that caveat for Enums specifically: reloading a module
+that defines an Enum (e.g. `reload commands.help`, which owns HelpCategory)
+creates a brand-new class object with brand-new members. Any other module
+that did `from commands.help import HelpCategory` and was NOT reloaded in
+the same breath still holds a reference to the *old* HelpCategory.X member
+-- and Enum members compare by identity by default, so `old_member ==
+new_member` is False even for "the same" category. This bit
+commands/help.py's own category listing for exactly this reason (a command
+tagged HelpCategory.ADMINISTRATIVE from a module reloaded at a different
+time than help.py silently vanished from `help #cat administrative`) --
+fixed there by comparing `.name` strings instead of object identity. Any
+other code that compares values from a hot-reloadable Enum needs the same
+treatment, or needs all its dependent modules reloaded together.
 """
 import importlib
 import logging
