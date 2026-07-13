@@ -278,3 +278,32 @@
   already lets you edit any step before accepting, but the prologue
   never says so up front, so a first-time player has no way to know
   that until they reach the end.
+- Give the Annex a real, walk-to map location instead of leaving it an
+  unreachable stub (annex/main.py has no enter_area() call anywhere
+  today -- it's dead code as far as players can tell). Idea (Ryan):
+  make it a proper building like the Auditorium (location TBD), and
+  unlike The Land of Spur, have the Gates of Spur be the thing that lets
+  you interface with the Annex. Not yet designed -- needs a decision on
+  physical placement before any code changes. See the room-number "hole"
+  inventory below for open map slots this could use.
+  - Map hole inventory (room numbers with no room data, within each
+    level's own min-max range -- computed from level_N.json; a "hole"
+    is fair game for a new location like this without renumbering
+    anything else). CREATION_ROOM (commands/new_player.py) already
+    claims level 1 room 5, one of these:
+      - Level 1 (range 1-142, 123 real rooms): 5*, 9, 11, 12, 19, 25,
+        26, 28, 29, 31, 34, 36, 38, 44, 48, 56, 112, 118, 137
+        (* already used by CREATION_ROOM)
+      - Level 2 (range 1-208, 208 real rooms): none -- fully contiguous
+      - Level 3 (range 1-90, 90 real rooms): none -- fully contiguous
+        (rooms 39/86's broken rt-exit targets of 100/141 are
+        out-of-range *destinations*, not holes in this level's own
+        room list -- see the rc/rt entry above)
+      - Level 4 (range 1-44, 44 real rooms): none -- fully contiguous
+      - Level 5 (range 1-373, 373 real rooms): none -- fully contiguous
+      - Level 6 (range 1-292, 292 real rooms): none -- fully contiguous
+      - Level 7 (range 1-28, 28 real rooms): none -- fully contiguous
+    Level 1 is the only level with any holes at all -- everywhere else,
+    a new location would need either a genuinely new room number
+    appended past the existing max, or repurposing/rewriting an
+    existing room.
