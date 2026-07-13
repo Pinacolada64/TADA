@@ -430,7 +430,15 @@ async def _input_loop(
 
         await _send_message(writer, {'mode': state.mode, 'type': 'command', 'text': text})
 
-    app.exit()
+    # _receive_loop() may have already called _force_quit() (and thus
+    # app.exit()) concurrently -- e.g. the server's 'bye' reply to our own
+    # 'quit' command, or an EOF, can land before we get here. Application
+    # only tolerates one exit() call and raises on the second, so guard it
+    # the same way _force_quit() does.
+    try:
+        app.exit()
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
