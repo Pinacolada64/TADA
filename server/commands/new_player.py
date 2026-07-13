@@ -675,7 +675,7 @@ async def _choose_race(ctx) -> int | None:
     try:
         from base_classes import PlayerRace, PlayerRaceText
         races      = list(PlayerRace)
-        race_names = [r.name for r in races]
+        race_names = [r.value for r in races]
         race_texts = list(PlayerRaceText)
     except ImportError:
         races      = race_names = ["Human", "Elf", "Dwarf", "Halfling"]
@@ -711,13 +711,14 @@ async def _choose_race(ctx) -> int | None:
 
         sel = _parse_selection(ans, len(race_names))
         if sel is not None:
-            # Store the real PlayerRace member (its .name is used only for
-            # the numbered menu labels above) -- storing race_names[sel-1]
-            # here instead stored the enum's .name ("OGRE") rather than its
-            # .value ("Ogre"); since StrEnum equality compares against
-            # .value, that silently broke every "in [PlayerRace.X, ...]"
-            # membership check downstream (validate_class_race_combo(),
-            # natural alignment) for every race choice, forever.
+            # Store the real PlayerRace member (race_names above is only
+            # its .value, used for the numbered menu labels) -- storing
+            # race_names[sel-1] here instead stored a bare string rather
+            # than the enum member itself; since StrEnum equality compares
+            # against .value, that silently broke every
+            # "in [PlayerRace.X, ...]" membership check downstream
+            # (validate_class_race_combo(), natural alignment) for every
+            # race choice, forever.
             ctx.player.char_race = races[sel - 1]
             ok, msg = validate_class_race_combo(ctx)
             if not ok:
@@ -883,6 +884,12 @@ def _roll_one_stat() -> tuple[int, list[int]]:
     return sum(rolls[1:]), rolls
 
 
+_ROLL_EXPLANATION = [
+    "Each attribute below is rolled with 4 six-sided dice; the lowest of",
+    "the four is dropped and the remaining three are added together.",
+]
+
+
 async def _roll_stats(ctx) -> bool:
     """Roll stats and let the player accept or re-roll."""
     while True:
@@ -893,7 +900,7 @@ async def _roll_stats(ctx) -> bool:
             stats[stat]  = total
             details.append(f"  {stat.name:<4} {total:2d}  (rolled {rolls}, dropped {min(rolls)})")
 
-        lines = ["", "Rolled stats:", ""] + details + [""]
+        lines = ["", *_ROLL_EXPLANATION, "", "Rolled stats:", ""] + details + [""]
         raw = await ctx.prompt(
             "Y/R",
             preamble_lines=lines + ["Accept these stats? ([Y]es / [R]e-roll)"],
@@ -903,7 +910,32 @@ async def _roll_stats(ctx) -> bool:
         ans = raw.strip().lower()
         if ans in ("y", "yes", ""):
             ctx.player.stats = stats
+            before = dict(stats)
             apply_race_class_deltas(ctx.player)
+            after = ctx.player.stats
+
+            # apply_race_class_deltas() silently folds in race/class stat
+            # deltas (e.g. Ogre STR +3, INT -2) -- without reporting them,
+            # the accepted-vs-actual stats silently diverge and the only
+            # way to notice is comparing before/after by hand.
+            changed = [stat for stat in PlayerStat if before.get(stat, 0) != after.get(stat, 0)]
+            if changed:
+                race_name  = getattr(getattr(ctx.player, 'char_race',  None), 'name', None)
+                class_name = getattr(getattr(ctx.player, 'char_class', None), 'name', None)
+                who = ' / '.join(n.title() for n in (race_name, class_name) if n)
+                adj_lines = [
+                    f"  {stat.name:<4} {before.get(stat, 0):2d} -> {after[stat]:2d}"
+                    f"  ({'+' if after[stat] - before.get(stat, 0) >= 0 else ''}"
+                    f"{after[stat] - before.get(stat, 0)})"
+                    for stat in changed
+                ]
+                await ctx.send([
+                    "",
+                    f"Applying {who} attribute bonuses/penalties:" if who
+                    else "Applying attribute bonuses/penalties:",
+                    *adj_lines,
+                ])
+
             await ctx.send("Stats accepted.")
             return True
         if ans in ("r", "reroll", "re-roll"):
