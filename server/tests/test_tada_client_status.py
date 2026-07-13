@@ -95,5 +95,43 @@ class TestWelcomeLineParsing(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state.character_name, 'Railbender')
 
 
+class TestPromptTextTracking(unittest.IsolatedAsyncioTestCase):
+    """Regression test: the server sends a 'prompt' field on every Message
+    (e.g. "[A]mmo, [B]ooby traps, [H]elp, or Q to leave> "), but
+    _receive_loop() used to ignore it entirely and the input line's
+    get_line_prefix was hardcoded to a static '> ' -- so players saw a
+    bare '>' with no indication of what was being asked."""
+
+    async def _feed_and_run(self, messages: list[dict]):
+        state = tc.ClientState()
+        output_buffer = Buffer(name='output', read_only=True)
+        app = MagicMock()
+
+        reader = asyncio.StreamReader()
+        for msg in messages:
+            reader.feed_data((json.dumps(msg) + '\n').encode('utf-8'))
+        reader.feed_eof()
+
+        await tc._receive_loop(reader, output_buffer, state, app)
+        return state
+
+    async def test_default_prompt_is_bare_arrow(self):
+        state = tc.ClientState()
+        self.assertEqual(state.prompt_text, '> ')
+
+    async def test_prompt_field_updates_state(self):
+        state = await self._feed_and_run([
+            {'lines': [], 'prompt': '[A]mmo, [B]ooby traps, [H]elp, or Q to leave> '},
+        ])
+        self.assertEqual(state.prompt_text, '[A]mmo, [B]ooby traps, [H]elp, or Q to leave> ')
+
+    async def test_blank_prompt_does_not_clear_last_seen_prompt(self):
+        state = await self._feed_and_run([
+            {'lines': [], 'prompt': 'Your Choice> '},
+            {'lines': ['Done!'], 'prompt': ''},
+        ])
+        self.assertEqual(state.prompt_text, 'Your Choice> ')
+
+
 if __name__ == '__main__':
     unittest.main()

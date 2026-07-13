@@ -546,8 +546,14 @@ class Room(object):
             dest = self.exits.get(full)
         return int(dest) if dest else None
 
-    def exits_txt(self, debug: bool = False) -> str:
+    def exits_txt(self, ctx) -> str:
         """Return exits as a comma-delimited string.
+
+        Takes a ctx (anything with a .player exposing is_debug), matching
+        the calling convention used everywhere else in the codebase,
+        rather than a bare debug bool -- so callers just pass the ctx they
+        already have. When ctx.player.is_debug is set, each exit is
+        annotated with its destination room number, e.g. "Up [to #47]".
 
         rc/rt semantics (historical TADA map format):
           rc == 1: Up connection   rt == 0: Shoppe   rt > 0: room number
@@ -561,12 +567,19 @@ class Room(object):
         commands (n/s/e/w). Without normalizing here, this always produced an
         empty exit list -- "Ye may travel:" silently never printed anything.
         """
+        debug = bool(getattr(getattr(ctx, 'player', None), 'is_debug', False))
         _full_to_short = {v: k for k, v in _SHORT_TO_FULL_DIRECTION.items()}
-        exit_txts = [
-            compass_txts[_full_to_short.get(k, k)]
-            for k in self.exits
-            if _full_to_short.get(k, k) in compass_txts
-        ]
+        exit_txts = []
+        for k in self.exits:
+            short = _full_to_short.get(k, k)
+            if short not in compass_txts:
+                continue
+            label = compass_txts[short]
+            if debug:
+                dest = self.exits.get(k)
+                if dest:
+                    label = f'{label} [to #{dest}]'
+            exit_txts.append(label)
         try:
             rc = int(self.exits.get('rc', 0) or 0)
         except (ValueError, TypeError):
@@ -579,18 +592,18 @@ class Room(object):
             if rt == 0:
                 exit_txts.append('Up to Shoppe')
             elif debug:
-                exit_txts.append(f'Up to #{rt}')
+                exit_txts.append(f'Up [to #{rt}]')
             else:
                 exit_txts.append('Up')
         elif rc == 2:
             if rt == 0:
                 exit_txts.append('Down to Shoppe')
             elif debug:
-                exit_txts.append(f'Down to #{rt}')
+                exit_txts.append(f'Down [to #{rt}]')
             else:
                 exit_txts.append('Down')
         from tada_utilities import oxford_comma_list
-        return oxford_comma_list(exit_txts)
+        return oxford_comma_list(exit_txts, conjunction='or')
 
 
 def _parse_room_alignment(value) -> RoomAlignment:

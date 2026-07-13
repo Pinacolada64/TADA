@@ -275,9 +275,13 @@ def get_article_and_quantity(item_name: str) -> str:
     return a_or_an(item_name)
 
 
-def oxford_comma_list(items: list) -> str:
+def oxford_comma_list(items: list, conjunction: str = 'and') -> str:
     """
     Return a grammatically correct comma-separated list with Oxford comma.
+
+    *conjunction* defaults to 'and' (multiple things simultaneously true --
+    "Alice, Bob, and Carol are fighting the orc here"). Pass 'or' for lists
+    of mutually-exclusive choices, e.g. room exits ("North, South, or Up").
 
     >>> oxford_comma_list(['apple', 'banana', 'cherry'])
     'apple, banana, and cherry'
@@ -287,14 +291,16 @@ def oxford_comma_list(items: list) -> str:
     'apple'
     >>> oxford_comma_list([])
     ''
+    >>> oxford_comma_list(['North', 'South', 'Up'], conjunction='or')
+    'North, South, or Up'
     """
     if not items:
         return ''
     if len(items) == 1:
         return items[0]
     if len(items) == 2:
-        return f'{items[0]} and {items[1]}'
-    return f"{', '.join(items[:-1])}, and {items[-1]}"
+        return f'{items[0]} {conjunction} {items[1]}'
+    return f"{', '.join(items[:-1])}, {conjunction} {items[-1]}"
 
 
 def grammatical_list(item_list: str | list) -> str:

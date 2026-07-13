@@ -17,43 +17,53 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+
+class _Player:
+    def __init__(self, is_debug: bool):
+        self.is_debug = is_debug
+
+
+class _Ctx:
+    """Minimal ctx stand-in: exits_txt() only ever reads ctx.player.is_debug."""
+    def __init__(self, is_debug: bool = False):
+        self.player = _Player(is_debug)
+
+
 def test_exits_up_to_room_and_direction_label():
     room = Room(number=1, name="Test", desc="", exits={'n': 2, 'rc': 1, 'rt': 5})
-    txt = room.exits_txt(debug=True)
+    txt = room.exits_txt(_Ctx(is_debug=True))
     assert 'North' in txt
-    assert 'Up to #5' in txt
+    assert 'Up [to #5]' in txt
 
 
 def test_exits_up_to_shoppe():
     room = Room(number=2, name="ShopTest", desc="", exits={'rc': 1, 'rt': 0})
-    txt = room.exits_txt(debug=True)
+    txt = room.exits_txt(_Ctx(is_debug=True))
     assert 'Up to Shoppe' in txt
 
 
 def test_exits_string_values_coerced():
     # rc and rt provided as strings (as might come from JSON)
     room = Room(number=3, name="StringTest", desc="", exits={'e': 4, 'rc': '2', 'rt': '23'})
-    txt = room.exits_txt(debug=True)
+    txt = room.exits_txt(_Ctx(is_debug=True))
     assert 'East' in txt
-    assert 'Down to #23' in txt
+    assert 'Down [to #23]' in txt
 
 def test_exits_missing_rc_rt():
     room = Room(number=4, name="NoRCTest", desc="", exits={'s': 5})
-    txt = room.exits_txt(debug=True)
+    txt = room.exits_txt(_Ctx(is_debug=True))
     assert 'South' in txt
     assert 'Up' not in txt
     assert 'Down' not in txt
     assert 'Shoppe' not in txt
-    assert '#' not in txt
 
 def test_exits_invalid_rc_rt():
     room = Room(number=5, name="InvalidRCTest", desc="", exits={'w': 6, 'rc': 'invalid', 'rt': 'also_invalid'})
-    txt = room.exits_txt(debug=True)
+    txt = room.exits_txt(_Ctx(is_debug=True))
     assert 'West' in txt
     assert 'Up' not in txt
     assert 'Down' not in txt
     assert 'Shoppe' not in txt
-    assert '#' not in txt
 
 
 def test_exits_full_word_keys():
@@ -64,7 +74,7 @@ def test_exits_full_word_keys():
     # printed anything for any room using this key format.
     room = Room(number=157, name="The Ocean", desc="",
                 exits={'north': 1, 'south': 1, 'west': 1})
-    txt = room.exits_txt()
+    txt = room.exits_txt(_Ctx())
     assert 'North' in txt
     assert 'South' in txt
     assert 'West' in txt
@@ -73,9 +83,22 @@ def test_exits_full_word_keys():
 def test_exits_full_word_keys_with_rc_rt():
     room = Room(number=6, name="MixedKeys", desc="",
                 exits={'east': 7, 'rc': 1, 'rt': 0})
-    txt = room.exits_txt(debug=True)
+    txt = room.exits_txt(_Ctx(is_debug=True))
     assert 'East' in txt
     assert 'Up to Shoppe' in txt
+
+
+def test_exits_not_debug_omits_room_numbers():
+    room = Room(number=7, name="PlainTest", desc="", exits={'n': 2, 'rc': 1, 'rt': 5})
+    txt = room.exits_txt(_Ctx(is_debug=False))
+    assert 'North' in txt
+    assert '#' not in txt
+
+
+def test_exits_use_or_not_and():
+    room = Room(number=8, name="ThreeWay", desc="", exits={'n': 2, 's': 3, 'e': 4})
+    txt = room.exits_txt(_Ctx())
+    assert txt == 'North, South, or East'
 
 
 class TestGetExit:

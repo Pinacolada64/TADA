@@ -742,7 +742,7 @@ class Server:
 
         try:
             debug = getattr(player, 'is_debug', False)
-            exits_str = room.exits_txt(debug)
+            exits_str = room.exits_txt(client_ctx)
             if exits_str:
                 lines += ['', f"Ye may travel {exits_str}."]
             if debug:

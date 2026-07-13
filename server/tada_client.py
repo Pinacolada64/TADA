@@ -88,6 +88,7 @@ class ClientState:
         self.host            = ''
         self.port            = 0
         self.debug           = debug
+        self.prompt_text     = '> '   # updated from each Message's 'prompt' field
 
     @property
     def status_text(self) -> str:
@@ -214,6 +215,9 @@ async def _receive_loop(
             if 'mode' in msg:
                 state.mode = msg['mode']
 
+            if 'prompt' in msg and msg['prompt']:
+                state.prompt_text = msg['prompt']
+
             if 'user_id' in msg:
                 state.user_id = msg['user_id']
 
@@ -265,7 +269,7 @@ def _build_app(state: ClientState) -> tuple[Application, Buffer, Buffer]:
         content=BufferControl(buffer=input_buffer, focusable=True),
         height=1,
         style='class:input-field',
-        get_line_prefix=lambda line_no, wrap_count: [('class:prompt-mark', '> ')],
+        get_line_prefix=lambda line_no, wrap_count: [('class:prompt-mark', state.prompt_text)],
     )
 
     layout = Layout(
