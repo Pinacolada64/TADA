@@ -27,12 +27,10 @@
   reprompts. Should instead recognize blank as "keep the current
   password", print "Password unchanged.", and return/exit cleanly
   instead of looping.
-- new_player.py's _choose_race() menu (around line 676): `race_names =
-  [r.name for r in races]` uses the enum's .name ("DRUID") for the
-  displayed menu text instead of .value ("Druid"). Selection/storage
-  already correctly uses the real enum member (races[sel-1]) since the
-  .name-vs-.value bug fix earlier this session -- this is just the
-  display string, which should read race.value instead of race.name.
+- [DONE 7/13/26] new_player.py's _choose_race() menu used the enum's
+  .name ("HALF_ELF") for the displayed menu text instead of .value
+  ("Half-Elf"). Selection/storage already correctly used the real enum
+  member (races[sel-1]); this was just the display string.
 - True hot restart: replace the running server process without dropping
   any active connection, unlike commands/reload.py (which re-executes
   module code in place -- good enough for picking up most code changes,
@@ -271,3 +269,12 @@
 7/10/2026
 - editplayer: show room/level name in MI menu, allow listing with '?'
 - editplayer: generate random combination with 'R' in CO menu
+
+7/13/26:
+- new_player.py's _prologue() (Verus's opening dialogue) should reassure
+  new players that character-creation answers aren't locked in: "Do not
+  worry about answering a question wrong, you will be given an
+  opportunity to change your answers at the end." -- _final_review()
+  already lets you edit any step before accepting, but the prologue
+  never says so up front, so a first-time player has no way to know
+  that until they reach the end.
