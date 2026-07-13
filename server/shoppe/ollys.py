@@ -4,6 +4,7 @@ import logging
 import os
 
 from network_context import GameContext
+from presence import try_global_command
 
 log = logging.getLogger(__name__)
 
@@ -298,5 +299,7 @@ async def main(ctx: GameContext) -> None:
             await _booby_section(ctx, player, inv, objects_by_num)
         elif cmd == 'H':
             await _help_section(ctx)
+        elif await try_global_command(ctx, raw):
+            pass
         else:
             await ctx.send('A)mmo, B)ooby traps, H)elp, or Q to leave.')

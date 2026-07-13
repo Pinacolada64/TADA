@@ -256,5 +256,79 @@ class TestRoundTrip(unittest.TestCase):
         carol.ctx.send.assert_not_awaited()
 
 
+# ---------------------------------------------------------------------------
+# try_global_command()
+# ---------------------------------------------------------------------------
+
+class TestTryGlobalCommand(unittest.TestCase):
+
+    def _make_ctx_with_processor(self):
+        client = MagicMock()
+        ctx = MagicMock()
+        ctx.client = client
+        return ctx, client
+
+    def test_dispatches_recognized_command(self):
+        ctx, client = self._make_ctx_with_processor()
+        cmd = MagicMock()
+        cmd.name = 'whereat'
+        client.command_processor.find_command.return_value = (cmd, False)
+        client.command_processor.process_input = AsyncMock()
+
+        handled = run(presence.try_global_command(ctx, 'whereat'))
+
+        self.assertTrue(handled)
+        client.command_processor.process_input.assert_awaited_once_with('whereat', ctx=ctx)
+
+    def test_unrecognized_input_returns_false(self):
+        ctx, client = self._make_ctx_with_processor()
+        client.command_processor.find_command.return_value = (None, False)
+
+        handled = run(presence.try_global_command(ctx, 'gibberish'))
+
+        self.assertFalse(handled)
+
+    def test_movement_command_is_denied(self):
+        ctx, client = self._make_ctx_with_processor()
+        cmd = MagicMock()
+        cmd.name = 'go'
+        client.command_processor.find_command.return_value = (cmd, True)
+        client.command_processor.process_input = AsyncMock()
+
+        handled = run(presence.try_global_command(ctx, 'n'))
+
+        self.assertFalse(handled)
+        client.command_processor.process_input.assert_not_awaited()
+
+    def test_teleport_shorthand_is_denied(self):
+        ctx, client = self._make_ctx_with_processor()
+        cmd = MagicMock()
+        cmd.name = '#'
+        client.command_processor.find_command.return_value = (cmd, False)
+        client.command_processor.process_input = AsyncMock()
+
+        handled = run(presence.try_global_command(ctx, '#37'))
+
+        self.assertFalse(handled)
+        client.command_processor.find_command.assert_called_once_with('#')
+        client.command_processor.process_input.assert_not_awaited()
+
+    def test_no_command_processor_returns_false(self):
+        ctx = MagicMock()
+        ctx.client = MagicMock(spec=[])  # no command_processor attribute
+
+        handled = run(presence.try_global_command(ctx, 'whereat'))
+
+        self.assertFalse(handled)
+
+    def test_blank_input_returns_false(self):
+        ctx, client = self._make_ctx_with_processor()
+
+        handled = run(presence.try_global_command(ctx, '   '))
+
+        self.assertFalse(handled)
+        client.command_processor.find_command.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

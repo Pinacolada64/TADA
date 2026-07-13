@@ -22,6 +22,51 @@ import logging
 
 log = logging.getLogger(__name__)
 
+# Commands that change *where* the player is (room movement, teleport) are
+# excluded from try_global_command(): a virtual area's own prompt loop has
+# no way to notice the player has physically left and would just keep
+# prompting for shop/bar options as if they were still standing there.
+# Everything else (whereat, who, say, stats, inv, attack, ...) is safe to
+# run in place -- worst case a command like 'attack' just reports there's
+# nothing to fight.
+_GLOBAL_COMMAND_DENYLIST = {'go', '#'}
+
+
+async def try_global_command(ctx, raw: str) -> bool:
+    """Attempt to dispatch *raw* as a normal game command from inside a
+    virtual area's own prompt loop (Olly's, the Bar, the Bank, etc.).
+
+    Every such area runs its own `while True: raw = await ctx.prompt(...)`
+    loop with a small set of hardcoded single-key options, entirely
+    bypassing CommandProcessor -- so things like 'whereat', 'who', 'say',
+    'stats', or 'inv' are normally unusable while browsing a shop. Call
+    this from an area's "unrecognized input" branch *before* showing its
+    own "invalid choice" message; it runs the input through the same
+    CommandProcessor the main game loop uses (commands print their own
+    output via ctx.send(), same as always) and reports back whether
+    anything actually matched.
+
+    Returns True if a real command was found and dispatched (the area's
+    loop should just re-prompt afterward), False if the input didn't match
+    any global command either (the area should fall back to its own
+    "invalid choice" message).
+    """
+    processor = getattr(getattr(ctx, 'client', None), 'command_processor', None)
+    if processor is None or not raw or not raw.strip():
+        return False
+
+    token = raw.strip().split()[0]
+    # '#37' (teleport shorthand, no space) resolves to the same '#' command
+    # as a bare '#' -- match process_command()'s own splitting so the
+    # denylist check sees the right canonical command.
+    lookup_token = '#' if token.startswith('#') and len(token) > 1 else token
+    cmd, _ = processor.find_command(lookup_token)
+    if cmd is None or cmd.name in _GLOBAL_COMMAND_DENYLIST:
+        return False
+
+    await processor.process_input(raw, ctx=ctx)
+    return True
+
 
 def occupants(server, area: str) -> list:
     """Return all server-side clients currently in *area*.
