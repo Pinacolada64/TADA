@@ -360,3 +360,10 @@
   (format_lines()/ansi_encode_lines() etc.), so there's no actual tab-
   expansion or line-ending behavior to test end-to-end today -- this
   TODO covers both "wire it in" and "test it" once that happens.
+- prefs.py's main table row for 'T' Client Type (currently just
+  f'{cs.screen_columns}x{cs.screen_rows}', around line 228) should show
+  screen dimensions and translation together instead of only the size --
+  e.g. "80x25, ANSI" -- and note "(Custom)" when the current settings
+  don't match one of the four presets exactly (_pick_client_type()'s
+  presets list). Ryan: the table cell can be two rows tall if that's
+  needed to fit it all legibly.
