@@ -424,10 +424,18 @@ async def _input_loop(
             _append_output(output_buffer, [f'> {text}'])
             app.invalidate()
 
-        if text.lower() in ('quit', 'exit', '/quit'):
-            await _send_message(writer, {'mode': state.mode, 'type': 'command', 'text': 'quit'})
-            break
-
+        # 'quit' is sent through like any other command, not special-cased
+        # here -- commands/quit.py's QuitCommand asks a "Leave SPUR
+        # [Y/N]?" confirmation and only sets data={'quit': True} (which
+        # makes the server actually close the connection) once the client
+        # answers 'Y'. Breaking out of this loop right after sending
+        # 'quit' (as this used to do) meant that confirmation answer
+        # never got sent -- the server sat forever in ctx.prompt()
+        # waiting for it, while this client's _receive_loop sat forever
+        # waiting for more server output that would never come, deadlocked
+        # on each other. Real disconnection is already detected via EOF in
+        # _receive_loop() (see _force_quit()), once the server actually
+        # closes the socket after a completed quit.
         await _send_message(writer, {'mode': state.mode, 'type': 'command', 'text': text})
 
     # _receive_loop() may have already called _force_quit() (and thus
