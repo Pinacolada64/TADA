@@ -116,6 +116,21 @@ class TestChooseClassMenu(unittest.IsolatedAsyncioTestCase):
         await _choose_class(ctx)
         self.assertEqual(ctx.player.char_class, 'Druid')
 
+    async def test_selection_stores_real_enum_member_not_bare_string(self):
+        """Regression test for a real bug found live: char_class used to be
+        stored as class_names[sel-1] (a bare .value string), not the real
+        PlayerClass member -- StrEnum value-equality masked this for most
+        comparisons, but a bare string has no .name attribute, so
+        _roll_stats()'s "Applying X / Y attribute bonuses" report silently
+        dropped the class name from every message (getattr(char_class,
+        'name', None) always came back None). Same bug class already
+        fixed for char_race earlier."""
+        from base_classes import PlayerClass
+        ctx = _FakeCtx(['1'])
+        await _choose_class(ctx)
+        self.assertIs(ctx.player.char_class, PlayerClass.WIZARD)
+        self.assertEqual(ctx.player.char_class.name, 'WIZARD')
+
     async def test_random_class_example_is_labeled_and_boxed(self):
         """Ryan: the random class shown in the non-expert overview should
         be clearly marked as an example, with its description set apart

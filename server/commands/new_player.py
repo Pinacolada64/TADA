@@ -803,7 +803,16 @@ async def _choose_class(ctx) -> int | None:
         # Numeric selection
         sel = _parse_selection(ans, len(class_names))
         if sel is not None:
-            ctx.player.char_class = class_names[sel - 1]
+            # Store the real PlayerClass member, not the bare .value
+            # string -- same bug already fixed for race (see
+            # _choose_race()'s comment). PlayerClass is a StrEnum, so
+            # value-equality/lookups (class_bonuses(), combo validation)
+            # still worked either way, but a bare string has no .name
+            # attribute, so _roll_stats()'s "Applying X / Y attribute
+            # bonuses" report silently dropped the class name from
+            # every "Applying ..." message -- getattr(char_class,
+            # 'name', None) always came back None.
+            ctx.player.char_class = classes[sel - 1]
             await ctx.send(f"Class set to {ctx.player.char_class}.")
             return True
 
