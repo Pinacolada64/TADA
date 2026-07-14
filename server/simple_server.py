@@ -45,6 +45,27 @@ PETSCII_PORT = 34064
 _WILD_HORSE_ROOMS = (30, 52, 68)
 _WILD_HORSE_MONSTER_NUMBER = 136
 
+# Terminal-negotiation 'H<letter>' help text (Server._negotiate_terminal()) --
+# an alpha tester reported being unsure which option to pick, so 'HA'/'HP'/
+# 'HQ' explain each one, matching the h<key> convention used elsewhere
+# (e.g. commands/prefs.py's prefs_menu()).
+_TERMINAL_NEGOTIATION_HELP = {
+    'A': (
+        "ANSI color mode uses color and cursor formatting understood by "
+        "most modern terminal emulators and telnet/SSH clients (PuTTY, "
+        "iTerm2, Windows Terminal, the TADA prompt_toolkit client, etc). "
+        "Pick this unless your screen fills with garbled text like "
+        "'[33m' instead of actual color."
+    ),
+    'P': (
+        "Plain text mode strips out all color and cursor formatting, "
+        "showing only plain characters. Use this if ANSI mode showed "
+        "garbled escape-code text, or if you're on a very old or basic "
+        "terminal that doesn't understand ANSI codes."
+    ),
+    'Q': "Disconnects immediately without logging in.",
+}
+
 # Hidden exits (SPUR.MISC.S:419 "->"/"<-" markers): the marker itself only
 # sets a boolean "exit exists" flag on the room, never a target, so the real
 # destination has to be traced per-room against the SPUR source. Room.
@@ -406,15 +427,27 @@ class Server:
                 'TADA — Terminal negotiation',
                 '  A.  ANSI color (default)',
                 '  P.  Plain text (no color)',
+                '  C.  Not sure? Run a color test',
                 '  Q.  Quit',
+                '',
+                "  Type 'H' followed by a letter (e.g. HA) for more info on an option.",
+                '',
+                '  On a real Commodore 64/128? Disconnect and reconnect on port '
+                f'{PETSCII_PORT} instead -- this port is for ANSI/plain-text '
+                'terminals only.',
                 '',
             )
             while True:
-                raw = await ctx.prompt('Terminal type [A/P/Q]')
+                raw = await ctx.prompt('Terminal type [A/P/C/Q]')
                 if raw is None:
                     logging.debug('EXIT False (disconnect)')
                     return False
                 choice = raw.strip().upper()
+
+                if len(choice) == 2 and choice[0] == 'H' and choice[1] in ('A', 'P', 'Q'):
+                    await ctx.send(_TERMINAL_NEGOTIATION_HELP[choice[1]])
+                    continue
+
                 if choice == 'P':
                     try:
                         ctx.player.client_settings.translation = Translation.ASCII
@@ -431,6 +464,28 @@ class Server:
                         break
                     except Exception:
                         pass
+                elif choice == 'C':
+                    await ctx.send(
+                        '',
+                        '|red|This line should be RED.|reset|',
+                        '|green|This line should be GREEN.|reset|',
+                        '|blue|This line should be BLUE.|reset|',
+                        '',
+                    )
+                    color_raw = await ctx.prompt('Did you see color above? (Y/N)')
+                    if color_raw is None:
+                        logging.debug('EXIT False (disconnect)')
+                        return False
+                    if color_raw.strip().lower().startswith('y'):
+                        ctx.player.client_settings.translation = Translation.ANSI
+                        await ctx.send('ANSI color mode set.')
+                        logging.info('ANSI color mode set (via color test).')
+                        break
+                    else:
+                        ctx.player.client_settings.translation = Translation.ASCII
+                        await ctx.send('Plain text mode set.')
+                        logging.info('Plain text mode set (via color test).')
+                        break
                 elif choice == 'Q':
                     await ctx.send('Disconnecting - hope to see you again soon!')
                     await self._graceful_close(ctx.writer)
