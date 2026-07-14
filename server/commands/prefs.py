@@ -48,7 +48,7 @@ from flags import PlayerFlags
 _SETTING_HELP: dict[str, list[str]] = {
     'x': [
         '',
-        '|yellow|Expert Mode|reset|',
+        '|cyan|Expert Mode|reset|',
         "Hides beginner-oriented tips, hints, and confirmation text "
         "throughout the game once you're comfortable with the commands. "
         "Affects things like READY's weapon-class breakdown and various "
@@ -57,7 +57,7 @@ _SETTING_HELP: dict[str, list[str]] = {
     ],
     'h': [
         '',
-        '|yellow|Hourglass Display|reset|',
+        '|cyan|Hourglass Display|reset|',
         "Shows the current time in front of your command prompt. Purely "
         "a visual clock -- it doesn't yet affect in-game time limits or "
         "control 12-hour (AM/PM) vs 24-hour formatting or timezone.",
@@ -65,7 +65,7 @@ _SETTING_HELP: dict[str, list[str]] = {
     ],
     'm': [
         '',
-        '|yellow|More Prompt|reset|',
+        '|cyan|More Prompt|reset|',
         "When output would be longer than one screen, pauses with a "
         "'-- More --' prompt between pages: Enter for the next page, "
         "B or - to go back a page, Q to stop reading early. When off, "
@@ -75,7 +75,7 @@ _SETTING_HELP: dict[str, list[str]] = {
     ],
     'b': [
         '',
-        '|yellow|Border Style|reset|',
+        '|cyan|Border Style|reset|',
         "Controls the box-drawing characters used around tables and "
         "boxed text (ASCII, Single-line, or Double-line). ANSI terminals "
         "only -- PETSCII (C64/C128) clients always use one fixed style.",
@@ -83,7 +83,7 @@ _SETTING_HELP: dict[str, list[str]] = {
     ],
     'c': [
         '',
-        '|yellow|Colors|reset|',
+        '|cyan|Colors|reset|',
         "Sets the text color and highlight color used for |white|[bracketed]"
         "|reset| text throughout your session, e.g. item names or emphasis "
         "in messages.",
@@ -91,7 +91,7 @@ _SETTING_HELP: dict[str, list[str]] = {
     ],
     'n': [
         '',
-        '|yellow|News Display|reset|',
+        '|cyan|News Display|reset|',
         "Controls what the NEWS command shows you at login. 'New only' (the "
         "default) shows just what's posted since your last login. 'Full "
         "directory' shows every currently-active news item every time you "
@@ -100,7 +100,7 @@ _SETTING_HELP: dict[str, list[str]] = {
     ],
     't': [
         '',
-        '|yellow|Client Type|reset|',
+        '|cyan|Client Type|reset|',
         "Sets your screen size and color translation -- pick a Commodore "
         "64/128 preset, the TADA client preset, or a Custom size (20-132 "
         "columns, 10-60 rows) with ANSI color or plain text. Not shown on "
@@ -110,14 +110,14 @@ _SETTING_HELP: dict[str, list[str]] = {
     ],
     'k': [
         '',
-        '|yellow|Tab Key|reset|',
+        '|cyan|Tab Key|reset|',
         "Whether your client sends a real Tab keypress. If not, tabs are "
         "simulated with a configurable number of spaces instead.",
         '',
     ],
     'l': [
         '',
-        '|yellow|Line Ending|reset|',
+        '|cyan|Line Ending|reset|',
         "LF (Unix-style), CR (classic Mac / some Commodore terminals), or "
         "CRLF (Windows-style). Stored for your client, but not yet enforced "
         "on every line sent -- most terminals handle any of the three fine.",
@@ -362,27 +362,40 @@ async def _pick_border_style(ctx, codec) -> None:
     from formatting import make_box
 
     cs = ctx.player.client_settings
+    # style_key must be the lowercase form make_box()/_HRULE_CHAR expect
+    # ('ascii'/'single'/'double') -- Ryan found live that border style
+    # picking was broken: (num, key) here used to be (['1', 'a'], 'ASCII')
+    # unpacked into two variables, so `num` was a whole list (displayed
+    # as its Python repr, e.g. "['1', 'a']. ASCII") and `key` was the
+    # capitalized display name -- passed straight to make_box(border_
+    # style=key), which only recognizes the lowercase form, so every
+    # preview silently rendered identically (always falling through to
+    # single-line) regardless of which style was actually being shown.
+    # Selection matching was equally broken (`ans == num` compared a str
+    # to a list, always False) and even a coincidental match saved the
+    # wrong-cased value, so _HRULE_CHAR and make_box's own lookups
+    # elsewhere never recognized the stored preference either.
     options = [
-        (['1', 'a'], 'ASCII'),
-        (['2', 's'], 'Single'),
-        (['3', 'd'], 'Double'),
+        ('1', 'a', 'ascii',  'ASCII'),
+        ('2', 's', 'single', 'Single'),
+        ('3', 'd', 'double', 'Double'),
     ]
 
     lines = ['', '|yellow|Border Style:|reset|', '']
-    for num, key in options:
-        top = make_box([''], width=14, codec=codec, border_style=key)[0]
-        lines.append(f'  {num}. {key.title():<8} {top}')
+    for num, letter, style_key, label in options:
+        top = make_box([''], width=14, codec=codec, border_style=style_key)[0]
+        lines.append(f'  {num}. {label:<8} {top}')
     lines.append('')
 
     raw = await ctx.prompt('border style', preamble_lines=lines)
     if raw is None or not raw.strip():
         await ctx.send('Border style unchanged.')
         return
-    ans = raw.strip()
-    for num, key in options:
-        if ans == num or ans.lower() in key:
-            cs.border_style = key
-            await ctx.send(f'Border style set to {key.title()}.')
+    ans = raw.strip().lower()
+    for num, letter, style_key, label in options:
+        if ans in (num, letter, style_key, label.lower()):
+            cs.border_style = style_key
+            await ctx.send(f'Border style set to {label}.')
             return
     await ctx.send('Border style unchanged.')
 
@@ -462,6 +475,26 @@ async def _pick_client_type(ctx) -> None:
     from terminal import Translation
 
     cs = ctx.player.client_settings
+    # A real Commodore connection (raw PETSCII byte transport, the
+    # dedicated PETSCII port) vs. an ANSI/JSON client (tada_client.py,
+    # telnet, etc). Found live (server/hardcopy.0): picking a "Commodore"
+    # preset from an ANSI/JSON session switched that session's own
+    # translation to PETSCII, so every subsequent send -- tables, this
+    # very menu -- went out as raw Commodore control-code bytes, which a
+    # Linux terminal just displays as garbage (and could mangle terminal
+    # state). Screen-size presets are still offered either way, but the
+    # PETSCII *translation* only actually applies over a real PETSCII
+    # connection.
+    #
+    # Compared by class *name*, not isinstance()/identity: several test
+    # modules stub sys.modules['network_context'] with incomplete fakes
+    # (see tests/test_wild_horse_placement.py's note), which can leave a
+    # PETSCIINetworkContext imported here bound to a different class
+    # object than the one an actual PETSCIINetworkContext instance was
+    # built from -- the same reload/duplicate-module-identity gotcha
+    # documented in commands/reload.py, just via test stubbing instead of
+    # a hot reload.
+    is_real_petscii = any(cls.__name__ == 'PETSCIINetworkContext' for cls in type(ctx).__mro__)
     # Real Translation enum members, not bare strings -- formatting.py's
     # codec_for_settings() compares `t == Translation.PETSCII` etc., which
     # silently falls through to PlainCodec for a plain str that merely
@@ -498,7 +531,19 @@ async def _pick_client_type(ctx) -> None:
         if ans == num:
             cs.screen_columns = cols
             cs.screen_rows    = rows
-            cs.translation    = encoding
+            if encoding == Translation.PETSCII and not is_real_petscii:
+                # Apply the screen size, but never switch a non-PETSCII
+                # transport's translation to PETSCII -- that's what
+                # produced raw Commodore control bytes in a Linux
+                # terminal. Leave translation exactly as it was.
+                await ctx.send(
+                    f'Client type set to: {label} screen size ({cols}x{rows}), '
+                    f'but keeping {cs.translation.name if hasattr(cs.translation, "name") else cs.translation} '
+                    "translation -- PETSCII color codes only work over a real "
+                    "Commodore connection (the dedicated PETSCII port), not this one."
+                )
+                return
+            cs.translation = encoding
             # The Commodore 128's keyboard has a real Tab key (the C64's
             # doesn't), and so does any ANSI/TADA client -- set as a side
             # effect of picking this client type, not asked separately.

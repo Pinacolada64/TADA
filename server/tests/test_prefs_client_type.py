@@ -13,10 +13,21 @@ Run with:
 """
 from __future__ import annotations
 
+import sys
 import unittest
+
+# Several other test modules in the suite stub sys.modules['network_context']
+# with incomplete fakes (e.g. GameContext=object, no PETSCIINetworkContext at
+# all) and never restore them -- see test_wild_horse_placement.py's identical
+# note. This file's isinstance(ctx, PETSCIINetworkContext) checks need the
+# *real* class, not whatever fake object identity another file's stub left
+# behind, so force a clean reimport regardless of collection order.
+for _mod in ('network_context', 'net_common', 'commands.prefs'):
+    sys.modules.pop(_mod, None)
 
 from player import Player
 from terminal import Translation
+from network_context import PETSCIINetworkContext
 from commands.prefs import (
     _MAX_COLS, _MAX_ROWS, _MIN_COLS, _MIN_ROWS,
     _pick_client_type, _pick_line_ending, _pick_tab_settings, prefs_menu,
@@ -24,10 +35,40 @@ from commands.prefs import (
 
 
 class _FakeCtx:
+    """Stands in for an ANSI/JSON-connected client (tada_client.py,
+    telnet, etc) -- NOT a real PETSCIINetworkContext, so _pick_client_type()
+    should refuse to switch translation to PETSCII for it (see
+    server/hardcopy.0: doing so used to send raw Commodore control-code
+    bytes to a Linux terminal)."""
+
     def __init__(self, responses, player):
         self._q = list(responses)
         self.sent: list = []
         self.player = player
+
+    async def send(self, *args):
+        for a in args:
+            self.sent.append(a)
+
+    async def prompt(self, prompt_text: str = '', preamble_lines=None):
+        if preamble_lines:
+            self.sent.extend(preamble_lines)
+        return self._q.pop(0) if self._q else None
+
+    def _flat(self) -> str:
+        return '\n'.join(str(x) for x in self.sent)
+
+
+class _FakePetsciiCtx(PETSCIINetworkContext):
+    """A genuine PETSCIINetworkContext (real Commodore hardware, the
+    dedicated PETSCII port) with fake send()/prompt() for testing --
+    isinstance(ctx, PETSCIINetworkContext) is what _pick_client_type()
+    actually checks, not the (mutable, spoofable) translation setting."""
+
+    def __init__(self, responses, player):
+        super().__init__(player=player, reader=None, writer=None, server=None, client=None)
+        self._q = list(responses)
+        self.sent = []
 
     async def send(self, *args):
         for a in args:
@@ -94,8 +135,11 @@ class TestPrefsMenuShowsNewRows(unittest.IsolatedAsyncioTestCase):
         """Live bug found testing this: codec/is_petscii used to be
         computed once before the menu loop started, so switching Client
         Type mid-session (e.g. to a Commodore preset) didn't hide the
-        ANSI-only Border Style row until PREFS was reopened fresh."""
-        ctx = _FakeCtx(['t', '1', ''], Player())   # Client Type -> Commodore 64 (PETSCII)
+        ANSI-only Border Style row until PREFS was reopened fresh. Needs
+        a genuine PETSCIINetworkContext now -- an ANSI ctx picking a
+        Commodore preset no longer switches translation at all (see
+        TestPickClientType's non-PETSCII-transport tests below)."""
+        ctx = _FakePetsciiCtx(['t', '1', ''], Player())   # Client Type -> Commodore 64 (PETSCII)
         await prefs_menu(ctx)
         # The LAST occurrence of the settings table in the transcript
         # (the redraw right before exiting) must already omit Border
@@ -115,14 +159,14 @@ class TestPickClientType(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((cs.screen_columns, cs.screen_rows), (80, 25))
         self.assertEqual(cs.translation, Translation.ANSI)
 
-    async def test_commodore_preset_sets_petscii(self):
-        ctx = _FakeCtx(['1'], Player())
+    async def test_commodore_preset_over_real_petscii_transport_sets_petscii(self):
+        ctx = _FakePetsciiCtx(['1'], Player())
         await _pick_client_type(ctx)
         cs = ctx.player.client_settings
         self.assertEqual((cs.screen_columns, cs.screen_rows), (40, 25))
         self.assertEqual(cs.translation, Translation.PETSCII)
 
-    async def test_commodore_preset_produces_real_petscii_codec(self):
+    async def test_commodore_preset_over_real_petscii_transport_produces_real_petscii_codec(self):
         """Regression test for a real bug found live: the old
         character-creation Client Type step this was folded in from
         stored the bare string 'PETSCII' instead of the Translation
@@ -130,30 +174,60 @@ class TestPickClientType(unittest.IsolatedAsyncioTestCase):
         compares `t == Translation.PETSCII` -- silently fell through to
         PlainCodec for every player who picked a Commodore preset there."""
         from formatting import codec_for_settings, PETSCIICodec
-        ctx = _FakeCtx(['1'], Player())
+        ctx = _FakePetsciiCtx(['1'], Player())
         await _pick_client_type(ctx)
         codec = codec_for_settings(ctx.player.client_settings)
         self.assertIsInstance(codec, PETSCIICodec)
 
+    async def test_commodore_preset_over_ansi_transport_does_not_switch_translation(self):
+        """Regression test for a real bug found live (server/hardcopy.0):
+        picking a Commodore preset from an ANSI/JSON session (tada_client.py,
+        not a real Commodore) used to switch that session's own translation
+        to PETSCII, so every subsequent send went out as raw Commodore
+        control-code bytes -- garbage in a Linux terminal, and potentially
+        terminal-state-mangling. Screen size still applies; translation
+        must not change."""
+        ctx = _FakeCtx(['1'], Player())
+        original_translation = ctx.player.client_settings.translation
+        await _pick_client_type(ctx)
+        cs = ctx.player.client_settings
+        self.assertEqual((cs.screen_columns, cs.screen_rows), (40, 25))
+        self.assertEqual(cs.translation, original_translation)
+        self.assertNotEqual(cs.translation, Translation.PETSCII)
+
+    async def test_commodore_preset_over_ansi_transport_explains_why(self):
+        ctx = _FakeCtx(['1'], Player())
+        await _pick_client_type(ctx)
+        text = ctx._flat()
+        self.assertIn('PETSCII', text)
+        self.assertIn('real Commodore connection', text)
+
     async def test_c64_preset_does_not_set_has_tab(self):
         """Ryan: the C128 has a real Tab key, unlike the C64."""
-        ctx = _FakeCtx(['1'], Player())
+        ctx = _FakePetsciiCtx(['1'], Player())
         await _pick_client_type(ctx)
         self.assertFalse(getattr(ctx.player.client_settings, 'has_tab', False))
 
-    async def test_c128_40col_preset_sets_has_tab(self):
-        ctx = _FakeCtx(['2'], Player())
+    async def test_c128_40col_preset_over_real_petscii_transport_sets_has_tab(self):
+        ctx = _FakePetsciiCtx(['2'], Player())
         await _pick_client_type(ctx)
         cs = ctx.player.client_settings
         self.assertTrue(cs.has_tab)
         self.assertEqual(cs.tab_char, chr(9))
 
-    async def test_c128_80col_preset_sets_has_tab(self):
-        ctx = _FakeCtx(['3'], Player())
+    async def test_c128_80col_preset_over_real_petscii_transport_sets_has_tab(self):
+        ctx = _FakePetsciiCtx(['3'], Player())
         await _pick_client_type(ctx)
         cs = ctx.player.client_settings
         self.assertTrue(cs.has_tab)
         self.assertEqual(cs.tab_char, chr(9))
+
+    async def test_c128_preset_over_ansi_transport_does_not_set_has_tab(self):
+        """Blocked from actually applying the C128's PETSCII identity, so
+        it doesn't borrow the C128's has_tab either -- only screen size."""
+        ctx = _FakeCtx(['2'], Player())
+        await _pick_client_type(ctx)
+        self.assertFalse(getattr(ctx.player.client_settings, 'has_tab', False))
 
     async def test_tada_client_preset_sets_has_tab(self):
         """Ryan's correction: TADA/ANSI terminals have a real Tab key too --
