@@ -25,6 +25,15 @@ Settings managed here
   C  Colors           client_settings.colors.text_color
                       client_settings.colors.highlight_color
   N  News Display     command_settings.news_show_all  (New only / Full directory)
+  T  Client Type      client_settings.screen_columns/screen_rows/translation
+                      — presets (C64/C128/TADA client) or a custom size;
+                        ANSI terminals only (PETSCII's is fixed by port).
+                        Folded in from what used to be character creation's
+                        own standalone "Client Type" step.
+  K  Tab Key          client_settings.tab_settings.has_tab_key/tab_width
+  L  Line Ending      client_settings.line_ending  (LF / CR / CRLF)
+                      — stored only for now, not yet enforced on every
+                        line sent (see terminal.py's ClientSettings).
 """
 
 from __future__ import annotations
@@ -87,6 +96,31 @@ _SETTING_HELP: dict[str, list[str]] = {
         "default) shows just what's posted since your last login. 'Full "
         "directory' shows every currently-active news item every time you "
         "log in, whether you've seen it before or not.",
+        '',
+    ],
+    't': [
+        '',
+        '|yellow|Client Type|reset|',
+        "Sets your screen size and color translation -- pick a Commodore "
+        "64/128 preset, the TADA client preset, or a Custom size (20-132 "
+        "columns, 10-60 rows) with ANSI color or plain text. Not shown on "
+        "PETSCII (real Commodore) connections, since that's fixed by "
+        "which port you connected to.",
+        '',
+    ],
+    'k': [
+        '',
+        '|yellow|Tab Key|reset|',
+        "Whether your client sends a real Tab keypress. If not, tabs are "
+        "simulated with a configurable number of spaces instead.",
+        '',
+    ],
+    'l': [
+        '',
+        '|yellow|Line Ending|reset|',
+        "LF (Unix-style), CR (classic Mac / some Commodore terminals), or "
+        "CRLF (Windows-style). Stored for your client, but not yet enforced "
+        "on every line sent -- most terminals handle any of the three fine.",
         '',
     ],
 }
@@ -156,11 +190,15 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             "an explanation.",
         )
 
-    codec      = codec_for_settings(ctx.player.client_settings)
-    is_petscii = isinstance(codec, PETSCIICodec)
-    cs         = ctx.player.client_settings
+    cs = ctx.player.client_settings
 
     while True:
+        # Recomputed every iteration, not once before the loop: the 'T'
+        # (Client Type) picker can change translation mid-session (e.g.
+        # ANSI -> Plain), and codec/is_petscii need to reflect that on the
+        # very next redraw, not just the next time PREFS is opened fresh.
+        codec       = codec_for_settings(cs)
+        is_petscii  = isinstance(codec, PETSCIICodec)
         expert      = ctx.player.is_expert # query_flag(PlayerFlags.EXPERT_MODE)
         hourglass   = ctx.player.query_flag(PlayerFlags.HOURGLASS)
         more_prompt = ctx.player.query_flag(PlayerFlags.MORE_PROMPT)
@@ -168,6 +206,13 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         text_col    = getattr(colors, 'text_color',      'White') if colors else 'White'
         hi_col      = getattr(colors, 'highlight_color', 'Red')   if colors else 'Red'
         border_key  = getattr(cs, 'border_style', 'single')
+
+        tab         = getattr(cs, 'tab_settings', None)
+        tab_summary = ('Real Tab key' if getattr(tab, 'has_tab_key', True)
+                       else f'Spaces ({getattr(tab, "tab_width", 8)})')
+        from terminal import LineEnding
+        line_ending      = getattr(cs, 'line_ending', LineEnding.LF)
+        line_ending_name = {LineEnding.LF: 'LF', LineEnding.CR: 'CR', LineEnding.CRLF: 'CRLF'}.get(line_ending, 'LF')
 
         t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
                   border_style=border_style_for_ctx(ctx))
@@ -179,8 +224,18 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight', 'hc'])
         news_all = getattr(ctx.player.command_settings, 'news_show_all', False)
         t.add_row(['N', 'News Display', 'Full directory' if news_all else 'New only', 'hn'])
+        if not is_petscii:
+            t.add_row(['T', 'Client Type', f'{cs.screen_columns}x{cs.screen_rows}', 'ht'])
+        t.add_row(['K', 'Tab Key', tab_summary, 'hk'])
+        t.add_row(['L', 'Line Ending', line_ending_name, 'hl'])
 
-        valid_keys = ['X', 'H', 'M', 'C', 'N'] if is_petscii else ['X', 'H', 'M', 'B', 'C', 'N']
+        valid_keys = ['X', 'H', 'M']
+        if not is_petscii:
+            valid_keys.append('B')
+        valid_keys += ['C', 'N']
+        if not is_petscii:
+            valid_keys.append('T')
+        valid_keys += ['K', 'L']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -202,16 +257,26 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         ans = raw.strip().lower()
 
         if ans == '?':
-            await ctx.send(
+            help_lines = [
                 'X - toggle Expert Mode',
                 'H - toggle Hourglass (clock display)',
                 "M - toggle More Prompt (pause between screenfuls; also 'mp' in-game)",
-                'B - choose border style (ANSI only)',
+            ]
+            if not is_petscii:
+                help_lines.append('B - choose border style (ANSI only)')
+            help_lines += [
                 'C - choose text and highlight colors',
                 'N - toggle News Display (new only / full directory)',
+            ]
+            if not is_petscii:
+                help_lines.append('T - choose client type / screen size (ANSI only)')
+            help_lines += [
+                'K - set whether your client has a real Tab key (and its width)',
+                'L - choose line ending (LF / CR / CRLF)',
                 f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
                 f'{return_key} - save and exit',
-            )
+            ]
+            await ctx.send(*help_lines)
             continue
 
         if from_new_player and ans in ('q', 'quit'):
@@ -258,6 +323,15 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             cs2 = ctx.player.command_settings
             cs2.news_show_all = not getattr(cs2, 'news_show_all', False)
             await ctx.send(f"{option}{'|green|Full directory' if cs2.news_show_all else '|green|New only'}|reset|")
+
+        elif ans == 't' and not is_petscii:
+            await _pick_client_type(ctx)
+
+        elif ans == 'k':
+            await _pick_tab_settings(ctx)
+
+        elif ans == 'l':
+            await _pick_line_ending(ctx)
 
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
@@ -364,3 +438,172 @@ async def _pick_colors(ctx) -> None:
                 await ctx.send(f'{label} color unchanged - number out of range.')
         else:
             await ctx.send(f'{label} color unchanged.')
+
+
+# Validated range for a custom screen size (_pick_client_type()'s 'Custom'
+# option) -- generous enough to cover anything from a tiny terminal to a
+# wide modern window, while still catching an obvious typo (e.g. '0' or
+# a stray extra digit) that would otherwise break box-drawing/pagination
+# math elsewhere.
+_MIN_COLS, _MAX_COLS = 20, 132
+_MIN_ROWS, _MAX_ROWS = 10, 60
+
+
+async def _pick_client_type(ctx) -> None:
+    """Choose a client/screen-size preset, or enter a custom size.
+
+    Folded in from what used to be character creation's own standalone
+    "Client Type" step (commands/new_player.py) -- now reachable any time
+    via PREFS, not just once during creation, and with a real custom
+    width/height option the old step never had.
+    """
+    from table import Table
+    from formatting import border_style_for_ctx
+    from terminal import Translation
+
+    cs = ctx.player.client_settings
+    # Real Translation enum members, not bare strings -- formatting.py's
+    # codec_for_settings() compares `t == Translation.PETSCII` etc., which
+    # silently falls through to PlainCodec for a plain str that merely
+    # *looks* like 'PETSCII' (found live: the old character-creation
+    # "Client Type" step this was folded in from had exactly this bug --
+    # every player who picked a Commodore preset there got PlainCodec
+    # instead of PETSCIICodec, since PETSCIINetworkContext.for_guest()'s
+    # own enum-based assignment was the only path that ever worked).
+    presets = [
+        ('1', 'Commodore 64',  40, 25, Translation.PETSCII),
+        ('2', 'Commodore 128', 40, 25, Translation.PETSCII),
+        ('3', 'Commodore 128', 80, 25, Translation.PETSCII),
+        ('4', 'TADA Client',   80, 25, Translation.ANSI),
+    ]
+
+    t = Table(headers=['##', 'Computer Type', 'Screen Size', 'Translation'],
+              border_style=border_style_for_ctx(ctx))
+    for num, label, cols, rows, encoding in presets:
+        t.add_row([num, label, f'{cols} x {rows}', encoding.name])
+    t.add_row(['5', 'Custom', f'{_MIN_COLS}-{_MAX_COLS} x {_MIN_ROWS}-{_MAX_ROWS}', 'ANSI or Plain'])
+
+    lines = (
+        ['', '|yellow|Client Type:|reset|', '']
+        + t.render(width=cs.screen_columns)
+        + ['']
+    )
+    raw = await ctx.prompt('client type', preamble_lines=lines)
+    if raw is None or not raw.strip():
+        await ctx.send('Client type unchanged.')
+        return
+    ans = raw.strip()
+
+    for num, label, cols, rows, encoding in presets:
+        if ans == num:
+            cs.screen_columns = cols
+            cs.screen_rows    = rows
+            cs.translation    = encoding
+            await ctx.send(f'Client type set to: {label}, {cols}x{rows} screen size.')
+            return
+
+    if ans != '5':
+        await ctx.send(f'Client type unchanged -- enter a number between 1 and 5.')
+        return
+
+    raw_cols = await ctx.prompt(f'Screen columns ({_MIN_COLS}-{_MAX_COLS})')
+    if raw_cols is None or not raw_cols.strip().isdigit():
+        await ctx.send('Client type unchanged.')
+        return
+    cols = int(raw_cols.strip())
+    if not (_MIN_COLS <= cols <= _MAX_COLS):
+        await ctx.send(f'Client type unchanged -- columns must be {_MIN_COLS}-{_MAX_COLS}.')
+        return
+
+    raw_rows = await ctx.prompt(f'Screen rows ({_MIN_ROWS}-{_MAX_ROWS})')
+    if raw_rows is None or not raw_rows.strip().isdigit():
+        await ctx.send('Client type unchanged.')
+        return
+    rows = int(raw_rows.strip())
+    if not (_MIN_ROWS <= rows <= _MAX_ROWS):
+        await ctx.send(f'Client type unchanged -- rows must be {_MIN_ROWS}-{_MAX_ROWS}.')
+        return
+
+    raw_trans = await ctx.prompt('ANSI color or Plain text? (A/P)')
+    translation = Translation.ASCII if (raw_trans or '').strip().lower().startswith('p') else Translation.ANSI
+
+    cs.screen_columns = cols
+    cs.screen_rows    = rows
+    cs.translation    = translation
+    await ctx.send(f'Client type set to: Custom, {cols}x{rows} screen size, {translation.name}.')
+
+
+async def _pick_tab_settings(ctx) -> None:
+    """Toggle whether the client has a real Tab key, and (when simulating
+    tabs with spaces instead) the tab width."""
+    from terminal import TabSettings
+
+    cs  = ctx.player.client_settings
+    tab = getattr(cs, 'tab_settings', None)
+    if tab is None:
+        tab = TabSettings()
+        cs.tab_settings = tab
+
+    raw = await ctx.prompt(
+        'Y/N',
+        preamble_lines=[
+            '',
+            '|yellow|Tab Key|reset|',
+            f"Does your client have a working Tab key? Currently: "
+            f"{'Yes' if tab.has_tab_key else 'No'}.",
+            "If not, tabs are simulated with spaces instead.",
+        ],
+    )
+    if raw is None or not raw.strip():
+        await ctx.send('Tab settings unchanged.')
+        return
+    tab.has_tab_key = raw.strip().lower().startswith('y')
+    await ctx.send(f"Tab key: {'Yes' if tab.has_tab_key else 'No'}.")
+
+    if tab.has_tab_key:
+        return
+
+    raw_width = await ctx.prompt(
+        f'Tab width (0-{cs.screen_columns})',
+        preamble_lines=[f'Current tab width: {tab.tab_width}'],
+    )
+    if raw_width is None or not raw_width.strip().isdigit():
+        return
+    width = int(raw_width.strip())
+    if 0 <= width <= cs.screen_columns:
+        tab.tab_width  = width
+        tab.tab_output = ' ' * width
+        await ctx.send(f'Tab width set to {width}.')
+    else:
+        await ctx.send(f'Tab width unchanged -- must be 0-{cs.screen_columns}.')
+
+
+async def _pick_line_ending(ctx) -> None:
+    """Choose the line-ending style (CR, LF, or CRLF)."""
+    from terminal import LineEnding
+
+    cs = ctx.player.client_settings
+    options = [
+        ('1', 'LF',   LineEnding.LF,   'Unix-style (\\n)'),
+        ('2', 'CR',   LineEnding.CR,   'Classic Mac / some Commodore terminals (\\r)'),
+        ('3', 'CRLF', LineEnding.CRLF, 'Windows-style (\\r\\n)'),
+    ]
+    current = getattr(cs, 'line_ending', LineEnding.LF)
+    current_label = next((label for _, label, val, _ in options if val == current), 'LF')
+
+    lines = ['', '|yellow|Line Ending:|reset|', f'Current: {current_label}', '']
+    for num, label, _val, desc in options:
+        lines.append(f'  {num}. {label:<5} {desc}')
+    lines.append('')
+
+    raw = await ctx.prompt('line ending', preamble_lines=lines)
+    if raw is None or not raw.strip():
+        await ctx.send('Line ending unchanged.')
+        return
+    ans = raw.strip()
+    for num, label, val, _desc in options:
+        if ans == num or ans.lower() == label.lower():
+            cs.line_ending = val
+            await ctx.send(f'Line ending set to {label}.')
+            return
+    await ctx.send('Line ending unchanged.')

@@ -5,11 +5,14 @@ New player creation flow.
 `NewPlayerCommand` is the entry point — it is auto-discovered by
 CommandProcessor and available in Mode.LOGIN.  It drives the player
 through a linear series of prompts (prologue → name → username →
-preferences → gender → age → client settings → class → race → guild →
-stat roll → quote → review → password → confirm) using only ctx.send()
-and ctx.prompt(). Each step sends a "Step N of TOTAL: <title>" heading
-(see main_flow()'s steps list) so the player knows how far along they
-are.
+preferences → gender → age → class → race → guild → stat roll → quote →
+review → password → confirm) using only ctx.send() and ctx.prompt().
+Each step sends a "Step N of TOTAL: <title>" heading (see main_flow()'s
+steps list) so the player knows how far along they are.
+
+There is no standalone "client type" step -- screen size/translation is
+a Preferences setting now ('T' in commands/prefs.py's prefs_menu()),
+reachable any time via PREFS instead of only once during creation.
 
 Username comes right after the character name, not at the very end:
 username is a separate login/account identifier (intended for a planned
@@ -174,8 +177,8 @@ class NewPlayerCommand(Command):
         summary     = "Create a new character account.",
         description = (
             "Guides you through a series of steps to create your character: "
-            "client settings, age, gender, name, class, race, guild, stat "
-            "roll, and finally username/password (defaults to your "
+            "name, username, preferences, age, gender, class, race, guild, "
+            "stat roll, and finally a password (username defaults to your "
             "character name).  Your faithful servant Verus will assist you "
             "through the process."
         ),
@@ -253,13 +256,17 @@ async def main_flow(ctx,
     # questions. Preferences comes right after: Expert Mode (a prefs
     # toggle) controls how verbose the Class/Race steps are, so setting it
     # before those steps actually changes what the player sees later.
+    #
+    # There is no standalone "Client Type" step anymore -- it's folded
+    # into Preferences ('T' in commands/prefs.py's prefs_menu()), reachable
+    # any time via PREFS instead of only once during creation, and with a
+    # real custom screen-size option the old step never had.
     steps = [
         (_choose_name,            "Name"),
         (_choose_username_step,   "Username"),
         (_edit_settings,          "Preferences"),
         (_choose_gender,          "Gender"),
         (_choose_age,             "Age"),
-        (_choose_client_settings, "Client Type"),
         (_choose_class,           "Class"),
         (_choose_race,            "Race"),
         (_choose_guild,           "Guild"),
@@ -560,56 +567,6 @@ async def _edit_settings(ctx) -> bool:
     from commands.prefs import prefs_menu
     return await prefs_menu(ctx, from_new_player=True)
 
-async def _choose_client_settings(ctx) -> bool:
-    """Let the player declare their terminal type so we can set screen dimensions,
-    translation options, etc."""
-    from table import Table
-    from formatting import border_style_for_ctx
-
-    lines = [
-        "",
-        "Which client are you connecting from?",
-        "",
-        "If unsure, you are probably connecting using the TADA client "
-        "(option 4). Real Commodore 64/128 terminals are supported too "
-        "(options 1-3).",
-        "",
-    ]
-    await ctx.send(lines)
-
-    while True:
-        options = [
-            ("1", "Commodore 64",  40, 25, "PETSCII"),
-            ("2", "Commodore 128", 40, 25, "PETSCII"),
-            ("3", "Commodore 128", 80, 25, "PETSCII"),
-            ("4", "TADA Client",   80, 25, "ANSI"),
-        ]
-        t = Table(headers=["##", "Computer Type", "Screen Size", "Translation"],
-                  border_style=border_style_for_ctx(ctx))
-
-        for k in options:
-            t.add_row([k[0], k[1], f"{k[2]} x {k[3]}", k[4]])
-        await ctx.send(*t.render(width=ctx.player.client_settings.screen_columns))
-
-        raw = await _prompt_or_quit(ctx, "client", preamble_lines=lines)
-        ans = raw.strip()
-        if not ans:
-            continue
-
-        for key, label, cols, rows, encoding in options:
-            if ans == key:
-                cs = ctx.player.client_settings
-                cs.screen_columns = cols
-                cs.screen_rows    = rows
-                # Translation is stored as a string here; network_context
-                # resolves the actual codec when formatting output.
-                cs.translation    = encoding
-                await ctx.send(f"Client set to: {label}, {cols}x{rows} screen size")
-                return True
-
-        await ctx.send(f"|blue|Please enter a number between |white|1|blue| and |white|{len(options)}|blue|.")
-
-
 # ---------------------------------------------------------------------------
 # Step 2 — age
 # ---------------------------------------------------------------------------
@@ -668,14 +625,16 @@ async def _choose_age(ctx) -> bool:
             ctx.player.birthday = birthday_for_age(age, date.today().month, date.today().day)
         else:
             # Month
-            month_lines = ["", "Select birth month:"] + [
+            month_lines = [
+                "", "Select birth month:",
+                "Type the number, or at least the first three letters of "
+                "the month name, to choose your birth month.",
+                "",
+            ] + [
                 f"  {i+1:2}.  {calendar.month_name[i+1]}" for i in range(12)
             ]
             raw_m = await _prompt_or_quit(ctx, "month (1-12)", preamble_lines=month_lines)
-            try:
-                m = max(1, min(12, int(raw_m.strip())))
-            except ValueError:
-                m = date.today().month
+            m = _parse_month(raw_m) or date.today().month
 
             # Day
             days = calendar.monthrange(date.today().year, m)[1]
@@ -1316,6 +1275,11 @@ def _parse_info_request(ans: str) -> Optional[int]:
     if len(low) == 2 and low[0] == "i" and low[1].isdigit():
         return int(low[1])
     return None
+
+
+# Shared with commands/editplayer.py's edit_birthday() -- see
+# characters.parse_month()'s docstring.
+from characters import parse_month as _parse_month
 
 
 def _generate_random_name(player) -> str:

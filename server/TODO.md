@@ -341,3 +341,12 @@
     main_flow() at the saved step instead of the normal game loop.
     None of this exists yet -- needs real design work, not a quick
     patch.
+
+7/14/26:
+- Split tests/ into subdirectories by module tested (e.g. new_player/,
+  bar/, editplayer/, prefs/) instead of one flat directory (131 files
+  and growing). Ryan: "quick aside... just put it in a TODO for now" --
+  not scoped/designed yet. Would need import paths, any hardcoded
+  'tests/' string references (fixtures, tmp dir isolation patterns),
+  and pytest discovery config (pyproject.toml) checked before moving
+  anything.

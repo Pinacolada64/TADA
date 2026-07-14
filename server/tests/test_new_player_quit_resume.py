@@ -154,7 +154,6 @@ class TestMainFlowAbandonOrResumePrompt(unittest.IsolatedAsyncioTestCase):
             'Thorgar', '',        # name, username
             'quit', 'C', '',      # prefs: quit (mistake), continue, then accept defaults
             'm', '25', 't',       # gender, age, birthday
-            '4',                  # client
             '1', '1', 'c', 'y',   # class, race, guild, accept stats
             '',                   # quote: silent
             'y',                  # accept review
@@ -192,14 +191,14 @@ class TestMainFlowAbandonOrResumePrompt(unittest.IsolatedAsyncioTestCase):
         ctx = _Ctx(['m'])   # only Gender should be asked (resuming at step 4)
         # Not a full run-through -- just confirm the right step starts and
         # the prologue's welcome text is skipped in favor of "Welcome back".
-        ctx._q = ['m', '25', 't', '', '4', '1', '1', 'c', 'y', '', 'y',
+        ctx._q = ['m', '25', 't', '1', '1', 'c', 'y', '', 'y',
                    'hunter2', 'hunter2']
         await main_flow(ctx, player=player, resume_step=4)
         text = ctx._flat()
         self.assertIn('Welcome back, Thorgar!', text)
         self.assertNotIn("Before you begin your adventure", text)
-        self.assertIn('Step 4 of 12: Gender', text)
-        self.assertNotIn('Step 1 of 12: Name', text)
+        self.assertIn('Step 4 of 11: Gender', text)
+        self.assertNotIn('Step 1 of 11: Name', text)
 
 
 if __name__ == '__main__':

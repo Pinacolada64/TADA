@@ -219,6 +219,24 @@ class ClientSettings:
     # Label for the client's Enter/Return key, shown in prompts like
     # "(Enter: Attack)" or "press Return to cancel" -- see Player.return_key.
     return_key: str = 'Enter'
+    # Editable via commands/prefs.py's 'L' (Line Ending) row. Stored/reported
+    # only for now -- not yet threaded through formatting.py's actual
+    # send path (every line goes out as a JSON array element for ANSI/
+    # plain clients, so this only has real bearing for a raw-byte PETSCII
+    # or future raw-terminal client).
+    line_ending: str = LineEnding.LF
+
+# ---------------------------------------------------------------------------
+# Everything below (settings_menu, tab_edit, edit_screen_rows,
+# keyboard_settings, color_settings, test_graphics_output) is an early,
+# never-finished prototype -- blocking print()/input() calls, references
+# to an unimported `menu_system`/`ms` and an undefined `terminal_colors`,
+# `self` used outside any class. Not reachable from any real command.
+# The actual, working preferences UI is commands/prefs.py's prefs_menu()
+# (async, wired to the real PREFS command and character creation) --
+# screen dimensions/translation ('T'), tab settings ('K'), and line
+# ending ('L') all live there now.
+# ---------------------------------------------------------------------------
 
 def settings_menu(player: Player):
     from menu_system import Menu, MenuItem
