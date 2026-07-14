@@ -116,6 +116,16 @@ class TestChooseClassMenu(unittest.IsolatedAsyncioTestCase):
         await _choose_class(ctx)
         self.assertEqual(ctx.player.char_class, 'Druid')
 
+    async def test_random_class_example_is_labeled_and_boxed(self):
+        """Ryan: the random class shown in the non-expert overview should
+        be clearly marked as an example, with its description set apart
+        in a tip box rather than blending into the surrounding text."""
+        ctx = _FakeCtx(['1'])
+        await _choose_class(ctx)
+        text = ctx._flat()
+        self.assertIn('this is an example', text.lower())
+        self.assertIn('Tip', text)
+
 
 class TestChooseAgeRandomConfirm(unittest.IsolatedAsyncioTestCase):
 

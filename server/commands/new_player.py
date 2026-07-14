@@ -371,6 +371,13 @@ async def _handle_abandon_or_pause(ctx, step_num: int, prefill_password: Optiona
 # ---------------------------------------------------------------------------
 
 async def _prologue(ctx) -> bool:
+    # Message #9 -- SPUR's own scene-setting intro (SPUR-data/SPUR Messages.txt),
+    # recovered verbatim into messages.json. Background lore, not TADA-specific
+    # setup instructions, so it goes first -- before Verus even starts talking
+    # about character creation.
+    from messages import send_message
+    await send_message(ctx, 9)
+
     prologue =[
         "",
         "|yellow|Welcome to |white|'Totally Awesome Dungeon Adventure'|yellow|, "
@@ -789,11 +796,23 @@ async def _choose_class(ctx) -> int | None:
                     f"* Type a number, e.g., '{class_number}', to choose a class "
                     f"(in this case, {class_names[class_idx]}).",
                     f"* Type 'I' followed by the class number (e.g., 'I{class_number}'), "
-                    "for information on that class:",
-                    "",
-                    f"{class_texts[class_idx]}",
+                    "for information on that class. This is an example of what "
+                    f"you'd see for {class_names[class_idx]}:",
                     "",
                    ]
+
+        from formatting import make_box_for_settings, wrap_text
+        cs        = getattr(ctx.player, 'client_settings', None)
+        box_width = getattr(cs, 'screen_columns', 60)
+        overview += make_box_for_settings(
+            cs,
+            lines=wrap_text(str(class_texts[class_idx]), box_width - 4),
+            title='Tip',
+            frame_color='cyan',
+            title_color='yellow',
+            text_color='white',
+        )
+        overview.append("")
 
         for i, name in enumerate(class_names):
             desc = str(class_texts[i]) if i < len(class_texts) else ""

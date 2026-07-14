@@ -31,8 +31,14 @@ def load_messages(path: str) -> dict[int, list[str]]:
 
 
 def get_message(ctx: 'GameContext', number: int) -> Optional[list[str]]:
-    """Return message `number`'s paragraphs from ctx.server.messages, or None."""
-    messages = getattr(ctx.server, 'messages', None) or {}
+    """Return message `number`'s paragraphs from ctx.server.messages, or None.
+
+    Nested getattr(): a ctx without a .server at all (e.g. a lightweight
+    test fixture) would otherwise raise on the plain `ctx.server` access
+    before the outer getattr's default could ever help -- see
+    editplayer.py's identical pattern.
+    """
+    messages = getattr(getattr(ctx, 'server', None), 'messages', None) or {}
     return messages.get(number)
 
 
