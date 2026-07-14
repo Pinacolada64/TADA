@@ -19,7 +19,7 @@ _HP_RESTORE_CAP = 20
 class QuitCommand(Command):
     name    = 'quit'
     aliases = ['q', 'exit', 'bye']
-    modes   = {Mode.GAME}
+    modes   = {Mode.ANY}
 
     help = Help(
         summary  = 'Quit the game and disconnect.',
@@ -28,6 +28,23 @@ class QuitCommand(Command):
     )
 
     async def execute(self, ctx, *args) -> CommandResult:
+        # simple_server.py's _login() loop (Mode.LOGIN) already checks
+        # result.data.get('quit') to drop the connection cleanly, and the
+        # login banner has always advertised "'quit' to leave" -- but this
+        # command was gated to Mode.GAME only, so that promise was dead:
+        # typing 'quit' at the bare login prompt (before 'connect'/'new')
+        # just failed with "not available right now". Character
+        # creation's own 'new' flow has its own separate quit/continue/
+        # resume handling (commands/new_player.py's _prompt_or_quit()),
+        # which never reaches CommandProcessor at all, so this only
+        # matters for the bare pre-authentication prompt.
+        processor    = getattr(getattr(ctx, 'client', None), 'command_processor', None)
+        current_mode = getattr(processor, 'current_mode', Mode.GAME)
+
+        if current_mode == Mode.LOGIN:
+            await ctx.send('Goodbye!')
+            return CommandResult(success=True, data={'quit': True})
+
         player = ctx.player
 
         # Confirmation prompt
