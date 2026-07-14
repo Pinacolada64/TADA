@@ -4,15 +4,20 @@ New player creation flow.
 
 `NewPlayerCommand` is the entry point — it is auto-discovered by
 CommandProcessor and available in Mode.LOGIN.  It drives the player
-through a linear series of prompts (prologue → client settings → age →
-gender → name → class → race → guild → stat roll → review →
-username/password → confirm) using only ctx.send() and ctx.prompt().
+through a linear series of prompts (prologue → name → username →
+preferences → gender → age → client settings → class → race → guild →
+stat roll → quote → review → password → confirm) using only ctx.send()
+and ctx.prompt(). Each step sends a "Step N of TOTAL: <title>" heading
+(see main_flow()'s steps list) so the player knows how far along they
+are.
 
-Username/password come *after* the character name, not before: username
-is a separate login/account identifier (intended for a planned link to a
-CommodoreServer.com account) rather than the in-world character name, but
-it defaults to that name (sanitized to letters/numbers) since they'll
-usually match.
+Username comes right after the character name, not at the very end:
+username is a separate login/account identifier (intended for a planned
+link to a CommodoreServer.com account) rather than the in-world character
+name, but it defaults to that name (sanitized to letters/numbers) since
+they'll usually match. Settling it early also sets ctx.player.id early
+(Player.save() requires it) -- see TODO.md's resumable-creation idea for
+why that matters.
 
 All helper coroutines take (ctx) only and operate on ctx.player directly.
 They return True on success and False if the player abandoned the step
@@ -87,6 +92,73 @@ def validate_class_race_combo(ctx) -> tuple[bool, str | None]:
                  player.name, player.char_class, player.char_race)
     return False, msg
 
+
+class _CreationAbandoned(Exception):
+    """Internal signal: the player confirmed they want to abandon or pause
+    character creation, at some point during it.
+
+    Before this, each step function implemented its own "did they type
+    quit?" check by hand -- about half of them (Gender, Preferences,
+    Client Type, Class, Race, Attributes, Quote, Review, and the Age
+    step's birthday sub-prompt) didn't check at all, contradicting
+    NewPlayerCommand's own help text ("You may type 'quit' at any time
+    to abandon character creation."). _prompt_or_quit() below is the one
+    place this is checked (and confirmed) now, so every ctx.prompt() call
+    in this module behaves the same way. Caught once, in main_flow().
+    """
+    def __init__(self, resume: bool = False):
+        super().__init__()
+        self.resume = resume   # True if the player chose (R)esume, not (A)bandon
+
+
+async def _confirm_quit_or_continue(ctx) -> None:
+    """Shown whenever 'quit'/'q' is typed during character creation.
+    Raises _CreationAbandoned for (A)bandon/(R)esume; returns normally
+    (silently) if the player chose (C)ontinue, meaning "never mind, keep
+    going" -- callers should re-ask whatever they were asking before.
+
+    A genuine disconnect here can't ask anything -- raises
+    _CreationAbandoned outright, same as choosing (A)bandon.
+
+    Shared by _prompt_or_quit() (used by most steps) and
+    commands/prefs.py's prefs_menu() (from_new_player=True -- it has its
+    own raw ctx.prompt() call, not routed through _prompt_or_quit()).
+    """
+    can_resume = bool(getattr(ctx.player, 'id', None))
+    if can_resume:
+        options, label = "(A)bandon, (R)esume later, or (C)ontinue (don't quit)?", "A/R/C"
+    else:
+        options = ("(A)bandon, or (C)ontinue (don't quit)? (Resuming later isn't "
+                   "possible yet -- a username hasn't been chosen.)")
+        label = "A/C"
+    choice = await ctx.prompt(label, preamble_lines=['', f"Do you want to {options}"])
+    if choice is None:
+        raise _CreationAbandoned()
+    choice = choice.strip().lower()
+    if choice in ('c', 'continue'):
+        return
+    if can_resume and choice in ('r', 'resume'):
+        raise _CreationAbandoned(resume=True)
+    raise _CreationAbandoned()   # (A)bandon, or any other/unrecognized answer
+
+
+async def _prompt_or_quit(ctx, prompt_text: str = '', preamble_lines=None) -> str:
+    """Like ctx.prompt(), but on 'quit'/'q' (case-insensitive) confirms
+    what the player actually wants via _confirm_quit_or_continue() instead
+    of assuming -- (C)ontinue re-asks this same prompt and returns
+    normally; (A)bandon/(R)esume raise _CreationAbandoned.
+
+    A genuine disconnect (ctx.prompt() returning None) can't ask
+    anything -- raises _CreationAbandoned outright, same as (A)bandon.
+    """
+    while True:
+        raw = await ctx.prompt(prompt_text, preamble_lines=preamble_lines)
+        if raw is None:
+            raise _CreationAbandoned()
+        if raw.strip().lower() not in ('quit', 'q'):
+            return raw
+        await _confirm_quit_or_continue(ctx)   # returns only if (C)ontinue was chosen
+
 # ---------------------------------------------------------------------------
 # NewPlayerCommand
 # ---------------------------------------------------------------------------
@@ -137,56 +209,86 @@ class NewPlayerCommand(Command):
 async def main_flow(ctx,
                     player=None,
                     prefill_username: Optional[str] = None,
-                    prefill_password: Optional[str] = None) -> CommandResult:
-    """Run the full creation sequence.  Returns a CommandResult."""
+                    prefill_password: Optional[str] = None,
+                    resume_step: int = 0) -> CommandResult:
+    """Run the full creation sequence.  Returns a CommandResult.
 
-    await _prologue(ctx)
+    :param resume_step: 1-based step number to resume at (see
+        commands/connect.py's _authenticate(), which calls back into here
+        when a loaded player has creation_done=False). 0 means a normal,
+        fresh start.
+    """
+
+    if resume_step:
+        await ctx.send('', f'|yellow|Welcome back, {player.name}!|reset| '
+                            "Let's continue where you left off.", '')
+    else:
+        await _prologue(ctx)
 
     # Swap the GuestPlayer stub for a real Player immediately so every
     # creation step below (including choosing a character name) has access
-    # to full Player methods. id/name aren't known yet -- those are set
-    # once a username is chosen, after the character name (see below).
+    # to full Player methods. id/name aren't known yet on a fresh start --
+    # those are set by the Name and Username steps, first in the sequence
+    # below. On a resumed session, player is already fully loaded from disk.
     if player is not None:
         player.client_settings = ctx.player.client_settings
         ctx.player            = player
 
+    if not resume_step:
+        # Not persisted anywhere yet (nothing is saved to disk until
+        # _confirm_creation() below runs) -- set here so the attribute
+        # exists and reads False for the whole in-progress session.
+        ctx.player.creation_done = False
+
+    # Stashed for _choose_username_step() below -- ctx has no dedicated
+    # field for this, but attaching ad-hoc attributes to it is already an
+    # established pattern (see command_processor.process_command()'s
+    # effective_ctx._invoked_as).
+    ctx._prefill_username = prefill_username
+
     # --- creation steps ---
+    # Name/Username lead the sequence -- knowing who you're creating (and
+    # settling player.id early, before wading into settings/class/race)
+    # makes the rest of the flow feel less like a wall of unrelated
+    # questions. Preferences comes right after: Expert Mode (a prefs
+    # toggle) controls how verbose the Class/Race steps are, so setting it
+    # before those steps actually changes what the player sees later.
     steps = [
-        _edit_settings,
-        _choose_client_settings,
-        _choose_age,
-        _choose_gender,
-        _choose_name,
-        _choose_class,
-        _choose_race,
-        _choose_guild,
-        _roll_stats,
-        _choose_quote,
-        _final_review,
+        (_choose_name,            "Name"),
+        (_choose_username_step,   "Username"),
+        (_edit_settings,          "Preferences"),
+        (_choose_gender,          "Gender"),
+        (_choose_age,             "Age"),
+        (_choose_client_settings, "Client Type"),
+        (_choose_class,           "Class"),
+        (_choose_race,            "Race"),
+        (_choose_guild,           "Guild"),
+        (_roll_stats,             "Attributes"),
+        (_choose_quote,           "Quote"),
+        (_final_review,           "Review"),
     ]
-    for step in steps:
-        ok = await step(ctx)
-        if not ok:
+    total_steps = len(steps)
+    start_at    = max(0, resume_step - 1)   # 1-based resume_step -> 0-based slice
+    step_num    = resume_step or 1          # tracked across the try/except below
+
+    try:
+        for step_num, (step, title) in enumerate(steps[start_at:], start=step_num):
+            await ctx.send('', f'|yellow|Step {step_num} of {total_steps}: {title}|reset|')
+            ok = await step(ctx)
+            if not ok:
+                return CommandResult.fail("Character creation abandoned.", error="abandoned")
+
+        # Username was chosen (and player.id set) back in the Username step.
+        username = ctx.player.id
+
+        password = await _choose_password(ctx, prefill=prefill_password)
+        if not password:
             return CommandResult.fail("Character creation abandoned.", error="abandoned")
-
-    # --- username & password ---
-    # Username is a separate login/account identifier -- intended for a
-    # planned link to a CommodoreServer.com account -- distinct from the
-    # in-world character name chosen above, but it usually matches, so it
-    # defaults to the character name (letters/numbers only) and blank
-    # Enter accepts that default.
-    username = await _choose_username(ctx, prefill=prefill_username, default=ctx.player.name)
-    if not username:
-        return CommandResult.fail("Character creation abandoned.", error="abandoned")
-
-    password = await _choose_password(ctx, prefill=prefill_password)
-    if not password:
-        return CommandResult.fail("Character creation abandoned.", error="abandoned")
-
-    if player is not None:
-        player.id = username   # used by Player.save()
+    except _CreationAbandoned as exc:
+        return await _handle_abandon_or_pause(ctx, step_num, prefill_password, exc.resume)
 
     # --- persist and confirm ---
+    ctx.player.creation_done = True
     ok = await _confirm_creation(ctx, username, password)
     if not ok:
         return CommandResult.fail("Character creation failed.", error="creation_failed")
@@ -208,6 +310,60 @@ async def main_flow(ctx,
             "room":          CREATION_ROOM,
         },
     )
+
+
+async def _handle_abandon_or_pause(ctx, step_num: int, prefill_password: Optional[str],
+                                    resume: bool) -> CommandResult:
+    """Called when _CreationAbandoned is caught: either abandon outright,
+    or pause and persist so a later login can resume (commands/connect.py's
+    _authenticate() routes back into main_flow() at player.creation_step
+    when it finds a player with creation_done=False).
+
+    Which one -- and confirming the player actually meant to quit at all,
+    with a (C)ontinue escape hatch -- was already asked and decided in
+    _prompt_or_quit(); this just acts on exc.resume. Resuming needs a
+    stable identity (ctx.player.id, set by the Username step) and a
+    password (to log back in with, normally not chosen until the very
+    end) -- _prompt_or_quit() already refuses to offer (R)esume before
+    Username has run, so `resume` here is never True without a username.
+    """
+    username = getattr(ctx.player, 'id', None)
+    if not resume or not username:
+        try:
+            await ctx.send(
+                '', "Character creation abandoned. Feel free to try again "
+                "any time with 'new'.",
+            )
+        except Exception:
+            pass
+        return CommandResult.fail("Character creation abandoned.", error="abandoned")
+
+    # Need a password to log back in with -- the real end-of-creation
+    # password step hasn't necessarily run yet.
+    password = prefill_password
+    if not password:
+        try:
+            password = await _choose_password(ctx)
+        except Exception:
+            password = None
+    if not password:
+        # Disconnected again while choosing a password -- nothing more we
+        # can do; fall back to a plain abandon (best-effort message only).
+        return CommandResult.fail("Character creation abandoned.", error="abandoned")
+
+    ctx.player.creation_done = False
+    ctx.player.creation_step = step_num
+    ok = await _confirm_creation(ctx, username, password)
+    if ok:
+        try:
+            await ctx.send(
+                '',
+                f"Saved! Log back in as '{username}' any time to pick up "
+                "right where you left off.",
+            )
+        except Exception:
+            pass
+    return CommandResult.fail("Character creation paused.", error="paused")
 
 
 # ---------------------------------------------------------------------------
@@ -293,6 +449,35 @@ async def _choose_username(ctx, prefill: Optional[str] = None,
             await ctx.send(f"'{username}' is already taken.  Please choose another.")
             continue
         return username
+
+
+# --- username & password ---
+# Username is a separate login/account identifier -- intended for a
+# planned link to a CommodoreServer.com account -- distinct from the
+# in-world character name chosen above, but it usually matches, so it
+# defaults to the character name (letters/numbers only) and blank
+# Enter accepts that default.
+async def _choose_username_step(ctx) -> bool:
+    """Step wrapper for _choose_username(): asks right after Name so
+    ctx.player.id (used by Player.save()) is settled early instead of
+    at the very end of creation.
+
+    _choose_username() itself keeps returning None on quit/disconnect
+    (its own documented contract, used directly by callers other than
+    this step) -- route that through _confirm_quit_or_continue() here
+    instead of raising outright, so a typo'd 'quit' can still be walked
+    back with (C)ontinue like every other step's quit can. (R)esume is
+    never offered at this point regardless -- ctx.player.id doesn't
+    exist yet, which is the whole reason this step exists.
+    """
+    while True:
+        username = await _choose_username(ctx, prefill=getattr(ctx, '_prefill_username', None),
+                                           default=ctx.player.name)
+        if username:
+            ctx.player.id = username
+            return True
+        await _confirm_quit_or_continue(ctx)   # returns only if (C)ontinue was chosen
+
 
 async def _validate_password(ctx: GameContext, pw: str) -> bool:
     """Ensure passwords meet requirements; return True if valid."""
@@ -399,9 +584,7 @@ async def _choose_client_settings(ctx) -> bool:
             t.add_row([k[0], k[1], f"{k[2]} x {k[3]}", k[4]])
         await ctx.send(*t.render(width=ctx.player.client_settings.screen_columns))
 
-        raw = await ctx.prompt("client", preamble_lines=lines)
-        if raw is None:
-            return False
+        raw = await _prompt_or_quit(ctx, "client", preamble_lines=lines)
         ans = raw.strip()
         if not ans:
             continue
@@ -432,14 +615,10 @@ async def _choose_age(ctx) -> bool:
         "Enter a number (15–50), or 'R' for a random age:",
     ]
     while True:
-        raw = await ctx.prompt("age", preamble_lines=preamble)
-        if raw is None:
-            return False
+        raw = await _prompt_or_quit(ctx, "age", preamble_lines=preamble)
         ans = raw.strip().lower()
         if not ans:
             continue
-        if ans in ("quit", "q"):
-            return False
 
         if ans == "r":
             # TODO: per-class age minimum-maximum limits
@@ -470,12 +649,10 @@ async def _choose_age(ctx) -> bool:
         await ctx.send(f"Age set to {age}.")
 
         # Optional birthday
-        raw2 = await ctx.prompt(
-            "T/A",
+        raw2 = await _prompt_or_quit(
+            ctx, "T/A",
             preamble_lines=[f"Use [T]oday's date for birthday, or enter [A]nother date? (T/A)"],
         )
-        if raw2 is None:
-            return False
         choice = raw2.strip().lower()
 
         from characters import birthday_for_age
@@ -487,9 +664,7 @@ async def _choose_age(ctx) -> bool:
             month_lines = ["", "Select birth month:"] + [
                 f"  {i+1:2}.  {calendar.month_name[i+1]}" for i in range(12)
             ]
-            raw_m = await ctx.prompt("month (1-12)", preamble_lines=month_lines)
-            if raw_m is None:
-                return False
+            raw_m = await _prompt_or_quit(ctx, "month (1-12)", preamble_lines=month_lines)
             try:
                 m = max(1, min(12, int(raw_m.strip())))
             except ValueError:
@@ -497,9 +672,7 @@ async def _choose_age(ctx) -> bool:
 
             # Day
             days = calendar.monthrange(date.today().year, m)[1]
-            raw_d = await ctx.prompt(f"day (1-{days})")
-            if raw_d is None:
-                return False
+            raw_d = await _prompt_or_quit(ctx, f"day (1-{days})")
             try:
                 d = max(1, min(days, int(raw_d.strip())))
             except ValueError:
@@ -524,9 +697,7 @@ async def _choose_gender(ctx) -> bool:
 
     preamble = ["", 'Verus squints myopically. "Is your character Male or Female?"']
     while True:
-        raw = await ctx.prompt("M/F", preamble_lines=preamble)
-        if raw is None:
-            return False
+        raw = await _prompt_or_quit(ctx, "M/F", preamble_lines=preamble)
         ans = raw.strip().lower()
         if ans in ("m", "male"):
             ctx.player.gender = Gender.MALE if Gender else "male"
@@ -550,14 +721,10 @@ async def _choose_name(ctx) -> bool:
         "|blue|Enter a name, or |white|'R'|blue| for a random one:",
     ]
     while True:
-        raw = await ctx.prompt("name", preamble_lines=preamble)
-        if raw is None:
-            return False
+        raw = await _prompt_or_quit(ctx, "name", preamble_lines=preamble)
         name = raw.strip()
         if not name:
             continue
-        if name.lower() in ("quit", "q"):
-            return False
 
         if name.lower() == "r":
             while True:
@@ -639,9 +806,7 @@ async def _choose_class(ctx) -> int | None:
         await ctx.send(*expert_list)
 
     while True:
-        raw = await ctx.prompt("class")
-        if raw is None:
-            return False
+        raw = await _prompt_or_quit(ctx, "class")
         ans = raw.strip().lower()
         if ans in ['?', 'h', 'help']:
             await help(ctx, class_names)
@@ -695,9 +860,7 @@ async def _choose_race(ctx) -> int | None:
     #   an invalid combination?
 
     while True:
-        raw = await ctx.prompt("race", preamble_lines=lines)
-        if raw is None:
-            return False
+        raw = await _prompt_or_quit(ctx, "race", preamble_lines=lines)
         ans = raw.strip()
         if not ans:
             continue
@@ -841,14 +1004,10 @@ async def _choose_guild(ctx) -> bool:
     await ctx.send(*overview)
 
     while True:
-        raw = await ctx.prompt("guild")
-        if raw is None:
-            return False
+        raw = await _prompt_or_quit(ctx, "guild")
         ans = raw.strip().lower()
         if not ans:
             continue
-        if ans in ('q', 'quit'):
-            return False
 
         # I<letter> — show info blurb
         if len(ans) == 2 and ans[0] == 'i' and ans[1].upper() in _GUILD_INFO:
@@ -905,12 +1064,10 @@ async def _roll_stats(ctx) -> bool:
             details.append(f"  {stat.name:<4} {total:2d}  (rolled {rolls}, dropped {min(rolls)})")
 
         lines = ["", *_ROLL_EXPLANATION, "", "Rolled stats:", ""] + details + [""]
-        raw = await ctx.prompt(
-            "Y/R",
+        raw = await _prompt_or_quit(
+            ctx, "Y/R",
             preamble_lines=lines + ["Accept these stats? ([Y]es / [R]e-roll)"],
         )
-        if raw is None:
-            return False
         ans = raw.strip().lower()
         if ans in ("y", "yes", ""):
             ctx.player.stats = stats
@@ -965,9 +1122,7 @@ async def _choose_quote(ctx) -> bool:
         "etc, after the $). Leave blank to stay silent.",
     ]
     while True:
-        raw = await ctx.prompt("Enter quote", preamble_lines=preamble)
-        if raw is None:
-            return False
+        raw = await _prompt_or_quit(ctx, "Enter quote", preamble_lines=preamble)
         text = raw.strip()
         if len(text) > _MAX_QUOTE_LEN:
             await ctx.send("TOO LONG!")
@@ -1036,9 +1191,7 @@ async def _final_review(ctx) -> bool:
             "    Enter / Y — Accept and finish",
         ]
 
-        raw = await ctx.prompt("edit / Y", preamble_lines=lines)
-        if raw is None:
-            return False
+        raw = await _prompt_or_quit(ctx, "edit / Y", preamble_lines=lines)
         ans = raw.strip().lower()
 
         if ans in ("", "y", "yes"):
@@ -1071,9 +1224,14 @@ async def _final_review(ctx) -> bool:
 # ---------------------------------------------------------------------------
 
 async def _confirm_creation(ctx, username: str, password: str) -> bool:
-    """Persist credentials and player state. ctx.player is already a real Player."""
+    """Persist credentials and player state. ctx.player is already a real Player.
+
+    Does *not* touch player.creation_done -- the caller sets that
+    (True for a finished character, False plus creation_step for a
+    paused-and-resumable one; see main_flow()'s _CreationAbandoned
+    handling) before calling this.
+    """
     player = ctx.player
-    player.creation_done   = True
     player.unsaved_changes = True
 
     # Credential file — login only needs the password; full state lives in player-<id>.json

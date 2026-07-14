@@ -182,8 +182,9 @@ class TestChooseUsernameDefaultsToCharacterName(unittest.IsolatedAsyncioTestCase
 
 
 class TestMainFlowOrdering(unittest.IsolatedAsyncioTestCase):
-    """End-to-end: username/password now come after the character name,
-    and username defaults to it."""
+    """End-to-end: username comes right after the character name (not at
+    the very end), and defaults to it. Password stays at the very end,
+    right before persisting."""
 
     def setUp(self):
         import tempfile
@@ -237,19 +238,19 @@ class TestMainFlowOrdering(unittest.IsolatedAsyncioTestCase):
                 return self._q.pop(0) if self._q else None
 
         ctx = Ctx([
+            'Thorgar',     # character name
+            '',            # username: blank -> defaults to character name
             '',            # prefs: accept defaults
-            '4',           # client: TADA
+            'm',           # gender
             '25',          # age
             't',           # birthday: today
-            'm',           # gender
-            'Thorgar',     # character name
+            '4',           # client: TADA
             '1',           # class
             '1',           # race
             'c',           # guild: Civilian
             'y',           # accept stats
             '',            # quote: blank -> silent
             'y',           # accept summary
-            '',            # username: blank -> defaults to character name
             'pass1234',    # password
             'pass1234',    # confirm password
         ])
@@ -259,6 +260,74 @@ class TestMainFlowOrdering(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(player.name, 'Thorgar')
         self.assertEqual(player.id, 'thorgar')
         self.assertEqual(result.data['username'], 'thorgar')
+
+    async def test_step_headings_show_progress(self):
+        """Each step sends a 'Step N of TOTAL: <title>' heading so the
+        player knows how far along they are."""
+        from player import Player
+
+        stub   = Player()
+        player = Player()
+
+        class Ctx:
+            def __init__(self, responses):
+                self._q = list(responses)
+                self.player = stub
+                self.sent = []
+
+            async def send(self, *args):
+                self.sent.extend(args)
+
+            async def prompt(self, prompt_text='', preamble_lines=None):
+                return self._q.pop(0) if self._q else None
+
+        ctx = Ctx([
+            'Thorgar', '', '', 'm', '25', 't', '4', '1', '1', 'c', 'y',
+            '', 'y', 'pass1234', 'pass1234',
+        ])
+        await main_flow(ctx, player=player)
+
+        flat = '\n'.join(str(x) for x in ctx.sent)
+        self.assertIn('Step 1 of 12: Name', flat)
+        self.assertIn('Step 2 of 12: Username', flat)
+        self.assertIn('Step 3 of 12: Preferences', flat)
+        self.assertIn('Step 4 of 12: Gender', flat)
+        self.assertIn('Step 5 of 12: Age', flat)
+        self.assertIn('Step 12 of 12: Review', flat)
+        # Name is asked before Gender/Age/class/race/etc. in the actual
+        # send/prompt call order, not just the heading text.
+        name_idx   = flat.index('Step 1 of 12: Name')
+        gender_idx = flat.index('Step 4 of 12: Gender')
+        self.assertLess(name_idx, gender_idx)
+
+    async def test_preferences_shows_orientation_blurb(self):
+        """Preferences now runs right after Username, with a one-time
+        explanatory blurb reassuring newbies these aren't locked in."""
+        from player import Player
+
+        stub   = Player()
+        player = Player()
+
+        class Ctx:
+            def __init__(self, responses):
+                self._q = list(responses)
+                self.player = stub
+                self.sent = []
+
+            async def send(self, *args):
+                self.sent.extend(args)
+
+            async def prompt(self, prompt_text='', preamble_lines=None):
+                return self._q.pop(0) if self._q else None
+
+        ctx = Ctx([
+            'Thorgar', '', '', 'm', '25', 't', '4', '1', '1', 'c', 'y',
+            '', 'y', 'pass1234', 'pass1234',
+        ])
+        await main_flow(ctx, player=player)
+
+        flat = '\n'.join(str(x) for x in ctx.sent)
+        self.assertIn('change any of them later with the PREFS command', flat)
 
 
 if __name__ == '__main__':

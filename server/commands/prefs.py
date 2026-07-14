@@ -139,10 +139,22 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
     :param from_new_player: set by new_player.py's _edit_settings() --
         changes the "Enter to ..." line's wording, since an alpha tester
         was worried pressing Return here would quit character creation
-        entirely instead of just saving and moving to the next step.
+        entirely instead of just saving and moving to the next step. Also
+        shows a one-time orientation blurb before the menu loop starts.
     """
     from formatting import border_style_for_ctx, codec_for_settings, ANSICodec, PETSCIICodec
     from table import Table
+
+    if from_new_player:
+        await ctx.send(
+            '',
+            "These are your terminal preferences -- how TADA looks and "
+            "behaves for you (colors, More Prompt, Expert Mode, etc). "
+            "Don't worry about getting these perfect: you can change any "
+            "of them later with the PREFS command. Not sure what a "
+            "setting does? Type h followed by its letter (e.g. 'hx') for "
+            "an explanation.",
+        )
 
     codec      = codec_for_settings(ctx.player.client_settings)
     is_petscii = isinstance(codec, PETSCIICodec)
@@ -183,6 +195,9 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
 
         raw = await ctx.prompt('prefs', preamble_lines=menu)
         if raw is None:
+            if from_new_player:
+                from commands.new_player import _CreationAbandoned
+                raise _CreationAbandoned()
             return False
         ans = raw.strip().lower()
 
@@ -197,6 +212,11 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                 f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
                 f'{return_key} - save and exit',
             )
+            continue
+
+        if from_new_player and ans in ('q', 'quit'):
+            from commands.new_player import _confirm_quit_or_continue
+            await _confirm_quit_or_continue(ctx)   # returns only if (C)ontinue was chosen
             continue
 
         if not ans or ans in ('q', 'quit', 'done', 'exit'):

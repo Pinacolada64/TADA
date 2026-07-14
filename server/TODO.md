@@ -307,3 +307,37 @@
     a new location would need either a genuinely new room number
     appended past the existing max, or repurposing/rewriting an
     existing room.
+- Resumable character creation (Ryan): if a player disconnects partway
+  through 'new', let them pick back up where they left off on
+  reconnect instead of starting over -- Verus says "Welcome back,
+  {player.name}!" and resumes at whichever step they were on.
+  _prologue() should also set expectations up front: "If you have to
+  leave early, simply type 'quit' at any prompt and we can resume when
+  you rejoin the inhabitants of the Land later."
+  - Not just a matter of a sentinel flag -- the real blocker is that
+    main_flow() (commands/new_player.py) doesn't persist *anything* to
+    disk until _confirm_creation() runs at the very end (only place
+    player.save() or the login-<username>.json credential file get
+    written). Username/password aren't even chosen until near the last
+    step, so today there is no identity to reconnect *to* -- a player
+    who quits mid-creation has no record anywhere and can only start
+    over from scratch with a brand new 'new'.
+  - player.creation_done (set True in _confirm_creation(), never read
+    anywhere else -- currently a write-only flag) is already the right
+    signal for "is creation finished," not player.unsaved_changes
+    (that one's meaning is much broader -- "there is something to
+    save" -- and gets set/cleared constantly by ordinary gameplay, so
+    it can't distinguish an abandoned character creation from a
+    finished character with pending changes).
+  - Sketch (Ryan: save after every step): choose username (or some
+    other stable identity) earlier in the flow rather than near the
+    end -- player.save() requires player.id to already be set (see
+    player.py's save(), errors out without it) -- then call
+    player.save(force=True) after each step in main_flow()'s steps
+    list, with creation_done=False the whole time; track which step
+    index the player stopped on so a reconnect resumes there instead
+    of from step 0; have connect.py check for an existing
+    creation_done=False record on that username and route into
+    main_flow() at the saved step instead of the normal game loop.
+    None of this exists yet -- needs real design work, not a quick
+    patch.

@@ -948,6 +948,23 @@ class Player:
             if 'name' in data and isinstance(data['name'], str) and data['name'].strip():
                 self.name = data['name']
 
+            # Resumable character creation (commands/new_player.py's
+            # main_flow()): creation_done=False plus creation_step marks a
+            # paused, unfinished character -- commands/connect.py's
+            # _authenticate() checks this and routes back into main_flow()
+            # at the saved step instead of the normal game loop. Absent
+            # entirely for every account created before this existed, or
+            # once creation_done=True -- getattr(player, 'creation_done',
+            # True) at every call site treats "no such attribute" the same
+            # as "finished," which is correct for all of those.
+            if 'creation_done' in data:
+                self.creation_done = bool(data['creation_done'])
+            if 'creation_step' in data:
+                try:
+                    self.creation_step = int(data['creation_step'])
+                except (TypeError, ValueError):
+                    pass
+
             # Merge simple scalar fields
             simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote')
             for k in simple_keys:

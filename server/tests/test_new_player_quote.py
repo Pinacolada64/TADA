@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import unittest
 
-from commands.new_player import _choose_quote
+from commands.new_player import _CreationAbandoned, _choose_quote
 from player import Player
 
 
@@ -83,10 +83,12 @@ class TestChooseQuote(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(player.quote, 'Better, $!')
 
     async def test_disconnect_during_prompt(self):
+        # A disconnect (or typed 'quit'/'q') now raises _CreationAbandoned,
+        # caught once centrally in main_flow() -- see _prompt_or_quit().
         player = Player(name='Rulan')
         ctx = _FakeCtx([], player)
-        ok = await _choose_quote(ctx)
-        self.assertFalse(ok)
+        with self.assertRaises(_CreationAbandoned):
+            await _choose_quote(ctx)
 
     async def test_disconnect_during_confirm(self):
         player = Player(name='Rulan')

@@ -317,6 +317,71 @@ class TestShowLoginStatus(unittest.IsolatedAsyncioTestCase):
         self.assertIn("alexa", all_output)
 
 
+class TestResumableCreationRouting(unittest.IsolatedAsyncioTestCase):
+    """A player who paused character creation (commands/new_player.py's
+    main_flow()'s _handle_abandon_or_pause()) has creation_done=False and
+    a saved creation_step. _authenticate() must route them back into
+    main_flow() at that step instead of the normal game loop."""
+
+    def setUp(self):
+        import tempfile
+        import net_common
+        self._tmpdir = tempfile.TemporaryDirectory()
+        fake_user_dir = Path(self._tmpdir.name) / "net"
+        fake_user_dir.mkdir(parents=True, exist_ok=True)
+        self._user_dir_patcher = patch(
+            "commands.connect.user_dir", return_value=fake_user_dir,
+        )
+        self._user_dir_patcher.start()
+        self._old_run_dir = net_common.run_server_dir
+        net_common.run_server_dir = self._tmpdir.name
+
+    def tearDown(self):
+        import net_common
+        self._user_dir_patcher.stop()
+        net_common.run_server_dir = self._old_run_dir
+        self._tmpdir.cleanup()
+
+    async def test_paused_account_routes_into_main_flow_at_saved_step(self):
+        from player import Player
+        paused = Player(id="pausedplayer", name="pausedplayer")
+        paused.creation_done = False
+        paused.creation_step = 5
+        paused.unsaved_changes = True
+        self.assertTrue(paused.save(force=True))
+
+        cmd = ConnectCommand()
+        ctx = _make_ctx()
+        fake_result = CommandResult(success=False, error="paused")
+        with patch("commands.connect._load_credentials",
+                   return_value={"password": "s3cr3t"}), \
+             patch("commands.new_player.main_flow",
+                   new=AsyncMock(return_value=fake_result)) as mock_main_flow:
+            result = await cmd.execute(ctx, "pausedplayer", "s3cr3t")
+
+        mock_main_flow.assert_awaited_once()
+        _, kwargs = mock_main_flow.call_args
+        self.assertEqual(kwargs.get("resume_step"), 5)
+        self.assertIs(result, fake_result)
+
+    async def test_finished_account_does_not_route_into_main_flow(self):
+        from player import Player
+        finished = Player(id="finishedplayer", name="finishedplayer")
+        finished.save(force=True)
+
+        cmd = ConnectCommand()
+        ctx = _make_ctx()
+        with patch("commands.connect._load_credentials",
+                   return_value={"password": "s3cr3t"}), \
+             patch("commands.new_player.main_flow",
+                   new=AsyncMock()) as mock_main_flow:
+            result = await cmd.execute(ctx, "finishedplayer", "s3cr3t")
+
+        mock_main_flow.assert_not_awaited()
+        self.assertTrue(result.success)
+        self.assertEqual(ctx.client.command_processor.current_mode, Mode.GAME)
+
+
 class TestGuildWelcomeLine(unittest.TestCase):
     """Regression: the guild welcome used to be sent as two separate
     ctx.send() lines (login_lines += [line1, line2]), breaking the

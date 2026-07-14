@@ -295,6 +295,19 @@ class ConnectCommand(Command):
         ctx.player = player
         ctx.client.username = username
 
+        # Resumable character creation: a paused, unfinished character
+        # (commands/new_player.py's main_flow()'s _handle_abandon_or_pause())
+        # has creation_done=False and a saved creation_step. Route back into
+        # main_flow() at that step instead of the normal game loop -- still
+        # Mode.LOGIN at this point, so the processor mode switch and normal
+        # welcome text below never run for these players.
+        if getattr(player, 'creation_done', True) is False:
+            from commands.new_player import main_flow
+            return await main_flow(
+                ctx, player=player,
+                resume_step=getattr(player, 'creation_step', 0) or 0,
+            )
+
         # Set carrying capacity by race.
         # TODO: enforce cap in inventory add/pickup; currently just stored on player.
         race = getattr(player, 'race', None)

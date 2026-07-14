@@ -93,3 +93,39 @@ def test_new_character_with_no_save_file_keeps_constructor_name(tmp_path):
 
     brand_new = Player(name='Freshman', id='freshman')
     assert brand_new.name == 'Freshman'
+
+
+def test_paused_creation_state_survives_a_relogin(tmp_path):
+    """Same bug class as char_class/race/gender/name above: resumable
+    character creation (commands/new_player.py's main_flow()) needs
+    creation_done/creation_step to round-trip through a relogin exactly
+    like every other field commands/connect.py's _authenticate() relies
+    on, since it reconstructs a fresh Player(name=..., id=...) on every
+    login rather than keeping the in-memory object alive."""
+    import net_common
+    net_common.run_server_dir = str(tmp_path / 'run' / 'server')
+
+    original = Player(id='pausedtest', name='pausedtest')
+    original.creation_done = False
+    original.creation_step = 5
+    original.unsaved_changes = True
+    assert original.save(force=True)
+
+    relogged = Player(name='pausedtest', id='pausedtest')
+    assert relogged.creation_done is False
+    assert relogged.creation_step == 5
+
+
+def test_finished_character_has_no_stale_creation_state(tmp_path):
+    """A normal, fully-created character never had creation_done/
+    creation_step set at all -- getattr(player, 'creation_done', True)
+    at every call site must treat that absence as "finished", not crash
+    or misbehave."""
+    import net_common
+    net_common.run_server_dir = str(tmp_path / 'run' / 'server')
+
+    original = Player(id='finishedtest', name='finishedtest')
+    assert original.save(force=True)
+
+    relogged = Player(name='finishedtest', id='finishedtest')
+    assert getattr(relogged, 'creation_done', True) is True
