@@ -366,7 +366,7 @@ def _username_taken(username: str) -> bool:
 async def _edit_settings(ctx) -> bool:
     """Delegate to the shared preferences menu (commands/prefs.py)."""
     from commands.prefs import prefs_menu
-    return await prefs_menu(ctx)
+    return await prefs_menu(ctx, from_new_player=True)
 
 async def _choose_client_settings(ctx) -> bool:
     """Let the player declare their terminal type so we can set screen dimensions,
@@ -377,6 +377,10 @@ async def _choose_client_settings(ctx) -> bool:
     lines = [
         "",
         "Which client are you connecting from?",
+        "",
+        "If unsure, you are probably connecting using the TADA client "
+        "(option 4). Real Commodore 64/128 terminals are supported too "
+        "(options 1-3).",
         "",
     ]
     await ctx.send(lines)

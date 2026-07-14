@@ -130,11 +130,16 @@ class PrefsCommand(Command):
 # Public coroutine — called directly by new_player._edit_settings()
 # ---------------------------------------------------------------------------
 
-async def prefs_menu(ctx) -> bool:
+async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
     """Display and edit player preferences.
 
     Loops until the player presses Enter (or disconnects).
     Returns True on clean exit, False on disconnect.
+
+    :param from_new_player: set by new_player.py's _edit_settings() --
+        changes the "Enter to ..." line's wording, since an alpha tester
+        was worried pressing Return here would quit character creation
+        entirely instead of just saving and moving to the next step.
     """
     from formatting import border_style_for_ctx, codec_for_settings, ANSICodec, PETSCIICodec
     from table import Table
@@ -170,7 +175,10 @@ async def prefs_menu(ctx) -> bool:
             ['', '|yellow|User Preferences|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{keys_str} to change, h<key> for details (e.g. h{valid_keys[0].lower()}), "
-                   f"{return_key} to save and exit", '']
+                   f"{return_key} to "
+                   + ('continue creating your character' if from_new_player
+                      else 'save settings and exit'),
+                   '']
         )
 
         raw = await ctx.prompt('prefs', preamble_lines=menu)

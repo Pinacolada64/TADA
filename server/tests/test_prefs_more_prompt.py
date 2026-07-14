@@ -116,5 +116,24 @@ class TestPrefsHelpColumn(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Choose', ctx._flat())
 
 
+class TestPrefsMenuFromNewPlayerWording(unittest.IsolatedAsyncioTestCase):
+    """Regression test: an alpha tester was worried pressing Return at this
+    menu during character creation would quit creation entirely, instead
+    of just saving preferences and moving to the next step. The "Enter to
+    ..." line's wording now depends on from_new_player."""
+
+    async def test_default_wording_says_save_and_exit(self):
+        ctx = _FakeCtx([''], Player())
+        await prefs_menu(ctx)
+        self.assertIn('save settings and exit', ctx._flat())
+        self.assertNotIn('continue creating your character', ctx._flat())
+
+    async def test_from_new_player_wording_says_continue_creating(self):
+        ctx = _FakeCtx([''], Player())
+        await prefs_menu(ctx, from_new_player=True)
+        self.assertIn('continue creating your character', ctx._flat())
+        self.assertNotIn('save settings and exit', ctx._flat())
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
