@@ -350,3 +350,13 @@
   'tests/' string references (fixtures, tmp dir isolation patterns),
   and pytest discovery config (pyproject.toml) checked before moving
   anything.
+- Add real Tab *output* tests -- exercising ClientSettings' various tab-
+  related settings together (tab_settings.has_tab_key, tab_settings.
+  tab_width/tab_output, has_tab, tab_char, line_ending) against actual
+  rendered output, not just that PREFS/Client Type correctly stores the
+  values (already covered by tests/test_prefs_client_type.py). Blocked
+  on the same gap noted in terminal.py/commands/prefs.py's own comments:
+  none of these are threaded through formatting.py's real send path yet
+  (format_lines()/ansi_encode_lines() etc.), so there's no actual tab-
+  expansion or line-ending behavior to test end-to-end today -- this
+  TODO covers both "wire it in" and "test it" once that happens.
