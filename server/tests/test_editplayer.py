@@ -497,6 +497,36 @@ class TestStatisticsAction(unittest.IsolatedAsyncioTestCase):
         item = next(i for i in menu.selectable if i.text == 'Age')
         self.assertEqual(item.dot_leader_handler(ctx), '33')
 
+    async def test_edit_birthday_numeric_month(self):
+        ctx = _MockCtx(responses=['09-16'])
+        await self._invoke(ctx, 'Birthday')
+        self.assertEqual((ctx.player.birthday.month, ctx.player.birthday.day), (9, 16))
+
+    async def test_edit_birthday_month_name_prefix(self):
+        """Ryan: EditPlayer's birthday editor should accept the same
+        month-name-prefix input as character creation's."""
+        ctx = _MockCtx(responses=['Sep-16'])
+        await self._invoke(ctx, 'Birthday')
+        self.assertEqual((ctx.player.birthday.month, ctx.player.birthday.day), (9, 16))
+
+    async def test_edit_birthday_full_month_name(self):
+        ctx = _MockCtx(responses=['September-16'])
+        await self._invoke(ctx, 'Birthday')
+        self.assertEqual((ctx.player.birthday.month, ctx.player.birthday.day), (9, 16))
+
+    async def test_edit_birthday_invalid_month_name_rejected(self):
+        ctx = _MockCtx(responses=['xyz-16'])
+        original = getattr(ctx.player, 'birthday', None)
+        await self._invoke(ctx, 'Birthday')
+        self.assertEqual(getattr(ctx.player, 'birthday', None), original)
+        self.assertIn('Invalid date', ' '.join(ctx.sent))
+
+    async def test_edit_birthday_blank_cancels(self):
+        ctx = _MockCtx(responses=[''])
+        original = getattr(ctx.player, 'birthday', None)
+        await self._invoke(ctx, 'Birthday')
+        self.assertEqual(getattr(ctx.player, 'birthday', None), original)
+
 
 # ---------------------------------------------------------------------------
 # 9. Integration — full run_menu navigation

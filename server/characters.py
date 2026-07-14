@@ -276,6 +276,30 @@ def birthday_for_age(age, month: int, day: int, today=None):
         return datetime(year, month, 28)
 
 
+def parse_month(ans: str) -> Optional[int]:
+    """Return 1-based month number from a typed number (1-12) or at least
+    the first three letters of the month's name (case-insensitive, e.g.
+    'jan', 'March', 'septem...'), else None.
+
+    Shared by commands/new_player.py's _choose_age() birthday sub-prompt
+    and commands/editplayer.py's edit_birthday() so both accept the same
+    input, rather than each hand-rolling its own int()-only parsing.
+    """
+    import calendar
+    text = ans.strip().lower()
+    if not text:
+        return None
+    if text.isdigit():
+        n = int(text)
+        return n if 1 <= n <= 12 else None
+    if len(text) < 3:
+        return None
+    for i in range(1, 13):
+        if calendar.month_name[i].lower().startswith(text):
+            return i
+    return None
+
+
 if __name__ == '__main__':
     # set up logging
     log = logging.getLogger(__name__)

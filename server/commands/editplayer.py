@@ -805,7 +805,7 @@ def _statistics_menu(ctx) -> Menu:
 
     async def edit_birthday(ctx) -> None:
         import calendar
-        from characters import birthday_for_age
+        from characters import birthday_for_age, parse_month
         cur = getattr(p, 'birthday', None)
         cur_str = cur.strftime('%B %d, %Y') if cur else '(not set)'
         raw = await ctx.prompt(
@@ -813,6 +813,8 @@ def _statistics_menu(ctx) -> Menu:
             preamble_lines=[
                 f'Current: {cur_str}',
                 f"Birth year is derived from age ({getattr(p, 'age', 0) or 0}); enter month/day only.",
+                "For the month, type the number or at least the first "
+                "three letters of the month name (e.g. 09-16 or Sep-16).",
                 'Blank to cancel:',
             ],
         )
@@ -821,9 +823,9 @@ def _statistics_menu(ctx) -> Menu:
             return
         parts = raw.strip().split('-')
         try:
-            month = int(parts[0])
+            month = parse_month(parts[0])
             day   = int(parts[1])
-            if not (1 <= month <= 12):
+            if month is None:
                 raise ValueError
             # Validate against a leap year so Feb 29 is always accepted here;
             # birthday_for_age() falls back to Feb 28 if the derived year
@@ -832,7 +834,7 @@ def _statistics_menu(ctx) -> Menu:
             if not (1 <= day <= max_day):
                 raise ValueError
         except (ValueError, IndexError):
-            await ctx.send('Invalid date — expected MM-DD.')
+            await ctx.send('Invalid date — expected MM-DD (or Month-DD).')
             return
         p.birthday = birthday_for_age(getattr(p, 'age', 0), month, day)
         p.unsaved_changes = True

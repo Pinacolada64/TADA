@@ -18,7 +18,7 @@ import unittest
 from datetime import date
 
 from characters import birthday_for_age
-from commands.new_player import _choose_age
+from commands.new_player import _choose_age, _parse_month
 
 
 class _FakePlayer:
@@ -83,6 +83,46 @@ class TestChooseAgeBirthday(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx.player.birthday.year, date.today().year - 40)
         self.assertEqual(ctx.player.birthday.month, 6)
         self.assertEqual(ctx.player.birthday.day, 16)
+
+    async def test_month_name_prefix_accepted(self):
+        """Ryan: the month prompt should accept at least the first three
+        letters of the month name, not just a number."""
+        ctx = _FakeCtx(responses=['40', 'a', 'sep', '16'])
+        ok = await _choose_age(ctx)
+        self.assertTrue(ok)
+        self.assertEqual(ctx.player.birthday.month, 9)
+
+    async def test_month_intro_text_mentions_both_options(self):
+        ctx = _FakeCtx(responses=['40', 'a', '6', '16'])
+        await _choose_age(ctx)
+        text = '\n'.join(ctx.sent)
+        self.assertIn('first three letters', text)
+
+
+class TestParseMonth(unittest.TestCase):
+
+    def test_numeric_in_range(self):
+        self.assertEqual(_parse_month('6'), 6)
+        self.assertEqual(_parse_month('12'), 12)
+
+    def test_numeric_out_of_range_returns_none(self):
+        self.assertIsNone(_parse_month('0'))
+        self.assertIsNone(_parse_month('13'))
+
+    def test_three_letter_prefix_case_insensitive(self):
+        self.assertEqual(_parse_month('Jan'), 1)
+        self.assertEqual(_parse_month('DEC'), 12)
+        self.assertEqual(_parse_month('sep'), 9)
+
+    def test_full_month_name(self):
+        self.assertEqual(_parse_month('September'), 9)
+
+    def test_too_short_returns_none(self):
+        self.assertIsNone(_parse_month('ja'))
+
+    def test_blank_or_garbage_returns_none(self):
+        self.assertIsNone(_parse_month(''))
+        self.assertIsNone(_parse_month('xyz'))
 
 
 if __name__ == '__main__':
