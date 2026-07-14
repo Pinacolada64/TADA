@@ -225,6 +225,14 @@ class ClientSettings:
     # plain clients, so this only has real bearing for a raw-byte PETSCII
     # or future raw-terminal client).
     line_ending: str = LineEnding.LF
+    # Set automatically as a side effect of picking a client type (PREFS
+    # 'T') -- true for the Commodore 128, TADA/ANSI, and Custom presets
+    # (all have a real Tab key sending chr(9)); false only for the
+    # Commodore 64, whose keyboard has no dedicated Tab key. Distinct
+    # from tab_settings above (the general has-a-tab-key/simulated-width
+    # picker under PREFS 'K'), which is asked separately.
+    has_tab: bool = False
+    tab_char: str = chr(9)
 
 # ---------------------------------------------------------------------------
 # Everything below (settings_menu, tab_edit, edit_screen_rows,

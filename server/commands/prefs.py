@@ -499,6 +499,14 @@ async def _pick_client_type(ctx) -> None:
             cs.screen_columns = cols
             cs.screen_rows    = rows
             cs.translation    = encoding
+            # The Commodore 128's keyboard has a real Tab key (the C64's
+            # doesn't), and so does any ANSI/TADA client -- set as a side
+            # effect of picking this client type, not asked separately.
+            if label != 'Commodore 64':
+                cs.has_tab  = True
+                cs.tab_char = chr(9)
+            else:
+                cs.has_tab = False
             await ctx.send(f'Client type set to: {label}, {cols}x{rows} screen size.')
             return
 
@@ -530,6 +538,10 @@ async def _pick_client_type(ctx) -> None:
     cs.screen_columns = cols
     cs.screen_rows    = rows
     cs.translation    = translation
+    # Custom is only ever ANSI or Plain -- neither is the C64's no-real-
+    # tab-key case, so both get a real Tab key like TADA Client does.
+    cs.has_tab  = True
+    cs.tab_char = chr(9)
     await ctx.send(f'Client type set to: Custom, {cols}x{rows} screen size, {translation.name}.')
 
 

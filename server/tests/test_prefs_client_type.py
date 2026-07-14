@@ -135,6 +135,42 @@ class TestPickClientType(unittest.IsolatedAsyncioTestCase):
         codec = codec_for_settings(ctx.player.client_settings)
         self.assertIsInstance(codec, PETSCIICodec)
 
+    async def test_c64_preset_does_not_set_has_tab(self):
+        """Ryan: the C128 has a real Tab key, unlike the C64."""
+        ctx = _FakeCtx(['1'], Player())
+        await _pick_client_type(ctx)
+        self.assertFalse(getattr(ctx.player.client_settings, 'has_tab', False))
+
+    async def test_c128_40col_preset_sets_has_tab(self):
+        ctx = _FakeCtx(['2'], Player())
+        await _pick_client_type(ctx)
+        cs = ctx.player.client_settings
+        self.assertTrue(cs.has_tab)
+        self.assertEqual(cs.tab_char, chr(9))
+
+    async def test_c128_80col_preset_sets_has_tab(self):
+        ctx = _FakeCtx(['3'], Player())
+        await _pick_client_type(ctx)
+        cs = ctx.player.client_settings
+        self.assertTrue(cs.has_tab)
+        self.assertEqual(cs.tab_char, chr(9))
+
+    async def test_tada_client_preset_sets_has_tab(self):
+        """Ryan's correction: TADA/ANSI terminals have a real Tab key too --
+        only the C64 (no PETSCII terminal really has one wired up here) doesn't."""
+        ctx = _FakeCtx(['4'], Player())
+        await _pick_client_type(ctx)
+        cs = ctx.player.client_settings
+        self.assertTrue(cs.has_tab)
+        self.assertEqual(cs.tab_char, chr(9))
+
+    async def test_custom_size_sets_has_tab(self):
+        ctx = _FakeCtx(['5', '100', '40', 'A'], Player())
+        await _pick_client_type(ctx)
+        cs = ctx.player.client_settings
+        self.assertTrue(cs.has_tab)
+        self.assertEqual(cs.tab_char, chr(9))
+
     async def test_custom_size_within_range_accepted(self):
         ctx = _FakeCtx(['5', '100', '40', 'A'], Player())
         await _pick_client_type(ctx)
