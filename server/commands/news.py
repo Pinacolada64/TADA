@@ -29,8 +29,13 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
 import news as news_store
+from formatting import hrule_char, make_rule
 
 log = logging.getLogger(__name__)
+
+# Width of the "Date" column in the news listing (ISO-8601 "YYYY-MM-DD" is
+# 10 chars; the extra 3 columns of padding is what pushes "Title" over).
+_DATE_COL_WIDTH = 13
 
 
 class NewsCommand(Command):
@@ -103,14 +108,19 @@ class NewsCommand(Command):
                     await ctx.send('No more news to read.')
                     return CommandResult.ok('No news.')
 
-                lines = ['', '|yellow|News|reset|', '']
+                rule_width = getattr(getattr(ctx.player, 'client_settings', None), 'screen_columns', 80)
+                lines = [
+                    '', '|yellow|News|reset|', '',
+                    f"  Num  {'Date':<{_DATE_COL_WIDTH}}Title",
+                    make_rule(rule_width, hrule_char(ctx)),
+                ]
                 for it in visible:
                     posted = it.get('posted_at', '')[:10]
-                    lines.append(f"  {it['id']:>3}. {it.get('title', '(untitled)')}  ({posted})")
+                    lines.append(f"  {it['id']:>3}. {posted:<{_DATE_COL_WIDTH}}{it.get('title', '(untitled)')}")
                 lines.append('')
 
                 raw = await ctx.prompt(
-                    'Read which (# or Enter to exit)',
+                    f'Read which (# or {ctx.player.return_key} to exit)',
                     preamble_lines=lines,
                 )
                 if raw is None or not raw.strip():

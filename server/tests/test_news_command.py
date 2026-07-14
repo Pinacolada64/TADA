@@ -26,6 +26,7 @@ class _FakePlayer:
     def __init__(self, name='alexa', admin=False):
         self.name = name
         self._admin = admin
+        self.return_key = 'Enter'
 
     def query_flag(self, flag):
         if flag == PlayerFlags.ADMIN:
@@ -69,6 +70,29 @@ class TestList(NewsCommandTestCase):
         run(NewsCommand().execute(ctx))
         sent = str(ctx.prompt.call_args)
         self.assertIn('Patch Notes', sent)
+
+    def test_listing_shows_date_before_title(self):
+        self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        ctx = make_ctx(prompts=[''])
+        run(NewsCommand().execute(ctx))
+        preamble = ctx.prompt.call_args.kwargs['preamble_lines']
+        row = next(l for l in preamble if 'Patch Notes' in l)
+        self.assertLess(row.index('2026-01-01'), row.index('Patch Notes'))
+
+    def test_listing_has_header_row_and_rule(self):
+        self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        ctx = make_ctx(prompts=[''])
+        run(NewsCommand().execute(ctx))
+        preamble = ctx.prompt.call_args.kwargs['preamble_lines']
+        self.assertIn('Num', ' '.join(preamble))
+        self.assertIn('Date', ' '.join(preamble))
+        self.assertIn('Title', ' '.join(preamble))
+        # A rule line -- some run of a single repeated non-space character.
+        self.assertTrue(any(
+            len(set(l.strip())) == 1 and len(l.strip()) > 3 for l in preamble
+        ))
 
     def test_blank_input_exits_the_listing_loop(self):
         self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
