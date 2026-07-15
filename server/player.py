@@ -341,6 +341,21 @@ class Player:
         # (combat/resolution.py's shield_exp_bonus()) once a player has
         # enough of it with the shield they currently have equipped.
         self.shield_proficiency: dict = kwargs.get('shield_proficiency', {})
+        # Quest #16 (quests/README.md) -- item #86 "Tut's Treasure", level 2
+        # room 158 "Secret Chamber". examined=True once EXAMINEd (disarms a
+        # trap, +2 INT); taken=True once GET afterward awards the gold bonus.
+        # See quests/tuts_treasure.py for the full mechanic.
+        from flags import TutTreasure
+        _raw_tt = kwargs.get('tuts_treasure')
+        if isinstance(_raw_tt, TutTreasure):
+            self.tuts_treasure = _raw_tt
+        elif isinstance(_raw_tt, dict):
+            self.tuts_treasure = TutTreasure(
+                examined=bool(_raw_tt.get('examined', False)),
+                taken=bool(_raw_tt.get('taken', False)),
+            )
+        else:
+            self.tuts_treasure = TutTreasure()
         """
         Things you can only do once per day (file_formats.txt):
         'pr'        has PRAYed once
@@ -1194,6 +1209,15 @@ class Player:
             if 'shield_proficiency' in data and isinstance(data['shield_proficiency'], dict):
                 try:
                     self.shield_proficiency = {str(k): int(v) for k, v in data['shield_proficiency'].items()}
+                except Exception:
+                    pass
+            if 'tuts_treasure' in data and isinstance(data['tuts_treasure'], dict):
+                try:
+                    from flags import TutTreasure
+                    self.tuts_treasure = TutTreasure(
+                        examined=bool(data['tuts_treasure'].get('examined', False)),
+                        taken=bool(data['tuts_treasure'].get('taken', False)),
+                    )
                 except Exception:
                     pass
 

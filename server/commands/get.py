@@ -7,6 +7,7 @@ from inventory import InventoryEntry
 from item_system import ItemType
 from items import Item, ItemCategory
 from network_context import GameContext
+from quests.tuts_treasure import get as tuts_treasure_get, is_tuts_treasure
 
 # Weapon id_numbers for fireballs and staves (weapons.json)
 _FIREBALL_IDS = {14, 15, 39}   # FIREBALL, LARGE FIREBALL, SMALL FIREBALL
@@ -264,6 +265,17 @@ class GetCommand(Command):
                        name: str, entry: InventoryEntry, remove_fn) -> CommandResult:
         player  = ctx.player
         item_id = getattr(entry.item, 'id_number', None)
+
+        # --- Tut's Treasure: quest #16 (quests/tuts_treasure.py) -- checked
+        # before the "inventory full" guard below, since a successful GET
+        # here converts straight to gold and never actually needs a slot ---
+        if is_tuts_treasure(item_id):
+            outcome = tuts_treasure_get(player)
+            for line in outcome.lines:
+                await ctx.send(line)
+            if outcome.remove_from_room:
+                remove_fn()
+            return CommandResult.ok()
 
         # Anti-hoarding: block if already in inventory OR already picked up this session
         if item_id and inventory is not None and inventory.find(item_id=item_id):

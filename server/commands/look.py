@@ -6,6 +6,7 @@ LookCommand — examine the current room or inspect a target.
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from network_context import GameContext
+from quests.tuts_treasure import examine as tuts_treasure_examine, is_tuts_treasure
 from tada_utilities import PronounType, get_pronoun
 
 _SELF_TARGETS = {'me', 'self', 'myself'}
@@ -79,8 +80,28 @@ class LookCommand(Command):
                 item = entry.item
                 iname = (getattr(item, 'name', '') or '').strip()
                 if target in iname.lower():
-                    await ctx.send(_examine_item(iname, item))
+                    await self._describe_item(ctx, iname, item)
                     return CommandResult.ok()
+
+        # Search items on the ground too -- SPUR's EXAMINE worked on floor
+        # items as well as carried ones (e.g. Tut's Treasure must be
+        # examined before it's ever picked up -- see quests/tuts_treasure.py).
+        from commands.get import _room_available_items
+        for name, entry, _remove_fn in _room_available_items(ctx):
+            if target in name.lower():
+                await self._describe_item(ctx, name, entry.item)
+                return CommandResult.ok()
 
         await ctx.send(f"You don't see any '{target}' here.")
         return CommandResult.ok()
+
+    async def _describe_item(self, ctx: GameContext, name: str, item) -> None:
+        item_id = getattr(item, 'id_number', None)
+        if is_tuts_treasure(item_id):
+            lines = tuts_treasure_examine(ctx.player)
+            if lines is not None:
+                await ctx.send(lines)
+                return
+            # Already examined -- SPUR falls through to the ordinary
+            # flavor text on a repeat EXAMINE, so do the same here.
+        await ctx.send(_examine_item(name, item))

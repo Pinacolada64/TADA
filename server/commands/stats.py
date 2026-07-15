@@ -213,11 +213,15 @@ def _build_stats_lines(player) -> list[str]:
     else:
         lines.append('Dwarf: Dead...')
 
-    # Tut's treasure
-    tuts_looted = getattr(player, 'tuts_treasure_looted', False)
-    lines.append("Tut{_AP}s Treasure: {status}".format(
-        _AP=_AP, status='Looted..' if tuts_looted else 'Somewhere..'
-    ))
+    # Tut's treasure (quest #16, quests/tuts_treasure.py)
+    tuts_treasure = getattr(player, 'tuts_treasure', None)
+    if tuts_treasure and tuts_treasure.taken:
+        tuts_status = 'Looted..'
+    elif tuts_treasure and tuts_treasure.examined:
+        tuts_status = 'Examined..'
+    else:
+        tuts_status = 'Somewhere..'
+    lines.append("Tut{_AP}s Treasure: {status}".format(_AP=_AP, status=tuts_status))
 
     # Hourglass / time remaining
     time_remaining = getattr(player, 'time_remaining_minutes', None)
