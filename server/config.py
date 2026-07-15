@@ -31,9 +31,10 @@ SETTINGS_METADATA: Dict[str, SettingInfo] = {
         'Session Time Limit',
     ),
     'victory_type': SettingInfo(
-        str, "What escaping via the ladder up requires to win: "
-             "'gold', 'item', or 'both' (SPUR.CONTROL.S object label). "
-             "No win detection exists yet -- this only stores the setting.",
+        str, "What escaping via the level 6 ladder up (room 117, "
+             "\"Shimmering Portal\") requires to win: 'gold', 'item', or "
+             "'both' (SPUR.CONTROL.S object label). See victory.py for the "
+             "full win check.",
         'Victory Type',
     ),
     'victory_gold_amount': SettingInfo(
@@ -174,7 +175,8 @@ class ServerConfig:
         # session_time_limit_minutes' docstring.
         'session_time_limit_minutes': 0,
         # object label: what "winning" requires when a player escapes via
-        # the level-1 ladder up. SPUR's go=1/2/3 -- victory_type is one of
+        # the level 6 ladder up (room 117, "Shimmering Portal" -- see
+        # victory.py). SPUR's go=1/2/3 -- victory_type is one of
         # "gold", "item", "both". victory_item_number is an objects.json
         # Treasure item number (0 = none set); SPUR's chk.obj refused to
         # let the SysOp pick anything literally named JEWEL/DIAMOND/GOLD/
@@ -289,11 +291,11 @@ class ServerConfig:
 
     @property
     def victory_type(self) -> str:
-        """What escaping via the ladder up requires to count as a win:
-        'gold' (victory_gold_amount in hand), 'item' (carrying
-        victory_item_number), or 'both' (SPUR.CONTROL.S's object label,
-        go=1/2/3). Storing the setting only -- no escape/win detection
-        exists anywhere in this port yet (see TODO_HELP.md)."""
+        """What escaping via the level 6 ladder up (room 117, "Shimmering
+        Portal") requires to count as a win: 'gold' (victory_gold_amount
+        in hand), 'item' (carrying victory_item_number), or 'both'
+        (SPUR.CONTROL.S's object label, go=1/2/3). See victory.py for the
+        full win check."""
         return str(self.get('victory_type', 'gold'))
 
     @victory_type.setter

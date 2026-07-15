@@ -224,10 +224,15 @@ not-implemented (parked, not a help gap yet).
   gets all accumulated stolen gold) -- confirmed "Not Implemented" in
   MECHANICS.md, no matching code found (`DWARF_ALIVE` flag exists and
   is displayed on `stats`, but no NPC/mechanic backs it yet).
-- **Victory conditions ("Conqueror" status)** -- `SPUR.HELP.TXT`'s own
-  framing of the whole game: defeat SPUR, escape via the level-1 LADDER
-  UP, optionally find a MAGIC item and/or accumulate GOLD wealth.
-  `PlayerFlags.SPUR_ALIVE` tracks the boss's life state and shows on
-  `stats`, but nothing tracks "escaped"/"won" -- there's no win
-  condition implemented at all yet, so a help topic would be explaining
-  a goal the game can't currently detect you reaching.
+- **Victory conditions ("Conqueror" status)** -- now implemented
+  (`victory.py`, `commands/movement.py`'s level-6 "Ladder Up" hook at
+  room 117 "Shimmering Portal" -- SPUR's own escape point per
+  `SPUR.MISC.S`'s `cl=6, di=5` trigger, not level 1 as `SPUR.HELP.TXT`'s
+  flavor text implies). Gates: the King of the Wraiths must be dead
+  (`PlayerFlags.WRAITH_KING_ALIVE`), plus `victory_gold_amount` silver in
+  hand and/or `victory_item_number` carried per `config.victory_type`.
+  Note: `SPUR.MISC7.S`'s actual win check never tests
+  `PlayerFlags.SPUR_ALIVE` at all, despite `SPUR.HELP.TXT`'s "defeat
+  SPUR" framing -- only the Wraith King gates it. A help topic
+  explaining the real escape conditions (and clarifying that SPUR
+  himself isn't a literal gate) would now be accurate and worth writing.
