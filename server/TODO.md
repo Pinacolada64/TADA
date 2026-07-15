@@ -454,8 +454,10 @@
       hits harder, `SPUR.MISC4.S:199-205`).
     - `*gi` — the "girl" random encounter (spacesuit/boat hitchhiker NPC),
       shown at most once per session (`SPUR.MISC6.S:158-163`).
-    - `*enf` — the "enforce" forced encounter (a shadowy figure/dark
-      craft); gated to once per session *and* a minimum elapsed-session
+    - `*enf` — a forced duel encounter with "THE ENFORCER" (a named NPC,
+      "I am THE ENFORCER! How dare you invade my turf?!", wielding the
+      "SUN-SWORD"; a shadowy figure/dark craft in the room-entry flavor
+      text); gated to once per session *and* a minimum elapsed-session
       -time threshold (`SPUR.MISC6.S:229-233`).
     - `*ME` — the "meteor" random encounter (FLYING BANSHEE, or literally
       METEOR on level 6), once per session (`SPUR.MISC6.S:473-478`).
