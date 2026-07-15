@@ -417,3 +417,62 @@
   belongs in `commands/connect.py`'s login flow, near where
   `_login_news_lines()`/`_login_tip_lines()` already run and
   `player.last_connection` gets updated.
+  - **Important caveat found while scouring `SPUR-code/*.S` for the real
+    flag list (`ys$`, not persisted to a player file at all -- initialized
+    fresh at BBS-door-program boot, `SPUR.LOGON.S:19`: `ys$=""`)**: in the
+    original, these are **session**-scoped, not calendar-date-scoped --
+    they reset every time the door program launches, which in a
+    single-caller-at-a-time BBS was naturally "once per real-world play
+    session," not literally "once per day." This port's design (persist
+    across reconnects, clear on date rollover) is a deliberate adaptation
+    for an always-on multiplayer server, not a literal port of `ys$`'s
+    reset timing -- worth deciding, when this is implemented, whether
+    *every* token below should really wait for the next calendar day, or
+    whether some belong on session-end/reconnect instead (matching SPUR's
+    actual behavior more closely).
+  - Full `ys$` token inventory (grepped every `SPUR-code/*.S`, `instr(TOKEN,
+    ys$)` gates + `ys$=ys$+TOKEN` sets), for whoever designs the real
+    `once_per_day` flag enum (`player.py`'s existing "TODO: make these
+    Enums, finish this list" comment):
+    - `*pr1` / `*pr2` — PRAYed once / twice (Druids and Paladins may PRAY
+      twice, `SPUR.MISC2.S:212-227`); `*prd` is a related but distinct
+      escalation flag set only once `*pr1`/`*pr2` are already exhausted
+      and the player prays *again* ("I have already helped thee today!
+      Buggest me oncest more and thou art toast!") -- itself gates an even
+      harsher failure path (`pray.3`), not a limit counter.
+    - `*BO` — the "boots" spell (adds 10 minutes to the session clock
+      `ev`), once per session (`SPUR.MISC3.S:190-193`).
+    - `loot` — LOOT command used (already documented/ported in this repo);
+      `outlaw` — Outlaw-guild players get a second LOOT allowance
+      (`SPUR.MISC3.S:474-475`, "Outlaws may steal twice!").
+    - `LAZ.SH` — Laser Shield defensive item active/used this session
+      (blocks an energy-weapon monster attack on level 6+,
+      `SPUR.MISC4.S:178`, `SPUR.COMBAT.S:244`).
+    - `gd1` / `gd2` — Guardian monster (#103) repeat-encounter escalation
+      (already noted as a loose end in `quests/README.md`; `gd1`= lost to
+      it once, `gd2`= lost twice, guardian now "waiting for you" and
+      hits harder, `SPUR.MISC4.S:199-205`).
+    - `*gi` — the "girl" random encounter (spacesuit/boat hitchhiker NPC),
+      shown at most once per session (`SPUR.MISC6.S:158-163`).
+    - `*enf` — the "enforce" forced encounter (a shadowy figure/dark
+      craft); gated to once per session *and* a minimum elapsed-session
+      -time threshold (`SPUR.MISC6.S:229-233`).
+    - `*ME` — the "meteor" random encounter (FLYING BANSHEE, or literally
+      METEOR on level 6), once per session (`SPUR.MISC6.S:473-478`).
+    - `*GAL` — Test of Galadriel (quest #8 in `quests/README.md`); this
+      token is what actually gates it to once per session
+      (`SPUR.MAIN.S:63`, `SPUR.MISC6.S:505,532-534`).
+    - `*AYF` — an ally "finds a gold sack" bonus event, once per session
+      (`SPUR.MISC6.S:544-553`).
+    - `pwr.ar` — Power Armor energized bonus (armor rating -> 150% "for
+      this play session"), once per session (`SPUR.SUB.S:47-50`) --
+      likely ties into quest #13 (Power Armor / Shield Recharge).
+    - `AD*` — autoduel: marks the current duel challenge already
+      processed, avoiding re-triggering the same autoduel resolution
+      (`SPUR.MISC5.S:38-79`).
+    - `TR+` — the level-6 ship transporter has been used at least once;
+      each *subsequent* use gets 20 points better malfunction odds
+      (`xz=xz-20`) once this flag is set (`SPUR.SHIP.S:386-390`).
+    - `*SS` — the Ship's Salvage Bay visited once per session ("the
+      salvage computer does not respond" on a repeat visit,
+      `SPUR.SHIP.S:461-463`).
