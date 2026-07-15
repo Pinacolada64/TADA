@@ -1,11 +1,60 @@
 import os
+import shutil
 import sys
 from pathlib import Path
 
+# Running this as a plain script (`python3 setup/server_setup.py`) puts
+# only setup/ on sys.path, not server/ where config.py/item_system.py
+# live -- ModuleNotFoundError: No module named 'config'. `python3 -m
+# setup.server_setup` (run from server/) doesn't need this, but a sysop
+# reasonably expects the plain-script form to work too.
+_SERVER_DIR = Path(__file__).resolve().parent.parent
+if str(_SERVER_DIR) not in sys.path:
+    sys.path.insert(0, str(_SERVER_DIR))
+
 from config import SETTINGS_METADATA, config, format_value, parse_value, resolve_key
+from item_system import (
+    format_victory_item_choices, format_victory_item_value,
+    is_victory_item_number_valid, victory_eligible_treasures,
+)
+
+_VICTORY_ITEM_KEY = 'victory_item_number'
+
+
+def _display_value(key: str, value) -> str:
+    """format_value(), except victory_item_number also shows the
+    treasure's name once victory_type is 'item'/'both' -- Ryan: '(35)
+    Sand Dollar' instead of a bare 35, which means nothing on sight."""
+    if key == _VICTORY_ITEM_KEY:
+        return format_victory_item_value(value, config.victory_type)
+    return format_value(value)
+
 
 # Global flag to track if server is running
 server_running = False
+
+
+def _print_paged(lines: list, page_size: int = None) -> None:
+    """Print *lines* a screenful at a time, mirroring the live game's
+    ctx.send() auto-pagination (network_context.py's PlayerFlags.
+    MORE_PROMPT gating) for this offline console script -- 115+ Treasure
+    items in one dump would otherwise scroll straight off the terminal.
+
+    Enter -- next page. Q -- stop early.
+    """
+    if page_size is None:
+        page_size = max(5, shutil.get_terminal_size(fallback=(80, 24)).lines - 3)
+    total = len(lines)
+    for start in range(0, total, page_size):
+        chunk = lines[start:start + page_size]
+        for line in chunk:
+            print(line)
+        shown_through = start + len(chunk)
+        if shown_through >= total:
+            break
+        choice = input(f'-- More ({shown_through}/{total}) -- Enter to continue, Q to stop: ').strip().lower()
+        if choice == 'q':
+            break
 
 
 def headline(text: str) -> str:
@@ -61,20 +110,41 @@ def edit_news():
 
 
 def _edit_one_setting(key: str) -> None:
-    """Prompt for and apply a new value for a single config.py setting."""
-    _value_type, desc = SETTINGS_METADATA[key]
-    current = format_value(config.get(key))
-    print(f"\n{key}: {desc}")
-    raw = input(f"Current: {current}  -  new value (blank to cancel): ").strip()
-    if not raw:
+    """Prompt for and apply a new value for a single config.py setting.
+
+    victory_item_number gets a special '?' listing of eligible Treasure
+    items (item_system.victory_eligible_treasures()) -- same as the live
+    in-game CONFIG command.
+    """
+    info = SETTINGS_METADATA[key]
+    while True:
+        current = _display_value(key, config.get(key))
+        hint = " Type '?' to list eligible items." if key == _VICTORY_ITEM_KEY else ''
+        print(f"\n{info.label}: {info.description}")
+        raw = input(f"Current: {current}  -  new value (blank to cancel){hint}: ").strip()
+        if not raw:
+            return
+
+        if key == _VICTORY_ITEM_KEY and raw == '?':
+            items = victory_eligible_treasures()
+            print('\nTreasure items eligible for Victory Item:\n')
+            _print_paged(format_victory_item_choices(items))
+            print()
+            continue
+
+        try:
+            value = parse_value(key, raw)
+            if key == _VICTORY_ITEM_KEY and not is_victory_item_number_valid(value):
+                raise ValueError(
+                    f"{value} isn't a valid Treasure item number (or too generic a "
+                    "name -- SPUR.CONTROL.S's chk.obj rule). Type '?' to list eligible items."
+                )
+            config.set_validated(key, value)
+        except ValueError as exc:
+            print(str(exc))
+            return
+        print(f"{info.label} set to {_display_value(key, config.get(key))}.")
         return
-    try:
-        value = parse_value(key, raw)
-        config.set_validated(key, value)
-    except ValueError as exc:
-        print(str(exc))
-        return
-    print(f"{key} set to {format_value(config.get(key))}.")
 
 
 def edit_server_config():
@@ -89,8 +159,8 @@ def edit_server_config():
     while True:
         print("\n" + headline("Server Configuration"))
         for i, key in enumerate(keys, start=1):
-            value = format_value(config.get(key))
-            print(f"{i:2d}. {key:<28} {value}")
+            value = _display_value(key, config.get(key))
+            print(f"{i:2d}. {SETTINGS_METADATA[key].label:<28} {value}")
         print(f"{len(keys) + 1:2d}. Back to main menu")
 
         choice = input(

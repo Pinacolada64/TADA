@@ -3,34 +3,77 @@ Server configuration module.
 """
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict, NamedTuple
 
-# key -> (type, description). Shared metadata so any editor -- the live
-# in-game admin command (commands/config.py) or the offline setup script
-# (setup/server_setup.py) -- lists/validates the exact same settings
-# instead of each hardcoding its own subset. Order here is display order.
-SETTINGS_METADATA: Dict[str, tuple] = {
-    'game_name': (str, "This game's display name (SPUR.CONTROL.S config2)."),
-    'session_time_limit_minutes': (
+
+class SettingInfo(NamedTuple):
+    """One SETTINGS_METADATA entry: value type, admin-facing description,
+    and a human-readable display label (Ryan: map the raw snake_case key
+    to a proper string for display -- 'victory_item_number' shows as
+    'Victory Item', not the bare key)."""
+    type: type
+    description: str
+    label: str
+
+
+# key -> SettingInfo. Shared metadata so any editor -- the live in-game
+# admin command (commands/config.py) or the offline setup script
+# (setup/server_setup.py) -- lists/validates/labels the exact same
+# settings instead of each hardcoding its own subset. Order here is
+# display order. The key itself is still what's actually typed (e.g.
+# `config victory_item_number 6`) -- .label is display-only.
+SETTINGS_METADATA: Dict[str, SettingInfo] = {
+    'game_name': SettingInfo(str, "This game's display name (SPUR.CONTROL.S config2).", 'Game Name'),
+    'session_time_limit_minutes': SettingInfo(
         int, 'Per-session time limit in minutes, 0-90, 0=unlimited '
              '(SPUR.CONTROL.S time.set). Same budget the Dusk warning '
-             'counts down -- setting this alone does not yet enforce a cutoff.'
+             'counts down -- setting this alone does not yet enforce a cutoff.',
+        'Session Time Limit',
     ),
-    'victory_type': (
+    'victory_type': SettingInfo(
         str, "What escaping via the ladder up requires to win: "
              "'gold', 'item', or 'both' (SPUR.CONTROL.S object label). "
-             "No win detection exists yet -- this only stores the setting."
+             "No win detection exists yet -- this only stores the setting.",
+        'Victory Type',
     ),
-    'victory_gold_amount': (int, "Silver required in hand to win, when victory_type is 'gold' or 'both'."),
-    'victory_item_number': (int, "objects.json Treasure item number required to win, when victory_type is 'item' or 'both'; 0 = none set."),
-    'dwarf_silver': (int, 'Silver The Dwarf (tips.txt) has stolen so far, server-wide. Awarded in full to whoever kills him.'),
-    'require_invites': (bool, 'Whether invites are required for new-player registration.'),
-    'invite_expiry_days': (int, 'Days until an issued invite expires.'),
-    'max_players': (int, 'Maximum simultaneous connected players.'),
-    'ansi_port': (int, 'Listen port for the JSON/ANSI wire protocol (Python client, telnet-style terminals). Changing this has no effect until the server restarts.'),
-    'petscii_port': (int, 'Listen port for raw PETSCII byte connections (Commodore 64/128 clients). Changing this has no effect until the server restarts.'),
-    'host': (str, 'Server listen host/interface, shared by both ports. Changing this has no effect until the server restarts.'),
+    'victory_gold_amount': SettingInfo(
+        int, "Silver required in hand to win, when victory_type is 'gold' or 'both'.",
+        'Victory Gold Amount',
+    ),
+    'victory_item_number': SettingInfo(
+        int, "objects.json Treasure item number required to win, when victory_type is 'item' or 'both'; 0 = none set.",
+        'Victory Item',
+    ),
+    'dwarf_silver': SettingInfo(
+        int, 'Silver The Dwarf (tips.txt) has stolen so far, server-wide. Awarded in full to whoever kills him.',
+        "Dwarf's Silver",
+    ),
+    'require_invites': SettingInfo(bool, 'Whether invites are required for new-player registration.', 'Require Invites'),
+    'invite_expiry_days': SettingInfo(int, 'Days until an issued invite expires.', 'Invite Expiry Days'),
+    'max_players': SettingInfo(int, 'Maximum simultaneous connected players.', 'Max Players'),
+    'ansi_port': SettingInfo(
+        int, 'Listen port for the JSON/ANSI wire protocol (Python client, telnet-style terminals). Changing this has no effect until the server restarts.',
+        'ANSI Port',
+    ),
+    'petscii_port': SettingInfo(
+        int, 'Listen port for raw PETSCII byte connections (Commodore 64/128 clients). Changing this has no effect until the server restarts.',
+        'PETSCII Port',
+    ),
+    'host': SettingInfo(
+        str, 'Server listen host/interface, shared by both ports. Changing this has no effect until the server restarts.',
+        'Host',
+    ),
 }
+
+
+def setting_label(key: str) -> str:
+    """Display label for *key*, falling back to a Title Case guess
+    (underscores -> spaces) for anything missing from SETTINGS_METADATA
+    -- shouldn't normally happen, but keeps callers crash-free."""
+    info = SETTINGS_METADATA.get(key)
+    if info is not None:
+        return info.label
+    return key.replace('_', ' ').title()
 
 
 def format_value(value: Any) -> str:
@@ -44,7 +87,7 @@ def parse_value(key: str, raw: str) -> Any:
     """Parse a raw string into the type SETTINGS_METADATA declares for
     *key*. Raises ValueError with a player/sysop-facing message on a bad
     value; callers don't need to add their own type-error text."""
-    value_type, _desc = SETTINGS_METADATA[key]
+    value_type = SETTINGS_METADATA[key].type
     if value_type is bool:
         if raw.lower() in ('on', 'true', 'yes', '1'):
             return True
@@ -87,7 +130,14 @@ class ServerConfig:
     Manages server configuration including optional features like invites.
     """
     _instance = None
-    _config_file = Path('server_config.json')
+    # Anchored to config.py's own location, not the process's cwd -- a
+    # bare relative Path('server_config.json') writes wherever the
+    # process happened to be launched from, which for setup/
+    # server_setup.py (runnable from server/, the repo root, or anywhere
+    # else -- see that script's own sys.path fix) meant a stray
+    # server_config.json could land somewhere other than server/. Found
+    # live via a test launched with cwd=repo root.
+    _config_file = Path(__file__).resolve().parent / 'server_config.json'
     _default_config = {
         'require_invites': True,  # Whether invites are required for registration
         'invite_expiry_days': 7,  # Number of days until an invite expires

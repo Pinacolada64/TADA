@@ -11,16 +11,20 @@ settings.
 """
 from __future__ import annotations
 
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from config import SETTINGS_METADATA, ServerConfig
+from config import SETTINGS_METADATA
 
 # "Back to main menu" is always one past the last setting -- computed, not
 # hardcoded, so this file doesn't silently break every time a setting is
 # added or removed (already bit once: adding petscii_port shifted it).
 _BACK = str(len(SETTINGS_METADATA) + 1)
+
+_SERVER_DIR = Path(__file__).resolve().parent.parent
 
 
 class TestServerSetupImports(unittest.TestCase):
@@ -31,21 +35,59 @@ class TestServerSetupImports(unittest.TestCase):
         import setup.server_setup as s
         self.assertIn('Hello', s.headline('Hello'))
 
+    def test_runs_as_a_plain_script_from_server_dir(self):
+        """Regression test: found live (hardcopy.9) -- `python3 setup/
+        server_setup.py` run directly (not `python3 -m setup.
+        server_setup`) only puts setup/ on sys.path, not server/ where
+        config.py/item_system.py live, so every import in this module
+        raised ModuleNotFoundError: No module named 'config'. A subprocess
+        is the only way to catch this: pytest's own process already has
+        server/ on sys.path for unrelated reasons, so importing the
+        module in-process wouldn't have reproduced the bug."""
+        result = subprocess.run(
+            [sys.executable, 'setup/server_setup.py'],
+            cwd=_SERVER_DIR, input='q\n', capture_output=True, text=True, timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertNotIn('ModuleNotFoundError', result.stderr)
+        self.assertIn('Server Setup', result.stdout)
+
+    def test_runs_as_a_plain_script_from_repo_root(self):
+        """Same as above, but launched from a directory that isn't
+        server/ at all -- confirms the sys.path fix uses an absolute path
+        anchored to the script's own location, not the caller's cwd."""
+        result = subprocess.run(
+            [sys.executable, 'server/setup/server_setup.py'],
+            cwd=_SERVER_DIR.parent, input='q\n', capture_output=True, text=True, timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertNotIn('ModuleNotFoundError', result.stderr)
+
 
 class TestEditServerConfig(unittest.TestCase):
+    """setup/server_setup.py imports the process-wide `config` singleton
+    by reference (`from config import config`), not a fresh ServerConfig()
+    per call -- resetting ServerConfig._instance/_config_file (as other
+    config test files do) only affects *future* ServerConfig() constructor
+    calls, not that already-bound object, so it silently doesn't isolate
+    anything here. Found live: a stray 'item'/'both' leaked between runs.
+    Isolating the actual shared singleton instance in place instead.
+    """
     def setUp(self):
-        self._orig_file = ServerConfig._config_file
-        self._orig_instance = ServerConfig._instance
-        ServerConfig._config_file = Path('run') / 'server' / 'test_server_config_setup.json'
-        ServerConfig._instance = None
-        if ServerConfig._config_file.exists():
-            ServerConfig._config_file.unlink()
+        from config import config as server_config
+        self._server_config = server_config
+        self._orig_config_file = server_config._config_file
+        self._orig_config_data = dict(server_config._config)
+        server_config._config_file = Path('run') / 'server' / 'test_server_config_setup.json'
+        if server_config._config_file.exists():
+            server_config._config_file.unlink()
+        server_config._load_config()
 
     def tearDown(self):
-        if ServerConfig._config_file.exists():
-            ServerConfig._config_file.unlink()
-        ServerConfig._config_file = self._orig_file
-        ServerConfig._instance = self._orig_instance
+        if self._server_config._config_file.exists():
+            self._server_config._config_file.unlink()
+        self._server_config._config_file = self._orig_config_file
+        self._server_config._config = self._orig_config_data
 
     def test_edit_by_number(self):
         import setup.server_setup as s

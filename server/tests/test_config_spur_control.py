@@ -8,7 +8,47 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from config import SETTINGS_METADATA, ServerConfig, resolve_key
+from config import SETTINGS_METADATA, ServerConfig, resolve_key, setting_label
+
+
+class TestSettingLabels(unittest.TestCase):
+    """Human-readable display labels (Ryan: "instead of 'victory_item'
+    display 'Victory Item'") -- SETTINGS_METADATA[key].label / the
+    setting_label() fallback helper."""
+
+    def test_every_metadata_entry_has_a_label(self):
+        for key, info in SETTINGS_METADATA.items():
+            self.assertTrue(info.label, f'{key} has no label')
+
+    def test_specific_labels_match_the_requested_wording(self):
+        self.assertEqual(SETTINGS_METADATA['victory_item_number'].label, 'Victory Item')
+        self.assertEqual(SETTINGS_METADATA['game_name'].label, 'Game Name')
+        self.assertEqual(SETTINGS_METADATA['ansi_port'].label, 'ANSI Port')
+        self.assertEqual(SETTINGS_METADATA['petscii_port'].label, 'PETSCII Port')
+
+    def test_setting_label_helper_matches_metadata(self):
+        for key, info in SETTINGS_METADATA.items():
+            self.assertEqual(setting_label(key), info.label)
+
+    def test_setting_label_falls_back_for_unknown_key(self):
+        self.assertEqual(setting_label('some_made_up_key'), 'Some Made Up Key')
+
+
+class TestConfigFileIsAbsolute(unittest.TestCase):
+    """Regression test: _config_file used to be a bare relative
+    Path('server_config.json'), so it wrote wherever the *process's* cwd
+    happened to be -- for setup/server_setup.py (runnable from server/,
+    the repo root, or anywhere else) that meant a stray server_config.json
+    could land outside server/ entirely. Found live via a test launched
+    with cwd=repo root."""
+
+    def test_default_config_file_is_absolute_and_in_server_dir(self):
+        self.assertTrue(ServerConfig._config_file.is_absolute())
+        self.assertEqual(ServerConfig._config_file.name, 'server_config.json')
+        self.assertEqual(
+            ServerConfig._config_file.parent,
+            Path(__file__).resolve().parent.parent,
+        )
 
 
 class TestResolveKey(unittest.TestCase):

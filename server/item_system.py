@@ -28,6 +28,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 from typing import Optional
 
 
@@ -212,6 +213,71 @@ def load_items(path: str) -> list[Item]:
     except FileNotFoundError:
         logging.error("load_items: file not found: '%s'", path)
         return []
+
+
+# objects.json Treasure names too generic to pin a victory condition to
+# (SPUR.CONTROL.S's chk.obj: "if instr(i$,og$) print 'The item can not be
+# '+i$" for i$ in JEWEL/DIAMOND/GOLD/SILVER/COIN -- rejects an exact name
+# match against each of these bare words, not merely containing them, so
+# "gold crown"/"large ruby" are still fine picks).
+_VICTORY_ITEM_FORBIDDEN_NAMES = {'JEWEL', 'DIAMOND', 'GOLD', 'SILVER', 'COIN'}
+
+
+def victory_eligible_treasures(path: str = None) -> list['Item']:
+    """Treasure-type objects.json items eligible to be config.py's
+    victory_item_number (SPUR.CONTROL.S's object label) -- every Treasure
+    except the handful of names chk.obj rejected as too generic.
+    """
+    if path is None:
+        path = str(Path(__file__).parent / 'objects.json')
+    items = load_items(path)
+    return [
+        it for it in items
+        if it.type == ItemType.TREASURE
+        and it.name.strip().upper() not in _VICTORY_ITEM_FORBIDDEN_NAMES
+    ]
+
+
+def format_victory_item_choices(items: Optional[list] = None) -> list[str]:
+    """Numbered '<number>. <name>' lines for every victory-eligible
+    treasure, for a '?' listing prompt. Pass an already-loaded list to
+    avoid re-reading objects.json when displaying this more than once."""
+    if items is None:
+        items = victory_eligible_treasures()
+    return [f'  {it.number:>3}. {it.name}' for it in items]
+
+
+def is_victory_item_number_valid(number: int, items: Optional[list] = None) -> bool:
+    """True if *number* is 0 (none set) or a victory-eligible treasure's
+    item number."""
+    if number == 0:
+        return True
+    if items is None:
+        items = victory_eligible_treasures()
+    return any(it.number == number for it in items)
+
+
+def treasure_name_by_number(number: int, items: Optional[list] = None) -> Optional[str]:
+    """Title Case name of the victory-eligible treasure numbered
+    *number*, or None if 0 or not found."""
+    if number == 0:
+        return None
+    if items is None:
+        items = victory_eligible_treasures()
+    match = next((it for it in items if it.number == number), None)
+    return match.name.title() if match else None
+
+
+def format_victory_item_value(number: int, victory_type: str) -> str:
+    """Display string for config.py's victory_item_number setting: just
+    the bare number normally, but "(N) Item Name" once victory_type is
+    'item' or 'both' -- Ryan: '(35) Sand Dollar' instead of a bare 35,
+    since a raw objects.json number means nothing to a sysop on sight.
+    """
+    if victory_type not in ('item', 'both') or number == 0:
+        return str(number)
+    name = treasure_name_by_number(number)
+    return f'({number}) {name}' if name else f'({number}) unknown item'
 
 
 def weapon_sfx(weapon: Weapon) -> tuple[str, str]:

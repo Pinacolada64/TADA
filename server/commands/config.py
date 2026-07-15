@@ -1,4 +1,4 @@
-"""commands/config.py — Admin-only server configuration viewer/editor.
+"""commands/config.py — Admin/Dungeon Master server configuration viewer/editor.
 
 Wraps config.py's ServerConfig (server_config.json) -- see that module for
 the full rationale behind each setting (SETTINGS_METADATA), including
@@ -23,41 +23,96 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from config import SETTINGS_METADATA, config as server_config, format_value, parse_value, resolve_key
 from flags import PlayerFlags
+from item_system import (
+    format_victory_item_choices, format_victory_item_value,
+    is_victory_item_number_valid, victory_eligible_treasures,
+)
 from menu_system import Menu, MenuItem, run_menu
 from network_context import GameContext
 
+_VICTORY_ITEM_KEY = 'victory_item_number'
 
-async def _prompt_new_value(ctx, key: str, desc: str) -> None:
+
+def _display_value(key: str, value) -> str:
+    """format_value(), except victory_item_number also shows the
+    treasure's name once victory_type is 'item'/'both' -- Ryan: '(35)
+    Sand Dollar' instead of a bare 35, which means nothing on sight."""
+    if key == _VICTORY_ITEM_KEY:
+        return format_victory_item_value(value, server_config.victory_type)
+    return format_value(value)
+
+
+def _is_privileged(player) -> bool:
+    """Admin OR Dungeon Master -- same definition commands/whereat.py's
+    _is_privileged() uses. (ban.py/reload.py/teleport.py check ADMIN
+    only, since those are direct server-control actions; CONFIG is
+    read/write like those, but Ryan expects DM to work here too.)"""
+    return (player.query_flag(PlayerFlags.ADMIN)
+            or player.query_flag(PlayerFlags.DUNGEON_MASTER))
+
+
+def _validate_victory_item(value: int) -> None:
+    """Raise ValueError (same convention as config.parse_value()) if
+    *value* isn't 0 or a real, victory-eligible Treasure item number."""
+    if not is_victory_item_number_valid(value):
+        raise ValueError(
+            f"{value} isn't a valid Treasure item number (or too generic a "
+            "name -- SPUR.CONTROL.S's chk.obj rule). Type '?' to list eligible items."
+        )
+
+
+async def _prompt_new_value(ctx, key: str, label: str, desc: str) -> None:
     """Prompt for a new value for *key*, validate/apply it, and report
-    back. Shared by every menu item's action callback."""
-    current = format_value(server_config.get(key))
-    raw = await ctx.prompt(
-        f'New value for {key}',
-        preamble_lines=['', desc, f'Current: {current}  —  blank to cancel'],
-    )
-    if raw is None or not raw.strip():
+    back. Shared by every menu item's action callback.
+
+    victory_item_number gets a special '?' listing of eligible Treasure
+    items (item_system.victory_eligible_treasures()) -- picking a random
+    item number by hand isn't practical with 100+ Treasure items in
+    objects.json.
+    """
+    while True:
+        current = _display_value(key, server_config.get(key))
+        hint = " Type '?' to list eligible items." if key == _VICTORY_ITEM_KEY else ''
+        raw = await ctx.prompt(
+            f'New value for {label}',
+            preamble_lines=['', desc, f'Current: {current}  —  blank to cancel{hint}'],
+        )
+        if raw is None or not raw.strip():
+            return
+        raw = raw.strip()
+
+        if key == _VICTORY_ITEM_KEY and raw == '?':
+            items = victory_eligible_treasures()
+            await ctx.send(
+                '', 'Treasure items eligible for Victory Item:', '',
+                *format_victory_item_choices(items), '',
+            )
+            continue
+
+        try:
+            value = parse_value(key, raw)
+            if key == _VICTORY_ITEM_KEY:
+                _validate_victory_item(value)
+            server_config.set_validated(key, value)
+        except ValueError as exc:
+            await ctx.send(str(exc))
+            return
+        await ctx.send(f'{label} set to {_display_value(key, server_config.get(key))}.')
         return
-    try:
-        value = parse_value(key, raw.strip())
-        server_config.set_validated(key, value)
-    except ValueError as exc:
-        await ctx.send(str(exc))
-        return
-    await ctx.send(f'{key} set to {format_value(server_config.get(key))}.')
 
 
 def _build_config_menu() -> Menu:
     menu = Menu(title='Server Configuration')
-    for key, (_type, desc) in SETTINGS_METADATA.items():
+    for key, info in SETTINGS_METADATA.items():
 
-        def make_action(k=key, d=desc):
+        def make_action(k=key, lbl=info.label, d=info.description):
             async def action(ctx):
-                await _prompt_new_value(ctx, k, d)
+                await _prompt_new_value(ctx, k, lbl, d)
             return action
 
         menu.add_item(MenuItem(
-            key,
-            dot_leader_handler=lambda ctx, k=key: format_value(server_config.get(k)),
+            info.label,
+            dot_leader_handler=lambda ctx, k=key: _display_value(k, server_config.get(k)),
             action=make_action(),
         ))
     return menu
@@ -69,7 +124,7 @@ class ConfigCommand(Command):
     modes   = {Mode.GAME}
 
     help = Help(
-        summary  = 'View or change server-wide configuration. Admin only.',
+        summary  = 'View or change server-wide configuration. Admin/Dungeon Master only.',
         category = HelpCategory.ADMINISTRATIVE,
         usage    = [
             ('config',              'Open a menu of every setting and its current value.'),
@@ -96,7 +151,7 @@ class ConfigCommand(Command):
             'setup/server_setup.py.'
         ),
         notes = [
-            'Admin only.',
+            'Admin or Dungeon Master only.',
             "<key> can be a unique prefix of the full setting name (e.g. "
             "'victory_g' for victory_gold_amount) -- an ambiguous prefix "
             "(matching more than one setting) lists the candidates instead "
@@ -111,7 +166,7 @@ class ConfigCommand(Command):
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
-        if not ctx.player.query_flag(PlayerFlags.ADMIN):
+        if not _is_privileged(ctx.player):
             await ctx.send('You lack the authority to do that.')
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
@@ -140,19 +195,30 @@ class ConfigCommand(Command):
         return await self._set_one(ctx, key, raw_value)
 
     async def _show_one(self, ctx: GameContext, key: str) -> CommandResult:
-        _type, desc = SETTINGS_METADATA[key]
-        value = format_value(server_config.get(key))
-        await ctx.send('', f'|yellow|{key}|reset| = {value}', desc, '')
+        info = SETTINGS_METADATA[key]
+        value = _display_value(key, server_config.get(key))
+        await ctx.send('', f'|yellow|{info.label}|reset| ({key}) = {value}', info.description, '')
         return CommandResult.ok(f'Showed {key}.')
 
     async def _set_one(self, ctx: GameContext, key: str, raw_value: str) -> CommandResult:
+        label = SETTINGS_METADATA[key].label
+        if key == _VICTORY_ITEM_KEY and raw_value.strip() == '?':
+            items = victory_eligible_treasures()
+            await ctx.send(
+                '', 'Treasure items eligible for Victory Item:', '',
+                *format_victory_item_choices(items), '',
+            )
+            return CommandResult.ok('Listed eligible treasures.')
+
         try:
             value = parse_value(key, raw_value)
+            if key == _VICTORY_ITEM_KEY:
+                _validate_victory_item(value)
             server_config.set_validated(key, value)
         except ValueError as exc:
             await ctx.send(str(exc))
             return CommandResult.fail(str(exc), error='invalid_value')
 
-        new_value = format_value(server_config.get(key))
-        await ctx.send(f'{key} set to {new_value}.')
+        new_value = _display_value(key, server_config.get(key))
+        await ctx.send(f'{label} set to {new_value}.')
         return CommandResult.ok(f'{key} set to {new_value}.')

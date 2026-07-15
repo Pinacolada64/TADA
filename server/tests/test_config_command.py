@@ -8,14 +8,16 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 from commands.config import ConfigCommand
-from config import ServerConfig
 from flags import PlayerFlags
 
 
-def make_ctx(*, is_admin=True, prompt_responses=None):
+def make_ctx(*, is_admin=True, is_dm=False, prompt_responses=None):
     player = MagicMock()
     player.name = 'Admin'
-    player.query_flag = MagicMock(side_effect=lambda f: f == PlayerFlags.ADMIN and is_admin)
+    player.query_flag = MagicMock(side_effect=lambda f: (
+        (f == PlayerFlags.ADMIN and is_admin)
+        or (f == PlayerFlags.DUNGEON_MASTER and is_dm)
+    ))
     player.client_settings = MagicMock(screen_columns=80, border_style='single', return_key='Enter')
 
     ctx = MagicMock()
@@ -43,14 +45,24 @@ def _sent_text(ctx) -> str:
 
 
 class TestConfigCommandPermissions(unittest.IsolatedAsyncioTestCase):
-    async def test_non_admin_is_rejected(self):
-        ctx = make_ctx(is_admin=False)
+    async def test_non_admin_non_dm_is_rejected(self):
+        ctx = make_ctx(is_admin=False, is_dm=False)
         result = await ConfigCommand().execute(ctx)
         self.assertFalse(result.success)
         self.assertIn('authority', _sent_text(ctx))
 
     async def test_admin_can_list(self):
         ctx = make_ctx(is_admin=True)
+        result = await ConfigCommand().execute(ctx)
+        self.assertTrue(result.success)
+
+    async def test_dungeon_master_can_list(self):
+        """Ryan: "when running config from within the game, it says I
+        don't have permission, even though I set administrator/dungeon
+        master flags" -- CONFIG used to check PlayerFlags.ADMIN only
+        (matching ban.py/reload.py/teleport.py), not Dungeon Master too
+        (matching commands/whereat.py's broader _is_privileged())."""
+        ctx = make_ctx(is_admin=False, is_dm=True)
         result = await ConfigCommand().execute(ctx)
         self.assertTrue(result.success)
 
@@ -61,50 +73,68 @@ class TestConfigCommandPermissions(unittest.IsolatedAsyncioTestCase):
         await ConfigCommand().execute(ctx)
         text = _sent_text(ctx)
         self.assertIn('Server Configuration', text)
-        self.assertIn('game_name', text)
+        # Human-readable labels (config.SETTINGS_METADATA[key].label), not
+        # raw snake_case keys -- Ryan: "instead of 'victory_item' display
+        # 'Victory Item'".
+        self.assertIn('Game Name', text)
 
     async def test_menu_item_edits_a_setting(self):
-        from config import ServerConfig
-        orig_file = ServerConfig._config_file
-        orig_instance = ServerConfig._instance
-        ServerConfig._config_file = Path('run') / 'server' / 'test_server_config_menu.json'
-        ServerConfig._instance = None
-        if ServerConfig._config_file.exists():
-            ServerConfig._config_file.unlink()
+        # See TestConfigCommandIO's docstring: must isolate the actual
+        # pre-bound `config` singleton object in place, not just reset
+        # ServerConfig._instance/_config_file (which doesn't affect an
+        # already-imported reference to the old instance).
+        from config import config as server_config
+        orig_config_file = server_config._config_file
+        orig_config_data = dict(server_config._config)
+        server_config._config_file = Path('run') / 'server' / 'test_server_config_menu.json'
+        if server_config._config_file.exists():
+            server_config._config_file.unlink()
+        server_config._load_config()
         try:
-            from config import config as server_config
             # SETTINGS_METADATA's first entry is 'game_name' -> menu choice "1".
             ctx = make_ctx(is_admin=True, prompt_responses=['1', "Ryan's Dungeon", None])
             await ConfigCommand().execute(ctx)
             self.assertEqual(server_config.game_name, "Ryan's Dungeon")
         finally:
-            if ServerConfig._config_file.exists():
-                ServerConfig._config_file.unlink()
-            ServerConfig._config_file = orig_file
-            ServerConfig._instance = orig_instance
+            if server_config._config_file.exists():
+                server_config._config_file.unlink()
+            server_config._config_file = orig_config_file
+            server_config._config = orig_config_data
 
 
 class TestConfigCommandIO(unittest.IsolatedAsyncioTestCase):
+    """commands/config.py imports the process-wide `config` singleton by
+    reference (`from config import config as server_config`), not a fresh
+    ServerConfig() per call -- resetting ServerConfig._instance/
+    _config_file (as other config test files do) only affects *future*
+    ServerConfig() constructor calls, not that already-bound object, so it
+    silently doesn't isolate anything here. Found live: a stray
+    'item'/'both' leaked from an unrelated test into this file's runs.
+    Isolating the actual shared singleton instance in place instead.
+    """
     def setUp(self):
-        self._orig_file = ServerConfig._config_file
-        self._orig_instance = ServerConfig._instance
-        ServerConfig._config_file = Path('run') / 'server' / 'test_server_config_cmd.json'
-        ServerConfig._instance = None
-        if ServerConfig._config_file.exists():
-            ServerConfig._config_file.unlink()
+        from config import config as server_config
+        self._server_config = server_config
+        self._orig_config_file = server_config._config_file
+        self._orig_config_data = dict(server_config._config)
+        server_config._config_file = Path('run') / 'server' / 'test_server_config_cmd.json'
+        if server_config._config_file.exists():
+            server_config._config_file.unlink()
+        server_config._load_config()
 
     def tearDown(self):
-        if ServerConfig._config_file.exists():
-            ServerConfig._config_file.unlink()
-        ServerConfig._config_file = self._orig_file
-        ServerConfig._instance = self._orig_instance
+        if self._server_config._config_file.exists():
+            self._server_config._config_file.unlink()
+        self._server_config._config_file = self._orig_config_file
+        self._server_config._config = self._orig_config_data
 
     async def test_list_shows_known_settings(self):
+        from config import SETTINGS_METADATA
         ctx = make_ctx()
         await ConfigCommand().execute(ctx)
         text = _sent_text(ctx)
         for key in ('game_name', 'session_time_limit_minutes', 'victory_type', 'dwarf_silver'):
-            self.assertIn(key, text)
+            self.assertIn(SETTINGS_METADATA[key].label, text)
 
     async def test_show_one_includes_description(self):
         ctx = make_ctx()
