@@ -18,6 +18,20 @@ from dataclasses import dataclass, asdict, field
 
 
 @dataclass
+class TipsSettings:
+    """commands/tips.py preferences -- see tips.py's next_tip().
+
+    enabled: whether a tip is shown automatically at login
+    (commands/connect.py's _login_tip_lines()); 'tips #on'/'tips #off'
+    toggle this. tip_number: 1-based index of the last tip shown,
+    persisted so 'tips' (bare) and the login display both advance the
+    same cursor instead of repeating.
+    """
+    enabled: bool = True
+    tip_number: int = 0
+
+
+@dataclass
 class CommandSettings:
     """Player-controlled command preferences."""
     whereat_hidden: bool = False
@@ -33,6 +47,8 @@ class CommandSettings:
     # 'page #unignore <name>'); stored with original casing, compared
     # case-insensitively.
     ignored_pagers: list = field(default_factory=list)
+    # Tip-of-the-day cycling/display preference (commands/tips.py, tips.py)
+    tips: TipsSettings = field(default_factory=TipsSettings)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -40,4 +56,11 @@ class CommandSettings:
     @classmethod
     def from_dict(cls, data: dict) -> 'CommandSettings':
         known = {k: v for k, v in data.items() if k in cls.__dataclass_fields__}
-        return cls(**known)
+        tips_data = known.pop('tips', None)
+        instance = cls(**known)
+        if isinstance(tips_data, dict):
+            instance.tips = TipsSettings(**{
+                k: v for k, v in tips_data.items()
+                if k in TipsSettings.__dataclass_fields__
+            })
+        return instance

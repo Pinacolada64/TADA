@@ -107,6 +107,31 @@ def _login_news_lines(player) -> list[str]:
     return lines
 
 
+def _login_tip_lines(ctx) -> list[str]:
+    """Build the login-time tip display, honoring the player's
+    command_settings.tips.enabled preference ('tips #on'/'tips #off').
+
+    Reuses tips.py's next_tip()/format_tip_box() directly (same
+    convention as _login_news_lines() above) -- this advances the same
+    command_settings.tips.tip_number cursor commands/tips.py's bare
+    'tips' command does, so the login tip and a manually-typed 'tips'
+    right after don't repeat. Takes ctx (not just player) since the box
+    border style/codec are terminal-aware (client_settings).
+    """
+    import tips as tips_store
+
+    player = ctx.player
+    if not getattr(player.command_settings, 'tips', None) or not player.command_settings.tips.enabled:
+        return []
+
+    all_tips = tips_store.load_tips()
+    tip = tips_store.next_tip(player)
+    if tip is None:
+        return []
+    box = tips_store.format_tip_box(ctx, tip, player.command_settings.tips.tip_number, len(all_tips))
+    return [''] + box
+
+
 def _load_credentials(username: str) -> dict | None:
     """Return the credential dict for *username*, or None if not found."""
     path = user_dir() / f"login-{username}.json"
@@ -347,6 +372,12 @@ class ConnectCommand(Command):
         news_lines = _login_news_lines(player)
         if news_lines:
             login_lines += news_lines
+
+        # Tip of the day -- see commands/tips.py and tips.py.
+        tip_lines = _login_tip_lines(ctx)
+        if tip_lines:
+            login_lines += tip_lines
+
         player.last_connection = datetime.datetime.now()
         player.unsaved_changes = True
 
