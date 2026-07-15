@@ -437,6 +437,52 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 
 ---
 
+## Win/escape detection (`server/victory.py`)
+
+- ✅ **Ported from `SPUR.MISC7.S`'s `win`/`win2`/`win5`/`nowin` labels.**
+  Trigger: `SPUR.MISC.S:454`'s `travel3`/`no.shop` block intercepts an
+  attempt to go "Up" (`di=5`) while on level 6 (`cl=6`), linking to the
+  win check instead of a normal level transition. In this port that's
+  room 117, "Shimmering Portal" (level 6, "A Brave New World") — the
+  *only* room in the entire map data with `exits.rc==1` ("Ladder Up"),
+  confirmed by scanning every level. `commands/movement.py` special
+  -cases `direction=='u' and rc==1 and player_level==6` ahead of the
+  generic rc/rt same-level-staircase fallthrough (which would otherwise
+  just walk the player to room 117's `rt=1`, i.e. room 1, and do nothing).
+  Old assumption from `SPUR.HELP.TXT`'s flavor text ("escape from level
+  #1") was checked against `SPUR.CONTROL.S:578` and the actual room
+  data and found wrong — room 1 is hardcoded to `rc=2` ("Ladder Down")
+  in both the original source and this port.
+- ✅ **Three gates**, checked in SPUR's order (`evaluate_victory()`):
+  1. King of the Wraiths must be dead
+     (`PlayerFlags.WRAITH_KING_ALIVE` false) — applies unconditionally,
+     regardless of `victory_type`. Defaults `True` for every new player
+     and nothing in this port currently clears it automatically (only
+     manual admin/EditPlayer toggling) — the Wraith King boss encounter
+     itself isn't implemented, so this gate is a hard blocker today.
+  2. Objective item carried, only when `config.victory_type` is `item`
+     or `both` — checks `player.inventory` for `config.victory_item_number`.
+  3. Silver in hand, only when `victory_type` is `gold` or `both` —
+     checks against `config.victory_gold_amount`. SPUR's actual gate here
+     was a "riches of Tut" flag (`zu$` position 9), never wired up in
+     this port (`player.tuts_treasure_looted` / `flags.py`'s
+     `TutTreasure` dataclass are both dead code) — `config.py` deliberately
+     generalized this into a plain silver threshold instead, predating
+     `victory.py`.
+- ✅ **On success** (`declare_victory()`): records the win
+  (`winners.py`'s `record_win()` → `run/server/winners.json`), appends a
+  `battle.log` entry, and posts a permanent news item ("A Winner!") —
+  see "Merchant's Annex" below for the not-yet-built winners-list display.
+  On failure: prints SPUR's own in-fiction refusal line and blocks the
+  move (player stays put).
+- Live-playtested against the running server (`tests/test_victory.py`
+  covers all four gate combinations + the movement hook interception).
+- **Not done**: no help topic documents this (see `TODO_HELP.md`); the
+  Wraith King boss fight that would actually clear gate 1 in the normal
+  course of play doesn't exist yet.
+
+---
+
 ## Character Progression
 
 ### Implemented
@@ -686,6 +732,12 @@ Locker belongs to the Shoppe (`shoppe/locker.py`), not here.
   file (`vv`/`yz` are the duelists' guild numbers, `zz`/`yw` the running
   win/loss counts, position-addressed by guild slot 1/2/3)
 - **Personal records** — player's own stats history
+- **Winners list ("Conqueror's list")** — SPUR.MISC7.S's `win5` label
+  writes each victor to a `spur.winners` file after escaping via the
+  level-6 "Ladder Up" (see "Win/escape detection" below); the persistence
+  half exists (`winners.py`'s `record_win()`/`load_winners()`, backing
+  `run/server/winners.json`) but nothing in the Annex displays it yet --
+  a natural fit for this stub, listing name/class/race/level/date per winner.
 - **System data view** — server-level statistics (total players, kills, etc.)
 - **Message boards (×3)** — three separate threaded boards (ties into Threaded Message Boards design)
 - **Player rosters** — separate lists for Civilians, Mark of the Claw, Mark of the Sword, Iron Fist, and Outlaws
