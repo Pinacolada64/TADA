@@ -81,6 +81,7 @@ def _make_ctx(room_no=2, player=None, game_map=None):
     ctx.player.map_level = 1
     ctx.server.game_map = game_map or _make_map()
     ctx.send = AsyncMock()
+    ctx.send_room = AsyncMock()
     return ctx
 
 
@@ -189,6 +190,11 @@ class TestTrySteal(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(player.get_silver('IN_HAND'), 0)
             self.assertEqual(config.dwarf_silver, starting_hoard + 500)
             config.dwarf_silver = starting_hoard
+            ctx.send_room.assert_awaited_once()
+            room_args, room_kwargs = ctx.send_room.await_args
+            self.assertIn('Testerson', room_args[0])
+            self.assertNotIn('your', room_args[0])   # bystander view, third person
+            self.assertTrue(room_kwargs.get('exclude_self'))
 
     async def test_steals_item_when_no_silver(self):
         import tempfile

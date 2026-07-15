@@ -271,20 +271,38 @@ async def try_steal(ctx: 'GameContext') -> None:
     if not player.query_flag(PlayerFlags.DWARF_ALIVE):
         return
 
+    from tada_utilities import PronounType, get_pronoun
+    name      = getattr(player, 'name', 'Someone')
+    possessive = get_pronoun(player, PronounType.POSSESSIVE_ADJECTIVE)
+    objective  = get_pronoun(player, PronounType.OBJECTIVE)
+
     if player.query_flag(PlayerFlags.MOUNTED):
         if random.randint(1, 100) <= _EVASION_CHANCE_PCT:
             await ctx.send('The DWARF struggles to reach up towards you!')
+            await ctx.send_room(
+                f'The DWARF struggles to reach up towards {name}!',
+                exclude_self=True,
+            )
             return
     else:
         from base_classes import PlayerRace
         if getattr(player, 'char_race', None) == PlayerRace.PIXIE:
             if random.randint(1, 100) <= _EVASION_CHANCE_PCT:
                 await ctx.send('The DWARF swats at you angrily as you fly by!')
+                await ctx.send_room(
+                    f'The DWARF swats angrily at {name} as {objective} flies by!',
+                    exclude_self=True,
+                )
                 return
 
     if _carries_silver(player) > 0:
         _take_all_silver(player)
         await ctx.send('The DWARF runs into the room, knocks you down and steals your silver!')
+        await ctx.send_room(
+            f'The DWARF runs into the room, knocks {name} down and steals '
+            f'{possessive} silver!',
+            exclude_self=True,
+        )
         return
 
     item_name = _steal_item(player)
@@ -294,10 +312,19 @@ async def try_steal(ctx: 'GameContext') -> None:
         # Ryan's addition: a successful roll should still be visible even
         # when he comes up empty-handed, rather than vanishing silently.
         await ctx.send('A short bearded person eyes you, grumbles, and wanders off empty-handed.')
+        await ctx.send_room(
+            f'A short bearded person eyes {name}, grumbles, and wanders off empty-handed.',
+            exclude_self=True,
+        )
         return
     await ctx.send(
         'The dwarf, seeing you are not carrying any silver, '
         f'steals your {item_name}!'
+    )
+    await ctx.send_room(
+        f'The dwarf, seeing {name} is not carrying any silver, '
+        f'steals {possessive} {item_name}!',
+        exclude_self=True,
     )
 
 
