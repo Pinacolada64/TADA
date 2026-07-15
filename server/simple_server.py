@@ -932,6 +932,8 @@ class Server:
         from encounters.dwarf import maybe_relocate, try_steal
         maybe_relocate(ctx)
         await try_steal(ctx)
+        from encounters.little_girl import try_encounter as try_little_girl
+        await try_little_girl(ctx)
 
     def _leave_combat_on_move(self, ctx: GameContext, room_no) -> None:
         """Drop *ctx* from an active fight's attacker list when they move
@@ -1007,6 +1009,8 @@ class Server:
         from encounters.dwarf import maybe_relocate, try_steal
         maybe_relocate(ctx)
         await try_steal(ctx)
+        from encounters.little_girl import try_encounter as try_little_girl
+        await try_little_girl(ctx)
 
     # -----------------------------------------------------------------------
     # Broadcast
