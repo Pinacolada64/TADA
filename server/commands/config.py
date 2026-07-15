@@ -159,9 +159,9 @@ class ConfigCommand(Command):
             'port/host changes only take effect on the next server restart.',
             'session_time_limit_minutes is stored but not yet enforced -- '
             'nothing currently disconnects a player at the limit.',
-            'victory_type/victory_gold_amount/victory_item_number are '
-            'stored but not yet acted on -- no win/escape detection exists '
-            'in this port yet.',
+            'victory_type/victory_gold_amount/victory_item_number gate the '
+            'win check at the level-6 "Ladder Up" room (victory.py) -- see '
+            'that module for the exact escape conditions.',
         ],
     )
 

@@ -182,6 +182,20 @@ class MoveCommand(Command):
             # also consults rc/rt when resolving the destination.
             rc = int(exits.get('rc', 0) or 0)
             rt = int(exits.get('rt', 0) or 0)
+
+            # Win/escape check (SPUR.MISC.S:454 "travel3"/"no.shop": going
+            # Up while on level 6 links to spur.misc7's win check instead
+            # of a normal level transition). Checked before the rc==1
+            # fallthrough below, which would otherwise just walk the
+            # player to room rt on the same level.
+            if direction == 'u' and rc == 1 and player_level == 6:
+                from victory import declare_victory, evaluate_victory
+                result = evaluate_victory(ctx.player)
+                await ctx.send(*result.lines)
+                if result.won:
+                    await ctx.send(*declare_victory(ctx.player))
+                return CommandResult.ok()
+
             if (direction == 'u' and rc == 1) or (direction == 'd' and rc == 2):
                 if not rt:
                     await _enter_shoppe(ctx)
