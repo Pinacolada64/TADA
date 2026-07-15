@@ -146,6 +146,9 @@ async def try_encounter(ctx: 'GameContext') -> None:
         lines.append('\'Now, how did SHE get here?\' you wonder to yourself..')
     await ctx.send(lines)
 
+    name = getattr(player, 'name', 'Someone')
+    await ctx.send_room(f'A little girl approaches {name}.', exclude_self=True)
+
     while True:
         raw = await ctx.prompt('G)ive, I)gnore, A)ttack')
         choice = (raw or '').strip().upper()[:1]
@@ -166,6 +169,9 @@ async def _reveal_and_attack(ctx: 'GameContext') -> None:
         'Suddenly, the girl seems to get bigger!!!!!!!!!!',
         '\'NOW YOU DIE!!\'',
     ])
+    name = getattr(ctx.player, 'name', 'Someone')
+    await ctx.send_room(f'The little girl suddenly grows monstrous before {name}!', exclude_self=True)
+
     from monsters import get_monster
     monsters = getattr(ctx.server, 'monsters', []) or []
     monster  = get_monster(monsters, MONSTER_NUMBER)
@@ -196,6 +202,9 @@ async def _handle_ignore(ctx: 'GameContext') -> None:
         return
 
     await ctx.send('The poor little girl runs away crying..')
+    name = getattr(player, 'name', 'Someone')
+    await ctx.send_room(f'The little girl runs away crying after {name} ignores her.', exclude_self=True)
+
     stats = getattr(player, 'stats', None) or {}
     pi = int(stats.get('Intelligence', 10))
     pw = int(stats.get('Wisdom', 10))
@@ -253,6 +262,10 @@ async def _handle_give(ctx: 'GameContext') -> None:
     inventory.remove(entry.item)
     player.unsaved_changes = True
     await ctx.send('The little girl takes it.. \'OH THANK YOU!!\'')
+    from tada_utilities import PronounType, get_pronoun
+    name = getattr(player, 'name', 'Someone')
+    objective = get_pronoun(player, PronounType.OBJECTIVE)
+    await ctx.send_room(f'The little girl takes something from {name} and thanks {objective} warmly.', exclude_self=True)
 
     stats = getattr(player, 'stats', None) or {}
     hp = int(getattr(player, 'hit_points', 1) or 1)

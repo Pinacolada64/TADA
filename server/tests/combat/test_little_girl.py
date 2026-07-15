@@ -77,6 +77,7 @@ def _make_ctx(room_no=1, player=None, game_map=None, prompt_returns=None, map_le
         {'number': 106, 'name': 'EVILYNN', 'strength': 18},
     ]
     ctx.send = AsyncMock()
+    ctx.send_room = AsyncMock()
     ctx.prompt = AsyncMock(side_effect=prompt_returns or [])
     return ctx
 
@@ -262,6 +263,55 @@ class TestGiveChoice(unittest.IsolatedAsyncioTestCase):
             await try_encounter(ctx)
         sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
         self.assertIn('The girl peers in your sack hopefully..', sent)
+
+
+class TestBystanderBroadcast(unittest.IsolatedAsyncioTestCase):
+    def _room_text(self, ctx):
+        return ' '.join(
+            str(a) for call in ctx.send_room.await_args_list for a in call.args
+        )
+
+    async def test_arrival_broadcasts_to_room(self):
+        from encounters.little_girl import try_encounter
+        player = _make_player()
+        player.name = 'Killerella'
+        ctx = _make_ctx(player=player, prompt_returns=['I'])
+        with patch('random.uniform', return_value=0.0), \
+             patch('random.randint', return_value=1):
+            await try_encounter(ctx)
+        self.assertIn('A little girl approaches Killerella.', self._room_text(ctx))
+        for call in ctx.send_room.await_args_list:
+            self.assertTrue(call.kwargs.get('exclude_self'))
+
+    async def test_give_broadcasts_to_room(self):
+        from encounters.little_girl import try_encounter
+        item = _FakeItem(50, 'a rusty key')
+        player = _make_player(items=[item])
+        player.name = 'Killerella'
+        ctx = _make_ctx(player=player, prompt_returns=['G', '1'])
+        with patch('random.uniform', return_value=0.0):
+            await try_encounter(ctx)
+        self.assertIn('takes something from Killerella', self._room_text(ctx))
+
+    async def test_ignore_sad_broadcasts_to_room(self):
+        from encounters.little_girl import try_encounter
+        player = _make_player()
+        player.name = 'Killerella'
+        ctx = _make_ctx(player=player, prompt_returns=['I'])
+        with patch('random.uniform', return_value=0.0), \
+             patch('random.randint', return_value=1):
+            await try_encounter(ctx)
+        self.assertIn('Killerella ignores her', self._room_text(ctx))
+
+    async def test_attack_reveal_broadcasts_to_room(self):
+        from encounters.little_girl import try_encounter
+        player = _make_player()
+        player.name = 'Killerella'
+        ctx = _make_ctx(player=player, prompt_returns=['A'])
+        with patch('random.uniform', return_value=0.0), \
+             patch('combat.enter_combat', new=AsyncMock()):
+            await try_encounter(ctx)
+        self.assertIn('grows monstrous before Killerella', self._room_text(ctx))
 
 
 class TestLoadHints(unittest.TestCase):
