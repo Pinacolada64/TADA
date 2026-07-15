@@ -22,7 +22,7 @@ import pytest
 
 from base_classes import Map
 
-_LEVEL_DIR = Path(__file__).parent.parent
+_LEVEL_DIR = Path(__file__).parent.parent.parent
 
 
 @pytest.fixture(scope='module')

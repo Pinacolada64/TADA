@@ -10,7 +10,7 @@ from io import StringIO
 cd /home/ryan/Documents/c64/Windsurf/TADA/server && python3 -m unittest tests.test_message_handlers -v
 """
 # Add the parent directory to Python path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from message_handlers import (
     MessageRouter,

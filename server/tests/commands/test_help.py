@@ -17,11 +17,11 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock
 
 # ---------------------------------------------------------------------------
-# 1. Fix sys.path FIRST so 'commands/' is findable from tests/
-#    __file__ is  .../server/tests/test_help.py
+# 1. Fix sys.path FIRST so 'commands/' is findable from tests/commands/
+#    __file__ is  .../server/tests/commands/test_help.py
 #    ROOT  is  .../server/
 # ---------------------------------------------------------------------------
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 

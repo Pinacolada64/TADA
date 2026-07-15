@@ -47,7 +47,7 @@ class TestConfigFileIsAbsolute(unittest.TestCase):
         self.assertEqual(ServerConfig._config_file.name, 'server_config.json')
         self.assertEqual(
             ServerConfig._config_file.parent,
-            Path(__file__).resolve().parent.parent,
+            Path(__file__).resolve().parent.parent.parent,
         )
 
 

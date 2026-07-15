@@ -25,7 +25,7 @@ def _ctx(messages):
 
 class TestLoadMessages(unittest.TestCase):
     def test_loads_real_file(self):
-        path = Path(__file__).parent.parent / 'messages.json'
+        path = Path(__file__).parent.parent.parent / 'messages.json'
         messages = load_messages(str(path))
         self.assertIn(18, messages)
         self.assertIn('incredibly powerful gust of wind', messages[18][0])

@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 
 # Prepare a temporary run dir and provide a minimal net_common + simple_client stub
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 # This file has no test_* functions -- it's a standalone debug harness meant

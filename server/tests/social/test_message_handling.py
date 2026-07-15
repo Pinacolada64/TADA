@@ -7,7 +7,7 @@ import os
 
 # Add parent directory to path so that packages in the parent directory can be imported
 # FIXME: Not sure why "import server.net_common" doesn't work
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from net_common import Mode
 from net_server import Message as ServerMessage

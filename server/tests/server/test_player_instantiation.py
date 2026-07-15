@@ -9,7 +9,7 @@ def test_player_instantiation_subprocess():
     This prevents pytest from importing `player` during collection (which can start server components).
     Run the subprocess with cwd set to the server directory so local imports work.
     """
-    repo_server_dir = Path(__file__).resolve().parent.parent
+    repo_server_dir = Path(__file__).resolve().parent.parent.parent
     cmd = [sys.executable, str(repo_server_dir / 'tools' / 'check_player_instantiation.py')]
     res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(repo_server_dir))
     # show stdout/stderr in pytest output if something goes wrong

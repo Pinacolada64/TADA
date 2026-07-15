@@ -24,7 +24,7 @@ from config import SETTINGS_METADATA
 # added or removed (already bit once: adding petscii_port shifted it).
 _BACK = str(len(SETTINGS_METADATA) + 1)
 
-_SERVER_DIR = Path(__file__).resolve().parent.parent
+_SERVER_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class TestServerSetupImports(unittest.TestCase):

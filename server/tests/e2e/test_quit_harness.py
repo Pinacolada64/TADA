@@ -7,7 +7,7 @@ import types
 
 # Make sure the server/ directory is on sys.path so imports like `net_common` and `player`
 # resolve correctly when running this harness directly.
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 # This file has no test_* functions -- it's a standalone debug harness meant

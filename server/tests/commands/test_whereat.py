@@ -1,7 +1,7 @@
 """tests/test_whereat.py — Unit tests for commands/whereat.py"""
 import sys, pathlib
 if __name__ == '__main__':
-    sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+    sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.parent))
 
 import asyncio
 import unittest

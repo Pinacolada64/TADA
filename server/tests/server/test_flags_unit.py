@@ -12,8 +12,14 @@ from player import Player
 def test_ensure_player_flags_returns_enum_keys():
     p = Player(name='u1', id='u1')
     fm = flags.ensure_player_flags(p)
-    # mapping should contain PlayerFlags keys (enums)
-    assert any(isinstance(k, PlayerFlags) for k in fm.keys())
+    # mapping should contain PlayerFlags keys (enums). Checked against
+    # flags.PlayerFlags (module attribute, always current) rather than the
+    # top-level `from flags import PlayerFlags` binding above -- tests/admin/
+    # test_reload.py's importlib.reload(flags) mid-suite mints a new
+    # PlayerFlags class, and this module's own import captured the old one
+    # at collection time, so a plain isinstance() check against it would be
+    # order-dependent (same hazard documented in commands/reload.py).
+    assert any(isinstance(k, flags.PlayerFlags) for k in fm.keys())
     # default ADMIN flag exists
     assert PlayerFlags.ADMIN in fm
     assert hasattr(fm[PlayerFlags.ADMIN], 'status')

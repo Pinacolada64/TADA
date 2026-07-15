@@ -16,7 +16,7 @@ import unittest
 
 import cbmcodecs2  # noqa: F401 -- registers the petscii_c64en_lc codec
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 

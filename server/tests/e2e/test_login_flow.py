@@ -4,7 +4,7 @@ import asyncio
 
 from simple_server import Server
 import net_common
-from tests.test_movement import FakeWriter
+from tests.movement.test_movement import FakeWriter
 from commands.command_processor import create_command_processor
 
 

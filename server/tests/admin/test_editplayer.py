@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # Allow running directly: python tests/test_editplayer.py
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from base_classes import Alignment, Guild, PlayerClass, PlayerRace, PlayerStat
 from flags import FlagDisplayTypes, PlayerFlags, new_player_default_flags
