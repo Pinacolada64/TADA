@@ -1,4 +1,4 @@
-"""ally_events.py — Ally-triggered events.
+"""ally_events/__init__.py — Ally-triggered events.
 
   try_ally_find_gold    — random per-move gold-finding (SPUR MISC6.S al.find)
   try_hungry_ally       — intercept player eating/drinking for a hungry ally
@@ -6,6 +6,12 @@
   try_ally_death_save   — ally intercession when a monster blow would kill
                           the player (SPUR.COMBAT.S "dragon" -> sac.ally,
                           ported from the skip branch's SPUR.MISC9.S)
+
+See also ally_events/starvation.py's try_encounter() — a weakened ally
+dying of neglect on a random per-move roll (SPUR MISC6.S dead.al), kept
+as its own module rather than added here since it's wired into
+simple_server.py's world-event roll alongside encounters/*.py, not
+called the same way as this file's functions.
 """
 from __future__ import annotations
 

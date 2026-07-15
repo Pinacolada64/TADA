@@ -1,4 +1,4 @@
-"""tests/combat/test_ally_starvation.py — encounters/ally_starvation.py:
+"""tests/combat/test_ally_starvation.py — ally_events/starvation.py:
 a weakened owned ally dies (or, if divine, deserts) from lack of
 nourishment (SPUR.MISC6.S's "dead.al"/"dead.al2" labels).
 """
@@ -74,28 +74,28 @@ def _sent_text(ctx):
 
 class TestGating(_IsolatedBattleLog):
     async def test_no_op_with_no_weakened_ally(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ctx = _make_ctx(player=_make_player(party=[_make_ally(strength=20)]))
         with patch('random.uniform', return_value=0.0):
             await try_encounter(ctx)
         ctx.send.assert_not_awaited()
 
     async def test_no_op_with_no_allies(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ctx = _make_ctx(player=_make_player(party=[]))
         with patch('random.uniform', return_value=0.0):
             await try_encounter(ctx)
         ctx.send.assert_not_awaited()
 
     async def test_no_op_when_roll_fails(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ctx = _make_ctx(player=_make_player(party=[_make_ally(strength=5)]))
         with patch('random.uniform', return_value=99.0):
             await try_encounter(ctx)
         ctx.send.assert_not_awaited()
 
     async def test_zero_strength_does_not_qualify(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ctx = _make_ctx(player=_make_player(party=[_make_ally(strength=0)]))
         with patch('random.uniform', return_value=0.0):
             await try_encounter(ctx)
@@ -103,7 +103,7 @@ class TestGating(_IsolatedBattleLog):
 
     async def test_can_fire_with_no_once_per_day_key(self):
         """Unlike every other encounter, this one has no once-per-session gate."""
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         player = _make_player(party=[_make_ally(strength=5)])
         player.once_per_day = ['ally_starvation_seen']  # should have no effect at all
         ctx = _make_ctx(player=player)
@@ -115,7 +115,7 @@ class TestGating(_IsolatedBattleLog):
 
 class TestDeath(_IsolatedBattleLog):
     async def test_mortal_ally_dies_and_is_removed(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ally = _make_ally('Grog', strength=5)
         player = _make_player(party=[ally])
         ctx = _make_ctx(player=player)
@@ -130,7 +130,7 @@ class TestDeath(_IsolatedBattleLog):
         self.assertIn('Grog is dead', text)
 
     async def test_stat_penalties_applied(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ally = _make_ally('Grog', strength=5)
         player = _make_player(party=[ally], honor=1000, wisdom=50, intelligence=50)
         ctx = _make_ctx(player=player)
@@ -146,7 +146,7 @@ class TestDeath(_IsolatedBattleLog):
         self.assertIn('dumb', text)
 
     async def test_stat_penalties_respect_floor(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ally = _make_ally('Grog', strength=5)
         player = _make_player(party=[ally], honor=10, wisdom=3, intelligence=3)
         ctx = _make_ctx(player=player)
@@ -164,7 +164,7 @@ class TestDeath(_IsolatedBattleLog):
 
 class TestDivineAlly(_IsolatedBattleLog):
     async def test_god_ally_leaves_instead_of_dying(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ally = _make_ally('Zeus', strength=5, flags=[AllyFlags.GOD])
         player = _make_player(party=[ally])
         ctx = _make_ctx(player=player)
@@ -179,7 +179,7 @@ class TestDivineAlly(_IsolatedBattleLog):
         self.assertNotIn('is dead', text)
 
     async def test_goddess_ally_also_leaves(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ally = _make_ally('Athena', strength=5, flags=[AllyFlags.GODDESS])
         player = _make_player(party=[ally])
         ctx = _make_ctx(player=player)
@@ -191,7 +191,7 @@ class TestDivineAlly(_IsolatedBattleLog):
 
 class TestEliteAlly(unittest.IsolatedAsyncioTestCase):
     async def test_elite_ally_endures_instead_of_dying_or_deserting(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ally = _make_ally('Ironclad', strength=5, flags=[AllyFlags.ELITE])
         player = _make_player(party=[ally])
         ctx = _make_ctx(player=player)
@@ -203,7 +203,7 @@ class TestEliteAlly(unittest.IsolatedAsyncioTestCase):
         self.assertIn('endures', text)
 
     async def test_elite_ally_takes_no_stat_penalty(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ally = _make_ally('Ironclad', strength=5, flags=[AllyFlags.ELITE])
         player = _make_player(party=[ally], honor=1000, wisdom=50, intelligence=50)
         ctx = _make_ctx(player=player)
@@ -216,7 +216,7 @@ class TestEliteAlly(unittest.IsolatedAsyncioTestCase):
     async def test_elite_god_ally_also_endures_not_deserts(self):
         """ELITE takes priority over the GOD/GODDESS desertion branch --
         an elite divine ally still just endures, doesn't fly away."""
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ally = _make_ally('Ironclad', strength=5, flags=[AllyFlags.ELITE, AllyFlags.GOD])
         player = _make_player(party=[ally])
         ctx = _make_ctx(player=player)
@@ -230,7 +230,7 @@ class TestEliteAlly(unittest.IsolatedAsyncioTestCase):
 
 class TestBystanderBroadcast(_IsolatedBattleLog):
     async def test_death_broadcasts_to_room(self):
-        from encounters.ally_starvation import try_encounter
+        from ally_events.starvation import try_encounter
         ally = _make_ally('Grog', strength=5)
         player = _make_player(party=[ally])
         player.name = 'Killerella'

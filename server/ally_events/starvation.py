@@ -1,4 +1,4 @@
-"""encounters/ally_starvation.py — a weakened, owned ally dies (or, if
+"""ally_events/starvation.py — a weakened, owned ally dies (or, if
 divine, leaves) from lack of nourishment.
 
 SPUR source: SPUR.MISC6.S's `dead.al`/`dead.al2`/`fre.ally` labels.
@@ -6,9 +6,11 @@ Part of the same random-event dispatcher as encounters/little_girl.py,
 encounters/meteor.py, and encounters/djinn_sighting.py -- see
 little_girl.py's docstring for why this rolls its own flat composite
 share instead of a shared dispatcher for now. (The dispatcher's sibling
-sub-event, an ally finding gold / SPUR's `al.find`, already existed as
-ally_events.try_ally_find_gold() before this package did -- not
-duplicated here.)
+sub-event, an ally finding gold / SPUR's `al.find`, already exists as
+ally_events/__init__.py's try_ally_find_gold() -- not duplicated here.
+Lives in ally_events/ rather than encounters/ for that reason: it's a
+sibling of that existing ally mechanic, not one of the encounters/
+package's own room/NPC events.)
 
   dead.al
    x=0:i$="*"
@@ -44,7 +46,7 @@ weakened ally exists. This port follows suit: no _ONCE_PER_DAY_KEY, no
 room-safety check.
 
 "Weakened" means 0 < strength < 8 (SPUR: `a1<8`) -- a narrower band
-than ally_events.py's existing try_hungry_ally() hunger threshold
+than ally_events/__init__.py's existing try_hungry_ally() hunger threshold
 (`< 11`), and a separate mechanic (that one intercepts eating/drinking;
 this one is a pure random tick). SPUR checks ally slots in forward
 order (a1, then a2, then a3) -- this port's allies are a plain list
@@ -81,7 +83,7 @@ divergence noted" treatment as meteor.py's dodge numbers.
 Not from SPUR: ELITE allies (AllyFlags.ELITE) never die or desert here,
 just a flavor line ("looks gaunt, but grits ITS teeth and endures").
 Neither branch's dead.al checks ELITE at all -- this extends the
-immunity ally_events.py's try_hungry_ally() already grants elites
+immunity ally_events/__init__.py's try_hungry_ally() already grants elites
 against hunger complaints (SPUR: ``instr("!",zt$)``) to this related
 starvation-death mechanic, for consistency.
 """
@@ -166,10 +168,11 @@ async def try_encounter(ctx: 'GameContext') -> None:
     name = getattr(player, 'name', 'Someone')
 
     # Not from SPUR: dead.al has no ELITE check at all in either branch,
-    # but ally_events.py's try_hungry_ally() already treats ELITE allies
-    # as immune to hunger complaints ("instr('!',zt$)" in the original).
-    # Extending that same immunity here so an elite ally never starves to
-    # death (or deserts) is consistent with that established precedent.
+    # but ally_events/__init__.py's try_hungry_ally() already treats
+    # ELITE allies as immune to hunger complaints ("instr('!',zt$)" in
+    # the original). Extending that same immunity here so an elite ally
+    # never starves to death (or deserts) is consistent with that
+    # established precedent.
     if _is_elite(ally):
         from tada_utilities import get_pronoun, PronounType
         possessive = get_pronoun(ally, PronounType.POSSESSIVE_ADJECTIVE)
