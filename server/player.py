@@ -1041,7 +1041,7 @@ class Player:
             # actually persisting. shield_proficiency is a dict, merged
             # separately below alongside weapon_experience.
             simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote',
-                           'shield', 'armor', 'active_shield_id')
+                           'shield', 'armor', 'active_shield_id', 'loan_amount', 'loan_days')
             for k in simple_keys:
                 if k in data:
                     try:
