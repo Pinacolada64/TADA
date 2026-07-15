@@ -217,6 +217,41 @@ register_topic(
 )
 
 register_topic(
+    "bhr", "badhombre", "bad hombre",
+    help_obj=Help(
+        summary="What's BHR (\"Bad Hombre Rating\")?",
+        description=(
+            "BHR -- \"Bad Hombre Rating\" -- is a quick, single-number "
+            "gauge of how dangerous a character looks, shown at the top of "
+            "your STATS sheet. It rolls hit points, character level, half "
+            "your Energy/Dexterity/Strength total, and a quarter of your "
+            "Shield+Armor condition into one number, so you can size "
+            "someone up at a glance instead of comparing six separate "
+            "stats.\n\n"
+            "BHR is a rough estimate, not a full combat prediction -- it "
+            "deliberately leaves out your weapon and its class/race bonus "
+            "(item_system.weapon_bonus()), so two characters with the same "
+            "BHR can still fight very differently depending on what "
+            "they're carrying."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("stats", "Show your own BHR along with the rest of your character sheet."),
+        ],
+        # Admin/DM-only -- the exact formula lets a player reverse-engineer
+        # and min-max toward a target BHR instead of it staying a rough,
+        # at-a-glance gauge. See format_help()'s is_privileged param.
+        admin_notes=[
+            "Formula: hit points + (character level x 2) + "
+            "((Energy + Dexterity + Strength) / 2) + ((Shield + Armor) / 4) "
+            "-- ported directly from the original game (SPUR.DUEL2.S / "
+            "SPUR.MISC5.S), where it was shown when sizing up other "
+            "adventurers before a duel.",
+        ],
+    ),
+)
+
+register_topic(
     "rooms", "room",
     help_obj=Help(
         summary="What's a \"room\"?",
