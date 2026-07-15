@@ -10,15 +10,16 @@ from base_classes import Map, PlayerClass, Room
 from flags import PlayerFlags
 
 
-def _make_map(room_flags=None):
+def _make_map(room_flags=None, level=1):
     m = Map()
     rooms = {
         1: Room(number=1, name='Room One', desc='', exits={}, monster=0,
                 flags=room_flags or []),
         2: Room(number=2, name='Room Two', desc='', exits={}, monster=5),
     }
-    m.levels[1] = rooms
-    m.rooms = rooms
+    m.levels[level] = rooms
+    if level == 1:
+        m.rooms = rooms
     return m
 
 
@@ -66,11 +67,11 @@ def _make_player(seen=False, items=(), honor=1000, hit_points=30, stats=None,
     return player
 
 
-def _make_ctx(room_no=1, player=None, game_map=None, prompt_returns=None):
+def _make_ctx(room_no=1, player=None, game_map=None, prompt_returns=None, map_level=1):
     ctx = MagicMock()
     ctx.client.room = room_no
     ctx.player = player or _make_player()
-    ctx.player.map_level = 1
+    ctx.player.map_level = map_level
     ctx.server.game_map = game_map or _make_map()
     ctx.server.monsters = [
         {'number': 106, 'name': 'EVILYNN', 'strength': 18},
@@ -109,6 +110,46 @@ class TestTryEncounterGating(unittest.IsolatedAsyncioTestCase):
              patch('random.randint', return_value=1):  # ignore -> sad path
             await try_encounter(ctx)
         self.assertIn('little_girl_seen', ctx.player.once_per_day)
+
+
+class TestArrivalFlavor(unittest.IsolatedAsyncioTestCase):
+    """SPUR.MISC6.S's boat/spacesuit arrival line -- only in water/vacuum
+    rooms, per the skip branch's version (see module docstring for why
+    master's unconditional-on-level-6+ version isn't followed)."""
+
+    async def test_no_arrival_line_in_dry_room(self):
+        from encounters.little_girl import try_encounter
+        game_map = _make_map(room_flags=[])
+        ctx = _make_ctx(game_map=game_map, prompt_returns=['I'])
+        with patch('random.uniform', return_value=0.0), \
+             patch('random.randint', return_value=1):
+            await try_encounter(ctx)
+        sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
+        self.assertNotIn('pulls along', sent)
+        self.assertNotIn('pulls alongside', sent)
+
+    async def test_boat_in_water_room_below_level_6(self):
+        from encounters.little_girl import try_encounter
+        game_map = _make_map(room_flags=['water'])
+        player = _make_player()
+        player.map_level = 1
+        ctx = _make_ctx(game_map=game_map, player=player, prompt_returns=['I'])
+        with patch('random.uniform', return_value=0.0), \
+             patch('random.randint', return_value=1):
+            await try_encounter(ctx)
+        sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
+        self.assertIn('A little boat pulls alongside you..', sent)
+
+    async def test_spacesuit_in_water_room_level_6_plus(self):
+        from encounters.little_girl import try_encounter
+        game_map = _make_map(room_flags=['water'], level=6)
+        player = _make_player()
+        ctx = _make_ctx(game_map=game_map, player=player, prompt_returns=['I'], map_level=6)
+        with patch('random.uniform', return_value=0.0), \
+             patch('random.randint', return_value=1):
+            await try_encounter(ctx)
+        sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
+        self.assertIn('A little spacesuit pulls along side, retro-rockets firing.', sent)
 
 
 class TestAttackChoice(unittest.IsolatedAsyncioTestCase):
@@ -211,6 +252,16 @@ class TestGiveChoice(unittest.IsolatedAsyncioTestCase):
             await try_encounter(ctx)
         sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
         self.assertIn('No Items!', sent)
+        self.assertIn('The girl peers in your sack hopefully..', sent)
+
+    async def test_give_prints_peers_in_sack_line(self):
+        from encounters.little_girl import try_encounter
+        item = _FakeItem(50, 'a rusty key')
+        ctx = _make_ctx(player=_make_player(items=[item]), prompt_returns=['G', '1'])
+        with patch('random.uniform', return_value=0.0):
+            await try_encounter(ctx)
+        sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
+        self.assertIn('The girl peers in your sack hopefully..', sent)
 
 
 class TestLoadHints(unittest.TestCase):

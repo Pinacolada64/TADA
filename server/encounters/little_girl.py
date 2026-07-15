@@ -30,6 +30,15 @@ three choices:
 Once-per-session gate uses player.once_per_day (existing field, not yet
 cleared on date rollover -- see TODO.md's daily-reset entry) rather than
 a new parallel per-player list.
+
+Arrival flavor text ("A little boat pulls alongside.."/"A little
+spacesuit pulls along side..") only shows in water/vacuum-flagged rooms;
+checked against both master and the skip branch's SPUR.MISC6.S -- master
+prints the spacesuit line unconditionally on any level 6+ encounter, even
+in a bone-dry hallway, which reads like a bug skip fixed by gating the
+whole line behind the water/vacuum ("@@") room flag and only choosing
+spacesuit-vs-boat wording once inside that condition. This module follows
+skip's version.
 """
 from __future__ import annotations
 
@@ -113,8 +122,21 @@ async def try_encounter(ctx: 'GameContext') -> None:
     _mark_seen(player)
 
     level = int(getattr(player, 'map_level', 1) or 1)
-    lines = [
-        '',
+    lines = ['']
+
+    # Arrival flavor -- SPUR.MISC6.S's "girl" label. Using the skip
+    # branch's cleaner version here (master prints the spacesuit line
+    # unconditionally on level 6+ even in an ordinary dry room, which
+    # looks like a bug skip fixed): only shown in water/vacuum rooms at
+    # all, spacesuit wording overriding the boat default once level > 5.
+    room_flags = getattr(room, 'flags', None) or []
+    if 'water' in room_flags or 'water_with_rocks' in room_flags:
+        if level > 5:
+            lines.append('A little spacesuit pulls along side, retro-rockets firing.')
+        else:
+            lines.append('A little boat pulls alongside you..')
+
+    lines += [
         'A little girl approaches you. She is quite skinny and very poor looking..',
         '"Oh please, please, kind person. My grandmother is very sick, and I don\'t',
         'know what to do! Won\'t you please give something that I can pawn so I can',
@@ -193,6 +215,8 @@ async def _handle_ignore(ctx: 'GameContext') -> None:
 
 async def _handle_give(ctx: 'GameContext') -> None:
     player = ctx.player
+    await ctx.send('The girl peers in your sack hopefully..')
+
     inventory = getattr(player, 'inventory', None)
     entries = list(inventory.entries()) if inventory is not None else []
     if not entries:
