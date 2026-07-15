@@ -1080,6 +1080,19 @@ class Player:
                 except Exception:
                     logging.exception("Player._load: failed to restore locker for %s", self.name)
 
+            # Party members (Ally.to_json()/Party.to_json() -- see party.py).
+            # Same gap as shield/armor/loan_amount above: save() writes
+            # party via the full __dict__ dump, but _load() never read it
+            # back, so every owned ally silently vanished on reconnect.
+            # Found live while playtesting encounters/ally_gold_find.py and
+            # encounters/ally_starvation.py.
+            if 'party' in data and isinstance(data['party'], list):
+                try:
+                    from party import Party
+                    self.party = Party.from_json(data['party'])
+                except Exception:
+                    logging.exception("Player._load: failed to restore party for %s", self.name)
+
             # Picked-up static room items — must survive logout so they don't reappear
             if 'picked_up_items' in data and isinstance(data['picked_up_items'], list):
                 self.picked_up_items = [int(i) for i in data['picked_up_items'] if isinstance(i, (int, float))]

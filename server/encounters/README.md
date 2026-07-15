@@ -19,6 +19,12 @@ Command/server modules import *from* here, not the other way around
 | `little_girl.py` | Approaches with a sob story (sick grandmother); G)ive/I)gnore/A)ttack — only Give is safe, the other two have a real chance she's EVILYNN (#106) in disguise. | 0.4% per move (2% world-event roll × 20% slice) | ✅ Implemented |
 | `meteor.py` | A "FLYING BANSHEE" (or literal "METEOR" on level 6 in a vacuum room) swoops in; dodge check scaled by stats, HP halved on a miss unless a Lazer Shield or Power Armor absorbs it. | 0.3% per move (2% world-event roll × 15% slice) | ✅ Implemented |
 | `djinn_sighting.py` | Not a fight at all -- an alternate trigger for the Bar's existing debt-collection ambush (`bar/thug_attack.py`). Owe Vinny money, and this sets `PlayerFlags.THUG_ATTACK` for next login; debt-free players just get a flavor sighting. **Skip branch only** -- master has no `djinn` label. | 0.34% per move (2% world-event roll × skip's 17% slice) | ✅ Implemented |
+| `ally_starvation.py` | A weakened owned ally (strength 1-7) dies from neglect -- unless it's a GOD/GODDESS ally, which deserts instead (skip's distinction), or ELITE, which just endures (not from SPUR). Honor/Wisdom/Intelligence penalties, battle.log entry. No water/vacuum gate, no once-per-session gate -- can fire repeatedly. | 0.3% per move (2% world-event roll × 15% slice) | ✅ Implemented |
+
+An ally finding gold (`al.find`) is *not* in this package -- it already
+existed as `ally_events.try_ally_find_gold()` (own once-per-day tag
+`'AYF'`, own flat 5% chance) before this package did, wired in
+alongside these modules at the same `simple_server.py` call sites.
 
 ## The shared random-event dispatcher (not yet built)
 
@@ -32,8 +38,8 @@ how many sub-events there even are:
 |---|---|---|---|
 | Galadriel | 15% (`z<15`) | 15% (`z<15`) | ✅ Implemented — but as its own quest trigger (quest #8, `quests/README.md`), not wired into this dispatcher |
 | Meteor | 15% (`z<30`) | 17% (`z<32`) | ✅ `meteor.py` (master's numbers) |
-| An ally finding gold | 15% (`z<45`, `al.find`) | 17% (`z<49`) | Not built |
-| An ally's death | 15% (`z<60`, `dead.al`) | Called unconditionally every roll, not a slice at all | Not built |
+| An ally finding gold | 15% (`z<45`, `al.find`) | 17% (`z<49`) | ✅ Pre-existing -- `ally_events.try_ally_find_gold()`, not part of this package |
+| An ally's death | 15% (`z<60`, `dead.al`) | Called unconditionally every roll, not a slice at all | ✅ `ally_starvation.py` (master's stat penalties, skip's GOD/GODDESS "deserts instead of dying" distinction) |
 | The Enforcer | 20% (`z<80`) | 17% (`z<66`) | Not built — see `TODO.md`'s "7/15/26" `ys$` inventory for the full trace (`*enf` token, a named NPC duel against "THE ENFORCER") |
 | Blue Djinn sighting | *(doesn't exist)* | 17% (`z<83`) | ✅ `djinn_sighting.py` — **skip only** |
 | Little Girl | 20% (`z>=80`) | 17% (`z>=83`) | ✅ `little_girl.py` |
@@ -79,12 +85,16 @@ out individually in each module's docstring:
   (the original places him once at world-init and never moves him, and
   tracks nothing per-player).
 - `dwarf.py`'s mounted/Pixie 50% evasion chance.
-- `little_girl.py`'s, `meteor.py`'s, and `djinn_sighting.py`'s
-  `ctx.send_room()` bystander broadcasts (SPUR has no concept of other
-  players witnessing an event).
+- `little_girl.py`'s, `meteor.py`'s, `djinn_sighting.py`'s, and
+  `ally_starvation.py`'s `ctx.send_room()` bystander broadcasts (SPUR
+  has no concept of other players witnessing an event).
 - `meteor.py`'s Lazer Shield (objects.json #116) and Power Armor damage
   mitigation, tied to `shield_proficiency`/`player.armor` — the original
   meteor code never checks either stat; SPUR's real `LAZ.SH` mechanic
   (`SPUR.MISC4.S`/`SPUR.COMBAT.S`) is a *different*, unconditional
   energy-weapon-damage halving for level-6+ monster attacks, not tied to
   this encounter or to skill at all.
+- `ally_starvation.py`'s ELITE immunity — neither branch's `dead.al`
+  checks `AllyFlags.ELITE` at all; this extends the immunity
+  `ally_events.py`'s `try_hungry_ally()` already grants elites against
+  hunger complaints to this related starvation-death mechanic.

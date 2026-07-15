@@ -938,6 +938,8 @@ class Server:
         await try_meteor(ctx)
         from encounters.djinn_sighting import try_encounter as try_djinn_sighting
         await try_djinn_sighting(ctx)
+        from encounters.ally_starvation import try_encounter as try_ally_starvation
+        await try_ally_starvation(ctx)
 
     def _leave_combat_on_move(self, ctx: GameContext, room_no) -> None:
         """Drop *ctx* from an active fight's attacker list when they move
@@ -1019,6 +1021,8 @@ class Server:
         await try_meteor(ctx)
         from encounters.djinn_sighting import try_encounter as try_djinn_sighting
         await try_djinn_sighting(ctx)
+        from encounters.ally_starvation import try_encounter as try_ally_starvation
+        await try_ally_starvation(ctx)
 
     # -----------------------------------------------------------------------
     # Broadcast
