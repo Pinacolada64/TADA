@@ -284,7 +284,7 @@ async def try_steal(ctx: 'GameContext') -> None:
 
     if _carries_silver(player) > 0:
         _take_all_silver(player)
-        await ctx.send('A Dwarf runs in, grabs your bag of gold and disappears!')
+        await ctx.send('The DWARF runs into the room, knocks you down and steals your silver!')
         return
 
     item_name = _steal_item(player)

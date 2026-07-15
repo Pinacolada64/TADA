@@ -45,6 +45,11 @@ PETSCII_PORT = 34064
 _WILD_HORSE_ROOMS = (30, 52, 68)
 _WILD_HORSE_MONSTER_NUMBER = 136
 
+# Matches encounters/dwarf.py's MONSTER_NUMBER -- not imported directly to
+# avoid a load-time circular import (same reasoning as
+# wild_horse_events.py's own copy of _WILD_HORSE_MONSTER_NUMBER).
+_DWARF_MONSTER_NUMBER = 137
+
 # Terminal-negotiation 'H<letter>' help text (Server._negotiate_terminal()) --
 # an alpha tester reported being unsure which option to pick, so 'HA'/'HP'/
 # 'HQ' explain each one, matching the h<key> convention used elsewhere
@@ -761,6 +766,12 @@ class Server:
                     else:
                         lines += ['', f'You see a dead {name} here.']
                     # TODO: fled (md=2) case — show tracks when monster-flee is implemented
+                elif mon_num == _DWARF_MONSTER_NUMBER:
+                    # SPUR.MAIN.S: "A short bearded person is here, with a
+                    # pile of gold!" -- own flavor line instead of the
+                    # generic "There is DWARF here." (gold -> silver, this
+                    # port's own wording convention).
+                    lines += ['', 'A short bearded person is here, with a pile of silver!']
                 else:
                     lines += ['', f"There is {f'{size} ' if size else ''}{name} here."]
         except Exception:
