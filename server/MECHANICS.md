@@ -680,7 +680,11 @@ Locker belongs to the Shoppe (`shoppe/locker.py`), not here.
 - **Tips** — in-game tips display (content from `SPUR-data/tips.txt`)
 - **School spells** — list of spells available to the player's class
 - **Recent news / Older news** — two-tier news log (ties into News & Mail design)
-- **Guild standings** — ranking of guilds by kills/XP
+- **Guild standings** — ranking of guilds by kills/XP; SPUR source is
+  `SPUR.DUEL2.S`'s `guild` label (~lines 316-336): after any guild-vs-guild
+  duel, tallies a win/loss counter per guild to a `guild.standings` data
+  file (`vv`/`yz` are the duelists' guild numbers, `zz`/`yw` the running
+  win/loss counts, position-addressed by guild slot 1/2/3)
 - **Personal records** — player's own stats history
 - **System data view** — server-level statistics (total players, kills, etc.)
 - **Message boards (×3)** — three separate threaded boards (ties into Threaded Message Boards design)

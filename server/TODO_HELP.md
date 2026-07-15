@@ -137,6 +137,34 @@ document).
   checkout) rather than a restoration -- needs design work (how
   alignment is stored per room, decay/contest rules, HQ vs. any-room)
   before it's ready for a help topic; noted here so it isn't lost.
+  - **Checked `remotes/origin/skip` too (7/14/26)**: that branch's
+    `SPUR-code/` has six files master's checkout doesn't --
+    `SPUR.ARMORY.S`, `SPUR.BACKUP.S`, `SPUR.COMPILE.S`, `SPUR.MISC8.S`,
+    `SPUR.MISC9.S`, `SPUR.NEW.S` -- none mention room/territory
+    alignment either. Its `SPUR.DUEL.S`/`SPUR.DUEL2.S`/`SPUR.GUILD.S`
+    only differ from master's copies in cosmetic text/typo fixes (e.g.
+    "Roll on the ground.." capitalization, `flag(32)` vs `un=1`
+    variable-naming variants) -- no functional difference in the
+    `guild` label's logic. Grepped the *entire* skip branch tree (388
+    files) for "territ"/"conquer" near room/guild context; the only
+    hit was an unrelated Wikipedia quote about military "point man"
+    terminology in a `text-listings/t_combat.lbl` comment. Still no
+    source evidence this mechanic ever existed in code -- treating it
+    as a from-scratch design, not a restoration, unless something turns
+    up in an even earlier/different source snapshot.
+  - **Found something adjacent and real while looking, though**:
+    `SPUR.DUEL2.S`'s `guild` label (lines ~316-336, identical on both
+    branches) tallies **guild win/loss standings** to a
+    `guild.standings` data file after any guild-vs-guild duel (`vv`/`yz`
+    are the two duelists' guild numbers; `zz`/`yw` are running win/loss
+    counters per guild, position-addressed by guild slot 1/2/3). This
+    is a real, previously-ungrounded mechanic -- MECHANICS.md:683
+    already lists "**Guild standings** — ranking of guilds by kills/XP"
+    as a not-yet-implemented stub, but without this citation. Worth
+    updating that MECHANICS.md line to point at `SPUR.DUEL2.S`'s
+    `guild` label, and worth keeping **separate** from the room-
+    alignment idea above -- a guild-wide scoreboard is a different
+    mechanic from any individual room "belonging" to a guild.
 
 ## Additional pass: SPUR-data/tips.txt and SPUR-data/SPUR.HELP.TXT
 
