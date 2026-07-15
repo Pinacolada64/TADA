@@ -292,15 +292,26 @@ class TestOnKilled(unittest.IsolatedAsyncioTestCase):
             config.dwarf_silver = 750
 
             player = _make_player(silver=100)
+            player.name = 'Killerella'
             ctx = _make_ctx(room_no=2, player=player, game_map=game_map)
 
-            lines = await on_killed(ctx)
+            import net_common
+            from pathlib import Path
+            orig_dir = net_common.run_server_dir
+            with tempfile.TemporaryDirectory() as log_tmp:
+                net_common.run_server_dir = log_tmp
+                try:
+                    lines = await on_killed(ctx)
+                    log_text = (Path(log_tmp) / 'battle.log').read_text()
+                finally:
+                    net_common.run_server_dir = orig_dir
 
             self.assertEqual(player.get_silver('IN_HAND'), 850)
             self.assertEqual(config.dwarf_silver, 0)
             player.clear_flag.assert_called_once_with(PlayerFlags.DWARF_ALIVE)
             self.assertEqual(game_map.get_room(1, 2).monster, 0)
             self.assertIn('750', lines[0])
+            self.assertIn('Killerella slew the Dwarf and claimed 750 silver!', log_text)
 
             config.dwarf_silver = starting_hoard
 

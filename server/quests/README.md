@@ -326,9 +326,15 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
     black magic, he transformed me into the castle that is now dying... I can see
     you safely out, and reward you with some of my power..' (+1 level) / You
     awaken... outside the castle. The castle which is now in ruins..."
-  - Global `battle.log` announcement (same convention as the Dwarf kill /
-    Excalibur pull): "THE LADY OF THE MIST BECAME PART OF \<player\>, AFTER THE
-    DEATH OF KING OF THE WRAITHS. (+1 level)".
+  - Global `battle.log` announcement (same convention as the Excalibur pull):
+    "THE LADY OF THE MIST BECAME PART OF \<player\>, AFTER THE DEATH OF KING
+    OF THE WRAITHS. (+1 level)". Correction: an earlier version of this note
+    also cited "the Dwarf kill" as sharing this convention -- checked
+    `SPUR.MISC.S`'s dwarf-kill block (`p.a3`) directly and it's just a
+    `print`, no file write, in the original source. `encounters/dwarf.py`
+    now writes a battle.log entry on his death anyway (Ryan's request,
+    matching this port's own convention for notable kills, not a ported
+    behavior).
   - Honor (`vk`) +100, capped at 1900 — `vk` is very likely this port's Honor stat
     (same variable gates the Excalibur quest's Honor≥1200 check).
   - An actual character level: `xp=xp+1`.
