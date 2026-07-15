@@ -197,8 +197,8 @@ class TestMainFlowAbandonOrResumePrompt(unittest.IsolatedAsyncioTestCase):
         text = ctx._flat()
         self.assertIn('Welcome back, Thorgar!', text)
         self.assertNotIn("Before you begin your adventure", text)
-        self.assertIn('Step 4 of 11: Gender', text)
-        self.assertNotIn('Step 1 of 11: Name', text)
+        self.assertIn('Step 4 of 12: Gender', text)
+        self.assertNotIn('Step 1 of 12: Name', text)
 
 
 if __name__ == '__main__':

@@ -302,6 +302,10 @@ async def protection(ctx: GameContext) -> None:
             player.armor = chosen['price'] * 4
         else:
             player.shield = chosen['price'] * 4
+            # Links this purchase to shield_proficiency's per-item tracking
+            # (player.py's gain_shield_proficiency()) -- a newly bought
+            # shield replaces whichever one was backing the old rating.
+            player.active_shield_id = chosen['number']
 
         player.unsaved_changes = True
         await ctx.send('Done!')

@@ -1232,6 +1232,12 @@ class CombatSession:
             return
 
         # Shield degradation
+        if result.shield_blocked:
+            # New mechanic (not in original SPUR): a successful block builds
+            # per-item shield-block proficiency, mirroring weapon_experience.
+            # See player.py's gain_shield_proficiency() / resolution.py's
+            # shield_exp_bonus().
+            player.gain_shield_proficiency(getattr(player, 'active_shield_id', None))
         if result.shield_destroyed:
             player.shield = 0
         elif result.shield_degraded:

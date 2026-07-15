@@ -1,7 +1,7 @@
 #!/bin/env python3
 """stats command — port of the 'status' subroutine in SPUR.MISC5.S."""
 from base_classes import (
-    Alignment, Guild, PlayerClass, PlayerMoneyTypes, PlayerRace, PlayerStat,
+    Alignment, Guild, PlayerMoneyTypes, PlayerRace, PlayerStat,
 )
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
@@ -75,6 +75,8 @@ def _build_stats_lines(player) -> list[str]:
 
     silver_hand = player.get_silver(PlayerMoneyTypes.IN_HAND)
     silver_bank = player.get_silver(PlayerMoneyTypes.IN_BANK)
+    silver_bar  = player.get_silver(PlayerMoneyTypes.IN_BAR)
+
     experience  = int(getattr(player, 'experience',    0) or 0)
     mk          = len(getattr(player, 'monsters_killed', []) or [])
     honor       = int(getattr(player, 'honor',         0) or 0)
@@ -97,7 +99,8 @@ def _build_stats_lines(player) -> list[str]:
     # Gold
     lines += [
         f"{'Gold - In Hand:':>20} {silver_hand:>12,}",
-        f"{'In Bank:':>20} {silver_bank:>12,}",
+        f"{'       In Bank:':>20} {silver_bank:>12,}",
+        f"{'       In Bar :':>20} {silver_bar:>12,}",
         '',
     ]
 
@@ -129,14 +132,20 @@ def _build_stats_lines(player) -> list[str]:
         f"{'Shield  :':>10}    {sh:>3}%   {'Armor    :':>10}   {ar:>3}%",
     ]
 
-    # Shield skill (1 + level; Paladin doubles it; formal training flag)
-    shield_skill = 1 + level
-    if char_class == PlayerClass.PALADIN:
-        shield_skill *= 2
+    # Shield skill: real tracked per-item proficiency (player.shield_
+    # proficiency, keyed by player.active_shield_id, 0-99), incremented per
+    # successful block -- see player.py's gain_shield_proficiency() /
+    # combat/resolution.py's shield_exp_bonus(). Previously a formula
+    # stand-in (1 + level, doubled for Paladin); now that blocks are
+    # actually tracked, this shows the real value for the currently
+    # equipped shield (0 if no shield is equipped / identified).
+    _active_shield_id = getattr(player, 'active_shield_id', None)
+    _shield_prof = getattr(player, 'shield_proficiency', {}) or {}
+    shield_skill = int(_shield_prof.get(str(_active_shield_id), 0)) if _active_shield_id is not None else 0
     shield_flag = getattr(PlayerFlags, 'SHIELD_TRAINED', None)
-    shield_trained = ('YES' if qf(shield_flag) else 'NO') if shield_flag else 'NO'
+    shield_trained = ('Yes' if qf(shield_flag) else 'No') if shield_flag else 'No'
     lines += [
-        f"Shield skill: {shield_skill}, Formal training- {shield_trained}",
+        f"Shield skill: {shield_skill}, Formal training: {shield_trained}",
         '',
     ]
 
@@ -152,19 +161,19 @@ def _build_stats_lines(player) -> list[str]:
     nat_align = natural_alignment_for_race(char_race)
     cur_align = _current_alignment(honor)
     lines += [
-        f"Natural Alignment: {_AP}{nat_align}{_AP}.  "
+        f"Natural alignment: {nat_align}.  ",
         f"Current alignment: {cur_align} ({honor} Honor points)",
         '',
     ]
 
     # Guild follower (only for guild members, vv>=3 in original)
-    if guild not in (Guild.CIVILIAN, Guild.OUTLAW):
-        follower = 'YES' if getattr(player, 'guild_follower', False) else 'NO'
-        lines.append(f"GUILD FOLLOWER? {follower}")
+    if guild != Guild.CIVILIAN:
+        follower = 'On' if player.query_flag(PlayerFlags.GUILD_FOLLOW_MODE) else 'Off'
+        lines.append(f"Guild Follow: {follower}")
 
     # Status conditions
-    lines.append('POISONED!'    if qf(PlayerFlags.POISON)  else 'Not poisoned')
-    lines.append('DISEASED!'    if qf(PlayerFlags.DISEASE) else 'Not diseased')
+    lines.append('POISONED!' if qf(PlayerFlags.POISON)  else 'Not poisoned')
+    lines.append('DISEASED!' if qf(PlayerFlags.DISEASE) else 'Not diseased')
 
     if qf(PlayerFlags.RING_WORN):
         lines.append('Ring worn..')
@@ -172,7 +181,7 @@ def _build_stats_lines(player) -> list[str]:
         lines.append('Gauntlets worn..')
 
     # Amulet of life
-    if qf(PlayerFlags.AMULET_OF_LIFE_ENERGIZED):
+    if qf(PlayerFlags.AMULET_OF_LIFE_ENERGIZED) and player.inventory.find("Amulet of Life") is not None:
         lines.append('Amulet of life -  ENERGIZED!')
     else:
         # TODO: check if player (or ally) carries item #076 (Amulet of Life)
@@ -193,7 +202,7 @@ def _build_stats_lines(player) -> list[str]:
         'SPUR: ' + ('Alive!' if qf(PlayerFlags.SPUR_ALIVE) else 'Dead...')
     )
 
-    # Dwarf
+    # Dwarf - FIXME: DWARF PlayerMoneyType is incorrect
     dwarf_alive = qf(PlayerFlags.DWARF_ALIVE)
     if dwarf_alive:
         dwarf_gold = player.get_silver(PlayerMoneyTypes.DWARF) if hasattr(PlayerMoneyTypes, 'DWARF') else 0
@@ -228,7 +237,7 @@ class StatCommand(Command):
         category    = HelpCategory.GENERAL,
         summary     = "Show your current character stats",
         description = (
-            "Displays your character sheet: gold, ability scores, alignment, "
+            "Displays your character sheet: money, ability scores, alignment, "
             "status conditions, and world-state flags."
         ),
         usage    = [('stat', 'Show your stats')],

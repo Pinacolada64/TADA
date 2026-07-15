@@ -312,16 +312,16 @@ class TestMainFlowOrdering(unittest.IsolatedAsyncioTestCase):
         await main_flow(ctx, player=player)
 
         flat = '\n'.join(str(x) for x in ctx.sent)
-        self.assertIn('Step 1 of 11: Name', flat)
-        self.assertIn('Step 2 of 11: Username', flat)
-        self.assertIn('Step 3 of 11: Preferences', flat)
-        self.assertIn('Step 4 of 11: Gender', flat)
-        self.assertIn('Step 5 of 11: Age', flat)
-        self.assertIn('Step 11 of 11: Review', flat)
+        self.assertIn('Step 1 of 12: Name', flat)
+        self.assertIn('Step 2 of 12: Username', flat)
+        self.assertIn('Step 3 of 12: Preferences', flat)
+        self.assertIn('Step 4 of 12: Gender', flat)
+        self.assertIn('Step 5 of 12: Age', flat)
+        self.assertIn('Step 12 of 12: Review', flat)
         # Name is asked before Gender/Age/class/race/etc. in the actual
         # send/prompt call order, not just the heading text.
-        name_idx   = flat.index('Step 1 of 11: Name')
-        gender_idx = flat.index('Step 4 of 11: Gender')
+        name_idx   = flat.index('Step 1 of 12: Name')
+        gender_idx = flat.index('Step 4 of 12: Gender')
         self.assertLess(name_idx, gender_idx)
 
     async def test_preferences_shows_orientation_blurb(self):

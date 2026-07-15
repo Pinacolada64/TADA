@@ -89,16 +89,17 @@ class TestClientTypeStepRemoved(unittest.TestCase):
         import commands.new_player as np
         self.assertFalse(hasattr(np, '_choose_client_settings'))
 
-    def test_eleven_creation_steps_not_twelve(self):
-        """12 steps (with a standalone Client Type step) -> 11 now that
-        it's folded into Preferences."""
+    def test_twelve_creation_steps_not_thirteen(self):
+        """13 steps (with a standalone Client Type step) -> 12 now that
+        Client Type is folded into Preferences (11) plus the Equipment
+        step added later (12)."""
         import re
         import inspect
         import commands.new_player as np
         src = inspect.getsource(np.main_flow)
         steps_block = src[src.index('steps = ['):src.index(']', src.index('steps = ['))]
         step_titles = re.findall(r'"\s*([A-Za-z ]+)"\s*\)', steps_block)
-        self.assertEqual(len(step_titles), 11)
+        self.assertEqual(len(step_titles), 12)
         self.assertNotIn('Client Type', step_titles)
 
 

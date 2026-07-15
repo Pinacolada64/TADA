@@ -57,8 +57,10 @@ from characters import apply_race_class_deltas
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from commands.quote import confirm_dollar_quote
+from items import Item, ItemCategory, Weapon
 from net_common import hash_password, user_dir
 from network_context import GameContext
+from starting_equipment import STARTER_SHIELD_ITEM_NUMBER, roll_armor, roll_shield, starter_weapon_number
 from tada_utilities import a_or_an, format_quote, input_yes_no
 
 log = logging.getLogger(__name__)
@@ -271,6 +273,7 @@ async def main_flow(ctx,
         (_choose_race,            "Race"),
         (_choose_guild,           "Guild"),
         (_roll_stats,             "Attributes"),
+        (_assign_equipment,       "Equipment"),
         (_choose_quote,           "Quote"),
         (_final_review,           "Review"),
     ]
@@ -278,45 +281,57 @@ async def main_flow(ctx,
     start_at    = max(0, resume_step - 1)   # 1-based resume_step -> 0-based slice
     step_num    = resume_step or 1          # tracked across the try/except below
 
+    # WHEREAT (commands/whereat.py) reads ctx.client.virtual_location for
+    # its location label, same mechanism as commands/news.py's "Reading
+    # news". Restored (not just cleared) on the way out in case something
+    # upstream had already set a virtual location before main_flow() ran.
+    _client = getattr(ctx, 'client', None)
+    previous_location = getattr(_client, 'virtual_location', None)
+    if _client is not None:
+        _client.virtual_location = 'Creating a character'
     try:
-        for step_num, (step, title) in enumerate(steps[start_at:], start=step_num):
-            await ctx.send('', f'|yellow|Step {step_num} of {total_steps}: {title}|reset|')
-            ok = await step(ctx)
-            if not ok:
+        try:
+            for step_num, (step, title) in enumerate(steps[start_at:], start=step_num):
+                await ctx.send('', f'|yellow|Step {step_num} of {total_steps}: {title}|reset|')
+                ok = await step(ctx)
+                if not ok:
+                    return CommandResult.fail("Character creation abandoned.", error="abandoned")
+
+            # Username was chosen (and player.id set) back in the Username step.
+            username = ctx.player.id
+
+            password = await _choose_password(ctx, prefill=prefill_password)
+            if not password:
                 return CommandResult.fail("Character creation abandoned.", error="abandoned")
+        except _CreationAbandoned as exc:
+            return await _handle_abandon_or_pause(ctx, step_num, prefill_password, exc.resume)
 
-        # Username was chosen (and player.id set) back in the Username step.
-        username = ctx.player.id
+        # --- persist and confirm ---
+        ctx.player.creation_done = True
+        ok = await _confirm_creation(ctx, username, password)
+        if not ok:
+            return CommandResult.fail("Character creation failed.", error="creation_failed")
 
-        password = await _choose_password(ctx, prefill=prefill_password)
-        if not password:
-            return CommandResult.fail("Character creation abandoned.", error="abandoned")
-    except _CreationAbandoned as exc:
-        return await _handle_abandon_or_pause(ctx, step_num, prefill_password, exc.resume)
+        await ctx.send(
+            "",
+            f"Welcome to TADA, {ctx.player.name}!",
+            "Your adventure begins now.",
+            "",
+        )
+        log.info("New player %r created, placed in room %d", ctx.player.name, CREATION_ROOM)
 
-    # --- persist and confirm ---
-    ctx.player.creation_done = True
-    ok = await _confirm_creation(ctx, username, password)
-    if not ok:
-        return CommandResult.fail("Character creation failed.", error="creation_failed")
-
-    await ctx.send(
-        "",
-        f"Welcome to TADA, {ctx.player.name}!",
-        "Your adventure begins now.",
-        "",
-    )
-    log.info("New player %r created, placed in room %d", ctx.player.name, CREATION_ROOM)
-
-    return CommandResult(
-        success=True,
-        message=f"Character '{ctx.player.name}' created.",
-        data={
-            "authenticated": True,
-            "username":      username,
-            "room":          CREATION_ROOM,
-        },
-    )
+        return CommandResult(
+            success=True,
+            message=f"Character '{ctx.player.name}' created.",
+            data={
+                "authenticated": True,
+                "username":      username,
+                "room":          CREATION_ROOM,
+            },
+        )
+    finally:
+        if _client is not None:
+            _client.virtual_location = previous_location
 
 
 async def _handle_abandon_or_pause(ctx, step_num: int, prefill_password: Optional[str],
@@ -1091,6 +1106,78 @@ async def _roll_stats(ctx) -> bool:
         await ctx.send("Enter 'Y' to accept or 'R' to re-roll.")
 
 
+async def _assign_equipment(ctx) -> bool:
+    """Beginner shield/armor/weapon assignment (see starting_equipment.py).
+
+    Not part of original SPUR -- see that module's docstring for the
+    deliberate deviations (independent 50/50 rolls, <70% intactness,
+    class-based starter weapon). Non-interactive: nothing to quit out of
+    mid-step, so this doesn't use _prompt_or_quit().
+    """
+    player = ctx.player
+    char_class = getattr(player, 'char_class', None)
+    char_race = getattr(player, 'char_race', None)
+
+    lines = ["", "Issuing beginner equipment..."]
+
+    shield = roll_shield(char_class, char_race)
+    if shield is not None:
+        player.shield = shield
+        server_items = getattr(getattr(ctx, 'server', None), 'items', None) or []
+        shield_dict = next(
+            (d for d in server_items if d.get('number') == STARTER_SHIELD_ITEM_NUMBER),
+            None,
+        )
+        if shield_dict is not None:
+            shield_item = Item(
+                id_number=shield_dict['number'],
+                name=shield_dict['name'],
+                category=ItemCategory.ARMOR,
+            )
+            player.inventory.add(shield_item)
+            # active_shield_id links player.shield's condition rating to a
+            # real item so shield_proficiency (per-item, like
+            # weapon_experience) has something to key off of.
+            player.active_shield_id = shield_dict['number']
+        lines.append(f"  You've been issued a shield ({shield}% intact).")
+    else:
+        lines.append("  No shield this time.")
+
+    armor = roll_armor(char_class, char_race)
+    if armor is not None:
+        player.armor = armor
+        lines.append(f"  You've been issued armor ({armor}% intact).")
+    else:
+        lines.append("  No armor this time.")
+
+    weapon_num = starter_weapon_number(char_class)
+    if weapon_num is not None:
+        server_weapons = getattr(getattr(ctx, 'server', None), 'weapons', None) or []
+        weapon_dict = next(
+            (d for d in server_weapons if d.get('number') == weapon_num),
+            None,
+        )
+        if weapon_dict is not None:
+            weapon = Weapon(
+                id_number=weapon_dict['number'],
+                name=weapon_dict['name'],
+                kind=weapon_dict.get('kind'),
+                weapon_class=weapon_dict.get('weapon_class'),
+                stability=weapon_dict.get('stability', 0),
+                to_hit=weapon_dict.get('to_hit', 0),
+                price=weapon_dict.get('price', 0),
+                sound_effect=tuple(weapon_dict.get('sound_effect') or ('', '')),
+                category=ItemCategory.WEAPON,
+            )
+            player.inventory.add(weapon)
+            lines.append(f"  You've been issued a {weapon.name.title()}.")
+
+    player.unsaved_changes = True
+    lines.append("")
+    await ctx.send(lines)
+    return True
+
+
 _MAX_QUOTE_LEN = 60
 
 
@@ -1153,6 +1240,17 @@ async def _final_review(ctx) -> bool:
         ]
         for stat, val in getattr(p, "stats", {}).items():
             lines.append(f"    {stat}: {val}")
+
+        shield = getattr(p, 'shield', None)
+        armor = getattr(p, 'armor', None)
+        weapons = list(p.inventory.entries(category=str(ItemCategory.WEAPON))) if getattr(p, 'inventory', None) else []
+        lines += [
+            "",
+            "  Equipment:",
+            f"    Shield  : {f'{shield}% intact' if shield else 'none'}",
+            f"    Armor   : {f'{armor}% intact' if armor else 'none'}",
+            f"    Weapon  : {weapons[0].item.name.title() if weapons else 'none'}",
+        ]
 
         quote_preview = format_quote(getattr(p, "quote", None), getattr(p, "name", "?"))
         lines += ["", f"  Quote    : {quote_preview if quote_preview else '(silent)'}"]

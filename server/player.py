@@ -290,6 +290,13 @@ class Player:
 
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
+        # id_number of the shield item currently backing player.shield's
+        # condition rating (set by commands/new_player.py's starting
+        # equipment step and shoppe/armory.py's shield purchase -- NOT set
+        # by commands/use.py's shield-boost consumable, since that item is
+        # removed on use and isn't "worn"). Needed so shield_proficiency
+        # below can be tracked per physical shield, like weapon_experience.
+        self.active_shield_id: Optional[int] = kwargs.get('active_shield_id')
         # Loaded ammo state (set by USE command, consumed by combat).
         self.ammo_rounds: int = kwargs.get('ammo_rounds', 0)
         self.ammo_damage: int = kwargs.get('ammo_damage', 0)
@@ -314,6 +321,16 @@ class Player:
         # Battle experience per weapon type, keyed by str(id_number), value 0-99.
         # Persists independently of inventory so experience survives dropping/selling.
         self.weapon_experience: dict = kwargs.get('weapon_experience', {})
+        # Shield-block proficiency per shield item, keyed by str(id_number),
+        # value 0-99 -- not part of original SPUR (shield block chance there
+        # comes purely from the shield's condition value). New mechanic:
+        # increments by 1 for active_shield_id every time a shield block
+        # actually succeeds in combat (see combat/engine.py's
+        # _apply_monster_damage()), mirroring weapon_experience exactly.
+        # Feeds a small bonus into the shield block-threshold roll
+        # (combat/resolution.py's shield_exp_bonus()) once a player has
+        # enough of it with the shield they currently have equipped.
+        self.shield_proficiency: dict = kwargs.get('shield_proficiency', {})
         """
         Things you can only do once per day (file_formats.txt):
         'pr'        has PRAYed once
@@ -639,6 +656,30 @@ class Player:
             self.weapon_experience[key] = current + 1
             self.unsaved_changes = True
         return int(self.weapon_experience.get(key, current))
+
+    def gain_shield_proficiency(self, shield_id_number: Optional[int]) -> int:
+        """Increment shield_proficiency for shield_id_number by 1 (cap 99).
+
+        Call this every time a shield block actually succeeds in combat
+        (combat/engine.py's _apply_monster_damage(), when result.shield_blocked
+        is truthy) -- not part of original SPUR, a new tracked mechanic.
+        Mirrors gain_weapon_experience()'s shape exactly.
+
+        shield_id_number is normally player.active_shield_id -- if it's
+        None (no identifiable shield item, e.g. very old saves from before
+        this existed), this is a no-op and returns 0: there's nothing to
+        credit the block to.
+
+        Returns the new value.  Marks unsaved_changes so it is persisted.
+        """
+        if shield_id_number is None:
+            return 0
+        key = str(shield_id_number)
+        current = int(self.shield_proficiency.get(key, 0))
+        if current < 99:
+            self.shield_proficiency[key] = current + 1
+            self.unsaved_changes = True
+        return int(self.shield_proficiency.get(key, current))
 
     def get_flag(self, flag_name: "PlayerFlags") -> Optional["Flag"]:
         """
@@ -966,7 +1007,15 @@ class Player:
                     pass
 
             # Merge simple scalar fields
-            simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote')
+            # shield/armor/active_shield_id added here because they were
+            # previously written by save() (full __dict__ dump) but never
+            # read back -- every login silently reset a player's shield and
+            # armor condition to their __init__ defaults. Found while wiring
+            # up the starting-equipment feature, which depends on these
+            # actually persisting. shield_proficiency is a dict, merged
+            # separately below alongside weapon_experience.
+            simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote',
+                           'shield', 'armor', 'active_shield_id')
             for k in simple_keys:
                 if k in data:
                     try:
@@ -1129,6 +1178,11 @@ class Player:
             if 'weapon_experience' in data and isinstance(data['weapon_experience'], dict):
                 try:
                     self.weapon_experience = {str(k): int(v) for k, v in data['weapon_experience'].items()}
+                except Exception:
+                    pass
+            if 'shield_proficiency' in data and isinstance(data['shield_proficiency'], dict):
+                try:
+                    self.shield_proficiency = {str(k): int(v) for k, v in data['shield_proficiency'].items()}
                 except Exception:
                     pass
 

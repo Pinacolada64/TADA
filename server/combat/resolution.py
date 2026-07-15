@@ -66,6 +66,20 @@ def battle_exp_bonuses(vp: int, xp_level: int) -> tuple[int, int]:
     return 0, 0
 
 
+# Shield-block proficiency is not part of original SPUR (there, block
+# chance comes purely from the shield's own condition value). New tracked
+# mechanic: mirrors battle_exp_bonuses' GREEN/VETERAN/ELITE tiers, adding a
+# small bonus to the block-threshold roll once a player has blocked enough
+# hits with a shield equipped. See player.py's gain_shield_proficiency().
+def shield_exp_bonus(shield_proficiency: int) -> int:
+    """Return an additive bonus to shield_thresh for a given proficiency."""
+    if shield_proficiency >= 99:
+        return 2
+    if shield_proficiency >= 40:
+        return 1
+    return 0
+
+
 def assemble_zu_zv(weapon, player_battle_exp: int, xp_level: int,
                    class_to_hit: int = 0, class_damage: int = 0,
                    ) -> tuple[int, int]:
@@ -662,7 +676,10 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False) -> Mo
     shield_destroyed = False
     if shield > 0:
         block_roll      = random.randint(1, 10)
-        shield_thresh   = 2 + (shield // 25) + random.randint(0, 2)
+        active_shield_id = getattr(player, 'active_shield_id', None)
+        prof_dict        = getattr(player, 'shield_proficiency', {}) or {}
+        shield_prof      = int(prof_dict.get(str(active_shield_id), 0)) if active_shield_id is not None else 0
+        shield_thresh   = 2 + (shield // 25) + random.randint(0, 2) + shield_exp_bonus(shield_prof)
         if block_roll <= shield_thresh:
             shield_blocked  = min(int(raw), shield_thresh)
             shield_degraded = 1 + random.randint(0, max(0, 10 - ma))
