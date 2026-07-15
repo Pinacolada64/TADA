@@ -12,6 +12,7 @@ Special-cased weapons (SPUR.WEAPON.S):
 import random
 
 from base_classes import PlayerClass, PlayerStat
+from combat.resolution import tier_label as _tier_label
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from item_system import weapon_bonus
@@ -32,11 +33,8 @@ _EXCALIBUR_MIN_HONOR = 1200
 
 # Battle experience tiers (mirrors SPUR.WEAPON.S vp thresholds).
 # VETERAN (+1 to-hit, +1 damage) at 40; ELITE (+2 to-hit, +xp damage) at 99.
-_TIERS = [
-    (99, 'ELITE',   '|light_cyan|'),
-    (40, 'VETERAN', '|yellow|'),
-    ( 0, 'GREEN',   '|green|'),
-]
+# Tier thresholds/colors live in combat/resolution.py (tier_label(), imported
+# above as _tier_label) so weapon and shield skill badges match exactly.
 
 
 def _battle_exp(player, weapon) -> int:
@@ -44,14 +42,6 @@ def _battle_exp(player, weapon) -> int:
     wid = str(getattr(weapon, 'id_number', 0))
     exp = getattr(player, 'weapon_experience', {})
     return int(exp.get(wid, 0))
-
-
-def _tier_label(vp: int) -> str:
-    """Return a colour-coded tier badge for display, e.g. '|yellow|[ VETERAN ]|reset|'."""
-    for threshold, name, color in _TIERS:
-        if vp >= threshold:
-            return f'{color}[ {name} ]|reset|'
-    return ''
 
 
 def _find_storm_in_inventory(player, excluding_id=None):

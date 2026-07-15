@@ -66,6 +66,24 @@ def battle_exp_bonuses(vp: int, xp_level: int) -> tuple[int, int]:
     return 0, 0
 
 
+# Shared display colors for the GREEN/VETERAN/ELITE tiers -- used by
+# commands/ready.py (weapon battle exp) and commands/stats.py (shield
+# skill) so both show the identical badge for the identical thresholds.
+TIER_THRESHOLDS = [
+    (99, 'ELITE',   '|light_cyan|'),
+    (40, 'VETERAN', '|yellow|'),
+    (0,  'GREEN',   '|green|'),
+]
+
+
+def tier_label(vp: int) -> str:
+    """Return a colour-coded tier badge for display, e.g. '|yellow|[ VETERAN ]|reset|'."""
+    for threshold, name, color in TIER_THRESHOLDS:
+        if vp >= threshold:
+            return f'{color}[ {name} ]|reset|'
+    return ''
+
+
 # Shield-block proficiency is not part of original SPUR (there, block
 # chance comes purely from the shield's own condition value). New tracked
 # mechanic: mirrors battle_exp_bonuses' GREEN/VETERAN/ELITE tiers, adding a

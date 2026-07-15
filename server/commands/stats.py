@@ -3,6 +3,7 @@
 from base_classes import (
     Alignment, Guild, PlayerMoneyTypes, PlayerRace, PlayerStat,
 )
+from combat.resolution import tier_label
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
@@ -145,7 +146,7 @@ def _build_stats_lines(player) -> list[str]:
     shield_flag = getattr(PlayerFlags, 'SHIELD_TRAINED', None)
     shield_trained = ('Yes' if qf(shield_flag) else 'No') if shield_flag else 'No'
     lines += [
-        f"Shield skill: {shield_skill}, Formal training: {shield_trained}",
+        f"Shield skill: {shield_skill} {tier_label(shield_skill)}, Formal training: {shield_trained}",
         '',
     ]
 
