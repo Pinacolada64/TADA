@@ -203,9 +203,11 @@ def _build_stats_lines(player) -> list[str]:
         'SPUR: ' + ('Alive!' if qf(PlayerFlags.SPUR_ALIVE) else 'Dead...')
     )
 
-    # Dwarf -- a single server-wide NPC (tips.txt / MECHANICS.md), not a
-    # per-player pool, so his stolen silver lives in server_config.json
-    # (config.py's ServerConfig), not on any one player's wallet.
+    # Dwarf (encounters/dwarf.py) -- one shared world NPC/room/hoard, but
+    # "have I personally killed him" is tracked per-player
+    # (PlayerFlags.DWARF_ALIVE): once you kill him he stops robbing you
+    # specifically, even though he keeps roaming/stealing from everyone
+    # else until (if ever) they kill him too.
     dwarf_alive = qf(PlayerFlags.DWARF_ALIVE)
     if dwarf_alive:
         from config import config as server_config

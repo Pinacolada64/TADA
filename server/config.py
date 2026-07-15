@@ -49,6 +49,12 @@ SETTINGS_METADATA: Dict[str, SettingInfo] = {
         int, 'Silver The Dwarf (tips.txt) has stolen so far, server-wide. Awarded in full to whoever kills him.',
         "Dwarf's Silver",
     ),
+    'dwarf_move_interval_minutes': SettingInfo(
+        int, 'Minutes between the Dwarf relocating to a new random level-1 room '
+             '(encounters/dwarf.py). Not part of original SPUR -- there he never '
+             'moves once placed -- added so he\'s a moving target, not a campable fix.',
+        'Dwarf Move Interval',
+    ),
     'require_invites': SettingInfo(bool, 'Whether invites are required for new-player registration.', 'Require Invites'),
     'invite_expiry_days': SettingInfo(int, 'Days until an issued invite expires.', 'Invite Expiry Days'),
     'max_players': SettingInfo(int, 'Maximum simultaneous connected players.', 'Max Players'),
@@ -160,6 +166,7 @@ class ServerConfig:
         # any one Player -- commands/stats.py reads it via this config
         # instead of a (per-player, and thus wrong) PlayerMoneyTypes slot.
         'dwarf_silver': 0,
+        'dwarf_move_interval_minutes': 15,
 
         # --- SPUR.CONTROL.S game configuration (SysOp "config"/"object"/
         # "time.set" labels) -- the handful of settings there that are
@@ -265,6 +272,16 @@ class ServerConfig:
     @dwarf_silver.setter
     def dwarf_silver(self, value: int) -> None:
         self.set('dwarf_silver', int(value))
+
+    @property
+    def dwarf_move_interval_minutes(self) -> int:
+        """Minutes between the Dwarf relocating to a new level-1 room
+        (encounters/dwarf.py's maybe_relocate())."""
+        return int(self.get('dwarf_move_interval_minutes', 15))
+
+    @dwarf_move_interval_minutes.setter
+    def dwarf_move_interval_minutes(self, value: int) -> None:
+        self.set('dwarf_move_interval_minutes', max(1, int(value)))
 
     @property
     def game_name(self) -> str:

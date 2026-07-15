@@ -55,6 +55,11 @@ def _monster_in_room(ctx: GameContext) -> dict | None:
     mon_number = int(getattr(room, 'monster', 0) or 0)
     if not mon_number:
         return None
+
+    from encounters.dwarf import MONSTER_NUMBER as _DWARF_MONSTER_NUMBER, visible_to
+    if mon_number == _DWARF_MONSTER_NUMBER and not visible_to(ctx.player):
+        return None
+
     from monsters import get_monster
     return get_monster(monsters, mon_number)
 

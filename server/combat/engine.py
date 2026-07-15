@@ -1301,6 +1301,18 @@ class CombatSession:
             exclude_self=True,
         )
 
+        # The Dwarf (encounters/dwarf.py): killing him pays out his entire
+        # accumulated hoard instead of the usual random gold_from_monster()
+        # roll (his monsters.json entry is flagged no_gold for that reason)
+        # and skips hidden-exit reveal below (SPUR.MISC.S:385: "if m$<>
+        # 'THE DWARF' goto p.a4" -- the reveal only runs past that check).
+        from encounters.dwarf import MONSTER_NUMBER as _DWARF_MONSTER_NUMBER
+        is_dwarf = self.monster.get('number') == _DWARF_MONSTER_NUMBER
+        if is_dwarf:
+            from encounters.dwarf import on_killed
+            for line in await on_killed(ctx):
+                await ctx.send(line)
+
         # STORM weapon glee on kill (SPUR.COMBAT.S line 197)
         weapon = getattr(ctx.player, 'readied_weapon', None)
         wname  = (getattr(weapon, 'name', '') or '').upper()
@@ -1342,7 +1354,9 @@ class CombatSession:
         # Hidden exit reveal (SPUR.MISC.S:419-420, right after "gosub
         # rec.ammo" in the source): killing a monster in a room flagged
         # hidden_exit_east/west reveals the secret passage it was guarding.
-        await self._reveal_hidden_exit(ctx)
+        # Excludes the Dwarf (see is_dwarf comment above).
+        if not is_dwarf:
+            await self._reveal_hidden_exit(ctx)
 
         # Notify bystanders of the kill. Only the ctx that landed the killing
         # blow gains weapon exp (above) or the general per-swing ep exp
@@ -1358,6 +1372,8 @@ class CombatSession:
 
         SPUR.MISC.S:419-420: unconditional for any non-Dwarf kill in a room
         whose raw name field carried the "->"/"<-" marker -- no other gate.
+        The Dwarf exclusion is enforced by _monster_dies()'s caller (only
+        calls this when not is_dwarf), not inside this method.
         """
         game_map = getattr(ctx.server, 'game_map', None)
         room_no  = getattr(ctx.client, 'room', None)

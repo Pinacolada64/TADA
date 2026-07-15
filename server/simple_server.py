@@ -168,6 +168,7 @@ class Server:
             self.game_map = None
 
         self._place_wild_horse()
+        self._place_dwarf()
 
         def _try_load(cls, filename, method='read'):
             try:
@@ -226,6 +227,31 @@ class Server:
         if room:
             room.monster = _WILD_HORSE_MONSTER_NUMBER
             logging.info('Wild horse this session: room %d (%s)', room_no, room.name)
+
+    def _place_dwarf(self) -> None:
+        """Place the Dwarf in a random eligible level-1 room at server
+        boot -- see encounters/dwarf.py for the full mechanic (theft,
+        periodic relocation, combat encounter, hoard payout on death).
+
+        Unlike the wild horse, his room persists in run/server/
+        dwarf_state.json across restarts (relocate() only re-rolls once
+        the configured interval has actually elapsed), so this is a no-op
+        placement call -- maybe_relocate() (per-move) handles the real
+        first-time placement/relocation logic.
+        """
+        if not self.game_map:
+            return
+        from encounters.dwarf import current_room, relocate
+        if current_room() == 0:
+            relocate(self.game_map)
+        else:
+            # Restore his monster slot on the room he was already in --
+            # game_map is freshly loaded from disk every restart, so the
+            # in-memory room.monster mutation from a prior session is gone.
+            from encounters.dwarf import DWARF_LEVEL, MONSTER_NUMBER
+            room = self.game_map.get_room(DWARF_LEVEL, current_room())
+            if room is not None:
+                room.monster = MONSTER_NUMBER
 
     # -----------------------------------------------------------------------
     # Wire I/O (low-level — use ctx.send() in game code instead)
@@ -892,6 +918,9 @@ class Server:
         await try_ally_find_gold(ctx)
         from wild_horse_events import try_wandering_horse_encounter
         await try_wandering_horse_encounter(ctx)
+        from encounters.dwarf import maybe_relocate, try_steal
+        maybe_relocate(ctx)
+        await try_steal(ctx)
 
     def _leave_combat_on_move(self, ctx: GameContext, room_no) -> None:
         """Drop *ctx* from an active fight's attacker list when they move
@@ -964,6 +993,9 @@ class Server:
         await try_ally_find_gold(ctx)
         from wild_horse_events import try_wandering_horse_encounter
         await try_wandering_horse_encounter(ctx)
+        from encounters.dwarf import maybe_relocate, try_steal
+        maybe_relocate(ctx)
+        await try_steal(ctx)
 
     # -----------------------------------------------------------------------
     # Broadcast
