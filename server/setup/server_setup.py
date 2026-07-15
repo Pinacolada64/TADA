@@ -1,12 +1,21 @@
 import os
 import sys
 from pathlib import Path
-from old_server import menu_system
-from old_server.commands.help import headline
-from old_server.setup import GameConfig
+
+from config import SETTINGS_METADATA, config, format_value, parse_value, resolve_key
 
 # Global flag to track if server is running
 server_running = False
+
+
+def headline(text: str) -> str:
+    """Simple banner. old_server.commands.help.headline (this script's
+    original import) doesn't exist anywhere in this checkout -- there is
+    no old_server package at all -- so this is a minimal standalone
+    replacement rather than a real dependency."""
+    bar = '=' * len(text)
+    return f'{bar}\n{text}\n{bar}'
+
 
 def input_yes_no(prompt):
     """Get yes/no input from user."""
@@ -18,54 +27,99 @@ def input_yes_no(prompt):
             return False
         print("Please enter 'y' or 'n'.")
 
+
 def setup_game_data():
     """Setup game data configuration."""
     print("Game data setup not yet implemented.")
 
+
 def edit_game_config():
-    """Edit game configuration."""
-    print("Game config editor not yet implemented.")
-    print("Use/edit 'server_config.json' for now.")
+    """Edit game configuration -- folded into edit_server_config() now
+    that config.py's ServerConfig covers game_name/session_time_limit/
+    victory_* alongside the rest of server config, instead of a separate
+    game_config.json."""
+    edit_server_config()
+
 
 def edit_game_goal():
-    """Edit game goal configuration."""
-    print("Game goal editor not yet implemented.")
-    print("Use/edit 'game_config.json' for now.")
+    """Edit game goal (win condition) -- SPUR.CONTROL.S's object label
+    lives in edit_server_config() as victory_type/victory_gold_amount/
+    victory_item_number, not a separate editor."""
+    edit_server_config()
+
 
 def edit_motd():
     """Edit message of the day."""
     print("'Message of the day' editor not yet implemented.")
     print("Use/edit 'motd.txt' for now.")
 
+
 def edit_news():
     """Edit news."""
     print("News editor not yet implemented.")
     print("Use/edit 'news.txt' for now.")
 
+
+def _edit_one_setting(key: str) -> None:
+    """Prompt for and apply a new value for a single config.py setting."""
+    _value_type, desc = SETTINGS_METADATA[key]
+    current = format_value(config.get(key))
+    print(f"\n{key}: {desc}")
+    raw = input(f"Current: {current}  -  new value (blank to cancel): ").strip()
+    if not raw:
+        return
+    try:
+        value = parse_value(key, raw)
+        config.set_validated(key, value)
+    except ValueError as exc:
+        print(str(exc))
+        return
+    print(f"{key} set to {format_value(config.get(key))}.")
+
+
 def edit_server_config():
-    """Edit server configuration."""
-    from old_server.config import config
-    
-    def toggle_invites():
-        current = config.require_invites
-        new_setting = not current
-        config.require_invites = new_setting
-        status = "enabled" if new_setting else "disabled"
-        print(f"\nInvite requirement is now {status}.")
-    
+    """Edit server configuration.
+
+    Lists every setting in config.py's SETTINGS_METADATA -- the exact same
+    table the live in-game CONFIG command (commands/config.py) uses, so
+    this offline tool and a logged-in admin always see/validate the same
+    settings, nothing duplicated between the two.
+    """
+    keys = list(SETTINGS_METADATA)
     while True:
         print("\n" + headline("Server Configuration"))
-        print(f"1. {'[X]' if config.require_invites else '[ ]'} Require invites for registration")
-        print("2. Back to main menu")
-        
-        choice = input("\nSelect an option (1-2): ").strip()
-        
-        if choice == '1':
-            toggle_invites()
-        elif choice == '2':
+        for i, key in enumerate(keys, start=1):
+            value = format_value(config.get(key))
+            print(f"{i:2d}. {key:<28} {value}")
+        print(f"{len(keys) + 1:2d}. Back to main menu")
+
+        choice = input(
+            f"\nSelect a setting to edit (1-{len(keys) + 1}), "
+            "or type its name (abbreviations OK): "
+        ).strip()
+        if not choice:
+            continue
+        if choice == str(len(keys) + 1):
             break
-        else:
-            print("Invalid choice. Please try again.")
+        if choice.isdigit():
+            idx = int(choice)
+            if 1 <= idx <= len(keys):
+                _edit_one_setting(keys[idx - 1])
+            else:
+                print("Invalid choice. Please try again.")
+            continue
+
+        # Typed a name (possibly abbreviated) instead of a number --
+        # config.resolve_key() is the same partial-match logic the live
+        # in-game CONFIG command uses.
+        key, candidates = resolve_key(choice)
+        if key is None:
+            if candidates:
+                print(f"'{choice}' matches more than one setting: {', '.join(candidates)}.")
+            else:
+                print(f"Unknown setting '{choice}'.")
+            continue
+        _edit_one_setting(key)
 
 
 class ServerDefaults:
@@ -80,23 +134,49 @@ class ServerDefaults:
         self.server_config = "server/server_config.json"
         self.game_config = "server/game_config.json"
 
+
 def main():
     print(headline("*** Totally Awesome Dungeon Adventure (TADA) Game Server Setup ***"))
-    menu = menu_system.Menu(title="Server Setup")
-    menu.add_menu_item('s', 'Set up game data', submenu=setup_data)
-    menu.add_menu_item('m', 'Make directories', submenu=create_directories)
-    menu.add_menu_item('e', 'Edit directories', submenu=edit_directories)
-    menu.add_menu_item('v', 'Convert data files', submenu=convert_data_files)
-    menu.add_menu_item('n', 'Edit news', submenu=edit_news)
-    menu.add_menu_item('c', 'Edit server config', submenu=edit_server_config)
-    menu.add_menu_item('g', 'Edit game config', submenu=edit_game_config)
-    menu.add_menu_item('q', 'Quit', lambda: sys.exit(0))
-    menu.run()
+    while True:
+        print("\n" + headline("Server Setup"))
+        print("s. Set up game data")
+        print("m. Make directories")
+        print("e. Edit directories")
+        print("v. Convert data files")
+        print("n. Edit news")
+        print("c. Edit server config")
+        print("g. Edit game config")
+        print("q. Quit")
+
+        choice = input("\nChoice: ").strip().lower()
+        if choice == 's':
+            setup_data()
+        elif choice == 'm':
+            create_directories()
+        elif choice == 'e':
+            edit_directories()
+        elif choice == 'v':
+            convert_data_files()
+        elif choice == 'n':
+            edit_news()
+        elif choice == 'c':
+            edit_server_config()
+        elif choice == 'g':
+            edit_game_config()
+        elif choice == 'q':
+            sys.exit(0)
+        else:
+            print("Invalid choice. Please try again.")
+
 
 def setup_data():
-    menu = menu_system.Menu(title="Set up game data")
-    menu.add_menu_item('Configure game goal', GameConfig.setup_game_goal)
-    menu.run()
+    # This used to open a submenu for "Configure game goal" -- that's
+    # edit_server_config()'s victory_type/victory_gold_amount/
+    # victory_item_number now, not a separate GameConfig-backed screen
+    # (GameConfig doesn't exist anywhere in this checkout).
+    print("Game data setup not yet implemented.")
+    print("(Game goal / victory conditions: see 'c' Edit server config.)")
+
 
 def create_directories():
     # create directories if they don't exist
@@ -125,58 +205,13 @@ def convert_data_files():
     # TODO: check if run/server/net/ directory exists: overwriting will destroy user data!
     print("Skipping data conversion, this is just a placeholder for now.")
 
-def edit_data_dir():
-    menu = menu_system.Menu(title="Edit Data Directory")
-    menu.add_menu_item('Restore server default', action=lambda: setattr(GameConfig.directories, 'data_dir', ServerDefaults.data_dir))
-    menu.add_menu_item('Data directory', 
-                     dot_leader_handler=lambda: GameConfig.directories.data_dir,
-                     action=lambda: move_directory(GameConfig.directories.data_dir, GameConfig.directories.data_dir))
-    menu.run()
-    
-def edit_log_dir():
-    menu = menu_system.Menu(title="Edit Log Directory")
-    menu.add_menu_item("The log directory is where server logs are stored.")
-    menu.add_menu_item('Restore server default', action=lambda: setattr(GameConfig.directories, 'log_dir', ServerDefaults.log_dir))
-    menu.add_menu_item('Log directory',
-                     dot_leader_handler=lambda: GameConfig.directories.log_dir,
-                     action=lambda: move_directory(GameConfig.directories.log_dir, GameConfig.directories.log_dir))
-    menu.run()
 
-def edit_mail_dir():
-    menu = menu_system.Menu(title="Edit Mail Directory")
-    menu.add_menu_item("The mail directory is where player mail is stored.")
-    menu.add_menu_item('Restore server default', action=lambda: setattr(GameConfig.directories, 'mail_dir', ServerDefaults.mail_dir))
-    menu.add_menu_item('Mail directory',
-                     dot_leader_handler=lambda: GameConfig.directories.mail_dir,
-                     action=lambda: move_directory(GameConfig.directories.mail_dir, GameConfig.directories.mail_dir))
-    menu.run()
+def edit_directories():
+    # TODO: this whole directories subsystem depended on a GameConfig
+    # class that doesn't exist anywhere in this checkout (unrelated to
+    # config.py's ServerConfig) -- needs a real design, not a quick patch.
+    print("Directory editing not yet implemented.")
 
-def edit_invite_dir():
-    menu = menu_system.Menu(title="Edit Invite Directory")
-    menu.add_menu_item("The invite directory is where player invites are stored.")
-    menu.add_menu_item('Restore server default', action=lambda: setattr(GameConfig.directories, 'invite_dir', ServerDefaults.invite_dir))
-    menu.add_menu_item('Invite directory',
-                     dot_leader_handler=lambda: GameConfig.directories.invite_dir,
-                     action=lambda: move_directory(GameConfig.directories.invite_dir, GameConfig.directories.invite_dir))
-    menu.run()
-
-def edit_client_dir():
-    menu = menu_system.Menu(title="Edit Client Directory")
-    menu.add_menu_item("The client directory is where the client IP addresses and user data are stored.")
-    menu.add_menu_item('Restore server default', action=lambda: setattr(GameConfig.directories, 'client_dir', ServerDefaults.client_dir))
-    menu.add_menu_item('Client directory',
-                     dot_leader_handler=lambda: GameConfig.directories.client_dir,
-                     action=lambda: move_directory(GameConfig.directories.client_dir, GameConfig.directories.client_dir))
-    menu.run()
-
-def edit_server_dir():
-    menu = menu_system.Menu(title="Edit Server Directory")
-    menu.add_menu_item("The server directory stores server invites and client login data.")
-    menu.add_menu_item('Restore server default', action=lambda: setattr(GameConfig.directories, 'server_dir', ServerDefaults.server_dir))
-    menu.add_menu_item('Server directory',
-                     dot_leader_handler=lambda: GameConfig.directories.server_dir,
-                     action=lambda: move_directory(GameConfig.directories.server_dir, GameConfig.directories.server_dir))
-    menu.run()
 
 def move_directory(old_path, new_path):
     if server_running:
@@ -189,29 +224,6 @@ def move_directory(old_path, new_path):
         if os.path.exists(old_path):
             os.rename(old_path, new_path)
 
-def edit_directories():
-    menu = menu_system.Menu(title="Edit Directories")
-    menu.add_menu_item('Data directory', action=edit_data_dir, dot_leader_handler=lambda: GameConfig.directories.data_dir)
-    menu.add_menu_item('Log directory', action=edit_log_dir, dot_leader_handler=lambda: GameConfig.directories.log_dir)
-    menu.add_menu_item('Invite directory', action=edit_invite_dir, dot_leader_handler=lambda: GameConfig.directories.invite_dir)
-    menu.add_menu_item('Client directory', action=edit_client_dir, dot_leader_handler=lambda: GameConfig.directories.client_dir)
-    menu.add_menu_item('Server directory', action=edit_server_dir, dot_leader_handler=lambda: GameConfig.directories.server_dir)
-    menu.run()
-
-def blah():
-    """Menu-driven setup program for the server."""
-    # TODO: just throwing spaghetti at the wall, check CONTROL.S in spur-code/
-    menu = menu_system.Menu(title="Server Setup")
-    menu.add_menu_item('Setup server data', action=setup_data)
-    menu.add_menu_item('Setup game data', action=setup_game_data)
-    menu.add_menu_item('Setup directories', action=create_directories)
-    menu.add_menu_item('Edit directories', action=edit_directories)
-    menu.add_menu_item('Convert data files', action=convert_data_files)
-    menu.add_menu_item('Edit game config', action=edit_game_config)
-    menu.add_menu_item('Edit game goal', action=edit_game_goal)
-    menu.add_menu_item('Upgrade server', action=upgrade_server)
-    menu.add_menu_item('Quit', action=sys.exit)
-    menu.run()
 
 def upgrade_server():
     """Upgrade the server to the latest version."""
@@ -228,17 +240,6 @@ def upgrade_server():
     else:
         print('Server upgrade cancelled.')
 
+
 if __name__ == "__main__":
-    """
-    if not Path(GameConfig.directories.data_dir + '/server_config.json').exists():
-        print('No server config found. Creating default config...')
-        GameConfig.save()
-        print('Running setup program...')
-        main()
-    else:
-        print('Server config found. Loading server configuration...')
-        GameConfig.load()
-        print('Running server...')
-    """
     main()
-    
