@@ -450,4 +450,9 @@ def create_command_processor(client=None, context: dict | None = None,
     if context:
         processor.context = context
     processor.discover()
+    # combat/duel.py's DuelCommand lives alongside the duel resolution math
+    # instead of in commands/ (Ryan: keep the whole rough-draft duel feature
+    # in one file while it's still early) -- discover() only walks one
+    # package per call, so it needs its own pass here.
+    processor.discover('combat')
     return processor

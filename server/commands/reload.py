@@ -164,6 +164,11 @@ class ReloadCommand(Command):
             try:
                 processor.clear()
                 processor.discover()
+                # combat/duel.py's DuelCommand lives outside commands/ (see
+                # create_command_processor()'s matching second discover()
+                # call) -- without this, RELOAD would silently drop DUEL
+                # from every connected client's command table.
+                processor.discover('combat')
                 rebuilt += 1
             except Exception:
                 log.exception('reload: failed to rebuild command processor for a client')

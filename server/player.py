@@ -313,6 +313,10 @@ class Player:
         # re-reading the same reference book). See commands/read.py.
         self.read_books: list[int] = kwargs.get('read_books', [])
         self.readied_weapon = None  # currently readied weapon (BaseItem or None)
+        # Session-only: name of a player who has challenged this player to a
+        # duel and is awaiting DUEL ACCEPT / DUEL DECLINE (see
+        # commands/duel.py). Only one challenge can be pending at a time.
+        self.pending_duel_challenge: Optional[str] = None
         # Page messages queued while busy (currently: in combat -- see
         # commands/messaging.py's is_in_combat() and commands/page.py).
         # Flushed and shown by network_context.py's prompt() the next time
@@ -928,7 +932,8 @@ class Player:
                 os.makedirs(parent, exist_ok=True)
             # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact.
             # Exclude session-only attributes that hold live objects and are not restored on load.
-            _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'compass_active', 'pending_pages'}
+            _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'compass_active', 'pending_pages',
+                             'pending_duel_challenge'}
             data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
             from inventory import Inventory
