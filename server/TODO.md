@@ -478,3 +478,19 @@
     - `*SS` — the Ship's Salvage Bay visited once per session ("the
       salvage computer does not respond" on a repeat visit,
       `SPUR.SHIP.S:461-463`).
+- Difficulty toggle for `encounters/meteor.py`'s dodge math (Ryan): a
+  server-config option to pick between master's numbers (currently used
+  -- success on roll `<90`, Energy/Strength penalties -5% each) and the
+  skip branch's harsher numbers (success on roll `<70`, Energy/Strength
+  penalties -7% each). Not a stub-vs-complete situation -- both branches
+  have a complete, working version of this mechanic, just two different
+  balance passes -- so "pick one" isn't really resolvable by reading the
+  source alone; a sysop-facing setting is the right call instead of
+  guessing. Would follow config.py's existing SETTINGS_METADATA pattern
+  (e.g. `meteor_difficulty: 'master' | 'skip'`, or expose the raw
+  threshold/penalty numbers directly for finer control) and
+  `encounters/meteor.py`'s constants (`_DODGE_SUCCESS_MAX`,
+  `_ENERGY_PENALTY`, `_STR_PENALTY`) would read from it instead of being
+  hardcoded. If this pattern recurs for other master/skip balance
+  divergences, worth generalizing rather than one-off config keys per
+  mechanic.
