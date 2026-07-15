@@ -367,3 +367,36 @@
   don't match one of the four presets exactly (_pick_client_type()'s
   presets list). Ryan: the table cell can be two rows tall if that's
   needed to fit it all legibly.
+- Partial name matching/disambiguation for PAGE (Ryan): 'page rail=blah'
+  should expand to 'page railbender=blah' if 'rail' is an unambiguous
+  prefix of exactly one online player's name. If expert mode is off,
+  confirm the expansion with the player before sending ("Did you mean
+  railbender? (Y/N)"); expert mode skips the confirmation and just sends.
+  Currently `commands/messaging.py`'s `find_online()` only does exact
+  case-insensitive matching against online player names (a `name.lower()`
+  dict lookup) -- no substring/prefix matching at all, so 'rail' would
+  just land in `not_found`. Needs: a prefix (or substring?) search step
+  before the exact-match lookup, disambiguation handling when a prefix
+  matches more than one online player (list the candidates, ask which
+  one), and the expert-mode-gated confirmation prompt. Likely belongs in
+  or near `find_online()` itself since PAGE isn't the only caller
+  (`parse_targets()`/`expand_groups()` sit upstream of it too) -- worth
+  checking whether other name-lookup commands want this same treatment.
+- Add 'page #who' / 'page #last' options: track the last 5-10 players
+  or groups a player has PAGEd, so they can quickly re-target without
+  retyping a name/group. Store the history in command_settings.py
+  (mirrors the existing `ignored_pagers`/`groups`/`haven` fields there --
+  same file, same per-player persisted-with-save-file pattern) alongside
+  the other PAGE prefs.
+  - Longer-term restructuring idea (Ryan): CommandSettings is currently
+    one flat dataclass shared by every command (`whereat_hidden`, PAGE's
+    `haven`/`ignored_pagers`/`groups`, `news_show_all`, ...). Eventually
+    break it up so each command owns its own settings object --
+    `command_settings.page`, `command_settings.whisper`,
+    `command_settings.whereat`, etc. -- instead of every command's prefs
+    living as top-level fields on one shared class. Not scoped yet:
+    would need a decision on nested-dataclass persistence (`to_dict()`/
+    `from_dict()` currently just filters top-level keys against
+    `__dataclass_fields__`, doesn't recurse) and a migration path for
+    existing save files that already have `whereat_hidden`/`haven`/etc.
+    at the top level.
