@@ -1,22 +1,49 @@
-"""tests/test_duel.py — rough-draft SPORT DUEL resolution tests.
+"""tests/test_duel.py — live tactic-loop SPORT DUEL tests.
 
-Covers combat/duel.py's resolve_sport_duel() (pure, no ctx/I/O) and
-guild_standings.py's tally persistence. DuelCommand's (combat/duel.py)
-challenge/accept UX is exercised indirectly via _offense_rating and
-outcome shape here; full command-level bot testing is done live (see
+Covers combat/duel.py's DuelSession (pure player-object mutation, no ctx
+I/O beyond a fake .send()) and guild_standings.py's tally persistence.
+DuelCommand's challenge/accept/tactic UX is exercised indirectly through
+DuelSession here; full command-level bot testing is done live (see
 session notes), not duplicated as unit tests for this rough draft.
 """
 from __future__ import annotations
 
-import json
+import asyncio
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from base_classes import PlayerClass, PlayerRace
-from combat.duel import _offense_rating, resolve_sport_duel
+from combat.duel import (
+    DuelSession, DuelTactic, _is_predictable, _offense_rating, _STREAK_LEN,
+)
 from items import Weapon
 from player import Player
+
+
+class _FakeClient:
+    def __init__(self, room):
+        self.room = room
+        self.ctx = None
+
+
+class _FakeServer:
+    def __init__(self):
+        self.clients: dict = {}
+
+
+class _FakeCtx:
+    def __init__(self, server=None, client=None):
+        self.sent: list = []
+        self.server = server
+        self.client = client
+
+    async def send(self, *args):
+        self.sent.extend(args)
+
+
+def _flat(ctx) -> str:
+    return '\n'.join(str(x) for x in ctx.sent)
 
 
 def _make_duelist(name, *, char_class=PlayerClass.FIGHTER, char_race=PlayerRace.HUMAN,
@@ -34,6 +61,13 @@ def _make_duelist(name, *, char_class=PlayerClass.FIGHTER, char_race=PlayerRace.
     return p
 
 
+def _make_session():
+    a = _make_duelist('Ardent')
+    b = _make_duelist('Belwin')
+    session = DuelSession(a, _FakeCtx(), b, _FakeCtx())
+    return session, a, b
+
+
 class TestOffenseRating(unittest.TestCase):
     def test_no_weapon_still_returns_a_rating(self):
         p = _make_duelist('Rulan')
@@ -41,48 +75,127 @@ class TestOffenseRating(unittest.TestCase):
 
     def test_rating_is_clamped_3_to_9(self):
         p = _make_duelist('Rulan')
-        weapon = p.readied_weapon
-        rating = _offense_rating(p, weapon)
+        rating = _offense_rating(p, p.readied_weapon)
         self.assertGreaterEqual(rating, 3)
         self.assertLessEqual(rating, 9)
 
 
-class TestResolveSportDuel(unittest.TestCase):
-    def test_someone_wins_or_it_is_a_draw(self):
-        a = _make_duelist('Attacker')
-        b = _make_duelist('Defender')
-        outcome = resolve_sport_duel(a, b)
-        if outcome.fled:
-            self.assertEqual(outcome.winner_name, '')
-        else:
-            self.assertIn(outcome.winner_name, (a.name, b.name))
-            self.assertIn(outcome.loser_name, (a.name, b.name))
-            self.assertNotEqual(outcome.winner_name, outcome.loser_name)
+class TestPredictability(unittest.TestCase):
+    def test_not_predictable_below_streak_len(self):
+        history = [DuelTactic.ATTACK] * (_STREAK_LEN - 1)
+        self.assertFalse(_is_predictable(history, DuelTactic.ATTACK))
 
-    def test_loser_left_at_min_hp_not_dead(self):
-        # Heavily stack the deck so Attacker reliably wins quickly.
-        a = _make_duelist('Attacker', hit_points=100)
-        b = _make_duelist('Defender', hit_points=5)
-        outcome = resolve_sport_duel(a, b)
-        self.assertFalse(outcome.fled)
-        loser = a if outcome.loser_name == a.name else b
-        self.assertEqual(loser.hit_points, 15)
+    def test_predictable_at_streak_len(self):
+        history = [DuelTactic.ATTACK] * _STREAK_LEN
+        self.assertTrue(_is_predictable(history, DuelTactic.ATTACK))
 
-    def test_winner_hit_points_never_forced_negative_by_loss_floor(self):
-        a = _make_duelist('Attacker', hit_points=100)
-        b = _make_duelist('Defender', hit_points=5)
-        resolve_sport_duel(a, b)
-        # Only the loser gets the hp=15 floor; the winner's hp is whatever
-        # combat left it at (not artificially bumped).
-        self.assertGreater(a.hit_points, 0)
+    def test_mixed_history_not_predictable(self):
+        history = [DuelTactic.ATTACK, DuelTactic.PARRY, DuelTactic.ATTACK]
+        self.assertFalse(_is_predictable(history, DuelTactic.ATTACK))
 
-    def test_rounds_recorded_for_both_sides(self):
-        a = _make_duelist('Attacker')
-        b = _make_duelist('Defender')
-        outcome = resolve_sport_duel(a, b)
-        self.assertGreater(len(outcome.rounds), 0)
-        names = {r.attacker_name for r in outcome.rounds}
-        self.assertTrue(names.issubset({a.name, b.name}))
+
+class TestDuelSessionSubmit(unittest.IsolatedAsyncioTestCase):
+    async def test_first_submission_waits_for_opponent(self):
+        session, a, b = _make_session()
+        await session.submit(a, DuelTactic.ATTACK)
+        self.assertEqual(a.hit_points, 30)
+        self.assertEqual(b.hit_points, 30)
+        self.assertIn('Waiting for Belwin', ' '.join(str(x) for x in session.a.ctx.sent))
+
+    async def test_second_submission_resolves_round(self):
+        session, a, b = _make_session()
+        await session.submit(a, DuelTactic.ATTACK)
+        await session.submit(b, DuelTactic.PARRY)
+        # Round resolved: both tactics cleared, round advanced.
+        self.assertIsNone(session.a.tactic)
+        self.assertIsNone(session.b.tactic)
+        self.assertEqual(session.round_num, 2 if not session.done else session.round_num)
+
+    async def test_duel_ends_when_someone_dies(self):
+        session, a, b = _make_session()
+        b.hit_points = 1
+        # Force a guaranteed hit by stacking dice heavily via repeated rounds.
+        for _ in range(50):
+            if session.done:
+                break
+            await session.submit(a, DuelTactic.ATTACK)
+            await session.submit(b, DuelTactic.PARRY)
+        self.assertTrue(session.done)
+
+    async def test_active_duel_cleared_on_both_players_when_done(self):
+        session, a, b = _make_session()
+        a.active_duel = session
+        b.active_duel = session
+        b.hit_points = 1
+        for _ in range(50):
+            if session.done:
+                break
+            await session.submit(a, DuelTactic.ATTACK)
+            await session.submit(b, DuelTactic.PARRY)
+        self.assertIsNone(a.active_duel)
+        self.assertIsNone(b.active_duel)
+
+    async def test_loser_left_at_min_hp_not_dead(self):
+        session, a, b = _make_session()
+        a.hit_points = 100
+        b.hit_points = 1
+        for _ in range(50):
+            if session.done:
+                break
+            await session.submit(a, DuelTactic.ATTACK)
+            await session.submit(b, DuelTactic.PARRY)
+        self.assertTrue(session.done)
+        loser = a if a.hit_points <= 0 or a.hit_points == 15 else b
+        # Whichever side actually lost should be sitting at exactly 15 HP.
+        self.assertIn(15, (a.hit_points, b.hit_points))
+
+
+class TestBystanderBroadcast(unittest.IsolatedAsyncioTestCase):
+    """DuelSession._broadcast_bystanders() -- terse room-wide updates for
+    players watching a duel who aren't in it (Ryan: "what about
+    broadcasting this to bystanders in the room through ctx.send_room()")."""
+
+    def _build(self):
+        server = _FakeServer()
+        a = _make_duelist('Ardent')
+        b = _make_duelist('Belwin')
+        client_a = _FakeClient(room=1)
+        client_b = _FakeClient(room=1)
+        client_bystander = _FakeClient(room=1)
+        ctx_a = _FakeCtx(server=server, client=client_a)
+        ctx_b = _FakeCtx(server=server, client=client_b)
+        ctx_bystander = _FakeCtx(server=server, client=client_bystander)
+        client_a.ctx = ctx_a
+        client_b.ctx = ctx_b
+        client_bystander.ctx = ctx_bystander
+        server.clients = {'a': client_a, 'b': client_b, 'c': client_bystander}
+        session = DuelSession(a, ctx_a, b, ctx_b)
+        return session, ctx_a, ctx_b, ctx_bystander
+
+    async def test_bystander_in_room_receives_terse_note(self):
+        session, _ctx_a, _ctx_b, ctx_bystander = self._build()
+        await session._broadcast_bystanders('Ardent and Belwin begin a duel!')
+        self.assertIn('Ardent and Belwin begin a duel!', _flat(ctx_bystander))
+
+    async def test_duelists_are_excluded_from_their_own_broadcast(self):
+        session, ctx_a, ctx_b, _ctx_bystander = self._build()
+        await session._broadcast_bystanders('Ardent and Belwin begin a duel!')
+        self.assertEqual(ctx_a.sent, [])
+        self.assertEqual(ctx_b.sent, [])
+
+    async def test_bystander_in_a_different_room_is_not_notified(self):
+        session, _ctx_a, _ctx_b, ctx_bystander = self._build()
+        ctx_bystander.client.room = 99
+        await session._broadcast_bystanders('Ardent and Belwin begin a duel!')
+        self.assertEqual(ctx_bystander.sent, [])
+
+    async def test_round_resolution_broadcasts_a_terse_note(self):
+        session, _ctx_a, _ctx_b, ctx_bystander = self._build()
+        await session.submit(session.a.player, DuelTactic.ATTACK)
+        await session.submit(session.b.player, DuelTactic.PARRY)
+        # Terse note present, but not the full "--- Round N ---" detail.
+        self.assertTrue(len(ctx_bystander.sent) > 0)
+        self.assertNotIn('--- Round', _flat(ctx_bystander))
 
 
 class TestGuildStandings(unittest.TestCase):

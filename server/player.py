@@ -315,8 +315,14 @@ class Player:
         self.readied_weapon = None  # currently readied weapon (BaseItem or None)
         # Session-only: name of a player who has challenged this player to a
         # duel and is awaiting DUEL ACCEPT / DUEL DECLINE (see
-        # commands/duel.py). Only one challenge can be pending at a time.
+        # combat/duel.py). Only one challenge can be pending at a time.
         self.pending_duel_challenge: Optional[str] = None
+        # Session-only: the shared combat.duel.DuelSession this player is
+        # currently fighting in, if any (set on both duelists by
+        # combat/duel.py's _resolve_challenge(), cleared by
+        # DuelSession._end()). Not a real object graph to persist -- a duel
+        # in progress is inherently a live-session-only concept.
+        self.active_duel = None
         # Page messages queued while busy (currently: in combat -- see
         # commands/messaging.py's is_in_combat() and commands/page.py).
         # Flushed and shown by network_context.py's prompt() the next time
@@ -933,7 +939,7 @@ class Player:
             # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact.
             # Exclude session-only attributes that hold live objects and are not restored on load.
             _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'compass_active', 'pending_pages',
-                             'pending_duel_challenge'}
+                             'pending_duel_challenge', 'active_duel'}
             data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
             from inventory import Inventory
