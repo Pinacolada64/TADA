@@ -17,6 +17,13 @@ class ServerConfig:
         'max_players': 100,       # Maximum number of players
         'port': 5001,             # Server port
         'host': 'localhost',      # Server host
+        # The Dwarf (tips.txt / MECHANICS.md "The Dwarf" -- a single,
+        # server-wide NPC on a fixed level-1 room who steals silver from
+        # every player until killed; killing him awards ALL of it at once).
+        # Server-wide, not per-player, so it belongs here rather than on
+        # any one Player -- commands/stats.py reads it via this config
+        # instead of a (per-player, and thus wrong) PlayerMoneyTypes slot.
+        'dwarf_silver': 0,
     }
 
     def __new__(cls):
@@ -67,6 +74,16 @@ class ServerConfig:
     def require_invites(self, value: bool) -> None:
         """Set whether invites are required for registration."""
         self.set('require_invites', bool(value))
+
+    @property
+    def dwarf_silver(self) -> int:
+        """Silver The Dwarf has stolen so far, server-wide (see
+        _default_config's comment). Awarded in full to whoever kills him."""
+        return int(self.get('dwarf_silver', 0))
+
+    @dwarf_silver.setter
+    def dwarf_silver(self, value: int) -> None:
+        self.set('dwarf_silver', int(value))
 
 # Global instance
 config = ServerConfig()

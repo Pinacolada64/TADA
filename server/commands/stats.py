@@ -96,11 +96,11 @@ def _build_stats_lines(player) -> list[str]:
         '',
     ]
 
-    # Gold
+    # Silver
     lines += [
-        f"{'Gold - In Hand:':>20} {silver_hand:>12,}",
-        f"{'       In Bank:':>20} {silver_bank:>12,}",
-        f"{'       In Bar :':>20} {silver_bar:>12,}",
+        f"{'Silver - In Hand:':>20} {silver_hand:>12,}",
+        f"{'         In Bank:':>20} {silver_bank:>12,}",
+        f"{'         In Bar :':>20} {silver_bar:>12,}",
         '',
     ]
 
@@ -202,11 +202,13 @@ def _build_stats_lines(player) -> list[str]:
         'SPUR: ' + ('Alive!' if qf(PlayerFlags.SPUR_ALIVE) else 'Dead...')
     )
 
-    # Dwarf - FIXME: DWARF PlayerMoneyType is incorrect
+    # Dwarf -- a single server-wide NPC (tips.txt / MECHANICS.md), not a
+    # per-player pool, so his stolen silver lives in server_config.json
+    # (config.py's ServerConfig), not on any one player's wallet.
     dwarf_alive = qf(PlayerFlags.DWARF_ALIVE)
     if dwarf_alive:
-        dwarf_gold = player.get_silver(PlayerMoneyTypes.DWARF) if hasattr(PlayerMoneyTypes, 'DWARF') else 0
-        lines.append(f'Dwarf: Alive!  [{dwarf_gold:,} gold]')
+        from config import config as server_config
+        lines.append(f'Dwarf: Alive!  [{server_config.dwarf_silver:,} silver]')
     else:
         lines.append('Dwarf: Dead...')
 
