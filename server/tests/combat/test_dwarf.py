@@ -203,6 +203,20 @@ class TestTrySteal(unittest.IsolatedAsyncioTestCase):
                 await try_steal(ctx)
             self.assertEqual(player.inventory.removed, [item])
 
+    async def test_flavor_line_when_nothing_to_steal(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            _isolated_state(self, tmp)
+            from encounters.dwarf import save_state, try_steal
+            save_state({'room': 2, 'last_moved': datetime.datetime.utcnow().isoformat()})
+            player = _make_player(silver=0, items=[])
+            ctx = _make_ctx(room_no=2, player=player)
+            with patch('random.randint', return_value=1):
+                await try_steal(ctx)
+            ctx.send.assert_awaited_once_with(
+                'A short bearded person eyes you, grumbles, and wanders off empty-handed.'
+            )
+
     async def test_safe_in_water_room(self):
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:

@@ -289,9 +289,14 @@ async def try_steal(ctx: 'GameContext') -> None:
 
     item_name = _steal_item(player)
     if item_name is None:
+        # SPUR.MISC5.S's own "dwarf" returns silently here (`if xi=0
+        # return`) -- nothing to steal, no message. This flavor line is
+        # Ryan's addition: a successful roll should still be visible even
+        # when he comes up empty-handed, rather than vanishing silently.
+        await ctx.send('A short bearded person eyes you, grumbles, and wanders off empty-handed.')
         return
     await ctx.send(
-        'The dwarf, seeing you are not carrying any gold, '
+        'The dwarf, seeing you are not carrying any silver, '
         f'steals your {item_name}!'
     )
 
