@@ -400,3 +400,20 @@
     `__dataclass_fields__`, doesn't recurse) and a migration path for
     existing save files that already have `whereat_hidden`/`haven`/etc.
     at the top level.
+
+7/15/26:
+- Daily reset of `player.once_per_day` (Ryan): on login, if today's date
+  is greater than `player.last_connection`'s date, clear
+  `player.once_per_day` (the list of "already did this today" markers --
+  PRAY, Druids' second PRAY, birthday-present-already-given, etc. --
+  see `player.py`'s docstring above `self.once_per_day` for the known
+  list) and log the reset to the server log. `last_connection` and
+  `last_play_date` are already tracked on `Player` (`player.py`) but
+  nothing currently compares them against the current date or clears
+  `once_per_day` at all -- it just accumulates forever once set. Compare
+  by calendar date only (not a full 24h elapsed check -- `player.py`'s
+  own comment on `last_connection` already notes this: "we just care
+  about the day rolling over, not that 24 hours have passed"). Likely
+  belongs in `commands/connect.py`'s login flow, near where
+  `_login_news_lines()`/`_login_tip_lines()` already run and
+  `player.last_connection` gets updated.
