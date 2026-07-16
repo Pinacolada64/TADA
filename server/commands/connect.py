@@ -68,6 +68,36 @@ def guild_welcome_line(guild) -> str | None:
     return f"{parts[0]} {parts[1]}" if parts else None
 
 
+def _party_waiting_line(party) -> str | None:
+    """Return the SPUR.LOGON.S ally-greeting line ("X is/are waiting for
+    you!") for a player's *party*, or None if it's empty.
+
+    SPUR (master only -- skip has no equivalent):
+      if a1 zz$=d1$:if a2 zz$=d1$+" and "+d2$:zz=1:if a3 zz$=d1$+", "+d2$+" and "+d3$
+      if a1 then if a3 then if not a2 zz$=d1$+" and "+d3$:zz=1
+      if not a1 then if a3 zz$=d3$
+      zw$=" is":if zz=1 zw$=" are"
+      if zz$<>"" print zz$;zw$" waiting for you!"
+
+    This port's party is a plain list rather than fixed a1/a2/a3 slots,
+    so every member is joined instead of replicating the "a2 missing"
+    gap logic above -- functionally equivalent since a gap can't occur
+    in a list.
+    """
+    members = list(party) if party else []
+    if not members:
+        return None
+    names = [m.name for m in members]
+    if len(names) == 1:
+        waiting = names[0]
+    elif len(names) == 2:
+        waiting = f"{names[0]} and {names[1]}"
+    else:
+        waiting = ", ".join(names[:-1]) + f" and {names[-1]}"
+    verb = "are" if len(names) > 1 else "is"
+    return f"{waiting} {verb} waiting for you!"
+
+
 def _login_news_lines(player) -> list[str]:
     """Build the login-time news display for *player*, honoring their
     command_settings.news_show_all preference (full directory every login
@@ -407,20 +437,10 @@ class ConnectCommand(Command):
 
         # TODO: warn if Wizard's Glow spell has dissipated (spell decay on logout).
 
-        # Party members waiting.
-        party = getattr(player, 'party', None)
-        if party:
-            members = list(party)
-            if members:
-                names = [m.name for m in members]
-                if len(names) == 1:
-                    waiting = names[0]
-                elif len(names) == 2:
-                    waiting = f"{names[0]} and {names[1]}"
-                else:
-                    waiting = ", ".join(names[:-1]) + f" and {names[-1]}"
-                verb = "are" if len(names) > 1 else "is"
-                login_lines.append(f"{waiting} {verb} waiting for you!")
+        # Party members waiting (SPUR.LOGON.S ally greeting -- master only).
+        waiting_line = _party_waiting_line(getattr(player, 'party', None))
+        if waiting_line:
+            login_lines.append(waiting_line)
 
         await ctx.send(login_lines)
 
