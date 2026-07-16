@@ -675,7 +675,7 @@
             "flags": {
                 "rounds": 6,
                 "damage": 4,
-                "used_with": "357 mag"
+                "used_with": ".357 magnum"
             },
             "price": 1
         },
@@ -686,7 +686,7 @@
             "flags": {
                 "rounds": 6,
                 "damage": 6,
-                "used_with": "44 mag"
+                "used_with": ".44 magnum"
             },
             "price": 2
         },
@@ -998,7 +998,7 @@
             "flags": {
                 "rounds": 10,
                 "damage": 2,
-                "used_with": "FIXME"
+                "used_with": "musket"
             },
             "price": 5
         },
@@ -1020,7 +1020,7 @@
             "flags": {
                 "rounds": 6,
                 "damage": 6,
-                "used_with": "44 magnum"
+                "used_with": ".44 magnum"
             },
             "price": 5
         },
@@ -1031,7 +1031,7 @@
             "flags": {
                 "rounds": 2,
                 "damage": 9,
-                "used_with": ""
+                "used_with": "cannon"
             },
             "price": 8
         },
