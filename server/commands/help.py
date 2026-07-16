@@ -129,6 +129,11 @@ class Help:
     # just be noise (or an unwanted hint) for a regular player. See
     # format_help()'s is_privileged parameter / _is_privileged_viewer().
     admin_notes: List[str]             = field(default_factory=list)
+    # Extra notes appended only for viewers on a real Commodore (PETSCII)
+    # connection -- e.g. an alternate keystroke that only matters on that
+    # keyboard, and would just be noise for an ANSI/plain-text player. See
+    # format_help()'s is_petscii parameter / _is_petscii_viewer().
+    petscii_notes: List[str]           = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -322,6 +327,16 @@ register_topic(
             "A misspelled or unsupported code (e.g. ||glorp||) is left "
             "as plain text rather than breaking the rest of the line.",
         ],
+        # PETSCII-only -- see Help.petscii_notes / format_help()'s
+        # is_petscii parameter. Not shown to ANSI/plain-text players,
+        # since '!' isn't recognized as a code delimiter for them at all
+        # (see formatting._PETSCII_TOKEN_RE's own comment for why).
+        petscii_notes=[
+            "'!' works exactly like '|' here -- !!red!!some text!!reset!! "
+            "-- since '|' needs an awkward Shift+- on a Commodore "
+            "keyboard. The two can't be mixed within one code (|red! "
+            "isn't valid).",
+        ],
     ),
 )
 
@@ -354,6 +369,23 @@ def _is_privileged_viewer(ctx) -> bool:
     from flags import PlayerFlags
     try:
         return bool(query_flag(PlayerFlags.ADMIN) or query_flag(PlayerFlags.DUNGEON_MASTER))
+    except Exception:
+        return False
+
+
+def _is_petscii_viewer(ctx) -> bool:
+    """Whether ctx's player is on a real Commodore (PETSCII) connection --
+    gates Help.petscii_notes (see format_help()'s is_petscii param). Safe
+    to call with a ctx that has no real player/client_settings (e.g. the
+    LOGIN-mode fallback dict some tests pass): returns False rather than
+    raising."""
+    player         = getattr(ctx, "player", None)
+    client_settings = getattr(player, "client_settings", None)
+    if client_settings is None:
+        return False
+    try:
+        from formatting import codec_for_settings, PETSCIICodec
+        return isinstance(codec_for_settings(client_settings), PETSCIICodec)
     except Exception:
         return False
 
@@ -399,7 +431,8 @@ def format_two_column(items: List[Tuple[str, str]], width: int) -> List[str]:
 
 
 def format_help(help_obj: Help, command_name: str = "", width: int = 78,
-                rule_char: str = "-", is_privileged: bool = False) -> Optional[str]:
+                rule_char: str = "-", is_privileged: bool = False,
+                is_petscii: bool = False) -> Optional[str]:
     """Format a Help instance into a display string.
 
     :param help_obj: Help (or a str, or None)
@@ -409,6 +442,9 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     :param is_privileged: when True, help_obj.admin_notes are appended to
         the Notes section (see Help.admin_notes) -- pass
         _is_privileged_viewer(ctx) from a call site that has a live ctx.
+    :param is_petscii: when True, help_obj.petscii_notes are appended to
+        the Notes section (see Help.petscii_notes) -- pass
+        _is_petscii_viewer(ctx) from a call site that has a live ctx.
     """
     if help_obj is None:
         return None
@@ -473,11 +509,14 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                     subsequent_indent=" " * 6,
                 ))
 
-    # Notes (admin_notes appended only for privileged viewers -- see
-    # Help.admin_notes / this function's is_privileged parameter)
+    # Notes (admin_notes appended only for privileged viewers, petscii_notes
+    # only for PETSCII viewers -- see Help.admin_notes/Help.petscii_notes
+    # and this function's is_privileged/is_petscii parameters)
     notes = list(getattr(help_obj, "notes", None) or [])
     if is_privileged:
         notes += list(getattr(help_obj, "admin_notes", None) or [])
+    if is_petscii:
+        notes += list(getattr(help_obj, "petscii_notes", None) or [])
     if notes:
         lines.append("")
         lines.append(_heading("Notes:"))
@@ -750,7 +789,8 @@ class HelpCommand(Command):
 
         if help_obj and hasattr(help_obj, "summary"):
             formatted = format_help(help_obj, command_name=command_name, width=width,
-                                    rule_char=rchar, is_privileged=_is_privileged_viewer(ctx))
+                                    rule_char=rchar, is_privileged=_is_privileged_viewer(ctx),
+                                    is_petscii=_is_petscii_viewer(ctx))
             if formatted:
                 await ctx.send(*formatted)
                 return CommandResult.ok("\n".join(formatted))
@@ -773,7 +813,8 @@ class HelpCommand(Command):
         rchar     = hrule_char(ctx)
         help_obj  = _TOPICS[topic_name]
         formatted = format_help(help_obj, command_name=topic_name, width=width,
-                                rule_char=rchar, is_privileged=_is_privileged_viewer(ctx))
+                                rule_char=rchar, is_privileged=_is_privileged_viewer(ctx),
+                                is_petscii=_is_petscii_viewer(ctx))
         if formatted:
             await ctx.send(*formatted)
             return CommandResult.ok("\n".join(formatted))

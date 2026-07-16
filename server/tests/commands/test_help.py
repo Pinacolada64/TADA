@@ -200,6 +200,24 @@ class TestFormatHelp(unittest.TestCase):
         self.assertNotIn("Notes:", out)
         self.assertNotIn("Admin-only note.", out)
 
+    def test_petscii_notes_hidden_by_default(self):
+        h = Help(notes=["Regular note."], petscii_notes=["PETSCII-only note."])
+        out = self._fmt(h)
+        self.assertIn("Regular note.", out)
+        self.assertNotIn("PETSCII-only note.", out)
+
+    def test_petscii_notes_shown_when_is_petscii(self):
+        h = Help(notes=["Regular note."], petscii_notes=["PETSCII-only note."])
+        out = self._fmt(h, is_petscii=True)
+        self.assertIn("Regular note.", out)
+        self.assertIn("PETSCII-only note.", out)
+
+    def test_petscii_notes_and_admin_notes_are_independent(self):
+        h = Help(admin_notes=["Admin-only."], petscii_notes=["PETSCII-only."])
+        out = self._fmt(h, is_privileged=True, is_petscii=False)
+        self.assertIn("Admin-only.", out)
+        self.assertNotIn("PETSCII-only.", out)
+
     def test_all_sections_together(self):
         h = Help(
             summary     = "Short summary.",
@@ -227,6 +245,35 @@ class TestFormatHelp(unittest.TestCase):
         lines = format_help(h, width=40)
         for line in (lines if isinstance(lines, list) else []):
             self.assertLessEqual(_visible_len(line), 40, f"Line too long: {line!r}")
+
+
+# ---------------------------------------------------------------------------
+# _is_petscii_viewer
+# ---------------------------------------------------------------------------
+
+class TestIsPetsciiViewer(unittest.TestCase):
+
+    def test_petscii_translation_is_petscii(self):
+        from terminal import Translation
+        ctx = _make_ctx()
+        ctx.player.client_settings.translation = Translation.PETSCII
+        self.assertTrue(help_mod._is_petscii_viewer(ctx))
+
+    def test_ansi_translation_is_not_petscii(self):
+        from terminal import Translation
+        ctx = _make_ctx()
+        ctx.player.client_settings.translation = Translation.ANSI
+        self.assertFalse(help_mod._is_petscii_viewer(ctx))
+
+    def test_no_player_returns_false(self):
+        ctx = MagicMock()
+        ctx.player = None
+        self.assertFalse(help_mod._is_petscii_viewer(ctx))
+
+    def test_no_client_settings_returns_false(self):
+        ctx = MagicMock()
+        ctx.player.client_settings = None
+        self.assertFalse(help_mod._is_petscii_viewer(ctx))
 
 
 # ---------------------------------------------------------------------------
@@ -517,6 +564,53 @@ class TestColorsTopic(unittest.IsolatedAsyncioTestCase):
         result = await HelpCommand().execute(ctx, "colors")
         self.assertIn("tab", result.message.lower())
         self.assertIn(":5", result.message)
+
+    async def test_bang_note_hidden_from_non_petscii_viewer(self):
+        """Help.petscii_notes (the '!' alternate-delimiter note) should not
+        show up for an ANSI/plain-text viewer -- it's PETSCII-specific
+        keyboard trivia that's just noise otherwise."""
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "colors")
+        self.assertNotIn("Shift+-", result.message)
+
+    async def test_bang_note_shown_to_petscii_viewer(self):
+        from terminal import Translation
+        ctx, _ = _ctx_with_processor()
+        ctx.player.client_settings.translation = Translation.PETSCII
+        result = await HelpCommand().execute(ctx, "colors")
+        self.assertIn("Shift+-", result.message)
+
+    async def test_bang_note_escaped_so_it_shows_literally(self):
+        """The petscii_notes example (!!red!!some text!!reset!!) has to be
+        double-bang escaped, same as the ||red||...||reset|| examples
+        elsewhere in this topic are double-pipe escaped -- an unescaped
+        single-bang version would actually apply the color/reset on a real
+        PETSCII connection instead of showing the syntax."""
+        from terminal import Translation
+        ctx, _ = _ctx_with_processor()
+        ctx.player.client_settings.translation = Translation.PETSCII
+        result = await HelpCommand().execute(ctx, "colors")
+        self.assertIn("!!red!!", result.message)
+
+    def test_full_pipeline_petscii_bang_note_renders_literally(self):
+        """Regression: the petscii_notes example must survive the *real*
+        PETSCII rendering pipeline (format_lines -> petscii_encode) as
+        literal '!red!...!reset!' text, not get actually color-applied."""
+        from formatting import format_lines, petscii_encode_lines
+        from terminal import ClientSettings, Translation
+        from commands.help import _TOPICS
+
+        help_obj = _TOPICS["colors"]
+        formatted = format_help(help_obj, command_name="colors", width=78,
+                                rule_char="-", is_petscii=True)
+        cs = ClientSettings()
+        cs.translation    = Translation.PETSCII
+        cs.screen_columns = 40
+        lines   = format_lines(formatted, cs)
+        encoded = petscii_encode_lines(lines)
+        decoded = encoded.decode('petscii_c64en_lc', errors='replace')
+        self.assertIn('!red!', decoded)
+        self.assertIn('!reset!', decoded)
 
     async def test_no_longer_clashes_with_a_colors_command(self):
         """Regression: commands/example_commands.py used to register a
