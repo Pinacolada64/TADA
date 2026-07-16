@@ -6,15 +6,18 @@ from commands.teleport import TeleportCommand
 from flags import PlayerFlags
 
 
-def make_ctx(*, is_admin=True, room=1, rooms=None):
+def make_ctx(*, is_admin=True, is_dm=False, room=1, rooms=None):
     if rooms is None:
         rooms = {1: object(), 37: object()}
 
     player = MagicMock()
     player.name = 'TestPlayer'
-    player.query_flag = MagicMock(
-        side_effect=lambda f: f == PlayerFlags.ADMIN and is_admin
-    )
+
+    def _query_flag(f):
+        if f == PlayerFlags.ADMIN:         return is_admin
+        if f == PlayerFlags.DUNGEON_MASTER: return is_dm
+        return False
+    player.query_flag = MagicMock(side_effect=_query_flag)
 
     server = MagicMock()
     server.game_map.rooms = rooms
@@ -36,16 +39,16 @@ def make_ctx(*, is_admin=True, room=1, rooms=None):
 
 class TestTeleportPermission(unittest.IsolatedAsyncioTestCase):
 
-    async def test_non_admin_denied(self):
+    async def test_non_privileged_denied(self):
         cmd = TeleportCommand()
-        ctx = make_ctx(is_admin=False)
+        ctx = make_ctx(is_admin=False, is_dm=False)
         res = await cmd.execute(ctx, '37')
         self.assertFalse(res.success)
         self.assertEqual(res.error, 'permission_denied')
 
-    async def test_non_admin_no_room_change(self):
+    async def test_non_privileged_no_room_change(self):
         cmd = TeleportCommand()
-        ctx = make_ctx(is_admin=False, room=1)
+        ctx = make_ctx(is_admin=False, is_dm=False, room=1)
         await cmd.execute(ctx, '37')
         self.assertEqual(ctx.client.room, 1)
 
@@ -59,6 +62,15 @@ class TestTeleportPermission(unittest.IsolatedAsyncioTestCase):
         cmd = TeleportCommand()
         ctx = make_ctx(is_admin=True)
         await cmd.execute(ctx, '37')
+        self.assertEqual(ctx.client.room, 37)
+
+    async def test_dm_allowed(self):
+        """Ryan's request: teleport should work for Dungeon Masters too,
+        not just Administrators."""
+        cmd = TeleportCommand()
+        ctx = make_ctx(is_admin=False, is_dm=True)
+        res = await cmd.execute(ctx, '37')
+        self.assertTrue(res.success)
         self.assertEqual(ctx.client.room, 37)
 
 
@@ -94,6 +106,80 @@ class TestTeleportArgs(unittest.IsolatedAsyncioTestCase):
         res = await cmd.execute(ctx, '#', '37')
         self.assertTrue(res.success)
         self.assertEqual(ctx.client.room, 37)
+
+
+def make_multilevel_ctx(*, is_admin=True, current_level=1, current_room=1, levels=None):
+    """Like make_ctx() but with real per-level rooms, for #<level> <room>
+    teleport tests (make_ctx()'s get_room ignores level entirely)."""
+    if levels is None:
+        levels = {1: {1: object()}, 5: {18: object()}}
+
+    player = MagicMock()
+    player.name = 'TestPlayer'
+    player.map_level = current_level
+    player.query_flag = MagicMock(
+        side_effect=lambda f: f == PlayerFlags.ADMIN and is_admin
+    )
+
+    server = MagicMock()
+    server.game_map.levels = levels
+    server.game_map.get_room = lambda level, room_no: levels.get(level, {}).get(room_no)
+    server._show_room = AsyncMock()
+
+    client = MagicMock()
+    client.room = current_room
+
+    ctx = MagicMock()
+    ctx.player    = player
+    ctx.server    = server
+    ctx.client    = client
+    ctx.send      = AsyncMock()
+    ctx.send_room = AsyncMock()
+    return ctx
+
+
+class TestTeleportWithLevel(unittest.IsolatedAsyncioTestCase):
+    """'#<room>' alone stays on the current level; '#<level> <room>'
+    (two numeric args) jumps to a specific level -- Ryan's request."""
+
+    async def test_single_arg_stays_on_current_level(self):
+        cmd = TeleportCommand()
+        ctx = make_multilevel_ctx(current_level=1)
+        res = await cmd.execute(ctx, '1')
+        self.assertTrue(res.success)
+        self.assertEqual(ctx.player.map_level, 1)
+        self.assertEqual(ctx.client.room, 1)
+
+    async def test_two_args_jumps_to_specified_level(self):
+        cmd = TeleportCommand()
+        ctx = make_multilevel_ctx(current_level=1)
+        res = await cmd.execute(ctx, '5', '18')
+        self.assertTrue(res.success)
+        self.assertEqual(ctx.player.map_level, 5)
+        self.assertEqual(ctx.client.room, 18)
+
+    async def test_two_args_also_updates_client_map_level(self):
+        cmd = TeleportCommand()
+        ctx = make_multilevel_ctx(current_level=1)
+        await cmd.execute(ctx, '5', '18')
+        self.assertEqual(ctx.client.map_level, 5)
+
+    async def test_two_args_room_not_on_that_level_fails(self):
+        cmd = TeleportCommand()
+        ctx = make_multilevel_ctx(current_level=1)
+        res = await cmd.execute(ctx, '5', '99')
+        self.assertFalse(res.success)
+        self.assertEqual(res.error, 'bad_room')
+        # No partial teleport on failure.
+        self.assertEqual(ctx.player.map_level, 1)
+
+    async def test_two_args_same_level_as_current_is_a_no_op_level_change(self):
+        cmd = TeleportCommand()
+        ctx = make_multilevel_ctx(current_level=1, levels={1: {1: object(), 2: object()}})
+        res = await cmd.execute(ctx, '1', '2')
+        self.assertTrue(res.success)
+        self.assertEqual(ctx.player.map_level, 1)
+        self.assertEqual(ctx.client.room, 2)
 
 
 class TestTeleportFlashMessages(unittest.IsolatedAsyncioTestCase):
