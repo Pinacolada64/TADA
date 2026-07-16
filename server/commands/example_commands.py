@@ -1,6 +1,6 @@
 """commands/example_commands.py
 
-Example commands: colors, test, table.
+Example commands: test, table.
 Auto-discovered by CommandProcessor.discover().
 """
 
@@ -12,38 +12,6 @@ from commands.help import Help, HelpCategory
 from network_context import GameContext
 
 log = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# colors
-# ---------------------------------------------------------------------------
-
-class ColorsCommand(Command):
-    """Display all available color names rendered in their own color."""
-
-    name    = "colors"
-    aliases = ["colour", "colours", "color"]
-    modes   = {Mode.ANY}
-
-    help = Help(
-        summary  = "Show all available color names.",
-        category = HelpCategory.MISCELLANEOUS,
-        usage    = [("colors", "List every color rendered in its own color.")],
-        notes    = ["Has no effect in plain-text mode."],
-    )
-
-    async def execute(self, ctx: GameContext, *args) -> CommandResult:
-        from formatting import COLOR_NAME_TO_TOKEN
-
-        lines = ['Available colors:', '']
-        for color_name, token in COLOR_NAME_TO_TOKEN.items():
-            lines.append(f'  |{token}|{color_name.value}|reset|')
-
-        if len(lines) == 2:
-            lines.append('  (no colors available — plain text mode)')
-
-        await ctx.send(lines)
-        return CommandResult.ok()
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +33,9 @@ class TestCommand(Command):
             ("test 42",                 "Trigger the Easter egg."),
             ("test #feep",              "Feeps forever."),
             ("test #box",               "Test box-drawing functions."),
+            ("test #colors",            "List every color rendered in its own color."),
         ],
+        notes = ["'#colors' has no effect in plain-text mode."],
     )
 
     async def execute(self, ctx: GameContext, *args: List[str]) -> CommandResult:
@@ -77,6 +47,26 @@ class TestCommand(Command):
             f"  Switches: {switches or 'none'}",
             ""
         )
+        if "#colors" in switches:
+            # Folded in from the former standalone 'colors' command (Ryan):
+            # its name/aliases ('colors'/'color'/'colour'/'colours')
+            # clashed with the 'help colors' concept topic added alongside
+            # the |token| mini-language docs -- _TOPICS is checked before
+            # commands in HelpCommand.execute(), so 'help colors' silently
+            # shadowed this command's own help entirely. Folding the
+            # behavior under 'test #colors' frees those names for the help
+            # topic instead of fighting over them.
+            from formatting import COLOR_NAME_TO_TOKEN
+
+            lines = ['Available colors:', '']
+            for color_name, token in COLOR_NAME_TO_TOKEN.items():
+                lines.append(f'  |{token}|{color_name.value}|reset|')
+
+            if len(lines) == 2:
+                lines.append('  (no colors available — plain text mode)')
+
+            await ctx.send(lines)
+
         if "#feep" in switches:
             await ctx.send(['"Feeping creatures" is a Spoonerism of "creeping features."',
                             '',

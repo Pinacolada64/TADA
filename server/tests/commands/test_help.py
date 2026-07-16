@@ -518,6 +518,15 @@ class TestColorsTopic(unittest.IsolatedAsyncioTestCase):
         self.assertIn("tab", result.message.lower())
         self.assertIn(":5", result.message)
 
+    async def test_no_longer_clashes_with_a_colors_command(self):
+        """Regression: commands/example_commands.py used to register a
+        real 'colors'/'color' command (ColorsCommand) -- since _TOPICS is
+        checked before commands in HelpCommand.execute(), 'help colors'
+        silently shadowed that command's own help entirely. The command's
+        output moved to 'test #colors' so the names aren't contested."""
+        import commands.example_commands as example_commands
+        self.assertFalse(hasattr(example_commands, 'ColorsCommand'))
+
     def test_full_pipeline_ansi_renders_no_stray_warnings(self):
         """Every |token|-shaped example in the topic must be either a
         deliberate live demo or properly ||escaped|| -- an unescaped,

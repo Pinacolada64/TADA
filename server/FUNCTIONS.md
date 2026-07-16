@@ -515,7 +515,9 @@ ShutdownCommand, BootCommand, BanCommand (`admin.py`), UnbanCommand,
 BanCommand (`ban.py` — **duplicate class name, see note above**),
 EditPlayerCommand, EditMonstersCommand, DbgCommand, ReloadCommand
 
-**Dev/example/misc:** ColorsCommand, TestCommand, TableCommand
+**Dev/example/misc:** TestCommand (its 'colors' functionality moved to
+'test #colors' -- freed up the 'colors' name for the 'help colors'
+concept topic), TableCommand
 
 `commands/messaging.py` is a support module of plain functions used by
 say/shout/whisper/page — no `Command` subclass of its own, despite the name.

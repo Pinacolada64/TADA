@@ -512,6 +512,16 @@
   presumably a per-player mailbox (file or player-record field) with
   read/compose commands, and other mechanics (LOOT, maybe guild
   officer notices) could hook into it once it exists.
+- PETSCII `|` substitute character for the `|token|`/`||token||` mini-
+  language (Ryan): a real Commodore keyboard does have `|` (Shift+-),
+  but it's an awkward reach compared to typing it on a PC keyboard.
+  Worth adding an alternate, easier-to-type character that means the
+  same thing on a PETSCII connection -- candidates floated: back-arrow
+  (the C64's own `<-` key, PETSCII $5F) or the British pound sign (`£`,
+  native to the C64 charset). Not settled yet; whatever's picked needs
+  to work everywhere `_TOKEN_RE`/`_TAB_TOKEN_RE` do (formatting.py) and
+  be documented alongside `|` itself in the 'help colors' topic
+  (commands/help.py).
 
 7/17/26:
 - Charm spell (Ryan): `spells/charm.py`'s CHARM POTION mechanic is only
