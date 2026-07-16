@@ -2,7 +2,17 @@ import asyncio
 import json
 import os
 
+import pytest
+
 from conftest import perform_login, seed_test_account
+
+# Starts a real Server + real sockets -- slow, excluded from local
+# default runs (pyproject.toml addopts -m "not e2e"); CI overrides with
+# -m "" so both ci.yml's full suite and e2e-tests.yml's dedicated run
+# still cover it. Lives under tests/movement/ (not tests/e2e/) since
+# it's exercising south-from-room-1 movement specifically, but it's the
+# same real-server/real-socket shape as the tests/e2e/ files.
+pytestmark = pytest.mark.e2e
 
 _USERNAME = 'e2emover'
 _PASSWORD = 'e2epass'

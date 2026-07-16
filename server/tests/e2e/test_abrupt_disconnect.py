@@ -3,7 +3,15 @@ import os
 import time
 import asyncio
 
+import pytest
+
 from conftest import perform_login, seed_test_account
+
+# Starts a real Server + real sockets -- slow, excluded from local
+# default runs (pyproject.toml addopts -m "not e2e"); CI overrides with
+# -m "" so both ci.yml's full suite and e2e-tests.yml's dedicated run
+# still cover it.
+pytestmark = pytest.mark.e2e
 
 _USERNAME = 'e2eabrupt'
 _PASSWORD = 'e2epass'

@@ -38,8 +38,12 @@ jobs:
           PYTHONUNBUFFERED: '1'
         run: |
           # Run only the focused E2E tests that start an in-process server
-          # (paths updated for the tests/ reorg into subdirectories)
-          pytest -q tests/e2e/test_network_e2e_real_login.py tests/e2e/test_network_e2e_reconnect.py tests/movement/test_move_south_room1.py tests/e2e/test_abrupt_disconnect.py
+          # (paths updated for the tests/ reorg into subdirectories).
+          # -m "" overrides pyproject.toml's local-default "-m 'not e2e'"
+          # -- without it, these files would collect but every test in
+          # them (all marked e2e) would be immediately deselected, so
+          # this step would report "0 tests ran" instead of running them.
+          pytest -q -m "" tests/e2e/test_network_e2e_real_login.py tests/e2e/test_network_e2e_reconnect.py tests/movement/test_move_south_room1.py tests/e2e/test_abrupt_disconnect.py
 
       - name: Run diagnostic report on failure
         if: failure()

@@ -7,13 +7,20 @@ testpaths = ["tests", "quests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-# Default options: quiet, show extra summary on failure
-addopts = "-v -r a"
+# Default options: quiet, show extra summary on failure. -m "not e2e"
+# skips the handful of tests that start a real Server + real sockets
+# (slow -- ~30-60s combined vs a fraction of a second for the rest of
+# the suite) by default for local runs; CI overrides with `-m ""` (see
+# .github/workflows/ci.yml and e2e-tests.yml) so pushes/PRs still cover
+# them. Run them locally with `pytest -m e2e` (just those) or
+# `pytest -m ""` (everything, same as CI).
+addopts = "-v -r a -m \"not e2e\""
 
 # Define markers so we can mark long-running or integration tests that start servers
 markers = [
   "integration: marks tests that require starting external services or servers",
-  "slow: marks slow tests"
+  "slow: marks slow tests",
+  "e2e: marks tests that start a real Server and real sockets (slow; excluded from local default runs, see addopts above)"
 ]
 
 # Don't search these directories for tests or imports

@@ -50,8 +50,12 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
         run: |
-          # produce junit xml for CI reporting and keep verbose logs
-          pytest -q --junitxml=artifacts/junit.xml || true
+          # produce junit xml for CI reporting and keep verbose logs.
+          # -m "" overrides pyproject.toml's local-default "-m 'not e2e'"
+          # (see addopts there) so CI still covers the real-server/real-
+          # socket e2e tests that local runs skip for speed.
+          mkdir -p artifacts
+          pytest -q -m "" --junitxml=artifacts/junit.xml || true
 
       - name: Run diagnostic report on failure
         if: failure()
