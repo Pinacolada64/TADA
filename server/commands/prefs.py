@@ -688,6 +688,14 @@ async def _pick_client_type(ctx) -> None:
     await ctx.send(f'Client type set to: Custom, {cols}x{rows} screen size, {translation.name}.')
 
 
+def _tab_test_line() -> str:
+    """Build a sample line using |tab| so a player can see what their
+    current tab setting actually looks like -- goes through the normal
+    ctx.send() -> format_lines() pipeline, so it expands exactly like any
+    other |tab|/|tab:N| token in game text (see formatting._expand_tab_tokens())."""
+    return 'Tab test:|tab|1|tab|2|tab|3'
+
+
 async def _pick_tab_settings(ctx) -> None:
     """Toggle whether the client has a real Tab key, and (when simulating
     tabs with spaces instead) the tab width."""
@@ -707,6 +715,7 @@ async def _pick_tab_settings(ctx) -> None:
             f"Does your client have a working Tab key? Currently: "
             f"{'Yes' if tab.has_tab_key else 'No'}.",
             "If not, tabs are simulated with spaces instead.",
+            _tab_test_line(),
         ],
     )
     if raw is None or not raw.strip():
@@ -716,6 +725,7 @@ async def _pick_tab_settings(ctx) -> None:
     await ctx.send(f"Tab key: {'Yes' if tab.has_tab_key else 'No'}.")
 
     if tab.has_tab_key:
+        await ctx.send(_tab_test_line())
         return
 
     raw_width = await ctx.prompt(
@@ -728,7 +738,7 @@ async def _pick_tab_settings(ctx) -> None:
     if 0 <= width <= cs.screen_columns:
         tab.tab_width  = width
         tab.tab_output = ' ' * width
-        await ctx.send(f'Tab width set to {width}.')
+        await ctx.send(f'Tab width set to {width}.', _tab_test_line())
     else:
         await ctx.send(f'Tab width unchanged -- must be 0-{cs.screen_columns}.')
 

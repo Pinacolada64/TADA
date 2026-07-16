@@ -188,7 +188,13 @@ PETSCII_CODE_NAMES: dict[int, str] = {
     v: k for k, v in PETSCII_CONTROL_CODES.items()
 }
 
-_TOKEN_RE = re.compile(r'\|([a-z_]+)\|')
+# New in TADA: |entity| or |entity:count| -- the optional ':count' repeats
+# whatever the entity resolves to that many times (e.g. |tab:5| == 5 tabs).
+# Every |token| consumer below (ansi_encode, petscii_encode, _TOKEN_STRIP_RE)
+# accepts and applies the same ':count' suffix, even though color tokens
+# don't have an obvious use for it, so any future repeatable entity gets it
+# for free. See _expand_tab_tokens() for 'tab', the first entity to use it.
+_TOKEN_RE = re.compile(r'\|([a-z_]+)(?::(\d+))?\|')
 
 
 def _encode_petscii_segment(text: str, codec_name: str) -> bytes:
@@ -240,13 +246,14 @@ def petscii_encode(text: str,
             result.extend(_encode_petscii_segment(segment, codec_name))
 
         token = match.group(1)
+        count = int(match.group(2)) if match.group(2) else 1
         code = PETSCII_CONTROL_CODES.get(token)
         if code is not None:
-            result.append(code)  # raw control byte, bypasses codec
+            result.extend(bytes([code]) * count)  # raw control byte(s), bypasses codec
         else:
             # Unknown token — encode as literal text
             logging.warning('petscii_encode: unknown token |%s|', token)
-            result.extend(f'|{token}|'.encode(codec_name, errors='replace'))
+            result.extend(match.group(0).encode(codec_name, errors='replace'))
 
         pos = match.end()
 
@@ -362,9 +369,10 @@ def ansi_encode(text: str) -> str:
 
     def _replace(match) -> str:
         token = match.group(1)
+        count = int(match.group(2)) if match.group(2) else 1
         code = ANSI_COLOR_CODES.get(token)
         if code is not None:
-            return code
+            return code * count
         logging.warning('ansi_encode: unknown token |%s|', token)
         return match.group(0)  # leave unknown tokens intact
 
@@ -382,7 +390,7 @@ def ansi_encode_lines(lines: list[str]) -> list[str]:
     return [ansi_encode(line) for line in lines]
 
 
-_TOKEN_STRIP_RE   = re.compile(r'\|[a-z_]+\|')
+_TOKEN_STRIP_RE   = re.compile(r'\|[a-z_]+(?::\d+)?\|')
 _ANSI_ESCAPE_RE   = re.compile(r'\x1b\[[^a-zA-Z]*[a-zA-Z]')
 
 def plain_encode(text: str) -> str:
@@ -572,6 +580,33 @@ def format_line(text: str, width: int, codec: ColorCodec) -> list[str]:
     return wrap_text(highlighted, width)
 
 
+_TAB_TOKEN_RE = re.compile(r'\|tab(?::(\d+))?\|')
+
+
+def _expand_tab_tokens(text: str, settings) -> str:
+    """
+    Replace |tab| / |tab:N| with the player's actual tab output, repeated
+    N times (once, by default) -- see PREFS 'K' (Tab Key), which sets
+    client_settings.tab_settings.tab_output to a real '\\t' if the client
+    has a working Tab key, or N spaces if simulating one.
+
+    Unlike color |token|s (a static per-codec substitution table applied
+    at ansi_encode()/petscii_encode() time), a tab's rendered width is
+    player-specific and needs to participate in word-wrap/visible-length
+    the same as any other character -- so this expands to real characters
+    here, in format_lines(), before format_line()'s wrapping runs, rather
+    than staying an opaque token until the codec stage.
+    """
+    tab_settings = getattr(settings, 'tab_settings', None)
+    tab_output = getattr(tab_settings, 'tab_output', '\t') if tab_settings else '\t'
+
+    def _replace(match) -> str:
+        count = int(match.group(1)) if match.group(1) else 1
+        return tab_output * count
+
+    return _TAB_TOKEN_RE.sub(_replace, text)
+
+
 def format_lines(lines: list[str],
                  settings: HasClientSettings,
                  codec: ColorCodec | None = None) -> list[str]:
@@ -595,6 +630,7 @@ def format_lines(lines: list[str],
     width = getattr(settings, 'screen_columns', 80)
     result = []
     for line in lines:
+        line = _expand_tab_tokens(line, settings)
         result.extend(format_line(line, width, codec))
     return result
 
