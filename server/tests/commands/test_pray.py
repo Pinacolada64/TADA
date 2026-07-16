@@ -3,9 +3,11 @@
 Covers commands/pray.py -- SPUR.MISC2.S's "pray" subroutine:
 
   - Rejection when the player isn't actually in need (roll below all of
-    hit_points/food/drink).
-  - A successful prayer boosts hit_points/food/drink and consumes the
-    once-per-session allowance.
+    hit_points/Strength/Energy).
+  - Rejection when carrying unused rations (any ration item other than
+    the four exempt special-effect potions/pills).
+  - A successful prayer boosts hit_points/Strength/Energy/Constitution
+    and consumes the once-per-session allowance.
   - Druids/Paladins get two prayers per session ("PIOUS PRAY").
   - Exhausting the allowance gets one warning; the next prayer after
     that warning is fatal (lightning bolt, hit_points=0).
@@ -18,18 +20,22 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from base_classes import PlayerClass
+from base_classes import PlayerClass, PlayerStat
 from commands.pray import PrayCommand
+from inventory import Inventory
+from items import Item, ItemCategory
 from player import Player
 
 
-def _player(name='Rulan', char_class=None, honor=1000, hp=10, food=10, drink=10) -> Player:
+def _player(name='Rulan', char_class=None, honor=1000, hp=10, str_stat=10, egy_stat=10, con_stat=10) -> Player:
     p = Player(name=name)
     p.char_class  = char_class
     p.honor       = honor
     p.hit_points  = hp
-    p.food        = food
-    p.drink       = drink
+    p.stats[PlayerStat.STR] = str_stat
+    p.stats[PlayerStat.EGY] = egy_stat
+    p.stats[PlayerStat.CON] = con_stat
+    p.inventory = Inventory(capacity=10)
     return p
 
 
@@ -66,9 +72,18 @@ class _IsolatedBattleLog(unittest.IsolatedAsyncioTestCase):
         return path.read_text() if path.exists() else ''
 
 
+def _re_deplete(player, hp=1, str_stat=1, egy_stat=1):
+    """Simulate the player taking more damage/fatigue between prayers so
+    a repeat PRAY still reaches the once-per-session check instead of
+    getting deflected by the (now healed) 'not in need' branch."""
+    player.hit_points = hp
+    player.stats[PlayerStat.STR] = str_stat
+    player.stats[PlayerStat.EGY] = egy_stat
+
+
 class TestNotInNeed(_IsolatedBattleLog):
     async def test_full_stats_get_not_in_need_message(self):
-        player = _player(hp=99, food=99, drink=99, honor=1000)
+        player = _player(hp=99, str_stat=99, egy_stat=99, honor=1000)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', return_value=6):  # roll xy=3, still < 99/99/99
             await PrayCommand().execute(ctx)
@@ -76,14 +91,14 @@ class TestNotInNeed(_IsolatedBattleLog):
         self.assertEqual(player.prayed_count, 0)
 
     async def test_high_honor_not_in_need_variant(self):
-        player = _player(hp=99, food=99, drink=99, honor=1500)
+        player = _player(hp=99, str_stat=99, egy_stat=99, honor=1500)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', return_value=6):
             await PrayCommand().execute(ctx)
         self.assertIn('TRULY dost not need', ctx._flat())
 
     async def test_not_in_need_does_not_consume_allowance(self):
-        player = _player(hp=99, food=99, drink=99)
+        player = _player(hp=99, str_stat=99, egy_stat=99)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', return_value=6):
             await PrayCommand().execute(ctx)
@@ -94,7 +109,7 @@ class TestNotInNeed(_IsolatedBattleLog):
 
 class TestSuccessfulPrayer(_IsolatedBattleLog):
     async def test_low_hp_grants_boost(self):
-        player = _player(hp=2, food=10, drink=10)
+        player = _player(hp=2, str_stat=10, egy_stat=10)
         ctx = _FakeCtx(player)
         # First randint call is the need-roll (small), second is the boost roll (6-10).
         with patch('commands.pray.random.randint', side_effect=[9, 10]):
@@ -103,47 +118,82 @@ class TestSuccessfulPrayer(_IsolatedBattleLog):
         self.assertIn('hit points increase', ctx._flat())
         self.assertEqual(player.prayed_count, 1)
 
-    async def test_food_and_drink_also_boosted_when_low(self):
-        player = _player(hp=99, food=2, drink=2)
+    async def test_str_egy_con_also_boosted_when_low(self):
+        player = _player(hp=99, str_stat=2, egy_stat=2, con_stat=2)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', side_effect=[9, 10]):
             await PrayCommand().execute(ctx)
-        self.assertEqual(player.food, 12)
-        self.assertEqual(player.drink, 12)
+        self.assertEqual(player.stats[PlayerStat.STR], 3)
+        self.assertEqual(player.stats[PlayerStat.EGY], 3)
+        self.assertEqual(player.stats[PlayerStat.CON], 3)
         self.assertIn('hunger lessens', ctx._flat())
         self.assertIn('thirst lessens', ctx._flat())
+        self.assertIn('feel healthier', ctx._flat())
 
     async def test_boost_only_applies_below_roll(self):
-        """hit_points is already above the boost roll -- only food/drink
-        (both below it) should be boosted."""
-        player = _player(hp=99, food=1, drink=1)
+        """hit_points is already above the boost roll -- only Strength/
+        Energy (both below it) should be boosted."""
+        player = _player(hp=99, str_stat=1, egy_stat=1, con_stat=99)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', side_effect=[9, 6]):
             await PrayCommand().execute(ctx)
         self.assertEqual(player.hit_points, 99)
-        self.assertEqual(player.food, 11)
-        self.assertEqual(player.drink, 11)
+        self.assertEqual(player.stats[PlayerStat.STR], 2)
+        self.assertEqual(player.stats[PlayerStat.EGY], 2)
+        self.assertEqual(player.stats[PlayerStat.CON], 99)
 
     async def test_battle_log_pray_entry(self):
-        player = _player(hp=1, food=10, drink=10)
+        player = _player(hp=1, str_stat=10, egy_stat=10)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', side_effect=[9, 10]):
             await PrayCommand().execute(ctx)
         self.assertIn('PRAY', self._log_text())
 
 
-def _re_deplete(player, hp=1, food=1, drink=1):
-    """Simulate the player taking more damage/hunger between prayers so
-    a repeat PRAY still reaches the once-per-session check instead of
-    getting deflected by the (now healed) 'not in need' branch."""
-    player.hit_points = hp
-    player.food = food
-    player.drink = drink
+class TestUnusedRationsGate(_IsolatedBattleLog):
+    """SPUR.MISC2.S:207-211's xf/xf$ check: carrying a ration item you
+    haven't been eating/drinking refuses the prayer outright, except for
+    four special-effect potions/pills that don't count against you."""
+
+    async def test_ordinary_ration_blocks_prayer(self):
+        player = _player(hp=1, str_stat=10, egy_stat=10)
+        player.inventory.add(Item(id_number=1, name='bread', category=ItemCategory.FOOD))
+        ctx = _FakeCtx(player)
+        with patch('commands.pray.random.randint', side_effect=[9]):
+            await PrayCommand().execute(ctx)
+        self.assertIn('eateth or drinketh', ctx._flat())
+        self.assertEqual(player.prayed_count, 0)
+
+    async def test_exempt_potion_does_not_block_prayer(self):
+        player = _player(hp=1, str_stat=10, egy_stat=10)
+        player.inventory.add(Item(id_number=65, name='POTION OF SKILL', category=ItemCategory.DRINK))
+        ctx = _FakeCtx(player)
+        with patch('commands.pray.random.randint', side_effect=[9, 10]):
+            await PrayCommand().execute(ctx)
+        self.assertNotIn('eateth or drinketh', ctx._flat())
+        self.assertEqual(player.prayed_count, 1)
+
+    async def test_no_rations_at_all_does_not_block_prayer(self):
+        player = _player(hp=1, str_stat=10, egy_stat=10)
+        ctx = _FakeCtx(player)
+        with patch('commands.pray.random.randint', side_effect=[9, 10]):
+            await PrayCommand().execute(ctx)
+        self.assertNotIn('eateth or drinketh', ctx._flat())
+        self.assertEqual(player.prayed_count, 1)
+
+    async def test_non_ration_items_do_not_block_prayer(self):
+        player = _player(hp=1, str_stat=10, egy_stat=10)
+        player.inventory.add(Item(id_number=200, name='sword', category=ItemCategory.WEAPON))
+        ctx = _FakeCtx(player)
+        with patch('commands.pray.random.randint', side_effect=[9, 10]):
+            await PrayCommand().execute(ctx)
+        self.assertNotIn('eateth or drinketh', ctx._flat())
+        self.assertEqual(player.prayed_count, 1)
 
 
 class TestOncePerSession(_IsolatedBattleLog):
     async def test_second_prayer_warns_instead_of_helping(self):
-        player = _player(hp=1, food=1, drink=1, char_class=PlayerClass.FIGHTER)
+        player = _player(hp=1, str_stat=1, egy_stat=1, char_class=PlayerClass.FIGHTER)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', side_effect=[9, 10]):
             await PrayCommand().execute(ctx)  # granted
@@ -155,7 +205,7 @@ class TestOncePerSession(_IsolatedBattleLog):
         self.assertEqual(player.prayed_count, 1)
 
     async def test_third_prayer_after_warning_is_fatal(self):
-        player = _player(hp=1, food=1, drink=1, char_class=PlayerClass.FIGHTER)
+        player = _player(hp=1, str_stat=1, egy_stat=1, char_class=PlayerClass.FIGHTER)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', side_effect=[9, 10]):
             await PrayCommand().execute(ctx)  # granted
@@ -167,7 +217,7 @@ class TestOncePerSession(_IsolatedBattleLog):
         self.assertIn('sizzle to a golden', ctx._flat())
 
     async def test_battle_log_fried_entry_on_fatal_prayer(self):
-        player = _player(hp=1, food=1, drink=1, char_class=PlayerClass.FIGHTER)
+        player = _player(hp=1, str_stat=1, egy_stat=1, char_class=PlayerClass.FIGHTER)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', side_effect=[9, 10]):
             await PrayCommand().execute(ctx)
@@ -180,7 +230,7 @@ class TestOncePerSession(_IsolatedBattleLog):
 
 class TestDruidPaladinDoublePrayer(_IsolatedBattleLog):
     async def test_druid_gets_second_prayer(self):
-        player = _player(hp=1, food=1, drink=1, char_class=PlayerClass.DRUID)
+        player = _player(hp=1, str_stat=1, egy_stat=1, char_class=PlayerClass.DRUID)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', side_effect=[9, 10]):
             await PrayCommand().execute(ctx)  # first prayer
@@ -192,7 +242,7 @@ class TestDruidPaladinDoublePrayer(_IsolatedBattleLog):
         self.assertIn('pray twice', ctx._flat())
 
     async def test_paladin_gets_second_prayer(self):
-        player = _player(hp=1, food=1, drink=1, char_class=PlayerClass.PALADIN)
+        player = _player(hp=1, str_stat=1, egy_stat=1, char_class=PlayerClass.PALADIN)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', side_effect=[9, 10]):
             await PrayCommand().execute(ctx)
@@ -203,7 +253,7 @@ class TestDruidPaladinDoublePrayer(_IsolatedBattleLog):
         self.assertFalse(player.prayer_punished)
 
     async def test_druid_third_prayer_warns(self):
-        player = _player(hp=1, food=1, drink=1, char_class=PlayerClass.DRUID)
+        player = _player(hp=1, str_stat=1, egy_stat=1, char_class=PlayerClass.DRUID)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', side_effect=[9, 10]):
             await PrayCommand().execute(ctx)
@@ -216,7 +266,7 @@ class TestDruidPaladinDoublePrayer(_IsolatedBattleLog):
         self.assertTrue(player.prayer_punished)
 
     async def test_second_prayer_battle_log_tagged_pious(self):
-        player = _player(hp=1, food=1, drink=1, char_class=PlayerClass.PALADIN)
+        player = _player(hp=1, str_stat=1, egy_stat=1, char_class=PlayerClass.PALADIN)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', side_effect=[9, 10]):
             await PrayCommand().execute(ctx)
@@ -246,20 +296,20 @@ class TestHonorAdjustments(_IsolatedBattleLog):
         self.assertEqual(xy, 9)
 
     async def test_very_low_honor_always_gets_cooties_rejection(self):
-        player = _player(hp=99, food=99, drink=99, honor=100)
+        player = _player(hp=99, str_stat=99, egy_stat=99, honor=100)
         ctx = _FakeCtx(player)
         with patch('commands.pray.random.randint', return_value=6):
             await PrayCommand().execute(ctx)
-        # hp/food/drink are all > 7, so the "not in need" branch fires
-        # first regardless of honor -- Cooties only shows on the *other*
+        # hp/str/egy are all > 7, so the "not in need" branch fires first
+        # regardless of honor -- Cooties only shows on the *other*
         # rejection path (in-need roll didn't clear, but stats aren't
         # comfortably high either). Covered by the dedicated test below.
         self.assertIn('not in need', ctx._flat())
 
     async def test_cooties_rejection_when_not_comfortably_fine_but_roll_fails(self):
-        player = _player(hp=5, food=5, drink=5, honor=100)
+        player = _player(hp=5, str_stat=5, egy_stat=5, honor=100)
         ctx = _FakeCtx(player)
-        # need-roll: base 9-3=6, honor<800 -1, honor<400 -1 -> xy=4, still < hp/food/drink(5) -> pray.1
+        # need-roll: base 9-3=6, honor<800 -1, honor<400 -1 -> xy=4, still < hp/str/egy(5) -> pray.1
         with patch('commands.pray.random.randint', side_effect=[9, 5]):
             await PrayCommand().execute(ctx)
         self.assertIn('Cooties', ctx._flat())
