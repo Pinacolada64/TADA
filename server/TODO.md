@@ -512,16 +512,17 @@
   presumably a per-player mailbox (file or player-record field) with
   read/compose commands, and other mechanics (LOOT, maybe guild
   officer notices) could hook into it once it exists.
-- PETSCII `|` substitute character for the `|token|`/`||token||` mini-
-  language (Ryan): a real Commodore keyboard does have `|` (Shift+-),
-  but it's an awkward reach compared to typing it on a PC keyboard.
-  Worth adding an alternate, easier-to-type character that means the
-  same thing on a PETSCII connection -- candidates floated: back-arrow
-  (the C64's own `<-` key, PETSCII $5F) or the British pound sign (`£`,
-  native to the C64 charset). Not settled yet; whatever's picked needs
-  to work everywhere `_TOKEN_RE`/`_TAB_TOKEN_RE` do (formatting.py) and
-  be documented alongside `|` itself in the 'help colors' topic
-  (commands/help.py).
+- [DONE 7/16/26] PETSCII `|` substitute character for the `|token|`/
+  `||token||` mini-language (Ryan): `!` now works identically to `|` on
+  PETSCII connections only -- `!red!`, `!tab:5!`, and the doubled-
+  delimiter escape `!!red!!` all match their `|`-delimited equivalents
+  one for one (`_PETSCII_TOKEN_RE`/`_TAB_TOKEN_RE_PETSCII` in
+  formatting.py; `petscii_encode()`/`_expand_tab_tokens()` use them when
+  the codec is `PETSCIICodec`). Deliberately not extended to ANSI/plain
+  clients, since `!` is common in ordinary game text there ("Welcome,
+  Alice!") in a way it isn't on a Commodore keyboard trying to avoid
+  Shift+-. Follow-up: the 'help colors' topic (commands/help.py) doesn't
+  mention `!` yet.
 
 7/17/26:
 - Charm spell (Ryan): `spells/charm.py`'s CHARM POTION mechanic is only
