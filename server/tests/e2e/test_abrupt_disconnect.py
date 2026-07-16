@@ -18,7 +18,7 @@ def test_abrupt_disconnect_saves_player(tmp_path):
     from simple_server import Server
     from player import Player
 
-    server = Server('127.0.0.1', 0)
+    server = Server('127.0.0.1', 0, 0)
 
     async def run_scenario():
         server_task = asyncio.create_task(server.start())

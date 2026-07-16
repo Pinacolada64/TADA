@@ -18,7 +18,7 @@ def test_move_south_from_room1_goes_to_13_and_saves(tmp_path):
     from net_common import Message, Mode
     from player import Player
 
-    server = Server('127.0.0.1', 0)
+    server = Server('127.0.0.1', 0, 0)
 
     async def run_scenario():
         server_task = asyncio.create_task(server.start())

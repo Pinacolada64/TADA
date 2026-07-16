@@ -19,7 +19,7 @@ def test_network_e2e_real_login_and_save(tmp_path):
     from simple_client import send_message
     from net_common import Message, Mode
 
-    server = Server('127.0.0.1', 0)
+    server = Server('127.0.0.1', 0, 0)
 
     async def run_scenario():
         # start server in background

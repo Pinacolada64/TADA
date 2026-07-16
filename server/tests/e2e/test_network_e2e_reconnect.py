@@ -18,7 +18,7 @@ def test_network_e2e_reconnect_restores_room(tmp_path):
     from net_common import Message, Mode
     from player import Player
 
-    server = Server('127.0.0.1', 0)
+    server = Server('127.0.0.1', 0, 0)
 
     async def run_scenario():
         server_task = asyncio.create_task(server.start())
@@ -68,7 +68,7 @@ def test_network_e2e_reconnect_restores_room(tmp_path):
 
     # Now reconnect and login as same user and check server player object restores room
     # Start server again
-    server2 = Server('127.0.0.1', 0)
+    server2 = Server('127.0.0.1', 0, 0)
 
     async def reconnect_scenario():
         server_task = asyncio.create_task(server2.start())

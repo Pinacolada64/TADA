@@ -38,7 +38,8 @@ jobs:
           PYTHONUNBUFFERED: '1'
         run: |
           # Run only the focused E2E tests that start an in-process server
-          pytest -q tests/test_network_e2e_real_login.py tests/test_network_e2e_reconnect.py tests/test_move_south_room1.py tests/test_abrupt_disconnect.py
+          # (paths updated for the tests/ reorg into subdirectories)
+          pytest -q tests/e2e/test_network_e2e_real_login.py tests/e2e/test_network_e2e_reconnect.py tests/movement/test_move_south_room1.py tests/e2e/test_abrupt_disconnect.py
 
       - name: Run diagnostic report on failure
         if: failure()
