@@ -178,6 +178,19 @@ class Table:
         Whether to draw ``+--+`` borders (default True).
     padding : int
         Spaces of padding inside each cell on left and right (default 1).
+    text_color : list of str, optional
+        ``|token|`` color names (see formatting.py's PETSCII_CONTROL_CODES /
+        ANSI color map, e.g. ``["green", "yellow"]``) to cycle through, one
+        per *data* row -- classic zebra striping. Wraps each row's rendered
+        line(s) in ``|color|...|reset|``; the header row and borders are
+        left uncoloured. ``None`` (default) renders every row plain, as
+        before.
+    border_color : str, optional
+        A single ``|token|`` color name applied to every border-drawing
+        character -- the ``+--+`` rule lines and the ``|`` cell separators
+        (independent of ``text_color``; text_color colors cell content,
+        border_color colors the lines around it). ``None`` (default)
+        leaves borders in the terminal's normal color.
 
     Example
     -------
@@ -191,6 +204,17 @@ class Table:
     | Aldric   | 45 | Fighter |
     | Rhiannon | 72 | Mage    |
     +----------+----+---------+
+
+    >>> t2 = Table(["Name", "HP"], border=False, text_color=["green", "yellow"])
+    >>> t2.add_row(["Aldric",   "45"])
+    >>> t2.add_row(["Rhiannon", "72"])
+    >>> t2.render(width=12)
+    ['Name     HP', '|green|Aldric   45|reset|', '|yellow|Rhiannon 72|reset|']
+
+    >>> t3 = Table(["Name", "HP"], border=True, border_color="light_blue")
+    >>> t3.add_row(["Aldric", "45"])
+    >>> t3.render(width=20)
+    ['|light_blue|+------------+-----+|reset|', '|light_blue|||reset| Name       |light_blue|||reset| HP  |light_blue|||reset|', '|light_blue|+------------+-----+|reset|', '|light_blue|||reset| Aldric     |light_blue|||reset| 45  |light_blue|||reset|', '|light_blue|+------------+-----+|reset|']
     """
 
     def __init__(
@@ -201,7 +225,11 @@ class Table:
         border:       bool   = True,
         border_style: Border = ASCII,
         padding:      int    = 1,
+        text_color:   Optional[Sequence[str]] = None,
+        border_color: Optional[str] = None,
     ):
+        self.text_color   = list(text_color) if text_color else None
+        self.border_color = border_color
         self._columns: list[Column] = [
             c if isinstance(c, Column) else Column(header=c)
             for c in headers
@@ -270,6 +298,11 @@ class Table:
             sum(col_widths) + (len(col_widths) - 1) * (1 + self.padding * 2)
         )
 
+        if self.border and self.border_color:
+            top_border = f'|{self.border_color}|{top_border}|reset|'
+            mid_border = f'|{self.border_color}|{mid_border}|reset|'
+            bot_border = f'|{self.border_color}|{bot_border}|reset|'
+
         # Title
         if self.title:
             lines.append(self.title.center(total_width))
@@ -291,9 +324,10 @@ class Table:
 
         # Data rows
         aligns = [col.align for col in self._columns]
-        for row in self._rows:
+        for i, row in enumerate(self._rows):
+            row_color = self.text_color[i % len(self.text_color)] if self.text_color else None
             lines.extend(
-                self._render_logical_row(row, col_widths, aligns, pad)
+                self._render_logical_row(row, col_widths, aligns, pad, row_color)
             )
 
         # Bottom border
@@ -316,21 +350,34 @@ class Table:
         col_widths: list[int],
         aligns:     list[Align],
         pad:        str,
+        row_color:  Optional[str] = None,
     ) -> list[str]:
-        """Wrap each cell and emit as many visual lines as the tallest needs."""
+        """Wrap each cell and emit as many visual lines as the tallest needs.
+
+        *row_color* is this row's ``text_color`` entry (None for the header
+        or when text_color is unset). border_color colors the '|' cell
+        separators independently -- each one resets back to *row_color*
+        (or fully resets, if there isn't one) right after, so the two
+        colors can be layered without either clobbering the other.
+        """
         wrapped = [
             _wrap_cell(cells[i], col_widths[i])
             for i in range(len(self._columns))
         ]
         height = max(len(w) for w in wrapped)
         visual_lines: list[str] = []
+
+        v = self.border_style.v
+        if self.border_color:
+            resume = f'|{row_color}|' if row_color else ''
+            v = f'|{self.border_color}|{v}|reset|{resume}'
+
         for line_idx in range(height):
             row_cells = [
                 w[line_idx] if line_idx < len(w) else ""
                 for w in wrapped
             ]
-            v = self.border_style.v
-            visual_lines.append(
+            line = (
                 v + v.join(
                     pad + _fit(c, col_widths[i], aligns[i]) + pad
                     for i, c in enumerate(row_cells)
@@ -341,6 +388,9 @@ class Table:
                     for i, c in enumerate(row_cells)
                 )
             )
+            if row_color:
+                line = f'|{row_color}|{line}|reset|'
+            visual_lines.append(line)
         return visual_lines
 
     def _compute_widths(self, total_width: int) -> list[int]:

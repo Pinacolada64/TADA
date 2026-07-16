@@ -20,7 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from table import Table, Column, Align, make_table, Border, ASCII, SINGLE, DOUBLE, PETSCII
+from table import Table, Column, Align, make_table, Border, ASCII, SINGLE, DOUBLE, PETSCII, _visible_len
 
 
 # ---------------------------------------------------------------------------
@@ -534,6 +534,126 @@ class TestCtxSendCompatibility(unittest.TestCase):
         lines = t.render(width=80)
         for line in lines:
             self.assertLessEqual(len(line), 80)
+
+
+# ---------------------------------------------------------------------------
+# text_color / border_color
+# ---------------------------------------------------------------------------
+
+class TestTextColor(unittest.TestCase):
+    """New in TADA: text_color cycles a list of |token| color names across
+    data rows (zebra striping) -- Ryan's request. Header row and borders
+    are left uncoloured by this option."""
+
+    def _table(self, **kwargs) -> Table:
+        t = Table(["Name", "HP"], border=False, **kwargs)
+        t.add_row(["Aldric",   "45"])
+        t.add_row(["Rhiannon", "72"])
+        t.add_row(["Gareth",   "30"])
+        return t
+
+    def test_none_renders_plain_as_before(self):
+        t = self._table()
+        for line in t.render(width=40):
+            self.assertNotIn("|", line)
+
+    def test_colors_cycle_across_rows(self):
+        t = self._table(text_color=["green", "yellow"])
+        lines = t.render(width=40)[1:]  # skip the (uncoloured) header row
+        self.assertTrue(lines[0].startswith("|green|"))
+        self.assertTrue(lines[1].startswith("|yellow|"))
+        self.assertTrue(lines[2].startswith("|green|"))  # wraps back around
+
+    def test_each_colored_row_ends_with_reset(self):
+        t = self._table(text_color=["green", "yellow"])
+        for line in t.render(width=40)[1:]:  # skip the (uncoloured) header row
+            self.assertTrue(line.endswith("|reset|"))
+
+    def test_header_row_not_colored(self):
+        t = self._table(text_color=["green"])
+        header = t.render(width=40)[0]
+        self.assertNotIn("|green|", header)
+
+    def test_visible_content_unaffected_by_color_tokens(self):
+        plain = self._table().render(width=40)
+        colored = self._table(text_color=["green", "yellow"]).render(width=40)
+        for p, c in zip(plain, colored):
+            self.assertEqual(_visible_len(p), _visible_len(c))
+
+    def test_single_color_list_applies_to_every_row(self):
+        t = self._table(text_color=["cyan"])
+        for line in t.render(width=40)[1:]:  # skip the (uncoloured) header row
+            self.assertTrue(line.startswith("|cyan|"))
+
+    def test_wrapped_cell_colors_every_visual_line(self):
+        """A logical row that wraps into multiple visual lines (long cell
+        content) must have text_color applied to each visual line, not just
+        the first."""
+        t = Table(["Name", "HP"], border=False, text_color=["green", "yellow"])
+        t.add_row(["A Very Long Adventurer Name Indeed", "45"])
+        t.add_row(["Short", "72"])
+        lines = t.render(width=20)
+        self.assertGreater(len(lines), 3)  # header + wrapped row + short row
+        for line in lines[1:]:
+            self.assertTrue(line.startswith("|green|") or line.startswith("|yellow|"))
+
+
+class TestBorderColor(unittest.TestCase):
+    """New in TADA: border_color colors the '+--+'/'|' border-drawing
+    characters independently of text_color -- Ryan's request."""
+
+    def test_none_renders_plain_as_before(self):
+        t = Table(["Name", "HP"])
+        t.add_row(["Aldric", "45"])
+        for line in t.render(width=20):
+            self.assertNotIn("|light_blue|", line)
+
+    def test_horizontal_rules_wrapped_in_color(self):
+        t = Table(["Name", "HP"], border_color="light_blue")
+        t.add_row(["Aldric", "45"])
+        lines = t.render(width=20)
+        rule_lines = [l for l in lines if "+" in l]
+        self.assertTrue(rule_lines)
+        for line in rule_lines:
+            self.assertTrue(line.startswith("|light_blue|"))
+            self.assertTrue(line.endswith("|reset|"))
+
+    def test_vertical_separators_colored(self):
+        t = Table(["Name", "HP"], border_color="light_blue")
+        t.add_row(["Aldric", "45"])
+        lines = t.render(width=20)
+        data_line = lines[3]  # title(none)/top/header/mid/data...
+        self.assertIn("|light_blue|||reset|", data_line)
+
+    def test_visible_content_unaffected_by_border_color(self):
+        plain = Table(["Name", "HP"])
+        plain.add_row(["Aldric", "45"])
+        colored = Table(["Name", "HP"], border_color="light_blue")
+        colored.add_row(["Aldric", "45"])
+        for p, c in zip(plain.render(width=20), colored.render(width=20)):
+            self.assertEqual(_visible_len(p), _visible_len(c))
+
+    def test_combined_with_text_color_both_apply(self):
+        """border_color and text_color together must not clobber each
+        other -- each '|' separator resumes the row's text_color right
+        after resetting from border_color."""
+        t = Table(["Name", "HP"], border_color="light_blue",
+                   text_color=["green", "yellow"])
+        t.add_row(["Aldric", "45"])
+        t.add_row(["Rhiannon", "72"])
+        lines = t.render(width=20)
+        data_lines = [l for l in lines if "Aldric" in l or "Rhiannon" in l]
+        self.assertEqual(len(data_lines), 2)
+        self.assertIn("|light_blue|", data_lines[0])
+        self.assertIn("|green|", data_lines[0])
+        self.assertIn("|light_blue|", data_lines[1])
+        self.assertIn("|yellow|", data_lines[1])
+
+    def test_border_color_with_no_border_is_a_no_op(self):
+        t = Table(["Name", "HP"], border=False, border_color="light_blue")
+        t.add_row(["Aldric", "45"])
+        for line in t.render(width=20):
+            self.assertNotIn("|light_blue|", line)
 
 
 if __name__ == "__main__":

@@ -56,6 +56,16 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
     # broke alignment on wide names like "Armor Piercing arrows" -- table.py's
     # Table(border=False) computes real column widths and wraps overflow
     # instead of letting it bleed into the next column. Ryan's request.
+    # New in TADA: alternate row color (table.py's text_color) makes a long
+    # list easier to scan at a glance -- Ryan's request. Used With cells no
+    # longer wrap the weapon name in [brackets]: that syntax gets swapped
+    # for a highlight color by formatting.highlight_brackets() downstream,
+    # and its own reset would cut the row's color short partway through the
+    # line; the 'Used With' header already labels the column, so the
+    # brackets were redundant anyway (same reasoning that dropped 'rnd'/
+    # 'dmg:'/'cap:' from these rows earlier).
+    _ROW_COLORS = ['white', 'light_gray']
+
     def _ammo_table() -> Table:
         t = Table(headers=[
             Column('#',         align=Align.RIGHT, min_width=2),
@@ -64,7 +74,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
             Column('Dmg',       align=Align.RIGHT,  min_width=3),
             Column('Used With',                     min_width=12),
             Column('Cost',      align=Align.RIGHT,  min_width=4),
-        ], border=False)
+        ], border=False, text_color=_ROW_COLORS)
         for i, it in enumerate(ammo_items, start=1):
             flags = it.get('flags', {})
             t.add_row([
@@ -72,7 +82,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
                 it['name'],
                 str(flags.get('rounds', '?')),
                 str(flags.get('damage', '?')),
-                f"[{flags.get('used_with', '').strip()}]",
+                flags.get('used_with', '').strip(),
                 f"{it['price'] * 10:,}s",
             ])
         return t
@@ -84,14 +94,14 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
             Column('Capacity',  align=Align.RIGHT,  min_width=8),
             Column('Used With',                     min_width=12),
             Column('Cost',      align=Align.RIGHT,  min_width=4),
-        ], border=False)
+        ], border=False, text_color=_ROW_COLORS)
         for j, it in enumerate(carrier_items, start=len(ammo_items) + 1):
             flags = it.get('flags', {})
             t.add_row([
                 str(j),
                 it['name'],
                 str(flags.get('rounds', '?')),
-                f"[{flags.get('used_with', '').strip()}]",
+                flags.get('used_with', '').strip(),
                 f"{it['price'] * 10:,}s",
             ])
         return t
