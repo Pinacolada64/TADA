@@ -266,8 +266,9 @@ class GameContext(BaseContext):
         Send optional preamble + a prompt, then await a single-line
         JSON response. Returns the stripped response string.
         """
+        import datetime
         from net_common import from_jsonb
-        from time import strftime
+        from formatting import format_player_time
 
         pending = self._pop_pending_pages()
         if pending:
@@ -277,7 +278,8 @@ class GameContext(BaseContext):
             await self.send(preamble_lines)
 
         if self.player.query_flag(PlayerFlags.HOURGLASS):
-            prompt_text = f"[{strftime('%H:%M')}] {prompt_text}"
+            clock = format_player_time(datetime.datetime.now(), self.player)
+            prompt_text = f"[{clock}] {prompt_text}"
         msg = nc.Message(lines=[], prompt=f"{prompt_text}> " or '> ')
         await self.server.send_message(self.writer, msg)
 
@@ -396,15 +398,16 @@ class PETSCIINetworkContext(GameContext):
                      prompt_text:    str            = '',
                      preamble_lines: list[str] | None = None) -> str:
         """Send raw PETSCII prompt, read CR-terminated response."""
-        from formatting import petscii_encode
-        from time import strftime
+        import datetime
+        from formatting import petscii_encode, format_player_time
         pending = self._pop_pending_pages()
         if pending:
             preamble_lines = pending + list(preamble_lines or [])
         if preamble_lines:
             await self.send(preamble_lines)
         if self.player.query_flag(PlayerFlags.HOURGLASS):
-            prompt_text = f"[{strftime('%H:%M')}] {prompt_text}"
+            clock = format_player_time(datetime.datetime.now(), self.player)
+            prompt_text = f"[{clock}] {prompt_text}"
         if prompt_text:
             # No leading CR needed — petscii_encode_lines() now always
             # terminates each send() with CR, so the cursor is already

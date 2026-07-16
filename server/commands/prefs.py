@@ -126,11 +126,11 @@ _SETTING_HELP: dict[str, list[str]] = {
     'z': [
         '',
         '|cyan|Timezone|reset|',
-        "Which timezone dates are shown in (currently just the login "
-        "screen's 'You last connected on ...' line; more player-facing "
-        "dates are planned). 'Server Local' (the default) shows the "
-        "server's own local time as-is; picking a named zone converts to "
-        "it instead.",
+        "Which timezone dates and times are shown in -- the login "
+        "screen's 'You last connected on ...' line and the Hourglass "
+        "clock (more player-facing dates are planned). 'Server Local' "
+        "(the default) shows the server's own local time as-is; picking "
+        "a named zone converts to it instead.",
         '',
     ],
     'd': [
@@ -138,6 +138,13 @@ _SETTING_HELP: dict[str, list[str]] = {
         '|cyan|Date Format|reset|',
         "How dates are written out, e.g. 'July 16, 2026' vs '07/16/2026' "
         "vs '2026-07-16'. Applies to the same dates as Timezone above.",
+        '',
+    ],
+    'f': [
+        '',
+        '|cyan|Time Format|reset|',
+        "12-hour ('2:30 PM') or 24-hour ('14:30') time. Affects the "
+        "Hourglass clock (PREFS 'H') and any other time-of-day display.",
         '',
     ],
 }
@@ -155,6 +162,18 @@ _DATE_FORMAT_PRESETS = [
     ('5', 'Day Month Year',  '%d %B %Y'),
 ]
 _DATE_FORMAT_NAMES = {fmt: name for _, name, fmt in _DATE_FORMAT_PRESETS}
+
+# Named strftime presets offered by the 'F' (Time Format) picker. Labels
+# are bracket-highlighted on their own option number ('[1]2-hour',
+# '[2]4-hour') so the highlighted digit visually matches the number you'd
+# type to pick it. _TIME_FORMAT_NAMES reverses this for the summary
+# table (bracket-stripped, since that display isn't a menu prompt).
+_TIME_FORMAT_PRESETS = [
+    ('1', '[1]2-hour', '%I:%M %p'),
+    ('2', '[2]4-hour', '%H:%M'),
+]
+_TIME_FORMAT_NAMES = {fmt: name.replace('[', '').replace(']', '')
+                      for _, name, fmt in _TIME_FORMAT_PRESETS}
 
 # A representative, non-exhaustive spread of IANA zones for the 'Z'
 # (Timezone) picker's numbered shortlist -- typed free text is also
@@ -293,6 +312,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         t.add_row(['Z', 'Timezone', tz_name, 'hz'])
         date_fmt_name = _DATE_FORMAT_NAMES.get(getattr(cs, 'date_format', ''), 'Custom')
         t.add_row(['D', 'Date Format', date_fmt_name, 'hd'])
+        time_fmt_name = _TIME_FORMAT_NAMES.get(getattr(cs, 'time_format', ''), 'Custom')
+        t.add_row(['F', 'Time Format', time_fmt_name, 'hf'])
 
         valid_keys = ['X', 'H', 'M']
         if not is_petscii:
@@ -300,7 +321,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         valid_keys += ['C', 'N']
         if not is_petscii:
             valid_keys.append('T')
-        valid_keys += ['K', 'L', 'Z', 'D']
+        valid_keys += ['K', 'L', 'Z', 'D', 'F']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -340,6 +361,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                 'L - choose line ending (LF / CR / CRLF)',
                 'Z - choose your display timezone',
                 'D - choose your preferred date format',
+                'F - choose 12-hour or 24-hour time format',
                 f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
                 f'{return_key} - save and exit',
             ]
@@ -405,6 +427,9 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
 
         elif ans == 'd':
             await _pick_date_format(ctx)
+
+        elif ans == 'f':
+            await _pick_time_format(ctx)
 
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
@@ -801,3 +826,32 @@ async def _pick_date_format(ctx) -> None:
             await ctx.send(f'Date format set to {label} ({sample.strftime(fmt)}).')
             return
     await ctx.send(f'Date format unchanged -- enter a number between 1 and {len(_DATE_FORMAT_PRESETS)}.')
+
+
+async def _pick_time_format(ctx) -> None:
+    """Choose 12-hour or 24-hour time display, previewed against the
+    current time. Affects the Hourglass clock (network_context.py/
+    terminal_context.py's prompt()) and any other time-of-day display."""
+    import datetime
+
+    cs = ctx.player.client_settings
+    current = getattr(cs, 'time_format', '') or '%H:%M'
+    sample  = datetime.datetime.now()
+
+    lines = ['', '|yellow|Time Format:|reset|', '']
+    for num, label, fmt in _TIME_FORMAT_PRESETS:
+        lines.append(f'  {num}. {label:<8} {sample.strftime(fmt)}')
+    lines += ['', f'Current: {_TIME_FORMAT_NAMES.get(current, current)}', '']
+
+    raw = await ctx.prompt('time format', preamble_lines=lines)
+    if raw is None or not raw.strip():
+        await ctx.send('Time format unchanged.')
+        return
+    ans = raw.strip()
+    for num, label, fmt in _TIME_FORMAT_PRESETS:
+        plain = label.replace('[', '').replace(']', '')
+        if ans == num or ans.lower() == plain.lower():
+            cs.time_format = fmt
+            await ctx.send(f'Time format set to {plain} ({sample.strftime(fmt)}).')
+            return
+    await ctx.send(f'Time format unchanged -- enter a number between 1 and {len(_TIME_FORMAT_PRESETS)}.')

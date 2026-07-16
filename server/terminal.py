@@ -267,6 +267,13 @@ class ClientSettings:
     # to that zone instead. See formatting.format_player_datetime().
     timezone:    str = ''
     date_format: str = '%B %d, %Y'
+    # 12-hour ('%I:%M %p', e.g. '2:30 PM') or 24-hour ('%H:%M', e.g.
+    # '14:30' -- the default, matching this codebase's previous hardcoded
+    # Hourglass behavior). Editable via PREFS 'F' (Time Format). See
+    # formatting.format_player_time() -- used by the Hourglass clock
+    # (network_context.py/terminal_context.py's prompt()) and available
+    # for any other player-facing time-of-day display.
+    time_format: str = '%H:%M'
     # Editable via commands/prefs.py's 'L' (Line Ending) row. Stored/reported
     # only for now -- not yet threaded through formatting.py's actual
     # send path (every line goes out as a JSON array element for ANSI/
@@ -303,6 +310,7 @@ class ClientSettings:
             'return_key':     self.return_key,
             'timezone':       self.timezone,
             'date_format':    self.date_format,
+            'time_format':    self.time_format,
             'line_ending':    self.line_ending,
             'has_tab':        self.has_tab,
             'tab_char':       self.tab_char,
@@ -313,7 +321,7 @@ class ClientSettings:
         instance = cls()
         for key in ('screen_rows', 'screen_columns', 'border_style', 'has_color',
                     'reverse_on', 'reverse_off', 'return_key', 'timezone',
-                    'date_format', 'line_ending', 'has_tab', 'tab_char'):
+                    'date_format', 'time_format', 'line_ending', 'has_tab', 'tab_char'):
             if key in data:
                 setattr(instance, key, data[key])
         if 'translation' in data:

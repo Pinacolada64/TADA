@@ -630,30 +630,29 @@ def border_style_for_ctx(ctx) -> str:
     return getattr(cs, 'border_style', 'single')
 
 
-def format_player_datetime(dt, player) -> str:
-    """Render *dt* using *player*'s PREFS timezone/date-format choice
-    (commands/prefs.py's 'Z'/'D' rows, ClientSettings.timezone/
-    date_format -- New in TADA).
+def _localize_for_player(dt, player):
+    """Anchor a naive *dt* to a source timezone and convert to *player*'s
+    own PREFS timezone choice (commands/prefs.py 'Z' row) -- shared by
+    format_player_datetime() and format_player_time().
 
     *dt* is expected to be a naive datetime (this codebase's timestamps
     -- e.g. player.last_connection -- are stored via bare datetime.now(),
-    never made timezone-aware) or already timezone-aware. A naive *dt*
-    is first anchored to a *source* zone -- config.server_timezone if a
+    never made timezone-aware) or already timezone-aware. A naive *dt* is
+    first anchored to a *source* zone -- config.server_timezone if a
     sysop has set one (setup/server_setup.py / the in-game CONFIG
     command's 'server_timezone' setting declares what timezone these
     naive timestamps actually represent), else the server process's own
-    OS-local zone, unchanged from before this setting existed. The
-    player's own timezone choice then converts from that source zone;
-    an empty/unset player timezone means "use the source zone as-is,"
-    which is what PREFS 'Z' Timezone's 'Server Local' option means. A
-    bad/unknown IANA zone name (either source) falls back gracefully
-    rather than raising.
+    OS-local zone, unchanged from before that setting existed. The
+    player's own timezone choice then converts from that source zone; an
+    empty/unset player timezone means "use the source zone as-is," which
+    is what PREFS 'Z' Timezone's 'Server Local' option means. A bad/
+    unknown IANA zone name (either source) falls back gracefully rather
+    than raising.
     """
     import zoneinfo
 
-    cs          = getattr(player, 'client_settings', None)
-    tz_name     = (getattr(cs, 'timezone', '') or '').strip()
-    date_format = getattr(cs, 'date_format', '') or '%B %d, %Y'
+    cs      = getattr(player, 'client_settings', None)
+    tz_name = (getattr(cs, 'timezone', '') or '').strip()
 
     if dt.tzinfo is None:
         server_tz_name = ''
@@ -666,7 +665,7 @@ def format_player_datetime(dt, player) -> str:
             try:
                 dt = dt.replace(tzinfo=zoneinfo.ZoneInfo(server_tz_name))
             except Exception:
-                logging.warning("format_player_datetime: unknown/invalid server_timezone %r", server_tz_name)
+                logging.warning("_localize_for_player: unknown/invalid server_timezone %r", server_tz_name)
                 dt = dt.astimezone()
         else:
             dt = dt.astimezone()
@@ -675,13 +674,43 @@ def format_player_datetime(dt, player) -> str:
         try:
             dt = dt.astimezone(zoneinfo.ZoneInfo(tz_name))
         except Exception:
-            logging.warning("format_player_datetime: unknown/invalid timezone %r", tz_name)
+            logging.warning("_localize_for_player: unknown/invalid timezone %r", tz_name)
+
+    return dt
+
+
+def format_player_datetime(dt, player) -> str:
+    """Render *dt* using *player*'s PREFS timezone/date-format choice
+    (commands/prefs.py's 'Z'/'D' rows, ClientSettings.timezone/
+    date_format -- New in TADA). See _localize_for_player() for how the
+    timezone conversion works."""
+    cs          = getattr(player, 'client_settings', None)
+    date_format = getattr(cs, 'date_format', '') or '%B %d, %Y'
+    dt          = _localize_for_player(dt, player)
 
     try:
         return dt.strftime(date_format)
     except (ValueError, TypeError):
         logging.warning("format_player_datetime: bad date_format %r", date_format)
         return dt.strftime('%B %d, %Y')
+
+
+def format_player_time(dt, player) -> str:
+    """Render *dt* (time-of-day only) using *player*'s PREFS timezone/
+    time-format choice (commands/prefs.py's 'Z'/'F' rows,
+    ClientSettings.timezone/time_format -- New in TADA). Used by the
+    Hourglass clock (network_context.py/terminal_context.py's prompt())
+    and available for any other player-facing time-of-day display. See
+    _localize_for_player() for how the timezone conversion works."""
+    cs          = getattr(player, 'client_settings', None)
+    time_format = getattr(cs, 'time_format', '') or '%H:%M'
+    dt          = _localize_for_player(dt, player)
+
+    try:
+        return dt.strftime(time_format)
+    except (ValueError, TypeError):
+        logging.warning("format_player_time: bad time_format %r", time_format)
+        return dt.strftime('%H:%M')
 
 
 _HRULE_CHAR: dict[str, str] = {

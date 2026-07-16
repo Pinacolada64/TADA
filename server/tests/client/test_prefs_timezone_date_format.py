@@ -13,11 +13,11 @@ import datetime
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from player import Player
-from commands.prefs import _pick_timezone, _pick_date_format
-from formatting import format_player_datetime
+from commands.prefs import _pick_timezone, _pick_date_format, _pick_time_format
+from formatting import format_player_datetime, format_player_time
 from terminal import ClientSettings, ColorName
 
 
@@ -218,6 +218,142 @@ class TestClientSettingsPersistence(unittest.TestCase):
 
                 reloaded = Player(name='Rulan', id='rulan')
                 self.assertIsInstance(reloaded.client_settings, ClientSettings)
+
+
+class TestPickTimeFormat(unittest.IsolatedAsyncioTestCase):
+    """'1' is 12-hour, '2' is 24-hour, with the option's own digit
+    bracket-highlighted in its label ('[1]2-hour', '[2]4-hour') --
+    Ryan's request, so the highlighted number visually matches what
+    you'd type to pick it."""
+
+    async def test_option_1_is_12_hour(self):
+        ctx = _FakeCtx(['1'], Player())
+        await _pick_time_format(ctx)
+        self.assertEqual(ctx.player.client_settings.time_format, '%I:%M %p')
+
+    async def test_option_2_is_24_hour(self):
+        ctx = _FakeCtx(['2'], Player())
+        await _pick_time_format(ctx)
+        self.assertEqual(ctx.player.client_settings.time_format, '%H:%M')
+
+    async def test_menu_shows_bracket_highlighted_digit_in_label(self):
+        ctx = _FakeCtx([''], Player())
+        await _pick_time_format(ctx)
+        text = ctx._flat()
+        self.assertIn('[1]2-hour', text)
+        self.assertIn('[2]4-hour', text)
+
+    async def test_typed_plain_name_matches_despite_bracket_label(self):
+        ctx = _FakeCtx(['12-hour'], Player())
+        await _pick_time_format(ctx)
+        self.assertEqual(ctx.player.client_settings.time_format, '%I:%M %p')
+
+    async def test_typed_plain_name_24_hour(self):
+        ctx = _FakeCtx(['24-hour'], Player())
+        await _pick_time_format(ctx)
+        self.assertEqual(ctx.player.client_settings.time_format, '%H:%M')
+
+    async def test_confirmation_message_has_no_literal_brackets(self):
+        ctx = _FakeCtx(['1'], Player())
+        await _pick_time_format(ctx)
+        self.assertIn('Time format set to 12-hour', ctx._flat())
+
+    async def test_blank_leaves_unchanged(self):
+        p = Player()
+        p.client_settings.time_format = '%H:%M'
+        ctx = _FakeCtx([''], p)
+        await _pick_time_format(ctx)
+        self.assertEqual(p.client_settings.time_format, '%H:%M')
+
+    async def test_invalid_choice_unchanged(self):
+        p = Player()
+        p.client_settings.time_format = '%H:%M'
+        ctx = _FakeCtx(['99'], p)
+        await _pick_time_format(ctx)
+        self.assertEqual(p.client_settings.time_format, '%H:%M')
+        self.assertIn('unchanged', ctx._flat())
+
+
+class TestFormatPlayerTime(unittest.TestCase):
+    def _player(self, timezone='', time_format=''):
+        p = Player()
+        if timezone:
+            p.client_settings.timezone = timezone
+        if time_format:
+            p.client_settings.time_format = time_format
+        return p
+
+    def test_default_is_24_hour(self):
+        dt = datetime.datetime(2026, 7, 16, 14, 30)
+        self.assertEqual(format_player_time(dt, self._player()), '14:30')
+
+    def test_12_hour_format(self):
+        dt = datetime.datetime(2026, 7, 16, 14, 30)
+        player = self._player(time_format='%I:%M %p')
+        self.assertEqual(format_player_time(dt, player), '02:30 PM')
+
+    def test_timezone_conversion_applies(self):
+        dt = datetime.datetime(2026, 7, 16, 23, 30)
+        player = self._player(timezone='Pacific/Auckland', time_format='%H:%M')
+        self.assertNotEqual(format_player_time(dt, player), '23:30')
+
+    def test_invalid_time_format_falls_back_to_default(self):
+        dt = datetime.datetime(2026, 7, 16, 14, 30)
+        player = self._player(time_format='%Q')  # not a real strftime directive
+        result = format_player_time(dt, player)
+        self.assertIsInstance(result, str)  # must not raise
+
+
+class TestHourglassRespectsTimeFormat(unittest.IsolatedAsyncioTestCase):
+    """Regression: the Hourglass clock (network_context.py's GameContext/
+    PETSCIINetworkContext, terminal_context.py's TerminalContext -- all
+    three prompt()s) hardcoded strftime('%H:%M'), ignoring the player's
+    own PREFS 'F' Time Format choice entirely."""
+
+    async def test_game_context_hourglass_uses_12_hour_format(self):
+        import re
+        import network_context
+        from flags import PlayerFlags
+
+        player = Player()
+        player.set_flag(PlayerFlags.HOURGLASS)
+        player.client_settings.time_format = '%I:%M %p'
+
+        ctx = network_context.GameContext.__new__(network_context.GameContext)
+        ctx.player = player
+        ctx.server = MagicMock()
+        ctx.server.send_message = AsyncMock()
+        ctx.writer = MagicMock()
+        ctx._prompt = '> '
+
+        await ctx.prompt('Command')
+
+        sent_msg = ctx.server.send_message.await_args.args[1]
+        # 12-hour format: "HH:MM AM/PM" -- would be "HH:MM" only (no
+        # AM/PM, and a possible 24-hour hour like 13-23) under the old
+        # hardcoded strftime('%H:%M').
+        self.assertRegex(sent_msg.prompt, r'\[\d{2}:\d{2} (AM|PM)\]')
+
+    async def test_game_context_hourglass_uses_24_hour_format_by_default(self):
+        import network_context
+        from flags import PlayerFlags
+
+        player = Player()
+        player.set_flag(PlayerFlags.HOURGLASS)
+
+        ctx = network_context.GameContext.__new__(network_context.GameContext)
+        ctx.player = player
+        ctx.server = MagicMock()
+        ctx.server.send_message = AsyncMock()
+        ctx.writer = MagicMock()
+        ctx._prompt = '> '
+
+        await ctx.prompt('Command')
+
+        sent_msg = ctx.server.send_message.await_args.args[1]
+        self.assertRegex(sent_msg.prompt, r'\[\d{2}:\d{2}\]')
+        self.assertNotIn('AM', sent_msg.prompt)
+        self.assertNotIn('PM', sent_msg.prompt)
 
 
 if __name__ == '__main__':

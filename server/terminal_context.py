@@ -201,13 +201,15 @@ class GameContext(BaseContext):
 
         Shows Hourglass (game time) if player has enabled it
         """
+        import datetime
         from net_common import from_jsonb
-        from time import strftime
+        from formatting import format_player_time
         if preamble_lines:
             await self.send(preamble_lines)
 
         if self.player.query_flag(PlayerFlags.HOURGLASS):
-            prompt_text = f"[{strftime('%H:%M')}] {prompt_text}"
+            clock = format_player_time(datetime.datetime.now(), self.player)
+            prompt_text = f"[{clock}] {prompt_text}"
         # Send the prompt as a Message with no lines, just a prompt field
         msg = nc.Message(lines=[], prompt=prompt_text or '> ')
         await self.server.send_message(self.writer, msg)
