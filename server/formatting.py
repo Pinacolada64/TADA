@@ -224,6 +224,39 @@ def _token_strip_replace(match: re.Match) -> str:
     return ''
 
 
+# New in TADA: PETSCII-only alternate delimiter. '|' needs Shift+- on a
+# real Commodore keyboard -- cumbersome enough that Ryan asked for an
+# easier-to-type substitute for PETSCII clients specifically. '!' works
+# the same as '|' here: !red!, !tab:5!, and the doubled-delimiter escape
+# !!red!! (-> literal !red!), matching '|red|'/'|tab:5|'/'||red||' one
+# for one. The two delimiters can't be mixed within one token (backreference
+# (?P=d)/(?P=d2) requires the closing delimiter(s) to match the opening
+# one) -- '|red!' is not a token, just literal text.
+#
+# Deliberately NOT wired into ansi_encode()/plain_encode(): '!' is common
+# in ordinary game text ("Welcome, Alice!", "PILLAGE!"), unlike '|', so
+# broadening this beyond PETSCII (where the whole point is avoiding an
+# awkward keystroke, not typing convenience for its own sake) would raise
+# real collision risk for no corresponding benefit -- ANSI/plain clients
+# don't have the Commodore keyboard's Shift+- friction to begin with.
+_PETSCII_TOKEN_RE = re.compile(
+    r'(?P<d>[|!])(?P=d)(?P<etoken>[a-z_]+)(?::(?P<ecount>\d+))?(?P=d)(?P=d)'
+    r'|(?P<d2>[|!])(?P<token>[a-z_]+)(?::(?P<count>\d+))?(?P=d2)'
+)
+
+
+def _petscii_token_strip_replace(match: re.Match) -> str:
+    """_token_strip_replace()'s PETSCII counterpart -- see _PETSCII_TOKEN_RE's
+    comment. Preserves whichever delimiter ('|' or '!') was actually used."""
+    if match.group('etoken') is not None:
+        d = match.group('d')
+        literal = d + match.group('etoken')
+        if match.group('ecount'):
+            literal += ':' + match.group('ecount')
+        return literal + d
+    return ''
+
+
 def _encode_petscii_segment(text: str, codec_name: str) -> bytes:
     """Encode a plain text segment, mapping '_' → PETSCII $64 (underline glyph)."""
     if '_' not in text:
@@ -243,13 +276,13 @@ def petscii_encode(text: str,
     Encode a string for transmission to a Commodore client.
 
     Text segments are encoded via cbmcodecs2 (handles PETSCII character
-    mapping). |token| color/control sequences are replaced with their raw
-    control byte values and spliced in *after* encoding, so cbmcodecs2
-    never sees them.
+    mapping). |token| (or !token! -- see _PETSCII_TOKEN_RE) color/control
+    sequences are replaced with their raw control byte values and spliced
+    in *after* encoding, so cbmcodecs2 never sees them.
 
-    Unrecognised |token| sequences are left as-is in the encoded text.
+    Unrecognised |token|/!token! sequences are left as-is in the encoded text.
 
-    :param text:       Input string, may contain |token| sequences.
+    :param text:       Input string, may contain |token| or !token! sequences.
     :param codec_name: cbmcodecs2 codec name. Defaults to lowercase C64.
                        Use 'petscii_c64en_uc' for uppercase/graphics mode.
     :return:           Raw bytes ready to send to the Commodore client.
@@ -258,27 +291,31 @@ def petscii_encode(text: str,
     28
     >>> petscii_encode('|red|Hi|reset|')[-1]  # last byte = reverse off
     146
+    >>> petscii_encode('!red!Hi!reset!')[0]   # '!' works the same as '|'
+    28
     """
     if not _CBMCODECS2_AVAILABLE:
-        clean = _TOKEN_RE.sub(_token_strip_replace, text)
+        clean = _PETSCII_TOKEN_RE.sub(_petscii_token_strip_replace, text)
         return clean.encode('ascii', errors='replace')
 
     result = bytearray()
     pos = 0
 
-    for match in _TOKEN_RE.finditer(text):
+    for match in _PETSCII_TOKEN_RE.finditer(text):
         # Encode plain text segment before this token
         segment = text[pos:match.start()]
         if segment:
             result.extend(_encode_petscii_segment(segment, codec_name))
 
         if match.group('etoken') is not None:
-            # ||token|| / ||token:count|| escape -- literal |token[:count]|,
-            # no color/tab interpretation. See _TOKEN_RE's comment.
-            literal = '|' + match.group('etoken')
+            # !!token!! / ||token|| (and their ':count' forms) escape --
+            # literal !token[:count]! / |token[:count]|, no color/tab
+            # interpretation. See _PETSCII_TOKEN_RE's comment.
+            d = match.group('d')
+            literal = d + match.group('etoken')
             if match.group('ecount'):
                 literal += ':' + match.group('ecount')
-            literal += '|'
+            literal += d
             result.extend(_encode_petscii_segment(literal, codec_name))
             pos = match.end()
             continue
@@ -290,7 +327,7 @@ def petscii_encode(text: str,
             result.extend(bytes([code]) * count)  # raw control byte(s), bypasses codec
         else:
             # Unknown token — encode as literal text
-            logging.warning('petscii_encode: unknown token |%s|', token)
+            logging.warning('petscii_encode: unknown token %s%s%s', match.group('d2'), token, match.group('d2'))
             result.extend(match.group(0).encode(codec_name, errors='replace'))
 
         pos = match.end()
@@ -642,16 +679,25 @@ def format_line(text: str, width: int, codec: ColorCodec) -> list[str]:
 # usage table showed |tab| examples that vanished under plain_encode()).
 _TAB_TOKEN_RE = re.compile(r'(?<!\|)\|tab(?::(?P<n>\d+))?\|(?!\|)')
 
+# PETSCII-only: also accepts '!tab!'/'!tab:N!' -- see _PETSCII_TOKEN_RE's
+# comment on why '!' is scoped to PETSCII instead of joining _TAB_TOKEN_RE
+# above for every codec. Matches '|tab|' too (petscii_encode()/plain_encode()
+# still accept '|' as well), just with '!' additionally recognized.
+_TAB_TOKEN_RE_PETSCII = re.compile(
+    r'(?<![|!])(?P<d>[|!])tab(?::(?P<n>\d+))?(?P=d)(?![|!])'
+)
 
-def _expand_tab_tokens(text: str, settings) -> str:
+
+def _expand_tab_tokens(text: str, settings, codec: 'ColorCodec | None' = None) -> str:
     """
-    Replace |tab| / |tab:N| with the player's actual tab output, repeated
-    N times (once, by default) -- see PREFS 'K' (Tab Key), which sets
-    client_settings.tab_settings.tab_output to a real '\\t' if the client
-    has a working Tab key, or N spaces if simulating one. The escaped form
-    ||tab||/||tab:N|| (see _TOKEN_RE's comment) is left untouched here --
-    ansi_encode()/petscii_encode()/plain_encode() resolve it to a literal
-    |tab|/|tab:N| later.
+    Replace |tab| / |tab:N| (or, for PETSCII clients only, !tab! / !tab:N! --
+    see _TAB_TOKEN_RE_PETSCII's comment) with the player's actual tab
+    output, repeated N times (once, by default) -- see PREFS 'K' (Tab Key),
+    which sets client_settings.tab_settings.tab_output to a real '\\t' if
+    the client has a working Tab key, or N spaces if simulating one. The
+    escaped form ||tab||/!!tab!! (see _TOKEN_RE's comment) is left untouched
+    here -- ansi_encode()/petscii_encode()/plain_encode() resolve it to a
+    literal |tab|/!tab! later.
 
     Unlike color |token|s (a static per-codec substitution table applied
     at ansi_encode()/petscii_encode() time), a tab's rendered width is
@@ -667,7 +713,8 @@ def _expand_tab_tokens(text: str, settings) -> str:
         count = int(match.group('n')) if match.group('n') else 1
         return tab_output * count
 
-    return _TAB_TOKEN_RE.sub(_replace, text)
+    pattern = _TAB_TOKEN_RE_PETSCII if isinstance(codec, PETSCIICodec) else _TAB_TOKEN_RE
+    return pattern.sub(_replace, text)
 
 
 def format_lines(lines: list[str],
@@ -693,7 +740,7 @@ def format_lines(lines: list[str],
     width = getattr(settings, 'screen_columns', 80)
     result = []
     for line in lines:
-        line = _expand_tab_tokens(line, settings)
+        line = _expand_tab_tokens(line, settings, codec)
         result.extend(format_line(line, width, codec))
     return result
 
