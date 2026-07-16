@@ -5,7 +5,7 @@ New in TADA: an Allies section (_build_stats_lines) -- SPUR's own STATS/
 STAT2 output never mentions party composition at all, checked directly
 against the source. Ryan's request."""
 from base_classes import (
-    Alignment, Guild, PlayerMoneyTypes, PlayerRace, PlayerStat,
+    Alignment, Guild, PlayerClass, PlayerMoneyTypes, PlayerRace, PlayerStat,
 )
 from combat.resolution import tier_label
 from commands.base_command import Command, CommandResult, Mode
@@ -14,6 +14,15 @@ from flags import PlayerFlags
 from network_context import GameContext
 
 _AP = "'"
+
+# Wizard's Glow duration. SPUR tracks this as a coarse 2-state flag
+# decremented on login (SPUR.LOGON.S mid$(zu$,7,1): if instr(...,"23")
+# active, else dissipated), not a round count. This port's Player.wizard_
+# glow is already documented as "rounds left, decrement at every turn"
+# (player.py), but nothing actually casts/decrements it yet -- no real
+# spell-casting system exists (see TODO.md's "7/17/26" entry). This max
+# is a placeholder for display purposes until that's built.
+_WIZARD_GLOW_MAX_ROUNDS = 20
 
 
 # ---------------------------------------------------------------------------
@@ -238,9 +247,16 @@ def _build_stats_lines(player) -> list[str]:
         # TODO: check if player (or ally) carries item #076 (Amulet of Life)
         pass
 
-    # Wizard's glow
-    if getattr(player, 'wizard_glow', False):
-        lines.append("Wizard{_AP}s Glow spell active!".format(_AP=_AP))
+    # Wizard's Glow -- Ryan's request: show remaining rounds for Wizards
+    # specifically, not just an on/off flag. "Not cast" when inactive
+    # rather than "0/20 rounds remaining", which reads like it just ran
+    # out rather than never having been cast at all.
+    if char_class == PlayerClass.WIZARD:
+        glow_rounds = int(getattr(player, 'wizard_glow', None) or 0)
+        if glow_rounds > 0:
+            lines.append(f'Wizard Glow: {glow_rounds}/{_WIZARD_GLOW_MAX_ROUNDS} rounds remaining')
+        else:
+            lines.append('Wizard Glow: Not cast')
 
     lines.append('')
 
