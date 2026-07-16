@@ -451,6 +451,33 @@ class TestPartyWaitingLine(unittest.TestCase):
         )
 
 
+class TestLastConnectedDateFormat(unittest.IsolatedAsyncioTestCase):
+    """Regression: 'You last connected on {player.last_connection}.' used
+    the raw str(datetime) repr ("2026-07-11 14:32:01.123456"); now
+    formatted as 'Month Day, Year' to match this codebase's other
+    player-facing date formatting (editplayer.py birthday, ban.py
+    suspension date)."""
+
+    async def test_last_connected_uses_readable_date_format(self):
+        cmd = ConnectCommand()
+        ctx = _make_ctx()
+        with patch("commands.connect._load_credentials",
+                   return_value={"password": "s3cr3t"}):
+            await cmd.execute(ctx, "alexa", "s3cr3t")
+
+        sent_lines = []
+        for call in ctx.send.await_args_list:
+            for a in call.args:
+                if isinstance(a, list):
+                    sent_lines.extend(str(x) for x in a)
+                else:
+                    sent_lines.append(str(a))
+
+        line = next((l for l in sent_lines if l.startswith('You last connected on')), None)
+        self.assertIsNotNone(line)
+        self.assertRegex(line, r'^You last connected on [A-Z][a-z]+ \d{2}, \d{4}\.$')
+
+
 if __name__ == "__main__":
     import logging
     logging.basicConfig(level=logging.DEBUG,
