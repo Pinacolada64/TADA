@@ -159,7 +159,11 @@ def _login_tip_lines(ctx) -> list[str]:
     if tip is None:
         return []
     box = tips_store.format_tip_box(ctx, tip, player.command_settings.tips.tip_number, len(all_tips))
-    return [''] + box
+    # No leading blank here -- the caller (commands/connect.py's
+    # _authenticate()) already supplies exactly one separator blank line
+    # before the tip box, whether that's the "You last connected..." blank
+    # or (when news is shown) news's own trailing blank line.
+    return box
 
 
 def _load_credentials(username: str) -> dict | None:
@@ -325,8 +329,10 @@ class ConnectCommand(Command):
             return CommandResult.fail("Account suspended.", error="banned")
 
         # Flavor text while loading — original SPUR displayed this while
-        # reading the player record from disk.
+        # reading the player record from disk. Leading blank line separates
+        # it from the "connect <name> <password>" the player just typed.
         await ctx.send(
+            "",
             "There is a large... well... illusion here, obviously from the great SPUR "
             "himself.  Somehow you are told to wait until your... death (?!) papers are "
             "completely in order.  A tingling runs up your spine as you wonder if your "
@@ -383,6 +389,7 @@ class ConnectCommand(Command):
         wraith = player.query_flag(PlayerFlags.WRAITH_MASTER)
         title  = ", Wraith Master of Spur!" if wraith else "!"
         login_lines.append(f"Welcome, {player.name}{title}")
+        login_lines.append("")
 
         # TODO: track and display "The last Adventurer was {name}" (requires a
         #  global last-player record written on quit, e.g. run/server/last_player.txt).
@@ -415,6 +422,7 @@ class ConnectCommand(Command):
         tip_lines = _login_tip_lines(ctx)
         if tip_lines:
             login_lines += tip_lines
+            login_lines.append("")
 
         player.last_connection = datetime.datetime.now()
         player.unsaved_changes = True
@@ -451,6 +459,7 @@ class ConnectCommand(Command):
         # Party members waiting (SPUR.LOGON.S ally greeting -- master only).
         waiting_line = _party_waiting_line(getattr(player, 'party', None))
         if waiting_line:
+            login_lines.append("")
             login_lines.append(waiting_line)
 
         await ctx.send(login_lines)
