@@ -497,6 +497,64 @@ class TestHelpTopics(unittest.IsolatedAsyncioTestCase):
         self.assertIn("not tied to one command", normalized)  # Concept
 
 
+class TestColorsTopic(unittest.IsolatedAsyncioTestCase):
+    """'help colors' (aliases 'color'/'markup') documents the |token|
+    mini-language (formatting.py's ANSI_COLOR_CODES/PETSCII_CONTROL_CODES/
+    |tab| syntax and the new ':count' + '||escape||' additions). Its own
+    usage/example text has to survive the *real* rendering pipeline
+    (format_lines -> ansi_encode/plain_encode) intact, not just show up
+    unprocessed in a mocked ctx.send() -- see the full-pipeline tests
+    below, which is what caught the escape mechanism's original bugs."""
+
+    async def test_topic_aliases_all_resolve(self):
+        for alias in ("colors", "color", "markup"):
+            ctx, _ = _ctx_with_processor()
+            result = await HelpCommand().execute(ctx, alias)
+            self.assertTrue(result.success, f"'{alias}' should resolve to the colors topic")
+
+    async def test_mentions_tab_and_count_syntax(self):
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "colors")
+        self.assertIn("tab", result.message.lower())
+        self.assertIn(":5", result.message)
+
+    def test_full_pipeline_ansi_renders_no_stray_warnings(self):
+        """Every |token|-shaped example in the topic must be either a
+        deliberate live demo or properly ||escaped|| -- an unescaped,
+        accidental |word| in the source text logs an 'unknown token'
+        warning every time a player views this page."""
+        import logging
+        from formatting import format_lines, ansi_encode_lines
+        from terminal import ClientSettings
+        from commands.help import _TOPICS
+
+        help_obj = _TOPICS["colors"]
+        formatted = format_help(help_obj, command_name="colors", width=78, rule_char="-")
+        lines = format_lines(formatted, ClientSettings())
+
+        with self.assertNoLogs(logging.getLogger(), level="WARNING"):
+            ansi_encode_lines(lines)
+
+    def test_full_pipeline_plain_preserves_escaped_examples(self):
+        """Escaped ||token|| examples must survive PLAIN clients the same
+        way they survive ANSI ones -- regression for the bug where
+        _expand_tab_tokens() collapsed the escape too early, leaving a
+        bare |tab| for plain_encode() to strip as if it were live markup."""
+        from formatting import format_lines, plain_encode_lines
+        from terminal import ClientSettings
+        from commands.help import _TOPICS
+
+        help_obj = _TOPICS["colors"]
+        formatted = format_help(help_obj, command_name="colors", width=78, rule_char="-")
+        lines = format_lines(formatted, ClientSettings())
+        plain = ' '.join(plain_encode_lines(lines))
+
+        self.assertIn('|tab|', plain)
+        self.assertIn('|tab:5|', plain)
+        self.assertIn('|color|', plain)
+        self.assertIn('|code|', plain)
+
+
 class TestCommandLineTopicAdminGating(unittest.IsolatedAsyncioTestCase):
     """'help commandline' concept topic -- its admin_notes (mentioning
     #version/#ver) should only show for Admin/Dungeon Master viewers."""

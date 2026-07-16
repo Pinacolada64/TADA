@@ -276,6 +276,55 @@ register_topic(
     ),
 )
 
+register_topic(
+    "colors", "color", "markup",
+    help_obj=Help(
+        summary="How TADA's ||color|| text codes work",
+        description=(
+            "Game text sometimes contains pipe-delimited color codes: "
+            "write ||red||some text||reset|| and everything between the "
+            "two markers renders in that color (or effect) instead of "
+            "the normal text color, the same way on an ANSI terminal or "
+            "a real Commodore. Here's an actual example: |red|like "
+            "this|reset|.\n\n"
+            "This is different from the [bracketed] auto-highlighting "
+            "your own PREFS 'C' text/highlight colors control: a color "
+            "code always renders as its exact named color regardless of "
+            "your personal color preferences, while [brackets] pick up "
+            "whatever colors you've chosen.\n\n"
+            "Some codes can also repeat with a count -- ||tab:5|| means "
+            "five tabs in a row instead of one.\n\n"
+            "Doubled pipes like the examples above (||red||...||reset||) "
+            "are themselves an escape: they show the raw ||code|| syntax "
+            "literally instead of applying it. That's how this help "
+            "topic can display the syntax without triggering it -- you "
+            "won't normally need it yourself unless you're writing game "
+            "text that needs to show a ||code|| example rather than use one."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("||color||some text||reset||", "Colors 'some text'; 'reset' returns to normal after it."),
+            ("||tab||",                     "A tab -- a real Tab character or simulated spaces, per PREFS 'K'."),
+            ("||tab:5||",                   "A count after the code repeats it -- five tabs in a row here."),
+            ("||code||...||code||",         "Doubled pipes: show raw ||code|| syntax literally instead of applying it."),
+        ],
+        examples=[
+            ("You find |red|a ruby|reset| on the floor.",
+             "'a ruby' renders in red; the rest is normal text."),
+            ("Name:|tab|Alice", "Lines up 'Alice' at the next tab stop."),
+        ],
+        notes=[
+            "Colors that work on every terminal type: black, white, red, "
+            "cyan, green, blue, yellow, purple, orange, brown, light_red, "
+            "light_green, light_blue, light_gray, dark_gray, mid_gray. "
+            "ANSI terminals also get magenta, light_cyan, light_yellow, "
+            "light_white, bold, and dim.",
+            "A misspelled or unsupported code (e.g. ||glorp||) is left "
+            "as plain text rather than breaking the rest of the line.",
+        ],
+    ),
+)
+
 
 # ---------------------------------------------------------------------------
 # Helper function - guards against Mode.NONE instead of a set {Mode.NONE}

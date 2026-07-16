@@ -194,7 +194,34 @@ PETSCII_CODE_NAMES: dict[int, str] = {
 # accepts and applies the same ':count' suffix, even though color tokens
 # don't have an obvious use for it, so any future repeatable entity gets it
 # for free. See _expand_tab_tokens() for 'tab', the first entity to use it.
-_TOKEN_RE = re.compile(r'\|([a-z_]+)(?::(\d+))?\|')
+#
+# ||entity|| / ||entity:count|| is an escape, mirroring highlight_brackets()'s
+# [[literal]] -> [literal]: it renders as a literal |entity| / |entity:count|
+# (single pipes) with no color/tab interpretation, instead of vanishing or
+# being substituted. Needed for anything that has to *show* this syntax
+# rather than use it -- see commands/help.py's 'colors' topic, the first
+# thing that actually needed to display raw |token| examples to a player.
+# The escaped group is checked first (named 'etoken'/'ecount') since regex
+# alternation tries left-to-right and ||x|| would otherwise partially match
+# the plain |x| branch instead.
+_TOKEN_RE = re.compile(
+    r'\|\|(?P<etoken>[a-z_]+)(?::(?P<ecount>\d+))?\|\|'
+    r'|\|(?P<token>[a-z_]+)(?::(?P<count>\d+))?\|'
+)
+
+
+def _token_strip_replace(match: re.Match) -> str:
+    """Shared re.sub() replacement for contexts that just want tokens gone
+    (petscii_encode's no-cbmcodecs2 fallback, plain_encode, _visible_len):
+    a real |token| vanishes, but an escaped ||token|| survives as the
+    literal |token| it's meant to display -- same asymmetry as
+    highlight_brackets()'s [[x]] -> [x]."""
+    if match.group('etoken') is not None:
+        literal = '|' + match.group('etoken')
+        if match.group('ecount'):
+            literal += ':' + match.group('ecount')
+        return literal + '|'
+    return ''
 
 
 def _encode_petscii_segment(text: str, codec_name: str) -> bytes:
@@ -233,7 +260,7 @@ def petscii_encode(text: str,
     146
     """
     if not _CBMCODECS2_AVAILABLE:
-        clean = _TOKEN_RE.sub('', text)
+        clean = _TOKEN_RE.sub(_token_strip_replace, text)
         return clean.encode('ascii', errors='replace')
 
     result = bytearray()
@@ -245,8 +272,19 @@ def petscii_encode(text: str,
         if segment:
             result.extend(_encode_petscii_segment(segment, codec_name))
 
-        token = match.group(1)
-        count = int(match.group(2)) if match.group(2) else 1
+        if match.group('etoken') is not None:
+            # ||token|| / ||token:count|| escape -- literal |token[:count]|,
+            # no color/tab interpretation. See _TOKEN_RE's comment.
+            literal = '|' + match.group('etoken')
+            if match.group('ecount'):
+                literal += ':' + match.group('ecount')
+            literal += '|'
+            result.extend(_encode_petscii_segment(literal, codec_name))
+            pos = match.end()
+            continue
+
+        token = match.group('token')
+        count = int(match.group('count')) if match.group('count') else 1
         code = PETSCII_CONTROL_CODES.get(token)
         if code is not None:
             result.extend(bytes([code]) * count)  # raw control byte(s), bypasses codec
@@ -368,8 +406,14 @@ def ansi_encode(text: str) -> str:
     """
 
     def _replace(match) -> str:
-        token = match.group(1)
-        count = int(match.group(2)) if match.group(2) else 1
+        if match.group('etoken') is not None:
+            # ||token|| / ||token:count|| escape -- literal |token[:count]|.
+            literal = '|' + match.group('etoken')
+            if match.group('ecount'):
+                literal += ':' + match.group('ecount')
+            return literal + '|'
+        token = match.group('token')
+        count = int(match.group('count')) if match.group('count') else 1
         code = ANSI_COLOR_CODES.get(token)
         if code is not None:
             return code * count
@@ -390,12 +434,17 @@ def ansi_encode_lines(lines: list[str]) -> list[str]:
     return [ansi_encode(line) for line in lines]
 
 
-_TOKEN_STRIP_RE   = re.compile(r'\|[a-z_]+(?::\d+)?\|')
+# Shares _TOKEN_RE's escaped/plain alternation (named 'etoken'/'ecount' vs
+# 'token'/'count') so _token_strip_replace() works for both this and
+# ansi_encode/petscii_encode's fallback paths.
+_TOKEN_STRIP_RE   = _TOKEN_RE
 _ANSI_ESCAPE_RE   = re.compile(r'\x1b\[[^a-zA-Z]*[a-zA-Z]')
 
 def plain_encode(text: str) -> str:
-    """Strip all |token| sequences for plain-text clients."""
-    return _TOKEN_STRIP_RE.sub('', text)
+    """Strip all |token| sequences for plain-text clients. An escaped
+    ||token|| survives as the literal |token| it's meant to display --
+    see _TOKEN_RE's comment."""
+    return _TOKEN_STRIP_RE.sub(_token_strip_replace, text)
 
 def plain_encode_lines(lines: list[str]) -> list[str]:
     """Apply plain_encode() to each line."""
@@ -485,8 +534,10 @@ def highlight_brackets(text: str, codec: ColorCodec) -> str:
 
 
 def _visible_len(text: str) -> int:
-    """Count visible columns: strips |token| sequences and raw ANSI escape codes."""
-    text = _TOKEN_STRIP_RE.sub('', text)
+    """Count visible columns: strips |token| sequences and raw ANSI escape
+    codes. An escaped ||token|| counts its literal |token| rendering (not
+    zero) since it actually prints -- see _TOKEN_RE's comment."""
+    text = _TOKEN_STRIP_RE.sub(_token_strip_replace, text)
     text = _ANSI_ESCAPE_RE.sub('', text)
     return len(text)
 
@@ -580,7 +631,16 @@ def format_line(text: str, width: int, codec: ColorCodec) -> list[str]:
     return wrap_text(highlighted, width)
 
 
-_TAB_TOKEN_RE = re.compile(r'\|tab(?::(\d+))?\|')
+# Only matches the *real* (single-pipe) form -- ||tab||/||tab:N|| (escaped)
+# is deliberately left alone here and falls through to ansi_encode()'s/
+# petscii_encode()'s/plain_encode()'s own _TOKEN_RE-based escape handling
+# later in the pipeline. Collapsing the escape here too, before those run,
+# would hand them a bare single-pipe "|tab|" indistinguishable from a real
+# token -- plain_encode() in particular would then strip it as if it were
+# live markup instead of preserving it as the literal text it's meant to
+# display (found while writing commands/help.py's 'colors' topic, whose
+# usage table showed |tab| examples that vanished under plain_encode()).
+_TAB_TOKEN_RE = re.compile(r'(?<!\|)\|tab(?::(?P<n>\d+))?\|(?!\|)')
 
 
 def _expand_tab_tokens(text: str, settings) -> str:
@@ -588,7 +648,10 @@ def _expand_tab_tokens(text: str, settings) -> str:
     Replace |tab| / |tab:N| with the player's actual tab output, repeated
     N times (once, by default) -- see PREFS 'K' (Tab Key), which sets
     client_settings.tab_settings.tab_output to a real '\\t' if the client
-    has a working Tab key, or N spaces if simulating one.
+    has a working Tab key, or N spaces if simulating one. The escaped form
+    ||tab||/||tab:N|| (see _TOKEN_RE's comment) is left untouched here --
+    ansi_encode()/petscii_encode()/plain_encode() resolve it to a literal
+    |tab|/|tab:N| later.
 
     Unlike color |token|s (a static per-codec substitution table applied
     at ansi_encode()/petscii_encode() time), a tab's rendered width is
@@ -601,7 +664,7 @@ def _expand_tab_tokens(text: str, settings) -> str:
     tab_output = getattr(tab_settings, 'tab_output', '\t') if tab_settings else '\t'
 
     def _replace(match) -> str:
-        count = int(match.group(1)) if match.group(1) else 1
+        count = int(match.group('n')) if match.group('n') else 1
         return tab_output * count
 
     return _TAB_TOKEN_RE.sub(_replace, text)

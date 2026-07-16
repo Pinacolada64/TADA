@@ -107,6 +107,71 @@ class TestTokenCountSyntax(unittest.TestCase):
         self.assertEqual(result, '|bogus:5|x')
 
 
+class TestTokenEscapeSyntax(unittest.TestCase):
+    """||token||/||token:N|| -- an escape mirroring highlight_brackets()'s
+    [[literal]] -> [literal]: renders as the literal |token|/|token:N|
+    (single pipes) instead of being color/tab-interpreted. Added so
+    commands/help.py's 'colors' topic can show raw |token| syntax to a
+    player without it actually being applied."""
+
+    def test_ansi_encode_escape_renders_literal_single_pipes(self):
+        self.assertEqual(ansi_encode('||red||text||reset||'), '|red|text|reset|')
+
+    def test_ansi_encode_escape_with_count_renders_literal(self):
+        self.assertEqual(ansi_encode('||red:5||'), '|red:5|')
+
+    def test_ansi_encode_unescaped_token_still_applies(self):
+        from formatting import ANSI_COLOR_CODES
+        self.assertEqual(ansi_encode('|red|x|reset|'),
+                         ANSI_COLOR_CODES['red'] + 'x' + ANSI_COLOR_CODES['reset'])
+
+    def test_petscii_encode_escape_renders_literal_bytes(self):
+        # '|' isn't representable in the PETSCII charset (falls back to '?'
+        # via errors='replace'), but the point is it does NOT become the
+        # red control byte -- it stays literal (mangled) text either way.
+        from formatting import PETSCII_CONTROL_CODES
+        result = petscii_encode('||red||')
+        self.assertNotIn(bytes([PETSCII_CONTROL_CODES['red']]), result)
+
+    def test_petscii_encode_unescaped_token_still_applies(self):
+        from formatting import PETSCII_CONTROL_CODES
+        result = petscii_encode('|red|')
+        self.assertEqual(result, bytes([PETSCII_CONTROL_CODES['red']]))
+
+    def test_plain_encode_escape_survives_as_literal(self):
+        self.assertEqual(plain_encode('||red||text||reset||'), '|red|text|reset|')
+
+    def test_plain_encode_unescaped_token_is_stripped(self):
+        self.assertEqual(plain_encode('|red|text|reset|'), 'text')
+
+    def test_expand_tab_tokens_ignores_escaped_form(self):
+        """_expand_tab_tokens() deliberately leaves ||tab|| doubled and
+        untouched -- ansi_encode()/petscii_encode()/plain_encode() collapse
+        it to the literal |tab| later. Collapsing it here too would hand
+        those a bare |tab| indistinguishable from a real token (see
+        test_escaped_tab_survives_full_pipeline_to_plain below)."""
+        cs = _settings(has_tab_key=False, tab_width=4)
+        self.assertEqual(_expand_tab_tokens('A||tab||B', cs), 'A||tab||B')
+
+    def test_expand_tab_tokens_ignores_escaped_form_with_count(self):
+        cs = _settings(has_tab_key=False, tab_width=4)
+        self.assertEqual(_expand_tab_tokens('||tab:5||', cs), '||tab:5||')
+
+    def test_escaped_tab_survives_full_pipeline_to_plain(self):
+        """Regression: _expand_tab_tokens() used to collapse ||tab|| to a
+        bare |tab| immediately, which plain_encode() then stripped as if it
+        were live markup -- found while writing the 'colors' help topic,
+        whose usage table silently lost its |tab| example under PLAIN."""
+        cs = _settings(has_tab_key=False, tab_width=4)
+        expanded = _expand_tab_tokens('||tab||', cs)
+        self.assertEqual(plain_encode(expanded), '|tab|')
+
+    def test_escaped_tab_does_not_expand_to_real_tab_char(self):
+        cs = _settings(has_tab_key=True)
+        expanded = _expand_tab_tokens('A||tab||B', cs)
+        self.assertNotIn('\t', expanded)
+
+
 class TestPrefsTabTestLine(unittest.IsolatedAsyncioTestCase):
 
     def test_tab_test_line_uses_tab_token(self):
