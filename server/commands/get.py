@@ -39,6 +39,87 @@ def _hp5_effect(player) -> tuple[str, ...]:
     return tuple(msgs)
 
 
+def _raw_item_data(ctx, item) -> dict | None:
+    """Find *item*'s original objects.json/weapons.json/rations.json entry
+    by id_number.
+
+    Deliberately separate from commands/look.py's identical-looking
+    helper of the same name: that one keys off isinstance(item, Weapon)/
+    isinstance(item, Rations), but every room item constructed here
+    (_room_available_items()) is a plain items.Item tagged with an
+    ItemCategory, never an actual Weapon/Rations subclass instance -- so
+    look.py's version would always fall through to the objects.json pool
+    and silently miss weapon/food data. Keys off item.category instead.
+    """
+    item_id = getattr(item, 'id_number', None)
+    if item_id is None:
+        return None
+    category = getattr(item, 'category', None)
+    if category == ItemCategory.WEAPON:
+        pool = getattr(ctx.server, 'weapons', None) or []
+    elif category == ItemCategory.FOOD:
+        pool = getattr(ctx.server, 'rations', None) or []
+    else:
+        pool = getattr(ctx.server, 'items', None) or []
+    for raw in pool:
+        if raw.get('number') == item_id:
+            return raw
+    return None
+
+
+def _is_cursed(raw: dict | None) -> bool:
+    """objects.json marks a cursed item via "type": "cursed"; weapons.json/
+    rations.json (no "type" field) use "kind" for the same purpose --
+    e.g. rations.json's EMBALMING FLUID/POISON APPLE/THE APPLE OF EVE."""
+    if not raw:
+        return False
+    return raw.get('type') == 'cursed' or raw.get('kind') == 'cursed'
+
+
+def _cursed_penalty(player, name: str, price: int) -> list[str]:
+    """SPUR.MISC.S 'cursed' subroutine (get.itm/get.wpn/get.fd's
+    i1$/wt$/ft$="C" checks, all three routed to the same 'cursed' label):
+    getting a cursed item/weapon/food always inflicts damage split
+    between Intelligence and HP, scaled by the item's own value (or a
+    flat 10 if it has none) -- regardless of whether it was examined
+    first. EXAMINE (commands/look.py's _examine_item()) only reveals the
+    "This X is Cursed" flavor text in advance so a player can choose not
+    to GET it; it doesn't set any flag that reduces or prevents this
+    penalty. Can be fatal if HP drops to 0 (SPUR's dead2 branch) --
+    mirrors survival.py's own inline pattern for non-combat death (set
+    hit_points=0, return a death message) rather than combat/engine.py's
+    CombatEngine._player_dies(), which is tied to a live monster
+    encounter this isn't part of.
+
+    The cursed item is never added to inventory either way (SPUR's
+    'cursed' subroutine returns without reaching the normal add-to-
+    inventory code) -- the caller should not call inventory.add() for it.
+    """
+    severity = int(price) or 10
+    intel_loss = random.randint(0, severity - 1)
+    hp_loss    = severity - intel_loss
+
+    lines = [f'{name} is Cursed!']
+
+    stats = getattr(player, 'stats', None) or {}
+    intel = int(stats.get('Intelligence', 10))
+    stats['Intelligence'] = max(0, intel - intel_loss)
+    player.stats = stats
+
+    hp = int(getattr(player, 'hit_points', 1) or 1)
+    player.hit_points = hp - hp_loss
+    player.unsaved_changes = True
+
+    if player.hit_points <= 0:
+        player.hit_points = 0
+        lines.append('You have been slain by the curse!')
+        return lines
+
+    lines.append('You feel dumber..')
+    lines.append('(Try examining things first!)')
+    return lines
+
+
 def _monster_in_room(ctx: GameContext) -> dict | None:
     """Return the monster dict for the current room, or None if none present."""
     game_map = getattr(ctx.server, 'game_map', None)
@@ -299,6 +380,18 @@ class GetCommand(Command):
         # --- Obelisk: too large to move (SPUR.MISC.S:287) ---
         if item_id == _OBELISK:
             await ctx.send(f'The {name} is MUCH too large to get!')
+            return CommandResult.ok()
+
+        # --- Cursed item/weapon/food: INT+HP damage, never added to inventory
+        # (SPUR.MISC.S's i1$/wt$/ft$="C" checks -- see _cursed_penalty()).
+        # Removed from the room after triggering once, matching this file's
+        # own established precedent for the booby trap/Pandora's Box below
+        # rather than SPUR's leave-it-in-the-room-forever original behavior.
+        raw = _raw_item_data(ctx, entry.item)
+        if _is_cursed(raw):
+            remove_fn()
+            for msg in _cursed_penalty(player, name, raw.get('price', 0)):
+                await ctx.send(msg)
             return CommandResult.ok()
 
         # --- Booby trap: explodes on pickup (SPUR.MISC.S strange, items 70/72) ---
