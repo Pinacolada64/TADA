@@ -545,11 +545,15 @@
   monster's `mechanical` flag. The "other players in the room see you
   vanish" half of this is already covered -- `_teleport()` already
   sends "X disappears in a flash of light" via `ctx.send_room()`.
-- Timezone/date-format preferences (Ryan): `commands/connect.py`'s
-  "You last connected on {date}" (and any other player-facing date
-  display -- birthdays in editplayer.py/new_player.py, ban.py's
-  suspension date) is always rendered in the server's local time with a
-  hardcoded `%B %d, %Y` format. Add a `prefs`-command option (see
-  `commands/prefs.py`) to let each player choose their own timezone and
-  preferred date format, stored on `ClientSettings` alongside the
-  existing screen/border/return-key prefs.
+- [DONE] Timezone/date-format preferences (Ryan): PREFS 'Z' (Timezone)
+  and 'D' (Date Format) let each player choose how dates render
+  (`commands/prefs.py`'s `_pick_timezone()`/`_pick_date_format()`,
+  `formatting.format_player_datetime()`), stored on `ClientSettings`
+  alongside the existing screen/border/return-key prefs. A new CONFIG/
+  `setup/server_setup.py` setting (`server_timezone`) lets a sysop
+  declare what zone the server's own naive timestamps represent, so
+  PREFS' "Server Local" default means something concrete. Wired into
+  `commands/connect.py`'s "You last connected on {date}" line so far;
+  the other player-facing date displays (birthdays in editplayer.py/
+  new_player.py, ban.py's suspension date) still use their own hardcoded
+  formatting and are a follow-up to switch over to the same helper.
