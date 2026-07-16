@@ -219,10 +219,10 @@ def load_allies() -> list:
         # Greek goddess of food & fertility, wife of Zeus:
         Ally("DEMETER", "f", 12, 5, [AllyFlags.GODDESS]),
         Ally("DIRTY HARRY", "m", 18, 7),
-        # From the movie "Back to the Future":
-        Ally("DOC BROWN", "m", 4, 3),
         Ally("DRAGONSLAYER", "m", 19, 8),
         Ally("DUKE OF EARL", "m", 12, 8),
+        # From the movie "Back to the Future":
+        Ally('EMMETT "DOC" BROWN', "m", 4, 3),
         # noblewoman of Rohan in "Lord of the Rings," defeats the Nazgul:
         Ally("EOWYN", "f", 16, 9),
         # https://en.wikipedia.org/wiki/Finieous_Fingers

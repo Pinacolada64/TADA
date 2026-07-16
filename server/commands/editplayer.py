@@ -559,10 +559,65 @@ def _names_menu(ctx) -> Menu:
         tag = f' [{a.status.name}]' if a.status in (AllyStatus.UNCONSCIOUS, AllyStatus.DEAD) else ''
         return f'{a.name}  Str {a.strength}{tag}'
 
+    async def _add_ally(ctx) -> None:
+        """Empty-slot flow: offer to add an ally, reusing bar/fat_olaf.py's
+        numbered picker (bar.allies.pick_ally) rather than its purchase UI --
+        this is an admin assignment, not a paid hire, so no silver charge and
+        none of _buy_servant()'s hire bonuses (+5 strength, etc).
+
+        Marks the chosen ally AllyStatus.SERVANT. This codebase has no
+        separate "in party" status -- SERVANT already means "owned/hired by
+        a player" (see bar/ally_data.py's AllyStatus docstring); actual
+        party membership is tracked independently via Party.members, set
+        below via player.party.add().
+        """
+        raw = await ctx.prompt(
+            'No ally in that slot. Add one? (Y/N, or ? to list available allies)'
+        )
+        if raw and raw.strip() == '?':
+            pass  # fall through into pick_ally(), which lists then prompts
+        elif not raw or raw.strip().upper() != 'Y':
+            return
+
+        from bar.ally_data import load_allies, save_ally_roster
+        from bar.allies import filter_allies, pick_ally
+
+        master_list = load_allies()
+        owned_names = {a.name for a in owned_allies(p)}
+        available = [a for a in filter_allies(master_list, AllyStatus.FREE)
+                     if a.name not in owned_names]
+        if not available:
+            await ctx.send('No allies available to add.')
+            return
+
+        chosen = await pick_ally(ctx, available, prompt='Add which ally')
+        if chosen is None:
+            return
+
+        chosen.status = AllyStatus.SERVANT
+        chosen.owner  = p.name
+        # Allies are created with hit_points=0 (bar/ally_data.py) and nothing
+        # else initializes it, which leaves them unable to fight or take
+        # damage (combat/engine.py gates ally participation on hit_points >
+        # 0) -- seed it here the same way fat_olaf._buy_servant() does,
+        # unless it's already set (e.g. re-adding a previously-fielded ally).
+        if not chosen.hit_points:
+            chosen.hit_points = chosen.strength * 2
+        save_ally_roster(master_list)
+        await p.party.add(ctx, p, chosen)
+        p.unsaved_changes = True
+
     async def edit_ally(ctx, slot: int) -> None:
         allies = owned_allies(p)
         if slot >= len(allies):
-            await ctx.send('No ally in that slot.')
+            # Only the first empty slot offers to add -- allies are a flat
+            # list (bar/allies.py's owned_allies(), not real numbered
+            # slots), so a new one always lands at index len(allies)
+            # regardless of which higher slot number was clicked.
+            if slot == len(allies):
+                await _add_ally(ctx)
+            else:
+                await ctx.send('No ally in that slot.')
             return
         await _rename_ally(ctx, allies[slot])
 
@@ -580,7 +635,7 @@ def _names_menu(ctx) -> Menu:
     ))
     for i in range(3):
         menu.add_item(MenuItem(
-            f'Ally {i + 1}', shortcuts=str(i + 1),
+            f'Ally {i + 1}', shortcuts="A" + str(i + 1),
             dot_leader_handler=lambda ctx, s=i: _ally_label(s),
             action=lambda ctx, s=i: edit_ally(ctx, s),
         ))

@@ -19,6 +19,7 @@ from datetime import date, datetime
 
 from base_classes import Alignment, PlayerClass, PlayerRace, PlayerStat
 from bar.ally_data import Ally, AllyFlags, AllyStatus
+from party import Party
 from commands.editplayer import (
     _armor_shield_menu,
     _combinations_menu,
@@ -61,7 +62,7 @@ class _FakePlayer:
         self.moves_today = 0
         self.monsters_killed: list = []
         self.read_books: list = []
-        self.party: list = []
+        self.party = Party()
         self.unsaved_changes = False
         self.char_class = None
         self.char_race = None
@@ -99,7 +100,7 @@ def _make_mount(name='SILVER'):
     return a
 
 
-def _make_ally(name='DOC BROWN'):
+def _make_ally(name='EMMETT "DOC" BROWN'):
     a = Ally(name=name, gender='m', strength=10, to_hit=5, flags=[])
     a.status = AllyStatus.SERVANT
     return a
@@ -328,36 +329,39 @@ class TestWeaponsMenu(unittest.IsolatedAsyncioTestCase):
 class TestNamesMenuAllyAndHorse(unittest.IsolatedAsyncioTestCase):
 
     async def test_rename_ally_in_slot(self):
-        ally = _make_ally('DOC BROWN')
+        ally = _make_ally('EMMETT "DOC" BROWN')
         player = _FakePlayer()
-        player.party = [ally]
+        player.party = Party(members=[ally])
         ctx = _FakeCtx(responses=['MARTY'], player=player)
         menu = _names_menu(ctx)
         await _find_item(menu, 'Ally 1').action(ctx)
         self.assertEqual(ally.name, 'MARTY')
         self.assertTrue(player.unsaved_changes)
 
-    async def test_empty_ally_slot_reports_no_ally(self):
+    async def test_second_empty_slot_reports_no_ally(self):
+        """Only the first empty slot offers to add -- allies are a flat
+        list, not real numbered slots, so a higher slot number with an
+        earlier slot still empty just reports read-only as before."""
         player = _FakePlayer()
-        player.party = []
+        player.party = Party(members=[_make_ally('EMMETT "DOC" BROWN')])  # fills slot 1
         ctx = _FakeCtx(player=player)
         menu = _names_menu(ctx)
-        await _find_item(menu, 'Ally 1').action(ctx)
+        await _find_item(menu, 'Ally 3').action(ctx)  # slot 2 -- not next-available (slot 1 is)
         self.assertIn('No ally in that slot', ctx.sent[-1])
 
     async def test_rename_ally_cancel_leaves_unchanged(self):
-        ally = _make_ally('DOC BROWN')
+        ally = _make_ally('EMMETT "DOC" BROWN')
         player = _FakePlayer()
-        player.party = [ally]
+        player.party = Party(members=[ally])
         ctx = _FakeCtx(responses=[''], player=player)
         menu = _names_menu(ctx)
         await _find_item(menu, 'Ally 1').action(ctx)
-        self.assertEqual(ally.name, 'DOC BROWN')
+        self.assertEqual(ally.name, 'EMMETT "DOC" BROWN')
 
     async def test_rename_horse(self):
         mount = _make_mount('SILVER')
         player = _FakePlayer()
-        player.party = [mount]
+        player.party = Party(members=[mount])
         ctx = _FakeCtx(responses=['SHADOWFAX'], player=player)
         menu = _names_menu(ctx)
         await _find_item(menu, 'Horse').action(ctx)
@@ -365,11 +369,107 @@ class TestNamesMenuAllyAndHorse(unittest.IsolatedAsyncioTestCase):
 
     async def test_no_horse_owned(self):
         player = _FakePlayer()
-        player.party = [_make_ally('DOC BROWN')]   # no MOUNT flag
+        player.party = Party(members=[_make_ally('EMMETT "DOC" BROWN')])   # no MOUNT flag
         ctx = _FakeCtx(player=player)
         menu = _names_menu(ctx)
         await _find_item(menu, 'Horse').action(ctx)
         self.assertIn('No horse owned', ctx.sent[-1])
+
+
+class TestNamesMenuAddAlly(unittest.IsolatedAsyncioTestCase):
+    """Empty-slot "add ally?" flow (Ryan's request): first empty slot
+    offers Y/N/? add-an-ally prompt, backed by bar/allies.py's pick_ally()
+    numbered picker over the master roster's AllyStatus.FREE entries."""
+
+    def _free_master_list(self):
+        return [
+            Ally(name='GANDALF', gender='m', strength=30, to_hit=8),
+            Ally(name='ARAGORN', gender='m', strength=25, to_hit=9),
+        ]
+
+    async def test_decline_leaves_slot_empty(self):
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['N'], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertEqual(len(player.party), 0)
+
+    async def test_blank_response_leaves_slot_empty(self):
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=[''], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertEqual(len(player.party), 0)
+
+    async def test_yes_then_pick_adds_ally_as_servant(self):
+        from unittest.mock import patch
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['Y', '1'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=self._free_master_list()), \
+             patch('bar.ally_data.save_ally_roster') as mock_save:
+            await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertEqual(len(player.party), 1)
+        added = list(player.party)[0]
+        self.assertEqual(added.name, 'GANDALF')
+        self.assertEqual(added.status, AllyStatus.SERVANT)
+        self.assertEqual(added.owner, player.name)
+        self.assertEqual(added.hit_points, added.strength * 2)
+        mock_save.assert_called_once()
+        self.assertTrue(player.unsaved_changes)
+
+    async def test_question_mark_skips_straight_to_picker(self):
+        from unittest.mock import patch
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['?', '2'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=self._free_master_list()), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertEqual(len(player.party), 1)
+        self.assertEqual(list(player.party)[0].name, 'ARAGORN')
+
+    async def test_picker_cancel_leaves_slot_empty(self):
+        from unittest.mock import patch
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['Y', ''], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=self._free_master_list()), \
+             patch('bar.ally_data.save_ally_roster') as mock_save:
+            await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertEqual(len(player.party), 0)
+        mock_save.assert_not_called()
+
+    async def test_already_owned_allies_excluded_from_picker(self):
+        from unittest.mock import patch
+        owned = _make_ally('GANDALF')
+        player = _FakePlayer()
+        player.party = Party(members=[owned])
+        ctx = _FakeCtx(responses=['Y', '1'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=self._free_master_list()), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Ally 2').action(ctx)  # slot 1, next available
+        self.assertEqual(len(player.party), 2)
+        # GANDALF is already owned, so choice "1" from the remaining pool is ARAGORN.
+        self.assertEqual(list(player.party)[1].name, 'ARAGORN')
+
+    async def test_no_available_allies(self):
+        from unittest.mock import patch
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['Y'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=[]), \
+             patch('bar.ally_data.save_ally_roster') as mock_save:
+            await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertIn('No allies available to add.', ctx.sent[-1])
+        mock_save.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
