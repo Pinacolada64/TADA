@@ -77,10 +77,21 @@ TIER_THRESHOLDS = [
 
 
 def tier_label(vp: int) -> str:
-    """Return a colour-coded tier badge for display, e.g. '|yellow|[ VETERAN ]|reset|'."""
+    """Return a colour-coded tier badge for display, e.g.
+    '|yellow|[[ VETERAN ]]|reset|'.
+
+    Brackets are double-escaped ([[ ]]) so formatting.py's
+    highlight_brackets() renders them as literal text instead of
+    re-highlighting the badge in its own default color on top of the
+    tier color set here -- without this, the badge showed nested/
+    doubled ANSI codes (e.g. green-then-red) wherever it's displayed
+    (commands/stats.py's Shield skill line, commands/ready.py's weapon/
+    shield battle-exp badges). Same escape convention commands/
+    list_locations.py's usage message and commands/help.py's _esc() use.
+    """
     for threshold, name, color in TIER_THRESHOLDS:
         if vp >= threshold:
-            return f'{color}[ {name} ]|reset|'
+            return f'{color}[[ {name} ]]|reset|'
     return ''
 
 
