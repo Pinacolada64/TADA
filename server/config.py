@@ -2,6 +2,7 @@
 Server configuration module.
 """
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, NamedTuple
 
@@ -221,11 +222,30 @@ class ServerConfig:
         if self._config_file.exists():
             try:
                 with open(self._config_file, 'r') as f:
-                    self._config = {**self._default_config, **json.load(f)}
+                    on_disk = json.load(f)
+                self._config = {**self._default_config, **on_disk}
+                missing_keys = [k for k in self._default_config if k not in on_disk]
+                if missing_keys:
+                    logging.info(
+                        'ServerConfig._load_config: %s has no value for %s '
+                        '(new since this file was written) -- using default(s): %s',
+                        self._config_file, missing_keys,
+                        {k: self._default_config[k] for k in missing_keys},
+                    )
+                logging.info('ServerConfig._load_config: loaded %s', self._config_file)
             except (json.JSONDecodeError, OSError):
+                logging.exception(
+                    'ServerConfig._load_config: failed to read %s -- '
+                    'falling back to defaults and rewriting it',
+                    self._config_file,
+                )
                 self._config = self._default_config.copy()
                 self._save_config()
         else:
+            logging.info(
+                'ServerConfig._load_config: %s not found -- creating it with defaults',
+                self._config_file,
+            )
             self._config = self._default_config.copy()
             self._save_config()
 

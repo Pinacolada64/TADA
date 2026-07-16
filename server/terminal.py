@@ -227,11 +227,30 @@ class TerminalColors:
         instance = cls()
         for key in ('text_color', 'border_color', 'highlight_color',
                     'normal_color', 'background_color'):
-            if key in data:
+            # isinstance guard, not just try/except KeyError: a save file
+            # from before ClientSettings had a real to_dict() dumped enum
+            # members via a generic __dict__ fallback -- a dict of the
+            # Enum class's own reflection (_value_/_name_/__objclass__),
+            # not a plain name string. ColorName[<dict>] raises TypeError
+            # (unhashable), not KeyError, so it slipped past this same
+            # guard before -- found live via player-botdummy.json still
+            # carrying one of these from before the fix.
+            if key in data and isinstance(data[key], str):
                 try:
                     setattr(instance, key, ColorName[data[key]])
                 except KeyError:
-                    pass
+                    logging.info(
+                        "TerminalColors.from_dict: %r is not a known "
+                        "ColorName -- keeping default %s",
+                        data[key], getattr(instance, key),
+                    )
+            elif key in data:
+                logging.info(
+                    "TerminalColors.from_dict: %s is a legacy non-string "
+                    "value (%r) from before to_dict()/from_dict() existed "
+                    "-- keeping default %s",
+                    key, data[key], getattr(instance, key),
+                )
         return instance
 
 class ClientSettings:
@@ -324,11 +343,30 @@ class ClientSettings:
                     'date_format', 'time_format', 'line_ending', 'has_tab', 'tab_char'):
             if key in data:
                 setattr(instance, key, data[key])
-        if 'translation' in data:
+        # isinstance guard, not just try/except KeyError: a save file from
+        # before ClientSettings had a real to_dict() dumped the Translation
+        # enum member via a generic __dict__ fallback -- a dict of the
+        # Enum class's own reflection (_value_/_name_/__objclass__), not a
+        # plain name string. Translation[<dict>] raises TypeError
+        # (unhashable), not KeyError, so it slipped past this same guard
+        # before -- found live via player-botdummy.json still carrying one
+        # of these from before the fix.
+        if isinstance(data.get('translation'), str):
             try:
                 instance.translation = Translation[data['translation']]
             except KeyError:
-                pass
+                logging.info(
+                    "ClientSettings.from_dict: %r is not a known "
+                    "Translation -- keeping default %s",
+                    data['translation'], instance.translation,
+                )
+        elif 'translation' in data:
+            logging.info(
+                "ClientSettings.from_dict: translation is a legacy "
+                "non-string value (%r) from before to_dict()/from_dict() "
+                "existed -- keeping default %s",
+                data['translation'], instance.translation,
+            )
         if isinstance(data.get('colors'), dict):
             instance.colors = TerminalColors.from_dict(data['colors'])
         if isinstance(data.get('tab_settings'), dict):

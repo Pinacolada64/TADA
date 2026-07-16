@@ -1075,6 +1075,13 @@ class Player:
                     self.creation_step = int(data['creation_step'])
                 except (TypeError, ValueError):
                     pass
+            if not getattr(self, 'creation_done', True):
+                logging.info(
+                    "Player._load: %s has an unfinished character creation "
+                    "(creation_step=%r) -- will resume main_flow() instead "
+                    "of the normal game loop",
+                    self.name, getattr(self, 'creation_step', None),
+                )
 
             # Merge simple scalar fields
             # shield/armor/active_shield_id added here because they were
@@ -1110,6 +1117,11 @@ class Player:
                 except Exception:
                     self.xp_level = 1
                 self.map_level = 1
+                logging.info(
+                    "Player._load: %s's save predates xp_level -- migrating "
+                    "old map_level=%r to xp_level=%d and resetting map_level to 1",
+                    self.name, data['map_level'], self.xp_level,
+                )
 
             # Inventory
             if 'inventory' in data and isinstance(data['inventory'], list):
@@ -1218,6 +1230,7 @@ class Player:
                 try:
                     from terminal import ClientSettings
                     self.client_settings = ClientSettings.from_dict(data['client_settings'])
+                    logging.info("Player._load: restored client_settings for %s", self.name)
                 except Exception:
                     logging.exception("Player._load: failed to restore client_settings for %s", self.name)
 
@@ -1318,6 +1331,12 @@ class Player:
                                     _flags.clear_flag(self, pf)
                             else:
                                 # attach as legacy string entry
+                                logging.info(
+                                    "Player._load: %r is not a known PlayerFlags "
+                                    "member for %s -- keeping it as a raw legacy "
+                                    "flags entry (%r)",
+                                    fname, self.name, entry,
+                                )
                                 existing = getattr(self, 'flags', {})
                                 existing[fname] = entry
                                 try:
