@@ -415,6 +415,15 @@ class Player:
         # reasoning as last_examined above.
         self.loot_count = 0
 
+        # New in TADA: mirrors SPUR.MISC2.S's ys$ "*pr1"/"*pr2"/"*prd"
+        # flags -- how many times this player has PRAYed this session
+        # (once normally, twice for Druids/Paladins) and whether they've
+        # been warned off pestering the Spirit of the Dungeons (the next
+        # PRAY after the warning is fatal; see commands/pray.py). Not
+        # persisted, same reasoning as last_examined/loot_count above.
+        self.prayed_count    = 0
+        self.prayer_punished = False
+
         # Allow passing an explicit id via kwargs (e.g., player.Player(name=..., id=username)).
         self.id = kwargs.get('id', None)  # account id
 
