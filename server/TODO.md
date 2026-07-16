@@ -567,6 +567,29 @@
      a real stat cost for trying to GET an empty room, not just flavor
      text. (No SPUR.MISC.S precedent found for this specific message/
      penalty -- treat as a new, Ryan-specified mechanic, not a port.)
+- GET-a-monster/GET-a-player gaps (Ryan): comparing SPUR.MISC.S's
+  get.b/get.plyr/ply.loc* against commands/get.py's _try_get_living()
+  turned up three unported pieces --
+  1. SPUR's md=2 "monster tracks" state (a monster that fled, leaving
+     only trackable evidence -- "YOU HEAR LAUGHTER AS YOU TRY TO GET
+     THE {name}") has no equivalent anywhere in TADA's monster model
+     (checked combat/engine.py -- it only tracks a *player* fleeing
+     combat, not a monster fleeing). Not just a GET gap: the
+     underlying "monster fled and left tracks" room state doesn't
+     exist yet, so this needs that groundwork first.
+  2. SPUR's fd$ "MEAT" slot guard ("if not instr(\"MEAT\",fd$) then
+     if md=1 print \"THE {monster} IS TOO MESSED UP TO GET!\"") sits
+     right before the unconditional md=1 hack-to-steaks branch, and
+     the two read as contradictory without more context on where
+     fd$/md actually get set elsewhere in combat code -- needs tracing
+     through the source before porting, not a guess.
+  3. STATUE handling ("GET STATUE" -> "THE STATUE IS MUCH TOO HEAVY!"
+     when instr(\"#\",wy$)) is unported in get.py, even though the
+     underlying petrification mechanic already exists in this codebase
+     (combat/engine.py's _player_petrified()/_record_statue() writes a
+     memorial when a player is turned to stone) -- this one's more
+     straightforward than #1/#2 since the game state it needs is
+     already there.
 
 7/17/26:
 - Charm spell (Ryan): `spells/charm.py`'s CHARM POTION mechanic is only
