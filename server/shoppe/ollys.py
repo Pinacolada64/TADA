@@ -27,20 +27,6 @@ def _load_objects() -> list[dict]:
         return []
 
 
-def _ammo_line(it: dict) -> str:
-    """Format one ammo item for the shop listing."""
-    flags    = it.get('flags', {})
-    rounds   = flags.get('rounds', '?')
-    damage   = flags.get('damage', '?')
-    used_with = flags.get('used_with', '').strip()
-    cost     = it['price'] * 10  # SPUR: it=it*10
-    name     = it['name']
-    return (
-        f"  {it['number']:>3}: {name:<16} "
-        f"{rounds:>3}rnd  dmg:{damage}  [{used_with}]  {cost}s"
-    )
-
-
 # ---------------------------------------------------------------------------
 # Ammo listing and purchase
 # ---------------------------------------------------------------------------
@@ -49,23 +35,77 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
     from base_classes import PlayerMoneyTypes
     from items import Item, ItemCategory
     from inventory import PACK_FULL_MESSAGE
+    from table import Align, Column, Table
 
     ammo_items    = [objects_by_num[n] for n in _AMMO_RANGE    if n in objects_by_num]
     carrier_items = [objects_by_num[n] for n in _CARRIER_RANGE if n in objects_by_num]
 
+    # New in TADA: shop numbering is now the display's own 1..N sequence
+    # rather than objects.json's raw item numbers -- easier to shop from
+    # than remembering "arrows are #100". index_to_item maps the number the
+    # player types back to the underlying object; Ryan's request.
+    listing = ammo_items + carrier_items
+    index_to_item = {i: it for i, it in enumerate(listing, start=1)}
+
+    try:
+        width = ctx.player.client_settings.screen_columns
+    except AttributeError:
+        width = 78
+
+    # New in TADA: hand-rolled f-string columns (_ammo_line()/_carrier_line())
+    # broke alignment on wide names like "Armor Piercing arrows" -- table.py's
+    # Table(border=False) computes real column widths and wraps overflow
+    # instead of letting it bleed into the next column. Ryan's request.
+    def _ammo_table() -> Table:
+        t = Table(headers=[
+            Column('#',         align=Align.RIGHT, min_width=2),
+            Column('Name',                          min_width=16),
+            Column('Rnds',      align=Align.RIGHT,  min_width=4),
+            Column('Dmg',       align=Align.RIGHT,  min_width=3),
+            Column('Used With',                     min_width=12),
+            Column('Cost',      align=Align.RIGHT,  min_width=4),
+        ], border=False)
+        for i, it in enumerate(ammo_items, start=1):
+            flags = it.get('flags', {})
+            t.add_row([
+                str(i),
+                it['name'],
+                str(flags.get('rounds', '?')),
+                str(flags.get('damage', '?')),
+                f"[{flags.get('used_with', '').strip()}]",
+                f"{it['price'] * 10:,}s",
+            ])
+        return t
+
+    def _carrier_table() -> Table:
+        t = Table(headers=[
+            Column('#',         align=Align.RIGHT, min_width=2),
+            Column('Name',                          min_width=16),
+            Column('Capacity',  align=Align.RIGHT,  min_width=8),
+            Column('Used With',                     min_width=12),
+            Column('Cost',      align=Align.RIGHT,  min_width=4),
+        ], border=False)
+        for j, it in enumerate(carrier_items, start=len(ammo_items) + 1):
+            flags = it.get('flags', {})
+            t.add_row([
+                str(j),
+                it['name'],
+                str(flags.get('rounds', '?')),
+                f"[{flags.get('used_with', '').strip()}]",
+                f"{it['price'] * 10:,}s",
+            ])
+        return t
+
     while True:
         lines = [
             '',
-            '[]=-=-=-=-=-=-=-=[OLLY]=-=-=-=-=-=-=-=[]',
-            '   #  Name             Rnds  Dmg  Weapon          Cost',
+            '<=-=-=-=-=-=-=-=[[OLLY]]=-=-=-=-=-=-=-=>',
             '',
         ]
-        for it in ammo_items:
-            lines.append(_ammo_line(it))
-        lines += ['', '  [ Ammo Carriers ]', '']
-        for it in carrier_items:
-            lines.append(_ammo_line(it))
-        lines += ['', 'Enter item number, ? to re-list, or Q to leave.', '']
+        lines += _ammo_table().render(width=width)
+        lines += ['', '  [[ Ammo Carriers ]]', '']
+        lines += _carrier_table().render(width=width)
+        lines += ['', 'Enter item number, ? to re-list, [I]nventory, or Q to leave.', '']
         await ctx.send(lines)
 
         raw = await ctx.prompt('Your Choice')
@@ -76,17 +116,23 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
             return
         if choice == '?':
             continue
+        if choice == 'I':
+            # New in TADA: it's easy to lose track of what you're already
+            # carrying while browsing this list -- let 'I' show it without
+            # leaving the shop. Just the player's own inventory (InvCommand
+            # already covers allies/mount on its own); Ryan's request.
+            await try_global_command(ctx, 'inventory')
+            continue
 
         try:
             num = int(choice)
         except ValueError:
-            await ctx.send('Enter a number, ? to list, or Q to leave.')
+            await ctx.send('Enter a number, ? to list, I)nventory, or Q to leave.')
             continue
 
-        it = objects_by_num.get(num)
-        if it is None or (num not in _AMMO_RANGE and num not in _CARRIER_RANGE):
-            await ctx.send(f'Enter {_AMMO_RANGE.start}-{_AMMO_RANGE.stop - 1}, '
-                           f'{_CARRIER_RANGE.start}-{_CARRIER_RANGE.stop - 1}, or Q.')
+        it = index_to_item.get(num)
+        if it is None:
+            await ctx.send(f'Enter 1-{len(listing)}, or Q.')
             continue
 
         if inv is not None and inv.is_full():
@@ -119,7 +165,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
         player.unsaved_changes = True
         await ctx.send('Done!')
 
-        if num in _CARRIER_RANGE:
+        if it in carrier_items:
             await ctx.send(
                 f'(Appropriate ammo will automatically be placed in the {name} '
                 'when it is purchased. Buying more than one will do no good.)'
