@@ -71,4 +71,10 @@ def format_tip_box(ctx, tip: str, tip_number: int, total: int, width: int = 60) 
         width=width,
         codec=codec,
         border_style=border_style_for_ctx(ctx),
+        frame_color='green',
+        text_color='white',
+        # magenta -- green's complement on the color wheel, so the
+        # "Tip #x / y" heading pops against the green frame instead of
+        # blending into it.
+        title_color='magenta',
     )
