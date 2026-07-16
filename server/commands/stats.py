@@ -167,7 +167,7 @@ def _build_stats_lines(player) -> list[str]:
     # Experience / HP / kills / level
     lines += [
         f"{'Experience Pts:':>16} {experience:>5}   {'Hit Points:':>12} {player.hit_points:>3}",
-        f"{'Monsters Kills:':>16} {mk:>5}   {'Player Level:':>12} {level:>3}",
+        f"{'Monsters Killed:':>16} {mk:>5}   {'Player Level:':>12} {level:>3}",
         '',
     ]
 
