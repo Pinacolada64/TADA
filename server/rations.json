@@ -249,13 +249,15 @@
         "number": 42,
         "name": "OLD HAMBURGER",
         "kind": "food",
-        "price": 1
+        "price": 1,
+        "examine": "It don't look very good.."
     },
     {
         "number": 43,
         "name": "GREEN MOONSHINE",
         "kind": "drink",
-        "price": 1
+        "price": 1,
+        "examine": "It is poison!"
     },
     {
         "number": 44,
@@ -279,7 +281,8 @@
         "number": 47,
         "name": "FOUNTAIN OF YOUTH",
         "kind": "drink",
-        "price": 10
+        "price": 10,
+        "examine": "It has a strange power.."
     },
     {
         "number": 48,
@@ -387,13 +390,15 @@
         "number": 65,
         "name": "POTION OF SKILL",
         "kind": "drink",
-        "price": 50
+        "price": 50,
+        "examine": "It is a magic potion!"
     },
     {
         "number": 66,
         "name": "VORPAL POTION",
         "kind": "drink",
-        "price": 50
+        "price": 50,
+        "examine": "It is a magic potion!"
     },
     {
         "number": 67,
@@ -405,7 +410,8 @@
         "number": 68,
         "name": "CHARM POTION",
         "kind": "drink",
-        "price": 50
+        "price": 50,
+        "examine": "It is a magic potion!"
     },
     {
         "number": 69,

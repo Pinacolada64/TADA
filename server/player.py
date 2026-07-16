@@ -401,6 +401,14 @@ class Player:
         # None if inactive, or non-magic user
         # != 0 is the number of rounds left, decrement at every turn
         self.wizard_glow = kwargs.get('wizard_glow')
+
+        # New in TADA: mirrors SPUR.MISC3.S's xz$ -- a single-slot "last
+        # examined item name" used by EXAMINE's magic/cursed reveal to
+        # avoid re-announcing the same item's status back-to-back. Not
+        # persisted (SPUR's xz$ is a plain BASIC variable that resets each
+        # session too; see commands/look.py's _examine_item()).
+        self.last_examined = ''
+
         # Allow passing an explicit id via kwargs (e.g., player.Player(name=..., id=username)).
         self.id = kwargs.get('id', None)  # account id
 

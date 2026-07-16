@@ -102,6 +102,7 @@ class Weapon:
     price:        int                   = 0
     sound_effect: Optional[list[str]]   = None     # [miss_sfx, hit_sfx]
     flags:        Optional[list[str]]   = None     # reserved for future expansion
+    examine:      Optional[str]         = None     # commands/look.py EXAMINE flavor text
 
     def __str__(self) -> str:
         return f"#{self.number} {self.name}"
@@ -136,6 +137,7 @@ class Item:
     type:     ItemType
     price:    int                    = 0
     flags:    Optional[dict]         = None   # e.g. {"rounds": 6, "damage": 2, "used_with": "357"}
+    examine:  Optional[str]          = None   # commands/look.py EXAMINE flavor text
 
     def __str__(self) -> str:
         return f"#{self.number} {self.name}"

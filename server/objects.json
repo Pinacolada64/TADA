@@ -259,7 +259,8 @@
             "number": 41,
             "name": "gold rose",
             "type": "treasure",
-            "price": 5
+            "price": 5,
+            "examine": "It looks VERY valuable, but beware the thorns!"
         },
         {
             "number": 42,
@@ -438,25 +439,29 @@
             "number": 70,
             "name": "strange weapon",
             "type": "treasure",
-            "price": 5
+            "price": 5,
+            "examine": "It looks suspicious!"
         },
         {
             "number": 71,
             "name": "Pandora's box",
             "type": "treasure",
-            "price": 5
+            "price": 5,
+            "examine": "It looks suspicious!"
         },
         {
             "number": 72,
             "name": "funny doll",
             "type": "treasure",
-            "price": 5
+            "price": 5,
+            "examine": "It looks suspicious!"
         },
         {
             "number": 73,
             "name": "crown of Midas",
             "type": "treasure",
-            "price": 5
+            "price": 5,
+            "examine": "It has a strange power.."
         },
         {
             "number": 74,
@@ -510,7 +515,8 @@
             "number": 82,
             "name": "Crystal Pendant",
             "type": "treasure",
-            "price": 6
+            "price": 6,
+            "examine": "In small letters you see; 'PROTECTS FROM STONE SPELL!'"
         },
         {
             "number": 83,
@@ -600,7 +606,8 @@
             "number": 97,
             "name": "Ice Crystal",
             "type": "treasure",
-            "price": 5
+            "price": 5,
+            "examine": "In small letters you see; 'ACME ANTI-FIRE DEVICE'"
         },
         {
             "number": 98,

@@ -264,12 +264,12 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 ## Items (Examine / Look)
 
 ### Implemented
-- **look \<item\>** — searches inventory; STORM weapons show "There is much power in the {name}!"; potions, magic, cursed items have flavor text (`commands/look.py`, `SPUR.MISC3.S:316`)
+- **look \<item\>** — searches inventory, then room-floor items (`commands/look.py`, `SPUR.MISC3.S:316`)
+- ✅ **Examine text lives in the data files** — objects.json/weapons.json/rations.json entries carry their own `"examine"` field (STORM weapons, named treasures like CRYSTAL PENDANT/ICE CRYSTAL/CROWN OF MIDAS/GOLD ROSE, potions, MOONSHINE, OLD HAMBURGER, etc.) instead of an if-chain keyed off item name/kind in `commands/look.py` (New in TADA — new items just need the field added, no code change)
+- ✅ **Magical/cursed detection roll** — weapons.json `kind=="magic"` / objects.json `type=="cursed"` items without their own `"examine"` override go through a 1-100 roll (60% success, matching SPUR's `a=(random(999)/10)+1; if a>60 fail`) and a one-shot "already examined" memory (`player.last_examined`, mirrors SPUR's `xz$`); a failed roll re-fails even on a repeat examine, matching SPUR's roll-before-memory-check order (`SPUR.MISC3.S:295–307`)
 
 ### Not Implemented
-- **Room item examination** — `look` at items on the floor / in the room, not just inventory
-- **Magical/cursed detection** — currently uses `item.kind`; SPUR requires a skill roll first (60% failure) and tracks already-examined items in `xz$` (`SPUR.MISC3.S:295–307`)
-- **Special item descriptions** — CRYSTAL PENDANT, ICE CRYSTAL, CROWN OF MIDAS, GOLD ROSE, PANDORAS BOX, TUT'S TREASURE, etc. (`SPUR.MISC3.S:310–323`)
+- **"(You feel a bit smarter)" INT bump** — SPUR's `smarter` subroutine grants +2 INT (capped ~24) after examining cursed items, MOONSHINE, OLD HAMBURGER, or the suspicious-item trio (strange weapon/funny doll/Pandora's box) (`SPUR.MISC3.S:386–389`)
 - **LOOT command** — search dead monster for items (`SPUR.MISC3.S`)
 
 ---

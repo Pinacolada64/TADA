@@ -293,6 +293,7 @@
         "number": 22,
         "location": 1,
         "name": "STORM AXE",
+        "examine": "There is much power in the STORM AXE!",
         "kind": "standard",
         "sound_effect": [
             "SWISH!",
@@ -459,6 +460,7 @@
         "number": 34,
         "location": 1,
         "name": "STORM BOW",
+        "examine": "There is much power in the STORM BOW!",
         "kind": "standard",
         "sound_effect": [
             "SWISH!",
@@ -557,6 +559,7 @@
         "number": 41,
         "location": 1,
         "name": "STORM DAGGER",
+        "examine": "There is much power in the STORM DAGGER!",
         "kind": "standard",
         "sound_effect": [
             "SWISH!",
@@ -571,6 +574,7 @@
         "number": 42,
         "location": 1,
         "name": "STORM LANCE",
+        "examine": "There is much power in the STORM LANCE!",
         "kind": "standard",
         "sound_effect": [
             "SWISH!",
@@ -641,6 +645,7 @@
         "number": 47,
         "location": 1,
         "name": "STORM STAFF",
+        "examine": "There is much power in the STORM STAFF!",
         "kind": "standard",
         "sound_effect": [
             "SWISH!",
@@ -697,6 +702,7 @@
         "number": 51,
         "location": 1,
         "name": "STORM PILUM",
+        "examine": "There is much power in the STORM PILUM!",
         "kind": "standard",
         "sound_effect": [
             "SWISH!",
@@ -711,6 +717,7 @@
         "number": 52,
         "location": 1,
         "name": "STORM HAMMER",
+        "examine": "There is much power in the STORM HAMMER!",
         "kind": "standard",
         "sound_effect": [
             "SWISH!",
@@ -753,6 +760,7 @@
         "number": 55,
         "location": 1,
         "name": "STORM CROSSBOW",
+        "examine": "There is much power in the STORM CROSSBOW!",
         "kind": "standard",
         "sound_effect": [
             "SWISH!",
