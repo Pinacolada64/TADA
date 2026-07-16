@@ -30,6 +30,8 @@ _GRENADE_ID     = 16    # hand grenade (objects.json)
 _RING_ID        = 67    # ring of invisibility (objects.json)
 _SADDLE_ID      = 162   # saddle (objects.json) -- Jake's Stable
 _HORSE_ARMOR_ID = 163   # horse armour (objects.json) -- Jake's Stable
+_SADDLEBAGS_ID  = 165   # saddlebags (objects.json) -- New in TADA, gives a
+                        # mount carrying capacity (see commands/give.py)
 
 
 def _char_level(player) -> int:
@@ -262,9 +264,10 @@ class UseCommand(Command):
                 await ctx.send('Ring returned to your pack.')
             return CommandResult.ok()
 
-        # ---- Saddle (#162) / Horse Armor (#163): equip a mount ally ----------
-        # (SPUR.USE.S eq.horse)
-        if item_no in (_SADDLE_ID, _HORSE_ARMOR_ID):
+        # ---- Saddle (#162) / Horse Armor (#163) / Saddlebags (#165): equip
+        # a mount ally ---- (SPUR.USE.S eq.horse; Saddlebags is New in
+        # TADA, no SPUR precedent -- see AllyFlags.SADDLEBAGS's docstring)
+        if item_no in (_SADDLE_ID, _HORSE_ARMOR_ID, _SADDLEBAGS_ID):
             from bar.ally_data import AllyFlags
             from bar.allies import owned_allies
 
@@ -274,8 +277,11 @@ class UseCommand(Command):
                 await ctx.send('Need a mount first..')
                 return CommandResult.ok()
 
-            flag  = AllyFlags.SADDLED if item_no == _SADDLE_ID else AllyFlags.ARMORED
-            label = 'Saddle' if item_no == _SADDLE_ID else 'Horse Armor'
+            flag, label, verb = {
+                _SADDLE_ID:      (AllyFlags.SADDLED,    'Saddle',      'put the {label} on'),
+                _HORSE_ARMOR_ID: (AllyFlags.ARMORED,    'Horse Armor', 'put the {label} on'),
+                _SADDLEBAGS_ID:  (AllyFlags.SADDLEBAGS, 'Saddlebags',  'strap the {label} onto'),
+            }[item_no]
             if flag in (mount.flags or []):
                 await ctx.send('Horse already has one.')
                 return CommandResult.ok()
@@ -287,7 +293,7 @@ class UseCommand(Command):
             inv = getattr(player, 'inventory', None)
             if inv:
                 inv.remove(item)
-            await ctx.send(f'You put the {label} on the horse..')
+            await ctx.send(f'You {verb.format(label=label)} the horse..')
             return CommandResult.ok()
 
         if not isinstance(item, Item):

@@ -256,6 +256,93 @@ class TestGiveToAlly(unittest.IsolatedAsyncioTestCase):
 
 
 # ---------------------------------------------------------------------------
+# GiveCommand — mount carrying capacity (New in TADA, Ryan's request)
+# ---------------------------------------------------------------------------
+
+def _make_mount(name: str = 'TRIGGER', saddlebags: bool = False) -> Ally:
+    from bar.ally_data import AllyFlags
+    flags = [AllyFlags.MOUNT]
+    if saddlebags:
+        flags.append(AllyFlags.SADDLEBAGS)
+    ally = Ally(name, 'm', 20, 0, flags=flags)
+    ally.status = AllyStatus.SERVANT
+    return ally
+
+
+class TestGiveToMount(unittest.IsolatedAsyncioTestCase):
+
+    def setUp(self):
+        self.cmd = GiveCommand()
+        self.player = _make_player()
+        self.item   = _make_item('TORCH', item_id=5)
+        self.player.inventory.add(self.item)
+        self.ctx = _FakeCtx(self.player)
+
+    async def test_mount_without_saddlebags_refuses_item(self):
+        mount = _make_mount(saddlebags=False)
+        self.player.party.add_member(self.player, mount)
+        await self.cmd.execute(self.ctx, 'torch', 'to', 'trigger')
+        self.assertEqual(len(mount.items), 0)
+        self.assertIn('saddlebags', self.ctx.sent().lower())
+
+    async def test_mount_without_saddlebags_item_stays_in_player_inventory(self):
+        mount = _make_mount(saddlebags=False)
+        self.player.party.add_member(self.player, mount)
+        await self.cmd.execute(self.ctx, 'torch', 'to', 'trigger')
+        self.assertEqual(len(self.player.inventory.entries()), 1)
+
+    async def test_mount_with_saddlebags_accepts_item(self):
+        mount = _make_mount(saddlebags=True)
+        self.player.party.add_member(self.player, mount)
+        await self.cmd.execute(self.ctx, 'torch', 'to', 'trigger')
+        self.assertEqual(len(mount.items), 1)
+        self.assertEqual(len(self.player.inventory.entries()), 0)
+
+    async def test_mount_saddlebags_full_refuses_further_items(self):
+        from commands.give import _MOUNT_CAPACITY_WITH_SADDLEBAGS
+        mount = _make_mount(saddlebags=True)
+        self.player.party.add_member(self.player, mount)
+        for i in range(_MOUNT_CAPACITY_WITH_SADDLEBAGS):
+            mount.items.append(InventoryEntry(item=_make_item(f'ITEM{i}', item_id=100 + i)))
+        await self.cmd.execute(self.ctx, 'torch', 'to', 'trigger')
+        self.assertEqual(len(mount.items), _MOUNT_CAPACITY_WITH_SADDLEBAGS)
+        self.assertIn('full', self.ctx.sent().lower())
+
+    async def test_non_mount_ally_still_unlimited(self):
+        """Regular allies (not mounts) are unaffected by capacity."""
+        ally = _make_ally('BATMAN')
+        self.player.party.add_member(self.player, ally)
+        await self.cmd.execute(self.ctx, 'torch', 'to', 'batman')
+        self.assertEqual(len(ally.items), 1)
+
+    async def test_giving_saddlebags_to_non_mount_shows_message(self):
+        ally = _make_ally('BATMAN')
+        self.player.party.add_member(self.player, ally)
+        bags = _make_item('SADDLEBAGS', item_id=165)
+        self.player.inventory.add(bags)
+        await self.cmd.execute(self.ctx, 'saddlebags', 'to', 'batman')
+        self.assertIn('no back to strap', self.ctx.sent().lower())
+
+    async def test_giving_saddlebags_to_non_mount_still_completes(self):
+        """The message is informational -- the give still happens, same
+        as handing over any other object."""
+        ally = _make_ally('BATMAN')
+        self.player.party.add_member(self.player, ally)
+        bags = _make_item('SADDLEBAGS', item_id=165)
+        self.player.inventory.add(bags)
+        await self.cmd.execute(self.ctx, 'saddlebags', 'to', 'batman')
+        self.assertEqual(len(ally.items), 1)
+
+    async def test_giving_saddlebags_to_mount_no_extra_message(self):
+        mount = _make_mount(saddlebags=False)
+        self.player.party.add_member(self.player, mount)
+        bags = _make_item('SADDLEBAGS', item_id=165)
+        self.player.inventory.add(bags)
+        await self.cmd.execute(self.ctx, 'saddlebags', 'to', 'trigger')
+        self.assertNotIn('no back to strap', self.ctx.sent().lower())
+
+
+# ---------------------------------------------------------------------------
 # GiveCommand — player targets
 # ---------------------------------------------------------------------------
 

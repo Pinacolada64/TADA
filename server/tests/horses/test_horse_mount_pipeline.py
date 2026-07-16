@@ -335,6 +335,35 @@ class TestEquipMount(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Horse already has one', ctx.sent())
         player.inventory.remove.assert_not_called()
 
+    def _saddlebags_item(self):
+        from items import Item, ItemCategory
+        return Item(id_number=165, name='saddlebags', category=ItemCategory.ITEM)
+
+    async def test_saddlebags_equips_mount(self):
+        """New in TADA -- no SPUR precedent, gives a mount carrying
+        capacity (see commands/give.py's _mount_capacity)."""
+        mount = _make_mount()
+        player = _FakePlayer(allies=[mount])
+        item = self._saddlebags_item()
+        player.inventory.entries = MagicMock(return_value=[self._entry(item)])
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['1'])
+        await UseCommand().execute(ctx)
+        self.assertIn(AllyFlags.SADDLEBAGS, mount.flags)
+        self.assertIn('You strap the Saddlebags onto the horse', ctx.sent())
+        player.inventory.remove.assert_called_once_with(item)
+
+    async def test_duplicate_saddlebags_refused(self):
+        mount = _make_mount(flags=[AllyFlags.SADDLEBAGS])
+        player = _FakePlayer(allies=[mount])
+        item = self._saddlebags_item()
+        player.inventory.entries = MagicMock(return_value=[self._entry(item)])
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['1'])
+        await UseCommand().execute(ctx)
+        self.assertIn('Horse already has one', ctx.sent())
+        player.inventory.remove.assert_not_called()
+
 
 class TestTrainHorse(unittest.IsolatedAsyncioTestCase):
 

@@ -103,6 +103,40 @@ def _container_lines(entry: InventoryEntry) -> list[str]:
     ]
 
 
+def _ally_inventory_lines(player) -> list[str]:
+    """New in TADA: INV previously only ever showed the player's own
+    inventory -- allies carrying gifted items (ally.items, see
+    commands/give.py) were invisible here entirely. A mount specifically
+    needs AllyFlags.SADDLEBAGS to carry anything at all (commands/
+    give.py's _mount_capacity()); other ally types have always been
+    unlimited. Ryan's request."""
+    from bar.ally_data import AllyFlags
+    from bar.allies import owned_allies
+    from commands.give import _MOUNT_CAPACITY_WITH_SADDLEBAGS
+
+    lines: list[str] = []
+    for ally in owned_allies(player):
+        flags = ally.flags or []
+        items = getattr(ally, 'items', None) or []
+
+        if AllyFlags.MOUNT in flags and AllyFlags.SADDLEBAGS not in flags:
+            lines.append(f'{ally.name}: no saddlebags (nothing carried).')
+            lines.append('')
+            continue
+
+        cap_str = f'/{_MOUNT_CAPACITY_WITH_SADDLEBAGS}' if AllyFlags.MOUNT in flags else ''
+        if not items:
+            lines.append(f'{ally.name}: carrying nothing.')
+            lines.append('')
+            continue
+
+        lines.append(f"{ally.name}'s pack ({len(items)}{cap_str} items):")
+        for i, entry in enumerate(items, 1):
+            lines.append(f'  {_format_entry(entry, i)}')
+        lines.append('')
+    return lines
+
+
 class InvCommand(Command):
     name    = 'inv'
     aliases = ['inventory', 'i']
@@ -137,35 +171,45 @@ class InvCommand(Command):
             inventory = getattr(ctx.player, 'inventory', None)
             capacity  = getattr(ctx.player, 'max_inventory_size', None)
 
-        if inventory is None or len(inventory) == 0:
-            await ctx.send('You are carrying nothing.')
-            return CommandResult.ok()
-
         lines: list[str] = []
-        cap_str = f'/{capacity}' if capacity else ''
-        lines.append(f'Inventory ({len(inventory)}{cap_str} slots used):')
-        lines.append('')
 
-        if categorized:
-            index = 1
-            any_shown = False
-            for cat in _CATEGORY_ORDER:
-                cat_entries = inventory.entries(category=str(cat))
-                if not cat_entries:
-                    continue
-                lines.append(f'-- {cat} --')
-                for entry in cat_entries:
+        if inventory is None or len(inventory) == 0:
+            lines.append('You are carrying nothing.')
+        else:
+            cap_str = f'/{capacity}' if capacity else ''
+            lines.append(f'Inventory ({len(inventory)}{cap_str} slots used):')
+            lines.append('')
+
+            if categorized:
+                index = 1
+                any_shown = False
+                for cat in _CATEGORY_ORDER:
+                    cat_entries = inventory.entries(category=str(cat))
+                    if not cat_entries:
+                        continue
+                    lines.append(f'-- {cat} --')
+                    for entry in cat_entries:
+                        lines.append(_format_entry(entry, index))
+                        lines.extend(_container_lines(entry))
+                        index += 1
+                    lines.append('')
+                    any_shown = True
+                if not any_shown:
+                    lines.append('  (nothing)')
+            else:
+                for index, entry in enumerate(inventory, 1):
                     lines.append(_format_entry(entry, index))
                     lines.extend(_container_lines(entry))
-                    index += 1
+
+        # New in TADA -- allies carrying gifted items were invisible here
+        # entirely (see _ally_inventory_lines' docstring). Skipped in
+        # #test mode since that's about randomizing the player's own
+        # inventory display, not allies.
+        if not testing:
+            ally_lines = _ally_inventory_lines(ctx.player)
+            if ally_lines:
                 lines.append('')
-                any_shown = True
-            if not any_shown:
-                lines.append('  (nothing)')
-        else:
-            for index, entry in enumerate(inventory, 1):
-                lines.append(_format_entry(entry, index))
-                lines.extend(_container_lines(entry))
+                lines.extend(ally_lines)
 
         await ctx.send(lines)
         return CommandResult.ok()

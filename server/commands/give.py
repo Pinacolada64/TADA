@@ -19,6 +19,30 @@ from bar.allies import purchased_allies
 from network_context import GameContext
 
 
+# New in TADA -- no SPUR precedent for mount carrying capacity at all
+# (checked SPUR.USE.S's eq.horse and every source mention of "saddle"/
+# "bag"; ally.items itself has never had any capacity limit for any ally
+# type). A mount specifically needs AllyFlags.SADDLEBAGS (commands/
+# use.py's USE saddlebags) before it can carry anything; once equipped,
+# it can hold this many items. Other ally types are unaffected -- they
+# keep the original unlimited ally.items list. Ryan's request.
+_MOUNT_CAPACITY_WITH_SADDLEBAGS = 5
+
+
+def _mount_capacity(ally) -> int:
+    """Return how many more items *ally* can carry if it's a mount, or
+    None if capacity doesn't apply to this ally (not a mount -- no
+    limit)."""
+    from bar.ally_data import AllyFlags
+
+    flags = ally.flags or []
+    if AllyFlags.MOUNT not in flags:
+        return None
+    if AllyFlags.SADDLEBAGS not in flags:
+        return 0
+    return _MOUNT_CAPACITY_WITH_SADDLEBAGS
+
+
 def _monster_in_room(ctx: GameContext) -> dict | None:
     """Return the monster dict for the current room, or None."""
     game_map = getattr(ctx.server, 'game_map', None)
@@ -257,10 +281,32 @@ class GiveCommand(Command):
         ally_matches = [a for a in allies if target in a.name.lower()]
         if ally_matches:
             ally = ally_matches[0]
-            if inventory:
-                inventory.remove(item)
             if not hasattr(ally, 'items') or ally.items is None:
                 ally.items = []
+
+            # Ryan's request: saddlebags are meant to be worn (USE
+            # saddlebags), not just handed to any ally -- a non-mount
+            # ally has nowhere to strap them on, so flag that up rather
+            # than silently letting them carry an unused pair of bags.
+            # Still completes the give (they're a valid treasure item
+            # either way, same as handing over any other object).
+            from bar.ally_data import AllyFlags
+            from commands.use import _SADDLEBAGS_ID
+            if (getattr(item, 'id_number', None) == _SADDLEBAGS_ID
+                    and AllyFlags.MOUNT not in (ally.flags or [])):
+                await ctx.send(f"{ally.name} has no back to strap them to -- saddlebags are for a mount.")
+
+            capacity = _mount_capacity(ally)
+            if capacity is not None:
+                if capacity == 0:
+                    await ctx.send(f'{ally.name} has nowhere to carry it -- needs saddlebags first.')
+                    return CommandResult.ok()
+                if len(ally.items) >= capacity:
+                    await ctx.send(f"{ally.name}'s saddlebags are full.")
+                    return CommandResult.ok()
+
+            if inventory:
+                inventory.remove(item)
             ally.items.append(entry)
             await ctx.send(f'You give the {iname} to {ally.name}.')
             await ctx.send(f'{ally.name} takes the {iname} and tucks it away.')

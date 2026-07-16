@@ -1118,6 +1118,12 @@
             "name": "brass claim tag",
             "type": "treasure",
             "price": 0
+        },
+        {
+            "number": 165,
+            "name": "saddlebags",
+            "type": "treasure",
+            "price": 6
         }
     ]
 }

@@ -28,6 +28,13 @@ class AllyFlags(Enum):
     # Jake's Stable mount equipping (SPUR.USE.S eq.horse "@" sigil).
     # ARMORED ("$") doubles as horse armor -- same sigil, same flag either way.
     SADDLED = auto()
+    # New in TADA -- no SPUR precedent (checked SPUR.USE.S's eq.horse and
+    # every "saddle"/"bag" mention in the source, nothing). Gates a
+    # mount's own carrying capacity (see commands/give.py's
+    # _MOUNT_CAPACITY_WITH_SADDLEBAGS) -- a mount with no saddlebags
+    # can't carry anything at all, unlike other allies (ally.items has
+    # never had a capacity limit). Ryan's request.
+    SADDLEBAGS = auto()
 
 class AllyPosition(Enum):
     """Tactical position"""
