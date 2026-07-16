@@ -521,8 +521,27 @@
   the codec is `PETSCIICodec`). Deliberately not extended to ANSI/plain
   clients, since `!` is common in ordinary game text there ("Welcome,
   Alice!") in a way it isn't on a Commodore keyboard trying to avoid
-  Shift+-. Follow-up: the 'help colors' topic (commands/help.py) doesn't
-  mention `!` yet.
+  Shift+-. The 'help colors' topic (commands/help.py) now mentions `!`
+  too, gated to PETSCII viewers only via the new `Help.petscii_notes`/
+  `is_petscii` mechanism (mirrors the existing admin_notes/is_privileged
+  gating).
+- Level 6 "Stardate" date format (Ryan): level 6's sci-fi theming (see
+  books.json's "Stardate: 2163.5" flavor text) suggests its own date
+  display should read as a Star Trek-style stardate (`yyyy.mm.dd`)
+  rather than the normal PREFS date format. Natural hook point is the
+  same system built for player-chosen date formats (`commands/prefs.py`'s
+  `_DATE_FORMAT_PRESETS`, `formatting.format_player_datetime()`) --
+  either a level-specific override when a player is on map_level 6, or
+  a new selectable "Stardate" preset alongside the existing named ones.
+  Not settled which; no code written yet.
+- GET should add some item value to silver in hand (Ryan): picking up an
+  item currently only adds it to inventory -- SPUR precedent for this
+  hasn't been checked yet (need to find the relevant GET/get-item logic
+  in SPUR-data and confirm the source behavior/formula before porting
+  it). Worth checking whether this applies to all items or just certain
+  categories (loose coins/treasure vs. equipment), and whether "silver
+  in hand" here means `player.silver`/gold-on-hand or something else in
+  this codebase's economy. No code written yet.
 
 7/17/26:
 - Charm spell (Ryan): `spells/charm.py`'s CHARM POTION mechanic is only
