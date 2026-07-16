@@ -120,6 +120,65 @@ def _cursed_penalty(player, name: str, price: int) -> list[str]:
     return lines
 
 
+# SPUR.MISC.S get.itm: instr("COIN"/"DIAMOND"/"GOLD"/"SILVER"/"JEWEL", it$)
+# checked in exactly this order -- a name matching more than one keyword
+# (e.g. "gold coins") uses whichever is checked first, same as SPUR. Ported
+# here gated on objects.json's own "type": "treasure" tag instead of SPUR's
+# raw substring match (Ryan's call) -- avoids false positives like "gold
+# shield" (type: shield) or "gold coffin" (type: cursed, see _is_cursed())
+# that happen to share a keyword but were never meant to convert. Every
+# current "type": "treasure" item matches one of these five keywords.
+_TREASURE_MULTIPLIER_RANGES = (
+    ('COIN', 1, 20),
+    ('DIAMOND', 1, 30),
+    ('GOLD', 1, 15),
+    ('SILVER', 1, 10),
+    ('JEWEL', 1, 8),
+)
+
+
+def _is_treasure(raw: dict | None) -> bool:
+    """objects.json marks a treasure item via "type": "treasure"."""
+    return bool(raw) and raw.get('type') == 'treasure'
+
+
+def _treasure_gold_multiplier(name: str) -> int:
+    """See _TREASURE_MULTIPLIER_RANGES's comment. Falls back to the
+    SILVER range (1-10, the middle of the pack) for a hypothetical future
+    treasure item that matches none of the five keywords, rather than
+    crashing or converting for 0."""
+    upper = name.upper()
+    for keyword, lo, hi in _TREASURE_MULTIPLIER_RANGES:
+        if keyword in upper:
+            return random.randint(lo, hi)
+    return random.randint(1, 10)
+
+
+def _treasure_conversion(player, name: str, price: int) -> list[str]:
+    """SPUR.MISC.S get.itm4: a treasure item never occupies an inventory
+    slot -- getting one converts straight to silver in hand instead,
+    amount = the item's own price times a random multiplier (see
+    _treasure_gold_multiplier()). SPUR's own gold pool (gh/gl, via
+    add.gold) maps onto this codebase's player.silver[IN_HAND].
+
+    Caller must also mark the item picked_up (see GetCommand._pick_up()'s
+    remove_fn() call) -- without that, a static room treasure would stay
+    listed as available and could be "gotten" over and over for
+    unlimited silver, since it's never actually added to inventory.
+    """
+    from base_classes import PlayerMoneyTypes
+
+    multiplier = _treasure_gold_multiplier(name)
+    amount = int(price) * multiplier
+
+    current = player.get_silver(PlayerMoneyTypes.IN_HAND)
+    player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, current + amount)
+    player.unsaved_changes = True
+
+    total = player.get_silver(PlayerMoneyTypes.IN_HAND)
+    return [f'({amount:,} sp) You now have {total:,} silver in hand.']
+
+
 def _monster_in_room(ctx: GameContext) -> dict | None:
     """Return the monster dict for the current room, or None if none present."""
     game_map = getattr(ctx.server, 'game_map', None)
@@ -391,6 +450,17 @@ class GetCommand(Command):
         if _is_cursed(raw):
             remove_fn()
             for msg in _cursed_penalty(player, name, raw.get('price', 0)):
+                await ctx.send(msg)
+            return CommandResult.ok()
+
+        # --- Treasure: converts straight to silver, never added to inventory
+        # (SPUR.MISC.S get.itm4 -- see _treasure_conversion()). remove_fn()
+        # marks it picked_up (GetCommand._room_available_items()'s _record()
+        # closure), so it can't be re-gotten for unlimited silver farming --
+        # same anti-hoarding mechanism every other static room item relies on.
+        if _is_treasure(raw):
+            remove_fn()
+            for msg in _treasure_conversion(player, name, raw.get('price', 0)):
                 await ctx.send(msg)
             return CommandResult.ok()
 

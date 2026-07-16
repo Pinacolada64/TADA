@@ -534,14 +534,24 @@
   either a level-specific override when a player is on map_level 6, or
   a new selectable "Stardate" preset alongside the existing named ones.
   Not settled which; no code written yet.
-- GET should add some item value to silver in hand (Ryan): picking up an
-  item currently only adds it to inventory -- SPUR precedent for this
-  hasn't been checked yet (need to find the relevant GET/get-item logic
-  in SPUR-data and confirm the source behavior/formula before porting
-  it). Worth checking whether this applies to all items or just certain
-  categories (loose coins/treasure vs. equipment), and whether "silver
-  in hand" here means `player.silver`/gold-on-hand or something else in
-  this codebase's economy. No code written yet.
+- [DONE 7/16/26] GET should add some item value to silver in hand
+  (Ryan): SPUR.MISC.S get.itm4 -- a treasure item (objects.json "type":
+  "treasure") never occupies an inventory slot; getting one converts
+  straight to `player.silver[IN_HAND]` instead, amount = the item's own
+  price times a random multiplier that depends on which of COIN/
+  DIAMOND/GOLD/SILVER/JEWEL its name contains (SPUR's own instr()
+  chain). Gated on the curated "type" field rather than SPUR's raw
+  substring match (Ryan's call), so lookalikes like "gold shield"
+  (type: shield) or "gold coffin" (type: cursed) don't falsely convert.
+  `commands/get.py`'s `_is_treasure()`/`_treasure_gold_multiplier()`/
+  `_treasure_conversion()`; the item is marked picked_up via the same
+  `remove_fn()`/`picked_up_items` mechanism every other static room
+  item uses, so it can't be re-gotten for unlimited silver farming.
+  Along the way, also ported the separate but related SPUR "cursed"
+  item/weapon/food GET penalty (INT+HP damage, potentially fatal,
+  unconditional regardless of prior EXAMINE) that was previously
+  entirely unhandled -- `_is_cursed()`/`_cursed_penalty()` in the same
+  file.
 
 7/17/26:
 - Charm spell (Ryan): `spells/charm.py`'s CHARM POTION mechanic is only
