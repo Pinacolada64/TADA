@@ -505,6 +505,13 @@
   fact). Would give players some in-game visibility into
   ally-training/death/duel history without needing shell access to the
   raw file.
+- In-game mail system (Ryan): SPUR's LOOT (SPUR.MISC3.S:484-487) mails
+  the victim when someone steals from them; this codebase has nothing
+  resembling mail yet, so commands/loot.py skips that step and relies
+  on battle.log as the only record. Worth building eventually --
+  presumably a per-player mailbox (file or player-record field) with
+  read/compose commands, and other mechanics (LOOT, maybe guild
+  officer notices) could hook into it once it exists.
 
 7/17/26:
 - Charm spell (Ryan): `spells/charm.py`'s CHARM POTION mechanic is only

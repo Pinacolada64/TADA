@@ -409,6 +409,12 @@ class Player:
         # session too; see commands/look.py's _examine_item()).
         self.last_examined = ''
 
+        # New in TADA: mirrors SPUR.MISC3.S's ys$ "loot" flag -- how many
+        # times this player has used LOOT this session (once normally,
+        # twice for Outlaws; see commands/loot.py). Not persisted, same
+        # reasoning as last_examined above.
+        self.loot_count = 0
+
         # Allow passing an explicit id via kwargs (e.g., player.Player(name=..., id=username)).
         self.id = kwargs.get('id', None)  # account id
 
