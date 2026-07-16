@@ -285,12 +285,13 @@ async def _help_section(ctx: GameContext) -> None:
         rather than assuming; worth confirming against source before
         committing to the mechanic.
     """
+    from formatting import underline
+
     await ctx.send([
         '',
-        '[]=-=-=-=-=-=-=[ AMMUNITION GUIDE ]=-=-=-=-=-=-=[]',
+        "<=-=-=-=-=-=-=[ AMMUNITION GUIDE ]=-=-=-=-=-=-=>",
         '',
-        'HOW AMMO WORKS',
-        '--------------',
+        *underline('HOW AMMO WORKS', ctx),
         'Projectile and energy weapons require ammunition to fire.',
         'Purchase ammo here, then USE the ammo item to load it into',
         'your readied weapon.  Rounds are consumed one-per-swing in',
@@ -298,8 +299,7 @@ async def _help_section(ctx: GameContext) -> None:
         '',
         '  Storm weapons do NOT use physical ammo.',
         '',
-        'STRAY ROUNDS / FRIENDLY FIRE',
-        '-----------------------------',
+        *underline('STRAY ROUNDS / FRIENDLY FIRE', ctx),
         'A missed ammo shot may go wide and hit a party member or',
         'another player in the same room.  The chance depends on your',
         'experience with that weapon:',
@@ -311,8 +311,7 @@ async def _help_section(ctx: GameContext) -> None:
         'Stray rounds deal 1-4 damage.  Train your weapon skill to',
         'reduce the risk to your allies.',
         '',
-        'BOOBY TRAPS',
-        '-----------',
+        *underline('BOOBY TRAPS', ctx),
         'Each trap you buy comes with its own disarm code (A-I) fixed',
         'at purchase -- pick carefully, it can\'t be changed later.',
         '',
