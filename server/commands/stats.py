@@ -1,5 +1,9 @@
 #!/bin/env python3
-"""stats command — port of the 'status' subroutine in SPUR.MISC5.S."""
+"""stats command — port of the 'status' subroutine in SPUR.MISC5.S.
+
+New in TADA: an Allies section (_build_stats_lines) -- SPUR's own STATS/
+STAT2 output never mentions party composition at all, checked directly
+against the source. Ryan's request."""
 from base_classes import (
     Alignment, Guild, PlayerMoneyTypes, PlayerRace, PlayerStat,
 )
@@ -52,6 +56,52 @@ def _bhr(player) -> int:
         + (energy + dex + strength) / 2
         + (shield + armor) / 4
     )
+
+
+# ---------------------------------------------------------------------------
+# Ally flag tags (New in TADA -- see _build_stats_lines's Allies section)
+# ---------------------------------------------------------------------------
+
+# Ordered so related flags read together: divinity, combat role, then
+# Allies' Guild / Jake's Stable training. GOD/GODDESS are mutually
+# exclusive with everything else in practice (SPUR NPCs), but the tags
+# just reflect whatever flags are actually set.
+_ALLY_FLAG_LABELS = [
+    ('GOD',            'God'),
+    ('GODDESS',        'Goddess'),
+    ('ELITE',          'Elite'),
+    ('MECHANICAL',     'Mechanical'),
+    ('MOUNT',          'Mount'),
+    ('SADDLED',        'Saddled'),
+    ('ARMORED',        'Armored'),
+    ('COMBAT_TRAINED', 'Combat Trained'),
+    ('TRACKING',       'Tracking'),
+    ('FIND_THINGS',    'Finder'),
+    ('BODY_BUILD',     'Body Built'),
+]
+
+
+def _ally_flag_tags(ally) -> str:
+    """Return every AllyFlags member set on *ally* as "  [Tag]" chunks, in
+    a fixed display order. Tracking/Finder/Body Built append their
+    magnitude (ally.tracking_range / find_percentage / body_build) since
+    those flags represent a level, not just an on/off trait."""
+    from bar.ally_data import AllyFlags
+
+    flags = ally.flags or []
+    tags  = []
+    for flag_name, label in _ALLY_FLAG_LABELS:
+        flag = getattr(AllyFlags, flag_name, None)
+        if flag is None or flag not in flags:
+            continue
+        if flag_name == 'TRACKING' and getattr(ally, 'tracking_range', 0):
+            label = f'{label} r{ally.tracking_range}'
+        elif flag_name == 'FIND_THINGS' and getattr(ally, 'find_percentage', 0):
+            label = f'{label} {ally.find_percentage}%'
+        elif flag_name == 'BODY_BUILD' and getattr(ally, 'body_build', 0):
+            label = f'{label} +{ally.body_build}'
+        tags.append(f'  [{label}]')
+    return ''.join(tags)
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +244,28 @@ def _build_stats_lines(player) -> list[str]:
 
     lines.append('')
 
+    # New in TADA: SPUR.MISC5.S's "status" subroutine (STATS/STAT2) never
+    # mentions allies at all -- Ryan asked for one, since a player's party
+    # composition/condition is otherwise only visible via bar/fat_olaf.py's
+    # shop menus or commands/editplayer.py's admin editor. Formatting
+    # matches bar/allies.py's pick_ally() (Str/to-hit%/tag convention),
+    # extended to show every AllyFlags member (see _ally_flag_tags), not
+    # just Elite, per Ryan's follow-up request.
+    from bar.ally_data import AllyStatus
+    from bar.allies import owned_allies
+    allies = owned_allies(player)
+    lines.append(f"Allies: {len(allies)}/3")
+    if allies:
+        for a in allies:
+            status_tag = f'  [{a.status.name}]' if a.status not in (AllyStatus.FREE, AllyStatus.SERVANT) else ''
+            lines.append(
+                f'  {a.name:<22}  Str {a.strength:>2}  HP {a.hit_points:>3}  '
+                f'{a.to_hit * 10:>3}%{_ally_flag_tags(a)}{status_tag}'
+            )
+    else:
+        lines.append('  No allies... sniff...')
+    lines.append('')
+
     # World bosses
     lines.append(
         'King of the Wraiths: '
@@ -247,7 +319,7 @@ class StatCommand(Command):
         summary     = "Show your current character stats",
         description = (
             "Displays your character sheet: money, ability scores, alignment, "
-            "status conditions, and world-state flags."
+            "status conditions, allies, and world-state flags."
         ),
         usage    = [('stat', 'Show your stats')],
         examples = [('stat', 'Display your character sheet')],
