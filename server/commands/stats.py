@@ -226,8 +226,12 @@ def _build_stats_lines(player) -> list[str]:
         '',
     ]
 
-    # Guild follower (only for guild members, vv>=3 in original)
-    if guild != Guild.CIVILIAN:
+    # Guild follower -- only for real guild members. SPUR gates this on
+    # vv>=3 (SPUR.MISC5.S:202), and vv=1/2 (Civilian/Outlaw) are both
+    # below that cutoff -- Outlaw was previously missed here (only
+    # CIVILIAN was excluded), showing "Guild Follow" for a player who
+    # isn't in Sword/Claw/Fist. Ryan's request.
+    if guild not in (Guild.CIVILIAN, Guild.OUTLAW):
         follower = 'On' if player.query_flag(PlayerFlags.GUILD_FOLLOW_MODE) else 'Off'
         lines.append(f"Guild Follow: {follower}")
 

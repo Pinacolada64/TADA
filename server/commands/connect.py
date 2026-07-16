@@ -427,7 +427,10 @@ class ConnectCommand(Command):
         login_lines.append(f"Auto duel: {'ON' if autoduel else 'OFF'}")
 
         # TODO: show "Your character WILL/WILL NOT follow other guild members"
-        #       once GUILD_FOLLOW_MODE is fully wired into movement.
+        #       once GUILD_FOLLOW_MODE is fully wired into movement. Gate on
+        #       real guild membership when this lands (SPUR.MISC5.S:202's
+        #       vv>=3 -- Civilian AND Outlaw are both below that cutoff, per
+        #       commands/stats.py's own Guild Follow line, Ryan's request).
 
         # TODO: show "You followed {name} to your current location" — requires
         #       storing the guild-follow leader name in player/misc data.
