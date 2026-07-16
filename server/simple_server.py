@@ -736,8 +736,13 @@ class Server:
                                else getattr(raw, 'name', None))
                     item_id = (raw.get('id_number', idx + 1) if isinstance(raw, dict)
                                else getattr(raw, 'id_number', idx + 1))
+                    # Inventory.find() always returns a list (empty when no
+                    # match), never None -- `is not None` was always truthy
+                    # here, so every room item silently vanished for any
+                    # player with a real inventory. Bug found investigating
+                    # Room 1's Adventurer's Guide never showing up.
                     in_inventory = (inventory is not None and
-                                    inventory.find(item_id=item_id) is not None)
+                                    bool(inventory.find(item_id=item_id)))
                     if name and item_id not in picked_up and not in_inventory:
                         seen.append(name)
             except Exception:
