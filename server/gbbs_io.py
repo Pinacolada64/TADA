@@ -57,6 +57,15 @@ RECORD_INFO: dict[str, RecordInfo] = {
     'ally.items':    RecordInfo(84,  0, ''),
     'honor':         RecordInfo(10,  0, ''),
     'misc.data':     RecordInfo(250, 0, ''),
+    # SPUR.SUB.S "al.quote" (skip): position #1,170,yx -- 170-byte fixed
+    # records, one $-substitutable quote line each. Record 0 is a count
+    # header ("70"); combat taunts run records 1-69. Confirmed by direct
+    # inspection: MONSTER.QUOTE.TXT is 11974 bytes = 70 full 170-byte
+    # records (0-69) plus one unpadded 74-byte trailing fragment -- the
+    # file is truncated there. al.quote needs records 91/95/99 (ally
+    # slots 1-3) plus +1/+2 for goddess/god name decoration (up to 101),
+    # which are past the truncation and not recoverable from this copy.
+    'monster.quote': RecordInfo(170, 1, 'quote text ($ = player name placeholder)'),
 }
 
 

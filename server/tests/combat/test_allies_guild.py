@@ -23,6 +23,7 @@ Run with:
 from __future__ import annotations
 
 import asyncio
+import tempfile
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -102,6 +103,24 @@ def _run(coro):
 
 
 class TestAllyGuildTraining(unittest.IsolatedAsyncioTestCase):
+    """Note: setUp/tearDown redirect net_common.run_server_dir to a temp
+    dir for the duration of each test -- _train_flag() calls the real
+    _append_battle_log(), and without this every run here was writing
+    "Rulan had BARDA trained..." lines straight into the live
+    run/server/battle.log (same pattern test_dwarf.py's on_killed tests
+    and test_ally_starvation.py already isolate against)."""
+
+    def setUp(self):
+        import net_common
+        self._tmp = tempfile.TemporaryDirectory()
+        self._orig_run_server_dir = net_common.run_server_dir
+        net_common.run_server_dir = self._tmp.name
+
+    def tearDown(self):
+        import net_common
+        net_common.run_server_dir = self._orig_run_server_dir
+        self._tmp.cleanup()
+
 
     async def test_discipline_applies_elite_flag_and_charges_gold(self):
         ally = _make_ally()

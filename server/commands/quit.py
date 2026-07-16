@@ -65,17 +65,11 @@ class QuitCommand(Command):
                 player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, current + bonus)
                 player.unsaved_changes = True
 
-        # Party member farewells
-        # TODO: map party member positions to d1$/d2$/d3$ slots as in original SPUR
-        party = getattr(player, 'party', None)
-        if party:
-            members = list(party)
-            if len(members) >= 1:
-                await ctx.send(f"'I WILL WATCH FOR YOUR RETURN!' shouts {members[0].name}")
-            if len(members) >= 2:
-                await ctx.send(f"'YEAH? AND WHO WILL WATCH YOU?' snickers {members[1].name}")
-            if len(members) >= 3:
-                await ctx.send(f"{members[2].name} looks sad as you leave..")
+        # Party member farewells (SPUR.SUB.S "quit"/"al.quote", skip only --
+        # see ally_events/farewell.py for the god/goddess/mortal quote tiers).
+        from ally_events.farewell import farewell_lines
+        for line in farewell_lines(player):
+            await ctx.send(line)
 
         # Stat restoration (+2 each if below cap) — original SPUR: only if not in combat (cr=0)
         # TODO: check combat state (cr flag) once combat is wired up

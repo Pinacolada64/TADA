@@ -1,0 +1,23 @@
+[
+    {
+        "tier": "mortal",
+        "quotes": [
+            "*, thanks for the adventure! Catch you next time, $.",
+            "'I will watch for your return!' shouts *.",
+            "'Yeah? And who will watch you?' snickers *.",
+            "* looks sad as you leave.."
+        ]
+    },
+    {
+        "tier": "goddess",
+        "quotes": [
+            "*'s tawny hair distracts you for a moment as she takes her leave."
+        ]
+    },
+    {
+        "tier": "god",
+        "quotes": [
+            "* clasps your hand in a grip of iron. \"Until we meet again, $.\""
+        ]
+    }
+]

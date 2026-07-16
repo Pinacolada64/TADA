@@ -494,3 +494,14 @@
   hardcoded. If this pattern recurs for other master/skip balance
   divergences, worth generalizing rather than one-off config keys per
   mechanic.
+
+7/16/26:
+- Guild HQ "view <guild> battle log" command (Ryan): there's currently
+  no in-game way to read `run/server/battle.log` at all -- the Annex
+  (where SPUR originally surfaced it) isn't built yet. Idea: a Guild HQ
+  command that tails battle.log and filters to entries mentioning that
+  guild's members (or possibly just entries tagged with a guild at
+  write time, if that's cleaner than string-matching names after the
+  fact). Would give players some in-game visibility into
+  ally-training/death/duel history without needing shell access to the
+  raw file.
