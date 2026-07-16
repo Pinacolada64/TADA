@@ -1132,6 +1132,7 @@ def _inventory_action(ctx):
                 preamble_lines=[
                     '[W]eapon  [A]rmor  [S]pell  [O]bject  [B]ook (r<#>=Read)  [R]ation',
                     '[L]ist weapons  [I]nventory  [Q]uit',
+                    '(Weapon/Object/Book/Ration will ask who receives it -- you or an ally)',
                 ],
             )
             if raw is None:
@@ -1173,18 +1174,112 @@ def _inventory_action(ctx):
 
 async def _show_inventory(ctx) -> None:
     """Display the player's current inventory, numbered so 'r<#>' can
-    read a book straight out of this list (see _inventory_action())."""
+    read a book straight out of this list (see _inventory_action()) --
+    plus each owned ally's pack underneath (New in TADA, Ryan's request:
+    EditPlayer's inventory menu previously had no idea allies/the mount
+    could carry anything at all, now that they can -- see
+    _pick_recipient()/_deliver_item()). Ally items are NOT part of the
+    'r<#>' numbering -- that stays keyed to the player's own inventory
+    only, reusing commands/inv.py's _ally_inventory_lines() for the
+    ally section rather than duplicating its formatting."""
     inv = getattr(ctx.player, 'inventory', None)
     entries = list(inv.entries()) if inv and hasattr(inv, 'entries') else []
+    lines: list[str] = []
     if not entries:
-        await ctx.send('Inventory is empty.')
-        return
-    lines = ['Current inventory:']
-    for i, e in enumerate(entries, 1):
-        name = getattr(e.item, 'name', '?')
-        qty  = getattr(e, 'quantity', 1)
-        lines.append(f'  {i:>2}. {name}' + (f' ×{qty}' if qty > 1 else ''))
+        lines.append('Inventory is empty.')
+    else:
+        lines.append('Current inventory:')
+        for i, e in enumerate(entries, 1):
+            name = getattr(e.item, 'name', '?')
+            qty  = getattr(e, 'quantity', 1)
+            lines.append(f'  {i:>2}. {name}' + (f' ×{qty}' if qty > 1 else ''))
+
+    from commands.inv import _ally_inventory_lines
+    ally_lines = _ally_inventory_lines(ctx.player)
+    if ally_lines:
+        lines.append('')
+        lines.extend(ally_lines)
+
     await ctx.send(lines)
+
+
+async def _pick_recipient(ctx):
+    """Let the admin choose who receives the next granted item: the
+    player themself, or one of their owned allies (bar.allies.
+    owned_allies) -- including the mount, which needs AllyFlags.
+    SADDLEBAGS before it can actually carry anything (see
+    _deliver_item()). Returns ('player', ctx.player) or ('ally', ally).
+
+    Skips the prompt entirely and defaults straight to the player if
+    they have no allies at all, so this adds no extra step to the
+    common case. New in TADA, Ryan's request."""
+    from bar.allies import owned_allies
+
+    allies = owned_allies(ctx.player)
+    if not allies:
+        return ('player', ctx.player)
+
+    lines = ['', f'  0. {ctx.player.name} (yourself)']
+    for i, a in enumerate(allies, 1):
+        lines.append(f'  {i}. {a.name}')
+    lines.append('')
+    await ctx.send(lines)
+
+    raw = await ctx.prompt(f'Give to (0-{len(allies)}, Enter for yourself)')
+    if not raw or not raw.strip():
+        return ('player', ctx.player)
+    try:
+        idx = int(raw.strip())
+        if idx == 0:
+            return ('player', ctx.player)
+        if not (1 <= idx <= len(allies)):
+            raise ValueError
+    except ValueError:
+        await ctx.send('Invalid selection -- giving to yourself instead.')
+        return ('player', ctx.player)
+    return ('ally', allies[idx - 1])
+
+
+async def _deliver_item(ctx, item, recipient, item_name: str) -> None:
+    """Add *item* to *recipient* (from _pick_recipient()) -- either the
+    player's own Inventory, or an ally's .items list, respecting
+    ally.items' mount carrying-capacity rules (commands/give.py's
+    _mount_capacity()). Shared tail end of _give_weapon()/_give_ration()/
+    _give_object(), replacing the three-times-duplicated "add straight
+    to ctx.player.inventory" logic each had before EditPlayer's
+    inventory menu could target allies/the mount. New in TADA, Ryan's
+    request."""
+    kind, target = recipient
+
+    if kind == 'player':
+        inv = getattr(ctx.player, 'inventory', None)
+        if inv is None:
+            await ctx.send('Player has no inventory object.')
+            return
+        if inv.add(item):
+            ctx.player.unsaved_changes = True
+            await ctx.send(f"Added {item_name} to {ctx.player.name}'s inventory.")
+        else:
+            await ctx.send('Inventory is full.')
+        return
+
+    ally = target
+    from commands.give import _mount_capacity
+    from inventory import InventoryEntry
+
+    if not hasattr(ally, 'items') or ally.items is None:
+        ally.items = []
+    capacity = _mount_capacity(ally)
+    if capacity is not None:
+        if capacity == 0:
+            await ctx.send(f'{ally.name} has nowhere to carry it -- needs saddlebags first.')
+            return
+        if len(ally.items) >= capacity:
+            await ctx.send(f"{ally.name}'s saddlebags are full.")
+            return
+    ally.items.append(InventoryEntry(item=item))
+    ctx.player.unsaved_changes = True
+    await ctx.send(f"Added {item_name} to {ally.name}'s pack.")
 
 
 async def _send_weapon_list(ctx, weapons) -> None:
@@ -1214,7 +1309,8 @@ async def _list_weapons(ctx) -> None:
 
 
 async def _give_weapon(ctx) -> None:
-    """Search for a weapon by name and add it to the player's inventory."""
+    """Search for a weapon by name and add it to the player's inventory,
+    or an owned ally's pack (see _pick_recipient())."""
     weapons = getattr(ctx.server, 'weapons', []) or []
     if not weapons:
         await ctx.send('No weapon data loaded on server.')
@@ -1239,20 +1335,13 @@ async def _give_weapon(ctx) -> None:
     if chosen is None:
         return
 
-    inv = getattr(ctx.player, 'inventory', None)
-    if inv is None:
-        await ctx.send('Player has no inventory object.')
-        return
-
-    if inv.add(_weapon_from_dict(chosen)):
-        ctx.player.unsaved_changes = True
-        await ctx.send(f'Added {chosen["name"]} to {ctx.player.name}\'s inventory.')
-    else:
-        await ctx.send('Inventory is full.')
+    recipient = await _pick_recipient(ctx)
+    await _deliver_item(ctx, _weapon_from_dict(chosen), recipient, chosen['name'])
 
 
 async def _give_ration(ctx) -> None:
-    """Search for a ration by name and add it to the player's inventory."""
+    """Search for a ration by name and add it to the player's inventory,
+    or an owned ally's pack (see _pick_recipient())."""
     from items import Rations
     rations = getattr(ctx.server, 'rations', []) or []
     if not rations:
@@ -1278,26 +1367,19 @@ async def _give_ration(ctx) -> None:
     if chosen is None:
         return
 
-    inv = getattr(ctx.player, 'inventory', None)
-    if inv is None:
-        await ctx.send('Player has no inventory object.')
-        return
-
     item = Rations(
         number = chosen.get('number', 0),
         name   = chosen.get('name', '?'),
         kind   = chosen.get('kind', 'food'),
         price  = chosen.get('price', 0),
     )
-    if inv.add(item):
-        ctx.player.unsaved_changes = True
-        await ctx.send(f'Added {chosen["name"]} to {ctx.player.name}\'s inventory.')
-    else:
-        await ctx.send('Inventory is full.')
+    recipient = await _pick_recipient(ctx)
+    await _deliver_item(ctx, item, recipient, chosen['name'])
 
 
 async def _give_object(ctx, type_filter: set, label: str) -> None:
-    """Search objects.json for items matching type_filter and add to inventory.
+    """Search objects.json for items matching type_filter and add to the
+    player's inventory, or an owned ally's pack (see _pick_recipient()).
 
     Use this for any item category sourced from objects.json (server.items):
         armor/shield → _give_object(ctx, {'armor','shield'}, 'armor/shield')
@@ -1334,11 +1416,6 @@ async def _give_object(ctx, type_filter: set, label: str) -> None:
     if chosen is None:
         return
 
-    inv = getattr(ctx.player, 'inventory', None)
-    if inv is None:
-        await ctx.send('Player has no inventory object.')
-        return
-
     item = Item(
         id_number = chosen.get('number', 0),
         name      = chosen.get('name', '?'),
@@ -1355,8 +1432,6 @@ async def _give_object(ctx, type_filter: set, label: str) -> None:
             item.type = ItemType(raw_type)
         except ValueError:
             pass
-    if inv.add(item):
-        ctx.player.unsaved_changes = True
-        await ctx.send(f'Added {chosen["name"]} to {ctx.player.name}\'s inventory.')
-    else:
-        await ctx.send('Inventory is full.')
+
+    recipient = await _pick_recipient(ctx)
+    await _deliver_item(ctx, item, recipient, chosen['name'])

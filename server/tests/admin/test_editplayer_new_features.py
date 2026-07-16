@@ -882,6 +882,97 @@ class TestGiveItemQuestionMarkListsAll(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(any('Compass' in s for s in ctx.sent))
 
 
+class TestGiveToAllyOrMount(unittest.IsolatedAsyncioTestCase):
+    """New in TADA: EditPlayer's inventory menu can now target an owned
+    ally (or the mount specifically, respecting saddlebags capacity)
+    instead of only ever adding to the admin's own inventory. Ryan's
+    request."""
+
+    def _player_with_inventory(self, party=None):
+        from inventory import Inventory
+        player = _FakePlayer()
+        player.inventory = Inventory(capacity=10)
+        if party is not None:
+            player.party = party
+        return player
+
+    async def test_no_allies_skips_recipient_prompt(self):
+        from commands.editplayer import _pick_recipient
+        ctx = _FakeCtx(player=self._player_with_inventory())
+        kind, target = await _pick_recipient(ctx)
+        self.assertEqual(kind, 'player')
+        self.assertEqual(ctx.sent, [])  # no prompt shown at all
+
+    async def test_blank_response_defaults_to_player(self):
+        from commands.editplayer import _pick_recipient
+        ally = Ally(name='BATMAN', gender='m', strength=14, to_hit=5)
+        player = self._player_with_inventory(party=Party(members=[ally]))
+        ctx = _FakeCtx(responses=[''], player=player)
+        kind, target = await _pick_recipient(ctx)
+        self.assertEqual(kind, 'player')
+
+    async def test_picking_ally_by_number(self):
+        from commands.editplayer import _pick_recipient
+        ally = Ally(name='BATMAN', gender='m', strength=14, to_hit=5)
+        player = self._player_with_inventory(party=Party(members=[ally]))
+        ctx = _FakeCtx(responses=['1'], player=player)
+        kind, target = await _pick_recipient(ctx)
+        self.assertEqual(kind, 'ally')
+        self.assertIs(target, ally)
+
+    async def test_picking_zero_means_player(self):
+        from commands.editplayer import _pick_recipient
+        ally = Ally(name='BATMAN', gender='m', strength=14, to_hit=5)
+        player = self._player_with_inventory(party=Party(members=[ally]))
+        ctx = _FakeCtx(responses=['0'], player=player)
+        kind, target = await _pick_recipient(ctx)
+        self.assertEqual(kind, 'player')
+
+    async def test_invalid_selection_defaults_to_player(self):
+        from commands.editplayer import _pick_recipient
+        ally = Ally(name='BATMAN', gender='m', strength=14, to_hit=5)
+        player = self._player_with_inventory(party=Party(members=[ally]))
+        ctx = _FakeCtx(responses=['99'], player=player)
+        kind, target = await _pick_recipient(ctx)
+        self.assertEqual(kind, 'player')
+        self.assertIn('Invalid selection', '\n'.join(ctx.sent))
+
+    async def test_give_weapon_to_ally_end_to_end(self):
+        ally = Ally(name='BATMAN', gender='m', strength=14, to_hit=5)
+        player = self._player_with_inventory(party=Party(members=[ally]))
+        server = _FakeServer(weapons=[
+            {'number': 1, 'name': 'Sword', 'weapon_class': 'hack_slash_bash', 'stability': 10},
+        ])
+        # 'sword' picks the weapon; '1' at the recipient prompt picks BATMAN.
+        ctx = _FakeCtx(responses=['sword', '1'], player=player, server=server)
+        await _give_weapon(ctx)
+        self.assertEqual(len(ally.items), 1)
+        self.assertEqual(len(player.inventory.entries()), 0)
+        self.assertTrue(any('BATMAN' in s for s in ctx.sent))
+
+    async def test_give_object_to_mount_without_saddlebags_refused(self):
+        from bar.ally_data import AllyFlags
+        mount = Ally(name='TRIGGER', gender='m', strength=20, to_hit=0, flags=[AllyFlags.MOUNT])
+        player = self._player_with_inventory(party=Party(members=[mount]))
+        server = _FakeServer()
+        server.items = [{'number': 1, 'name': 'Ring', 'type': 'treasure'}]
+        ctx = _FakeCtx(responses=['ring', '1'], player=player, server=server)
+        await _give_object(ctx, {'treasure'}, 'object')
+        self.assertEqual(len(mount.items), 0)
+        self.assertIn('needs saddlebags', '\n'.join(ctx.sent))
+
+    async def test_give_object_to_mount_with_saddlebags_succeeds(self):
+        from bar.ally_data import AllyFlags
+        mount = Ally(name='TRIGGER', gender='m', strength=20, to_hit=0,
+                     flags=[AllyFlags.MOUNT, AllyFlags.SADDLEBAGS])
+        player = self._player_with_inventory(party=Party(members=[mount]))
+        server = _FakeServer()
+        server.items = [{'number': 1, 'name': 'Ring', 'type': 'treasure'}]
+        ctx = _FakeCtx(responses=['ring', '1'], player=player, server=server)
+        await _give_object(ctx, {'treasure'}, 'object')
+        self.assertEqual(len(mount.items), 1)
+
+
 class TestInventoryReadNumberedBook(unittest.IsolatedAsyncioTestCase):
     """'r<#>' at the inventory prompt reads inventory slot # (matching
     _show_inventory()'s numbering) by delegating to the real ReadCommand --
