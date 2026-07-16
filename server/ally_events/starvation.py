@@ -80,7 +80,7 @@ Stat penalties use MASTER's numbers (Honor -20, Wisdom -5, Intelligence
 -5), not skip's harsher Honor -25 -- same "master is the default,
 divergence noted" treatment as meteor.py's dodge numbers.
 
-Not from SPUR: ELITE allies (AllyFlags.ELITE) never die or desert here,
+New in TADA: ELITE allies (AllyFlags.ELITE) never die or desert here,
 just a flavor line ("looks gaunt, but grits ITS teeth and endures").
 Neither branch's dead.al checks ELITE at all -- this extends the
 immunity ally_events/__init__.py's try_hungry_ally() already grants elites
@@ -167,7 +167,7 @@ async def try_encounter(ctx: 'GameContext') -> None:
 
     name = getattr(player, 'name', 'Someone')
 
-    # Not from SPUR: dead.al has no ELITE check at all in either branch,
+    # New in TADA: dead.al has no ELITE check at all in either branch,
     # but ally_events/__init__.py's try_hungry_ally() already treats
     # ELITE allies as immune to hunger complaints ("instr('!',zt$)" in
     # the original). Extending that same immunity here so an elite ally

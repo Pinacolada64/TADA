@@ -304,6 +304,13 @@ class Player:
         self.ring_worn:  bool = kwargs.get('ring_worn', False)  # zu$[2]: ring of invisibility worn
         self.experience = kwargs.get('experience', 0)
         self.monsters_killed: list[int] = kwargs.get('monsters_killed', [])
+        # Monster numbers charmed and recruited into this player's party via
+        # charm.py -- room.monster is shared/global map state (see
+        # monsters_killed's own per-player "dead for this viewer" pattern
+        # this mirrors), so a charmed-and-joined monster must be tracked
+        # per player rather than removed from the room, or other players
+        # would lose the monster too.
+        self.charmed_monsters: list[int] = kwargs.get('charmed_monsters', [])
         self.picked_up_items: list[int] = kwargs.get('picked_up_items', [])
         # Item numbers already granted their one-time +1 Wisdom bonus for
         # being read (SPUR.MISC2.S:316's `if pw<25 pw=pw+1` -- fires on
@@ -400,6 +407,17 @@ class Player:
         # command history:
         self.command = None
         self.previous_command = None
+
+        # A monster charmed via charm.py, awaiting the "wants to join you"
+        # decision on leaving its room -- {'level', 'room_no',
+        # 'monster_number', 'name', 'strength', 'to_hit'} or None.
+        # Deliberately NOT persisted (no simple_keys entry, no _load()
+        # restoration) -- matches SPUR's zq, which was session-scoped too
+        # (a fresh BBS-door session every login). Player.save() dumps the
+        # full __dict__ regardless, so a pending charm sits harmlessly in
+        # the save file as dead data rather than actually surviving a
+        # reconnect.
+        self.pending_charm = None
 
         # flag whether a save is required:
         self.unsaved_changes: bool = False
@@ -1040,8 +1058,13 @@ class Player:
             # up the starting-equipment feature, which depends on these
             # actually persisting. shield_proficiency is a dict, merged
             # separately below alongside weapon_experience.
+            # food/drink added here for the same reason -- found live while
+            # testing spells/charm.py's CHARM POTION (a player's thirst
+            # silently reset to "not thirsty" on every reconnect, making it
+            # impossible to ever actually drink anything after logging back
+            # in).
             simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote',
-                           'shield', 'armor', 'active_shield_id', 'loan_amount', 'loan_days')
+                           'shield', 'armor', 'active_shield_id', 'loan_amount', 'loan_days', 'food', 'drink')
             for k in simple_keys:
                 if k in data:
                     try:
@@ -1116,6 +1139,10 @@ class Player:
             # Per-player kill list (each entry is a monster number)
             if 'monsters_killed' in data and isinstance(data['monsters_killed'], list):
                 self.monsters_killed = [int(i) for i in data['monsters_killed'] if isinstance(i, (int, float))]
+
+            # Per-player charmed-and-recruited list (each entry is a monster number)
+            if 'charmed_monsters' in data and isinstance(data['charmed_monsters'], list):
+                self.charmed_monsters = [int(i) for i in data['charmed_monsters'] if isinstance(i, (int, float))]
 
             # Combinations — accepts both the current dict shape ({name: {...}})
             # and the older list-of-dicts shape ([{'name': ..., 'combination': [...]}])

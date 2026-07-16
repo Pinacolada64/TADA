@@ -83,7 +83,7 @@ _THEFT_CHANCE_PCT = 1  # SPUR.MAIN.S: rnd(100)==50, i.e. 1-in-100
 
 
 def _append_battle_log(entry: str) -> None:
-    """Not from SPUR -- the original doesn't log the Dwarf's death at all
+    """New in TADA -- the original doesn't log the Dwarf's death at all
     (checked SPUR.MISC.S's p.a3, just a print, no file write). Added on
     Ryan's request to match this port's own convention for other notable
     kills (Excalibur pull, Wraith King). Duplicated rather than shared,
@@ -272,7 +272,7 @@ async def try_steal(ctx: 'GameContext') -> None:
     keeps robbing every other player who hasn't killed him yet, since he's
     one shared world NPC, not a per-player instance).
 
-    Not from SPUR: mounted players and Pixies (both effectively out of a
+    New in TADA: mounted players and Pixies (both effectively out of a
     short dwarf's reach) get a 50% chance he fails to actually grab
     anything even though he tries -- Ryan's addition, flavor text only.
     """

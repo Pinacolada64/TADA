@@ -759,7 +759,20 @@ class Server:
                 mon_num = m.get('number') if isinstance(m, dict) else None
                 player  = getattr(getattr(client, 'ctx', None), 'player', None)
                 mk      = getattr(player, 'monsters_killed', []) if player else []
-                if mon_num is not None and mon_num in mk:
+                cm      = getattr(player, 'charmed_monsters', []) if player else []
+                from spells.charm import charm_greeting_line
+                greeting = (charm_greeting_line(player, int(room_no), level)
+                            if player else None)
+                if mon_num is not None and mon_num in cm:
+                    # Charmed and recruited by this player -- room.monster
+                    # is shared/global state (see charm.py's docstring), so
+                    # this is a per-viewer "gone" check, same idea as the
+                    # monsters_killed branch below but with no line at all
+                    # (the monster left with this player, not died).
+                    pass
+                elif greeting is not None:
+                    lines += ['', greeting]
+                elif mon_num is not None and mon_num in mk:
                     # Monster is dead for this player
                     if flags.get('mechanical'):
                         lines += ['', f'The wrecked remains of {name} lie here.']
@@ -915,6 +928,9 @@ class Server:
             return
 
         self._leave_combat_on_move(ctx, room_no)
+
+        from spells.charm import try_charm_join_offer
+        await try_charm_join_offer(ctx, level=level, room_no=room_no)
 
         if target_level != level:
             await self._teleport_to(ctx, target_level, int(dest), message_number=message_number)

@@ -96,6 +96,13 @@ class DrinkCommand(Command):
                             else '(You were not poisoned.)'])
             return CommandResult.ok()
 
+        # CHARM POTION — charms the monster in this room (SPUR.SUB.S "charm").
+        if 'CHARM POTION' in uname:
+            await ctx.send(f'You drink the {name}.')
+            from spells.charm import try_charm_potion
+            await try_charm_potion(ctx)
+            return CommandResult.ok()
+
         gs     = ration_restore(item)
         amount = (random.randint(0, gs) % 6) + 1
         restore_drink(player, amount)

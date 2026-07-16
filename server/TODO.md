@@ -505,3 +505,36 @@
   fact). Would give players some in-game visibility into
   ally-training/death/duel history without needing shell access to the
   raw file.
+
+7/17/26:
+- Charm spell (Ryan): `spells/charm.py`'s CHARM POTION mechanic is only
+  ever triggered by the potion right now -- SPUR's original `gs$="CHARM"`
+  check also fires from a Charm spell, but this codebase has no general
+  spell-casting system yet (no `cast` command, no targeting pipeline;
+  `items.py`'s `Spell` dataclass is a data container only, nothing calls
+  it). Once a real spell system exists, it should be able to trigger
+  `spells/charm.py`'s same `try_charm_potion()`-equivalent effect against
+  a targeted monster, rather than duplicating the charm logic.
+- `commands/teleport.py` should check for a monster in the room being
+  left and react (Ryan): SPUR.MISC3.S's `cst.shop` label (the
+  cast-a-teleport-spell flow, both branches -- skip's version is
+  identical apart from dropping one colon):
+  ```
+  if mw then if instr(".",wy$) then if not instr(":",wy$) print\m$" CASTS 'FREEZE ADVENTURER' SPELL!":goto spl.fail
+  i$=m$+" LOOKS PUZZLED AS YOU FADE FROM VIEW."
+  if instr(":",wy$) i$="SENSORS ON:  "+m$+" GO NUTS AS YOU DEMATERIALIZE!"
+  if mw print \i$:mw=0:mf=0:m$="":wy$=""
+  ```
+  If a normal monster is present when a teleport-type spell is cast, it
+  "looks puzzled as you fade from view"; if mechanical (`:` in `wy$`),
+  "SENSORS ON: X GO NUTS AS YOU DEMATERIALIZE!" instead. An immune-type
+  monster (`.` in `wy$`, and not mechanical) can outright block the
+  teleport by casting "FREEZE ADVENTURER" on the caster. This port's
+  `commands/teleport.py` is currently the admin debug `#`/`teleport`
+  command (not a player spell -- no spell-casting system exists yet,
+  see this file's "Charm spell" entry above), but the same room-monster
+  reaction would fit there once ported: check `game_map.get_room(...)
+  .monster` for the room being left, and vary the flash message by the
+  monster's `mechanical` flag. The "other players in the room see you
+  vanish" half of this is already covered -- `_teleport()` already
+  sends "X disappears in a flash of light" via `ctx.send_room()`.

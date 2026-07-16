@@ -86,7 +86,7 @@ version is harsher (`z<70`; -7% each). See `TODO.md`'s "7/15/26" entry
 for the plan to make this sysop-configurable instead of picking one
 side permanently.
 
-## Not from SPUR
+## New in TADA
 
 A few additions in this package aren't ported mechanics at all, called
 out individually in each module's docstring:

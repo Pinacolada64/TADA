@@ -10,7 +10,7 @@ items/weapons across the whole map.
                          cursed, power)
     list #w #tel      — after listing, prompt to pick one and teleport there
 
-Not from SPUR -- a debugging/moderation convenience, not a ported
+New in TADA -- a debugging/moderation convenience, not a ported
 mechanic. Scans every room on every level (game_map.levels), not just
 the player's current room, so it can answer "where are all the copies
 of X on the whole map" at a glance instead of digging through

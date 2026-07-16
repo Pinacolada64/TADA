@@ -27,7 +27,7 @@ AllyFlags.GOD/GODDESS): a plain "mortal" line, or a GODDESS/GOD line
 using yx+1/yx+2. $ substitutes the player's name, * the ally's (cleaned)
 display name.
 
-Not from SPUR: this port's MONSTER.QUOTE.TXT is truncated at record 69
+New in TADA: this port's MONSTER.QUOTE.TXT is truncated at record 69
 (see gbbs_io.py's RECORD_INFO['monster.quote'] comment) -- records
 91-101, which al.quote needs, were lost. ally_farewell_quotes.json (one
 or more lines per tier: mortal/goddess/god, not per ally-slot-position
