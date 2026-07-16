@@ -63,7 +63,7 @@ def _append_battle_log(entry: str) -> None:
     path = os.path.join(str(base or './run/server'), 'battle.log')
     try:
         with open(path, 'a') as fh:
-            stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
+            stamp = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M UTC')
             fh.write(f'[{stamp}] {entry}\n')
     except Exception:
         log.exception('Failed to write battle.log')
