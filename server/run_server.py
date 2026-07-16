@@ -14,9 +14,19 @@ import sys
 
 sys.path.insert(0, str(__file__).rsplit('/', 1)[0])
 
-from simple_server import Server
+from simple_server import Server, _PlayerFilter
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Matches simple_server.py's own __main__ block -- without this, running
+# the server via this script (rather than `python simple_server.py`
+# directly) fell back to a plain format with no connecting player/IP
+# field at all, since this basicConfig() call runs before simple_server's
+# own and there was nothing here to override it.
+logging.basicConfig(
+    level  = logging.DEBUG,
+    format = '%(asctime)s | %(levelname)-8s | %(player)-16s | %(module)s.%(funcName)s: %(message)s',
+    force  = True,
+)
+logging.getLogger().handlers[0].addFilter(_PlayerFilter())
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--host', default='127.0.0.1')
