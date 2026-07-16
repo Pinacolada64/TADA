@@ -552,6 +552,21 @@
   unconditional regardless of prior EXAMINE) that was previously
   entirely unhandled -- `_is_cursed()`/`_cursed_penalty()` in the same
   file.
+- GET UX pass (Ryan): three related changes to `commands/get.py`'s
+  `GetCommand`, none implemented yet --
+  1. `get all` should explicitly mean "pick up every item in the
+     room" (currently unhandled -- `all` would just fail to match any
+     item by that name and fall through to `_try_get_living`).
+  2. `g` (bare, no args) should be its own shortcut for `get all`,
+     distinct from bare `get` -- which should keep today's behavior
+     of showing the numbered "You see: ..." menu and prompting for a
+     choice rather than grabbing everything.
+  3. When there's genuinely nothing to pick up, replace the current
+     "There is nothing here to pick up." with "There is nothing here
+     to GET here - you feel foolish." and subtract 1 Wisdom point --
+     a real stat cost for trying to GET an empty room, not just flavor
+     text. (No SPUR.MISC.S precedent found for this specific message/
+     penalty -- treat as a new, Ryan-specified mechanic, not a port.)
 
 7/17/26:
 - Charm spell (Ryan): `spells/charm.py`'s CHARM POTION mechanic is only
