@@ -110,7 +110,7 @@ class TestPrefsHelpColumn(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Hourglass Display', ctx._flat())
 
     async def test_unknown_help_key_falls_through_to_error_message(self):
-        ctx = _FakeCtx(['hz', ''], Player())
+        ctx = _FakeCtx(['hq', ''], Player())
         ok = await prefs_menu(ctx)
         self.assertTrue(ok)
         self.assertIn('Choose', ctx._flat())

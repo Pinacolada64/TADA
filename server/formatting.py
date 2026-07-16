@@ -630,6 +630,60 @@ def border_style_for_ctx(ctx) -> str:
     return getattr(cs, 'border_style', 'single')
 
 
+def format_player_datetime(dt, player) -> str:
+    """Render *dt* using *player*'s PREFS timezone/date-format choice
+    (commands/prefs.py's 'Z'/'D' rows, ClientSettings.timezone/
+    date_format -- New in TADA).
+
+    *dt* is expected to be a naive datetime (this codebase's timestamps
+    -- e.g. player.last_connection -- are stored via bare datetime.now(),
+    never made timezone-aware) or already timezone-aware. A naive *dt*
+    is first anchored to a *source* zone -- config.server_timezone if a
+    sysop has set one (setup/server_setup.py / the in-game CONFIG
+    command's 'server_timezone' setting declares what timezone these
+    naive timestamps actually represent), else the server process's own
+    OS-local zone, unchanged from before this setting existed. The
+    player's own timezone choice then converts from that source zone;
+    an empty/unset player timezone means "use the source zone as-is,"
+    which is what PREFS 'Z' Timezone's 'Server Local' option means. A
+    bad/unknown IANA zone name (either source) falls back gracefully
+    rather than raising.
+    """
+    import zoneinfo
+
+    cs          = getattr(player, 'client_settings', None)
+    tz_name     = (getattr(cs, 'timezone', '') or '').strip()
+    date_format = getattr(cs, 'date_format', '') or '%B %d, %Y'
+
+    if dt.tzinfo is None:
+        server_tz_name = ''
+        try:
+            from config import config
+            server_tz_name = (config.server_timezone or '').strip()
+        except Exception:
+            pass
+        if server_tz_name:
+            try:
+                dt = dt.replace(tzinfo=zoneinfo.ZoneInfo(server_tz_name))
+            except Exception:
+                logging.warning("format_player_datetime: unknown/invalid server_timezone %r", server_tz_name)
+                dt = dt.astimezone()
+        else:
+            dt = dt.astimezone()
+
+    if tz_name:
+        try:
+            dt = dt.astimezone(zoneinfo.ZoneInfo(tz_name))
+        except Exception:
+            logging.warning("format_player_datetime: unknown/invalid timezone %r", tz_name)
+
+    try:
+        return dt.strftime(date_format)
+    except (ValueError, TypeError):
+        logging.warning("format_player_datetime: bad date_format %r", date_format)
+        return dt.strftime('%B %d, %Y')
+
+
 _HRULE_CHAR: dict[str, str] = {
     'single':  '─',   # U+2500 box drawings light horizontal
     'double':  '═',   # U+2550 box drawings double horizontal

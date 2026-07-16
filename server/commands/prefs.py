@@ -123,7 +123,68 @@ _SETTING_HELP: dict[str, list[str]] = {
         "on every line sent -- most terminals handle any of the three fine.",
         '',
     ],
+    'z': [
+        '',
+        '|cyan|Timezone|reset|',
+        "Which timezone dates are shown in (currently just the login "
+        "screen's 'You last connected on ...' line; more player-facing "
+        "dates are planned). 'Server Local' (the default) shows the "
+        "server's own local time as-is; picking a named zone converts to "
+        "it instead.",
+        '',
+    ],
+    'd': [
+        '',
+        '|cyan|Date Format|reset|',
+        "How dates are written out, e.g. 'July 16, 2026' vs '07/16/2026' "
+        "vs '2026-07-16'. Applies to the same dates as Timezone above.",
+        '',
+    ],
 }
+
+# Named strftime presets offered by the 'D' (Date Format) picker --
+# _DATE_FORMAT_NAMES reverses this for the summary table so a matching
+# stored format shows its friendly name instead of the raw strftime
+# pattern; anything else (a value never set through this picker) shows
+# as 'Custom'.
+_DATE_FORMAT_PRESETS = [
+    ('1', 'Month Day, Year', '%B %d, %Y'),
+    ('2', 'MM/DD/YYYY',      '%m/%d/%Y'),
+    ('3', 'DD/MM/YYYY',      '%d/%m/%Y'),
+    ('4', 'YYYY-MM-DD',      '%Y-%m-%d'),
+    ('5', 'Day Month Year',  '%d %B %Y'),
+]
+_DATE_FORMAT_NAMES = {fmt: name for _, name, fmt in _DATE_FORMAT_PRESETS}
+
+# A representative, non-exhaustive spread of IANA zones for the 'Z'
+# (Timezone) picker's numbered shortlist -- typed free text is also
+# accepted and validated against the full zoneinfo database, so this
+# isn't the only way to reach a given zone, just the fast path for
+# common ones.
+_TIMEZONE_PRESETS = [
+    ('1', '',                     'Server Local'),
+    ('2', 'UTC',                  'UTC'),
+    ('3', 'America/New_York',     'US Eastern'),
+    ('4', 'America/Chicago',      'US Central'),
+    ('5', 'America/Denver',       'US Mountain'),
+    ('6', 'America/Los_Angeles',  'US Pacific'),
+    ('7', 'Europe/London',        'UK'),
+    ('8', 'Europe/Berlin',        'Central Europe'),
+    ('9', 'Asia/Tokyo',           'Japan'),
+    ('10', 'Australia/Sydney',    'Australia Eastern'),
+]
+
+
+def _server_local_label() -> str:
+    """'Server Local', naming the configured zone if a sysop has set one
+    (config.server_timezone -- setup/server_setup.py / the in-game CONFIG
+    command) so a player isn't left guessing what "local" means."""
+    try:
+        from config import config
+        tz = (config.server_timezone or '').strip()
+    except Exception:
+        tz = ''
+    return f'Server Local ({tz})' if tz else 'Server Local'
 
 
 class PrefsCommand(Command):
@@ -228,6 +289,10 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             t.add_row(['T', 'Client Type', f'{cs.screen_columns}x{cs.screen_rows}', 'ht'])
         t.add_row(['K', 'Tab Key', tab_summary, 'hk'])
         t.add_row(['L', 'Line Ending', line_ending_name, 'hl'])
+        tz_name    = getattr(cs, 'timezone', '') or _server_local_label()
+        t.add_row(['Z', 'Timezone', tz_name, 'hz'])
+        date_fmt_name = _DATE_FORMAT_NAMES.get(getattr(cs, 'date_format', ''), 'Custom')
+        t.add_row(['D', 'Date Format', date_fmt_name, 'hd'])
 
         valid_keys = ['X', 'H', 'M']
         if not is_petscii:
@@ -235,7 +300,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         valid_keys += ['C', 'N']
         if not is_petscii:
             valid_keys.append('T')
-        valid_keys += ['K', 'L']
+        valid_keys += ['K', 'L', 'Z', 'D']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -273,6 +338,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             help_lines += [
                 'K - set whether your client has a real Tab key (and its width)',
                 'L - choose line ending (LF / CR / CRLF)',
+                'Z - choose your display timezone',
+                'D - choose your preferred date format',
                 f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
                 f'{return_key} - save and exit',
             ]
@@ -332,6 +399,12 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
 
         elif ans == 'l':
             await _pick_line_ending(ctx)
+
+        elif ans == 'z':
+            await _pick_timezone(ctx)
+
+        elif ans == 'd':
+            await _pick_date_format(ctx)
 
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
@@ -664,3 +737,67 @@ async def _pick_line_ending(ctx) -> None:
             await ctx.send(f'Line ending set to {label}.')
             return
     await ctx.send('Line ending unchanged.')
+
+
+async def _pick_timezone(ctx) -> None:
+    """Choose a display timezone from a shortlist, or type any IANA zone
+    name (e.g. 'Asia/Kolkata') -- validated against the full zoneinfo
+    database. 'Server Local' (an empty stored value) skips conversion
+    entirely rather than assuming UTC."""
+    import zoneinfo
+
+    cs = ctx.player.client_settings
+    current = getattr(cs, 'timezone', '') or _server_local_label()
+
+    lines = ['', '|yellow|Timezone:|reset|', f'Current: {current}', '']
+    for num, _zone, label in _TIMEZONE_PRESETS:
+        if label == 'Server Local':
+            label = _server_local_label()
+        lines.append(f'  {num:>2}. {label}')
+    lines += ['', "Or type any IANA zone name, e.g. 'Asia/Kolkata'.", '']
+
+    raw = await ctx.prompt('timezone', preamble_lines=lines)
+    if raw is None or not raw.strip():
+        await ctx.send('Timezone unchanged.')
+        return
+    ans = raw.strip()
+
+    for num, zone, label in _TIMEZONE_PRESETS:
+        if ans == num or ans.lower() == label.lower():
+            cs.timezone = zone
+            await ctx.send(f'Timezone set to {label}.')
+            return
+
+    if ans in zoneinfo.available_timezones():
+        cs.timezone = ans
+        await ctx.send(f'Timezone set to {ans}.')
+        return
+
+    await ctx.send(f"Timezone unchanged -- '{ans}' isn't a recognized zone name.")
+
+
+async def _pick_date_format(ctx) -> None:
+    """Choose a date display format from a few common presets, previewed
+    against today's date."""
+    import datetime
+
+    cs = ctx.player.client_settings
+    current = getattr(cs, 'date_format', '') or '%B %d, %Y'
+    sample  = datetime.datetime.now()
+
+    lines = ['', '|yellow|Date Format:|reset|', '']
+    for num, label, fmt in _DATE_FORMAT_PRESETS:
+        lines.append(f'  {num}. {label:<16} {sample.strftime(fmt)}')
+    lines += ['', f'Current: {_DATE_FORMAT_NAMES.get(current, current)}', '']
+
+    raw = await ctx.prompt('date format', preamble_lines=lines)
+    if raw is None or not raw.strip():
+        await ctx.send('Date format unchanged.')
+        return
+    ans = raw.strip()
+    for num, label, fmt in _DATE_FORMAT_PRESETS:
+        if ans == num or ans.lower() == label.lower():
+            cs.date_format = fmt
+            await ctx.send(f'Date format set to {label} ({sample.strftime(fmt)}).')
+            return
+    await ctx.send(f'Date format unchanged -- enter a number between 1 and {len(_DATE_FORMAT_PRESETS)}.')

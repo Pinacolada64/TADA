@@ -394,11 +394,14 @@ class ConnectCommand(Command):
             login_lines.append(welcome)
 
         # New in TADA: was the raw str(datetime) repr ("2026-07-11
-        # 14:32:01.123456"); %B %d, %Y matches this codebase's other
-        # player-facing date formatting (editplayer.py birthday, ban.py
-        # suspension date). No per-player timezone/format preference yet
-        # -- see TODO.md.
-        login_lines.append(f"You last connected on {player.last_connection.strftime('%B %d, %Y')}.")
+        # 14:32:01.123456"); now uses the player's own PREFS timezone/
+        # date-format choice (commands/prefs.py 'Z'/'D'), defaulting to
+        # the server's own local time and '%B %d, %Y' -- matches this
+        # codebase's other player-facing date formatting (editplayer.py
+        # birthday, ban.py suspension date) until those get the same
+        # per-player treatment (see TODO.md).
+        from formatting import format_player_datetime
+        login_lines.append(f"You last connected on {format_player_datetime(player.last_connection, player)}.")
         login_lines.append("")
 
         # News since last login -- see news.py for storage/visibility rules

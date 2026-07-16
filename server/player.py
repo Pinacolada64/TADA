@@ -1006,6 +1006,9 @@ class Player:
             from command_settings import CommandSettings
             if isinstance(self.command_settings, CommandSettings):
                 data_out['command_settings'] = self.command_settings.to_dict()
+            from terminal import ClientSettings
+            if isinstance(self.client_settings, ClientSettings):
+                data_out['client_settings'] = self.client_settings.to_dict()
             try:
                 import flags as _flags
                 data_out['flags'] = _flags.serialize_flags_for_save(self)
@@ -1206,6 +1209,17 @@ class Player:
                     self.command_settings = CommandSettings.from_dict(data['command_settings'])
                 except Exception:
                     logging.exception("Player._load: failed to restore command_settings for %s", self.name)
+
+            # Client settings (PREFS: border style, colors, tab settings,
+            # line ending, timezone/date format, ...) -- previously never
+            # restored at all, so every preference silently reset to
+            # ClientSettings' own __init__-time defaults on reconnect.
+            if 'client_settings' in data and isinstance(data['client_settings'], dict):
+                try:
+                    from terminal import ClientSettings
+                    self.client_settings = ClientSettings.from_dict(data['client_settings'])
+                except Exception:
+                    logging.exception("Player._load: failed to restore client_settings for %s", self.name)
 
             # Guild — stored as the enum's string value; reverse-look up the member.
             if 'guild' in data:

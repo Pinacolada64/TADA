@@ -189,6 +189,22 @@ class TabSettings:
         self.tab_width: int = 8
         self.tab_output: str = "\t"
 
+    def to_dict(self) -> dict:
+        return {
+            'has_tab_key': self.has_tab_key,
+            'tab_type':    self.tab_type,
+            'tab_width':   self.tab_width,
+            'tab_output':  self.tab_output,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'TabSettings':
+        instance = cls()
+        for key in ('has_tab_key', 'tab_type', 'tab_width', 'tab_output'):
+            if key in data:
+                setattr(instance, key, data[key])
+        return instance
+
 class TerminalColors:
     def __init__(self):
         self.text_color: ColorName = ColorName.WHITE
@@ -196,7 +212,28 @@ class TerminalColors:
         self.highlight_color: ColorName = ColorName.RED
         self.normal_color: ColorName = ColorName.WHITE
         self.background_color: ColorName = ColorName.BLACK
-    
+
+    def to_dict(self) -> dict:
+        return {
+            'text_color':       self.text_color.name,
+            'border_color':     self.border_color.name,
+            'highlight_color':  self.highlight_color.name,
+            'normal_color':     self.normal_color.name,
+            'background_color': self.background_color.name,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'TerminalColors':
+        instance = cls()
+        for key in ('text_color', 'border_color', 'highlight_color',
+                    'normal_color', 'background_color'):
+            if key in data:
+                try:
+                    setattr(instance, key, ColorName[data[key]])
+                except KeyError:
+                    pass
+        return instance
+
 class ClientSettings:
     from colorama import Fore, Back, Style
     # screen dimensions:
@@ -219,6 +256,17 @@ class ClientSettings:
     # Label for the client's Enter/Return key, shown in prompts like
     # "(Enter: Attack)" or "press Return to cancel" -- see Player.return_key.
     return_key: str = 'Enter'
+    # New in TADA: player-chosen display timezone/date format for
+    # player-facing dates (currently just commands/connect.py's "You
+    # last connected on ..."; other date displays -- birthdays, ban
+    # expiry -- are a follow-up, see TODO.md). Editable via PREFS 'Z'/'D'
+    # (commands/prefs.py). Empty timezone means "use the server's own
+    # local time" (this codebase's timestamps are stored via bare
+    # datetime.now(), so that's the only timezone they're meaningfully
+    # already in) -- an IANA zone name (e.g. 'America/New_York') converts
+    # to that zone instead. See formatting.format_player_datetime().
+    timezone:    str = ''
+    date_format: str = '%B %d, %Y'
     # Editable via commands/prefs.py's 'L' (Line Ending) row. Stored/reported
     # only for now -- not yet threaded through formatting.py's actual
     # send path (every line goes out as a JSON array element for ANSI/
@@ -233,6 +281,51 @@ class ClientSettings:
     # picker under PREFS 'K'), which is asked separately.
     has_tab: bool = False
     tab_char: str = chr(9)
+
+    # New in TADA: Player._load() never restored client_settings at all
+    # (only save() dumped it, via a generic __dict__ fallback that also
+    # serialized Enum members as their full class reflection instead of
+    # just a name/value) -- every PREFS choice silently reset to defaults
+    # on reconnect. to_dict()/from_dict() give save()/_load() a real,
+    # clean round trip. Found while adding the timezone/date_format
+    # fields above, which would have inherited the same bug.
+    def to_dict(self) -> dict:
+        return {
+            'screen_rows':    self.screen_rows,
+            'screen_columns': self.screen_columns,
+            'translation':    self.translation.name,
+            'colors':         self.colors.to_dict(),
+            'border_style':   self.border_style,
+            'has_color':      self.has_color,
+            'reverse_on':     self.reverse_on,
+            'reverse_off':    self.reverse_off,
+            'tab_settings':   self.tab_settings.to_dict(),
+            'return_key':     self.return_key,
+            'timezone':       self.timezone,
+            'date_format':    self.date_format,
+            'line_ending':    self.line_ending,
+            'has_tab':        self.has_tab,
+            'tab_char':       self.tab_char,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ClientSettings':
+        instance = cls()
+        for key in ('screen_rows', 'screen_columns', 'border_style', 'has_color',
+                    'reverse_on', 'reverse_off', 'return_key', 'timezone',
+                    'date_format', 'line_ending', 'has_tab', 'tab_char'):
+            if key in data:
+                setattr(instance, key, data[key])
+        if 'translation' in data:
+            try:
+                instance.translation = Translation[data['translation']]
+            except KeyError:
+                pass
+        if isinstance(data.get('colors'), dict):
+            instance.colors = TerminalColors.from_dict(data['colors'])
+        if isinstance(data.get('tab_settings'), dict):
+            instance.tab_settings = TabSettings.from_dict(data['tab_settings'])
+        return instance
 
 # ---------------------------------------------------------------------------
 # Everything below (settings_menu, tab_edit, edit_screen_rows,

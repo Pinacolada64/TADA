@@ -70,6 +70,16 @@ SETTINGS_METADATA: Dict[str, SettingInfo] = {
         str, 'Server listen host/interface, shared by both ports. Changing this has no effect until the server restarts.',
         'Host',
     ),
+    'server_timezone': SettingInfo(
+        str, "IANA zone name (e.g. 'America/New_York') the server's own "
+             "timestamps (player.last_connection, etc. -- stored as naive "
+             "datetime.now()) are considered to be in. Blank means "
+             "\"whatever timezone the server process's OS is set to\" -- "
+             "the same behavior as before this setting existed. This is "
+             "what PREFS 'Z' Timezone's 'Server Local' option actually "
+             "means for each player; see formatting.format_player_datetime().",
+        'Server Timezone',
+    ),
 }
 
 
@@ -193,6 +203,11 @@ class ServerConfig:
         'victory_type': 'gold',
         'victory_gold_amount': 5000,
         'victory_item_number': 0,
+
+        # Blank = "whatever timezone the server process's OS is set to"
+        # (unchanged behavior). See SETTINGS_METADATA's entry above and
+        # formatting.format_player_datetime().
+        'server_timezone': '',
     }
 
     def __new__(cls):
@@ -362,6 +377,22 @@ class ServerConfig:
     @petscii_port.setter
     def petscii_port(self, value: int) -> None:
         self.set('petscii_port', int(value))
+
+    @property
+    def server_timezone(self) -> str:
+        """IANA zone name the server's own naive timestamps are considered
+        to be in, or '' for "whatever the OS is set to" (see
+        SETTINGS_METADATA's entry and formatting.format_player_datetime())."""
+        return str(self.get('server_timezone', '') or '')
+
+    @server_timezone.setter
+    def server_timezone(self, value: str) -> None:
+        value = (value or '').strip()
+        if value:
+            import zoneinfo
+            if value not in zoneinfo.available_timezones():
+                raise ValueError(f"'{value}' isn't a recognized IANA timezone name.")
+        self.set('server_timezone', value)
 
 # Global instance
 config = ServerConfig()
