@@ -70,17 +70,20 @@ def _stat(player, key) -> int:
     return int(stats.get(key, 0) or 0)
 
 
-def _weapon_class_line(weapon, show_best_targets: bool = True) -> str:
-    """Build the 'Weapon class: X' line shown when readying.
+def _weapon_class_line(weapon, show_best_targets: bool = True) -> list[str]:
+    """Build the 'Weapon class: X' line(s) shown when readying.
 
     The '[ Best targets ]' hint (which monster sizes this weapon class
     favors -- see combat/resolution.py's hit_threshold() for the real
     to-hit bonus/penalty it's describing) is only shown in non-expert
-    mode; expert players get the terser line without it.
+    mode; expert players get the terser line without it. Returns a list
+    so the hint lands on its own line instead of an embedded '\n' inside
+    a single string, matching how the rest of this codebase builds
+    multi-line output (ctx.send() treats each list element as one line).
     """
     wc = getattr(weapon, 'weapon_class', None)
     if wc is None:
-        return ''
+        return []
     wc_str = wc.value if hasattr(wc, 'value') else str(wc)
     targets = {
         'hack_slash_bash': 'Swift, Small, Short; Light Armor',
@@ -91,10 +94,10 @@ def _weapon_class_line(weapon, show_best_targets: bool = True) -> str:
         'energy':          'Huge, Large; Light Armor',
     }
     best = targets.get(wc_str.lower(), '')
-    line = f'Weapon class: {wc_str}'
+    lines = [f'Weapon class: {wc_str}']
     if best and show_best_targets:
-        line += f'  [ Best targets ]: {best}'
-    return line
+        lines.append(f'  [ Best targets ]: {best}')
+    return lines
 
 
 class ReadyCommand(Command):
@@ -288,7 +291,7 @@ class ReadyCommand(Command):
             await ctx.send('YOU LIVE!')
 
         # Display weapon info
-        info = [_weapon_class_line(weapon, show_best_targets=not player.is_expert)]
+        info = list(_weapon_class_line(weapon, show_best_targets=not player.is_expert))
         dmg = getattr(weapon, 'stability', None)
         if dmg is not None:
             info.append(f'Base damage : {dmg}')

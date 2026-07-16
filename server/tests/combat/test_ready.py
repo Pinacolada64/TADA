@@ -208,6 +208,22 @@ class TestBestTargetsExpertGating(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('Best targets', ctx.sent())
         self.assertIn('Weapon class', ctx.sent())
 
+    async def test_best_targets_is_its_own_line(self):
+        """'[ Best targets ]' must be a separate ctx.send() list element,
+        not glued onto 'Weapon class: X' with an embedded '\\n' -- the
+        rest of the pipeline (word-wrap, pagination) works in terms of
+        one string per line."""
+        sword = _weapon('LONG SWORD', item_id=2, weapon_class='hack_slash_bash')
+        player = _FakePlayer(weapons=[sword], is_expert=False)
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'sword')
+        weapon_class_lines = [l for l in ctx._sent if l.startswith('Weapon class:')]
+        best_target_lines  = [l for l in ctx._sent if 'Best targets' in l]
+        self.assertEqual(len(weapon_class_lines), 1)
+        self.assertEqual(len(best_target_lines), 1)
+        self.assertNotIn('\n', weapon_class_lines[0])
+        self.assertNotIn('\n', best_target_lines[0])
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
