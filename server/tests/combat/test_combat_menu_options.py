@@ -64,6 +64,7 @@ def _make_session_and_ctx(responses):
     # dispatch logic under test actually runs.
     session._try_class_tame = AsyncMock(return_value=False)
     session._check_crystal_pendant = AsyncMock(return_value=None)
+    session._check_tactical_ambush = AsyncMock(return_value=None)
 
     return session, ctx
 

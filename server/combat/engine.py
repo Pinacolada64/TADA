@@ -65,6 +65,18 @@ _FRIENDLY_GOOD_RACES = {'Pixie', 'Elf'}
 _CRYSTAL_PENDANT_ID = 82   # objects.json -- blocks turn-to-stone (SPUR.MISC4.S)
 
 
+def _is_friendly_encounter(ctx: 'GameContext', monster: dict) -> bool:
+    """True when the player's race is thematically simpatico with the
+    monster's alignment flag (Ogre/Half-Elf + an evil monster, Pixie/Elf +
+    a good monster) -- SPUR's zq flag. Shared by the monster-quote greeting
+    (friendly quote pool instead of a taunt) and the tactical ambush check
+    below (a friendly encounter never ambushes)."""
+    m_flags = monster.get('flags', {}) or {}
+    race = str(getattr(ctx.player, 'char_race', '') or '')
+    return bool((m_flags.get('evil') and race in _FRIENDLY_EVIL_RACES) or
+                (m_flags.get('good') and race in _FRIENDLY_GOOD_RACES))
+
+
 def _pick_monster_quote(ctx: 'GameContext', monster: dict) -> Optional[str]:
     """Return a monster quote string (player name substituted for '$'), or None
     if no quotes are loaded."""
@@ -74,10 +86,7 @@ def _pick_monster_quote(ctx: 'GameContext', monster: dict) -> Optional[str]:
 
     quote_number = monster.get('quote_number')
     if not quote_number:
-        m_flags = monster.get('flags', {}) or {}
-        race = str(getattr(ctx.player, 'char_race', '') or '')
-        friendly = ((m_flags.get('evil') and race in _FRIENDLY_EVIL_RACES) or
-                    (m_flags.get('good') and race in _FRIENDLY_GOOD_RACES))
+        friendly = _is_friendly_encounter(ctx, monster)
         lo, hi = _FRIENDLY_RANGE if friendly else _TAUNT_RANGE
         available = [n for n in range(lo, hi + 1) if n in quotes]
         if not available:
@@ -88,6 +97,18 @@ def _pick_monster_quote(ctx: 'GameContext', monster: dict) -> Optional[str]:
     if not text:
         return None
     return text.replace('$', _player_name(ctx))
+
+
+# Tactical ambush (SPUR.MISC4.S "tactical"): once per encounter, before the
+# first exchange, an ambush falls on a random deployment slot -- POINT 50%,
+# FLANK 20%, REAR 30% (SPUR's "1111122333", a 1-10 roll read as a digit
+# string). Whoever ORDER (commands/order.py) has posted there shouts a
+# warning and rolls to hold; an empty slot leaves the player themself at risk.
+# Slot numbers here are SPUR's own 1/2/3 (Point/Flank/Rear); translated to
+# bar.ally_data.AllyPosition inside _check_tactical_ambush() (lazily
+# imported there, same as every other ally lookup in this module).
+_TACTICAL_SLOT_ROLL = (1, 1, 1, 1, 1, 2, 2, 3, 3, 3)
+_TACTICAL_SHOUTS = {1: "To the front!", 2: "On the flank!", 3: "To the rear!"}
 
 
 def _weapon_class_str(weapon) -> str:
@@ -366,6 +387,13 @@ class CombatSession:
         # round) -- if it blocks, the monster can never attempt turn-to-stone
         # for the rest of this fight. See _check_crystal_pendant().
         self._turn_to_stone_blocked = False
+        # Tactical ambush (SPUR.MISC4.S "tactical"): set once, before the
+        # first exchange, when nobody was posted in the ambushed slot and
+        # the player themself got caught off guard. Consumed exactly once,
+        # on the monster's first swing this fight (SPUR.COMBAT.S:31 "gosub
+        # m.attack: if vz=1 ... SURPRISE ATTACK.. gosub m.attack" -- a bonus
+        # monster attack). See _check_tactical_ambush().
+        self._ambush_first_strike = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -653,6 +681,123 @@ class CombatSession:
                 'glasses!',
             ])
 
+    def _current_room(self, ctx: 'GameContext'):
+        """Level-aware room lookup for this session's room_no (see
+        MECHANICS.md's note on game_map.rooms.get() being a level-1-only
+        alias -- game_map.get_room(level, room_no) is the correct one)."""
+        game_map = getattr(ctx.server, 'game_map', None)
+        if not game_map or not self.room_no:
+            return None
+        level = int(getattr(ctx.player, 'map_level', 1) or 1)
+        return game_map.get_room(level, int(self.room_no))
+
+    async def _check_tactical_ambush(self, ctx: 'GameContext') -> None:
+        """SPUR.MISC4.S "tactical": once per encounter, before the first
+        exchange, an ambush falls on a random deployment slot -- POINT 50%,
+        FLANK 20%, REAR 30%. Whichever servant ORDER has posted there
+        shouts a warning and rolls to hold (SPUR: roll vs. the servant's
+        hit points); failing that roll either scares them off for good
+        (10% chance) or just rattles them, but either way the player is
+        caught off guard too (a bonus monster attack follows -- see
+        self._ambush_first_strike). If nobody is posted in the ambushed
+        slot, the player alone is at risk of being caught off guard,
+        rolled against Intelligence + character level plus a flat 10%.
+
+        Skipped entirely for a friendly encounter (SPUR's zq flag --
+        same race/alignment affinity check as the monster-quote greeting,
+        see _is_friendly_encounter()). An ELITE-flagged servant is immune
+        ("is too clever to be caught off guard") -- SPUR checked for a
+        literal "!" in the servant's name, which this port's data models
+        as AllyFlags.ELITE (a "!" suffix marks an Elite ally's name).
+
+        Skipped if the player has killed this monster number before (SPUR's
+        xm$ check -- a rolling last-15-killed-this-session list there;
+        this port already tracks every distinct monster ever killed in
+        player.monsters_killed, so that's the equivalent gate here).
+        """
+        from bar.ally_data import AllyFlags, AllyPosition, AllyStatus
+        from bar.allies import owned_allies
+
+        if _is_friendly_encounter(ctx, self.monster):
+            return
+
+        mid = self.monster.get('number') or self.monster.get('id_number') or self.monster.get('id')
+        if mid is not None and mid in (getattr(ctx.player, 'monsters_killed', None) or []):
+            return
+
+        slot_num = random.choice(_TACTICAL_SLOT_ROLL)
+        slot = {1: AllyPosition.POINT, 2: AllyPosition.FLANK, 3: AllyPosition.REAR}[slot_num]
+        shout = _TACTICAL_SHOUTS[slot_num]
+
+        occupant = next(
+            (a for a in owned_allies(ctx.player)
+             if a.position == slot and a.status == AllyStatus.SERVANT
+             and getattr(a, 'hit_points', 0) > 0),
+            None,
+        )
+
+        if occupant is not None:
+            await ctx.send(f"{occupant.name} shouts '{shout}'")
+            roll = (random.randint(0, 298) // 10) - 9
+            if roll > occupant.hit_points:
+                if AllyFlags.ELITE in (occupant.flags or []):
+                    await ctx.send(f'{occupant.name} is too clever to be caught off guard.')
+                    return
+                await ctx.send(f'{occupant.name} was caught off guard!')
+                self._ambush_first_strike = True
+                if random.randint(1, 10) == 5:
+                    await self._ally_deserts(ctx, occupant)
+            return
+
+        # Nobody posted there -- flavor narration, then the player's own risk.
+        await ctx.send(shout)
+        roll = (random.randint(0, 298) // 10) - 9 + (slot_num * 3)
+        player   = ctx.player
+        intel    = int((getattr(player, 'stats', None) or {}).get('Intelligence', 10) or 10)
+        xp_level = int(getattr(player, 'xp_level', 1) or 1)
+        if roll > (intel + xp_level) or random.randint(1, 10) == 5:
+            await ctx.send('You are caught off guard!')
+            self._ambush_first_strike = True
+
+    async def _ally_deserts(self, ctx: 'GameContext', ally) -> None:
+        """Remove *ally* from the party with room-appropriate flavor text
+        (SPUR.MISC4.S "desert"): a space-vacuum room (water/water_with_rocks
+        flag reused on level 6+, see MECHANICS.md's "Special room traversal
+        requirements") fires retros and flees; an ordinary water room swims
+        away; otherwise the servant just runs away screaming.
+        """
+        from bar.ally_data import AllyStatus
+
+        room = self._current_room(ctx)
+        flags = getattr(room, 'flags', None) or [] if room else []
+        is_water   = any(f in ('water', 'water_with_rocks') for f in flags)
+        map_level  = int(getattr(ctx.player, 'map_level', 1) or 1)
+
+        if is_water and map_level >= 6:
+            verb = 'fires retros, and flees!'
+        elif is_water:
+            verb = 'jumps overboard and swims away!'
+        else:
+            verb = 'runs away screaming!'
+        await ctx.send(f'{ally.name} {verb}')
+
+        player = ctx.player
+        player.party.remove(ally)
+        ally.status = AllyStatus.FREE
+        ally.owner  = None
+        try:
+            from bar.ally_data import load_allies, save_ally_roster
+            master_list = load_allies()
+            for a in master_list:
+                if a.name == ally.name:
+                    a.status = AllyStatus.FREE
+                    a.owner  = None
+                    break
+            save_ally_roster(master_list)
+        except Exception:
+            log.exception('_ally_deserts: failed to sync roster for %r', ally.name)
+        player.unsaved_changes = True
+
     def _random_exit(self, ctx: 'GameContext') -> str | None:
         """Return a random navigable exit direction from the player's current room, or None."""
         import random
@@ -688,6 +833,12 @@ class CombatSession:
         # Crystal Pendant (SPUR.MISC4.S mon.set/stone) -- resolved once, here,
         # when the monster is first set up for this encounter.
         await self._check_crystal_pendant(ctx)
+
+        # Tactical ambush (SPUR.MISC4.S "tactical") -- resolved once, here,
+        # same timing as the Crystal Pendant check above. May set
+        # self._ambush_first_strike, consumed on the monster's first swing
+        # this fight, below.
+        await self._check_tactical_ambush(ctx)
 
         while not self._done.is_set():
             # ---- Druid/Ranger passive taming (TADA original, not SPUR) ----
@@ -869,6 +1020,7 @@ class CombatSession:
                             await ctx.send("OOPS, DIDN'T GET FIRST STRIKE..")
 
                 # Monster swings back at leader
+                was_first_monster_attack = self._monster_attack_count == 0
                 m_result = monster_attacks(self.monster, player,
                                            stone_blocked=self._turn_to_stone_blocked)
 
@@ -909,6 +1061,27 @@ class CombatSession:
                         return
 
                 self._monster_attack_count += 1
+
+                # Tactical ambush bonus attack (SPUR.COMBAT.S:31 "gosub
+                # m.attack: if vz=1 ... SURPRISE ATTACK.. gosub m.attack"):
+                # the pre-combat ambush check caught the player off guard --
+                # the monster gets one immediate extra swing, but only on
+                # its very first attack of the fight.
+                if was_first_monster_attack and self._ambush_first_strike:
+                    self._ambush_first_strike = False
+                    await ctx.send('Surprise attack..')
+                    m_result_ambush = monster_attacks(self.monster, player,
+                                                       stone_blocked=self._turn_to_stone_blocked)
+                    if m_result_ambush.turn_to_stone_attempted:
+                        mname_ts3 = self.monster.get('name', 'The monster')
+                        await ctx.send(f'{mname_ts3} CASTS TURN TO STONE ON YOU!')
+                        if m_result_ambush.turned_to_stone:
+                            await self._player_petrified(ctx)
+                            return
+                        await ctx.send('...IT FAILED!')
+                    elif await self._resolve_monster_hit(ctx, m_result_ambush):
+                        return
+                    self._monster_attack_count += 1
 
                 # Double attack: some monsters swing twice per round (SPUR: ] flag, 40%)
                 # (SPUR.COMBAT.S: if instr("]",wy$) rnd.10a: if a<5 → DOUBLE ATTACK!)
