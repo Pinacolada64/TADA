@@ -278,6 +278,21 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
 
         available.append((name, entry, _record))
 
+    # Statue (combat/engine.py's _player_petrified() -- a petrified player's
+    # statue permanently occupies this room, SPUR's wy$ room flag). Never
+    # actually removable, so remove_fn is a no-op -- see GetCommand._pick_up()'s
+    # is_statue check, which blocks the pickup outright instead of calling it.
+    # victim/monster carried on the Item itself (not re-looked-up) so
+    # commands/look.py's plaque flavor text doesn't need its own statues.py
+    # query with its own chance to disagree about which record matched.
+    from statues import get_statue
+    if room_no is not None:
+        record = get_statue(level, int(room_no))
+        if record:
+            statue_item = Item(name='a statue', category=ItemCategory.ITEM, is_statue=True,
+                               victim=record.get('victim'), monster=record.get('monster'))
+            available.append(('a statue', InventoryEntry(item=statue_item), lambda: None))
+
     # Items dropped by players this session (global — real transfers between players)
     dropped = server.room_items.get(int(room_no) if room_no else -1, [])
     for i, entry in enumerate(dropped):
@@ -410,6 +425,14 @@ class GetCommand(Command):
                        name: str, entry: InventoryEntry, remove_fn) -> CommandResult:
         player  = ctx.player
         item_id = getattr(entry.item, 'id_number', None)
+
+        # --- Statue: permanently too heavy to take (SPUR.MISC.S get.b:
+        # instr("STATUE",i$)/instr("#",wy$)) -- checked before anything
+        # else since it's not a real catalog item (no id_number, no price,
+        # nothing to add to inventory or convert to gold).
+        if getattr(entry.item, 'is_statue', False):
+            await ctx.send('THE STATUE IS MUCH TOO HEAVY!')
+            return CommandResult.ok()
 
         # --- Tut's Treasure: quest #16 (quests/tuts_treasure.py) -- checked
         # before the "inventory full" guard below, since a successful GET

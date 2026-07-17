@@ -52,7 +52,20 @@ def _examine_item(ctx, name: str, item) -> str:
     see player.last_examined). SPUR rolls first and checks the memory
     second, so a failed roll re-fails even on a repeat examine; matched
     here for authenticity.
+
+    A room statue (commands/get.py's is_statue pseudo-item, statues.py's
+    add_statue()) isn't a real objects.json entry -- no id_number for
+    _raw_item_data() to look up -- so it's special-cased here (Ryan's
+    request) to name the petrified player and the monster responsible,
+    rather than falling through to the generic "It looks pretty
+    ordinary.." default.
     """
+    if getattr(item, 'is_statue', False):
+        victim  = getattr(item, 'victim', None) or 'someone'
+        monster = getattr(item, 'monster', None) or 'Unknown'
+        return (f'You inspect the statue of {victim}. At the base is a '
+                f'small brass plaque which reads, "Artist: {monster}."')
+
     raw = _raw_item_data(ctx, item)
     if raw and raw.get('examine'):
         return raw['examine']

@@ -795,6 +795,20 @@ class Server:
         except Exception:
             pass
 
+        # Statue: a petrified player's statue permanently occupies this room
+        # (statues.py's add_statue(), set by combat/engine.py's
+        # _player_petrified()) -- SPUR's wy$ room flag. commands/get.py
+        # blocks picking it up ("THE STATUE IS MUCH TOO HEAVY!"); this is
+        # the matching room-description half, so it's actually visible
+        # before a player tries to GET it.
+        try:
+            from statues import get_statue
+            record = get_statue(level, int(room_no))
+            if record and record.get('victim'):
+                lines += ['', f"There is a statue of {record['victim']} here!"]
+        except Exception:
+            pass
+
         if seen:
             lines += ['', f"You see {grammatical_list(seen)}."]
 

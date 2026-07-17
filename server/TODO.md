@@ -583,13 +583,26 @@
      the two read as contradictory without more context on where
      fd$/md actually get set elsewhere in combat code -- needs tracing
      through the source before porting, not a guess.
-  3. STATUE handling ("GET STATUE" -> "THE STATUE IS MUCH TOO HEAVY!"
-     when instr(\"#\",wy$)) is unported in get.py, even though the
-     underlying petrification mechanic already exists in this codebase
-     (combat/engine.py's _player_petrified()/_record_statue() writes a
-     memorial when a player is turned to stone) -- this one's more
-     straightforward than #1/#2 since the game state it needs is
-     already there.
+  3. [DONE 7/16/26] STATUE handling: "GET STATUE" -> "THE STATUE IS
+     MUCH TOO HEAVY!" (never added to inventory, never removed --
+     permanent). Turned out to need more than just wiring GET up to
+     the existing petrification mechanic, though -- combat/engine.py's
+     _record_statue() only ever wrote a per-monster memorial *file*,
+     not any queryable per-room state, so there was nothing for GET to
+     actually check. Added statues.py (add_statue()/get_statue()/
+     has_statue(), a persisted, shared -- not per-player -- room
+     statue registry mirroring news.py's load/save-fresh-every-call
+     design), wired into combat/engine.py's _player_petrified() (sets
+     it on the room where the player turned to stone) and
+     commands/get.py's _room_available_items()/_pick_up() (lists it,
+     blocks pickup). Also: simple_server.py's _describe_room() shows
+     "There is a statue of {victim} here!"; commands/look.py's
+     _examine_item() and commands/read.py's ReadCommand both show "You
+     inspect the statue of {victim}. At the base is a small brass
+     plaque which reads, "Artist: {monster}."" for 'look statue'/
+     'examine statue'/'read statue' (Ryan's exact wording, not a SPUR
+     port -- SPUR's own exam.a line was just "It is made of stone, and
+     is kind of ugly.").
 
 7/17/26:
 - Charm spell (Ryan): `spells/charm.py`'s CHARM POTION mechanic is only

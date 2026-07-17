@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import sys, types
@@ -183,8 +184,17 @@ class TestPlayerPetrified(unittest.IsolatedAsyncioTestCase):
     async def test_petrified_flow(self):
         self.tmpdir = tempfile.mkdtemp(prefix='tada-statue-test-')
         import net_common
+        import statues
         orig = getattr(net_common, 'run_server_dir', None)
         net_common.run_server_dir = self.tmpdir
+        # _player_petrified() also calls statues.add_statue() (room-state
+        # half, distinct from _record_statue()'s memorial file below) --
+        # isolate its file too, or this test writes to the real
+        # run/server/room_statues.json at (level=1, room=1), which then
+        # pollutes any other test relying on that being empty. Found live
+        # via exactly that cross-test pollution.
+        orig_statues_path = statues.ROOM_STATUES_FILE
+        statues.ROOM_STATUES_FILE = Path(self.tmpdir) / 'room_statues.json'
         try:
             player = _FakePlayer(hit_points=20)
             ctx = _FakeCtx(player)
@@ -202,7 +212,81 @@ class TestPlayerPetrified(unittest.IsolatedAsyncioTestCase):
         finally:
             import shutil
             net_common.run_server_dir = orig
+            statues.ROOM_STATUES_FILE = orig_statues_path
             shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+
+# ---------------------------------------------------------------------------
+# CombatSession._player_petrified() -- statues.py room-statue recording
+# ---------------------------------------------------------------------------
+
+class TestPlayerPetrifiedRoomStatue(unittest.IsolatedAsyncioTestCase):
+    """statues.py's add_statue() -- distinct from _record_statue()'s
+    per-monster memorial log above: this is the queryable, persisted
+    per-(level, room) state commands/get.py checks."""
+
+    def setUp(self):
+        import statues
+        self.tmpdir = tempfile.mkdtemp(prefix='tada-room-statue-test-')
+        self._orig_path = statues.ROOM_STATUES_FILE
+        statues.ROOM_STATUES_FILE = Path(self.tmpdir) / 'room_statues.json'
+
+        import net_common
+        self._orig_run_dir = getattr(net_common, 'run_server_dir', None)
+        net_common.run_server_dir = self.tmpdir
+
+    def tearDown(self):
+        import statues, net_common, shutil
+        statues.ROOM_STATUES_FILE = self._orig_path
+        net_common.run_server_dir = self._orig_run_dir
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    async def test_records_statue_in_current_room(self):
+        import statues
+        player = _FakePlayer(hit_points=20)
+        player.map_level = 3
+        ctx = _FakeCtx(player)
+        ctx.client.room = 47
+        session = CombatSession({'name': 'MEDUSA', 'strength': 10}, room_no=47)
+
+        await session._player_petrified(ctx)
+
+        self.assertTrue(statues.has_statue(3, 47))
+        self.assertFalse(statues.has_statue(3, 48))
+        self.assertFalse(statues.has_statue(4, 47))
+
+    async def test_records_monster_and_victim_name(self):
+        import statues
+        player = _FakePlayer(hit_points=20)
+        player.map_level = 1
+        ctx = _FakeCtx(player)
+        ctx.client.room = 5
+        session = CombatSession({'name': 'THE MEDUSA', 'strength': 10}, room_no=5)
+
+        await session._player_petrified(ctx)
+
+        record = statues.load_room_statues()[0]
+        self.assertEqual(record['monster'], 'THE MEDUSA')
+        self.assertEqual(record['victim'], 'Rulan')
+
+    async def test_second_petrification_in_same_room_does_not_duplicate(self):
+        import statues
+        player = _FakePlayer(hit_points=20)
+        player.map_level = 1
+        ctx = _FakeCtx(player)
+        ctx.client.room = 5
+        session = CombatSession({'name': 'MEDUSA', 'strength': 10}, room_no=5)
+
+        await session._player_petrified(ctx)
+        player2 = _FakePlayer(hit_points=20)
+        player2.name = 'Bilbo'
+        player2.map_level = 1
+        ctx2 = _FakeCtx(player2)
+        ctx2.client.room = 5
+        session2 = CombatSession({'name': 'MEDUSA', 'strength': 10}, room_no=5)
+        await session2._player_petrified(ctx2)
+
+        self.assertEqual(len(statues.load_room_statues()), 1)
 
 
 # ---------------------------------------------------------------------------

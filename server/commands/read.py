@@ -266,6 +266,21 @@ class ReadCommand(Command):
             await ctx.send('Not smart enough to read!')
             return CommandResult.ok()
 
+        # Statue's plaque (Ryan's request): not a real book/inventory item,
+        # so it can never reach the normal entries-search below -- checked
+        # first and reuses commands/look.py's exact flavor text (the same
+        # "small brass plaque" message 'look statue'/'examine statue' show)
+        # rather than duplicating it here.
+        if args:
+            target = ' '.join(args).lower()
+            if 'statue' in target:
+                from commands.get import _room_available_items
+                from commands.look import _examine_item
+                for name, entry, _remove_fn in _room_available_items(ctx):
+                    if getattr(entry.item, 'is_statue', False) and target in name.lower():
+                        await ctx.send(_examine_item(ctx, name, entry.item))
+                        return CommandResult.ok()
+
         entries = _book_entries(player)
 
         if not entries:

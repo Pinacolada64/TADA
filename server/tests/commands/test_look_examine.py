@@ -217,6 +217,38 @@ class TestExamineOrdinaryFallback(unittest.TestCase):
         self.assertEqual(_examine_item(ctx, 'SWORD', weapon), 'It looks pretty ordinary..')
 
 
+class TestExamineStatue(unittest.TestCase):
+    """A room statue (commands/get.py's is_statue pseudo-item, set by
+    statues.py's add_statue()) isn't a real objects.json entry -- no
+    id_number for _raw_item_data() to find -- so LOOK/EXAMINE special-cases
+    it (Ryan's request) to name the petrified player and the monster
+    responsible, rather than falling through to the generic "It looks
+    pretty ordinary.." default."""
+
+    def test_statue_names_victim_and_monster(self):
+        item = Item(name='a statue', category=ItemCategory.ITEM, is_statue=True,
+                   victim='Alice', monster='MEDUSA')
+        ctx = _FakeCtx(_player(), _FakeServer())
+        self.assertEqual(
+            _examine_item(ctx, 'a statue', item),
+            'You inspect the statue of Alice. At the base is a small '
+            'brass plaque which reads, "Artist: MEDUSA."',
+        )
+
+    def test_statue_does_not_fall_through_to_ordinary(self):
+        item = Item(name='a statue', category=ItemCategory.ITEM, is_statue=True,
+                   victim='Alice', monster='MEDUSA')
+        ctx = _FakeCtx(_player(), _FakeServer())
+        self.assertNotEqual(_examine_item(ctx, 'a statue', item), 'It looks pretty ordinary..')
+
+    def test_missing_victim_or_monster_does_not_crash(self):
+        item = Item(name='a statue', category=ItemCategory.ITEM, is_statue=True)
+        ctx = _FakeCtx(_player(), _FakeServer())
+        text = _examine_item(ctx, 'a statue', item)
+        self.assertIn('someone', text)
+        self.assertIn('Unknown', text)
+
+
 class TestLookCommandIntegration(unittest.IsolatedAsyncioTestCase):
     """End-to-end: 'look <item>' against an inventory item uses the new
     data-driven examine text."""

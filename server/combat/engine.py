@@ -1447,6 +1447,13 @@ class CombatSession:
         memorial: a file named after the monster (stripped of a leading
         "THE "), one player name appended per victim, mirroring the original
         `statue` subroutine's `dy$=dx$+m$ ... print #1,n1$`.
+
+        Also records the statue itself in *this* room (statues.py's
+        add_statue()) -- SPUR's wy$ room flag, checked by GET/EXAMINE
+        (commands/get.py) so the statue actually sits there for other
+        players to find, blocking pickup ("THE STATUE IS MUCH TOO
+        HEAVY!") rather than just leaving a log entry with no in-world
+        presence.
         """
         self._done.set()
         mname = self.monster.get('name', 'The monster')
@@ -1460,6 +1467,13 @@ class CombatSession:
         )
         await ctx.send('(Carving your statue!)')
         _record_statue(mname, _player_name(ctx))
+
+        room_no = getattr(ctx.client, 'room', None)
+        if room_no is not None:
+            from statues import add_statue
+            level = int(getattr(ctx.player, 'map_level', 1) or 1)
+            add_statue(level, int(room_no), mname, _player_name(ctx))
+
         ctx.player.hit_points = 0
         ctx.player.unsaved_changes = True
 
