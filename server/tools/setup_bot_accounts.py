@@ -9,8 +9,11 @@ creation wizard) so the bot scripts can log straight in over the wire:
                           bystander (LASSO is only reachable that way; the
                           fight's own leader is blocked in its own prompt
                           loop for the whole encounter)
-  botlasso   (Fighter) -- captures the wild horse via LASSO; also a plain
-                          second attacker for bot_monster_encounter.py
+  botlasso   (Fighter) -- captures the wild horse via LASSO; also
+                          bot_monster_encounter.py's ranged attacker --
+                          pre-seeded with a .357 MAGNUM and two boxes of
+                          .357 ammo so it can READY the gun and USE a box
+                          live, instead of melee-joining like the others
   botdruid   (Druid)   -- captures the wild horse via the passive
                           class-affinity tame
   railbender (Fighter) -- pre-seeded with 3 purchased servant allies
@@ -66,6 +69,32 @@ ACCOUNTS = [
 _RAILBENDER_ALLY_NAMES = ('BATMAN', 'ARTHUR DENT', 'BETTY BOOP')
 
 
+def _seed_botlasso_gun(player) -> None:
+    """Give botlasso a .357 MAGNUM (weapon #11) and two boxes of .357 ammo
+    (item #104, objects.json) so bot_monster_encounter.py can READY the gun
+    and USE a box live -- exercises commands/use.py's ammo-loading branch
+    (fixed in this same session: shop-bought ammo used to lose its
+    rounds/damage/used_with flags on purchase, so USE could never load it;
+    see commands/use.py's _apply_item docstring)."""
+    from inventory import Inventory
+    from items import Item, ItemCategory, Weapon
+
+    # Same re-seed-fresh reasoning as _seed_railbender_allies: Player.__init__
+    # loads any pre-existing save (including a prior run's inventory) before
+    # this runs.
+    player.inventory = Inventory(capacity=player.max_inventory_size)
+
+    weapon = Weapon(id_number=11, name='.357 MAGNUM', category=ItemCategory.WEAPON,
+                     kind='standard', weapon_class='projectile',
+                     stability=50, to_hit=70, price=200,
+                     sound_effect=['KA-PWING!', 'BLAM!'])
+    player.inventory.add(weapon)
+    for _ in range(2):
+        ammo = Item(id_number=104, name='.357 ammo', category=ItemCategory.ITEM,
+                     price=1, flags={'rounds': 6, 'damage': 4, 'used_with': '.357 magnum'})
+        player.inventory.add(ammo)
+
+
 def _seed_railbender_allies(player) -> None:
     from bar.ally_data import AllyStatus, load_allies, save_ally_roster
     from party import Party
@@ -103,6 +132,8 @@ def make_account(name: str, char_class, gender) -> None:
 
     if name == 'railbender':
         _seed_railbender_allies(player)
+    if name == 'botlasso':
+        _seed_botlasso_gun(player)
 
     ok = player.save(force=True)
     if not ok:
@@ -116,6 +147,8 @@ def make_account(name: str, char_class, gender) -> None:
     extra = ''
     if name == 'railbender':
         extra = f' -- servants: {", ".join(_RAILBENDER_ALLY_NAMES)}'
+    if name == 'botlasso':
+        extra = ' -- carrying: .357 MAGNUM, 2x .357 ammo'
     print(f'Created {name} ({char_class.value}, {gender.value}) -- '
           f'password {_PASSWORD!r}, elevator combo {"-".join(f"{n:02}" for n in _ELEVATOR_COMBO)}{extra}')
 

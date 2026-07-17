@@ -166,6 +166,11 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
             id_number = it['number'],
             name      = name,
             category  = ItemCategory.ITEM,
+            # rounds/damage/used_with (ammo) travels with the purchased
+            # item so commands/use.py can actually load it later -- dropping
+            # this left every shop-bought round of ammo permanently unusable
+            # (see commands/use.py's _apply_item docstring).
+            flags     = it.get('flags'),
         )
         if inv is None or not inv.add(item):
             await ctx.send(PACK_FULL_MESSAGE)

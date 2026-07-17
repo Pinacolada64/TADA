@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """bot_monster_encounter.py — Reactive live demo of a full monster encounter
 against a real running TADA server: ORDER deployment, the crystal pendant
-petrify counter, and the tactical ambush check, all in one fight.
+petrify counter, the tactical ambush check, and ranged-weapon combat
+(READY a .357 MAGNUM, USE a box of ammo to load it), all in one fight.
 
 Same perceive -> update-belief -> decide loop style as bot_horse_journey.py
 (see that file's docstring for why a reactive bot beats a fixed-delay
@@ -63,6 +64,12 @@ _AMBUSH_CAUGHT    = 'was caught off guard!'
 _AMBUSH_YOU_CAUGHT = 'you are caught off guard!'
 _AMBUSH_ELITE_IMMUNE = 'is too clever to be caught off guard.'
 _AMBUSH_DESERT_PHRASES = ('runs away screaming!', 'jumps overboard and swims away!', 'fires retros, and flees!')
+
+# Ranged-weapon greppable markers (commands/use.py / combat/engine.py --
+# see tools/BOT_README.md's follow-up notes on the ammo-loading fix).
+_AMMO_LOADED          = 'rounds now ready'
+_AMMO_EMPTY           = 'try use to load ammunition'
+_MISSILE_FIRST_STRIKE = 'missile: first strike!'
 
 
 def _log(text: str = '') -> None:
@@ -139,6 +146,9 @@ class Bot:
         self.ambush_ally_deserted = False
         self.ambush_elite_immune = False
         self.order_deployed = False
+        self.ammo_loaded = False
+        self.ammo_ran_out = False
+        self.missile_first_strike = False
 
     # -- transport -----------------------------------------------------
 
@@ -258,6 +268,17 @@ class Bot:
             self.ambush_ally_deserted = True
             _record('ambush', self.label, text.strip())
 
+        # Ranged weapon: ammo loading, running dry, first-strike bonus.
+        if _AMMO_LOADED in low:
+            self.ammo_loaded = True
+            _record('use', self.label, text.strip())
+        if _AMMO_EMPTY in low:
+            self.ammo_ran_out = True
+            _record('use', self.label, text.strip())
+        if _MISSILE_FIRST_STRIKE in low:
+            self.missile_first_strike = True
+            _record('combat', self.label, text.strip())
+
         # Petrify death (MEDUSA's actual turn-to-stone attack landing) --
         # separate from the crystal pendant's block/counter above, since
         # this is what happens when nobody blocked it (no pendant on the
@@ -324,10 +345,28 @@ async def ready_weapon(bot: Bot) -> None:
     keep the demo fight from dragging on for dozens of rounds."""
     await bot.say('ready')
     await bot.drain_until(lambda b: b.is_main_prompt() or 'weapon' in b.last_prompt.lower())
-    if not bot.is_main_prompt():
+    had_weapons = not bot.is_main_prompt()
+    if had_weapons:
         await bot.say('1')
         await bot.drain_until(lambda b: b.is_main_prompt())
-    _record('ready', bot.label, 'readied a weapon')
+    if had_weapons:
+        _record('ready', bot.label, 'readied a weapon')
+
+
+async def load_ammo(bot: Bot, ammo_name: str) -> None:
+    """USE a box of ammo to load it into the just-readied weapon --
+    exercises commands/use.py's ammo branch (fixed this session: shop-
+    bought ammo used to lose its rounds/damage/used_with flags on
+    purchase -- and, deeper still, ANY item's flags were dropped on every
+    save/load cycle by inventory.py's JSON round-trip -- so USE could
+    never load it. See BOT_README.md and inventory.py's
+    InventoryEntry.to_json() docstring.
+
+    Only records the 'use' event here on the send side; _update_belief()
+    already records the actual "N ROUNDS NOW READY" reply, so this doesn't
+    double-log the same real event under two different phases."""
+    await bot.say(f'use {ammo_name}')
+    await bot.drain_until(lambda b: b.is_main_prompt())
 
 
 # ---------------------------------------------------------------------------
@@ -390,20 +429,35 @@ async def leader_loop(bot: Bot, fight_started: asyncio.Event, may_stop: asyncio.
 
 async def joiner_loop(bot: Bot, fight_started: asyncio.Event, may_stop: asyncio.Event) -> None:
     """Wait for the leader's fight to be real, join it, then keep re-issuing
-    `attack` every round -- unlike the leader, a bystander who joins gets a
-    single swing and drops straight back to the main prompt each time (no
-    persistent Command> menu of their own), so "keep fighting" here means
-    "keep sending attack" until the monster dies, we die, or the leader
-    signals the fight is over via `may_stop`."""
+    `attack` every round -- unlike the (original) leader, a bystander who
+    joins an already-open fight gets a single swing and drops straight back
+    to the main prompt each time (no persistent Command> menu of their own).
+
+    But if the room's original leader dies or leaves first, whoever attacks
+    next becomes the *new* leader and DOES get a Command> menu of their own
+    (observed live: railbender ended up stuck there when botdummy fell
+    before the others joined) -- so this loop also drives that menu with
+    'a' each round, exactly like leader_loop, whenever it sees one."""
     await fight_started.wait()
 
     for _ in range(30):   # generous round budget
         if not bot.alive or bot.monster_dead or may_stop.is_set():
             return
         await bot.say('attack')
-        if not await bot.drain_until(lambda b: b.is_main_prompt()):
+        if not await bot.drain_until(
+            lambda b: b.is_main_prompt() or b.last_prompt.rstrip().lower().endswith('command>')
+        ):
             _log(f'  [{bot.label}] gave up waiting for a response to attack')
             return
+        while bot.last_prompt.rstrip().lower().endswith('command>'):
+            if not bot.alive or bot.monster_dead:
+                return
+            await bot.say('a')
+            if not await bot.drain_until(
+                lambda b: b.is_main_prompt() or b.last_prompt.rstrip().lower().endswith('command>')
+            ):
+                _log(f'  [{bot.label}] gave up waiting for a response at the Command> menu')
+                return
         if bot.monster_dead or not bot.alive:
             return
 
@@ -426,6 +480,7 @@ async def monster_encounter(host: str, port: int) -> None:
 
     for b in (dummy, lasso, rail):
         await ready_weapon(b)
+    await load_ammo(lasso, '.357 ammo')   # botlasso: the ranged path
 
     await goto_monster_room(dummy, get_pendant=False)
     await goto_monster_room(lasso, get_pendant=False)
@@ -455,6 +510,9 @@ async def monster_encounter(host: str, port: int) -> None:
     _log(f'  ambush caught a servant: {rail.ambush_ally_caught}')
     _log(f'  ELITE servant immune: {rail.ambush_elite_immune}')
     _log(f'  a servant deserted: {rail.ambush_ally_deserted}')
+    _log(f'  botlasso loaded .357 ammo: {lasso.ammo_loaded}')
+    _log(f'  botlasso ran out of ammo mid-fight: {lasso.ammo_ran_out}')
+    _log(f'  missile first strike triggered: {any(b.missile_first_strike for b in (dummy, lasso, rail))}')
     _record('outcome', 'system', 'encounter complete')
 
     for b in (dummy, lasso, rail):

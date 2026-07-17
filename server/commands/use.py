@@ -22,7 +22,7 @@ import random
 
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from item_system import Item, ItemType
+from item_system import ItemType
 from items import ItemCategory
 from network_context import GameContext
 
@@ -59,11 +59,25 @@ def _shield_cap(player, cap_bonus: int) -> int:
     return 100 + cap_bonus
 
 
-def _apply_item(item: Item, player) -> list[str]:
-    """Apply item effect to player; return message lines. Removes item from inventory on use."""
+def _apply_item(item, player) -> list[str]:
+    """Apply item effect to player; return message lines. Removes item from inventory on use.
+
+    *item* is a real items.Item (the class every shop/inventory path actually
+    constructs) -- NOT item_system.Item, a separate, unrelated dataclass this
+    function used to require via an isinstance() gate at the call site. That
+    gate meant every branch below was live only in tests that constructed
+    item_system.Item objects directly; no shop-bought item could ever reach
+    it (items.Item has no .type attribute at all, and isn't the same class),
+    so USE-ing shop-bought ammo silently fell through to "You play with the
+    X.." instead of loading rounds. Fixed by reading .type/.flags off
+    whatever's actually there (getattr, not an isinstance gate) and having
+    the ammo branch duck-type on the flags shape (rounds/used_with) instead
+    of item_system.Item's is_ammo_carrier property.
+    """
     inv   = getattr(player, 'inventory', None)
-    itype = item.type
-    name  = item.name
+    itype = getattr(item, 'type', None)
+    name  = getattr(item, 'name', 'it')
+    flags = getattr(item, 'flags', None)
 
     # ---- Compass -----------------------------------------------------------
     if itype == ItemType.COMPASS:
@@ -77,7 +91,7 @@ def _apply_item(item: Item, player) -> list[str]:
     if itype == ItemType.SHIELD:
         name_upper = name.upper()
         cap_bonus  = 20 if ('BATTLE' in name_upper or 'LAZER' in name_upper) else 0
-        rating_add = item.price * 10 or 20   # proxy: price maps to ~20-80% rating
+        rating_add = getattr(item, 'price', 0) * 10 or 20   # proxy: price maps to ~20-80% rating
         cap        = _shield_cap(player, cap_bonus)
         current    = int(getattr(player, 'shield', 0) or 0)
         if current >= cap:
@@ -95,18 +109,22 @@ def _apply_item(item: Item, player) -> list[str]:
         return msgs
 
     # ---- Ammo / power pak --------------------------------------------------
-    if item.is_ammo_carrier:
+    # Duck-typed on the flags shape (rounds + used_with) rather than
+    # item_system.Item.is_ammo_carrier -- items.Item (what shops actually
+    # construct) has no such property, just a flags dict/list.
+    is_ammo_carrier = isinstance(flags, dict) and 'rounds' in flags and 'used_with' in flags
+    if is_ammo_carrier:
         weapon = getattr(player, 'readied_weapon', None)
         if weapon is None:
             return ['YOU MUST READY YOUR WEAPON FIRST!']
         wname_upper = (getattr(weapon, 'name', '') or '').upper()
         if 'STORM' in wname_upper:
             return [f'THE {wname_upper} DOES NOT USE PHYSICAL AMMO!']
-        used_with = ((item.flags or {}).get('used_with') or '').strip().upper()
+        used_with = ((flags or {}).get('used_with') or '').strip().upper()
         if used_with and used_with not in wname_upper:
             return [f'THIS AMMO IS NOT FOR THE {wname_upper}!']
-        rounds = int((item.flags or {}).get('rounds', 0))
-        damage = int((item.flags or {}).get('damage', 0))
+        rounds = int((flags or {}).get('rounds', 0))
+        damage = int((flags or {}).get('damage', 0))
         player.ammo_rounds = rounds
         player.ammo_damage = damage
         player.ammo_max    = rounds
@@ -294,10 +312,6 @@ class UseCommand(Command):
             if inv:
                 inv.remove(item)
             await ctx.send(f'You {verb.format(label=label)} the horse..')
-            return CommandResult.ok()
-
-        if not isinstance(item, Item):
-            await ctx.send(f'You play with the {getattr(item, "name", "it")}..')
             return CommandResult.ok()
 
         for line in _apply_item(item, player):
