@@ -2,6 +2,10 @@
 __pycache__/
 run/
 .venv/
+# auto-created by config.py's ServerConfig on first instantiation if
+# missing (sysop-editable server settings; local runtime data, not
+# checked in)
+server_config.json
 # PyCharm settings:
 .idea/
 /tada-venv/
