@@ -27,3 +27,13 @@
   pre-existing baseline failures unrelated to any in-session work —
   confirm a change hasn't introduced new failures by diffing against
   that count/list, not by expecting a clean run.
+
+## Bot scripts
+
+- **Once a scripted bot session built on `bot_client.py` (e.g. to drive
+  the live server end-to-end for manual/exploratory verification, or to
+  reproduce a bug live) actually works, keep it in `tools/` rather than
+  a scratch/temp path.** These are cheap to re-run for future regression
+  checks or as a reference for the next scripted session — see
+  `tools/bot_horse_journey.py` for the established pattern/style to
+  follow.
