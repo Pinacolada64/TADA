@@ -16,14 +16,8 @@ loop when it sees that data flag (simple_server.py's _game_loop()).
 """
 import asyncio
 import json
-import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
-
-# See test_wild_horse_placement.py: force a clean reimport regardless of
-# what stubbed sys.modules['network_context']/['net_common'] before us.
-for _mod in ('network_context', 'net_common', 'simple_server'):
-    sys.modules.pop(_mod, None)
 
 from simple_server import Server
 from commands.quit import QuitCommand

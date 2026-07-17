@@ -13,17 +13,7 @@ Run with:
 """
 from __future__ import annotations
 
-import sys
 import unittest
-
-# Several other test modules in the suite stub sys.modules['network_context']
-# with incomplete fakes (e.g. GameContext=object, no PETSCIINetworkContext at
-# all) and never restore them -- see test_wild_horse_placement.py's identical
-# note. This file's isinstance(ctx, PETSCIINetworkContext) checks need the
-# *real* class, not whatever fake object identity another file's stub left
-# behind, so force a clean reimport regardless of collection order.
-for _mod in ('network_context', 'net_common', 'commands.prefs'):
-    sys.modules.pop(_mod, None)
 
 from player import Player
 from terminal import Translation

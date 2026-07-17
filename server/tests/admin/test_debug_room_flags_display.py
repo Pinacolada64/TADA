@@ -8,15 +8,9 @@ players, and omitted entirely for flagless rooms.
 """
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock
 
 import pytest
-
-# See test_wild_horse_placement.py: force a clean reimport regardless of
-# what stubbed sys.modules['network_context']/['net_common'] before us.
-for _mod in ('network_context', 'net_common', 'simple_server'):
-    sys.modules.pop(_mod, None)
 
 from simple_server import Server
 from base_classes import Map, Room

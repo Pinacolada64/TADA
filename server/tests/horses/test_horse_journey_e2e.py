@@ -46,13 +46,6 @@ if nc_stub_needed:
     nc_stub.GameContext = object
     sys.modules.setdefault('network_context', nc_stub)
 
-# test_wild_horse_placement.py notes that other test modules leave stubbed
-# sys.modules['network_context']/['net_common'] behind that break simple_server's
-# real import -- force a clean reimport of the real modules regardless of
-# what ran before us.
-for _mod in ('network_context', 'net_common', 'simple_server'):
-    sys.modules.pop(_mod, None)
-
 from simple_server import Server, _WILD_HORSE_ROOMS, _WILD_HORSE_MONSTER_NUMBER
 from base_classes import Gender, PlayerClass
 from bar.ally_data import AllyFlags

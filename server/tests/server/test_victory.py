@@ -7,12 +7,8 @@ dead, (2) victory_item_number carried if victory_type is item/both,
 """
 from __future__ import annotations
 
-import sys
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
-
-for _mod in ('network_context', 'net_common', 'simple_server'):
-    sys.modules.pop(_mod, None)
 
 from base_classes import Map, PlayerMoneyTypes, Room
 from commands.movement import MoveCommand

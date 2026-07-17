@@ -17,6 +17,7 @@ from item_system import (
     format_victory_item_choices, format_victory_item_value,
     is_victory_item_number_valid, victory_eligible_treasures,
 )
+from net_common import user_dir
 
 _VICTORY_ITEM_KEY = 'victory_item_number'
 
@@ -192,6 +193,72 @@ def edit_server_config():
         _edit_one_setting(key)
 
 
+def _user_credential_path(user_id: str) -> Path:
+    return user_dir() / f'login-{user_id}.json'
+
+
+def list_users() -> list:
+    """User ids with a login credential file (net_common.user_dir()).
+
+    Consolidated from net_admin.py -- that standalone script's account
+    admin (invite/user subcommands) depended on old_server.net_common's
+    Invite/User classes, which don't exist here: 'invite' was a defunct
+    concept (account creation is self-serve via new_player.py, no invite
+    gate), and 'user' operated on credential files this function reads
+    directly instead.
+    """
+    udir = user_dir()
+    if not udir.exists():
+        return []
+    return sorted(p.stem[len('login-'):] for p in udir.glob('login-*.json'))
+
+
+def show_users() -> None:
+    users = list_users()
+    if not users:
+        print("No user accounts found.")
+        return
+    print(f"\n{len(users)} user account(s):")
+    for user_id in users:
+        print(f"  {user_id}")
+
+
+def remove_user(user_id: str) -> bool:
+    """Delete a user's login credential file. Returns True if removed.
+
+    Only removes login access (net_common.user_dir()'s login-<id>.json),
+    same scope as net_admin.py's original 'user --remove' -- a character's
+    saved game data (player-<id>.json, written by Player.save()) is a
+    separate file this doesn't touch.
+    """
+    path = _user_credential_path(user_id)
+    if not path.exists():
+        print(f"ERROR: there is no user '{user_id}'")
+        return False
+    path.unlink()
+    print(f"Deleted user '{user_id}'.")
+    return True
+
+
+def manage_users() -> None:
+    while True:
+        print("\n" + headline("User Accounts"))
+        show_users()
+        print("\nr. Remove a user")
+        print("b. Back to main menu")
+        choice = input("\nChoice: ").strip().lower()
+        if choice == 'r':
+            user_id = input("User id to remove: ").strip()
+            if not user_id:
+                continue
+            if input_yes_no(f"Really delete user '{user_id}'?"):
+                remove_user(user_id)
+        elif choice == 'b':
+            break
+        else:
+            print("Invalid choice. Please try again.")
+
+
 class ServerDefaults:
     def __init__(self):
         self.data = "server/data"
@@ -216,6 +283,7 @@ def main():
         print("n. Edit news")
         print("c. Edit server config")
         print("g. Edit game config")
+        print("u. User accounts")
         print("q. Quit")
 
         choice = input("\nChoice: ").strip().lower()
@@ -233,6 +301,8 @@ def main():
             edit_server_config()
         elif choice == 'g':
             edit_game_config()
+        elif choice == 'u':
+            manage_users()
         elif choice == 'q':
             sys.exit(0)
         else:

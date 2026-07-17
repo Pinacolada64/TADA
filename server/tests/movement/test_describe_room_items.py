@@ -11,13 +11,9 @@ level_1.json room 1's "item": 62) never showing up.
 """
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock
 
 import pytest
-
-for _mod in ('network_context', 'net_common', 'simple_server'):
-    sys.modules.pop(_mod, None)
 
 from simple_server import Server
 from base_classes import Map, Room
