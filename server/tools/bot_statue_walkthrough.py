@@ -60,12 +60,14 @@ import textwrap
 from datetime import datetime
 from pathlib import Path
 
+from bot_credentials import load_password
+
 HOST  = '127.0.0.1'
 PORT  = 34083
 WIDTH = 78
 LOG_FILE = Path(__file__).resolve().parent.parent / f'bot_statue_walkthrough_{datetime.now().strftime("%Y-%m-%d_%H%M%S")}.log'
 
-_PASSWORD = 'puppy123'
+_PASSWORD = load_password()   # tools/.bot_credentials.json (gitignored)
 _MEDUSA_ROOM = 125       # level 1, "STONE ROOM" -- monsters.json #19 MEDUSA
 _MEDUSA_LEVEL = 1
 _NO_MONSTER_ROOM = 1      # level 1 room 1 -- no monster, negative control

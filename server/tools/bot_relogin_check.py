@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
-"""Log back in as an existing bot char and confirm shield/armor persisted."""
+"""Log back in as an existing bot char and confirm shield/armor persisted.
+
+Usage:
+    .venv/bin/python tools/bot_relogin_check.py <username> [password]
+
+password defaults to tools/.bot_credentials.json's entry for <username>
+(see bot_credentials.py) -- previously hardcoded to 'hunter22', which
+doesn't match any bot account this codebase creates, so login always
+failed and the persistence check below it never actually ran.
+"""
 import asyncio
 import json
 import sys
+
+from bot_credentials import load_password
 
 HOST = '127.0.0.1'
 PORT = 34083
@@ -49,6 +60,7 @@ def _print(msgs):
 
 async def main():
     user = sys.argv[1]
+    password = sys.argv[2] if len(sys.argv) > 2 else load_password(user)
     reader, writer = await asyncio.open_connection(HOST, PORT)
     init = await _recv(reader, timeout=5.0)
     await _send(writer, {'server_id': init.get('server_id', 'test_server'),
@@ -64,7 +76,7 @@ async def main():
             await _send(writer, {'lines': ['A'], 'mode': 'login'})
 
     script = [
-        (f'connect {user} hunter22', 'login'),
+        (f'connect {user} {password}', 'login'),
         ('stats', 'game'),
         ('', 'game'),
         ('', 'game'),
