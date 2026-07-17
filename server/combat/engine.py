@@ -492,7 +492,7 @@ class CombatSession:
         allies = owned_allies(ctx.player)
         if len(allies) >= 3:
             if verbose:
-                await ctx.send('Only 3 allies allowed, use ORDER to dismiss one.')
+                await ctx.send('Only 3 allies allowed, sell one to Fat Olaf at the Bar first.')
             return False
         if any(AllyFlags.MOUNT in (a.flags or []) for a in allies):
             if verbose:

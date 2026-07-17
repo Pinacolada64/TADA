@@ -97,6 +97,7 @@ class Party:
                         'flags':      [f.name for f in (m.flags or [])],
                         'hit_points': m.hit_points,
                         'status':     m.status.name if hasattr(m.status, 'name') else 'FREE',
+                        'position':   m.position.name if hasattr(m.position, 'name') else 'EMPTY',
                     })
                     continue
             except ImportError:
@@ -121,7 +122,7 @@ class Party:
             member_type = item.get('type')
             try:
                 if member_type == 'ally':
-                    from bar.ally_data import Ally, AllyFlags, AllyStatus
+                    from bar.ally_data import Ally, AllyFlags, AllyPosition, AllyStatus
                     flags = [
                         AllyFlags[n] for n in item.get('flags', [])
                         if n in AllyFlags.__members__
@@ -137,6 +138,9 @@ class Party:
                     status_name = item.get('status', 'FREE')
                     if status_name in AllyStatus.__members__:
                         ally.status = AllyStatus[status_name]
+                    position_name = item.get('position', 'EMPTY')
+                    if position_name in AllyPosition.__members__:
+                        ally.position = AllyPosition[position_name]
                     members.append(ally)
                 elif member_type == 'player':
                     # Player members are not reconstructed on load; they
