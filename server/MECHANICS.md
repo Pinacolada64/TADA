@@ -156,7 +156,7 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - **Wizard's glow** — item `zu$[7]` values 2/3 reduce incoming damage by 2 (`SPUR.COMBAT.S:266`)
 - **Lazer shield** — energized shield variant; blocks laser fire at half damage (`SPUR.USE.S:86`)
 - **Power armor** — specific item; halves blast damage (`SPUR.USE.S:124`)
-- ✅ **Crystal Pendant** (item #82) — resolved once per encounter, not per round (`SPUR.MISC4.S` `mon.set`/`stone`, called when the monster is first set up): if the player carries it and the monster can `cast_turn_to_stone`, 90% chance to permanently disable that monster's turn-to-stone for the rest of the fight ("The CRYSTAL PENDANT flashes, preventing TURN TO STONE by `<monster>`!"), 10% chance the monster "happens to see" it and dons anti-pendant glasses that one time (petrification remains possible for the rest of the fight either way) (`combat/engine.py` `CombatSession._check_crystal_pendant()`)
+- ✅ **Crystal Pendant** (item #82) — resolved once per encounter, not per round (`SPUR.MISC4.S` `mon.set`/`stone`, called when the monster is first set up): if the player carries it and the monster can `petrify`, 90% chance to permanently disable that monster's turn-to-stone for the rest of the fight ("The CRYSTAL PENDANT flashes, preventing TURN TO STONE by `<monster>`!"), 10% chance the monster "happens to see" it and dons anti-pendant glasses that one time (petrification remains possible for the rest of the fight either way) (`combat/engine.py` `CombatSession._check_crystal_pendant()`)
 
 #### Monster abilities
 - **Monster spellcasting** — monsters with `+` flag in `wy$` can cast spells when low HP (`SPUR.COMBAT.S` `lnk.msc4`)
@@ -573,7 +573,7 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Ally body building** — giving food/drink to an ally with strength < 11 raises their strength by 1; cursed rations poison the ally instead (strength −1, floor 1) (`SPUR.SUB.S hun.slv`, `commands/give.py _try_body_build()`)
 - **Ally desertion / death** — allies may die or leave if unpaid, injured, or mistreated; status reverts to FREE (`SPUR.MISC6.S`)
 - **Random events** — location-triggered events: little girl encounter, meteor strike, Enforcer arrival, Galadriel appearance (`SPUR.MISC6.S`)
-- ✅ **Turn to stone attack** — a `cast_turn_to_stone`-flagged monster (e.g. Medusa) has a
+- ✅ **Turn to stone attack** — a `petrify`-flagged monster (e.g. Medusa) has a
   20% chance per attack to attempt petrification instead of a normal swing, 10% chance to
   succeed once attempted; either way this replaces the normal hit/damage roll entirely for
   that round (`SPUR.COMBAT.S` "medusa" section, `combat/resolution.py` `monster_attacks()`)
@@ -583,14 +583,19 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   killing monster (stripping a leading "THE "), one victim name per line — a permanent
   per-monster victim log (`SPUR.MISC6.S:113,123-126`, `combat/engine.py`
   `CombatSession._player_petrified()` / `_record_statue()`)
-- ⏸️ **Statue as room decoration (monster turned to stone)** — separately, when a monster
-  itself is defeated via a turn-to-stone effect (the `#` flag in its status string), its
-  corpse becomes a permanent "statue of `<name>`" object left in the room: too heavy to
-  pick up ("THE STATUE IS MUCH TOO HEAVY!"), examinable ("It is made of stone, and is kind
-  of ugly.") (`SPUR.MAIN.S:386,532-536`, `SPUR.MISC.S:221,234`, `SPUR.MISC3.S:281,289`).
-  Only a flavor line is implemented so far (`_monster_dies()` prints "`<monster>` turns to
-  stone as it dies!" for these monsters) — a lasting, examinable/GET-blocked room object
-  needs a corpse/room-object persistence system this port doesn't have yet.
+- ✅ **Statue display (`petrify` monster present)** — `#` in a monster's status string
+  means it *can perform* petrification (the `petrify` flag), not that it has been turned to
+  stone itself. Wherever a `petrify` monster is present in a room — alive or dead, not
+  charmed away — SPUR's `statue` subroutine reads just the *first* name from that monster's
+  own memorial file (the same one `_record_statue()` above writes) and shows it as a
+  permanent room fixture: "There is a statue of `<victim>` here!", too heavy to pick up
+  ("THE STATUE IS MUCH TOO HEAVY!"). Not a separate corpse/room-object system — the same
+  monster showing up elsewhere on the map displays the same statue there too, exactly like
+  SPUR (`SPUR.MAIN.S:386,532-536`, `SPUR.MISC.S:221,234`, `SPUR.MISC3.S:281,289`,
+  `combat/engine.py` `first_statue_victim()`, `commands/get.py`, `commands/look.py`,
+  `commands/read.py`, `simple_server.py` `_describe_room()`). LOOK/EXAMINE/READ show a
+  plaque naming both the victim and the monster (Ryan's own wording, not a SPUR port — SPUR's
+  own examine line was just "It is made of stone, and is kind of ugly.").
 - **STATS / STAT2** — two-level stat display; STAT2 shows extended information (`SPUR.MISC5.S`)
 - **FOLLOW ME command** — causes nearby players or allies to follow the player (`SPUR.MISC5.S`)
 

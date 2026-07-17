@@ -241,7 +241,7 @@ class MonsterAttackResult:
     dex_lost:           bool = False
     # SPUR.COMBAT.S:307: ps=ps-(a/2) — taking damage reduces player Strength (ps) by damage/2
     strength_lost:      int  = 0
-    # SPUR.COMBAT.S "medusa" section, lines ~277-284: a cast_turn_to_stone monster
+    # SPUR.COMBAT.S "medusa" section, lines ~277-284: a petrify monster
     # (20% chance per attack) may attempt to petrify the player (10% chance to
     # succeed once attempted). A successful petrification bypasses the normal
     # hit/damage roll entirely -- see engine.py's handling of this result.
@@ -665,12 +665,12 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False) -> Mo
     Returns MonsterAttackResult.  Caller applies hp loss, shield/armor
     degradation, and passes poisoned/diseased to effects.py.
     """
-    # Turn to stone (SPUR.COMBAT.S "medusa" section): a cast_turn_to_stone
+    # Turn to stone (SPUR.COMBAT.S "medusa" section): a petrify
     # monster has a 20% chance per attack to attempt this instead of a normal
     # swing; on attempt, a 10% chance to succeed. Either way this replaces the
     # rest of the attack for this round -- no normal hit/damage roll happens.
     if (not stone_blocked
-            and (monster.get('flags', {}) or {}).get('cast_turn_to_stone')
+            and (monster.get('flags', {}) or {}).get('petrify')
             and random.randint(1, 10) <= 2):
         succeeded = random.randint(1, 10) == 1
         return MonsterAttackResult(

@@ -14,14 +14,11 @@ Run with:
 """
 from __future__ import annotations
 
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import MagicMock
 
 from commands.get import _room_available_items
 from item_system import ItemType
-import statues
 
 
 def _make_ctx(room_item_index: int, items: list[dict]):
@@ -29,11 +26,13 @@ def _make_ctx(room_item_index: int, items: list[dict]):
     server.items = items
     server.weapons = []
     server.rations = []
+    server.monsters = []
 
     room = MagicMock()
     room.item = room_item_index
     room.weapon = 0
     room.food = 0
+    room.monster = 0
     server.game_map.get_room.return_value = room
 
     player = MagicMock()
@@ -48,23 +47,6 @@ def _make_ctx(room_item_index: int, items: list[dict]):
 
 
 class TestBookTypeTagging(unittest.TestCase):
-    """_room_available_items() also checks statues.py's has_statue() for
-    (level=1, room=1) -- the defaults every ctx here uses -- so this
-    isolates statues.ROOM_STATUES_FILE to a throwaway tempdir. Without it,
-    a real statue recorded at (1, 1) on the machine running these tests
-    (e.g. from actually playing the game) would add a phantom 'a statue'
-    entry to every result here and break the len(results) == 1 assumption
-    below -- found live via exactly that cross-test pollution."""
-
-    def setUp(self):
-        self.tmpdir = tempfile.mkdtemp(prefix='tada-book-tagging-test-')
-        self._orig_path = statues.ROOM_STATUES_FILE
-        statues.ROOM_STATUES_FILE = Path(self.tmpdir) / 'room_statues.json'
-
-    def tearDown(self):
-        import shutil
-        statues.ROOM_STATUES_FILE = self._orig_path
-        shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_book_item_gets_tagged_as_book(self):
         ctx = _make_ctx(1, [{'number': 89, 'name': 'Scroll of Endurance',

@@ -20,9 +20,7 @@ gold conversion, reached from get.itm's instr("COIN"/"DIAMOND"/"GOLD"/
 from __future__ import annotations
 
 import random
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from base_classes import PlayerMoneyTypes
@@ -33,7 +31,6 @@ from commands.get import (
 from inventory import Inventory, InventoryEntry
 from items import Item, ItemCategory
 from player import Player
-import statues
 
 
 def _player(silver=0) -> Player:
@@ -68,6 +65,7 @@ def _server(items=None):
     server.items      = items or []
     server.weapons    = []
     server.rations    = []
+    server.monsters   = []
     server.room_items = {}
     return server
 
@@ -161,22 +159,6 @@ class TestTreasureConversion(unittest.TestCase):
 class TestGetTreasureIntegration(unittest.IsolatedAsyncioTestCase):
     """Through GetCommand._pick_up() -- the actual GET code path."""
 
-    def setUp(self):
-        # _room_available_items() also checks statues.py's has_statue() for
-        # (level=1, room=1) -- the defaults every ctx here uses -- so a real
-        # statue recorded at (1, 1) on the machine running these tests would
-        # add a phantom 'a statue' entry and break the len(available) == 1
-        # assumption in test_full_flow_marks_picked_up_and_blocks_refarming
-        # below. Found live via exactly that cross-test pollution.
-        self.tmpdir = tempfile.mkdtemp(prefix='tada-get-treasure-test-')
-        self._orig_statues_path = statues.ROOM_STATUES_FILE
-        statues.ROOM_STATUES_FILE = Path(self.tmpdir) / 'room_statues.json'
-
-    def tearDown(self):
-        import shutil
-        statues.ROOM_STATUES_FILE = self._orig_statues_path
-        shutil.rmtree(self.tmpdir, ignore_errors=True)
-
     async def test_treasure_never_added_to_inventory(self):
         p = _player()
         server = _server(items=[{'number': 37, 'name': 'gold nugget', 'type': 'treasure', 'price': 3}])
@@ -226,6 +208,7 @@ class TestGetTreasureIntegration(unittest.IsolatedAsyncioTestCase):
         room.item = 1
         room.weapon = 0
         room.food = 0
+        room.monster = 0
 
         p = _player(silver=0)
         server = _server(items=[{'number': 1, 'name': 'gold nugget', 'type': 'treasure', 'price': 3}])

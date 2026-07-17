@@ -585,24 +585,29 @@
      through the source before porting, not a guess.
   3. [DONE 7/16/26] STATUE handling: "GET STATUE" -> "THE STATUE IS
      MUCH TOO HEAVY!" (never added to inventory, never removed --
-     permanent). Turned out to need more than just wiring GET up to
-     the existing petrification mechanic, though -- combat/engine.py's
-     _record_statue() only ever wrote a per-monster memorial *file*,
-     not any queryable per-room state, so there was nothing for GET to
-     actually check. Added statues.py (add_statue()/get_statue()/
-     has_statue(), a persisted, shared -- not per-player -- room
-     statue registry mirroring news.py's load/save-fresh-every-call
-     design), wired into combat/engine.py's _player_petrified() (sets
-     it on the room where the player turned to stone) and
+     permanent). First pass wrongly assumed a petrified player's statue
+     needed its own persisted per-room registry (built one -- statues.py
+     -- since combat/engine.py's _record_statue() only ever wrote a
+     per-monster memorial *file*, not queryable room state). Checking
+     the real SPUR source (SPUR.MAIN.S:386,532-536) showed that's not
+     how it actually works: `#` in a monster's status string means it
+     *can perform* petrification (renamed the flag from
+     cast_turn_to_stone to `petrify` globally to make that clear), not
+     that it has been turned to stone -- and the `statue` subroutine is
+     triggered wherever a petrify-flagged monster is present (alive or
+     dead, not charmed away), reading just the *first* line of that
+     monster's own memorial file. Not a separate corpse/room-object
+     system at all -- the same monster showing up elsewhere on the map
+     shows the same statue there too. Deleted statues.py, added
+     combat.engine.first_statue_victim() instead, wired into
      commands/get.py's _room_available_items()/_pick_up() (lists it,
-     blocks pickup). Also: simple_server.py's _describe_room() shows
-     "There is a statue of {victim} here!"; commands/look.py's
-     _examine_item() and commands/read.py's ReadCommand both show "You
-     inspect the statue of {victim}. At the base is a small brass
-     plaque which reads, "Artist: {monster}."" for 'look statue'/
-     'examine statue'/'read statue' (Ryan's exact wording, not a SPUR
-     port -- SPUR's own exam.a line was just "It is made of stone, and
-     is kind of ugly.").
+     blocks pickup), simple_server.py's _describe_room() ("There is a
+     statue of {victim} here!"), and commands/look.py's _examine_item()/
+     commands/read.py's ReadCommand (both show "You inspect the statue
+     of {victim}. At the base is a small brass plaque which reads,
+     "Artist: {monster}."" for 'look statue'/'examine statue'/
+     'read statue' -- Ryan's exact wording, not a SPUR port; SPUR's own
+     exam.a line was just "It is made of stone, and is kind of ugly.").
 
 7/17/26:
 - Charm spell (Ryan): `spells/charm.py`'s CHARM POTION mechanic is only

@@ -199,6 +199,40 @@ def _record_statue(monster_name: str, player_name: str) -> None:
         log.exception('_record_statue: failed to record %s petrified by %s', player_name, monster_name)
 
 
+def first_statue_victim(monster_name: str) -> Optional[str]:
+    """Return the first (oldest) name in *monster_name*'s memorial file, or
+    None if it has none yet.
+
+    SPUR.MAIN.S's `statue` subroutine (called from ply.locD:386 whenever a
+    petrify monster is present in the room, alive or dead --
+    `if (mw>0) or (md>0) then if instr("#",wy$) ... gosub statue`):
+    `open #1, dy$:input #1,dy$:close` reads just the *first line* of the
+    same per-monster memorial file _record_statue() writes, and shows it
+    as "There is a statue of {name} here!" room dressing. Not a separate
+    corpse/room-object system -- just a display of that monster's oldest
+    victim, reusing the memorial file wherever the monster happens to be.
+    """
+    try:
+        import net_common
+        base = getattr(net_common, 'run_server_dir', None) or Path('./run/server')
+        base = Path(base)
+
+        name = monster_name.strip()
+        if name.upper().startswith('THE '):
+            name = name[4:]
+        safe_name = re.sub(r'[^A-Za-z0-9 _-]', '', name).strip() or 'unknown'
+
+        path = base / 'statues' / f'{safe_name}.txt'
+        if not path.exists():
+            return None
+        with open(path) as f:
+            first_line = f.readline().strip()
+        return first_line or None
+    except Exception:
+        log.exception('first_statue_victim: failed to read memorial for %s', monster_name)
+        return None
+
+
 def _apply_dex_change(player, delta: int) -> None:
     """Apply a DEX adjustment capped at [0, 25] (SPUR pd stat).  No I/O."""
     try:
@@ -600,7 +634,7 @@ class CombatSession:
         "happens to see" the pendant and counters it this one time (turn-to-
         stone remains possible for the rest of the fight either way).
         """
-        if not (self.monster.get('flags', {}) or {}).get('cast_turn_to_stone'):
+        if not (self.monster.get('flags', {}) or {}).get('petrify'):
             return
         player = ctx.player
         inventory = getattr(player, 'inventory', None)
@@ -1293,7 +1327,7 @@ class CombatSession:
         # too heavy to GET, examined as "made of stone, and kind of ugly").
         # Not yet persisted as a lasting room object (no corpse/room-object
         # tracking system exists in this port yet) -- flavor only for now.
-        if (self.monster.get('flags', {}) or {}).get('cast_turn_to_stone'):
+        if (self.monster.get('flags', {}) or {}).get('petrify'):
             await ctx.send(f'{mname} turns to stone as it dies!')
 
         await ctx.send_room(
@@ -1448,12 +1482,15 @@ class CombatSession:
         "THE "), one player name appended per victim, mirroring the original
         `statue` subroutine's `dy$=dx$+m$ ... print #1,n1$`.
 
-        Also records the statue itself in *this* room (statues.py's
-        add_statue()) -- SPUR's wy$ room flag, checked by GET/EXAMINE
-        (commands/get.py) so the statue actually sits there for other
-        players to find, blocking pickup ("THE STATUE IS MUCH TOO
-        HEAVY!") rather than just leaving a log entry with no in-world
-        presence.
+        That memorial file is also the sole source for the in-world statue
+        display -- commands/get.py's GET STATUE / commands/look.py's/
+        commands/read.py's plaque text / simple_server.py's room
+        description all show whoever's *first* in this monster's file
+        whenever it's present in a room (SPUR.MAIN.S's `statue`
+        subroutine -- see combat.engine.first_statue_victim()). No
+        separate per-room registry: the same monster showing up
+        elsewhere on the map displays the same statue there too, exactly
+        like SPUR.
         """
         self._done.set()
         mname = self.monster.get('name', 'The monster')
@@ -1467,12 +1504,6 @@ class CombatSession:
         )
         await ctx.send('(Carving your statue!)')
         _record_statue(mname, _player_name(ctx))
-
-        room_no = getattr(ctx.client, 'room', None)
-        if room_no is not None:
-            from statues import add_statue
-            level = int(getattr(ctx.player, 'map_level', 1) or 1)
-            add_statue(level, int(room_no), mname, _player_name(ctx))
 
         ctx.player.hit_points = 0
         ctx.player.unsaved_changes = True

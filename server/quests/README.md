@@ -406,7 +406,7 @@ the named quests above:
 |---|---|---|---|
 | 76 | Amulet of Life | Prevents one permanent death (armed at the Fountain, quest #9); halves duel/combat penalty vs. the Amulet of Death. Death-save flavor recovered as message #20 (`server/messages.json`, `revive` subroutine, `SPUR.MISC6.S:132`); a second variant (message #21, "Thou are one of the Chosen Ones") fires instead when `flag(7)` is set — condition untraced | `SPUR.LOGON.S:237`, `SPUR.DUEL.S:146,155`, `SPUR.DUEL2.S:161,165`, `SPUR.WEAPON.S:70`, `SPUR.SUB.S:122` |
 | 97 | Ice Crystal | Blocks one fire attack per encounter (10% chance monster "puts on anti-fire glasses" and negates it) | `SPUR.MISC4.S:180–184` |
-| 82 | Crystal Pendant | ✅ Implemented — 90% chance to permanently block a `cast_turn_to_stone` monster's petrification for the rest of the encounter (resolved once, not per round); 10% chance the monster counters it that one time | `SPUR.MISC4.S:186–189`, `combat/engine.py` `_check_crystal_pendant()` |
+| 82 | Crystal Pendant | ✅ Implemented — 90% chance to permanently block a `petrify` monster's petrification for the rest of the encounter (resolved once, not per round); 10% chance the monster counters it that one time | `SPUR.MISC4.S:186–189`, `combat/engine.py` `_check_crystal_pendant()` |
 | 146 | Salvage Parts | Sell-only; redeemable for gold (×40 multiplier) at the Ship's Salvage Bay (level-6 alt-shoppe) | `SPUR.SHIP.S:460–500` |
 | 151 | Shovel | Speeds up DIG (60 min vs. 180 min bare-handed) | `SPUR.MISC7.S:161–189` |
 | 44/45/65/68 | Red Serum, Blue Pill, Potion of Skill, Charm Potion (rations.json) | Excluded from the "you should eat/drink something" hunger nag during PRAY — treated as non-nutritive magic consumables | `SPUR.MISC2.S:194–211` |

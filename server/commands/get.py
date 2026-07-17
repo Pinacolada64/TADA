@@ -278,20 +278,28 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
 
         available.append((name, entry, _record))
 
-    # Statue (combat/engine.py's _player_petrified() -- a petrified player's
-    # statue permanently occupies this room, SPUR's wy$ room flag). Never
-    # actually removable, so remove_fn is a no-op -- see GetCommand._pick_up()'s
-    # is_statue check, which blocks the pickup outright instead of calling it.
-    # victim/monster carried on the Item itself (not re-looked-up) so
-    # commands/look.py's plaque flavor text doesn't need its own statues.py
-    # query with its own chance to disagree about which record matched.
-    from statues import get_statue
-    if room_no is not None:
-        record = get_statue(level, int(room_no))
-        if record:
-            statue_item = Item(name='a statue', category=ItemCategory.ITEM, is_statue=True,
-                               victim=record.get('victim'), monster=record.get('monster'))
-            available.append(('a statue', InventoryEntry(item=statue_item), lambda: None))
+    # Statue (SPUR.MAIN.S's `statue` subroutine -- shown wherever a
+    # petrify monster is present, alive or dead, reading the
+    # first name from that monster's own memorial file; see
+    # combat.engine.first_statue_victim()). Never actually removable, so
+    # remove_fn is a no-op -- see GetCommand._pick_up()'s is_statue check,
+    # which blocks the pickup outright instead of calling it. victim/
+    # monster carried on the Item itself (not re-looked-up) so
+    # commands/look.py's plaque flavor text doesn't need its own query
+    # with its own chance to disagree about which monster matched.
+    mon_number = int(getattr(room, 'monster', 0) or 0)
+    if mon_number:
+        from combat.engine import first_statue_victim
+        from monsters import get_monster
+        monster = get_monster(getattr(server, 'monsters', []), mon_number)
+        charmed = mon_number in (getattr(player, 'charmed_monsters', None) or [])
+        if monster and not charmed and (monster.get('flags', {}) or {}).get('petrify'):
+            mname  = monster.get('name', 'The monster')
+            victim = first_statue_victim(mname)
+            if victim:
+                statue_item = Item(name='a statue', category=ItemCategory.ITEM, is_statue=True,
+                                   victim=victim, monster=mname)
+                available.append(('a statue', InventoryEntry(item=statue_item), lambda: None))
 
     # Items dropped by players this session (global — real transfers between players)
     dropped = server.room_items.get(int(room_no) if room_no else -1, [])

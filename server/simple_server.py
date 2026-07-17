@@ -792,20 +792,20 @@ class Server:
                     lines += ['', 'A short bearded person is here, with a pile of silver!']
                 else:
                     lines += ['', f"There is {f'{size} ' if size else ''}{name} here."]
-        except Exception:
-            pass
 
-        # Statue: a petrified player's statue permanently occupies this room
-        # (statues.py's add_statue(), set by combat/engine.py's
-        # _player_petrified()) -- SPUR's wy$ room flag. commands/get.py
-        # blocks picking it up ("THE STATUE IS MUCH TOO HEAVY!"); this is
-        # the matching room-description half, so it's actually visible
-        # before a player tries to GET it.
-        try:
-            from statues import get_statue
-            record = get_statue(level, int(room_no))
-            if record and record.get('victim'):
-                lines += ['', f"There is a statue of {record['victim']} here!"]
+                # Statue (SPUR.MAIN.S's `statue` subroutine): shown
+                # wherever a petrify monster is present, alive
+                # or dead (not charmed away), reading the first name from
+                # that monster's own memorial file -- see
+                # combat.engine.first_statue_victim(). commands/get.py
+                # blocks picking it up ("THE STATUE IS MUCH TOO HEAVY!");
+                # this is the matching room-description half, so it's
+                # actually visible before a player tries to GET it.
+                if mon_num is not None and mon_num not in cm and flags.get('petrify'):
+                    from combat.engine import first_statue_victim
+                    victim = first_statue_victim(name)
+                    if victim:
+                        lines += ['', f'There is a statue of {victim} here!']
         except Exception:
             pass
 

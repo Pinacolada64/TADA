@@ -1,19 +1,26 @@
 """tests/test_turn_to_stone.py
 
 Unit tests for the turn-to-stone mechanic (SPUR.COMBAT.S "medusa" section)
-and the two statue mechanisms it feeds into (SPUR.MISC6.S `statue` /
-SPUR.MAIN.S+SPUR.MISC.S+SPUR.MISC3.S `statue`):
+and the statue mechanism it feeds into -- a single memorial-file-backed
+system spanning SPUR.MISC6.S's `statue` subroutine (writes it) and
+SPUR.MAIN.S/SPUR.MISC.S/SPUR.MISC3.S's `statue` subroutine (reads just
+its first line, wherever the monster is present -- not a separate
+per-room object):
 
-  - combat.resolution.monster_attacks(): a cast_turn_to_stone monster has a
+  - combat.resolution.monster_attacks(): a petrify monster has a
     20% chance per attack to attempt petrification, 10% chance to succeed
     once attempted; either way this replaces the normal hit/damage roll
     entirely for that round.
   - combat.engine._record_statue(): per-monster memorial file, one victim
     name appended per line, "THE " prefix stripped from the filename.
+  - combat.engine.first_statue_victim(): reads just the first line of
+    that same file -- SPUR's "There is a statue of {name} here!", shown
+    wherever the monster is present (see commands/get.py,
+    commands/look.py, commands/read.py, simple_server.py).
   - CombatSession._player_petrified(): death flow on a successful
     petrification -- distinct flavor text from a normal kill, records the
     statue, zeroes hit_points.
-  - CombatSession._monster_dies(): a cast_turn_to_stone monster's own death
+  - CombatSession._monster_dies(): a petrify monster's own death
     gets an extra "turns to stone" flavor line.
 
 Run with:
@@ -24,7 +31,6 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import sys, types
@@ -99,7 +105,7 @@ class TestTurnToStoneRoll(unittest.TestCase):
 
     def test_attempt_and_success(self):
         monster = {'name': 'MEDUSA', 'to_hit': 4, 'strength': 10,
-                   'flags': {'cast_turn_to_stone': True}}
+                   'flags': {'petrify': True}}
         with patch('combat.resolution.random.randint', side_effect=[2, 1]):
             result = monster_attacks(monster, _FakePlayer())
         self.assertTrue(result.turn_to_stone_attempted)
@@ -109,7 +115,7 @@ class TestTurnToStoneRoll(unittest.TestCase):
 
     def test_attempt_and_fail(self):
         monster = {'name': 'MEDUSA', 'to_hit': 4, 'strength': 10,
-                   'flags': {'cast_turn_to_stone': True}}
+                   'flags': {'petrify': True}}
         with patch('combat.resolution.random.randint', side_effect=[2, 5]):
             result = monster_attacks(monster, _FakePlayer())
         self.assertTrue(result.turn_to_stone_attempted)
@@ -118,7 +124,7 @@ class TestTurnToStoneRoll(unittest.TestCase):
     def test_flagged_monster_can_still_attack_normally(self):
         # roll(1,10) > 2 -> no petrification attempt this round at all
         monster = {'name': 'MEDUSA', 'to_hit': 4, 'strength': 10,
-                   'flags': {'cast_turn_to_stone': True}}
+                   'flags': {'petrify': True}}
         with patch('combat.resolution.random.randint', return_value=9):
             result = monster_attacks(monster, _FakePlayer())
         self.assertFalse(result.turn_to_stone_attempted)
@@ -128,7 +134,7 @@ class TestTurnToStoneRoll(unittest.TestCase):
         # Crystal Pendant has permanently blocked this monster's ability --
         # no attempt roll should even happen, regardless of dice.
         monster = {'name': 'MEDUSA', 'to_hit': 4, 'strength': 10,
-                   'flags': {'cast_turn_to_stone': True}}
+                   'flags': {'petrify': True}}
         with patch('combat.resolution.random.randint', return_value=1):
             result = monster_attacks(monster, _FakePlayer(), stone_blocked=True)
         self.assertFalse(result.turn_to_stone_attempted)
@@ -184,17 +190,8 @@ class TestPlayerPetrified(unittest.IsolatedAsyncioTestCase):
     async def test_petrified_flow(self):
         self.tmpdir = tempfile.mkdtemp(prefix='tada-statue-test-')
         import net_common
-        import statues
         orig = getattr(net_common, 'run_server_dir', None)
         net_common.run_server_dir = self.tmpdir
-        # _player_petrified() also calls statues.add_statue() (room-state
-        # half, distinct from _record_statue()'s memorial file below) --
-        # isolate its file too, or this test writes to the real
-        # run/server/room_statues.json at (level=1, room=1), which then
-        # pollutes any other test relying on that being empty. Found live
-        # via exactly that cross-test pollution.
-        orig_statues_path = statues.ROOM_STATUES_FILE
-        statues.ROOM_STATUES_FILE = Path(self.tmpdir) / 'room_statues.json'
         try:
             player = _FakePlayer(hit_points=20)
             ctx = _FakeCtx(player)
@@ -212,81 +209,52 @@ class TestPlayerPetrified(unittest.IsolatedAsyncioTestCase):
         finally:
             import shutil
             net_common.run_server_dir = orig
-            statues.ROOM_STATUES_FILE = orig_statues_path
             shutil.rmtree(self.tmpdir, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
-# CombatSession._player_petrified() -- statues.py room-statue recording
+# combat.engine.first_statue_victim()
 # ---------------------------------------------------------------------------
 
-class TestPlayerPetrifiedRoomStatue(unittest.IsolatedAsyncioTestCase):
-    """statues.py's add_statue() -- distinct from _record_statue()'s
-    per-monster memorial log above: this is the queryable, persisted
-    per-(level, room) state commands/get.py checks."""
+class TestFirstStatueVictim(unittest.TestCase):
+    """SPUR.MAIN.S's `statue` subroutine: reads just the *first* line of a
+    monster's own memorial file (the same one _record_statue() writes) --
+    not a separate room-object system. Shown wherever that monster is
+    present, alive or dead, regardless of which room it's actually in."""
 
     def setUp(self):
-        import statues
-        self.tmpdir = tempfile.mkdtemp(prefix='tada-room-statue-test-')
-        self._orig_path = statues.ROOM_STATUES_FILE
-        statues.ROOM_STATUES_FILE = Path(self.tmpdir) / 'room_statues.json'
-
+        from combat.engine import first_statue_victim
+        self.first_statue_victim = first_statue_victim
+        self.tmpdir = tempfile.mkdtemp(prefix='tada-first-victim-test-')
         import net_common
-        self._orig_run_dir = getattr(net_common, 'run_server_dir', None)
+        self._orig = getattr(net_common, 'run_server_dir', None)
         net_common.run_server_dir = self.tmpdir
 
     def tearDown(self):
-        import statues, net_common, shutil
-        statues.ROOM_STATUES_FILE = self._orig_path
-        net_common.run_server_dir = self._orig_run_dir
+        import net_common, shutil
+        net_common.run_server_dir = self._orig
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
-    async def test_records_statue_in_current_room(self):
-        import statues
-        player = _FakePlayer(hit_points=20)
-        player.map_level = 3
-        ctx = _FakeCtx(player)
-        ctx.client.room = 47
-        session = CombatSession({'name': 'MEDUSA', 'strength': 10}, room_no=47)
+    def test_no_memorial_file_returns_none(self):
+        self.assertIsNone(self.first_statue_victim('MEDUSA'))
 
-        await session._player_petrified(ctx)
+    def test_returns_first_line_only(self):
+        _record_statue('MEDUSA', 'Rulan')
+        _record_statue('MEDUSA', 'Bilbo')
+        self.assertEqual(self.first_statue_victim('MEDUSA'), 'Rulan')
 
-        self.assertTrue(statues.has_statue(3, 47))
-        self.assertFalse(statues.has_statue(3, 48))
-        self.assertFalse(statues.has_statue(4, 47))
+    def test_strips_leading_the(self):
+        _record_statue('MEDUSA', 'Rulan')
+        self.assertEqual(self.first_statue_victim('THE MEDUSA'), 'Rulan')
 
-    async def test_records_monster_and_victim_name(self):
-        import statues
-        player = _FakePlayer(hit_points=20)
-        player.map_level = 1
-        ctx = _FakeCtx(player)
-        ctx.client.room = 5
-        session = CombatSession({'name': 'THE MEDUSA', 'strength': 10}, room_no=5)
-
-        await session._player_petrified(ctx)
-
-        record = statues.load_room_statues()[0]
-        self.assertEqual(record['monster'], 'THE MEDUSA')
-        self.assertEqual(record['victim'], 'Rulan')
-
-    async def test_second_petrification_in_same_room_does_not_duplicate(self):
-        import statues
-        player = _FakePlayer(hit_points=20)
-        player.map_level = 1
-        ctx = _FakeCtx(player)
-        ctx.client.room = 5
-        session = CombatSession({'name': 'MEDUSA', 'strength': 10}, room_no=5)
-
-        await session._player_petrified(ctx)
-        player2 = _FakePlayer(hit_points=20)
-        player2.name = 'Bilbo'
-        player2.map_level = 1
-        ctx2 = _FakeCtx(player2)
-        ctx2.client.room = 5
-        session2 = CombatSession({'name': 'MEDUSA', 'strength': 10}, room_no=5)
-        await session2._player_petrified(ctx2)
-
-        self.assertEqual(len(statues.load_room_statues()), 1)
+    def test_does_not_raise_on_io_error(self):
+        import net_common
+        net_common.run_server_dir = '/nonexistent-path-hopefully/subdir'
+        try:
+            result = self.first_statue_victim('MEDUSA')
+        except Exception as e:
+            self.fail(f'first_statue_victim raised unexpectedly: {e}')
+        self.assertIsNone(result)
 
 
 # ---------------------------------------------------------------------------
@@ -305,7 +273,7 @@ class TestCrystalPendant(unittest.IsolatedAsyncioTestCase):
     async def test_no_check_without_the_pendant(self):
         player = _FakePlayer(item_ids=[])
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'MEDUSA', 'flags': {'cast_turn_to_stone': True}}, room_no=1)
+        session = CombatSession({'name': 'MEDUSA', 'flags': {'petrify': True}}, room_no=1)
         with patch('combat.engine.random.randint', return_value=1):
             await session._check_crystal_pendant(ctx)
         self.assertFalse(session._turn_to_stone_blocked)
@@ -314,7 +282,7 @@ class TestCrystalPendant(unittest.IsolatedAsyncioTestCase):
     async def test_pendant_blocks_on_success_roll(self):
         player = _FakePlayer(item_ids=[82])
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'MEDUSA', 'flags': {'cast_turn_to_stone': True}}, room_no=1)
+        session = CombatSession({'name': 'MEDUSA', 'flags': {'petrify': True}}, room_no=1)
         with patch('combat.engine.random.randint', return_value=1):  # != 5 -> blocks
             await session._check_crystal_pendant(ctx)
         self.assertTrue(session._turn_to_stone_blocked)
@@ -323,7 +291,7 @@ class TestCrystalPendant(unittest.IsolatedAsyncioTestCase):
     async def test_monster_counters_on_five_roll(self):
         player = _FakePlayer(item_ids=[82])
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'MEDUSA', 'flags': {'cast_turn_to_stone': True}}, room_no=1)
+        session = CombatSession({'name': 'MEDUSA', 'flags': {'petrify': True}}, room_no=1)
         with patch('combat.engine.random.randint', return_value=5):  # countered
             await session._check_crystal_pendant(ctx)
         self.assertFalse(session._turn_to_stone_blocked)
@@ -335,7 +303,7 @@ class TestCrystalPendant(unittest.IsolatedAsyncioTestCase):
         player = _FakePlayer(item_ids=[82])
         ctx = _FakeCtx(player)
         session = CombatSession({'name': 'MEDUSA', 'to_hit': 4, 'strength': 10,
-                                 'flags': {'cast_turn_to_stone': True}}, room_no=1)
+                                 'flags': {'petrify': True}}, room_no=1)
         with patch('combat.engine.random.randint', return_value=1):
             await session._check_crystal_pendant(ctx)
         self.assertTrue(session._turn_to_stone_blocked)
@@ -347,15 +315,15 @@ class TestCrystalPendant(unittest.IsolatedAsyncioTestCase):
 
 
 # ---------------------------------------------------------------------------
-# CombatSession._monster_dies(): statue flavor for cast_turn_to_stone monsters
+# CombatSession._monster_dies(): statue flavor for petrify monsters
 # ---------------------------------------------------------------------------
 
 class TestMonsterTurnsToStoneOnDeath(unittest.IsolatedAsyncioTestCase):
-    async def test_flavor_line_for_cast_turn_to_stone_monster(self):
+    async def test_flavor_line_for_petrify_monster(self):
         player = _FakePlayer()
         ctx = _FakeCtx(player)
         session = CombatSession(
-            {'name': 'MEDUSA', 'strength': 0, 'flags': {'cast_turn_to_stone': True}},
+            {'name': 'MEDUSA', 'strength': 0, 'flags': {'petrify': True}},
             room_no=1,
         )
         with patch.object(session, '_recover_ammo', new=AsyncMock()), \
