@@ -4,9 +4,12 @@ identical in both master and skip branches).
 
 Three-part mechanic, same shape as SPUR's:
 
-  try_charm_potion(ctx)   — drinking a CHARM POTION on a charmable monster
-                             in the current room sets player.pending_charm
-                             (SPUR: zq=2). No-op / flavor-only otherwise.
+  try_charm_potion(ctx)   — drinking a CHARM POTION on the monster in the
+                             current room sets player.pending_charm (SPUR:
+                             zq=2), unless it's mechanical or 'tough'
+                             (SPUR.SUB.S:146-147) -- NOT gated on the
+                             'charmable' (AC flag), which only matters to
+                             encounters/monster.py's potion-less roll.
   charm_greeting_line(ctx) — while a monster is charmed, room descriptions
                              show `<monster> is charmed: "Gosh, er... hi,
                              <player>!"` instead of the normal "There is
@@ -25,12 +28,15 @@ Three-part mechanic, same shape as SPUR's:
                              label); on no, an honor penalty and the charm
                              wears off.
 
-New in TADA: only the potion triggers this in this port -- SPUR's
-gs$="CHARM" check also fires from a Charm spell, but this codebase has no
-spell-casting system at all yet (see TODO.md's "7/17/26" entry). The
-potion-only version is a real subset of the original mechanic, not a
-placeholder -- CHARM POTION (rations.json #68) already existed as an item
-with matching lore text in books.json #59 before this module did.
+New in TADA: SPUR's gs$="CHARM" check also fires from a Charm spell, but
+this codebase has no spell-casting system at all yet (see TODO.md's
+"7/17/26" entry) -- CHARM POTION (rations.json #68, matching lore text in
+books.json #59) was the only trigger for player.pending_charm/
+try_charm_join_offer here for a while. encounters/monster.py now also
+sets player.pending_charm from SPUR.MISC4.S rd.mons's own spontaneous,
+potion-less charm-on-encounter roll ("d.charm") -- both routes converge
+on try_charm_join_offer below, matching SPUR.MAIN.S:192 sending both the
+potion and the spontaneous roll through the same join-offer flow.
 
 room.monster is shared, global map state (every player sees the same
 monster in a given room) -- SPUR never had to consider this, being
@@ -99,9 +105,18 @@ async def try_charm_potion(ctx: 'GameContext') -> bool:
     (the item is consumed by the caller regardless of outcome -- SPUR's
     potion is single-use either way). Returns True if the monster took
     the charm (flavor message already sent); False otherwise (a flavor
-    message explaining why is still sent, matching SPUR.SUB.S's own
-    three-branch "charm" label: mechanical / already-immune / no monster
-    here).
+    message explaining why is still sent).
+
+    Matches SPUR.SUB.S's own "charm" label verbatim:
+        if mw then if instr(":",wy$) print "Mechanical beings don't charm!":return
+        if mw then if instr(".",wy$) print m$" is unaffected by the charm potion!":return
+        if mw print m$" suddenly takes a shine to you!":zq=2
+        if not mw print "Charm what? There is no monster here!"
+    i.e. only the mechanical (':') and 'tough' ('.') flags block the
+    potion -- it's NOT gated on 'charmable' (AC flag) at all; that flag
+    only matters to encounters/monster.py's spontaneous (potion-less) roll,
+    where it forces an automatic join. Every other monster here always
+    takes the potion, no roll or stat check involved.
     """
     player = ctx.player
     room = _current_room(ctx)
@@ -129,7 +144,7 @@ async def try_charm_potion(ctx: 'GameContext') -> bool:
         await ctx.send("Mechanical beings don't charm!")
         return False
 
-    if not flags.get('charmable'):
+    if flags.get('tough'):
         await ctx.send(f'{name} is unaffected by the charm potion!')
         return False
 

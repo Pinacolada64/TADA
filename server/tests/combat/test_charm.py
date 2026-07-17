@@ -13,10 +13,10 @@ from party import Party
 
 
 def _make_monster(number=50, name='GOBLIN', strength=10, to_hit=5,
-                   charmable=True, mechanical=False):
+                   charmable=True, mechanical=False, tough=False):
     return {
         'number': number, 'name': name, 'strength': strength, 'to_hit': to_hit,
-        'flags': {'charmable': charmable, 'mechanical': mechanical},
+        'flags': {'charmable': charmable, 'mechanical': mechanical, 'tough': tough},
     }
 
 
@@ -92,15 +92,29 @@ class TestTryCharmPotion(_IsolatedBattleLog):
         self.assertEqual(pending['level'], 1)
         self.assertEqual(pending['room_no'], 1)
 
-    async def test_non_charmable_monster_unaffected(self):
+    async def test_tough_monster_unaffected(self):
+        # SPUR.SUB.S:147 `if mw then if instr(".",wy$) print m$" is
+        # unaffected by the charm potion!":return` -- gated on 'tough'
+        # ('.'), NOT on 'charmable' (AC flag).
         from spells.charm import try_charm_potion
-        monster = _make_monster(number=50, name='DRAGON', charmable=False)
+        monster = _make_monster(number=50, name='DRAGON', charmable=False, tough=True)
         ctx = _make_ctx(room=_make_room(monster=50), monsters=[monster])
         result = await try_charm_potion(ctx)
         self.assertFalse(result)
         self.assertIsNone(ctx.player.pending_charm)
         self.assertIn('unaffected', ' '.join(
             str(a) for c in ctx.send.await_args_list for a in c.args))
+
+    async def test_non_charmable_non_tough_monster_still_charms(self):
+        # The CHARM POTION isn't gated on 'charmable' (AC flag) at all --
+        # only 'mechanical' and 'tough' block it (SPUR.SUB.S:146-147). The
+        # AC flag only matters to encounters/monster.py's potion-less roll.
+        from spells.charm import try_charm_potion
+        monster = _make_monster(number=50, name='GOBLIN', charmable=False, tough=False)
+        ctx = _make_ctx(room=_make_room(monster=50), monsters=[monster])
+        result = await try_charm_potion(ctx)
+        self.assertTrue(result)
+        self.assertIsNotNone(ctx.player.pending_charm)
 
     async def test_mechanical_monster_cannot_be_charmed(self):
         from spells.charm import try_charm_potion

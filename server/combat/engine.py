@@ -366,6 +366,11 @@ class CombatSession:
         # round) -- if it blocks, the monster can never attempt turn-to-stone
         # for the rest of this fight. See _check_crystal_pendant().
         self._turn_to_stone_blocked = False
+        # First-strike bonus from encounters/monster.py's surprise roll
+        # (SPUR.MISC4.S:85-96 -> SPUR.COMBAT.S zs=997). Set by enter_combat()
+        # when the player has a matching player.pending_surprise; stays True
+        # for the whole fight, same as SPUR's zs=997 is never reset mid-fight.
+        self.is_surprise = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -965,6 +970,7 @@ class CombatSession:
             monster_attack_count=self._monster_attack_count,
             is_mounted=player.query_flag(PlayerFlags.MOUNTED),
             is_charge=is_charge,
+            is_surprise=self.is_surprise,
         )
 
     # ------------------------------------------------------------------
@@ -1613,6 +1619,16 @@ async def enter_combat(ctx: 'GameContext', monster: dict) -> None:
             return
 
     session = CombatSession(monster, room_no)
+
+    # Consume encounters/monster.py's surprise roll, if it's still pending
+    # for this exact room/monster (SPUR.COMBAT.S zs=998 -> zs=997 on the
+    # first attack of the fight).
+    pending_surprise = getattr(ctx.player, 'pending_surprise', None)
+    if (pending_surprise and pending_surprise.get('room_no') == room_no
+            and pending_surprise.get('monster_number') == monster.get('number')):
+        session.is_surprise = True
+    ctx.player.pending_surprise = None
+
     if room_no is not None:
         ctx.server.active_combats[room_no] = session
 
