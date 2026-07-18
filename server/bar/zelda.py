@@ -4,7 +4,7 @@ Ported from SPUR.BAR.S (zelda/zelda.3/zelda.4/pr.weapons section).
 
 SPUR notes:
   - Study a player: 1,000 silver; shows all stats + weapons carried.
-  - Resurrect monsters: 6,000 silver; clears target's monsters_killed list
+  - Resurrect monsters: 6,000 silver; clears target's dead_monsters list
     (SPUR: writes 0 to position 44 of spur.monsters file for that player).
     Can be done anonymously ("SOMEBODY").
   - Fortune: free; Zelda reads the tea leaves.
@@ -114,7 +114,7 @@ def _find_online_player(ctx, name: str):
 
 
 def _clear_monsters_killed_offline(name: str) -> bool:
-    """Clear monsters_killed in a player's JSON save file directly.
+    """Clear dead_monsters in a player's JSON save file directly.
 
     Returns True on success.
     """
@@ -125,12 +125,12 @@ def _clear_monsters_killed_offline(name: str) -> bool:
     try:
         with open(path) as fh:
             data = json.load(fh)
-        data['monsters_killed'] = []
+        data['dead_monsters'] = []
         with open(path, 'w') as fh:
             json.dump(data, fh, indent=4)
         return True
     except Exception:
-        log.exception('Failed to clear monsters_killed for %r', name)
+        log.exception('Failed to clear dead_monsters for %r', name)
         return False
 
 
@@ -201,7 +201,7 @@ async def _study_player(ctx: GameContext) -> None:
     fields = ['name', 'gender', 'char_class', 'char_race', 'guild',
               'natural_alignment', 'current_alignment',
               'map_level', 'map_room', 'hit_points', 'experience', 'honor',
-              'shield', 'armor', 'silver', 'monsters_killed', 'times_played',
+              'shield', 'armor', 'silver', 'dead_monsters', 'times_played',
               'stats', 'inventory']
     info = get_player_info(fields, id_pattern=look_up)
     if info is None:
@@ -275,10 +275,10 @@ async def _study_player(ctx: GameContext) -> None:
         await ctx.send('No weapons.')
 
     # Monsters killed
-    mk = info.get('monsters_killed')
+    mk = info.get('dead_monsters')
     if mk:
         count = len(mk) if isinstance(mk, list) else mk
-        await ctx.send(f'{pronoun} has slain {count} monster type(s).')
+        await ctx.send(f'{pronoun} has slain {count} monster(s).')
 
     # Silver
     silver_data = info.get('silver', {})
@@ -298,7 +298,7 @@ async def _study_player(ctx: GameContext) -> None:
 # ---------------------------------------------------------------------------
 
 async def _resurrect_monsters(ctx: GameContext) -> None:
-    """Clear a player's monsters_killed list for 6,000 silver."""
+    """Clear a player's dead_monsters list for 6,000 silver."""
     player = ctx.player
 
     if not player.query_flag(PlayerFlags.EXPERT_MODE):
@@ -326,8 +326,8 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
         return
 
     # Check target actually has killed monsters
-    mk_info = get_player_info(['monsters_killed'], id_pattern=target)
-    mk      = mk_info.get('monsters_killed') if mk_info else None
+    mk_info = get_player_info(['dead_monsters'], id_pattern=target)
+    mk      = mk_info.get('dead_monsters') if mk_info else None
     if not mk:
         await ctx.send(f'{_NPC} peers into the ball. "Thiiiiis one has no dead monstersss to raissse..."')
         return
@@ -336,7 +336,7 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
 
     # Confirm target and show count
     raw2 = await ctx.prompt('Y/N', preamble_lines=[
-        f'You want me to bring {target}{_AP}s {count} slain monster type(s) back alive?'
+        f'You want me to bring {target}{_AP}s {count} slain monster(s) back alive?'
     ])
     if not raw2 or raw2.strip().upper() != 'Y':
         await ctx.send(f'{_NPC}: "Wellll, make up your mind!"')
@@ -365,10 +365,10 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
 
     await ctx.send(f'{_NPC} and her cat get really weird...')
 
-    # Clear monsters_killed — online player first, then fall back to disk
+    # Clear dead_monsters — online player first, then fall back to disk
     online_target = _find_online_player(ctx, target)
     if online_target is not None:
-        online_target.monsters_killed = []
+        online_target.dead_monsters = []
         online_target.unsaved_changes = True
         cleared = True
     else:

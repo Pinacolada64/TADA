@@ -288,13 +288,18 @@ def _survival_warnings(player) -> list[str]:
 
 
 def _record_kill(player, monster: dict) -> None:
-    """Record the monster ID in player.monsters_killed (no duplicates)."""
+    """Append the monster ID to player.dead_monsters -- one entry per kill,
+    not deduplicated (killing the same monster type 3 times over a career
+    counts 3 times; player.monsters_killed, a @property, is len(dead_monsters),
+    the kill-count stat). Callers that want "have I fought this one before"
+    should test `mid in player.dead_monsters` directly."""
     mid = monster.get('number') or monster.get('id_number') or monster.get('id')
     if mid is None:
         return
-    mk = getattr(player, 'monsters_killed', None)
-    if isinstance(mk, list) and mid not in mk:
-        mk.append(mid)
+    dm = getattr(player, 'dead_monsters', None)
+    if isinstance(dm, list):
+        dm.append(mid)
+        player.unsaved_changes = True
         player.unsaved_changes = True
 
 
@@ -712,8 +717,8 @@ class CombatSession:
 
         Skipped if the player has killed this monster number before (SPUR's
         xm$ check -- a rolling last-15-killed-this-session list there;
-        this port already tracks every distinct monster ever killed in
-        player.monsters_killed, so that's the equivalent gate here).
+        this port already tracks every monster ever killed in
+        player.dead_monsters, so that's the equivalent gate here).
         """
         from bar.ally_data import AllyFlags, AllyPosition, AllyStatus
         from bar.allies import owned_allies
@@ -722,7 +727,7 @@ class CombatSession:
             return
 
         mid = self.monster.get('number') or self.monster.get('id_number') or self.monster.get('id')
-        if mid is not None and mid in (getattr(ctx.player, 'monsters_killed', None) or []):
+        if mid is not None and mid in (getattr(ctx.player, 'dead_monsters', None) or []):
             return
 
         slot_num = random.choice(_TACTICAL_SLOT_ROLL)
@@ -1533,8 +1538,6 @@ class CombatSession:
             _give_silver(player, gold)
             await ctx.send(f'You find {gold} gold pieces on the {mname}!')
 
-        _record_kill(player, self.monster)
-
         # WIS improvement on solo kill (SPUR.COMBAT.S line 194):
         #   if x1 goto p.a3  ← skip WIS if ally dealt killing blow (x1 set in p.a1)
         #   if pw<12 then pw=pw+1:print "(YOU FEEL A BIT WISER)"
@@ -1569,7 +1572,24 @@ class CombatSession:
         # blow gains weapon exp (above) or the general per-swing ep exp
         # (CombatSession._swing()'s own callers) -- a bystander watching
         # someone else's fight doesn't get credit for either.
-        for b_ctx in self.attackers:
+        #
+        # dead_monsters is different: it's not a reward, it's this port's
+        # "have I already fought this one" gate (_check_tactical_ambush's
+        # skip check, MECHANICS.md's equivalent of SPUR's xm$). Every player
+        # who was actually in the fight -- not just whoever landed the
+        # killing blow -- has genuinely already fought this monster, so
+        # every one of self.attackers gets it added, not only `player`
+        # (Ryan's request; no SPUR precedent, this port's own extension).
+        #
+        # ctx itself is included even if it's somehow not (yet) in
+        # self.attackers (e.g. a grenade thrown at another room's fight via
+        # commands/use.py) -- credited exactly once either way, since
+        # _record_kill no longer dedupes (each kill is its own log entry).
+        credited = list(self.attackers)
+        if ctx not in credited:
+            credited.append(ctx)
+        for b_ctx in credited:
+            _record_kill(b_ctx.player, self.monster)
             if b_ctx is ctx:
                 continue
             await b_ctx.send(f'|green|{mname} is slain!|reset|')

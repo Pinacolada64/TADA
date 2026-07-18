@@ -12,7 +12,7 @@ _run_loop() as a bonus monster attack on its first swing this fight
 
 Coverage:
   - friendly encounter (race/alignment affinity) -> skipped entirely
-  - monster already in player.monsters_killed -> skipped (SPUR's xm$
+  - monster already in player.dead_monsters -> skipped (SPUR's xm$
     equivalent)
   - occupied slot, servant holds (roll <= hp) -> shout only, no ambush
   - occupied slot, ELITE servant fails the roll -> "TOO CLEVER", immune,
@@ -56,12 +56,12 @@ def _make_ally(name='ALFRED', hp=10, position=AllyPosition.EMPTY,
 
 
 class _FakePlayer:
-    def __init__(self, allies=None, race='Human', monsters_killed=None,
+    def __init__(self, allies=None, race='Human', dead_monsters=None,
                  map_level=1, intelligence=10, xp_level=1):
         self.name = 'Rulan'
         self.char_race = race
         self.party = Party(allies or [])
-        self.monsters_killed = monsters_killed or []
+        self.dead_monsters = dead_monsters or []
         self.map_level = map_level
         self.stats = {'Intelligence': intelligence}
         self.xp_level = xp_level
@@ -132,7 +132,7 @@ class TestTacticalAmbushGates(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(session._ambush_first_strike)
 
     async def test_already_killed_monster_is_skipped(self):
-        player = _FakePlayer(monsters_killed=[99])
+        player = _FakePlayer(dead_monsters=[99])
         ctx = _FakeCtx(player)
         session = CombatSession(_monster(number=99), room_no=1)
 

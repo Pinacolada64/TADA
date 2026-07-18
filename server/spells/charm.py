@@ -35,7 +35,7 @@ with matching lore text in books.json #59 before this module did.
 room.monster is shared, global map state (every player sees the same
 monster in a given room) -- SPUR never had to consider this, being
 single-player. A charmed-and-recruited monster is therefore tracked via
-player.charmed_monsters (mirrors player.monsters_killed's own per-player
+player.charmed_monsters (mirrors player.dead_monsters' own per-player
 "is this monster gone, from this player's point of view" pattern) rather
 than clearing room.monster, so other players keep seeing the monster
 normally.
@@ -111,7 +111,7 @@ async def try_charm_potion(ctx: 'GameContext') -> bool:
         await ctx.send('Charm what? There is no monster here!')
         return False
 
-    if (monster_no in getattr(player, 'monsters_killed', [])
+    if (monster_no in getattr(player, 'dead_monsters', [])
             or monster_no in getattr(player, 'charmed_monsters', [])):
         await ctx.send('Charm what? There is no monster here!')
         return False

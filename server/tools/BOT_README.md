@@ -133,7 +133,9 @@ the monster has `flags.petrify == True` AND player inventory has item id 82
 
 **`_check_tactical_ambush` (`engine.py:694-761`)** — skipped silently (no
 output) if `_is_friendly_encounter()` is true or the monster is in
-`player.monsters_killed`. Otherwise it **always** prints one of three
+`player.dead_monsters` (every attacker in a kill gets credited now, not
+just whoever landed the blow -- `player.monsters_killed` is a read-only
+`len(dead_monsters)` count). Otherwise it **always** prints one of three
 flavor shouts first (this is the reliable "it fired" marker):
 
 - `_TACTICAL_SHOUTS = {1: "To the front!", 2: "On the flank!", 3: "To the

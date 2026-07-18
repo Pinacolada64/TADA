@@ -60,7 +60,7 @@ class _FakePlayer:
         self.xp_level = 1
         self.experience = 0
         self.moves_today = 0
-        self.monsters_killed: list = []
+        self.dead_monsters: list = []
         self.read_books: list = []
         self.party = Party()
         self.unsaved_changes = False
@@ -598,28 +598,28 @@ class TestStatisticsMonstersKilled(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(responses=['a', 'GOBLIN', 'q'], player=player, server=self._server())
         menu = _statistics_menu(ctx)
         await _find_item(menu, 'Monsters killed').action(ctx)
-        self.assertEqual(player.monsters_killed, [1])
+        self.assertEqual(player.dead_monsters, [1])
 
     async def test_add_duplicate_monster_refused(self):
         player = _FakePlayer()
-        player.monsters_killed = [1]
+        player.dead_monsters = [1]
         ctx = _FakeCtx(responses=['a', 'GOBLIN', 'q'], player=player, server=self._server())
         menu = _statistics_menu(ctx)
         await _find_item(menu, 'Monsters killed').action(ctx)
-        self.assertEqual(player.monsters_killed, [1])
+        self.assertEqual(player.dead_monsters, [1])
         self.assertIn('already on the kill list', '\n'.join(ctx.sent))
 
     async def test_remove_monster(self):
         player = _FakePlayer()
-        player.monsters_killed = [1, 2]
+        player.dead_monsters = [1, 2]
         ctx = _FakeCtx(responses=['r', '1', 'q'], player=player, server=self._server())
         menu = _statistics_menu(ctx)
         await _find_item(menu, 'Monsters killed').action(ctx)
-        self.assertEqual(player.monsters_killed, [2])
+        self.assertEqual(player.dead_monsters, [2])
 
     async def test_dot_leader_shows_count(self):
         player = _FakePlayer()
-        player.monsters_killed = [1, 2, 3]
+        player.dead_monsters = [1, 2, 3]
         ctx = _FakeCtx(player=player)
         menu = _statistics_menu(ctx)
         item = _find_item(menu, 'Monsters killed')
@@ -630,7 +630,7 @@ class TestStatisticsMonstersKilled(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(responses=['q'], player=player, server=self._server())
         menu = _statistics_menu(ctx)
         await _find_item(menu, 'Monsters killed').action(ctx)
-        self.assertEqual(player.monsters_killed, [])
+        self.assertEqual(player.dead_monsters, [])
 
 
 # ---------------------------------------------------------------------------
