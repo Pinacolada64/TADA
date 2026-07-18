@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""Log back in as an existing bot char and confirm shield/armor persisted.
+
+Usage:
+    .venv/bin/python tools/bot_relogin_check.py <username> [password]
+
+password defaults to tools/.bot_credentials.json's entry for <username>
+(see bot_credentials.py) -- previously hardcoded to 'hunter22', which
+doesn't match any bot account this codebase creates, so login always
+failed and the persistence check below it never actually ran.
+"""
+import asyncio
+import json
+import sys
+
+from bot_credentials import load_password
+
+HOST = '127.0.0.1'
+PORT = 34083
+
+
+async def _send(writer, obj):
+    writer.write(json.dumps(obj).encode() + b'\n')
+    await writer.drain()
+
+
+async def _recv(reader, timeout=3.0):
+    try:
+        raw = await asyncio.wait_for(reader.readline(), timeout=timeout)
+        if not raw:
+            return None
+        return json.loads(raw.strip())
+    except asyncio.TimeoutError:
+        return None
+
+
+async def _recv_all(reader, timeout=1.5):
+    msgs = []
+    while True:
+        msg = await _recv(reader, timeout=timeout)
+        if msg is None:
+            break
+        msgs.append(msg)
+        lines = msg.get('lines') or []
+        if not lines and msg.get('prompt'):
+            break
+    return msgs
+
+
+def _print(msgs):
+    for m in msgs:
+        lines = m.get('lines', [])
+        if isinstance(lines, str):
+            lines = [lines]
+        for l in lines:
+            print(l)
+        if m.get('prompt'):
+            print(f'  [{m["prompt"]}]')
+
+
+async def main():
+    user = sys.argv[1]
+    password = sys.argv[2] if len(sys.argv) > 2 else load_password(user)
+    reader, writer = await asyncio.open_connection(HOST, PORT)
+    init = await _recv(reader, timeout=5.0)
+    await _send(writer, {'server_id': init.get('server_id', 'test_server'),
+                          'server_key': init.get('server_key', 'test_key')})
+    while True:
+        msgs = await _recv_all(reader, timeout=3.0)
+        if not msgs:
+            break
+        last = next((m.get('prompt', '') for m in reversed(msgs) if m.get('prompt')), '')
+        if last == 'login> ':
+            break
+        if 'terminal type' in last.lower():
+            await _send(writer, {'lines': ['A'], 'mode': 'login'})
+
+    script = [
+        (f'connect {user} {password}', 'login'),
+        ('stats', 'game'),
+        ('', 'game'),
+        ('', 'game'),
+        ('quit', 'game'),
+        ('Y', 'game'),
+    ]
+    for cmd, mode in script:
+        print(f"\n=== -> {cmd!r} ===")
+        await _send(writer, {'lines': [cmd], 'mode': mode})
+        msgs = await _recv_all(reader, timeout=4.0)
+        _print(msgs)
+
+    writer.close()
+    try:
+        await writer.wait_closed()
+    except Exception:
+        pass
+
+
+if __name__ == '__main__':
+    asyncio.run(main())

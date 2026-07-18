@@ -20,7 +20,7 @@ def _make_player(char_class=None, wizard_glow=None):
     player.armor = 0
     player.get_silver = lambda k: 100
     player.experience = 0
-    player.monsters_killed = []
+    player.dead_monsters = []
     player.honor = 1000
     player.xp_level = 1
     player.hit_points = 20

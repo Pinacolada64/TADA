@@ -11,3 +11,6 @@ server_config.json
 /tada-venv/
 # bot session logs
 *.log
+# tools/bot_credentials.py -- local-only test-account passwords, see that
+# file's docstring
+tools/.bot_credentials.json

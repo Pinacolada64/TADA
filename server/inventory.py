@@ -58,6 +58,15 @@ class InventoryEntry:
             'item_category': str(getattr(self.item, 'category', '')),
             'quantity':      self.quantity,
         }
+        # flags carries data (e.g. ammo's rounds/damage/used_with) beyond
+        # what item_id/name/category can reconstruct -- dropping it meant
+        # every item's flags reset to [] on the very next save/load cycle,
+        # regardless of what a shop set them to at purchase time (see
+        # commands/use.py's _apply_item docstring for the ammo-loading bug
+        # this caused in practice).
+        flags = getattr(self.item, 'flags', None)
+        if flags:
+            d['item_flags'] = flags
         if self.charges is not None:
             d['charges'] = self.charges
         if self.contents is not None:
@@ -185,6 +194,7 @@ class Inventory:
                 id_number=d.get('item_id', 0),
                 name=d.get('item_name', ''),
                 category=category,
+                flags=d.get('item_flags') or [],
             )
             entry = InventoryEntry(
                 item=item,

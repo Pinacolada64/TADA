@@ -10,6 +10,14 @@
   rewritten code (e.g. `Path(__file__).parent / '..' / 'objects.json'` instead
   of `os.path.join(os.path.dirname(__file__), '..', 'objects.json')`). Don't
   churn untouched files just to convert existing `os.path` usage.
+- **Sentence-case new player-facing strings, not SPUR's ALL-CAPS.** When
+  porting flavor/narration text from the SPUR BASIC source, write it as
+  `'You are caught off guard!'`, not `'YOU ARE CAUGHT OFF GUARD!'` — this
+  port's existing tone is sentence case, and the source's screaming caps
+  were a display-hardware artifact, not a style to preserve. Don't churn
+  untouched existing all-caps strings elsewhere just to convert them —
+  but converting one *is* fine when it's actually asked for; just ask
+  Ryan first rather than doing a drive-by sweep.
 
 ## Testing
 

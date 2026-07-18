@@ -25,13 +25,13 @@ def _make_room(monster=0):
 
 
 def _make_player(name='Killerella', party=None, charmed_monsters=None,
-                  monsters_killed=None, honor=1000):
+                  dead_monsters=None, honor=1000):
     player = MagicMock()
     player.name = name
     player.map_level = 1
     player.party = party if party is not None else Party()
     player.charmed_monsters = charmed_monsters if charmed_monsters is not None else []
-    player.monsters_killed = monsters_killed if monsters_killed is not None else []
+    player.dead_monsters = dead_monsters if dead_monsters is not None else []
     player.pending_charm = None
     player.honor = honor
     player.unsaved_changes = False
@@ -136,7 +136,7 @@ class TestTryCharmPotion(_IsolatedBattleLog):
     async def test_already_killed_by_this_player_treated_as_no_monster(self):
         from spells.charm import try_charm_potion
         monster = _make_monster(number=50)
-        player = _make_player(monsters_killed=[50])
+        player = _make_player(dead_monsters=[50])
         ctx = _make_ctx(room=_make_room(monster=50), monsters=[monster], player=player)
         result = await try_charm_potion(ctx)
         self.assertFalse(result)
