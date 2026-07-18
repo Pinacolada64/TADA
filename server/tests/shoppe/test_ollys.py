@@ -171,6 +171,20 @@ class TestAmmoSectionPurchase(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Done!', ctx._flat())
         self.assertTrue(player.unsaved_changes)
 
+    async def test_bought_ammo_carries_flags_for_use_command(self):
+        """Regression: the purchased item used to drop objects.json's
+        flags dict entirely (rounds/damage/used_with), so commands/use.py
+        could never actually load it -- see that module's _apply_item
+        docstring. The item in inventory must carry the same flags dict
+        objects.json defines for this ammo."""
+        player = _funded_player(1000)
+        ctx = _FakeCtx(['3', 'y', 'q'], player)  # arrows (shop-local #3)
+        await _ammo_section(ctx, player, player.inventory, self.objects_by_num)
+        entry = player.inventory.find(name='arrows')[0]
+        self.assertIsInstance(entry.item.flags, dict)
+        self.assertIn('rounds', entry.item.flags)
+        self.assertIn('used_with', entry.item.flags)
+
     async def test_buy_carrier_shows_auto_ammo_note(self):
         player = _funded_player(1000)
         ctx = _FakeCtx(['15', 'y', 'q'], player)  # cartridge box (shop-local #15), cost 50

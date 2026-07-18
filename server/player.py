@@ -303,10 +303,16 @@ class Player:
         self.ammo_max:    int = kwargs.get('ammo_max', 0)    # vl: total rounds when loaded (recovery cap)
         self.ring_worn:  bool = kwargs.get('ring_worn', False)  # zu$[2]: ring of invisibility worn
         self.experience = kwargs.get('experience', 0)
-        self.monsters_killed: list[int] = kwargs.get('monsters_killed', [])
+        # Every monster number this player has killed, one entry per kill --
+        # NOT deduplicated (Ryan's request: a monster killed 3 times over a
+        # career should count 3 times). monsters_killed (the @property,
+        # below __init__) is the derived kill count; anything that just
+        # wants "have I fought monster #N before" should test
+        # `N in player.dead_monsters` directly.
+        self.dead_monsters: list[int] = kwargs.get('dead_monsters', [])
         # Monster numbers charmed and recruited into this player's party via
         # charm.py -- room.monster is shared/global map state (see
-        # monsters_killed's own per-player "dead for this viewer" pattern
+        # dead_monsters' own per-player "dead for this viewer" pattern
         # this mirrors), so a charmed-and-joined monster must be tracked
         # per player rather than removed from the room, or other players
         # would lose the monster too.
@@ -495,6 +501,14 @@ class Player:
     def is_future_expansion(self) -> None:
         """TODO: Another such shortcut, to be determined"""
         return None
+
+    @property
+    def monsters_killed(self) -> int:
+        """Total kill count (STATS display, editplayer's dot-leader line,
+        etc.) -- derived from dead_monsters, the actual per-kill log.
+        Read-only: to clear a player's kills (bar/zelda.py's Resurrect
+        Monsters), reset dead_monsters itself, not this."""
+        return len(self.dead_monsters)
 
     def set_stat(self, ctx: 'GameContext', stat: "PlayerStat", adj: int, verbose: bool = False):
         """
@@ -1174,9 +1188,17 @@ class Player:
                 except ValueError:
                     logging.exception("Player._load: failed to restore last_connection for %s", self.name)
 
-            # Per-player kill list (each entry is a monster number)
-            if 'monsters_killed' in data and isinstance(data['monsters_killed'], list):
-                self.monsters_killed = [int(i) for i in data['monsters_killed'] if isinstance(i, (int, float))]
+            # Per-player kill log (each entry is a monster number, one per
+            # kill -- not deduplicated). 'dead_monsters' is the current key;
+            # 'monsters_killed' is the old (deduplicated-list) key from
+            # before monsters_killed became a derived @property -- migrate
+            # it once so older saves don't silently lose their kill history.
+            if 'dead_monsters' in data and isinstance(data['dead_monsters'], list):
+                self.dead_monsters = [int(i) for i in data['dead_monsters'] if isinstance(i, (int, float))]
+            elif 'monsters_killed' in data and isinstance(data['monsters_killed'], list):
+                logging.info("Player._load: %s's save predates dead_monsters -- migrating "
+                             "its old monsters_killed list", self.name)
+                self.dead_monsters = [int(i) for i in data['monsters_killed'] if isinstance(i, (int, float))]
 
             # Per-player charmed-and-recruited list (each entry is a monster number)
             if 'charmed_monsters' in data and isinstance(data['charmed_monsters'], list):

@@ -923,10 +923,10 @@ def _statistics_menu(ctx) -> Menu:
 
     async def edit_monsters_killed(ctx) -> None:
         monsters = getattr(ctx.server, 'monsters', []) or []
-        killed = getattr(p, 'monsters_killed', None)
+        killed = getattr(p, 'dead_monsters', None)
         if killed is None:
             killed = []
-            p.monsters_killed = killed
+            p.dead_monsters = killed
 
         def _name_for(num) -> str:
             m = next((m for m in monsters if m.get('number') == num), None)
@@ -1025,7 +1025,7 @@ def _statistics_menu(ctx) -> Menu:
     ))
     menu.add_item(MenuItem(
         'Monsters killed', shortcuts='mk',
-        dot_leader_handler=lambda ctx: str(len(getattr(p, 'monsters_killed', None) or [])),
+        dot_leader_handler=lambda ctx: str(len(getattr(p, 'dead_monsters', []) or [])),
         action=edit_monsters_killed,
     ))
     return menu
