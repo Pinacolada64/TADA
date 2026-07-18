@@ -123,7 +123,7 @@ def _run(coro):
     return asyncio.get_event_loop().run_until_complete(coro)
 
 
-@patch('combat.engine.CombatSession._append_capture_log')
+@patch('net_common.append_battle_log')
 class TestLassoCapture(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_horse_monster_not_captured(self, _mock_log):
@@ -271,7 +271,7 @@ class TestLassoCommand(unittest.IsolatedAsyncioTestCase):
         session = CombatSession({'name': 'WILD HORSE', 'strength': 15}, room_no=1)
         session.attackers.append(ctx)
         ctx.server.active_combats[1] = session
-        with patch.object(CombatSession, '_append_capture_log'):
+        with patch('net_common.append_battle_log'):
             result = await LassoCommand().execute(ctx)
         self.assertTrue(result.success)
         self.assertEqual(len(player.party), 1)

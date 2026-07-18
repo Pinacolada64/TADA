@@ -1,3 +1,4 @@
+import datetime
 import logging
 import json
 from dataclasses import dataclass, field, asdict
@@ -25,6 +26,23 @@ def user_dir() -> Path:
     """
     base = run_server_dir or Path('run') / 'server'
     return Path(base) / 'net'
+
+
+def append_battle_log(entry: str) -> None:
+    """Append a timestamped line to battle.log in the current run directory.
+
+    Shared helper for every module that logs a battle/social event (monster
+    kills, ally desertion/recruitment, guild duels, thefts, prayers, mount
+    captures, etc.) -- previously duplicated verbatim as a private
+    _append_battle_log()/_append_capture_log() in ~10 separate files.
+    """
+    path = Path(run_server_dir or 'run/server') / 'battle.log'
+    try:
+        with open(path, 'a') as fh:
+            stamp = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M UTC')
+            fh.write(f'[{stamp}] {entry}\n')
+    except OSError:
+        pass
 
 
 # ---------------------------------------------------------------------------

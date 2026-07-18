@@ -113,8 +113,21 @@ lo$	Room location name (copied into ww$)
         
 m$	Monster name
 mc	# of monsters in game
-ma	Related to probability (spur.main:set.prob)
-	Also probability of monster hitting *10?
+ma	Monster's to-hit stat (monsters.json 'to_hit' field) -- confirmed via
+	the Python port's combat/resolution.py ("SPUR ma", hit_threshold()'s
+	monster_size param, line ~135/457/681). Read as the last field of the
+	"monsters" data file record (`input #1,cb$\m$\ms,sw\ma`).
+	Doubles as a size-word index in SPUR.MISC4.S rd.mons:
+		zw$=" HUGELARGE  BIG  MANSHORTSMALLSWIFT"
+		z=(ma-2)*5+1:zy$=mid$(zw$,z,5)     -- ma=2->HUGE ... ma=8->SWIFT,
+						       ma=5->"MAN SIZED"
+	i.e. a monster's to-hit stat also drives the flavor-text size word
+	shown on first sighting (higher to-hit = described as smaller/swifter).
+	This is a *different* number from YY below, despite both loosely
+	tracking "how big is this monster" -- don't conflate them.
+	Also used in the surprise-encounter roll (rd.mons:86): z=10-ma,
+	so a low-to-hit ("huge") monster is easier to catch off guard than
+	a high-to-hit ("swift") one.
 md	Monster dead (0=alive, 1=dead monster, 2=monster tracks)
 mf	Monster following (1=yes)
 mk	Monsters Killed
@@ -203,6 +216,12 @@ vv	Civilian/Outlaw flag:
 	7: Claw (Autoduel on)
 	8: Fist
 	9: Fist (Autoduel on)
+	Also gates SPUR.MISC4.S:79-83's turf-guard check: monsters #65/66/67
+	are each one guild's own guard (FIST/SWORD/CLAW), and a member of
+	that guild (either vv value, autoduel on or off) gets saluted
+	instead of a normal encounter. Ported as encounters/monster.py's
+	_try_turf_guard(), keyed off player.guild directly since this port
+	has no separate autoduel-on/off axis on vv to match against.
 vu	your initiative:
 	3: Opponent has initiative
 	4: Neither has initiative
@@ -275,6 +294,53 @@ xx$	Scratch variable
         
 yg	Copy of PC
 yi	Copy of PR
+
+yy	Reused scratch variable, TWO unrelated meanings depending on where you
+	are in SPUR.MISC4.S's rd.mons routine:
+
+	1) Temporarily, a string INSTR() index while splitting the monster's
+	   flag suffix off its name (rd.mons:53 `yy=instr("|",m$)`) -- just a
+	   slice-position number, discarded immediately after use.
+
+	2) Then reassigned (rd.mons:62 `zx$=left$(m$,1):yy=val(zx$)`) to the
+	   monster's SIZE digit: an optional leading digit on the monster's
+	   NAME field in the "monsters" data file (e.g. "M.7RATTLESNAKE" ->
+	   name digit 7), 1–7, matching the Python port's monsters.py
+	   monster_sizes table (1=huge ... 7=swift; monsters.json's 'size'
+	   field is this exact digit, already parsed by
+	   convert_monster_data_fixed.py). yy=0 means the monster's name had
+	   NO leading digit at all (monsters.json 'size': null).
+
+	   Confirmed by reading monsters.txt directly (fixed-width/light-
+	   compression format, RECORD_SIZE=32) -- e.g. "M.1TINMAN|!55ACG",
+	   "M.3DRAGON! |~>>-." all carry the digit; "M.OLD MAN|!53AC<" does
+	   NOT, despite being AC (charmable) -- see the quirk below.
+
+	   This SIZE digit is NOT the same number as MA above (MA is the
+	   monster's to-hit stat, read as a separate CSV field) -- they're
+	   both small integers describing "how big/tough" a monster is, and
+	   easy to conflate, but they come from different source columns and
+	   are used for different things:
+
+	yy's (2nd meaning's) actual uses, all in rd.mons:
+	 - Gates the ENTIRE spontaneous-charm check (d.charm, rd.mons:100):
+	   `if (yy=0) or (zs=998) goto rd.mon2` -- monsters with no leading
+	   digit skip the charm roll entirely, INCLUDING the AC/charmable
+	   forced-join override (rd.mons:128 `if instr("AC",wy$) zq=1`),
+	   because execution jumps past it. Confirmed real-data quirk: OLD
+	   MAN (monsters.txt) is AC-flagged but has yy=0, so it can never
+	   actually be spontaneously charmed/recruited by this routine --
+	   whether that's an intentional design choice or an authoring
+	   oversight in the original game isn't clear from the source alone.
+	 - Gates the "whole encounter flees in terror" branch of the surprise
+	   roll (rd.mons:96): `if zs=998 then if yy>0 ... WHO RUN AWAY
+	   SCREAMING!` -- also requires a nonzero size digit.
+	 - Two specific charm-bonus modifiers keyed to an exact yy value:
+	   `if pc=9 if yy=1 z=z+20` (Knight, vs. huge/yy=1 monsters) and
+	   `if pr=3 if yy=2 z=z+40` (Pixie, vs. large/yy=2 monsters).
+
+	Ported (with these exact gates) in the Python port's
+	encounters/monster.py try_monster_encounter().
 ys$	What events have occurred this session
 	(Not strictly "once-per-session" flags as thought previously)
 	Strings are surrounded by "*" ("*GI*" for example) so INSTR() can
@@ -313,16 +379,36 @@ yz	EV-EX (spur.main)
 z	GENERAL PURPOSE
 zn	duel related
 zo	Carrying capacity
-zq	Ring invisibility flag? (related to ZS)
+zq	"Quite charmed" flag -- set by SPUR.MISC4.S rd.mons's spontaneous
+	charm-on-encounter roll (d.charm, confirmed rd.mons:118/127/128) or
+	a turf-guard recognizing the player (rd.mons:41-44). Read back in
+	SPUR.MAIN.S:192 (`if zq>0 i$="CHARM":gosub lnk.msc5`) to send the
+	monster through the exact same join-the-party offer flow as the
+	CHARM POTION -- see the Python port's spells/charm.py
+	try_charm_join_offer(), reused verbatim for both triggers, and
+	encounters/monster.py for the spontaneous-roll side.
 	Commentary flag in duel
 zr	# to remove from stats
-zs	Ring invisibility flags
+zs	Surprise-encounter state, set by rd.mons and consumed by
+	SPUR.COMBAT.S once a fight actually starts:
 		999: m$ lost sight of you
-		998: m$ is surprised
-		997:
+		998: m$ is surprised (set by rd.mons's surprise roll,
+		     SPUR.MISC4.S:94 -- the player caught the monster off
+		     guard) -- consumed on the first combat exchange
+		     (SPUR.COMBAT.S:23 `if zs=998 zs=997`)
+		997: SURPRISE ATTACK! -- to-hit +2 (p2=p2+2,
+		     SPUR.COMBAT.S:124) and damage +3 (b=b+3,
+		     SPUR.COMBAT.S:143) on the player's swing. Never reset
+		     back to 0 mid-fight, so per SPUR's own code this bonus
+		     actually applies to every swing of the fight, not just
+		     the first. Ported as CombatSession.is_surprise in the
+		     Python port's combat/engine.py, feeding
+		     combat/resolution.py's is_surprise param (which existed
+		     before this was wired up, but nothing set it until
+		     encounters/monster.py's surprise roll did).
 	       <990: m$ powers down/snarls and waits
 	       >989: ignores you/looks around uneasily
-		  0: 
+		  0:
 zt	Guild.standings: Claw victory points
 zt$	Copy of XV$ (from spur.misc2)
 zu$	10 characters:

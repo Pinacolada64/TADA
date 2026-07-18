@@ -2,7 +2,8 @@ import os
 import json
 import pytest
 import sys
-sys.path.insert(0, '/home/ryan/Documents/c64/TADA/TADA/server')
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 import flags
 from flags import PlayerFlags

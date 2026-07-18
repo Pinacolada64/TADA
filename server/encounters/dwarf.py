@@ -43,7 +43,6 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-import os
 import random
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -81,26 +80,6 @@ _SAFE_ROOM_FLAGS = {'water', 'water_with_rocks'}
 
 _THEFT_CHANCE_PCT = 1  # SPUR.MAIN.S: rnd(100)==50, i.e. 1-in-100
 
-
-def _append_battle_log(entry: str) -> None:
-    """New in TADA -- the original doesn't log the Dwarf's death at all
-    (checked SPUR.MISC.S's p.a3, just a print, no file write). Added on
-    Ryan's request to match this port's own convention for other notable
-    kills (Excalibur pull, Wraith King). Duplicated rather than shared,
-    matching street/allies_guild.py's/combat/engine.py's own copies of
-    the same helper."""
-    try:
-        import net_common
-        base = getattr(net_common, 'run_server_dir', None)
-    except Exception:
-        base = None
-    path = os.path.join(str(base or './run/server'), 'battle.log')
-    try:
-        with open(path, 'a') as fh:
-            stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
-            fh.write(f'[{stamp}] {entry}\n')
-    except Exception:
-        log.exception('Failed to write battle.log')
 
 
 def load_state() -> dict:
@@ -362,6 +341,7 @@ async def on_killed(ctx: 'GameContext') -> list[str]:
     stops being robbed from now on, but the Dwarf keeps roaming and
     stealing from everyone else once he relocates.
     """
+    import net_common
     from config import config
     from flags import PlayerFlags
 
@@ -382,9 +362,13 @@ async def on_killed(ctx: 'GameContext') -> list[str]:
         room.monster = 0
     save_state({'room': 0, 'last_moved': datetime.datetime.utcnow().isoformat()})
 
+    # New in TADA -- the original doesn't log the Dwarf's death at all
+    # (checked SPUR.MISC.S's p.a3, just a print, no file write). Added on
+    # Ryan's request to match this port's own convention for other notable
+    # kills (Excalibur pull, Wraith King).
     name = getattr(ctx.player, 'name', 'Someone')
     if hoard:
-        _append_battle_log(f'{name} slew the Dwarf and claimed {hoard:,} silver!')
+        net_common.append_battle_log(f'{name} slew the Dwarf and claimed {hoard:,} silver!')
         return [f'You find {hoard:,} silver on the Dwarf!']
-    _append_battle_log(f'{name} slew the Dwarf!')
+    net_common.append_battle_log(f'{name} slew the Dwarf!')
     return []

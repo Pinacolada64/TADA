@@ -366,6 +366,11 @@ class CombatSession:
         # round) -- if it blocks, the monster can never attempt turn-to-stone
         # for the rest of this fight. See _check_crystal_pendant().
         self._turn_to_stone_blocked = False
+        # First-strike bonus from encounters/monster.py's surprise roll
+        # (SPUR.MISC4.S:85-96 -> SPUR.COMBAT.S zs=997). Set by enter_combat()
+        # when the player has a matching player.pending_surprise; stays True
+        # for the whole fight, same as SPUR's zs=997 is never reset mid-fight.
+        self.is_surprise = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -538,7 +543,9 @@ class CombatSession:
         player.unsaved_changes = True
 
         await ctx.send(f'{name} joins your party as a mount!')
-        self._append_capture_log(player.name, name)
+        # SPUR.USE.S lasso.b: appends a MOUNT entry to battle.log.
+        import net_common
+        net_common.append_battle_log(f'{player.name} got a mount!  Name of the mount - {name}')
 
         self._done.set()
         self._remove_attacker(ctx)
@@ -605,23 +612,6 @@ class CombatSession:
                 await ctx.send(f'"{next(iter(bad))}" not allowed in name.')
                 continue
             return name
-
-    def _append_capture_log(self, player_name: str, horse_name: str) -> None:
-        """SPUR.USE.S lasso.b: appends a MOUNT entry to battle.log."""
-        import datetime
-        import os
-        try:
-            import net_common
-            base = getattr(net_common, 'run_server_dir', None)
-        except Exception:
-            base = None
-        path = os.path.join(str(base or './run/server'), 'battle.log')
-        try:
-            with open(path, 'a') as fh:
-                stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
-                fh.write(f'[{stamp}] {player_name} got a mount!  Name of the mount - {horse_name}\n')
-        except Exception:
-            log.exception('Failed to write battle.log')
 
     async def _check_crystal_pendant(self, ctx: 'GameContext') -> None:
         """Crystal Pendant (item #82): if the monster can cast turn-to-stone
@@ -965,6 +955,7 @@ class CombatSession:
             monster_attack_count=self._monster_attack_count,
             is_mounted=player.query_flag(PlayerFlags.MOUNTED),
             is_charge=is_charge,
+            is_surprise=self.is_surprise,
         )
 
     # ------------------------------------------------------------------
@@ -1392,6 +1383,14 @@ class CombatSession:
         if not is_dwarf:
             await self._reveal_hidden_exit(ctx)
 
+        # A would-be recruit stepping out of the shadows to offer to join
+        # (SPUR.MISC.S:423 -> SPUR.MISC2.S "servant"/"ally"), right after the
+        # hidden-exit reveal in source too. Excludes the Dwarf for the same
+        # reason as the reveal above (m$<>"THE DWARF" gates all of p.a4).
+        if not is_dwarf:
+            from encounters.monster import try_shadow_ally
+            await try_shadow_ally(ctx)
+
         # Notify bystanders of the kill. Only the ctx that landed the killing
         # blow gains weapon exp (above) or the general per-swing ep exp
         # (CombatSession._swing()'s own callers) -- a bystander watching
@@ -1613,6 +1612,16 @@ async def enter_combat(ctx: 'GameContext', monster: dict) -> None:
             return
 
     session = CombatSession(monster, room_no)
+
+    # Consume encounters/monster.py's surprise roll, if it's still pending
+    # for this exact room/monster (SPUR.COMBAT.S zs=998 -> zs=997 on the
+    # first attack of the fight).
+    pending_surprise = getattr(ctx.player, 'pending_surprise', None)
+    if (pending_surprise and pending_surprise.get('room_no') == room_no
+            and pending_surprise.get('monster_number') == monster.get('number')):
+        session.is_surprise = True
+    ctx.player.pending_surprise = None
+
     if room_no is not None:
         ctx.server.active_combats[room_no] = session
 
