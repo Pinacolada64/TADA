@@ -184,7 +184,7 @@ class TestAdminGating(NewsCommandTestCase):
     def test_admin_can_post(self):
         ctx = make_ctx(
             player=_FakePlayer(admin=True),
-            prompts=['Server Maintenance', 'permanent', 'We will be down Friday.', 'END'],
+            prompts=['Server Maintenance', 'permanent', 'We will be down Friday.', '.s'],
         )
         result = run(NewsCommand().execute(ctx, 'post'))
         self.assertTrue(result.success)
