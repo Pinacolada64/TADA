@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import datetime
 import logging
-import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -63,20 +62,6 @@ def _silver_in_hand(player) -> int:
     from base_classes import PlayerMoneyTypes
     return int(player.get_silver(PlayerMoneyTypes.IN_HAND) or 0)
 
-
-def _append_battle_log(entry: str) -> None:
-    try:
-        import net_common
-        base = getattr(net_common, 'run_server_dir', None)
-    except Exception:
-        base = None
-    path = os.path.join(str(base or './run/server'), 'battle.log')
-    try:
-        with open(path, 'a') as fh:
-            stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
-            fh.write(f'[{stamp}] {entry}\n')
-    except Exception:
-        log.exception('Failed to write battle.log')
 
 
 def _post_win_news(player_name: str) -> None:
@@ -138,10 +123,11 @@ def declare_victory(player: "Player") -> list[str]:
     """Apply win side effects (winners list, battle log, news) and return
     the celebration lines to show the player. Caller's job to have already
     confirmed evaluate_victory(player).won is True."""
+    import net_common
     import winners
 
     winners.record_win(player)
-    _append_battle_log(f'{player.name} has WON THE GAME!')
+    net_common.append_battle_log(f'{player.name} has WON THE GAME!')
     _post_win_news(player.name)
 
     return [

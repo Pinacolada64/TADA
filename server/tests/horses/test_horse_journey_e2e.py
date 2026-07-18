@@ -158,7 +158,7 @@ async def _equip_saddle_and_armor(ctx, player) -> None:
 
 class TestNonDruidRangerLassoJourney(unittest.IsolatedAsyncioTestCase):
 
-    @patch('combat.engine.CombatSession._append_capture_log')
+    @patch('net_common.append_battle_log')
     async def test_full_journey_lasso_capture_then_jakes_training(self, _log):
         server = Server('127.0.0.1', 0)
         horse_room = _horse_room(server)
@@ -224,7 +224,7 @@ class TestNonDruidRangerLassoJourney(unittest.IsolatedAsyncioTestCase):
 
 class TestDruidRangerPassiveTameJourney(unittest.IsolatedAsyncioTestCase):
 
-    @patch('combat.engine.CombatSession._append_capture_log')
+    @patch('net_common.append_battle_log')
     async def test_full_journey_passive_tame_then_jakes_training(self, _log):
         server = Server('127.0.0.1', 0)
         horse_room = _horse_room(server)

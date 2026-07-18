@@ -81,6 +81,37 @@ convention as spells/charm.py's own docstring):
     isn't modeled, since combat/engine.py's ally swings don't yet track a
     per-round penalty state -- only desertion (a lasting effect) is
     ported.
+
+try_shadow_ally() is a separate, later-added mechanic from a different
+source location -- SPUR.MISC.S:423 (`if not instr("@@",lo$) gosub
+rnd.10z:if z>5 link dy$,"servant"`) unconditionally after a kill's loot/
+ammo/hidden-exit handling, linking into SPUR.MISC2.S's "servant"/"ally"
+label (lines 85-135). Called from combat/engine.py's _monster_dies()
+rather than from try_monster_encounter() above, since it fires on a
+monster's *death*, not on room entry. Roughly 50% chance (rnd.10z>5),
+skipped in a 'water' room (SPUR's "@@" tag -- "the thief can't get you
+here" reasoning applies the same way to a would-be recruit) and for The
+Dwarf's kill (p.a4's own m$<>"THE DWARF" gate covers this whole block,
+matching _reveal_hidden_exit()'s is_dwarf exclusion in engine.py).
+
+Draws from the same master ally roster as bar/fat_olaf.py's Servant
+Trade (bar/ally_data.py's load_allies()/save_ally_roster(), FREE/SERVANT
+AllyStatus) -- SPUR's own "allies" file is that single shared roster
+too (fre.ally/SPUR.SUB.S:414 frees a slot back to it on desertion, same
+file sel.ally and this routine both read). Simplifications:
+  - SPUR draws one random roster slot first and only then checks whether
+    it's free (cb$<>"1"), fizzling into ambient flavor text if it wasn't
+    -- this port filters to FREE candidates before drawing, which changes
+    the odds slightly (source can "waste" a roll on an already-owned
+    NPC) but avoids reproducing an implementation detail of a flat-file
+    linear scan that has no equivalent here.
+  - A full party (3 allies) or an empty candidate pool both fall through
+    to the same ambient "sensed something" flavor lines as any other
+    fizzle, rather than reproducing ally6-10's separate "tactical
+    position" mumble reuse (SPUR.MISC2.S:173-178) -- that's really the
+    unrelated existing-servant-pay-demand mechanic's flavor text,
+    reused opportunistically by the original BASIC code for want of a
+    better fallthrough target.
 """
 from __future__ import annotations
 
@@ -103,6 +134,24 @@ _YY_FROM_SIZE = {
 _TURF_GUARD_NUMBERS = (65, 66, 67)
 
 _HP_PER_STRENGTH = 2  # matches spells/charm.py's own constant
+
+# SPUR.MISC2.S:129-134 "ally5" -- shown when the shadow-ally roll fizzles
+# (candidate pool empty, party already full, or the "not surprised" 50%
+# miss). SPUR's own weighting (a=random(49)/10+1) splits these five almost
+# exactly evenly (10/10/10/10/9 out of 49), so a plain random.choice is a
+# faithful match without reproducing the BASIC integer-division quirk.
+_SHADOW_AMBIENT_LINES = (
+    'There is a soft noise.. somewhere..',
+    'You sense.. something.. somebody..',
+    'What was that? A shuffling noise?',
+    'You sense somebody watching...',
+    'A tingling runs up your spine..',
+)
+
+# SPUR.MISC2.S:111 `x=5:if vk<6 x=0` -- no penalty at all once honor is
+# already this low.
+_SHADOW_DECLINE_HONOR_PENALTY = 5
+_SHADOW_DECLINE_HONOR_FLOOR = 6
 
 
 def _current_room(ctx: 'GameContext'):
@@ -391,3 +440,69 @@ async def _try_ally_tactical(ctx: 'GameContext', monster: dict) -> None:
     ally.position = AllyPosition.EMPTY
     party.remove(ally)
     player.unsaved_changes = True
+
+
+async def _shadow_ambient(ctx: 'GameContext') -> None:
+    await ctx.send(random.choice(_SHADOW_AMBIENT_LINES))
+
+
+async def try_shadow_ally(ctx: 'GameContext') -> None:
+    """SPUR.MISC.S:423 -> SPUR.MISC2.S "servant"/"ally" (lines 85-135).
+
+    Called from combat/engine.py's _monster_dies() after a non-Dwarf kill.
+    See the module docstring for the full derivation and simplifications.
+    """
+    room = _current_room(ctx)
+    if room and 'water' in (getattr(room, 'flags', None) or []):
+        return  # SPUR: `if not instr("@@",lo$)` -- can't reach you on water
+
+    if random.randint(1, 10) <= 5:
+        return  # SPUR: `gosub rnd.10z:if z>5 ...` -- roughly 50% miss
+
+    player = ctx.player
+    if not hasattr(player, 'party'):
+        return  # test doubles / anything not shaped like a real Player
+
+    import net_common
+    from bar.ally_data import AllyStatus, load_allies, save_ally_roster
+    from bar.allies import owned_allies
+
+    master_list = load_allies()
+    candidates = [a for a in master_list if a.status == AllyStatus.FREE]
+    if not candidates or len(owned_allies(player)) >= 3:
+        await _shadow_ambient(ctx)
+        return
+
+    candidate = random.choice(candidates)
+
+    await ctx.send([
+        '',
+        'In your concentration on the battle, you fail to see a figure',
+        'watching the fight with interest. But now, the person comes',
+        'forward, showing no hostile action...',
+        '',
+        f'"My name is {candidate.name}, I have been following you for some',
+        'time now, and if you would have me, I would like to join you, ok?"',
+    ])
+    raw = await ctx.prompt('Let them join? (Y/N)')
+    if not raw or raw.strip().upper() != 'Y':
+        honor = int(getattr(player, 'honor', 0) or 0)
+        if honor >= _SHADOW_DECLINE_HONOR_FLOOR:
+            player.honor = honor - _SHADOW_DECLINE_HONOR_PENALTY
+        await ctx.send('"Perhaps later.."')
+        return
+
+    candidate.status = AllyStatus.SERVANT
+    candidate.owner = player.name
+    candidate.hit_points = candidate.strength * _HP_PER_STRENGTH
+    save_ally_roster(master_list)
+
+    player_name = getattr(player, 'name', 'Someone')
+    await player.party.add(ctx, player, candidate)
+    await ctx.send(f'{candidate.name} bows, "Thank you! May our journey be pleasant.."')
+    await ctx.send_room(
+        f"{candidate.name} steps out of the shadows and joins {player_name}'s party.",
+        exclude_self=True,
+    )
+    player.unsaved_changes = True
+    net_common.append_battle_log(f"{candidate.name} joined {player.name}'s party (shadow encounter).")

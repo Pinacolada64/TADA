@@ -54,7 +54,7 @@ def _make_ctx(room_no=1, player=None, room=None, monsters=None, active_combats=N
 
 
 class _IsolatedBattleLog(unittest.IsolatedAsyncioTestCase):
-    """Redirects _append_battle_log()'s writes to a temp dir instead of the
+    """Redirects net_common.append_battle_log()'s writes to a temp dir instead of the
     real run/server/battle.log (same pattern test_dwarf.py/
     test_ally_starvation.py use)."""
 

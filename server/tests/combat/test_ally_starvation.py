@@ -13,7 +13,7 @@ from bar.ally_data import Ally, AllyFlags, AllyStatus
 
 
 class _IsolatedBattleLog(unittest.IsolatedAsyncioTestCase):
-    """Base class that redirects _append_battle_log()'s writes to a temp
+    """Base class that redirects net_common.append_battle_log()'s writes to a temp
     dir instead of the real run/server/battle.log (same pattern as
     tests/combat/test_dwarf.py's on_killed tests)."""
 

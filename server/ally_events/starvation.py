@@ -89,8 +89,6 @@ starvation-death mechanic, for consistency.
 """
 from __future__ import annotations
 
-import datetime
-import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -110,23 +108,6 @@ _WISDOM_FLOOR   = 5
 _INTELLIGENCE_PENALTY = 5
 _INTELLIGENCE_FLOOR   = 5
 
-
-def _append_battle_log(entry: str) -> None:
-    """Duplicated rather than shared, matching this port's own
-    convention for the same helper (street/allies_guild.py,
-    bar/zelda.py, combat/engine.py, victory.py, encounters/dwarf.py)."""
-    try:
-        import net_common
-        base = getattr(net_common, 'run_server_dir', None)
-    except Exception:
-        base = None
-    path = os.path.join(str(base or './run/server'), 'battle.log')
-    try:
-        with open(path, 'a') as fh:
-            stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
-            fh.write(f'[{stamp}] {entry}\n')
-    except OSError:
-        pass
 
 
 def _weakened_ally(player):
@@ -152,6 +133,8 @@ def _is_elite(ally) -> bool:
 
 async def try_encounter(ctx: 'GameContext') -> None:
     import random
+
+    import net_common
 
     player = ctx.player
     ally = _weakened_ally(player)
@@ -221,9 +204,9 @@ async def try_encounter(ctx: 'GameContext') -> None:
     where = getattr(room, 'name', 'the wilderness')
 
     if divine:
-        _append_battle_log(f'{ally.name} grew unhappy with {name}, and left!')
+        net_common.append_battle_log(f'{ally.name} grew unhappy with {name}, and left!')
     else:
-        _append_battle_log(
+        net_common.append_battle_log(
             f'{ally.name} died in {where}, from lack of nourishment while in service to {name}...'
         )
 

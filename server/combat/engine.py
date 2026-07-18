@@ -543,7 +543,9 @@ class CombatSession:
         player.unsaved_changes = True
 
         await ctx.send(f'{name} joins your party as a mount!')
-        self._append_capture_log(player.name, name)
+        # SPUR.USE.S lasso.b: appends a MOUNT entry to battle.log.
+        import net_common
+        net_common.append_battle_log(f'{player.name} got a mount!  Name of the mount - {name}')
 
         self._done.set()
         self._remove_attacker(ctx)
@@ -610,23 +612,6 @@ class CombatSession:
                 await ctx.send(f'"{next(iter(bad))}" not allowed in name.')
                 continue
             return name
-
-    def _append_capture_log(self, player_name: str, horse_name: str) -> None:
-        """SPUR.USE.S lasso.b: appends a MOUNT entry to battle.log."""
-        import datetime
-        import os
-        try:
-            import net_common
-            base = getattr(net_common, 'run_server_dir', None)
-        except Exception:
-            base = None
-        path = os.path.join(str(base or './run/server'), 'battle.log')
-        try:
-            with open(path, 'a') as fh:
-                stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
-                fh.write(f'[{stamp}] {player_name} got a mount!  Name of the mount - {horse_name}\n')
-        except Exception:
-            log.exception('Failed to write battle.log')
 
     async def _check_crystal_pendant(self, ctx: 'GameContext') -> None:
         """Crystal Pendant (item #82): if the monster can cast turn-to-stone
@@ -1397,6 +1382,14 @@ class CombatSession:
         # Excludes the Dwarf (see is_dwarf comment above).
         if not is_dwarf:
             await self._reveal_hidden_exit(ctx)
+
+        # A would-be recruit stepping out of the shadows to offer to join
+        # (SPUR.MISC.S:423 -> SPUR.MISC2.S "servant"/"ally"), right after the
+        # hidden-exit reveal in source too. Excludes the Dwarf for the same
+        # reason as the reveal above (m$<>"THE DWARF" gates all of p.a4).
+        if not is_dwarf:
+            from encounters.monster import try_shadow_ally
+            await try_shadow_ally(ctx)
 
         # Notify bystanders of the kill. Only the ctx that landed the killing
         # blow gains weapon exp (above) or the general per-swing ep exp

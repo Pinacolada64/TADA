@@ -95,5 +95,107 @@ class TestTryMonsterEncounterTurfGuardRouting(unittest.IsolatedAsyncioTestCase):
         ctx.send.assert_any_await('You meet one of your guards.')
 
 
+def _make_shadow_ctx(room_flags=(), prompt_reply='Y'):
+    ctx = MagicMock()
+    ctx.player.name = 'Testerson'
+    ctx.player.honor = 1000
+    ctx.player.party = MagicMock()
+    ctx.player.party.add = AsyncMock()
+    ctx.client.room = 2
+
+    room = MagicMock()
+    room.flags = list(room_flags)
+    game_map = MagicMock()
+    game_map.get_room.return_value = room
+    ctx.server.game_map = game_map
+
+    ctx.send = AsyncMock()
+    ctx.send_room = AsyncMock()
+    ctx.prompt = AsyncMock(return_value=prompt_reply)
+    return ctx
+
+
+def _make_candidate(name='ROBIN HOOD', strength=14):
+    from bar.ally_data import Ally
+    return Ally(name=name, gender='m', strength=strength, to_hit=8)
+
+
+class TestTryShadowAlly(unittest.IsolatedAsyncioTestCase):
+    async def test_water_room_is_safe(self):
+        from encounters.monster import try_shadow_ally
+        ctx = _make_shadow_ctx(room_flags=['water'])
+        with patch('random.randint') as mock_roll:
+            await try_shadow_ally(ctx)
+        mock_roll.assert_not_called()
+        ctx.send.assert_not_called()
+
+    async def test_roll_miss_is_a_no_op(self):
+        from encounters.monster import try_shadow_ally
+        ctx = _make_shadow_ctx()
+        with patch('random.randint', return_value=3):
+            await try_shadow_ally(ctx)
+        ctx.send.assert_not_called()
+
+    async def test_missing_party_attribute_is_a_no_op(self):
+        from encounters.monster import try_shadow_ally
+        ctx = _make_shadow_ctx()
+        del ctx.player.party
+        with patch('random.randint', return_value=10):
+            await try_shadow_ally(ctx)
+        ctx.send.assert_not_called()
+
+    async def test_no_free_candidates_sends_ambient_line(self):
+        from encounters.monster import try_shadow_ally
+        ctx = _make_shadow_ctx()
+        with patch('random.randint', return_value=10), \
+             patch('bar.ally_data.load_allies', return_value=[]):
+            await try_shadow_ally(ctx)
+        ctx.send.assert_awaited_once()
+        ctx.player.party.add.assert_not_called()
+
+    async def test_full_party_sends_ambient_line(self):
+        from encounters.monster import try_shadow_ally
+        ctx = _make_shadow_ctx()
+        candidate = _make_candidate()
+        with patch('random.randint', return_value=10), \
+             patch('bar.ally_data.load_allies', return_value=[candidate]), \
+             patch('bar.allies.owned_allies', return_value=[1, 2, 3]):
+            await try_shadow_ally(ctx)
+        ctx.send.assert_awaited_once()
+        ctx.player.party.add.assert_not_called()
+
+    async def test_accept_joins_party_and_logs(self):
+        from encounters.monster import try_shadow_ally
+        from bar.ally_data import AllyStatus
+        ctx = _make_shadow_ctx(prompt_reply='Y')
+        candidate = _make_candidate(name='ROBIN HOOD', strength=14)
+        with patch('random.randint', return_value=10), \
+             patch('bar.ally_data.load_allies', return_value=[candidate]), \
+             patch('bar.ally_data.save_ally_roster') as mock_save, \
+             patch('bar.allies.owned_allies', return_value=[]), \
+             patch('net_common.append_battle_log') as mock_log:
+            await try_shadow_ally(ctx)
+        self.assertEqual(candidate.status, AllyStatus.SERVANT)
+        self.assertEqual(candidate.owner, 'Testerson')
+        self.assertEqual(candidate.hit_points, 14 * 2)
+        ctx.player.party.add.assert_awaited_once_with(ctx, ctx.player, candidate)
+        mock_save.assert_called_once()
+        mock_log.assert_called_once()
+
+    async def test_decline_reduces_honor_and_leaves_free(self):
+        from encounters.monster import try_shadow_ally
+        from bar.ally_data import AllyStatus
+        ctx = _make_shadow_ctx(prompt_reply='N')
+        ctx.player.honor = 1000
+        candidate = _make_candidate()
+        with patch('random.randint', return_value=10), \
+             patch('bar.ally_data.load_allies', return_value=[candidate]), \
+             patch('bar.allies.owned_allies', return_value=[]):
+            await try_shadow_ally(ctx)
+        self.assertEqual(candidate.status, AllyStatus.FREE)
+        self.assertEqual(ctx.player.honor, 995)
+        ctx.player.party.add.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

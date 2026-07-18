@@ -79,7 +79,7 @@ def _session(monster_name='WILD HORSE'):
     return CombatSession({'name': monster_name, 'strength': 0, 'flags': {}}, room_no=1)
 
 
-@patch('combat.engine.CombatSession._append_capture_log')
+@patch('net_common.append_battle_log')
 class TestClassTaming(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_druid_ranger_never_tames(self, _log):

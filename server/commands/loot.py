@@ -29,9 +29,7 @@ mechanics ported:
     the audit trail instead (PILLAGE! on success, COMRADES! when a
     guardian blocks it), matching SPUR's own logging for both cases.
 """
-import datetime
 import logging
-import os
 
 from base_classes import Guild, PlayerClass
 from commands.base_command import Command, CommandResult, Mode
@@ -50,23 +48,6 @@ _MAX_LOOTS_OUTLAW   = 2
 # Sword/Fist -- feed zw$/zx$/zy$).
 _GUARDIAN_GUILDS = (Guild.SWORD, Guild.CLAW, Guild.FIST)
 
-
-def _append_battle_log(entry: str) -> None:
-    """Duplicated per this codebase's convention (see encounters/dwarf.py,
-    combat/engine.py, etc. -- each module keeps its own copy rather than
-    sharing one)."""
-    try:
-        import net_common
-        base = getattr(net_common, 'run_server_dir', None)
-    except Exception:
-        base = None
-    path = os.path.join(str(base or './run/server'), 'battle.log')
-    try:
-        with open(path, 'a') as fh:
-            stamp = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M UTC')
-            fh.write(f'[{stamp}] {entry}\n')
-    except Exception:
-        log.exception('Failed to write battle.log')
 
 
 def _room_mates(ctx) -> list:
@@ -189,7 +170,8 @@ class LootCommand(Command):
                 f"'{target.name} is a member of my guild,",
                 "you must defeat ME first!'",
             ])
-            _append_battle_log(
+            import net_common
+            net_common.append_battle_log(
                 f'{player.name} tried to PILLAGE {target.name} but was blocked '
                 f'by a guildmate (COMRADES!).'
             )
@@ -242,6 +224,7 @@ class LootCommand(Command):
 
         player.loot_count = loot_count + 1
 
-        _append_battle_log(f'{player.name} STOLE {item_name} FROM {target.name}.')
+        import net_common
+        net_common.append_battle_log(f'{player.name} STOLE {item_name} FROM {target.name}.')
 
         return CommandResult.ok()

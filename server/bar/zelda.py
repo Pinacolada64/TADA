@@ -13,7 +13,6 @@ import datetime
 import glob
 import json
 import logging
-import os
 from pathlib import Path
 from random import choice
 
@@ -39,21 +38,6 @@ _PLAYER_DIR = Path("run") / "server"
 # ---------------------------------------------------------------------------
 # Battle log  (SPUR.BAR.S: "battle.log" file, appended on resurrection)
 # ---------------------------------------------------------------------------
-
-def _append_battle_log(entry: str) -> None:
-    try:
-        import net_common
-        base = getattr(net_common, 'run_server_dir', None)
-    except Exception:
-        base = None
-    path = os.path.join(str(base or './run/server'), 'battle.log')
-    try:
-        with open(path, 'a') as fh:
-            stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
-            fh.write(f'[{stamp}] {entry}\n')
-    except Exception:
-        log.exception('Failed to write battle.log')
-
 
 # ---------------------------------------------------------------------------
 # Player-file helpers
@@ -299,6 +283,7 @@ async def _study_player(ctx: GameContext) -> None:
 
 async def _resurrect_monsters(ctx: GameContext) -> None:
     """Clear a player's monsters_killed list for 6,000 silver."""
+    import net_common
     player = ctx.player
 
     if not player.query_flag(PlayerFlags.EXPERT_MODE):
@@ -387,7 +372,7 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
         f'** MONSTER REVIVAL ** — {target}{_AP}s monsters raised'
         f' | Spell paid for by {benefactor}'
     )
-    _append_battle_log(log_entry)
+    net_common.append_battle_log(log_entry)
 
     if not anonymous:
         await broadcast_area(

@@ -53,8 +53,6 @@ starvation.py already make for their own mechanics.
 """
 from __future__ import annotations
 
-import datetime
-import os
 import random
 from typing import TYPE_CHECKING
 
@@ -77,25 +75,6 @@ def _current_room(ctx: 'GameContext'):
     level    = int(getattr(ctx.player, 'map_level', 1) or 1)
     game_map = getattr(ctx.server, 'game_map', None)
     return game_map.get_room(level, room_no) if game_map and room_no else None
-
-
-def _append_battle_log(entry: str) -> None:
-    """Duplicated rather than shared, matching this port's own convention
-    for the same helper (street/allies_guild.py, bar/zelda.py,
-    combat/engine.py, victory.py, encounters/dwarf.py, ally_events/
-    starvation.py)."""
-    try:
-        import net_common
-        base = getattr(net_common, 'run_server_dir', None)
-    except Exception:
-        base = None
-    path = os.path.join(str(base or './run/server'), 'battle.log')
-    try:
-        with open(path, 'a') as fh:
-            stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
-            fh.write(f'[{stamp}] {entry}\n')
-    except OSError:
-        pass
 
 
 async def try_charm_potion(ctx: 'GameContext') -> bool:
@@ -202,6 +181,8 @@ async def try_charm_join_offer(ctx: 'GameContext', *, level: int, room_no: int) 
     No-op if there's no pending charm, or it's for a different room than
     the one being left.
     """
+    import net_common
+
     player  = ctx.player
     pending = getattr(player, 'pending_charm', None)
     if not pending or pending['level'] != level or pending['room_no'] != room_no:
@@ -260,6 +241,6 @@ async def try_charm_join_offer(ctx: 'GameContext', *, level: int, room_no: int) 
         f"{name} beams with pride, and leaves with {player_name}.",
         exclude_self=True,
     )
-    _append_battle_log(f'{name} joined {player.name}\'s party (charmed).')
+    net_common.append_battle_log(f'{name} joined {player.name}\'s party (charmed).')
 
     player.pending_charm = None
