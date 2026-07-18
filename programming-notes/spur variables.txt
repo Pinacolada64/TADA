@@ -216,6 +216,12 @@ vv	Civilian/Outlaw flag:
 	7: Claw (Autoduel on)
 	8: Fist
 	9: Fist (Autoduel on)
+	Also gates SPUR.MISC4.S:79-83's turf-guard check: monsters #65/66/67
+	are each one guild's own guard (FIST/SWORD/CLAW), and a member of
+	that guild (either vv value, autoduel on or off) gets saluted
+	instead of a normal encounter. Ported as encounters/monster.py's
+	_try_turf_guard(), keyed off player.guild directly since this port
+	has no separate autoduel-on/off axis on vv to match against.
 vu	your initiative:
 	3: Opponent has initiative
 	4: Neither has initiative

@@ -33,6 +33,13 @@ Three rolls, in SPUR's own order, each short-circuiting the next:
      wired to anything until now -- with a chance that ally deserts the
      party outright.
 
+  4. Turf guards (lines 79-83): monsters #65/#66/#67 are each a specific
+     guild's own hired guard ("GUARD ==[]"/"GUARD -}--"/"GUARD \\|/",
+     matching SPUR.GUILD.S's ww$ tags for Iron Fist/Sword/Claw). A player
+     who belongs to that same guild is saluted instead of encountering
+     them normally -- checked first, so it short-circuits everything
+     above, including the tough/charmable skip-to-charm jump.
+
 Two small integers on the monster record are easy to conflate and drive
 different rolls below -- see programming-notes/spur variables.txt's `ma`
 and `yy` entries for the full derivation:
@@ -48,6 +55,15 @@ and `yy` entries for the full derivation:
     and the surprise roll's "whole encounter flees in terror" branch, plus two
     charm-bonus modifiers keyed to an exact value (yy=1 vs Knights, yy=2
     vs Pixies).
+
+Two `vv` values are collapsed into one guild in this port: SPUR's `vv`
+splits each guild into an autoduel-on/off pair (e.g. Claw is 6 normally,
+7 with autoduel on -- see programming-notes/spur variables.txt), but
+rd.mons's own turf-guard check tests both (`vv=6 or vv=7`) -- i.e. either
+autoduel state of the *same* guild salutes the same guard. This port's
+player.guild field has no autoduel-state axis at all (see shoppe/clan.py,
+guild_hq/main.py), so the check below is a straight guild-identity match,
+matching what rd.mons actually tests.
 
 Simplifications from source (documented, not silently dropped -- same
 convention as spells/charm.py's own docstring):
@@ -80,6 +96,11 @@ _YY_FROM_SIZE = {
     'huge': 1, 'large': 2, 'big': 3, 'man_sized': 4,
     'short': 5, 'small': 6, 'swift': 7,
 }
+
+# SPUR.MISC4.S:80-82 -- monster number -> the one guild whose member gets
+# saluted instead of encountering this guard normally. Populated lazily in
+# _try_turf_guard() to avoid a module-level import of base_classes.Guild.
+_TURF_GUARD_NUMBERS = (65, 66, 67)
 
 _HP_PER_STRENGTH = 2  # matches spells/charm.py's own constant
 
@@ -126,6 +147,9 @@ async def try_monster_encounter(ctx: 'GameContext', *, level: int, room_no: int)
     if flags.get('mechanical'):
         return  # deliberate deviation from source -- see module docstring
 
+    if await _try_turf_guard(ctx, monster_no):
+        return
+
     # SPUR.MISC4.S:77 `if (instr(".",wy$)) or (instr("AC",wy$)) goto d.charm`
     # -- 'tough' or 'charmable' monsters skip the surprise roll entirely.
     if not (flags.get('tough') or flags.get('charmable')):
@@ -137,6 +161,28 @@ async def try_monster_encounter(ctx: 'GameContext', *, level: int, room_no: int)
         return
 
     await _try_ally_tactical(ctx, monster)
+
+
+async def _try_turf_guard(ctx: 'GameContext', monster_no: int) -> bool:
+    """SPUR.MISC4.S:79-83. Returns True (and short-circuits the whole
+    encounter) if *monster_no* is one of the three guild turf guards and
+    the player belongs to that guild."""
+    if monster_no not in _TURF_GUARD_NUMBERS:
+        return False
+
+    from base_classes import Guild
+    guild_for_guard = {
+        67: Guild.CLAW,
+        66: Guild.SWORD,
+        65: Guild.FIST,
+    }
+    player = ctx.player
+    if getattr(player, 'guild', Guild.CIVILIAN) != guild_for_guard[monster_no]:
+        return False
+
+    await ctx.send('You meet one of your guards.')
+    await ctx.send('He salutes smartly!')
+    return True
 
 
 async def _try_surprise(ctx: 'GameContext', monster: dict, monster_no: int) -> bool:
