@@ -55,9 +55,7 @@ New in TADA simplifications:
     player.loot_count (LOOT), mirroring SPUR's own ys$ flag string
     which resets each login too.
 """
-import datetime
 import logging
-import os
 import random
 
 from base_classes import PlayerClass, PlayerStat
@@ -101,24 +99,6 @@ def _has_unused_rations(player) -> bool:
             continue
         return True
     return False
-
-
-def _append_battle_log(entry: str) -> None:
-    """Duplicated per this codebase's convention (see encounters/dwarf.py,
-    combat/engine.py, commands/loot.py, etc. -- each module keeps its own
-    copy rather than sharing one)."""
-    try:
-        import net_common
-        base = getattr(net_common, 'run_server_dir', None)
-    except Exception:
-        base = None
-    path = os.path.join(str(base or './run/server'), 'battle.log')
-    try:
-        with open(path, 'a') as fh:
-            stamp = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M UTC')
-            fh.write(f'[{stamp}] {entry}\n')
-    except Exception:
-        log.exception('Failed to write battle.log')
 
 
 def _need_roll(player) -> int:
@@ -190,6 +170,7 @@ class PrayCommand(Command):
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
+        import net_common
         self.parse_args(*args)
         player = ctx.player
 
@@ -206,7 +187,7 @@ class PrayCommand(Command):
             ])
             player.hit_points = 0
             player.unsaved_changes = True
-            _append_battle_log(f'{player.name} was FRIED for pestering the Spirit of the Dungeons.')
+            net_common.append_battle_log(f'{player.name} was FRIED for pestering the Spirit of the Dungeons.')
             return CommandResult.ok()
 
         hp         = int(getattr(player, 'hit_points', 0) or 0)
@@ -267,6 +248,6 @@ class PrayCommand(Command):
         player.unsaved_changes = True
 
         tag = 'PIOUS PRAY' if is_pious else 'PRAY'
-        _append_battle_log(f'{player.name} - {tag}: The Spirit of the Dungeons helped {player.name}.')
+        net_common.append_battle_log(f'{player.name} - {tag}: The Spirit of the Dungeons helped {player.name}.')
 
         return CommandResult.ok()

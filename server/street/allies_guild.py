@@ -18,9 +18,7 @@ SPUR notes:
   - Already-trained / already-maxed checks are free (no gold charged, no
     confirmation prompt).
 """
-import datetime
 import logging
-import os
 from typing import List, Optional
 
 from bar.ally_data import Ally, AllyFlags
@@ -40,25 +38,6 @@ _COST_DISCIPLINE = 1000
 _COST_ARMOR      = 600
 _COST_COMBAT     = 800
 _COST_TRACKING   = 750
-
-
-# ---------------------------------------------------------------------------
-# Battle log  (SPUR.MISC8.S "log" subroutine: appends to battle.log)
-# ---------------------------------------------------------------------------
-
-def _append_battle_log(entry: str) -> None:
-    try:
-        import net_common
-        base = getattr(net_common, 'run_server_dir', None)
-    except Exception:
-        base = None
-    path = os.path.join(str(base or './run/server'), 'battle.log')
-    try:
-        with open(path, 'a') as fh:
-            stamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
-            fh.write(f'[{stamp}] {entry}\n')
-    except Exception:
-        log.exception('Failed to write battle.log')
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +69,8 @@ async def _train_flag(ctx: GameContext, ally: Ally, flag: AllyFlags, label: str,
         ally.flags = []
     ally.flags.append(flag)
     await ctx.send(f'{ally.name} is now {label}.')
-    _append_battle_log(
+    import net_common
+    net_common.append_battle_log(
         f"{ctx.player.name} had {ally.name} trained in the Allies' Guild. "
         f'Enhancement was: {label.upper()}'
     )
@@ -129,7 +109,8 @@ async def _train_body(ctx: GameContext, ally: Ally) -> None:
     ally.body_build = level + 1
     ally.strength += _BODY_BUILD_STR_BONUS
     await ctx.send(f'{ally.name} is now BODY BUILT +{_BODY_BUILD_STR_BONUS}!  (Str {ally.strength})')
-    _append_battle_log(
+    import net_common
+    net_common.append_battle_log(
         f"{ctx.player.name} had {ally.name} trained in the Allies' Guild. "
         f'Enhancement was: BODY BUILT +{_BODY_BUILD_STR_BONUS}'
     )

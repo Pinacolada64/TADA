@@ -960,6 +960,8 @@ class Server:
         ctx.player.unsaved_changes = True
         logging.debug('EXIT moved to room=%r', dest)
         await self._show_room(ctx)
+        from encounters.monster import try_monster_encounter
+        await try_monster_encounter(ctx, level=level, room_no=int(dest))
         from ally_events import try_ally_find_gold
         await try_ally_find_gold(ctx)
         from wild_horse_events import try_wandering_horse_encounter
@@ -1043,6 +1045,8 @@ class Server:
             await ctx.send(f'You have entered {name}!')
         logging.debug('Cross-level hidden exit -> level=%s room=%s', target_level, target_room)
         await self._show_room(ctx)
+        from encounters.monster import try_monster_encounter
+        await try_monster_encounter(ctx, level=target_level, room_no=target_room)
         from ally_events import try_ally_find_gold
         await try_ally_find_gold(ctx)
         from wild_horse_events import try_wandering_horse_encounter

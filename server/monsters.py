@@ -10,7 +10,20 @@ monster_flags = [
     ('+',   'cast_one_spell'),
     (']',   'double_attacks'),
     (':',   'mechanical'),
-    ('.',   'increase_strength'),
+    # Confirmed 7/16/26 by grepping every `instr(".",wy$)` site across all
+    # SPUR .S source files (was previously guessed as 'increase_strength'
+    # -- too narrow): blocks fleeing (SPUR.COMBAT.S:75 "BLOCKS THE PATH!"),
+    # adds bonus attack damage (COMBAT.S:264,303), immune to the scare
+    # check (COMBAT.S:428), immune to losing track of the player
+    # (COMBAT.S:22/MAIN.S:32 skip the detection-loss roll entirely),
+    # exempt from the monster-strength cap and gets +10 strength in
+    # rd.mons (SPUR.MISC4.S:58-59), and can NEVER be charmed -- neither by
+    # the spontaneous encounter roll (MISC4.S:126 `if not instr(".",wy$)
+    # zq=1`) nor the CHARM POTION (SPUR.SUB.S:147 "is unaffected by the
+    # charm potion!"). monsters.json's real 'increase_strength'==True set
+    # is exactly the boss-tier roster (DRAGON, RINGWRAITH, SARUMAN,
+    # GUARDIAN, KEEPER, WICKED WITCH, STONE GIANT, ...), confirming this.
+    ('.',   'tough'),
     ('E',   'evil'),
     ('G',   'good'),
     ('<',   're_animates'),
@@ -38,7 +51,7 @@ monster_flag_labels = {
     'cast_one_spell':       'Cast one spell',
     'double_attacks':       'Double attacks',
     'mechanical':           'Mechanical being',
-    'increase_strength':    'Increase strength',
+    'tough':                'Tough (blocks fleeing, hits harder, always alert, immune to scare/charm)',
     'evil':                 'Evil',
     'good':                 'Good',
     're_animates':          'Re-animates',
