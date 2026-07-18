@@ -82,12 +82,14 @@ import textwrap
 from datetime import datetime
 from pathlib import Path
 
+from bot_credentials import load_password
+
 HOST  = '127.0.0.1'
 PORT  = 34083
 WIDTH = 78
 LOG_FILE = Path(__file__).resolve().parent.parent / f'bot_horse_journey_{datetime.now().strftime("%Y-%m-%d_%H%M%S")}.log'
 
-_PASSWORD = 'puppy123'
+_PASSWORD = load_password()   # tools/.bot_credentials.json (gitignored)
 _ELEVATOR_COMBO = '11-22-33'
 _HORSE_ROOMS = (30, 52, 68)   # simple_server.py's _WILD_HORSE_ROOMS
 

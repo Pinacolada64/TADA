@@ -44,12 +44,13 @@ sys.path.insert(0, str(_SERVER_DIR))
 from base_classes import Combination, CombinationTypes, Gender, PlayerClass, PlayerMoneyTypes
 from flags import PlayerFlags
 from player import Player
+from bot_credentials import DEFAULT_PASSWORD, set_password
 
 import net_common
 net_common.run_server_dir = str(_SERVER_DIR / 'run' / 'server')
 
 _USER_DIR = _SERVER_DIR / 'run' / 'server' / 'net'
-_PASSWORD = 'puppy123'
+_PASSWORD = DEFAULT_PASSWORD
 _ELEVATOR_COMBO = (11, 22, 33)
 # Mirrors bar/fat_olaf.py's purchase math: strength +5 on hire, then
 # hit_points seeded as strength x2 (TADA extension, no canonical SPUR
@@ -149,6 +150,7 @@ def make_account(name: str, char_class, gender) -> None:
         extra = f' -- servants: {", ".join(_RAILBENDER_ALLY_NAMES)}'
     if name == 'botlasso':
         extra = ' -- carrying: .357 MAGNUM, 2x .357 ammo'
+    set_password(name, _PASSWORD)   # tools/.bot_credentials.json (gitignored)
     print(f'Created {name} ({char_class.value}, {gender.value}) -- '
           f'password {_PASSWORD!r}, elevator combo {"-".join(f"{n:02}" for n in _ELEVATOR_COMBO)}{extra}')
 
