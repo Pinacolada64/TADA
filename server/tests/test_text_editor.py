@@ -7,6 +7,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
+from formatting import deserialize_lines, render_lines
 from text_editor import (
     Border, BorderRole, Buffer, DefaultLineRange, Editor, Justification, Line,
     LineFlag, _sanitize_filename, process_line_range_string, run_editor,
@@ -15,6 +16,16 @@ from text_editor import (
 
 def _make_buffer(*texts: str) -> Buffer:
     return Buffer(lines=[Line(text=t) for t in texts])
+
+
+def _texts(result: list) -> list:
+    """run_editor()'s .S Save result is now a list of serialized Line
+    dicts (formatting.serialize_lines()'s output), not pre-rendered
+    strings -- Justification/Border are metadata on each dict, not baked
+    into 'text'. Tests that only care about plain content use this to
+    pull just the text back out; tests that care about formatting check
+    the dict fields directly or re-render via formatting.render_lines()."""
+    return [d['text'] for d in result]
 
 
 class TestProcessLineRangeString(unittest.TestCase):
@@ -220,19 +231,19 @@ class TestRelativeLineRangeEndToEnd(unittest.IsolatedAsyncioTestCase):
         for n in (1, 2, 3, 4):
             self.assertIn(f'{n}: {n}', _sent_text(ctx))
         self.assertNotIn('5: 5', _sent_text(ctx))
-        self.assertEqual(result, [str(i) for i in range(1, 11)])  # list doesn't mutate
+        self.assertEqual(_texts(result), [str(i) for i in range(1, 11)])  # list doesn't mutate
 
     async def test_relative_range_via_delete_command(self):
         ctx = _make_ctx(['.d 2-+2', '.s'])
         result = await run_editor(ctx, initial_lines=['a', 'b', 'c', 'd', 'e'])
-        self.assertEqual(result, ['a', 'e'])
+        self.assertEqual(_texts(result), ['a', 'e'])
 
 
 class TestRunEditorBasics(unittest.IsolatedAsyncioTestCase):
     async def test_append_list_edit_save_session(self):
         ctx = _make_ctx(['first line', 'second line', '.l', '.e 2', 'edited second line', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, ['first line', 'edited second line'])
+        self.assertEqual(_texts(result), ['first line', 'edited second line'])
 
     async def test_abort_returns_none(self):
         ctx = _make_ctx(['some line', '.a', 'Y'])
@@ -247,40 +258,40 @@ class TestRunEditorBasics(unittest.IsolatedAsyncioTestCase):
     async def test_initial_lines_preloaded_and_editable(self):
         ctx = _make_ctx(['.d 1', '.s'])
         result = await run_editor(ctx, initial_lines=['keep me', 'delete me'])
-        self.assertEqual(result, ['delete me'])
+        self.assertEqual(_texts(result), ['delete me'])
 
     async def test_initial_lines_accept_prebuilt_line_objects(self):
         quoted = Line(text='quoted content', line_flag=LineFlag.IMMUTABLE)
         ctx = _make_ctx(['.s'])
         result = await run_editor(ctx, initial_lines=[quoted])
-        self.assertEqual(result, ['quoted content'])
+        self.assertEqual(_texts(result), ['quoted content'])
 
     async def test_save_with_no_lines_returns_empty_list(self):
         ctx = _make_ctx(['.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, [])
+        self.assertEqual(_texts(result), [])
 
     async def test_blank_enter_adds_a_blank_line(self):
         ctx = _make_ctx(['one', '', 'two', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, ['one', '', 'two'])
+        self.assertEqual(_texts(result), ['one', '', 'two'])
 
     async def test_unrecognized_command_does_not_crash_session(self):
         ctx = _make_ctx(['.z', 'a real line', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, ['a real line'])
+        self.assertEqual(_texts(result), ['a real line'])
 
 
 class TestInsertMode(unittest.IsolatedAsyncioTestCase):
     async def test_insert_at_line_shifts_rest_down(self):
         ctx = _make_ctx(['one', 'three', '.i 2', 'two', '.i', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, ['one', 'two', 'three'])
+        self.assertEqual(_texts(result), ['one', 'two', 'three'])
 
     async def test_insert_toggle_defaults_to_end_of_buffer(self):
         ctx = _make_ctx(['one', '.i', 'two', '.i', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, ['one', 'two'])
+        self.assertEqual(_texts(result), ['one', 'two'])
 
 
 class TestDeleteSkipsImmutable(unittest.IsolatedAsyncioTestCase):
@@ -288,7 +299,7 @@ class TestDeleteSkipsImmutable(unittest.IsolatedAsyncioTestCase):
         ctx = _make_ctx(['.d 1-2', '.s'])
         lines = [Line(text='keep', line_flag=LineFlag.IMMUTABLE), Line(text='delete me')]
         result = await run_editor(ctx, initial_lines=lines)
-        self.assertEqual(result, ['keep'])
+        self.assertEqual(_texts(result), ['keep'])
 
 
 class TestEditSkipsImmutable(unittest.IsolatedAsyncioTestCase):
@@ -311,25 +322,25 @@ class TestEditSubcommands(unittest.IsolatedAsyncioTestCase):
         result = await run_editor(ctx, initial_lines=[
             'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
         ])
-        self.assertEqual(result, [
+        self.assertEqual(_texts(result), [
             'one', 'two', 'three', 'seven', 'four', 'five', 'six', 'eight',
         ])
 
     async def test_move_to_the_very_end(self):
         ctx = _make_ctx(['.e m 1 4', '.s'])  # dest == used_lines+1 -- append
         result = await run_editor(ctx, initial_lines=['a', 'b', 'c'])
-        self.assertEqual(result, ['b', 'c', 'a'])
+        self.assertEqual(_texts(result), ['b', 'c', 'a'])
 
     async def test_copy_leaves_source_in_place(self):
         ctx = _make_ctx(['.e c 1-2 4', '.s'])
         result = await run_editor(ctx, initial_lines=['one', 'two', 'three'])
-        self.assertEqual(result, ['one', 'two', 'three', 'one', 'two'])
+        self.assertEqual(_texts(result), ['one', 'two', 'three', 'one', 'two'])
 
     async def test_copy_is_a_real_deep_copy_not_a_shared_reference(self):
         # editing the copy afterward must not also change the original
         ctx = _make_ctx(['.e c 1 3', '.e 1', 'changed', '.s'])
         result = await run_editor(ctx, initial_lines=['original', 'two'])
-        self.assertEqual(result, ['changed', 'two', 'original'])
+        self.assertEqual(_texts(result), ['changed', 'two', 'original'])
 
     async def test_move_skips_immutable_lines_in_range(self):
         # only 'free' (index 1) is actually movable -- 'locked' stays put,
@@ -338,22 +349,22 @@ class TestEditSubcommands(unittest.IsolatedAsyncioTestCase):
         ctx = _make_ctx(['.e m 1-2 3', '.s'])
         lines = [Line(text='locked', line_flag=LineFlag.IMMUTABLE), Line(text='free'), Line(text='c')]
         result = await run_editor(ctx, initial_lines=lines)
-        self.assertEqual(result, ['locked', 'free', 'c'])
+        self.assertEqual(_texts(result), ['locked', 'free', 'c'])
 
     async def test_move_missing_destination_prompts_for_it(self):
         ctx = _make_ctx(['.e m 1', '3', '.s'])
         result = await run_editor(ctx, initial_lines=['a', 'b', 'c'])
-        self.assertEqual(result, ['b', 'a', 'c'])
+        self.assertEqual(_texts(result), ['b', 'a', 'c'])
 
     async def test_move_missing_destination_cancelled_on_blank_response(self):
         ctx = _make_ctx(['.e m 1', '', '.s'])
         result = await run_editor(ctx, initial_lines=['a', 'b'])
-        self.assertEqual(result, ['a', 'b'])
+        self.assertEqual(_texts(result), ['a', 'b'])
 
     async def test_move_with_no_args_at_all_prompts_for_both(self):
         ctx = _make_ctx(['.e m', '1', '3', '.s'])
         result = await run_editor(ctx, initial_lines=['a', 'b', 'c'])
-        self.assertEqual(result, ['b', 'a', 'c'])
+        self.assertEqual(_texts(result), ['b', 'a', 'c'])
 
     async def test_list_subcommand_delegates_to_list(self):
         ctx = _make_ctx(['.e l 1-2', '.s'])
@@ -361,7 +372,7 @@ class TestEditSubcommands(unittest.IsolatedAsyncioTestCase):
         self.assertIn('1: one', _sent_text(ctx))
         self.assertIn('2: two', _sent_text(ctx))
         self.assertNotIn('3: three', _sent_text(ctx))
-        self.assertEqual(result, ['one', 'two', 'three'])  # list doesn't mutate
+        self.assertEqual(_texts(result), ['one', 'two', 'three'])  # list doesn't mutate
 
 
 class TestEditUndoRedo(unittest.IsolatedAsyncioTestCase):
@@ -371,23 +382,23 @@ class TestEditUndoRedo(unittest.IsolatedAsyncioTestCase):
     async def test_undo_reverts_last_typed_line(self):
         ctx = _make_ctx(['one', 'two', '.e u', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, ['one'])
+        self.assertEqual(_texts(result), ['one'])
 
     async def test_undo_twice_then_redo_once(self):
         ctx = _make_ctx(['one', 'two', '.e u', '.e u', '.e r', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, ['one'])
+        self.assertEqual(_texts(result), ['one'])
 
     async def test_undo_past_empty_history_is_a_no_op(self):
         ctx = _make_ctx(['one', '.e u', '.e u', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, [])
+        self.assertEqual(_texts(result), [])
         self.assertIn('Nothing to undo.', _sent_text(ctx))
 
     async def test_redo_with_nothing_to_redo_is_a_no_op(self):
         ctx = _make_ctx(['.e r', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, [])
+        self.assertEqual(_texts(result), [])
         self.assertIn('Nothing to redo.', _sent_text(ctx))
 
     async def test_new_change_after_undo_clears_redo_history(self):
@@ -395,17 +406,17 @@ class TestEditUndoRedo(unittest.IsolatedAsyncioTestCase):
         result = await run_editor(ctx)
         # 'two' was undone, 'three' typed instead (clearing redo) -- the
         # trailing '.e r' has nothing to redo and is a no-op:
-        self.assertEqual(result, ['one', 'three'])
+        self.assertEqual(_texts(result), ['one', 'three'])
 
     async def test_undo_reverts_delete(self):
         ctx = _make_ctx(['.d 1', '.e u', '.s'])
         result = await run_editor(ctx, initial_lines=['one', 'two'])
-        self.assertEqual(result, ['one', 'two'])
+        self.assertEqual(_texts(result), ['one', 'two'])
 
     async def test_undo_reverts_move(self):
         ctx = _make_ctx(['.e m 1 3', '.e u', '.s'])
         result = await run_editor(ctx, initial_lines=['a', 'b', 'c'])
-        self.assertEqual(result, ['a', 'b', 'c'])
+        self.assertEqual(_texts(result), ['a', 'b', 'c'])
 
     async def test_show_buffers_reports_stack_depth(self):
         ctx = _make_ctx(['one', 'two', '.e s', '.s'])
@@ -417,79 +428,97 @@ class TestEditUndoRedo(unittest.IsolatedAsyncioTestCase):
     async def test_bare_edit_submenu_undo_choice(self):
         ctx = _make_ctx(['one', '.e', 'u', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, [])
+        self.assertEqual(_texts(result), [])
 
     async def test_bare_edit_submenu_cancel_on_empty_response(self):
         ctx = _make_ctx(['one', '.e', '', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, ['one'])  # cancelled -- nothing happened
+        self.assertEqual(_texts(result), ['one'])  # cancelled -- nothing happened
 
     async def test_bare_edit_submenu_move_prompts_for_range_and_destination(self):
         ctx = _make_ctx(['one', 'two', 'three', '.e', 'm', '1', '3', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, ['two', 'one', 'three'])
+        self.assertEqual(_texts(result), ['two', 'one', 'three'])
 
 
 class TestJustify(unittest.IsolatedAsyncioTestCase):
     async def test_justify_center_sets_persistent_style(self):
+        # Justification is metadata on the saved Line, not baked into
+        # 'text' -- so the raw saved text is unchanged; only re-rendering
+        # (formatting.render_lines(), what a viewer's display path does)
+        # produces the padded/centered output, and it can do so at any
+        # width, not just whatever was active at .J-time.
         ctx = _make_ctx(['.j c 1-2', '.s'])
         result = await run_editor(ctx, initial_lines=['one', 'two'])
-        self.assertEqual(result, ['one'.center(80), 'two'.center(80)])
+        self.assertEqual(_texts(result), ['one', 'two'])
+        self.assertEqual([d.get('justification') for d in result], ['CENTER', 'CENTER'])
+        rendered = render_lines(deserialize_lines(result), ctx, 80)
+        self.assertEqual(rendered, ['one'.center(80), 'two'.center(80)])
 
     async def test_justify_with_no_range_changes_default_for_future_lines(self):
         ctx = _make_ctx(['.j c', 'centered later', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, ['centered later'.center(80)])
+        self.assertEqual(_texts(result), ['centered later'])
+        self.assertEqual(result[0].get('justification'), 'CENTER')
+        rendered = render_lines(deserialize_lines(result), ctx, 80)
+        self.assertEqual(rendered, ['centered later'.center(80)])
 
     async def test_justify_unknown_mode_reports_error(self):
         ctx = _make_ctx(['.j z 1', '.s'])
         result = await run_editor(ctx, initial_lines=['one'])
         self.assertIn('Unknown', _sent_text(ctx))
-        self.assertEqual(result, ['one'])
+        self.assertEqual(_texts(result), ['one'])
 
     async def test_justify_pack_collapses_spaces(self):
         ctx = _make_ctx(['.j p 1', '.s'])
         result = await run_editor(ctx, initial_lines=['one    two   three'])
-        self.assertEqual(result, ['one two three'])
+        self.assertEqual(_texts(result), ['one two three'])
 
     async def test_justify_indent_default_amount(self):
         ctx = _make_ctx(['.j i 1', '', '.s'])
         result = await run_editor(ctx, initial_lines=['hi'])
-        self.assertEqual(result, ['    hi'])
+        self.assertEqual(_texts(result), ['    hi'])
 
     async def test_justify_unindent_strips_leading_spaces(self):
         ctx = _make_ctx(['.j u 1', '.s'])
         result = await run_editor(ctx, initial_lines=['    hi'])
-        self.assertEqual(result, ['hi'])
+        self.assertEqual(_texts(result), ['hi'])
 
     async def test_justify_skips_immutable_lines(self):
         ctx = _make_ctx(['.j c 1', '.s'])
         lines = [Line(text='locked', line_flag=LineFlag.IMMUTABLE)]
         result = await run_editor(ctx, initial_lines=lines)
-        self.assertEqual(result, ['locked'])  # unchanged -- still LEFT-justified
+        self.assertEqual(_texts(result), ['locked'])  # unchanged -- still LEFT-justified
 
 
 class TestBorder(unittest.IsolatedAsyncioTestCase):
     async def test_border_wraps_range_in_box(self):
         ctx = _make_ctx(['.b 1', '.s'], screen_columns=10)
         result = await run_editor(ctx, initial_lines=['hi'])
-        self.assertEqual(len(result), 3)
-        self.assertTrue(result[0].startswith('+'))
-        self.assertTrue(result[-1].startswith('+'))
+        rendered = render_lines(deserialize_lines(result), ctx, 10)
+        self.assertEqual(len(rendered), 3)
+        self.assertTrue(rendered[0].startswith('+'))
+        self.assertTrue(rendered[-1].startswith('+'))
 
     async def test_border_custom_character(self):
         ctx = _make_ctx(['.b * 1', '.s'], screen_columns=10)
         result = await run_editor(ctx, initial_lines=['hi'])
-        self.assertTrue(result[0].startswith('+*'))
+        rendered = render_lines(deserialize_lines(result), ctx, 10)
+        self.assertTrue(rendered[0].startswith('+*'))
 
-    async def test_border_width_tracks_column_width_not_command_time_width(self):
+    async def test_border_rerenders_at_any_width_since_width_isnt_baked_in(self):
         # the actual point of tagging Line with Border instead of baking
-        # box-drawing characters into .text at .B-time: narrowing the
-        # column width *after* boxing re-renders the box narrower too,
-        # not stuck at whatever width was active when .B ran.
-        ctx = _make_ctx(['.c 10', '.b 1', '.c 20', '.l', '.s'], screen_columns=20)
+        # box-drawing characters into .text at .B-time: the saved result
+        # carries no width at all -- the same saved box re-renders at
+        # whatever width a given viewer needs, not stuck at whatever
+        # column width was active in the author's session.
+        ctx = _make_ctx(['.b 1', '.s'], screen_columns=20)
         result = await run_editor(ctx, initial_lines=['hi'])
-        self.assertEqual(len(result[0]), 20)
+        lines = deserialize_lines(result)
+        narrow = render_lines(lines, ctx, 10)
+        wide = render_lines(lines, ctx, 30)
+        self.assertEqual(len(narrow[0]), 10)
+        self.assertEqual(len(wide[0]), 30)
 
 
 def _make_real_settings_ctx(responses, translation, border_style='single', screen_columns=20):
@@ -521,15 +550,17 @@ class TestBorderTerminalAwareGlyphs(unittest.IsolatedAsyncioTestCase):
         from terminal import Translation
         ctx = _make_real_settings_ctx(['.b 1', '.s'], Translation.ANSI)
         result = await run_editor(ctx, initial_lines=['hi'])
-        self.assertEqual(result[0][0], '┌')
-        self.assertEqual(result[0][-1], '┐')
-        self.assertIn('│', result[1])
+        rendered = render_lines(deserialize_lines(result), ctx, 20)
+        self.assertEqual(rendered[0][0], '┌')
+        self.assertEqual(rendered[0][-1], '┐')
+        self.assertIn('│', rendered[1])
 
     async def test_explicit_character_ignores_client_translation(self):
         from terminal import Translation
         ctx = _make_real_settings_ctx(['.b * 1', '.s'], Translation.ANSI)
         result = await run_editor(ctx, initial_lines=['hi'])
-        self.assertTrue(result[0].startswith('+*'))
+        rendered = render_lines(deserialize_lines(result), ctx, 20)
+        self.assertTrue(rendered[0].startswith('+*'))
 
 
 class TestFindAndReplace(unittest.IsolatedAsyncioTestCase):
@@ -537,7 +568,7 @@ class TestFindAndReplace(unittest.IsolatedAsyncioTestCase):
         ctx = _make_ctx(['.f', 'two', '.s'])
         result = await run_editor(ctx, initial_lines=['one', 'two', 'three'])
         self.assertIn('two', _sent_text(ctx))
-        self.assertEqual(result, ['one', 'two', 'three'])
+        self.assertEqual(_texts(result), ['one', 'two', 'three'])
 
     async def test_find_wraps_match_in_brackets_for_highlighting(self):
         # buffer.text itself is untouched -- only the search-results
@@ -546,7 +577,7 @@ class TestFindAndReplace(unittest.IsolatedAsyncioTestCase):
         ctx = _make_ctx(['.f', 'cat', '.s'])
         result = await run_editor(ctx, initial_lines=['the cat sat on the cat mat'])
         self.assertIn('the [cat] sat on the [cat] mat', _sent_text(ctx))
-        self.assertEqual(result, ['the cat sat on the cat mat'])
+        self.assertEqual(_texts(result), ['the cat sat on the cat mat'])
 
     async def test_find_no_match_reports_cleanly(self):
         ctx = _make_ctx(['.f', 'nope', '.s'])
@@ -556,7 +587,7 @@ class TestFindAndReplace(unittest.IsolatedAsyncioTestCase):
     async def test_search_and_replace_counts_occurrences(self):
         ctx = _make_ctx(['.k', 'cat', 'dog', '.s'])
         result = await run_editor(ctx, initial_lines=['cat sat on the cat mat'])
-        self.assertEqual(result, ['dog sat on the dog mat'])
+        self.assertEqual(_texts(result), ['dog sat on the dog mat'])
         self.assertIn('Replaced 2', _sent_text(ctx))
 
 
@@ -581,12 +612,12 @@ class TestNewText(unittest.IsolatedAsyncioTestCase):
     async def test_new_text_confirmed_erases_buffer(self):
         ctx = _make_ctx(['.n', 'Y', '.s'])
         result = await run_editor(ctx, initial_lines=['gone'])
-        self.assertEqual(result, [])
+        self.assertEqual(_texts(result), [])
 
     async def test_new_text_declined_keeps_buffer(self):
         ctx = _make_ctx(['.n', 'N', '.s'])
         result = await run_editor(ctx, initial_lines=['still here'])
-        self.assertEqual(result, ['still here'])
+        self.assertEqual(_texts(result), ['still here'])
 
 
 class TestLineNumbersMode(unittest.IsolatedAsyncioTestCase):
@@ -667,7 +698,7 @@ class TestPrivilegedFileCommands(unittest.IsolatedAsyncioTestCase):
 
         ctx2 = _make_ctx(['.g notes.txt', '.l', '.s'], admin=True)
         result = await run_editor(ctx2)
-        self.assertEqual(result, ['hello there'])
+        self.assertEqual(_texts(result), ['hello there'])
 
     async def test_put_file_collision_replace(self):
         ctx = _make_ctx(['.p dup.txt', '.s'], admin=True)
@@ -679,7 +710,7 @@ class TestPrivilegedFileCommands(unittest.IsolatedAsyncioTestCase):
 
         ctx3 = _make_ctx(['.g dup.txt', '.l', '.s'], admin=True)
         result = await run_editor(ctx3)
-        self.assertEqual(result, ['second'])
+        self.assertEqual(_texts(result), ['second'])
 
     async def test_get_nonexistent_file_reports_error(self):
         ctx = _make_ctx(['.g nope.txt', '.s'], admin=True)

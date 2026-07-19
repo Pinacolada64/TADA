@@ -45,6 +45,7 @@ except ImportError:
 import re
 import textwrap
 from dataclasses import dataclass, field
+from enum import Enum, auto
 from typing import Protocol, runtime_checkable
 
 
@@ -1074,6 +1075,213 @@ def make_box_for_settings(settings,
                     frame_color=frame_color,
                     title_color=title_color,
                     text_color=text_color)
+
+
+# ---------------------------------------------------------------------------
+# Line model -- Justification/Border-aware text lines, rendered fresh at
+# view time rather than baked into .text, so the same saved content
+# displays correctly for two players with different screen widths or
+# terminal types. text_editor.py (the ed-style line editor) builds saved
+# content out of these; news.py persists the serialized form via
+# serialize_lines()/deserialize_lines() below so a saved post re-renders
+# per-viewer instead of being frozen at whichever width/glyph-set the
+# author's terminal had at save time.
+# ---------------------------------------------------------------------------
+
+class Justification(Enum):
+    LEFT       = auto()
+    CENTER     = auto()
+    RIGHT      = auto()
+    EXPAND     = auto()  # persistent render-time style (see Line.render)
+    # PACK/INDENT/UN_INDENT are one-time text mutations, not persistent
+    # styles -- see text_editor.py's _cmd_justify -- but keeping them as
+    # Justification members too matches the .J dot-command's vocabulary.
+    PACK       = auto()
+    INDENT     = auto()
+    UN_INDENT  = auto()
+
+
+class LineFlag(Enum):
+    MUTABLE   = auto()  # default -- editable
+    IMMUTABLE = auto()  # text_editor.py's Edit/Delete/Justify skip these
+    QUOTE     = auto()  # reserved for a future reply-quoting feature
+
+
+class BorderRole(Enum):
+    """Which part of a border box a Line represents. Only CONTENT lines
+    carry real text -- TOP/BOTTOM render as a rule line regardless of
+    .text (a box's width should track *whoever's viewing it*, not
+    whatever screen width was active when the border was made, so
+    nothing about box width is baked into .text at command time --
+    render() draws it fresh every time)."""
+    TOP     = auto()
+    CONTENT = auto()
+    BOTTOM  = auto()
+
+
+@dataclass
+class Border:
+    # None means "use make_box()'s terminal-aware glyphs for whoever's
+    # viewing this" (Unicode box-drawing for ANSI, PETSCII line-drawing
+    # for C64 clients, ASCII fallback otherwise) -- only an explicit
+    # character falls back to a plain hand-rolled box with that literal
+    # character instead. See render_lines().
+    char: str | None = None
+    role: BorderRole = BorderRole.CONTENT
+
+
+def _justify_text(text: str, width: int, justification: Justification) -> str:
+    if justification == Justification.LEFT or len(text) >= width:
+        return text
+    if justification == Justification.CENTER:
+        return text.center(width)
+    if justification == Justification.RIGHT:
+        return text.rjust(width)
+    if justification == Justification.EXPAND:
+        return _expand_justify(text, width)
+    return text  # PACK/INDENT/UN_INDENT never persist as a style
+
+
+def _expand_justify(text: str, width: int) -> str:
+    """Full-justify `text` to exactly `width` columns by distributing extra
+    spaces between words. Single-word lines, or text that's already too
+    wide to expand, are returned unchanged."""
+    words = text.split()
+    if len(words) < 2:
+        return text
+    total_word_len = sum(len(w) for w in words)
+    gaps = len(words) - 1
+    total_spaces = width - total_word_len
+    if total_spaces < gaps:
+        return text
+    base, extra = divmod(total_spaces, gaps)
+    out = words[0]
+    for i, word in enumerate(words[1:], start=1):
+        out += ' ' * (base + (1 if i <= extra else 0)) + word
+    return out
+
+
+@dataclass
+class Line:
+    text: str = ''
+    justification: Justification = Justification.LEFT
+    line_flag: LineFlag = LineFlag.MUTABLE
+    border: Border | None = None
+
+    def render(self, width: int) -> str:
+        """Return this line padded/justified (and, if a Border tagged it,
+        boxed) to `width` columns -- screen-width independent: storing
+        *how* to justify, rather than baking padding into .text, means
+        the same Line renders correctly for two players with different
+        screen widths -- and the same reasoning extends to Border below."""
+        if self.border is not None:
+            return self._render_bordered(width)
+        return _justify_text(self.text, width, self.justification)
+
+    def _render_bordered(self, width: int) -> str:
+        """Standalone (no ctx) fallback: a plain ASCII box using the
+        stored character, or '-' if none was given. Used when a bordered
+        Line is rendered outside of render_lines()'s ctx-aware, whole-
+        buffer pass (e.g. a partial selection cut off mid-box) -- see
+        that function's own docstring for the normal, preferred path."""
+        width = max(width, 4)
+        char = self.border.char or '-'
+        if self.border.role in (BorderRole.TOP, BorderRole.BOTTOM):
+            return f'+{char * (width - 2)}+'
+        inner_width = width - 4  # "| " + text + " |"
+        content = _justify_text(self.text, inner_width, self.justification)
+        content = content[:inner_width].ljust(inner_width)
+        return f'| {content} |'
+
+    def to_dict(self) -> dict:
+        """JSON-safe representation for persisting saved content (see
+        serialize_lines()/deserialize_lines()) -- only non-default fields
+        are included, so plain unformatted lines stay compact."""
+        d: dict = {'text': self.text}
+        if self.justification != Justification.LEFT:
+            d['justification'] = self.justification.name
+        if self.line_flag != LineFlag.MUTABLE:
+            d['line_flag'] = self.line_flag.name
+        if self.border is not None:
+            border_d: dict = {'role': self.border.role.name}
+            if self.border.char is not None:
+                border_d['char'] = self.border.char
+            d['border'] = border_d
+        return d
+
+    @staticmethod
+    def from_dict(d: dict) -> 'Line':
+        border = None
+        if 'border' in d:
+            b = d['border']
+            border = Border(char=b.get('char'), role=BorderRole[b.get('role', 'CONTENT')])
+        return Line(
+            text=d.get('text', ''),
+            justification=Justification[d.get('justification', 'LEFT')],
+            line_flag=LineFlag[d.get('line_flag', 'MUTABLE')],
+            border=border,
+        )
+
+
+def serialize_lines(lines: list[Line]) -> list[dict]:
+    """Structured form of a Line list, JSON-safe -- what callers persisting
+    saved content (e.g. news.py's item['body']) should store, instead of
+    pre-rendered strings, so it can be re-rendered per-viewer later via
+    render_lines() rather than being frozen at the author's own screen
+    width/terminal type."""
+    return [line.to_dict() for line in lines]
+
+
+def deserialize_lines(data: list) -> list[Line]:
+    """Inverse of serialize_lines(). Also accepts plain strings for each
+    entry (old-format saved content from before Lines were persisted
+    structurally) as a migration path -- those become plain, unformatted
+    Lines, same as they always rendered."""
+    return [Line.from_dict(d) if isinstance(d, dict) else Line(text=d) for d in data]
+
+
+def render_lines(lines: list[Line], ctx, width: int) -> list[str]:
+    """Render a full list of Lines to display strings, one output string
+    per input Line (same length in and out -- callers can freely index
+    into the result with whatever range they actually wanted, even a
+    slice that only partly overlaps a box).
+
+    A contiguous TOP/CONTENT.../BOTTOM run with no explicit Border.char
+    is rendered as one batch via make_box() -- the real, terminal-aware
+    box-drawing this server already has for every other ANSI/PETSCII
+    client (Unicode box-drawing, PETSCII line-drawing, or ASCII fallback,
+    picked from ctx.player.client_settings). Everything else (including a
+    Border run that DID get an explicit character, or a partial/orphaned
+    box fragment) falls back to each Line's own .render(width) -- see
+    Line._render_bordered()'s docstring.
+    """
+    out: list[str] = []
+    i, n = 0, len(lines)
+    while i < n:
+        line = lines[i]
+        if (line.border is not None and line.border.role == BorderRole.TOP
+                and line.border.char is None):
+            j = i + 1
+            content = []
+            while j < n and lines[j].border is not None and lines[j].border.role == BorderRole.CONTENT:
+                content.append(lines[j])
+                j += 1
+            has_bottom = j < n and lines[j].border is not None and lines[j].border.role == BorderRole.BOTTOM
+            inner_width = max(width - 4, 1)
+            texts = [_justify_text(ln.text, inner_width, ln.justification) for ln in content]
+            settings = ctx.player.client_settings
+            boxed = make_box(texts, width=width, codec=codec_for_settings(settings),
+                             border_style=border_style_for_ctx(ctx))
+            out.extend(boxed[:1 + len(content)])
+            if has_bottom:
+                out.append(boxed[-1])
+                i = j + 1
+            else:
+                i = j
+            continue
+        out.append(line.render(width))
+        i += 1
+    return out
 
 
 # ---------------------------------------------------------------------------

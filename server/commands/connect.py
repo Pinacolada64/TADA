@@ -98,7 +98,7 @@ def _party_waiting_line(party) -> str | None:
     return f"{waiting} {verb} waiting for you!"
 
 
-def _login_news_lines(player) -> list[str]:
+def _login_news_lines(ctx, player) -> list[str]:
     """Build the login-time news display for *player*, honoring their
     command_settings.news_show_all preference (full directory every login
     vs. just what's new since player.last_connection). Marks 'once' items
@@ -106,6 +106,9 @@ def _login_news_lines(player) -> list[str]:
 
     Reuses news.py's helpers directly rather than commands/news.py's
     NewsCommand, since this runs before the player has a live prompt loop.
+    *ctx* is only needed to pass through to news_store.format_item(),
+    which re-renders each item's body at this viewer's own screen width/
+    terminal type (see news.py's module docstring).
     """
     import news as news_store
 
@@ -128,7 +131,7 @@ def _login_news_lines(player) -> list[str]:
 
     lines = ['', '|yellow|--- News ---|reset|']
     for it in to_show:
-        lines += news_store.format_item(it)
+        lines += news_store.format_item(it, ctx)
         lines.append('')
         if it.get('lifetime') == 'once':
             news_store.mark_seen(it, player.name)
@@ -414,7 +417,7 @@ class ConnectCommand(Command):
         # News since last login -- see news.py for storage/visibility rules
         # and commands/news.py for the standalone 'news' command that reuses
         # the same helpers.
-        news_lines = _login_news_lines(player)
+        news_lines = _login_news_lines(ctx, player)
         if news_lines:
             login_lines += news_lines
 

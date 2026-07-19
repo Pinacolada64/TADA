@@ -191,7 +191,9 @@ class TestAdminGating(NewsCommandTestCase):
         items = news_store.load_news(self.path)
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0]['title'], 'Server Maintenance')
-        self.assertEqual(items[0]['body'], ['We will be down Friday.'])
+        # body is now formatting.serialize_lines()'s output (structured
+        # Line dicts), not plain strings -- see news.py's module docstring.
+        self.assertEqual(items[0]['body'], [{'text': 'We will be down Friday.'}])
         self.assertEqual(items[0]['author'], 'alexa')
 
     def test_admin_can_delete(self):

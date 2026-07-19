@@ -28,7 +28,7 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
 import news as news_store
-from formatting import hrule_char, make_rule
+from formatting import deserialize_lines, hrule_char, make_rule
 from text_editor import run_editor
 
 log = logging.getLogger(__name__)
@@ -141,7 +141,7 @@ class NewsCommand(Command):
             await ctx.send('No such news item.')
             return CommandResult.fail('Unknown news item.', error='not_found')
 
-        await ctx.send([''] + news_store.format_item(item) + [''])
+        await ctx.send([''] + news_store.format_item(item, ctx) + [''])
 
         if item.get('lifetime') == 'once':
             news_store.mark_seen(item, ctx.player.name)
@@ -228,7 +228,7 @@ class NewsCommand(Command):
                 item.pop('end_date', None)
 
         await ctx.send("Enter the new body, or '.a' to abort and keep the current text.")
-        body = await run_editor(ctx, initial_lines=list(item.get('body', [])))
+        body = await run_editor(ctx, initial_lines=deserialize_lines(item.get('body', [])))
         if body is not None:
             item['body'] = body
 

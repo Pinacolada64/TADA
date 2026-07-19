@@ -171,13 +171,18 @@
   controlling whether login shows a full directory every time or just
   what's posted since player.last_connection. commands/connect.py calls
   into news.py directly to build the login-time display.
-  - Admin post/edit authoring in commands/news.py currently uses a plain
-    'END'-terminated multi-line prompt (same convention as
-    threaded_messages.py's create_new_thread()), not a real line editor.
-    Swap this out for the real thing once the `text_editor` branch
-    (remotes/origin/text_editor: server/text_editor/{text_editor,
-    dot_commands, functions, ctrl_functions}.py -- an ed-style line buffer
-    with dot-commands) is merged into master.
+  - DONE (7/18/26): Admin post/edit authoring now uses text_editor.py's
+    run_editor() (a real ed/Image-BBS-style dot-command line editor, ported
+    from Ryan's own from-scratch gist design, not the never-merged
+    `text_editor` branch -- that branch turned out to be missing this work
+    entirely). 'body' is stored as formatting.serialize_lines()'s output
+    (structured Line dicts -- Justification/Border as metadata) rather than
+    pre-rendered strings, so news.py's format_item() re-renders each item
+    per-viewer at their own screen width/terminal type via
+    formatting.render_lines()/deserialize_lines() instead of a
+    centered/bordered post being frozen at the author's screen width
+    forever. Old-format plain-string bodies still load fine (migrated to
+    unformatted Lines on read).
   - Fixed a real bug found while building this: Player._load() never
     restored last_connection from the save file (only __init__'s
     kwargs.get(..., datetime.now()) default applied), so it always read

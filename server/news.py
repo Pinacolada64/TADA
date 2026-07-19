@@ -6,7 +6,7 @@ section. Posts are stored as JSON (run/server/news.json); each record:
     {
       "id": 1,
       "title": "...",
-      "body": ["line", "line", ...],
+      "body": [{"text": "line", ...}, ...],
       "author": "<player name>",
       "posted_at": "<ISO datetime>",
       "lifetime": "once" | "permanent" | "range",
@@ -14,6 +14,17 @@ section. Posts are stored as JSON (run/server/news.json); each record:
       "end_date":   "YYYY-MM-DD",   # only for "range"
       "seen_by": ["<player name>", ...]   # only meaningful for "once"
     }
+
+'body' is a list of formatting.serialize_lines()'s output -- text_editor.py's
+run_editor() returns this directly on .S Save. It's stored structurally
+(Justification/Border as metadata, not baked-in padding/box-drawing
+characters) rather than as pre-rendered strings, so format_item() can
+re-render it per-viewer via formatting.render_lines() at whatever screen
+width/terminal type *that* player has, instead of a bordered/centered post
+being frozen at the author's own screen width forever. Items posted before
+this change have plain-string bodies (["line", "line", ...]) --
+formatting.deserialize_lines() accepts those too, treating each string as
+an unformatted Line, so old posts keep displaying exactly as before.
 
 Loaded/saved fresh on every call (like commands/ban.py's load_bans()/
 save_bans()) rather than cached on the server object, so admin edits made
@@ -26,6 +37,8 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional
+
+from formatting import deserialize_lines, render_lines
 
 log = logging.getLogger(__name__)
 
@@ -115,8 +128,12 @@ def mark_seen(item: dict, player_name: str) -> None:
         seen.append(player_name)
 
 
-def format_item(item: dict) -> list[str]:
-    """Render one news item as display lines (title + body)."""
+def format_item(item: dict, ctx) -> list[str]:
+    """Render one news item as display lines (title + body), re-rendering
+    the body's Justification/Border for *this* viewer's screen width and
+    terminal type -- see the module docstring for why 'body' is stored
+    structurally rather than as pre-rendered strings."""
     lines = [f"|yellow|--- {item.get('title', '(untitled)')}|reset|"]
-    lines += item.get('body', [])
+    width = getattr(getattr(ctx.player, 'client_settings', None), 'screen_columns', 80)
+    lines += render_lines(deserialize_lines(item.get('body', [])), ctx, width)
     return lines

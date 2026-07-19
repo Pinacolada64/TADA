@@ -75,9 +75,23 @@ Usage (see commands/news.py for the reference integration):
         # player aborted -- caller should leave prior content untouched
         ...
     else:
-        # body is the new (possibly empty) list of plain strings to save --
-        # Justification/Border formatting is already baked into the text.
+        # body is the new (possibly empty) list of serialized Line dicts
+        # to save (formatting.serialize_lines()'s output) -- Justification/
+        # Border are NOT baked into flat text; a caller persisting this
+        # (e.g. news.py) should re-render it per-viewer at display time via
+        # formatting.render_lines(formatting.deserialize_lines(body), ...)
+        # rather than storing pre-rendered strings, so a centered/bordered
+        # post displays correctly regardless of who's reading it or on
+        # what terminal width/type -- see formatting.py's own docstring
+        # section on the Line model for why.
         ...
+
+The Line/Border/Justification/LineFlag/BorderRole data model itself lives in
+formatting.py, not here -- news.py (and any future consumer of saved,
+structured text) needs it without depending on this whole dot-command
+editor module, so it moved to formatting.py's existing terminal-rendering
+layer alongside make_box()/codec_for_settings(), which render_lines() (this
+module's old _render_buffer_lines()) is built on.
 """
 from __future__ import annotations
 
@@ -89,6 +103,10 @@ from pathlib import Path
 from typing import Awaitable, Callable, List, Optional, Union, TYPE_CHECKING
 
 from flags import PlayerFlags
+from formatting import (
+    Border, BorderRole, Justification, Line, LineFlag,
+    _justify_text, render_lines, serialize_lines,
+)
 
 if TYPE_CHECKING:
     from network_context import GameContext
@@ -130,48 +148,6 @@ class EditorMode(Flag):
     LINE_NUMBERS = auto()  # toggled by .O
 
 
-class Justification(Enum):
-    LEFT       = auto()
-    CENTER     = auto()
-    RIGHT      = auto()
-    EXPAND     = auto()  # persistent render-time style (see Line.render)
-    # PACK/INDENT/UN_INDENT are one-time text mutations, not persistent
-    # styles -- see _cmd_justify -- but keeping them as Justification
-    # members too matches the gist's dot-command vocabulary (.J p/i/u).
-    PACK       = auto()
-    INDENT     = auto()
-    UN_INDENT  = auto()
-
-
-class LineFlag(Enum):
-    MUTABLE   = auto()  # default -- editable
-    IMMUTABLE = auto()  # .E Edit / .D Delete / .J Justify skip these
-    QUOTE     = auto()  # reserved for a future reply-quoting feature
-
-
-class BorderRole(Enum):
-    """Which part of a .B Border box a Line represents. Only CONTENT lines
-    carry real text -- TOP/BOTTOM render as a rule line regardless of
-    .text (Ryan's call: same reasoning as Justification -- a box's width
-    should track *whoever's viewing it*, not whatever screen width was
-    active when .B was typed, so nothing about box width is baked into
-    .text at command time; render() draws it fresh every time)."""
-    TOP     = auto()
-    CONTENT = auto()
-    BOTTOM  = auto()
-
-
-@dataclass
-class Border:
-    # None means "use formatting.make_box()'s terminal-aware glyphs for
-    # whoever's viewing this" (Unicode box-drawing for ANSI, PETSCII
-    # line-drawing for C64 clients, ASCII fallback otherwise) -- only an
-    # explicit character (e.g. '.B *') falls back to a plain hand-rolled
-    # box with that literal character instead. See _render_buffer_lines().
-    char: Optional[str] = None
-    role: BorderRole = BorderRole.CONTENT
-
-
 _JUSTIFY_LETTERS = {
     'l': Justification.LEFT, 'c': Justification.CENTER,
     'r': Justification.RIGHT, 'e': Justification.EXPAND,
@@ -193,71 +169,6 @@ class LineRange:
     the owning command takes no range at all -- see DefaultLineRange.NONE)."""
     start: Optional[int]
     end: Optional[int]
-
-
-def _justify_text(text: str, width: int, justification: Justification) -> str:
-    if justification == Justification.LEFT or len(text) >= width:
-        return text
-    if justification == Justification.CENTER:
-        return text.center(width)
-    if justification == Justification.RIGHT:
-        return text.rjust(width)
-    if justification == Justification.EXPAND:
-        return _expand_justify(text, width)
-    return text  # PACK/INDENT/UN_INDENT never persist as a style
-
-
-@dataclass
-class Line:
-    text: str = ''
-    justification: Justification = Justification.LEFT
-    line_flag: LineFlag = LineFlag.MUTABLE
-    border: Optional[Border] = None
-
-    def render(self, width: int) -> str:
-        """Return this line padded/justified (and, if .B Border tagged
-        it, boxed) to `width` columns -- screen-width independent (see
-        the module docstring / gist's own comment: storing *how* to
-        justify, rather than baking padding into .text, means the same
-        Line renders correctly for two players with different screen
-        widths -- and the same reasoning extends to Border below)."""
-        if self.border is not None:
-            return self._render_bordered(width)
-        return _justify_text(self.text, width, self.justification)
-
-    def _render_bordered(self, width: int) -> str:
-        """Standalone (no ctx) fallback: a plain ASCII box using the
-        stored character, or '-' if none was given. Used when a bordered
-        Line is rendered outside of _render_buffer_lines()'s ctx-aware,
-        whole-buffer pass (e.g. a partial selection cut off mid-box) --
-        see that function's own docstring for the normal, preferred path."""
-        width = max(width, 4)
-        char = self.border.char or '-'
-        if self.border.role in (BorderRole.TOP, BorderRole.BOTTOM):
-            return f'+{char * (width - 2)}+'
-        inner_width = width - 4  # "| " + text + " |"
-        content = _justify_text(self.text, inner_width, self.justification)
-        content = content[:inner_width].ljust(inner_width)
-        return f'| {content} |'
-
-
-def _expand_justify(text: str, width: int) -> str:
-    """Full-justify `text` to exactly `width` columns by distributing extra
-    spaces between words. Single-word lines, or text that's already too
-    wide to expand, are returned unchanged."""
-    words = text.split()
-    if len(words) < 2:
-        return text
-    total_word_len = sum(len(w) for w in words)
-    gaps = len(words) - 1
-    total_spaces = width - total_word_len
-    if total_spaces < gaps:
-        return text
-    base, extra = divmod(total_spaces, gaps)
-    out = words[0]
-    for i, word in enumerate(words[1:], start=1):
-        out += ' ' * (base + (1 if i <= extra else 0)) + word
-    return out
 
 
 @dataclass
@@ -290,55 +201,6 @@ class Buffer:
         if end < start + 1:
             end = start + 1
         return range(start, end)
-
-
-def _render_buffer_lines(lines: List[Line], ctx: 'GameContext', width: int) -> List[str]:
-    """Render a full list of Lines to display strings, one output string
-    per input Line (same length in and out -- callers can freely index
-    into the result with whatever line_slice() range they actually
-    wanted, even a slice that only partly overlaps a box).
-
-    A contiguous TOP/CONTENT.../BOTTOM run with no explicit Border.char
-    is rendered as one batch via formatting.make_box() -- the real,
-    terminal-aware box-drawing this server already has for every other
-    ANSI/PETSCII client (Unicode box-drawing, PETSCII line-drawing, or
-    ASCII fallback, picked from ctx.player.client_settings, matching
-    make_box_for_settings()'s own lookups -- called at editor.column_width
-    rather than raw screen_columns, though, since this editor's own
-    Columns setting is meant to apply everywhere else it renders text).
-    Everything else (including a Border run that DID get an explicit
-    character, or a partial/orphaned box fragment) falls back to each
-    Line's own .render(width) -- see Line._render_bordered()'s docstring.
-    """
-    from formatting import border_style_for_ctx, codec_for_settings, make_box
-
-    out: List[str] = []
-    i, n = 0, len(lines)
-    while i < n:
-        line = lines[i]
-        if (line.border is not None and line.border.role == BorderRole.TOP
-                and line.border.char is None):
-            j = i + 1
-            content = []
-            while j < n and lines[j].border is not None and lines[j].border.role == BorderRole.CONTENT:
-                content.append(lines[j])
-                j += 1
-            has_bottom = j < n and lines[j].border is not None and lines[j].border.role == BorderRole.BOTTOM
-            inner_width = max(width - 4, 1)
-            texts = [_justify_text(ln.text, inner_width, ln.justification) for ln in content]
-            settings = ctx.player.client_settings
-            boxed = make_box(texts, width=width, codec=codec_for_settings(settings),
-                             border_style=border_style_for_ctx(ctx))
-            out.extend(boxed[:1 + len(content)])
-            if has_bottom:
-                out.append(boxed[-1])
-                i = j + 1
-            else:
-                i = j
-            continue
-        out.append(line.render(width))
-        i += 1
-    return out
 
 
 # ---------------------------------------------------------------------------
@@ -659,7 +521,7 @@ async def _cmd_list(editor: 'Editor', arg: str) -> Optional[str]:
         await editor.ctx.send('(buffer is empty)')
         return None
     line_range = process_line_range_string(arg, buffer, DefaultLineRange.ALL_LINES)
-    rendered = _render_buffer_lines(buffer.lines, editor.ctx, editor.column_width)
+    rendered = render_lines(buffer.lines, editor.ctx, editor.column_width)
     out = [f'{i + 1:3}: {rendered[i]}' for i in buffer.line_slice(line_range)]
     await editor.ctx.send(out)
     return None
@@ -671,7 +533,7 @@ async def _cmd_read(editor: 'Editor', arg: str) -> Optional[str]:
         await editor.ctx.send('(buffer is empty)')
         return None
     line_range = process_line_range_string(arg, buffer, DefaultLineRange.ALL_LINES)
-    rendered = _render_buffer_lines(buffer.lines, editor.ctx, editor.column_width)
+    rendered = render_lines(buffer.lines, editor.ctx, editor.column_width)
     out = [rendered[i] for i in buffer.line_slice(line_range)]
     await editor.ctx.send(out)
     return None
@@ -1021,14 +883,14 @@ async def _cmd_justify(editor: 'Editor', arg: str) -> Optional[str]:
 # default justification for *future* typed lines (see _cmd_justify below),
 # not whatever's on screen -- typing '.j c' right after '.b' to center the
 # box you just made does nothing visible. Justification of already-boxed
-# lines itself is correct (verified: _render_buffer_lines() justifies
+# lines itself is correct (verified: render_lines() justifies
 # each content Line at the box's inner width before boxing it) -- this is
 # a real gap in .J's no-range default, not a rendering bug.
 async def _cmd_border(editor: 'Editor', arg: str) -> Optional[str]:
     """Tags lines with a Border rather than baking box-drawing characters
     into .text (same reasoning as Justification: a box's width should
     track whoever's *viewing* it, not whatever column width was active
-    when .B was typed). See _render_buffer_lines() for how a None-char
+    when .B was typed). See render_lines() for how a None-char
     Border routes through formatting.make_box() for real terminal-aware
     glyphs, vs. Line._render_bordered()'s plain-ASCII fallback for an
     explicit character."""
@@ -1061,7 +923,7 @@ async def _cmd_border(editor: 'Editor', arg: str) -> Optional[str]:
                                                     # exactly where it
                                                     # should end up
 
-    rendered = _render_buffer_lines(buffer.lines, editor.ctx, editor.column_width)
+    rendered = render_lines(buffer.lines, editor.ctx, editor.column_width)
     preview = range(indices[0], indices[0] + len(indices) + 2)
     await editor.ctx.send([rendered[i] for i in preview])
     return None
@@ -1276,7 +1138,7 @@ async def _priv_put_file(editor: 'Editor', arg: str) -> Optional[str]:
             continue
         await editor.ctx.send('Aborted.')
         return None
-    text = '\n'.join(_render_buffer_lines(buffer.lines, editor.ctx, editor.column_width))
+    text = '\n'.join(render_lines(buffer.lines, editor.ctx, editor.column_width))
     path.write_text(text + '\n')
     await editor.ctx.send(f'Saved to {safe_name}.')
     return None
@@ -1287,17 +1149,19 @@ async def _priv_put_file(editor: 'Editor', arg: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 
 async def run_editor(ctx: 'GameContext',
-                      initial_lines: Optional[List[Union[str, Line]]] = None) -> Optional[List[str]]:
-    """Run an editing session. Returns the final list of lines on .S Save
-    (possibly empty, if the player deleted everything; justification/box
-    formatting already baked into the text), or None on .A Abort or
-    disconnect -- callers should treat None as "leave prior content
-    untouched," matching commands/news.py's edit flow.
+                      initial_lines: Optional[List[Union[str, Line]]] = None) -> Optional[List[dict]]:
+    """Run an editing session. Returns the final buffer as a list of
+    serialized Line dicts (formatting.serialize_lines()'s output --
+    possibly empty, if the player deleted everything; Justification/Border
+    are NOT baked into flat text, see the module docstring) on .S Save, or
+    None on .A Abort or disconnect -- callers should treat None as "leave
+    prior content untouched," matching commands/news.py's edit flow.
 
-    `initial_lines` may be plain strings or pre-built Line objects (e.g.
+    `initial_lines` may be plain strings, pre-built Line objects (e.g.
     LineFlag.IMMUTABLE for content the player shouldn't be able to edit --
     see the module docstring's note on the not-yet-built reply-quoting
-    feature).
+    feature), or formatting.deserialize_lines()'s output (a caller reloading
+    previously-saved, serialized content -- deserialize it first).
 
     Typed lines that aren't a recognized dot-command (don't start with '.'
     or '/', or have no letter after it) are appended to the buffer --
@@ -1332,7 +1196,7 @@ async def run_editor(ctx: 'GameContext',
                 continue
             await cmd.function_name(editor, arg)
             if editor.result == 'save':
-                return _render_buffer_lines(editor.buffer.lines, ctx, editor.column_width)
+                return serialize_lines(editor.buffer.lines)
             if editor.result == 'abort':
                 return None
             continue

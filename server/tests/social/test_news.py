@@ -12,6 +12,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from news import (
     format_item,
@@ -113,10 +114,31 @@ class TestMarkSeen(unittest.TestCase):
 class TestFormatItem(unittest.TestCase):
 
     def test_includes_title_and_body(self):
+        # 'body' here is old-format plain strings (pre-dating structured
+        # Line storage) -- format_item() migrates each into an unformatted
+        # Line via formatting.deserialize_lines(), so old posts still
+        # display exactly as before.
         item = {'title': 'Server Update', 'body': ['Line one.', 'Line two.']}
-        lines = format_item(item)
+        ctx = MagicMock()
+        ctx.player.client_settings.screen_columns = 80
+        lines = format_item(item, ctx)
         self.assertIn('Server Update', lines[0])
         self.assertEqual(lines[1:], ['Line one.', 'Line two.'])
+
+    def test_centered_body_rerenders_per_viewer_screen_width(self):
+        # The whole point of storing 'body' as structured Line dicts
+        # instead of pre-rendered strings: the same saved item displays
+        # correctly at two different screen widths, rather than being
+        # frozen at whatever width the author had when they saved it.
+        item = {'title': 'Update', 'body': [{'text': 'hi', 'justification': 'CENTER'}]}
+        narrow_ctx = MagicMock()
+        narrow_ctx.player.client_settings.screen_columns = 10
+        wide_ctx = MagicMock()
+        wide_ctx.player.client_settings.screen_columns = 20
+        narrow_lines = format_item(item, narrow_ctx)
+        wide_lines = format_item(item, wide_ctx)
+        self.assertEqual(narrow_lines[1], 'hi'.center(10))
+        self.assertEqual(wide_lines[1], 'hi'.center(20))
 
 
 if __name__ == '__main__':
