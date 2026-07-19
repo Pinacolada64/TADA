@@ -43,6 +43,16 @@ what changed:
     CommandFlags) -- Search & Replace is implemented for real since it was
     a genuine table entry; Word-wrap isn't (wasn't asked for -- but
     formatting.wrap_text() is right there if it's wanted later).
+  - .E Edit subcommands (Ryan's addition, not in the gist at all): '.e
+    m'ove/'c'opy <range> <destination>, '.e l'ist <range> (delegates
+    straight to _cmd_list()), and multi-level '.e u'ndo/'r'edo/'s'how --
+    Editor.checkpoint() pushes a deep-copied snapshot onto an undo stack
+    before every real buffer mutation (typing a line, .D/.E/.M/.C/.N/.J's
+    text-mutating modes, .G Get File), capped at _MAX_UNDO_DEPTH; undo/
+    redo swap snapshots between two stacks, clearing the redo stack on
+    any new change, same as any standard undo/redo history. A completely
+    bare '.e' (nothing typed at all) prompts for which of these you want
+    instead of guessing "edit the last line."
 
 Not ported (out of scope for this pass, left as TODO.md follow-ups):
   - .T Tagline, .Q(uoter) reply-quoting a prior message -- both were only
@@ -53,7 +63,6 @@ Not ported (out of scope for this pass, left as TODO.md follow-ups):
     ready for whenever that lands -- run_editor()'s initial_lines already
     accepts pre-built Line objects, not just plain strings, so a caller can
     seed an immutable quoted line today.
-  - .U Undo -- same as above (a bare stub, never wired into any table).
   - Full-screen editing via raw keystrokes (Ryan's "capture raw keystrokes
     from a socket... blessed?" idea) -- the Cursor class is kept as a
     forward-compatible stub for this, but there's no raw-keystroke
@@ -72,6 +81,7 @@ Usage (see commands/news.py for the reference integration):
 """
 from __future__ import annotations
 
+import copy
 import re
 from dataclasses import dataclass, field
 from enum import Enum, Flag, auto
@@ -139,6 +149,29 @@ class LineFlag(Enum):
     QUOTE     = auto()  # reserved for a future reply-quoting feature
 
 
+class BorderRole(Enum):
+    """Which part of a .B Border box a Line represents. Only CONTENT lines
+    carry real text -- TOP/BOTTOM render as a rule line regardless of
+    .text (Ryan's call: same reasoning as Justification -- a box's width
+    should track *whoever's viewing it*, not whatever screen width was
+    active when .B was typed, so nothing about box width is baked into
+    .text at command time; render() draws it fresh every time)."""
+    TOP     = auto()
+    CONTENT = auto()
+    BOTTOM  = auto()
+
+
+@dataclass
+class Border:
+    # None means "use formatting.make_box()'s terminal-aware glyphs for
+    # whoever's viewing this" (Unicode box-drawing for ANSI, PETSCII
+    # line-drawing for C64 clients, ASCII fallback otherwise) -- only an
+    # explicit character (e.g. '.B *') falls back to a plain hand-rolled
+    # box with that literal character instead. See _render_buffer_lines().
+    char: Optional[str] = None
+    role: BorderRole = BorderRole.CONTENT
+
+
 _JUSTIFY_LETTERS = {
     'l': Justification.LEFT, 'c': Justification.CENTER,
     'r': Justification.RIGHT, 'e': Justification.EXPAND,
@@ -147,6 +180,7 @@ _JUSTIFY_LETTERS = {
 }
 
 _DEFAULT_INDENT = 4
+_MAX_UNDO_DEPTH = 20
 
 
 # ---------------------------------------------------------------------------
@@ -161,28 +195,50 @@ class LineRange:
     end: Optional[int]
 
 
+def _justify_text(text: str, width: int, justification: Justification) -> str:
+    if justification == Justification.LEFT or len(text) >= width:
+        return text
+    if justification == Justification.CENTER:
+        return text.center(width)
+    if justification == Justification.RIGHT:
+        return text.rjust(width)
+    if justification == Justification.EXPAND:
+        return _expand_justify(text, width)
+    return text  # PACK/INDENT/UN_INDENT never persist as a style
+
+
 @dataclass
 class Line:
     text: str = ''
     justification: Justification = Justification.LEFT
     line_flag: LineFlag = LineFlag.MUTABLE
+    border: Optional[Border] = None
 
     def render(self, width: int) -> str:
-        """Return this line padded/justified to `width` columns per its
-        stored Justification -- screen-width independent (see the module
-        docstring / gist's own comment: storing *how* to justify, rather
-        than baking padding into .text, means the same Line renders
-        correctly for two players with different screen widths)."""
-        text = self.text
-        if self.justification == Justification.LEFT or len(text) >= width:
-            return text
-        if self.justification == Justification.CENTER:
-            return text.center(width)
-        if self.justification == Justification.RIGHT:
-            return text.rjust(width)
-        if self.justification == Justification.EXPAND:
-            return _expand_justify(text, width)
-        return text  # PACK/INDENT/UN_INDENT never persist as a style
+        """Return this line padded/justified (and, if .B Border tagged
+        it, boxed) to `width` columns -- screen-width independent (see
+        the module docstring / gist's own comment: storing *how* to
+        justify, rather than baking padding into .text, means the same
+        Line renders correctly for two players with different screen
+        widths -- and the same reasoning extends to Border below)."""
+        if self.border is not None:
+            return self._render_bordered(width)
+        return _justify_text(self.text, width, self.justification)
+
+    def _render_bordered(self, width: int) -> str:
+        """Standalone (no ctx) fallback: a plain ASCII box using the
+        stored character, or '-' if none was given. Used when a bordered
+        Line is rendered outside of _render_buffer_lines()'s ctx-aware,
+        whole-buffer pass (e.g. a partial selection cut off mid-box) --
+        see that function's own docstring for the normal, preferred path."""
+        width = max(width, 4)
+        char = self.border.char or '-'
+        if self.border.role in (BorderRole.TOP, BorderRole.BOTTOM):
+            return f'+{char * (width - 2)}+'
+        inner_width = width - 4  # "| " + text + " |"
+        content = _justify_text(self.text, inner_width, self.justification)
+        content = content[:inner_width].ljust(inner_width)
+        return f'| {content} |'
 
 
 def _expand_justify(text: str, width: int) -> str:
@@ -236,6 +292,55 @@ class Buffer:
         return range(start, end)
 
 
+def _render_buffer_lines(lines: List[Line], ctx: 'GameContext', width: int) -> List[str]:
+    """Render a full list of Lines to display strings, one output string
+    per input Line (same length in and out -- callers can freely index
+    into the result with whatever line_slice() range they actually
+    wanted, even a slice that only partly overlaps a box).
+
+    A contiguous TOP/CONTENT.../BOTTOM run with no explicit Border.char
+    is rendered as one batch via formatting.make_box() -- the real,
+    terminal-aware box-drawing this server already has for every other
+    ANSI/PETSCII client (Unicode box-drawing, PETSCII line-drawing, or
+    ASCII fallback, picked from ctx.player.client_settings, matching
+    make_box_for_settings()'s own lookups -- called at editor.column_width
+    rather than raw screen_columns, though, since this editor's own
+    Columns setting is meant to apply everywhere else it renders text).
+    Everything else (including a Border run that DID get an explicit
+    character, or a partial/orphaned box fragment) falls back to each
+    Line's own .render(width) -- see Line._render_bordered()'s docstring.
+    """
+    from formatting import border_style_for_ctx, codec_for_settings, make_box
+
+    out: List[str] = []
+    i, n = 0, len(lines)
+    while i < n:
+        line = lines[i]
+        if (line.border is not None and line.border.role == BorderRole.TOP
+                and line.border.char is None):
+            j = i + 1
+            content = []
+            while j < n and lines[j].border is not None and lines[j].border.role == BorderRole.CONTENT:
+                content.append(lines[j])
+                j += 1
+            has_bottom = j < n and lines[j].border is not None and lines[j].border.role == BorderRole.BOTTOM
+            inner_width = max(width - 4, 1)
+            texts = [_justify_text(ln.text, inner_width, ln.justification) for ln in content]
+            settings = ctx.player.client_settings
+            boxed = make_box(texts, width=width, codec=codec_for_settings(settings),
+                             border_style=border_style_for_ctx(ctx))
+            out.extend(boxed[:1 + len(content)])
+            if has_bottom:
+                out.append(boxed[-1])
+                i = j + 1
+            else:
+                i = j
+            continue
+        out.append(line.render(width))
+        i += 1
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Dot-command dispatch metadata
 # ---------------------------------------------------------------------------
@@ -250,6 +355,15 @@ class DotCommand:
     default_line_range: DefaultLineRange
     flags: CommandFlags
     function_name: DotFunc
+    # Player-facing prose for '.H <key>' -- kept separate from
+    # function_name's own docstring (implementation notes for whoever's
+    # reading the code, same convention as every other command's
+    # commands/base_command.py Help dataclass keeping summary/description
+    # apart from the code). Paragraphs are separated by a blank line;
+    # _cmd_help() collapses each paragraph's own internal line breaks
+    # (wrapped to fit this source file, not a player's screen) but keeps
+    # paragraph breaks intact.
+    help_text: str = ''
 
 
 def _screen_width(ctx: 'GameContext') -> int:
@@ -258,10 +372,16 @@ def _screen_width(ctx: 'GameContext') -> int:
 
 def process_line_range_string(range_str: str, buffer: Buffer,
                                default: DefaultLineRange = DefaultLineRange.ALL_LINES) -> LineRange:
-    """Parse an ed-style line range: `x`, `x-`, `x-y`, `-y`, or empty
-    (resolved against `default`). Out-of-range or reversed values are
-    clamped into what the buffer actually has, rather than left invalid --
-    e.g. '99' against a 5-line buffer becomes line 5, not line 99.
+    """Parse an ed-style line range: `x`, `x-`, `x-y`, `-y`, `x-+n`, or
+    empty (resolved against `default`). Out-of-range or reversed values
+    are clamped into what the buffer actually has, rather than left
+    invalid -- e.g. '99' against a 5-line buffer becomes line 5, not
+    line 99.
+
+    `x-+n` is a relative end: `n` more lines *from* `x`, e.g. '1-+5' is
+    lines 1-6 (six lines: x plus n more), same idea as ed/vi's own
+    `,+n` relative addressing. Only the end may be relative -- a
+    relative start has no fixed reference point to be relative to.
     """
     last = buffer.used_lines
     range_str = range_str.strip()
@@ -277,7 +397,10 @@ def process_line_range_string(range_str: str, buffer: Buffer,
             start_str, end_str = range_str.split('-', 1)
             try:
                 start = int(start_str) if start_str else 1
-                end = int(end_str) if end_str else (last or 1)
+                if end_str.startswith('+'):
+                    end = start + int(end_str[1:])
+                else:
+                    end = int(end_str) if end_str else (last or 1)
             except ValueError:
                 return LineRange(None, None)
     else:
@@ -321,19 +444,6 @@ def _editor_files_dir() -> Path:
     return directory
 
 
-def make_box(lines: List[str], width: int, border_char: str = '-') -> List[str]:
-    """Wrap `lines` in a simple ASCII box, `width` columns wide overall
-    (border included). Lines longer than the interior are truncated."""
-    width = max(width, 4)
-    inner_width = width - 4  # "| " + text + " |"
-    out = [f'+{border_char * (width - 2)}+']
-    for line in lines:
-        text = line[:inner_width].ljust(inner_width)
-        out.append(f'| {text} |')
-    out.append(f'+{border_char * (width - 2)}+')
-    return out
-
-
 # ---------------------------------------------------------------------------
 # Editor -- holds per-session state (mode, buffer, column width, the
 # default justification for lines typed from here on) across the dispatch
@@ -354,32 +464,147 @@ class Editor:
         self.column_width = self.screen_width
         self.justification = Justification.LEFT  # default for newly typed lines
         self.result: Optional[str] = None  # set to 'save'/'abort' to end the session
+        # Multi-level undo/redo -- checkpoint() is called right before
+        # every operation that actually changes buffer content (not on
+        # validation failures/no-ops), pushing a snapshot onto
+        # _undo_stack and clearing _redo_stack (a new change always
+        # invalidates whatever was redo-able, same as any standard
+        # undo/redo history). '.E U'ndo/'.E R'edo move a snapshot between
+        # the two stacks; '.E S'how lists both. See checkpoint() and
+        # _cmd_edit_undo()/_cmd_edit_redo()/_cmd_edit_show_buffers().
+        self._undo_stack: List[List[Line]] = []
+        self._redo_stack: List[List[Line]] = []
 
         self.dot_command_table: List[DotCommand] = [
-            DotCommand('a', 'Abort',            DefaultLineRange.NONE,       CommandFlags.IMMEDIATE, _cmd_abort),
-            DotCommand('b', 'Border',            DefaultLineRange.ALL_LINES,  CommandFlags.ACCEPT_CHARACTER | CommandFlags.ACCEPT_LINE_RANGE, _cmd_border),
-            DotCommand('c', 'Columns',           DefaultLineRange.NONE,       CommandFlags.ACCEPT_NUMBERS, _cmd_columns),
-            DotCommand('d', 'Delete',            DefaultLineRange.LAST_LINE,  CommandFlags.ACCEPT_LINE_RANGE, _cmd_delete),
-            DotCommand('e', 'Edit',              DefaultLineRange.LAST_LINE,  CommandFlags.ACCEPT_LINE_RANGE, _cmd_edit),
-            DotCommand('f', 'Find',              DefaultLineRange.ALL_LINES,  CommandFlags.ACCEPT_LINE_RANGE, _cmd_find),
-            DotCommand('h', 'Help!',             DefaultLineRange.NONE,       CommandFlags.ACCEPT_CHARACTER, _cmd_help),
-            DotCommand('i', 'Insert',            DefaultLineRange.NONE,       CommandFlags.ACCEPT_NUMBERS, _cmd_insert),
-            DotCommand('j', 'Justify',           DefaultLineRange.NONE,       CommandFlags.ACCEPT_CHARACTER | CommandFlags.ACCEPT_LINE_RANGE, _cmd_justify),
-            DotCommand('k', 'Search & Replace',  DefaultLineRange.ALL_LINES,  CommandFlags.ACCEPT_LINE_RANGE, _cmd_search_and_replace),
-            DotCommand('l', 'List',              DefaultLineRange.ALL_LINES,  CommandFlags.ACCEPT_LINE_RANGE, _cmd_list),
-            DotCommand('n', 'New Text',          DefaultLineRange.NONE,       CommandFlags.IMMEDIATE, _cmd_new_text),
-            DotCommand('o', 'Line Numbers',      DefaultLineRange.NONE,       CommandFlags.IMMEDIATE, _cmd_line_numbers),
-            DotCommand('q', 'Query',             DefaultLineRange.NONE,       CommandFlags.IMMEDIATE, _cmd_query),
-            DotCommand('r', 'Read Text',         DefaultLineRange.ALL_LINES,  CommandFlags.ACCEPT_LINE_RANGE, _cmd_read),
-            DotCommand('s', 'Save Text',         DefaultLineRange.NONE,       CommandFlags.IMMEDIATE, _cmd_save),
-            DotCommand('v', 'Version',           DefaultLineRange.NONE,       CommandFlags.IMMEDIATE, _cmd_version),
-            DotCommand('#', 'Scale',             DefaultLineRange.NONE,       CommandFlags.IMMEDIATE, _cmd_scale),
+            DotCommand('a', 'Abort', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_abort,
+                help_text="Discard everything you've typed and leave the editor. "
+                          "You'll be asked to confirm first."),
+            DotCommand('b', 'Border', DefaultLineRange.ALL_LINES,
+                CommandFlags.ACCEPT_CHARACTER | CommandFlags.ACCEPT_LINE_RANGE, _cmd_border,
+                help_text="Wrap a line range in a box. With no character given, uses your "
+                          "terminal's own line-drawing style. Give a single character "
+                          "(e.g. '.b *') to use that instead.\n\n"
+                          "Examples:\n"
+                          "  .b        Box the whole buffer\n"
+                          "  .b 1-3    Box lines 1-3\n"
+                          "  .b * 1-3  Box lines 1-3 with '*' for the border"),
+            DotCommand('c', 'Columns', DefaultLineRange.NONE, CommandFlags.ACCEPT_NUMBERS, _cmd_columns,
+                help_text="Show or change how many columns wide your lines can be. "
+                          "Can't exceed your screen width.\n\n"
+                          "Examples:\n"
+                          "  .c      Show the current column width\n"
+                          "  .c 40   Set column width to 40"),
+            DotCommand('d', 'Delete', DefaultLineRange.LAST_LINE, CommandFlags.ACCEPT_LINE_RANGE, _cmd_delete,
+                help_text="Delete a line or range of lines. Defaults to the last line if "
+                          "no range is given.\n\n"
+                          "Examples:\n"
+                          "  .d      Delete the last line\n"
+                          "  .d 3    Delete line 3\n"
+                          "  .d 2-5  Delete lines 2 through 5"),
+            DotCommand('e', 'Edit', DefaultLineRange.LAST_LINE,
+                CommandFlags.ACCEPT_LINE_RANGE | CommandFlags.ACCEPT_SUBCOMMAND, _cmd_edit,
+                help_text="Edit a line or range of lines, one at a time. You'll be shown "
+                          "each line's current text and asked for new text -- press Enter "
+                          "with nothing typed to leave a line unchanged, or type a single "
+                          "'.' to stop early. A completely bare '.e' asks which of the "
+                          "below you want, instead of guessing.\n\n"
+                          "Subcommands -- '.e [m]ove'/'[c]opy' <range> <destination>: a "
+                          "destination is the line number to insert before; immutable "
+                          "lines in the range are skipped when moving (never when "
+                          "copying, since the original is left in place either way). "
+                          "Leave off the range and/or destination and you'll be prompted "
+                          "for whichever's missing. "
+                          "'.e [l]ist' <range> is the same as .L. '.e [u]ndo'/'[r]edo' "
+                          "step back and forward through your recent changes (typing, "
+                          "deleting, moving, etc.); '.e [s]how' lists what's on both "
+                          "stacks.\n\n"
+                          "Examples:\n"
+                          "  .e            Edit the last line\n"
+                          "  .e 3          Edit line 3\n"
+                          "  .e 2-4        Edit lines 2 through 4, one at a time\n"
+                          "  .e m 4-6 8    Move lines 4-6 to before line 8\n"
+                          "  .e c 4-6 8    Copy lines 4-6 to before line 8\n"
+                          "  .e l 4-6      List lines 4-6 (like .L 4-6)\n"
+                          "  .e u          Undo your last change\n"
+                          "  .e r          Redo what you just undid\n"
+                          "  .e s          Show the undo/redo history"),
+            DotCommand('f', 'Find', DefaultLineRange.ALL_LINES, CommandFlags.ACCEPT_LINE_RANGE, _cmd_find,
+                help_text="Search for text in a line range (defaults to the whole "
+                          "buffer). Matches are highlighted in the results.\n\n"
+                          "Examples:\n"
+                          "  .f      Search the whole buffer\n"
+                          "  .f 2-5  Search only lines 2-5"),
+            DotCommand('h', 'Help!', DefaultLineRange.NONE, CommandFlags.ACCEPT_CHARACTER, _cmd_help,
+                help_text="Show this list, or '.h <letter>' for details on one command."),
+            DotCommand('i', 'Insert', DefaultLineRange.NONE, CommandFlags.ACCEPT_NUMBERS, _cmd_insert,
+                help_text="Insert new lines before a given line number, shifting "
+                          "everything else down. With no number, toggles Insert mode "
+                          "on/off (starting at the end of the buffer the first time). "
+                          "While Insert mode is on, everything you type goes in at the "
+                          "insertion point instead of being added to the end.\n\n"
+                          "Examples:\n"
+                          "  .i      Toggle Insert mode\n"
+                          "  .i 3    Start inserting before line 3"),
+            DotCommand('j', 'Justify', DefaultLineRange.NONE,
+                CommandFlags.ACCEPT_CHARACTER | CommandFlags.ACCEPT_LINE_RANGE, _cmd_justify,
+                help_text="Set how a line range is aligned: [l]eft, [c]enter, [r]ight, "
+                          "[e]xpand (spread words to fill the line), [p]ack (collapse "
+                          "extra spaces), [i]ndent, or [u]n-indent. With no range given, "
+                          "sets the default for lines you type from now on -- it does NOT "
+                          "change anything already on screen.\n\n"
+                          "Examples:\n"
+                          "  .j c 1-3   Center lines 1-3\n"
+                          "  .j e 4     Expand line 4 to fill the line\n"
+                          "  .j l       New lines from here on will be left-justified"),
+            DotCommand('k', 'Search & Replace', DefaultLineRange.ALL_LINES,
+                CommandFlags.ACCEPT_LINE_RANGE, _cmd_search_and_replace,
+                help_text="Find and replace text within a line range (defaults to the "
+                          "whole buffer).\n\n"
+                          "Examples:\n"
+                          "  .k      Replace throughout the buffer\n"
+                          "  .k 2-5  Replace only within lines 2-5"),
+            DotCommand('l', 'List', DefaultLineRange.ALL_LINES, CommandFlags.ACCEPT_LINE_RANGE, _cmd_list,
+                help_text="List a line range (defaults to the whole buffer), with line "
+                          "numbers.\n\n"
+                          "Examples:\n"
+                          "  .l      List everything\n"
+                          "  .l 3-7  List lines 3 through 7"),
+            DotCommand('n', 'New Text', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_new_text,
+                help_text="Erase the whole buffer and start over, after confirming."),
+            DotCommand('o', 'Line Numbers', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_line_numbers,
+                help_text="Toggle whether line numbers are shown while you type."),
+            DotCommand('q', 'Query', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_query,
+                help_text="Show how many lines, characters, and words are in the buffer."),
+            DotCommand('r', 'Read Text', DefaultLineRange.ALL_LINES, CommandFlags.ACCEPT_LINE_RANGE, _cmd_read,
+                help_text="Display a line range (defaults to the whole buffer) without "
+                          "line numbers -- handy for previewing exactly what will be "
+                          "saved.\n\n"
+                          "Examples:\n"
+                          "  .r      Read everything\n"
+                          "  .r 2-4  Read lines 2 through 4"),
+            DotCommand('s', 'Save Text', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_save,
+                help_text='Save your changes and leave the editor.'),
+            DotCommand('v', 'Version', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_version,
+                help_text="Show the editor's version."),
+            DotCommand('#', 'Scale', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_scale,
+                help_text="Show a ruler of column numbers, to help line things up.\n\n"
+                          "Examples:\n"
+                          "  .#      Ruler across your whole screen width\n"
+                          "  .# 40   Ruler up to column 40"),
         ]
         self.privileged_commands: List[DotCommand] = [
-            DotCommand('$', 'Directory',  DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _priv_directory),
-            DotCommand('p', 'Put File',   DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _priv_put_file),
-            DotCommand('&', 'Read File',  DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _priv_read_file),
-            DotCommand('g', 'Get File',   DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _priv_get_file),
+            DotCommand('$', 'Directory', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _priv_directory,
+                help_text='List files available for .G Get File and .& Read File. Admin only.'),
+            DotCommand('p', 'Put File', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _priv_put_file,
+                help_text="Save the buffer to a server-side file. If the name's taken, "
+                          "you'll be asked to pick a [N]ew name, [R]eplace it, or "
+                          "[A]bort. Admin only."),
+            DotCommand('&', 'Read File', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _priv_read_file,
+                help_text="Preview a server-side file's contents without changing the "
+                          "buffer. Admin only."),
+            DotCommand('g', 'Get File', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _priv_get_file,
+                help_text='Append the contents of a server-side file to the end of the '
+                          'buffer. Admin only.'),
         ]
 
     def is_admin(self) -> bool:
@@ -394,12 +619,25 @@ class Editor:
                 return cmd
         return None
 
+    def checkpoint(self) -> None:
+        """Push a snapshot of the buffer onto the undo stack, and clear
+        the redo stack -- any new change invalidates whatever was
+        previously redo-able. Capped at _MAX_UNDO_DEPTH so a very long
+        session's history doesn't grow unbounded; the oldest snapshot is
+        dropped first."""
+        self._undo_stack.append(copy.deepcopy(self.buffer.lines))
+        if len(self._undo_stack) > _MAX_UNDO_DEPTH:
+            self._undo_stack.pop(0)
+        self._redo_stack.clear()
+
 
 # ---------------------------------------------------------------------------
 # Dot-command implementations
 # ---------------------------------------------------------------------------
 
 async def _cmd_abort(editor: 'Editor', arg: str) -> Optional[str]:
+    """Setting editor.result ends run_editor()'s dispatch loop; the buffer
+    is simply discarded (not returned) -- see run_editor()'s own docstring."""
     raw = await editor.ctx.prompt('Abort and discard changes? (Y/N)')
     if raw and raw.strip().upper() == 'Y':
         await editor.ctx.send('Aborted.')
@@ -421,9 +659,8 @@ async def _cmd_list(editor: 'Editor', arg: str) -> Optional[str]:
         await editor.ctx.send('(buffer is empty)')
         return None
     line_range = process_line_range_string(arg, buffer, DefaultLineRange.ALL_LINES)
-    out = []
-    for i in buffer.line_slice(line_range):
-        out.append(f'{i + 1:3}: {buffer.lines[i].render(editor.column_width)}')
+    rendered = _render_buffer_lines(buffer.lines, editor.ctx, editor.column_width)
+    out = [f'{i + 1:3}: {rendered[i]}' for i in buffer.line_slice(line_range)]
     await editor.ctx.send(out)
     return None
 
@@ -434,7 +671,8 @@ async def _cmd_read(editor: 'Editor', arg: str) -> Optional[str]:
         await editor.ctx.send('(buffer is empty)')
         return None
     line_range = process_line_range_string(arg, buffer, DefaultLineRange.ALL_LINES)
-    out = [buffer.lines[i].render(editor.column_width) for i in buffer.line_slice(line_range)]
+    rendered = _render_buffer_lines(buffer.lines, editor.ctx, editor.column_width)
+    out = [rendered[i] for i in buffer.line_slice(line_range)]
     await editor.ctx.send(out)
     return None
 
@@ -448,6 +686,8 @@ async def _cmd_delete(editor: 'Editor', arg: str) -> Optional[str]:
     indices = list(buffer.line_slice(line_range))
     deletable = [i for i in indices if buffer.lines[i].line_flag != LineFlag.IMMUTABLE]
     skipped = len(indices) - len(deletable)
+    if deletable:
+        editor.checkpoint()
     for i in sorted(deletable, reverse=True):
         del buffer.lines[i]
     buffer.current_line = min(buffer.current_line, max(buffer.used_lines, 1))
@@ -458,15 +698,64 @@ async def _cmd_delete(editor: 'Editor', arg: str) -> Optional[str]:
     return None
 
 
+_EDIT_SUBCOMMANDS = ('m', 'c', 'l', 'u', 'r', 's')
+
+
 async def _cmd_edit(editor: 'Editor', arg: str) -> Optional[str]:
-    """Edit a line (or range) one at a time. Blank Enter leaves a line
-    unchanged; a lone '.' ends editing early. Immutable lines are skipped."""
+    """LineFlag.IMMUTABLE lines are skipped entirely, not just left
+    unchanged -- see the module docstring's note on the not-yet-built
+    reply-quoting feature this is meant to support eventually.
+
+    Subcommands ('.e m'/'c'/'l'/'u'/'r'/'s') are dispatched here rather
+    than through DOT_CMD_TABLE itself -- CommandFlags.ACCEPT_SUBCOMMAND
+    is documentation only in this port (see that Flag's own docstring),
+    not actually branched on by run_editor()'s dispatch loop. A bare
+    '.e' (nothing typed after it at all) prompts for which subcommand
+    instead of defaulting straight to editing the last line -- Ryan's
+    call, so the subcommands are discoverable without needing '.h e'."""
+    if not arg.strip():
+        prompt = (f'Edit which? [E]dit lines, [M]ove, [C]opy, [L]ist, '
+                  f'[U]ndo, [R]edo, [S]how buffers, or {editor.ctx.player.return_key} to abort')
+        raw = await editor.ctx.prompt(prompt)
+        if not raw:
+            return None
+        choice = raw.strip().lower()[:1]
+        if choice == 'e':
+            # No range prompt here -- the fallback edit-lines branch below
+            # already defaults a blank range to the last line, same as a
+            # plain bare '.e' typed outside this submenu would.
+            arg = ''
+        elif choice in _EDIT_SUBCOMMANDS:
+            # Pass just the subcommand letter; each one prompts for
+            # whatever it still needs (range/destination for m/c, nothing
+            # more for l/u/r/s) -- see _cmd_edit_move_or_copy()'s own
+            # docstring for why that logic lives there, not here.
+            arg = choice
+        else:
+            await editor.ctx.send(f"Unrecognized choice '{raw}'.")
+            return None
+
+    parts = arg.strip().split(maxsplit=1)
+    first = parts[0].lower() if parts else ''
+    if first in _EDIT_SUBCOMMANDS:
+        rest = parts[1] if len(parts) > 1 else ''
+        if first == 'l':
+            return await _cmd_list(editor, rest)
+        if first == 'u':
+            return await _cmd_edit_undo(editor)
+        if first == 'r':
+            return await _cmd_edit_redo(editor)
+        if first == 's':
+            return await _cmd_edit_show_buffers(editor)
+        return await _cmd_edit_move_or_copy(editor, rest, move=(first == 'm'))
+
     buffer = editor.buffer
     if not buffer.lines:
         await editor.ctx.send('(buffer is empty)')
         return None
     line_range = process_line_range_string(arg, buffer, DefaultLineRange.LAST_LINE)
     await editor.ctx.send("Enter new text for each line. Blank leaves it unchanged; '.' alone stops.")
+    checkpointed = False
     for i in buffer.line_slice(line_range):
         line = buffer.lines[i]
         if line.line_flag == LineFlag.IMMUTABLE:
@@ -476,14 +765,137 @@ async def _cmd_edit(editor: 'Editor', arg: str) -> Optional[str]:
         if raw is None or raw.strip() == '.':
             break
         if raw != '':
+            if not checkpointed:
+                editor.checkpoint()  # once per .E session, not per line
+                checkpointed = True
             line.text = raw
     return None
 
 
+async def _cmd_edit_move_or_copy(editor: 'Editor', rest: str, move: bool) -> Optional[str]:
+    """Shared implementation for '.E m'ove and '.E c'opy: <range>
+    <destination>, destination being the line number to insert before
+    (1 to used_lines+1, the latter meaning "at the very end"). Move
+    removes the source lines (skipping any LineFlag.IMMUTABLE ones, same
+    as .D Delete); copy duplicates them via copy.deepcopy() -- Line and
+    Border are both dataclasses, so two Lines must never share one
+    mutable Border instance. Prompts interactively for whichever of
+    <range>/<destination> wasn't already given on the command line --
+    same behavior whether reached via '.e m 4-6 8' typed directly or via
+    the bare-'.e' submenu, which just passes the subcommand letter alone."""
+    buffer = editor.buffer
+    if not buffer.lines:
+        await editor.ctx.send('(buffer is empty)')
+        return None
+
+    tokens = rest.split()
+    range_str = tokens[0] if tokens else None
+    dest_str = tokens[1] if len(tokens) > 1 else None
+
+    if range_str is None:
+        range_str = await editor.ctx.prompt('Which lines')
+        if not range_str:
+            return None
+    if dest_str is None:
+        dest_str = await editor.ctx.prompt('Destination line')
+        if not dest_str:
+            return None
+
+    line_range = process_line_range_string(range_str, buffer, DefaultLineRange.ALL_LINES)
+    try:
+        dest = int(dest_str)
+    except ValueError:
+        await editor.ctx.send(f"Expected a line number, got '{dest_str}'.")
+        return None
+    dest = max(1, min(dest, buffer.used_lines + 1))
+
+    source_indices = list(buffer.line_slice(line_range))
+    if move:
+        selected = [i for i in source_indices if buffer.lines[i].line_flag != LineFlag.IMMUTABLE]
+    else:
+        selected = source_indices
+    skipped = len(source_indices) - len(selected)
+    if not selected:
+        await editor.ctx.send('Nothing to move.' if move else 'Nothing to copy.')
+        return None
+
+    editor.checkpoint()
+    if move:
+        moved = [buffer.lines[i] for i in selected]
+        remaining = [ln for idx, ln in enumerate(buffer.lines) if idx not in selected]
+        removed_before_dest = sum(1 for i in selected if i < dest - 1)
+        insert_at = max(0, min(dest - 1 - removed_before_dest, len(remaining)))
+        remaining[insert_at:insert_at] = moved
+        buffer.lines = remaining
+    else:
+        copied = [copy.deepcopy(buffer.lines[i]) for i in selected]
+        insert_at = max(0, min(dest - 1, len(buffer.lines)))
+        buffer.lines[insert_at:insert_at] = copied
+
+    buffer.current_line = min(buffer.current_line, max(buffer.used_lines, 1))
+    verb = 'Moved' if move else 'Copied'
+    msg = f'{verb} {len(selected)} line(s) to before line {dest}.'
+    if skipped:
+        msg += f' ({skipped} immutable line(s) skipped.)'
+    await editor.ctx.send(msg)
+    return None
+
+
+async def _cmd_edit_undo(editor: 'Editor') -> Optional[str]:
+    if not editor._undo_stack:
+        await editor.ctx.send('Nothing to undo.')
+        return None
+    editor._redo_stack.append(copy.deepcopy(editor.buffer.lines))
+    editor.buffer.lines = editor._undo_stack.pop()
+    editor.buffer.current_line = min(editor.buffer.current_line, max(editor.buffer.used_lines, 1))
+    await editor.ctx.send(f'Undone. ({len(editor._undo_stack)} more undo step(s) available.)')
+    return None
+
+
+async def _cmd_edit_redo(editor: 'Editor') -> Optional[str]:
+    if not editor._redo_stack:
+        await editor.ctx.send('Nothing to redo.')
+        return None
+    editor._undo_stack.append(copy.deepcopy(editor.buffer.lines))
+    editor.buffer.lines = editor._redo_stack.pop()
+    editor.buffer.current_line = min(editor.buffer.current_line, max(editor.buffer.used_lines, 1))
+    await editor.ctx.send(f'Redone. ({len(editor._redo_stack)} more redo step(s) available.)')
+    return None
+
+
+def _buffer_preview(lines: List[Line]) -> str:
+    if not lines:
+        return '(empty)'
+    first = lines[0].text.strip() or '(blank)'
+    return f'{len(lines)} line(s), starts: "{first[:40]}"'
+
+
+async def _cmd_edit_show_buffers(editor: 'Editor') -> Optional[str]:
+    """List the undo/redo stacks (most recent first) so a player can see
+    how many steps are available and roughly what each one holds, without
+    having to undo/redo blindly to find a particular state."""
+    out = [f'Current: {_buffer_preview(editor.buffer.lines)}', '']
+    out.append(f'Undo history ({len(editor._undo_stack)} step(s), most recent first):')
+    if editor._undo_stack:
+        out += [f'  {i}: {_buffer_preview(snap)}'
+                for i, snap in enumerate(reversed(editor._undo_stack), start=1)]
+    else:
+        out.append('  (none)')
+    out.append('')
+    out.append(f'Redo history ({len(editor._redo_stack)} step(s), most recent first):')
+    if editor._redo_stack:
+        out += [f'  {i}: {_buffer_preview(snap)}'
+                for i, snap in enumerate(reversed(editor._redo_stack), start=1)]
+    else:
+        out.append('  (none)')
+    await editor.ctx.send(out)
+    return None
+
+
 async def _cmd_insert(editor: 'Editor', arg: str) -> Optional[str]:
-    """`.i <n>` sets the insertion point to line n and turns Insert mode on;
-    `.i` alone toggles it (defaulting to end-of-buffer). While on, plain
-    typed lines go in before buffer.current_line and advance it by one."""
+    """The actual line-insertion happens in run_editor()'s own dispatch
+    loop, keyed off editor.mode & EditorMode.INSERT -- this function only
+    sets buffer.current_line (the insertion point) and toggles the flag."""
     buffer = editor.buffer
     arg = arg.strip()
     if arg:
@@ -507,6 +919,10 @@ async def _cmd_insert(editor: 'Editor', arg: str) -> Optional[str]:
 
 
 async def _cmd_find(editor: 'Editor', arg: str) -> Optional[str]:
+    """Matched text is wrapped in [brackets] for display so the normal
+    ctx.send() highlight-brackets pass colors it (formatting.py's
+    highlight_brackets()) -- the buffer's actual .text is untouched, this
+    is purely a display transform on the search results."""
     buffer = editor.buffer
     if not buffer.lines:
         await editor.ctx.send('(buffer is empty)')
@@ -516,11 +932,13 @@ async def _cmd_find(editor: 'Editor', arg: str) -> Optional[str]:
     if not search:
         await editor.ctx.send('Aborted.')
         return None
+    pattern = re.compile(re.escape(search))
     hits = []
     for i in buffer.line_slice(line_range):
-        if search in buffer.lines[i].text:
+        text = buffer.lines[i].text
+        if search in text:
             hits.append(f'{i + 1}:')
-            hits.append(buffer.lines[i].text)
+            hits.append(pattern.sub(lambda m: f'[{m.group(0)}]', text))
     await editor.ctx.send(hits if hits else [f"No match for '{search}'."])
     return None
 
@@ -551,14 +969,12 @@ async def _cmd_search_and_replace(editor: 'Editor', arg: str) -> Optional[str]:
 
 
 async def _cmd_justify(editor: 'Editor', arg: str) -> Optional[str]:
-    """.J <mode> [range] -- l/c/r/e set a persistent per-line style;
-    p(ack)/i(ndent)/u(n-indent) are one-time text edits instead (there's
-    nothing to "un-expand" -- expand is never baked into .text to begin
-    with). `.J <mode>` with no range changes the default for future typed
-    lines rather than touching the buffer at all."""
+    """l/c/r/e set a persistent Line.justification style; p(ack)/i(ndent)/
+    u(n-indent) are one-time text mutations instead -- there's nothing to
+    "un-expand" since expand is never baked into .text to begin with."""
     parts = arg.strip().split(maxsplit=1)
     if not parts:
-        await editor.ctx.send('Usage: .j <l|c|r|e|p|i|u> [range]')
+        await editor.ctx.send('Usage: .j <l|c|r|e|p|i|u> [[range]]')
         return None
     mode = _JUSTIFY_LETTERS.get(parts[0][:1].lower())
     if mode is None:
@@ -584,7 +1000,7 @@ async def _cmd_justify(editor: 'Editor', arg: str) -> Optional[str]:
         for i in indices:
             buffer.lines[i].text = ' '.join(buffer.lines[i].text.split())
     elif mode == Justification.INDENT:
-        raw = await editor.ctx.prompt(f'Indent by how many spaces? [{_DEFAULT_INDENT}]')
+        raw = await editor.ctx.prompt(f'Indent by how many spaces? [[{_DEFAULT_INDENT}]]')
         amount = int(raw) if raw and raw.strip().isdigit() else _DEFAULT_INDENT
         for i in indices:
             buffer.lines[i].text = ' ' * amount + buffer.lines[i].text
@@ -599,15 +1015,29 @@ async def _cmd_justify(editor: 'Editor', arg: str) -> Optional[str]:
     return None
 
 
+# TODO(Ryan, 7/18/26, see TODO.md): no inverse of .B yet -- an un-border
+# command should clear .border off the range's content lines and remove
+# the matching TOP/BOTTOM markers. Also: .J with no range only sets the
+# default justification for *future* typed lines (see _cmd_justify below),
+# not whatever's on screen -- typing '.j c' right after '.b' to center the
+# box you just made does nothing visible. Justification of already-boxed
+# lines itself is correct (verified: _render_buffer_lines() justifies
+# each content Line at the box's inner width before boxing it) -- this is
+# a real gap in .J's no-range default, not a rendering bug.
 async def _cmd_border(editor: 'Editor', arg: str) -> Optional[str]:
-    """.B [char] [range] -- wrap a line range in an ASCII box. An optional
-    single border character may be given (default '-')."""
+    """Tags lines with a Border rather than baking box-drawing characters
+    into .text (same reasoning as Justification: a box's width should
+    track whoever's *viewing* it, not whatever column width was active
+    when .B was typed). See _render_buffer_lines() for how a None-char
+    Border routes through formatting.make_box() for real terminal-aware
+    glyphs, vs. Line._render_bordered()'s plain-ASCII fallback for an
+    explicit character."""
     buffer = editor.buffer
     if not buffer.lines:
         await editor.ctx.send('(buffer is empty)')
         return None
     parts = arg.strip().split(maxsplit=1)
-    border_char = '-'
+    border_char = None
     range_str = arg.strip()
     if parts and len(parts[0]) == 1 and not parts[0].isdigit():
         border_char = parts[0]
@@ -615,15 +1045,25 @@ async def _cmd_border(editor: 'Editor', arg: str) -> Optional[str]:
 
     line_range = process_line_range_string(range_str, buffer, DefaultLineRange.ALL_LINES)
     indices = list(buffer.line_slice(line_range))
-    width = editor.column_width
-    inner_width = max(width - 4, 1)
-    rendered = [buffer.lines[i].render(inner_width) for i in indices]
-    boxed = [Line(text=t) for t in make_box(rendered, width=width, border_char=border_char)]
+    if not indices:
+        return None
 
-    start = indices[0]
-    end = indices[-1] + 1
-    buffer.lines[start:end] = boxed
-    await editor.ctx.send([ln.text for ln in boxed])
+    for i in indices:
+        buffer.lines[i].border = Border(char=border_char, role=BorderRole.CONTENT)
+
+    bottom = Line(border=Border(char=border_char, role=BorderRole.BOTTOM))
+    top = Line(border=Border(char=border_char, role=BorderRole.TOP))
+    buffer.lines.insert(indices[-1] + 1, bottom)  # after last content line
+    buffer.lines.insert(indices[0], top)          # before first -- shifts
+                                                    # everything from here
+                                                    # on (incl. `bottom`)
+                                                    # down by one, which is
+                                                    # exactly where it
+                                                    # should end up
+
+    rendered = _render_buffer_lines(buffer.lines, editor.ctx, editor.column_width)
+    preview = range(indices[0], indices[0] + len(indices) + 2)
+    await editor.ctx.send([rendered[i] for i in preview])
     return None
 
 
@@ -651,6 +1091,7 @@ async def _cmd_columns(editor: 'Editor', arg: str) -> Optional[str]:
 async def _cmd_new_text(editor: 'Editor', arg: str) -> Optional[str]:
     raw = await editor.ctx.prompt('Erase buffer? (Y/N)')
     if raw and raw.strip().upper() == 'Y':
+        editor.checkpoint()
         editor.buffer = Buffer()
         await editor.ctx.send('Erased text.')
     else:
@@ -683,7 +1124,6 @@ async def _cmd_version(editor: 'Editor', arg: str) -> Optional[str]:
 
 
 async def _cmd_scale(editor: 'Editor', arg: str) -> Optional[str]:
-    """Show a ruler of screen columns, to help align text."""
     width = editor.screen_width
     if arg.strip().isdigit():
         width = min(width, int(arg.strip()))
@@ -716,12 +1156,31 @@ async def _cmd_help(editor: 'Editor', arg: str) -> Optional[str]:
     if match is None:
         await editor.ctx.send(f'Unknown command: .{arg}')
         return None
-    doc = (match.function_name.__doc__ or '').strip()
-    await editor.ctx.send([
-        _format_help_line(match.command_key, match.command_text, editor.screen_width),
-        doc or '(no help available)',
-    ])
+    out = [_format_help_line(match.command_key, match.command_text, editor.screen_width), '']
+    out += _format_help_text(match.help_text)
+    await editor.ctx.send(out)
     return None
+
+
+def _format_help_text(help_text: str) -> List[str]:
+    """Split a DotCommand's help_text into display lines: paragraphs
+    (separated by a blank line in the source) get their own soft line
+    breaks collapsed into one flowing line -- they're wrapped to fit
+    this source file, not a player's screen, and ctx.send() word-wraps
+    to the actual screen width on its own. An "Examples:" block is left
+    exactly as authored (one example per line) instead, since those line
+    breaks are deliberate, not source-wrapping."""
+    if not help_text:
+        return ['(no help available)']
+    out: List[str] = []
+    for i, paragraph in enumerate(help_text.split('\n\n')):
+        if i > 0:
+            out.append('')
+        if paragraph.lstrip().startswith('Examples:'):
+            out.extend(paragraph.split('\n'))
+        else:
+            out.append(' '.join(paragraph.split()))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -756,6 +1215,7 @@ async def _priv_get_file(editor: 'Editor', arg: str) -> Optional[str]:
         await editor.ctx.send(f"No such file '{safe_name}'.")
         return None
     text_lines = path.read_text(errors='replace').splitlines()
+    editor.checkpoint()
     editor.buffer.lines.extend(Line(text=t) for t in text_lines)
     editor.buffer.current_line = editor.buffer.used_lines
     await editor.ctx.send(f'{len(text_lines)} line(s) appended from {safe_name}.')
@@ -816,7 +1276,7 @@ async def _priv_put_file(editor: 'Editor', arg: str) -> Optional[str]:
             continue
         await editor.ctx.send('Aborted.')
         return None
-    text = '\n'.join(ln.render(editor.column_width) for ln in buffer.lines)
+    text = '\n'.join(_render_buffer_lines(buffer.lines, editor.ctx, editor.column_width))
     path.write_text(text + '\n')
     await editor.ctx.send(f'Saved to {safe_name}.')
     return None
@@ -872,14 +1332,12 @@ async def run_editor(ctx: 'GameContext',
                 continue
             await cmd.function_name(editor, arg)
             if editor.result == 'save':
-                return [ln.render(editor.column_width) for ln in editor.buffer.lines]
+                return _render_buffer_lines(editor.buffer.lines, ctx, editor.column_width)
             if editor.result == 'abort':
                 return None
             continue
 
-        if not raw:
-            continue  # blank Enter with nothing typed -- ignore, don't add an empty line
-
+        editor.checkpoint()
         new_line = Line(text=raw, justification=editor.justification, line_flag=LineFlag.MUTABLE)
         if editor.mode & EditorMode.INSERT:
             pos = max(1, min(buffer.current_line, buffer.used_lines + 1))

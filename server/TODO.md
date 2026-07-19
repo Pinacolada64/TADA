@@ -653,3 +653,28 @@
   the other player-facing date displays (birthdays in editplayer.py/
   new_player.py, ban.py's suspension date) still use their own hardcoded
   formatting and are a follow-up to switch over to the same helper.
+
+7/18/26:
+- text_editor.py: un-border command (Ryan): `.B` tags a line range with
+  Border and inserts synthetic TOP/BOTTOM rule lines, but there's no
+  inverse -- once boxed, always boxed (short of `.D`eleting the rule
+  lines by hand, which leaves the content lines' `.border` still set).
+  Should clear `.border` on the range's content lines and remove the
+  matching TOP/BOTTOM markers.
+- text_editor.py: justification of bordered lines (Ryan asked to look
+  into this). Checked directly -- the box-then-justify order is already
+  correct: `_render_buffer_lines()` applies each content Line's own
+  `_justify_text()` at the box's *inner* width before handing the result
+  to `formatting.make_box()`, so `.J c <range>` on a boxed line does
+  center correctly (verified: `.j c 2` on a boxed "hi" renders
+  `'│        hi        │'`). What actually reproduces "justification
+  doesn't seem to take effect" is a separate, real gap: `.J <mode>` with
+  *no* range doesn't touch the line(s) on screen at all -- per
+  `_cmd_justify()`'s own design, no range means "set the default
+  justification for lines typed from here on," not "apply to whatever
+  I'm looking at." Typing `.j c` right after `.b`, expecting it to
+  center the box just made, silently does nothing visible. Worth
+  reconsidering that default -- e.g. falling back to `DefaultLineRange.
+  LAST_LINE` (matching `.D`/`.E`'s own no-range behavior) instead of the
+  future-lines-only interpretation -- but that's a real behavior change,
+  not just a bugfix, so flagging here rather than changing unasked.

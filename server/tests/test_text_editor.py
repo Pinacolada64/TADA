@@ -8,8 +8,8 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock
 
 from text_editor import (
-    Buffer, DefaultLineRange, Editor, Justification, Line, LineFlag,
-    _sanitize_filename, make_box, process_line_range_string, run_editor,
+    Border, BorderRole, Buffer, DefaultLineRange, Editor, Justification, Line,
+    LineFlag, _sanitize_filename, process_line_range_string, run_editor,
 )
 
 
@@ -76,6 +76,44 @@ class TestProcessLineRangeString(unittest.TestCase):
         self.assertEqual((r.start, r.end), (1, 1))
 
 
+class TestRelativeLineRange(unittest.TestCase):
+    """'x-+n' is a relative end: n more lines from x, e.g. '1-+5' is
+    lines 1-6 (six lines: x plus n more) -- same idea as ed/vi's own
+    ',+n' relative addressing."""
+
+    def setUp(self):
+        self.buffer = Buffer(lines=[Line(text=str(i)) for i in range(1, 101)])  # 100 lines
+
+    def test_relative_end_from_ryans_own_examples(self):
+        r = process_line_range_string('1-+5', self.buffer, DefaultLineRange.ALL_LINES)
+        self.assertEqual((r.start, r.end), (1, 6))
+        r = process_line_range_string('46-+19', self.buffer, DefaultLineRange.ALL_LINES)
+        self.assertEqual((r.start, r.end), (46, 65))
+
+    def test_relative_end_clamps_past_buffer_end(self):
+        small = Buffer(lines=[Line(text=str(i)) for i in range(1, 6)])  # 5 lines
+        r = process_line_range_string('3-+10', small, DefaultLineRange.ALL_LINES)
+        self.assertEqual((r.start, r.end), (3, 5))
+
+    def test_relative_end_with_omitted_start_defaults_start_to_1(self):
+        r = process_line_range_string('-+3', self.buffer, DefaultLineRange.ALL_LINES)
+        self.assertEqual((r.start, r.end), (1, 4))
+
+    def test_relative_end_with_no_digits_is_malformed(self):
+        r = process_line_range_string('1-+', self.buffer, DefaultLineRange.ALL_LINES)
+        self.assertIsNone(r.start)
+        self.assertIsNone(r.end)
+
+    def test_relative_end_with_non_numeric_offset_is_malformed(self):
+        r = process_line_range_string('1-+abc', self.buffer, DefaultLineRange.ALL_LINES)
+        self.assertIsNone(r.start)
+        self.assertIsNone(r.end)
+
+    def test_relative_end_zero_offset_is_a_single_line(self):
+        r = process_line_range_string('5-+0', self.buffer, DefaultLineRange.ALL_LINES)
+        self.assertEqual((r.start, r.end), (5, 5))
+
+
 class TestJustification(unittest.TestCase):
     def test_left_is_unpadded(self):
         self.assertEqual(Line('hi', Justification.LEFT).render(10), 'hi')
@@ -99,20 +137,41 @@ class TestJustification(unittest.TestCase):
         self.assertEqual(Line('a very long line', Justification.CENTER).render(5), 'a very long line')
 
 
-class TestMakeBox(unittest.TestCase):
-    def test_box_has_border_and_padded_content(self):
-        box = make_box(['hi'], width=10)
-        self.assertEqual(box[0], '+--------+')
-        self.assertEqual(box[-1], '+--------+')
-        self.assertEqual(box[1], '| hi     |')
+class TestBorderRendering(unittest.TestCase):
+    """Border lives on Line (like Justification), not baked into .text --
+    same rendered-at-view-time width independence, verified directly."""
+
+    def test_top_and_bottom_are_rule_lines_regardless_of_text(self):
+        top = Line(text='ignored', border=Border(char='-', role=BorderRole.TOP))
+        self.assertEqual(top.render(10), '+--------+')
+
+    def test_content_line_padded_between_pipes(self):
+        content = Line(text='hi', border=Border(char='-', role=BorderRole.CONTENT))
+        self.assertEqual(content.render(10), '| hi     |')
 
     def test_custom_border_char(self):
-        box = make_box(['hi'], width=10, border_char='*')
-        self.assertEqual(box[0], '+********+')
+        top = Line(border=Border(char='*', role=BorderRole.TOP))
+        self.assertEqual(top.render(10), '+********+')
 
-    def test_long_line_truncated_to_interior(self):
-        box = make_box(['this is way too long for the box'], width=10)
-        self.assertEqual(len(box[1]), 10)
+    def test_long_content_truncated_to_interior(self):
+        content = Line(text='this is way too long for the box',
+                        border=Border(role=BorderRole.CONTENT))
+        self.assertEqual(len(content.render(10)), 10)
+
+    def test_same_line_renders_wider_at_a_different_width(self):
+        # the whole point: no box-drawing characters are baked into .text,
+        # so the same Line adapts to whoever's viewing it.
+        content = Line(text='hi', border=Border(role=BorderRole.CONTENT))
+        narrow = content.render(10)
+        wide = content.render(20)
+        self.assertNotEqual(narrow, wide)
+        self.assertEqual(len(wide), 20)
+
+    def test_content_justification_still_applies_inside_the_box(self):
+        content = Line(text='hi', justification=Justification.CENTER,
+                        border=Border(role=BorderRole.CONTENT))
+        # inner width for a 10-col box is 6 -- 'hi'.center(6) == '  hi  '
+        self.assertEqual(content.render(10), '|   hi   |')
 
 
 class TestSanitizeFilename(unittest.TestCase):
@@ -154,6 +213,21 @@ def _sent_text(ctx) -> str:
     return '\n'.join(parts)
 
 
+class TestRelativeLineRangeEndToEnd(unittest.IsolatedAsyncioTestCase):
+    async def test_relative_range_via_list_command(self):
+        ctx = _make_ctx(['.l 1-+3', '.s'])
+        result = await run_editor(ctx, initial_lines=[str(i) for i in range(1, 11)])
+        for n in (1, 2, 3, 4):
+            self.assertIn(f'{n}: {n}', _sent_text(ctx))
+        self.assertNotIn('5: 5', _sent_text(ctx))
+        self.assertEqual(result, [str(i) for i in range(1, 11)])  # list doesn't mutate
+
+    async def test_relative_range_via_delete_command(self):
+        ctx = _make_ctx(['.d 2-+2', '.s'])
+        result = await run_editor(ctx, initial_lines=['a', 'b', 'c', 'd', 'e'])
+        self.assertEqual(result, ['a', 'e'])
+
+
 class TestRunEditorBasics(unittest.IsolatedAsyncioTestCase):
     async def test_append_list_edit_save_session(self):
         ctx = _make_ctx(['first line', 'second line', '.l', '.e 2', 'edited second line', '.s'])
@@ -186,10 +260,10 @@ class TestRunEditorBasics(unittest.IsolatedAsyncioTestCase):
         result = await run_editor(ctx)
         self.assertEqual(result, [])
 
-    async def test_blank_enter_is_ignored_not_appended(self):
+    async def test_blank_enter_adds_a_blank_line(self):
         ctx = _make_ctx(['one', '', 'two', '.s'])
         result = await run_editor(ctx)
-        self.assertEqual(result, ['one', 'two'])
+        self.assertEqual(result, ['one', '', 'two'])
 
     async def test_unrecognized_command_does_not_crash_session(self):
         ctx = _make_ctx(['.z', 'a real line', '.s'])
@@ -227,6 +301,133 @@ class TestEditSkipsImmutable(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(editor.buffer.lines[0].text, 'locked')
         self.assertEqual(editor.buffer.lines[1].text, 'changed')
         self.assertIn('immutable', _sent_text(ctx).lower())
+
+
+class TestEditSubcommands(unittest.IsolatedAsyncioTestCase):
+    """.E m(ove)/c(opy)/l(ist) <range> [destination]."""
+
+    async def test_move_shifts_range_to_destination(self):
+        ctx = _make_ctx(['.e m 4-6 8', '.s'])
+        result = await run_editor(ctx, initial_lines=[
+            'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
+        ])
+        self.assertEqual(result, [
+            'one', 'two', 'three', 'seven', 'four', 'five', 'six', 'eight',
+        ])
+
+    async def test_move_to_the_very_end(self):
+        ctx = _make_ctx(['.e m 1 4', '.s'])  # dest == used_lines+1 -- append
+        result = await run_editor(ctx, initial_lines=['a', 'b', 'c'])
+        self.assertEqual(result, ['b', 'c', 'a'])
+
+    async def test_copy_leaves_source_in_place(self):
+        ctx = _make_ctx(['.e c 1-2 4', '.s'])
+        result = await run_editor(ctx, initial_lines=['one', 'two', 'three'])
+        self.assertEqual(result, ['one', 'two', 'three', 'one', 'two'])
+
+    async def test_copy_is_a_real_deep_copy_not_a_shared_reference(self):
+        # editing the copy afterward must not also change the original
+        ctx = _make_ctx(['.e c 1 3', '.e 1', 'changed', '.s'])
+        result = await run_editor(ctx, initial_lines=['original', 'two'])
+        self.assertEqual(result, ['changed', 'two', 'original'])
+
+    async def test_move_skips_immutable_lines_in_range(self):
+        # only 'free' (index 1) is actually movable -- 'locked' stays put,
+        # and the destination (before original line 3, 'c') places 'free'
+        # right back next to where it started:
+        ctx = _make_ctx(['.e m 1-2 3', '.s'])
+        lines = [Line(text='locked', line_flag=LineFlag.IMMUTABLE), Line(text='free'), Line(text='c')]
+        result = await run_editor(ctx, initial_lines=lines)
+        self.assertEqual(result, ['locked', 'free', 'c'])
+
+    async def test_move_missing_destination_prompts_for_it(self):
+        ctx = _make_ctx(['.e m 1', '3', '.s'])
+        result = await run_editor(ctx, initial_lines=['a', 'b', 'c'])
+        self.assertEqual(result, ['b', 'a', 'c'])
+
+    async def test_move_missing_destination_cancelled_on_blank_response(self):
+        ctx = _make_ctx(['.e m 1', '', '.s'])
+        result = await run_editor(ctx, initial_lines=['a', 'b'])
+        self.assertEqual(result, ['a', 'b'])
+
+    async def test_move_with_no_args_at_all_prompts_for_both(self):
+        ctx = _make_ctx(['.e m', '1', '3', '.s'])
+        result = await run_editor(ctx, initial_lines=['a', 'b', 'c'])
+        self.assertEqual(result, ['b', 'a', 'c'])
+
+    async def test_list_subcommand_delegates_to_list(self):
+        ctx = _make_ctx(['.e l 1-2', '.s'])
+        result = await run_editor(ctx, initial_lines=['one', 'two', 'three'])
+        self.assertIn('1: one', _sent_text(ctx))
+        self.assertIn('2: two', _sent_text(ctx))
+        self.assertNotIn('3: three', _sent_text(ctx))
+        self.assertEqual(result, ['one', 'two', 'three'])  # list doesn't mutate
+
+
+class TestEditUndoRedo(unittest.IsolatedAsyncioTestCase):
+    """.E u(ndo)/r(edo)/s(how) -- multi-level, checkpointed before every
+    real buffer mutation."""
+
+    async def test_undo_reverts_last_typed_line(self):
+        ctx = _make_ctx(['one', 'two', '.e u', '.s'])
+        result = await run_editor(ctx)
+        self.assertEqual(result, ['one'])
+
+    async def test_undo_twice_then_redo_once(self):
+        ctx = _make_ctx(['one', 'two', '.e u', '.e u', '.e r', '.s'])
+        result = await run_editor(ctx)
+        self.assertEqual(result, ['one'])
+
+    async def test_undo_past_empty_history_is_a_no_op(self):
+        ctx = _make_ctx(['one', '.e u', '.e u', '.s'])
+        result = await run_editor(ctx)
+        self.assertEqual(result, [])
+        self.assertIn('Nothing to undo.', _sent_text(ctx))
+
+    async def test_redo_with_nothing_to_redo_is_a_no_op(self):
+        ctx = _make_ctx(['.e r', '.s'])
+        result = await run_editor(ctx)
+        self.assertEqual(result, [])
+        self.assertIn('Nothing to redo.', _sent_text(ctx))
+
+    async def test_new_change_after_undo_clears_redo_history(self):
+        ctx = _make_ctx(['one', 'two', '.e u', 'three', '.e r', '.s'])
+        result = await run_editor(ctx)
+        # 'two' was undone, 'three' typed instead (clearing redo) -- the
+        # trailing '.e r' has nothing to redo and is a no-op:
+        self.assertEqual(result, ['one', 'three'])
+
+    async def test_undo_reverts_delete(self):
+        ctx = _make_ctx(['.d 1', '.e u', '.s'])
+        result = await run_editor(ctx, initial_lines=['one', 'two'])
+        self.assertEqual(result, ['one', 'two'])
+
+    async def test_undo_reverts_move(self):
+        ctx = _make_ctx(['.e m 1 3', '.e u', '.s'])
+        result = await run_editor(ctx, initial_lines=['a', 'b', 'c'])
+        self.assertEqual(result, ['a', 'b', 'c'])
+
+    async def test_show_buffers_reports_stack_depth(self):
+        ctx = _make_ctx(['one', 'two', '.e s', '.s'])
+        await run_editor(ctx)
+        text = _sent_text(ctx)
+        self.assertIn('Undo history (2 step(s)', text)
+        self.assertIn('Redo history (0 step(s)', text)
+
+    async def test_bare_edit_submenu_undo_choice(self):
+        ctx = _make_ctx(['one', '.e', 'u', '.s'])
+        result = await run_editor(ctx)
+        self.assertEqual(result, [])
+
+    async def test_bare_edit_submenu_cancel_on_empty_response(self):
+        ctx = _make_ctx(['one', '.e', '', '.s'])
+        result = await run_editor(ctx)
+        self.assertEqual(result, ['one'])  # cancelled -- nothing happened
+
+    async def test_bare_edit_submenu_move_prompts_for_range_and_destination(self):
+        ctx = _make_ctx(['one', 'two', 'three', '.e', 'm', '1', '3', '.s'])
+        result = await run_editor(ctx)
+        self.assertEqual(result, ['two', 'one', 'three'])
 
 
 class TestJustify(unittest.IsolatedAsyncioTestCase):
@@ -281,6 +482,55 @@ class TestBorder(unittest.IsolatedAsyncioTestCase):
         result = await run_editor(ctx, initial_lines=['hi'])
         self.assertTrue(result[0].startswith('+*'))
 
+    async def test_border_width_tracks_column_width_not_command_time_width(self):
+        # the actual point of tagging Line with Border instead of baking
+        # box-drawing characters into .text at .B-time: narrowing the
+        # column width *after* boxing re-renders the box narrower too,
+        # not stuck at whatever width was active when .B ran.
+        ctx = _make_ctx(['.c 10', '.b 1', '.c 20', '.l', '.s'], screen_columns=20)
+        result = await run_editor(ctx, initial_lines=['hi'])
+        self.assertEqual(len(result[0]), 20)
+
+
+def _make_real_settings_ctx(responses, translation, border_style='single', screen_columns=20):
+    """Like _make_ctx(), but with a real terminal.ClientSettings object
+    instead of a bare MagicMock -- needed to actually exercise
+    formatting.make_box()'s codec/border_style glyph selection, since a
+    MagicMock's auto-created attributes accidentally satisfy getattr()
+    fallbacks without ever really testing them."""
+    from terminal import ClientSettings
+    settings = ClientSettings()
+    settings.translation = translation
+    settings.screen_columns = screen_columns
+    settings.border_style = border_style
+    ctx = MagicMock()
+    ctx.player.client_settings = settings
+    ctx.player.query_flag = MagicMock(return_value=False)
+    it = iter(responses)
+    ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(it, None))
+    ctx.send = AsyncMock()
+    return ctx
+
+
+class TestBorderTerminalAwareGlyphs(unittest.IsolatedAsyncioTestCase):
+    """.B with no explicit character routes through formatting.make_box()
+    for real terminal-correct glyphs -- verified against a real
+    ClientSettings, not just a MagicMock's accidental fallback behavior."""
+
+    async def test_ansi_client_gets_unicode_box_drawing(self):
+        from terminal import Translation
+        ctx = _make_real_settings_ctx(['.b 1', '.s'], Translation.ANSI)
+        result = await run_editor(ctx, initial_lines=['hi'])
+        self.assertEqual(result[0][0], '┌')
+        self.assertEqual(result[0][-1], '┐')
+        self.assertIn('│', result[1])
+
+    async def test_explicit_character_ignores_client_translation(self):
+        from terminal import Translation
+        ctx = _make_real_settings_ctx(['.b * 1', '.s'], Translation.ANSI)
+        result = await run_editor(ctx, initial_lines=['hi'])
+        self.assertTrue(result[0].startswith('+*'))
+
 
 class TestFindAndReplace(unittest.IsolatedAsyncioTestCase):
     async def test_find_reports_matches(self):
@@ -288,6 +538,20 @@ class TestFindAndReplace(unittest.IsolatedAsyncioTestCase):
         result = await run_editor(ctx, initial_lines=['one', 'two', 'three'])
         self.assertIn('two', _sent_text(ctx))
         self.assertEqual(result, ['one', 'two', 'three'])
+
+    async def test_find_wraps_match_in_brackets_for_highlighting(self):
+        # buffer.text itself is untouched -- only the search-results
+        # display wraps the match so ctx.send()'s highlight_brackets()
+        # pass colors it.
+        ctx = _make_ctx(['.f', 'cat', '.s'])
+        result = await run_editor(ctx, initial_lines=['the cat sat on the cat mat'])
+        self.assertIn('the [cat] sat on the [cat] mat', _sent_text(ctx))
+        self.assertEqual(result, ['the cat sat on the cat mat'])
+
+    async def test_find_no_match_reports_cleanly(self):
+        ctx = _make_ctx(['.f', 'nope', '.s'])
+        await run_editor(ctx, initial_lines=['one', 'two'])
+        self.assertIn("No match for 'nope'", _sent_text(ctx))
 
     async def test_search_and_replace_counts_occurrences(self):
         ctx = _make_ctx(['.k', 'cat', 'dog', '.s'])
