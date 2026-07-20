@@ -150,6 +150,29 @@ class TestReplyWithQuote(BoardReplyTestCase):
         for entry in quote_entries:
             self.assertEqual(entry.get('line_flag'), 'QUOTE')
 
+    def test_quoted_content_renders_boxed_when_the_reply_is_later_read(self):
+        # The box isn't just a one-off compose-time preview -- it's
+        # stored as real Border metadata on the QUOTE lines (same
+        # mechanism .B Border uses), so it's still boxed whenever anyone
+        # reads this reply later, not just while composing it.
+        prompts = ['r', 'all', 'y', 'n', 'my reply', '.s', '', '', '']
+        ctx = make_ctx(prompts=prompts)
+        run(read_thread_interactive(ctx, _thread()))
+        threads = board_store.load_board(self.path)
+        new_reply = threads[0]['replies'][-1]
+
+        border_roles = [d.get('border', {}).get('role') for d in new_reply['body'] if 'border' in d]
+        self.assertIn('TOP', border_roles)
+        self.assertIn('CONTENT', border_roles)
+        self.assertIn('BOTTOM', border_roles)
+
+        rendered = board_store.render_message_lines(new_reply, ctx, 40)
+        joined = '\n'.join(rendered)
+        # ANSI box-drawing corner, or the plain-ASCII '+' fallback,
+        # depending on which codec this ctx (a bare MagicMock) resolves
+        # to -- either way, something drew a box.
+        self.assertTrue('┌' in joined or '+' in joined)
+
     def test_quoted_lines_cannot_be_edited_while_composing(self):
         # '.e 1' would normally prompt to edit line 1 -- since it's the
         # QUOTE-flagged 'bob wrote:' attribution line, it must be skipped

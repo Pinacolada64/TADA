@@ -102,7 +102,10 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
 async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: bool) -> None:
     """[R]eply: pick how much (if any) of *quoted_entry* to quote, preview
     it, confirm, then open the line editor for the reply body."""
-    from text_editor import Buffer, DefaultLineRange, Line, LineFlag, process_line_range_string, run_editor
+    from text_editor import (
+        Border, BorderRole, Buffer, DefaultLineRange, Line, LineFlag,
+        process_line_range_string, run_editor,
+    )
 
     width = _screen_width(ctx)
     quoted_lines = board_store.render_message_lines(quoted_entry, ctx, width)
@@ -149,9 +152,23 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
         # IMMUTABLE in its own .E/.D/.K/.J/.E m/c skip-checks (see that
         # module's docstring); typing a new line still just appends
         # after them normally.
+        #
+        # Also boxed via the same Border/BorderRole mechanism .B Border
+        # uses -- Line/LineFlag and Line/Border are independent fields,
+        # so a line can be protected *and* boxed at once. Since that
+        # box is stored (not baked into .text), it stays boxed later
+        # too, whenever this reply is displayed to a reader, not just
+        # while composing -- render_lines() batches the TOP/CONTENT.../
+        # BOTTOM run into one real, terminal-aware box either way.
         initial_lines = [
             Line(text=f'{author_display} wrote:', line_flag=LineFlag.QUOTE),
-        ] + [Line(text=t, line_flag=LineFlag.QUOTE) for t in quote_lines]
+            Line(line_flag=LineFlag.QUOTE, border=Border(role=BorderRole.TOP)),
+        ] + [
+            Line(text=t, line_flag=LineFlag.QUOTE, border=Border(role=BorderRole.CONTENT))
+            for t in quote_lines
+        ] + [
+            Line(line_flag=LineFlag.QUOTE, border=Border(role=BorderRole.BOTTOM)),
+        ]
     await ctx.send('Enter your reply.')
     body = await run_editor(ctx, initial_lines=initial_lines)
     if body is None:
