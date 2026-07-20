@@ -29,6 +29,9 @@ class PlayerFlags(StrEnum):
     HOURGLASS = "Hourglass"
     MORE_PROMPT = "More Prompt"
     ROOM_DESCRIPTIONS = "Room Descriptions"
+    # end-of-message interactive prompt on the threaded board (commands/
+    # board_reply.py): [R]eply/[M]ail/<#>/Enter after each post read.
+    PROMPT_MODE = "Prompt Mode"
     # health:
     DISEASE = "Diseased"
     HUNGER = "Hungry"
@@ -81,6 +84,7 @@ new_player_default_flags = [
     (PlayerFlags.HOURGLASS, FlagDisplayTypes.ONOFF, True),
     (PlayerFlags.MORE_PROMPT, FlagDisplayTypes.ONOFF, True),
     (PlayerFlags.ROOM_DESCRIPTIONS, FlagDisplayTypes.ONOFF, True),
+    (PlayerFlags.PROMPT_MODE, FlagDisplayTypes.ONOFF, False),
     # game states:
     (PlayerFlags.AMULET_OF_LIFE_ENERGIZED, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.COMPASS_USED, FlagDisplayTypes.YESNO, False),

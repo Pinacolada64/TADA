@@ -69,6 +69,10 @@ class BoardCommand(Command):
             "number to leave it.",
             "You can post anonymously when prompted; admins and Dungeon "
             "Masters still see who really posted.",
+            "With PlayerFlags.PROMPT_MODE on (toggle via EditPlayer's "
+            "Flags menu), reading a thread shows one message at a time "
+            "with a [R]eply/[M]ail poster/<#>/Enter menu after each -- "
+            "see commands/board_reply.py.",
         ],
     )
 
@@ -145,6 +149,14 @@ class BoardCommand(Command):
         if thread is None:
             await ctx.send('No such thread.')
             return CommandResult.fail('Unknown thread.', error='not_found')
+
+        if ctx.player.query_flag(PlayerFlags.PROMPT_MODE):
+            # One message at a time with an end-of-message [R]eply/[M]ail/
+            # <#>/Enter menu, quote-with-preview on reply -- see
+            # commands/board_reply.py's own module docstring.
+            from commands.board_reply import read_thread_interactive
+            await read_thread_interactive(ctx, thread)
+            return CommandResult.ok('Displayed thread.')
 
         privileged = _is_privileged(ctx.player)
         await ctx.send([''] + board_store.format_thread(thread, ctx, privileged) + [''])
