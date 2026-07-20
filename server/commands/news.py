@@ -165,6 +165,18 @@ class NewsCommand(Command):
         if not title or not title.strip():
             await ctx.send('Cancelled — no title given.')
             return CommandResult.fail('No title.', error='missing_title')
+        title = title.strip()
+
+        items = news_store.load_news()
+        resolved = await self._resolve_duplicate_title(ctx, items, title)
+        if resolved is None:
+            await ctx.send('Cancelled.')
+            return CommandResult.fail('Cancelled.', error='cancelled')
+        if isinstance(resolved, int):
+            # Admin chose to edit the existing item with this title instead
+            # of posting a new, duplicate one.
+            return await self._edit(ctx, str(resolved))
+        title = resolved
 
         lifetime = await self._pick_lifetime(ctx)
         if lifetime is None:
@@ -180,7 +192,7 @@ class NewsCommand(Command):
         items = news_store.load_news()
         item = {
             'id':         news_store.next_id(items),
-            'title':      title.strip(),
+            'title':      title,
             'body':       body,
             'author':     ctx.player.name,
             'posted_at':  datetime.datetime.now().isoformat(),
@@ -261,6 +273,42 @@ class NewsCommand(Command):
     # ------------------------------------------------------------------
     # Authoring helpers
     # ------------------------------------------------------------------
+
+    async def _resolve_duplicate_title(self, ctx, items: list[dict], title: str) -> int | str | None:
+        """Check *title* against existing items (case-insensitive) before
+        posting a new one. Returns:
+          - a str: the title to actually post with (unchanged, or a new
+            one the admin picked after being warned)
+          - an int: the id of an existing item the admin chose to edit
+            instead of creating a duplicate
+          - None: the admin cancelled
+
+        Loops so picking a *new* title that's *also* a duplicate re-prompts
+        instead of silently sneaking a second collision through.
+        """
+        while True:
+            existing = next(
+                (it for it in items if it.get('title', '').strip().lower() == title.lower()),
+                None,
+            )
+            if existing is None:
+                return title
+
+            raw = await ctx.prompt(
+                f"A news item titled '{existing.get('title', '')}' already exists "
+                f"(#{existing['id']}). [E]dit it, [C]hange this title, or "
+                f"{ctx.player.return_key} to abort",
+            )
+            choice = (raw or '').strip().lower()[:1]
+            if choice == 'e':
+                return existing['id']
+            if choice == 'c':
+                new_title = await ctx.prompt('New title')
+                if not new_title or not new_title.strip():
+                    return None
+                title = new_title.strip()
+                continue
+            return None
 
     async def _pick_lifetime(self, ctx, allow_skip: bool = False) -> dict | None:
         from parse_date import parse_date_range

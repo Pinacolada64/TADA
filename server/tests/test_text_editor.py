@@ -281,6 +281,24 @@ class TestRunEditorBasics(unittest.IsolatedAsyncioTestCase):
         result = await run_editor(ctx)
         self.assertEqual(_texts(result), ['a real line'])
 
+    async def test_virtual_location_set_while_editing_and_restored_after(self):
+        # WHEREAT (commands/whereat.py) reads ctx.client.virtual_location --
+        # same convention as commands/news.py's 'Reading news' and
+        # commands/new_player.py's 'Creating a character'.
+        ctx = _make_ctx(['one', '.s'])
+        ctx.client.virtual_location = 'somewhere else'
+        seen = {}
+
+        responses = iter(['one', '.s'])
+        ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: (
+            seen.setdefault('during', ctx.client.virtual_location),
+            next(responses, None),
+        )[1])
+        await run_editor(ctx)
+
+        self.assertEqual(seen['during'], 'Editing Text')
+        self.assertEqual(ctx.client.virtual_location, 'somewhere else')  # restored
+
 
 class TestInsertMode(unittest.IsolatedAsyncioTestCase):
     async def test_insert_at_line_shifts_rest_down(self):

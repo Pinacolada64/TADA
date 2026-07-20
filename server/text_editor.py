@@ -1174,6 +1174,20 @@ async def run_editor(ctx: 'GameContext',
         "'.h' for help, '.s' to save, '.a' to abort.",
     ])
 
+    # WHEREAT (commands/whereat.py) reads ctx.client.virtual_location --
+    # same convention as commands/news.py's 'Reading news' and
+    # commands/new_player.py's 'Creating a character' -- restored via
+    # finally so a disconnect or an exception mid-edit doesn't leave a
+    # stale 'Editing Text' behind for whoever looks the player up next.
+    previous_location = getattr(ctx.client, 'virtual_location', None)
+    ctx.client.virtual_location = 'Editing Text'
+    try:
+        return await _run_editor_loop(ctx, editor)
+    finally:
+        ctx.client.virtual_location = previous_location
+
+
+async def _run_editor_loop(ctx: 'GameContext', editor: 'Editor') -> Optional[List[dict]]:
     while True:
         buffer = editor.buffer
         if editor.mode & EditorMode.LINE_NUMBERS:
