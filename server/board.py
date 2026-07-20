@@ -61,6 +61,35 @@ from formatting import deserialize_lines, render_lines, titled_box
 log = logging.getLogger(__name__)
 
 BOARD_FILE = Path('run') / 'server' / 'board.json'
+CONFIG_FILE = Path('run') / 'server' / 'board_config.json'
+
+# anonymous_mode: 'ask' (prompt every post/reply, today's default),
+# 'yes' (always post anonymously, skip the prompt), or 'no' (never
+# anonymous, skip the prompt) -- board-wide, admin-controlled via
+# 'board #edit' (commands/board.py), not a per-player preference like
+# command_settings.board.last_date is. Kept in its own small file
+# rather than a key on BOARD_FILE's threads list, so load_board()'s
+# "just a list of threads" shape never has to change.
+_DEFAULT_CONFIG = {'anonymous_mode': 'ask'}
+
+
+def load_config(path: Optional[Path] = None) -> dict:
+    """Return the board-wide admin config, filled in with defaults for
+    anything missing/never-saved."""
+    path = path or CONFIG_FILE
+    config = dict(_DEFAULT_CONFIG)
+    try:
+        if path.exists():
+            config.update(json.loads(path.read_text()))
+    except Exception:
+        log.exception('Failed to load board config file %s', path)
+    return config
+
+
+def save_config(config: dict, path: Optional[Path] = None) -> None:
+    path = path or CONFIG_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(config, indent=2))
 
 
 def load_board(path: Optional[Path] = None) -> list[dict]:

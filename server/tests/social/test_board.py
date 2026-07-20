@@ -18,8 +18,10 @@ from board import (
     format_thread_summary,
     is_new_since,
     load_board,
+    load_config,
     next_id,
     save_board,
+    save_config,
 )
 
 
@@ -46,6 +48,26 @@ class TestLoadSave(unittest.TestCase):
 
     def test_next_id_increments_from_max(self):
         self.assertEqual(next_id([{'id': 1}, {'id': 5}, {'id': 3}]), 6)
+
+
+class TestConfig(unittest.TestCase):
+    def test_missing_file_returns_defaults(self):
+        config = load_config(Path('/nonexistent/board_config.json'))
+        self.assertEqual(config, {'anonymous_mode': 'ask'})
+
+    def test_round_trip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'board_config.json'
+            save_config({'anonymous_mode': 'yes'}, path)
+            self.assertEqual(load_config(path), {'anonymous_mode': 'yes'})
+
+    def test_partial_saved_config_still_fills_in_defaults(self):
+        # e.g. a config file saved before some future second setting
+        # existed -- missing keys should still resolve to their default.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'board_config.json'
+            path.write_text('{}')
+            self.assertEqual(load_config(path), {'anonymous_mode': 'ask'})
 
 
 class TestDisplayAuthor(unittest.TestCase):

@@ -136,11 +136,11 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
         # anything else -- loop back and ask for a range again, rather
         # than silently posting with no quote at all.
 
-    anonymous_raw = await ctx.prompt('Post anonymously? (y/N)')
-    if anonymous_raw is None:
+    from commands.board import resolve_anonymous
+    anonymous = await resolve_anonymous(ctx)
+    if anonymous is None:
         await ctx.send('Cancelled.')
         return
-    anonymous = anonymous_raw.strip().lower().startswith('y')
 
     initial_lines = None
     if quote_lines is not None:
