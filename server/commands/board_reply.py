@@ -102,7 +102,7 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
 async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: bool) -> None:
     """[R]eply: pick how much (if any) of *quoted_entry* to quote, preview
     it, confirm, then open the line editor for the reply body."""
-    from text_editor import Buffer, DefaultLineRange, Line, process_line_range_string, run_editor
+    from text_editor import Buffer, DefaultLineRange, Line, LineFlag, process_line_range_string, run_editor
 
     width = _screen_width(ctx)
     quoted_lines = board_store.render_message_lines(quoted_entry, ctx, width)
@@ -139,12 +139,20 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
         return
     anonymous = anonymous_raw.strip().lower().startswith('y')
 
+    initial_lines = None
     if quote_lines is not None:
-        # shown once more, right before the editor opens -- the earlier
-        # preview may be several prompts back by now.
-        await ctx.send(titled_box(ctx, f'Quoting {author_display}', quote_lines))
+        # Seeded as real buffer content (Ryan's call), but LineFlag.
+        # IMMUTABLE -- not plain/editable -- so the quote can't be
+        # altered while composing the reply. Without that, a player
+        # could edit the quoted text into something the original poster
+        # never actually said. text_editor.py's own .E/.D/.K/.J/.E m/c
+        # already skip IMMUTABLE lines; typing a new line still just
+        # appends after them normally.
+        initial_lines = [
+            Line(text=f'{author_display} wrote:', line_flag=LineFlag.IMMUTABLE),
+        ] + [Line(text=t, line_flag=LineFlag.IMMUTABLE) for t in quote_lines]
     await ctx.send('Enter your reply.')
-    body = await run_editor(ctx)
+    body = await run_editor(ctx, initial_lines=initial_lines)
     if body is None:
         await ctx.send('Cancelled.')
         return

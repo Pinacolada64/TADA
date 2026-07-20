@@ -132,6 +132,35 @@ class TestReplyWithQuote(BoardReplyTestCase):
         self.assertFalse(new_reply['anonymous'])
         self.assertIn('Quoting bob', _sent_text(ctx))
         self.assertIn('root line one', _sent_text(ctx))
+        # The confirmed quote must actually land as real buffer content in
+        # the reply body -- not just shown once as a preview and then
+        # discarded (a real bug caught live: run_editor() was being
+        # called with no initial_lines at all).
+        body_texts = [d.get('text', '') for d in new_reply['body']]
+        self.assertIn('bob wrote:', body_texts)
+        self.assertIn('root line one', body_texts)
+        self.assertIn('root line two', body_texts)
+        self.assertIn('my reply', body_texts)
+        # And it must be IMMUTABLE, not plain editable text -- otherwise a
+        # player could edit the quote into something the original poster
+        # never said (Ryan's explicit call).
+        quote_entries = [d for d in new_reply['body'] if d.get('text') != 'my reply']
+        self.assertTrue(quote_entries)
+        for entry in quote_entries:
+            self.assertEqual(entry.get('line_flag'), 'IMMUTABLE')
+
+    def test_quoted_lines_cannot_be_edited_while_composing(self):
+        # '.e 1' would normally prompt to edit line 1 -- since it's the
+        # IMMUTABLE 'bob wrote:' attribution line, it must be skipped
+        # instead of prompting for new text.
+        prompts = ['r', 'all', 'y', 'n', '.e 1', 'my reply', '.s', '', '', '']
+        ctx = make_ctx(prompts=prompts)
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertIn('immutable, skipping', _sent_text(ctx))
+        threads = board_store.load_board(self.path)
+        new_reply = threads[0]['replies'][-1]
+        body_texts = [d.get('text', '') for d in new_reply['body']]
+        self.assertIn('bob wrote:', body_texts)  # unchanged, not overwritten
 
     def test_no_quote_posts_reply_without_a_quote_box(self):
         prompts = ['r', 'n', 'n', 'unquoted reply', '.s', '', '', '']
@@ -140,6 +169,8 @@ class TestReplyWithQuote(BoardReplyTestCase):
         threads = board_store.load_board(self.path)
         self.assertEqual(len(threads[0]['replies']), 3)
         self.assertNotIn('Quoting', _sent_text(ctx))
+        body_texts = [d.get('text', '') for d in threads[0]['replies'][-1]['body']]
+        self.assertEqual(body_texts, ['unquoted reply'])
 
     def test_declining_the_preview_reprompts_for_a_range(self):
         # First offer '1' -> preview -> decline (blank) -> then 'all' -> confirm y.
