@@ -69,10 +69,15 @@ class BoardCommand(Command):
             "number to leave it.",
             "You can post anonymously when prompted; admins and Dungeon "
             "Masters still see who really posted.",
-            "With PlayerFlags.PROMPT_MODE on (toggle via EditPlayer's "
-            "Flags menu), reading a thread shows one message at a time "
-            "with a [R]eply/[M]ail poster/<#>/Enter menu after each -- "
-            "see commands/board_reply.py.",
+            "With Prompt Mode on ('pm' to toggle), reading a thread shows "
+            "one message at a time with a [R]eply/[M]ail poster/<#>/"
+            "Enter menu after each.",
+        ],
+        admin_notes = [
+            "Prompt Mode is PlayerFlags.PROMPT_MODE -- also toggleable "
+            "(for any player, not just yourself) via EditPlayer's Flags "
+            "-> Option Toggles menu. See commands/board_reply.py for the "
+            "interactive reader itself.",
         ],
     )
 
