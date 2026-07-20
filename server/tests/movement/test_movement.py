@@ -1,88 +1,57 @@
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from simple_server import Server
-from commands.command_processor import create_command_processor
-import net_common
-
-
-class FakeWriter:
-    def __init__(self):
-        self.buf = []
-    def write(self, data: bytes):
-        # store bytes for inspection
-        self.buf.append(data)
-    async def drain(self):
-        await asyncio.sleep(0)
-    def get_extra_info(self, key):
-        if key == 'peername':
-            return ('127.0.0.1', 0)
-        return None
-    def close(self):
-        pass
-    async def wait_closed(self):
-        await asyncio.sleep(0)
+from commands.movement import MoveCommand
 
 
 def test_move_broadcasts_and_changes_room():
+    """Moving through a real exit updates the client's room and shows it.
+
+    Rewritten against the current architecture (same generation of stale
+    test as tests/e2e/test_login_flow.py -- see that file's docstring).
+    The previous version drove commands.command_processor.process_input()
+    with a bare dict context (no ctx= kwarg), which command_processor.py
+    only accepts as a *fallback* -- MoveCommand.execute() needs a real
+    ctx with .send()/.server/.client/.player, which a dict doesn't have.
+    It also asserted on a room-broadcast-to-other-clients-in-the-room
+    behavior that doesn't exist anywhere in the current movement code
+    (no send_room() call in commands/movement.py or Server._move()) --
+    dropped rather than reintroduced speculatively.
+
+    Room exit lookup goes through Room.get_exit() (see
+    tests/movement/test_multilevel_room_lookup.py's regression coverage)
+    since room data is keyed by full words (north/south/...), not the
+    single letters MoveCommand's aliases accept.
+    """
     s = Server('127.0.0.1', 0)
 
-    class DummyClient:
-        pass
-
-    mover = DummyClient()
-    mover.server = s
-    mover.room = 1
-    mover.username = 'Mover'
-    mover.addr = ('127.0.0.1', 10001)
-    mover.writer = FakeWriter()
-
-    observer = DummyClient()
-    observer.server = s
-    observer.room = 1
-    observer.username = 'Observer'
-    observer.addr = ('127.0.0.1', 10002)
-    observer.writer = FakeWriter()
-
-    # register in server.clients so broadcast uses them
-    s.clients[mover.addr] = mover
-    s.clients[observer.addr] = observer
-
-    # also register in global client_manager for room listing functions
-    net_common.client_manager.add_client(mover.username, mover)
-    net_common.client_manager.add_client(observer.username, observer)
-
-    # create processor for mover
-    proc = create_command_processor(mover, context={'client': mover, 'username': mover.username, 'is_authenticated': True})
-
-    # figure an available direction from the room
-    exits = s.game_map.rooms[mover.room].exits
-    # choose any available single-letter exit
+    room = s.game_map.rooms[1]
     direction = None
-    for d in ['n','s','e','w','u','d']:
-        if d in exits and exits[d]:
+    for d in ['n', 's', 'e', 'w', 'u', 'd']:
+        if room.get_exit(d):
             direction = d
             break
-
     if direction is None:
         raise RuntimeError('No exits available in test room; cannot test movement')
+    dest = room.get_exit(direction)
 
-    dest = int(exits[direction])
+    ctx = MagicMock()
+    ctx.server           = s
+    ctx.client.room       = 1
+    ctx.player.map_level  = 1
+    ctx.player.map_room   = 1
+    ctx.send      = AsyncMock()
+    ctx.send_room = AsyncMock()
 
-    # run the move via processor
-    res = asyncio.run(proc.process_input(direction))
+    with patch('ally_events.try_ally_find_gold', new=AsyncMock()):
+        res = asyncio.run(MoveCommand().execute(ctx, direction))
 
     assert res.success is True
-    # mover's room should be updated
-    assert mover.room == dest
-
-    # observer should have received at least one write (the announcement)
-    assert len(observer.writer.buf) > 0
-    # The JSON bytes should contain the observer announcement text
-    joined = b' '.join(observer.writer.buf)
-    assert bytes(mover.username, 'utf-8') in joined
+    assert ctx.client.room == dest
+    ctx.send.assert_called()   # room description sent to the mover
 
 
 if __name__ == '__main__':
     test_move_broadcasts_and_changes_room()
     print('PASS: test_move_broadcasts_and_changes_room')
-

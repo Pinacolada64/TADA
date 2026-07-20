@@ -1,64 +1,44 @@
+"""tests/movement/test_elevator_get_combination.py
+
+Focused tests for shoppe.elevator.get_combination()'s non-interactive path
+(provided_ans compared against the player's stored ELEVATOR combination).
+
+Rewritten against the current ctx-based API (shoppe/elevator.py's
+get_combination(ctx, *, is_interactive=False, provided_ans=None)) — the
+previous version of this file called a stale reader/writer/player signature
+that no longer exists.
+"""
 import asyncio
-import types
+from unittest.mock import AsyncMock, MagicMock
+
 from base_classes import Combination, CombinationTypes
 from shoppe import elevator
-from net_common import to_jsonb
-import simple_client
-import commands.editplayer
 
 
-class DummyWriter:
-    def __init__(self):
-        self.writes = []
-    def write(self, data):
-        self.writes.append(data)
-    async def drain(self):
-        return
-
-class DummyReader:
-    async def readline(self):
-        return b''
-
-
-async def _run_noninteractive_ok():
-    # create fake player and attach combination
-    class P:
-        pass
-    player = P()
-    player.combinations = {}
+def make_player_with_combo(tpl=(4, 5, 9)) -> MagicMock:
+    player = MagicMock()
     combo = Combination(CombinationTypes.ELEVATOR)
-    combo.combination = (4,5,9)
-    player.combinations[CombinationTypes.ELEVATOR] = combo
+    combo.combination = tpl
+    player.combinations = {CombinationTypes.ELEVATOR: combo}
+    return player
 
-    # call get_combination with matching provided_ans
-    writer = DummyWriter()
-    reader = DummyReader()
-    ok = await elevator.get_combination(reader, writer, player, is_interactive=False, provided_ans='4 5 9')
-    return ok
 
-async def _run_noninteractive_bad():
-    class P: pass
-    player = P()
-    player.combinations = {}
-    combo = Combination(CombinationTypes.ELEVATOR)
-    combo.combination = (4,5,9)
-    player.combinations[CombinationTypes.ELEVATOR] = combo
-    writer = DummyWriter()
-    reader = DummyReader()
-    ok = await elevator.get_combination(reader, writer, player, is_interactive=False, provided_ans='1-2-3')
-    return ok
+def make_ctx(player) -> MagicMock:
+    ctx = MagicMock()
+    ctx.player = player
+    ctx.send = AsyncMock()
+    return ctx
 
 
 def test_get_combination_noninteractive():
-    # patch send_message to avoid errors
-    async def fake_send(w, msg):
-        return
-    # monkeypatch in modules
-    simple_client.send_message = fake_send
+    player = make_player_with_combo((4, 5, 9))
 
-    ok = asyncio.run(_run_noninteractive_ok())
+    ctx_ok = make_ctx(player)
+    ok = asyncio.run(elevator.get_combination(
+        ctx_ok, is_interactive=False, provided_ans='4 5 9'))
     assert ok is True
-    bad = asyncio.run(_run_noninteractive_bad())
+
+    ctx_bad = make_ctx(player)
+    bad = asyncio.run(elevator.get_combination(
+        ctx_bad, is_interactive=False, provided_ans='1-2-3'))
     assert bad is False
-
-
