@@ -284,6 +284,19 @@ def _build_main_menu(ctx) -> Menu:
 # ---------------------------------------------------------------------------
 
 def _armor_shield_menu(ctx) -> Menu:
+    # TODO: this only edits the flat condition % (SPUR.SYSOP.S's check100-
+    # bounded "Armor"/"Shield" fields, H/G) that player.armor/player.shield
+    # already are elsewhere in the codebase (encounters/meteor.py's
+    # _armor_damage_reduction_pct(): "normally 0-100%"). The original C64
+    # player editor (text-listings/editors/tep.lbl:100-135) modeled armor
+    # much more richly -- 5 worn slots, each with its own % left, armor
+    # class, and armor type -- and Ryan wants real per-item Armor/Shield
+    # classes eventually (name, defense, weight, armor_class, readied --
+    # see the discarded prototype in character_editor.py:18-32), sized via
+    # base_classes.Size so e.g. a Size.TINY Pixie can't wield a Size.HUGE
+    # shield. None of that exists in the data model yet (objects.json's
+    # armor/shield entries carry no armor_class field; shoppe/armory.py
+    # just does player.armor = price * 4), so it isn't wired in here.
     p    = ctx.player
     menu = _titled_menu(ctx, 'Armor/Shield')
 
@@ -293,7 +306,7 @@ def _armor_shield_menu(ctx) -> Menu:
     def make_action(attr: str, label: str):
         async def action(ctx):
             cur = _get(attr)
-            val = await _prompt_int(ctx, label, cur, 0, 999)
+            val = await _prompt_int(ctx, label, cur, 0, 100)
             if val is not None:
                 setattr(p, attr, val)
                 p.unsaved_changes = True
