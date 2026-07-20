@@ -896,10 +896,14 @@ def _statistics_menu(ctx) -> Menu:
         # is spent/earned by bar/fat_olaf.py and ally_events/starvation.py.
         # Doesn't touch player.natural_alignment (race-derived) or the
         # separately-stored player.current_alignment field edited under
-        # Alignment above. Original bound was tep.lbl:540's "h=2^16" (0-65535).
+        # Alignment above. Bound is SPUR.ANNEX.S:301's real sysop-editor
+        # check ("if (vk>2000) or (vk<1) print 'Invalid input'") -- vk is
+        # also capped below 2000 by every in-game honor gain (e.g.
+        # SPUR.GUILD.S, SPUR.MISC6.S:200, SPUR.MAIN.S:202). tep.lbl's own
+        # "h=2^16" bound for this field was wrong; don't trust it here.
         from commands.stats import _current_alignment
         cur = int(getattr(p, 'honor', 0) or 0)
-        val = await _prompt_int(ctx, 'Honor', cur, 0, 65_535)
+        val = await _prompt_int(ctx, 'Honor', cur, 1, 2_000)
         if val is not None:
             p.honor = val
             p.unsaved_changes = True
