@@ -15,6 +15,7 @@ Usage::
     ctx.player.command_settings.whereat_hidden = True
 """
 from dataclasses import dataclass, asdict, field
+from typing import Optional
 
 
 @dataclass
@@ -29,6 +30,19 @@ class TipsSettings:
     """
     enabled: bool = True
     tip_number: int = 0
+
+
+@dataclass
+class BoardSettings:
+    """board.py / commands/board.py preferences.
+
+    last_date: ISO date string ('YYYY-MM-DD') marking the player's own
+    "read new messages" threshold -- only 'board ld' moves this forward,
+    'board rn' just reads against whatever's currently set and never
+    advances it on its own. None means never set -- board.is_new_since()
+    treats that as "everything is new".
+    """
+    last_date: Optional[str] = None
 
 
 @dataclass
@@ -49,6 +63,8 @@ class CommandSettings:
     ignored_pagers: list = field(default_factory=list)
     # Tip-of-the-day cycling/display preference (commands/tips.py, tips.py)
     tips: TipsSettings = field(default_factory=TipsSettings)
+    # Threaded message board preferences (board.py, commands/board.py)
+    board: BoardSettings = field(default_factory=BoardSettings)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -57,10 +73,16 @@ class CommandSettings:
     def from_dict(cls, data: dict) -> 'CommandSettings':
         known = {k: v for k, v in data.items() if k in cls.__dataclass_fields__}
         tips_data = known.pop('tips', None)
+        board_data = known.pop('board', None)
         instance = cls(**known)
         if isinstance(tips_data, dict):
             instance.tips = TipsSettings(**{
                 k: v for k, v in tips_data.items()
                 if k in TipsSettings.__dataclass_fields__
+            })
+        if isinstance(board_data, dict):
+            instance.board = BoardSettings(**{
+                k: v for k, v in board_data.items()
+                if k in BoardSettings.__dataclass_fields__
             })
         return instance

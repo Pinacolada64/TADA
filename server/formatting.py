@@ -1051,13 +1051,17 @@ def make_box(lines: list[str], title: str = '', width: int = 60,
 def make_box_for_settings(settings,
                           lines:       list[str],
                           title:       str       = '',
+                          width:       int | None = None,
                           frame_color: str | None = None,
                           title_color: str | None = None,
                           text_color:  str | None = None) -> list[str]:
     """Convenience wrapper: build a box sized and styled for *settings*.
 
     Reads ``screen_columns``, ``border_style``, and the translation codec
-    from the settings object so callers don't have to pass them manually.
+    from the settings object so callers don't have to pass them manually
+    -- pass *width* explicitly to override ``screen_columns`` (e.g. a
+    caller with its own fixed default, or a test using a bare mock
+    settings object with no real screen_columns to read).
 
     Usage::
 
@@ -1068,13 +1072,46 @@ def make_box_for_settings(settings,
         ))
     """
     codec        = codec_for_settings(settings)
-    width        = getattr(settings, 'screen_columns', 60)
+    if width is None:
+        width = getattr(settings, 'screen_columns', 60)
     border_style = getattr(settings, 'border_style', None)
     return make_box(lines, title=title, width=width, codec=codec,
                     border_style=border_style,
                     frame_color=frame_color,
                     title_color=title_color,
                     text_color=text_color)
+
+
+def titled_box(ctx, title: str, body: str | list[str], width: int | None = None,
+                frame_color: str | None = None,
+                title_color: str | None = None,
+                text_color:  str | None = None) -> list[str]:
+    """Word-wrap *body* and wrap it in a titled, terminal-aware box via
+    make_box_for_settings(). *body* may be a single string (wrapped as one
+    paragraph) or a list of strings (each wrapped independently, so a
+    caller can control paragraph breaks). *width* defaults to
+    ctx.player's own screen_columns; pass it explicitly to pin a fixed
+    width instead (e.g. a caller with its own default, or a test using a
+    bare mock settings object with no real screen_columns to read).
+
+    Extracted from tips.py's format_tip_box() (the "Tip #x / y" box shown
+    at login) so any other caller wanting the same look -- e.g. a
+    "Quoting <player>" box shown before composing a threaded-board reply
+    -- doesn't have to hand-roll the wrap-then-box plumbing again.
+    """
+    import textwrap
+
+    settings = ctx.player.client_settings
+    if width is None:
+        width = getattr(settings, 'screen_columns', 60)
+    paragraphs = [body] if isinstance(body, str) else body
+    lines: list[str] = []
+    for paragraph in paragraphs:
+        lines.extend(textwrap.wrap(paragraph, width=width - 4) or [''])
+    return make_box_for_settings(
+        settings, lines, title=title, width=width,
+        frame_color=frame_color, title_color=title_color, text_color=text_color,
+    )
 
 
 # ---------------------------------------------------------------------------

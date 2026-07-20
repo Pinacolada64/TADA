@@ -683,3 +683,58 @@
   LAST_LINE` (matching `.D`/`.E`'s own no-range behavior) instead of the
   future-lines-only interpretation -- but that's a real behavior change,
   not just a bugfix, so flagging here rather than changing unasked.
+
+7/19/26:
+- board.py: SIGs (Special Interest Groups) -- multiple named/gated boards
+  instead of today's single global one (Ryan's idea; design below is my
+  attempt to fill in the pieces he didn't get to before signing off for
+  the night -- none of this is decided, just scoped for a future pass).
+  - **Data model**: a SIG is `{id, name, description, gate}`, stored
+    alongside threads (`run/server/board.json` gains a top-level `sigs`
+    list; each thread gains a `sig_id` field). Today's single board
+    becomes a default `sig_id=1 "General"` SIG on first load, so existing
+    threads aren't orphaned -- a one-time migration in `load_board()`,
+    same spirit as `news.py`'s old-format-body migration
+    (`deserialize_lines()` accepting plain strings).
+  - **Gate model**: `gate` is a small structured value, not just one
+    flag -- something like `{"type": "open"}` / `{"type": "flag",
+    "flag": "ADMIN"}` / `{"type": "flag", "flag": "DUNGEON_MASTER"}` /
+    `{"type": "guild", "guild": "FIST"}` (checked against
+    `player.guild`, `base_classes.Guild` -- FIST/SWORD/CLAW/OUTLAW/
+    CIVILIAN, see `player.py:245`). A list of gates (any-match, i.e. OR)
+    covers "Admins and Dungeon Masters both get in" without a combinator
+    language. `_is_privileged()` in `commands/board.py` already exists
+    for the Admin/DM check and generalizes easily; guild-gating is new.
+  - **Who can create/edit a SIG**: Admin-only to start (creating a new
+    SIG changes what every player sees in the top-level listing, so it's
+    not a per-thread-author decision like `board post`'s anonymous
+    toggle is) -- a `board sig new` / `board sig edit <id>` pair,
+    prompting for name, description, and gate (probably a small menu:
+    "[O]pen to everyone, [A]dmin only, [D]M only, [G]uild-specific" then
+    a guild picker off `base_classes.Guild` for the last one). Whether a
+    SIG's own *creator* (not necessarily an Admin, if this ever opens up
+    to guild leaders) should be allowed to edit their own SIG is an open
+    question -- starting Admin-only sidesteps it for now.
+  - **Command surface changes**: bare `board` becomes a SIG picker (list
+    of SIGs the player's gate check passes, like `whereat`'s privileged-
+    viewer check pattern) rather than a straight thread listing; `board
+    <sig>` lists threads within one SIG (SIGs the player's gate check
+    fails are simply left off the picker, not shown-but-blocked).
+    Existing verbs (`post`/`reply <id>`/`delete <id>`/`rn`/`ld`) all need
+    a SIG argument or a "current SIG" concept threaded through the
+    session somehow -- unresolved which is better.
+  - **`board rn`/`board ld` scope**: today's `command_settings.board.
+    last_date` is a single global threshold. Per-SIG activity probably
+    wants a per-SIG threshold instead (`last_date_by_sig: dict[str,
+    str]` on `BoardSettings`) so reading all of "General" doesn't also
+    silently mark a Dungeon-Master-only SIG's threads as read. Simpler
+    alternative: keep one global threshold and accept that it's coarse --
+    revisit once real usage shows whether that's actually annoying.
+  - **Anonymous posting per-SIG**: should a strictly-gated SIG (Admin/DM
+    only) even offer the anonymous option `board post` already asks
+    every poster? Arguably not -- a small trusted-membership SIG is
+    exactly where "who said this" matters most. Worth a per-SIG
+    `allow_anonymous: bool` on the SIG record rather than a global
+    on/off.
+  - Not attempted at all yet: nothing has been coded for this, this is
+    purely a scoped design note for whenever it's picked up.

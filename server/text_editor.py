@@ -57,12 +57,13 @@ what changed:
 Not ported (out of scope for this pass, left as TODO.md follow-ups):
   - .T Tagline, .Q(uoter) reply-quoting a prior message -- both were only
     loose module-level functions in the gist, never wired into either
-    dispatch table, and quoting needs a "what message is this replying to"
-    concept this module doesn't have a source for yet. LineFlag.QUOTE and
-    the IMMUTABLE-line skip logic (Edit/Delete/Justify) are implemented and
-    ready for whenever that lands -- run_editor()'s initial_lines already
-    accepts pre-built Line objects, not just plain strings, so a caller can
-    seed an immutable quoted line today.
+    dispatch table. Reply-quoting is instead handled one layer up, by
+    whatever caller composes a reply (see board.py's build_quote_preamble()):
+    it shows the quoted text as its own titled box via
+    formatting.titled_box() *before* opening the editor on a fresh buffer,
+    rather than seeding quoted lines into the buffer itself -- simpler
+    than teaching this module a whole embedded-quoted-content concept for
+    one caller. LineFlag.QUOTE remains unused/reserved for now.
   - Full-screen editing via raw keystrokes (Ryan's "capture raw keystrokes
     from a socket... blessed?" idea) -- the Cursor class is kept as a
     forward-compatible stub for this, but there's no raw-keystroke

@@ -43,6 +43,7 @@ from typing import Optional
 
 from dateutil import parser as _dp
 from dateutil.parser import ParserError
+from dateutil.relativedelta import relativedelta
 
 # Year used when the input contains no year (e.g. "Jul 1", "7/1").
 # Callers can override by monkeypatching or passing year= to parse_date().
@@ -115,6 +116,40 @@ def parse_date_range(
         # Tolerate reversed order by swapping
         start, end = end, start
     return start, end
+
+
+_RELATIVE_RE = re.compile(
+    r'^(?:(\d+)\s*)?(day|week|month|year)s?(?:\s+ago)?$', re.IGNORECASE,
+)
+
+RELATIVE_DATE_HELP: str = """\
+Relative shortcuts accepted (moves backward from today):
+  day, week, month, year        (implies "1")
+  2 days, 3 weeks, 6 months, 1 year
+  '... ago' is optional -- 'week' and 'week ago' are the same\
+"""
+
+
+def parse_relative_date(text: str, today: Optional[date] = None) -> Optional[date]:
+    """Parse a relative shortcut ('week', '2 weeks', '3 months ago',
+    'year', ...) as *today* minus that amount, using calendar-correct
+    month/year arithmetic (dateutil.relativedelta) rather than a flat
+    30-/365-day approximation -- '1 month ago' from March 31 lands on
+    Feb 28/29, not 30 days back. A bare unit with no count ('week')
+    implies 1. Returns None if *text* doesn't match this shape at all
+    (caller should fall back to parse_date() for an absolute date
+    instead -- see commands/board.py's 'board ld' for that fallback
+    chain in practice).
+    """
+    if not text or not text.strip():
+        return None
+    match = _RELATIVE_RE.match(text.strip())
+    if not match:
+        return None
+    count = int(match.group(1)) if match.group(1) else 1
+    unit = match.group(2).lower()
+    today = today or date.today()
+    return today - relativedelta(**{f'{unit}s': count})
 
 
 # ---------------------------------------------------------------------------
