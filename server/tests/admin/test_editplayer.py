@@ -30,7 +30,7 @@ from pathlib import Path
 # Allow running directly: python tests/test_editplayer.py
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from base_classes import Alignment, Guild, PlayerClass, PlayerRace, PlayerStat
+from base_classes import Alignment, CombinationTypes, Guild, PlayerClass, PlayerRace, PlayerStat
 from flags import FlagDisplayTypes, PlayerFlags, new_player_default_flags
 from commands.editplayer import (
     EditPlayerCommand,
@@ -589,6 +589,25 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
         ctx = _MockCtx(responses=['zzz', ''])
         result = await EditPlayerCommand().execute(ctx)
         self.assertTrue(result.success)
+
+    async def test_edit_attribute_via_navigation(self):
+        # Main → Attributes (3) → first stat (1) → 15 → up → up
+        # (attributes 1-7 cap at 18 per the BASIC -- see _attributes_menu())
+        ctx  = _MockCtx(responses=['3', '1', '15', '', ''])
+        stat = list(PlayerStat)[0]
+        await EditPlayerCommand().execute(ctx)
+        self.assertEqual(ctx.player.stats[stat], 15)
+
+    async def test_set_combination_via_navigation(self):
+        # Main → Combinations (5) → first combination type (1) → value → up → up
+        ctx        = _MockCtx(responses=['5', '1', '04-05-09', '', ''])
+        combo_type = list(CombinationTypes)[0]
+        await EditPlayerCommand().execute(ctx)
+        obj = (ctx.player.combinations.get(combo_type)
+               or ctx.player.combinations.get(combo_type.value)
+               or ctx.player.combinations.get(combo_type.name))
+        self.assertIsNotNone(obj)
+        self.assertEqual(obj.combination, (4, 5, 9))
 
 
 # ---------------------------------------------------------------------------
