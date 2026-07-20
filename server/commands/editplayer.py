@@ -6,8 +6,8 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
 
   Player Editor
   ├─  1. Alignment         natural + current alignment
-  ├─  2. Armor/Shield      armor / shield protection values
-  ├─  3. Attributes        stats (CHA, CON, DEX, EGO, INT, STR, WIS, Energy)
+  ├─  2. Armor/Shield      armor / shield protection values, shield skill
+  ├─  3. Attributes        stats (CHR, CON, DEX, INT, STR, WIS, Energy)
   ├─  4. Character Names   player name; rename allies and horse
   ├─  5. Combinations      locker, elevator, castle, booby traps
   ├─  6. Flags/Counters    all PlayerFlags grouped by category
@@ -15,8 +15,8 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
   ├─  8. Inventory         give weapons/armor/rations/objects
   ├─  9. Map Information   dungeon level, room number
   ├─ 10. Money             in hand / in bank / in bar / Vinny Loan status
-  ├─ 11. Statistics        age, birthday, class, experience, guild, race,
-  │                        moves to date, monsters killed
+  ├─ 11. Statistics        age, birthday, class, experience, guild, honor,
+  │                        race, moves to date, monsters killed
   └─ 12. Weapons           readied weapon, per-weapon battle experience
 """
 
@@ -322,6 +322,42 @@ def _armor_shield_menu(ctx) -> Menu:
         'Shield', shortcuts='sh',
         dot_leader_handler=lambda ctx: str(_get('shield')),
         action=make_action('shield', 'Shield'),
+    ))
+
+    def _shield_skill_display(ctx) -> str:
+        active_shield_id = getattr(p, 'active_shield_id', None)
+        if active_shield_id is None:
+            return 'N/A (no shield)'
+        prof_dict = getattr(p, 'shield_proficiency', {}) or {}
+        return str(int(prof_dict.get(str(active_shield_id), 0)))
+
+    async def _edit_shield_skill(ctx) -> None:
+        # player.shield_proficiency (player.py:356), keyed by
+        # active_shield_id, 0-99 -- fed into shield-block chance via
+        # combat/resolution.py's shield_exp_bonus() / player.py's
+        # gain_shield_proficiency(). Editing it requires an equipped,
+        # identifiable shield (active_shield_id) since it's tracked
+        # per physical shield, not as a flat player skill.
+        active_shield_id = getattr(p, 'active_shield_id', None)
+        if active_shield_id is None:
+            await ctx.send('No shield equipped -- shield skill has nothing to attach to.')
+            return
+        prof_dict = getattr(p, 'shield_proficiency', None)
+        if prof_dict is None:
+            prof_dict = {}
+            p.shield_proficiency = prof_dict
+        key = str(active_shield_id)
+        cur = int(prof_dict.get(key, 0))
+        val = await _prompt_int(ctx, 'Shield Skill', cur, 0, 99)
+        if val is not None:
+            prof_dict[key] = val
+            p.unsaved_changes = True
+            await ctx.send(f'Shield skill set to {val}.')
+
+    menu.add_item(MenuItem(
+        'Shield Skill', shortcuts='ss',
+        dot_leader_handler=_shield_skill_display,
+        action=_edit_shield_skill,
     ))
     return menu
 
@@ -853,6 +889,22 @@ def _statistics_menu(ctx) -> Menu:
             p.unsaved_changes = True
             await ctx.send(f'Guild set to {options[idx].value}.')
 
+    async def edit_honor(ctx) -> None:
+        # player.honor (player.py:285, default 1_000) -- drives the
+        # *current* alignment label shown on the stats screen (commands/
+        # stats.py's _current_alignment(), SPUR.MISC5.S lines 199-201) and
+        # is spent/earned by bar/fat_olaf.py and ally_events/starvation.py.
+        # Doesn't touch player.natural_alignment (race-derived) or the
+        # separately-stored player.current_alignment field edited under
+        # Alignment above. Original bound was tep.lbl:540's "h=2^16" (0-65535).
+        from commands.stats import _current_alignment
+        cur = int(getattr(p, 'honor', 0) or 0)
+        val = await _prompt_int(ctx, 'Honor', cur, 0, 65_535)
+        if val is not None:
+            p.honor = val
+            p.unsaved_changes = True
+            await ctx.send(f'Honor set to {val} ({_current_alignment(val)}).')
+
     async def edit_race(ctx) -> None:
         from base_classes import PlayerRace
         options  = list(PlayerRace)
@@ -1025,6 +1077,11 @@ def _statistics_menu(ctx) -> Menu:
         'Guild', shortcuts='gu',
         dot_leader_handler=lambda ctx: str(getattr(p, 'guild', '?')),
         action=edit_guild,
+    ))
+    menu.add_item(MenuItem(
+        'Honor', shortcuts='ho',
+        dot_leader_handler=lambda ctx: str(getattr(p, 'honor', '?')),
+        action=edit_honor,
     ))
     menu.add_item(MenuItem(
         'Race', shortcuts='ra',
