@@ -319,6 +319,15 @@ class TestDeleteSkipsImmutable(unittest.IsolatedAsyncioTestCase):
         result = await run_editor(ctx, initial_lines=lines)
         self.assertEqual(_texts(result), ['keep'])
 
+    async def test_delete_skips_quote_lines_in_range(self):
+        # QUOTE gets the same protection as IMMUTABLE -- see
+        # commands/board_reply.py, which seeds a threaded-board reply's
+        # quoted content this way so it can't be tampered with.
+        ctx = _make_ctx(['.d 1-2', '.s'])
+        lines = [Line(text='quoted', line_flag=LineFlag.QUOTE), Line(text='delete me')]
+        result = await run_editor(ctx, initial_lines=lines)
+        self.assertEqual(_texts(result), ['quoted'])
+
 
 class TestEditSkipsImmutable(unittest.IsolatedAsyncioTestCase):
     async def test_edit_skips_immutable_line(self):
@@ -328,6 +337,16 @@ class TestEditSkipsImmutable(unittest.IsolatedAsyncioTestCase):
         from text_editor import _cmd_edit
         await _cmd_edit(editor, '1-2')
         self.assertEqual(editor.buffer.lines[0].text, 'locked')
+        self.assertEqual(editor.buffer.lines[1].text, 'changed')
+        self.assertIn('immutable', _sent_text(ctx).lower())
+
+    async def test_edit_skips_quote_line(self):
+        ctx = _make_ctx(['changed'])
+        lines = [Line(text='quoted', line_flag=LineFlag.QUOTE), Line(text='editable')]
+        editor = Editor(ctx, initial_lines=lines)
+        from text_editor import _cmd_edit
+        await _cmd_edit(editor, '1-2')
+        self.assertEqual(editor.buffer.lines[0].text, 'quoted')
         self.assertEqual(editor.buffer.lines[1].text, 'changed')
         self.assertIn('immutable', _sent_text(ctx).lower())
 

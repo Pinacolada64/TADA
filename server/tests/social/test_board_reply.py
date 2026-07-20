@@ -141,17 +141,18 @@ class TestReplyWithQuote(BoardReplyTestCase):
         self.assertIn('root line one', body_texts)
         self.assertIn('root line two', body_texts)
         self.assertIn('my reply', body_texts)
-        # And it must be IMMUTABLE, not plain editable text -- otherwise a
-        # player could edit the quote into something the original poster
-        # never said (Ryan's explicit call).
+        # And it must be tagged QUOTE (protected, same as IMMUTABLE), not
+        # plain editable text -- otherwise a player could edit the quote
+        # into something the original poster never said (Ryan's explicit
+        # call).
         quote_entries = [d for d in new_reply['body'] if d.get('text') != 'my reply']
         self.assertTrue(quote_entries)
         for entry in quote_entries:
-            self.assertEqual(entry.get('line_flag'), 'IMMUTABLE')
+            self.assertEqual(entry.get('line_flag'), 'QUOTE')
 
     def test_quoted_lines_cannot_be_edited_while_composing(self):
         # '.e 1' would normally prompt to edit line 1 -- since it's the
-        # IMMUTABLE 'bob wrote:' attribution line, it must be skipped
+        # QUOTE-flagged 'bob wrote:' attribution line, it must be skipped
         # instead of prompting for new text.
         prompts = ['r', 'all', 'y', 'n', '.e 1', 'my reply', '.s', '', '', '']
         ctx = make_ctx(prompts=prompts)

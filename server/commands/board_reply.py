@@ -141,16 +141,17 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
 
     initial_lines = None
     if quote_lines is not None:
-        # Seeded as real buffer content (Ryan's call), but LineFlag.
-        # IMMUTABLE -- not plain/editable -- so the quote can't be
+        # Seeded as real buffer content (Ryan's call), tagged
+        # LineFlag.QUOTE -- not plain/editable -- so the quote can't be
         # altered while composing the reply. Without that, a player
         # could edit the quoted text into something the original poster
-        # never actually said. text_editor.py's own .E/.D/.K/.J/.E m/c
-        # already skip IMMUTABLE lines; typing a new line still just
-        # appends after them normally.
+        # never actually said. text_editor.py treats QUOTE the same as
+        # IMMUTABLE in its own .E/.D/.K/.J/.E m/c skip-checks (see that
+        # module's docstring); typing a new line still just appends
+        # after them normally.
         initial_lines = [
-            Line(text=f'{author_display} wrote:', line_flag=LineFlag.IMMUTABLE),
-        ] + [Line(text=t, line_flag=LineFlag.IMMUTABLE) for t in quote_lines]
+            Line(text=f'{author_display} wrote:', line_flag=LineFlag.QUOTE),
+        ] + [Line(text=t, line_flag=LineFlag.QUOTE) for t in quote_lines]
     await ctx.send('Enter your reply.')
     body = await run_editor(ctx, initial_lines=initial_lines)
     if body is None:
