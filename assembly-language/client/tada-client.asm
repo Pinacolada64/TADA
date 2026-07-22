@@ -23,8 +23,13 @@
 {const: SL_TDRE     $10}        ; bit 4: transmit data register empty
 
 ; ACIA command register values
-{const: SL_CMD_INIT $09}        ; DTR low, RTS low, RxD IRQ on
-{const: SL_CMD_OFF  $0b}        ; RxD/TxD IRQs off, DTR low
+{const: SL_CMD_INIT    $09}     ; DTR low, RTS low, RxD IRQ on
+{const: SL_CMD_OFF     $0b}     ; RxD/TxD IRQs off, DTR low
+{const: SL_CMD_RTS_OFF $01}     ; DTR low, RTS *high* (deasserted) -- see
+                                 ; nmi_handler's flow-control comment: this
+                                 ; is what makes VICE's ACIA core disable
+                                 ; its RX alarm and genuinely stop draining
+                                 ; the TCP socket, per aciacore.c.
 
 ; ACIA control register: 19200 baud, 8-bit, 1 stop, internal clock
 {const: SL_CTRL_19K $1e}
@@ -34,6 +39,9 @@
         scr_ptr_hi  = $fc       ; screen write pointer high byte
 
         MAX_LINE    = 80        ; keyboard input line buffer size
+
+        RX_HIGH_WATER = 200     ; rx_buf bytes-buffered count that triggers RTS-off
+        RX_LOW_WATER  = 32      ; count that triggers RTS back on (hysteresis)
 
         rx_head     = $f9       ; NMI receive ring buffer: next write index
         rx_tail     = $fa       ; NMI receive ring buffer: next read index
@@ -207,6 +215,29 @@ nmi_handler:
         ldx rx_head
         sta rx_buf,x
         inc rx_head               ; wraps at 256, matching rx_buf's size
+
+        ; Flow control: once rx_buf is getting full, deassert RTS so
+        ; VICE's ACIA core disables its own RX alarm and genuinely stops
+        ; draining the TCP socket (aciacore.c's acia_set_handshake_lines(),
+        ; ACIA_CMD_BITS_TRANSMITTER_NO_RTS case, clears alarm_active_rx --
+        ; that alarm is what schedules the getc()/recv() calls). Once
+        ; VICE stops recv()-ing, the OS's real TCP receive window closes,
+        ; and the server's own write()/drain() will eventually block --
+        ; genuine end-to-end backpressure, not just an emulator-local
+        ; buffer swap. sl_recv (mainline) re-asserts RTS once drained.
+        lda rts_state
+        beq nmi_rts_done          ; already off, nothing to do
+        lda rx_head
+        sec
+        sbc rx_tail                ; A = bytes currently buffered (unsigned, mod 256)
+        cmp #RX_HIGH_WATER
+        bcc nmi_rts_done          ; still comfortably below the high water mark
+        lda #SL_CMD_RTS_OFF
+        sta SL_COMMAND
+        lda #0
+        sta rts_state
+nmi_rts_done:
+
         pla
         tax
         pla
@@ -238,7 +269,25 @@ sl_recv:
         beq sl_recv_empty        ; head == tail: nothing buffered
         ldx rx_tail
         lda rx_buf,x
+        pha                      ; stash the byte -- flow-control check below uses A
         inc rx_tail
+
+        ; Re-assert RTS once the buffer has drained back down (hysteresis:
+        ; a lower threshold than nmi_handler's pause point avoids rapid
+        ; on/off toggling right at a single boundary).
+        lda rts_state
+        bne sl_recv_rts_done     ; already on, nothing to do
+        lda rx_head
+        sec
+        sbc rx_tail
+        cmp #RX_LOW_WATER
+        bcs sl_recv_rts_done     ; still above the low water mark
+        lda #SL_CMD_INIT
+        sta SL_COMMAND
+        lda #1
+        sta rts_state
+sl_recv_rts_done:
+        pla
         sec
         rts
 sl_recv_empty:
@@ -254,6 +303,9 @@ sl_recv_empty:
 ; so it never needs to compute a raw screen RAM address.
 cursor_phase:
         byte 0                   ; 0 = currently erased, 1 = currently drawn
+
+rts_state:
+        byte 1                   ; 1 = RTS currently asserted (ready), 0 = deasserted
 
 x_save:
         byte 0                   ; TEMP: scratch for the read_line_loop hex-dump diagnostic
