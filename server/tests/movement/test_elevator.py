@@ -1,99 +1,90 @@
+"""tests/movement/test_elevator.py
+
+Tests for shoppe.elevator.get_combination()'s non-interactive combination
+check, plus an end-to-end check that a valid combination entered
+interactively lets a player reach the elevator's level menu.
+
+Rewritten against the current ctx-based API (shoppe/elevator.py's
+get_combination(ctx, *, is_interactive=False, provided_ans=None) and
+_elevator_session(ctx, player)) — the previous version of this file called
+a stale reader/writer/player signature and a module-level execute() that
+never existed on this module. See tests/movement/test_elevator_session.py
+for the fuller ctx-based elevator-session test suite this one complements.
+"""
 import asyncio
-from shoppe import elevator
-from player import Player
+
 from base_classes import Combination, CombinationTypes
-from net_common import from_jsonb
+from player import Player
+from shoppe import elevator
 
 
-class FakeWriter:
-    def __init__(self):
-        self.buf = []
+class FakeCtx:
+    """Minimal GameContext-style stub: records ctx.send() output, feeds
+    ctx.prompt() from a scripted list of responses."""
 
-    def write(self, data: bytes):
-        # store raw bytes
-        self.buf.append(data)
+    def __init__(self, player, prompts=None):
+        self.player = player
+        self.sent = []
+        self._prompts = iter(prompts or [])
+        self.client = type('C', (), {})()
+        self.server = type('S', (), {'clients': {}})()
 
-    async def drain(self):
-        await asyncio.sleep(0)
+    async def send(self, *args):
+        for a in args:
+            if isinstance(a, (list, tuple)):
+                self.sent.extend(str(x) for x in a)
+            else:
+                self.sent.append(str(a))
 
-    def get_messages(self):
-        out = []
-        for b in self.buf:
-            try:
-                out.append(from_jsonb(b))
-            except Exception:
-                out.append(b)
-        return out
-
-
-class FakeReader:
-    async def readline(self):
-        # no interactive replies by default
-        await asyncio.sleep(0)
-        return b''
+    async def prompt(self, *args, **kwargs):
+        return next(self._prompts, None)
 
 
 def make_player_with_combo(tpl=(1, 2, 3)) -> Player:
     p = Player(name='TestPlayer')
     comb = Combination(CombinationTypes.ELEVATOR)
     comb.combination = tpl
-    # player.combinations may be a mapping keyed by enum
     p.combinations = {CombinationTypes.ELEVATOR: comb}
     return p
 
 
 def run_coro(coro):
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # Running inside an asyncio loop (pytest-asyncio). Use asyncio.run for isolation.
-            return asyncio.run(coro)
-        else:
-            return loop.run_until_complete(coro)
-    except RuntimeError:
-        return asyncio.run(coro)
+    return asyncio.run(coro)
 
 
 def test_get_combination_accepts_valid_provided():
     player = make_player_with_combo((1, 2, 3))
-    writer = FakeWriter()
-    reader = FakeReader()
+    ctx = FakeCtx(player)
 
-    # Call with explicit keyword args so parameters map correctly
-    res = run_coro(elevator.get_combination(reader=reader, writer=writer, player=player,
-                                            is_interactive=False, provided_ans='1-2-3'))
+    res = run_coro(elevator.get_combination(
+        ctx, is_interactive=False, provided_ans='1-2-3'))
     assert res is True
-    msgs = writer.get_messages()
     # ensure no 'not the right combination' error was sent
-    joined = repr(msgs)
-    assert "not the right combination" not in joined
+    assert "not the right combination" not in '\n'.join(ctx.sent)
 
 
 def test_get_combination_rejects_invalid_provided():
     player = make_player_with_combo((1, 2, 3))
-    writer = FakeWriter()
-    reader = FakeReader()
+    ctx = FakeCtx(player)
 
-    res = run_coro(elevator.get_combination(reader=reader, writer=writer, player=player, provided_ans='9-9-9'))
+    res = run_coro(elevator.get_combination(
+        ctx, is_interactive=False, provided_ans='9-9-9'))
     assert res is False
-    msgs = writer.get_messages()
-    joined = repr(msgs)
-    assert "not the right combination" in joined
+    assert "not the right combination" in '\n'.join(ctx.sent)
 
 
 def test_execute_with_provided_combination_returns_success():
+    """End-to-end check: entering the correct combination interactively lets
+    the player reach the elevator's level menu (rather than being turned
+    away by the guard)."""
     player = make_player_with_combo((1, 2, 3))
-    writer = FakeWriter()
-    reader = FakeReader()
-    context = {'player': player, 'elevator_combination': '1-2-3'}
+    player.map_level = 1
+    # '1-2-3' answers the combination prompt; 'l' leaves the level menu.
+    ctx = FakeCtx(player, prompts=['1-2-3', 'l'])
 
-    # elevator.execute(self, reader, writer, context, args) expects a 'self' parameter which isn't used; pass None
-    result = run_coro(elevator.execute(None, reader, writer, context, []))
-    # result should be a CommandResult-like object or dict; accept both
-    if hasattr(result, 'success'):
-        assert result.success is True
-    elif isinstance(result, dict):
-        assert result.get('success') is True
-    else:
-        # unexpected type
-        assert False, f"Unexpected result type: {type(result)}"
+    run_coro(elevator._elevator_session(ctx, player))
+    joined = '\n'.join(ctx.sent)
+    assert "not the right combination" not in joined
+    assert "can't let you use the elevator" not in joined
+    # reached the level menu and left normally
+    assert "steps aside" in joined

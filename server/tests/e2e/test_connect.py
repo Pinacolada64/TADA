@@ -18,21 +18,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch, mock_open
 
-# ---------------------------------------------------------------------------
-# Stub out server-side modules that aren't installed in the test environment
-# ---------------------------------------------------------------------------
-
-def _stub(name, **attrs):
-    m = types.ModuleType(name)
-    for k, v in attrs.items():
-        setattr(m, k, v)
-    sys.modules.setdefault(name, m)
-
-_stub("network_context", GameContext=object)
-_stub("commands.utils")
-_stub("commands.command_processor",
-      create_command_processor=MagicMock(return_value=MagicMock()))
-
 from commands.base_command import Command, CommandResult, Mode
 from commands.connect import ConnectCommand, _load_credentials, guild_welcome_line
 

@@ -55,7 +55,7 @@ def make_server(*clients, rooms: dict | None = None) -> MagicMock:
     server = MagicMock()
     server.clients = {i: c for i, c in enumerate(clients)}
     if rooms is not None:
-        server.game_map.rooms.get.side_effect = lambda n: rooms.get(n)
+        server.game_map.get_room.side_effect = lambda level, n: rooms.get(n)
     else:
         server.game_map = None
     return server

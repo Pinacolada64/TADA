@@ -34,10 +34,15 @@ def test_message_creation():
     print(f"Message 2: {asdict(msg2)}")
     assert msg2.mode == Mode.login, f"Expected Mode.login, got {msg2.mode}"
     
-    # Test 3: Message with mode=None (should default to Mode.app)
-    msg3 = ServerMessage(lines=["Test with None mode (None is converted to Mode.app)"], mode=None)
+    # Test 3: Message with mode=None. net_common.Message's `mode` field uses
+    # a default_factory (Mode.app), which Python's dataclasses only apply
+    # when the argument is omitted entirely -- passing mode=None explicitly
+    # bypasses it and stores None as-is (standard dataclass semantics, not
+    # something __post_init__ normalizes). No production code ever
+    # constructs Message(mode=None), so this just documents that behavior.
+    msg3 = ServerMessage(lines=["Test with explicit None mode"], mode=None)
     print(f"Message 3: {asdict(msg3)}")
-    assert msg3.mode == Mode.app, f"Expected Mode.app, got {msg3.mode}"
+    assert msg3.mode is None, f"Expected None, got {msg3.mode}"
     
     # Test with invalid Mode:
     msg4 = ServerMessage(lines=["Test with invalid Mode"], mode="invalid")
