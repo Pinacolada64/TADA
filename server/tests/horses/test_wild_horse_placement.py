@@ -16,19 +16,9 @@ Coverage:
 Run with:
     python -m pytest tests/test_wild_horse_placement.py -v
 """
-import sys
 from unittest.mock import patch
 
 import pytest
-
-# Several other test modules in the suite stub sys.modules['network_context']
-# and/or sys.modules['net_common'] with incomplete fakes (missing
-# PETSCIINetworkContext, MessageType, etc.) and never restore them, which
-# breaks simple_server's real import when this file is collected after one
-# of those. Force a clean reimport of the real modules regardless of what
-# ran before us.
-for _mod in ('network_context', 'net_common', 'simple_server'):
-    sys.modules.pop(_mod, None)
 
 from simple_server import Server, _WILD_HORSE_ROOMS, _WILD_HORSE_MONSTER_NUMBER
 

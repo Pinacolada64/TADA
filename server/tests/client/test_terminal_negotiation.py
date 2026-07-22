@@ -16,12 +16,8 @@ Run with:
 """
 from __future__ import annotations
 
-import sys
 import unittest
 from unittest.mock import AsyncMock, MagicMock
-
-for _mod in ('network_context', 'net_common', 'simple_server'):
-    sys.modules.pop(_mod, None)
 
 from simple_server import Server, PETSCII_PORT
 from terminal import Translation

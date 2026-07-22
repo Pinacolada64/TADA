@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import net_common
 from config import SETTINGS_METADATA
 
 # "Back to main menu" is always one past the last setting -- computed, not
@@ -120,6 +122,56 @@ class TestEditServerConfig(unittest.TestCase):
         with patch('builtins.input', side_effect=['victory_g', '9000', _BACK]):
             s.edit_game_goal()
         self.assertEqual(server_config.victory_gold_amount, 9000)
+
+
+class TestUserAccounts(unittest.TestCase):
+    """setup/server_setup.py's user-account admin -- consolidated from
+    net_admin.py, a standalone script that imported old_server.net_common's
+    Invite/User classes (neither exist in this checkout) and was therefore
+    unrunnable. Only the 'user --remove' behavior carries over (issue #17:
+    it crashed with AttributeError because loadUser() never returned the
+    loaded user); 'invite' isn't ported since account creation is self-serve
+    via new_player.py, with no invite gate in this design.
+    """
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self._orig_run_server_dir = net_common.run_server_dir
+        net_common.run_server_dir = self._tmpdir.name
+
+    def tearDown(self):
+        net_common.run_server_dir = self._orig_run_server_dir
+        self._tmpdir.cleanup()
+
+    def _write_login(self, user_id: str) -> None:
+        udir = net_common.user_dir()
+        udir.mkdir(parents=True, exist_ok=True)
+        (udir / f'login-{user_id}.json').write_text('{}')
+
+    def test_list_users_empty_when_no_credential_dir(self):
+        import setup.server_setup as s
+        self.assertEqual(s.list_users(), [])
+
+    def test_list_users_finds_credential_files(self):
+        import setup.server_setup as s
+        self._write_login('alice')
+        self._write_login('bob')
+        self.assertEqual(s.list_users(), ['alice', 'bob'])
+
+    def test_remove_user_deletes_credential_file(self):
+        import setup.server_setup as s
+        self._write_login('alice')
+        self.assertTrue(s.remove_user('alice'))
+        self.assertEqual(s.list_users(), [])
+
+    def test_remove_user_missing_user_does_not_crash(self):
+        """Issue #17: net_admin.py's loadUser() never returned the loaded
+        user (missing `return user`), so `user.delete()` always ran on
+        None and crashed with AttributeError -- even for a user that did
+        exist. remove_user() must handle a missing user without raising,
+        and must actually delete one that exists (covered above)."""
+        import setup.server_setup as s
+        self.assertFalse(s.remove_user('nobody'))
 
 
 if __name__ == '__main__':

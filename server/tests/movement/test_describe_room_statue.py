@@ -10,14 +10,10 @@ commands/get.py's is_statue check (tests/commands/test_get_statue.py).
 """
 from __future__ import annotations
 
-import sys
 import tempfile
 from unittest.mock import MagicMock
 
 import pytest
-
-for _mod in ('network_context', 'net_common', 'simple_server'):
-    sys.modules.pop(_mod, None)
 
 from simple_server import Server
 from base_classes import Map, Room
