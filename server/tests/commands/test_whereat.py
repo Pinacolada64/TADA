@@ -7,7 +7,7 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
-from commands.whereat import WhereatCommand, _is_privileged, _location_label
+from commands.whereat import WhereatCommand, _is_privileged, _location_columns
 from command_settings import CommandSettings
 from flags import PlayerFlags
 from network_context import GuestPlayer
@@ -101,51 +101,53 @@ class TestIsPrivileged(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# _location_label()
+# _location_columns()
 # ---------------------------------------------------------------------------
 
-class TestLocationLabel(unittest.TestCase):
+class TestLocationColumns(unittest.TestCase):
 
     def test_virtual_location_wins(self):
         client = make_client(make_player('Alice'), virtual_location='Elevator')
         server = make_server(client)
-        self.assertEqual(_location_label(client, server), 'Elevator')
+        self.assertEqual(_location_columns(client, server), ('-', '-', 'Elevator'))
 
     def test_virtual_location_returned_as_is(self):
         client = make_client(make_player('Alice'), virtual_location='Wall Bar')
         server = make_server(client)
-        self.assertEqual(_location_label(client, server), 'Wall Bar')
+        self.assertEqual(_location_columns(client, server), ('-', '-', 'Wall Bar'))
 
     def test_room_name_from_game_map(self):
         player = make_player('Alice')
+        player.map_level = 1
         client = make_client(player, room=14)
         server = make_server(client, rooms={14: make_room('Dark Forest')})
-        label  = _location_label(client, server)
-        self.assertIn('Dark Forest', label)
-        self.assertIn('14', label)
+        level, room_no, room_name = _location_columns(client, server)
+        self.assertEqual(room_name, 'Dark Forest')
+        self.assertEqual(room_no, '14')
+        self.assertEqual(level, '1')
 
     def test_room_from_player_map_room_fallback(self):
         player = make_player('Alice')
         player.map_room = 7
         client = make_client(player)          # client.room is None
         server = make_server(client, rooms={7: make_room('Misty Valley')})
-        label  = _location_label(client, server)
-        self.assertIn('Misty Valley', label)
+        _, _, room_name = _location_columns(client, server)
+        self.assertEqual(room_name, 'Misty Valley')
 
     def test_unknown_when_no_room_and_no_map(self):
         client = make_client(make_player('Alice'))
         server = make_server(client)          # game_map is None
-        self.assertEqual(_location_label(client, server), '(unknown)')
+        self.assertEqual(_location_columns(client, server), ('-', '-', '(unknown)'))
 
     def test_unknown_when_room_not_in_map(self):
         client = make_client(make_player('Alice'), room=99)
         server = make_server(client, rooms={})
-        self.assertEqual(_location_label(client, server), '(unknown)')
+        self.assertEqual(_location_columns(client, server), ('-', '-', '(unknown)'))
 
     def test_virtual_location_overrides_room(self):
         client = make_client(make_player('Alice'), virtual_location='Shoppe', room=5)
         server = make_server(client, rooms={5: make_room('Town Square')})
-        self.assertEqual(_location_label(client, server), 'Shoppe')
+        self.assertEqual(_location_columns(client, server), ('-', '-', 'Shoppe'))
 
 
 # ---------------------------------------------------------------------------
@@ -276,6 +278,40 @@ class TestWhereatListing(unittest.IsolatedAsyncioTestCase):
         ctx    = make_ctx(alice, server)
         await WhereatCommand().execute(ctx)
         self.assertIn('Whereat', _sent_text(ctx))
+
+    async def test_output_contains_column_header(self):
+        alice  = make_player('Alice')
+        server = make_server(make_client(alice))
+        ctx    = make_ctx(alice, server)
+        await WhereatCommand().execute(ctx)
+        out = _sent_text(ctx)
+        for label in ('Player', 'Level', 'Room #', 'Room Name'):
+            self.assertIn(label, out)
+
+    async def test_room_row_shows_level_and_room_number(self):
+        alice  = make_player('Alice')
+        alice.map_level = 3
+        ca     = make_client(alice, room=14)
+        server = make_server(ca, rooms={14: make_room('Dark Forest')})
+        ctx    = make_ctx(alice, server)
+        await WhereatCommand().execute(ctx)
+        out = _sent_text(ctx)
+        rows = [l for l in out.splitlines() if 'Alice' in l]
+        self.assertEqual(len(rows), 1)
+        self.assertIn('3', rows[0])
+        self.assertIn('14', rows[0])
+        self.assertIn('Dark Forest', rows[0])
+
+    async def test_virtual_location_row_shows_dash_placeholders(self):
+        alice  = make_player('Alice')
+        ca     = make_client(alice, virtual_location='Elevator')
+        server = make_server(ca)
+        ctx    = make_ctx(alice, server)
+        await WhereatCommand().execute(ctx)
+        out = _sent_text(ctx)
+        rows = [l for l in out.splitlines() if 'Alice' in l]
+        self.assertEqual(len(rows), 1)
+        self.assertIn('Elevator', rows[0])
 
     async def test_virtual_location_shown_in_listing(self):
         alice  = make_player('Alice')

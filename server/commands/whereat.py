@@ -10,11 +10,15 @@ def _is_privileged(player) -> bool:
             or player.query_flag(PlayerFlags.DUNGEON_MASTER))
 
 
-def _location_label(client, server) -> str:
-    """Resolve a human-readable location string for a connected client."""
+def _location_columns(client, server) -> tuple[str, str, str]:
+    """Resolve (level, room #, room name) column values for a connected
+    client. Virtual locations (bar/shoppe/elevator/guild HQ/etc --
+    presence.py's enter_area()) have no level or room number of their
+    own -- shown as '-' in those columns, with the virtual location's
+    own label in the room-name column."""
     vl = getattr(client, 'virtual_location', None)
     if vl:
-        return vl
+        return ('-', '-', vl)
     ctx = getattr(client, 'ctx', None)
     player = getattr(ctx, 'player', None)
     room_no = getattr(client, 'room', None) or getattr(player, 'map_room', None)
@@ -22,8 +26,8 @@ def _location_label(client, server) -> str:
         level = int(getattr(player, 'map_level', 1) or 1)
         room = server.game_map.get_room(level, int(room_no))
         if room:
-            return f'{room.name} ({room_no})'
-    return '(unknown)'
+            return (str(level), str(room_no), room.name)
+    return ('-', '-', '(unknown)')
 
 
 class WhereatCommand(Command):
@@ -83,20 +87,22 @@ class WhereatCommand(Command):
             name        = getattr(peer_player, 'name', '???')
 
             if is_hidden and not privileged:
-                location = '(Hidden)'
+                level, room_no, room_name = '-', '-', '(Hidden)'
             else:
-                location = _location_label(client, server)
+                level, room_no, room_name = _location_columns(client, server)
                 if is_hidden:
-                    location += ' [hidden]'   # admin hint that the player is hiding
+                    room_name += ' [hidden]'   # admin hint that the player is hiding
 
-            rows.append((name, location))
+            rows.append((name, level, room_no, room_name))
 
         if not rows:
             await ctx.send('No players are currently online.')
             return CommandResult.ok()
 
         rows.sort(key=lambda r: r[0].lower())
-        name_w = min(max(len(r[0]) for r in rows) + 2, 20)
+        name_w  = min(max(len('Player'), *(len(r[0]) for r in rows)) + 2, 20)
+        level_w = max(len('Level'), *(len(r[1]) for r in rows)) + 2
+        room_w  = max(len('Room #'), *(len(r[2]) for r in rows)) + 2
 
         from formatting import hrule_char, underline
         width = 78
@@ -106,8 +112,11 @@ class WhereatCommand(Command):
             pass
 
         lines = [*underline('Whereat', ctx), '']
-        for name, location in rows:
-            lines.append(f'{name.ljust(name_w)}{location}')
+        lines.append(f"{'Player'.ljust(name_w)}{'Level'.ljust(level_w)}"
+                     f"{'Room #'.ljust(room_w)}Room Name")
+        for name, level, room_no, room_name in rows:
+            lines.append(f'{name.ljust(name_w)}{level.ljust(level_w)}'
+                         f'{room_no.ljust(room_w)}{room_name}')
         lines.append('')
 
         await ctx.send(lines)
