@@ -793,3 +793,22 @@
   one central table?), and whether logon and logoff modules share a
   common base/interface or are independent package conventions that
   happen to mirror each other's directory layout.
+- text_editor.py: `.T` Tagline, figlet-rendered, ANSI-only (Ryan): the
+  module docstring already notes `.T` was "only a loose module-level
+  function in the gist, never wired into either dispatch table" -- one
+  possible direction for actually building it: type a short phrase, run
+  it through `pyfiglet` (pure Python, no system dependency) to render
+  it as ASCII-art, insert the result as new buffer lines. Gate this to
+  ANSI/plain clients only (`ctx.player.client_settings.translation`,
+  same check other ANSI-only features use) -- FIGlet's standard fonts
+  render wide (60-100+ columns per line is easy for even a short
+  phrase, across several lines), which doesn't fit this project's
+  40-column PETSCII support at all; even restricted to ANSI, a narrow
+  font (FIGlet ships `small`/`mini`/`term`) plus this codebase's
+  existing line-width-awareness would still be needed for long phrases.
+  Also worth deciding first: the old gist's "Tagline" sounds like a
+  traditional one-line BBS catchphrase, not a multi-line ASCII banner --
+  a figlet signature is a bigger scope change (more like a `.sig`-block
+  generator) than whatever was originally sketched, so confirm that's
+  actually the direction wanted before building. Not scoped/implemented
+  at all yet.
