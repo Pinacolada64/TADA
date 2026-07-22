@@ -1,6 +1,7 @@
 """shoppe/pawn.py — Ye Olde Pawn Shoppe (SPUR.SHOP.S pawn.shp section)."""
 import logging
 
+from debug_tools import debug_toggle_once_per_day
 from network_context import GameContext
 
 log = logging.getLogger(__name__)
@@ -19,6 +20,9 @@ async def main(ctx: GameContext) -> None:
 
     player = ctx.player
     inv    = getattr(player, 'inventory', None)
+
+    # Debug hook: manually toggle the once-per-day flag (see debug_tools.py)
+    await debug_toggle_once_per_day(ctx, _ONCE_PER_DAY_KEY, label='pawn shoppe')
 
     # Once-per-day limit (SPUR ys$ "*PS" flag)
     if _ONCE_PER_DAY_KEY in player.once_per_day:

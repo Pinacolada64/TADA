@@ -18,6 +18,7 @@ import random
 
 from bar.ally_data import Ally
 from base_classes import PlayerMoneyTypes, PlayerStat, PronounType
+from debug_tools import debug_toggle_once_per_day
 from flags import PlayerFlags
 from network_context import GameContext
 from presence import broadcast_area
@@ -83,13 +84,8 @@ async def main(ctx: GameContext, bar=None) -> None:
 
     await ctx.send(f'{_NPC} sweats over a hot grill, muttering under his breath...')
 
-    # Debug hook: manually toggle the once-per-day flag
-    if player.query_flag(PlayerFlags.DEBUG_MODE):
-        raw = await ctx.prompt('Y/N', preamble_lines=[f"Add 'Skip' to once-per-day activities?"])
-        if raw is not None and raw.strip().lower() in ('y', 'yes'):
-            if _NPC not in player.once_per_day:
-                player.once_per_day.append(_NPC)
-                await ctx.send('Appended.')
+    # Debug hook: manually toggle the once-per-day flag (see debug_tools.py)
+    await debug_toggle_once_per_day(ctx, _NPC)
 
     # Once-per-day gate (SPUR: sys is,"*SK",ys$ check)
     if _NPC in player.once_per_day:
