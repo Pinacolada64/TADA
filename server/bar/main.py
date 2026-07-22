@@ -323,11 +323,22 @@ async def enter_bar(ctx: GameContext) -> None:
                 )
                 break
             elif command == 'n':
-                if bar.pos_y > 0 and bar_map[bar.pos_y - 1][bar.pos_x] not in obstacles:
+                if bar.pos_y == 0 and bar.pos_x == 6:
+                    # (0, 6) is the "Exit" tile (Bar.locations) -- the door
+                    # at the top of the map, and where the player starts.
+                    # Walking north from here leaves through it, same as 'q'.
+                    await ctx.send("You head back out to the street.")
+                    await ctx.send_room(
+                        f'{player.name} heads back out into the street.',
+                        exclude_self=True,
+                    )
+                    break
+                elif bar.pos_y > 0 and bar_map[bar.pos_y - 1][bar.pos_x] not in obstacles:
                     bar.pos_y -= 1
                     moved_direction = 'north'
                 else:
                     move_into_obstacle = True
+
             elif command == 's':
                 if bar.pos_y < len(bar_map) - 1 and bar_map[bar.pos_y + 1][bar.pos_x] not in obstacles:
                     bar.pos_y += 1

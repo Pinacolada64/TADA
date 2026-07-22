@@ -376,8 +376,10 @@ class TestBarObstacleDeath(unittest.IsolatedAsyncioTestCase):
     async def test_death_broadcasts_to_bar(self, *_):
         from bar.main import enter_bar
         player = make_player(hp=1)
-        # 'n' from (6,0) is an obstacle; with hp=1 that kills the player
-        ctx    = make_ctx(player, ['n'])
+        # 'w' from (6,0) hits the wall at bar_map[0][5] ('|').
+        # (0,6) itself is the "Exit" tile, so 'n' from there now leaves instead of
+        # bumping into an obstacle -- see Bar.locations / the fix in bar/main.py
+        ctx    = make_ctx(player, ['w'])
         with patch('bar.main.enter_area', new=AsyncMock()), \
              patch('bar.main.leave_area', new=AsyncMock()), \
              patch('bar.main.broadcast_area', new=AsyncMock()) as ba:
@@ -392,7 +394,7 @@ class TestBarObstacleDeath(unittest.IsolatedAsyncioTestCase):
     async def test_death_broadcast_includes_player_name(self, *_):
         from bar.main import enter_bar
         player = make_player(name='Rulan', hp=1)
-        ctx    = make_ctx(player, ['n'])
+        ctx    = make_ctx(player, ['w'])
         with patch('bar.main.enter_area', new=AsyncMock()), \
              patch('bar.main.leave_area', new=AsyncMock()), \
              patch('bar.main.broadcast_area', new=AsyncMock()) as ba:
@@ -407,7 +409,7 @@ class TestBarObstacleDeath(unittest.IsolatedAsyncioTestCase):
     async def test_death_sends_died_message_to_player(self, *_):
         from bar.main import enter_bar
         player = make_player(hp=1)
-        ctx    = make_ctx(player, ['n'])
+        ctx    = make_ctx(player, ['w'])
         with patch('bar.main.enter_area', new=AsyncMock()), \
              patch('bar.main.leave_area', new=AsyncMock()), \
              patch('bar.main.broadcast_area', new=AsyncMock()):
