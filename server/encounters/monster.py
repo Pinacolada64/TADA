@@ -178,7 +178,7 @@ async def try_monster_encounter(ctx: 'GameContext', *, level: int, room_no: int)
     monster_no = int(getattr(room, 'monster', 0) or 0) if room else 0
     if not monster_no:
         return
-    if (monster_no in getattr(player, 'monsters_killed', [])
+    if (monster_no in getattr(player, 'dead_monsters', [])
             or monster_no in getattr(player, 'charmed_monsters', [])):
         return
 

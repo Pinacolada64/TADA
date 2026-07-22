@@ -25,16 +25,16 @@ class GroupsCommand(Command):
         summary  = 'Manage named groups for whisper and page targeting.',
         category = HelpCategory.COMMUNICATION,
         usage    = [
-            ('groups [#list]',                  'List all your groups'),
-            ('groups [#list] <name>',           'Show members of a group'),
+            ('groups [[#list]]',                   'List all your groups'),
+            ('groups [[#list]] <name>',            'Show members of a group'),
             ('groups #add <group> <player> [...]', 'Add one or more players to a group'),
-            ('groups #remove <group> <player>', 'Remove a player from a group'),
-            ('groups #delete <group>',          'Delete an entire group'),
+            ('groups #remove <group> <player>',    'Remove a player from a group'),
+            ('groups #delete <group>',             'Delete an entire group'),
         ],
         examples = [
-            ('groups #add friends Alice Bob',     'Add Alice and Bob to group "friends"'),
-            ('whisper #friends=Meet me now!',    'Whisper to everyone in "friends"'),
-            ('groups #delete friends',           'Delete the "friends" group'),
+            ('groups #add friends Alice Bob',      'Add Alice and Bob to group "friends"'),
+            ('whisper #friends=Meet me now!',      'Whisper to everyone in "friends"'),
+            ('groups #delete friends',             'Delete the "friends" group'),
         ],
     )
 
@@ -91,7 +91,7 @@ class GroupsCommand(Command):
 
     async def _add(self, ctx, cs, args) -> CommandResult:
         if len(args) < 2:
-            await ctx.send('Usage: groups #add <group> <player> [player2 ...]')
+            await ctx.send('Usage: groups #add <group> <player> [[player2 ...]]')
             return CommandResult.fail('Missing arguments.')
         group_name   = args[0].lower()
         player_names = args[1:]
