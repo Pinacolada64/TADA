@@ -762,3 +762,28 @@
   read verbs -- natural home for `anonymous_mode` and, potentially,
   `board ld`'s threshold too, though that's not decided. Not
   implemented yet.
+
+7/22/26:
+- Modular logon/logoff event system (Ryan): break the ad hoc pile of
+  "things the server does at login" -- news display (`commands/connect.
+  py`'s `_login_news_lines()`), tip of the day (`_login_tip_lines()`),
+  the once_per_day daily reset (`_maybe_reset_once_per_day()`, just
+  added), and an as-yet-unwritten birthday notification -- out of
+  `commands/connect.py`'s login flow and into their own modules under
+  `server/logon_events/` (mirroring `ally_events/`'s package-of-small-
+  focused-modules pattern), with a matching `server/logoff_events/` for
+  the quit/disconnect side (nothing lives there today; `commands/quit.py`
+  and `Server._player_quit()` currently do everything inline). A sysop-
+  facing toggle (`config.py`'s `SETTINGS_METADATA` pattern, matching the
+  `meteor_difficulty` idea sketched under "7/15/26") would let each
+  module be enabled/disabled independently, and potentially scheduled --
+  Ryan mentioned running some only on certain weekdays or fixed days of
+  the week (e.g. a weekly announcement, a Friday-only event) as one
+  motivating use case beyond simple on/off. Not scoped in detail yet --
+  open questions include the exact module interface (a `main(ctx,
+  player)` entry point per module, auto-discovered the way
+  `commands/`'s `discover()` finds command modules?), where the
+  enable/disable + schedule config actually lives (per-module file?
+  one central table?), and whether logon and logoff modules share a
+  common base/interface or are independent package conventions that
+  happen to mirror each other's directory layout.
