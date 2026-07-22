@@ -979,6 +979,8 @@ class Server:
         await try_little_girl(ctx)
         from encounters.meteor import try_encounter as try_meteor
         await try_meteor(ctx)
+        from encounters.galadriel import try_encounter as try_galadriel
+        await try_galadriel(ctx)
         from encounters.djinn_sighting import try_encounter as try_djinn_sighting
         await try_djinn_sighting(ctx)
         from ally_events.starvation import try_encounter as try_ally_starvation
@@ -1064,6 +1066,8 @@ class Server:
         await try_little_girl(ctx)
         from encounters.meteor import try_encounter as try_meteor
         await try_meteor(ctx)
+        from encounters.galadriel import try_encounter as try_galadriel
+        await try_galadriel(ctx)
         from encounters.djinn_sighting import try_encounter as try_djinn_sighting
         await try_djinn_sighting(ctx)
         from ally_events.starvation import try_encounter as try_ally_starvation

@@ -169,6 +169,34 @@ def _login_tip_lines(ctx) -> list[str]:
     return box
 
 
+def _maybe_reset_once_per_day(player) -> None:
+    """Clear player.once_per_day if the calendar date has rolled over
+    since their last connection (TODO.md's "7/15/26" plan). Compares
+    calendar dates only, not a full 24h elapsed check -- matches
+    player.last_connection's own comment ("we just care about the day
+    rolling over, not that 24 hours have passed").
+
+    Must run before player.last_connection gets overwritten with this
+    login's own timestamp, or the comparison is always against "now".
+
+    SPUR's ys$ flags this port's once_per_day models are actually
+    session-scoped in the original (reset every BBS-door-program launch,
+    not calendar-day) -- see TODO.md's caveat on this. This port's
+    always-on multiplayer design persists across reconnects and resets
+    on date rollover instead, a deliberate adaptation, not a literal
+    port of ys$'s reset timing.
+    """
+    last = getattr(player, 'last_connection', None)
+    if last is None:
+        return
+    if datetime.datetime.now().date() > last.date():
+        if player.once_per_day:
+            logging.info("%s: once_per_day reset on date rollover (was %r)",
+                         player.name, player.once_per_day)
+            player.once_per_day = []
+            player.unsaved_changes = True
+
+
 def _load_credentials(username: str) -> dict | None:
     """Return the credential dict for *username*, or None if not found."""
     path = user_dir() / f"login-{username}.json"
@@ -413,6 +441,9 @@ class ConnectCommand(Command):
         from formatting import format_player_datetime
         login_lines.append(f"You last connected on {format_player_datetime(player.last_connection, player)}.")
         login_lines.append("")
+
+        # Must run before player.last_connection is overwritten below.
+        _maybe_reset_once_per_day(player)
 
         # News since last login -- see news.py for storage/visibility rules
         # and commands/news.py for the standalone 'news' command that reuses

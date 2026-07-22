@@ -407,7 +407,7 @@
     at the top level.
 
 7/15/26:
-- Daily reset of `player.once_per_day` (Ryan): on login, if today's date
+- [DONE 7/22/26] Daily reset of `player.once_per_day` (Ryan): on login, if today's date
   is greater than `player.last_connection`'s date, clear
   `player.once_per_day` (the list of "already did this today" markers --
   PRAY, Druids' second PRAY, birthday-present-already-given, etc. --
@@ -466,11 +466,21 @@
       -time threshold (`SPUR.MISC6.S:229-233`).
     - `*ME` — the "meteor" random encounter (FLYING BANSHEE, or literally
       METEOR on level 6), once per session (`SPUR.MISC6.S:473-478`).
-    - `*GAL` — Test of Galadriel (quest #8 in `quests/README.md`); this
-      token is what actually gates it to once per session
-      (`SPUR.MAIN.S:63`, `SPUR.MISC6.S:505,532-534`).
-    - `*AYF` — an ally "finds a gold sack" bonus event, once per session
-      (`SPUR.MISC6.S:544-553`).
+    - [DONE 7/22/26] `*GAL` — Test of Galadriel (quest #8 in
+      `quests/README.md`); this token is what actually gates it to once
+      per session (`SPUR.MAIN.S:63`, `SPUR.MISC6.S:505,532-534`). Built
+      as `encounters/galadriel.py`, wired into the same random
+      world-event call sites as `little_girl.py`/`meteor.py` in
+      `simple_server.py`. Note: awards item #143 (the full vial), but
+      actually *using* it for the fountain-of-youth restore effect is
+      the separate, still-unbuilt quest #9.
+    - [DONE, found already implemented 7/22/26] `*AYF` — an ally "finds
+      a gold sack" bonus event, once per session (`SPUR.MISC6.S:544-553`).
+      This TODO entry was stale -- `ally_events/try_ally_find_gold()`
+      already has the full mechanic (water-room guard, once-per-day
+      gate, the `(roll*2)+50` gold formula, matching flavor text) and is
+      wired into both `simple_server.py` movement call sites. No
+      dedicated test file for it yet, though.
     - `pwr.ar` — Power Armor energized bonus (armor rating -> 150% "for
       this play session"), once per session (`SPUR.SUB.S:47-50`) --
       likely ties into quest #13 (Power Armor / Shield Recharge).
