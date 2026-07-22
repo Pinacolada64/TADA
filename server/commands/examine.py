@@ -6,27 +6,50 @@ Split out of look.py (Ryan's request) so LOOK stays a plain "show me
 around" command and EXAMINE keeps SPUR's roll-based flavor-text/
 "already examined" memory logic separate.
 
-Not yet ported from SPUR.MISC3.S: monster examination (exam.mon/
-mon.dv/mon.fd/mon.des -- race-based food/treasure discovery, disease
-risk -- Ryan plans to fill in item/monster descriptions later) and the
-"hidden" probe branch's hardcoded per-room item discoveries (its SPUR
-room numbers, e.g. level 6 room 752, don't match TADA's current
-level_6.json at all -- would need a fresh data-driven redesign, not a
-literal port).
+Not yet ported from SPUR.MISC3.S: the "hidden" probe branch's hardcoded
+per-room item discoveries (its SPUR room numbers, e.g. level 6 room
+752, don't match TADA's current level_6.json at all -- would need a
+fresh data-driven redesign, not a literal port).
 """
 from __future__ import annotations
 
 import random
 
+from base_classes import PlayerRace
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from items import Rations, Weapon
+from items import Item, ItemCategory, Rations, Weapon
 from network_context import GameContext
 from quests.tuts_treasure import examine as tuts_treasure_examine, is_tuts_treasure
+from survival import apply_disease
+from tada_utilities import a_or_an
 
 # SPUR.MISC3.S exam2: a=(random(999)/10)+1; "if a>60 ... fails" -- so the
 # roll is a 1-100 uniform draw and examination succeeds 60% of the time.
 _EXAMINE_SUCCESS_PCT = 60
+
+# SPUR.MISC3.S mon.dv: i=16:it$="COIN":iv=1 / a>40 "GOLD SACK":iv=3 /
+# a>70 "DIAMOND":iv=4 / a>90 "SACK OF DIAMONDS":iv=6. None of those four
+# names exist as their own objects.json entries in this port -- mapped
+# onto the nearest existing treasure-tier items instead of inventing new
+# data entries for names nothing else references. (threshold, item id, name)
+_MONSTER_TREASURE_TIERS = [
+    (90, 15, 'mound of jewels'),   # rarest -- "SACK OF DIAMONDS" equivalent
+    (70, 22, 'diamonds'),          # "DIAMOND" equivalent
+    (40, 27, 'diamond pile'),      # "GOLD SACK" equivalent
+    (0,  11, 'gold coins'),        # most common -- "COIN" equivalent
+]
+
+# SPUR.MISC3.S mon.fd: fd=69:fd$=m$+" MEAT" -- rations.json #69 is
+# literally "MONSTER MEAT", so this reuses that pool entry with a
+# monster-specific display name instead of inventing a new one.
+_MONSTER_MEAT_RATION_ID = 69
+
+# SPUR.MISC3.S mon.dv: "if a<26" (dwarf treasure-spotting bonus).
+_DWARF_TREASURE_CHANCE = 26
+# SPUR.MISC3.S mon.des: "if a>2 return" -- a flat 2% disease chance from
+# searching a corpse.
+_DISEASE_CHANCE_PCT = 2
 
 
 def _raw_item_data(ctx, item) -> dict | None:
@@ -97,6 +120,157 @@ def _examine_item(ctx, name: str, item) -> str:
     return 'It looks pretty ordinary..'
 
 
+def _current_room(ctx):
+    room_no  = int(getattr(ctx.client, 'room', 0) or 0)
+    level    = int(getattr(ctx.player, 'map_level', 1) or 1)
+    game_map = getattr(ctx.server, 'game_map', None)
+    return game_map.get_room(level, room_no) if game_map and room_no else None
+
+
+def room_monster(ctx) -> dict | None:
+    """Return the room's monster dict, or None if there isn't one.
+
+    Doesn't check dead_monsters -- callers decide what "examinable"
+    means for their purposes (exam.mon's own md==0 refusal handles that
+    for EXAMINE specifically).
+    """
+    room = _current_room(ctx)
+    monster_no = int(getattr(room, 'monster', 0) or 0) if room else 0
+    if not monster_no:
+        return None
+    from monsters import get_monster
+    return get_monster(getattr(ctx.server, 'monsters', None) or [], monster_no)
+
+
+def _player_has_item(player) -> bool:
+    """SPUR's it$<>"" -- does the player already carry a non-food,
+    non-weapon item? (SPUR's single item-slot model doesn't map exactly
+    onto TADA's list inventory; "carrying any generic item" is the
+    closest equivalent.)"""
+    inv = getattr(player, 'inventory', None)
+    if inv is None:
+        return False
+    return any(not isinstance(e.item, (Rations, Weapon)) for e in inv.entries())
+
+
+def _player_has_food(player) -> bool:
+    """SPUR's fd$<>"" -- does the player already carry food?"""
+    inv = getattr(player, 'inventory', None)
+    if inv is None:
+        return False
+    return any(isinstance(e.item, Rations) and getattr(e.item, 'kind', None) == 'food'
+               for e in inv.entries())
+
+
+def _monster_treasure(ctx) -> list[str]:
+    """SPUR.MISC3.S mon.dv: search reveals a treasure item, awarded
+    straight into the player's inventory (SPUR set it as the player's
+    held item directly -- there's no separate "pick it up" step)."""
+    roll = random.randint(1, 100)
+    item_id, name = next((iid, n) for threshold, iid, n in _MONSTER_TREASURE_TIERS
+                          if roll > threshold)
+    item = Item(id_number=item_id, name=name, category=ItemCategory.ITEM)
+    inv = getattr(ctx.player, 'inventory', None)
+    if inv is not None:
+        inv.add(item)
+    return [f'Your search reveals {a_or_an(name)}!']
+
+
+def _monster_food(ctx, monster: dict, has_food: bool) -> list[str]:
+    """SPUR.MISC3.S mon.fd: race-modified roll for whether the corpse
+    looks edible. Ogres/Orcs are more easily tempted (+25), Elves are
+    disgusted by the idea (-25), Half-Elves mildly so (-12)."""
+    player = ctx.player
+    race   = getattr(player, 'char_race', None)
+    name   = monster.get('name', 'the monster')
+    roll   = random.randint(1, 100)
+    if race in (PlayerRace.OGRE, PlayerRace.ORC):
+        roll += 25
+    elif race == PlayerRace.ELF:
+        roll -= 25
+    elif race == PlayerRace.HALF_ELF:
+        roll -= 12
+
+    lines: list[str] = []
+    if roll < 1:
+        lines.append('Your elvish eyes wrinkle in disgust.')
+        roll = 0
+
+    if roll < 50 or has_food:
+        lines.append(f'Your search reveals nothing on the {name}.')
+        lines.extend(_monster_disease_check(player))
+        return lines
+
+    ration = Rations(number=_MONSTER_MEAT_RATION_ID, name=f'{name} meat',
+                     kind='food', price=25)
+    inv = getattr(player, 'inventory', None)
+    if inv is not None:
+        inv.add(ration)
+    lines.append(f'You decide the {name} looks edible! (sort of..)')
+    return lines
+
+
+def _monster_disease_check(player) -> list[str]:
+    """SPUR.MISC3.S mon.des: a flat 2% chance of catching a disease from
+    searching the corpse -- see survival.py for the actual HP-drain tick."""
+    if random.randint(1, 100) > _DISEASE_CHANCE_PCT:
+        return []
+    apply_disease(player)
+    return ['Yuk! You picked up a disease from the thing!']
+
+
+def _examine_monster(ctx, monster: dict) -> list[str]:
+    """SPUR.MISC3.S's exam.mon/mon.dv/mon.fd/mon.des: search a monster
+    for treasure or food, with a small chance of catching a disease.
+    Only reaches the search rolls once the monster is in
+    player.dead_monsters -- a still-live one just refuses to be examined
+    (SPUR's md==0 case; TADA has no equivalent of SPUR's md==2 "tracks
+    only" state, so that branch isn't ported)."""
+    player = ctx.player
+    name   = monster.get('name', 'the monster')
+    monster_no = monster.get('number')
+
+    is_dead = monster_no in (getattr(player, 'dead_monsters', None) or [])
+    if not is_dead:
+        return [f"{name} doesn't like being examined!"]
+
+    room  = _current_room(ctx)
+    flags = set(getattr(room, 'flags', None) or [])
+
+    roll = random.randint(1, 100)
+    base_msg = f'Your search reveals nothing on the {name}.'
+    if 'water' in flags or 'water_with_rocks' in flags:
+        base_msg = f'Fish are nibbling on the {name}.'
+    if 'snow' in flags:
+        base_msg = f'The {name} is quite frozen!'
+    if roll > 40:
+        base_msg = "Yep. It's dead awright.."
+    if roll > 70:
+        base_msg = f'The {name} is quite ugly, actually..'
+
+    has_item = _player_has_item(player)
+    has_food = _player_has_food(player)
+
+    if not has_item and getattr(player, 'char_race', None) == PlayerRace.DWARF:
+        roll = random.randint(1, 100)
+        if roll < _DWARF_TREASURE_CHANCE:
+            return ['Your dwarvish eyes spot something!'] + _monster_treasure(ctx)
+
+    roll = random.randint(1, 100)
+    if roll > 70:
+        return _monster_food(ctx, monster, has_food)
+
+    roll = random.randint(1, 100)
+    if roll > 15 or has_item:
+        return [base_msg] + _monster_disease_check(player)
+
+    # SPUR falls straight through to mon.dv here rather than taking an
+    # explicit branch (exam.mon has no statement between this check and
+    # the mon.dv label) -- matched for authenticity rather than adding a
+    # branch SPUR itself doesn't have.
+    return _monster_treasure(ctx)
+
+
 class ExamineCommand(Command):
     """Inspect a specific item, or (with no target) examine everything
     you're carrying and everything in the room -- SPUR.MISC3.S's EXAMINE."""
@@ -134,11 +308,13 @@ class ExamineCommand(Command):
         inv          = getattr(ctx.player, 'inventory', None)
         inv_entries  = list(inv.entries()) if inv is not None else []
         room_entries = list(_room_available_items(ctx))
+        monster      = room_monster(ctx)
 
         if not positional:
             # SPUR's "EXAMINE ALL" (exam.b/plyr.loc): everything carried,
-            # then everything in the room; "This area is empty.." if there
-            # was truly nothing to examine.
+            # then everything in the room, then the room's monster (if
+            # any -- exam.mon itself handles a still-live one refusing);
+            # "This area is empty.." if there was truly nothing at all.
             examined_any = False
             for entry in inv_entries:
                 item  = entry.item
@@ -149,6 +325,9 @@ class ExamineCommand(Command):
                 examined_any = True
             for name, entry, _remove_fn in room_entries:
                 await self._describe_item(ctx, name, entry.item)
+                examined_any = True
+            if monster is not None:
+                await ctx.send(_examine_monster(ctx, monster))
                 examined_any = True
             if not examined_any:
                 await ctx.send('This area is empty..')
@@ -167,6 +346,10 @@ class ExamineCommand(Command):
             if target in name.lower():
                 await self._describe_item(ctx, name, entry.item)
                 return CommandResult.ok()
+
+        if monster is not None and target in monster.get('name', '').lower():
+            await ctx.send(_examine_monster(ctx, monster))
+            return CommandResult.ok()
 
         await ctx.send("You either spelled it wrong, or are seeing things..")
         await ctx.send("('X' examines all)")
