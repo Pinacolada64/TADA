@@ -34,6 +34,7 @@ class TestCommand(Command):
             ("test #feep",              "Feeps forever."),
             ("test #box",               "Test box-drawing functions."),
             ("test #colors",            "List every color rendered in its own color."),
+            ("test #table",             "Test table zebra striping and border styles."),
         ],
         notes = ["'#colors' has no effect in plain-text mode."],
     )
@@ -95,6 +96,49 @@ class TestCommand(Command):
                 text_color='white',
             )
             await ctx.send(*another_box)
+
+        if "#table" in switches:
+            from table import Table, Column, Align
+            from formatting import codec_for_settings, PETSCIICodec
+
+            headers = [
+                Column("Name", min_width=8),
+                Column("Class", align=Align.LEFT),
+                Column("HP", align=Align.RIGHT),
+            ]
+            rows = [
+                ["Aldric", "Fighter", "45"],
+                ["Rhiannon", "Mage", "72"],
+                ["Bram", "Rogue", "38"],
+                ["Selene", "Cleric", "60"],
+            ]
+            width = ctx.player.client_settings.screen_columns
+
+            await ctx.send("", "Zebra striping (green/yellow rows, 'single' border):")
+            zebra = Table(headers, border_style="single",
+                          text_color=["green", "yellow"])
+            for row in rows:
+                zebra.add_row(row)
+            await ctx.send(*zebra.render(width=width))
+
+            border_names = ["ascii", "single", "double"]
+            # PETSCII line-drawing bytes only round-trip on a client whose
+            # codec is actually PETSCII (cbmcodecs2-mapped) -- on any other
+            # client they'd render as garbage, so only demo it there.
+            is_petscii = isinstance(codec_for_settings(ctx.player.client_settings),
+                                     PETSCIICodec)
+            if is_petscii:
+                border_names.append("petscii")
+
+            for name in border_names:
+                await ctx.send("", f"Border style: {name}")
+                t = Table(headers, border_style=name)
+                for row in rows:
+                    t.add_row(row)
+                await ctx.send(*t.render(width=width))
+
+            if not is_petscii:
+                await ctx.send("", "(Skipping 'petscii' border style — client isn't PETSCII-capable.)")
 
         if "42" in positional:
             await ctx.send("  The answer to Life, the Universe, and Everything.")
