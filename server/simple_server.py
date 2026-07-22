@@ -163,6 +163,14 @@ class Server:
     def _load_game_data(self):
         script_dir = Path(__file__).parent
         try:
+            from banner import load_banner
+            self.banner_ansi = load_banner(str(script_dir / 'graphics' / 'banner.ans'))
+            self.banner_petscii = load_banner(str(script_dir / 'graphics' / 'banner-petscii.txt'))
+        except Exception as e:
+            logging.warning("Could not load banner: %s", e)
+            self.banner_ansi = []
+            self.banner_petscii = []
+        try:
             self.game_map = Map()
             for lvl in range(1, 8):
                 level_file = script_dir / f'level_{lvl}.json'
@@ -207,12 +215,6 @@ class Server:
         except Exception as e:
             logging.warning("Could not load 'books.json': %s", e)
             self.books = {}
-        try:
-            from banner import load_banner
-            self.banner = load_banner(str(script_dir / 'graphics' / 'banner.ans'))
-        except Exception as e:
-            logging.warning("Could not load 'graphics/banner.ans': %s", e)
-            self.banner = []
         # Items dropped by players during this session: room_number → list of InventoryEntry
         self.room_items: dict[int, list] = {}
         logging.info('Map: %d rooms | %d monsters | %d items | %d weapons',
@@ -536,14 +538,18 @@ class Server:
         Returns False on quit or disconnect.
         """
         logging.debug('ENTER')
-        banner = getattr(self, 'banner', None)
+        if ctx.player.client_settings.translation == Translation.PETSCII:
+            banner = self.banner_petscii or self.banner_ansi
+        else:
+            banner = self.banner_ansi
         if banner:
-            await ctx.send(banner)
+            await ctx.send(*banner)
         await ctx.send(
             '',
             "Type 'connect <username> <password>' to log in.",
             "Type 'connect guest' to look around as a guest.",
             "Type 'new' to create a new character.",
+            "Type 'who' to see who is online.",
             "Type 'help' for help, 'help about' to learn what this is, or 'quit' to leave.",
             '',
         )

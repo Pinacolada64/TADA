@@ -1,0 +1,5 @@
+|white|
+|reverse|    TADA - Totally Awesome Dungeon Adventure    |reset|
+|white|
+|yellow|         A dungeon adventure for your Commodore!      |reset|
+|white|
