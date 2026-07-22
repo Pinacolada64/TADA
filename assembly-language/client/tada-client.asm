@@ -10,7 +10,7 @@
 
 ; Comment out to strip all {ifdef:debug}...{endif} diagnostic output
 ; (the <XX>/[XX] read_line trace, hex_digits/print_hex_byte helpers, etc).
-{def: debug}
+{undef: debug}
 
 ; SwiftLink ACIA registers
 {const: SL_DATA     $de00}      ; data register
@@ -45,6 +45,8 @@
 
         rx_head     = $f9       ; NMI receive ring buffer: next write index
         rx_tail     = $fa       ; NMI receive ring buffer: next read index
+
+        QTSW        = $d4       ; KERNAL quote-mode switch (212 decimal)
 
 ; --- Program start ---
 
@@ -432,6 +434,17 @@ read_line_store:
         inx                      ; matches send_line, which still starts
         stx linelen              ; at index 0 and reads until the null
         jsr CHROUT               ; echo the typed char locally
+
+        ; Echoing a literal '"' through CHROUT toggles the KERNAL's quote
+        ; mode (same as typing one in a normal BASIC line) -- once on, it
+        ; makes subsequent CHROUT control codes (our cursor blink's
+        ; reverse-on/off/cursor-left) display as literal reverse-video
+        ; glyphs instead of being interpreted, showing up as garbage
+        ; around the blinking cursor. Force it back off unconditionally
+        ; after every echoed character rather than only after a '"'.
+        lda #0
+        sta QTSW
+
         jmp read_line_loop
 
 read_line_done:
