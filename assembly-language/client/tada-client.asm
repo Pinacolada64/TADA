@@ -423,7 +423,8 @@ read_line_loop:
         lda linelen              ; the dispatch path no longer relies on X
         beq read_line_loop       ; surviving CHROUT calls -- linelen (a
         dec linelen              ; plain memory byte) is the source of truth
-        jsr CHROUT               ; KERNAL moves cursor back on screen
+        lda #$14                 ; the linelen check above clobbered .A --
+        jsr CHROUT               ; reload DEL before echoing it via CHROUT
         jmp read_line_loop
 
 read_line_store:
