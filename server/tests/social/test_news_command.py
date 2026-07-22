@@ -184,15 +184,56 @@ class TestAdminGating(NewsCommandTestCase):
     def test_admin_can_post(self):
         ctx = make_ctx(
             player=_FakePlayer(admin=True),
-            prompts=['Server Maintenance', 'permanent', 'We will be down Friday.', 'END'],
+            prompts=['Server Maintenance', 'permanent', 'We will be down Friday.', '.s'],
         )
         result = run(NewsCommand().execute(ctx, 'post'))
         self.assertTrue(result.success)
         items = news_store.load_news(self.path)
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0]['title'], 'Server Maintenance')
-        self.assertEqual(items[0]['body'], ['We will be down Friday.'])
+        # body is now formatting.serialize_lines()'s output (structured
+        # Line dicts), not plain strings -- see news.py's module docstring.
+        self.assertEqual(items[0]['body'], [{'text': 'We will be down Friday.'}])
         self.assertEqual(items[0]['author'], 'alexa')
+
+    def test_post_with_duplicate_title_offers_edit_or_change(self):
+        self._seed([{'id': 1, 'title': 'Server Maintenance', 'body': ['old body'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        ctx = make_ctx(
+            player=_FakePlayer(admin=True),
+            prompts=['Server Maintenance', 'c', 'Server Maintenance II',
+                     'permanent', 'A brand new item.', '.s'],
+        )
+        result = run(NewsCommand().execute(ctx, 'post'))
+        self.assertTrue(result.success)
+        items = news_store.load_news(self.path)
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[1]['title'], 'Server Maintenance II')
+
+    def test_post_with_duplicate_title_case_insensitive(self):
+        self._seed([{'id': 1, 'title': 'Server Maintenance', 'body': ['old body'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        ctx = make_ctx(
+            player=_FakePlayer(admin=True),
+            prompts=['server maintenance', ''],  # bare Enter -- abort at the prompt
+        )
+        result = run(NewsCommand().execute(ctx, 'post'))
+        self.assertFalse(result.success)
+        items = news_store.load_news(self.path)
+        self.assertEqual(len(items), 1)  # nothing new posted
+
+    def test_post_duplicate_title_choose_edit_routes_into_existing_item(self):
+        self._seed([{'id': 1, 'title': 'Server Maintenance', 'body': ['old body'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        ctx = make_ctx(
+            player=_FakePlayer(admin=True),
+            prompts=['Server Maintenance', 'e', 'New Title', '', 'kept body', '.s'],
+        )
+        result = run(NewsCommand().execute(ctx, 'post'))
+        self.assertTrue(result.success)
+        items = news_store.load_news(self.path)
+        self.assertEqual(len(items), 1)  # still just the one item -- edited, not duplicated
+        self.assertEqual(items[0]['title'], 'New Title')
 
     def test_admin_can_delete(self):
         self._seed([{'id': 1, 'title': 'X', 'body': [], 'lifetime': 'permanent'}])

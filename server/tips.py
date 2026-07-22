@@ -59,18 +59,10 @@ def format_tip_box(ctx, tip: str, tip_number: int, total: int, width: int = 60) 
     """Wrap *tip* in a bordered box titled "Tip #x / y", matching the
     player's own border-style/terminal-codec preferences (same helpers
     commands/prefs.py uses for its own boxes)."""
-    import textwrap
+    from formatting import titled_box
 
-    from formatting import border_style_for_ctx, codec_for_settings, make_box
-
-    codec = codec_for_settings(ctx.player.client_settings)
-    wrapped = textwrap.wrap(tip, width=width - 4) or ['']
-    return make_box(
-        wrapped,
-        title=f'Tip #{tip_number} / {total}',
-        width=width,
-        codec=codec,
-        border_style=border_style_for_ctx(ctx),
+    return titled_box(
+        ctx, f'Tip #{tip_number} / {total}', tip, width=width,
         frame_color='green',
         text_color='white',
         # magenta -- green's complement on the color wheel, so the

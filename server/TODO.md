@@ -171,13 +171,18 @@
   controlling whether login shows a full directory every time or just
   what's posted since player.last_connection. commands/connect.py calls
   into news.py directly to build the login-time display.
-  - Admin post/edit authoring in commands/news.py currently uses a plain
-    'END'-terminated multi-line prompt (same convention as
-    threaded_messages.py's create_new_thread()), not a real line editor.
-    Swap this out for the real thing once the `text_editor` branch
-    (remotes/origin/text_editor: server/text_editor/{text_editor,
-    dot_commands, functions, ctrl_functions}.py -- an ed-style line buffer
-    with dot-commands) is merged into master.
+  - DONE (7/18/26): Admin post/edit authoring now uses text_editor.py's
+    run_editor() (a real ed/Image-BBS-style dot-command line editor, ported
+    from Ryan's own from-scratch gist design, not the never-merged
+    `text_editor` branch -- that branch turned out to be missing this work
+    entirely). 'body' is stored as formatting.serialize_lines()'s output
+    (structured Line dicts -- Justification/Border as metadata) rather than
+    pre-rendered strings, so news.py's format_item() re-renders each item
+    per-viewer at their own screen width/terminal type via
+    formatting.render_lines()/deserialize_lines() instead of a
+    centered/bordered post being frozen at the author's screen width
+    forever. Old-format plain-string bodies still load fine (migrated to
+    unformatted Lines on read).
   - Fixed a real bug found while building this: Player._load() never
     restored last_connection from the save file (only __init__'s
     kwargs.get(..., datetime.now()) default applied), so it always read
@@ -653,3 +658,83 @@
   the other player-facing date displays (birthdays in editplayer.py/
   new_player.py, ban.py's suspension date) still use their own hardcoded
   formatting and are a follow-up to switch over to the same helper.
+
+7/18/26:
+- text_editor.py: un-border command (Ryan): `.B` tags a line range with
+  Border and inserts synthetic TOP/BOTTOM rule lines, but there's no
+  inverse -- once boxed, always boxed (short of `.D`eleting the rule
+  lines by hand, which leaves the content lines' `.border` still set).
+  Should clear `.border` on the range's content lines and remove the
+  matching TOP/BOTTOM markers.
+- text_editor.py: justification of bordered lines (Ryan asked to look
+  into this). Checked directly -- the box-then-justify order is already
+  correct: `_render_buffer_lines()` applies each content Line's own
+  `_justify_text()` at the box's *inner* width before handing the result
+  to `formatting.make_box()`, so `.J c <range>` on a boxed line does
+  center correctly (verified: `.j c 2` on a boxed "hi" renders
+  `'│        hi        │'`). What actually reproduces "justification
+  doesn't seem to take effect" is a separate, real gap: `.J <mode>` with
+  *no* range doesn't touch the line(s) on screen at all -- per
+  `_cmd_justify()`'s own design, no range means "set the default
+  justification for lines typed from here on," not "apply to whatever
+  I'm looking at." Typing `.j c` right after `.b`, expecting it to
+  center the box just made, silently does nothing visible. Worth
+  reconsidering that default -- e.g. falling back to `DefaultLineRange.
+  LAST_LINE` (matching `.D`/`.E`'s own no-range behavior) instead of the
+  future-lines-only interpretation -- but that's a real behavior change,
+  not just a bugfix, so flagging here rather than changing unasked.
+
+7/19/26:
+- board.py: SIGs (Special Interest Groups) -- multiple named/gated boards
+  instead of today's single global one (Ryan's idea; design below is my
+  attempt to fill in the pieces he didn't get to before signing off for
+  the night -- none of this is decided, just scoped for a future pass).
+  - **Data model**: a SIG is `{id, name, description, gate}`, stored
+    alongside threads (`run/server/board.json` gains a top-level `sigs`
+    list; each thread gains a `sig_id` field). Today's single board
+    becomes a default `sig_id=1 "General"` SIG on first load, so existing
+    threads aren't orphaned -- a one-time migration in `load_board()`,
+    same spirit as `news.py`'s old-format-body migration
+    (`deserialize_lines()` accepting plain strings).
+  - **Gate model**: `gate` is a small structured value, not just one
+    flag -- something like `{"type": "open"}` / `{"type": "flag",
+    "flag": "ADMIN"}` / `{"type": "flag", "flag": "DUNGEON_MASTER"}` /
+    `{"type": "guild", "guild": "FIST"}` (checked against
+    `player.guild`, `base_classes.Guild` -- FIST/SWORD/CLAW/OUTLAW/
+    CIVILIAN, see `player.py:245`). A list of gates (any-match, i.e. OR)
+    covers "Admins and Dungeon Masters both get in" without a combinator
+    language. `_is_privileged()` in `commands/board.py` already exists
+    for the Admin/DM check and generalizes easily; guild-gating is new.
+  - **Who can create/edit a SIG**: Admin-only to start (creating a new
+    SIG changes what every player sees in the top-level listing, so it's
+    not a per-thread-author decision like `board post`'s anonymous
+    toggle is) -- a `board sig new` / `board sig edit <id>` pair,
+    prompting for name, description, and gate (probably a small menu:
+    "[O]pen to everyone, [A]dmin only, [D]M only, [G]uild-specific" then
+    a guild picker off `base_classes.Guild` for the last one). Whether a
+    SIG's own *creator* (not necessarily an Admin, if this ever opens up
+    to guild leaders) should be allowed to edit their own SIG is an open
+    question -- starting Admin-only sidesteps it for now.
+  - **Command surface changes**: bare `board` becomes a SIG picker (list
+    of SIGs the player's gate check passes, like `whereat`'s privileged-
+    viewer check pattern) rather than a straight thread listing; `board
+    <sig>` lists threads within one SIG (SIGs the player's gate check
+    fails are simply left off the picker, not shown-but-blocked).
+    Existing verbs (`post`/`reply <id>`/`delete <id>`/`rn`/`ld`) all need
+    a SIG argument or a "current SIG" concept threaded through the
+    session somehow -- unresolved which is better.
+  - **`board rn`/`board ld` scope**: today's `command_settings.board.
+    last_date` is a single global threshold. Per-SIG activity probably
+    wants a per-SIG threshold instead (`last_date_by_sig: dict[str,
+    str]` on `BoardSettings`) so reading all of "General" doesn't also
+    silently mark a Dungeon-Master-only SIG's threads as read. Simpler
+    alternative: keep one global threshold and accept that it's coarse --
+    revisit once real usage shows whether that's actually annoying.
+  - **Anonymous posting per-SIG**: should a strictly-gated SIG (Admin/DM
+    only) even offer the anonymous option `board post` already asks
+    every poster? Arguably not -- a small trusted-membership SIG is
+    exactly where "who said this" matters most. Worth a per-SIG
+    `allow_anonymous: bool` on the SIG record rather than a global
+    on/off.
+  - Not attempted at all yet: nothing has been coded for this, this is
+    purely a scoped design note for whenever it's picked up.

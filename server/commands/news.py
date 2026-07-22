@@ -14,11 +14,10 @@ Login-time display ("what's new since you last logged in") is handled by
 commands/connect.py, which calls the same news.py helpers this command uses
 so the two stay in sync.
 
-Post authoring here is a plain END-terminated multi-line prompt (same
-convention as threaded_messages.py's create_new_thread()) rather than the
-real line-editor in the not-yet-merged `text_editor` branch
-(server/text_editor/*.py) -- swap this out once that branch lands. See
-TODO.md.
+Post/edit authoring uses text_editor.run_editor() -- the ctx-aware
+ed-style line editor ported from the `text_editor` branch (see that
+module's own docstring for what was kept vs. rebuilt). Only NEWS uses it
+so far; threaded_messages.py is a separate, not-yet-ported prototype.
 """
 from __future__ import annotations
 
@@ -29,7 +28,8 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
 import news as news_store
-from formatting import hrule_char, make_rule
+from formatting import deserialize_lines, hrule_char, make_rule
+from text_editor import run_editor
 
 log = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ class NewsCommand(Command):
             await ctx.send('No such news item.')
             return CommandResult.fail('Unknown news item.', error='not_found')
 
-        await ctx.send([''] + news_store.format_item(item) + [''])
+        await ctx.send([''] + news_store.format_item(item, ctx) + [''])
 
         if item.get('lifetime') == 'once':
             news_store.mark_seen(item, ctx.player.name)
@@ -165,19 +165,34 @@ class NewsCommand(Command):
         if not title or not title.strip():
             await ctx.send('Cancelled — no title given.')
             return CommandResult.fail('No title.', error='missing_title')
+        title = title.strip()
+
+        items = news_store.load_news()
+        resolved = await self._resolve_duplicate_title(ctx, items, title)
+        if resolved is None:
+            await ctx.send('Cancelled.')
+            return CommandResult.fail('Cancelled.', error='cancelled')
+        if isinstance(resolved, int):
+            # Admin chose to edit the existing item with this title instead
+            # of posting a new, duplicate one.
+            return await self._edit(ctx, str(resolved))
+        title = resolved
 
         lifetime = await self._pick_lifetime(ctx)
         if lifetime is None:
             await ctx.send('Cancelled.')
             return CommandResult.fail('Cancelled.', error='cancelled')
 
-        await ctx.send("Enter the news body. Type 'END' alone on a line to finish.")
-        body = await self._read_body(ctx)
+        await ctx.send('Enter the news body.')
+        body = await run_editor(ctx)
+        if body is None:
+            await ctx.send('Cancelled.')
+            return CommandResult.fail('Cancelled.', error='cancelled')
 
         items = news_store.load_news()
         item = {
             'id':         news_store.next_id(items),
-            'title':      title.strip(),
+            'title':      title,
             'body':       body,
             'author':     ctx.player.name,
             'posted_at':  datetime.datetime.now().isoformat(),
@@ -224,10 +239,9 @@ class NewsCommand(Command):
                 item.pop('start_date', None)
                 item.pop('end_date', None)
 
-        await ctx.send("Enter the new body ('END' alone to finish), or type END "
-                       "immediately to keep the current text.")
-        body = await self._read_body(ctx)
-        if body:
+        await ctx.send("Enter the new body, or '.a' to abort and keep the current text.")
+        body = await run_editor(ctx, initial_lines=deserialize_lines(item.get('body', [])))
+        if body is not None:
             item['body'] = body
 
         news_store.save_news(items)
@@ -259,6 +273,42 @@ class NewsCommand(Command):
     # ------------------------------------------------------------------
     # Authoring helpers
     # ------------------------------------------------------------------
+
+    async def _resolve_duplicate_title(self, ctx, items: list[dict], title: str) -> int | str | None:
+        """Check *title* against existing items (case-insensitive) before
+        posting a new one. Returns:
+          - a str: the title to actually post with (unchanged, or a new
+            one the admin picked after being warned)
+          - an int: the id of an existing item the admin chose to edit
+            instead of creating a duplicate
+          - None: the admin cancelled
+
+        Loops so picking a *new* title that's *also* a duplicate re-prompts
+        instead of silently sneaking a second collision through.
+        """
+        while True:
+            existing = next(
+                (it for it in items if it.get('title', '').strip().lower() == title.lower()),
+                None,
+            )
+            if existing is None:
+                return title
+
+            raw = await ctx.prompt(
+                f"A news item titled '{existing.get('title', '')}' already exists "
+                f"(#{existing['id']}). [E]dit it, [C]hange this title, or "
+                f"{ctx.player.return_key} to abort",
+            )
+            choice = (raw or '').strip().lower()[:1]
+            if choice == 'e':
+                return existing['id']
+            if choice == 'c':
+                new_title = await ctx.prompt('New title')
+                if not new_title or not new_title.strip():
+                    return None
+                title = new_title.strip()
+                continue
+            return None
 
     async def _pick_lifetime(self, ctx, allow_skip: bool = False) -> dict | None:
         from parse_date import parse_date_range
@@ -294,13 +344,3 @@ class NewsCommand(Command):
 
         await ctx.send("Didn't understand that — defaulting to 'permanent'.")
         return {'lifetime': 'permanent'}
-
-    async def _read_body(self, ctx) -> list[str]:
-        """Multi-line body entry, terminated by a lone 'END' line."""
-        lines: list[str] = []
-        while True:
-            raw = await ctx.prompt('')
-            if raw is None or raw.strip().upper() == 'END':
-                break
-            lines.append(raw)
-        return lines
