@@ -1,11 +1,12 @@
-"""tests/commands/test_look_examine.py
+"""tests/commands/test_examine.py
 
-Covers commands/look.py's EXAMINE flavor text (SPUR.MISC3.S exam.a/exam2/
-exam3):
+Covers commands/examine.py's EXAMINE flavor text (SPUR.MISC3.S exam.a/exam2/
+exam3), moved here from commands/look.py (LOOK now only gives a plain
+description -- Ryan's request):
 
   - Items with data-authored "examine" text (objects.json/weapons.json/
     rations.json) always show it -- New in TADA, Ryan's request: this text
-    used to live in an if-chain keyed off item name/kind in look.py itself.
+    used to live in an if-chain keyed off item name/kind.
   - Magic weapons (weapons.json kind=="magic") and cursed treasures
     (objects.json type=="cursed") without their own "examine" override go
     through exam2's skill roll (60% success) and one-shot "already
@@ -16,7 +17,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from commands.look import LookCommand, _examine_item, _raw_item_data
+from commands.examine import ExamineCommand, _examine_item, _raw_item_data
 from inventory import Inventory, InventoryEntry
 from items import Item, ItemCategory, Rations, Weapon
 from player import Player
@@ -24,15 +25,21 @@ from player import Player
 
 class _FakeServer:
     def __init__(self, items=None, weapons=None, rations=None):
-        self.items   = items or []
-        self.weapons = weapons or []
-        self.rations = rations or []
+        self.items    = items or []
+        self.weapons  = weapons or []
+        self.rations  = rations or []
+        self.game_map = None
+
+
+class _FakeClient:
+    room = None
 
 
 class _FakeCtx:
     def __init__(self, player, server):
         self.player = player
         self.server = server
+        self.client = _FakeClient()
         self.sent: list = []
 
     async def send(self, *args):
@@ -220,7 +227,7 @@ class TestExamineOrdinaryFallback(unittest.TestCase):
 class TestExamineStatue(unittest.TestCase):
     """A room statue (commands/get.py's is_statue pseudo-item, set by
     statues.py's add_statue()) isn't a real objects.json entry -- no
-    id_number for _raw_item_data() to find -- so LOOK/EXAMINE special-cases
+    id_number for _raw_item_data() to find -- so EXAMINE special-cases
     it (Ryan's request) to name the petrified player and the monster
     responsible, rather than falling through to the generic "It looks
     pretty ordinary.." default."""
@@ -249,11 +256,11 @@ class TestExamineStatue(unittest.TestCase):
         self.assertIn('Unknown', text)
 
 
-class TestLookCommandIntegration(unittest.IsolatedAsyncioTestCase):
-    """End-to-end: 'look <item>' against an inventory item uses the new
+class TestExamineCommandIntegration(unittest.IsolatedAsyncioTestCase):
+    """End-to-end: 'examine <item>' against an inventory item uses the
     data-driven examine text."""
 
-    async def test_look_at_inventory_item_shows_examine_text(self):
+    async def test_examine_inventory_item_shows_examine_text(self):
         server = _FakeServer(items=[
             {'number': 41, 'name': 'gold rose', 'type': 'treasure',
              'examine': 'It looks VERY valuable, but beware the thorns!'},
@@ -263,8 +270,14 @@ class TestLookCommandIntegration(unittest.IsolatedAsyncioTestCase):
         player.inventory.add(item)
         ctx = _FakeCtx(player, server)
 
-        await LookCommand().execute(ctx, 'gold', 'rose')
+        await ExamineCommand().execute(ctx, 'gold', 'rose')
         self.assertIn('It looks VERY valuable, but beware the thorns!', ctx.sent)
+
+    async def test_examine_no_target_reports_empty_area(self):
+        player = _player()
+        ctx = _FakeCtx(player, _FakeServer())
+        await ExamineCommand().execute(ctx)
+        self.assertIn('This area is empty..', ctx.sent)
 
 
 if __name__ == '__main__':

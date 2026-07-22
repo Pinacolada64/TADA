@@ -177,9 +177,9 @@ class TestGetCommandHook(unittest.IsolatedAsyncioTestCase):
         ctx.player.inventory.add.assert_not_called()  # never added as an inventory item
 
 
-class TestLookCommandHook(unittest.IsolatedAsyncioTestCase):
-    async def test_look_examines_room_item_before_pickup(self):
-        from commands.look import LookCommand
+class TestExamineCommandHook(unittest.IsolatedAsyncioTestCase):
+    async def test_examine_examines_room_item_before_pickup(self):
+        from commands.examine import ExamineCommand
 
         ctx = MagicMock()
         ctx.player = _FakePlayer()
@@ -197,7 +197,7 @@ class TestLookCommandHook(unittest.IsolatedAsyncioTestCase):
         orig = get_mod._room_available_items
         get_mod._room_available_items = lambda c: [("Tut's Treasure", entry, lambda: None)]
         try:
-            await LookCommand().execute(ctx, "tut's", "treasure")
+            await ExamineCommand().execute(ctx, "tut's", "treasure")
         finally:
             get_mod._room_available_items = orig
 

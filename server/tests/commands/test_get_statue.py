@@ -12,11 +12,13 @@ wherever that monster is present in a room, alive or dead):
   - GETting it always fails with "THE STATUE IS MUCH TOO HEAVY!" --
     never added to inventory, never removed from the room (it's
     permanent, unlike every other GET special case in this file).
-  - 'look statue' / 'examine statue' / 'read statue' all show the same
-    plaque flavor text naming the petrified victim and the monster
-    responsible -- see tests/commands/test_look_examine.py's
+  - 'examine statue' / 'read statue' both show the same plaque flavor
+    text naming the petrified victim and the monster responsible --
+    'look statue' just gives the generic plain description now (the
+    flavor text moved from commands/look.py to commands/examine.py,
+    Ryan's request) -- see tests/commands/test_examine.py's
     TestExamineStatue for the lower-level _examine_item() unit tests;
-    this file covers the full LookCommand/ReadCommand round trip.
+    this file covers the full ExamineCommand/ReadCommand round trip.
 """
 from __future__ import annotations
 
@@ -27,7 +29,7 @@ from unittest.mock import MagicMock
 from base_classes import PlayerStat
 from combat.engine import _record_statue
 from commands.get import GetCommand, _room_available_items
-from commands.look import LookCommand
+from commands.examine import ExamineCommand
 from commands.read import ReadCommand
 from inventory import Inventory
 from player import Player
@@ -163,14 +165,14 @@ class TestGetStatue(_IsolatedMemorialFileTest, unittest.IsolatedAsyncioTestCase)
         self.assertIn('a statue', names)
 
 
-class TestLookStatue(_IsolatedMemorialFileTest, unittest.IsolatedAsyncioTestCase):
+class TestExamineStatueCommand(_IsolatedMemorialFileTest, unittest.IsolatedAsyncioTestCase):
 
-    async def test_look_statue_shows_plaque_text(self):
+    async def test_examine_statue_shows_plaque_text(self):
         _record_statue('MEDUSA', 'Alice')
         p = _player()
         ctx = _FakeCtx(p, _server_with_medusa())
 
-        await LookCommand().execute(ctx, 'statue')
+        await ExamineCommand().execute(ctx, 'statue')
 
         self.assertIn(
             'You inspect the statue of Alice. At the base is a small '
@@ -178,13 +180,13 @@ class TestLookStatue(_IsolatedMemorialFileTest, unittest.IsolatedAsyncioTestCase
             ctx._flat(),
         )
 
-    async def test_look_statue_shows_oldest_victim_only(self):
+    async def test_examine_statue_shows_oldest_victim_only(self):
         _record_statue('MEDUSA', 'Alice')
         _record_statue('MEDUSA', 'Bilbo')
         p = _player()
         ctx = _FakeCtx(p, _server_with_medusa())
 
-        await LookCommand().execute(ctx, 'statue')
+        await ExamineCommand().execute(ctx, 'statue')
 
         self.assertIn('statue of Alice', ctx._flat())
         self.assertNotIn('statue of Bilbo', ctx._flat())
