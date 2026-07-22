@@ -452,6 +452,13 @@ class Editor:
                           "  .r 2-4  Read lines 2 through 4"),
             DotCommand('s', 'Save Text', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_save,
                 help_text='Save your changes and leave the editor.'),
+            DotCommand('u', 'Un-border', DefaultLineRange.ALL_LINES, CommandFlags.ACCEPT_LINE_RANGE, _cmd_unborder,
+                help_text="Inverse of .B: remove a box from a line range. Un-boxing an "
+                          "entire box removes its top/bottom rule lines too; un-boxing "
+                          "only part of one leaves the rest of the outline in place.\n\n"
+                          "Examples:\n"
+                          "  .u        Un-box the whole buffer\n"
+                          "  .u 1-3    Un-box lines 1-3"),
             DotCommand('v', 'Version', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_version,
                 help_text="Show the editor's version."),
             DotCommand('#', 'Scale', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_scale,
@@ -886,9 +893,9 @@ async def _cmd_justify(editor: 'Editor', arg: str) -> Optional[str]:
     return None
 
 
-# TODO(Ryan, 7/18/26, see TODO.md): no inverse of .B yet -- an un-border
-# command should clear .border off the range's content lines and remove
-# the matching TOP/BOTTOM markers. Also: .J with no range only sets the
+# [DONE 7/22/26] .B's inverse is now .U (_cmd_unborder, below _cmd_border).
+#
+# TODO(Ryan, 7/18/26, see TODO.md): .J with no range only sets the
 # default justification for *future* typed lines (see _cmd_justify below),
 # not whatever's on screen -- typing '.j c' right after '.b' to center the
 # box you just made does nothing visible. Justification of already-boxed
@@ -935,6 +942,78 @@ async def _cmd_border(editor: 'Editor', arg: str) -> Optional[str]:
     rendered = render_lines(buffer.lines, editor.ctx, editor.column_width)
     preview = range(indices[0], indices[0] + len(indices) + 2)
     await editor.ctx.send([rendered[i] for i in preview])
+    return None
+
+
+async def _cmd_unborder(editor: 'Editor', arg: str) -> Optional[str]:
+    """Inverse of .B: clears the Border tag off a range's content lines
+    and removes the adjacent synthetic TOP/BOTTOM marker lines .B
+    inserted, but only once they're no longer guarding any bordered
+    content -- see _is_role()'s use below.
+
+    Un-bordering only *part* of a box (its first, last, or a middle
+    line) leaves the rest of the box's TOP/BOTTOM markers in place,
+    since some of its content is still bordered; only a full-range
+    unborder (the common case, and .U's default with no range) actually
+    removes the box outline.
+    """
+    buffer = editor.buffer
+    if not buffer.lines:
+        await editor.ctx.send('(buffer is empty)')
+        return None
+
+    line_range = process_line_range_string(arg.strip(), buffer, DefaultLineRange.ALL_LINES)
+    indices = list(buffer.line_slice(line_range))
+    if not indices:
+        return None
+
+    bordered = [i for i in indices
+                if buffer.lines[i].border is not None
+                and buffer.lines[i].border.role == BorderRole.CONTENT]
+    if not bordered:
+        await editor.ctx.send('(no bordered lines in that range)')
+        return None
+
+    editor.checkpoint()
+
+    # Determine before clearing anything -- clearing .border on the
+    # content lines would otherwise change what "adjacent bordered
+    # content" means for this same check.
+    #
+    # A marker is only orphaned -- safe to remove -- if the range being
+    # cleared reaches all the way to it AND there's no bordered content
+    # left on the *other* side still relying on it. Un-boxing just the
+    # first line of a multi-line box, for example, sits right up against
+    # the real TOP marker, but the box's remaining (still-bordered)
+    # content past `after` still needs that TOP -- checking only "is
+    # `before` a TOP marker" without also checking `after` would remove
+    # it anyway and leave that remaining content orphaned instead.
+    before = bordered[0] - 1
+    after  = bordered[-1] + 1
+
+    def _is_role(i: int, role: BorderRole) -> bool:
+        return 0 <= i < len(buffer.lines) and buffer.lines[i].border is not None \
+            and buffer.lines[i].border.role == role
+
+    remove_top    = _is_role(before, BorderRole.TOP) and not _is_role(after, BorderRole.CONTENT)
+    remove_bottom = _is_role(after, BorderRole.BOTTOM) and not _is_role(before, BorderRole.CONTENT)
+
+    for i in bordered:
+        buffer.lines[i].border = None
+
+    # Render at the still-current indices before any deletion shifts them
+    # -- removing `before` (lower than every index in `bordered`) would
+    # otherwise invalidate them for the send() below.
+    rendered = [buffer.lines[i].render(editor.column_width) for i in bordered]
+
+    # Highest index first so removing one doesn't shift the other's index.
+    if remove_bottom:
+        del buffer.lines[after]
+    if remove_top:
+        del buffer.lines[before]
+
+    buffer.current_line = min(buffer.current_line, max(buffer.used_lines, 1))
+    await editor.ctx.send(rendered)
     return None
 
 

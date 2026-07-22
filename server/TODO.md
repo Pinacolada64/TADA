@@ -670,12 +670,18 @@
   formatting and are a follow-up to switch over to the same helper.
 
 7/18/26:
-- text_editor.py: un-border command (Ryan): `.B` tags a line range with
-  Border and inserts synthetic TOP/BOTTOM rule lines, but there's no
-  inverse -- once boxed, always boxed (short of `.D`eleting the rule
-  lines by hand, which leaves the content lines' `.border` still set).
-  Should clear `.border` on the range's content lines and remove the
-  matching TOP/BOTTOM markers.
+- [DONE 7/22/26] text_editor.py: un-border command (Ryan): `.B` tags a
+  line range with Border and inserts synthetic TOP/BOTTOM rule lines,
+  but there's no inverse -- once boxed, always boxed (short of
+  `.D`eleting the rule lines by hand, which leaves the content lines'
+  `.border` still set). Should clear `.border` on the range's content
+  lines and remove the matching TOP/BOTTOM markers. Built as `.U`
+  (`_cmd_unborder`, right after `_cmd_border`) -- a marker is only
+  removed once nothing on *either* side of the cleared range still
+  needs it (un-boxing just the first or last line of a multi-line box
+  leaves the rest of its outline in place, not just a middle-line
+  partial clear). 7 new tests in `TestUnborder`
+  (`tests/test_text_editor.py`).
 - text_editor.py: justification of bordered lines (Ryan asked to look
   into this). Checked directly -- the box-then-justify order is already
   correct: `_render_buffer_lines()` applies each content Line's own

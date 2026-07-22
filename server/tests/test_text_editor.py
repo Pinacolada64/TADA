@@ -558,6 +558,64 @@ class TestBorder(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(wide[0]), 30)
 
 
+class TestUnborder(unittest.IsolatedAsyncioTestCase):
+    """.U -- the inverse of .B (text_editor.py's [DONE 7/22/26] TODO)."""
+
+    async def test_unborder_whole_buffer_removes_top_and_bottom(self):
+        ctx = _make_ctx(['.b', '.u', '.s'], screen_columns=10)
+        result = await run_editor(ctx, initial_lines=['hi', 'there'])
+        self.assertEqual(_texts(result), ['hi', 'there'])
+        self.assertEqual(len(result), 2)  # top/bottom markers gone
+
+    async def test_unborder_clears_border_metadata_on_content_lines(self):
+        ctx = _make_ctx(['.b', '.u', '.s'], screen_columns=10)
+        result = await run_editor(ctx, initial_lines=['hi'])
+        self.assertIsNone(result[0].get('border'))
+
+    async def test_unborder_specific_range(self):
+        # After '.b 1-2' the buffer is [TOP, hi, there, BOTTOM] (1-indexed
+        # lines 1-4) -- the content lines to un-border are now 2-3.
+        ctx = _make_ctx(['.b 1-2', '.u 2-3', '.s'], screen_columns=10)
+        result = await run_editor(ctx, initial_lines=['hi', 'there'])
+        self.assertEqual(_texts(result), ['hi', 'there'])
+
+    async def test_partial_unborder_leaves_markers_for_remaining_content(self):
+        """Un-boxing only the first of two boxed lines shouldn't remove
+        the TOP marker (line 'there' is still boxed and needs it) or the
+        BOTTOM marker (still guarding 'there'). After '.b' the buffer is
+        [TOP, hi, there, BOTTOM] (1-indexed lines 1-4) -- 'hi' is line 2."""
+        ctx = _make_ctx(['.b', '.u 2', '.s'], screen_columns=10)
+        result = await run_editor(ctx, initial_lines=['hi', 'there'])
+        # top, hi (unboxed), there (still boxed), bottom
+        self.assertEqual(len(result), 4)
+        self.assertIsNone(result[1].get('border'))
+        self.assertIsNotNone(result[2].get('border'))
+
+    async def test_partial_unborder_of_last_line_leaves_markers_for_first(self):
+        """Symmetric case: un-boxing only the *last* of two boxed lines
+        shouldn't remove the BOTTOM marker (still guarding 'hi') or the
+        TOP marker (still guarding 'hi'). After '.b' the buffer is
+        [TOP, hi, there, BOTTOM] (1-indexed lines 1-4) -- 'there' is
+        line 3. This is the case the naive "only check the one adjacent
+        side" version of the fix would still get wrong the other way."""
+        ctx = _make_ctx(['.b', '.u 3', '.s'], screen_columns=10)
+        result = await run_editor(ctx, initial_lines=['hi', 'there'])
+        self.assertEqual(len(result), 4)
+        self.assertIsNotNone(result[1].get('border'))
+        self.assertIsNone(result[2].get('border'))
+
+    async def test_unborder_on_unboxed_buffer_reports_nothing_to_do(self):
+        ctx = _make_ctx(['.u', '.s'], screen_columns=10)
+        result = await run_editor(ctx, initial_lines=['hi'])
+        self.assertIn('no bordered lines', _sent_text(ctx).lower())
+        self.assertEqual(_texts(result), ['hi'])
+
+    async def test_unborder_empty_buffer(self):
+        ctx = _make_ctx(['.u', '.s'], screen_columns=10)
+        result = await run_editor(ctx, initial_lines=[])
+        self.assertIn('buffer is empty', _sent_text(ctx).lower())
+
+
 def _make_real_settings_ctx(responses, translation, border_style='single', screen_columns=20):
     """Like _make_ctx(), but with a real terminal.ClientSettings object
     instead of a bare MagicMock -- needed to actually exercise
