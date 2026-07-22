@@ -383,6 +383,15 @@ class DuelSession:
 
         shield = int(getattr(attacker, 'shield', 0) or 0)
         success_chance += shield // 10  # a shield helps you shove, per tips.txt's shield-scaling flavor
+        # TODO: success_chance only factors the shield's condition rating.
+        # A shove-to-the-ground move like this should plausibly also weigh
+        # STR (PlayerStat.STR -- raw shoving power) and DEX (PlayerStat.DEX
+        # -- balance/agility, both attacker's chance to stay upright after
+        # overextending and defender's chance to keep their footing) the
+        # way _absorb_shield_armor()'s shield_thresh above already folds in
+        # shield_proficiency via shield_exp_bonus() (attacker.shield_proficiency,
+        # keyed by attacker.active_shield_id) as a trained-skill bonus. None
+        # of STR/DEX/shield_proficiency are read here yet.
 
         if random.randint(1, 100) <= max(10, min(90, success_chance)):
             opp.down = True

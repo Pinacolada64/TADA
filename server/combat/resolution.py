@@ -699,6 +699,12 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False) -> Mo
     raw += (8 - ma)                      # bigger monsters hit harder
 
     # Shield block (SPUR lines 269-286)
+    # TODO: shield_thresh weighs the shield's condition rating and trained
+    # shield_proficiency (via shield_exp_bonus()) but never PlayerStat.STR
+    # or PlayerStat.DEX -- raw arm strength holding a shield steady, and
+    # agility keeping it positioned in time to block, both plausibly belong
+    # here too. combat/duel.py's _resolve_bash() has the same gap for its
+    # shield-bash tactic. Neither is read yet.
     shield           = int(getattr(player, 'shield', 0) or 0)
     shield_blocked   = 0
     shield_degraded  = 0

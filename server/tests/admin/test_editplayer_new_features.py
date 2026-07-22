@@ -135,6 +135,34 @@ class TestArmorShieldMenu(unittest.IsolatedAsyncioTestCase):
         await _find_item(menu, 'Armor').action(ctx)
         self.assertEqual(player.armor, 10)
 
+    async def test_set_shield_skill(self):
+        player = _FakePlayer()
+        player.active_shield_id = 4
+        player.shield_proficiency = {}
+        ctx = _FakeCtx(responses=['30'], player=player)
+        menu = _armor_shield_menu(ctx)
+        await _find_item(menu, 'Shield Skill').action(ctx)
+        self.assertEqual(player.shield_proficiency, {'4': 30})
+        self.assertTrue(player.unsaved_changes)
+
+    async def test_shield_skill_requires_equipped_shield(self):
+        player = _FakePlayer()
+        player.active_shield_id = None
+        ctx = _FakeCtx(responses=['30'], player=player)
+        menu = _armor_shield_menu(ctx)
+        await _find_item(menu, 'Shield Skill').action(ctx)
+        self.assertFalse(player.unsaved_changes)
+        self.assertIn('No shield equipped -- shield skill has nothing to attach to.', ctx.sent)
+
+    async def test_shield_skill_dot_leader_shows_current_shield_value(self):
+        player = _FakePlayer()
+        player.active_shield_id = 4
+        player.shield_proficiency = {'4': 17}
+        ctx = _FakeCtx(player=player)
+        menu = _armor_shield_menu(ctx)
+        item = _find_item(menu, 'Shield Skill')
+        self.assertEqual(item.dot_leader_handler(ctx), '17')
+
 
 # ---------------------------------------------------------------------------
 # Map Information
@@ -573,6 +601,34 @@ class TestStatisticsExperience(unittest.IsolatedAsyncioTestCase):
         menu = _statistics_menu(ctx)
         item = _find_item(menu, 'Experience')
         self.assertEqual(item.dot_leader_handler(ctx), 'L3 / 42')
+
+
+class TestStatisticsHonor(unittest.IsolatedAsyncioTestCase):
+
+    async def test_set_honor(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['1800'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Honor').action(ctx)
+        self.assertEqual(player.honor, 1800)
+        self.assertTrue(player.unsaved_changes)
+        self.assertIn('Honor set to 1800 (Saintly).', ctx.sent)
+
+    async def test_cancel_leaves_honor_unchanged(self):
+        player = _FakePlayer()
+        player.honor = 1000
+        ctx = _FakeCtx(responses=[''], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Honor').action(ctx)
+        self.assertEqual(player.honor, 1000)
+
+    async def test_dot_leader_shows_honor(self):
+        player = _FakePlayer()
+        player.honor = 750
+        ctx = _FakeCtx(player=player)
+        menu = _statistics_menu(ctx)
+        item = _find_item(menu, 'Honor')
+        self.assertEqual(item.dot_leader_handler(ctx), '750')
 
 
 class TestStatisticsMoves(unittest.IsolatedAsyncioTestCase):
