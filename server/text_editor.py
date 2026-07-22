@@ -55,15 +55,20 @@ what changed:
     instead of guessing "edit the last line."
 
 Not ported (out of scope for this pass, left as TODO.md follow-ups):
-  - .T Tagline, .Q(uoter) reply-quoting a prior message -- both were only
-    loose module-level functions in the gist, never wired into either
-    dispatch table. Reply-quoting is instead handled one layer up, by
-    whatever caller composes a reply (see board.py's build_quote_preamble()):
-    it shows the quoted text as its own titled box via
-    formatting.titled_box() *before* opening the editor on a fresh buffer,
-    rather than seeding quoted lines into the buffer itself -- simpler
-    than teaching this module a whole embedded-quoted-content concept for
-    one caller. LineFlag.QUOTE remains unused/reserved for now.
+  - .T Tagline -- was only a loose module-level function in the gist,
+    never wired into either dispatch table.
+  - .Q(uoter) reply-quoting IS wired up, just one layer up rather than
+    as a dot-command here: commands/board_reply.py's _reply_with_quote()
+    seeds run_editor()'s initial_lines with the quoted text (plus a
+    "<author> wrote:" attribution line), each tagged LineFlag.QUOTE.
+    Every place this module skips LineFlag.IMMUTABLE lines (.E Edit/
+    Delete/Search&Replace/Justify/Move/Copy -- see each one's own
+    docstring) treats QUOTE the same way: any non-MUTABLE line is
+    protected, so a reply can't be edited into claiming the original
+    poster said something they didn't (Ryan's explicit call). A preview
+    of the quote is also shown as a titled box (formatting.titled_box())
+    before the editor opens, so the player sees it and confirms it
+    before it's committed to the buffer.
   - Full-screen editing via raw keystrokes (Ryan's "capture raw keystrokes
     from a socket... blessed?" idea) -- the Cursor class is kept as a
     forward-compatible stub for this, but there's no raw-keystroke
@@ -547,7 +552,7 @@ async def _cmd_delete(editor: 'Editor', arg: str) -> Optional[str]:
         return None
     line_range = process_line_range_string(arg, buffer, DefaultLineRange.LAST_LINE)
     indices = list(buffer.line_slice(line_range))
-    deletable = [i for i in indices if buffer.lines[i].line_flag != LineFlag.IMMUTABLE]
+    deletable = [i for i in indices if buffer.lines[i].line_flag == LineFlag.MUTABLE]
     skipped = len(indices) - len(deletable)
     if deletable:
         editor.checkpoint()
@@ -565,9 +570,12 @@ _EDIT_SUBCOMMANDS = ('m', 'c', 'l', 'u', 'r', 's')
 
 
 async def _cmd_edit(editor: 'Editor', arg: str) -> Optional[str]:
-    """LineFlag.IMMUTABLE lines are skipped entirely, not just left
-    unchanged -- see the module docstring's note on the not-yet-built
-    reply-quoting feature this is meant to support eventually.
+    """Any non-MUTABLE line (IMMUTABLE or QUOTE) is skipped entirely, not
+    just left unchanged -- QUOTE is what commands/board_reply.py seeds a
+    quoted message's lines with when composing a threaded-board reply,
+    so the quote can't be edited into something the original poster
+    never actually said (see that module and formatting.py's Line for
+    the real, wired-up use of this, not just a reserved-for-later flag).
 
     Subcommands ('.e m'/'c'/'l'/'u'/'r'/'s') are dispatched here rather
     than through DOT_CMD_TABLE itself -- CommandFlags.ACCEPT_SUBCOMMAND
@@ -621,7 +629,7 @@ async def _cmd_edit(editor: 'Editor', arg: str) -> Optional[str]:
     checkpointed = False
     for i in buffer.line_slice(line_range):
         line = buffer.lines[i]
-        if line.line_flag == LineFlag.IMMUTABLE:
+        if line.line_flag != LineFlag.MUTABLE:
             await editor.ctx.send(f'Line {i + 1} is immutable, skipping.')
             continue
         raw = await editor.ctx.prompt(f'{i + 1}: {line.text}')
@@ -639,8 +647,8 @@ async def _cmd_edit_move_or_copy(editor: 'Editor', rest: str, move: bool) -> Opt
     """Shared implementation for '.E m'ove and '.E c'opy: <range>
     <destination>, destination being the line number to insert before
     (1 to used_lines+1, the latter meaning "at the very end"). Move
-    removes the source lines (skipping any LineFlag.IMMUTABLE ones, same
-    as .D Delete); copy duplicates them via copy.deepcopy() -- Line and
+    removes the source lines (skipping any non-MUTABLE ones, same as .D
+    Delete); copy duplicates them via copy.deepcopy() -- Line and
     Border are both dataclasses, so two Lines must never share one
     mutable Border instance. Prompts interactively for whichever of
     <range>/<destination> wasn't already given on the command line --
@@ -674,7 +682,7 @@ async def _cmd_edit_move_or_copy(editor: 'Editor', rest: str, move: bool) -> Opt
 
     source_indices = list(buffer.line_slice(line_range))
     if move:
-        selected = [i for i in source_indices if buffer.lines[i].line_flag != LineFlag.IMMUTABLE]
+        selected = [i for i in source_indices if buffer.lines[i].line_flag == LineFlag.MUTABLE]
     else:
         selected = source_indices
     skipped = len(source_indices) - len(selected)
@@ -823,7 +831,7 @@ async def _cmd_search_and_replace(editor: 'Editor', arg: str) -> Optional[str]:
     count = 0
     for i in buffer.line_slice(line_range):
         line = buffer.lines[i]
-        if line.line_flag == LineFlag.IMMUTABLE or search not in line.text:
+        if line.line_flag != LineFlag.MUTABLE or search not in line.text:
             continue
         count += line.text.count(search)
         line.text = line.text.replace(search, replacement)
@@ -857,7 +865,7 @@ async def _cmd_justify(editor: 'Editor', arg: str) -> Optional[str]:
         await editor.ctx.send('(buffer is empty)')
         return None
     line_range = process_line_range_string(range_str, buffer, DefaultLineRange.ALL_LINES)
-    indices = [i for i in buffer.line_slice(line_range) if buffer.lines[i].line_flag != LineFlag.IMMUTABLE]
+    indices = [i for i in buffer.line_slice(line_range) if buffer.lines[i].line_flag == LineFlag.MUTABLE]
 
     if mode == Justification.PACK:
         for i in indices:

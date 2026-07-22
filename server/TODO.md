@@ -738,3 +738,17 @@
     on/off.
   - Not attempted at all yet: nothing has been coded for this, this is
     purely a scoped design note for whenever it's picked up.
+- board.py: per-player default for the anonymous-posting prompt (Ryan,
+  live testing) -- `board post`/`board reply <id>` currently always ask
+  "Post anonymously? (y/N)" every single time (commands/board.py's
+  `_ask_anonymous()`, commands/board_reply.py's own inline version).
+  Add a persisted preference (a new field on `BoardSettings`, alongside
+  `last_date`, e.g. `anonymous_mode: str = 'ask'`) with three settings:
+  **[A]sk** (today's behavior, stays the default), **[Y]es** (always
+  post anonymously, skip the prompt), **[N]o** (never anonymous, skip
+  the prompt). Change it via `board #edit` (Ryan's call) -- a settings
+  menu in the same `#`-prefixed control-word style as `page #haven`/
+  `page #ignore`/`whereat #hide`, distinct from the main post/reply/
+  read verbs -- natural home for `anonymous_mode` and, potentially,
+  `board ld`'s threshold too, though that's not decided. Not
+  implemented yet.

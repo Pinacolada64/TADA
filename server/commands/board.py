@@ -15,12 +15,16 @@ module is just the in-game command surface:
   board reply <id>        — reply to a thread; shows what you're replying
                             to in a "Quoting <author>" box first
   board delete <id>       — (admin) remove a thread
+  board #edit              — (admin) board-wide settings menu, e.g. the
+                            anonymous-posting default -- see
+                            commands/board_edit.py
 
 Post/reply authoring uses text_editor.run_editor() -- same as NEWS
 (commands/news.py). Any logged-in player can post/reply (this isn't
 admin-gated, unlike NEWS, since a message board is meant to be
 conversational/multi-author -- see MECHANICS.md's "Convergence with
-News & Mail" note); only 'board delete' requires PlayerFlags.ADMIN.
+News & Mail" note); only 'board delete'/'board #edit' require
+PlayerFlags.ADMIN.
 """
 from __future__ import annotations
 
@@ -40,6 +44,26 @@ _DATE_COL_WIDTH = 13
 
 def _is_privileged(player) -> bool:
     return bool(player.query_flag(PlayerFlags.ADMIN) or player.query_flag(PlayerFlags.DUNGEON_MASTER))
+
+
+async def resolve_anonymous(ctx) -> bool | None:
+    """Whether a post/reply should be anonymous, per the board-wide
+    anonymous_mode admin setting (board.load_config(), changed via
+    'board #edit') -- 'yes'/'no' skip the prompt entirely; 'ask' (the
+    default) prompts as before. Returns None if the player disconnected
+    mid-prompt. Shared by this module's own _post()/_reply() and
+    commands/board_reply.py's interactive reply flow, so both paths
+    honor the same admin setting instead of each hardcoding their own
+    always-ask prompt."""
+    mode = board_store.load_config().get('anonymous_mode', 'ask')
+    if mode == 'yes':
+        return True
+    if mode == 'no':
+        return False
+    raw = await ctx.prompt('Post anonymously? (y/N)')
+    if raw is None:
+        return None
+    return raw.strip().lower().startswith('y')
 
 
 class BoardCommand(Command):
@@ -63,17 +87,41 @@ class BoardCommand(Command):
             ('board post',        'Start a new thread.'),
             ('board reply <id>',  'Reply to a thread.'),
             ('board delete <id>', '(Admin) Remove a thread.'),
+            ('board #edit',       '(Admin) Board-wide settings menu.'),
         ],
         notes = [
             "Bare 'board' stays in the listing -- press Enter with no "
             "number to leave it.",
-            "You can post anonymously when prompted; admins and Dungeon "
-            "Masters still see who really posted.",
+            "Whether you're asked to post anonymously, always post "
+            "anonymously, or never do depends on the board's own "
+            "anonymous-posting setting; admins and Dungeon Masters still "
+            "see who really posted either way.",
+            "With Prompt Mode on ('pm' to toggle), reading a thread shows "
+            "one message at a time with a [R]eply/[M]ail poster/<#>/"
+            "Enter menu after each.",
+        ],
+        admin_notes = [
+            "Prompt Mode is PlayerFlags.PROMPT_MODE -- also toggleable "
+            "(for any player, not just yourself) via EditPlayer's Flags "
+            "-> Option Toggles menu. See commands/board_reply.py for the "
+            "interactive reader itself.",
+            "'board #edit' opens a small settings menu (currently just "
+            "the anonymous-posting default: Ask/Yes/No) -- see "
+            "commands/board_edit.py.",
         ],
     )
 
     async def execute(self, ctx, *args) -> CommandResult:
-        positional, _ = self.parse_args(*args)
+        positional, switches = self.parse_args(*args)
+
+        if switches:
+            switch = switches[0].lstrip('#').lower()
+            if switch == 'edit':
+                from commands.board_edit import edit_board_settings
+                return await edit_board_settings(ctx)
+            await ctx.send(f"Unknown option '{switches[0]}'.")
+            return CommandResult.fail('Unknown option.', error='bad_args')
+
         sub = positional[0].lower() if positional else ''
 
         if sub == 'post':
@@ -146,6 +194,14 @@ class BoardCommand(Command):
             await ctx.send('No such thread.')
             return CommandResult.fail('Unknown thread.', error='not_found')
 
+        if ctx.player.query_flag(PlayerFlags.PROMPT_MODE):
+            # One message at a time with an end-of-message [R]eply/[M]ail/
+            # <#>/Enter menu, quote-with-preview on reply -- see
+            # commands/board_reply.py's own module docstring.
+            from commands.board_reply import read_thread_interactive
+            await read_thread_interactive(ctx, thread)
+            return CommandResult.ok('Displayed thread.')
+
         privileged = _is_privileged(ctx.player)
         await ctx.send([''] + board_store.format_thread(thread, ctx, privileged) + [''])
         return CommandResult.ok('Displayed thread.')
@@ -196,13 +252,6 @@ class BoardCommand(Command):
     # Posting / replying (any logged-in player)
     # ------------------------------------------------------------------
 
-    async def _ask_anonymous(self, ctx) -> bool | None:
-        """Returns True/False, or None if the player disconnected mid-prompt."""
-        raw = await ctx.prompt('Post anonymously? (y/N)')
-        if raw is None:
-            return None
-        return raw.strip().lower().startswith('y')
-
     async def _post(self, ctx) -> CommandResult:
         from text_editor import run_editor
 
@@ -212,7 +261,7 @@ class BoardCommand(Command):
             return CommandResult.fail('No title.', error='missing_title')
         title = title.strip()
 
-        anonymous = await self._ask_anonymous(ctx)
+        anonymous = await resolve_anonymous(ctx)
         if anonymous is None:
             await ctx.send('Cancelled.')
             return CommandResult.fail('Cancelled.', error='cancelled')
@@ -252,7 +301,7 @@ class BoardCommand(Command):
             await ctx.send('No such thread.')
             return CommandResult.fail('Unknown thread.', error='not_found')
 
-        anonymous = await self._ask_anonymous(ctx)
+        anonymous = await resolve_anonymous(ctx)
         if anonymous is None:
             await ctx.send('Cancelled.')
             return CommandResult.fail('Cancelled.', error='cancelled')

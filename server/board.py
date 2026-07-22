@@ -61,6 +61,35 @@ from formatting import deserialize_lines, render_lines, titled_box
 log = logging.getLogger(__name__)
 
 BOARD_FILE = Path('run') / 'server' / 'board.json'
+CONFIG_FILE = Path('run') / 'server' / 'board_config.json'
+
+# anonymous_mode: 'ask' (prompt every post/reply, today's default),
+# 'yes' (always post anonymously, skip the prompt), or 'no' (never
+# anonymous, skip the prompt) -- board-wide, admin-controlled via
+# 'board #edit' (commands/board.py), not a per-player preference like
+# command_settings.board.last_date is. Kept in its own small file
+# rather than a key on BOARD_FILE's threads list, so load_board()'s
+# "just a list of threads" shape never has to change.
+_DEFAULT_CONFIG = {'anonymous_mode': 'ask'}
+
+
+def load_config(path: Optional[Path] = None) -> dict:
+    """Return the board-wide admin config, filled in with defaults for
+    anything missing/never-saved."""
+    path = path or CONFIG_FILE
+    config = dict(_DEFAULT_CONFIG)
+    try:
+        if path.exists():
+            config.update(json.loads(path.read_text()))
+    except Exception:
+        log.exception('Failed to load board config file %s', path)
+    return config
+
+
+def save_config(config: dict, path: Optional[Path] = None) -> None:
+    path = path or CONFIG_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(config, indent=2))
 
 
 def load_board(path: Optional[Path] = None) -> list[dict]:
@@ -137,6 +166,15 @@ def format_thread_summary(thread: dict, viewer_is_privileged: bool) -> str:
     return f"{thread['id']:>3}. {thread.get('title', '(untitled)')}  -- {author}, {replies}"
 
 
+def render_message_lines(entry: dict, ctx, width: int) -> list[str]:
+    """Render just one post/reply's own body -- no title/header wrapper --
+    re-rendering its Justification/Border for *this* viewer's screen
+    width/terminal type (see the module docstring). Shared by
+    format_thread() (the flat, whole-thread dump) and
+    commands/board_reply.py's one-message-at-a-time interactive reader."""
+    return render_lines(deserialize_lines(entry.get('body', [])), ctx, width)
+
+
 def format_thread(thread: dict, ctx, viewer_is_privileged: bool) -> list[str]:
     """Render one thread in full -- title, root post, and every reply --
     re-rendering each body's Justification/Border for *this* viewer's
@@ -147,7 +185,7 @@ def format_thread(thread: dict, ctx, viewer_is_privileged: bool) -> list[str]:
     lines.append(f"From: {display_author(thread, viewer_is_privileged)}"
                  f"  ({thread.get('posted_at', '')[:10]})")
     lines.append('')
-    lines += render_lines(deserialize_lines(thread.get('body', [])), ctx, width)
+    lines += render_message_lines(thread, ctx, width)
 
     for i, reply in enumerate(thread.get('replies', []), start=1):
         lines.append('')
@@ -155,7 +193,7 @@ def format_thread(thread: dict, ctx, viewer_is_privileged: bool) -> list[str]:
         lines.append(f"From: {display_author(reply, viewer_is_privileged)}"
                      f"  ({reply.get('posted_at', '')[:10]})")
         lines.append('')
-        lines += render_lines(deserialize_lines(reply.get('body', [])), ctx, width)
+        lines += render_message_lines(reply, ctx, width)
 
     return lines
 
@@ -169,5 +207,5 @@ def build_quote_preamble(ctx, thread: dict, viewer_is_privileged: bool) -> list[
     handled at this layer, not inside the editor itself)."""
     width = getattr(getattr(ctx.player, 'client_settings', None), 'screen_columns', 80)
     author = display_author(thread, viewer_is_privileged)
-    quoted_lines = render_lines(deserialize_lines(thread.get('body', [])), ctx, width)
+    quoted_lines = render_message_lines(thread, ctx, width)
     return titled_box(ctx, f'Quoting {author}', quoted_lines)

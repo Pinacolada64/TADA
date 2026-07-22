@@ -721,6 +721,7 @@ def _flags_menu(ctx) -> Menu:
             PlayerFlags.MORE_PROMPT,
             PlayerFlags.ROOM_DESCRIPTIONS,
             PlayerFlags.DEBUG_MODE,
+            PlayerFlags.PROMPT_MODE,
         ]),
         ('Player Status', [
             PlayerFlags.ADMIN,

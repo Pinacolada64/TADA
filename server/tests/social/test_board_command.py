@@ -50,9 +50,13 @@ class BoardCommandTestCase(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.path = Path(self._tmp.name) / 'board.json'
+        self.config_path = Path(self._tmp.name) / 'board_config.json'
         patcher = patch.object(board_store, 'BOARD_FILE', self.path)
         patcher.start()
         self.addCleanup(patcher.stop)
+        config_patcher = patch.object(board_store, 'CONFIG_FILE', self.config_path)
+        config_patcher.start()
+        self.addCleanup(config_patcher.stop)
         self.addCleanup(self._tmp.cleanup)
 
     def _seed(self, threads):
@@ -192,6 +196,61 @@ class TestPostAndReply(BoardCommandTestCase):
     def test_reply_to_unknown_thread_fails(self):
         ctx = make_ctx(prompts=[])
         result = run(BoardCommand().execute(ctx, 'reply', '99'))
+        self.assertFalse(result.success)
+
+
+class TestResolveAnonymous(BoardCommandTestCase):
+    """anonymous_mode 'yes'/'no' (set via 'board #edit') skip the prompt
+    entirely; 'ask' (the default) still prompts, same as before this
+    setting existed."""
+
+    def test_ask_mode_prompts(self):
+        from commands.board import resolve_anonymous
+        ctx = make_ctx(prompts=['y'])
+        result = run(resolve_anonymous(ctx))
+        self.assertTrue(result)
+        ctx.prompt.assert_awaited_once()
+
+    def test_yes_mode_skips_the_prompt(self):
+        from commands.board import resolve_anonymous
+        board_store.save_config({'anonymous_mode': 'yes'}, self.config_path)
+        ctx = make_ctx(prompts=[])
+        result = run(resolve_anonymous(ctx))
+        self.assertTrue(result)
+        ctx.prompt.assert_not_awaited()
+
+    def test_no_mode_skips_the_prompt(self):
+        from commands.board import resolve_anonymous
+        board_store.save_config({'anonymous_mode': 'no'}, self.config_path)
+        ctx = make_ctx(prompts=[])
+        result = run(resolve_anonymous(ctx))
+        self.assertFalse(result)
+        ctx.prompt.assert_not_awaited()
+
+    def test_post_honors_yes_mode_without_prompting(self):
+        board_store.save_config({'anonymous_mode': 'yes'}, self.config_path)
+        ctx = make_ctx(prompts=['My Title', 'body', '.s'])  # no anon prompt consumed
+        run(BoardCommand().execute(ctx, 'post'))
+        threads = board_store.load_board(self.path)
+        self.assertTrue(threads[0]['anonymous'])
+
+
+class TestEditSwitch(BoardCommandTestCase):
+    def test_non_admin_denied(self):
+        ctx = make_ctx(player=_FakePlayer(admin=False))
+        result = run(BoardCommand().execute(ctx, '#edit'))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, 'permission_denied')
+
+    def test_admin_reaches_the_settings_menu(self):
+        ctx = make_ctx(player=_FakePlayer(admin=True), prompts=[''])
+        result = run(BoardCommand().execute(ctx, '#edit'))
+        self.assertTrue(result.success)
+        self.assertIn('Board Settings', str(ctx.prompt.call_args))
+
+    def test_unknown_switch_reports_error(self):
+        ctx = make_ctx()
+        result = run(BoardCommand().execute(ctx, '#bogus'))
         self.assertFalse(result.success)
 
 
