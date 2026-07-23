@@ -55,10 +55,16 @@ def next_tip(player) -> Optional[str]:
     return tips[next_number - 1]
 
 
-def format_tip_box(ctx, tip: str, tip_number: int, total: int, width: int = 60) -> list[str]:
+def format_tip_box(ctx, tip: str, tip_number: int, total: int,
+                    width: int | None = None) -> list[str]:
     """Wrap *tip* in a bordered box titled "Tip #x / y", matching the
     player's own border-style/terminal-codec preferences (same helpers
-    commands/prefs.py uses for its own boxes)."""
+    commands/prefs.py uses for its own boxes).
+
+    width defaults to None so titled_box() can derive it from the
+    player's own screen_columns (e.g. 40 for a Commodore 64) -- a
+    hardcoded default here would always win over that, pinning every tip
+    box to a fixed width regardless of the player's actual terminal."""
     from formatting import titled_box
 
     return titled_box(
@@ -68,5 +74,5 @@ def format_tip_box(ctx, tip: str, tip_number: int, total: int, width: int = 60) 
         # magenta -- green's complement on the color wheel, so the
         # "Tip #x / y" heading pops against the green frame instead of
         # blending into it.
-        title_color='magenta',
+        title_color='purple', # this exists in the c64's palette
     )

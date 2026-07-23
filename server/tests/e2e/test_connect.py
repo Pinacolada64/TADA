@@ -39,6 +39,12 @@ def _make_ctx(username: str = "", mode: Mode = Mode.LOGIN,
     ctx.client.mode   = mode
     ctx.client.addr   = ("127.0.0.1", 9999)
 
+    # A real int, not a bare MagicMock auto-attribute -- the login-time tip
+    # box (commands.connect._login_tip_lines -> tips.format_tip_box ->
+    # formatting.titled_box) reads this to size itself and needs a real
+    # number to compare against.
+    ctx.player.client_settings.screen_columns = 80
+
     # Populate server.clients with fake guests so numbering tests work
     fake_guests = {
         i: MagicMock(username=f"Guest {i}" if i > 1 else "Guest")

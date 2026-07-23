@@ -16,6 +16,7 @@ class _FakePlayer:
         self.command_settings = CommandSettings(tips=TipsSettings(enabled=enabled, tip_number=tip_number))
         self.unsaved_changes = False
         self.client_settings = MagicMock()
+        self.client_settings.screen_columns = 60
 
 
 class TestLoadTips(unittest.TestCase):
@@ -151,6 +152,24 @@ class TestLoginTipLines(unittest.TestCase):
         self.assertTrue(lines)
         self.assertEqual(ctx.player.command_settings.tips.tip_number, 1)
         self.assertTrue(any('Tip #1' in l for l in lines))
+
+    def test_box_width_follows_players_screen_columns(self):
+        # Regression: format_tip_box() used to default width=60 and
+        # always pass that literal through to titled_box(), so
+        # titled_box()'s own screen_columns-based auto-sizing never ran
+        # -- every tip box (login and the bare 'tips' command) came out
+        # 60 columns wide even for a 40-column Commodore 64. Ryan
+        # reported exactly this: negotiated 40-col C64, but the tip box
+        # wasn't 40 columns wide.
+        import re
+        from commands.connect import _login_tip_lines
+        ctx = self._ctx(enabled=True, tip_number=0)
+        ctx.player.client_settings.screen_columns = 40
+        lines = _login_tip_lines(ctx)
+        plain = [re.sub(r'\|[a-z_]+\|', '', l) for l in lines]
+        widths = {len(l) for l in plain if l.strip()}
+        self.assertTrue(widths)
+        self.assertTrue(all(w <= 40 for w in widths), f'expected <=40-wide lines, got {widths}')
 
 
 if __name__ == '__main__':
