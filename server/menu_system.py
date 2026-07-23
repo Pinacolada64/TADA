@@ -77,6 +77,21 @@ class MenuColor:
 
 DEFAULT_MENU_COLORS = MenuColor()
 
+# Named, ready-made schemes offered by commands/prefs.py's 'S' (Menu
+# Colors) picker -- kept here alongside MenuColor/DEFAULT_MENU_COLORS so
+# any other future picker of menu colors can reuse the same list rather
+# than each defining its own.
+MENU_COLOR_PRESETS: list[tuple[str, MenuColor]] = [
+    ('Default',            DEFAULT_MENU_COLORS),
+    ('Monochrome Green',   MenuColor('green', 'green', 'green', 'green', 'green', 'green')),
+    ('Monochrome Orange',  MenuColor('orange', 'orange', 'orange', 'orange', 'orange', 'orange')),
+    ('Monochrome White',   MenuColor('white', 'white', 'white', 'white', 'white', 'white')),
+    ('Ocean',              MenuColor('blue', 'light_blue', 'cyan', 'light_blue', 'blue', 'white')),
+    ('Fire',               MenuColor('red', 'orange', 'yellow', 'light_red', 'orange', 'yellow')),
+    ('Forest',             MenuColor('green', 'light_green', 'yellow', 'brown', 'green', 'light_green')),
+    ('Grayscale',          MenuColor('light_gray', 'white', 'mid_gray', 'light_gray', 'dark_gray', 'white')),
+]
+
 
 # ---------------------------------------------------------------------------
 # Data structures

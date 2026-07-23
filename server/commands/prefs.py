@@ -40,6 +40,12 @@ Settings managed here
   L  Line Ending      client_settings.line_ending  (LF / CR / CRLF)
                       — stored only for now, not yet enforced on every
                         line sent (see terminal.py's ClientSettings).
+  S  Menu Colors      client_settings.menu_colors (menu_system.MenuColor)
+                      — colors used to render menus (editplayer, config,
+                        etc): item numbers, shortcuts, labels, hrules,
+                        dot leaders/values. 'Default' clears the override
+                        (None falls back to menu_system.DEFAULT_MENU_
+                        COLORS); 'Custom' walks through each part.
 """
 
 from __future__ import annotations
@@ -152,6 +158,15 @@ _SETTING_HELP: dict[str, list[str]] = {
         '|cyan|Time Format|reset|',
         "12-hour ('2:30 PM') or 24-hour ('14:30') time. Affects the "
         "Hourglass clock (PREFS 'H') and any other time-of-day display.",
+        '',
+    ],
+    's': [
+        '',
+        '|cyan|Menu Colors|reset|',
+        "Sets the colors used to draw menus (EDITPLAYER, CONFIG, etc): "
+        "item numbers, shortcut letters, menu text, horizontal rules, and "
+        "dot-leader lines/values. 'Default' clears any custom scheme; "
+        "'Custom' lets you pick a color for each part individually.",
         '',
     ],
 }
@@ -320,11 +335,17 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         t.add_row(['D', 'Date Format', date_fmt_name, 'hd'])
         time_fmt_name = _TIME_FORMAT_NAMES.get(getattr(cs, 'time_format', ''), 'Custom')
         t.add_row(['F', 'Time Format', time_fmt_name, 'hf'])
+        from menu_system import MENU_COLOR_PRESETS
+        _cur_menu_colors = getattr(cs, 'menu_colors', None)
+        menu_colors_name = next(
+            (name for name, mc in MENU_COLOR_PRESETS if mc == _cur_menu_colors), None,
+        ) or ('Default' if _cur_menu_colors is None else 'Custom')
+        t.add_row(['S', 'Menu Colors', menu_colors_name, 'hs'])
 
         valid_keys = ['X', 'H', 'M']
         if not is_petscii:
             valid_keys.append('B')
-        valid_keys += ['C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F']
+        valid_keys += ['C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F', 'S']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -364,6 +385,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                 'Z - choose your display timezone',
                 'D - choose your preferred date format',
                 'F - choose 12-hour or 24-hour time format',
+                'S - choose the menu color scheme',
                 f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
                 f'{return_key} - save and exit',
             ]
@@ -432,6 +454,9 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
 
         elif ans == 'f':
             await _pick_time_format(ctx)
+
+        elif ans == 's':
+            await _pick_menu_colors(ctx)
 
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
@@ -887,3 +912,141 @@ async def _pick_time_format(ctx) -> None:
             await ctx.send(f'Time format set to {plain} ({sample.strftime(fmt)}).')
             return
     await ctx.send(f'Time format unchanged -- enter a number between 1 and {len(_TIME_FORMAT_PRESETS)}.')
+
+
+# Which MenuColor field each step of the 'Custom' picker sets, and the
+# player-facing label shown while picking it.
+_MENU_COLOR_FIELDS = [
+    ('rule',       'Horizontal Rules'),
+    ('number',     'Item Numbers'),
+    ('shortcut',   'Shortcuts'),
+    ('label',      'Menu Text'),
+    ('dot_leader', 'Dot Leaders'),
+    ('dot_value',  'Dot Leader Values'),
+]
+
+
+def _menu_color_preview(ctx, mc) -> list[str]:
+    """Render a real mock menu -- title, hrules, a few numbered/shortcut
+    items with dot-leader values, a header row -- through the actual
+    menu_system.format_menu_lines(), with *mc* (menu_system.MenuColor)
+    passed as that one menu's color override. This shows exactly what
+    picking *mc* would look like on every real menu (EDITPLAYER, CONFIG,
+    etc), not just a hand-built approximation of the layout."""
+    from menu_system import Menu, MenuItem, format_menu_lines
+
+    async def _noop(ctx):
+        pass
+
+    menu = Menu(title='Sample Menu', colors=mc)
+    menu.add_item(MenuItem(text='-- Section --'))
+    menu.add_item(MenuItem('Alignment',       shortcuts='al', action=_noop,
+                            dot_leader_handler=lambda ctx: 'Neutral'))
+    menu.add_item(MenuItem('Hit Points',      shortcuts='hp', action=_noop,
+                            dot_leader_handler=lambda ctx: '42'))
+    menu.add_item(MenuItem('Flags/Counters',  shortcuts='fl', action=_noop,
+                            dot_leader_handler=lambda ctx: 'On'))
+    return format_menu_lines(ctx, menu)
+
+
+def _menu_color_swatch(mc) -> str:
+    """A compact inline swatch (one 2-char block per field, in that
+    field's own color) so a preset can be told apart from the list
+    without opening it -- same six fields/order as _MENU_COLOR_FIELDS."""
+    fields = (mc.rule, mc.number, mc.shortcut, mc.label, mc.dot_leader, mc.dot_value)
+    return ''.join(f'|{c}|##|reset|' for c in fields)
+
+
+async def _pick_menu_colors(ctx) -> None:
+    """Choose the color scheme used to render menus (menu_system.
+    MenuColor) -- item numbers, shortcuts, menu text, hrules, and dot
+    leaders/values (EDITPLAYER, CONFIG, etc. all share menu_system.
+    format_menu_lines(), so this covers every menu in the game).
+
+    Offers menu_system.MENU_COLOR_PRESETS by number ('Default' clears
+    client_settings.menu_colors back to None, which format_menu_lines()
+    reads as "use menu_system.DEFAULT_MENU_COLORS"; the others store a
+    copy of that named preset), plus one more option for 'Custom', which
+    walks through each part from the same palette _pick_colors() uses,
+    one prompt at a time, previewing the result as it's built.
+    """
+    from dataclasses import replace
+    from terminal import ColorName
+    from formatting import COLOR_NAME_TO_TOKEN, border_style_for_ctx
+    from menu_system import MenuColor, DEFAULT_MENU_COLORS, MENU_COLOR_PRESETS
+    from table import Table
+
+    _SKIP   = {ColorName.RESET, ColorName.REVERSE_ON, ColorName.REVERSE_OFF}
+    palette = [cn for cn in ColorName if cn not in _SKIP and COLOR_NAME_TO_TOKEN.get(cn)]
+
+    cs      = ctx.player.client_settings
+    current = cs.menu_colors if isinstance(cs.menu_colors, MenuColor) else DEFAULT_MENU_COLORS
+
+    custom_num = len(MENU_COLOR_PRESETS) + 1
+    lines = ['', '|yellow|Menu Colors|reset|', ''] + _menu_color_preview(ctx, current) + ['']
+    for i, (name, mc) in enumerate(MENU_COLOR_PRESETS, 1):
+        lines.append(f'  {i:>2}. {name:<18} {_menu_color_swatch(mc)}')
+    lines.append(f'  {custom_num:>2}. Custom (pick each part)')
+    lines.append('')
+
+    raw = await ctx.prompt('menu colors', preamble_lines=lines)
+    if raw is None or not raw.strip():
+        await ctx.send('Menu colors unchanged.')
+        return
+    ans = raw.strip()
+
+    if ans.isdigit():
+        idx = int(ans) - 1
+        if 0 <= idx < len(MENU_COLOR_PRESETS):
+            name, mc = MENU_COLOR_PRESETS[idx]
+            # None for the literal Default preset (mc is the shared
+            # DEFAULT_MENU_COLORS instance) so a later change to that
+            # module-level default keeps applying; a real copy for every
+            # other preset so it can't be mutated by editing DEFAULT_
+            # MENU_COLORS later.
+            cs.menu_colors = None if mc is DEFAULT_MENU_COLORS else replace(mc)
+            await ctx.send(f'Menu colors set to {name}.', *_menu_color_preview(ctx, mc))
+            return
+        if idx == len(MENU_COLOR_PRESETS):
+            pass  # Custom -- fall through below
+        else:
+            await ctx.send('Menu colors unchanged -- number out of range.')
+            return
+    else:
+        await ctx.send('Menu colors unchanged.')
+        return
+
+    def _palette_rows() -> list[str]:
+        t = Table(headers=['#', 'Color', 'Sample'], border_style=border_style_for_ctx(ctx))
+        for i, cn in enumerate(palette, 1):
+            token  = COLOR_NAME_TO_TOKEN[cn]
+            t.add_row([str(i), cn.value, f'|{token}|{cn.value}|reset|'])
+        return t.render(width=cs.screen_columns)
+
+    # Work on a copy -- never mutate the shared DEFAULT_MENU_COLORS
+    # instance itself when *current* was the fallback, not a real
+    # per-player override.
+    new_scheme = replace(current)
+    palette_rows = _palette_rows()
+
+    for attr, label in _MENU_COLOR_FIELDS:
+        cur_token = getattr(new_scheme, attr)
+        cur_name  = next((cn.value for cn in palette if COLOR_NAME_TO_TOKEN[cn] == cur_token), cur_token)
+        await ctx.send(*(['', f'|yellow|{label}|reset| (current: {cur_name}):'] + palette_rows + ['']))
+        raw = await ctx.prompt(f'{label} #')
+        if raw is None:
+            return
+        val = raw.strip()
+        if not val:
+            continue
+        if val.isdigit():
+            idx = int(val) - 1
+            if 0 <= idx < len(palette):
+                setattr(new_scheme, attr, COLOR_NAME_TO_TOKEN[palette[idx]])
+            else:
+                await ctx.send(f'{label} unchanged -- number out of range.')
+        else:
+            await ctx.send(f'{label} unchanged.')
+
+    cs.menu_colors = new_scheme
+    await ctx.send('Menu colors updated.', *_menu_color_preview(ctx, new_scheme))
