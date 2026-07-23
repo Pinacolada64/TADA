@@ -46,6 +46,11 @@ Settings managed here
                         dot leaders/values. 'Default' clears the override
                         (None falls back to menu_system.DEFAULT_MENU_
                         COLORS); 'Custom' walks through each part.
+  G  Graphics Test    Display-only, nothing stored -- shows a windowpane
+                      grid (all nine corner/tee/cross border pieces, see
+                      table.Border) for every known border style, so a
+                      player can see which glyphs their actual terminal/
+                      font renders correctly before picking one via 'B'.
 """
 
 from __future__ import annotations
@@ -167,6 +172,16 @@ _SETTING_HELP: dict[str, list[str]] = {
         "item numbers, shortcut letters, menu text, horizontal rules, and "
         "dot-leader lines/values. 'Default' clears any custom scheme; "
         "'Custom' lets you pick a color for each part individually.",
+        '',
+    ],
+    'g': [
+        '',
+        '|cyan|Graphics Test|reset|',
+        "Shows a windowpane grid of border-drawing characters (corners, "
+        "tees, and a center cross) for every known border style, so you "
+        "can see which glyphs your terminal or client actually renders "
+        "correctly. Nothing here is saved -- it's just a display, useful "
+        "before picking a style with Border Style ('B').",
         '',
     ],
 }
@@ -341,11 +356,12 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             (name for name, mc in MENU_COLOR_PRESETS if mc == _cur_menu_colors), None,
         ) or ('Default' if _cur_menu_colors is None else 'Custom')
         t.add_row(['S', 'Menu Colors', menu_colors_name, 'hs'])
+        t.add_row(['G', 'Graphics Test', '', 'hg'])
 
         valid_keys = ['X', 'H', 'M']
         if not is_petscii:
             valid_keys.append('B')
-        valid_keys += ['C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F', 'S']
+        valid_keys += ['C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F', 'S', 'G']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -386,6 +402,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                 'D - choose your preferred date format',
                 'F - choose 12-hour or 24-hour time format',
                 'S - choose the menu color scheme',
+                'G - view a graphics test (border-character windowpane)',
                 f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
                 f'{return_key} - save and exit',
             ]
@@ -458,6 +475,9 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         elif ans == 's':
             await _pick_menu_colors(ctx)
 
+        elif ans == 'g':
+            await _show_graphics_test(ctx)
+
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
 
@@ -523,6 +543,44 @@ async def _pick_border_style(ctx, codec) -> None:
             await ctx.send(f'Border style set to {label}.')
             return
     await ctx.send('Border style unchanged.')
+
+
+def _windowpane_lines(border, cell_width: int = 3) -> list[str]:
+    """Build a 2x2 windowpane grid (all nine corner/tee/cross border
+    pieces, sharing one middle cross) from a table.Border instance --
+    Ryan's idea, so a player can see every border glyph a given style
+    uses in one small picture rather than just a single top-rule preview
+    (_pick_border_style()'s one-liner)."""
+    top    = border.top_left + border.h * cell_width + border.top_mid + border.h * cell_width + border.top_right
+    blank  = border.v + ' ' * cell_width + border.v + ' ' * cell_width + border.v
+    middle = border.mid_left + border.h * cell_width + border.cross + border.h * cell_width + border.mid_right
+    bottom = border.bot_left + border.h * cell_width + border.bot_mid + border.h * cell_width + border.bot_right
+    return [top, blank, middle, blank, bottom]
+
+
+async def _show_graphics_test(ctx) -> None:
+    """Display-only: a windowpane grid of border-drawing characters for
+    every known style (ASCII/Single/Double/PETSCII), so a player can see
+    which glyphs their actual terminal/client renders correctly before
+    picking a style with PREFS 'B' (Border Style). Nothing is stored --
+    this is purely a visual check, same idea as a classic BBS "graphics
+    test" screen.
+    """
+    from table import ASCII, SINGLE, DOUBLE, PETSCII
+
+    lines = ['', '|yellow|Graphics Test|reset|', '']
+    for name, border in (('ASCII', ASCII), ('Single', SINGLE),
+                          ('Double', DOUBLE), ('PETSCII', PETSCII)):
+        lines.append(f'|cyan|{name}|reset|')
+        lines.extend('  ' + ln for ln in _windowpane_lines(border))
+        lines.append('')
+    lines.append(
+        "If any of these look like garbage or boxes with question marks, "
+        "try a different Border Style ('B'). On a real Commodore, PETSCII "
+        "not rendering right is usually a character-set/font issue rather "
+        "than something to fix here."
+    )
+    await ctx.send(*lines)
 
 
 async def _pick_colors(ctx) -> None:

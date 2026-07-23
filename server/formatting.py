@@ -46,7 +46,7 @@ import re
 import textwrap
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Protocol, runtime_checkable
+from typing import Optional, Protocol, runtime_checkable
 
 
 # ---------------------------------------------------------------------------
@@ -245,6 +245,49 @@ _PETSCII_TOKEN_RE = re.compile(
     r'|(?P<d2>[|!])(?P<token>[a-z_]+)(?::(?P<count>\d+))?(?P=d2)'
 )
 
+# New in TADA: {$XX} / {DDD} / {NAME} -- a raw PETSCII byte literal, for
+# ASCII-art-heavy files (graphics/banner-petscii.txt and friends) that
+# need a specific screen/graphics character code with no |token|
+# equivalent -- PETSCII_CONTROL_CODES above is for control codes/colors,
+# not arbitrary character-set glyphs (e.g. the horizontal-line or
+# box-corner characters used to draw a sword or a border). Ryan's idea,
+# to make hand-authoring PETSCII art in a plain text file practical
+# without a real visual PETSCII editor (see TODO.md for that).
+#
+#   {$c0}       -- byte 0xC0 (hex, 1-2 digits)
+#   {192}       -- byte 192  (decimal, 0-255)
+#   {LEFT_TEE}  -- named glyph, looked up in terminal.CommodoreGraphicsChars
+#   {$c0:38}    -- any of the above + ':N' repeats the resolved byte N
+#                  times, e.g. a 38-character horizontal rule
+#
+# {{...}} is the escape (mirrors [[...]] / ||token||): renders as the
+# literal {...} instead of being resolved.
+_GLYPH_TOKEN_RE = re.compile(
+    r'\{\{(?P<gelit>[^{}]*)\}\}'
+    r'|\{(?:\$(?P<ghex>[0-9a-fA-F]{1,2})'
+    r'|(?P<gdec>[0-9]{1,3})'
+    r'|(?P<gname>[A-Za-z_][A-Za-z0-9_]*))(?::(?P<gcount>\d+))?\}'
+)
+
+# Union of _PETSCII_TOKEN_RE and _GLYPH_TOKEN_RE for a single finditer()
+# pass in petscii_encode() -- group names don't collide (d/etoken/ecount/
+# d2/token/count vs gelit/ghex/gdec/gname/gcount), so one match object
+# unambiguously tells which kind of token was hit.
+_PETSCII_GLYPH_RE = re.compile(_PETSCII_TOKEN_RE.pattern + '|' + _GLYPH_TOKEN_RE.pattern)
+
+
+def _resolve_glyph_byte(match: re.Match) -> Optional[int]:
+    """Resolve a _GLYPH_TOKEN_RE (sub-)match's ghex/gdec/gname group to a
+    raw byte value 0-255, or None if it doesn't resolve (out-of-range
+    decimal, unknown name)."""
+    if match.group('ghex') is not None:
+        return int(match.group('ghex'), 16)
+    if match.group('gdec') is not None:
+        val = int(match.group('gdec'))
+        return val if val <= 255 else None
+    name = match.group('gname')
+    return _get_named_petscii_glyphs().get(name)
+
 
 def _petscii_token_strip_replace(match: re.Match) -> str:
     """_token_strip_replace()'s PETSCII counterpart -- see _PETSCII_TOKEN_RE's
@@ -278,12 +321,15 @@ def petscii_encode(text: str,
 
     Text segments are encoded via cbmcodecs2 (handles PETSCII character
     mapping). |token| (or !token! -- see _PETSCII_TOKEN_RE) color/control
-    sequences are replaced with their raw control byte values and spliced
-    in *after* encoding, so cbmcodecs2 never sees them.
+    sequences and {glyph} raw byte literals (see _GLYPH_TOKEN_RE) are
+    replaced with their raw byte values and spliced in *after* encoding,
+    so cbmcodecs2 never sees them.
 
-    Unrecognised |token|/!token! sequences are left as-is in the encoded text.
+    Unrecognised |token|/!token!/{glyph} sequences are left as-is in the
+    encoded text.
 
-    :param text:       Input string, may contain |token| or !token! sequences.
+    :param text:       Input string, may contain |token|, !token!, or
+                       {glyph} sequences.
     :param codec_name: cbmcodecs2 codec name. Defaults to lowercase C64.
                        Use 'petscii_c64en_uc' for uppercase/graphics mode.
     :return:           Raw bytes ready to send to the Commodore client.
@@ -294,15 +340,19 @@ def petscii_encode(text: str,
     146
     >>> petscii_encode('!red!Hi!reset!')[0]   # '!' works the same as '|'
     28
+    >>> petscii_encode('{$c0}')[0]            # raw hex byte literal
+    192
     """
     if not _CBMCODECS2_AVAILABLE:
         clean = _PETSCII_TOKEN_RE.sub(_petscii_token_strip_replace, text)
+        clean = _GLYPH_TOKEN_RE.sub(
+            lambda m: m.group('gelit') if m.group('gelit') is not None else '', clean)
         return clean.encode('ascii', errors='replace')
 
     result = bytearray()
     pos = 0
 
-    for match in _PETSCII_TOKEN_RE.finditer(text):
+    for match in _PETSCII_GLYPH_RE.finditer(text):
         # Encode plain text segment before this token
         segment = text[pos:match.start()]
         if segment:
@@ -318,6 +368,23 @@ def petscii_encode(text: str,
                 literal += ':' + match.group('ecount')
             literal += d
             result.extend(_encode_petscii_segment(literal, codec_name))
+            pos = match.end()
+            continue
+
+        if match.group('gelit') is not None:
+            # {{literal}} escape -- literal {literal}, see _GLYPH_TOKEN_RE.
+            result.extend(_encode_petscii_segment('{' + match.group('gelit') + '}', codec_name))
+            pos = match.end()
+            continue
+
+        if match.group('ghex') is not None or match.group('gdec') is not None or match.group('gname') is not None:
+            code = _resolve_glyph_byte(match)
+            count = int(match.group('gcount')) if match.group('gcount') else 1
+            if code is not None:
+                result.extend(bytes([code]) * count)  # raw byte(s), bypasses codec
+            else:
+                logging.warning('petscii_encode: unresolved glyph token %r', match.group(0))
+                result.extend(match.group(0).encode(codec_name, errors='replace'))
             pos = match.end()
             continue
 
@@ -532,10 +599,51 @@ def _build_color_name_to_token() -> dict:
         return {}
 
 
-# Lazy cache — built on first access via module __getattr__ below.
+def _build_named_petscii_glyphs() -> dict:
+    """{NAME} glyph lookup for _resolve_glyph_byte() -- terminal.
+    CommodoreGraphicsChars' members (LEFT_TEE, CORNER_UPPER_LEFT, etc),
+    keyed by name, resolved to their raw PETSCII byte value."""
+    try:
+        from terminal import CommodoreGraphicsChars
+        # __members__, not a plain `for member in CommodoreGraphicsChars`
+        # iteration -- CommodoreGraphicsChars has genuine value collisions
+        # (e.g. TOP_TEE and LEFT_TEE are both chr(178), likely a stale
+        # copy-paste in terminal.py rather than intentional), which makes
+        # Enum treat the second name as an *alias* of the first and drops
+        # it from plain iteration entirely. __members__ still has both
+        # names, each resolving to whichever byte its (possibly shared)
+        # canonical member holds, so {LEFT_TEE} keeps working even though
+        # the underlying byte table has a bug worth someone fixing later.
+        return {name: ord(str(member.value))
+                for name, member in CommodoreGraphicsChars.__members__.items()}
+    except ImportError as e:
+        logging.warning('terminal.CommodoreGraphicsChars not available; '
+                        'NAMED_PETSCII_GLYPHS will be empty. (%s)', e)
+        return {}
+    except Exception as e:
+        logging.warning('NAMED_PETSCII_GLYPHS build failed: %s: %s', type(e).__name__, e)
+        return {}
+
+
+# Lazy caches — built on first access via module __getattr__ below.
 # This avoids the circular import that occurs when formatting.py is
 # still initialising and terminal.py tries to import back from it.
 _COLOR_NAME_TO_TOKEN_CACHE: dict | None = None
+_NAMED_PETSCII_GLYPHS_CACHE: dict | None = None
+
+
+def _get_named_petscii_glyphs() -> dict:
+    """Internal accessor for the {NAME} glyph lookup used by
+    _resolve_glyph_byte() -- a bare 'NAMED_PETSCII_GLYPHS' reference
+    inside this module would NOT go through __getattr__ below (that PEP
+    562 hook only fires for module.attribute access from *outside*, not
+    a function body's own global name lookup), so code inside this
+    module must call this helper instead of naming the lazy attribute
+    directly."""
+    global _NAMED_PETSCII_GLYPHS_CACHE
+    if _NAMED_PETSCII_GLYPHS_CACHE is None:
+        _NAMED_PETSCII_GLYPHS_CACHE = _build_named_petscii_glyphs()
+    return _NAMED_PETSCII_GLYPHS_CACHE
 
 
 def __getattr__(name: str):
@@ -545,6 +653,8 @@ def __getattr__(name: str):
         if _COLOR_NAME_TO_TOKEN_CACHE is None:
             _COLOR_NAME_TO_TOKEN_CACHE = _build_color_name_to_token()
         return _COLOR_NAME_TO_TOKEN_CACHE
+    if name == 'NAMED_PETSCII_GLYPHS':
+        return _get_named_petscii_glyphs()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -571,11 +681,26 @@ def highlight_brackets(text: str, codec: ColorCodec) -> str:
     return re.sub(r'\[\[(.+?)\]\]|\[(.+?)\]', _replace, text)
 
 
+def _glyph_visible_replace(m: re.Match) -> str:
+    """_visible_len()'s {glyph} counterpart to _token_strip_replace(): a
+    real {glyph}/{glyph:N} token is NOT zero-width like a |token| color
+    code -- it renders N actual on-screen characters -- so it's replaced
+    with a same-length placeholder rather than removed. An escaped
+    {{literal}} counts its literal {literal} rendering, same asymmetry as
+    ||token||/[[bracket]]."""
+    if m.group('gelit') is not None:
+        return '{' + m.group('gelit') + '}'
+    count = int(m.group('gcount')) if m.group('gcount') else 1
+    return 'x' * count
+
+
 def _visible_len(text: str) -> int:
     """Count visible columns: strips |token| sequences and raw ANSI escape
-    codes. An escaped ||token|| counts its literal |token| rendering (not
+    codes, and measures {glyph} raw-byte tokens by their actual on-screen
+    width. An escaped ||token|| counts its literal |token| rendering (not
     zero) since it actually prints -- see _TOKEN_RE's comment."""
     text = _TOKEN_STRIP_RE.sub(_token_strip_replace, text)
+    text = _GLYPH_TOKEN_RE.sub(_glyph_visible_replace, text)
     text = _ANSI_ESCAPE_RE.sub('', text)
     return len(text)
 

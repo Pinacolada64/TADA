@@ -812,3 +812,30 @@
   generator) than whatever was originally sketched, so confirm that's
   actually the direction wanted before building. Not scoped/implemented
   at all yet.
+
+7/23/26:
+- Online PETSCII editor (Ryan): a real visual editor for `graphics/
+  banner-petscii.txt`-style art files -- pick a PETSCII character/color
+  from a palette, place it on a 40x25 (or other) grid, see it rendered
+  as it would actually look on a Commodore screen, save back out to the
+  `{glyph}`/`|token|` text format these files already use. Came up
+  while hand-authoring a sword+"TADA" banner blind (no way to preview
+  actual PETSCII glyph shapes from a text description alone) -- this
+  session added the `{$xx}`/`{ddd}`/`{NAME}`/`{glyph:N}` raw-byte
+  literal syntax (formatting.py's `_GLYPH_TOKEN_RE`/`petscii_encode()`,
+  see `tests/client/test_petscii_glyph_tokens.py`) specifically to make
+  hand-authoring these files in a plain text editor more practical, but
+  a real visual/WYSIWYG tool (even a small local HTML page rendering
+  the PETSCII character set faithfully) would remove the guesswork
+  entirely. Not scoped or started -- open questions include whether
+  it's a standalone local tool, a web page, or an in-game admin command
+  that renders back over a real terminal connection.
+- [DONE 7/23/26] While building the above: found that `terminal.py`'s
+  `CommodoreGraphicsChars` had a real value collision -- `TOP_TEE` and
+  `LEFT_TEE` were both `chr(178)`, which (per Python Enum semantics)
+  made `LEFT_TEE` a silent *alias* of `TOP_TEE` rather than its own
+  distinct byte value. Ryan corrected the real values: `TOP_TEE =
+  chr(113)`, `LEFT_TEE = chr(115)`. `formatting._build_named_petscii_
+  glyphs()` still keys off `CommodoreGraphicsChars.__members__` rather
+  than plain iteration -- harmless now that the two are distinct, but
+  worth keeping in case another collision creeps in later.
