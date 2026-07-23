@@ -1015,64 +1015,20 @@ def _menu_color_swatch(mc) -> str:
     return ''.join(f'|{c}|##|reset|' for c in fields)
 
 
-async def _pick_menu_colors(ctx) -> None:
-    """Choose the color scheme used to render menus (menu_system.
-    MenuColor) -- item numbers, shortcuts, menu text, hrules, and dot
-    leaders/values (EDITPLAYER, CONFIG, etc. all share menu_system.
-    format_menu_lines(), so this covers every menu in the game).
-
-    Offers menu_system.MENU_COLOR_PRESETS by number ('Default' clears
-    client_settings.menu_colors back to None, which format_menu_lines()
-    reads as "use menu_system.DEFAULT_MENU_COLORS"; the others store a
-    copy of that named preset), plus one more option for 'Custom', which
-    walks through each part from the same palette _pick_colors() uses,
-    one prompt at a time, previewing the result as it's built.
+async def _walk_custom_menu_colors(ctx, current, palette) -> Optional['MenuColor']:
+    """The 'Custom' picker's per-field walk, extracted out of
+    _pick_menu_colors() so its confirm-loop can call it repeatedly.
+    Returns the built MenuColor, or None if the player cancelled
+    (blank/disconnect on the very first field prompt aborts the whole
+    thing, same as before this was pulled out into its own function --
+    a blank on any *later* field just keeps that field's current value
+    and moves on, same as always).
     """
     from dataclasses import replace
-    from terminal import ColorName
     from formatting import COLOR_NAME_TO_TOKEN, border_style_for_ctx
-    from menu_system import MenuColor, DEFAULT_MENU_COLORS, MENU_COLOR_PRESETS
     from table import Table
 
-    _SKIP   = {ColorName.RESET, ColorName.REVERSE_ON, ColorName.REVERSE_OFF}
-    palette = [cn for cn in ColorName if cn not in _SKIP and COLOR_NAME_TO_TOKEN.get(cn)]
-
-    cs      = ctx.player.client_settings
-    current = cs.menu_colors if isinstance(cs.menu_colors, MenuColor) else DEFAULT_MENU_COLORS
-
-    custom_num = len(MENU_COLOR_PRESETS) + 1
-    lines = ['', '|yellow|Menu Colors|reset|', ''] + _menu_color_preview(ctx, current) + ['']
-    for i, (name, mc) in enumerate(MENU_COLOR_PRESETS, 1):
-        lines.append(f'  {i:>2}. {name:<18} {_menu_color_swatch(mc)}')
-    lines.append(f'  {custom_num:>2}. Custom (pick each part)')
-    lines.append('')
-
-    raw = await ctx.prompt('menu colors', preamble_lines=lines)
-    if raw is None or not raw.strip():
-        await ctx.send('Menu colors unchanged.')
-        return
-    ans = raw.strip()
-
-    if ans.isdigit():
-        idx = int(ans) - 1
-        if 0 <= idx < len(MENU_COLOR_PRESETS):
-            name, mc = MENU_COLOR_PRESETS[idx]
-            # None for the literal Default preset (mc is the shared
-            # DEFAULT_MENU_COLORS instance) so a later change to that
-            # module-level default keeps applying; a real copy for every
-            # other preset so it can't be mutated by editing DEFAULT_
-            # MENU_COLORS later.
-            cs.menu_colors = None if mc is DEFAULT_MENU_COLORS else replace(mc)
-            await ctx.send(f'Menu colors set to {name}.', *_menu_color_preview(ctx, mc))
-            return
-        if idx == len(MENU_COLOR_PRESETS):
-            pass  # Custom -- fall through below
-        else:
-            await ctx.send('Menu colors unchanged -- number out of range.')
-            return
-    else:
-        await ctx.send('Menu colors unchanged.')
-        return
+    cs = ctx.player.client_settings
 
     def _palette_rows() -> list[str]:
         t = Table(headers=['#', 'Color', 'Sample'], border_style=border_style_for_ctx(ctx))
@@ -1093,7 +1049,7 @@ async def _pick_menu_colors(ctx) -> None:
         await ctx.send(*(['', f'|yellow|{label}|reset| (current: {cur_name}):'] + palette_rows + ['']))
         raw = await ctx.prompt(f'{label} #')
         if raw is None:
-            return
+            return None
         val = raw.strip()
         if not val:
             continue
@@ -1106,5 +1062,78 @@ async def _pick_menu_colors(ctx) -> None:
         else:
             await ctx.send(f'{label} unchanged.')
 
-    cs.menu_colors = new_scheme
-    await ctx.send('Menu colors updated.', *_menu_color_preview(ctx, new_scheme))
+    return new_scheme
+
+
+async def _pick_menu_colors(ctx) -> None:
+    """Choose the color scheme used to render menus (menu_system.
+    MenuColor) -- item numbers, shortcuts, menu text, hrules, and dot
+    leaders/values (EDITPLAYER, CONFIG, etc. all share menu_system.
+    format_menu_lines(), so this covers every menu in the game).
+
+    Offers menu_system.MENU_COLOR_PRESETS by number ('Default' clears
+    client_settings.menu_colors back to None, which format_menu_lines()
+    reads as "use menu_system.DEFAULT_MENU_COLORS"; the others store a
+    copy of that named preset), plus one more option for 'Custom', which
+    walks through each part from the same palette _pick_colors() uses.
+
+    Neither choice is saved right away -- after picking, Ryan wants a
+    "Are these colors satisfactory? (y/n)" confirmation; 'n' loops back
+    to the picker (list still shows the *old* saved scheme as current,
+    since nothing was committed) instead of exiting, so a player can
+    keep trying schemes until one actually looks right.
+    """
+    from dataclasses import replace
+    from terminal import ColorName
+    from formatting import COLOR_NAME_TO_TOKEN
+    from menu_system import MenuColor, DEFAULT_MENU_COLORS, MENU_COLOR_PRESETS
+
+    _SKIP   = {ColorName.RESET, ColorName.REVERSE_ON, ColorName.REVERSE_OFF}
+    palette = [cn for cn in ColorName if cn not in _SKIP and COLOR_NAME_TO_TOKEN.get(cn)]
+
+    cs = ctx.player.client_settings
+
+    while True:
+        current = cs.menu_colors if isinstance(cs.menu_colors, MenuColor) else DEFAULT_MENU_COLORS
+
+        custom_num = len(MENU_COLOR_PRESETS) + 1
+        lines = ['', '|yellow|Menu Colors|reset|', ''] + _menu_color_preview(ctx, current) + ['']
+        for i, (name, mc) in enumerate(MENU_COLOR_PRESETS, 1):
+            lines.append(f'  {i:>2}. {name:<18} {_menu_color_swatch(mc)}')
+        lines.append(f'  {custom_num:>2}. Custom (pick each part)')
+        lines.append('')
+
+        raw = await ctx.prompt('menu colors', preamble_lines=lines)
+        if raw is None or not raw.strip():
+            await ctx.send('Menu colors unchanged.')
+            return
+        ans = raw.strip()
+
+        if not ans.isdigit():
+            await ctx.send('Menu colors unchanged.')
+            return
+        idx = int(ans) - 1
+
+        if 0 <= idx < len(MENU_COLOR_PRESETS):
+            name, mc = MENU_COLOR_PRESETS[idx]
+            candidate = None if mc is DEFAULT_MENU_COLORS else replace(mc)
+            preview_mc, label = mc, name
+        elif idx == len(MENU_COLOR_PRESETS):
+            candidate = await _walk_custom_menu_colors(ctx, current, palette)
+            if candidate is None:
+                await ctx.send('Menu colors unchanged.')
+                return
+            preview_mc, label = candidate, 'Custom'
+        else:
+            await ctx.send('Menu colors unchanged -- number out of range.')
+            continue
+
+        await ctx.send(f'Preview: {label}.', *_menu_color_preview(ctx, preview_mc))
+        confirm = await ctx.prompt('Are these colors satisfactory? (y/n)')
+        if confirm is not None and confirm.strip().lower().startswith('y'):
+            cs.menu_colors = candidate
+            await ctx.send(f'Menu colors set to {label}.')
+            return
+        # 'n' (or anything else, or a blank) -- loop back to the picker
+        # without saving; cs.menu_colors is untouched, so 'current' on
+        # the next iteration is still whatever it was before this pass.

@@ -1,5 +1,13 @@
+|cyan|{$c0:38}|reset|
+
+    |white||reverse_on|       |reverse_off|   |cyan||reverse_on|   |reverse_off|   |cyan||reverse_on|      |reverse_off|    |cyan||reverse_on|   |reverse_off|  
+       |white||reverse_on| |reverse_off|     |cyan||reverse_on| |reverse_off|   |cyan||reverse_on| |reverse_off|  |cyan||reverse_on| |reverse_off|     |cyan||reverse_on| |reverse_off|  |cyan||reverse_on| |reverse_off|   |cyan||reverse_on| |reverse_off| 
+       |white||reverse_on| |reverse_off|    |light_gray|-]====================|yellow|>|reset|
+       |white||reverse_on| |reverse_off|    |cyan||reverse_on| |reverse_off|     |cyan||reverse_on| |reverse_off| |cyan||reverse_on| |reverse_off|     |cyan||reverse_on| |reverse_off| |cyan||reverse_on| |reverse_off|     |cyan||reverse_on| |reverse_off|
+       |white||reverse_on| |reverse_off|    |cyan||reverse_on| |reverse_off|     |cyan||reverse_on| |reverse_off| |cyan||reverse_on|      |reverse_off|  |cyan||reverse_on| |reverse_off|     |cyan||reverse_on| |reverse_off|
+
+|blue|{$c0:38}|reset|
+
+|yellow|         A dungeon adventure for your |red|Commodore 64|yellow|!|reset|
 |white|
-|reverse|    TADA - Totally Awesome Dungeon Adventure    |reset|
-|white|
-|yellow|         A dungeon adventure for your Commodore!      |reset|
-|white|
+|blue|{$c0:38}|reset|
