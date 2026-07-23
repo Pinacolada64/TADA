@@ -26,10 +26,16 @@ Settings managed here
                       client_settings.colors.highlight_color
   N  News Display     command_settings.news_show_all  (New only / Full directory)
   T  Client Type      client_settings.screen_columns/screen_rows/translation
-                      — presets (C64/C128/TADA client) or a custom size;
-                        ANSI terminals only (PETSCII's is fixed by port).
-                        Folded in from what used to be character creation's
-                        own standalone "Client Type" step.
+                      — presets (C64/C128/TADA client) or a custom size.
+                        Available over a real PETSCII connection too (a
+                        C128 can switch 40<->80 col after login, same
+                        choice as terminal negotiation) -- _pick_client_type()
+                        just keeps a real PETSCII session's translation
+                        pinned to PETSCII regardless of which preset/custom
+                        answer is picked, the same way it already keeps a
+                        non-PETSCII session from being switched *to*
+                        PETSCII. Folded in from what used to be character
+                        creation's own standalone "Client Type" step.
   K  Tab Key          client_settings.tab_settings.has_tab_key/tab_width
   L  Line Ending      client_settings.line_ending  (LF / CR / CRLF)
                       — stored only for now, not yet enforced on every
@@ -103,9 +109,10 @@ _SETTING_HELP: dict[str, list[str]] = {
         '|cyan|Client Type|reset|',
         "Sets your screen size and color translation -- pick a Commodore "
         "64/128 preset, the TADA client preset, or a Custom size (20-132 "
-        "columns, 10-60 rows) with ANSI color or plain text. Not shown on "
-        "PETSCII (real Commodore) connections, since that's fixed by "
-        "which port you connected to.",
+        "columns, 10-60 rows) with ANSI color or plain text. On a real "
+        "Commodore connection, only the screen size actually changes -- "
+        "translation stays PETSCII regardless of which preset you pick, "
+        "since PETSCII color codes only work over that port.",
         '',
     ],
     'k': [
@@ -304,8 +311,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight', 'hc'])
         news_all = getattr(ctx.player.command_settings, 'news_show_all', False)
         t.add_row(['N', 'News Display', 'Full directory' if news_all else 'New only', 'hn'])
-        if not is_petscii:
-            t.add_row(['T', 'Client Type', f'{cs.screen_columns}x{cs.screen_rows}', 'ht'])
+        t.add_row(['T', 'Client Type', f'{cs.screen_columns}x{cs.screen_rows}', 'ht'])
         t.add_row(['K', 'Tab Key', tab_summary, 'hk'])
         t.add_row(['L', 'Line Ending', line_ending_name, 'hl'])
         tz_name    = getattr(cs, 'timezone', '') or _server_local_label()
@@ -318,10 +324,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         valid_keys = ['X', 'H', 'M']
         if not is_petscii:
             valid_keys.append('B')
-        valid_keys += ['C', 'N']
-        if not is_petscii:
-            valid_keys.append('T')
-        valid_keys += ['K', 'L', 'Z', 'D', 'F']
+        valid_keys += ['C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -353,9 +356,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             help_lines += [
                 'C - choose text and highlight colors',
                 'N - toggle News Display (new only / full directory)',
+                'T - choose client type / screen size',
             ]
-            if not is_petscii:
-                help_lines.append('T - choose client type / screen size (ANSI only)')
             help_lines += [
                 'K - set whether your client has a real Tab key (and its width)',
                 'L - choose line ending (LF / CR / CRLF)',
@@ -413,7 +415,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             cs2.news_show_all = not getattr(cs2, 'news_show_all', False)
             await ctx.send(f"{option}{'|green|Full directory' if cs2.news_show_all else '|green|New only'}|reset|")
 
-        elif ans == 't' and not is_petscii:
+        elif ans == 't':
             await _pick_client_type(ctx)
 
         elif ans == 'k':
@@ -641,6 +643,17 @@ async def _pick_client_type(ctx) -> None:
                     "Commodore connection (the dedicated PETSCII port), not this one."
                 )
                 return
+            if encoding != Translation.PETSCII and is_real_petscii:
+                # Mirror image of the guard above: apply the screen size,
+                # but never switch a *real* PETSCII connection's
+                # translation away from PETSCII -- ANSI escape codes sent
+                # to real Commodore hardware would garble its display.
+                await ctx.send(
+                    f'Client type set to: {label} screen size ({cols}x{rows}), '
+                    "but keeping PETSCII translation -- ANSI color codes don't "
+                    "work over a real Commodore connection."
+                )
+                return
             cs.translation = encoding
             # The Commodore 128's keyboard has a real Tab key (the C64's
             # doesn't), and so does any ANSI/TADA client -- set as a side
@@ -675,12 +688,21 @@ async def _pick_client_type(ctx) -> None:
         await ctx.send(f'Client type unchanged -- rows must be {_MIN_ROWS}-{_MAX_ROWS}.')
         return
 
-    raw_trans = await ctx.prompt('ANSI color or Plain text? (A/P)')
-    translation = Translation.ASCII if (raw_trans or '').strip().lower().startswith('p') else Translation.ANSI
-
     cs.screen_columns = cols
     cs.screen_rows    = rows
-    cs.translation    = translation
+
+    if is_real_petscii:
+        # Same guard as the preset branch above -- a real Commodore
+        # connection can pick a custom screen size, but its translation
+        # stays PETSCII; ANSI/Plain aren't real options over that port,
+        # so don't even ask.
+        await ctx.send(f'Client type set to: Custom, {cols}x{rows} screen size, '
+                        'keeping PETSCII translation.')
+        return
+
+    raw_trans = await ctx.prompt('ANSI color or Plain text? (A/P)')
+    translation = Translation.ASCII if (raw_trans or '').strip().lower().startswith('p') else Translation.ANSI
+    cs.translation = translation
     # Custom is only ever ANSI or Plain -- neither is the C64's no-real-
     # tab-key case, so both get a real Tab key like TADA Client does.
     cs.has_tab  = True

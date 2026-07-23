@@ -122,6 +122,25 @@ class TestPrefsMenuShowsNewRows(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Tab Key', text)
         self.assertIn('Line Ending', text)
 
+    async def test_client_type_row_shown_for_real_petscii(self):
+        """Ryan: PREFS didn't list Client Type/screen size at all over a
+        real Commodore connection -- the 'T' row/key was gated behind
+        `if not is_petscii`, so a genuine C64/C128 player (translation
+        already PETSCII, e.g. from terminal negotiation) could never see
+        or change their screen size after login."""
+        ctx = _FakePetsciiCtx([''], Player())
+        ctx.player.client_settings.translation = Translation.PETSCII
+        await prefs_menu(ctx)
+        text = ctx._flat()
+        self.assertIn('Client', text)
+        self.assertIn('Type', text)
+
+    async def test_t_key_reachable_for_real_petscii(self):
+        ctx = _FakePetsciiCtx(['t', '', ''], Player())
+        ctx.player.client_settings.translation = Translation.PETSCII
+        await prefs_menu(ctx)
+        self.assertIn('Client Type:', ctx._flat())
+
     async def test_border_style_hidden_immediately_after_switching_to_petscii(self):
         """Live bug found testing this: codec/is_petscii used to be
         computed once before the menu loop started, so switching Client
@@ -192,6 +211,37 @@ class TestPickClientType(unittest.IsolatedAsyncioTestCase):
         text = ctx._flat()
         self.assertIn('PETSCII', text)
         self.assertIn('real Commodore connection', text)
+
+    async def test_ansi_preset_over_real_petscii_transport_does_not_switch_translation(self):
+        """Mirror image of test_commodore_preset_over_ansi_transport_does_not_switch_translation:
+        a real Commodore connection picking the 'TADA Client' (ANSI)
+        preset must still apply the screen size but keep PETSCII
+        translation -- ANSI escape codes sent to real Commodore hardware
+        would garble its display."""
+        ctx = _FakePetsciiCtx(['4'], Player())
+        ctx.player.client_settings.translation = Translation.PETSCII
+        await _pick_client_type(ctx)
+        cs = ctx.player.client_settings
+        self.assertEqual((cs.screen_columns, cs.screen_rows), (80, 25))
+        self.assertEqual(cs.translation, Translation.PETSCII)
+
+    async def test_ansi_preset_over_real_petscii_transport_explains_why(self):
+        ctx = _FakePetsciiCtx(['4'], Player())
+        ctx.player.client_settings.translation = Translation.PETSCII
+        await _pick_client_type(ctx)
+        text = ctx._flat()
+        self.assertIn('PETSCII', text)
+
+    async def test_custom_size_over_real_petscii_transport_keeps_petscii_and_skips_translation_prompt(self):
+        # Only two prompts (columns, rows) -- no third "ANSI or Plain?"
+        # answer needed/consumed, since translation can't change for a
+        # real Commodore connection.
+        ctx = _FakePetsciiCtx(['5', '80', '25'], Player())
+        ctx.player.client_settings.translation = Translation.PETSCII
+        await _pick_client_type(ctx)
+        cs = ctx.player.client_settings
+        self.assertEqual((cs.screen_columns, cs.screen_rows), (80, 25))
+        self.assertEqual(cs.translation, Translation.PETSCII)
 
     async def test_c64_preset_does_not_set_has_tab(self):
         """Ryan: the C128 has a real Tab key, unlike the C64."""
