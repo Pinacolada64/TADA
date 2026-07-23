@@ -56,6 +56,29 @@ INVALID_CHOICE = _InvalidChoice()
 
 
 # ---------------------------------------------------------------------------
+# Color scheme
+# ---------------------------------------------------------------------------
+
+@dataclass
+class MenuColor:
+    """|token| color names for each part of a rendered menu.
+
+    A plain data bag rather than hardcoded literals in format_menu_lines()
+    so a color scheme can become a PREFS-selectable/persisted option later
+    (see ClientSettings.menu_colors) without touching the renderer itself.
+    """
+    rule:       str = 'cyan'
+    number:     str = 'light_green'
+    shortcut:   str = 'yellow'
+    label:      str = 'light_red'
+    dot_leader: str = 'white'
+    dot_value:  str = 'red'
+
+
+DEFAULT_MENU_COLORS = MenuColor()
+
+
+# ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
 
@@ -104,10 +127,15 @@ class Menu:
                     unsaved-changes marker.
         columns:    1 (default) or 2 for a two-column layout.
         menu_items: Ordered list of MenuItem objects.
+        colors:     Optional MenuColor override for this menu specifically.
+                    None (the default) defers to the player's own
+                    ClientSettings.menu_colors, or DEFAULT_MENU_COLORS if
+                    the player hasn't picked one -- see format_menu_lines().
     """
-    title:      Union[str, Callable] = ''
-    columns:    int            = 1
-    menu_items: List[MenuItem] = field(default_factory=list)
+    title:      Union[str, Callable]   = ''
+    columns:    int                    = 1
+    menu_items: List[MenuItem]         = field(default_factory=list)
+    colors:     Optional['MenuColor']  = None
 
     @property
     def rendered_title(self) -> str:
@@ -136,12 +164,17 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
     except AttributeError:
         screen_columns = 80
 
+    player_colors = getattr(getattr(ctx.player, 'client_settings', None), 'menu_colors', None)
+    if not isinstance(player_colors, MenuColor):
+        player_colors = None
+    colors = menu.colors or player_colors or DEFAULT_MENU_COLORS
+
     _H = {'single': '─', 'double': '═'}
     try:
         h_char = _H.get(ctx.player.client_settings.border_style, '-')
     except AttributeError:
         h_char = '-'
-    rule = h_char * screen_columns
+    rule = f'|{colors.rule}|{h_char * screen_columns}|reset|'
 
     # --- Pass 1a: measure shortcut column width from this menu's items ---
     # Use the widest shortcut string (visible width) so the column is as
@@ -163,16 +196,18 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
 
         selectable_count += 1
         label = item.text() if callable(item.text) else str(item.text)
+        number = f'|{colors.number}|{selectable_count:2d}.|reset|'
+        colored_label = f'|{colors.label}|{label}|reset|'
         if item.shortcuts:
             sc_raw = f"[{','.join(item.shortcuts)}]"
             # Pad so the visible shortcut occupies max_sc_vis columns.
             # sc_raw has 2 extra chars ([…]) that highlight_brackets removes,
             # so we add those back as spaces to keep visual alignment.
             padding = max_sc_vis - _vis_len(sc_raw)
-            base = f'{selectable_count:2d}. {sc_raw}{" " * padding} {label}'
+            base = f'{number} |{colors.shortcut}|{sc_raw}|reset|{" " * padding} {colored_label}'
         else:
             indent = ' ' * (max_sc_vis + 1) if max_sc_vis else ''
-            base = f'{selectable_count:2d}. {indent}{label}'
+            base = f'{number} {indent}{colored_label}'
 
         dot_text = None
         if item.dot_leader_handler is not None:
@@ -212,11 +247,14 @@ def format_menu_lines(ctx: 'GameContext', menu: 'Menu') -> List[str]:
             fit_dots   = screen_columns - vis_base - 3 - len(dot_text)
             item_dots  = max(0, min(align_dots, fit_dots))
             if item_dots > 0:
-                lines.append(f'{base} {"." * item_dots}: {dot_text}')
+                lines.append(
+                    f'{base} |{colors.dot_leader}|{"." * item_dots}|reset|: '
+                    f'|{colors.dot_value}|{dot_text}|reset|'
+                )
             else:
                 # No room for dots; truncate the label, never the value.
-                suffix     = f': {dot_text}'
-                keep_vis   = screen_columns - len(suffix)
+                suffix     = f': |{colors.dot_value}|{dot_text}|reset|'
+                keep_vis   = screen_columns - _vis_len(suffix)
                 # Trim base until its visible length fits.
                 trimmed    = base
                 while _vis_len(trimmed) > keep_vis and trimmed:

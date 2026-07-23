@@ -1,7 +1,7 @@
 # Terminal declarations
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import Enum, auto, StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     # Back style is used for reverse text
@@ -10,6 +10,7 @@ if TYPE_CHECKING:
         from colorama import Fore, Back, Style
     except ModuleNotFoundError:
         print("colorama not available.")
+    from menu_system import MenuColor
 import logging
 
 # TADA-specific imports:
@@ -307,6 +308,11 @@ class ClientSettings:
     # picker under PREFS 'K'), which is asked separately.
     has_tab: bool = False
     tab_char: str = chr(9)
+    # Per-player menu color scheme (menu_system.MenuColor) -- None means
+    # "use menu_system.DEFAULT_MENU_COLORS". Not yet editable from PREFS;
+    # this field exists so format_menu_lines() has somewhere to read a
+    # player's chosen scheme from once that UI is built.
+    menu_colors: 'Optional[MenuColor]' = None
 
     # New in TADA: Player._load() never restored client_settings at all
     # (only save() dumped it, via a generic __dict__ fallback that also
@@ -333,6 +339,8 @@ class ClientSettings:
             'line_ending':    self.line_ending,
             'has_tab':        self.has_tab,
             'tab_char':       self.tab_char,
+            'menu_colors':    (asdict(self.menu_colors)
+                                if self.menu_colors is not None else None),
         }
 
     @classmethod
@@ -371,6 +379,9 @@ class ClientSettings:
             instance.colors = TerminalColors.from_dict(data['colors'])
         if isinstance(data.get('tab_settings'), dict):
             instance.tab_settings = TabSettings.from_dict(data['tab_settings'])
+        if isinstance(data.get('menu_colors'), dict):
+            from menu_system import MenuColor
+            instance.menu_colors = MenuColor(**data['menu_colors'])
         return instance
 
 # ---------------------------------------------------------------------------

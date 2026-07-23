@@ -262,10 +262,13 @@ class TestFormatMenuLinesGeometry:
     # --- rule line ---
 
     def test_rule_fills_screen_width(self):
+        # Rule lines carry a |color| token wrapper (see MenuColor), so
+        # strip |token| sequences before checking the bare rule chars.
         ctx   = _make_ctx(40)
         menu  = _make_menu('Item', shortcuts=['i'])
         lines = format_menu_lines(ctx, menu)
-        rules = [ln for ln in lines if ln and set(ln) <= {'─', '═', '-'}]
+        stripped = [re.sub(r'\|[a-z_]+\|', '', ln) for ln in lines]
+        rules = [ln for ln in stripped if ln and set(ln) <= {'─', '═', '-'}]
         assert rules, "No rule line found"
         assert all(len(ln) == 40 for ln in rules), \
             f"Rule line not exactly 40 chars: {[len(r) for r in rules]}"
