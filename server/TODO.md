@@ -633,7 +633,7 @@
   it). Once a real spell system exists, it should be able to trigger
   `spells/charm.py`'s same `try_charm_potion()`-equivalent effect against
   a targeted monster, rather than duplicating the charm logic.
-- `commands/teleport.py` should check for a monster in the room being
+- [DONE 7/22/26] `commands/teleport.py` should check for a monster in the room being
   left and react (Ryan): SPUR.MISC3.S's `cst.shop` label (the
   cast-a-teleport-spell flow, both branches -- skip's version is
   identical apart from dropping one colon):

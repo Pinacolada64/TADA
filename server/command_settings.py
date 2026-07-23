@@ -46,6 +46,19 @@ class BoardSettings:
 
 
 @dataclass
+class TeleportSettings:
+    """commands/teleport.py preferences.
+
+    destinations: name (as typed with '#learn') -> (level, room) tuple.
+    'teleport #learn <name>' saves the player's current location under
+    that name; bare 'teleport' lists saved destinations; 'teleport <name>'
+    (exact match, case-insensitive) jumps straight there, ahead of the
+    numeric-room and room-name-substring-search fallbacks.
+    """
+    destinations: dict = field(default_factory=dict)
+
+
+@dataclass
 class CommandSettings:
     """Player-controlled command preferences."""
     whereat_hidden: bool = False
@@ -65,6 +78,8 @@ class CommandSettings:
     tips: TipsSettings = field(default_factory=TipsSettings)
     # Threaded message board preferences (board.py, commands/board.py)
     board: BoardSettings = field(default_factory=BoardSettings)
+    # Saved teleport destinations (commands/teleport.py)
+    teleport: TeleportSettings = field(default_factory=TeleportSettings)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -74,6 +89,7 @@ class CommandSettings:
         known = {k: v for k, v in data.items() if k in cls.__dataclass_fields__}
         tips_data = known.pop('tips', None)
         board_data = known.pop('board', None)
+        teleport_data = known.pop('teleport', None)
         instance = cls(**known)
         if isinstance(tips_data, dict):
             instance.tips = TipsSettings(**{
@@ -85,4 +101,11 @@ class CommandSettings:
                 k: v for k, v in board_data.items()
                 if k in BoardSettings.__dataclass_fields__
             })
+        if isinstance(teleport_data, dict):
+            # JSON round-trips tuples as lists -- convert (level, room)
+            # pairs back to tuples so callers get consistent types.
+            destinations = teleport_data.get('destinations') or {}
+            instance.teleport = TeleportSettings(
+                destinations={k: tuple(v) for k, v in destinations.items()}
+            )
         return instance
