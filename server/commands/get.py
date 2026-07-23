@@ -257,7 +257,18 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
         if item_id in picked_up:
             continue
 
-        item  = Item(id_number=item_id, name=name, category=category)
+        # rations.json entries carry their own "kind" (food/drink/cursed)
+        # -- commands/eat.py and commands/drink.py both filter inventory
+        # by item.kind, so it has to survive the pickup, and a "drink"
+        # ration (e.g. MINERAL WATER) needs ItemCategory.DRINK rather than
+        # the FOOD category this loop defaults every server.rations entry
+        # to, or 'drink' would never find it either.
+        item_kind = raw.get('kind') if isinstance(raw, dict) else getattr(raw, 'kind', None)
+        item_category = category
+        if attr == 'food' and item_kind == 'drink':
+            item_category = ItemCategory.DRINK
+
+        item  = Item(id_number=item_id, name=name, category=item_category, kind=item_kind)
         # Preserve objects.json's own "type" field (e.g. "book") as a real
         # ItemType -- read.py's book list keys off this, and without it a
         # room-found book (a scroll, say) would never show up there at all;
