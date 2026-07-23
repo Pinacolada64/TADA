@@ -14,10 +14,8 @@ Syntax:
 group cannot be named "ignore", "unignore", "haven", or "unhaven".
 
 If a target isn't currently online, offers to leave the message as mail
-for them. Mail *reading* isn't implemented yet (no `mail` command exists
--- see MECHANICS.md's "Mail / Paging" section and TODO.md) but this still
-persists it to run/server/mail/<name>.json in the schema that section
-already specifies, so a future `mail` command has something to read.
+for them (mail.py's add_message() -- read back via the `mail` command,
+see commands/mail.py).
 
 Examples:
     page Alice=Are you there?
@@ -29,18 +27,13 @@ Examples:
 """
 from __future__ import annotations
 
-import datetime
-import json
-from pathlib import Path
-
+import mail as mail_store
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from commands.messaging import parse_targets, expand_groups, find_online, player_exists, is_in_combat
 from network_context import GameContext
 
 _CONTROL_WORDS = {'#ignore', '#unignore', '#haven', '#unhaven'}
-
-_MAIL_DIR = Path('run') / 'server' / 'mail'
 
 
 class PageCommand(Command):
@@ -226,17 +219,5 @@ class PageCommand(Command):
         if not raw or raw.strip().lower() not in ('y', 'yes'):
             return
 
-        _MAIL_DIR.mkdir(parents=True, exist_ok=True)
-        mail_file = _MAIL_DIR / f'{name.lower()}.json'
-        try:
-            inbox = json.loads(mail_file.read_text()) if mail_file.exists() else []
-        except Exception:
-            inbox = []
-        inbox.append({
-            'from':      ctx.player.name,
-            'timestamp': datetime.datetime.now().isoformat(),
-            'body':      message,
-            'read':      False,
-        })
-        mail_file.write_text(json.dumps(inbox, indent=2))
-        await ctx.send(f"Message left for {name}. (There's no `mail` command yet to read it -- see TODO.md.)")
+        mail_store.add_message(name, ctx.player.name, message)
+        await ctx.send(f'Message left for {name}.')

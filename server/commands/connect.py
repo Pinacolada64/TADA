@@ -140,6 +140,22 @@ def _login_news_lines(ctx, player) -> list[str]:
     return lines
 
 
+def _login_mail_lines(player) -> list[str]:
+    """Build the login-time "you have N unread message(s)" notice for
+    *player* -- see mail.py for storage/schema and commands/mail.py for
+    the standalone `mail` command that reads them. Doesn't mark anything
+    read (unlike news's 'once' items) -- mail stays unread until the
+    player actually opens it with `mail <n>`."""
+    import mail as mail_store
+
+    count = mail_store.unread_count(player.name)
+    if not count:
+        return []
+    plural = 's' if count != 1 else ''
+    return ['', f"|yellow|You have {count} unread mail message{plural}.|reset| "
+                "(type 'mail' to read)"]
+
+
 def _login_tip_lines(ctx) -> list[str]:
     """Build the login-time tip display, honoring the player's
     command_settings.tips.enabled preference ('tips #on'/'tips #off').
@@ -451,6 +467,11 @@ class ConnectCommand(Command):
         news_lines = _login_news_lines(ctx, player)
         if news_lines:
             login_lines += news_lines
+
+        # Unread mail -- see mail.py and commands/mail.py.
+        mail_lines = _login_mail_lines(player)
+        if mail_lines:
+            login_lines += mail_lines
 
         # Tip of the day -- see commands/tips.py and tips.py.
         tip_lines = _login_tip_lines(ctx)

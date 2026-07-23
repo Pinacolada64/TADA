@@ -875,15 +875,45 @@ for exactly this reason.
   `page #unhaven` reverses it. `#ignore`/`#unignore`/`#haven`/`#unhaven` are reserved words, so a
   saved group can't use those names.
 - ✅ **Offline fallback** — if a target isn't online, `page` offers to leave the message as mail
-  (declines silently if the player doesn't exist at all). Accepting appends a record to
-  `run/server/mail/<name>.json` in the schema below.
-- ✅ **Storage** — mailboxes stored per-player (`run/server/mail/<name>.json`); each message:
-  `from`, `timestamp`, `body`, `read` flag (no `subject` yet — pages are one-liners).
-
-#### Future
-- **Mail inbox** — unread mail is shown at login (similar to news display); a `mail` command lets
-  players read, reply to, and delete messages mid-session. Nothing reads `run/server/mail/*.json`
-  yet — `page`'s offline fallback writes to it, but there's no way to read it back in-game.
+  (declines silently if the player doesn't exist at all). Accepting calls `mail.add_message()`,
+  appending a record to `run/server/mail/<name>.json` in the schema below.
+- ✅ **Storage** (`mail.py`) — mailboxes stored per-player (`run/server/mail/<name>.json`); each
+  message: `from`, `timestamp`, `body`, `read` flag, optional `archived` flag (no `subject` yet —
+  pages are one-liners). `load_mailbox()`/`save_mailbox()`/`add_message()`/`unread_count()`/
+  `mark_read()`/`mark_archived()`/`delete_message()` — loaded/saved fresh on every call, same
+  convention as `news.py`. Every player-facing message number (`mail <n>`, `#delete <n>`, etc)
+  counts only *active* (non-archived) messages, in mailbox order — archiving drops a message out
+  of that numbering without deleting it.
+- ✅ **`mail` command** (`commands/mail.py`) — `mail` lists the (active) mailbox and stays in it
+  (numbered, From/date/read status) until Enter, same interaction shape as `news`; a bare number
+  reads that message in full and marks it read, `d<n>` deletes it inline. `mail <n>` /
+  `mail #delete <n>` work the same way outside the listing. `mail #reply <n>=<message>` delegates
+  straight to `PageCommand` (a reply is just a page to the original sender, including its own
+  online/offline handling) — refuses if the sender no longer resolves to a real target (e.g.
+  replying to yourself). `#read`/`#delete`/`#reply` are reserved control words (mirrors `page`'s
+  `#ignore`/`#haven` convention), so a saved group can't be named "read", "delete", or "reply".
+- ✅ **`mail #read`** (`commands/mail.py` `_read_interactive()`) — with `PlayerFlags.PROMPT_MODE`
+  on and more than one active message, walks the mailbox one message at a time, each followed by
+  an end-of-message menu: `[R]eply` (prompts right there, pages/mails the sender — same delivery
+  path as `mail #reply`), `[D]elete`, `[A]rchive` (`mail.mark_archived()`), `[K]eep` or bare
+  Enter (advance to the next message), `Read [O]ver` (redisplay the same message). Delete/Archive
+  don't advance the walk index — the next active message shifts into the same slot. Falls back to
+  the plain listing (`mail`) when PROMPT_MODE is off or there's 0-1 messages, same PROMPT_MODE
+  gating convention as `commands/board_reply.py`'s thread reader.
+- ✅ **Composing new mail** (`commands/mail.py`) — `mail <target[,target2]>=<message>` writes a
+  short one-line message straight to each target's mailbox; `mail <target[,target2]>` (no `=`)
+  opens `text_editor.run_editor()` for a longer letter, delivered to every target on `.S` Save
+  (`.A` Abort, or an empty buffer, cancels — nothing is sent). Targets use the same syntax as
+  `page`/`whisper` (`commands.messaging.parse_targets()`'s shlex-accepted, comma/space-delimited
+  names; `#groupname` via `expand_groups()`). Composing never checks online status — MAIL is
+  always a left-behind letter, unlike PAGE's live delivery. A long letter's `body` is stored
+  structurally (`formatting.serialize_lines()`'s output, same as `news.py`/`board.py`), so `mail
+  <n>` re-renders it per-viewer via `deserialize_lines()`/`render_lines()`; a short message's
+  `body` stays a plain string, same as PAGE's offline fallback always wrote.
+- ✅ **Login-time unread notice** (`commands/connect.py` `_login_mail_lines()`) — "You have N
+  unread mail message(s)." shown right after news, before the tip of the day. Doesn't mark
+  anything read (unlike news's `once` items) — mail stays unread until actually opened via
+  `mail <n>`.
 
 ---
 

@@ -1020,7 +1020,7 @@ class TestPageOfflineMail(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             mail_dir = Path(tmp) / 'mail'
             with unittest.mock.patch('commands.page.player_exists', return_value=True), \
-                 unittest.mock.patch('commands.page._MAIL_DIR', mail_dir):
+                 unittest.mock.patch('mail.MAIL_DIR', mail_dir):
                 self._run(ctx, 'Offline=hello there')
             self.assertIn('Message left', ctx.sent_text())
             saved = json.loads((mail_dir / 'offline.json').read_text())
