@@ -19,6 +19,7 @@ def _connected_client(player, room=1):
     ctx = MagicMock()
     ctx.player = player
     ctx.client.room = room
+    ctx.client.active_editor = None
     ctx.send = AsyncMock()
     return SimpleNamespace(ctx=ctx)
 
@@ -75,6 +76,41 @@ def test_no_connected_clients_does_not_raise():
     server = Server('127.0.0.1', 0)
     server.clients = {}
     asyncio.run(server.graceful_shutdown())   # should just return cleanly
+
+
+def test_saves_in_progress_editor_buffer_and_notifies(tmp_path, monkeypatch):
+    import net_common
+    import text_editor
+    run_dir = tmp_path / 'run' / 'server'
+    run_dir.mkdir(parents=True)
+    net_common.run_server_dir = run_dir
+
+    from player import Player
+    from network_context import PETSCIINetworkContext
+    editing = Player(name='Editing')
+    editing.id = 'editing'
+
+    ctx = MagicMock()
+    ctx.player = editing
+    ctx.player.client_settings = SimpleNamespace(screen_columns=80)
+    ctx.send = AsyncMock()
+
+    editor = text_editor.Editor(ctx, initial_lines=['Some unsaved text.'])
+    ctx.client.active_editor = editor
+
+    server = Server('127.0.0.1', 0)
+    server.clients = {('127.0.0.1', 1): SimpleNamespace(ctx=ctx)}
+
+    asyncio.run(server.graceful_shutdown())
+
+    sent_text = str(ctx.send.call_args_list)
+    assert 'saved to a temporary file' in sent_text
+
+    saved_files = list((tmp_path / 'run' / 'server' / 'editor_recovery').glob('Editing-*.json'))
+    assert len(saved_files) == 1
+    data = json.loads(saved_files[0].read_text())
+    assert data['player'] == 'Editing'
+    assert data['lines'][0]['text'] == 'Some unsaved text.'
 
 
 def test_one_players_send_failure_does_not_block_others(tmp_path):

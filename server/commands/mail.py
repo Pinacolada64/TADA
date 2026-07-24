@@ -449,7 +449,9 @@ class MailCommand(Command):
             return CommandResult.fail('No valid target.', error='missing_args')
 
         from text_editor import run_editor
-        body = await run_editor(ctx)
+        target_label = ', '.join(targets)
+        body = await run_editor(ctx, activity_id=f'mail_compose:{target_label}',
+                                 activity_label=f'writing mail to {target_label}')
         if not body:
             await ctx.send('Mail cancelled.')
             return CommandResult.ok('Cancelled.')

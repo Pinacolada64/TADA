@@ -184,7 +184,8 @@ class NewsCommand(Command):
             return CommandResult.fail('Cancelled.', error='cancelled')
 
         await ctx.send('Enter the news body.')
-        body = await run_editor(ctx)
+        body = await run_editor(ctx, activity_id=f'news_post:{title}',
+                                 activity_label=f'posting news "{title}"')
         if body is None:
             await ctx.send('Cancelled.')
             return CommandResult.fail('Cancelled.', error='cancelled')
@@ -240,7 +241,9 @@ class NewsCommand(Command):
                 item.pop('end_date', None)
 
         await ctx.send("Enter the new body, or '.a' to abort and keep the current text.")
-        body = await run_editor(ctx, initial_lines=deserialize_lines(item.get('body', [])))
+        body = await run_editor(ctx, initial_lines=deserialize_lines(item.get('body', [])),
+                                 activity_id=f"news_edit:{item['id']}",
+                                 activity_label=f"editing news #{item['id']}")
         if body is not None:
             item['body'] = body
 

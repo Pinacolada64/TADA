@@ -170,7 +170,9 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
             Line(line_flag=LineFlag.QUOTE, border=Border(role=BorderRole.BOTTOM)),
         ]
     await ctx.send('Enter your reply.')
-    body = await run_editor(ctx, initial_lines=initial_lines)
+    body = await run_editor(ctx, initial_lines=initial_lines,
+                             activity_id=f'board_reply:{thread.get("id", "")}',
+                             activity_label=f'replying to board thread #{thread.get("id", "")}')
     if body is None:
         await ctx.send('Cancelled.')
         return

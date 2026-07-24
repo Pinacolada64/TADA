@@ -4,13 +4,16 @@ own module docstring for exactly what was kept vs. filled in vs. deferred).
 """
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 from formatting import deserialize_lines, render_lines
 from text_editor import (
     Border, BorderRole, Buffer, DefaultLineRange, Editor, Justification, Line,
-    LineFlag, _sanitize_filename, process_line_range_string, run_editor,
+    LineFlag, _sanitize_filename, find_recovery_file, load_recovery_file,
+    process_line_range_string, run_editor,
 )
 
 
@@ -254,6 +257,37 @@ class TestRunEditorBasics(unittest.IsolatedAsyncioTestCase):
         ctx = _make_ctx(['some line'])
         result = await run_editor(ctx)
         self.assertIsNone(result)
+
+    async def test_disconnect_with_empty_buffer_saves_nothing(self):
+        import net_common
+        original = getattr(net_common, 'run_server_dir', None)
+        with tempfile.TemporaryDirectory() as tmp:
+            net_common.run_server_dir = Path(tmp)
+            try:
+                ctx = _make_ctx([])  # disconnects on the very first prompt
+                ctx.player.name = 'Nobody'
+                await run_editor(ctx)
+                self.assertIsNone(find_recovery_file('Nobody'))
+            finally:
+                net_common.run_server_dir = original
+
+    async def test_disconnect_mid_edit_writes_a_recovery_file(self):
+        import net_common
+        original = getattr(net_common, 'run_server_dir', None)
+        with tempfile.TemporaryDirectory() as tmp:
+            net_common.run_server_dir = Path(tmp)
+            try:
+                ctx = _make_ctx(['some line'])  # types, then disconnects
+                ctx.player.name = 'Casey'
+                await run_editor(ctx, activity_id='news_post:Test',
+                                  activity_label='posting news "Test"')
+                path = find_recovery_file('Casey')
+                self.assertIsNotNone(path)
+                data = load_recovery_file(path)
+                self.assertEqual(data['internal_id'], 'news_post:Test')
+                self.assertEqual([l['text'] for l in data['lines']], ['some line'])
+            finally:
+                net_common.run_server_dir = original
 
     async def test_initial_lines_preloaded_and_editable(self):
         ctx = _make_ctx(['.d 1', '.s'])

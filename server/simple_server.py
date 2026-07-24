@@ -1203,6 +1203,17 @@ class Server:
             if not ctx or not player or isinstance(player, GuestPlayer):
                 continue
             name = getattr(player, 'name', 'Adventurer')
+            editor = getattr(getattr(ctx, 'client', None), 'active_editor', None)
+            if editor is not None:
+                try:
+                    from text_editor import save_recovery_file
+                    recovery_path = save_recovery_file(ctx, editor)
+                    await ctx.send(
+                        f'Your in-progress text has been saved to a temporary '
+                        f'file ({recovery_path.name}) so it is not lost.')
+                except Exception:
+                    logging.exception(
+                        'graceful_shutdown: failed to save in-progress editor buffer for %s', name)
             try:
                 await ctx.send(f'Emergency shutdown -- saving {name}. Bye.')
             except Exception:

@@ -156,6 +156,22 @@ def _login_mail_lines(player) -> list[str]:
                 "(type 'mail' to read)"]
 
 
+def _login_recovery_lines(player) -> list[str]:
+    """Build the login-time "you were doing X -- resume?" notice for a
+    recovery file left behind by Server.graceful_shutdown() catching
+    *player* mid-edit (see text_editor.save_recovery_file()). Just a
+    heads-up here, not an interactive prompt -- 'edit' (commands/edit.py)
+    is what actually offers to resume it."""
+    from text_editor import find_recovery_file, load_recovery_file
+
+    path = find_recovery_file(player.name)
+    if path is None:
+        return []
+    label = load_recovery_file(path).get('activity_label') or 'writing something'
+    return ['', f"|yellow|Before the server disconnected, you were {label}.|reset| "
+                "(type 'edit' to resume)"]
+
+
 def _login_tip_lines(ctx) -> list[str]:
     """Build the login-time tip display, honoring the player's
     command_settings.tips.enabled preference ('tips #on'/'tips #off').
@@ -472,6 +488,12 @@ class ConnectCommand(Command):
         mail_lines = _login_mail_lines(player)
         if mail_lines:
             login_lines += mail_lines
+
+        # Recovered editor session (SHUTDOWN caught them mid-edit last
+        # time) -- see text_editor.save_recovery_file()/commands/edit.py.
+        recovery_lines = _login_recovery_lines(player)
+        if recovery_lines:
+            login_lines += recovery_lines
 
         # Tip of the day -- see commands/tips.py and tips.py.
         tip_lines = _login_tip_lines(ctx)

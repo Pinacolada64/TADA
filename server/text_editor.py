@@ -102,6 +102,7 @@ module's old _render_buffer_lines()) is built on.
 from __future__ import annotations
 
 import copy
+import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum, Flag, auto
@@ -1236,8 +1237,87 @@ async def _priv_put_file(editor: 'Editor', arg: str) -> Optional[str]:
 # Public entry point
 # ---------------------------------------------------------------------------
 
+# Recovery files carry the writing session's activity_id/activity_label
+# (set via run_editor()'s own params -- see each call site: mail.py,
+# news.py, board.py, board_reply.py) so a later EDIT command or login-time
+# prompt can say what the player was doing, not just that *something* was
+# lost. There's no dispatch back into the original mail/post/reply flow
+# yet (Ryan: "how to recover the session is to be determined") -- EDIT
+# just hands the recovered text back to the player to resume or re-paste
+# themselves.
+def _recovery_dir() -> Path:
+    import net_common
+    base = getattr(net_common, 'run_server_dir', None) or Path('run') / 'server'
+    directory = Path(base) / 'editor_recovery'
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _user_files_dir(player_name: str) -> Path:
+    """Per-player storage for EDIT <filename> (a general-purpose text
+    file editor open to any player -- unlike .G/.P Get/Put's shared,
+    admin-only run/server/editor_files/)."""
+    import net_common
+    base = getattr(net_common, 'run_server_dir', None) or Path('run') / 'server'
+    safe_name = _sanitize_filename(player_name) or 'unknown'
+    directory = Path(base) / 'user_files' / safe_name
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def save_recovery_file(ctx: 'GameContext', editor: 'Editor') -> Path:
+    """Dump *editor*'s current (unsaved) buffer to a timestamped file
+    under _recovery_dir(), structurally (formatting.serialize_lines()'s
+    output -- same shape news.py/board.py store, so EDIT can reuse
+    deserialize_lines()/render_lines() to show it back per-viewer).
+    Called from simple_server.py's Server.graceful_shutdown() for any
+    player caught mid-edit when a scheduled/immediate SHUTDOWN fires --
+    their session is about to be torn down with no chance to '.s' Save
+    themselves.
+    """
+    import datetime
+    import json
+
+    player_name = getattr(getattr(ctx, 'player', None), 'name', 'unknown')
+    safe_name   = _sanitize_filename(player_name) or 'unknown'
+    stamp       = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    path        = _recovery_dir() / f'{safe_name}-{stamp}.json'
+
+    path.write_text(json.dumps({
+        'player':         player_name,
+        'saved_at':       datetime.datetime.now().isoformat(),
+        'internal_id':    getattr(editor, 'activity_id', None),
+        'activity_label': getattr(editor, 'activity_label', None),
+        'lines':          serialize_lines(editor.buffer.lines),
+    }, indent=2))
+    return path
+
+
+def find_recovery_file(player_name: str) -> Optional[Path]:
+    """Most recent recovery file for *player_name*, if any -- filenames
+    are `<safe_name>-<YYYYmmdd_HHMMSS>.json`, so lexical order is
+    chronological order. Used by EDIT (bare, no filename) and the
+    login-time "you were doing X -- resume?" prompt."""
+    safe_name = _sanitize_filename(player_name) or 'unknown'
+    matches = sorted(_recovery_dir().glob(f'{safe_name}-*.json'))
+    return matches[-1] if matches else None
+
+
+def delete_recovery_file(path: Path) -> None:
+    """Discard a recovery file once its content has been resumed/handled."""
+    path.unlink(missing_ok=True)
+
+
+def load_recovery_file(path: Path) -> dict:
+    """Parse a recovery file written by save_recovery_file()."""
+    import json
+    return json.loads(path.read_text())
+
+
 async def run_editor(ctx: 'GameContext',
-                      initial_lines: Optional[List[Union[str, Line]]] = None) -> Optional[List[dict]]:
+                      initial_lines: Optional[List[Union[str, Line]]] = None,
+                      activity_id: Optional[str] = None,
+                      activity_label: Optional[str] = None) -> Optional[List[dict]]:
     """Run an editing session. Returns the final buffer as a list of
     serialized Line dicts (formatting.serialize_lines()'s output --
     possibly empty, if the player deleted everything; Justification/Border
@@ -1251,12 +1331,21 @@ async def run_editor(ctx: 'GameContext',
     feature), or formatting.deserialize_lines()'s output (a caller reloading
     previously-saved, serialized content -- deserialize it first).
 
+    `activity_id`/`activity_label` identify what this session IS (e.g.
+    'news_post' / 'posting news', 'mail_compose:Bob' / 'writing mail to
+    Bob') -- stamped into a recovery file if the server goes down mid-edit
+    (see save_recovery_file()) so EDIT or the login-time prompt can tell
+    the player what they were doing, not just that something was lost.
+    Callers that don't pass these just get an unlabeled recovery file.
+
     Typed lines that aren't a recognized dot-command (don't start with '.'
     or '/', or have no letter after it) are appended to the buffer --
     or, while .I Insert mode is on, inserted at the current insertion
     point instead. Classic ed/Image-BBS append-mode-by-default behavior.
     """
     editor = Editor(ctx, initial_lines)
+    editor.activity_id = activity_id
+    editor.activity_label = activity_label
     await ctx.send([
         "Line editor -- type text to add lines; commands start with '.' or '/'.",
         "'.h' for help, '.s' to save, '.a' to abort.",
@@ -1269,10 +1358,15 @@ async def run_editor(ctx: 'GameContext',
     # stale 'Editing Text' behind for whoever looks the player up next.
     previous_location = getattr(ctx.client, 'virtual_location', None)
     ctx.client.virtual_location = 'Editing Text'
+    # Lets Server.graceful_shutdown() reach in and recovery-save this
+    # session's live buffer if the process goes down mid-edit -- see
+    # save_recovery_file() above.
+    ctx.client.active_editor = editor
     try:
         return await _run_editor_loop(ctx, editor)
     finally:
         ctx.client.virtual_location = previous_location
+        ctx.client.active_editor = None
 
 
 async def _run_editor_loop(ctx: 'GameContext', editor: 'Editor') -> Optional[List[dict]]:
@@ -1286,6 +1380,16 @@ async def _run_editor_loop(ctx: 'GameContext', editor: 'Editor') -> Optional[Lis
             prompt_text = ''
         raw = await ctx.prompt(prompt_text)
         if raw is None:
+            # Disconnected mid-edit -- same unsaved-work-loss risk as a
+            # server SHUTDOWN catching them (see save_recovery_file()),
+            # just via a different trigger. There's no one left to notify
+            # (the connection is already gone), so just persist quietly;
+            # EDIT/the login-time prompt tell them about it next time in.
+            if editor.buffer.lines:
+                try:
+                    save_recovery_file(ctx, editor)
+                except Exception:
+                    logging.exception('run_editor: failed to save recovery file on disconnect')
             return None  # disconnected mid-edit
 
         prefix = raw[0] if raw else ''

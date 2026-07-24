@@ -267,7 +267,12 @@ class BoardCommand(Command):
             return CommandResult.fail('Cancelled.', error='cancelled')
 
         await ctx.send('Enter the thread body.')
-        body = await run_editor(ctx)
+        # \x1f (unit separator) joins title+anonymous into activity_id's
+        # single rest-of-string slot -- see commands/edit.py's
+        # _resume_board_post() for the other end of this.
+        activity_id = f'board_post:{title}\x1f{int(anonymous)}'
+        body = await run_editor(ctx, activity_id=activity_id,
+                                 activity_label=f'posting board thread "{title}"')
         if body is None:
             await ctx.send('Cancelled.')
             return CommandResult.fail('Cancelled.', error='cancelled')
@@ -309,7 +314,8 @@ class BoardCommand(Command):
         privileged = _is_privileged(ctx.player)
         await ctx.send(board_store.build_quote_preamble(ctx, thread, privileged))
         await ctx.send('Enter your reply.')
-        body = await run_editor(ctx)
+        body = await run_editor(ctx, activity_id=f'board_reply:{id_str}',
+                                 activity_label=f'replying to board thread #{id_str}')
         if body is None:
             await ctx.send('Cancelled.')
             return CommandResult.fail('Cancelled.', error='cancelled')
