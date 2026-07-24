@@ -70,6 +70,8 @@ class _MockPlayer:
         self.natural_alignment = Alignment.NEUTRAL
         self.current_alignment = Alignment.NEUTRAL
         self.combinations: dict = {}
+        self.food               = 20
+        self.drink              = 20
 
     def query_flag(self, flag) -> bool:
         return flag in self._flags
@@ -268,6 +270,24 @@ class TestMenuStructure(unittest.TestCase):
             self.assertIsNotNone(item.dot_leader_handler,
                                  f'{item.text!r} missing dot_leader_handler')
 
+    # -- flags menu: survival counters --
+
+    def test_flags_menu_has_survival_counters_header(self):
+        headers = {i.text for i in _flags_menu(self.ctx).menu_items if i.is_header}
+        self.assertIn('— Survival Counters —', headers)
+
+    def test_flags_menu_contains_food_and_drink(self):
+        labels = {i.text for i in _flags_menu(self.ctx).selectable}
+        self.assertIn('Food (Hunger)', labels)
+        self.assertIn('Drink (Thirst)', labels)
+
+    def test_food_drink_dot_leaders_show_current_value(self):
+        self.ctx.player.food = 7
+        self.ctx.player.drink = 3
+        sel = {i.text: i for i in _flags_menu(self.ctx).selectable}
+        self.assertEqual(sel['Food (Hunger)'].dot_leader_handler(self.ctx), '7')
+        self.assertEqual(sel['Drink (Thirst)'].dot_leader_handler(self.ctx), '3')
+
     # -- names menu --
 
     def test_names_menu_has_expected_items(self):
@@ -328,6 +348,51 @@ class TestFlagToggleAction(unittest.IsolatedAsyncioTestCase):
             result = item.action(self.ctx)
             if asyncio.iscoroutine(result):
                 await result
+
+
+# ---------------------------------------------------------------------------
+# 4b. Survival counter (Food/Drink) action
+# ---------------------------------------------------------------------------
+
+class TestSurvivalCounterAction(unittest.IsolatedAsyncioTestCase):
+
+    async def _invoke(self, ctx, label: str) -> None:
+        menu = _flags_menu(ctx)
+        item = next(i for i in menu.selectable if i.text == label)
+        await item.action(ctx)
+
+    async def test_food_set_to_valid_value(self):
+        ctx = _MockCtx(responses=['12'])
+        await self._invoke(ctx, 'Food (Hunger)')
+        self.assertEqual(ctx.player.food, 12)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_drink_set_to_valid_value(self):
+        ctx = _MockCtx(responses=['4'])
+        await self._invoke(ctx, 'Drink (Thirst)')
+        self.assertEqual(ctx.player.drink, 4)
+
+    async def test_food_can_be_set_to_zero(self):
+        ctx = _MockCtx(responses=['0'])
+        await self._invoke(ctx, 'Food (Hunger)')
+        self.assertEqual(ctx.player.food, 0)
+
+    async def test_food_can_be_set_to_max(self):
+        ctx = _MockCtx(responses=['20'])
+        await self._invoke(ctx, 'Food (Hunger)')
+        self.assertEqual(ctx.player.food, 20)
+
+    async def test_out_of_range_value_rejected_and_unchanged(self):
+        ctx = _MockCtx(responses=['21', ''])
+        ctx.player.food = 15
+        await self._invoke(ctx, 'Food (Hunger)')
+        self.assertEqual(ctx.player.food, 15)
+
+    async def test_blank_cancels_without_changing_value(self):
+        ctx = _MockCtx(responses=[''])
+        ctx.player.drink = 9
+        await self._invoke(ctx, 'Drink (Thirst)')
+        self.assertEqual(ctx.player.drink, 9)
 
 
 # ---------------------------------------------------------------------------

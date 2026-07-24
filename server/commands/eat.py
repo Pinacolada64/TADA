@@ -6,8 +6,6 @@ from commands.help import Help, HelpCategory
 from network_context import GameContext
 from survival import apply_disease, cure_disease, ration_restore, restore_food
 
-_FOOD_MAX = 20
-
 
 def _food_entries(player):
     inv = getattr(player, 'inventory', None)
@@ -39,8 +37,10 @@ class EatCommand(Command):
             await ctx.send('You have no food to eat.')
             return CommandResult.ok()
 
-        food_now = getattr(player, 'food', _FOOD_MAX)
-        if food_now >= _FOOD_MAX:
+        from config import config
+        food_max = config.survival_max
+        food_now = getattr(player, 'food', food_max)
+        if food_now >= food_max:
             await ctx.send("You're not hungry.")
             return CommandResult.ok()
 
@@ -110,7 +110,7 @@ class EatCommand(Command):
         gs     = ration_restore(item)
         amount = (random.randint(0, gs) % 8) + 1
         restore_food(player, amount)
-        new_food = getattr(player, 'food', _FOOD_MAX)
+        new_food = getattr(player, 'food', food_max)
 
         if new_food >= 15:
             await ctx.send([f'You eat the {name}.', 'Your appetite is satisfied.'])

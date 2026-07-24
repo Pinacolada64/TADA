@@ -758,6 +758,43 @@ def _combinations_menu(ctx) -> Menu:
     return menu
 
 
+def _survival_counter_items(p) -> list[MenuItem]:
+    """Food/Drink editors -- survival.py's actual 0-config.survival_max
+    hunger/thirst counters that drive EAT/DRINK and survival_tick()'s
+    starvation check, distinct from PlayerFlags.HUNGER/THIRST below
+    (those are just the boolean "currently hungry/thirsty" display
+    flags SPUR also had, not the counters themselves). New in TADA --
+    the "Flags/Counters" menu previously had no counters at all despite
+    its own name. Ryan's request. Upper bound reads config.survival_max
+    (also Ryan's call) rather than a hardcoded 20, so this stays correct
+    if a sysop raises/lowers that setting."""
+    from config import config
+
+    def make_action(attr: str, label: str):
+        async def action(ctx):
+            max_value = config.survival_max
+            cur = int(getattr(p, attr, max_value) or 0)
+            val = await _prompt_int(ctx, label, cur, 0, max_value)
+            if val is not None:
+                setattr(p, attr, val)
+                p.unsaved_changes = True
+                await ctx.send(f'{label} set to {val}.')
+        return action
+
+    return [
+        MenuItem(
+            'Food (Hunger)', shortcuts='fo',
+            dot_leader_handler=lambda ctx: str(int(getattr(p, 'food', config.survival_max) or 0)),
+            action=make_action('food', 'Food'),
+        ),
+        MenuItem(
+            'Drink (Thirst)', shortcuts='dr',
+            dot_leader_handler=lambda ctx: str(int(getattr(p, 'drink', config.survival_max) or 0)),
+            action=make_action('drink', 'Drink'),
+        ),
+    ]
+
+
 def _flags_menu(ctx) -> Menu:
     p    = ctx.player
     menu = _titled_menu(ctx, 'Flags/Counters')
@@ -828,6 +865,13 @@ def _flags_menu(ctx) -> Menu:
                 dot_leader_handler=lambda ctx, f=flag: _flag_status(p, f),
                 action=make_toggle(flag),
             ))
+
+    # Appended after the flag groups (not before) so existing item
+    # positions/shortcuts for the flags above stay stable for anyone
+    # used to navigating this menu by number.
+    menu.add_item(MenuItem(text='— Survival Counters —'))
+    for item in _survival_counter_items(p):
+        menu.add_item(item)
 
     return menu
 

@@ -241,6 +241,10 @@ class Player:
         self.moves_made = kwargs.get('moves_made')
         # tracks how many moves made during the game session to calculate experience points awarded at quit:
         self.moves_today = kwargs.get('moves_today', 0)
+        # survival.py's survival_tick() command counter -- persisted (not
+        # session-only) so a player can't reset their hunger/thirst
+        # countdown by simply logging out and back in.
+        self._survival_counter = kwargs.get('_survival_counter', 0)
         self.birthday = kwargs.get('birthday')  # TODO: use datetime
         self.guild = kwargs.get('guild', Guild.CIVILIAN)  # [civilian | fist | sword | claw | outlaw]
         # 1       2        3       4      5       6       7         8       9
@@ -1111,7 +1115,8 @@ class Player:
             # impossible to ever actually drink anything after logging back
             # in).
             simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote',
-                           'shield', 'armor', 'active_shield_id', 'loan_amount', 'loan_days', 'food', 'drink')
+                           'shield', 'armor', 'active_shield_id', 'loan_amount', 'loan_days', 'food', 'drink',
+                           '_survival_counter')
             for k in simple_keys:
                 if k in data:
                     try:

@@ -56,6 +56,18 @@ SETTINGS_METADATA: Dict[str, SettingInfo] = {
              'moves once placed -- added so he\'s a moving target, not a campable fix.',
         'Dwarf Move Interval',
     ),
+    'survival_tick_interval': SettingInfo(
+        int, 'Commands between each hunger/thirst depletion step (survival.py\'s '
+             'survival_tick(), called once per command). Higher = food/drink last '
+             'longer between meals. -1 disables depletion entirely; otherwise minimum 1.',
+        'Survival Tick Interval',
+    ),
+    'survival_max': SettingInfo(
+        int, 'Maximum (and starting) value for the food/drink hunger/thirst '
+             'counters -- also the upper bound editplayer\'s Food/Drink editors '
+             'accept. Minimum 1.',
+        'Survival Max Value',
+    ),
     'require_invites': SettingInfo(bool, 'Whether invites are required for new-player registration.', 'Require Invites'),
     'invite_expiry_days': SettingInfo(int, 'Days until an issued invite expires.', 'Invite Expiry Days'),
     'max_players': SettingInfo(int, 'Maximum simultaneous connected players.', 'Max Players'),
@@ -178,6 +190,13 @@ class ServerConfig:
         # instead of a (per-player, and thus wrong) PlayerMoneyTypes slot.
         'dwarf_silver': 0,
         'dwarf_move_interval_minutes': 15,
+        # Commands between each hunger/thirst depletion step (survival.py's
+        # own _TICK_INTERVAL default, now sysop-tunable -- see
+        # SETTINGS_METADATA's entry above).
+        'survival_tick_interval': 10,
+        # Maximum/starting value for the food/drink counters (survival.py's
+        # own old hardcoded _MAX, same sysop-tunable reasoning).
+        'survival_max': 20,
 
         # --- SPUR.CONTROL.S game configuration (SysOp "config"/"object"/
         # "time.set" labels) -- the handful of settings there that are
@@ -317,6 +336,34 @@ class ServerConfig:
     @dwarf_move_interval_minutes.setter
     def dwarf_move_interval_minutes(self, value: int) -> None:
         self.set('dwarf_move_interval_minutes', max(1, int(value)))
+
+    @property
+    def survival_tick_interval(self) -> int:
+        """Commands between each hunger/thirst depletion step
+        (survival.py's survival_tick()). Ryan: the shipped default (10)
+        felt too aggressive -- left sysop-tunable rather than picking a
+        new hardcoded value. -1 is a sentinel meaning "disabled" (Ryan's
+        call) -- food/drink never deplete on their own; see
+        survival_tick()'s own check of this value."""
+        return int(self.get('survival_tick_interval', 10))
+
+    @survival_tick_interval.setter
+    def survival_tick_interval(self, value: int) -> None:
+        value = int(value)
+        self.set('survival_tick_interval', value if value == -1 else max(1, value))
+
+    @property
+    def survival_max(self) -> int:
+        """Maximum (and starting) value for the food/drink hunger/thirst
+        counters (survival.py's old hardcoded _MAX=20) -- also the upper
+        bound commands/editplayer.py's Food/Drink editors clamp to.
+        Sysop-tunable for the same reason survival_tick_interval is:
+        Ryan didn't want either value hardcoded."""
+        return int(self.get('survival_max', 20))
+
+    @survival_max.setter
+    def survival_max(self, value: int) -> None:
+        self.set('survival_max', max(1, int(value)))
 
     @property
     def game_name(self) -> str:

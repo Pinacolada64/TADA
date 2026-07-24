@@ -6,8 +6,6 @@ from commands.help import Help, HelpCategory
 from network_context import GameContext
 from survival import apply_poison, cure_poison, ration_restore, restore_drink
 
-_DRINK_MAX = 20
-
 
 def _drink_entries(player):
     inv = getattr(player, 'inventory', None)
@@ -39,8 +37,10 @@ class DrinkCommand(Command):
             await ctx.send('You have nothing to drink.')
             return CommandResult.ok()
 
-        drink_now = getattr(player, 'drink', _DRINK_MAX)
-        if drink_now >= _DRINK_MAX:
+        from config import config
+        drink_max = config.survival_max
+        drink_now = getattr(player, 'drink', drink_max)
+        if drink_now >= drink_max:
             await ctx.send("You're not thirsty.")
             return CommandResult.ok()
 
@@ -106,7 +106,7 @@ class DrinkCommand(Command):
         gs     = ration_restore(item)
         amount = (random.randint(0, gs) % 6) + 1
         restore_drink(player, amount)
-        new_drink = getattr(player, 'drink', _DRINK_MAX)
+        new_drink = getattr(player, 'drink', drink_max)
 
         await ctx.send(f'You drink the {name}. You feel refreshed.')
         if new_drink > 14:

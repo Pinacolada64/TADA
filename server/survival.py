@@ -2,18 +2,33 @@
 
 Mirrors SPUR.COMBAT.S lines 12-20 and SPUR.MAIN.S lines 13-22/227.
 
-pe (SPUR) = drink; ps (SPUR) = food.  Both run 0-20.
-Every TICK_INTERVAL commands each depletes by 1.
+player.food/player.drink both run 0-config.survival_max (default 20,
+sysop-tunable -- see config.py's SETTINGS_METADATA). (Note: SPUR's own
+`ps`/`pe` are player Strength/Energy, not food/drink -- corrected here
+after an earlier wrong guess.)
+Every config.survival_tick_interval commands each depletes by 1 (also
+sysop-tunable -- Ryan felt the shipped default of 10 was too aggressive;
+rather than pick new hardcoded values for either, both are CONFIG
+settings). Setting survival_tick_interval to -1 disables depletion
+entirely (Ryan's call, for a sysop who doesn't want this feature at
+all) -- food/drink stay wherever they are; poison/disease/starvation
+checks below are unaffected, since those are independent of the passive
+depletion step.
 Poison deals -2 HP per tick (30% chance); disease deals -1 HP per tick
-(30% chance).  Warnings are shown whenever either drops below threshold.
+(30% chance).  Warnings are shown whenever either drops below threshold
+-- those thresholds (3/7/4) are still fixed absolute numbers, not scaled
+to survival_max, so a sysop raising the max well past 20 will see the
+"hungry"/"thirsty" warnings fire much later relative to a full meter than
+at the default.
 Both food and drink reaching 0 is fatal.
+
+Admins and Dungeon Masters are immune to the whole tick (Ryan's call) --
+no depletion, no poison/disease damage, no starvation -- so a sysop
+debugging live doesn't have to babysit their own hunger/thirst meter.
 """
 
 from __future__ import annotations
 import random
-
-_TICK_INTERVAL = 10   # commands between each depletion step
-_MAX           = 20   # starting / maximum value for both food and drink
 
 
 def survival_tick(player) -> list[str]:
@@ -22,18 +37,37 @@ def survival_tick(player) -> list[str]:
     Call once per command in the game loop.  Returns a (possibly empty)
     list of strings to send to the player.  Sets player.hit_points = 0
     and appends a death line when the player starves or is killed by poison.
+    Admins/DMs are immune -- see module docstring -- and return [] without
+    touching food/drink/hit_points or advancing the counter at all.
     """
-    # Session-only counter — not persisted, resets each login.
+    from config import config
+    from flags import PlayerFlags
+
+    if player.query_flag(PlayerFlags.ADMIN) or player.query_flag(PlayerFlags.DUNGEON_MASTER):
+        return []
+
+    # Persisted on the player (player.py's simple_keys) so logging out and
+    # back in doesn't reset the countdown.
     counter = getattr(player, '_survival_counter', 0) + 1
     player._survival_counter = counter
 
-    if counter % _TICK_INTERVAL == 0:
-        player.food  = max(0, getattr(player, 'food',  _MAX) - 1)
-        player.drink = max(0, getattr(player, 'drink', _MAX) - 1)
+    max_value = config.survival_max
+    interval  = config.survival_tick_interval
+
+    if interval != -1 and counter % interval == 0:
+        player.food  = max(0, getattr(player, 'food',  max_value) - 1)
+        player.drink = max(0, getattr(player, 'drink', max_value) - 1)
         player.unsaved_changes = True
 
-    food  = getattr(player, 'food',  _MAX)
-    drink = getattr(player, 'drink', _MAX)
+    food  = getattr(player, 'food',  max_value)
+    drink = getattr(player, 'drink', max_value)
+
+    # Keep the boolean HUNGER/THIRST flags (flags.py, shown by editplayer/
+    # STATS) in sync with the actual counters -- same < 7 threshold as the
+    # warning messages below. Nothing else in the codebase ever set these;
+    # they'd stay permanently "No" regardless of real hunger/thirst.
+    (player.set_flag if food  < 7 else player.clear_flag)(PlayerFlags.HUNGER)
+    (player.set_flag if drink < 7 else player.clear_flag)(PlayerFlags.THIRST)
 
     msgs: list[str] = []
 
@@ -74,14 +108,16 @@ def survival_tick(player) -> list[str]:
 
 
 def restore_food(player, amount: int) -> None:
-    """Add *amount* to player.food, capped at _MAX."""
-    player.food = min(_MAX, getattr(player, 'food', 0) + amount)
+    """Add *amount* to player.food, capped at config.survival_max."""
+    from config import config
+    player.food = min(config.survival_max, getattr(player, 'food', 0) + amount)
     player.unsaved_changes = True
 
 
 def restore_drink(player, amount: int) -> None:
-    """Add *amount* to player.drink, capped at _MAX."""
-    player.drink = min(_MAX, getattr(player, 'drink', 0) + amount)
+    """Add *amount* to player.drink, capped at config.survival_max."""
+    from config import config
+    player.drink = min(config.survival_max, getattr(player, 'drink', 0) + amount)
     player.unsaved_changes = True
 
 
