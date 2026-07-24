@@ -36,6 +36,17 @@
   confirm a change hasn't introduced new failures by diffing against
   that count/list, not by expecting a clean run.
 
+## SPUR source data
+
+- **`D.LEVEL*.TXT` and `ROOM_LEVEL*.TXT` (in `../SPUR-data/`) are compressed
+  GBBS message-database files, not plain text** despite the `.TXT`
+  extension — reading them directly (`cat`, `Read`, a plain-text parser)
+  gets you binary/7-bit-packed garbage, not room names/descriptions/exit
+  data. Decompress them first with `tools/gbbsmsgtool.py`'s logic (also
+  reimplemented inline in `../SPUR-data/level-2/tada_level_builder.py`'s
+  `_decode_7bit()`/`_follow_chain()`/`extract_messages()`) to get anything
+  meaningful out of them.
+
 ## Bot scripts
 
 - **Once a scripted bot session built on `bot_client.py` (e.g. to drive

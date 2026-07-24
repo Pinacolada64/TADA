@@ -6,8 +6,8 @@
             "room_alignment": "free_fire",
             "flags": [],
             "exits": {
-                "south": 1,
-                "east": 1,
+                "south": 11,
+                "east": 2,
                 "rc": 2
             },
             "monster": 0,
@@ -22,7 +22,7 @@
             "room_alignment": "free_fire",
             "flags": [],
             "exits": {
-                "east": 1,
+                "east": 3,
                 "west": 1
             },
             "monster": 0,
@@ -37,9 +37,9 @@
             "room_alignment": "free_fire",
             "flags": [],
             "exits": {
-                "south": 1,
-                "east": 1,
-                "west": 1
+                "south": 13,
+                "east": 4,
+                "west": 2
             },
             "monster": 0,
             "item": 0,
@@ -53,8 +53,8 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 1,
-                "west": 1
+                "south": 14,
+                "west": 3
             },
             "monster": 0,
             "item": 0,
@@ -80,7 +80,7 @@
             "room_alignment": "free_fire",
             "flags": [],
             "exits": {
-                "north": 1
+                "north": 96
             },
             "monster": 0,
             "item": 0,
@@ -94,8 +94,8 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 1,
-                "south": 1
+                "north": 97,
+                "south": 17
             },
             "monster": 0,
             "item": 0,
@@ -109,7 +109,7 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 1
+                "north": 98
             },
             "monster": 0,
             "item": 0,
@@ -123,8 +123,8 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 1,
-                "south": 1
+                "north": 99,
+                "south": 19
             },
             "monster": 0,
             "item": 0,
@@ -138,7 +138,7 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 1
+                "south": 20
             },
             "monster": 0,
             "item": 0,
@@ -152,7 +152,7 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 1
+                "east": 12
             },
             "monster": 135,
             "item": 162,
@@ -166,8 +166,8 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 1,
-                "west": 1
+                "east": 13,
+                "west": 11
             },
             "monster": 0,
             "item": 0,
@@ -181,10 +181,10 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 1,
-                "south": 1,
-                "east": 1,
-                "west": 1
+                "north": 3,
+                "south": 23,
+                "east": 14,
+                "west": 12
             },
             "monster": 0,
             "item": 0,
@@ -198,8 +198,8 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 1,
-                "west": 1
+                "north": 4,
+                "west": 13
             },
             "monster": 0,
             "item": 0,
@@ -213,7 +213,7 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 1
+                "east": 16
             },
             "monster": 0,
             "item": 0,
@@ -227,9 +227,9 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 1,
-                "east": 1,
-                "west": 1
+                "north": 6,
+                "east": 17,
+                "west": 15
             },
             "monster": 0,
             "item": 0,
@@ -243,8 +243,8 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 1,
-                "west": 1
+                "east": 18,
+                "west": 16
             },
             "monster": 0,
             "item": 0,
@@ -258,8 +258,8 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 1,
-                "west": 1
+                "east": 19,
+                "west": 17
             },
             "monster": 0,
             "item": 0,
@@ -273,8 +273,8 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 1,
-                "west": 1
+                "east": 20,
+                "west": 18
             },
             "monster": 0,
             "item": 0,
@@ -288,8 +288,8 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 1,
-                "west": 1
+                "east": 11,
+                "west": 19
             },
             "monster": 0,
             "item": 0,
@@ -303,9 +303,9 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 1,
-                "east": 1,
-                "west": 1
+                "south": 31,
+                "east": 22,
+                "west": 30
             },
             "monster": 0,
             "item": 0,
@@ -319,7 +319,7 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "west": 1
+                "west": 21
             },
             "monster": 0,
             "item": 0,
@@ -333,8 +333,8 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 1,
-                "east": 1
+                "south": 33,
+                "east": 24
             },
             "monster": 0,
             "item": 0,
@@ -348,10 +348,10 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 1,
-                "south": 1,
-                "east": 1,
-                "west": 1
+                "north": 14,
+                "south": 34,
+                "east": 25,
+                "west": 23
             },
             "monster": 134,
             "item": 0,
@@ -365,8 +365,8 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 1,
-                "west": 1
+                "south": 35,
+                "west": 24
             },
             "monster": 0,
             "item": 0,
@@ -380,7 +380,7 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 1
+                "north": 16
             },
             "monster": 0,
             "item": 0,
@@ -394,7 +394,7 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 1
+                "north": 17
             },
             "monster": 89,
             "item": 141,
@@ -408,7 +408,7 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 1
+                "north": 18
             },
             "monster": 107,
             "item": 34,

@@ -311,12 +311,56 @@ class Room:
         }
 
 
-def parse_message(text: str, room_number: int) -> Room | None:
+def resolve_exit_destinations(exits_raw: dict, cr: int, ri: int, nr: int) -> dict:
+    """Convert north/south/east/west from raw 0/1 "exit exists here" flags
+    (the room database's on-disk format) into real destination room
+    numbers, using SPUR's own wraparound-grid formula -- SPUR-code/
+    SPUR.CONTROL.S lines 527-530 (the level editor) and text-listings/
+    t_main.lbl lines 1010/1067-1070 (the runtime travel routine, which
+    calls the current room `cr`, matching this function's parameter
+    name), both apply the identical math:
+
+        North: cr' = (nr if cr<=ri else 0) + cr - ri
+        South: cr' = cr + ri - (nr if cr > (nr-ri) else 0)
+        East:  cr' = cr + 1  - (ri if cr % ri == 0 else 0)
+        West:  cr' = cr + (ri if cr % ri == 1 else 0) - 1
+
+    ri is the level's grid width (map_width/"Room Incr." in the level
+    editor), nr = ri*ri is the total room-slot count. rc/rt pass through
+    unchanged -- those already store real values (ladder direction /
+    destination room or 0=Shoppe), never a direction flag.
+
+    Bug this fixes: level_2.json..level_7.json were built with every
+    N/S/E/W value left as the raw 1-or-absent flag, never resolved into
+    an actual room number -- so moving in any direction on those levels
+    always sent the player to room #1. level_1.json's own separate
+    pipeline (convert_map_data.py) doesn't have this bug; only the levels
+    built through this script did.
+    """
+    resolved = dict(exits_raw)
+    if exits_raw.get('north'):
+        resolved['north'] = (nr if cr <= ri else 0) + cr - ri
+    if exits_raw.get('south'):
+        resolved['south'] = cr + ri - (nr if cr > (nr - ri) else 0)
+    if exits_raw.get('east'):
+        resolved['east'] = cr + 1 - (ri if cr % ri == 0 else 0)
+    if exits_raw.get('west'):
+        resolved['west'] = cr + (ri if cr % ri == 1 else 0) - 1
+    return resolved
+
+
+def parse_message(text: str, room_number: int, ri: int = 0, nr: int = 0) -> Room | None:
     """
     Parse a single GBBS message into a Room.
 
     Line 0: NAME[alignment][|flags],monster,item,weapon,food,N,S,E,W,rc,rt
     Lines 1+: description (joined with single spaces)
+
+    *ri*/*nr* (grid width / total room slots, from the level header) are
+    used to resolve raw N/S/E/W exit flags into real destination room
+    numbers -- see resolve_exit_destinations(). Pass ri=0 to skip
+    resolution and keep the raw 0/1 flags (e.g. for callers that don't
+    have header info available).
     """
     lines = [l for l in text.splitlines() if l.strip()]
     if not lines:
@@ -335,6 +379,8 @@ def parse_message(text: str, room_number: int) -> Room | None:
         weapon  = int(parts[3])
         food    = int(parts[4])
         exits   = {k: int(v) for k, v in zip(EXIT_KEYS, parts[5:11])}
+        if ri:
+            exits = resolve_exit_destinations(exits, room_number, ri, nr)
     except (ValueError, IndexError) as e:
         print(f"  Warning: room #{room_number}: could not parse stats: {e}. Skipping.")
         return None
@@ -405,7 +451,7 @@ def build_level(header_file: Path, room_file: Path, output_file: Path,
     n = min(len(messages), len(hdr.room_numbers))
     for i in range(n):
         room_no = hdr.room_numbers[i]
-        room    = parse_message(messages[i], room_no)
+        room    = parse_message(messages[i], room_no, hdr.map_width, hdr.total_rooms)
         if room:
             rooms.append(room.to_dict())
             if verbose:
