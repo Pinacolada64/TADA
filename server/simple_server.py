@@ -19,6 +19,7 @@ import asyncio
 import contextvars
 import logging
 import random
+import signal
 from pathlib import Path
 
 import net_common as nc
@@ -1180,6 +1181,34 @@ class Server:
                 logging.exception('failed to save player on quit')
         logging.debug('EXIT')
 
+    async def graceful_shutdown(self) -> None:
+        """SIGINT/SIGTERM handler (see __main__'s add_signal_handler calls):
+        notify every logged-in player and save their state before the
+        process exits.
+
+        Ryan asked whether SIGKILL saves connected players -- it can't:
+        SIGKILL terminates the process immediately at the OS level with no
+        opportunity for any userspace code (Python, C, anything) to run,
+        so there is no signal handler this or any process could install
+        to catch it. This only covers SIGINT (Ctrl-C, what actually stops
+        the server in normal use -- see tools/ or the sysop's own
+        `screen`/shell workflow) and SIGTERM (`kill <pid>` with no flags,
+        systemd/docker's default stop signal) -- both of which the OS
+        delivers as an ordinary catchable signal, unlike SIGKILL.
+        """
+        logging.info('graceful_shutdown: saving %d connected player(s)', len(self.clients))
+        for addr, client in list(self.clients.items()):
+            ctx = getattr(client, 'ctx', None)
+            player = getattr(ctx, 'player', None)
+            if not ctx or not player or isinstance(player, GuestPlayer):
+                continue
+            name = getattr(player, 'name', 'Adventurer')
+            try:
+                await ctx.send(f'Emergency shutdown -- saving {name}. Bye.')
+            except Exception:
+                logging.exception('graceful_shutdown: failed to notify %s', name)
+            await self._player_quit(ctx)
+
     # -----------------------------------------------------------------------
     # Server startup
     # -----------------------------------------------------------------------
@@ -1245,6 +1274,7 @@ if __name__ == '__main__':
 
     async def _run():
         task = asyncio.create_task(server.start())
+
         if args.test_time > 0:
             await asyncio.sleep(args.test_time)
             task.cancel()
@@ -1252,10 +1282,44 @@ if __name__ == '__main__':
                 await task
             except asyncio.CancelledError:
                 pass
+            return
+
+        # SIGINT (Ctrl-C) / SIGTERM (`kill <pid>`, systemd/docker stop) --
+        # registered on the running loop so graceful_shutdown() can still
+        # await things (send to clients, save players) before the process
+        # exits. This replaces the old bare `except KeyboardInterrupt`
+        # below, which fired only *after* asyncio.run() had already torn
+        # the loop down -- too late to await anything. See
+        # Server.graceful_shutdown()'s own docstring for why SIGKILL can't
+        # be handled this way (or any way).
+        stop_event = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, stop_event.set)
+            except NotImplementedError:
+                # Windows: add_signal_handler isn't supported. Ctrl-C
+                # still raises KeyboardInterrupt the old way in that case
+                # (see the bare except below) -- just without a graceful
+                # save, same as before this feature existed.
+                pass
+
+        stop_waiter = asyncio.create_task(stop_event.wait())
+        done, pending = await asyncio.wait(
+            {task, stop_waiter}, return_when=asyncio.FIRST_COMPLETED)
+
+        if stop_waiter in done and not task.done():
+            await server.graceful_shutdown()
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
         else:
-            await task
+            stop_waiter.cancel()
 
     try:
         asyncio.run(_run())
     except (KeyboardInterrupt, BrokenPipeError):
-        logging.info('Server shut down.')
+        pass
+    logging.info('Server shut down.')
