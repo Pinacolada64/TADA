@@ -198,6 +198,11 @@ class TestHungryAllyFed(unittest.IsolatedAsyncioTestCase):
         await try_hungry_ally(ctx, food, 'HUNGRY')
         self.assertIn('Thank you', ctx.sent())
 
+    async def test_food_body_build_message_says_eats_hungrily(self):
+        _, player, food, ctx = self._setup(prompt='')
+        await try_hungry_ally(ctx, food, 'HUNGRY')
+        self.assertIn('eats hungrily', ctx.sent())
+
     async def test_honor_gain_message_shown(self):
         _, player, food, ctx = self._setup(prompt='')
         await try_hungry_ally(ctx, food, 'HUNGRY')
@@ -303,6 +308,16 @@ class TestHungryAllyDrink(unittest.IsolatedAsyncioTestCase):
         result = await try_hungry_ally(ctx, drink, 'THIRSTY')
         self.assertTrue(result)
         self.assertIn(ally.name, ctx.sent())
+
+    async def test_drink_body_build_message_says_drinks_thirstily(self):
+        ally   = _make_ally(strength=8)
+        player = _make_player(allies=[ally])
+        drink  = _make_drink()
+        player.inventory.add(drink)
+        ctx    = _FakeCtx(player, prompt_answer='')
+        await try_hungry_ally(ctx, drink, 'THIRSTY')
+        self.assertIn('drinks thirstily', ctx.sent())
+        self.assertNotIn('eats hungrily', ctx.sent())
 
 
 # ---------------------------------------------------------------------------

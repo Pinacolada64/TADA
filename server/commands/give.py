@@ -109,7 +109,8 @@ async def _try_body_build(ctx: GameContext, ally, item) -> None:
         return
 
     ally.strength += 1
-    await ctx.send(f'{aname} eats hungrily and looks stronger!  (Str {ally.strength})')
+    verb = 'drinks thirstily' if ikind == 'drink' else 'eats hungrily'
+    await ctx.send(f'{aname} {verb} and looks stronger!  (Str {ally.strength})')
 
 
 # Monsters known for hoarding gold

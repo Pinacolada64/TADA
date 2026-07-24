@@ -28,6 +28,22 @@ LOCKER_CAPACITY = 10
 
 PACK_FULL_MESSAGE = "Your pack is full. You can't carry any more."
 
+# Lazy cache for Inventory.from_json()'s item_kind backfill -- loaded once
+# per process, not per call, since rations.json never changes at runtime.
+_RATIONS_BY_NUMBER: dict | None = None
+
+
+def _rations_by_number() -> dict:
+    global _RATIONS_BY_NUMBER
+    if _RATIONS_BY_NUMBER is None:
+        from items import Rations
+        data = Rations.read_rations('rations.json') or []
+        _RATIONS_BY_NUMBER = {
+            r['number']: r for r in data
+            if isinstance(r, dict) and 'number' in r
+        }
+    return _RATIONS_BY_NUMBER
+
 
 def class_inventory_limit(char_class) -> int:
     """Return the default slot limit for a given PlayerClass (or class name string)."""
@@ -67,6 +83,18 @@ class InventoryEntry:
         flags = getattr(self.item, 'flags', None)
         if flags:
             d['item_flags'] = flags
+        # rations.json entries carry a "kind" (food/drink/cursed) --
+        # commands/eat.py and commands/drink.py both filter inventory by
+        # item.kind, so it has to survive a save/load round trip or a
+        # carried ration silently stops showing up in EAT/DRINK the next
+        # time the player connects (found live: Ryan reported "you have
+        # nothing matching bread" for a loaf of bread that was genuinely
+        # in inventory -- from_json() rebuilds every persisted item as a
+        # plain Item(), which has no .kind at all unless one is passed in,
+        # and to_json() never wrote one out to begin with).
+        kind = getattr(self.item, 'kind', None)
+        if kind:
+            d['item_kind'] = kind
         if self.charges is not None:
             d['charges'] = self.charges
         if self.contents is not None:
@@ -190,11 +218,38 @@ class Inventory:
                 category = ItemCategory(cat_str) if cat_str else ItemCategory.ITEM
             except ValueError:
                 category = ItemCategory.ITEM
+
+            item_kind = d.get('item_kind')
+            item_name = d.get('item_name', '')
+            if item_kind is None:
+                # Heals save files written before item_kind existed (or by
+                # an acquisition path that predates it, e.g. a very old
+                # editplayer grant) -- without this, a ration saved back
+                # then reloaded still has no .kind and silently vanishes
+                # from EAT/DRINK's filter forever, even after the
+                # to_json()/from_json() round-trip fix (found live: Ryan's
+                # test character still couldn't eat bread that was granted
+                # before that fix landed). Matched by id_number AND name
+                # (case-insensitive) against rations.json, not id_number
+                # alone -- item numbering is only unique within its own
+                # category (weapons/items/rations each start back at 1),
+                # so a bare id_number match could misidentify an unrelated
+                # weapon/object that happens to share a number with a
+                # ration.
+                ration = _rations_by_number().get(d.get('item_id'))
+                if ration and str(ration.get('name', '')).lower() == item_name.lower():
+                    item_kind = ration.get('kind')
+                    if item_kind == 'food':
+                        category = ItemCategory.FOOD
+                    elif item_kind == 'drink':
+                        category = ItemCategory.DRINK
+
             item = Item(
                 id_number=d.get('item_id', 0),
-                name=d.get('item_name', ''),
+                name=item_name,
                 category=category,
                 flags=d.get('item_flags') or [],
+                kind=item_kind,
             )
             entry = InventoryEntry(
                 item=item,
