@@ -80,6 +80,16 @@ class RoomFlag(Enum):
     HIDDEN_EXIT_EAST = "hidden_exit_east"  # ->
     HIDDEN_EXIT_WEST = "hidden_exit_west"  # <-
     OUTER_SPACE = "outer_space"  # =+
+    # SPUR.USE.S's comm label (~line 130): "if instr(\"FR\",lo$) print
+    # 'You hear only static from the communicator..'". Not documented in
+    # file-formats.txt -- found by tracing the communicator USE mechanic.
+    # Exclusively a level 6 "Land of Oz" sub-zone marker in the real data
+    # (Dark Woods/Witches Coven/Emerald City/Yellow Brick Road/Chamber Of
+    # Oz -- 99 rooms, confirmed absent from every other level's raw Msg
+    # text) -- likely "Faraday" (shielded from the communicator's signal),
+    # matching base_classes.py's own note about this sub-zone ("the HOT
+    # AIR BALLOON in 'The Land of Oz' level could allow flight").
+    NO_COMM_SIGNAL = "no_comm_signal"  # FR
     HIDDEN_ITEM = "hidden_item"  # ~*
     HIDDEN_DOOR_NORTH = "hidden_door_north"  # ~*N
     HIDDEN_DOOR_EAST  = "hidden_door_east"   # ~*E
@@ -267,6 +277,7 @@ def parse_name_field(raw_name: str) -> tuple[str, RoomAlignment, list[RoomFlag]]
             ('&&',  RoomFlag.RADIATION_EXTREME),
             ('&',   RoomFlag.RADIATION),
             ('=+',  RoomFlag.OUTER_SPACE),
+            ('FR',  RoomFlag.NO_COMM_SIGNAL),
             ('~*',  RoomFlag.HIDDEN_ITEM),
         ]
         for token, flag in inline_flags:

@@ -971,3 +971,61 @@
   test_use_tool_kit.py`, and `tests/test_objects_json_key_items.py`,
   including a full end-to-end walk through the real airlock via
   `MoveCommand`.
+
+  [DONE 7/25/26] The actual communicator USE mechanic (`SPUR.USE.S`'s
+  `comm`/`malfunction` labels, ~lines 128-140 and 221-232 -- Ryan asked
+  for this specifically once the repair chain above existed): USE-ing a
+  working communicator (#66) "beams" you to level 6 room 1, gated by a
+  1-10 roll with an escalating malfunction risk -- a flat ~10% (roll==3)
+  the first time, ~40% (roll<5 or ==3) every attempt after, once the
+  once_per_day `CM*` token is set (set unconditionally as soon as the
+  player reaches the confirm prompt, even if they then cancel -- matches
+  SPUR's own `ys$=ys$+"CM*"` placement, *before* the `input` line). A
+  malfunction swaps the communicator back to a broken communicator
+  (#141, fixable again via the tool kit) and teleports to a random
+  level/room instead of level 6 room 1. Also found and ported a third,
+  previously-undocumented room flag while tracing this: `RoomFlag.
+  NO_COMM_SIGNAL` (raw `FR` token, not in `programming-notes/
+  file-formats.txt` at all -- makes the communicator say "only static")
+  turned out to be exclusively a level 6 "Land of Oz" sub-zone marker
+  (Dark Woods/Witches Coven/Emerald City/Yellow Brick Road/Chamber Of
+  Oz -- 99 rooms, confirmed via the raw Msg text absent from every other
+  level) -- the same sub-zone Ryan's own hot-air-balloon `can_fly` TODO
+  (`base_classes.py`, see the entry right below) is about. Parsed in
+  `convert_from_gbbs_tool.py`,
+  surgically patched into `level_6.json`'s 99 affected rooms (verified
+  via diff that only flag values changed). SPUR's own ASCII "[]
+  MALFUNCTION []" typewriter/erase terminal animation isn't ported --
+  this codebase has no raw-keystroke-timing transport to reproduce it
+  with, and it carries no gameplay meaning to preserve; a single plain
+  flavor line stands in for it. `commands/use.py`'s
+  `_use_communicator()`/`_communicator_malfunction()`. 12 new tests in
+  `tests/commands/test_use_communicator.py`, including two against the
+  real level 6 data confirming the Dark Woods flag.
+- `can_fly` should bypass the dinghy/spacesuit requirement entirely
+  (Ryan, clarifying `base_classes.py`'s `can_fly` docstring): the whole
+  point of `can_fly` -- whether from being a Pixie, riding a Pegasus, or
+  (once built) wearing a *fixed* spacesuit -- is that a solo flying
+  character can cross water/vacuum without needing a dinghy/spacesuit
+  item at all. But it's party-wide, not just the player: if *any* other
+  party member (a horse, a non-flying ally) can't also fly, the whole
+  group still needs the real boat/spacesuit, since they're crossing
+  together. Also the Land of Oz hot-air-balloon (same docstring,
+  forward-looking note, not built) would grant `can_fly` the same way.
+  None of this is wired up anywhere yet:
+  - `commands/movement.py`'s `_check_vehicle_exit_gate()` (this
+    session's `VEHICLE_EXIT_*` work, level 6's Air Lock) would be the
+    natural hook -- if the player (and party) can fly, skip the item
+    check and departure flavor entirely rather than requiring a
+    dinghy/spacesuit.
+  - `can_fly` only exists on `BaseCharacterRace` today (race-level,
+    Pixie only) -- there's no player-level resolution accounting for
+    "currently mounted on a Pegasus" or "currently wearing a fixed
+    spacesuit," and no equivalent concept on `bar/ally_data.py`'s
+    `Ally` class at all (would need a new `AllyFlags` value, or a
+    similar per-ally boolean, to know whether a given party member can
+    keep up in the air).
+  - The hot-air-balloon item/room feature itself doesn't exist anywhere
+    -- the level 6 Oz sub-zone (99 rooms, see the `RoomFlag.
+    NO_COMM_SIGNAL` entry above for how it was mapped) would be the
+    natural place to add it.

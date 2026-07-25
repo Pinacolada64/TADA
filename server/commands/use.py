@@ -10,6 +10,9 @@ Mirrors SPUR.USE.S. Supported item types:
   tool kit   — repairs a broken spacesuit + spacesuit parts into a
                spacesuit, and/or a broken communicator into a
                communicator; not consumed (SPUR.USE.S 'tool' label)
+  communicator — "beam aboard" to level 6 room 1; escalating malfunction
+               risk breaks it back into a broken communicator and
+               teleports somewhere random instead (SPUR.USE.S 'comm')
   book       — redirect to READ
   (other)    — "You play with the <name>.."
 
@@ -215,6 +218,87 @@ async def _use_tool_kit(ctx, player) -> list[str]:
     return lines
 
 
+_COMM_ONCE_TOKEN = 'CM*'  # player.once_per_day token (SPUR's ys$ "CM*")
+_TOTAL_LEVELS    = 7
+
+
+async def _use_communicator(ctx, player) -> None:
+    """SPUR.USE.S's comm label (~lines 128-140): "beam aboard" to level 6
+    room 1, with an escalating malfunction risk. Traced from source, not
+    invented -- see RoomFlag.NO_COMM_SIGNAL's own docstring in
+    convert_from_gbbs_tool.py for the level-6-only "only static" gate.
+
+    Malfunction chance: a flat ~1-in-10 (SPUR's `a=3` check against a
+    1-10 roll) the *first* time the player reaches this point (even if
+    they then cancel the confirm prompt below -- the once_per_day token
+    is set unconditionally before the prompt, matching SPUR's own
+    ys$=ys$+"CM*" placement). Every attempt *after* the first jumps to
+    roughly 4-in-10 (an additional a<5 check) -- the device visibly gets
+    less reliable the more you rely on it.
+    """
+    room_no = getattr(ctx.client, 'room', None)
+    level   = int(getattr(player, 'map_level', 1) or 1)
+    game_map = getattr(ctx.server, 'game_map', None)
+    room = game_map.get_room(level, int(room_no)) if game_map and room_no else None
+    if room and 'no_comm_signal' in (getattr(room, 'flags', None) or []):
+        await ctx.send('You hear only static from the communicator..')
+        return
+
+    once = getattr(player, 'once_per_day', None)
+    if once is None:
+        once = []
+        player.once_per_day = once
+    threshold = 5 if _COMM_ONCE_TOKEN in once else 0
+    roll = random.randint(1, 10)
+    if roll < threshold or roll == 3:
+        await _communicator_malfunction(ctx, player)
+        return
+
+    if _COMM_ONCE_TOKEN not in once:
+        once.append(_COMM_ONCE_TOKEN)
+        player.unsaved_changes = True
+
+    await ctx.send('The device hums strangely!')
+    raw = await ctx.prompt('Still want to use it? y/[N]')
+    if not raw or raw.strip().lower() != 'y':
+        return
+
+    await ctx.send([
+        'A tiny voice comes from the device!',
+        "'Standby to beam aboard..'",
+        'The area fades from view!!',
+        'To be replaced by metal walls!',
+    ])
+    await ctx.server._teleport_to(ctx, 6, 1)
+
+
+async def _communicator_malfunction(ctx, player) -> None:
+    """SPUR.USE.S's malfunction label (~lines 221-232): the communicator
+    breaks (swapped back to a broken communicator, #141 -- USE the tool
+    kit again to fix it) and teleports the player to a random level and
+    room instead of the intended level 6 room 1. SPUR's own ASCII
+    "[] MALFUNCTION []" typewriter/erase animation (a C64-terminal-timing
+    effect) isn't ported -- this codebase has no equivalent transport,
+    and it carries no gameplay meaning to preserve."""
+    inv = getattr(player, 'inventory', None)
+    await ctx.send([
+        'A strange buzzing comes from the communicator!!',
+        'A red light starts flashing urgently!',
+    ])
+    if inv:
+        _consume_one(inv, _COMMUNICATOR_ID)
+        _craft_item(ctx, inv, _BROKEN_COMMUNICATOR_ID)
+        player.unsaved_changes = True
+    await ctx.send('*** MALFUNCTION ***')
+
+    game_map = getattr(ctx.server, 'game_map', None)
+    target_level = random.randint(1, _TOTAL_LEVELS)
+    rooms = (game_map.levels.get(target_level, {}) if game_map else {}) or {}
+    target_room = (random.choice(list(rooms.keys())) if rooms
+                   else getattr(player, 'map_room', 1))
+    await ctx.server._teleport_to(ctx, target_level, target_room)
+
+
 def _usable_entries(player):
     """Return inventory entries that are not weapons (weapons use `ready`)."""
     inv = getattr(player, 'inventory', None)
@@ -340,6 +424,12 @@ class UseCommand(Command):
         if item_no == _TOOL_KIT_ID:
             for line in await _use_tool_kit(ctx, player):
                 await ctx.send(line)
+            return CommandResult.ok()
+
+        # ---- Communicator (#66): beam aboard level 6, with an escalating
+        # malfunction risk (SPUR.USE.S 'comm' label) ----------------------
+        if item_no == _COMMUNICATOR_ID:
+            await _use_communicator(ctx, player)
             return CommandResult.ok()
 
         # ---- Ring of invisibility (#67): toggle worn (SPUR.USE.S use4) -------
