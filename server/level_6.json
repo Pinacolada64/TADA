@@ -68,8 +68,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_south",
+                "no_error_exit_west",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -89,8 +89,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_south",
+                "no_error_exit_north",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -110,9 +110,9 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south",
-                "block_north",
+                "no_error_exit_east",
+                "no_error_exit_south",
+                "no_error_exit_north",
                 "water"
             ],
             "exits": {
@@ -132,8 +132,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_west",
+                "no_error_exit_east",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -153,8 +153,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_south",
+                "no_error_exit_west",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -174,7 +174,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
+                "no_error_exit_east",
                 "water"
             ],
             "exits": {
@@ -194,8 +194,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east",
+                "no_error_exit_north",
+                "no_error_exit_east",
                 "water"
             ],
             "exits": {
@@ -328,8 +328,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_west",
+                "no_error_exit_east",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -349,8 +349,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_north",
+                "no_error_exit_west",
+                "no_error_exit_north",
                 "water"
             ],
             "exits": {
@@ -370,8 +370,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south",
+                "no_error_exit_east",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -391,9 +391,9 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east",
-                "block_south",
+                "no_error_exit_north",
+                "no_error_exit_east",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -525,8 +525,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_south",
+                "no_error_exit_west",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -546,8 +546,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south",
+                "no_error_exit_east",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -2161,7 +2161,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
+                "no_error_exit_north",
                 "water"
             ],
             "exits": {
@@ -2181,8 +2181,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east",
+                "no_error_exit_north",
+                "no_error_exit_east",
                 "water"
             ],
             "exits": {
@@ -2391,8 +2391,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_west",
+                "no_error_exit_north",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -2412,8 +2412,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_south",
+                "no_error_exit_north",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -2433,8 +2433,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_south",
+                "no_error_exit_north",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -2454,7 +2454,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -2474,7 +2474,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
+                "no_error_exit_east",
                 "water"
             ],
             "exits": {
@@ -2681,9 +2681,9 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_south",
-                "block_east",
+                "no_error_exit_west",
+                "no_error_exit_south",
+                "no_error_exit_east",
                 "water"
             ],
             "exits": {
@@ -2741,7 +2741,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -2761,7 +2761,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -2781,8 +2781,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_south",
+                "no_error_exit_north",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -2802,9 +2802,9 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east",
-                "block_south",
+                "no_error_exit_north",
+                "no_error_exit_east",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -3024,8 +3024,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_north",
+                "no_error_exit_west",
+                "no_error_exit_north",
                 "water"
             ],
             "exits": {
@@ -3159,7 +3159,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
+                "no_error_exit_east",
                 "water"
             ],
             "exits": {
@@ -3381,7 +3381,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -3476,7 +3476,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -3496,7 +3496,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -3516,8 +3516,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south",
+                "no_error_exit_east",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -3725,7 +3725,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -3989,9 +3989,9 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_west",
-                "block_south",
+                "no_error_exit_north",
+                "no_error_exit_west",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -4011,8 +4011,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_south",
+                "no_error_exit_north",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -4032,7 +4032,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
+                "no_error_exit_north",
                 "water"
             ],
             "exits": {
@@ -4052,7 +4052,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
+                "no_error_exit_east",
                 "water"
             ],
             "exits": {
@@ -4291,9 +4291,9 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_north",
-                "block_south",
+                "no_error_exit_west",
+                "no_error_exit_north",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -4313,8 +4313,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_south",
+                "no_error_exit_north",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -4334,7 +4334,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -4372,7 +4372,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -4458,8 +4458,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_west",
+                "no_error_exit_north",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -4479,8 +4479,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_south",
+                "no_error_exit_north",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -4500,9 +4500,9 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_north",
-                "block_south",
+                "no_error_exit_east",
+                "no_error_exit_north",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -4538,7 +4538,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
+                "no_error_exit_east",
                 "water"
             ],
             "exits": {
@@ -4558,8 +4558,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_north",
+                "no_error_exit_west",
+                "no_error_exit_north",
                 "water"
             ],
             "exits": {
@@ -4598,7 +4598,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
+                "no_error_exit_east",
                 "water"
             ],
             "exits": {
@@ -4732,8 +4732,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_south",
+                "no_error_exit_west",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -4753,8 +4753,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_north",
+                "no_error_exit_east",
+                "no_error_exit_north",
                 "water"
             ],
             "exits": {
@@ -4774,8 +4774,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_west",
+                "no_error_exit_east",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -4795,7 +4795,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -4815,7 +4815,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
+                "no_error_exit_east",
                 "water"
             ],
             "exits": {
@@ -4970,8 +4970,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_west",
+                "no_error_exit_north",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -4991,8 +4991,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_south",
+                "no_error_exit_north",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -5012,8 +5012,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south",
+                "no_error_exit_east",
+                "no_error_exit_south",
                 "water"
             ],
             "exits": {
@@ -5033,8 +5033,8 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_west",
+                "no_error_exit_east",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -5054,7 +5054,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
+                "no_error_exit_west",
                 "water"
             ],
             "exits": {
@@ -5074,7 +5074,7 @@
             "name": "Outer Space",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
+                "no_error_exit_east",
                 "water"
             ],
             "exits": {

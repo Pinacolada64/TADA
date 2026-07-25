@@ -483,7 +483,15 @@ class Room(object):
     # player/NPC's own guild membership -- see RoomAlignment's docstring.
     alignment: RoomAlignment = RoomAlignment.NEUTRAL
     # List of RoomFlag values (as strings) parsed from SPUR room data.
-    # e.g. ["water"], ["snow"], ["no_flee"], ["block_north", "block_east"]
+    # e.g. ["water"], ["snow"], ["no_flee"], ["no_error_exit_north",
+    # "no_error_exit_east"]. That last pair's name is deliberately not
+    # "block_*" -- despite the raw `]N`/`]E`/`]S`/`]W` source token,
+    # tracing SPUR.MAIN.S's block.s/block.s1 (~lines 160-174) shows it's
+    # an ALLOW override (skips the room's normal exit-existence check and
+    # the "Can't go there!" failure) rather than a blocker, and it does
+    # NOT relocate the player -- cr is untouched on that path, so the
+    # same room just gets redisplayed. Not implemented in movement code
+    # yet -- see TODO.md's "SPUR boat/vehicle-launch exit flavor text".
     #
     # "grassy" is the one exception: in SPUR, checks like the sugar-cube/
     # wild-horse mechanics (SPUR.MISC.S d.sugar, SPUR.MAIN.S's `horse`

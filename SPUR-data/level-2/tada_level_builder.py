@@ -44,10 +44,27 @@ class RoomAlignment(Enum):
     HQ        = "hq"
 
 class RoomFlag(Enum):
-    BLOCK_MOVE_NORTH  = "block_north"
-    BLOCK_MOVE_EAST   = "block_east"
-    BLOCK_MOVE_SOUTH  = "block_south"
-    BLOCK_MOVE_WEST   = "block_west"
+    # SPUR.MAIN.S's block.s/block.s1 (~lines 160-174): despite the raw `]N`/
+    # `]E`/`]S`/`]W` token and this port's original (wrong) "block_*" naming,
+    # tracing dc$ (the last-typed command, set at advent3) through block.s
+    # shows this is an ALLOW override, not a blocker -- if the just-typed
+    # direction matches a `]`-flagged one, movement is treated as
+    # succeeding (no "Can't go there!") rather than gated by the room's
+    # normal n/e/s/w exit-existence flags. It does NOT relocate the player,
+    # though: cr (current room) is only ever reassigned in block.s1's own
+    # four direction lines, never on this bypass path -- it jumps straight
+    # to travel1 with cr untouched, so the same room gets redisplayed.
+    # travel1 does separately check for a `+@N` boat/vehicle-launch marker
+    # (EXIT_DIRECTION_1-4 below) and print "You get out of the BOAT/
+    # SPACESUIT..." if that direction matches -- so in practice this reads
+    # as "you may attempt to leave a vehicle/water room this way without
+    # an error, even though there's nothing beyond it," not a real exit.
+    # TADA has no boat/vehicle-launch system yet to hook that flavor text
+    # into -- see TODO.md's "SPUR boat/vehicle-launch exit flavor text".
+    NO_ERROR_EXIT_NORTH = "no_error_exit_north"
+    NO_ERROR_EXIT_EAST  = "no_error_exit_east"
+    NO_ERROR_EXIT_SOUTH = "no_error_exit_south"
+    NO_ERROR_EXIT_WEST  = "no_error_exit_west"
     WATER             = "water"          # @@
     WATER_WITH_RAPIDS = "water_rapids"   # @@!
     SNOW              = "snow"           # **
@@ -89,10 +106,10 @@ PIPE_FLAGS = [
 ]
 
 DIRECTION_FLAGS = {
-    'N': RoomFlag.BLOCK_MOVE_NORTH,
-    'E': RoomFlag.BLOCK_MOVE_EAST,
-    'S': RoomFlag.BLOCK_MOVE_SOUTH,
-    'W': RoomFlag.BLOCK_MOVE_WEST,
+    'N': RoomFlag.NO_ERROR_EXIT_NORTH,
+    'E': RoomFlag.NO_ERROR_EXIT_EAST,
+    'S': RoomFlag.NO_ERROR_EXIT_SOUTH,
+    'W': RoomFlag.NO_ERROR_EXIT_WEST,
 }
 
 EXIT_KEYS = ['north', 'south', 'east', 'west', 'rc', 'rt']
@@ -242,7 +259,7 @@ def parse_name_field(raw: str) -> tuple[str, RoomAlignment, list[RoomFlag]]:
       'MERCHANT ANNEX +'          -> ('Merchant Annex', FREE_FIRE, [])
       'UNDERGROUND STREAM |@@'    -> ('Underground Stream', NEUTRAL, [WATER])
       'UNDERGROUND RAPIDS |@@!'   -> ('Underground Rapids', NEUTRAL, [WATER_WITH_RAPIDS])
-      'THE DESERT|]S]W'           -> ('The Desert', NEUTRAL, [BLOCK_SOUTH, BLOCK_WEST])
+      'THE DESERT|]S]W'           -> ('The Desert', NEUTRAL, [NO_ERROR_EXIT_SOUTH, NO_ERROR_EXIT_WEST])
       'DARK CAVE |@@**#! HQ'      -> ('Dark Cave', HQ, [WATER, SNOW, DARK])
     """
     flags: list[RoomFlag] = []

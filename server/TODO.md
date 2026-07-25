@@ -849,3 +849,79 @@
   glyphs()` still keys off `CommodoreGraphicsChars.__members__` rather
   than plain iteration -- harmless now that the two are distinct, but
   worth keeping in case another collision creeps in later.
+
+7/24/26:
+- [DONE 7/24/26] `RoomFlag`'s `block_north`/`block_east`/`block_south`/
+  `block_west` were mis-named (Ryan noticed: level 5 room 38 "The
+  Desert" has `block_east` yet its east exit works fine, and nothing in
+  the server ever actually checked these flags anyway). Traced the real
+  mechanic in `SPUR.MAIN.S`'s `block.s`/`block.s1` (~lines 160-174):
+  first pass wrongly concluded `dc$` (compared against the flagged
+  letter) was never assigned anywhere -- a bash quoting bug in my own
+  grep (`"dc\$"` in double quotes silently dropped the backslash, so
+  grep searched for literal end-of-line `dc$` instead of the string
+  `dc$`) produced a false negative. Corrected: `dc$` is SPUR's "last
+  command" (repeated on bare `<Return>`, `SPUR.MAIN.S:66-78`), assigned
+  constantly. With that fixed, the real semantics: `]N`/`]E`/`]S`/`]W`
+  is an ALLOW override -- if the just-typed direction matches a
+  `]`-flagged one, movement is treated as succeeding (skips the room's
+  normal exit-existence check and the "Can't go there!" failure)
+  instead of the reverse. It does NOT relocate the player, though: `cr`
+  (current room) is only ever reassigned in `block.s1`'s own four
+  direction lines, never on this bypass path -- it jumps straight to
+  `travel1` with `cr` untouched, so the same room just gets
+  redisplayed. `travel1` separately checks for a `+@N` boat/vehicle-
+  launch marker (`RoomFlag.EXIT_DIRECTION_1-4`, already parsed but also
+  unused in movement code) and prints "You get out of the BOAT/SPACE
+  SUIT..." if that direction matches -- so in practice this reads as
+  "you may attempt to leave a vehicle/water room this way without an
+  error, even though there's nothing beyond it," not a real secret
+  exit. Confirmed via `remotes/origin/skip`'s own copy of the same
+  routine (`git show remotes/origin/skip:SPUR-code/SPUR.MAIN.S`): skip
+  adds `a=0:if ep>1 a=1` / `...ep=ep-a:goto travel1` on the bypass path
+  -- docking 1 energy point when it fires -- confirming this is a
+  deliberate "you tried, it cost you something, but nothing happened"
+  mechanic, not dead/vestigial code as first suspected.
+  - Renamed `RoomFlag.BLOCK_MOVE_NORTH/EAST/SOUTH/WEST` ->
+    `NO_ERROR_EXIT_NORTH/EAST/SOUTH/WEST` in
+    `SPUR-data/level-2/tada_level_builder.py` (enum, `DIRECTION_FLAGS`,
+    docstring example), renamed the matching string values in
+    `level_5.json`/`level_6.json` (the only two levels that use them,
+    93 and 100 occurrences respectively -- verified via `git diff` that
+    only the flag strings changed, nothing else), and corrected
+    `base_classes.py`'s `Room.flags` comment.
+  - Not implemented: actual movement code still doesn't read these
+    flags at all (matches today's behavior either way, since the real
+    effect is "no error, no relocation" -- functionally invisible
+    without also building the boat/vehicle-launch flavor-text system).
+- SPUR boat/vehicle-launch exit flavor text (scoped by the entry above,
+  not started): `SPUR.MAIN.S`'s `travel`/`block.s` area has an entire
+  unported vehicle mechanic --  a `+@N` room marker (`RoomFlag.
+  EXIT_DIRECTION_1-4`) pairs with a specific direction (`N=1`/`S=2`/
+  `E=3`/`W=4`, guessing from `di`'s own numbering) and an item check
+  (`xi$` -- instr("074,", xi$) for a boat, or on level 6 instr("122",
+  xi$) for a spacesuit) to print "You shove the dinghy into the
+  water.." / "You first put on the spacesuit" when the player attempts
+  that exit, plus (level 6 only) a further check for a "Space Tracker"
+  item (`instr("138",xi$)`) unlocking "The SPACE TRACKER powers up!
+  (Giving galactic space coordinates)" flavor. `NO_ERROR_EXIT_*` (see
+  above) is what lets the attempt succeed without an error in the first
+  place. `xi$` confirmed via `programming-notes/spur variables.txt`
+  (Ryan's recollection): it's the **player's own** inventory items
+  ("xxx,yyy,zzz..." object numbers), distinct from `ai$` (ally
+  inventory, same file) -- so the item check is "does the *player*
+  personally have a boat/spacesuit item," not an ally's pack. None of
+  this exists in TADA: no boat/vehicle inventory item concept tied to
+  movement, no `xi$`-equivalent lookup (this port's own inventory is
+  `Inventory`/`InventoryEntry` in `inventory.py`, not a raw object-
+  number string, so "instr in xi$" becomes a real item-id membership
+  check against `ctx.player`'s inventory, not a string search), no
+  wiring between `RoomFlag.EXIT_DIRECTION_*` and the movement path at
+  all today. Needs: deciding whether "the player owns a boat/spacesuit
+  item" is the right gate or something else (a flag/ally/vehicle
+  system), and actually wiring `NO_ERROR_EXIT_*` + `EXIT_DIRECTION_*`
+  into the movement/travel code path (`simple_server.py`'s move
+  handling).
+  skip's branch additionally docks 1 energy point (`ep`) whenever the
+  `NO_ERROR_EXIT_*` bypass fires -- worth carrying over if this gets
+  built, matching the "it cost you something" semantics confirmed above.

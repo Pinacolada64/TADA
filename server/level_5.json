@@ -23,7 +23,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south"
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 382,
@@ -42,7 +42,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west"
+                "no_error_exit_west"
             ],
             "exits": {
                 "north": 383,
@@ -146,8 +146,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south"
+                "no_error_exit_east",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 389,
@@ -228,8 +228,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_west"
+                "no_error_exit_north",
+                "no_error_exit_west"
             ],
             "exits": {
                 "south": 34,
@@ -314,8 +314,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_north"
+                "no_error_exit_west",
+                "no_error_exit_north"
             ],
             "exits": {
                 "north": 399,
@@ -385,7 +385,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west"
+                "no_error_exit_west"
             ],
             "exits": {
                 "north": 3,
@@ -472,8 +472,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south"
+                "no_error_exit_east",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 8,
@@ -606,7 +606,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west"
+                "no_error_exit_west"
             ],
             "exits": {
                 "north": 16,
@@ -642,7 +642,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "no_error_exit_east"
             ],
             "exits": {
                 "north": 18,
@@ -729,8 +729,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_north"
+                "no_error_exit_west",
+                "no_error_exit_north"
             ],
             "exits": {
                 "north": 23,
@@ -766,7 +766,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south"
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 25,
@@ -802,8 +802,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south"
+                "no_error_exit_east",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 27,
@@ -901,8 +901,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
-                "block_west"
+                "no_error_exit_south",
+                "no_error_exit_west"
             ],
             "exits": {
                 "north": 33,
@@ -936,7 +936,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west"
+                "no_error_exit_west"
             ],
             "exits": {
                 "north": 35,
@@ -972,8 +972,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south"
+                "no_error_exit_east",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 37,
@@ -1026,7 +1026,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north"
+                "no_error_exit_north"
             ],
             "exits": {
                 "north": 40,
@@ -1045,7 +1045,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north"
+                "no_error_exit_north"
             ],
             "exits": {
                 "north": 41,
@@ -1081,8 +1081,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south"
+                "no_error_exit_east",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 43,
@@ -1118,8 +1118,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
-                "block_east"
+                "no_error_exit_south",
+                "no_error_exit_east"
             ],
             "exits": {
                 "north": 45,
@@ -1235,8 +1235,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
-                "block_west"
+                "no_error_exit_south",
+                "no_error_exit_west"
             ],
             "exits": {
                 "north": 52,
@@ -1304,8 +1304,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south"
+                "no_error_exit_east",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 56,
@@ -1341,7 +1341,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south"
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 58,
@@ -1377,8 +1377,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
-                "block_east"
+                "no_error_exit_south",
+                "no_error_exit_east"
             ],
             "exits": {
                 "north": 60,
@@ -1414,7 +1414,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south"
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 62,
@@ -1432,7 +1432,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 103,
@@ -1558,8 +1558,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
-                "block_west"
+                "no_error_exit_south",
+                "no_error_exit_west"
             ],
             "exits": {
                 "north": 71,
@@ -1661,7 +1661,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "no_error_exit_east"
             ],
             "exits": {
                 "north": 77,
@@ -1697,8 +1697,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south"
+                "no_error_exit_east",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 79,
@@ -1856,8 +1856,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_south"
+                "no_error_exit_west",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 89,
@@ -1959,8 +1959,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south"
+                "no_error_exit_east",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 95,
@@ -1992,8 +1992,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east",
-                "block_south"
+                "no_error_exit_east",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 97,
@@ -2126,8 +2126,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_south"
+                "no_error_exit_west",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 105,
@@ -2195,8 +2195,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
-                "block_east"
+                "no_error_exit_south",
+                "no_error_exit_east"
             ],
             "exits": {
                 "north": 109,
@@ -2455,8 +2455,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_south"
+                "no_error_exit_west",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 124,
@@ -2490,8 +2490,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
-                "block_east"
+                "no_error_exit_south",
+                "no_error_exit_east"
             ],
             "exits": {
                 "north": 126,
@@ -2812,8 +2812,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
-                "block_west"
+                "no_error_exit_south",
+                "no_error_exit_west"
             ],
             "exits": {
                 "north": 145,
@@ -3499,8 +3499,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east"
+                "no_error_exit_north",
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 223,
@@ -3769,8 +3769,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_west"
+                "no_error_exit_north",
+                "no_error_exit_west"
             ],
             "exits": {
                 "south": 238,
@@ -3787,7 +3787,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north"
+                "no_error_exit_north"
             ],
             "exits": {
                 "south": 239,
@@ -3822,8 +3822,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east"
+                "no_error_exit_north",
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 241,
@@ -4083,8 +4083,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_west"
+                "no_error_exit_north",
+                "no_error_exit_west"
             ],
             "exits": {
                 "south": 256,
@@ -4169,7 +4169,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_east"
+                "no_error_exit_east"
             ],
             "exits": {
                 "north": 221,
@@ -4397,8 +4397,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_west"
+                "no_error_exit_north",
+                "no_error_exit_west"
             ],
             "exits": {
                 "south": 274,
@@ -4517,8 +4517,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east"
+                "no_error_exit_north",
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 281,
@@ -4885,8 +4885,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east"
+                "no_error_exit_north",
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 302,
@@ -5252,8 +5252,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east"
+                "no_error_exit_north",
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 323,
@@ -5445,7 +5445,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west"
+                "no_error_exit_west"
             ],
             "exits": {
                 "north": 294,
@@ -5616,8 +5616,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east"
+                "no_error_exit_north",
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 344,
@@ -5774,8 +5774,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_north"
+                "no_error_exit_west",
+                "no_error_exit_north"
             ],
             "exits": {
                 "south": 353,
@@ -5979,8 +5979,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east"
+                "no_error_exit_north",
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 365,
@@ -6063,7 +6063,7 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west"
+                "no_error_exit_west"
             ],
             "exits": {
                 "north": 330,
@@ -6132,8 +6132,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_south",
-                "block_west"
+                "no_error_exit_south",
+                "no_error_exit_west"
             ],
             "exits": {
                 "north": 334,
@@ -6169,8 +6169,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_west",
-                "block_south"
+                "no_error_exit_west",
+                "no_error_exit_south"
             ],
             "exits": {
                 "north": 336,
@@ -6291,8 +6291,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_east"
+                "no_error_exit_north",
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 383,
@@ -6373,8 +6373,8 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "block_north",
-                "block_west"
+                "no_error_exit_north",
+                "no_error_exit_west"
             ],
             "exits": {
                 "south": 388,
