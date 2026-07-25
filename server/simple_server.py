@@ -144,6 +144,12 @@ class Init:
 # Server
 # ---------------------------------------------------------------------------
 
+# graceful_shutdown()'s per-notify timeout -- a module constant (rather than
+# inline in the method) so tests can shrink it instead of actually waiting
+# out a real hang.
+GRACEFUL_SHUTDOWN_SEND_TIMEOUT = 5.0
+
+
 class Server:
     """Manages server state and all client connections."""
 
@@ -1249,19 +1255,39 @@ class Server:
             if not ctx or not player or isinstance(player, GuestPlayer):
                 continue
             name = getattr(player, 'name', 'Adventurer')
+
+            # ctx.send()'s writer.drain() has no timeout of its own -- a
+            # stalled/half-dead connection (peer stopped reading, network
+            # dropped without a clean FIN/RST) would otherwise block
+            # forever right here, wedging every *other* player's save
+            # behind this one and never letting the process exit at all.
+            # Bounded per-send timeouts keep the notify best-effort while
+            # guaranteeing this loop always finishes; the actual save
+            # below always still runs even if both notifies time out --
+            # saving state matters more than delivering the notice.
             editor = getattr(getattr(ctx, 'client', None), 'active_editor', None)
             if editor is not None:
                 try:
                     from text_editor import save_recovery_file
                     recovery_path = save_recovery_file(ctx, editor)
-                    await ctx.send(
+                    await asyncio.wait_for(ctx.send(
                         f'Your in-progress text has been saved to a temporary '
-                        f'file ({recovery_path.name}) so it is not lost.')
+                        f'file ({recovery_path.name}) so it is not lost.'),
+                        timeout=GRACEFUL_SHUTDOWN_SEND_TIMEOUT)
+                except asyncio.TimeoutError:
+                    logging.warning(
+                        'graceful_shutdown: timed out notifying %s about their saved '
+                        'editor buffer (connection unresponsive)', name)
                 except Exception:
                     logging.exception(
                         'graceful_shutdown: failed to save in-progress editor buffer for %s', name)
             try:
-                await ctx.send(f'Emergency shutdown -- saving {name}. Bye.')
+                await asyncio.wait_for(
+                    ctx.send(f'Emergency shutdown -- saving {name}. Bye.'),
+                    timeout=GRACEFUL_SHUTDOWN_SEND_TIMEOUT)
+            except asyncio.TimeoutError:
+                logging.warning(
+                    'graceful_shutdown: timed out notifying %s (connection unresponsive)', name)
             except Exception:
                 logging.exception('graceful_shutdown: failed to notify %s', name)
             await self._player_quit(ctx)

@@ -11,6 +11,7 @@ import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import simple_server
 from simple_server import Server
 from network_context import GuestPlayer
 
@@ -139,3 +140,43 @@ def test_one_players_send_failure_does_not_block_others(tmp_path):
     assert (run_dir / 'player-fine.json').exists()
     # The broken player should still get saved even though notifying them failed.
     assert (run_dir / 'player-broken.json').exists()
+
+
+def test_unresponsive_connection_times_out_and_still_saves_and_does_not_block_others(
+        tmp_path, monkeypatch):
+    """A connection that stopped reading (ctx.send()'s writer.drain() never
+    returns) must not wedge graceful_shutdown() forever -- it should time
+    out, still save that player's state (saving matters more than
+    delivering the notice), and let every other player's save proceed."""
+    monkeypatch.setattr(simple_server, 'GRACEFUL_SHUTDOWN_SEND_TIMEOUT', 0.05)
+
+    import net_common
+    run_dir = tmp_path / 'run' / 'server'
+    run_dir.mkdir(parents=True)
+    net_common.run_server_dir = run_dir
+
+    from player import Player
+    stuck = Player(name='Stuck')
+    stuck.id = 'stuck'
+    fine = Player(name='Fine')
+    fine.id = 'fine'
+    fine.unsaved_changes = True
+
+    async def _hangs_forever(*_args, **_kwargs):
+        await asyncio.sleep(999)
+
+    server = Server('127.0.0.1', 0)
+    stuck_client = _connected_client(stuck)
+    stuck_client.ctx.send = AsyncMock(side_effect=_hangs_forever)
+    server.clients = {
+        ('127.0.0.1', 1): stuck_client,
+        ('127.0.0.1', 2): _connected_client(fine),
+    }
+
+    asyncio.run(asyncio.wait_for(server.graceful_shutdown(), timeout=5.0))
+
+    assert (run_dir / 'player-fine.json').exists()
+    # The stuck player's notify never went through, but their state must
+    # still be saved -- graceful_shutdown()'s whole point is not to lose
+    # a connected player's progress, notify-or-not.
+    assert (run_dir / 'player-stuck.json').exists()
