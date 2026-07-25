@@ -371,27 +371,67 @@ async def _get_input(app: Application) -> str | None:
 # Login flow
 # ---------------------------------------------------------------------------
 
+# simple_server.py's _negotiate_terminal() answer for each --translation
+# choice this client supports -- PETSCII isn't one of them: that's a raw-
+# byte wire protocol on an entirely different port (see the "On a real
+# Commodore 64/128?" notice in the negotiation prompt itself), not
+# something this JSON client can answer with here.
+_TRANSLATION_ANSWER = {'ANSI': 'A', 'ASCII': 'P'}
+
+
 async def _login(
+    reader:        asyncio.StreamReader,
     writer:        asyncio.StreamWriter,
     output_buffer: Buffer,
     state:         ClientState,
     app:           Application,
     user_id:       str,
     password:      str,
+    translation:   str = 'ANSI',
 ) -> bool:
-    """Send handshake + credentials; return True on success."""
-    # Handshake
+    """Handshake, negotiate terminal type, then send credentials.
+
+    The server parks at an interactive "Terminal type [A/P/C/Q]" prompt
+    (simple_server.py's _negotiate_terminal()) right after the handshake
+    -- sending 'connect ...' before answering it gets rejected as an
+    "Unknown command" and login never actually happens, even though the
+    client itself "sent" the command successfully. This is why --user/
+    --password used to look accepted but never logged a character in.
+
+    Returns True once credentials have been sent, False if the server
+    closed the connection before login could proceed.
+    """
     await _send_message(writer, {
         'mode':             'init',
         'server_id':        'test_server',
         'server_key':       'test_key',
         'protocol_version': 1,
-        'translation':      'UTF-8',
+        'translation':      translation,
     })
     _append_output(output_buffer, [f'Connecting to {state.host}:{state.port}...'])
     app.invalidate()
 
-    # Credentials — server's _login() prompts "connect <user> <pass>" as a text command
+    answer = _TRANSLATION_ANSWER.get(translation, 'A')
+    while True:
+        msg = await _recv_message(reader)
+        if msg is None:
+            _append_output(output_buffer, ['', '[disconnected during login]'])
+            app.invalidate()
+            return False
+        lines = msg.get('lines', [])
+        if isinstance(lines, str):
+            lines = [lines]
+        if lines:
+            _append_output(output_buffer, lines)
+            app.invalidate()
+        if 'Terminal type' in (msg.get('prompt') or ''):
+            await _send_message(writer, {'mode': 'login', 'type': 'command', 'text': answer})
+            break
+        # Anything received before the negotiation prompt (the
+        # handshake's own "Handshake successful." reply, etc.) is just
+        # displayed above and drained -- keep waiting for the prompt.
+
+    # Credentials — server's login flow prompts "connect <user> <pass>" as a text command
     if user_id == 'guest':
         await _send_message(writer, {'mode': 'login', 'type': 'command', 'text': 'connect guest'})
     else:
@@ -453,7 +493,8 @@ async def _input_loop(
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def run(host: str, port: int, user_id: str, password: str, debug: bool = False) -> None:
+async def run(host: str, port: int, user_id: str, password: str, debug: bool = False,
+              translation: str = 'ANSI') -> None:
     state = ClientState(debug=debug)
     state.host = host
     state.port = port
@@ -479,7 +520,7 @@ async def run(host: str, port: int, user_id: str, password: str, debug: bool = F
         '',
     ])
 
-    await _login(writer, output_buffer, state, app, user_id, password)
+    await _login(reader, writer, output_buffer, state, app, user_id, password, translation)
 
     async def _run_app_safe():
         try:
@@ -501,11 +542,18 @@ async def run(host: str, port: int, user_id: str, password: str, debug: bool = F
 
 def main() -> int:
     parser = argparse.ArgumentParser(description='TADA prompt_toolkit client')
-    parser.add_argument('host',     nargs='?', default='localhost')
-    parser.add_argument('port',     nargs='?', type=int, default=34083)
-    parser.add_argument('--user',   default='')
-    parser.add_argument('--guest',  action='store_true')
-    parser.add_argument('--debug',  action='store_true')
+    parser.add_argument('host',         nargs='?', default='localhost')
+    parser.add_argument('port',         nargs='?', type=int, default=34083)
+    parser.add_argument('--username',   default='', help='Auto-login username')
+    parser.add_argument('--password',   default='',
+                         help='Auto-login password (prompted securely if --username is given without this)')
+    parser.add_argument('--translation', default='ANSI', type=str.upper,
+                         choices=['ANSI', 'ASCII'],
+                         help="Terminal type to negotiate on login: ANSI color or plain ASCII "
+                              "(default: ANSI). PETSCII isn't offered here -- a real Commodore "
+                              "64/128 connects on a separate raw-byte port instead.")
+    parser.add_argument('--guest',      action='store_true')
+    parser.add_argument('--debug',      action='store_true')
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -516,12 +564,19 @@ def main() -> int:
     if args.guest:
         user_id  = 'guest'
         password = 'guest'
+    elif args.username and args.password:
+        # Both given up front -- skip every interactive prompt so this
+        # can drive a fully unattended auto-login (e.g. from a script or
+        # another tool's launch step).
+        user_id  = args.username
+        password = args.password
     else:
-        user_id  = args.user or input('Username: ').strip() or 'guest'
+        user_id  = args.username or input('Username: ').strip() or 'guest'
         password = getpass.getpass('Password: ') if user_id != 'guest' else 'guest'
 
     try:
-        asyncio.run(run(args.host, args.port, user_id, password, debug=args.debug))
+        asyncio.run(run(args.host, args.port, user_id, password, debug=args.debug,
+                        translation=args.translation))
     except KeyboardInterrupt:
         pass
 
