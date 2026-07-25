@@ -224,6 +224,35 @@ def format_thread_summary(thread: dict, viewer_is_privileged: bool) -> str:
     return f"{thread['id']:>3}. {thread.get('title', '(untitled)')}  -- {author}, {replies}"
 
 
+def format_thread_listing(threads: list[dict], width: int, is_petscii: bool = False) -> list[str]:
+    """Render the thread listing as three columns -- '##', 'Title'
+    (elided if it doesn't fit the column -- a real ellipsis character on
+    ANSI/plain, or '...' on PETSCII, since real Commodore font ROMs don't
+    have one), and 'Replies' -- sized to *width*. Mirrors
+    commands/whereat.py's plain ljust/rjust column style rather than
+    table.py's bordered Table, since a long title should be elided to
+    one line here, not word-wrapped across several."""
+    id_w = max(len('##'), *(len(str(t.get('id', 0))) for t in threads))
+    reply_counts = [len(t.get('replies', [])) for t in threads]
+    replies_w = max(len('Replies'), *(len(str(c)) for c in reply_counts))
+    title_w = max(width - id_w - replies_w - 4, 10)
+    ellipsis = '...' if is_petscii else '…'
+    ellipsis_w = len(ellipsis)
+
+    def _elide(text: str) -> str:
+        if len(text) <= title_w:
+            return text
+        if title_w <= ellipsis_w:
+            return text[:title_w]
+        return text[:title_w - ellipsis_w] + ellipsis
+
+    lines = [f"{'##'.rjust(id_w)}  {'Title'.ljust(title_w)}  {'Replies'.rjust(replies_w)}"]
+    for t, count in zip(threads, reply_counts):
+        title = _elide(t.get('title', '(untitled)'))
+        lines.append(f"{str(t.get('id', 0)).rjust(id_w)}  {title.ljust(title_w)}  {str(count).rjust(replies_w)}")
+    return lines
+
+
 def render_message_lines(entry: dict, ctx, width: int) -> list[str]:
     """Render just one post/reply's own body -- no title/header wrapper --
     re-rendering its Justification/Border for *this* viewer's screen

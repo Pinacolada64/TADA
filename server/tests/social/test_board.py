@@ -17,6 +17,7 @@ from board import (
     build_quote_preamble,
     display_author,
     format_thread,
+    format_thread_listing,
     format_thread_summary,
     is_new_since,
     load_board,
@@ -217,6 +218,44 @@ class TestFormatThreadSummary(unittest.TestCase):
         summary = format_thread_summary(thread, viewer_is_privileged=False)
         self.assertIn('1 reply', summary)
         self.assertNotIn('1 replies', summary)
+
+
+class TestFormatThreadListing(unittest.TestCase):
+    def test_header_row_has_the_three_column_titles(self):
+        threads = [{'id': 1, 'title': 'Hello', 'replies': []}]
+        lines = format_thread_listing(threads, width=40)
+        self.assertIn('##', lines[0])
+        self.assertIn('Title', lines[0])
+        self.assertIn('Replies', lines[0])
+
+    def test_row_shows_id_and_reply_count(self):
+        threads = [{'id': 7, 'title': 'Hello', 'replies': [{}, {}]}]
+        lines = format_thread_listing(threads, width=40)
+        row = lines[1]
+        self.assertIn('7', row)
+        self.assertIn('Hello', row)
+        self.assertIn('2', row)
+
+    def test_long_title_is_elided_with_ellipsis_by_default(self):
+        threads = [{'id': 1, 'title': 'X' * 60, 'replies': []}]
+        lines = format_thread_listing(threads, width=40)
+        row = lines[1]
+        self.assertIn('…', row)
+        self.assertNotIn('X' * 60, row)
+
+    def test_long_title_is_elided_with_dots_on_petscii(self):
+        threads = [{'id': 1, 'title': 'X' * 60, 'replies': []}]
+        lines = format_thread_listing(threads, width=40, is_petscii=True)
+        row = lines[1]
+        self.assertIn('...', row)
+        self.assertNotIn('…', row)
+
+    def test_short_title_is_not_elided(self):
+        threads = [{'id': 1, 'title': 'Short', 'replies': []}]
+        lines = format_thread_listing(threads, width=40)
+        self.assertIn('Short', lines[1])
+        self.assertNotIn('…', lines[1])
+        self.assertNotIn('...', lines[1])
 
 
 class TestFormatThread(unittest.TestCase):

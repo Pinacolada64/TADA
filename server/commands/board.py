@@ -46,6 +46,18 @@ def _is_privileged(player) -> bool:
     return bool(player.query_flag(PlayerFlags.ADMIN) or player.query_flag(PlayerFlags.DUNGEON_MASTER))
 
 
+def _is_petscii(ctx) -> bool:
+    """Whether ctx's player is on a real Commodore (PETSCII) connection --
+    mirrors commands/help.py's _is_petscii_viewer(). Used to pick '...'
+    over a real ellipsis character when eliding a too-long thread title
+    in the listing, since Commodore font ROMs don't have one."""
+    client_settings = getattr(getattr(ctx, 'player', None), 'client_settings', None)
+    if client_settings is None:
+        return False
+    from formatting import codec_for_settings, PETSCIICodec
+    return isinstance(codec_for_settings(client_settings), PETSCIICodec)
+
+
 async def resolve_anonymous(ctx) -> bool | None:
     """Whether a post/reply should be anonymous, per the board-wide
     anonymous_mode admin setting (board.load_config(), changed via
@@ -167,7 +179,6 @@ class BoardCommand(Command):
         While active, the player's virtual location (commands/whereat.py)
         reads 'Reading board'. With new_only, filters to threads with
         activity since the player's own board_last_date threshold."""
-        privileged = _is_privileged(ctx.player)
         since = self._last_date(ctx)
 
         previous_location = getattr(ctx.client, 'virtual_location', None)
@@ -186,8 +197,7 @@ class BoardCommand(Command):
                     '', '|yellow|Message Board|reset|', '',
                     make_rule(rule_width, hrule_char(ctx)),
                 ]
-                for t in threads:
-                    lines.append(board_store.format_thread_summary(t, privileged))
+                lines += board_store.format_thread_listing(threads, rule_width, _is_petscii(ctx))
                 lines.append('')
 
                 raw = await ctx.prompt(
