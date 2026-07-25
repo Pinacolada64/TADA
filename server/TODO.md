@@ -1042,3 +1042,20 @@
   instead of the bespoke attribute; check whether `player.ring_worn`
   (`player.py:308`) can then be removed entirely or whether anything
   else (save-file back-compat?) still depends on it existing.
+
+7/25/26:
+- board.py: add a "[F]reeze" toggle option at the end-of-bulletin prompt
+  (`commands/board_reply.py`'s `read_thread_interactive()` menu, Ryan).
+  Freezing a thread prevents/allows further replies from being posted to
+  it. Gate who can toggle it the same way `commands/board.py`'s existing
+  `_is_privileged()` check already gates anonymous-author reveal: the
+  thread's original author, or a privileged (Admin/DM) player. Not
+  scoped further yet -- open questions include where the frozen flag
+  lives on the thread dict (a new `frozen: bool` field alongside
+  `replies`/`anonymous`?), what `_reply()`/`_reply_with_quote()`/the
+  recovery path in `commands/edit.py` should do when someone tries to
+  reply to a frozen thread (reject up front before any prompting, most
+  likely), and how frozen state should read in the thread listing/header
+  (a `MessageHeader` line, e.g. "Frozen: Yes", or just an indicator next
+  to the title in `board`'s listing). Not implemented -- noted here per
+  Ryan's request, not built yet.
