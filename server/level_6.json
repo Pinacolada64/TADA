@@ -4855,13 +4855,15 @@
             "room_alignment": "neutral",
             "flags": [
                 "hidden_door_east",
-                "water_with_rocks",
-                "water"
+                "vehicle_departure_east",
+                "water",
+                "water_with_rocks"
             ],
             "exits": {
                 "north": 246,
                 "south": 306,
-                "west": 275
+                "west": 275,
+                "east": 277
             },
             "monster": 0,
             "item": 0,
@@ -4874,10 +4876,12 @@
             "name": "Air Lock",
             "room_alignment": "neutral",
             "flags": [
-                "hidden_door_west"
+                "hidden_door_west",
+                "vehicle_exit_west"
             ],
             "exits": {
-                "east": 278
+                "east": 278,
+                "west": 276
             },
             "monster": 0,
             "item": 0,

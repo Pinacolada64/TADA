@@ -879,8 +879,10 @@
   exit. Confirmed via `remotes/origin/skip`'s own copy of the same
   routine (`git show remotes/origin/skip:SPUR-code/SPUR.MAIN.S`): skip
   adds `a=0:if ep>1 a=1` / `...ep=ep-a:goto travel1` on the bypass path
-  -- docking 1 energy point when it fires -- confirming this is a
-  deliberate "you tried, it cost you something, but nothing happened"
+  -- docking 1 point of `ep` when it fires. Correction (checked
+  `programming-notes/spur variables.txt`): `ep` is experience points
+  (resets each level-up), not energy -- confirms this is a deliberate
+  "you tried, it cost you a hair of progress, but nothing happened"
   mechanic, not dead/vestigial code as first suspected.
   - Renamed `RoomFlag.BLOCK_MOVE_NORTH/EAST/SOUTH/WEST` ->
     `NO_ERROR_EXIT_NORTH/EAST/SOUTH/WEST` in
@@ -922,6 +924,7 @@
   system), and actually wiring `NO_ERROR_EXIT_*` + `EXIT_DIRECTION_*`
   into the movement/travel code path (`simple_server.py`'s move
   handling).
-  skip's branch additionally docks 1 energy point (`ep`) whenever the
-  `NO_ERROR_EXIT_*` bypass fires -- worth carrying over if this gets
-  built, matching the "it cost you something" semantics confirmed above.
+  skip's branch additionally docks 1 experience point (`ep` ->
+  `player.experience`) whenever the `NO_ERROR_EXIT_*` bypass fires --
+  worth carrying over if this gets built, matching the "it cost you
+  something" semantics confirmed above.

@@ -21,6 +21,7 @@ import logging
 import random
 import signal
 from pathlib import Path
+from typing import Optional
 
 import net_common as nc
 from net_client import Client
@@ -38,6 +39,8 @@ from terminal import Translation
 
 DEFAULT_PORT = 34083
 PETSCII_PORT = 34064
+
+_DIRECTION_TO_SUFFIX = {'n': 'north', 's': 'south', 'e': 'east', 'w': 'west'}
 
 # Wild horse (monsters.json #136, a TADA extension -- no canonical SPUR
 # placement exists) is randomized to one of these level-1 "Edge of Forest"
@@ -933,9 +936,27 @@ class Server:
                 dest = rt
 
         if not dest:
+            # NO_ERROR_EXIT_<dir> (SPUR.MAIN.S's `]X` bypass): the room
+            # explicitly permits *attempting* this direction without the
+            # usual failure message, but it doesn't relocate the player --
+            # see convert_from_gbbs_tool.py's RoomFlag.NO_ERROR_EXIT_* for
+            # the full derivation. Matches SPUR's own travel1 (redisplays
+            # the same room instead of erroring), including the vehicle
+            # departure flavor if this room+direction also carries that.
+            if self._room_has_flag(room, 'no_error_exit', direction):
+                flavor = self._vehicle_departure_flavor(room, direction, level, ctx.player)
+                if flavor:
+                    await ctx.send(flavor)
+                await self._show_room(ctx)
+                logging.debug('EXIT (no-error-exit bypass) direction=%r room=%r', direction, room_no)
+                return
             await ctx.send(f"Can't go {compass_txts[direction].lower()}.")
             logging.debug('EXIT (no exit) direction=%r room=%r', direction, room_no)
             return
+
+        vehicle_flavor = self._vehicle_departure_flavor(room, direction, level, ctx.player)
+        if vehicle_flavor:
+            await ctx.send(vehicle_flavor)
 
         if not self.game_map.get_room(target_level, int(dest)):
             # Exit data points at a room number with no actual data behind
@@ -986,6 +1007,31 @@ class Server:
         await try_djinn_sighting(ctx)
         from ally_events.starvation import try_encounter as try_ally_starvation
         await try_ally_starvation(ctx)
+
+    @staticmethod
+    def _room_has_flag(room, flag_prefix: str, direction: str) -> bool:
+        """True if *room*'s flags include '<flag_prefix>_<direction word>'
+        (e.g. flag_prefix='no_error_exit', direction='e' ->
+        'no_error_exit_east'). direction must be one of n/s/e/w -- up/down
+        have no directional-flag equivalent, so always returns False."""
+        suffix = _DIRECTION_TO_SUFFIX.get(direction)
+        if not suffix:
+            return False
+        return f'{flag_prefix}_{suffix}' in (getattr(room, 'flags', None) or [])
+
+    def _vehicle_departure_flavor(self, room, direction: str, level: int, player) -> Optional[str]:
+        """SPUR.MAIN.S's travel1: VEHICLE_DEPARTURE_<dir> prints "get out
+        of the vehicle" flavor when leaving *room* via *direction* -- no
+        item check, no failure path (the room is already water/vacuum,
+        always paired with a WATER flag in practice, so leaving it is
+        assumed to require having already been using the vehicle). The
+        item-gated sibling (VEHICLE_EXIT_*, which CAN block the move) is
+        checked earlier, in commands/movement.py's own pre-move gate --
+        see _check_vehicle_exit_gate() there."""
+        if not self._room_has_flag(room, 'vehicle_departure', direction):
+            return None
+        return ('You get out of your spacesuit..' if level >= 6
+                else 'You get out of the boat..')
 
     def _leave_combat_on_move(self, ctx: GameContext, room_no) -> None:
         """Drop *ctx* from an active fight's attacker list when they move

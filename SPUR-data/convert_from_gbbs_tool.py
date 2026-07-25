@@ -52,10 +52,21 @@ ALIGNMENT_SYMBOLS = {
 }
 
 class RoomFlag(Enum):
-    BLOCK_MOVE_NORTH = "block_north"
-    BLOCK_MOVE_EAST  = "block_east"
-    BLOCK_MOVE_SOUTH = "block_south"
-    BLOCK_MOVE_WEST  = "block_west"
+    # SPUR.MAIN.S's block.s/block.s1 (~lines 160-174): despite the raw `]N`/
+    # `]E`/`]S`/`]W` token, this is an ALLOW override, not a blocker -- if
+    # the just-typed direction matches a `]`-flagged one, movement is
+    # treated as succeeding (no "Can't go there!") rather than gated by the
+    # room's normal exit-existence flags. It does NOT relocate the player,
+    # though: cr (current room) is only reassigned in block.s1's own four
+    # direction lines, never on this bypass path. From the player's seat
+    # this still reads as "blocked" (you typed a direction and stayed put)
+    # -- matches Skip's own description in file-formats.txt ("]E]S Blocks
+    # travel in direction after ']'"), just naming the actual mechanism
+    # (no error shown) rather than the felt outcome.
+    NO_ERROR_EXIT_NORTH = "no_error_exit_north"
+    NO_ERROR_EXIT_EAST  = "no_error_exit_east"
+    NO_ERROR_EXIT_SOUTH = "no_error_exit_south"
+    NO_ERROR_EXIT_WEST  = "no_error_exit_west"
     WATER    = "water"    # @@ -- requires Boat (lvl 1-5) or Spacesuit (lvl 6+); no flee (SPUR.COMBAT.S:74)
     WATER_WITH_ROCKS = "water_with_rocks"  # @@! -- per programming-notes/file-formats.txt
 
@@ -74,9 +85,38 @@ class RoomFlag(Enum):
     HIDDEN_DOOR_EAST  = "hidden_door_east"   # ~*E
     HIDDEN_DOOR_SOUTH = "hidden_door_south"  # ~*S
     HIDDEN_DOOR_WEST  = "hidden_door_west"   # ~*W
-    # ROOM_58  # +@1 - exit in direction 1? (uncertain -- file-formats.txt says the digit means
-    #            "direction of travel after exiting vehicle", seen mostly in water rooms; not
-    #            implemented until that's pinned down further)
+
+    # SPUR.MAIN.S's `+@N` token (block.s's own boat-check, ~line 151):
+    # leaving THIS room via direction N requires the player to be
+    # carrying the vehicle item (inflatable dinghy #74 on levels 1-5,
+    # spacesuit #122 on level 6+) -- prints departure flavor + (level 6)
+    # a Space Tracker (#138) bonus line on success, or "Not without a
+    # BOAT/SPACE SUIT!" and aborts the move entirely if the player lacks
+    # it. Confirmed real (not dead code) via the one live instance in
+    # level 6: room 277 "Air Lock" has `+@4` (west, toward the vacuum).
+    VEHICLE_EXIT_NORTH = "vehicle_exit_north"
+    VEHICLE_EXIT_EAST  = "vehicle_exit_east"
+    VEHICLE_EXIT_SOUTH = "vehicle_exit_south"
+    VEHICLE_EXIT_WEST  = "vehicle_exit_west"
+
+    # SPUR.MAIN.S's `@@+N` token (travel1's own check, ~line 181): leaving
+    # THIS room via direction N prints "You get out of the BOAT/SPACE
+    # SUIT.." flavor, same wording as VEHICLE_EXIT_* but with no item
+    # check and no failure path -- the room is already water/vacuum
+    # (always paired with WATER/WATER_WITH_ROCKS in practice), so leaving
+    # it is assumed to always require having already been using the
+    # vehicle to be there at all. Confirmed real via level 6 room 276
+    # "Outer Space" (`@@+3`, east, back toward the Air Lock). Per Skip's
+    # file-formats.txt, `+@N`/`@@+N` are two spellings of the same
+    # documented "@@+x" concept -- SPUR's own source just checks two
+    # different substrings ("+@" vs "@@+") in two different code paths,
+    # not a deliberate two-tier design; kept as two RoomFlag values here
+    # because the two paths genuinely differ in whether they can abort
+    # the move.
+    VEHICLE_DEPARTURE_NORTH = "vehicle_departure_north"
+    VEHICLE_DEPARTURE_EAST  = "vehicle_departure_east"
+    VEHICLE_DEPARTURE_SOUTH = "vehicle_departure_south"
+    VEHICLE_DEPARTURE_WEST  = "vehicle_departure_west"
     # UNKNOWN  # - (file-formats.txt says unknown too -- not resolved)
     # T (room transports you / "wave of nausea") -- "must be last flag, apparently"; not
     #   implemented as an inline_flags token because a bare "T" would false-positive-match
@@ -85,10 +125,10 @@ class RoomFlag(Enum):
 
 # Maps the letter found after ']' in the room flag string to a RoomFlag
 DIRECTION_FLAGS = {
-    'N': RoomFlag.BLOCK_MOVE_NORTH,
-    'E': RoomFlag.BLOCK_MOVE_EAST,
-    'S': RoomFlag.BLOCK_MOVE_SOUTH,
-    'W': RoomFlag.BLOCK_MOVE_WEST,
+    'N': RoomFlag.NO_ERROR_EXIT_NORTH,
+    'E': RoomFlag.NO_ERROR_EXIT_EAST,
+    'S': RoomFlag.NO_ERROR_EXIT_SOUTH,
+    'W': RoomFlag.NO_ERROR_EXIT_WEST,
 }
 
 # Maps the letter found after '~*' in the room flag string to a hidden-door RoomFlag.
@@ -97,6 +137,22 @@ HIDDEN_DOOR_FLAGS = {
     'E': RoomFlag.HIDDEN_DOOR_EAST,
     'S': RoomFlag.HIDDEN_DOOR_SOUTH,
     'W': RoomFlag.HIDDEN_DOOR_WEST,
+}
+
+# Maps the digit found after '+@' or '@@+' to a direction -- matches SPUR's
+# own di numbering (SPUR.MAIN.S:91-96: N=1, S=2, E=3, W=4) and Skip's
+# file-formats.txt table for '@@+x'.
+VEHICLE_EXIT_DIGITS = {
+    '1': RoomFlag.VEHICLE_EXIT_NORTH,
+    '2': RoomFlag.VEHICLE_EXIT_SOUTH,
+    '3': RoomFlag.VEHICLE_EXIT_EAST,
+    '4': RoomFlag.VEHICLE_EXIT_WEST,
+}
+VEHICLE_DEPARTURE_DIGITS = {
+    '1': RoomFlag.VEHICLE_DEPARTURE_NORTH,
+    '2': RoomFlag.VEHICLE_DEPARTURE_SOUTH,
+    '3': RoomFlag.VEHICLE_DEPARTURE_EAST,
+    '4': RoomFlag.VEHICLE_DEPARTURE_WEST,
 }
 
 EXIT_KEYS = ['north', 'south', 'east', 'west', 'rc', 'rt']
@@ -175,6 +231,27 @@ def parse_name_field(raw_name: str) -> tuple[str, RoomAlignment, list[RoomFlag]]
             if flag:
                 flags.append(flag)
         remaining = re.sub(r'~\*[NESW]', '', remaining, flags=re.IGNORECASE)
+
+        # Vehicle-exit flags: '@@+N' (travel1's departure-flavor-only
+        # check) and '+@N' (block.s's item-gated departure check) -- two
+        # different literal substrings SPUR's own source searches for in
+        # two different code paths, not overlapping (see RoomFlag's own
+        # comment above VEHICLE_EXIT_*/VEHICLE_DEPARTURE_*). '@@+N' is
+        # checked first since it's the more specific/longer pattern;
+        # stripping it here (rather than leaving the trailing digit for
+        # the '@@' WATER check below) keeps 'remaining' clean for
+        # whatever gets added after this.
+        for digit in re.findall(r'@@\+([1-4])', remaining):
+            flag = VEHICLE_DEPARTURE_DIGITS.get(digit)
+            if flag:
+                flags.append(flag)
+        remaining = re.sub(r'@@\+[1-4]', '@@', remaining)
+
+        for digit in re.findall(r'(?<!@)\+@([1-4])', remaining):
+            flag = VEHICLE_EXIT_DIGITS.get(digit)
+            if flag:
+                flags.append(flag)
+        remaining = re.sub(r'(?<!@)\+@[1-4]', '', remaining)
 
         # Traversal/restriction flags embedded in the pipe suffix.
         # Order matters: longer/more-specific tokens first to avoid partial matches

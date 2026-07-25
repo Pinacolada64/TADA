@@ -18,6 +18,23 @@ from network_context import GameContext
 
 _WATER_FLAGS = {'water', 'water_with_rocks'}
 
+# SPUR's vehicle-launch mechanic (SPUR.MAIN.S's block.s/boat, ~lines
+# 151-163 -- see TODO.md's "SPUR boat/vehicle-launch exit flavor text"
+# entry and convert_from_gbbs_tool.py's RoomFlag.VEHICLE_EXIT_*/
+# VEHICLE_DEPARTURE_* for the full derivation). Only one real instance
+# exists in the converted game (level 6's Air Lock <-> Outer Space), but
+# the mechanic itself is level-agnostic: dinghy on levels 1-5, spacesuit
+# on level 6+. This is the item-gated half (can abort the move); the
+# flavor-only sibling (VEHICLE_DEPARTURE_*, no item check, can't fail)
+# lives in simple_server.py's _move() instead, since it depends on that
+# method's own dest-resolution (hidden exits, rc/rt fallback) that isn't
+# duplicated here.
+_DINGHY_ID        = 74   # inflatable dinghy (objects.json)
+_SPACESUIT_ID     = 122  # spacesuit (objects.json)
+_SPACE_TRACKER_ID = 138  # space tracker (objects.json) -- level 6 bonus flavor only
+
+_DIRECTION_TO_SUFFIX = {'n': 'north', 's': 'south', 'e': 'east', 'w': 'west'}
+
 _DIR_ALIASES: dict[str, str] = {
     'n': 'n', 'north': 'n',
     's': 's', 'south': 's',
@@ -44,6 +61,55 @@ _ALLY_GUILD_ROOM  = 42
 # SPUR.MAIN.S: "if cl=5 if cr=157 if di=3 i$=\"JAKES\":...link dy$"
 _JAKES_LEVEL = 5
 _JAKES_ROOM  = 157
+
+
+def _room_has_flag(room, flag_prefix: str, direction: str) -> bool:
+    """True if *room*'s flags include '<flag_prefix>_<direction word>'
+    (e.g. flag_prefix='vehicle_exit', direction='w' ->
+    'vehicle_exit_west'). direction must be one of n/s/e/w -- up/down
+    have no directional-flag equivalent, so always returns False."""
+    suffix = _DIRECTION_TO_SUFFIX.get(direction)
+    if not suffix:
+        return False
+    return f'{flag_prefix}_{suffix}' in (getattr(room, 'flags', None) or [])
+
+
+async def _check_vehicle_exit_gate(ctx: GameContext, room, direction: str, level: int) -> bool:
+    """SPUR.MAIN.S's block.s/boat: if *room* has a VEHICLE_EXIT_<dir>
+    marker for *direction*, leaving that way requires the player to be
+    carrying the vehicle item (inflatable dinghy on levels 1-5, spacesuit
+    on level 6+). Returns False (already sent a message) if the move
+    should be blocked; True if it's clear to proceed (either no marker at
+    all, or the player has the right item -- departure flavor + level-6
+    Space Tracker bonus already sent in that case).
+    """
+    if not _room_has_flag(room, 'vehicle_exit', direction):
+        return True
+
+    player = ctx.player
+    if player.query_flag(PlayerFlags.MOUNTED):
+        # SPUR.MAIN.S (skip's branch): "Must DISMOUNT first" -- a horse
+        # can't follow you through an airlock/into the water any more
+        # than it can into a water room (see _auto_dismount_if_needed()
+        # above for the arrival-side version of this same rule).
+        await ctx.send('You must dismount first.')
+        return False
+
+    item_id = _SPACESUIT_ID if level >= 6 else _DINGHY_ID
+    vehicle_name = 'spacesuit' if level >= 6 else 'dinghy'
+    if not player.inventory.find(item_id=item_id):
+        await ctx.send(f"Not without a {vehicle_name}!")
+        return False
+
+    verb = 'You put on your spacesuit..' if level >= 6 else 'You shove the dinghy into the water..'
+    lines = [verb]
+    if level >= 6:
+        if player.inventory.find(item_id=_SPACE_TRACKER_ID):
+            lines.append('The space tracker powers up! (Giving galactic space coordinates.)')
+        else:
+            lines.append("(Too bad you don't have a space tracker..)")
+    await ctx.send(lines)
+    return True
 
 
 async def _auto_dismount_if_needed(ctx: GameContext) -> None:
@@ -172,6 +238,13 @@ class MoveCommand(Command):
         room = game_map.get_room(player_level, int(room_no)) if game_map else None
 
         if room:
+            # Vehicle-launch gate (SPUR.MAIN.S's block.s/boat) -- runs
+            # before any exit is resolved, matching SPUR's own ordering.
+            # Only fires if this room+direction actually has the marker;
+            # every other room is untouched.
+            if not await _check_vehicle_exit_gate(ctx, room, direction, player_level):
+                return CommandResult.fail('Blocked.', error='vehicle_required')
+
             exits = getattr(room, 'exits', {})
 
             # rc/rt transport system: rc=1 -> Up, rc=2 -> Down (no normal exit
