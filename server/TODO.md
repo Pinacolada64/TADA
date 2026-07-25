@@ -22,11 +22,11 @@
     placeholders -- like shell expansion, but restricted to a fixed set
     of known-safe substitutions rather than arbitrary code/lookup, so
     nothing player-authored can execute or read anything it shouldn't.
-- commands/password.py's "New password" prompt: bare Enter (blank input)
-  currently falls into the "must be at least 4 characters" error and
-  reprompts. Should instead recognize blank as "keep the current
-  password", print "Password unchanged.", and return/exit cleanly
-  instead of looping.
+- [DONE 7/24/26] commands/password.py's "New password" prompt: bare Enter
+  (blank input) currently falls into the "must be at least 4 characters"
+  error and reprompts. Should instead recognize blank as "keep the
+  current password", print "Password unchanged.", and return/exit
+  cleanly instead of looping.
 - [DONE 7/13/26] new_player.py's _choose_race() menu used the enum's
   .name ("HALF_ELF") for the displayed menu text instead of .value
   ("Half-Elf"). Selection/storage already correctly used the real enum
@@ -272,8 +272,18 @@
   level_3.json; revisit if better evidence turns up.
 
 7/10/2026
-- editplayer: show room/level name in MI menu, allow listing with '?'
-- editplayer: generate random combination with 'R' in CO menu
+- [DONE 7/24/26] editplayer: show room/level name in MI menu, allow
+  listing with '?'. Room Number's dot leader and edit prompt now show
+  the room's real name (e.g. "2 (Rolling Hills)") when map data for the
+  player's current dungeon level is loaded, falling back to the bare
+  number otherwise; typing '?' at the prompt lists every room on that
+  level and reprompts. No level-name data exists anywhere in the
+  codebase (dungeon levels are just numbered 1-7), so Dungeon Level
+  itself is unchanged.
+- [DONE 7/24/26] editplayer: generate random combination with 'R' in CO
+  menu. Reuses Combination.__init__()'s own random 1-99-per-digit roll
+  (already how a *new* combination is seeded) rather than duplicating
+  the randomization logic.
 
 7/13/26:
 - new_player.py's _prologue() (Verus's opening dialogue) should reassure

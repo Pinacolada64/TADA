@@ -164,6 +164,25 @@ class TestPasswordCommand(unittest.IsolatedAsyncioTestCase):
         matched, _ = verify_password('longenough', creds['password'])
         self.assertTrue(matched)
 
+    async def test_blank_new_password_keeps_current_password(self):
+        self._write_creds('rulan', hash_password('oldpw'))
+        ctx = _FakeCtx(['oldpw', ''])
+        result = await PasswordCommand().execute(ctx)
+        self.assertTrue(result.success)
+        self.assertIn('Password unchanged.', ctx.sent)
+        creds = self._read_creds('rulan')
+        matched, _ = verify_password('oldpw', creds['password'])
+        self.assertTrue(matched)
+
+    async def test_whitespace_only_new_password_keeps_current_password(self):
+        self._write_creds('rulan', hash_password('oldpw'))
+        ctx = _FakeCtx(['oldpw', '   '])
+        result = await PasswordCommand().execute(ctx)
+        self.assertTrue(result.success)
+        creds = self._read_creds('rulan')
+        matched, _ = verify_password('oldpw', creds['password'])
+        self.assertTrue(matched)
+
     async def test_works_against_legacy_plaintext_current_password(self):
         # Account never logged in yet since the bcrypt migration -- current
         # password is still stored as plaintext.

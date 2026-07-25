@@ -103,5 +103,54 @@ class TestClearOnlyEditedCombo(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(player.combinations[CombinationTypes.LOCKER].combination, (90, 97, 50))
 
 
+class TestRandomizeCombo(unittest.IsolatedAsyncioTestCase):
+
+    async def test_r_randomizes_only_the_edited_combo(self):
+        player = _make_player_with_combos()
+        ctx = _make_ctx(player, ['r'])
+        menu = _combinations_menu(ctx)
+
+        await _action_for(menu, 'ca')(ctx)
+
+        new_combo = player.combinations[CombinationTypes.CASTLE].combination
+        self.assertIsNotNone(new_combo)
+        self.assertEqual(len(new_combo), 3)
+        for digit in new_combo:
+            self.assertTrue(1 <= digit <= 99)
+        self.assertEqual(player.combinations[CombinationTypes.ELEVATOR].combination, (11, 22, 33))
+        self.assertEqual(player.combinations[CombinationTypes.LOCKER].combination, (90, 97, 50))
+
+    async def test_r_is_case_insensitive(self):
+        player = _make_player_with_combos()
+        ctx = _make_ctx(player, ['R'])
+        menu = _combinations_menu(ctx)
+
+        await _action_for(menu, 'lo')(ctx)
+
+        self.assertIsNotNone(player.combinations[CombinationTypes.LOCKER].combination)
+
+    async def test_r_reports_the_new_combination(self):
+        player = _make_player_with_combos()
+        ctx = _make_ctx(player, ['r'])
+        menu = _combinations_menu(ctx)
+
+        await _action_for(menu, 'el')(ctx)
+
+        new_combo = player.combinations[CombinationTypes.ELEVATOR].combination
+        expected = 'Elevator randomized to ' + '-'.join(f'{d:02d}' for d in new_combo)
+        flat = '\n'.join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn(expected, flat)
+
+    async def test_r_works_when_no_combo_previously_set(self):
+        player = MagicMock()
+        player.combinations = {}
+        ctx = _make_ctx(player, ['r'])
+        menu = _combinations_menu(ctx)
+
+        await _action_for(menu, 'ca')(ctx)
+
+        self.assertIsNotNone(player.combinations[CombinationTypes.CASTLE].combination)
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

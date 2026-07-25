@@ -59,10 +59,9 @@ class PasswordCommand(Command):
             if pw1 is None:
                 return CommandResult.fail("Password change abandoned.", error="abandoned")
             pw1 = pw1.strip()
-            # TODO: if pw1 is blank (bare Enter), treat it as "keep the
-            # current password" -- send "Password unchanged." and return
-            # CommandResult.ok() instead of falling through to the
-            # too-short error/reprompt below.
+            if not pw1:
+                await ctx.send("Password unchanged.")
+                return CommandResult.ok("Password unchanged.")
             if len(pw1) < 4:
                 await ctx.send("Password must be at least 4 characters.  Try again.")
                 continue

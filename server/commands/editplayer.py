@@ -366,6 +366,18 @@ def _armor_shield_menu(ctx) -> Menu:
 # Map Information menu
 # ---------------------------------------------------------------------------
 
+def _level_rooms(ctx, level: int) -> dict:
+    """{room_number: Room} for *level*, or {} if no map data is loaded."""
+    game_map = getattr(getattr(ctx, 'server', None), 'game_map', None)
+    return game_map.levels.get(level, {}) if game_map else {}
+
+
+def _room_label(ctx, level: int, room_no: int) -> str:
+    """'42' if no room data is loaded for it, else '42 (Rolling Hills)'."""
+    room = _level_rooms(ctx, level).get(room_no)
+    return f'{room_no} ({room.name})' if room else str(room_no)
+
+
 def _map_info_menu(ctx) -> Menu:
     p    = ctx.player
     menu = _titled_menu(ctx, 'Map Information')
@@ -379,12 +391,42 @@ def _map_info_menu(ctx) -> Menu:
             await ctx.send(f'Dungeon Level set to {val}.')
 
     async def edit_room(ctx) -> None:
-        cur = int(getattr(p, 'map_room', 1) or 1)
-        val = await _prompt_int(ctx, 'Room Number', cur, 1, 999)
-        if val is not None:
+        level = int(getattr(p, 'map_level', 1) or 1)
+        cur   = int(getattr(p, 'map_room', 1) or 1)
+        rooms = _level_rooms(ctx, level)
+
+        while True:
+            raw = await ctx.prompt(
+                'Room Number',
+                preamble_lines=[
+                    f'Current: {_room_label(ctx, level, cur)}  —  '
+                    "blank to cancel, '?' to list rooms on this level"
+                ],
+            )
+            if raw is None or not raw.strip():
+                return
+            if raw.strip() == '?':
+                if not rooms:
+                    await ctx.send(f'No room data loaded for level {level}.')
+                    continue
+                await _send_labeled_list(
+                    ctx, f'Level {level} Rooms',
+                    sorted(rooms.values(), key=lambda r: r.number),
+                    lambda r: f'#{r.number:<4} {r.name}',
+                )
+                continue
+            try:
+                val = int(raw.strip())
+            except ValueError:
+                await ctx.send("Please enter a number, or '?' to list.")
+                continue
+            if not (1 <= val <= 999):
+                await ctx.send('Enter a number between 1 and 999.')
+                continue
             p.map_room = val
             p.unsaved_changes = True
-            await ctx.send(f'Room Number set to {val}.')
+            await ctx.send(f'Room Number set to {_room_label(ctx, level, val)}.')
+            return
 
     menu.add_item(MenuItem(
         'Dungeon Level', shortcuts='dl',
@@ -393,7 +435,8 @@ def _map_info_menu(ctx) -> Menu:
     ))
     menu.add_item(MenuItem(
         'Room Number', shortcuts='rn',
-        dot_leader_handler=lambda ctx: str(getattr(p, 'map_room', '?')),
+        dot_leader_handler=lambda ctx: _room_label(
+            ctx, int(getattr(p, 'map_level', 1) or 1), int(getattr(p, 'map_room', 1) or 1)),
         action=edit_room,
     ))
     return menu
@@ -714,7 +757,8 @@ def _combinations_menu(ctx) -> Menu:
             f'{combo_type.value} (xx-xx-xx)',
             preamble_lines=[
                 f'Current: {_fmt(combo_type)}',
-                'Enter three numbers like 04-05-09, X to clear, or blank to cancel:',
+                'Enter three numbers like 04-05-09, R to randomize, X to '
+                'clear, or blank to cancel:',
             ],
         )
         if not raw or not raw.strip():
@@ -733,6 +777,17 @@ def _combinations_menu(ctx) -> Menu:
                     # '(none)'.
                     obj.combination = None
             await ctx.send(f'{combo_type.value} cleared.')
+            return
+        if raw.strip().lower() == 'r':
+            # Combination.__init__() already rolls a random 1-99 triple --
+            # reuse that instead of duplicating the random.randrange() call.
+            if not hasattr(p, 'combinations') or not isinstance(p.combinations, dict):
+                p.combinations = {}
+            combo = Combination(combo_type)
+            p.combinations[combo_type] = combo
+            p.combinations[combo_type.value] = combo
+            p.combinations[combo_type.name]  = combo
+            await ctx.send(f'{combo_type.value} randomized to {_fmt(combo_type)}.')
             return
         digits = re.findall(r'\d{1,2}', raw.strip())
         if len(digits) != 3:
