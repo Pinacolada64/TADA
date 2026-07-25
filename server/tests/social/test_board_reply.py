@@ -31,20 +31,30 @@ def _expected_header_line(label: str, value: str, position: int, width: int) -> 
 
 
 class _FakePlayer:
-    def __init__(self, name='alexa', admin=False, expert=False):
+    def __init__(self, name='alexa', admin=False, expert=False, prompt_mode=True):
         self.name = name
         self._admin = admin
         self._expert = expert
+        self._prompt_mode = prompt_mode
         self.return_key = 'Enter'
         self.client_settings = MagicMock()
         self.client_settings.screen_columns = 80
+        self.unsaved_changes = False
 
     def query_flag(self, flag):
         if flag == PlayerFlags.ADMIN:
             return self._admin
         if flag == PlayerFlags.EXPERT_MODE:
             return self._expert
+        if flag == PlayerFlags.PROMPT_MODE:
+            return self._prompt_mode
         return False
+
+    def toggle_flag(self, flag):
+        if flag == PlayerFlags.PROMPT_MODE:
+            self._prompt_mode = not self._prompt_mode
+            return self._prompt_mode, None
+        return False, None
 
     @property
     def is_expert(self) -> bool:
@@ -118,12 +128,15 @@ class TestSteppedNavigation(unittest.TestCase):
         ctx = make_ctx(prompts=[''])
         run(read_thread_interactive(ctx, _thread()))
         text = _sent_text(ctx)
-        # _thread() seeds 2 replies, no total_threads passed -- fields
-        # are From/Date/Title/Replies, width = len('Replies') = 7.
-        self.assertIn(_expected_header_line('From', 'bob', 0, 7), text)
-        self.assertIn(_expected_header_line('Date', '2026-01-01', 1, 7), text)
-        self.assertIn(_expected_header_line('Title', 'Hello', 2, 7), text)
-        self.assertIn(_expected_header_line('Replies', '2', 3, 7), text)
+        # _thread() seeds 2 replies -- the root header always shows its
+        # own "Number: 1 of 3" (this message's position within the
+        # thread: root + 2 replies), so fields are Number/From/Date/
+        # Title/Replies, width = len('Replies') = 7.
+        self.assertIn(_expected_header_line('Number', '1 of 3', 0, 7), text)
+        self.assertIn(_expected_header_line('From', 'bob', 1, 7), text)
+        self.assertIn(_expected_header_line('Date', '2026-01-01', 2, 7), text)
+        self.assertIn(_expected_header_line('Title', 'Hello', 3, 7), text)
+        self.assertIn(_expected_header_line('Replies', '2', 4, 7), text)
         self.assertNotIn('From: bob  (2026-01-01)', text)
 
     def test_jump_to_invalid_reply_number_reports_error(self):
@@ -170,7 +183,11 @@ class TestSteppedNavigation(unittest.TestCase):
         ctx = make_ctx(player=_FakePlayer(expert=True), prompts=['', '', ''])
         run(read_thread_interactive(ctx, _thread()))
         preambles = [c.kwargs.get('preamble_lines') for c in ctx.prompt.await_args_list]
-        self.assertTrue(all(p is None for p in preambles))
+        # Root gets no preamble at all; replies still get the short
+        # "[Reply x of y]" position hint even for experts -- only the
+        # full option list is expert-gated, not that.
+        self.assertIsNone(preambles[0])
+        self.assertTrue(all(p is not None and '[R]eply' not in ''.join(p) for p in preambles[1:]))
 
     def test_question_mark_redisplays_options_for_expert(self):
         ctx = make_ctx(player=_FakePlayer(expert=True), prompts=['?', '', '', ''])
@@ -179,6 +196,41 @@ class TestSteppedNavigation(unittest.TestCase):
         self.assertIn('[R]eply', text)
         self.assertIn('[L]ist', text)
         self.assertIn("show this list again", text)
+
+    def test_root_does_not_show_reply_position_preamble(self):
+        ctx = make_ctx(player=_FakePlayer(expert=True), prompts=['', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        preambles = [c.kwargs.get('preamble_lines') for c in ctx.prompt.await_args_list]
+        self.assertIsNone(preambles[0])  # root message, no [Reply x of y]
+
+    def test_reply_shows_reply_position_preamble(self):
+        ctx = make_ctx(player=_FakePlayer(expert=True), prompts=['', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        preambles = [c.kwargs.get('preamble_lines') for c in ctx.prompt.await_args_list]
+        self.assertIn('[Reply 1 of 2]', preambles[1])
+        self.assertIn('[Reply 2 of 2]', preambles[2])
+
+    def test_reply_position_preamble_hidden_when_prompt_mode_off(self):
+        ctx = make_ctx(player=_FakePlayer(expert=True, prompt_mode=False), prompts=['', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        preambles = [c.kwargs.get('preamble_lines') for c in ctx.prompt.await_args_list]
+        self.assertTrue(all(p is None for p in preambles))
+
+    def test_pm_toggles_prompt_mode_and_does_not_advance(self):
+        player = _FakePlayer(expert=True, prompt_mode=True)
+        ctx = make_ctx(player=player, prompts=['pm', '', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertIn('Prompt Mode: Off.', _sent_text(ctx))
+        self.assertFalse(player._prompt_mode)
+        # 'pm' didn't advance -- still reading the root afterward, so
+        # the walk needed one more Enter than usual to finish (4, not 3).
+        self.assertEqual(ctx.prompt.await_count, 4)
+
+    def test_non_expert_menu_preamble_mentions_pm(self):
+        ctx = make_ctx(player=_FakePlayer(expert=False), prompts=['', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        preambles = [c.kwargs.get('preamble_lines') for c in ctx.prompt.await_args_list]
+        self.assertTrue(any("'pm'" in line for line in preambles[0]))
 
 
 class BoardReplyTestCase(unittest.TestCase):

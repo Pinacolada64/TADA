@@ -32,9 +32,10 @@ def _expected_header_line(label: str, value: str, position: int, width: int) -> 
 
 
 class _FakePlayer:
-    def __init__(self, name='alexa', admin=False):
+    def __init__(self, name='alexa', admin=False, prompt_mode=False):
         self.name = name
         self._admin = admin
+        self._prompt_mode = prompt_mode
         self.return_key = 'Enter'
         self.command_settings = CommandSettings()
         self.client_settings = MagicMock()
@@ -43,7 +44,15 @@ class _FakePlayer:
     def query_flag(self, flag):
         if flag == PlayerFlags.ADMIN:
             return self._admin
+        if flag == PlayerFlags.PROMPT_MODE:
+            return self._prompt_mode
         return False
+
+    def toggle_flag(self, flag):
+        if flag == PlayerFlags.PROMPT_MODE:
+            self._prompt_mode = not self._prompt_mode
+            return self._prompt_mode, None
+        return False, None
 
 
 def make_ctx(player=None, prompts=None, screen_columns=80):
@@ -125,6 +134,18 @@ class TestList(BoardCommandTestCase):
         # thread id 5 is used verbatim (not its position in the list),
         # against the board-wide total of 2 threads.
         self.assertIn('Number: 5 of 2', sent)
+
+    def test_pm_at_listing_prompt_toggles_and_stays_in_listing(self):
+        self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
+        player = _FakePlayer(prompt_mode=False)
+        ctx = make_ctx(player=player, prompts=['pm', ''])
+        run(BoardCommand().execute(ctx))
+        self.assertIn('Prompt Mode: On.', str(ctx.send.call_args_list))
+        self.assertTrue(player._prompt_mode)
+        # 'pm' redisplays the listing rather than exiting -- two prompts
+        # were needed (the 'pm' itself, then the blank Enter to exit).
+        self.assertEqual(ctx.prompt.await_count, 2)
 
     def test_virtual_location_set_while_listing(self):
         self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,

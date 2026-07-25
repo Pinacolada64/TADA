@@ -15,6 +15,7 @@ time, followed by an "End of bulletin option>" prompt with this menu:
                             thread (same numbering <#> jump accepts)
     <#>                  — jump straight to reply #<#>
     {return_key}          — advance to the next message
+    'pm'                 — toggle Prompt Mode (see commands/prompt_mode.py)
     '?'                  — redisplay this option list
 
 The full option list is shown as the prompt's own preamble every time
@@ -67,6 +68,7 @@ def _menu_options_lines(ctx) -> list[str]:
         '[L]ist              -- list every message in this thread',
         '<#>                 -- jump straight to reply #',
         f'{ctx.player.return_key}               -- read the next message',
+        "'pm'                -- toggle Prompt Mode",
         "'?'                 -- show this list again",
     ]
 
@@ -92,12 +94,15 @@ async def _list_thread_messages(ctx, thread: dict, privileged: bool) -> None:
     await ctx.send(lines)
 
 
-async def read_thread_interactive(ctx, thread: dict, total_threads: int = 0) -> None:
+async def read_thread_interactive(ctx, thread: dict) -> None:
     """Walk *thread* one message at a time (root, then each reply in
     posted order). Only called when PlayerFlags.PROMPT_MODE is on --
-    commands/board.py's _read_one() gates on that; this assumes it.
-    *total_threads* feeds the root header's "Number: <id> of
-    <total_threads>" line -- omitted if not given."""
+    commands/board.py's _read_one() gates on that; this assumes it. The
+    root header's own "Number: x of y" line shows this message's
+    position within *this* thread (1 of however many messages it has),
+    not this thread's place among every thread on the board -- Ryan's
+    call, so it reads as "which message you're on," matching the
+    [Reply x of y] preamble replies get below."""
     privileged = _is_privileged(ctx.player)
     width = _screen_width(ctx)
 
@@ -111,12 +116,22 @@ async def read_thread_interactive(ctx, thread: dict, total_threads: int = 0) -> 
         title = thread.get('title', '(untitled)') if is_root else (entry.get('title') or f'Reply #{idx}')
         header = board_store.MessageHeader.for_entry(
             entry, title, privileged, reply_count=reply_count if is_root else 0,
-            thread_number=thread.get('id', 0) if is_root else 0,
-            total_threads=total_threads if is_root else 0).display()
+            thread_number=1 if is_root else 0,
+            total_threads=len(messages) if is_root else 0).display()
         header.append('')
         await ctx.send([''] + header + board_store.render_message_lines(entry, ctx, width) + [''])
-        preamble = None if ctx.player.is_expert else _menu_options_lines(ctx)
-        raw = await ctx.prompt('End of bulletin option>', preamble_lines=preamble)
+
+        # "[Reply x of y]" -- distinct from the root header's own
+        # "Number: x of y" (that one's the thread's place on the whole
+        # board; this is the reply's place within *this* thread), shown
+        # regardless of Expert Mode since it's a short position hint,
+        # not the full option list.
+        preamble = []
+        if not is_root and ctx.player.query_flag(PlayerFlags.PROMPT_MODE):
+            preamble.append(f'[Reply {idx} of {reply_count}]')
+        if not ctx.player.is_expert:
+            preamble += _menu_options_lines(ctx)
+        raw = await ctx.prompt('End of bulletin option>', preamble_lines=preamble or None)
         if raw is None:
             return  # disconnected mid-read
         choice = raw.strip()
@@ -137,6 +152,10 @@ async def read_thread_interactive(ctx, thread: dict, total_threads: int = 0) -> 
             # reply to or keep reading the same message.
         elif low == 'l':
             await _list_thread_messages(ctx, thread, privileged)
+        elif low in ('pm', 'promptmode'):
+            from commands.board import toggle_prompt_mode
+            await toggle_prompt_mode(ctx)
+            # deliberately doesn't advance -- same as [M]ail poster above.
         elif choice.isdigit():
             target = int(choice)
             if 1 <= target <= reply_count:

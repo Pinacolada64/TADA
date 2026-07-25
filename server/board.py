@@ -177,8 +177,13 @@ class MessageHeader:
     author: str
     date: str  # already truncated to YYYY-MM-DD
     reply_count: int = 0    # thread root only -- a reply has no replies of its own
-    thread_number: int = 0  # thread root only -- its own id, as typed to reach it
-    total_threads: int = 0  # thread root only -- paired with thread_number
+    thread_number: int = 0  # feeds the "Number: x of y" line -- meaning is
+    total_threads: int = 0  # caller-defined (format_thread() uses this
+                             # thread's own id vs. every thread on the
+                             # board; commands/board_reply.py's interactive
+                             # reader uses this message's position within
+                             # *this* thread instead). Omitted if either
+                             # is falsy -- both thread root only.
 
     def display(self) -> list[str]:
         fields = []

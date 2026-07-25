@@ -58,6 +58,17 @@ def _is_petscii(ctx) -> bool:
     return isinstance(codec_for_settings(client_settings), PETSCIICodec)
 
 
+async def toggle_prompt_mode(ctx) -> None:
+    """Flip PlayerFlags.PROMPT_MODE and report the new state -- same
+    underlying toggle as the standalone 'pm' command (commands/
+    prompt_mode.py), reachable here too so a player can turn Prompt Mode
+    on/off without leaving the BOARD listing prompt or the interactive
+    reader's end-of-bulletin prompt (commands/board_reply.py)."""
+    new_state, _ = ctx.player.toggle_flag(PlayerFlags.PROMPT_MODE)
+    ctx.player.unsaved_changes = True
+    await ctx.send(f"Prompt Mode: {'On' if new_state else 'Off'}.")
+
+
 async def resolve_anonymous(ctx) -> bool | None:
     """Whether a post/reply should be anonymous, per the board-wide
     anonymous_mode admin setting (board.load_config(), changed via
@@ -201,7 +212,7 @@ class BoardCommand(Command):
                 lines.append('')
 
                 raw = await ctx.prompt(
-                    f'Read which (# or {ctx.player.return_key} to exit)',
+                    f"Read which (# or {ctx.player.return_key} to exit, 'pm' toggles Prompt Mode)",
                     preamble_lines=lines,
                 )
                 if raw is None or not raw.strip():
@@ -210,6 +221,8 @@ class BoardCommand(Command):
                 choice = raw.strip()
                 if choice.isdigit():
                     await self._read_one(ctx, int(choice))
+                elif choice.lower() in ('pm', 'promptmode'):
+                    await toggle_prompt_mode(ctx)
                 else:
                     await ctx.send(f"'{choice}' is not a valid thread id.")
         finally:
@@ -227,7 +240,7 @@ class BoardCommand(Command):
             # <#>/Enter menu, quote-with-preview on reply -- see
             # commands/board_reply.py's own module docstring.
             from commands.board_reply import read_thread_interactive
-            await read_thread_interactive(ctx, thread, total_threads=len(threads))
+            await read_thread_interactive(ctx, thread)
             return CommandResult.ok('Displayed thread.')
 
         privileged = _is_privileged(ctx.player)
