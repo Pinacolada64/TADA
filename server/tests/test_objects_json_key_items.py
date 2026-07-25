@@ -69,5 +69,27 @@ class TestKeyItemsAreNotTreasure(unittest.TestCase):
         self.assertEqual(wrongly_cursed, [])
 
 
+class TestToolKitRepairItemsAreNotTreasure(unittest.TestCase):
+    """communicator (#66) and broken communicator (#141) had the same
+    treasure-typing bug, but aren't part of guild_hq's _LOCKER_FORBIDDEN
+    list (confirmed against the real SPUR.GUILD.S drp.a check -- neither
+    genuinely appears there, so nothing to fix on that side). Found
+    while porting commands/use.py's tool-kit repair mechanic
+    (SPUR.USE.S's 'tool' label): a broken communicator has to be
+    carryable to ever reach the USE command that repairs it."""
+
+    @classmethod
+    def setUpClass(cls):
+        path = Path(__file__).resolve().parent.parent / 'objects.json'
+        data = json.loads(path.read_text())
+        cls._by_number = {it['number']: it for it in data['items']}
+
+    def test_communicator_and_broken_communicator_not_treasure(self):
+        for number, name in ((66, 'communicator'), (141, 'broken communicator')):
+            item = self._by_number[number]
+            self.assertEqual(item['name'], name)
+            self.assertFalse(_is_treasure(item), f'{name} (#{number}) is still typed treasure')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

@@ -896,8 +896,8 @@
     flags at all (matches today's behavior either way, since the real
     effect is "no error, no relocation" -- functionally invisible
     without also building the boat/vehicle-launch flavor-text system).
-- SPUR boat/vehicle-launch exit flavor text (scoped by the entry above,
-  not started): `SPUR.MAIN.S`'s `travel`/`block.s` area has an entire
+- [DONE 7/25/26] SPUR boat/vehicle-launch exit flavor text (scoped by
+  the entry above): `SPUR.MAIN.S`'s `travel`/`block.s` area has an entire
   unported vehicle mechanic --  a `+@N` room marker (`RoomFlag.
   EXIT_DIRECTION_1-4`) pairs with a specific direction (`N=1`/`S=2`/
   `E=3`/`W=4`, guessing from `di`'s own numbering) and an item check
@@ -926,5 +926,48 @@
   handling).
   skip's branch additionally docks 1 experience point (`ep` ->
   `player.experience`) whenever the `NO_ERROR_EXIT_*` bypass fires --
-  worth carrying over if this gets built, matching the "it cost you
-  something" semantics confirmed above.
+  Ryan's call: left out (skip-branch-only, reads oddly out of context
+  for "bumped into open space"), easy to add later if wanted.
+
+  Built: `RoomFlag.EXIT_DIRECTION_*` renamed to `VEHICLE_EXIT_*`
+  (item-gated, can abort the move) with a second sibling,
+  `VEHICLE_DEPARTURE_*` (flavor-only, matches the *separate* `@@+N`
+  token travel1 actually searches for -- not the same substring as
+  `+@N`, confirmed both are real via the raw Msg text, not a parser
+  bug). Only one live instance in the converted game: level 6's Air
+  Lock (room 277, `VEHICLE_EXIT_WEST`) <-> Outer Space (room 276,
+  `VEHICLE_DEPARTURE_EAST`) -- both rooms' raw `exit_e`/`exit_w` are `0`
+  in the source, so this pair never actually worked as a connected
+  passage even in the original game; added real east/west exits to
+  finish it as a deliberate TADA completion, per Ryan's call. Item gate
+  (`ctx.player.inventory.find(item_id=...)`, dinghy #74 pre-level-6 /
+  spacesuit #122 on level 6+) plus a mount-dismount gate
+  (`PlayerFlags.MOUNTED`, skip's `*MNT` check) live in
+  `commands/movement.py`, matching the existing Ally Guild/Jake's
+  Stable hardcoded-interception pattern already there; the flavor-only
+  half and the `NO_ERROR_EXIT_*` bypass stayed in `simple_server.py`'s
+  `_move()` since they need its own dest-resolution (hidden exits,
+  rc/rt fallback) that isn't duplicated in movement.py. Along the way,
+  found and fixed a much bigger version of the "GET treasure-converts
+  everything" bug from the 7/16/26 entry: 22 unique/quest items
+  (guild_hq's own `_LOCKER_FORBIDDEN` list -- ring, dinghy, spacesuit,
+  key, tool kit, etc.), not just the 3 first noticed, were mistakenly
+  `"type": "treasure"` in `objects.json`, silently converting every one
+  of them to a few silver coins on GET instead of ever letting a player
+  carry them. Retyped to `"misc"`.
+
+  Also built the tool-kit repair chain this unlocked (`SPUR.USE.S`'s
+  `tool` label, ~lines 58-70, traced from source): USE-ing the tool kit
+  (#133, never consumed) repairs a broken spacesuit (#134) + spacesuit
+  parts (#135) into a spacesuit (#122), and/or a broken communicator
+  (#141) into a communicator (#66), independently in the same use.
+  Found two more treasure-typed items this depended on (#66/#141, not
+  on `_LOCKER_FORBIDDEN` -- confirmed genuinely absent from the real
+  `SPUR.GUILD.S drp.a` check too, so no change needed there) and fixed
+  those the same way. `commands/use.py`'s `_use_tool_kit()`/
+  `_craft_item()`/`_consume_one()`.
+
+  27 + 10 new tests across `tests/movement/`, `tests/commands/
+  test_use_tool_kit.py`, and `tests/test_objects_json_key_items.py`,
+  including a full end-to-end walk through the real airlock via
+  `MoveCommand`.

@@ -7,13 +7,15 @@ Mirrors SPUR.USE.S. Supported item types:
   power      — same as ammunition (energy-weapon charges)
   grenade    — hurl at monster; single-use explosive (SPUR.USE.S:91)
   ring       — ring of invisibility toggle; CON penalty when worn (SPUR.USE.S use4)
+  tool kit   — repairs a broken spacesuit + spacesuit parts into a
+               spacesuit, and/or a broken communicator into a
+               communicator; not consumed (SPUR.USE.S 'tool' label)
   book       — redirect to READ
   (other)    — "You play with the <name>.."
 
 Not yet implemented (deferred — level 6 or requires unbuilt systems):
   rocket — single-use ranged explosive; needs rocket item type
   security cards — level-6 items
-  spacesuit assembly, communicator repair — level-6 crafting
   slippers of Galad / crystal vial / palintar — special room items
 """
 from __future__ import annotations
@@ -23,7 +25,7 @@ import random
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from item_system import ItemType
-from items import ItemCategory
+from items import Item, ItemCategory
 from network_context import GameContext
 
 _GRENADE_ID     = 16    # hand grenade (objects.json)
@@ -32,6 +34,17 @@ _SADDLE_ID      = 162   # saddle (objects.json) -- Jake's Stable
 _HORSE_ARMOR_ID = 163   # horse armour (objects.json) -- Jake's Stable
 _SADDLEBAGS_ID  = 165   # saddlebags (objects.json) -- New in TADA, gives a
                         # mount carrying capacity (see commands/give.py)
+
+# Tool kit (#133): repairs a broken spacesuit and/or a broken communicator
+# (SPUR.USE.S's 'tool' label, ~lines 58-70). The tool kit itself is never
+# consumed -- SPUR only clr.item's the broken parts and the repaired
+# communicator's own broken predecessor, never 133 -- so it's reusable.
+_TOOL_KIT_ID             = 133  # tool kit (objects.json)
+_BROKEN_SPACESUIT_ID     = 134  # broken spacesuit (objects.json)
+_SPACESUIT_PARTS_ID      = 135  # spacesuit parts (objects.json)
+_SPACESUIT_ID            = 122  # spacesuit (objects.json) -- repair result
+_BROKEN_COMMUNICATOR_ID  = 141  # broken communicator (objects.json)
+_COMMUNICATOR_ID         = 66   # communicator (objects.json) -- repair result
 
 
 def _char_level(player) -> int:
@@ -139,6 +152,67 @@ def _apply_item(item, player) -> list[str]:
 
     # ---- Fallback ----------------------------------------------------------
     return [f'You play with the {name}..']
+
+
+def _craft_item(ctx, inv, item_id: int) -> None:
+    """Add the finished item *item_id* to *inv*, looking up its real name
+    from ctx.server.items (objects.json) rather than hardcoding it, same
+    as commands/get.py's own pickup path."""
+    raw = next((it for it in (getattr(ctx.server, 'items', None) or [])
+                if it.get('number') == item_id), None)
+    name = raw.get('name') if raw else f'item {item_id}'
+    inv.add(Item(id_number=item_id, name=name, category=ItemCategory.ITEM))
+
+
+def _consume_one(inv, item_id: int) -> None:
+    entries = inv.find(item_id=item_id)
+    if entries:
+        inv.remove(entries[0].item)
+
+
+async def _use_tool_kit(ctx, player) -> list[str]:
+    """SPUR.USE.S's 'tool' label (~lines 58-70): the tool kit can repair
+    two independent things in one use, checked unconditionally (not
+    mutually exclusive) --
+
+      - A broken spacesuit (#134) + spacesuit parts (#135), together,
+        become a spacesuit (#122). Having only one of the two prints a
+        "don't have all the parts" line instead (SPUR's z==1 case);
+        having neither says nothing about the spacesuit at all.
+      - A broken communicator (#141) alone becomes a communicator (#66).
+
+    If neither repair actually happens, "Playing with the tools does no
+    good..".
+    """
+    inv = getattr(player, 'inventory', None)
+    if inv is None:
+        return ["Playing with the tools does no good.."]
+
+    lines = []
+    repaired = False
+
+    has_broken_suit = bool(inv.find(item_id=_BROKEN_SPACESUIT_ID))
+    has_suit_parts  = bool(inv.find(item_id=_SPACESUIT_PARTS_ID))
+    if has_broken_suit and has_suit_parts:
+        lines.append('Bingo! Using the tools, you repair the spacesuit!')
+        _consume_one(inv, _BROKEN_SPACESUIT_ID)
+        _consume_one(inv, _SPACESUIT_PARTS_ID)
+        _craft_item(ctx, inv, _SPACESUIT_ID)
+        repaired = True
+    elif has_broken_suit or has_suit_parts:
+        lines.append("You don't have all the parts to the spacesuit.")
+
+    if inv.find(item_id=_BROKEN_COMMUNICATOR_ID):
+        _consume_one(inv, _BROKEN_COMMUNICATOR_ID)
+        _craft_item(ctx, inv, _COMMUNICATOR_ID)
+        lines.append('You repair the communicator!')
+        repaired = True
+
+    if not repaired:
+        lines.append('Playing with the tools does no good..')
+
+    player.unsaved_changes = True
+    return lines
 
 
 def _usable_entries(player):
@@ -259,6 +333,13 @@ class UseCommand(Command):
                 _set_monster_hp(session.monster, new_hp)
                 if new_hp <= 0:
                     await session._monster_dies(ctx, player_killed=True)
+            return CommandResult.ok()
+
+        # ---- Tool kit (#133): repair a broken spacesuit and/or a broken
+        # communicator (SPUR.USE.S 'tool' label) -- not consumed on use. ----
+        if item_no == _TOOL_KIT_ID:
+            for line in await _use_tool_kit(ctx, player):
+                await ctx.send(line)
             return CommandResult.ok()
 
         # ---- Ring of invisibility (#67): toggle worn (SPUR.USE.S use4) -------

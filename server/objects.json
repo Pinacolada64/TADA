@@ -414,7 +414,7 @@
         {
             "number": 66,
             "name": "communicator",
-            "type": "treasure",
+            "type": "misc",
             "price": 9
         },
         {
@@ -965,7 +965,7 @@
         {
             "number": 141,
             "name": "broken communicator",
-            "type": "treasure",
+            "type": "misc",
             "price": 1
         },
         {
