@@ -108,12 +108,19 @@ async def main(host: str, port: int, user: str, password: str) -> None:
 
     print('\n\n########## SEEDING A SECOND MESSAGE (flat reply) ##########')
     await _say(writer, reader, f'board reply {thread_id}')
-    await _say(writer, reader, 'n')  # anonymous? no
+    await _say(writer, reader, 'n')   # anonymous? no
+    await _say(writer, reader, '')    # reply title -- blank keeps the default
     await _say(writer, reader, 'A simple reply, seeded before the interactive demo.')
     await _say(writer, reader, '.s')
 
     print('\n\n########## TOGGLING PROMPT MODE ON ##########')
-    await _say(writer, reader, 'pm')
+    # 'pm' is a toggle -- don't assume which way it lands (a prior run
+    # may have left it on already). Flip it, check which way it went,
+    # flip again if needed so we're guaranteed On for the reader demo.
+    msgs = await _say(writer, reader, 'pm')
+    state_text = '\n'.join(str(l) for m in msgs for l in (m.get('lines') or []))
+    if 'On.' not in state_text:
+        await _say(writer, reader, 'pm')
 
     print('\n\n########## READING THE THREAD INTERACTIVELY ##########')
     await _say(writer, reader, f'board {thread_id}')
@@ -137,10 +144,14 @@ async def main(host: str, port: int, user: str, password: str) -> None:
     await _say(writer, reader, '1')
     await _say(writer, reader, 'y')   # confirm quote preview
     await _say(writer, reader, 'n')   # anonymous? no
+    await _say(writer, reader, '')    # reply title -- blank keeps the default
     await _say(writer, reader, 'Nice quote-picker, by the way.')
     await _say(writer, reader, '.s')
 
-    await _say(writer, reader, '')  # advance past end of thread
+    # The reader's own 'messages' list is fixed at however many replies
+    # existed when 'board <id>' was first typed -- posting this reply
+    # advances idx past that length, so the loop already exits back to
+    # 'main' on its own. No extra blank Enter needed here.
 
     print('\n\n########## TOGGLING PROMPT MODE BACK OFF ##########')
     await _say(writer, reader, 'pm')
