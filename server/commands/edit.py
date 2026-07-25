@@ -63,15 +63,21 @@ async def _resume_board_reply(ctx, rest: str, body: list) -> Optional[str]:
     thread = next((t for t in threads if t.get('id') == int(rest)), None)
     if thread is None:
         return None
+    default_title = thread.get('title', '(untitled)')
     reply = {
         'author':    ctx.player.name,
+        # the original reply-title choice wasn't recoverable -- same
+        # "Re: <title>" default as prompt_reply_title() would give.
+        'title':     default_title if default_title.startswith('Re: ') else f'Re: {default_title}',
         'anonymous': False,  # the original anonymous choice wasn't recoverable
         'posted_at': datetime.datetime.now().isoformat(),
         'body':      body,
     }
-    thread.setdefault('replies', []).append(reply)
+    replies = thread.setdefault('replies', [])
+    replies.append(reply)
+    reply_number = len(replies)
     board_store.save_board(threads)
-    return f"Reply posted to thread #{thread['id']}."
+    return f'Reply {reply_number} posted to "{thread.get("title", "(untitled)")}".'
 
 
 async def _resume_news_edit(ctx, rest: str, body: list) -> Optional[str]:

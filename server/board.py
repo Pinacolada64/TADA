@@ -53,6 +53,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -157,6 +158,63 @@ def display_author(entry: dict, viewer_is_privileged: bool) -> str:
     return 'Anonymous'
 
 
+# Colors by position, not by field -- 1st header line cyan, 2nd
+# light_green, every line after that yellow (Ryan's call, going for a
+# pastel-ish scheme rather than a distinct color per field).
+_HEADER_COLORS_BY_POSITION = ('cyan', 'light_green')
+_HEADER_FALLBACK_COLOR = 'yellow'
+
+
+@dataclass
+class MessageHeader:
+    """A post/reply's Number/From/Date/Title(/Replies) block -- one
+    colorized line each (see _HEADER_COLORS_BY_POSITION/
+    _HEADER_FALLBACK_COLOR above), labels right-justified to a common
+    ': ' column. Shared by format_thread() (the flat, whole-thread dump)
+    and commands/board_reply.py's one-message-at-a-time interactive
+    reader, which used to each build this same block by hand."""
+    title: str
+    author: str
+    date: str  # already truncated to YYYY-MM-DD
+    reply_count: int = 0    # thread root only -- a reply has no replies of its own
+    thread_number: int = 0  # thread root only -- its own id, as typed to reach it
+    total_threads: int = 0  # thread root only -- paired with thread_number
+
+    def display(self) -> list[str]:
+        fields = []
+        if self.thread_number and self.total_threads:
+            fields.append(('Number', f'{self.thread_number} of {self.total_threads}'))
+        fields += [
+            ('From', self.author),
+            ('Date', self.date),
+            ('Title', self.title),
+        ]
+        if self.reply_count:
+            fields.append(('Replies', str(self.reply_count)))
+        width = max(len(label) for label, _ in fields)
+        lines = []
+        for i, (label, value) in enumerate(fields):
+            color = (_HEADER_COLORS_BY_POSITION[i] if i < len(_HEADER_COLORS_BY_POSITION)
+                     else _HEADER_FALLBACK_COLOR)
+            lines.append(f'|{color}|{label.rjust(width)}: {value}|reset|')
+        return lines
+
+    @classmethod
+    def for_entry(cls, entry: dict, title: str, viewer_is_privileged: bool,
+                  reply_count: int = 0, thread_number: int = 0,
+                  total_threads: int = 0) -> 'MessageHeader':
+        """Build from a thread/reply dict -- resolves author display
+        (anonymous/privileged-reveal rule) and truncates posted_at."""
+        return cls(
+            title=title,
+            author=display_author(entry, viewer_is_privileged),
+            date=entry.get('posted_at', '')[:10],
+            reply_count=reply_count,
+            thread_number=thread_number,
+            total_threads=total_threads,
+        )
+
+
 def format_thread_summary(thread: dict, viewer_is_privileged: bool) -> str:
     """One-line summary for the thread listing: id, title, author, reply
     count."""
@@ -175,23 +233,27 @@ def render_message_lines(entry: dict, ctx, width: int) -> list[str]:
     return render_lines(deserialize_lines(entry.get('body', [])), ctx, width)
 
 
-def format_thread(thread: dict, ctx, viewer_is_privileged: bool) -> list[str]:
+def format_thread(thread: dict, ctx, viewer_is_privileged: bool, total_threads: int = 0) -> list[str]:
     """Render one thread in full -- title, root post, and every reply --
     re-rendering each body's Justification/Border for *this* viewer's
-    screen width/terminal type (see the module docstring)."""
+    screen width/terminal type (see the module docstring). *total_threads*
+    (board-wide count, from the caller's own already-loaded list) feeds
+    the header's "Number: <id> of <total_threads>" line -- omitted if
+    not given."""
     width = getattr(getattr(ctx.player, 'client_settings', None), 'screen_columns', 80)
 
-    lines = [f"|yellow|--- {thread.get('title', '(untitled)')}|reset|"]
-    lines.append(f"From: {display_author(thread, viewer_is_privileged)}"
-                 f"  ({thread.get('posted_at', '')[:10]})")
+    reply_count = len(thread.get('replies', []))
+    lines = MessageHeader.for_entry(
+        thread, thread.get('title', '(untitled)'), viewer_is_privileged,
+        reply_count=reply_count, thread_number=thread.get('id', 0),
+        total_threads=total_threads).display()
     lines.append('')
     lines += render_message_lines(thread, ctx, width)
 
     for i, reply in enumerate(thread.get('replies', []), start=1):
         lines.append('')
-        lines.append(f"|cyan|--- Reply #{i}|reset|")
-        lines.append(f"From: {display_author(reply, viewer_is_privileged)}"
-                     f"  ({reply.get('posted_at', '')[:10]})")
+        lines += MessageHeader.for_entry(
+            reply, reply.get('title') or f'Reply #{i}', viewer_is_privileged).display()
         lines.append('')
         lines += render_message_lines(reply, ctx, width)
 

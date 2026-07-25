@@ -1029,3 +1029,16 @@
     -- the level 6 Oz sub-zone (99 rooms, see the `RoomFlag.
     NO_COMM_SIGNAL` entry above for how it was mapped) would be the
     natural place to add it.
+- `commands/use.py`'s ring-of-invisibility toggle (~lines 437-451) reads
+  and writes a plain `player.ring_worn` boolean attribute instead of
+  `PlayerFlags.RING_WORN` (Ryan noticed while reading it). `PlayerFlags.
+  RING_WORN` already exists (`flags.py:50`, registered in the flag
+  display table at `flags.py:93`) and `commands/editplayer.py:889`
+  already uses it for the admin flag-toggle menu -- so today there are
+  two separate sources of truth for the same conceptual state: an admin
+  toggling "Ring worn" via editplayer's flags menu doesn't affect what
+  USE reads, and vice versa. Fix: switch `commands/use.py` to
+  `ctx.player.query_flag(PlayerFlags.RING_WORN)`/`set_flag`/`clear_flag`
+  instead of the bespoke attribute; check whether `player.ring_worn`
+  (`player.py:308`) can then be removed entirely or whether anything
+  else (save-file back-compat?) still depends on it existing.

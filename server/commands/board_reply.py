@@ -5,14 +5,23 @@ commands/board.py's `board <id>` normally dumps a whole thread flat
 (board.format_thread()) and returns straight to the listing. When a
 player has PROMPT_MODE on, `_read_one()` delegates here instead: each
 post (the thread root, then each reply in order) is shown one at a
-time, followed by a menu:
+time, followed by an "End of bulletin option>" prompt with this menu:
 
     [R]eply             — reply to *this* message (see below)
     [M]ail poster        — page/mail this message's author directly
                             (delegates to commands/page.py's own
                             live-or-offline delivery, not reimplemented)
+    [L]ist               — numbered index of every message in the
+                            thread (same numbering <#> jump accepts)
     <#>                  — jump straight to reply #<#>
     {return_key}          — advance to the next message
+    '?'                  — redisplay this option list
+
+The full option list is shown as the prompt's own preamble every time
+for non-expert players (PlayerFlags.EXPERT_MODE off); experts just get
+the bare "End of bulletin option>" prompt and can type '?' to recall
+the list on demand -- same show/hide-by-expertise convention as
+commands/mail.py's login-time hint text.
 
 [R]eply asks whether (and how much of) the message just read should be
 quoted -- a line range (reusing text_editor.py's own ed-style range
@@ -47,10 +56,48 @@ def _screen_width(ctx) -> int:
     return getattr(getattr(ctx.player, 'client_settings', None), 'screen_columns', 80)
 
 
-async def read_thread_interactive(ctx, thread: dict) -> None:
+def _menu_options_lines(ctx) -> list[str]:
+    """The full end-of-message option list -- shown as ctx.prompt()'s
+    preamble to non-expert players every time, and to anyone who types
+    '?' to recall it."""
+    return [
+        '',
+        '[R]eply             -- reply to this message',
+        '[M]ail poster       -- send the author a private mail',
+        '[L]ist              -- list every message in this thread',
+        '<#>                 -- jump straight to reply #',
+        f'{ctx.player.return_key}               -- read the next message',
+        "'?'                 -- show this list again",
+    ]
+
+
+def _numbered_lines(lines: list[str]) -> list[str]:
+    """'1: text', '2: text', ... -- matches text_editor.py's own
+    LINE_NUMBERS display convention. Shared by the quote-range picker's
+    own [L]ist option (see _reply_with_quote()) so a player can see what
+    range to type before answering."""
+    return ['', *[f'{i}: {t}' for i, t in enumerate(lines, 1)], '']
+
+
+async def _list_thread_messages(ctx, thread: dict, privileged: bool) -> None:
+    """[L]ist: a numbered index of every message in the thread, matching
+    the same numbering <#> jump already accepts (root is unnumbered --
+    it's always where reading started, not a jump target)."""
+    lines = ['', f"|yellow|--- {thread.get('title', '(untitled)')}|reset|",
+             f'   Root: {board_store.display_author(thread, privileged)}']
+    for i, reply in enumerate(thread.get('replies', []), 1):
+        title = reply.get('title') or f'Reply #{i}'
+        lines.append(f'   {i}. {title}  -- {board_store.display_author(reply, privileged)}')
+    lines.append('')
+    await ctx.send(lines)
+
+
+async def read_thread_interactive(ctx, thread: dict, total_threads: int = 0) -> None:
     """Walk *thread* one message at a time (root, then each reply in
     posted order). Only called when PlayerFlags.PROMPT_MODE is on --
-    commands/board.py's _read_one() gates on that; this assumes it."""
+    commands/board.py's _read_one() gates on that; this assumes it.
+    *total_threads* feeds the root header's "Number: <id> of
+    <total_threads>" line -- omitted if not given."""
     privileged = _is_privileged(ctx.player)
     width = _screen_width(ctx)
 
@@ -60,19 +107,16 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
         entry = messages[idx]
         is_root = (idx == 0)
 
-        header = (
-            [f"|yellow|--- {thread.get('title', '(untitled)')}|reset|"] if is_root
-            else [f"|cyan|--- Reply #{idx}|reset|"]
-        )
-        header.append(f"From: {board_store.display_author(entry, privileged)}"
-                      f"  ({entry.get('posted_at', '')[:10]})")
+        reply_count = len(thread.get('replies', []))
+        title = thread.get('title', '(untitled)') if is_root else (entry.get('title') or f'Reply #{idx}')
+        header = board_store.MessageHeader.for_entry(
+            entry, title, privileged, reply_count=reply_count if is_root else 0,
+            thread_number=thread.get('id', 0) if is_root else 0,
+            total_threads=total_threads if is_root else 0).display()
         header.append('')
         await ctx.send([''] + header + board_store.render_message_lines(entry, ctx, width) + [''])
-
-        reply_count = len(thread.get('replies', []))
-        raw = await ctx.prompt(
-            f'[R]eply, [M]ail poster, <#> jump to reply, or {ctx.player.return_key} for next',
-        )
+        preamble = None if ctx.player.is_expert else _menu_options_lines(ctx)
+        raw = await ctx.prompt('End of bulletin option>', preamble_lines=preamble)
         if raw is None:
             return  # disconnected mid-read
         choice = raw.strip()
@@ -82,13 +126,17 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
             continue
 
         low = choice.lower()
-        if low == 'r':
+        if choice == '?':
+            await ctx.send(_menu_options_lines(ctx))
+        elif low == 'r':
             await _reply_with_quote(ctx, thread, entry, privileged)
             idx += 1
         elif low == 'm':
             await _mail_poster(ctx, entry, privileged)
             # deliberately doesn't advance -- they may still want to
             # reply to or keep reading the same message.
+        elif low == 'l':
+            await _list_thread_messages(ctx, thread, privileged)
         elif choice.isdigit():
             target = int(choice)
             if 1 <= target <= reply_count:
@@ -114,12 +162,16 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
 
     quote_lines: list[str] | None = None
     while True:
-        raw = await ctx.prompt("Quote which lines? (e.g. '1-3', 'all', or N for no quote)")
+        raw = await ctx.prompt(
+            "Quote which lines? (e.g. '1-3', 'all', [L]ist lines, or N for no quote)")
         if raw is None:
             return  # disconnected
         ans = raw.strip()
         if not ans or ans.lower() == 'n':
             break
+        if ans.lower() == 'l':
+            await ctx.send(_numbered_lines(quoted_lines))
+            continue
 
         range_str = '' if ans.lower() == 'all' else ans
         line_range = process_line_range_string(range_str, buffer, DefaultLineRange.ALL_LINES)
@@ -136,9 +188,15 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
         # anything else -- loop back and ask for a range again, rather
         # than silently posting with no quote at all.
 
-    from commands.board import resolve_anonymous
+    from commands.board import resolve_anonymous, prompt_reply_title
     anonymous = await resolve_anonymous(ctx)
     if anonymous is None:
+        await ctx.send('Cancelled.')
+        return
+
+    default_title = quoted_entry.get('title') or thread.get('title', '(untitled)')
+    title = await prompt_reply_title(ctx, default_title)
+    if title is None:
         await ctx.send('Cancelled.')
         return
 
@@ -179,6 +237,7 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
 
     reply = {
         'author':    ctx.player.name,
+        'title':     title,
         'anonymous': anonymous,
         'posted_at': datetime.datetime.now().isoformat(),
         'body':      body,
@@ -192,9 +251,11 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
     if fresh_thread is None:
         await ctx.send('That thread no longer exists.')
         return
-    fresh_thread.setdefault('replies', []).append(reply)
+    fresh_replies = fresh_thread.setdefault('replies', [])
+    fresh_replies.append(reply)
+    reply_number = len(fresh_replies)
     board_store.save_board(threads)
-    await ctx.send(f"Reply posted to thread #{fresh_thread['id']}.")
+    await ctx.send(f'Reply {reply_number} posted to "{fresh_thread.get("title", "(untitled)")}".')
     log.info('BOARD REPLY: %s replied to thread #%s', ctx.player.name, fresh_thread['id'])
 
 

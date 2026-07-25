@@ -66,6 +66,24 @@ async def resolve_anonymous(ctx) -> bool | None:
     return raw.strip().lower().startswith('y')
 
 
+async def prompt_reply_title(ctx, default_title: str) -> str | None:
+    """Ask for this reply's own title, defaulting to "Re: <default_title>"
+    (the title of whatever's being replied to) on a bare Enter -- Ryan's
+    call, so a reply can carry its own title instead of every reply in
+    the [L]ist index/reader header just reading "Reply #3". Doesn't
+    double up "Re: Re: ..." when replying to something already titled
+    that way. Returns None if the player disconnected mid-prompt.
+    Shared by this module's own _reply() and commands/board_reply.py's
+    interactive reply flow."""
+    raw = await ctx.prompt(f'Enter title of reply, [{ctx.player.return_key} keeps same]')
+    if raw is None:
+        return None
+    raw = raw.strip()
+    if raw:
+        return raw
+    return default_title if default_title.startswith('Re: ') else f'Re: {default_title}'
+
+
 class BoardCommand(Command):
     name    = 'board'
     aliases = ['bb']
@@ -97,7 +115,7 @@ class BoardCommand(Command):
             "anonymous-posting setting; admins and Dungeon Masters still "
             "see who really posted either way.",
             "With Prompt Mode on ('pm' to toggle), reading a thread shows "
-            "one message at a time with a [R]eply/[M]ail poster/<#>/"
+            "one message at a time with a [R]eply/[M]ail poster/[L]ist/<#>/"
             "Enter menu after each.",
         ],
         admin_notes = [
@@ -199,11 +217,12 @@ class BoardCommand(Command):
             # <#>/Enter menu, quote-with-preview on reply -- see
             # commands/board_reply.py's own module docstring.
             from commands.board_reply import read_thread_interactive
-            await read_thread_interactive(ctx, thread)
+            await read_thread_interactive(ctx, thread, total_threads=len(threads))
             return CommandResult.ok('Displayed thread.')
 
         privileged = _is_privileged(ctx.player)
-        await ctx.send([''] + board_store.format_thread(thread, ctx, privileged) + [''])
+        await ctx.send([''] + board_store.format_thread(
+            thread, ctx, privileged, total_threads=len(threads)) + [''])
         return CommandResult.ok('Displayed thread.')
 
     # ------------------------------------------------------------------
@@ -311,6 +330,11 @@ class BoardCommand(Command):
             await ctx.send('Cancelled.')
             return CommandResult.fail('Cancelled.', error='cancelled')
 
+        title = await prompt_reply_title(ctx, thread.get('title', '(untitled)'))
+        if title is None:
+            await ctx.send('Cancelled.')
+            return CommandResult.fail('Cancelled.', error='cancelled')
+
         privileged = _is_privileged(ctx.player)
         await ctx.send(board_store.build_quote_preamble(ctx, thread, privileged))
         await ctx.send('Enter your reply.')
@@ -322,13 +346,16 @@ class BoardCommand(Command):
 
         reply = {
             'author':    ctx.player.name,
+            'title':     title,
             'anonymous': anonymous,
             'posted_at': datetime.datetime.now().isoformat(),
             'body':      body,
         }
-        thread.setdefault('replies', []).append(reply)
+        replies = thread.setdefault('replies', [])
+        replies.append(reply)
+        reply_number = len(replies)
         board_store.save_board(threads)
-        await ctx.send(f"Reply posted to thread #{thread['id']}.")
+        await ctx.send(f'Reply {reply_number} posted to "{thread.get("title", "(untitled)")}".')
         log.info('BOARD REPLY: %s replied to thread #%s', ctx.player.name, thread['id'])
         return CommandResult.ok('Posted reply.')
 

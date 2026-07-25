@@ -11,7 +11,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import board
 from board import (
+    MessageHeader,
     build_quote_preamble,
     display_author,
     format_thread,
@@ -23,6 +25,24 @@ from board import (
     save_board,
     save_config,
 )
+
+
+def _expected_header(fields: list[tuple[str, str]]) -> list[str]:
+    """Mirrors MessageHeader.display()'s own right-justify-to-widest-
+    label + positional-color logic, computed from *fields* instead of
+    hand-counted spaces -- so these tests don't need rewriting every
+    time the header format itself changes (still in flux). Reads the
+    real color table (board._HEADER_COLORS_BY_POSITION/
+    _HEADER_FALLBACK_COLOR) rather than duplicating it, so a color-order
+    change doesn't silently desync the expectation from the code."""
+    width = max(len(label) for label, _ in fields)
+    lines = []
+    for i, (label, value) in enumerate(fields):
+        color = (board._HEADER_COLORS_BY_POSITION[i]
+                 if i < len(board._HEADER_COLORS_BY_POSITION)
+                 else board._HEADER_FALLBACK_COLOR)
+        lines.append(f'|{color}|{label.rjust(width)}: {value}|reset|')
+    return lines
 
 
 def _ctx(screen_columns: int = 80):
@@ -83,6 +103,75 @@ class TestDisplayAuthor(unittest.TestCase):
     def test_anonymous_reveals_name_to_privileged_viewer(self):
         entry = {'author': 'alexa', 'anonymous': True}
         self.assertEqual(display_author(entry, viewer_is_privileged=True), 'Anonymous (alexa)')
+
+
+class TestMessageHeader(unittest.TestCase):
+    """Colors are positional, not per-field: 1st line cyan, 2nd
+    light_green, every line after that yellow (Ryan's call)."""
+
+    def test_display_without_replies_right_justifies_to_title_width(self):
+        header = MessageHeader(title='Hello', author='bob', date='2026-01-01')
+        self.assertEqual(header.display(), _expected_header([
+            ('From', 'bob'), ('Date', '2026-01-01'), ('Title', 'Hello'),
+        ]))
+
+    def test_display_with_replies_adds_replies_line_right_justified_to_it(self):
+        header = MessageHeader(title='Hello', author='bob', date='2026-01-01', reply_count=3)
+        self.assertEqual(header.display(), _expected_header([
+            ('From', 'bob'), ('Date', '2026-01-01'), ('Title', 'Hello'), ('Replies', '3'),
+        ]))
+
+    def test_display_omits_replies_line_when_zero(self):
+        header = MessageHeader(title='Hello', author='bob', date='2026-01-01', reply_count=0)
+        self.assertEqual(len(header.display()), 3)
+        self.assertFalse(any('Replies' in l for l in header.display()))
+
+    def test_display_with_thread_number_shows_number_line_first(self):
+        header = MessageHeader(title='Hello', author='bob', date='2026-01-01',
+                                thread_number=3, total_threads=9)
+        self.assertEqual(header.display(), _expected_header([
+            ('Number', '3 of 9'), ('From', 'bob'), ('Date', '2026-01-01'), ('Title', 'Hello'),
+        ]))
+
+    def test_display_omits_number_line_when_total_threads_is_zero(self):
+        header = MessageHeader(title='Hello', author='bob', date='2026-01-01',
+                                thread_number=3, total_threads=0)
+        self.assertFalse(any('Number' in l for l in header.display()))
+
+    def test_display_number_and_replies_together_justify_to_replies(self):
+        header = MessageHeader(title='Hello', author='bob', date='2026-01-01',
+                                reply_count=2, thread_number=3, total_threads=9)
+        self.assertEqual(header.display(), _expected_header([
+            ('Number', '3 of 9'), ('From', 'bob'), ('Date', '2026-01-01'),
+            ('Title', 'Hello'), ('Replies', '2'),
+        ]))
+
+    def test_for_entry_resolves_author_and_truncates_date(self):
+        entry = {'author': 'alexa', 'anonymous': False, 'posted_at': '2026-03-05T14:32:01.123456'}
+        header = MessageHeader.for_entry(entry, 'My Title', viewer_is_privileged=False)
+        self.assertEqual(header.title, 'My Title')
+        self.assertEqual(header.author, 'alexa')
+        self.assertEqual(header.date, '2026-03-05')
+        self.assertEqual(header.reply_count, 0)
+
+    def test_for_entry_passes_through_reply_count(self):
+        entry = {'author': 'alexa', 'anonymous': False, 'posted_at': '2026-01-01T00:00:00'}
+        header = MessageHeader.for_entry(entry, 'T', viewer_is_privileged=False, reply_count=5)
+        self.assertEqual(header.reply_count, 5)
+
+    def test_for_entry_passes_through_thread_number_and_total(self):
+        entry = {'author': 'alexa', 'anonymous': False, 'posted_at': '2026-01-01T00:00:00'}
+        header = MessageHeader.for_entry(entry, 'T', viewer_is_privileged=False,
+                                          thread_number=4, total_threads=10)
+        self.assertEqual(header.thread_number, 4)
+        self.assertEqual(header.total_threads, 10)
+
+    def test_for_entry_honors_anonymous_reveal_rule(self):
+        entry = {'author': 'alexa', 'anonymous': True, 'posted_at': '2026-01-01T00:00:00'}
+        hidden = MessageHeader.for_entry(entry, 'T', viewer_is_privileged=False)
+        revealed = MessageHeader.for_entry(entry, 'T', viewer_is_privileged=True)
+        self.assertEqual(hidden.author, 'Anonymous')
+        self.assertEqual(revealed.author, 'Anonymous (alexa)')
 
 
 class TestIsNewSince(unittest.TestCase):

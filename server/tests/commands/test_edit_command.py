@@ -194,14 +194,15 @@ class TestDispatchResume(unittest.TestCase):
 
     def test_board_reply_dispatches_to_board_store(self):
         import board as board_store
-        thread = {'id': 3, 'replies': []}
+        thread = {'id': 3, 'title': 'Recovery Test Thread', 'replies': []}
         with patch.object(board_store, 'load_board', return_value=[thread]), \
              patch.object(board_store, 'save_board') as mock_save:
             ctx = make_ctx()
             result = run(edit_mod._dispatch_resume(ctx, 'board_reply:3', [{'text': 'reply body'}]))
-        self.assertEqual(result, 'Reply posted to thread #3.')
+        self.assertEqual(result, 'Reply 1 posted to "Recovery Test Thread".')
         mock_save.assert_called_once()
         self.assertEqual(thread['replies'][0]['body'], [{'text': 'reply body'}])
+        self.assertEqual(thread['replies'][0]['title'], 'Re: Recovery Test Thread')
         self.assertEqual(thread['replies'][0]['author'], 'Bob')
 
     def test_news_post_dispatches_with_title_and_permanent_lifetime(self):

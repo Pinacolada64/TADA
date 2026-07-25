@@ -20,10 +20,21 @@ def run(coro):
     return asyncio.run(coro)
 
 
+def _expected_header_line(label: str, value: str, position: int, width: int) -> str:
+    """One line of board_store.MessageHeader.display()'s own output,
+    computed instead of hand-counted -- see tests/social/test_board.py's
+    _expected_header() for the full multi-line version this mirrors."""
+    color = (board_store._HEADER_COLORS_BY_POSITION[position]
+             if position < len(board_store._HEADER_COLORS_BY_POSITION)
+             else board_store._HEADER_FALLBACK_COLOR)
+    return f'|{color}|{label.rjust(width)}: {value}|reset|'
+
+
 class _FakePlayer:
-    def __init__(self, name='alexa', admin=False):
+    def __init__(self, name='alexa', admin=False, expert=False):
         self.name = name
         self._admin = admin
+        self._expert = expert
         self.return_key = 'Enter'
         self.client_settings = MagicMock()
         self.client_settings.screen_columns = 80
@@ -31,7 +42,13 @@ class _FakePlayer:
     def query_flag(self, flag):
         if flag == PlayerFlags.ADMIN:
             return self._admin
+        if flag == PlayerFlags.EXPERT_MODE:
+            return self._expert
         return False
+
+    @property
+    def is_expert(self) -> bool:
+        return self._expert
 
 
 def make_ctx(player=None, prompts=None):
@@ -91,6 +108,24 @@ class TestSteppedNavigation(unittest.TestCase):
         text = _sent_text(ctx)
         self.assertIn('reply two text', text)
 
+    def test_only_the_root_header_shows_a_replies_line(self):
+        ctx = make_ctx(prompts=['', '', ''])  # walk root, reply 1, reply 2
+        run(read_thread_interactive(ctx, _thread()))
+        text = _sent_text(ctx)
+        self.assertEqual(text.count('Replies:'), 1)
+
+    def test_from_and_date_are_separate_colorized_lines(self):
+        ctx = make_ctx(prompts=[''])
+        run(read_thread_interactive(ctx, _thread()))
+        text = _sent_text(ctx)
+        # _thread() seeds 2 replies, no total_threads passed -- fields
+        # are From/Date/Title/Replies, width = len('Replies') = 7.
+        self.assertIn(_expected_header_line('From', 'bob', 0, 7), text)
+        self.assertIn(_expected_header_line('Date', '2026-01-01', 1, 7), text)
+        self.assertIn(_expected_header_line('Title', 'Hello', 2, 7), text)
+        self.assertIn(_expected_header_line('Replies', '2', 3, 7), text)
+        self.assertNotIn('From: bob  (2026-01-01)', text)
+
     def test_jump_to_invalid_reply_number_reports_error(self):
         ctx = make_ctx(prompts=['99', ''])
         run(read_thread_interactive(ctx, _thread()))
@@ -106,6 +141,45 @@ class TestSteppedNavigation(unittest.TestCase):
         run(read_thread_interactive(ctx, _thread()))
         self.assertIn("Unrecognized choice 'zzz'", _sent_text(ctx))
 
+    def test_list_shows_thread_message_index_not_a_new_message(self):
+        ctx = make_ctx(prompts=['l', '', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        text = _sent_text(ctx)
+        self.assertIn('Hello', text)   # thread title
+        self.assertIn('bob', text)     # root author
+        self.assertIn('carol', text)   # reply 1 author
+        self.assertIn('dave', text)    # reply 2 author
+        # Listing doesn't advance -- still on the root message afterward.
+        self.assertEqual(ctx.prompt.await_count, 4)
+
+    def test_prompt_text_is_end_of_bulletin_option(self):
+        ctx = make_ctx(prompts=['', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        prompt_args = [c.args[0] for c in ctx.prompt.await_args_list]
+        self.assertTrue(all(p == 'End of bulletin option>' for p in prompt_args))
+
+    def test_non_expert_sees_option_preamble(self):
+        ctx = make_ctx(player=_FakePlayer(expert=False), prompts=['', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        preambles = [c.kwargs.get('preamble_lines') for c in ctx.prompt.await_args_list]
+        self.assertTrue(all(p is not None for p in preambles))
+        self.assertTrue(any('[R]eply' in line for line in preambles[0]))
+        self.assertTrue(any('[L]ist' in line for line in preambles[0]))
+
+    def test_expert_does_not_see_option_preamble(self):
+        ctx = make_ctx(player=_FakePlayer(expert=True), prompts=['', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        preambles = [c.kwargs.get('preamble_lines') for c in ctx.prompt.await_args_list]
+        self.assertTrue(all(p is None for p in preambles))
+
+    def test_question_mark_redisplays_options_for_expert(self):
+        ctx = make_ctx(player=_FakePlayer(expert=True), prompts=['?', '', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        text = _sent_text(ctx)
+        self.assertIn('[R]eply', text)
+        self.assertIn('[L]ist', text)
+        self.assertIn("show this list again", text)
+
 
 class BoardReplyTestCase(unittest.TestCase):
     def setUp(self):
@@ -118,11 +192,100 @@ class BoardReplyTestCase(unittest.TestCase):
         board_store.save_board([_thread()], self.path)
 
 
+class TestQuoteRangeListLines(BoardReplyTestCase):
+    """[L]ist lines inside the 'Quote which lines?' picker -- shows the
+    message's own lines numbered, then reprompts (doesn't consume the
+    quote-range answer)."""
+
+    def test_list_shows_numbered_lines_of_message_being_quoted(self):
+        # r -> l (list) -> N (no quote, done)
+        prompts = ['r', 'l', 'N', '', '', '', '']
+        ctx = make_ctx(prompts=prompts)
+        run(read_thread_interactive(ctx, _thread()))
+        text = _sent_text(ctx)
+        self.assertIn('1: root line one', text)
+        self.assertIn('2: root line two', text)
+
+    def test_list_then_a_real_range_still_works(self):
+        prompts = ['r', 'l', '1', 'y', 'n', '', 'my reply', '.s', '', '', '']
+        ctx = make_ctx(prompts=prompts)
+        run(read_thread_interactive(ctx, _thread()))
+        threads = board_store.load_board(self.path)
+        new_reply = threads[0]['replies'][-1]
+        body_texts = [d.get('text', '') for d in new_reply['body']]
+        self.assertIn('root line one', body_texts)
+        self.assertNotIn('root line two', body_texts)
+
+
 class TestReplyWithQuote(BoardReplyTestCase):
+    def test_confirmation_shows_reply_number_and_title_not_thread_id(self):
+        prompts = ['r', 'all', 'y', 'n', '', 'my reply', '.s', '', '', '']
+        ctx = make_ctx(prompts=prompts)
+        run(read_thread_interactive(ctx, _thread()))
+        # _thread() seeds 2 replies -- this one lands as #3.
+        self.assertIn('Reply 3 posted to "Hello".', _sent_text(ctx))
+        self.assertNotIn('thread #1', _sent_text(ctx))
+
+    def test_blank_reply_title_defaults_to_re_quoted_message_title(self):
+        prompts = ['r', 'all', 'y', 'n', '', 'my reply', '.s', '', '', '']
+        ctx = make_ctx(prompts=prompts)
+        run(read_thread_interactive(ctx, _thread()))
+        threads = board_store.load_board(self.path)
+        self.assertEqual(threads[0]['replies'][-1]['title'], 'Re: Hello')
+
+    def test_custom_reply_title_is_used(self):
+        prompts = ['r', 'all', 'y', 'n', 'A Custom Title', 'my reply', '.s', '', '', '']
+        ctx = make_ctx(prompts=prompts)
+        run(read_thread_interactive(ctx, _thread()))
+        threads = board_store.load_board(self.path)
+        self.assertEqual(threads[0]['replies'][-1]['title'], 'A Custom Title')
+
+    def test_replying_to_a_titled_reply_defaults_to_re_its_own_title(self):
+        # Jump to reply #1 (carol's) which has its own title, then reply
+        # to *that* -- default should be "Re: " + carol's reply title,
+        # not the thread's own root title.
+        thread = _thread()
+        thread['replies'][0]['title'] = "Carol's Reply Title"
+        prompts = ['1', 'r', 'all', 'y', 'n', '', 'my reply', '.s', '', '', '']
+        ctx = make_ctx(prompts=prompts)
+        run(read_thread_interactive(ctx, thread))
+        threads = board_store.load_board(self.path)
+        self.assertEqual(threads[0]['replies'][-1]['title'], "Re: Carol's Reply Title")
+
+    def test_replying_to_an_already_re_titled_reply_does_not_double_up(self):
+        thread = _thread()
+        thread['replies'][0]['title'] = "Re: Hello"
+        prompts = ['1', 'r', 'all', 'y', 'n', '', 'my reply', '.s', '', '', '']
+        ctx = make_ctx(prompts=prompts)
+        run(read_thread_interactive(ctx, thread))
+        threads = board_store.load_board(self.path)
+        self.assertEqual(threads[0]['replies'][-1]['title'], 'Re: Hello')
+
+    def test_reply_title_prompt_mentions_return_key(self):
+        prompts = ['r', 'all', 'y', 'n', '', 'my reply', '.s', '', '', '']
+        ctx = make_ctx(prompts=prompts)
+        run(read_thread_interactive(ctx, _thread()))
+        prompt_args = [c.args[0] for c in ctx.prompt.await_args_list]
+        self.assertIn('Enter title of reply, [Enter keeps same]', prompt_args)
+
+    def test_reply_header_shows_its_own_title_when_read_back(self):
+        # read_thread_interactive() snapshots 'messages' once at the top
+        # of the walk, so a reply posted mid-session isn't reachable in
+        # that same call -- post it, then start a fresh read of the
+        # reloaded thread to see its header.
+        post_prompts = ['r', 'all', 'y', 'n', 'A Custom Title', 'my reply', '.s', '', '', '']
+        ctx = make_ctx(prompts=post_prompts)
+        run(read_thread_interactive(ctx, _thread()))
+
+        threads = board_store.load_board(self.path)
+        read_ctx = make_ctx(prompts=['', '', '', ''])
+        run(read_thread_interactive(read_ctx, threads[0]))
+        self.assertIn('Title: A Custom Title', _sent_text(read_ctx))
+
     def test_quote_all_then_confirm_posts_reply_with_body(self):
         # At the root message: 'r' -> quote range 'all' -> confirm y ->
         # anonymous 'n' -> editor typed 'my reply' then '.s' to save.
-        prompts = ['r', 'all', 'y', 'n', 'my reply', '.s', '', '', '']
+        prompts = ['r', 'all', 'y', 'n', '', 'my reply', '.s', '', '', '']
         ctx = make_ctx(prompts=prompts)
         run(read_thread_interactive(ctx, _thread()))
         threads = board_store.load_board(self.path)
@@ -155,7 +318,7 @@ class TestReplyWithQuote(BoardReplyTestCase):
         # stored as real Border metadata on the QUOTE lines (same
         # mechanism .B Border uses), so it's still boxed whenever anyone
         # reads this reply later, not just while composing it.
-        prompts = ['r', 'all', 'y', 'n', 'my reply', '.s', '', '', '']
+        prompts = ['r', 'all', 'y', 'n', '', 'my reply', '.s', '', '', '']
         ctx = make_ctx(prompts=prompts)
         run(read_thread_interactive(ctx, _thread()))
         threads = board_store.load_board(self.path)
@@ -177,7 +340,7 @@ class TestReplyWithQuote(BoardReplyTestCase):
         # '.e 1' would normally prompt to edit line 1 -- since it's the
         # QUOTE-flagged 'bob wrote:' attribution line, it must be skipped
         # instead of prompting for new text.
-        prompts = ['r', 'all', 'y', 'n', '.e 1', 'my reply', '.s', '', '', '']
+        prompts = ['r', 'all', 'y', 'n', '', '.e 1', 'my reply', '.s', '', '', '']
         ctx = make_ctx(prompts=prompts)
         run(read_thread_interactive(ctx, _thread()))
         self.assertIn('immutable, skipping', _sent_text(ctx))
@@ -187,7 +350,7 @@ class TestReplyWithQuote(BoardReplyTestCase):
         self.assertIn('bob wrote:', body_texts)  # unchanged, not overwritten
 
     def test_no_quote_posts_reply_without_a_quote_box(self):
-        prompts = ['r', 'n', 'n', 'unquoted reply', '.s', '', '', '']
+        prompts = ['r', 'n', 'n', '', 'unquoted reply', '.s', '', '', '']
         ctx = make_ctx(prompts=prompts)
         run(read_thread_interactive(ctx, _thread()))
         threads = board_store.load_board(self.path)
@@ -198,14 +361,14 @@ class TestReplyWithQuote(BoardReplyTestCase):
 
     def test_declining_the_preview_reprompts_for_a_range(self):
         # First offer '1' -> preview -> decline (blank) -> then 'all' -> confirm y.
-        prompts = ['r', '1', '', 'all', 'y', 'n', 'ok', '.s', '', '', '']
+        prompts = ['r', '1', '', 'all', 'y', 'n', '', 'ok', '.s', '', '', '']
         ctx = make_ctx(prompts=prompts)
         run(read_thread_interactive(ctx, _thread()))
         threads = board_store.load_board(self.path)
         self.assertEqual(len(threads[0]['replies']), 3)
 
     def test_anonymous_reply(self):
-        prompts = ['r', 'n', 'y', 'hi', '.s', '', '', '']
+        prompts = ['r', 'n', 'y', '', 'hi', '.s', '', '', '']
         ctx = make_ctx(prompts=prompts)
         run(read_thread_interactive(ctx, _thread()))
         threads = board_store.load_board(self.path)

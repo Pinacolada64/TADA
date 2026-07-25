@@ -21,6 +21,16 @@ def run(coro):
     return asyncio.run(coro)
 
 
+def _expected_header_line(label: str, value: str, position: int, width: int) -> str:
+    """One line of board_store.MessageHeader.display()'s own output,
+    computed instead of hand-counted -- see tests/social/test_board.py's
+    _expected_header() for the full multi-line version this mirrors."""
+    color = (board_store._HEADER_COLORS_BY_POSITION[position]
+             if position < len(board_store._HEADER_COLORS_BY_POSITION)
+             else board_store._HEADER_FALLBACK_COLOR)
+    return f'|{color}|{label.rjust(width)}: {value}|reset|'
+
+
 class _FakePlayer:
     def __init__(self, name='alexa', admin=False):
         self.name = name
@@ -87,6 +97,34 @@ class TestList(BoardCommandTestCase):
         self.assertEqual(ctx.prompt.await_count, 2)
         sent = str(ctx.send.call_args_list)
         self.assertIn('thread body', sent)
+
+    def test_from_and_date_are_separate_colorized_lines(self):
+        self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'thread body'}],
+                      'replies': []}])
+        ctx = make_ctx(prompts=['1', ''])
+        run(BoardCommand().execute(ctx))
+        lines = [l for call in ctx.send.call_args_list for l in
+                 (call.args[0] if isinstance(call.args[0], list) else [call.args[0]])]
+        # Fields present: Number, From, Date, Title -- width = len('Number') = 6.
+        self.assertIn(_expected_header_line('Number', '1 of 1', 0, 6), lines)
+        self.assertIn(_expected_header_line('From', 'bob', 1, 6), lines)
+        self.assertIn(_expected_header_line('Date', '2026-01-01', 2, 6), lines)
+        self.assertNotIn('From: bob  (2026-01-01)', lines)
+
+    def test_number_line_reflects_id_and_board_wide_total(self):
+        self._seed([
+            {'id': 1, 'title': 'First', 'author': 'bob', 'anonymous': False,
+             'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []},
+            {'id': 5, 'title': 'Fifth', 'author': 'carol', 'anonymous': False,
+             'posted_at': '2026-01-02T00:00:00', 'body': [{'text': 'y'}], 'replies': []},
+        ])
+        ctx = make_ctx(prompts=['5', ''])
+        run(BoardCommand().execute(ctx))
+        sent = str(ctx.send.call_args_list)
+        # thread id 5 is used verbatim (not its position in the list),
+        # against the board-wide total of 2 threads.
+        self.assertIn('Number: 5 of 2', sent)
 
     def test_virtual_location_set_while_listing(self):
         self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
@@ -183,15 +221,66 @@ class TestPostAndReply(BoardCommandTestCase):
         self._seed([{'id': 1, 'title': 'Original', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'original text'}],
                       'replies': []}])
-        ctx = make_ctx(prompts=['n', 'my reply text', '.s'])
+        ctx = make_ctx(prompts=['n', '', 'my reply text', '.s'])
         result = run(BoardCommand().execute(ctx, 'reply', '1'))
         self.assertTrue(result.success)
         threads = board_store.load_board(self.path)
         self.assertEqual(len(threads[0]['replies']), 1)
-        self.assertEqual(threads[0]['replies'][0]['author'], 'alexa')
+        reply = threads[0]['replies'][0]
+        self.assertEqual(reply['author'], 'alexa')
+        self.assertEqual([d.get('text') for d in reply['body']], ['my reply text'])
         sent = str(ctx.send.call_args_list)
         self.assertIn('Quoting bob', sent)
         self.assertIn('original text', sent)
+
+    def test_blank_reply_title_defaults_to_re_thread_title(self):
+        self._seed([{'id': 1, 'title': 'Original', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'original text'}],
+                      'replies': []}])
+        ctx = make_ctx(prompts=['n', '', 'my reply text', '.s'])
+        run(BoardCommand().execute(ctx, 'reply', '1'))
+        threads = board_store.load_board(self.path)
+        self.assertEqual(threads[0]['replies'][0]['title'], 'Re: Original')
+
+    def test_custom_reply_title_is_used(self):
+        self._seed([{'id': 1, 'title': 'Original', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'original text'}],
+                      'replies': []}])
+        ctx = make_ctx(prompts=['n', 'A Custom Reply Title', 'my reply text', '.s'])
+        run(BoardCommand().execute(ctx, 'reply', '1'))
+        threads = board_store.load_board(self.path)
+        self.assertEqual(threads[0]['replies'][0]['title'], 'A Custom Reply Title')
+
+    def test_reply_title_prompt_mentions_return_key(self):
+        self._seed([{'id': 1, 'title': 'Original', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'original text'}],
+                      'replies': []}])
+        ctx = make_ctx(prompts=['n', '', 'my reply text', '.s'])
+        run(BoardCommand().execute(ctx, 'reply', '1'))
+        prompt_args = [c.args[0] for c in ctx.prompt.await_args_list]
+        self.assertIn('Enter title of reply, [Enter keeps same]', prompt_args)
+
+    def test_reply_confirmation_shows_number_and_title_not_thread_id(self):
+        self._seed([{'id': 7, 'title': 'A Bulletin About Cheese', 'author': 'bob',
+                      'anonymous': False, 'posted_at': '2026-01-01T00:00:00',
+                      'body': [{'text': 'original text'}], 'replies': []}])
+        ctx = make_ctx(prompts=['n', '', 'my reply text', '.s'])
+        run(BoardCommand().execute(ctx, 'reply', '7'))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('Reply 1 posted to "A Bulletin About Cheese".', sent)
+        self.assertNotIn('thread #7', sent)
+
+    def test_second_reply_is_numbered_2(self):
+        self._seed([{'id': 7, 'title': 'A Bulletin About Cheese', 'author': 'bob',
+                      'anonymous': False, 'posted_at': '2026-01-01T00:00:00',
+                      'body': [{'text': 'original text'}],
+                      'replies': [{'author': 'carol', 'anonymous': False,
+                                   'posted_at': '2026-01-02T00:00:00',
+                                   'body': [{'text': 'first reply'}]}]}])
+        ctx = make_ctx(prompts=['n', '', 'second reply text', '.s'])
+        run(BoardCommand().execute(ctx, 'reply', '7'))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('Reply 2 posted to "A Bulletin About Cheese".', sent)
 
     def test_reply_to_unknown_thread_fails(self):
         ctx = make_ctx(prompts=[])
