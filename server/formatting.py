@@ -84,26 +84,31 @@ class ColorCodec(Protocol):
 @dataclass
 class ANSICodec:
     """ANSI color codes via colorama."""
-    highlight_color: str = ''  # set at runtime from player prefs
+    highlight_color: str = ''  # set at runtime from player prefs (PREFS 'HC')
+    reset_color:      str = ''  # set at runtime from player prefs (PREFS 'C' Text
+                                 # color) -- what |reset|/highlight_off() return to.
+                                 # Falls back to colorama's own Fore.RESET (terminal
+                                 # default) if the player has no preference set.
 
     def __post_init__(self):
         try:
             from colorama import Fore, Style
             if not self.highlight_color:
                 self.highlight_color = Fore.RED
-            self._reset = Fore.RESET
+            if not self.reset_color:
+                self.reset_color = Fore.RESET
         except ImportError:
             self.highlight_color = ''
-            self._reset = ''
+            self.reset_color = ''
 
     def highlight_on(self) -> str:
         return self.highlight_color
 
     def highlight_off(self) -> str:
-        return self._reset
+        return self.reset_color
 
     def reset(self) -> str:
-        return self._reset
+        return self.reset_color
 
 
 @dataclass
@@ -495,12 +500,20 @@ ANSI_COLOR_CODES: dict[str, str] = {
 }
 
 
-def ansi_encode(text: str) -> str:
+def ansi_encode(text: str, reset_color: str | None = None) -> str:
     """
     Replace |token| color sequences with ANSI escape codes.
     Text passes through unchanged except for recognised |token| sequences.
     Unrecognised tokens are left as-is and logged at WARNING.
     Falls back to stripping tokens if colorama is unavailable.
+
+    :param reset_color: overrides |reset|'s own ANSI code -- pass
+        codec.reset() (an ANSICodec built via codec_for_settings()) so
+        |reset| returns to *this player's* chosen default text color
+        (PREFS 'C' Colors -> Text) instead of always hard-resetting to
+        the terminal's own uncontrolled default. None (the default)
+        keeps the plain colorama Fore.RESET behavior, e.g. for callers
+        with no player/settings context.
 
     >>> ansi_encode('Hello |reset|world')  # no color, just reset
     'Hello \\x1b[39mworld'
@@ -519,6 +532,8 @@ def ansi_encode(text: str) -> str:
             return literal + '|'
         token = match.group('token')
         count = int(match.group('count')) if match.group('count') else 1
+        if token == 'reset' and reset_color is not None:
+            return reset_color * count
         code = ANSI_COLOR_CODES.get(token)
         if code is not None:
             return code * count
@@ -528,7 +543,7 @@ def ansi_encode(text: str) -> str:
     return _TOKEN_RE.sub(_replace, text)
 
 
-def ansi_encode_lines(lines: list[str]) -> list[str]:
+def ansi_encode_lines(lines: list[str], reset_color: str | None = None) -> list[str]:
     """
     Apply ansi_encode() to each line in a list.
     Use this in GameContext.send() after format_lines() for ANSI clients.
@@ -536,7 +551,7 @@ def ansi_encode_lines(lines: list[str]) -> list[str]:
     >>> ansi_encode_lines(['hello', '{red}world{reset}'])  # doctest: +ELLIPSIS
     ['hello', '...world...']
     """
-    return [ansi_encode(line) for line in lines]
+    return [ansi_encode(line, reset_color) for line in lines]
 
 
 # Shares _TOKEN_RE's escaped/plain alternation (named 'etoken'/'ecount' vs
@@ -875,16 +890,46 @@ def format_lines(lines: list[str],
 # Codec factory
 # ---------------------------------------------------------------------------
 
+def _ansi_color_for(settings, attr: str) -> str:
+    """Resolve settings.colors.<attr> (a terminal.ColorName) to its
+    colorama value via terminal.ANSIColors, or '' if unset/unmapped
+    (ANSICodec falls back to its own hardcoded default in that case)."""
+    from terminal import ANSIColors
+    color_name = getattr(getattr(settings, 'colors', None), attr, None)
+    if color_name is None:
+        return ''
+    try:
+        return ANSIColors[color_name.name].value or ''
+    except KeyError:
+        return ''
+
+
 def codec_for_settings(settings) -> ColorCodec:
     """
     Return the appropriate ColorCodec for a ClientSettings object.
     Falls back to PlainCodec if the translation type can't be determined.
+
+    For ANSI, threads two of the player's own PREFS 'C' Colors choices
+    into the codec (commands/prefs.py's colors menu), via terminal.
+    ANSIColors' matching colorama values -- previously ANSICodec() always
+    fell back to its own hardcoded defaults (Fore.RED / Fore.RESET)
+    regardless of what the player picked; the preferences were stored
+    but never actually read anywhere:
+      - highlight_color <- settings.colors.highlight_color ('HC' row):
+        the color [bracket] highlighting uses.
+      - reset_color <- settings.colors.text_color ('Text' row): what
+        |reset|/highlight_off() return to, so text goes back to the
+        player's own chosen default color instead of an uncontrolled
+        terminal-default reset.
     """
     try:
         from terminal import Translation
         t = getattr(settings, 'translation', None)
         if t == Translation.ANSI:
-            return ANSICodec()
+            return ANSICodec(
+                highlight_color=_ansi_color_for(settings, 'highlight_color'),
+                reset_color=_ansi_color_for(settings, 'text_color'),
+            )
         if t == Translation.PETSCII:
             return PETSCIICodec()
         if t == Translation.ASCII:

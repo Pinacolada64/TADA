@@ -174,7 +174,7 @@ class GameContext(BaseContext):
         codec = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
         if isinstance(codec, ANSICodec):
-            formatted = ansi_encode_lines(formatted)
+            formatted = ansi_encode_lines(formatted, reset_color=codec.reset())
         elif isinstance(codec, PlainCodec):
             formatted = plain_encode_lines(formatted)
 
