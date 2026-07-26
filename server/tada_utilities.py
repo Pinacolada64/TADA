@@ -474,6 +474,19 @@ def frame_text(ctx: GameContext, text: str, title: str = '') -> list[str]:
     Returns a list of strings; does not send to player directly.
     """
     from base_variables import BOX_CHARS
+    from formatting import codec_for_settings, highlight_brackets, wrap_text, _visible_len
+
+    # Highlight [bracketed text] *before* wrapping/padding, not after --
+    # highlighting drops the literal '[' ']' characters (replacing them
+    # with the codec's invisible highlight_on()/off() markers), so
+    # wrapping or right-padding raw pre-highlight text overcounts by 2
+    # visible columns per bracket pair, throwing the right border off by
+    # that much. wrap_text()/_visible_len() are token-aware (unlike
+    # textwrap.wrap()/str.ljust()) so padding is computed against what
+    # will actually be on screen.
+    codec = codec_for_settings(ctx.player.client_settings)
+    text  = highlight_brackets(text, codec)
+
     # Calculate the inner width available for text, accounting for borders and padding.
     # Box is: │<space>TEXT<space>│
     screen_width = ctx.player.client_settings.screen_columns
@@ -482,8 +495,8 @@ def frame_text(ctx: GameContext, text: str, title: str = '') -> list[str]:
     top_bar     = title_text.center(screen_width - 2, BOX_CHARS['horz'])
     top_border  = BOX_CHARS['top_left'] + top_bar + BOX_CHARS['top_right']
     body_lines  = [
-        f"{BOX_CHARS['vert']} {line.ljust(inner_width)} {BOX_CHARS['vert']}"
-        for line in textwrap.wrap(text, width=inner_width)
+        f"{BOX_CHARS['vert']} {line}{' ' * (inner_width - _visible_len(line))} {BOX_CHARS['vert']}"
+        for line in wrap_text(text, inner_width)
     ]
     bottom_border = (BOX_CHARS['bottom_left'] +
                      BOX_CHARS['horz'] * (screen_width - 2) +
