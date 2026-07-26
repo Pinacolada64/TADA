@@ -268,6 +268,39 @@ class TestQuoteRangeListLines(BoardReplyTestCase):
         self.assertIn('root line one', body_texts)
         self.assertNotIn('root line two', body_texts)
 
+    def test_quote_prompt_text_is_short(self):
+        # A short prompt text -- not the whole explanation -- since the
+        # prompt string becomes a client's single-line input prefix with
+        # nowhere to wrap on an 80-column terminal.
+        prompts = ['r', 'N', '', '', '', '']
+        ctx = make_ctx(prompts=prompts)
+        run(read_thread_interactive(ctx, _thread()))
+        prompt_args = [c.args[0] for c in ctx.prompt.await_args_list
+                       if c.args and 'lines' in str(c.args[0]).lower()]
+        self.assertTrue(all(p == 'Quote which lines?' for p in prompt_args))
+
+    def test_non_expert_sees_quote_option_table(self):
+        prompts = ['r', 'N', '', '', '', '']
+        ctx = make_ctx(player=_FakePlayer(expert=False), prompts=prompts)
+        run(read_thread_interactive(ctx, _thread()))
+        quote_call = next(c for c in ctx.prompt.await_args_list
+                          if c.args and c.args[0] == 'Quote which lines?')
+        preamble = '\n'.join(quote_call.kwargs.get('preamble_lines') or [])
+        self.assertIn('[L]ist lines', preamble)
+        self.assertIn('line ranges accepted', preamble)
+        self.assertIn('Line range', preamble)
+        self.assertIn('3-, 1-3, -6, 6-+6', preamble)
+        self.assertIn('Enter', preamble)
+        self.assertIn('no quote', preamble)
+
+    def test_expert_does_not_see_quote_option_table(self):
+        prompts = ['r', 'N', '', '', '', '']
+        ctx = make_ctx(player=_FakePlayer(expert=True), prompts=prompts)
+        run(read_thread_interactive(ctx, _thread()))
+        quote_call = next(c for c in ctx.prompt.await_args_list
+                          if c.args and c.args[0] == 'Quote which lines?')
+        self.assertIsNone(quote_call.kwargs.get('preamble_lines'))
+
 
 class TestReplyWithQuote(BoardReplyTestCase):
     def test_confirmation_shows_reply_number_and_title_not_thread_id(self):

@@ -81,6 +81,21 @@ def _numbered_lines(lines: list[str]) -> list[str]:
     return ['', *[f'{i}: {t}' for i, t in enumerate(lines, 1)], '']
 
 
+def _quote_option_lines(ctx) -> list[str]:
+    """Borderless two-column table explaining the quote-range prompt's
+    three answers -- shown as a preamble (not baked into the prompt text
+    itself, which becomes a client's single-line input prefix with
+    nowhere to wrap a long line on an 80-column terminal). Hidden for
+    Expert Mode players, same show/hide-by-expertise convention as
+    _menu_options_lines()."""
+    from table import Table
+    t = Table(headers=['', ''], show_header=False, border=False)
+    t.add_row(['[L]ist lines', 'line ranges accepted'])
+    t.add_row(['Line range', 'e.g., 3-, 1-3, -6, 6-+6'])
+    t.add_row([ctx.player.return_key, 'no quote'])
+    return t.render(width=_screen_width(ctx))
+
+
 async def _list_thread_messages(ctx, thread: dict, privileged: bool) -> None:
     """[L]ist: a numbered index of every message in the thread, matching
     the same numbering <#> jump already accepts (root is unnumbered --
@@ -181,8 +196,13 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
 
     quote_lines: list[str] | None = None
     while True:
-        raw = await ctx.prompt(
-            "Quote which lines? (e.g. '1-3', 'all', [L]ist lines, or N for no quote)")
+        # The explanation is a preamble line (shown above the input area),
+        # not baked into the prompt text itself -- ctx.prompt()'s prompt
+        # string becomes a client's single-line input prefix (see
+        # tada_client.py's input_window), which has nowhere to wrap a
+        # long line on an 80-column terminal.
+        preamble = None if ctx.player.is_expert else _quote_option_lines(ctx)
+        raw = await ctx.prompt('Quote which lines?', preamble_lines=preamble)
         if raw is None:
             return  # disconnected
         ans = raw.strip()
