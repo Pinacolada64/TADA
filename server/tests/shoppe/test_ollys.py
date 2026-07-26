@@ -306,7 +306,7 @@ class TestOllysMainDispatch(unittest.IsolatedAsyncioTestCase):
         player = _funded_player()
         ctx = _FakeCtx(['h', 'q'], player)
         await ollys_main(ctx)
-        self.assertIn('AMMUNITION GUIDE', ctx._flat())
+        self.assertIn('Ammunition Guide', ctx._flat())
 
     async def test_q_leaves_immediately(self):
         player = _funded_player()

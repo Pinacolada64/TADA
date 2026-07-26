@@ -5,6 +5,7 @@ import os
 
 from network_context import GameContext
 from presence import try_global_command
+from tada_utilities import tip
 
 log = logging.getLogger(__name__)
 
@@ -294,38 +295,39 @@ async def _help_section(ctx: GameContext) -> None:
 
     await ctx.send([
         '',
-        "<=-=-=-=-=-=-=[ AMMUNITION GUIDE ]=-=-=-=-=-=-=>",
+        "<=-=-=-=-=-=-=[ Ammunition Guide ]=-=-=-=-=-=-=>",
         '',
-        *underline('HOW AMMO WORKS', ctx),
-        'Projectile and energy weapons require ammunition to fire.',
-        'Purchase ammo here, then USE the ammo item to load it into',
-        'your readied weapon.  Rounds are consumed one-per-swing in',
-        'combat.  When you run out you cannot attack until you reload.',
+        *underline('How Ammo Works', ctx),
+        'Projectile and energy weapons require ammunition to fire. '
+        'Purchase ammo here, then [USE] the ammo item to load it into '
+        'your readied weapon.  Rounds are consumed one-per-shot in '
+        'combat.  When you run out you cannot [ATTACK] until you reload.',
         '',
-        '  Storm weapons do NOT use physical ammo.',
+        'Storm weapons do not use physical ammo.',
         '',
-        *underline('STRAY ROUNDS / FRIENDLY FIRE', ctx),
-        'A missed ammo shot may go wide and hit a party member or',
-        'another player in the same room.  The chance depends on your',
+        *underline('Stray Rounds / Friendly Fire', ctx),
+        'A missed ammo shot may go wide and hit a party member or '
+        'another player in the same room.  The chance depends on your '
         'experience with that weapon:',
         '',
-        '  |green|GREEN|reset|   (  0-39 exp)  1-in-3  chance of a stray round',
-        '  |yellow|VETERAN|reset| ( 40-98 exp)  1-in-6  chance of a stray round',
-        '  |light_cyan|ELITE|reset|   (99+    exp)  1-in-10 chance of a stray round',
+        '  |green|Green|reset|   (  0-39 exp)  1-in-3  chance of a stray round',
+        '  |yellow|Veteran|reset| ( 40-98 exp)  1-in-6  chance of a stray round',
+        '  |cyan|Elite|reset|   (99+    exp)  1-in-10 chance of a stray round',
         '',
-        'Stray rounds deal 1-4 damage.  Train your weapon skill to',
+        'Stray rounds deal 1-4 damage.  Train your weapon skill to '
         'reduce the risk to your allies.',
         '',
-        *underline('BOOBY TRAPS', ctx),
-        'Each trap you buy comes with its own disarm code (A-I) fixed',
-        'at purchase -- pick carefully, it can\'t be changed later.',
+        *underline('Booby Traps', ctx),
+        'Each trap you buy comes with its own disarm code (A-I) fixed '
+        "at purchase -- pick carefully, it can't be changed later.",
         '',
-        '  NOTE: the DIG command needed to bury a trap (or anything',
-        '  else) is not implemented yet -- buying one here is all you',
-        '  can currently do with it. Once DIG exists, Olly is planned',
-        '  to offer a paid memory-jogging service if you forget where',
-        '  you buried something (or which code it needs).',
-        '',
+        *tip(ctx,
+             title='Note:',
+             message="The DIG command needed to bury a trap (or anything "
+                     'else) is not implemented yet -- buying one here is all you '
+                     'can currently do with it. Once [DIG] exists, Olly is planned '
+                     'to offer a paid memory-jogging service if you forget where '
+                     'you buried something (or which code it needs).'),
     ])
 
 
