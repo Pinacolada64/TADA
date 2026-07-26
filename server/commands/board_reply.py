@@ -16,6 +16,7 @@ time, followed by an "End of bulletin option>" prompt with this menu:
     <#>                  — jump straight to reply #<#>
     {return_key}          — advance to the next message
     'pm'                 — toggle Prompt Mode (see commands/prompt_mode.py)
+    [Q]uit                — back to the board listing, without reading the rest
     '?'                  — redisplay this option list
 
 The full option list is shown as the prompt's own preamble every time
@@ -69,6 +70,7 @@ def _menu_options_lines(ctx) -> list[str]:
         '<#>                 -- jump straight to reply #',
         f'{ctx.player.return_key}               -- read the next message',
         "'pm'                -- toggle Prompt Mode",
+        '[Q]uit               -- back to the board listing',
         "'?'                 -- show this list again",
     ]
 
@@ -171,6 +173,8 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
             from commands.board import toggle_prompt_mode
             await toggle_prompt_mode(ctx)
             # deliberately doesn't advance -- same as [M]ail poster above.
+        elif low == 'q':
+            return  # back to the board listing, without reading the rest
         elif choice.isdigit():
             target = int(choice)
             if 1 <= target <= reply_count:

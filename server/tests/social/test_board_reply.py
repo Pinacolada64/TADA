@@ -154,6 +154,28 @@ class TestSteppedNavigation(unittest.TestCase):
         run(read_thread_interactive(ctx, _thread()))
         self.assertIn("Unrecognized choice 'zzz'", _sent_text(ctx))
 
+    def test_q_quits_immediately_without_reading_the_rest(self):
+        ctx = make_ctx(prompts=['q'])
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertEqual(ctx.prompt.await_count, 1)
+        text = _sent_text(ctx)
+        self.assertNotIn('reply one text', text)
+        self.assertNotIn('reply two text', text)
+
+    def test_q_quits_from_mid_thread_too(self):
+        ctx = make_ctx(prompts=['', 'q'])
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertEqual(ctx.prompt.await_count, 2)
+        text = _sent_text(ctx)
+        self.assertIn('reply one text', text)
+        self.assertNotIn('reply two text', text)
+
+    def test_non_expert_menu_preamble_mentions_quit(self):
+        ctx = make_ctx(player=_FakePlayer(expert=False), prompts=[''])
+        run(read_thread_interactive(ctx, _thread()))
+        preambles = [c.kwargs.get('preamble_lines') for c in ctx.prompt.await_args_list]
+        self.assertTrue(any('[Q]uit' in line for line in preambles[0]))
+
     def test_list_shows_thread_message_index_not_a_new_message(self):
         ctx = make_ctx(prompts=['l', '', '', ''])
         run(read_thread_interactive(ctx, _thread()))
