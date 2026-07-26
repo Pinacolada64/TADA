@@ -1247,12 +1247,31 @@ class Server:
         `screen`/shell workflow) and SIGTERM (`kill <pid>` with no flags,
         systemd/docker's default stop signal) -- both of which the OS
         delivers as an ordinary catchable signal, unlike SIGKILL.
+
+        Every accepted connection gets explicitly closed here too, not
+        just authenticated players -- __main__'s _run() cancels the
+        listening task right after this returns, which exits start()'s
+        `async with json_server, petscii_server:` block. That block's
+        __aexit__ awaits Server.wait_closed(), which (per its own
+        docstring) blocks until *every* accepted connection has actually
+        dropped -- cancelling the listener never touches the separate
+        per-connection handler tasks asyncio.start_server() spawned, so
+        a connection sitting idle at a prompt (even just the login/
+        terminal-negotiation screen, not yet an authenticated player)
+        would otherwise block the whole process from ever exiting.
+        Confirmed live: a stuck server sat for 39+ minutes after this
+        method's own per-player loop had already finished, with no
+        "Server shut down." log line ever appearing, until the
+        connection was forced closed.
         """
         logging.info('graceful_shutdown: saving %d connected player(s)', len(self.clients))
         for addr, client in list(self.clients.items()):
             ctx = getattr(client, 'ctx', None)
+            if not ctx:
+                continue
             player = getattr(ctx, 'player', None)
-            if not ctx or not player or isinstance(player, GuestPlayer):
+            if not player or isinstance(player, GuestPlayer):
+                self._close_connection(ctx, addr)
                 continue
             name = getattr(player, 'name', 'Adventurer')
 
@@ -1291,6 +1310,19 @@ class Server:
             except Exception:
                 logging.exception('graceful_shutdown: failed to notify %s', name)
             await self._player_quit(ctx)
+            self._close_connection(ctx, addr)
+
+    def _close_connection(self, ctx: GameContext, addr) -> None:
+        """Close one connection's transport -- see graceful_shutdown()'s
+        own docstring for why this must happen for *every* client, not
+        just authenticated ones."""
+        writer = getattr(ctx, 'writer', None)
+        if writer is None:
+            return
+        try:
+            writer.close()
+        except Exception:
+            logging.exception('graceful_shutdown: failed to close connection for %s', addr)
 
     # -----------------------------------------------------------------------
     # Server startup

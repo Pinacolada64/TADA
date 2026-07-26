@@ -11,6 +11,8 @@ import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 import simple_server
 from simple_server import Server
 from network_context import GuestPlayer
@@ -180,3 +182,55 @@ def test_unresponsive_connection_times_out_and_still_saves_and_does_not_block_ot
     # still be saved -- graceful_shutdown()'s whole point is not to lose
     # a connected player's progress, notify-or-not.
     assert (run_dir / 'player-stuck.json').exists()
+
+
+@pytest.mark.e2e
+def test_idle_connection_does_not_block_the_process_from_exiting(tmp_path):
+    """Real regression test for the bug found live: a connected-but-idle
+    client (sitting at a prompt, sending nothing) used to hang the whole
+    shutdown sequence forever, well after graceful_shutdown()'s own
+    per-player loop had already finished. Root cause: __main__'s _run()
+    cancels the listening task and exits start()'s
+    'async with json_server, petscii_server:' block, whose __aexit__
+    awaits Server.wait_closed() -- which (per its own docstring) blocks
+    until *every* accepted connection has dropped. Cancelling the
+    listener never touches the separate per-connection handler task
+    asyncio.start_server() spawned for that idle client, so it would
+    wait forever. Mirrors __main__'s _run() shutdown sequence for real,
+    with a real idle socket, not a mock."""
+    import net_common
+    net_common.run_server_dir = str(tmp_path / 'run' / 'server')
+
+    server = Server('127.0.0.1', 0, 0)
+
+    async def scenario():
+        server_task = asyncio.create_task(server.start())
+        for _ in range(200):
+            if getattr(server, 'server', None) and server.server.sockets:
+                break
+            await asyncio.sleep(0.01)
+        port = server.server.sockets[0].getsockname()[1]
+
+        # A connection that just sits there -- never sends anything, so
+        # its handle_connection() task is permanently blocked reading.
+        # No login, no player -- just like someone parked at the
+        # terminal-negotiation prompt.
+        reader, writer = await asyncio.open_connection('127.0.0.1', port)
+        await asyncio.sleep(0.2)   # let the server accept and start reading
+
+        # Mirror __main__'s _run(): graceful_shutdown() then cancel the
+        # listening task and await it -- this is exactly what a real
+        # SIGTERM does.
+        await server.graceful_shutdown()
+        server_task.cancel()
+        try:
+            await server_task
+        except asyncio.CancelledError:
+            pass
+
+        writer.close()
+
+    # Bounded well under GRACEFUL_SHUTDOWN_SEND_TIMEOUT -- this must
+    # finish almost immediately (no real player to notify/save here),
+    # not hang until some outer timeout saves the test.
+    asyncio.run(asyncio.wait_for(scenario(), timeout=5))
