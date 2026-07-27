@@ -17,9 +17,10 @@ class MorePromptCommand(Command):
 
     help = Help(
         summary     = 'Quickly toggle More Prompt on/off.',
+        # TODO: output f'{ctx.player.return_key}' instead of Enter
         description = (
             "When More Prompt is on, output longer than a screenful pauses "
-            "with a '-- More --' prompt between pages (Enter for next, "
+            f"with a '-- More --' prompt between pages (Enter for next, "
             "B/- for back, Q to stop). When off, everything is sent at "
             "once regardless of length. Same setting as 'prefs' menu's "
             "'M' key -- this is just a shortcut."
