@@ -1,5 +1,6 @@
 """shoppe/wizard.py — The Wizard's cave spell shop (SPUR.SHOP.S wizard section)."""
 import logging
+import random
 
 from network_context import GameContext
 
@@ -7,6 +8,17 @@ log = logging.getLogger(__name__)
 
 _SPELL_MAX           = 10  # SPUR xs=10 gate
 _SPELL_NON_ADEPT_MAX =  6  # SPUR if pc>2 then if xs>5 goto wiz2b
+
+# SPUR wiz3: non-adepts (Fighter/Paladin/Ranger/Thief/Archer/Assassin/
+# Knight) can actually fail to learn a spell -- gold is already spent by
+# this point (SPUR: `gosub sub.gold` runs before any of this), and a
+# failure grants nothing back. Wizards/Druids (pc<3) skip this roll
+# entirely ("Your calling makes learning simple!"). Never ported until
+# now -- this port previously let every class succeed unconditionally.
+_LOW_INT_WARNING_THRESHOLD = 10   # SPUR: if pi<10
+_FAIL_ROLL_RANGE           = 25   # SPUR: a=random(25)
+_FAIL_ROLL_BASE            =  5   # SPUR: a=a+5
+_DULL_RACE_PENALTY         =  3   # SPUR: b=3 for pr=2/7/8 (Ogre/Dwarf/Orc)
 
 # Hardcoded from SPUR-data/spells.txt (21 records; last is dummy sentinel).
 # Fields: number, name, effect_type, effect_magnitude, cast_chance, price
@@ -77,21 +89,24 @@ async def main(ctx: GameContext) -> None:
     """Learn spells. Wizards pay half, Druids two-thirds. Max 10 spells (6 for non-adepts).
     (SPUR.SHOP.S wizard section)
     """
-    from base_classes import PlayerClass, PlayerMoneyTypes
+    import spellbook
+    from base_classes import PlayerClass, PlayerMoneyTypes, PlayerRace, PlayerStat
     from items import Spell
 
     player    = ctx.player
     inv       = getattr(player, 'inventory', None)
     pc        = getattr(player, 'char_class', None)
+    pr        = getattr(player, 'char_race', None)
     is_wizard = pc == PlayerClass.WIZARD
     is_druid  = pc == PlayerClass.DRUID
     is_adept  = is_wizard or is_druid
 
     def _spell_count() -> int:
-        return len(inv.entries('Spell')) if inv else 0
+        return len(spellbook.spell_entries(player))
 
     def _has_spell(number: int) -> bool:
-        return bool(inv.find(item_id=number, category='Spell')) if inv else False
+        return any(getattr(e.item, 'id_number', None) == number
+                   for e in spellbook.spell_entries(player))
 
     def _adjusted_price(base: int) -> int:
         if is_wizard:
@@ -101,6 +116,7 @@ async def main(ctx: GameContext) -> None:
         return base
 
     def _spell_list_lines() -> list[str]:
+        from formatting import border_style_for_ctx
         from table import Table, Column, Align
         try:
             width = ctx.player.client_settings.screen_columns
@@ -116,6 +132,11 @@ async def main(ctx: GameContext) -> None:
             ],
             title='Available Spells  (i# for description)',
             border=True,
+            # Was hardcoded to the ASCII '+--+' default regardless of the
+            # player's own terminal -- a PETSCII connection or an ANSI
+            # player's PREFS border-style choice (single/double) were both
+            # ignored. Same helper commands/list_locations.py already uses.
+            border_style=border_style_for_ctx(ctx),
         )
         for sp in SPELLS:
             tag   = ' *' if sp.get('wizard_only') else (' †' if sp.get('druid_only') else '')
@@ -147,6 +168,14 @@ async def main(ctx: GameContext) -> None:
         await ctx.send('Psst! Fellow wizard!! Half price for you!')
     elif is_druid:
         await ctx.send('Psst! Fellow Adept! 2/3 price for you!')
+
+    # Show the spell list up front -- previously the first thing a player
+    # saw was a bare "Learn which spell? (?=List, ...)" prompt, with the
+    # actual list only reachable by already knowing to type '?' first.
+    # Found live: an alpha tester (visiting the Wizard) never saw a single
+    # spell name before being asked to pick one by number. '?' still
+    # works afterward to show it again.
+    await ctx.send(_spell_list_lines())
 
     while True:
         xs = _spell_count()
@@ -219,12 +248,37 @@ async def main(ctx: GameContext) -> None:
             continue
 
         if in_hand < price:
-            await ctx.send('Ye do not have enough gold.')
+            await ctx.send('Ye do not have enough silver.')
             continue
 
         await ctx.send('Teaching spell..........')
 
         player.subtract_silver(PlayerMoneyTypes.IN_HAND, price)
+
+        if is_adept:
+            await ctx.send('Your calling makes learning simple!')
+        else:
+            # SPUR wiz3: non-adepts roll against Intelligence to actually
+            # learn the spell -- silver already spent above, and a hard
+            # failure below gets none of it back.
+            intelligence = player.stats.get(PlayerStat.INT, 10) if player.stats else 10
+            if intelligence < _LOW_INT_WARNING_THRESHOLD:
+                await ctx.send('Thy intelligence may hinder thee from learning this spell.')
+
+            dull_race = pr in (PlayerRace.OGRE, PlayerRace.DWARF, PlayerRace.ORC)
+            penalty   = _DULL_RACE_PENALTY if dull_race else 0
+            roll      = random.randint(1, _FAIL_ROLL_RANGE) + _FAIL_ROLL_BASE + penalty
+
+            if roll > intelligence:
+                if random.randint(1, 10) < 3:
+                    # A near-miss the voice lets slide -- still succeeds.
+                    await ctx.send('After much study..')
+                else:
+                    await ctx.send("'Alas! My efforts to teach thee were in vain, "
+                                    "maybe if thee were smarter..'")
+                    if dull_race:
+                        await ctx.send("'Your kind never did make good wizards,' the voice sniffs..")
+                    continue
 
         spell = Spell(
             id_number        = sp['number'],
@@ -235,13 +289,20 @@ async def main(ctx: GameContext) -> None:
             charges          = 1,
             max_charges      = 1,
         )
-        if inv is None or not inv.add(spell, charges=1):
+        # Adepts' learned spells go in their Spell Book (auto-granted here
+        # if they don't have one yet -- covers characters created before
+        # this feature existed) so they stop competing with weapons/
+        # armor/food for a slot in the smaller Wizard/Druid inventory.
+        # Non-adepts (capped at 6 spells anyway, no book) keep the old
+        # behavior: straight into the main inventory.
+        book  = spellbook.ensure_spellbook(player) if is_adept else None
+        added = book.contents.add(spell, charges=1) if book is not None else (
+            inv.add(spell, charges=1) if inv else False
+        )
+        if not added:
             await ctx.send('Your pack is full — no room for the spell scroll!')
             player.subtract_silver(PlayerMoneyTypes.IN_HAND, -price)  # refund
             continue
 
         player.unsaved_changes = True
-        await ctx.send('Spell taught, use it wisely, for it may only be used ONCE!')
-
-        if is_adept:
-            await ctx.send('Your calling makes learning simple!')
+        await ctx.send('Spell taught! Use it wisely, for it may only be used ONCE!')

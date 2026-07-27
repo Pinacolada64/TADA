@@ -1150,6 +1150,11 @@ async def _assign_equipment(ctx) -> bool:
     else:
         lines.append("  No armor this time.")
 
+    if char_class in (PlayerClass.WIZARD, PlayerClass.DRUID):
+        from spellbook import make_spellbook_item
+        if player.inventory.add(make_spellbook_item()):
+            lines.append("  You've been issued a Spell Book.")
+
     weapon_num = starter_weapon_number(char_class)
     if weapon_num is not None:
         server_weapons = getattr(getattr(ctx, 'server', None), 'weapons', None) or []

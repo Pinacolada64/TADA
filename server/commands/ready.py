@@ -407,4 +407,15 @@ class ReadyCommand(Command):
         if not new_is_storm:
             player.storm_servant_bonus = None
         await ctx.send(f'{name.upper()} READIED.')
+
+        # Staff enhances spellcasting for Wizards (commands/get.py's
+        # _STAFF_IDS; the actual mechanical bonus lives in
+        # commands/cast.py's _caster_bonus() -- SPUR.MISC3.S:47). Shown
+        # here, at the moment it actually takes effect, rather than only
+        # as a pickup-time reminder (get.py's own flavor line, which
+        # fires before the bonus is even readied).
+        from commands.get import _STAFF_IDS
+        if getattr(weapon, 'id_number', None) in _STAFF_IDS and player.char_class == PlayerClass.WIZARD:
+            await ctx.send('The staff hums faintly -- your spells will draw on its power.')
+
         return CommandResult.ok()
