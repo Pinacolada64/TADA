@@ -31,19 +31,28 @@
                                  ; its RX alarm and genuinely stop draining
                                  ; the TCP socket, per aciacore.c.
 
-; ACIA control register: 19200 baud, 8-bit, 1 stop, internal clock
-{const: SL_CTRL_19K $1e}
+; ACIA control register: 8-bit, 1 stop, internal clock, baud rate in the
+; low nibble. SwiftLink's crystal (not the stock C64 clock) makes these
+; nibble values map differently than a plain 6551 datasheet's own table
+; -- $0e=19200, $0f=38400 here, per Craig Bruce's swiftlib.s slNormBauds
+; table (https://csbruce.com/cbm/swiftlib/swiftlib.s, already the
+; reference for this cartridge elsewhere in this file -- see init_nmi).
+; 38400 is the fastest a *plain* SwiftLink (this cartridge, not the
+; Turbo232 variant) supports without needing its external clock generator
+; register (slRegClock), which values >= $10 require and a plain
+; SwiftLink doesn't have.
+{const: SL_CTRL_38K $1f}
 
 ; SID chip base address (25 registers, $D400-$D418)
 {const: SID_BASE $d400}
 
-; Binary SID-stream markers -- multiplexed onto the same connection as the
-; CR-terminated PETSCII text protocol. Neither byte can appear in a normal
-; text line, so handle_recv_byte can tell them apart from ordinary output
-; without any separate framing/port. See sid_engine/frames.py (server) for
-; the matching encoder.
+; Binary SID-stream start marker -- multiplexed onto the same connection
+; as the CR-terminated PETSCII text protocol (real game text essentially
+; never contains this raw byte). Followed by a 16-bit length-prefixed
+; body, NOT an in-band end marker -- see handle_recv_byte's own comment
+; for why an end marker doesn't work here. See sid_engine/frames.py
+; (server) for the matching encoder.
 {const: SID_STREAM_START $01}
-{const: SID_STREAM_END   $02}
 {const: SID_FRAME_END    $ff}   ; terminates one tick's (reg,val) pairs --
                                  ; safe as a sentinel since SID only has
                                  ; registers 0-24
@@ -62,9 +71,11 @@
 
         sid_wr      = $f5       ; SID_BUF: next write index (mainline-owned)
         sid_rd      = $f6       ; SID_BUF: next read index (IRQ-owned)
-        sid_mode    = $f7       ; 0 = handle_recv_byte treats bytes as text,
-                                 ; 1 = redirecting bytes into SID_BUF
+        sid_mode    = $f7       ; 0=text, 1/2=reading length lo/hi, 3=storing
+                                 ; frame bytes -- see handle_recv_byte
         sid_active  = $f8       ; 0 = sid_play idle, 1 = playback in progress
+        sid_remaining_lo = $f3  ; handle_recv_byte's mode-3 countdown, 16-bit
+        sid_remaining_hi = $f4
 
         QTSW        = $d4       ; KERNAL quote-mode switch (212 decimal)
 
@@ -178,11 +189,11 @@ init_screen:
         rts
 
 ; --- Init SwiftLink ---
-; Reset ACIA and configure for 19200 baud 8N1
+; Reset ACIA and configure for 38400 baud 8N1
 init_swiftlink:
         lda #SL_CMD_OFF         ; disable interrupts
         sta SL_COMMAND
-        lda #SL_CTRL_19K        ; 19200 baud, 8N1, internal clock
+        lda #SL_CTRL_38K        ; 38400 baud, 8N1, internal clock
         sta SL_CONTROL
         lda #SL_CMD_INIT        ; DTR low, RTS low, RxD IRQ on
         sta SL_COMMAND
@@ -548,16 +559,34 @@ display_char:
 
 ; --- Dispatch a byte received from the server: text or SID stream ---
 ; Called from wait_for_data for every byte sl_recv hands back, in place of
-; the old unconditional display_char call. Normally just forwards to
-; display_char; while a SID stream is in progress (between the
-; SID_STREAM_START and SID_STREAM_END markers), redirects bytes into
-; SID_BUF for sid_play instead of the screen.
+; the old unconditional display_char call. sid_mode is a 4-state machine:
+;   0 = text (scan for SID_STREAM_START)
+;   1 = reading the 16-bit body-length prefix, low byte
+;   2 = reading the 16-bit body-length prefix, high byte
+;   3 = storing frame bytes into SID_BUF, counting sid_remaining down
+; States 1-3 replace what used to be a single in-band SID_STREAM_END
+; ($02) marker. That was ambiguous: a SID register *value* is an
+; arbitrary 0-255 byte, so real tune data eventually contains a literal
+; $02 and gets mistaken for end-of-stream partway through (confirmed
+; live: sid_engine's canned stub arpeggio happened to dodge this by
+; luck -- no note in it produced a literal $02 anywhere -- but a real
+; .sid-derived tune did not). Counting down a length the server sent up
+; front has no such ambiguity. See sid_engine/frames.py's module
+; docstring for the matching server-side encoder.
 handle_recv_byte:
         ldy sid_mode
-        bne handle_recv_byte_sid
+        beq handle_recv_byte_text
+        cpy #1
+        beq handle_recv_byte_len_lo
+        cpy #2
+        beq handle_recv_byte_len_hi
+        jmp handle_recv_byte_store        ; sid_mode == 3
+
+handle_recv_byte_text:
         cmp #SID_STREAM_START
         beq handle_recv_byte_start
         jmp display_char
+
 handle_recv_byte_start:
         lda #0
         sta sid_rd
@@ -568,20 +597,39 @@ handle_recv_byte_start:
         sta sid_mode
         sta sid_active
         rts
-handle_recv_byte_sid:
-        cmp #SID_STREAM_END
-        bne handle_recv_byte_store
-        lda #0
-        sta sid_mode              ; stop redirecting new bytes -- sid_play
-        jsr sid_print_byte_count  ; keeps draining whatever's already buffered
+
+handle_recv_byte_len_lo:
+        sta sid_remaining_lo
+        lda #2
+        sta sid_mode
         rts
+
+handle_recv_byte_len_hi:
+        sta sid_remaining_hi
+        lda #3
+        sta sid_mode
+        rts
+
 handle_recv_byte_store:
         ldx sid_wr
         sta SID_BUF,x
         inc sid_wr                ; wraps at 256, matching rx_buf's ring buffer
         inc sid_byte_count+0
-        bne handle_recv_byte_store_done
+        bne handle_recv_byte_count_done
         inc sid_byte_count+1
+handle_recv_byte_count_done:
+        ; standard 16-bit decrement-with-borrow: sid_remaining -= 1
+        lda sid_remaining_lo
+        bne handle_recv_byte_dec_lo
+        dec sid_remaining_hi
+handle_recv_byte_dec_lo:
+        dec sid_remaining_lo
+        lda sid_remaining_lo
+        ora sid_remaining_hi
+        bne handle_recv_byte_store_done   ; still bytes left, stay in mode 3
+        lda #0
+        sta sid_mode                      ; countdown hit zero -- back to text mode
+        jsr sid_print_byte_count
 handle_recv_byte_store_done:
         rts
 
@@ -793,7 +841,8 @@ irq_heartbeat:
 sid_byte_count:
         byte 0,0                 ; lo,hi -- bytes redirected into SID_BUF this
                                   ; stream, reset on SID_STREAM_START, printed
-                                  ; on SID_STREAM_END by sid_print_byte_count
+                                  ; by sid_print_byte_count once the mode-3
+                                  ; countdown (sid_remaining_lo/hi) hits zero
 
 irq_task_table:
         word irq_task_heartbeat

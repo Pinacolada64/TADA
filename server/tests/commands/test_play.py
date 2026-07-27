@@ -3,12 +3,15 @@
 Covers commands/play.py -- PlayCommand streams sid_engine's stub tune to
 PETSCII (real C64) connections and refuses everyone else, since only a
 real SID chip can do anything with the byte stream. The stub tune is
-gated behind the `#test` switch -- there's no real tune library yet, so
-a plain name never plays anything.
+gated behind the `#test` switch, independent of TUNES_DIR; a plain name
+looks up a pre-rendered .frames file there (see tools/sid_to_frames.py).
 """
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from commands.play import PlayCommand
 from network_context import PETSCIINetworkContext
@@ -50,7 +53,8 @@ class TestPlayOnPetscii(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(ctx.raw_sent), 1)
         stream = ctx.raw_sent[0]
         self.assertEqual(stream[0], frames.STREAM_START)
-        self.assertEqual(stream[-1], frames.STREAM_END)
+        length = stream[1] | (stream[2] << 8)
+        self.assertEqual(length, len(stream) - 3)
 
     async def test_hash_test_switch_works_alongside_a_name(self):
         ctx = _FakePetsciiCtx()
@@ -66,14 +70,48 @@ class TestPlayOnPetscii(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result.success)
         self.assertEqual(ctx.raw_sent, [])
 
-    async def test_plain_name_without_switch_does_not_play_anything(self):
+    async def test_unknown_tune_name_is_an_error(self):
         ctx = _FakePetsciiCtx()
         result = await PlayCommand().execute(ctx, 'Yankee', 'Doodle')
 
         self.assertFalse(result.success)
-        self.assertEqual(result.error, 'no_tune_library')
+        self.assertEqual(result.error, 'tune_not_found')
         self.assertEqual(ctx.raw_sent, [])
         self.assertTrue(any('Yankee Doodle' in str(line) for line in ctx.sent))
+
+
+class TestPlayFromTuneLibrary(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.tunes_dir = Path(self._tmpdir.name)
+        self.addCleanup(self._tmpdir.cleanup)
+        self.fixture_stream = frames.encode_stream([{0: 1}, {}, {1: 2}])
+        (self.tunes_dir / 'vibratotest.frames').write_bytes(self.fixture_stream)
+
+    async def test_finds_tune_by_exact_name(self):
+        ctx = _FakePetsciiCtx()
+        with patch('commands.play.TUNES_DIR', self.tunes_dir):
+            result = await PlayCommand().execute(ctx, 'vibratotest')
+
+        self.assertTrue(result.success)
+        self.assertEqual(ctx.raw_sent, [self.fixture_stream])
+
+    async def test_lookup_is_case_and_whitespace_insensitive(self):
+        ctx = _FakePetsciiCtx()
+        with patch('commands.play.TUNES_DIR', self.tunes_dir):
+            result = await PlayCommand().execute(ctx, 'Vibrato', 'Test')
+
+        self.assertTrue(result.success)
+        self.assertEqual(ctx.raw_sent, [self.fixture_stream])
+
+    async def test_missing_tune_in_a_populated_library_still_errors(self):
+        ctx = _FakePetsciiCtx()
+        with patch('commands.play.TUNES_DIR', self.tunes_dir):
+            result = await PlayCommand().execute(ctx, 'nope')
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, 'tune_not_found')
+        self.assertEqual(ctx.raw_sent, [])
 
 
 class TestPlayOnNonPetscii(unittest.IsolatedAsyncioTestCase):

@@ -30,7 +30,7 @@ JIFFYDOS_1581   = $(HOME)/Documents/c64/JiffyDOS/Jiffy1581.rom
 # --- SwiftLink / TADA server ---
 SL_PORT         = 34064
 SL_HOST         = 127.0.0.1
-SL_BAUD         = 19200
+SL_BAUD         = 38400
 
 # --- Build pipeline ---
 

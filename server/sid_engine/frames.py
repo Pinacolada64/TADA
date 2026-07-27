@@ -2,24 +2,33 @@
 
 Wire format (consumed by tada-client.asm's sid_play/binary-mode receiver):
 
-    stream  := STREAM_START frame* STREAM_END
+    stream  := STREAM_START length_lo length_hi body
+    body    := frame*
     frame   := (reg val)* FRAME_END
 
-Each frame carries only the registers that changed that tick -- most
-frames touch a handful of the 25 SID registers, so this stays compact
-compared to a fixed 25-byte-per-frame snapshot. FRAME_END ($ff) is safe
-as a sentinel because SID only has registers 0-24 (offsets from $D400).
+`length` (16-bit, little-endian) is the byte length of `body` -- the
+client counts down from it rather than scanning for an end marker.
+That's deliberate, not incidental: an in-band end marker (an earlier
+version of this format used a literal $02 byte) is fundamentally
+ambiguous here, because a SID register *value* is an arbitrary 0-255
+byte and will eventually contain that same value somewhere in a real
+tune's data. A hand-picked stub tune can dodge that by luck (as this
+project's original stub arpeggio did, for a while); real, dense register
+data cannot. FRAME_END ($ff) doesn't have this problem despite being an
+in-band sentinel too, because it's only ever checked at a register-index
+position, and valid indices are 0-24 -- never ambiguous with $ff.
 
-STREAM_START/STREAM_END ($01/$02) are also safe to multiplex onto the
-same connection as the existing CR-terminated PETSCII text protocol --
-neither byte can appear in a normal text line.
+STREAM_START ($01) is still an in-band scan, checked against every byte
+of ordinary game text while not already mid-stream -- also technically
+collision-prone, but real chat/game text essentially never contains a
+raw $01 byte, unlike SID payload data, so it's a much lower-probability
+edge case left as-is for now.
 """
 from __future__ import annotations
 
 from typing import Iterable, Mapping
 
 STREAM_START = 0x01
-STREAM_END   = 0x02
 FRAME_END    = 0xff
 
 NUM_REGISTERS = 25  # $D400-$D418
@@ -68,9 +77,11 @@ def encode_frame(writes: Mapping[int, int]) -> bytes:
 
 def encode_stream(tune: Iterable[Mapping[int, int]]) -> bytes:
     """Encode a full tune (an iterable of per-tick write dicts) as a
-    complete STREAM_START...STREAM_END framed byte stream."""
-    body = bytearray([STREAM_START])
+    complete STREAM_START + length-prefixed byte stream."""
+    body = bytearray()
     for frame in tune:
         body.extend(encode_frame(frame))
-    body.append(STREAM_END)
-    return bytes(body)
+    if len(body) > 0xffff:
+        raise ValueError(f'encoded stream too long ({len(body)} bytes) for a 16-bit length prefix')
+    header = bytes([STREAM_START, len(body) & 0xff, (len(body) >> 8) & 0xff])
+    return header + bytes(body)
