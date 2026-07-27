@@ -392,6 +392,12 @@ class CombatSession:
         # round) -- if it blocks, the monster can never attempt turn-to-stone
         # for the rest of this fight. See _check_crystal_pendant().
         self._turn_to_stone_blocked = False
+        # Monster spellcasting (SPUR.MISC4.S mon.cst, see
+        # combat/monster_spells.py): which of 'end'/'end2'/'dest'/'dest2'
+        # have already fired this encounter -- each usable once per fight
+        # (twice for a ++ monster). One set per fight, mutated in place by
+        # monster_attacks(spells_used=...).
+        self._spells_used: set = set()
         # Tactical ambush (SPUR.MISC4.S "tactical"): set once, before the
         # first exchange, when nobody was posted in the ambushed slot and
         # the player themself got caught off guard. Consumed exactly once,
@@ -1017,7 +1023,15 @@ class CombatSession:
                 # Monster swings back at leader
                 was_first_monster_attack = self._monster_attack_count == 0
                 m_result = monster_attacks(self.monster, player,
-                                           stone_blocked=self._turn_to_stone_blocked)
+                                           stone_blocked=self._turn_to_stone_blocked,
+                                           spells_used=self._spells_used)
+
+                # Monster spellcasting teleport (SPUR.MISC4.S mon.cst,
+                # ++-only): ends the fight outright, ahead of the normal
+                # hit/miss resolution below.
+                if m_result.spell_cast == 'teleport':
+                    await self._monster_teleports_player(ctx, m_result)
+                    return
 
                 # Turn to stone (SPUR.COMBAT.S "medusa" section): replaces the
                 # rest of the monster's attack this round entirely.
@@ -1034,8 +1048,13 @@ class CombatSession:
                 # Druid regeneration: when nearly dead, 10% chance to heal
                 # instead of taking damage (SPUR.COMBAT.S lines 204-207:
                 # pc=2, (hp+a)<30, rnd.10z z=5 → "YO! YOU REGENERATE HIT POINTS!")
+                # Not applicable to a monster spellcasting Destroy hit --
+                # SPUR.MISC4.S's destroy branch applies hp=hp-z directly
+                # and exits (pop:goto c.return) without ever reaching this
+                # check, which lives entirely inside the normal medusa/
+                # dragon swing-resolution section mon.cst bypasses.
                 druid_regen = False
-                if m_result.hit and m_result.damage > 0:
+                if m_result.hit and m_result.damage > 0 and not m_result.spell_cast:
                     try:
                         from base_classes import PlayerClass
                         hp_now = int(getattr(player, 'hit_points', 1) or 1)
@@ -1066,7 +1085,11 @@ class CombatSession:
                     self._ambush_first_strike = False
                     await ctx.send('Surprise attack..')
                     m_result_ambush = monster_attacks(self.monster, player,
-                                                       stone_blocked=self._turn_to_stone_blocked)
+                                                       stone_blocked=self._turn_to_stone_blocked,
+                                                       spells_used=self._spells_used)
+                    if m_result_ambush.spell_cast == 'teleport':
+                        await self._monster_teleports_player(ctx, m_result_ambush)
+                        return
                     if m_result_ambush.turn_to_stone_attempted:
                         mname_ts3 = self.monster.get('name', 'The monster')
                         await ctx.send(f'{mname_ts3} CASTS TURN TO STONE ON YOU!')
@@ -1085,7 +1108,11 @@ class CombatSession:
                         and random.randint(1, 10) <= 4
                         and not self._done.is_set()):
                     m_result2 = monster_attacks(self.monster, player,
-                                                stone_blocked=self._turn_to_stone_blocked)
+                                                stone_blocked=self._turn_to_stone_blocked,
+                                                spells_used=self._spells_used)
+                    if m_result2.spell_cast == 'teleport':
+                        await self._monster_teleports_player(ctx, m_result2)
+                        return
                     await ctx.send('DOUBLE ATTACK!')
                     if m_result2.turn_to_stone_attempted:
                         mname_ts2 = self.monster.get('name', 'The monster')
@@ -1263,13 +1290,21 @@ class CombatSession:
 
         SPUR.COMBAT.S "dragon" label: sac.ally is only tried when the
         incoming blow would drop HP to 0 or below (`if a>hp-1`).
+
+        Monster spellcasting Destroy damage (result.spell_cast=='destroy')
+        skips both the mount-redirect and ally-death-save checks below --
+        SPUR.MISC4.S's destroy branch applies its damage directly
+        (`hp=hp-z`) and has its own separate death handling
+        (`goto lnk.msc6`), never reaching COMBAT.S's "lurk.a"/"dragon"
+        mount-redirect/sac.ally section that a normal swing's damage
+        flows through.
         """
         player = ctx.player
-        if result.hit and await self._try_redirect_to_mount(ctx):
+        if result.hit and not result.spell_cast and await self._try_redirect_to_mount(ctx):
             return False
 
         hp = int(getattr(player, 'hit_points', 1) or 1)
-        if result.hit and (result.damage + result.fire_damage) >= hp:
+        if result.hit and not result.spell_cast and (result.damage + result.fire_damage) >= hp:
             from ally_events import try_ally_death_save
             if await try_ally_death_save(ctx, result.damage + result.fire_damage):
                 self._done.set()
@@ -1390,6 +1425,27 @@ class CombatSession:
             )
             return
 
+        # Monster spellcasting (SPUR.MISC4.S mon.cst): endurance/destroy
+        # replace the whole swing with their own narration instead of the
+        # generic hit/miss lines. Teleport is handled separately by the
+        # caller (ends the fight outright) before _resolve_monster_hit()
+        # is even reached, so it never arrives here.
+        if getattr(result, 'spell_cast', None) in ('endurance', 'destroy'):
+            for line in result.cast_narration:
+                await ctx.send(line)
+            await ctx.send_room(
+                f'{mname} channels strange energy at {_player_name(ctx)}.',
+                exclude_self=True,
+            )
+            return
+
+        # SPUR.MISC4.S mon.cst's own fallback (no effect left to cast this
+        # encounter) has no print statement at all -- the monster's turn
+        # is silently consumed by the failed cast attempt rather than
+        # falling back to a normal miss/swing. See combat/monster_spells.py.
+        if getattr(result, 'spell_cast', None) == 'wasted':
+            return
+
         if not result.hit:
             await ctx.send(f'{mname} misses you.')
             await ctx.send_room(f'{mname} misses {_player_name(ctx)}.', exclude_self=True)
@@ -1442,6 +1498,13 @@ class CombatSession:
     def _apply_monster_damage(self, ctx: 'GameContext', result) -> None:
         """Apply monster-attack damage and degradation to the player."""
         player = ctx.player
+
+        # Endurance (SPUR.MISC4.S mon.cst): heals the monster itself
+        # rather than damaging the player -- result.hit is False, so this
+        # must be applied before the early hit-check below returns.
+        if getattr(result, 'monster_heal', 0):
+            _set_monster_hp(self.monster, _monster_hp(self.monster) + result.monster_heal)
+
         if not result.hit:
             return
 
@@ -1660,6 +1723,25 @@ class CombatSession:
             term = _ammo_term(wname)
             noun = term + ('s' if actual != 1 else '')
             await ctx.send(f'YOU RECOVER {actual} {noun.upper()}.')
+
+    async def _monster_teleports_player(self, ctx: 'GameContext', result) -> None:
+        """Monster spellcasting teleport (combat/monster_spells.py,
+        SPUR.MISC4.S mon.cst, ++-only): ends the fight outright rather
+        than just removing the targeted attacker. SPUR's own
+        `mf=0:mw=0:m$="":wy$=""` resets the monster entirely -- in this
+        multiplayer port that means the whole encounter ends for every
+        attacker, matching the precedent _monster_dies() already sets
+        (one event ends the session for everyone in it), not flee()'s
+        per-attacker removal. No kill rewards/records -- the monster
+        isn't dead, it vanished."""
+        self._done.set()
+        for line in result.cast_narration:
+            await ctx.send(line)
+        mname = self.monster.get('name', 'The monster')
+        await ctx.send_room(
+            f"{_player_name(ctx)} vanishes as {mname}'s magic crackles through the room!",
+            exclude_self=True,
+        )
 
     async def _player_dies(self, ctx: 'GameContext') -> None:
         """Handle player death during combat."""

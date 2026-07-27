@@ -254,6 +254,14 @@ class MonsterAttackResult:
     # the generic "misses you" line. See logon_events/birthday.py's
     # is_birthday_today().
     birthday_gift: bool = False
+    # Monster spellcasting (SPUR.COMBAT.S m.attack's cast-trigger check +
+    # SPUR.MISC4.S's mon.cst dispatch) -- a +/++ flagged monster (see
+    # monsters.py's cast_one_spell/cast_multiple_spells) can replace its
+    # whole swing with one of three effects instead of a normal attack.
+    # See monster_casts_spell() below.
+    spell_cast:     str | None = None   # 'endurance' | 'destroy' | 'teleport'
+    cast_narration: list       = field(default_factory=list)
+    monster_heal:   int        = 0      # 'endurance': added to the monster's own HP
 
 
 @dataclass
@@ -659,7 +667,8 @@ def _calc_player_damage(ws: float, wd: float, zv: int, monster: dict, xp_level: 
 # Monster attacks player
 # ---------------------------------------------------------------------------
 
-def monster_attacks(monster: dict, player, *, stone_blocked: bool = False) -> MonsterAttackResult:
+def monster_attacks(monster: dict, player, *, stone_blocked: bool = False,
+                     spells_used: set | None = None) -> MonsterAttackResult:
     """
     Resolve one monster attack against the player.
     (SPUR.COMBAT.S m.attack / medusa section, lines 217-322)
@@ -669,12 +678,19 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False) -> Mo
     -- resolved once per encounter by the caller, not per attack; see
     combat/engine.py CombatSession._check_crystal_pendant()).
 
+    spells_used: per-encounter set of which monster spells have already
+    fired this fight (see monster_casts_spell()) -- mutated in place by
+    this call; caller owns the set's lifetime (combat/engine.py
+    CombatSession._spells_used, one per fight, same pattern as
+    stone_blocked).
+
     Returns MonsterAttackResult.  Caller applies hp loss, shield/armor
     degradation, and passes poisoned/diseased to effects.py.
     """
     # Birthday immunity (New in TADA, Ryan's idea -- not a SPUR mechanic):
-    # checked first, ahead of even turn-to-stone, so nothing about this
-    # attack can touch the player at all today. Sysop-gated by the same
+    # checked first, ahead of everything else (including monster
+    # spellcasting below), so nothing about this attack can touch the
+    # player at all today. Sysop-gated by the same
     # config.birthday_greeting_enabled toggle that controls the rest of
     # the birthday event, so disabling it turns off the whole package
     # consistently rather than leaving immunity on by itself.
@@ -683,6 +699,17 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False) -> Mo
         from logon_events.birthday import is_birthday_today
         if is_birthday_today(player):
             return MonsterAttackResult(hit=False, damage=0, birthday_gift=True)
+
+    # Monster spellcasting (SPUR.COMBAT.S m.attack's cast-trigger check,
+    # lines 226-228): a +/++ flagged monster can replace this whole swing
+    # with a self-heal, direct damage, or (multi-cast only) a teleport
+    # that ends the fight. Checked next, ahead of turn-to-stone, matching
+    # SPUR's own ordering (the cast-trigger runs before the medusa/
+    # petrify section in m.attack).
+    from combat.monster_spells import monster_casts_spell
+    cast_result = monster_casts_spell(monster, player, spells_used if spells_used is not None else set())
+    if cast_result is not None:
+        return cast_result
 
     # Turn to stone (SPUR.COMBAT.S "medusa" section): a petrify
     # monster has a 20% chance per attack to attempt this instead of a normal
