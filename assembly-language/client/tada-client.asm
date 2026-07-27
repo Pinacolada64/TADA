@@ -34,6 +34,20 @@
 ; ACIA control register: 19200 baud, 8-bit, 1 stop, internal clock
 {const: SL_CTRL_19K $1e}
 
+; SID chip base address (25 registers, $D400-$D418)
+{const: SID_BASE $d400}
+
+; Binary SID-stream markers -- multiplexed onto the same connection as the
+; CR-terminated PETSCII text protocol. Neither byte can appear in a normal
+; text line, so handle_recv_byte can tell them apart from ordinary output
+; without any separate framing/port. See sid_engine/frames.py (server) for
+; the matching encoder.
+{const: SID_STREAM_START $01}
+{const: SID_STREAM_END   $02}
+{const: SID_FRAME_END    $ff}   ; terminates one tick's (reg,val) pairs --
+                                 ; safe as a sentinel since SID only has
+                                 ; registers 0-24
+
 ; Zero page pointers
         scr_ptr_lo  = $fb       ; screen write pointer low byte
         scr_ptr_hi  = $fc       ; screen write pointer high byte
@@ -45,6 +59,12 @@
 
         rx_head     = $f9       ; NMI receive ring buffer: next write index
         rx_tail     = $fa       ; NMI receive ring buffer: next read index
+
+        sid_wr      = $f5       ; SID_BUF: next write index (mainline-owned)
+        sid_rd      = $f6       ; SID_BUF: next read index (IRQ-owned)
+        sid_mode    = $f7       ; 0 = handle_recv_byte treats bytes as text,
+                                 ; 1 = redirecting bytes into SID_BUF
+        sid_active  = $f8       ; 0 = sid_play idle, 1 = playback in progress
 
         QTSW        = $d4       ; KERNAL quote-mode switch (212 decimal)
 
@@ -59,6 +79,9 @@ start:
         jsr init_screen
         jsr init_nmi             ; install our receive handler before the
         jsr init_swiftlink       ; ACIA is told to start raising NMIs on it
+        jsr init_sid             ; silence the SID chip, clear playback state
+        jsr init_irq             ; install the IRQ dispatcher (sid_play +
+                                  ; round-robin task table)
 
         ; delay to let ACIA settle
         ldx #$ff
@@ -112,7 +135,7 @@ wait_for_data:
 wait_for_data_first:
         jsr sl_recv
         bcc wait_for_data_first   ; keep waiting for the very first byte
-        jsr display_char
+        jsr handle_recv_byte
 wait_for_data_drain:
         ldx #$20                 ; settle countdown high byte
         ldy #$00                 ; settle countdown low byte
@@ -125,7 +148,7 @@ wait_for_data_poll:
         bne wait_for_data_poll
         rts                       ; settled -- no bytes for a while, done
 wait_for_data_got_byte:
-        jsr display_char
+        jsr handle_recv_byte
         jmp wait_for_data_drain
 
 ; --- Init screen ---
@@ -523,6 +546,226 @@ display_char:
 @:      jsr CHROUT              ; let KERNAL handle PETSCII->screen code conversion
         rts
 
+; --- Dispatch a byte received from the server: text or SID stream ---
+; Called from wait_for_data for every byte sl_recv hands back, in place of
+; the old unconditional display_char call. Normally just forwards to
+; display_char; while a SID stream is in progress (between the
+; SID_STREAM_START and SID_STREAM_END markers), redirects bytes into
+; SID_BUF for sid_play instead of the screen.
+handle_recv_byte:
+        ldy sid_mode
+        bne handle_recv_byte_sid
+        cmp #SID_STREAM_START
+        beq handle_recv_byte_start
+        jmp display_char
+handle_recv_byte_start:
+        lda #0
+        sta sid_rd
+        sta sid_wr
+        sta sid_byte_count+0
+        sta sid_byte_count+1
+        lda #1
+        sta sid_mode
+        sta sid_active
+        rts
+handle_recv_byte_sid:
+        cmp #SID_STREAM_END
+        bne handle_recv_byte_store
+        lda #0
+        sta sid_mode              ; stop redirecting new bytes -- sid_play
+        jsr sid_print_byte_count  ; keeps draining whatever's already buffered
+        rts
+handle_recv_byte_store:
+        ldx sid_wr
+        sta SID_BUF,x
+        inc sid_wr                ; wraps at 256, matching rx_buf's ring buffer
+        inc sid_byte_count+0
+        bne handle_recv_byte_store_done
+        inc sid_byte_count+1
+handle_recv_byte_store_done:
+        rts
+
+; --- Print "GOT $xxxx BYTES" -- diagnostic for the SID stream pipe ---
+; Prints sid_byte_count (hi byte first) as 4 hex digits. Unconditional
+; (not gated behind {ifdef:debug}) since this answers a real end-to-end
+; question -- did the bytes the server said it sent actually arrive --
+; not a temporary bug hunt.
+sid_print_byte_count:
+        lda #'G'
+        jsr CHROUT
+        lda #'O'
+        jsr CHROUT
+        lda #'T'
+        jsr CHROUT
+        lda #' '
+        jsr CHROUT
+        lda #'$'
+        jsr CHROUT
+        lda sid_byte_count+1
+        jsr sid_print_hex_byte
+        lda sid_byte_count+0
+        jsr sid_print_hex_byte
+        lda #' '
+        jsr CHROUT
+        lda #'B'
+        jsr CHROUT
+        lda #'Y'
+        jsr CHROUT
+        lda #'T'
+        jsr CHROUT
+        lda #'E'
+        jsr CHROUT
+        lda #'S'
+        jsr CHROUT
+        lda #$0d
+        jsr CHROUT
+        rts
+
+sid_print_hex_nibble:             ; .A = nibble (0-15)
+        pha
+        and #$0f
+        tax
+        lda sid_hex_digits,x
+        jsr CHROUT
+        pla
+        rts
+
+sid_print_hex_byte:                ; .A = byte to print in hex
+        pha
+        lsr
+        lsr
+        lsr
+        lsr
+        jsr sid_print_hex_nibble
+        pla
+        jsr sid_print_hex_nibble
+        rts
+
+sid_hex_digits:
+        ascii "0123456789ABCDEF"
+
+; --- Init SID chip ---
+; Silence all three voices and clear playback state. SID_BUF's indices
+; don't need clearing here -- sid_active starts at 0, so sid_play won't
+; touch them until a real SID_STREAM_START arrives and resets them itself.
+init_sid:
+        ldx #24
+        lda #0
+init_sid_loop:
+        sta SID_BASE,x
+        dex
+        bpl init_sid_loop
+        sta sid_mode
+        sta sid_active
+        rts
+
+; --- SID playback (called every IRQ tick, unconditionally) ---
+; Register-write frames arrive as (register-offset, value) byte pairs
+; terminated by SID_FRAME_END ($ff) -- see sid_engine/frames.py. Consumes
+; exactly one frame per call so playback tempo depends only on the IRQ
+; rate, never on how many other jobs share the interrupt.
+;
+; A frame is only applied once it has arrived in full: the first pass
+; (sid_play_scan) just looks for a terminator between sid_rd and sid_wr
+; without touching any registers. If sid_wr is reached first, the frame
+; hasn't fully arrived yet -- hold last tick's sound and try again next
+; tick, rather than reading stale bytes past what's been received or
+; applying only half a frame's writes.
+sid_play:
+        lda sid_active
+        beq sid_play_rts
+
+        ldx sid_rd
+sid_play_scan:
+        cpx sid_wr
+        beq sid_play_rts          ; caught up to writer -- no full frame yet
+        lda SID_BUF,x
+        inx
+        cmp #SID_FRAME_END
+        bne sid_play_scan
+
+        ldx sid_rd
+sid_play_apply:
+        lda SID_BUF,x
+        cmp #SID_FRAME_END
+        beq sid_play_apply_done
+        tay                       ; .y = SID register offset (0-24)
+        inx
+        lda SID_BUF,x
+        sta SID_BASE,y
+        inx
+        jmp sid_play_apply
+sid_play_apply_done:
+        inx
+        stx sid_rd
+sid_play_rts:
+        rts
+
+; --- IRQ dispatcher init ---
+; Hooks $0314/$0315 the same way init_nmi hooks $0318/$0319: save the
+; current vector, install our handler, cli. Unlike NMI, the hardware IRQ
+; vector already runs through the KERNAL's entry stub first ($FF48), which
+; pushes A/X/Y before jumping to $0314 -- so irq_handler doesn't need to
+; save/restore registers itself, and chaining to irq_orig at the end (the
+; stock KERNAL IRQ, still doing keyboard scan / jiffy clock) performs the
+; final pla/tax/pla/tay/pla/rti.
+init_irq:
+        sei
+        lda $0314
+        sta irq_orig+0
+        lda $0315
+        sta irq_orig+1
+        lda #<irq_handler
+        sta $0314
+        lda #>irq_handler
+        sta $0315
+        cli
+        rts
+
+; --- IRQ handler ---
+; Two tiers, matching ImageBBS's irqhn.asm shape (irq9/irq10 unconditional
+; + irqtbl/irq0 round-robin), repurposed for this client's own jobs:
+;   1. sid_play runs every single tick, unconditionally -- playback tempo
+;      must never depend on how many other jobs are registered.
+;   2. irq_dispatch_next services one round-robin job per tick, for
+;      latency-tolerant background work (currently just a placeholder
+;      heartbeat; future candidates: a SwiftLink TX queue pump, since
+;      sl_send today busy-waits on TDRE rather than being interrupt-driven).
+irq_handler:
+        jsr sid_play
+        jsr irq_dispatch_next
+        jmp (irq_orig)
+
+; --- Round-robin task dispatcher ---
+; Advances a self-modified table index by 2 (one word entry) each tick,
+; wrapping at IRQ_TASK_TABLE_LEN, and jumps into the selected job via a
+; self-modified indirect target. The job ends with rts, which returns to
+; whoever called irq_dispatch_next (irq_handler) -- not to code inside
+; this routine -- since irq_dispatch_jmp is a jmp, not a jsr, exactly like
+; irqhn.asm's irq0/irqjmp.
+irq_dispatch_next:
+        ldy irq_task_ptr
+        lda irq_task_table,y
+        sta irq_dispatch_jmp+1
+        iny
+        lda irq_task_table,y
+        sta irq_dispatch_jmp+2
+        iny
+        cpy #IRQ_TASK_TABLE_LEN
+        bcc irq_dispatch_next_store
+        ldy #0
+irq_dispatch_next_store:
+        sty irq_task_ptr
+irq_dispatch_jmp:
+        jmp $ffff
+
+; Placeholder round-robin job -- proves the dispatch mechanism works.
+; Replace/extend irq_task_table as real jobs (SwiftLink TX pump, etc.)
+; show up; bump IRQ_TASK_TABLE_LEN to match (byte length = entries * 2).
+irq_task_heartbeat:
+        inc irq_heartbeat
+        rts
+
 ; --- Data ---
 
 status_msg:
@@ -538,10 +781,49 @@ linebuf:
 nmi_orig:
         byte 0,0                ; saved KERNAL NMI vector, set by init_nmi
 
+irq_orig:
+        byte 0,0                ; saved KERNAL IRQ vector, set by init_irq
+
+irq_task_ptr:
+        byte 0                   ; byte offset into irq_task_table, self-modified
+
+irq_heartbeat:
+        byte 0                   ; placeholder round-robin job's counter
+
+sid_byte_count:
+        byte 0,0                 ; lo,hi -- bytes redirected into SID_BUF this
+                                  ; stream, reset on SID_STREAM_START, printed
+                                  ; on SID_STREAM_END by sid_print_byte_count
+
+irq_task_table:
+        word irq_task_heartbeat
+IRQ_TASK_TABLE_LEN = 2          ; entries * 2 -- keep in sync with the table above
+
 ; 256-byte NMI receive ring buffer -- deliberately sized so rx_head/
 ; rx_tail (plain bytes) wrap around for free on overflow, no masking
 ; needed.
 rx_buf:
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+; 256-byte SID-stream receive ring buffer -- same wrap-for-free sizing as
+; rx_buf, but the roles are reversed: mainline (handle_recv_byte) is the
+; producer here, sid_play (IRQ context) is the consumer.
+SID_BUF:
         byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
         byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
         byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

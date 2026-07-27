@@ -394,6 +394,17 @@ class PETSCIINetworkContext(GameContext):
         except Exception:
             logging.exception('PETSCIINetworkContext._send_formatted: write error')
 
+    async def send_raw(self, data: bytes) -> None:
+        """Write *data* straight to the socket -- no PETSCII encoding, no
+        line formatting, no pagination. For out-of-band binary payloads
+        (e.g. sid_engine's streamed SID register-write frames) that ride
+        the same connection as the text protocol but aren't text."""
+        try:
+            self.writer.write(data)
+            await self.writer.drain()
+        except Exception:
+            logging.exception('PETSCIINetworkContext.send_raw: write error')
+
     async def prompt(self,
                      prompt_text:    str            = '',
                      preamble_lines: list[str] | None = None) -> str:
