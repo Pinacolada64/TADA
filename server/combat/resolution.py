@@ -247,6 +247,13 @@ class MonsterAttackResult:
     # hit/damage roll entirely -- see engine.py's handling of this result.
     turn_to_stone_attempted: bool = False
     turned_to_stone:         bool = False
+    # New in TADA (Ryan's idea, not a SPUR mechanic): a player is immune
+    # to monster attacks on their own birthday -- bypasses every other
+    # check in monster_attacks() entirely, including turn-to-stone.
+    # engine.py's _narrate_monster_swing() special-cases this instead of
+    # the generic "misses you" line. See logon_events/birthday.py's
+    # is_birthday_today().
+    birthday_gift: bool = False
 
 
 @dataclass
@@ -665,6 +672,18 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False) -> Mo
     Returns MonsterAttackResult.  Caller applies hp loss, shield/armor
     degradation, and passes poisoned/diseased to effects.py.
     """
+    # Birthday immunity (New in TADA, Ryan's idea -- not a SPUR mechanic):
+    # checked first, ahead of even turn-to-stone, so nothing about this
+    # attack can touch the player at all today. Sysop-gated by the same
+    # config.birthday_greeting_enabled toggle that controls the rest of
+    # the birthday event, so disabling it turns off the whole package
+    # consistently rather than leaving immunity on by itself.
+    from config import config as _server_config
+    if _server_config.birthday_greeting_enabled:
+        from logon_events.birthday import is_birthday_today
+        if is_birthday_today(player):
+            return MonsterAttackResult(hit=False, damage=0, birthday_gift=True)
+
     # Turn to stone (SPUR.COMBAT.S "medusa" section): a petrify
     # monster has a 20% chance per attack to attempt this instead of a normal
     # swing; on attempt, a 10% chance to succeed. Either way this replaces the

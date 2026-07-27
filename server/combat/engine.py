@@ -1379,6 +1379,17 @@ class CombatSession:
     ) -> None:
         mname = self.monster.get('name', 'The monster')
 
+        if getattr(result, 'birthday_gift', False):
+            await ctx.send(
+                f'{mname} says, "I heard from a little birdie that it\'s your '
+                f'birthday today. I\'m giving you the day off."'
+            )
+            await ctx.send_room(
+                f'{mname} inexplicably lets {_player_name(ctx)} off the hook.',
+                exclude_self=True,
+            )
+            return
+
         if not result.hit:
             await ctx.send(f'{mname} misses you.')
             await ctx.send_room(f'{mname} misses {_player_name(ctx)}.', exclude_self=True)

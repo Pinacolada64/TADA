@@ -93,6 +93,15 @@ SETTINGS_METADATA: Dict[str, SettingInfo] = {
              "means for each player; see formatting.format_player_datetime().",
         'Server Timezone',
     ),
+    'birthday_greeting_enabled': SettingInfo(
+        bool, 'Whether logon_events/birthday.py runs at login -- greets a '
+              'player whose player.birthday matches today\'s month/day. '
+              'First concrete module under the "modular logon event" idea '
+              '(TODO.md); a sysop-facing on/off toggle, same spirit as '
+              'meteor_difficulty, rather than something only a code change '
+              'could disable.',
+        'Birthday Greeting',
+    ),
 }
 
 
@@ -228,6 +237,10 @@ class ServerConfig:
         # (unchanged behavior). See SETTINGS_METADATA's entry above and
         # formatting.format_player_datetime().
         'server_timezone': '',
+
+        # logon_events/birthday.py -- on by default; SETTINGS_METADATA's
+        # entry above explains the "modular logon event" context.
+        'birthday_greeting_enabled': True,
     }
 
     def __new__(cls):
@@ -460,6 +473,16 @@ class ServerConfig:
             if value not in zoneinfo.available_timezones():
                 raise ValueError(f"'{value}' isn't a recognized IANA timezone name.")
         self.set('server_timezone', value)
+
+    @property
+    def birthday_greeting_enabled(self) -> bool:
+        """Whether logon_events/birthday.py's login-time birthday greeting
+        runs at all (see SETTINGS_METADATA's entry)."""
+        return bool(self.get('birthday_greeting_enabled', True))
+
+    @birthday_greeting_enabled.setter
+    def birthday_greeting_enabled(self, value: bool) -> None:
+        self.set('birthday_greeting_enabled', bool(value))
 
 # Global instance
 config = ServerConfig()

@@ -489,6 +489,24 @@ class ConnectCommand(Command):
         if mail_lines:
             login_lines += mail_lines
 
+        # Birthday greeting -- see logon_events/birthday.py, TODO.md's
+        # "Modular logon event" entry's first concrete module. Sysop-
+        # gated (config.birthday_greeting_enabled, CONFIG command) rather
+        # than always-on.
+        from config import config as server_config
+        if server_config.birthday_greeting_enabled:
+            # Vinny's cameo (see that module) broadcasts to the room via
+            # ctx.send_room(), which reads ctx.client.room -- normally not
+            # set until simple_server.py's _game_loop() runs, well after
+            # this point, so set it early (same one-liner _game_loop()
+            # itself uses; harmless/idempotent since it checks first).
+            if not getattr(ctx.client, 'room', None):
+                ctx.client.room = int(getattr(player, 'map_room', 1) or 1)
+            from logon_events.birthday import main as birthday_check
+            birthday_lines = await birthday_check(ctx, player)
+            if birthday_lines:
+                login_lines += birthday_lines
+
         # Recovered editor session (SHUTDOWN caught them mid-edit last
         # time) -- see text_editor.save_recovery_file()/commands/edit.py.
         recovery_lines = _login_recovery_lines(player)
