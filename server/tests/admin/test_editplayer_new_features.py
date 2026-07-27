@@ -952,12 +952,15 @@ class TestGiveToAllyOrMount(unittest.IsolatedAsyncioTestCase):
             player.party = party
         return player
 
-    async def test_no_allies_skips_recipient_prompt(self):
+    async def test_no_allies_blank_response_still_defaults_to_player(self):
+        # The recipient prompt is always shown now (New in TADA: a "search
+        # for another character by name" option exists even with zero
+        # allies), but a blank response still defaults straight to the
+        # player -- same zero-effort common case as before.
         from commands.editplayer import _pick_recipient
-        ctx = _FakeCtx(player=self._player_with_inventory())
+        ctx = _FakeCtx(responses=[''], player=self._player_with_inventory())
         kind, target = await _pick_recipient(ctx)
         self.assertEqual(kind, 'player')
-        self.assertEqual(ctx.sent, [])  # no prompt shown at all
 
     async def test_blank_response_defaults_to_player(self):
         from commands.editplayer import _pick_recipient
@@ -1106,6 +1109,249 @@ class TestInventoryReadNumberedBook(unittest.IsolatedAsyncioTestCase):
         await _inventory_action(ctx2)(ctx2)
         self.assertNotIn('You have no books!', ctx2.sent)
         self.assertTrue(any('Howling' in s for s in ctx2.sent))
+
+
+class TestFindCharacter(unittest.IsolatedAsyncioTestCase):
+    """_find_character() -- resolve a name to a player, online (via
+    ctx.server.clients) or offline (via their save file), or None if no
+    such character exists at all. New in TADA, Ryan's request to expand
+    item-granting/[T]ransfer beyond "yourself or your own ally"."""
+
+    def setUp(self):
+        import tempfile
+        import net_common
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self._orig_run_dir = net_common.run_server_dir
+        net_common.run_server_dir = self._tmp.name
+        self.addCleanup(lambda: setattr(net_common, 'run_server_dir', self._orig_run_dir))
+
+    async def test_not_found_anywhere_returns_none(self):
+        from commands.editplayer import _find_character
+        ctx = _FakeCtx(player=_FakePlayer())
+        result = await _find_character(ctx, 'NoSuchCharacter')
+        self.assertIsNone(result)
+
+    async def test_blank_name_returns_none(self):
+        from commands.editplayer import _find_character
+        ctx = _FakeCtx(player=_FakePlayer())
+        result = await _find_character(ctx, '   ')
+        self.assertIsNone(result)
+
+    async def test_finds_online_player_case_insensitively(self):
+        from commands.editplayer import _find_character
+        from types import SimpleNamespace
+
+        other_player = _FakePlayer()
+        other_player.name = 'Batgirl'
+        other_client = SimpleNamespace(ctx=SimpleNamespace(player=other_player))
+
+        ctx = _FakeCtx(player=_FakePlayer())
+        ctx.server.clients = {'addr1': other_client}
+
+        result = await _find_character(ctx, 'batGIRL')
+        self.assertIsNotNone(result)
+        found_player, is_online = result
+        self.assertIs(found_player, other_player)
+        self.assertTrue(is_online)
+
+    async def test_finds_offline_character_from_save_file(self):
+        from commands.editplayer import _find_character
+        from player import Player
+
+        offline = Player(name='Offliner', id='Offliner')
+        offline.save(force=True)
+
+        ctx = _FakeCtx(player=_FakePlayer())
+        result = await _find_character(ctx, 'Offliner')
+        self.assertIsNotNone(result)
+        found_player, is_online = result
+        self.assertEqual(found_player.name, 'Offliner')
+        self.assertFalse(is_online)
+
+    async def test_online_takes_priority_over_a_stale_save_file(self):
+        from commands.editplayer import _find_character
+        from types import SimpleNamespace
+        from player import Player
+
+        stale = Player(name='BothPlaces', id='BothPlaces')
+        stale.save(force=True)
+
+        live_player = _FakePlayer()
+        live_player.name = 'BothPlaces'
+        other_client = SimpleNamespace(ctx=SimpleNamespace(player=live_player))
+        ctx = _FakeCtx(player=_FakePlayer())
+        ctx.server.clients = {'addr1': other_client}
+
+        found_player, is_online = await _find_character(ctx, 'BothPlaces')
+        self.assertIs(found_player, live_player)
+        self.assertTrue(is_online)
+
+
+class TestPickRecipientSearchByName(unittest.IsolatedAsyncioTestCase):
+    """_pick_recipient()'s 'N' (search by name) option -- returns
+    ('other', player, is_online). New in TADA."""
+
+    def _player_with_inventory(self):
+        from inventory import Inventory
+        player = _FakePlayer()
+        player.inventory = Inventory(capacity=10)
+        return player
+
+    async def test_n_searches_and_finds_online_character(self):
+        from commands.editplayer import _pick_recipient
+        from types import SimpleNamespace
+
+        other_player = _FakePlayer()
+        other_player.name = 'Robin'
+        other_client = SimpleNamespace(ctx=SimpleNamespace(player=other_player))
+
+        ctx = _FakeCtx(responses=['n', 'Robin'], player=self._player_with_inventory())
+        ctx.server.clients = {'addr1': other_client}
+
+        result = await _pick_recipient(ctx)
+        self.assertEqual(result[0], 'other')
+        self.assertIs(result[1], other_player)
+        self.assertTrue(result[2])
+
+    async def test_n_with_unknown_name_defaults_to_player(self):
+        from commands.editplayer import _pick_recipient
+        ctx = _FakeCtx(responses=['n', 'GhostCharacter'], player=self._player_with_inventory())
+        kind, target = await _pick_recipient(ctx)
+        self.assertEqual(kind, 'player')
+        self.assertIn('No character named', '\n'.join(ctx.sent))
+
+    async def test_n_with_blank_name_defaults_to_player(self):
+        from commands.editplayer import _pick_recipient
+        ctx = _FakeCtx(responses=['n', ''], player=self._player_with_inventory())
+        kind, target = await _pick_recipient(ctx)
+        self.assertEqual(kind, 'player')
+
+
+class TestTransferItem(unittest.IsolatedAsyncioTestCase):
+    """[T]ransfer -- move an existing item from ctx.player's own
+    inventory to another character's, online or offline. New in TADA,
+    Ryan's request."""
+
+    def setUp(self):
+        import tempfile
+        import net_common
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self._orig_run_dir = net_common.run_server_dir
+        net_common.run_server_dir = self._tmp.name
+        self.addCleanup(lambda: setattr(net_common, 'run_server_dir', self._orig_run_dir))
+
+    def _player_with_item(self):
+        from inventory import Inventory
+        from items import Item, ItemCategory
+        player = _FakePlayer()
+        player.inventory = Inventory(capacity=10)
+        player.inventory.add(Item(id_number=1, name='Lucky Coin', category=ItemCategory.ITEM))
+        return player
+
+    async def test_empty_inventory_has_nothing_to_transfer(self):
+        from commands.editplayer import _transfer_item
+        player = _FakePlayer()
+        player.inventory = __import__('inventory').Inventory(capacity=10)
+        ctx = _FakeCtx(player=player)
+        await _transfer_item(ctx)
+        self.assertIn('Inventory is empty -- nothing to transfer.', ctx.sent)
+
+    async def test_transfer_to_online_character(self):
+        from commands.editplayer import _transfer_item
+        from types import SimpleNamespace
+        from inventory import Inventory
+
+        source = self._player_with_item()
+        dest = _FakePlayer()
+        dest.name = 'Robin'
+        dest.inventory = Inventory(capacity=10)
+        dest_client = SimpleNamespace(ctx=SimpleNamespace(player=dest))
+
+        ctx = _FakeCtx(responses=['1', 'Robin', 'y'], player=source)
+        ctx.server.clients = {'addr1': dest_client}
+
+        await _transfer_item(ctx)
+
+        self.assertEqual(len(source.inventory.entries()), 0)
+        self.assertEqual(len(dest.inventory.entries()), 1)
+        self.assertEqual(dest.inventory.entries()[0].item.name, 'Lucky Coin')
+        self.assertTrue(any('Transferred' in s for s in ctx.sent))
+
+    async def test_transfer_to_offline_character_saves_immediately(self):
+        from commands.editplayer import _transfer_item
+        from player import Player
+
+        offline = Player(name='Offliner', id='Offliner')
+        offline.save(force=True)
+
+        source = self._player_with_item()
+        ctx = _FakeCtx(responses=['1', 'Offliner', 'y'], player=source)
+
+        await _transfer_item(ctx)
+
+        self.assertEqual(len(source.inventory.entries()), 0)
+        reloaded = Player(name='Offliner', id='Offliner')
+        entries = list(reloaded.inventory.entries())
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].item.name, 'Lucky Coin')
+
+    async def test_declining_confirmation_leaves_item_in_place(self):
+        from commands.editplayer import _transfer_item
+        from types import SimpleNamespace
+        from inventory import Inventory
+
+        source = self._player_with_item()
+        dest = _FakePlayer()
+        dest.name = 'Robin'
+        dest.inventory = Inventory(capacity=10)
+        dest_client = SimpleNamespace(ctx=SimpleNamespace(player=dest))
+
+        ctx = _FakeCtx(responses=['1', 'Robin', 'n'], player=source)
+        ctx.server.clients = {'addr1': dest_client}
+
+        await _transfer_item(ctx)
+
+        self.assertEqual(len(source.inventory.entries()), 1)
+        self.assertEqual(len(dest.inventory.entries()), 0)
+
+    async def test_full_destination_inventory_cancels_without_removing_source(self):
+        from commands.editplayer import _transfer_item
+        from types import SimpleNamespace
+        from inventory import Inventory
+        from items import Item, ItemCategory
+
+        source = self._player_with_item()
+        dest = _FakePlayer()
+        dest.name = 'Robin'
+        dest.inventory = Inventory(capacity=1)
+        dest.inventory.add(Item(id_number=99, name='Already Full', category=ItemCategory.ITEM))
+        dest_client = SimpleNamespace(ctx=SimpleNamespace(player=dest))
+
+        ctx = _FakeCtx(responses=['1', 'Robin', 'y'], player=source)
+        ctx.server.clients = {'addr1': dest_client}
+
+        await _transfer_item(ctx)
+
+        self.assertEqual(len(source.inventory.entries()), 1)  # item stays put
+        self.assertIn('inventory is full', '\n'.join(ctx.sent).lower())
+
+    async def test_unknown_destination_cancels(self):
+        from commands.editplayer import _transfer_item
+        source = self._player_with_item()
+        ctx = _FakeCtx(responses=['1', 'NobodyHome', 'y'], player=source)
+        await _transfer_item(ctx)
+        self.assertEqual(len(source.inventory.entries()), 1)
+        self.assertIn('No character named', '\n'.join(ctx.sent))
+
+    async def test_transferring_to_yourself_is_refused(self):
+        from commands.editplayer import _transfer_item
+        source = self._player_with_item()
+        ctx = _FakeCtx(responses=['1', source.name], player=source)
+        await _transfer_item(ctx)
+        self.assertEqual(len(source.inventory.entries()), 1)
+        self.assertIn('already', '\n'.join(ctx.sent).lower())
 
 
 if __name__ == '__main__':

@@ -12,7 +12,8 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
   ├─  5. Combinations      locker, elevator, castle, booby traps
   ├─  6. Flags/Counters    all PlayerFlags grouped by category
   ├─  7. Hit Points        current HP
-  ├─  8. Inventory         give weapons/armor/rations/objects
+  ├─  8. Inventory         give weapons/armor/rations/objects; transfer
+  │                        items between characters
   ├─  9. Map Information   dungeon level, room number
   ├─ 10. Money             in hand / in bank / in bar / Vinny Loan status
   ├─ 11. Statistics        age, birthday, class, experience, guild, honor,
@@ -1305,8 +1306,9 @@ def _inventory_action(ctx):
                 'Command',
                 preamble_lines=[
                     '[W]eapon  [A]rmor  [S]pell  [O]bject  [B]ook (r<#>=Read)  [R]ation',
-                    '[L]ist weapons  [I]nventory  [Q]uit',
-                    '(Weapon/Object/Book/Ration will ask who receives it -- you or an ally)',
+                    '[T]ransfer  [L]ist weapons  [I]nventory  [Q]uit',
+                    '(Weapon/Object/Book/Ration will ask who receives it -- you, an ally,',
+                    ' or another character by name)',
                 ],
             )
             if raw is None:
@@ -1340,6 +1342,8 @@ def _inventory_action(ctx):
                 await _give_object(ctx, _OBJ_TYPES, 'object')
             elif cmd == 's':
                 await ctx.send('Spell giving not ready yet.')
+            elif cmd == 't':
+                await _transfer_item(ctx)
             else:
                 await ctx.send('Unknown option.')
 
@@ -1377,33 +1381,152 @@ async def _show_inventory(ctx) -> None:
     await ctx.send(lines)
 
 
+async def _transfer_item(ctx) -> None:
+    """[T]ransfer: move an *existing* item out of ctx.player's own
+    inventory into another character's -- online or offline, searched
+    by name via _find_character(). Distinct from _give_weapon()/
+    _give_ration()/_give_object(), which grant a brand-new item from a
+    catalog; this moves something the player already has. Checks the
+    destination has room *before* removing anything from the source, so
+    a full target inventory can't strand the item in neither place. New
+    in TADA, Ryan's request."""
+    inv = getattr(ctx.player, 'inventory', None)
+    entries = list(inv.entries()) if inv and hasattr(inv, 'entries') else []
+    if not entries:
+        await ctx.send('Inventory is empty -- nothing to transfer.')
+        return
+
+    await _show_inventory(ctx)
+    raw = await ctx.prompt('Transfer which item # (blank to cancel)')
+    if not raw or not raw.strip():
+        return
+    try:
+        idx = int(raw.strip()) - 1
+        if not (0 <= idx < len(entries)):
+            raise ValueError
+    except ValueError:
+        await ctx.send('Invalid selection.')
+        return
+    entry = entries[idx]
+    item = entry.item
+    item_name = getattr(item, 'name', '?')
+
+    name_raw = await ctx.prompt('Transfer to which character')
+    if not name_raw or not name_raw.strip():
+        await ctx.send('Cancelled.')
+        return
+    target_name = name_raw.strip()
+    if target_name.lower() == ctx.player.name.lower():
+        await ctx.send(f"{item_name} is already {ctx.player.name}'s.")
+        return
+    found = await _find_character(ctx, target_name)
+    if found is None:
+        await ctx.send(f'No character named "{target_name}".')
+        return
+    target_player, is_online = found
+
+    target_inv = getattr(target_player, 'inventory', None)
+    if target_inv is None:
+        await ctx.send(f'{target_player.name} has no inventory object.')
+        return
+
+    confirm = await ctx.prompt(f'Transfer {item_name} to {target_player.name}? (y/N)')
+    if not confirm or confirm.strip().lower() != 'y':
+        await ctx.send('Cancelled.')
+        return
+
+    # Check room at the destination *before* touching the source -- an
+    # item removed here and rejected there would just vanish.
+    if not target_inv.add(item):
+        await ctx.send(f"{target_player.name}'s inventory is full -- transfer cancelled.")
+        return
+    if not inv.remove(item):
+        # Destination already has it added; undo rather than duplicate.
+        target_inv.remove(item)
+        await ctx.send('Something went wrong removing the item -- transfer cancelled.')
+        return
+
+    ctx.player.unsaved_changes = True
+    target_player.unsaved_changes = True
+    if not is_online:
+        target_player.save(force=True)
+    await ctx.send(f"Transferred {item_name} to {target_player.name}.")
+
+
+async def _find_character(ctx, name: str):
+    """Resolve *name* to a player character, online or offline.
+
+    Checks ctx.server.clients first (case-insensitive, matching
+    commands/messaging.py's find_online() convention); falls back to
+    loading the character's save file directly if they're not currently
+    connected. Returns (player, is_online), or None if no such
+    character exists at all.
+
+    The offline path checks the save file's existence *before*
+    constructing a Player(id=name) -- Player.__init__ silently succeeds
+    with a fresh, empty character if the id has no save file, which
+    would otherwise make a typo'd name look like a real (if blank)
+    character instead of "not found." New in TADA, Ryan's request to
+    expand item-granting/[T]ransfer beyond "yourself or your own ally."
+    """
+    from pathlib import Path
+    from player import Player
+
+    lname = name.strip().lower()
+    if not lname:
+        return None
+
+    for client in getattr(ctx.server, 'clients', {}).values():
+        other_ctx = getattr(client, 'ctx', None)
+        other_player = getattr(other_ctx, 'player', None)
+        if other_player is not None and getattr(other_player, 'name', '').lower() == lname:
+            return (other_player, True)
+
+    if not Path(Player._json_path(name)).exists():
+        return None
+    return (Player(name=name, id=name), False)
+
+
 async def _pick_recipient(ctx):
     """Let the admin choose who receives the next granted item: the
-    player themself, or one of their owned allies (bar.allies.
+    player themself, one of their owned allies (bar.allies.
     owned_allies) -- including the mount, which needs AllyFlags.
     SADDLEBAGS before it can actually carry anything (see
-    _deliver_item()). Returns ('player', ctx.player) or ('ally', ally).
+    _deliver_item()) -- or any other character, online or offline,
+    searched by name (_find_character()). Returns ('player', ctx.player),
+    ('ally', ally), or ('other', player, is_online).
 
-    Skips the prompt entirely and defaults straight to the player if
-    they have no allies at all, so this adds no extra step to the
-    common case. New in TADA, Ryan's request."""
+    Skips the ally/other-character prompt options when there's nothing
+    to choose from, so this adds no extra step to the common case. New
+    in TADA, Ryan's request."""
     from bar.allies import owned_allies
 
     allies = owned_allies(ctx.player)
-    if not allies:
-        return ('player', ctx.player)
 
     lines = ['', f'  0. {ctx.player.name} (yourself)']
     for i, a in enumerate(allies, 1):
         lines.append(f'  {i}. {a.name}')
+    lines.append('  N. (search for another character by name)')
     lines.append('')
     await ctx.send(lines)
 
-    raw = await ctx.prompt(f'Give to (0-{len(allies)}, Enter for yourself)')
+    raw = await ctx.prompt(f'Give to (0-{len(allies)}, N, Enter for yourself)')
     if not raw or not raw.strip():
         return ('player', ctx.player)
+    stripped = raw.strip()
+    if stripped.lower() == 'n':
+        name_raw = await ctx.prompt('Character name')
+        if not name_raw or not name_raw.strip():
+            await ctx.send('Cancelled -- giving to yourself instead.')
+            return ('player', ctx.player)
+        found = await _find_character(ctx, name_raw.strip())
+        if found is None:
+            await ctx.send(f'No character named "{name_raw.strip()}" -- giving to yourself instead.')
+            return ('player', ctx.player)
+        target_player, is_online = found
+        return ('other', target_player, is_online)
     try:
-        idx = int(raw.strip())
+        idx = int(stripped)
         if idx == 0:
             return ('player', ctx.player)
         if not (1 <= idx <= len(allies)):
@@ -1415,15 +1538,17 @@ async def _pick_recipient(ctx):
 
 
 async def _deliver_item(ctx, item, recipient, item_name: str) -> None:
-    """Add *item* to *recipient* (from _pick_recipient()) -- either the
-    player's own Inventory, or an ally's .items list, respecting
-    ally.items' mount carrying-capacity rules (commands/give.py's
-    _mount_capacity()). Shared tail end of _give_weapon()/_give_ration()/
-    _give_object(), replacing the three-times-duplicated "add straight
-    to ctx.player.inventory" logic each had before EditPlayer's
-    inventory menu could target allies/the mount. New in TADA, Ryan's
-    request."""
-    kind, target = recipient
+    """Add *item* to *recipient* (from _pick_recipient()) -- the player's
+    own Inventory, an ally's .items list (respecting mount carrying-
+    capacity rules, commands/give.py's _mount_capacity()), or another
+    character's Inventory entirely (online or offline -- an offline
+    target has no live save-on-quit path, so it's saved immediately).
+    Shared tail end of _give_weapon()/_give_ration()/_give_object(),
+    replacing the three-times-duplicated "add straight to
+    ctx.player.inventory" logic each had before EditPlayer's inventory
+    menu could target allies/the mount/other characters. New in TADA,
+    Ryan's request."""
+    kind = recipient[0]
 
     if kind == 'player':
         inv = getattr(ctx.player, 'inventory', None)
@@ -1437,7 +1562,22 @@ async def _deliver_item(ctx, item, recipient, item_name: str) -> None:
             await ctx.send('Inventory is full.')
         return
 
-    ally = target
+    if kind == 'other':
+        _, target_player, is_online = recipient
+        inv = getattr(target_player, 'inventory', None)
+        if inv is None:
+            await ctx.send(f'{target_player.name} has no inventory object.')
+            return
+        if not inv.add(item):
+            await ctx.send(f"{target_player.name}'s inventory is full.")
+            return
+        target_player.unsaved_changes = True
+        if not is_online:
+            target_player.save(force=True)
+        await ctx.send(f"Added {item_name} to {target_player.name}'s inventory.")
+        return
+
+    ally = recipient[1]
     from commands.give import _mount_capacity
     from inventory import InventoryEntry
 
