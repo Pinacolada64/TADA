@@ -1114,15 +1114,72 @@ class Player:
             # silently reset to "not thirsty" on every reconnect, making it
             # impossible to ever actually drink anything after logging back
             # in).
+            # experience/honor/moves_made/wizard_glow added here for the same
+            # reason as the block above: written by save() but never read
+            # back. experience in particular is the counter driving
+            # xp_level (combat/resolution.py's _add_exp()) -- every login
+            # silently reset a character's experience to 0, even though
+            # xp_level itself (already in this tuple) was restored fine.
+            # Found by a systematic round-trip audit of every kwargs.get()
+            # default in __init__ against what _load() actually restores.
             simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote',
                            'shield', 'armor', 'active_shield_id', 'loan_amount', 'loan_days', 'food', 'drink',
-                           '_survival_counter')
+                           '_survival_counter', 'experience', 'honor', 'moves_made', 'wizard_glow')
             for k in simple_keys:
                 if k in data:
                     try:
                         setattr(self, k, int(data[k]) if data[k] is not None else data[k])
                     except Exception:
                         setattr(self, k, data[k])
+
+            # poisoned/diseased -- kept out of simple_keys above because that
+            # loop's int(data[k]) cast would turn True/False into 1/0 rather
+            # than a real bool. Same "written by save(), never read back" gap
+            # as the rest of this audit: a poisoned or diseased player was
+            # silently cured on every reconnect.
+            if 'poisoned' in data:
+                self.poisoned = bool(data['poisoned'])
+            if 'diseased' in data:
+                self.diseased = bool(data['diseased'])
+
+            # once_per_day -- gates events like encounters/djinn_sighting.py,
+            # encounters/galadriel.py, bar/skip.py, commands/use.py from
+            # firing more than once per real-world day. Never restored, so
+            # a reconnect let all of them fire again the same day.
+            if 'once_per_day' in data and isinstance(data['once_per_day'], list):
+                self.once_per_day = list(data['once_per_day'])
+
+            # last_play_date -- same restore pattern as last_connection
+            # above, for the "have we already shown today's X" family of
+            # checks that compare against it.
+            if 'last_play_date' in data and isinstance(data['last_play_date'], str):
+                try:
+                    self.last_play_date = datetime.datetime.fromisoformat(data['last_play_date'])
+                except ValueError:
+                    logging.exception("Player._load: failed to restore last_play_date for %s", self.name)
+
+            # natural_alignment / current_alignment -- stored as the enum's
+            # string value, same pattern as guild/char_class/char_race/gender
+            # below. Never restored, so every login reset both to Neutral
+            # regardless of what the player actually was.
+            if 'natural_alignment' in data:
+                try:
+                    from base_classes import Alignment
+                    saved = data['natural_alignment']
+                    matched = next((a for a in Alignment if a.value == saved), None)
+                    if matched is not None:
+                        self.natural_alignment = matched
+                except Exception:
+                    pass
+            if 'current_alignment' in data:
+                try:
+                    from base_classes import Alignment
+                    saved = data['current_alignment']
+                    matched = next((a for a in Alignment if a.value == saved), None)
+                    if matched is not None:
+                        self.current_alignment = matched
+                except Exception:
+                    pass
 
             # Migrate saves written before xp_level existed: map_level used to be
             # overloaded as both dungeon floor (SPUR's cl) and character level
@@ -1192,6 +1249,19 @@ class Player:
                     self.last_connection = datetime.datetime.fromisoformat(data['last_connection'])
                 except ValueError:
                     logging.exception("Player._load: failed to restore last_connection for %s", self.name)
+
+            # Character's date of birth -- __init__ only sets this from a
+            # 'birthday' kwarg, which commands/connect.py's _authenticate()
+            # never passes on reconnect, so without this restore every
+            # login silently reset it to None (and then wrote that None
+            # back out on the next save, permanently erasing it). Found
+            # via logon_events/birthday.py's greeting never firing for a
+            # save file that had a real birthday on disk.
+            if 'birthday' in data and isinstance(data['birthday'], str):
+                try:
+                    self.birthday = datetime.datetime.fromisoformat(data['birthday'])
+                except ValueError:
+                    logging.exception("Player._load: failed to restore birthday for %s", self.name)
 
             # Per-player kill log (each entry is a monster number, one per
             # kill -- not deduplicated). 'dead_monsters' is the current key;
