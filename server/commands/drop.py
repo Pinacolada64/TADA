@@ -15,6 +15,8 @@ Sugar Cube handling (SPUR.MISC.S "d.sugar"):
   Dropping the Sugar Cube ration is a separate special case, handled by
   wild_horse_events.try_sugar_cube_drop() -- see that module for the
   'grassy'-room / wild-horse mechanic.
+
+TODO: Dropping items in OUTER SPACE should display "<item> floats nearby."
 """
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
