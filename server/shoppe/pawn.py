@@ -21,6 +21,16 @@ async def main(ctx: GameContext) -> None:
     player = ctx.player
     inv    = getattr(player, 'inventory', None)
 
+    # Inventory.from_json() rebuilds each carried item as a "lightweight"
+    # Item -- id_number/name/category/flags/kind only, never price (see
+    # its own docstring: "full resolution against the item database can
+    # be done later when it is available") -- so entry.item.price is 0
+    # for any item that survived a save/load round trip, which in
+    # practice is every item a real player carries. Same items_map-by-
+    # number lookup pattern as shoppe/armory.py's _sell() (weapon_map)
+    # to get the real price back.
+    items_map = {i['number']: i for i in (getattr(ctx.server, 'items', None) or [])}
+
     # Debug hook: manually toggle the once-per-day flag (see debug_tools.py)
     await debug_toggle_once_per_day(ctx, _ONCE_PER_DAY_KEY, label='pawn shoppe')
 
@@ -82,7 +92,8 @@ async def main(ctx: GameContext) -> None:
             continue
 
         # Price formula: item price * 10 (SPUR: g2=g2*10)
-        base_price = getattr(item, 'price', 0) or 0
+        idata      = items_map.get(iid, {})
+        base_price = idata.get('price', getattr(item, 'price', 0) or 0)
         offer      = base_price * 10
 
         if offer <= 0:
