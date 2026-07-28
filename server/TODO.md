@@ -1106,38 +1106,75 @@
   session's sandbox) with the same case convention now confirmed
   correct (uppercase-typed `-write` destination name -> $C1-$DA bytes).
 
-  Still NOT verified: the actual interactive editing UI (GETIN key
-  codes, cursor rendering, color selection, save/cancel) -- driving a
-  full interactive session through headless VICE hit a wall this
-  session (see below) and needs either a real keyboard/hands-on VICE
-  session or a scripted approach that doesn't depend on VICE's
-  `-keybuf`/autostart timing.
+  **UPDATE, same day, interactive editing now also verified live**:
+  Ryan ran a real (non-`-console`) VICE session on a real X display and
+  drove the editor by hand, catching a real bug immediately -- F1
+  printed "d" instead of saving. Root cause: `edit_loop`'s key-
+  recognition chain was a `cmp #code / beq handler` per key, and several
+  handlers (`edit_save`, `edit_cancel`, `key_delete`) had drifted more
+  than the 6502's +/-127-byte branch range away as the file grew.
+  c64list assembled this with 0 errors/warnings regardless -- it does
+  NOT validate branch range, silently producing a wrong offset instead
+  of erroring. Fixed with a table-driven dispatch (`editor_keys` +
+  `dispatch_editor_key`), the same self-modified-`jmp` idiom `tada-
+  client.asm`'s `irq_dispatch_next` already uses (a `jmp` has no range
+  limit); `EDITOR_KEYS_END = * - editor_keys` (Ryan's suggestion) keeps
+  the table length from ever desyncing from a hand-maintained count.
+  Also fixed: `load_petscii_editor` now actually checks `KERNAL_LOAD`'s
+  carry/error return (Ryan caught this too) instead of unconditionally
+  jumping to `OVERLAY_BUF` on any outcome. Re-verified with a full clean
+  round trip: login -> `banner edit test2` -> typed "TEST SAVE FIX" ->
+  F1 -> `Banner "test2" saved.` -> byte-verified saved content matches
+  exactly. Also caught in the same pass: `petscii_editor/store.py`'s
+  `CANVASES_DIR` was wrongly placed under the source tree
+  (`server/petscii_editor/canvases/`) instead of `run/server/
+  petscii_canvases/` (this codebase's actual convention for runtime
+  data, gitignored) -- fixed before committing.
 
-  Known rough edges/open questions before calling this done: (1) the
-  PETSCII->screen-code conversion table (`petscii_to_screen`) is a
+  What made live scripted testing hard, for whoever does more of it:
+  VICE's remote monitor pauses CPU execution for the entire duration a
+  client socket stays connected -- confirmed via the STOPWATCH cycle
+  counter not advancing at all across repeated checks in one connection,
+  and it stays paused across disconnects too, until an explicit `x`
+  (resume) is sent -- `quit` instead fully terminates the emulator.
+  `-fs8 "."` (host-filesystem passthrough) also turned out to only
+  expose the `-autostart` target file, not the rest of the directory --
+  switched to a real `-8 tada-client.d64` disk image instead, which
+  doesn't have this problem. The monitor's own `keybuf "..."` command
+  (not the `-keybuf` startup flag) literally injects the surrounding
+  quote characters as real keystrokes -- this client's `"` is a
+  say-shortcut, so a naive `keybuf "banner edit test\r"` actually typed
+  `"banner edit test` and got interpreted as chat. Landed on: poke
+  characters directly into the KERNAL keyboard buffer ($0277-$0280,
+  count at $c6, 10 bytes max per chunk) from a short-lived connection
+  that ends with `x`, then let real wall-clock time pass with no
+  connection open before checking/continuing -- reliable once chunks are
+  kept small and each connection resumes before closing.
+
+  Known rough edges/open questions before calling this fully done: (1)
+  the PETSCII->screen-code conversion table (`petscii_to_screen`) is a
   standard piecewise mapping typed from memory, not verified against a
-  real character ROM -- would only affect how a glyph *looks* while
-  editing, not the raw byte round-tripped to the server, but should be
-  checked visually; (2) RUN/STOP-cancel leaving the server command
-  hanging for up to 15 minutes is a real known limitation, not a bug --
-  a real cancel byte from the client would be the proper fix; (3) no
-  live multi-viewer collaboration yet (phase 2, deferred by design) and
-  no room-picture canvases yet (also phase 2/3); (4) `banner.py`'s two
-  on-disk banner files (`graphics/banner.ans`, `graphics/banner-petscii.
-  txt`) still use the old untagged/legacy `[tokenized]`-equivalent
-  format (store.py's load() treats untagged files as `[tokenized]` for
-  backward compatibility) -- nobody has actually re-saved either through
-  the new editor yet; (5) VICE's `-console` (headless) mode doesn't
-  reliably drive `-keybuf`/autostart's simulated keyboard typing --
-  every attempt this session left BASIC's input line sitting typed-but-
-  never-submitted no matter how long it waited, even after resuming from
-  the monitor with `x` (not `quit`, which fully terminates the emulator
-  instead of just resuming). Worked around for the LOAD-mechanism check
-  by driving the KERNAL calls directly from a tiny assembled test
-  program via the monitor's own `load "file" 0` + `g <addr>` (bypassing
-  keybuf/autostart entirely) and reading the result back from memory --
-  but that workaround only proves LOAD itself works, not the interactive
-  editing loop, which still needs real typed input. Whoever picks this
-  up should investigate whether a non-`-console` (real display, e.g. via
-  Xvfb) run drives the keyboard-buffer timer correctly, since headless
-  mode looks like the actual culprit.
+  real character ROM -- confirmed only that typed characters round-trip
+  correctly to the server, not that every glyph *looks* right while
+  editing; (2) the cursor is drawn/undrawn by re-deriving the screen
+  code from `CHAR_BUF` and re-poking it with/without the `$80` reverse
+  bit, redrawn only on move -- Ryan's suggestion for later: just `EOR
+  $80` whatever's already in screen RAM in place, which would also make
+  a real timed blink (matching `tada-client.asm`'s own existing
+  `cursor_show`/`cursor_hide` pattern) straightforward to add. Ryan also
+  floated pairing this with a status line at the bottom of the editor
+  screen (cursor x/y, current color, etc) -- the same "loop over N
+  bytes, `eor #$80`" idiom generalizes directly to inverting a whole
+  status row for a heading/highlight effect (c64list's own manual has a
+  minimal worked example: `ldx #39 / @Loop: lda $0400,x / eor #$80 / sta
+  $0400,x / dex / bpl <@Loop / rts` inverts the top screen row). Neither
+  the blink nor the status line is built yet -- noted here, not started;
+  (3)
+  RUN/STOP-cancel leaving the server command hanging for up to 15
+  minutes is a known limitation, not a bug -- a real cancel byte from
+  the client would be the proper fix; (4) no live multi-viewer
+  collaboration yet (phase 2, deferred by design) and no room-picture
+  canvases yet (also phase 2/3); (5) `banner.py`'s two on-disk banner
+  files (`graphics/banner.ans`, `graphics/banner-petscii.txt`) still use
+  the old untagged/legacy `[tokenized]`-equivalent format -- nobody has
+  actually re-saved either through the new editor yet.
