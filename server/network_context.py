@@ -224,7 +224,7 @@ class GameContext(BaseContext):
 
             opts: list[str] = []
             if not at_end:
-                opts.append('Enter')
+                opts.append(self.player.client_settings.return_key)
             if idx > 0:
                 opts.append('B/-: back')
             opts.append('Q: quit')

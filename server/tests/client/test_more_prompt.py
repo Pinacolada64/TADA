@@ -25,9 +25,11 @@ from commands.prefs import toggle_more_prompt
 
 
 class _FakePlayer:
-    def __init__(self, more_prompt: bool = True):
+    def __init__(self, more_prompt: bool = True, return_key: str = 'Enter'):
         self._flags = {PlayerFlags.MORE_PROMPT: more_prompt}
-        self.client_settings = type('CS', (), {'screen_rows': 10, 'screen_columns': 80})()
+        self.client_settings = type('CS', (), {
+            'screen_rows': 10, 'screen_columns': 80, 'return_key': return_key,
+        })()
 
     def query_flag(self, flag) -> bool:
         return self._flags.get(flag, False)
@@ -80,6 +82,36 @@ class TestSendDispatchesOnFlag(unittest.IsolatedAsyncioTestCase):
         ctx._send_formatted.assert_awaited_once()
         (sent_lines,), _ = ctx._send_formatted.await_args
         self.assertEqual(len(sent_lines), 20)
+
+
+class TestPaginatePromptText(unittest.IsolatedAsyncioTestCase):
+    """_paginate()'s "-- More --" prompt should offer the player's own
+    configured return key (e.g. "Return" on a C64/PETSCII connection),
+    not a hardcoded "Enter" -- regression test for a real bug where it
+    was hardcoded regardless of client_settings.return_key."""
+
+    async def test_more_prompt_uses_players_return_key(self):
+        player = _FakePlayer(more_prompt=True, return_key='Return')
+        ctx = GameContext(player=player, reader=None, writer=None, server=None, client=None)
+        ctx._send_formatted = AsyncMock()
+        ctx.prompt = AsyncMock(return_value=None)   # bail out after the first page
+
+        await ctx._paginate([f'line {i}' for i in range(5)], page_size=2)
+
+        (prompt_text,), _ = ctx.prompt.await_args
+        self.assertIn('Return', prompt_text)
+        self.assertNotIn('Enter', prompt_text)
+
+    async def test_more_prompt_still_says_enter_for_default_clients(self):
+        player = _FakePlayer(more_prompt=True, return_key='Enter')
+        ctx = GameContext(player=player, reader=None, writer=None, server=None, client=None)
+        ctx._send_formatted = AsyncMock()
+        ctx.prompt = AsyncMock(return_value=None)
+
+        await ctx._paginate([f'line {i}' for i in range(5)], page_size=2)
+
+        (prompt_text,), _ = ctx.prompt.await_args
+        self.assertIn('Enter', prompt_text)
 
 
 class TestToggleMorePrompt(unittest.IsolatedAsyncioTestCase):
