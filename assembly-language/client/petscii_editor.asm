@@ -85,28 +85,85 @@ edit_loop:
         cmp #0
         beq edit_loop            ; nothing typed yet
 
-        cmp #$85                 ; F1 -- save
-        beq edit_save
-        cmp #$03                 ; RUN/STOP -- cancel
-        beq edit_cancel
-
-        cmp #$91                 ; cursor up
-        beq key_up
-        cmp #$11                 ; cursor down
-        beq key_down
-        cmp #$9d                 ; cursor left
-        beq key_left
-        cmp #$1d                 ; cursor right
-        beq key_right
-        cmp #$0d                 ; RETURN -- next line
-        beq key_return
-        cmp #$14                 ; DEL -- backspace-erase
-        beq key_delete
+        jsr dispatch_editor_key  ; jumps straight into the matching
+                                  ; handler and never returns if found;
+                                  ; carry clear on return means no match
+        bcs edit_loop            ; unreachable (see above) -- kept only
+                                  ; so a future edit can't accidentally
+                                  ; fall through past a real match
 
         jsr lookup_color_code    ; carry set + .a = color# (0-15) if this
         bcs key_color            ; byte is one of the 16 color-select codes
 
         jmp key_type             ; anything else: place it as a character
+
+; --- Table-driven special-key dispatch ---
+; Was a chain of `cmp #code / beq handler` -- broke because several
+; handlers (edit_save, edit_cancel, key_delete) landed more than the
+; 6502's +/-127-byte branch range away from here once the file grew
+; (confirmed live: c64list assembled it with 0 errors/warnings anyway,
+; silently producing a wrong branch target instead of erroring on the
+; out-of-range offset -- F1 was landing on essentially a random nearby
+; address instead of edit_save). A table + indirect `jmp` (same idiom
+; tada-client.asm's irq_dispatch_next already uses for its round-robin
+; task table) has no range limit at all, so this can't recur as the file
+; keeps growing.
+;
+; Input: .a = key code (already confirmed nonzero by edit_loop)
+; Output: carry set (jumped to the matching handler -- never actually
+; returns) or carry clear + .a preserved (no match, fall through to
+; color-code lookup then key_type).
+dispatch_editor_key:
+        sta dispatch_key
+        ldx #0
+dispatch_editor_key_loop:
+        cpx #EDITOR_KEYS_END
+        beq dispatch_editor_key_miss    ; short/local branch -- safe
+        lda editor_keys,x
+        cmp dispatch_key
+        beq dispatch_editor_key_hit     ; short/local branch -- safe
+        txa
+        clc
+        adc #3
+        tax
+        jmp dispatch_editor_key_loop    ; jmp, not a branch -- no range limit
+dispatch_editor_key_hit:
+        lda editor_keys+1,x
+        sta dispatch_editor_key_jmp+1
+        lda editor_keys+2,x
+        sta dispatch_editor_key_jmp+2
+dispatch_editor_key_jmp:
+        jmp $ffff                        ; self-modified -- see above
+dispatch_editor_key_miss:
+        lda dispatch_key
+        clc
+        rts
+
+dispatch_key:
+        byte 0
+
+; code, handler-address-lo, handler-address-hi -- 3 bytes/entry.
+editor_keys:
+        byte $85                  ; F1 -- save
+        word edit_save
+        byte $03                  ; RUN/STOP -- cancel
+        word edit_cancel
+        byte $91                  ; cursor up
+        word key_up
+        byte $11                  ; cursor down
+        word key_down
+        byte $9d                  ; cursor left
+        word key_left
+        byte $1d                  ; cursor right
+        word key_right
+        byte $0d                  ; RETURN -- next line
+        word key_return
+        byte $14                  ; DEL -- backspace-erase
+        word key_delete
+EDITOR_KEYS_END = * - editor_keys ; auto-sized -- current PC minus the
+                                   ; table's own start address, so adding/
+                                   ; removing an entry can't desync this
+                                   ; from a hand-maintained count
 
 key_up:
         jsr undraw_cursor

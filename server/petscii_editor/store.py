@@ -32,12 +32,14 @@ log = logging.getLogger(__name__)
 TAG_TOKENIZED = '[tokenized]'
 TAG_RAW       = '[raw_petscii]'
 
-CANVASES_DIR = Path(__file__).resolve().parent / 'canvases'
+CANVASES_DIR = Path('run') / 'server' / 'petscii_canvases'
 
 
 def path_for(name: str) -> Path:
     """Resolve a named banner/canvas to its on-disk path under
-    petscii_editor/canvases/, sanitizing *name* the same way
+    run/server/petscii_canvases/ (runtime data, gitignored -- same
+    convention as board.py's BOARD_FILE/news.py's NEWS_FILE, not
+    checked into the source tree), sanitizing *name* the same way
     text_editor.py's user files do."""
     safe_name = _sanitize_filename(name)
     return CANVASES_DIR / f'{safe_name}.canvas'

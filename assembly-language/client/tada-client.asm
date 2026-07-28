@@ -344,8 +344,48 @@ load_petscii_editor:
         jsr KERNAL_SETLFS
         lda #0                   ; ignored when SA=1, but LOAD still wants A=0
         jsr KERNAL_LOAD
+        bcs load_petscii_editor_error  ; carry set -- .a holds the KERNAL
+                                  ; error number (Ryan caught this: an
+                                  ; earlier version jumped to OVERLAY_BUF
+                                  ; unconditionally, which on any real LOAD
+                                  ; failure -- wrong device, file not found,
+                                  ; disk error -- executes whatever garbage
+                                  ; happened to already be sitting at $2000
+                                  ; instead of failing cleanly)
         jmp OVERLAY_BUF           ; hand off -- the module returns control
                                   ; via JT_RESUME when it's done, not rts
+
+; LOAD failed -- report the KERNAL error number and hand control back to
+; the ordinary prompt loop instead of jumping into unloaded memory.
+load_petscii_editor_error:
+        pha
+        lda #'?'
+        jsr CHROUT
+        lda #'L'
+        jsr CHROUT
+        lda #'O'
+        jsr CHROUT
+        lda #'A'
+        jsr CHROUT
+        lda #'D'
+        jsr CHROUT
+        lda #' '
+        jsr CHROUT
+        lda #'E'
+        jsr CHROUT
+        lda #'R'
+        jsr CHROUT
+        lda #'R'
+        jsr CHROUT
+        lda #' '
+        jsr CHROUT
+        lda #'$'
+        jsr CHROUT
+        pla
+        jsr sid_print_hex_byte
+        lda #$0d
+        jsr CHROUT
+        jmp prompt_loop
 
 ; {alpha:alt} makes the `ascii` line below emit $C1-$DA range bytes for
 ; the uppercase letters instead of plain $41-$5A ASCII -- required, not
