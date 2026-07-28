@@ -72,6 +72,51 @@
                                  ; safe as a sentinel since SID only has
                                  ; registers 0-24
 
+; Canvas-editor stream marker -- shares CANVAS_STREAM_START's byte value
+; with SID_STREAM_START (both are $01; a lone $01 is never trusted by
+; itself either way, see handle_recv_byte_maybe_start), but has its own
+; *confirm* byte so handle_recv_byte_confirm can tell which kind of
+; stream is starting once the second byte arrives. See petscii_editor/
+; canvas.py (server side) for the matching encoder/decoder and the same
+; reasoning about why a second distinguishing byte is needed at all.
+{const: CANVAS_STREAM_START   $01}
+{const: CANVAS_STREAM_CONFIRM $42}   ; 'B' for "banner" -- distinct from
+                                       ; SID_STREAM_CONFIRM ('S')
+
+; KERNAL routines used by load_petscii_editor to LOAD the banner-editor
+; overlay module from disk on demand (see that routine's own comment for
+; why this is a separate on-disk module rather than resident code).
+{const: KERNAL_SETNAM $ffbd}
+{const: KERNAL_SETLFS $ffba}
+{const: KERNAL_LOAD    $ffd5}
+
+; Where the petscii_editor overlay module loads and runs. Chosen well
+; clear of both this resident program's own growth (currently topping
+; out well under $1000 -- see tada-client-vice-labels after a build for
+; the exact current top) and the screen/color RAM/KERNAL-adjacent low
+; page usage below -- leaves the module ~32K of contiguous RAM up to
+; $9fff (BASIC ROM, banked in throughout per this client's design, starts
+; at $a000) to work with, far more than a 2000-byte canvas buffer plus
+; editor code needs.
+{const: OVERLAY_BUF $2000}
+
+; Fixed low-page jump table the petscii_editor overlay (and any future
+; loadable module) calls through instead of depending on this resident
+; program's own routine addresses staying fixed release to release --
+; those addresses shift every time resident code is edited, which would
+; otherwise force every overlay module to be reassembled in lockstep.
+; Lives in the datasette buffer ($033c-$03fb), unused since this client
+; never touches the tape -- populated at boot by init_jump_table (copied
+; up from jump_table_template, since a PRG's own bytes can only occupy
+; one contiguous block starting at its own load address, which is well
+; above this page).
+{const: JT_BASE    $0340}
+{const: JT_SL_SEND  $0340}     ; jmp sl_send
+{const: JT_SL_RECV  $0343}     ; jmp sl_recv
+{const: JT_RESUME   $0346}     ; jmp prompt_loop -- hands control back to
+                                 ; the resident request/response loop once
+                                 ; the overlay is done (saved or cancelled)
+
 ; Zero page pointers
         scr_ptr_lo  = $fb       ; screen write pointer low byte
         scr_ptr_hi  = $fc       ; screen write pointer high byte
@@ -116,6 +161,8 @@
 
 start:
         jsr init_screen
+        jsr init_jump_table      ; populate JT_SL_SEND/JT_SL_RECV/JT_RESUME
+                                  ; before anything could need them
         jsr init_nmi             ; install our receive handler before the
         jsr init_swiftlink       ; ACIA is told to start raising NMIs on it
         jsr init_sid             ; silence the SID chip, clear playback state
@@ -244,6 +291,80 @@ init_swiftlink:
         lda #SL_CMD_INIT        ; DTR low, RTS low, RxD IRQ on
         sta SL_COMMAND
         rts
+
+; --- Init jump table ---
+; Copies jump_table_template's 9 bytes up into the fixed JT_BASE page
+; ($0340) -- see JT_BASE's own comment for why this can't just be
+; assembled directly at $0340 (a PRG only occupies one contiguous block
+; starting at its own load address, well above this page).
+init_jump_table:
+        ldx #8
+init_jump_table_loop:
+        lda jump_table_template,x
+        sta JT_BASE,x
+        dex
+        bpl init_jump_table_loop
+        rts
+
+jump_table_template:
+        jmp sl_send
+        jmp sl_recv
+        jmp prompt_loop
+
+; --- Load the petscii_editor overlay module and hand control to it ---
+; Called from handle_recv_byte_canvas_confirm once a real canvas stream
+; is confirmed starting (CANVAS_STREAM_START+CANVAS_STREAM_CONFIRM seen
+; back-to-back). The module is a separate .prg (petscii_editor.asm,
+; assembled with its own `orig OVERLAY_BUF`) rather than resident code,
+; so ordinary play/talk/movement sessions don't pay for a screen editor's
+; code+buffers sitting in memory the whole time -- it's only loaded when
+; a "banner edit" session actually starts.
+;
+; Uses LOAD "...",8,1 (secondary address 1: use the address embedded in
+; the file's own 2-byte header, i.e. OVERLAY_BUF, same convention as a
+; normal `LOAD"program",8,1`) rather than passing an explicit target
+; address, so the module's own assembly is the single source of truth
+; for where it lives.
+;
+; The rest of this stream (the 16-bit length prefix + 2000-byte canvas
+; body) is still arriving over SwiftLink while the disk LOAD runs --
+; nmi_handler keeps draining it into rx_buf regardless of what mainline
+; is doing (same reason sid_engine's background streaming works), so
+; nothing is lost during the load's real wall-clock time. The module
+; picks up that data itself via JT_SL_RECV once it's running.
+load_petscii_editor:
+        lda #10                  ; length of "PETSCII.ED" below
+        ldx #<petscii_editor_filename
+        ldy #>petscii_editor_filename
+        jsr KERNAL_SETNAM
+        lda #1                   ; file number (arbitrary, unused after LOAD)
+        ldx #8                   ; device 8
+        ldy #1                   ; secondary address 1 -- use the file's
+                                  ; own embedded load address
+        jsr KERNAL_SETLFS
+        lda #0                   ; ignored when SA=1, but LOAD still wants A=0
+        jsr KERNAL_LOAD
+        jmp OVERLAY_BUF           ; hand off -- the module returns control
+                                  ; via JT_RESUME when it's done, not rts
+
+; {alpha:alt} makes the `ascii` line below emit $C1-$DA range bytes for
+; the uppercase letters instead of plain $41-$5A ASCII -- required, not
+; cosmetic: verified live (VICE monitor: LOAD against a real c1541-
+; written disk) that plain ASCII bytes get KERNAL error $04 (FILE NOT
+; FOUND) even though they display identically to a human. A real C64
+; disk directory stores uppercase letters in the $C1-$DA range (the
+; "shifted" PETSCII codes for those keys) -- c1541 -write's own ASCII-
+; input case inversion (lowercase in -> uppercase $C1-$DA out) produces
+; this same range, and LOAD only succeeds once SETNAM's filename bytes
+; match it exactly, byte for byte. Reset to {alpha:normal} (this file's
+; true default -- see c64list's own manual) immediately after so this
+; doesn't leak into hex_digits/status_msg/sid_hex_digits further down,
+; which are plain CHROUT display text, not filenames, and must stay in
+; ordinary ASCII-range encoding.
+{alpha:alt}
+petscii_editor_filename:
+        ascii "PETSCII.ED"
+{alpha:normal}
 
 ; --- Init NMI receive handler ---
 ; The SwiftLink cartridge raises NMI (not IRQ) when a byte arrives --
@@ -691,6 +812,8 @@ handle_recv_byte_maybe_start:
 handle_recv_byte_confirm:
         cmp #SID_STREAM_CONFIRM
         beq handle_recv_byte_start
+        cmp #CANVAS_STREAM_CONFIRM
+        beq handle_recv_byte_canvas_confirm
         ; False alarm: the earlier $01 wasn't really a stream start.
         ; Display both the swallowed $01 and this byte as ordinary text
         ; instead of silently treating either as SID framing.
@@ -701,6 +824,18 @@ handle_recv_byte_confirm:
         jsr display_char
         pla
         jmp display_char
+
+; A real canvas stream is confirmed -- hand off to the petscii_editor
+; overlay module entirely rather than reusing the SID mode-1/2/3 states
+; (sid_mode goes back to 0 first: we're diverting control away from this
+; dispatcher altogether, not starting a SID-shaped receive here). The
+; module reads the length prefix and 2000-byte body itself once it's
+; loaded and running -- see load_petscii_editor's own comment for why
+; nothing arriving in the meantime is lost.
+handle_recv_byte_canvas_confirm:
+        lda #0
+        sta sid_mode
+        jmp load_petscii_editor
 
 handle_recv_byte_start:
         inc sid_stream_starts     ; TEMP diagnostic -- see its own comment
@@ -1278,40 +1413,10 @@ IRQ_TASK_TABLE_LEN = 2          ; entries * 2 -- keep in sync with the table abo
 ; rx_tail (plain bytes) wrap around for free on overflow, no masking
 ; needed.
 rx_buf:
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        area 256, 0
 
 ; 256-byte SID-stream receive ring buffer -- same wrap-for-free sizing as
 ; rx_buf, but the roles are reversed: mainline (handle_recv_byte) is the
 ; producer here, sid_play (IRQ context) is the consumer.
 SID_BUF:
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        area 256, 0

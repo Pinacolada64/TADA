@@ -9,24 +9,35 @@ ctx.send(), same as any other game text.
 
 server/graphics/banner-petscii.txt holds a 40-column PETSCII-friendly
 version of the banner for Commodore clients.
+
+Loading actually goes through petscii_editor.store.load(), which also
+understands the `[raw_petscii]` binary canvas format the in-game PETSCII
+editor (commands/banner_edit.py) produces -- see that package's
+docstring. A canvas gets rendered into the same `{glyph}`/`|token|` text
+lines a hand-authored banner file would already contain, so ctx.send()
+stays the single display path for both.
 """
 from __future__ import annotations
 
 import logging
 from network_context import GameContext
+from petscii_editor import store as canvas_store
+from petscii_editor.canvas import Canvas, render_lines
 from terminal import Translation
 
 
 def load_banner(path: str) -> list[str]:
     """Load the banner file into a list of lines. Returns [] if missing."""
-    try:
-        with open(path) as f:
-            lines = f.read().splitlines()
+    result = canvas_store.load(path)
+    if isinstance(result, Canvas):
+        lines = render_lines(result)
+    else:
+        lines = result
+    if lines:
         logging.info("Loaded %d-line banner from '%s'", len(lines), path)
-        return lines
-    except FileNotFoundError:
+    else:
         logging.warning("'%s' not found, login banner unavailable.", path)
-        return []
+    return lines
 
 
 def load_banner_for(ctx: GameContext,

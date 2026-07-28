@@ -16,6 +16,23 @@ LAUNCH_VICE     = x64sc
 # --- Target ---
 TARGET          = tada-client
 
+# --- Loadable overlay modules ---
+# Separate .prg files, loaded on demand at OVERLAY_BUF (see tada-client.asm's
+# own comment on load_petscii_editor) rather than compiled into TARGET --
+# Ryan's call: split the client into loadable sub-modules instead of growing
+# tada-client.asm itself indefinitely. Each needs its own preprocess+assemble
+# pass, same pipeline as TARGET, and must end up in whatever directory VICE's
+# `-fs8 "."` (or a real 1541/1581) serves as device 8, since the resident
+# program LOADs it by filename at runtime -- this Makefile's own directory
+# already doubles as that build/serve directory.
+MODULES         = petscii_editor
+
+petscii_editor_pp.asm: petscii_editor.asm
+	$(PREPROCESSOR) petscii_editor.asm
+
+petscii_editor.prg: petscii_editor_pp.asm
+	$(C64LIST) petscii_editor_pp.asm -prg:petscii_editor -sym -ovr
+
 # --- ROM paths ---
 VICE_ROMS       = $(HOME)/.local/share/vice/C64
 KERNAL          = $(VICE_ROMS)/kernal-901246-01.bin
@@ -52,7 +69,7 @@ monitor-commands: $(TARGET)-vice-labels
 	echo "ll \"$(TARGET)-vice-labels\"" > monitor-commands
 
 # Default target: build everything
-all: $(TARGET).prg $(TARGET)-vice-labels monitor-commands
+all: $(TARGET).prg $(TARGET)-vice-labels monitor-commands $(addsuffix .prg,$(MODULES))
 
 # --- VICE launch ---
 vice: all
@@ -77,6 +94,40 @@ vice: all
 
 # --- Utility targets ---
 
+# Build a real .d64 disk image holding both the resident client and the
+# petscii_editor overlay module, as an alternative to VICE's `-fs8 "."`
+# host-filesystem passthrough for device 8 (which `make vice` still uses
+# day to day) -- useful for testing against a real mounted disk image, or
+# eventually writing to a real floppy for actual hardware.
+#
+# Uses c1541 (part of VICE, native -- no wine/wine32 dependency, unlike
+# c64list's own -d64 flag, which this originally tried and got blocked
+# on a missing wine32/multiarch install) to format a fresh image and
+# write both programs into it.
+#
+# CASE MATTERS, verified live in this session (VICE remote monitor: LOAD
+# against a real c1541-written disk, checking the KERNAL's own carry/
+# error-code result -- not just theory): c1541 -write's destination name
+# does its own ASCII-case -> PETSCII-range conversion, and it's the
+# OPPOSITE of what you'd guess -- lowercase input produces the $41-$5A
+# ("unshifted key") byte range, UPPERCASE input produces $C1-$DA ("shifted
+# key"). "PETSCII.ED" below is deliberately typed in caps so it lands as
+# $C1-$DA, because that's what a real C64 disk directory actually stores
+# for uppercase letters (confirmed the hard way: tada-client.asm's
+# load_petscii_editor originally sent plain `ascii "PETSCII.ED"` --
+# literal $41-$5A ASCII bytes -- and got KERNAL error $04, FILE NOT FOUND,
+# even though both encodings display identically on screen). tada-
+# client.asm's own petscii_editor_filename now uses the matching raw
+# $d0,$c5,$d4,... byte literals rather than `ascii` for exactly this
+# reason -- keep the two in sync if either changes.
+$(TARGET).d64: $(TARGET).prg petscii_editor.prg
+	rm -f $(TARGET).d64
+	c1541 -format "tada,00" d64 $(TARGET).d64
+	c1541 $(TARGET).d64 -write $(TARGET).prg "tada-client"
+	c1541 $(TARGET).d64 -write petscii_editor.prg "PETSCII.ED"
+
+d64: $(TARGET).d64
+
 # Just preprocess, useful for checking macro/const output
 preprocess: $(TARGET)_pp.asm
 
@@ -90,7 +141,12 @@ clean:
 	      $(TARGET)_pp.sym \
 	      $(TARGET).prg \
 	      $(TARGET)-vice-labels \
-	      monitor-commands
+	      monitor-commands \
+	      $(addsuffix _pp.asm,$(MODULES)) \
+	      $(addsuffix _pp.sym,$(MODULES)) \
+	      $(addsuffix .prg,$(MODULES)) \
+	      $(addsuffix .sym,$(MODULES)) \
+	      $(TARGET).d64
 
 # Show build status and server reachability
 status:
@@ -105,4 +161,4 @@ status:
 		echo "$(SL_HOST):$(SL_PORT) REACHABLE" || \
 		echo "$(SL_HOST):$(SL_PORT) NOT REACHABLE"
 
-.PHONY: all vice preprocess build clean status
+.PHONY: all vice d64 preprocess build clean status

@@ -1059,3 +1059,85 @@
   (a `MessageHeader` line, e.g. "Frozen: Yes", or just an indicator next
   to the title in `board`'s listing). Not implemented -- noted here per
   Ryan's request, not built yet.
+
+7/27/26:
+- Online PETSCII editor (continues the 7/23/26 entry above, its "in-game
+  admin command" option): Phase 1 (single-editor, no live multi-viewer
+  sync -- explicitly deferred) implemented. Server side has full unit
+  test coverage (3227/3227 suite green). Client side: split into a
+  resident program plus loadable overlay modules for the first time
+  (Ryan's call, so tada-client.asm doesn't grow indefinitely) -- see
+  `assembly-language/client/CLIENT_MECHANICS.md`'s "Loadable overlay
+  modules" section for the `OVERLAY_BUF`/jump-table mechanism, and
+  `petscii_editor.asm` for the actual editor (GETIN-driven cursor
+  movement, C64 color-key codes select cell color, F1 saves/uploads,
+  RUN/STOP cancels with no upload at all -- the server command just
+  times out after 15 minutes, since there's no clean cancel signal yet).
+  Server: `server/petscii_editor/` (`canvas.py`'s Canvas model + wire
+  format + `{$xx}`/`|token|` `render_lines()`, `store.py`'s
+  `[tokenized]`/`[raw_petscii]` header-tagged file storage),
+  `commands/banner_edit.py` (`banner edit <name>` / `banner list`,
+  admin-only), `banner.py` now delegates its loading to
+  `petscii_editor.store.load()`.
+
+  **Verified live this session** (VICE remote monitor, scripted against
+  the real assembled `.prg`s and a real c1541-built disk -- not just
+  "assembles clean"): the actual `load_petscii_editor` KERNAL LOAD
+  sequence successfully finds and loads the real `petscii_editor.prg`
+  to `OVERLAY_BUF` ($2000) from a real disk image, confirmed by reading
+  the loaded bytes back out of C64 memory and matching them against the
+  module's own known code. This caught and fixed a real bug along the
+  way: `petscii_editor_filename` originally used `ascii "PETSCII.ED"`
+  (plain ASCII bytes, $41-$5A range for the letters), which LOAD
+  rejected with KERNAL error $04 (FILE NOT FOUND) even though it
+  displays identically to a human -- a real C64 disk directory stores
+  uppercase letters in the $C1-$DA ("shifted key") range, not $41-$5A.
+  Fixed with c64list's `{alpha:alt}` directive around the `ascii` line
+  (confirmed via the real c64list manual's "Mixed character case
+  support" section, which documents this exact $41-lowercase/$C1-
+  uppercase split for the alternate charset) -- tightly scoped and reset
+  with `{alpha:normal}` right after, since it would otherwise also
+  re-encode `hex_digits`/`status_msg` further down in the same file,
+  which must stay plain ASCII (see that label's own comment in `tada-
+  client.asm`). `Makefile`'s `make d64` target uses `c1541` (native,
+  part of VICE -- no wine/wine32
+  dependency, switched from an initial attempt using c64list's own
+  `-d64` flag, which was blocked by a missing wine32 install in this
+  session's sandbox) with the same case convention now confirmed
+  correct (uppercase-typed `-write` destination name -> $C1-$DA bytes).
+
+  Still NOT verified: the actual interactive editing UI (GETIN key
+  codes, cursor rendering, color selection, save/cancel) -- driving a
+  full interactive session through headless VICE hit a wall this
+  session (see below) and needs either a real keyboard/hands-on VICE
+  session or a scripted approach that doesn't depend on VICE's
+  `-keybuf`/autostart timing.
+
+  Known rough edges/open questions before calling this done: (1) the
+  PETSCII->screen-code conversion table (`petscii_to_screen`) is a
+  standard piecewise mapping typed from memory, not verified against a
+  real character ROM -- would only affect how a glyph *looks* while
+  editing, not the raw byte round-tripped to the server, but should be
+  checked visually; (2) RUN/STOP-cancel leaving the server command
+  hanging for up to 15 minutes is a real known limitation, not a bug --
+  a real cancel byte from the client would be the proper fix; (3) no
+  live multi-viewer collaboration yet (phase 2, deferred by design) and
+  no room-picture canvases yet (also phase 2/3); (4) `banner.py`'s two
+  on-disk banner files (`graphics/banner.ans`, `graphics/banner-petscii.
+  txt`) still use the old untagged/legacy `[tokenized]`-equivalent
+  format (store.py's load() treats untagged files as `[tokenized]` for
+  backward compatibility) -- nobody has actually re-saved either through
+  the new editor yet; (5) VICE's `-console` (headless) mode doesn't
+  reliably drive `-keybuf`/autostart's simulated keyboard typing --
+  every attempt this session left BASIC's input line sitting typed-but-
+  never-submitted no matter how long it waited, even after resuming from
+  the monitor with `x` (not `quit`, which fully terminates the emulator
+  instead of just resuming). Worked around for the LOAD-mechanism check
+  by driving the KERNAL calls directly from a tiny assembled test
+  program via the monitor's own `load "file" 0` + `g <addr>` (bypassing
+  keybuf/autostart entirely) and reading the result back from memory --
+  but that workaround only proves LOAD itself works, not the interactive
+  editing loop, which still needs real typed input. Whoever picks this
+  up should investigate whether a non-`-console` (real display, e.g. via
+  Xvfb) run drives the keyboard-buffer timer correctly, since headless
+  mode looks like the actual culprit.

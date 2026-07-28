@@ -172,6 +172,55 @@ it's *still arriving* blocks until it catches up. Not yet fixed:
 buffering trailing text and flushing it once a line is submitted would
 close this gap.
 
+## Loadable overlay modules
+
+Ryan's call: rather than growing `tada-client.asm` indefinitely, features
+that aren't needed for every session (the PETSCII banner editor is the
+first) live in their own separately-assembled `.prg` files, LOADed from
+disk on demand and discarded once done, instead of sitting resident the
+whole time.
+
+- `OVERLAY_BUF` (`$2000`) is where every module loads and runs -- well
+  clear of this resident program's own growth and the low-page/screen/
+  KERNAL territory below it, with ~32K of headroom up to `$9fff` (BASIC
+  ROM, banked in throughout, starts at `$a000`).
+- `load_petscii_editor` (tada-client.asm) does the actual `LOAD
+  "PETSCII.ED",8,1` (KERNAL `SETNAM`/`SETLFS`/`LOAD`, secondary address
+  1 -- use the address embedded in the module's own PRG header, which is
+  `OVERLAY_BUF` since the module's source itself does `orig $2000`) and
+  then `jmp OVERLAY_BUF` to hand off control. It never returns via `rts`
+  -- the module eventually `jmp`s back through `JT_RESUME` instead (see
+  below), so this is a one-way handoff, not a call.
+- A module can't just `jsr` this resident program's own routines
+  (`sl_send`, `sl_recv`, ...) directly -- their addresses shift every
+  time resident code is edited, which would force every module to be
+  reassembled in lockstep. Instead there's a **fixed low-page jump
+  table** at `JT_BASE` (`$0340`, inside the unused datasette buffer --
+  this client never touches the tape): `JT_SL_SEND` ($0340),
+  `JT_SL_RECV` ($0343), `JT_RESUME` ($0346), each a 3-byte `jmp` to the
+  real resident routine. `init_jump_table` (called once at boot, right
+  after `init_screen`) copies these from `jump_table_template` (ordinary
+  resident data) up into that fixed page -- can't just assemble the
+  jump table directly at `$0340`, since a PRG only occupies one
+  contiguous block starting at its own load address ($0801), well above
+  that page.
+- The still-arriving rest of a stream (length prefix + body) during the
+  disk `LOAD`'s own wall-clock time isn't lost: `nmi_handler` keeps
+  draining SwiftLink into `rx_buf` regardless of what mainline is doing,
+  same mechanism that makes SID background streaming work. The module
+  drains it itself via `JT_SL_RECV` once it's running.
+- Zero page: a module can reuse `scr_ptr_lo`/`scr_ptr_hi` (`$fb`/`$fc`)
+  for its own `(zp),Y` indirection -- already proven safe under this
+  exact "interrupts enabled, chained into the stock KERNAL IRQ"
+  execution environment by this resident program's own use of them, and
+  safe to share since a module runs to completion before control ever
+  returns to resident code (never concurrently with it).
+- See `petscii_editor.asm` for the first real module -- also the
+  reference for the "no `ds` directive, no macro parameters" bulk-copy
+  pattern (self-modified `lda`/`sta` operands, incrementing the operand
+  bytes directly rather than using `X`/`Y` indexed addressing once a
+  buffer exceeds 256 bytes).
+
 ## Hard-won lessons
 
 - **CHROUT does not reliably preserve X.** Any loop that keeps an index
@@ -194,8 +243,11 @@ close this gap.
   as indirect pointers — see the Zero page section above. Before adding
   a new zero-page byte, verify with the same disassembly technique;
   before that, ask whether it needs to be zero page at all.
-- **c64list syntax gotchas**: no `ds`/reserve-space directive (write out
-  `byte 0,0,0,...`); accumulator shifts must be bare (`lsr`, not
-  `lsr a`); the `@:`/`<@`/`>@` anonymous local label scheme only
-  resolves to the single nearest previous/next `@:`, so use plain named
-  labels once a routine needs more than one loop-back point.
+- **c64list syntax gotchas**: reserve-space is `area <size>[, <fill>]`
+  (Ryan caught this -- an earlier version of this note wrongly claimed
+  no such directive existed and said to write out `byte 0,0,0,...` by
+  hand instead; `petscii_editor.asm`'s `CHAR_BUF`/`COLOR_BUF` use `area
+  1000, 0` now). Accumulator shifts must be bare (`lsr`, not `lsr a`);
+  the `@:`/`<@`/`>@` anonymous local label scheme only resolves to the
+  single nearest previous/next `@:`, so use plain named labels once a
+  routine needs more than one loop-back point.
