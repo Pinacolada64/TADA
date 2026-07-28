@@ -46,7 +46,8 @@ class _FakeCtx:
 def _no_op_swing_result():
     result = MagicMock()
     result.damage = 0
-    result.ammo_used = False
+    result.round_max = 0
+    result.round_count = None
     result.hit = False
     result.weapon_id = None
     return result

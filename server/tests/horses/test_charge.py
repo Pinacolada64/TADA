@@ -52,6 +52,7 @@ class _FakeWeapon:
         self.name = name
         self.number = 1
         self.id_number = 1
+        self.sound_effect = None
 
 
 def _make_mount(name='SILVER', saddled=False) -> Ally:

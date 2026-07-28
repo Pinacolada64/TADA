@@ -286,21 +286,36 @@ def weapon_sfx(weapon: Weapon) -> tuple[str, str]:
     """
     Return (miss_sfx, hit_sfx) strings for a weapon.
 
-    Uses the weapon's sound_effect field if present, otherwise
-    falls back to the WEAPON_SFX table based on weapon_class.
-    Mirrors the original ACOS logic: vr = val(zz$)*6+1.
+    Uses the weapon's sound_effect field if present, otherwise falls back
+    to a per-class table. Every weapon in weapons.json already carries an
+    explicit sound_effect (SPUR.WEAPON.S:43's per-weapon "vr" digit --
+    convert_weapon_data.py reads it straight off the raw record, it is
+    NOT derived from weapon_class), so this fallback only matters for
+    weapons that skip that field (tests, hand-built items). weapon_class
+    only weakly predicts the real sound -- e.g. "projectile" alone covers
+    bows/slings (SWISH!/THUNK!), pistols/muskets (KA-PWING!/BLAM!), and
+    full-auto guns (BRRRT!/BRRRT!) -- so each fallback entry below is the
+    *majority* sound actually used by real weapons.json entries of that
+    class, not a guess:
+      energy braced 3/3 on SIZZLE!/SIZZLE! (LIGHT SABRE, HAND PHASER, PLASMA RIFLE)
+      bash/slash  10/14 on SWISH!/BASH!
+      poke/jab     5/9  on SWISH!/STAB!
+      pole/range   5/8  on SWISH!/STAB!
+      projectile   9/16 on SWISH!/THUNK!
+      proximity    2/6  tied CRACK!/CRACK! vs SIZZLE!/SIZZLE! vs FIZZLE!/BOOOM!;
+                   FIZZLE!/BOOOM! picked as the "detonate" default
     """
     if weapon.sound_effect and len(weapon.sound_effect) == 2:
         return tuple(weapon.sound_effect)  # type: ignore[return-value]
 
     # Fall back to class-based table
     class_to_index: dict[WeaponClass, int] = {
-        WeaponClass.ENERGY:     1,
+        WeaponClass.ENERGY:     7,
         WeaponClass.BASH_SLASH: 2,
-        WeaponClass.POKE_JAB:   3,
-        WeaponClass.POLE_RANGE: 5,
-        WeaponClass.PROJECTILE: 8,
-        WeaponClass.PROXIMITY:  9,
+        WeaponClass.POKE_JAB:   4,
+        WeaponClass.POLE_RANGE: 4,
+        WeaponClass.PROJECTILE: 3,
+        WeaponClass.PROXIMITY:  6,
     }
     idx = class_to_index.get(weapon.weapon_class, 0)
     return WEAPON_SFX[idx]

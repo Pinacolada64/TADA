@@ -306,6 +306,52 @@ class GiveCommand(Command):
                     await ctx.send(f"{ally.name}'s saddlebags are full.")
                     return CommandResult.ok()
 
+            # Weapon: allies have no READY command of their own, so a given
+            # weapon is auto-readied on the spot (replacing whatever they
+            # had -- combat/resolution.py ally_attacks() reads ally.readied_weapon).
+            from item_system import Weapon
+            if isinstance(item, Weapon):
+                if inventory:
+                    inventory.remove(item)
+                ally.readied_weapon = item
+                ally.ammo_rounds = 0
+                ally.ammo_max = 0
+                ally.ammo_damage = 0
+                ally.items.append(entry)
+                await ctx.send(f'You give the {iname} to {ally.name}.')
+                await ctx.send(f'{ally.name} readies the {iname}!')
+                return CommandResult.ok()
+
+            # Ammo: loads straight into the ally's readied weapon, same as
+            # commands/use.py's player ammo branch, rather than sitting in
+            # ally.items -- an ally has no USE command to load it later.
+            flags = getattr(item, 'flags', None)
+            is_ammo_carrier = isinstance(flags, dict) and 'rounds' in flags and 'used_with' in flags
+            if is_ammo_carrier:
+                weapon = getattr(ally, 'readied_weapon', None)
+                if weapon is None:
+                    await ctx.send(f'{ally.name} has no weapon readied to load {iname} into.')
+                    return CommandResult.ok()
+                wname_upper = (getattr(weapon, 'name', '') or '').upper()
+                if 'STORM' in wname_upper:
+                    await ctx.send(f"The {wname_upper} doesn't use physical ammo.")
+                    return CommandResult.ok()
+                used_with = (flags.get('used_with') or '').strip().upper()
+                if used_with and used_with not in wname_upper:
+                    await ctx.send(f'That ammo is not for the {wname_upper}.')
+                    return CommandResult.ok()
+                rounds = int(flags.get('rounds', 0))
+                damage = int(flags.get('damage', 0))
+                if inventory:
+                    inventory.remove(item)
+                ally.ammo_rounds = rounds
+                ally.ammo_max = rounds
+                ally.ammo_damage = damage
+                await ctx.send(f'You give the {iname} to {ally.name}.')
+                await ctx.send(f'{ally.name} loads the {weapon.name}: '
+                                f'{rounds} rounds ready, +{damage} damage.')
+                return CommandResult.ok()
+
             if inventory:
                 inventory.remove(item)
             ally.items.append(entry)

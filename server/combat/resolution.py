@@ -32,6 +32,8 @@ import random
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 
+from item_system import weapon_sfx
+
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
@@ -212,8 +214,14 @@ class AttackResult:
     fireball_secondary: int  = 0
     # SPUR.COMBAT.S line 164: hitting for >4 damage has a 60% chance of raising player DEX
     dex_improved:       bool = False
-    no_ammo:  bool = False  # projectile/energy weapon fired with 0 rounds (SPUR.COMBAT.S:84)
-    ammo_used: bool = False  # one round consumed this swing (SPUR.COMBAT.S:99: vn=vn-1)
+    # Ammo status (SPUR.COMBAT.S vn/vl): round_max=0 means this weapon doesn't
+    # use ammo at all (melee, or STORM which bypasses ammo). round_max>0 means
+    # it does; round_count is then rounds remaining (0 = needs reload), or
+    # None if the swing was blocked outright because it was already empty
+    # (SPUR.COMBAT.S:84 "NO AMMO READY!" -- no round fired, no sfx, no attack).
+    round_count: Optional[int] = None
+    round_max:   int = 0
+    sfx: Optional[str] = None  # weapon's hit/miss sound effect for this swing (item_system.weapon_sfx)
     # Mounted CHARGE (skip branch SPUR.COMBAT.S m.attack/p.attack):
     is_charge:     bool = False  # CHARGE bonus applied (+2 hit threshold, x2 damage)
     miss_over_top: bool = False  # mounted + melee weapon whiffed clean over a small monster
@@ -270,6 +278,10 @@ class AllyAttackResult:
     ally_name: str
     hit:       bool
     damage:    int
+    # See AttackResult.round_count/round_max: same folded no_ammo/ammo_used scheme.
+    round_count: Optional[int] = None
+    round_max:   int = 0
+    sfx:       Optional[str] = None  # weapon's miss/hit sound effect, if it has a weapon readied
 
 
 @dataclass
@@ -316,7 +328,7 @@ def check_special_weapon(
     # correspond to sound groups BLAM!!, FIZZLE, and BRRRT! in the SPUR sound table.
     hit_sound = ''
     if weapon:
-        sf = getattr(weapon, 'sound_effect', ('', ''))
+        sf = getattr(weapon, 'sound_effect', None) or ('', '')
         hit_sound = (sf[1] if len(sf) > 1 else '').upper()
     _LOUD = ('BLAM', 'BRRRT', 'BOOM', 'FIZZL', 'KA-PW', 'CRACK')
     result.scare_eligible = any(kw in hit_sound for kw in _LOUD)
@@ -436,12 +448,18 @@ def player_attacks(
                    and 'STORM' not in weapon_name.upper())
     ammo_rounds = int(getattr(player, 'ammo_rounds', 0) or 0)
     ammo_damage = int(getattr(player, 'ammo_damage', 0) or 0)
+    ammo_max    = int(getattr(player, 'ammo_max', 0) or 0) if _needs_ammo else 0
+    miss_sfx, hit_sfx = weapon_sfx(weapon) if weapon is not None else (None, None)
     if _needs_ammo and ammo_rounds < 1:
         return AttackResult(
-            hit=False, damage=0, no_ammo=True,
+            hit=False, damage=0,
+            round_count=None, round_max=ammo_max,
             weapon_name=weapon_name, weapon_id=weapon_id,
             attacker_name=getattr(player, 'name', ''),
         )
+    # SPUR.COMBAT.S:99 vn=vn-1 -- one round fires (or is consumed) this swing,
+    # win, lose, or ineffective, as long as the weapon actually fired.
+    _round_count = (ammo_rounds - 1) if _needs_ammo else None
 
     # Special weapon check (SPUR.COMBAT.S lines 127-151)
     sw = check_special_weapon(weapon, monster, weapons_data or [])
@@ -456,7 +474,7 @@ def player_attacks(
             hit=False, damage=0, ineffective=True,
             weapon_name=weapon_name, weapon_id=weapon_id,
             attacker_name=getattr(player, 'name', ''),
-            ammo_used=_needs_ammo,
+            round_count=_round_count, round_max=ammo_max, sfx=miss_sfx,
         )
 
     # Instant kill: STORM weapon vs special-weapon monster (SPUR lines 128-129: ms=0)
@@ -466,7 +484,7 @@ def player_attacks(
             hit=True, damage=monster_hp, instant_kill=True,
             weapon_name=weapon_name, weapon_id=weapon_id,
             attacker_name=getattr(player, 'name', ''),
-            ammo_used=_needs_ammo,
+            round_count=_round_count, round_max=ammo_max, sfx=hit_sfx,
         )
 
     ma = monster.get('to_hit') or 4              # SPUR ma
@@ -482,7 +500,7 @@ def player_attacks(
                 hit=False, damage=0, miss_over_top=True,
                 weapon_name=weapon_name, weapon_id=weapon_id,
                 attacker_name=getattr(player, 'name', ''),
-                ammo_used=_needs_ammo,
+                round_count=_round_count, round_max=ammo_max, sfx=miss_sfx,
             )
 
     p2 = hit_threshold(wc_str, ma, zu, xp_level)
@@ -523,7 +541,7 @@ def player_attacks(
             ease_helped=True, is_surprise=is_surprise,
             bad_weapon_choice=bad_weapon_choice,
             monster_scared=scared,
-            ammo_used=_needs_ammo,
+            round_count=_round_count, round_max=ammo_max, sfx=hit_sfx,
             is_charge=is_charge,
         )
 
@@ -537,7 +555,7 @@ def player_attacks(
             attacker_name=getattr(player, 'name', ''),
             bad_weapon_choice=bad_weapon_choice,
             monster_scared=scared,
-            ammo_used=_needs_ammo,
+            round_count=_round_count, round_max=ammo_max, sfx=miss_sfx,
         )
 
     # Hit
@@ -591,7 +609,7 @@ def player_attacks(
         monster_scared=scared,
         fireball_secondary=fireball_secondary,
         dex_improved=dex_improved,
-        ammo_used=_needs_ammo,
+        round_count=_round_count, round_max=ammo_max, sfx=hit_sfx,
         is_charge=is_charge,
     )
 
@@ -847,19 +865,48 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False,
 
 def ally_attacks(ally_name: str, ally_strength: int, monster: dict,
                  has_light_armor: bool = False,
-                 xp_level: int = 1) -> AllyAttackResult:
+                 xp_level: int = 1,
+                 weapon=None,          # Weapon item or None (unarmed -- SPUR default)
+                 ammo_rounds: int = 0,
+                 ammo_max: int = 0,
+                 ammo_damage: int = 0) -> AllyAttackResult:
     """
     Resolve one ally attack.  Simpler than player attacks — allies use a
     flat d10 roll; damage is capped at 8 and scaled by player xp level.
 
     has_light_armor: ally has "!" flag in SPUR (light-armored ally)
+    weapon: TADA-only extension -- SPUR allies never carry a weapons.json
+        entry (skip branch p.a1 keys its TINK/THUD/CRUNCH sound off a
+        strength-tier flag baked into the ally's descriptor string, not a
+        weapon class). If the player has GIVEn this ally an actual weapon
+        (commands/give.py auto-readies it), key the sfx off its
+        WeaponClass instead via item_system.weapon_sfx(), and gate ammo
+        the same way player_attacks() does for projectile/energy weapons.
     """
+    needs_ammo = False
+    if weapon is not None:
+        wc = getattr(weapon, 'weapon_class', None)
+        wc_str = wc.value if hasattr(wc, 'value') else str(wc or '')
+        wname = (getattr(weapon, 'name', '') or '').upper()
+        needs_ammo = wc_str in ('projectile', 'energy') and 'STORM' not in wname
+        if needs_ammo and ammo_rounds < 1:
+            return AllyAttackResult(
+                ally_name=ally_name, hit=False, damage=0,
+                round_count=None, round_max=ammo_max,
+            )
+
+    round_count = (ammo_rounds - 1) if needs_ammo else None
+    round_max   = ammo_max if needs_ammo else 0
+    miss_sfx, hit_sfx = weapon_sfx(weapon) if weapon is not None else (None, None)
+
     armor_bonus = 2 if has_light_armor else 0
 
     # SPUR line 179: z-a > 4 → missed (a=armor_bonus)
     roll = random.randint(1, 10) - armor_bonus
     if roll > 4:
-        return AllyAttackResult(ally_name=ally_name, hit=False, damage=0)
+        return AllyAttackResult(ally_name=ally_name, hit=False, damage=0,
+                                 round_count=round_count, round_max=round_max,
+                                 sfx=miss_sfx)
 
     # Damage (SPUR lines 180-186)
     b = (armor_bonus + ally_strength) / 2
@@ -871,7 +918,21 @@ def ally_attacks(ally_name: str, ally_strength: int, monster: dict,
     if flags.get('heavy_armor') or flags.get('light_armor'):
         b = (b * 2) / 3
 
-    return AllyAttackResult(ally_name=ally_name, hit=True, damage=max(0, int(b)))
+    if needs_ammo:
+        b += ammo_damage  # SPUR.COMBAT.S:144 b=b+vm, same bonus USE loads for players
+
+    damage = max(0, int(b))
+    # No weapon: fall back to SPUR's own TINK/THUD/CRUNCH damage-tier sound
+    # (skip branch SPUR.COMBAT.S:203-204), unrelated to weapon_sfx's
+    # WeaponClass table since an unarmed SPUR ally has no weapon class.
+    if weapon is None:
+        sfx = '[CRUNCH]' if damage > 4 else ('[THUD]' if damage > 2 else '[TINK]')
+    else:
+        sfx = hit_sfx
+
+    return AllyAttackResult(ally_name=ally_name, hit=True, damage=damage,
+                             round_count=round_count, round_max=round_max,
+                             sfx=sfx)
 
 
 # ---------------------------------------------------------------------------

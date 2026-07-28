@@ -100,7 +100,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Optional
 
-from item_system import weapon_bonus
+from item_system import weapon_bonus, weapon_sfx
 from combat.resolution import shield_exp_bonus
 
 _MIN_HP_AFTER_LOSS = 15   # SPUR.DUEL2.S hell/hell2: loser left at hp=15, not dead
@@ -417,9 +417,11 @@ class DuelSession:
 
         weapon = getattr(attacker, 'readied_weapon', None)
         stability = float(getattr(weapon, 'stability', 50) or 50) if weapon else 30.0
+        miss_sfx, hit_sfx = weapon_sfx(weapon) if weapon else (None, None)
         roll = random.randint(1, 100)
         if roll > (stability + hit_delta):
-            return f' {attacker.name} swings at {defender.name} and misses.'
+            sfx = f'{miss_sfx}  ' if miss_sfx else ''
+            return f' {sfx}{attacker.name} swings at {defender.name} and misses.'
 
         raw = _weapon_damage(attacker, weapon) * dmg_mult
         level_diff = int(getattr(attacker, 'xp_level', 1) or 1) - int(getattr(defender, 'xp_level', 1) or 1)
@@ -440,7 +442,8 @@ class DuelSession:
         if armor_blocked:
             extra.append(f'armor absorbs {armor_blocked}')
         extra_txt = f' ({", ".join(extra)})' if extra else ''
-        line = f' {attacker.name} hits {defender.name} for {damage} damage!{extra_txt}'
+        sfx = f'{hit_sfx}  ' if hit_sfx else ''
+        line = f' {sfx}{attacker.name} hits {defender.name} for {damage} damage!{extra_txt}'
 
         if defender.hit_points <= 0:
             self.done = True

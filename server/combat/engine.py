@@ -454,10 +454,9 @@ class CombatSession:
             result = self._swing(ctx)
             await _add_exp(ctx, exp_per_swing())
             await self._narrate_player_swing(ctx, result, bystander=True)
-            if result.ammo_used:
+            if result.round_max > 0 and result.round_count is not None:
                 bystander_player = ctx.player
-                rounds = int(getattr(bystander_player, 'ammo_rounds', 0) or 0)
-                bystander_player.ammo_rounds = max(0, rounds - 1)
+                bystander_player.ammo_rounds = result.round_count
                 bystander_player.unsaved_changes = True
                 if not result.hit:
                     await self._stray_round(ctx, result.weapon_name,
@@ -933,9 +932,8 @@ class CombatSession:
                 await self._narrate_player_swing(ctx, result)
 
                 # Ammo consumed this swing (SPUR.COMBAT.S:99 vn=vn-1)
-                if result.ammo_used:
-                    rounds = int(getattr(player, 'ammo_rounds', 0) or 0)
-                    player.ammo_rounds = max(0, rounds - 1)
+                if result.round_max > 0 and result.round_count is not None:
+                    player.ammo_rounds = result.round_count
                     player.unsaved_changes = True
                     if not result.hit:
                         await self._stray_round(ctx, result.weapon_name,
@@ -1188,32 +1186,49 @@ class CombatSession:
                 continue
 
             has_light = AllyFlags.ELITE in (member.flags or [])
+            weapon = getattr(member, 'readied_weapon', None)
             result = ally_attacks(
                 member.name,
                 member.strength,
                 self.monster,
                 has_light_armor=has_light,
+                weapon=weapon,
+                ammo_rounds=getattr(member, 'ammo_rounds', 0),
+                ammo_max=getattr(member, 'ammo_max', 0),
+                ammo_damage=getattr(member, 'ammo_damage', 0),
             )
+
+            # No rounds ready -- ally can't fire this weapon (mirrors the
+            # player's NO AMMO READY gate). Skips the swing entirely.
+            if result.round_max > 0 and result.round_count is None:
+                wn = getattr(weapon, 'name', 'weapon')
+                await ctx.send(f'{member.name} has no rounds ready for the {wn}!')
+                continue
+
+            if result.round_max > 0 and result.round_count is not None:
+                member.ammo_rounds = result.round_count
+
+            sfx = f'{result.sfx}  ' if result.sfx else ''
             if result.hit:
                 dmg = result.damage
                 mname = self.monster.get("name", "monster")
                 if dmg == 0:
-                    await ctx.send(f'{member.name} strikes the {mname}, but inflicts no damage!')
+                    await ctx.send(f'{sfx}{member.name} strikes the {mname}, but inflicts no damage!')
                     await ctx.send_room(
-                        f'{member.name} strikes the {mname}, but inflicts no damage!',
+                        f'{sfx}{member.name} strikes the {mname}, but inflicts no damage!',
                         exclude_self=True,
                     )
                 else:
-                    await ctx.send(f'{member.name} strikes for {dmg} damage!')
+                    await ctx.send(f'{sfx}{member.name} strikes for {dmg} damage!')
                     await ctx.send_room(
-                        f'{member.name} strikes the {mname} for {dmg} damage!',
+                        f'{sfx}{member.name} strikes the {mname} for {dmg} damage!',
                         exclude_self=True,
                     )
                 _set_monster_hp(self.monster, _monster_hp(self.monster) - dmg)
                 if _monster_hp(self.monster) <= 0:
                     return
             else:
-                await ctx.send(f'{member.name} misses!')
+                await ctx.send(f'{sfx}{member.name} misses!')
 
     # ------------------------------------------------------------------
     # Internal: narration
@@ -1225,7 +1240,7 @@ class CombatSession:
         mname = self.monster.get('name', 'the monster')
         pname = _player_name(ctx)
 
-        if result.no_ammo:
+        if result.round_max > 0 and result.round_count is None:
             wn   = result.weapon_name or 'weapon'
             term = _ammo_term(wn).upper() + 'S'
             await ctx.send(f'NO {term} READY for the {wn}!')
@@ -1237,6 +1252,9 @@ class CombatSession:
             await ctx.send('(Ease of use helps!)')
 
         if result.is_charge:
+            # TODO: horse sound effect here (NEIGH!!/WHINNY!/HOOFBEATS THUNDER!/
+            # SNORT!) -- this is the mount's own charge flavor, independent of
+            # result.sfx (the readied weapon's hit/miss sound).
             await ctx.send(f'YOU THUNDER DOWN UPON {mname}!')
 
         if result.instant_kill:
@@ -1251,15 +1269,17 @@ class CombatSession:
         elif result.hit:
             crit = '  CRITICAL HIT!' if result.is_critical else ''
             surp = '  (Surprise!)' if result.is_surprise else ''
+            sfx  = f'{result.sfx}  ' if result.sfx else ''
             if result.damage == 0:
-                msg  = f'You strike the {mname}, but inflict no damage!{crit}{surp}'
-                room = f'{pname} strikes the {mname}, but inflicts no damage!{crit}'
+                msg  = f'{sfx}You strike the {mname}, but inflict no damage!{crit}{surp}'
+                room = f'{sfx}{pname} strikes the {mname}, but inflicts no damage!{crit}'
             else:
-                msg  = f'You strike the {mname} for {result.damage} damage!{crit}{surp}'
-                room = f'{pname} strikes the {mname} for {result.damage} damage!{crit}'
+                msg  = f'{sfx}You strike the {mname} for {result.damage} damage!{crit}{surp}'
+                room = f'{sfx}{pname} strikes the {mname} for {result.damage} damage!{crit}'
         else:
-            msg  = f'You miss the {mname}.'
-            room = f'{pname} misses the {mname}.'
+            sfx  = f'{result.sfx}  ' if result.sfx else ''
+            msg  = f'{sfx}You miss the {mname}.'
+            room = f'{sfx}{pname} misses the {mname}.'
 
         await ctx.send(msg)
         if bystander:
