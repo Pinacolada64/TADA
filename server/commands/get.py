@@ -453,6 +453,20 @@ class GetCommand(Command):
             await ctx.send('THE STATUE IS MUCH TOO HEAVY!')
             return CommandResult.ok()
 
+        # --- Gollum's ring: he won't let it go while he's alive
+        # (encounters/gollum.py) -- checked before anything else touches
+        # the item, since a successful guard means no pickup happens at all.
+        from encounters.gollum import guards_ring, QUOTE
+        room_monster = _monster_in_room(ctx)
+        if guards_ring(item_id, room_monster):
+            await ctx.send([
+                f'Gollum hisses, "{QUOTE}"',
+                "He won't let you! He attacks!",
+            ])
+            from combat import enter_combat
+            await enter_combat(ctx, room_monster)
+            return CommandResult.ok()
+
         # --- Tut's Treasure: quest #16 (quests/tuts_treasure.py) -- checked
         # before the "inventory full" guard below, since a successful GET
         # here converts straight to gold and never actually needs a slot ---
