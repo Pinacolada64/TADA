@@ -13,6 +13,9 @@ So each play() call should yield exactly one frame, {0: N}, with N
 incrementing every call -- this both proves register writes are being
 captured correctly and that CPU/memory state (the counter) persists
 across separate convert()-loop calls to play(), not just within one.
+convert() also always yields one extra frame first, whatever init()
+itself wrote (here: nothing, since init is a bare RTS, so that frame is
+always {}).
 """
 from __future__ import annotations
 
@@ -43,12 +46,12 @@ class TestConvert(unittest.TestCase):
         sid = _counter_tune()
         result = list(sid_dump.convert(sid, num_frames=5))
 
-        self.assertEqual(result, [{0: 1}, {0: 2}, {0: 3}, {0: 4}, {0: 5}])
+        self.assertEqual(result, [{}, {0: 1}, {0: 2}, {0: 3}, {0: 4}, {0: 5}])
 
     def test_num_frames_controls_output_length(self):
         sid = _counter_tune()
         result = list(sid_dump.convert(sid, num_frames=2))
-        self.assertEqual(len(result), 2)
+        self.assertEqual(len(result), 3)  # init frame + 2 play frames
 
     def test_init_receives_zero_based_song_number(self):
         # init: LDA #0 (does nothing observable) then just check it runs
@@ -56,7 +59,30 @@ class TestConvert(unittest.TestCase):
         # write any SID registers in this fixture, only play does.
         sid = _counter_tune()
         result = list(sid_dump.convert(sid, song=1, num_frames=1))
-        self.assertEqual(result, [{0: 1}])
+        self.assertEqual(result, [{}, {0: 1}])
+
+
+class TestInitWritesAreCaptured(unittest.TestCase):
+    def test_registers_written_only_in_init_reach_the_first_frame(self):
+        # init: LDA #$09 / STA $D405 (AD) / LDA #$A0 / STA $D406 (SR) / RTS
+        # play: RTS (touches nothing) -- mirrors a common real-world SID
+        # pattern (e.g. Ultima III - Exodus) where envelope registers are
+        # set once in init() and never touched again in play(). A
+        # converter that only records play() writes would silently lose
+        # these forever.
+        init_code = bytes([0xA9, 0x09, 0x8D, 0x05, 0xD4,
+                            0xA9, 0xA0, 0x8D, 0x06, 0xD4, 0x60])
+        play_code = bytes([0x60])
+        sid = SidFile(
+            version=2, load_address=_LOAD, init_address=_LOAD,
+            play_address=_LOAD + len(init_code), num_songs=1, start_song=1,
+            speed=0, name='init-writes', author='test', released='2026',
+            data=init_code + play_code,
+        )
+        result = list(sid_dump.convert(sid, num_frames=3))
+
+        self.assertEqual(result[0], {5: 0x09, 6: 0xa0})
+        self.assertEqual(result[1:], [{}, {}, {}])
 
 
 class TestConvertRunawayGuard(unittest.TestCase):

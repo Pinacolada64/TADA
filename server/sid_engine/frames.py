@@ -2,7 +2,7 @@
 
 Wire format (consumed by tada-client.asm's sid_play/binary-mode receiver):
 
-    stream  := STREAM_START length_lo length_hi body
+    stream  := STREAM_START STREAM_CONFIRM length_lo length_hi body
     body    := frame*
     frame   := (reg val)* FRAME_END
 
@@ -18,18 +18,33 @@ data cannot. FRAME_END ($ff) doesn't have this problem despite being an
 in-band sentinel too, because it's only ever checked at a register-index
 position, and valid indices are 0-24 -- never ambiguous with $ff.
 
-STREAM_START ($01) is still an in-band scan, checked against every byte
-of ordinary game text while not already mid-stream -- also technically
-collision-prone, but real chat/game text essentially never contains a
-raw $01 byte, unlike SID payload data, so it's a much lower-probability
-edge case left as-is for now.
+STREAM_START + STREAM_CONFIRM together are an in-band scan, checked
+against every byte of ordinary game text while not already mid-stream.
+This is a multiplayer server -- unsolicited text (ally/room/ambient
+messages) can land on the same connection independent of anything the
+player typed, interleaved with a play response. A single STREAM_START
+byte was confirmed live to collide with ordinary text this way,
+corrupting later text into bogus SID data. Requiring a specific *second*
+byte immediately after, before the client commits to treating anything
+as a stream, makes an accidental collision astronomically less likely
+without needing a longer/costlier marker.
+
+STOP ($03) is a separate, instantaneous one-byte control signal (not a
+stream) -- sent by `play #stop` to silence playback and reset the
+client's SID state immediately. It's only meaningful while the client is
+in text mode (not mid-stream) -- see tada-client.asm's handle_recv_byte
+for why that's always true in practice: the request/response prompt loop
+can't even accept a new command until the previous stream has already
+fully landed.
 """
 from __future__ import annotations
 
 from typing import Iterable, Mapping
 
-STREAM_START = 0x01
-FRAME_END    = 0xff
+STREAM_START   = 0x01
+STREAM_CONFIRM = 0x53  # 'S' -- arbitrary, just distinctive
+STOP           = 0x03
+FRAME_END      = 0xff
 
 NUM_REGISTERS = 25  # $D400-$D418
 
@@ -77,11 +92,11 @@ def encode_frame(writes: Mapping[int, int]) -> bytes:
 
 def encode_stream(tune: Iterable[Mapping[int, int]]) -> bytes:
     """Encode a full tune (an iterable of per-tick write dicts) as a
-    complete STREAM_START + length-prefixed byte stream."""
+    complete STREAM_START+STREAM_CONFIRM + length-prefixed byte stream."""
     body = bytearray()
     for frame in tune:
         body.extend(encode_frame(frame))
     if len(body) > 0xffff:
         raise ValueError(f'encoded stream too long ({len(body)} bytes) for a 16-bit length prefix')
-    header = bytes([STREAM_START, len(body) & 0xff, (len(body) >> 8) & 0xff])
+    header = bytes([STREAM_START, STREAM_CONFIRM, len(body) & 0xff, (len(body) >> 8) & 0xff])
     return header + bytes(body)

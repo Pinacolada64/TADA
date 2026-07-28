@@ -1,0 +1,23 @@
+{
+  "title": "Ultima III - Exodus",
+  "author": "Kenneth W. Arnold",
+  "released": "1983 Origin Systems",
+  "num_songs": 10,
+  "start_song": 1,
+  "source": "HVSC /MUSICIANS/A/Arnold_Kenneth/Ultima_III-Exodus.sid",
+  "subtune_names": {
+    "8": "Rule Britannia (Thomas Arne, quoted)"
+  },
+  "subtune_seconds": {
+    "1": 128.0,
+    "2": 62.0,
+    "3": 42.0,
+    "4": 21.0,
+    "5": 47.0,
+    "6": 16.0,
+    "7": 73.0,
+    "8": 16.0,
+    "9": 16.0,
+    "10": 19.0
+  }
+}

@@ -47,12 +47,27 @@
 {const: SID_BASE $d400}
 
 ; Binary SID-stream start marker -- multiplexed onto the same connection
-; as the CR-terminated PETSCII text protocol (real game text essentially
-; never contains this raw byte). Followed by a 16-bit length-prefixed
-; body, NOT an in-band end marker -- see handle_recv_byte's own comment
-; for why an end marker doesn't work here. See sid_engine/frames.py
-; (server) for the matching encoder.
-{const: SID_STREAM_START $01}
+; as the CR-terminated PETSCII text protocol. Followed by a 16-bit
+; length-prefixed body, NOT an in-band end marker -- see
+; handle_recv_byte's own comment for why an end marker doesn't work
+; here. See sid_engine/frames.py (server) for the matching encoder.
+;
+; Confirmed live (not just theoretical): this is a multiplayer server --
+; unsolicited text (ally/room/ambient messages) can arrive on this same
+; connection independent of anything the player typed, interleaved with
+; a play response. A single stray SID_STREAM_START byte inside otherwise
+; ordinary text was observed causing later ordinary text to be mistaken
+; for SID register data. SID_STREAM_CONFIRM is the fix: a lone
+; SID_STREAM_START is no longer trusted by itself -- handle_recv_byte
+; waits for this specific second byte immediately after before treating
+; anything as a real stream (see handle_recv_byte_maybe_start/_confirm).
+; Two specific bytes matching back-to-back by accident is astronomically
+; less likely than one.
+{const: SID_STREAM_START   $01}
+{const: SID_STREAM_CONFIRM $53}   ; 'S' -- arbitrary, just distinctive
+{const: SID_STOP           $03}   ; one-byte control signal (not a stream)
+                                   ; -- play #stop sends this to silence
+                                   ; playback and reset SID state immediately
 {const: SID_FRAME_END    $ff}   ; terminates one tick's (reg,val) pairs --
                                  ; safe as a sentinel since SID only has
                                  ; registers 0-24
@@ -69,15 +84,28 @@
         rx_head     = $f9       ; NMI receive ring buffer: next write index
         rx_tail     = $fa       ; NMI receive ring buffer: next read index
 
-        sid_wr      = $f5       ; SID_BUF: next write index (mainline-owned)
-        sid_rd      = $f6       ; SID_BUF: next read index (IRQ-owned)
-        sid_mode    = $f7       ; 0=text, 1/2=reading length lo/hi, 3=storing
-                                 ; frame bytes -- see handle_recv_byte
-        sid_active  = $f8       ; 0 = sid_play idle, 1 = playback in progress
-        sid_remaining_lo = $f3  ; handle_recv_byte's mode-3 countdown, 16-bit
-        sid_remaining_hi = $f4
-
         QTSW        = $d4       ; KERNAL quote-mode switch (212 decimal)
+
+; sid_wr/sid_rd/sid_mode/sid_active/sid_remaining_lo/sid_remaining_hi are
+; deliberately NOT zero page (see their `byte 0` definitions in the Data
+; section below, near sid_byte_count). They started out at $f5-$f8 and
+; $e8/$e9 respectively, but zero page on this machine is KERNAL/BASIC
+; territory, not a free scratch area just because nothing *in this file*
+; happened to claim a given byte -- confirmed the hard way: $f3/$f4
+; turned out to be the KERNAL IRQ handler's own keyboard-decode-table
+; pointer (`LDA ($f3),Y` at $ea52, in the stock $ea31 handler
+; irq_handler chains into every tick via `jmp (irq_orig)`), and $f5/$f6
+; turned out to be ANOTHER pointer the same routine uses (`STA $f5`/
+; `LDA ($f5),Y` around $ea9d-$eae2). Both silently corrupted whichever
+; of our variables happened to be sitting there, every single IRQ tick.
+; None of these six actually need zero page -- they're never used as
+; `(zp),Y`/`(zp,X)` indirect pointers, only plain loads/stores/compares
+; and `SID_BUF,x`/`SID_BASE,y` indexed addressing -- so moving them to
+; ordinary memory sidesteps this entire class of bug for good instead of
+; hunting for the next byte the KERNAL doesn't happen to touch.
+; rx_head/rx_tail above stay in zero page -- proven reliable across this
+; whole project (Milestone 1 onward), no reason to touch what isn't
+; broken.
 
 ; --- Program start ---
 
@@ -130,7 +158,15 @@ prompt_loop:
 ; Blocks until at least one byte arrives, displays every byte as it
 ; comes in, then keeps draining until a 16-bit idle-poll countdown
 ; (X:Y, ~8192 iterations, ~160ms of margin) elapses with no further
-; byte, instead of returning on the very first gap.
+; byte, instead of returning on the very first gap -- UNLESS a SID
+; stream is confirmed starting (sid_mode reaches 1, just past
+; SID_STREAM_CONFIRM), in which case this returns to the prompt
+; immediately instead of blocking for however much longer the tune
+; takes to finish arriving. Nothing textual is left to show at that
+; point (the server always sends its status text before the raw stream),
+; and sid_service_background (polled from read_line) keeps draining the
+; rest of the transfer -- and feeding sid_play -- while the player types
+; their next command, instead of playback stalling until they submit it.
 ;
 ; A large margin matters here for a reason beyond ACIA baud timing:
 ; the server sends the login banner, the "Type 'connect...'" menu text,
@@ -143,10 +179,15 @@ prompt_loop:
 ; 6551 has a single-byte receive register, no FIFO), which showed up as
 ; the first few characters of each chunk going missing.
 wait_for_data:
+        lda #0
+        sta sid_background        ; foreground context -- diagnostics may print
 wait_for_data_first:
         jsr sl_recv
         bcc wait_for_data_first   ; keep waiting for the very first byte
         jsr handle_recv_byte
+        lda sid_mode
+        cmp #1
+        beq wait_for_data_backgrounding
 wait_for_data_drain:
         ldx #$20                 ; settle countdown high byte
         ldy #$00                 ; settle countdown low byte
@@ -160,7 +201,12 @@ wait_for_data_poll:
         rts                       ; settled -- no bytes for a while, done
 wait_for_data_got_byte:
         jsr handle_recv_byte
+        lda sid_mode
+        cmp #1
+        beq wait_for_data_backgrounding
         jmp wait_for_data_drain
+wait_for_data_backgrounding:
+        rts
 
 ; --- Init screen ---
 ; Clear screen, print status message, set up screen pointer
@@ -330,6 +376,28 @@ sl_recv_empty:
         clc
         rts
 
+; --- Background SID service, polled from read_line ---
+; Keeps a still-arriving SID stream flowing into SID_BUF (and hence
+; feeding sid_play) while the player is busy typing their next command,
+; instead of it stalling until they submit a line -- see
+; wait_for_data's own comment for why that hand-off happens.
+;
+; Deliberately only touches rx_buf while mid-stream (sid_mode != 0): if
+; sid_mode is 0, whatever's waiting is ordinary text (or a stray byte
+; before a stream even starts), and calling handle_recv_byte for it here
+; would call display_char and corrupt whatever the player is mid-typing.
+; Left alone, it just sits safely in rx_buf for wait_for_data to display
+; normally on the next round-trip, exactly like today when nothing is
+; playing at all.
+sid_service_background:
+        lda sid_mode
+        beq sid_service_background_rts
+        jsr sl_recv
+        bcc sid_service_background_rts
+        jsr handle_recv_byte
+sid_service_background_rts:
+        rts
+
 ; --- Blinking input cursor ---
 ; GETIN-driven input (unlike CHRIN) never engages the KERNAL's own
 ; line-editor cursor blink, so read_line draws its own: a reverse-video
@@ -403,6 +471,9 @@ cursor_hide:
 read_line:
         ldx #0                   ; buffer index
         stx linelen
+        lda #1
+        sta sid_background       ; background context -- diagnostics stay
+                                  ; quiet here, see sid_service_background
 read_line_loop:
         ; .a = ?
         ; .x = index into linebuf (also stored in linelen)
@@ -411,6 +482,9 @@ read_line_loop:
 ;       stx x_save
         sty y_save
         jsr update_cursor        ; blink the cursor while waiting for a key
+        jsr sid_service_background ; keep draining an in-progress SID stream
+                                    ; while the player types -- see its own
+                                    ; comment
         jsr GETIN                ; get char from keyboard buffer, 0 = none waiting
         cmp #0
         beq read_line_loop       ; nothing typed yet, keep polling
@@ -559,8 +633,10 @@ display_char:
 
 ; --- Dispatch a byte received from the server: text or SID stream ---
 ; Called from wait_for_data for every byte sl_recv hands back, in place of
-; the old unconditional display_char call. sid_mode is a 4-state machine:
+; the old unconditional display_char call. sid_mode is a 5-state machine:
 ;   0 = text (scan for SID_STREAM_START)
+;   4 = saw SID_STREAM_START, awaiting SID_STREAM_CONFIRM (see that
+;       const's own comment -- a lone start byte isn't trusted alone)
 ;   1 = reading the 16-bit body-length prefix, low byte
 ;   2 = reading the 16-bit body-length prefix, high byte
 ;   3 = storing frame bytes into SID_BUF, counting sid_remaining down
@@ -580,22 +656,74 @@ handle_recv_byte:
         beq handle_recv_byte_len_lo
         cpy #2
         beq handle_recv_byte_len_hi
+        cpy #4
+        beq handle_recv_byte_confirm
         jmp handle_recv_byte_store        ; sid_mode == 3
 
 handle_recv_byte_text:
         cmp #SID_STREAM_START
+        beq handle_recv_byte_maybe_start
+        cmp #SID_STOP
+        beq handle_recv_byte_stop
+        jmp display_char
+
+handle_recv_byte_stop:
+        jsr sid_print_frames_played  ; TEMP diagnostics -- see their own
+        jsr sid_print_elapsed        ; comments
+        jsr sid_print_pointers
+        jsr sid_print_stream_starts
+        jmp sid_stop                 ; silence + reset -- see sid_stop's own
+                                      ; comment (shared with init_sid at boot)
+
+; A lone SID_STREAM_START byte isn't trusted on its own anymore -- see
+; SID_STREAM_CONFIRM's own comment (near the {const:} block) for why.
+; sid_mode 4 = "saw the first byte, waiting to see if the very next byte
+; confirms it's a real stream" -- confirmed live to matter: unsolicited
+; game text (ally/room/ambient messages, independent of anything the
+; player typed) can arrive interleaved with a play response, and a
+; single stray $01 byte in ordinary text was observed mistaking later
+; ordinary text for bogus SID register data.
+handle_recv_byte_maybe_start:
+        lda #4
+        sta sid_mode
+        rts
+
+handle_recv_byte_confirm:
+        cmp #SID_STREAM_CONFIRM
         beq handle_recv_byte_start
+        ; False alarm: the earlier $01 wasn't really a stream start.
+        ; Display both the swallowed $01 and this byte as ordinary text
+        ; instead of silently treating either as SID framing.
+        lda #0
+        sta sid_mode
+        pha
+        lda #SID_STREAM_START
+        jsr display_char
+        pla
         jmp display_char
 
 handle_recv_byte_start:
+        inc sid_stream_starts     ; TEMP diagnostic -- see its own comment
         lda #0
         sta sid_rd
         sta sid_wr
         sta sid_byte_count+0
         sta sid_byte_count+1
+        sta sid_frames_played+0
+        sta sid_frames_played+1
         lda #1
         sta sid_mode
         sta sid_active
+        ; Snapshot the KERNAL jiffy clock ($a0/$a1/$a2, hi/mid/lo -- $a2
+        ; is the fastest-changing byte, same one update_cursor already
+        ; reads) so #stop can print real elapsed time alongside
+        ; sid_frames_played, no stopwatch needed.
+        lda $a0
+        sta sid_jiffy_start0
+        lda $a1
+        sta sid_jiffy_start1
+        lda $a2
+        sta sid_jiffy_start2
         rts
 
 handle_recv_byte_len_lo:
@@ -611,6 +739,35 @@ handle_recv_byte_len_hi:
         rts
 
 handle_recv_byte_store:
+        ; Wait for room before storing -- SID_BUF has no flow control of
+        ; its own (unlike rx_buf's RTS-based backpressure), and bytes can
+        ; arrive off the wire far faster than sid_play (throttled to one
+        ; frame per IRQ tick, i.e. the tune's real playback rate) drains
+        ; them: a real tune's burst can fill this 256-byte buffer in
+        ; well under 100ms while still taking the better part of a
+        ; second to finish arriving. Without this wait, the producer
+        ; (this routine) laps the consumer (sid_play) and overwrites
+        ; frame data before it's ever read -- confirmed live: a real
+        ; tune's first frame (and most of what follows) got clobbered by
+        ; later frames wrapping around, audible as "plays a moment, then
+        ; stuck." "Full" is defined as sid_wr+1 == sid_rd (one slot
+        ; always left empty, so full and empty stay distinguishable via
+        ; wr==rd alone). Spinning here is safe: interrupts stay enabled,
+        ; so sid_play keeps draining and sid_rd keeps advancing while we
+        ; wait -- same pattern sl_send already uses spinning on TDRE.
+        ; This also means mainline stops draining rx_buf for the
+        ; duration of the wait, so backpressure cascades naturally into
+        ; rx_buf's own existing RTS-deassert flow control if the stall
+        ; runs long enough -- genuine end-to-end pressure, not just
+        ; local buffer swapping, matching nmi_handler's own philosophy.
+        pha
+sid_buf_wait_room:
+        lda sid_wr
+        clc
+        adc #1
+        cmp sid_rd
+        beq sid_buf_wait_room
+        pla
         ldx sid_wr
         sta SID_BUF,x
         inc sid_wr                ; wraps at 256, matching rx_buf's ring buffer
@@ -629,8 +786,47 @@ handle_recv_byte_dec_lo:
         bne handle_recv_byte_store_done   ; still bytes left, stay in mode 3
         lda #0
         sta sid_mode                      ; countdown hit zero -- back to text mode
+        lda sid_background        ; skip the diagnostics if this transfer's
+        bne handle_recv_byte_store_done   ; tail landed while backgrounded
+                                   ; (read_line, player mid-typing) --
+                                   ; CHROUT-ing them here would corrupt
+                                   ; the input line; see
+                                   ; sid_service_background's own comment
         jsr sid_print_byte_count
+        jsr sid_print_pointers    ; TEMP diagnostic -- rd/wr right *now*,
+                                   ; before any further idle time, to tell
+                                   ; whether SID_BUF is already wrapped by
+                                   ; the time reception itself finishes
+        jsr sid_print_bufdump
 handle_recv_byte_store_done:
+        rts
+
+; --- TEMP diagnostic: dump SID_BUF[0..23] as hex ---
+; Ground truth for comparing against the server's own encoded bytes (see
+; sid_engine.frames.encode_stream output) -- confirms whether stored
+; frame data matches what was actually sent, independent of the byte
+; *count* already being verified correct by sid_print_byte_count.
+;
+; Keeps its loop index in a memory byte (sid_dump_idx), not X: X is
+; scratch inside sid_print_hex_byte/sid_print_hex_nibble (used for the
+; hex-digit-table lookup) and CHROUT itself isn't reliable about
+; preserving X either (see read_line's own linelen -- same fix, same
+; underlying lesson, learned the hard way earlier in this file).
+sid_print_bufdump:
+        lda #0
+        sta sid_dump_idx
+sid_print_bufdump_loop:
+        ldx sid_dump_idx
+        lda SID_BUF,x
+        jsr sid_print_hex_byte
+        lda #' '
+        jsr CHROUT
+        inc sid_dump_idx
+        lda sid_dump_idx
+        cmp #24
+        bne sid_print_bufdump_loop
+        lda #$0d
+        jsr CHROUT
         rts
 
 ; --- Print "GOT $xxxx BYTES" -- diagnostic for the SID stream pipe ---
@@ -638,6 +834,176 @@ handle_recv_byte_store_done:
 ; (not gated behind {ifdef:debug}) since this answers a real end-to-end
 ; question -- did the bytes the server said it sent actually arrive --
 ; not a temporary bug hunt.
+; --- TEMP diagnostic: print "PLAYED $xxxx FRAMES" ---
+; sid_frames_played counts every frame sid_play has successfully applied
+; since the current stream started (reset in handle_recv_byte_start).
+; Printed on `play #stop` -- comparing this count against real elapsed
+; (stopwatch) time gives the client's true empirical playback rate,
+; cutting through any PAL/NTSC IRQ-rate guessing.
+sid_print_frames_played:
+        lda #'P'
+        jsr CHROUT
+        lda #'L'
+        jsr CHROUT
+        lda #'A'
+        jsr CHROUT
+        lda #'Y'
+        jsr CHROUT
+        lda #'E'
+        jsr CHROUT
+        lda #'D'
+        jsr CHROUT
+        lda #' '
+        jsr CHROUT
+        lda #'$'
+        jsr CHROUT
+        lda sid_frames_played+1
+        jsr sid_print_hex_byte
+        lda sid_frames_played+0
+        jsr sid_print_hex_byte
+        lda #' '
+        jsr CHROUT
+        lda #'F'
+        jsr CHROUT
+        lda #'R'
+        jsr CHROUT
+        lda #'A'
+        jsr CHROUT
+        lda #'M'
+        jsr CHROUT
+        lda #'E'
+        jsr CHROUT
+        lda #'S'
+        jsr CHROUT
+        lda #$0d
+        jsr CHROUT
+        rts
+
+; --- TEMP diagnostic: print "ELAPSED $xxxxxx JIFFIES" ---
+; current jiffy clock ($a0/$a1/$a2) minus the snapshot handle_recv_byte_
+; start took when the stream began -- standard 3-byte subtract-with-
+; borrow, low byte first. No BCD involved; the jiffy clock is a plain
+; binary counter.
+sid_print_elapsed:
+        sec
+        lda $a2
+        sbc sid_jiffy_start2
+        sta sid_jiffy_elapsed2
+        lda $a1
+        sbc sid_jiffy_start1
+        sta sid_jiffy_elapsed1
+        lda $a0
+        sbc sid_jiffy_start0
+        sta sid_jiffy_elapsed0
+
+        lda #'E'
+        jsr CHROUT
+        lda #'L'
+        jsr CHROUT
+        lda #'A'
+        jsr CHROUT
+        lda #'P'
+        jsr CHROUT
+        lda #'S'
+        jsr CHROUT
+        lda #'E'
+        jsr CHROUT
+        lda #'D'
+        jsr CHROUT
+        lda #' '
+        jsr CHROUT
+        lda #'$'
+        jsr CHROUT
+        lda sid_jiffy_elapsed0
+        jsr sid_print_hex_byte
+        lda sid_jiffy_elapsed1
+        jsr sid_print_hex_byte
+        lda sid_jiffy_elapsed2
+        jsr sid_print_hex_byte
+        lda #' '
+        jsr CHROUT
+        lda #'J'
+        jsr CHROUT
+        lda #'I'
+        jsr CHROUT
+        lda #'F'
+        jsr CHROUT
+        lda #'F'
+        jsr CHROUT
+        lda #'I'
+        jsr CHROUT
+        lda #'E'
+        jsr CHROUT
+        lda #'S'
+        jsr CHROUT
+        lda #$0d
+        jsr CHROUT
+        rts
+
+; --- TEMP diagnostic: print "RD=$xx WR=$xx" ---
+; Raw current values of sid_rd/sid_wr at the moment #stop was processed.
+; Ground truth for whether SID_BUF's producer/consumer indices are where
+; they should be (matching sid_byte_count/sid_frames_played) or have
+; drifted -- e.g. sid_wr still growing after "GOT" already printed would
+; mean more bytes are landing in SID_BUF than accounted for.
+sid_print_pointers:
+        lda #'R'
+        jsr CHROUT
+        lda #'D'
+        jsr CHROUT
+        lda #'='
+        jsr CHROUT
+        lda #'$'
+        jsr CHROUT
+        lda sid_rd
+        jsr sid_print_hex_byte
+        lda #' '
+        jsr CHROUT
+        lda #'W'
+        jsr CHROUT
+        lda #'R'
+        jsr CHROUT
+        lda #'='
+        jsr CHROUT
+        lda #'$'
+        jsr CHROUT
+        lda sid_wr
+        jsr sid_print_hex_byte
+        lda #$0d
+        jsr CHROUT
+        rts
+
+; --- TEMP diagnostic: print "STARTS=$xx" ---
+; sid_stream_starts counts every time handle_recv_byte_start fired (a
+; real SID_STREAM_START+SID_STREAM_CONFIRM pair was seen) since the last
+; #stop. A count > 1 when the player only issued one `play` command
+; means something else on this connection is triggering stream starts --
+; ambient/ally/room broadcasts most likely, given this is a live
+; multiplayer server. Ground truth for whether the confirm-byte fix
+; actually stopped spurious triggers or just made them rarer.
+sid_print_stream_starts:
+        lda #'S'
+        jsr CHROUT
+        lda #'T'
+        jsr CHROUT
+        lda #'A'
+        jsr CHROUT
+        lda #'R'
+        jsr CHROUT
+        lda #'T'
+        jsr CHROUT
+        lda #'S'
+        jsr CHROUT
+        lda #'='
+        jsr CHROUT
+        lda #'$'
+        jsr CHROUT
+        lda sid_stream_starts
+        jsr sid_print_hex_byte
+        lda #$0d
+        jsr CHROUT
+        rts
+
 sid_print_byte_count:
         lda #'G'
         jsr CHROUT
@@ -692,20 +1058,28 @@ sid_print_hex_byte:                ; .A = byte to print in hex
 sid_hex_digits:
         ascii "0123456789ABCDEF"
 
-; --- Init SID chip ---
-; Silence all three voices and clear playback state. SID_BUF's indices
-; don't need clearing here -- sid_active starts at 0, so sid_play won't
-; touch them until a real SID_STREAM_START arrives and resets them itself.
-init_sid:
+; --- Silence the SID chip and reset playback state ---
+; Shared by init_sid (startup) and the SID_STOP control byte
+; (handle_recv_byte_stop, for `play #stop`): clears all 25 SID registers
+; -- including MODE_VOL, so anything currently sustaining goes silent
+; immediately, not just "no further updates" -- and turns off sid_active/
+; sid_mode. SID_BUF's indices don't need clearing here -- sid_active is
+; 0 afterward either way, so sid_play won't touch them until a real
+; SID_STREAM_START arrives and resets them itself.
+sid_stop:
         ldx #24
         lda #0
-init_sid_loop:
+sid_stop_loop:
         sta SID_BASE,x
         dex
-        bpl init_sid_loop
+        bpl sid_stop_loop
         sta sid_mode
         sta sid_active
+        sta sid_stream_starts     ; TEMP diagnostic -- see its own comment
         rts
+
+init_sid:
+        jmp sid_stop
 
 ; --- SID playback (called every IRQ tick, unconditionally) ---
 ; Register-write frames arrive as (register-offset, value) byte pairs
@@ -746,6 +1120,9 @@ sid_play_apply:
 sid_play_apply_done:
         inx
         stx sid_rd
+        inc sid_frames_played+0
+        bne sid_play_rts
+        inc sid_frames_played+1
 sid_play_rts:
         rts
 
@@ -838,11 +1215,60 @@ irq_task_ptr:
 irq_heartbeat:
         byte 0                   ; placeholder round-robin job's counter
 
+; Not zero page -- see the comment above rx_head/rx_tail's definitions
+; for why. Same roles as before the move: sid_wr/sid_rd index SID_BUF
+; (mainline-owned write index / IRQ-owned read index), sid_mode drives
+; handle_recv_byte's state machine, sid_active gates sid_play,
+; sid_remaining_lo/hi is the mode-3 byte countdown.
+sid_wr:
+        byte 0
+sid_rd:
+        byte 0
+sid_mode:
+        byte 0
+sid_active:
+        byte 0
+sid_remaining_lo:
+        byte 0
+sid_remaining_hi:
+        byte 0
+
+sid_background:
+        byte 0                   ; 0 = foreground (wait_for_data) context,
+                                  ; 1 = background (read_line) context --
+                                  ; gates the TEMP diagnostic prints, see
+                                  ; handle_recv_byte_store
+
 sid_byte_count:
         byte 0,0                 ; lo,hi -- bytes redirected into SID_BUF this
                                   ; stream, reset on SID_STREAM_START, printed
                                   ; by sid_print_byte_count once the mode-3
                                   ; countdown (sid_remaining_lo/hi) hits zero
+
+sid_dump_idx:
+        byte 0                   ; sid_print_bufdump's loop counter
+
+sid_frames_played:
+        byte 0,0                 ; lo,hi -- frames sid_play has applied
+                                  ; since the current stream started
+
+sid_jiffy_start0:
+        byte 0                   ; $a0 (hi) snapshot at stream start
+sid_jiffy_start1:
+        byte 0                   ; $a1 (mid) snapshot at stream start
+sid_jiffy_start2:
+        byte 0                   ; $a2 (lo, fastest-changing) snapshot
+
+sid_jiffy_elapsed0:
+        byte 0                   ; hi/mid/lo of (now - start), computed
+sid_jiffy_elapsed1:                ; by sid_print_elapsed
+        byte 0
+sid_jiffy_elapsed2:
+        byte 0
+
+sid_stream_starts:
+        byte 0                   ; count of handle_recv_byte_start firings
+                                  ; since the last #stop (or boot)
 
 irq_task_table:
         word irq_task_heartbeat

@@ -78,6 +78,17 @@ def convert(sid: SidFile, *, song: int | None = None, num_frames: int,
     (0-24) -> the last value written to it during that call, in the same
     shape sid_engine.frames.encode_stream() expects.
 
+    Yields num_frames + 1 dicts total: the extra one, first, is whatever
+    init() itself wrote to the SID before any play() call ever ran. Many
+    tunes set envelope (AD/SR) and/or filter registers exactly once in
+    init() and never touch them again in play() -- discarding that frame
+    (an earlier version of this function did) means those registers just
+    stay at 0 for the whole render. Confirmed live: Ultima III - Exodus
+    sets attack/decay/sustain/release only in init(); without this frame
+    its notes had frequency and gate changes throughout but sustain
+    stuck at 0, i.e. audible as near-total silence despite otherwise
+    correct playback.
+
     song is 1-based, defaulting to sid.start_song. There's no attempt to
     detect "song end" here -- most SID tunes loop forever by design, so
     num_frames (how much playback time to render) is the caller's call.
@@ -89,6 +100,7 @@ def convert(sid: SidFile, *, song: int | None = None, num_frames: int,
     mpu = MPU(memory=mem)
 
     _call(mpu, sid.init_address, a=song_number - 1, max_cycles=max_cycles_per_call)
+    yield dict(writes)
 
     for _ in range(num_frames):
         writes.clear()
