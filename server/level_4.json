@@ -225,7 +225,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Wind wistles down the alleyway..."
+            "desc": "Wind whistles down the alleyway..."
         },
         {
             "number": 16,
@@ -243,7 +243,7 @@
         },
         {
             "number": 17,
-            "name": "Gollum'S Cave",
+            "name": "Gollum's Cave",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -253,7 +253,7 @@
             "item": 67,
             "weapon": 0,
             "food": 0,
-            "desc": "There is a dank pool smelling awful here. Some dead fish, and other 'things' are lying about, quite dead... OLLUM'R CAVE,71,67,0,0,0,0,1,0,0,0 There is a dank pool smelling awful here. Some dead fish, and other 'things' are lying about, quite dead..."
+            "desc": "There is a dank, awful-smelling pool here. Some dead fish, and other 'things' are lying about, quite dead..."
         },
         {
             "number": 18,
@@ -349,7 +349,7 @@
         },
         {
             "number": 24,
-            "name": "It'S Lair",
+            "name": "It's Lair",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -360,7 +360,7 @@
             "item": 64,
             "weapon": 0,
             "food": 0,
-            "desc": "You hear goulish laughter from somwhere among a pile of bones...."
+            "desc": "You hear ghoulish laughter from somewhere among a pile of bones...."
         },
         {
             "number": 25,
@@ -542,7 +542,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "There is a suspicous looking building to the west."
+            "desc": "There is a suspicious looking building to the west."
         },
         {
             "number": 37,
@@ -620,7 +620,7 @@
             "item": 0,
             "weapon": 0,
             "food": 44,
-            "desc": "Verus is walking so close behind you that he accidently steps on your heels."
+            "desc": "Verus is walking so close behind you that he accidentally steps on your heels."
         },
         {
             "number": 42,
@@ -636,7 +636,7 @@
             "item": 72,
             "weapon": 0,
             "food": 0,
-            "desc": "This section of alley looks strangely familar..."
+            "desc": "This section of alley looks strangely familiar..."
         },
         {
             "number": 43,

@@ -92,7 +92,7 @@
         },
         {
             "number": 7,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -134,7 +134,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The wild ride would be exilerating, if you weren't worried about being killed."
+            "desc": "The wild ride would be exhilarating, if you weren't worried about being killed."
         },
         {
             "number": 10,
@@ -150,7 +150,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The rapids veer rapidily to the west.."
+            "desc": "The rapids veer rapidly to the west.."
         },
         {
             "number": 11,
@@ -520,7 +520,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A slippry granite wall is to the east. All else is darkness.."
+            "desc": "A slippery granite wall is to the east. All else is darkness.."
         },
         {
             "number": 33,
@@ -539,7 +539,7 @@
         },
         {
             "number": 34,
-            "name": "Caretaker'S Lair",
+            "name": "Caretaker's Lair",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -758,7 +758,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You imagine you see shadows on the granit walls, but that is silly of course."
+            "desc": "You imagine you see shadows on the granite walls, but that is silly of course."
         },
         {
             "number": 47,
@@ -827,7 +827,7 @@
         },
         {
             "number": 51,
-            "name": "Spur'S Exhibit",
+            "name": "Spur's Exhibit",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -930,7 +930,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "\"I wonder how Jock Custoe does stuff like this!\" you snicker to yourself, but you shut up, as your snicker echo across the cavern.."
+            "desc": "\"I wonder how Jacques Cousteau does stuff like this!\" you snicker to yourself, but you shut up, as your snicker echo across the cavern.."
         },
         {
             "number": 57,
@@ -1017,7 +1017,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The river goes thru a narrow crevace to the south. Much too narrow for you to enter. But there is a small shelf of land here, where you may land the dingy."
+            "desc": "The river goes thru a narrow crevice to the south. Much too narrow for you to enter. But there is a small shelf of land here, where you may land the dingy."
         },
         {
             "number": 62,
@@ -1092,7 +1092,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The sound of your small waves lapping against the granit walls to the southwest is rather noisy to your ears. You wonder if anything else hears it.."
+            "desc": "The sound of your small waves lapping against the granite walls to the southwest is rather noisy to your ears. You wonder if anything else hears it.."
         },
         {
             "number": 67,
@@ -1307,7 +1307,7 @@
             "item": 0,
             "weapon": 0,
             "food": 51,
-            "desc": "You are in a underground lake, the slapping of water echos erily..."
+            "desc": "You are in a underground lake, the slapping of water echoes eerily..."
         },
         {
             "number": 80,
@@ -1483,7 +1483,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You feel your hair standing on end.. What could be to the south to cause such a stiring of excitment?!?!"
+            "desc": "You feel your hair standing on end.. What could be to the south to cause such a stirring of excitement?!?!"
         },
         {
             "number": 91,
@@ -1498,7 +1498,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The sense of excitment is stronger here.."
+            "desc": "The sense of excitement is stronger here.."
         },
         {
             "number": 92,
@@ -1513,7 +1513,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A vague sense of excitment is in the air..."
+            "desc": "A vague sense of excitement is in the air..."
         },
         {
             "number": 93,
@@ -1530,7 +1530,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is the lakes edge. Granite walls rise sheer and forboding to the south and west..."
+            "desc": "This is the lakes edge. Granite walls rise sheer and foreboding to the south and west..."
         },
         {
             "number": 94,
@@ -1579,7 +1579,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor goes is several directions. It raises steeply to the north, and decends to the south.."
+            "desc": "The corridor goes is several directions. It raises steeply to the north, and descends to the south.."
         },
         {
             "number": 97,
@@ -2019,7 +2019,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor continues. You hear goulish laughter somewhere."
+            "desc": "The corridor continues. You hear ghoulish laughter somewhere."
         },
         {
             "number": 126,
@@ -2353,7 +2353,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Something smells vaguly unhealthy..."
+            "desc": "Something smells vaguely unhealthy..."
         },
         {
             "number": 148,
@@ -2557,7 +2557,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Brr... You wonder why it is so cold down here. It really should'nt be.."
+            "desc": "Brr... You wonder why it is so cold down here. It really shouldn't be.."
         },
         {
             "number": 161,
@@ -2618,7 +2618,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Yet another intercetion. Now which way to go?!"
+            "desc": "Yet another intersection. Now which way to go?!"
         },
         {
             "number": 165,
@@ -2633,7 +2633,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor gently decends to the south.."
+            "desc": "The corridor gently descends to the south.."
         },
         {
             "number": 166,
@@ -2899,7 +2899,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor splits off here. You imagine you hear goulish laughter somewhere."
+            "desc": "The corridor splits off here. You imagine you hear ghoulish laughter somewhere."
         },
         {
             "number": 183,
@@ -2990,7 +2990,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Your torch reveils torches stuck in the sides of the tunnel, long since burnt out..."
+            "desc": "Your torch reveals torches stuck in the sides of the tunnel, long since burnt out..."
         },
         {
             "number": 189,
@@ -3171,7 +3171,7 @@
             "item": 0,
             "weapon": 0,
             "food": 51,
-            "desc": "Water drips slowely from the ceiling..."
+            "desc": "Water drips slowly from the ceiling..."
         },
         {
             "number": 201,
@@ -3233,7 +3233,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a narrow slippery bank. A quiet pond is west, you see a manmade passage to the north.."
+            "desc": "This is a narrow slippery bank. A quiet pond is west, you see a man-made passage to the north.."
         },
         {
             "number": 205,

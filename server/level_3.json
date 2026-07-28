@@ -13,7 +13,7 @@
             "item": 11,
             "weapon": 0,
             "food": 0,
-            "desc": "All around the land is covered in shadows. Dark, mysterious and forboding. You have come this far, there can be no turning back. There is noise and light coming from below you but you cannot see through the gloom."
+            "desc": "All around the land is covered in shadows. Dark, mysterious and foreboding. You have come this far, there can be no turning back. There is noise and light coming from below you but you cannot see through the gloom."
         },
         {
             "number": 2,
@@ -42,7 +42,7 @@
             "item": 0,
             "weapon": 17,
             "food": 0,
-            "desc": "You are in the depts of the woods. There is a small clearing here, with sunlight streaming into the middle."
+            "desc": "You are in the depths of the woods. There is a small clearing here, with sunlight streaming into the middle."
         },
         {
             "number": 4,
@@ -194,7 +194,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Yep, things are definitly stranger in here..."
+            "desc": "Yep, things are definitely stranger in here..."
         },
         {
             "number": 14,
@@ -411,7 +411,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The silence is stiffling. The tall trees block out the sunlight. Only moss and needles are under your feet."
+            "desc": "The silence is stifling. The tall trees block out the sunlight. Only moss and needles are under your feet."
         },
         {
             "number": 28,
@@ -851,7 +851,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You have arrived at the entrance to a tunnel. There is a dim glow from within and a foul stench in the air. UNNEL DNTRANCE,0,0,0,0,1,0,0,1,0,0 You have arrived at the entrance to a tunnel. There is a dim glow from within and a foul stench in the air."
+            "desc": "You have arrived at the entrance to a tunnel. There is a dim glow from within and a foul stench in the air."
         },
         {
             "number": 57,
@@ -897,7 +897,7 @@
             "item": 94,
             "weapon": 20,
             "food": 0,
-            "desc": "The path leads down to the base of the mountain. It is steep but not un-managable."
+            "desc": "The path leads down to the base of the mountain. It is steep but not un-manageable."
         },
         {
             "number": 60,
@@ -1076,7 +1076,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The narrow tunnel decends to the north.."
+            "desc": "The narrow tunnel descends to the north.."
         },
         {
             "number": 72,
@@ -1185,7 +1185,7 @@
         },
         {
             "number": 79,
-            "name": "Adventurer'S Campsite",
+            "name": "Adventurer's Campsite",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {

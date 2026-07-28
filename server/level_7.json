@@ -45,7 +45,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are in the grand enterance.  Lavish gold and silver furnature line this area.  The foyer is to the west.  There is a huge staircase going up to the south, and a cloak room to the east."
+            "desc": "You are in the grand entrance.  Lavish gold and silver furniture line this area.  The foyer is to the west.  There is a huge staircase going up to the south, and a cloak room to the east."
         },
         {
             "number": 4,
@@ -60,7 +60,7 @@
             "item": 0,
             "weapon": 30,
             "food": 0,
-            "desc": "You are in what appears to be a cloak room.  The light is dim, but there is enough light to see that this room is very much empty!  There is a bathroom to the south and to the west is the entery."
+            "desc": "You are in what appears to be a cloak room.  The light is dim, but there is enough light to see that this room is very much empty!  There is a bathroom to the south and to the west is the entry."
         },
         {
             "number": 5,
@@ -144,7 +144,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are in the pool room.  The pool balls were  stacked neatly with care, with visions of getting knocked togther .... oops.  Reality check. The game room is to the south."
+            "desc": "You are in the pool room.  The pool balls were  stacked neatly with care, with visions of getting knocked together .... oops.  Reality check. The game room is to the south."
         },
         {
             "number": 11,
@@ -173,7 +173,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are in a grungey little bathroom.  It smells, it stinks, it is NOT a good place to visit. There is even a more disgusting shower to the west, and a very inviting place to the east"
+            "desc": "You are in a grungy little bathroom.  It smells, it stinks, it is NOT a good place to visit. There is even a more disgusting shower to the west, and a very inviting place to the east."
         },
         {
             "number": 13,
@@ -190,7 +190,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are it the top of the stairs, you look around and see an ugly bathroom to the west.  There seems to be a game room to the east, judgeing from the amount of games.  To the south, there is a large hallway."
+            "desc": "You are it the top of the stairs, you look around and see an ugly bathroom to the west.  There seems to be a game room to the east, judging from the amount of games.  To the south, there is a large hallway."
         },
         {
             "number": 14,
@@ -205,7 +205,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a little game room.  There are several familar games around here, namely Yahtzee, Monopoly, and  |L|I|F|E|.  There is a billard room to the north and the hallway to the west."
+            "desc": "This is a little game room.  There are several familiar games around here, namely Yahtzee, Monopoly, and  |L|I|F|E|.  There is a billiard room to the north and the hallway to the west."
         },
         {
             "number": 15,
@@ -344,7 +344,7 @@
         },
         {
             "number": 24,
-            "name": "Teenager'S Dope Room",
+            "name": "Teenager's Dope Room",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -357,7 +357,7 @@
             "item": 0,
             "weapon": 0,
             "food": 28,
-            "desc": "This is a large room, obiously of a teenager, judgeing from the amount of heavy metal posters, including \"Digital Underground\" and \"Anthrax\" .. wasn't that some kind of livestock disease? The hallway is to the north.  A door is open to the west, apparently a bathroom.  Your hear beeping to the south.  What could be the other way! Look out!  Don't wake the dog... uh-oh."
+            "desc": "This is a large room, obviously of a teenager, judging from the amount of heavy metal posters, including \"Digital Underground\" and \"Anthrax\" .. wasn't that some kind of livestock disease? The hallway is to the north.  A door is open to the west, apparently a bathroom.  Your hear beeping to the south.  What could be the other way! Look out!  Don't wake the dog... uh-oh."
         },
         {
             "number": 25,
@@ -372,7 +372,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "YOU SEE A LARGE AMOUNT OF SECURITY! Whoever made this room obiously studied Fort Knox. There is a door to the south!"
+            "desc": "YOU SEE A LARGE AMOUNT OF SECURITY! Whoever made this room obviously studied Fort Knox. There is a door to the south!"
         },
         {
             "number": 26,
@@ -414,7 +414,7 @@
             "item": 34,
             "weapon": 0,
             "food": 0,
-            "desc": "You are in a very secured room, obiously this Josh guy's treasure area. There is an exit to the north."
+            "desc": "You are in a very secured room, obviously this Josh guy's treasure area. There is an exit to the north."
         }
     ]
 }
