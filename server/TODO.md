@@ -1178,3 +1178,36 @@
   files (`graphics/banner.ans`, `graphics/banner-petscii.txt`) still use
   the old untagged/legacy `[tokenized]`-equivalent format -- nobody has
   actually re-saved either through the new editor yet.
+
+- CTRL-H help overlay (Ryan's request, same session): `petscii_editor.
+  asm` gained a help screen -- backs up the real `SCREEN_RAM`/
+  `COLOR_RAM` (not `CHAR_BUF`/`COLOR_BUF`, so the canvas being edited is
+  untouched), paints a static 6-line help screen, waits for back-arrow,
+  restores exactly what was there before. Added as a new `editor_keys`
+  table entry (`key_help`), so it got the out-of-range-branch fix above
+  for free rather than risking a repeat. Also added two genuinely
+  reusable general-purpose routines (unlike the file's other bulk-copy
+  helpers, which each do a byte-by-byte *transform* and so are written
+  out individually): `copy_1000` (plain 1000-byte copy, any source/dest)
+  and `fill_1000` (fill 1000 bytes with one value), plus `poke_line` (a
+  fixed 40-byte line copy, no page-crossing trick needed) and
+  `draw_help_screen` for painting the actual text. Help line text uses
+  `{alpha:poke}` (from the c64list manual excerpt Ryan shared) to get
+  real screen POKE codes directly from plain-case `ascii` strings,
+  reset to `{alpha:normal}` right after (same scoping discipline as
+  `petscii_editor_filename`'s `{alpha:alt}` in `tada-client.asm`).
+
+  **Verified live, both guessed key codes correct on the first try**:
+  `HELP_KEY = $08` (CTRL-H) and `HELP_EXIT_KEY = $5f` (back-arrow) both
+  worked exactly as guessed -- unlike F1 earlier this session, which
+  needed a real fix, not just a lucky guess. Confirmed via VICE monitor
+  keyboard-buffer injection: help screen displays correctly (all 6
+  lines), back-arrow restores the exact prior screen content and cursor
+  position, and normal editing (typing) continues to work correctly
+  afterward. Not yet tested: pressing CTRL-H *while* the color-select or
+  save/cancel flow is mid-flight, and real physical-keyboard CTRL-H
+  (this was tested via direct byte injection, not an actual key
+  combination through VICE's keymap -- see [[reference_vice_monitor_testing]]
+  for why that's the more reliable test method, but it does mean a real
+  keyboard's CTRL-H hasn't been confirmed to send $08 in this specific
+  keymap, only that $08 itself does the right thing once received).

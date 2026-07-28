@@ -49,6 +49,20 @@
 {const: CANVAS_STREAM_START   $01}
 {const: CANVAS_STREAM_CONFIRM $42}
 
+; GETIN codes for the help overlay -- BEST GUESS, NOT YET VERIFIED LIVE
+; (this session's own experience with F1 says don't trust a remembered
+; key code without checking: real hardware/VICE keymaps can differ from
+; the "standard" PETSCII table). $08 matches the common ASCII/ANSI-
+; terminal CTRL-H convention, which some VICE keymaps also extend to
+; C64 CTRL+letter combos even though the stock KERNAL keyboard decode
+; table doesn't define anything for CTRL+regular-letter keys on real
+; hardware. $5f is back-arrow (←) unshifted, standard PETSCII.
+; Adjust these two constants once confirmed against a real session --
+; that's the only thing that needs to change, since both are used only
+; here and in the editor_keys table entry below.
+{const: HELP_KEY       $08}
+{const: HELP_EXIT_KEY  $5f}
+
 CELLS = 1000    ; 40x25
 
 ; Reuses tada-client.asm's own scr_ptr_lo/scr_ptr_hi zero-page bytes
@@ -160,6 +174,8 @@ editor_keys:
         word key_return
         byte $14                  ; DEL -- backspace-erase
         word key_delete
+        byte HELP_KEY              ; CTRL-H -- help screen
+        word key_help
 EDITOR_KEYS_END = * - editor_keys ; auto-sized -- current PC minus the
                                    ; table's own start address, so adding/
                                    ; removing an entry can't desync this
@@ -238,6 +254,66 @@ key_delete_erase:
         jsr store_char_at_cursor
 key_delete_done:
         jsr recompute_offset
+        jsr draw_cursor
+        jmp edit_loop
+
+; --- Help overlay ---
+; Backs up the real SCREEN_RAM/COLOR_RAM (not CHAR_BUF/COLOR_BUF -- the
+; canvas being edited is untouched by any of this), paints a static
+; help screen over it, waits for HELP_EXIT_KEY, then restores exactly
+; what was there before and falls back into the ordinary edit loop.
+; undraw_cursor first so the backup doesn't capture the reverse-video
+; cursor glyph as if it were real canvas content.
+key_help:
+        jsr undraw_cursor
+
+        lda #<SCREEN_RAM
+        sta copy_src_lo
+        lda #>SCREEN_RAM
+        sta copy_src_hi
+        lda #<BACKUP_CHARS
+        sta copy_dst_lo
+        lda #>BACKUP_CHARS
+        sta copy_dst_hi
+        jsr copy_1000
+        lda #<COLOR_RAM
+        sta copy_src_lo
+        lda #>COLOR_RAM
+        sta copy_src_hi
+        lda #<BACKUP_COLORS
+        sta copy_dst_lo
+        lda #>BACKUP_COLORS
+        sta copy_dst_hi
+        jsr copy_1000
+
+        jsr draw_help_screen
+
+key_help_wait:
+        jsr GETIN
+        cmp #0
+        beq key_help_wait
+        cmp #HELP_EXIT_KEY
+        bne key_help_wait
+
+        lda #<BACKUP_CHARS
+        sta copy_src_lo
+        lda #>BACKUP_CHARS
+        sta copy_src_hi
+        lda #<SCREEN_RAM
+        sta copy_dst_lo
+        lda #>SCREEN_RAM
+        sta copy_dst_hi
+        jsr copy_1000
+        lda #<BACKUP_COLORS
+        sta copy_src_lo
+        lda #>BACKUP_COLORS
+        sta copy_src_hi
+        lda #<COLOR_RAM
+        sta copy_dst_lo
+        lda #>COLOR_RAM
+        sta copy_dst_hi
+        jsr copy_1000
+
         jsr draw_cursor
         jmp edit_loop
 
@@ -458,6 +534,191 @@ lcc_found:
         rts
 lcc_not_found:
         clc
+        rts
+
+; --- General-purpose 1000-byte memory copy ---
+; Unlike the bulk-transfer helpers below (each doing a byte-by-byte
+; *transform* -- PETSCII<->screen-code conversion, or a wire read/write
+; -- which is why those are written out individually rather than
+; shared), this is a plain, untransformed copy: one real reusable
+; subroutine, not a macro (c64list has no macro parameters, but an
+; ordinary JSR with input variables works fine here). Used by the help
+; overlay to back up/restore SCREEN_RAM+COLOR_RAM.
+;
+; Input: copy_src_lo/hi = source base address, copy_dst_lo/hi = dest
+; base address. Copies exactly CELLS (1000) bytes.
+copy_1000:
+        lda copy_src_lo
+        sta copy_src_load+1
+        lda copy_src_hi
+        sta copy_src_load+2
+        lda copy_dst_lo
+        sta copy_dst_store+1
+        lda copy_dst_hi
+        sta copy_dst_store+2
+        lda #<CELLS
+        sta copy_remaining_lo
+        lda #>CELLS
+        sta copy_remaining_hi
+copy_1000_loop:
+copy_src_load:
+        lda $ffff
+copy_dst_store:
+        sta $ffff
+        inc copy_src_load+1
+        bne copy_src_no_carry
+        inc copy_src_load+2
+copy_src_no_carry:
+        inc copy_dst_store+1
+        bne copy_dst_no_carry
+        inc copy_dst_store+2
+copy_dst_no_carry:
+        lda copy_remaining_lo
+        bne copy_dec_lo
+        dec copy_remaining_hi
+copy_dec_lo:
+        dec copy_remaining_lo
+        lda copy_remaining_lo
+        ora copy_remaining_hi
+        bne copy_1000_loop
+        rts
+
+; --- General-purpose 1000-byte fill ---
+; Input: fill_dst_lo/hi = dest base address, fill_value = byte to write
+; to every one of CELLS (1000) bytes.
+fill_1000:
+        lda fill_dst_lo
+        sta fill_1000_store+1
+        lda fill_dst_hi
+        sta fill_1000_store+2
+        lda #<CELLS
+        sta fill_remaining_lo
+        lda #>CELLS
+        sta fill_remaining_hi
+fill_1000_loop:
+        lda fill_value
+fill_1000_store:
+        sta $ffff
+        inc fill_1000_store+1
+        bne fill_1000_no_carry
+        inc fill_1000_store+2
+fill_1000_no_carry:
+        lda fill_remaining_lo
+        bne fill_dec_lo
+        dec fill_remaining_hi
+fill_dec_lo:
+        dec fill_remaining_lo
+        lda fill_remaining_lo
+        ora fill_remaining_hi
+        bne fill_1000_loop
+        rts
+
+; --- Fixed-width (40-byte) line poke ---
+; Copies exactly 40 bytes from poke_src_lo/hi to poke_dst_lo/hi -- one
+; screen row's worth. Unlike copy_1000/fill_1000, a plain X-indexed loop
+; is enough here (0-39 never crosses a page boundary in a way that needs
+; the self-modified-high-byte trick those two need for 1000 bytes).
+; Input: poke_src_lo/hi = source (a 40-byte help_* line, space-padded),
+; poke_dst_lo/hi = dest (SCREEN_RAM + row*40).
+poke_line:
+        lda poke_src_lo
+        sta poke_line_load+1
+        lda poke_src_hi
+        sta poke_line_load+2
+        lda poke_dst_lo
+        sta poke_line_store+1
+        lda poke_dst_hi
+        sta poke_line_store+2
+        ldx #0
+poke_line_loop:
+poke_line_load:
+        lda $ffff,x
+poke_line_store:
+        sta $ffff,x
+        inx
+        cpx #40
+        bne poke_line_loop
+        rts
+
+; --- Draw the static help screen ---
+; Clears to blank/white first (fill_1000 x2), then pokes each 40-char
+; help_line_N over SCREEN_RAM (COLOR_RAM is left at the white fill --
+; no per-line color needed for a plain help screen).
+draw_help_screen:
+        lda #<SCREEN_RAM
+        sta fill_dst_lo
+        lda #>SCREEN_RAM
+        sta fill_dst_hi
+        lda #$20                  ; PETSCII space
+        sta fill_value
+        jsr fill_1000
+        lda #<COLOR_RAM
+        sta fill_dst_lo
+        lda #>COLOR_RAM
+        sta fill_dst_hi
+        lda #1                    ; white
+        sta fill_value
+        jsr fill_1000
+
+        lda #<help_line1
+        sta poke_src_lo
+        lda #>help_line1
+        sta poke_src_hi
+        lda #<(SCREEN_RAM+40*1)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+40*1)
+        sta poke_dst_hi
+        jsr poke_line
+
+        lda #<help_line2
+        sta poke_src_lo
+        lda #>help_line2
+        sta poke_src_hi
+        lda #<(SCREEN_RAM+40*3)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+40*3)
+        sta poke_dst_hi
+        jsr poke_line
+
+        lda #<help_line3
+        sta poke_src_lo
+        lda #>help_line3
+        sta poke_src_hi
+        lda #<(SCREEN_RAM+40*4)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+40*4)
+        sta poke_dst_hi
+        jsr poke_line
+
+        lda #<help_line4
+        sta poke_src_lo
+        lda #>help_line4
+        sta poke_src_hi
+        lda #<(SCREEN_RAM+40*5)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+40*5)
+        sta poke_dst_hi
+        jsr poke_line
+
+        lda #<help_line5
+        sta poke_src_lo
+        lda #>help_line5
+        sta poke_src_hi
+        lda #<(SCREEN_RAM+40*6)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+40*6)
+        sta poke_dst_hi
+        jsr poke_line
+
+        lda #<help_line6
+        sta poke_src_lo
+        lda #>help_line6
+        sta poke_src_hi
+        lda #<(SCREEN_RAM+40*8)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+40*8)
+        sta poke_dst_hi
+        jsr poke_line
         rts
 
 ; --- Bulk transfer helpers ---
@@ -706,6 +967,39 @@ uc_remaining_lo:
 uc_remaining_hi:
         byte 0
 
+; copy_1000/fill_1000/poke_line's own input/scratch variables -- see
+; those routines' own comments.
+copy_src_lo:
+        byte 0
+copy_src_hi:
+        byte 0
+copy_dst_lo:
+        byte 0
+copy_dst_hi:
+        byte 0
+copy_remaining_lo:
+        byte 0
+copy_remaining_hi:
+        byte 0
+fill_dst_lo:
+        byte 0
+fill_dst_hi:
+        byte 0
+fill_value:
+        byte 0
+fill_remaining_lo:
+        byte 0
+fill_remaining_hi:
+        byte 0
+poke_src_lo:
+        byte 0
+poke_src_hi:
+        byte 0
+poke_dst_lo:
+        byte 0
+poke_dst_hi:
+        byte 0
+
 ; Same raw byte values as formatting.py's PETSCII_CONTROL_CODES 16-color
 ; palette, in the same order as petscii_editor/canvas.py's
 ; COLOR_NUMBER_TO_TOKEN (index into this table == C64 color# 0-15).
@@ -751,3 +1045,37 @@ CHAR_BUF:
 
 COLOR_BUF:
         area 1000, 0
+
+; Backs up the real SCREEN_RAM/COLOR_RAM while the help overlay is shown
+; (see key_help) -- unrelated to CHAR_BUF/COLOR_BUF above, which hold
+; the actual canvas being edited and are never touched by the help
+; screen at all.
+BACKUP_CHARS:
+        area 1000, 0
+
+BACKUP_COLORS:
+        area 1000, 0
+
+; Help screen text, 40 chars each (poke_line copies a fixed 40 bytes,
+; so every line must be space-padded to exactly that width). {alpha:poke}
+; converts standard-case ASCII straight into screen POKE codes -- these
+; are poked directly into SCREEN_RAM, not sent through petscii_to_screen
+; at display time like CHAR_BUF's contents are, so they need to already
+; be screen codes at assembly time. Reset to {alpha:normal} right after,
+; same reason petscii_editor_filename's own {alpha:alt} block in tada-
+; client.asm resets afterward -- this must not leak into anything else
+; that uses `ascii` later in the file.
+{alpha:poke}
+help_line1:
+        ascii "PETSCII EDITOR HELP                     "
+help_line2:
+        ascii "CURSOR KEYS: MOVE   DEL: BACKSPACE      "
+help_line3:
+        ascii "RETURN: NEXT LINE                       "
+help_line4:
+        ascii "CTRL/CMDRE + 1-8: SET COLOR             "
+help_line5:
+        ascii "F1: SAVE   RUN/STOP: CANCEL             "
+help_line6:
+        ascii "PRESS <- (BACK ARROW) TO RETURN         "
+{alpha:normal}
