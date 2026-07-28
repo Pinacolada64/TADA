@@ -45,6 +45,15 @@ _DIR_ALIASES: dict[str, str] = {
 }
 
 # Rooms that trigger a sub-area module when entered, keyed by room number.
+# The bar is level-gated in the original source, same as the Allys Guild/
+# Jake's Stable checks below it (SPUR.MAIN.S: "if cl=1 then if cr=49 then
+# if di=1 link dy$", right alongside those two's own cl/cr/di checks) --
+# _BAR_ROOM (37) is this port's own exit-*destination* room number, which
+# doesn't match SPUR's source room number (49) 1:1, but the level guard
+# still applies: without it, any level whose map happens to route an exit
+# to room 37 incorrectly drops the player into the bar. Bug: confirmed
+# live -- moving to room 49 on a different level triggered the bar.
+_BAR_LEVEL   = 1
 _BAR_ROOM    = 37   # Wall Bar & Grill
 _SHOPPE_ROOM = None  # Shoppe is reached via rc/rt elevator, not a map room
 
@@ -278,7 +287,7 @@ class MoveCommand(Command):
             dest = room.get_exit(direction)
             if not dest and rt and ((direction == 'u' and rc == 1) or (direction == 'd' and rc == 2)):
                 dest = rt
-            if dest and int(dest) == _BAR_ROOM:
+            if dest and int(dest) == _BAR_ROOM and player_level == _BAR_LEVEL:
                 await _enter_bar(ctx)
                 return CommandResult.ok()
 
