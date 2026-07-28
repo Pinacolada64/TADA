@@ -33,7 +33,7 @@ def test_exits_up_to_room_and_direction_label():
     room = Room(number=1, name="Test", desc="", exits={'n': 2, 'rc': 1, 'rt': 5})
     txt = room.exits_txt(_Ctx(is_debug=True))
     assert 'North' in txt
-    assert 'Up [to #5]' in txt
+    assert 'Up [[to #5]]' in txt
 
 
 def test_exits_up_to_shoppe():
@@ -47,7 +47,7 @@ def test_exits_string_values_coerced():
     room = Room(number=3, name="StringTest", desc="", exits={'e': 4, 'rc': '2', 'rt': '23'})
     txt = room.exits_txt(_Ctx(is_debug=True))
     assert 'East' in txt
-    assert 'Down [to #23]' in txt
+    assert 'Down [[to #23]]' in txt
 
 def test_exits_missing_rc_rt():
     room = Room(number=4, name="NoRCTest", desc="", exits={'s': 5})
@@ -99,6 +99,28 @@ def test_exits_use_or_not_and():
     room = Room(number=8, name="ThreeWay", desc="", exits={'n': 2, 's': 3, 'e': 4})
     txt = room.exits_txt(_Ctx())
     assert txt == 'North, South, or East'
+
+
+def test_exits_regular_direction_room_number_is_bracket_escaped():
+    """The per-direction "[to #N]" debug annotation (not just the Up/Down
+    rc/rt case above) must also use the [[...]] escape -- a bare single-
+    bracket annotation gets read as formatting.highlight_brackets()
+    markup (stripped/recolored) instead of showing literally."""
+    room = Room(number=9, name="Test", desc="", exits={'e': 28})
+    txt = room.exits_txt(_Ctx(is_debug=True))
+    assert 'East [[to #28]]' in txt
+
+
+def test_exits_debug_room_numbers_render_as_literal_brackets():
+    """End-to-end: run exits_txt()'s output through the same
+    highlight_brackets() step real formatting does, confirming [[to #N]]
+    actually renders as literal "[to #N]" and not stripped/recolored."""
+    from formatting import PlainCodec, highlight_brackets
+
+    room = Room(number=10, name="Test", desc="", exits={'e': 28})
+    txt = room.exits_txt(_Ctx(is_debug=True))
+    rendered = highlight_brackets(txt, PlainCodec())
+    assert 'East [to #28]' in rendered
 
 
 class TestGetExit:

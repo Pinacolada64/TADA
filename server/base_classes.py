@@ -561,7 +561,10 @@ class Room(object):
         the calling convention used everywhere else in the codebase,
         rather than a bare debug bool -- so callers just pass the ctx they
         already have. When ctx.player.is_debug is set, each exit is
-        annotated with its destination room number, e.g. "Up [to #47]".
+        annotated with its destination room number, e.g.
+        "Up [[to #47]]" (renders as literal "Up [to #47]" -- see
+        formatting.highlight_brackets()'s [[...]] escape; a bare single-
+        bracket annotation would otherwise be read as highlight markup).
 
         rc/rt semantics (historical TADA map format):
           rc == 1: Up connection   rt == 0: Shoppe   rt > 0: room number
@@ -586,7 +589,12 @@ class Room(object):
             if debug:
                 dest = self.exits.get(k)
                 if dest:
-                    label = f'{label} [to #{dest}]'
+                    # [[...]] escapes the brackets so they render as
+                    # literal text (formatting.highlight_brackets()) --
+                    # a bare [to #N] would otherwise be interpreted as
+                    # reverse-video highlight markup instead of a plain
+                    # debug annotation.
+                    label = f'{label} [[to #{dest}]]'
             exit_txts.append(label)
         try:
             rc = int(self.exits.get('rc', 0) or 0)
@@ -600,14 +608,14 @@ class Room(object):
             if rt == 0:
                 exit_txts.append('Up to Shoppe')
             elif debug:
-                exit_txts.append(f'Up [to #{rt}]')
+                exit_txts.append(f'Up [[to #{rt}]]')
             else:
                 exit_txts.append('Up')
         elif rc == 2:
             if rt == 0:
                 exit_txts.append('Down to Shoppe')
             elif debug:
-                exit_txts.append(f'Down [to #{rt}]')
+                exit_txts.append(f'Down [[to #{rt}]]')
             else:
                 exit_txts.append('Down')
         from tada_utilities import oxford_comma_list

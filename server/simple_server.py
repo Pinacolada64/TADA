@@ -727,7 +727,9 @@ class Server:
         if is_hq and client_ctx:
             hq_sigil = guild_sigil_for(client_ctx, RoomAlignment.HQ)
             sigil = f'{sigil} {hq_sigil}' if sigil else hq_sigil
-        lines.append(f"{clean_name}{f'  {sigil}' if sigil else ''}")
+
+        debug_room_no = f'  [[{room_no}]]' if getattr(player, 'is_debug', False) else ''
+        lines.append(f"{clean_name}{f'  {sigil}' if sigil else ''}{debug_room_no}")
 
         if getattr(room, 'desc', None):
             lines += ['', room.desc]

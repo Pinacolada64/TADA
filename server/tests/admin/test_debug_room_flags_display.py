@@ -62,3 +62,22 @@ class TestDebugRoomFlagsDisplay:
         client = _client(is_debug=True)
         lines = server._describe_room(client)
         assert '[DEBUG] Room flags: hidden_exit_east, no_monster' in lines
+
+
+class TestDebugRoomNumberInHeader:
+    """The room header line should also show [[<room_number>]] (a literal
+    "[89]", via the [[...]] escape -- see formatting.py's
+    highlight_brackets()) for debug-mode players, so it's easy to cross-
+    reference a room against its data/map number while testing."""
+
+    def test_debug_player_sees_room_number_in_header(self, server):
+        server.game_map = _make_map()
+        client = _client(is_debug=True)
+        lines = server._describe_room(client)
+        assert lines[0] == 'TELEPORT ROOM  [[89]]'
+
+    def test_non_debug_player_does_not_see_room_number(self, server):
+        server.game_map = _make_map()
+        client = _client(is_debug=False)
+        lines = server._describe_room(client)
+        assert lines[0] == 'TELEPORT ROOM'
