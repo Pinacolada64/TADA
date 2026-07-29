@@ -246,8 +246,10 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
 
         if is_carrier:
             await ctx.send(
-                f'(Appropriate ammo will automatically be placed in the {name} '
-                'when it is purchased. Buying more than one will do no good.)'
+                f'(The {name} comes loaded with {item_flags["rounds"]} rounds '
+                'already -- ready to fire right away. You can buy more ammo '
+                f'for it separately later to top it back off; a second {name} '
+                'would just sit empty, so one per weapon is all you need.)'
             )
 
 
@@ -367,6 +369,14 @@ async def _help_section(ctx: GameContext) -> None:
         'combat.  When you run out you cannot [ATTACK] until you reload.',
         '',
         'Storm weapons do not use physical ammo.',
+        '',
+        *underline('Ammo Carriers', ctx),
+        'A carrier (cartridge box, bandolier, shell caisson) is a '
+        'reusable alternative to buying loose ammo boxes.  It arrives '
+        'full and [USE]s just like a box of ammo, but it stays in your '
+        'pack afterward instead of being used up -- buy matching ammo '
+        'here again later to top it back off.  You only need one per '
+        'weapon; a second sits empty and does nothing.',
         '',
         *underline('Stray Rounds / Friendly Fire', ctx),
         'A missed ammo shot may go wide and hit a party member or '

@@ -189,7 +189,8 @@ class TestAmmoSectionPurchase(unittest.IsolatedAsyncioTestCase):
         player = _funded_player(1000)
         ctx = _FakeCtx(['15', 'y', 'q'], player)  # cartridge box (shop-local #15), cost 50
         await _ammo_section(ctx, player, player.inventory, self.objects_by_num)
-        self.assertIn('automatically be placed', ctx._flat())
+        self.assertIn('comes loaded with', ctx._flat())
+        self.assertIn('would just sit empty', ctx._flat())
 
     async def test_declining_confirmation_does_not_charge(self):
         player = _funded_player(1000)
