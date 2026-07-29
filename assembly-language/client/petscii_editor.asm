@@ -193,8 +193,8 @@ dispatch_key:
 editor_keys:
         byte $85                  ; F1 -- save
         word edit_save
-        byte $03                  ; RUN/STOP -- cancel
-        word edit_cancel
+        byte $03                  ; RUN/STOP -- ask "cancel edit? (y/n)"
+        word edit_cancel_confirm  ; first, not edit_cancel directly
         byte $91                  ; cursor up
         word key_up
         byte $11                  ; cursor down
@@ -413,6 +413,66 @@ edit_save:
         lda #$93                  ; clear screen + home KERNAL cursor
         jsr CHROUT
         jmp JT_RESUME
+
+; --- RUN/STOP confirmation: "CANCEL EDIT? (Y/N)" on row 24 ---
+; Ryan's call: RUN/STOP shouldn't discard an edit in progress with no
+; chance to back out (a single stray RUN/STOP keypress previously threw
+; away everything unconditionally). Row 24 is real canvas content during
+; ordinary editing (unlike the progress bar's use of the same row, which
+; only ever runs before/after real content is on screen) -- so unlike
+; progress_init, this backs the row up first and restores it on anything
+; but Y, the same undraw/backup/restore shape key_help already uses for
+; the whole screen, just scoped to one row.
+edit_cancel_confirm:
+        jsr undraw_cursor
+        ldx #0
+ecc_backup_loop:
+        lda SCREEN_RAM+960,x
+        sta cancel_backup_chars,x
+        lda COLOR_RAM+960,x
+        sta cancel_backup_colors,x
+        inx
+        cpx #40
+        bne ecc_backup_loop
+
+        ldy #0
+ecc_prompt_loop:
+        lda cancel_prompt_msg,y
+        sta SCREEN_RAM+960,y
+        lda #2                    ; red -- attention-grabbing, distinct
+        sta COLOR_RAM+960,y        ; from the progress bar's cyan/white
+        iny
+        cpy #40
+        bne ecc_prompt_loop
+
+ecc_wait:
+        jsr GETIN
+        cmp #0
+        beq ecc_wait
+        and #$7f                  ; shifted letters are unshifted+$80 (Y
+                                    ; unshifted=$59, shifted=$d9) -- clearing
+                                    ; bit 7 folds either case to $59 in one
+                                    ; compare, catching both with a single
+                                    ; branch (Ryan's fix: the original two-
+                                    ; branch version compared against $79,
+                                    ; which isn't shifted-Y at all -- PETSCII
+                                    ; shift doesn't move letters into the
+                                    ; $61-$7a range, only $c1-$da)
+        cmp #$59                  ; 'Y', either case
+        beq edit_cancel
+
+        ; anything else: restore row 24 exactly and resume editing
+        ldx #0
+ecc_restore_loop:
+        lda cancel_backup_chars,x
+        sta SCREEN_RAM+960,x
+        lda cancel_backup_colors,x
+        sta COLOR_RAM+960,x
+        inx
+        cpx #40
+        bne ecc_restore_loop
+        jsr draw_cursor
+        jmp edit_loop
 
 ; edit_cancel used to send nothing at all -- confirmed live (border-tick
 ; diagnostic showed RUN/STOP genuinely dispatching here) that the real
@@ -1220,6 +1280,22 @@ BACKUP_CHARS:
 
 BACKUP_COLORS:
         area 1000, 0
+
+; edit_cancel_confirm's row-24 backup -- just the one row (40 bytes each),
+; unlike BACKUP_CHARS/COLORS above which back up the whole screen for the
+; help overlay.
+cancel_backup_chars:
+        area 40, 0
+cancel_backup_colors:
+        area 40, 0
+
+; edit_cancel_confirm's prompt, 40 chars exactly (fixed-width row-24
+; poke, same {alpha:poke} reasoning as LOAD_LABEL/SAVE_LABEL/help_line1-6
+; below -- needs to already be screen codes at assembly time).
+{alpha:poke}
+cancel_prompt_msg:
+        ascii "CANCEL EDIT? (Y/N)                      "
+{alpha:normal}
 
 ; Help screen text, 40 chars each (poke_line copies a fixed 40 bytes,
 ; so every line must be space-padded to exactly that width). {alpha:poke}
