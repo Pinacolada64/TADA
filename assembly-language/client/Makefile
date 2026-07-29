@@ -72,7 +72,14 @@ monitor-commands: $(TARGET)-vice-labels
 all: $(TARGET).prg $(TARGET)-vice-labels monitor-commands $(addsuffix .prg,$(MODULES))
 
 # --- VICE launch ---
-vice: all
+# Builds and attaches the real .d64 (see the $(TARGET).d64 rule below) rather
+# than -fs8 "." host-filesystem passthrough -- confirmed live that -fs8 only
+# ever exposes the single autostarted file, not the rest of the directory
+# (autostart appears to synthesize its own virtual single-file disk image
+# that shadows the real fs8 dir), so LOAD"$",8 never saw petscii_editor.prg
+# that way. Autostarting the .d64 image itself boots normally off it and
+# leaves the whole directory genuinely browsable/loadable at runtime.
+vice: all $(TARGET).d64
 	$(LAUNCH_VICE) \
 	-kernal $(KERNAL) \
 	-basic $(BASIC) \
@@ -88,9 +95,9 @@ vice: all
 	-dos1541 $(JIFFYDOS_C64) \
 	-dos1541II $(JIFFYDOS_1541) \
 	-dos1581 $(JIFFYDOS_1581) \
-	-iecdevice8 -device8 1 -fs8 "." \
+	-8 $(TARGET).d64 \
 	-moncommands "monitor-commands" \
-	-autostart $(TARGET).prg
+	-autostart $(TARGET).d64
 
 # --- Utility targets ---
 

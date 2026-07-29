@@ -63,6 +63,14 @@
 {const: HELP_KEY       $08}
 {const: HELP_EXIT_KEY  $5f}
 
+; Progress-bar sizing: row 24 (the last screen row) is an 8-char label
+; ("LOADING "/"SAVING  ") followed by a 32-cell bar, one cell per
+; PROGRESS_BYTES_PER_DOT bytes actually transferred. 2000 total bytes /
+; 32 cells = 62.5 -- rounded down to 62 so the bar reliably reaches full
+; by the time the real transfer finishes (32*62=1984, comfortably under
+; 2000) rather than falling just short from rounding up.
+{const: PROGRESS_BYTES_PER_DOT $3e}
+
 CELLS = 1000    ; 40x25
 
 ; Reuses tada-client.asm's own scr_ptr_lo/scr_ptr_hi zero-page bytes
@@ -79,6 +87,19 @@ scr_ptr_hi = $fc
 module_start:
         jsr recv_length_prefix   ; discarded -- always exactly 2000 for a
                                    ; 40x25 canvas; nothing to branch on
+
+        ; Show a progress bar on the still-visible leftover screen (from
+        ; before this module loaded) while the 2000-byte body streams in
+        ; -- recv_chars/recv_colors fill CHAR_BUF/COLOR_BUF only, not
+        ; SCREEN_RAM, so nothing real is on screen yet to protect; the
+        ; whole screen gets cleared and repainted from the buffers right
+        ; after anyway, which naturally erases the bar too.
+        lda #<LOAD_LABEL
+        sta scr_ptr_lo
+        lda #>LOAD_LABEL
+        sta scr_ptr_hi
+        jsr progress_init
+
         jsr recv_chars
         jsr recv_colors
 
@@ -352,11 +373,38 @@ key_type_done:
         jsr draw_cursor
         jmp edit_loop
 
+; --- Save/cancel: the real "oddity with saving" bug ---
+; This module draws the canvas straight into SCREEN_RAM via its own
+; scr_ptr_lo/hi pointer (calc_screen_ptr) and never once touches the
+; KERNAL's own text-cursor tracking ($d1-$d6 etc) that CHROUT/display_char
+; rely on -- that cursor has sat frozen wherever it was the instant
+; before this module loaded (typically mid-way through the "banner edit
+; <name>" command line the player typed). Returning to JT_RESUME without
+; resetting it meant the server's "Banner saved." text (sent via ordinary
+; CHROUT/display_char) landed at that frozen position -- usually
+; somewhere in the middle of the just-edited canvas -- instead of
+; anywhere sensible. Fix: clear the screen (PETSCII $93 also homes the
+; KERNAL cursor) right before handing control back, on both the save and
+; cancel paths, so the prompt loop always resumes on a clean, correctly-
+; tracked screen.
 edit_save:
+        lda #<SAVE_LABEL
+        sta scr_ptr_lo
+        lda #>SAVE_LABEL
+        sta scr_ptr_hi
+        jsr progress_init         ; safe to draw straight onto SCREEN_RAM --
+                                    ; upload_canvas reads from CHAR_BUF/
+                                    ; COLOR_BUF, never back from SCREEN_RAM,
+                                    ; and the screen gets cleared below the
+                                    ; moment the upload finishes regardless
         jsr upload_canvas
+        lda #$93                  ; clear screen + home KERNAL cursor
+        jsr CHROUT
         jmp JT_RESUME
 
 edit_cancel:
+        lda #$93                  ; same cursor-desync fix as edit_save --
+        jsr CHROUT                 ; see that routine's comment
         jmp JT_RESUME             ; nothing sent -- the admin command on
                                     ; the server side times out waiting
                                     ; for an upload that never comes (see
@@ -613,6 +661,71 @@ fill_dec_lo:
         bne fill_1000_loop
         rts
 
+; --- Progress bar (row 24, the last screen row) ---
+; Shown while a canvas download/upload streams in/out (module_start,
+; edit_save) -- 2000 bytes at 38400 baud takes long enough that showing
+; nothing at all looked like a hang (Ryan's report: "some oddity with
+; saving"). Pokes straight into SCREEN_RAM/COLOR_RAM: safe during a
+; download (nothing real is on screen yet -- recv_chars/recv_colors fill
+; CHAR_BUF/COLOR_BUF only, and the whole screen is cleared+repainted from
+; them right after) and safe during a save (upload_canvas reads from
+; CHAR_BUF/COLOR_BUF, never back from SCREEN_RAM, and edit_save clears
+; the screen the moment the upload finishes regardless -- see its own
+; comment on the cursor-desync fix).
+;
+; progress_init: input scr_ptr_lo/hi (caller-set, same zero-page pointer
+; calc_char_buf_ptr etc. use -- (zp),y indirect addressing needs a real
+; zero-page pointer, and this file's convention is to reuse scr_ptr_lo/hi
+; for whatever the current operation needs rather than claim a second
+; zero-page pair for it) = address of an 8-byte {alpha:poke} label
+; (LOAD_LABEL or SAVE_LABEL). Pokes the label into columns 0-7, blanks
+; columns 8-39 (the bar), resets progress_col/progress_counter.
+progress_init:
+        ldy #0
+progress_init_label_loop:
+        lda (scr_ptr_lo),y
+        sta SCREEN_RAM+960,y
+        lda #3                     ; cyan, both label and bar
+        sta COLOR_RAM+960,y
+        iny
+        cpy #8
+        bne progress_init_label_loop
+        ldx #8
+progress_init_bar_loop:
+        lda #$20                   ; PETSCII/screen-code space (blank cell)
+        sta SCREEN_RAM+960,x
+        lda #3
+        sta COLOR_RAM+960,x
+        inx
+        cpx #40
+        bne progress_init_bar_loop
+        lda #0
+        sta progress_col
+        sta progress_counter
+        rts
+
+; progress_tick: call once per byte actually transferred. Every
+; PROGRESS_BYTES_PER_DOT bytes, lights the next bar cell (columns
+; 8-39) with a solid reverse-space block, until the bar is full --
+; cpx #40 stops it from writing past column 39 if more bytes arrive
+; than the bar has cells for (rounding slop, see PROGRESS_BYTES_PER_DOT's
+; own comment).
+progress_tick:
+        inc progress_counter
+        lda progress_counter
+        cmp #PROGRESS_BYTES_PER_DOT
+        bne progress_tick_done
+        lda #0
+        sta progress_counter
+        ldx progress_col
+        cpx #40
+        beq progress_tick_done
+        lda #$a0                   ; reverse-video space -- solid block
+        sta SCREEN_RAM+960,x
+        inc progress_col
+progress_tick_done:
+        rts
+
 ; --- Fixed-width (40-byte) line poke ---
 ; Copies exactly 40 bytes from poke_src_lo/hi to poke_dst_lo/hi -- one
 ; screen row's worth. Unlike copy_1000/fill_1000, a plain X-indexed loop
@@ -750,6 +863,7 @@ rc_loop:
         bcc rc_loop
 rc_store:
         sta $ffff
+        jsr progress_tick
         inc rc_store+1
         bne rc_no_carry
         inc rc_store+2
@@ -778,6 +892,7 @@ rl_loop:
         bcc rl_loop
 rl_store:
         sta $ffff
+        jsr progress_tick
         inc rl_store+1
         bne rl_no_carry
         inc rl_store+2
@@ -894,6 +1009,7 @@ uc_char_loop:
 uc_load:
         lda $ffff
         jsr JT_SL_SEND
+        jsr progress_tick
         inc uc_load+1
         bne uc_char_no_carry
         inc uc_load+2
@@ -919,6 +1035,7 @@ uc_color_loop:
 uc_load2:
         lda $ffff
         jsr JT_SL_SEND
+        jsr progress_tick
         inc uc_load2+1
         bne uc_color_no_carry
         inc uc_load2+2
@@ -965,6 +1082,12 @@ pl_remaining_hi:
 uc_remaining_lo:
         byte 0
 uc_remaining_hi:
+        byte 0
+
+; progress_init/progress_tick's own state -- see those routines' comments.
+progress_col:
+        byte 0
+progress_counter:
         byte 0
 
 ; copy_1000/fill_1000/poke_line's own input/scratch variables -- see
@@ -1065,6 +1188,17 @@ BACKUP_COLORS:
 ; same reason petscii_editor_filename's own {alpha:alt} block in tada-
 ; client.asm resets afterward -- this must not leak into anything else
 ; that uses `ascii` later in the file.
+; progress_init's two labels -- 8 chars exactly (poked straight into
+; SCREEN_RAM columns 0-7, same {alpha:poke} reasoning as help_line1-6
+; below: these need to already be screen codes at assembly time, not run
+; through petscii_to_screen at display time).
+{alpha:poke}
+LOAD_LABEL:
+        ascii "LOADING "
+SAVE_LABEL:
+        ascii "SAVING  "
+{alpha:normal}
+
 {alpha:poke}
 help_line1:
         ascii "PETSCII EDITOR HELP                     "
