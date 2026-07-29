@@ -1196,6 +1196,7 @@ class CombatSession:
                 ammo_rounds=getattr(member, 'ammo_rounds', 0),
                 ammo_max=getattr(member, 'ammo_max', 0),
                 ammo_damage=getattr(member, 'ammo_damage', 0),
+                to_hit=getattr(member, 'to_hit', 4),
             )
 
             # No rounds ready -- ally can't fire this weapon (mirrors the

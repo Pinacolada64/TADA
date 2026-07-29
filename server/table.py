@@ -185,6 +185,10 @@ class Table:
         line(s) in ``|color|...|reset|``; the header row and borders are
         left uncoloured. ``None`` (default) renders every row plain, as
         before.
+    header_color : str, optional
+        A single ``|token|`` color name applied to the header row only
+        (independent of ``text_color``). ``None`` (default) leaves the
+        header in the terminal's normal color.
     border_color : str, optional
         A single ``|token|`` color name applied to every border-drawing
         character -- the ``+--+`` rule lines and the ``|`` cell separators
@@ -226,9 +230,11 @@ class Table:
         border_style: Border = ASCII,
         padding:      int    = 1,
         text_color:   Optional[Sequence[str]] = None,
+        header_color: Optional[str] = None,
         border_color: Optional[str] = None,
     ):
         self.text_color   = list(text_color) if text_color else None
+        self.header_color = header_color
         self.border_color = border_color
         self._columns: list[Column] = [
             c if isinstance(c, Column) else Column(header=c)
@@ -317,7 +323,7 @@ class Table:
             header_aligns = [col.align  for col in self._columns]
             lines.extend(
                 self._render_logical_row(header_cells, col_widths,
-                                         header_aligns, pad)
+                                         header_aligns, pad, self.header_color)
             )
             if self.border:
                 lines.append(mid_border)

@@ -869,10 +869,12 @@ def ally_attacks(ally_name: str, ally_strength: int, monster: dict,
                  weapon=None,          # Weapon item or None (unarmed -- SPUR default)
                  ammo_rounds: int = 0,
                  ammo_max: int = 0,
-                 ammo_damage: int = 0) -> AllyAttackResult:
+                 ammo_damage: int = 0,
+                 to_hit: int = 4) -> AllyAttackResult:
     """
     Resolve one ally attack.  Simpler than player attacks — allies use a
-    flat d10 roll; damage is capped at 8 and scaled by player xp level.
+    d10 roll against their own to_hit rating; damage is capped at 8 and
+    scaled by player xp level.
 
     has_light_armor: ally has "!" flag in SPUR (light-armored ally)
     weapon: TADA-only extension -- SPUR allies never carry a weapons.json
@@ -882,6 +884,11 @@ def ally_attacks(ally_name: str, ally_strength: int, monster: dict,
         (commands/give.py auto-readies it), key the sfx off its
         WeaponClass instead via item_system.weapon_sfx(), and gate ammo
         the same way player_attacks() does for projectile/energy weapons.
+    to_hit: New in TADA -- SPUR's p.a1 never actually consulted the ally's
+        own to-hit rating (Ally.to_hit was display-only, e.g. commands/
+        stats.py's "Hit%" column). Default of 4 reproduces the old flat
+        SPUR threshold (miss if roll>4, i.e. a flat 40% hit chance) for
+        any caller that doesn't pass one. Ryan's request.
     """
     needs_ammo = False
     if weapon is not None:
@@ -901,9 +908,13 @@ def ally_attacks(ally_name: str, ally_strength: int, monster: dict,
 
     armor_bonus = 2 if has_light_armor else 0
 
-    # SPUR line 179: z-a > 4 → missed (a=armor_bonus)
+    # SPUR line 179 was "z-a > 4 -> missed" (a=armor_bonus), a flat 40%
+    # hit chance for every ally regardless of its own to_hit rating. New
+    # in TADA: the threshold is now the ally's own to_hit (still a d10
+    # roll, still armor_bonus-adjusted) so a 7-to-hit veteran actually
+    # lands more often than a 2-to-hit rookie -- Ryan's request.
     roll = random.randint(1, 10) - armor_bonus
-    if roll > 4:
+    if roll > to_hit:
         return AllyAttackResult(ally_name=ally_name, hit=False, damage=0,
                                  round_count=round_count, round_max=round_max,
                                  sfx=miss_sfx)

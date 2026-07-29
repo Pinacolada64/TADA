@@ -117,7 +117,7 @@ def _ally_flag_tags(ally) -> str:
 # Core display — returns list[str], no I/O
 # ---------------------------------------------------------------------------
 
-def _build_stats_lines(player) -> list[str]:
+def _build_stats_lines(player, ctx=None) -> list[str]:
     stats  = getattr(player, 'stats', {})
     qf     = player.query_flag
 
@@ -141,6 +141,7 @@ def _build_stats_lines(player) -> list[str]:
     mk          = len(getattr(player, 'dead_monsters', []) or [])
     honor       = int(getattr(player, 'honor',         0) or 0)
     level       = int(getattr(player, 'xp_level',      1) or 1)
+    total_moves = int(getattr(player, 'moves_today',   0) or 0)
 
     guild           = getattr(player, 'guild',      Guild.CIVILIAN)
     char_class      = getattr(player, 'char_class', None)
@@ -168,6 +169,7 @@ def _build_stats_lines(player) -> list[str]:
     lines += [
         f"{'Experience Pts:':>16} {experience:>5}   {'Hit Points:':>12} {player.hit_points:>3}",
         f"{'Monsters Killed:':>16} {mk:>5}   {'Player Level:':>12} {level:>3}",
+        f"{'Total Moves:':>16} {total_moves:>5}",
         '',
     ]
 
@@ -267,21 +269,47 @@ def _build_stats_lines(player) -> list[str]:
     # New in TADA: SPUR.MISC5.S's "status" subroutine (STATS/STAT2) never
     # mentions allies at all -- Ryan asked for one, since a player's party
     # composition/condition is otherwise only visible via bar/fat_olaf.py's
-    # shop menus or commands/editplayer.py's admin editor. Formatting
-    # matches bar/allies.py's pick_ally() (Str/to-hit%/tag convention),
-    # extended to show every AllyFlags member (see _ally_flag_tags), not
-    # just Elite, per Ryan's follow-up request.
+    # shop menus or commands/editplayer.py's admin editor. Rendered as a
+    # table.py Table (Ally/Str/HP/Hit%/Notes columns) per Ryan's request;
+    # Notes carries every AllyFlags member (see _ally_flag_tags) plus any
+    # non-default AllyStatus tag.
     from bar.ally_data import AllyStatus
     from bar.allies import owned_allies
     allies = owned_allies(player)
     lines.append(f"Allies: {len(allies)}/3")
     if allies:
+        from table import Align, Column, Table
+
+        if ctx is not None:
+            from formatting import border_style_for_ctx
+            border_style = border_style_for_ctx(ctx)
+            width = getattr(ctx.player.client_settings, 'screen_columns', 78)
+        else:
+            border_style = 'single'
+            width = 78
+
+        # C64's 40-column screen wraps a bordered table -- drop the
+        # +--+ / | frame there and rely on padding alone. Ryan's request.
+        # Zebra-striped cyan/light_blue rows with a white header, also
+        # Ryan's request.
+        t = Table(
+            headers=[
+                Column('Ally',  min_width=12),
+                Column('Str',   align=Align.RIGHT, min_width=3),
+                Column('HP',    align=Align.RIGHT, min_width=3),
+                Column('Hit%',  align=Align.RIGHT, min_width=4),
+                Column('Notes', min_width=6),
+            ],
+            border=(border_style != 'petscii'),
+            border_style=border_style,
+            header_color='white',
+            text_color=['cyan', 'light_blue'],
+        )
         for a in allies:
-            status_tag = f'  [{a.status.name}]' if a.status not in (AllyStatus.FREE, AllyStatus.SERVANT) else ''
-            lines.append(
-                f'  {a.name:<22}  Str {a.strength:>2}  HP {a.hit_points:>3}  '
-                f'{a.to_hit * 10:>3}%{_ally_flag_tags(a)}{status_tag}'
-            )
+            status_tag = f'[{a.status.name}]' if a.status not in (AllyStatus.FREE, AllyStatus.SERVANT) else ''
+            notes = ' '.join(part for part in (_ally_flag_tags(a).strip(), status_tag) if part)
+            t.add_row([a.name, str(a.strength), str(a.hit_points), f'{a.to_hit * 10}%', notes])
+        lines.extend(t.render(width=width))
     else:
         lines.append('  No allies... sniff...')
     lines.append('')
@@ -346,6 +374,6 @@ class StatCommand(Command):
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
-        lines = _build_stats_lines(ctx.player)
+        lines = _build_stats_lines(ctx.player, ctx)
         await ctx.send(lines)
         return CommandResult.ok()

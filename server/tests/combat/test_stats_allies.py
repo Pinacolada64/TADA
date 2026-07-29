@@ -61,9 +61,9 @@ class TestStatsAllySection(unittest.TestCase):
         lines = _build_stats_lines(player)
         self.assertIn('Allies: 1/3', lines)
         row = next(l for l in lines if 'Grog' in l)
-        self.assertIn('Str 15', row)
-        self.assertIn('HP  30', row)
-        self.assertIn('50%', row)  # to_hit * 10
+        self.assertIn('15', row)   # Str column
+        self.assertIn('30', row)   # HP column
+        self.assertIn('50%', row)  # Hit% column (to_hit * 10)
 
     def test_elite_ally_tagged(self):
         ally = _make_ally('Grog', flags=[AllyFlags.ELITE])

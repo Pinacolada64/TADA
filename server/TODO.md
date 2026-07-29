@@ -1211,3 +1211,40 @@
   for why that's the more reliable test method, but it does mean a real
   keyboard's CTRL-H hasn't been confirmed to send $08 in this specific
   keymap, only that $08 itself does the right thing once received).
+
+7/29/26:
+- Mount combat (Ryan, deferred): `combat/resolution.py`'s `ally_attacks()`
+  now actually rolls against the ally's own `to_hit` (see this session's
+  work making `Ally.to_hit` more than a cosmetic `stat` display value),
+  which as a side effect means a MOUNT ally (`combat/engine.py:571`
+  creates horses with `to_hit=0`) now essentially never lands a hit,
+  since it's never explicitly excluded from `combat/engine.py`'s
+  `_ally_swings()` attack loop. Left as-is rather than special-cased,
+  because Ryan wants to build real mount-combat mechanics rather than
+  just skip mounts from attacking:
+  - Jake's Stable training (`street/jakes.py`'s `_train_horse()` already
+    exists as a purchasable service) could raise a mount's `to_hit`/
+    combat stats, giving `to_hit=0` an actual reason to exist (an
+    untrained horse) instead of being a dead value.
+  - Barding/horse armor: a defense bonus item slot for mounts, separate
+    from the rider's own armor -- would need its own flag/field on
+    `Ally` (nothing like this exists yet) and a shop to sell it from
+    (Jake's Stable, `street/jakes.py`, is the natural fit, alongside
+    training).
+  - Height differential: a mounted player sits higher up, so against
+    small/short/swift-sized monsters (see `combat/resolution.py`'s
+    module docstring, `ma`'s "1=huge ... 7=swift" scale) they should
+    have an extra miss chance from "swinging over the monster's head" --
+    Ryan's idea, not a ported SPUR mechanic (SPUR's `p.a1`/mount code
+    doesn't do this; Jake's Stable, `street/jakes.py`, is the natural
+    home for the mount-purchase/training side of this, not because the
+    miss-chance calculation belongs there too -- that's a combat-time
+    check). Melee-only: firing a bow or an energy weapon from horseback
+    doesn't have a "swing over the target's head" failure mode the way
+    a hack/slash or poke/jab weapon does, so this modifier should key
+    off the weapon's `WeaponClass` (see `player_attacks()`'s `wa`
+    class-integer handling) and skip projectile/energy weapons
+    entirely. Would need `is_mounted` plumbed into `player_attacks()`
+    (it already takes `is_mounted` for the charge-bonus check) cross-
+    referenced against the monster's size rating to add a miss modifier
+    for melee weapon classes only.
