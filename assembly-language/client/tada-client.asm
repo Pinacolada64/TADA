@@ -8,6 +8,14 @@
 ; Requires: SwiftLink cartridge at $de00
 ;           TADA server listening on 127.0.0.1:34064
 
+; VIC-II colors
+{const: VIC_BLACK $00}
+{const: VIC_WHITE $01}
+
+; VIC-II chip addresses
+{const: VIC_BORDER     $d020}
+{const: VIC_BACKGROUND $d021}
+
 ; Comment out to strip all {ifdef:debug}...{endif} diagnostic output
 ; (the <XX>/[XX] read_line trace, hex_digits/print_hex_byte helpers, etc).
 {undef: debug}
@@ -256,29 +264,72 @@ wait_for_data_backgrounding:
         rts
 
 ; --- Init screen ---
-; Clear screen, print status message, set up screen pointer
+; Clear screen, draw the status line, set up screen pointer
 init_screen:
+        lda #VIC_BLACK
+        sta VIC_BORDER
+        sta VIC_BACKGROUND
         lda #$93                ; PETSCII clear screen
         jsr CHROUT
-        lda #$12                ; PETSCII reverse on
-        jsr CHROUT
-        ldx #0
-@:      lda status_msg,x
-        beq >@
-        jsr CHROUT
-        inx
-        bne <@
-@:      lda #$92                ; PETSCII reverse off
-        jsr CHROUT
-        lda #$0d                ; carriage return
-        jsr CHROUT
-        lda #$0d
-        jsr CHROUT
+        jsr update_status_line
         ; set screen pointer to row 2 col 0
         lda #<(SCREEN_RAM + 80)
         sta scr_ptr_lo
         lda #>(SCREEN_RAM + 80)
         sta scr_ptr_hi
+        rts
+
+; --- set_screen_line: scr_ptr_lo/hi = SCREEN_RAM + row*40 ---
+; Input: .a = row number (0-24). Reuses scr_ptr_lo/hi -- this file's own
+; zero-page pointer for indirect screen access (see calc_screen_ptr-style
+; usage in petscii_editor.asm for the same convention: whichever routine
+; needs an indirect pointer right now temporarily owns scr_ptr_lo/hi,
+; rather than every routine claiming its own zero-page pair).
+set_screen_line:
+        asl                       ; row*2 -- row_offsets is a word table
+        tax
+        lda row_offsets,x
+        clc
+        adc #<SCREEN_RAM
+        sta scr_ptr_lo
+        lda row_offsets+1,x
+        adc #>SCREEN_RAM
+        sta scr_ptr_hi
+        rts
+
+row_offsets:
+        word 0,   40,  80,  120, 160, 200, 240, 280, 320, 360
+        word 400, 440, 480, 520, 560, 600, 640, 680, 720, 760
+        word 800, 840, 880, 920, 960
+
+; --- update_status_line: poke status_msg into row 0, reversed-space-
+; padded out to column 39 ---
+; Direct SCREEN_RAM pokes, not CHROUT -- 40 bytes via CHROUT means 40
+; KERNAL calls plus cursor/scroll bookkeeping this fixed single-line
+; status doesn't need. Loops on status_msg's null terminator rather than
+; a compile-time byte count (c64list's area/align pseudo-ops can't take
+; a *-derived length as their size argument -- confirmed empirically,
+; not just a syntax issue -- so there's no compile-time constant to pad
+; against here even if we wanted one), so this stays correct however
+; long __BuildDate's expansion turns out to be.
+update_status_line:
+        lda #0                    ; row 0 -- top status line
+        jsr set_screen_line
+        ldy #0
+usl_copy:
+        lda status_msg,y
+        beq usl_pad
+        sta (scr_ptr_lo),y
+        iny
+        cpy #40
+        bne usl_copy
+        rts
+usl_pad:
+        lda #$a0                  ; reverse-video space (same trick as
+        sta (scr_ptr_lo),y        ; petscii_editor.asm's progress bar)
+        iny
+        cpy #40
+        bne usl_pad
         rts
 
 ; --- Init SwiftLink ---
@@ -1368,15 +1419,28 @@ irq_task_heartbeat:
 
 ; --- Data ---
 
+; {alpha:poke} -- update_status_line pokes this straight into SCREEN_RAM,
+; not through CHROUT, so it needs to already be screen codes at assembly
+; time (same reasoning as petscii_editor.asm's LOAD_LABEL/SAVE_LABEL/
+; help_line1-6). Null-terminated, not fixed-width: c64list's area/align
+; can't take a *-derived length as a size argument (confirmed -- not
+; just a syntax issue, see update_status_line's own comment), so there's
+; no compile-time way to pad this to exactly 40 bytes here; padding
+; happens at runtime in update_status_line instead. Reset to
+; {alpha:normal} right after so this doesn't leak into anything below
+; that uses plain `ascii` (hex_digits, sid_hex_digits, etc).
+{alpha:poke}
 status_msg:
-        ascii " TADA CLIENT {usedef:__BuildDate} - CONNECTING... "
+        ascii " TADA CLIENT "
+        ascii {usedef:__BuildDate}
+        ascii " - CONNECTING..."
         byte 0
+{alpha:normal}
 
 linelen:
         byte 0
 linebuf:
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-        byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        area 80,$00
 
 nmi_orig:
         byte 0,0                ; saved KERNAL NMI vector, set by init_nmi
@@ -1448,6 +1512,10 @@ sid_stream_starts:
 irq_task_table:
         word irq_task_heartbeat
 IRQ_TASK_TABLE_LEN = 2          ; entries * 2 -- keep in sync with the table above
+
+align $100      ; align buffers on page boundaries -- c64list wants "$" for
+                ; hex, not "0x" (confirmed against the manual and by
+                ; testing: "0x100" fails with "Unresolved argument")
 
 ; 256-byte NMI receive ring buffer -- deliberately sized so rx_head/
 ; rx_tail (plain bytes) wrap around for free on overflow, no masking
