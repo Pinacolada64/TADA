@@ -5,7 +5,7 @@ import os
 
 from network_context import GameContext
 from presence import try_global_command
-from tada_utilities import tip
+from tada_utilities import is_or_are, tip
 
 log = logging.getLogger(__name__)
 
@@ -212,7 +212,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
             player.subtract_silver(PlayerMoneyTypes.IN_HAND, cost)
             player.unsaved_changes = True
             await ctx.send(
-                f"Done! The {name} is loaded straight into your "
+                f"Done! The {name} {is_or_are(name)} loaded straight into your "
                 f"{existing_carrier.item.name}. "
                 f"({carrier_flags['rounds']}/{capacity} rounds)"
             )

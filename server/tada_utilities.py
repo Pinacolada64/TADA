@@ -275,6 +275,21 @@ def get_article_and_quantity(item_name: str) -> str:
     return a_or_an(item_name)
 
 
+def is_or_are(item_name: str) -> str:
+    """
+    Return 'are' if *item_name* reads as plural, else 'is'. Same
+    ends-in-'s' heuristic as get_article_and_quantity() above, so an item
+    name that reads that function's output as plural gets a matching verb
+    elsewhere in the same sentence -- e.g. "The balls are loaded...".
+
+    >>> is_or_are('balls')
+    'are'
+    >>> is_or_are('cartridge box')
+    'is'
+    """
+    return 'are' if item_name.lower().endswith('s') else 'is'
+
+
 def oxford_comma_list(items: list, conjunction: str = 'and') -> str:
     """
     Return a grammatically correct comma-separated list with Oxford comma.

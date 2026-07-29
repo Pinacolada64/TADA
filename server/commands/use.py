@@ -30,6 +30,7 @@ from commands.help import Help, HelpCategory
 from item_system import ItemType
 from items import Item, ItemCategory
 from network_context import GameContext
+from tada_utilities import is_or_are
 
 _GRENADE_ID     = 16    # hand grenade (objects.json)
 _RING_ID        = 67    # ring of invisibility (objects.json)
@@ -146,7 +147,7 @@ def _apply_item(item, player) -> list[str]:
         is_carrier = 'capacity' in flags
         rounds = int((flags or {}).get('rounds', 0))
         if is_carrier and rounds <= 0:
-            return [f'THE {name.upper()} IS EMPTY!']
+            return [f'THE {name.upper()} {is_or_are(name).upper()} EMPTY!']
         damage = int((flags or {}).get('damage', 0))
         player.ammo_rounds = rounds
         player.ammo_damage = damage

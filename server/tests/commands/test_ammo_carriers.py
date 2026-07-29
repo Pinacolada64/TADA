@@ -18,6 +18,9 @@ ammo box). Covers:
   - GIVE-ing a carrier to an ally (commands/give.py) mirrors USE: an
     empty carrier has nothing to load, so it's handed over as a plain
     item instead of pretending to load 0 rounds.
+  - Grammar: an ammo/carrier name ending in 's' ("balls", "arrows") gets
+    "are" instead of "is" in messages built around its name (Ryan's
+    request, via tada_utilities.is_or_are()).
 """
 from __future__ import annotations
 
@@ -34,6 +37,7 @@ from items import Item, ItemCategory, Weapon
 from party import Party
 from player import Player
 from shoppe.ollys import _ammo_section, _load_objects
+from tada_utilities import is_or_are
 
 
 class _FakeCtx:
@@ -105,6 +109,9 @@ class TestCarrierPurchase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(player.inventory.find(name='balls')), 0)
         self.assertEqual(carrier.item.flags['rounds'], 10)  # capped at capacity
         self.assertIn('loaded straight into your cartridge box', ctx2.flat())
+        # "balls" ends in 's' -- plural verb agreement (Ryan's request).
+        self.assertIn('The balls are loaded', ctx2.flat())
+        self.assertNotIn('The balls is loaded', ctx2.flat())
 
     async def test_ammo_purchase_refused_when_carrier_already_full(self):
         player = _funded_player()
@@ -123,6 +130,19 @@ class TestCarrierPurchase(unittest.IsolatedAsyncioTestCase):
         await _ammo_section(ctx, player, player.inventory, self.objects_by_num)
         entry = player.inventory.find(name='arrows')[0]
         self.assertNotIn('capacity', entry.item.flags)
+
+    async def test_singular_ammo_name_still_uses_is(self):
+        player = _funded_player()
+        # shell caisson (#18) matches "shell" (#12) -- "shell" doesn't end
+        # in 's', so it keeps singular agreement.
+        ctx = _FakeCtx(['18', 'y', 'q'], player)
+        await _ammo_section(ctx, player, player.inventory, self.objects_by_num)
+        carrier = player.inventory.find(name='shell caisson')[0]
+        carrier.item.flags['rounds'] = 0
+
+        ctx2 = _FakeCtx(['12', 'y', 'q'], player)
+        await _ammo_section(ctx2, player, player.inventory, self.objects_by_num)
+        self.assertIn('The shell is loaded', ctx2.flat())
 
 
 class TestCarrierUse(unittest.IsolatedAsyncioTestCase):
@@ -163,6 +183,29 @@ class TestCarrierUse(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn('IS EMPTY', ctx.flat())
         self.assertEqual(player.ammo_rounds, 0)
+
+    async def test_use_empty_carrier_with_plural_name_says_are_empty(self):
+        player = Player(name='Rulan')
+        player.readied_weapon = self._musket()
+        carrier = self._carrier_item(rounds=0)
+        carrier.name = 'spare rounds'
+        player.inventory.add(carrier)
+        ctx = _FakeCtx([], player)
+
+        await UseCommand().execute(ctx, 'spare', 'rounds')
+
+        self.assertIn('ARE EMPTY', ctx.flat())
+        self.assertNotIn('IS EMPTY', ctx.flat())
+
+
+class TestIsOrAre(unittest.TestCase):
+    def test_plural_name_gets_are(self):
+        self.assertEqual(is_or_are('balls'), 'are')
+        self.assertEqual(is_or_are('Arrows'), 'are')
+
+    def test_singular_name_gets_is(self):
+        self.assertEqual(is_or_are('shell'), 'is')
+        self.assertEqual(is_or_are('cartridge box'), 'is')
 
 
 class TestInventoryAmmoDisplay(unittest.TestCase):
