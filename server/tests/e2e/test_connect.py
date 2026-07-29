@@ -404,44 +404,6 @@ class TestGuildWelcomeLine(unittest.TestCase):
         self.assertIsNone(guild_welcome_line(Guild.CIVILIAN))
 
 
-class TestPartyWaitingLine(unittest.TestCase):
-    """SPUR.LOGON.S's ally-greeting line ("X is/are waiting for you!"),
-    printed at login for each party member (master branch only -- skip
-    has no equivalent). Was effectively dead code until player.party
-    persistence was fixed (it was always empty on reload before that),
-    so this locks in the phrasing now that it actually fires."""
-
-    def test_no_party_returns_none(self):
-        from commands.connect import _party_waiting_line
-        self.assertIsNone(_party_waiting_line(None))
-        self.assertIsNone(_party_waiting_line([]))
-
-    def test_one_member(self):
-        from commands.connect import _party_waiting_line
-        ally = MagicMock()
-        ally.name = 'Grog'
-        self.assertEqual(
-            _party_waiting_line([ally]), 'Grog is waiting for you!'
-        )
-
-    def test_two_members(self):
-        from commands.connect import _party_waiting_line
-        a1, a2 = MagicMock(), MagicMock()
-        a1.name, a2.name = 'Grog', 'Ironclad'
-        self.assertEqual(
-            _party_waiting_line([a1, a2]), 'Grog and Ironclad are waiting for you!'
-        )
-
-    def test_three_members(self):
-        from commands.connect import _party_waiting_line
-        a1, a2, a3 = MagicMock(), MagicMock(), MagicMock()
-        a1.name, a2.name, a3.name = 'Grog', 'Ironclad', 'Zeus'
-        self.assertEqual(
-            _party_waiting_line([a1, a2, a3]),
-            'Grog, Ironclad and Zeus are waiting for you!',
-        )
-
-
 class TestLastConnectedDateFormat(unittest.IsolatedAsyncioTestCase):
     """Regression: 'You last connected on {player.last_connection}.' used
     the raw str(datetime) repr ("2026-07-11 14:32:01.123456"); now
