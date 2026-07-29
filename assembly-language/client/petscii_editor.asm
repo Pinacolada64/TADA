@@ -48,6 +48,7 @@
 ; was already consumed by tada-client.asm before this module loaded.
 {const: CANVAS_STREAM_START   $01}
 {const: CANVAS_STREAM_CONFIRM $42}
+{const: CANVAS_STREAM_CANCEL  $43}
 
 ; GETIN codes for the help overlay -- BEST GUESS, NOT YET VERIFIED LIVE
 ; (this session's own experience with F1 says don't trust a remembered
@@ -413,14 +414,28 @@ edit_save:
         jsr CHROUT
         jmp JT_RESUME
 
+; edit_cancel used to send nothing at all -- confirmed live (border-tick
+; diagnostic showed RUN/STOP genuinely dispatching here) that the real
+; problem was the server side: banner_edit.py sat in its
+; readexactly(HEADER_LEN) for the full UPLOAD_TIMEOUT_SECONDS (15
+; minutes) waiting for an upload that was never coming, so the client's
+; own prompt_loop -> wait_for_data correctly went back to waiting for
+; the next server message, which didn't arrive for 15 minutes -- looked
+; identical to a hang. Fix: send a real cancel marker, the same 4-byte
+; shape as a genuine save header (START+CANCEL+00+00) so banner_edit.py's
+; existing single readexactly(HEADER_LEN) call completes immediately
+; either way -- see petscii_editor/canvas.py's STREAM_CANCEL comment.
 edit_cancel:
+        lda #CANVAS_STREAM_START
+        jsr JT_SL_SEND
+        lda #CANVAS_STREAM_CANCEL
+        jsr JT_SL_SEND
+        lda #0
+        jsr JT_SL_SEND
+        jsr JT_SL_SEND
         lda #$93                  ; same cursor-desync fix as edit_save --
         jsr CHROUT                 ; see that routine's comment
-        jmp JT_RESUME             ; nothing sent -- the admin command on
-                                    ; the server side times out waiting
-                                    ; for an upload that never comes (see
-                                    ; commands/banner_edit.py's
-                                    ; UPLOAD_TIMEOUT_SECONDS)
+        jmp JT_RESUME
 
 ; --- Cursor position bookkeeping ---
 ; cur_row/cur_col are the source of truth; cur_offset_lo/hi (0-999) is

@@ -106,6 +106,18 @@ class BannerEditCommand(Command):
 
         try:
             header = await asyncio.wait_for(ctx.reader.readexactly(HEADER_LEN), UPLOAD_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError:
+            await ctx.send('Banner editor timed out waiting for a save.')
+            return CommandResult.fail('Upload timed out.', error='upload_timeout')
+        except (asyncio.IncompleteReadError, ConnectionError):
+            log.warning('banner edit %r: connection dropped mid-upload for %s', name, ctx.player.name)
+            return CommandResult.fail('Connection lost during upload.', error='connection_lost')
+
+        if header[1] == canvas_wire.STREAM_CANCEL:
+            await ctx.send(f'Banner edit for "{name}" cancelled.')
+            return CommandResult.ok('Cancelled.')
+
+        try:
             body_len = header[2] | (header[3] << 8)
             body = await asyncio.wait_for(ctx.reader.readexactly(body_len), UPLOAD_TIMEOUT_SECONDS)
         except asyncio.TimeoutError:

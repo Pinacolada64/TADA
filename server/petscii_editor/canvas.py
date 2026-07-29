@@ -33,6 +33,19 @@ CELLS  = WIDTH * HEIGHT
 STREAM_START   = 0x01
 STREAM_CONFIRM = 0x42  # 'B' -- distinct from sid_engine.frames.STREAM_CONFIRM ('S')
 
+# RUN/STOP-cancel marker: the client sends STREAM_START+STREAM_CANCEL+00+00
+# (a fixed 4 bytes, the same length as a real STREAM_CONFIRM header) instead
+# of a real upload when the player cancels out of the editor. Found live
+# (Ryan): without this, edit_cancel sent nothing at all, so the server sat
+# in banner_edit.py's readexactly(HEADER_LEN) for the full
+# UPLOAD_TIMEOUT_SECONDS (15 minutes) before the client ever got its next
+# prompt back -- the client-side screen looked hung the whole time even
+# though RUN/STOP had dispatched correctly. Keeping this the same 4-byte
+# length as a real header (rather than a shorter distinct marker) means
+# banner_edit.py's existing single readexactly(HEADER_LEN) call always
+# completes immediately either way; only the second byte differs.
+STREAM_CANCEL  = 0x43  # 'C' -- distinct from STREAM_CONFIRM
+
 # Default blank cell: PETSCII space, white -- matches a freshly-cleared
 # C64 text screen.
 BLANK_CHAR  = 0x20
