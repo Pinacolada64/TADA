@@ -74,8 +74,22 @@ _CATEGORY_ORDER = [
 
 
 def _format_entry(entry: InventoryEntry, index: int) -> str:
-    name = getattr(entry.item, 'name', '?') or '?'
-    qty  = f'{entry.quantity}x ' if entry.quantity > 1 else '   '
+    name  = getattr(entry.item, 'name', '?') or '?'
+    flags = getattr(entry.item, 'flags', None)
+    # Ammo (shoppe/ollys.py): loose boxes show per-box rounds and how many
+    # boxes are stacked ("[4 rounds x6]"); a reusable carrier (flags has
+    # 'capacity') shows how full it currently is instead of a box count,
+    # since it's always a single item, never stacked.
+    is_ammo = isinstance(flags, dict) and 'rounds' in flags and 'used_with' in flags
+    if is_ammo:
+        qty = '   '
+        if 'capacity' in flags:
+            ammo_str = f" [{flags['rounds']}/{flags['capacity']} rounds]"
+        else:
+            ammo_str = f" [{flags['rounds']} rounds x{entry.quantity}]"
+    else:
+        qty = f'{entry.quantity}x ' if entry.quantity > 1 else '   '
+        ammo_str = ''
     if entry.charges is not None:
         max_ch      = getattr(entry.item, 'max_charges', 0)
         charge_pct  = int(entry.charges / max_ch * 100) if max_ch else 0
@@ -90,7 +104,7 @@ def _format_entry(entry: InventoryEntry, index: int) -> str:
         container_str = f' ({n}/{cap} items)'
     else:
         container_str = ''
-    return f'{index:>3}. {qty}{name}{charges_str}{container_str}'
+    return f'{index:>3}. {qty}{name}{ammo_str}{charges_str}{container_str}'
 
 
 def _container_lines(entry: InventoryEntry) -> list[str]:

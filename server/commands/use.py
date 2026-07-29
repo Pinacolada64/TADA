@@ -128,8 +128,8 @@ def _apply_item(item, player) -> list[str]:
     # Duck-typed on the flags shape (rounds + used_with) rather than
     # item_system.Item.is_ammo_carrier -- items.Item (what shops actually
     # construct) has no such property, just a flags dict/list.
-    is_ammo_carrier = isinstance(flags, dict) and 'rounds' in flags and 'used_with' in flags
-    if is_ammo_carrier:
+    is_ammo_item = isinstance(flags, dict) and 'rounds' in flags and 'used_with' in flags
+    if is_ammo_item:
         weapon = getattr(player, 'readied_weapon', None)
         if weapon is None:
             return ['YOU MUST READY YOUR WEAPON FIRST!']
@@ -139,13 +139,22 @@ def _apply_item(item, player) -> list[str]:
         used_with = ((flags or {}).get('used_with') or '').strip().upper()
         if used_with and used_with not in wname_upper:
             return [f'THIS AMMO IS NOT FOR THE {wname_upper}!']
+
+        # 'capacity' marks this as a reusable carrier (shoppe/ollys.py) --
+        # it stays in inventory and empties into the weapon, rather than
+        # being consumed like a single-use ammo box.
+        is_carrier = 'capacity' in flags
         rounds = int((flags or {}).get('rounds', 0))
+        if is_carrier and rounds <= 0:
+            return [f'THE {name.upper()} IS EMPTY!']
         damage = int((flags or {}).get('damage', 0))
         player.ammo_rounds = rounds
         player.ammo_damage = damage
         player.ammo_max    = rounds
         player.unsaved_changes = True
-        if inv:
+        if is_carrier:
+            flags['rounds'] = 0
+        elif inv:
             inv.remove(item)
         return [f'{rounds} ROUNDS NOW READY: +{damage} DAMAGE']
 

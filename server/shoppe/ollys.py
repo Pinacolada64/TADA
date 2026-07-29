@@ -32,6 +32,20 @@ def _load_objects() -> list[dict]:
 # Ammo listing and purchase
 # ---------------------------------------------------------------------------
 
+def _matching_carrier(inv, used_with: str):
+    """Find an already-owned carrier (a `capacity`-flagged item, see
+    _ammo_section's purchase branch) matching *used_with*, or None."""
+    used_with = (used_with or '').strip().lower()
+    if not used_with or inv is None:
+        return None
+    for entry in inv:
+        flags = getattr(entry.item, 'flags', None)
+        if isinstance(flags, dict) and 'capacity' in flags:
+            if (flags.get('used_with') or '').strip().lower() == used_with:
+                return entry
+    return None
+
+
 async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> None:
     from base_classes import PlayerMoneyTypes
     from items import Item, ItemCategory
@@ -146,7 +160,33 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
             await ctx.send(f'Enter 1-{len(listing)}, or Q.')
             continue
 
-        if inv is not None and inv.is_full():
+        is_carrier = it in carrier_items
+        flags      = it.get('flags') or {}
+        used_with  = (flags.get('used_with') or '').strip()
+        existing_carrier = _matching_carrier(inv, used_with)
+
+        # New in TADA: implements Olly's own listing text ("Appropriate
+        # ammo will automatically be placed in the carrier when it is
+        # purchased. Buying more than one will do no good.") -- previously
+        # just flavor text with no code behind it.
+        if is_carrier and existing_carrier is not None:
+            await ctx.send(
+                f'You already have a {existing_carrier.item.name} for that '
+                '-- buying another would do no good.'
+            )
+            continue
+
+        # Raw ammo matching a carrier already owned tops the carrier off
+        # instead of taking its own pack slot.
+        loads_into_carrier = (not is_carrier) and existing_carrier is not None
+        if loads_into_carrier:
+            carrier_flags = existing_carrier.item.flags
+            capacity      = int(carrier_flags.get('capacity', 0))
+            if int(carrier_flags.get('rounds', 0)) >= capacity:
+                await ctx.send(f'Your {existing_carrier.item.name} is already full.')
+                continue
+
+        if not loads_into_carrier and inv is not None and inv.is_full():
             await ctx.send('You have no room in your pack!')
             continue
 
@@ -163,6 +203,29 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
         if raw is None or raw.strip().upper() != 'Y':
             continue
 
+        if loads_into_carrier:
+            carrier_flags = existing_carrier.item.flags
+            capacity      = int(carrier_flags.get('capacity', 0))
+            carrier_flags['rounds'] = min(
+                capacity, int(carrier_flags.get('rounds', 0)) + int(flags.get('rounds', 0))
+            )
+            player.subtract_silver(PlayerMoneyTypes.IN_HAND, cost)
+            player.unsaved_changes = True
+            await ctx.send(
+                f"Done! The {name} is loaded straight into your "
+                f"{existing_carrier.item.name}. "
+                f"({carrier_flags['rounds']}/{capacity} rounds)"
+            )
+            continue
+
+        item_flags = dict(flags)
+        if is_carrier:
+            # 'capacity' marks this item as a reusable carrier (arrives
+            # full, refilled by matching ammo purchases, never consumed by
+            # USE) rather than a single-use ammo box -- see commands/use.py's
+            # _apply_item.
+            item_flags['capacity'] = item_flags.get('rounds', 0)
+
         item = Item(
             id_number = it['number'],
             name      = name,
@@ -171,7 +234,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
             # item so commands/use.py can actually load it later -- dropping
             # this left every shop-bought round of ammo permanently unusable
             # (see commands/use.py's _apply_item docstring).
-            flags     = it.get('flags'),
+            flags     = item_flags,
         )
         if inv is None or not inv.add(item):
             await ctx.send(PACK_FULL_MESSAGE)
@@ -181,7 +244,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
         player.unsaved_changes = True
         await ctx.send('Done!')
 
-        if it in carrier_items:
+        if is_carrier:
             await ctx.send(
                 f'(Appropriate ammo will automatically be placed in the {name} '
                 'when it is purchased. Buying more than one will do no good.)'

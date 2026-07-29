@@ -671,6 +671,25 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Clan / Guild office** — change guild affiliation (Claw, Sword, Iron Fist, Civilian, Outlaw); costs gold and honor (`SPUR.SHOP.S`; `shoppe/clan.py`)
 - ✅ **Pawn Shop** — sell (not buy) items to the merchant; all found items are sellable (tips.txt) (`SPUR.SHOP.S`; `shoppe/pawn.py`)
 - ✅ **Olly's Ammo** — buy ammo and ammo carriers; booby trap purchase; [H]elp explains ammo system and friendly fire. Reached in the original by typing `AMMO` (`SPUR.MISC5.S:16: if i$="AMMO" goto ammo`, `ammo` subroutine — "Olly greets you, 'Welcome, ...'"), not a separate ammo-count command (`shoppe/ollys.py`)
+- ✅ **Ammo carriers auto-load, and are one-per-type** — Olly's own listing
+  says "Appropriate ammo will automatically be placed in the carrier when
+  it is purchased. Buying more than one will do no good." — previously
+  just flavor text with no code behind it (buying a carrier acted exactly
+  like buying a loose ammo box: a single-use, stacking inventory item).
+  Now: a carrier (cartridge box/bandolier/shell caisson) is marked with a
+  `capacity` flag distinct from loose ammo's plain `rounds`/`damage`/
+  `used_with` shape, arrives full at purchase, and is reusable — `USE`ing
+  it empties its current rounds into the readied weapon (like loose ammo)
+  but leaves the carrier item itself in inventory instead of consuming it.
+  Buying raw ammo that matches a carrier already owned tops the carrier
+  back up (capped at its capacity, no new pack slot spent) instead of
+  sitting as a separate stack; buying a second carrier of a type already
+  owned is refused outright ("buying another would do no good"), matching
+  the listing's own claim rather than silently letting it happen
+  (`shoppe/ollys.py` `_matching_carrier()`, `commands/use.py`
+  `_apply_item()`). Inventory now shows loose ammo as `[N rounds xM]`
+  (N rounds per box, M boxes carried) and a carrier as `[current/capacity
+  rounds]` (`commands/inv.py` `_format_entry()`).
 
 ### Stubs (not yet implemented)
 - None currently known — all `_MENU` entries in `shoppe/main.py` route to implemented modules.
