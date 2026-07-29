@@ -127,9 +127,20 @@ edit_loop:
                                   ; so a future edit can't accidentally
                                   ; fall through past a real match
 
+        ; The same +/-127-byte branch-range bug the F1/dispatch_editor_key
+        ; comment above describes just recurred here (Ryan caught it live:
+        ; CTRL-4 for cyan crashed straight back to READY) -- this file has
+        ; grown enough since that fix (the progress bar, help screen, etc)
+        ; that a plain `bcs key_color` (348 bytes away, confirmed via the
+        ; .sym file) silently assembled to a wrong branch target again,
+        ; same as edit_save/edit_cancel/key_delete did before. Fixed the
+        ; same way: a short/local branch (guaranteed in range -- it only
+        ; needs to skip the 3-byte jmp right below it) plus a real `jmp`
+        ; (no range limit) for the actual far target.
         jsr lookup_color_code    ; carry set + .a = color# (0-15) if this
-        bcs key_color            ; byte is one of the 16 color-select codes
-
+        bcc edit_loop_not_color  ; short/local branch -- safe
+        jmp key_color            ; jmp, not a branch -- no range limit
+edit_loop_not_color:
         jmp key_type             ; anything else: place it as a character
 
 ; --- Table-driven special-key dispatch ---
@@ -680,12 +691,22 @@ fill_dec_lo:
 ; zero-page pair for it) = address of an 8-byte {alpha:poke} label
 ; (LOAD_LABEL or SAVE_LABEL). Pokes the label into columns 0-7, blanks
 ; columns 8-39 (the bar), resets progress_col/progress_counter.
+;
+; Label uses white (1), not the bar's cyan (3): Ryan reported live that
+; the label wasn't visible even though the bar was -- disassembly showed
+; the poke itself is correct (right bytes, right row, never overwritten
+; by the bar loop, which only touches columns 8-39), so the leading
+; theory is a plain-video contrast issue against whatever the screen's
+; background register happens to be, unlike the bar's dots, which are
+; reverse-video and paint a solid block regardless of that register.
+; White is the one color guaranteed not to blend into a normal dark
+; background either way.
 progress_init:
         ldy #0
 progress_init_label_loop:
         lda (scr_ptr_lo),y
         sta SCREEN_RAM+960,y
-        lda #3                     ; cyan, both label and bar
+        lda #1                     ; white -- see comment above
         sta COLOR_RAM+960,y
         iny
         cpy #8
