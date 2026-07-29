@@ -35,7 +35,7 @@ petscii_editor.prg: petscii_editor_pp.asm
 
 # --- ROM paths ---
 VICE_ROMS       = $(HOME)/.local/share/vice/C64
-KERNAL          = $(VICE_ROMS)/kernal-901246-01.bin
+KERNAL          = $(VICE_ROMS)/kernal-901227-03.bin
 BASIC           = $(VICE_ROMS)/basic-901226-01.bin
 CHARGEN         = $(VICE_ROMS)/chargen-901225-01.bin
 
