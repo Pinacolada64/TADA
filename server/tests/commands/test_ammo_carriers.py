@@ -15,17 +15,23 @@ ammo box). Covers:
     inventory (commands/use.py); USE-ing an empty carrier is rejected.
   - Inventory display (commands/inv.py) shows loose ammo as
     "[N rounds xM]" and a carrier as "[current/capacity rounds]".
+  - GIVE-ing a carrier to an ally (commands/give.py) mirrors USE: an
+    empty carrier has nothing to load, so it's handed over as a plain
+    item instead of pretending to load 0 rounds.
 """
 from __future__ import annotations
 
 import unittest
 from unittest.mock import AsyncMock
 
+from bar.ally_data import Ally, AllyStatus
 from base_classes import PlayerMoneyTypes
+from commands.give import GiveCommand
 from commands.inv import _format_entry
 from commands.use import UseCommand
 from inventory import Inventory, InventoryEntry
 from items import Item, ItemCategory, Weapon
+from party import Party
 from player import Player
 from shoppe.ollys import _ammo_section, _load_objects
 
@@ -178,6 +184,79 @@ class TestInventoryAmmoDisplay(unittest.TestCase):
         formatted = _format_entry(entry, 1)
         self.assertIn('2x large ruby', formatted)
         self.assertNotIn('rounds', formatted)
+
+
+class _FakeGiveCtx:
+    def __init__(self, player):
+        self.player = player
+        self.client = type('C', (), {'room': 1})()
+        self.server = type('S', (), {'clients': {}, 'game_map': None, 'monsters': []})()
+        self.sent: list = []
+
+    async def send(self, msg, **kwargs):
+        if isinstance(msg, list):
+            self.sent.extend(str(m) for m in msg)
+        else:
+            self.sent.append(str(msg))
+
+    async def send_room(self, *args, **kwargs):
+        pass
+
+    async def prompt(self, *args, **kwargs):
+        return ''
+
+    def flat(self) -> str:
+        return '\n'.join(self.sent)
+
+
+class TestGiveCarrierToAlly(unittest.IsolatedAsyncioTestCase):
+    def _carrier_item(self, rounds=10, capacity=10):
+        return Item(
+            id_number=147,
+            name='cartridge box',
+            category=ItemCategory.ITEM,
+            flags={'rounds': rounds, 'damage': 2, 'used_with': 'musket', 'capacity': capacity},
+        )
+
+    def _musket(self):
+        return Weapon(id_number=20, name='MUSKET', category=ItemCategory.WEAPON,
+                       weapon_class='projectile', stability=50, to_hit=60)
+
+    def _ally_with_musket(self):
+        ally = Ally('BATMAN', 'm', 14, 5)
+        ally.status = AllyStatus.SERVANT
+        ally.readied_weapon = self._musket()
+        return ally
+
+    async def test_full_carrier_loads_ally_weapon_and_is_transferred_away(self):
+        player = Player(name='Rulan')
+        player.party = Party()
+        ally = self._ally_with_musket()
+        player.party.add_member(player, ally)
+        player.inventory.add(self._carrier_item())
+        ctx = _FakeGiveCtx(player)
+
+        await GiveCommand().execute(ctx, 'cartridge', 'box', 'to', 'batman')
+
+        self.assertEqual(ally.ammo_rounds, 10)
+        self.assertEqual(ally.ammo_damage, 2)
+        self.assertEqual(len(player.inventory.find(name='cartridge box')), 0)
+
+    async def test_empty_carrier_handed_over_as_plain_item_not_pretend_loaded(self):
+        player = Player(name='Rulan')
+        player.party = Party()
+        ally = self._ally_with_musket()
+        player.party.add_member(player, ally)
+        player.inventory.add(self._carrier_item(rounds=0))
+        ctx = _FakeGiveCtx(player)
+
+        await GiveCommand().execute(ctx, 'cartridge', 'box', 'to', 'batman')
+
+        # No fake "0 rounds ready" load message -- just an ordinary give.
+        self.assertNotIn('rounds ready', ctx.flat())
+        self.assertEqual(ally.ammo_rounds, 0)
+        self.assertEqual(len(player.inventory.find(name='cartridge box')), 0)
+        self.assertEqual(len(ally.items), 1)
 
 
 if __name__ == '__main__':

@@ -325,9 +325,14 @@ class GiveCommand(Command):
             # Ammo: loads straight into the ally's readied weapon, same as
             # commands/use.py's player ammo branch, rather than sitting in
             # ally.items -- an ally has no USE command to load it later.
+            # An empty carrier (shoppe/ollys.py's reusable, 'capacity'-
+            # flagged item -- see commands/use.py's _apply_item) has
+            # nothing to load, so it falls through to the plain-item give
+            # below instead of pretending to load 0 rounds.
             flags = getattr(item, 'flags', None)
-            is_ammo_carrier = isinstance(flags, dict) and 'rounds' in flags and 'used_with' in flags
-            if is_ammo_carrier:
+            is_ammo_item = isinstance(flags, dict) and 'rounds' in flags and 'used_with' in flags
+            rounds = int(flags.get('rounds', 0)) if is_ammo_item else 0
+            if is_ammo_item and rounds > 0:
                 weapon = getattr(ally, 'readied_weapon', None)
                 if weapon is None:
                     await ctx.send(f'{ally.name} has no weapon readied to load {iname} into.')
@@ -340,7 +345,6 @@ class GiveCommand(Command):
                 if used_with and used_with not in wname_upper:
                     await ctx.send(f'That ammo is not for the {wname_upper}.')
                     return CommandResult.ok()
-                rounds = int(flags.get('rounds', 0))
                 damage = int(flags.get('damage', 0))
                 if inventory:
                     inventory.remove(item)
