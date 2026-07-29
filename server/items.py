@@ -136,6 +136,55 @@ class Weapon(BaseItem):
             return None
 
 
+def _weapons_by_number(weapons_data: Optional[list]) -> Dict[int, dict]:
+    """Index raw weapons.json-shaped dicts by their 'number' key."""
+    return {w['number']: w for w in (weapons_data or [])
+            if isinstance(w, dict) and 'number' in w}
+
+
+def build_weapon_from_raw(raw: dict, *, id_number: int, location: int = 0) -> 'Weapon':
+    """Construct a fully-populated Weapon from one weapons.json record.
+
+    Mirrors shoppe/armory.py's buy-path construction exactly, so a weapon
+    built here carries the same real stats (sound_effect/stability/to_hit/
+    weapon_class/price) as one bought from the armory.
+    """
+    return Weapon(
+        id_number    = id_number,
+        name         = raw.get('name', ''),
+        location     = raw.get('location', location),
+        kind         = raw.get('kind'),
+        sound_effect = tuple(raw.get('sound_effect', ('', ''))),
+        stability    = raw.get('stability', 0),
+        to_hit       = raw.get('to_hit', 0),
+        price        = raw.get('price', 0),
+        weapon_class = raw.get('weapon_class'),
+    )
+
+
+def resolve_weapon(id_number: int, name: str, weapons_data: Optional[list],
+                    *, flags=None, kind=None, location: int = 0) -> 'BaseItem':
+    """Look up id_number in weapons_data and rebuild a real Weapon.
+
+    Guards the lookup with a case-insensitive name match -- item numbering
+    is only unique within its own category (weapons/items/rations each
+    start back at 1, same rationale as inventory.py's _rations_by_number())
+    -- so a bare id_number match could misidentify an unrelated record.
+    Falls back to a bare Item (never None) when no confident match exists,
+    so a carried weapon a caller can't resolve still round-trips safely --
+    `kind` is threaded through to that fallback so it matches exactly what
+    the pre-resolution bare-Item construction used to carry.
+    """
+    raw = _weapons_by_number(weapons_data).get(id_number)
+    if raw and str(raw.get('name', '')).lower() == (name or '').lower():
+        weapon = build_weapon_from_raw(raw, id_number=id_number, location=location)
+        if flags:
+            weapon.flags = flags
+        return weapon
+    return Item(id_number=id_number, name=name, category=ItemCategory.WEAPON,
+                flags=flags or [], kind=kind)
+
+
 class Rations(BaseItem):
     def __init__(self, number, name, kind, price, **flags):
         self.number = number
@@ -212,6 +261,55 @@ class Spell(BaseItem):
             f"[{self.charges}/{self.max_charges} charges, {charge_pct}%"
             f" | cast: {self.cast_chance}%]"
         )
+
+
+# Lazy cache for _spells_by_number() -- unlike weapons.json/objects.json/
+# rations.json (per-server files loaded once at startup onto ctx.server),
+# spell data is a static, hardcoded Python list (shoppe/wizard.py's
+# SPELLS), so no ctx.server plumbing is needed to resolve it -- just an
+# in-process import, cached the same way inventory.py's
+# _rations_by_number() caches rations.json.
+_SPELLS_BY_NUMBER: Dict[int, dict] | None = None
+
+
+def _spells_by_number() -> Dict[int, dict]:
+    global _SPELLS_BY_NUMBER
+    if _SPELLS_BY_NUMBER is None:
+        from shoppe.wizard import SPELLS
+        _SPELLS_BY_NUMBER = {s['number']: s for s in SPELLS if 'number' in s}
+    return _SPELLS_BY_NUMBER
+
+
+def build_spell_from_raw(raw: dict, *, id_number: int,
+                          charges: int = 1, max_charges: int = 1) -> 'Spell':
+    """Construct a fully-populated Spell from one shoppe/wizard.py SPELLS
+    record. Mirrors shoppe/wizard.py's teaching-path construction exactly."""
+    return Spell(
+        id_number        = id_number,
+        name             = raw.get('name', ''),
+        cast_chance      = raw.get('cast_chance', 0),
+        effect_type      = raw.get('effect', ''),
+        effect_magnitude = raw.get('magnitude', 0),
+        charges          = charges,
+        max_charges      = max_charges,
+    )
+
+
+def resolve_spell(id_number: int, name: str, *, flags=None,
+                   charges: int = 1, max_charges: int = 1) -> 'BaseItem':
+    """Look up id_number in shoppe/wizard.py's SPELLS and rebuild a real
+    Spell -- same case-insensitive name-match guard as resolve_weapon(),
+    since numbering is only unique within its own category. Falls back to
+    a bare Item (never None) when no confident match exists."""
+    raw = _spells_by_number().get(id_number)
+    if raw and str(raw.get('name', '')).lower() == (name or '').lower():
+        spell = build_spell_from_raw(raw, id_number=id_number,
+                                      charges=charges, max_charges=max_charges)
+        if flags:
+            spell.flags = flags
+        return spell
+    return Item(id_number=id_number, name=name, category=ItemCategory.SPELL,
+                flags=flags or [])
 
 
 if __name__ == '__main__':

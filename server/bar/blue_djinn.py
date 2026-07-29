@@ -137,7 +137,8 @@ def set_thug_flag_on_target(ctx: GameContext, target_name: str) -> None:
             return
 
     from player import Player
-    offline_player = Player(name=target_name, id=target_name)
+    offline_player = Player(name=target_name, id=target_name,
+                            weapons_data=getattr(ctx.server, 'weapons', None))
     offline_player.set_flag(PlayerFlags.THUG_ATTACK)
     offline_player.save(force=True)
 

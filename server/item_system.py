@@ -305,8 +305,9 @@ def weapon_sfx(weapon: Weapon) -> tuple[str, str]:
       proximity    2/6  tied CRACK!/CRACK! vs SIZZLE!/SIZZLE! vs FIZZLE!/BOOOM!;
                    FIZZLE!/BOOOM! picked as the "detonate" default
     """
-    if weapon.sound_effect and len(weapon.sound_effect) == 2:
-        return tuple(weapon.sound_effect)  # type: ignore[return-value]
+    sound_effect = getattr(weapon, 'sound_effect', None)
+    if sound_effect and len(sound_effect) == 2:
+        return tuple(sound_effect)  # type: ignore[return-value]
 
     # Fall back to class-based table
     class_to_index: dict[WeaponClass, int] = {
@@ -317,7 +318,7 @@ def weapon_sfx(weapon: Weapon) -> tuple[str, str]:
         WeaponClass.PROJECTILE: 3,
         WeaponClass.PROXIMITY:  6,
     }
-    idx = class_to_index.get(weapon.weapon_class, 0)
+    idx = class_to_index.get(getattr(weapon, 'weapon_class', None), 0)
     return WEAPON_SFX[idx]
 
 

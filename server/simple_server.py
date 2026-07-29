@@ -625,7 +625,8 @@ class Server:
                 return None
             # Load or create the Player object
             from player import Player
-            p = Player(name=username, id=username)
+            p = Player(name=username, id=username,
+                       weapons_data=getattr(self, 'weapons', None))
             logging.info('authenticated as %s', username)
             logging.debug('EXIT Player(name=%r, hit_points=%r)', username, getattr(p, 'hit_points', '?'))
             return p

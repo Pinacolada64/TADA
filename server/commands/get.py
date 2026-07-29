@@ -268,7 +268,11 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
         if attr == 'food' and item_kind == 'drink':
             item_category = ItemCategory.DRINK
 
-        item  = Item(id_number=item_id, name=name, category=item_category, kind=item_kind)
+        if attr == 'weapon':
+            from items import build_weapon_from_raw
+            item = build_weapon_from_raw(raw, id_number=item_id)
+        else:
+            item = Item(id_number=item_id, name=name, category=item_category, kind=item_kind)
         # Preserve objects.json's own "type" field (e.g. "book") as a real
         # ItemType -- read.py's book list keys off this, and without it a
         # room-found book (a scroll, say) would never show up there at all;

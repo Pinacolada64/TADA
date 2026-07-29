@@ -1484,7 +1484,8 @@ async def _find_character(ctx, name: str):
 
     if not Path(Player._json_path(name)).exists():
         return None
-    return (Player(name=name, id=name), False)
+    return (Player(name=name, id=name,
+                   weapons_data=getattr(ctx.server, 'weapons', None)), False)
 
 
 async def _pick_recipient(ctx):

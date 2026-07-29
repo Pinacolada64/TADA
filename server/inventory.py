@@ -204,11 +204,18 @@ class Inventory:
         return [e.to_json() for e in self._entries]
 
     @classmethod
-    def from_json(cls, data: list | None, capacity: int | None = None) -> 'Inventory':
+    def from_json(cls, data: list | None, capacity: int | None = None,
+                  weapons_data: list | None = None) -> 'Inventory':
         """Reconstruct an Inventory from serialized data.
 
-        Item objects are reconstructed as lightweight Items; full resolution
-        against the item database can be done later when it is available.
+        Item objects are reconstructed as lightweight Items; weapons and
+        spells are resolved back to fully-populated Weapon/Spell instances
+        -- weapons via weapons_data (the server's raw weapons.json list,
+        see items.resolve_weapon()), spells via items.resolve_spell()
+        (spell data is a static, hardcoded list, so no data plumbing is
+        needed for that one). Other categories (armor has no dedicated
+        dataclass yet) still reconstruct as lightweight Items; full
+        resolution for those can be done later when it is available.
         """
         from items import Item, ItemCategory
         inv = cls(capacity=capacity)
@@ -244,19 +251,29 @@ class Inventory:
                     elif item_kind == 'drink':
                         category = ItemCategory.DRINK
 
-            item = Item(
-                id_number=d.get('item_id', 0),
-                name=item_name,
-                category=category,
-                flags=d.get('item_flags') or [],
-                kind=item_kind,
-            )
+            if category == ItemCategory.WEAPON:
+                from items import resolve_weapon
+                item = resolve_weapon(d.get('item_id', 0), item_name, weapons_data,
+                                       flags=d.get('item_flags') or [], kind=item_kind)
+            elif category == ItemCategory.SPELL:
+                from items import resolve_spell
+                item = resolve_spell(d.get('item_id', 0), item_name,
+                                      flags=d.get('item_flags') or [],
+                                      charges=d.get('charges', 1) or 1)
+            else:
+                item = Item(
+                    id_number=d.get('item_id', 0),
+                    name=item_name,
+                    category=category,
+                    flags=d.get('item_flags') or [],
+                    kind=item_kind,
+                )
             entry = InventoryEntry(
                 item=item,
                 quantity=d.get('quantity', 1),
                 charges=d.get('charges'),
             )
             if 'contents' in d:
-                entry.contents = cls.from_json(d['contents'])
+                entry.contents = cls.from_json(d['contents'], weapons_data=weapons_data)
             inv._entries.append(entry)
         return inv

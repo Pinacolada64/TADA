@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 
 from inventory import Inventory
-from items import Item, ItemCategory, Rations
+from items import Item, ItemCategory, Rations, Spell, Weapon
 
 
 class TestInventoryFlagsRoundTrip(unittest.TestCase):
@@ -138,6 +138,127 @@ class TestInventoryKindBackfill(unittest.TestCase):
         entry = restored.find(name='MYSTERY BOX')[0]
 
         self.assertIsNone(entry.item.kind)
+
+
+class TestInventoryWeaponResolution(unittest.TestCase):
+    """Regression: Inventory.from_json() used to rebuild every carried
+    weapon as a bare Item -- id_number/name/category/flags/kind only --
+    dropping sound_effect/stability/to_hit/weapon_class entirely. Any
+    weapon readied after a save/load round trip then crashed combat's
+    weapon_sfx() (AttributeError: 'Item' object has no attribute
+    'sound_effect'), which the command dispatcher's blanket except-handler
+    swallowed, silently dropping the player back to the main prompt on
+    ATTACK. from_json() now resolves weapon-category entries back to a
+    real Weapon via items.resolve_weapon() when given the server's raw
+    weapons.json list.
+    """
+
+    _LONG_SWORD = {
+        'number': 1, 'location': 2, 'name': 'LONG SWORD', 'kind': 'standard',
+        'sound_effect': ['SWISH!', 'SLASH!'], 'stability': 50, 'to_hit': 60,
+        'price': 250, 'weapon_class': 'bash/slash',
+    }
+
+    def test_weapon_fields_survive_round_trip_with_weapons_data(self):
+        inv = Inventory()
+        inv.add(Weapon(id_number=1, name='LONG SWORD', location=0,
+                        kind='standard', sound_effect=('SWISH!', 'SLASH!'),
+                        stability=50, to_hit=60, price=250,
+                        weapon_class='bash/slash'))
+
+        restored = Inventory.from_json(inv.to_json(), weapons_data=[self._LONG_SWORD])
+        entry = restored.find(name='LONG SWORD')[0]
+
+        self.assertIsInstance(entry.item, Weapon)
+        self.assertEqual(entry.item.sound_effect, ('SWISH!', 'SLASH!'))
+        self.assertEqual(entry.item.weapon_class, 'bash/slash')
+        self.assertEqual(entry.item.stability, 50)
+        self.assertEqual(entry.item.to_hit, 60)
+        self.assertEqual(entry.item.price, 250)
+
+    def test_weapon_without_matching_weapons_data_falls_back_to_bare_item(self):
+        inv = Inventory()
+        inv.add(Weapon(id_number=1, name='LONG SWORD'))
+
+        restored = Inventory.from_json(inv.to_json())  # no weapons_data at all
+        entry = restored.find(name='LONG SWORD')[0]
+
+        self.assertIsInstance(entry.item, Item)
+        self.assertNotIsInstance(entry.item, Weapon)
+
+        restored_unmatched = Inventory.from_json(inv.to_json(), weapons_data=[])
+        entry2 = restored_unmatched.find(name='LONG SWORD')[0]
+        self.assertIsInstance(entry2.item, Item)
+        self.assertNotIsInstance(entry2.item, Weapon)
+
+    def test_weapon_id_collision_across_categories_does_not_misresolve(self):
+        """weapons.json #1 is LONG SWORD, but item numbering is only
+        unique within its own category -- a legacy weapon save entry
+        that happens to share id_number 1 with LONG SWORD but has a
+        different name must not be misresolved into LONG SWORD's stats."""
+        inv = Inventory()
+        inv.add(Weapon(id_number=1, name='RUSTY DAGGER'))
+
+        restored = Inventory.from_json(inv.to_json(), weapons_data=[self._LONG_SWORD])
+        entry = restored.find(name='RUSTY DAGGER')[0]
+
+        self.assertIsInstance(entry.item, Item)
+        self.assertNotIsInstance(entry.item, Weapon)
+
+
+class TestInventorySpellResolution(unittest.TestCase):
+    """Regression: same gap as TestInventoryWeaponResolution, for spells.
+    A learned spell that survived a save/load round trip came back as a
+    bare Item missing effect_type/cast_chance/effect_magnitude entirely
+    (getattr defaults: '' / 0 / 0). commands/cast.py's _stat_enum(effect_type)
+    does a bare dict lookup keyed by effect_type -- an empty string isn't a
+    valid key, so casting a reloaded spell raised KeyError, caught by the
+    command dispatcher's blanket except-handler and silently dropping the
+    player back to the main prompt on CAST, the same failure shape as the
+    ATTACK bug. from_json() now resolves spell-category entries back to a
+    real Spell via items.resolve_spell(), keyed against shoppe/wizard.py's
+    static SPELLS list (no ctx.server plumbing needed -- it's hardcoded
+    data, not a per-server JSON file).
+    """
+
+    # shoppe/wizard.py's SPELLS #4 = KILL (monster-damage spell)
+    _KILL_ID = 4
+
+    def test_spell_fields_survive_round_trip(self):
+        inv = Inventory()
+        inv.add(Spell(id_number=self._KILL_ID, name='KILL', charges=1, max_charges=1,
+                       cast_chance=60, effect_type='M', effect_magnitude=6), charges=1)
+
+        restored = Inventory.from_json(inv.to_json())
+        entry = restored.find(name='KILL')[0]
+
+        self.assertIsInstance(entry.item, Spell)
+        self.assertEqual(entry.item.effect_type, 'M')
+        self.assertEqual(entry.item.cast_chance, 60)
+        self.assertEqual(entry.item.effect_magnitude, 6)
+
+    def test_spell_id_collision_across_categories_does_not_misresolve(self):
+        """SPELLS #4 is KILL, but item numbering is only unique within
+        its own category -- a legacy entry sharing id_number 4 with KILL
+        but a different name must not be misresolved into KILL's stats."""
+        inv = Inventory()
+        inv.add(Spell(id_number=self._KILL_ID, name='MYSTERY SCROLL'), charges=1)
+
+        restored = Inventory.from_json(inv.to_json())
+        entry = restored.find(name='MYSTERY SCROLL')[0]
+
+        self.assertIsInstance(entry.item, Item)
+        self.assertNotIsInstance(entry.item, Spell)
+
+    def test_unknown_spell_id_falls_back_to_bare_item(self):
+        inv = Inventory()
+        inv.add(Spell(id_number=99999, name='HOMEBREW HEX'), charges=1)
+
+        restored = Inventory.from_json(inv.to_json())
+        entry = restored.find(name='HOMEBREW HEX')[0]
+
+        self.assertIsInstance(entry.item, Item)
+        self.assertNotIsInstance(entry.item, Spell)
 
 
 if __name__ == '__main__':

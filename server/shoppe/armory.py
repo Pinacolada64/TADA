@@ -161,6 +161,12 @@ async def _sell(ctx: GameContext, player, inv, all_weapons) -> None:
         await ctx.send('No weapons.')
         return
 
+    # Inventory.from_json() now resolves weapon-category entries back to a
+    # real Weapon (items.resolve_weapon()) when the login path supplies
+    # weapons_data, so entry.item.price should already be correct here --
+    # this lookup is defense-in-depth for any entry that isn't (e.g. one
+    # reconstructed by a code path that predates/skips that resolution),
+    # not evidence it's dead code.
     weapon_map = {w['number']: w for w in all_weapons}
 
     while True:

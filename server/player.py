@@ -257,10 +257,16 @@ class Player:
         _raw_inv = kwargs.get('inventory')
         _class_limit = class_inventory_limit(self.char_class)
         self.max_inventory_size: int = kwargs.get('max_inventory_size', _class_limit)
+        # Server's raw weapons.json list, passed in by the login path so a
+        # carried weapon can be rebuilt as a real Weapon (not a lightweight
+        # Item) on reload -- see items.resolve_weapon(). Session-only:
+        # never persisted, see save()'s _SESSION_ONLY set.
+        self._weapons_data = kwargs.get('weapons_data')
         if isinstance(_raw_inv, Inventory):
             self.inventory: Inventory = _raw_inv
         elif isinstance(_raw_inv, list):
-            self.inventory = Inventory.from_json(_raw_inv, capacity=self.max_inventory_size)
+            self.inventory = Inventory.from_json(_raw_inv, capacity=self.max_inventory_size,
+                                                  weapons_data=self._weapons_data)
         else:
             self.inventory = Inventory(capacity=self.max_inventory_size)
 
@@ -1013,7 +1019,7 @@ class Player:
             # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact.
             # Exclude session-only attributes that hold live objects and are not restored on load.
             _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'compass_active', 'pending_pages',
-                             'pending_duel_challenge', 'active_duel'}
+                             'pending_duel_challenge', 'active_duel', '_weapons_data'}
             data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
             from inventory import Inventory
@@ -1204,7 +1210,8 @@ class Player:
                 try:
                     from inventory import Inventory
                     self.inventory = Inventory.from_json(
-                        data['inventory'], capacity=self.max_inventory_size
+                        data['inventory'], capacity=self.max_inventory_size,
+                        weapons_data=getattr(self, '_weapons_data', None),
                     )
                 except Exception:
                     logging.exception("Player._load: failed to restore inventory for %s", self.name)
@@ -1213,7 +1220,10 @@ class Player:
             if 'locker' in data and isinstance(data['locker'], list):
                 try:
                     from inventory import Inventory, LOCKER_CAPACITY
-                    self.locker = Inventory.from_json(data['locker'], capacity=LOCKER_CAPACITY)
+                    self.locker = Inventory.from_json(
+                        data['locker'], capacity=LOCKER_CAPACITY,
+                        weapons_data=getattr(self, '_weapons_data', None),
+                    )
                 except Exception:
                     logging.exception("Player._load: failed to restore locker for %s", self.name)
 
