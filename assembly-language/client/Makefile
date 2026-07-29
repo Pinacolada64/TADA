@@ -97,6 +97,8 @@ vice: all $(TARGET).d64
 	-dos1581 $(JIFFYDOS_1581) \
 	-8 $(TARGET).d64 \
 	-moncommands "monitor-commands" \
+	-remotemonitor \
+	-remotemonitoraddress "127.0.0.1:6510" \
 	-autostart $(TARGET).d64
 
 # --- Utility targets ---
