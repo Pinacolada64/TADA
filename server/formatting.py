@@ -307,7 +307,16 @@ def _petscii_token_strip_replace(match: re.Match) -> str:
 
 
 def _encode_petscii_segment(text: str, codec_name: str) -> bytes:
-    """Encode a plain text segment, mapping '_' → PETSCII $64 (underline glyph)."""
+    """Encode a plain text segment, mapping '_' → PETSCII $64 (underline
+    glyph). Also used with codec_name='ascii' by petscii_encode's no-
+    cbmcodecs2 fallback path -- str.encode() accepts 'ascii' just as
+    well as a cbmcodecs2 codec name, so the same '_' handling applies
+    either way rather than needing a second copy of this function. Ryan
+    caught the gap live: without this, the fallback path (this
+    environment doesn't have cbmcodecs2 installed) sent a raw ASCII
+    0x5F for '_', which isn't underscore on a real Commodore screen --
+    it happened to render as an unrelated glyph. $64 is the actual
+    PETSCII underline-glyph code."""
     if '_' not in text:
         return text.encode(codec_name, errors='replace')
     parts = text.split('_')
@@ -352,7 +361,7 @@ def petscii_encode(text: str,
         clean = _PETSCII_TOKEN_RE.sub(_petscii_token_strip_replace, text)
         clean = _GLYPH_TOKEN_RE.sub(
             lambda m: m.group('gelit') if m.group('gelit') is not None else '', clean)
-        return clean.encode('ascii', errors='replace')
+        return _encode_petscii_segment(clean, 'ascii')
 
     result = bytearray()
     pos = 0
