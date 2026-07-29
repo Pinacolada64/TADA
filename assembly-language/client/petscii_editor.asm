@@ -692,15 +692,13 @@ fill_dec_lo:
 ; (LOAD_LABEL or SAVE_LABEL). Pokes the label into columns 0-7, blanks
 ; columns 8-39 (the bar), resets progress_col/progress_counter.
 ;
-; Label uses white (1), not the bar's cyan (3): Ryan reported live that
-; the label wasn't visible even though the bar was -- disassembly showed
-; the poke itself is correct (right bytes, right row, never overwritten
-; by the bar loop, which only touches columns 8-39), so the leading
-; theory is a plain-video contrast issue against whatever the screen's
-; background register happens to be, unlike the bar's dots, which are
-; reverse-video and paint a solid block regardless of that register.
-; White is the one color guaranteed not to blend into a normal dark
-; background either way.
+; Label uses white (1) rather than the bar's cyan (3) -- a first guess
+; at fixing an earlier live report that the label never showed up,
+; before the real cause (progress_col initialized to 0 instead of 8,
+; below) was found: the bar's own first dots were landing on top of the
+; label and eating through it before it was ever visible, nothing to do
+; with color/contrast at all. Left as white anyway since it's a fine
+; choice regardless, just not the fix.
 progress_init:
         ldy #0
 progress_init_label_loop:
@@ -720,8 +718,16 @@ progress_init_bar_loop:
         inx
         cpx #40
         bne progress_init_bar_loop
-        lda #0
+        lda #8                     ; bar starts at column 8, past the label
+                                     ; -- real bug, not a contrast issue:
+                                     ; this was 0 before, so progress_tick's
+                                     ; very first dots landed on top of the
+                                     ; label (columns 0-7) and ate through
+                                     ; it before it was ever visible, which
+                                     ; is why only the bar ever seemed to
+                                     ; show up
         sta progress_col
+        lda #0
         sta progress_counter
         rts
 
