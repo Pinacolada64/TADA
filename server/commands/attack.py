@@ -46,6 +46,7 @@ class AttackCommand(Command):
     name    = 'attack'
     aliases = ['kill', 'fight', 'k']
     modes   = {Mode.GAME}
+    counts_as_move = True
 
     help = Help(
         summary  = 'Attack the monster in your current room.',

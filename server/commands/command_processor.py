@@ -308,6 +308,13 @@ class CommandProcessor:
             # Tolerate commands that forget to return a CommandResult
             if result is None:
                 result = CommandResult.ok()
+            # Movement/battle commands bump Player.moves_today (shown as
+            # "Total Moves" in STATS) on success; bookkeeping commands like
+            # inv/help leave it untouched -- see Command.counts_as_move.
+            if result.success and getattr(cmd, 'counts_as_move', False):
+                player = getattr(effective_ctx, 'player', None)
+                if player is not None:
+                    player.moves_today = int(getattr(player, 'moves_today', 0) or 0) + 1
             return result
         except Exception as exc:
             log.exception("Error executing command %r", cmd.name)

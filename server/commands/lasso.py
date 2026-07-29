@@ -12,6 +12,7 @@ from network_context import GameContext
 class LassoCommand(Command):
     name    = 'lasso'
     modes   = {Mode.GAME}
+    counts_as_move = True
 
     help = Help(
         summary  = 'Try to capture a wild horse as a mount during combat.',

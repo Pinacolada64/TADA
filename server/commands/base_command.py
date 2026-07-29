@@ -144,6 +144,15 @@ class Command(ABC):
     #: Help metadata — attach a Help() instance here.
     help: Any = None  # type: ignore[assignment]  (Help imported in help.py)
 
+    #: True for compass movement and battle actions (attack, flee, cast,
+    #: lasso) -- these increment Player.moves_today, shown as "Total Moves"
+    #: in the STATS readout. Bookkeeping commands (inv, help, stat itself,
+    #: etc.) leave this False so browsing/checking state doesn't inflate
+    #: the counter. Set explicitly per-command rather than inferred from
+    #: HelpCategory, since e.g. look/examine are filed under MOVEMENT for
+    #: help-listing purposes but aren't actual moves.
+    counts_as_move: bool = False
+
     # ------------------------------------------------------------------
     # Abstract interface
     # ------------------------------------------------------------------

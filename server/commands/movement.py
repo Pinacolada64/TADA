@@ -193,6 +193,7 @@ class MoveCommand(Command):
                'n', 's', 'e', 'w', 'u', 'd',
                'north', 'south', 'east', 'west', 'up', 'down']
     modes   = {Mode.GAME}
+    counts_as_move = True
 
     help = Help(
         summary     = 'Move in a compass direction.',

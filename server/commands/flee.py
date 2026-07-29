@@ -8,6 +8,7 @@ class FleeCommand(Command):
     name    = 'flee'
     aliases = ['run', 'escape']
     modes   = {Mode.GAME}
+    counts_as_move = True
 
     help = Help(
         summary  = 'Try to escape from a fight.',

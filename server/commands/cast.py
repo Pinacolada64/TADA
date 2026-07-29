@@ -292,6 +292,7 @@ async def _cast_monster(ctx, player, magnitude: int, bonus: int, success: bool) 
 class CastCommand(Command):
     name    = 'cast'
     modes   = {Mode.GAME}
+    counts_as_move = True
 
     help = Help(
         summary  = 'Cast a spell you know.',
