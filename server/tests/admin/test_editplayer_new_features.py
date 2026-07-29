@@ -26,6 +26,7 @@ from commands.editplayer import (
     _give_object,
     _give_ration,
     _give_weapon,
+    _hp_menu,
     _inventory_action,
     _map_info_menu,
     _names_menu,
@@ -52,6 +53,7 @@ class _FakePlayer:
         self.age = 0
         self.armor = 0
         self.shield = 0
+        self.hit_points = 20
         self.map_level = 1
         self.map_room = 1
         self.readied_weapon = None
@@ -400,6 +402,53 @@ class TestNamesMenuAllyAndHorse(unittest.IsolatedAsyncioTestCase):
         player.party = Party(members=[_make_ally('EMMETT "DOC" BROWN')])   # no MOUNT flag
         ctx = _FakeCtx(player=player)
         menu = _names_menu(ctx)
+        await _find_item(menu, 'Horse').action(ctx)
+        self.assertIn('No horse owned', ctx.sent[-1])
+
+
+class TestHitPointsMenu(unittest.IsolatedAsyncioTestCase):
+
+    async def test_set_player_hp(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['15'], player=player)
+        menu = _hp_menu(ctx)
+        await _find_item(menu, 'Player').action(ctx)
+        self.assertEqual(player.hit_points, 15)
+        self.assertTrue(player.unsaved_changes)
+
+    async def test_set_ally_hp(self):
+        ally = _make_ally('EMMETT "DOC" BROWN')
+        ally.hit_points = 20
+        player = _FakePlayer()
+        player.party = Party(members=[ally])
+        ctx = _FakeCtx(responses=['5'], player=player)
+        menu = _hp_menu(ctx)
+        await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertEqual(ally.hit_points, 5)
+        self.assertTrue(player.unsaved_changes)
+
+    async def test_empty_ally_slot_reports_no_ally(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(player=player)
+        menu = _hp_menu(ctx)
+        await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertIn('No ally in that slot', ctx.sent[-1])
+
+    async def test_set_horse_hp(self):
+        mount = _make_mount('SILVER')
+        mount.hit_points = 40
+        player = _FakePlayer()
+        player.party = Party(members=[mount])
+        ctx = _FakeCtx(responses=['30'], player=player)
+        menu = _hp_menu(ctx)
+        await _find_item(menu, 'Horse').action(ctx)
+        self.assertEqual(mount.hit_points, 30)
+
+    async def test_no_horse_owned(self):
+        player = _FakePlayer()
+        player.party = Party(members=[_make_ally('EMMETT "DOC" BROWN')])  # no MOUNT flag
+        ctx = _FakeCtx(player=player)
+        menu = _hp_menu(ctx)
         await _find_item(menu, 'Horse').action(ctx)
         self.assertIn('No horse owned', ctx.sent[-1])
 

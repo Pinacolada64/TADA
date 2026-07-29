@@ -11,7 +11,7 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
   ├─  4. Character Names   player name; rename allies and horse
   ├─  5. Combinations      locker, elevator, castle, booby traps
   ├─  6. Flags/Counters    all PlayerFlags grouped by category
-  ├─  7. Hit Points        current HP
+  ├─  7. Hit Points        current HP for player, allies, and horse
   ├─  8. Inventory         give weapons/armor/rations/objects; transfer
   │                        items between characters
   ├─  9. Map Information   dungeon level, room number
@@ -169,20 +169,91 @@ async def _prompt_battle_exp_value(ctx, label: str, current: int,
 
 
 # ---------------------------------------------------------------------------
-# Hit-points action
+# Hit-points menu
 # ---------------------------------------------------------------------------
 
-def _hp_action(ctx):
-    async def action(ctx):
-        p   = ctx.player
-        cur = int(getattr(p, 'hit_points', 0) or 0)
-        await ctx.send(f'Current HP: {cur}')
-        val = await _prompt_int(ctx, 'Hit Points', cur, 0, 999)
-        if val is not None:
-            p.hit_points = val
-            p.unsaved_changes = True
-            await ctx.send(f'Hit points set to {val}.')
-    return action
+async def _edit_hit_points(ctx, name: str, get, set_) -> None:
+    cur = int(get() or 0)
+    await ctx.send(f'{name} current HP: {cur}')
+    val = await _prompt_int(ctx, 'Hit Points', cur, 0, 999)
+    if val is not None:
+        set_(val)
+        ctx.player.unsaved_changes = True
+        await ctx.send(f'{name} hit points set to {val}.')
+
+
+def _hp_menu(ctx) -> Menu:
+    from bar.allies import owned_allies
+    from bar.ally_data import AllyFlags
+
+    p    = ctx.player
+    menu = _titled_menu(ctx, 'Hit Points')
+
+    def _get_player():
+        return getattr(p, 'hit_points', 0)
+
+    def _set_player(val):
+        p.hit_points = val
+
+    async def edit_player(ctx) -> None:
+        await _edit_hit_points(ctx, p.name, _get_player, _set_player)
+
+    def _ally_label(slot: int) -> str:
+        allies = owned_allies(p)
+        if slot >= len(allies):
+            return '(empty)'
+        a = allies[slot]
+        return f'{a.name}  HP {a.hit_points}'
+
+    async def edit_ally(ctx, slot: int) -> None:
+        allies = owned_allies(p)
+        if slot >= len(allies):
+            await ctx.send('No ally in that slot.')
+            return
+        ally = allies[slot]
+
+        def _get_ally():
+            return ally.hit_points
+
+        def _set_ally(val):
+            ally.hit_points = val
+
+        await _edit_hit_points(ctx, ally.name, _get_ally, _set_ally)
+
+    def _horse() -> Optional[object]:
+        return next((a for a in owned_allies(p) if AllyFlags.MOUNT in (a.flags or [])), None)
+
+    def _horse_label(ctx) -> str:
+        mount = _horse()
+        return f'{mount.name}  HP {mount.hit_points}' if mount else '(no horse)'
+
+    async def edit_horse(ctx) -> None:
+        mount = _horse()
+        if mount is None:
+            await ctx.send('No horse owned.')
+            return
+
+        def _get_horse():
+            return mount.hit_points
+
+        def _set_horse(val):
+            mount.hit_points = val
+
+        await _edit_hit_points(ctx, mount.name, _get_horse, _set_horse)
+
+    menu.add_item(MenuItem(
+        'Player', shortcuts='p',
+        dot_leader_handler=lambda ctx: str(_get_player()),
+        action=edit_player,
+    ))
+    for i in range(3):
+        menu.add_item(MenuItem(
+            f'Ally {i + 1}', shortcuts="A" + str(i + 1),
+            dot_leader_handler=lambda ctx, s=i: _ally_label(s),
+            action=lambda ctx, s=i: edit_ally(ctx, s),
+        ))
+    menu.add_item(MenuItem('Horse', shortcuts='h', dot_leader_handler=_horse_label, action=edit_horse))
+    return menu
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +342,7 @@ def _build_main_menu(ctx) -> Menu:
     menu.add_item(MenuItem('Character Names',  shortcuts='cn', submenu=_names_menu(ctx)))
     menu.add_item(MenuItem('Combinations',     shortcuts='co', submenu=_combinations_menu(ctx)))
     menu.add_item(MenuItem('Flags/Counters',   shortcuts='fl', submenu=_flags_menu(ctx)))
-    menu.add_item(MenuItem('Hit Points',       shortcuts='hp', action=_hp_action(ctx)))
+    menu.add_item(MenuItem('Hit Points',       shortcuts='hp', submenu=_hp_menu(ctx)))
     menu.add_item(MenuItem('Inventory',        shortcuts='in', action=_inventory_action(ctx)))
     menu.add_item(MenuItem('Map Information',  shortcuts='mi', submenu=_map_info_menu(ctx)))
     menu.add_item(MenuItem('Money',            shortcuts='mo', submenu=_money_menu(ctx)))
