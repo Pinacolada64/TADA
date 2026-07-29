@@ -77,6 +77,23 @@ _EFFECT_LABELS: dict[str, str] = {
 }
 
 
+# TADA addition: randomized pools for two lines that were previously fixed,
+# matching the Wizard's established disembodied-voice tone.
+_UNKNOWN_SPELL_LINES = [
+    'I do not know that spell.',
+    'That incantation is unfamiliar to me.',
+    'No such spell exists in this cave.',
+    'The scroll remains blank at that name.',
+]
+
+_TEACHING_LINES = [
+    'Teaching spell..........',
+    'The scroll glows faintly as knowledge flows into you..........',
+    'Ancient words echo through the cave..........',
+    'The voice murmurs syllables older than the dungeon itself..........',
+]
+
+
 def _parse_info_request(ans: str) -> 'int | None':
     """Return spell number if ans matches i<number> (e.g. i3, i15), else None."""
     low = ans.lower()
@@ -224,7 +241,7 @@ async def main(ctx: GameContext) -> None:
 
         sp = next((s for s in SPELLS if s['number'] == num), None)
         if sp is None:
-            await ctx.send('I do not know that spell.')
+            await ctx.send(random.choice(_UNKNOWN_SPELL_LINES))
             continue
 
         # Class restrictions (SPUR: x=19 Wizard only; x=18 Druid only)
@@ -251,7 +268,7 @@ async def main(ctx: GameContext) -> None:
             await ctx.send('Ye do not have enough silver.')
             continue
 
-        await ctx.send('Teaching spell..........')
+        await ctx.send(random.choice(_TEACHING_LINES))
 
         player.subtract_silver(PlayerMoneyTypes.IN_HAND, price)
 

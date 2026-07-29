@@ -146,6 +146,19 @@ def set_thug_flag_on_target(ctx: GameContext, target_name: str) -> None:
 # Helpers
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Idle flavor  (TADA addition — a randomized pool for unrecognized input,
+# replacing the one fixed line)
+# ---------------------------------------------------------------------------
+
+_IDLE_LOOKS = [
+    f'{_NPC} looks amused.',
+    f'{_NPC} taps a fingernail against the table, unimpressed.',
+    f'{_NPC}{_AP}s smile doesn{_AP}t reach his eyes.',
+    f'{_NPC} raises an eyebrow, waiting.',
+]
+
+
 async def _show_menu(ctx: GameContext) -> None:
     rk = ctx.player.client_settings.return_key
     await ctx.send(
@@ -358,7 +371,7 @@ async def main(ctx: GameContext, bar=None) -> None:
             await _insult(ctx, bar)
             break   # bouncer ejects player
         else:
-            await ctx.send(f'{_NPC} looks amused.')
+            await ctx.send(random.choice(_IDLE_LOOKS))
 
 
 # ---------------------------------------------------------------------------

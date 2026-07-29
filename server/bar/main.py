@@ -71,12 +71,23 @@ class Bar:
 # NPC stubs  (each becomes a full async sub-module later)
 # ---------------------------------------------------------------------------
 
+# TADA addition: randomized phrasing for Mundo's ejection, replacing the one
+# fixed line ("knocks you over the head with a baseball bat, and ").
+_BOUNCER_ACTIONS = [
+    "knocks you over the head with a baseball bat, and ",
+    "grabs you by the collar, hoists you off the ground, and ",
+    "cracks his knuckles, plants a boot in your backside, and ",
+    "picks you up like a sack of potatoes and ",
+]
+
+
 async def _bouncer(ctx: GameContext, bar: Bar) -> None:
     """Mundo ejects the player."""
+    import random
     player = ctx.player
     action = ''
     if player.hit_points > 5:
-        action = "knocks you over the head with a baseball bat, and "
+        action = random.choice(_BOUNCER_ACTIONS)
         player.hit_points -= 5
     await ctx.send(f"At a signal, Mundo {action}throws you out into the street...")
     bar.pos_y, bar.pos_x = 0, 6

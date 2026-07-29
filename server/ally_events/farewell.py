@@ -24,8 +24,9 @@ Each ally slot picks one of three quote records depending on the ally's
 god/goddess status (cln.ally's ">"/"+"" name-sigil convention, same one
 ally_events/starvation.py's _is_divine() already reads via
 AllyFlags.GOD/GODDESS): a plain "mortal" line, or a GODDESS/GOD line
-using yx+1/yx+2. $ substitutes the player's name, * the ally's (cleaned)
-display name.
+using yx+1/yx+2. $ substitutes the player's name; SPUR's bare * (the
+ally's cleaned display name) is this port's %n -- see the %<letter>
+token note below.
 
 New in TADA: this port's MONSTER.QUOTE.TXT is truncated at record 69
 (see gbbs_io.py's RECORD_INFO['monster.quote'] comment) -- records
@@ -40,6 +41,12 @@ plain list rather than SPUR's 3 fixed a1/a2/a3 slots and can hold more
 than 3 members (see commands/connect.py's _party_waiting_line(), which
 made the same generalization for the login greeting).
 
+New in TADA: quotes use %<letter> tokens for everything per-ally: %n
+for the ally's (cleaned) display name (SPUR's bare *), and %s/%o/%p/%P/%r
+for the ally's gendered pronoun (see _PRONOUN_TOKENS), the latter
+resolved via tada_utilities.get_pronoun() -- SPUR's al.quote had no
+pronoun equivalent at all, only $/*.
+
 commands/quit.py originally had a stubbed-in placeholder here --
 "'I WILL WATCH FOR YOUR RETURN!' shouts X" / "'YEAH? AND WHO WILL WATCH
 YOU?' snickers X" / "X looks sad as you leave.." -- hardcoded to the
@@ -48,9 +55,21 @@ god/goddess distinction and no real source data behind them. Ryan liked
 those lines, so they're folded into the "mortal" tier's quote pool
 (picked at random per ally, alongside the new lines) rather than
 discarded.
+
+text/SPUR Text Capture.txt (lines 1960-1964) preserves one real
+al.quote farewell triplet from a live SPUR session -- "THE GODDESS
+PERSEPHONE SHAKES HER LOVELY HAIR, AND SMILES FAREWELL." (goddess),
+"THE HOBGOBLIN WAVES GOODBYE, AND BEGINS MAKING CAMP." and "STEELY DAN
+SHOUTS FAREWELL, AND BEGINS CLEANING HIS GEAR." (both mortal). Folded
+into the mortal/goddess pools in sentence case; the "HIS GEAR" pronoun
+is rendered via %p (POSSESSIVE_ADJECTIVE, see _PRONOUN_TOKENS/
+_substitute()) resolved per-ally with tada_utilities.get_pronoun(), the
+same helper ally_events/starvation.py already uses for gendered ally
+text, rather than hardcoding "his".
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 _QUOTES_PATH = Path(__file__).parent.parent / 'ally_farewell_quotes.json'
@@ -58,6 +77,20 @@ _QUOTES_PATH = Path(__file__).parent.parent / 'ally_farewell_quotes.json'
 _TIER_MORTAL  = 'mortal'
 _TIER_GODDESS = 'goddess'
 _TIER_GOD     = 'god'
+
+# %-token letter -> PronounType name, one per PronounType member (base_classes.py):
+# %s he/she/they, %o him/her/them, %p his/her/their, %P his/hers/theirs,
+# %r himself/herself/themselves. %n is not a pronoun -- it's the ally's
+# (cleaned) display name, folded into the same %<letter> scheme in place
+# of SPUR's bare "*" so all per-ally substitutions live under one syntax.
+_PRONOUN_TOKENS = {
+    's': 'SUBJECTIVE',
+    'o': 'OBJECTIVE',
+    'p': 'POSSESSIVE_ADJECTIVE',
+    'P': 'POSSESSIVE_PRONOUN',
+    'r': 'REFLEXIVE',
+}
+_TOKEN_RE = re.compile('%(' + '|'.join(['n', *_PRONOUN_TOKENS]) + ')')
 
 
 def _load_quotes() -> dict[str, list[str]]:
@@ -91,8 +124,20 @@ def _display_name(ally, tier: str) -> str:
     return ally.name
 
 
-def _substitute(quote: str, player_name: str, ally_display_name: str) -> str:
-    return quote.replace('$', player_name).replace('*', ally_display_name)
+def _substitute(quote: str, player_name: str, ally_display_name: str, ally) -> str:
+    result = quote.replace('$', player_name)
+    if '%' in result:
+        from tada_utilities import get_pronoun, PronounType
+
+        def _replace(match: re.Match) -> str:
+            token = match.group(1)
+            if token == 'n':
+                return ally_display_name
+            pronoun_type = PronounType[_PRONOUN_TOKENS[token]]
+            return get_pronoun(ally, pronoun_type)
+
+        result = _TOKEN_RE.sub(_replace, result)
+    return result
 
 
 def farewell_lines(player) -> list[str]:
@@ -121,5 +166,5 @@ def farewell_lines(player) -> list[str]:
             continue
         quote = random.choice(pool)
         display_name = _display_name(ally, tier)
-        lines.append(_substitute(quote, player_name, display_name))
+        lines.append(_substitute(quote, player_name, display_name, ally))
     return lines

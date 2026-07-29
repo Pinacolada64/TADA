@@ -118,6 +118,21 @@ def _free_allies_for_sale(master_list: List[Ally], player) -> List[Ally]:
     ]
 
 
+# ---------------------------------------------------------------------------
+# Idle flavor  (TADA addition — a randomized pool for unrecognized input,
+# replacing the one fixed line, matching Olaf's established Germanic-accent
+# speech pattern)
+# ---------------------------------------------------------------------------
+
+_IDLE_GRUMBLES = [
+    f'{_NPC}: {_AP}Kud yu spek up, young{_AP}un?{_AP}',
+    f'{_NPC}: {_AP}Olaf dun{_AP}t du refunds, ya hear?{_AP}',
+    f'{_NPC} grumbles about the price of chicken legs.',
+    f'{_NPC}: {_AP}Speak clear, or Olaf gets grumpy!{_AP}',
+    f'{_NPC} scratches his beard, waiting.',
+]
+
+
 async def _show_menu(ctx: GameContext) -> None:
     rk = ctx.player.client_settings.return_key
     await ctx.send(
@@ -408,7 +423,7 @@ async def main(ctx: GameContext, bar=None) -> None:
         elif cmd == 'm':
             await _maintain_servant(ctx, master_list)
         else:
-            await ctx.send(f'{_NPC}: {_AP}Kud yu spek up, young{_AP}un?{_AP}')
+            await ctx.send(random.choice(_IDLE_GRUMBLES))
 
 
 # ---------------------------------------------------------------------------

@@ -52,7 +52,8 @@ class TestDivineAllies(unittest.TestCase):
     def test_goddess_gets_title_prefix(self):
         from ally_events.farewell import farewell_lines
         ally = _make_ally('Persephone', flags=[AllyFlags.GODDESS])
-        lines = farewell_lines(_make_player(party=[ally]))
+        with patch('random.choice', side_effect=lambda pool: pool[0]):
+            lines = farewell_lines(_make_player(party=[ally]))
         self.assertEqual(len(lines), 1)
         self.assertIn('THE GODDESS Persephone', lines[0])
         self.assertIn('tawny hair', lines[0])
@@ -67,7 +68,8 @@ class TestDivineAllies(unittest.TestCase):
     def test_god_line_substitutes_player_name(self):
         from ally_events.farewell import farewell_lines
         ally = _make_ally('Ares', flags=[AllyFlags.GOD])
-        lines = farewell_lines(_make_player(party=[ally], name='Killerella'))
+        with patch('random.choice', side_effect=lambda pool: pool[0]):
+            lines = farewell_lines(_make_player(party=[ally], name='Killerella'))
         self.assertIn('Killerella', lines[0])
 
 
@@ -86,6 +88,34 @@ class TestMultipleAllies(unittest.TestCase):
         self.assertIn('THE GODDESS Persephone', lines[1])
         self.assertIn('THE GOD Ares', lines[2])
         self.assertIn('Lasso', lines[3])
+
+
+class TestPronounSubstitution(unittest.TestCase):
+    def test_percent_p_resolves_per_ally_gender(self):
+        from ally_events.farewell import _substitute
+        male_ally = _make_ally('Grog', flags=None)
+        female_ally = _make_ally('Xena', flags=None)
+        female_ally.gender = 'f'
+        self.assertEqual(
+            _substitute('%n cleans %p gear.', 'Tester', 'Grog', male_ally),
+            'Grog cleans his gear.',
+        )
+        self.assertEqual(
+            _substitute('%n cleans %p gear.', 'Tester', 'Xena', female_ally),
+            'Xena cleans her gear.',
+        )
+
+    def test_all_pronoun_tokens_resolve(self):
+        from ally_events.farewell import _substitute
+        ally = _make_ally('Grog', flags=None)
+        result = _substitute('%s %o %p %P %r', 'Tester', 'Grog', ally)
+        self.assertEqual(result, 'he him his his himself')
+
+    def test_percent_n_substitutes_ally_display_name(self):
+        from ally_events.farewell import _substitute
+        ally = _make_ally('Grog', flags=None)
+        result = _substitute('%n waves at $.', 'Tester', 'THE GOD Grog', ally)
+        self.assertEqual(result, 'THE GOD Grog waves at Tester.')
 
 
 if __name__ == '__main__':

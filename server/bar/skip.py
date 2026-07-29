@@ -65,6 +65,27 @@ def _improve_stat(player, stat: PlayerStat, rng: int) -> int:
     return actual
 
 
+# ---------------------------------------------------------------------------
+# Idle flavor  (TADA addition — randomized pools for Skip's kitchen-noise
+# entrance line and the unrecognized-order fallback, both previously fixed)
+# ---------------------------------------------------------------------------
+
+_KITCHEN_NOISES = [
+    f'{_NPC} sweats over a hot grill, muttering under his breath...',
+    f'{_NPC} scrapes the grill with a spatula, sparks flying.',
+    f'A pot boils over somewhere behind {_NPC}, and he swears under his breath.',
+    f'{_NPC} flips something unidentifiable, and it hisses angrily.',
+    f'Smoke curls up from the grill as {_NPC} works.',
+]
+
+_MENU_CONFUSION = [
+    f'{_NPC} mutters, "That ain\'t on the menu."',
+    f'{_NPC} shrugs. "Never heard of it."',
+    f'{_NPC} squints at you. "Speak up, I got a grill to run."',
+    f'{_NPC} wipes his hands on his apron. "Try again."',
+]
+
+
 async def _show_menu(ctx: GameContext) -> None:
     await ctx.send([
         f'[H]ash   ({_HASH_COST} silver)',
@@ -82,7 +103,7 @@ async def main(ctx: GameContext, bar=None) -> None:
     player  = ctx.player
     z       = _gender_address(player)
 
-    await ctx.send(f'{_NPC} sweats over a hot grill, muttering under his breath...')
+    await ctx.send(random.choice(_KITCHEN_NOISES))
 
     # Debug hook: manually toggle the once-per-day flag (see debug_tools.py)
     await debug_toggle_once_per_day(ctx, _NPC)
@@ -255,7 +276,7 @@ async def main(ctx: GameContext, bar=None) -> None:
             break
 
         else:
-            await ctx.send(f'{_NPC} mutters, "That ain\'t on the menu."')
+            await ctx.send(random.choice(_MENU_CONFUSION))
 
 
 # ---------------------------------------------------------------------------

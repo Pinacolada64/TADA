@@ -408,6 +408,22 @@ _FORTUNES = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Idle flavor  (TADA addition — Zelda had one fixed "stares at you" line for
+# unrecognized input; randomized here for variety, matching her established
+# elongated-vowel mystic-speech pattern)
+# ---------------------------------------------------------------------------
+
+_IDLE_MUTTERS = [
+    f'{_NPC} stares at you. Her cat stares too.',
+    f'"The leeeaves are... restless todaaaay," murmurs {_NPC}.',
+    f'{_NPC}{_AP}s cat hisses softly at the shadows.',
+    f'"Mmmmm. The spirits are chaaaatty tonight," says {_NPC}.',
+    f'{_NPC} squints at you through the crystal ball{_AP}s haze.',
+    f'The candles flicker as {_NPC} watches you, unblinking.',
+]
+
+
 async def _tell_fortune(ctx: GameContext) -> None:
     player = ctx.player
     while True:
@@ -474,7 +490,7 @@ async def main(ctx: GameContext, bar=None) -> None:
             await broadcast_area(ctx, 'bar', f'{player.name} gets up from {_NPC}{_AP}s table.')
             break
         else:
-            await ctx.send(f'{_NPC} stares at you. Her cat stares too.')
+            await ctx.send(choice(_IDLE_MUTTERS))
 
 
 # ---------------------------------------------------------------------------

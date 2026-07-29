@@ -12,6 +12,7 @@ SPUR notes:
 """
 import logging
 import math
+import random
 from typing import Tuple
 
 from base_classes import PlayerMoneyTypes
@@ -45,6 +46,23 @@ def _gender_terms(player) -> Tuple[str, str]:
     except Exception:
         pass
     return 'weasel', 'mac'
+
+
+# ---------------------------------------------------------------------------
+# Idle flavor  (TADA addition — a randomized pool for unrecognized input,
+# replacing the one fixed line, matching Vinny's established wiseguy-accent
+# speech pattern; {hn} is filled in with the gender-based term of address)
+# ---------------------------------------------------------------------------
+
+_ANNOYED_LINES = [
+    f'{_NPC} glares. {_AP}Look, {{hn}}, knock it off. '
+    f'Just stick wit{_AP} da choices. '
+    f'We{_AP}ll both be so much happier that way, '
+    f'youse know what I mean...?{_AP}',
+    f'{_NPC} cracks his knuckles. {_AP}I don{_AP}t got time for dis, {{hn}}.{_AP}',
+    f'{_NPC} taps cigar ash onto the floor. {_AP}Try again, {{hn}}.{_AP}',
+    f'{_NPC} narrows his eyes. {_AP}Youse tryin{_AP} ta be funny, {{hn}}?{_AP}',
+]
 
 
 async def _show_menu(ctx: GameContext) -> None:
@@ -442,12 +460,7 @@ async def main(ctx: GameContext, bar=None) -> None:
         elif cmd == 'c':
             await _clown_around(ctx, hn, dl)
         else:
-            await ctx.send(
-                f'{_NPC} glares. {_AP}Look, {hn}, knock it off. '
-                f'Just stick wit{_AP} da choices. '
-                f'We{_AP}ll both be so much happier that way, '
-                f'youse know what I mean...?{_AP}'
-            )
+            await ctx.send(random.choice(_ANNOYED_LINES).format(hn=hn))
 
 
 # ---------------------------------------------------------------------------
