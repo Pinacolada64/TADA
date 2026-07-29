@@ -12,8 +12,9 @@ SPUR notes (Guss):
   - F)lip: coin flip, max 1,000s bet (SPUR: flip section).
   - B)lackjack: full game, 500s table limit, H)it / D)ouble / S)tand.
     Dealer (Guss) stands on 17+; Aces count 11 or 1.
-  - Guss's slang: "Most henious", "Most bogus", "Tubuler!", "Radical!",
-    "Most excellent!", "Bogus!" (mirroring SPUR dialog verbatim).
+  - Guss's slang: "Most heinous", "Most bogus", "Tubular!", "Radical!",
+    "Most excellent!", "Bogus!" (mirroring SPUR dialog, with SPUR's
+    "henious"/"tubuler" misspellings corrected to heinous/tubular).
 """
 import datetime
 import logging
@@ -146,15 +147,20 @@ _INSULTS     = {"SHUTUP", "JERK", "KISS", "KICK", "KILL", "HIT", "BEAT", "GEEK",
 _LORE        = {"DURA", "SPUR", "LAND", "MONSTER", "AMULET"}
 _MYSTERY     = {"RING", "EXCALIBUR", "GUILD", "EVIL", "GOOD", "GOLD"}
 
-# SPUR.BAR2.S chk.2 — random idle responses Guss gives when no keyword hits
+# SPUR.BAR2.S chk.2 — random idle responses Guss gives when no keyword hits.
+# Each entry is the complete line to send as-is (some are narrated actions,
+# some are plain "Guss says, ..." quotes) -- see _guss_talk(), which sends
+# whichever _scan_chat()/this pool returns without re-wrapping it, since a
+# blanket "Guss says, {response}" wrap previously double-narrated lines
+# that already said "Guss ..." themselves.
 _IDLE_RESPONSES = [
-    "Guss looks at you, 'You don't say!'",
-    "Guss looks thoughtful..",
-    "Guss refills your glass, listening..",
-    "'Um-hmmm...'",
-    "'Say! How do ya suppose they get frosting in those twinkies?'",
-    "Guss stares off into space..",
-    "'yep..'",
+    f'Guss looks at you, "You don{_AP}t say!"',
+    'Guss looks thoughtful..',
+    'Guss refills your glass, listening..',
+    'Guss says, "Um-hmmm..."',
+    'Guss says, "Say! How do ya suppose they get frosting in those twinkies?"',
+    'Guss stares off into space..',
+    'Guss says, "Yep.."',
 ]
 
 
@@ -169,7 +175,7 @@ def _scan_chat(text: str) -> Optional[str]:
 
     # Bare "?" → request for clarification (SPUR: if i$="?")
     if stripped == "?":
-        return "'Could you be a bit more clear?'"
+        return 'Guss says, "Could you be a bit more clear?"'
 
     words = stripped.upper().split()
 
@@ -177,26 +183,26 @@ def _scan_chat(text: str) -> Optional[str]:
         if word in _PROFANITY:
             return "Guss is shocked by your foul mouth.."
         if word in _QUESTION_WH:
-            return "'An interesting question..'"
+            return 'Guss says, "An interesting question.."'
         if word in _INSULTS:
             # SPUR: gosub fight then i$="'Hmpth..'" — here we just warn
-            return "Guss clenches his jaw. 'Watch yourself, dude.'"
+            return 'Guss clenches his jaw. "Watch yourself, dude."'
         if word in _LORE:
-            return "Guss looks nervous, 'Watch what you say..'"
+            return 'Guss looks nervous, "Watch what you say.."'
         if word in _MYSTERY:
-            return "'Stay healthy, keep your nose clean and you will find out!'"
+            return 'Guss says, "Stay healthy, keep your nose clean and you will find out!"'
 
     # Question mark anywhere in text (SPUR: if instr("?",i$))
     if "?" in stripped:
         return random.choice([
-            "'Why do you ask?'",
-            "'What kind of question is that?'",
-            "'I waz wondering that myself..'",
-            "'Beats me..'",
+            'Guss says, "Why do you ask?"',
+            'Guss says, "What kind of question is that?"',
+            'Guss says, "I waz wondering that myself.."',
+            'Guss says, "Beats me.."',
         ])
 
     if "HELP" in {w.upper() for w in words}:
-        return "'One must help one's self..'"
+        return f'Guss says, "One must help one{_AP}s self.."'
 
     return None  # chk.2 idle path
 
@@ -220,7 +226,11 @@ async def _guss_talk(ctx: GameContext) -> None:
         if response is None:
             response = random.choice(_IDLE_RESPONSES)
 
-        await ctx.send(f'Guss says, "{response}"')
+        # _scan_chat()/_IDLE_RESPONSES already return the complete line
+        # (narrated action or "Guss says, ..." quote) -- wrapping it again
+        # here used to produce doubled-up lines like 'Guss says, "Guss is
+        # shocked by your foul mouth.."'.
+        await ctx.send(response)
         # SPUR: after chk.3 print, prompts again (goto chat.chk)
 
 
@@ -245,26 +255,26 @@ async def _guss_flip(ctx: GameContext) -> None:
         await ctx.send(f'(You have {silver:,}s in hand.)')
 
         if silver >= _FLIP_RICH:
-            await ctx.send("Guss says, 'Yer too rich for me!'")
+            await ctx.send('Guss says, "Yer too rich for me!"')
             return
 
-        raw = await ctx.prompt("'How much ya wanna bet?' (Enter to leave)")
+        raw = await ctx.prompt('"How much ya wanna bet?" (Enter to leave)')
         if raw is None or not raw.strip() or raw.strip().upper() == 'Q':
             return
 
         try:
             bet = int(raw.strip())
         except ValueError:
-            await ctx.send("Guss squints. 'That ain't a number, dude.'")
+            await ctx.send(f'Guss squints. "That ain{_AP}t a number, dude."')
             continue
 
         if bet <= 0:
             return
         if bet > _FLIP_MAX_BET:
-            await ctx.send("Guss says, '1000 max, my friend..'")
+            await ctx.send('Guss says, "1000 max, my friend.."')
             continue
         if not player.subtract_silver(PlayerMoneyTypes.IN_HAND, bet):
-            await ctx.send("Guss says, 'Hey dude, you don't have that much!'")
+            await ctx.send(f'Guss says, "Hey dude, you don{_AP}t have that much!"')
             continue
 
         # Call the toss
@@ -277,7 +287,7 @@ async def _guss_flip(ctx: GameContext) -> None:
             call = raw2.strip().upper()
             if call in ('H', 'T'):
                 break
-            await ctx.send("Guss says, 'Huh?'")
+            await ctx.send('Guss says, "Huh?"')
 
         await ctx.send("Guss flips a coin..")
         result = random.choice(('H', 'T'))
@@ -286,10 +296,10 @@ async def _guss_flip(ctx: GameContext) -> None:
         if result == call:
             player.subtract_silver(PlayerMoneyTypes.IN_HAND, -bet)   # refund + winnings
             player.unsaved_changes = True
-            await ctx.send(f"Guss says, 'You win!'  (+{bet:,}s)")
+            await ctx.send(f'Guss says, "You win!"  (+{bet:,}s)')
         else:
             player.unsaved_changes = True
-            await ctx.send(f"Guss says, 'Too bad..'  (-{bet:,}s)")
+            await ctx.send(f'Guss says, "Too bad.."  (-{bet:,}s)')
 
 
 # ---------------------------------------------------------------------------
@@ -345,7 +355,7 @@ async def _guss_blackjack(ctx: GameContext) -> None:
     player = ctx.player
 
     await ctx.send(
-        "Guss says, 'AWWRIGHT!' Guss plops a strange hat on his head, and deals.."
+        'Guss says, "AWWRIGHT!" Guss plops a strange hat on his head, and deals..'
     )
 
     while True:
@@ -353,32 +363,32 @@ async def _guss_blackjack(ctx: GameContext) -> None:
         await ctx.send(f'(You have {silver:,}s in hand.)')
 
         if silver < 1:
-            await ctx.send("Guss says, 'Hey dude, broke eh? Maybe later..'")
+            await ctx.send('Guss says, "Hey dude, broke eh? Maybe later.."')
             return
         if silver >= _BJ_RICH:
-            await ctx.send("Guss says, 'Yer too rich for me!'")
+            await ctx.send('Guss says, "Yer too rich for me!"')
             return
 
-        raw = await ctx.prompt("'How much ya wanna bet?' (Enter or Q to leave)")
+        raw = await ctx.prompt('"How much ya wanna bet?" (Enter or Q to leave)')
         if raw is None or raw.strip().upper() in ('', 'Q'):
             return
 
         try:
             bet = int(raw.strip())
         except ValueError:
-            await ctx.send("Guss squints. 'A number, dude..'")
+            await ctx.send('Guss squints. "A number, dude.."')
             continue
 
         if bet <= 0:
             return
         if bet > _BJ_TABLE_LIMIT:
-            await ctx.send("Guss says, '500 gold. Table limit, my friend..'")
+            await ctx.send('Guss says, "500 gold. Table limit, my friend.."')
             continue
         if bet < _BJ_MIN_BET:
-            await ctx.send("Guss says, 'Last of the big spenders!'")
+            await ctx.send('Guss says, "Last of the big spenders!"')
             # Non-blocking — SPUR just prints the line
         if not player.subtract_silver(PlayerMoneyTypes.IN_HAND, bet):
-            await ctx.send(f"Guss says, 'Hey dude, you don{_AP}t have that much!'")
+            await ctx.send(f'Guss says, "Hey dude, you don{_AP}t have that much!"')
             continue
 
         # Deal initial hands; redeal if either starts at 21 before blackjack check
@@ -396,7 +406,7 @@ async def _guss_blackjack(ctx: GameContext) -> None:
         if g_total == 21:
             await ctx.send([
                 f'Guss reveals: {_fmt_hand(g_hand)}  = 21',
-                "Guss says, 'Blackjack! I win! Most excellent!'",
+                'Guss says, "Blackjack! I win! Most excellent!"',
             ])
             player.unsaved_changes = True
             continue  # next hand; bet already forfeited
@@ -407,7 +417,7 @@ async def _guss_blackjack(ctx: GameContext) -> None:
             player.unsaved_changes = True
             await ctx.send([
                 f'Your hand: {_fmt_hand(p_hand)}  = 21',
-                f"Guss says, 'Blackjack! You win! Bogus!'  (+{bet:,}s)",
+                f'Guss says, "Blackjack! You win! Bogus!"  (+{bet:,}s)',
             ])
             continue  # next hand
 
@@ -432,7 +442,7 @@ async def _guss_blackjack(ctx: GameContext) -> None:
                 # SPUR: g2=b*2:gosub chk.gold; if fail → "Yo! Dude!..."
                 if not player.subtract_silver(PlayerMoneyTypes.IN_HAND, bet):
                     await ctx.send(
-                        "Guss says, 'Yo! Dude! You don't have the gold to do that!'"
+                        f'Guss says, "Yo! Dude! You don{_AP}t have the gold to do that!"'
                     )
                     continue
                 bet *= 2   # SPUR: b=b*2
@@ -441,7 +451,7 @@ async def _guss_blackjack(ctx: GameContext) -> None:
                 p_total = _hand_total(p_hand)
                 await ctx.send(f'You draw {card[0]}.  You have {p_total}.')
                 if p_total > 21:
-                    await ctx.send("Guss says, 'You busted! Radical!'")
+                    await ctx.send('Guss says, "You busted! Radical!"')
                     player.unsaved_changes = True
                     busted = True
                 break  # double forces stand
@@ -452,7 +462,7 @@ async def _guss_blackjack(ctx: GameContext) -> None:
                 p_total = _hand_total(p_hand)
                 await ctx.send(f'You draw {card[0]}.  You have {p_total}.')
                 if p_total > 21:
-                    await ctx.send("Guss says, 'You busted! Radical!'")
+                    await ctx.send('Guss says, "You busted! Radical!"')
                     player.unsaved_changes = True
                     busted = True
                     break
@@ -461,7 +471,7 @@ async def _guss_blackjack(ctx: GameContext) -> None:
                 break  # stand
 
             else:
-                await ctx.send("Guss says, 'I think your shorts must be too tight..'")
+                await ctx.send('Guss says, "I think your shorts must be too tight.."')
 
         if busted:
             continue  # bet already forfeited; next hand
@@ -488,15 +498,15 @@ async def _guss_blackjack(ctx: GameContext) -> None:
         elif g_total > 21:
             player.subtract_silver(PlayerMoneyTypes.IN_HAND, -(bet * 2))
             player.unsaved_changes = True
-            await ctx.send(f"Guss says, 'You win! Most henious'  (+{bet:,}s)")
+            await ctx.send(f'Guss says, "You win! Most heinous"  (+{bet:,}s)')
         elif p_total > g_total:
             player.subtract_silver(PlayerMoneyTypes.IN_HAND, -(bet * 2))
             player.unsaved_changes = True
-            await ctx.send(f"Guss says, 'You win! Most bogus..'  (+{bet:,}s)")
+            await ctx.send(f'Guss says, "You win! Most bogus.."  (+{bet:,}s)')
         else:
-            # Guss wins (SPUR: "Tubuler!")
+            # Guss wins (SPUR: "Tubular!")
             player.unsaved_changes = True
-            await ctx.send("Guss says, 'I win! Tubuler!'")
+            await ctx.send('Guss says, "I win! Tubular!"')
 
 
 # ---------------------------------------------------------------------------
@@ -533,12 +543,12 @@ async def _guss_session(ctx: GameContext) -> None:
 
         raw = await ctx.prompt('Guss')
         if raw is None:
-            await ctx.send("Guss says, 'Later... dude!'")
+            await ctx.send('Guss says, "Later... dude!"')
             break
 
         inp = raw.strip().upper()
         if not inp or inp in ('L', 'Q', 'LEAVE'):
-            await ctx.send("Guss says, 'Later... dude!'")
+            await ctx.send('Guss says, "Later... dude!"')
             await broadcast_area(ctx, 'bar', f'{player.name} tips a hat to Guss and heads out.')
             break
         elif inp == '?':
