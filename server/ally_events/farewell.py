@@ -38,8 +38,8 @@ quotes then"). Unlike the original's fixed per-slot record numbers,
 this port doesn't distinguish which party position an ally occupies --
 only their god/goddess/mortal tier -- since this port's party is a
 plain list rather than SPUR's 3 fixed a1/a2/a3 slots and can hold more
-than 3 members (see commands/connect.py's _party_waiting_line(), which
-made the same generalization for the login greeting).
+than 3 members (see logon_events/ally_greeting.py's party_waiting_lines(),
+which made the same generalization for the login greeting).
 
 New in TADA: quotes use %<letter> tokens for everything per-ally: %n
 for the ally's (cleaned) display name (SPUR's bare *), and %s/%o/%p/%P/%r
@@ -52,9 +52,13 @@ commands/quit.py originally had a stubbed-in placeholder here --
 YOU?' snickers X" / "X looks sad as you leave.." -- hardcoded to the
 first 1-3 party members regardless of who they were, with no
 god/goddess distinction and no real source data behind them. Ryan liked
-those lines, so they're folded into the "mortal" tier's quote pool
-(picked at random per ally, alongside the new lines) rather than
-discarded.
+those lines, so they're kept: "X looks sad as you leave.." joined the
+"mortal" tier's general pool, while the "I will watch.."/"Yeah? And
+who.." pair became ally_farewell_quotes.json's "mortal_exchange" entry
+(see _PAIRED_EXCHANGE_KEY/_PAIRED_EXCHANGE_CHANCE) -- a two-line
+back-and-forth that only plays out together, between the first two
+mortal allies in party order, rather than as two lines any ally could
+draw independently.
 
 text/SPUR Text Capture.txt (lines 1960-1964) preserves one real
 al.quote farewell triplet from a live SPUR session -- "THE GODDESS
@@ -77,6 +81,14 @@ _QUOTES_PATH = Path(__file__).parent.parent / 'ally_farewell_quotes.json'
 _TIER_MORTAL  = 'mortal'
 _TIER_GODDESS = 'goddess'
 _TIER_GOD     = 'god'
+
+# Not a real tier -- ally_farewell_quotes.json's "mortal_exchange" entry
+# holds the "I will watch for your return!"/"Yeah? And who will watch
+# you?" back-and-forth as a 2-line sequence, split out of the general
+# mortal pool (Ryan's request) so it only ever plays out as a pair, never
+# as two unrelated allies independently drawing the same half of a joke.
+_PAIRED_EXCHANGE_KEY    = 'mortal_exchange'
+_PAIRED_EXCHANGE_CHANCE = 0.3   # only fires when >= 2 mortal allies are present
 
 # %-token letter -> PronounType name, one per PronounType member (base_classes.py):
 # %s he/she/they, %o him/her/them, %p his/her/their, %P his/hers/theirs,
@@ -158,13 +170,28 @@ def farewell_lines(player) -> list[str]:
         return []
 
     player_name = getattr(player, 'name', 'Adventurer')
+
+    # Paired exchange: if at least two mortal allies are present, there's a
+    # chance the first two (in party order) play out the "I will watch for
+    # your return!" / "Yeah? And who will watch you?" back-and-forth instead
+    # of each drawing an independent line from the general mortal pool.
+    paired_quote_by_id: dict[int, str] = {}
+    exchange = quotes.get(_PAIRED_EXCHANGE_KEY)
+    if exchange and len(exchange) >= 2:
+        mortal_allies = [a for a in allies if _tier_for(a) == _TIER_MORTAL]
+        if len(mortal_allies) >= 2 and random.random() < _PAIRED_EXCHANGE_CHANCE:
+            paired_quote_by_id[id(mortal_allies[0])] = exchange[0]
+            paired_quote_by_id[id(mortal_allies[1])] = exchange[1]
+
     lines = []
     for ally in allies:
         tier = _tier_for(ally)
-        pool = quotes.get(tier)
-        if not pool:
-            continue
-        quote = random.choice(pool)
+        quote = paired_quote_by_id.get(id(ally))
+        if quote is None:
+            pool = quotes.get(tier)
+            if not pool:
+                continue
+            quote = random.choice(pool)
         display_name = _display_name(ally, tier)
         lines.append(_substitute(quote, player_name, display_name, ally))
     return lines

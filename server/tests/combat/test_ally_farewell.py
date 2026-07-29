@@ -40,12 +40,14 @@ class TestMortalAlly(unittest.TestCase):
 
     def test_mortal_pool_includes_the_classic_lines(self):
         """Ryan asked to keep the original stubbed placeholder lines as
-        part of the mortal-tier pool rather than discard them."""
+        part of the mortal-tier pool rather than discard them. The
+        "I will watch.."/"Yeah? And who.." pair later split out into the
+        "mortal_exchange" paired sequence (see TestPairedExchange)."""
         from ally_events.farewell import _load_quotes
         pool = _load_quotes()['mortal']
-        self.assertTrue(any('watch for your return' in q for q in pool))
-        self.assertTrue(any('who will watch you' in q for q in pool))
         self.assertTrue(any('looks sad as you leave' in q for q in pool))
+        self.assertFalse(any('watch for your return' in q for q in pool))
+        self.assertFalse(any('who will watch you' in q for q in pool))
 
 
 class TestDivineAllies(unittest.TestCase):
@@ -116,6 +118,54 @@ class TestPronounSubstitution(unittest.TestCase):
         ally = _make_ally('Grog', flags=None)
         result = _substitute('%n waves at $.', 'Tester', 'THE GOD Grog', ally)
         self.assertEqual(result, 'THE GOD Grog waves at Tester.')
+
+
+class TestPairedExchange(unittest.TestCase):
+    def test_first_two_mortals_get_the_exchange_when_it_fires(self):
+        from ally_events.farewell import farewell_lines
+        grog  = _make_ally('Grog')
+        lasso = _make_ally('Lasso')
+        with patch('random.random', return_value=0.0):
+            lines = farewell_lines(_make_player(party=[grog, lasso]))
+        self.assertEqual(len(lines), 2)
+        self.assertIn('watch for your return', lines[0])
+        self.assertIn('Grog', lines[0])
+        self.assertIn('who will watch you', lines[1])
+        self.assertIn('Lasso', lines[1])
+
+    def test_exchange_never_fires_below_the_roll_threshold(self):
+        from ally_events.farewell import farewell_lines
+        grog  = _make_ally('Grog')
+        lasso = _make_ally('Lasso')
+        with patch('random.random', return_value=0.999), \
+             patch('random.choice', side_effect=lambda pool: pool[0]):
+            lines = farewell_lines(_make_player(party=[grog, lasso]))
+        self.assertEqual(len(lines), 2)
+        self.assertNotIn('watch for your return', lines[0])
+        self.assertNotIn('who will watch you', lines[1])
+
+    def test_exchange_never_fires_with_only_one_mortal_ally(self):
+        from ally_events.farewell import farewell_lines
+        grog = _make_ally('Grog')
+        with patch('random.random', return_value=0.0):
+            lines = farewell_lines(_make_player(party=[grog]))
+        self.assertEqual(len(lines), 1)
+        self.assertNotIn('watch for your return', lines[0])
+
+    def test_a_third_mortal_ally_still_gets_a_normal_line(self):
+        from ally_events.farewell import farewell_lines
+        grog  = _make_ally('Grog')
+        lasso = _make_ally('Lasso')
+        bork  = _make_ally('Bork')
+        with patch('random.random', return_value=0.0), \
+             patch('random.choice', side_effect=lambda pool: pool[0]):
+            lines = farewell_lines(_make_player(party=[grog, lasso, bork]))
+        self.assertEqual(len(lines), 3)
+        self.assertIn('watch for your return', lines[0])
+        self.assertIn('who will watch you', lines[1])
+        self.assertNotIn('watch for your return', lines[2])
+        self.assertNotIn('who will watch you', lines[2])
+        self.assertIn('Bork', lines[2])
 
 
 if __name__ == '__main__':

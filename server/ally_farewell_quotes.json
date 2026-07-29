@@ -4,14 +4,19 @@
         "quotes": [
             "%n, thanks for the adventure!",
             "Catch you next time, $, says %n.",
-            "\"I will watch for your return!\" shouts %n.",
-            "\"Yeah? And who will watch you?\" snickers %n.",
             "%n looks sad as you leave..",
             "%n waves goodbye, and begins making camp.",
             "%n shouts farewell, and begins cleaning %p gear.",
             "%n grumbles about the long walk home, but %s means it fondly.",
             "%n gives you a rough pat on the back. \"Don't die out there.\"",
             "%n counts %p coins one last time before wandering off."
+        ]
+    },
+    {
+        "tier": "mortal_exchange",
+        "quotes": [
+            "\"I will watch for your return!\" shouts %n.",
+            "\"Yeah? And who will watch you?\" snickers %n."
         ]
     },
     {
