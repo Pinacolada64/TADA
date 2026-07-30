@@ -1967,6 +1967,15 @@ async def enter_combat(ctx: 'GameContext', monster: dict) -> None:
 
     session = CombatSession(monster, room_no)
 
+    # SPUR.MISC4.S:69 -- a turf guard (#65/66/67) has a 20% chance to spawn
+    # as its guild's captain instead, boosted and reflagged. Rolled here,
+    # on the CombatSession's own per-fight monster copy, rather than at
+    # room-entry time like SPUR's rd.mons -- see encounters/turf_guards.py's
+    # try_captain_spawn() docstring for why.
+    from encounters.turf_guards import try_captain_spawn
+    xp_level = int(getattr(ctx.player, 'xp_level', 1) or 1)
+    try_captain_spawn(session.monster, xp_level)
+
     # Consume encounters/monster.py's surprise roll, if it's still pending
     # for this exact room/monster (SPUR.COMBAT.S zs=998 -> zs=997 on the
     # first attack of the fight).
