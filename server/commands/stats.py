@@ -138,7 +138,7 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     silver_bar  = player.get_silver(PlayerMoneyTypes.IN_BAR)
 
     experience  = int(getattr(player, 'experience',    0) or 0)
-    mk          = len(getattr(player, 'dead_monsters', []) or [])
+    mk          = int(getattr(player, 'monsters_killed', 0) or 0)
     honor       = int(getattr(player, 'honor',         0) or 0)
     level       = int(getattr(player, 'xp_level',      1) or 1)
     total_moves = int(getattr(player, 'moves_today',   0) or 0)

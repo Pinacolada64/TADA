@@ -320,6 +320,15 @@ class Player:
         # wants "have I fought monster #N before" should test
         # `N in player.dead_monsters` directly.
         self.dead_monsters: list[int] = kwargs.get('dead_monsters', [])
+        # Lifetime kill log, one entry per kill, never cleared by
+        # bar/zelda.py's Resurrect Monsters (that only clears dead_monsters,
+        # the re-encounter/examine/teleport/charm gate above). monsters_killed
+        # (the @property, below __init__) is derived from this, not from
+        # dead_monsters -- monsters flagged re_animates append here on every
+        # kill but are deliberately never added to dead_monsters (see
+        # combat/engine.py's _record_kill), so they count toward the stat
+        # forever while staying eligible to be fought again and again.
+        self.kill_log: list[int] = kwargs.get('kill_log', [])
         # Monster numbers charmed and recruited into this player's party via
         # charm.py -- room.monster is shared/global map state (see
         # dead_monsters' own per-player "dead for this viewer" pattern
@@ -514,11 +523,13 @@ class Player:
 
     @property
     def monsters_killed(self) -> int:
-        """Total kill count (STATS display, editplayer's dot-leader line,
-        etc.) -- derived from dead_monsters, the actual per-kill log.
-        Read-only: to clear a player's kills (bar/zelda.py's Resurrect
-        Monsters), reset dead_monsters itself, not this."""
-        return len(self.dead_monsters)
+        """Total kill count (STATS display, etc.) -- derived from kill_log,
+        the lifetime per-kill log. NOT dead_monsters, which is the separate
+        re-encounter/examine/teleport/charm gate that bar/zelda.py's
+        Resurrect Monsters clears -- that purchase restores the ability to
+        refight monsters, it does not erase this stat. Read-only: to clear
+        a player's kill count, reset kill_log itself, not this."""
+        return len(self.kill_log)
 
     def set_stat(self, ctx: 'GameContext', stat: "PlayerStat", adj: int, verbose: bool = False):
         """
@@ -1284,6 +1295,18 @@ class Player:
                 logging.info("Player._load: %s's save predates dead_monsters -- migrating "
                              "its old monsters_killed list", self.name)
                 self.dead_monsters = [int(i) for i in data['monsters_killed'] if isinstance(i, (int, float))]
+
+            # Lifetime kill log (see __init__'s comment). 'kill_log' is the
+            # current key; saves predating its introduction bootstrap from
+            # dead_monsters (already loaded above) so existing kill counts
+            # aren't reset to 0 -- from this point on the two lists diverge
+            # only for re_animates kills.
+            if 'kill_log' in data and isinstance(data['kill_log'], list):
+                self.kill_log = [int(i) for i in data['kill_log'] if isinstance(i, (int, float))]
+            else:
+                logging.info("Player._load: %s's save predates kill_log -- bootstrapping "
+                             "it from dead_monsters", self.name)
+                self.kill_log = list(self.dead_monsters)
 
             # Per-player charmed-and-recruited list (each entry is a monster number)
             if 'charmed_monsters' in data and isinstance(data['charmed_monsters'], list):

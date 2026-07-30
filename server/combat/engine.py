@@ -289,19 +289,31 @@ def _survival_warnings(player) -> list[str]:
 
 
 def _record_kill(player, monster: dict) -> None:
-    """Append the monster ID to player.dead_monsters -- one entry per kill,
-    not deduplicated (killing the same monster type 3 times over a career
-    counts 3 times; player.monsters_killed, a @property, is len(dead_monsters),
-    the kill-count stat). Callers that want "have I fought this one before"
+    """Append the monster ID to player.kill_log -- one entry per kill, not
+    deduplicated (killing the same monster type 3 times over a career counts
+    3 times); player.monsters_killed, a @property, is len(kill_log), the
+    kill-count stat.
+
+    Also appends to player.dead_monsters, this port's "have I fought this
+    one before" gate (re-encounter/examine/teleport/charm eligibility,
+    cleared by bar/zelda.py's Resurrect Monsters) -- EXCEPT for monsters
+    flagged re_animates, which are deliberately never added there
+    (SPUR.COMBAT.S:198 skips adding them to xm$ for the same reason: they
+    stay eligible for a full re-encounter instead of being treated as
+    permanently dead). Callers that want "have I fought this one before"
     should test `mid in player.dead_monsters` directly."""
     mid = monster.get('number') or monster.get('id_number') or monster.get('id')
     if mid is None:
         return
-    dm = getattr(player, 'dead_monsters', None)
-    if isinstance(dm, list):
-        dm.append(mid)
+    kl = getattr(player, 'kill_log', None)
+    if isinstance(kl, list):
+        kl.append(mid)
         player.unsaved_changes = True
-        player.unsaved_changes = True
+    if not (monster.get('flags', {}) or {}).get('re_animates'):
+        dm = getattr(player, 'dead_monsters', None)
+        if isinstance(dm, list):
+            dm.append(mid)
+            player.unsaved_changes = True
 
 
 def _give_silver(player, amount: int) -> None:
@@ -1496,7 +1508,10 @@ class CombatSession:
             lines.append('|yellow|You feel sick -- you have been DISEASED!|reset|')
         # SPUR medusa section: fire_attack flag → burn damage bypassing armor
         if result.fire_damage > 0:
-            lines.append(f'|red|FIRE!  You are scorched for {result.fire_damage} additional damage!|reset|')
+            if result.fire_shield_blocked:
+                lines.append('|cyan|[ The lazer shield flashes! ]|reset|')
+            verb = 'Lazer fire' if result.fire_is_laser else 'Fire'
+            lines.append(f'|red|{verb}!  You are scorched for {result.fire_damage} additional damage!|reset|')
         # SPUR & flag: experience drain
         if result.experience_drained > 0:
             lines.append(
@@ -1588,6 +1603,16 @@ class CombatSession:
         mname = monster_display_name(self.monster)
 
         await ctx.send(f'|green|You have slain {mname}!|reset|')
+
+        # A monster flagged re_animates twitches on death (SPUR.MISC.S:391-394:
+        # "<name> twitches strangely!"). SPUR also exempts it from being added
+        # to xm$, the recently-killed list that gates tactical-ambush/intro
+        # flavor on re-encounter (SPUR.COMBAT.S:198) -- this port's
+        # dead_monsters is that same gate, and _record_kill() (below) skips
+        # adding re_animates kills to it, so the monster stays re-encounterable
+        # while still counting toward monsters_killed via kill_log.
+        if (self.monster.get('flags', {}) or {}).get('re_animates'):
+            await ctx.send('The body twitches strangely!')
 
         # A monster that can itself cast turn-to-stone becomes a statue upon
         # death, appropriately (SPUR.MAIN.S/SPUR.MISC.S/SPUR.MISC3.S: any

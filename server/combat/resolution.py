@@ -243,6 +243,12 @@ class MonsterAttackResult:
     diseased:  bool = False
     # SPUR medusa section: fire_attack flag → extra burn damage bypassing armor
     fire_damage:        int  = 0
+    # SPUR.COMBAT.S:276: level 6+ (player.map_level, SPUR's cl>5) swaps the
+    # "FIRE!" flavor line for "LAZER FIRE!" and hits harder.
+    fire_is_laser:       bool = False
+    # SPUR.COMBAT.S:280: cl>5 and the player has a Lazer Shield readied ->
+    # unconditional damage halving, "[ THE LAZER SHIELD FLASHES! ]".
+    fire_shield_blocked: bool = False
     # SPUR & flag (experience_drain): drains ep on a hit (~20% chance)
     experience_drained: int  = 0
     # SPUR line 212: taking damage > 4 has a chance to reduce player DEX
@@ -819,10 +825,23 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False,
     # Fire attack / laser (SPUR medusa section): bypasses armor entirely.
     # SPUR: a=2 (fire) or a=5 (lazer, cl>5); plasma cannon (;;) adds 4 more.
     fire_damage = 0
+    fire_is_laser = False
+    fire_shield_blocked = False
     if flags.get('fire_attack'):
-        fire_damage = 2 + random.randint(0, 3)
+        map_level = int(getattr(player, 'map_level', 1) or 1)
+        fire_is_laser = map_level >= 6
+        fire_damage = (5 if fire_is_laser else 2) + random.randint(0, 3)
         if flags.get('heavy_armor'):    # plasma cannon variant (SPUR: z=4 extra)
             fire_damage += 2
+        # SPUR.COMBAT.S:280 -- unconditional halving on a readied Lazer
+        # Shield (objects.json #116). Deliberately NOT the shield-skill-gated
+        # block encounters/meteor.py uses for the unrelated meteor CRUNCH --
+        # that gating was Ryan's own divergence *from* this exact SPUR
+        # mechanic (see that module's docstring), so a monster's aimed
+        # energy weapon gets the real, unconditional SPUR behavior.
+        if fire_is_laser and getattr(player, 'active_shield_id', None) == 116:
+            fire_shield_blocked = True
+            fire_damage = fire_damage // 2
 
     # Experience drain (SPUR & flag): ~20% chance on a solid hit to drain xp
     # SPUR: if instr("&",wy$) and ep>(xp*13) and z<3: ep=ep-(xp*13)
@@ -853,6 +872,8 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False,
         shield_destroyed=shield_destroyed, armor_destroyed=armor_destroyed,
         poisoned=poisoned, diseased=diseased,
         fire_damage=fire_damage,
+        fire_is_laser=fire_is_laser,
+        fire_shield_blocked=fire_shield_blocked,
         experience_drained=experience_drained,
         dex_lost=dex_lost,
         strength_lost=strength_lost,

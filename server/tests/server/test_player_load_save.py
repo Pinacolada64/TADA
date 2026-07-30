@@ -442,14 +442,19 @@ class TestSurvivalCounterPersistence(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestDeadMonstersPersistence(unittest.TestCase):
-    """Regression coverage for player.dead_monsters (the per-kill log) and
-    player.monsters_killed (the derived @property, len(dead_monsters)):
+    """Regression coverage for player.dead_monsters (the re-encounter/
+    examine/teleport/charm gate, cleared by bar/zelda.py's Resurrect
+    Monsters) and player.kill_log / player.monsters_killed (the derived
+    @property, len(kill_log)) -- two separate lists as of the kill_log
+    split (see player.py's __init__ comment and combat/engine.py's
+    _record_kill):
 
       - dead_monsters survives a real save/load round-trip (same pattern
         as TestPartyPersistence above).
-      - monsters_killed is read-only and always reflects dead_monsters'
-        current length, including duplicate entries (killing the same
-        monster twice counts twice -- Ryan's request; no dedup).
+      - kill_log survives a real save/load round-trip too, and
+        monsters_killed always reflects its current length, including
+        duplicate entries (killing the same monster twice counts twice --
+        Ryan's request; no dedup).
       - An older save file written before dead_monsters existed (key
         'monsters_killed' holding what used to be a deduplicated list) is
         migrated into dead_monsters on load, so upgrading doesn't
@@ -471,12 +476,28 @@ class TestDeadMonstersPersistence(unittest.TestCase):
             reloaded = Player(id='killtest', name='Killtest')
             self.assertTrue(reloaded._load())
             self.assertEqual(reloaded.dead_monsters, [7, 7, 12])
+
+    def test_kill_log_survives_save_and_load_and_drives_monsters_killed(self):
+        import net_common
+
+        with tempfile.TemporaryDirectory() as tmp:
+            net_common.run_server_dir = tmp
+            player = Player(id='killtest3', name='Killtest3')
+            player.kill_log.append(7)
+            player.kill_log.append(7)   # same monster, killed twice
+            player.kill_log.append(12)
+            player.unsaved_changes = True
+            self.assertTrue(player.save(force=True))
+
+            reloaded = Player(id='killtest3', name='Killtest3')
+            self.assertTrue(reloaded._load())
+            self.assertEqual(reloaded.kill_log, [7, 7, 12])
             self.assertEqual(reloaded.monsters_killed, 3)
 
     def test_monsters_killed_is_read_only_derived_count(self):
         player = Player(id='killtest2', name='Killtest2')
         self.assertEqual(player.monsters_killed, 0)
-        player.dead_monsters.extend([1, 2, 3, 3])
+        player.kill_log.extend([1, 2, 3, 3])
         self.assertEqual(player.monsters_killed, 4)
         with self.assertRaises(AttributeError):
             player.monsters_killed = 99
