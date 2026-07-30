@@ -192,6 +192,13 @@ async def try_monster_encounter(ctx: 'GameContext', *, level: int, room_no: int)
     if monster is None:
         return
 
+    # SPUR rd.mons: `if m=70 gosub wraith:if vw return` -- checked before
+    # even the mechanical/turf-guard gates below (see encounters/
+    # ringwraith.py for the honor-gated friendly scene this can trigger).
+    from encounters.ringwraith import try_recognition_scene
+    if await try_recognition_scene(ctx, monster):
+        return
+
     flags = monster.get('flags') or {}
     if flags.get('mechanical'):
         return  # deliberate deviation from source -- see module docstring

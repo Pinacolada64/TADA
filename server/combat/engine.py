@@ -1976,6 +1976,12 @@ async def enter_combat(ctx: 'GameContext', monster: dict) -> None:
     xp_level = int(getattr(ctx.player, 'xp_level', 1) or 1)
     try_captain_spawn(session.monster, xp_level)
 
+    # SPUR.MISC4.S wraith: the Ringwraith (#70) always fights with a
+    # hardcoded flag set (plus a ring-of-invisibility bonus), regardless
+    # of what's in monsters.json -- see encounters/ringwraith.py.
+    from encounters.ringwraith import apply_flag_overrides
+    apply_flag_overrides(session.monster, ctx.player)
+
     # Consume encounters/monster.py's surprise roll, if it's still pending
     # for this exact room/monster (SPUR.COMBAT.S zs=998 -> zs=997 on the
     # first attack of the fight).

@@ -1032,6 +1032,8 @@ class Server:
         await try_little_girl(ctx)
         from encounters.meteor import try_encounter as try_meteor
         await try_meteor(ctx)
+        from encounters.ringwraith import try_wraith_stalks
+        await try_wraith_stalks(ctx)
         from encounters.galadriel import try_encounter as try_galadriel
         await try_galadriel(ctx)
         from encounters.djinn_sighting import try_encounter as try_djinn_sighting
@@ -1144,6 +1146,8 @@ class Server:
         await try_little_girl(ctx)
         from encounters.meteor import try_encounter as try_meteor
         await try_meteor(ctx)
+        from encounters.ringwraith import try_wraith_stalks
+        await try_wraith_stalks(ctx)
         from encounters.galadriel import try_encounter as try_galadriel
         await try_galadriel(ctx)
         from encounters.djinn_sighting import try_encounter as try_djinn_sighting
@@ -1219,8 +1223,9 @@ class Server:
             logging.exception('could not strip silver')
 
         # Death cures poison and disease.
-        player.poisoned = False
-        player.diseased = False
+        from survival import cure_disease, cure_poison
+        cure_poison(player)
+        cure_disease(player)
 
         # Revive with minimum HP and full food/drink.
         player.hit_points = 10

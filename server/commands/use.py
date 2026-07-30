@@ -6,7 +6,6 @@ Mirrors SPUR.USE.S. Supported item types:
   ammunition — load rounds into readied weapon; item consumed
   power      — same as ammunition (energy-weapon charges)
   grenade    — hurl at monster; single-use explosive (SPUR.USE.S:91)
-  ring       — ring of invisibility toggle; CON penalty when worn (SPUR.USE.S use4)
   tool kit   — repairs a broken spacesuit + spacesuit parts into a
                spacesuit, and/or a broken communicator into a
                communicator; not consumed (SPUR.USE.S 'tool' label)
@@ -20,6 +19,10 @@ Not yet implemented (deferred — level 6 or requires unbuilt systems):
   rocket — single-use ranged explosive; needs rocket item type
   security cards — level-6 items
   slippers of Galad / crystal vial / palintar — special room items
+
+The ring of invisibility (#67) is handled by commands/wear.py instead --
+SPUR toggles it via USE (SPUR.USE.S use4), but Ryan's call was that WEAR
+reads better for a ring than USE does, so it moved there.
 """
 from __future__ import annotations
 
@@ -33,7 +36,6 @@ from network_context import GameContext
 from tada_utilities import is_or_are
 
 _GRENADE_ID     = 16    # hand grenade (objects.json)
-_RING_ID        = 67    # ring of invisibility (objects.json)
 _SADDLE_ID      = 162   # saddle (objects.json) -- Jake's Stable
 _HORSE_ARMOR_ID = 163   # horse armour (objects.json) -- Jake's Stable
 _SADDLEBAGS_ID  = 165   # saddlebags (objects.json) -- New in TADA, gives a
@@ -441,27 +443,6 @@ class UseCommand(Command):
         # malfunction risk (SPUR.USE.S 'comm' label) ----------------------
         if item_no == _COMMUNICATOR_ID:
             await _use_communicator(ctx, player)
-            return CommandResult.ok()
-
-        # ---- Ring of invisibility (#67): toggle worn (SPUR.USE.S use4) -------
-        if item_no == _RING_ID:
-            worn = getattr(player, 'ring_worn', False)
-            if not worn:
-                player.ring_worn = True
-                player.unsaved_changes = True
-                await ctx.send('Ring worn!  You are hard to see!')
-                await ctx.send('(USE again to remove)')
-                await ctx.send('THE EVIL SENSES YOU MORE CLEARLY!')
-                stats = getattr(player, 'stats', None) or {}
-                pt = int(stats.get('Constitution', 10))
-                if pt > 5:
-                    stats['Constitution'] = pt - 2
-                    player.stats = stats
-                    await ctx.send('(You feel a bit less healthy!)')
-            else:
-                player.ring_worn = False
-                player.unsaved_changes = True
-                await ctx.send('Ring returned to your pack.')
             return CommandResult.ok()
 
         # ---- Saddle (#162) / Horse Armor (#163) / Saddlebags (#165): equip

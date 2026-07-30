@@ -311,7 +311,10 @@ class Player:
         self.ammo_rounds: int = kwargs.get('ammo_rounds', 0)
         self.ammo_damage: int = kwargs.get('ammo_damage', 0)
         self.ammo_max:    int = kwargs.get('ammo_max', 0)    # vl: total rounds when loaded (recovery cap)
-        self.ring_worn:  bool = kwargs.get('ring_worn', False)  # zu$[2]: ring of invisibility worn
+        # Ring of invisibility worn (zu$[2]) lives on PlayerFlags.RING_WORN
+        # (query_flag/set_flag/clear_flag), not a plain attribute here --
+        # encounters/little_girl.py and commands/stats.py already read it
+        # that way.
         self.experience = kwargs.get('experience', 0)
         # Every monster number this player has killed, one entry per kill --
         # NOT deduplicated (Ryan's request: a monster killed 3 times over a

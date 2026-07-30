@@ -405,6 +405,15 @@ class DuelSession:
         """side attacks opp once. free=True skips reading side.tactic
         (used for bash-fail/flee-fail follow-up swings)."""
         attacker, defender = side.player, opp.player
+
+        # Ring of invisibility (#67, SPUR.DUEL.S:264): a defender wearing
+        # the ring has a flat 20% chance per swing of the attacker simply
+        # losing track of them, ahead of (not stacked with) the normal
+        # hit/miss roll below.
+        from flags import PlayerFlags
+        if defender.query_flag(PlayerFlags.RING_WORN) and random.randint(1, 100) <= 20:
+            return f' {attacker.name} swings at {defender.name}, but loses sight of them!'
+
         my_tactic = DuelTactic.ATTACK if free else (side.tactic or DuelTactic.ATTACK)
         their_tactic = opp.tactic or DuelTactic.ATTACK
 

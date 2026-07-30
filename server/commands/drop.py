@@ -20,8 +20,11 @@ TODO: Dropping items in OUTER SPACE should display "<item> floats nearby."
 """
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
+from flags import PlayerFlags
 from inventory import InventoryEntry
 from network_context import GameContext
+
+_RING_ID = 67  # ring of invisibility (objects.json) -- see commands/wear.py
 
 # Keywords that indicate a water room in name/desc (fallback when flags absent).
 # Primary detection is room.flags containing 'water'.
@@ -210,6 +213,13 @@ class DropCommand(Command):
 
         entry = entries[choice]
         name  = getattr(entry.item, 'name', '?')
+
+        # Ring of invisibility (#67): can't drop it while worn (SPUR.MISC.S:136/
+        # SPUR.MISC7.S:239 "Can't, you are USEing it!") -- WEAR again first.
+        item_no = getattr(entry.item, 'number', None) or getattr(entry.item, 'id_number', None)
+        if item_no == _RING_ID and player.query_flag(PlayerFlags.RING_WORN):
+            await ctx.send("Can't, you are wearing it!")
+            return CommandResult.ok()
 
         inventory.remove(entry.item)
 

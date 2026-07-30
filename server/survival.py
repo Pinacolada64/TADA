@@ -71,8 +71,22 @@ def survival_tick(player) -> list[str]:
 
     msgs: list[str] = []
 
+    # Ring of invisibility: 10% chance per tick, drains Constitution/Wisdom/
+    # Intelligence instead of HP (SPUR.COMBAT.S:14; toggled by commands/wear.py).
+    if player.query_flag(PlayerFlags.RING_WORN) and random.randint(1, 10) == 5:
+        stats = getattr(player, 'stats', None) or {}
+        if int(stats.get('Constitution', 10)) > 5:
+            stats['Constitution'] -= 2
+            msgs.append('THE RING WEAKENS YOU!')
+        if int(stats.get('Wisdom', 10)) > 5:
+            stats['Wisdom'] -= 1
+        if int(stats.get('Intelligence', 10)) > 5:
+            stats['Intelligence'] -= 1
+        player.stats = stats
+        player.unsaved_changes = True
+
     # Poison: 30% chance per tick, -2 HP (SPUR.COMBAT.S:15).
-    if getattr(player, 'poisoned', False) and random.randint(1, 10) < 4:
+    if player.query_flag(PlayerFlags.POISON) and random.randint(1, 10) < 4:
         player.hit_points = getattr(player, 'hit_points', 0) - 2
         player.unsaved_changes = True
         msgs.append('THE POISON WEAKENS YOU!')
@@ -81,7 +95,7 @@ def survival_tick(player) -> list[str]:
             return msgs + ['You have succumbed to the poison!']
 
     # Disease: 30% chance per tick, -1 HP (SPUR.COMBAT.S:16).
-    if getattr(player, 'diseased', False) and random.randint(1, 10) < 4:
+    if player.query_flag(PlayerFlags.DISEASE) and random.randint(1, 10) < 4:
         player.hit_points = getattr(player, 'hit_points', 0) - 1
         player.unsaved_changes = True
         msgs.append('THE DISEASE WEAKENS YOU!')
@@ -132,20 +146,28 @@ def ration_restore(item) -> int:
 
 
 def apply_poison(player) -> None:
+    from flags import PlayerFlags
     player.poisoned = True
+    player.set_flag(PlayerFlags.POISON)
     player.unsaved_changes = True
 
 
 def cure_poison(player) -> None:
+    from flags import PlayerFlags
     player.poisoned = False
+    player.clear_flag(PlayerFlags.POISON)
     player.unsaved_changes = True
 
 
 def apply_disease(player) -> None:
+    from flags import PlayerFlags
     player.diseased = True
+    player.set_flag(PlayerFlags.DISEASE)
     player.unsaved_changes = True
 
 
 def cure_disease(player) -> None:
+    from flags import PlayerFlags
     player.diseased = False
+    player.clear_flag(PlayerFlags.DISEASE)
     player.unsaved_changes = True

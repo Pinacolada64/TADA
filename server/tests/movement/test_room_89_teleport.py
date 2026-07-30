@@ -26,7 +26,7 @@ Run with:
 from __future__ import annotations
 
 import unittest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from simple_server import Server
 from base_classes import Map, Room
@@ -61,6 +61,20 @@ def _ctx(room_no=89, level=1, server=None):
 
 
 class TestRoom89Teleport(unittest.IsolatedAsyncioTestCase):
+    """server._move() runs the full per-move world-event chain (little_girl/
+    meteor/galadriel/djinn_sighting/ringwraith/etc, all of them probabilistic
+    and unrelated to what this file tests) -- patch random so none of them
+    ever fire and start prompting/sending on a plain (non-async) ctx mock."""
+
+    def setUp(self):
+        self._random_patchers = [
+            patch('random.uniform', return_value=999.0),
+            patch('random.randint', return_value=999),
+        ]
+        for p in self._random_patchers:
+            p.start()
+        self.addCleanup(lambda: [p.stop() for p in self._random_patchers])
+
     async def test_east_from_room_89_teleports_to_level_5_room_41(self):
         server = Server('127.0.0.1', 0)
         server.game_map = _make_map()

@@ -16,7 +16,10 @@ import random
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from bar.allies import purchased_allies
+from flags import PlayerFlags
 from network_context import GameContext
+
+_RING_ID = 67  # ring of invisibility (objects.json) -- see commands/wear.py
 
 
 # New in TADA -- no SPUR precedent for mount carrying capacity at all
@@ -271,6 +274,14 @@ class GiveCommand(Command):
 
         item  = entry.item
         iname = getattr(item, 'name', 'it')
+
+        # Ring of invisibility (#67): can't give it away while worn
+        # (SPUR.GUILD.S:237/SPUR.MISC6.S:188,298/SPUR.SHIP.S:490 "Can't, you
+        # are USEing it!") -- WEAR again first.
+        item_no = getattr(item, 'number', None) or getattr(item, 'id_number', None)
+        if item_no == _RING_ID and player.query_flag(PlayerFlags.RING_WORN):
+            await ctx.send("Can't, you are wearing it!")
+            return CommandResult.ok()
 
         # Require a target
         if not target_words:
