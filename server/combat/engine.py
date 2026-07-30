@@ -1509,7 +1509,7 @@ class CombatSession:
         # SPUR medusa section: fire_attack flag → burn damage bypassing armor
         if result.fire_damage > 0:
             if result.fire_shield_blocked:
-                lines.append('|cyan|[ The lazer shield flashes! ]|reset|')
+                lines.append('|cyan|[[ The lazer shield flashes! ]]|reset|')
             verb = 'Lazer fire' if result.fire_is_laser else 'Fire'
             lines.append(f'|red|{verb}!  You are scorched for {result.fire_damage} additional damage!|reset|')
         # SPUR & flag: experience drain
