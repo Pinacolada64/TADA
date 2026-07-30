@@ -1035,6 +1035,20 @@ class CombatSession:
 
                 # Monster swings back at leader
                 was_first_monster_attack = self._monster_attack_count == 0
+
+                # SPUR.COMBAT.S m.attack: `if zs=997 print m$ IS/ARE FURIOUS`
+                # -- a monster the player surprised (encounters/monster.py's
+                # _try_surprise, is_surprise here) is furious every round it
+                # swings back; a surprised Guild turf guard (#65/66/67) also
+                # calls for backup the first time (SPUR's mad.gd -- see
+                # encounters/turf_guards.py).
+                if self.is_surprise:
+                    mname_f = monster_display_name(self.monster, capitalize=True)
+                    verb = 'are' if self.monster.get('name', '')[-1:].upper() == 'S' else 'is'
+                    await ctx.send(f'{mname_f} {verb} furious!')
+                    from encounters.turf_guards import try_call_reinforcements
+                    await try_call_reinforcements(ctx, self.monster)
+
                 m_result = monster_attacks(self.monster, player,
                                            stone_blocked=self._turn_to_stone_blocked,
                                            spells_used=self._spells_used)
