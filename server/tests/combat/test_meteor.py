@@ -240,6 +240,52 @@ class TestLazerShieldMitigation(unittest.IsolatedAsyncioTestCase):
         sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
         self.assertIn("Too bad you didn't USE a LAZER SHIELD", sent)
 
+    async def test_regular_shield_shows_same_flavor_as_no_shield(self):
+        """A non-Lazer shield (any other shield_id) must never produce
+        Lazer-Shield-flavored text -- regression check for an alpha-test
+        report that turned out (per manual permutation testing) to most
+        likely be a misread of the "(Too bad you didn't...)" line, since
+        the code path is identical to having no shield readied at all."""
+        from encounters.meteor import try_encounter
+        player = _make_player(hit_points=30, active_shield_id=4)  # small shield, not Lazer (#116)
+        ctx = _make_ctx(player=player)
+        with patch('random.uniform', return_value=0.0), \
+             patch('random.randint', return_value=95):
+            await try_encounter(ctx)
+        self.assertEqual(player.hit_points, 15)  # unmitigated, same as no shield
+        sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
+        self.assertIn("Too bad you didn't USE a LAZER SHIELD", sent)
+        self.assertNotIn('KICKS IN', sent)
+        self.assertNotIn("didn't kick in fast enough", sent)
+
+    async def test_shield_flavor_text_identical_across_levels(self):
+        """Shield mitigation/messaging doesn't vary by dungeon level --
+        only the threat name (FLYING BANSHEE vs METEOR) does. Covers
+        no shield / a regular shield / the Lazer Shield at both level 1
+        (FLYING BANSHEE) and level 6 (METEOR, in a vacuum room)."""
+        from encounters.meteor import try_encounter
+        cases = (
+            (None, "Too bad you didn't USE a LAZER SHIELD"),
+            (4,    "Too bad you didn't USE a LAZER SHIELD"),
+            (116,  'YOUR LAZER SHIELD KICKS IN!'),
+        )
+        for level, expected_threat in ((1, 'FLYING BANSHEE'), (6, 'METEOR')):
+            for shield_id, expected_fragment in cases:
+                with self.subTest(level=level, shield_id=shield_id):
+                    prof = {'116': 99} if shield_id == 116 else {}
+                    player = _make_player(hit_points=30, active_shield_id=shield_id,
+                                           shield_proficiency=prof)
+                    game_map = _make_map(room_flags=['water'], level=level)
+                    ctx = _make_ctx(game_map=game_map, map_level=level, player=player)
+                    # dodge roll fails (95); block roll (only consumed when a
+                    # Lazer Shield is readied) succeeds (1).
+                    with patch('random.uniform', return_value=0.0), \
+                         patch('random.randint', side_effect=[95, 1]):
+                        await try_encounter(ctx)
+                    sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
+                    self.assertIn(expected_threat, sent)
+                    self.assertIn(expected_fragment, sent)
+
 
 class TestArmorDamageReduction(unittest.TestCase):
     def test_no_armor_is_zero(self):
