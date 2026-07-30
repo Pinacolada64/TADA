@@ -828,9 +828,10 @@ class CombatSession:
         )
 
         # Monster taunt/greeting (SPUR.MISC4.S mon.ret/perm.qt)
-        quote = _pick_monster_quote(ctx, self.monster)
-        if quote:
-            await ctx.send(f"'{quote}'")
+        if self.monster.get('flags', {}).get('has_quote'):
+            quote = _pick_monster_quote(ctx, self.monster)
+            if quote:
+                await ctx.send(f"'{quote}'")
 
         # Crystal Pendant (SPUR.MISC4.S mon.set/stone) -- resolved once, here,
         # when the monster is first set up for this encounter.
