@@ -37,6 +37,22 @@ def _choose_verb(text: str):
 
 
 # ---------------------------------------------------------------------------
+# Gollum riddle banter (encounters/gollum.py)
+# ---------------------------------------------------------------------------
+
+async def _gollum_riddle_check(ctx: GameContext, text: str) -> None:
+    """If a living Gollum is in the room and *text* reads like a question
+    (trailing '?'), have him banter back at whoever's asking."""
+    if not text.rstrip().endswith('?'):
+        return
+
+    from encounters.gollum import current_gollum, riddle_response
+    response = riddle_response(current_gollum(ctx))
+    if response:
+        await ctx.send_room(response)
+
+
+# ---------------------------------------------------------------------------
 # Command
 # ---------------------------------------------------------------------------
 
@@ -80,4 +96,5 @@ class SayCommand(Command):
 
         await ctx.send(f'You {first}, "{text}"')
         await ctx.send_room(f'{name} {third}, "{text}"', exclude_self=True)
+        await _gollum_riddle_check(ctx, text)
         return CommandResult.ok()

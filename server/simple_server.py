@@ -812,6 +812,27 @@ class Server:
                 else:
                     lines += ['', f"There is {f'{size} ' if size else ''}{name} here."]
 
+                # Non-expert nudge toward the SAY-riddle easter egg
+                # (encounters/gollum.py) -- pure new content, no SPUR
+                # precedent, so only shown to players who haven't turned
+                # Expert Mode on (same gating convention as combat/engine.py's
+                # "(You feel a bit wiser.)"), and only once per day so it
+                # doesn't rebox itself on every look/room entry.
+                from encounters.gollum import (
+                    MONSTER_NUMBER as _GOLLUM_MONSTER_NUMBER,
+                    should_show_riddle_hint, mark_riddle_hint_shown,
+                )
+                if (mon_num == _GOLLUM_MONSTER_NUMBER and mon_num not in mk
+                        and mon_num not in cm and player is not None
+                        and not player.is_expert
+                        and should_show_riddle_hint(player)):
+                    hint_ctx = getattr(client, 'ctx', None)
+                    if hint_ctx:
+                        from formatting import titled_box
+                        lines += [''] + titled_box(
+                            hint_ctx, 'Tip', 'You can ask Gollum riddles.')
+                        mark_riddle_hint_shown(player)
+
                 # Statue (SPUR.MAIN.S's `statue` subroutine): shown
                 # wherever a petrify monster is present, alive
                 # or dead (not charmed away), reading the first name from

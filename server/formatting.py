@@ -788,6 +788,27 @@ def format_bullet(text: str, width: int) -> list[str]:
                      subsequent_indent='  ')
 
 
+def numbered_list(items: list[str], width: int) -> list[str]:
+    """
+    Format *items* as a numbered list (1., 2., 3., ...), wrapping
+    continuation lines with a hanging indent so they align under the text
+    rather than the number -- same idea as format_bullet(), but for a
+    whole list of items at once instead of one already-numbered line.
+
+    >>> numbered_list(['Short item'], 40)
+    ['1. Short item']
+    >>> numbered_list(['One', 'Two'], 40)
+    ['1. One', '2. Two']
+    """
+    lines: list[str] = []
+    for i, item in enumerate(items, start=1):
+        prefix = f'{i}. '
+        lines.extend(wrap_text(item, width,
+                               initial_indent=prefix,
+                               subsequent_indent=' ' * len(prefix)))
+    return lines
+
+
 def format_line(text: str, width: int, codec: ColorCodec) -> list[str]:
     """
     Format a single line of text:
