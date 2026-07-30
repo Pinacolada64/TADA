@@ -408,10 +408,12 @@ class GetCommand(Command):
             if target == '*' or target in mname.lower():
                 matched = True
                 m_hp = int(monster.get('strength') or monster.get('hit_points') or 1)
+                from monsters import monster_display_name
+                mdisp = monster_display_name(monster).upper()
                 if m_hp > 0:
-                    await ctx.send(f'THE {mname.upper()} WON\'T LET YOU!')
+                    await ctx.send(f'{mdisp} WON\'T LET YOU!')
                 else:
-                    await ctx.send(f'YOU HACK UP THE {mname.upper()} INTO {mname.upper()} STEAKS..')
+                    await ctx.send(f'YOU HACK UP {mdisp} INTO {mname.upper()} STEAKS..')
                     # Add meat to room so it can be picked up and eaten (SPUR.MISC3.S:369)
                     room_no = getattr(ctx.client, 'room', None)
                     if room_no is not None:

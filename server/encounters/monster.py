@@ -240,8 +240,10 @@ async def _try_surprise(ctx: 'GameContext', monster: dict, monster_no: int) -> b
     and tactical rolls in either case, not just on a flee."""
     from base_classes import PlayerClass, PlayerRace, PlayerStat
 
+    from monsters import monster_display_name
     player = ctx.player
     name   = monster.get('name', 'the monster')
+    Name   = monster_display_name(monster, capitalize=True)
     ma     = int(monster.get('to_hit') or 4)  # SPUR ma -- see combat/resolution.py
     xp     = int(getattr(player, 'xp_level', 1) or 1)
 
@@ -281,12 +283,15 @@ async def _try_surprise(ctx: 'GameContext', monster: dict, monster_no: int) -> b
         hp = int(getattr(player, 'hit_points', 10) or 10)
         xp = int(getattr(player, 'xp_level', 1) or 1)
         if random.randint(0, 99) < hp + xp * 2:
-            await ctx.send(f'{name} run away screaming!')
-            await ctx.send_room(f'{name} run away screaming from {getattr(player, "name", "someone")}!',
+            await ctx.send(f'{Name} run away screaming!')
+            await ctx.send_room(f'{Name} run away screaming from {getattr(player, "name", "someone")}!',
                                  exclude_self=True)
             return True
 
-    await ctx.send(f'You surprised {article} {size_txt}{name}!')
+    if (monster.get('flags', {}) or {}).get('no_article'):
+        await ctx.send(f'You surprised {name}!')
+    else:
+        await ctx.send(f'You surprised {article} {size_txt}{name}!')
     player.pending_surprise = {
         'level':          int(getattr(player, 'map_level', 1) or 1),
         'room_no':        int(getattr(ctx.client, 'room', 0) or 0),
@@ -390,12 +395,14 @@ async def _try_spontaneous_charm(ctx: 'GameContext', monster: dict, monster_no: 
     if len(owned_allies(player)) >= 3:
         return False  # full party -- SPUR: `if a1>0 if a2>0 if a3>0` skips the offer entirely
 
-    await ctx.send(f'{name} looks at you adoringly...')
+    from monsters import monster_display_name
+    await ctx.send(f'{monster_display_name(monster, capitalize=True)} looks at you adoringly...')
     player.pending_charm = {
         'level':          level,
         'room_no':        room_no,
         'monster_number': monster_no,
         'name':           name,
+        'display_name':   monster_display_name(monster, capitalize=True),
         'strength':       int(monster.get('strength', 0) or 0),
         'to_hit':         int(monster.get('to_hit', 0) or 0),
     }

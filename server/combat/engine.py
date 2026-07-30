@@ -38,6 +38,7 @@ from combat.resolution import (
 )
 from combat.rewards import gold_from_monster, exp_per_swing
 from flags import PlayerFlags
+from monsters import monster_display_name
 
 if TYPE_CHECKING:
     from network_context import GameContext
@@ -435,9 +436,9 @@ class CombatSession:
             return
         is_new_attacker = ctx not in self.attackers
         if is_new_attacker and self.leader is not None and self.leader is not ctx:
-            mname = self.monster.get('name', 'the monster')
+            mname = monster_display_name(self.monster)
             await ctx.send_room(
-                f'{_player_name(ctx)} joins {_player_name(self.leader)} in fighting the {mname}!',
+                f'{_player_name(ctx)} joins {_player_name(self.leader)} in fighting {mname}!',
                 exclude_self=True,
             )
         await self._join_attacker(ctx)
@@ -477,7 +478,7 @@ class CombatSession:
             await ctx.send("Can't flee from here.")
             return False
         if result.blocked_by_monster:
-            mname = self.monster.get('name', 'The monster')
+            mname = monster_display_name(self.monster, capitalize=True)
             await ctx.send(f'{mname} blocks your escape!')
             return False
 
@@ -669,13 +670,14 @@ class CombatSession:
         if not inventory or not inventory.find(item_id=_CRYSTAL_PENDANT_ID):
             return
 
-        mname = self.monster.get('name', 'The monster')
+        mname = monster_display_name(self.monster)
         if random.randint(1, 10) != 5:
             self._turn_to_stone_blocked = True
             await ctx.send(f'The CRYSTAL PENDANT flashes, preventing TURN TO STONE by {mname}!')
         else:
+            mname_cap = monster_display_name(self.monster, capitalize=True)
             await ctx.send([
-                f'{mname} happens to see you are',
+                f'{mname_cap} happens to see you are',
                 'wearing the CRYSTAL PENDANT, and',
                 'quickly puts on ANTI-CRYSTAL PENDANT',
                 'glasses!',
@@ -816,12 +818,12 @@ class CombatSession:
 
     async def _run_loop(self, ctx: 'GameContext') -> None:
         """Main per-leader combat loop.  Runs until monster dies, player dies, or fled."""
-        mname = self.monster.get('name', 'monster')
+        mname = monster_display_name(self.monster)
         player = ctx.player
 
-        await ctx.send(f'Combat begins!  You face the {mname}!')
+        await ctx.send(f'Combat begins!  You face {mname}!')
         await ctx.send_room(
-            f'{_player_name(ctx)} attacks the {mname}!',
+            f'{_player_name(ctx)} attacks {mname}!',
             exclude_self=True,
         )
 
@@ -946,13 +948,13 @@ class CombatSession:
                 # Scare: loud weapon frightens monster away early in fight
                 # (SPUR.COMBAT.S scare subroutine, lines 423-430)
                 if result.monster_scared:
-                    mname_scare = self.monster.get('name', 'The monster')
+                    mname_scare = monster_display_name(self.monster).upper()
                     await ctx.send(
                         f'THE THUNDERING NOISE OF THE {result.weapon_name} '
-                        f'SCARES THE {mname_scare} AWAY!'
+                        f'SCARES {mname_scare} AWAY!'
                     )
                     await ctx.send_room(
-                        f'The {mname_scare} flees in terror from the noise!',
+                        f'{monster_display_name(self.monster, capitalize=True)} flees in terror from the noise!',
                         exclude_self=True,
                     )
                     self._done.set()
@@ -1034,7 +1036,7 @@ class CombatSession:
                 # Turn to stone (SPUR.COMBAT.S "medusa" section): replaces the
                 # rest of the monster's attack this round entirely.
                 if m_result.turn_to_stone_attempted:
-                    mname_ts = self.monster.get('name', 'The monster')
+                    mname_ts = monster_display_name(self.monster, capitalize=True)
                     await ctx.send(f'{mname_ts} CASTS TURN TO STONE ON YOU!')
                     if m_result.turned_to_stone:
                         await self._player_petrified(ctx)
@@ -1089,7 +1091,7 @@ class CombatSession:
                         await self._monster_teleports_player(ctx, m_result_ambush)
                         return
                     if m_result_ambush.turn_to_stone_attempted:
-                        mname_ts3 = self.monster.get('name', 'The monster')
+                        mname_ts3 = monster_display_name(self.monster, capitalize=True)
                         await ctx.send(f'{mname_ts3} CASTS TURN TO STONE ON YOU!')
                         if m_result_ambush.turned_to_stone:
                             await self._player_petrified(ctx)
@@ -1113,7 +1115,7 @@ class CombatSession:
                         return
                     await ctx.send('DOUBLE ATTACK!')
                     if m_result2.turn_to_stone_attempted:
-                        mname_ts2 = self.monster.get('name', 'The monster')
+                        mname_ts2 = monster_display_name(self.monster, capitalize=True)
                         await ctx.send(f'{mname_ts2} CASTS TURN TO STONE ON YOU!')
                         if m_result2.turned_to_stone:
                             await self._player_petrified(ctx)
@@ -1212,17 +1214,17 @@ class CombatSession:
             sfx = f'{result.sfx}  ' if result.sfx else ''
             if result.hit:
                 dmg = result.damage
-                mname = self.monster.get("name", "monster")
+                mname = monster_display_name(self.monster)
                 if dmg == 0:
-                    await ctx.send(f'{sfx}{member.name} strikes the {mname}, but inflicts no damage!')
+                    await ctx.send(f'{sfx}{member.name} strikes {mname}, but inflicts no damage!')
                     await ctx.send_room(
-                        f'{sfx}{member.name} strikes the {mname}, but inflicts no damage!',
+                        f'{sfx}{member.name} strikes {mname}, but inflicts no damage!',
                         exclude_self=True,
                     )
                 else:
                     await ctx.send(f'{sfx}{member.name} strikes for {dmg} damage!')
                     await ctx.send_room(
-                        f'{sfx}{member.name} strikes the {mname} for {dmg} damage!',
+                        f'{sfx}{member.name} strikes {mname} for {dmg} damage!',
                         exclude_self=True,
                     )
                 _set_monster_hp(self.monster, _monster_hp(self.monster) - dmg)
@@ -1238,7 +1240,8 @@ class CombatSession:
     async def _narrate_player_swing(
         self, ctx: 'GameContext', result: AttackResult, bystander: bool = False
     ) -> None:
-        mname = self.monster.get('name', 'the monster')
+        mname  = monster_display_name(self.monster)
+        Mname  = monster_display_name(self.monster, capitalize=True)
         pname = _player_name(ctx)
 
         if result.round_max > 0 and result.round_count is None:
@@ -1259,11 +1262,11 @@ class CombatSession:
             await ctx.send(f'YOU THUNDER DOWN UPON {mname}!')
 
         if result.instant_kill:
-            msg  = f'Fire flashes from the {result.weapon_name}!  The {mname} is destroyed!'
-            room = f'Fire flashes from {pname}\'s {result.weapon_name}!  The {mname} is destroyed!'
+            msg  = f'Fire flashes from the {result.weapon_name}!  {Mname} is destroyed!'
+            room = f'Fire flashes from {pname}\'s {result.weapon_name}!  {Mname} is destroyed!'
         elif result.ineffective:
-            msg  = f'The {result.weapon_name} is ineffective against the {mname}!'
-            room = f'{pname}\'s {result.weapon_name} is ineffective against the {mname}!'
+            msg  = f'The {result.weapon_name} is ineffective against {mname}!'
+            room = f'{pname}\'s {result.weapon_name} is ineffective against {mname}!'
         elif result.miss_over_top:
             msg  = f'You miss over the top of {mname}!'
             room = f'{pname} misses over the top of {mname}!'
@@ -1272,15 +1275,15 @@ class CombatSession:
             surp = '  (Surprise!)' if result.is_surprise else ''
             sfx  = f'{result.sfx}  ' if result.sfx else ''
             if result.damage == 0:
-                msg  = f'{sfx}You strike the {mname}, but inflict no damage!{crit}{surp}'
-                room = f'{sfx}{pname} strikes the {mname}, but inflicts no damage!{crit}'
+                msg  = f'{sfx}You strike {mname}, but inflict no damage!{crit}{surp}'
+                room = f'{sfx}{pname} strikes {mname}, but inflicts no damage!{crit}'
             else:
-                msg  = f'{sfx}You strike the {mname} for {result.damage} damage!{crit}{surp}'
-                room = f'{sfx}{pname} strikes the {mname} for {result.damage} damage!{crit}'
+                msg  = f'{sfx}You strike {mname} for {result.damage} damage!{crit}{surp}'
+                room = f'{sfx}{pname} strikes {mname} for {result.damage} damage!{crit}'
         else:
             sfx  = f'{result.sfx}  ' if result.sfx else ''
-            msg  = f'{sfx}You miss the {mname}.'
-            room = f'{sfx}{pname} misses the {mname}.'
+            msg  = f'{sfx}You miss {mname}.'
+            room = f'{sfx}{pname} misses {mname}.'
 
         await ctx.send(msg)
         if bystander:
@@ -1293,7 +1296,7 @@ class CombatSession:
 
         # FIREBALL secondary heat burst (SPUR.COMBAT.S lines 162-163)
         if result.fireball_secondary > 0:
-            mname = self.monster.get('name', 'the monster')
+            mname = monster_display_name(self.monster)
             await ctx.send(
                 f'Secondary heat damage to {mname} +{result.fireball_secondary}!'
             )
@@ -1361,7 +1364,7 @@ class CombatSession:
         if random.randint(1, 10) >= ma:
             return False
 
-        mname = self.monster.get('name', 'The monster')
+        mname = monster_display_name(self.monster, capitalize=True)
         await ctx.send(f'{mname} attacks you, but strikes {mount.name} instead!')
         await ctx.send_room(
             f'{mname} attacks {_player_name(ctx)}, but strikes {mount.name} instead!',
@@ -1433,7 +1436,7 @@ class CombatSession:
     async def _narrate_monster_swing(
         self, ctx: 'GameContext', result
     ) -> None:
-        mname = self.monster.get('name', 'The monster')
+        mname = monster_display_name(self.monster, capitalize=True)
 
         if getattr(result, 'birthday_gift', False):
             await ctx.send(
@@ -1496,7 +1499,7 @@ class CombatSession:
         # SPUR & flag: experience drain
         if result.experience_drained > 0:
             lines.append(
-                f'|yellow|ARRGG!  The {mname}\'s attack drains you!  '
+                f'|yellow|ARRGG!  {mname}\'s attack drains you!  '
                 f'(-{result.experience_drained} experience)|reset|'
             )
         # SPUR line 212: DEX reduction on a heavy hit
@@ -1581,9 +1584,9 @@ class CombatSession:
         when x1 is set by an ally kill).
         """
         self._done.set()
-        mname = self.monster.get('name', 'The monster')
+        mname = monster_display_name(self.monster)
 
-        await ctx.send(f'|green|You have slain the {mname}!|reset|')
+        await ctx.send(f'|green|You have slain {mname}!|reset|')
 
         # A monster that can itself cast turn-to-stone becomes a statue upon
         # death, appropriately (SPUR.MAIN.S/SPUR.MISC.S/SPUR.MISC3.S: any
@@ -1592,10 +1595,11 @@ class CombatSession:
         # Not yet persisted as a lasting room object (no corpse/room-object
         # tracking system exists in this port yet) -- flavor only for now.
         if (self.monster.get('flags', {}) or {}).get('petrify'):
-            await ctx.send(f'{mname} turns to stone as it dies!')
+            Mname = monster_display_name(self.monster, capitalize=True)
+            await ctx.send(f'{Mname} turns to stone as it dies!')
 
         await ctx.send_room(
-            f'{_player_name(ctx)} slays the {mname}!',
+            f'{_player_name(ctx)} slays {mname}!',
             exclude_self=True,
         )
 
@@ -1622,7 +1626,7 @@ class CombatSession:
         gold = gold_from_monster(self.monster)
         if gold:
             _give_silver(player, gold)
-            await ctx.send(f'You find {gold} gold pieces on the {mname}!')
+            await ctx.send(f'You find {gold} gold pieces on {mname}!')
 
         # WIS improvement on solo kill (SPUR.COMBAT.S line 194):
         #   if x1 goto p.a3  ← skip WIS if ally dealt killing blow (x1 set in p.a1)
@@ -1686,7 +1690,7 @@ class CombatSession:
             _record_kill(b_ctx.player, self.monster)
             if b_ctx is ctx:
                 continue
-            await b_ctx.send(f'|green|{mname} is slain!|reset|')
+            await b_ctx.send(f'|green|{monster_display_name(self.monster, capitalize=True)} is slain!|reset|')
 
     async def _reveal_hidden_exit(self, ctx: 'GameContext') -> None:
         """Reveal a hidden_exit_east/west room's secret passage on monster death.
@@ -1758,7 +1762,7 @@ class CombatSession:
         self._done.set()
         for line in result.cast_narration:
             await ctx.send(line)
-        mname = self.monster.get('name', 'The monster')
+        mname = monster_display_name(self.monster)
         await ctx.send_room(
             f"{_player_name(ctx)} vanishes as {mname}'s magic crackles through the room!",
             exclude_self=True,
@@ -1767,13 +1771,13 @@ class CombatSession:
     async def _player_dies(self, ctx: 'GameContext') -> None:
         """Handle player death during combat."""
         self._done.set()
-        mname = self.monster.get('name', 'the monster')
+        mname = monster_display_name(self.monster)
         await ctx.send([
-            f'|red|You have been slain by the {mname}!|reset|',
+            f'|red|You have been slain by {mname}!|reset|',
             'Your adventure ends here...',
         ])
         await ctx.send_room(
-            f'|red|{_player_name(ctx)} has been slain by the {mname}!|reset|',
+            f'|red|{_player_name(ctx)} has been slain by {mname}!|reset|',
             exclude_self=True,
         )
         # Mark player dead (caller handles disconnect/respawn flow)
@@ -1799,7 +1803,7 @@ class CombatSession:
         like SPUR.
         """
         self._done.set()
-        mname = self.monster.get('name', 'The monster')
+        mname = monster_display_name(self.monster)
         await ctx.send([
             f'|red|...ARGG!! YOU ARE TURNED TO STONE!|reset|',
             'Your adventure ends here...',
@@ -1809,7 +1813,10 @@ class CombatSession:
             exclude_self=True,
         )
         await ctx.send('(Carving your statue!)')
-        _record_statue(mname, _player_name(ctx))
+        # Memorial filename keyed on the bare monster name (matches
+        # first_statue_victim()'s callers, e.g. commands/get.py) -- not
+        # the article-prefixed display name above.
+        _record_statue(self.monster.get('name', 'monster'), _player_name(ctx))
 
         ctx.player.hit_points = 0
         ctx.player.unsaved_changes = True

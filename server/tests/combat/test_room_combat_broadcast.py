@@ -68,7 +68,7 @@ class TestRoomCombatBroadcast:
         server.clients = {'a': railbender}
         server.active_combats = {1: _fake_session('TROLL', ['Railbender'])}
         lines = server._describe_room(_viewer_client())
-        assert 'Railbender is fighting TROLL here!' in lines
+        assert 'Railbender is fighting the TROLL here!' in lines
 
     def test_fighter_not_listed_as_plain_bystander(self, server):
         railbender = _client('Railbender')
@@ -81,7 +81,7 @@ class TestRoomCombatBroadcast:
         server.clients = {'a': _client('Railbender'), 'b': _client('Rulan')}
         server.active_combats = {1: _fake_session('TROLL', ['Railbender', 'Rulan'])}
         lines = server._describe_room(_viewer_client())
-        assert 'Railbender and Rulan are fighting TROLL here!' in lines
+        assert 'Railbender and Rulan are fighting the TROLL here!' in lines
 
     def test_bystander_still_listed_normally(self, server):
         server.clients = {

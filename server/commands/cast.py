@@ -247,9 +247,10 @@ async def _cast_monster(ctx, player, magnitude: int, bonus: int, success: bool) 
     if session is None:
         return None
 
+    from monsters import monster_display_name
     monster = session.monster
     flags   = monster.get('flags', {}) or {}
-    mname   = monster.get('name', 'the monster')
+    mname   = monster_display_name(monster)
 
     if flags.get('mechanical'):
         return 'fizzle', 'Mechanical devices are unaffected by magic!'

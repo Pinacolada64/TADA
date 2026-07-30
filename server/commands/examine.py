@@ -180,10 +180,12 @@ def _monster_food(ctx, monster: dict, has_food: bool) -> list[str]:
     """SPUR.MISC3.S mon.fd: race-modified roll for whether the corpse
     looks edible. Ogres/Orcs are more easily tempted (+25), Elves are
     disgusted by the idea (-25), Half-Elves mildly so (-12)."""
-    player = ctx.player
-    race   = getattr(player, 'char_race', None)
-    name   = monster.get('name', 'the monster')
-    roll   = random.randint(1, 100)
+    from monsters import monster_display_name
+    player   = ctx.player
+    race     = getattr(player, 'char_race', None)
+    raw_name = monster.get('name', 'monster')
+    name     = monster_display_name(monster)
+    roll     = random.randint(1, 100)
     if race in (PlayerRace.OGRE, PlayerRace.ORC):
         roll += 25
     elif race == PlayerRace.ELF:
@@ -197,16 +199,16 @@ def _monster_food(ctx, monster: dict, has_food: bool) -> list[str]:
         roll = 0
 
     if roll < 50 or has_food:
-        lines.append(f'Your search reveals nothing on the {name}.')
+        lines.append(f'Your search reveals nothing on {name}.')
         lines.extend(_monster_disease_check(player))
         return lines
 
-    ration = Rations(number=_MONSTER_MEAT_RATION_ID, name=f'{name} meat',
+    ration = Rations(number=_MONSTER_MEAT_RATION_ID, name=f'{raw_name} meat',
                      kind='food', price=25)
     inv = getattr(player, 'inventory', None)
     if inv is not None:
         inv.add(ration)
-    lines.append(f'You decide the {name} looks edible! (sort of..)')
+    lines.append(f'You decide {name} looks edible! (sort of..)')
     return lines
 
 
@@ -226,27 +228,28 @@ def _examine_monster(ctx, monster: dict) -> list[str]:
     player.dead_monsters -- a still-live one just refuses to be examined
     (SPUR's md==0 case; TADA has no equivalent of SPUR's md==2 "tracks
     only" state, so that branch isn't ported)."""
+    from monsters import monster_display_name
     player = ctx.player
-    name   = monster.get('name', 'the monster')
+    name   = monster_display_name(monster)
     monster_no = monster.get('number')
 
     is_dead = monster_no in (getattr(player, 'dead_monsters', None) or [])
     if not is_dead:
-        return [f"{name} doesn't like being examined!"]
+        return [f"{monster_display_name(monster, capitalize=True)} doesn't like being examined!"]
 
     room  = _current_room(ctx)
     flags = set(getattr(room, 'flags', None) or [])
 
     roll = random.randint(1, 100)
-    base_msg = f'Your search reveals nothing on the {name}.'
+    base_msg = f'Your search reveals nothing on {name}.'
     if 'water' in flags or 'water_with_rocks' in flags:
-        base_msg = f'Fish are nibbling on the {name}.'
+        base_msg = f'Fish are nibbling on {name}.'
     if 'snow' in flags:
-        base_msg = f'The {name} is quite frozen!'
+        base_msg = f'{monster_display_name(monster, capitalize=True)} is quite frozen!'
     if roll > 40:
         base_msg = "Yep. It's dead awright.."
     if roll > 70:
-        base_msg = f'The {name} is quite ugly, actually..'
+        base_msg = f'{monster_display_name(monster, capitalize=True)} is quite ugly, actually..'
 
     has_item = _player_has_item(player)
     has_food = _player_has_food(player)

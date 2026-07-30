@@ -873,7 +873,8 @@ class Server:
                     if quote:
                         lines.append(f'{n}: {quote}')
             if fighting:
-                mname = session.monster.get('name', 'a monster')
+                from monsters import monster_display_name
+                mname = monster_display_name(session.monster)
                 verb  = 'is' if len(fighting) == 1 else 'are'
                 lines += ['', f'{oxford_comma_list(sorted(fighting))} {verb} fighting {mname} here!']
         except Exception:

@@ -100,6 +100,18 @@ def get_monster(monsters: list[dict], number: int) -> dict | None:
     return next((m for m in monsters if m.get('number') == number), None)
 
 
+def monster_display_name(monster: dict, capitalize: bool = False) -> str:
+    """Return a monster's name with its leading article, honoring no_article.
+
+    Monsters flagged no_article (e.g. GOLLUM, DRACULA) are proper names and
+    should never be prefixed with "the"/"The".
+    """
+    name = monster.get('name', 'monster')
+    if monster.get('flags', {}).get('no_article'):
+        return name
+    return f'{"The" if capitalize else "the"} {name}'
+
+
 def save_monsters(monsters: list[dict], path: str):
     with open(path, 'w') as f:
         json.dump(monsters, f, indent=4)

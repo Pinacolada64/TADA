@@ -486,7 +486,7 @@ class TestExamineMonster(unittest.TestCase):
         player.dead_monsters = []  # TROLL not killed yet
         ctx = _ctx_with_monster(player)
         lines = _examine_monster(ctx, _TROLL)
-        self.assertEqual(lines, ["TROLL doesn't like being examined!"])
+        self.assertEqual(lines, ["The TROLL doesn't like being examined!"])
 
     def test_dead_monster_dwarf_finds_treasure(self):
         player = _player()
@@ -576,7 +576,7 @@ class TestExamineCommandMonsterIntegration(unittest.IsolatedAsyncioTestCase):
         player.dead_monsters = []
         ctx = _ctx_with_monster(player)
         await ExamineCommand().execute(ctx, 'troll')
-        self.assertEqual(ctx.sent, ["TROLL doesn't like being examined!"])
+        self.assertEqual(ctx.sent, ["The TROLL doesn't like being examined!"])
 
     async def test_examine_all_includes_room_monster(self):
         player = _player()

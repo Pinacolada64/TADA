@@ -125,7 +125,9 @@ def _monster_give_response(item, monster: dict) -> tuple[list[str], bool]:
     item_consumed=True means the monster keeps it and it is removed from
     the player's inventory; False means it is returned (no removal).
     """
-    mname  = monster.get('name', 'the monster')
+    from monsters import monster_display_name
+    mname  = monster.get('name', 'monster')
+    mdisp  = monster_display_name(monster, capitalize=True)
     iname  = getattr(item, 'name', 'it')
     ikind  = (getattr(item, 'kind', '') or '').lower()
     iupper = iname.upper()
@@ -134,9 +136,9 @@ def _monster_give_response(item, monster: dict) -> tuple[list[str], bool]:
     # Food: monster happily eats it
     if ikind in _FOOD_KINDS or 'MEAT' in iupper or 'RATION' in iupper:
         msg = random.choice([
-            f'The {mname} snatches the {iname} and wolfs it down!',
-            f'The {mname} sniffs at the {iname}... then devours it whole.',
-            f'The {mname} gulps down the {iname} without chewing.  Impressive.',
+            f'{mdisp} snatches the {iname} and wolfs it down!',
+            f'{mdisp} sniffs at the {iname}... then devours it whole.',
+            f'{mdisp} gulps down the {iname} without chewing.  Impressive.',
         ])
         return [msg], True
 
@@ -144,7 +146,7 @@ def _monster_give_response(item, monster: dict) -> tuple[list[str], bool]:
     cat = str(getattr(item, 'category', '') or '').upper()
     if 'WEAPON' in cat:
         return [
-            f'The {mname} hefts the {iname} appraisingly...',
+            f'{mdisp} hefts the {iname} appraisingly...',
             f'...and shoves it back at you, unimpressed.',
         ], False
 
@@ -152,7 +154,7 @@ def _monster_give_response(item, monster: dict) -> tuple[list[str], bool]:
     if any(k in mupper for k in _GREEDY_KEYWORDS):
         if any(w in iupper for w in _TREASURE_KEYWORDS):
             return [
-                f"The {mname}'s eyes light up!",
+                f"{mdisp}'s eyes light up!",
                 f'It snatches the {iname} and stuffs it away greedily.',
                 f'(That is NOT coming back.)',
             ], True
@@ -160,7 +162,7 @@ def _monster_give_response(item, monster: dict) -> tuple[list[str], bool]:
     # Compass: monster stares at needle in confusion
     if 'COMPASS' in iupper:
         return [
-            f'The {mname} stares at the {iname} blankly.',
+            f'{mdisp} stares at the {iname} blankly.',
             f'It spins it around a few times, then returns it.',
             f"(You suspect it was trying to eat the needle.)",
         ], False
@@ -168,7 +170,7 @@ def _monster_give_response(item, monster: dict) -> tuple[list[str], bool]:
     # Shield: worn as a hat
     if 'SHIELD' in iupper:
         return [
-            f'The {mname} places the {iname} on its head like a hat.',
+            f'{mdisp} places the {iname} on its head like a hat.',
             f'It tilts it at a rakish angle, almost pleased with itself.',
             f'Then it hands it back.',
         ], False
@@ -176,7 +178,7 @@ def _monster_give_response(item, monster: dict) -> tuple[list[str], bool]:
     # Ammo: monster tries to eat it, gives up
     if any(w in iupper for w in ('ARROW', 'BOLT', 'DART', 'ROUND', 'AMMO', 'BULLET', 'STONE')):
         return [
-            f'The {mname} pops the {iname} into its mouth.',
+            f'{mdisp} pops the {iname} into its mouth.',
             f'Crunch.  It spits them out, one by one.',
             f'(You collect the slobbery pieces.)',
         ], False
@@ -184,17 +186,17 @@ def _monster_give_response(item, monster: dict) -> tuple[list[str], bool]:
     # Grenade: monster recognises danger, throws it back
     if 'GRENADE' in iupper:
         return [
-            f'The {mname} takes the {iname} and immediately recognises what it is.',
+            f'{mdisp} takes the {iname} and immediately recognises what it is.',
             f'It hurls it back at you!',
             f'(Grenade returned.  Perhaps keep that one to yourself.)',
         ], False
 
     # Generic fallbacks
     msg, consumed = random.choice([
-        (f'The {mname} sniffs the {iname} curiously, then shoves it back.', False),
-        (f'The {mname} examines the {iname}, makes a disgusted noise, and returns it.', False),
-        (f'The {mname} pokes the {iname} with one claw, then loses interest.', False),
-        (f'The {mname} seems offended by your gift of {iname}.', False),
+        (f'{mdisp} sniffs the {iname} curiously, then shoves it back.', False),
+        (f'{mdisp} examines the {iname}, makes a disgusted noise, and returns it.', False),
+        (f'{mdisp} pokes the {iname} with one claw, then loses interest.', False),
+        (f'{mdisp} seems offended by your gift of {iname}.', False),
     ])
     return [msg], consumed
 
@@ -395,7 +397,8 @@ class GiveCommand(Command):
                     raw = monster.get('hit_points')
                 m_hp = int(raw if raw is not None else 1)
                 if m_hp <= 0:
-                    await ctx.send(f'The {mname} is dead.  It does not want anything.')
+                    from monsters import monster_display_name
+                    await ctx.send(f'{monster_display_name(monster, capitalize=True)} is dead.  It does not want anything.')
                     return CommandResult.ok()
                 lines, consumed = _monster_give_response(item, monster)
                 for line in lines:

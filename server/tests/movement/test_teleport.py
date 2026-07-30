@@ -609,7 +609,7 @@ class TestTeleportMonsterReaction(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(res.success)
         self.assertEqual(ctx.client.room, 37)
         sent = ' '.join(str(c) for c in ctx.send.await_args_list)
-        self.assertIn('Sensors on Sentrybot goes nuts as you dematerialize!', sent)
+        self.assertIn('Sensors on The Sentrybot goes nuts as you dematerialize!', sent)
 
     async def test_mechanical_monster_sensors_reaction(self):
         cmd = TeleportCommand()
@@ -617,7 +617,7 @@ class TestTeleportMonsterReaction(unittest.IsolatedAsyncioTestCase):
         res = await cmd.execute(ctx, '37')
         self.assertTrue(res.success)
         sent = ' '.join(str(c) for c in ctx.send.await_args_list)
-        self.assertIn('Sensors on Sentrybot goes nuts as you dematerialize!', sent)
+        self.assertIn('Sensors on The Sentrybot goes nuts as you dematerialize!', sent)
 
     async def test_ordinary_monster_looks_puzzled(self):
         cmd = TeleportCommand()

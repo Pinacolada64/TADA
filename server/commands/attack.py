@@ -93,13 +93,16 @@ class AttackCommand(Command):
         # bystander exactly one swing per call ("Bystanders fire one swing
         # then wait; the leader's loop drives the fight."), so re-typing
         # 'attack' each round is how they keep fighting, not an error.
+        from monsters import monster_display_name
+
         session = _active_session(ctx)
         if session:
             mname = session.monster.get('name', 'the monster')
             if args:
                 pattern = ' '.join(args).lower()
                 if pattern not in mname.lower():
-                    await ctx.send(f'There is no "{" ".join(args)}" here — only the {mname}.')
+                    await ctx.send(f'There is no "{" ".join(args)}" here — only '
+                                    f'{monster_display_name(session.monster)}.')
                     return CommandResult.fail(error='no_match')
             await session.join(ctx)
             return CommandResult.ok()
@@ -116,7 +119,8 @@ class AttackCommand(Command):
         if args:
             pattern = ' '.join(args).lower()
             if pattern not in mname.lower():
-                await ctx.send(f'There is no "{" ".join(args)}" here — only the {mname}.')
+                await ctx.send(f'There is no "{" ".join(args)}" here — only '
+                                f'{monster_display_name(monster)}.')
                 return CommandResult.fail(error='no_match')
 
         # Warn if no weapon readied, but allow bare-hands combat

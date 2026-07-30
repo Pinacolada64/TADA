@@ -421,7 +421,8 @@ class UseCommand(Command):
                 await ctx.send('KABOOM!!')
                 xp = _char_level(player)
                 dmg = random.randint(1, 10) + 5 + (xp * 2)
-                mname = session.monster.get('name', 'the monster')
+                from monsters import monster_display_name
+                mname = monster_display_name(session.monster, capitalize=True)
                 await ctx.send(f'{mname} takes {dmg} damage..')
                 new_hp = _monster_hp(session.monster) - dmg
                 _set_monster_hp(session.monster, new_hp)

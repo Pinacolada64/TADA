@@ -367,8 +367,9 @@ class TeleportCommand(Command):
         # port's style.
         monster = _room_monster(ctx, old_level, old_room)
         if monster is not None:
+            from monsters import monster_display_name
             flags = monster.get('flags') or {}
-            mname = monster.get('name', 'The monster')
+            mname = monster_display_name(monster, capitalize=True)
             if flags.get('tough') and not flags.get('mechanical'):
                 await ctx.send(f"{mname} casts a 'Freeze Adventurer' spell!")
                 return CommandResult.fail('The teleport is blocked!', error='teleport_blocked')

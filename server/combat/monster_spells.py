@@ -14,6 +14,7 @@ from __future__ import annotations
 import random
 
 from combat.resolution import MonsterAttackResult
+from monsters import monster_display_name
 
 
 def monster_casts_spell(monster: dict, player, spells_used: set) -> MonsterAttackResult | None:
@@ -38,7 +39,7 @@ def monster_casts_spell(monster: dict, player, spells_used: set) -> MonsterAttac
 
     multi = bool(flags.get('cast_multiple_spells'))
     ms    = monster.get('strength') or 5
-    name  = monster.get('name', 'The monster')
+    name  = monster_display_name(monster, capitalize=True)
     xp_level = int(getattr(player, 'xp_level', 1) or 1)
 
     # Trigger roll (SPUR rnd.10z, simplified to the same 1-10 convention

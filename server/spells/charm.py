@@ -116,7 +116,9 @@ async def try_charm_potion(ctx: 'GameContext') -> bool:
         await ctx.send('Charm what? There is no monster here!')
         return False
 
-    name  = monster.get('name', 'the monster')
+    from monsters import monster_display_name
+    name  = monster.get('name', 'monster')  # bare name -- becomes the ally's persisted name below
+    mdisp = monster_display_name(monster, capitalize=True)
     flags = monster.get('flags') or {}
 
     if flags.get('mechanical'):
@@ -124,7 +126,7 @@ async def try_charm_potion(ctx: 'GameContext') -> bool:
         return False
 
     if flags.get('tough'):
-        await ctx.send(f'{name} is unaffected by the charm potion!')
+        await ctx.send(f'{mdisp} is unaffected by the charm potion!')
         return False
 
     # If a fight is already underway here, end it peacefully -- same
@@ -143,14 +145,15 @@ async def try_charm_potion(ctx: 'GameContext') -> bool:
         'room_no':       room_no,
         'monster_number': monster_no,
         'name':          name,
+        'display_name':  mdisp,
         'strength':      int(monster.get('strength', 0) or 0),
         'to_hit':        int(monster.get('to_hit', 0) or 0),
     }
-    await ctx.send(f'{name} suddenly takes a shine to you!')
+    await ctx.send(f'{mdisp} suddenly takes a shine to you!')
 
     player_name = getattr(player, 'name', 'Someone')
     await ctx.send_room(
-        f'{player_name} drinks a strange potion, and {name} suddenly calms down.',
+        f'{player_name} drinks a strange potion, and {mdisp} suddenly calms down.',
         exclude_self=True,
     )
     return True
@@ -169,7 +172,8 @@ def charm_greeting_line(player, room_no: int, level: int) -> str | None:
     if pending['room_no'] != room_no or pending['level'] != level:
         return None
     player_name = getattr(player, 'name', 'Adventurer')
-    return f'{pending["name"]} is charmed: "Gosh, er... hi, {player_name}!"'
+    display_name = pending.get('display_name', pending['name'])
+    return f'{display_name} is charmed: "Gosh, er... hi, {player_name}!"'
 
 
 async def try_charm_join_offer(ctx: 'GameContext', *, level: int, room_no: int) -> None:
@@ -188,7 +192,8 @@ async def try_charm_join_offer(ctx: 'GameContext', *, level: int, room_no: int) 
     if not pending or pending['level'] != level or pending['room_no'] != room_no:
         return
 
-    name = pending['name']
+    name  = pending['name']  # bare name -- becomes the ally's persisted name below
+    mdisp = pending.get('display_name', name)
     player_name = getattr(player, 'name', 'Someone')
 
     from bar.allies import owned_allies
@@ -196,22 +201,22 @@ async def try_charm_join_offer(ctx: 'GameContext', *, level: int, room_no: int) 
         # SPUR: `if a1>0 if a2>0 if a3>0 goto charm.a` -- a full party
         # skips straight to the same "sadly watches you leave" branch as
         # an explicit decline, no prompt at all.
-        await ctx.send(f'{name} sadly watches you leave..')
+        await ctx.send(f'{mdisp} sadly watches you leave..')
         await ctx.send_room(
-            f'{name} sadly watches {player_name} leave..',
+            f'{mdisp} sadly watches {player_name} leave..',
             exclude_self=True,
         )
         player.pending_charm = None
         return
 
-    raw = await ctx.prompt(f'{name} wants to join you! OK? (Y/N)')
+    raw = await ctx.prompt(f'{mdisp} wants to join you! OK? (Y/N)')
     if not raw or raw.strip().upper() != 'Y':
         honor = int(getattr(player, 'honor', 0) or 0)
         if honor > _DECLINE_HONOR_PENALTY:
             player.honor = honor - _DECLINE_HONOR_PENALTY
-        await ctx.send(f'{name} sadly watches you leave..')
+        await ctx.send(f'{mdisp} sadly watches you leave..')
         await ctx.send_room(
-            f'{name} sadly watches {player_name} leave..',
+            f'{mdisp} sadly watches {player_name} leave..',
             exclude_self=True,
         )
         player.pending_charm = None
@@ -236,9 +241,9 @@ async def try_charm_join_offer(ctx: 'GameContext', *, level: int, room_no: int) 
     player.charmed_monsters.append(pending['monster_number'])
     player.unsaved_changes = True
 
-    await ctx.send(f'{name} beams with pride, and joins your party!')
+    await ctx.send(f'{mdisp} beams with pride, and joins your party!')
     await ctx.send_room(
-        f"{name} beams with pride, and leaves with {player_name}.",
+        f"{mdisp} beams with pride, and leaves with {player_name}.",
         exclude_self=True,
     )
     net_common.append_battle_log(f'{name} joined {player.name}\'s party (charmed).')
