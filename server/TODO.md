@@ -1,5 +1,55 @@
 3/21/26:
 - Murder Motel level in dungeon
+  - [Fleshed out 7/30/26, Ryan] Renamed "Hostile Hostel": a standalone
+    assassination mini-game/level, patterned after a BBS game called
+    "Murder Motel." Each player gets assigned another player as a
+    target to kill inside a creepy hotel; other players can likewise be
+    assigned to kill *you*. To make a kill, you first have to find two
+    parts of a weapon -- e.g. gas + flame thrower, which already exist
+    as a real ammo/weapon pair in the live game (`objects.json`'s "gas"
+    item, `flags.used_with: "flame thrower"`; the weapon itself is
+    `weapons.json`'s "FLAME THROWER" entry, damage-typed as SIZZLE! in
+    `item_system.py:78`) -- before you're able to strike your assigned
+    target.
+    - Every weapon has a defense/counter that, if the target is
+      carrying/wearing it, gives them a high (not 100%, needs checking
+      against whatever resolution formula ends up used) chance to
+      resist/survive the attack -- i.e. assassination isn't a guaranteed
+      kill just because you found the right weapon, the target can gear
+      up against it too.
+    - NPCs roam the hotel independent of the player-vs-player
+      assassination angle -- a thief, and a *werewolf* (not "ravenous
+      wolf" -- Ryan wants an actual werewolf so the encounter can quote
+      Young Frankenstein: "Werewolf?" "There wolf." "There castle."
+      dialogue beat).
+    - The hotel itself is 5 levels deep in its own right, so this
+      can't just be dropped into the existing dungeon level files --
+      it needs its own map-data home. `quests/` currently holds flat
+      per-quest modules (e.g. `quests/tuts_treasure.py`), not
+      subdirectories, so `quests/hostile-hostel/` (map data + logic
+      together) would be a new structural pattern for that directory,
+      not an existing one to copy.
+    - Framed by Ryan as "something to do" / a mini-game, not core
+      progression -- lower priority than mainline level content, still
+      just an idea at this point, not scoped into tasks.
+    - [Added 7/30/26, Ryan] Entry point idea: the level 8 castle (see
+      the church entry under 7/30/26, below -- same unmerged level 8
+      map) has a throne-room lever mechanic. Pulling the lever could be
+      what drops you into the Hostile Hostel mini-game.
+      - Getting into the castle at all already requires the CASTLE
+        combination (`CombinationTypes.CASTLE`, `base_classes.py:66`),
+        which `commands/editplayer.py`'s Combinations menu can show/set
+        and which every player is currently just handed at character
+        creation (`player.py:85`'s `set_up_combinations()` only
+        excludes ELEVATOR and LOCKER from the auto-granted set, i.e.
+        CASTLE is *not* excluded -- unlike ELEVATOR, which is only
+        generated when the SCRAP OF PAPER item is read, and LOCKER,
+        which the locker attendant hands over on first visit). Ryan
+        wants this to change so getting the combination is actually
+        earned somehow -- how, is not yet decided.
+      - If the lever-puller has a party member with them when the
+        lever is pulled, that's the trigger for the "Werewolf?"
+        "There wolf." "There castle." dialogue beat mentioned above.
 
 7/7/26:
 - [DONE 7/11/26] editplayer's Weapons > Battle Experience editor
@@ -1248,3 +1298,68 @@
     (it already takes `is_mounted` for the charge-bonus check) cross-
     referenced against the monster's size rating to add a miss modifier
     for melee weapon classes only.
+
+7/30/26:
+- Stat-dict migration (Ryan, deferred): the ring-of-invisibility work
+  (`commands/wear.py`, `survival.py`'s per-move drain,
+  `encounters/ringwraith.py`'s stat floors) reads/writes
+  `player.stats` directly (`stats.get('Constitution', 10)`,
+  `stats['Constitution'] -= 2`) instead of going through
+  `player.get_stat(PlayerStat.CON)` / `player.set_stat(ctx, PlayerStat.CON,
+  adj, verbose=...)` (`player.py:537`/`884`) -- those already exist and
+  `set_stat()` already has the "You feel weaker/stronger." messaging
+  (`STAT_DATA[stat]['phrases']`), just gated oddly (`if not self.is_expert
+  or not verbose`, probably should be `and`) and requires a `ctx` to send
+  through. Worth migrating the direct-dict call sites (these new ones,
+  plus whatever older code still does it) over to `get_stat()`/`set_stat()`
+  once `set_stat()` is straightened out -- fix the is_expert/verbose gate
+  logic, make sure it actually `await`s `ctx.send(...)` (currently
+  unawaited), and confirm `get_stat()` is safe to call with a stat key
+  that isn't in `self.stats` yet (currently logs a warning and returns
+  `None` rather than a sane default) before anything depends on it.
+
+7/30/26:
+- Abandoned church on level 8 (Ryan's own map design, not yet merged/
+  built): every in-game Sunday, a service happens there with ghostly
+  parishoners and a priest. GOOD natural-alignment players who show up
+  get some stat bonus; EVIL natural-alignment players get a penalty --
+  "The priest fixes his eyes on you and clutches a holy cross, intoning
+  holy words... you feel a shock to your system and..." (exact
+  mechanical result TBD -- likely a timed buff/debuff if
+  `combat/engine.py` already has a buff/debuff-timer system to hang it
+  off of; NEUTRAL alignment presumably just gets flavor text and no
+  mechanical effect). Keys off natural alignment specifically (fixed at
+  creation), not current/mutable alignment, so it can't be gamed.
+
+  This needs an actual in-game calendar to hang "every Sunday" off of,
+  which doesn't exist in the live server yet -- but `future/main.py`
+  already has a working prototype (`GameClock`, `future/main.py:44`)
+  built on the real `astral` PyPI package (`from astral import
+  LocationInfo, sun, moon`, `future/main.py:6`) that was never ported
+  into `simple_server.py`/`survival.py`. It already has:
+  - Seasons (`get_current_season()`, `future/main.py:146`) and a
+    fixed-time/wall-clock toggle for testing.
+  - Sun-position-aware room flavor text (`get_detailed_solar_description()`,
+    `future/main.py:188`) plumbed into `Room.get_full_description()`
+    (`future/main.py:469`) via a `has_window` attribute (`Room.__init__`,
+    `future/main.py:423`) -- rooms with `has_window=True` show what's
+    visible through the window, outdoor rooms show the sky directly.
+  - Real moon-phase names via `astral.moon.phase()`
+    (`get_moon_phase_description()`, `future/main.py:217`) -- worth
+    swapping to Farmer's-Almanac-style phase names (Waxing Crescent,
+    Full/Harvest Moon, etc.) per Ryan's request instead of/alongside
+    the current plain phase descriptions.
+
+  Porting this forward, plus extending it, would give the church scene
+  a real trigger and open the door to other calendar-driven content:
+  - Festivals/seasonal events -- something for players to do besides
+    fight, tied to season or specific calendar dates.
+  - Day/night scenery beyond the window-sun link already prototyped:
+    sconces with flickering torches lit at night, moonlight (phase-
+    aware) through the cathedral's window at night, sunlight through it
+    by day.
+  - `astral.sun`/`astral.moon` need a real latitude/longitude to
+    compute actual sunrise/sunset/moon-phase timing (not just a time
+    zone) -- would need a server-setup option to configure the server's
+    "in-world" lat/long so day length and moon phases track a real
+    location instead of a fixed/generic cycle.
