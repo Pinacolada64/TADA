@@ -29,9 +29,9 @@ Three rolls, in SPUR's own order, each short-circuiting the next:
   3. Ally tactical positioning / desertion (lines 140-168, "tactical"/
      "desert"): only rolled if neither 1 nor 2 fired. Picks one ally to
      call out a position -- bar/ally_data.py's AllyPosition enum
-     (POINT/FLANK/REAR/LURKING/EMPTY) was already defined there but never
-     wired to anything until now -- with a chance that ally deserts the
-     party outright.
+     (POINT/FLANK/REAR/EMPTY) was already defined there but never wired
+     to anything until now -- with a chance that ally deserts the party
+     outright.
 
   4. Turf guards (lines 79-83): monsters #65/#66/#67 are each a specific
      guild's own hired guard ("GUARD ==[]"/"GUARD -}--"/"GUARD \\|/",

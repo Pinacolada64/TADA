@@ -39,7 +39,6 @@ class AllyFlags(Enum):
 class AllyPosition(Enum):
     """Tactical position"""
     EMPTY = auto()
-    LURKING = auto()
     POINT = auto()
     FLANK = auto()
     REAR = auto()
