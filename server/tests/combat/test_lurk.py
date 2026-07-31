@@ -1,23 +1,24 @@
-"""tests/combat/test_lurk.py — LURK command port (SPUR.COMBAT.S:82-96,
-p.attack): requires a living ally, costs Honor, and either fires over the
-ally's head (loaded ammo weapon, not LIGHT-named) or skips the player's
-swing entirely and lurks behind the allies (melee weapon, empty ammo
-weapon, or a LIGHT-named weapon like LIGHT SABRE).
-
-Player-side mechanics only this pass -- redirecting the monster's counter
--attack onto an ally (SPUR.COMBAT.S:247-253, lurk.a) is a separate,
-not-yet-ported piece; see MECHANICS.md.
+"""tests/combat/test_lurk.py — LURK command port, combat/lurk.py
+(SPUR.COMBAT.S:82-96, 247-262, 324-341, p.attack/lurk.a/m.a1): requires a
+living ally, costs Honor, and either fires over the ally's head (loaded
+ammo weapon, not LIGHT-named) or skips the player's swing entirely and
+lurks behind the allies (melee weapon, empty ammo weapon, or a
+LIGHT-named weapon like LIGHT SABRE). While lurking, the monster's
+counter-attack is forced onto a living ally instead of the player.
 
 Coverage:
-  - _has_living_ally(): counts party allies with hp>0 and non-DEAD/
+  - lurk.has_living_ally(): counts party allies with hp>0 and non-DEAD/
     UNCONSCIOUS status; empty/absent party or all-dead/unconscious party
     both count as no allies
-  - CombatSession._lurk_resolve(): Honor cost formula (base 2, +1
-    Assassin, +1 hp>20, -1 hp<10, -1 more hp<5, -1 if not firing);
-    Honor floor (SPUR "if vk>p2" -- no deduction if Honor <= cost);
-    fire-over-the-head vs lurk-behind-allies message and return value
-    for: melee weapon, loaded ammo weapon, empty ammo weapon, LIGHT
-    -named weapon
+  - lurk.resolve_swing(): Honor cost formula (base 2, +1 Assassin, +1
+    hp>20, -1 hp<10, -1 more hp<5, -1 if not firing); Honor floor (SPUR
+    "if vk>p2" -- no deduction if Honor <= cost); fire-over-the-head vs
+    lurk-behind-allies message and return value for: melee weapon,
+    loaded ammo weapon, empty ammo weapon, LIGHT-named weapon
+  - lurk.try_redirect_to_ally(): picks a random living ally to take the
+    monster's hit instead of the player, applies the same damage to the
+    ally's hit_points, and kills the ally if it drops to 0; no-op when
+    the swing missed, dealt no damage, or no living ally remains
   - player_attacks(is_lurking=True) still applies the -2 to-hit/damage
     penalty and disables the "ease of use helps" fast path (already
     stubbed in combat/resolution.py; sanity-checked here for the LURK
@@ -28,9 +29,10 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from bar.ally_data import Ally, AllyFlags, AllyStatus
+from bar.ally_data import Ally, AllyStatus
 from base_classes import PlayerClass, PlayerStat
-from combat.engine import CombatSession, _has_living_ally
+from combat import lurk
+from combat.engine import CombatSession
 from item_system import WeaponClass
 
 
@@ -90,52 +92,50 @@ class _FakeCtx:
         else:
             self._sent.append(str(msg))
 
+    async def send_room(self, msg, **kwargs):
+        pass
+
     def sent(self) -> str:
         return '\n'.join(self._sent)
 
 
-def _run(coro):
-    import asyncio
-    return asyncio.get_event_loop().run_until_complete(coro)
-
-
 # ---------------------------------------------------------------------------
-# _has_living_ally()
+# lurk.has_living_ally()
 # ---------------------------------------------------------------------------
 
 class TestHasLivingAlly(unittest.TestCase):
     def test_no_party_has_no_ally(self):
-        self.assertFalse(_has_living_ally(_FakePlayer()))
+        self.assertFalse(lurk.has_living_ally(_FakePlayer()))
 
     def test_empty_party_has_no_ally(self):
-        self.assertFalse(_has_living_ally(_FakePlayer(allies=[])))
+        self.assertFalse(lurk.has_living_ally(_FakePlayer(allies=[])))
 
     def test_living_servant_counts(self):
         player = _FakePlayer(allies=[_make_ally()])
-        self.assertTrue(_has_living_ally(player))
+        self.assertTrue(lurk.has_living_ally(player))
 
     def test_dead_ally_does_not_count(self):
         player = _FakePlayer(allies=[_make_ally(status=AllyStatus.DEAD, hit_points=0)])
-        self.assertFalse(_has_living_ally(player))
+        self.assertFalse(lurk.has_living_ally(player))
 
     def test_unconscious_ally_does_not_count(self):
         player = _FakePlayer(allies=[_make_ally(status=AllyStatus.UNCONSCIOUS)])
-        self.assertFalse(_has_living_ally(player))
+        self.assertFalse(lurk.has_living_ally(player))
 
     def test_zero_hp_servant_does_not_count(self):
         player = _FakePlayer(allies=[_make_ally(hit_points=0)])
-        self.assertFalse(_has_living_ally(player))
+        self.assertFalse(lurk.has_living_ally(player))
 
     def test_one_living_among_several_dead_counts(self):
         player = _FakePlayer(allies=[
             _make_ally(name='Fell', status=AllyStatus.DEAD, hit_points=0),
             _make_ally(name='Grok', hit_points=5),
         ])
-        self.assertTrue(_has_living_ally(player))
+        self.assertTrue(lurk.has_living_ally(player))
 
 
 # ---------------------------------------------------------------------------
-# CombatSession._lurk_resolve()
+# lurk.resolve_swing()
 # ---------------------------------------------------------------------------
 
 class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
@@ -143,9 +143,8 @@ class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
         weapon = _FakeWeapon(weapon_class=WeaponClass.BASH_SLASH, name='LONG SWORD')
         player = _FakePlayer(weapon=weapon, hit_points=15)
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'GOBLIN', 'strength': 10}, room_no=1)
 
-        fires = await session._lurk_resolve(ctx)
+        fires = await lurk.resolve_swing(ctx)
 
         self.assertFalse(fires)
         self.assertIn('You lurk behind your allies.', ctx.sent())
@@ -154,9 +153,8 @@ class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
         weapon = _FakeWeapon(weapon_class=WeaponClass.PROJECTILE, name='CROSSBOW')
         player = _FakePlayer(weapon=weapon, ammo_rounds=5, hit_points=15)
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'GOBLIN', 'strength': 10}, room_no=1)
 
-        fires = await session._lurk_resolve(ctx)
+        fires = await lurk.resolve_swing(ctx)
 
         self.assertTrue(fires)
         self.assertIn("You fire over your ally's head..", ctx.sent())
@@ -165,9 +163,8 @@ class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
         weapon = _FakeWeapon(weapon_class=WeaponClass.PROJECTILE, name='CROSSBOW')
         player = _FakePlayer(weapon=weapon, ammo_rounds=0, hit_points=15)
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'GOBLIN', 'strength': 10}, room_no=1)
 
-        fires = await session._lurk_resolve(ctx)
+        fires = await lurk.resolve_swing(ctx)
 
         self.assertFalse(fires)
         self.assertIn('You lurk behind your allies.', ctx.sent())
@@ -176,9 +173,8 @@ class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
         weapon = _FakeWeapon(weapon_class=WeaponClass.ENERGY, name='LIGHT SABRE')
         player = _FakePlayer(weapon=weapon, ammo_rounds=5, hit_points=15)
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'GOBLIN', 'strength': 10}, room_no=1)
 
-        fires = await session._lurk_resolve(ctx)
+        fires = await lurk.resolve_swing(ctx)
 
         self.assertFalse(fires)
         self.assertIn('You lurk behind your allies.', ctx.sent())
@@ -187,9 +183,8 @@ class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
         weapon = _FakeWeapon(name='LONG SWORD')
         player = _FakePlayer(weapon=weapon, hit_points=15, honor=1000)
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
 
-        await session._lurk_resolve(ctx)
+        await lurk.resolve_swing(ctx)
 
         self.assertEqual(player.honor, 998)
 
@@ -198,9 +193,8 @@ class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
         player = _FakePlayer(weapon=weapon, hit_points=15, honor=1000,
                               char_class=PlayerClass.ASSASSIN)
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
 
-        await session._lurk_resolve(ctx)
+        await lurk.resolve_swing(ctx)
 
         self.assertEqual(player.honor, 997)
 
@@ -208,9 +202,8 @@ class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
         weapon = _FakeWeapon(name='LONG SWORD')
         player = _FakePlayer(weapon=weapon, hit_points=25, honor=1000)
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
 
-        await session._lurk_resolve(ctx)
+        await lurk.resolve_swing(ctx)
 
         self.assertEqual(player.honor, 997)  # base 2 + 1 for hp>20
 
@@ -218,9 +211,8 @@ class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
         weapon = _FakeWeapon(name='LONG SWORD')
         player = _FakePlayer(weapon=weapon, hit_points=8, honor=1000)
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
 
-        await session._lurk_resolve(ctx)
+        await lurk.resolve_swing(ctx)
 
         self.assertEqual(player.honor, 999)  # base 2 - 1 for hp<10
 
@@ -228,9 +220,8 @@ class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
         weapon = _FakeWeapon(name='LONG SWORD')
         player = _FakePlayer(weapon=weapon, hit_points=3, honor=1000)
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
 
-        await session._lurk_resolve(ctx)
+        await lurk.resolve_swing(ctx)
 
         self.assertEqual(player.honor, 1000)  # base 2 -1 -1, floored at 0
 
@@ -238,9 +229,8 @@ class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
         weapon = _FakeWeapon(weapon_class=WeaponClass.PROJECTILE, name='CROSSBOW')
         player = _FakePlayer(weapon=weapon, ammo_rounds=0, hit_points=15, honor=1000)
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
 
-        await session._lurk_resolve(ctx)
+        await lurk.resolve_swing(ctx)
 
         self.assertEqual(player.honor, 999)  # base 2 - 1 for the not-firing penalty
 
@@ -248,11 +238,86 @@ class TestLurkResolve(unittest.IsolatedAsyncioTestCase):
         weapon = _FakeWeapon(name='LONG SWORD')
         player = _FakePlayer(weapon=weapon, hit_points=15, honor=2)
         ctx = _FakeCtx(player)
-        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
 
-        await session._lurk_resolve(ctx)
+        await lurk.resolve_swing(ctx)
 
         self.assertEqual(player.honor, 2)  # SPUR: "if vk>p2" -- 2 is not > 2
+
+
+# ---------------------------------------------------------------------------
+# lurk.try_redirect_to_ally()
+# ---------------------------------------------------------------------------
+
+class _FakeMonsterHit:
+    def __init__(self, hit=True, damage=5):
+        self.hit = hit
+        self.damage = damage
+
+
+class TestTryRedirectToAlly(unittest.IsolatedAsyncioTestCase):
+    async def test_no_op_on_a_miss(self):
+        player = _FakePlayer(allies=[_make_ally(hit_points=10)])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        redirected = await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=False, damage=5))
+
+        self.assertFalse(redirected)
+
+    async def test_no_op_on_zero_damage(self):
+        player = _FakePlayer(allies=[_make_ally(hit_points=10)])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        redirected = await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=0))
+
+        self.assertFalse(redirected)
+
+    async def test_no_op_without_a_living_ally(self):
+        player = _FakePlayer(allies=[])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        redirected = await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=5))
+
+        self.assertFalse(redirected)
+
+    async def test_redirect_damages_the_ally_instead_of_the_player(self):
+        ally = _make_ally(hit_points=10)
+        player = _FakePlayer(allies=[ally], hit_points=15)
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        redirected = await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=6))
+
+        self.assertTrue(redirected)
+        self.assertEqual(ally.hit_points, 4)
+        self.assertEqual(player.hit_points, 15)  # player takes no damage
+        self.assertIn(f'strikes {ally.name} instead!', ctx.sent())
+
+    async def test_redirect_kills_the_ally_at_zero_hp(self):
+        ally = _make_ally(hit_points=4)
+        player = _FakePlayer(allies=[ally])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=6))
+
+        self.assertEqual(ally.hit_points, 0)
+        self.assertEqual(ally.status, AllyStatus.DEAD)
+        self.assertIn(f'{ally.name} is dead.', ctx.sent())
+
+    async def test_dead_ally_never_targeted_only_the_living_one_is(self):
+        dead = _make_ally(name='Fell', status=AllyStatus.DEAD, hit_points=0)
+        alive = _make_ally(name='Grok', hit_points=10)
+        player = _FakePlayer(allies=[dead, alive])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=3))
+
+        self.assertEqual(dead.hit_points, 0)
+        self.assertEqual(alive.hit_points, 7)
 
 
 # ---------------------------------------------------------------------------
