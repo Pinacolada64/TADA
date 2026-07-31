@@ -231,6 +231,12 @@ class Server:
         except Exception as e:
             logging.warning("Could not load 'books.json': %s", e)
             self.books = {}
+        try:
+            from combat.engine import load_all_statues
+            self.statues = load_all_statues()
+        except Exception:
+            logging.exception("Could not load statue memorials")
+            self.statues = {}
         # Items dropped by players during this session: room_number → list of InventoryEntry
         self.room_items: dict[int, list] = {}
         logging.info('Map: %d rooms | %d monsters | %d items | %d weapons',

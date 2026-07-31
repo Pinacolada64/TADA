@@ -25,7 +25,7 @@ import logging
 import random
 import re
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import Dict, List, Optional, TYPE_CHECKING
 
 from combat.resolution import (
     AttackResult,
@@ -254,6 +254,38 @@ def first_statue_victim(monster_name: str) -> Optional[str]:
     except Exception:
         log.exception('first_statue_victim: failed to read memorial for %s', monster_name)
         return None
+
+
+def load_all_statues() -> Dict[str, List[str]]:
+    """Load every per-monster memorial file in <run_server_dir>/statues/ at
+    once, returning {monster_name: [victim, victim, ...]} (file order, i.e.
+    oldest victim first -- matches first_statue_victim()'s "first line").
+
+    Used at server startup (simple_server.Server._load_game_data() ->
+    self.statues) so admin tooling (commands/logs.py's `LOGS #STATUES`)
+    can list the whole hall of statues without re-scanning the directory
+    per request. _record_statue()/first_statue_victim() still read/write
+    the files directly during combat -- this is a read-only snapshot for
+    display, not the source of truth, so it can go stale until the next
+    restart if new statues are carved mid-session.
+    """
+    statues: Dict[str, List[str]] = {}
+    try:
+        import net_common
+        base = getattr(net_common, 'run_server_dir', None) or Path('./run/server')
+        statues_dir = Path(base) / 'statues'
+        if not statues_dir.is_dir():
+            return statues
+        for path in sorted(statues_dir.glob('*.txt')):
+            try:
+                victims = [line.strip() for line in path.read_text().splitlines() if line.strip()]
+            except OSError:
+                continue
+            if victims:
+                statues[path.stem] = victims
+    except Exception:
+        log.exception('load_all_statues: failed to load statue memorials')
+    return statues
 
 
 def _apply_dex_change(player, delta: int) -> None:
