@@ -1402,3 +1402,61 @@
   they belong to as distinct data, just the single `RoomAlignment.HQ`
   value, so may need a way to know a given HQ room's owning guild,
   e.g. from the room name/level data or a small static mapping).
+
+- FOLLOW ME command (scoping only, not started -- see `commands/
+  follow.py`'s `FOLLOW`/`FL`, already built, which is only half of this:
+  the personal opt-in flag, `PlayerFlags.GUILD_FOLLOW_MODE`). SPUR's
+  actual recruiting command is a *separate* token, `"FOLLOW ME"`
+  (`SPUR.MISC5.S`'s `come` label -- current `SPUR-code/SPUR.MISC5.S` in
+  this repo is truncated; the fuller copy is on the `skip` git branch,
+  same filename, `git cat-file -p <blob>` to read it since `git grep`/
+  `ls-tree` don't resolve paths against that ref directly from a
+  subdirectory checkout -- use the blob hash from `git cat-file -p
+  <tree>` instead). `come` lets a guild leader recruit *other online
+  players* standing in the same room as traveling companions, gated on:
+  guild membership (`vv<3` check), the leader being verified by their
+  guild leader (`flag(3)+flag(6)+flag(13)=0` check), same-guild
+  membership on the recruit's side, and the target's own `FL`/Guild
+  Follow flag being on (`mid$(xx$,10,1)="1"`) -- unconsenting targets
+  get "`<name>` doesn't want to follow.." instead. Unconscious targets
+  route through a separate carry sub-case weighing allies' Strength.
+  Recruits get folded into the same ally-storage slots (`ta$`/`tb$`/
+  `tc$`/`td$`/`te$`/`th$`) SPUR uses for NPC companions.
+
+  Ryan also recalls (2026-07-31) a login-time message -- "You followed
+  `<name>` here." -- shown if Guild Follow is on and the player's room
+  changed since their last logout; this matches `commands/connect.py`'s
+  existing TODO comment (~line 516) already flagging this exact string
+  as unimplemented, pending "storing the guild-follow leader name in
+  player/misc data." Needs a persisted "who last led me here" field
+  (leader name + maybe the room/time of the follow) checked against
+  current room at login.
+
+  TADA infrastructure already in place to build on:
+  - `PlayerFlags.GUILD_FOLLOW_MODE` (`flags.py`) -- the consent flag,
+    already toggleable via `commands/follow.py` and EditPlayer.
+  - `server/party.py`'s `Party` container (`player.party`) already
+    tolerates non-`Ally` members structurally -- `to_json()`/
+    `from_json()` special-case a `'player'` member type, though on
+    reload it currently *drops* Player members ("they rejoin when they
+    log back in") rather than persisting them, and `bar/allies.py`'s
+    `owned_allies()`/`purchased_allies()` filter down to
+    `isinstance(m, Ally)` so ally-specific code already ignores
+    Player-type members rather than choking on them.
+
+  What's actually missing (real new work, not just wiring):
+  - No live leader->follower(s) link between connected `ctx`s exists
+    anywhere -- would need something like `combat/engine.py`'s
+    `_room_ctxs` (enumerates all `GameContext`s in a room) to resolve
+    follower `ctx`s from a leader's recruit list.
+  - `commands/movement.py`'s `MoveCommand`/`simple_server.py`'s
+    `_move()` only mutate the *single* moving `ctx.client.room`/
+    `player.map_level` -- no hook exists to relocate other ctxs and
+    re-run their room display when the leader moves. This is the
+    biggest chunk of new plumbing.
+  - The room-scan-for-eligible-recruits + Y/N recruit prompt (`come`'s
+    core loop) has no existing analog to reuse; would be new code in
+    the shape of `commands/follow.py` or a new `commands/come.py`.
+  - The unconscious-carry sub-case (weighing allies' Strength to see if
+    they can help carry a downed body) has no existing equivalent
+    either -- lower priority, could ship without it first.
