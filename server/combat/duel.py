@@ -85,10 +85,37 @@ TADA IMPLICATIONS
 # which duels no longer use now that hit chance comes from the tactic
 # table instead -- small deliberate duplication, kept in sync by hand.
 #
-# Not ported yet: Roll (an evasive Down-state move distinct from Stand-up),
-# re-readying a different weapon mid-duel, the Verbose commentary toggle,
-# and SPUR's turf-bonus/Wizard-glow/guild-support modifiers. Noted in
+# Not ported yet: re-readying a different weapon mid-duel, and SPUR's
+# turf-bonus/Wizard-glow/guild-support modifiers. Noted in
 # TODO.md/TODO_HELP.md.
+#
+# Down-state menu (SPUR.DUEL.S:20-45 duel/down labels): while knocked down
+# (_DuelSide.down), Attack/Parry/Bash/Flee are unavailable -- only Stand
+# (DuelTactic.STAND, SPUR zw=1) or the evasive Roll (DuelTactic.ROLL, SPUR
+# zw=5) can be submitted (_submit_tactic's down-gate). Both clear the down
+# flag and skip that side's swing this round; Roll additionally blunts the
+# "downed target is easy to hit" bonus an attacker gets this round (SPUR's
+# yx=3/4/13/14 +3 STRIKE/HIT CHANCE MOD, approximated here as a flat
+# hit-chance delta in _swing) from +20 down to +5. That bonus is computed
+# from a per-round snapshot of down state taken before either side's swing
+# resolves (DuelSession._was_down, set in _resolve_round) rather than the
+# live side.down flag -- both sides' actions are simultaneous in SPUR (and
+# in intent here), so reading the live flag would make the bonus depend on
+# iteration order (self.a always resolves before self.b) and silently
+# never fire, since the downed side's own recovery clears it before the
+# opponent's swing is evaluated in the same round.
+#
+# Verbose commentary (SPUR.DUEL.S:47-49 "verbose", zq): `duel verbose`
+# flips a per-side flag (_DuelSide.verbose) that doesn't consume a turn.
+# When on, that side's personal view of each round gets an extra
+# breakdown line per swing/bash (DuelSession._commentary, built in
+# _swing/_resolve_bash, appended per-side in _resolve_round) showing the
+# effective hit-chance modifier, stability, roll, and damage multiplier
+# -- a condensed one-line-per-swing version of SPUR's multi-line "STRIKE
+# CHANCE MOD"/"HIT CHANCE MOD"/"DAMAGE MOD" prints (attack/attack1,
+# lines ~188-297), not a line-for-line reprint of every individual SPUR
+# modifier term (TADA's _INTERACTION table already collapses those into
+# one hit_delta/dmg_mult pair -- see module comment above).
 #
 # No weapon = no fight, mirroring SPUR.DUEL.S's no.wep gate (deducts 1 INT,
 # refuses to swing) -- unlike AUTODUEL's auto-pick-best-weapon-from-file
@@ -113,6 +140,8 @@ class DuelTactic(StrEnum):
     PARRY = 'parry'
     BASH = 'bash'
     FLEE = 'flee'
+    STAND = 'stand'   # SPUR zw=1, "down" menu only: recover with no defensive bonus
+    ROLL = 'roll'     # SPUR zw=5, "down" menu only: recover, blunting the attacker's bonus
 
 
 _TACTIC_ALIASES: dict[str, DuelTactic] = {
@@ -120,7 +149,15 @@ _TACTIC_ALIASES: dict[str, DuelTactic] = {
     'parry':  DuelTactic.PARRY,  'p': DuelTactic.PARRY,
     'bash':   DuelTactic.BASH,   'b': DuelTactic.BASH,
     'flee':   DuelTactic.FLEE,   'f': DuelTactic.FLEE,
+    'stand':  DuelTactic.STAND,  's': DuelTactic.STAND,
+    'roll':   DuelTactic.ROLL,   'r': DuelTactic.ROLL,
 }
+
+# Only these are submittable while _DuelSide.down is True (SPUR's restricted
+# "down" menu: S)tand, R)oll, V, H, ? -- no Attack/Parry/Bash/Flee).
+_DOWN_TACTICS = frozenset((DuelTactic.STAND, DuelTactic.ROLL))
+_DOWNED_HIT_BONUS = 20   # SPUR yx=3/4/13/14: standing target's easy shot at a downed one
+_ROLLED_HIT_BONUS = 5    # same shot, but blunted by an evasive Roll
 
 # (my tactic, opponent's tactic) -> (hit_chance_delta, damage_multiplier)
 # applied to MY swing at THEM this exchange. BASH pairs are handled
@@ -142,6 +179,7 @@ class _DuelSide:
     ctx: object
     tactic: Optional[DuelTactic] = None
     down: bool = False
+    verbose: bool = False   # SPUR zq, toggled by `duel verbose` -- see _swing/_resolve_bash commentary
     history: list = field(default_factory=list)   # last few DuelTactic choices, streak tracking
 
 
@@ -171,6 +209,12 @@ def _offense_rating(player, weapon) -> int:
     skill_bonus, _dmg_bonus = weapon_bonus(weapon, class_str, race_str) if weapon else (0, 0)
     level = int(getattr(player, 'xp_level', 1) or 1)
     return max(3, min(9, 4 + skill_bonus + (level // 3)))
+
+
+def _tactic_prompt(side: '_DuelSide') -> str:
+    if side.down:
+        return "You're on the ground! Choose: duel stand | duel roll"
+    return "Choose: duel attack | duel parry | duel bash | duel flee"
 
 
 def _is_predictable(history: list, tactic: DuelTactic) -> bool:
@@ -259,6 +303,8 @@ class DuelSession:
         self.round_num = 1
         self.done = False
         self._terse_notes: list[str] = []
+        self._was_down: dict[int, bool] = {}   # snapshot, see module comment on Down-state menu
+        self._commentary: list[str] = []       # SPUR's zq-gated "STRIKE/HIT CHANCE MOD" breakdown
 
     def side_for(self, player) -> _DuelSide:
         return self.a if player is self.a.player else self.b
@@ -303,6 +349,10 @@ class DuelSession:
 
     async def _resolve_round(self) -> None:
         self._terse_notes = []
+        self._commentary = []
+        # Snapshot down state before either side's swing mutates it -- both
+        # sides' actions are simultaneous this round (see module comment).
+        self._was_down = {id(self.a): self.a.down, id(self.b): self.b.down}
         lines = [f'|yellow|--- Round {self.round_num} ---|reset|']
         for side, opp in ((self.a, self.b), (self.b, self.a)):
             if self.done:
@@ -321,6 +371,8 @@ class DuelSession:
         end_lines = getattr(self, 'end_lines', {})
         for side in (self.a, self.b):
             side_lines = list(lines)
+            if side.verbose and self._commentary:
+                side_lines.extend(self._commentary)
             personal = end_lines.get(id(side))
             if personal:
                 side_lines.append(personal)
@@ -335,7 +387,7 @@ class DuelSession:
 
         self.round_num += 1
         for side in (self.a, self.b):
-            await side.ctx.send("Choose: duel attack | duel parry | duel bash | duel flee")
+            await side.ctx.send(_tactic_prompt(side))
 
     def _resolve_swing(self, side: _DuelSide, opp: _DuelSide) -> str:
         """side takes their turn against opp. Mutates HP/shield/armor;
@@ -361,6 +413,8 @@ class DuelSession:
 
         if side.down:
             side.down = False
+            if side.tactic == DuelTactic.ROLL:
+                return f'{side.player.name} rolls out of danger and gets back up!'
             return f'{side.player.name} stands back up.'
 
         if side.tactic == DuelTactic.BASH:
@@ -402,7 +456,13 @@ class DuelSession:
         # keyed by attacker.active_shield_id) as a trained-skill bonus. None
         # of STR/DEX/shield_proficiency are read here yet.
 
-        if random.randint(1, 100) <= max(10, min(90, success_chance)):
+        clamped_chance = max(10, min(90, success_chance))
+        roll = random.randint(1, 100)
+        self._commentary.append(
+            f'  [commentary] {attacker.name} bash vs {defender.name} ({opp.tactic.value}): '
+            f'{clamped_chance}% chance, rolled {roll} -> {"SUCCESS" if roll <= clamped_chance else "FAIL"}'
+        )
+        if roll <= clamped_chance:
             opp.down = True
             self._terse_notes.append(f'{attacker.name} bashes {defender.name} to the ground!')
             return f'{attacker.name} SHIELD BASHES {defender.name} to the ground!'
@@ -430,14 +490,25 @@ class DuelSession:
         hit_delta += hit_bonus
         if not free and _is_predictable(side.history, my_tactic):
             hit_delta -= _STREAK_PENALTY
-        if opp.down:
-            hit_delta += 20  # SPUR yx=3/4/13/14: hitting a downed opponent is much easier
+        if self._was_down.get(id(opp)):
+            # Snapshot from before this round's swings, not the live flag --
+            # see module comment on the Down-state menu for why.
+            if opp.tactic == DuelTactic.ROLL:
+                hit_delta += _ROLLED_HIT_BONUS
+            else:
+                hit_delta += _DOWNED_HIT_BONUS
 
         weapon = getattr(attacker, 'readied_weapon', None)
         stability = float(getattr(weapon, 'stability', 50) or 50) if weapon else 30.0
         miss_sfx, hit_sfx = weapon_sfx(weapon) if weapon else (None, None)
         roll = random.randint(1, 100)
-        if roll > (stability + hit_delta):
+        hit = roll <= (stability + hit_delta)
+        self._commentary.append(
+            f'  [commentary] {attacker.name} ({my_tactic.value}) vs {defender.name} '
+            f'({their_tactic.value}): strike chance mod {hit_delta:+d} (stability '
+            f'{stability:.0f}), rolled {roll} -> {"HIT" if hit else "MISS"}'
+        )
+        if not hit:
             sfx = f'{miss_sfx}  ' if miss_sfx else ''
             return f' {sfx}{attacker.name} swings at {defender.name} and misses.'
 
@@ -453,6 +524,10 @@ class DuelSession:
 
         defender.hit_points = int(getattr(defender, 'hit_points', 1) or 1) - damage
         defender.unsaved_changes = True
+        self._commentary.append(
+            f'  [commentary] damage mod x{dmg_mult:.2f}: raw {raw:.1f} -> '
+            f'{damage} after shield/armor absorption'
+        )
 
         extra = []
         if shield_blocked:
@@ -525,6 +600,10 @@ class DuelSession:
 #                        readied weapon, mirrors SPUR.DUEL.S's no.wep gate)
 #   duel accept       -- accept a pending challenge against you
 #   duel decline      -- decline a pending challenge against you
+#   duel grovel       -- beg out of a pending challenge (SPUR.DUEL.S
+#                        gvl.chk/SPUR.DUEL2.S grovel): 50% chance it fails
+#                        and forces the duel to start anyway; on success, a
+#                        further 50% chance of dropping your silver in hand
 #   duel #standings   -- show guild win/loss standings (guild_standings.py)
 #
 # Only one challenge can be pending against a player at a time
@@ -536,6 +615,7 @@ from commands.messaging import find_online
 from commands.stats import _bhr  # reused rather than re-deriving BHR here
 from guild_standings import load_standings, record_duel_result
 from network_context import GameContext
+import net_common
 
 
 async def _send_challenge(ctx: GameContext, target_ctx) -> CommandResult:
@@ -611,13 +691,87 @@ async def _resolve_challenge(ctx: GameContext, accept: bool) -> CommandResult:
     return CommandResult.ok(f'Duel between {challenger.name} and {defender.name} begun.')
 
 
+def _current_room_name(ctx: GameContext) -> str:
+    game_map = getattr(ctx.server, 'game_map', None)
+    room_no  = getattr(ctx.client, 'room', None)
+    if not game_map or not room_no:
+        return 'the field'
+    level = int(getattr(ctx.player, 'map_level', 1) or 1)
+    room  = game_map.get_room(level, int(room_no))
+    return getattr(room, 'name', None) or 'the field'
+
+
+async def _resolve_grovel(ctx: GameContext) -> CommandResult:
+    """Grovel out of a pending challenge (SPUR.DUEL.S:74-77 "gvl.chk",
+    SPUR.DUEL2.S:198-211 "grovel"): a 50% chance the challenger sees
+    through it and forces the duel to start anyway; on success, a
+    further 50% chance you drop your entire silver-in-hand fleeing, and
+    the encounter is logged to battle.log (SPUR: "<name>, GROVELED
+    BEFORE <opponent>, IN <room>").
+    """
+    defender = ctx.player
+    challenger_name = getattr(defender, 'pending_duel_challenge', None)
+    if not challenger_name:
+        await ctx.send('Nobody has challenged you to a duel.')
+        return CommandResult.fail('No pending challenge.')
+
+    if random.randint(1, 100) > 50:
+        await ctx.send("'Groveling will do you no good!'")
+        return await _resolve_challenge(ctx, accept=True)
+
+    found, _not_found = find_online(ctx, [challenger_name], same_room_only=True)
+    defender.pending_duel_challenge = None
+    if found:
+        await found[0].send(f'{defender.name} grovels before you and slinks away.')
+    await ctx.send(f'{challenger_name} snickers, and waves you on.')
+
+    room_name = _current_room_name(ctx)
+    net_common.append_battle_log(
+        f'{defender.name}, GROVELED BEFORE {challenger_name}, IN {room_name}'
+    )
+
+    if random.randint(1, 100) > 50:
+        from base_classes import PlayerMoneyTypes
+        dropped = defender.get_silver(PlayerMoneyTypes.IN_HAND)
+        if dropped:
+            defender.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 0)
+            defender.unsaved_changes = True
+            await ctx.send(
+                f'In your haste to depart, you dropped your silver sack! ({dropped} silver)'
+            )
+    return CommandResult.ok('Groveled.')
+
+
 async def _submit_tactic(ctx: GameContext, tactic: DuelTactic) -> CommandResult:
     session = getattr(ctx.player, 'active_duel', None)
     if session is None:
         await ctx.send("You're not in a duel. Use DUEL <player> to challenge someone.")
         return CommandResult.fail('No active duel.')
+    side = session.side_for(ctx.player)
+    if side.down and tactic not in _DOWN_TACTICS:
+        await ctx.send("You're on the ground! Choose: duel stand | duel roll")
+        return CommandResult.fail('Down -- must stand or roll.')
+    if not side.down and tactic in _DOWN_TACTICS:
+        await ctx.send("You're not down -- nothing to stand up from.")
+        return CommandResult.fail('Not down.')
     await session.submit(ctx.player, tactic)
     return CommandResult.ok(f'Submitted {tactic.value}.')
+
+
+async def _toggle_verbose(ctx: GameContext) -> CommandResult:
+    """SPUR.DUEL.S:47-49 "verbose" (zq): flips per-side commentary showing
+    the strike-chance/damage modifier breakdown behind each swing (see
+    DuelSession._commentary, appended in _swing/_resolve_bash). Unlike a
+    tactic, this doesn't consume your turn -- flips instantly and doesn't
+    wait on the opponent."""
+    session = getattr(ctx.player, 'active_duel', None)
+    if session is None:
+        await ctx.send("You're not in a duel. Use DUEL <player> to challenge someone.")
+        return CommandResult.fail('No active duel.')
+    side = session.side_for(ctx.player)
+    side.verbose = not side.verbose
+    await ctx.send(f"Duel commentary - {'ON' if side.verbose else 'OFF'}")
+    return CommandResult.ok(f"Verbose {'on' if side.verbose else 'off'}.")
 
 
 async def _show_standings(ctx: GameContext) -> CommandResult:
@@ -646,10 +800,14 @@ class DuelCommand(Command):
             ('duel <player>',   'Challenge a player in your current room.'),
             ('duel accept',     'Accept a pending challenge against you.'),
             ('duel decline',    'Decline a pending challenge against you.'),
+            ('duel grovel',     'Beg out of a pending challenge -- may fail and force the duel anyway.'),
             ('duel attack',     'In an active duel: swing at your opponent.'),
             ('duel parry',      'In an active duel: defend, countering Attack.'),
             ('duel bash',       'In an active duel: shield bash, countering Parry.'),
             ('duel flee',       'In an active duel: try to escape the fight.'),
+            ('duel stand',      'While knocked down: stand back up (only option besides Roll).'),
+            ('duel roll',       'While knocked down: an evasive recovery, harder to punish than Stand.'),
+            ('duel verbose',    "Toggle a modifier breakdown after each swing -- doesn't cost a turn."),
             ('duel #standings', 'Show guild win/loss standings.'),
         ],
         examples = [
@@ -665,23 +823,28 @@ class DuelCommand(Command):
             'have chosen, and both sides see the same result. Parry '
             'counters Attack; Bash counters Parry (knocking them down) but '
             'is risky against a straight Attack; repeating the same move '
-            '3+ times running makes you predictable. The loser is left at '
+            '3+ times running makes you predictable. Knocked down, your '
+            'only options are STAND (plain recovery) or ROLL (an evasive '
+            'recovery that blunts, but doesn\'t erase, how easy a target '
+            'you are that round). The loser is left at '
             'low HP (not killed) and the winner takes their silver in hand. '
             'See "help bhr" for the danger rating shown before you decide '
-            'whether to accept.'
+            'whether to accept. GROVEL is a riskier alternative to DECLINE: '
+            'there\'s a 50% chance your opponent sees through it and forces '
+            'the duel to start anyway, but if it works you may still drop '
+            'your silver in hand fleeing.'
         ),
         notes = [
-            'Rough draft: SPUR\'s Roll (an evasive move while knocked '
-            'down) and re-readying a different weapon mid-duel are not '
-            'ported yet -- a knockdown always resolves as an automatic '
-            'stand-up on your next turn.',
+            'Rough draft: SPUR\'s re-readying a different weapon mid-duel '
+            'is not ported yet.',
         ],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         if not args:
-            if getattr(ctx.player, 'active_duel', None) is not None:
-                await ctx.send('Choose: duel attack | duel parry | duel bash | duel flee')
+            session = getattr(ctx.player, 'active_duel', None)
+            if session is not None:
+                await ctx.send(_tactic_prompt(session.side_for(ctx.player)))
                 return CommandResult.ok('Awaiting tactic.')
             await ctx.send(
                 'Usage: duel <player> | duel accept | duel decline | duel #standings'
@@ -693,8 +856,12 @@ class DuelCommand(Command):
             return await _show_standings(ctx)
         if first == 'accept':
             return await _resolve_challenge(ctx, accept=True)
-        if first in ('decline', 'grovel'):
+        if first == 'decline':
             return await _resolve_challenge(ctx, accept=False)
+        if first == 'grovel':
+            return await _resolve_grovel(ctx)
+        if first == 'verbose':
+            return await _toggle_verbose(ctx)
         if first in _TACTIC_ALIASES:
             return await _submit_tactic(ctx, _TACTIC_ALIASES[first])
 
