@@ -4,8 +4,8 @@ combat/duel.py's DuelSession._end()), and needs to survive a server
 restart. Not a SPUR mechanic -- SPUR's own turf is permanent, baked
 into each room's name at map-build time and never mutated by combat
 (see RoomAlignment's docstring in base_classes.py). This is Ryan's own
-extension: guild territory is capturable via SPORT DUEL, except HQ
-rooms, which stay immutable forever.
+extension: guild territory is capturable via SPORT DUEL, except HQ and
+FREE_FIRE rooms, which stay immutable forever.
 
 Room objects themselves are the live, shared, in-memory source of
 truth (one Map, read once at startup -- see simple_server.py's
@@ -74,9 +74,9 @@ def apply_overrides(game_map) -> None:
     assuming a fixed level range, so it stays correct as levels are added.
     Silently skips rooms that no longer exist (map data changed since the
     override was recorded) or whose current (fresh-from-JSON) alignment is
-    HQ -- HQ is immutable even here, in case a bug or manual edit ever
-    wrote one out (belt-and-suspenders on top of the same guard in
-    combat/duel.py's capture logic).
+    HQ or FREE_FIRE -- both immutable even here, in case a bug or manual
+    edit ever wrote one out (belt-and-suspenders on top of the same guard
+    in combat/duel.py's capture logic).
     """
     from base_classes import RoomAlignment
     if game_map is None or not _STATE_DIR.exists():
@@ -93,7 +93,7 @@ def apply_overrides(game_map) -> None:
             except ValueError:
                 continue
             room = game_map.get_room(level, room_number)
-            if room is None or room.alignment == RoomAlignment.HQ:
+            if room is None or room.alignment in (RoomAlignment.HQ, RoomAlignment.FREE_FIRE):
                 continue
             try:
                 room.alignment = RoomAlignment(value)

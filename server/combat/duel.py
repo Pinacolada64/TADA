@@ -584,6 +584,44 @@ class DuelSession:
             loser_g = str(loser_guild.value if hasattr(loser_guild, 'value') else loser_guild)
             record_duel_result(winner_g, loser_g)
 
+        self._try_capture_turf(winner_side, winner_guild)
+
+    def _try_capture_turf(self, winner_side: '_DuelSide', winner_guild) -> None:
+        """Ryan's own extension, NOT a SPUR mechanic (see room_alignment.py's
+        module docstring -- SPUR's own turf is permanent, baked into room
+        names at map-build time and never mutated by combat). Winning a
+        decisive SPORT DUEL flips the room's RoomAlignment to the winner's
+        guild, unless the room is a guild HQ or a FREE_FIRE zone (both
+        immutable forever, checked both here and again in
+        room_alignment.apply_overrides() as belt-and-suspenders) or
+        already aligned to that guild. Civilian/Outlaw winners have no
+        guild to plant a flag for, so they can't capture turf at all.
+        """
+        from base_classes import Guild, RoomAlignment
+        if winner_guild not in (Guild.FIST, Guild.CLAW, Guild.SWORD):
+            return
+        game_map = getattr(getattr(winner_side.ctx, 'server', None), 'game_map', None)
+        if game_map is None:
+            return
+        winner = winner_side.player
+        level = int(getattr(winner, 'map_level', 1) or 1)
+        room_number = int(getattr(winner, 'map_room', 0) or 0)
+        room = game_map.get_room(level, room_number)
+        if room is None or room.alignment in (RoomAlignment.HQ, RoomAlignment.FREE_FIRE):
+            return
+        target = RoomAlignment[winner_guild.name]
+        if room.alignment == target:
+            return
+
+        room.alignment = target
+        from room_alignment import record_capture
+        record_capture(level, room_number, target)
+
+        self._terse_notes.append(f'{winner.name} claims {room.name} for {winner_guild.value}!')
+        capture_line = f'|yellow|You claim this room for {winner_guild.value}!|reset|'
+        existing = self.end_lines.get(id(winner_side))
+        self.end_lines[id(winner_side)] = f'{existing}\n{capture_line}' if existing else capture_line
+
 
 # ---------------------------------------------------------------------------
 # DuelCommand -- the player-facing DUEL command

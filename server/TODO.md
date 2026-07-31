@@ -1380,3 +1380,25 @@
   (`battle.log` -> `battle.log.1`, gzip older ones, or just truncate
   past N days) plus a minimal always-on scheduler task if the server
   doesn't already have a good hook for "run this once every 24h".
+
+7/31/26:
+- Guild HQ standings menu (Ryan): standing in a guild's HQ room
+  (`RoomAlignment.HQ`, `base_classes.py:403`) should surface a menu
+  option to view that guild's standings -- both (1) player win/loss
+  ratios against other guilds (per-player, not currently tracked
+  anywhere -- `guild_standings.py` only tallies guild-vs-guild
+  aggregate wins/losses, not individual player records) and (2) guild
+  squares in their favor (turf capture counts -- `room_alignment.py`,
+  added 7/31/26, persists captures per-level in
+  `run/server/room_alignment_level_<N>.json`, but nothing currently
+  aggregates "how many rooms does each guild currently hold" from
+  those files or the live `Room.alignment` values across the loaded
+  map). Needs: a per-player win/loss stat (new field or derived from
+  `kill_log`-style per-duel record), a "count rooms by current
+  alignment across all levels" query (walk `game_map.levels`, tally by
+  `RoomAlignment`), and a menu command gated on the player's current
+  room being their own guild's HQ (`player.guild` matching whichever
+  guild owns that HQ -- HQ rooms don't currently record *which* guild
+  they belong to as distinct data, just the single `RoomAlignment.HQ`
+  value, so may need a way to know a given HQ room's owning guild,
+  e.g. from the room name/level data or a small static mapping).
