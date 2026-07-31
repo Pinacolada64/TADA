@@ -1668,6 +1668,12 @@ class CombatSession:
             _give_silver(player, gold)
             await ctx.send(f'You find {gold} gold pieces on {mname}!')
 
+        # Droid/robot salvage: parts drop + energy-weapon power pak
+        # recharge (SPUR.MISC.S:406-415, "no.gold"/"no.salvg" labels --
+        # right after the gold roll in source order).
+        from encounters.droid_salvage import apply as apply_droid_salvage
+        await apply_droid_salvage(ctx, self.monster)
+
         # WIS improvement on solo kill (SPUR.COMBAT.S line 194):
         #   if x1 goto p.a3  ← skip WIS if ally dealt killing blow (x1 set in p.a1)
         #   if pw<12 then pw=pw+1:print "(YOU FEEL A BIT WISER)"
