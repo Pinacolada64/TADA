@@ -190,6 +190,12 @@ class Server:
             logging.exception('Failed to load map')
             self.game_map = None
 
+        try:
+            from room_alignment import apply_overrides
+            apply_overrides(self.game_map)
+        except Exception:
+            logging.exception('Failed to apply room alignment overrides')
+
         self._place_wild_horse()
         self._place_dwarf()
 
