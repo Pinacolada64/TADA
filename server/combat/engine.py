@@ -350,6 +350,25 @@ def _set_monster_hp(monster: dict, hp: int) -> None:
         monster['hit_points'] = hp
 
 
+def _has_living_ally(player) -> bool:
+    """True if the player's party has at least one ally who can still fight
+    (SPUR.COMBAT.S:82 "(a1+a2+a3)<1" -- summed hit points of the three ally
+    slots). Same DEAD/UNCONSCIOUS/hp<=0 exclusions as _ally_swings()."""
+    from bar.ally_data import Ally, AllyStatus
+
+    party = getattr(player, 'party', None)
+    if not party:
+        return False
+    for member in party:
+        if not isinstance(member, Ally):
+            continue
+        if getattr(member, 'status', None) in (AllyStatus.DEAD, AllyStatus.UNCONSCIOUS):
+            continue
+        if getattr(member, 'hit_points', 0) > 0:
+            return True
+    return False
+
+
 # Classic-sounding horse names for the 'R' random-name option (SPUR original
 # has no equivalent -- mounts weren't gendered there at all). All 4-12
 # characters, no punctuation, so they pass _prompt_horse_name()'s own rules.
@@ -903,13 +922,14 @@ class CombatSession:
 
             # ---- player prompt (skipped if weapon auto-attacked) ----
             is_charge = False
+            is_lurking = False
             if not auto_attack:
                 charge_opt = '  [C]harge' if self._charge_eligible else ''
                 # Options go in the preamble, not the prompt line itself --
                 # with [C]harge/[R]eady/e[X]it all present the full line
                 # ran past narrow screen widths (e.g. 40-column PETSCII).
                 preamble = [
-                    f'[A]ttack{charge_opt}  [F]lee  [R]eady  e[X]it  ({player.return_key}: Attack)',
+                    f'[A]ttack{charge_opt}  [L]urk  [F]lee  [R]eady  e[X]it  ({player.return_key}: Attack)',
                     f'(HP:{getattr(player, "hit_points", "?")}'
                     f'  {mname} HP:{_monster_hp(self.monster)})',
                 ]
@@ -920,6 +940,12 @@ class CombatSession:
                 cmd = (raw.strip().lower() or 'a')[0]
                 if cmd == 'c' and not self._charge_eligible:
                     await ctx.send('You can not CHARGE now.')
+                    continue
+                # LURK (SPUR.COMBAT.S:82 "NO ALLIES - NO LURK!") -- refused
+                # and re-prompted, same as an ineligible CHARGE, rather than
+                # spending the round.
+                if cmd == 'l' and not _has_living_ally(player):
+                    await ctx.send('No allies — no LURK!')
                     continue
                 if cmd == 'f':
                     fled = await self.flee(ctx)
@@ -935,52 +961,65 @@ class CombatSession:
                     # attempt -- just skip the turn and re-prompt.
                     continue
                 is_charge = cmd == 'c'
+                is_lurking = cmd == 'l'
 
             # Default: attack
             async with self._lock:
                 if self._done.is_set():
                     break
 
-                # Player swings — +1 ep per attempt (SPUR.COMBAT.S line 103)
-                result = self._swing(ctx, is_charge=is_charge)
-                await _add_exp(ctx, exp_per_swing())
-                await self._narrate_player_swing(ctx, result)
+                # LURK (SPUR.COMBAT.S:87-96, p.attack): Honor cost + the
+                # fire-over-your-ally's-head/lurk-behind-your-allies branch.
+                # A melee weapon, an empty ammo weapon, or a LIGHT-named
+                # weapon (LIGHT SABRE) never fires -- the swing is skipped
+                # entirely and only the allies attack this round.
+                result = None
+                if is_lurking:
+                    if await self._lurk_resolve(ctx):
+                        result = self._swing(ctx, is_charge=is_charge, is_lurking=True)
+                else:
+                    # Player swings — +1 ep per attempt (SPUR.COMBAT.S line 103)
+                    result = self._swing(ctx, is_charge=is_charge)
 
-                # Ammo consumed this swing (SPUR.COMBAT.S:99 vn=vn-1)
-                if result.round_max > 0 and result.round_count is not None:
-                    player.ammo_rounds = result.round_count
-                    player.unsaved_changes = True
-                    if not result.hit:
-                        await self._stray_round(ctx, result.weapon_name,
-                                                weapon_id=result.weapon_id)
+                if result is not None:
+                    await _add_exp(ctx, exp_per_swing())
+                    await self._narrate_player_swing(ctx, result)
 
-                # Apply DEX improvement from a significant hit
-                if result.dex_improved:
-                    _apply_dex_change(player, +1)
+                    # Ammo consumed this swing (SPUR.COMBAT.S:99 vn=vn-1)
+                    if result.round_max > 0 and result.round_count is not None:
+                        player.ammo_rounds = result.round_count
+                        player.unsaved_changes = True
+                        if not result.hit:
+                            await self._stray_round(ctx, result.weapon_name,
+                                                    weapon_id=result.weapon_id)
 
-                # Scare: loud weapon frightens monster away early in fight
-                # (SPUR.COMBAT.S scare subroutine, lines 423-430)
-                if result.monster_scared:
-                    mname_scare = monster_display_name(self.monster).upper()
-                    await ctx.send(
-                        f'THE THUNDERING NOISE OF THE {result.weapon_name} '
-                        f'SCARES {mname_scare} AWAY!'
-                    )
-                    await ctx.send_room(
-                        f'{monster_display_name(self.monster, capitalize=True)} flees in terror from the noise!',
-                        exclude_self=True,
-                    )
-                    self._done.set()
-                    self._remove_attacker(ctx)
-                    return
+                    # Apply DEX improvement from a significant hit
+                    if result.dex_improved:
+                        _apply_dex_change(player, +1)
 
-                # Total damage = direct + FIREBALL secondary heat
-                total_player_dmg = result.damage + result.fireball_secondary
-                _set_monster_hp(self.monster, _monster_hp(self.monster) - total_player_dmg)
+                    # Scare: loud weapon frightens monster away early in fight
+                    # (SPUR.COMBAT.S scare subroutine, lines 423-430)
+                    if result.monster_scared:
+                        mname_scare = monster_display_name(self.monster).upper()
+                        await ctx.send(
+                            f'THE THUNDERING NOISE OF THE {result.weapon_name} '
+                            f'SCARES {mname_scare} AWAY!'
+                        )
+                        await ctx.send_room(
+                            f'{monster_display_name(self.monster, capitalize=True)} flees in terror from the noise!',
+                            exclude_self=True,
+                        )
+                        self._done.set()
+                        self._remove_attacker(ctx)
+                        return
 
-                if _monster_hp(self.monster) <= 0:
-                    await self._monster_dies(ctx, player_killed=True)
-                    return
+                    # Total damage = direct + FIREBALL secondary heat
+                    total_player_dmg = result.damage + result.fireball_secondary
+                    _set_monster_hp(self.monster, _monster_hp(self.monster) - total_player_dmg)
+
+                    if _monster_hp(self.monster) <= 0:
+                        await self._monster_dies(ctx, player_killed=True)
+                        return
 
                 # Ally swings (party members)
                 await self._ally_swings(ctx)
@@ -1160,7 +1199,8 @@ class CombatSession:
     # Internal: single swing
     # ------------------------------------------------------------------
 
-    def _swing(self, ctx: 'GameContext', is_charge: bool = False) -> AttackResult:
+    def _swing(self, ctx: 'GameContext', is_charge: bool = False,
+               is_lurking: bool = False) -> AttackResult:
         """Compute one player attack swing."""
         player  = ctx.player
         weapon  = getattr(player, 'readied_weapon', None)
@@ -1188,7 +1228,61 @@ class CombatSession:
             is_mounted=player.query_flag(PlayerFlags.MOUNTED),
             is_charge=is_charge,
             is_surprise=self.is_surprise,
+            is_lurking=is_lurking,
         )
+
+    # ------------------------------------------------------------------
+    # Internal: LURK resolution
+    # ------------------------------------------------------------------
+
+    async def _lurk_resolve(self, ctx: 'GameContext') -> bool:
+        """Resolve the Honor cost and fire/skip branch for a LURK swing
+        (SPUR.COMBAT.S:87-96, p.attack). Sends the "you lurk behind your
+        allies"/"you fire over your ally's head" message and deducts Honor.
+
+        Returns True if the player still gets to swing this round (ammo
+        weapon, loaded, not a LIGHT-named weapon); False if the swing is
+        skipped entirely and only the allies attack.
+        """
+        player = ctx.player
+        weapon = getattr(player, 'readied_weapon', None)
+        weapon_name = (getattr(weapon, 'name', '') or '').upper()
+        wc = getattr(weapon, 'weapon_class', None) if weapon else None
+        wc_str = (wc.value if hasattr(wc, 'value') else str(wc)) if wc else ''
+        is_ammo_type = wc_str in ('projectile', 'energy')
+        ammo_rounds = int(getattr(player, 'ammo_rounds', 0) or 0)
+
+        # zz$="*" cases (SPUR.COMBAT.S:91-92): out of ammo for an ammo
+        # weapon, or a LIGHT-named weapon (e.g. LIGHT SABRE) -- both cost
+        # an extra point of Honor and never fire.
+        out_of_ammo = is_ammo_type and ammo_rounds < 1
+        light_named = 'LIGHT' in weapon_name
+        zz_star = out_of_ammo or light_named
+        fires = is_ammo_type and not zz_star
+
+        # Honor cost (SPUR.COMBAT.S:87-93)
+        from base_classes import PlayerClass
+        p2 = 3 if getattr(player, 'char_class', None) == PlayerClass.ASSASSIN else 2
+        hp = getattr(player, 'hit_points', 0)
+        if hp > 20:
+            p2 += 1
+        if hp < 10:
+            p2 -= 1
+            if hp < 5:
+                p2 -= 1
+        if zz_star:
+            p2 -= 1
+        p2 = max(p2, 0)
+
+        honor = int(getattr(player, 'honor', 0) or 0)
+        if honor > p2:
+            player.honor = honor - p2
+
+        if fires:
+            await ctx.send("You fire over your ally's head..")
+        else:
+            await ctx.send('You lurk behind your allies.')
+        return fires
 
     # ------------------------------------------------------------------
     # Internal: ally swings
