@@ -370,10 +370,20 @@ class DuelSession:
 
     def _resolve_bash(self, side: _DuelSide, opp: _DuelSide) -> str:
         attacker, defender = side.player, opp.player
+        shield     = int(getattr(attacker, 'shield', 0) or 0)
+        opp_shield = int(getattr(defender, 'shield', 0) or 0)
+
         # Bash beats a Parrying opponent (knocks them down); risky against
         # a straight Attack (the basher is exposed mid-shove).
         if opp.tactic == DuelTactic.PARRY:
             success_chance = 65
+            # SPUR.DUEL.S:449/454: a parrying defender with the SMALLER
+            # shield is more agile and harder to bash -- (attacker_shield -
+            # defender_shield) / 3 knocked off the bash's success chance.
+            # Only the smaller side benefits; a larger shield grants nothing
+            # here (SPUR's mirror-image checks are each one-directional).
+            if opp_shield < shield:
+                success_chance -= (shield - opp_shield) // 3
         elif opp.tactic == DuelTactic.ATTACK:
             success_chance = 35
         else:
@@ -381,7 +391,6 @@ class DuelSession:
         if _is_predictable(side.history, DuelTactic.BASH):
             success_chance -= _STREAK_PENALTY
 
-        shield = int(getattr(attacker, 'shield', 0) or 0)
         success_chance += shield // 10  # a shield helps you shove, per tips.txt's shield-scaling flavor
         # TODO: success_chance only factors the shield's condition rating.
         # A shove-to-the-ground move like this should plausibly also weigh

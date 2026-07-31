@@ -80,6 +80,39 @@ class TestOffenseRating(unittest.TestCase):
         self.assertLessEqual(rating, 9)
 
 
+class TestBashShieldParryBonus(unittest.TestCase):
+    """SPUR.DUEL.S:449/454: a parrying defender with the smaller shield is
+    more agile and harder to bash -- (attacker_shield - defender_shield)/3
+    knocked off the basher's success chance. Only the smaller side
+    benefits; equal or larger shields grant nothing."""
+
+    def test_smaller_shield_parry_reduces_bash_success(self):
+        session, a, b = _make_session()
+        a.shield = 30
+        b.shield = 0
+        side_a, side_b = session.side_for(a), session.side_for(b)
+        side_b.tactic = DuelTactic.PARRY
+        # Base (opp parrying) = 65, +shield//10 (30//10=3) = 68, minus the
+        # smaller-shield bonus (30-0)//3=10 -> 58. A roll of 60 clears 58
+        # (bash fails) but would have cleared the un-bonused 68 (bash
+        # would've succeeded) -- proves the bonus actually shifted the gate.
+        with patch('random.randint', return_value=60):
+            session._resolve_bash(side_a, side_b)
+        self.assertFalse(side_b.down)
+
+    def test_equal_shield_grants_no_parry_bonus(self):
+        session, a, b = _make_session()
+        a.shield = 30
+        b.shield = 30
+        side_a, side_b = session.side_for(a), session.side_for(b)
+        side_b.tactic = DuelTactic.PARRY
+        # No differential -> success_chance = 65 + 3 (attacker's own
+        # shield//10) = 68; a roll of 60 clears it, bash succeeds.
+        with patch('random.randint', return_value=60):
+            session._resolve_bash(side_a, side_b)
+        self.assertTrue(side_b.down)
+
+
 class TestPredictability(unittest.TestCase):
     def test_not_predictable_below_streak_len(self):
         history = [DuelTactic.ATTACK] * (_STREAK_LEN - 1)
