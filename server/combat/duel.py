@@ -86,8 +86,15 @@ TADA IMPLICATIONS
 # table instead -- small deliberate duplication, kept in sync by hand.
 #
 # Not ported yet: re-readying a different weapon mid-duel, and SPUR's
-# turf-bonus/Wizard-glow/guild-support modifiers. Noted in
-# TODO.md/TODO_HELP.md.
+# turf-bonus (accuracy/damage for fighting in your own guild's
+# territory -- distinct from turf CAPTURE, which is ported, see
+# room_alignment.py) and Wizard-glow (+20 shield status flag)
+# modifiers. Noted in TODO.md/TODO_HELP.md.
+#
+# Guild support (SPUR.DUEL.S:113-136 "follow"): ported as _guild_support(),
+# computed once per side at duel start and stored on _DuelSide.support --
+# see that function's docstring for how it's simplified from SPUR's own
+# yt$/mark-counter parsing down to a room-local guildmate headcount.
 #
 # Down-state menu (SPUR.DUEL.S:20-45 duel/down labels): while knocked down
 # (_DuelSide.down), Attack/Parry/Bash/Flee are unavailable -- only Stand
@@ -180,6 +187,7 @@ class _DuelSide:
     tactic: Optional[DuelTactic] = None
     down: bool = False
     verbose: bool = False   # SPUR zq, toggled by `duel verbose` -- see _swing/_resolve_bash commentary
+    support: int = 0        # SPUR zv, "follow" -- see _guild_support(), computed once at duel start
     history: list = field(default_factory=list)   # last few DuelTactic choices, streak tracking
 
 
@@ -209,6 +217,45 @@ def _offense_rating(player, weapon) -> int:
     skill_bonus, _dmg_bonus = weapon_bonus(weapon, class_str, race_str) if weapon else (0, 0)
     level = int(getattr(player, 'xp_level', 1) or 1)
     return max(3, min(9, 4 + skill_bonus + (level // 3)))
+
+
+def _guild_support(side: '_DuelSide') -> int:
+    """SPUR.DUEL.S:113-136 "follow": count of online guildmates present to
+    cheer this side on, capped at 5, added flatly to accuracy and damage
+    for the rest of the duel (SPUR: "You are supported by N Guild
+    members!" / "Guild support adds: Damage & accuracy = N"). Computed
+    once at duel start (SPUR computes it once at weapon-ready time too,
+    not per-round).
+
+    Simplified from SPUR's own yt$ status-string parsing (which also
+    folds in a server-wide per-guild mark counter, zm/vy/vq, tallied
+    elsewhere in SPUR.MISC5.S) down to a plain "how many same-guild
+    players are in this room right now" headcount -- this port's duels
+    are already room-scoped (see module comment), so a room-local count
+    is the natural equivalent without needing to port the mark-counter
+    machinery. Civilian/Outlaw duelists have no guild to draw support
+    from.
+    """
+    from base_classes import Guild
+    guild = getattr(side.player, 'guild', Guild.CIVILIAN)
+    if guild in (Guild.CIVILIAN, Guild.OUTLAW):
+        return 0
+    server = getattr(side.ctx, 'server', None)
+    my_client = getattr(side.ctx, 'client', None)
+    my_room = getattr(my_client, 'room', None)
+    if server is None or my_room is None:
+        return 0
+    count = 0
+    for other_client in getattr(server, 'clients', {}).values():
+        if other_client is my_client:
+            continue
+        if getattr(other_client, 'room', None) != my_room:
+            continue
+        other_ctx = getattr(other_client, 'ctx', None)
+        other_player = getattr(other_ctx, 'player', None) if other_ctx else None
+        if other_player is not None and getattr(other_player, 'guild', None) == guild:
+            count += 1
+    return min(count, 5)
 
 
 def _tactic_prompt(side: '_DuelSide') -> str:
@@ -488,6 +535,7 @@ class DuelSession:
 
         hit_delta, dmg_mult = _INTERACTION.get((my_tactic, their_tactic), (0, 1.0))
         hit_delta += hit_bonus
+        hit_delta += side.support   # SPUR "follow": guild support adds to accuracy too
         if not free and _is_predictable(side.history, my_tactic):
             hit_delta -= _STREAK_PENALTY
         if self._was_down.get(id(opp)):
@@ -513,6 +561,7 @@ class DuelSession:
             return f' {sfx}{attacker.name} swings at {defender.name} and misses.'
 
         raw = _weapon_damage(attacker, weapon) * dmg_mult
+        raw += side.support   # SPUR "follow": guild support adds to damage too
         level_diff = int(getattr(attacker, 'xp_level', 1) or 1) - int(getattr(defender, 'xp_level', 1) or 1)
         if level_diff > 0:
             raw += level_diff / 2
@@ -721,10 +770,21 @@ async def _resolve_challenge(ctx: GameContext, accept: bool) -> CommandResult:
     challenger.active_duel = session
     defender.active_duel = session
 
+    session.a.support = _guild_support(session.a)
+    session.b.support = _guild_support(session.b)
+
     header = f'|yellow|=== DUEL: {challenger.name} vs. {defender.name} ===|reset|'
     prompt = "Choose: duel attack | duel parry | duel bash | duel flee"
-    await challenger_ctx.send('', header, prompt)
-    await ctx.send('', header, prompt)
+    challenger_lines = ['', header, prompt]
+    defender_lines = ['', header, prompt]
+    if session.a.support:
+        plural = 's' if session.a.support > 1 else ''
+        challenger_lines.insert(1, f'You are supported by {session.a.support} Guild member{plural}!')
+    if session.b.support:
+        plural = 's' if session.b.support > 1 else ''
+        defender_lines.insert(1, f'You are supported by {session.b.support} Guild member{plural}!')
+    await challenger_ctx.send(challenger_lines)
+    await ctx.send(defender_lines)
     await session._broadcast_bystanders(f'{challenger.name} and {defender.name} begin a duel!')
     return CommandResult.ok(f'Duel between {challenger.name} and {defender.name} begun.')
 
@@ -870,11 +930,16 @@ class DuelCommand(Command):
             'whether to accept. GROVEL is a riskier alternative to DECLINE: '
             'there\'s a 50% chance your opponent sees through it and forces '
             'the duel to start anyway, but if it works you may still drop '
-            'your silver in hand fleeing.'
+            'your silver in hand fleeing. If online guildmates (up to 5) '
+            'are in the room when the duel begins, they lend you Guild '
+            'support -- a flat bonus to your accuracy and damage for the '
+            'whole fight. Winning as a guild member also claims the room '
+            'for your guild, unless it\'s a guild HQ or free-fire zone.'
         ),
         notes = [
-            'Rough draft: SPUR\'s re-readying a different weapon mid-duel '
-            'is not ported yet.',
+            'Rough draft: SPUR\'s re-readying a different weapon mid-duel, '
+            'turf bonus (fighting on your own guild\'s territory), and '
+            'Wizard glow are not ported yet.',
         ],
     )
 
