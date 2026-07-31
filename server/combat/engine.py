@@ -439,17 +439,26 @@ class CombatSession:
         await self._join_attacker(ctx)
         await self._run_loop(ctx)
 
-    async def join(self, ctx: 'GameContext') -> None:
-        """A bystander joins mid-fight (they typed 'attack <monster>').
+    async def join(self, ctx: 'GameContext', is_lurking: bool = False) -> None:
+        """A bystander joins mid-fight (they typed 'attack <monster>', or
+        'lurk <monster>' -- see commands/lurk.py).
 
         Also how an already-joined bystander takes their next swing --
         commands/attack.py calls this every time a bystander re-types
         'attack', not just the first time (see AttackCommand.execute()'s
         docstring note) -- so the room-join announcement only fires once,
         on the swing where they weren't already in self.attackers.
+
+        LURK doesn't redirect the monster's counter-attack here the way it
+        does in _run_loop()/_resolve_monster_hit() -- the monster only ever
+        swings back at the round leader (see monster_attacks() call sites),
+        never at a bystander's join() swing, so there's nothing to redirect.
         """
         if self._done.is_set():
             await ctx.send('That monster is already dead.')
+            return
+        if is_lurking and not lurk.has_living_ally(ctx.player):
+            await ctx.send('No allies — no LURK!')
             return
         is_new_attacker = ctx not in self.attackers
         if is_new_attacker and self.leader is not None and self.leader is not ctx:
@@ -469,7 +478,14 @@ class CombatSession:
         async with self._lock:
             if self._done.is_set():
                 return
-            result = self._swing(ctx)
+            result = None
+            if is_lurking:
+                if await lurk.resolve_swing(ctx):
+                    result = self._swing(ctx, is_lurking=True)
+            else:
+                result = self._swing(ctx)
+            if result is None:
+                return
             await _add_exp(ctx, exp_per_swing())
             await self._narrate_player_swing(ctx, result, bystander=True)
             if result.round_max > 0 and result.round_count is not None:
