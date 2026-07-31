@@ -1363,3 +1363,20 @@
     zone) -- would need a server-setup option to configure the server's
     "in-world" lat/long so day length and moon phases track a real
     location instead of a fixed/generic cycle.
+
+- Nightly maintenance routine to rotate logs (Ryan, ops/no SPUR
+  precedent -- this is a modern-ops concern, not a port). `battle.log`
+  (`net_common.append_battle_log()`, `net_common.py:31`, appended to by
+  `combat/engine.py`, `combat/duel.py`'s new grovel path, `victory.py`,
+  etc.) and whatever `_append_capture_log()` writes
+  (`net_common.py:37`'s docstring mentions it but the actual function
+  wasn't found in this pass -- worth locating) both just grow forever
+  under `run/server/` with no rotation/truncation today. No scheduler
+  exists anywhere in the server (`simple_server.py` has no
+  cron/periodic-task runner -- confirmed no `nightly`/`maintenance`/
+  `periodic` hits outside the unrelated Dwarf relocation-timer comment)
+  to hang a nightly job off of, so this needs both the job itself and
+  someplace to run it from -- e.g. size- or date-based rotation
+  (`battle.log` -> `battle.log.1`, gzip older ones, or just truncate
+  past N days) plus a minimal always-on scheduler task if the server
+  doesn't already have a good hook for "run this once every 24h".
