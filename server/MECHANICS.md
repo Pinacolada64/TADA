@@ -521,6 +521,11 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **QUOTE command** — player sets a short quote (60 char max) shown to others who see them in a room; `$` substituted with the *reading* player's name; View/Write/Quit menu (`SPUR.MISC2.S:488-503`; also wired into character creation, `SPUR.LOGON.S:410,618-624`) (`commands/quote.py`, `commands/new_player.py`)
 - **LOOT command** — search an unconscious player's inventory; one item per session; Civilians barred from the Shoppe after looting (tips.txt); see also Items section above
 - ✅ **The Dwarf** — wandering level-1 NPC; steals silver (or an item once broke) from players via a per-move roll, appears as a fightable encounter in his own room, awards his entire shared hoard to whoever kills him (`encounters/dwarf.py`; `SPUR.LOGON.S`/`SPUR.MAIN.S`/`SPUR.MISC5.S`). Per-player kill immunity and periodic relocation are this port's own additions, not from SPUR (original places him once at world-init and never moves him).
+- **The Thief** — random per-move weapon-stealing encounter, not the Thief *character class* (`SPUR.MAIN.S:231`/`271` gosub `thief` local label, `SPUR.MISC.S:60-70`). Gated behind a **3% roll** (`rnd.100a`, `a<3`) and requires the player to be **carrying 3+ weapons** (`SPUR.MAIN.S thief:` `if xw<3 return` — no weapon is ever stolen down to fewer than 2 in hand). If triggered:
+  1. **No-flee rooms are exempt** — `if instr("@@",lo$)` ("the thief can't get you here!"), the same `@@` water/no-flee room flag used elsewhere, not steal-specific.
+  2. **Wizard's Glow (or any active protective aura) scares him off** — `if tm=>mm` (aura-expiry move number `tm` still ≥ the current move counter `mm`) prints "and is scared by the magical aura surrounding you" and ends the encounter with nothing taken.
+  3. **"Sees who you are, and quickly leaves" roll** — `z=rnd.10z` (uniform 1-10); if `(z-1)<xp` (player's XP level beats the roll) it **rerolls** `z`, then either way checks `if z>4` to flee. Traced through: because `rnd.10z` draws are i.i.d. uniform 1-10, the reroll doesn't actually change the 60% (6-in-10) flee odds one way or the other — whether or not the reroll fires, the final `z>4` check is drawn from the same distribution. As written, this reads as a **non-functional flourish in the original BASIC**: it looks like a level-based recognition check but has no measurable effect on outcome versus a flat "60% chance the thief just leaves" roll. Worth an explicit ask-Ryan before "fixing" this if ported — it may be intentional filler/flavor rather than a bug to correct.
+  4. **Otherwise, steals one weapon** — picks a random slot among the player's carried weapons (`x=random(xw)`, or the sole weapon if `xw=1`), removes it via the shared `drp.wpn` subroutine (same routine used by the DROP command, so the weapon is deleted from the player's `xw$` list outright, not placed in the room), prints "knocks you down, and vanishes!! As you gather your weapons, you see one missing!".
 - **Special room traversal requirements** — snow/mountain rooms (`**` flag) require a Great Coat (item #78) or player freezes; water rooms (`@@` flag) require a Boat (levels 1–5) or Space Suit (level 6+); checks in `SPUR.MAIN.S:313–319` and `t_main.lbl`.
   **`@@`/`water` is a reused, misleading flag name on level 6**: SPUR's source
   literally swaps the requirement string at `SPUR.MAIN.S:158,179` --
@@ -789,7 +794,9 @@ Locker belongs to the Shoppe (`shoppe/locker.py`), not here.
   in the bar (`SPUR.BAR.S`, `SPUR.BAR3.S`; `bar/vinny.py` — `_apply_loan()`,
   `_pay_loan()`, `_store_money()`, `_get_money()`)
 - ✅ **Skip** — food/drink vendor (`SPUR.BAR2.S`; `bar/skip.py`)
-- ✅ **Bar None** — Guss the barkeep; coin flips, blackjack (`SPUR.BAR2.S`; `bar/bar_none.py`)
+- ✅ **Bar None** — two bartenders on a day/night shift split by real-clock time: Mae
+  (06:00–19:59) runs the food/drink menu; Guss (20:00–05:59) offers talk, coin
+  flips, and blackjack (`SPUR.BAR2.S`; `bar/bar_none.py`)
 - ✅ **Zelda** — reanimates monsters for players; studies and displays player stats (`SPUR.BAR.S`; `bar/zelda.py`)
 - ✅ **Blue Djinn** — hire another player attacked; contract persisted to
   `hit_contracts.json` (`SPUR.BAR.S`; `bar/blue_djinn.py` `_hire()`,
@@ -864,12 +871,9 @@ for exactly this reason.
 - ✅ **Per-player display preference** — `command_settings.news_show_all` (PREFS key `N`)
   chooses between a full directory every login vs. just what's new since
   `player.last_connection`.
-
-#### Future
-- **Post editing via a real line editor** — admin authoring in `commands/news.py` currently uses
-  a plain `END`-terminated multi-line prompt (same convention as `threaded_messages.py`'s
-  `create_new_thread()`), not `text_editor.py` (the shared line-editor prototyped on the
-  not-yet-merged `text_editor` branch). Swap it in once that branch lands.
+- ✅ **Post editing via the shared line editor** — admin authoring (`news post` / `news edit
+  <id>`) uses `text_editor.run_editor()`, the same `ed`-style line editor used by MAIL's long-form
+  composing below (`commands/news.py`).
 
 ### Mail / Paging
 

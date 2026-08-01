@@ -422,18 +422,6 @@ class Ally(object):
         pass
 
 
-class Horse(object):
-    def __init__(self):
-        """
-        horse[name: str, have_horse: bool, armor: int, saddlebags: bool,
-        saddle: bool, armor: int, training: bool (I think), mounted_on_horse: bool,
-        lasso: bool
-        inventory[]  # mash, hay, oats, apples, sugar cubes
-        ]
-        """
-        pass
-
-
 if __name__ == '__main__':
     # import logging
     logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] | %(message)s')

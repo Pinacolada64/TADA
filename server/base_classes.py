@@ -253,6 +253,44 @@ class PlayerRace(StrEnum):
     HALF_ELF = 'Half-Elf'  # 9
 
 
+class HorseBreed(StrEnum):
+    """Display-only flavor for a captured/purchased MOUNT ally (bar/ally_data.py's
+    Ally, AllyFlags.MOUNT) -- has no mechanical effect on combat/movement.
+
+    This is the consolidated home for horse-specific vocabulary, superseding
+    three earlier, unfinished attempts at a standalone Horse class
+    (characters.py, character_editor.py, players.py -- none wired into the
+    live game, all removed). A horse itself is deliberately not a separate
+    class in the data model -- it's an ordinary Ally flagged AllyFlags.MOUNT,
+    same as every other ally type; these enums are just the shared vocabulary
+    that field draws from, not a parallel character hierarchy.
+
+    Not SPUR-derived -- new to TADA (per Ryan, 8/1/26). List seeded with
+    common real-world breeds; open to extending.
+    """
+    ARABIAN = "Arabian"
+    QUARTER_HORSE = "Quarter Horse"
+    THOROUGHBRED = "Thoroughbred"
+    CLYDESDALE = "Clydesdale"
+    MUSTANG = "Mustang"
+
+
+class HorseColor(StrEnum):
+    """Coat colour for a MOUNT ally -- see HorseBreed's docstring. Also
+    display-only, no mechanical effect.
+
+    Palomino is a coat colour (gold coat, white mane/tail), not a breed --
+    confirmed against Wikipedia after an earlier draft of this feature
+    miscategorized it.
+    """
+    PALOMINO = "Palomino"
+    ROAN = "Roan"
+    BLACK = "Black"
+    WHITE = "White"
+    BAY = "Bay"
+    CHESTNUT = "Chestnut"
+
+
 class PlayerRaceText(StrEnum):
     HUMAN = ("The most adaptable and widespread race, humans are known for their diversity, ambition, and resilience. "
              "They can be found in almost any profession or land, often driven by innovation and a desire to explore.")

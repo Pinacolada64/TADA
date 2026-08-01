@@ -1460,3 +1460,105 @@
   - The unconscious-carry sub-case (weighing allies' Strength to see if
     they can help carry a downed body) has no existing equivalent
     either -- lower priority, could ship without it first.
+
+- Login-time "You are wearing <armor>{, and gauntlets}." line (7/31/26),
+  the armor-side counterpart to the shield "<name> is readied." line
+  just added in `commands/connect.py`'s `_login_equipment_lines()`. Blocked
+  on the same gap that line's docstring already calls out: `player.armor`
+  is only a flat condition % (`shoppe/armory.py`'s `player.armor =
+  chosen['price'] * 4`), not tied to a specific item id the way
+  `active_shield_id` ties `player.shield` to one -- so there's currently
+  no `player.armor`-side item to look up a name for, and no way to know
+  whether "gauntlets" (or any other second armor piece) are also worn.
+  Needs the same real per-item armor model already tracked in
+  `project_armor_shield_redesign` memory (5 worn slots, armor_class,
+  Size gating) before this can render anything beyond a generic "wearing
+  armor" -- the `{, and gauntlets}` clause implies a *second* armor slot
+  (a body armor + a hands/gauntlets slot) that doesn't exist in the data
+  model at all yet, on top of the naming gap.
+
+- Thought (7/31/26, Ryan): add a "helmet" armor item type for additional
+  protection -- a third worn-armor slot alongside body armor and
+  gauntlets (see the login-line TODO just above). Not scoped past the
+  idea stage; would ride on the same per-item armor model rework.
+
+- Forgotten mechanic (8/1/26, Ryan): `LOOK <horse name>` should show a
+  breed and a colour, e.g. "a golden palomino Arabian" / "a black roan"
+  (spellings per Ryan -- "roan" is a real horse-colour term; "Arabian" is
+  a real breed; "palomino" is also a colour, not a breed as first
+  guessed here -- per Wikipedia, palomino is a genetic coat colour, gold
+  with a white mane/tail, degree of whiteness ranging bright-white to
+  yellow, derived from Spanish-horse breeding in the US -- so it belongs
+  in the colour list alongside roan/black/white, not as a breed example).
+  Purely display-time flavor, no mechanical effect implied.
+  - [DONE 8/1/26] Data model + assignment: `base_classes.py`'s new
+    `HorseBreed`/`HorseColor` StrEnums are the shared vocabulary source
+    (Arabian, Quarter Horse, Thoroughbred, Clydesdale, Mustang;
+    Palomino, Roan, Black, White, Bay, Chestnut -- seeded lists, open to
+    extending). `bar/ally_data.py`'s `Ally` dataclass gained matching
+    `breed`/`color` optional fields (no separate `Horse` class -- a horse
+    stays an ordinary `Ally` flagged `AllyFlags.MOUNT`, per Ryan's own
+    steer during this same session). Rolled randomly and persisted
+    (`party.py`'s `to_json()`/`from_json()`) whenever a wild horse is
+    actually captured -- `ally_events/capture_horse.py`'s
+    `capture_mount()` (itself extracted out of `combat/engine.py`'s
+    `CombatSession` this session, for separation of concerns -- Ryan's
+    request). The capture-announcement line already speaks them: "Your
+    horse seems to be a {gender} {colour} {breed}!"
+  - **Still open**: `LOOK <horse name>` itself isn't wired yet --
+    `commands/look.py` has no ally-lookup branch at all (checked again
+    8/1/26, still true), so the breed/colour now exist on the Ally but
+    nothing surfaces them to a LOOK. See the existing
+    `project_npc_descriptions_todo` memory note for the wider gap this
+    sits inside (no NPC/ally has any LOOK/EXAMINE flavor text today, not
+    just horses).
+  - Superseded the three previously-orphaned `Horse` stub classes as
+    part of this -- `characters.py`, `character_editor.py`, `players.py`
+    all had one, none wired into the live game, all deleted 8/1/26 (Ryan
+    confirmed).
+
+- TODO (8/1/26, Ryan): Wall Bar & Grill (`bar/bar_none.py`/`bar/main.py`'s
+  `enter_bar()`) should notice a mounted player entering and dismount them
+  automatically, with flavor text: "You tie {horse_name} up at the
+  hitching post outside before going in." Not implemented yet -- would
+  check `player.query_flag(PlayerFlags.MOUNTED)` (same flag
+  `commands/dismount.py` clears) before/at the top of `enter_bar()`,
+  clear it, and print the line using the player's MOUNT ally's name
+  (`bar/allies.py`'s `owned_allies()`, filtered to `AllyFlags.MOUNT` --
+  same lookup `street/jakes.py`'s `_find_mount()` already does). Ryan's
+  own framing: "there's nothing to do with a horse other than perhaps
+  tying it up at a tie rail outside" -- purely flavor, ties into no
+  mechanical effect beyond the existing DISMOUNT behavior. Not SPUR-
+  derived.
+
+- Preserved from the deleted `Horse` stubs (8/1/26): before removing
+  `characters.py`/`players.py`'s dead `Horse` classes above, both had
+  design notes worth keeping even though the classes themselves were
+  never wired up --
+  - **Feeding a mount specific foods** (`characters.py`'s stub: "allowed
+    foods: mash, hay, oats, apples, sugar_cubes"; `players.py`'s stub had
+    the same list). Checked what's actually live today: Jake's Stable
+    (`street/jakes.py`) already sells Oats (`rations.json` #25 "WILD
+    OATS") and Sugar Cube (#16 "CUBE OF SUGAR") -- SPUR-faithful, per
+    `SPUR.MISC8.S` -- and Sugar Cube already has one real mechanical
+    effect (`wild_horse_events.py`'s `try_sugar_cube_drop()`, dropping it
+    in a grassy room to draw a wild horse). But there's no "mash"/"hay"/
+    "apples" ration at all, and GIVEing an owned mount ally its Oats/
+    Sugar Cube today has no special feeding effect (`commands/give.py`
+    has no ration/mount-specific branch -- checked, falls through to
+    generic ally-give handling). So the actual gap is: new mash/hay/apple
+    rations (not SPUR-derived, these three are original to the stub
+    author's notes), plus a real GIVE-food-to-mount effect (bonus to
+    strength/hit_points? training progress? not decided) -- not the
+    saddlebags side, see next bullet.
+  - **Saddlebags as extra carrying capacity** (`characters.py`'s stub:
+    "if Horse.has_saddlebags is True, Horse can carry additional things
+    (via GIVE?)") -- **this part is already fully live**, not actually
+    missing: `bar/ally_data.py`'s `AllyFlags.SADDLEBAGS` flag + `commands/
+    give.py`'s `_MOUNT_CAPACITY_WITH_SADDLEBAGS = 5` already gate a
+    mount's carrying capacity exactly as the stub envisioned (a mount
+    with no saddlebags can't carry anything at all). Noted here only so
+    this doesn't get re-flagged as a gap later.
+  - Not scoped/prioritized -- Ryan asked to preserve the comments'
+    content when the dead code was deleted, not necessarily to build the
+    feeding mechanic now.

@@ -59,22 +59,6 @@ class Ally(BaseCharacter):
     flags: list[str] = field(default_factory=list)
 
 
-class Horse(BaseCharacter):
-    armor: list = field(default_factory=list)
-    # if Horse.has_saddlebags is True, Horse can carry additional things (via GIVE?):
-    has_saddlebags: bool
-    in_saddlebags: list[str] = field(default_factory=list)  # TODO: list[Item]
-    has_saddle: bool
-    has_lasso: bool
-    """
-    TODO: additional things to be implemented later:
-    training: bool (I think)
-    lasso: bool
-    # allowed foods: mash, hay, oats, apples, sugar_cubes
-    flags: 'can_fly': pegasus (male), maybe?
-    """
-
-
 @dataclass
 class Monster(BaseCharacter):
     def __init__(self, **kwargs):

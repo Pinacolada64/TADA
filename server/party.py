@@ -98,6 +98,8 @@ class Party:
                         'hit_points': m.hit_points,
                         'status':     m.status.name if hasattr(m.status, 'name') else 'FREE',
                         'position':   m.position.name if hasattr(m.position, 'name') else 'EMPTY',
+                        'breed':      m.breed.name if getattr(m, 'breed', None) else None,
+                        'color':      m.color.name if getattr(m, 'color', None) else None,
                     })
                     continue
             except ImportError:
@@ -123,6 +125,7 @@ class Party:
             try:
                 if member_type == 'ally':
                     from bar.ally_data import Ally, AllyFlags, AllyPosition, AllyStatus
+                    from base_classes import HorseBreed, HorseColor
                     flags = [
                         AllyFlags[n] for n in item.get('flags', [])
                         if n in AllyFlags.__members__
@@ -135,6 +138,12 @@ class Party:
                         flags,
                     )
                     ally.hit_points = item.get('hit_points', 0)
+                    breed_name = item.get('breed')
+                    if breed_name in HorseBreed.__members__:
+                        ally.breed = HorseBreed[breed_name]
+                    color_name = item.get('color')
+                    if color_name in HorseColor.__members__:
+                        ally.color = HorseColor[color_name]
                     status_name = item.get('status', 'FREE')
                     if status_name in AllyStatus.__members__:
                         ally.status = AllyStatus[status_name]

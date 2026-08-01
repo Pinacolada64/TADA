@@ -72,6 +72,11 @@ class _FakePlayer:
         self.inventory = MagicMock()
         self.inventory.entries = MagicMock(return_value=[])
         self._gold = gold
+        self.expert_mode = False
+
+    @property
+    def is_expert(self) -> bool:
+        return self.expert_mode
 
     def get_silver(self, kind):
         return self._gold
@@ -156,7 +161,7 @@ class TestLassoCapture(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(player)
         ctx.set_answers(['STARDUST'])
         session = CombatSession({'name': 'WILD HORSE', 'strength': 15}, room_no=1)
-        with patch('combat.engine.random.choice', return_value='m'):
+        with patch('ally_events.capture_horse.random.choice', return_value='m'):
             captured = await session.lasso(ctx)
         self.assertTrue(captured)
         self.assertEqual(player.party[0].gender, Gender.MALE)
@@ -169,19 +174,22 @@ class TestLassoCapture(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(player)
         ctx.set_answers(['STARDUST'])
         session = CombatSession({'name': 'WILD HORSE', 'strength': 15}, room_no=1)
-        with patch('combat.engine.random.choice', return_value='f'):
+        with patch('ally_events.capture_horse.random.choice', return_value='f'):
             captured = await session.lasso(ctx)
         self.assertTrue(captured)
         self.assertEqual(player.party[0].gender, Gender.FEMALE)
         self.assertIn('seems to be a female', ctx.sent())
 
     async def test_random_name_r_picks_from_male_list(self, _mock_log):
-        from combat.engine import _MALE_HORSE_NAMES
+        from ally_events.capture_horse import _MALE_HORSE_NAMES
+        from base_classes import HorseBreed, HorseColor
         player = _FakePlayer(allies=[])
         ctx = _FakeCtx(player)
         ctx.set_answers(['R'])
         session = CombatSession({'name': 'WILD HORSE', 'strength': 15}, room_no=1)
-        with patch('combat.engine.random.choice', side_effect=['m', 'BARON']):
+        # side_effect order: gender, breed roll, colour roll, random-name pick.
+        with patch('ally_events.capture_horse.random.choice',
+                   side_effect=['m', HorseBreed.ARABIAN, HorseColor.BLACK, 'BARON']):
             captured = await session.lasso(ctx)
         self.assertTrue(captured)
         self.assertEqual(player.party[0].name, 'BARON')
@@ -189,12 +197,14 @@ class TestLassoCapture(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Random name chosen: BARON', ctx.sent())
 
     async def test_random_name_r_picks_from_female_list(self, _mock_log):
-        from combat.engine import _FEMALE_HORSE_NAMES
+        from ally_events.capture_horse import _FEMALE_HORSE_NAMES
+        from base_classes import HorseBreed, HorseColor
         player = _FakePlayer(allies=[])
         ctx = _FakeCtx(player)
         ctx.set_answers(['R'])
         session = CombatSession({'name': 'WILD HORSE', 'strength': 15}, room_no=1)
-        with patch('combat.engine.random.choice', side_effect=['f', 'WILLOW']):
+        with patch('ally_events.capture_horse.random.choice',
+                   side_effect=['f', HorseBreed.ARABIAN, HorseColor.BLACK, 'WILLOW']):
             captured = await session.lasso(ctx)
         self.assertTrue(captured)
         self.assertEqual(player.party[0].name, 'WILLOW')

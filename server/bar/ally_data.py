@@ -7,7 +7,7 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import List, Optional
 
-from base_classes import Gender, Alignment
+from base_classes import Gender, Alignment, HorseBreed, HorseColor
 
 _ROSTER_FILE = Path('run') / 'server' / 'net' / 'ally-roster.json'
 
@@ -60,6 +60,11 @@ class Ally:
     :param strength: strength
     :param to_hit: to-hit probability (x10, so 4 x10 = 40)
     :param flags: AllyFlags class [optional]
+    :param breed: horse breed, only meaningful when AllyFlags.MOUNT is set
+        (base_classes.HorseBreed is the shared vocabulary source -- see
+        that enum's docstring)
+    :param color: horse coat colour, same MOUNT-only scope as breed
+        (base_classes.HorseColor)
     """
     from base_classes import Alignment
 
@@ -70,6 +75,8 @@ class Ally:
     strength: int
     to_hit: int
     flags: Optional[List[AllyFlags]] = field(default_factory=list)
+    breed: Optional[HorseBreed] = None
+    color: Optional[HorseColor] = None
 
     def __post_init__(self):
         """

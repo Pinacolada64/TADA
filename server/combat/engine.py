@@ -383,26 +383,6 @@ def _set_monster_hp(monster: dict, hp: int) -> None:
         monster['hit_points'] = hp
 
 
-# Classic-sounding horse names for the 'R' random-name option (SPUR original
-# has no equivalent -- mounts weren't gendered there at all). All 4-12
-# characters, no punctuation, so they pass _prompt_horse_name()'s own rules.
-_MALE_HORSE_NAMES = (
-    'THUNDER', 'SHADOW', 'BLAZE', 'RANGER', 'SPIRIT',
-    'MAJOR', 'TROOPER', 'STORM', 'BARON', 'DUKE',
-    'CHAMPION', 'MAVERICK',
-)
-_FEMALE_HORSE_NAMES = (
-    'BELLE', 'WILLOW', 'DAISY', 'SIERRA', 'MYSTIC',
-    'HONEY', 'GINGER', 'PRINCESS', 'ANGEL', 'STARLIGHT',
-    'CHERRY', 'MEADOW',
-)
-
-
-def _random_horse_name(gender: str) -> str:
-    names = _FEMALE_HORSE_NAMES if gender == 'f' else _MALE_HORSE_NAMES
-    return random.choice(names)
-
-
 # ---------------------------------------------------------------------------
 # CombatSession
 # ---------------------------------------------------------------------------
@@ -581,76 +561,15 @@ class CombatSession:
             await ctx.send('You practice with the lasso.')
             return False
 
-        if not await self._mount_slot_available(ctx, verbose=True):
+        from ally_events.capture_horse import mount_slot_available, capture_mount
+
+        if not await mount_slot_available(ctx, verbose=True):
             return False
 
         await ctx.send('You capture the horse!')
-        return await self._finalize_mount_capture(ctx)
-
-    async def _mount_slot_available(self, ctx: 'GameContext', *, verbose: bool) -> bool:
-        """True if ctx.player has room for a new mount ally.
-
-        verbose=True sends the usual refusal message on failure (used by the
-        explicit LASSO command); verbose=False stays silent (used by the
-        passive Druid/Ranger taming check, which shouldn't spam a message
-        every round just because the player's party happens to be full).
-        """
-        from bar.ally_data import AllyFlags
-        from bar.allies import owned_allies
-
-        allies = owned_allies(ctx.player)
-        if len(allies) >= 3:
-            if verbose:
-                await ctx.send('Only 3 allies allowed, sell one to Fat Olaf at the Bar first.')
+        mount = await capture_mount(ctx, self.monster)
+        if mount is None:
             return False
-        if any(AllyFlags.MOUNT in (a.flags or []) for a in allies):
-            if verbose:
-                await ctx.send('Only 1 mount per customer.')
-            return False
-        return True
-
-    async def _finalize_mount_capture(self, ctx: 'GameContext') -> bool:
-        """Prompt for a horse name and, if given, add it as a MOUNT ally.
-
-        Shared tail end of both LASSO and the passive Druid/Ranger taming
-        event -- ends combat and removes ctx from the attacker list on
-        success. Returns True if the horse was actually captured.
-        """
-        from bar.ally_data import Ally, AllyFlags, AllyStatus
-
-        player = ctx.player
-
-        # SPUR never tracked a mount's own gender (lasso.b stores mounts as
-        # packed name+flag strings with no gender slot, so its flavor text
-        # just always says "he"/"him") -- this port gives Ally a real
-        # .gender field, so roll it for real instead of hardcoding male.
-        gender = random.choice(('m', 'f'))
-        await ctx.send(f"Your horse seems to be a {'male' if gender == 'm' else 'female'}.")
-
-        name = await self._prompt_horse_name(ctx, gender)
-        if name is None:
-            return False
-
-        # SPUR lasso.b: ms (monster strength) + 5, h1=0 -- unlike a purchased
-        # ally, a freshly-lassoed mount starts with unseeded hit_points.
-        strength = _monster_hp(self.monster) + 5
-        mount = Ally(name=name, gender=gender, strength=strength, to_hit=0,
-                     flags=[AllyFlags.MOUNT])
-        mount.status     = AllyStatus.SERVANT
-        mount.owner      = player.name
-        mount.hit_points  = 0
-        # Party has no .append() -- it's not a plain list (see party.py's
-        # add_member()/add()). Discovered live: unit tests fake player.party
-        # as a bare list, which masked this raising AttributeError against a
-        # real Player for every real capture attempt.
-        player.party.add_member(player, mount)
-        player.unsaved_changes = True
-
-        await ctx.send(f'{name} joins your party as a mount!')
-        # SPUR.USE.S lasso.b: appends a MOUNT entry to battle.log.
-        import net_common
-        net_common.append_battle_log(f'{player.name} got a mount!  Name of the mount - {name}')
-
         self._done.set()
         self._remove_attacker(ctx)
         return True
@@ -676,7 +595,9 @@ class CombatSession:
         if getattr(player, 'char_class', None) not in (PlayerClass.DRUID, PlayerClass.RANGER):
             return False
 
-        if not await self._mount_slot_available(ctx, verbose=False):
+        from ally_events.capture_horse import mount_slot_available, capture_mount
+
+        if not await mount_slot_available(ctx, verbose=False):
             return False
 
         if random.randint(1, 100) > 15:   # 15% chance per round
@@ -688,34 +609,12 @@ class CombatSession:
             f'A certain look passes between the two of you, and the horse '
             f'seems to accept you as its {title}!'
         )
-        return await self._finalize_mount_capture(ctx)
-
-    async def _prompt_horse_name(self, ctx: 'GameContext', gender: str = 'm') -> str | None:
-        """Prompt for a horse name (4-12 chars, no symbols).  None on cancel.
-
-        'R' picks a random gender-appropriate name (mirrors 'R' for a random
-        pronounceable password in commands/new_player.py's character
-        creation) -- checked before the length/forbidden-char rules so a
-        bare 'R' doesn't get rejected as "too short".
-        """
-        _FORBIDDEN = set('!@#$%^&*()_-+=[{]}\\|:;<,>.?/')
-        while True:
-            raw = await ctx.prompt("Name your horse (4-12 chars, 'R' for random, Enter to cancel)")
-            if not raw or not raw.strip():
-                return None
-            name = raw.strip()
-            if name.upper() == 'R':
-                name = _random_horse_name(gender)
-                await ctx.send(f'Random name chosen: {name}')
-                return name
-            if len(name) < 4 or len(name) > 12:
-                await ctx.send('Name must be 4-12 characters.')
-                continue
-            bad = _FORBIDDEN.intersection(name)
-            if bad:
-                await ctx.send(f'"{next(iter(bad))}" not allowed in name.')
-                continue
-            return name
+        mount = await capture_mount(ctx, self.monster)
+        if mount is None:
+            return False
+        self._done.set()
+        self._remove_attacker(ctx)
+        return True
 
     async def _check_crystal_pendant(self, ctx: 'GameContext') -> None:
         """Crystal Pendant (item #82): if the monster can cast turn-to-stone
