@@ -41,7 +41,7 @@ Three rolls, in SPUR's own order, each short-circuiting the next:
      above, including the tough/charmable skip-to-charm jump.
 
 Two small integers on the monster record are easy to conflate and drive
-different rolls below -- see programming-notes/spur variables.txt's `ma`
+different rolls below -- see programming-notes/spur-variables.md's `ma`
 and `yy` entries for the full derivation:
   - MA is the monster's to-hit stat (monsters.json 'to_hit'), also used as
     a size-word index into rd.mons's own flavor-text table (huge...swift).
@@ -58,7 +58,7 @@ and `yy` entries for the full derivation:
 
 Two `vv` values are collapsed into one guild in this port: SPUR's `vv`
 splits each guild into an autoduel-on/off pair (e.g. Claw is 6 normally,
-7 with autoduel on -- see programming-notes/spur variables.txt), but
+7 with autoduel on -- see programming-notes/spur-variables.md), but
 rd.mons's own turf-guard check tests both (`vv=6 or vv=7`) -- i.e. either
 autoduel state of the *same* guild salutes the same guard. This port's
 player.guild field has no autoduel-state axis at all (see shoppe/clan.py,

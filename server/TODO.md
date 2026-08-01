@@ -930,7 +930,7 @@
   routine (`git show remotes/origin/skip:SPUR-code/SPUR.MAIN.S`): skip
   adds `a=0:if ep>1 a=1` / `...ep=ep-a:goto travel1` on the bypass path
   -- docking 1 point of `ep` when it fires. Correction (checked
-  `programming-notes/spur variables.txt`): `ep` is experience points
+  `programming-notes/spur-variables.md`): `ep` is experience points
   (resets each level-up), not energy -- confirms this is a deliberate
   "you tried, it cost you a hair of progress, but nothing happened"
   mechanic, not dead/vestigial code as first suspected.
@@ -958,7 +958,7 @@
   item (`instr("138",xi$)`) unlocking "The SPACE TRACKER powers up!
   (Giving galactic space coordinates)" flavor. `NO_ERROR_EXIT_*` (see
   above) is what lets the attempt succeed without an error in the first
-  place. `xi$` confirmed via `programming-notes/spur variables.txt`
+  place. `xi$` confirmed via `programming-notes/spur-variables.md`
   (Ryan's recollection): it's the **player's own** inventory items
   ("xxx,yyy,zzz..." object numbers), distinct from `ai$` (ally
   inventory, same file) -- so the item check is "does the *player*

@@ -7,7 +7,7 @@ in need, or push your luck past the once-per-session limit, and you get
 a snarky refusal instead -- or, if you keep pestering after being
 warned, a fatal lightning bolt.
 
-Variable mapping (programming-notes/spur variables.txt is the authority
+Variable mapping (programming-notes/spur-variables.md is the authority
 here -- an earlier draft of this file guessed ps/pe were food/drink
 based on an unrelated hunger-message section in SPUR.MAIN.S that happens
 to reuse those same two letters for a different purpose):

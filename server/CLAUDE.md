@@ -46,6 +46,17 @@
   reimplemented inline in `../SPUR-data/level-2/tada_level_builder.py`'s
   `_decode_7bit()`/`_follow_chain()`/`extract_messages()`) to get anything
   meaningful out of them.
+- **`../programming-notes/spur-variables.md` is the cross-reference for
+  every scratch/global variable in `SPUR-code/*.S`.** Classic 1980s BASIC:
+  short 1-2-letter (+digit, +`$`) names get reused for unrelated purposes
+  across different subroutines, so the same variable can mean two
+  different things depending which label you're reading. Check this file
+  before assuming what a variable means from local context alone — and
+  when porting work resolves a previously-uncertain entry (or turns up a
+  variable the file doesn't cover yet), add the finding back into it, in
+  the same alphabetical/style convention as the existing entries, so the
+  reference stays authoritative rather than each session re-deriving it
+  from scratch.
 
 ## Bot scripts
 
