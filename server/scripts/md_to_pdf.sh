@@ -6,7 +6,10 @@
 # `zu$[7]`, `xm$`, or a literal "$" sigil) are typeset as literal dollar
 # signs instead of being parsed as inline LaTeX math. A Symbola fallback
 # font is wired in so emoji used as status markers (✅, ⏸, ...) render
-# instead of coming out blank in Latin Modern.
+# instead of coming out blank in Latin Modern. Tables get light zebra
+# striping (xcolor's `table` option + `\rowcolors`, applies to pandoc's
+# longtable output via colortbl) for readability in the long
+# module/function reference tables.
 #
 # Usage: scripts/md_to_pdf.sh FILE.md [FILE2.md ...]
 # Output: FILE.pdf next to each input FILE.md
@@ -14,15 +17,17 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FALLBACK_TEX="$(mktemp -t emoji-fallback-XXXXXX.tex)"
-trap 'rm -f "$FALLBACK_TEX"' EXIT
+PREAMBLE_TEX="$(mktemp -t pdf-preamble-XXXXXX.tex)"
+trap 'rm -f "$PREAMBLE_TEX"' EXIT
 
-cat > "$FALLBACK_TEX" <<'EOF'
+cat > "$PREAMBLE_TEX" <<'EOF'
 \usepackage{fontspec}
 \directlua{
   luaotfload.add_fallback("emojifallback", {"Symbola:mode=harf;"})
 }
 \setmainfont{latinmodern-math.otf}[RawFeature={fallback=emojifallback}]
+\usepackage[table]{xcolor}
+\rowcolors{2}{black!5}{white}
 EOF
 
 if [ "$#" -eq 0 ]; then
@@ -37,6 +42,6 @@ for md in "$@"; do
     -f markdown-tex_math_dollars \
     -t pdf --pdf-engine=lualatex \
     -V geometry:margin=1in -V colorlinks=true --toc \
-    -H "$FALLBACK_TEX" \
+    -H "$PREAMBLE_TEX" \
     -o "$pdf"
 done
