@@ -56,3 +56,18 @@
   checks or as a reference for the next scripted session — see
   `tools/bot_horse_journey.py` for the established pattern/style to
   follow.
+- **The JSON wire protocol's `ctx.prompt(...)` text arrives in the
+  message's `"prompt"` field, never in `"lines"`.** `ctx.send(...)` text
+  arrives in `"lines"`. A reactive bot pattern-matching on message text to
+  decide when to reply (e.g. waiting for "Name your horse" or "Cast which
+  spell number") must check `msg["prompt"]`, not `msg["lines"]`, for
+  anything sent via `ctx.prompt()` — checking `lines` for prompt text
+  silently never matches, since prompts are never in there. This bit a
+  live bot session hard: `tools/bot_epic_battle.py`'s LASSO-naming and
+  CAST-spell-number waits both checked `lines` for prompt text, so they
+  never recognized the prompt at all, kept consuming an unrelated bot's
+  ongoing fight broadcasts until their read budget ran out, and left the
+  real prompt permanently unanswered — desyncing every command sent on
+  that connection for the rest of the run. Grep a command's actual
+  `ctx.prompt(...)` call before writing a bot wait condition for it,
+  rather than guessing which field its text lands in.
