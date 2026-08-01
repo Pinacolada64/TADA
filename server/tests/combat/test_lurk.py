@@ -16,9 +16,15 @@ Coverage:
     lurk-behind-allies message and return value for: melee weapon,
     loaded ammo weapon, empty ammo weapon, LIGHT-named weapon
   - lurk.try_redirect_to_ally(): picks a random living ally to take the
-    monster's hit instead of the player, applies the same damage to the
-    ally's hit_points, and kills the ally if it drops to 0; no-op when
-    the swing missed, dealt no damage, or no living ally remains
+    monster's hit instead of the player, applies the damage (shaved by 1
+    point, 2 more for an Elite ally) to the ally's hit_points, and kills
+    the ally if it drops to 0; no-op when the swing missed, dealt no
+    damage, or no living ally remains
+  - lurk.try_redirect_to_ally()'s morale-failure roll: a surviving ally
+    may flee outright (reverting to AllyStatus.FREE, same as
+    encounters/monster.py's desertion roll) when a 0-9 roll -- shifted by
+    the player's current Honor -- exceeds the ally's remaining hit
+    points; an Elite ally is immune to this roll entirely
   - player_attacks(is_lurking=True) still applies the -2 to-hit/damage
     penalty and disables the "ease of use helps" fast path (already
     stubbed in combat/resolution.py; sanity-checked here for the LURK
@@ -29,7 +35,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from bar.ally_data import Ally, AllyStatus
+from bar.ally_data import Ally, AllyFlags, AllyStatus
 from base_classes import PlayerClass, PlayerStat
 from combat import lurk
 from combat.engine import CombatSession
@@ -48,8 +54,8 @@ class _FakeWeapon:
         self.sound_effect = None
 
 
-def _make_ally(name='Grok', status=AllyStatus.SERVANT, hit_points=10):
-    a = Ally(name=name, gender='m', strength=10, to_hit=0, flags=[])
+def _make_ally(name='Grok', status=AllyStatus.SERVANT, hit_points=10, flags=None):
+    a = Ally(name=name, gender='m', strength=10, to_hit=0, flags=flags or [])
     a.status = status
     a.hit_points = hit_points
     return a
@@ -283,7 +289,11 @@ class TestTryRedirectToAlly(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(redirected)
 
     async def test_redirect_damages_the_ally_instead_of_the_player(self):
-        ally = _make_ally(hit_points=10)
+        # hit_points kept high (>=9) so the post-damage remainder can
+        # never be beaten by the morale-failure roll (max 9 at honor
+        # 1000, see TestMoraleFailureRoll) -- this test only cares about
+        # the damage transfer, not the flee roll.
+        ally = _make_ally(hit_points=20)
         player = _FakePlayer(allies=[ally], hit_points=15)
         ctx = _FakeCtx(player)
         session = CombatSession({'name': 'GOBLIN'}, room_no=1)
@@ -291,7 +301,7 @@ class TestTryRedirectToAlly(unittest.IsolatedAsyncioTestCase):
         redirected = await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=6))
 
         self.assertTrue(redirected)
-        self.assertEqual(ally.hit_points, 4)
+        self.assertEqual(ally.hit_points, 15)  # 20 - (6 - 1 redirect discount)
         self.assertEqual(player.hit_points, 15)  # player takes no damage
         self.assertIn(f'strikes {ally.name} instead!', ctx.sent())
 
@@ -309,7 +319,7 @@ class TestTryRedirectToAlly(unittest.IsolatedAsyncioTestCase):
 
     async def test_dead_ally_never_targeted_only_the_living_one_is(self):
         dead = _make_ally(name='Fell', status=AllyStatus.DEAD, hit_points=0)
-        alive = _make_ally(name='Grok', hit_points=10)
+        alive = _make_ally(name='Grok', hit_points=20)
         player = _FakePlayer(allies=[dead, alive])
         ctx = _FakeCtx(player)
         session = CombatSession({'name': 'GOBLIN'}, room_no=1)
@@ -317,7 +327,114 @@ class TestTryRedirectToAlly(unittest.IsolatedAsyncioTestCase):
         await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=3))
 
         self.assertEqual(dead.hit_points, 0)
-        self.assertEqual(alive.hit_points, 7)
+        self.assertEqual(alive.hit_points, 18)  # 20 - (3 - 1 redirect discount)
+
+    async def test_elite_ally_takes_two_less_damage(self):
+        ally = _make_ally(hit_points=20, flags=[AllyFlags.ELITE])
+        player = _FakePlayer(allies=[ally])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=6))
+
+        self.assertEqual(ally.hit_points, 17)  # 20 - (6 - 1 - 2 elite discount)
+        self.assertIn('[Light Armor]', ctx.sent())
+
+    async def test_elite_ally_damage_floors_at_zero_not_negative(self):
+        ally = _make_ally(hit_points=20, flags=[AllyFlags.ELITE])
+        player = _FakePlayer(allies=[ally])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=2))
+
+        self.assertEqual(ally.hit_points, 20)  # 2 - 1 - 2 would be negative; clamped to 0
+        self.assertIn('(No damage!)', ctx.sent())
+
+
+# ---------------------------------------------------------------------------
+# lurk.try_redirect_to_ally()'s morale-failure (flee) roll
+# ---------------------------------------------------------------------------
+
+class TestMoraleFailureRoll(unittest.IsolatedAsyncioTestCase):
+    async def test_flees_when_roll_exceeds_remaining_hp(self):
+        # damage=6 -> redirect discount leaves 5; ally.hit_points=6 -> 1
+        # remaining. randint(1,10) patched to 10 -> roll = 10-1 = 9 (no
+        # honor adjustment at 1000); 9 > 1 -> flees.
+        ally = _make_ally(hit_points=6, status=AllyStatus.SERVANT)
+        player = _FakePlayer(allies=[ally], honor=1000)
+        party = player.party
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        with patch('combat.lurk.random.randint', return_value=10):
+            await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=6))
+
+        self.assertEqual(ally.status, AllyStatus.FREE)
+        self.assertIsNone(ally.owner)
+        self.assertNotIn(ally, party)
+        self.assertIn('throws down all weapons and runs away!', ctx.sent())
+
+    async def test_does_not_flee_when_roll_at_or_below_remaining_hp(self):
+        ally = _make_ally(hit_points=6, status=AllyStatus.SERVANT)
+        player = _FakePlayer(allies=[ally], honor=1000)
+        party = player.party
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        with patch('combat.lurk.random.randint', return_value=1):
+            await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=6))
+
+        self.assertEqual(ally.status, AllyStatus.SERVANT)
+        self.assertIn(ally, party)
+        self.assertNotIn('runs away', ctx.sent())
+
+    async def test_elite_ally_never_rolls_to_flee(self):
+        # Same numbers as test_flees_when_roll_exceeds_remaining_hp, but
+        # Elite -- an extra 2 damage discount leaves more HP *and* the
+        # roll is skipped outright, so this would survive either way;
+        # the assertion that matters is the roll never firing at all.
+        ally = _make_ally(hit_points=6, status=AllyStatus.SERVANT, flags=[AllyFlags.ELITE])
+        player = _FakePlayer(allies=[ally], honor=1000)
+        party = player.party
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        with patch('combat.lurk.random.randint', return_value=10):
+            await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=6))
+
+        self.assertEqual(ally.status, AllyStatus.SERVANT)
+        self.assertIn(ally, party)
+
+    async def test_low_honor_raises_flee_odds(self):
+        # damage=3 -> discount leaves 2; ally.hit_points=5 -> 3 remaining.
+        # randint patched to 3 -> base roll 2. At honor 1000, 2 > 3 is
+        # false (no flee); at honor 200 (<400, +2), 4 > 3 is true.
+        ally = _make_ally(hit_points=5, status=AllyStatus.SERVANT)
+        player = _FakePlayer(allies=[ally], honor=200)
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        with patch('combat.lurk.random.randint', return_value=3):
+            await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=3))
+
+        self.assertEqual(ally.status, AllyStatus.FREE)
+
+    async def test_high_honor_lowers_flee_odds(self):
+        # damage=6 -> discount leaves 5; ally.hit_points=6 -> 1 remaining.
+        # randint patched to 5 -> base roll 4. At honor 1000, 4 > 1 is
+        # true (flees); at honor 2000 (>1600, -2), 2 > 1 is still true --
+        # use a smaller base roll instead so the -2 actually flips it.
+        ally = _make_ally(hit_points=6, status=AllyStatus.SERVANT)
+        player = _FakePlayer(allies=[ally], honor=2000)
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN'}, room_no=1)
+
+        with patch('combat.lurk.random.randint', return_value=3):
+            await lurk.try_redirect_to_ally(session, ctx, _FakeMonsterHit(hit=True, damage=6))
+
+        # base roll = 3-1 = 2; honor>1600 -> -2 -> roll = 0; 0 > 1 is false
+        self.assertEqual(ally.status, AllyStatus.SERVANT)
 
 
 # ---------------------------------------------------------------------------

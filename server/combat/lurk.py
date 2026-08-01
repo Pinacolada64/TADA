@@ -5,23 +5,20 @@ ally's head at a to-hit/damage penalty (`player_attacks(is_lurking=True)`
 in combat/resolution.py handles that penalty), while any other weapon
 (melee, empty ammo weapon, or a LIGHT-named weapon) skips the player's own
 swing entirely so only the allies attack. While lurking, the monster's
-counter-attack is redirected off the player and onto a living ally.
+counter-attack is redirected off the player and onto a living ally, who
+may then flee outright if lightly wounded and the player's Honor is low
+(SPUR.COMBAT.S:324-341, "m.a1").
 
 combat/engine.py's CombatSession round loop calls into this module rather
 than owning the mechanic itself; see CombatSession._is_lurking_this_round
 for how the per-round choice threads through to the monster's swing.
-
-Not ported: SPUR's separate morale-failure roll (COMBAT.S:328-330, 341,
-gated on the player's Honor) where a lightly-wounded ally flees ("THROWS
-DOWN ALL WEAPONS AND RUNS AWAY") instead of taking a redirected hit --
-left as a follow-up (see MECHANICS.md).
 """
 from __future__ import annotations
 
 import random
 from typing import TYPE_CHECKING
 
-from bar.ally_data import Ally, AllyStatus
+from bar.ally_data import Ally, AllyFlags, AllyPosition, AllyStatus
 from monsters import monster_display_name
 
 if TYPE_CHECKING:
@@ -119,7 +116,23 @@ async def try_redirect_to_ally(session: 'CombatSession', ctx: 'GameContext', res
     m.a1 branch subtracts it from a1/a2/a3 and can kill the ally) -- here
     it's the same damage that would otherwise have landed on the player,
     since m.a1 skips the player's own shield/armor mitigation block
-    entirely for an ally target.
+    entirely for an ally target. m.a1 also shaves the redirected hit down
+    by 1 point outright, and 2 more for an Elite ("!"-flagged, same
+    AllyFlags.ELITE this port already uses for the ambush-immunity and
+    ally-attack accuracy checks -- see CombatSession._check_tactical_ambush()
+    and combat.resolution.ally_attacks()'s has_light_armor) ally, clamped
+    at 0 ("No damage!").
+
+    If the ally survives the hit, it may still lose its nerve and flee
+    outright (COMBAT.S:328-330, 341) -- a 0-9 roll, shifted by the
+    player's current Honor (vk; see ../../programming-notes/spur-variables.md)
+    the same way resolve_swing() spent it this round, compared against
+    the ally's *remaining* hit points: low HP or low Honor both raise the
+    odds. An Elite ally never rolls this at all (SPUR forces z=0 in the
+    same branch that grants its damage reduction). A fleeing ally reverts
+    to AllyStatus.FREE and leaves the party outright, same as
+    encounters/monster.py's _try_ally_tactical() desertion roll -- not
+    death, but gone from this fight either way.
     """
     if not result.hit or result.damage <= 0:
         return False
@@ -130,19 +143,28 @@ async def try_redirect_to_ally(session: 'CombatSession', ctx: 'GameContext', res
         return False
 
     target = random.choice(living)
-    dmg = result.damage
+    elite = AllyFlags.ELITE in (target.flags or [])
+
+    dmg = result.damage - 1
+    if elite:
+        dmg -= 2
+    dmg = max(dmg, 0)
+
     target.hit_points = max(0, (target.hit_points or 0) - dmg)
     player.unsaved_changes = True
 
     pname = getattr(player, 'name', 'Someone')
     mname = monster_display_name(session.monster, capitalize=True)
+    dmg_text = f'(-{dmg} HP)' if dmg else '(No damage!)'
+    prefix = '[Light Armor] ' if elite else ''
     await ctx.send(
-        f'{mname} attacks you, but strikes {target.name} instead!  (-{dmg} HP)'
+        f'{prefix}{mname} attacks you, but strikes {target.name} instead!  {dmg_text}'
     )
     await ctx.send_room(
         f'{mname} attacks {pname}, but strikes {target.name} instead!',
         exclude_self=True,
     )
+
     if target.hit_points <= 0:
         target.status = AllyStatus.DEAD
         await ctx.send(f'{target.name} is dead.')
@@ -150,4 +172,31 @@ async def try_redirect_to_ally(session: 'CombatSession', ctx: 'GameContext', res
             f'{target.name} falls, fighting for {pname}!',
             exclude_self=True,
         )
+        return True
+
+    if not elite:
+        roll = random.randint(1, 10) - 1
+        honor = int(getattr(player, 'honor', 0) or 0)
+        if honor < 400:
+            roll += 2
+        elif honor < 800:
+            roll += 1
+        if honor > 1600:
+            roll -= 2
+        elif honor > 1200:
+            roll -= 1
+        roll = max(roll, 0)
+
+        if roll > target.hit_points:
+            await ctx.send(f'{target.name} throws down all weapons and runs away!')
+            await ctx.send_room(
+                f"{target.name} deserts {pname}'s party!", exclude_self=True,
+            )
+            target.status = AllyStatus.FREE
+            target.owner = None
+            target.position = AllyPosition.EMPTY
+            party = getattr(player, 'party', None)
+            if party and target in party:
+                party.remove(target)
+
     return True
