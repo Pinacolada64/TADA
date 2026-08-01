@@ -417,7 +417,7 @@ class Player:
         self.once_per_day = kwargs.get('once_per_day', [])
         self.last_play_date = kwargs.get('last_play_date', datetime.datetime.now())
 
-        self.party = Party.from_json(kwargs.get('party', []))
+        self.party = Party.from_json(kwargs.get('party', []), weapons_data=self._weapons_data)
         self.allies = kwargs.get('allies', [])
 
         self.guild = kwargs.get('guild', Guild.CIVILIAN)
@@ -1319,7 +1319,9 @@ class Player:
             if 'party' in data and isinstance(data['party'], list):
                 try:
                     from party import Party
-                    self.party = Party.from_json(data['party'])
+                    self.party = Party.from_json(
+                        data['party'], weapons_data=getattr(self, '_weapons_data', None),
+                    )
                 except Exception:
                     logging.exception("Player._load: failed to restore party for %s", self.name)
 

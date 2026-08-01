@@ -16,8 +16,9 @@ class Party:
     ``to_json()``   → list[dict]   (store under the ``"party"`` key in player JSON)
     ``from_json()`` → Party        (call in Player.__init__ with kwargs.get('party', []))
 
-    Ally members round-trip fully.  Player-in-party members are saved by
-    name/id but not restored on load (they rejoin when they log back in).
+    Ally members round-trip fully, including items/weapon/ammo given via
+    GIVE.  Player-in-party members are saved by name/id but not restored
+    on load (they rejoin when they log back in).
     """
 
     def __init__(self, members=None):
@@ -88,18 +89,36 @@ class Party:
                 from bar.ally_data import Ally
                 if isinstance(m, Ally):
                     gender_str = 'm' if getattr(m.gender, 'name', '') == 'MALE' else 'f'
+                    readied_weapon = getattr(m, 'readied_weapon', None)
+                    weapon_dict = None
+                    if readied_weapon is not None:
+                        weapon_dict = {
+                            'item_id':       getattr(readied_weapon, 'id_number', None),
+                            'item_name':     getattr(readied_weapon, 'name', ''),
+                            'item_category': str(getattr(readied_weapon, 'category', '')),
+                            'item_flags':    getattr(readied_weapon, 'flags', None) or [],
+                        }
                     result.append({
-                        'type':       'ally',
-                        'name':       m.name,
-                        'gender':     gender_str,
-                        'strength':   m.strength,
-                        'to_hit':     m.to_hit,
-                        'flags':      [f.name for f in (m.flags or [])],
-                        'hit_points': m.hit_points,
-                        'status':     m.status.name if hasattr(m.status, 'name') else 'FREE',
-                        'position':   m.position.name if hasattr(m.position, 'name') else 'EMPTY',
-                        'breed':      m.breed.name if getattr(m, 'breed', None) else None,
-                        'color':      m.color.name if getattr(m, 'color', None) else None,
+                        'type':           'ally',
+                        'name':           m.name,
+                        'gender':         gender_str,
+                        'strength':       m.strength,
+                        'to_hit':         m.to_hit,
+                        'flags':          [f.name for f in (m.flags or [])],
+                        'hit_points':     m.hit_points,
+                        'status':         m.status.name if hasattr(m.status, 'name') else 'FREE',
+                        'position':       m.position.name if hasattr(m.position, 'name') else 'EMPTY',
+                        'breed':          m.breed.name if getattr(m, 'breed', None) else None,
+                        'color':          m.color.name if getattr(m, 'color', None) else None,
+                        # Items given via GIVE (commands/give.py) -- see
+                        # inventory.InventoryEntry.to_json() for the format.
+                        # Previously dropped on every save, so anything
+                        # handed to an ally vanished on the next login.
+                        'items':          [e.to_json() for e in (getattr(m, 'items', None) or [])],
+                        'readied_weapon': weapon_dict,
+                        'ammo_rounds':    getattr(m, 'ammo_rounds', 0),
+                        'ammo_max':       getattr(m, 'ammo_max', 0),
+                        'ammo_damage':    getattr(m, 'ammo_damage', 0),
                     })
                     continue
             except ImportError:
@@ -113,8 +132,14 @@ class Party:
         return result
 
     @classmethod
-    def from_json(cls, data: list) -> 'Party':
-        """Reconstruct a Party from the JSON list produced by to_json()."""
+    def from_json(cls, data: list, weapons_data: list | None = None) -> 'Party':
+        """Reconstruct a Party from the JSON list produced by to_json().
+
+        *weapons_data* is the server's raw weapons.json list (see
+        items.resolve_weapon()), needed to fully resolve a readied weapon
+        or a weapon handed to an ally via GIVE -- same plumbing as
+        Inventory.from_json()'s weapons_data param.
+        """
         if not isinstance(data, list):
             return cls()
         members = []
@@ -126,6 +151,7 @@ class Party:
                 if member_type == 'ally':
                     from bar.ally_data import Ally, AllyFlags, AllyPosition, AllyStatus
                     from base_classes import HorseBreed, HorseColor
+                    from inventory import Inventory
                     flags = [
                         AllyFlags[n] for n in item.get('flags', [])
                         if n in AllyFlags.__members__
@@ -150,6 +176,25 @@ class Party:
                     position_name = item.get('position', 'EMPTY')
                     if position_name in AllyPosition.__members__:
                         ally.position = AllyPosition[position_name]
+
+                    # Items given via GIVE (see to_json() above and
+                    # commands/give.py). Reuse Inventory.from_json()'s item
+                    # reconstruction rather than duplicating it here.
+                    items_data = item.get('items') or []
+                    ally.items = list(
+                        Inventory.from_json(items_data, weapons_data=weapons_data).entries()
+                    )
+                    weapon_data = item.get('readied_weapon')
+                    if weapon_data:
+                        weapon_entries = Inventory.from_json(
+                            [weapon_data], weapons_data=weapons_data
+                        ).entries()
+                        if weapon_entries:
+                            ally.readied_weapon = weapon_entries[0].item
+                    ally.ammo_rounds = item.get('ammo_rounds', 0)
+                    ally.ammo_max = item.get('ammo_max', 0)
+                    ally.ammo_damage = item.get('ammo_damage', 0)
+
                     members.append(ally)
                 elif member_type == 'player':
                     # Player members are not reconstructed on load; they

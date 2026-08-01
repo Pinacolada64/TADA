@@ -97,7 +97,7 @@ class Ally:
             self.gender = Gender.FEMALE
 
         self.hit_points: int = 0
-        self.items: list = []   # items given by player via GIVE (ephemeral; not persisted)
+        self.items: list = []   # items given by player via GIVE (persisted, see party.py)
         # Weapon combat (TADA-only extension -- SPUR allies never carry a
         # weapons.json entry, see combat/resolution.py ally_attacks()).
         # Auto-readied by commands/give.py when the player GIVEs a Weapon.
