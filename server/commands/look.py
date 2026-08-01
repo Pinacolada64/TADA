@@ -65,6 +65,13 @@ class LookCommand(Command):
             await ctx.send_room(f'{name} examines {reflexive}.', exclude_self=True)
             return CommandResult.ok()
 
+        # Search the player's own party for a matching ally.
+        from bar.allies import owned_allies
+        for ally in owned_allies(ctx.player):
+            if target in ally.name.lower():
+                await self._describe_ally(ctx, ally)
+                return CommandResult.ok()
+
         # Search inventory for a matching item.
         inv = getattr(ctx.player, 'inventory', None)
         if inv is not None:
@@ -88,3 +95,27 @@ class LookCommand(Command):
     async def _describe_item(self, ctx: GameContext, name: str, item) -> None:
         description = (getattr(item, 'description', '') or '').strip()
         await ctx.send(description or f'You see a {name}.')
+
+    async def _describe_ally(self, ctx: GameContext, ally) -> None:
+        """Simple LOOK flavor for a party member.
+
+        A MOUNT ally (AllyFlags.MOUNT) also gets its gender/breed/colour,
+        e.g. "SILVER is a female Palomino Arabian." -- see MECHANICS.md's
+        "Horses" section and base_classes.HorseBreed/HorseColor's
+        docstrings. General NPC/ally flavor text beyond this is a wider,
+        not-yet-scoped gap (see the project_npc_descriptions_todo memory
+        note) -- this only covers the horse-specific case Ryan asked for.
+        """
+        from bar.ally_data import AllyFlags
+        from base_classes import Gender
+
+        if AllyFlags.MOUNT in (ally.flags or []):
+            gender_word = 'female' if ally.gender == Gender.FEMALE else 'male'
+            if ally.breed and ally.color:
+                await ctx.send(f'{ally.name} is a {gender_word} {ally.color} {ally.breed}.')
+            else:
+                # Legacy/older save: mount predates the breed/colour fields.
+                await ctx.send(f'{ally.name} is a {gender_word} horse.')
+            return
+
+        await ctx.send(f'{ally.name} is here with you, ready to help.')

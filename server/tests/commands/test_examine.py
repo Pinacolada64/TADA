@@ -17,7 +17,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from base_classes import PlayerRace
+from base_classes import PlayerMoneyTypes, PlayerRace
 from commands.examine import (
     ExamineCommand,
     _examine_item,
@@ -585,6 +585,106 @@ class TestExamineCommandMonsterIntegration(unittest.IsolatedAsyncioTestCase):
         with patch('random.randint', side_effect=[50, 50, 20, 50]):
             await ExamineCommand().execute(ctx)
         self.assertIn("Yep. It's dead awright..", ctx.sent)
+
+
+class _FakeOtherClient:
+    def __init__(self, room, ctx):
+        self.room = room
+        self.ctx = ctx
+
+
+class TestExaminePlayer(unittest.IsolatedAsyncioTestCase):
+    """EXAMINE <player> -- SPUR.MISC3.S rd.plyr/rd.plyr2, ported using this
+    port's live Player fields instead of SPUR's raw record layout (see
+    commands/examine.py's _examine_player() docstring)."""
+
+    def _make_target(self, name='Legolas', xp_level=1, hit_points=10,
+                      shield=0, armor=0, silver=0, weapons=None):
+        from base_classes import PlayerClass, PlayerRace
+        from inventory import Inventory
+
+        target = _player()
+        target.name = name
+        target.xp_level = xp_level
+        target.hit_points = hit_points
+        target.shield = shield
+        target.armor = armor
+        target.char_race = PlayerRace.ELF
+        target.char_class = PlayerClass.RANGER
+        target.inventory = Inventory(capacity=10)
+        for w in (weapons or []):
+            target.inventory.add(w)
+        target.silver[PlayerMoneyTypes.IN_HAND] = silver
+        return target
+
+    def _room_setup(self, examiner_player, target_player, room=1):
+        server = _FakeServer()
+        server.clients = {}
+        target_ctx = _FakeCtx(target_player, server)
+        target_ctx.client = _FakeOtherClient(room=room, ctx=None)
+        target_ctx.client.ctx = target_ctx
+        server.clients['target'] = target_ctx.client
+
+        examiner_ctx = _FakeCtx(examiner_player, server)
+        examiner_ctx.client = _FakeOtherClient(room=room, ctx=None)
+        examiner_ctx.client.ctx = examiner_ctx
+        server.clients['examiner'] = examiner_ctx.client
+        return examiner_ctx
+
+    async def test_examine_player_shows_tier_race_class_health(self):
+        target = self._make_target(name='Legolas', xp_level=5, hit_points=40)
+        ctx = self._room_setup(_player(), target)
+
+        await ExamineCommand().execute(ctx, 'Legolas')
+
+        joined = '\n'.join(ctx.sent)
+        self.assertIn('Legolas looks like an elite Elf Ranger in excellent health,', joined)
+
+    async def test_examine_player_purse_and_shield_armor(self):
+        target = self._make_target(name='Legolas', silver=800, shield=90, armor=80)
+        ctx = self._room_setup(_player(), target)
+
+        await ExamineCommand().execute(ctx, 'Legolas')
+
+        joined = '\n'.join(ctx.sent)
+        self.assertIn('carrying a fat gold pouch, a big shield and a large amount of armor.', joined)
+
+    async def test_examine_player_no_weapons(self):
+        target = self._make_target(name='Legolas', weapons=[])
+        ctx = self._room_setup(_player(), target)
+
+        await ExamineCommand().execute(ctx, 'Legolas')
+
+        self.assertIn('Looks like Legolas is packing no weapons.', ctx.sent)
+
+    async def test_examine_player_lists_weapons(self):
+        bow = Weapon(id_number=1, name='longbow', kind='standard')
+        target = self._make_target(name='Legolas', weapons=[bow])
+        ctx = self._room_setup(_player(), target)
+
+        await ExamineCommand().execute(ctx, 'Legolas')
+
+        self.assertIn('Looks like Legolas is packing a longbow.', ctx.sent)
+
+    async def test_examine_player_case_insensitive_match(self):
+        target = self._make_target(name='Legolas')
+        ctx = self._room_setup(_player(), target)
+
+        result = await ExamineCommand().execute(ctx, 'legolas')
+
+        self.assertTrue(result.success)
+
+    async def test_ignores_players_in_a_different_room(self):
+        target = self._make_target(name='Legolas')
+        ctx = self._room_setup(_player(), target, room=1)
+        ctx.client.room = 2   # examiner moved elsewhere; target stays in room 1
+
+        await ExamineCommand().execute(ctx, 'Legolas')
+
+        # Non-expert players also get the "'X' examines all" tip box
+        # (tada_utilities.tip()) appended after the miss message.
+        self.assertEqual(ctx.sent[0], "You either spelled it wrong, or are seeing things..")
+        self.assertTrue(any('examines' in line.lower() for line in ctx.sent[1:]))
 
 
 if __name__ == '__main__':

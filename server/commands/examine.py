@@ -15,14 +15,14 @@ from __future__ import annotations
 
 import random
 
-from base_classes import PlayerRace
+from base_classes import PlayerMoneyTypes, PlayerRace
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from items import Item, ItemCategory, Rations, Weapon
 from network_context import GameContext
 from quests.tuts_treasure import examine as tuts_treasure_examine, is_tuts_treasure
 from survival import apply_disease
-from tada_utilities import a_or_an
+from tada_utilities import a_or_an, get_article_and_quantity, tip
 
 # SPUR.MISC3.S exam2: a=(random(999)/10)+1; "if a>60 ... fails" -- so the
 # roll is a 1-100 uniform draw and examination succeeds 60% of the time.
@@ -274,6 +274,146 @@ def _examine_monster(ctx, monster: dict) -> list[str]:
     return _monster_treasure(ctx)
 
 
+def _room_players(ctx, exclude=None) -> list:
+    """All GameContexts in ctx's current room, optionally excluding one --
+    same lookup combat/engine.py's _room_ctxs() already does, duplicated
+    here rather than importing combat.engine to avoid pulling a whole
+    combat-module import chain into EXAMINE."""
+    room_no = getattr(ctx.client, 'room', None)
+    if room_no is None:
+        return []
+    result = []
+    for client in ctx.server.clients.values():
+        c_ctx = getattr(client, 'ctx', None)
+        if c_ctx is None or c_ctx is exclude:
+            continue
+        if getattr(client, 'room', None) == room_no:
+            result.append(c_ctx)
+    return result
+
+
+# SPUR.MISC3.S rd.plyr: "n2$ looks like a{n} {tier}" -- yn>1/2/4/6 thresholds.
+def _experience_tier(xp_level: int) -> str:
+    word = 'a greenhorn'
+    if xp_level > 1:
+        word = 'an experienced'
+    if xp_level > 2:
+        word = 'a veteran'
+    if xp_level > 4:
+        word = 'an elite'
+    if xp_level > 6:
+        word = 'a deadly'
+    return word
+
+
+def _health_descriptor(hit_points: int) -> str:
+    """SPUR's health line (rd.plyr: p2=yh+ce+cd, thresholds 44/59/74 ->
+    poor/fair/good/excellent) is a percentage-like composite of three raw
+    record fields with no confirmed TADA equivalent -- this port's
+    player.hit_points is an uncapped raw number with no max_hit_points
+    concept to compute a percentage against (checked; no such field
+    exists anywhere). Thresholds below are new, not ported from SPUR --
+    chosen to roughly bracket the observed low-level HP range (10
+    starting, 30+xp_level after a Scroll of Endurance, commands/read.py:
+    222). Flagging for Ryan to adjust rather than treating as final.
+    """
+    if hit_points < 15:
+        return 'poor'
+    if hit_points < 25:
+        return 'fair'
+    if hit_points < 40:
+        return 'good'
+    return 'excellent'
+
+
+# SPUR.MISC3.S rd.plyr: purse/pouch descriptor, thresholds on yb (gold).
+def _purse_descriptor(silver: int) -> str:
+    word = 'flat'
+    if silver > 100:
+        word = 'slender'
+    if silver > 200:
+        word = 'modest'
+    if silver > 500:
+        word = 'goodly'
+    if silver > 700:
+        word = 'fat'
+    return word
+
+
+# SPUR.MISC3.S rd.plyr: shield descriptor, thresholds on ye.
+def _shield_descriptor(shield: int) -> str:
+    word = 'no'
+    if shield > 0:
+        word = 'a small'
+    if shield > 25:
+        word = 'a modest'
+    if shield > 50:
+        word = 'a fair sized'
+    if shield > 75:
+        word = 'a big'
+    return word
+
+
+# SPUR.MISC3.S rd.plyr: armor descriptor, thresholds on yf.
+def _armor_descriptor(armor: int) -> str:
+    word = 'no'
+    if armor > 0:
+        word = 'little'
+    if armor > 40:
+        word = 'a modest amount of'
+    if armor > 70:
+        word = 'a large amount of'
+    return word
+
+
+def _examine_player(target_ctx: 'GameContext') -> list[str]:
+    """SPUR.MISC3.S rd.plyr/rd.plyr2: EXAMINE another player -- experience
+    tier, race, class, health, purse (silver in hand), shield, armor, and
+    a list of carried weapons. SPUR reads the target's raw player record
+    straight off disk; this port already holds a live Player object for
+    an online target, so it reads the equivalent fields directly instead
+    of reverse-engineering SPUR's byte-offset record layout (undocumented
+    -- programming-notes/spur-variables.md has no "Y" section at all).
+    """
+    player = target_ctx.player
+    name = player.name
+
+    xp_level = int(getattr(player, 'xp_level', 1) or 1)
+    tier = _experience_tier(xp_level)
+
+    race = getattr(player, 'char_race', None)
+    race_name = str(race).split('.')[-1].title() if race else 'Unknown'
+    char_class = getattr(player, 'char_class', None)
+    class_name = str(char_class).split('.')[-1].title() if char_class else 'Unknown'
+
+    health = _health_descriptor(int(getattr(player, 'hit_points', 0) or 0))
+
+    silver = int(player.get_silver(PlayerMoneyTypes.IN_HAND)) if hasattr(player, 'get_silver') else 0
+    purse = _purse_descriptor(silver)
+
+    shield = _shield_descriptor(int(getattr(player, 'shield', 0) or 0))
+    armor = _armor_descriptor(int(getattr(player, 'armor', 0) or 0))
+
+    lines = [
+        f'{name} looks like {tier} {race_name} {class_name} in {health} health,',
+        f'carrying a {purse} gold pouch, {shield} shield and {armor} armor.',
+    ]
+
+    inv = getattr(player, 'inventory', None)
+    weapon_names = [
+        (getattr(e.item, 'name', '') or '').strip()
+        for e in (inv.entries() if inv is not None else [])
+        if isinstance(e.item, Weapon)
+    ]
+    if not weapon_names:
+        weapon_list = 'no weapons.'
+    else:
+        weapon_list = ' and '.join(get_article_and_quantity(w) for w in weapon_names) + '.'
+    lines.append(f'Looks like {name} is packing {weapon_list}')
+
+    return lines
+
+
 class ExamineCommand(Command):
     """Inspect a specific item, or (with no target) examine everything
     you're carrying and everything in the room -- SPUR.MISC3.S's EXAMINE."""
@@ -354,8 +494,14 @@ class ExamineCommand(Command):
             await ctx.send(_examine_monster(ctx, monster))
             return CommandResult.ok()
 
+        for other_ctx in _room_players(ctx, exclude=ctx):
+            other_name = (getattr(other_ctx.player, 'name', '') or '').strip()
+            if target in other_name.lower():
+                await ctx.send(_examine_player(other_ctx))
+                return CommandResult.ok()
+
         await ctx.send("You either spelled it wrong, or are seeing things..")
-        await ctx.send("('X' examines all)")
+        await ctx.send(tip(ctx, 'Examine Tip', "'X' examines everything you carry and everything here."))
         return CommandResult.ok()
 
     async def _describe_item(self, ctx: GameContext, name: str, item) -> None:

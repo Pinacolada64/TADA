@@ -267,6 +267,25 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - **look \<item\>** — searches inventory, then room-floor items (`commands/look.py`, `SPUR.MISC3.S:316`)
 - ✅ **Examine text lives in the data files** — objects.json/weapons.json/rations.json entries carry their own `"examine"` field (STORM weapons, named treasures like CRYSTAL PENDANT/ICE CRYSTAL/CROWN OF MIDAS/GOLD ROSE, potions, MOONSHINE, OLD HAMBURGER, etc.) instead of an if-chain keyed off item name/kind in `commands/look.py` (New in TADA — new items just need the field added, no code change)
 - ✅ **Magical/cursed detection roll** — weapons.json `kind=="magic"` / objects.json `type=="cursed"` items without their own `"examine"` override go through a 1-100 roll (60% success, matching SPUR's `a=(random(999)/10)+1; if a>60 fail`) and a one-shot "already examined" memory (`player.last_examined`, mirrors SPUR's `xz$`); a failed roll re-fails even on a repeat examine, matching SPUR's roll-before-memory-check order (`SPUR.MISC3.S:295–307`)
+- ✅ **EXAMINE \<player\>** — inspect another player in the same room: experience
+  tier (greenhorn/experienced/veteran/elite/deadly, by `xp_level`), race, class,
+  a health descriptor, a purse/pouch descriptor (silver in hand), shield/armor
+  descriptors, and a list of carried weapons (`SPUR.MISC3.S:572–608`'s
+  `rd.plyr`/`rd.plyr2`, `commands/examine.py` `_examine_player()`). SPUR reads
+  the target's raw player record straight off disk at a fixed byte offset; this
+  port already holds a live `Player` object for an online target, so it reads
+  the equivalent fields directly instead of reverse-engineering SPUR's
+  undocumented record layout (`programming-notes/spur-variables.md` has no "Y"
+  section at all — every field this subroutine touches, `ya`–`yr`/`cs`–`cw`, is
+  unresolved). One deliberate deviation: SPUR's health line is a percentage-like
+  composite (`yh+ce+cd`, thresholds 44/59/74) with no confirmed TADA
+  equivalent — this port has no `max_hit_points` concept to compute a
+  percentage against, so the health descriptor uses new thresholds against raw
+  `player.hit_points` instead (not SPUR-derived; flagged in the code for Ryan
+  to adjust). The purse/shield/armor thresholds, by contrast, are ported
+  as-is from SPUR against this port's existing `IN_HAND` silver /
+  `player.shield` / `player.armor` fields, which are already on a comparable
+  scale.
 
 ### Not Implemented
 - **"(You feel a bit smarter)" INT bump** — SPUR's `smarter` subroutine grants +2 INT (capped ~24) after examining cursed items, MOONSHINE, OLD HAMBURGER, or the suspicious-item trio (strange weapon/funny doll/Pandora's box) (`SPUR.MISC3.S:386–389`)
