@@ -38,7 +38,7 @@ def _make_ctx(room_weapon_index: int, weapons: list[dict]):
     server.game_map.get_room.return_value = room
 
     player = MagicMock()
-    player.picked_up_items = []
+    player.item_history = []
     player.map_level = 1
 
     ctx = MagicMock()

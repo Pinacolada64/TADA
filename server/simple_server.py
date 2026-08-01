@@ -753,8 +753,9 @@ class Server:
         # Historically, this was the way The Land of Spur did it. It it makes even more sense in a multiplayer
         # game: one player could hoard an item and others wouldn't be able to acquire it.
 
-        picked_up  = getattr(player, 'picked_up_items', [])
-        inventory  = getattr(player, 'inventory', None)
+        ration_history = getattr(player, 'ration_history', [])
+        item_history   = getattr(player, 'item_history', [])
+        inventory      = getattr(player, 'inventory', None)
 
         for attr, collection in (('item',    self.items),
                                   ('food',    self.rations),
@@ -774,7 +775,13 @@ class Server:
                     # Room 1's Adventurer's Guide never showing up.
                     in_inventory = (inventory is not None and
                                     bool(inventory.find(item_id=item_id)))
-                    if name and item_id not in picked_up and not in_inventory:
+                    if in_inventory:
+                        logging.debug(
+                            "%s: has %s %s (id=%s) in inventory -- suppressing from room description",
+                            getattr(player, 'name', '?'), 'ration' if attr == 'food' else 'item', name, item_id,
+                        )
+                    history = ration_history if attr == 'food' else item_history
+                    if name and item_id not in history and not in_inventory:
                         seen.append(name)
             except Exception:
                 pass

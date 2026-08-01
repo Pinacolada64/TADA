@@ -84,13 +84,22 @@ class FakePlayer:
         self.drink = 8
         self.honor = 1000
         self.party: list = []
-        self.picked_up_items: list = []
+        self.ration_history: list = []
+        self.item_history: list = []
         self.map_level = 1
         self.unsaved_changes = False
         self.return_key = 'Enter'
 
     def query_flag(self, flag) -> bool:
         return False
+
+    def record_ration_pickup(self, item_id: int) -> None:
+        self.ration_history.append(item_id)
+        self.unsaved_changes = True
+
+    def record_item_pickup(self, item_id: int) -> None:
+        self.item_history.append(item_id)
+        self.unsaved_changes = True
 
 
 class FakeCtx:

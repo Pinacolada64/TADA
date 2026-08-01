@@ -22,7 +22,8 @@ _RING_ITEM_ID = 67
 def _player() -> Player:
     p = Player(name='Frodo')
     p.inventory = Inventory(capacity=10)
-    p.picked_up_items = []
+    p.item_history = []
+    p.ration_history = []
     p.charmed_monsters = []
     return p
 

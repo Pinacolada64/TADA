@@ -1,4 +1,5 @@
 """commands/get.py — Pick up an item from the current room."""
+import logging
 import random
 
 from commands.base_command import Command, CommandResult, Mode
@@ -222,7 +223,8 @@ def _players_in_room(ctx: GameContext) -> list:
 def _room_available_items(ctx: GameContext) -> list[tuple]:
     """Return (display_name, InventoryEntry, remove_fn) for items the player can pick up.
 
-    Static map items already in the player's picked_up_items list are hidden.
+    Static map items already in the player's ration/item history ring buffers
+    (see Player.ration_history / Player.item_history) are hidden.
     remove_fn() records the pickup for static items; pops the entry for dropped items.
     """
     server  = ctx.server
@@ -234,7 +236,8 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
     if not room:
         return []
 
-    picked_up = getattr(player, 'picked_up_items', [])
+    ration_history = getattr(player, 'ration_history', [])
+    item_history = getattr(player, 'item_history', [])
     available = []
 
     # Static room items (item / weapon / food are 1-based indices into server collections)
@@ -254,7 +257,13 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
         item_id = (raw.get('id_number', idx + 1) if isinstance(raw, dict)
                    else getattr(raw, 'id_number', idx + 1))
 
-        if item_id in picked_up:
+        history = ration_history if attr == 'food' else item_history
+        if item_id in history:
+            logging.debug(
+                "%s: skipping %s %s (id=%s) -- already in %s history this session",
+                player.name, attr, name, item_id,
+                'ration' if attr == 'food' else 'item',
+            )
             continue
 
         # rations.json entries carry their own "kind" (food/drink/cursed)
@@ -286,10 +295,15 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
                 pass
         entry = InventoryEntry(item=item)
 
-        def _record(iid=item_id, p=player):
-            if iid not in p.picked_up_items:
-                p.picked_up_items.append(iid)
-                p.unsaved_changes = True
+        def _record(iid=item_id, p=player, is_ration=(attr == 'food')):
+            if is_ration:
+                p.record_ration_pickup(iid)
+            else:
+                p.record_item_pickup(iid)
+            logging.debug(
+                "%s: recorded %s (id=%s) in %s history",
+                p.name, iid, 'ration' if is_ration else 'item',
+            )
 
         available.append((name, entry, _record))
 

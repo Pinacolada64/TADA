@@ -142,6 +142,32 @@ def _login_recovery_lines(player) -> list[str]:
                 "(type 'edit' to resume)"]
 
 
+def _login_equipment_lines(ctx, player) -> list[str]:
+    """Build the login-time "<name> is readied" notice for a currently-
+    equipped shield (SPUR.LOGON.S's misc.data armor/shield reload loop --
+    present in origin/skip's fuller LOGON.S revision, absent from this
+    repo's own SPUR-code copy). Looked up by player.active_shield_id
+    against ctx.server.items (objects.json), the same collection
+    commands/get.py resolves room items from. No equivalent for armor
+    yet -- player.armor is only a flat condition %, not tied to a
+    specific item id."""
+    shield_id = getattr(player, 'active_shield_id', None)
+    if not shield_id:
+        return []
+    for raw in getattr(ctx.server, 'items', None) or []:
+        number = raw.get('number') if isinstance(raw, dict) else getattr(raw, 'number', None)
+        if number != shield_id:
+            continue
+        name = raw.get('name') if isinstance(raw, dict) else getattr(raw, 'name', None)
+        if name:
+            # objects.json names are lowercase ("small shield") -- capitalize
+            # just the leading letter so the sentence reads properly without
+            # title-casing the rest of a multi-word name.
+            return [f"{name[0].upper()}{name[1:]} is readied."]
+        break
+    return []
+
+
 def _login_tip_lines(ctx) -> list[str]:
     """Build the login-time tip display, honoring the player's
     command_settings.tips.enabled preference ('tips #on'/'tips #off').
@@ -492,6 +518,14 @@ class ConnectCommand(Command):
 
         player.last_connection = datetime.datetime.now()
         player.unsaved_changes = True
+
+        # Currently-equipped shield -- see _login_equipment_lines() docstring.
+        # TODO: add the armor-side "You are wearing <armor>{, and
+        #       gauntlets}." counterpart here once player.armor has a real
+        #       per-item id (see TODO.md's 7/31/26 entry).
+        equipment_lines = _login_equipment_lines(ctx, player)
+        if equipment_lines:
+            login_lines += equipment_lines
 
         # --- Status summary ---
         login_lines += ["Current status:", ""]

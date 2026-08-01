@@ -64,7 +64,7 @@ class TestRoomItemVisibility:
         server.game_map = _make_map(item=62)
         player = Player(name='Rulan')
         player.inventory = Inventory(capacity=10)
-        player.picked_up_items = [62]
+        player.item_history = [62]
         lines = server._describe_room(_client(player))
         assert not any("Adventurer's Guide" in l for l in lines)
 

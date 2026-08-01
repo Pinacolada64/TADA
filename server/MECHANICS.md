@@ -544,6 +544,7 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   `water`/`water_with_rocks` flag check that would misfire (talk about a horse
   "refusing to go in the water") if a mount were ever brought aboard the ship level.
 - ✅ **Wraith Master title** — players with `WRAITH_MASTER` flag get ", Wraith Master of Spur!" appended to their name at login (`commands/connect.py:251`)
+- ✅ **Login-time equipped-shield notice** — a currently-readied shield prints a sentence-cased "\<name\> is readied." line at login (`SPUR.LOGON.S`'s misc.data armor/shield reload loop — present in `origin/skip`'s fuller LOGON.S revision, absent from this repo's own SPUR-code copy); looked up by `player.active_shield_id` against `ctx.server.items`. No armor-side counterpart yet — `player.armor` is only a flat condition %, not tied to a specific item id (`commands/connect.py`'s `_login_equipment_lines()`).
 - **WHO command** — lists currently online players; replaces the SPUR "last adventurer" login display (stubbed in `commands/connect.py:247`)
 - **Guild follow** — player character automatically follows guild members to their location when logged off; toggle in settings (stubbed in `commands/connect.py:274`)
 - **DIG command** — dig for buried items or gold (`SPUR.MISC7.S` `dig.a`
@@ -563,6 +564,7 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   would be a new class perk, not a restoration).
 - **WEAKEN command** — sysop-only stat reduction command (`SPUR.MAIN.S`)
 - ✅ **GET command** — pick up items from the room; static room items and session-dropped items both handled (`commands/get.py`)
+- ✅ **Session-scoped ration/item pickup history** — replaces the old unbounded, permanently-persisted `picked_up_items` list that suppressed a picked-up static room item forever. `Player.ration_history` (20-entry ring buffer, food/drink only) and `Player.item_history` (60-entry ring buffer, everything else) model SPUR's real `xo`/`xo$` and `xt`/`xt$` variables (`SPUR.LOGON.S:198,208`): both reset at login, after which `ration_history` is reseeded from currently-carried rations/drinks (so a carried ration stays suppressed even past the 20-entry cap) and `item_history` is reseeded from `active_shield_id` if a shield is equipped — `player.armor`'s lack of a per-item id means the armor half can't be seeded the same way yet (see armor/shield redesign note below). Appended via `Player.record_ration_pickup()`/`record_item_pickup()`, evicting the oldest entry once full; unlike SPUR's unconditional append, a repeated get/take of the same item is a no-op rather than burning another ring-buffer slot (Ryan's call). `commands/get.py`'s `_room_available_items()`, `simple_server.py`'s room-description generator.
 - ✅ **Fireball pickup burn** — non-Wizards picking up a fireball take 1–4 heat damage; gauntlets (item #68) absorb the hit with 10% chance of destruction (`SPUR.WEAPON.S:30`, `commands/get.py`)
 - ✅ **Staff spellcasting hint** — Wizards picking up a staff see a reminder that it enhances spell casting (`SPUR.MISC3.S:47`, `commands/get.py`)
 - ✅ **Monsters/players as GET targets** — live monster: "WON'T LET YOU!"; dead monster: hacked into `<name> MEAT` item placed in room; active player: "SKUTTLES OUT OF REACH!"; unconscious player: "WON'T FIT IN YOUR SACK.." (`SPUR.MISC.S get.b/get.plyr`, `commands/get.py`)
@@ -1141,9 +1143,9 @@ A working prototype of a per-room threaded message system.  Current state:
 
 ## Reactive Room Descriptions
 
-### Prototype — `server/main.py` (Gemini AI, early 2025)
-`main.py` contains a well-developed prototype worth preserving and eventually integrating into
-`simple_server.py`:
+### Prototype — `future/main.py` (Gemini AI, early 2025)
+`main.py` (moved from `server/main.py` into `future/` — not wired into the live game) contains a
+well-developed prototype worth preserving and eventually integrating into `simple_server.py`:
 
 - **`GameClock`** — singleton; wraps `astral` + `pytz`; can run on wall-clock time or advance a
   configurable number of minutes per player action.

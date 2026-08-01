@@ -41,7 +41,8 @@ _MEDUSA = {'number': 99, 'name': 'MEDUSA', 'flags': {'petrify': True}}
 def _player() -> Player:
     p = Player(name='Rulan')
     p.inventory = Inventory(capacity=10)
-    p.picked_up_items = []
+    p.item_history = []
+    p.ration_history = []
     p.charmed_monsters = []
     p.stats[PlayerStat.INT] = 10   # comfortably above ReadCommand's _MIN_INTELLIGENCE
     return p

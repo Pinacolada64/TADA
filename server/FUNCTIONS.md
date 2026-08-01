@@ -462,7 +462,7 @@ Ally/servant data definitions used by Fat Olaf.
 | Symbol / Function                        | Notes                                         |
 |------------------------------------------|-----------------------------------------------|
 | `AllyFlags`, `AllyStatus` (Enum)         | Flags and lifecycle states for allies         |
-| `Ally` (dataclass)                       | `name`, `strength`, `status`, `flags`         |
+| `Ally` (dataclass)                       | `name`, `strength`, `status`, `flags`, `breed`/`color` *(new, undocumented — `Optional[HorseBreed]`/`Optional[HorseColor]` from `base_classes.py`, only meaningful when `AllyFlags.MOUNT` is set)* |
 | `load_allies()`                          | Returns `list[Ally]` from JSON                |
 | `assign_random_statuses(allies)`         | Pure — randomly assigns `SERVANT`/`IN_PARTY`  |
 | `AllyPosition` (Enum)                     | *(new, undocumented)*                         |
@@ -526,7 +526,7 @@ say/shout/whisper/page — no `Command` subclass of its own, despite the name.
 
 | Class            | Keyword(s)                | Notes                                                                                  |
 |-------------------|----------------------------|-----------------------------------------------------------------------------------------|
-| `GetCommand`      | `get`, `g`                | Pick up items from current room; tracks per-player pickup in `player.picked_up_items`  |
+| `GetCommand`      | `get`, `g`                | Pick up items from current room; tracks per-player pickup in `player.ration_history`/`item_history` session-scoped ring buffers (replaced the old unbounded `picked_up_items` list 7/31/26) |
 | `DropCommand`     | `drop`                    | Drop inventory item into current room                                                  |
 | `ReadyCommand`    | `ready`, `wield`, `equip` | Select and ready a weapon from inventory; shows weapon class/race bonuses          |
 | `WhereatCommand`  | `whereat`, `wa`           | Show all connected players with room/virtual-location; restricted to privileged players |
@@ -582,7 +582,7 @@ Race and class stat bonus tables, and character-creation helpers.
 | Function / Class                         | Notes                                                                             |
 |------------------------------------------|-----------------------------------------------------------------------------------|
 | `BaseCharacter` (dataclass)              | Common fields: `name`, `race`, `character_class`, `stat` (dict of `PlayerStat`)  |
-| `Pixie`, `Ally`, `Horse`, `Monster`      | Concrete character subclasses                                                     |
+| `Pixie`, `Ally`, `Monster`               | Concrete character subclasses. `Horse` (dead, never-wired stub) deleted 8/1/26 — a mount is an ordinary `bar/ally_data.Ally` flagged `AllyFlags.MOUNT`, not a separate class |
 | `race_bonuses(race)`                     | Pure — returns `dict[PlayerStat, int]` bonuses for a race                         |
 | `class_bonuses(char_class)`              | Pure — returns `dict[PlayerStat, int]` bonuses for a class                        |
 | `base_stats_for(race, char_class)`       | Pure — merges race + class bonus dicts                                            |
@@ -668,12 +668,19 @@ incompatible early draft of what `net_common.py`'s real `Message`/
 scripts — these predate or postdate the doc's original scope entirely):
 `player.py` (1180 lines), `players.py` (490), `net_client.py` (916),
 `net_server.py` (515), `create_character.py` (1115),
-`character_editor.py` (687), `new_player_2.py` (553), `terminal.py` (546),
+`new_player_2.py` (553), `terminal.py` (546),
 `base_classes.py` (729), `flags.py` (292), `party.py` (171),
-`group_management.py` (210), `inventory.py` (197), `ally_events.py` (257),
+`group_management.py` (210), `inventory.py` (197),
+`ally_events/` (package, not a flat module — `farewell.py`, `starvation.py`,
+`capture_horse.py` *(new 8/1/26, extracted out of `combat/engine.py`'s
+`CombatSession` — mount-capture logic)*, `__init__.py`),
 `wild_horse_events.py` (96), `survival.py` (115), `net_common.py` (281),
 `new_server.py` (257), `books.py`, `messages.py`/`message_handlers.py`,
 `command_settings.py`, `user_settings.py`.
+
+`character_editor.py` (687 lines) — deleted 8/1/26, was a dead never-wired
+stub (had its own orphaned `Horse` class alongside `characters.py`'s and
+`players.py`'s copies; all three removed together, Ryan confirmed).
 
 **Other renamed one-off scripts** (not fixed this pass, minor):
 `convert_map_data.py`, `convert_object_data.py`, `convert_ration_data.py`

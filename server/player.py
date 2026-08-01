@@ -152,6 +152,14 @@ class Player:
             maybe return Player or Ally object if they hold it, or None if no-one holds it
     """
 
+    # Ring-buffer caps matching SPUR.MISC.S:333-334 (xo/xo$, rations) and
+    # SPUR.MISC.S:321-322 (xt/xt$, items) -- see spur-variables.md. Unlike
+    # SPUR's unconditional append, this port's record_ration_pickup()/
+    # record_item_pickup() dedupe (Ryan's call): no reason to burn a ring
+    # buffer slot on a repeated get/take of the same item.
+    RATION_HISTORY_CAP = 20
+    ITEM_HISTORY_CAP = 60
+
     def __init__(self, **kwargs):
         """this code is called when creating a new character"""
         from base_classes import Alignment, Guild, Gender, PlayerMoneyTypes
@@ -339,7 +347,14 @@ class Player:
         # per player rather than removed from the room, or other players
         # would lose the monster too.
         self.charmed_monsters: list[int] = kwargs.get('charmed_monsters', [])
-        self.picked_up_items: list[int] = kwargs.get('picked_up_items', [])
+        # Session history of rations/items already taken so they don't
+        # respawn in a room description -- SPUR's xo/xo$ (rations, 20-entry
+        # ring buffer) and xt/xt$ (items/weapons, 60-entry ring buffer).
+        # Both are reset and (rations only) reseeded from currently-carried
+        # rations once _load() has restored the saved inventory below --
+        # see the login-reset block after _load().
+        self.ration_history: list[int] = kwargs.get('ration_history', [])
+        self.item_history: list[int] = kwargs.get('item_history', [])
         # Item numbers already granted their one-time +1 Wisdom bonus for
         # being read (SPUR.MISC2.S:316's `if pw<25 pw=pw+1` -- fires on
         # every consumed book there, scroll or not; this port keeps
@@ -480,6 +495,36 @@ class Player:
         except Exception:
             logging.debug('No saved player data loaded for %s' % (self.id or self.name))
 
+        # Login-time reset (SPUR.LOGON.S:198 xo=xf:xo$=xf$;
+        # SPUR.LOGON.S:208 xt$="":xt=0), run after _load() so self.inventory
+        # reflects the restored save. Ration history is replaced with
+        # whatever rations/drinks are currently carried (so a room's
+        # ration stays suppressed while carried, even past the 20-entry
+        # pickup ring buffer).
+        try:
+            from items import ItemCategory
+            carried_rations = [
+                int(getattr(entry.item, 'id_number', 0) or 0)
+                for entry in self.inventory.entries(category=str(ItemCategory.FOOD))
+                + self.inventory.entries(category=str(ItemCategory.DRINK))
+            ]
+            self.ration_history = [i for i in carried_rations if i]
+        except Exception:
+            logging.debug('Could not seed ration_history from inventory for %s', self.id or self.name)
+
+        # Item history has no carried-inventory equivalent in master's
+        # SPUR.LOGON.S and starts empty each session. Skip's branch of the
+        # SPUR source (origin/skip -- a fuller LOGON.S revision master
+        # lacks) additionally re-seeds xt$ at login from currently-worn
+        # armor/shield item numbers (read from misc.data), so a worn piece
+        # doesn't reappear as pickable in its room. This port only has an
+        # item id for the shield half (active_shield_id) -- player.armor is
+        # just a flat condition %, not tied to a specific item id, so it
+        # can't be seeded the same way until that gets a real per-item
+        # model (see armor/shield redesign notes).
+        shield_id = getattr(self, 'active_shield_id', None)
+        self.item_history = [int(shield_id)] if shield_id else []
+
         # hit_points defaulted to 0 since 62391c4 ("Updating old code - added
         # player.py"), causing _game_loop to quit the player after every command.
         # Revive anyone saved at 0 HP so they aren't permanently stuck.
@@ -572,6 +617,30 @@ class Player:
     def has_item(self, item):
         """Check if player has item"""
         return item in self.inventory
+
+    def record_ration_pickup(self, item_id: int) -> None:
+        """Append to the ration ring buffer (SPUR xo/xo$), evicting the oldest
+        entry once full. A no-op if item_id is already recorded -- unlike
+        SPUR's unconditional append, a repeated get/take of the same ration
+        shouldn't burn another slot."""
+        if item_id in self.ration_history:
+            return
+        self.ration_history.append(item_id)
+        if len(self.ration_history) > self.RATION_HISTORY_CAP:
+            self.ration_history.pop(0)
+        self.unsaved_changes = True
+
+    def record_item_pickup(self, item_id: int) -> None:
+        """Append to the item/weapon ring buffer (SPUR xt/xt$), evicting the
+        oldest entry once full. A no-op if item_id is already recorded --
+        unlike SPUR's unconditional append, a repeated get/take of the same
+        item shouldn't burn another slot."""
+        if item_id in self.item_history:
+            return
+        self.item_history.append(item_id)
+        if len(self.item_history) > self.ITEM_HISTORY_CAP:
+            self.item_history.pop(0)
+        self.unsaved_changes = True
 
     def look_at(self, item: Any):
         """
@@ -1254,9 +1323,15 @@ class Player:
                 except Exception:
                     logging.exception("Player._load: failed to restore party for %s", self.name)
 
-            # Picked-up static room items — must survive logout so they don't reappear
-            if 'picked_up_items' in data and isinstance(data['picked_up_items'], list):
-                self.picked_up_items = [int(i) for i in data['picked_up_items'] if isinstance(i, (int, float))]
+            # Session history of picked-up rations/items -- restored here so
+            # save()'s full __dict__ dump round-trips, but both are reset
+            # (and ration_history reseeded from carried rations) on every
+            # login in __init__, matching SPUR.LOGON.S:198's xo=xf:xo$=xf$
+            # and SPUR.LOGON.S:208's xt$="":xt=0.
+            if 'ration_history' in data and isinstance(data['ration_history'], list):
+                self.ration_history = [int(i) for i in data['ration_history'] if isinstance(i, (int, float))]
+            if 'item_history' in data and isinstance(data['item_history'], list):
+                self.item_history = [int(i) for i in data['item_history'] if isinstance(i, (int, float))]
 
             # Books already granted their one-time reading Wisdom bonus
             if 'read_books' in data and isinstance(data['read_books'], list):

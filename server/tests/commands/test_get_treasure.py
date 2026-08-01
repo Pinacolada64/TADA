@@ -37,7 +37,8 @@ def _player(silver=0) -> Player:
     p = Player(name='Rulan')
     p.set_silver_absolute(PlayerMoneyTypes.IN_HAND, silver)
     p.inventory = Inventory(capacity=10)
-    p.picked_up_items = []
+    p.item_history = []
+    p.ration_history = []
     return p
 
 
@@ -221,7 +222,7 @@ class TestGetTreasureIntegration(unittest.IsolatedAsyncioTestCase):
 
         await GetCommand()._pick_up(ctx, p.inventory, name, entry, remove_fn)
 
-        self.assertIn(1, p.picked_up_items)
+        self.assertIn(1, p.item_history)
         first_silver = p.get_silver(PlayerMoneyTypes.IN_HAND)
         self.assertGreater(first_silver, 0)
 
