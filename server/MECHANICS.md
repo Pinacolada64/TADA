@@ -67,15 +67,15 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - **Player damage** — base damage (stability) + class/race bonus + XP scaling (`resolution.py`)
 - **Monster attack** — hit/miss vs. player stats; light/heavy armor reduction (`resolution.py`)
 - **Special weapons** — `check_special_weapon()` enforces per-monster required weapon; EXCALIBUR ×2 vs evil/÷2 vs good; WRAITH DAGGER +40 vs wraith #70 (`resolution.py`)
-- **STORM — asserts its will** — 30% auto-attack when monster has attacked fewer than 6 times (`engine.py`, `SPUR.COMBAT.S:59`)
-- **STORM — armor penetration** — +XP after armor reduction for STORM/CANNON/hack-slash (`resolution.py`, `SPUR.COMBAT.S:158`)
-- **STORM — screams in glee** — message on monster kill if STORM weapon readied (`engine.py`, `SPUR.COMBAT.S:197`)
-- **STORM — scare** — 10% chance loud weapon scares unarmored monster in first 2 exchanges (`resolution.py`, `SPUR.COMBAT.S:423–430`)
+- **STORM — asserts its will** — 30% auto-attack when monster has attacked fewer than 6 times (`engine.py`, `SPUR.COMBAT.S:59` master / `:61` skip, unchanged)
+- **STORM — armor penetration** — +XP after armor reduction for STORM/CANNON/hack-slash (`resolution.py`, `SPUR.COMBAT.S:158` master / `:177` skip, unchanged)
+- **STORM — screams in glee** — message on monster kill if STORM weapon readied (`engine.py`, `SPUR.COMBAT.S:197` master / `:224` skip, unchanged)
+- **STORM — scare** — 10% chance loud weapon scares unarmored monster in first 2 exchanges (`resolution.py`, `SPUR.COMBAT.S:423–430` master / `:491–497` skip, unchanged besides a debug-flag rename)
 - **Surprise attack** — when monster has not yet spotted player, +2 to-hit + damage for player (`resolution.py`)
 - **Double attack** — 40% chance of a second monster attack in rooms marked `]` (`engine.py`)
 - **Allies** — up to 3 allies attack each round; morale failure / sacrifice on near-death (`engine.py`)
 - ✅ **Ally death-save** — before a blow that would kill the player lands, an owned ally gets a chance to intervene: GOD/GODDESS allies always teleport the player to safety and depart for good; others roll courage (vs. player honor, elites get a bonus) and either flee (freed) or "leap in front" as flavor — only a GOD/GODDESS save actually cancels the damage, matching SPUR.MISC9.S exactly (`SPUR.COMBAT.S` `dragon`/`sac.ally`, `ally_events.py` `try_ally_death_save()`, `engine.py` `_resolve_monster_hit()`)
-- ✅ **LASSO — capture a mount** — during combat against a horse-named monster, `lasso` captures it as a new MOUNT-flagged ally (name prompt with SPUR's length/character validation, plus an 'R' option for a random gender-appropriate name); blocked by a full party or an existing mount. A TADA original addition beyond SPUR: the mount's own gender is rolled 50/50 and announced ("Your horse seems to be a male/female") -- SPUR's `lasso.b` never tracked a mount's gender at all, hence its flavor text always saying "he"/"him" unconditionally (`SPUR.USE.S` `lasso`, `commands/lasso.py`, `engine.py` `CombatSession.lasso()`/`_finalize_mount_capture()`/`_random_horse_name()`)
+- ✅ **LASSO — capture a mount** — during combat against a horse-named monster, `lasso` captures it as a new MOUNT-flagged ally (name prompt with SPUR's length/character validation, plus an 'R' option for a random gender-appropriate name); blocked by a full party or an existing mount. A TADA original addition beyond SPUR: the mount's own gender is rolled 50/50 and announced ("Your horse seems to be a male/female") -- SPUR's `lasso.b` never tracked a mount's gender at all, hence its flavor text always saying "he"/"him" unconditionally (`SPUR.USE.S` `lasso`, **skip branch only** — master's `SPUR.USE.S` has no lasso/mount code whatsoever, `commands/lasso.py`, `engine.py` `CombatSession.lasso()`/`_finalize_mount_capture()`/`_random_horse_name()`)
 - ✅ **Druid/Ranger passive taming** — a TADA original mechanic, not from
   SPUR: fighting a wild horse as a Druid or Ranger gives a 15% chance each
   round of taming it outright, without ever using LASSO — "A certain look
@@ -125,24 +125,26 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   aggressive taunt (quotes 1–52), or — if the player's race is thematically simpatico with
   the monster's alignment (Ogre/Half-Elf vs. an `evil`-flagged monster, Pixie/Elf vs. a
   `good`-flagged monster) — a random friendly greeting (quotes 61–71) instead. `'$'` in the
-  quote is replaced with the player's name (`SPUR.MISC4.S` `mon.ret`/`perm.qt`, skip
-  branch; `monsters.py` `load_quotes()`, `combat/engine.py` `_pick_monster_quote()`)
+  quote is replaced with the player's name (`SPUR.MISC4.S` `mon.ret`/`perm.qt` — confirmed
+  on both master (`:251`) and skip (`:259`), nearly byte-identical, ~8-line offset; not
+  skip-only as a prior pass here implied; `monsters.py` `load_quotes()`, `combat/engine.py`
+  `_pick_monster_quote()`)
 
 ### Not Implemented
 
 #### Weapon / attack mechanics
-- ✅ **Ammo system (core)** — "NO AMMO READY" blocks attack for projectile/energy weapons; ammo consumed per shot; `ammo_damage` added to hit; STORM bypasses ammo (`SPUR.COMBAT.S:44,84,144`, `resolution.py`, `engine.py`)
-- **Ammo — burst/auto-fire modes** — S/B/A fire-mode prompt; burst and auto consume multiple rounds per swing (`SPUR.COMBAT.S:98–101`)
+- ✅ **Ammo system (core)** — "NO AMMO READY" blocks attack for projectile/energy weapons; ammo consumed per shot; `ammo_damage` added to hit; STORM bypasses ammo (`SPUR.COMBAT.S:44,84,144` master / `:48,98,162` skip, unchanged, `resolution.py`, `engine.py`)
+- **Ammo — burst/auto-fire modes** — S/B/A fire-mode prompt; burst and auto consume multiple rounds per swing (`SPUR.COMBAT.S:98–101` master / `:112–115` skip, unchanged)
 - ✅ **Stray round / friendly fire** — missed ammo shot may hit ally or bystander; chance scales by weapon XP: GREEN 1-in-3, VETERAN 1-in-6, ELITE 1-in-10; 1–4 HP damage; ally killed if HP reaches 0 (`engine.py` `_stray_round()`)
-- ✅ **Ammo recovery** — after killing a monster, bow/sling/blowgun weapons recover 1–max random rounds; message uses weapon-specific term (arrows/stones/darts) (`SPUR.MISC.S:427`, `engine.py` `_recover_ammo()`)
-- ✅ **USE ammo command** — loads ammo into a readied ranged weapon; checks `used_with`; STORM refuses physical ammo (`SPUR.USE.S:147–162`, `commands/use.py`)
-- ✅ **Missile: first strike** — when ammo is loaded and monster hasn't attacked yet, monster skips its first swing; "MISSILE: FIRST STRIKE!" message (`SPUR.COMBAT.S:219`, `engine.py`)
-- ✅ **Pole weapon: first strike** — roll + (monster agility × 3) + 2 < player DEX → first strike; otherwise monster swings normally (`SPUR.COMBAT.S:221`, `engine.py`)
-- ✅ **Fireball/energy weapon secondary damage** — 10% chance of secondary heat damage (`SPUR.COMBAT.S:143`, `resolution.py:511-514`)
-- ✅ **LURK mode** — standalone `lurk`/`lurk <name>` command (`commands/lurk.py`, SPUR.MAIN.S:87 — same dispatch as `attack`/`kill`/`fight`/`k`, works to open a fight, continue one as leader via the `[L]urk` combat-menu option, or join one as a bystander via `CombatSession.join(ctx, is_lurking=True)`); requires at least one living ally ("No allies — no LURK!" if none); costs Honor (base 2, +1 Assassin, +1 HP>20, -1 HP<10, -1 more HP<5, -1 if the swing won't fire; no deduction if Honor isn't strictly greater than the cost); a loaded, non-STORM, non-LIGHT-named projectile/energy weapon fires over the ally's head at a -2 to-hit/-2 damage penalty (`player_attacks(is_lurking=True)`, ease-of-use fast path disabled); any other weapon (melee, empty ammo weapon, or LIGHT SABRE) skips the player's own swing entirely and only the allies attack (`SPUR.COMBAT.S:82–96`, `combat/lurk.py` `resolve_swing()`, `has_living_ally()`). While lurking, the monster's counter-attack is guaranteed to redirect off the player and onto a random living ally instead — the ally takes the same damage the player would have, minus 1 (2 more for an Elite/"!"-flagged ally, which also skips the roll below entirely) (`SPUR.COMBAT.S:247–262, 324–341`, `lurk.a`/`m.a1`, `combat/lurk.py` `try_redirect_to_ally()`, `combat/engine.py` `CombatSession._is_lurking_this_round`). A surviving non-Elite ally then rolls for morale failure — a 0–9 roll shifted by the player's current Honor (lower Honor raises the odds) that flees the ally outright (reverting to `AllyStatus.FREE`, same as `encounters/monster.py`'s desertion roll) if it exceeds the ally's remaining hit points (`SPUR.COMBAT.S:328–330, 341`)
-- ✅ **Assassin critical hit** — class 8 (Assassin), 10% chance to double damage (`SPUR.COMBAT.S:135`, `resolution.py:435`)
-- ✅ **Ease-of-use help message** — "(Ease of use helps!)" when roll barely misses and ease-of-use score would have made the difference (`SPUR.COMBAT.S:139`, `resolution.py:416`, `engine.py:541`)
-- ✅ **Bad weapon choice warning** — "(bad weapon choice)" when `p2 < 3` (`SPUR.COMBAT.S:119`)
+- ✅ **Ammo recovery** — after killing a monster, bow/sling/blowgun weapons recover 1–max random rounds; message uses weapon-specific term (arrows/stones/darts) (`SPUR.MISC.S` `rec.ammo`, actually `:426` not `:427` (off-by-one in a prior pass) master / `:434` skip, logic byte-identical, `engine.py` `_recover_ammo()`)
+- ✅ **USE ammo command** — loads ammo into a readied ranged weapon; checks `used_with`; STORM refuses physical ammo (`SPUR.USE.S:147–162` master / `:229–250` skip, unchanged, `commands/use.py`)
+- ✅ **Missile: first strike** — when ammo is loaded and monster hasn't attacked yet, monster skips its first swing; "MISSILE: FIRST STRIKE!" message (`SPUR.COMBAT.S:219` master / `:246` skip, unchanged, `engine.py`)
+- ✅ **Pole weapon: first strike** — roll + (monster agility × 3) + 2 < player DEX → first strike; otherwise monster swings normally (`SPUR.COMBAT.S:221` on master; on skip this roll is merged with the CHARGE first-strike roll at `SPUR.COMBAT.S:250–254` and the formula itself changes to roll + (monster agility × 4) < player DEX — multiplier 3→4, the +2 constant dropped, plus a mounted/charging ±4 adjustment layered on top — a real mechanic change, not just relocation, `engine.py`)
+- ✅ **Fireball/energy weapon secondary damage** — 10% chance of secondary heat damage (`SPUR.COMBAT.S:160`, not `:143` as a prior pass cited — that line is unrelated damage-scaling code; master `:160` / skip `:179`, unchanged, `resolution.py:511-514`)
+- ✅ **LURK mode** — standalone `lurk`/`lurk <name>` command (`commands/lurk.py`, SPUR.MAIN.S:87 — same dispatch as `attack`/`kill`/`fight`/`k`, works to open a fight, continue one as leader via the `[L]urk` combat-menu option, or join one as a bystander via `CombatSession.join(ctx, is_lurking=True)`); requires at least one living ally ("No allies — no LURK!" if none); costs Honor (base 2, +1 Assassin, +1 HP>20, -1 HP<10, -1 more HP<5, -1 if the swing won't fire; no deduction if Honor isn't strictly greater than the cost); a loaded, non-STORM, non-LIGHT-named projectile/energy weapon fires over the ally's head at a -2 to-hit/-2 damage penalty (`player_attacks(is_lurking=True)`, ease-of-use fast path disabled); any other weapon (melee, empty ammo weapon, or LIGHT SABRE) skips the player's own swing entirely and only the allies attack (`SPUR.COMBAT.S:82–96` master / `:96–110` skip, unchanged, `combat/lurk.py` `resolve_swing()`, `has_living_ally()`). While lurking, the monster's counter-attack is guaranteed to redirect off the player and onto a random living ally instead — the ally takes the same damage the player would have, minus 1 (2 more for an Elite/"!"-flagged ally, which also skips the roll below entirely) (`SPUR.COMBAT.S:247–262, 324–341` master; relocated/expanded to `:283–301` and `m.a1`/`m.a2` at `:368–413` on skip — skip adds a mount-redirect variant ("MOUNTED- ATTACKS YOU, BUT STRIKES ally INSTEAD") and a morale-flee-while-mounted "carried away" (`run.h`) branch not present on master at all, ties into the mount-redirect bullet in the Horses section below; `lurk.a`/`m.a1`, `combat/lurk.py` `try_redirect_to_ally()`, `combat/engine.py` `CombatSession._is_lurking_this_round`). A surviving non-Elite ally then rolls for morale failure — a 0–9 roll shifted by the player's current Honor (lower Honor raises the odds) that flees the ally outright (reverting to `AllyStatus.FREE`, same as `encounters/monster.py`'s desertion roll) if it exceeds the ally's remaining hit points (`SPUR.COMBAT.S:328–330, 341` master, core roll unchanged on skip but now wrapped inside the mount-aware `m.a1`/`m.a2` split above)
+- ✅ **Assassin critical hit** — class 8 (Assassin), 10% chance to double damage (`SPUR.COMBAT.S:135` master / `:164` skip, unchanged, `resolution.py:435`)
+- ✅ **Ease-of-use help message** — "(Ease of use helps!)" when roll barely misses and ease-of-use score would have made the difference (`SPUR.COMBAT.S:139` master / `:157` skip, unchanged, `resolution.py:416`, `engine.py:541`)
+- ✅ **Bad weapon choice warning** — "(bad weapon choice)" when `p2 < 3` (`SPUR.COMBAT.S:119` master / `:142` skip, unchanged)
 - ✅ **Zero-damage hit phrasing** — a landed hit that rolls 0 damage reads
   "You strike the TROLL, but inflict no damage!" (and the equivalent
   bystander/room broadcast and ally-swing message), not "...for 0
@@ -150,12 +152,12 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   (`combat/engine.py` `_narrate_player_swing()` and the ally-attack loop).
 
 #### Defence
-- ✅ **Shield** — blocks some incoming damage; degrades; can be destroyed; shield items usable via USE command (`SPUR.COMBAT.S`, `SPUR.USE.S:34–43`, `combat/resolution.py` `monster_attacks()`, `combat/engine.py`)
-- ✅ **Armor** — degrades each hit; destroyed when it reaches 0; (`SPUR.COMBAT.S:289–302`, `combat/resolution.py` `monster_attacks()`, `combat/engine.py`)
-- **Gauntlets** — absorb one hit (10% chance destroyed) when player takes a hit (`SPUR.COMBAT.S:210–217`, `SPUR.WEAPON.S:spec4`)
-- **Wizard's glow** — item `zu$[7]` values 2/3 reduce incoming damage by 2 (`SPUR.COMBAT.S:266`)
-- **Lazer shield** — energized shield variant; blocks laser fire at half damage (`SPUR.USE.S:86`)
-- **Power armor** — specific item; halves blast damage (`SPUR.USE.S:124`)
+- ✅ **Shield** — blocks some incoming damage; degrades; can be destroyed; shield items usable via USE command (`SPUR.COMBAT.S`, `SPUR.USE.S:34–43` on master (flat %-cap by class/race); substantially reworked on skip at `SPUR.USE.S:36–101` — drops the %-cap for an "IS TOO BULKY FOR YOUR KIND" gate keyed off item tier, plus new persistent shield-condition storage across repacking (`misc.data` writes, "YOU REPACK THE ___") not present on master at all; `combat/resolution.py` `monster_attacks()`, `combat/engine.py`)
+- ✅ **Armor** — degrades each hit; destroyed when it reaches 0; (`SPUR.COMBAT.S:289–302` master / `:328–343` skip — skip additionally adds a 35% chance (`random(100)>65`) for shield/armor to skip degradation on a block entirely, both in the shield block (skip `:321`) and armor block (skip `:338`); master always applies degradation, `combat/resolution.py` `monster_attacks()`, `combat/engine.py`)
+- **Gauntlets** — absorb one hit (10% chance destroyed) when player takes a hit (`SPUR.COMBAT.S:210–217` master / `:237–242` skip, unchanged, `SPUR.WEAPON.S:spec4`)
+- **Wizard's glow** — item `zu$[7]` values 2/3 reduce incoming damage by 2 (`SPUR.COMBAT.S:266` master / `:306` skip, unchanged)
+- **Lazer shield** — energized shield variant; blocks laser fire at half damage (`SPUR.USE.S:86` master, includes an "ALREADY ENERGIZED" duplicate-use guard; skip's `lazer.sh` moves to `:147–151` and drops that duplicate-energize message — silently no-ops instead — core 50% reduction unchanged)
+- **Power armor** — specific item; halves blast damage (`SPUR.USE.S:124` master / `:206` skip, unchanged verbatim)
 - ✅ **Crystal Pendant** (item #82) — resolved once per encounter, not per round (`SPUR.MISC4.S` `mon.set`/`stone`, called when the monster is first set up): if the player carries it and the monster can `petrify`, 90% chance to permanently disable that monster's turn-to-stone for the rest of the fight ("The CRYSTAL PENDANT flashes, preventing TURN TO STONE by `<monster>`!"), 10% chance the monster "happens to see" it and dons anti-pendant glasses that one time (petrification remains possible for the rest of the fight either way) (`combat/engine.py` `CombatSession._check_crystal_pendant()`)
 
 #### Monster abilities
@@ -164,7 +166,7 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Poison on hit** — monsters with `poisonous_attack` flag; 30% chance per hit (`SPUR.COMBAT.S:312–313`, `resolution.py:639`, `engine.py:603`)
 - ✅ **Disease on hit** — monsters with `diseased_attack` flag; 30% chance per hit (`SPUR.COMBAT.S:315–316`, `resolution.py:641`, `engine.py:605`)
 - ✅ **Experience drain on hit** — monsters with `experience_drain` flag; drains XP on hit (`SPUR.COMBAT.S:317`, `resolution.py:655`, `engine.py:611`)
-- **Multiple guards** — if player is treacherous in a guard room, whistles summon more guards and monster HP multiplies (`SPUR.COMBAT.S mad.gd`)
+- **Multiple guards** — if player is treacherous in a guard room, whistles summon more guards and monster HP multiplies (`SPUR.COMBAT.S mad.gd` on master; relocated to the new `SPUR.MISC9.S:192-195` on skip (dispatched via `goto lnk.msc9`), logic unchanged)
 - ✅ **Dexterity loss on heavy hit** — taking >4 damage reduces player DEX by 1 (`SPUR.COMBAT.S:318`, `engine.py:583`)
 - ✅ **Dexterity gain** — dealing >4 damage has small chance to increase player DEX (`SPUR.COMBAT.S:143`, `engine.py:335`)
 - ✅ **Wisdom gain on kill** — player `pw` increases by 1 on every non-ally kill (`SPUR.COMBAT.S:188`, `engine.py:676`)
@@ -209,9 +211,9 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - Basic flee command exists (`commands/flee.py`)
 
 ### Not Implemented
-- ✅ **Monster blocks path** — if player HP > 7 and the monster is following, may block flee (`SPUR.COMBAT.S:75`, `combat/resolution.py` `flee_attempt()`, `combat/engine.py` — "`{mname} blocks your escape!`"). **Note**: the XP-scaling term in SPUR's formula (`random(1,10) < xp/3`) is currently hardcoded to `xp=1` (`resolution.py:800`, `# TODO: replace with derived xp_level`), so higher-level players don't yet get an easier time slipping past — the core block-or-not mechanic works, but the level scaling isn't wired up.
-- ✅ **Energy cost** — fleeing costs 1 energy (`SPUR.COMBAT.S:76`, `engine.py` `flee()`)
-- ✅ **Impassable rooms** — rooms flagged `@@` (water), `**` (snow), or `<<` (no_flee) cannot be fled from (`SPUR.COMBAT.S:74`, `resolution.py` `flee_attempt()`); flags parsed by `convert_from_gbbs_tool.py` and stored as `Room.flags`. **Note**: on level 6, `@@` doesn't mean water at all — see "Special room traversal requirements" below.
+- ✅ **Monster blocks path** — if player HP > 7 and the monster is following, may block flee (`SPUR.COMBAT.S:75` on master, formula `random(1,10) < xp/3`, `combat/resolution.py` `flee_attempt()`, `combat/engine.py` — "`{mname} blocks your escape!`"). **Branch divergence**: skip reworks this substantially at `SPUR.COMBAT.S:82–89` — adds a Blue-Djinn-specific case that always blocks flee unless a separate roll succeeds ("'COWARD!' SHOUTS ... BLOCKING THE EXIT!"), inverts the HP gate to `if hp<7 goto no.dot` (net-same threshold, different control flow), drops master's exemption for `:`-flagged/wrecked monsters entirely, and — most importantly — changes the formula to `random(1,10) < xp` (no ÷3), making escape meaningfully harder at higher XP than master's cited formula. **Note**: the XP-scaling term is currently hardcoded to `xp=1` in this port (`resolution.py:800`, `# TODO: replace with derived xp_level`), so higher-level players don't yet get an easier time slipping past — the core block-or-not mechanic works, but the level scaling isn't wired up, and whichever branch's formula (÷3 or not) this is meant to eventually match hasn't been decided.
+- ✅ **Energy cost** — fleeing costs 1 energy (`SPUR.COMBAT.S:76` master / `:89` skip, unchanged, `engine.py` `flee()`)
+- ✅ **Impassable rooms** — rooms flagged `@@` (water), `**` (snow), or `<<` (no_flee) cannot be fled from (`SPUR.COMBAT.S:74` master / `:81` skip, unchanged, `resolution.py` `flee_attempt()`); flags parsed by `convert_from_gbbs_tool.py` and stored as `Room.flags`. **Note**: on level 6, `@@` doesn't mean water at all — see "Special room traversal requirements" below.
 
 ---
 
@@ -224,10 +226,17 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **STORM — jealous rage** — unreadied STORM in inventory howls when player readies something else (`commands/ready.py`)
 - ✅ **STORM — servant** — accepts player with good class/race affinity; grants +2 skill/damage (`commands/ready.py`, `combat/engine.py`)
 - ✅ **STORM — YOU ARE NOT MINE** — rejects player with no class/race affinity (`commands/ready.py`)
-- ✅ **Excalibur — Knight/honor gate** — readying weapon #17 requires Knight class + honor >= 1200; an unworthy player gets the same rejection blast as an unfit STORM ready, a worthy one gets unique "fiery sheen" flavor text (`SPUR.WEAPON.S:27`, `commands/ready.py`)
-- ✅ **Death Amulet — readying gamble** — readying weapon #56 (matched by name) is a Y/N confirm with a 20% instant-death roll, reduced to 10% if carrying the Amulet of Life (#76) (`SPUR.WEAPON.S:31, 64-73`, `commands/ready.py`)
+- ✅ **Excalibur — Knight/honor gate** — readying weapon #17 requires Knight class + honor >= 1200; an unworthy player gets the same rejection blast as an unfit STORM ready, a worthy one gets unique "fiery sheen" flavor text (`SPUR.WEAPON.S:27`, byte-identical, same line number on both master and skip, `commands/ready.py`)
+- ✅ **Death Amulet — readying gamble** — readying weapon #56 (matched by name) is a Y/N confirm with a 20% instant-death roll, reduced to 10% if carrying the Amulet of Life (#76) (`SPUR.WEAPON.S:31, 64-73`, byte-identical/same lines on both branches — skip adds one extra debug line inside the death branch, `if gm=1 hp=1:print "...GOD MODE SAVES YOU..."`, a god-mode safety net not present on master, but the base 20%/10% odds are unchanged, `commands/ready.py`)
 - ✅ **"Best targets" combat bonus** — the weapon-class-vs-monster-size table hinted at in the ready display's `[ Best targets ]` line is a real to-hit bonus/penalty during combat, not just flavor (`SPUR.COMBAT.S:110-118`, `combat/resolution.py` `hit_threshold()`); the `[ Best targets ]` hint itself only shows for non-expert players — experts get the terser "Weapon class: X" line alone (`commands/ready.py` `_weapon_class_line()`)
 - ✅ **Archer bow accuracy bonus** — Archers (`pc=7`) wielding a weapon whose name contains "SBOW" or " BOW" get +2 to-hit / +2 damage; the same class gets a −1/−2 penalty with `bash/slash` or `pole/range` weapon classes (i.e. non-ranged weapons), and Assassins get a −1/−1 penalty with bows (`SPUR.WEAPON.S:134,137`, `item_system.py` `weapon_bonus()`, flows into `combat/engine.py` → `combat/resolution.py`'s hit-threshold roll like any other class/weapon modifier). Undocumented here until now, which is why it read as missing on a memory check.
+  **Branch discrepancy in the Assassin-bow-penalty citation**: on **skip**, the equivalent line
+  (`:138`) reads `if pc=8 if instr(n$,"SBOW, BOW,LING") yz=-1:yx=-1` — `pc=8` is *class*
+  (Assassin), matching the description above exactly. But on **master**, line `137` is
+  actually `if pr=8 if instr(n$,"SBOW, BOW,LING") yz=-1:yx=-1` — `pr=8` is *race* (Orc, per
+  `SPUR.LOGON.S:77`), not the Assassin class at all. So the description as written only
+  matches skip's code; master's line 137 penalizes Orcs with bows, not Assassins. Worth
+  confirming which branch's rule the port is meant to follow before treating this as settled.
 - ✅ **UNREADY command** — clears readied weapon; "No weapon readied!" if nothing's equipped (`SPUR.MAIN.S:84-85`, `commands/unready.py`)
 
 ### Not Implemented
@@ -254,7 +263,7 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - **Scrolls / spellcasting** (`SPUR.MISC3.S`)
 - **Spacesuit assembly** — combine parts 134 + 135 with tool into item 122 (`SPUR.USE.S:58–72`)
 - **Communicator repair** — USE tool on item 141 produces item 66 (`SPUR.USE.S:70`)
-- **Slippers of Galad** — location-specific item effect (`SPUR.USE.S:25`)
+- **Ruby slippers** — teleport-home to level 1 room 1 (`SPUR.USE.S:25,142–145`)
 - **Palintar** — links to misc6 (`SPUR.USE.S:20`)
 - **Crystal vial** — location-specific effect (`SPUR.USE.S:23–24`)
 - ✅ **Ammo consumption in combat** — projectile/energy weapons check `player.ammo_rounds` before swinging; "NO AMMO READY" blocks attack; `ammo_damage` added to hit damage; one round decremented per swing (`SPUR.COMBAT.S:44,84,99,144`)
@@ -800,7 +809,7 @@ Locker belongs to the Shoppe (`shoppe/locker.py`), not here.
 ### Implemented
 - ✅ **Fat Olaf** — slave/servant trader; buy allies; sell servant stub present (`bar/fat_olaf.py`)
 - ✅ **Food/drink menu** — `food_menu()` helper exists; rations list rendered
-- ✅ **Mundo escorts a debtor straight to Vinny** — `SPUR.BAR.S:16-18`:
+- ✅ **Mundo escorts a debtor straight to Vinny** — `SPUR.BAR.S:16-18` on master, same two-line trigger at `:22-24` on skip (shifted +6 by skip's added file-header comments), functionally identical besides skip using a `qt$` variable for quote-escaping instead of a literal apostrophe:
   "Mundo checks your books.." / `if (g7>0) or (g8>0) ... "He 'escorts' you
   over to Vinney!" ... goto mundo.ck` (jumps straight to Vinny's tile and
   links into `spur.bar3` — no return to the normal move loop). Ported as:

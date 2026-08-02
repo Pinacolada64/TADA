@@ -18,7 +18,7 @@ Mirrors SPUR.USE.S. Supported item types:
 Not yet implemented (deferred — level 6 or requires unbuilt systems):
   rocket — single-use ranged explosive; needs rocket item type
   security cards — level-6 items
-  slippers of Galad / crystal vial / palintar — special room items
+  ruby slippers / crystal vial / palintar — special room items
 
 The ring of invisibility (#67) is handled by commands/wear.py instead --
 SPUR toggles it via USE (SPUR.USE.S use4), but Ryan's call was that WEAR
