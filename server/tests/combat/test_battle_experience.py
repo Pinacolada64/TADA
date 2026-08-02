@@ -4,14 +4,15 @@ Unit tests for weapon-specific battle experience (SPUR's `vp`).
 
 SPUR.MISC.S:384 (`p.a3`, the monster-just-died cleanup routine) is the
 ONLY place `vp` is ever incremented anywhere in the SPUR source -- checked
-by grepping every .S file (master and skip branches) for `vp=vp+1`. There
-is no per-swing accrual; that was a bug in this port's earlier version,
-which called _award_weapon_exp() after every swing (hit or miss) and even
-credited every OTHER attacker in the room for the swinging player's
-weapon. Battle experience now only grows for the ctx that actually lands
-the killing blow, for whatever weapon it currently has readied
-(CombatSession._monster_dies(), gated the same way as the WIS gain right
-next to it: player_killed=False when an ally dealt the blow skips both).
+by grepping every .S file (master and skip branches) for `vp=vp+1`. This
+port deliberately diverges from SPUR (Ryan's request, no SPUR precedent):
+battle experience now grows for every human attacker in the fight
+(CombatSession.attackers), scaled by how many blows *that* attacker
+personally landed (session._hits_landed) -- not a flat +1 reserved for
+whoever delivers the killing blow. It's still only awarded once, at
+death, in _monster_dies() (see _award_hit_based_skill()) -- a swing that
+hits but doesn't kill still doesn't grant anything until the fight ends,
+per TestNonLethalSwingGrantsNoBattleExperience below.
 
 `player.experience` (general per-swing character XP, SPUR's `ep`) is a
 completely separate counter -- see combat/engine.py's _add_exp() -- and is
@@ -105,10 +106,14 @@ class TestBattleExperienceOnKill(unittest.IsolatedAsyncioTestCase):
         weapon = _FakeWeapon(id_number=42)
         player = _FakePlayer(readied_weapon=weapon)
         ctx = _FakeCtx(player)
-        await self._kill(ctx, _session())
+        session = _session()
+        session._hits_landed = {player.name: 1}
+        await self._kill(ctx, session)
         self.assertEqual(player.weapon_experience.get('42'), 1)
 
-    async def test_ally_killing_blow_awards_nothing(self):
+    async def test_no_hits_landed_awards_nothing(self):
+        """Player didn't land a hit this fight (e.g. an ally solo-killed
+        it) -- no landed blows means no skill, regardless of player_killed."""
         weapon = _FakeWeapon(id_number=42)
         player = _FakePlayer(readied_weapon=weapon)
         ctx = _FakeCtx(player)
@@ -118,30 +123,48 @@ class TestBattleExperienceOnKill(unittest.IsolatedAsyncioTestCase):
     async def test_no_readied_weapon_does_not_raise(self):
         player = _FakePlayer(readied_weapon=None)
         ctx = _FakeCtx(player)
-        await self._kill(ctx, _session())   # should not raise
+        session = _session()
+        session._hits_landed = {player.name: 1}
+        await self._kill(ctx, session)   # should not raise
         self.assertEqual(player.weapon_experience, {})
 
     async def test_accumulates_across_multiple_kills(self):
         weapon = _FakeWeapon(id_number=7)
         player = _FakePlayer(readied_weapon=weapon, weapon_experience={'7': 5})
         ctx = _FakeCtx(player)
-        await self._kill(ctx, _session())
+        session = _session()
+        session._hits_landed = {player.name: 1}
+        await self._kill(ctx, session)
         self.assertEqual(player.weapon_experience['7'], 6)
 
     async def test_caps_at_99(self):
         weapon = _FakeWeapon(id_number=7)
         player = _FakePlayer(readied_weapon=weapon, weapon_experience={'7': 99})
         ctx = _FakeCtx(player)
-        await self._kill(ctx, _session())
+        session = _session()
+        session._hits_landed = {player.name: 1}
+        await self._kill(ctx, session)
         self.assertEqual(player.weapon_experience['7'], 99)
 
     async def test_different_weapons_track_separately(self):
         sword = _FakeWeapon(id_number=1)
         player = _FakePlayer(readied_weapon=sword, weapon_experience={'1': 3, '2': 50})
         ctx = _FakeCtx(player)
-        await self._kill(ctx, _session())
+        session = _session()
+        session._hits_landed = {player.name: 1}
+        await self._kill(ctx, session)
         self.assertEqual(player.weapon_experience['1'], 4)
         self.assertEqual(player.weapon_experience['2'], 50)   # untouched
+
+    async def test_multiple_hits_scale_skill_award(self):
+        """Landing 3 blows this fight awards 3 points, not a flat 1."""
+        weapon = _FakeWeapon(id_number=7)
+        player = _FakePlayer(readied_weapon=weapon)
+        ctx = _FakeCtx(player)
+        session = _session()
+        session._hits_landed = {player.name: 3}
+        await self._kill(ctx, session)
+        self.assertEqual(player.weapon_experience['7'], 3)
 
 
 class TestNonLethalSwingGrantsNoBattleExperience(unittest.IsolatedAsyncioTestCase):

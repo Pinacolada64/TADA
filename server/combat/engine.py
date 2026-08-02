@@ -168,15 +168,45 @@ def _award_weapon_exp(ctx: 'GameContext', weapon_id: int) -> None:
 
     SPUR.MISC.S:384 (`p.a3`, the monster-just-died cleanup routine) is the
     ONLY place `vp` is ever incremented in the whole source -- confirmed by
-    grepping every .S file for `vp=vp+1` / `vp = vp+1`. There is no per-swing
-    accrual; `ep` (general character XP, SPUR.COMBAT.S:103) is the per-swing
-    counter and is a completely separate variable (see _add_exp()). Call
-    this only from _monster_dies(), gated on player_killed, never per-swing.
+    grepping every .S file for `vp=vp+1` / `vp = vp+1`. This port
+    deliberately diverges from that (Ryan's request, no SPUR precedent):
+    _monster_dies() now calls this once per landed hit for every human
+    attacker in the fight, not just once for whoever lands the killing
+    blow -- see _award_hit_based_skill(). `ep` (general character XP,
+    SPUR.COMBAT.S:103) is the per-swing counter and remains a completely
+    separate variable (see _add_exp()).
     """
     try:
         ctx.player.gain_weapon_experience(weapon_id)
     except Exception:
         log.exception('_award_weapon_exp: error awarding exp to %s', _player_name(ctx))
+
+
+def _award_hit_based_skill(session: 'CombatSession', b_ctx: 'GameContext') -> str:
+    """Award weapon skill for every hit *b_ctx*'s player landed this fight.
+
+    Ryan's request: weapon skill should grow for every human attacker who
+    actually connected, scaled by how many blows they landed (session's
+    _hits_landed), not just a flat +1 for whoever delivered the killing
+    blow. Returns a "  [+N skill]" note for the amount actually gained
+    (short of the requested amount once gain_weapon_experience's 99 cap is
+    hit), or '' when there's nothing to award (no readied weapon, or no
+    landed hits).
+    """
+    weapon = getattr(b_ctx.player, 'readied_weapon', None)
+    weapon_id = getattr(weapon, 'id_number', None)
+    if weapon_id is None:
+        return ''
+    hits = session._hits_landed.get(_player_name(b_ctx), 0)
+    if hits <= 0:
+        return ''
+    key = str(weapon_id)
+    before = int(getattr(b_ctx.player, 'weapon_experience', {}).get(key, 0))
+    for _ in range(hits):
+        _award_weapon_exp(b_ctx, weapon_id)
+    after = int(b_ctx.player.weapon_experience.get(key, before))
+    gained = after - before
+    return f'  [+{gained} skill]' if gained > 0 else ''
 
 
 async def _add_exp(ctx: 'GameContext', amount: int) -> None:
@@ -436,6 +466,17 @@ class CombatSession:
         # when the player has a matching player.pending_surprise; stays True
         # for the whole fight, same as SPUR's zs=997 is never reset mid-fight.
         self.is_surprise = False
+        # Name of the ally that landed the killing blow this fight, set by
+        # _ally_swings() right before it returns on a lethal hit -- read by
+        # _monster_dies() so the "have slain" message credits the actual
+        # killer instead of always crediting the player (Ryan's report:
+        # allies getting the kill still showed "You have slain X!").
+        self._killer_ally_name: Optional[str] = None
+        # Landed-blow counter per participant name (player, bystander, or
+        # ally), for the "(N blows landed)" note _monster_dies() appends to
+        # non-expert players' kill message -- Ryan's request, no SPUR
+        # precedent.
+        self._hits_landed: dict = {}
         # Set each round by the main loop when the player chooses LURK
         # (SPUR.COMBAT.S vq=2) -- read by _resolve_monster_hit() to force
         # the monster's counter-attack onto an ally instead of the player.
@@ -500,6 +541,8 @@ class CombatSession:
                 return
             await _add_exp(ctx, exp_per_swing())
             await self._narrate_player_swing(ctx, result, bystander=True)
+            if result.hit:
+                self._record_hit(_player_name(ctx))
             if result.round_max > 0 and result.round_count is not None:
                 bystander_player = ctx.player
                 bystander_player.ammo_rounds = result.round_count
@@ -922,6 +965,8 @@ class CombatSession:
                 if result is not None:
                     await _add_exp(ctx, exp_per_swing())
                     await self._narrate_player_swing(ctx, result)
+                    if result.hit:
+                        self._record_hit(_player_name(ctx))
 
                     # Ammo consumed this swing (SPUR.COMBAT.S:99 vn=vn-1)
                     if result.round_max > 0 and result.round_count is not None:
@@ -1169,6 +1214,10 @@ class CombatSession:
             is_lurking=is_lurking,
         )
 
+    def _record_hit(self, name: str) -> None:
+        """Bump *name*'s landed-blow count for this fight (see _hits_landed)."""
+        self._hits_landed[name] = self._hits_landed.get(name, 0) + 1
+
     # ------------------------------------------------------------------
     # Internal: ally swings
     # ------------------------------------------------------------------
@@ -1219,6 +1268,7 @@ class CombatSession:
 
             sfx = f'{result.sfx}  ' if result.sfx else ''
             if result.hit:
+                self._record_hit(member.name)
                 dmg = result.damage
                 mname = monster_display_name(self.monster)
                 if dmg == 0:
@@ -1235,6 +1285,7 @@ class CombatSession:
                     )
                 _set_monster_hp(self.monster, _monster_hp(self.monster) - dmg)
                 if _monster_hp(self.monster) <= 0:
+                    self._killer_ally_name = member.name
                     return
             else:
                 await ctx.send(f'{sfx}{member.name} misses!')
@@ -1591,14 +1642,36 @@ class CombatSession:
     async def _monster_dies(self, ctx: 'GameContext', *, player_killed: bool = True) -> None:
         """Handle monster death: rewards, records, cleanup.
 
-        player_killed: True when the player dealt the killing blow (not an ally).
-        Controls whether WIS is awarded (SPUR: if x1 goto p.a3 skips WIS gain
-        when x1 is set by an ally kill).
+        player_killed: True when the player (leader or a joining bystander)
+        dealt the killing blow, False when it was self._killer_ally_name
+        instead. Controls whether WIS is awarded (SPUR: if x1 goto p.a3
+        skips WIS gain when x1 is set by an ally kill) -- also now used to
+        credit the actual killer in the death message (Ryan's report:
+        an ally landing the kill still showed "You have slain X!" to the
+        owning player).
         """
         self._done.set()
         mname = monster_display_name(self.monster)
 
-        await ctx.send(f'|green|You have slain {mname}!|reset|')
+        killer_name = _player_name(ctx) if player_killed else (self._killer_ally_name or _player_name(ctx))
+        hits = self._hits_landed.get(killer_name, 0)
+        hits_note = ''
+        if not getattr(ctx.player, 'is_expert', False) and hits:
+            hits_note = f'  ({hits} blow{"s" if hits != 1 else ""} landed)'
+
+        # Every human context that fought this monster (see the dead_monsters
+        # crediting loop further down for why ctx is force-included) -- built
+        # early so the killer's own skill gain can be folded into their kill
+        # message below, not just the bystanders' "is slain!" notices.
+        credited = list(self.attackers)
+        if ctx not in credited:
+            credited.append(ctx)
+        skill_notes = {b_ctx: _award_hit_based_skill(self, b_ctx) for b_ctx in credited}
+
+        if player_killed:
+            await ctx.send(f'|green|You have slain {mname}!{hits_note}{skill_notes[ctx]}|reset|')
+        else:
+            await ctx.send(f'|green|{killer_name} has slain {mname}!{hits_note}{skill_notes[ctx]}|reset|')
 
         # A monster flagged re_animates twitches on death (SPUR.MISC.S:391-394:
         # "<name> twitches strangely!"). SPUR also exempts it from being added
@@ -1620,10 +1693,29 @@ class CombatSession:
             Mname = monster_display_name(self.monster, capitalize=True)
             await ctx.send(f'{Mname} turns to stone as it dies!')
 
-        await ctx.send_room(
-            f'{_player_name(ctx)} slays {mname}!',
-            exclude_self=True,
-        )
+        if player_killed:
+            room_msg = f'{_player_name(ctx)} slays {mname}!{hits_note}{skill_notes[ctx]}'
+        else:
+            room_msg = f"{_player_name(ctx)}'s {killer_name} slays {mname}!{hits_note}{skill_notes[ctx]}"
+        room_lines = [room_msg]
+
+        # Bystanders who fought but didn't land the killing blow: broadcast
+        # their own landed-blows/skill note to the room too (Ryan's request)
+        # instead of it staying visible only in their own private "is
+        # slain!" notice further down.
+        for b_ctx in credited:
+            if b_ctx is ctx:
+                continue
+            b_name = _player_name(b_ctx)
+            b_hits = self._hits_landed.get(b_name, 0)
+            if not b_hits:
+                continue
+            b_hits_note = ''
+            if not getattr(b_ctx.player, 'is_expert', False):
+                b_hits_note = f'  ({b_hits} blow{"s" if b_hits != 1 else ""} landed)'
+            room_lines.append(f'{b_name} lands blows on {mname}!{b_hits_note}{skill_notes[b_ctx]}')
+
+        await ctx.send_room(*room_lines, exclude_self=True)
 
         # The Dwarf (encounters/dwarf.py): killing him pays out his entire
         # accumulated hoard instead of the usual random gold_from_monster()
@@ -1667,14 +1759,11 @@ class CombatSession:
                 if not getattr(player, 'is_expert', False):
                     await ctx.send('(You feel a bit wiser.)')
 
-            # Battle experience (vp, SPUR.MISC.S:384 "p.a3"): +1 for
-            # whatever weapon is currently readied, capped at 99 -- landing
-            # the killing blow, not per swing (see _award_weapon_exp()'s
-            # docstring for why -- vp is only ever incremented here in the
-            # whole SPUR source).
-            weapon_id = getattr(weapon, 'id_number', None)
-            if weapon_id is not None:
-                _award_weapon_exp(ctx, weapon_id)
+        # Battle experience (vp, SPUR.MISC.S:384 "p.a3"): SPUR only ever
+        # awards +1 to whoever lands the killing blow; this port instead
+        # awards every human attacker skill scaled by their own landed hits
+        # (see _award_hit_based_skill()) -- already applied above via
+        # skill_notes, folded into the kill message rather than done here.
 
         # Ammo recovery for bows/slings/blowguns (SPUR.MISC.S:427)
         await self._recover_ammo(ctx)
@@ -1694,10 +1783,10 @@ class CombatSession:
             from encounters.monster import try_shadow_ally
             await try_shadow_ally(ctx)
 
-        # Notify bystanders of the kill. Only the ctx that landed the killing
-        # blow gains weapon exp (above) or the general per-swing ep exp
-        # (CombatSession._swing()'s own callers) -- a bystander watching
-        # someone else's fight doesn't get credit for either.
+        # Notify bystanders of the kill. Weapon skill (skill_notes, built
+        # above) is no longer limited to whoever landed the killing blow --
+        # every bystander who landed at least one hit gets their own
+        # "[+N skill]" folded into their "is slain!" notice here.
         #
         # dead_monsters is different: it's not a reward, it's this port's
         # "have I already fought this one" gate (_check_tactical_ambush's
@@ -1711,14 +1800,12 @@ class CombatSession:
         # self.attackers (e.g. a grenade thrown at another room's fight via
         # commands/use.py) -- credited exactly once either way, since
         # _record_kill no longer dedupes (each kill is its own log entry).
-        credited = list(self.attackers)
-        if ctx not in credited:
-            credited.append(ctx)
         for b_ctx in credited:
             _record_kill(b_ctx.player, self.monster)
             if b_ctx is ctx:
                 continue
-            await b_ctx.send(f'|green|{monster_display_name(self.monster, capitalize=True)} is slain!|reset|')
+            Mname = monster_display_name(self.monster, capitalize=True)
+            await b_ctx.send(f'|green|{Mname} is slain!{skill_notes[b_ctx]}|reset|')
 
     async def _reveal_hidden_exit(self, ctx: 'GameContext') -> None:
         """Reveal a hidden_exit_east/west room's secret passage on monster death.
