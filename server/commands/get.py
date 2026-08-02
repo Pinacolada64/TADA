@@ -478,7 +478,7 @@ class GetCommand(Command):
         # the item, since a successful guard means no pickup happens at all.
         from encounters.gollum import guards_ring, QUOTE
         room_monster = _monster_in_room(ctx)
-        if guards_ring(item_id, room_monster):
+        if guards_ring(item_id, room_monster, player):
             await ctx.send([
                 f'Gollum hisses, "{QUOTE}"',
                 "He won't let you! He attacks!",

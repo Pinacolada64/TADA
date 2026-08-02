@@ -107,8 +107,17 @@ def _is_alive(monster: dict) -> bool:
     return int(hp) > 0
 
 
-def guards_ring(item_id, monster: dict | None) -> bool:
-    """True if *monster* is a living Gollum guarding item #67."""
+def guards_ring(item_id, monster: dict | None, player=None) -> bool:
+    """True if *monster* is a living Gollum guarding item #67.
+
+    monster.json's strength/hit_points is only the shared template --
+    combat/engine.py's CombatSession fights on its own `dict(monster)`
+    copy (see enter_combat()), so a kill never actually zeroes the
+    global entry. _is_alive() alone is therefore always true again once
+    a fresh CombatSession is built, which let a player GET RING right
+    back out of a Gollum they'd already killed. player.dead_monsters is
+    this port's actual per-player "have I killed this one" gate (see
+    combat/engine.py's _record_kill()), so it has to be checked too."""
     try:
         if int(item_id) != RING_ITEM_ID:
             return False
@@ -116,6 +125,9 @@ def guards_ring(item_id, monster: dict | None) -> bool:
         return False
 
     if not monster or int(monster.get('number', 0) or 0) != MONSTER_NUMBER:
+        return False
+
+    if player is not None and MONSTER_NUMBER in (getattr(player, 'dead_monsters', None) or []):
         return False
 
     return _is_alive(monster)
@@ -163,6 +175,9 @@ def current_gollum(ctx) -> dict | None:
     room  = game_map.get_room(level, int(room_no))
     mon_number = int(getattr(room, 'monster', 0) or 0) if room else 0
     if mon_number != MONSTER_NUMBER:
+        return None
+
+    if MONSTER_NUMBER in (getattr(ctx.player, 'dead_monsters', None) or []):
         return None
 
     from monsters import get_monster

@@ -111,6 +111,21 @@ class TestGetRingGuardedByGollum(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(p.inventory.find(item_id=_RING_ITEM_ID))
 
+    async def test_get_ring_succeeds_once_player_has_killed_gollum(self):
+        # combat/engine.py's CombatSession fights on its own dict(monster)
+        # copy (enter_combat()), so a kill never actually zeroes the shared
+        # monsters.json entry's strength -- it stays at its template value
+        # (12) forever. player.dead_monsters is the real per-player "already
+        # killed this one" record (_record_kill()), so it -- not the global
+        # monster dict's strength -- has to be what gates a re-guard.
+        p = _player()
+        p.dead_monsters = [71]
+        ctx = _FakeCtx(p, _server_with_gollum())
+
+        await GetCommand().execute(ctx, 'ring')
+
+        self.assertTrue(p.inventory.find(item_id=_RING_ITEM_ID))
+
     async def test_get_ring_succeeds_when_no_monster_in_room(self):
         p = _player()
         ctx = _FakeCtx(p, _server_with_gollum(monster=None))
