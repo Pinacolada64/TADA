@@ -581,6 +581,50 @@ async def _weapons_box(ctx: GameContext, player, state: dict, info: dict) -> Non
 
 
 # ---------------------------------------------------------------------------
+# Help  (Ryan's own extension -- not a SPUR mechanic)
+# ---------------------------------------------------------------------------
+
+_HELP_TEXT = (
+    ('C', 'Read or write the chalk board message for the guild.'),
+    ('F', 'Give or take a ration from the shared food locker.'),
+    ('I', 'Give or take an item from the shared item locker (Lurch refuses '
+          'quest items, keys, and unique relics).'),
+    ('B', 'Review, pay into, or withdraw from the guild treasury.'),
+    ('V', 'View the guild log of recent gives and takes.'),
+    ('W', "Store or retrieve a weapon from the shared weapons box (holds "
+          "one weapon at a time; Lurch won't take Excalibur)."),
+    ('T', 'See what share of the map your guild currently holds.'),
+    ('Q', 'Leave the guild hall.'),
+)
+
+
+async def _help(ctx: GameContext, player, state: dict, info: dict) -> None:
+    from table import Column, Table
+    from formatting import border_style_for_ctx
+
+    border_style = border_style_for_ctx(ctx)
+    width = getattr(ctx.player.client_settings, 'screen_columns', 78)
+
+    t = Table(
+        headers=[Column('Key', min_width=3), Column('What it does', min_width=10)],
+        border=False,
+        border_style=border_style,
+        header_color='white',
+        text_color=['cyan', 'light_blue'],
+    )
+    for key, desc in _HELP_TEXT:
+        t.add_row([key, desc])
+
+    await ctx.send([
+        '',
+        f"Lurch clears his throat. 'Allow me to explain, {player.name}:'",
+        '',
+        *t.render(width=width),
+        '',
+    ])
+
+
+# ---------------------------------------------------------------------------
 # Menu and entry point
 # ---------------------------------------------------------------------------
 
@@ -592,6 +636,7 @@ _MENU = (
     ('V', 'View guild log'),
     ('W', 'Weapons box'),
     ('T', 'Territory report'),
+    ('H', 'Help'),
     ('Q', 'Leave'),
 )
 
@@ -603,6 +648,7 @@ _HANDLERS = {
     'V': _view_log,
     'W': _weapons_box,
     'T': _territory_report,
+    'H': _help,
 }
 
 
@@ -680,4 +726,4 @@ async def _hq_session(ctx, player, guild_key: str, info: dict) -> None:
             await handler(ctx, player, state, info)
             save(guild_key, state)
         else:
-            await ctx.send('C/F/I/B/V/W/T/Q to choose.')
+            await ctx.send('C/F/I/B/V/W/T/H/Q to choose.')
