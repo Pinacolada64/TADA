@@ -1,0 +1,6 @@
+#!/bin/sh
+# Bakes duel-driven guild turf captures into level_<N>.json and refreshes
+# guild_hq's territory report. Run once daily via anacron (catches up if
+# the machine was off at the scheduled time -- see /etc/anacrontab).
+cd /home/ryan/Documents/c64/TADA/TADA/server || exit 1
+exec /home/ryan/Documents/c64/TADA/TADA/server/.venv/bin/python tools/nightly_guild_maintenance.py >> run/server/nightly_guild_maintenance.log 2>&1

@@ -4,6 +4,7 @@ Each of the three guilds (Claw, Sword, Fist) shares this code.
 Entry is triggered by movement.py when the player enters a room whose
 alignment matches the player's guild.
 """
+import json
 import logging
 
 from network_context import GameContext
@@ -400,6 +401,55 @@ async def _guild_bank(ctx: GameContext, player, state: dict, info: dict) -> None
 
 
 # ---------------------------------------------------------------------------
+# Territory report (Ryan's own extension -- not a SPUR mechanic).
+# Reads run/server/guild_control.json, written nightly by
+# tools/nightly_guild_maintenance.py from the current level_<N>.json
+# room_alignment data.
+# ---------------------------------------------------------------------------
+
+async def _territory_report(ctx: GameContext, player, state: dict, info: dict) -> None:
+    import net_common
+    from pathlib import Path
+
+    guild_key = info['key'].lower()  # 'claw' / 'sword' / 'fist'
+    base = getattr(net_common, 'run_server_dir', None) or './run/server'
+    report_file = Path(str(base)) / 'guild_control.json'
+
+    if not report_file.exists():
+        await ctx.send(['', "Lurch shrugs. 'No territory report yet -- ask the sysop", "to run the nightly maintenance job.'", ''])
+        return
+
+    try:
+        report = json.loads(report_file.read_text())
+    except Exception:
+        log.exception('guild_hq: failed to read %s', report_file)
+        await ctx.send(['', "Lurch frowns. 'The territory report seems to be broken.'", ''])
+        return
+
+    lines = ['', f"Territory held by {info['name']}:", '']
+    for level_num, level_data in sorted(report.get('levels', {}).items(), key=lambda kv: int(kv[0])):
+        counts = level_data.get('counts', {})
+        pct = level_data.get('pct', {}).get(guild_key, 0.0)
+        held = counts.get(guild_key, 0)
+        total = level_data.get('total', 0)
+        lines.append(f'  Level {level_num:>2}: {pct:>5.1f}%  ({held}/{total} rooms)')
+
+    overall = report.get('overall', {})
+    overall_pct = overall.get('pct', {}).get(guild_key, 0.0)
+    overall_held = overall.get('counts', {}).get(guild_key, 0)
+    overall_total = overall.get('total', 0)
+    lines.append('')
+    lines.append(f'  Overall  : {overall_pct:>5.1f}%  ({overall_held}/{overall_total} rooms)')
+
+    generated_at = report.get('generated_at', '')
+    if generated_at:
+        lines.append('')
+        lines.append(f'  (as of {generated_at})')
+    lines.append('')
+    await ctx.send(lines)
+
+
+# ---------------------------------------------------------------------------
 # View log  (SPUR.GUILD.S show.lg)
 # ---------------------------------------------------------------------------
 
@@ -541,6 +591,7 @@ _MENU = (
     ('B', 'Guild bank'),
     ('V', 'View guild log'),
     ('W', 'Weapons box'),
+    ('T', 'Territory report'),
     ('Q', 'Leave'),
 )
 
@@ -551,6 +602,7 @@ _HANDLERS = {
     'B': _guild_bank,
     'V': _view_log,
     'W': _weapons_box,
+    'T': _territory_report,
 }
 
 
@@ -628,4 +680,4 @@ async def _hq_session(ctx, player, guild_key: str, info: dict) -> None:
             await handler(ctx, player, state, info)
             save(guild_key, state)
         else:
-            await ctx.send('C/F/I/B/V/W/Q to choose.')
+            await ctx.send('C/F/I/B/V/W/T/Q to choose.')
