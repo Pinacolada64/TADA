@@ -612,8 +612,11 @@ async def _help(ctx: GameContext, player, state: dict, info: dict) -> None:
         header_color='white',
         text_color=['cyan', 'light_blue'],
     )
-    for key, desc in _HELP_TEXT:
+    for key, desc in _HELP_TEXT[:-1]:
         t.add_row([key, desc])
+    if _can_manage_bans(player):
+        t.add_row(['K', 'Ban or un-ban a player from this guild HQ.'])
+    t.add_row(_HELP_TEXT[-1])  # Q - Leave, kept last
 
     await ctx.send([
         '',
@@ -622,6 +625,68 @@ async def _help(ctx: GameContext, player, state: dict, info: dict) -> None:
         *t.render(width=width),
         '',
     ])
+
+
+# ---------------------------------------------------------------------------
+# Ban management  (SPUR.GUILD.S bann -- gated to guild officers there via
+# flag(19). This port has no separate "guild officer" rank yet, so it's
+# gated to Admin/Dungeon Master instead, matching every other privileged
+# menu in the codebase (e.g. commands/board.py, commands/reload.py).)
+# ---------------------------------------------------------------------------
+
+def _can_manage_bans(player) -> bool:
+    from flags import PlayerFlags
+    return bool(player.query_flag(PlayerFlags.ADMIN) or player.query_flag(PlayerFlags.DUNGEON_MASTER))
+
+
+async def _ban_management(ctx: GameContext, player, state: dict, info: dict) -> None:
+    if not _can_manage_bans(player):
+        await ctx.send('Lurch snickers..')
+        return
+
+    from base_classes import Guild
+    from commands.editplayer import _find_character
+    from commands.messaging import prompt_player_choice
+
+    banned = state.setdefault('banned', [])
+
+    lines = ['', f'Banned from the {info["name"]}:', '']
+    lines += [f'  {n}' for n in banned] if banned else ['  (nobody)']
+    lines.append('')
+    await ctx.send(lines)
+
+    name = await prompt_player_choice(ctx, '*', prompt_text='Ban/unban whom')
+    if name is None:
+        return
+
+    found = await _find_character(ctx, name)
+    if found is None:
+        await ctx.send(f'No character named "{name}".')
+        return
+    target, is_online = found
+
+    already_banned = target.name in banned
+    await ctx.send(f"{target.name} is currently {'BANNED' if already_banned else 'not banned'}.")
+
+    raw = await ctx.prompt('Switch status? [Y]/n')
+    if raw and raw.strip().upper() == 'N':
+        return
+
+    if already_banned:
+        banned.remove(target.name)
+        action, verb = 'UNBANNED', 'un-banned'
+    else:
+        banned.append(target.name)
+        action, verb = 'BANNED', 'banned'
+        # SPUR: banning a member of your own guild demotes them to Outlaw
+        if _guild_key_for(target) == info['key']:
+            target.guild = Guild.OUTLAW
+            target.unsaved_changes = True
+            if not is_online:
+                target.save(force=True)
+
+    add_log(state, player.name, action, target.name)
+    await ctx.send(f"Done. {target.name} is now {verb} from the {info['name']}.")
 
 
 # ---------------------------------------------------------------------------
@@ -649,6 +714,7 @@ _HANDLERS = {
     'W': _weapons_box,
     'T': _territory_report,
     'H': _help,
+    'K': _ban_management,
 }
 
 
@@ -670,6 +736,15 @@ async def main(ctx: GameContext, guild_key: str) -> None:
         await ctx.send([
             f'A gruff guard informs you that you are not a member of the {guild_name}',
             'and politely throws you out..',
+        ])
+        return
+
+    # Gate: banned members are turned away (SPUR.GUILD.S bann); officers
+    # (here: Admin/Dungeon Master) bypass their own ban list.
+    if player.name in load(guild_key).get('banned', []) and not _can_manage_bans(player):
+        await ctx.send([
+            f"A guard blocks the door. 'You've been banned from the {info['name']}!'",
+            "'Take it up with your Guildmaster.'",
         ])
         return
 
@@ -705,9 +780,14 @@ async def _hq_session(ctx, player, guild_key: str, info: dict) -> None:
     while True:
         state = load(guild_key)
 
+        is_officer = _can_manage_bans(player)
+
         if not player.is_expert:
             lines = ['', f'{name} {sigil}', '']
-            for k, label in _MENU:
+            menu_items = list(_MENU)
+            if is_officer:
+                menu_items.insert(-1, ('K', 'Ban management'))
+            for k, label in menu_items:
                 lines.append(f'  [{k}] {label}')
             lines.append('')
             await ctx.send(lines)
@@ -722,8 +802,9 @@ async def _hq_session(ctx, player, guild_key: str, info: dict) -> None:
             break
 
         handler = _HANDLERS.get(cmd)
-        if handler:
+        if handler and (cmd != 'K' or is_officer):
             await handler(ctx, player, state, info)
             save(guild_key, state)
         else:
-            await ctx.send('C/F/I/B/V/W/T/H/Q to choose.')
+            keys = 'C/F/I/B/V/W/T/H' + ('/K' if is_officer else '') + '/Q'
+            await ctx.send(f'{keys} to choose.')

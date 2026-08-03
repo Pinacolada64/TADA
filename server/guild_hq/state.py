@@ -20,6 +20,7 @@ _EMPTY_STATE = {
     'weapons_box': None, # weapon dict or null
     'chalkboard':  {'author': '', 'message': ''},
     'log':         [],   # list of log strings, newest last
+    'banned':      [],   # list of player names barred from entering this guild HQ
 }
 
 
