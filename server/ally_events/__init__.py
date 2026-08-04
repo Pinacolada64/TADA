@@ -166,7 +166,11 @@ async def try_hungry_ally(ctx: 'GameContext', item, kind: str) -> bool:
         player.unsaved_changes = True
         await ctx.send(f'You feel more honorable. (+{honor_gain})')
 
-    await _try_body_build(ctx, hungry, item)
+    # This item was consumed straight from the player's own inventory above
+    # (never entered hungry.items), so hand _try_body_build a throwaway
+    # entry -- there's nothing in hungry.items for it to remove.
+    from inventory import InventoryEntry
+    await _try_body_build(ctx, hungry, InventoryEntry(item=item, quantity=1))
     return True
 
 

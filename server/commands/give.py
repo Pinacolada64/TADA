@@ -90,12 +90,25 @@ _FOOD_KINDS = {'food', 'ration', 'drink'}
 _BODY_BUILD_STR_CAP = 11
 
 
-async def _try_body_build(ctx: GameContext, ally, item) -> None:
-    """If *item* is food/drink, attempt ally body building.
+def _consume_ally_entry(ally, entry) -> None:
+    """Remove *entry* (or one unit of it) from ally.items -- the item was
+    eaten/drunk, so it shouldn't keep sitting in the ally's inventory."""
+    entry.quantity -= 1
+    if entry.quantity <= 0:
+        if entry in ally.items:
+            ally.items.remove(entry)
+    # else: leave the (now-decremented) entry in place for the remaining stack
+
+
+async def _try_body_build(ctx: GameContext, ally, entry) -> None:
+    """If *entry*'s item is food/drink, attempt ally body building.
 
     Poisoned food (kind='cursed') harms the ally instead of helping.
     Normal food only boosts strength when the ally is below _BODY_BUILD_STR_CAP.
+    Either way, a consumed item is removed from ally.items -- it doesn't
+    persist after being eaten/drunk.
     """
+    item  = entry.item
     ikind = (getattr(item, 'kind', '') or '').lower()
     aname = ally.name
 
@@ -103,6 +116,7 @@ async def _try_body_build(ctx: GameContext, ally, item) -> None:
         # Cursed ration — poisons the ally regardless of strength
         ally.strength = max(1, ally.strength - 1)
         await ctx.send(f'{aname} clutches their stomach — something was wrong with that food!')
+        _consume_ally_entry(ally, entry)
         return
 
     if ikind not in _FOOD_KINDS:
@@ -114,6 +128,7 @@ async def _try_body_build(ctx: GameContext, ally, item) -> None:
     ally.strength += 1
     verb = 'drinks thirstily' if ikind == 'drink' else 'eats hungrily'
     await ctx.send(f'{aname} {verb} and looks stronger!  (Str {ally.strength})')
+    _consume_ally_entry(ally, entry)
 
 
 # Monsters known for hoarding gold
@@ -322,7 +337,7 @@ class GiveCommand(Command):
             # Weapon: allies have no READY command of their own, so a given
             # weapon is auto-readied on the spot (replacing whatever they
             # had -- combat/resolution.py ally_attacks() reads ally.readied_weapon).
-            from item_system import Weapon
+            from items import Weapon
             if isinstance(item, Weapon):
                 if inventory:
                     inventory.remove(item)
@@ -331,31 +346,37 @@ class GiveCommand(Command):
                 ally.ammo_max = 0
                 ally.ammo_damage = 0
                 ally.items.append(entry)
+                pself = getattr(player, 'name', 'Someone')
                 await ctx.send(f'You give the {iname} to {ally.name}.')
                 await ctx.send(f'{ally.name} readies the {iname}!')
+                await ctx.send_room(
+                    f'{pself} gives the {iname} to {ally.name}, who readies it!',
+                    exclude_self=True)
                 return CommandResult.ok()
 
             # Ammo: loads straight into the ally's readied weapon, same as
-            # commands/use.py's player ammo branch, rather than sitting in
-            # ally.items -- an ally has no USE command to load it later.
-            # An empty carrier (shoppe/ollys.py's reusable, 'capacity'-
-            # flagged item -- see commands/use.py's _apply_item) has
-            # nothing to load, so it falls through to the plain-item give
-            # below instead of pretending to load 0 rounds.
+            # commands/use.py's player ammo branch (is_ammo_item/
+            # ammo_load_error, shared from there so the two paths can't
+            # drift out of sync again -- see give.py bug fixed 2026-08-01),
+            # rather than sitting in ally.items -- an ally has no USE
+            # command to load it later. An empty carrier (shoppe/ollys.py's
+            # reusable, 'capacity'-flagged item) has nothing to load, so it
+            # falls through to the plain-item give below instead of
+            # pretending to load 0 rounds.
+            from commands.use import ammo_load_error, is_ammo_item as _is_ammo_item
             flags = getattr(item, 'flags', None)
-            is_ammo_item = isinstance(flags, dict) and 'rounds' in flags and 'used_with' in flags
-            rounds = int(flags.get('rounds', 0)) if is_ammo_item else 0
-            if is_ammo_item and rounds > 0:
+            rounds = int(flags.get('rounds', 0)) if _is_ammo_item(flags) else 0
+            if _is_ammo_item(flags) and rounds > 0:
                 weapon = getattr(ally, 'readied_weapon', None)
                 if weapon is None:
                     await ctx.send(f'{ally.name} has no weapon readied to load {iname} into.')
                     return CommandResult.ok()
                 wname_upper = (getattr(weapon, 'name', '') or '').upper()
-                if 'STORM' in wname_upper:
+                reason = ammo_load_error(weapon, flags)
+                if reason == 'storm':
                     await ctx.send(f"The {wname_upper} doesn't use physical ammo.")
                     return CommandResult.ok()
-                used_with = (flags.get('used_with') or '').strip().upper()
-                if used_with and used_with not in wname_upper:
+                if reason == 'wrong_weapon':
                     await ctx.send(f'That ammo is not for the {wname_upper}.')
                     return CommandResult.ok()
                 damage = int(flags.get('damage', 0))
@@ -364,9 +385,13 @@ class GiveCommand(Command):
                 ally.ammo_rounds = rounds
                 ally.ammo_max = rounds
                 ally.ammo_damage = damage
+                pself = getattr(player, 'name', 'Someone')
                 await ctx.send(f'You give the {iname} to {ally.name}.')
                 await ctx.send(f'{ally.name} loads the {weapon.name}: '
                                 f'{rounds} rounds ready, +{damage} damage.')
+                await ctx.send_room(
+                    f'{pself} gives {ally.name} {iname}, who loads it into the {weapon.name}.',
+                    exclude_self=True)
                 return CommandResult.ok()
 
             if inventory:
@@ -374,7 +399,7 @@ class GiveCommand(Command):
             ally.items.append(entry)
             await ctx.send(f'You give the {iname} to {ally.name}.')
             await ctx.send(f'{ally.name} takes the {iname} and tucks it away.')
-            await _try_body_build(ctx, ally, item)
+            await _try_body_build(ctx, ally, entry)
             return CommandResult.ok()
 
         # --- Other player in room ---

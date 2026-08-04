@@ -1562,3 +1562,170 @@
   - Not scoped/prioritized -- Ryan asked to preserve the comments'
     content when the dead code was deleted, not necessarily to build the
     feeding mechanic now.
+
+- **Honor-based death mechanics audit (8/2/26):** swept every `vk` (Honor)
+  read/write across both `master` and Skip's branch SPUR source against
+  TADA's Python code. Most Honor mechanics are already ported (combat
+  losses, guild gains/losses, charm penalties, shop/armory penalties,
+  alignment display in `commands/stats.py`, Excalibur's honor gate in
+  `commands/ready.py`). Two gaps found, not yet built:
+  - **Saintly Knight auto-revival.** `SPUR.MISC6.S` (`dead2a`/`win`, both
+    branches): `if pc=9 if vk>1600 ... "BUT THE SAINTLY KNIGHT WAS REVIVED
+    BY THE GODS!!"` / `if pc=9 if vk>1600 if z<>2 i$="SAINT":goto revive`.
+    A Knight (`pc=9`) with Honor over 1600 gets an automatic divine
+    revival on death -- same gate as the Amulet of Life item flag --
+    except it doesn't cover suicide (`z=2`). TADA's death handlers
+    (`combat/engine.py`'s `_player_dies`/`_player_petrified`, ~line
+    1886-1936) just zero `hit_points` and end the fight; no Knight+honor
+    check anywhere. This is the more concrete of the two gaps -- straight
+    port of an existing SPUR mechanic.
+  - **"Guardian Angel" -- NOT SPUR-derived, a new idea.** Originated from
+    a mid-investigation misreading of SPUR's `flag(7)`: that flag is
+    actually **"Immortal" status**, earned by winning the game outright
+    (`SPUR.MISC7.S`'s `flag(7)=1` after the "ULTIMATE VICTORY! CONQUERED
+    LAND OF SPUR!" sequence), which then grants free revival on future
+    deaths (`SPUR.MISC6.S`: `if flag(7) print \"BUT RETURNED TO LIFE!\"`),
+    except suicide -- which also strips the status back off
+    (`SPUR.MAIN.S`'s `DIE` command: `if flag(7) print \"(WILL LOSE
+    IMMORTAL STATUS) "`). Ryan liked the "Guardian Angel" misnomer enough
+    as a *separate* concept to keep as its own future mechanic -- not a
+    rename of the Immortal-status port below, a distinct thing worth
+    designing later (open question: what grants it, what it protects
+    against, whether it's consumable or persistent).
+  - **TADA's actual Immortal-status gap (confirmed missing 8/2/26):**
+    checked `victory.py`'s `declare_victory()` (called after
+    `evaluate_victory()`'s three win gates pass) -- it records the win
+    (`winners.py`), logs it, and posts news, but sets no persistent
+    flag and wires no auto-revive-on-death path for winners going
+    forward. `flags.py`'s `PlayerFlags` has no Immortal-equivalent
+    entry. This is the real, SPUR-faithful gap: winning the game today
+    has no lasting mechanical effect after the congratulation message.
+  - None of the three implemented yet -- flagged here per Ryan's request
+    to just TODO them rather than build immediately.
+
+- **Write a manual for TADA server implementors.** Ryan's own framing,
+  prompted by repeatedly rediscovering mechanics buried in the SPUR
+  source that never made it into this port (most recently: the Honor
+  audit above). Scope not decided -- candidates: a mechanics reference
+  cross-indexed by SPUR variable/subroutine (`programming-notes/
+  spur-variables.md` is the seed of this for scratch variables alone),
+  a "ported vs. not yet ported" tracker, or an onboarding doc for
+  whoever picks up server work next. Not started.
+
+8/3/26:
+- **AUTODUEL (Skip's branch only, not in mainline `SPUR-code/`, not
+  ported).** `origin/skip`'s `SPUR.MISC5.S` `AUTODUEL` command lets a
+  player duel an *offline* character's saved-stat "shell" standing in
+  their room, instead of requiring both sides live/connected. `auto.a`
+  loads the target's stats straight from `spur.users`; `auto.c`/
+  `SPUR.DUEL2.S` auto-resolves the fight non-interactively (no per-round
+  tactic prompts). Each character can only be auto-dueled once -- `ys$`
+  gets an `"AD*"` flag appended after the first auto-duel, and later
+  attempts just get a flavor line ("peers at you curiously") instead of
+  a fight. Winning nets a flat 250-gold bonus on top of normal loot, and
+  the result is mailed to the loser via GBBS mail (tagged `"* RESULT
+  FROM YOUR AUTODUEL IN SPUR *"`), with a distinct `": AUTODUEL"`
+  battle-log tag vs. normal `"SPORT DUEL"`/`"REVENGE DUEL"`. Doesn't
+  work in `+` (peace/safe) rooms. TADA's `combat/duel.py` only supports
+  both sides being live connected `ctx`s (`_resolve_challenge`) -- this
+  whole offline-duel mode is unbuilt. Would need: a stored/offline
+  character stat snapshot to duel against, an `AD*`-equivalent
+  per-character "already auto-dueled" flag, and hooking mail delivery
+  for the async result. Not scoped/prioritized.
+
+- **Live SPORT DUEL mechanics gaps (found comparing `combat/duel.py`
+  against `SPUR.DUEL.S`/`SPUR.DUEL2.S` line by line).** Not scoped/
+  prioritized -- flagged here per Ryan's request. `combat/duel.py`'s own
+  module comment already tracks re-readying a different weapon mid-duel,
+  the turf accuracy/damage bonus for fighting in your own guild's room
+  (distinct from turf *capture*, which is ported), and the Wizard-glow
+  shield bonus as deferred. Additional gaps found in this pass:
+  - [DONE 8/3/26] **Initiative** (SPUR `vu`/`zr`, `DUEL.S:83-86`) --
+    computed once at duel start from level*2 + weapon accuracy/damage
+    bonus + STR+DEX+INT (`_initiative_score()`); the side leading by
+    more than 10 points gets a flat +10 hit-chance edge for the whole
+    duel and the other side -10 (`_compute_initiative()`, stored as
+    `_DuelSide.initiative`, applied in `_swing()` alongside guild
+    support). Both duelists are told at the start of the fight who has
+    it. Turf's own contribution to SPUR's formula (`zz*5`) intentionally
+    left out, same deferred turf-bonus gap noted above. Tests:
+    `tests/combat/test_duel_initiative.py`.
+  - [DONE 8/3/26] **Wizard spell-casting mid-duel** (`wiz.a`/`wiz.b`,
+    `DUEL.S:206-208, 257-259`) -- a Wizard has a 30% chance per swing to
+    fire a guaranteed-hit energy bolt instead of a normal weapon swing
+    (`(roll/20)+3` damage, +3 with a Staff readied), bypassing the hit
+    roll and shield/armor absorption entirely, same as SPUR's "goto
+    wiz.a" jump. One shot per duel (`_DuelSide.cast_used`, SPUR's wx$
+    tag is set once and never cleared).
+  - [DONE 8/3/26] **Druid self-heal on taking damage** (`druid.a`/
+    `druid.b`) -- a Druid defender under a comfortable HP ceiling (SPUR:
+    `hp+incoming<26`) has a 10% chance to channel any incoming hit --
+    weapon swing or spell bolt alike -- into a heal instead of taking
+    it. Landed as `DuelSession._apply_final_damage()`, the shared tail
+    both damage paths (weapon swings and Wizard bolts) now funnel
+    through, mirroring SPUR's shared wiz.a/druid.a label. Tests:
+    `tests/combat/test_duel_wizard_druid.py`.
+  - **Class/race dodge and crit quirks** -- Thief/Ranger "lost sight of
+    you" dodge checks (`pc=5`/`pc=6`), Assassin critical hits (`pc=8`),
+    a size-based blind-swing chance. `_INTERACTION`'s rock-paper-scissors
+    grid has zero class-specific modifiers.
+  - **Ammo-dependent weapon penalty** (`DUEL.S:115`) -- missile/energy
+    weapon classes with no ammo readied get every stat halved. Not
+    checked during duel weapon selection.
+  - [DONE 8/3/26] **Personal (per-player) duel win/loss record**
+    (`personal`/`read.a1$`/`writ.a1$`, SPUR's `spur.a1$` file).
+    `guild_standings.py`'s `record_duel_result` covers the *guild* tally
+    only -- added `player.duel_wins`/`duel_losses` (persisted, incremented
+    in `DuelSession._end()`), shown via `duel #standings`'s new "Your
+    record: N win(s), N loss(es)" line. Also editable via `editplayer`'s
+    Statistics menu ("Duel wins"/"Duel losses", `commands/editplayer.py`'s
+    `_statistics_menu`) per CLAUDE.md's "new stat field -> chat about an
+    editplayer entry" convention.
+  - **In-game mail notification on duel result** (`sendmail` label,
+    `DUEL2.S:257-290`) -- SPUR always mails the loser/absent party a
+    summary so someone who wasn't present still finds out. `_end()`/
+    `_resolve_challenge()` only push live `ctx.send()` to the two
+    connected duelists.
+  - [DONE 8/3/26] **Battle log entries for win/loss/flee outcomes.**
+    `net_common.py`'s `append_battle_log()` was only wired up for GROVEL
+    (`_resolve_grovel`); `_end()` (decisive win/loss) and the flee path
+    now call it too, mirroring SPUR's `news` label (`DUEL2.S:292-314`).
+  - Explicitly NOT missing, verified this pass: GROVEL (50% see-through
+    chance, 50% drop-silver-fleeing roll), guild support headcount
+    bonus, turf capture on decisive win, down-state Stand/Roll menu,
+    verbose commentary toggle, streak-based predictability penalty.
+  - [DONE 8/3/26] **Disconnect during a duel wasn't handled at all** --
+    found separately from the audit above, not originally on this list.
+    SPUR.DUEL.S's "dropped" label treats a lost carrier as an automatic
+    loss (same hell2 consequences as a fair defeat), logged via
+    DUEL2.S's sendmail as "=> <name> BROKE THE CONNECTION <=". TADA had
+    no equivalent: `simple_server.py`'s connection-cleanup `finally`
+    block never checked `active_duel`, so a disconnecting duelist just
+    vanished mid-fight with the opponent stuck waiting on a tactic that
+    would never come. Added `DuelSession.forfeit()` (same win/loss
+    consequences as `_end()`, wired through a new `disconnected: bool`
+    flag for forfeit-specific wording) and a call to it from
+    `handle_connection`'s cleanup. Tests:
+    `tests/combat/test_duel_disconnect_forfeit.py` (unit) and
+    `tests/e2e/test_duel_disconnect_forfeit_e2e.py` (live end-to-end:
+    real Server, two real socket connections, abrupt `transport.abort()`
+    on one side mid-duel, verifying the other gets the forfeit win).
+
+8/4/26:
+- **Horse-specific food items for `rations.json`, offered at Jake's
+  Stable.** `street/jakes.py` already sells two SPUR-authentic mount
+  feeds as ordinary rations -- Oats (`_OATS_RATION_NUM = 25`, "WILD
+  OATS") and Sugar Cube (`_SUGAR_CUBE_RATION_NUM = 16`, "CUBE OF
+  SUGAR") -- via `_buy_ration()`, the same general-store-style purchase
+  flow as `shoppe/main.py`. Ryan wants a few more horse-themed entries
+  added to `rations.json` (kind `"food"`/`"drink"`, next free `number`
+  after 78) and Jake's `_food_menu`-equivalent (wherever the numbered
+  buy options at the bottom of jakes.py list Oats/Sugar Cube today,
+  around line 224) extended to offer them too, so there's more variety
+  than just the two SPUR originals when feeding a mount. Ties into the
+  ally-item-eating fix from this session (`commands/give.py`'s
+  `_try_body_build()`/`_consume_ally_entry()`) -- a MOUNT-flagged ally
+  is an `Ally` like any other, so GIVEing it one of these new items
+  already boosts strength and gets consumed correctly once it exists;
+  this entry is just about adding the items themselves and Jake's
+  offering them. Not scoped/prioritized yet -- no item names decided.
