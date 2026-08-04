@@ -278,5 +278,75 @@ class TestPurchasedSpellsRouteToTheSpellBook(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(player.get_silver(PlayerMoneyTypes.IN_HAND), starting_silver)
 
 
+class TestBuySpellBook(unittest.IsolatedAsyncioTestCase):
+    """Ryan's request: the Wizard sells a Spell Book directly (BOOK at the
+    main prompt), not just the silent ensure_spellbook() auto-grant that
+    happens on a spell purchase. Buying one moves any spells already
+    sitting loose in the main inventory into it."""
+
+    async def test_adept_can_buy_a_spell_book(self):
+        import spellbook
+        player = _new_player('Rulan', char_class=PlayerClass.WIZARD)
+        starting_silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
+        ctx = _FakeCtx(['Y', 'BOOK', 'Y', 'Q'], player)
+        await wizard_main(ctx)
+        book = spellbook.find_spellbook(player)
+        self.assertIsNotNone(book)
+        self.assertEqual(
+            player.get_silver(PlayerMoneyTypes.IN_HAND),
+            starting_silver - 50,
+        )
+        self.assertIn('You purchase a Spell Book.', ctx._flat())
+
+    async def test_loose_spells_move_into_the_new_book(self):
+        import spellbook
+        from items import Spell
+        player = _new_player('Rulan', char_class=PlayerClass.WIZARD)
+        player.inventory.add(Spell(id_number=1, name='ESP', cast_chance=70,
+                                    effect_type='I', effect_magnitude=4,
+                                    charges=1, max_charges=1))
+        ctx = _FakeCtx(['Y', 'BOOK', 'Y', 'Q'], player)
+        await wizard_main(ctx)
+        book = spellbook.find_spellbook(player)
+        self.assertEqual(len(player.inventory.entries('Spell')), 0)
+        self.assertEqual(len(book.contents.entries('Spell')), 1)
+        self.assertIn('tucked safely into it', ctx._flat())
+
+    async def test_declining_the_price_buys_nothing(self):
+        import spellbook
+        player = _new_player('Rulan', char_class=PlayerClass.WIZARD)
+        starting_silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
+        ctx = _FakeCtx(['Y', 'BOOK', 'N', 'Q'], player)
+        await wizard_main(ctx)
+        self.assertIsNone(spellbook.find_spellbook(player))
+        self.assertEqual(player.get_silver(PlayerMoneyTypes.IN_HAND), starting_silver)
+
+    async def test_already_owning_a_book_refuses_a_second(self):
+        import spellbook
+        player = _new_player('Rulan', char_class=PlayerClass.WIZARD)
+        spellbook.ensure_spellbook(player)
+        starting_silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
+        ctx = _FakeCtx(['Y', 'BOOK', 'Q'], player)
+        await wizard_main(ctx)
+        self.assertIn('You already have a Spell Book.', ctx._flat())
+        self.assertEqual(player.get_silver(PlayerMoneyTypes.IN_HAND), starting_silver)
+
+    async def test_non_adept_cannot_buy_a_spell_book(self):
+        import spellbook
+        player = _new_player('Rulan', char_class=PlayerClass.FIGHTER, intelligence=40)
+        ctx = _FakeCtx(['Y', 'BOOK', 'Q'], player)
+        await wizard_main(ctx)
+        self.assertIsNone(spellbook.find_spellbook(player))
+
+    async def test_insufficient_silver_refuses_the_purchase(self):
+        import spellbook
+        player = _new_player('Rulan', char_class=PlayerClass.WIZARD)
+        player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 10)
+        ctx = _FakeCtx(['Y', 'BOOK', 'Y', 'Q'], player)
+        await wizard_main(ctx)
+        self.assertIsNone(spellbook.find_spellbook(player))
+        self.assertIn('Ye do not have enough silver.', ctx._flat())
+
+
 if __name__ == '__main__':
     unittest.main()

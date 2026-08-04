@@ -94,6 +94,60 @@ _TEACHING_LINES = [
 ]
 
 
+_SPELLBOOK_PRICE = 50  # TADA addition -- not a SPUR-sourced price, see spellbook.py
+
+
+async def _buy_spellbook(ctx: GameContext, player, inv, is_adept: bool) -> None:
+    """Sell the player a Spell Book -- Wizards/Druids only, matching
+    spellbook.py's _ADEPT_CLASSES gate (non-adepts cap at 6 spells kept
+    loose in the main inventory, no book concept for them). Any spells
+    already sitting loose in the main inventory move into the new book on
+    purchase, since that's the whole point of buying one instead of just
+    waiting for ensure_spellbook() to auto-grant one on the next learned
+    spell."""
+    import spellbook
+    from base_classes import PlayerMoneyTypes
+    from items import ItemCategory
+
+    if not is_adept:
+        await ctx.send("'Only my fellow Adepts have the discipline to keep a Spell Book,' the voice says.")
+        return
+
+    if spellbook.find_spellbook(player) is not None:
+        await ctx.send('You already have a Spell Book.')
+        return
+
+    await ctx.send(f'A Spell Book costs {_SPELLBOOK_PRICE} silver.')
+    raw = await ctx.prompt('Buy one?')
+    if raw is None or raw.strip().upper() != 'Y':
+        return
+
+    if player.get_silver(PlayerMoneyTypes.IN_HAND) < _SPELLBOOK_PRICE:
+        await ctx.send('Ye do not have enough silver.')
+        return
+
+    if inv is None or not inv.add(spellbook.make_spellbook_item()):
+        await ctx.send('Your pack is full -- no room for the Spell Book!')
+        return
+
+    player.subtract_silver(PlayerMoneyTypes.IN_HAND, _SPELLBOOK_PRICE)
+
+    book = spellbook.find_spellbook(player)
+    moved = 0
+    if book is not None and book.contents is not None:
+        for spell_entry in list(inv.entries(category=str(ItemCategory.SPELL))):
+            inv.remove(spell_entry.item, quantity=spell_entry.quantity)
+            book.contents.add(spell_entry.item, quantity=spell_entry.quantity)
+            moved += 1
+
+    player.unsaved_changes = True
+    await ctx.send('You purchase a Spell Book.')
+    if moved:
+        plural = 's' if moved != 1 else ''
+        verb   = 'are' if moved != 1 else 'is'
+        await ctx.send(f'Your {moved} carried spell{plural} {verb} tucked safely into it.')
+
+
 def _parse_info_request(ans: str) -> 'int | None':
     """Return spell number if ans matches i<number> (e.g. i3, i15), else None."""
     low = ans.lower()
@@ -205,7 +259,8 @@ async def main(ctx: GameContext) -> None:
             await ctx.send('Sorry, Non-Adepts can only learn six spells..')
             return
 
-        raw = await ctx.prompt('Learn which spell? (?=List, i#=Info, Q to leave)')
+        raw = await ctx.prompt('Learn which spell?',
+                                preamble_lines=['(?=List, i#=Info, BOOK=Buy Spell Book, Q to leave)'])
         if raw is None:
             return
         choice = raw.strip()
@@ -213,6 +268,9 @@ async def main(ctx: GameContext) -> None:
             return
         if choice == '?':
             await ctx.send(_spell_list_lines())
+            continue
+        if choice.upper() == 'BOOK':
+            await _buy_spellbook(ctx, player, inv, is_adept)
             continue
 
         info_num = _parse_info_request(choice)

@@ -94,7 +94,7 @@ def _stat_cap(effect_type: str, char_race) -> int:
     return 20
 
 
-def _spell_list_lines(ctx) -> list[str]:
+def spell_list_lines(ctx) -> list[str]:
     from formatting import border_style_for_ctx
     from table import Align, Column, Table
 
@@ -327,7 +327,7 @@ class CastCommand(Command):
             await ctx.send('You have no spells.')
             return CommandResult.ok()
 
-        await ctx.send(_spell_list_lines(ctx))
+        await ctx.send(spell_list_lines(ctx))
 
         while True:
             raw = await ctx.prompt('Cast which spell number? (?=list, Q to leave)')
@@ -337,7 +337,7 @@ class CastCommand(Command):
             if not choice or choice.upper() == 'Q':
                 return CommandResult.ok()
             if choice == '?':
-                await ctx.send(_spell_list_lines(ctx))
+                await ctx.send(spell_list_lines(ctx))
                 continue
 
             entries = spellbook.spell_entries(player)  # re-fetch: may have changed

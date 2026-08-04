@@ -371,6 +371,66 @@ class TestReadClaimTag(unittest.IsolatedAsyncioTestCase):
         self.assertIn("can't quite make it out", _sent(ctx))
 
 
+class TestReadSpellBook(unittest.IsolatedAsyncioTestCase):
+    """Ryan's request: READing the Spell Book lists the spells you know
+    (reuses commands/cast.py's own "Known Spells" table)."""
+
+    def _player_with_book(self):
+        import spellbook
+        p = make_player(with_scrap=False)
+        p.inventory.add(spellbook.make_spellbook_item())
+        # spell_list_lines()'s width lookup expects a real AttributeError
+        # (falls back to 78) when client_settings isn't set -- a bare
+        # MagicMock attribute would return another MagicMock instead and
+        # blow up Table.render()'s width arithmetic.
+        p.client_settings = None
+        return p
+
+    async def test_book_listed_despite_no_type_attribute(self):
+        p = self._player_with_book()
+        ctx = make_ctx(p, [''])
+        await ReadCommand().execute(ctx)
+        self.assertIn('Spell Book', _sent(ctx))
+
+    async def test_empty_book_says_so(self):
+        p = self._player_with_book()
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertIn('Your Spell Book is empty.', _sent(ctx))
+
+    async def test_reading_lists_a_spell_inside_the_book(self):
+        import spellbook
+        from items import Spell
+        p = self._player_with_book()
+        book = spellbook.find_spellbook(p)
+        book.contents.add(Spell(id_number=1, name='ESP', cast_chance=70,
+                                 effect_type='I', effect_magnitude=4,
+                                 charges=1, max_charges=1))
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertIn('ESP', _sent(ctx))
+
+    async def test_reading_lists_a_spell_left_loose_in_main_inventory(self):
+        """Backward compat (spellbook.py's spell_entries()): a spell
+        learned before this feature existed, sitting loose in the main
+        inventory rather than the book, still shows up when reading the
+        book itself."""
+        from items import Spell
+        p = self._player_with_book()
+        p.inventory.add(Spell(id_number=2, name='WHEATIES', cast_chance=70,
+                               effect_type='S', effect_magnitude=6,
+                               charges=1, max_charges=1))
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertIn('WHEATIES', _sent(ctx))
+
+    async def test_reading_does_not_consume_the_book(self):
+        p = self._player_with_book()
+        ctx = make_ctx(p, ['1'])
+        await ReadCommand().execute(ctx)
+        self.assertEqual(len(p.inventory.find(name='Spell Book')), 1)
+
+
 def _make_scroll(number, name):
     """A scroll as it actually arrives in inventory via commands/get.py:
     items.Item with only .category set -- .type gets tagged on separately

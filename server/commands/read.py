@@ -68,6 +68,7 @@ bearing for the reference/guide books.
 """
 from __future__ import annotations
 
+import spellbook
 from base_classes import Combination, CombinationTypes, PlayerRace, PlayerStat
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
@@ -87,7 +88,7 @@ _AP = "'"
 # scrap of paper, only ones constructed directly in tests. Listing known
 # readable ids here sidesteps that mismatch rather than fixing the deeper
 # two-Item-class split (a bigger, separate cleanup).
-_READABLE_IDS = {_SCRAP_OF_PAPER_ID, _CLAIM_TAG_ID}
+_READABLE_IDS = {_SCRAP_OF_PAPER_ID, _CLAIM_TAG_ID, spellbook.SPELLBOOK_ITEM_NUMBER}
 
 
 def _item_number(item):
@@ -146,6 +147,18 @@ async def _read_scrap_of_paper(ctx: GameContext, player) -> None:
     else:
         digits = '-'.join(f'{n:02}' for n in existing.combination)
         await ctx.send(f'It reads: Your personal combination to the Elevator is: {digits}')
+
+
+async def _read_spellbook(ctx: GameContext, player) -> None:
+    """Reading the Spell Book lists every spell the player knows -- its
+    own contents plus (backward-compat, see spellbook.py) any spell sitting
+    loose in the main inventory -- reusing commands/cast.py's own "Known
+    Spells" table so the listing there and here can't drift apart."""
+    from commands.cast import spell_list_lines
+    if not spellbook.spell_entries(player):
+        await ctx.send('Your Spell Book is empty.')
+        return
+    await ctx.send(spell_list_lines(ctx))
 
 
 async def _read_claim_tag(ctx: GameContext, player) -> None:
@@ -320,6 +333,9 @@ class ReadCommand(Command):
             return CommandResult.ok()
         if number == _CLAIM_TAG_ID:
             await _read_claim_tag(ctx, player)
+            return CommandResult.ok()
+        if number == spellbook.SPELLBOOK_ITEM_NUMBER:
+            await _read_spellbook(ctx, player)
             return CommandResult.ok()
 
         if 'SCROLL' in (getattr(item, 'name', '') or '').upper():

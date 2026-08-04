@@ -703,6 +703,15 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Protection** — buy armor and shields; max 5 items per player (`SPUR.SHOP.S`; `shoppe/armory.py`'s `protection()`)
 - ✅ **Bank of SPUR** — deposit, withdraw, transfer gold; level 2+ required for transfers (`SPUR.SHIP.S bank`; `shoppe/bank.py`)
 - ✅ **Wizard** — buy spells; Wizards pay half price, Druids two-thirds; max 10 spells (`SPUR.SHOP.S`; `shoppe/wizard.py`)
+- ✅ **Spell Book** (TADA addition, not SPUR-sourced) — Wizards/Druids can
+  buy a Spell Book from the Wizard (`BOOK` at the main prompt, 50 silver);
+  any spells already sitting loose in the main inventory move into it on
+  purchase (`shoppe/wizard.py`'s `_buy_spellbook()`). `READ`ing the Spell
+  Book lists every spell the player knows, reusing `commands/cast.py`'s
+  own "Known Spells" table (`commands/read.py`'s `_read_spellbook()`).
+  Adepts are also auto-granted one for free at character creation and the
+  first time they learn a spell if they don't already have one
+  (`spellbook.py`'s `ensure_spellbook()`).
 - ✅ **Clan / Guild office** — change guild affiliation (Claw, Sword, Iron Fist, Civilian, Outlaw); costs gold and honor (`SPUR.SHOP.S`; `shoppe/clan.py`)
 - ✅ **Pawn Shop** — sell (not buy) items to the merchant; all found items are sellable (tips.txt) (`SPUR.SHOP.S`; `shoppe/pawn.py`)
 - ✅ **Olly's Ammo** — buy ammo and ammo carriers; booby trap purchase; [H]elp explains ammo system and friendly fire. Reached in the original by typing `AMMO` (`SPUR.MISC5.S:16: if i$="AMMO" goto ammo`, `ammo` subroutine — "Olly greets you, 'Welcome, ...'"), not a separate ammo-count command (`shoppe/ollys.py`)
