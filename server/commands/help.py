@@ -340,6 +340,59 @@ register_topic(
     ),
 )
 
+register_topic(
+    "tokens", "substitution", "pronouns", "percent",
+    help_obj=Help(
+        summary="%-tokens: pronouns and names in game text",
+        description=(
+            "Any text the game sends you can contain a %-token that gets "
+            "filled in with something about you -- your name, your "
+            "pronouns, your class, or your race -- so the same message "
+            "reads correctly no matter who receives it.\n\n"
+            "For example, the game might send \"%%n draws %%p sword\" and "
+            "you'd see \"Alice draws her sword\" while someone else typing "
+            "the same command sees \"Bob draws his sword\" -- one template, "
+            "correct for everyone.\n\n"
+            "This isn't something you type yourself day-to-day -- it's how "
+            "the game's own text is written under the hood -- but it's "
+            "worth knowing about so a stray '%' in something you're told "
+            "(a time format, a percentage) doesn't look mysterious: an "
+            "unrecognized %-token is always left exactly as typed instead "
+            "of being replaced."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("%%n", "Your name."),
+            ("%%s / %%o", "Subjective / objective pronoun -- he/she, him/her."),
+            ("%%p / %%P", "Possessive adjective / pronoun -- his/her, his/hers."),
+            ("%%r", "Reflexive pronoun -- himself/herself."),
+            ("%%c / %%e", "Your character class / race -- e.g. Wizard, Elf."),
+            ("%%%%", "A literal '%' character."),
+        ],
+        examples=[
+            ("%%n draws %%p sword.", "Alice draws her sword. / Bob draws his sword."),
+            ("%%s looks determined.", "She looks determined. / He looks determined."),
+        ],
+        notes=[
+            "A '%' not followed by a recognized letter (like a bare "
+            "percentage, or the end of a sentence) is left exactly as "
+            "typed -- it never breaks the rest of the message.",
+        ],
+        admin_notes=[
+            "Implemented in tada_utilities.substitute_tokens(), applied to "
+            "every outbound line/prompt in network_context.py and "
+            "terminal_context.py, keyed to the recipient. "
+            "ally_events/farewell.py has its own separate, ally-targeted "
+            "copy of this scheme (predates this general version) -- its "
+            "%-tokens resolve against the ally, not the receiving player, "
+            "and are already plain text by the time they reach ctx.send(). "
+            "Traces back to an unfinished C64 asm draft, "
+            "assembly-language/%-substitution.lbl, that sketched the same "
+            "%<letter> idea (plus class/race tokens) but never wired it up.",
+        ],
+    ),
+)
+
 
 # ---------------------------------------------------------------------------
 # Helper function - guards against Mode.NONE instead of a set {Mode.NONE}
