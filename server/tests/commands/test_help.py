@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import os
 import sys
-import types
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -26,13 +25,26 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 # ---------------------------------------------------------------------------
-# 2. Stub out heavy server modules before any TADA import touches them
-# ---------------------------------------------------------------------------
-for _name in ["network_context", "net_common"]:
-    sys.modules.setdefault(_name, types.ModuleType(_name))
-
-# ---------------------------------------------------------------------------
-# 3. Now import from commands/ — path is correct, stubs are in place
+# 2. Now import from commands/ — path is correct
+#
+#    Historically this file stubbed out network_context/net_common here
+#    with bare types.ModuleType(...) placeholders via sys.modules.setdefault(),
+#    on the theory that commands.help needed protecting from those "heavy"
+#    imports. It doesn't: commands/help.py only references GameContext
+#    inside a `if TYPE_CHECKING:` guard (never imported at runtime), and
+#    commands/base_command.py doesn't touch either module at all. Because
+#    pytest imports every test module during collection (before any test
+#    runs), that setdefault() permanently installed an empty, attribute-less
+#    network_context stub in sys.modules for the rest of the pytest
+#    session -- any other code anywhere in the suite that later did
+#    `from network_context import GameContext` (e.g. base_classes.py, or
+#    terminal.py's import chain) hit the stub instead of the real module
+#    and failed with "cannot import name 'GameContext' from 'network_context'
+#    (unknown location)". Several other files under tests/ do the same
+#    setdefault()-a-stub trick for network_context/net_common; if one of
+#    those starts causing this failure elsewhere, the fix is the same:
+#    delete the stub once you've confirmed (by grepping that file's own
+#    imports) that nothing it actually imports needs it.
 # ---------------------------------------------------------------------------
 from commands.help import Help, HelpCategory, HelpCommand, format_help
 from commands.base_command import CommandResult
@@ -133,6 +145,34 @@ class TestColorHelpers(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# format_summary_table() — pure formatter, no I/O
+# ---------------------------------------------------------------------------
+
+class TestFormatSummaryTable(unittest.TestCase):
+
+    def test_empty_items_returns_empty(self):
+        self.assertEqual(help_mod.format_summary_table([], 78), [])
+
+    def test_rows_alternate_stripe_color(self):
+        items = [("say", "First."), ("shout", "Second."), ("page", "Third.")]
+        lines = help_mod.format_summary_table(items, 78)
+        self.assertIn("|mid_gray|",  lines[0])
+        self.assertIn("|dark_gray|", lines[1])
+        self.assertIn("|mid_gray|",  lines[2])
+
+    def test_name_rendered_with_cmd_color(self):
+        lines = help_mod.format_summary_table([("say", "Speak aloud.")], 78)
+        self.assertIn("|cyan|say|reset|", lines[0])
+
+    def test_no_line_exceeds_width(self):
+        from formatting import _visible_len
+        items = [("attack", "A very long summary " * 5)]
+        lines = help_mod.format_summary_table(items, 40)
+        for line in lines:
+            self.assertLessEqual(_visible_len(line), 40)
+
+
+# ---------------------------------------------------------------------------
 # format_help() — pure formatter, no I/O
 # ---------------------------------------------------------------------------
 
@@ -188,16 +228,24 @@ class TestFormatHelp(unittest.TestCase):
         self.assertIn("Regular note.", out)
         self.assertIn("Admin-only note.", out)
 
-    def test_admin_notes_alone_still_shows_notes_heading_when_privileged(self):
+    def test_admin_notes_alone_shows_admin_notes_heading_when_privileged(self):
         h = Help(admin_notes=["Admin-only note."])
         out = self._fmt(h, is_privileged=True)
-        self.assertIn("Notes:", out)
+        self.assertIn("Admin Notes:", out)
+        self.assertNotIn("|Notes:|", out)  # plain "Notes:" heading absent -- only Admin Notes
         self.assertIn("Admin-only note.", out)
+
+    def test_admin_notes_render_as_separate_section_from_notes(self):
+        h = Help(notes=["Regular note."], admin_notes=["Admin-only note."])
+        out = self._fmt(h, is_privileged=True)
+        self.assertIn("Notes:", out)
+        self.assertIn("Admin Notes:", out)
 
     def test_admin_notes_alone_produces_no_notes_section_when_not_privileged(self):
         h = Help(admin_notes=["Admin-only note."])
         out = self._fmt(h, is_privileged=False)
         self.assertNotIn("Notes:", out)
+        self.assertNotIn("Admin Notes:", out)
         self.assertNotIn("Admin-only note.", out)
 
     def test_petscii_notes_hidden_by_default(self):
@@ -355,6 +403,50 @@ class TestHelpCommandExecute(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.success)
         output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
         self.assertIn("go", output)
+
+    # --- summary table ---
+
+    async def test_summary_switch_lists_commands_with_summaries(self):
+        from commands.base_command import Mode
+
+        ctx, proc = _ctx_with_processor(
+            _make_cmd("say", category=HelpCategory.COMMUNICATION,
+                      summary="Say something to players in your room."),
+            _make_cmd("attack", category=HelpCategory.COMBAT,
+                      summary="Attack a monster or player."),
+        )
+        proc.current_mode = None
+        for cmd in proc.get_all_commands.return_value.values():
+            cmd.modes = {Mode.ANY}
+
+        result = await HelpCommand().execute(ctx, "#summary")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("COMBAT",                                 output)
+        self.assertIn("COMMUNICATION",                          output)
+        self.assertIn("attack",                                 output)
+        self.assertIn("Say something to players in your room.", output)
+
+    async def test_summary_switch_zebra_stripes_alternate_rows(self):
+        from commands.base_command import Mode
+
+        ctx, proc = _ctx_with_processor(
+            _make_cmd("say", category=HelpCategory.COMMUNICATION, summary="First."),
+            _make_cmd("shout", category=HelpCategory.COMMUNICATION, summary="Second."),
+        )
+        proc.current_mode = None
+        for cmd in proc.get_all_commands.return_value.values():
+            cmd.modes = {Mode.ANY}
+
+        await HelpCommand().execute(ctx, "#summary")
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("|mid_gray|",  output)
+        self.assertIn("|dark_gray|", output)
+
+    async def test_summary_switch_alias_sum_works(self):
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "#sum")
+        self.assertTrue(result.success)
 
     async def test_unknown_category_fails(self):
         ctx, _ = _ctx_with_processor()

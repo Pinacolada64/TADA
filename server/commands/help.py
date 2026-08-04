@@ -430,6 +430,34 @@ def format_two_column(items: List[Tuple[str, str]], width: int) -> List[str]:
     return out
 
 
+def format_summary_table(items: List[Tuple[str, str]], width: int) -> List[str]:
+    """Render (name, summary) pairs as a zebra-striped, borderless table.
+
+    No box-drawing characters -- just two aligned columns, one command per
+    row. Alternating rows tint the summary text (dark_gray / mid_gray) so
+    long lists stay easy to scan without a box or rule lines cluttering it;
+    the command name itself stays cyan (via _cmd()) on every row so it
+    reads consistently with the rest of help's formatting.
+
+    Used by HelpCommand's 'help #summary' switch.
+    """
+    out: List[str] = []
+    if not items:
+        return out
+    left_col  = min(max(len(s) for s, _ in items), int(width * 0.4), 30)
+    left_col  = max(left_col, 10)
+    right_col = max(width - 4 - left_col - 2, 10)
+
+    for i, (name, summary) in enumerate(items):
+        stripe  = 'dark_gray' if i % 2 else 'mid_gray'
+        wrapped = textwrap.wrap(summary, width=right_col) or [""]
+        name_col = _vis_ljust(_cmd(name), left_col)
+        out.append(f"  {name_col}  |{stripe}|{wrapped[0]}|reset|")
+        for cont in wrapped[1:]:
+            out.append(f"  {'':{left_col}}  |{stripe}|{cont}|reset|")
+    return out
+
+
 def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                 rule_char: str = "-", is_privileged: bool = False,
                 is_petscii: bool = False) -> Optional[str]:
@@ -561,12 +589,14 @@ class HelpCommand(Command):
             ("help <command>",     "Detailed help for a command"),
             ("help <category>",    "Commands in a category"),
             ("help #cat",          "List all categories"),
+            ("help #summary",      "List every command with a one-line summary, by category"),
             ("help search <term>", "Search command names and descriptions"),
         ],
         examples = [
-            ("help",      "Show all commands"),
-            ("help say",  "Help for the 'say' command"),
-            ("help #cat", "List all categories"),
+            ("help",          "Show all commands"),
+            ("help say",      "Help for the 'say' command"),
+            ("help #cat",     "List all categories"),
+            ("help #summary", "List all commands with their summaries"),
         ],
         notes = [
             "You can use 'help', 'h', or '?' interchangeably.",
@@ -596,6 +626,11 @@ class HelpCommand(Command):
             if rest:
                 return await self._show_category_help(ctx, rest[0].lower(), processor)
             return await self._show_categories_list(ctx)
+
+        # Summary table -- every category, one zebra-striped table per
+        # category listing each command's Help.summary
+        if token in ("#summary", "#sum"):
+            return await self._show_summary_table(ctx, processor)
 
         # Search
         if token in ("search", "find") and rest:
@@ -665,6 +700,40 @@ class HelpCommand(Command):
         lines += ["", "Type 'help <command>' for more detail."]
         await ctx.send(*lines)
         return CommandResult.ok("General help displayed.")
+
+    async def _show_summary_table(self, ctx, processor) -> Any:
+        """'help #summary' -- every category, one zebra-striped, borderless
+        table per category, listing each command's Help.summary."""
+        from commands.base_command import CommandResult
+
+        width = self._screen_width(ctx)
+        title = f"{'Commands by Category, with Summaries':^{width}}"
+        lines = [f"\n{_heading(title)}"]
+
+        current_mode = getattr(processor, "current_mode", None)
+        all_cmds = [
+            cmd for cmd in (processor.get_all_commands().values() if processor else [])
+            if current_mode is None or _is_available(cmd, current_mode)
+        ]
+        by_cat: Dict = defaultdict(list)
+        for cmd in all_cmds:
+            help_obj = getattr(cmd, "help", None)
+            cat      = getattr(help_obj, "category", HelpCategory.GENERAL)
+            by_cat[cat].append(cmd)
+
+        for cat in sorted(by_cat, key=lambda c: c.value):
+            cmds = sorted(by_cat[cat], key=lambda c: getattr(c, "name", ""))
+            lines.append(f"\n{_heading(cat.value.upper() + ':')}")
+            items = [
+                (getattr(cmd, "name", "?"),
+                 getattr(getattr(cmd, "help", None), "summary", "No summary available."))
+                for cmd in cmds
+            ]
+            lines.extend(format_summary_table(items, width))
+
+        lines += ["", "Type 'help <command>' for full detail on one command."]
+        await ctx.send(*lines)
+        return CommandResult.ok("Summary table displayed.")
 
     async def _show_categories_list(self, ctx) -> Any:
         from commands.base_command import CommandResult
