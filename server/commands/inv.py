@@ -48,7 +48,7 @@ def _make_test_inventory() -> Inventory:
         effect_type      = random.choice(effect_types),
         effect_magnitude = random.randint(1, 5),
     )
-    inv.add(spell, charges=charges)
+    inv.add(spell)
 
     # Maybe add a bag of holding with a couple of items inside
     if random.random() > 0.4:
@@ -90,12 +90,13 @@ def _format_entry(entry: InventoryEntry, index: int) -> str:
     else:
         qty = f'{entry.quantity}x ' if entry.quantity > 1 else '   '
         ammo_str = ''
-    if entry.charges is not None:
+    charges = getattr(entry.item, 'charges', None)
+    if charges is not None:
         max_ch      = getattr(entry.item, 'max_charges', 0)
-        charge_pct  = int(entry.charges / max_ch * 100) if max_ch else 0
+        charge_pct  = int(charges / max_ch * 100) if max_ch else 0
         cast_chance = getattr(entry.item, 'cast_chance', None)
         cast_str    = f', cast: {cast_chance}%' if cast_chance else ''
-        charges_str = f' [{entry.charges}/{max_ch} charges, {charge_pct}%{cast_str}]'
+        charges_str = f' [{charges}/{max_ch} charges, {charge_pct}%{cast_str}]'
     else:
         charges_str = ''
     if entry.is_container and entry.contents:

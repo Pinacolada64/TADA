@@ -79,21 +79,21 @@ class TestNoSpellsKnown(unittest.IsolatedAsyncioTestCase):
 class TestSpellListing(unittest.IsolatedAsyncioTestCase):
     async def test_lists_a_known_spell_by_name(self):
         player = _new_player(PlayerClass.WIZARD)
-        spellbook.ensure_spellbook(player).contents.add(_spell(), charges=1)
+        spellbook.ensure_spellbook(player).contents.add(_spell())
         ctx = _FakeCtx(['Q'], player)
         await _cast_first_known_spell(ctx)
         self.assertIn('ESP', ctx._flat())
 
     async def test_question_mark_relists(self):
         player = _new_player(PlayerClass.WIZARD)
-        spellbook.ensure_spellbook(player).contents.add(_spell(), charges=1)
+        spellbook.ensure_spellbook(player).contents.add(_spell())
         ctx = _FakeCtx(['?', 'Q'], player)
         await _cast_first_known_spell(ctx)
         self.assertEqual(ctx._flat().count('Known Spells'), 2)
 
     async def test_unknown_number_refuses_and_reprompts(self):
         player = _new_player(PlayerClass.WIZARD)
-        spellbook.ensure_spellbook(player).contents.add(_spell(), charges=1)
+        spellbook.ensure_spellbook(player).contents.add(_spell())
         ctx = _FakeCtx(['99', 'Q'], player)
         await _cast_first_known_spell(ctx)
         self.assertIn('You do not know that spell.', ctx._flat())
@@ -102,7 +102,7 @@ class TestSpellListing(unittest.IsolatedAsyncioTestCase):
 class TestOneShotConsumption(unittest.IsolatedAsyncioTestCase):
     async def test_spell_is_removed_regardless_of_outcome(self):
         player = _new_player(PlayerClass.WIZARD, intelligence=3)  # near-certain fizzle/backfire
-        spellbook.ensure_spellbook(player).contents.add(_spell(cast_chance=1), charges=1)
+        spellbook.ensure_spellbook(player).contents.add(_spell(cast_chance=1))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', side_effect=[10000, 6]):  # forces fizzle
             await _cast_first_known_spell(ctx)
@@ -115,7 +115,7 @@ class TestFizzleMessage(unittest.IsolatedAsyncioTestCase):
 
     async def test_low_intelligence_gets_the_extra_hint(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=10)
-        player.inventory.add(_spell(cast_chance=1), charges=1)
+        player.inventory.add(_spell(cast_chance=1))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', side_effect=[10000, 10]):  # forces fizzle
             await _cast_first_known_spell(ctx)
@@ -124,7 +124,7 @@ class TestFizzleMessage(unittest.IsolatedAsyncioTestCase):
 
     async def test_high_intelligence_does_not_get_the_hint(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
-        player.inventory.add(_spell(cast_chance=1), charges=1)
+        player.inventory.add(_spell(cast_chance=1))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', side_effect=[10000, 10]):  # forces fizzle
             await _cast_first_known_spell(ctx)
@@ -137,7 +137,7 @@ class TestStatSpells(unittest.IsolatedAsyncioTestCase):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
         player.stats[PlayerStat.STR] = 10
         spellbook_entries = player.inventory
-        player.inventory.add(_spell(effect_type='S', magnitude=3, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='S', magnitude=3, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):  # a=1.01 always < threshold
             await _cast_first_known_spell(ctx)
@@ -147,7 +147,7 @@ class TestStatSpells(unittest.IsolatedAsyncioTestCase):
     async def test_intelligence_success_uses_spurs_exact_smart_line(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
         player.stats[PlayerStat.INT] = 10
-        player.inventory.add(_spell(effect_type='I', magnitude=3, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='I', magnitude=3, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -156,7 +156,7 @@ class TestStatSpells(unittest.IsolatedAsyncioTestCase):
     async def test_backfire_lowers_the_stat(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=3)
         player.stats[PlayerStat.STR] = 10
-        player.inventory.add(_spell(effect_type='S', magnitude=3, cast_chance=1), charges=1)
+        player.inventory.add(_spell(effect_type='S', magnitude=3, cast_chance=1))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', side_effect=[10000, 1]):  # fail roll, then <5: backfire
             await _cast_first_known_spell(ctx)
@@ -169,7 +169,7 @@ class TestStatSpells(unittest.IsolatedAsyncioTestCase):
         nothing."""
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
         player.stats[PlayerStat.STR] = 20  # already at the default cap
-        player.inventory.add(_spell(effect_type='S', magnitude=3, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='S', magnitude=3, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -179,7 +179,7 @@ class TestStatSpells(unittest.IsolatedAsyncioTestCase):
     async def test_ogre_strength_cap_is_24_not_20(self):
         player = _new_player(PlayerClass.FIGHTER, char_race=PlayerRace.OGRE, intelligence=20)
         player.stats[PlayerStat.STR] = 20
-        player.inventory.add(_spell(effect_type='S', magnitude=3, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='S', magnitude=3, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -188,7 +188,7 @@ class TestStatSpells(unittest.IsolatedAsyncioTestCase):
     async def test_human_energy_cap_is_24(self):
         player = _new_player(PlayerClass.FIGHTER, char_race=PlayerRace.HUMAN, intelligence=20)
         player.stats[PlayerStat.EGY] = 21
-        player.inventory.add(_spell(effect_type='E', magnitude=2, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='E', magnitude=2, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -197,7 +197,7 @@ class TestStatSpells(unittest.IsolatedAsyncioTestCase):
     async def test_half_elf_energy_cap_is_22(self):
         player = _new_player(PlayerClass.FIGHTER, char_race=PlayerRace.HALF_ELF, intelligence=20)
         player.stats[PlayerStat.EGY] = 20  # below the 22 cap, above the default-20 cap
-        player.inventory.add(_spell(effect_type='E', magnitude=1, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='E', magnitude=1, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -211,7 +211,7 @@ class TestHealSpell(unittest.IsolatedAsyncioTestCase):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
         player.xp_level = 1
         player.hit_points = 10  # cap = 23 + 1 = 24
-        player.inventory.add(_spell(effect_type='P', magnitude=5, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='P', magnitude=5, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -221,7 +221,7 @@ class TestHealSpell(unittest.IsolatedAsyncioTestCase):
     async def test_backfire_subtracts(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=3)
         player.hit_points = 10
-        player.inventory.add(_spell(effect_type='P', magnitude=5, cast_chance=1), charges=1)
+        player.inventory.add(_spell(effect_type='P', magnitude=5, cast_chance=1))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', side_effect=[10000, 1]):
             await _cast_first_known_spell(ctx)
@@ -232,7 +232,7 @@ class TestHealSpell(unittest.IsolatedAsyncioTestCase):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
         player.xp_level = 1
         player.hit_points = 24  # already at cap (23+1)
-        player.inventory.add(_spell(effect_type='P', magnitude=5, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='P', magnitude=5, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -245,7 +245,7 @@ class TestTransferSpell(unittest.IsolatedAsyncioTestCase):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
         player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 500)
         player.set_silver_absolute(PlayerMoneyTypes.IN_BANK, 0)
-        player.inventory.add(_spell(effect_type='T', magnitude=0, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='T', magnitude=0, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -256,7 +256,7 @@ class TestTransferSpell(unittest.IsolatedAsyncioTestCase):
         player = _new_player(PlayerClass.FIGHTER, intelligence=3)
         player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 100)
         player.set_silver_absolute(PlayerMoneyTypes.IN_BANK, 500)
-        player.inventory.add(_spell(effect_type='T', magnitude=0, cast_chance=1), charges=1)
+        player.inventory.add(_spell(effect_type='T', magnitude=0, cast_chance=1))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', side_effect=[10000, 1]):
             await _cast_first_known_spell(ctx)
@@ -271,7 +271,7 @@ def _monster(name='GOBLIN', hp=20, flags=None):
 class TestMonsterDamageSpell(unittest.IsolatedAsyncioTestCase):
     async def test_refuses_without_an_active_combat_session(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
-        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=90))
         ctx = _FakeCtx(['1'], player)  # no active_combats entry
         await _cast_first_known_spell(ctx)
         self.assertIn("You'll need to be in combat first.", ctx._flat())
@@ -280,7 +280,7 @@ class TestMonsterDamageSpell(unittest.IsolatedAsyncioTestCase):
 
     async def test_damages_the_monster_on_success(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
-        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=90))
         session = CombatSession(_monster(hp=20), room_no=1)
         ctx = _FakeCtx(['1'], player, active_combats={1: session})
         with patch('commands.cast.random.randint', return_value=1):
@@ -290,7 +290,7 @@ class TestMonsterDamageSpell(unittest.IsolatedAsyncioTestCase):
 
     async def test_kills_the_monster_when_hp_drops_to_zero(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
-        player.inventory.add(_spell(effect_type='M', magnitude=50, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='M', magnitude=50, cast_chance=90))
         session = CombatSession(_monster(hp=20), room_no=1)
         ctx = _FakeCtx(['1'], player, active_combats={1: session})
         with patch('commands.cast.random.randint', return_value=1):
@@ -300,7 +300,7 @@ class TestMonsterDamageSpell(unittest.IsolatedAsyncioTestCase):
 
     async def test_mechanical_monster_blocks_the_spell(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
-        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=90))
         session = CombatSession(_monster(flags={'mechanical': True}), room_no=1)
         ctx = _FakeCtx(['1'], player, active_combats={1: session})
         with patch('commands.cast.random.randint', return_value=1):
@@ -310,7 +310,7 @@ class TestMonsterDamageSpell(unittest.IsolatedAsyncioTestCase):
 
     async def test_magic_resistant_monster_blocks_the_spell(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
-        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=90))
         session = CombatSession(_monster(flags={'magic_resistant': True}), room_no=1)
         ctx = _FakeCtx(['1'], player, active_combats={1: session})
         with patch('commands.cast.random.randint', return_value=1):
@@ -319,7 +319,7 @@ class TestMonsterDamageSpell(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_wizard_backfire_heals_the_monster(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=3)
-        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=1), charges=1)
+        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=1))
         session = CombatSession(_monster(hp=20), room_no=1)
         ctx = _FakeCtx(['1'], player, active_combats={1: session})
         with patch('commands.cast.random.randint', side_effect=[10000, 1]):
@@ -330,7 +330,7 @@ class TestMonsterDamageSpell(unittest.IsolatedAsyncioTestCase):
     async def test_wizard_gets_xp_and_staff_blast_bonus(self):
         player = _new_player(PlayerClass.WIZARD, intelligence=20)
         player.readied_weapon = SimpleNamespace(id_number=3)  # WOOD STAFF
-        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=90))
         session = CombatSession(_monster(hp=30), room_no=1)
         ctx = _FakeCtx(['1'], player, active_combats={1: session})
         with patch('commands.cast.random.randint', return_value=1):
@@ -341,7 +341,7 @@ class TestMonsterDamageSpell(unittest.IsolatedAsyncioTestCase):
 
     async def test_wizard_backfire_still_damages_rather_than_healing(self):
         player = _new_player(PlayerClass.WIZARD, intelligence=3)
-        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=1), charges=1)
+        player.inventory.add(_spell(effect_type='M', magnitude=5, cast_chance=1))
         session = CombatSession(_monster(hp=30), room_no=1)
         ctx = _FakeCtx(['1'], player, active_combats={1: session})
         with patch('commands.cast.random.randint', side_effect=[10000, 1]):
@@ -353,7 +353,7 @@ class TestDeferredEffectTypes(unittest.IsolatedAsyncioTestCase):
     async def test_level_up_is_refused_and_not_consumed(self):
         player = _new_player(PlayerClass.WIZARD, intelligence=20)
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='U', name='ELEVATOR UP'), charges=1)
+        book.contents.add(_spell(effect_type='U', name='ELEVATOR UP'))
         ctx = _FakeCtx(['1'], player)
         await _cast_first_known_spell(ctx)
         self.assertIn("hasn't taught anyone how to unlock", ctx._flat())
@@ -362,7 +362,7 @@ class TestDeferredEffectTypes(unittest.IsolatedAsyncioTestCase):
     async def test_level_down_is_refused_and_not_consumed(self):
         player = _new_player(PlayerClass.WIZARD, intelligence=20)
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='L', name='ELEVATOR DOWN'), charges=1)
+        book.contents.add(_spell(effect_type='L', name='ELEVATOR DOWN'))
         ctx = _FakeCtx(['1'], player)
         await _cast_first_known_spell(ctx)
         self.assertEqual(len(spellbook.spell_entries(player)), 1)
@@ -370,7 +370,7 @@ class TestDeferredEffectTypes(unittest.IsolatedAsyncioTestCase):
     async def test_teleport_to_shoppe_is_refused_and_not_consumed(self):
         player = _new_player(PlayerClass.WIZARD, intelligence=20)
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='R', name='TRANSPORT TO SHOPPE'), charges=1)
+        book.contents.add(_spell(effect_type='R', name='TRANSPORT TO SHOPPE'))
         ctx = _FakeCtx(['1'], player)
         await _cast_first_known_spell(ctx)
         self.assertEqual(len(spellbook.spell_entries(player)), 1)
@@ -378,7 +378,7 @@ class TestDeferredEffectTypes(unittest.IsolatedAsyncioTestCase):
     async def test_wizards_glow_aura_is_refused_and_not_consumed(self):
         player = _new_player(PlayerClass.WIZARD, intelligence=20)
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='A', name="WIZARD'S GLOW"), charges=1)
+        book.contents.add(_spell(effect_type='A', name="WIZARD'S GLOW"))
         ctx = _FakeCtx(['1'], player)
         await _cast_first_known_spell(ctx)
         self.assertEqual(len(spellbook.spell_entries(player)), 1)
@@ -386,7 +386,7 @@ class TestDeferredEffectTypes(unittest.IsolatedAsyncioTestCase):
     async def test_dispel_poison_aura_is_refused_and_not_consumed(self):
         player = _new_player(PlayerClass.WIZARD, intelligence=20)
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='A', name='DISPEL POISON'), charges=1)
+        book.contents.add(_spell(effect_type='A', name='DISPEL POISON'))
         ctx = _FakeCtx(['1'], player)
         await _cast_first_known_spell(ctx)
         self.assertEqual(len(spellbook.spell_entries(player)), 1)
@@ -396,7 +396,7 @@ class TestFlavorStubbedEffectTypes(unittest.IsolatedAsyncioTestCase):
     async def test_summon_spur_is_consumed_and_rolls_normally(self):
         player = _new_player(PlayerClass.WIZARD, intelligence=20)
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='G', name='SUMMON SPUR', cast_chance=90), charges=1)
+        book.contents.add(_spell(effect_type='G', name='SUMMON SPUR', cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -407,7 +407,7 @@ class TestFlavorStubbedEffectTypes(unittest.IsolatedAsyncioTestCase):
     async def test_boots_of_speed_aura_is_consumed_and_rolls_normally(self):
         player = _new_player(PlayerClass.WIZARD, intelligence=20)
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='A', name='BOOTS OF SPEED', cast_chance=90), charges=1)
+        book.contents.add(_spell(effect_type='A', name='BOOTS OF SPEED', cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -420,7 +420,7 @@ class TestCasterBonuses(unittest.IsolatedAsyncioTestCase):
         player = _new_player(PlayerClass.DRUID, intelligence=20)
         player.stats[PlayerStat.STR] = 10
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='S', magnitude=3, cast_chance=90), charges=1)
+        book.contents.add(_spell(effect_type='S', magnitude=3, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -430,7 +430,7 @@ class TestCasterBonuses(unittest.IsolatedAsyncioTestCase):
     async def test_druid_gets_no_bonus_on_monster_damage(self):
         player = _new_player(PlayerClass.DRUID, intelligence=20)
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='M', magnitude=5, cast_chance=90), charges=1)
+        book.contents.add(_spell(effect_type='M', magnitude=5, cast_chance=90))
         session = CombatSession(_monster(hp=30), room_no=1)
         ctx = _FakeCtx(['1'], player, active_combats={1: session})
         with patch('commands.cast.random.randint', return_value=1):
@@ -443,7 +443,7 @@ class TestCasterBonuses(unittest.IsolatedAsyncioTestCase):
         player.readied_weapon = SimpleNamespace(id_number=47)  # STORM STAFF
         player.stats[PlayerStat.INT] = 10
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='I', magnitude=3, cast_chance=90), charges=1)
+        book.contents.add(_spell(effect_type='I', magnitude=3, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -454,7 +454,7 @@ class TestCasterBonuses(unittest.IsolatedAsyncioTestCase):
         player = _new_player(PlayerClass.WIZARD, intelligence=20)
         player.stats[PlayerStat.INT] = 10
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='I', magnitude=3, cast_chance=90), charges=1)
+        book.contents.add(_spell(effect_type='I', magnitude=3, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)
@@ -465,7 +465,7 @@ class TestCasterBonuses(unittest.IsolatedAsyncioTestCase):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
         player.readied_weapon = SimpleNamespace(id_number=3)
         player.stats[PlayerStat.STR] = 10
-        player.inventory.add(_spell(effect_type='S', magnitude=3, cast_chance=90), charges=1)
+        player.inventory.add(_spell(effect_type='S', magnitude=3, cast_chance=90))
         ctx = _FakeCtx(['1'], player)
         with patch('commands.cast.random.randint', return_value=1):
             await _cast_first_known_spell(ctx)

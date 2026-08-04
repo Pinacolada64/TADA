@@ -122,7 +122,6 @@ class TakeCommand(Command):
         chosen_ally.items.remove(chosen_entry)
         if inventory:
             inventory.add(chosen_entry.item,
-                          quantity=getattr(chosen_entry, 'quantity', 1),
-                          charges=chosen_entry.charges)
+                          quantity=getattr(chosen_entry, 'quantity', 1))
         await ctx.send(f'{chosen_ally.name} hands you the {iname}.')
         return CommandResult.ok()

@@ -389,8 +389,7 @@ class GiveCommand(Command):
                     inventory.remove(item)
                 if other_inv:
                     other_inv.add(item,
-                                  quantity=getattr(entry, 'quantity', 1),
-                                  charges=entry.charges)
+                                  quantity=getattr(entry, 'quantity', 1))
                 other.unsaved_changes = True
                 pself = getattr(player, 'name', 'Someone')
                 await ctx.send(f'You give the {iname} to {pname}.')

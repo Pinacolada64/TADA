@@ -86,7 +86,7 @@ class TestSpellEntries(unittest.TestCase):
     def test_reads_spells_from_the_book(self):
         player = _new_player(PlayerClass.WIZARD)
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(self._spell(), charges=1)
+        book.contents.add(self._spell())
         entries = spellbook.spell_entries(player)
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0].item.name, 'ESP')
@@ -96,15 +96,15 @@ class TestSpellEntries(unittest.TestCase):
         spell learned before this feature existed sits in the main
         inventory -- both must still show up as "known"."""
         player = _new_player(PlayerClass.FIGHTER)
-        player.inventory.add(self._spell(), charges=1)
+        player.inventory.add(self._spell())
         entries = spellbook.spell_entries(player)
         self.assertEqual(len(entries), 1)
 
     def test_merges_both_sources(self):
         player = _new_player(PlayerClass.WIZARD)
         book = spellbook.ensure_spellbook(player)
-        book.contents.add(self._spell(number=1, name='ESP'), charges=1)
-        player.inventory.add(self._spell(number=2, name='WHEATIES'), charges=1)
+        book.contents.add(self._spell(number=1, name='ESP'))
+        player.inventory.add(self._spell(number=2, name='WHEATIES'))
         entries = spellbook.spell_entries(player)
         self.assertEqual({e.item.name for e in entries}, {'ESP', 'WHEATIES'})
 
@@ -125,14 +125,14 @@ class TestRemoveSpell(unittest.TestCase):
         player = _new_player(PlayerClass.WIZARD)
         book = spellbook.ensure_spellbook(player)
         spell = self._spell()
-        book.contents.add(spell, charges=1)
+        book.contents.add(spell)
         self.assertTrue(spellbook.remove_spell(player, spell))
         self.assertEqual(spellbook.spell_entries(player), [])
 
     def test_removes_from_the_main_inventory_when_theres_no_book(self):
         player = _new_player(PlayerClass.FIGHTER)
         spell = self._spell()
-        player.inventory.add(spell, charges=1)
+        player.inventory.add(spell)
         self.assertTrue(spellbook.remove_spell(player, spell))
         self.assertEqual(spellbook.spell_entries(player), [])
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import unittest
 
+from base_classes import WeaponClass
 from inventory import Inventory
 from items import Item, ItemCategory, Rations, Spell, Weapon
 
@@ -39,6 +40,45 @@ class TestInventoryFlagsRoundTrip(unittest.TestCase):
 
         self.assertEqual(entry.item.flags, [])
         self.assertNotIn('item_flags', inv.to_json()[0])
+
+
+class TestInventoryStacking(unittest.TestCase):
+    """Inventory.add()/remove() stack same-id_number items into a single
+    entry with a quantity counter, rather than creating a duplicate slot
+    per copy."""
+
+    def test_add_same_item_twice_stacks_quantity_to_two(self):
+        inv = Inventory()
+        torch1 = Item(id_number=1, name='Torch', category=ItemCategory.ITEM)
+        torch2 = Item(id_number=1, name='Torch', category=ItemCategory.ITEM)
+
+        inv.add(torch1)
+        inv.add(torch2)
+
+        self.assertEqual(len(inv), 1)  # one slot, not two
+        entry = inv.find(item_id=1)[0]
+        self.assertEqual(entry.quantity, 2)
+
+    def test_remove_one_of_two_leaves_quantity_one(self):
+        inv = Inventory()
+        inv.add(Item(id_number=1, name='Torch', category=ItemCategory.ITEM))
+        inv.add(Item(id_number=1, name='Torch', category=ItemCategory.ITEM))
+
+        removed = inv.remove(inv.find(item_id=1)[0].item, quantity=1)
+
+        self.assertTrue(removed)
+        entry = inv.find(item_id=1)[0]
+        self.assertEqual(entry.quantity, 1)
+
+    def test_remove_last_one_drops_the_entry(self):
+        inv = Inventory()
+        inv.add(Item(id_number=1, name='Torch', category=ItemCategory.ITEM))
+
+        removed = inv.remove(inv.find(item_id=1)[0].item, quantity=1)
+
+        self.assertTrue(removed)
+        self.assertEqual(len(inv), 0)
+        self.assertEqual(inv.find(item_id=1), [])
 
 
 class TestInventoryKindRoundTrip(unittest.TestCase):
@@ -164,7 +204,7 @@ class TestInventoryWeaponResolution(unittest.TestCase):
         inv.add(Weapon(id_number=1, name='LONG SWORD', location=0,
                         kind='standard', sound_effect=('SWISH!', 'SLASH!'),
                         stability=50, to_hit=60, price=250,
-                        weapon_class='bash/slash'))
+                        weapon_class=WeaponClass.BASH_SLASH))
 
         restored = Inventory.from_json(inv.to_json(), weapons_data=[self._LONG_SWORD])
         entry = restored.find(name='LONG SWORD')[0]
@@ -227,7 +267,7 @@ class TestInventorySpellResolution(unittest.TestCase):
     def test_spell_fields_survive_round_trip(self):
         inv = Inventory()
         inv.add(Spell(id_number=self._KILL_ID, name='KILL', charges=1, max_charges=1,
-                       cast_chance=60, effect_type='M', effect_magnitude=6), charges=1)
+                       cast_chance=60, effect_type='M', effect_magnitude=6))
 
         restored = Inventory.from_json(inv.to_json())
         entry = restored.find(name='KILL')[0]
@@ -242,7 +282,7 @@ class TestInventorySpellResolution(unittest.TestCase):
         its own category -- a legacy entry sharing id_number 4 with KILL
         but a different name must not be misresolved into KILL's stats."""
         inv = Inventory()
-        inv.add(Spell(id_number=self._KILL_ID, name='MYSTERY SCROLL'), charges=1)
+        inv.add(Spell(id_number=self._KILL_ID, name='MYSTERY SCROLL'))
 
         restored = Inventory.from_json(inv.to_json())
         entry = restored.find(name='MYSTERY SCROLL')[0]
@@ -252,7 +292,7 @@ class TestInventorySpellResolution(unittest.TestCase):
 
     def test_unknown_spell_id_falls_back_to_bare_item(self):
         inv = Inventory()
-        inv.add(Spell(id_number=99999, name='HOMEBREW HEX'), charges=1)
+        inv.add(Spell(id_number=99999, name='HOMEBREW HEX'))
 
         restored = Inventory.from_json(inv.to_json())
         entry = restored.find(name='HOMEBREW HEX')[0]

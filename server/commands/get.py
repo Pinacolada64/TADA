@@ -604,8 +604,7 @@ class GetCommand(Command):
 
         if inventory is not None:
             inventory.add(entry.item,
-                          quantity=getattr(entry, 'quantity', 1),
-                          charges=entry.charges)
+                          quantity=getattr(entry, 'quantity', 1))
 
         remove_fn()
         await ctx.send(f'You pick up {name}.')

@@ -244,7 +244,6 @@ class DropCommand(Command):
                 dropped.append(InventoryEntry(
                     item     = entry.item,
                     quantity = entry.quantity,
-                    charges  = entry.charges,
                 ))
             return CommandResult.ok()
 
@@ -254,7 +253,6 @@ class DropCommand(Command):
             dropped.append(InventoryEntry(
                 item     = entry.item,
                 quantity = entry.quantity,
-                charges  = entry.charges,
             ))
 
         await ctx.send(f'You drop {name}.')

@@ -313,8 +313,8 @@ async def main(ctx: GameContext) -> None:
         # Non-adepts (capped at 6 spells anyway, no book) keep the old
         # behavior: straight into the main inventory.
         book  = spellbook.ensure_spellbook(player) if is_adept else None
-        added = book.contents.add(spell, charges=1) if book is not None else (
-            inv.add(spell, charges=1) if inv else False
+        added = book.contents.add(spell) if book is not None else (
+            inv.add(spell) if inv else False
         )
         if not added:
             await ctx.send('Your pack is full — no room for the spell scroll!')

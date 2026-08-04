@@ -54,9 +54,6 @@ def class_inventory_limit(char_class) -> int:
 class InventoryEntry:
     item: 'BaseItem'
     quantity: int = 1
-    # For spells: overrides item.charges so each carried copy tracks separately.
-    # None means the item manages its own charge state.
-    charges: int | None = None
     # For container items (bags of holding): their own sub-inventory.
     contents: 'Inventory | None' = None
 
@@ -95,8 +92,11 @@ class InventoryEntry:
         kind = getattr(self.item, 'kind', None)
         if kind:
             d['item_kind'] = kind
-        if self.charges is not None:
-            d['charges'] = self.charges
+        # charges lives on the item itself (Spell.charges) -- e.g. a Wizard's
+        # learned spell -- not tracked separately per carried entry.
+        charges = getattr(self.item, 'charges', None)
+        if charges is not None:
+            d['charges'] = charges
         if self.contents is not None:
             d['contents'] = self.contents.to_json()
         return d
@@ -117,8 +117,7 @@ class Inventory:
     # Mutation
     # -----------------------------------------------------------------------
 
-    def add(self, item: 'BaseItem', quantity: int = 1,
-            charges: int | None = None) -> bool:
+    def add(self, item: 'BaseItem', quantity: int = 1) -> bool:
         """Add item to inventory, stacking if an entry with the same id_number exists.
 
         Returns False when the inventory is full and no existing stack was found.
@@ -133,7 +132,7 @@ class Inventory:
         if self.capacity is not None and len(self._entries) >= self.capacity:
             return False
 
-        entry = InventoryEntry(item=item, quantity=quantity, charges=charges)
+        entry = InventoryEntry(item=item, quantity=quantity)
         # Auto-create sub-inventory for containers
         if getattr(item, 'capacity', 0) > 0:
             entry.contents = Inventory(capacity=item.capacity)
@@ -271,7 +270,6 @@ class Inventory:
             entry = InventoryEntry(
                 item=item,
                 quantity=d.get('quantity', 1),
-                charges=d.get('charges'),
             )
             if 'contents' in d:
                 entry.contents = cls.from_json(d['contents'], weapons_data=weapons_data)
