@@ -549,6 +549,125 @@ class TestNamesMenuAddAlly(unittest.IsolatedAsyncioTestCase):
         mock_save.assert_not_called()
 
 
+class TestNamesMenuAddRemoveAllyByName(unittest.IsolatedAsyncioTestCase):
+    """[a]dd/[r]emove-by-name and [?] list-owned-allies, plus the roster
+    desync cross-check against real player-*.json files (Ryan's request:
+    ally-roster.json's status field is only as fresh as its last
+    save_ally_roster() call, so [a]dd should not trust "FREE" blindly)."""
+
+    def setUp(self):
+        import tempfile
+        import net_common
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self._orig_run_dir = net_common.run_server_dir
+        net_common.run_server_dir = self._tmp.name
+        self.addCleanup(lambda: setattr(net_common, 'run_server_dir', self._orig_run_dir))
+
+    def _free_master_list(self):
+        return [
+            Ally(name='GANDALF', gender='m', strength=30, to_hit=8),
+            Ally(name='ARAGORN', gender='m', strength=25, to_hit=9),
+        ]
+
+    async def test_add_by_partial_name_adds_matching_servant(self):
+        from unittest.mock import patch
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['gand'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=self._free_master_list()), \
+             patch('bar.ally_data.save_ally_roster') as mock_save:
+            await _find_item(menu, 'Add Ally').action(ctx)
+        self.assertEqual(len(player.party), 1)
+        added = list(player.party)[0]
+        self.assertEqual(added.name, 'GANDALF')
+        self.assertEqual(added.status, AllyStatus.SERVANT)
+        self.assertEqual(added.owner, player.name)
+        mock_save.assert_called_once()
+
+    async def test_add_question_mark_lists_then_reprompts(self):
+        from unittest.mock import patch
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['?', 'aragorn'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=self._free_master_list()), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Add Ally').action(ctx)
+        self.assertTrue(any('Available allies' in s for s in ctx.sent))
+        self.assertEqual(list(player.party)[0].name, 'ARAGORN')
+
+    async def test_remove_by_partial_name_frees_ally(self):
+        from unittest.mock import patch
+        owned = _make_ally('GANDALF')
+        player = _FakePlayer()
+        player.party = Party(members=[owned])
+        ctx = _FakeCtx(responses=['gand'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=[owned]), \
+             patch('bar.ally_data.save_ally_roster') as mock_save:
+            await _find_item(menu, 'Remove Ally').action(ctx)
+        self.assertEqual(len(player.party), 0)
+        self.assertEqual(owned.status, AllyStatus.FREE)
+        self.assertIsNone(owned.owner)
+        mock_save.assert_called_once()
+
+    async def test_list_allies_shows_owned_roster(self):
+        owned = _make_ally('GANDALF')
+        player = _FakePlayer()
+        player.party = Party(members=[owned])
+        ctx = _FakeCtx(player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'List Allies').action(ctx)
+        self.assertTrue(any('GANDALF' in s for s in ctx.sent))
+
+    async def test_add_excludes_ally_still_held_by_another_players_save_file(self):
+        """ally-roster.json (mocked here via load_allies) says GANDALF is
+        FREE, but Frodo's own save file still lists GANDALF in his party --
+        a desync that would otherwise let two players "own" the same ally.
+        [a]dd must cross-check real player files and refuse to hand out
+        GANDALF, leaving only ARAGORN offerable."""
+        from unittest.mock import patch
+        from player import Player
+
+        other = Player(name='Frodo', id='Frodo')
+        other.party = Party(members=[_make_ally('GANDALF')])
+        other.save(force=True)
+
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['gandalf'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=self._free_master_list()), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Add Ally').action(ctx)
+
+        self.assertEqual(len(player.party), 0)
+        self.assertIn('No available allies matching "gandalf".', ctx.sent[-1])
+        self.assertTrue(any('excluded 1 ally' in s for s in ctx.sent))
+
+    async def test_add_still_works_when_no_desync_present(self):
+        from unittest.mock import patch
+        from player import Player
+
+        other = Player(name='Frodo', id='Frodo')
+        other.party = Party(members=[_make_ally('GANDALF')])
+        other.save(force=True)
+
+        player = _FakePlayer()
+        player.party = Party()
+        # GANDALF is legitimately held by Frodo (desynced/excluded); ARAGORN
+        # is still free and should be addable normally.
+        ctx = _FakeCtx(responses=['aragorn'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=self._free_master_list()), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Add Ally').action(ctx)
+        self.assertEqual(len(player.party), 1)
+        self.assertEqual(list(player.party)[0].name, 'ARAGORN')
+
+
 # ---------------------------------------------------------------------------
 # Statistics — Birthday, Experience, Moves to date, Monsters killed
 # ---------------------------------------------------------------------------
@@ -688,6 +807,32 @@ class TestStatisticsMoves(unittest.IsolatedAsyncioTestCase):
         menu = _statistics_menu(ctx)
         await _find_item(menu, 'Moves to date').action(ctx)
         self.assertEqual(player.moves_today, 999)
+
+
+class TestStatisticsDuelRecord(unittest.IsolatedAsyncioTestCase):
+
+    async def test_set_duel_wins(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['7'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Duel wins').action(ctx)
+        self.assertEqual(player.duel_wins, 7)
+
+    async def test_set_duel_losses(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['3'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Duel losses').action(ctx)
+        self.assertEqual(player.duel_losses, 3)
+
+    async def test_dot_leaders_reflect_current_record(self):
+        player = _FakePlayer()
+        player.duel_wins = 5
+        player.duel_losses = 2
+        ctx = _FakeCtx(player=player)
+        menu = _statistics_menu(ctx)
+        self.assertEqual(_find_item(menu, 'Duel wins').dot_leader_handler(ctx), '5')
+        self.assertEqual(_find_item(menu, 'Duel losses').dot_leader_handler(ctx), '2')
 
 
 class TestStatisticsMonstersKilled(unittest.IsolatedAsyncioTestCase):

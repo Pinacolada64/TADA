@@ -682,6 +682,58 @@ def _attributes_menu(ctx) -> Menu:
     return menu
 
 
+def _scan_party_ally_owners(ctx) -> dict:
+    """Return {ally_name: owning_player_name} for every ally actually
+    sitting in *any* player's party right now -- online (the live
+    Player.party in memory) or offline (the 'party' list saved in that
+    player's own player-*.json) -- independent of what bar/ally_data.py's
+    ally-roster.json claims.
+
+    ally-roster.json is only as fresh as its last save_ally_roster() call
+    (bar/fat_olaf.py's buy/sell/maintain, this module's add/remove); a
+    crash between Party.add()/Party.remove() and that save, or a manual
+    edit, would leave it out of sync with each player's own save file --
+    the real source of truth for "who has this ally right now." Ryan
+    asked for this cross-check before [a]dding an ally so the roster
+    saying FREE can't hand out one some player's save file still holds.
+    """
+    import glob
+    import json as _json
+    import net_common
+    from pathlib import Path
+    from bar.ally_data import Ally as _Ally
+
+    owners: dict = {}
+    online_names = set()
+
+    for client in getattr(ctx.server, 'clients', {}).values():
+        other_ctx    = getattr(client, 'ctx', None)
+        other_player = getattr(other_ctx, 'player', None)
+        if other_player is None:
+            continue
+        online_names.add(other_player.name)
+        for m in getattr(other_player, 'party', None) or []:
+            if isinstance(m, _Ally):
+                owners[m.name] = other_player.name
+
+    base = Path(net_common.run_server_dir or 'run/server')
+    for path in glob.glob(str(base / 'player-*.json')):
+        try:
+            with open(path) as fh:
+                data = _json.load(fh)
+        except (OSError, _json.JSONDecodeError):
+            log.exception('_scan_party_ally_owners: failed to read %s', path)
+            continue
+        owner_name = data.get('name') or Path(path).stem[len('player-'):]
+        if owner_name in online_names:
+            continue  # live in-memory party is authoritative for this player
+        for entry in data.get('party') or []:
+            if isinstance(entry, dict) and entry.get('type') == 'ally' and entry.get('name'):
+                owners.setdefault(entry['name'], owner_name)
+
+    return owners
+
+
 async def _rename_ally(ctx, ally) -> None:
     raw = await ctx.prompt(
         f"{ally.name}'s New Name",
@@ -792,6 +844,140 @@ def _names_menu(ctx) -> Menu:
             return
         await _rename_ally(ctx, mount)
 
+    def _roster_label(a) -> str:
+        return f'{a.name:<22}  Str {a.strength:>2}  {a.to_hit * 10:>3}%'
+
+    async def _list_owned_allies(ctx) -> None:
+        allies = owned_allies(p)
+        if not allies:
+            await ctx.send('No allies owned.')
+            return
+        await _send_labeled_list(
+            ctx, 'Owned allies', allies,
+            lambda a: f'{_roster_label(a)}  [{a.status.name}]',
+        )
+
+    async def _add_ally_by_name(ctx) -> None:
+        """[a] Add Ally: name-search variant of the empty-slot _add_ally()
+        flow above -- same SERVANT assignment/hit_points seeding/roster
+        persistence, but reachable without hunting for an empty A1-A3 slot
+        and with partial-name matching/'?' listing (see _give_ration()'s
+        established pattern) instead of pick_ally()'s numbered-only prompt.
+        """
+        from bar.ally_data import load_allies, save_ally_roster
+        from bar.allies import filter_allies
+
+        master_list = load_allies()
+        owned_names = {a.name for a in owned_allies(p)}
+        available = [a for a in filter_allies(master_list, AllyStatus.FREE)
+                     if a.name not in owned_names]
+
+        # Cross-check against every player's actual party (online or
+        # save file), not just the roster's status field -- see
+        # _scan_party_ally_owners() for why the roster alone can't be
+        # trusted. Anything the roster calls FREE but some player's
+        # party still holds is a desync bug: pull it from the offer
+        # list and flag it rather than handing out a second copy.
+        held = _scan_party_ally_owners(ctx)
+        desynced  = [a for a in available if a.name in held]
+        available = [a for a in available if a.name not in held]
+        if desynced:
+            log.warning(
+                'Ally roster desync: %s',
+                ', '.join(f'{a.name} (roster: FREE, actually held by {held[a.name]})'
+                          for a in desynced),
+            )
+            await ctx.send(
+                f'Note: excluded {len(desynced)} ally(ies) whose roster status is '
+                f'stale (still held by another player) -- see server log.'
+            )
+
+        if not available:
+            await ctx.send('No allies available to add.')
+            return
+
+        while True:
+            raw = await ctx.prompt(
+                "Ally name to add (or part of name, '?' to list all, blank to cancel)"
+            )
+            if raw and raw.strip() == '?':
+                await _send_labeled_list(ctx, 'Available allies', available, _roster_label)
+                continue
+            break
+        if not raw or not raw.strip():
+            return
+
+        term    = raw.strip().lower()
+        matches = [a for a in available if term in a.name.lower()]
+        if not matches:
+            await ctx.send(f'No available allies matching "{raw.strip()}".')
+            return
+
+        chosen = await _pick_from_matches(ctx, matches, _roster_label)
+        if chosen is None:
+            return
+
+        chosen.status = AllyStatus.SERVANT
+        chosen.owner  = p.name
+        if not chosen.hit_points:
+            chosen.hit_points = chosen.strength * 2
+        save_ally_roster(master_list)
+        await p.party.add(ctx, p, chosen)
+        p.unsaved_changes = True
+
+    async def _remove_ally_by_name(ctx) -> None:
+        """[r] Remove Ally: reverts the chosen owned ally to AllyStatus.FREE
+        (same desertion semantics as bar/fat_olaf.py's _sell_servant(), minus
+        the silver refund/honour penalty -- this is an admin edit, not a
+        sale) and drops them from the player's party.
+        """
+        from bar.ally_data import load_allies, save_ally_roster
+
+        allies = owned_allies(p)
+        if not allies:
+            await ctx.send('No allies owned.')
+            return
+
+        while True:
+            raw = await ctx.prompt(
+                "Ally name to remove (or part of name, '?' to list owned, blank to cancel)"
+            )
+            if raw and raw.strip() == '?':
+                await _send_labeled_list(ctx, 'Owned allies', allies, _roster_label)
+                continue
+            break
+        if not raw or not raw.strip():
+            return
+
+        term    = raw.strip().lower()
+        matches = [a for a in allies if term in a.name.lower()]
+        if not matches:
+            await ctx.send(f'No owned allies matching "{raw.strip()}".')
+            return
+
+        chosen = await _pick_from_matches(ctx, matches, _roster_label)
+        if chosen is None:
+            return
+
+        p.party.remove(chosen)
+        chosen.status = AllyStatus.FREE
+        chosen.owner  = None
+
+        # chosen comes from owned_allies(p) (the player's live party), a
+        # different Ally instance than load_allies()'s freshly-built master
+        # list -- resync the matching master-list entry before persisting,
+        # same as fat_olaf.py's _sync_to_roster().
+        master_list = load_allies()
+        for a in master_list:
+            if a.name == chosen.name:
+                a.status   = AllyStatus.FREE
+                a.owner    = None
+                a.strength = chosen.strength
+                break
+        save_ally_roster(master_list)
+        p.unsaved_changes = True
+        await ctx.send(f'{chosen.name} removed from party.')
+
     menu.add_item(MenuItem(
         'Player Name', shortcuts='p',
         dot_leader_handler=lambda ctx: p.name,
@@ -804,6 +990,9 @@ def _names_menu(ctx) -> Menu:
             action=lambda ctx, s=i: edit_ally(ctx, s),
         ))
     menu.add_item(MenuItem('Horse', shortcuts='h', action=edit_horse))
+    menu.add_item(MenuItem('List Allies',   shortcuts='?', action=_list_owned_allies))
+    menu.add_item(MenuItem('Add Ally',      shortcuts='a', action=_add_ally_by_name))
+    menu.add_item(MenuItem('Remove Ally',   shortcuts='r', action=_remove_ally_by_name))
     return menu
 
 
@@ -1162,6 +1351,22 @@ def _statistics_menu(ctx) -> Menu:
             p.unsaved_changes = True
             await ctx.send(f'Moves to date set to {val}.')
 
+    async def edit_duel_wins(ctx) -> None:
+        cur = int(getattr(p, 'duel_wins', 0) or 0)
+        val = await _prompt_int(ctx, 'Duel Wins', cur, 0, 999_999)
+        if val is not None:
+            p.duel_wins = val
+            p.unsaved_changes = True
+            await ctx.send(f'Duel wins set to {val}.')
+
+    async def edit_duel_losses(ctx) -> None:
+        cur = int(getattr(p, 'duel_losses', 0) or 0)
+        val = await _prompt_int(ctx, 'Duel Losses', cur, 0, 999_999)
+        if val is not None:
+            p.duel_losses = val
+            p.unsaved_changes = True
+            await ctx.send(f'Duel losses set to {val}.')
+
     async def edit_monsters_killed(ctx) -> None:
         monsters = getattr(ctx.server, 'monsters', []) or []
         killed = getattr(p, 'dead_monsters', None)
@@ -1273,6 +1478,16 @@ def _statistics_menu(ctx) -> Menu:
         'Monsters killed', shortcuts='mk',
         dot_leader_handler=lambda ctx: str(len(getattr(p, 'dead_monsters', []) or [])),
         action=edit_monsters_killed,
+    ))
+    menu.add_item(MenuItem(
+        'Duel wins', shortcuts='dw',
+        dot_leader_handler=lambda ctx: str(getattr(p, 'duel_wins', '?')),
+        action=edit_duel_wins,
+    ))
+    menu.add_item(MenuItem(
+        'Duel losses', shortcuts='dl',
+        dot_leader_handler=lambda ctx: str(getattr(p, 'duel_losses', '?')),
+        action=edit_duel_losses,
     ))
     return menu
 
