@@ -198,15 +198,22 @@ def _hp_menu(ctx) -> Menu:
     async def edit_player(ctx) -> None:
         await _edit_hit_points(ctx, p.name, _get_player, _set_player)
 
+    def _regular_allies() -> list:
+        # Excludes the MOUNT-flagged horse -- it has its own dedicated
+        # Horse item below, so a horse-only party (no regular allies)
+        # must still show all 3 Ally slots as empty rather than the
+        # horse showing up under "Ally 1".
+        return [a for a in owned_allies(p) if AllyFlags.MOUNT not in (a.flags or [])]
+
     def _ally_label(slot: int) -> str:
-        allies = owned_allies(p)
+        allies = _regular_allies()
         if slot >= len(allies):
             return '(empty)'
         a = allies[slot]
         return f'{a.name}  HP {a.hit_points}'
 
     async def edit_ally(ctx, slot: int) -> None:
-        allies = owned_allies(p)
+        allies = _regular_allies()
         if slot >= len(allies):
             await ctx.send('No ally in that slot.')
             return
@@ -830,8 +837,15 @@ def _names_menu(ctx) -> Menu:
         p.unsaved_changes = True
         await ctx.send(f'Name changed to: {p.name}')
 
+    def _regular_allies() -> list:
+        # Excludes the MOUNT-flagged horse -- it has its own dedicated
+        # Horse item below, so a horse-only party (no regular allies)
+        # must still show all 3 Ally slots as empty rather than the
+        # horse showing up under "Ally 1".
+        return [a for a in owned_allies(p) if AllyFlags.MOUNT not in (a.flags or [])]
+
     def _ally_label(slot: int) -> str:
-        allies = owned_allies(p)
+        allies = _regular_allies()
         if slot >= len(allies):
             return '(empty)'
         a = allies[slot]
@@ -862,7 +876,7 @@ def _names_menu(ctx) -> Menu:
         from bar.allies import filter_allies, pick_ally
 
         master_list = load_allies()
-        owned_names = {a.name for a in owned_allies(p)}
+        owned_names = {a.name for a in _regular_allies()}
         available = [a for a in filter_allies(master_list, AllyStatus.FREE)
                      if a.name not in owned_names]
         if not available:
@@ -895,7 +909,7 @@ def _names_menu(ctx) -> Menu:
         from bar.ally_data import load_allies, save_ally_roster
         from bar.allies import filter_allies
 
-        allies = owned_allies(p)
+        allies = _regular_allies()
         old    = allies[slot]
 
         master_list = load_allies()
@@ -944,12 +958,16 @@ def _names_menu(ctx) -> Menu:
         # flat list with no real slot concept (see edit_ally()'s comment
         # below), so remove-then-append would push the new ally to the end
         # instead of leaving it in the slot the admin actually picked.
-        p.party.members[slot] = new_ally
+        # *slot* indexes _regular_allies() (the MOUNT is excluded from that
+        # numbering), which isn't necessarily *old*'s position in the raw
+        # party.members list if a horse sits before it there -- look up
+        # the real index rather than assuming they match.
+        p.party.members[p.party.members.index(old)] = new_ally
         p.unsaved_changes = True
         await ctx.send(f'{old.name} is replaced by {new_ally.name}.')
 
     async def edit_ally(ctx, slot: int) -> None:
-        allies = owned_allies(p)
+        allies = _regular_allies()
         if slot >= len(allies):
             # Only the first empty slot offers to add -- allies are a flat
             # list (bar/allies.py's owned_allies(), not real numbered
@@ -1106,7 +1124,7 @@ def _names_menu(ctx) -> Menu:
         from bar.allies import filter_allies
 
         master_list = load_allies()
-        owned_names = {a.name for a in owned_allies(p)}
+        owned_names = {a.name for a in _regular_allies()}
         available = [a for a in filter_allies(master_list, AllyStatus.FREE)
                      if a.name not in owned_names]
 
@@ -1164,10 +1182,14 @@ def _names_menu(ctx) -> Menu:
         """
         from bar.ally_data import load_allies, save_ally_roster
 
-        allies = owned_allies(p)
-        if not allies:
+        allies_all = owned_allies(p)
+        if not allies_all:
             await ctx.send('No allies owned.')
             return
+        # Slot numbers 1-3 index the non-horse allies specifically -- 'h'
+        # is the separate path to the horse -- same split as _regular_allies()
+        # above, needed so a horse-only party doesn't put the horse under "1".
+        allies = _regular_allies()
 
         preamble = (
             'Enter a name (or part of a name), ally number (1-3, h for '
@@ -1177,7 +1199,7 @@ def _names_menu(ctx) -> Menu:
         while True:
             raw = await ctx.prompt('Remove which ally', preamble_lines=[preamble])
             if raw and raw.strip() == '?':
-                await _send_labeled_list(ctx, 'Owned allies', allies, _roster_label)
+                await _send_labeled_list(ctx, 'Owned allies', allies_all, _roster_label)
                 continue
             break
         if not raw or not raw.strip():
@@ -1186,7 +1208,7 @@ def _names_menu(ctx) -> Menu:
         term = raw.strip()
 
         if term.lower() == 'h':
-            chosen = next((a for a in allies if AllyFlags.MOUNT in (a.flags or [])), None)
+            chosen = next((a for a in allies_all if AllyFlags.MOUNT in (a.flags or [])), None)
             if chosen is None:
                 await ctx.send('No horse owned.')
                 return
@@ -1197,7 +1219,7 @@ def _names_menu(ctx) -> Menu:
                 return
             chosen = allies[slot]
         else:
-            matches = [a for a in allies if term.lower() in a.name.lower()]
+            matches = [a for a in allies_all if term.lower() in a.name.lower()]
             if not matches:
                 await ctx.send(f'No owned allies matching "{term}".')
                 return

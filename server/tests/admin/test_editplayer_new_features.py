@@ -372,6 +372,80 @@ class TestWeaponsMenu(unittest.IsolatedAsyncioTestCase):
 # Character Names — Ally slots + Horse
 # ---------------------------------------------------------------------------
 
+class TestNamesMenuHorseDoesNotOccupyAllySlot(unittest.IsolatedAsyncioTestCase):
+    """Regression test: a horse-only party (no regular allies) was
+    showing up under "Ally 1" in the CN menu, since owned_allies()
+    returns every party member -- mount included -- and Ally 1-3's
+    slot logic indexed straight into that unfiltered list. The mount
+    has its own dedicated Horse item; it must never occupy an Ally slot."""
+
+    async def test_ally_1_dot_leader_is_empty_with_only_a_horse(self):
+        mount = _make_mount('SILVER')
+        player = _FakePlayer()
+        player.party = Party(members=[mount])
+        ctx = _FakeCtx(player=player)
+        menu = _names_menu(ctx)
+        item = _find_item(menu, 'Ally 1')
+        self.assertEqual(item.dot_leader_handler(ctx), '(empty)')
+
+    async def test_ally_1_add_flow_still_offered_with_only_a_horse(self):
+        from unittest.mock import patch
+        mount = _make_mount('SILVER')
+        player = _FakePlayer()
+        player.party = Party(members=[mount])
+        ctx = _FakeCtx(responses=['Y', '1'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=[
+                Ally(name='GANDALF', gender='m', strength=30, to_hit=8)]), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Ally 1').action(ctx)
+        # The new regular ally should join alongside the horse, not replace it.
+        self.assertEqual(len(player.party), 2)
+        names = {a.name for a in player.party}
+        self.assertEqual(names, {'SILVER', 'GANDALF'})
+
+    async def test_hp_menu_ally_1_dot_leader_is_empty_with_only_a_horse(self):
+        mount = _make_mount('SILVER')
+        player = _FakePlayer()
+        player.party = Party(members=[mount])
+        ctx = _FakeCtx(player=player)
+        menu = _hp_menu(ctx)
+        item = _find_item(menu, 'Ally 1')
+        self.assertEqual(item.dot_leader_handler(ctx), '(empty)')
+
+    async def test_remove_ally_slot_1_targets_regular_ally_not_horse(self):
+        from unittest.mock import patch
+        mount = _make_mount('SILVER')
+        regular = _make_ally('EMMETT "DOC" BROWN')
+        player = _FakePlayer()
+        # Horse added first, landing before the regular ally in the raw
+        # party list -- exactly the ordering that triggered the bug.
+        player.party = Party(members=[mount, regular])
+        ctx = _FakeCtx(responses=['1'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=[regular]), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Remove Ally').action(ctx)
+        remaining = {a.name for a in player.party}
+        self.assertEqual(remaining, {'SILVER'})
+
+    async def test_swap_ally_slot_1_replaces_regular_ally_not_horse(self):
+        from unittest.mock import patch
+        mount = _make_mount('SILVER')
+        regular = _make_ally('EMMETT "DOC" BROWN')
+        replacement_pool = [Ally(name='GANDALF', gender='m', strength=30, to_hit=8)]
+        player = _FakePlayer()
+        # Horse added first, same ordering as the slot-number remove test.
+        player.party = Party(members=[mount, regular])
+        ctx = _FakeCtx(responses=['S', 'gandalf'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=replacement_pool), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Ally 1').action(ctx)
+        names = {a.name for a in player.party}
+        self.assertEqual(names, {'SILVER', 'GANDALF'})
+
+
 class TestNamesMenuAllyAndHorse(unittest.IsolatedAsyncioTestCase):
 
     async def test_rename_ally_in_slot(self):
