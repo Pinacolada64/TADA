@@ -363,11 +363,44 @@ class TestNamesMenuAllyAndHorse(unittest.IsolatedAsyncioTestCase):
         ally = _make_ally('EMMETT "DOC" BROWN')
         player = _FakePlayer()
         player.party = Party(members=[ally])
-        ctx = _FakeCtx(responses=['MARTY'], player=player)
+        ctx = _FakeCtx(responses=['N', 'MARTY'], player=player)
         menu = _names_menu(ctx)
         await _find_item(menu, 'Ally 1').action(ctx)
         self.assertEqual(ally.name, 'MARTY')
         self.assertTrue(player.unsaved_changes)
+
+    async def test_swap_ally_in_slot(self):
+        from unittest.mock import patch
+        old = _make_ally('EMMETT "DOC" BROWN')
+        replacement_pool = [
+            Ally(name='GANDALF', gender='m', strength=30, to_hit=8),
+            Ally(name='ARAGORN', gender='m', strength=25, to_hit=9),
+        ]
+        player = _FakePlayer()
+        player.party = Party(members=[old])
+        ctx = _FakeCtx(responses=['S', 'gandalf'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=replacement_pool), \
+             patch('bar.ally_data.save_ally_roster') as mock_save:
+            await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertEqual(len(player.party), 1)
+        new_ally = list(player.party)[0]
+        self.assertEqual(new_ally.name, 'GANDALF')
+        self.assertEqual(new_ally.status, AllyStatus.SERVANT)
+        self.assertEqual(new_ally.owner, player.name)
+        self.assertEqual(old.status, AllyStatus.FREE)
+        self.assertIsNone(old.owner)
+        mock_save.assert_called_once()
+
+    async def test_swap_ally_invalid_choice(self):
+        ally = _make_ally('EMMETT "DOC" BROWN')
+        player = _FakePlayer()
+        player.party = Party(members=[ally])
+        ctx = _FakeCtx(responses=['X'], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Ally 1').action(ctx)
+        self.assertIn("Please choose 'N' or 'S'.", ctx.sent[-1])
+        self.assertEqual(ally.name, 'EMMETT "DOC" BROWN')
 
     async def test_second_empty_slot_reports_no_ally(self):
         """Only the first empty slot offers to add -- allies are a flat
@@ -680,6 +713,26 @@ class TestNamesMenuAddRemoveAllyByName(unittest.IsolatedAsyncioTestCase):
         menu = _names_menu(ctx)
         await _find_item(menu, 'List Allies').action(ctx)
         self.assertTrue(any('GANDALF' in s for s in ctx.sent))
+
+    async def test_list_allies_shows_servant_of_owner(self):
+        owned = _make_ally('GANDALF')
+        owned.owner = 'Rulan'
+        player = _FakePlayer()
+        player.party = Party(members=[owned])
+        ctx = _FakeCtx(player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'List Allies').action(ctx)
+        self.assertTrue(any('Servant of Rulan' in s for s in ctx.sent))
+
+    async def test_list_allies_shows_dead_status(self):
+        owned = _make_ally('GANDALF')
+        owned.status = AllyStatus.DEAD
+        player = _FakePlayer()
+        player.party = Party(members=[owned])
+        ctx = _FakeCtx(player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'List Allies').action(ctx)
+        self.assertTrue(any('[Dead]' in s for s in ctx.sent))
 
     async def test_add_excludes_ally_still_held_by_another_players_save_file(self):
         """ally-roster.json (mocked here via load_allies) says GANDALF is
