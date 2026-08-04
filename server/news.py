@@ -81,18 +81,32 @@ def _parse_iso_date(value: Optional[str]) -> Optional[datetime.date]:
         return None
 
 
-def is_visible(item: dict, player_name: str, today: Optional[datetime.date] = None) -> bool:
+def is_visible(item: dict, player_name: str, today: Optional[datetime.date] = None,
+               last_played: Optional[datetime.date] = None) -> bool:
     """Whether *item* should be considered active/eligible for *player_name*.
 
     permanent — always.
     range     — only within [start_date, end_date] (missing end = open-ended).
-    once      — only until this player has already seen it once.
+    once      — only until this player has already seen it once. Checked two
+                ways: the per-player seen_by list (mark_seen()'s own record),
+                and, if *last_played* (the player's last login before this
+                one) is given, whether it's already after the item's posted
+                date -- if they've logged in at all since this was posted,
+                they were already shown it that time, so it shouldn't come
+                back on a later login even if something kept mark_seen()'s
+                own record from sticking (e.g. a crash between display and
+                save). Belt-and-suspenders, not a replacement for seen_by.
     """
     today = today or datetime.date.today()
     lifetime = item.get('lifetime', 'permanent')
 
     if lifetime == 'once':
-        return player_name not in item.get('seen_by', [])
+        if player_name in item.get('seen_by', []):
+            return False
+        posted = _parse_iso_date((item.get('posted_at') or '')[:10])
+        if last_played is not None and posted is not None and last_played > posted:
+            return False
+        return True
 
     if lifetime == 'range':
         start = _parse_iso_date(item.get('start_date'))

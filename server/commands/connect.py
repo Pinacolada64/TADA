@@ -88,9 +88,11 @@ def _login_news_lines(ctx, player) -> list[str]:
 
     today   = datetime.date.today()
     since   = getattr(player, 'last_connection', None)
+    last_played = since.date() if since else None
     show_all = getattr(player.command_settings, 'news_show_all', False)
 
-    visible = [it for it in items if news_store.is_visible(it, player.name, today)]
+    visible = [it for it in items
+               if news_store.is_visible(it, player.name, today, last_played=last_played)]
     if show_all:
         to_show = visible
     else:

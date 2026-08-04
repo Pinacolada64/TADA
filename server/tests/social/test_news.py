@@ -60,6 +60,22 @@ class TestIsVisible(unittest.TestCase):
         item = {'lifetime': 'once', 'seen_by': ['alexa']}
         self.assertTrue(is_visible(item, 'bob'))
 
+    def test_once_hidden_if_player_already_logged_in_since_posted(self):
+        # Belt-and-suspenders alongside seen_by: even if mark_seen()'s own
+        # record never stuck (e.g. a crash between display and save), a
+        # player who has logged in at all since this was posted was already
+        # shown it that login, so it shouldn't come back on a later one.
+        item = {'lifetime': 'once', 'seen_by': [], 'posted_at': '2026-08-01T00:00:00'}
+        self.assertFalse(is_visible(item, 'alexa', last_played=datetime.date(2026, 8, 2)))
+
+    def test_once_still_visible_if_never_played_since_posted(self):
+        item = {'lifetime': 'once', 'seen_by': [], 'posted_at': '2026-08-01T00:00:00'}
+        self.assertTrue(is_visible(item, 'alexa', last_played=datetime.date(2026, 7, 31)))
+
+    def test_once_last_played_none_falls_back_to_seen_by_only(self):
+        item = {'lifetime': 'once', 'seen_by': [], 'posted_at': '2026-08-01T00:00:00'}
+        self.assertTrue(is_visible(item, 'alexa', last_played=None))
+
     def test_range_before_start_not_visible(self):
         item = {'lifetime': 'range', 'start_date': '2026-08-01', 'end_date': '2026-08-31'}
         self.assertFalse(is_visible(item, 'alexa', today=datetime.date(2026, 7, 1)))
