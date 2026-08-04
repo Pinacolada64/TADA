@@ -67,7 +67,7 @@ def format_tip_box(ctx, tip: str, tip_number: int, total: int,
     box to a fixed width regardless of the player's actual terminal."""
     from formatting import titled_box
 
-    return titled_box(
+    box = titled_box(
         ctx, f'Tip #{tip_number} / {total}', tip, width=width,
         frame_color='green',
         text_color='white',
@@ -76,3 +76,13 @@ def format_tip_box(ctx, tip: str, tip_number: int, total: int,
         # blending into it.
         title_color='purple', # this exists in the c64's palette
     )
+
+    # Tip text can carry [BRACKETED] command names (e.g. [LOOT], [GIVE])
+    # that highlight_brackets() colors downstream in ctx.send()'s pipeline.
+    # Its closing ']' resets to the *player's* own text-color pref
+    # (formatting.codec_for_settings()'s reset_color), not this box's
+    # forced text_color='white' -- so every line gets a leading |reset|
+    # to land back on a known, clean color state before its own |white|
+    # (or border) color token takes over, rather than inheriting whatever
+    # color a highlighted word left behind on the line above.
+    return [f'|reset|{line}' for line in box]

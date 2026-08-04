@@ -134,6 +134,48 @@ class TestTipsCommand(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(ctx.player.command_settings.tips.enabled)
 
 
+class TestFormatTipBoxColor(unittest.TestCase):
+    """format_tip_box() -- [BRACKETED] command names in tip text get
+    highlighted downstream by formatting.highlight_brackets(), and every
+    line starts with |reset| so a highlighted word on one line can't
+    bleed its color into the next. See tips.json's [LOOT]/[GIVE]/etc.
+    """
+
+    def _ctx(self):
+        ctx = MagicMock()
+        ctx.player = _FakePlayer()
+        return ctx
+
+    def test_every_line_starts_with_reset_token(self):
+        from tips import format_tip_box
+        ctx = self._ctx()
+        box = format_tip_box(ctx, 'Use [LOOT] wisely.', 1, 1)
+        self.assertTrue(box)
+        self.assertTrue(all(line.startswith('|reset|') for line in box))
+
+    def test_bracketed_command_survives_into_a_body_line(self):
+        from tips import format_tip_box
+        ctx = self._ctx()
+        box = format_tip_box(ctx, 'Use [LOOT] wisely.', 1, 1)
+        self.assertTrue(any('[LOOT]' in line for line in box))
+
+    def test_closing_bracket_resets_to_the_players_own_ansi_color(self):
+        # Mirrors test_formatting_codec_for_settings.py's coverage of
+        # highlight_brackets() itself -- confirmed here at the tip-box
+        # level, since that's what actually reaches the player.
+        from formatting import highlight_brackets, codec_for_settings
+        from terminal import Translation, ColorName
+        settings = MagicMock()
+        settings.translation = Translation.ANSI
+        settings.colors.highlight_color = ColorName.YELLOW
+        settings.colors.text_color = ColorName.WHITE
+        codec = codec_for_settings(settings)
+        result = highlight_brackets('Use [LOOT] wisely.', codec)
+        self.assertIn(codec.highlight_on(), result)
+        # after the ']', color must return to the player's own reset color
+        self.assertTrue(result.endswith(f'{codec.highlight_off()} wisely.'))
+
+
 class TestLoginTipLines(unittest.TestCase):
     def _ctx(self, **kwargs):
         ctx = MagicMock()
