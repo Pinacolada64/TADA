@@ -472,5 +472,35 @@
         "name": "APPLES",
         "kind": "food",
         "price": 99
+    },
+    {
+        "number": 79,
+        "name": "BALE OF HAY",
+        "kind": "food",
+        "price": 25
+    },
+    {
+        "number": 80,
+        "name": "CARROTS",
+        "kind": "food",
+        "price": 20
+    },
+    {
+        "number": 81,
+        "name": "SALT LICK",
+        "kind": "food",
+        "price": 40
+    },
+    {
+        "number": 82,
+        "name": "BUCKET OF WATER",
+        "kind": "drink",
+        "price": 10
+    },
+    {
+        "number": 83,
+        "name": "BRAN MASH",
+        "kind": "food",
+        "price": 30
     }
 ]

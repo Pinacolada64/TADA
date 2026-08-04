@@ -28,6 +28,17 @@ SPUR notes:
     mare reads correctly too. The message text itself stays inert data
     (no function calls embedded in the JSON); only this call site decides
     what to resolve and pass in.
+
+TADA additions (8/4/26, Ryan -- no SPUR precedent):
+  - Apples (rations.json #78, already existed for general food use, now
+    also sold here), Bale of Hay (#79), Carrots (#80), Salt Lick (#81),
+    Bucket of Water (#82), and Bran Mash (#83) round out the mount food
+    list from the deleted Horse stubs' notes ("allowed foods: mash, hay,
+    oats, apples, sugar_cubes" -- see TODO.md's 8/1/26 entry). Bought
+    the same way as Oats/Sugar Cube via _buy_ration(); GIVEing any of
+    these to an owned mount ally still goes through commands/give.py's
+    generic _try_body_build() strength-boost/consume path, same as any
+    other ally food -- no mount-specific feeding effect exists yet.
 """
 import logging
 
@@ -42,6 +53,20 @@ _NPC = 'Jake'
 
 _OATS_RATION_NUM        = 25   # "WILD OATS" (rations.json)
 _SUGAR_CUBE_RATION_NUM  = 16   # "CUBE OF SUGAR" (rations.json)
+
+# New in TADA (8/4/26, Ryan) -- not SPUR-derived, filling out the mount
+# food list from the deleted Horse stubs' notes ("allowed foods: mash,
+# hay, oats, apples, sugar_cubes" -- see TODO.md 8/1/26 entry). Oats and
+# Sugar Cube above are the only two SPUR originals; Apples already
+# existed in rations.json (#78) but wasn't offered here. Hay, Carrots,
+# Salt Lick, Bucket of Water, and Bran Mash are new rations.json entries
+# with no SPUR precedent.
+_HAY_RATION_NUM         = 79   # "BALE OF HAY" (rations.json)
+_CARROTS_RATION_NUM     = 80   # "CARROTS" (rations.json)
+_SALT_LICK_RATION_NUM   = 81   # "SALT LICK" (rations.json)
+_WATER_RATION_NUM       = 82   # "BUCKET OF WATER" (rations.json)
+_MASH_RATION_NUM        = 83   # "BRAN MASH" (rations.json)
+_APPLES_RATION_NUM      = 78   # "APPLES" (rations.json)
 
 _LASSO_ITEM_NUM       = 161
 _SADDLE_ITEM_NUM      = 162
@@ -222,12 +247,18 @@ async def _tips(ctx: GameContext) -> None:
 
 _MENU = [
     ('1', lambda ctx: _buy_ration(ctx, _OATS_RATION_NUM)),
-    ('2', lambda ctx: _buy_item(ctx, _LASSO_ITEM_NUM)),
-    ('3', lambda ctx: _buy_item(ctx, _SADDLE_ITEM_NUM)),
-    ('4', lambda ctx: _buy_item(ctx, _HORSE_ARMOR_ITEM_NUM)),
-    ('5', lambda ctx: _buy_ration(ctx, _SUGAR_CUBE_RATION_NUM)),
-    ('6', _train_horse),
-    ('7', _tips),
+    ('2', lambda ctx: _buy_ration(ctx, _SUGAR_CUBE_RATION_NUM)),
+    ('3', lambda ctx: _buy_ration(ctx, _APPLES_RATION_NUM)),
+    ('4', lambda ctx: _buy_ration(ctx, _HAY_RATION_NUM)),
+    ('5', lambda ctx: _buy_ration(ctx, _CARROTS_RATION_NUM)),
+    ('6', lambda ctx: _buy_ration(ctx, _SALT_LICK_RATION_NUM)),
+    ('7', lambda ctx: _buy_ration(ctx, _WATER_RATION_NUM)),
+    ('8', lambda ctx: _buy_ration(ctx, _MASH_RATION_NUM)),
+    ('9', lambda ctx: _buy_item(ctx, _LASSO_ITEM_NUM)),
+    ('10', lambda ctx: _buy_item(ctx, _SADDLE_ITEM_NUM)),
+    ('11', lambda ctx: _buy_item(ctx, _HORSE_ARMOR_ITEM_NUM)),
+    ('12', _train_horse),
+    ('13', _tips),
 ]
 
 
@@ -254,10 +285,13 @@ async def _stable_session(ctx: GameContext) -> None:
         await ctx.send([
             '',
             '"What kin ey git fer ye?"',
-            ' 1) Oats         5) Sugar Cube',
-            ' 2) Lasso        6) Train Horse',
-            ' 3) Saddle       7) Tips',
-            ' 4) Horse Armor',
+            ' 1) Oats            8) Bran Mash',
+            ' 2) Sugar Cube       9) Lasso',
+            ' 3) Apples          10) Saddle',
+            ' 4) Bale of Hay     11) Horse Armor',
+            ' 5) Carrots         12) Train Horse',
+            ' 6) Salt Lick       13) Tips',
+            ' 7) Bucket of Water',
             '',
         ])
         raw = await ctx.prompt(f'{_NPC}: "->"')
