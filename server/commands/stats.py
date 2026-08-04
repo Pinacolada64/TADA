@@ -255,12 +255,12 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
 
     # Wizard's Glow -- Ryan's request: show remaining rounds for Wizards
     # specifically, not just an on/off flag. "Not cast" when inactive
-    # rather than "0/20 rounds remaining", which reads like it just ran
+    # rather than "[0/20 rounds left]", which reads like it just ran
     # out rather than never having been cast at all.
     if char_class == PlayerClass.WIZARD:
         glow_rounds = int(getattr(player, 'wizard_glow', None) or 0)
         if glow_rounds > 0:
-            lines.append(f'Wizard Glow: {glow_rounds}/{_WIZARD_GLOW_MAX_ROUNDS} rounds remaining')
+            lines.append(f'Wizard Glow: [{glow_rounds}/{_WIZARD_GLOW_MAX_ROUNDS} rounds left]')
         else:
             lines.append('Wizard Glow: Not cast')
 

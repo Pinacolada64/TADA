@@ -1,5 +1,5 @@
 """tests/combat/test_stats_wizard_glow.py — commands/stats.py's Wizard
-Glow line: "xx/yy rounds remaining" for Wizards, "Not cast" when
+Glow line: "[xx/yy rounds left]" for Wizards, "Not cast" when
 inactive, and no line at all for non-Wizards. Ryan's request.
 """
 from __future__ import annotations
@@ -52,7 +52,7 @@ class TestWizardGlowLine(unittest.TestCase):
 
     def test_wizard_with_active_glow_shows_rounds(self):
         lines = _build_stats_lines(_make_player(char_class=PlayerClass.WIZARD, wizard_glow=7))
-        self.assertIn('Wizard Glow: 7/20 rounds remaining', lines)
+        self.assertIn('Wizard Glow: [7/20 rounds left]', lines)
 
 
 if __name__ == '__main__':
