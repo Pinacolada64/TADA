@@ -656,6 +656,39 @@ class TestBorderColor(unittest.TestCase):
             self.assertNotIn("|light_blue|", line)
 
 
+class TestBracketHighlightAlignment(unittest.TestCase):
+    """A cell can carry raw '[LOOT]'-style formatting.highlight_brackets()
+    markup (e.g. stats.py's ally Notes column '[ELITE]' status tag) that
+    ctx.send()'s pipeline colors later, consuming the '['/']' delimiters
+    -- column widths/padding must be sized for that eventual width, not
+    the raw literal text, or the highlighted cell renders 2 columns
+    narrower than reserved once highlighted, misaligning every border to
+    its right. Regression for the same bug tips.json's [LOOT]/[GIVE]
+    tags hit in formatting.make_box()."""
+
+    def test_bracketed_cell_same_rendered_width_as_plain_cell(self):
+        # highlight_brackets() runs downstream in ctx.send()'s pipeline,
+        # after table.py hands off these lines -- simulate that here
+        # with a no-op (Plain) codec to check the width that actually
+        # reaches the player, same as
+        # TestMakeBoxBracketPadding.test_bracketed_and_plain_lines_render_the_same_width_after_highlighting
+        # in tests/test_formatting_codec_for_settings.py.
+        from formatting import highlight_brackets, PlainCodec
+        t = Table(
+            headers=[Column("Ally", min_width=12), Column("Notes", min_width=6)],
+            border=True,
+        )
+        t.add_row(["Rex", "[ELITE]"])
+        t.add_row(["Fido", "ok"])
+        lines = t.render(width=40)
+        resolved = [highlight_brackets(l, PlainCodec()) for l in lines]
+        widths = {len(l) for l in resolved}
+        self.assertEqual(widths, {40}, f'expected every rendered row at 40 cols, got {widths}')
+
+    def test_visible_len_of_bracketed_cell_matches_content_only(self):
+        self.assertEqual(_visible_len('[ELITE]'), len('ELITE'))
+
+
 if __name__ == "__main__":
     import logging
     logging.basicConfig(level=logging.DEBUG)

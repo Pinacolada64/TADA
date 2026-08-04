@@ -203,13 +203,18 @@ class TestLoginTipLines(unittest.TestCase):
         # 60 columns wide even for a 40-column Commodore 64. Ryan
         # reported exactly this: negotiated 40-col C64, but the tip box
         # wasn't 40 columns wide.
-        import re
+        from formatting import _visible_len
         from commands.connect import _login_tip_lines
         ctx = self._ctx(enabled=True, tip_number=0)
         ctx.player.client_settings.screen_columns = 40
         lines = _login_tip_lines(ctx)
-        plain = [re.sub(r'\|[a-z_]+\|', '', l) for l in lines]
-        widths = {len(l) for l in plain if l.strip()}
+        # _visible_len(), not a raw len()/|token|-strip: box lines still
+        # carry literal [EAT]/[DRINK]-style tip markup at this point --
+        # highlight_brackets() (which consumes the '['/']' delimiters)
+        # only runs later, in ctx.send()'s pipeline -- so measuring the
+        # *rendered* width here means resolving brackets the same way
+        # _visible_len() does (see its docstring).
+        widths = {_visible_len(l) for l in lines if l.strip()}
         self.assertTrue(widths)
         self.assertTrue(all(w <= 40 for w in widths), f'expected <=40-wide lines, got {widths}')
 

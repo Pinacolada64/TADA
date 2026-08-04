@@ -37,8 +37,24 @@ from typing import Iterable, List, Optional, Sequence
 # Strip |pipe-token| color markers before measuring visible width.
 _TOKEN_RE = re.compile(r'\|[a-z_]+\|')
 
+# formatting.py's [bracket] highlighting convention (highlight_brackets()):
+# a cell can carry raw '[LOOT]'-style markup that ctx.send()'s pipeline
+# colors later, consuming the '['/']' delimiters. table.py has no
+# dependency on formatting.py (see module docstring), so this mirrors
+# formatting._BRACKET_RE/_bracket_replace_len() locally rather than
+# importing it -- column widths/padding must be sized from the width
+# text will occupy *after* that resolution, or a highlighted cell (e.g.
+# stats.py's ally Notes column '[ELITE]' status tag) renders narrower
+# than its reserved column and misaligns every border to its right.
+_BRACKET_RE = re.compile(r'\[\[(.+?)\]\]|\[(.+?)\]')
+
+def _resolve_brackets(text: str) -> str:
+    def _replace(m: re.Match) -> str:
+        return f'[{m.group(1)}]' if m.group(1) is not None else m.group(2)
+    return _BRACKET_RE.sub(_replace, text)
+
 def _visible_len(text: str) -> int:
-    return len(_TOKEN_RE.sub('', text))
+    return len(_TOKEN_RE.sub('', _resolve_brackets(text)))
 
 
 # ---------------------------------------------------------------------------

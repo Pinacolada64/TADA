@@ -88,5 +88,47 @@ class TestCodecForSettingsResetColor(unittest.TestCase):
         self.assertEqual(codec.reset(), ANSICodec().reset())
 
 
+class TestVisibleLenBracketAware(unittest.TestCase):
+    """_visible_len() must count a [bracket]-highlighted word at its
+    *rendered* width (delimiters gone), not its raw literal width --
+    otherwise code that sizes padding/columns from raw un-highlighted
+    text (make_box(), table.py's column widths) reserves 2 columns too
+    many per highlighted word, and the highlighted word ends up left
+    short of the border once highlight_brackets() actually runs
+    downstream in ctx.send()'s pipeline. Found via tips.json's [LOOT]
+    tags misaligning the TIPS box, and STAT's ally table '[ELITE]'-style
+    Notes tags misaligning its columns."""
+
+    def test_bracketed_word_counts_content_only(self):
+        from formatting import _visible_len
+        self.assertEqual(_visible_len('[LOOT]'), len('LOOT'))
+
+    def test_double_bracket_escape_counts_literal_brackets(self):
+        from formatting import _visible_len
+        # [[x]] renders as the literal '[x]' (see highlight_brackets()'s
+        # own escape rule) -- 2 chars, not 4.
+        self.assertEqual(_visible_len('[[optional]]'), len('[optional]'))
+
+    def test_matches_actual_post_highlight_length(self):
+        from formatting import _visible_len, highlight_brackets, PlainCodec
+        text = 'Use [LOOT] and [GIVE] wisely.'
+        rendered = highlight_brackets(text, PlainCodec())
+        self.assertEqual(_visible_len(text), len(rendered))
+
+
+class TestMakeBoxBracketPadding(unittest.TestCase):
+    """make_box()'s body-line padding must land the right border at the
+    same column whether or not a line contains a [bracket]-highlighted
+    word -- see TestVisibleLenBracketAware above for why raw len()-based
+    .ljust() gets this wrong."""
+
+    def test_bracketed_and_plain_lines_render_the_same_width_after_highlighting(self):
+        from formatting import make_box, highlight_brackets, PlainCodec
+        box = make_box(['Use [LOOT] wisely.', 'No brackets here though.'], width=30)
+        resolved = [highlight_brackets(line, PlainCodec()) for line in box]
+        widths = {len(line) for line in resolved}
+        self.assertEqual(widths, {30}, f'expected every rendered line at 30 cols, got {widths}')
+
+
 if __name__ == '__main__':
     unittest.main()

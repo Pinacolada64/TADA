@@ -682,6 +682,20 @@ def __getattr__(name: str):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
+_BRACKET_RE = re.compile(r'\[\[(.+?)\]\]|\[(.+?)\]')
+
+
+def _bracket_replace_len(m: re.Match) -> str:
+    """[bracket]-resolution with zero-width highlighting -- shared by
+    highlight_brackets() (real codec) and _visible_len() (PlainCodec-
+    equivalent, for measuring the width text will render at). Keeping
+    one regex/replacement pair means a future change to the [[escape]]
+    rule can't drift between what gets highlighted and what gets sized."""
+    if m.group(1) is not None:          # [[...]] escape → literal [...]
+        return f'[{m.group(1)}]'
+    return m.group(2)                   # [...] → content only (delimiters vanish)
+
+
 def highlight_brackets(text: str, codec: ColorCodec) -> str:
     """
     Replace [bracketed text] with color-coded equivalents.
@@ -702,7 +716,7 @@ def highlight_brackets(text: str, codec: ColorCodec) -> str:
         if m.group(1) is not None:      # [[...]] escape → literal [...]
             return f'[{m.group(1)}]'
         return f'{codec.highlight_on()}{m.group(2)}{codec.highlight_off()}'
-    return re.sub(r'\[\[(.+?)\]\]|\[(.+?)\]', _replace, text)
+    return _BRACKET_RE.sub(_replace, text)
 
 
 def _glyph_visible_replace(m: re.Match) -> str:
@@ -719,10 +733,24 @@ def _glyph_visible_replace(m: re.Match) -> str:
 
 
 def _visible_len(text: str) -> int:
-    """Count visible columns: strips |token| sequences and raw ANSI escape
-    codes, and measures {glyph} raw-byte tokens by their actual on-screen
-    width. An escaped ||token|| counts its literal |token| rendering (not
-    zero) since it actually prints -- see _TOKEN_RE's comment."""
+    """Count visible columns: resolves [bracket] highlighting (the '['/']'
+    delimiters vanish on render -- see _bracket_replace_len()), strips
+    |token| sequences and raw ANSI escape codes, and measures {glyph}
+    raw-byte tokens by their actual on-screen width. An escaped ||token||
+    counts its literal |token| rendering (not zero) since it actually
+    prints -- see _TOKEN_RE's comment.
+
+    Safe to call on text *before* highlight_brackets() has run (e.g. a
+    table/box column-sizing or .ljust()-padding pass over raw tip/cell
+    text still carrying literal [LOOT]) as well as after (already-
+    resolved text has no bare [...] left to match) -- either way this
+    returns the width it will actually occupy on screen once
+    highlight_brackets() runs, which pre-highlight .ljust()/width math
+    must use instead of len()/[bracket]-blind counts, or a highlighted
+    word renders 2 columns narrower than reserved and misaligns the
+    border/column to its right (found via tips.json's [LOOT]/[GIVE] tags
+    and STAT's ally table '[ELITE]'-style status tags)."""
+    text = _BRACKET_RE.sub(_bracket_replace_len, text)
     text = _TOKEN_STRIP_RE.sub(_token_strip_replace, text)
     text = _GLYPH_TOKEN_RE.sub(_glyph_visible_replace, text)
     text = _ANSI_ESCAPE_RE.sub('', text)
@@ -1241,7 +1269,14 @@ def make_box(lines: list[str], title: str = '', width: int = 60,
 
     bot  = _col(b.bot_left + b.h * (width - 2) + b.bot_right, frame_color)
     body = [
-        _col(b.v, frame_color) + ' ' + _col(line.ljust(inner), text_color) + ' ' + _col(b.v, frame_color)
+        # .ljust(inner) would pad from len(line), which still counts
+        # [bracket]-highlighted words at their raw (un-highlighted) width
+        # -- pad from _visible_len() instead so the right border still
+        # lands at column `inner` once highlight_brackets() shrinks those
+        # words downstream (see _visible_len()'s docstring).
+        _col(b.v, frame_color) + ' '
+        + _col(line + ' ' * max(0, inner - _visible_len(line)), text_color)
+        + ' ' + _col(b.v, frame_color)
         for line in lines
     ]
 
