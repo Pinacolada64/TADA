@@ -1712,8 +1712,8 @@
     on one side mid-duel, verifying the other gets the forfeit win).
 
 8/4/26:
-- **Horse-specific food items for `rations.json`, offered at Jake's
-  Stable.** `street/jakes.py` already sells two SPUR-authentic mount
+- [DONE 8/4/26] **Horse-specific food items for `rations.json`, offered
+  at Jake's Stable.** `street/jakes.py` already sells two SPUR-authentic mount
   feeds as ordinary rations -- Oats (`_OATS_RATION_NUM = 25`, "WILD
   OATS") and Sugar Cube (`_SUGAR_CUBE_RATION_NUM = 16`, "CUBE OF
   SUGAR") -- via `_buy_ration()`, the same general-store-style purchase
