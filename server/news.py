@@ -128,12 +128,45 @@ def mark_seen(item: dict, player_name: str) -> None:
         seen.append(player_name)
 
 
+# Colors by position, not by field -- matches board.py's MessageHeader
+# scheme (1st header line cyan, 2nd light_green, every line after that
+# yellow) so a news item's header reads consistently with BOARD's.
+_HEADER_COLORS_BY_POSITION = ('cyan', 'light_green')
+_HEADER_FALLBACK_COLOR = 'yellow'
+
+
+def _format_lifetime(item: dict) -> str:
+    lifetime = item.get('lifetime', 'permanent')
+    if lifetime == 'range':
+        start = item.get('start_date', '?')
+        end = item.get('end_date') or 'open-ended'
+        return f'{start} to {end}'
+    return lifetime.capitalize()
+
+
 def format_item(item: dict, ctx) -> list[str]:
-    """Render one news item as display lines (title + body), re-rendering
+    """Render one news item as display lines (header + body), re-rendering
     the body's Justification/Border for *this* viewer's screen width and
     terminal type -- see the module docstring for why 'body' is stored
-    structurally rather than as pre-rendered strings."""
-    lines = [f"|yellow|--- {item.get('title', '(untitled)')}|reset|"]
+    structurally rather than as pre-rendered strings.
+
+    The header (Date/Lifetime/Posted By/Subject) mirrors board.py's
+    MessageHeader block -- right-justified labels to a common ': '
+    column, same cyan/light_green/yellow-fallback coloring by line
+    position -- so NEWS reads consistently with BOARD."""
+    fields = [
+        ('Date',      item.get('posted_at', '')[:10]),
+        ('Lifetime',  _format_lifetime(item)),
+        ('Posted By', item.get('author', '???')),
+        ('Subject',   item.get('title', '(untitled)')),
+    ]
+    label_width = max(len(label) for label, _ in fields)
+    lines = []
+    for i, (label, value) in enumerate(fields):
+        color = (_HEADER_COLORS_BY_POSITION[i] if i < len(_HEADER_COLORS_BY_POSITION)
+                 else _HEADER_FALLBACK_COLOR)
+        lines.append(f'|{color}|{label.rjust(label_width)}: {value}|reset|')
+
     width = getattr(getattr(ctx.player, 'client_settings', None), 'screen_columns', 80)
     lines += render_lines(deserialize_lines(item.get('body', [])), ctx, width)
     return lines

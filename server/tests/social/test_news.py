@@ -122,8 +122,11 @@ class TestFormatItem(unittest.TestCase):
         ctx = MagicMock()
         ctx.player.client_settings.screen_columns = 80
         lines = format_item(item, ctx)
-        self.assertIn('Server Update', lines[0])
-        self.assertEqual(lines[1:], ['Line one.', 'Line two.'])
+        # Header is Date/Lifetime/Posted By/Subject (see news.format_item()'s
+        # docstring), mirroring board.py's MessageHeader block -- 4 lines,
+        # then the body.
+        self.assertIn('Server Update', lines[3])
+        self.assertEqual(lines[4:], ['Line one.', 'Line two.'])
 
     def test_centered_body_rerenders_per_viewer_screen_width(self):
         # The whole point of storing 'body' as structured Line dicts
@@ -137,8 +140,8 @@ class TestFormatItem(unittest.TestCase):
         wide_ctx.player.client_settings.screen_columns = 20
         narrow_lines = format_item(item, narrow_ctx)
         wide_lines = format_item(item, wide_ctx)
-        self.assertEqual(narrow_lines[1], 'hi'.center(10))
-        self.assertEqual(wide_lines[1], 'hi'.center(20))
+        self.assertEqual(narrow_lines[4], 'hi'.center(10))
+        self.assertEqual(wide_lines[4], 'hi'.center(20))
 
 
 if __name__ == '__main__':
