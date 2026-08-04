@@ -520,8 +520,8 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     :param command_name: shown as a header when present
     :param width: total line width; defaults to 78 columns
     :param rule_char: character to use for a horizontal rule line
-    :param is_privileged: when True, help_obj.admin_notes are appended to
-        the Notes section (see Help.admin_notes) -- pass
+    :param is_privileged: when True, help_obj.admin_notes are rendered as
+        their own "Admin Notes:" section (see Help.admin_notes) -- pass
         _is_privileged_viewer(ctx) from a call site that has a live ctx.
     :param is_petscii: when True, help_obj.petscii_notes are appended to
         the Notes section (see Help.petscii_notes) -- pass
@@ -590,17 +590,11 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                     subsequent_indent=" " * 6,
                 ))
 
-    # Notes (admin_notes appended only for privileged viewers, petscii_notes
-    # only for PETSCII viewers -- see Help.admin_notes/Help.petscii_notes
-    # and this function's is_privileged/is_petscii parameters)
-    notes = list(getattr(help_obj, "notes", None) or [])
-    if is_privileged:
-        notes += list(getattr(help_obj, "admin_notes", None) or [])
-    if is_petscii:
-        notes += list(getattr(help_obj, "petscii_notes", None) or [])
-    if notes:
+    def _render_notes(heading: str, notes: List[str]) -> None:
+        if not notes:
+            return
         lines.append("")
-        lines.append(_heading("Notes:"))
+        lines.append(_heading(heading))
         for note in notes:
             if note == '':
                 lines.append('')
@@ -611,6 +605,21 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                     initial_indent=" " * 4,
                     subsequent_indent=" " * 4,
                 ))
+
+    # Notes (petscii_notes appended only for PETSCII viewers -- see
+    # Help.petscii_notes and this function's is_petscii parameter)
+    notes = list(getattr(help_obj, "notes", None) or [])
+    if is_petscii:
+        notes += list(getattr(help_obj, "petscii_notes", None) or [])
+    _render_notes("Notes:", notes)
+
+    # Admin Notes -- privileged (Admin/Dungeon Master) viewers only, kept
+    # as its own section rather than folded into Notes so staff-only
+    # background/implementation detail reads as clearly separate from
+    # player-facing notes (see Help.admin_notes and this function's
+    # is_privileged parameter)
+    if is_privileged:
+        _render_notes("Admin Notes:", list(getattr(help_obj, "admin_notes", None) or []))
 
     return lines if lines else None
 
