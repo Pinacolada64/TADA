@@ -45,6 +45,7 @@ def _make_ctx(server, *, room, item_ids=()):
     for item_id in item_ids:
         ctx.player.inventory.add(Item(id_number=item_id, name=f'item{item_id}', category=ItemCategory.ITEM))
     ctx.player.query_flag = MagicMock(return_value=False)  # not mounted
+    ctx.player.command_settings.wasd_movement = False
     ctx.send = AsyncMock()
     return ctx
 

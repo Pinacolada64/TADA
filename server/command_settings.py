@@ -80,6 +80,9 @@ class CommandSettings:
     board: BoardSettings = field(default_factory=BoardSettings)
     # Saved teleport destinations (commands/teleport.py)
     teleport: TeleportSettings = field(default_factory=TeleportSettings)
+    # False (default): bare movement letters are n/s/e/w (compass).
+    # True: w/a/s/d instead, mapped to north/west/south/east (commands/movement.py).
+    wasd_movement: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)

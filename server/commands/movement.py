@@ -44,6 +44,16 @@ _DIR_ALIASES: dict[str, str] = {
     'd': 'd', 'down':  'd',
 }
 
+# Alt keymap (command_settings.wasd_movement): w/a/s/d -> north/west/south/
+# east instead of the classic n/s/e/w. 's' means south either way, but 'w'
+# and 'd' collide with the classic meanings (west, down) -- this can't be
+# layered onto _DIR_ALIASES as extra entries, it has to replace w/d's
+# meaning per-player. 'u'/'up' still work for Up under this keymap; there's
+# no letter collision to resolve there.
+_WASD_ALIASES: dict[str, str] = {
+    'w': 'n', 'a': 'w', 's': 's', 'd': 'e',
+}
+
 # Rooms that trigger a sub-area module when entered, keyed by room number.
 # The bar is level-gated in the original source, same as the Allys Guild/
 # Jake's Stable checks below it (SPUR.MAIN.S: "if cl=1 then if cr=49 then
@@ -190,7 +200,7 @@ class MoveCommand(Command):
 
     name    = 'go'
     aliases = ['move',
-               'n', 's', 'e', 'w', 'u', 'd',
+               'n', 's', 'e', 'w', 'u', 'd', 'a',
                'north', 'south', 'east', 'west', 'up', 'down']
     modes   = {Mode.GAME}
     counts_as_move = True
@@ -199,7 +209,9 @@ class MoveCommand(Command):
         summary     = 'Move in a compass direction.',
         description = (
             'Use single-letter shortcuts (n, s, e, w, u, d), full words '
-            '(north, south, east, west, up, down), or "go <direction>".'
+            '(north, south, east, west, up, down), or "go <direction>". '
+            'PREFS (\'W\') can switch w/a/s/d to mean north/west/south/east '
+            'instead.'
         ),
         category = HelpCategory.MOVEMENT,
         usage    = [
@@ -219,9 +231,19 @@ class MoveCommand(Command):
         # bare 'n' / 'north'   → direction is the token the player typed
         token = positional[0].lower() if positional else getattr(ctx, '_invoked_as', '')
 
-        direction = _DIR_ALIASES.get(token)
+        # w/a/s/d are ambiguous between the two keymaps (only 's' agrees),
+        # so under the alt keymap they take priority over _DIR_ALIASES for
+        # exactly those four letters; every other token (full words, n, u,
+        # d as a full word "down", etc.) is unambiguous and resolves the
+        # same regardless of the player's keymap choice.
+        direction = None
+        if token in _WASD_ALIASES and getattr(ctx.player.command_settings, 'wasd_movement', False):
+            direction = _WASD_ALIASES.get(token)
+        else:
+            direction = _DIR_ALIASES.get(token)
         if not direction:
-            await ctx.send('Go where? (n/s/e/w/u/d)')
+            hint = 'w/a/s/d/u' if getattr(ctx.player.command_settings, 'wasd_movement', False) else 'n/s/e/w/u/d'
+            await ctx.send(f'Go where? ({hint})')
             return CommandResult.fail('No direction.', error='no_direction')
 
         # Check for special exits before normal movement

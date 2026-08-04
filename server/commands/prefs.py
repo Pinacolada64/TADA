@@ -25,6 +25,7 @@ Settings managed here
   C  Colors           client_settings.colors.text_color
                       client_settings.colors.highlight_color
   N  News Display     command_settings.news_show_all  (New only / Full directory)
+  W  Movement Keys    command_settings.wasd_movement  (Compass / WASD)
   T  Client Type      client_settings.screen_columns/screen_rows/translation
                       — presets (C64/C128/TADA client) or a custom size.
                         Available over a real PETSCII connection too (a
@@ -172,6 +173,16 @@ _SETTING_HELP: dict[str, list[str]] = {
         "item numbers, shortcut letters, menu text, horizontal rules, and "
         "dot-leader lines/values. 'Default' clears any custom scheme; "
         "'Custom' lets you pick a color for each part individually.",
+        '',
+    ],
+    'w': [
+        '',
+        '|cyan|Movement Keys|reset|',
+        "Controls what the bare single-letter movement keys mean. "
+        "'Compass' (the default) uses n/s/e/w/u/d. 'WASD' uses w/a/s/d "
+        "for north/west/south/east instead (u still means Up). Full "
+        "words (north, south, ...) and 'go <direction>' always work "
+        "either way.",
         '',
     ],
     'g': [
@@ -356,12 +367,14 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             (name for name, mc in MENU_COLOR_PRESETS if mc == _cur_menu_colors), None,
         ) or ('Default' if _cur_menu_colors is None else 'Custom')
         t.add_row(['S', 'Menu Colors', menu_colors_name, 'hs'])
+        wasd = getattr(ctx.player.command_settings, 'wasd_movement', False)
+        t.add_row(['W', 'Movement Keys', 'WASD' if wasd else 'Compass', 'hw'])
         t.add_row(['G', 'Graphics Test', '', 'hg'])
 
         valid_keys = ['X', 'H', 'M']
         if not is_petscii:
             valid_keys.append('B')
-        valid_keys += ['C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F', 'S', 'G']
+        valid_keys += ['C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F', 'S', 'W', 'G']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -402,6 +415,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                 'D - choose your preferred date format',
                 'F - choose 12-hour or 24-hour time format',
                 'S - choose the menu color scheme',
+                'W - toggle Movement Keys (Compass n/s/e/w / WASD w/a/s/d)',
                 'G - view a graphics test (border-character windowpane)',
                 f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
                 f'{return_key} - save and exit',
@@ -474,6 +488,12 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
 
         elif ans == 's':
             await _pick_menu_colors(ctx)
+
+        elif ans == 'w':
+            option = "|white|Movement Keys: "
+            cs3 = ctx.player.command_settings
+            cs3.wasd_movement = not getattr(cs3, 'wasd_movement', False)
+            await ctx.send(f"{option}{'|green|WASD' if cs3.wasd_movement else '|green|Compass'}|reset|")
 
         elif ans == 'g':
             await _show_graphics_test(ctx)

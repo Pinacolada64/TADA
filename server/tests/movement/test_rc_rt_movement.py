@@ -45,6 +45,7 @@ def _ctx(room_no=20, level=1):
     ctx.player.map_level = level
     ctx.player.map_room = room_no
     ctx.player.unsaved_changes = False
+    ctx.player.command_settings.wasd_movement = False
     ctx.send = AsyncMock()
     ctx.send_room = AsyncMock()
     ctx.prompt = AsyncMock(return_value=None)
@@ -102,6 +103,7 @@ class TestMoveCommandRcRt(unittest.IsolatedAsyncioTestCase):
         ctx.player.map_level = level
         ctx.player.map_room = room_no
         ctx.player.query_flag = MagicMock(return_value=False)
+        ctx.player.command_settings.wasd_movement = False
         ctx.send = AsyncMock()
         ctx.send_room = AsyncMock()
         ctx.server.game_map = _make_map()
