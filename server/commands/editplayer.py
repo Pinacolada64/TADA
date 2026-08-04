@@ -980,12 +980,110 @@ def _names_menu(ctx) -> Menu:
         else:
             await ctx.send("Please choose 'N' or 'S'.")
 
-    async def edit_horse(ctx) -> None:
-        mount = next((a for a in owned_allies(p) if AllyFlags.MOUNT in (a.flags or [])), None)
+    def _horse() -> Optional[object]:
+        return next((a for a in owned_allies(p) if AllyFlags.MOUNT in (a.flags or [])), None)
+
+    def _horse_label(ctx) -> str:
+        mount = _horse()
+        if mount is None:
+            return '(none)'
+        flavor = ' '.join(str(x) for x in (
+            getattr(mount, 'color', None), getattr(mount, 'breed', None),
+        ) if x)
+        return f'{mount.name}{f" ({flavor})" if flavor else ""}  Str {mount.strength}'
+
+    async def _add_horse(ctx) -> None:
+        """[A] Add Horse: no master roster to pick from -- horses aren't
+        part of bar/ally_data.py's ~90-name servant list -- so this rolls
+        gender/breed/colour and prompts for a name exactly like a real
+        LASSO capture (ally_events/capture_horse.py's capture_mount()):
+        same "Your horse seems to be..." announcement and the same
+        prompt_horse_name() (typed name, 'R' for random, blank to cancel).
+        """
+        import random
+        from ally_events.capture_horse import prompt_horse_name
+        from bar.ally_data import Ally
+        from base_classes import HorseBreed, HorseColor
+        from flags import PlayerFlags
+
+        gender      = random.choice(('m', 'f'))
+        breed       = random.choice(list(HorseBreed))
+        color       = random.choice(list(HorseColor))
+        gender_word = 'male' if gender == 'm' else 'female'
+        await ctx.send(f'Your horse seems to be a {gender_word} {color} {breed}!')
+
+        name = await prompt_horse_name(ctx, gender)
+        if name is None:
+            return
+
+        mount = Ally(name=name, gender=gender, strength=20, to_hit=0, flags=[AllyFlags.MOUNT])
+        mount.breed       = breed
+        mount.color       = color
+        mount.status      = AllyStatus.SERVANT
+        mount.owner       = p.name
+        mount.hit_points  = mount.strength * 2
+
+        await p.party.add(ctx, p, mount)
+        p.set_flag(PlayerFlags.HAS_HORSE)
+        p.unsaved_changes = True
+
+    async def _remove_horse(ctx) -> None:
+        """[R] Remove Horse: releases the mount from the party and clears
+        both horse PlayerFlags so they can't go stale -- MOUNTED
+        especially, since commands/mount.py/dismount.py only ever *set*
+        it, never check "do you still have a horse" before leaving a
+        player flagged as riding one that no longer exists.
+        """
+        from flags import PlayerFlags
+
+        mount = _horse()
         if mount is None:
             await ctx.send('No horse owned.')
             return
-        await _rename_ally(ctx, mount)
+
+        lines = []
+        if p.query_flag(PlayerFlags.MOUNTED):
+            lines.append(f'You were riding {mount.name} -- dismounting.')
+            p.clear_flag(PlayerFlags.MOUNTED)
+        p.party.remove(mount)
+        mount.status = AllyStatus.FREE
+        mount.owner  = None
+        p.clear_flag(PlayerFlags.HAS_HORSE)
+        lines.append(f'{mount.name} is released and removed from your party.')
+        lines.append('(Has Horse and Mounted flags cleared.)')
+        p.unsaved_changes = True
+        await ctx.send(lines)
+
+    async def edit_horse(ctx) -> None:
+        mount = _horse()
+        if mount is None:
+            raw = await ctx.prompt(
+                'Add a horse',
+                preamble_lines=[f'No horse owned. [A]dd a horse, or {ctx.player.return_key} to cancel:'],
+            )
+            choice = (raw or '').strip().lower()
+            if choice == 'a':
+                await _add_horse(ctx)
+            elif choice:
+                await ctx.send("Please choose 'A'.")
+            return
+
+        raw = await ctx.prompt(
+            mount.name,
+            preamble_lines=[
+                f'Current: {mount.name}  Str {mount.strength}',
+                f"[N]ew name, [R]emove horse, or {ctx.player.return_key} to cancel:",
+            ],
+        )
+        choice = (raw or '').strip().lower()
+        if not choice:
+            await ctx.send('Unchanged.')
+        elif choice == 'n':
+            await _rename_ally(ctx, mount)
+        elif choice == 'r':
+            await _remove_horse(ctx)
+        else:
+            await ctx.send("Please choose 'N' or 'R'.")
 
     def _roster_label(a) -> str:
         return f'{a.name:<22}  Str {a.strength:>2}  {a.to_hit * 10:>3}%  [{_status_label(a)}]'
@@ -1131,7 +1229,7 @@ def _names_menu(ctx) -> Menu:
             dot_leader_handler=lambda ctx, s=i: _ally_label(s),
             action=lambda ctx, s=i: edit_ally(ctx, s),
         ))
-    menu.add_item(MenuItem('Horse', shortcuts='h', action=edit_horse))
+    menu.add_item(MenuItem('Horse', shortcuts='h', dot_leader_handler=_horse_label, action=edit_horse))
     menu.add_item(MenuItem('List Allies',   shortcuts='?', action=_list_owned_allies))
     menu.add_item(MenuItem('Add Ally',      shortcuts='a', action=_add_ally_by_name))
     menu.add_item(MenuItem('Remove Ally',   shortcuts='r', action=_remove_ally_by_name))

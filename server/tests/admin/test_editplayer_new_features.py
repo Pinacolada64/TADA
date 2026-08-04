@@ -71,6 +71,21 @@ class _FakePlayer:
         self.guild = None
         self.is_expert = True
         self.return_key = 'Enter'
+        self.flags: dict = {}
+
+    def query_flag(self, flag) -> bool:
+        import flags as _flags
+        return bool(_flags.query_flag(self, flag))
+
+    def set_flag(self, flag, verbose: bool = False):
+        import flags as _flags
+        _flags.set_flag(self, flag)
+        return True, None
+
+    def clear_flag(self, flag, verbose: bool = False):
+        import flags as _flags
+        _flags.clear_flag(self, flag)
+        return False, None
 
 
 class _FakeCtx:
@@ -426,7 +441,7 @@ class TestNamesMenuAllyAndHorse(unittest.IsolatedAsyncioTestCase):
         mount = _make_mount('SILVER')
         player = _FakePlayer()
         player.party = Party(members=[mount])
-        ctx = _FakeCtx(responses=['SHADOWFAX'], player=player)
+        ctx = _FakeCtx(responses=['N', 'SHADOWFAX'], player=player)
         menu = _names_menu(ctx)
         await _find_item(menu, 'Horse').action(ctx)
         self.assertEqual(mount.name, 'SHADOWFAX')
@@ -438,6 +453,95 @@ class TestNamesMenuAllyAndHorse(unittest.IsolatedAsyncioTestCase):
         menu = _names_menu(ctx)
         await _find_item(menu, 'Horse').action(ctx)
         self.assertIn('No horse owned', ctx.sent[-1])
+
+    async def test_add_horse_typed_name(self):
+        from flags import PlayerFlags
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['A', 'SHADOWFAX'], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Horse').action(ctx)
+        self.assertEqual(len(player.party), 1)
+        mount = list(player.party)[0]
+        self.assertEqual(mount.name, 'SHADOWFAX')
+        self.assertIn(AllyFlags.MOUNT, mount.flags)
+        self.assertEqual(mount.status, AllyStatus.SERVANT)
+        self.assertEqual(mount.owner, player.name)
+        self.assertTrue(mount.breed is not None)
+        self.assertTrue(mount.color is not None)
+        self.assertTrue(player.query_flag(PlayerFlags.HAS_HORSE))
+        self.assertTrue(player.unsaved_changes)
+        self.assertTrue(any('seems to be' in s for s in ctx.sent))
+
+    async def test_add_horse_random_name(self):
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['A', 'R'], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Horse').action(ctx)
+        self.assertEqual(len(player.party), 1)
+        self.assertTrue(list(player.party)[0].name)  # got some random name
+
+    async def test_add_horse_cancel_leaves_no_horse(self):
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['A', ''], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Horse').action(ctx)
+        self.assertEqual(len(player.party), 0)
+
+    async def test_add_horse_invalid_choice(self):
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(responses=['X'], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Horse').action(ctx)
+        self.assertIn("Please choose 'A'.", ctx.sent[-1])
+        self.assertEqual(len(player.party), 0)
+
+    async def test_remove_horse_clears_flags_and_party(self):
+        from flags import PlayerFlags
+        mount = _make_mount('SILVER')
+        player = _FakePlayer()
+        player.party = Party(members=[mount])
+        player.set_flag(PlayerFlags.HAS_HORSE)
+        ctx = _FakeCtx(responses=['R'], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Horse').action(ctx)
+        self.assertEqual(len(player.party), 0)
+        self.assertEqual(mount.status, AllyStatus.FREE)
+        self.assertIsNone(mount.owner)
+        self.assertFalse(player.query_flag(PlayerFlags.HAS_HORSE))
+        self.assertTrue(player.unsaved_changes)
+
+    async def test_remove_horse_while_mounted_dismounts_and_says_so(self):
+        from flags import PlayerFlags
+        mount = _make_mount('SILVER')
+        player = _FakePlayer()
+        player.party = Party(members=[mount])
+        player.set_flag(PlayerFlags.MOUNTED)
+        ctx = _FakeCtx(responses=['R'], player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Horse').action(ctx)
+        self.assertFalse(player.query_flag(PlayerFlags.MOUNTED))
+        self.assertTrue(any('dismounting' in s for s in ctx.sent))
+
+    async def test_horse_dot_leader_shows_name_and_flavor(self):
+        mount = _make_mount('SILVER')
+        player = _FakePlayer()
+        player.party = Party(members=[mount])
+        ctx = _FakeCtx(player=player)
+        menu = _names_menu(ctx)
+        item = _find_item(menu, 'Horse')
+        self.assertIn('SILVER', item.dot_leader_handler(ctx))
+
+    async def test_horse_dot_leader_none_when_no_horse(self):
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(player=player)
+        menu = _names_menu(ctx)
+        item = _find_item(menu, 'Horse')
+        self.assertEqual(item.dot_leader_handler(ctx), '(none)')
 
 
 class TestHitPointsMenu(unittest.IsolatedAsyncioTestCase):
