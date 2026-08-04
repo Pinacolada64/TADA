@@ -217,22 +217,33 @@ class GameContext(BaseContext):
             page   = formatted[idx:idx + page_size]
             await self._send_formatted(page)
 
-            at_end    = idx + len(page) >= total
-            cur_pg    = (idx // page_size) + 1
-            pg_info   = f'({cur_pg}/{total_pgs}) ' if total_pgs > 1 else ''
-            status    = f'-- {"End" if at_end else "More"} {pg_info}--'
+            at_end  = idx + len(page) >= total
+            cur_pg  = (idx // page_size) + 1
+            label   = 'End' if at_end else 'More'
+
+            # Non-experts get a '[?=help]' hint pointing at the keystroke
+            # listing below; experts already know the keys, so it's
+            # dropped to keep the prompt inside the C64's 40 columns.
+            status = f'-- {label} [{cur_pg}/{total_pgs}]'
+            if not self.player.is_expert:
+                status += ' [?=help]'
+            status += ' --'
 
             opts: list[str] = []
             if not at_end:
-                opts.append(self.player.client_settings.return_key)
+                opts.append(f'{self.player.return_key} = Continue')
             if idx > 0:
-                opts.append('B/-: back')
-            opts.append('Q: quit')
+                opts.append('B/- = Back a page')
+            opts.append('Q = Quit')
 
-            ui = await self.prompt(f'{status} {", ".join(opts)}')
-            if ui is None:
-                return
-            ui = ui.lower().strip()
+            while True:
+                ui = await self.prompt(status)
+                if ui is None:
+                    return
+                ui = ui.lower().strip()
+                if ui != '?':
+                    break
+                await self._send_formatted([', '.join(opts)])
 
             if ui == 'q':
                 return

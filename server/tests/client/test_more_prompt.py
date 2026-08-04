@@ -25,11 +25,17 @@ from commands.prefs import toggle_more_prompt
 
 
 class _FakePlayer:
-    def __init__(self, more_prompt: bool = True, return_key: str = 'Enter'):
+    def __init__(self, more_prompt: bool = True, return_key: str = 'Enter',
+                 is_expert: bool = False):
         self._flags = {PlayerFlags.MORE_PROMPT: more_prompt}
+        self.is_expert = is_expert
         self.client_settings = type('CS', (), {
             'screen_rows': 10, 'screen_columns': 80, 'return_key': return_key,
         })()
+
+    @property
+    def return_key(self) -> str:
+        return self.client_settings.return_key
 
     def query_flag(self, flag) -> bool:
         return self._flags.get(flag, False)
@@ -88,22 +94,38 @@ class TestPaginatePromptText(unittest.IsolatedAsyncioTestCase):
     """_paginate()'s "-- More --" prompt should offer the player's own
     configured return key (e.g. "Return" on a C64/PETSCII connection),
     not a hardcoded "Enter" -- regression test for a real bug where it
-    was hardcoded regardless of client_settings.return_key."""
+    was hardcoded regardless of client_settings.return_key.
+
+    The return key only appears in the '?=help' keystroke listing now
+    (Expert Mode's terse prompt and the non-expert prompt both omit it
+    from the main status line to fit 40 columns), so these trigger the
+    help listing via '?' before checking."""
 
     async def test_more_prompt_uses_players_return_key(self):
-        player = _FakePlayer(more_prompt=True, return_key='Return')
+        player = _FakePlayer(more_prompt=True, return_key='Return', is_expert=True)
         ctx = GameContext(player=player, reader=None, writer=None, server=None, client=None)
         ctx._send_formatted = AsyncMock()
-        ctx.prompt = AsyncMock(return_value=None)   # bail out after the first page
+        ctx.prompt = AsyncMock(side_effect=['?', None])   # ask for help, then bail out
 
         await ctx._paginate([f'line {i}' for i in range(5)], page_size=2)
 
-        (prompt_text,), _ = ctx.prompt.await_args
-        self.assertIn('Return', prompt_text)
-        self.assertNotIn('Enter', prompt_text)
+        (help_lines,), _ = ctx._send_formatted.await_args_list[-1]
+        self.assertIn('Return', help_lines[0])
+        self.assertNotIn('Enter', help_lines[0])
 
     async def test_more_prompt_still_says_enter_for_default_clients(self):
-        player = _FakePlayer(more_prompt=True, return_key='Enter')
+        player = _FakePlayer(more_prompt=True, return_key='Enter', is_expert=True)
+        ctx = GameContext(player=player, reader=None, writer=None, server=None, client=None)
+        ctx._send_formatted = AsyncMock()
+        ctx.prompt = AsyncMock(side_effect=['?', None])
+
+        await ctx._paginate([f'line {i}' for i in range(5)], page_size=2)
+
+        (help_lines,), _ = ctx._send_formatted.await_args_list[-1]
+        self.assertIn('Enter', help_lines[0])
+
+    async def test_expert_mode_prompt_omits_help_hint(self):
+        player = _FakePlayer(more_prompt=True, is_expert=True)
         ctx = GameContext(player=player, reader=None, writer=None, server=None, client=None)
         ctx._send_formatted = AsyncMock()
         ctx.prompt = AsyncMock(return_value=None)
@@ -111,7 +133,18 @@ class TestPaginatePromptText(unittest.IsolatedAsyncioTestCase):
         await ctx._paginate([f'line {i}' for i in range(5)], page_size=2)
 
         (prompt_text,), _ = ctx.prompt.await_args
-        self.assertIn('Enter', prompt_text)
+        self.assertEqual(prompt_text, '-- More [1/3] --')
+
+    async def test_non_expert_prompt_shows_help_hint(self):
+        player = _FakePlayer(more_prompt=True, is_expert=False)
+        ctx = GameContext(player=player, reader=None, writer=None, server=None, client=None)
+        ctx._send_formatted = AsyncMock()
+        ctx.prompt = AsyncMock(return_value=None)
+
+        await ctx._paginate([f'line {i}' for i in range(5)], page_size=2)
+
+        (prompt_text,), _ = ctx.prompt.await_args
+        self.assertEqual(prompt_text, '-- More [1/3] [?=help] --')
 
 
 class TestToggleMorePrompt(unittest.IsolatedAsyncioTestCase):
