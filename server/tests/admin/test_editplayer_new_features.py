@@ -70,6 +70,7 @@ class _FakePlayer:
         self.char_race = None
         self.guild = None
         self.is_expert = True
+        self.return_key = 'Enter'
 
 
 class _FakeCtx:
@@ -612,6 +613,64 @@ class TestNamesMenuAddRemoveAllyByName(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(owned.status, AllyStatus.FREE)
         self.assertIsNone(owned.owner)
         mock_save.assert_called_once()
+
+    async def test_remove_by_slot_number(self):
+        from unittest.mock import patch
+        first  = _make_ally('GANDALF')
+        second = _make_ally('EMMETT "DOC" BROWN')
+        player = _FakePlayer()
+        player.party = Party(members=[first, second])
+        ctx = _FakeCtx(responses=['2'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=[first, second]), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Remove Ally').action(ctx)
+        self.assertEqual(len(player.party), 1)
+        self.assertIs(list(player.party)[0], first)
+        self.assertEqual(second.status, AllyStatus.FREE)
+
+    async def test_remove_horse_by_h(self):
+        from unittest.mock import patch
+        mount = _make_mount('SILVER')
+        player = _FakePlayer()
+        player.party = Party(members=[mount])
+        ctx = _FakeCtx(responses=['h'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=[mount]), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Remove Ally').action(ctx)
+        self.assertEqual(len(player.party), 0)
+        self.assertEqual(mount.status, AllyStatus.FREE)
+
+    async def test_remove_ally_literally_named_question_mark_via_slot_number(self):
+        """Regression test for a real bug: an ally got renamed to "?",
+        making it unreachable by name search since typing "?" always
+        triggers [?] list here. Selecting by slot number sidesteps it."""
+        from unittest.mock import patch
+        weird = _make_ally('?')
+        player = _FakePlayer()
+        player.party = Party(members=[weird])
+        ctx = _FakeCtx(responses=['1'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=[weird]), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Remove Ally').action(ctx)
+        self.assertEqual(len(player.party), 0)
+        self.assertEqual(weird.status, AllyStatus.FREE)
+
+    async def test_remove_question_mark_still_lists_instead_of_matching_name(self):
+        from unittest.mock import patch
+        weird = _make_ally('?')
+        player = _FakePlayer()
+        player.party = Party(members=[weird])
+        ctx = _FakeCtx(responses=['?', ''], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=[weird]), \
+             patch('bar.ally_data.save_ally_roster') as mock_save:
+            await _find_item(menu, 'Remove Ally').action(ctx)
+        self.assertTrue(any('Owned allies' in s for s in ctx.sent))
+        self.assertEqual(len(player.party), 1)  # blank after listing aborts
+        mock_save.assert_not_called()
 
     async def test_list_allies_shows_owned_roster(self):
         owned = _make_ally('GANDALF')

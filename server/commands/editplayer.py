@@ -930,6 +930,13 @@ def _names_menu(ctx) -> Menu:
         (same desertion semantics as bar/fat_olaf.py's _sell_servant(), minus
         the silver refund/honour penalty -- this is an admin edit, not a
         sale) and drops them from the player's party.
+
+        Accepts a slot number (1-3) or 'h' for horse -- the same slots as
+        the Ally 1-3/Horse items above -- as an alternative to name search.
+        This is the escape hatch for an ally literally *named* "?" (a real
+        bug that renamed one that way): typing "?" always means "[?] list"
+        here, so a "?"-named ally can never be reached by name search, only
+        by its slot number.
         """
         from bar.ally_data import load_allies, save_ally_roster
 
@@ -938,10 +945,13 @@ def _names_menu(ctx) -> Menu:
             await ctx.send('No allies owned.')
             return
 
+        preamble = (
+            'Enter a name (or part of a name), ally number (1-3, h for '
+            f'horse), [?] to list, or {ctx.player.return_key} to abort.'
+        )
+
         while True:
-            raw = await ctx.prompt(
-                "Ally name to remove (or part of name, '?' to list owned, blank to cancel)"
-            )
+            raw = await ctx.prompt('Remove which ally', preamble_lines=[preamble])
             if raw and raw.strip() == '?':
                 await _send_labeled_list(ctx, 'Owned allies', allies, _roster_label)
                 continue
@@ -949,15 +959,27 @@ def _names_menu(ctx) -> Menu:
         if not raw or not raw.strip():
             return
 
-        term    = raw.strip().lower()
-        matches = [a for a in allies if term in a.name.lower()]
-        if not matches:
-            await ctx.send(f'No owned allies matching "{raw.strip()}".')
-            return
+        term = raw.strip()
 
-        chosen = await _pick_from_matches(ctx, matches, _roster_label)
-        if chosen is None:
-            return
+        if term.lower() == 'h':
+            chosen = next((a for a in allies if AllyFlags.MOUNT in (a.flags or [])), None)
+            if chosen is None:
+                await ctx.send('No horse owned.')
+                return
+        elif term.isdigit() and 1 <= int(term) <= 3:
+            slot = int(term) - 1
+            if slot >= len(allies):
+                await ctx.send('No ally in that slot.')
+                return
+            chosen = allies[slot]
+        else:
+            matches = [a for a in allies if term.lower() in a.name.lower()]
+            if not matches:
+                await ctx.send(f'No owned allies matching "{term}".')
+                return
+            chosen = await _pick_from_matches(ctx, matches, _roster_label)
+            if chosen is None:
+                return
 
         p.party.remove(chosen)
         chosen.status = AllyStatus.FREE
