@@ -32,7 +32,7 @@ class LookCommand(Command):
             'creature, or player -- see EXAMINE for a closer look that '
             'might reveal something LOOK misses.'
         ),
-        category = HelpCategory.MOVEMENT,
+        category = HelpCategory.INTERACTION,
         usage    = [
             ('look',          'Describe the current room.'),
             ('l',             'Shorthand for look.'),
@@ -105,6 +105,12 @@ class LookCommand(Command):
         docstrings. General NPC/ally flavor text beyond this is a wider,
         not-yet-scoped gap (see the project_npc_descriptions_todo memory
         note) -- this only covers the horse-specific case Ryan asked for.
+
+        A mount also gets a second line reporting saddle/armor status
+        (AllyFlags.SADDLED/ARMORED, set by USEing a Saddle/Horse Armor
+        bought at Jake's Stable -- commands/use.py's SPUR.USE.S eq.horse
+        port) -- there was previously no way to check this without USEing
+        the items again. Ryan's request.
         """
         from bar.ally_data import AllyFlags
         from base_classes import Gender
@@ -116,6 +122,18 @@ class LookCommand(Command):
             else:
                 # Legacy/older save: mount predates the breed/colour fields.
                 await ctx.send(f'{ally.name} is a {gender_word} horse.')
+
+            flags      = ally.flags or []
+            has_saddle = AllyFlags.SADDLED in flags
+            has_armor  = AllyFlags.ARMORED in flags
+            if has_saddle and has_armor:
+                await ctx.send(f'{ally.name} is saddled and wearing horse armor.')
+            elif has_saddle:
+                await ctx.send(f'{ally.name} is saddled, but has no horse armor.')
+            elif has_armor:
+                await ctx.send(f'{ally.name} is wearing horse armor, but has no saddle.')
+            else:
+                await ctx.send(f'{ally.name} has no saddle or horse armor.')
             return
 
         await ctx.send(f'{ally.name} is here with you, ready to help.')

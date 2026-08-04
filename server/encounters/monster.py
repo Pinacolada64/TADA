@@ -307,11 +307,34 @@ async def _try_surprise(ctx: 'GameContext', monster: dict, monster_no: int) -> b
     return True
 
 
+# Matches simple_server.py's / wild_horse_events.py's
+# _WILD_HORSE_MONSTER_NUMBER -- not imported directly, same
+# load-time-circular-import reason wild_horse_events.py gives for
+# hardcoding its own copy.
+_WILD_HORSE_MONSTER_NUMBER = 136
+
+
 async def _try_spontaneous_charm(ctx: 'GameContext', monster: dict, monster_no: int,
                                   *, level: int, room_no: int) -> bool:
     """SPUR.MISC4.S:98-131 "d.charm". Returns True if the monster joined
     (player.pending_charm is now set -- same shape spells/charm.py's
-    try_charm_potion produces, so try_charm_join_offer handles the rest)."""
+    try_charm_potion produces, so try_charm_join_offer handles the rest).
+
+    Bug fix (8/4/26, Ryan): the wild horse (#136) used to be eligible for
+    this roll like any other monster -- 'large' gives it yy=2, so it was
+    never actually gated out by the yy=0 check below. That let a lured
+    horse (wild_horse_events.py's sugar-cube drop) get spontaneously
+    "charmed" via the generic join-offer flow the moment the player next
+    entered its room, bypassing LASSO/ally_events.capture_horse.py's
+    dedicated mount-capture flow entirely (no MOUNT flag, no breed/
+    colour/hit_points seeding -- it'd join as a broken plain ally).
+    Horses are always captured via LASSO (or the passive Druid/Ranger
+    tame, CombatSession._try_class_tame) instead, so they're excluded
+    from the spontaneous-charm roll altogether.
+    """
+    if monster_no == _WILD_HORSE_MONSTER_NUMBER:
+        return False
+
     from base_classes import PlayerClass, PlayerRace, PlayerStat
 
     player = ctx.player
