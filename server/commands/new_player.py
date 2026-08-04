@@ -573,6 +573,12 @@ def _username_taken(username: str) -> bool:
     return (user_dir() / f"login-{username}.json").exists()
 
 
+def _ally_name_taken(name: str) -> bool:
+    """Return True if name collides with a bar Ally's name (Jake's Bar roster)."""
+    from bar.ally_data import load_allies
+    return name.strip().upper() in {a.name.upper() for a in load_allies()}
+
+
 # ---------------------------------------------------------------------------
 # Step 1 — user preferences
 # ---------------------------------------------------------------------------
@@ -710,7 +716,7 @@ async def _choose_name(ctx) -> bool:
         if name.lower() == "r":
             while True:
                 name = _generate_random_name(ctx.player)
-                if _username_taken(name.lower()):
+                if _username_taken(name.lower()) or _ally_name_taken(name):
                     continue  # collision -- silently reroll
                 accepted = await input_yes_no(ctx, f"Random name chosen: {name}. Accept?", default=True)
                 if accepted is None:
@@ -721,6 +727,12 @@ async def _choose_name(ctx) -> bool:
         # Character names share the same namespace as usernames.
         if _username_taken(name.lower()):
             await ctx.send(f"There is already someone named '{name}'.  Choose another.")
+            continue
+
+        # Names in Jake's Bar ally roster are reserved -- a new player
+        # can't pose as e.g. "BATMAN" or "ATHENA".
+        if _ally_name_taken(name):
+            await ctx.send(f"'{name}' is already the name of someone down at the bar.  Choose another.")
             continue
 
         ctx.player.name = name
