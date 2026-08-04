@@ -100,14 +100,45 @@ def _consume_ally_entry(ally, entry) -> None:
     # else: leave the (now-decremented) entry in place for the remaining stack
 
 
+# Mount-specific feeding (8/4/26, Ryan -- no SPUR precedent): a mount's
+# hit_points is otherwise a dead end after purchase -- it's seeded once
+# from strength (bar/fat_olaf.py's _HP_PER_STRENGTH, "hit_points seeded
+# as strength x this on purchase") and only ever goes down (combat
+# friendly-fire, _try_redirect_to_mount), with nothing anywhere to bring
+# it back up. Feeding restores a few points per item, capped at that
+# same strength x _HP_PER_STRENGTH ceiling, so hay/oats/carrots/etc.
+# double as the mount's only stamina-recovery mechanic. Doesn't apply to
+# non-mount allies -- their strength-only body build is unchanged.
+_MOUNT_HP_GAIN_RANGE = (2, 5)
+
+# rations.json numbers a mount actually recognizes as horse food -- Sugar
+# Cube, Oats, Apples, Hay, Carrots, Salt Lick, Bucket of Water, Bran Mash
+# (street/jakes.py's _SUGAR_CUBE_RATION_NUM/_OATS_RATION_NUM/
+# _APPLES_RATION_NUM/_HAY_RATION_NUM/_CARROTS_RATION_NUM/
+# _SALT_LICK_RATION_NUM/_WATER_RATION_NUM/_MASH_RATION_NUM -- same
+# numbers, keep both lists in sync if either changes). Any other
+# food/drink offered to a mount is declined instead of eaten.
+_MOUNT_FOOD_RATION_NUMBERS = frozenset({16, 25, 78, 79, 80, 81, 82, 83})
+
+
 async def _try_body_build(ctx: GameContext, ally, entry) -> None:
     """If *entry*'s item is food/drink, attempt ally body building.
 
     Poisoned food (kind='cursed') harms the ally instead of helping.
-    Normal food only boosts strength when the ally is below _BODY_BUILD_STR_CAP.
-    Either way, a consumed item is removed from ally.items -- it doesn't
-    persist after being eaten/drunk.
+    Normal food boosts strength when the ally is below _BODY_BUILD_STR_CAP.
+    A MOUNT-flagged ally additionally recovers hit_points (see
+    _MOUNT_HP_GAIN_RANGE above) -- mounts still consume the item for this
+    even once strength is capped, since the HP recovery is a separate
+    benefit. Any other ally that's already at the strength cap gets no
+    effect and keeps the item (nothing to consume it for).
+
+    A mount offered food/drink outside _MOUNT_FOOD_RATION_NUMBERS (e.g.
+    a ration meant for a human, like Candy Bar or Jar of Honey) declines
+    it outright -- no effect, item not consumed, stays in ally.items.
     """
+    from bar.ally_data import AllyFlags, AllyStatus
+    from bar.fat_olaf import _HP_PER_STRENGTH
+
     item  = entry.item
     ikind = (getattr(item, 'kind', '') or '').lower()
     aname = ally.name
@@ -122,12 +153,40 @@ async def _try_body_build(ctx: GameContext, ally, entry) -> None:
     if ikind not in _FOOD_KINDS:
         return
 
-    if ally.strength >= _BODY_BUILD_STR_CAP:
+    is_mount = AllyFlags.MOUNT in (ally.flags or [])
+
+    if is_mount and getattr(item, 'number', None) not in _MOUNT_FOOD_RATION_NUMBERS:
+        await ctx.send(f'{aname} sniffs at the {item.name.lower()} and eyes you warily.')
         return
 
-    ally.strength += 1
+    gained_strength = ally.strength < _BODY_BUILD_STR_CAP
+    if gained_strength:
+        ally.strength += 1
+
+    gained_hp = False
+    if is_mount and ally.status != AllyStatus.DEAD:
+        max_hp = ally.strength * _HP_PER_STRENGTH
+        current_hp = ally.hit_points or 0
+        if current_hp < max_hp:
+            gain = min(random.randint(*_MOUNT_HP_GAIN_RANGE), max_hp - current_hp)
+            if gain > 0:
+                ally.hit_points = current_hp + gain
+                gained_hp = True
+
+    if not gained_strength and not gained_hp:
+        return
+
     verb = 'drinks thirstily' if ikind == 'drink' else 'eats hungrily'
-    await ctx.send(f'{aname} {verb} and looks stronger!  (Str {ally.strength})')
+    if gained_strength and gained_hp:
+        await ctx.send(
+            f'{aname} {verb}, looks stronger, and seems more energetic!'
+            f'  (Str {ally.strength}, HP {ally.hit_points})'
+        )
+    elif gained_strength:
+        await ctx.send(f'{aname} {verb} and looks stronger!  (Str {ally.strength})')
+    else:
+        await ctx.send(f'{aname} {verb} and seems more energetic!  (HP {ally.hit_points})')
+
     _consume_ally_entry(ally, entry)
 
 
