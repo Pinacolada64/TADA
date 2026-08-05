@@ -19,6 +19,7 @@ SPUR notes (Guss):
 import datetime
 import logging
 import random
+from pathlib import Path
 from typing import Optional
 
 from bar.ally_data import Ally
@@ -83,7 +84,7 @@ async def _mae_session(ctx: GameContext, mae: Bartender) -> None:
     """Mae's interaction loop: food and drink menu."""
     player = ctx.player
 
-    foodstuffs     = Rations.read_rations("../rations.json") or []
+    foodstuffs      = Rations.read_rations(Path(__file__).parent / "../rations.json") or []
     displayed_items = food_menu(player, foodstuffs)
     log.debug("Displayed items: %i", len(displayed_items))
     await _bar_none_menu(ctx, displayed_items)

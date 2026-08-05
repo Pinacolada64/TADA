@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -37,7 +38,7 @@ def _rations_by_number() -> dict:
     global _RATIONS_BY_NUMBER
     if _RATIONS_BY_NUMBER is None:
         from items import Rations
-        data = Rations.read_rations('rations.json') or []
+        data = Rations.read_rations(Path(__file__).parent / 'rations.json') or []
         _RATIONS_BY_NUMBER = {
             r['number']: r for r in data
             if isinstance(r, dict) and 'number' in r
