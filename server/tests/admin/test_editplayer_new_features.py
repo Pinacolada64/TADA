@@ -937,6 +937,49 @@ class TestNamesMenuAddRemoveAllyByName(unittest.IsolatedAsyncioTestCase):
         self.assertIn('No available allies matching "gandalf".', ctx.sent[-1])
         self.assertTrue(any('excluded 1 ally' in s for s in ctx.sent))
 
+    async def test_add_refuses_when_already_holding_3_allies(self):
+        """Bug: _add_ally_by_name() is reachable directly from the top-level
+        [a] menu item (not just an empty A1-A3 slot), so it must enforce
+        the 3-ally cap itself instead of trusting the master roster's
+        FREE list to run out first."""
+        from unittest.mock import patch
+        player = _FakePlayer()
+        player.party = Party(members=[
+            _make_ally('GANDALF'), _make_ally('ARAGORN'), _make_ally('LEGOLAS'),
+        ])
+        ctx = _FakeCtx(player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=self._free_master_list()), \
+             patch('bar.ally_data.save_ally_roster') as mock_save:
+            await _find_item(menu, 'Add Ally').action(ctx)
+        self.assertEqual(len(player.party), 3)
+        self.assertIn('Already has 3 allies -- remove one first.', ctx.sent[-1])
+        mock_save.assert_not_called()
+
+    async def test_add_allowed_at_2_allies_plus_a_horse(self):
+        """A horse never counts against the 3-ally cap -- 2 regular allies
+        plus a mount must still allow a 3rd regular ally to be added."""
+        from unittest.mock import patch
+        player = _FakePlayer()
+        player.party = Party(members=[
+            _make_ally('LEGOLAS'), _make_mount('SILVER'),
+        ])
+        ctx = _FakeCtx(responses=['gand'], player=player)
+        menu = _names_menu(ctx)
+        with patch('bar.ally_data.load_allies', return_value=self._free_master_list()), \
+             patch('bar.ally_data.save_ally_roster'):
+            await _find_item(menu, 'Add Ally').action(ctx)
+        self.assertEqual(len(player.party), 3)
+        self.assertIn('GANDALF', {a.name for a in player.party})
+
+    async def test_remove_refuses_when_party_is_completely_empty(self):
+        player = _FakePlayer()
+        player.party = Party()
+        ctx = _FakeCtx(player=player)
+        menu = _names_menu(ctx)
+        await _find_item(menu, 'Remove Ally').action(ctx)
+        self.assertIn('No allies owned.', ctx.sent[-1])
+
     async def test_add_still_works_when_no_desync_present(self):
         from unittest.mock import patch
         from player import Player

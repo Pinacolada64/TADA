@@ -1139,6 +1139,16 @@ def _names_menu(ctx) -> Menu:
         and with partial-name matching/'?' listing (see _give_ration()'s
         established pattern) instead of pick_ally()'s numbered-only prompt.
         """
+        # This path is reachable directly from the top-level [a] menu item,
+        # unlike _add_ally() above which can only ever fire from an empty
+        # A1-A3 slot and is therefore structurally capped at 3 -- without
+        # this check here, a player already holding 3 allies could still
+        # be handed a 4th, breaking the 3-ally cap enforced everywhere else
+        # (see ally_events/capture_horse.py's mount_slot_available()).
+        if len(_regular_allies()) >= 3:
+            await ctx.send('Already has 3 allies -- remove one first.')
+            return
+
         from bar.ally_data import load_allies, save_ally_roster
         from bar.allies import filter_allies
 
