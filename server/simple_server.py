@@ -366,6 +366,18 @@ class Server:
         finally:
             if addr in self.clients:
                 del self.clients[addr]
+            # combat/duel.py's DuelSession.forfeit(): a duelist who
+            # disconnects mid-fight (crash, abrupt close, or a graceful
+            # quit) is treated as an automatic loss, mirroring
+            # SPUR.DUEL.S's "dropped" label (a lost carrier goes straight
+            # to hell2 -- the same consequences as being defeated fairly).
+            player = getattr(ctx, 'player', None)
+            active_duel = getattr(player, 'active_duel', None)
+            if active_duel is not None:
+                try:
+                    await active_duel.forfeit(player)
+                except Exception:
+                    logging.exception('%s: failed to forfeit duel on disconnect', addr)
             logging.info('%s: connection closed. Total clients: %d',
                          addr, len(self.clients))
             writer.close()

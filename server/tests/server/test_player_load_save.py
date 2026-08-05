@@ -438,6 +438,34 @@ class TestSurvivalCounterPersistence(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# duel_wins / duel_losses
+# ---------------------------------------------------------------------------
+
+class TestDuelRecordPersistence(unittest.TestCase):
+    """player.duel_wins/duel_losses (combat/duel.py's DuelSession._end(),
+    the personal SPORT DUEL win/loss record) -- same simple_keys pattern
+    as _survival_counter above; written by save() via the full __dict__
+    dump, so it must also be listed in _load()'s simple_keys tuple or it
+    silently resets to 0 on every relogin."""
+
+    def test_duel_record_survives_save_and_load(self):
+        import net_common
+
+        with tempfile.TemporaryDirectory() as tmp:
+            net_common.run_server_dir = tmp
+            player = Player(id='duelrecordtest', name='Duelrecordtest')
+            player.duel_wins = 3
+            player.duel_losses = 1
+            player.unsaved_changes = True
+            self.assertTrue(player.save(force=True))
+
+            reloaded = Player(id='duelrecordtest', name='Duelrecordtest')
+            self.assertTrue(reloaded._load())
+            self.assertEqual(reloaded.duel_wins, 3)
+            self.assertEqual(reloaded.duel_losses, 1)
+
+
+# ---------------------------------------------------------------------------
 # dead_monsters / monsters_killed
 # ---------------------------------------------------------------------------
 

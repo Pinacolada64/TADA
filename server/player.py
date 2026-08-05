@@ -376,6 +376,13 @@ class Player:
         # duel and is awaiting DUEL ACCEPT / DUEL DECLINE (see
         # combat/duel.py). Only one challenge can be pending at a time.
         self.pending_duel_challenge: Optional[str] = None
+        # Personal duel win/loss record (SPUR.DUEL2.S's "personal" label,
+        # spur.a1$'s g0/g9 fields) -- distinct from guild_standings.py's
+        # per-guild tally, which only covers guild-vs-guild duels.
+        # Persisted (not session-only): incremented by combat/duel.py's
+        # DuelSession._end() on every decisive SPORT DUEL.
+        self.duel_wins: int = kwargs.get('duel_wins', 0)
+        self.duel_losses: int = kwargs.get('duel_losses', 0)
         # Session-only: the shared combat.duel.DuelSession this player is
         # currently fighting in, if any (set on both duelists by
         # combat/duel.py's _resolve_challenge(), cleared by
@@ -1130,7 +1137,8 @@ class Player:
             # default in __init__ against what _load() actually restores.
             simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote',
                            'shield', 'armor', 'active_shield_id', 'loan_amount', 'loan_days', 'food', 'drink',
-                           '_survival_counter', 'experience', 'honor', 'moves_made', 'wizard_glow')
+                           '_survival_counter', 'experience', 'honor', 'moves_made', 'wizard_glow',
+                           'duel_wins', 'duel_losses')
             for k in simple_keys:
                 if k in data:
                     try:
