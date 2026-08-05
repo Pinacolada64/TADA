@@ -194,7 +194,7 @@ async def ask_riddle_menu(ctx) -> None:
     lines += numbered_list([riddle['text'] for riddle in _RIDDLES], width)
     await ctx.send(lines)
 
-    raw = await ctx.prompt('Riddle # (Enter to cancel)')
+    raw = await ctx.prompt(f'Riddle # ({ctx.player.return_key} to cancel)')
     try:
         choice = int((raw or '').strip())
     except ValueError:
@@ -207,4 +207,6 @@ async def ask_riddle_menu(ctx) -> None:
     name = getattr(ctx.player, 'name', 'Someone')
     await ctx.send(f'You ask, "{riddle["text"]}"')
     await ctx.send_room(f'{name} asks, "{riddle["text"]}"', exclude_self=True)
+    # TODO: random chance of not guessing the correct answer:
     await ctx.send_room(riddle['reply'])
+    # TODO: reward (NOT the ring!)

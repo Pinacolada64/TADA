@@ -464,12 +464,15 @@ class ExamineCommand(Command):
                 iname = (getattr(item, 'name', '') or '').strip()
                 if not iname:
                     continue
+                await ctx.send(f"{iname}:")
                 await self._describe_item(ctx, iname, item)
                 examined_any = True
             for name, entry, _remove_fn in room_entries:
+                await ctx.send(f"{name}:")
                 await self._describe_item(ctx, name, entry.item)
                 examined_any = True
             if monster is not None:
+                await ctx.send(f"{monster['name']}:")
                 await ctx.send(_examine_monster(ctx, monster))
                 examined_any = True
             if not examined_any:
@@ -501,7 +504,7 @@ class ExamineCommand(Command):
                 return CommandResult.ok()
 
         await ctx.send("You either spelled it wrong, or are seeing things..")
-        await ctx.send(tip(ctx, 'Examine Tip', "'X' examines everything you carry and everything here."))
+        await ctx.send('', tip(ctx, 'Examine Tip', "'X' examines everything you carry and everything here."))
         return CommandResult.ok()
 
     async def _describe_item(self, ctx: GameContext, name: str, item) -> None:

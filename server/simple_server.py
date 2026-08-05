@@ -27,7 +27,7 @@ import net_common as nc
 from net_client import Client
 from network_context import GameContext, PETSCIINetworkContext, GuestPlayer
 from formatting import flatten_send_args, format_lines, codec_for_settings, ANSI_COLOR_CODES
-from tada_utilities import a_or_an, format_quote, grammatical_list, list_players_in_room, oxford_comma_list
+from tada_utilities import a_or_an, format_quote, grammatical_list, list_players_in_room, oxford_comma_list, is_or_are
 from base_classes import Map, compass_txts
 from items import Item, Rations, Weapon
 from characters import Monster
@@ -841,7 +841,7 @@ class Server:
                     # port's own wording convention).
                     lines += ['', 'A short bearded person is here, with a pile of silver!']
                 else:
-                    lines += ['', f"There is {f'{size} ' if size else ''}{name} here."]
+                    lines += ['', f"There {is_or_are(name)} {f'{size} ' if size else ''}{name} here."]
 
                 # Non-expert nudge toward the SAY-riddle easter egg
                 # (encounters/gollum.py) -- pure new content, no SPUR

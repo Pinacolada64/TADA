@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
+from formatting import hrule_char, make_rule
 from network_context import GameContext
 
 
@@ -29,12 +30,12 @@ class WhoCommand(Command):
         summary     = 'List currently online players.',
         description = (
             'Shows each connected player with how long they have been online '
-            'and how long since they last typed a command. '
-            'Admins also see the IP address of each connection.'
+            'and how long since they last typed a command.'
         ),
         category = HelpCategory.COMMUNICATION,
         usage    = [('who', 'List online players')],
         examples = [('who', 'Show the online roster')],
+        admin_notes=['Admins also see the IP address of each connection.']
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
@@ -59,13 +60,15 @@ class WhoCommand(Command):
 
         rows.sort(key=lambda r: r[0].lower())
 
+        rule_width = getattr(getattr(ctx.player, 'client_settings', None), 'screen_columns', 80)
+
         lines = []
         if is_admin:
             lines.append(f"{'Name':<16} {'Online':>8}  {'Idle':>8}  IP")
-            lines.append('-' * 48)
+            lines.append(make_rule(rule_width, hrule_char(ctx)))
         else:
             lines.append(f"{'Name':<16} {'Online':>8}  {'Idle':>8}")
-            lines.append('-' * 36)
+            lines.append(make_rule(rule_width, hrule_char(ctx)))
 
         if not rows:
             lines.append('  No players online.')

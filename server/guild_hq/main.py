@@ -337,8 +337,8 @@ async def _guild_bank(ctx: GameContext, player, state: dict, info: dict) -> None
 
         await ctx.send([
             '',
-            f'  In Guild Treasury : {treasury} silver',
-            f'  In your hand      : {in_hand} silver',
+            f'  In Guild Treasury : {treasury:>9,} silver',
+            f'  In your hand      : {in_hand:>9,} silver',
             '',
         ])
 

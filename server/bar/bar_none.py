@@ -76,7 +76,7 @@ async def _bar_none_menu(ctx: GameContext, displayed_items: list) -> None:
     for i, item in enumerate(displayed_items, 1):
         lines.append(f"  {i:>2}. {item.name.title():<20} {item.price:>3} silver")
     lines.append("")
-    lines.append(f"[L]ist, [X]pert mode, or select 1-{len(displayed_items)}")
+    lines.append(f"[L]ist, e[X]pert mode, or select 1-{len(displayed_items)}")
     await ctx.send(lines)
 
 
@@ -122,7 +122,7 @@ async def _mae_session(ctx: GameContext, mae: Bartender) -> None:
                     )
                 else:
                     await ctx.send(
-                        f'{mae.name} shakes {get_pronoun(mae, PronounType.SUBJECTIVE)} '
+                        f'{mae.name} shakes {get_pronoun(mae, PronounType.POSSESSIVE_PRONOUN)} '
                         f'head. "Looks as if that{_AP}s too rich for your blood..."'
                     )
             else:
@@ -603,6 +603,7 @@ async def main(ctx: GameContext, bar=None) -> None:
         description_lines.append("")
         description_lines.append(mae.random_greeting())
         await ctx.send(tip_lines + description_lines)
+        await broadcast_area(ctx, 'bar', f'{player.name} chats with {mae.name}.')
 
     await _mae_session(ctx, mae)
 

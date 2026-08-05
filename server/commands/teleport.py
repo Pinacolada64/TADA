@@ -114,7 +114,7 @@ class TeleportCommand(Command):
             'or a name fragment to search — lists all matches, or '
             'teleports immediately if unique.'
         ),
-        category    = HelpCategory.MOVEMENT,
+        category    = HelpCategory.ADMINISTRATIVE,
         usage       = [
             ('#<room>',          'Teleport to that room number on your current level.'),
             ('#<level> <room>',  'Teleport to that room number on a specific level.'),

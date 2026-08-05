@@ -4988,7 +4988,7 @@
             "no_gold": true,
             "multiple_monsters": false,
             "no_article": false,
-            "charmable": true,
+            "charmable": false,
             "has_quote": false
         },
         "quote_number": null,
