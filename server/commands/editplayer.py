@@ -1883,9 +1883,9 @@ def _inventory_action(ctx):
                 'Command',
                 preamble_lines=[
                     '[W]eapon  [A]rmor  [S]pell  [O]bject  [B]ook (r<#>=Read)  [R]ation',
-                    '[T]ransfer  [L]ist weapons  [I]nventory  [Q]uit',
-                    '(Weapon/Object/Book/Ration will ask who receives it -- you, an ally,',
-                    ' or another character by name)',
+                    '[T]ransfer  [D]rop  [L]ist weapons  [I]nventory  [Q]uit',
+                    '(Weapon/Object/Book/Ration/Transfer will ask who receives it -- you,',
+                    ' an ally, the mount, or another character by name; Drop deletes it)',
                 ],
             )
             if raw is None:
@@ -1914,13 +1914,21 @@ def _inventory_action(ctx):
             elif cmd == 'b':
                 await _give_object(ctx, {'book'}, 'book')
             elif cmd == 'o':
+                # 'misc' covers quest/utility items objects.json has no
+                # more specific type for (communicator, tool kit,
+                # spacesuit, Palantir, Amulet of Life, Crown of Midas,
+                # ruby slippers, keys, etc.) -- omitted here until Ryan
+                # found "broken communicator" unreachable via [O]bject
+                # search, which is what this type is actually for.
                 _OBJ_TYPES = {'treasure', 'compass', 'container', 'ammunition',
-                              'power', 'cursed'}
+                              'power', 'cursed', 'misc'}
                 await _give_object(ctx, _OBJ_TYPES, 'object')
             elif cmd == 's':
                 await ctx.send('Spell giving not ready yet.')
             elif cmd == 't':
                 await _transfer_item(ctx)
+            elif cmd == 'd':
+                await _drop_item(ctx)
             else:
                 await ctx.send('Unknown option.')
 
@@ -1960,13 +1968,17 @@ async def _show_inventory(ctx) -> None:
 
 async def _transfer_item(ctx) -> None:
     """[T]ransfer: move an *existing* item out of ctx.player's own
-    inventory into another character's -- online or offline, searched
-    by name via _find_character(). Distinct from _give_weapon()/
-    _give_ration()/_give_object(), which grant a brand-new item from a
-    catalog; this moves something the player already has. Checks the
-    destination has room *before* removing anything from the source, so
-    a full target inventory can't strand the item in neither place. New
-    in TADA, Ryan's request."""
+    inventory into another recipient's -- an owned ally, the mount (if
+    it has saddlebags), or any other character (online or offline,
+    searched by name) via the same _pick_recipient()/_deliver_item()
+    picker the give-flows use, rather than the name-only prompt this
+    used to have. Distinct from _give_weapon()/_give_ration()/
+    _give_object(), which grant a brand-new item from a catalog; this
+    moves something the player already has. Checks the destination has
+    room *before* removing anything from the source (via _deliver_item()'s
+    return value), so a full/ineligible target can't strand the item in
+    neither place. New in TADA, Ryan's request; ally/mount picker added
+    per Ryan's follow-up request."""
     inv = getattr(ctx.player, 'inventory', None)
     entries = list(inv.entries()) if inv and hasattr(inv, 'entries') else []
     if not entries:
@@ -1988,46 +2000,84 @@ async def _transfer_item(ctx) -> None:
     item = entry.item
     item_name = getattr(item, 'name', '?')
 
-    name_raw = await ctx.prompt('Transfer to which character')
-    if not name_raw or not name_raw.strip():
-        await ctx.send('Cancelled.')
-        return
-    target_name = name_raw.strip()
-    if target_name.lower() == ctx.player.name.lower():
+    recipient = await _pick_recipient(ctx)
+    if recipient[0] == 'player':
         await ctx.send(f"{item_name} is already {ctx.player.name}'s.")
         return
-    found = await _find_character(ctx, target_name)
-    if found is None:
-        await ctx.send(f'No character named "{target_name}".')
-        return
-    target_player, is_online = found
+    recipient_name = recipient[1].name
 
-    target_inv = getattr(target_player, 'inventory', None)
-    if target_inv is None:
-        await ctx.send(f'{target_player.name} has no inventory object.')
-        return
-
-    confirm = await ctx.prompt(f'Transfer {item_name} to {target_player.name}? (y/N)')
+    confirm = await ctx.prompt(f'Transfer {item_name} to {recipient_name}? (y/N)')
     if not confirm or confirm.strip().lower() != 'y':
         await ctx.send('Cancelled.')
         return
 
     # Check room at the destination *before* touching the source -- an
     # item removed here and rejected there would just vanish.
-    if not target_inv.add(item):
-        await ctx.send(f"{target_player.name}'s inventory is full -- transfer cancelled.")
+    delivered = await _deliver_item(ctx, item, recipient, item_name)
+    if not delivered:
         return
     if not inv.remove(item):
         # Destination already has it added; undo rather than duplicate.
-        target_inv.remove(item)
+        await _undo_delivery(recipient, item)
         await ctx.send('Something went wrong removing the item -- transfer cancelled.')
         return
 
     ctx.player.unsaved_changes = True
-    target_player.unsaved_changes = True
-    if not is_online:
-        target_player.save(force=True)
-    await ctx.send(f"Transferred {item_name} to {target_player.name}.")
+    await ctx.send(f"Transferred {item_name} to {recipient_name}.")
+
+
+async def _undo_delivery(recipient, item) -> None:
+    """Roll back a successful _deliver_item() -- used by _transfer_item()
+    in the (very unlikely) case the source removal itself fails after
+    the destination add already succeeded."""
+    kind = recipient[0]
+    if kind == 'other':
+        target_inv = getattr(recipient[1], 'inventory', None)
+        if target_inv is not None:
+            target_inv.remove(item)
+    elif kind == 'ally':
+        ally = recipient[1]
+        if getattr(ally, 'items', None):
+            ally.items = [e for e in ally.items if e.item is not item]
+
+
+async def _drop_item(ctx) -> None:
+    """[D]rop: delete an item from ctx.player's own inventory outright --
+    for clearing out sysop test/mistake items without having to route
+    them through [T]ransfer to nowhere. Confirms before removing since
+    this is destructive and, unlike Transfer, unrecoverable from within
+    this menu. New in TADA, Ryan's request."""
+    inv = getattr(ctx.player, 'inventory', None)
+    entries = list(inv.entries()) if inv and hasattr(inv, 'entries') else []
+    if not entries:
+        await ctx.send('Inventory is empty -- nothing to drop.')
+        return
+
+    await _show_inventory(ctx)
+    raw = await ctx.prompt('Drop which item # (blank to cancel)')
+    if not raw or not raw.strip():
+        return
+    try:
+        idx = int(raw.strip()) - 1
+        if not (0 <= idx < len(entries)):
+            raise ValueError
+    except ValueError:
+        await ctx.send('Invalid selection.')
+        return
+    entry = entries[idx]
+    item = entry.item
+    item_name = getattr(item, 'name', '?')
+
+    confirm = await ctx.prompt(f'Delete {item_name} from {ctx.player.name}? (y/N)')
+    if not confirm or confirm.strip().lower() != 'y':
+        await ctx.send('Cancelled.')
+        return
+
+    if not inv.remove(item):
+        await ctx.send('Something went wrong removing the item.')
+        return
+    ctx.player.unsaved_changes = True
+    await ctx.send(f'Dropped {item_name}.')
 
 
 async def _find_character(ctx, name: str):
@@ -2115,7 +2165,7 @@ async def _pick_recipient(ctx):
     return ('ally', allies[idx - 1])
 
 
-async def _deliver_item(ctx, item, recipient, item_name: str) -> None:
+async def _deliver_item(ctx, item, recipient, item_name: str) -> bool:
     """Add *item* to *recipient* (from _pick_recipient()) -- the player's
     own Inventory, an ally's .items list (respecting mount carrying-
     capacity rules, commands/give.py's _mount_capacity()), or another
@@ -2125,35 +2175,40 @@ async def _deliver_item(ctx, item, recipient, item_name: str) -> None:
     replacing the three-times-duplicated "add straight to
     ctx.player.inventory" logic each had before EditPlayer's inventory
     menu could target allies/the mount/other characters. New in TADA,
-    Ryan's request."""
+    Ryan's request.
+
+    Returns True if the item was actually added -- _transfer_item() uses
+    this to decide whether it's safe to remove the item from its source,
+    same "don't touch the source until the destination confirms room"
+    ordering its own docstring already promises."""
     kind = recipient[0]
 
     if kind == 'player':
         inv = getattr(ctx.player, 'inventory', None)
         if inv is None:
             await ctx.send('Player has no inventory object.')
-            return
+            return False
         if inv.add(item):
             ctx.player.unsaved_changes = True
             await ctx.send(f"Added {item_name} to {ctx.player.name}'s inventory.")
-        else:
-            await ctx.send('Inventory is full.')
-        return
+            return True
+        await ctx.send('Inventory is full.')
+        return False
 
     if kind == 'other':
         _, target_player, is_online = recipient
         inv = getattr(target_player, 'inventory', None)
         if inv is None:
             await ctx.send(f'{target_player.name} has no inventory object.')
-            return
+            return False
         if not inv.add(item):
             await ctx.send(f"{target_player.name}'s inventory is full.")
-            return
+            return False
         target_player.unsaved_changes = True
         if not is_online:
             target_player.save(force=True)
         await ctx.send(f"Added {item_name} to {target_player.name}'s inventory.")
-        return
+        return True
 
     ally = recipient[1]
     from commands.give import _mount_capacity
@@ -2165,13 +2220,14 @@ async def _deliver_item(ctx, item, recipient, item_name: str) -> None:
     if capacity is not None:
         if capacity == 0:
             await ctx.send(f'{ally.name} has nowhere to carry it -- needs saddlebags first.')
-            return
+            return False
         if len(ally.items) >= capacity:
             await ctx.send(f"{ally.name}'s saddlebags are full.")
-            return
+            return False
     ally.items.append(InventoryEntry(item=item))
     ctx.player.unsaved_changes = True
     await ctx.send(f"Added {item_name} to {ally.name}'s pack.")
+    return True
 
 
 async def _send_weapon_list(ctx, weapons) -> None:

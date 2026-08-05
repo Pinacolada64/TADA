@@ -1,7 +1,7 @@
 """ship/ammo_locker.py — the ship's ammo locker (SPUR.SHIP.S `ammo`/`ammo1`/`ammo2` section).
 
 Sells energy-weapon ammo/power paks -- objects.json #118-121 (sabre power,
-phaser pak, plasma power, plasma pak) -- at price*20 gold (SPUR: `it=it*20`).
+phaser pak, plasma power, plasma pak) -- at price*20 silver (SPUR: `it=it*20`).
 Distinct from shoppe/ollys.py's Olly's Ammo & Traps, which covers a
 different item range (98-111) and has no energy-weapon ammo at all.
 """
@@ -10,11 +10,15 @@ import logging
 import os
 
 from network_context import GameContext
+from table import Table, Column, Align
 
 log = logging.getLogger(__name__)
 
 # objects.json #118-121 inclusive (SPUR.SHIP.S ammo1: "x=118" ... "if x>121")
 _AMMO_RANGE = range(118, 122)
+
+# Same zebra-striping convention as shoppe/ollys.py's Olly's Ammo & Traps.
+_ROW_COLORS = ['light_blue', 'cyan']
 
 
 def _load_objects() -> list[dict]:
@@ -28,8 +32,44 @@ def _load_objects() -> list[dict]:
         return []
 
 
+def ammo_table(ammo_items: list, row_colors: list = None) -> Table:
+    """Render the ammo listing, same style as shoppe/ollys.py's
+    _ammo_table(). Unlike Olly's *carrier* items (which show remaining
+    Capacity), every item here is straight ammo/power with its own
+    rounds+damage -- so this borrows Olly's Rnds/Dmg ammo-table layout,
+    not its Capacity carrier-table one.
+
+    Two bugs fixed here from the first draft: `row_colors=list[ColorName]`/
+    `ammo_items=list` as default *values* evaluate the type itself as the
+    default, not an actual list/None -- and the call site was passing them
+    in the wrong order, and never called .render() before sending the
+    Table object as if it were already a list of lines.
+    """
+    if row_colors is None:
+        row_colors = _ROW_COLORS
+    t = Table(headers=[
+        Column('#',         align=Align.RIGHT,  min_width=2),
+        Column('Name',                          min_width=16),
+        Column('Rnds',      align=Align.RIGHT,  min_width=4),
+        Column('Dmg',       align=Align.RIGHT,  min_width=3),
+        Column('Used With',                     min_width=12),
+        Column('Cost',      align=Align.RIGHT,  min_width=4),
+    ], border=False, text_color=row_colors)
+    for j, it in enumerate(ammo_items, start=1):
+        flags = it.get('flags', {})
+        t.add_row([
+            str(j),
+            it['name'],
+            str(flags.get('rounds', '?')),
+            str(flags.get('damage', '?')),
+            flags.get('used_with', '').strip(),
+            f"{it['price'] * 20:,}s",  # SPUR: it=it*20 -- matches main()'s purchase price
+        ])
+    return t
+
+
 async def main(ctx: GameContext) -> None:
-    """Ship's ammo locker -- buy energy-weapon ammo for price*20 gold."""
+    """Ship's ammo locker -- buy energy-weapon ammo for price*20 silver."""
     from base_classes import PlayerMoneyTypes
     from inventory import PACK_FULL_MESSAGE
     from items import Item, ItemCategory
@@ -40,17 +80,22 @@ async def main(ctx: GameContext) -> None:
     objects_by_num = {o['number']: o for o in _load_objects()}
     ammo_items = [objects_by_num[n] for n in _AMMO_RANGE if n in objects_by_num]
 
-    await ctx.send("You enter the ship's ammo locker..")
+    # Shop numbering is the table's own 1..N display index (matching the
+    # "#" column and shoppe/ollys.py's own index_to_item convention), not
+    # objects.json's raw #118-121 numbers -- easier to shop "1" than
+    # remembering "phaser pak is #119".
+    index_to_item = {i: it for i, it in enumerate(ammo_items, start=1)}
+
+    await ctx.send("You enter the ship's ammo locker...")
+
+    try:
+        width = ctx.player.client_settings.screen_columns
+    except AttributeError:
+        width = 78
 
     while True:
-        lines = ['', '  #  Name           Rnds Dmg Weapon              Cost', '']
-        for it in ammo_items:
-            flags = it.get('flags', {}) or {}
-            lines.append(
-                f"  {it['number']:>3}: {it['name']:<14} "
-                f"{flags.get('rounds', 0):>4} {flags.get('damage', 0):>3} "
-                f"{flags.get('used_with', ''):<18} {it['price'] * 20:>5}"
-            )
+        lines = ['', '<=-=-=-=-=-=-=[[AMMO LOCKER]]=-=-=-=-=-=-=-=>', '']
+        lines += ammo_table(ammo_items).render(width=width)
         lines.append('')
         await ctx.send(lines)
 
@@ -66,21 +111,21 @@ async def main(ctx: GameContext) -> None:
         try:
             num = int(choice)
         except ValueError:
-            await ctx.send(f'Enter {_AMMO_RANGE.start} - {_AMMO_RANGE.stop - 1} or Q')
+            await ctx.send(f'Enter 1-{len(ammo_items)} or Q')
             continue
 
-        matched = objects_by_num.get(num) if num in _AMMO_RANGE else None
+        matched = index_to_item.get(num)
         if matched is None:
-            await ctx.send(f'Enter {_AMMO_RANGE.start} - {_AMMO_RANGE.stop - 1} or Q')
+            await ctx.send(f'Enter 1-{len(ammo_items)} or Q')
             continue
 
         price = matched['price'] * 20
         silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
         if silver < price:
-            await ctx.send('You do not have enough gold.')
+            await ctx.send('You do not have enough silver.')
             continue
 
-        await ctx.send(f"You choose {matched['name']} for {price} gold? ")
+        await ctx.send(f"You choose {matched['name']} for {price} silver? ")
         raw = await ctx.prompt('AFFIRMATIVE? (Y/N)')
         if raw is None or raw.strip().upper() != 'Y':
             continue
@@ -94,4 +139,4 @@ async def main(ctx: GameContext) -> None:
 
         player.subtract_silver(PlayerMoneyTypes.IN_HAND, price)
         player.unsaved_changes = True
-        await ctx.send('You insert gold in the slot.')
+        await ctx.send('You insert silver in the slot.')

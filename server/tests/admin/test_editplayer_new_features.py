@@ -1464,6 +1464,31 @@ class TestGiveItemQuestionMarkListsAll(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(any('Ring' in s for s in ctx.sent))
         self.assertTrue(any('Compass' in s for s in ctx.sent))
 
+    async def test_misc_type_items_are_findable_via_o_menu_key(self):
+        # Regression: objects.json's "misc" type (communicator, tool kit,
+        # spacesuit, Palantir, Amulet of Life, Crown of Midas, keys, etc.
+        # -- 24 real items) was missing from _inventory_action's 'o'
+        # branch's _OBJ_TYPES set, making all of them unreachable via
+        # [O]bject search. Ryan found this live searching for "broken"
+        # and not finding "broken communicator." Exercises the real 'o'
+        # menu dispatch, not _give_object() directly, so it would have
+        # caught the stale _OBJ_TYPES set even if _give_object() itself
+        # were correct.
+        from inventory import Inventory
+        server = _FakeServer()
+        server.items = [
+            {'number': 141, 'name': 'broken communicator', 'type': 'misc', 'price': 1},
+        ]
+        player = _FakePlayer()
+        player.inventory = Inventory(capacity=10)
+        ctx = _FakeCtx(responses=['o', 'broken communicator', '', 'q'],
+                       player=player, server=server)
+
+        await _inventory_action(ctx)(ctx)
+
+        names = [e.item.name for e in player.inventory.entries()]
+        self.assertIn('broken communicator', names)
+
 
 class TestGiveToAllyOrMount(unittest.IsolatedAsyncioTestCase):
     """New in TADA: EditPlayer's inventory menu can now target an owned
@@ -1796,7 +1821,7 @@ class TestTransferItem(unittest.IsolatedAsyncioTestCase):
         dest.inventory = Inventory(capacity=10)
         dest_client = SimpleNamespace(ctx=SimpleNamespace(player=dest))
 
-        ctx = _FakeCtx(responses=['1', 'Robin', 'y'], player=source)
+        ctx = _FakeCtx(responses=['1', 'n', 'Robin', 'y'], player=source)
         ctx.server.clients = {'addr1': dest_client}
 
         await _transfer_item(ctx)
@@ -1814,7 +1839,7 @@ class TestTransferItem(unittest.IsolatedAsyncioTestCase):
         offline.save(force=True)
 
         source = self._player_with_item()
-        ctx = _FakeCtx(responses=['1', 'Offliner', 'y'], player=source)
+        ctx = _FakeCtx(responses=['1', 'n', 'Offliner', 'y'], player=source)
 
         await _transfer_item(ctx)
 
@@ -1835,7 +1860,7 @@ class TestTransferItem(unittest.IsolatedAsyncioTestCase):
         dest.inventory = Inventory(capacity=10)
         dest_client = SimpleNamespace(ctx=SimpleNamespace(player=dest))
 
-        ctx = _FakeCtx(responses=['1', 'Robin', 'n'], player=source)
+        ctx = _FakeCtx(responses=['1', 'n', 'Robin', 'n'], player=source)
         ctx.server.clients = {'addr1': dest_client}
 
         await _transfer_item(ctx)
@@ -1856,7 +1881,7 @@ class TestTransferItem(unittest.IsolatedAsyncioTestCase):
         dest.inventory.add(Item(id_number=99, name='Already Full', category=ItemCategory.ITEM))
         dest_client = SimpleNamespace(ctx=SimpleNamespace(player=dest))
 
-        ctx = _FakeCtx(responses=['1', 'Robin', 'y'], player=source)
+        ctx = _FakeCtx(responses=['1', 'n', 'Robin', 'y'], player=source)
         ctx.server.clients = {'addr1': dest_client}
 
         await _transfer_item(ctx)
@@ -1865,9 +1890,13 @@ class TestTransferItem(unittest.IsolatedAsyncioTestCase):
         self.assertIn('inventory is full', '\n'.join(ctx.sent).lower())
 
     async def test_unknown_destination_cancels(self):
+        # _pick_recipient() falls back to "giving to yourself" on an
+        # unknown name -- _transfer_item() then refuses that as a no-op
+        # (see test_transferring_to_yourself_is_refused) rather than
+        # actually moving anything.
         from commands.editplayer import _transfer_item
         source = self._player_with_item()
-        ctx = _FakeCtx(responses=['1', 'NobodyHome', 'y'], player=source)
+        ctx = _FakeCtx(responses=['1', 'n', 'NobodyHome'], player=source)
         await _transfer_item(ctx)
         self.assertEqual(len(source.inventory.entries()), 1)
         self.assertIn('No character named', '\n'.join(ctx.sent))
@@ -1875,10 +1904,103 @@ class TestTransferItem(unittest.IsolatedAsyncioTestCase):
     async def test_transferring_to_yourself_is_refused(self):
         from commands.editplayer import _transfer_item
         source = self._player_with_item()
-        ctx = _FakeCtx(responses=['1', source.name], player=source)
+        ctx = _FakeCtx(responses=['1', ''], player=source)  # blank = yourself
         await _transfer_item(ctx)
         self.assertEqual(len(source.inventory.entries()), 1)
         self.assertIn('already', '\n'.join(ctx.sent).lower())
+
+    async def test_transfer_to_ally(self):
+        from commands.editplayer import _transfer_item
+
+        source = self._player_with_item()
+        ally = _make_ally('Watson')
+        source.party = Party(members=[ally])
+
+        ctx = _FakeCtx(responses=['1', '1', 'y'], player=source)  # item 1, ally #1, confirm
+        await _transfer_item(ctx)
+
+        self.assertEqual(len(source.inventory.entries()), 0)
+        self.assertEqual(len(ally.items), 1)
+        self.assertEqual(ally.items[0].item.name, 'Lucky Coin')
+
+    async def test_transfer_to_mount_without_saddlebags_is_refused(self):
+        from commands.editplayer import _transfer_item
+
+        source = self._player_with_item()
+        mount = _make_mount()
+        source.party = Party(members=[mount])
+
+        ctx = _FakeCtx(responses=['1', '1', 'y'], player=source)  # item 1, mount #1, confirm
+        await _transfer_item(ctx)
+
+        self.assertEqual(len(source.inventory.entries()), 1)  # item stays put
+        self.assertIn('saddlebags', '\n'.join(ctx.sent).lower())
+
+
+class TestDropItem(unittest.IsolatedAsyncioTestCase):
+    """[D]rop -- delete an item from ctx.player's own inventory outright.
+    New in TADA, Ryan's request."""
+
+    def _player_with_item(self):
+        from inventory import Inventory
+        from items import Item, ItemCategory
+        player = _FakePlayer()
+        player.inventory = Inventory(capacity=10)
+        player.inventory.add(Item(id_number=1, name='Lucky Coin', category=ItemCategory.ITEM))
+        return player
+
+    async def test_empty_inventory_has_nothing_to_drop(self):
+        from commands.editplayer import _drop_item
+        player = _FakePlayer()
+        player.inventory = __import__('inventory').Inventory(capacity=10)
+        ctx = _FakeCtx(player=player)
+        await _drop_item(ctx)
+        self.assertIn('Inventory is empty -- nothing to drop.', ctx.sent)
+
+    async def test_drop_removes_item(self):
+        from commands.editplayer import _drop_item
+        player = self._player_with_item()
+        ctx = _FakeCtx(responses=['1', 'y'], player=player)
+        await _drop_item(ctx)
+        self.assertEqual(len(player.inventory.entries()), 0)
+        self.assertTrue(any('Dropped' in s for s in ctx.sent))
+
+    async def test_declining_confirmation_leaves_item_in_place(self):
+        from commands.editplayer import _drop_item
+        player = self._player_with_item()
+        ctx = _FakeCtx(responses=['1', 'n'], player=player)
+        await _drop_item(ctx)
+        self.assertEqual(len(player.inventory.entries()), 1)
+
+    async def test_invalid_selection_leaves_item_in_place(self):
+        from commands.editplayer import _drop_item
+        player = self._player_with_item()
+        ctx = _FakeCtx(responses=['99'], player=player)
+        await _drop_item(ctx)
+        self.assertEqual(len(player.inventory.entries()), 1)
+        self.assertIn('Invalid selection.', ctx.sent)
+
+    async def test_blank_selection_cancels(self):
+        from commands.editplayer import _drop_item
+        player = self._player_with_item()
+        ctx = _FakeCtx(responses=[''], player=player)
+        await _drop_item(ctx)
+        self.assertEqual(len(player.inventory.entries()), 1)
+
+
+class TestInventoryMenuDropOption(unittest.IsolatedAsyncioTestCase):
+    async def test_d_routes_to_drop_item(self):
+        from inventory import Inventory
+        from items import Item, ItemCategory
+
+        player = _FakePlayer()
+        player.inventory = Inventory(capacity=10)
+        player.inventory.add(Item(id_number=1, name='Lucky Coin', category=ItemCategory.ITEM))
+
+        ctx = _FakeCtx(responses=['d', '1', 'y', 'q'], player=player)
+        await _inventory_action(ctx)(ctx)
+
+        self.assertEqual(len(player.inventory.entries()), 0)
 
 
 if __name__ == '__main__':

@@ -57,7 +57,7 @@ class TestShipMenuDisabledFacilities(unittest.IsolatedAsyncioTestCase):
         player = _new_player('Rulan')
         ctx = _FakeCtx(['w', 'x'], player)
         await ship_main(ctx)
-        self.assertIn('(No magic shop on the ship..)', ctx._flat())
+        self.assertIn('(There is no magic shop aboard this ship--how illogical.)', ctx._flat())
 
     async def test_pawn_shop_is_disabled(self):
         player = _new_player('Rulan')

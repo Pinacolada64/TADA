@@ -35,6 +35,7 @@ import logging
 
 from network_context import GameContext
 from presence import enter_area, leave_area, broadcast_open_room, others_present
+from tada_utilities import tip
 
 log = logging.getLogger(__name__)
 
@@ -82,7 +83,14 @@ def _ammo_locker(ctx: GameContext):
 
 
 async def _wizard_disabled(ctx: GameContext) -> None:
-    await ctx.send('(No magic shop on the ship..)')
+    lines = [
+        *tip(ctx=ctx,
+             title="Arthur C. Clarke",
+             message="Any sufficiently advanced technology is indistinguishable from magic."),
+        '',
+        '(There is no magic shop aboard this ship--how illogical.)',
+    ]
+    await ctx.send(lines)
 
 
 async def _pawn_disabled(ctx: GameContext) -> None:
@@ -115,7 +123,7 @@ async def _show_menu(ctx: GameContext) -> None:
     for key, label, _ in _MENU:
         lines.append(f'  [{key}] {label}')
     lines += ['  [SALVAGE] Salvage Bay', '  [TR] Transporter',
-              '  [X] Leave the Ship', '']
+              '  [X] Leave the Shop', '']
     await ctx.send(lines)
 
 
@@ -133,11 +141,11 @@ async def main(ctx: GameContext) -> None:
         ctx, f'{player.name} climbs down through the manhole into the ship’s Stores area.',
     )
 
-    await enter_area(ctx, 'Ship')
+    await enter_area(ctx, "Ship's Stores")
     try:
         await _ship_session(ctx, player)
     finally:
-        await leave_area(ctx, 'Ship')
+        await leave_area(ctx, "Ship's Stores")
 
 
 async def _ship_session(ctx: GameContext, player) -> None:
@@ -145,7 +153,7 @@ async def _ship_session(ctx: GameContext, player) -> None:
         if not player.is_expert:
             await _show_menu(ctx)
 
-        raw = await ctx.prompt('Ships Stores')
+        raw = await ctx.prompt("Ship's Stores")
         if raw is None:
             break
         full = raw.strip().lower()

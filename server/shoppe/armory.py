@@ -118,7 +118,7 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
             continue
 
         if silver < price:
-            await ctx.send("Sorry to say, but you do not have enough gold at hand.")
+            await ctx.send("Sorry to say, but you do not have enough silver at hand.")
             continue
 
         weapon = Weapon(
@@ -292,7 +292,7 @@ async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> N
 
         silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
         if silver < price:
-            await ctx.send('You do not have enough gold.')
+            await ctx.send('You do not have enough silver.')
             continue
 
         await ctx.send(f"You choose {chosen['name']} for {price} silver?")

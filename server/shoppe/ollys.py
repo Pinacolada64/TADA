@@ -79,7 +79,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
     # line; the 'Used With' header already labels the column, so the
     # brackets were redundant anyway (same reasoning that dropped 'rnd'/
     # 'dmg:'/'cap:' from these rows earlier).
-    _ROW_COLORS = ['yellow', 'cyan']
+    _ROW_COLORS = ['light_blue', 'cyan']
 
     def _ammo_table() -> Table:
         t = Table(headers=[
@@ -104,7 +104,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
 
     def _carrier_table() -> Table:
         t = Table(headers=[
-            Column('#',         align=Align.RIGHT, min_width=2),
+            Column('#',         align=Align.RIGHT,  min_width=2),
             Column('Name',                          min_width=16),
             Column('Capacity',  align=Align.RIGHT,  min_width=8),
             Column('Used With',                     min_width=12),
