@@ -397,6 +397,7 @@ class GiveCommand(Command):
             # weapon is auto-readied on the spot (replacing whatever they
             # had -- combat/resolution.py ally_attacks() reads ally.readied_weapon).
             from items import Weapon
+            from inventory import InventoryEntry
             if isinstance(item, Weapon):
                 if inventory:
                     inventory.remove(item)
@@ -404,7 +405,15 @@ class GiveCommand(Command):
                 ally.ammo_rounds = 0
                 ally.ammo_max = 0
                 ally.ammo_damage = 0
-                ally.items.append(entry)
+                # A fresh entry, not the source `entry` -- inventory.remove()
+                # only decrements a stacked entry's quantity in place rather
+                # than always popping it, so reusing `entry` here would hand
+                # the ally the *same object* still sitting in the player's
+                # own inventory (whatever quantity remains of the stack)
+                # instead of the one unit actually given. Not stack-stacked
+                # in practice for weapons, but keep the pattern consistent
+                # with the plain-item branch below, where it does bite.
+                ally.items.append(InventoryEntry(item=item, quantity=1))
                 pself = getattr(player, 'name', 'Someone')
                 await ctx.send(f'You give the {iname} to {ally.name}.')
                 await ctx.send(f'{ally.name} readies the {iname}!')
@@ -455,10 +464,20 @@ class GiveCommand(Command):
 
             if inventory:
                 inventory.remove(item)
-            ally.items.append(entry)
+            # A fresh entry, not the source `entry` -- see the weapon
+            # branch's comment above. For a stacked item (e.g. 3 rations)
+            # this was the actual bug report: inventory.remove() only
+            # decremented the stack in place, so ally.items ended up
+            # aliasing the very same object still left in the player's
+            # own inventory, showing the ally holding the *remaining*
+            # stack quantity instead of the 1 unit just given -- and any
+            # further mutation of either copy (e.g. _try_body_build's
+            # consumption below) corrupted both at once.
+            given_entry = InventoryEntry(item=item, quantity=1)
+            ally.items.append(given_entry)
             await ctx.send(f'You give the {iname} to {ally.name}.')
             await ctx.send(f'{ally.name} takes the {iname} and tucks it away.')
-            await _try_body_build(ctx, ally, entry)
+            await _try_body_build(ctx, ally, given_entry)
             return CommandResult.ok()
 
         # --- Other player in room ---
@@ -472,8 +491,14 @@ class GiveCommand(Command):
                 if inventory:
                     inventory.remove(item)
                 if other_inv:
-                    other_inv.add(item,
-                                  quantity=getattr(entry, 'quantity', 1))
+                    # Always 1 unit, matching inventory.remove(item)'s own
+                    # default above -- entry.quantity would read the stack's
+                    # *remaining* count after that remove() already
+                    # decremented it in place (same bug as the ally
+                    # branches above), handing the other player everything
+                    # still left in the giver's pack instead of the one
+                    # unit actually taken off it.
+                    other_inv.add(item, quantity=1)
                 other.unsaved_changes = True
                 pself = getattr(player, 'name', 'Someone')
                 await ctx.send(f'You give the {iname} to {pname}.')

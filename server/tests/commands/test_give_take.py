@@ -223,6 +223,26 @@ class TestGiveToAlly(unittest.IsolatedAsyncioTestCase):
         await self.cmd.execute(self.ctx, 'ration', 'to', 'batman')
         self.assertIn('BATMAN', self.ctx.sent().upper())
 
+    async def test_give_stacked_item_to_ally_gives_only_one_unit(self):
+        # Bug: inventory.remove(item) only decrements a stacked entry's
+        # quantity in place (rather than always popping it), and the ally
+        # branch reused that same source InventoryEntry object instead of
+        # building a fresh one -- so giving 1 ration out of a stack of 3
+        # left the ally holding the same object as the player's own
+        # remaining-2 entry (aliased, not copied), showing the ally with
+        # 2 rations instead of 1, and any further mutation of either
+        # corrupted both. Ryan's bug report.
+        self.player.inventory.remove(self.item)  # undo setUp's qty-1 add
+        self.player.inventory.add(self.item, quantity=3)
+        await self.cmd.execute(self.ctx, 'ration', 'to', 'batman')
+
+        player_entries = self.player.inventory.entries()
+        self.assertEqual(len(player_entries), 1)
+        self.assertEqual(player_entries[0].quantity, 2)
+        self.assertEqual(len(self.ally.items), 1)
+        self.assertEqual(self.ally.items[0].quantity, 1)
+        self.assertIsNot(player_entries[0], self.ally.items[0])
+
     async def test_give_item_to_ally_partial_name(self):
         """'bat' should match 'BATMAN'."""
         await self.cmd.execute(self.ctx, 'ration', 'to', 'bat')
@@ -469,6 +489,24 @@ class TestGiveToPlayer(unittest.IsolatedAsyncioTestCase):
         await self.cmd.execute(self.ctx, 'sword', 'to', 'skye')
         self.assertIn('cannot carry', self.ctx.sent().lower())
         self.assertEqual(len(self.giver.inventory.entries()), 1)
+
+    async def test_give_stacked_item_to_player_gives_only_one_unit(self):
+        # Same bug as test_give_stacked_item_to_ally_gives_only_one_unit,
+        # different branch: other_inv.add(item, quantity=entry.quantity)
+        # read the stack's *remaining* count -- after inventory.remove()
+        # on the line just above it had already decremented that same
+        # entry -- instead of the fixed 1 unit inventory.remove() actually
+        # took off the giver's stack.
+        ration = _make_item('RATION', item_id=5, kind='food')
+        self.giver.inventory.add(ration, quantity=3)
+        await self.cmd.execute(self.ctx, 'ration', 'to', 'skye')
+
+        giver_rations = self.giver.inventory.find(item_id=5)
+        self.assertEqual(len(giver_rations), 1)
+        self.assertEqual(giver_rations[0].quantity, 2)
+        receiver_rations = self.receiver.inventory.find(item_id=5)
+        self.assertEqual(len(receiver_rations), 1)
+        self.assertEqual(receiver_rations[0].quantity, 1)
 
 
 # ---------------------------------------------------------------------------
