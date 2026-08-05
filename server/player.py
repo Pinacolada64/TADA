@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     InventoryItem)
     from base_variables import STAT_DATA
     from players import Ally
+    from items import ItemCategory
     from flags import Flag, new_player_default_flags, PlayerFlags, FlagDisplayTypes
     from net_common import Message
     # from simple_server  import server_lock, room_players, players
@@ -613,9 +614,11 @@ class Player:
         logging.info("After: %s %i" % (stat, after))
         self.stats[stat] = after
 
-    def has_item(self, item):
-        """Check if player has item"""
-        return item in self.inventory
+    def has_item(self, *, name: str | None = None, item_id: int | None = None,
+                 category: 'ItemCategory | str | None' = None) -> bool:
+        """True if the player's inventory has an entry matching all given
+        criteria (see Inventory.find(), which this mirrors)."""
+        return bool(self.inventory.find(name=name, item_id=item_id, category=category))
 
     def record_ration_pickup(self, item_id: int) -> None:
         """Append to the ration ring buffer (SPUR xo/xo$), evicting the oldest

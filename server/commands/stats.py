@@ -11,6 +11,7 @@ from combat.resolution import tier_label
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
+from items import ItemCategory
 from network_context import GameContext
 
 _AP = "'"
@@ -167,9 +168,9 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
 
     # Experience / HP / kills / level
     lines += [
-        f"{'Experience Pts:':>16} {experience:>5}   {'Hit Points:':>12} {player.hit_points:>3}",
-        f"{'Monsters Killed:':>16} {mk:>5}   {'Player Level:':>12} {level:>3}",
-        f"{'Total Moves:':>16} {total_moves:>5}",
+        f"{'Experience Pts:':>16} {experience:>5,}   {'Hit Pts:':>8} {player.hit_points:>3}",
+        f"{'Monsters Killed:':>16} {mk:>5,}   {'Level:':>8} {level:>3}",
+        f"{'Total Moves:':>16} {total_moves:>5,}",
         '',
     ]
 
@@ -178,8 +179,8 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
         pct_l = val_l * 4
         pct_r = val_r * 4
         return (
-            f"{label_l:<10} {val_l:>2} {pct_l:>4}%   "
-            f"{label_r:<10} {val_r:>2} {pct_r:>4}%"
+            f"{label_l:<10} {val_l:>2} {pct_l:>3}%   "
+            f"{label_r:<10} {val_r:>2} {pct_r:>3}%"
         )
 
     lines += [
@@ -191,7 +192,7 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
 
     # Shield / armor
     lines += [
-        f"{'Shield  :':>10}    {sh:>3}%   {'Armor    :':>10}   {ar:>3}%",
+        f"{'Shield  :':>10} {sh:>3}%   {'Armor    :':>10} {ar:>3}%",
     ]
 
     # Shield skill: real tracked per-item proficiency (player.shield_
@@ -202,10 +203,10 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     # actually tracked, this shows the real value for the currently
     # equipped shield (0 if no shield is equipped / identified).
     _active_shield_id = getattr(player, 'active_shield_id', None)
-    _shield_prof = getattr(player, 'shield_proficiency', {}) or {}
-    shield_skill = int(_shield_prof.get(str(_active_shield_id), 0)) if _active_shield_id is not None else 0
-    shield_flag = getattr(PlayerFlags, 'SHIELD_TRAINED', None)
-    shield_trained = ('Yes' if qf(shield_flag) else 'No') if shield_flag else 'No'
+    _shield_prof      = getattr(player, 'shield_proficiency', {}) or {}
+    shield_skill      = int(_shield_prof.get(str(_active_shield_id), 0)) if _active_shield_id is not None else 0
+    shield_flag       = getattr(PlayerFlags, 'SHIELD_TRAINED', None)
+    shield_trained    = ('Yes' if qf(shield_flag) else 'No') if shield_flag else 'No'
     lines += [
         f"Shield skill: {shield_skill} {tier_label(shield_skill)}, Formal training: {shield_trained}",
         '',
@@ -224,7 +225,7 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     cur_align = _current_alignment(honor)
     lines += [
         f"Natural alignment: {nat_align}.  ",
-        f"Current alignment: {cur_align} ({honor} Honor points)",
+        f"Current alignment: {cur_align} ({honor:,} Honor points)",
         '',
     ]
 
@@ -241,13 +242,13 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     lines.append('POISONED!' if qf(PlayerFlags.POISON)  else 'Not poisoned')
     lines.append('DISEASED!' if qf(PlayerFlags.DISEASE) else 'Not diseased')
 
-    if qf(PlayerFlags.RING_WORN):
-        lines.append('Ring worn..')
-    if qf(PlayerFlags.GAUNTLETS_WORN):
-        lines.append('Gauntlets worn..')
+    if qf(PlayerFlags.RING_WORN) and ctx.player.has_item(category=ItemCategory.ITEM, name="RING"):
+        lines.append('Ring worn.')
+    if qf(PlayerFlags.GAUNTLETS_WORN) and ctx.player.has_item(category=ItemCategory.ITEM, name="GAUNTLETS"):
+        lines.append('Gauntlets worn.')
 
     # Amulet of life
-    if qf(PlayerFlags.AMULET_OF_LIFE_ENERGIZED) and player.inventory.find("Amulet of Life") is not None:
+    if qf(PlayerFlags.AMULET_OF_LIFE_ENERGIZED) and player.has_item(category=ItemCategory.ITEM, name="Amulet of Life"):
         lines.append('Amulet of life -  ENERGIZED!')
     else:
         # TODO: check if player (or ally) carries item #076 (Amulet of Life)
@@ -278,14 +279,14 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     allies = owned_allies(player)
     lines.append(f"Allies: {len(allies)}/3")
     if allies:
-        from table import Align, Column, Table
+        from table import Align, Column, Table, SINGLE
 
         if ctx is not None:
             from formatting import border_style_for_ctx
             border_style = border_style_for_ctx(ctx)
             width = getattr(ctx.player.client_settings, 'screen_columns', 78)
         else:
-            border_style = 'single'
+            border_style = SINGLE
             width = 78
 
         # C64's 40-column screen wraps a bordered table -- drop the
@@ -317,10 +318,10 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     # World bosses
     lines.append(
         'King of the Wraiths: '
-        + ('Dead..' if not qf(PlayerFlags.WRAITH_KING_ALIVE) else 'Alive..')
+        + ('Alive!' if qf(PlayerFlags.WRAITH_KING_ALIVE) else 'Dead.')
     )
     lines.append(
-        'SPUR: ' + ('Alive!' if qf(PlayerFlags.SPUR_ALIVE) else 'Dead...')
+        'SPUR: ' + ('Alive!' if qf(PlayerFlags.SPUR_ALIVE) else 'Dead.')
     )
 
     # Dwarf (encounters/dwarf.py) -- one shared world NPC/room/hoard, but
