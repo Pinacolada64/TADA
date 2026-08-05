@@ -19,11 +19,13 @@
 ; Wire format on entry: the caller has already consumed CANVAS_STREAM_
 ; START+CANVAS_STREAM_CONFIRM (that's what triggered this module to
 ; load in the first place) -- what's left arriving is the 16-bit
-; length prefix, then 1000 PETSCII char bytes, then 1000 color bytes
+; length prefix, then 960 PETSCII char bytes, then 960 color bytes
 ; (0-15), matching petscii_editor/canvas.py's encode_download() on the
-; server. Saving re-sends the same shape (fresh START+CONFIRM+length
-; header, since this is a new, separate stream back the other way) --
-; see upload_canvas.
+; server -- the canvas itself is 40x24 (row 24 of the physical screen
+; is reserved for the status line, see CELLS' own comment), not the
+; full 40x25 physical screen. Saving re-sends the same shape (fresh
+; START+CONFIRM+length header, since this is a new, separate stream
+; back the other way) -- see upload_canvas.
 ;
 ; Local editing keeps two parallel copies of the grid: CHAR_BUF/COLOR_BUF
 ; (this module's own buffers, the ones actually uploaded) and the C64's
@@ -66,13 +68,20 @@
 
 ; Progress-bar sizing: row 24 (the last screen row) is an 8-char label
 ; ("LOADING "/"SAVING  ") followed by a 32-cell bar, one cell per
-; PROGRESS_BYTES_PER_DOT bytes actually transferred. 2000 total bytes /
-; 32 cells = 62.5 -- rounded down to 62 so the bar reliably reaches full
-; by the time the real transfer finishes (32*62=1984, comfortably under
-; 2000) rather than falling just short from rounding up.
-{const: PROGRESS_BYTES_PER_DOT $3e}
+; PROGRESS_BYTES_PER_DOT bytes actually transferred. 1920 total bytes
+; (960 chars + 960 colors) / 32 cells = 60 exactly, so the bar always
+; reaches exactly full right as the real transfer finishes.
+{const: PROGRESS_BYTES_PER_DOT $3c}
 
-CELLS = 1000    ; 40x25
+; Canvas cells: 40x24, not the full 40x25 physical screen -- row 24 is
+; carved out and reserved for draw_status_line's persistent display
+; (current color, cursor row/col), Ryan's ask after noticing the editor
+; drew no status line at all. copy_1000/fill_1000 (key_help's full-
+; screen backup/restore) still need the whole physical screen including
+; the status row, so they use SCREEN_CELLS, not CELLS, for their own
+; byte count.
+CELLS = 960
+SCREEN_CELLS = 1000
 
 ; Reuses tada-client.asm's own scr_ptr_lo/scr_ptr_hi zero-page bytes
 ; ($fb/$fc) -- already proven safe under this exact "interrupts enabled,
@@ -86,11 +95,11 @@ scr_ptr_hi = $fc
         orig $2000
 
 module_start:
-        jsr recv_length_prefix   ; discarded -- always exactly 2000 for a
-                                   ; 40x25 canvas; nothing to branch on
+        jsr recv_length_prefix   ; discarded -- always exactly 1920 for a
+                                   ; 40x24 canvas; nothing to branch on
 
         ; Show a progress bar on the still-visible leftover screen (from
-        ; before this module loaded) while the 2000-byte body streams in
+        ; before this module loaded) while the 1920-byte body streams in
         ; -- recv_chars/recv_colors fill CHAR_BUF/COLOR_BUF only, not
         ; SCREEN_RAM, so nothing real is on screen yet to protect; the
         ; whole screen gets cleared and repainted from the buffers right
@@ -115,6 +124,14 @@ module_start:
         sta cur_col
         jsr recompute_offset
         jsr draw_cursor
+        jsr draw_startup_status_line  ; version/help banner -- the first
+                                        ; real edit action (any handler in
+                                        ; editor_keys) overwrites this with
+                                        ; draw_status_line's live color/
+                                        ; position display, same handoff
+                                        ; tada-client.asm's own status line
+                                        ; doesn't need since it's never
+                                        ; replaced by anything dynamic
 
 edit_loop:
         jsr GETIN
@@ -222,17 +239,20 @@ key_up:
 key_up_done:
         jsr recompute_offset
         jsr draw_cursor
+        jsr draw_status_line
         jmp edit_loop
 
 key_down:
         jsr undraw_cursor
         lda cur_row
-        cmp #24
-        beq key_down_done         ; already at row 24, clamp
+        cmp #23                   ; last canvas row -- row 24 is the
+                                    ; reserved status line, not editable
+        beq key_down_done         ; already at row 23, clamp
         inc cur_row
 key_down_done:
         jsr recompute_offset
         jsr draw_cursor
+        jsr draw_status_line
         jmp edit_loop
 
 key_left:
@@ -243,6 +263,7 @@ key_left:
 key_left_done:
         jsr recompute_offset
         jsr draw_cursor
+        jsr draw_status_line
         jmp edit_loop
 
 key_right:
@@ -254,6 +275,7 @@ key_right:
 key_right_done:
         jsr recompute_offset
         jsr draw_cursor
+        jsr draw_status_line
         jmp edit_loop
 
 key_return:
@@ -261,12 +283,13 @@ key_return:
         lda #0
         sta cur_col
         lda cur_row
-        cmp #24
+        cmp #23                   ; last canvas row, see key_down
         beq key_return_done
         inc cur_row
 key_return_done:
         jsr recompute_offset
         jsr draw_cursor
+        jsr draw_status_line
         jmp edit_loop
 
 key_delete:
@@ -288,6 +311,7 @@ key_delete_erase:
 key_delete_done:
         jsr recompute_offset
         jsr draw_cursor
+        jsr draw_status_line
         jmp edit_loop
 
 ; --- Help overlay ---
@@ -351,10 +375,15 @@ key_help_wait:
         jmp edit_loop
 
 ; .a = color# (0-15) from lookup_color_code -- applies to the cell under
-; the cursor without moving it or touching the character glyph.
+; the cursor without moving it or touching the character glyph, and
+; also becomes current_color: the color newly typed/erased cells get
+; from here on (see store_char_at_cursor) and what draw_status_line
+; displays -- Ryan's ask, so the cursor "draws" in whatever color was
+; last selected instead of leaving color memory untouched by typing.
 key_color:
         sta color_temp            ; calc_color_buf_ptr/calc_color_ram_ptr
                                     ; both clobber .a internally
+        sta current_color
         jsr calc_color_buf_ptr
         ldy #0
         lda color_temp
@@ -363,6 +392,7 @@ key_color:
         ldy #0
         lda color_temp
         sta (scr_ptr_lo),y
+        jsr draw_status_line
         jmp edit_loop
 
 ; .a = the typed PETSCII byte -- store it at the cursor, advance, redraw.
@@ -375,7 +405,7 @@ key_type:
         jmp key_type_done
 key_type_next_row:
         lda cur_row
-        cmp #24
+        cmp #23                   ; last canvas row, see key_down
         beq key_type_done          ; already at the last cell -- stay put
         inc cur_row
         lda #0
@@ -383,6 +413,7 @@ key_type_next_row:
 key_type_done:
         jsr recompute_offset
         jsr draw_cursor
+        jsr draw_status_line
         jmp edit_loop
 
 ; --- Save/cancel: the real "oddity with saving" bug ---
@@ -417,12 +448,14 @@ edit_save:
 ; --- RUN/STOP confirmation: "CANCEL EDIT? (Y/N)" on row 24 ---
 ; Ryan's call: RUN/STOP shouldn't discard an edit in progress with no
 ; chance to back out (a single stray RUN/STOP keypress previously threw
-; away everything unconditionally). Row 24 is real canvas content during
-; ordinary editing (unlike the progress bar's use of the same row, which
-; only ever runs before/after real content is on screen) -- so unlike
-; progress_init, this backs the row up first and restores it on anything
-; but Y, the same undraw/backup/restore shape key_help already uses for
-; the whole screen, just scoped to one row.
+; away everything unconditionally). Row 24 is draw_status_line's real,
+; currently-displayed status content during ordinary editing (not canvas
+; content -- row 24 is reserved and never part of CHAR_BUF/COLOR_BUF,
+; see CELLS' own comment) -- so unlike progress_init, this backs the row
+; up first and restores it on anything but Y, the same undraw/backup/
+; restore shape key_help already uses for the whole screen, just scoped
+; to one row. No need to re-run draw_status_line on the restore path --
+; the backed-up bytes already are the status line, byte for byte.
 edit_cancel_confirm:
         jsr undraw_cursor
         ldx #0
@@ -516,7 +549,11 @@ recompute_offset:
         rts
 
 ; --- Store .a (a PETSCII byte) into CHAR_BUF at the cursor and paint it
-; (plain, not reversed) onto the real screen. Does NOT touch color. ---
+; (plain, not reversed) onto the real screen -- also paints current_color
+; into COLOR_BUF/COLOR_RAM at the same cell (Ryan's ask: typing/erasing
+; should draw in whatever color was last selected via key_color, not
+; leave color memory untouched). Used by both key_type (typed characters)
+; and key_delete (erasing with a space), so both draw in current_color. ---
 store_char_at_cursor:
         pha
         jsr calc_char_buf_ptr
@@ -528,6 +565,19 @@ store_char_at_cursor:
         jsr calc_screen_ptr
         ldy #0
         sta (scr_ptr_lo),y
+
+        lda current_color
+        sta color_temp             ; calc_color_buf_ptr/calc_color_ram_ptr
+                                     ; both clobber .a internally
+        jsr calc_color_buf_ptr
+        ldy #0
+        lda color_temp
+        sta (scr_ptr_lo),y
+        jsr calc_color_ram_ptr
+        ldy #0
+        lda color_temp
+        sta (scr_ptr_lo),y
+
         pla
         rts
 
@@ -680,7 +730,10 @@ lcc_not_found:
 ; overlay to back up/restore SCREEN_RAM+COLOR_RAM.
 ;
 ; Input: copy_src_lo/hi = source base address, copy_dst_lo/hi = dest
-; base address. Copies exactly CELLS (1000) bytes.
+; base address. Copies exactly SCREEN_CELLS (1000) bytes -- the whole
+; physical screen including the status row, not just CELLS (960)
+; canvas cells; key_help's backup/restore needs the status line
+; preserved too.
 copy_1000:
         lda copy_src_lo
         sta copy_src_load+1
@@ -690,9 +743,9 @@ copy_1000:
         sta copy_dst_store+1
         lda copy_dst_hi
         sta copy_dst_store+2
-        lda #<CELLS
+        lda #<SCREEN_CELLS
         sta copy_remaining_lo
-        lda #>CELLS
+        lda #>SCREEN_CELLS
         sta copy_remaining_hi
 copy_1000_loop:
 copy_src_load:
@@ -719,15 +772,18 @@ copy_dec_lo:
 
 ; --- General-purpose 1000-byte fill ---
 ; Input: fill_dst_lo/hi = dest base address, fill_value = byte to write
-; to every one of CELLS (1000) bytes.
+; to every one of SCREEN_CELLS (1000) bytes -- see copy_1000's own
+; comment on why this is SCREEN_CELLS, not CELLS: draw_help_screen fills
+; the whole physical screen (status row included), which key_help then
+; fully restores from its own SCREEN_CELLS-sized backup afterward.
 fill_1000:
         lda fill_dst_lo
         sta fill_1000_store+1
         lda fill_dst_hi
         sta fill_1000_store+2
-        lda #<CELLS
+        lda #<SCREEN_CELLS
         sta fill_remaining_lo
-        lda #>CELLS
+        lda #>SCREEN_CELLS
         sta fill_remaining_hi
 fill_1000_loop:
         lda fill_value
@@ -826,6 +882,156 @@ progress_tick:
         sta SCREEN_RAM+960,x
         inc progress_col
 progress_tick_done:
+        rts
+
+; --- Startup status-line banner ---
+; Shown once, right when the editor first draws the canvas -- a version/
+; help hint instead of the color/position display draw_status_line
+; normally shows, since there's nothing to report yet (cursor is at
+; 0,0, no color chosen beyond the default). Overwritten by the first
+; real draw_status_line call once the player does anything (see
+; module_start's own comment on the handoff).
+;
+; Null-terminated + runtime-padded rather than a fixed 40-byte string,
+; same reasoning as tada-client.asm's update_status_line/status_msg:
+; {usedef:__BuildDate}'s expansion length isn't known at the point this
+; comment is written, so there's no compile-time constant to size
+; against. cpy #40 bounds both the copy and the pad loop, so a longer-
+; than-expected build-date string degrades to a truncated line instead
+; of overrunning past column 39 into row 25 (which doesn't exist).
+; Padded with plain spaces (not update_status_line's reverse-video
+; space) to match this status line's own plain-white convention.
+draw_startup_status_line:
+        ldy #0
+dssl_copy:
+        lda startup_status_msg,y
+        beq dssl_pad
+        sta SCREEN_RAM+960,y
+        lda #1                     ; white
+        sta COLOR_RAM+960,y
+        iny
+        cpy #40
+        bne dssl_copy
+        rts
+dssl_pad:
+        lda #$20
+        sta SCREEN_RAM+960,y
+        lda #1
+        sta COLOR_RAM+960,y
+        iny
+        cpy #40
+        bne dssl_pad
+        rts
+
+; --- Status line (row 24, reserved -- see CELLS' own comment) ---
+; Shows the current draw color (as a hex digit whose own on-screen color
+; matches current_color, doubling as a swatch) plus the cursor's row/
+; column. Redrawn after every cursor move, type/erase, and color change
+; -- see edit_loop's various handlers. Pokes straight into SCREEN_RAM/
+; COLOR_RAM, never touches CHAR_BUF/COLOR_BUF -- row 24 was carved out
+; of the canvas specifically so this can own it outright, the same way
+; the progress bar/cancel-prompt already borrow it for their own
+; on-screen-only content (and don't need to call this afterward: the
+; help overlay restores row 24 byte-for-byte via its whole-screen
+; backup, and the cancel prompt restores its own row-24-only backup the
+; same way -- see those routines' own comments).
+;
+; Layout (40 columns): "COLOR:" + 1 hex digit + " ROW:" + 2 digits +
+; " COL:" + 2 digits, then blank-padded to column 39.
+draw_status_line:
+        ldy #0
+dsl_label_loop:
+        lda status_color_label,y
+        sta SCREEN_RAM+960,y
+        lda #1                     ; white
+        sta COLOR_RAM+960,y
+        iny
+        cpy #6                     ; "COLOR:"
+        bne dsl_label_loop
+
+        ldx current_color
+        lda hex_chars,x
+        sta SCREEN_RAM+966
+        lda current_color          ; the digit's own color IS the swatch
+        sta COLOR_RAM+966
+
+        lda #$20
+        sta SCREEN_RAM+967
+        lda #1
+        sta COLOR_RAM+967
+
+        ldy #0
+dsl_row_label_loop:
+        lda status_row_label,y
+        sta SCREEN_RAM+968,y
+        lda #1
+        sta COLOR_RAM+968,y
+        iny
+        cpy #4                     ; "ROW:"
+        bne dsl_row_label_loop
+
+        lda cur_row
+        jsr byte_to_decimal2
+        stx SCREEN_RAM+972
+        sty SCREEN_RAM+973
+        lda #1
+        sta COLOR_RAM+972
+        sta COLOR_RAM+973
+
+        lda #$20
+        sta SCREEN_RAM+974
+        lda #1
+        sta COLOR_RAM+974
+
+        ldy #0
+dsl_col_label_loop:
+        lda status_col_label,y
+        sta SCREEN_RAM+975,y
+        lda #1
+        sta COLOR_RAM+975,y
+        iny
+        cpy #4                     ; "COL:"
+        bne dsl_col_label_loop
+
+        lda cur_col
+        jsr byte_to_decimal2
+        stx SCREEN_RAM+979
+        sty SCREEN_RAM+980
+        lda #1
+        sta COLOR_RAM+979
+        sta COLOR_RAM+980
+
+        ldx #0                     ; blank the remaining columns 21-39
+dsl_blank_loop:
+        lda #$20
+        sta SCREEN_RAM+981,x
+        lda #1
+        sta COLOR_RAM+981,x
+        inx
+        cpx #19
+        bne dsl_blank_loop
+        rts
+
+; --- .a (0-39) -> two decimal-digit screen codes ---
+; Small values only (cur_row max 23, cur_col max 39) -- a plain
+; repeated-subtraction loop against 10 is plenty, no need for a general
+; divide routine.
+; Output: .x = tens digit screen code, .y = ones digit screen code.
+byte_to_decimal2:
+        ldx #0
+btd_tens_loop:
+        cmp #10
+        bcc btd_tens_done
+        sec
+        sbc #10
+        inx
+        jmp btd_tens_loop
+btd_tens_done:
+        tay                        ; .y = ones value (0-9), raw not char yet
+        lda decimal_chars,x
+        tax                        ; .x = tens digit screen code (final)
+        lda decimal_chars,y
+        tay                        ; .y = ones digit screen code (final)
         rts
 
 ; --- Fixed-width (40-byte) line poke ---
@@ -1165,6 +1371,15 @@ cur_offset_hi:
 color_temp:
         byte 0
 
+; The color# (0-15) applied to newly typed/erased cells and shown by
+; draw_status_line -- set by key_color, read by store_char_at_cursor.
+; Defaults to white (1), same default as a freshly-cleared C64 screen
+; (BLANK_COLOR in petscii_editor/canvas.py) -- this module is freshly
+; LOADed from disk each time the editor opens, so this static default
+; is a real runtime reset, not just an assembly-time value.
+current_color:
+        byte 1
+
 rc_remaining_lo:
         byte 0
 rc_remaining_hi:
@@ -1233,7 +1448,9 @@ color_codes:
         byte 129, 149, 150, 151, 152, 153, 154, 155
 
 ; row_offsets[row] = row*40, as 16-bit words -- avoids needing a real
-; multiply routine for recompute_offset.
+; multiply routine for recompute_offset. Only 24 entries (rows 0-23) --
+; row 24 is the reserved status line, never a valid cur_row value (see
+; CELLS' own comment and key_down/key_return's #23 clamp).
 row_offsets:
         word 0
         word 40
@@ -1259,17 +1476,17 @@ row_offsets:
         word 840
         word 880
         word 920
-        word 960
 
-; 1000-byte buffers -- the master copy of the canvas actually uploaded
-; on save. Initial content here is irrelevant (recv_chars/recv_colors
-; overwrite both in full before anything reads them) -- reserved via
-; c64list's `area` pseudo-op rather than literal zero bytes.
+; 960-byte buffers -- the master copy of the canvas actually uploaded
+; on save (40x24; row 24 is the status line, not part of these). Initial
+; content here is irrelevant (recv_chars/recv_colors overwrite both in
+; full before anything reads them) -- reserved via c64list's `area`
+; pseudo-op rather than literal zero bytes.
 CHAR_BUF:
-        area 1000, 0
+        area 960, 0
 
 COLOR_BUF:
-        area 1000, 0
+        area 960, 0
 
 ; Backs up the real SCREEN_RAM/COLOR_RAM while the help overlay is shown
 ; (see key_help) -- unrelated to CHAR_BUF/COLOR_BUF above, which hold
@@ -1315,6 +1532,40 @@ LOAD_LABEL:
         ascii "LOADING "
 SAVE_LABEL:
         ascii "SAVING  "
+{alpha:normal}
+
+; draw_status_line's labels/digit tables -- same {alpha:poke} reasoning
+; as LOAD_LABEL/SAVE_LABEL above (poked straight into SCREEN_RAM, not
+; run through petscii_to_screen). hex_chars/decimal_chars are indexed
+; by value (0-15 / 0-9), not copied as fixed-width strings like the
+; three labels.
+{alpha:poke}
+status_color_label:
+        ascii "COLOR:"
+status_row_label:
+        ascii "ROW:"
+status_col_label:
+        ascii "COL:"
+hex_chars:
+        ascii "0123456789ABCDEF"
+decimal_chars:
+        ascii "0123456789"
+{alpha:normal}
+
+; draw_startup_status_line's one-time banner. Ryan asked for "PetSCII
+; editor version {usedef:__BuildDate}. Ctrl-H for help" verbatim, but
+; that's 52+ characters against a 40-column row (__BuildDate alone
+; currently expands to a 10-character date) -- shortened to fit while
+; keeping the actual version/help content, in the same ALL-CAPS
+; poke-mode convention as every other on-screen label in this file
+; (status_msg in tada-client.asm does the same for its own __BuildDate
+; use). Null-terminated -- see draw_startup_status_line's own comment.
+{alpha:poke}
+startup_status_msg:
+        ascii "PETSCII v"
+        ascii {usedef:__BuildDate}
+        ascii " CTRL-H FOR HELP"
+        byte 0
 {alpha:normal}
 
 {alpha:poke}

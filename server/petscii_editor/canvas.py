@@ -27,7 +27,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 WIDTH  = 40
-HEIGHT = 25
+HEIGHT = 24  # not the full 40x25 physical screen -- row 24 is reserved
+             # on the client for a persistent status line (current
+             # color, cursor row/col; see petscii_editor.asm's
+             # draw_status_line), so it's never part of the canvas
+             # itself.
 CELLS  = WIDTH * HEIGHT
 
 STREAM_START   = 0x01

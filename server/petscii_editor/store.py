@@ -9,10 +9,11 @@ copied) --
     [tokenized]      -- today's existing format: the rest of the file is
                         plain `|token|`/`{glyph}`-markup text lines, same
                         as banner.py.load_banner() has always read.
-    [raw_petscii]     -- new: followed immediately by the 2000-byte
-                        binary chars+colors payload (canvas.py's Canvas,
-                        chars then colors, no wire framing -- that's
-                        wire-format concern, not a file-format one).
+    [raw_petscii]     -- new: followed immediately by the WIDTH*HEIGHT*2
+                        (currently 1920) byte binary chars+colors payload
+                        (canvas.py's Canvas, chars then colors, no wire
+                        framing -- that's a wire-format concern, not a
+                        file-format one).
 
 A file with no recognised header tag is treated as legacy `[tokenized]`
 content for backward compatibility with every banner file that predates

@@ -1737,3 +1737,41 @@
   already boosts strength and gets consumed correctly once it exists;
   this entry is just about adding the items themselves and Jake's
   offering them. Not scoped/prioritized yet -- no item names decided.
+
+- PETSCII editor status line (Ryan): added `draw_status_line`
+  (`assembly-language/client/petscii_editor.asm`) showing current
+  color/cursor row+col on row 24, which the canvas now excludes (40x24,
+  not 40x25 -- see `CELLS`' own comment and `petscii_editor/canvas.py`'s
+  `HEIGHT`). `store_char_at_cursor` now also paints `current_color` into
+  color memory on type/erase, so drawing actually uses the selected
+  color instead of leaving it untouched. Also added a one-time startup
+  banner (`draw_startup_status_line`) showing a shortened version/help
+  string built from `{usedef:__BuildDate}` (52+ chars requested,
+  doesn't fit 40 columns -- shortened to "PETSCII v<date> CTRL-H FOR
+  HELP"), overwritten by the first real status update once the player
+  does anything. c64list assembled clean (0 errors/warnings), disk
+  image rebuilt.
+  - [DONE 8/4/26] **Verified live in VICE**: startup banner, live
+    row/col updates, color-select recoloring both cursor and the status
+    digit itself (swatch-via-digit-color), typed/erased cells painting
+    in `current_color`, CTRL-H help overlay preserving the status row
+    exactly, RUN/STOP cancel-confirm, the row-23 clamp sitting flush
+    above the status line, and a full F1 save + reload round trip --
+    all confirmed correct. Along the way found the running server
+    process predates this session's `canvas.py` edit (still enforcing
+    the old 40x25/2000-byte size) and needed a restart (`nohup
+    .venv/bin/python3 run_server.py &`, confirmed with Ryan first since
+    it was attached to his own terminal) before the save would accept
+    the new 40x24/1920-byte upload -- future wire-format changes need
+    the same restart, not just a client disk rebuild.
+  - Brainstormed idea, deliberately not scoped/started: fine-scroll the
+    startup banner (or any future longer message) using 38-column mode
+    (`$D016`) plus a real raster interrupt timed to row 24's scanline,
+    so message length isn't bounded by 40 columns. Real cost: the only
+    IRQ hook that exists today (`init_irq`/`irq_handler` in
+    `tada-client.asm`) is the ordinary CIA-driven `$0314` jiffy vector,
+    which `sid_play` already shares and depends on for tempo-critical
+    playback -- a genuine raster split (`$D011`/`$D012`/`$D019`/`$D01A`)
+    is new territory, not an extension of that existing hook. Only
+    worth doing for a genuinely long marquee/credits-style message, not
+    the current short banner.

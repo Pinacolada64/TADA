@@ -1,5 +1,6 @@
 """commands/banner_edit.py — 'banner': admin-only PETSCII banner/screen
-editor, streaming a 40x25 character+color canvas down to a real
+editor, streaming a 40x24 character+color canvas (row 24 of the physical
+screen is reserved on the client for a status line) down to a real
 Commodore client and reading the edited canvas back.
 
 Continues TODO.md's 7/23/26 "Online PETSCII editor" entry -- see
