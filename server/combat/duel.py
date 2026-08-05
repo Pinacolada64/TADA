@@ -225,6 +225,42 @@ class DuelOutcome:
     fled_name: str = ''
 
 
+# SPUR.DUEL.S:115 "rdy.wp1": wa=8 (missile/projectile) or wa=10 (energy)
+# needs ammo, unless it's a STORM weapon (STORM bypasses ammo entirely --
+# same exception combat/resolution.py's own _needs_ammo gate uses for PvE
+# combat). Named _duel_needs_ammo here to avoid colliding with that
+# function-local variable of the same name in resolution.py.
+def _duel_needs_ammo(weapon) -> bool:
+    if weapon is None:
+        return False
+    wc = getattr(weapon, 'weapon_class', None)
+    wc_str = (wc.value if hasattr(wc, 'value') else str(wc)) if wc else ''
+    wname = (getattr(weapon, 'name', '') or '').upper()
+    return wc_str.lower() in ('projectile', 'energy') and 'STORM' not in wname
+
+
+# SPUR.DUEL.S:115: "No ammo readied! All weapon attributes reduced by
+# half." -- unlike PvE combat, where the same empty-weapon check just
+# misses the swing outright (combat/resolution.py), a duel doesn't refuse
+# the fight over it: wd/ws/zt/zs (damage, ease-of-use, accuracy, and the
+# class/race damage bonus) are all halved for the rest of the duel
+# instead. This port recomputes those values fresh at several call sites
+# (_offense_rating, _initiative_score, _weapon_damage, and _swing's own
+# stability read) rather than caching them once at weapon-ready time like
+# SPUR does, so the penalty is applied at each of those sites instead of
+# a single mutation.
+_UNLOADED_PENALTY = 0.5
+
+
+def _ammo_penalty(player, weapon) -> float:
+    """1.0 normally; _UNLOADED_PENALTY if *weapon* needs ammo (see
+    _duel_needs_ammo) and *player* has none loaded."""
+    if not _duel_needs_ammo(weapon):
+        return 1.0
+    ammo_rounds = int(getattr(player, 'ammo_rounds', 0) or 0)
+    return _UNLOADED_PENALTY if ammo_rounds < 1 else 1.0
+
+
 def _offense_rating(player, weapon) -> int:
     """Synthetic 'ma' (SPUR: size/attack rating), used only to scale shield
     degradation in _absorb_shield_armor() -- see combat/resolution.py's
@@ -241,6 +277,7 @@ def _offense_rating(player, weapon) -> int:
     class_str = (char_class.value if hasattr(char_class, 'value') else str(char_class)) if char_class else 'Fighter'
     race_str  = (char_race.value  if hasattr(char_race,  'value') else str(char_race))  if char_race  else 'Human'
     skill_bonus, _dmg_bonus = weapon_bonus(weapon, class_str, race_str) if weapon else (0, 0)
+    skill_bonus = int(skill_bonus * _ammo_penalty(player, weapon))
     level = int(getattr(player, 'xp_level', 1) or 1)
     return max(3, min(9, 4 + skill_bonus + (level // 3)))
 
@@ -308,6 +345,8 @@ def _initiative_score(side: '_DuelSide') -> int:
     race_str  = (char_race.value  if hasattr(char_race,  'value') else str(char_race))  if char_race  else 'Human'
     weapon = getattr(player, 'readied_weapon', None)
     skill_bonus, dmg_bonus = weapon_bonus(weapon, class_str, race_str) if weapon else (0, 0)
+    penalty = _ammo_penalty(player, weapon)
+    skill_bonus, dmg_bonus = int(skill_bonus * penalty), int(dmg_bonus * penalty)
 
     stats = getattr(player, 'stats', {}) or {}
     str_dex_int = (int(stats.get(PlayerStat.STR, 0) or 0)
@@ -411,7 +450,7 @@ def _weapon_damage(player, weapon) -> float:
     race_str  = (char_race.value  if hasattr(char_race,  'value') else str(char_race))  if char_race  else 'Human'
     _skill_bonus, dmg_bonus = weapon_bonus(weapon, class_str, race_str) if weapon else (0, 0)
     to_hit = float(getattr(weapon, 'to_hit', 40) or 40) if weapon else 20.0
-    base = (to_hit / 10.0) + dmg_bonus
+    base = ((to_hit / 10.0) + dmg_bonus) * _ammo_penalty(player, weapon)
     r1, r2, r3 = random.randint(1, 10), random.randint(1, 10), random.randint(1, 10)
     return base + (r1 + r2 + r3) / 10.0
 
@@ -668,6 +707,7 @@ class DuelSession:
                 hit_delta += _DOWNED_HIT_BONUS
 
         stability = float(getattr(weapon, 'stability', 50) or 50) if weapon else 30.0
+        stability *= _ammo_penalty(attacker, weapon)
         miss_sfx, hit_sfx = weapon_sfx(weapon) if weapon else (None, None)
         roll = random.randint(1, 100)
         hit = roll <= (stability + hit_delta)
@@ -1005,6 +1045,15 @@ async def _resolve_challenge(ctx: GameContext, accept: bool) -> CommandResult:
     elif session.b.initiative > 0:
         defender_lines.insert(1, 'You have the initiative!')
         challenger_lines.insert(1, f'{defender.name} has the initiative!')
+
+    # SPUR.DUEL.S:115 -- announced once at weapon-ready time, same as
+    # guild support/initiative above; see _ammo_penalty()'s module comment
+    # for why the actual halving is instead applied at each of its several
+    # read sites rather than mutated once here.
+    if _ammo_penalty(challenger, getattr(challenger, 'readied_weapon', None)) < 1.0:
+        challenger_lines.insert(1, 'No ammo readied! All weapon attributes reduced by half.')
+    if _ammo_penalty(defender, getattr(defender, 'readied_weapon', None)) < 1.0:
+        defender_lines.insert(1, 'No ammo readied! All weapon attributes reduced by half.')
 
     await challenger_ctx.send(challenger_lines)
     await ctx.send(defender_lines)

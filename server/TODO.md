@@ -1669,9 +1669,17 @@
     you" dodge checks (`pc=5`/`pc=6`), Assassin critical hits (`pc=8`),
     a size-based blind-swing chance. `_INTERACTION`'s rock-paper-scissors
     grid has zero class-specific modifiers.
-  - **Ammo-dependent weapon penalty** (`DUEL.S:115`) -- missile/energy
-    weapon classes with no ammo readied get every stat halved. Not
-    checked during duel weapon selection.
+  - [DONE 8/4/26] **Ammo-dependent weapon penalty** (`DUEL.S:115`) --
+    missile/energy weapon classes with no ammo readied get every stat
+    halved (wd/ws/zt/zs) for the whole duel, rather than the fight being
+    refused. `combat/duel.py`'s `_ammo_penalty()`/`_duel_needs_ammo()`
+    apply the multiplier at each of the several call sites that read
+    those values fresh (`_offense_rating`, `_initiative_score`,
+    `_weapon_damage`, `_swing`'s stability read), since this port never
+    caches them once at weapon-ready time like SPUR does. Announced once
+    per side at duel start ("No ammo readied! All weapon attributes
+    reduced by half."), same spot as guild support/initiative. Tests:
+    `tests/combat/test_duel_ammo_penalty.py`.
   - [DONE 8/3/26] **Personal (per-player) duel win/loss record**
     (`personal`/`read.a1$`/`writ.a1$`, SPUR's `spur.a1$` file).
     `guild_standings.py`'s `record_duel_result` covers the *guild* tally
