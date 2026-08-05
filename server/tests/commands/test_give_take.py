@@ -61,7 +61,7 @@ from bar.ally_data import Ally, AllyStatus
 from commands.give import GiveCommand, _monster_give_response
 from commands.take import TakeCommand
 from inventory import Inventory, InventoryEntry
-from items import Item, ItemCategory
+from items import Item, ItemCategory, Weapon
 from party import Party
 
 
@@ -253,6 +253,87 @@ class TestGiveToAlly(unittest.IsolatedAsyncioTestCase):
         self.ctx._prompt_answer = '1'   # pick the first (and only) item
         await self.cmd.execute(self.ctx, 'to', 'batman')
         self.assertEqual(len(self.ally.items), 1)
+
+
+# ---------------------------------------------------------------------------
+# GiveCommand — weapon auto-ready + ammo load-in for allies
+#
+# Regression coverage for the bug fixed 2026-08-01: GiveCommand's
+# weapon-auto-ready branch checked `isinstance(item, Weapon)` against
+# item_system.Weapon, a class nothing in production code ever
+# constructs -- every real weapon (armory purchases, items.resolve_weapon()
+# reconstruction) is an items.Weapon instead, so the isinstance check was
+# always False. A GIVEn weapon silently fell through to the generic "takes
+# it and tucks it away" branch, ally.readied_weapon was never set, and a
+# follow-up GIVE of matching ammo always hit "has no weapon readied" even
+# though the player had just handed over the weapon. Fixed by importing
+# the real items.Weapon. This test drives GiveCommand end-to-end with a
+# real items.Weapon (built the way shoppe/armory.py builds one) rather
+# than hand-assigning ally.readied_weapon, so a regression of the
+# wrong-class import trips this test again.
+# ---------------------------------------------------------------------------
+
+def _make_weapon(name: str = '.357 MAGNUM', item_id: int = 145) -> Weapon:
+    return Weapon(id_number=item_id, name=name, category=ItemCategory.WEAPON)
+
+
+def _make_ammo(name: str = '.357 AMMO', item_id: int = 104,
+               used_with: str = '.357 magnum', rounds: int = 6, damage: int = 4) -> Item:
+    return Item(id_number=item_id, name=name, category=ItemCategory.ITEM,
+                flags={'rounds': rounds, 'damage': damage, 'used_with': used_with})
+
+
+class TestGiveWeaponAndAmmoToAlly(unittest.IsolatedAsyncioTestCase):
+
+    def setUp(self):
+        self.cmd = GiveCommand()
+        self.player = _make_player()
+        self.ally   = _make_ally('MYSTIC MORGANNA')
+        self.player.party.add_member(self.player, self.ally)
+        self.ctx = _FakeCtx(self.player)
+
+    async def test_give_weapon_to_ally_readies_it(self):
+        weapon = _make_weapon()
+        self.player.inventory.add(weapon)
+        await self.cmd.execute(self.ctx, '.357', 'magnum', 'to', 'morganna')
+
+        self.assertIs(self.ally.readied_weapon, weapon)
+        self.assertIn('READIES', self.ctx.sent().upper())
+        self.assertEqual(len(self.player.inventory.entries()), 0)
+
+    async def test_give_matching_ammo_after_weapon_loads_it(self):
+        weapon = _make_weapon()
+        self.player.inventory.add(weapon)
+        await self.cmd.execute(self.ctx, '.357', 'magnum', 'to', 'morganna')
+
+        ammo = _make_ammo()
+        self.player.inventory.add(ammo)
+        await self.cmd.execute(self.ctx, '.357', 'ammo', 'to', 'morganna')
+
+        self.assertEqual(self.ally.ammo_rounds, 6)
+        self.assertEqual(self.ally.ammo_damage, 4)
+        self.assertIn('LOADS', self.ctx.sent().upper())
+
+    async def test_give_ammo_before_weapon_reports_no_weapon_readied(self):
+        """The exact bug report: GIVE ammo with no weapon readied yet."""
+        ammo = _make_ammo()
+        self.player.inventory.add(ammo)
+        await self.cmd.execute(self.ctx, '.357', 'ammo', 'to', 'morganna')
+
+        self.assertIn('no weapon readied', self.ctx.sent().lower())
+        self.assertEqual(self.ally.ammo_rounds, 0)
+
+    async def test_give_mismatched_ammo_after_weapon_is_rejected(self):
+        weapon = _make_weapon()
+        self.player.inventory.add(weapon)
+        await self.cmd.execute(self.ctx, '.357', 'magnum', 'to', 'morganna')
+
+        wrong_ammo = _make_ammo(name='.44 AMMO', item_id=105, used_with='.44 magnum')
+        self.player.inventory.add(wrong_ammo)
+        await self.cmd.execute(self.ctx, '.44', 'ammo', 'to', 'morganna')
+
+        self.assertIn('not for the', self.ctx.sent().lower())
+        self.assertEqual(self.ally.ammo_rounds, 0)
 
 
 # ---------------------------------------------------------------------------

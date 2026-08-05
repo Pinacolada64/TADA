@@ -27,6 +27,7 @@ reads better for a ring than USE does, so it moved there.
 from __future__ import annotations
 
 import random
+from typing import Optional
 
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
@@ -76,6 +77,43 @@ def _shield_cap(player, cap_bonus: int) -> int:
     if race in _CAP_HIGH_RACE:
         return 50 + cap_bonus
     return 100 + cap_bonus
+
+
+def is_ammo_item(flags) -> bool:
+    """True if *flags* (an item's .flags) describe an ammo/power-pak item.
+
+    Duck-typed on the flags shape (rounds + used_with) rather than
+    item_system.Item.is_ammo_carrier -- items.Item (what shops actually
+    construct) has no such property, just a flags dict/list. Shared by
+    _apply_item() below and commands/give.py's ally-ammo path so both
+    recognise the same items as ammo.
+    """
+    return isinstance(flags, dict) and 'rounds' in flags and 'used_with' in flags
+
+
+def ammo_load_error(weapon, flags: dict) -> Optional[str]:
+    """Validate loading ammo *flags* into an already-readied *weapon*.
+
+    Returns a reason code ('storm' / 'wrong_weapon' / 'empty') if the load
+    is invalid, or None if it's fine to proceed. Assumes weapon is not
+    None -- callers check that themselves, since the "no weapon readied"
+    message differs between this module's player-facing ALL-CAPS SPUR
+    style and commands/give.py's sentence-case ally messages (CLAUDE.md:
+    don't convert existing style, but don't spread ALL-CAPS to new text
+    either). Shared so a weapon/ammo pairing is judged the same way
+    whether reached via USE (player) or GIVE (ally) -- see give.py bug
+    fixed 2026-08-01, where a duplicated copy of these same checks had
+    drifted out of sync with this one.
+    """
+    wname_upper = (getattr(weapon, 'name', '') or '').upper()
+    if 'STORM' in wname_upper:
+        return 'storm'
+    used_with = (flags.get('used_with') or '').strip().upper()
+    if used_with and used_with not in wname_upper:
+        return 'wrong_weapon'
+    if 'capacity' in flags and int(flags.get('rounds', 0)) <= 0:
+        return 'empty'
+    return None
 
 
 def _apply_item(item, player) -> list[str]:
@@ -128,28 +166,24 @@ def _apply_item(item, player) -> list[str]:
         return msgs
 
     # ---- Ammo / power pak --------------------------------------------------
-    # Duck-typed on the flags shape (rounds + used_with) rather than
-    # item_system.Item.is_ammo_carrier -- items.Item (what shops actually
-    # construct) has no such property, just a flags dict/list.
-    is_ammo_item = isinstance(flags, dict) and 'rounds' in flags and 'used_with' in flags
-    if is_ammo_item:
+    if is_ammo_item(flags):
         weapon = getattr(player, 'readied_weapon', None)
         if weapon is None:
             return ['YOU MUST READY YOUR WEAPON FIRST!']
         wname_upper = (getattr(weapon, 'name', '') or '').upper()
-        if 'STORM' in wname_upper:
+        reason = ammo_load_error(weapon, flags)
+        if reason == 'storm':
             return [f'THE {wname_upper} DOES NOT USE PHYSICAL AMMO!']
-        used_with = ((flags or {}).get('used_with') or '').strip().upper()
-        if used_with and used_with not in wname_upper:
+        if reason == 'wrong_weapon':
             return [f'THIS AMMO IS NOT FOR THE {wname_upper}!']
+        if reason == 'empty':
+            return [f'THE {name.upper()} {is_or_are(name).upper()} EMPTY!']
 
         # 'capacity' marks this as a reusable carrier (shoppe/ollys.py) --
         # it stays in inventory and empties into the weapon, rather than
         # being consumed like a single-use ammo box.
         is_carrier = 'capacity' in flags
         rounds = int((flags or {}).get('rounds', 0))
-        if is_carrier and rounds <= 0:
-            return [f'THE {name.upper()} {is_or_are(name).upper()} EMPTY!']
         damage = int((flags or {}).get('damage', 0))
         player.ammo_rounds = rounds
         player.ammo_damage = damage
