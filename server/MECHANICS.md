@@ -815,6 +815,13 @@ Locker belongs to the Shoppe (`shoppe/locker.py`), not here.
 
 ## Bar (`server/bar/main.py`)
 
+*Branch note: the six NPC bullets below that cite bare `SPUR.BAR.S`/`SPUR.BAR2.S`/
+`SPUR.BAR3.S` (no line numbers) were spot-checked for presence only — all six exist
+under the same names in the same three files on both `master` and `origin/skip`, no
+NPC has moved to a skip-only file. Full numeric/pricing diffing of each NPC's body
+wasn't done; treat those bullets as lower-confidence than the line-cited ones above
+and below until someone diffs the full routines.*
+
 ### Implemented
 - ✅ **Fat Olaf** — slave/servant trader; buy allies; sell servant stub present (`bar/fat_olaf.py`)
 - ✅ **Food/drink menu** — `food_menu()` helper exists; rations list rendered
@@ -1085,7 +1092,11 @@ joke, no horse-strength gate, no per-class attack bonus table) — the master br
   mount HP (a freshly-lassoed mount's `hit_points` is seeded to 0 — see
   `CombatSession.lasso` — and Horse Constitution/HP display is still unported, see "Horse
   stats & equipment" below), so a successful redirect just means the player takes no
-  damage from that hit rather than applying damage to the mount.
+  damage from that hit rather than applying damage to the mount. SPUR-side (skip-only,
+  master has no mount code at all): the `unmount`/`run.h` logic backing this lives at
+  `SPUR.COMBAT.S:436–454` and `:415–420`, but part of it is dispatched out to
+  `SPUR.MISC7.S` (`C.UNMOUNT`) — a third file worth checking if this bullet's behavior is
+  ever revisited against source, not just `SPUR.COMBAT.S`.
 - ✅ **Unseat check** (`combat/engine.py` `CombatSession._charge_unseat_check()`) — risk of
   being thrown from the saddle after a CHARGE, win or lose (triggers whenever CHARGE was
   used this round, not on every hit). Formula: `d100 + HP + STR + CON + INT + EGY + DEX +

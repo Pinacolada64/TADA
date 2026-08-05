@@ -490,7 +490,12 @@ Related file-path variables, not in the original drive-specifier block:
 
 ## V
 
-- **`vk`** — Honor
+- **`vk`** — Honor. New-character starting/max value is race-only (`pr`), not
+  class (`pc`), despite `pc` being in scope nearby — see `set.honor` in
+  Skip's branch, `SPUR-code/SPUR.NEW.S`: default 1000, Ogre/Orc (`pr=2`/`8`)
+  750, Pixie/Elf (`pr=3`/`4`) 1250. Master has no separate NEW.S (character
+  creation lives in `SPUR-code/SPUR.LOGON.S` there instead), but its
+  `set.honor` has the identical logic.
 - **`vm`** — Ammo damage
 - **`vn`** — Ammo left
 - **`vo`** — Record index of the currently readied weapon in
