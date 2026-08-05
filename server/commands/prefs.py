@@ -948,7 +948,12 @@ async def _pick_date_format(ctx) -> None:
     lines = ['', '|yellow|Date Format:|reset|', '']
     for num, label, fmt in _DATE_FORMAT_PRESETS:
         lines.append(f'  {num}. {label:<16} {sample.strftime(fmt)}')
-    lines += ['', f'Current: {_DATE_FORMAT_NAMES.get(current, current)}', '']
+    # current may be a raw, unrecognized strftime pattern rather than a
+    # friendly preset name -- escape '%' so ctx.send()'s %-token
+    # substitution (tada_utilities.substitute_tokens) doesn't mistake a
+    # stray '%p'/'%c'/etc. for a pronoun/class token.
+    current_display = _DATE_FORMAT_NAMES.get(current) or current.replace('%', '%%')
+    lines += ['', f'Current: {current_display}', '']
 
     raw = await ctx.prompt('date format', preamble_lines=lines)
     if raw is None or not raw.strip():
@@ -976,7 +981,12 @@ async def _pick_time_format(ctx) -> None:
     lines = ['', '|yellow|Time Format:|reset|', '']
     for num, label, fmt in _TIME_FORMAT_PRESETS:
         lines.append(f'  {num}. {label:<8} {sample.strftime(fmt)}')
-    lines += ['', f'Current: {_TIME_FORMAT_NAMES.get(current, current)}', '']
+    # current may be a raw, unrecognized strftime pattern (e.g. '%I:%M %p')
+    # rather than a friendly preset name -- escape '%' so ctx.send()'s
+    # %-token substitution (tada_utilities.substitute_tokens) doesn't
+    # mistake a stray '%p'/'%c'/etc. for a pronoun/class token.
+    current_display = _TIME_FORMAT_NAMES.get(current) or current.replace('%', '%%')
+    lines += ['', f'Current: {current_display}', '']
 
     raw = await ctx.prompt('time format', preamble_lines=lines)
     if raw is None or not raw.strip():

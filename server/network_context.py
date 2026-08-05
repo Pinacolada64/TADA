@@ -170,7 +170,8 @@ class GameContext(BaseContext):
             format_lines, codec_for_settings, flatten_send_args,
             ansi_encode_lines, plain_encode_lines, petscii_encode_lines, ANSICodec, PlainCodec,
         )
-        raw = flatten_send_args(*lines)
+        from tada_utilities import substitute_tokens
+        raw = [substitute_tokens(line, self.player) for line in flatten_send_args(*lines)]
         codec = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
         if isinstance(codec, ANSICodec):
@@ -288,6 +289,9 @@ class GameContext(BaseContext):
         if preamble_lines:
             await self.send(preamble_lines)
 
+        from tada_utilities import substitute_tokens
+        prompt_text = substitute_tokens(prompt_text, self.player)
+
         if self.player.query_flag(PlayerFlags.HOURGLASS):
             clock = format_player_time(datetime.datetime.now(), self.player)
             prompt_text = f"[{clock}] {prompt_text}"
@@ -397,7 +401,8 @@ class PETSCIINetworkContext(GameContext):
         """Encode and send as raw PETSCII bytes — no JSON envelope.
         Automatically paginates when output exceeds the player's screen height."""
         from formatting import PETSCIICodec
-        raw       = flatten_send_args(*lines)
+        from tada_utilities import substitute_tokens
+        raw       = [substitute_tokens(line, self.player) for line in flatten_send_args(*lines)]
         codec     = PETSCIICodec()
         formatted = format_lines(raw, self.player.client_settings, codec)
 
@@ -441,6 +446,8 @@ class PETSCIINetworkContext(GameContext):
             preamble_lines = pending + list(preamble_lines or [])
         if preamble_lines:
             await self.send(preamble_lines)
+        from tada_utilities import substitute_tokens
+        prompt_text = substitute_tokens(prompt_text, self.player)
         if self.player.query_flag(PlayerFlags.HOURGLASS):
             clock = format_player_time(datetime.datetime.now(), self.player)
             prompt_text = f"[{clock}] {prompt_text}"

@@ -158,7 +158,8 @@ class GameContext(BaseContext):
         player's ClientSettings before printing.
         """
         # Flatten args into a single list of strings
-        raw       = flatten_send_args(*lines)
+        from tada_utilities import substitute_tokens
+        raw       = [substitute_tokens(line, self.player) for line in flatten_send_args(*lines)]
         codec     = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
         msg = nc.Message(
@@ -171,9 +172,9 @@ class GameContext(BaseContext):
 
     async def send_room(self, *lines, exclude_self: bool = False) -> None:
         """Send text to all players in the same room as this player."""
+        from tada_utilities import substitute_tokens
         my_room = getattr(self.client, 'room', None)
         raw     = flatten_send_args(*lines)
-        codec   = codec_for_settings(self.player.client_settings)
 
         for addr, other_client in self.server.clients.items():
             if exclude_self and other_client is self.client:
@@ -187,7 +188,8 @@ class GameContext(BaseContext):
             other_player   = getattr(other_client, 'player', self.player)
             other_codec    = codec_for_settings(other_player.client_settings)
             other_settings = other_player.client_settings
-            formatted      = format_lines(raw, other_settings, other_codec)
+            other_raw      = [substitute_tokens(line, other_player) for line in raw]
+            formatted      = format_lines(other_raw, other_settings, other_codec)
             msg = nc.Message(lines=formatted, type=nc.MessageType.REGULAR,
                              mode=nc.Mode.app, prompt=self._prompt)
             await self.server.send_message(w, msg)
@@ -204,9 +206,11 @@ class GameContext(BaseContext):
         import datetime
         from net_common import from_jsonb
         from formatting import format_player_time
+        from tada_utilities import substitute_tokens
         if preamble_lines:
             await self.send(preamble_lines)
 
+        prompt_text = substitute_tokens(prompt_text, self.player)
         if self.player.query_flag(PlayerFlags.HOURGLASS):
             clock = format_player_time(datetime.datetime.now(), self.player)
             prompt_text = f"[{clock}] {prompt_text}"
@@ -282,7 +286,8 @@ class PETSCIINetworkContext(GameContext):
         No JSON envelope — bytes go straight to the Commodore client.
         """
         from formatting import PETSCIICodec
-        raw       = flatten_send_args(*lines)
+        from tada_utilities import substitute_tokens
+        raw       = [substitute_tokens(line, self.player) for line in flatten_send_args(*lines)]
         codec     = PETSCIICodec()
         formatted = format_lines(raw, self.player.client_settings, codec)
         encoded   = petscii_encode_lines(
@@ -304,9 +309,11 @@ class PETSCIINetworkContext(GameContext):
         line of raw bytes from the Commodore client and decode it.
         """
         from formatting import PETSCIICodec, petscii_encode
+        from tada_utilities import substitute_tokens
         if preamble_lines:
             await self.send(preamble_lines)
 
+        prompt_text = substitute_tokens(prompt_text, self.player)
         if prompt_text:
             encoded = petscii_encode(prompt_text, self.CODEC_NAME)
             self.writer.write(encoded)

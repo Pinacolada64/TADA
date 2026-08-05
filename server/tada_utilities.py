@@ -3,6 +3,7 @@
 import doctest
 import logging
 import random
+import re
 import textwrap
 from typing import TYPE_CHECKING
 
@@ -481,6 +482,77 @@ def get_pronoun(character: 'Player',
         logging.warning("Pronoun not found for '%s' type '%s'",
                         getattr(character, 'name', '?'), pronoun_type.name)
         return ''
+
+
+# %-token letter -> PronounType name, mirrors ally_events/farewell.py's
+# original ally-only scheme (one per PronounType member in base_classes.py):
+# %s he/she, %o him/her, %p his/her, %P his/hers, %r himself/herself.
+# %n/%c/%e aren't pronouns -- name, character class, and race -- folded
+# into the same %<letter> scheme so every per-character substitution lives
+# under one syntax. Traces back to an unfinished C64 asm draft
+# (assembly-language/%-substitution.lbl) that attempted the same idea for
+# name/gender (and sketched class/race tokens that were never wired up).
+_PRONOUN_TOKENS = {
+    's': PronounType.SUBJECTIVE,
+    'o': PronounType.OBJECTIVE,
+    'p': PronounType.POSSESSIVE_ADJECTIVE,
+    'P': PronounType.POSSESSIVE_PRONOUN,
+    'r': PronounType.REFLEXIVE,
+}
+_TOKEN_RE = re.compile('%(.)')
+
+
+def substitute_tokens(text: str, subject) -> str:
+    """Replace %-tokens in *text* with attributes of *subject* (a Player,
+    Ally, or Monster -- anything exposing .name/.gender/.char_class/.char_race).
+
+    Tokens:
+        %n  name
+        %s  subjective pronoun   (he/she)
+        %o  objective pronoun    (him/her)
+        %p  possessive adjective (his/her)
+        %P  possessive pronoun   (his/hers)
+        %r  reflexive pronoun    (himself/herself)
+        %c  character class      (e.g. "Wizard")
+        %e  race                 (e.g. "Elf")
+        %%  literal '%'
+
+    Any other %<char> -- including an unpaired '%' at the end of the
+    string -- passes through unchanged rather than raising, so ordinary
+    text containing a bare '%' (a percentage, a strftime pattern, ...)
+    is never at risk of crashing the substitution.
+
+    >>> from base_classes import Gender, PlayerClass, PlayerRace
+    >>> setup = {"name": "Arthur", "gender": Gender.MALE,
+    ...           "char_class": PlayerClass.KNIGHT, "char_race": PlayerRace.HUMAN}
+    >>> arthur = Player(**setup)
+    >>> substitute_tokens("%n draws %p sword; %s is a %e %c.", arthur)
+    'Arthur draws his sword; he is a Human Knight.'
+    >>> substitute_tokens("Success %", arthur)
+    'Success %'
+    >>> substitute_tokens("100%% done", arthur)
+    '100% done'
+    """
+    if '%' not in text:
+        return text
+
+    def _replace(match: re.Match) -> str:
+        token = match.group(1)
+        if token == '%':
+            return '%'
+        if token == 'n':
+            return getattr(subject, 'name', '') or ''
+        if token == 'c':
+            char_class = getattr(subject, 'char_class', None)
+            return getattr(char_class, 'value', char_class) or ''
+        if token == 'e':
+            char_race = getattr(subject, 'char_race', None)
+            return getattr(char_race, 'value', char_race) or ''
+        if token in _PRONOUN_TOKENS:
+            return get_pronoun(subject, _PRONOUN_TOKENS[token])
+        return match.group(0)  # unrecognized token -- leave literal
+
+    return _TOKEN_RE.sub(_replace, text)
 
 
 def frame_text(ctx: GameContext, text: str, title: str = '') -> list[str]:
