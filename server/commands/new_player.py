@@ -312,6 +312,8 @@ async def main_flow(ctx,
         if not ok:
             return CommandResult.fail("Character creation failed.", error="creation_failed")
 
+        _announce_new_recruit(ctx)
+
         await ctx.send(
             "",
             f"Welcome to TADA, {ctx.player.name}!",
@@ -332,6 +334,51 @@ async def main_flow(ctx,
     finally:
         if _client is not None:
             _client.virtual_location = previous_location
+
+
+def _announce_new_recruit(ctx) -> None:
+    """SPUR-code/SPUR.NEW.S "new6"/"nw.plyr": writes a "NEW RECRUIT" line to
+    battle.log (name, race/class, civilian-or-outlaw status) that shows up
+    in-game via NEWS. Posted as a 'once' item (news.py) so every other
+    player sees it once, then it's silently suppressed -- same visibility
+    rule as any other one-off announcement.
+
+    Best-effort: a failure here shouldn't block a character that already
+    saved successfully, so it's swallowed and logged rather than raised.
+    """
+    try:
+        import datetime
+        import news as news_store
+        from base_classes import Guild
+
+        player = ctx.player
+        guild = getattr(player, 'guild', None)
+        if guild in (Guild.CIVILIAN, Guild.OUTLAW):
+            guild_phrase = f"as {a_or_an(guild.value)}"
+        elif guild is not None:
+            guild_phrase = f"the {guild.value}"
+        else:
+            guild_phrase = "as a Civilian"
+
+        race  = getattr(player, 'char_race', None)
+        klass = getattr(player, 'char_class', None)
+        body = [f"{player.name}, {a_or_an(race.value if race else 'adventurer')} "
+                f"{race.value if race else ''} {klass.value if klass else ''}, "
+                f"has joined {guild_phrase}."]
+
+        items = news_store.load_news()
+        items.append({
+            'id':        news_store.next_id(items),
+            'title':     'New Recruit',
+            'body':      body,
+            'author':    'SPUR',
+            'posted_at': datetime.datetime.now().isoformat(),
+            'lifetime':  'once',
+            'seen_by':   [],
+        })
+        news_store.save_news(items)
+    except Exception:
+        log.exception("Failed to post new-recruit news item for %r", getattr(ctx.player, 'name', '?'))
 
 
 async def _handle_abandon_or_pause(ctx, step_num: int, prefill_password: Optional[str],
