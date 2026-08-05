@@ -2,6 +2,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from enum import auto
+from pathlib import Path
 from typing import Optional, TYPE_CHECKING, Any, Dict, Tuple
 
 try:
@@ -135,6 +136,32 @@ class Weapon(BaseItem):
             logging.error(">>> File not found: '%s'" % filename)
             return None
 
+    # Alias for code ported from item_system.py's old Weapon dataclass,
+    # which used 'number' where this class uses 'id_number'.
+    @property
+    def number(self) -> int:
+        return self.id_number
+
+    @property
+    def sfx(self) -> Tuple[str, str]:
+        """Return (miss_sfx, hit_sfx) for this weapon."""
+        from item_system import weapon_sfx
+        return weapon_sfx(self)
+
+    @property
+    def is_storm_weapon(self) -> bool:
+        return "STORM" in (self.name or '').upper()
+
+    @property
+    def is_magic(self) -> bool:
+        return str(self.kind or '').lower() == "magic"
+
+    @property
+    def needs_ammo(self) -> bool:
+        # weapon_class may be a base_classes.WeaponClass (StrEnum) or a raw
+        # string from weapons.json -- both compare equal to "projectile".
+        return str(self.weapon_class or '').lower() == "projectile"
+
 
 def _weapons_by_number(weapons_data: Optional[list]) -> Dict[int, dict]:
     """Index raw weapons.json-shaped dicts by their 'number' key."""
@@ -160,6 +187,173 @@ def build_weapon_from_raw(raw: dict, *, id_number: int, location: int = 0) -> 'W
         price        = raw.get('price', 0),
         weapon_class = raw.get('weapon_class'),
     )
+
+
+def load_weapons(path: str) -> list['Weapon']:
+    """
+    Load weapons.json and return a list of Weapon instances.
+
+    Ported from item_system.py's old load_weapons(), which built the
+    now-removed item_system.Weapon dataclass; this builds real
+    items.Weapon instances via build_weapon_from_raw() instead, so
+    every field (sound_effect/stability/to_hit/weapon_class/price)
+    matches what shoppe/armory.py's buy path constructs.
+
+    Usage:
+        weapons = load_weapons("weapons.json")
+    """
+    raw_list = Weapon.read_weapons(path)
+    if raw_list is None:
+        return []
+    weapons = []
+    for i, raw in enumerate(raw_list):
+        id_number = raw.get('number', i)
+        weapons.append(build_weapon_from_raw(raw, id_number=id_number))
+    logging.debug("load_weapons: loaded %d weapons from '%s'", len(weapons), path)
+    return weapons
+
+
+async def show_weapon(ctx, weapon: 'Weapon') -> None:
+    """
+    Display full stats for a single weapon.
+
+    Async — sends output via ctx.send().
+    Mirrors the stat display in SPUR.WEAPON.S `rdy.wep` section.
+
+    Usage:None
+        await show_weapon(ctx, sword)
+    """
+    miss_sfx, hit_sfx = weapon.sfx
+    kind_label = str(weapon.kind or '').capitalize()
+    wc = weapon.weapon_class
+    class_label = (wc.value if hasattr(wc, 'value') else str(wc or '')).capitalize()
+
+    lines = [
+        f"  #{weapon.number}  {weapon.name}  [{kind_label}]",
+        f"  Class    : {class_label}",
+        f"  Stability: {weapon.stability}%   (ease of use)",
+        f"  To-hit   : {weapon.to_hit}%",
+        f"  Price    : {weapon.price} silver",
+        f"  On miss  : {miss_sfx}    On hit: {hit_sfx}",
+    ]
+    if weapon.needs_ammo:
+        lines.append("  * Projectile weapon — requires ammunition")
+    if weapon.is_storm_weapon:
+        lines.append("  *** STORM WEAPON — handle with care! ***")
+    if weapon.flags:
+        lines.append(f"  Flags    : {', '.join(weapon.flags)}")
+
+    await ctx.send(*lines)
+
+
+async def list_weapons(ctx, weapon_list: list['Weapon']) -> None:
+    """
+    Display a numbered list of weapons (e.g. the player's inventory).
+
+    Async — sends output via ctx.send().
+
+    Usage:
+        await list_weapons(ctx, player_weapons)
+    """
+    if not weapon_list:
+        await ctx.send("  (No weapons.)")
+        return
+
+    lines = ["  Weapons:"]
+    for i, w in enumerate(weapon_list, start=1):
+        miss_sfx, hit_sfx = w.sfx
+        wc = w.weapon_class
+        wc_str = wc.value if hasattr(wc, 'value') else str(wc or '')
+        lines.append(
+            f"  {i}) {w.name:<22} "
+            f"[{wc_str:<10}]  "
+            f"Stab:{w.stability}%  Hit:{w.to_hit}%  "
+            f"Price:{w.price}"
+        )
+    await ctx.send(*lines)
+
+
+async def ready_weapon(ctx, player, weapons_data: list['Weapon']) -> Optional['Weapon']:
+    """
+    Interactive 'READY a weapon' flow — mirrors SPUR.WEAPON.S `rdy.wep`.
+
+    Prompts the player to choose a weapon from their inventory,
+    validates the choice, displays the weapon stats and any
+    class/race bonuses, then returns the chosen Weapon (or None
+    if the player cancelled).
+
+    Async — uses ctx.prompt() and ctx.send().
+
+    NOTE: commands/ready.py is the actual READY command used in-game
+    (STORM/Excalibur/Death Amulet special-casing, battle-exp badges,
+    etc.) — this is the earlier, simpler flow it superseded. Kept
+    (moved here from item_system.py rather than deleted) as source
+    reference/for any caller that wants the plain version without the
+    special-case handling.
+
+    Usage:
+        readied = await ready_weapon(ctx, player, all_weapons)
+        if readied:
+            player.readied_weapon = readied
+    """
+    # Filter to weapons this player is carrying (location == 0)
+    carried = [w for w in weapons_data if w.location == 0]
+
+    if not carried:
+        await ctx.send("You have no weapons to ready.")
+        return None
+
+    await list_weapons(ctx, carried)
+
+    while True:
+        raw = await ctx.prompt(f"Ready which weapon number? (or {ctx.player.client_settings.return_key} to cancel) ")
+        if not raw or raw.strip() == "":
+            return None
+
+        raw = raw.strip()
+        if " " in raw:
+            await ctx.send("Please enter a single number, no spaces.")
+            continue
+
+        if not raw.isdigit():
+            await ctx.send("Please enter a number.")
+            continue
+
+        choice = int(raw)
+        if choice < 1 or choice > len(carried):
+            await ctx.send(f"You don't have weapon #{choice}. Pick 1–{len(carried)}.")
+            continue
+
+        chosen = carried[choice - 1]
+
+        # Class/race bonus display
+        player_class = getattr(player, "player_class", "Fighter")
+        player_race  = getattr(player, "player_race",  "Human")
+
+        # Normalise enum values to plain strings if needed
+        if hasattr(player_class, "value"):
+            player_class = player_class.value
+        if hasattr(player_race, "value"):
+            player_race = player_race.value
+
+        from item_system import weapon_bonus
+        skill_b, dmg_b = weapon_bonus(chosen, player_class, player_race)
+
+        await show_weapon(ctx, chosen)
+
+        bonus_lines = []
+        if skill_b != 0:
+            sign = "+" if skill_b > 0 else ""
+            bonus_lines.append(f"  Skill bonus  : {sign}{skill_b} (your class/race)")
+        if dmg_b != 0:
+            sign = "+" if dmg_b > 0 else ""
+            bonus_lines.append(f"  Damage bonus : {sign}{dmg_b} (your class/race)")
+        if not bonus_lines:
+            bonus_lines.append("  No special class/race bonus for this weapon.")
+
+        await ctx.send(*bonus_lines)
+        await ctx.send(f"{chosen.name} readied.")
+        return chosen
 
 
 def resolve_weapon(id_number: int, name: str, weapons_data: Optional[list],
@@ -209,7 +403,7 @@ class Rations(BaseItem):
             return f"{self.name} [Unknown #{self.number}]"
 
     @staticmethod
-    def read_rations(filename: str) -> Optional[Dict[str, Any]]:
+    def read_rations(filename: Path) -> Optional[Dict[str, Any]]:
         try:
             with open(filename) as json_file:
                 rations = json.load(json_file)
@@ -258,7 +452,7 @@ class Spell(BaseItem):
         charge_pct = int(self.charges / self.max_charges * 100) if self.max_charges else 0
         return (
             f"{self.name} "
-            f"[{self.charges}/{self.max_charges} charges, {charge_pct}%"
+            f"[{self.charges}/{self.max_charges} charges ({charge_pct}%)"
             f" | cast: {self.cast_chance}%]"
         )
 

@@ -101,7 +101,7 @@ class Ally:
         # Weapon combat (TADA-only extension -- SPUR allies never carry a
         # weapons.json entry, see combat/resolution.py ally_attacks()).
         # Auto-readied by commands/give.py when the player GIVEs a Weapon.
-        self.readied_weapon = None       # item_system.Weapon or None
+        self.readied_weapon = None       # items.Weapon or None
         self.ammo_rounds: int = 0        # rounds currently loaded
         self.ammo_max:    int = 0        # capacity, for recovery/display
         self.ammo_damage: int = 0        # per-round damage bonus (SPUR vm), set by commands/give.py
