@@ -124,6 +124,33 @@ class TestMoveCommandRcRt(unittest.IsolatedAsyncioTestCase):
         mock_shoppe.assert_not_awaited()
         ctx.server._move.assert_awaited_once_with(ctx, 'd')
 
+    async def test_level_6_room_1_enters_ship_stores_not_generic_shoppe(self):
+        """Level 6 room 1 ("the ship's Stores area is visible thru a
+        manhole below you..") has rc==2/no rt, same shape as the regular
+        shoppe elevator -- but SPUR.SHIP.S is its own distinct shop
+        program (ship/main.py), not a level-6 instance of the generic
+        Merchant Shoppe."""
+        ctx = self._make_move_ctx(room_no=1, level=6)
+        ctx.server.game_map.levels[6] = {
+            1: Room(number=1, name='A Corridor', desc='',
+                    exits={'north': 871, 'south': 31, 'rc': 2}),
+        }
+        with patch('commands.movement._enter_shoppe', new=AsyncMock()) as mock_shoppe, \
+             patch('commands.movement._enter_ship_stores', new=AsyncMock()) as mock_ship:
+            await MoveCommand().execute(ctx, 'd')
+        mock_ship.assert_awaited_once()
+        mock_shoppe.assert_not_awaited()
+
+    async def test_level_1_shoppe_room_still_uses_generic_shoppe(self):
+        """Same rc/rt shape, but off the ship -- must not be caught by the
+        level-6 special case."""
+        ctx = self._make_move_ctx(room_no=1, level=1)
+        with patch('commands.movement._enter_shoppe', new=AsyncMock()) as mock_shoppe, \
+             patch('commands.movement._enter_ship_stores', new=AsyncMock()) as mock_ship:
+            await MoveCommand().execute(ctx, 'd')
+        mock_shoppe.assert_awaited_once()
+        mock_ship.assert_not_awaited()
+
 
 class TestBlockedMoveIntoMissingRoom(unittest.IsolatedAsyncioTestCase):
     """Server._move() must refuse to move the player into a room number

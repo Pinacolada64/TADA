@@ -234,8 +234,14 @@ async def _sell(ctx: GameContext, player, inv, all_weapons) -> None:
 # Protection (armor and shields)
 # ---------------------------------------------------------------------------
 
-async def protection(ctx: GameContext) -> None:
-    """Buy armor and shields. (SPUR.SHOP.S protect section)"""
+async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> None:
+    """Buy armor and shields. (SPUR.SHOP.S protect section)
+
+    *item_ids*, if given, restricts the rack to just those objects.json
+    numbers -- e.g. ship/armory.py's sci-fi armor rack (#113-116),
+    matching SPUR.SHIP.S's own narrower `protect` item range vs.
+    SPUR.SHOP.S's full catalog (this port's default, unfiltered).
+    """
     from base_classes import PlayerMoneyTypes
     from items import Item, ItemCategory
     from inventory import PACK_FULL_MESSAGE
@@ -245,6 +251,8 @@ async def protection(ctx: GameContext) -> None:
 
     objects    = _load_objects()
     prot_items = [o for o in objects if o.get('type') in ('armor', 'shield')]
+    if item_ids is not None:
+        prot_items = [o for o in prot_items if o.get('number') in item_ids]
 
     await ctx.send([
         '',
@@ -321,8 +329,14 @@ async def protection(ctx: GameContext) -> None:
 # Armory entry point (handles P/W routing)
 # ---------------------------------------------------------------------------
 
-async def main(ctx: GameContext) -> None:
-    """Armory entry point — routes to protection or weaponry. (SPUR.SHOP.S armory section)"""
+async def main(ctx: GameContext, *, item_ids: set[int] | None = None) -> None:
+    """Armory entry point — routes to protection or weaponry. (SPUR.SHOP.S armory section)
+
+    *item_ids*, if given, restricts weapon purchases to just those
+    weapons.json numbers and is forwarded to protection() unchanged --
+    see its own docstring. Used by ship/armory.py for the ship's
+    energy-weapon rack (#58-60).
+    """
     player = ctx.player
     inv    = getattr(player, 'inventory', None)
 
@@ -336,7 +350,7 @@ async def main(ctx: GameContext) -> None:
         if not cmd or cmd == 'Q':
             return
         if cmd == 'P':
-            await protection(ctx)
+            await protection(ctx, item_ids=item_ids)
             return
         if cmd == 'W':
             break
@@ -344,6 +358,8 @@ async def main(ctx: GameContext) -> None:
         return
 
     all_weapons = _load_weapons()
+    if item_ids is not None:
+        all_weapons = [w for w in all_weapons if w.get('number') in item_ids]
 
     while True:
         raw = await ctx.prompt('Wouldst thou [B]uy or [S]ell?')

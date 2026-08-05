@@ -81,6 +81,15 @@ _ALLY_GUILD_ROOM  = 42
 _JAKES_LEVEL = 5
 _JAKES_ROOM  = 157
 
+# Ship's Stores: level 6 room 1 ("the ship's Stores area is visible thru a
+# manhole below you..") is the only rc==2/no-rt room on level 6, and would
+# otherwise fall through to the generic Merchant Shoppe below -- but
+# SPUR.SHIP.S is its own distinct shop program (Armory/Bank/General Store
+# reused, plus SALVAGE/TR that don't exist anywhere else), not a level-6
+# instance of SPUR.SHOP.S. See ship/main.py.
+_SHIP_LEVEL = 6
+_SHIP_STORES_ROOM = 1
+
 
 def _room_has_flag(room, flag_prefix: str, direction: str) -> bool:
     """True if *room*'s flags include '<flag_prefix>_<direction word>'
@@ -162,6 +171,15 @@ async def _enter_shoppe(ctx: GameContext) -> None:
     """Player takes the elevator down to the Merchant Shoppe."""
     from shoppe.main import main as shoppe_main
     await shoppe_main(ctx)
+    await ctx.server._show_room(ctx)
+
+
+async def _enter_ship_stores(ctx: GameContext) -> None:
+    """Player climbs down the manhole into the Ship's Stores (level 6,
+    room 1's rc==2 down-exit -- SPUR.SHIP.S's own copy of the shop
+    program, not the regular Merchant Shoppe)."""
+    from ship.main import main as ship_main
+    await ship_main(ctx)
     await ctx.server._show_room(ctx)
 
 
@@ -303,7 +321,10 @@ class MoveCommand(Command):
 
             if (direction == 'u' and rc == 1) or (direction == 'd' and rc == 2):
                 if not rt:
-                    await _enter_shoppe(ctx)
+                    if player_level == _SHIP_LEVEL and int(room_no) == _SHIP_STORES_ROOM:
+                        await _enter_ship_stores(ctx)
+                    else:
+                        await _enter_shoppe(ctx)
                     return CommandResult.ok()
 
             # Special destination: entering the bar

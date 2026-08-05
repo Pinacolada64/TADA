@@ -16,23 +16,31 @@ _CLOSED_LEVELS = {7}
 from shoppe.armory import main as _armory, protection as _protection
 
 
-def _load_store_rations() -> list[dict]:
-    """Load the first 10 rations from rations.json (all safe items, SPUR general subroutine)."""
+def _load_store_rations(numbers: object = None) -> list[dict]:
+    """Load rations.json entries whose number is in *numbers* (default:
+    the first 10, all safe items, SPUR.SHOP.S's own `general` subroutine
+    range). Pass a different container (e.g. ship/main.py's #70-75 sci-fi
+    ration range, SPUR.SHIP.S's own `general` subroutine) to reuse this
+    loader for a different rack."""
     path = os.path.join(os.path.dirname(__file__), '..', 'rations.json')
     try:
         with open(os.path.normpath(path)) as fh:
             data = json.load(fh)
-        return [r for r in data if r.get('number', 99) <= 10]
+        if numbers is None:
+            return [r for r in data if r.get('number', 99) <= 10]
+        return [r for r in data if r.get('number') in numbers]
     except Exception:
         log.error('Failed to load rations.json for general store')
         return []
 
 
-async def _general_store(ctx: GameContext) -> None:
+async def _general_store(ctx: GameContext, *, numbers: object = None) -> None:
     """Buy food and drink supplies. Mirrors SPUR.SHOP.S `general` subroutine.
 
-    Shows only items 1-10 from rations.json (guaranteed safe).  Each item may
-    be purchased at most once per player (SPUR: instr duplicate check).
+    Shows only items 1-10 from rations.json by default (guaranteed safe).
+    Each item may be purchased at most once per player (SPUR: instr
+    duplicate check). *numbers*, if given, is forwarded to
+    _load_store_rations() to stock a different rack instead.
     """
     from base_classes import PlayerMoneyTypes
     from items import Rations
@@ -40,7 +48,7 @@ async def _general_store(ctx: GameContext) -> None:
     player = ctx.player
     inv = getattr(player, 'inventory', None)
 
-    store_items = _load_store_rations()
+    store_items = _load_store_rations(numbers)
     if not store_items:
         await ctx.send('The shelves are bare. Come back later.')
         return

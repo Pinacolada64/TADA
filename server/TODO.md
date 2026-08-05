@@ -547,12 +547,37 @@
     - `AD*` — autoduel: marks the current duel challenge already
       processed, avoiding re-triggering the same autoduel resolution
       (`SPUR.MISC5.S:38-79`).
-    - `TR+` — the level-6 ship transporter has been used at least once;
-      each *subsequent* use gets 20 points better malfunction odds
-      (`xz=xz-20`) once this flag is set (`SPUR.SHIP.S:386-390`).
-    - `*SS` — the Ship's Salvage Bay visited once per session ("the
-      salvage computer does not respond" on a repeat visit,
-      `SPUR.SHIP.S:461-463`).
+    - [DONE 8/5/26] `TR+` — the level-6 ship transporter has been used at
+      least once this session; each *subsequent* attempt's malfunction
+      odds get *worse*, not better, once this flag is set (`xz=xz-20`
+      before the `xz<10` malfunction check, `SPUR.SHIP.S:386-390` --
+      this entry previously said "20 points better," which the
+      arithmetic contradicts; ported literally per
+      `ship/transporter.py`'s own docstring rather than that stale
+      paraphrase). Built as `ship/transporter.py`'s `_ONCE_TOKEN`.
+    - [DONE 8/5/26] `*SS` — the Ship's Salvage Bay visited once per
+      session ("the salvage computer does not respond" on a repeat
+      visit, `SPUR.SHIP.S:461-463`). Built as `ship/salvage_bay.py`.
+      Buys back only objects.json #146 "salvage parts" at price*40 gold.
+
+  The Ship's Stores (SPUR.SHIP.S, level 6's own copy of the shop program)
+  is now its own `ship/` package, reached from level 6 room 1's rc==2
+  down-exit (`commands/movement.py`'s `_enter_ship_stores`, replacing an
+  earlier miswiring where that exit fell into the regular Merchant
+  Shoppe): `ship/main.py` (menu, reusing shoppe/bank.py and shoppe/
+  main.py's Player List directly -- neither is ship-specific in this
+  port), `ship/armory.py` (thin wrapper around shoppe/armory.py's new
+  `item_ids` filter, restricted to energy weapons #58-60 and sci-fi
+  armor #113-116 -- SPUR.SHIP.S's own narrower rack, vs. SPUR.SHOP.S's
+  full catalog that the regular armory already generalized to), a
+  General Store restocked to rations.json #70-75 (sci-fi rations like
+  FORMULAE H2O, via shoppe/main.py's new `numbers` filter, instead of
+  the regular shop's #1-10), `ship/salvage_bay.py`, `ship/ammo_locker.py`
+  (energy-weapon ammo, objects.json #118-121, price*20), and
+  `ship/transporter.py` (beams the player to another level's Merchant
+  Shoppe, reusing the dungeon elevator's own combination as the access
+  code). Wizard/Pawn Shop/Clan are disabled on the ship with SPUR's own
+  in-theme refusal text rather than omitted from the menu.
 - Difficulty toggle for `encounters/meteor.py`'s dodge math (Ryan): a
   server-config option to pick between master's numbers (currently used
   -- success on roll `<90`, Energy/Strength penalties -5% each) and the
