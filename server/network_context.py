@@ -344,11 +344,21 @@ def _petscii_input_to_ascii(data: bytes) -> str:
     cbmcodecs2 maps 0x41-0x5A to lowercase letters in petscii_c64en_lc,
     which is correct for display but wrong for keyboard input (the C64
     unshifted keys always send 0x41-0x5A regardless of charset mode).
-    This function handles the three relevant ranges:
+    This function handles the five relevant ranges:
       0x20-0x5A  space, punctuation, digits, and unshifted A-Z
+      0x5E       up-arrow key (the '^' printed on that keycap) -> '^'
       0x61-0x7A  a-z (shifted in uppercase charset / unshifted in some modes)
+      0x64       Commodore+@ (underline glyph key combo) -> '_', checked
+                 before the 0x61-0x7A range below since it would otherwise
+                 shadow this byte as lowercase 'd' -- real C64 hardware
+                 already sends unshifted 'd' as 0x44 (the 0x41-0x5A
+                 branch), so this byte is free to mean underline instead.
       0xC1-0xDA  A-Z shifted in lowercase charset (0xC1 = 'A', 0xDA = 'Z')
-    Everything else (control codes, graphics) is discarded.
+    Everything else (control codes, graphics) is discarded. 0x5E is
+    outside 0x20-0x40 because cbmcodecs2 decodes it to the UPWARDS ARROW
+    glyph (U+2191), not '^' -- see formatting.py's
+    _PETSCII_RAW_BYTE_OVERRIDES for the matching server -> C64 direction
+    of both this and the '^' mapping.
     """
     chars = []
     for b in data:
@@ -356,6 +366,10 @@ def _petscii_input_to_ascii(data: bytes) -> str:
             chars.append(chr(b))
         elif 0x41 <= b <= 0x5A:        # unshifted letter keys → lowercase a-z
             chars.append(chr(b + 0x20))
+        elif b == 0x5E:                # up-arrow key
+            chars.append('^')
+        elif b == 0x64:                # Commodore+@ underline glyph combo
+            chars.append('_')
         elif 0x61 <= b <= 0x7A:        # a-z (some terminal modes)
             chars.append(chr(b))
         elif 0xC1 <= b <= 0xDA:        # shifted A-Z in lowercase charset → uppercase

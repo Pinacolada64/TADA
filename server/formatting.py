@@ -306,25 +306,43 @@ def _petscii_token_strip_replace(match: re.Match) -> str:
     return ''
 
 
+# Characters that cbmcodecs2's petscii_c64en_lc codec has no mapping for
+# (it maps 0x5E/0x5F to the UPWARDS/LEFTWARDS ARROW glyphs, not '^'/'_'),
+# so a plain .encode(codec_name) errors='replace's them to '?'. Each maps
+# straight to the raw PETSCII byte a real Commodore screen needs instead.
+# '^' is the up-arrow key -- the same physical key/glyph HistoryCommand's
+# '^N' shortcut uses, so this is what makes it round-trip to the C64
+# screen instead of showing as '?'. See _petscii_input_to_ascii in
+# network_context.py for the matching keyboard-input (C64 -> server)
+# direction of this same 0x5E mapping.
+_PETSCII_RAW_BYTE_OVERRIDES: dict[str, int] = {
+    '_': 0x64,  # underline glyph
+    '^': 0x5E,  # up-arrow glyph
+}
+
+
 def _encode_petscii_segment(text: str, codec_name: str) -> bytes:
-    """Encode a plain text segment, mapping '_' → PETSCII $64 (underline
-    glyph). Also used with codec_name='ascii' by petscii_encode's no-
-    cbmcodecs2 fallback path -- str.encode() accepts 'ascii' just as
-    well as a cbmcodecs2 codec name, so the same '_' handling applies
-    either way rather than needing a second copy of this function. Ryan
-    caught the gap live: without this, the fallback path (this
-    environment doesn't have cbmcodecs2 installed) sent a raw ASCII
-    0x5F for '_', which isn't underscore on a real Commodore screen --
-    it happened to render as an unrelated glyph. $64 is the actual
-    PETSCII underline-glyph code."""
-    if '_' not in text:
+    """Encode a plain text segment, substituting raw PETSCII bytes for
+    characters cbmcodecs2 has no mapping for (see
+    _PETSCII_RAW_BYTE_OVERRIDES). Also used with codec_name='ascii' by
+    petscii_encode's no-cbmcodecs2 fallback path -- str.encode() accepts
+    'ascii' just as well as a cbmcodecs2 codec name, so the same handling
+    applies either way rather than needing a second copy of this
+    function. Ryan caught the '_' gap live: without this, the fallback
+    path (this environment doesn't have cbmcodecs2 installed) sent a raw
+    ASCII 0x5F for '_', which isn't underscore on a real Commodore
+    screen -- it happened to render as an unrelated glyph. $64 is the
+    actual PETSCII underline-glyph code."""
+    if not any(c in text for c in _PETSCII_RAW_BYTE_OVERRIDES):
         return text.encode(codec_name, errors='replace')
-    parts = text.split('_')
+    pattern = '[' + re.escape(''.join(_PETSCII_RAW_BYTE_OVERRIDES)) + ']'
+    parts = re.split(f'({pattern})', text)
     buf = bytearray()
-    for i, part in enumerate(parts):
-        buf.extend(part.encode(codec_name, errors='replace'))
-        if i < len(parts) - 1:
-            buf.append(0x64)
+    for part in parts:
+        if part in _PETSCII_RAW_BYTE_OVERRIDES:
+            buf.append(_PETSCII_RAW_BYTE_OVERRIDES[part])
+        elif part:
+            buf.extend(part.encode(codec_name, errors='replace'))
     return bytes(buf)
 
 
