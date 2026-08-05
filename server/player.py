@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import random
-import textwrap
 import datetime
 from pathlib import Path
 from typing import Any, Optional, TYPE_CHECKING
@@ -656,112 +655,6 @@ class Player:
             print(f"{item.name}")
         if item.description:
             print(item.description)
-
-    def output(self, text_lines: str | list) -> "Message":
-        """
-        Print <text_lines> in client's Translation, word-wrapped to client's column width to Player.
-        A null string outputs a blank line.
-
-        :param text_lines: text to output (can be either a list of strings or a single string)
-        :return: Message
-        """
-        """
-        TODO: implement cbmcodec2 ASCII -> PETSCII translation
-
-        TODO: implement different success messages for Player originating action vs. other Players in room
-        use player.
-        for cxn in all_players_in_room:
-            if char.(something, idk what at this point) == Player.who_performed_action:
-                output(f"You throw the snowball at {target}.")
-            else:
-                output(f"{actor} throws the snowball at {target}.")
-        
-        if self.client_settings.translation == Translation.PETSCII:
-            codec = "petscii_c64en_lc"
-            temp = string.encode(codec)
-            logging.debug(repr(temp))  # don't print Commodore color codes to Linux terminal
-        """
-        from net_server import Message
-        from tada_utilities import text_pager
-
-        formatted_lines = []
-
-        if isinstance(text_lines, str):
-            # Process a single string, which might result in multiple wrapped lines
-            processed_lines = self.process_single_line(text_lines)
-            formatted_lines.extend(processed_lines)  # Use extend for multiple lines from one input
-        elif isinstance(text_lines, list):
-            # Process each string in the list
-            collected_lines = []
-            for line in text_lines:
-                # if line == '':
-                #     collected_lines.append("\n")
-                processed_lines = self.process_single_line(line)
-                formatted_lines.extend(processed_lines)  # Use extend here too
-
-        # Use text_pager if lines > screen rows
-        if len(formatted_lines) >= self.client_settings.screen_rows:
-            # text_pager(player, text_lines)
-            try:
-                text_pager(self, formatted_lines)
-            except Exception:
-                logging.debug("Unable to run text_pager (async) synchronously; falling back to direct output")
-                for ln in formatted_lines:
-                    print(ln)
-        # otherwise, print each line from the flattened list without paging:
-        """
-        for line in final_output_lines:
-            if line == '':
-                print()
-            else:
-                print(line)
-        """
-        # The Message object should receive a flat list of strings
-        return Message(lines=formatted_lines)
-
-    def process_single_line(self, raw_input: str) -> list[str]:
-        """
-        Apply text wrapping, bullet point formatting and highlighting to a single string,
-        returning a list of wrapped lines.
-
-        :param self: Player object (to infer line ending options)
-        :param raw_input: string to process
-        :return str: null string or text-wrapped strings
-        """
-        import colorama
-        import re
-        from tada_utilities import bulleted_list_format
-
-        # turn empty string into newline (TODO: from player.client_settings.line_ending
-        if raw_input == '':
-            return [""]
-
-        column_width = self.client_settings.screen_columns
-        logging.debug("width: %i | raw_input: %s" % (column_width, raw_input))
-
-        # Apply highlighting before wrapping to avoid breaking color codes
-        # TODO: handle player's highlight / normal color preferences
-        # This regex is correct for [text] -> RED text
-        highlighted_line_content = re.sub(r'\[(.+?)]', f'{Fore.RED}' + r'\1' + f'{Fore.RESET}', string=raw_input)
-
-        # textwrap.fill returns a single string, which might contain newline characters if the input
-        # had them or if it needed to break lines itself.
-        # To get a list of lines, use textwrap.wrap and then join or just handle it directly.
-        # textwrap.fill already handles wrapping, but if you want lines as separate strings,
-        # you might need to split it if it has internal newlines.
-        # Assuming textwrap.fill always returns a single string *without* internal newlines
-        # UNLESS the original raw_input had them, and we want to ensure each element in the
-        # returned list is a single visual line.
-
-        wrapped_text = textwrap.fill(text=highlighted_line_content, width=column_width)
-
-        # process lines into bulleted text:
-        if wrapped_text.startswith("* "):
-            wrapped_text = bulleted_list_format(wrapped_text[2:], column_width)
-
-        # textwrap.fill *might* introduce newlines. We want to return a list of distinct lines.
-        # So, we split by newline to ensure each element is a single line.
-        return wrapped_text.splitlines()
 
     def set_silver_absolute(self, kind: "PlayerMoneyTypes", amount: int):
         """
