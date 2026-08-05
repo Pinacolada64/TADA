@@ -113,7 +113,7 @@ class TestBanToggle(unittest.TestCase):
         self.assertIn('Offliner', state['banned'])
         self.assertTrue(target.saved)
 
-    def test_banning_a_different_guild_member_does_not_demote(self):
+    def test_banning_a_different_guild_member_is_rejected(self):
         admin, ctx = self._admin_ctx(prompts=['Y'])
         target = _FakePlayer('Swordsman', guild=Guild.SWORD)
         state = {'banned': [], 'log': []}
@@ -123,8 +123,9 @@ class TestBanToggle(unittest.TestCase):
              patch('commands.editplayer._find_character', return_value=(target, True)):
             _run(_ban_management(ctx, admin, state, info))
 
-        self.assertIn('Swordsman', state['banned'])
+        self.assertNotIn('Swordsman', state['banned'])
         self.assertEqual(target.guild, Guild.SWORD)
+        self.assertFalse(state['log'])
 
     def test_unbanning_removes_from_list(self):
         admin, ctx = self._admin_ctx(prompts=['Y'])

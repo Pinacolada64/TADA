@@ -666,6 +666,10 @@ async def _ban_management(ctx: GameContext, player, state: dict, info: dict) -> 
     target, is_online = found
 
     already_banned = target.name in banned
+    if not already_banned and _guild_key_for(target) != info['key']:
+        await ctx.send(f"{target.name} isn't a member of the {info['name']}.")
+        return
+
     await ctx.send(f"{target.name} is currently {'BANNED' if already_banned else 'not banned'}.")
 
     raw = await ctx.prompt('Switch status? [Y]/n')
@@ -679,11 +683,10 @@ async def _ban_management(ctx: GameContext, player, state: dict, info: dict) -> 
         banned.append(target.name)
         action, verb = 'BANNED', 'banned'
         # SPUR: banning a member of your own guild demotes them to Outlaw
-        if _guild_key_for(target) == info['key']:
-            target.guild = Guild.OUTLAW
-            target.unsaved_changes = True
-            if not is_online:
-                target.save(force=True)
+        target.guild = Guild.OUTLAW
+        target.unsaved_changes = True
+        if not is_online:
+            target.save(force=True)
 
     add_log(state, player.name, action, target.name)
     await ctx.send(f"Done. {target.name} is now {verb} from the {info['name']}.")
