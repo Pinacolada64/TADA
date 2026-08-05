@@ -242,9 +242,9 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     lines.append('POISONED!' if qf(PlayerFlags.POISON)  else 'Not poisoned')
     lines.append('DISEASED!' if qf(PlayerFlags.DISEASE) else 'Not diseased')
 
-    if qf(PlayerFlags.RING_WORN) and ctx.player.has_item(category=ItemCategory.ITEM, name="RING"):
+    if qf(PlayerFlags.RING_WORN) and player.has_item(category=ItemCategory.ITEM, name="RING"):
         lines.append('Ring worn.')
-    if qf(PlayerFlags.GAUNTLETS_WORN) and ctx.player.has_item(category=ItemCategory.ITEM, name="GAUNTLETS"):
+    if qf(PlayerFlags.GAUNTLETS_WORN) and player.has_item(category=ItemCategory.ITEM, name="GAUNTLETS"):
         lines.append('Gauntlets worn.')
 
     # Amulet of life
