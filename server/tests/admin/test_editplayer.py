@@ -42,6 +42,7 @@ from commands.editplayer import (
     _names_menu,
     _prompt_int,
     _statistics_menu,
+    _WORN_ITEM_NAMES,
 )
 
 
@@ -72,6 +73,10 @@ class _MockPlayer:
         self.combinations: dict = {}
         self.food               = 20
         self.drink              = 20
+        self._held_items: set   = set()
+
+    def has_item(self, *, name=None, item_id=None, category=None) -> bool:
+        return name is not None and name.upper() in self._held_items
 
     def query_flag(self, flag) -> bool:
         return flag in self._flags
@@ -128,7 +133,7 @@ class TestFlagStatus(unittest.TestCase):
         self.assertEqual(_flag_status(self.player, PlayerFlags.EXPERT_MODE), 'On')
 
     def test_every_flag_returns_valid_string(self):
-        valid = {'On', 'Off', 'Yes', 'No'}
+        valid = {'On', 'Off', 'Yes', 'No', 'Not held'}
         for flag in PlayerFlags:
             result = _flag_status(self.player, flag)
             self.assertIn(result, valid,
@@ -136,7 +141,7 @@ class TestFlagStatus(unittest.TestCase):
 
     def test_yesno_flags_use_yes_no(self):
         yesno = [f for f, dt, _ in new_player_default_flags
-                 if dt == FlagDisplayTypes.YESNO]
+                 if dt == FlagDisplayTypes.YESNO and f not in _WORN_ITEM_NAMES]
         for flag in yesno:
             self.assertEqual(_flag_status(self.player, flag), 'No')
             self.player.set_flag(flag)
@@ -149,6 +154,21 @@ class TestFlagStatus(unittest.TestCase):
         self.assertTrue(onoff, 'No ONOFF flags found in new_player_default_flags')
         for flag in onoff:
             self.assertIn(_flag_status(self.player, flag), {'On', 'Off'})
+
+    def test_worn_item_flags_report_not_held_without_the_item(self):
+        for flag in _WORN_ITEM_NAMES:
+            self.player.set_flag(flag)
+            self.assertEqual(_flag_status(self.player, flag), 'Not held')
+            self.player.clear_flag(flag)
+
+    def test_worn_item_flags_report_on_off_when_held(self):
+        for flag, item_name in _WORN_ITEM_NAMES.items():
+            self.player._held_items.add(item_name)
+            self.assertEqual(_flag_status(self.player, flag), 'Off')
+            self.player.set_flag(flag)
+            self.assertEqual(_flag_status(self.player, flag), 'On')
+            self.player.clear_flag(flag)
+            self.player._held_items.discard(item_name)
 
 
 # ---------------------------------------------------------------------------

@@ -72,8 +72,27 @@ class EditPlayerCommand(Command):
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+# RING_WORN/GAUNTLETS_WORN are otherwise-plain YESNO flags (see
+# new_player_default_flags), but the flag alone doesn't mean much if the
+# player isn't actually carrying the item -- mirrors stats.py's worn-item
+# display, which gates on both the flag AND Player.has_item(). Ryan's
+# request.
+_WORN_ITEM_NAMES = {
+    PlayerFlags.RING_WORN: 'RING',
+    PlayerFlags.GAUNTLETS_WORN: 'GAUNTLETS',
+}
+
+
 def _flag_status(player, flag: PlayerFlags) -> str:
-    """Return 'Yes'/'No' or 'On'/'Off' for the given flag."""
+    """Return 'Yes'/'No' or 'On'/'Off' for the given flag -- except
+    RING_WORN/GAUNTLETS_WORN, which report 'Not held' whenever the player
+    doesn't actually have the item, and 'On'/'Off' otherwise."""
+    item_name = _WORN_ITEM_NAMES.get(flag)
+    if item_name is not None:
+        from items import ItemCategory
+        if not player.has_item(category=ItemCategory.ITEM, name=item_name):
+            return 'Not held'
+        return 'On' if player.query_flag(flag) else 'Off'
     status = player.query_flag(flag)
     for f, display_type, _ in new_player_default_flags:
         if f == flag:
