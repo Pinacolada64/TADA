@@ -31,6 +31,7 @@ from __future__ import annotations
 import importlib
 import logging
 import pkgutil
+import re
 from typing import Dict, List, Optional, Tuple
 
 from commands.base_command import Command, CommandResult, Mode
@@ -234,6 +235,23 @@ class CommandProcessor:
             as a fallback so existing tests continue to work.
         """
         parts = raw.strip().split()
+        player = getattr(ctx, 'player', None) if ctx is not None else None
+
+        # '^N' shortcut: replay the Nth-most-recent entry from the player's
+        # command_history ring buffer (^1 = most recent). See Player
+        # .record_command()/.command_history in player.py.
+        if parts:
+            match = re.fullmatch(r'\^(\d+)', parts[0])
+            if match:
+                history = getattr(player, 'command_history', None) if player is not None else None
+                index   = int(match.group(1))
+                if not history or index < 1 or index > len(history):
+                    return CommandResult.fail("No such history entry.", error="bad_history_index")
+                parts = history[-index].strip().split()
+
+        if parts and player is not None and hasattr(player, 'record_command'):
+            player.record_command(' '.join(parts))
+
         return await self.process_command(parts, ctx=ctx)
 
     async def process_command(self, parts: List[str], ctx=None) -> CommandResult:

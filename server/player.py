@@ -159,6 +159,7 @@ class Player:
     # buffer slot on a repeated get/take of the same item.
     RATION_HISTORY_CAP = 20
     ITEM_HISTORY_CAP = 60
+    COMMAND_HISTORY_CAP = 20
 
     def __init__(self, **kwargs):
         """this code is called when creating a new character"""
@@ -355,6 +356,14 @@ class Player:
         # see the login-reset block after _load().
         self.ration_history: list[int] = kwargs.get('ration_history', [])
         self.item_history: list[int] = kwargs.get('item_history', [])
+        # Last COMMAND_HISTORY_CAP raw command lines typed by this player,
+        # oldest first -- viewable with the 'history' command and re-run
+        # with '^N' (N=1 is the most recent). Unlike ration_history/
+        # item_history above, this persists across logins (no reset in the
+        # login block below) and never dedupes -- repeating the same
+        # command is a legitimate, expected use case (see command_processor
+        # .py's '^N' handling).
+        self.command_history: list[str] = kwargs.get('command_history', [])
         # Item numbers already granted their one-time +1 Wisdom bonus for
         # being read (SPUR.MISC2.S:316's `if pw<25 pw=pw+1` -- fires on
         # every consumed book there, scroll or not; this port keeps
@@ -642,6 +651,18 @@ class Player:
         self.item_history.append(item_id)
         if len(self.item_history) > self.ITEM_HISTORY_CAP:
             self.item_history.pop(0)
+        self.unsaved_changes = True
+
+    def record_command(self, text: str) -> None:
+        """Append a typed command line to the command ring buffer, evicting
+        the oldest entry once full. Unlike record_ration_pickup()/
+        record_item_pickup(), this always appends -- repeating the same
+        command is expected, not wasted space."""
+        if not text:
+            return
+        self.command_history.append(text)
+        if len(self.command_history) > self.COMMAND_HISTORY_CAP:
+            self.command_history.pop(0)
         self.unsaved_changes = True
 
     def look_at(self, item: Any):
@@ -1230,6 +1251,11 @@ class Player:
                 self.ration_history = [int(i) for i in data['ration_history'] if isinstance(i, (int, float))]
             if 'item_history' in data and isinstance(data['item_history'], list):
                 self.item_history = [int(i) for i in data['item_history'] if isinstance(i, (int, float))]
+
+            # Command history (see __init__) -- unlike ration_history/
+            # item_history above, this is NOT reset on login.
+            if 'command_history' in data and isinstance(data['command_history'], list):
+                self.command_history = [str(c) for c in data['command_history'] if isinstance(c, str)]
 
             # Books already granted their one-time reading Wisdom bonus
             if 'read_books' in data and isinstance(data['read_books'], list):
