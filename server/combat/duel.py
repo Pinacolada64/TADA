@@ -96,6 +96,27 @@ TADA IMPLICATIONS
 # see that function's docstring for how it's simplified from SPUR's own
 # yt$/mark-counter parsing down to a room-local guildmate headcount.
 #
+# Initiative (SPUR.DUEL.S:83-86 "vw"/"zr", tac.bash's "INITIATIVE BONUS"
+# +/-10% branch): ported as _compute_initiative(), computed once per side
+# at duel start from level + weapon accuracy/damage bonus + STR+DEX+INT
+# (_initiative_score()) and stored as a flat _DuelSide.initiative
+# hit-chance delta (+10/0/-10) applied every swing alongside guild
+# support. Turf's own contribution to the SPUR formula (zz*5) is left out,
+# same deferred turf-bonus gap as above.
+#
+# Wizard spell-casting / Druid self-heal (SPUR.DUEL.S "wiz.a"/"wiz.b",
+# "druid.a"/"druid.b"): a Wizard has a flat _WIZARD_CAST_CHANCE (30%) per
+# swing to fire a guaranteed-hit spell bolt instead of a weapon attack --
+# bypasses the hit/miss roll and shield/armor absorption entirely, same
+# as SPUR's "goto wiz.a" jump skipping the whole "staff.0" hit-roll
+# section. One shot per duel (_DuelSide.cast_used, SPUR's wx$ "cast.a"/
+# "cast.b" tag is set once and never cleared). A Druid defender under a
+# comfortable HP ceiling has a flat _DRUID_HEAL_CHANCE (10%) chance to
+# channel any incoming hit -- weapon swing or spell bolt alike -- into a
+# heal instead of taking it (_DuelSession._apply_final_damage(), the
+# shared tail both damage paths funnel through, mirroring SPUR's shared
+# wiz.a/druid.a label).
+#
 # Down-state menu (SPUR.DUEL.S:20-45 duel/down labels): while knocked down
 # (_DuelSide.down), Attack/Parry/Bash/Flee are unavailable -- only Stand
 # (DuelTactic.STAND, SPUR zw=1) or the evasive Roll (DuelTactic.ROLL, SPUR
@@ -140,6 +161,9 @@ from combat.resolution import shield_exp_bonus
 _MIN_HP_AFTER_LOSS = 15   # SPUR.DUEL2.S hell/hell2: loser left at hp=15, not dead
 _STREAK_LEN = 3           # repeating a tactic this many times running reads as predictable
 _STREAK_PENALTY = 10      # hit-chance penalty for being predictable
+_WIZARD_CAST_CHANCE = 30      # SPUR DUEL.S "if pc=1 ... if z>70 a=1": 30% per swing, once per duel
+_DRUID_HEAL_CHANCE = 10       # SPUR DUEL.S "if yg=2 ... if z>90": 10% chance to heal instead of taking a hit
+_DRUID_HEAL_HP_CEILING = 26   # SPUR DUEL.S "if h+w1<26": only eligible while not already comfortably healthy
 
 
 class DuelTactic(StrEnum):
@@ -188,6 +212,8 @@ class _DuelSide:
     down: bool = False
     verbose: bool = False   # SPUR zq, toggled by `duel verbose` -- see _swing/_resolve_bash commentary
     support: int = 0        # SPUR zv, "follow" -- see _guild_support(), computed once at duel start
+    initiative: int = 0     # SPUR vu -- see _compute_initiative(), flat hit-chance delta for the whole duel
+    cast_used: bool = False  # SPUR wx$'s "cast.a"/"cast.b" tag -- a Wizard gets one guaranteed-hit bolt per duel
     history: list = field(default_factory=list)   # last few DuelTactic choices, streak tracking
 
 
@@ -256,6 +282,58 @@ def _guild_support(side: '_DuelSide') -> int:
         if other_player is not None and getattr(other_player, 'guild', None) == guild:
             count += 1
     return min(count, 5)
+
+
+_INITIATIVE_BONUS = 10  # SPUR DUEL.S:83-86 vu=5/vu=3: +/-10% hit chance for the whole duel
+_INITIATIVE_GAP = 10    # must lead by more than this many initiative points to claim it
+
+
+def _initiative_score(side: '_DuelSide') -> int:
+    """SPUR.DUEL.S:83 (player's own 'vw') / DUEL2.S's 'zr' (opponent's,
+    computed the same way): 2x level, plus the readied weapon's
+    accuracy/damage bonuses (SPUR's zt/zs, 'Weapon adds: Damage=.. /
+    Accuracy=..'), plus raw Strength+Dexterity+Intelligence (SPUR's
+    ps/pd/pi -- see programming-notes/spur-variables.md). Turf's own
+    initiative contribution (SPUR's zz*5) is intentionally left out here,
+    same as the turf accuracy/damage bonus elsewhere in this module --
+    both are the still-deferred turf-bonus gap, not this one.
+    """
+    from base_classes import PlayerStat
+    player = side.player
+    level  = int(getattr(player, 'xp_level', 1) or 1)
+
+    char_class = getattr(player, 'char_class', None)
+    char_race  = getattr(player, 'char_race', None)
+    class_str = (char_class.value if hasattr(char_class, 'value') else str(char_class)) if char_class else 'Fighter'
+    race_str  = (char_race.value  if hasattr(char_race,  'value') else str(char_race))  if char_race  else 'Human'
+    weapon = getattr(player, 'readied_weapon', None)
+    skill_bonus, dmg_bonus = weapon_bonus(weapon, class_str, race_str) if weapon else (0, 0)
+
+    stats = getattr(player, 'stats', {}) or {}
+    str_dex_int = (int(stats.get(PlayerStat.STR, 0) or 0)
+                   + int(stats.get(PlayerStat.DEX, 0) or 0)
+                   + int(stats.get(PlayerStat.INT, 0) or 0))
+
+    return (level * 2) + skill_bonus + dmg_bonus + str_dex_int
+
+
+def _compute_initiative(session: 'DuelSession') -> None:
+    """Sets session.a.initiative/session.b.initiative from each side's
+    _initiative_score(). Whoever leads by more than _INITIATIVE_GAP gets
+    a flat +_INITIATIVE_BONUS hit-chance edge for the rest of the duel and
+    their opponent a matching penalty (SPUR: 'YOU HAVE INITIATIVE' /
+    '<opponent> HAS THE INITIATIVE!' / 'Neither has the initiative..').
+    Computed once at duel start (SPUR computes it once too, right after
+    weapons are readied), not per-round.
+    """
+    score_a = _initiative_score(session.a)
+    score_b = _initiative_score(session.b)
+    if score_a - score_b > _INITIATIVE_GAP:
+        session.a.initiative, session.b.initiative = _INITIATIVE_BONUS, -_INITIATIVE_BONUS
+    elif score_b - score_a > _INITIATIVE_GAP:
+        session.b.initiative, session.a.initiative = _INITIATIVE_BONUS, -_INITIATIVE_BONUS
+    else:
+        session.a.initiative = session.b.initiative = 0
 
 
 def _tactic_prompt(side: '_DuelSide') -> str:
@@ -336,6 +414,20 @@ def _weapon_damage(player, weapon) -> float:
     base = (to_hit / 10.0) + dmg_bonus
     r1, r2, r3 = random.randint(1, 10), random.randint(1, 10), random.randint(1, 10)
     return base + (r1 + r2 + r3) / 10.0
+
+
+def _wizard_bolt_damage(weapon) -> float:
+    """SPUR.DUEL.S "wiz.a"/"wiz.b": a Wizard's spell bolt deals
+    (roll(1-100)/20)+3 damage, +3 more if wielding a weapon whose name
+    contains STAFF ('Your staff amplifies it!'). Unlike _weapon_damage(),
+    this is independent of the weapon's own to_hit/class stats -- it's
+    not a weapon swing, it's a spell (see _swing()'s cast branch, which
+    also skips shield/armor absorption entirely for this reason)."""
+    roll = random.randint(1, 100)
+    dmg = (roll / 20.0) + 3
+    if weapon is not None and 'STAFF' in (getattr(weapon, 'name', '') or '').upper():
+        dmg += 3
+    return dmg
 
 
 class DuelSession:
@@ -452,6 +544,10 @@ class DuelSession:
                 self.done = True
                 self._end(fled_side=side)
                 self._terse_notes.append(f'{attacker.name} flees from a duel with {defender.name}!')
+                room_name = _current_room_name(side.ctx)
+                net_common.append_battle_log(
+                    f'{attacker.name} FLED a duel with {defender.name}, IN {room_name}'
+                )
                 return f'{attacker.name} flees the duel!'
             # Failed flee: opponent gets a free, undefended hit (SPUR falls
             # through flee -> attack1, the opponent's normal swing).
@@ -530,12 +626,37 @@ class DuelSession:
         if defender.query_flag(PlayerFlags.RING_WORN) and random.randint(1, 100) <= 20:
             return f' {attacker.name} swings at {defender.name}, but loses sight of them!'
 
+        # Wizard spell-casting (SPUR.DUEL.S "wiz.a"/"wiz.b"): once per
+        # duel (SPUR's wx$ "cast.a"/"cast.b" tag is set once and never
+        # cleared, so this is a one-shot, not a per-round reroll), a
+        # Wizard has a flat _WIZARD_CAST_CHANCE per swing to fire a bolt
+        # instead of swinging their weapon. The bolt bypasses the hit/miss
+        # roll and shield/armor absorption entirely -- SPUR's "goto wiz.a"
+        # jumps clean over the "staff.0" hit-roll section -- so it's a
+        # guaranteed hit, and (unlike a weapon swing) isn't boosted by
+        # guild support/initiative/level differential.
+        from base_classes import PlayerClass
+        weapon = getattr(attacker, 'readied_weapon', None)
+        if (not side.cast_used and getattr(attacker, 'char_class', None) == PlayerClass.WIZARD
+                and random.randint(1, 100) <= _WIZARD_CAST_CHANCE):
+            side.cast_used = True
+            bolt = _wizard_bolt_damage(weapon)
+            staff_note = (' Your staff amplifies it!'
+                          if weapon is not None and 'STAFF' in (weapon.name or '').upper() else '')
+            self._commentary.append(
+                f'  [commentary] {attacker.name} casts a spell bolt for {bolt:.1f} damage '
+                f'(bypasses hit roll & shield/armor)'
+            )
+            return (f" Energy flashes from {attacker.name}'s fingers! Thunder rocks the chamber!{staff_note}"
+                    + self._apply_final_damage(side, opp, bolt))
+
         my_tactic = DuelTactic.ATTACK if free else (side.tactic or DuelTactic.ATTACK)
         their_tactic = opp.tactic or DuelTactic.ATTACK
 
         hit_delta, dmg_mult = _INTERACTION.get((my_tactic, their_tactic), (0, 1.0))
         hit_delta += hit_bonus
         hit_delta += side.support   # SPUR "follow": guild support adds to accuracy too
+        hit_delta += side.initiative   # SPUR vu=5/vu=3: whoever has initiative hits easier
         if not free and _is_predictable(side.history, my_tactic):
             hit_delta -= _STREAK_PENALTY
         if self._was_down.get(id(opp)):
@@ -546,7 +667,6 @@ class DuelSession:
             else:
                 hit_delta += _DOWNED_HIT_BONUS
 
-        weapon = getattr(attacker, 'readied_weapon', None)
         stability = float(getattr(weapon, 'stability', 50) or 50) if weapon else 30.0
         miss_sfx, hit_sfx = weapon_sfx(weapon) if weapon else (None, None)
         roll = random.randint(1, 100)
@@ -570,9 +690,6 @@ class DuelSession:
             _absorb_shield_armor(raw, attacker, defender)
         )
         _apply_degradation(defender, shield_deg, armor_deg, shield_destroyed, armor_destroyed)
-
-        defender.hit_points = int(getattr(defender, 'hit_points', 1) or 1) - damage
-        defender.unsaved_changes = True
         self._commentary.append(
             f'  [commentary] damage mod x{dmg_mult:.2f}: raw {raw:.1f} -> '
             f'{damage} after shield/armor absorption'
@@ -585,15 +702,73 @@ class DuelSession:
             extra.append(f'armor absorbs {armor_blocked}')
         extra_txt = f' ({", ".join(extra)})' if extra else ''
         sfx = f'{hit_sfx}  ' if hit_sfx else ''
-        line = f' {sfx}{attacker.name} hits {defender.name} for {damage} damage!{extra_txt}'
+        return sfx + self._apply_final_damage(side, opp, damage, extra_txt=extra_txt)
 
+    def _apply_final_damage(self, side: _DuelSide, opp: _DuelSide, raw_damage: float, *,
+                             extra_txt: str = '') -> str:
+        """Shared tail for every damage source in a duel -- weapon swings
+        (from _swing()'s shield/armor-absorbed tail) and Wizard bolts
+        (from _swing()'s spell-cast branch) alike, mirroring how
+        SPUR.DUEL.S's "wiz.a"/"wiz.b" is a shared label both paths jump
+        into.
+
+        Druid self-heal (SPUR.DUEL.S "druid.a"/"druid.b"): a Druid
+        defender under a comfortable HP ceiling (SPUR: `if h+w1<26`) has a
+        flat _DRUID_HEAL_CHANCE chance of channeling the incoming hit into
+        a heal instead of taking it -- applies to any damage source, not
+        just spell bolts, since SPUR's normal weapon-hit path falls
+        through into the same wiz.a/druid.a label after shield/armor
+        absorption.
+
+        Ends the duel (self.done=True, self._end()) on a killing blow,
+        same as the pre-refactor inline version.
+        """
+        attacker, defender = side.player, opp.player
+        damage = int(raw_damage)
+        cur_hp = int(getattr(defender, 'hit_points', 1) or 1)
+
+        from base_classes import PlayerClass
+        if (getattr(defender, 'char_class', None) == PlayerClass.DRUID
+                and (cur_hp + damage) < _DRUID_HEAL_HP_CEILING
+                and random.randint(1, 100) <= _DRUID_HEAL_CHANCE):
+            defender.hit_points = cur_hp + damage
+            defender.unsaved_changes = True
+            return f' {defender.name} channels nature and heals {damage} instead of taking the hit!'
+
+        defender.hit_points = cur_hp - damage
+        defender.unsaved_changes = True
+        line = f' {attacker.name} hits {defender.name} for {damage} damage!{extra_txt}'
         if defender.hit_points <= 0:
             self.done = True
             self._end(winner_side=side, loser_side=opp)
         return line
 
+    async def forfeit(self, disconnected_player) -> None:
+        """A duelist disconnected mid-fight (SPUR.DUEL.S's "dropped" label:
+        a lost carrier goes straight to hell2, the same automatic-loss
+        consequences as being defeated in a fair fight -- DUEL2.S's
+        sendmail also logs "=> <name> BROKE THE CONNECTION <="). Called
+        from simple_server.py's connection cleanup, so only the opponent's
+        ctx is still live -- unlike _resolve_round()'s normal per-side
+        send loop, this pushes the win notice directly to the opponent
+        and never touches disconnected_player's (already-dead) ctx.
+        """
+        if self.done:
+            return
+        self.done = True
+        disconnected_side = self.side_for(disconnected_player)
+        winner_side = self.other(disconnected_player)
+        self._terse_notes = []
+        self._end(winner_side=winner_side, loser_side=disconnected_side, disconnected=True)
+        lines = [f'{disconnected_player.name} disconnects, forfeiting the duel!']
+        win_line = self.end_lines.get(id(winner_side))
+        if win_line:
+            lines.append(win_line)
+        await winner_side.ctx.send(lines)
+        await self._broadcast_bystanders(*self._terse_notes)
+
     def _end(self, *, winner_side: Optional['_DuelSide'] = None, loser_side: Optional['_DuelSide'] = None,
-             fled_side: Optional['_DuelSide'] = None) -> None:
+             fled_side: Optional['_DuelSide'] = None, disconnected: bool = False) -> None:
         """Clear both players' active_duel and, on a decisive result, queue
         SPUR.DUEL2.S's hell/hell2 consequences (loser left at 15 HP, winner
         takes their silver) and guild standings. self.end_lines is read by
@@ -604,13 +779,43 @@ class DuelSession:
         self.b.player.active_duel = None
         self.end_lines: dict[int, str] = {}
 
+        # Clear the "In a duel" virtual location set in _resolve_challenge()
+        # so WHEREAT goes back to showing their real room.
+        a_client = getattr(self.a.ctx, 'client', None)
+        if a_client is not None and getattr(a_client, 'virtual_location', None) == 'In a duel':
+            a_client.virtual_location = None
+        b_client = getattr(self.b.ctx, 'client', None)
+        if b_client is not None and getattr(b_client, 'virtual_location', None) == 'In a duel':
+            b_client.virtual_location = None
+
         if fled_side is not None:
             return
 
         winner, loser = winner_side.player, loser_side.player
         loser.hit_points = _MIN_HP_AFTER_LOSS
         loser.unsaved_changes = True
-        self._terse_notes.append(f'{winner.name} defeats {loser.name} in a duel!')
+        if disconnected:
+            self._terse_notes.append(f'{loser.name} disconnects, forfeiting a duel to {winner.name}!')
+        else:
+            self._terse_notes.append(f'{winner.name} defeats {loser.name} in a duel!')
+
+        # Personal duel win/loss record (SPUR.DUEL2.S's "personal" label) --
+        # distinct from the guild-vs-guild tally below.
+        winner.duel_wins = int(getattr(winner, 'duel_wins', 0) or 0) + 1
+        loser.duel_losses = int(getattr(loser, 'duel_losses', 0) or 0) + 1
+        winner.unsaved_changes = True
+
+        room_name = _current_room_name(winner_side.ctx)
+        if disconnected:
+            # SPUR.DUEL2.S's sendmail: "=> <name> BROKE THE CONNECTION <="
+            net_common.append_battle_log(
+                f'{loser.name} disconnected during a duel with {winner.name} '
+                f'-- {winner.name} wins by forfeit, IN {room_name}'
+            )
+        else:
+            net_common.append_battle_log(
+                f'{winner.name} defeated {loser.name} in a duel, IN {room_name}'
+            )
 
         from base_classes import Guild, PlayerMoneyTypes
         stolen = loser.get_silver(PlayerMoneyTypes.IN_HAND)
@@ -621,7 +826,11 @@ class DuelSession:
                 winner.get_silver(PlayerMoneyTypes.IN_HAND) + stolen,
             )
 
-        win_line = f'|light_green|You have vanquished {loser.name}!|reset|' + (f' (+{stolen} silver)' if stolen else '')
+        if disconnected:
+            win_line = (f'|light_green|{loser.name} disconnected -- you win the duel by forfeit!|reset|'
+                        + (f' (+{stolen} silver)' if stolen else ''))
+        else:
+            win_line = f'|light_green|You have vanquished {loser.name}!|reset|' + (f' (+{stolen} silver)' if stolen else '')
         lose_line = f'|red|You have been vanquished by {winner.name}!|reset|' + (' He takes your silver!' if stolen else '')
         self.end_lines[id(winner_side)] = win_line
         self.end_lines[id(loser_side)] = lose_line
@@ -770,8 +979,15 @@ async def _resolve_challenge(ctx: GameContext, accept: bool) -> CommandResult:
     challenger.active_duel = session
     defender.active_duel = session
 
+    # WHEREAT (commands/whereat.py) reads ctx.client.virtual_location --
+    # duelists don't actually leave their room, but "In a duel" is a more
+    # useful location than the room name while they're locked in combat.
+    challenger_ctx.client.virtual_location = 'In a duel'
+    ctx.client.virtual_location = 'In a duel'
+
     session.a.support = _guild_support(session.a)
     session.b.support = _guild_support(session.b)
+    _compute_initiative(session)
 
     header = f'|yellow|=== DUEL: {challenger.name} vs. {defender.name} ===|reset|'
     prompt = "Choose: duel attack | duel parry | duel bash | duel flee"
@@ -783,6 +999,13 @@ async def _resolve_challenge(ctx: GameContext, accept: bool) -> CommandResult:
     if session.b.support:
         plural = 's' if session.b.support > 1 else ''
         defender_lines.insert(1, f'You are supported by {session.b.support} Guild member{plural}!')
+    if session.a.initiative > 0:
+        challenger_lines.insert(1, 'You have the initiative!')
+        defender_lines.insert(1, f'{challenger.name} has the initiative!')
+    elif session.b.initiative > 0:
+        defender_lines.insert(1, 'You have the initiative!')
+        challenger_lines.insert(1, f'{defender.name} has the initiative!')
+
     await challenger_ctx.send(challenger_lines)
     await ctx.send(defender_lines)
     await session._broadcast_bystanders(f'{challenger.name} and {defender.name} begin a duel!')
@@ -874,13 +1097,22 @@ async def _toggle_verbose(ctx: GameContext) -> CommandResult:
 
 async def _show_standings(ctx: GameContext) -> CommandResult:
     standings = load_standings()
-    if not standings:
-        await ctx.send('No guild duels recorded yet.')
-        return CommandResult.ok('No standings.')
     lines = ['', '|yellow|Guild Standings|reset|', '']
+    if not standings:
+        lines.append('  No guild duels recorded yet.')
     for guild, record in sorted(standings.items()):
         wins, losses = record.get('wins', 0), record.get('losses', 0)
         lines.append(f'  {guild:<20} {wins:>3} W  {losses:>3} L')
+
+    # Personal duel record (SPUR.DUEL2.S's "personal" label) -- distinct
+    # from the guild tally above, tracked per-player regardless of guild.
+    player = ctx.player
+    wins = int(getattr(player, 'duel_wins', 0) or 0)
+    losses = int(getattr(player, 'duel_losses', 0) or 0)
+    win_word = 'win' if wins == 1 else 'wins'
+    loss_word = 'loss' if losses == 1 else 'losses'
+    lines.append('')
+    lines.append(f'  Your record: {wins} {win_word}, {losses} {loss_word}')
     lines.append('')
     await ctx.send(lines)
     return CommandResult.ok('Standings shown.')
