@@ -1163,6 +1163,13 @@ async def _roll_stats(ctx) -> bool:
                     *adj_lines,
                 ])
 
+            # SPUR-code/SPUR.NEW.S "stat1"/"stat2": hp=((ps+pd+pt+pi+pw+pe)/6)
+            # +random(10), rolled from the post-race/class-delta stats, not a
+            # flat default -- see Player.hit_points' own flat-10 fallback
+            # (player.py:294/531), which this replaces for new characters.
+            ctx.player.hit_points = round(sum(after.values()) / len(after)) + random.randint(0, 9)
+            await ctx.send(f"Hit Points   : {ctx.player.hit_points}")
+
             await ctx.send("Stats accepted.")
             return True
         if ans in ("r", "reroll", "re-roll"):

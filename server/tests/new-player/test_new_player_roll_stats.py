@@ -56,12 +56,16 @@ class _FakeCtx:
         return '\n'.join(out)
 
 
-def _fixed_rolls(*groups):
+def _fixed_rolls(*groups, hp_roll=5):
     """Return a side_effect list feeding random.randint(1, 6) calls: each
-    group of 4 ints becomes one stat's 4d6 roll, in _STAT_ORDER order."""
+    group of 4 ints becomes one stat's 4d6 roll, in _STAT_ORDER order.
+
+    A trailing *hp_roll* is appended for _roll_stats()'s post-acceptance
+    random.randint(0, 9) HP roll (SPUR-code/SPUR.NEW.S "stat1"/"stat2")."""
     flat = []
     for g in groups:
         flat.extend(g)
+    flat.append(hp_roll)
     return flat
 
 
@@ -124,6 +128,22 @@ class TestRollStatsBonusReporting(unittest.IsolatedAsyncioTestCase):
         self.assertIn('CHR', text)
         self.assertIn('0 ->  2', text)
         self.assertIn('(+2)', text)
+
+
+class TestRollStatsHitPoints(unittest.IsolatedAsyncioTestCase):
+    """SPUR-code/SPUR.NEW.S "stat1"/"stat2": hp is rolled from the average
+    of the post-race/class-delta stats plus random(0, 9), not a flat
+    default -- see Player.hit_points' own flat-10 fallback, which this
+    replaces for new characters."""
+
+    async def test_hit_points_is_average_of_final_stats_plus_roll(self):
+        ctx = _FakeCtx(['y'], char_race=None, char_class=None)
+        with patch('random.randint', side_effect=_fixed_rolls(*([[3, 3, 3, 3]] * 6), hp_roll=4)):
+            await _roll_stats(ctx)
+        # All 6 stats roll to 9 (three 3s summed, lowest 3 dropped); no
+        # race/class means no extra stat keys, so avg is exactly 9.
+        self.assertEqual(ctx.player.hit_points, 13)
+        self.assertIn('Hit Points   : 13', ctx._flat())
 
 
 if __name__ == '__main__':
