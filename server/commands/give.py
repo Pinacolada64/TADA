@@ -414,6 +414,7 @@ class GiveCommand(Command):
                 # in practice for weapons, but keep the pattern consistent
                 # with the plain-item branch below, where it does bite.
                 ally.items.append(InventoryEntry(item=item, quantity=1))
+                player.unsaved_changes = True
                 pself = getattr(player, 'name', 'Someone')
                 await ctx.send(f'You give the {iname} to {ally.name}.')
                 await ctx.send(f'{ally.name} readies the {iname}!')
@@ -453,6 +454,7 @@ class GiveCommand(Command):
                 ally.ammo_rounds = rounds
                 ally.ammo_max = rounds
                 ally.ammo_damage = damage
+                player.unsaved_changes = True
                 pself = getattr(player, 'name', 'Someone')
                 await ctx.send(f'You give the {iname} to {ally.name}.')
                 await ctx.send(f'{ally.name} loads the {weapon.name}: '
@@ -475,6 +477,7 @@ class GiveCommand(Command):
             # consumption below) corrupted both at once.
             given_entry = InventoryEntry(item=item, quantity=1)
             ally.items.append(given_entry)
+            player.unsaved_changes = True
             await ctx.send(f'You give the {iname} to {ally.name}.')
             await ctx.send(f'{ally.name} takes the {iname} and tucks it away.')
             await _try_body_build(ctx, ally, given_entry)
@@ -499,6 +502,7 @@ class GiveCommand(Command):
                     # still left in the giver's pack instead of the one
                     # unit actually taken off it.
                     other_inv.add(item, quantity=1)
+                player.unsaved_changes = True
                 other.unsaved_changes = True
                 pself = getattr(player, 'name', 'Someone')
                 await ctx.send(f'You give the {iname} to {pname}.')
@@ -524,6 +528,7 @@ class GiveCommand(Command):
                     await ctx.send(line)
                 if consumed and inventory:
                     inventory.remove(item)
+                    player.unsaved_changes = True
                 return CommandResult.ok()
 
         await ctx.send(f'There is no "{" ".join(target_words)}" here.')

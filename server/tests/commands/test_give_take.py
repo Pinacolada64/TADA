@@ -214,6 +214,18 @@ class TestGiveToAlly(unittest.IsolatedAsyncioTestCase):
         await self.cmd.execute(self.ctx, 'ration', 'to', 'batman')
         self.assertEqual(len(self.player.inventory.entries()), 0)
 
+    async def test_give_item_to_ally_marks_player_unsaved(self):
+        # Bug: none of the give-to-ally branches set
+        # player.unsaved_changes, so the removal happened correctly in
+        # memory but Player.save() (player.py:1016, a no-op unless
+        # unsaved_changes or force=True) never persisted it -- the item
+        # was still in the last-saved file, so it reappeared on the next
+        # reconnect/server restart even though the live session showed it
+        # gone. Ryan's follow-up bug report after the stacked-item fix.
+        self.assertFalse(self.player.unsaved_changes)
+        await self.cmd.execute(self.ctx, 'ration', 'to', 'batman')
+        self.assertTrue(self.player.unsaved_changes)
+
     async def test_give_item_to_ally_adds_to_ally_items(self):
         await self.cmd.execute(self.ctx, 'ration', 'to', 'batman')
         self.assertEqual(len(self.ally.items), 1)
@@ -320,6 +332,8 @@ class TestGiveWeaponAndAmmoToAlly(unittest.IsolatedAsyncioTestCase):
         self.assertIs(self.ally.readied_weapon, weapon)
         self.assertIn('READIES', self.ctx.sent().upper())
         self.assertEqual(len(self.player.inventory.entries()), 0)
+        # See TestGiveToAlly.test_give_item_to_ally_marks_player_unsaved.
+        self.assertTrue(self.player.unsaved_changes)
 
     async def test_give_matching_ammo_after_weapon_loads_it(self):
         weapon = _make_weapon()
@@ -328,11 +342,13 @@ class TestGiveWeaponAndAmmoToAlly(unittest.IsolatedAsyncioTestCase):
 
         ammo = _make_ammo()
         self.player.inventory.add(ammo)
+        self.player.unsaved_changes = False   # isolate this give's own effect
         await self.cmd.execute(self.ctx, '.357', 'ammo', 'to', 'morganna')
 
         self.assertEqual(self.ally.ammo_rounds, 6)
         self.assertEqual(self.ally.ammo_damage, 4)
         self.assertIn('LOADS', self.ctx.sent().upper())
+        self.assertTrue(self.player.unsaved_changes)
 
     async def test_give_ammo_before_weapon_reports_no_weapon_readied(self):
         """The exact bug report: GIVE ammo with no weapon readied yet."""
@@ -472,6 +488,13 @@ class TestGiveToPlayer(unittest.IsolatedAsyncioTestCase):
     async def test_give_to_player_removes_from_giver(self):
         await self.cmd.execute(self.ctx, 'sword', 'to', 'skye')
         self.assertEqual(len(self.giver.inventory.entries()), 0)
+
+    async def test_give_to_player_marks_giver_unsaved(self):
+        # Bug: only the receiver's unsaved_changes was set, not the
+        # giver's -- the giver's own inventory loss never got persisted.
+        self.assertFalse(self.giver.unsaved_changes)
+        await self.cmd.execute(self.ctx, 'sword', 'to', 'skye')
+        self.assertTrue(self.giver.unsaved_changes)
 
     async def test_give_to_player_adds_to_receiver(self):
         await self.cmd.execute(self.ctx, 'sword', 'to', 'skye')
