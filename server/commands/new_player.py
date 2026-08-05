@@ -906,6 +906,11 @@ async def _choose_race(ctx) -> int | None:
                 await ctx.send(msg)
                 ctx.player.char_race = None   # reset so they can repick
                 continue
+            # Skip's branch, SPUR-code/SPUR.NEW.S "set.honor": starting/max
+            # Honor varies by race, not class -- Ogre/Orc capped lower,
+            # Pixie/Elf higher.
+            from base_classes import PlayerRaceMaxHonor
+            ctx.player.honor = PlayerRaceMaxHonor[ctx.player.char_race.name].value
             await ctx.send(f"Race set to {ctx.player.char_race}.")
             return True
 

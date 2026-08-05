@@ -410,6 +410,26 @@ class PlayerRaceBonuses(Enum):
     HALF_ELF = {PlayerStat.DEX: 1, PlayerStat.WIS: 1}
 
 
+class PlayerRaceMaxHonor(Enum):
+    """Starting/max Honor points, keyed by race. Found in Skip's branch,
+    SPUR-code/SPUR.NEW.S, subroutine "set.honor" (vk); the identical logic
+    also appears in master's SPUR-code/SPUR.LOGON.S "set.honor" -- master
+    has no separate NEW.S, character creation lives in LOGON.S there.
+    Class (pc) plays no part in this despite being in scope nearby in the
+    source -- only race (pr) does. Default is 1000; Ogre/Orc (evil-aligned)
+    are capped lower at 750, Pixie/Elf (good-aligned) get a higher 1250.
+    """
+    HUMAN = 1000
+    OGRE = 750
+    PIXIE = 1250
+    ELF = 1250
+    HOBBIT = 1000
+    GNOME = 1000
+    DWARF = 1000
+    ORC = 750
+    HALF_ELF = 1000
+
+
 class PlayerClassBonuses(Enum):
     # applied upon character creation, maybe elsewhere in future
     WIZARD ={PlayerStat.CON: -1, PlayerStat.INT: 2},

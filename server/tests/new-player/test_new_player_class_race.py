@@ -104,5 +104,30 @@ class TestChooseRaceDisplay(unittest.IsolatedAsyncioTestCase):
         self.assertIs(player.char_race, PlayerRace.HUMAN)
 
 
+class TestChooseRaceSetsStartingHonor(unittest.IsolatedAsyncioTestCase):
+    """SPUR-code/SPUR.NEW.S "set.honor": starting/max Honor is keyed by
+    race, not class -- evil-aligned races (Ogre/Orc) start lower, good-
+    aligned ones (Pixie/Elf) start higher, everyone else gets the 1000
+    default (see base_classes.PlayerRaceMaxHonor)."""
+
+    async def test_human_gets_default_honor(self):
+        player = _FakePlayer(char_class=PlayerClass.FIGHTER)
+        ctx = _FakeCtx(player, responses=['1'])
+        await _choose_race(ctx)
+        self.assertEqual(player.honor, 1000)
+
+    async def test_ogre_gets_lowered_honor(self):
+        player = _FakePlayer(char_class=PlayerClass.FIGHTER)
+        ctx = _FakeCtx(player, responses=['2'])
+        await _choose_race(ctx)
+        self.assertEqual(player.honor, 750)
+
+    async def test_elf_gets_raised_honor(self):
+        player = _FakePlayer(char_class=PlayerClass.FIGHTER)
+        ctx = _FakeCtx(player, responses=['4'])
+        await _choose_race(ctx)
+        self.assertEqual(player.honor, 1250)
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
