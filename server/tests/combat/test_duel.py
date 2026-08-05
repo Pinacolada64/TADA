@@ -183,6 +183,72 @@ class TestDuelSessionSubmit(unittest.IsolatedAsyncioTestCase):
         self.assertIn(15, (a.hit_points, b.hit_points))
 
 
+class TestPersonalDuelRecordAndBattleLog(unittest.IsolatedAsyncioTestCase):
+    """DuelSession._end()'s personal win/loss counters (SPUR.DUEL2.S's
+    "personal" label, distinct from guild_standings.py's guild tally) and
+    its net_common.append_battle_log() calls on decisive win/loss and on
+    a successful flee (SPUR's "news" label, previously only wired up for
+    GROVEL)."""
+
+    async def test_winner_and_loser_records_increment(self):
+        session, a, b = _make_session()
+        a.hit_points = 100
+        b.hit_points = 1
+        with patch('combat.duel.net_common.append_battle_log'):
+            for _ in range(50):
+                if session.done:
+                    break
+                await session.submit(a, DuelTactic.ATTACK)
+                await session.submit(b, DuelTactic.PARRY)
+        self.assertTrue(session.done)
+        winner, loser = (a, b) if b.hit_points == 15 else (b, a)
+        self.assertEqual(winner.duel_wins, 1)
+        self.assertEqual(loser.duel_losses, 1)
+        self.assertEqual(winner.duel_losses, 0)
+        self.assertEqual(loser.duel_wins, 0)
+
+    async def test_repeated_wins_accumulate(self):
+        session, a, b = _make_session()
+        a.duel_wins = 4
+        a.hit_points = 100
+        b.hit_points = 1
+        with patch('combat.duel.net_common.append_battle_log'):
+            for _ in range(50):
+                if session.done:
+                    break
+                await session.submit(a, DuelTactic.ATTACK)
+                await session.submit(b, DuelTactic.PARRY)
+        self.assertEqual(a.duel_wins, 5)
+
+    async def test_decisive_win_appends_battle_log_entry(self):
+        session, a, b = _make_session()
+        a.hit_points = 100
+        b.hit_points = 1
+        with patch('combat.duel.net_common.append_battle_log') as log:
+            for _ in range(50):
+                if session.done:
+                    break
+                await session.submit(a, DuelTactic.ATTACK)
+                await session.submit(b, DuelTactic.PARRY)
+        self.assertTrue(session.done)
+        log.assert_called_once()
+        (entry,), _kwargs = log.call_args
+        self.assertIn('defeated', entry)
+        self.assertIn(b.name, entry)  # loser named regardless of who actually won
+
+    async def test_flee_appends_battle_log_entry(self):
+        session, a, b = _make_session()
+        with patch('combat.duel.net_common.append_battle_log') as log, \
+             patch('random.randint', return_value=100):  # guarantee the escape roll succeeds
+            await session.submit(a, DuelTactic.FLEE)
+            await session.submit(b, DuelTactic.ATTACK)
+        log.assert_called_once()
+        (entry,), _kwargs = log.call_args
+        self.assertIn('FLED', entry)
+        self.assertIn(a.name, entry)
+        self.assertIn(b.name, entry)
+
+
 class TestBystanderBroadcast(unittest.IsolatedAsyncioTestCase):
     """DuelSession._broadcast_bystanders() -- terse room-wide updates for
     players watching a duel who aren't in it (Ryan: "what about
