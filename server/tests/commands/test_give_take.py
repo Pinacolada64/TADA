@@ -231,6 +231,20 @@ class TestGiveToAlly(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.ally.items), 1)
         self.assertEqual(self.ally.items[0].item.name, 'RATION')
 
+    async def test_repeated_gives_of_same_item_stack_on_ally(self):
+        # Bug: ally.items.append(entry) always created a new entry, never
+        # stacking onto a matching one the way player.inventory.add() (or
+        # another player's, via GIVE) already does -- giving the same
+        # item type to an ally 4 times over produced 4 separate quantity-1
+        # entries in ally.items instead of one entry at quantity 4. Ryan
+        # found this live: "you can see that Betty has 4 CLOTH ARMORs --
+        # that shouldn't be possible."
+        for _ in range(3):
+            self.player.inventory.add(_make_item('RATION', item_id=5, kind='food'))
+            await self.cmd.execute(self.ctx, 'ration', 'to', 'batman')
+        self.assertEqual(len(self.ally.items), 1)
+        self.assertEqual(self.ally.items[0].quantity, 3)
+
     async def test_give_item_to_ally_sends_confirmation(self):
         await self.cmd.execute(self.ctx, 'ration', 'to', 'batman')
         self.assertIn('BATMAN', self.ctx.sent().upper())

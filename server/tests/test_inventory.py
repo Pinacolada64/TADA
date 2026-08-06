@@ -81,6 +81,52 @@ class TestInventoryStacking(unittest.TestCase):
         self.assertEqual(inv.find(item_id=1), [])
 
 
+class TestInventoryPruneZombieEntries(unittest.TestCase):
+    """Inventory._prune() self-heals a quantity<=0 entry that got left
+    behind by code mutating entry.quantity directly instead of going
+    through remove(). Found live: the ally.items InventoryEntry-aliasing
+    bug (fixed in commands/give.py) let a shared entry get decremented to
+    0 via ally-side consumption, but only popped from the ally's own
+    list, not from the player's own Inventory._entries -- leaving a
+    zombie "cloth armor" that `inv` displayed forever and every future
+    GIVE attempt silently refused with a false "insufficient quantity"
+    (0 < 1). _prune() runs on every read/write entry point so it
+    self-heals the moment the Inventory is touched again, without
+    needing a save-file edit."""
+
+    def _inv_with_zombie(self) -> Inventory:
+        inv = Inventory()
+        inv.add(Item(id_number=2, name='cloth armor', category=ItemCategory.ITEM))
+        # Simulate the aliasing bug's outcome directly, matching how it
+        # was actually produced (mutated in place, not via remove()).
+        inv._entries[0].quantity = 0
+        return inv
+
+    def test_entries_hides_zombie(self):
+        inv = self._inv_with_zombie()
+        self.assertEqual(inv.entries(), [])
+
+    def test_find_hides_zombie(self):
+        inv = self._inv_with_zombie()
+        self.assertEqual(inv.find(item_id=2), [])
+
+    def test_len_and_slot_count_dont_count_zombie(self):
+        inv = self._inv_with_zombie()
+        self.assertEqual(len(inv), 0)
+        self.assertEqual(inv.slot_count(), 0)
+
+    def test_is_full_ignores_zombie_slot(self):
+        inv = self._inv_with_zombie()
+        inv.capacity = 1
+        self.assertFalse(inv.is_full())
+
+    def test_zombie_does_not_block_re_adding_the_same_item(self):
+        inv = self._inv_with_zombie()
+        added = inv.add(Item(id_number=2, name='cloth armor', category=ItemCategory.ITEM))
+        self.assertTrue(added)
+        self.assertEqual(inv.find(item_id=2)[0].quantity, 1)
+
+
 class TestInventoryKindRoundTrip(unittest.TestCase):
     """Regression: Ryan reported "you have nothing matching bread" for a
     loaf of bread genuinely in inventory -- from_json() rebuilt every

@@ -127,6 +127,32 @@ class Ally:
         )
 
 
+def add_ally_item(ally: 'Ally', item, quantity: int = 1) -> 'InventoryEntry':
+    """Add *item* to *ally*.items, stacking onto an existing entry with the
+    same id_number instead of always appending a new one. Returns the
+    entry that now holds it (the existing, incremented one, or a freshly
+    appended one).
+
+    ally.items is a plain list (not an inventory.Inventory), so unlike
+    player.inventory.add() nothing was merging duplicates -- every GIVE
+    of the same item type appended yet another quantity-1 entry. Found
+    live: Ryan gave the same item to an ally repeatedly and ended up with
+    4 separate un-stacked "cloth armor" entries in that ally's pack
+    instead of one entry at quantity 4, unlike how the player's own
+    inventory (or another player's, via GIVE) already displays it.
+    """
+    from inventory import InventoryEntry
+    item_id = getattr(item, 'id_number', None)
+    if item_id is not None:
+        for entry in ally.items:
+            if getattr(entry.item, 'id_number', None) == item_id:
+                entry.quantity += quantity
+                return entry
+    entry = InventoryEntry(item=item, quantity=quantity)
+    ally.items.append(entry)
+    return entry
+
+
 def find_duplicate_allies(ally_list: List[Ally]) -> List[str]:
     """
     Checks for Allies with duplicate names in a list and prints a warning.

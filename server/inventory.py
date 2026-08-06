@@ -123,6 +123,7 @@ class Inventory:
 
         Returns False when the inventory is full and no existing stack was found.
         """
+        self._prune()
         item_id = getattr(item, 'id_number', None)
         if item_id is not None:
             for entry in self._entries:
@@ -145,6 +146,7 @@ class Inventory:
 
         Returns False if the item is not present or there is insufficient quantity.
         """
+        self._prune()
         item_id = getattr(item, 'id_number', None)
         for i, entry in enumerate(self._entries):
             if item_id is not None and getattr(entry.item, 'id_number', None) == item_id:
@@ -160,9 +162,29 @@ class Inventory:
     # Query
     # -----------------------------------------------------------------------
 
+    def _prune(self) -> None:
+        """Drop any entry that's reached quantity <= 0.
+
+        remove() itself always pops an entry the moment it hits zero, so
+        this should be a no-op in the normal case -- it's a defensive
+        backstop against zombie entries created by other code that
+        mutates entry.quantity directly (found live: ally.items'
+        consumption path decremented a *shared* entry -- see the
+        InventoryEntry-aliasing bug fixed in commands/give.py -- down to
+        0 and only popped it from the ally's own list, leaving a
+        quantity:0 "cloth armor" permanently stuck in the player's own
+        _entries, still showing in `inv` and blocking every future GIVE
+        of it with a false "insufficient quantity"). Called from every
+        read/write entry point below so a zombie self-heals the next
+        time this Inventory is touched, rather than needing a save-file
+        edit.
+        """
+        self._entries = [e for e in self._entries if e.quantity > 0]
+
     def find(self, *, name: str | None = None, item_id: int | None = None,
              category: str | None = None) -> list[InventoryEntry]:
         """Return all entries matching the given criteria (AND logic)."""
+        self._prune()
         results = []
         for entry in self._entries:
             if item_id is not None and getattr(entry.item, 'id_number', None) != item_id:
@@ -176,18 +198,22 @@ class Inventory:
 
     def entries(self, category: str | None = None) -> list[InventoryEntry]:
         """All entries, optionally filtered by category string."""
+        self._prune()
         if category is None:
             return list(self._entries)
         return [e for e in self._entries
                 if str(getattr(e.item, 'category', '')) == category]
 
     def is_full(self) -> bool:
+        self._prune()
         return self.capacity is not None and len(self._entries) >= self.capacity
 
     def slot_count(self) -> int:
+        self._prune()
         return len(self._entries)
 
     def __len__(self) -> int:
+        self._prune()
         return len(self._entries)
 
     def __iter__(self):

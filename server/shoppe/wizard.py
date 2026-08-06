@@ -65,6 +65,16 @@ SPELLS: list[dict] = [
      'description': "Wizard-only aura. Surrounds the caster in magical light, enhancing all spell effects."},
     {'number': 20, 'name': 'BOOTS OF SPEED',      'effect': 'A', 'magnitude': 9, 'cast_chance': 50, 'price': 2000,
      'description': 'Aura spell that dramatically increases movement and combat speed. Rare and expensive.'},
+    {'number': 21, 'name': 'CONJURE FOOD',        'effect': 'F', 'magnitude': 0, 'cast_chance': 80, 'price':   90,
+     'description': 'Conjures a random ration of food out of thin air.'},
+    {'number': 22, 'name': 'CONJURE DRINK',       'effect': 'K', 'magnitude': 0, 'cast_chance': 80, 'price':   80,
+     'description': 'Conjures a random ration of drink out of thin air.'},
+    {'number': 23, 'name': 'RESURRECT',           'effect': 'V', 'magnitude': 0, 'cast_chance': 60, 'price':  500,
+     'description': 'Brings a fallen party Ally back from the dead.'},
+    {'number': 24, 'name': 'ENCHANT ARMOR',       'effect': 'Y', 'magnitude': 15, 'cast_chance': 65, 'price':  250,
+     'description': 'Boosts your armor rating, up to your class/race cap.'},
+    {'number': 25, 'name': 'ENCHANT SHIELD',      'effect': 'Z', 'magnitude': 15, 'cast_chance': 65, 'price':  220,
+     'description': 'Boosts your shield rating, up to your class/race cap.'},
 ]
 
 
@@ -73,7 +83,8 @@ _EFFECT_LABELS: dict[str, str] = {
     'I': 'INT',     'S': 'STR',     'E': 'EGY',    'C': 'CON',
     'D': 'DEX',     'W': 'WIS',     'P': 'HP',     'M': 'Combat',
     'U': 'Level +', 'L': 'Level -', 'T': 'Bank',   'R': 'Teleport',
-    'G': 'Summon',  'A': 'Aura',
+    'G': 'Summon',  'A': 'Aura',    'F': 'Food',   'K': 'Drink',
+    'V': 'Revive',  'Y': 'Armor',   'Z': 'Shield',
 }
 
 
@@ -136,8 +147,18 @@ async def _buy_spellbook(ctx: GameContext, player, inv, is_adept: bool) -> None:
     moved = 0
     if book is not None and book.contents is not None:
         for spell_entry in list(inv.entries(category=str(ItemCategory.SPELL))):
-            inv.remove(spell_entry.item, quantity=spell_entry.quantity)
-            book.contents.add(spell_entry.item, quantity=spell_entry.quantity)
+            # Capture quantity *before* remove() -- it mutates spell_entry
+            # in place, so reading spell_entry.quantity again afterward
+            # (the previous order here) always read the post-removal
+            # value, i.e. 0 for a non-stacked spell. Silently added 0
+            # copies to the book instead of the spell actually carried --
+            # same read-after-mutate bug as commands/give.py's
+            # give-to-other-player branch (fixed earlier this session),
+            # just masked here because Inventory.entries()/add() didn't
+            # used to prune/reject zero-quantity entries either.
+            qty = spell_entry.quantity
+            inv.remove(spell_entry.item, quantity=qty)
+            book.contents.add(spell_entry.item, quantity=qty)
             moved += 1
 
     player.unsaved_changes = True

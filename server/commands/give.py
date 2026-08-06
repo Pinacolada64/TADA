@@ -148,6 +148,7 @@ async def _try_body_build(ctx: GameContext, ally, entry) -> None:
         ally.strength = max(1, ally.strength - 1)
         await ctx.send(f'{aname} clutches their stomach — something was wrong with that food!')
         _consume_ally_entry(ally, entry)
+        # TODO: "You feel less honorable"
         return
 
     if ikind not in _FOOD_KINDS:
@@ -186,7 +187,7 @@ async def _try_body_build(ctx: GameContext, ally, entry) -> None:
         await ctx.send(f'{aname} {verb} and looks stronger!  (Str {ally.strength})')
     else:
         await ctx.send(f'{aname} {verb} and seems more energetic!  (HP {ally.hit_points})')
-
+    # TODO: "You feel more honorable."
     _consume_ally_entry(ally, entry)
 
 
@@ -240,8 +241,7 @@ def _monster_give_response(item, monster: dict) -> tuple[list[str], bool]:
     if 'COMPASS' in iupper:
         return [
             f'{mdisp} stares at the {iname} blankly.',
-            f'It spins it around a few times, then returns it.',
-            f"(You suspect it was trying to eat the needle.)",
+            f'It spins the needle around a few times, then returns the compass.',
         ], False
 
     # Shield: worn as a hat
@@ -397,7 +397,7 @@ class GiveCommand(Command):
             # weapon is auto-readied on the spot (replacing whatever they
             # had -- combat/resolution.py ally_attacks() reads ally.readied_weapon).
             from items import Weapon
-            from inventory import InventoryEntry
+            from bar.ally_data import add_ally_item
             if isinstance(item, Weapon):
                 if inventory:
                     inventory.remove(item)
@@ -405,15 +405,17 @@ class GiveCommand(Command):
                 ally.ammo_rounds = 0
                 ally.ammo_max = 0
                 ally.ammo_damage = 0
-                # A fresh entry, not the source `entry` -- inventory.remove()
-                # only decrements a stacked entry's quantity in place rather
-                # than always popping it, so reusing `entry` here would hand
-                # the ally the *same object* still sitting in the player's
-                # own inventory (whatever quantity remains of the stack)
-                # instead of the one unit actually given. Not stack-stacked
-                # in practice for weapons, but keep the pattern consistent
-                # with the plain-item branch below, where it does bite.
-                ally.items.append(InventoryEntry(item=item, quantity=1))
+                # add_ally_item(), not a raw ally.items.append(entry) --
+                # (a) it stacks onto a matching existing entry instead of
+                # always appending a duplicate (a given ally rarely holds
+                # two of the same weapon, but stay consistent with the
+                # plain-item branch below where it does bite), and (b) a
+                # *fresh* entry either way, never the source `entry` --
+                # inventory.remove() only decrements a stacked player-side
+                # entry's quantity in place rather than always popping it,
+                # so reusing `entry` here would hand the ally the *same
+                # object* still sitting in the player's own inventory.
+                add_ally_item(ally, item, quantity=1)
                 player.unsaved_changes = True
                 pself = getattr(player, 'name', 'Someone')
                 await ctx.send(f'You give the {iname} to {ally.name}.')
@@ -466,17 +468,17 @@ class GiveCommand(Command):
 
             if inventory:
                 inventory.remove(item)
-            # A fresh entry, not the source `entry` -- see the weapon
-            # branch's comment above. For a stacked item (e.g. 3 rations)
-            # this was the actual bug report: inventory.remove() only
-            # decremented the stack in place, so ally.items ended up
-            # aliasing the very same object still left in the player's
-            # own inventory, showing the ally holding the *remaining*
-            # stack quantity instead of the 1 unit just given -- and any
-            # further mutation of either copy (e.g. _try_body_build's
-            # consumption below) corrupted both at once.
-            given_entry = InventoryEntry(item=item, quantity=1)
-            ally.items.append(given_entry)
+            # add_ally_item(), not a raw ally.items.append(entry) -- see
+            # the weapon branch's comment above for why a *fresh* entry
+            # matters (inventory.remove() only decrements a stacked
+            # player-side entry in place, so reusing `entry` would alias
+            # the ally's copy to whatever's still left in the player's
+            # own inventory), and why *stacking* matters here specifically:
+            # Ryan's report -- repeated GIVEs of the same item type were
+            # each appending a separate quantity-1 entry (4 distinct
+            # "cloth armor" lines) instead of accumulating on one entry,
+            # unlike every other inventory in this codebase.
+            given_entry = add_ally_item(ally, item, quantity=1)
             player.unsaved_changes = True
             await ctx.send(f'You give the {iname} to {ally.name}.')
             await ctx.send(f'{ally.name} takes the {iname} and tucks it away.')

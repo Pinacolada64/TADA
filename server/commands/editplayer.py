@@ -2212,7 +2212,7 @@ async def _deliver_item(ctx, item, recipient, item_name: str) -> bool:
 
     ally = recipient[1]
     from commands.give import _mount_capacity
-    from inventory import InventoryEntry
+    from bar.ally_data import add_ally_item
 
     if not hasattr(ally, 'items') or ally.items is None:
         ally.items = []
@@ -2224,7 +2224,11 @@ async def _deliver_item(ctx, item, recipient, item_name: str) -> bool:
         if len(ally.items) >= capacity:
             await ctx.send(f"{ally.name}'s saddlebags are full.")
             return False
-    ally.items.append(InventoryEntry(item=item))
+    # add_ally_item(), not a raw ally.items.append(entry) -- stacks onto a
+    # matching existing entry instead of always creating a new one (same
+    # bug/fix as commands/give.py's ally branches: repeated grants of the
+    # same item type were piling up as separate quantity-1 entries).
+    add_ally_item(ally, item)
     ctx.player.unsaved_changes = True
     await ctx.send(f"Added {item_name} to {ally.name}'s pack.")
     return True
