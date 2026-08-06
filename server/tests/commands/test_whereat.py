@@ -285,11 +285,36 @@ class TestWhereatListing(unittest.IsolatedAsyncioTestCase):
         ctx    = make_ctx(alice, server)
         await WhereatCommand().execute(ctx)
         out = _sent_text(ctx)
+        for label in ('Player', 'Room Name'):
+            self.assertIn(label, out)
+        for label in ('Level', 'Room #'):
+            self.assertNotIn(label, out)
+
+    async def test_admin_output_contains_column_header(self):
+        alice  = make_player('Alice', admin=True)
+        server = make_server(make_client(alice))
+        ctx    = make_ctx(alice, server)
+        await WhereatCommand().execute(ctx)
+        out = _sent_text(ctx)
         for label in ('Player', 'Level', 'Room #', 'Room Name'):
             self.assertIn(label, out)
 
-    async def test_room_row_shows_level_and_room_number(self):
+    async def test_room_row_shows_only_room_name_for_regular_player(self):
         alice  = make_player('Alice')
+        alice.map_level = 3
+        ca     = make_client(alice, room=14)
+        server = make_server(ca, rooms={14: make_room('Dark Forest')})
+        ctx    = make_ctx(alice, server)
+        await WhereatCommand().execute(ctx)
+        out = _sent_text(ctx)
+        rows = [l for l in out.splitlines() if 'Alice' in l]
+        self.assertEqual(len(rows), 1)
+        self.assertNotIn('3', rows[0])
+        self.assertNotIn('14', rows[0])
+        self.assertIn('Dark Forest', rows[0])
+
+    async def test_room_row_shows_level_and_room_number_for_admin(self):
+        alice  = make_player('Alice', admin=True)
         alice.map_level = 3
         ca     = make_client(alice, room=14)
         server = make_server(ca, rooms={14: make_room('Dark Forest')})

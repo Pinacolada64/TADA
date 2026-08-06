@@ -44,7 +44,8 @@ class WhereatCommand(Command):
             ('wa #show',      'Make your location visible again'),
         ],
         notes = [
-            'Admins and Dungeon Masters always see everyone\'s true location.',
+            'Admins and Dungeon Masters see everyone\'s level #, room #, and '
+            'room name. Other players only see the room name.',
             'Hidden players appear as "(Hidden)" to other players.',
         ],
     )
@@ -100,9 +101,7 @@ class WhereatCommand(Command):
             return CommandResult.ok()
 
         rows.sort(key=lambda r: r[0].lower())
-        name_w  = min(max(len('Player'), *(len(r[0]) for r in rows)) + 2, 20)
-        level_w = max(len('Level'), *(len(r[1]) for r in rows)) + 2
-        room_w  = max(len('Room #'), *(len(r[2]) for r in rows)) + 2
+        name_w = min(max(len('Player'), *(len(r[0]) for r in rows)) + 2, 20)
 
         from formatting import hrule_char, underline
         width = 78
@@ -112,11 +111,18 @@ class WhereatCommand(Command):
             pass
 
         lines = [*underline('Whereat', ctx), '']
-        lines.append(f"{'Player'.ljust(name_w)}{'Level'.ljust(level_w)}"
-                     f"{'Room #'.ljust(room_w)}Room Name")
-        for name, level, room_no, room_name in rows:
-            lines.append(f'{name.ljust(name_w)}{level.ljust(level_w)}'
-                         f'{room_no.ljust(room_w)}{room_name}')
+        if privileged:
+            level_w = max(len('Level'), *(len(r[1]) for r in rows)) + 2
+            room_w  = max(len('Room #'), *(len(r[2]) for r in rows)) + 2
+            lines.append(f"{'Player'.ljust(name_w)}{'Level'.ljust(level_w)}"
+                         f"{'Room #'.ljust(room_w)}Room Name")
+            for name, level, room_no, room_name in rows:
+                lines.append(f'{name.ljust(name_w)}{level.ljust(level_w)}'
+                             f'{room_no.ljust(room_w)}{room_name}')
+        else:
+            lines.append(f"{'Player'.ljust(name_w)}Room Name")
+            for name, level, room_no, room_name in rows:
+                lines.append(f'{name.ljust(name_w)}{room_name}')
         lines.append('')
 
         await ctx.send(lines)
