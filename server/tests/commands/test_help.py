@@ -528,6 +528,23 @@ class TestHelpCommandExecute(unittest.IsolatedAsyncioTestCase):
         output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
         self.assertIn("No commands found", output)
 
+    async def test_hash_search_is_an_alias_for_search(self):
+        ctx, _ = _ctx_with_processor(_make_cmd("test", summary="A test command."))
+        result = await HelpCommand().execute(ctx, "#search", "tes")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("test", output)
+
+    async def test_search_shows_elided_snippet_of_match(self):
+        ctx, _ = _ctx_with_processor(
+            _make_cmd("caravan", summary="Join a caravan traveling through the mountain pass safely.")
+        )
+        result = await HelpCommand().execute(ctx, "#search", "mountain")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("mountain", output)
+        self.assertIn("...", output)
+
     # --- edge cases ---
 
     async def test_graceful_without_processor(self):

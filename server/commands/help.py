@@ -511,6 +511,42 @@ def format_summary_table(items: List[Tuple[str, str]], width: int) -> List[str]:
     return out
 
 
+def _search_snippet(cmd, term: str, context: int = 20) -> str:
+    """Return an elided snippet of surrounding text around the first
+    occurrence of *term* in *cmd* -- checked in the same name/alias/summary/
+    description priority order as CommandProcessor.search_commands(), so the
+    snippet always comes from whichever field actually matched.
+
+    e.g. term='caravan' against a longer description yields something like
+    "...merchants running a caravan through the pass..." rather than the
+    whole paragraph.
+    """
+    term_l = (term or "").lower()
+    if not term_l:
+        return ""
+
+    help_obj = getattr(cmd, "help", None)
+    fields = [
+        getattr(cmd, "name", "") or "",
+        *(getattr(cmd, "aliases", []) or []),
+        getattr(help_obj, "summary", "") or "",
+        getattr(help_obj, "description", "") or "",
+    ]
+
+    for field in fields:
+        idx = field.lower().find(term_l)
+        if idx == -1:
+            continue
+        start = idx - context
+        end   = idx + len(term) + context
+        prefix = "..." if start > 0 else ""
+        suffix = "..." if end < len(field) else ""
+        snippet = " ".join(field[max(start, 0):min(end, len(field))].split())
+        return f"{prefix}{snippet}{suffix}"
+
+    return ""
+
+
 def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                 rule_char: str = "-", is_privileged: bool = False,
                 is_petscii: bool = False) -> Optional[str]:
@@ -652,13 +688,14 @@ class HelpCommand(Command):
             ("help <category>",    "Commands in a category"),
             ("help #cat",          "List all categories"),
             ("help #summary",      "List every command with a one-line summary, by category"),
-            ("help search <term>", "Search command names and descriptions"),
+            ("help #search <term>", "Search command names and descriptions"),
         ],
         examples = [
             ("help",          "Show all commands"),
             ("help say",      "Help for the 'say' command"),
             ("help #cat",     "List all categories"),
             ("help #summary", "List all commands with their summaries"),
+            ("help #search caravan", "Search for commands mentioning 'caravan'"),
         ],
         notes = [
             "You can use 'help', 'h', or '?' interchangeably.",
@@ -695,7 +732,7 @@ class HelpCommand(Command):
             return await self._show_summary_table(ctx, processor)
 
         # Search
-        if token in ("search", "find") and rest:
+        if token in ("search", "find", "#search", "#find") and rest:
             return await self._help_search(ctx, " ".join(rest), processor)
 
         # Category name used directly (e.g. "help movement")
@@ -895,8 +932,14 @@ class HelpCommand(Command):
             await ctx.send(f"No commands found matching '{term}'.")
             return CommandResult.ok()
 
-        names = sorted(getattr(c, "name", "?") for c in matches)
-        lines = [_heading(f"Commands matching '{term}':")] + [f"  {_cmd(n)}" for n in names]
+        width = self._screen_width(ctx)
+        matches = sorted(matches, key=lambda c: getattr(c, "name", ""))
+        items = [
+            (getattr(cmd, "name", "?"), _search_snippet(cmd, term))
+            for cmd in matches
+        ]
+        lines = [_heading(f"Commands matching '{term}':")]
+        lines.extend(format_summary_table(items, width))
         await ctx.send(*lines)
         return CommandResult.ok()
 
