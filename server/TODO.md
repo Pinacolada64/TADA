@@ -1800,3 +1800,14 @@
     is new territory, not an extension of that existing hook. Only
     worth doing for a genuinely long marquee/credits-style message, not
     the current short banner.
+
+8/6/26:
+- **`commands/editplayer.py` gaining a `CommandSettings` editing menu.**
+  Not needed today for `whereat`'s `#hide`/`#show` toggle specifically --
+  it's self-service (players set their own `whereat_hidden` via `wa
+  #hide`/`wa #show`, see `commands/whereat.py`), so no admin editor entry
+  needed for it alone. But if `CommandSettings` grows more fields worth
+  an admin being able to inspect/override on someone else's account,
+  that's the point to add a menu section for it in `editplayer.py`.
+  Not scoped/prioritized -- no other `CommandSettings` fields identified
+  yet that would need it.
