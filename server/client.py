@@ -1,6 +1,7 @@
 #!/bin/env python3
 import argparse
 import logging
+import logging.handlers
 import os
 import readline  # For better command line editing
 import threading
@@ -26,12 +27,18 @@ except ImportError:
     client_config = None
 
 # Set up logging
+# TimedRotatingFileHandler instead of a plain FileHandler -- client.log is
+# shared/appended-to across every client run with no rotation at all, and
+# had grown to 40MB (Ryan's report, 2026-08-05). Rotates once every 24h (at
+# local midnight), keeping a week of dated backups.
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s() - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(os.path.join(os.path.dirname(__file__), 'client.log'))
+        logging.handlers.TimedRotatingFileHandler(
+            os.path.join(os.path.dirname(__file__), 'client.log'),
+            when='midnight', interval=1, backupCount=7)
     ]
 )
 

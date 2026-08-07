@@ -1,5 +1,6 @@
 #!/bin/env python3
 import logging
+import logging.handlers
 import select
 import socket
 import sys
@@ -13,12 +14,18 @@ from typing import Dict, Any
 from net_common import from_jsonb, to_jsonb
 
 # Set up logging
+# TimedRotatingFileHandler instead of a plain FileHandler -- client.log is
+# shared/appended-to across every bot/test client run that imports this
+# module, and with no rotation at all it grew to 40MB (Ryan's report,
+# 2026-08-05). Rotates once every 24h (at local midnight), keeping a week
+# of dated backups (client.log.2026-08-04, etc).
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('client.log')
+        logging.handlers.TimedRotatingFileHandler(
+            'client.log', when='midnight', interval=1, backupCount=7)
     ]
 )
 logger = logging.getLogger(__name__)
@@ -831,7 +838,8 @@ def main():
         level=logging.INFO,  # Changed to INFO to reduce debug noise
         format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s - %(message)s',
         handlers=[
-            logging.FileHandler('client.log'),
+            logging.handlers.TimedRotatingFileHandler(
+                'client.log', when='midnight', interval=1, backupCount=7),
             logging.StreamHandler()
         ]
     )
