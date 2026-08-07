@@ -439,11 +439,15 @@ class UseCommand(Command):
                 return CommandResult.ok()
             entry = entries[idx]
 
-        item    = entry.item
-        item_no = getattr(item, 'number', None) or getattr(item, 'id_number', None)
+        item     = entry.item
+        item_no  = getattr(item, 'number', None) or getattr(item, 'id_number', None)
+        item_cat = getattr(item, 'category', None)
 
         # ---- Grenade (#16): hurl at monster (SPUR.USE.S:91 grenade) ----------
-        if item_no == _GRENADE_ID:
+        # id_number is only unique within its own category (weapons/items/
+        # rations each number independently -- items.py:364), so this must
+        # also check category or it collides with ration #16 CUBE OF SUGAR.
+        if item_cat == ItemCategory.ITEM and item_no == _GRENADE_ID:
             inv = getattr(player, 'inventory', None)
             if inv:
                 inv.remove(item)
@@ -475,7 +479,10 @@ class UseCommand(Command):
 
         # ---- Communicator (#66): beam aboard level 6, with an escalating
         # malfunction risk (SPUR.USE.S 'comm' label) ----------------------
-        if item_no == _COMMUNICATOR_ID:
+        # id_number is only unique within its own category (weapons/items/
+        # rations each number independently -- items.py:364), so this must
+        # also check category or it collides with ration #66 VORPAL POTION.
+        if item_cat == ItemCategory.ITEM and item_no == _COMMUNICATOR_ID:
             await _use_communicator(ctx, player)
             return CommandResult.ok()
 

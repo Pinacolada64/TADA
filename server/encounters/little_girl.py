@@ -248,14 +248,22 @@ async def _handle_give(ctx: 'GameContext') -> None:
         await ctx.send('Invalid selection.')
         return
 
-    entry   = entries[idx]
-    item_id = getattr(entry.item, 'id_number', None)
+    entry    = entries[idx]
+    item_id  = getattr(entry.item, 'id_number', None)
+    item_cat = getattr(entry.item, 'category', None)
 
+    # id_number is only unique within its own category (weapons/items/
+    # rations each number independently -- see items.py:364, and
+    # commands/get.py's own fix for the same issue), so _RING_ITEM_ID/
+    # _REFUSED_ITEM_IDS -- objects.json numbers -- must also check
+    # category==ITEM or they collide with e.g. ration #67 DEAD BUG.
+    from items import ItemCategory
     from flags import PlayerFlags
-    if item_id == _RING_ITEM_ID and player.query_flag(PlayerFlags.RING_WORN):
+    if item_cat == ItemCategory.ITEM and item_id == _RING_ITEM_ID \
+            and player.query_flag(PlayerFlags.RING_WORN):
         await ctx.send("Can't, you are USEing it!")
         return
-    if item_id in _REFUSED_ITEM_IDS:
+    if item_cat == ItemCategory.ITEM and item_id in _REFUSED_ITEM_IDS:
         await ctx.send('The girl refuses to hold it!')
         return
 

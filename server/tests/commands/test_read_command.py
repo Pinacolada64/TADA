@@ -240,6 +240,41 @@ class TestReadScrapOfPaper(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx2.prompt.await_count, 0)
 
 
+class TestScrapOfPaperRationCollision(unittest.IsolatedAsyncioTestCase):
+    # Regression: id_number is only unique within its own category
+    # (weapons/items/rations each number independently -- items.py:364).
+    # objects.json #69 "scrap of paper" collides with ration #69
+    # "MONSTER MEAT" -- carrying the ration must not make it "readable".
+
+    def _make_monster_meat_player(self, honor=1000, intelligence=10):
+        from items import Item as RealItem, ItemCategory
+        p = MagicMock()
+        p.name = 'TestPlayer'
+        p.honor = honor
+        p.combinations = {}
+        p.unsaved_changes = False
+        p.stats = {PlayerStat.INT: intelligence}
+        p.read_books = []
+        p.inventory = Inventory(capacity=10)
+        p.inventory.add(RealItem(id_number=_SCRAP_ID, name='MONSTER MEAT',
+                                 category=ItemCategory.FOOD, kind='food'))
+        return p
+
+    async def test_monster_meat_ration_not_listed_as_a_book(self):
+        player = self._make_monster_meat_player()
+        player.inventory.add(Item(number=90, name='Book of Doorways',
+                                  type=ItemType.BOOK, price=7))
+        ctx = make_ctx(player, [])
+        res = await ReadCommand().execute(ctx, 'meat')
+        self.assertIn('not carrying anything matching', _sent(ctx).lower())
+
+    async def test_monster_meat_ration_no_books_when_alone(self):
+        player = self._make_monster_meat_player()
+        ctx = make_ctx(player, [])
+        await ReadCommand().execute(ctx)
+        self.assertIn('no books', _sent(ctx).lower())
+
+
 class TestElevatorGatedOnScrap(unittest.IsolatedAsyncioTestCase):
     async def test_elevator_refuses_without_reading_scrap(self):
         player = make_player()  # has the scrap, hasn't read it yet

@@ -101,13 +101,33 @@ def _item_number(item):
     return number if number is not None else getattr(item, 'id_number', None)
 
 
+def _is_readable_special(item) -> bool:
+    """True for the non-book items READ handles by id (objects.json's
+    scrap of paper/claim tag, or the CONTAINER-category spellbook).
+
+    id_number is only unique within its own category (weapons/items/
+    rations each number independently -- items.py:364), so each id here
+    must be checked against its *own* expected category -- a blanket
+    single-category filter would wrongly exclude the CONTAINER-category
+    spellbook. Without this, ration #69 MONSTER MEAT collided with
+    objects.json #69 "scrap of paper" and showed up as readable."""
+    from items import ItemCategory
+    number = _item_number(item)
+    category = getattr(item, 'category', None)
+    if number in (_SCRAP_OF_PAPER_ID, _CLAIM_TAG_ID):
+        return category == ItemCategory.ITEM
+    if number == spellbook.SPELLBOOK_ITEM_NUMBER:
+        return category == ItemCategory.CONTAINER
+    return False
+
+
 def _book_entries(player):
     inv = getattr(player, 'inventory', None)
     if inv is None:
         return []
     return [e for e in inv.entries()
             if getattr(e.item, 'type', None) == ItemType.BOOK
-            or _item_number(e.item) in _READABLE_IDS]
+            or _is_readable_special(e.item)]
 
 
 async def _read_scrap_of_paper(ctx: GameContext, player) -> None:

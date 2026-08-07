@@ -186,6 +186,22 @@ class TestDeathAmuletGamble(unittest.IsolatedAsyncioTestCase):
             await ReadyCommand().execute(ctx, 'death amulet')
         self.assertIn('TORN TO PIECES', ctx.sent())
 
+    async def test_ration_sharing_amulet_of_lifes_id_does_not_reduce_death_chance(self):
+        # Regression: id_number is only unique within its own category
+        # (weapons/items/rations each number independently -- items.py:364).
+        # objects.json #76 (Amulet of Life) collides with ration #76 (THE
+        # APPLE OF EVE) -- carrying the ration must not halve death odds.
+        amulet = _weapon('DEATH AMULET', item_id=56, stability=50)
+        the_apple = Item(id_number=76, name='THE APPLE OF EVE',
+                         category=ItemCategory.FOOD, kind='food')
+        player = _FakePlayer(weapons=[amulet], extra_items=[the_apple])
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['Y'])
+        with patch('commands.ready.random.random', return_value=0.15):   # death at 20%, not at 10%
+            await ReadyCommand().execute(ctx, 'death amulet')
+        self.assertIn('TORN TO PIECES', ctx.sent())
+        self.assertNotIn('AMULET OF LIFE reduces this to 10%', ctx.sent())
+
 
 class TestBestTargetsExpertGating(unittest.IsolatedAsyncioTestCase):
     """The '[ Best targets ]' hint (combat/resolution.py's hit_threshold()

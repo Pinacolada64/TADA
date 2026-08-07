@@ -31,12 +31,15 @@ def _room(flags):
     return room
 
 
-def _player(*, mounted=False, item_ids=()):
+def _player(*, mounted=False, item_ids=(), ration_ids=()):
     player = MagicMock()
     player.query_flag = MagicMock(side_effect=lambda f: mounted if f == PlayerFlags.MOUNTED else False)
     player.inventory = Inventory()
     for item_id in item_ids:
         player.inventory.add(Item(id_number=item_id, name=f'item{item_id}', category=ItemCategory.ITEM))
+    for item_id in ration_ids:
+        player.inventory.add(Item(id_number=item_id, name=f'ration{item_id}',
+                                  category=ItemCategory.FOOD, kind='food'))
     return player
 
 
@@ -109,6 +112,18 @@ class TestVehicleExitGateDinghy(unittest.TestCase):
         ctx = _ctx(player)
         run(_check_vehicle_exit_gate(ctx, room, 'w', 5))
         self.assertNotIn('space tracker', str(ctx.send.call_args).lower())
+
+    def test_ration_sharing_dinghys_id_does_not_count(self):
+        # Regression: id_number is only unique within its own category
+        # (weapons/items/rations each number independently -- items.py:364).
+        # objects.json #74 (inflatable dinghy) collides with ration #74
+        # (ISSUE#92667 LIQUID) -- carrying the ration must not substitute.
+        room = _room(['vehicle_exit_west'])
+        player = _player(ration_ids=[74])
+        ctx = _ctx(player)
+        result = run(_check_vehicle_exit_gate(ctx, room, 'w', 5))
+        self.assertFalse(result)
+        self.assertIn('Not without a dinghy!', str(ctx.send.call_args))
 
 
 class TestVehicleExitGateSpacesuit(unittest.TestCase):

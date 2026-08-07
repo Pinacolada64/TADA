@@ -274,6 +274,18 @@ class TestGiveToAlly(unittest.IsolatedAsyncioTestCase):
         await self.cmd.execute(self.ctx, 'ration', 'to', 'bat')
         self.assertEqual(len(self.ally.items), 1)
 
+    async def test_dead_bug_ration_giveable_while_ring_worn_flag_set(self):
+        # Regression: id_number is only unique within its own category
+        # (weapons/items/rations each number independently -- items.py:364).
+        # objects.json #67 "ring" collides with ration #67 "DEAD BUG" --
+        # giving away the ration must not be blocked by RING_WORN.
+        self.player.query_flag = lambda f: True   # RING_WORN
+        dead_bug = _make_item('DEAD BUG', item_id=67, category=ItemCategory.FOOD, kind='food')
+        self.player.inventory.add(dead_bug)
+        await self.cmd.execute(self.ctx, 'dead bug', 'to', 'batman')
+        self.assertNotIn('wearing it', self.ctx.sent())
+        self.assertEqual(len(self.ally.items), 1)
+
     async def test_give_nothing_when_inventory_empty(self):
         self.player.inventory.remove(self.item)
         await self.cmd.execute(self.ctx, 'ration', 'to', 'batman')

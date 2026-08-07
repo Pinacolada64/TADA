@@ -125,7 +125,12 @@ async def _check_vehicle_exit_gate(ctx: GameContext, room, direction: str, level
 
     item_id = _SPACESUIT_ID if level >= 6 else _DINGHY_ID
     vehicle_name = 'spacesuit' if level >= 6 else 'dinghy'
-    if not player.inventory.find(item_id=item_id):
+    # id_number is only unique within its own category (weapons/items/
+    # rations each number independently -- items.py:364); without the
+    # category filter, _DINGHY_ID (#74) collided with ration #74
+    # ISSUE#92667 LIQUID, letting that ration substitute for a real dinghy.
+    from items import ItemCategory
+    if not player.inventory.find(item_id=item_id, category=str(ItemCategory.ITEM)):
         await ctx.send(f"Not without a {vehicle_name}!")
         return False
 

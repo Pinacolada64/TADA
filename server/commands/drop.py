@@ -216,8 +216,13 @@ class DropCommand(Command):
 
         # Ring of invisibility (#67): can't drop it while worn (SPUR.MISC.S:136/
         # SPUR.MISC7.S:239 "Can't, you are USEing it!") -- WEAR again first.
-        item_no = getattr(entry.item, 'number', None) or getattr(entry.item, 'id_number', None)
-        if item_no == _RING_ID and player.query_flag(PlayerFlags.RING_WORN):
+        # id_number is only unique within its own category (weapons/items/
+        # rations each number independently -- items.py:364), so this must
+        # also check category or it collides with ration #67 DEAD BUG.
+        from items import ItemCategory
+        item_no  = getattr(entry.item, 'number', None) or getattr(entry.item, 'id_number', None)
+        item_cat = getattr(entry.item, 'category', None)
+        if item_cat == ItemCategory.ITEM and item_no == _RING_ID and player.query_flag(PlayerFlags.RING_WORN):
             await ctx.send("Can't, you are wearing it!")
             return CommandResult.ok()
 

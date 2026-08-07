@@ -315,6 +315,19 @@ class TestDropCommand(unittest.IsolatedAsyncioTestCase):
         self.assertIn(5, server.room_items)
         self.assertEqual(len(server.room_items[5]), 1)
 
+    async def test_dead_bug_ration_droppable_while_ring_worn_flag_set(self):
+        # Regression: id_number is only unique within its own category
+        # (weapons/items/rations each number independently -- items.py:364).
+        # objects.json #67 "ring" collides with ration #67 "DEAD BUG" --
+        # dropping the ration must not be blocked by RING_WORN.
+        player, server, ctx, cmd = self._setup()
+        player.query_flag = lambda f: True   # RING_WORN
+        dead_bug = _item('DEAD BUG', item_id=67, category=ItemCategory.FOOD, kind='food')
+        player.inventory.add(dead_bug)
+        await cmd.execute(ctx, 'dead bug')
+        self.assertNotIn('wearing it', ctx.sent())
+        self.assertEqual(len(player.inventory.entries()), 0)
+
     async def test_dry_room_no_inventory(self):
         player, server, ctx, cmd = self._setup()
         player.inventory = None

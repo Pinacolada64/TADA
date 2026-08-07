@@ -674,7 +674,12 @@ class CombatSession:
             return
         player = ctx.player
         inventory = getattr(player, 'inventory', None)
-        if not inventory or not inventory.find(item_id=_CRYSTAL_PENDANT_ID):
+        # id_number is only unique within its own category (weapons/items/
+        # rations each number independently -- items.py:364); without the
+        # category filter this matched ration #82 BUCKET OF WATER too.
+        from items import ItemCategory
+        if not inventory or not inventory.find(item_id=_CRYSTAL_PENDANT_ID,
+                                                category=str(ItemCategory.ITEM)):
             return
 
         mname = monster_display_name(self.monster)

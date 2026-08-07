@@ -44,22 +44,31 @@ from combat.resolution import monster_attacks
 
 
 class _FakeInventory:
-    def __init__(self, item_ids=None):
-        self._item_ids = set(item_ids or [])
+    # category defaults to 'Item' (objects.json) -- pass ration_ids for an
+    # id that should instead behave like a same-numbered rations.json entry,
+    # to reproduce the id_number-not-unique-across-category collision
+    # (items.py:364) that _check_crystal_pendant()'s category filter guards.
+    def __init__(self, item_ids=None, ration_ids=None):
+        self._categories = {i: 'Item' for i in (item_ids or [])}
+        self._categories.update({i: 'Food' for i in (ration_ids or [])})
 
-    def find(self, *, item_id=None, **kwargs):
-        return ['present'] if item_id in self._item_ids else []
+    def find(self, *, item_id=None, category=None, **kwargs):
+        if item_id not in self._categories:
+            return []
+        if category is not None and self._categories[item_id] != category:
+            return []
+        return ['present']
 
 
 class _FakePlayer:
-    def __init__(self, hit_points=30, item_ids=None):
+    def __init__(self, hit_points=30, item_ids=None, ration_ids=None):
         self.name = 'Rulan'
         self.hit_points = hit_points
         self.unsaved_changes = False
         self.stats = {}
         self.shield = 0
         self.armor = 0
-        self.inventory = _FakeInventory(item_ids)
+        self.inventory = _FakeInventory(item_ids, ration_ids)
 
 
 class _FakeClient:
@@ -272,6 +281,19 @@ class TestCrystalPendant(unittest.IsolatedAsyncioTestCase):
 
     async def test_no_check_without_the_pendant(self):
         player = _FakePlayer(item_ids=[])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'MEDUSA', 'flags': {'petrify': True}}, room_no=1)
+        with patch('combat.engine.random.randint', return_value=1):
+            await session._check_crystal_pendant(ctx)
+        self.assertFalse(session._turn_to_stone_blocked)
+        self.assertEqual(ctx.sent(), '')
+
+    async def test_no_check_for_ration_sharing_the_pendants_id(self):
+        # Regression: id_number is only unique within its own category
+        # (weapons/items/rations each number independently -- items.py:364).
+        # objects.json #82 (Crystal Pendant) collides with ration #82
+        # (BUCKET OF WATER) -- carrying the ration must not grant protection.
+        player = _FakePlayer(ration_ids=[82])
         ctx = _FakeCtx(player)
         session = CombatSession({'name': 'MEDUSA', 'flags': {'petrify': True}}, room_no=1)
         with patch('combat.engine.random.randint', return_value=1):

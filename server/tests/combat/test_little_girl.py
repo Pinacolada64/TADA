@@ -29,9 +29,11 @@ class _FakeInventoryEntry:
 
 
 class _FakeItem:
-    def __init__(self, id_number, name):
+    def __init__(self, id_number, name, category=None):
+        from items import ItemCategory
         self.id_number = id_number
         self.name = name
+        self.category = category if category is not None else ItemCategory.ITEM
 
 
 class _FakeInventory:
@@ -263,6 +265,36 @@ class TestGiveChoice(unittest.IsolatedAsyncioTestCase):
             await try_encounter(ctx)
         sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
         self.assertIn('The girl peers in your sack hopefully..', sent)
+
+    async def test_give_accepts_ration_sharing_id_with_amulet_of_life(self):
+        # Regression: id_number is only unique within its own category
+        # (weapons/items/rations each number independently -- items.py:364).
+        # objects.json #76 "Amulet of Life" collides with ration #76
+        # "THE APPLE OF EVE"; the refusal check must not fire for the ration.
+        from encounters.little_girl import try_encounter
+        from items import ItemCategory
+        item = _FakeItem(76, 'THE APPLE OF EVE', category=ItemCategory.FOOD)
+        player = _make_player(items=[item])
+        ctx = _make_ctx(player=player, prompt_returns=['G', '1'])
+        with patch('random.uniform', return_value=0.0):
+            await try_encounter(ctx)
+        self.assertEqual(player.inventory.removed, [item])
+        sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
+        self.assertNotIn('refuses to hold it', sent)
+
+    async def test_give_accepts_ration_sharing_id_with_worn_ring(self):
+        # objects.json #67 "ring" collides with ration #67 "DEAD BUG" --
+        # giving away the ration must not be blocked by RING_WORN.
+        from encounters.little_girl import try_encounter
+        from items import ItemCategory
+        item = _FakeItem(67, 'DEAD BUG', category=ItemCategory.FOOD)
+        player = _make_player(items=[item], ring_worn=True)
+        ctx = _make_ctx(player=player, prompt_returns=['G', '1'])
+        with patch('random.uniform', return_value=0.0):
+            await try_encounter(ctx)
+        self.assertEqual(player.inventory.removed, [item])
+        sent = ' '.join(str(c) for call in ctx.send.await_args_list for c in call.args)
+        self.assertNotIn('USEing it', sent)
 
 
 class TestBystanderBroadcast(unittest.IsolatedAsyncioTestCase):

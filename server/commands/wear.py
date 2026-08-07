@@ -55,14 +55,21 @@ def _armor_cap(player) -> int:
 
 def _wearable_entries(player):
     """Armor-type items, plus the ring -- everything WEAR actually handles."""
+    from items import ItemCategory
     inv = getattr(player, 'inventory', None)
     if inv is None:
         return []
     out = []
     for e in inv.entries():
-        item    = e.item
-        item_no = getattr(item, 'number', None) or getattr(item, 'id_number', None)
-        if getattr(item, 'type', None) == ItemType.ARMOR or item_no in (_RING_ID,):
+        item     = e.item
+        item_no  = getattr(item, 'number', None) or getattr(item, 'id_number', None)
+        item_cat = getattr(item, 'category', None)
+        # id_number is only unique within its own category (weapons/items/
+        # rations each number independently -- items.py:364); without this
+        # guard a ration sharing #67 with the ring (DEAD BUG) showed up as
+        # wearable and could toggle RING_WORN.
+        is_ring = item_cat == ItemCategory.ITEM and item_no == _RING_ID
+        if getattr(item, 'type', None) == ItemType.ARMOR or is_ring:
             out.append(e)
     return out
 

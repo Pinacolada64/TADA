@@ -261,7 +261,12 @@ class ReadyCommand(Command):
         # --- Death Amulet: readying gamble (SPUR.WEAPON.S:31, 64-73) ---
         if 'DEATH AMULET' in name.upper():
             inv = getattr(player, 'inventory', None)
-            has_amulet_of_life = bool(inv and inv.find(item_id=_AMULET_OF_LIFE_ID))
+            # id_number is only unique within its own category (weapons/
+            # items/rations each number independently -- items.py:364);
+            # without the category filter this matched ration #76 THE
+            # APPLE OF EVE too, falsely halving the death chance.
+            has_amulet_of_life = bool(inv and inv.find(item_id=_AMULET_OF_LIFE_ID,
+                                                        category=str(ItemCategory.ITEM)))
             death_chance = 0.10 if has_amulet_of_life else 0.20
 
             warn = [
