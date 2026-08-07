@@ -1666,12 +1666,18 @@ class CombatSession:
         credited = list(self.attackers)
         if ctx not in credited:
             credited.append(ctx)
-        skill_notes = {b_ctx: _award_hit_based_skill(self, b_ctx) for b_ctx in credited}
+        # Keyed by id(): GameContext is a plain @dataclass (eq=True), which
+        # makes instances unhashable -- using ctx itself as a dict key threw
+        # "TypeError: unhashable type" here, aborting _monster_dies() before
+        # it ever reached the Dwarf's room.monster=0 cleanup or the "You have
+        # slain" message (Ryan's report: an ally-killed Dwarf stayed in the
+        # room, fully healed, for the next `attack`).
+        skill_notes = {id(b_ctx): _award_hit_based_skill(self, b_ctx) for b_ctx in credited}
 
         if player_killed:
-            await ctx.send(f'|green|You have slain {mname}!{hits_note}{skill_notes[ctx]}|reset|')
+            await ctx.send(f'|green|You have slain {mname}!{hits_note}{skill_notes[id(ctx)]}|reset|')
         else:
-            await ctx.send(f'|green|{killer_name} has slain {mname}!{hits_note}{skill_notes[ctx]}|reset|')
+            await ctx.send(f'|green|{killer_name} has slain {mname}!{hits_note}{skill_notes[id(ctx)]}|reset|')
 
         # A monster flagged re_animates twitches on death (SPUR.MISC.S:391-394:
         # "<name> twitches strangely!"). SPUR also exempts it from being added
@@ -1694,9 +1700,9 @@ class CombatSession:
             await ctx.send(f'{Mname} turns to stone as it dies!')
 
         if player_killed:
-            room_msg = f'{_player_name(ctx)} slays {mname}!{hits_note}{skill_notes[ctx]}'
+            room_msg = f'{_player_name(ctx)} slays {mname}!{hits_note}{skill_notes[id(ctx)]}'
         else:
-            room_msg = f"{_player_name(ctx)}'s {killer_name} slays {mname}!{hits_note}{skill_notes[ctx]}"
+            room_msg = f"{_player_name(ctx)}'s {killer_name} slays {mname}!{hits_note}{skill_notes[id(ctx)]}"
         room_lines = [room_msg]
 
         # Bystanders who fought but didn't land the killing blow: broadcast
@@ -1713,7 +1719,7 @@ class CombatSession:
             b_hits_note = ''
             if not getattr(b_ctx.player, 'is_expert', False):
                 b_hits_note = f'  ({b_hits} blow{"s" if b_hits != 1 else ""} landed)'
-            room_lines.append(f'{b_name} lands blows on {mname}!{b_hits_note}{skill_notes[b_ctx]}')
+            room_lines.append(f'{b_name} lands blows on {mname}!{b_hits_note}{skill_notes[id(b_ctx)]}')
 
         await ctx.send_room(*room_lines, exclude_self=True)
 
@@ -1805,7 +1811,7 @@ class CombatSession:
             if b_ctx is ctx:
                 continue
             Mname = monster_display_name(self.monster, capitalize=True)
-            await b_ctx.send(f'|green|{Mname} is slain!{skill_notes[b_ctx]}|reset|')
+            await b_ctx.send(f'|green|{Mname} is slain!{skill_notes[id(b_ctx)]}|reset|')
 
     async def _reveal_hidden_exit(self, ctx: 'GameContext') -> None:
         """Reveal a hidden_exit_east/west room's secret passage on monster death.

@@ -167,6 +167,63 @@ class TestBattleExperienceOnKill(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(player.weapon_experience['7'], 3)
 
 
+class TestMonsterDiesWithUnhashableContext(unittest.IsolatedAsyncioTestCase):
+    """Regression coverage: _monster_dies() used to key its skill_notes dict
+    by the ctx object itself. The real GameContext/PETSCIINetworkContext is a
+    plain @dataclass (eq=True with no explicit __hash__), which Python makes
+    unhashable -- so that dict comprehension raised "TypeError: unhashable
+    type" on every real kill, aborting _monster_dies() partway through
+    (before it ever reached the Dwarf's room.monster=0 cleanup or the "You
+    have slain" message). Ryan's report: an ally-killed Dwarf stayed fully
+    healed in the room for the next `attack`. Reproduced here with a
+    dataclass ctx, matching the real class's unhashability, instead of the
+    file's plain-class _FakeCtx (which is hashable by default and would
+    silently miss this bug)."""
+
+    async def test_ally_kill_with_unhashable_ctx_does_not_raise(self):
+        from dataclasses import dataclass, field
+
+        @dataclass
+        class _UnhashableClient:
+            room: int = 1
+
+        @dataclass
+        class _UnhashableServer:
+            clients: dict = field(default_factory=dict)
+            active_combats: dict = field(default_factory=dict)
+            game_map: object = None
+
+        @dataclass
+        class _UnhashableCtx:
+            player: object
+            client: object = field(default_factory=_UnhashableClient)
+            server: object = field(default_factory=_UnhashableServer)
+            sent: list = field(default_factory=list)
+
+            async def send(self, msg, **kwargs):
+                self.sent.append(str(msg))
+
+            async def send_room(self, *args, **kwargs):
+                pass
+
+        weapon = _FakeWeapon(id_number=42)
+        player = _FakePlayer(readied_weapon=weapon)
+        ctx = _UnhashableCtx(player=player)
+        with self.assertRaises(TypeError):
+            hash(ctx)   # sanity: this ctx really does mirror the real bug
+
+        session = _session()
+        session._hits_landed = {'KING ARTHUR': 1}
+        with patch.object(session, '_recover_ammo', new=AsyncMock()), \
+             patch.object(session, '_reveal_hidden_exit', new=AsyncMock()), \
+             patch('combat.engine._record_kill'), \
+             patch('combat.engine._give_silver'), \
+             patch('combat.rewards.gold_from_monster', return_value=0):
+            await session._monster_dies(ctx, player_killed=False)   # should not raise
+
+        self.assertTrue(any('has slain' in line for line in ctx.sent))
+
+
 class TestNonLethalSwingGrantsNoBattleExperience(unittest.IsolatedAsyncioTestCase):
     """Regression coverage for the actual bug: a swing that HITS but doesn't
     kill used to award weapon exp anyway (and even credited every other
