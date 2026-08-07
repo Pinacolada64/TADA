@@ -464,6 +464,14 @@ class GetCommand(Command):
                        name: str, entry: InventoryEntry, remove_fn) -> CommandResult:
         player  = ctx.player
         item_id = getattr(entry.item, 'id_number', None)
+        # id_number is only unique within its own category (weapons/items/
+        # rations each number independently -- see items.py:364); every
+        # special-id check below (Gollum's ring, Tut's Treasure, booby
+        # traps, Pandora's Box, gold rose, fireplace, obelisk, staff) is
+        # keyed off objects.json's own numbering and must be guarded with
+        # this, or it collides with an unrelated weapon/ration sharing the
+        # same number (e.g. ration #39 TOMATOES vs weapon #39 SMALL FIREBALL).
+        item_cat = getattr(entry.item, 'category', None)
 
         # --- Statue: permanently too heavy to take (SPUR.MISC.S get.b:
         # instr("STATUE",i$)/instr("#",wy$)) -- checked before anything
@@ -478,7 +486,7 @@ class GetCommand(Command):
         # the item, since a successful guard means no pickup happens at all.
         from encounters.gollum import guards_ring, QUOTE
         room_monster = _monster_in_room(ctx)
-        if guards_ring(item_id, room_monster, player):
+        if item_cat == ItemCategory.ITEM and guards_ring(item_id, room_monster, player):
             await ctx.send([
                 f'Gollum hisses, "{QUOTE}"',
                 "He won't let you! He attacks!",
@@ -490,7 +498,7 @@ class GetCommand(Command):
         # --- Tut's Treasure: quest #16 (quests/tuts_treasure.py) -- checked
         # before the "inventory full" guard below, since a successful GET
         # here converts straight to gold and never actually needs a slot ---
-        if is_tuts_treasure(item_id):
+        if item_cat == ItemCategory.ITEM and is_tuts_treasure(item_id):
             outcome = tuts_treasure_get(player)
             for line in outcome.lines:
                 await ctx.send(line)
@@ -498,8 +506,13 @@ class GetCommand(Command):
                 remove_fn()
             return CommandResult.ok()
 
-        # Anti-hoarding: block if already in inventory OR already picked up this session
-        if item_id and inventory is not None and inventory.find(item_id=item_id):
+        # Anti-hoarding: block if already in inventory OR already picked up this session.
+        # category must be part of the match too -- id_number alone isn't unique
+        # across weapons/items/rations (see item_cat comment above), so without
+        # it e.g. a room-found "steel armor" (object #3) would be blocked as
+        # "You already have..." by an unrelated WOOD STAFF (weapon #3) in inventory.
+        if item_id and inventory is not None and inventory.find(
+                item_id=item_id, category=str(item_cat) if item_cat else None):
             await ctx.send(f'You already have {name}.')
             return CommandResult.ok()
 
@@ -508,12 +521,12 @@ class GetCommand(Command):
             return CommandResult.ok()
 
         # --- Fireplace: USE only (SPUR.MISC.S:285) ---
-        if item_id == _FIREPLACE:
+        if item_cat == ItemCategory.ITEM and item_id == _FIREPLACE:
             await ctx.send('You can only USE this..')
             return CommandResult.ok()
 
         # --- Obelisk: too large to move (SPUR.MISC.S:287) ---
-        if item_id == _OBELISK:
+        if item_cat == ItemCategory.ITEM and item_id == _OBELISK:
             await ctx.send(f'The {name} is MUCH too large to get!')
             return CommandResult.ok()
 
@@ -541,7 +554,7 @@ class GetCommand(Command):
             return CommandResult.ok()
 
         # --- Booby trap: explodes on pickup (SPUR.MISC.S strange, items 70/72) ---
-        if item_id in _BOOBY_TRAP_IDS:
+        if item_cat == ItemCategory.ITEM and item_id in _BOOBY_TRAP_IDS:
             remove_fn()
             await ctx.send('ARGG!!  It is booby trapped!  It blows up!')
             await ctx.send('BOOOMM!!')
@@ -550,7 +563,7 @@ class GetCommand(Command):
             return CommandResult.ok()
 
         # --- Pandora's Box: smoke, XP/CON/INT/HP penalties (SPUR.MISC.S pandora) ---
-        if item_id == _PANDORAS_BOX:
+        if item_cat == ItemCategory.ITEM and item_id == _PANDORAS_BOX:
             remove_fn()
             await ctx.send("FOOL!!  YOU SHOULD NOT DO THAT!!")
             await ctx.send('STRANGE SMOKE BILLOWS OUT!')
@@ -569,7 +582,7 @@ class GetCommand(Command):
             return CommandResult.ok()
 
         # --- Gold Rose: poisoned stickers — DEX check (SPUR.MISC.S rose) ---
-        if item_id == _GOLD_ROSE:
+        if item_cat == ItemCategory.ITEM and item_id == _GOLD_ROSE:
             pd  = int((getattr(player, 'stats', None) or {}).get('Dexterity', 10))
             roll = random.randint(1, 16) + 12   # random(16)+12, SPUR range ~12-27
             if pd > roll:
@@ -588,10 +601,10 @@ class GetCommand(Command):
         # id_number is only unique within its own category (weapons/items/rations
         # each number independently -- see items.py:364), so this must also check
         # category==WEAPON or it collides with e.g. ration #39 TOMATOES.
-        if item_id in _FIREBALL_IDS and getattr(entry.item, 'category', None) == ItemCategory.WEAPON:
+        if item_cat == ItemCategory.WEAPON and item_id in _FIREBALL_IDS:
             from base_classes import PlayerClass
             if getattr(player, 'char_class', None) != PlayerClass.WIZARD:
-                gauntlets = (inventory.find(item_id=_GAUNTLETS_ID)
+                gauntlets = (inventory.find(item_id=_GAUNTLETS_ID, category=str(ItemCategory.ITEM))
                              if inventory else None)
                 if gauntlets:
                     await ctx.send('THE GAUNTLETS TAKE THE HEAT..')
@@ -613,7 +626,7 @@ class GetCommand(Command):
         await ctx.send(f'You pick up {name}.')
 
         # --- Staff: Wizards get a reminder that it enhances spellcasting (SPUR.MISC3.S:47) ---
-        if item_id in _STAFF_IDS:
+        if item_cat == ItemCategory.WEAPON and item_id in _STAFF_IDS:
             from base_classes import PlayerClass
             if getattr(player, 'char_class', None) == PlayerClass.WIZARD:
                 await ctx.send('(This staff will enhance your spell casting!)')
