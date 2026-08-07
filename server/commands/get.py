@@ -604,12 +604,13 @@ class GetCommand(Command):
         if item_cat == ItemCategory.WEAPON and item_id in _FIREBALL_IDS:
             from base_classes import PlayerClass
             if getattr(player, 'char_class', None) != PlayerClass.WIZARD:
-                gauntlets = (inventory.find(item_id=_GAUNTLETS_ID, category=str(ItemCategory.ITEM))
-                             if inventory else None)
-                if gauntlets:
+                # find() returns a list -- take the first match, not the list itself.
+                gauntlet_matches = (inventory.find(item_id=_GAUNTLETS_ID, category=str(ItemCategory.ITEM))
+                                    if inventory else [])
+                if gauntlet_matches:
                     await ctx.send('THE GAUNTLETS TAKE THE HEAT..')
                     if random.randint(1, 10) == 1:
-                        inventory.remove(gauntlets.item)
+                        inventory.remove(gauntlet_matches[0].item)
                         await ctx.send('THE GAUNTLETS ARE DESTROYED!!')
                 else:
                     dmg = random.randint(1, 4)
