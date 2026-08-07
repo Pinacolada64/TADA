@@ -612,11 +612,27 @@ sid_service_background_rts:
 
 ; --- Blinking input cursor ---
 ; GETIN-driven input (unlike CHRIN) never engages the KERNAL's own
-; line-editor cursor blink, so read_line draws its own: a reverse-video
-; space, blinked via bit 4 of $a2 (fastest-changing byte of the KERNAL's
-; free-running jiffy clock, ticks ~60/sec) for a roughly 2-3 Hz blink.
-; Uses only CHROUT + PETSCII control codes (reverse on/off, cursor left)
-; so it never needs to compute a raw screen RAM address.
+; line-editor cursor blink, so read_line draws its own, blinked via bit
+; 4 of $a2 (fastest-changing byte of the KERNAL's free-running jiffy
+; clock, ticks ~60/sec) for a roughly 2-3 Hz blink.
+;
+; This used to print a literal reverse-video space and step back onto
+; it, which only worked while the cursor was always parked past the end
+; of the buffer (nothing real underneath to clobber). Once CRSR
+; LEFT/RIGHT could park the cursor mid-line, that same space-print
+; overwrote whatever real character was already sitting there -- the
+; cursor was destroying buffer contents just by blinking over them.
+; Instead, cursor_toggle flips the reverse-video bit (bit 7) of
+; whatever screen code is actually under the cursor right now, read via
+; the KERNAL's own PNT/PNTR zero-page vars ($d1/$d2 = pointer to the
+; start of the current screen line, $d3 = cursor column within it) --
+; the same pair the KERNAL's own cursor blink IRQ routine uses. These
+; stay in sync via CHROUT's normal screen-editor bookkeeping regardless
+; of this client's custom IRQ handler, since IRQ only affects blink
+; timing/STOP-key scanning here, not CHROUT's own screen writes. EOR
+; #$80 (not a plain ORA) so a show/hide pair is always a clean round
+; trip no matter what the underlying character was, including if it
+; already happened to be a reverse-video glyph.
 cursor_phase:
         byte 0                   ; 0 = currently erased, 1 = currently drawn
 
@@ -636,42 +652,40 @@ update_cursor:
         beq cursor_want_off
         lda cursor_phase
         bne update_cursor_done   ; already on
-        jsr cursor_show
+        jsr cursor_toggle
+        lda #1
+        sta cursor_phase
         rts
 cursor_want_off:
         lda cursor_phase
         beq update_cursor_done   ; already off
-        jsr cursor_hide
+        jsr cursor_toggle
+        lda #0
+        sta cursor_phase
 update_cursor_done:
         rts
 
-; Draw a reverse-video block at the cursor position, then step back onto
-; it (CRSR LEFT) so the next real CHROUT overwrites it cleanly.
-cursor_show:
-        lda #1
-        sta cursor_phase
-        lda #$12                 ; reverse on
-        jsr CHROUT
-        lda #$20                 ; space -- a solid block in reverse video
-        jsr CHROUT
-        lda #$92                 ; reverse off
-        jsr CHROUT
-        lda #$9d                 ; cursor left
-        jsr CHROUT
+; Flip the reverse-video bit of the screen code currently under the
+; cursor, in place. Doesn't move the screen cursor or call CHROUT at
+; all, so the real character underneath survives regardless of how many
+; times this fires.
+cursor_toggle:
+        ldy $d3                  ; PNTR -- cursor column within current line
+        lda ($d1),y               ; PNT -- on-screen char code under cursor
+        eor #$80
+        sta ($d1),y
         rts
 
-; Overwrite the block with a plain space and step back, leaving the
-; screen cursor position unchanged. Also used (unconditionally) to make
-; sure no stray block is left behind right before a real keystroke is
-; handled -- safe even when nothing is currently drawn, since that cell
-; is otherwise blank anyway.
+; Force the cursor to the "erased" state right before a real keystroke
+; is handled, whatever phase update_cursor last left it in. Safe to
+; call unconditionally -- a no-op if it's already erased.
 cursor_hide:
+        lda cursor_phase
+        beq cursor_hide_done
+        jsr cursor_toggle
         lda #0
         sta cursor_phase
-        lda #$20
-        jsr CHROUT
-        lda #$9d                 ; cursor left
-        jsr CHROUT
+cursor_hide_done:
         rts
 
 ; --- Read a line of keyboard input into linebuf, echo to screen ---
@@ -683,6 +697,7 @@ cursor_hide:
 read_line:
         ldx #0                   ; buffer index
         stx linelen
+        stx cursor_pos
         lda #1
         sta sid_background       ; background context -- diagnostics stay
                                   ; quiet here, see sid_service_background
@@ -735,25 +750,129 @@ read_line_loop:
         pla
 {endif}
 
+        ; beq straight to read_line_done from here is out of branch range
+        ; (read_line_done sits well past +127 bytes down, after all the
+        ; insert/cursor-move routines added since) -- same out-of-range
+        ; gotcha as read_line_left/right above. c64list assembles it
+        ; clean with no warning but it computes a garbage jump target at
+        ; runtime: dispatch fell through to the default "store as a
+        ; typed character" case, which happened to still echo a visible
+        ; CR via CHROUT -- looking like RETURN worked -- while actually
+        ; looping forever waiting for more keys, so read_line never
+        ; returned and send_line never ran. Invert the test and reach
+        ; read_line_done via jmp instead.
         cmp #$0d                 ; RETURN?
-        beq read_line_done
+        bne read_line_not_return
+        jmp read_line_done
+read_line_not_return:
 
         cmp #$14                 ; DEL (PETSCII backspace)?
-        bne read_line_store
-        lda linelen              ; the dispatch path no longer relies on X
-        beq read_line_loop       ; surviving CHROUT calls -- linelen (a
-        dec linelen              ; plain memory byte) is the source of truth
-        lda #$14                 ; the linelen check above clobbered .A --
-        jsr CHROUT               ; reload DEL before echoing it via CHROUT
+        beq read_line_del
+        cmp #$94                 ; INST (shift+DEL) -- insert a blank at cursor?
+        beq read_line_inst
+        cmp #$9d                 ; CRSR LEFT (shift+CRSR key)?
+        beq read_line_left
+        cmp #$1d                 ; CRSR RIGHT (unshifted CRSR key)?
+        beq read_line_right
+        jmp read_line_store
+
+read_line_del:
+        lda cursor_pos            ; nothing to the left of the cursor?
+        beq read_line_loop
+        ldx cursor_pos             ; shift linebuf[cursor_pos..linelen-1] left
+        ; by one, closing the gap left by the deleted char at cursor_pos-1
+read_line_del_shift:
+        cpx linelen
+        bcs read_line_del_shift_done
+        lda linebuf,x
+        sta linebuf-1,x
+        inx
+        jmp read_line_del_shift
+read_line_del_shift_done:
+        dec linelen
+        dec cursor_pos
+        lda #$9d                 ; step the screen cursor back onto the
+        jsr CHROUT               ; now-deleted column
+        lda #1                   ; redraw the tail plus one trailing blank
+        jsr redraw_tail          ; to erase the old last character on screen
+        jmp read_line_loop
+
+read_line_inst:
+        lda linelen
+        cmp #MAX_LINE-1
+        bcs read_line_loop       ; buffer full, ignore
+        ldx linelen               ; shift linebuf[cursor_pos..linelen-1] right
+        ; by one (from the top down) to open a gap at cursor_pos
+read_line_inst_shift:
+        cpx cursor_pos
+        beq read_line_inst_shift_done
+        lda linebuf-1,x
+        sta linebuf,x
+        dex
+        jmp read_line_inst_shift
+read_line_inst_shift_done:
+        lda #$20                 ; blank goes in the newly-opened gap
+        ldx cursor_pos
+        sta linebuf,x
+        inc linelen
+        lda #0                   ; no extra trailing blank needed -- the
+        jsr redraw_tail          ; buffer grew, nothing stale beyond it
+        jmp read_line_loop
+
+read_line_left:
+        ; beq/bcs straight to read_line_loop from here is out of branch
+        ; range (confirmed via the .sym addresses: ~132-148 bytes, over
+        ; the 6502's +/-127 signed-branch limit) -- c64list assembles an
+        ; out-of-range branch clean with no warning but it jumps to
+        ; garbage at runtime (see this repo's own known gotcha on this).
+        ; Invert the test and reach read_line_loop via jmp instead.
+        lda cursor_pos
+        bne read_line_left_move  ; not at start of line
+        jmp read_line_loop
+read_line_left_move:
+        dec cursor_pos
+        lda #$9d
+        jsr CHROUT
+        jmp read_line_loop
+
+read_line_right:
+        lda cursor_pos            ; same out-of-range concern as
+        cmp linelen               ; read_line_left above
+        bcc read_line_right_move ; not at end of line
+        jmp read_line_loop
+read_line_right_move:
+        inc cursor_pos
+        lda #$1d
+        jsr CHROUT
         jmp read_line_loop
 
 read_line_store:
-        ldx linelen
-        cpx #MAX_LINE-1
-        bcs read_line_loop       ; buffer full, ignore further chars
-        sta linebuf,x            ; 0-based: store first, then advance --
-        inx                      ; matches send_line, which still starts
-        stx linelen              ; at index 0 and reads until the null
+        pha                       ; stash the typed char across the shift below
+        lda linelen
+        cmp #MAX_LINE-1
+        bcc read_line_store_room
+        pla
+        jmp read_line_loop       ; buffer full, ignore further chars
+read_line_store_room:
+        ldx linelen               ; shift linebuf[cursor_pos..linelen-1] right
+        ; by one (from the top down) to open a gap at cursor_pos -- same
+        ; shift as read_line_inst, but the gap gets the typed char instead
+        ; of a blank. When cursor_pos == linelen (the common case: typing
+        ; at the end of the line) this loop does nothing, so append is
+        ; just the cursor-at-end special case of insert.
+read_line_store_shift:
+        cpx cursor_pos
+        beq read_line_store_shift_done
+        lda linebuf-1,x
+        sta linebuf,x
+        dex
+        jmp read_line_store_shift
+read_line_store_shift_done:
+        pla                       ; recover the typed char
+        ldx cursor_pos
+        sta linebuf,x             ; 0-based: store first, then advance --
+        inc linelen               ; matches send_line, which still starts
+        inc cursor_pos            ; at index 0 and reads until the null
         jsr CHROUT               ; echo the typed char locally
 
         ; Echoing a literal '"' through CHROUT toggles the KERNAL's quote
@@ -766,7 +885,59 @@ read_line_store:
         lda #0
         sta QTSW
 
+        lda linelen               ; was this an insert (tail follows the
+        cmp cursor_pos            ; cursor) rather than a plain append?
+        beq read_line_store_done
+        lda #0
+        jsr redraw_tail          ; reprint the shifted tail, reposition cursor
+read_line_store_done:
         jmp read_line_loop
+
+; --- Reprint linebuf[cursor_pos..linelen-1] and reposition the screen
+; cursor back onto cursor_pos ---
+; Used whenever a mid-line insert/delete shifts the tail of the buffer,
+; so the screen catches up with the new buffer contents. Input: .A =
+; number of extra trailing blanks to print after the real tail (0, or 1
+; to erase the stale last character left behind by a delete). Only ever
+; called with 0 or 1, so a single conditional print suffices instead of
+; a loop.
+; Uses redraw_idx/redraw_count (plain memory, not X/Y) as loop counters
+; since CHROUT is called from inside these loops and does not reliably
+; preserve registers here -- see read_line_loop's own comment on this.
+redraw_tail:
+        sta redraw_extra
+        lda cursor_pos
+        sta redraw_idx
+redraw_print_loop:
+        lda redraw_idx
+        cmp linelen
+        bcs redraw_print_done
+        tax
+        lda linebuf,x
+        jsr CHROUT
+        inc redraw_idx
+        jmp redraw_print_loop
+redraw_print_done:
+        lda redraw_extra
+        beq redraw_back_setup
+        lda #$20
+        jsr CHROUT
+redraw_back_setup:
+        lda linelen               ; total columns to step back = tail length
+        sec                       ; printed (linelen - cursor_pos) plus the
+        sbc cursor_pos            ; extra trailing blank, if any
+        clc
+        adc redraw_extra
+        sta redraw_count
+redraw_back_loop:
+        lda redraw_count
+        beq redraw_done
+        dec redraw_count
+        lda #$9d
+        jsr CHROUT
+        jmp redraw_back_loop
+redraw_done:
+        rts
 
 read_line_done:
         ldx linelen
@@ -1438,6 +1609,17 @@ status_msg:
 {alpha:normal}
 
 linelen:
+        byte 0
+cursor_pos:
+        byte 0                   ; index into linebuf where the next inserted/typed
+                                  ; char goes; 0 <= cursor_pos <= linelen. Distinct
+                                  ; from linelen so CRSR LEFT/RIGHT can park it
+                                  ; mid-buffer for INST/DEL/typed-char insertion.
+redraw_extra:
+        byte 0                   ; scratch for redraw_tail -- see its own comment
+redraw_idx:
+        byte 0
+redraw_count:
         byte 0
 linebuf:
         area 80,$00
