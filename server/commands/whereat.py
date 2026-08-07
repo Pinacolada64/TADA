@@ -36,7 +36,8 @@ class WhereatCommand(Command):
     modes   = {Mode.GAME}
 
     help = Help(
-        summary  = 'Show where all online players are located.',
+        summary  = 'Show where all online players are located. '
+                   'You may hide your location from other players if you wish.',
         category = HelpCategory.COMMUNICATION,
         usage    = [
             ('whereat',       'List all visible online players and their locations'),
@@ -44,11 +45,12 @@ class WhereatCommand(Command):
             ('wa #show',      'Make your location visible again'),
         ],
         notes = [
-            'Admins and Dungeon Masters see everyone\'s level #, room #, and '
-            'room name. Other players only see the room name.',
+            'Other players may see the room name.',
             'Hidden players appear as "(Hidden)" to other players.',
         ],
-    )
+        admin_notes = ["Admins and Dungeon Masters see everyone's level #, room #, and "
+                       "room name even if the player is hiding from others."]
+        )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         args, switches = self.parse_args(*args)
