@@ -74,7 +74,10 @@ _DAY_LABELS = {
 _DAY_ALIASES = {'t': 'today', 'today': 'today'}
 for _day in _DAY_ORDER[1:]:
     _DAY_ALIASES[_day] = _day
-    _DAY_ALIASES[_day[0]] = _day  # single-letter isn't unique (tue/thu) but harmless
+    # setdefault: 't' is reserved for 'today' above, and tue/thu (also
+    # sat/sun) share a first letter -- first one in _DAY_ORDER wins, the
+    # other stays reachable only by its full name.
+    _DAY_ALIASES.setdefault(_day[0], _day)
 
 _TAIL_LINES = 40
 
@@ -247,7 +250,8 @@ class LogsCommand(Command):
 
     async def _choose_day(self, ctx: GameContext) -> str | None:
         menu = ' / '.join(_DAY_LABELS[d] for d in _DAY_ORDER)
-        raw = await ctx.prompt(f'Which day? {menu} (blank = Today)')
+        preamble = [menu]
+        raw = await ctx.prompt('Which day? (blank = Today)', preamble_lines=preamble)
         if not raw or not raw.strip():
             return 'today'
         choice = raw.strip().lower()
