@@ -33,10 +33,10 @@ class TestLoadBooks(unittest.TestCase):
         self.assertEqual(load_books('/nonexistent/path/books.json'), {})
 
     def test_real_books_json_loads_and_has_expected_count(self):
-        """The actual server/books.json should load 23 entries -- one per
+        """The actual server/books.json should load 24 entries -- one per
         book-type item in objects.json."""
         books = load_books('books.json')
-        self.assertEqual(len(books), 23)
+        self.assertEqual(len(books), 24)
         self.assertIn(30, books)   # The Howling
         self.assertIn(89, books)  # Scroll of Endurance
         self.assertIn(92, books)  # the "other" Scroll of Endurance

@@ -30,7 +30,11 @@ wadler.md): built this pass -- stat spells (S/W/D/C/E/I), heal (P),
 monster damage (M, requires an active CombatSession -- see
 commands/attack.py's _active_session()/_monster_in_room(), a deliberate
 simplification vs. SPUR's "usable any time a monster's in the room"), and
-gold-to-bank transfer (T). Deferred and refused gracefully without
+gold-to-bank transfer (T). Also CONJURE FOOD/CONJURE DRINK (F/K),
+RESURRECT (V), and ENCHANT ARMOR/ENCHANT SHIELD (Y/Z) -- later TADA
+additions, not SPUR-sourced (Y/Z adapted from origin/skip's otherwise-
+unreachable 'enchant' aura sub-effect, see _cast_enchant()), see also
+_cast_conjure()/_cast_resurrect(). Deferred and refused gracefully without
 consuming the spell: level up/down (U/L), teleport-to-shoppe (R), and the
 Aura sub-effects other than BOOTS (DISPEL POISON/APPLE A DAY/DRUID
 HEALTH/WIZARD'S GLOW -- each has a real hook already, just not wired in
@@ -213,6 +217,108 @@ def _cast_heal(player, magnitude: int, bonus: int, success: bool) -> tuple[str, 
     if hp > magnitude:
         player.hit_points = hp - magnitude
         return 'backfire', '(You feel a wave of nausea.)'
+    return 'backfire', ''
+
+
+_CONJURE_KIND = {'F': 'food', 'K': 'drink'}  # TADA addition, not SPUR-sourced -- Ryan's request
+
+
+def _cast_conjure(ctx, player, effect_type: str, success: bool) -> tuple[str, str]:
+    """CONJURE FOOD / CONJURE DRINK: success pulls a random rations.json
+    entry of the matching kind out of thin air and drops it straight into
+    the player's pack. Backfire conjures a "cursed" ration instead (e.g.
+    POISON APPLE, EMBALMING FLUID -- rations.json already carries a
+    handful of these) so a failed cast still has a real downside, matching
+    every other spell's backfire (stat spells decrease the stat, heal
+    damages, transfer dumps the wrong pool) rather than just flavor text."""
+    from items import Item, ItemCategory
+
+    kind = _CONJURE_KIND[effect_type] if success else 'cursed'
+    pool = [r for r in (getattr(ctx.server, 'rations', None) or []) if r.get('kind') == kind]
+    outcome = 'success' if success else 'backfire'
+    if not pool:
+        return outcome, 'The air shimmers, but nothing appears.'
+
+    raw = random.choice(pool)
+    item_category = ItemCategory.DRINK if raw.get('kind') == 'drink' else ItemCategory.FOOD
+    item = Item(id_number=raw.get('number'), name=raw.get('name'), category=item_category,
+                kind=raw.get('kind'), price=raw.get('price', 0))
+
+    inv = getattr(player, 'inventory', None)
+    if inv is None or not inv.add(item):
+        return 'backfire', 'You conjure something, but your pack is too full to hold it!'
+
+    player.unsaved_changes = True
+    if success:
+        return 'success', f'A {item.name} materializes out of thin air!'
+    return 'backfire', f'The spell backfires -- a {item.name} appears, and it smells foul!'
+
+
+def _cast_resurrect(player, success: bool) -> tuple[str, str]:
+    """RESURRECT (TADA addition, not SPUR-sourced -- Ryan's request).
+    Brings a DEAD or UNCONSCIOUS party Ally back to SERVANT status, HP
+    restored the same way Fat Olaf seeds it on purchase (bar/fat_olaf.py's
+    _HP_PER_STRENGTH -- allies are created with hit_points=0 and nothing
+    else initializes it). There's no persisted "dead" state for players
+    themselves -- death disconnects/respawns them outright, see
+    combat/engine.py's _player_dies -- so a fallen party Ally is the only
+    "brought back to life" target this port actually tracks. Backfire
+    strikes a living Ally unconscious instead, the same "real downside,
+    not just flavor" shape as every other spell's backfire."""
+    from bar.ally_data import AllyStatus
+    from bar.fat_olaf import _HP_PER_STRENGTH
+
+    allies = [m for m in (getattr(player, 'party', None) or []) if hasattr(m, 'status')]
+
+    if success:
+        target = (next((a for a in allies if a.status == AllyStatus.DEAD), None)
+                  or next((a for a in allies if a.status == AllyStatus.UNCONSCIOUS), None))
+        if target is None:
+            return 'success', 'The spell finds no one in need of resurrection.'
+        target.status = AllyStatus.SERVANT
+        target.hit_points = target.strength * _HP_PER_STRENGTH
+        player.unsaved_changes = True
+        return 'success', f'{target.name} gasps and returns to life!'
+
+    living = [a for a in allies if a.status == AllyStatus.SERVANT and (a.hit_points or 0) > 0]
+    if not living:
+        return 'backfire', 'The spell fizzles into the void, finding no one to harm.'
+    target = random.choice(living)
+    target.status = AllyStatus.UNCONSCIOUS
+    target.hit_points = 0
+    player.unsaved_changes = True
+    return 'backfire', f'The spell backfires -- {target.name} collapses, unconscious!'
+
+
+def _cast_enchant(player, effect_type: str, magnitude: int, bonus: int, success: bool) -> tuple[str, str]:
+    """ENCHANT ARMOR / ENCHANT SHIELD (TADA addition, adapted from
+    origin/skip's SPUR.MISC3.S 'enchant' aura sub-effect -- not present on
+    master, and skip's own spells.txt never actually added a spell record
+    with "ENCHANT" in its name, so that code is dead as shipped there.
+    Skip's version reads a per-item armor/shield value out of a
+    "misc.data" file this port has no equivalent for (see the armor/
+    shield-per-item-class redesign, still TODO'd); this port already has
+    flat player.armor/player.shield ratings with their own class/race caps
+    (commands/wear.py's _armor_cap(), commands/use.py's _shield_cap()), so
+    it reuses those instead of inventing a parallel per-item system.
+    Mirrors _cast_stat()'s shape: a successful cast at the cap still
+    collapses to a backfire-style decrease rather than doing nothing."""
+    if effect_type == 'Y':
+        from commands.wear import _armor_cap
+        attr, cap, label = 'armor', _armor_cap(player), 'armor'
+    else:
+        from commands.use import _shield_cap
+        attr, cap, label = 'shield', _shield_cap(player, 0), 'shield'
+
+    current = int(getattr(player, attr, 0) or 0)
+    if success and current < cap:
+        new_value = min(cap, current + magnitude + bonus)
+        setattr(player, attr, new_value)
+        return 'success', f'(Your {label} rating glows -- now {new_value}%!)'
+
+    if current >= magnitude:
+        setattr(player, attr, current - magnitude)
+        return 'backfire', f'(Your {label} rating weakens to {current - magnitude}%.)'
     return 'backfire', ''
 
 
@@ -415,6 +521,12 @@ class CastCommand(Command):
             return _cast_heal(player, magnitude, bonus, success)
         if effect_type == 'T':
             return _cast_transfer(player, success)
+        if effect_type in _CONJURE_KIND:
+            return _cast_conjure(ctx, player, effect_type, success)
+        if effect_type == 'V':
+            return _cast_resurrect(player, success)
+        if effect_type in ('Y', 'Z'):
+            return _cast_enchant(player, effect_type, magnitude, bonus, success)
         if effect_type == 'M':
             return await _cast_monster(ctx, player, magnitude, bonus, success)
         if effect_type == 'G':
