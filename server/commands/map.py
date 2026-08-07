@@ -24,12 +24,34 @@ raw room number.
 """
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from base_classes import PlayerClass
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
 from network_context import GameContext
-from terminal import ANSIGraphicsChars as _Box
+from formatting import COLOR_NAME_TO_TOKEN
+from terminal import ANSIGraphicsChars as _Box, ColorName
+from terminal import Translation
+
+# cbmcodecs2's petscii_c64en_lc codec has no mapping for the double-line
+# glyphs _Box (ANSIGraphicsChars) uses -- '╔' etc encode()-error and
+# come out as '?' on a real C64. The single-line U+2500-block glyphs below
+# (same chars table.py's SINGLE/PETSCII Border presets use) round-trip
+# cleanly through that codec, so PETSCII clients get these instead.
+_PETSCII_BOX = SimpleNamespace(
+    CORNER_UPPER_LEFT='┌', CORNER_UPPER_RIGHT='┐',
+    CORNER_LOWER_LEFT='└', CORNER_LOWER_RIGHT='┘',
+    HORIZONTAL_LINE='─', VERTICAL_LINE='│',
+    TOP_TEE='┬', BOTTOM_TEE='┴', LEFT_TEE='├', RIGHT_TEE='┤',
+)
+
+
+def _box_chars(ctx: GameContext):
+    if ctx.player.client_settings.translation == Translation.PETSCII:
+        return _PETSCII_BOX
+    return _Box
 
 _BFS_DEPTH = 2
 _DIRECTIONS = ('north', 'south', 'east', 'west')
@@ -54,11 +76,28 @@ _KEYWORD_COLORS = [
     (('desert', 'sand', 'dune'), 'brown'),
     (('water', 'lake', 'river', 'sea', 'swamp', 'pond'), 'light_blue'),
     (('forest', 'wood', 'grove', 'jungle', 'tree'), 'green'),
-    (('snow', 'ice', 'glacier', 'frost'), 'light_white'),
+    (('snow', 'ice', 'glacier', 'frost'), 'white'),
     (('cave', 'cavern', 'tunnel', 'mine'), 'dark_gray'),
 ]
 _DEFAULT_ROOM_COLOR = 'light_gray'
 _PLAYER_ROOM_COLOR = 'cyan'
+
+# Display names for the room-color legend line, one entry per
+# _KEYWORD_COLORS terrain color plus the default/player colors -- kept as
+# a separate list (rather than annotating _KEYWORD_COLORS itself) since
+# the keyword tuples there are matched in order, not meant for display.
+# ColorName gives the player-facing display text ("Dark Gray"); the
+# matching |token| for actually coloring that text comes from
+# formatting.COLOR_NAME_TO_TOKEN, so the two can't drift out of sync.
+_COLOR_LEGEND = [
+    (ColorName.BROWN,      'desert'),
+    (ColorName.LIGHT_BLUE, 'water'),
+    (ColorName.DARK_GREEN, 'forest'),
+    (ColorName.WHITE,      'snow/ice'),
+    (ColorName.DARK_GRAY,  'cave'),
+    (ColorName.LIGHT_GRAY, 'other'),
+    (ColorName.CYAN,       'you'),
+]
 
 
 def _is_privileged(player) -> bool:
@@ -91,7 +130,7 @@ def _nearby_rooms(game_map, level: int, start_room: int, depth: int) -> dict[int
 def _room_markers(room) -> str:
     return ''.join([
         '|red|M|reset|'    if room.monster else ' ',
-        '|yellow|I|reset|' if room.item    else ' ',
+        '|orange|I|reset|' if room.item    else ' ',
         '|yellow|W|reset|' if room.weapon  else ' ',
         '|green|F|reset|'  if room.food    else ' ',
     ])
@@ -125,19 +164,20 @@ def _grid_positions(visited: dict[int, list[str]]) -> dict[int, tuple[int, int]]
     return positions
 
 
-def _fill_room_box(canvas, r0: int, c0: int, room, occupied: bool, color: str) -> None:
+def _fill_room_box(canvas, r0: int, c0: int, room, occupied: bool, color: str,
+                    box=_Box, is_player_room: bool = False) -> None:
     m = 'M' if room.monster else ' '
     i = 'I' if room.item else ' '
     w = 'W' if room.weapon else ' '
     f = 'F' if room.food else ' '
-    p = 'P' if occupied else ' '
-    top    = [_Box.CORNER_UPPER_LEFT, _Box.HORIZONTAL_LINE, _Box.HORIZONTAL_LINE,
-              _Box.HORIZONTAL_LINE, _Box.HORIZONTAL_LINE, _Box.HORIZONTAL_LINE, _Box.CORNER_UPPER_RIGHT]
-    row0   = [_Box.VERTICAL_LINE, m, ' ', ' ', ' ', i, _Box.VERTICAL_LINE]
-    row1   = [_Box.VERTICAL_LINE, ' ', ' ', p, ' ', ' ', _Box.VERTICAL_LINE]
-    row2   = [_Box.VERTICAL_LINE, w, ' ', ' ', ' ', f, _Box.VERTICAL_LINE]
-    bottom = [_Box.CORNER_LOWER_LEFT, _Box.HORIZONTAL_LINE, _Box.HORIZONTAL_LINE,
-              _Box.HORIZONTAL_LINE, _Box.HORIZONTAL_LINE, _Box.HORIZONTAL_LINE, _Box.CORNER_LOWER_RIGHT]
+    p = '@' if is_player_room else ('P' if occupied else ' ')
+    top    = [box.CORNER_UPPER_LEFT, box.HORIZONTAL_LINE, box.HORIZONTAL_LINE,
+              box.HORIZONTAL_LINE, box.HORIZONTAL_LINE, box.HORIZONTAL_LINE, box.CORNER_UPPER_RIGHT]
+    row0   = [box.VERTICAL_LINE, m, ' ', ' ', ' ', i, box.VERTICAL_LINE]
+    row1   = [box.VERTICAL_LINE, ' ', ' ', p, ' ', ' ', box.VERTICAL_LINE]
+    row2   = [box.VERTICAL_LINE, w, ' ', ' ', ' ', f, box.VERTICAL_LINE]
+    bottom = [box.CORNER_LOWER_LEFT, box.HORIZONTAL_LINE, box.HORIZONTAL_LINE,
+              box.HORIZONTAL_LINE, box.HORIZONTAL_LINE, box.HORIZONTAL_LINE, box.CORNER_LOWER_RIGHT]
     for dr, chars in enumerate((top, row0, row1, row2, bottom)):
         for dc, ch in enumerate(chars):
             canvas[r0 + dr][c0 + dc] = (str(ch), color)
@@ -150,9 +190,23 @@ _OPPOSITE = {'north': 'south', 'south': 'north', 'east': 'west', 'west': 'east'}
 # slot blank, matching Ryan's original "-| |-" spec).
 _ONE_WAY_ARROW = {'north': '↑', 'south': '↓', 'east': '→', 'west': '←'}
 
+# PETSCII substitute for the above: cbmcodecs2's petscii_c64en_lc codec has
+# no mapping for '↓'/'→' at all, and even the '↑'/'←' that do map land on
+# the up-arrow/left-arrow *keys*, not real up/down/left/right glyphs -- the
+# stock C64 charset just doesn't have all four arrow directions. Until
+# there's a custom charset upload to the client (see MEMORY), plain ASCII
+# carets round-trip cleanly and read unambiguously in every direction.
+_PETSCII_ONE_WAY_ARROW = {'north': '^', 'south': 'v', 'east': '>', 'west': '<'}
+
+
+def _arrow_chars(ctx: GameContext) -> dict:
+    if ctx.player.client_settings.translation == Translation.PETSCII:
+        return _PETSCII_ONE_WAY_ARROW
+    return _ONE_WAY_ARROW
+
 
 def _cut_exit_gaps(canvas, rooms: dict[int, object], rn: int,
-                    r0: int, c0: int, color: str) -> None:
+                    r0: int, c0: int, color: str, box=_Box, arrows=_ONE_WAY_ARROW) -> None:
     """Cut a tee-flanked doorway gap directly into this room's own border
     for each real exit -- '-| |-' (Ryan's spec) on the top/bottom edge for
     north/south, the same shape rotated 90 degrees on the left/right edge
@@ -170,31 +224,31 @@ def _cut_exit_gaps(canvas, rooms: dict[int, object], rn: int,
     def mid_glyph(direction: str, dest: int) -> str:
         if dest not in rooms:
             return ' '  # neighbor not rendered -- can't tell one-way from two-way
-        return ' ' if rooms[dest].exits.get(_OPPOSITE[direction]) == rn else _ONE_WAY_ARROW[direction]
+        return ' ' if rooms[dest].exits.get(_OPPOSITE[direction]) == rn else arrows[direction]
 
     dest = room.exits.get('north')
     if dest:
-        seq = (_Box.HORIZONTAL_LINE, _Box.RIGHT_TEE, mid_glyph('north', dest),
-               _Box.LEFT_TEE, _Box.HORIZONTAL_LINE)
+        seq = (box.HORIZONTAL_LINE, box.RIGHT_TEE, mid_glyph('north', dest),
+               box.LEFT_TEE, box.HORIZONTAL_LINE)
         for dc, ch in enumerate(seq, start=1):
             canvas[r0][c0 + dc] = (str(ch), color)
 
     dest = room.exits.get('south')
     if dest:
-        seq = (_Box.HORIZONTAL_LINE, _Box.RIGHT_TEE, mid_glyph('south', dest),
-               _Box.LEFT_TEE, _Box.HORIZONTAL_LINE)
+        seq = (box.HORIZONTAL_LINE, box.RIGHT_TEE, mid_glyph('south', dest),
+               box.LEFT_TEE, box.HORIZONTAL_LINE)
         for dc, ch in enumerate(seq, start=1):
             canvas[r0 + _CELL_H - 1][c0 + dc] = (str(ch), color)
 
     dest = room.exits.get('east')
     if dest:
-        seq = (_Box.BOTTOM_TEE, mid_glyph('east', dest), _Box.TOP_TEE)
+        seq = (box.BOTTOM_TEE, mid_glyph('east', dest), box.TOP_TEE)
         for dr, ch in enumerate(seq, start=1):
             canvas[r0 + dr][c0 + _CELL_W - 1] = (str(ch), color)
 
     dest = room.exits.get('west')
     if dest:
-        seq = (_Box.BOTTOM_TEE, mid_glyph('west', dest), _Box.TOP_TEE)
+        seq = (box.BOTTOM_TEE, mid_glyph('west', dest), box.TOP_TEE)
         for dr, ch in enumerate(seq, start=1):
             canvas[r0 + dr][c0] = (str(ch), color)
 
@@ -220,9 +274,12 @@ def _serialize_canvas_row(row) -> str:
 
 
 def render_ansi_grid(ctx: GameContext, game_map, level: int, player, depth: int) -> list[str]:
-    """Render the nearby-rooms BFS as a colored grid of boxes (ANSI only
-    for now -- see commands/map.py's module docstring / MEMORY for the
-    PETSCII follow-up)."""
+    """Render the nearby-rooms BFS as a colored grid of boxes. Box-drawing
+    glyphs come from _box_chars(ctx): double-line for ANSI clients,
+    single-line for PETSCII (cbmcodecs2 has no mapping for the double-line
+    block, see _PETSCII_BOX's comment)."""
+    box = _box_chars(ctx)
+    arrows = _arrow_chars(ctx)
     visited = _nearby_rooms(game_map, level, player.map_room, depth)
     positions = _grid_positions(visited)
 
@@ -244,20 +301,27 @@ def render_ansi_grid(ctx: GameContext, game_map, level: int, player, depth: int)
         col, row = positions[rn]
         r0, c0 = (row - min_row) * _PITCH_H, (col - min_col) * _PITCH_W
         occupied = bool(room_players.get(rn))
-        color = _room_color(room, is_player_room=(rn == player.map_room))
-        _fill_room_box(canvas, r0, c0, room, occupied, color)
-        _cut_exit_gaps(canvas, rooms, rn, r0, c0, color)
+        is_player_room = rn == player.map_room
+        color = _room_color(room, is_player_room=is_player_room)
+        _fill_room_box(canvas, r0, c0, room, occupied, color, box, is_player_room)
+        _cut_exit_gaps(canvas, rooms, rn, r0, c0, color, box, arrows)
 
     lines = [_serialize_canvas_row(canvas_row) for canvas_row in canvas]
     lines.append('')
     for rn in sorted(rooms, key=lambda n: (positions[n][1], positions[n][0])):
         marker = '|cyan|@|reset|' if rn == player.map_room else ' '
-        lines.append(f'{marker} {rooms[rn].name}')
+        room_number = f'|white|#{rooms[rn].number:<3}|reset| ' if _is_privileged(player) else ''
+        lines.append(f'{marker} {room_number}{rooms[rn].name}')
     lines.append('')
-    lines.append('|red|M|reset|=monster |yellow|I|reset|=item |yellow|W|reset|=weapon '
+    lines.append('|red|M|reset|=monster |orange|I|reset|=item |yellow|W|reset|=weapon '
                  '|green|F|reset|=food |cyan|P|reset|=player(s) |cyan|@|reset|=you')
-    lines.append('an arrow (↑↓→←) in a doorway marks a one-way exit '
-                 '-- passable only in the direction it points')
+    lines.append(' '.join(
+        f'|{COLOR_NAME_TO_TOKEN[color_name]}|{color_name.value}|reset|={classification}'
+        for color_name, classification in _COLOR_LEGEND
+    ))
+    arrow_sample = '^v><' if arrows is _PETSCII_ONE_WAY_ARROW else '↑↓→←'
+    lines.append(f'An arrow ({arrow_sample}) in a doorway marks a one-way exit '
+                 '-- passable only in the direction it points.')
     return lines
 
 
@@ -325,16 +389,20 @@ class MapCommand(Command):
         usage    = [
             ('map', 'Show nearby rooms.'),
             ('map grid', 'Show nearby rooms as a colored grid of boxes.'),
+            ('map #grid', 'Same as "map grid".'),
         ],
         notes = [
             'Only available to the Ranger class, and only from character '
-            'level 3 onward (SPUR.MISC5.S\'s original xp>2 gate).',
-            '"map grid" draws the same nearby rooms as connected boxes '
-            '(ANSI clients only, for now) -- colored by terrain keywords '
-            'in the room name, with M/I/W/F/P markers and exit gaps.',
+            'level 3 onward.',  # (SPUR.MISC5.S's original xp>2 gate)
+            '"map grid" (or "map #grid") draws the same nearby rooms as '
+            'connected boxes -- colored by terrain keywords in the room '
+            'name, with M/I/W/F/@ markers, exit gaps, and a color-key '
+            'line underneath. Your own room is always marked with @. '
+            'Box-drawing glyphs adapt to your client: double-line for '
+            'ANSI, single-line for a real Commodore/PETSCII client.',
         ],
         admin_notes = [
-            'Admins/DMs additionally see each nearby room\'s number -- '
+            "Admins/DMs additionally see each nearby room's number -- "
             'ordinary players just get the direction path and name.',
         ],
     )
@@ -355,7 +423,7 @@ class MapCommand(Command):
             await ctx.send('You lose your bearings -- no map data here.')
             return CommandResult.fail('No room data.', error='no_map')
 
-        if args and args[0].lower() == 'grid':
+        if args and args[0].lower().lstrip('#') == 'grid':
             lines = render_ansi_grid(ctx, game_map, player.map_level, player, _BFS_DEPTH)
             await ctx.send(lines)
             return CommandResult.ok('Showed nearby rooms as a grid.')
@@ -367,8 +435,13 @@ class MapCommand(Command):
             lines = ['', f'|yellow|Room #{player.map_room}|reset|  ({start.name})', '']
         else:
             lines = ['', f'|yellow|{start.name}|reset|', '']
+        # A BFS-visited destination room number doesn't always resolve to
+        # real room data (a dangling/bad exit can point at a room number
+        # game_map has nothing for) -- skip those rather than crashing on
+        # a None room, matching render_ansi_grid's same guard.
         others = sorted(
-            (rn for rn in visited if rn != player.map_room),
+            (rn for rn in visited
+             if rn != player.map_room and game_map.get_room(player.map_level, rn)),
             key=lambda rn: (len(visited[rn]), visited[rn]),
         )
         if not others:
@@ -377,11 +450,12 @@ class MapCommand(Command):
             room = game_map.get_room(player.map_level, rn)
             path = ','.join(visited[rn])
             if privileged:
-                lines.append(f'  {path:<6} #{rn:<4} {_room_markers(room)}  {room.name}')
+                lines.append(f'  |yellow|{path:<6}|reset| |white|#{rn:<4}|reset| '
+                             f'{_room_markers(room)}  |cyan|{room.name}|reset|')
             else:
-                lines.append(f'  {path:<6} {_room_markers(room)}  {room.name}')
+                lines.append(f'  |yellow|{path:<6}|reset| {_room_markers(room)}  |cyan|{room.name}|reset|')
         lines.append('')
-        lines.append('|red|M|reset|=monster |yellow|I|reset|=item '
+        lines.append('|red|M|reset|=monster |orange|I|reset|=item '
                      '|yellow|W|reset|=weapon |green|F|reset|=food')
 
         hint = _dwarf_hint(game_map, player.map_level, player.map_room)

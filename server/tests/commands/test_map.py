@@ -177,7 +177,7 @@ class TestMapOutput(unittest.TestCase):
         run(MapCommand().execute(ctx))
         text = sent_text(ctx)
         self.assertIn('|red|M|reset|', text)   # East Room has a monster
-        self.assertIn('|yellow|I|reset|', text)  # North Room has an item
+        self.assertIn('|orange|I|reset|', text)  # North Room has an item
 
     def test_legend_is_shown(self):
         player = make_player()
