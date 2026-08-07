@@ -585,7 +585,10 @@ class GetCommand(Command):
             # item still picked up regardless
 
         # --- Fireball: burns non-Wizards unless gauntlets are worn (SPUR.WEAPON.S:30) ---
-        if item_id in _FIREBALL_IDS:
+        # id_number is only unique within its own category (weapons/items/rations
+        # each number independently -- see items.py:364), so this must also check
+        # category==WEAPON or it collides with e.g. ration #39 TOMATOES.
+        if item_id in _FIREBALL_IDS and getattr(entry.item, 'category', None) == ItemCategory.WEAPON:
             from base_classes import PlayerClass
             if getattr(player, 'char_class', None) != PlayerClass.WIZARD:
                 gauntlets = (inventory.find(item_id=_GAUNTLETS_ID)
