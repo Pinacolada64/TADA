@@ -46,6 +46,27 @@ def _rations_by_number() -> dict:
     return _RATIONS_BY_NUMBER
 
 
+# Same lazy-cache pattern as _rations_by_number(), for item_type's backfill
+# below -- objects.json never changes at runtime either.
+_OBJECTS_BY_NUMBER: dict | None = None
+
+
+def _objects_by_number() -> dict:
+    global _OBJECTS_BY_NUMBER
+    if _OBJECTS_BY_NUMBER is None:
+        import json
+        try:
+            raw = json.loads((Path(__file__).parent / 'objects.json').read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            raw = {}
+        items = raw.get('items', []) if isinstance(raw, dict) else raw
+        _OBJECTS_BY_NUMBER = {
+            o['number']: o for o in items
+            if isinstance(o, dict) and 'number' in o
+        }
+    return _OBJECTS_BY_NUMBER
+
+
 def class_inventory_limit(char_class) -> int:
     """Return the default slot limit for a given PlayerClass (or class name string)."""
     return _CLASS_LIMITS.get(str(char_class), _DEFAULT_LIMIT)
@@ -93,6 +114,24 @@ class InventoryEntry:
         kind = getattr(self.item, 'kind', None)
         if kind:
             d['item_kind'] = kind
+        # item_type (item_system.ItemType -- armor/book/compass/cursed/
+        # shield/treasure) is a *separate* property from item_kind above
+        # (rations' food/drink/cursed) -- they cover different, mostly
+        # non-overlapping item categories and both are real, independently
+        # used fields (commands/eat.py/drink.py filter on .kind;
+        # commands/wear.py/use.py/read.py filter on .type), not a typo of
+        # one another. Dropping .type meant an editplayer-granted armor/
+        # shield item (or any objects.json item with a type) silently
+        # stopped being WEAR/USE/READ-able after one save/load round trip
+        # even though it was still sitting right there in inventory --
+        # found live testing commands/wear.py's active_armor_id addition
+        # (2026-08-08): a freshly-granted "leather armor" worked fine
+        # in-session, but a second copy stacked onto a reloaded entry from
+        # an earlier session fell through USE's fallback "You play with
+        # the X.." branch because .type had never survived the trip.
+        item_type = getattr(self.item, 'type', None)
+        if item_type:
+            d['item_type'] = str(item_type)
         # charges lives on the item itself (Spell.charges) -- e.g. a Wizard's
         # learned spell -- not tracked separately per carried entry.
         charges = getattr(self.item, 'charges', None)
@@ -244,6 +283,7 @@ class Inventory:
         resolution for those can be done later when it is available.
         """
         from items import Item, ItemCategory
+        from item_system import ItemType
         inv = cls(capacity=capacity)
         for d in (data or []):
             cat_str = d.get('item_category', '')
@@ -251,6 +291,25 @@ class Inventory:
                 category = ItemCategory(cat_str) if cat_str else ItemCategory.ITEM
             except ValueError:
                 category = ItemCategory.ITEM
+
+            item_type_str = d.get('item_type')
+            if item_type_str is None:
+                # Same "heal old save files" backfill as item_kind below,
+                # but against objects.json instead of rations.json -- any
+                # entry saved before item_type started round-tripping
+                # (2026-08-08) would otherwise permanently lose WEAR/USE/
+                # READ eligibility. Matched by id_number AND name for the
+                # same reason as the item_kind backfill: id_number alone
+                # isn't unique across categories.
+                obj = _objects_by_number().get(d.get('item_id'))
+                if obj and str(obj.get('name', '')).lower() == d.get('item_name', '').lower():
+                    item_type_str = obj.get('type')
+            item_type = None
+            if item_type_str:
+                try:
+                    item_type = ItemType(item_type_str)
+                except ValueError:
+                    pass
 
             item_kind = d.get('item_kind')
             item_name = d.get('item_name', '')
@@ -293,6 +352,7 @@ class Inventory:
                     category=category,
                     flags=d.get('item_flags') or [],
                     kind=item_kind,
+                    type=item_type,
                 )
             entry = InventoryEntry(
                 item=item,

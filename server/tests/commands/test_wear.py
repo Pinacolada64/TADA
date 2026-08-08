@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 from commands.wear import WearCommand, _wearable_entries
 from flags import PlayerFlags
 from inventory import Inventory
+from item_system import ItemType
 from items import Item, ItemCategory
 
 
@@ -91,6 +92,37 @@ class TestWearCommandRingCollision(unittest.IsolatedAsyncioTestCase):
         cmd = WearCommand()
         await cmd.execute(ctx, 'ring')
         player.set_flag.assert_called_once_with(PlayerFlags.RING_WORN)
+
+
+class TestWearArmorSetsActiveArmorId(unittest.IsolatedAsyncioTestCase):
+    # Regression: WEAR used to boost player.armor's flat percentage without
+    # ever recording *which* armor item was worn, so STAT/the login banner
+    # had nothing to look up a name for. Every armor-equip path should now
+    # set player.active_armor_id to the worn item's number.
+
+    async def test_generic_armor_sets_active_armor_id(self):
+        player = _make_player()
+        player.armor = 0
+        player.char_class = None
+        player.char_race  = None
+        armor = _item('leather armor', item_id=24, category=ItemCategory.ARMOR)
+        armor.type  = ItemType.ARMOR
+        armor.price = 3
+        player.inventory.add(armor)
+        ctx = _FakeCtx(player)
+        await WearCommand().execute(ctx, 'leather armor')
+        self.assertEqual(player.active_armor_id, 24)
+        self.assertEqual(player.armor, 30)
+
+    async def test_battle_armor_sets_active_armor_id(self):
+        player = _make_player()
+        armor = _item('battle armor', item_id=113, category=ItemCategory.ARMOR)
+        armor.type = ItemType.ARMOR
+        player.inventory.add(armor)
+        ctx = _FakeCtx(player)
+        await WearCommand().execute(ctx, 'battle armor')
+        self.assertEqual(player.active_armor_id, 113)
+        self.assertEqual(player.armor, 125)
 
 
 if __name__ == '__main__':

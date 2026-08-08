@@ -2,7 +2,9 @@
 
 Mirrors SPUR.USE.S. Supported item types:
   compass    — toggle compass on/off (session state)
-  shield     — add to shield rating; class/race caps apply; item consumed
+  shield     — add to shield rating; class/race caps apply; item consumed;
+               also sets player.active_shield_id so STAT/combat know which
+               physical shield is backing that rating (2026-08-08)
   ammunition — load rounds into readied weapon; item consumed
   power      — same as ammunition (energy-weapon charges)
   grenade    — hurl at monster; single-use explosive (SPUR.USE.S:91)
@@ -155,6 +157,7 @@ def _apply_item(item, player) -> list[str]:
             return [f'(Max shield rating for you is {cap}%)']
         new_shield     = min(cap, current + rating_add)
         player.shield  = new_shield
+        player.active_shield_id = getattr(item, 'id_number', None) or getattr(item, 'number', None)
         player.unsaved_changes = True
         if inv:
             inv.remove(item)

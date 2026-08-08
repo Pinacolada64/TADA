@@ -1486,21 +1486,17 @@
     they can help carry a downed body) has no existing equivalent
     either -- lower priority, could ship without it first.
 
-- Login-time "You are wearing <armor>{, and gauntlets}." line (7/31/26),
-  the armor-side counterpart to the shield "<name> is readied." line
-  just added in `commands/connect.py`'s `_login_equipment_lines()`. Blocked
-  on the same gap that line's docstring already calls out: `player.armor`
-  is only a flat condition % (`shoppe/armory.py`'s `player.armor =
-  chosen['price'] * 4`), not tied to a specific item id the way
-  `active_shield_id` ties `player.shield` to one -- so there's currently
-  no `player.armor`-side item to look up a name for, and no way to know
-  whether "gauntlets" (or any other second armor piece) are also worn.
-  Needs the same real per-item armor model already tracked in
-  `project_armor_shield_redesign` memory (5 worn slots, armor_class,
-  Size gating) before this can render anything beyond a generic "wearing
-  armor" -- the `{, and gauntlets}` clause implies a *second* armor slot
-  (a body armor + a hands/gauntlets slot) that doesn't exist in the data
-  model at all yet, on top of the naming gap.
+- [DONE 8/8/26] Login-time "<armor> is readied." line, the armor-side
+  counterpart to the shield "<name> is readied." line. Unblocked by
+  adding `player.active_armor_id` (mirrors `active_shield_id`), set by
+  every `commands/wear.py` armor-equip path; `_login_equipment_lines()`
+  now emits a line for both shield and armor.
+  - Still open: the `{, and gauntlets}` clause implies a *second* armor
+    slot (a body armor + a hands/gauntlets slot), which doesn't exist in
+    the data model -- `active_armor_id` is a single id, same one-slot
+    shape as `active_shield_id`. A real second slot still needs the
+    fuller per-item armor model tracked in `project_armor_shield_redesign`
+    memory (5 worn slots, armor_class, Size gating).
 
 - Thought (7/31/26, Ryan): add a "helmet" armor item type for additional
   protection -- a third worn-armor slot alongside body armor and

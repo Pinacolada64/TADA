@@ -226,6 +226,125 @@ class TestInventoryKindBackfill(unittest.TestCase):
         self.assertIsNone(entry.item.kind)
 
 
+class TestInventoryTypeRoundTrip(unittest.TestCase):
+    """Regression: item.type (item_system.ItemType -- armor/book/compass/
+    cursed/shield/treasure) is a separate, independently-used property from
+    item.kind above (rations' food/drink/cursed) -- commands/wear.py,
+    commands/use.py and commands/read.py all filter on .type, not .kind.
+    Like .kind before it, to_json()/from_json() dropped .type entirely, so
+    an editplayer-granted armor/shield/book item silently stopped being
+    WEAR/USE/READ-able after any save/load round trip (found live testing
+    commands/wear.py's active_armor_id addition, 2026-08-08: a freshly
+    granted "leather armor" worked in-session, but a second copy stacked
+    onto a reloaded entry from an earlier session fell through USE's
+    fallback "You play with the X.." branch)."""
+
+    def test_armor_type_survives_to_json_from_json(self):
+        from item_system import ItemType
+        inv = Inventory()
+        armor = Item(id_number=24, name='leather armor', category=ItemCategory.ITEM)
+        armor.type = ItemType.ARMOR
+        inv.add(armor)
+
+        restored = Inventory.from_json(inv.to_json())
+        entry = restored.find(name='leather armor')[0]
+
+        self.assertEqual(entry.item.type, ItemType.ARMOR)
+
+    def test_shield_type_survives_to_json_from_json(self):
+        from item_system import ItemType
+        inv = Inventory()
+        shield = Item(id_number=4, name='small shield', category=ItemCategory.ITEM)
+        shield.type = ItemType.SHIELD
+        inv.add(shield)
+
+        restored = Inventory.from_json(inv.to_json())
+        entry = restored.find(name='small shield')[0]
+
+        self.assertEqual(entry.item.type, ItemType.SHIELD)
+
+    def test_item_without_type_round_trips_to_none(self):
+        # id_number 6 deliberately avoided here -- it collides with
+        # objects.json #6 "large ruby" (type "treasure"), whose *own*
+        # name also happens to be "large ruby", so the backfill below
+        # would legitimately (and correctly) attach a type to it.
+        inv = Inventory()
+        inv.add(Item(id_number=99999, name='mystery trinket', category=ItemCategory.ITEM))
+
+        restored = Inventory.from_json(inv.to_json())
+        entry = restored.find(name='mystery trinket')[0]
+
+        self.assertIsNone(entry.item.type)
+        self.assertNotIn('item_type', inv.to_json()[0])
+
+    def test_kind_and_type_are_independent_fields(self):
+        """The bug this fixes was Ryan momentarily suspecting .kind and
+        .type were the same property under two names -- confirm both
+        survive a round trip independently on the same item."""
+        from item_system import ItemType
+        inv = Inventory()
+        cursed_armor = Item(id_number=57, name='magical armor', category=ItemCategory.ITEM)
+        cursed_armor.type = ItemType.CURSED
+        cursed_armor.kind = 'cursed'
+        inv.add(cursed_armor)
+
+        restored = Inventory.from_json(inv.to_json())
+        entry = restored.find(name='magical armor')[0]
+
+        self.assertEqual(entry.item.type, ItemType.CURSED)
+        self.assertEqual(entry.item.kind, 'cursed')
+
+
+class TestInventoryTypeBackfill(unittest.TestCase):
+    """Regression: same "heal a save file written before the fix existed"
+    gap as TestInventoryKindBackfill, but for item_type against
+    objects.json instead of item_kind against rations.json."""
+
+    def _legacy_entry(self, item_id: int, name: str, category: str = 'Item') -> dict:
+        return {'item_id': item_id, 'item_name': name, 'item_category': category, 'quantity': 1}
+
+    def test_legacy_armor_entry_heals_type(self):
+        from item_system import ItemType
+        restored = Inventory.from_json([self._legacy_entry(24, 'leather armor')])
+        entry = restored.find(name='leather armor')[0]
+
+        self.assertEqual(entry.item.type, ItemType.ARMOR)
+
+    def test_legacy_shield_entry_heals_type(self):
+        from item_system import ItemType
+        restored = Inventory.from_json([self._legacy_entry(4, 'small shield')])
+        entry = restored.find(name='small shield')[0]
+
+        self.assertEqual(entry.item.type, ItemType.SHIELD)
+
+    def test_healed_armor_is_wearable(self):
+        from commands.wear import _wearable_entries
+
+        restored = Inventory.from_json([self._legacy_entry(24, 'leather armor')])
+        player = type('P', (), {'inventory': restored})()
+        matches = _wearable_entries(player)
+
+        self.assertEqual(len(matches), 1)
+
+    def test_number_match_alone_is_not_enough_without_name_match(self):
+        """objects.json #24 is leather armor, but item numbering is only
+        unique within its own category -- an unrelated legacy weapon or
+        ration sharing id_number 24 must NOT be misidentified as armor
+        just because the number matches. (A resolved Weapon has no .type
+        attribute at all -- weapons never carry one -- so this checks via
+        getattr rather than asserting the attribute exists as None.)"""
+        restored = Inventory.from_json([self._legacy_entry(24, 'RUSTY DAGGER', category='Weapon')])
+        entry = restored.find(name='RUSTY DAGGER')[0]
+
+        self.assertIsNone(getattr(entry.item, 'type', None))
+
+    def test_unknown_item_id_is_left_alone(self):
+        restored = Inventory.from_json([self._legacy_entry(99999, 'MYSTERY BOX')])
+        entry = restored.find(name='MYSTERY BOX')[0]
+
+        self.assertIsNone(entry.item.type)
+
+
 class TestInventoryWeaponResolution(unittest.TestCase):
     """Regression: Inventory.from_json() used to rebuild every carried
     weapon as a bare Item -- id_number/name/category/flags/kind only --

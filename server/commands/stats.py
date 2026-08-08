@@ -190,9 +190,28 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
         '',
     ]
 
-    # Shield / armor
+    # Shield / armor -- percentage plus which item (by active_shield_id/
+    # active_armor_id, set by commands/use.py's shield USE and every
+    # commands/wear.py armor-equip path) is actually backing that rating,
+    # looked up against ctx.server.items the same way commands/connect.py's
+    # _login_equipment_lines() does. ctx is optional (many tests build
+    # stats lines without one), so the name is omitted rather than looked
+    # up when there's no ctx to resolve objects.json against.
+    def _worn_name(item_id) -> str:
+        if not item_id or ctx is None:
+            return ''
+        for raw in getattr(ctx.server, 'items', None) or []:
+            number = raw.get('number') if isinstance(raw, dict) else getattr(raw, 'number', None)
+            if number != item_id:
+                continue
+            name = raw.get('name') if isinstance(raw, dict) else getattr(raw, 'name', None)
+            return f' ({name})' if name else ''
+        return ''
+
+    shield_name = _worn_name(getattr(player, 'active_shield_id', None))
+    armor_name  = _worn_name(getattr(player, 'active_armor_id',  None))
     lines += [
-        f"{'Shield  :':>10} {sh:>3}%   {'Armor    :':>10} {ar:>3}%",
+        f"{'Shield  :':>10} {sh:>3}%{shield_name}   {'Armor    :':>10} {ar:>3}%{armor_name}",
     ]
 
     # Shield skill: real tracked per-item proficiency (player.shield_

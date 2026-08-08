@@ -144,30 +144,36 @@ def _login_recovery_lines(player) -> list[str]:
                 "(type 'edit' to resume)"]
 
 
-def _login_equipment_lines(ctx, player) -> list[str]:
-    """Build the login-time "<name> is readied" notice for a currently-
-    equipped shield (SPUR.LOGON.S's misc.data armor/shield reload loop --
-    present in origin/skip's fuller LOGON.S revision, absent from this
-    repo's own SPUR-code copy). Looked up by player.active_shield_id
-    against ctx.server.items (objects.json), the same collection
-    commands/get.py resolves room items from. No equivalent for armor
-    yet -- player.armor is only a flat condition %, not tied to a
-    specific item id."""
-    shield_id = getattr(player, 'active_shield_id', None)
-    if not shield_id:
-        return []
+def _item_name(ctx, item_id) -> str | None:
+    """Look up an objects.json item name by number, e.g. for
+    player.active_shield_id/active_armor_id -- same collection
+    commands/get.py resolves room items from."""
     for raw in getattr(ctx.server, 'items', None) or []:
         number = raw.get('number') if isinstance(raw, dict) else getattr(raw, 'number', None)
-        if number != shield_id:
+        if number != item_id:
             continue
-        name = raw.get('name') if isinstance(raw, dict) else getattr(raw, 'name', None)
+        return raw.get('name') if isinstance(raw, dict) else getattr(raw, 'name', None)
+    return None
+
+
+def _login_equipment_lines(ctx, player) -> list[str]:
+    """Build the login-time "<name> is readied" notice for currently-
+    equipped shield/armor (SPUR.LOGON.S's misc.data armor/shield reload
+    loop -- present in origin/skip's fuller LOGON.S revision, absent from
+    this repo's own SPUR-code copy). Looked up by player.active_shield_id/
+    active_armor_id against ctx.server.items (objects.json). Armor half
+    added 2026-08-08 once commands/wear.py started setting active_armor_id."""
+    lines = []
+    for item_id in (getattr(player, 'active_shield_id', None), getattr(player, 'active_armor_id', None)):
+        if not item_id:
+            continue
+        name = _item_name(ctx, item_id)
         if name:
             # objects.json names are lowercase ("small shield") -- capitalize
             # just the leading letter so the sentence reads properly without
             # title-casing the rest of a multi-word name.
-            return [f"{name[0].upper()}{name[1:]} is readied."]
-        break
-    return []
+            lines.append(f"{name[0].upper()}{name[1:]} is readied.")
+    return lines
 
 
 def _login_tip_lines(ctx) -> list[str]:
@@ -521,10 +527,7 @@ class ConnectCommand(Command):
         player.last_connection = datetime.datetime.now()
         player.unsaved_changes = True
 
-        # Currently-equipped shield -- see _login_equipment_lines() docstring.
-        # TODO: add the armor-side "You are wearing <armor>{, and
-        #       gauntlets}." counterpart here once player.armor has a real
-        #       per-item id (see TODO.md's 7/31/26 entry).
+        # Currently-equipped shield/armor -- see _login_equipment_lines() docstring.
         equipment_lines = _login_equipment_lines(ctx, player)
         if equipment_lines:
             login_lines += equipment_lines

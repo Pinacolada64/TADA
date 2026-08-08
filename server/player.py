@@ -310,12 +310,24 @@ class Player:
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
         # id_number of the shield item currently backing player.shield's
-        # condition rating (set by commands/new_player.py's starting
-        # equipment step and shoppe/armory.py's shield purchase -- NOT set
-        # by commands/use.py's shield-boost consumable, since that item is
-        # removed on use and isn't "worn"). Needed so shield_proficiency
-        # below can be tracked per physical shield, like weapon_experience.
+        # condition rating -- set by commands/new_player.py's starting
+        # equipment step, shoppe/armory.py's shield purchase, and
+        # commands/use.py's shield-boost consumable (even though that item
+        # is removed on use and isn't "worn" in the WEAR sense, USE-ing a
+        # shield is the normal way players equip one, so it updates this
+        # too as of 2026-08-08). Needed so shield_proficiency below can be
+        # tracked per physical shield, like weapon_experience.
         self.active_shield_id: Optional[int] = kwargs.get('active_shield_id')
+        # id_number of the armor item currently backing player.armor's
+        # condition rating -- mirrors active_shield_id above, but for armor.
+        # Set by commands/wear.py whenever armor is worn (including the
+        # #113/#115 flat-rating special cases); unlike active_shield_id it
+        # has no purchase-time setter yet since shoppe/armory.py's armor
+        # branch doesn't exist. Not consulted by combat -- armor has no
+        # proficiency/block-exp system parallel to shield_proficiency --
+        # this exists purely so STAT and the login banner can say *which*
+        # armor piece is worn instead of just a bare percentage.
+        self.active_armor_id: Optional[int] = kwargs.get('active_armor_id')
         # Loaded ammo state (set by USE command, consumed by combat).
         self.ammo_rounds: int = kwargs.get('ammo_rounds', 0)
         self.ammo_damage: int = kwargs.get('ammo_damage', 0)
@@ -533,13 +545,12 @@ class Player:
         # SPUR source (origin/skip -- a fuller LOGON.S revision master
         # lacks) additionally re-seeds xt$ at login from currently-worn
         # armor/shield item numbers (read from misc.data), so a worn piece
-        # doesn't reappear as pickable in its room. This port only has an
-        # item id for the shield half (active_shield_id) -- player.armor is
-        # just a flat condition %, not tied to a specific item id, so it
-        # can't be seeded the same way until that gets a real per-item
-        # model (see armor/shield redesign notes).
-        shield_id = getattr(self, 'active_shield_id', None)
-        self.item_history = [int(shield_id)] if shield_id else []
+        # doesn't reappear as pickable in its room. Now that both halves
+        # have an item id (active_shield_id, active_armor_id -- the latter
+        # added 2026-08-08 alongside commands/wear.py setting it), seed
+        # from both.
+        worn_ids = [getattr(self, 'active_shield_id', None), getattr(self, 'active_armor_id', None)]
+        self.item_history = [int(i) for i in worn_ids if i]
 
         # hit_points defaulted to 0 since 62391c4 ("Updating old code - added
         # player.py"), causing _game_loop to quit the player after every command.
@@ -1136,7 +1147,7 @@ class Player:
             # Found by a systematic round-trip audit of every kwargs.get()
             # default in __init__ against what _load() actually restores.
             simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote',
-                           'shield', 'armor', 'active_shield_id', 'loan_amount', 'loan_days', 'food', 'drink',
+                           'shield', 'armor', 'active_shield_id', 'active_armor_id', 'loan_amount', 'loan_days', 'food', 'drink',
                            '_survival_counter', 'experience', 'honor', 'moves_made', 'wizard_glow',
                            'duel_wins', 'duel_losses')
             for k in simple_keys:

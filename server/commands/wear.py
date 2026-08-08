@@ -25,6 +25,11 @@ Not ported (SPUR.SUB.S x=68 "gauntlets"/SPUR.COMBAT.S's `gauntlet`
 label): a separate hit-absorption mechanic entirely (the gauntlets block
 one combat hit per fight, then can be destroyed on a bad roll) -- no
 combat/engine.py hook for it exists yet, out of scope here.
+
+Every armor-equip path here also sets player.active_armor_id to the item's
+objects.json number (mirroring active_shield_id, see player.py), so STAT
+and the login banner can name the actual piece worn, not just show the
+flat player.armor percentage.
 """
 from __future__ import annotations
 
@@ -160,6 +165,7 @@ class WearCommand(Command):
         # ---- Battle armor (#113) / Power armor (#115): flat ratings -------
         if item_no == _BATTLE_ARMOR_ID:
             player.armor = 125
+            player.active_armor_id = item_no
             player.unsaved_changes = True
             if inv:
                 inv.remove(item)
@@ -169,6 +175,7 @@ class WearCommand(Command):
 
         if item_no == _POWER_ARMOR_ID:
             player.armor = 150
+            player.active_armor_id = item_no
             player.unsaved_changes = True
             if inv:
                 inv.remove(item)
@@ -191,6 +198,7 @@ class WearCommand(Command):
         rating_add = (getattr(item, 'price', 0) or 0) * 10
         new_armor  = min(cap, current + rating_add)
         player.armor = new_armor
+        player.active_armor_id = item_no
         player.unsaved_changes = True
         if inv:
             inv.remove(item)
