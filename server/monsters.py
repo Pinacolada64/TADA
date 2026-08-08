@@ -100,6 +100,31 @@ def get_monster(monsters: list[dict], number: int) -> dict | None:
     return next((m for m in monsters if m.get('number') == number), None)
 
 
+def monster_is_alive(monster: dict, player=None) -> bool:
+    """True if *monster*'s hp is positive and, when *player* is given,
+    the player hasn't already recorded it as killed.
+
+    Not "monster.get('strength') or monster.get('hit_points') or 1" --
+    0 is falsy, so that chain treats a dead (strength=0) monster as
+    alive again. And hp alone isn't enough either: monsters.json's
+    strength/hit_points is only the shared template -- combat/engine.py's
+    CombatSession fights on its own dict(monster) copy, so a kill never
+    actually zeroes the global entry. player.dead_monsters is this
+    port's actual per-player "have I killed this one" gate (see
+    combat/engine.py's _record_kill()), so it has to be checked too.
+    """
+    hp = monster.get('strength')
+    if hp is None:
+        hp = monster.get('hit_points', 1)
+    if int(hp) <= 0:
+        return False
+    if player is not None:
+        mon_number = monster.get('number')
+        if mon_number is not None and mon_number in (getattr(player, 'dead_monsters', None) or []):
+            return False
+    return True
+
+
 def monster_display_name(monster: dict, capitalize: bool = False) -> str:
     """Return a monster's name with its leading article, honoring no_article.
 

@@ -421,10 +421,9 @@ class GetCommand(Command):
             mname = monster.get('name', 'the monster')
             if target == '*' or target in mname.lower():
                 matched = True
-                m_hp = int(monster.get('strength') or monster.get('hit_points') or 1)
-                from monsters import monster_display_name
+                from monsters import monster_display_name, monster_is_alive
                 mdisp = monster_display_name(monster).upper()
-                if m_hp > 0:
+                if monster_is_alive(monster, ctx.player):
                     await ctx.send(f'{mdisp} WON\'T LET YOU!')
                 else:
                     await ctx.send(f'YOU HACK UP {mdisp} INTO {mname.upper()} STEAKS..')
