@@ -18,6 +18,7 @@ DOCS=(
   "$SERVER_DIR/MECHANICS.md"
   "$SERVER_DIR/FUNCTIONS.md"
   "$SERVER_DIR/DATA_FILES.md"
+  "$SERVER_DIR/RESEARCH.md"
 )
 
 "$SCRIPT_DIR/md_to_pdf.sh" "${DOCS[@]}"

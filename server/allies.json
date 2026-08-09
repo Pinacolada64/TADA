@@ -5,7 +5,7 @@
     "strength": 9,
     "to_hit": 4,
     "flags": [],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "alan-a-dale? I can't find info on him"
   },
   {
@@ -16,7 +16,7 @@
     "flags": [
       "GOD"
     ],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "Egyptian god of funerary rites"
   },
   {
@@ -27,7 +27,7 @@
     "flags": [
       "GOD"
     ],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "greek god of oracles, healing, archery, music and arts, light, knowledge, herds and flocks, and protection of the young"
   },
   {
@@ -38,7 +38,7 @@
     "flags": [
       "GOD"
     ],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "greek god of war"
   },
   {
@@ -47,7 +47,7 @@
     "strength": 4,
     "to_hit": 4,
     "flags": [],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "main protagonist of \"Hitchhiker's Guide to the Galaxy\""
   },
   {
@@ -58,7 +58,7 @@
     "flags": [
       "GODDESS"
     ],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "Greek goddess of wisdom, warfare, and handicraft"
   },
   {
@@ -67,7 +67,7 @@
     "strength": 15,
     "to_hit": 7,
     "flags": [],
-    "description": "%n is ready to fight at %p side."
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "BATMAN",
@@ -77,7 +77,7 @@
     "flags": [
       "ELITE"
     ],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "from Batman comic"
   },
   {
@@ -86,7 +86,7 @@
     "strength": 9,
     "to_hit": 6,
     "flags": [],
-    "description": "%n is ready to fight at %p side."
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "BETTY BOOP",
@@ -94,7 +94,7 @@
     "strength": 7,
     "to_hit": 6,
     "flags": [],
-    "description": "%n is ready to fight at %p side."
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "BLACK KNIGHT",
@@ -104,7 +104,7 @@
     "flags": [
       "ELITE"
     ],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "from Monty Python and the Holy Grail?"
   },
   {
@@ -113,7 +113,7 @@
     "strength": 19,
     "to_hit": 9,
     "flags": [],
-    "description": "%n is ready to fight at %p side."
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "BUCK ROGERS",
@@ -121,7 +121,7 @@
     "strength": 12,
     "to_hit": 5,
     "flags": [],
-    "description": "%n is ready to fight at %p side."
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "CARLY SIMON",
@@ -129,7 +129,7 @@
     "strength": 8,
     "to_hit": 9,
     "flags": [],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "singer"
   },
   {
@@ -138,7 +138,7 @@
     "strength": 17,
     "to_hit": 5,
     "flags": [],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "from Batman comic"
   },
   {
@@ -149,7 +149,7 @@
     "flags": [
       "ELITE"
     ],
-    "description": "%n is ready to fight at %p side."
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "CHUCK KNOX",
@@ -157,7 +157,7 @@
     "strength": 12,
     "to_hit": 5,
     "flags": [],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "American football player & coach (coached the Seahawks)"
   },
   {
@@ -166,7 +166,7 @@
     "strength": 20,
     "to_hit": 9,
     "flags": [],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "Superman's alter ego"
   },
   {
@@ -175,7 +175,7 @@
     "strength": 10,
     "to_hit": 2,
     "flags": [],
-    "description": "%n is ready to fight at %p side.",
+    "description": "%n is ready to fight at %y side.",
     "comment": "from the TV show \"Hogan's Heroes\""
   },
   {
@@ -186,14 +186,15 @@
     "flags": [
       "ELITE"
     ],
-    "description": "%n is ready to fight at %p side."
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "DARK WARRIOR",
     "gender": "m",
     "strength": 12,
     "to_hit": 5,
-    "flags": []
+    "flags": [],
+    "description": "%n, clad in armor that swallows the torchlight, is ready to fight at %y side."
   },
   {
     "name": "DARTH VADER",
@@ -201,7 +202,8 @@
     "strength": 12,
     "to_hit": 6,
     "flags": [],
-    "comment": "from Star Wars"
+    "comment": "from Star Wars",
+    "description": "%n strides in wheezing behind %p mask, ready to choke the life out of anything standing between you and victory."
   },
   {
     "name": "DAVY CROCKETT",
@@ -211,7 +213,8 @@
     "flags": [
       "ELITE"
     ],
-    "comment": "American politician, militia officer and frontiersman"
+    "comment": "American politician, militia officer and frontiersman",
+    "description": "%n, the legendary American frontiersman and militia officer, is ready to fight at %y side."
   },
   {
     "name": "DEMETER",
@@ -221,28 +224,32 @@
     "flags": [
       "GODDESS"
     ],
-    "comment": "Greek goddess of food & fertility, wife of Zeus"
+    "comment": "Greek goddess of food & fertility, wife of Zeus",
+    "description": "%n, the Greek goddess of food and fertility, is ready to lend %p divine power to your cause."
   },
   {
     "name": "DIRTY HARRY",
     "gender": "m",
     "strength": 18,
     "to_hit": 7,
-    "flags": []
+    "flags": [],
+    "description": "%n, the hardboiled detective with a very persuasive .44, is ready to fight at %y side."
   },
   {
     "name": "DRAGONSLAYER",
     "gender": "m",
     "strength": 19,
     "to_hit": 8,
-    "flags": []
+    "flags": [],
+    "description": "%n, a warrior sworn to slay dragons, is ready to fight at %y side."
   },
   {
     "name": "DUKE OF EARL",
     "gender": "m",
     "strength": 12,
     "to_hit": 8,
-    "flags": []
+    "flags": [],
+    "description": "%n, styled after the doo-wop hit \"Duke of Earl,\" struts in ready to fight at %y side."
   },
   {
     "name": "EMMETT \"DOC\" BROWN",
@@ -250,7 +257,8 @@
     "strength": 4,
     "to_hit": 3,
     "flags": [],
-    "comment": "From the movie \"Back to the Future\""
+    "comment": "From the movie \"Back to the Future\"",
+    "description": "%n, the eccentric inventor of the flux capacitor from \"Back to the Future,\" is ready to fight at %y side."
   },
   {
     "name": "EOWYN",
@@ -258,7 +266,8 @@
     "strength": 16,
     "to_hit": 9,
     "flags": [],
-    "comment": "noblewoman of Rohan in \"Lord of the Rings,\" defeats the Nazgul"
+    "comment": "noblewoman of Rohan in \"Lord of the Rings,\" defeats the Nazgul",
+    "description": "%n, the shieldmaiden of Rohan who slew the Witch-king of Angmar in \"The Lord of the Rings,\" is ready to fight at %y side."
   },
   {
     "name": "FINIEOUS FINGERS",
@@ -266,7 +275,8 @@
     "strength": 12,
     "to_hit": 5,
     "flags": [],
-    "comment": "https://en.wikipedia.org/wiki/Finieous_Fingers"
+    "comment": "https://en.wikipedia.org/wiki/Finieous_Fingers",
+    "description": "%n, the roguish swordsman from the classic fantasy comic strip of the same name, is ready to fight at %y side."
   },
   {
     "name": "FORD PREFECT",
@@ -274,7 +284,8 @@
     "strength": 3,
     "to_hit": 6,
     "flags": [],
-    "comment": "From \"Hitchhiker's Guide to the Galaxy\""
+    "comment": "From \"Hitchhiker's Guide to the Galaxy\"",
+    "description": "%n, a researcher for the Hitchhiker's Guide to the Galaxy stranded on Earth, is ready to fight at %y side."
   },
   {
     "name": "FRED AND CHARLY",
@@ -282,14 +293,16 @@
     "strength": 15,
     "to_hit": 9,
     "flags": [],
-    "comment": "Finieous Fingers' henchmen"
+    "comment": "Finieous Fingers' henchmen",
+    "description": "%n, Finieous Fingers' bumbling henchmen, are ready to fight at %y side."
   },
   {
     "name": "FRED THE TERRIBLE",
     "gender": "m",
     "strength": 10,
     "to_hit": 7,
-    "flags": []
+    "flags": [],
+    "description": "%n, feared across the land (or so %s claims), is ready to fight at %y side."
   },
   {
     "name": "FRODO",
@@ -297,7 +310,8 @@
     "strength": 8,
     "to_hit": 6,
     "flags": [],
-    "comment": "from \"The Hobbit\""
+    "comment": "from \"The Hobbit\"",
+    "description": "%n, the halfling ring-bearer of \"The Hobbit\" and \"The Lord of the Rings,\" is ready to fight at %y side."
   },
   {
     "name": "GANDALF THE GREY",
@@ -307,28 +321,32 @@
     "flags": [
       "ELITE"
     ],
-    "comment": "same"
+    "comment": "same",
+    "description": "%n, the wandering wizard of \"The Hobbit\" and \"The Lord of the Rings,\" is ready to fight at %y side."
   },
   {
     "name": "HAMMER",
     "gender": "m",
     "strength": 20,
     "to_hit": 9,
-    "flags": []
+    "flags": [],
+    "description": "%n comes down like judgment itself, ready to fight at %y side."
   },
   {
     "name": "IRIS",
     "gender": "f",
     "strength": 12,
     "to_hit": 5,
-    "flags": []
+    "flags": [],
+    "description": "%n eyes the battlefield calmly, ready to fight at %y side."
   },
   {
     "name": "IRON MAIDEN",
     "gender": "m",
     "strength": 14,
     "to_hit": 6,
-    "flags": []
+    "flags": [],
+    "description": "%n, the legendary heavy metal band, storms in with amps blazing, ready to fight at %y side."
   },
   {
     "name": "J.R.R. TOLKIEN",
@@ -336,7 +354,8 @@
     "strength": 4,
     "to_hit": 3,
     "flags": [],
-    "comment": "writer of \"The Hobbit,\" et al."
+    "comment": "writer of \"The Hobbit,\" et al.",
+    "description": "%n, the author of \"The Hobbit\" and \"The Lord of the Rings,\" is ready to fight at %y side."
   },
   {
     "name": "JANIS JOPLIN",
@@ -344,28 +363,33 @@
     "strength": 15,
     "to_hit": 5,
     "flags": [],
-    "comment": "3 singers"
+    "comment": "3 singers",
+    "description": "%n, the iconic rock and blues singer, is ready to fight at %y side."
   },
   {
     "name": "JIM MORRISON",
     "gender": "m",
     "strength": 4,
     "to_hit": 5,
-    "flags": []
+    "flags": [],
+    "description": "%n, the enigmatic lead singer of The Doors, is ready to fight at %y side."
   },
   {
     "name": "JUDAS PRIEST",
     "gender": "m",
     "strength": 8,
     "to_hit": 6,
-    "flags": []
+    "flags": [],
+    "description": "%n, the legendary heavy metal band, cranks up the volume and joins the fight at %y side."
   },
   {
     "name": "JULIA FELIX",
     "gender": "f",
     "strength": 10,
     "to_hit": 5,
-    "flags": []
+    "flags": [],
+    "description": "%n, the shrewd Pompeian businesswoman who rented out her bath complex after the great earthquake, is ready to fight at %y side.",
+    "comment": "Real historical figure -- a wealthy Pompeian businesswoman who owned the Praedia of Julia Felix, a large property she rented out (baths, shops, dining rooms) after the AD 62 earthquake damaged much of the city, until Vesuvius buried Pompeii in AD 79. Known from a surviving advertisement inscription for the property. See RESEARCH.md."
   },
   {
     "name": "JULIAS CAESAR",
@@ -374,7 +398,8 @@
     "to_hit": 6,
     "flags": [
       "ELITE"
-    ]
+    ],
+    "description": "%n, the Roman general and dictator, is ready to fight at %y side."
   },
   {
     "name": "KING ARTHUR",
@@ -384,14 +409,16 @@
     "flags": [
       "ELITE"
     ],
-    "comment": "Pulled the Sword from the Stone to become ruler of England"
+    "comment": "Pulled the Sword from the Stone to become ruler of England",
+    "description": "%n, who pulled the sword from the stone to become ruler of England, is ready to fight at %y side."
   },
   {
     "name": "LAZY LARRY",
     "gender": "m",
     "strength": 7,
     "to_hit": 3,
-    "flags": []
+    "flags": [],
+    "description": "%n ambles in, unhurried but surprisingly capable, ready to fight at %y side."
   },
   {
     "name": "LUKE SKYWALKER",
@@ -399,7 +426,8 @@
     "strength": 15,
     "to_hit": 5,
     "flags": [],
-    "comment": "from \"Star Wars\""
+    "comment": "from \"Star Wars\"",
+    "description": "%n, the Jedi Knight from \"Star Wars,\" is ready to fight at %y side."
   },
   {
     "name": "MARIAH CAREY",
@@ -699,7 +727,8 @@
     "gender": "m",
     "strength": 15,
     "to_hit": 8,
-    "flags": []
+    "flags": [],
+    "comment": "\"Dura\" is Dura-Europos, the real ancient fortress city on the Euphrates (present-day Syria) that level_4.json/level_6.json's \"great wall of Dura\" room descriptions and messages.json's intro banner reference. \"Trajan\" likely nods to the historical Roman emperor active in the region during the Parthian campaigns. See RESEARCH.md."
   },
   {
     "name": "TRICIA MCMILLAN",

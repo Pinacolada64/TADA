@@ -492,6 +492,8 @@ def get_pronoun(character: 'Player',
 # under one syntax. Traces back to an unfinished C64 asm draft
 # (assembly-language/%-substitution.lbl) that attempted the same idea for
 # name/gender (and sketched class/race tokens that were never wired up).
+# %y isn't in this table -- it's not resolved against *subject* at all,
+# see substitute_tokens()'s docstring for why it needs its own path.
 _PRONOUN_TOKENS = {
     's': PronounType.SUBJECTIVE,
     'o': PronounType.OBJECTIVE,
@@ -502,7 +504,7 @@ _PRONOUN_TOKENS = {
 _TOKEN_RE = re.compile('%(.)')
 
 
-def substitute_tokens(text: str, subject) -> str:
+def substitute_tokens(text: str, subject, owner_pronoun: str = 'your') -> str:
     """Replace %-tokens in *text* with attributes of *subject* (a Player,
     Ally, or Monster -- anything exposing .name/.gender/.char_class/.char_race).
 
@@ -510,9 +512,22 @@ def substitute_tokens(text: str, subject) -> str:
         %n  name
         %s  subjective pronoun   (he/she)
         %o  objective pronoun    (him/her)
-        %p  possessive adjective (his/her)
+        %p  possessive adjective (his/her) -- *subject*'s own, e.g. "he
+            draws %p sword"
         %P  possessive pronoun   (his/hers)
         %r  reflexive pronoun    (himself/herself)
+        %y  owner-relative possessive -- NOT *subject*'s own pronoun.
+            For text like an ally's "ready to fight at %y side": the
+            reader is nearly always the ally's owner, so this defaults
+            to literal "your". Pass *owner_pronoun* explicitly (e.g. a
+            bystander viewing another player's ally -- get_pronoun() on
+            that owning Player, or "NAME's") once something other than
+            "the reader owns this" is possible. Deliberately a separate
+            token from %p: conflating them would make "%n draws %p
+            sword" and "ready to fight at %p side" resolve against the
+            same subject even though the second phrase's "%p" always
+            meant the *owner*, not %n's own gender -- see
+            commands/look.py's describe_ally().
         %c  character class      (e.g. "Wizard")
         %e  race                 (e.g. "Elf")
         %%  literal '%'
@@ -542,6 +557,8 @@ def substitute_tokens(text: str, subject) -> str:
             return '%'
         if token == 'n':
             return getattr(subject, 'name', '') or ''
+        if token == 'y':
+            return owner_pronoun
         if token == 'c':
             char_class = getattr(subject, 'char_class', None)
             return getattr(char_class, 'value', char_class) or ''

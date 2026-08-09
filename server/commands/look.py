@@ -109,10 +109,15 @@ async def describe_ally(ctx: GameContext, ally) -> None:
     A non-mount ally with a bar/allies.json "description" field shows it
     (run through tada_utilities.substitute_tokens() so %n/%p/etc. resolve
     against the ally's own name/gender) instead of the generic fallback
-    line. Only ALAN OF YOR through CONAN have one so far -- placeholder
-    "%n is ready to fight at %p side." text Ryan asked for, to hand-edit
-    into real bios later; every other ally still falls through to the
-    generic line until it gets one too.
+    line. Descriptions use "%y side" ("ready to fight at %y side"), not
+    "%p side" -- %y is owner-relative, not the ally's own pronoun (%p is
+    reserved for that, e.g. DARTH VADER's "wheezing behind %p mask").
+    substitute_tokens() defaults %y to literal "your", which is correct
+    today since both LOOK and EXAMINE only ever reach this branch via
+    owned_allies(ctx.player) -- the viewer is always the ally's owner.
+    If a bystander is ever allowed to LOOK at another player's ally, pass
+    owner_pronoun= explicitly here (that ally's owner's real pronoun, or
+    "NAME's") instead of leaving the default.
 
     A MOUNT ally (AllyFlags.MOUNT) also gets its gender/breed/colour,
     e.g. "SILVER is a female Palomino Arabian." -- see MECHANICS.md's
