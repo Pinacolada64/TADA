@@ -273,6 +273,27 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
         # TODO: check if player (or ally) carries item #076 (Amulet of Life)
         pass
 
+    # Readied weapon -- Ryan's request: name it, and if it's an ammo-using
+    # weapon (projectile/energy, non-STORM -- same test as combat/
+    # resolution.py's _needs_ammo, so STAT and actual combat agree on which
+    # weapons show a round count) show rounds remaining out of the loaded
+    # capacity (player.ammo_rounds/ammo_max, set by commands/use.py's ammo
+    # branch).
+    weapon = getattr(player, 'readied_weapon', None)
+    if weapon is not None:
+        wc = getattr(weapon, 'weapon_class', None)
+        wc_str = (wc.value if hasattr(wc, 'value') else str(wc)) if wc else ''
+        needs_ammo = (wc_str in ('projectile', 'energy')
+                      and 'STORM' not in (weapon.name or '').upper())
+        if needs_ammo:
+            ammo_rounds = int(getattr(player, 'ammo_rounds', 0) or 0)
+            ammo_max    = int(getattr(player, 'ammo_max',    0) or 0)
+            lines.append(f'Weapon readied: {weapon.name} [{ammo_rounds}/{ammo_max} rounds]')
+        else:
+            lines.append(f'Weapon readied: {weapon.name}')
+    else:
+        lines.append('Weapon readied: None')
+
     # Wizard's Glow -- Ryan's request: show remaining rounds for Wizards
     # specifically, not just an on/off flag. "Not cast" when inactive
     # rather than "[0/20 rounds left]", which reads like it just ran
