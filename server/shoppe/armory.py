@@ -234,8 +234,137 @@ async def _sell(ctx: GameContext, player, inv, all_weapons) -> None:
 # Protection (armor and shields)
 # ---------------------------------------------------------------------------
 
+# Condition-tier labels, adapted from origin/skip's SPUR.ARMORY.S 'pr.2a'
+# label (master has no armory repair feature at all -- skip's is a whole
+# separate source file this port never had an equivalent for, until now).
+# Skip's own thresholds are ratio-based (current/max, can exceed 100 via a
+# separate enchant path) with an extra ENCHANTED tier above 125%; this
+# port's item.condition is already a flat 0-100 value with no >100 case
+# for a repairable item, so that top tier collapses into EXCELLENT at 100.
+def _condition_label(condition: int) -> str:
+    if condition >= 100:
+        return 'EXCELLENT'
+    if condition > 75:
+        return 'GOOD'
+    if condition > 50:
+        return 'SERVICABLE'
+    if condition > 25:
+        return 'POOR'
+    return 'TERRIBLE'
+
+
+async def _repair(ctx: GameContext, player, inv) -> None:
+    """Repair a carried armor/shield item's condition back to 100%, for
+    silver scaled to how much is missing. Adapted from origin/skip's
+    SPUR.ARMORY.S -- same "smithy" flavor text and condition-label
+    listing, retargeted from skip's separate misc.data-backed intactness
+    file onto this port's item.condition (2026-08-08 durability redesign).
+    Not present on master at all before this.
+
+    Cost: skip's formula (missing points, doubled on some difficulty
+    flag never resolved in this port) has no direct equivalent silver
+    scale here, since this port's economy already ties an item's price
+    to its full-condition value (protection()'s `price * 100` to buy one
+    fresh). Repairing 1 missing point of condition costs the same as
+    1/100th of a fresh purchase -- i.e. `missing_points * price` silver
+    -- so repairing something to full never costs more than just buying
+    a brand new one would.
+    """
+    from base_classes import PlayerMoneyTypes
+    from item_system import ItemType
+    from player import equipped_entry, refresh_equipped_rating
+
+    if inv is None:
+        await ctx.send('You have nothing to repair.')
+        return
+
+    def _repairable():
+        return [e for e in inv.entries()
+                if getattr(e.item, 'type', None) in (ItemType.ARMOR, ItemType.SHIELD)]
+
+    def _worn_tag(item) -> str:
+        item_id = getattr(item, 'id_number', None)
+        for slot in ('armor', 'shield'):
+            entry = equipped_entry(player, slot)
+            if entry is not None and getattr(entry.item, 'id_number', None) == item_id:
+                return '  [worn]'
+        return ''
+
+    while True:
+        entries = _repairable()
+        if not entries:
+            await ctx.send("You don't have any armor or shields!")
+            return
+
+        lines = ['', "'What kin eye fix fer ye?'", '']
+        for i, e in enumerate(entries, 1):
+            condition = int(getattr(e.item, 'condition', 100) or 0)
+            label     = _condition_label(condition)
+            lines.append(f'  {i:>3}. {e.item.name:<22} {condition:>3}%  '
+                         f'IN {label} CONDITION{_worn_tag(e.item)}')
+        lines += ['', 'Q to leave', '']
+        await ctx.send(lines)
+
+        raw = await ctx.prompt('Repair which (?=List, Q to leave)')
+        if raw is None:
+            return
+        choice = raw.strip().upper()
+        if not choice or choice == 'Q':
+            return
+        if choice == '?':
+            continue
+
+        try:
+            idx = int(choice) - 1
+            if not (0 <= idx < len(entries)):
+                raise ValueError
+        except ValueError:
+            await ctx.send('Invalid selection.')
+            continue
+
+        entry     = entries[idx]
+        condition = int(getattr(entry.item, 'condition', 100) or 0)
+        if condition >= 100:
+            await ctx.send(f"'The {entry.item.name} is already in perfect condition!'")
+            continue
+
+        missing = 100 - condition
+        price   = int(getattr(entry.item, 'price', 0) or 0)
+        cost    = missing * max(price, 1)
+
+        await ctx.send(f"'I will fix the {entry.item.name} for {cost} silver.'")
+        raw = await ctx.prompt('Ok? (Y/N)')
+        if raw is None or raw.strip().upper() != 'Y':
+            continue
+
+        silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
+        if silver < cost:
+            await ctx.send('You do not have enough silver.')
+            continue
+
+        await ctx.send([
+            f'The smithy grabs the {entry.item.name} and scuttles back into the smoke.',
+            'Noises can soon be heard.',
+            'BANG... CLANG... RATTLE... WHEEZE(?)... OOFF!',
+            'Done!',
+        ])
+        player.subtract_silver(PlayerMoneyTypes.IN_HAND, cost)
+        entry.item.condition = 100
+        # If this happens to be the currently-worn/readied piece, refresh
+        # the live rating too -- same as SPUR.ARMORY.S's own worn/readied
+        # check at the end of its repair loop.
+        for slot in ('armor', 'shield'):
+            eq = equipped_entry(player, slot)
+            if eq is entry:
+                refresh_equipped_rating(player, slot)
+        player.unsaved_changes = True
+        remaining = player.get_silver(PlayerMoneyTypes.IN_HAND)
+        await ctx.send(f'You now have {remaining} silver in hand.')
+
+
 async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> None:
-    """Buy armor and shields. (SPUR.SHOP.S protect section)
+    """Buy, or repair, armor and shields. (SPUR.SHOP.S protect section +
+    origin/skip's separate SPUR.ARMORY.S repair feature, see _repair())
 
     *item_ids*, if given, restricts the rack to just those objects.json
     numbers -- e.g. ship/armory.py's sci-fi armor rack (#113-116),
@@ -267,7 +396,7 @@ async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> N
             kind  = it['type'].capitalize()
             price = it['price'] * 100  # SPUR: it=it*100
             lines.append(f"  {i:>3}. {it['name']:<22} ({kind})  {price:>6}s")
-        lines += ['', 'Q to leave', '']
+        lines += ['', 'R to repair', 'Q to leave', '']
         await ctx.send(lines)
 
         raw = await ctx.prompt('Your Choice (?=List)')
@@ -277,6 +406,9 @@ async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> N
         if not choice or choice == 'Q':
             return
         if choice == '?':
+            continue
+        if choice == 'R':
+            await _repair(ctx, player, inv)
             continue
 
         try:
@@ -347,7 +479,11 @@ async def main(ctx: GameContext, *, item_ids: set[int] | None = None) -> None:
     player = ctx.player
     inv    = getattr(player, 'inventory', None)
 
-    await ctx.send("The Weaponsmith's eyes glitter as you enter.")
+    # Flavor line swapped 2026-08-08 for origin/skip's SPUR.ARMORY.S
+    # entrance text ("a huge metal smith who eyes you through a yellow
+    # grin"), to match _repair()'s smithy already pulled from that same
+    # source -- Ryan's call, not a drive-by ALL-CAPS conversion (CLAUDE.md).
+    await ctx.send('The weapons master eyes you, grinning with a mouthful of yellowed teeth.')
 
     while True:
         raw = await ctx.prompt('Wouldst thou be interested in [P]rotection or [W]eaponry?')
