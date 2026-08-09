@@ -88,7 +88,7 @@ class TestInvAllySection(unittest.IsolatedAsyncioTestCase):
         ctx = _make_ctx(player)
         await InvCommand().execute(ctx)
         text = _sent_text(ctx)
-        self.assertIn('Trigger: carrying nothing.', text)
+        self.assertIn('Trigger: has saddlebags, carrying nothing.', text)
 
     async def test_non_mount_ally_no_capacity_shown(self):
         ally = _plain_ally('Grog')

@@ -148,7 +148,15 @@ def _ally_inventory_lines(player) -> list[str]:
 
         cap_str = f'/{_MOUNT_CAPACITY_WITH_SADDLEBAGS}' if AllyFlags.MOUNT in flags else ''
         if not items:
-            lines.append(f'{ally.name}: carrying nothing.')
+            # A mount reaching this branch always has saddlebags (the
+            # "no saddlebags" case above already returned) -- say so
+            # explicitly rather than leaving "carrying nothing" to imply
+            # it, so equipped-but-empty doesn't read the same as
+            # unequipped at a glance. Ryan's request.
+            if AllyFlags.MOUNT in flags:
+                lines.append(f'{ally.name}: has saddlebags, carrying nothing.')
+            else:
+                lines.append(f'{ally.name}: carrying nothing.')
             lines.append('')
             continue
 
