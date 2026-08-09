@@ -171,7 +171,7 @@ class TestStatsAllySection(unittest.TestCase):
         player = _make_player(party=Party(members=[ally]))
         lines = _build_stats_lines(player)
         row = next(l for l in lines if 'Grog' in l)
-        self.assertIn('[Wpn: UZI [12/50]]', row)
+        self.assertIn('[Wpn: UZI (12/50)]', row)
 
     def test_readied_melee_weapon_shows_no_rounds(self):
         from items import Weapon

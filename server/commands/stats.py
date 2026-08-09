@@ -95,10 +95,17 @@ def _ally_weapon_display(ally) -> str:
     """Return the ally's readied weapon name, with rounds remaining appended
     for ammo-using weapons -- same needs_ammo test as the player's own
     "Weapon readied" line above (combat/resolution.py's _needs_ammo), so an
-    ally's Uzi shows [12/50] just like the player's would. 'None' when
+    ally's Uzi shows (12/50) just like the player's would. 'None' when
     nothing is readied (commands/give.py auto-readies a Weapon on GIVE, so
     this is only unset for allies never given one) -- Ryan's request, to
-    read as "never readied" rather than a blank/placeholder dash."""
+    read as "never readied" rather than a blank/placeholder dash.
+
+    Parens, not brackets, around the round count: this return value gets
+    wrapped in its own "[Wpn: ...]" Notes tag by the caller, and
+    formatting.py's highlight_brackets() only understands one level of
+    [...] nesting -- a second, inner "[12/50]" broke it, leaving a stray
+    "]" and a color split mid-tag for ANSI clients. Found live via
+    tools/bot_stat_weapon_ally_check.py against a real running server."""
     weapon = getattr(ally, 'readied_weapon', None)
     if weapon is None:
         return 'None'
@@ -109,7 +116,7 @@ def _ally_weapon_display(ally) -> str:
     if needs_ammo:
         ammo_rounds = int(getattr(ally, 'ammo_rounds', 0) or 0)
         ammo_max    = int(getattr(ally, 'ammo_max',    0) or 0)
-        return f'{weapon.name} [{ammo_rounds}/{ammo_max}]'
+        return f'{weapon.name} ({ammo_rounds}/{ammo_max})'
     return weapon.name
 
 
