@@ -185,7 +185,7 @@ class TestExamineMagicRoll(unittest.TestCase):
         weapon, ctx = self._weapon_and_ctx()
         with patch('random.randint', return_value=1):
             _examine_item(ctx, 'WOODEN STAKE', weapon)
-        self.assertEqual(ctx.player.last_examined, 'WOODEN STAKE')
+        self.assertEqual(ctx.player.last_examined, ['WOODEN STAKE'])
 
     def test_repeat_examine_after_success_says_already_examined(self):
         weapon, ctx = self._weapon_and_ctx()
@@ -206,7 +206,7 @@ class TestExamineMagicRoll(unittest.TestCase):
 
     def test_different_item_does_not_trigger_already_examined(self):
         weapon, ctx = self._weapon_and_ctx()
-        ctx.player.last_examined = 'SOME OTHER ITEM'
+        ctx.player.last_examined = ['SOME OTHER ITEM']
         with patch('random.randint', return_value=1):
             result = _examine_item(ctx, 'WOODEN STAKE', weapon)
         self.assertEqual(result, 'This WOODEN STAKE is Magical.')
@@ -223,13 +223,32 @@ class TestExamineCursedRoll(unittest.TestCase):
         item, ctx = self._item_and_ctx()
         with patch('random.randint', return_value=1):
             result = _examine_item(ctx, 'blue gem', item)
-        self.assertEqual(result, 'This blue gem is Cursed.')
+        self.assertEqual(result, 'This blue gem is cursed!')
 
     def test_failure_message(self):
         item, ctx = self._item_and_ctx()
         with patch('random.randint', return_value=100):
             result = _examine_item(ctx, 'blue gem', item)
         self.assertEqual(result, 'Your examination fails...')
+
+    def test_second_cursed_item_does_not_forget_the_first(self):
+        """last_examined is a list (TADA's inventory holds many items at
+        once, unlike SPUR's single xz$ slot) -- examining a second cursed
+        item must not overwrite memory of the first one already revealed."""
+        server = _FakeServer(items=[
+            {'number': 1, 'name': 'blue gem', 'type': 'cursed'},
+            {'number': 2, 'name': 'red gem', 'type': 'cursed'},
+        ])
+        gem_a = Item(id_number=1, name='blue gem', category=ItemCategory.ITEM)
+        gem_b = Item(id_number=2, name='red gem', category=ItemCategory.ITEM)
+        ctx = _FakeCtx(_player(), server)
+
+        with patch('random.randint', return_value=1):
+            _examine_item(ctx, 'blue gem', gem_a)
+            _examine_item(ctx, 'red gem', gem_b)
+            result = _examine_item(ctx, 'blue gem', gem_a)
+
+        self.assertEqual(result, 'You have already examined this!')
 
 
 class TestExamineOrdinaryFallback(unittest.TestCase):

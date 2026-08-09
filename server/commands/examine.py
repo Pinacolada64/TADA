@@ -22,7 +22,7 @@ from items import Item, ItemCategory, Rations, Weapon
 from network_context import GameContext
 from quests.tuts_treasure import examine as tuts_treasure_examine, is_tuts_treasure
 from survival import apply_disease
-from tada_utilities import a_or_an, get_article_and_quantity, tip
+from tada_utilities import a_or_an, get_article_and_quantity, tip, is_or_are
 
 # SPUR.MISC3.S exam2: a=(random(999)/10)+1; "if a>60 ... fails" -- so the
 # roll is a 1-100 uniform draw and examination succeeds 60% of the time.
@@ -72,6 +72,17 @@ def _raw_item_data(ctx, item) -> dict | None:
     return None
 
 
+def this_or_these(name, capitalize=False) -> str:
+    """Based on whether the string appears plural (ends in 's'), return:
+    
+     * if singular, 'this' or 'This' if **capitalize** is True
+     * if plural, "these' or 'These' if **capitalize** is True."""
+    if name.endswith('s'.lower()):
+        return "These" if capitalize else "these"
+    else:
+        return "This" if capitalize else "this"
+
+
 def _examine_item(ctx, name: str, item) -> str:
     """Return a one-line flavour description for *item*, mirroring
     SPUR.MISC3.S's exam.a/exam2/exam3.
@@ -112,10 +123,14 @@ def _examine_item(ctx, name: str, item) -> str:
     if kind in ('magic', 'cursed'):
         if random.randint(1, 100) > _EXAMINE_SUCCESS_PCT:
             return 'Your examination fails...'
-        if getattr(ctx.player, 'last_examined', '') == name:
+        last_examined = getattr(ctx.player, 'last_examined', None)
+        if last_examined is None:
+            last_examined = ctx.player.last_examined = []
+        if name in last_examined:
             return 'You have already examined this!'
-        ctx.player.last_examined = name
-        return f'This {name} is Magical.' if kind == 'magic' else f'This {name} is Cursed.'
+        last_examined.append(name)
+        return f'{this_or_these(name, capitalize=True)} {name} {is_or_are(name)} Magical.' if kind == 'magic' else \
+            f'{this_or_these(name, capitalize=True)} {name} {is_or_are(name)} cursed!'
 
     return 'It looks pretty ordinary..'
 
@@ -438,9 +453,10 @@ class ExamineCommand(Command):
             ('examine <target>', 'Examine just that item.'),
         ],
         examples = [
-            ('examine',       'Look closer at everything around you.'),
-            ('examine sword', 'Examine the sword.'),
-            ('x',             'Same as "examine".'),
+            ('examine',        'Look closer at everything around you.'),
+            ('examine sword',  'Examine the sword.'),
+            ('examine silver', 'Examine an ally or mount named Silver.'),
+            ('x',              'Same as "examine".'),
         ],
     )
 
@@ -501,6 +517,13 @@ class ExamineCommand(Command):
             other_name = (getattr(other_ctx.player, 'name', '') or '').strip()
             if target in other_name.lower():
                 await ctx.send(_examine_player(other_ctx))
+                return CommandResult.ok()
+
+        from bar.allies import owned_allies
+        from commands.look import describe_ally
+        for ally in owned_allies(ctx.player):
+            if target in ally.name.lower():
+                await describe_ally(ctx, ally)
                 return CommandResult.ok()
 
         await ctx.send("You either spelled it wrong, or are seeing things..")

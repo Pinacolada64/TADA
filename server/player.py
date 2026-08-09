@@ -473,12 +473,15 @@ class Player:
         # != 0 is the number of rounds left, decrement at every turn
         self.wizard_glow = kwargs.get('wizard_glow')
 
-        # New in TADA: mirrors SPUR.MISC3.S's xz$ -- a single-slot "last
-        # examined item name" used by EXAMINE's magic/cursed reveal to
-        # avoid re-announcing the same item's status back-to-back. Not
-        # persisted (SPUR's xz$ is a plain BASIC variable that resets each
-        # session too; see commands/look.py's _examine_item()).
-        self.last_examined = ''
+        # New in TADA: mirrors SPUR.MISC3.S's xz$ -- "already examined"
+        # item names used by EXAMINE's magic/cursed reveal to avoid
+        # re-rolling the same item's status back-to-back. SPUR's xz$ is a
+        # single-slot BASIC variable (SPUR only ever holds one item at a
+        # time), but TADA's inventory is a list, so this is a list too --
+        # a scalar here would forget item A's reveal the moment item B got
+        # examined. Not persisted, same reasoning as SPUR's xz$ resetting
+        # each session (see commands/examine.py's _examine_item()).
+        self.last_examined = []
 
         # New in TADA: mirrors SPUR.MISC3.S's ys$ "loot" flag -- how many
         # times this player has used LOOT this session (once normally,
