@@ -1856,6 +1856,19 @@
   only appear when the player actually has allies or a mount (`bar/
   allies.py`'s `owned_allies()`), same gating `commands/give.py`'s own
   target-picker already does.
+  - Ryan's follow-up: do this in addition to (not instead of) the
+    top-level menu -- each individual sub-shop loop (Armory, Olly's,
+    General Store, etc.) should offer the same `[I]nventory`/
+    `[T]ransfer` shortcuts too, so a player doesn't have to back out to
+    the top-level Shoppe menu mid-browse just to check what they're
+    carrying or hand something off. There's already a precedent for
+    this exact pattern: `shoppe/ollys.py`'s ammo section has an `[I]`
+    shortcut (search `if choice == 'I':`) that runs the real `inventory`
+    command in place via `try_global_command(ctx, 'inventory')` without
+    leaving the shop -- Ryan's own past request, per that code's
+    comment. `[T]ransfer` would be the natural sibling addition there
+    and in every other sub-shop's own choice loop, once the underlying
+    transfer logic (see below) exists to call.
   - Open question Ryan raised: where should the actual transfer logic
     live? Two real options, not yet decided:
     1. Reuse `commands/give.py`'s existing GIVE command logic directly
