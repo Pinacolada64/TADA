@@ -120,11 +120,11 @@ def _ally_weapon_display(ally) -> str:
     return weapon.name
 
 
-def _ally_flag_tags(ally) -> str:
-    """Return every AllyFlags member set on *ally* as "  [Tag]" chunks, in
-    a fixed display order. Tracking/Finder/Body Built append their
-    magnitude (ally.tracking_range / find_percentage / body_build) since
-    those flags represent a level, not just an on/off trait."""
+def _ally_flag_tags(ally) -> list[str]:
+    """Return every AllyFlags member set on *ally* as "[Tag]" strings, in a
+    fixed display order. Tracking/Finder/Body Built append their magnitude
+    (ally.tracking_range / find_percentage / body_build) since those flags
+    represent a level, not just an on/off trait."""
     from bar.ally_data import AllyFlags
 
     flags = ally.flags or []
@@ -139,8 +139,8 @@ def _ally_flag_tags(ally) -> str:
             label = f'{label} {ally.find_percentage}%'
         elif flag_name == 'BODY_BUILD' and getattr(ally, 'body_build', 0):
             label = f'{label} +{ally.body_build}'
-        tags.append(f'  [{label}]')
-    return ''.join(tags)
+        tags.append(f'[{label}]')
+    return tags
 
 
 # ---------------------------------------------------------------------------
@@ -386,9 +386,11 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
             status_tag = f'[{a.status.name}]' if a.status not in (AllyStatus.FREE, AllyStatus.SERVANT) else ''
             weapon_tag = f'[Wpn: {_ally_weapon_display(a)}]'
             worn_tag   = '[Worn: None]'
-            notes = ' '.join(part for part in
-                              (_ally_flag_tags(a).strip(), status_tag, weapon_tag, worn_tag)
-                              if part)
+            # Comma-delimited, not just space-joined -- Ryan's request, for
+            # readability once a row carries several tags at once.
+            notes = ', '.join(part for part in
+                               (*_ally_flag_tags(a), status_tag, weapon_tag, worn_tag)
+                               if part)
             t.add_row([a.name, str(a.strength), str(a.hit_points), f'{a.to_hit * 10}%', notes])
         lines.extend(t.render(width=width))
     else:

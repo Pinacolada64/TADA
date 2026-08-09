@@ -117,7 +117,16 @@ async def main() -> None:
     if not await _handshake_plain(reader, writer):
         return
 
-    await step(reader, writer, f'connect {USER} {PASSWORD}', mode='login', timeout=3.0)
+    # timeout=3.0 here used to be too short to drain a multi-page News
+    # board after login -- the connect step returned early with pages
+    # still unread, and the NEXT step's command text (originally 'reload
+    # ...') got silently swallowed as pager "continue" input instead of
+    # reaching the command processor at all. The reload never ran, so
+    # every check after it silently exercised stale pre-edit code -- found
+    # by cross-checking the server's own screen log (no 'Reloaded: ...'
+    # line ever appeared for that step) against a direct offline call to
+    # _build_stats_lines(), which matched the intended new output.
+    await step(reader, writer, f'connect {USER} {PASSWORD}', mode='login', timeout=15.0)
 
     # Reload the modified module so this run exercises current code even if
     # the server process predates today's edits.
