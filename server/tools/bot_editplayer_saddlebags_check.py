@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tools/bot_editplayer_saddlebags_check.py — live check of the two
+"""tools/bot_editplayer_saddlebags_check.py — live check of three
 saddlebags fixes (2026-08-08):
 
   1. editplayer's [T]ransfer used to refuse to move the saddlebags item
@@ -9,10 +9,15 @@ saddlebags fixes (2026-08-08):
      equip AllyFlags.SADDLEBAGS instead of hitting that capacity check.
   2. LOOK <mount> now reports saddlebags status plus a thin/fat build
      based on pack fullness.
+  3. INV's ally-pack section now says "has saddlebags, carrying
+     nothing" for an equipped-but-empty mount, instead of the same
+     "carrying nothing" text an unequipped mount would never say (that
+     case reads "no saddlebags (nothing carried)" instead) -- the two
+     used to be indistinguishable at a glance.
 
 Interactive exploration script -- prints raw server output at each step
-so the exact editplayer prompt flow and LOOK text are confirmed against
-the real running server rather than assumed.
+so the exact editplayer prompt flow and LOOK/INV text are confirmed
+against the real running server rather than assumed.
 
 Run against a disposable instance, e.g.:
     .venv/bin/python simple_server.py --port 34093 --petscii-port 34094 &
@@ -132,6 +137,10 @@ async def main():
 
     # --- LOOK at the mount: should now show saddlebags + thin build ---
     await cmd(f'look {horse_name}')
+
+    # --- INV: mount has saddlebags but an empty pack -- should say so
+    # explicitly rather than reading the same as "no saddlebags" ---
+    await cmd('inv')
 
     w.close()
     try:
