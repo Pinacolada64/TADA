@@ -65,6 +65,10 @@ class Ally:
         that enum's docstring)
     :param color: horse coat colour, same MOUNT-only scope as breed
         (base_classes.HorseColor)
+    :param description: flavor text shown by LOOK <ally> (commands/look.py's
+        describe_ally()), with substitute_tokens() %-tokens for pronouns
+        (e.g. "%n is ready to fight at %p side."). None for allies that
+        don't have one yet -- LOOK falls back to a generic line.
     """
     from base_classes import Alignment
 
@@ -77,6 +81,7 @@ class Ally:
     flags: Optional[List[AllyFlags]] = field(default_factory=list)
     breed: Optional[HorseBreed] = None
     color: Optional[HorseColor] = None
+    description: Optional[str] = None
 
     def __post_init__(self):
         """
@@ -211,174 +216,35 @@ def save_ally_roster(allies: List['Ally']) -> None:
     _ROSTER_FILE.write_text(json.dumps(roster, indent=2))
 
 
-def load_allies() -> list:
-    # server_dir = Path(pathlib.Path.cwd())
-    # ally_file = Path(server_dir / "allies.json")
-    # with json.load(ally_file) as af:
-    #     json.load()
-    # https://github.com/Pinacolada64/TADA/blob/skip/SPUR-code/SPUR.BAR.S
-    """Loads ally information from a structured list."""
+_ALLIES_FILE = Path(__file__).parent.parent / 'allies.json'
 
-    # Name, gender, strength, to-hit % (x10), flags
-    # 3. Refactor the loop to use named attributes
+
+def load_allies() -> list:
+    """Loads ally information from allies.json (name, gender, strength,
+    to_hit, flags, and an optional description shown by LOOK <ally> --
+    see commands/look.py's describe_ally()). Formerly a hardcoded Python
+    literal list in this function; migrated to JSON so descriptions (and
+    any other per-ally data) can be edited without a code change, the
+    same reasoning as objects.json/weapons.json (see items.py).
+
+    Some entries also carry a "comment" key -- Ryan's original research
+    notes on who/what each ally is a reference to, restored here from the
+    old hardcoded list's inline `#` comments (JSON has no comment syntax,
+    so they moved into the data itself). Dev-only: not loaded onto the
+    Ally object, never shown to players -- just documentation for editing
+    "description" into a real bio later.
+    """
+    raw_list = json.loads(_ALLIES_FILE.read_text())
     ally_data = [
-        # name, gender, strength, to-hit % (x10), flags
-        # alan-a-dale? I can't find info on him:
-        Ally("ALAN OF YOR", "m", 9, 4),
-        # Egyptian god of funerary rites:
-        Ally("ANUBIS", "m", 5, 8, [AllyFlags.GOD]),
-        # greek god of oracles, healing, archery, music and arts, light, knowledge,
-        # herds and flocks, and protection of the young
-        Ally("APOLLO", "m", 15, 7, [AllyFlags.GOD]),
-        # greek god of war:
-        Ally("ARES", "m", 15, 9, [AllyFlags.GOD]),
-        # main protagonist of "Hitchhiker's Guide to the Galaxy":
-        Ally("ARTHUR DENT", "m", 4, 4),
-        # Greek goddess of wisdom, warfare, and handicraft:
-        Ally("ATHENA", "f", 15, 6, [AllyFlags.GODDESS]),
-        Ally("ATILLA THE HUN", "m", 15, 7),
-        # from Batman comic:
-        Ally("BATMAN", "m", 14, 5, [AllyFlags.ELITE]),
-        Ally("BEAVER CLEAVER", "m", 9, 6),
-        Ally("BETTY BOOP", "f", 7, 6),
-        # from Monty Python and the Holy Grail?:
-        Ally("BLACK KNIGHT", "m", 12, 7, [AllyFlags.ELITE]),
-        Ally("BLUE DEMON", "m", 19, 9),
-        Ally("BUCK ROGERS", "m", 12, 5),
-        # singer:
-        Ally("CARLY SIMON", "f", 8, 9),
-        # from Batman comic:
-        Ally("CATWOMAN", "f", 17, 5),
-        Ally("CENTURIAN ROCK", "m", 20, 9, [AllyFlags.ELITE]),
-        # American football player & coach (coached the Seahawks):
-        Ally("CHUCK KNOX", "m", 12, 5),
-        # Superman's alter ego:
-        Ally("CLARK KENT", "m", 20, 9),
-        # from the TV show "Hogan's Heroes":
-        Ally("COLONEL KLINK", "m", 10, 2),
-        Ally("CONAN", "m", 15, 6, [AllyFlags.ELITE]),
-        Ally("DARK WARRIOR", "m", 12, 5),
-        # from Star Wars:
-        Ally("DARTH VADER", "m", 12, 6),
-        # American politician, militia officer and frontiersman:
-        Ally("DAVY CROCKETT", "m", 15, 7, [AllyFlags.ELITE]),
-        # Greek goddess of food & fertility, wife of Zeus:
-        Ally("DEMETER", "f", 12, 5, [AllyFlags.GODDESS]),
-        Ally("DIRTY HARRY", "m", 18, 7),
-        Ally("DRAGONSLAYER", "m", 19, 8),
-        Ally("DUKE OF EARL", "m", 12, 8),
-        # From the movie "Back to the Future":
-        Ally('EMMETT "DOC" BROWN', "m", 4, 3),
-        # noblewoman of Rohan in "Lord of the Rings," defeats the Nazgul:
-        Ally("EOWYN", "f", 16, 9),
-        # https://en.wikipedia.org/wiki/Finieous_Fingers
-        Ally("FINIEOUS FINGERS", "m", 12, 5),
-        # From "Hitchhiker's Guide to the Galaxy":
-        Ally("FORD PREFECT", "m", 3, 6),
-        # Finieous Fingers' henchmen:
-        Ally("FRED AND CHARLY", "m", 15, 9),
-        Ally("FRED THE TERRIBLE", "m", 10, 7),
-        # from "The Hobbit":
-        Ally("FRODO", "m", 8, 6),
-        # same:
-        Ally("GANDALF THE GREY", "m", 7, 7, [AllyFlags.ELITE]),
-        Ally("HAMMER", "m", 20, 9),
-        Ally("IRIS", "f", 12, 5),
-        Ally("IRON MAIDEN", "m", 14, 6),
-        # writer of "The Hobbit," et al.:
-        Ally("J.R.R. TOLKIEN", "m", 4, 3),
-        # 3 singers:
-        Ally("JANIS JOPLIN", "f", 15, 5),
-        Ally("JIM MORRISON", "m", 4, 5),
-        Ally("JUDAS PRIEST", "m", 8, 6),
-        Ally("JULIA FELIX", "f", 10, 5),
-        Ally("JULIAS CAESAR", "m", 12, 6, [AllyFlags.ELITE]),
-        # Pulled the Sword from the Stone to become ruler of England:
-        Ally("KING ARTHUR", "m", 16, 6, [AllyFlags.ELITE]),
-        Ally("LAZY LARRY", "m", 7, 3),
-        # from "Star Wars":
-        Ally("LUKE SKYWALKER", "m", 15, 5),
-        # singer:
-        Ally("MARIAH CAREY", "f", 10, 5),
-        # King Arthur's court wizard:
-        Ally("MERLIN", "m", 10, 3, [AllyFlags.ELITE]),
-        Ally("MINICIUS ITALUS", "m", 15, 6, [AllyFlags.ELITE]),
-        # early childhood educator:
-        Ally("MISTER ROGERS", "m", 10, 5),
-        # alien from "Mork & Mindy" played by Robin Williams:
-        Ally("MORK FROM ORK", "m", 15, 7),
-        # Vulcan science officer aboard the Enterprise in Star Trek:
-        Ally("MR. SPOCK", "m", 16, 6),
-        Ally("MYSTIC MORGANNA", "f", 6, 4),
-        # pizza-loving mutant turtles who live in the sewers:
-        Ally("NINJA TURTLE", "m", 12, 5),
-        # Greek god of the wild, shepherds and flocks:
-        Ally("PAN", "m", 13, 6),
-        # Francisco "Pancho" Villa, Mexican revolutionary, later president:
-        Ally("PANCHO VILLA", "m", 10, 5),
-        # singer:
-        Ally("PAULA ABDUL", "f", 9, 8),
-        # Greek goddess of spring, queen of the underworld after Hades abducted her::
-        Ally("PERSEPHONE", "f", 9, 6, [AllyFlags.GODDESS]),
-        # American news reporter:
-        Ally("PETER JENNINGS", "m", 13, 6),
-        # Queen of the British Iceni tribe:
-        Ally("QUEEN BOUDICA", "f", 12, 5, [AllyFlags.ELITE]),
-        # astromech droid from "Star Wars":
-        Ally("R2-D2", "m", 9, 6, [AllyFlags.MECHANICAL]),
-        # action movie hero:
-        Ally("RAMBO", "m", 18, 7, [AllyFlags.ELITE]),
-        # partner of Conan the Barbarian:
-        Ally("RED SONJA", "f", 16, 6, [AllyFlags.ELITE]),
-        Ally("RIKER THE STRIKER", "m", 12, 7),
-        # character from the movie "Aliens":
-        Ally("RIPLEY", "f", 18, 9),
-        Ally("ROBIN HOOD", "m", 14, 8, [AllyFlags.ELITE]),
-        # Yeah, not sure about this guy:
-        # Ally("SADDAM HUSSEIN", "m", 5, 3),
-        Ally("SAMWISE", "m", 14, 6),
-        # character in "Terminator" movie:
-        Ally("SARAH CONNOR", "f", 16, 5),
-        # evil wizard in "Lord of the Rings":
-        Ally("SARUMAN", "m", 20, 9),
-        # engineer aboard the Enterprise in "Star Trek":
-        Ally("SCOTTY", "m", 6, 4),
-        # one of the Knights of King Arthur's Round Table:
-        Ally("SIR GALAHAD", "m", 15, 4),
-        Ally("SLAVE VERUS", "m", 20, 1),
-        Ally("STEELY DAN", "m", 15, 7),
-        # General in the Gulf War:
-        Ally("STORMIN' NORMAN", "m", 20, 9),
-        # FIXME: Typo? can't find "TAARNA"
-        # Tarana Burke is an activist, started the "MeToo" movement
-        Ally("TAARNA", "f", 12, 5),
-        # American singer:
-        Ally("TAYLOR DAYNE", "f", 6, 3),
-        Ally("THE BISHOP", "m", 10, 7),
-        Ally("THE BOGIEMAN", "m", 15, 5),
-        Ally("THE IRON LADY", "f", 18, 9),
-        # Character in, well, the movie of the same name:
-        Ally("THE TERMINATOR", "m", 20, 5),
-        Ally("TIMMY", "m", 7, 6),
-        # Bob Cratchit's son from "A Christmas Carol":
-        Ally("TINY TIM", "m", 6, 5),
-        Ally("TRAJAN OF DURA", "m", 15, 8),
-        # character from "Hitchhiker's Guide to the Galaxy":
-        Ally("TRICIA MCMILLAN", "f", 4, 5),
-        # communications officer aboard the Enterprise in "Star Trek":
-        Ally("UHURA", "f", 7, 4),
-        Ally("VERUS' BROTHER", "m", 15, 6),
-        # American songwriter and rock star, wrote "Werewolves in London"
-        Ally("WARREN ZEVON", "m", 15, 6),
-        Ally("WEREWOLF OF LONDON", "m", 10, 5),
-        # superheroine:
-        Ally("WONDER WOMAN", "f", 18, 5, [AllyFlags.ELITE]),
-        Ally("XEVIOUS", "m", 12, 4),
-        # wise critter from Star Wars:
-        Ally("YODA", "m", 15, 8),
-        # President of the Galaxy in "Hitchhiker's Guide to the Galaxy":
-        Ally("ZAPHOD BEEBLEBROX", "m", 5, 5),
-        Ally("ZORBA THE GREEK", "m", 14, 6),
+        Ally(
+            entry['name'],
+            entry['gender'],
+            entry['strength'],
+            entry['to_hit'],
+            [AllyFlags[f] for f in entry.get('flags', [])],
+            description=entry.get('description'),
+        )
+        for entry in raw_list
     ]
     logging.debug("servants: %i" % len(ally_data))
 

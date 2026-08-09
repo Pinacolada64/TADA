@@ -1,0 +1,782 @@
+[
+  {
+    "name": "ALAN OF YOR",
+    "gender": "m",
+    "strength": 9,
+    "to_hit": 4,
+    "flags": [],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "alan-a-dale? I can't find info on him"
+  },
+  {
+    "name": "ANUBIS",
+    "gender": "m",
+    "strength": 5,
+    "to_hit": 8,
+    "flags": [
+      "GOD"
+    ],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "Egyptian god of funerary rites"
+  },
+  {
+    "name": "APOLLO",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 7,
+    "flags": [
+      "GOD"
+    ],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "greek god of oracles, healing, archery, music and arts, light, knowledge, herds and flocks, and protection of the young"
+  },
+  {
+    "name": "ARES",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 9,
+    "flags": [
+      "GOD"
+    ],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "greek god of war"
+  },
+  {
+    "name": "ARTHUR DENT",
+    "gender": "m",
+    "strength": 4,
+    "to_hit": 4,
+    "flags": [],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "main protagonist of \"Hitchhiker's Guide to the Galaxy\""
+  },
+  {
+    "name": "ATHENA",
+    "gender": "f",
+    "strength": 15,
+    "to_hit": 6,
+    "flags": [
+      "GODDESS"
+    ],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "Greek goddess of wisdom, warfare, and handicraft"
+  },
+  {
+    "name": "ATILLA THE HUN",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 7,
+    "flags": [],
+    "description": "%n is ready to fight at %p side."
+  },
+  {
+    "name": "BATMAN",
+    "gender": "m",
+    "strength": 14,
+    "to_hit": 5,
+    "flags": [
+      "ELITE"
+    ],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "from Batman comic"
+  },
+  {
+    "name": "BEAVER CLEAVER",
+    "gender": "m",
+    "strength": 9,
+    "to_hit": 6,
+    "flags": [],
+    "description": "%n is ready to fight at %p side."
+  },
+  {
+    "name": "BETTY BOOP",
+    "gender": "f",
+    "strength": 7,
+    "to_hit": 6,
+    "flags": [],
+    "description": "%n is ready to fight at %p side."
+  },
+  {
+    "name": "BLACK KNIGHT",
+    "gender": "m",
+    "strength": 12,
+    "to_hit": 7,
+    "flags": [
+      "ELITE"
+    ],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "from Monty Python and the Holy Grail?"
+  },
+  {
+    "name": "BLUE DEMON",
+    "gender": "m",
+    "strength": 19,
+    "to_hit": 9,
+    "flags": [],
+    "description": "%n is ready to fight at %p side."
+  },
+  {
+    "name": "BUCK ROGERS",
+    "gender": "m",
+    "strength": 12,
+    "to_hit": 5,
+    "flags": [],
+    "description": "%n is ready to fight at %p side."
+  },
+  {
+    "name": "CARLY SIMON",
+    "gender": "f",
+    "strength": 8,
+    "to_hit": 9,
+    "flags": [],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "singer"
+  },
+  {
+    "name": "CATWOMAN",
+    "gender": "f",
+    "strength": 17,
+    "to_hit": 5,
+    "flags": [],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "from Batman comic"
+  },
+  {
+    "name": "CENTURIAN ROCK",
+    "gender": "m",
+    "strength": 20,
+    "to_hit": 9,
+    "flags": [
+      "ELITE"
+    ],
+    "description": "%n is ready to fight at %p side."
+  },
+  {
+    "name": "CHUCK KNOX",
+    "gender": "m",
+    "strength": 12,
+    "to_hit": 5,
+    "flags": [],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "American football player & coach (coached the Seahawks)"
+  },
+  {
+    "name": "CLARK KENT",
+    "gender": "m",
+    "strength": 20,
+    "to_hit": 9,
+    "flags": [],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "Superman's alter ego"
+  },
+  {
+    "name": "COLONEL KLINK",
+    "gender": "m",
+    "strength": 10,
+    "to_hit": 2,
+    "flags": [],
+    "description": "%n is ready to fight at %p side.",
+    "comment": "from the TV show \"Hogan's Heroes\""
+  },
+  {
+    "name": "CONAN",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 6,
+    "flags": [
+      "ELITE"
+    ],
+    "description": "%n is ready to fight at %p side."
+  },
+  {
+    "name": "DARK WARRIOR",
+    "gender": "m",
+    "strength": 12,
+    "to_hit": 5,
+    "flags": []
+  },
+  {
+    "name": "DARTH VADER",
+    "gender": "m",
+    "strength": 12,
+    "to_hit": 6,
+    "flags": [],
+    "comment": "from Star Wars"
+  },
+  {
+    "name": "DAVY CROCKETT",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 7,
+    "flags": [
+      "ELITE"
+    ],
+    "comment": "American politician, militia officer and frontiersman"
+  },
+  {
+    "name": "DEMETER",
+    "gender": "f",
+    "strength": 12,
+    "to_hit": 5,
+    "flags": [
+      "GODDESS"
+    ],
+    "comment": "Greek goddess of food & fertility, wife of Zeus"
+  },
+  {
+    "name": "DIRTY HARRY",
+    "gender": "m",
+    "strength": 18,
+    "to_hit": 7,
+    "flags": []
+  },
+  {
+    "name": "DRAGONSLAYER",
+    "gender": "m",
+    "strength": 19,
+    "to_hit": 8,
+    "flags": []
+  },
+  {
+    "name": "DUKE OF EARL",
+    "gender": "m",
+    "strength": 12,
+    "to_hit": 8,
+    "flags": []
+  },
+  {
+    "name": "EMMETT \"DOC\" BROWN",
+    "gender": "m",
+    "strength": 4,
+    "to_hit": 3,
+    "flags": [],
+    "comment": "From the movie \"Back to the Future\""
+  },
+  {
+    "name": "EOWYN",
+    "gender": "f",
+    "strength": 16,
+    "to_hit": 9,
+    "flags": [],
+    "comment": "noblewoman of Rohan in \"Lord of the Rings,\" defeats the Nazgul"
+  },
+  {
+    "name": "FINIEOUS FINGERS",
+    "gender": "m",
+    "strength": 12,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "https://en.wikipedia.org/wiki/Finieous_Fingers"
+  },
+  {
+    "name": "FORD PREFECT",
+    "gender": "m",
+    "strength": 3,
+    "to_hit": 6,
+    "flags": [],
+    "comment": "From \"Hitchhiker's Guide to the Galaxy\""
+  },
+  {
+    "name": "FRED AND CHARLY",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 9,
+    "flags": [],
+    "comment": "Finieous Fingers' henchmen"
+  },
+  {
+    "name": "FRED THE TERRIBLE",
+    "gender": "m",
+    "strength": 10,
+    "to_hit": 7,
+    "flags": []
+  },
+  {
+    "name": "FRODO",
+    "gender": "m",
+    "strength": 8,
+    "to_hit": 6,
+    "flags": [],
+    "comment": "from \"The Hobbit\""
+  },
+  {
+    "name": "GANDALF THE GREY",
+    "gender": "m",
+    "strength": 7,
+    "to_hit": 7,
+    "flags": [
+      "ELITE"
+    ],
+    "comment": "same"
+  },
+  {
+    "name": "HAMMER",
+    "gender": "m",
+    "strength": 20,
+    "to_hit": 9,
+    "flags": []
+  },
+  {
+    "name": "IRIS",
+    "gender": "f",
+    "strength": 12,
+    "to_hit": 5,
+    "flags": []
+  },
+  {
+    "name": "IRON MAIDEN",
+    "gender": "m",
+    "strength": 14,
+    "to_hit": 6,
+    "flags": []
+  },
+  {
+    "name": "J.R.R. TOLKIEN",
+    "gender": "m",
+    "strength": 4,
+    "to_hit": 3,
+    "flags": [],
+    "comment": "writer of \"The Hobbit,\" et al."
+  },
+  {
+    "name": "JANIS JOPLIN",
+    "gender": "f",
+    "strength": 15,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "3 singers"
+  },
+  {
+    "name": "JIM MORRISON",
+    "gender": "m",
+    "strength": 4,
+    "to_hit": 5,
+    "flags": []
+  },
+  {
+    "name": "JUDAS PRIEST",
+    "gender": "m",
+    "strength": 8,
+    "to_hit": 6,
+    "flags": []
+  },
+  {
+    "name": "JULIA FELIX",
+    "gender": "f",
+    "strength": 10,
+    "to_hit": 5,
+    "flags": []
+  },
+  {
+    "name": "JULIAS CAESAR",
+    "gender": "m",
+    "strength": 12,
+    "to_hit": 6,
+    "flags": [
+      "ELITE"
+    ]
+  },
+  {
+    "name": "KING ARTHUR",
+    "gender": "m",
+    "strength": 16,
+    "to_hit": 6,
+    "flags": [
+      "ELITE"
+    ],
+    "comment": "Pulled the Sword from the Stone to become ruler of England"
+  },
+  {
+    "name": "LAZY LARRY",
+    "gender": "m",
+    "strength": 7,
+    "to_hit": 3,
+    "flags": []
+  },
+  {
+    "name": "LUKE SKYWALKER",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "from \"Star Wars\""
+  },
+  {
+    "name": "MARIAH CAREY",
+    "gender": "f",
+    "strength": 10,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "singer"
+  },
+  {
+    "name": "MERLIN",
+    "gender": "m",
+    "strength": 10,
+    "to_hit": 3,
+    "flags": [
+      "ELITE"
+    ],
+    "comment": "King Arthur's court wizard"
+  },
+  {
+    "name": "MINICIUS ITALUS",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 6,
+    "flags": [
+      "ELITE"
+    ]
+  },
+  {
+    "name": "MISTER ROGERS",
+    "gender": "m",
+    "strength": 10,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "early childhood educator"
+  },
+  {
+    "name": "MORK FROM ORK",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 7,
+    "flags": [],
+    "comment": "alien from \"Mork & Mindy\" played by Robin Williams"
+  },
+  {
+    "name": "MR. SPOCK",
+    "gender": "m",
+    "strength": 16,
+    "to_hit": 6,
+    "flags": [],
+    "comment": "Vulcan science officer aboard the Enterprise in Star Trek"
+  },
+  {
+    "name": "MYSTIC MORGANNA",
+    "gender": "f",
+    "strength": 6,
+    "to_hit": 4,
+    "flags": []
+  },
+  {
+    "name": "NINJA TURTLE",
+    "gender": "m",
+    "strength": 12,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "pizza-loving mutant turtles who live in the sewers"
+  },
+  {
+    "name": "PAN",
+    "gender": "m",
+    "strength": 13,
+    "to_hit": 6,
+    "flags": [],
+    "comment": "Greek god of the wild, shepherds and flocks"
+  },
+  {
+    "name": "PANCHO VILLA",
+    "gender": "m",
+    "strength": 10,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "Francisco \"Pancho\" Villa, Mexican revolutionary, later president"
+  },
+  {
+    "name": "PAULA ABDUL",
+    "gender": "f",
+    "strength": 9,
+    "to_hit": 8,
+    "flags": [],
+    "comment": "singer"
+  },
+  {
+    "name": "PERSEPHONE",
+    "gender": "f",
+    "strength": 9,
+    "to_hit": 6,
+    "flags": [
+      "GODDESS"
+    ],
+    "comment": "Greek goddess of spring, queen of the underworld after Hades abducted her"
+  },
+  {
+    "name": "PETER JENNINGS",
+    "gender": "m",
+    "strength": 13,
+    "to_hit": 6,
+    "flags": [],
+    "comment": "American news reporter"
+  },
+  {
+    "name": "QUEEN BOUDICA",
+    "gender": "f",
+    "strength": 12,
+    "to_hit": 5,
+    "flags": [
+      "ELITE"
+    ],
+    "comment": "Queen of the British Iceni tribe"
+  },
+  {
+    "name": "R2-D2",
+    "gender": "m",
+    "strength": 9,
+    "to_hit": 6,
+    "flags": [
+      "MECHANICAL"
+    ],
+    "comment": "astromech droid from \"Star Wars\""
+  },
+  {
+    "name": "RAMBO",
+    "gender": "m",
+    "strength": 18,
+    "to_hit": 7,
+    "flags": [
+      "ELITE"
+    ],
+    "comment": "action movie hero"
+  },
+  {
+    "name": "RED SONJA",
+    "gender": "f",
+    "strength": 16,
+    "to_hit": 6,
+    "flags": [
+      "ELITE"
+    ],
+    "comment": "partner of Conan the Barbarian"
+  },
+  {
+    "name": "RIKER THE STRIKER",
+    "gender": "m",
+    "strength": 12,
+    "to_hit": 7,
+    "flags": []
+  },
+  {
+    "name": "RIPLEY",
+    "gender": "f",
+    "strength": 18,
+    "to_hit": 9,
+    "flags": [],
+    "comment": "character from the movie \"Aliens\""
+  },
+  {
+    "name": "ROBIN HOOD",
+    "gender": "m",
+    "strength": 14,
+    "to_hit": 8,
+    "flags": [
+      "ELITE"
+    ]
+  },
+  {
+    "name": "SAMWISE",
+    "gender": "m",
+    "strength": 14,
+    "to_hit": 6,
+    "flags": []
+  },
+  {
+    "name": "SARAH CONNOR",
+    "gender": "f",
+    "strength": 16,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "character in \"Terminator\" movie"
+  },
+  {
+    "name": "SARUMAN",
+    "gender": "m",
+    "strength": 20,
+    "to_hit": 9,
+    "flags": [],
+    "comment": "evil wizard in \"Lord of the Rings\""
+  },
+  {
+    "name": "SCOTTY",
+    "gender": "m",
+    "strength": 6,
+    "to_hit": 4,
+    "flags": [],
+    "comment": "engineer aboard the Enterprise in \"Star Trek\""
+  },
+  {
+    "name": "SIR GALAHAD",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 4,
+    "flags": [],
+    "comment": "one of the Knights of King Arthur's Round Table"
+  },
+  {
+    "name": "SLAVE VERUS",
+    "gender": "m",
+    "strength": 20,
+    "to_hit": 1,
+    "flags": []
+  },
+  {
+    "name": "STEELY DAN",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 7,
+    "flags": []
+  },
+  {
+    "name": "STORMIN' NORMAN",
+    "gender": "m",
+    "strength": 20,
+    "to_hit": 9,
+    "flags": [],
+    "comment": "General in the Gulf War"
+  },
+  {
+    "name": "TAARNA",
+    "gender": "f",
+    "strength": 12,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "FIXME: Typo? can't find \"TAARNA\" Tarana Burke is an activist, started the \"MeToo\" movement"
+  },
+  {
+    "name": "TAYLOR DAYNE",
+    "gender": "f",
+    "strength": 6,
+    "to_hit": 3,
+    "flags": [],
+    "comment": "American singer"
+  },
+  {
+    "name": "THE BISHOP",
+    "gender": "m",
+    "strength": 10,
+    "to_hit": 7,
+    "flags": []
+  },
+  {
+    "name": "THE BOGIEMAN",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 5,
+    "flags": []
+  },
+  {
+    "name": "THE IRON LADY",
+    "gender": "f",
+    "strength": 18,
+    "to_hit": 9,
+    "flags": []
+  },
+  {
+    "name": "THE TERMINATOR",
+    "gender": "m",
+    "strength": 20,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "Character in, well, the movie of the same name"
+  },
+  {
+    "name": "TIMMY",
+    "gender": "m",
+    "strength": 7,
+    "to_hit": 6,
+    "flags": []
+  },
+  {
+    "name": "TINY TIM",
+    "gender": "m",
+    "strength": 6,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "Bob Cratchit's son from \"A Christmas Carol\""
+  },
+  {
+    "name": "TRAJAN OF DURA",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 8,
+    "flags": []
+  },
+  {
+    "name": "TRICIA MCMILLAN",
+    "gender": "f",
+    "strength": 4,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "character from \"Hitchhiker's Guide to the Galaxy\""
+  },
+  {
+    "name": "UHURA",
+    "gender": "f",
+    "strength": 7,
+    "to_hit": 4,
+    "flags": [],
+    "comment": "communications officer aboard the Enterprise in \"Star Trek\""
+  },
+  {
+    "name": "VERUS' BROTHER",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 6,
+    "flags": []
+  },
+  {
+    "name": "WARREN ZEVON",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 6,
+    "flags": [],
+    "comment": "American songwriter and rock star, wrote \"Werewolves in London\""
+  },
+  {
+    "name": "WEREWOLF OF LONDON",
+    "gender": "m",
+    "strength": 10,
+    "to_hit": 5,
+    "flags": []
+  },
+  {
+    "name": "WONDER WOMAN",
+    "gender": "f",
+    "strength": 18,
+    "to_hit": 5,
+    "flags": [
+      "ELITE"
+    ],
+    "comment": "superheroine"
+  },
+  {
+    "name": "XEVIOUS",
+    "gender": "m",
+    "strength": 12,
+    "to_hit": 4,
+    "flags": []
+  },
+  {
+    "name": "YODA",
+    "gender": "m",
+    "strength": 15,
+    "to_hit": 8,
+    "flags": [],
+    "comment": "wise critter from Star Wars"
+  },
+  {
+    "name": "ZAPHOD BEEBLEBROX",
+    "gender": "m",
+    "strength": 5,
+    "to_hit": 5,
+    "flags": [],
+    "comment": "President of the Galaxy in \"Hitchhiker's Guide to the Galaxy\""
+  },
+  {
+    "name": "ZORBA THE GREEK",
+    "gender": "m",
+    "strength": 14,
+    "to_hit": 6,
+    "flags": []
+  }
+]

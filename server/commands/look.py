@@ -106,6 +106,14 @@ async def describe_ally(ctx: GameContext, ally) -> None:
     so an ally examined comes back identical to one looked at (Ryan's
     request to expand EXAMINE to cover allies too).
 
+    A non-mount ally with a bar/allies.json "description" field shows it
+    (run through tada_utilities.substitute_tokens() so %n/%p/etc. resolve
+    against the ally's own name/gender) instead of the generic fallback
+    line. Only ALAN OF YOR through CONAN have one so far -- placeholder
+    "%n is ready to fight at %p side." text Ryan asked for, to hand-edit
+    into real bios later; every other ally still falls through to the
+    generic line until it gets one too.
+
     A MOUNT ally (AllyFlags.MOUNT) also gets its gender/breed/colour,
     e.g. "SILVER is a female Palomino Arabian." -- see MECHANICS.md's
     "Horses" section and base_classes.HorseBreed/HorseColor's
@@ -160,6 +168,12 @@ async def describe_ally(ctx: GameContext, ally) -> None:
             await ctx.send(f'{ally.name} has saddlebags strapped on, {build}.')
         else:
             await ctx.send(f'{ally.name} has no saddlebags.')
+        return
+
+    description = (getattr(ally, 'description', '') or '').strip()
+    if description:
+        from tada_utilities import substitute_tokens
+        await ctx.send(substitute_tokens(description, ally))
         return
 
     await ctx.send(f'{ally.name} is here with you, ready to help.')
