@@ -1844,3 +1844,37 @@
   that's the point to add a menu section for it in `editplayer.py`.
   Not scoped/prioritized -- no other `CommandSettings` fields identified
   yet that would need it.
+
+8/8/26:
+- **Merchant Shoppe (`shoppe/main.py` -- the "merchant's annex" room) should
+  offer `[I]nventory` and `[T]ransfer <item> to <ally/horse>` right from its
+  top-level menu**, alongside `A`/`P`/`G`/`O`/`B`/`W`/`C`/`E`/`V`/`L` and
+  `LOCKER` (see `_MENU`/`_show_menu()`). Alpha tester JoyfulColor flagged
+  it as cumbersome to have to leave the Shoppe, walk back to the party,
+  GIVE an item, then walk back in to keep shopping -- Ryan agrees, hadn't
+  considered the UX cost of that round trip before. `[T]ransfer` should
+  only appear when the player actually has allies or a mount (`bar/
+  allies.py`'s `owned_allies()`), same gating `commands/give.py`'s own
+  target-picker already does.
+  - Open question Ryan raised: where should the actual transfer logic
+    live? Two real options, not yet decided:
+    1. Reuse `commands/give.py`'s existing GIVE command logic directly
+       (it already handles ammo-loading, weapon auto-ready-on-GIVE, and
+       `_mount_capacity()` mount-capacity checks -- this is the
+       player-facing path, the one that actually matters for gameplay).
+    2. Pull the item-delivery plumbing out into a shared
+       `transfer_inventory()`-style helper in `inventory.py`, and have
+       both `commands/give.py` and the new Shoppe menu option call it.
+  - **Not** `commands/editplayer.py`'s `_deliver_item()`/`_transfer_item()`
+    -- despite the superficial similarity (it also moves an item to an
+    ally/mount/other player, see `_pick_recipient()`), that's the
+    *admin* editor's own separate, ADMIN-gated duplicate of this logic
+    (added for admin item-granting, not normal play) and already
+    partially duplicates `give.py`'s target-picking/delivery rules
+    itself. Importing from there would just be borrowing from a second
+    copy instead of the canonical one -- if anything, this Shoppe
+    feature is a good excuse to look at collapsing `editplayer.py`'s
+    copy into whatever `give.py`/`inventory.py` end up sharing, rather
+    than adding a third copy.
+  - Not scoped/started -- needs a decision on the reuse approach above
+    before implementation.
