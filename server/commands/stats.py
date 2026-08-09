@@ -91,6 +91,28 @@ _ALLY_FLAG_LABELS = [
 ]
 
 
+def _ally_weapon_display(ally) -> str:
+    """Return the ally's readied weapon name, with rounds remaining appended
+    for ammo-using weapons -- same needs_ammo test as the player's own
+    "Weapon readied" line above (combat/resolution.py's _needs_ammo), so an
+    ally's Uzi shows [12/50] just like the player's would. 'None' when
+    nothing is readied (commands/give.py auto-readies a Weapon on GIVE, so
+    this is only unset for allies never given one) -- Ryan's request, to
+    read as "never readied" rather than a blank/placeholder dash."""
+    weapon = getattr(ally, 'readied_weapon', None)
+    if weapon is None:
+        return 'None'
+    wc = getattr(weapon, 'weapon_class', None)
+    wc_str = (wc.value if hasattr(wc, 'value') else str(wc)) if wc else ''
+    needs_ammo = (wc_str in ('projectile', 'energy')
+                  and 'STORM' not in (weapon.name or '').upper())
+    if needs_ammo:
+        ammo_rounds = int(getattr(ally, 'ammo_rounds', 0) or 0)
+        ammo_max    = int(getattr(ally, 'ammo_max',    0) or 0)
+        return f'{weapon.name} [{ammo_rounds}/{ammo_max}]'
+    return weapon.name
+
+
 def _ally_flag_tags(ally) -> str:
     """Return every AllyFlags member set on *ally* as "  [Tag]" chunks, in
     a fixed display order. Tracking/Finder/Body Built append their
@@ -208,6 +230,27 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
             return f' ({name})' if name else ''
         return ''
 
+    # Readied weapon -- Ryan's request: name it, and if it's an ammo-using
+    # weapon (projectile/energy, non-STORM -- same test as combat/
+    # resolution.py's _needs_ammo, so STAT and actual combat agree on which
+    # weapons show a round count) show rounds remaining out of the loaded
+    # capacity (player.ammo_rounds/ammo_max, set by commands/use.py's ammo
+    # branch).
+    weapon = getattr(player, 'readied_weapon', None)
+    if weapon is not None:
+        wc = getattr(weapon, 'weapon_class', None)
+        wc_str = (wc.value if hasattr(wc, 'value') else str(wc)) if wc else ''
+        needs_ammo = (wc_str in ('projectile', 'energy')
+                      and 'STORM' not in (weapon.name or '').upper())
+        if needs_ammo:
+            ammo_rounds = int(getattr(player, 'ammo_rounds', 0) or 0)
+            ammo_max = int(getattr(player, 'ammo_max', 0) or 0)
+            lines.append(f'Weapon readied: {weapon.name} [{ammo_rounds}/{ammo_max} rounds]')
+        else:
+            lines.append(f'Weapon readied: {weapon.name}')
+    else:
+        lines.append('Weapon readied: None')
+
     shield_name = _worn_name(getattr(player, 'active_shield_id', None))
     armor_name  = _worn_name(getattr(player, 'active_armor_id',  None))
     lines += [
@@ -273,27 +316,6 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
         # TODO: check if player (or ally) carries item #076 (Amulet of Life)
         pass
 
-    # Readied weapon -- Ryan's request: name it, and if it's an ammo-using
-    # weapon (projectile/energy, non-STORM -- same test as combat/
-    # resolution.py's _needs_ammo, so STAT and actual combat agree on which
-    # weapons show a round count) show rounds remaining out of the loaded
-    # capacity (player.ammo_rounds/ammo_max, set by commands/use.py's ammo
-    # branch).
-    weapon = getattr(player, 'readied_weapon', None)
-    if weapon is not None:
-        wc = getattr(weapon, 'weapon_class', None)
-        wc_str = (wc.value if hasattr(wc, 'value') else str(wc)) if wc else ''
-        needs_ammo = (wc_str in ('projectile', 'energy')
-                      and 'STORM' not in (weapon.name or '').upper())
-        if needs_ammo:
-            ammo_rounds = int(getattr(player, 'ammo_rounds', 0) or 0)
-            ammo_max    = int(getattr(player, 'ammo_max',    0) or 0)
-            lines.append(f'Weapon readied: {weapon.name} [{ammo_rounds}/{ammo_max} rounds]')
-        else:
-            lines.append(f'Weapon readied: {weapon.name}')
-    else:
-        lines.append('Weapon readied: None')
-
     # Wizard's Glow -- Ryan's request: show remaining rounds for Wizards
     # specifically, not just an on/off flag. "Not cast" when inactive
     # rather than "[0/20 rounds left]", which reads like it just ran
@@ -312,8 +334,15 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     # composition/condition is otherwise only visible via bar/fat_olaf.py's
     # shop menus or commands/editplayer.py's admin editor. Rendered as a
     # table.py Table (Ally/Str/HP/Hit%/Notes columns) per Ryan's request;
-    # Notes carries every AllyFlags member (see _ally_flag_tags) plus any
-    # non-default AllyStatus tag.
+    # Notes carries every AllyFlags member (see _ally_flag_tags), any
+    # non-default AllyStatus tag, a Wpn tag for the ally's readied weapon
+    # (see _ally_weapon_display -- commands/give.py auto-readies a Weapon
+    # on GIVE), and a Worn tag. Worn is always [Worn: None] for now --
+    # allies have no WEAR command / active_armor_id-equivalent yet, but
+    # Ryan wants the display present so it's ready once that lands, rather
+    # than added as its own fixed-width table column (which starved Notes'
+    # width on narrow/C64 screens when tried -- see test_stats_allies.py's
+    # test_multiple_flags_all_tagged).
     from bar.ally_data import AllyStatus
     from bar.allies import owned_allies
     allies = owned_allies(player)
@@ -348,7 +377,11 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
         )
         for a in allies:
             status_tag = f'[{a.status.name}]' if a.status not in (AllyStatus.FREE, AllyStatus.SERVANT) else ''
-            notes = ' '.join(part for part in (_ally_flag_tags(a).strip(), status_tag) if part)
+            weapon_tag = f'[Wpn: {_ally_weapon_display(a)}]'
+            worn_tag   = '[Worn: None]'
+            notes = ' '.join(part for part in
+                              (_ally_flag_tags(a).strip(), status_tag, weapon_tag, worn_tag)
+                              if part)
             t.add_row([a.name, str(a.strength), str(a.hit_points), f'{a.to_hit * 10}%', notes])
         lines.extend(t.render(width=width))
     else:

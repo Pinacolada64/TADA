@@ -148,11 +148,40 @@ class TestStatsAllySection(unittest.TestCase):
         self.assertIn('[Body Built +3]', row)
 
     def test_no_flags_no_tags(self):
+        # No AllyFlags tags -- Wpn/Worn tags always show (see
+        # test_weapon_and_worn_tags_always_present below), so this only
+        # asserts the absence of AllyFlags-derived brackets, not '[' overall.
         ally = _make_ally('Grog', flags=[])
         player = _make_player(party=Party(members=[ally]))
         lines = _build_stats_lines(player)
         row = next(l for l in lines if 'Grog' in l)
-        self.assertNotIn('[', row)
+        self.assertNotIn('[Mount]', row)
+        self.assertNotIn('[Saddled]', row)
+        self.assertNotIn('[Armored]', row)
+        self.assertIn('[Wpn: None]', row)
+        self.assertIn('[Worn: None]', row)
+
+    def test_readied_ammo_weapon_shows_rounds(self):
+        from items import Weapon
+
+        ally = _make_ally('Grog', flags=[])
+        ally.readied_weapon = Weapon(name='UZI', weapon_class='projectile')
+        ally.ammo_rounds = 12
+        ally.ammo_max = 50
+        player = _make_player(party=Party(members=[ally]))
+        lines = _build_stats_lines(player)
+        row = next(l for l in lines if 'Grog' in l)
+        self.assertIn('[Wpn: UZI [12/50]]', row)
+
+    def test_readied_melee_weapon_shows_no_rounds(self):
+        from items import Weapon
+
+        ally = _make_ally('Grog', flags=[])
+        ally.readied_weapon = Weapon(name='SWORD', weapon_class='bash/slash')
+        player = _make_player(party=Party(members=[ally]))
+        lines = _build_stats_lines(player)
+        row = next(l for l in lines if 'Grog' in l)
+        self.assertIn('[Wpn: SWORD]', row)
 
 
 if __name__ == '__main__':
