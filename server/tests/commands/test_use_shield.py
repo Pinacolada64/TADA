@@ -38,8 +38,13 @@ def _make_player():
 class TestUseShieldSetsActiveShieldId(unittest.TestCase):
 
     def test_using_a_shield_sets_active_shield_id(self):
+        # As of the 2026-08-08 per-item durability redesign, USE equips
+        # the shield already sitting in inventory (non-consuming) and
+        # derives player.shield from *its* .condition -- it no longer
+        # boosts a flat rating for an item that was never actually carried.
         player = _make_player()
         shield = _shield('small shield', item_id=4)
+        player.inventory.add(shield)
         _apply_item(shield, player)
         self.assertEqual(player.active_shield_id, 4)
         self.assertGreater(player.shield, 0)
@@ -47,11 +52,27 @@ class TestUseShieldSetsActiveShieldId(unittest.TestCase):
     def test_using_a_second_shield_updates_active_shield_id(self):
         player = _make_player()
         first  = _shield('small shield', item_id=4)
+        player.inventory.add(first)
         _apply_item(first, player)
-        player.shield = 0  # re-open headroom under this player's cap
         second = _shield('gold shield', item_id=5)
+        player.inventory.add(second)
         _apply_item(second, player)
         self.assertEqual(player.active_shield_id, 5)
+
+    def test_use_does_not_consume_the_shield(self):
+        player = _make_player()
+        shield = _shield('small shield', item_id=4)
+        player.inventory.add(shield)
+        _apply_item(shield, player)
+        self.assertEqual(len(player.inventory.find(item_id=4)), 1)
+
+    def test_worn_shield_rating_reflects_its_own_condition(self):
+        player = _make_player()
+        shield = _shield('battered shield', item_id=4)
+        shield.condition = 55
+        player.inventory.add(shield)
+        _apply_item(shield, player)
+        self.assertEqual(player.shield, 55)
 
 
 if __name__ == '__main__':

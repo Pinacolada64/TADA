@@ -19,6 +19,9 @@ from datetime import date, datetime
 
 from base_classes import Alignment, PlayerClass, PlayerRace, PlayerStat
 from bar.ally_data import Ally, AllyFlags, AllyStatus
+from inventory import Inventory
+from item_system import ItemType
+from items import Item, ItemCategory
 from party import Party
 from commands.editplayer import (
     _armor_shield_menu,
@@ -53,6 +56,9 @@ class _FakePlayer:
         self.age = 0
         self.armor = 0
         self.shield = 0
+        self.inventory = Inventory()
+        self.active_armor_id = None
+        self.active_shield_id = None
         self.hit_points = 20
         self.map_level = 1
         self.map_room = 1
@@ -128,10 +134,24 @@ def _make_ally(name='EMMETT "DOC" BROWN'):
 # Armor/Shield
 # ---------------------------------------------------------------------------
 
+def _equip(player, slot: str, item_id: int = 24, condition: int = 10) -> None:
+    """2026-08-08: Armor/Shield edits now target the equipped item's own
+    .condition (player.py's equipped_entry()), not a free-standing flat
+    number -- so these tests need a real equipped item to edit, same as
+    the pre-existing Shield Skill tests already needed active_shield_id."""
+    itype = ItemType.ARMOR if slot == 'armor' else ItemType.SHIELD
+    item = Item(id_number=item_id, name=f'test {slot}', category=ItemCategory.ITEM,
+                type=itype, condition=condition)
+    player.inventory.add(item)
+    setattr(player, f'active_{slot}_id', item_id)
+    setattr(player, slot, condition)
+
+
 class TestArmorShieldMenu(unittest.IsolatedAsyncioTestCase):
 
     async def test_set_armor(self):
         player = _FakePlayer()
+        _equip(player, 'armor')
         ctx = _FakeCtx(responses=['40'], player=player)
         menu = _armor_shield_menu(ctx)
         await _find_item(menu, 'Armor').action(ctx)
@@ -140,6 +160,7 @@ class TestArmorShieldMenu(unittest.IsolatedAsyncioTestCase):
 
     async def test_set_shield(self):
         player = _FakePlayer()
+        _equip(player, 'shield', item_id=4)
         ctx = _FakeCtx(responses=['25'], player=player)
         menu = _armor_shield_menu(ctx)
         await _find_item(menu, 'Shield').action(ctx)
@@ -147,11 +168,19 @@ class TestArmorShieldMenu(unittest.IsolatedAsyncioTestCase):
 
     async def test_cancel_leaves_unchanged(self):
         player = _FakePlayer()
-        player.armor = 10
+        _equip(player, 'armor', condition=10)
         ctx = _FakeCtx(responses=[''], player=player)
         menu = _armor_shield_menu(ctx)
         await _find_item(menu, 'Armor').action(ctx)
         self.assertEqual(player.armor, 10)
+
+    async def test_no_armor_equipped_refuses_to_edit(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['40'], player=player)
+        menu = _armor_shield_menu(ctx)
+        await _find_item(menu, 'Armor').action(ctx)
+        self.assertIn('No armor equipped -- nothing to set a condition on.', ctx.sent)
+        self.assertEqual(player.armor, 0)
 
     async def test_set_shield_skill(self):
         player = _FakePlayer()

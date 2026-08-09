@@ -53,6 +53,16 @@ _INTACTNESS_MAX = 69  # "<70%" per spec
 # player.py's active_shield_id / gain_shield_proficiency()).
 STARTER_SHIELD_ITEM_NUMBER = 4
 
+# objects.json #2 "cloth armor" -- cheapest armor item (price 2), same
+# reasoning as the shield above. Added 2026-08-08 alongside the per-item
+# durability redesign: previously a starting character's player.armor was
+# just a bare rolled number with no item behind it at all (unlike
+# player.shield, which already had STARTER_SHIELD_ITEM_NUMBER) -- harmless
+# under the old flat-rating model, but under the new one a rating with no
+# equipped_entry() to point at gets zeroed the moment combat tries to
+# degrade it, instead of gradually wearing down like everything else.
+STARTER_ARMOR_ITEM_NUMBER = 2
+
 
 def _roll_intactness() -> int:
     return random.randint(_INTACTNESS_MIN, _INTACTNESS_MAX)

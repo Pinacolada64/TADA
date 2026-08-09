@@ -60,7 +60,8 @@ from commands.quote import confirm_dollar_quote
 from items import Item, ItemCategory, Weapon
 from net_common import hash_password, user_dir
 from network_context import GameContext
-from starting_equipment import STARTER_SHIELD_ITEM_NUMBER, roll_armor, roll_shield, starter_weapon_number
+from starting_equipment import (STARTER_ARMOR_ITEM_NUMBER, STARTER_SHIELD_ITEM_NUMBER,
+                                 roll_armor, roll_shield, starter_weapon_number)
 from tada_utilities import a_or_an, format_quote, input_yes_no
 
 log = logging.getLogger(__name__)
@@ -1191,10 +1192,11 @@ async def _assign_equipment(ctx) -> bool:
 
     lines = ["", "Issuing beginner equipment..."]
 
+    from item_system import ItemType
+    server_items = getattr(getattr(ctx, 'server', None), 'items', None) or []
+
     shield = roll_shield(char_class, char_race)
     if shield is not None:
-        player.shield = shield
-        server_items = getattr(getattr(ctx, 'server', None), 'items', None) or []
         shield_dict = next(
             (d for d in server_items if d.get('number') == STARTER_SHIELD_ITEM_NUMBER),
             None,
@@ -1204,18 +1206,35 @@ async def _assign_equipment(ctx) -> bool:
                 id_number=shield_dict['number'],
                 name=shield_dict['name'],
                 category=ItemCategory.ARMOR,
+                type=ItemType.SHIELD,
+                condition=shield,
             )
             player.inventory.add(shield_item)
             # active_shield_id links player.shield's condition rating to a
             # real item so shield_proficiency (per-item, like
             # weapon_experience) has something to key off of.
             player.active_shield_id = shield_dict['number']
+        player.shield = shield
         lines.append(f"  You've been issued a shield ({shield}% intact).")
     else:
         lines.append("  No shield this time.")
 
     armor = roll_armor(char_class, char_race)
     if armor is not None:
+        armor_dict = next(
+            (d for d in server_items if d.get('number') == STARTER_ARMOR_ITEM_NUMBER),
+            None,
+        )
+        if armor_dict is not None:
+            armor_item = Item(
+                id_number=armor_dict['number'],
+                name=armor_dict['name'],
+                category=ItemCategory.ARMOR,
+                type=ItemType.ARMOR,
+                condition=armor,
+            )
+            player.inventory.add(armor_item)
+            player.active_armor_id = armor_dict['number']
         player.armor = armor
         lines.append(f"  You've been issued armor ({armor}% intact).")
     else:

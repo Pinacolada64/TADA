@@ -296,29 +296,44 @@ def _cast_enchant(player, effect_type: str, magnitude: int, bonus: int, success:
     master, and skip's own spells.txt never actually added a spell record
     with "ENCHANT" in its name, so that code is dead as shipped there.
     Skip's version reads a per-item armor/shield value out of a
-    "misc.data" file this port has no equivalent for (see the armor/
-    shield-per-item-class redesign, still TODO'd); this port already has
-    flat player.armor/player.shield ratings with their own class/race caps
-    (commands/wear.py's _armor_cap(), commands/use.py's _shield_cap()), so
-    it reuses those instead of inventing a parallel per-item system.
-    Mirrors _cast_stat()'s shape: a successful cast at the cap still
-    collapses to a backfire-style decrease rather than doing nothing."""
-    if effect_type == 'Y':
+    "misc.data" file this port originally had no equivalent for; as of
+    the 2026-08-08 per-item durability redesign it now does --
+    player.py's equipped_entry() -- so this targets the *equipped item's*
+    .condition directly rather than the flat player.armor/player.shield
+    mirror (which just gets refreshed from it afterward, same as WEAR/USE/
+    UNWEAR/combat degradation). Mirrors _cast_stat()'s shape: a successful
+    cast at the cap still collapses to a backfire-style decrease rather
+    than doing nothing. Fails outright with no effect if nothing's
+    equipped in that slot -- there's no item to enchant."""
+    from player import equipped_entry, refresh_equipped_rating
+    slot = 'armor' if effect_type == 'Y' else 'shield'
+    label = slot
+
+    entry = equipped_entry(player, slot)
+    if entry is None:
+        return 'backfire', f'(You have nothing enchant-able equipped for your {label}.)'
+
+    if slot == 'armor':
         from commands.wear import _armor_cap
-        attr, cap, label = 'armor', _armor_cap(player), 'armor'
+        cap = _armor_cap(player)
     else:
         from commands.use import _shield_cap
-        attr, cap, label = 'shield', _shield_cap(player, 0), 'shield'
+        name_upper = (getattr(entry.item, 'name', '') or '').upper()
+        cap_bonus  = 20 if ('BATTLE' in name_upper or 'LAZER' in name_upper) else 0
+        cap = _shield_cap(player, cap_bonus)
 
-    current = int(getattr(player, attr, 0) or 0)
+    current = int(getattr(entry.item, 'condition', 100) or 0)
     if success and current < cap:
-        new_value = min(cap, current + magnitude + bonus)
-        setattr(player, attr, new_value)
-        return 'success', f'(Your {label} rating glows -- now {new_value}%!)'
+        new_condition = min(cap, current + magnitude + bonus)
+        entry.item.condition = new_condition
+        new_rating = refresh_equipped_rating(player, slot)
+        return 'success', f'(Your {label} rating glows -- now {new_rating}%!)'
 
     if current >= magnitude:
-        setattr(player, attr, current - magnitude)
-        return 'backfire', f'(Your {label} rating weakens to {current - magnitude}%.)'
+        entry.item.condition = current - magnitude
+        new_rating = refresh_equipped_rating(player, slot)
+        return 'backfire', f'(Your {label} rating weakens to {new_rating}%.)'
+    refresh_equipped_rating(player, slot)
     return 'backfire', ''
 
 

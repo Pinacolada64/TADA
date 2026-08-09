@@ -132,6 +132,17 @@ class InventoryEntry:
         item_type = getattr(self.item, 'type', None)
         if item_type:
             d['item_type'] = str(item_type)
+        # condition (0-100) is armor/shield's per-item durability -- the
+        # 2026-08-08 redesign that replaced a single flat player.armor/
+        # player.shield aggregate with a real value living on the actual
+        # equipped piece (see player.py's equipped_entry()/
+        # refresh_equipped_rating()). Unlike item_type above, a missing
+        # value has no canonical source to backfill from (condition is
+        # inherently per-instance, not derivable from objects.json) --
+        # from_json() just defaults a legacy entry to 100 (fresh).
+        condition = getattr(self.item, 'condition', None)
+        if condition is not None:
+            d['item_condition'] = condition
         # charges lives on the item itself (Spell.charges) -- e.g. a Wizard's
         # learned spell -- not tracked separately per carried entry.
         charges = getattr(self.item, 'charges', None)
@@ -161,10 +172,18 @@ class Inventory:
         """Add item to inventory, stacking if an entry with the same id_number exists.
 
         Returns False when the inventory is full and no existing stack was found.
+
+        Armor/shield items never stack, even across a matching id_number --
+        each physical piece carries its own condition (2026-08-08 durability
+        redesign), and merging two pieces into one quantity>1 entry would
+        make them share a single condition value, which doesn't mean
+        anything once they can wear down independently.
         """
         self._prune()
+        from item_system import ItemType
+        is_durable = getattr(item, 'type', None) in (ItemType.ARMOR, ItemType.SHIELD)
         item_id = getattr(item, 'id_number', None)
-        if item_id is not None:
+        if item_id is not None and not is_durable:
             for entry in self._entries:
                 if getattr(entry.item, 'id_number', None) == item_id:
                     entry.quantity += quantity
@@ -184,18 +203,35 @@ class Inventory:
         """Decrement quantity; remove entry when it reaches zero.
 
         Returns False if the item is not present or there is insufficient quantity.
+
+        Matches by object identity first, falling back to id_number. Armor/
+        shield items no longer stack (see add()), so two entries can share
+        an id_number while being different physical pieces -- an id-only
+        match would risk removing the wrong one (e.g. a spare instead of
+        the one actually destroyed in combat). Every real call site already
+        passes the entry's own item object (looked up via find()/
+        equipped_entry()/etc.), so the identity match is the common case;
+        the id_number fallback only matters for a caller passing a fresh
+        lookalike item rather than the stored one.
         """
         self._prune()
+        for i, entry in enumerate(self._entries):
+            if entry.item is item:
+                return self._remove_at(i, quantity)
         item_id = getattr(item, 'id_number', None)
         for i, entry in enumerate(self._entries):
             if item_id is not None and getattr(entry.item, 'id_number', None) == item_id:
-                if entry.quantity < quantity:
-                    return False
-                entry.quantity -= quantity
-                if entry.quantity == 0:
-                    self._entries.pop(i)
-                return True
+                return self._remove_at(i, quantity)
         return False
+
+    def _remove_at(self, index: int, quantity: int) -> bool:
+        entry = self._entries[index]
+        if entry.quantity < quantity:
+            return False
+        entry.quantity -= quantity
+        if entry.quantity == 0:
+            self._entries.pop(index)
+        return True
 
     # -----------------------------------------------------------------------
     # Query
@@ -311,6 +347,15 @@ class Inventory:
                 except ValueError:
                     pass
 
+            # condition (0-100, per-item durability) has no canonical
+            # source to backfill from the way item_type/item_kind do --
+            # a legacy entry (or a fresh armor/shield with no value yet)
+            # just defaults to 100 (fresh). Left None for non-armor/shield
+            # items, matching to_json()'s "only write if not None" guard.
+            item_condition = d.get('item_condition')
+            if item_condition is None and item_type in (ItemType.ARMOR, ItemType.SHIELD):
+                item_condition = 100
+
             item_kind = d.get('item_kind')
             item_name = d.get('item_name', '')
             if item_kind is None:
@@ -353,6 +398,7 @@ class Inventory:
                     flags=d.get('item_flags') or [],
                     kind=item_kind,
                     type=item_type,
+                    condition=item_condition,
                 )
             entry = InventoryEntry(
                 item=item,

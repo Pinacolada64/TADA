@@ -73,7 +73,7 @@ _CATEGORY_ORDER = [
 ]
 
 
-def _format_entry(entry: InventoryEntry, index: int) -> str:
+def _format_entry(entry: InventoryEntry, index: int, worn: bool = False) -> str:
     name  = getattr(entry.item, 'name', '?') or '?'
     flags = getattr(entry.item, 'flags', None)
     # Ammo (shoppe/ollys.py): loose boxes show per-box rounds and how many
@@ -105,7 +105,14 @@ def _format_entry(entry: InventoryEntry, index: int) -> str:
         container_str = f' ({n}/{cap} items)'
     else:
         container_str = ''
-    return f'{index:>3}. {qty}{name}{ammo_str}{charges_str}{container_str}'
+    # Worn armor/shield (2026-08-08 per-item durability redesign): mirrors
+    # the ammo carrier's [cur/cap rounds] display above, but for the
+    # equipped piece's real .condition -- see player.py's equipped_entry().
+    # "left" (not "worn") to match Ryan's own framing -- "percentage
+    # left" -- and avoid "90% worn" reading backwards as "90% worn out".
+    condition = getattr(entry.item, 'condition', None)
+    worn_str = f' [{condition}% left]' if worn and condition is not None else ''
+    return f'{index:>3}. {qty}{name}{ammo_str}{charges_str}{container_str}{worn_str}'
 
 
 def _container_lines(entry: InventoryEntry) -> list[str]:
@@ -187,6 +194,12 @@ class InvCommand(Command):
             capacity  = getattr(ctx.player, 'max_inventory_size', None)
 
         lines: list[str] = []
+        # 2026-08-08 durability redesign: tag whichever entry is currently
+        # equipped so its listing shows real condition, not just its name
+        # (same active_armor_id/active_shield_id commands/stats.py already
+        # keys off of).
+        worn_ids = {getattr(ctx.player, 'active_armor_id', None),
+                    getattr(ctx.player, 'active_shield_id', None)} - {None}
 
         if inventory is None or len(inventory) == 0:
             lines.append('You are carrying nothing.')
@@ -204,7 +217,8 @@ class InvCommand(Command):
                         continue
                     lines.append(f'-- {cat} --')
                     for entry in cat_entries:
-                        lines.append(_format_entry(entry, index))
+                        worn = getattr(entry.item, 'id_number', None) in worn_ids
+                        lines.append(_format_entry(entry, index, worn=worn))
                         lines.extend(_container_lines(entry))
                         index += 1
                     lines.append('')
@@ -213,7 +227,8 @@ class InvCommand(Command):
                     lines.append('  (nothing)')
             else:
                 for index, entry in enumerate(inventory, 1):
-                    lines.append(_format_entry(entry, index))
+                    worn = getattr(entry.item, 'id_number', None) in worn_ids
+                    lines.append(_format_entry(entry, index, worn=worn))
                     lines.extend(_container_lines(entry))
 
         # New in TADA -- allies carrying gifted items were invisible here

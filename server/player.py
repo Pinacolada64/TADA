@@ -1531,3 +1531,101 @@ class Player:
         except Exception:
             logging.exception("Exception while forcing save on quit for %s" % getattr(self, 'name', '<unknown>'))
             return False
+
+
+# ---------------------------------------------------------------------------
+# Per-item armor/shield durability (2026-08-08)
+# ---------------------------------------------------------------------------
+# Free functions, not Player methods -- deliberately, so commands/wear.py,
+# commands/use.py, commands/unwear.py, combat/engine.py, combat/duel.py and
+# commands/cast.py's ENCHANT ARMOR/SHIELD all call real code even when
+# exercised in tests against a MagicMock() player fixture (this codebase's
+# established test pattern -- see tests/commands/test_wear.py etc.). A
+# MagicMock auto-vivifies any attribute access, so `player.refresh_
+# equipped_rating(...)` as a *method* call would silently return an
+# unconfigured Mock instead of running this logic and setting player.armor
+# for real -- found live while wiring this up: two existing WEAR/USE tests
+# kept asserting player.armor == 0 no matter what the real logic should
+# have produced. A plain function taking `player` explicitly always runs
+# for real, Mock or not, since it only reads/writes ordinary attributes.
+
+def equipped_entry(player, slot: str):
+    """Return the InventoryEntry backing the currently-equipped armor or
+    shield (slot='armor'/'shield'), matched against active_armor_id/
+    active_shield_id. None if that slot is empty or the id no longer
+    matches anything actually carried (e.g. it was dropped/given away
+    without going through commands/unwear.py).
+
+    Source-of-truth lookup for the per-item durability model: player.armor/
+    player.shield are a *derived* mirror of whatever this returns'
+    item.condition is -- see refresh_equipped_rating() below. Every write
+    site (WEAR/USE, UNWEAR, combat degradation, ENCHANT ARMOR/SHIELD) goes
+    through this rather than trusting the flat mirror to already be right.
+    """
+    item_id = getattr(player, f'active_{slot}_id', None)
+    if item_id is None:
+        return None
+    inv = getattr(player, 'inventory', None)
+    if inv is None:
+        return None
+    entries = inv.find(item_id=item_id)
+    return entries[0] if entries else None
+
+
+def refresh_equipped_rating(player, slot: str) -> int:
+    """Recompute player.armor/player.shield from the equipped item's real
+    condition, capped by class/race (commands/wear.py's _armor_cap() /
+    commands/use.py's _shield_cap()). Call this after every equip, unequip,
+    degrade, or ENCHANT so the flat mirror never drifts from the item
+    actually backing it. Returns the new value.
+
+    Zeroes the mirror (and returns 0) when the slot is empty --
+    equipped_entry() returning None covers both "never equipped" and "the
+    equipped item is gone" (dropped, given away, destroyed) the same way.
+    """
+    entry = equipped_entry(player, slot)
+    if entry is None:
+        setattr(player, slot, 0)
+        return 0
+    condition = int(getattr(entry.item, 'condition', 100) or 0)
+    if slot == 'armor':
+        from commands.wear import _armor_cap
+        cap = _armor_cap(player)
+    else:
+        from commands.use import _shield_cap
+        name_upper = (getattr(entry.item, 'name', '') or '').upper()
+        cap_bonus  = 20 if ('BATTLE' in name_upper or 'LAZER' in name_upper) else 0
+        cap = _shield_cap(player, cap_bonus)
+    value = min(cap, condition)
+    setattr(player, slot, value)
+    return value
+
+
+def apply_equipment_degradation(player, slot: str, degraded: int, destroyed: bool) -> None:
+    """Apply combat degradation to the equipped armor/shield item's real
+    .condition, and remove it from inventory entirely if destroyed.
+
+    Shared by combat/engine.py's _apply_monster_damage() and
+    combat/duel.py's _apply_degradation() -- both used to just zero or
+    decrement player.armor/player.shield directly, leaving the actual
+    item's condition (and its continued presence in the pack) untouched
+    by the very hits that were supposed to wear it down or break it.
+    Destroying an already-degraded item takes it out of inventory the
+    same way commands/unwear.py takes off a healthy one -- clears
+    active_armor_id/active_shield_id, item's gone either way.
+
+    No-op (beyond a mirror refresh) if the slot turns out to be empty --
+    e.g. degradation math ran against a stale flat player.armor/shield
+    reading from before this redesign; nothing to charge it to.
+    """
+    entry = equipped_entry(player, slot)
+    if entry is not None:
+        if destroyed:
+            inv = getattr(player, 'inventory', None)
+            if inv is not None:
+                inv.remove(entry.item, quantity=entry.quantity)
+            setattr(player, f'active_{slot}_id', None)
+        elif degraded:
+            current = int(getattr(entry.item, 'condition', 100) or 0)
+            entry.item.condition = max(0, current - degraded)
+    refresh_equipped_rating(player, slot)

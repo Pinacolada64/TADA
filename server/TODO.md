@@ -1503,6 +1503,43 @@
   gauntlets (see the login-line TODO just above). Not scoped past the
   idea stage; would ride on the same per-item armor model rework.
 
+- [DONE 8/8/26] Per-item armor/shield durability: `player.armor`/
+  `player.shield` are no longer a free-standing flat rating -- they're a
+  derived mirror of the actually-equipped item's own `.condition`
+  (`player.py`'s `equipped_entry()`/`refresh_equipped_rating()`).
+  WEAR/USE now equip non-consumingly (swap on re-equip, take it back off
+  with the new `commands/unwear.py`); combat degradation
+  (`combat/engine.py`, `combat/duel.py`) writes to the equipped item and
+  removes it from inventory when destroyed; the armory
+  (`shoppe/armory.py`) and starting equipment
+  (`commands/new_player.py`/`starting_equipment.py`'s new
+  `STARTER_ARMOR_ITEM_NUMBER`) both hand over a real, fresh item instead
+  of a bare number; `editplayer`'s Armor/Shield submenu edits the
+  equipped item's condition instead of a flat field; ENCHANT ARMOR/SHIELD
+  (`commands/cast.py`) targets the item too. `INV` tags the worn entry
+  with `[N% left]`.
+  - Still open, deliberately out of scope for this pass (per Ryan,
+    2026-08-08): the tep.lbl-style **5-worn-slot** system (body armor,
+    shield, gauntlets, helmet, +1), `armor_class`, weight, and
+    `base_classes.Size` gating (a `Size.TINY` Pixie can't wield a
+    `Size.HUGE` shield). This pass only did the *durability* half --
+    one armor slot and one shield slot still, same shape as before.
+    See `project_armor_shield_redesign` memory for the fuller model
+    when that gets picked up.
+
+- Idea (8/8/26, Ryan, raised while scoping the durability redesign
+  above): **two-handed weapon conflict**. A weapon tagged two-handed
+  (crossbow, two-handed sword) should require dropping/unwielding any
+  currently-readied one-handed weapon first, and vice versa -- you
+  shouldn't be able to READY a two-hander while already wielding a
+  one-hander, or READY a one-hander while a two-hander is out. Not
+  scoped past the idea stage; explicitly deferred rather than folded
+  into the durability pass. Likely implementation site:
+  `commands/ready.py` (where `player.readied_weapon` gets set) checking
+  `base_classes.WeaponClass`/weapons.json for a two-handed flag that
+  doesn't exist in the data model yet -- no such flag was found on a
+  quick look, so this would need one added first.
+
 - Forgotten mechanic (8/1/26, Ryan): `LOOK <horse name>` should show a
   breed and a colour, e.g. "a golden palomino Arabian" / "a black roan"
   (spellings per Ryan -- "roan" is a real horse-colour term; "Arabian" is

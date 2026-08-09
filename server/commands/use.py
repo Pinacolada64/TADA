@@ -2,9 +2,12 @@
 
 Mirrors SPUR.USE.S. Supported item types:
   compass    — toggle compass on/off (session state)
-  shield     — add to shield rating; class/race caps apply; item consumed;
-               also sets player.active_shield_id so STAT/combat know which
-               physical shield is backing that rating (2026-08-08)
+  shield     — equip (non-consuming, since 2026-08-08's per-item durability
+               redesign -- see player.py's equipped_entry()/
+               refresh_equipped_rating()); class/race caps apply; sets
+               player.active_shield_id so STAT/combat know which physical
+               shield is backing player.shield's rating. commands/unwear.py
+               takes it back off.
   ammunition — load rounds into readied weapon; item consumed
   power      — same as ammunition (energy-weapon charges)
   grenade    — hurl at monster; single-use explosive (SPUR.USE.S:91)
@@ -147,20 +150,18 @@ def _apply_item(item, player) -> list[str]:
         return ['Compass placed in pack.']
 
     # ---- Shield ------------------------------------------------------------
+    # Equip: non-consuming (2026-08-08 durability redesign, mirrors
+    # commands/wear.py's armor branch). USE-ing a different shield just
+    # swaps which id is active -- the old one (if any) stays in the pack
+    # at whatever condition it was at. player.refresh_equipped_rating()
+    # derives player.shield from the item's own .condition, capped by
+    # class/race (_shield_cap() above), with the usual BATTLE/LAZER bonus.
     if itype == ItemType.SHIELD:
+        from player import refresh_equipped_rating
         name_upper = name.upper()
-        cap_bonus  = 20 if ('BATTLE' in name_upper or 'LAZER' in name_upper) else 0
-        rating_add = getattr(item, 'price', 0) * 10 or 20   # proxy: price maps to ~20-80% rating
-        cap        = _shield_cap(player, cap_bonus)
-        current    = int(getattr(player, 'shield', 0) or 0)
-        if current >= cap:
-            return [f'(Max shield rating for you is {cap}%)']
-        new_shield     = min(cap, current + rating_add)
-        player.shield  = new_shield
         player.active_shield_id = getattr(item, 'id_number', None) or getattr(item, 'number', None)
+        new_shield = refresh_equipped_rating(player, 'shield')
         player.unsaved_changes = True
-        if inv:
-            inv.remove(item)
         msgs = []
         if 'BATTLE' in name_upper:
             msgs.append('THE BATTLE SHIELD GLOWS!')

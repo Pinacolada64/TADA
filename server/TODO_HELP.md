@@ -236,3 +236,19 @@ not-implemented (parked, not a help gap yet).
   SPUR" framing -- only the Wraith King gates it. A help topic
   explaining the real escape conditions (and clarifying that SPUR
   himself isn't a literal gate) would now be accurate and worth writing.
+
+8/8/26:
+
+**Show a command's aliases in `help <command>`'s detail view.** Right now
+`commands/help.py`'s general `help` listing already shows aliases inline
+next to each command name (`_show_general_help()`, ~line 787-793: `als =
+[a for a in cmd.aliases if a != name]`, rendered as `name (alias1,
+alias2)`), but `format_help()` -- the function that actually renders
+`help <command>`'s detail view (summary/description/usage/examples) --
+never reads `cmd.aliases` at all. So looking up a specific command's full
+help doesn't tell you it's also reachable under another name; you'd only
+learn that from the general list. Noticed while adding
+`commands/unwear.py` (`aliases = ['remove', 'doff']`) -- `help unwear`
+gives no hint that `remove`/`doff` work too. Small, self-contained fix
+whenever picked up: add an "Aliases:" line to `format_help()`'s output,
+same spot/style as the existing Usage/Examples sections.

@@ -101,18 +101,66 @@ class TestWearArmorSetsActiveArmorId(unittest.IsolatedAsyncioTestCase):
     # set player.active_armor_id to the worn item's number.
 
     async def test_generic_armor_sets_active_armor_id(self):
+        # As of the 2026-08-08 per-item durability redesign, WEAR derives
+        # player.armor from the item's own .condition (100 = fresh, no
+        # attribute at all defaults to fresh too) rather than a price*10
+        # boost -- a fresh, uncapped-class item wears in at 100%.
         player = _make_player()
         player.armor = 0
         player.char_class = None
         player.char_race  = None
         armor = _item('leather armor', item_id=24, category=ItemCategory.ARMOR)
         armor.type  = ItemType.ARMOR
-        armor.price = 3
         player.inventory.add(armor)
         ctx = _FakeCtx(player)
         await WearCommand().execute(ctx, 'leather armor')
         self.assertEqual(player.active_armor_id, 24)
-        self.assertEqual(player.armor, 30)
+        self.assertEqual(player.armor, 100)
+
+    async def test_worn_armor_rating_reflects_its_own_condition(self):
+        player = _make_player()
+        player.armor = 0
+        player.char_class = None
+        player.char_race  = None
+        armor = _item('battered leather armor', item_id=24, category=ItemCategory.ARMOR)
+        armor.type      = ItemType.ARMOR
+        armor.condition = 40
+        player.inventory.add(armor)
+        ctx = _FakeCtx(player)
+        await WearCommand().execute(ctx, 'battered leather armor')
+        self.assertEqual(player.armor, 40)
+
+    async def test_wear_does_not_consume_the_item(self):
+        player = _make_player()
+        player.armor = 0
+        player.char_class = None
+        player.char_race  = None
+        armor = _item('leather armor', item_id=24, category=ItemCategory.ARMOR)
+        armor.type = ItemType.ARMOR
+        player.inventory.add(armor)
+        ctx = _FakeCtx(player)
+        await WearCommand().execute(ctx, 'leather armor')
+        self.assertEqual(len(player.inventory.find(item_id=24)), 1)
+
+    async def test_wearing_a_second_piece_swaps_the_equipped_id(self):
+        player = _make_player()
+        player.armor = 0
+        player.char_class = None
+        player.char_race  = None
+        first  = _item('leather armor', item_id=24, category=ItemCategory.ARMOR)
+        first.type = ItemType.ARMOR
+        second = _item('chainmail armor', item_id=28, category=ItemCategory.ARMOR)
+        second.type      = ItemType.ARMOR
+        second.condition = 70
+        player.inventory.add(first)
+        player.inventory.add(second)
+        ctx = _FakeCtx(player)
+        await WearCommand().execute(ctx, 'leather armor')
+        await WearCommand().execute(ctx, 'chainmail armor')
+        self.assertEqual(player.active_armor_id, 28)
+        self.assertEqual(player.armor, 70)
+        # the old piece is still in the pack, untouched
+        self.assertEqual(len(player.inventory.find(item_id=24)), 1)
 
     async def test_battle_armor_sets_active_armor_id(self):
         player = _make_player()

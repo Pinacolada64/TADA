@@ -433,14 +433,15 @@ def _absorb_shield_armor(raw: float, attacker, defender) -> tuple:
 
 
 def _apply_degradation(defender, shield_degraded, armor_degraded, shield_destroyed, armor_destroyed) -> None:
-    if shield_destroyed:
-        defender.shield = 0
-    elif shield_degraded:
-        defender.shield = max(0, int(getattr(defender, 'shield', 0) or 0) - shield_degraded)
-    if armor_destroyed:
-        defender.armor = 0
-    elif armor_degraded:
-        defender.armor = max(0, int(getattr(defender, 'armor', 0) or 0) - armor_degraded)
+    """Writes to the equipped item's own .condition (2026-08-08 durability
+    redesign, shared with combat/engine.py's _apply_monster_damage() via
+    player.py's apply_equipment_degradation()), not just the flat
+    defender.shield/armor mirror -- destroyed removes it from inventory."""
+    from player import apply_equipment_degradation
+    if shield_destroyed or shield_degraded:
+        apply_equipment_degradation(defender, 'shield', shield_degraded, shield_destroyed)
+    if armor_destroyed or armor_degraded:
+        apply_equipment_degradation(defender, 'armor', armor_degraded, armor_destroyed)
 
 
 def _weapon_damage(player, weapon) -> float:

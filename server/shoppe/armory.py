@@ -300,29 +300,36 @@ async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> N
         if raw is None or raw.strip().upper() != 'Y':
             continue
 
+        # item.type ('armor'/'shield') and a fresh condition=100 are what
+        # let commands/wear.py/use.py recognize and equip this once it's
+        # bought -- 2026-08-08's per-item durability redesign made
+        # equipping an explicit WEAR/USE step rather than an armory side
+        # effect (see below), so without .type this item would otherwise
+        # sit in the pack unequippable ("This is not armor!").
+        from item_system import ItemType
         item = Item(
             id_number = chosen['number'],
             name      = chosen['name'],
             category  = ItemCategory.ARMOR,
+            type      = ItemType(chosen['type']),
+            condition = 100,
         )
         if inv is None or not inv.add(item):
             await ctx.send(PACK_FULL_MESSAGE)
             continue
 
         player.subtract_silver(PlayerMoneyTypes.IN_HAND, price)
-
-        # Update player's numeric armor/shield rating (protection value = price * 4)
-        if chosen['type'] == 'armor':
-            player.armor = chosen['price'] * 4
-        else:
-            player.shield = chosen['price'] * 4
-            # Links this purchase to shield_proficiency's per-item tracking
-            # (player.py's gain_shield_proficiency()) -- a newly bought
-            # shield replaces whichever one was backing the old rating.
-            player.active_shield_id = chosen['number']
-
         player.unsaved_changes = True
-        await ctx.send('Done!')
+        # Purchasing no longer auto-equips (2026-08-08) -- it used to set
+        # player.armor/player.shield directly here, bypassing WEAR/USE
+        # entirely and leaving armor purchases (unlike shield ones) never
+        # setting active_armor_id at all. Buying now behaves like any
+        # other shop item: it lands in the pack, and WEAR/USE puts it on.
+        if not player.is_expert:
+            verb = 'WEAR' if chosen['type'] == 'armor' else 'USE'
+            await ctx.send(f'Done! ({verb} it to put it on.)')
+        else:
+            await ctx.send('Done!')
 
 
 # ---------------------------------------------------------------------------

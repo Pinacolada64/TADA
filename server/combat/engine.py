@@ -1600,24 +1600,24 @@ class CombatSession:
         if not result.hit:
             return
 
-        # Shield degradation
+        # Shield degradation -- writes to the equipped item's own
+        # .condition (2026-08-08 durability redesign), not just the flat
+        # player.shield mirror; destroyed removes it from inventory.
         if result.shield_blocked:
             # New mechanic (not in original SPUR): a successful block builds
             # per-item shield-block proficiency, mirroring weapon_experience.
             # See player.py's gain_shield_proficiency() / resolution.py's
             # shield_exp_bonus().
             player.gain_shield_proficiency(getattr(player, 'active_shield_id', None))
-        if result.shield_destroyed:
-            player.shield = 0
-        elif result.shield_degraded:
-            player.shield = max(0, int(getattr(player, 'shield', 0) or 0) - result.shield_degraded)
+        if result.shield_destroyed or result.shield_degraded:
+            from player import apply_equipment_degradation
+            apply_equipment_degradation(player, 'shield', result.shield_degraded, result.shield_destroyed)
         player.unsaved_changes = True
 
-        # Armor degradation
-        if result.armor_destroyed:
-            player.armor = 0
-        elif result.armor_degraded:
-            player.armor = max(0, int(getattr(player, 'armor', 0) or 0) - result.armor_degraded)
+        # Armor degradation -- same as shield, above.
+        if result.armor_destroyed or result.armor_degraded:
+            from player import apply_equipment_degradation
+            apply_equipment_degradation(player, 'armor', result.armor_degraded, result.armor_destroyed)
 
         # HP loss (normal damage + fire damage which bypasses armor)
         hp = int(getattr(player, 'hit_points', 1) or 1)

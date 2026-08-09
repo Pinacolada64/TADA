@@ -7,14 +7,22 @@ toggles the ring via USE, not WEAR, but "wear a ring" reads better than
 
 Supported items:
   armor (objects.json type == 'armor', excluding #113/#115 below) —
-    adds a rating (price * 10, same price-as-rating-proxy convention
-    combat/... USE's shield section uses) to player.armor, capped by
-    class/race (SPUR.SUB.S:33-35): Pixie/Hobbit/Gnome 50%, Assassin/Elf
-    60%, everyone else 100%. Item is consumed.
-  battle armor (#113) — flat 125% armor rating, consumed.
-  power armor (#115) — flat 150% armor rating, consumed. SPUR's "protects
-    from nuclear back-blast this session" flavor line is kept, but the
+    equips the item (non-consuming, since 2026-08-08's per-item durability
+    redesign -- see player.py's equipped_entry()/refresh_equipped_rating()).
+    player.armor becomes the item's own condition (0-100, degrades from
+    combat hits -- combat/engine.py/combat/duel.py), capped by class/race
+    (SPUR.SUB.S:33-35): Pixie/Hobbit/Gnome 50%, Assassin/Elf 60%, everyone
+    else 100%. Wearing a different piece swaps it in; the old one stays in
+    your pack at whatever condition it was last at. See commands/unwear.py
+    to take it back off.
+  battle armor (#113) — flat 125% armor rating.
+  power armor (#115) — flat 150% armor rating. SPUR's "protects from
+    nuclear back-blast this session" flavor line is kept, but the
     back-blast event itself isn't built in this port yet -- flavor only.
+    Both special IDs are still non-consuming, but keep their flat rating
+    regardless of item.condition -- they're a SPUR flavor exception (the
+    only two ratings that exceed the normal 0-100 range), not a normal
+    degrade-with-use piece.
   ring of invisibility (#67) — toggles PlayerFlags.RING_WORN (same flag
     encounters/little_girl.py and commands/stats.py already read). On:
     "hard to see" + an immediate one-time Constitution -2 (floor 5) -- see
@@ -26,10 +34,11 @@ label): a separate hit-absorption mechanic entirely (the gauntlets block
 one combat hit per fight, then can be destroyed on a bad roll) -- no
 combat/engine.py hook for it exists yet, out of scope here.
 
-Every armor-equip path here also sets player.active_armor_id to the item's
+Every armor-equip path here sets player.active_armor_id to the item's
 objects.json number (mirroring active_shield_id, see player.py), so STAT
-and the login banner can name the actual piece worn, not just show the
-flat player.armor percentage.
+and the login banner can name the actual piece worn -- and, since
+2026-08-08, so player.refresh_equipped_rating('armor') knows which item's
+.condition to mirror into player.armor.
 """
 from __future__ import annotations
 
@@ -160,15 +169,15 @@ class WearCommand(Command):
                 await ctx.send('Ring returned to your pack.')
             return CommandResult.ok()
 
-        inv = getattr(player, 'inventory', None)
-
         # ---- Battle armor (#113) / Power armor (#115): flat ratings -------
+        # Non-consuming like generic armor below, but exempt from the
+        # condition-derived rating -- these are a fixed SPUR flavor bonus
+        # (125%/150%, both above the normal 0-100 range), not a piece that
+        # degrades with use.
         if item_no == _BATTLE_ARMOR_ID:
             player.armor = 125
             player.active_armor_id = item_no
             player.unsaved_changes = True
-            if inv:
-                inv.remove(item)
             await ctx.send('BATTLE ARMOR WORN.')
             await ctx.send('New armor rating=125%')
             return CommandResult.ok()
@@ -177,8 +186,6 @@ class WearCommand(Command):
             player.armor = 150
             player.active_armor_id = item_no
             player.unsaved_changes = True
-            if inv:
-                inv.remove(item)
             await ctx.send('POWER ARMOR ENERGIZED!')
             await ctx.send('Protects from nuclear back-blast for this play session!')
             await ctx.send('New armor rating=150%')
@@ -189,19 +196,13 @@ class WearCommand(Command):
             await ctx.send('This is not armor!')
             return CommandResult.ok()
 
-        cap        = _armor_cap(player)
-        current    = int(getattr(player, 'armor', 0) or 0)
-        if current >= cap:
-            await ctx.send(f'(Max armor rating for you is {cap}%)')
-            return CommandResult.ok()
-
-        rating_add = (getattr(item, 'price', 0) or 0) * 10
-        new_armor  = min(cap, current + rating_add)
-        player.armor = new_armor
+        # Equip: non-consuming (2026-08-08 durability redesign). Wearing a
+        # different piece just swaps which id is active -- the old one
+        # (if any) stays in the pack at whatever condition it was at.
+        from player import refresh_equipped_rating
         player.active_armor_id = item_no
+        new_armor = refresh_equipped_rating(player, 'armor')
         player.unsaved_changes = True
-        if inv:
-            inv.remove(item)
         await ctx.send(f'(New armor rating: {new_armor}%)')
         await ctx.send(f'{name} worn.')
         return CommandResult.ok()

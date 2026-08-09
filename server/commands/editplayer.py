@@ -382,43 +382,58 @@ def _build_main_menu(ctx) -> Menu:
 # ---------------------------------------------------------------------------
 
 def _armor_shield_menu(ctx) -> Menu:
-    # TODO: this only edits the flat condition % (SPUR.SYSOP.S's check100-
-    # bounded "Armor"/"Shield" fields, H/G) that player.armor/player.shield
-    # already are elsewhere in the codebase (encounters/meteor.py's
-    # _armor_damage_reduction_pct(): "normally 0-100%"). The original C64
-    # player editor (text-listings/editors/tep.lbl:100-135) modeled armor
-    # much more richly -- 5 worn slots, each with its own % left, armor
-    # class, and armor type -- and Ryan wants real per-item Armor/Shield
-    # classes eventually (name, defense, weight, armor_class, readied --
-    # see the discarded prototype in character_editor.py:18-32), sized via
-    # base_classes.Size so e.g. a Size.TINY Pixie can't wield a Size.HUGE
-    # shield. None of that exists in the data model yet (objects.json's
-    # armor/shield entries carry no armor_class field; shoppe/armory.py
-    # just does player.armor = price * 4), so it isn't wired in here.
+    # 2026-08-08: per-item durability redesign -- player.armor/
+    # player.shield are now a *derived* mirror of the equipped item's own
+    # .condition (see player.py's equipped_entry()/refresh_equipped_
+    # rating()), not a free-standing number. So these two menu items edit
+    # the equipped item's condition instead of setting the mirror directly
+    # -- gated on something actually being equipped, same pattern as the
+    # Shield Skill submenu below (which has always been keyed per physical
+    # shield via active_shield_id, not a flat player stat).
+    #
+    # Still not wired in: the tep.lbl-style 5-worn-slot model (body armor,
+    # shield, gauntlets, helmet, +1), armor_class, weight, and Size gating
+    # so e.g. a Size.TINY Pixie can't wield a Size.HUGE shield -- see the
+    # project_armor_shield_redesign memory / TODO.md for that still-open,
+    # separate future pass. (The character_editor.py prototype this TODO
+    # used to point at was deleted 2026-08-01, commit afd9557 -- gone, not
+    # a live reference anymore.)
     p    = ctx.player
     menu = _titled_menu(ctx, 'Armor/Shield')
 
-    def _get(attr: str) -> int:
-        return int(getattr(p, attr, 0) or 0)
+    def _display(slot: str) -> str:
+        from player import equipped_entry
+        entry = equipped_entry(p, slot)
+        rating = int(getattr(p, slot, 0) or 0)
+        if entry is None:
+            return f'{rating}% (nothing equipped)'
+        name = getattr(entry.item, 'name', '?')
+        return f'{rating}% ({name})'
 
-    def make_action(attr: str, label: str):
+    def make_action(slot: str, label: str):
         async def action(ctx):
-            cur = _get(attr)
-            val = await _prompt_int(ctx, label, cur, 0, 100)
+            from player import equipped_entry, refresh_equipped_rating
+            entry = equipped_entry(p, slot)
+            if entry is None:
+                await ctx.send(f'No {label.lower()} equipped -- nothing to set a condition on.')
+                return
+            cur = int(getattr(entry.item, 'condition', 100) or 0)
+            val = await _prompt_int(ctx, f'{label} condition', cur, 0, 100)
             if val is not None:
-                setattr(p, attr, val)
+                entry.item.condition = val
+                new_rating = refresh_equipped_rating(p, slot)
                 p.unsaved_changes = True
-                await ctx.send(f'{label} set to {val}.')
+                await ctx.send(f'{label} condition set to {val}% (rating: {new_rating}%).')
         return action
 
     menu.add_item(MenuItem(
         'Armor', shortcuts='ar',
-        dot_leader_handler=lambda ctx: str(_get('armor')),
+        dot_leader_handler=lambda ctx: _display('armor'),
         action=make_action('armor', 'Armor'),
     ))
     menu.add_item(MenuItem(
         'Shield', shortcuts='sh',
-        dot_leader_handler=lambda ctx: str(_get('shield')),
+        dot_leader_handler=lambda ctx: _display('shield'),
         action=make_action('shield', 'Shield'),
     ))
 
@@ -2384,6 +2399,11 @@ async def _give_object(ctx, type_filter: set, label: str) -> None:
             item.type = ItemType(raw_type)
         except ValueError:
             pass
+    # Armor/shield need a starting condition (2026-08-08 durability
+    # redesign) or WEAR/USE would divide by nothing meaningful -- a fresh
+    # grant starts at 100, same as one bought at the armory.
+    if getattr(item, 'type', None) in (ItemType.ARMOR, ItemType.SHIELD):
+        item.condition = 100
 
     recipient = await _pick_recipient(ctx)
     await _deliver_item(ctx, item, recipient, chosen['name'])
