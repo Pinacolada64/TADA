@@ -2227,10 +2227,33 @@ async def _deliver_item(ctx, item, recipient, item_name: str) -> bool:
 
     ally = recipient[1]
     from commands.give import _mount_capacity
-    from bar.ally_data import add_ally_item
+    from bar.ally_data import add_ally_item, AllyFlags
+    from commands.use import _SADDLEBAGS_ID
 
     if not hasattr(ally, 'items') or ally.items is None:
         ally.items = []
+
+    # Saddlebags aren't carried, they're worn (same as commands/use.py's
+    # USE saddlebags equip flow) -- transferring them straight to the
+    # mount must equip the SADDLEBAGS flag rather than going through the
+    # capacity check below, which would always reject them (a mount has
+    # zero capacity *until* it has saddlebags). Ryan's bug report: this
+    # previously said "has nowhere to carry it" when transferring
+    # saddlebags to the horse itself.
+    if getattr(item, 'id_number', None) == _SADDLEBAGS_ID:
+        if AllyFlags.MOUNT not in (ally.flags or []):
+            await ctx.send(f'{ally.name} has no back to strap them to -- saddlebags are for a mount.')
+            return False
+        if AllyFlags.SADDLEBAGS in (ally.flags or []):
+            await ctx.send(f'{ally.name} already has saddlebags.')
+            return False
+        if ally.flags is None:
+            ally.flags = []
+        ally.flags.append(AllyFlags.SADDLEBAGS)
+        ctx.player.unsaved_changes = True
+        await ctx.send(f'Strapped the saddlebags onto {ally.name}.')
+        return True
+
     capacity = _mount_capacity(ally)
     if capacity is not None:
         if capacity == 0:

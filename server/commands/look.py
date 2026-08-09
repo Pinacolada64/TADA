@@ -111,6 +111,12 @@ class LookCommand(Command):
         bought at Jake's Stable -- commands/use.py's SPUR.USE.S eq.horse
         port) -- there was previously no way to check this without USEing
         the items again. Ryan's request.
+
+        A mount with saddlebags (AllyFlags.SADDLEBAGS) gets a third line
+        noting them, plus a thin/fat build based on how full they are
+        (ally.items vs commands/give.py's _MOUNT_CAPACITY_WITH_SADDLEBAGS)
+        -- a whimsical way to check pack fullness at a glance without
+        opening the inventory menu. Ryan's request.
         """
         from bar.ally_data import AllyFlags
         from base_classes import Gender
@@ -134,6 +140,19 @@ class LookCommand(Command):
                 await ctx.send(f'{ally.name} is wearing horse armor, but has no saddle.')
             else:
                 await ctx.send(f'{ally.name} has no saddle or horse armor.')
+
+            if AllyFlags.SADDLEBAGS in flags:
+                from commands.give import _MOUNT_CAPACITY_WITH_SADDLEBAGS
+                count = len(ally.items or [])
+                if count <= 0:
+                    build = 'looking a bit thin'
+                elif count >= _MOUNT_CAPACITY_WITH_SADDLEBAGS:
+                    build = 'looking fat and well-packed'
+                else:
+                    build = 'looking comfortably full'
+                await ctx.send(f'{ally.name} has saddlebags strapped on, {build}.')
+            else:
+                await ctx.send(f'{ally.name} has no saddlebags.')
             return
 
         await ctx.send(f'{ally.name} is here with you, ready to help.')

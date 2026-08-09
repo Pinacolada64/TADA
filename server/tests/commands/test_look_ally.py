@@ -91,6 +91,53 @@ class TestLookAtMount(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn('OLDNAG is a male horse.', ctx.sent)
 
+    async def test_no_saddlebags(self):
+        mount = Ally(name='SILVER', gender='f', strength=20, to_hit=0,
+                     flags=[AllyFlags.MOUNT])
+        ctx = _FakeCtx(_player_with_ally(mount))
+
+        await LookCommand().execute(ctx, 'SILVER')
+
+        self.assertIn('SILVER has no saddlebags.', ctx.sent)
+
+    async def test_empty_saddlebags_look_thin(self):
+        mount = Ally(name='SILVER', gender='f', strength=20, to_hit=0,
+                     flags=[AllyFlags.MOUNT, AllyFlags.SADDLEBAGS])
+        mount.items = []
+        ctx = _FakeCtx(_player_with_ally(mount))
+
+        await LookCommand().execute(ctx, 'SILVER')
+
+        self.assertIn('SILVER has saddlebags strapped on, looking a bit thin.', ctx.sent)
+
+    async def test_partly_full_saddlebags(self):
+        from bar.ally_data import add_ally_item
+        from items import Item, ItemCategory
+
+        mount = Ally(name='SILVER', gender='f', strength=20, to_hit=0,
+                     flags=[AllyFlags.MOUNT, AllyFlags.SADDLEBAGS])
+        add_ally_item(mount, Item(id_number=1, name='Rope', category=ItemCategory.ITEM))
+        ctx = _FakeCtx(_player_with_ally(mount))
+
+        await LookCommand().execute(ctx, 'SILVER')
+
+        self.assertIn('SILVER has saddlebags strapped on, looking comfortably full.', ctx.sent)
+
+    async def test_full_saddlebags_look_fat(self):
+        from bar.ally_data import add_ally_item
+        from commands.give import _MOUNT_CAPACITY_WITH_SADDLEBAGS
+        from items import Item, ItemCategory
+
+        mount = Ally(name='SILVER', gender='f', strength=20, to_hit=0,
+                     flags=[AllyFlags.MOUNT, AllyFlags.SADDLEBAGS])
+        for i in range(_MOUNT_CAPACITY_WITH_SADDLEBAGS):
+            add_ally_item(mount, Item(id_number=i, name=f'Item{i}', category=ItemCategory.ITEM))
+        ctx = _FakeCtx(_player_with_ally(mount))
+
+        await LookCommand().execute(ctx, 'SILVER')
+
+        self.assertIn('SILVER has saddlebags strapped on, looking fat and well-packed.', ctx.sent)
+
 
 class TestLookAtNonMountAlly(unittest.IsolatedAsyncioTestCase):
 

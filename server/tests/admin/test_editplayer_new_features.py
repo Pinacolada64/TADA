@@ -1965,6 +1965,33 @@ class TestTransferItem(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(source.inventory.entries()), 1)  # item stays put
         self.assertIn('saddlebags', '\n'.join(ctx.sent).lower())
 
+    async def test_transfer_saddlebags_to_mount_equips_them(self):
+        # Ryan's bug report: transferring the saddlebags item itself to
+        # the horse used to hit the same "nowhere to carry it" refusal
+        # as any other item, since a mount has zero capacity until it
+        # already has saddlebags. The saddlebags are worn, not carried
+        # (see commands/use.py's USE saddlebags), so this must equip
+        # AllyFlags.SADDLEBAGS instead of being blocked by capacity.
+        from commands.editplayer import _transfer_item
+        from commands.use import _SADDLEBAGS_ID
+        from bar.ally_data import AllyFlags
+        from inventory import Inventory
+        from items import Item, ItemCategory
+
+        source = _FakePlayer()
+        source.inventory = Inventory(capacity=10)
+        source.inventory.add(Item(id_number=_SADDLEBAGS_ID, name='Saddlebags', category=ItemCategory.ITEM))
+        mount = _make_mount()
+        source.party = Party(members=[mount])
+
+        ctx = _FakeCtx(responses=['1', '1', 'y'], player=source)  # item 1, mount #1, confirm
+        await _transfer_item(ctx)
+
+        self.assertEqual(len(source.inventory.entries()), 0)
+        self.assertIn(AllyFlags.SADDLEBAGS, mount.flags)
+        self.assertEqual(mount.items, [])  # equipped, not carried as an item
+        self.assertTrue(any('strapped' in s.lower() for s in ctx.sent))
+
 
 class TestDropItem(unittest.IsolatedAsyncioTestCase):
     """[D]rop -- delete an item from ctx.player's own inventory outright.
