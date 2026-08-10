@@ -313,6 +313,11 @@ class ClientSettings:
     # this field exists so format_menu_lines() has somewhere to read a
     # player's chosen scheme from once that UI is built.
     menu_colors: 'Optional[MenuColor]' = None
+    # Per-player zebra-stripe color scheme for table.py's Table (any
+    # command that renders one with alternating row colors, e.g. WHEREAT's
+    # #population summary) -- table.ZebraColors. None means "use table.
+    # DEFAULT_ZEBRA_COLORS". Editable via PREFS 'A' (Table Colors).
+    table_colors: 'Optional[ZebraColors]' = None
 
     # New in TADA: Player._load() never restored client_settings at all
     # (only save() dumped it, via a generic __dict__ fallback that also
@@ -341,6 +346,8 @@ class ClientSettings:
             'tab_char':       self.tab_char,
             'menu_colors':    (asdict(self.menu_colors)
                                 if self.menu_colors is not None else None),
+            'table_colors':   (asdict(self.table_colors)
+                                if self.table_colors is not None else None),
         }
 
     @classmethod
@@ -382,6 +389,9 @@ class ClientSettings:
         if isinstance(data.get('menu_colors'), dict):
             from menu_system import MenuColor
             instance.menu_colors = MenuColor(**data['menu_colors'])
+        if isinstance(data.get('table_colors'), dict):
+            from table import ZebraColors
+            instance.table_colors = ZebraColors(**data['table_colors'])
         return instance
 
 # ---------------------------------------------------------------------------

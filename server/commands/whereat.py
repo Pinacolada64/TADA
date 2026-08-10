@@ -165,30 +165,23 @@ class WhereatCommand(Command):
 
         order.sort(key=lambda k: (k[0], k[1], k[2].lower()))
 
-        lines = [*underline('Whereat - Population', ctx), '']
-        if privileged:
-            level_w = max(len('Level'), *(len(k[0]) for k in order)) + 2
-            room_w  = max(len('Room #'), *(len(k[1]) for k in order)) + 2
-            name_w  = max(len('Room Name'), *(len(k[2]) for k in order)) + 2
-            pop_w   = max(len('Population'), *(len(str(len(v))) for v in buckets.values())) + 2
-            lines.append(f"{'Level'.ljust(level_w)}{'Room #'.ljust(room_w)}"
-                         f"{'Room Name'.ljust(name_w)}{'Population'.ljust(pop_w)}Players")
-            for key in order:
-                level, room_no, room_name = key
-                names = buckets[key]
-                lines.append(f'{level.ljust(level_w)}{room_no.ljust(room_w)}'
-                             f'{room_name.ljust(name_w)}{str(len(names)).ljust(pop_w)}'
-                             f'{", ".join(names)}')
-        else:
-            name_w = max(len('Room Name'), *(len(k[2]) for k in order)) + 2
-            pop_w  = max(len('Population'), *(len(str(len(v))) for v in buckets.values())) + 2
-            lines.append(f"{'Room Name'.ljust(name_w)}{'Population'.ljust(pop_w)}Players")
-            for key in order:
-                _level, _room_no, room_name = key
-                names = buckets[key]
-                lines.append(f'{room_name.ljust(name_w)}{str(len(names)).ljust(pop_w)}'
-                             f'{", ".join(names)}')
-        lines.append('')
+        from table import Table, ZebraColors, DEFAULT_ZEBRA_COLORS
+        from formatting import border_style_for_ctx
+        cs = ctx.player.client_settings
+        zc = cs.table_colors if isinstance(cs.table_colors, ZebraColors) else DEFAULT_ZEBRA_COLORS
+
+        headers = (['Level', 'Room', 'Room Name', 'Pop.', 'Players'] if privileged
+                   else ['Room Name', 'Pop.', 'Players'])
+        t = Table(headers=headers, border_style=border_style_for_ctx(ctx),
+                  text_color=[zc.stripe_a, zc.stripe_b])
+        for key in order:
+            level, room_no, room_name = key
+            names = ', '.join(buckets[key])
+            pop   = str(len(buckets[key]))
+            t.add_row([level, room_no, room_name, pop, names] if privileged
+                      else [room_name, pop, names])
+
+        lines = [*underline('Whereat - Population', ctx), ''] + t.render(width=cs.screen_columns)
 
         await ctx.send(lines)
         return CommandResult.ok()

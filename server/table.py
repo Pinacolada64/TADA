@@ -132,6 +132,38 @@ class Column:
     max_width: int   = 0        # 0 = no cap
 
 
+@dataclass
+class ZebraColors:
+    """|token| color names for a table's alternating data rows.
+
+    A plain data bag rather than hardcoded literals wherever a Table is
+    built with zebra striping -- mirrors menu_system.MenuColor's rationale
+    so a scheme can be a PREFS-selectable/persisted option (see
+    ClientSettings.table_colors) without touching Table itself. Pass
+    ``[stripe_a, stripe_b]`` as Table's ``text_color`` to apply one.
+    """
+    stripe_a: str = 'white'
+    stripe_b: str = 'mid_gray'
+
+
+DEFAULT_ZEBRA_COLORS = ZebraColors()
+
+# Named, ready-made schemes offered by commands/prefs.py's table-colors
+# picker -- kept here alongside ZebraColors/DEFAULT_ZEBRA_COLORS so any
+# other future picker of table zebra colors can reuse the same list
+# rather than each defining its own. Two slots per scheme (not the six
+# menu_system.MENU_COLOR_PRESETS uses), since a zebra stripe only ever
+# alternates between two colors.
+ZEBRA_COLOR_PRESETS: list[tuple[str, ZebraColors]] = [
+    ('Default',    DEFAULT_ZEBRA_COLORS),
+    ('Ocean',      ZebraColors('blue', 'light_blue')),
+    ('Fire',       ZebraColors('red', 'orange')),
+    ('Forest',     ZebraColors('green', 'light_green')),
+    ('Grayscale',  ZebraColors('light_gray', 'dark_gray')),
+    ('High Contrast', ZebraColors('white', 'dark_gray')),
+]
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------

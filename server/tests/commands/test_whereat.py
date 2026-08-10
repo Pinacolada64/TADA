@@ -11,6 +11,7 @@ from commands.whereat import WhereatCommand, _is_privileged, _location_columns
 from command_settings import CommandSettings
 from flags import PlayerFlags
 from network_context import GuestPlayer
+from terminal import Translation
 
 
 # ---------------------------------------------------------------------------
@@ -26,6 +27,9 @@ def make_player(name: str, *,
     p.unsaved_changes = False
     p.command_settings = CommandSettings(whereat_hidden=hidden)
     p.client_settings.screen_columns = 78
+    p.client_settings.border_style = 'ascii'
+    p.client_settings.table_colors = None
+    p.client_settings.translation = Translation.ANSI
 
     def _query_flag(flag):
         if flag == PlayerFlags.ADMIN:         return admin
@@ -265,8 +269,8 @@ class TestWhereatPopulation(unittest.IsolatedAsyncioTestCase):
         await WhereatCommand().execute(ctx, '#pop')
         out = _sent_text(ctx)
         self.assertIn('Level', out)
-        self.assertIn('Room #', out)
-        self.assertIn('Population', out)
+        self.assertIn('Room', out)
+        self.assertIn('Pop.', out)
 
     async def test_privileged_sees_hidden_players_real_room(self):
         ctx = self._build(observer='Alice', admin=True)

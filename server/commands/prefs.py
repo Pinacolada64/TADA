@@ -175,6 +175,15 @@ _SETTING_HELP: dict[str, list[str]] = {
         "'Custom' lets you pick a color for each part individually.",
         '',
     ],
+    'a': [
+        '',
+        '|cyan|Table Colors|reset|',
+        "Sets the alternating (zebra-stripe) colors used for tables that "
+        "color their rows, like WHEREAT's #population summary. 'Default' "
+        "clears any custom scheme; 'Custom' lets you pick both stripe "
+        "colors individually.",
+        '',
+    ],
     'w': [
         '',
         '|cyan|Movement Keys|reset|',
@@ -367,6 +376,12 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             (name for name, mc in MENU_COLOR_PRESETS if mc == _cur_menu_colors), None,
         ) or ('Default' if _cur_menu_colors is None else 'Custom')
         t.add_row(['S', 'Menu Colors', menu_colors_name, 'hs'])
+        from table import ZEBRA_COLOR_PRESETS
+        _cur_table_colors = getattr(cs, 'table_colors', None)
+        table_colors_name = next(
+            (name for name, tc in ZEBRA_COLOR_PRESETS if tc == _cur_table_colors), None,
+        ) or ('Default' if _cur_table_colors is None else 'Custom')
+        t.add_row(['A', 'Table Colors', table_colors_name, 'ha'])
         wasd = getattr(ctx.player.command_settings, 'wasd_movement', False)
         t.add_row(['W', 'Movement Keys', 'WASD' if wasd else 'Compass', 'hw'])
         t.add_row(['G', 'Graphics Test', '', 'hg'])
@@ -374,7 +389,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         valid_keys = ['X', 'H', 'M']
         if not is_petscii:
             valid_keys.append('B')
-        valid_keys += ['C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F', 'S', 'W', 'G']
+        valid_keys += ['C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F', 'S', 'A', 'W', 'G']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -488,6 +503,9 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
 
         elif ans == 's':
             await _pick_menu_colors(ctx)
+
+        elif ans == 'a':
+            await _pick_table_colors(ctx)
 
         elif ans == 'w':
             option = "|white|Movement Keys: "
@@ -1166,4 +1184,139 @@ async def _pick_menu_colors(ctx) -> None:
             return
         # 'n' (or anything else, or a blank) -- loop back to the picker
         # without saving; cs.menu_colors is untouched, so 'current' on
+        # the next iteration is still whatever it was before this pass.
+
+
+def _table_color_preview(ctx, tc) -> list[str]:
+    """Render a real mock zebra-striped table -- through the actual
+    table.Table -- with *tc* (table.ZebraColors) cycled as its two row
+    colors. Shows exactly what picking *tc* would look like on a real
+    zebra table (WHEREAT's #population summary, etc), not just a
+    hand-built approximation."""
+    from table import Table
+    from formatting import border_style_for_ctx
+
+    t = Table(headers=['Room Name', 'Pop.', 'Players'],
+              border_style=border_style_for_ctx(ctx),
+              text_color=[tc.stripe_a, tc.stripe_b])
+    t.add_row(['Town Square',  '2', 'Alice, Bob'])
+    t.add_row(['The Bar',      '2', 'Carol, Dave'])
+    t.add_row(['Misty Vale',   '1', 'Eve'])
+    return t.render(width=ctx.player.client_settings.screen_columns)
+
+
+def _table_color_swatch(tc) -> str:
+    """A compact inline swatch (one 2-char block per stripe, in that
+    stripe's own color) so a preset can be told apart from the list
+    without opening it."""
+    return ''.join(f'|{c}|##|reset|' for c in (tc.stripe_a, tc.stripe_b))
+
+
+async def _walk_custom_table_colors(ctx, current, palette) -> Optional['ZebraColors']:
+    """The 'Custom' picker's per-stripe walk, mirroring
+    _walk_custom_menu_colors() but for table.ZebraColors' two fields.
+    Returns the built ZebraColors, or None if the player cancelled
+    (blank/disconnect on the very first field prompt aborts the whole
+    thing; a blank on the second field just keeps its current value)."""
+    from dataclasses import replace
+    from formatting import COLOR_NAME_TO_TOKEN, border_style_for_ctx
+    from table import Table
+
+    cs = ctx.player.client_settings
+
+    def _palette_rows() -> list[str]:
+        t = Table(headers=['#', 'Color', 'Sample'], border_style=border_style_for_ctx(ctx))
+        for i, cn in enumerate(palette, 1):
+            token = COLOR_NAME_TO_TOKEN[cn]
+            t.add_row([str(i), cn.value, f'|{token}|{cn.value}|reset|'])
+        return t.render(width=cs.screen_columns)
+
+    new_scheme = replace(current)
+    palette_rows = _palette_rows()
+
+    for attr, label in (('stripe_a', 'Stripe A'), ('stripe_b', 'Stripe B')):
+        cur_token = getattr(new_scheme, attr)
+        cur_name  = next((cn.value for cn in palette if COLOR_NAME_TO_TOKEN[cn] == cur_token), cur_token)
+        await ctx.send(*(['', f'|yellow|{label}|reset| (current: {cur_name}):'] + palette_rows + ['']))
+        raw = await ctx.prompt(f'{label} #')
+        if raw is None:
+            return None
+        val = raw.strip()
+        if not val:
+            continue
+        if val.isdigit():
+            idx = int(val) - 1
+            if 0 <= idx < len(palette):
+                setattr(new_scheme, attr, COLOR_NAME_TO_TOKEN[palette[idx]])
+            else:
+                await ctx.send(f'{label} unchanged -- number out of range.')
+        else:
+            await ctx.send(f'{label} unchanged.')
+
+    return new_scheme
+
+
+async def _pick_table_colors(ctx) -> None:
+    """Choose the zebra-stripe color scheme used by table.py's Table
+    wherever a command renders one with alternating row colors (e.g.
+    WHEREAT's #population summary). Mirrors _pick_menu_colors(): offers
+    table.ZEBRA_COLOR_PRESETS by number ('Default' clears client_settings.
+    table_colors back to None, which callers read as "use table.
+    DEFAULT_ZEBRA_COLORS"; the others store a copy of that named preset),
+    plus 'Custom' to walk both stripes individually, with the same
+    "Are these colors satisfactory?" confirm loop.
+    """
+    from dataclasses import replace
+    from terminal import ColorName
+    from formatting import COLOR_NAME_TO_TOKEN
+    from table import ZebraColors, DEFAULT_ZEBRA_COLORS, ZEBRA_COLOR_PRESETS
+
+    _SKIP   = {ColorName.RESET, ColorName.REVERSE_ON, ColorName.REVERSE_OFF}
+    palette = [cn for cn in ColorName if cn not in _SKIP and COLOR_NAME_TO_TOKEN.get(cn)]
+
+    cs = ctx.player.client_settings
+
+    while True:
+        current = cs.table_colors if isinstance(cs.table_colors, ZebraColors) else DEFAULT_ZEBRA_COLORS
+
+        custom_num = len(ZEBRA_COLOR_PRESETS) + 1
+        lines = ['', '|yellow|Table Colors|reset|', ''] + _table_color_preview(ctx, current) + ['']
+        for i, (name, tc) in enumerate(ZEBRA_COLOR_PRESETS, 1):
+            lines.append(f'  {i:>2}. {name:<14} {_table_color_swatch(tc)}')
+        lines.append(f'  {custom_num:>2}. Custom (pick each stripe)')
+        lines.append('')
+
+        raw = await ctx.prompt('table colors', preamble_lines=lines)
+        if raw is None or not raw.strip():
+            await ctx.send('Table colors unchanged.')
+            return
+        ans = raw.strip()
+
+        if not ans.isdigit():
+            await ctx.send('Table colors unchanged.')
+            return
+        idx = int(ans) - 1
+
+        if 0 <= idx < len(ZEBRA_COLOR_PRESETS):
+            name, tc = ZEBRA_COLOR_PRESETS[idx]
+            candidate = None if tc is DEFAULT_ZEBRA_COLORS else replace(tc)
+            preview_tc, label = tc, name
+        elif idx == len(ZEBRA_COLOR_PRESETS):
+            candidate = await _walk_custom_table_colors(ctx, current, palette)
+            if candidate is None:
+                await ctx.send('Table colors unchanged.')
+                return
+            preview_tc, label = candidate, 'Custom'
+        else:
+            await ctx.send('Table colors unchanged -- number out of range.')
+            continue
+
+        await ctx.send(f'Preview: {label}.', *_table_color_preview(ctx, preview_tc))
+        confirm = await ctx.prompt('Are these colors satisfactory? (y/n)')
+        if confirm is not None and confirm.strip().lower().startswith('y'):
+            cs.table_colors = candidate
+            await ctx.send(f'Table colors set to {label}.')
+            return
+        # 'n' (or anything else, or a blank) -- loop back to the picker
+        # without saving; cs.table_colors is untouched, so 'current' on
         # the next iteration is still whatever it was before this pass.
