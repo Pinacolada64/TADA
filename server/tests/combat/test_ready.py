@@ -203,11 +203,10 @@ class TestDeathAmuletGamble(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('AMULET OF LIFE reduces this to 10%', ctx.sent())
 
 
-class TestBestTargetsExpertGating(unittest.IsolatedAsyncioTestCase):
-    """The '[ Best targets ]' hint (combat/resolution.py's hit_threshold()
-    table, described in plain English) is shown to non-expert players and
-    hidden for expert players, matching the rest of the codebase's
-    convention of terser output once a player knows the ropes."""
+class TestBestTargetsShownRegardlessOfExpertMode(unittest.IsolatedAsyncioTestCase):
+    """The 'Best targets' hint (combat/resolution.py's hit_threshold()
+    table, described in plain English) is shown to every player --
+    Ryan decided against gating it behind Expert Mode after all."""
 
     async def test_non_expert_sees_best_targets(self):
         sword = _weapon('LONG SWORD', item_id=2, weapon_class='hack_slash_bash')
@@ -216,16 +215,16 @@ class TestBestTargetsExpertGating(unittest.IsolatedAsyncioTestCase):
         await ReadyCommand().execute(ctx, 'sword')
         self.assertIn('Best targets', ctx.sent())
 
-    async def test_expert_does_not_see_best_targets(self):
+    async def test_expert_also_sees_best_targets(self):
         sword = _weapon('LONG SWORD', item_id=2, weapon_class='hack_slash_bash')
         player = _FakePlayer(weapons=[sword], is_expert=True)
         ctx = _FakeCtx(player)
         await ReadyCommand().execute(ctx, 'sword')
-        self.assertNotIn('Best targets', ctx.sent())
+        self.assertIn('Best targets', ctx.sent())
         self.assertIn('Weapon class', ctx.sent())
 
     async def test_best_targets_is_its_own_line(self):
-        """'[ Best targets ]' must be a separate ctx.send() list element,
+        """'Best targets' must be a separate ctx.send() list element,
         not glued onto 'Weapon class: X' with an embedded '\\n' -- the
         rest of the pipeline (word-wrap, pagination) works in terms of
         one string per line."""

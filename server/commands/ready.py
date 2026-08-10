@@ -70,16 +70,16 @@ def _stat(player, key) -> int:
     return int(stats.get(key, 0) or 0)
 
 
-def _weapon_class_line(weapon, show_best_targets: bool = True) -> list[str]:
+def _weapon_class_line(weapon) -> list[str]:
     """Build the 'Weapon class: X' line(s) shown when readying.
 
-    The '[ Best targets ]' hint (which monster sizes this weapon class
+    The 'Best targets' hint (which monster sizes this weapon class
     favors -- see combat/resolution.py's hit_threshold() for the real
-    to-hit bonus/penalty it's describing) is only shown in non-expert
-    mode; expert players get the terser line without it. Returns a list
-    so the hint lands on its own line instead of an embedded '\n' inside
-    a single string, matching how the rest of this codebase builds
-    multi-line output (ctx.send() treats each list element as one line).
+    to-hit bonus/penalty it's describing) is shown to every player,
+    expert mode or not. Returns a list so the hint lands on its own
+    line instead of an embedded '\n' inside a single string, matching
+    how the rest of this codebase builds multi-line output (ctx.send()
+    treats each list element as one line).
     """
     wc = getattr(weapon, 'weapon_class', None)
     if wc is None:
@@ -95,8 +95,8 @@ def _weapon_class_line(weapon, show_best_targets: bool = True) -> list[str]:
     }
     best = targets.get(wc_str.lower(), '')
     lines = [f'Weapon class: {wc_str}']
-    if best and show_best_targets:
-        lines.append(f'  [ Best targets ]: {best}')
+    if best:
+        lines.append(f'   Best targets: {best}')
     return lines
 
 
@@ -296,7 +296,7 @@ class ReadyCommand(Command):
             await ctx.send('YOU LIVE!')
 
         # Display weapon info
-        info = list(_weapon_class_line(weapon, show_best_targets=not player.is_expert))
+        info = list(_weapon_class_line(weapon))
         dmg = getattr(weapon, 'stability', None)
         if dmg is not None:
             info.append(f'Base damage : {dmg}')
