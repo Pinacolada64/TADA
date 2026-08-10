@@ -297,12 +297,20 @@ class ReadyCommand(Command):
 
         # Display weapon info
         info = list(_weapon_class_line(weapon))
-        dmg = getattr(weapon, 'stability', None)
+        # weapons.json stores both scores as the SPUR raw digit x10 (see
+        # combat/resolution.py's variable-mapping comment: wd = base
+        # damage 3-9, stored as weapon.to_hit/10; ws = ease of use 5-9,
+        # stored as weapon.stability/10) -- these two lines used to read
+        # the wrong field for each label (stability labeled "Base
+        # damage", to_hit run through an unrelated 100-x formula and
+        # labeled "Ease of use") and never divided by 10, showing e.g.
+        # "Base damage : 50" instead of the real score of 5.
+        dmg = getattr(weapon, 'to_hit', None)
         if dmg is not None:
-            info.append(f'Base damage : {dmg}')
-        skill = getattr(weapon, 'to_hit', None)
+            info.append(f'Base damage : {dmg // 10}')
+        skill = getattr(weapon, 'stability', None)
         if skill is not None:
-            info.append(f'Ease of use : {100 - skill}%')
+            info.append(f'Ease of use : {skill // 10}')
         vp = _battle_exp(player, weapon)
         info.append(f'Battle exp. : {vp} {_tier_label(vp)}')
 

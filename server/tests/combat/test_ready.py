@@ -240,5 +240,29 @@ class TestBestTargetsShownRegardlessOfExpertMode(unittest.IsolatedAsyncioTestCas
         self.assertNotIn('\n', best_target_lines[0])
 
 
+class TestBaseDamageAndEaseOfUseFields(unittest.IsolatedAsyncioTestCase):
+    """Base damage / Ease of use used to read the wrong weapons.json
+    field for each label (stability shown as "Base damage", to_hit run
+    through an unrelated 100-x formula and shown as "Ease of use") and
+    never divided the stored x10 value down to the real SPUR score --
+    see combat/resolution.py's variable-mapping comment: wd (base
+    damage, 3-9) = weapon.to_hit/10, ws (ease of use, 5-9) =
+    weapon.stability/10."""
+
+    async def test_base_damage_uses_to_hit_divided_by_ten(self):
+        sword = _weapon('LONG SWORD', item_id=2, stability=90, to_hit=50)
+        player = _FakePlayer(weapons=[sword])
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'sword')
+        self.assertIn('Base damage : 5', ctx.sent())
+
+    async def test_ease_of_use_uses_stability_divided_by_ten(self):
+        sword = _weapon('LONG SWORD', item_id=2, stability=90, to_hit=50)
+        player = _FakePlayer(weapons=[sword])
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'sword')
+        self.assertIn('Ease of use : 9', ctx.sent())
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
