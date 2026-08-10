@@ -5,14 +5,18 @@
 Creates ten throwaway accounts (bypassing the interactive character-
 creation wizard) so bot_swarm.py can log straight in over the wire and
 hammer the server concurrently: wandering, combat, page, whisper, shout,
-item pickup. A mix of classes so combat exercises more than one code path
-(Wizard/Druid can eventually CAST, though bot_swarm.py itself only attacks
-for now).
+item pickup, PvP duels, and giving/looting items between each other. A mix
+of classes so combat exercises more than one code path (Wizard/Druid can
+eventually CAST, though bot_swarm.py itself only attacks for now).
 
 All ten: ADMIN flag on (for the '#<level> <room>' teleport command used to
 scatter/regroup bots quickly), a known elevator combination pre-seeded,
 generous HP so a swarm of 10 simultaneous attackers doesn't wipe itself out
-on early monsters, and plenty of gold.
+on early monsters, plenty of gold, a LONG SWORD in inventory (bot_swarm.py
+READYs it right after login -- player.readied_weapon is session-only, see
+player.py's _SESSION_ONLY, so it can't be pre-seeded readied and must be
+readied fresh every run; DUEL requires both sides to have one readied),
+and 3 large rubies to give away (commands/give.py).
 
 Targets tools/run_throwaway_server.py's isolated instance's save directory
 (default run/epic_battle_server) -- NEVER the real run/server save
@@ -63,6 +67,28 @@ ACCOUNTS = [
 ]
 
 
+def _seed_gear(player) -> None:
+    """LONG SWORD (weapons.json #1) to READY live for DUEL, plus 3 large
+    rubies (objects.json #6) to GIVE away. See _seed_botlasso_gun in
+    setup_bot_accounts.py for the same construction pattern."""
+    from inventory import Inventory
+    from items import Item, ItemCategory, Weapon
+
+    # Re-seed fresh, same reasoning as setup_bot_accounts.py's
+    # _seed_railbender_allies: Player.__init__ loads any pre-existing save
+    # (including a prior run's inventory) before this runs.
+    player.inventory = Inventory(capacity=player.max_inventory_size)
+
+    sword = Weapon(id_number=1, name='LONG SWORD', category=ItemCategory.WEAPON,
+                    kind='standard', weapon_class='bash/slash',
+                    stability=50, to_hit=60, price=250,
+                    sound_effect=['SWISH!', 'SLASH!'])
+    player.inventory.add(sword)
+    for _ in range(3):
+        ruby = Item(id_number=6, name='large ruby', category=ItemCategory.ITEM, price=8)
+        player.inventory.add(ruby)
+
+
 def make_account(name: str, char_class, gender) -> None:
     player = Player(id=name, name=name, char_class=char_class, gender=gender,
                      map_level=1, map_room=1)
@@ -77,6 +103,7 @@ def make_account(name: str, char_class, gender) -> None:
     combo.combination = _ELEVATOR_COMBO
     player.combinations[CombinationTypes.ELEVATOR] = combo
     player.unsaved_changes = True
+    _seed_gear(player)
 
     ok = player.save(force=True)
     if not ok:

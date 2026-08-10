@@ -1,23 +1,33 @@
 #!/usr/bin/env python3
 """tools/bot_swarm.py — 10 concurrent reactive bots hammering a live server
-at once: wandering, combat, page, whisper, shout, item pickup. Built to
-surface concurrency bugs (races between simultaneous attackers on the same
-monster, simultaneous saves, message interleaving on shared broadcasts)
-that a single- or two-bot script like bot_epic_battle.py can't reach.
+at once: wandering, PvE combat, PvP duels, page, whisper, groups, shout,
+give, loot, item pickup. Built to surface concurrency bugs (races between
+simultaneous attackers on the same monster, simultaneous saves, message
+interleaving on shared broadcasts) that a single- or two-bot script like
+bot_epic_battle.py can't reach.
 
 Ten throwaway accounts (tools/setup_swarm_accounts.py): botswarm01..10,
-ADMIN-flagged (for '#<level> <room>' teleport), 500 HP, mixed classes.
+ADMIN-flagged (for '#<level> <room>' teleport), 500 HP, mixed classes, each
+carrying a LONG SWORD (readied live right after login -- see connect flow
+below) and 3 large rubies to give away.
 
 Each bot runs its own perceive -> update-belief -> decide loop
 (same reactive style as bot_epic_battle.py / bot_horse_journey.py), picking
 a weighted-random action every time it's back at the main prompt:
   teleport to a room from ROOM_POOL, attack a monster if one's present,
-  walk a bare compass direction, page another random bot, whisper to
-  whoever's in the room, shout, look, get the room's item, or check stats.
+  walk a bare compass direction, page another random bot (occasionally the
+  #friends group instead), whisper to whoever's in the room, shout, look,
+  get the room's item, check stats, give a ruby to another bot, loot
+  another player in the room, or challenge another bot to a duel.
 Combat is handled generically: whichever bot's 'attack' opens the fight
 becomes its leader and answers its own Command> menu with a mostly-attack
 policy (occasional flee) until the monster or the bot dies; any other bot
 that also sends 'attack' in the same room joins as a bystander instead.
+DUEL is handled the same reactive way: a pending challenge auto-accepts
+(mostly) or declines, and once a duel is active the bot answers whichever
+tactic prompt it's shown (attack/parry/bash, or stand/roll if knocked
+down) every time it's back at the main prompt -- see combat/duel.py's
+_tactic_prompt(), which re-sends after every round until the duel ends.
 
 Targets tools/run_throwaway_server.py's isolated instance (default
 127.0.0.1:34190) -- never the real run/server save directory.
@@ -107,6 +117,15 @@ class Bot:
         self.done = False
         self.round_no = 0
         self.actions = Counter()
+
+        # PvP duel state (combat/duel.py) -- see _tactic_prompt()'s text,
+        # matched in _update_belief below.
+        self.duel_pending = False   # someone challenged us; awaiting accept/decline
+        self.duel_active = False    # a duel is underway; awaiting our tactic
+        self.duel_down = False      # knocked down -- only STAND/ROLL are legal
+
+        self.rubies_left = 3        # matches setup_swarm_accounts.py's _seed_gear
+        self.loot_tries = 0
 
     async def connect(self, host: str, port: int) -> bool:
         try:
@@ -200,6 +219,22 @@ class Bot:
             self.in_combat = False
             self.monster_present = False
 
+        # --- PvP duel (combat/duel.py) ---
+        if 'challenges you to a duel' in low:
+            self.duel_pending = True
+        if 'choose: duel attack' in low:
+            self.duel_active = True
+            self.duel_down = False
+        if "you're on the ground!" in low:
+            self.duel_active = True
+            self.duel_down = True
+        if ('vanquished' in low or 'flees the duel' in low
+                or 'snickers, and waves you on' in low
+                or 'declines your challenge' in low):
+            self.duel_pending = False
+            self.duel_active = False
+            self.duel_down = False
+
     async def drain_until(self, stop: callable, *, max_msgs: int = 200, timeout: float = 5.0) -> bool:
         for _ in range(max_msgs):
             msg = await self._recv_one(timeout=timeout)
@@ -224,13 +259,16 @@ async def handle_combat_menu(bot: Bot, rng: random.Random) -> None:
 async def do_action(bot: Bot, rng: random.Random) -> None:
     """Pick and perform one weighted-random action from the main prompt."""
     choices = [
-        ('teleport', 0.30),
-        ('attack',   0.20 if bot.monster_present and not bot.monster_dead else 0.0),
-        ('move',     0.15),
-        ('page',     0.12),
-        ('whisper',  0.10),
-        ('look',     0.08),
+        ('teleport', 0.28),
+        ('attack',   0.18 if bot.monster_present and not bot.monster_dead else 0.0),
+        ('move',     0.14),
+        ('page',     0.10),
+        ('whisper',  0.09),
+        ('look',     0.07),
+        ('duel',     0.05 if not bot.duel_active and not bot.duel_pending else 0.0),
         ('get',      0.03),
+        ('give',     0.03 if bot.rubies_left > 0 else 0.0),
+        ('loot',     0.02 if bot.loot_tries < 2 else 0.0),
         ('shout',    0.01),
         ('stats',    0.01),
     ]
@@ -256,16 +294,26 @@ async def do_action(bot: Bot, rng: random.Random) -> None:
     elif action == 'move':
         await bot.say(rng.choice(_DIRECTIONS))
     elif action == 'page':
-        target = rng.choice([b for b in _BOTS if b != bot.label])
+        target = '#friends' if rng.random() < 0.3 else rng.choice([b for b in _BOTS if b != bot.label])
         await bot.say(f'page {target}=hey, anyone else out here?')
     elif action == 'whisper':
-        target = rng.choice([b for b in _BOTS if b != bot.label])
+        target = '#friends' if rng.random() < 0.3 else rng.choice([b for b in _BOTS if b != bot.label])
         await bot.say(f'whisper {target}=you around?')
     elif action == 'look':
         bot.monster_present = False
         await bot.say('look')
     elif action == 'get':
         await bot.say('get all')
+    elif action == 'give':
+        target = rng.choice([b for b in _BOTS if b != bot.label])
+        bot.rubies_left -= 1
+        await bot.say(f'give large ruby to {target}')
+    elif action == 'loot':
+        bot.loot_tries += 1
+        await bot.say('loot')
+    elif action == 'duel':
+        target = rng.choice([b for b in _BOTS if b != bot.label])
+        await bot.say(f'duel {target}')
     elif action == 'shout':
         await bot.say('shout swarm test in progress')
     elif action == 'stats':
@@ -289,11 +337,36 @@ async def bot_loop(bot: Bot, num_actions: int, seed: int) -> None:
             continue
         stall_count = 0
 
+        low_prompt = bot.last_prompt.lower()
         if bot.is_command_prompt():
             await handle_combat_menu(bot, rng)
+        elif 'loot which adventurer' in low_prompt or 'take which item number' in low_prompt:
+            # commands/loot.py's two ctx.prompt() selections -- always grab
+            # whoever/whatever is first in the list.
+            await bot.say('1')
         elif bot.is_main_prompt():
+            # Bounding every main-prompt reaction (not just do_action's own
+            # picks) under the same round_no budget matters here: a duel
+            # depends on BOTH sides cooperating (session.submit() only
+            # resolves once both bots have chosen a tactic), so without
+            # this a bot whose opponent has already exhausted its own
+            # budget and stopped submitting would otherwise resubmit
+            # 'duel attack' forever, waiting on a partner that'll never
+            # answer again until this run's final close() forces a
+            # forfeit -- deadlocking this bot's loop indefinitely instead
+            # of just finishing its budget and moving on.
             bot.round_no += 1
-            await do_action(bot, rng)
+            if bot.duel_pending:
+                bot.duel_pending = False
+                await bot.say('duel accept' if rng.random() < 0.85 else 'duel decline')
+            elif bot.duel_active:
+                if bot.duel_down:
+                    await bot.say(rng.choice(['duel stand', 'duel roll']))
+                else:
+                    await bot.say(rng.choices(
+                        ['duel attack', 'duel parry', 'duel bash'], weights=[3, 2, 1])[0])
+            else:
+                await do_action(bot, rng)
         # Otherwise: some other prompt (a Y/N confirm from an action we
         # didn't expect, e.g. a room boundary check) -- just wait for the
         # next message; most of these self-resolve or fall through to a
@@ -308,11 +381,24 @@ async def bot_loop(bot: Bot, num_actions: int, seed: int) -> None:
 async def run_swarm(host: str, port: int, num_actions: int, seed: int) -> list[Bot]:
     bots = [Bot(name) for name in _BOTS]
 
-    for b in bots:
+    for i, b in enumerate(bots):
         if not await b.connect(host, port):
             _log(f'  [{b.label}] could not connect -- aborting swarm setup')
             return bots
         await b.say(f'connect {b.user} {_PASSWORD}')
+        await b.drain_until(lambda x: x.is_main_prompt())
+
+        # readied_weapon is session-only (player.py's _SESSION_ONLY) --
+        # doesn't survive a save/load, so it must be readied fresh here
+        # every run. Both sides of a DUEL need one readied.
+        await b.say('ready long sword')
+        await b.drain_until(lambda x: x.is_main_prompt())
+
+        # A #friends group per bot (2 other bots, wrapping around the
+        # roster) so page/whisper's #friends branch has something to hit.
+        mate_a = _BOTS[(i + 1) % len(_BOTS)]
+        mate_b = _BOTS[(i + 2) % len(_BOTS)]
+        await b.say(f'groups #add friends {mate_a} {mate_b}')
         await b.drain_until(lambda x: x.is_main_prompt())
 
     _log(f'\n{"=" * WIDTH}\n  All {len(bots)} bots connected -- starting {num_actions} actions each\n{"=" * WIDTH}')
