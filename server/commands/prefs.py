@@ -749,6 +749,22 @@ def _windowpane_lines(border, cell_width: int = 3) -> list[str]:
     return [top, blank, middle, blank, bottom]
 
 
+def _windowpane_pair_lines(left: tuple, right: tuple, cell_width: int = 3) -> list[str]:
+    """Two named _windowpane_lines() grids side by side (a name-labeled
+    header line, then their five pane rows joined pairwise), so
+    _show_graphics_test() can lay all four border styles out 2x2 instead
+    of stacking them vertically -- Ryan's idea, saves screen rows on a
+    25-row C64 screen. *left*/*right* are (name, table.Border) tuples."""
+    left_name, left_border = left
+    right_name, right_border = right
+    left_lines  = _windowpane_lines(left_border, cell_width=cell_width)
+    right_lines = _windowpane_lines(right_border, cell_width=cell_width)
+    pane_w = len(left_lines[0])
+    gap = '  '
+    header = f'|cyan|{left_name.ljust(pane_w)}|reset|{gap}|cyan|{right_name}|reset|'
+    return [header] + [f'{l}{gap}{r}' for l, r in zip(left_lines, right_lines)]
+
+
 # Extra glyphs shown by _show_graphics_test()'s "Special Glyphs" box,
 # beyond the plain box-drawing set _windowpane_lines() already covers.
 # Every character here is a real code point in cbmcodecs2's PETSCII
@@ -780,10 +796,9 @@ async def _show_graphics_test(ctx) -> None:
     from formatting import make_box_for_settings
 
     lines = ['', '|yellow|Graphics Test|reset|', '']
-    for name, border in (('ASCII', ASCII), ('Single', SINGLE),
-                          ('Double', DOUBLE), ('PETSCII', PETSCII)):
-        lines.append(f'|cyan|{name}|reset|')
-        lines.extend('  ' + ln for ln in _windowpane_lines(border))
+    for left, right in ((('ASCII', ASCII), ('Single', SINGLE)),
+                        (('Double', DOUBLE), ('PETSCII', PETSCII))):
+        lines.extend('  ' + ln for ln in _windowpane_pair_lines(left, right))
         lines.append('')
 
     glyph_lines = [f'{label:<9}{glyphs}' for label, glyphs in _SPECIAL_GLYPHS]

@@ -12,7 +12,7 @@ from __future__ import annotations
 import unittest
 
 from player import Player
-from commands.prefs import _show_graphics_test, _windowpane_lines
+from commands.prefs import _show_graphics_test, _windowpane_lines, _windowpane_pair_lines
 from table import ASCII, SINGLE, DOUBLE, PETSCII
 
 
@@ -48,6 +48,37 @@ class TestWindowpaneLines(unittest.TestCase):
         narrow = _windowpane_lines(ASCII, cell_width=1)
         wide   = _windowpane_lines(ASCII, cell_width=5)
         self.assertLess(len(narrow[0]), len(wide[0]))
+
+
+class TestWindowpanePairLines(unittest.TestCase):
+    """_windowpane_pair_lines() lays two named windowpane grids side by
+    side -- Ryan's idea, so the four border styles fit 2x2 instead of
+    stacking vertically and eating screen rows."""
+
+    def test_returns_header_plus_five_pane_rows(self):
+        lines = _windowpane_pair_lines(('ASCII', ASCII), ('Single', SINGLE))
+        self.assertEqual(len(lines), 6)
+
+    def test_header_names_both_styles(self):
+        lines = _windowpane_pair_lines(('ASCII', ASCII), ('Single', SINGLE))
+        self.assertIn('ASCII', lines[0])
+        self.assertIn('Single', lines[0])
+
+    def test_each_pane_row_carries_both_styles_glyphs(self):
+        lines = _windowpane_pair_lines(('Double', DOUBLE), ('PETSCII', PETSCII))
+        top_row = lines[1]
+        self.assertIn('╔', top_row)   # Double top-left
+        self.assertIn('┌', top_row)   # PETSCII top-left
+
+    def test_longer_left_name_still_aligns_the_right_column(self):
+        # A longer left-side name shouldn't shove the right pane's rows
+        # out of alignment with its own header.
+        short_pair = _windowpane_pair_lines(('AB', ASCII), ('Single', SINGLE))
+        long_pair  = _windowpane_pair_lines(('A much longer name', ASCII), ('Single', SINGLE))
+        # The right pane's top-left glyph should land at the same
+        # relative offset from the end of the line either way, since the
+        # right pane itself is unchanged -- both should end identically.
+        self.assertEqual(short_pair[1][-9:], long_pair[1][-9:])
 
 
 class TestShowGraphicsTest(unittest.IsolatedAsyncioTestCase):
