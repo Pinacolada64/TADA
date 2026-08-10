@@ -426,6 +426,13 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                       else 'save settings and exit'),
                    '']
         )
+        # Expert Mode hides the beginner-oriented tips/hints shown
+        # elsewhere in the game (per its own PREFS description), which
+        # otherwise would have been a new player's main way of learning
+        # '?' brings up the full option-by-option overview -- so for an
+        # expert player specifically, add a short reminder tag instead.
+        if ctx.player.is_expert:
+            menu.insert(-1, '[?=overall help]')
 
         raw = await ctx.prompt('prefs', preamble_lines=menu)
         if raw is None:
@@ -635,7 +642,9 @@ async def _terminal_menu(ctx) -> None:
 
         t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
                   border_style=border_style_for_ctx(ctx))
-        t.add_row(['T', 'Client Type', f'{cs.screen_columns}x{cs.screen_rows}', 'ht'])
+        client_label = _client_type_label(cs)
+        t.add_row(['T', 'Client Type',
+                   f'{client_label} ({cs.screen_rows} rows x {cs.screen_columns} columns)', 'ht'])
         t.add_row(['K', 'Tab Key', tab_summary, 'hk'])
         t.add_row(['L', 'Line Ending', line_ending_name, 'hl'])
 
@@ -924,6 +933,38 @@ _MIN_COLS, _MAX_COLS = 20, 132
 _MIN_ROWS, _MAX_ROWS = 10, 60
 
 
+def _client_type_presets() -> list:
+    """Preset (num, label, columns, rows, Translation) table -- single
+    source of truth shared by _pick_client_type()'s picker and
+    _client_type_label()'s Terminal Settings summary row, so the two
+    never drift out of sync."""
+    from terminal import Translation
+    return [
+        ('1', 'Commodore 64',  40, 25, Translation.PETSCII),
+        ('2', 'Commodore 128', 40, 25, Translation.PETSCII),
+        ('3', 'Commodore 128', 80, 25, Translation.PETSCII),
+        ('4', 'TADA Client',   80, 25, Translation.ANSI),
+    ]
+
+
+def _client_type_label(cs) -> str:
+    """Best-effort preset name for the Terminal Settings summary row,
+    matched from the player's current screen_columns/screen_rows/
+    translation. Commodore 64 and Commodore 128's 40-column mode are
+    dimensionally identical (40x25 PETSCII) and can't be told apart from
+    stored state alone -- the first match wins (ClientSettings doesn't
+    remember which preset number was actually picked). 'Custom' covers
+    anything that doesn't match a preset exactly, including a size never
+    chosen through this menu at all (e.g. straight terminal negotiation)."""
+    cols        = getattr(cs, 'screen_columns', None)
+    rows        = getattr(cs, 'screen_rows', None)
+    translation = getattr(cs, 'translation', None)
+    for _num, label, p_cols, p_rows, encoding in _client_type_presets():
+        if p_cols == cols and p_rows == rows and encoding == translation:
+            return label
+    return 'Custom'
+
+
 async def _pick_client_type(ctx) -> None:
     """Choose a client/screen-size preset, or enter a custom size.
 
@@ -965,12 +1006,7 @@ async def _pick_client_type(ctx) -> None:
     # every player who picked a Commodore preset there got PlainCodec
     # instead of PETSCIICodec, since PETSCIINetworkContext.for_guest()'s
     # own enum-based assignment was the only path that ever worked).
-    presets = [
-        ('1', 'Commodore 64',  40, 25, Translation.PETSCII),
-        ('2', 'Commodore 128', 40, 25, Translation.PETSCII),
-        ('3', 'Commodore 128', 80, 25, Translation.PETSCII),
-        ('4', 'TADA Client',   80, 25, Translation.ANSI),
-    ]
+    presets = _client_type_presets()
 
     t = Table(headers=['##', 'Computer Type', 'Screen Size', 'Translation'],
               border_style=border_style_for_ctx(ctx))

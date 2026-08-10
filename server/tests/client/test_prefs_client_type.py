@@ -20,7 +20,8 @@ from terminal import Translation
 from network_context import PETSCIINetworkContext
 from commands.prefs import (
     _MAX_COLS, _MAX_ROWS, _MIN_COLS, _MIN_ROWS,
-    _pick_client_type, _pick_line_ending, _pick_tab_settings, prefs_menu,
+    _client_type_label, _pick_client_type, _pick_line_ending,
+    _pick_tab_settings, _terminal_menu, prefs_menu,
 )
 
 
@@ -398,6 +399,70 @@ class TestPickLineEnding(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx([''], Player())
         await _pick_line_ending(ctx)
         self.assertEqual(ctx.player.client_settings.line_ending, LineEnding.LF)
+
+
+class TestClientTypeLabel(unittest.TestCase):
+    """_client_type_label() matches (screen_columns, screen_rows,
+    translation) against the same preset table _pick_client_type() offers,
+    so the Terminal Settings summary row can name the client instead of
+    just showing raw dimensions."""
+
+    def _cs(self, cols, rows, translation):
+        cs = Player().client_settings
+        cs.screen_columns = cols
+        cs.screen_rows = rows
+        cs.translation = translation
+        return cs
+
+    def test_tada_client_preset_matches(self):
+        cs = self._cs(80, 25, Translation.ANSI)
+        self.assertEqual(_client_type_label(cs), 'TADA Client')
+
+    def test_commodore_128_80_col_preset_matches(self):
+        cs = self._cs(80, 25, Translation.PETSCII)
+        self.assertEqual(_client_type_label(cs), 'Commodore 128')
+
+    def test_ambiguous_40x25_petscii_reports_first_matching_preset(self):
+        # Commodore 64 and Commodore 128 (40-col mode) are dimensionally
+        # identical (40x25 PETSCII) -- the first preset in the table
+        # wins, since stored state alone can't tell them apart.
+        cs = self._cs(40, 25, Translation.PETSCII)
+        self.assertEqual(_client_type_label(cs), 'Commodore 64')
+
+    def test_size_never_matching_a_preset_reports_custom(self):
+        cs = self._cs(78, 30, Translation.ANSI)
+        self.assertEqual(_client_type_label(cs), 'Custom')
+
+    def test_no_matching_dimension_and_translation_pair_reports_custom(self):
+        cs = self._cs(100, 25, Translation.PETSCII)
+        self.assertEqual(_client_type_label(cs), 'Custom')
+
+
+class TestTerminalMenuClientTypeRow(unittest.IsolatedAsyncioTestCase):
+
+    async def test_row_shows_name_and_rows_x_columns(self):
+        player = Player()
+        player.client_settings.screen_columns = 80
+        player.client_settings.screen_rows = 25
+        player.client_settings.translation = Translation.ANSI
+        ctx = _FakeCtx([''], player)
+        await _terminal_menu(ctx)
+        text = ctx._flat()
+        self.assertIn('TADA Client', text)
+        self.assertIn('25 rows', text)
+        self.assertIn('80 columns', text)
+
+    async def test_custom_size_reports_custom(self):
+        player = Player()
+        player.client_settings.screen_columns = 78
+        player.client_settings.screen_rows = 30
+        player.client_settings.translation = Translation.ANSI
+        ctx = _FakeCtx([''], player)
+        await _terminal_menu(ctx)
+        text = ctx._flat()
+        self.assertIn('Custom', text)
+        self.assertIn('30 rows', text)
+        self.assertIn('78 columns', text)
 
 
 if __name__ == '__main__':
