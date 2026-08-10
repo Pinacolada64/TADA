@@ -404,6 +404,17 @@ class GiveCommand(Command):
             from items import Weapon
             from bar.ally_data import add_ally_item
             if isinstance(item, Weapon):
+                # Given-away weapon stops counting as the player's own
+                # readied one -- otherwise STAT keeps showing "Weapon
+                # readied: ..." for an item they no longer have, and
+                # combat/resolution.py's player_attacks() takes `weapon`
+                # as a plain parameter with no inventory check of its
+                # own, so it would keep using that phantom weapon's stats
+                # for every swing (player.py's unworn_if_given_away()).
+                # Must run before inventory.remove() below -- see that
+                # function's docstring for why.
+                from player import unworn_if_given_away, unworn_notice
+                unworn_slot = unworn_if_given_away(player, item)
                 if inventory:
                     inventory.remove(item)
                 ally.readied_weapon = item
@@ -424,6 +435,15 @@ class GiveCommand(Command):
                 player.unsaved_changes = True
                 pself = getattr(player, 'name', 'Someone')
                 await ctx.send(f'You give the {iname} to {ally.name}.')
+                # Ryan's request: a non-expert who just gave away their
+                # own readied weapon/armor/shield should be told, not left
+                # to notice via a later STAT/attack -- experts already
+                # know GIVE does this (see commands/wear.py's identical
+                # `if not player.is_expert:` hint pattern for the ring).
+                if not player.is_expert:
+                    notice = unworn_notice(unworn_slot, iname)
+                    if notice:
+                        await ctx.send(notice)
                 await ctx.send(f'{ally.name} readies the {iname}!')
                 await ctx.send_room(
                     f'{pself} gives the {iname} to {ally.name}, who readies it!',
@@ -486,8 +506,8 @@ class GiveCommand(Command):
             item_type = getattr(item, 'type', None)
             worn_slot = {ItemType.ARMOR: 'armor', ItemType.SHIELD: 'shield'}.get(item_type)
             if worn_slot is not None:
-                from player import unequip_if_worn
-                unequip_if_worn(player, item)
+                from player import unworn_if_given_away, unworn_notice
+                player_unworn_slot = unworn_if_given_away(player, item)
                 if inventory:
                     inventory.remove(item)
                 setattr(ally, f'readied_{worn_slot}', item)
@@ -496,20 +516,21 @@ class GiveCommand(Command):
                 pself = getattr(player, 'name', 'Someone')
                 verb = 'straps on' if worn_slot == 'shield' else 'wears'
                 await ctx.send(f'You give the {iname} to {ally.name}.')
+                if not player.is_expert:
+                    notice = unworn_notice(player_unworn_slot, iname)
+                    if notice:
+                        await ctx.send(notice)
                 await ctx.send(f'{ally.name} {verb} the {iname}!')
                 await ctx.send_room(
                     f'{pself} gives the {iname} to {ally.name}, who {verb} it!',
                     exclude_self=True)
                 return CommandResult.ok()
 
-            # Given-away armor/shield stops counting as worn -- otherwise
-            # STATS keeps showing it equipped even though it's now sitting
-            # in the ally's pack (player.py's unequip_if_worn()). Must run
-            # before inventory.remove() below -- it looks the item up via
-            # player.inventory.find(), which comes up empty once the item
-            # is already gone.
-            from player import unequip_if_worn
-            unequip_if_worn(player, item)
+            # Nothing left to unwear/unready here -- a Weapon or an
+            # armor/shield-type Item both return earlier, in their own
+            # dedicated branches above, so anything reaching this generic
+            # fallback (a book, trinket, ration, etc.) was never a worn
+            # or readied item to begin with.
             if inventory:
                 inventory.remove(item)
             # add_ally_item(), not a raw ally.items.append(entry) -- see
@@ -524,8 +545,15 @@ class GiveCommand(Command):
             # unlike every other inventory in this codebase.
             given_entry = add_ally_item(ally, item, quantity=1)
             player.unsaved_changes = True
+            pself = getattr(player, 'name', 'Someone')
             await ctx.send(f'You give the {iname} to {ally.name}.')
             await ctx.send(f'{ally.name} takes the {iname} and tucks it away.')
+            # Ryan's request: this branch had no send_room() at all, unlike
+            # every other GIVE-to-ally branch above -- bystanders never
+            # found out a plain item (book, trinket, ration, etc.) changed
+            # hands.
+            await ctx.send_room(
+                f'{pself} gives the {iname} to {ally.name}.', exclude_self=True)
             await _try_body_build(ctx, ally, given_entry)
             return CommandResult.ok()
 
@@ -537,8 +565,8 @@ class GiveCommand(Command):
                 if other_inv and other_inv.is_full():
                     await ctx.send(f'{pname} cannot carry any more.')
                     return CommandResult.ok()
-                from player import unequip_if_worn
-                unequip_if_worn(player, item)
+                from player import unworn_if_given_away, unworn_notice
+                unworn_slot = unworn_if_given_away(player, item)
                 if inventory:
                     inventory.remove(item)
                 if other_inv:
@@ -554,6 +582,10 @@ class GiveCommand(Command):
                 other.unsaved_changes = True
                 pself = getattr(player, 'name', 'Someone')
                 await ctx.send(f'You give the {iname} to {pname}.')
+                if not player.is_expert:
+                    notice = unworn_notice(unworn_slot, iname)
+                    if notice:
+                        await ctx.send(notice)
                 await ctx.send_room(
                     f'{pself} gives {iname} to {pname}.', exclude_self=True)
                 return CommandResult.ok()
@@ -575,10 +607,26 @@ class GiveCommand(Command):
                 for line in lines:
                     await ctx.send(line)
                 if consumed and inventory:
-                    from player import unequip_if_worn
-                    unequip_if_worn(player, item)
+                    from player import unworn_if_given_away, unworn_notice
+                    unworn_slot = unworn_if_given_away(player, item)
                     inventory.remove(item)
                     player.unsaved_changes = True
+                    if not player.is_expert:
+                        notice = unworn_notice(unworn_slot, iname)
+                        if notice:
+                            await ctx.send(notice)
+                # This branch had no send_room() at all -- bystanders
+                # never saw the offer or its outcome (eaten, hoarded, or
+                # handed back). Ryan's request.
+                from monsters import monster_display_name
+                pself = getattr(player, 'name', 'Someone')
+                mdisp = monster_display_name(monster, capitalize=True)
+                if consumed:
+                    await ctx.send_room(
+                        f'{pself} gives {iname} to {mdisp}, who keeps it.', exclude_self=True)
+                else:
+                    await ctx.send_room(
+                        f'{pself} offers {iname} to {mdisp}, who hands it back.', exclude_self=True)
                 return CommandResult.ok()
 
         await ctx.send(f'There is no "{" ".join(target_words)}" here.')

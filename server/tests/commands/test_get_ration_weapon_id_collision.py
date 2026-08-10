@@ -61,6 +61,7 @@ def _make_ctx(*, items=(), weapons=(), rations=(),
     ctx.player = player
     ctx.client.room = 1
     ctx.send = AsyncMock()
+    ctx.send_room = AsyncMock()
     return ctx
 
 
@@ -120,6 +121,10 @@ class TestRationWeaponIdCollision(unittest.TestCase):
         self.assertFalse(any('You can only USE this' in line for line in sent),
                           f'unexpected fireplace USE-only block in: {sent}')
         self.assertIn('You pick up SALT LICK.', sent)
+        # get.py had no send_room() at all -- bystanders never saw an
+        # item picked up off the ground. Ryan's request.
+        ctx.send_room.assert_awaited_once()
+        self.assertIn('SALT LICK', ctx.send_room.await_args.args[0])
 
     def test_getting_brook_water_does_not_trigger_gold_rose_poison(self):
         rations = _padded({'kind': 'drink'}, 41, 'BROOK WATER', kind='drink', price=5)

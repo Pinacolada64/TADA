@@ -1604,10 +1604,12 @@ def refresh_equipped_rating(player, slot: str) -> int:
     return value
 
 
-def unequip_if_worn(player, item) -> None:
+def unequip_if_worn(player, item) -> str | None:
     """Clear active_armor_id/active_shield_id (and refresh the mirrored
     rating) if *item* is the specific piece currently equipped in that
-    slot.
+    slot. Returns 'armor'/'shield' when something was actually cleared,
+    None otherwise -- callers use this to decide whether an informative
+    message is owed (see unworn_if_given_away()).
 
     equipped_entry()'s own docstring already calls out "dropped/given away
     without going through commands/unwear.py" as a case it can't detect on
@@ -1623,11 +1625,56 @@ def unequip_if_worn(player, item) -> None:
     item_type = getattr(item, 'type', None)
     slot = {ItemType.ARMOR: 'armor', ItemType.SHIELD: 'shield'}.get(item_type)
     if slot is None:
-        return
+        return None
     entry = equipped_entry(player, slot)
     if entry is not None and entry.item is item:
         setattr(player, f'active_{slot}_id', None)
         refresh_equipped_rating(player, slot)
+        return slot
+    return None
+
+
+def unworn_if_given_away(player, item) -> str | None:
+    """Clear whichever of player.readied_weapon / active_armor_id /
+    active_shield_id currently points at *item*. Returns 'weapon',
+    'armor', or 'shield' when something was actually cleared, None
+    otherwise -- commands/give.py and commands/drop.py use this to tell a
+    non-expert player what just happened to their equipped gear (mirrors
+    commands/wear.py's existing `if not player.is_expert:` hint pattern),
+    since losing a readied/worn item as an unadvertised side effect of an
+    unrelated command is exactly the kind of thing a new player would
+    otherwise be confused by.
+
+    GIVE and DROP need to check all three equip slots regardless of the
+    item's own type, so this wraps unequip_if_worn() (armor/shield) with
+    the weapon-readied case commands/unready.py already handles on its
+    own UNREADY path -- without it, giving away or dropping your
+    currently readied weapon left player.readied_weapon (and STAT's
+    "Weapon readied: ..." line) pointing at an item you no longer have,
+    and worse, combat/resolution.py's player_attacks() takes `weapon` as
+    a plain parameter with no inventory check of its own -- it would
+    keep using that phantom weapon's stats for every swing until the
+    player READY'd something else or UNREADY'd manually. Ryan's report,
+    direct follow-up to the armor/shield version of this same bug.
+    """
+    if getattr(player, 'readied_weapon', None) is item:
+        player.readied_weapon = None
+        player.storm_servant_bonus = None
+        return 'weapon'
+    return unequip_if_worn(player, item)
+
+
+_UNWORN_VERB = {'weapon': 'wielding', 'armor': 'wearing', 'shield': 'carrying'}
+
+
+def unworn_notice(slot: str | None, name: str) -> str | None:
+    """Build the non-expert "(You are no longer ...)" hint for a slot
+    unworn_if_given_away() just cleared, or None if nothing was cleared.
+    Shared by commands/give.py and commands/drop.py so the wording can't
+    drift between the two call sites."""
+    if slot is None:
+        return None
+    return f'(You are no longer {_UNWORN_VERB[slot]} the {name}.)'
 
 
 def apply_equipment_degradation(player, slot: str, degraded: int, destroyed: bool) -> None:

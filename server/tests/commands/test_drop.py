@@ -75,6 +75,7 @@ class _FakeCtx:
         self.server = server or _FakeServer()
         self.client = _FakeClient(room_no)
         self._sent: list[str] = []
+        self._sent_room: list[str] = []
         self._prompt_answer = ''
 
     async def send(self, msg, **kwargs):
@@ -84,7 +85,10 @@ class _FakeCtx:
             self._sent.append(str(msg))
 
     async def send_room(self, msg, **kwargs):
-        pass
+        self._sent_room.append(str(msg))
+
+    def sent_room(self) -> str:
+        return '\n'.join(self._sent_room)
 
     async def prompt(self, *args, **kwargs):
         return self._prompt_answer
@@ -328,6 +332,47 @@ class TestDropCommand(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('wearing it', ctx.sent())
         self.assertEqual(len(player.inventory.entries()), 0)
 
+    async def test_dropping_readied_weapon_clears_it(self):
+        # Bug: DROPping your currently-readied weapon left
+        # player.readied_weapon pointing at an item no longer in your
+        # inventory or the room -- same class of bug as GIVE (see
+        # tests/commands/test_give_take.py's version), fixed by the same
+        # player.py's unworn_if_given_away().
+        player, server, ctx, cmd = self._setup()
+        sword = _weapon('LONG SWORD', item_id=1)
+        player.inventory.add(sword)
+        player.readied_weapon = sword
+        await cmd.execute(ctx, 'sword')
+        self.assertIsNone(player.readied_weapon)
+
+    async def test_dropping_readied_weapon_tells_non_expert(self):
+        player, server, ctx, cmd = self._setup()
+        sword = _weapon('LONG SWORD', item_id=1)
+        player.inventory.add(sword)
+        player.readied_weapon = sword
+        player.is_expert = False
+        await cmd.execute(ctx, 'sword')
+        self.assertIn('no longer wielding', ctx.sent().lower())
+
+    async def test_dropping_readied_weapon_silent_for_expert(self):
+        player, server, ctx, cmd = self._setup()
+        sword = _weapon('LONG SWORD', item_id=1)
+        player.inventory.add(sword)
+        player.readied_weapon = sword
+        player.is_expert = True
+        await cmd.execute(ctx, 'sword')
+        self.assertNotIn('no longer wielding', ctx.sent().lower())
+
+    async def test_dry_room_drop_broadcasts_to_room(self):
+        # This command had no send_room() at all -- bystanders never saw
+        # an item hit the floor. Ryan's request.
+        player, server, ctx, cmd = self._setup()
+        sword = _weapon('LONG SWORD', item_id=1)
+        player.inventory.add(sword)
+        await cmd.execute(ctx, 'sword')
+        self.assertIn('drops', ctx.sent_room().lower())
+        self.assertIn('LONG SWORD', ctx.sent_room())
+
     async def test_dry_room_no_inventory(self):
         player, server, ctx, cmd = self._setup()
         player.inventory = None
@@ -373,6 +418,14 @@ class TestDropCommand(unittest.IsolatedAsyncioTestCase):
         # NOT placed in room_items (it sank)
         self.assertEqual(len(server.room_items.get(2, [])), 0)
         self.assertIn('sink', ctx.sent().lower())
+
+    async def test_water_room_drop_broadcasts_to_room(self):
+        room = _Room(name='UNDERGROUND POOL')
+        player, server, ctx, cmd = self._setup(room=room, room_no=2)
+        sword = _weapon('LONG SWORD', item_id=1)
+        player.inventory.add(sword)
+        await cmd.execute(ctx, 'sword')
+        self.assertIn('water', ctx.sent_room().lower())
 
     async def test_water_room_flag_detection(self):
         room = _Room(name='POOL ROOM', flags=['water'])

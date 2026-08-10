@@ -57,6 +57,9 @@ class _FakeCtx:
             else:
                 self.sent.append(a)
 
+    async def send_room(self, *args, **kwargs):
+        pass
+
     def _flat(self) -> str:
         return '\n'.join(str(x) for x in self.sent)
 

@@ -110,6 +110,7 @@ class _FakeCtx:
         self.client = _FakeClient(room=room)
         self.server = server or _FakeServer()
         self._sent:  list[str] = []
+        self._sent_room: list[str] = []
         self._prompt_answer: str = ''
 
     async def send(self, msg, **kwargs):
@@ -119,13 +120,16 @@ class _FakeCtx:
             self._sent.append(str(msg))
 
     async def send_room(self, msg, **kwargs):
-        pass   # bystander messages; not tested here
+        self._sent_room.append(str(msg))
 
     async def prompt(self, *args, **kwargs) -> str:
         return self._prompt_answer
 
     def sent(self) -> str:
         return '\n'.join(self._sent)
+
+    def sent_room(self) -> str:
+        return '\n'.join(self._sent_room)
 
 
 def _run(coro):
@@ -286,6 +290,16 @@ class TestGiveToAlly(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('wearing it', self.ctx.sent())
         self.assertEqual(len(self.ally.items), 1)
 
+    async def test_give_item_to_ally_broadcasts_to_room(self):
+        # Bug: this was the one GIVE-to-ally branch (plain items --
+        # books, trinkets, rations, etc.) with no send_room() at all,
+        # unlike the Weapon/ammo/armor/shield branches above it --
+        # bystanders never found out an item changed hands. Ryan's
+        # request, part of a wider sweep for missing send_room() calls
+        # across give/take/get/drop.
+        await self.cmd.execute(self.ctx, 'ration', 'to', 'batman')
+        self.assertIn('BATMAN', self.ctx.sent_room().upper())
+
     async def test_give_nothing_when_inventory_empty(self):
         self.player.inventory.remove(self.item)
         await self.cmd.execute(self.ctx, 'ration', 'to', 'batman')
@@ -397,6 +411,48 @@ class TestGiveWeaponAndAmmoToAlly(unittest.IsolatedAsyncioTestCase):
         self.assertIn('LOADS', self.ctx.sent().upper())
         self.assertTrue(self.player.unsaved_changes)
 
+    async def test_giving_own_readied_weapon_to_ally_clears_it(self):
+        # Bug: GIVEing away your own currently-readied weapon left
+        # player.readied_weapon pointing at an item you no longer have --
+        # STAT kept showing "Weapon readied: ..." for it, and combat's
+        # player_attacks() takes `weapon` as a plain parameter with no
+        # inventory check of its own, so it would have kept using that
+        # phantom weapon's stats for every swing. Ryan's follow-up to the
+        # armor/shield version of this same bug.
+        weapon = _make_weapon()
+        self.player.inventory.add(weapon)
+        self.player.readied_weapon = weapon
+        self.player.storm_servant_bonus = (2, 2)
+
+        await self.cmd.execute(self.ctx, '.357', 'magnum', 'to', 'morganna')
+
+        self.assertIsNone(self.player.readied_weapon)
+        self.assertIsNone(self.player.storm_servant_bonus)
+
+    async def test_giving_readied_weapon_tells_non_expert(self):
+        # Ryan's request: a non-expert who just lost their readied weapon
+        # as a side effect of GIVE should be told about it explicitly
+        # (mirrors commands/wear.py's `if not player.is_expert:` hint for
+        # the ring toggle), rather than silently finding out later.
+        weapon = _make_weapon()
+        self.player.inventory.add(weapon)
+        self.player.readied_weapon = weapon
+        self.player.is_expert = False
+
+        await self.cmd.execute(self.ctx, '.357', 'magnum', 'to', 'morganna')
+
+        self.assertIn('no longer wielding', self.ctx.sent().lower())
+
+    async def test_giving_readied_weapon_silent_for_expert(self):
+        weapon = _make_weapon()
+        self.player.inventory.add(weapon)
+        self.player.readied_weapon = weapon
+        self.player.is_expert = True
+
+        await self.cmd.execute(self.ctx, '.357', 'magnum', 'to', 'morganna')
+
+        self.assertNotIn('no longer wielding', self.ctx.sent().lower())
+
     async def test_give_ammo_before_weapon_reports_no_weapon_readied(self):
         """The exact bug report: GIVE ammo with no weapon readied yet."""
         ammo = _make_ammo()
@@ -490,6 +546,18 @@ class TestGiveArmorAndShieldToAlly(unittest.IsolatedAsyncioTestCase):
 
         self.assertIsNone(self.player.active_armor_id)
         self.assertEqual(self.player.armor, 0)
+
+    async def test_give_worn_armor_to_ally_tells_non_expert(self):
+        armor = self._armor()
+        armor.condition = 100
+        self.player.inventory.add(armor)
+        self.player.active_armor_id = 2
+        self.player.armor = 50
+        self.player.is_expert = False
+
+        await self.cmd.execute(self.ctx, 'cloth', 'armor', 'to', 'bishop')
+
+        self.assertIn('no longer wearing', self.ctx.sent().lower())
 
 
 # ---------------------------------------------------------------------------
@@ -651,6 +719,11 @@ class TestGiveToPlayer(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(receiver_rations), 1)
         self.assertEqual(receiver_rations[0].quantity, 1)
 
+    async def test_giving_own_readied_weapon_to_player_clears_it(self):
+        self.giver.readied_weapon = self.item
+        await self.cmd.execute(self.ctx, 'sword', 'to', 'skye')
+        self.assertIsNone(self.giver.readied_weapon)
+
 
 # ---------------------------------------------------------------------------
 # GiveCommand — monster targets
@@ -705,6 +778,22 @@ class TestGiveToMonster(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(player.inventory.entries()), 1,
                          'item should not be consumed by a dead monster')
 
+    async def test_give_food_to_monster_broadcasts_to_room(self):
+        # This branch had no send_room() at all -- bystanders never saw
+        # the offer or its outcome. Ryan's request.
+        player, ctx = self._make_ctx_with_monster('TROLL')
+        item = _make_item('RATION', item_id=1, kind='food')
+        player.inventory.add(item)
+        await GiveCommand().execute(ctx, 'ration', 'to', 'troll')
+        self.assertIn('TROLL', ctx.sent_room().upper())
+
+    async def test_give_weapon_to_monster_broadcasts_return_to_room(self):
+        player, ctx = self._make_ctx_with_monster('TROLL')
+        item = _make_item('SWORD', item_id=2, category=ItemCategory.WEAPON)
+        player.inventory.add(item)
+        await GiveCommand().execute(ctx, 'sword', 'to', 'troll')
+        self.assertIn('TROLL', ctx.sent_room().upper())
+
 
 # ---------------------------------------------------------------------------
 # TakeCommand
@@ -738,6 +827,13 @@ class TestTakeFromAlly(unittest.IsolatedAsyncioTestCase):
     async def test_take_sends_confirmation(self):
         await self.cmd.execute(self.ctx, 'lantern', 'from', 'gandalf')
         self.assertIn('GANDALF', self.ctx.sent().upper())
+
+    async def test_take_broadcasts_to_room(self):
+        # This command had no send_room() at all -- bystanders never saw
+        # an item change hands from a servant back to the player. Ryan's
+        # request.
+        await self.cmd.execute(self.ctx, 'lantern', 'from', 'gandalf')
+        self.assertIn('GANDALF', self.ctx.sent_room().upper())
 
     async def test_take_partial_item_name(self):
         await self.cmd.execute(self.ctx, 'lan', 'from', 'gandalf')

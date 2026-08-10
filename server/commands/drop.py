@@ -226,13 +226,25 @@ class DropCommand(Command):
             await ctx.send("Can't, you are wearing it!")
             return CommandResult.ok()
 
-        # Dropped armor/shield stops counting as worn -- otherwise STATS
-        # keeps showing it equipped even after it's lying in the room.
-        # Must run before inventory.remove() below -- it looks the item up
-        # via player.inventory.find(), which comes up empty once gone.
-        from player import unequip_if_worn
-        unequip_if_worn(player, entry.item)
+        # Dropped armor/shield/weapon stops counting as worn/readied --
+        # otherwise STATS keeps showing it equipped after it's lying in
+        # the room, and for a readied weapon combat/resolution.py's
+        # player_attacks() would keep using its stats for every swing
+        # even though it's gone (player.py's unworn_if_given_away()).
+        # Must run before inventory.remove() below -- the armor/shield
+        # half looks the item up via player.inventory.find(), which comes
+        # up empty once gone.
+        from player import unworn_if_given_away, unworn_notice
+        unworn_slot = unworn_if_given_away(player, entry.item)
         inventory.remove(entry.item)
+        # Ryan's request: tell a non-expert their readied/worn gear just
+        # came off, rather than leaving them to notice via a later STAT
+        # or attack -- same `if not player.is_expert:` hint pattern as
+        # commands/wear.py's ring toggle.
+        if not player.is_expert:
+            notice = unworn_notice(unworn_slot, name)
+            if notice:
+                await ctx.send(notice)
 
         # Check for water room
         room_no  = int(getattr(ctx.client, 'room', 0) or 0)
@@ -245,6 +257,8 @@ class DropCommand(Command):
             await try_sugar_cube_drop(ctx, room)
             return CommandResult.ok()
 
+        pself = getattr(player, 'name', 'Someone')
+
         if room and (_is_water_room(room) or _is_well_room(room)):
             msgs, lost = _water_drop_messages(entry.item, room)
             for msg in msgs:
@@ -256,6 +270,10 @@ class DropCommand(Command):
                     item     = entry.item,
                     quantity = entry.quantity,
                 ))
+            # Bystanders see the splash either way -- Ryan's request
+            # (this command had no send_room() at all before, so nobody
+            # else in the room ever found out an item got dropped).
+            await ctx.send_room(f'{pself} drops {name} into the water.', exclude_self=True)
             return CommandResult.ok()
 
         # Dry room — normal drop
@@ -267,4 +285,5 @@ class DropCommand(Command):
             ))
 
         await ctx.send(f'You drop {name}.')
+        await ctx.send_room(f'{pself} drops {name}.', exclude_self=True)
         return CommandResult.ok()

@@ -124,4 +124,10 @@ class TakeCommand(Command):
             inventory.add(chosen_entry.item,
                           quantity=getattr(chosen_entry, 'quantity', 1))
         await ctx.send(f'{chosen_ally.name} hands you the {iname}.')
+        # This command had no send_room() at all -- bystanders never saw
+        # an item change hands from a servant back to the player.
+        # Ryan's request.
+        pself = getattr(player, 'name', 'Someone')
+        await ctx.send_room(
+            f'{chosen_ally.name} hands {iname} to {pself}.', exclude_self=True)
         return CommandResult.ok()

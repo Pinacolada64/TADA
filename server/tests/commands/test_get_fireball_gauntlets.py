@@ -49,6 +49,7 @@ def _make_ctx(weapons: list[dict], room_weapon: int):
     ctx.player = player
     ctx.client.room = 1
     ctx.send = AsyncMock()
+    ctx.send_room = AsyncMock()
     return ctx
 
 

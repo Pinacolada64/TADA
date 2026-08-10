@@ -624,6 +624,10 @@ class GetCommand(Command):
 
         remove_fn()
         await ctx.send(f'You pick up {name}.')
+        # This command had no send_room() at all -- bystanders never saw
+        # an item get picked up off the ground. Ryan's request.
+        pself = getattr(player, 'name', 'Someone')
+        await ctx.send_room(f'{pself} picks up {name}.', exclude_self=True)
 
         # --- Staff: Wizards get a reminder that it enhances spellcasting (SPUR.MISC3.S:47) ---
         if item_cat == ItemCategory.WEAPON and item_id in _STAFF_IDS:
