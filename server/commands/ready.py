@@ -96,7 +96,7 @@ def _weapon_class_line(weapon) -> list[str]:
     best = targets.get(wc_str.lower(), '')
     lines = [f'Weapon class: {wc_str}']
     if best:
-        lines.append(f'   Best targets: {best}')
+        lines.append(f'Best targets: {best}')
     return lines
 
 
