@@ -60,6 +60,17 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
 
+# Two-letter mnemonics that select a root-menu row the same as its
+# single-letter key -- matches each toggle's real standalone in-game
+# command name where one exists ('mp' -> commands/more_prompt.py, 'pm'
+# -> commands/prompt_mode.py), or just the same eXpert-Mode/etc style
+# for consistency where one doesn't ('xm').
+_ROOT_MNEMONICS: dict[str, str] = {
+    'xm': 'x',
+    'mp': 'm',
+    'pm': 'p',
+}
+
 # Detailed per-setting explanations shown by typing 'h' + the setting's key
 # (e.g. 'hx', 'hb') at the prefs menu prompt -- one entry per key in
 # prefs_menu()'s valid_keys, keyed by lowercase letter.
@@ -82,6 +93,15 @@ _SETTING_HELP: dict[str, list[str]] = {
         "B or - to go back a page, Q to stop reading early. When off, "
         "everything is sent at once and scrolls by regardless of length. "
         "Same setting as the standalone 'mp' command.",
+        '',
+    ],
+    'p': [
+        '',
+        '|cyan|Prompt Mode|reset|',
+        "If enabled, reading a message board thread (BOARD command) "
+        "shows one message at a time with a [R]eply/[M]ail poster/<#>/"
+        "Enter menu after each, instead of dumping the whole thread at "
+        "once. Same setting as the standalone 'pm' command.",
         '',
     ],
     'c': [
@@ -378,11 +398,13 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
     while True:
         expert      = ctx.player.is_expert # query_flag(PlayerFlags.EXPERT_MODE)
         more_prompt = ctx.player.query_flag(PlayerFlags.MORE_PROMPT)
+        prompt_mode = ctx.player.query_flag(PlayerFlags.PROMPT_MODE)
 
         t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
                   border_style=border_style_for_ctx(ctx))
         t.add_row(['X', 'Expert Mode', 'On' if expert else 'Off', 'hx'])
         t.add_row(['M', 'More Prompt', 'On' if more_prompt else 'Off', 'hm'])
+        t.add_row(['P', 'Prompt Mode', 'On' if prompt_mode else 'Off', 'hp'])
         t.add_row(['C', 'Colors & Graphics...', '(Submenu)', 'hc'])
         news_all = getattr(ctx.player.command_settings, 'news_show_all', False)
         t.add_row(['N', 'News Display', 'Full directory' if news_all else 'New only', 'hn'])
@@ -392,7 +414,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         t.add_row(['W', 'Movement Keys',
                    'Inverted T (WASD)' if wasd else 'Compass directions (N/E/S/W)', 'hw'])
 
-        valid_keys = ['X', 'M', 'C', 'N', 'T', 'D', 'W']
+        valid_keys = ['X', 'M', 'P', 'C', 'N', 'T', 'D', 'W']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -414,20 +436,29 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         ans = raw.strip().lower()
 
         if ans == '?':
-            help_lines = [
-                'X - toggle Expert Mode',
-                "M - toggle More Prompt (pause between screenfuls; also 'mp' in-game)",
-                'C - Colors & Graphics submenu (text/menu/table colors, '
-                'border style, graphics test)',
-                'N - toggle News Display (new only / full directory)',
-                'T - Terminal Settings submenu (client type/screen size, '
-                'tab key, line ending)',
-                'D - Date & Time submenu (timezone, date format, time '
-                'format, hourglass clock)',
-                'W - toggle Movement Keys (Compass n/s/e/w / WASD w/a/s/d)',
-                f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
-                f'{return_key} - save and exit',
+            from commands.help import format_summary_table
+            items = [
+                ('X', "Toggle Expert Mode (also 'xm' at this prompt)"),
+                ('M', "Toggle More Prompt (pause between screenfuls; also "
+                      "'mp' in-game or at this prompt)"),
+                ('P', "Toggle Prompt Mode (board thread reading; also 'pm' "
+                      "in-game or at this prompt)"),
+                ('C', 'Colors & Graphics submenu (text/menu/table colors, '
+                      'border style, graphics test)'),
+                ('N', 'Toggle News Display (new only / full directory)'),
+                ('T', 'Terminal Settings submenu (client type/screen size, '
+                      'tab key, line ending)'),
+                ('D', 'Date & Time submenu (timezone, date format, time '
+                      'format, hourglass clock)'),
+                ('W', 'Toggle Movement Keys (Compass directions / '
+                      'Inverted T WASD)'),
             ]
+            help_lines = (
+                ['', '|yellow|PREFS Options|reset|', '']
+                + format_summary_table(items, width=cs.screen_columns)
+                + ['', f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
+                       f'{return_key} - save and exit']
+            )
             await ctx.send(*help_lines)
             continue
 
@@ -443,6 +474,13 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             await ctx.send(*_SETTING_HELP[ans[1]])
             continue
 
+        # Real in-game command names double as selectors at this prompt
+        # (Ryan's request) -- 'mp'/'pm' are genuine standalone commands
+        # (commands/more_prompt.py, commands/prompt_mode.py); 'xm' has no
+        # standalone command of its own but follows the same mnemonic
+        # pattern (eXpert Mode) for consistency.
+        ans = _ROOT_MNEMONICS.get(ans, ans)
+
         if ans == 'x':
             option = "|white|Expert Mode: "
             if ctx.player.query_flag(PlayerFlags.EXPERT_MODE):
@@ -454,6 +492,11 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
 
         elif ans == 'm':
             await toggle_more_prompt(ctx)
+
+        elif ans == 'p':
+            new_state, _msg = ctx.player.toggle_flag(PlayerFlags.PROMPT_MODE)
+            ctx.player.unsaved_changes = True
+            await ctx.send(f"|white|Prompt Mode: {'|green|On' if new_state else '|red|Off'}|reset|")
 
         elif ans == 'c':
             await _colors_graphics_menu(ctx)
