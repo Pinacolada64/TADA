@@ -1604,6 +1604,32 @@ def refresh_equipped_rating(player, slot: str) -> int:
     return value
 
 
+def unequip_if_worn(player, item) -> None:
+    """Clear active_armor_id/active_shield_id (and refresh the mirrored
+    rating) if *item* is the specific piece currently equipped in that
+    slot.
+
+    equipped_entry()'s own docstring already calls out "dropped/given away
+    without going through commands/unwear.py" as a case it can't detect on
+    its own -- this is that missing other half. Without it, GIVE/DROPping
+    worn armor or a worn shield left player.armor/player.shield (and
+    STATS' "(name)" display) still showing it as equipped indefinitely,
+    even though it was no longer anywhere in the player's own pack.
+    Matched by identity (entry.item is item), not id_number -- armor/
+    shield never stack (see inventory.Inventory.add()), so two carried
+    pieces can share an id_number while only one is actually the worn one.
+    """
+    from item_system import ItemType
+    item_type = getattr(item, 'type', None)
+    slot = {ItemType.ARMOR: 'armor', ItemType.SHIELD: 'shield'}.get(item_type)
+    if slot is None:
+        return
+    entry = equipped_entry(player, slot)
+    if entry is not None and entry.item is item:
+        setattr(player, f'active_{slot}_id', None)
+        refresh_equipped_rating(player, slot)
+
+
 def apply_equipment_degradation(player, slot: str, degraded: int, destroyed: bool) -> None:
     """Apply combat degradation to the equipped armor/shield item's real
     .condition, and remove it from inventory entirely if destroyed.

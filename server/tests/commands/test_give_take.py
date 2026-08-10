@@ -292,6 +292,27 @@ class TestGiveToAlly(unittest.IsolatedAsyncioTestCase):
         self.assertIn('nothing', self.ctx.sent().lower())
         self.assertEqual(len(self.ally.items), 0)
 
+    async def test_give_worn_armor_clears_active_armor_id(self):
+        # Bug: giving away the piece of armor currently backing
+        # player.active_armor_id never cleared that id or refreshed
+        # player.armor, so STATS kept showing it "(worn)" at its old
+        # rating even though it was now sitting in the ally's pack
+        # instead of the player's own -- JoyfulColor's playtesting report,
+        # "give the bishop some armor, it still shows READYed in STATS."
+        from item_system import ItemType
+        armor = _make_item('CLOTH ARMOR', item_id=2, category=ItemCategory.ARMOR)
+        armor.type = ItemType.ARMOR
+        armor.condition = 100
+        self.player.inventory.add(armor)
+        self.player.active_armor_id = 2
+        self.player.armor = 50
+
+        await self.cmd.execute(self.ctx, 'cloth armor', 'to', 'batman')
+
+        self.assertIsNone(self.player.active_armor_id)
+        self.assertEqual(self.player.armor, 0)
+        self.assertEqual(self.ally.items[0].item.name, 'CLOTH ARMOR')
+
     async def test_give_nonexistent_item(self):
         await self.cmd.execute(self.ctx, 'sword', 'to', 'batman')
         self.assertIn('not carrying', self.ctx.sent().lower())

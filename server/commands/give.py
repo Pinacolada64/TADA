@@ -471,6 +471,14 @@ class GiveCommand(Command):
                     exclude_self=True)
                 return CommandResult.ok()
 
+            # Given-away armor/shield stops counting as worn -- otherwise
+            # STATS keeps showing it equipped even though it's now sitting
+            # in the ally's pack (player.py's unequip_if_worn()). Must run
+            # before inventory.remove() below -- it looks the item up via
+            # player.inventory.find(), which comes up empty once the item
+            # is already gone.
+            from player import unequip_if_worn
+            unequip_if_worn(player, item)
             if inventory:
                 inventory.remove(item)
             # add_ally_item(), not a raw ally.items.append(entry) -- see
@@ -498,6 +506,8 @@ class GiveCommand(Command):
                 if other_inv and other_inv.is_full():
                     await ctx.send(f'{pname} cannot carry any more.')
                     return CommandResult.ok()
+                from player import unequip_if_worn
+                unequip_if_worn(player, item)
                 if inventory:
                     inventory.remove(item)
                 if other_inv:
@@ -534,6 +544,8 @@ class GiveCommand(Command):
                 for line in lines:
                     await ctx.send(line)
                 if consumed and inventory:
+                    from player import unequip_if_worn
+                    unequip_if_worn(player, item)
                     inventory.remove(item)
                     player.unsaved_changes = True
                 return CommandResult.ok()

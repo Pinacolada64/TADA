@@ -226,6 +226,12 @@ class DropCommand(Command):
             await ctx.send("Can't, you are wearing it!")
             return CommandResult.ok()
 
+        # Dropped armor/shield stops counting as worn -- otherwise STATS
+        # keeps showing it equipped even after it's lying in the room.
+        # Must run before inventory.remove() below -- it looks the item up
+        # via player.inventory.find(), which comes up empty once gone.
+        from player import unequip_if_worn
+        unequip_if_worn(player, entry.item)
         inventory.remove(entry.item)
 
         # Check for water room
