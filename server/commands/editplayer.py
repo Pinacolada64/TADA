@@ -10,15 +10,16 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
   ├─  3. Attributes        stats (CHR, CON, DEX, INT, STR, WIS, Energy)
   ├─  4. Character Names   player name; rename allies and horse
   ├─  5. Combinations      locker, elevator, castle, booby traps
-  ├─  6. Flags/Counters    all PlayerFlags grouped by category
-  ├─  7. Hit Points        current HP for player, allies, and horse
-  ├─  8. Inventory         give weapons/armor/rations/objects; transfer
+  ├─  6. Command Settings  player.command_settings toggles (e.g. whereat hiding)
+  ├─  7. Flags/Counters    all PlayerFlags grouped by category
+  ├─  8. Hit Points        current HP for player, allies, and horse
+  ├─  9. Inventory         give weapons/armor/rations/objects; transfer
   │                        items between characters
-  ├─  9. Map Information   dungeon level, room number
-  ├─ 10. Money             in hand / in bank / in bar / Vinny Loan status
-  ├─ 11. Statistics        age, birthday, class, experience, guild, honor,
+  ├─ 10. Map Information   dungeon level, room number
+  ├─ 11. Money             in hand / in bank / in bar / Vinny Loan status
+  ├─ 12. Statistics        age, birthday, class, experience, guild, honor,
   │                        race, moves to date, monsters killed
-  └─ 12. Weapons           readied weapon, per-weapon battle experience
+  └─ 13. Weapons           readied weapon, per-weapon battle experience
 """
 
 import logging
@@ -367,6 +368,7 @@ def _build_main_menu(ctx) -> Menu:
     menu.add_item(MenuItem('Attributes',       shortcuts='at', submenu=_attributes_menu(ctx)))
     menu.add_item(MenuItem('Character Names',  shortcuts='cn', submenu=_names_menu(ctx)))
     menu.add_item(MenuItem('Combinations',     shortcuts='co', submenu=_combinations_menu(ctx)))
+    menu.add_item(MenuItem('Command Settings', shortcuts='cs', submenu=_command_settings_menu(ctx)))
     menu.add_item(MenuItem('Flags/Counters',   shortcuts='fl', submenu=_flags_menu(ctx)))
     menu.add_item(MenuItem('Hit Points',       shortcuts='hp', submenu=_hp_menu(ctx)))
     menu.add_item(MenuItem('Inventory',        shortcuts='in', action=_inventory_action(ctx)))
@@ -551,6 +553,28 @@ def _map_info_menu(ctx) -> Menu:
         dot_leader_handler=lambda ctx: _room_label(
             ctx, int(getattr(p, 'map_level', 1) or 1), int(getattr(p, 'map_room', 1) or 1)),
         action=edit_room,
+    ))
+    return menu
+
+
+# ---------------------------------------------------------------------------
+# Command Settings menu — player.command_settings toggles
+# ---------------------------------------------------------------------------
+
+def _command_settings_menu(ctx) -> Menu:
+    p    = ctx.player
+    menu = _titled_menu(ctx, 'Command Settings')
+
+    async def toggle_whereat_hidden(ctx) -> None:
+        cs = p.command_settings
+        cs.whereat_hidden = not cs.whereat_hidden
+        p.unsaved_changes = True
+        await ctx.send(f'Whereat Hidden: {"Yes" if cs.whereat_hidden else "No"}')
+
+    menu.add_item(MenuItem(
+        'Whereat Hidden', shortcuts='wh',
+        dot_leader_handler=lambda ctx: 'Yes' if p.command_settings.whereat_hidden else 'No',
+        action=toggle_whereat_hidden,
     ))
     return menu
 

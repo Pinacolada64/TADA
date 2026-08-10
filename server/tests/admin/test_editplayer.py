@@ -31,12 +31,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from base_classes import Alignment, CombinationTypes, Guild, PlayerClass, PlayerRace, PlayerStat
+from command_settings import CommandSettings
 from flags import FlagDisplayTypes, PlayerFlags, new_player_default_flags
 from commands.editplayer import (
     EditPlayerCommand,
     _alignment_menu,
     _attributes_menu,
     _build_main_menu,
+    _command_settings_menu,
     _flag_status,
     _flags_menu,
     _names_menu,
@@ -62,6 +64,7 @@ class _MockPlayer:
     def __init__(self, name: str = 'TestPlayer'):
         self.name              = name
         self.client_settings   = _Settings()
+        self.command_settings  = CommandSettings()
         self._flags: set       = set()
         self.stats             = {s: 10 for s in PlayerStat}
         self.age               = 25
@@ -226,8 +229,8 @@ class TestMenuStructure(unittest.TestCase):
 
     # -- main menu --
 
-    def test_main_menu_has_twelve_selectable_items(self):
-        self.assertEqual(len(_build_main_menu(self.ctx).selectable), 12)
+    def test_main_menu_has_thirteen_selectable_items(self):
+        self.assertEqual(len(_build_main_menu(self.ctx).selectable), 13)
 
     def test_main_menu_contains_expected_labels(self):
         labels = {i.text for i in _build_main_menu(self.ctx).selectable}
@@ -368,6 +371,46 @@ class TestFlagToggleAction(unittest.IsolatedAsyncioTestCase):
             result = item.action(self.ctx)
             if asyncio.iscoroutine(result):
                 await result
+
+
+# ---------------------------------------------------------------------------
+# 4a2. Command Settings menu — whereat_hidden toggle
+# ---------------------------------------------------------------------------
+
+class TestCommandSettingsMenu(unittest.IsolatedAsyncioTestCase):
+
+    def setUp(self):
+        self.ctx = _MockCtx()
+
+    def _item(self):
+        menu = _command_settings_menu(self.ctx)
+        return next(i for i in menu.selectable if i.text == 'Whereat Hidden')
+
+    async def test_dot_leader_reflects_current_value(self):
+        item = self._item()
+        self.assertEqual(item.dot_leader_handler(self.ctx), 'No')
+        self.ctx.player.command_settings.whereat_hidden = True
+        self.assertEqual(item.dot_leader_handler(self.ctx), 'Yes')
+
+    async def test_toggle_off_to_on(self):
+        item = self._item()
+        self.assertFalse(self.ctx.player.command_settings.whereat_hidden)
+        await item.action(self.ctx)
+        self.assertTrue(self.ctx.player.command_settings.whereat_hidden)
+        self.assertTrue(self.ctx.player.unsaved_changes)
+
+    async def test_toggle_on_to_off(self):
+        self.ctx.player.command_settings.whereat_hidden = True
+        item = self._item()
+        await item.action(self.ctx)
+        self.assertFalse(self.ctx.player.command_settings.whereat_hidden)
+
+    async def test_toggle_sends_status_message(self):
+        item = self._item()
+        await item.action(self.ctx)
+        combined = ' '.join(self.ctx.sent)
+        self.assertIn('Whereat Hidden', combined)
+        self.assertIn('Yes', combined)
 
 
 # ---------------------------------------------------------------------------
@@ -645,7 +688,7 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(ctx.sent), 0)
 
     async def test_toggle_expert_mode_via_navigation(self):
-        ctx = _MockCtx(responses=['6', '1', '', ''])
+        ctx = _MockCtx(responses=['7', '1', '', ''])
         self.assertFalse(ctx.player.query_flag(PlayerFlags.EXPERT_MODE))
         await EditPlayerCommand().execute(ctx)
         self.assertTrue(ctx.player.query_flag(PlayerFlags.EXPERT_MODE))
@@ -657,15 +700,15 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.success)
 
     async def test_edit_age_via_navigation(self):
-        # Main → Statistics (11) → Age (1) → 30 → up → up
-        ctx = _MockCtx(responses=['11', '1', '30', '', ''])
+        # Main → Statistics (12) → Age (1) → 30 → up → up
+        ctx = _MockCtx(responses=['12', '1', '30', '', ''])
         await EditPlayerCommand().execute(ctx)
         self.assertEqual(ctx.player.age, 30)
 
     async def test_toggle_twice_restores_flag(self):
         player = _MockPlayer()
         for _ in range(2):
-            ctx = _MockCtx(responses=['6', '1', '', ''], player=player)
+            ctx = _MockCtx(responses=['7', '1', '', ''], player=player)
             await EditPlayerCommand().execute(ctx)
         self.assertFalse(player.query_flag(PlayerFlags.EXPERT_MODE))
 
