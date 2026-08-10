@@ -18,7 +18,8 @@ a weighted-random action every time it's back at the main prompt:
   walk a bare compass direction, page another random bot (occasionally the
   #friends group instead), whisper to whoever's in the room, shout, look,
   get the room's item, check stats, give a ruby to another bot, loot
-  another player in the room, or challenge another bot to a duel.
+  another player in the room, challenge another bot to a duel, or check
+  WHO's online / WHEREAT everyone currently is.
 Combat is handled generically: whichever bot's 'attack' opens the fight
 becomes its leader and answers its own Command> menu with a mostly-attack
 policy (occasional flee) until the monster or the bot dies; any other bot
@@ -281,6 +282,8 @@ async def do_action(bot: Bot, rng: random.Random) -> None:
         ('get',      0.03),
         ('give',     0.03 if bot.rubies_left > 0 else 0.0),
         ('loot',     0.02 if bot.loot_tries < 2 else 0.0),
+        ('who',      0.02),
+        ('wa',       0.02),
         ('shout',    0.01),
         ('stats',    0.01),
     ]
@@ -326,6 +329,10 @@ async def do_action(bot: Bot, rng: random.Random) -> None:
     elif action == 'duel':
         target = rng.choice([b for b in _BOTS if b != bot.label])
         await bot.say(f'duel {target}')
+    elif action == 'who':
+        await bot.say('who')
+    elif action == 'wa':
+        await bot.say('wa')
     elif action == 'shout':
         await bot.say('shout swarm test in progress')
     elif action == 'stats':
