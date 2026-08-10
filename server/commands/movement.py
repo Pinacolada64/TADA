@@ -10,7 +10,7 @@ Special exits (shoppe elevator, bar) are checked here before delegating
 normal movement to ctx.server._move().
 """
 
-from base_classes import RoomAlignment
+from base_classes import guild_hq_key_for_room
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
@@ -340,16 +340,12 @@ class MoveCommand(Command):
                 await _enter_bar(ctx)
                 return CommandResult.ok()
 
-            # Guild-aligned rooms trigger the guild HQ.
+            # Only the actual guild HQ door triggers the guild HQ -- ordinary
+            # guild-territory rooms (same alignment, no 'HQ' suffix) are just
+            # walked into normally.
             if dest:
                 dest_room = game_map.get_room(player_level, int(dest)) if game_map else None
-                align = getattr(dest_room, 'alignment', None) if dest_room else None
-                _GUILD_KEY = {
-                    RoomAlignment.CLAW:  'CLAW',
-                    RoomAlignment.SWORD: 'SWORD',
-                    RoomAlignment.FIST:  'FIST',
-                }
-                gkey = _GUILD_KEY.get(align)
+                gkey = guild_hq_key_for_room(dest_room)
                 if gkey:
                     await _enter_guild_hq(ctx, gkey)
                     return CommandResult.ok()

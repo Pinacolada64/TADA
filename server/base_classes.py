@@ -696,6 +696,34 @@ def _parse_room_alignment(value) -> RoomAlignment:
         return RoomAlignment.NEUTRAL
 
 
+_GUILD_TERRITORY_KEYS: Dict["RoomAlignment", str] = {
+    RoomAlignment.FIST:  'FIST',
+    RoomAlignment.CLAW:  'CLAW',
+    RoomAlignment.SWORD: 'SWORD',
+}
+
+
+def guild_hq_key_for_room(room: Optional["Room"]) -> Optional[str]:
+    """Guild key ('FIST'/'CLAW'/'SWORD') if *room* is that guild's actual HQ
+    entrance, else None.
+
+    A room's `alignment` field marks ordinary guild *territory* (e.g. "CAVERN
+    LEDGE -]----"), which covers many rooms per guild -- only one of those per
+    guild is the HQ door itself, distinguished by the trailing 'HQ' suffix
+    baked into the room's legacy name (see strip_legacy_alignment_suffix()).
+    Checking `alignment` alone here would send every territory-room visitor
+    (member or not) through guild_hq.main's membership gate and its "gruff
+    guard" rejection, even though they never asked to enter the HQ.
+    """
+    if room is None:
+        return None
+    gkey = _GUILD_TERRITORY_KEYS.get(getattr(room, 'alignment', None))
+    if not gkey:
+        return None
+    _, is_hq = strip_legacy_alignment_suffix(getattr(room, 'name', '') or '')
+    return gkey if is_hq else None
+
+
 class Map(object):
     def __init__(self):
         """

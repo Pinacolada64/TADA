@@ -35,7 +35,7 @@ than the one you're on. Administrator or Dungeon Master.
 import logging
 import re
 
-from base_classes import RoomAlignment
+from base_classes import guild_hq_key_for_room
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
@@ -394,18 +394,14 @@ class TeleportCommand(Command):
         await ctx.send('You appear in a flash of light.')
         await ctx.send_room(f'{name} appears in a flash of light.', exclude_self=True)
 
-        # If the destination is a guild-aligned room, trigger the HQ session
-        # the same way movement.py does when walking into it.
+        # If the destination is the actual guild HQ door, trigger the HQ
+        # session the same way movement.py does when walking into it --
+        # ordinary guild-territory rooms (same alignment, no 'HQ' suffix)
+        # just land the player normally.
         game_map = getattr(ctx.server, 'game_map', None)
         level = int(getattr(ctx.player, 'map_level', 1) or 1)
         dest_room = game_map.get_room(level, dest) if game_map else None
-        align = getattr(dest_room, 'alignment', None)
-        _GUILD_KEY = {
-            RoomAlignment.CLAW:  'CLAW',
-            RoomAlignment.SWORD: 'SWORD',
-            RoomAlignment.FIST:  'FIST',
-        }
-        gkey = _GUILD_KEY.get(align)
+        gkey = guild_hq_key_for_room(dest_room)
         if gkey:
             from commands.movement import _enter_guild_hq
             await _enter_guild_hq(ctx, gkey)
