@@ -264,5 +264,25 @@ class TestBaseDamageAndEaseOfUseFields(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Ease of use : 9', ctx.sent())
 
 
+class TestWeaponAffinityTip(unittest.IsolatedAsyncioTestCase):
+    """Non-expert players get a hint pointing at the new weaponaffinity
+    help topic -- matches commands/wear.py's existing 'if not player.
+    is_expert: lines.append(hint)' convention."""
+
+    async def test_non_expert_sees_the_tip(self):
+        sword = _weapon('LONG SWORD', item_id=2, weapon_class='hack_slash_bash')
+        player = _FakePlayer(weapons=[sword], is_expert=False)
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'sword')
+        self.assertIn('[HELP WEAPON AFFINITY]', ctx.sent())
+
+    async def test_expert_does_not_see_the_tip(self):
+        sword = _weapon('LONG SWORD', item_id=2, weapon_class='hack_slash_bash')
+        player = _FakePlayer(weapons=[sword], is_expert=True)
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'sword')
+        self.assertNotIn('[HELP WEAPON AFFINITY]', ctx.sent())
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

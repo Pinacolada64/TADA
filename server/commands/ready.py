@@ -332,6 +332,10 @@ class ReadyCommand(Command):
         except Exception:
             pass
 
+        if not player.is_expert:
+            info.append('Consult [HELP WEAPON AFFINITY] to find out which '
+                        'weapons are best for you.')
+
         info = [l for l in info if l]
         if info:
             await ctx.send(info)
