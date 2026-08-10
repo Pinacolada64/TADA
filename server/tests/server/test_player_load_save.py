@@ -226,6 +226,32 @@ def test_experience_honor_moves_made_wizard_glow_survive_a_relogin(tmp_path):
     assert relogged.wizard_glow == 7
 
 
+def test_ammo_rounds_max_damage_survive_a_relogin(tmp_path):
+    """ammo_rounds/ammo_max/ammo_damage (set by commands/use.py's ammo
+    branch) were written by save() but never read back -- same gap as
+    experience/honor above, just not caught by the same audit pass.
+    Unlike readied_weapon (genuinely session-only, see _SESSION_ONLY),
+    these three are not: a player who READY'd a weapon and USEd ammo,
+    then quit and reconnected, saw STAT report "0/0 rounds" on the same
+    weapon even though the save file on disk still had the real values --
+    found live via tools/bot_ammo_reconnect_check.py against a real
+    running server."""
+    import net_common
+    net_common.run_server_dir = str(tmp_path / 'run' / 'server')
+
+    original = Player(id='ammotest', name='ammotest')
+    original.ammo_rounds = 4
+    original.ammo_max    = 4
+    original.ammo_damage = 2
+    original.unsaved_changes = True
+    assert original.save(force=True)
+
+    relogged = Player(name='ammotest', id='ammotest')
+    assert relogged.ammo_rounds == 4
+    assert relogged.ammo_max    == 4
+    assert relogged.ammo_damage == 2
+
+
 def test_poisoned_and_diseased_survive_a_relogin(tmp_path):
     """poisoned/diseased are real booleans -- kept out of _load()'s generic
     int()-casting simple_keys loop (which would turn True/False into 1/0)

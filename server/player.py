@@ -1149,10 +1149,20 @@ class Player:
             # xp_level itself (already in this tuple) was restored fine.
             # Found by a systematic round-trip audit of every kwargs.get()
             # default in __init__ against what _load() actually restores.
+            # ammo_rounds/ammo_max/ammo_damage added here for the same
+            # reason -- unlike readied_weapon (genuinely session-only, see
+            # _SESSION_ONLY below), these three are NOT session-only: they
+            # get written by save()'s full __dict__ dump same as
+            # shield/armor above, but were never read back, so ammo loaded
+            # via USE (commands/use.py) silently reset to 0/0/0 on every
+            # reconnect even though the file on disk still had the real
+            # values. Found live: READY + USE bolts showed "CROSSBOW
+            # 4/4 rounds", QUIT, reconnect, READY again showed "CROSSBOW
+            # 0/0 rounds" with no USE in between.
             simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote',
                            'shield', 'armor', 'active_shield_id', 'active_armor_id', 'loan_amount', 'loan_days', 'food', 'drink',
                            '_survival_counter', 'experience', 'honor', 'moves_made', 'wizard_glow',
-                           'duel_wins', 'duel_losses')
+                           'duel_wins', 'duel_losses', 'ammo_rounds', 'ammo_max', 'ammo_damage')
             for k in simple_keys:
                 if k in data:
                     try:
