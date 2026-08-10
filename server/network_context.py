@@ -194,7 +194,14 @@ class GameContext(BaseContext):
         )
 
     async def _send_formatted(self, formatted: list[str]) -> None:
-        """Send pre-formatted lines over the JSON wire without pagination."""
+        """Send pre-formatted lines over the JSON wire without pagination.
+
+        A leading blank line separates this output from the player's typed
+        command echoed at the previous prompt, so the transcript doesn't
+        run the two together.
+        """
+        if formatted:
+            formatted = [''] + formatted
         msg = nc.Message(
             lines=formatted,
             type=nc.MessageType.REGULAR,
