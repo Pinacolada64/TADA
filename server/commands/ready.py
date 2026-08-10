@@ -333,8 +333,19 @@ class ReadyCommand(Command):
             pass
 
         if not player.is_expert:
-            info.append('Consult [HELP WEAPON AFFINITY] to find out which '
-                        'weapons are best for you.')
+            from formatting import titled_box
+            tip_lines = titled_box(
+                ctx, 'Weapon Tip',
+                'Consult [HELP WEAPON AFFINITY] to find out which weapons '
+                'are best for you.',
+                frame_color='green', text_color='white', title_color='purple',
+            )
+            # Leading |reset| per tips.py's format_tip_box() convention --
+            # the tip's [BRACKETED] text resets to the player's own color
+            # pref on its closing ']', so each line needs to start from a
+            # known clean color state rather than inheriting whatever the
+            # line above left behind.
+            info.extend(f'|reset|{line}' for line in tip_lines)
 
         info = [l for l in info if l]
         if info:

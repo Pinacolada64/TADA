@@ -36,6 +36,13 @@ def _weapon(name, item_id=1, **kwargs):
                 **kwargs)
 
 
+class _FakeClientSettings:
+    screen_columns = 78
+    screen_rows    = 25
+    border_style   = 'ascii'
+    translation    = None
+
+
 class _FakePlayer:
     def __init__(self, char_class=PlayerClass.FIGHTER, honor=1000, str_stat=10,
                  weapons=None, extra_items=None, is_expert=False):
@@ -48,6 +55,7 @@ class _FakePlayer:
         self.weapon_experience = {}
         self.unsaved_changes = False
         self.is_expert = is_expert
+        self.client_settings = _FakeClientSettings()
         self.inventory = Inventory()
         for w in (weapons or []):
             self.inventory.add(w)
