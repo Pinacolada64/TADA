@@ -74,7 +74,7 @@ class TestPrefsHelpColumn(unittest.IsolatedAsyncioTestCase):
         await prefs_menu(ctx)
         flat = ctx._flat()
         self.assertIn('Help', flat)
-        for entry in ('hx', 'hh', 'hm', 'hc'):
+        for entry in ('hx', 'hm', 'hc'):
             self.assertIn(entry, flat)
 
     async def test_hx_explains_expert_mode_without_changing_it(self):
@@ -107,7 +107,9 @@ class TestPrefsHelpColumn(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Colors', ctx._flat())
 
     async def test_hh_explains_hourglass(self):
-        ctx = _FakeCtx(['hh', ''], Player())
+        # 'H' now lives in the Date & Time submenu ('D'), not the
+        # top-level menu.
+        ctx = _FakeCtx(['d', 'hh', '', ''], Player())
         await prefs_menu(ctx)
         self.assertIn('Hourglass Display', ctx._flat())
 

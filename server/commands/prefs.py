@@ -73,14 +73,6 @@ _SETTING_HELP: dict[str, list[str]] = {
         "menu prompts -- the underlying commands work the same either way.",
         '',
     ],
-    'h': [
-        '',
-        '|cyan|Hourglass Display|reset|',
-        "Shows the current time in front of your command prompt. Purely "
-        "a visual clock -- it doesn't yet affect in-game time limits or "
-        "control 12-hour (AM/PM) vs 24-hour formatting or timezone.",
-        '',
-    ],
     'm': [
         '',
         '|cyan|More Prompt|reset|',
@@ -115,28 +107,11 @@ _SETTING_HELP: dict[str, list[str]] = {
         "screen size, tab key behavior, and line ending.",
         '',
     ],
-    'z': [
-        '',
-        '|cyan|Timezone|reset|',
-        "Which timezone dates and times are shown in -- the login "
-        "screen's 'You last connected on ...' line and the Hourglass "
-        "clock (more player-facing dates are planned). 'Server Local' "
-        "(the default) shows the server's own local time as-is; picking "
-        "a named zone converts to it instead.",
-        '',
-    ],
     'd': [
         '',
-        '|cyan|Date Format|reset|',
-        "How dates are written out, e.g. 'July 16, 2026' vs '07/16/2026' "
-        "vs '2026-07-16'. Applies to the same dates as Timezone above.",
-        '',
-    ],
-    'f': [
-        '',
-        '|cyan|Time Format|reset|',
-        "12-hour ('2:30 PM') or 24-hour ('14:30') time. Affects the "
-        "Hourglass clock (PREFS 'H') and any other time-of-day display.",
+        '|cyan|Date & Time|reset|',
+        "Opens a submenu for date/time display: timezone, date format, "
+        "time format, and the Hourglass clock toggle.",
         '',
     ],
     'w': [
@@ -233,6 +208,45 @@ _TERMINAL_HELP: dict[str, list[str]] = {
         "LF (Unix-style), CR (classic Mac / some Commodore terminals), or "
         "CRLF (Windows-style). Stored for your client, but not yet enforced "
         "on every line sent -- most terminals handle any of the three fine.",
+        '',
+    ],
+}
+
+# Detailed per-setting explanations for the Date & Time submenu
+# (_date_time_menu()) -- same 'h<key>' convention as _SETTING_HELP/
+# _COLORS_GRAPHICS_HELP/_TERMINAL_HELP, scoped to that submenu's own
+# keys.
+_DATE_TIME_HELP: dict[str, list[str]] = {
+    'z': [
+        '',
+        '|cyan|Timezone|reset|',
+        "Which timezone dates and times are shown in -- the login "
+        "screen's 'You last connected on ...' line and the Hourglass "
+        "clock (more player-facing dates are planned). 'Server Local' "
+        "(the default) shows the server's own local time as-is; picking "
+        "a named zone converts to it instead.",
+        '',
+    ],
+    'd': [
+        '',
+        '|cyan|Date Format|reset|',
+        "How dates are written out, e.g. 'July 16, 2026' vs '07/16/2026' "
+        "vs '2026-07-16'. Applies to the same dates as Timezone above.",
+        '',
+    ],
+    'f': [
+        '',
+        '|cyan|Time Format|reset|',
+        "12-hour ('2:30 PM') or 24-hour ('14:30') time. Affects the "
+        "Hourglass clock ('H') and any other time-of-day display.",
+        '',
+    ],
+    'h': [
+        '',
+        '|cyan|Hourglass Display|reset|',
+        "Shows the current time in front of your command prompt. Purely "
+        "a visual clock -- it doesn't yet affect in-game time limits or "
+        "control 12-hour (AM/PM) vs 24-hour formatting or timezone.",
         '',
     ],
 }
@@ -362,28 +376,21 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
 
     while True:
         expert      = ctx.player.is_expert # query_flag(PlayerFlags.EXPERT_MODE)
-        hourglass   = ctx.player.query_flag(PlayerFlags.HOURGLASS)
         more_prompt = ctx.player.query_flag(PlayerFlags.MORE_PROMPT)
 
         t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
                   border_style=border_style_for_ctx(ctx))
         t.add_row(['X', 'Expert Mode', 'On' if expert else 'Off', 'hx'])
-        t.add_row(['H', 'Hourglass Display', 'On' if hourglass else 'Off', 'hh'])
         t.add_row(['M', 'More Prompt', 'On' if more_prompt else 'Off', 'hm'])
         t.add_row(['C', 'Colors & Graphics', '', 'hc'])
         news_all = getattr(ctx.player.command_settings, 'news_show_all', False)
         t.add_row(['N', 'News Display', 'Full directory' if news_all else 'New only', 'hn'])
         t.add_row(['T', 'Terminal Settings', '', 'ht'])
-        tz_name    = getattr(cs, 'timezone', '') or _server_local_label()
-        t.add_row(['Z', 'Timezone', tz_name, 'hz'])
-        date_fmt_name = _DATE_FORMAT_NAMES.get(getattr(cs, 'date_format', ''), 'Custom')
-        t.add_row(['D', 'Date Format', date_fmt_name, 'hd'])
-        time_fmt_name = _TIME_FORMAT_NAMES.get(getattr(cs, 'time_format', ''), 'Custom')
-        t.add_row(['F', 'Time Format', time_fmt_name, 'hf'])
+        t.add_row(['D', 'Date & Time', '', 'hd'])
         wasd = getattr(ctx.player.command_settings, 'wasd_movement', False)
         t.add_row(['W', 'Movement Keys', 'WASD' if wasd else 'Compass', 'hw'])
 
-        valid_keys = ['X', 'H', 'M', 'C', 'N', 'T', 'Z', 'D', 'F', 'W']
+        valid_keys = ['X', 'M', 'C', 'N', 'T', 'D', 'W']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -407,16 +414,14 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         if ans == '?':
             help_lines = [
                 'X - toggle Expert Mode',
-                'H - toggle Hourglass (clock display)',
                 "M - toggle More Prompt (pause between screenfuls; also 'mp' in-game)",
                 'C - Colors & Graphics submenu (text/menu/table colors, '
                 'border style, graphics test)',
                 'N - toggle News Display (new only / full directory)',
                 'T - Terminal Settings submenu (client type/screen size, '
                 'tab key, line ending)',
-                'Z - choose your display timezone',
-                'D - choose your preferred date format',
-                'F - choose 12-hour or 24-hour time format',
+                'D - Date & Time submenu (timezone, date format, time '
+                'format, hourglass clock)',
                 'W - toggle Movement Keys (Compass n/s/e/w / WASD w/a/s/d)',
                 f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
                 f'{return_key} - save and exit',
@@ -445,15 +450,6 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                 ctx.player.set_flag(PlayerFlags.EXPERT_MODE)
                 await ctx.send(f'{option}|green|On|reset|')
 
-        elif ans == 'h':
-            option = "|white|Hourglass display: "
-            if ctx.player.query_flag(PlayerFlags.HOURGLASS):
-                ctx.player.clear_flag(PlayerFlags.HOURGLASS)
-                await ctx.send(f'{option}|red|Off|reset|')
-            else:
-                ctx.player.set_flag(PlayerFlags.HOURGLASS)
-                await ctx.send(f'{option}|green|On|reset|')
-
         elif ans == 'm':
             await toggle_more_prompt(ctx)
 
@@ -469,14 +465,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         elif ans == 't':
             await _terminal_menu(ctx)
 
-        elif ans == 'z':
-            await _pick_timezone(ctx)
-
         elif ans == 'd':
-            await _pick_date_format(ctx)
-
-        elif ans == 'f':
-            await _pick_time_format(ctx)
+            await _date_time_menu(ctx)
 
         elif ans == 'w':
             option = "|white|Movement Keys: "
@@ -628,6 +618,69 @@ async def _terminal_menu(ctx) -> None:
             await _pick_tab_settings(ctx)
         elif ans == 'l':
             await _pick_line_ending(ctx)
+        else:
+            await ctx.send(f'Choose {",".join(valid_keys)}, or Enter to return.')
+
+
+async def _date_time_menu(ctx) -> None:
+    """Submenu for date/time display settings, reached via PREFS 'D'.
+
+    Folds what used to be three separate top-level PREFS rows (Timezone,
+    Date Format, Time Format) plus the standalone Hourglass Display
+    toggle into one place -- same idea and shape as _terminal_menu()/
+    _colors_graphics_menu(). Loops on its own until blank/'q'/disconnect
+    returns to the main prefs_menu() loop.
+    """
+    from formatting import border_style_for_ctx
+    from table import Table
+
+    cs = ctx.player.client_settings
+
+    while True:
+        hourglass = ctx.player.query_flag(PlayerFlags.HOURGLASS)
+
+        t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
+                  border_style=border_style_for_ctx(ctx))
+        tz_name = getattr(cs, 'timezone', '') or _server_local_label()
+        t.add_row(['Z', 'Timezone', tz_name, 'hz'])
+        date_fmt_name = _DATE_FORMAT_NAMES.get(getattr(cs, 'date_format', ''), 'Custom')
+        t.add_row(['D', 'Date Format', date_fmt_name, 'hd'])
+        time_fmt_name = _TIME_FORMAT_NAMES.get(getattr(cs, 'time_format', ''), 'Custom')
+        t.add_row(['F', 'Time Format', time_fmt_name, 'hf'])
+        t.add_row(['H', 'Hourglass Display', 'On' if hourglass else 'Off', 'hh'])
+
+        valid_keys = ['Z', 'D', 'F', 'H']
+
+        menu = (
+            ['', '|yellow|Date & Time|reset|', '']
+            + t.render(width=cs.screen_columns)
+            + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
+                   f"(e.g. h{valid_keys[0].lower()}), Enter to return", '']
+        )
+
+        raw = await ctx.prompt('date & time', preamble_lines=menu)
+        if raw is None or not raw.strip() or raw.strip().lower() in ('q', 'quit', 'done', 'exit'):
+            return
+        ans = raw.strip().lower()
+
+        if len(ans) == 2 and ans[0] == 'h' and ans[1].upper() in valid_keys:
+            await ctx.send(*_DATE_TIME_HELP[ans[1]])
+            continue
+
+        if ans == 'z':
+            await _pick_timezone(ctx)
+        elif ans == 'd':
+            await _pick_date_format(ctx)
+        elif ans == 'f':
+            await _pick_time_format(ctx)
+        elif ans == 'h':
+            option = "|white|Hourglass display: "
+            if ctx.player.query_flag(PlayerFlags.HOURGLASS):
+                ctx.player.clear_flag(PlayerFlags.HOURGLASS)
+                await ctx.send(f'{option}|red|Off|reset|')
+            else:
+                ctx.player.set_flag(PlayerFlags.HOURGLASS)
+                await ctx.send(f'{option}|green|On|reset|')
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or Enter to return.')
 
