@@ -388,7 +388,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         t.add_row(['T', 'Terminal Settings...', '(Submenu)', 'ht'])
         t.add_row(['D', 'Date & Time...', '(Submenu)', 'hd'])
         wasd = getattr(ctx.player.command_settings, 'wasd_movement', False)
-        t.add_row(['W', 'Movement Keys', 'WASD' if wasd else 'Compass', 'hw'])
+        t.add_row(['W', 'Movement Keys',
+                   'Inverted T (WASD)' if wasd else 'Compass directions (N/E/S/W)', 'hw'])
 
         valid_keys = ['X', 'M', 'C', 'N', 'T', 'D', 'W']
         keys_str   = ' '.join(valid_keys)
@@ -472,7 +473,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             option = "|white|Movement Keys: "
             cs3 = ctx.player.command_settings
             cs3.wasd_movement = not getattr(cs3, 'wasd_movement', False)
-            await ctx.send(f"{option}{'|green|WASD' if cs3.wasd_movement else '|green|Compass'}|reset|")
+            await ctx.send(f"{option}{'|green|Inverted T (WASD)' if cs3.wasd_movement else '|green|Compass directions (N/E/S/W)'}|reset|")
 
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
