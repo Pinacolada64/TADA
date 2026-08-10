@@ -75,5 +75,26 @@ class TestShowGraphicsTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn('+', text)   # ASCII top-left
 
 
+class TestSpecialGlyphsBox(unittest.IsolatedAsyncioTestCase):
+    """Coverage for the "Special Glyphs" box _show_graphics_test() adds
+    beyond the plain windowpane grid -- card suits, circles, shading, and
+    pi, all real code points in cbmcodecs2's PETSCII table (see
+    prefs._SPECIAL_GLYPHS)."""
+
+    async def test_shows_special_glyphs_title_and_every_glyph(self):
+        ctx = _FakeCtx(Player())
+        await _show_graphics_test(ctx)
+        text = ctx._flat()
+        self.assertIn('Special Glyphs', text)
+        for glyph in ('♠', '♥', '♦', '♣', '●', '○', '▒', 'π'):
+            self.assertIn(glyph, text)
+
+    async def test_every_special_glyph_round_trips_through_petscii(self):
+        import cbmcodecs2  # noqa: F401 -- registers the petscii_* codecs
+        from commands.prefs import _SPECIAL_GLYPHS
+        for _label, glyphs in _SPECIAL_GLYPHS:
+            glyphs.replace(' ', '').encode('petscii_c64en_uc')  # raises if any glyph can't map
+
+
 if __name__ == '__main__':
     unittest.main()

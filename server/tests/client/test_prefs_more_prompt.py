@@ -74,7 +74,7 @@ class TestPrefsHelpColumn(unittest.IsolatedAsyncioTestCase):
         await prefs_menu(ctx)
         flat = ctx._flat()
         self.assertIn('Help', flat)
-        for entry in ('hx', 'hh', 'hm', 'hb', 'hc'):
+        for entry in ('hx', 'hh', 'hm', 'hc'):
             self.assertIn(entry, flat)
 
     async def test_hx_explains_expert_mode_without_changing_it(self):
@@ -95,7 +95,9 @@ class TestPrefsHelpColumn(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(player.query_flag(PlayerFlags.MORE_PROMPT))
 
     async def test_hb_explains_border_style(self):
-        ctx = _FakeCtx(['hb', ''], Player())
+        # 'B' now lives in the Colors & Graphics submenu ('C'), not the
+        # top-level menu.
+        ctx = _FakeCtx(['c', 'hb', '', ''], Player())
         await prefs_menu(ctx)
         self.assertIn('Border Style', ctx._flat())
 

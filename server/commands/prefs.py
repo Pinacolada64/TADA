@@ -91,20 +91,12 @@ _SETTING_HELP: dict[str, list[str]] = {
         "Same setting as the standalone 'mp' command.",
         '',
     ],
-    'b': [
-        '',
-        '|cyan|Border Style|reset|',
-        "Controls the box-drawing characters used around tables and "
-        "boxed text (ASCII, Single-line, or Double-line). ANSI terminals "
-        "only -- PETSCII (C64/C128) clients always use one fixed style.",
-        '',
-    ],
     'c': [
         '',
-        '|cyan|Colors|reset|',
-        "Sets the text color and highlight color used for |white|[bracketed]"
-        "|reset| text throughout your session, e.g. item names or emphasis "
-        "in messages.",
+        '|cyan|Colors & Graphics|reset|',
+        "Opens a submenu for everything display-related: text/highlight "
+        "colors, the menu color scheme, table zebra-stripe colors, border "
+        "style, and a graphics test screen.",
         '',
     ],
     'n': [
@@ -166,6 +158,32 @@ _SETTING_HELP: dict[str, list[str]] = {
         "Hourglass clock (PREFS 'H') and any other time-of-day display.",
         '',
     ],
+    'w': [
+        '',
+        '|cyan|Movement Keys|reset|',
+        "Controls what the bare single-letter movement keys mean. "
+        "'Compass' (the default) uses n/s/e/w/u/d. 'WASD' uses w/a/s/d "
+        "for north/west/south/east instead (u still means Up). Full "
+        "words (north, south, ...) and 'go <direction>' always work "
+        "either way.",
+        '',
+    ],
+}
+
+# Detailed per-setting explanations for the Colors & Graphics submenu
+# (_colors_graphics_menu()) -- same 'h<key>' convention as _SETTING_HELP,
+# just scoped to that submenu's own keys so 'c' can mean "text colors"
+# there without colliding with the top-level 'c' (which now means "open
+# this submenu").
+_COLORS_GRAPHICS_HELP: dict[str, list[str]] = {
+    'c': [
+        '',
+        '|cyan|Colors|reset|',
+        "Sets the text color and highlight color used for |white|[bracketed]"
+        "|reset| text throughout your session, e.g. item names or emphasis "
+        "in messages.",
+        '',
+    ],
     's': [
         '',
         '|cyan|Menu Colors|reset|',
@@ -184,24 +202,24 @@ _SETTING_HELP: dict[str, list[str]] = {
         "colors individually.",
         '',
     ],
-    'w': [
+    'b': [
         '',
-        '|cyan|Movement Keys|reset|',
-        "Controls what the bare single-letter movement keys mean. "
-        "'Compass' (the default) uses n/s/e/w/u/d. 'WASD' uses w/a/s/d "
-        "for north/west/south/east instead (u still means Up). Full "
-        "words (north, south, ...) and 'go <direction>' always work "
-        "either way.",
+        '|cyan|Border Style|reset|',
+        "Controls the box-drawing characters used around tables and "
+        "boxed text (ASCII, Single-line, or Double-line). ANSI terminals "
+        "only -- PETSCII (C64/C128) clients always use one fixed style.",
         '',
     ],
     'g': [
         '',
         '|cyan|Graphics Test|reset|',
         "Shows a windowpane grid of border-drawing characters (corners, "
-        "tees, and a center cross) for every known border style, so you "
-        "can see which glyphs your terminal or client actually renders "
-        "correctly. Nothing here is saved -- it's just a display, useful "
-        "before picking a style with Border Style ('B').",
+        "tees, and a center cross) for every known border style, plus a "
+        "row of special PETSCII/ANSI glyphs (card suits, circles, "
+        "shading, pi), so you can see which glyphs your terminal or "
+        "client actually renders correctly. Nothing here is saved -- "
+        "it's just a display, useful before picking a style with Border "
+        "Style ('B').",
         '',
     ],
 }
@@ -313,7 +331,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         entirely instead of just saving and moving to the next step. Also
         shows a one-time orientation blurb before the menu loop starts.
     """
-    from formatting import border_style_for_ctx, codec_for_settings, ANSICodec, PETSCIICodec
+    from formatting import border_style_for_ctx
     from table import Table
 
     if from_new_player:
@@ -330,19 +348,9 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
     cs = ctx.player.client_settings
 
     while True:
-        # Recomputed every iteration, not once before the loop: the 'T'
-        # (Client Type) picker can change translation mid-session (e.g.
-        # ANSI -> Plain), and codec/is_petscii need to reflect that on the
-        # very next redraw, not just the next time PREFS is opened fresh.
-        codec       = codec_for_settings(cs)
-        is_petscii  = isinstance(codec, PETSCIICodec)
         expert      = ctx.player.is_expert # query_flag(PlayerFlags.EXPERT_MODE)
         hourglass   = ctx.player.query_flag(PlayerFlags.HOURGLASS)
         more_prompt = ctx.player.query_flag(PlayerFlags.MORE_PROMPT)
-        colors      = getattr(cs, 'colors', None)
-        text_col    = getattr(colors, 'text_color',      'White') if colors else 'White'
-        hi_col      = getattr(colors, 'highlight_color', 'Red')   if colors else 'Red'
-        border_key  = getattr(cs, 'border_style', 'single')
 
         tab         = getattr(cs, 'tab_settings', None)
         tab_summary = ('Real Tab key' if getattr(tab, 'has_tab_key', True)
@@ -356,9 +364,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         t.add_row(['X', 'Expert Mode', 'On' if expert else 'Off', 'hx'])
         t.add_row(['H', 'Hourglass Display', 'On' if hourglass else 'Off', 'hh'])
         t.add_row(['M', 'More Prompt', 'On' if more_prompt else 'Off', 'hm'])
-        if not is_petscii:
-            t.add_row(['B', 'Border Style',  border_key.title(), 'hb'])
-        t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight', 'hc'])
+        t.add_row(['C', 'Colors & Graphics', '', 'hc'])
         news_all = getattr(ctx.player.command_settings, 'news_show_all', False)
         t.add_row(['N', 'News Display', 'Full directory' if news_all else 'New only', 'hn'])
         t.add_row(['T', 'Client Type', f'{cs.screen_columns}x{cs.screen_rows}', 'ht'])
@@ -370,26 +376,10 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         t.add_row(['D', 'Date Format', date_fmt_name, 'hd'])
         time_fmt_name = _TIME_FORMAT_NAMES.get(getattr(cs, 'time_format', ''), 'Custom')
         t.add_row(['F', 'Time Format', time_fmt_name, 'hf'])
-        from menu_system import MENU_COLOR_PRESETS
-        _cur_menu_colors = getattr(cs, 'menu_colors', None)
-        menu_colors_name = next(
-            (name for name, mc in MENU_COLOR_PRESETS if mc == _cur_menu_colors), None,
-        ) or ('Default' if _cur_menu_colors is None else 'Custom')
-        t.add_row(['S', 'Menu Colors', menu_colors_name, 'hs'])
-        from table import ZEBRA_COLOR_PRESETS
-        _cur_table_colors = getattr(cs, 'table_colors', None)
-        table_colors_name = next(
-            (name for name, tc in ZEBRA_COLOR_PRESETS if tc == _cur_table_colors), None,
-        ) or ('Default' if _cur_table_colors is None else 'Custom')
-        t.add_row(['A', 'Table Colors', table_colors_name, 'ha'])
         wasd = getattr(ctx.player.command_settings, 'wasd_movement', False)
         t.add_row(['W', 'Movement Keys', 'WASD' if wasd else 'Compass', 'hw'])
-        t.add_row(['G', 'Graphics Test', '', 'hg'])
 
-        valid_keys = ['X', 'H', 'M']
-        if not is_petscii:
-            valid_keys.append('B')
-        valid_keys += ['C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F', 'S', 'A', 'W', 'G']
+        valid_keys = ['X', 'H', 'M', 'C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F', 'W']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -415,23 +405,16 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                 'X - toggle Expert Mode',
                 'H - toggle Hourglass (clock display)',
                 "M - toggle More Prompt (pause between screenfuls; also 'mp' in-game)",
-            ]
-            if not is_petscii:
-                help_lines.append('B - choose border style (ANSI only)')
-            help_lines += [
-                'C - choose text and highlight colors',
+                'C - Colors & Graphics submenu (text/menu/table colors, '
+                'border style, graphics test)',
                 'N - toggle News Display (new only / full directory)',
                 'T - choose client type / screen size',
-            ]
-            help_lines += [
                 'K - set whether your client has a real Tab key (and its width)',
                 'L - choose line ending (LF / CR / CRLF)',
                 'Z - choose your display timezone',
                 'D - choose your preferred date format',
                 'F - choose 12-hour or 24-hour time format',
-                'S - choose the menu color scheme',
                 'W - toggle Movement Keys (Compass n/s/e/w / WASD w/a/s/d)',
-                'G - view a graphics test (border-character windowpane)',
                 f"h<key> - explain what a setting does, e.g. h{valid_keys[0].lower()}",
                 f'{return_key} - save and exit',
             ]
@@ -471,11 +454,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         elif ans == 'm':
             await toggle_more_prompt(ctx)
 
-        elif ans == 'b' and not is_petscii:
-            await _pick_border_style(ctx, codec)
-
         elif ans == 'c':
-            await _pick_colors(ctx)
+            await _colors_graphics_menu(ctx)
 
         elif ans == 'n':
             option = "|white|News Display: "
@@ -501,20 +481,11 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         elif ans == 'f':
             await _pick_time_format(ctx)
 
-        elif ans == 's':
-            await _pick_menu_colors(ctx)
-
-        elif ans == 'a':
-            await _pick_table_colors(ctx)
-
         elif ans == 'w':
             option = "|white|Movement Keys: "
             cs3 = ctx.player.command_settings
             cs3.wasd_movement = not getattr(cs3, 'wasd_movement', False)
             await ctx.send(f"{option}{'|green|WASD' if cs3.wasd_movement else '|green|Compass'}|reset|")
-
-        elif ans == 'g':
-            await _show_graphics_test(ctx)
 
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
@@ -530,6 +501,83 @@ async def toggle_more_prompt(ctx) -> None:
     else:
         ctx.player.set_flag(PlayerFlags.MORE_PROMPT)
         await ctx.send(f'{option}|green|On|reset|')
+
+
+async def _colors_graphics_menu(ctx) -> None:
+    """Submenu for everything display-related, reached via PREFS 'C'.
+
+    Folds what used to be five separate top-level PREFS rows (Colors,
+    Menu Colors, Table Colors, Border Style, Graphics Test) into one
+    place -- Ryan found the main menu was getting long. Loops on its own
+    until blank/'q'/disconnect returns to the main prefs_menu() loop;
+    nothing here needs its own save-and-exit semantics since every
+    picker it calls already saves straight to client_settings.
+    """
+    from formatting import border_style_for_ctx, codec_for_settings, PETSCIICodec
+    from table import Table
+
+    cs = ctx.player.client_settings
+
+    while True:
+        codec      = codec_for_settings(cs)
+        is_petscii = isinstance(codec, PETSCIICodec)
+        colors     = getattr(cs, 'colors', None)
+        text_col   = getattr(colors, 'text_color',      'White') if colors else 'White'
+        hi_col     = getattr(colors, 'highlight_color', 'Red')   if colors else 'Red'
+        border_key = getattr(cs, 'border_style', 'single')
+
+        t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
+                  border_style=border_style_for_ctx(ctx))
+        t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight', 'hc'])
+        from menu_system import MENU_COLOR_PRESETS
+        _cur_menu_colors = getattr(cs, 'menu_colors', None)
+        menu_colors_name = next(
+            (name for name, mc in MENU_COLOR_PRESETS if mc == _cur_menu_colors), None,
+        ) or ('Default' if _cur_menu_colors is None else 'Custom')
+        t.add_row(['S', 'Menu Colors', menu_colors_name, 'hs'])
+        from table import ZEBRA_COLOR_PRESETS
+        _cur_table_colors = getattr(cs, 'table_colors', None)
+        table_colors_name = next(
+            (name for name, tc in ZEBRA_COLOR_PRESETS if tc == _cur_table_colors), None,
+        ) or ('Default' if _cur_table_colors is None else 'Custom')
+        t.add_row(['A', 'Table Colors', table_colors_name, 'ha'])
+        if not is_petscii:
+            t.add_row(['B', 'Border Style', border_key.title(), 'hb'])
+        t.add_row(['G', 'Graphics Test', '', 'hg'])
+
+        valid_keys = ['C', 'S', 'A']
+        if not is_petscii:
+            valid_keys.append('B')
+        valid_keys.append('G')
+
+        menu = (
+            ['', '|yellow|Colors & Graphics|reset|', '']
+            + t.render(width=cs.screen_columns)
+            + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
+                   f"(e.g. h{valid_keys[0].lower()}), Enter to return", '']
+        )
+
+        raw = await ctx.prompt('colors & graphics', preamble_lines=menu)
+        if raw is None or not raw.strip() or raw.strip().lower() in ('q', 'quit', 'done', 'exit'):
+            return
+        ans = raw.strip().lower()
+
+        if len(ans) == 2 and ans[0] == 'h' and ans[1].upper() in valid_keys:
+            await ctx.send(*_COLORS_GRAPHICS_HELP[ans[1]])
+            continue
+
+        if ans == 'c':
+            await _pick_colors(ctx)
+        elif ans == 's':
+            await _pick_menu_colors(ctx)
+        elif ans == 'a':
+            await _pick_table_colors(ctx)
+        elif ans == 'b' and not is_petscii:
+            await _pick_border_style(ctx, codec)
+        elif ans == 'g':
+            await _show_graphics_test(ctx)
+        else:
+            await ctx.send(f'Choose {",".join(valid_keys)}, or Enter to return.')
 
 
 # ---------------------------------------------------------------------------
@@ -596,15 +644,35 @@ def _windowpane_lines(border, cell_width: int = 3) -> list[str]:
     return [top, blank, middle, blank, bottom]
 
 
+# Extra glyphs shown by _show_graphics_test()'s "Special Glyphs" box,
+# beyond the plain box-drawing set _windowpane_lines() already covers.
+# Every character here is a real code point in cbmcodecs2's PETSCII
+# decoding table (petscii_c64en_uc, bytes 193/209/211/215/216/218/222 --
+# card suits, circles, shading, pi), so it round-trips through the same
+# str.encode('petscii_c64en_uc') PETSCIICodec uses for a real Commodore
+# connection; on ANSI/plain clients it's sent as plain Unicode, which any
+# modern terminal renders directly. Same "raw literal glyph, no {NAME}
+# token" convention table.py's PETSCII Border already uses for box-
+# drawing, for the same reason (see table.py's PETSCII Border comment).
+_SPECIAL_GLYPHS: list[tuple[str, str]] = [
+    ('Suits',   '♠ ♥ ♦ ♣'),
+    ('Circles', '● ○'),
+    ('Shading', '▒'),
+    ('Other',   'π'),
+]
+
+
 async def _show_graphics_test(ctx) -> None:
     """Display-only: a windowpane grid of border-drawing characters for
-    every known style (ASCII/Single/Double/PETSCII), so a player can see
-    which glyphs their actual terminal/client renders correctly before
-    picking a style with PREFS 'B' (Border Style). Nothing is stored --
+    every known style (ASCII/Single/Double/PETSCII), plus a boxed row of
+    special glyphs (card suits, circles, shading, pi), so a player can
+    see which glyphs their actual terminal/client renders correctly
+    before picking a style with 'B' (Border Style). Nothing is stored --
     this is purely a visual check, same idea as a classic BBS "graphics
     test" screen.
     """
     from table import ASCII, SINGLE, DOUBLE, PETSCII
+    from formatting import make_box_for_settings
 
     lines = ['', '|yellow|Graphics Test|reset|', '']
     for name, border in (('ASCII', ASCII), ('Single', SINGLE),
@@ -612,6 +680,14 @@ async def _show_graphics_test(ctx) -> None:
         lines.append(f'|cyan|{name}|reset|')
         lines.extend('  ' + ln for ln in _windowpane_lines(border))
         lines.append('')
+
+    glyph_lines = [f'{label:<9}{glyphs}' for label, glyphs in _SPECIAL_GLYPHS]
+    lines.extend(make_box_for_settings(
+        ctx.player.client_settings, glyph_lines, title='Special Glyphs',
+        width=30,
+    ))
+    lines.append('')
+
     lines.append(
         "If any of these look like garbage or boxes with question marks, "
         "try a different Border Style ('B'). On a real Commodore, PETSCII "
