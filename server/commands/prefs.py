@@ -426,12 +426,9 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                       else 'save settings and exit'),
                    '']
         )
-        # Expert Mode hides the beginner-oriented tips/hints shown
-        # elsewhere in the game (per its own PREFS description), which
-        # otherwise would have been a new player's main way of learning
-        # '?' brings up the full option-by-option overview -- so for an
-        # expert player specifically, add a short reminder tag instead.
-        if ctx.player.is_expert:
+        # A new (non-expert) player is the one who most needs pointing at
+        # '?' for the full option-by-option overview -- Ryan's call.
+        if not ctx.player.is_expert:
             menu.insert(-1, '[?=overall help]')
 
         raw = await ctx.prompt('prefs', preamble_lines=menu)

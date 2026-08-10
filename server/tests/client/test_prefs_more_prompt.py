@@ -140,21 +140,20 @@ class TestPrefsMenuFromNewPlayerWording(unittest.IsolatedAsyncioTestCase):
 
 
 class TestPrefsExpertOverallHelpHint(unittest.IsolatedAsyncioTestCase):
-    """Expert Mode hides the beginner-oriented tips that would otherwise
-    teach a new player '?' brings up the full overview, so an expert
-    player specifically gets a short '[?=overall help]' reminder tag
-    instead."""
+    """A non-expert player is the one who most needs pointing at '?' for
+    the full option-by-option overview, so they get a short
+    '[?=overall help]' reminder tag; an expert player doesn't need it."""
 
-    async def test_shown_for_expert_player(self):
+    async def test_shown_for_non_expert_player(self):
         player = Player()
-        player.set_flag(PlayerFlags.EXPERT_MODE)
+        player.clear_flag(PlayerFlags.EXPERT_MODE)
         ctx = _FakeCtx([''], player)
         await prefs_menu(ctx)
         self.assertIn('[?=overall help]', ctx._flat())
 
-    async def test_absent_for_non_expert_player(self):
+    async def test_absent_for_expert_player(self):
         player = Player()
-        player.clear_flag(PlayerFlags.EXPERT_MODE)
+        player.set_flag(PlayerFlags.EXPERT_MODE)
         ctx = _FakeCtx([''], player)
         await prefs_menu(ctx)
         self.assertNotIn('[?=overall help]', ctx._flat())
