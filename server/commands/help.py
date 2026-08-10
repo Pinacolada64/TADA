@@ -134,6 +134,14 @@ class Help:
     # keyboard, and would just be noise for an ANSI/plain-text player. See
     # format_help()'s is_petscii parameter / _is_petscii_viewer().
     petscii_notes: List[str]           = field(default_factory=list)
+    # Related command/topic names to point a player at -- rendered as a
+    # "See Also:" line of 'help <name>'-able names (resolved the same way
+    # HelpCommand's own lookup works: command name/alias first, then
+    # _TOPICS). Doesn't validate that a name actually resolves to
+    # something at Help() construction time (commands and topics can be
+    # registered in either order), so a typo here just silently 404s if a
+    # player follows it -- double-check names exist via 'help <name>'.
+    see_also:    List[str]             = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -253,6 +261,244 @@ register_topic(
             "SPUR.MISC5.S), where it was shown when sizing up other "
             "adventurers before a duel.",
         ],
+        see_also=["combat", "weaponclass", "easeofuse", "basedamage"],
+    ),
+)
+
+register_topic(
+    "combat", "fighting",
+    help_obj=Help(
+        summary="How a fight actually works: what governs hitting vs. damage",
+        description=(
+            "ATTACK and READY show several numbers at once (Weapon Class, "
+            "Best targets, Base damage, Ease of use, Battle exp.) and it's "
+            "not obvious which ones matter for landing a hit versus which "
+            "matter for how hard that hit lands. They split cleanly into "
+            "two separate questions:\n\n"
+            "1. Do you hit at all? Purely your weapon's Weapon Class "
+            "against the monster's size (see 'help weaponclass') plus your "
+            "Battle Experience tier and character level. Base damage and "
+            "Ease of use play no part in whether the swing connects.\n\n"
+            "2. If you hit, how much damage? A random roll scaled by Base "
+            "damage (the ceiling on that roll) and Ease of use (a "
+            "multiplier on top of it) -- see 'help basedamage' and "
+            "'help easeofuse'. A weapon can be very likely to hit and "
+            "still hit soft, or unlikely to hit and still hit hard, "
+            "depending on these two independently.\n\n"
+            "Bad Hombre Rating (BHR, 'help bhr') is a different thing "
+            "again -- a rough, single-number size-up of a whole character "
+            "(hit points, level, stats, armor condition), not tied to any "
+            "one weapon or swing."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("attack", "Fight the monster in your current room."),
+            ("ready <weapon>", "See a weapon's own numbers before you fight with it."),
+        ],
+        notes=[
+            "Landing the killing blow with a weapon builds Battle "
+            "Experience with it specifically: VETERAN at 40 kills "
+            "(+1 to-hit, +1 damage), ELITE at 99 (+2 to-hit, +damage "
+            "scaling with your level). This is separate from character "
+            "experience, which you earn every swing regardless of outcome.",
+        ],
+        see_also=["weaponclass", "basedamage", "easeofuse", "weaponaffinity", "bhr"],
+    ),
+)
+
+register_topic(
+    "weaponclass", "besttargets", "best targets",
+    help_obj=Help(
+        summary="Weapon Class and \"Best targets\": what actually decides a hit",
+        description=(
+            "Every weapon belongs to one of six classes, and each class is "
+            "naturally suited to certain monster sizes -- READY's "
+            "\"Best targets\" line translates this into plain English for "
+            "whatever weapon you're about to ready (see Notes below for "
+            "the full table).\n\n"
+            "Fighting a monster your weapon class favors raises your hit "
+            "threshold (easier to hit); fighting outside it lowers that "
+            "threshold. This is the single biggest factor in whether a "
+            "swing connects -- bigger than Battle Experience, bigger than "
+            "character level. A weapon with great Base damage and Ease of "
+            "use ('help basedamage', 'help easeofuse') still whiffs a lot "
+            "against the wrong monster size."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("ready <weapon>", "Shows this weapon's own Best targets line."),
+        ],
+        notes=[
+            "Bash/Slash  -- Swift, Small, Short; Light Armor",
+            "Poke/Jab    -- Huge, Swift",
+            "Pole/Ranged -- Man-sized, Big, Short",
+            "Projectile  -- Huge, Large (+10% surprise)",
+            "Proximity   -- Anybody",
+            "Energy      -- Huge, Large; Light Armor",
+        ],
+        admin_notes=[
+            "combat/resolution.py's hit_threshold() (SPUR.COMBAT.S "
+            "p.attack, lines 106-113): p2 (the d10-roll-under threshold) "
+            "is computed from weapon class integer (wa) vs. monster size "
+            "(ma, 1=huge...7=swift) via a per-class formula, then "
+            "min(7, p2 + zu + xp_level). Base damage/Ease of use "
+            "(wd/ws) never enter this calculation at all.",
+        ],
+        see_also=["combat", "basedamage", "easeofuse", "weaponaffinity"],
+    ),
+)
+
+register_topic(
+    "basedamage", "base damage",
+    help_obj=Help(
+        summary="What \"Base damage\" on READY means",
+        description=(
+            "Base damage is the ceiling on the random damage roll a hit "
+            "draws from -- shown on READY as a score of 3-9 (weapons.json "
+            "stores it as that digit x10, e.g. 60 for a score of 6). "
+            "Higher Base damage means a wider range of possible damage per "
+            "hit, not a bigger guaranteed number: a hit always rolls "
+            "somewhere between a small floor and (Base damage + 2), then "
+            "Ease of use scales that roll up or down ('help easeofuse').\n\n"
+            "Base damage has nothing to do with whether you hit in the "
+            "first place -- that's entirely Weapon Class vs. monster size "
+            "('help weaponclass')."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("ready <weapon>", "Shows this weapon's own Base damage score."),
+        ],
+        admin_notes=[
+            "Stored as weapon.to_hit in weapons.json/items.py (SPUR wd, "
+            "raw digit x10) -- confusingly named after the JSON field, "
+            "not the actual to-hit chance. combat/resolution.py's "
+            "_calc_player_damage(): b = random(2.0, wd+2), then scaled by "
+            "ws (see 'help easeofuse' admin notes) before surprise/charge/"
+            "armor adjustments.",
+        ],
+        see_also=["easeofuse", "weaponclass", "combat"],
+    ),
+)
+
+register_topic(
+    "easeofuse", "ease of use",
+    help_obj=Help(
+        summary="What \"Ease of use\" on READY means",
+        description=(
+            "Ease of use is a multiplier applied on top of a hit's random "
+            "damage roll ('help basedamage') -- shown on READY as a score "
+            "of 5-9 (weapons.json stores it as that digit x10, e.g. 90 for "
+            "a score of 9). A higher score means more of that roll's raw "
+            "damage actually lands.\n\n"
+            "There's also a hidden perk: on a strong enough attack roll, "
+            "\"ease of use helps!\" kicks in and applies this same damage "
+            "formula through a faster, slightly more forgiving path -- a "
+            "weapon with high Ease of use benefits from this more often.\n\n"
+            "Like Base damage, Ease of use has nothing to do with whether "
+            "you hit in the first place -- that's entirely Weapon Class "
+            "vs. monster size ('help weaponclass')."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("ready <weapon>", "Shows this weapon's own Ease of use score."),
+        ],
+        admin_notes=[
+            "Stored as weapon.stability in weapons.json/items.py (SPUR ws, "
+            "raw digit x10). combat/resolution.py: fast-path check is "
+            "`d10_roll > ws + 2` (SPUR.COMBAT.S line 139); "
+            "_calc_player_damage() applies `b = (b * ws / 10) + zv - 1` "
+            "where zv is the assembled class/race + battle-exp damage "
+            "bonus.",
+        ],
+        see_also=["basedamage", "weaponclass", "combat"],
+    ),
+)
+
+register_topic(
+    "weaponaffinity", "weapon affinity", "bestweapon", "best weapon", "class weapon",
+    help_obj=Help(
+        summary="Which weapons suit your class and race",
+        description=(
+            "Every weapon secretly favors (or penalizes) certain classes "
+            "and races -- a hidden skill/damage bonus baked into the "
+            "weapon itself, on top of everything covered in 'help combat'. "
+            "READY shows the result as \"Skill bonus\"/\"Damage bonus\" "
+            "lines once you ready a weapon your class or race actually "
+            "has an affinity for; no line at all means no bonus either "
+            "way for that weapon.\n\n"
+            "Class and race bonuses are separate and stack -- a Gnome "
+            "Thief readying a dagger gets both the Thief's Poke/Jab bonus "
+            "and the Gnome's dagger bonus at once. There's no in-game "
+            "listing of every weapon's exact affinities; the patterns "
+            "below are the general shape of it, but the real answer for "
+            "any specific weapon is whatever READY actually shows you "
+            "once you ready it.\n\n"
+            "By class, roughly:"
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("ready <weapon>", "Shows Skill bonus/Damage bonus if this weapon favors your class/race."),
+        ],
+        notes=[
+            "Wizard   - staffs, bolts; blades ok",
+            "Druid    - sabre, sling, club, bow",
+            "Fighter  - good all-round, avoid bow",
+            "Paladin  - good all-round, avoid bow",
+            "Ranger   - bows, swords; avoid spear",
+            "Thief    - daggers only",
+            "Archer   - bows only",
+            "Assassin - daggers, not bow/sling",
+            "Knight   - sword, lance; Excalibur!",
+            "",
+            "By race, roughly:",
+            "",
+            "Human    - guns, cannons, dynamite",
+            "Ogre     - clubs, hammers, knuckles",
+            "Pixie    - daggers, knives",
+            "Elf      - bows",
+            "Hobbit   - slings; also spears",
+            "Gnome    - daggers, knives, axes",
+            "Dwarf    - axes, hatchets, crossbows",
+            "Orc      - daggers, knuckles, guns",
+            "Half-Elf - bows, swords",
+        ],
+        admin_notes=[
+            "item_system.py's weapon_bonus(weapon, player_class, "
+            "player_race) -> (skill_bonus, damage_bonus), ported from "
+            "SPUR.WEAPON.S's 'special' subroutine. Matches via substring "
+            "checks on the weapon's uppercased name (or last 4 chars) "
+            "plus its WeaponClass. Class sets (skill, damage) outright; "
+            "race branches always += on top, so they stack with class "
+            "and (for a race matching two of its own substrings, e.g. "
+            "Hobbit sling + Pole/Ranged, or Orc UZI matching both its "
+            "'NIFE/GGER/ UZI/KLES' and firearm lists) can even stack with "
+            "themselves.",
+            "Exact class table: WIZARD ball/staff/bolt=+2/+1 else -0/-2 "
+            "(dagger/knife -0/+1); DRUID sabre/sling/club/spear/staff/"
+            "bow=+1/+1; FIGHTER base +2/+1, projectile +0/-1, energy "
+            "+2/+2; PALADIN +0/+1, projectile +0/-1; RANGER sword/sabre="
+            "+1/+1, pole_range=-1/-1; THIEF poke_jab=+1/+1 else +0/-1; "
+            "ARCHER bow=+2/+2, bash_slash or pole_range=-1/-2; ASSASSIN "
+            "poke_jab=+2/+1, but bow/sling=-1/-1 (overrides); KNIGHT "
+            "sword/lance/sabre=+2/+3, EXCALIBUR=+4/+4, projectile=+0/-1.",
+            "Exact race table (all additive): HUMAN firearm-ish name=+0/"
+            "+1; OGRE club/hammer/knuckles=+3/+0; PIXIE dagger/knife="
+            "+1/+2; ELF bow=+1/+1; HOBBIT sling=+1/+2 AND pole_range=+1/"
+            "+2 (both can apply); GNOME dagger/knife/battleaxe=+1/+2; "
+            "DWARF axe/hatchet/crossbow=+1/+1; ORC dagger/knife/uzi/"
+            "knuckles=+2/+0 AND firearm-ish name=+0/+2 (both can apply); "
+            "HALF_ELF bow/sword=+0/+1.",
+            "Special case: any weapon with 'PHASER' in its name has its "
+            "skill bonus floored at a minimum of +1 regardless of class/"
+            "race (item_system.py line ~369).",
+            "Not part of weapon_bonus() itself, but relevant to weapon "
+            "fit: commands/ready.py enforces a flat Strength >= 4 "
+            "minimum to ready any weapon at all (not per-weapon), gates "
+            "EXCALIBUR to Knight class + Honor >= 1200 (rejection blast "
+            "otherwise), and STORM-prefixed weapons have their own "
+            "accept/reject-as-servant logic independent of class/race.",
+        ],
+        see_also=["combat", "weaponclass", "basedamage", "easeofuse"],
     ),
 )
 
@@ -656,6 +902,21 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     # is_privileged parameter)
     if is_privileged:
         _render_notes("Admin Notes:", list(getattr(help_obj, "admin_notes", None) or []))
+
+    # See Also -- related command/topic names, each rendered as a cyan
+    # 'help <name>'-able token on one wrapped line rather than Notes'
+    # one-bullet-per-line layout, since these are short names meant to
+    # be scanned at a glance rather than read as sentences.
+    see_also = list(getattr(help_obj, "see_also", None) or [])
+    if see_also:
+        lines.append("")
+        lines.append(_heading("See Also:"))
+        joined = ", ".join(_cmd(name) for name in see_also)
+        lines.extend(textwrap.wrap(
+            joined, width=wrap_width,
+            initial_indent=" " * 4, subsequent_indent=" " * 4,
+            break_long_words=False, break_on_hyphens=False,
+        ))
 
     return lines if lines else None
 

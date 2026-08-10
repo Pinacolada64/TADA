@@ -77,6 +77,7 @@ class AttackCommand(Command):
             'a weapon you gain VETERAN status (+1 to-hit, +1 damage); at '
             '99 kills, ELITE (+2 to-hit, +level damage bonus).',
         ],
+        see_also = ['combat', 'weaponclass', 'basedamage', 'easeofuse', 'weaponaffinity', 'bhr'],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:

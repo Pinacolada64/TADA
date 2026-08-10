@@ -116,6 +116,7 @@ class ReadyCommand(Command):
             ('ready',         'Choose from weapon list'),
             ('ready sword',   'Ready anything with "sword" in the name'),
         ],
+        see_also = ['combat', 'weaponclass', 'basedamage', 'easeofuse', 'weaponaffinity'],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:

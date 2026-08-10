@@ -46,7 +46,7 @@ if ROOT not in sys.path:
 #    delete the stub once you've confirmed (by grepping that file's own
 #    imports) that nothing it actually imports needs it.
 # ---------------------------------------------------------------------------
-from commands.help import Help, HelpCategory, HelpCommand, format_help
+from commands.help import Help, HelpCategory, HelpCommand, format_help, _TOPICS
 from commands.base_command import CommandResult
 import commands.help as help_mod
 
@@ -293,6 +293,91 @@ class TestFormatHelp(unittest.TestCase):
         lines = format_help(h, width=40)
         for line in (lines if isinstance(lines, list) else []):
             self.assertLessEqual(_visible_len(line), 40, f"Line too long: {line!r}")
+
+
+class TestSeeAlso(unittest.TestCase):
+    """New in TADA: Help.see_also renders a 'See Also:' section of
+    cyan-colored, comma-separated related command/topic names."""
+
+    def _fmt(self, h, **kwargs):
+        return "\n".join(format_help(h, **kwargs) or [])
+
+    def test_absent_when_empty(self):
+        h = Help(summary="x")
+        self.assertNotIn("See Also:", self._fmt(h))
+
+    def test_heading_present_when_set(self):
+        h = Help(summary="x", see_also=["combat"])
+        self.assertIn("See Also:", self._fmt(h))
+
+    def test_names_rendered_in_cyan(self):
+        h = Help(summary="x", see_also=["combat", "bhr"])
+        out = self._fmt(h)
+        self.assertIn("|cyan|combat|reset|", out)
+        self.assertIn("|cyan|bhr|reset|", out)
+
+    def test_names_comma_separated(self):
+        h = Help(summary="x", see_also=["combat", "bhr"])
+        out = self._fmt(h)
+        self.assertIn("|cyan|combat|reset|, |cyan|bhr|reset|", out)
+
+    def test_width_80_no_line_exceeds_with_many_entries(self):
+        from formatting import _visible_len
+        h = Help(summary="x", see_also=["combat", "weaponclass", "basedamage",
+                                         "easeofuse", "weaponaffinity", "bhr"])
+        lines = format_help(h, width=80)
+        for line in lines:
+            self.assertLessEqual(_visible_len(line), 80, f"Line too long: {line!r}")
+
+    def test_width_40_no_line_exceeds_with_many_entries(self):
+        from formatting import _visible_len
+        h = Help(summary="x", see_also=["combat", "weaponclass", "basedamage",
+                                         "easeofuse", "weaponaffinity", "bhr"])
+        lines = format_help(h, width=40)
+        for line in lines:
+            self.assertLessEqual(_visible_len(line), 40, f"Line too long: {line!r}")
+
+
+class TestCombatConceptTopics(unittest.TestCase):
+    """New in TADA: combat/weaponclass/basedamage/easeofuse/weaponaffinity
+    concept topics (Ryan: 'this is confusing even me') plus BHR's updated
+    see_also -- all cross-link each other."""
+
+    TOPIC_NAMES = ["combat", "weaponclass", "basedamage", "easeofuse",
+                   "weaponaffinity", "bhr"]
+
+    def test_all_new_topics_registered(self):
+        for name in self.TOPIC_NAMES:
+            self.assertIn(name, _TOPICS, f"{name!r} not registered as a topic")
+
+    def test_alias_forms_also_resolve(self):
+        for alias in ("best targets", "base damage", "ease of use",
+                      "weapon affinity", "bad hombre", "badhombre"):
+            self.assertIn(alias, _TOPICS, f"{alias!r} alias not registered")
+
+    def test_every_see_also_entry_resolves_to_a_real_topic(self):
+        # Guards against a typo'd see_also silently 404ing for a player
+        # (see Help.see_also's docstring caveat).
+        for name in self.TOPIC_NAMES:
+            for ref in _TOPICS[name].see_also:
+                self.assertIn(ref, _TOPICS, f"{name!r}.see_also has unresolvable {ref!r}")
+
+    def test_combat_topic_renders_without_error(self):
+        out = format_help(_TOPICS["combat"], command_name="combat", width=78)
+        self.assertIsNotNone(out)
+        self.assertTrue(any("Weapon Class" in line for line in out))
+
+    def test_weaponaffinity_topic_mentions_all_nine_classes(self):
+        out = "\n".join(format_help(_TOPICS["weaponaffinity"], width=78) or [])
+        for cls in ("Wizard", "Druid", "Fighter", "Paladin", "Ranger",
+                    "Thief", "Archer", "Assassin", "Knight"):
+            self.assertIn(cls, out)
+
+    def test_weaponaffinity_topic_mentions_all_nine_races(self):
+        out = "\n".join(format_help(_TOPICS["weaponaffinity"], width=78) or [])
+        for race in ("Human", "Ogre", "Pixie", "Elf", "Hobbit", "Gnome",
+                     "Dwarf", "Orc", "Half-Elf"):
+            self.assertIn(race, out)
 
 
 # ---------------------------------------------------------------------------
