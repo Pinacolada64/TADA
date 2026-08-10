@@ -134,27 +134,34 @@ class WhereatCommand(Command):
         return rows
 
     async def _show_population(self, ctx: GameContext, player) -> CommandResult:
-        """'wa #pop' -- room-by-room population summary. Admins/DMs see
-        Level, Room #, and Population; everyone else sees Room Name and
-        Population. Rooms with more than one occupant show an aggregate
-        count; hidden players (as seen by non-privileged viewers) are
-        bucketed together under '(Hidden)' rather than de-anonymized."""
+        """'wa #population' -- room-by-room population summary, so players
+        looking to congregate can see who's already where. Admins/DMs see
+        Level, Room #, and Room Name; everyone else sees just Room Name.
+        Every view adds a Population count and the list of players there.
+        Hidden players (as seen by non-privileged viewers) are bucketed
+        together under '(Hidden)' rather than de-anonymized; admins see
+        their real room with a '[hidden]' tag next to their name."""
         privileged = _is_privileged(player)
         server     = ctx.server
-        rows       = [r[:4] for r in self._gather_rows(server, privileged)]
+        rows       = self._gather_rows(server, privileged)
 
         if not rows:
             await ctx.send('No players are currently online.')
             return CommandResult.ok()
 
-        counts: dict[tuple, int] = {}
+        buckets: dict[tuple, list[str]] = {}
         order: list[tuple] = []
-        for _name, level, room_no, room_name in rows:
+        for name, level, room_no, room_name, is_hidden in rows:
+            room_name = room_name.removesuffix(' [hidden]')
             key = (level, room_no, room_name)
-            if key not in counts:
-                counts[key] = 0
+            if key not in buckets:
+                buckets[key] = []
                 order.append(key)
-            counts[key] += 1
+            display_name = f'{name} [hidden]' if (is_hidden and privileged) else name
+            buckets[key].append(display_name)
+
+        for names in buckets.values():
+            names.sort(key=str.lower)
 
         order.sort(key=lambda k: (k[0], k[1], k[2].lower()))
 
@@ -162,16 +169,25 @@ class WhereatCommand(Command):
         if privileged:
             level_w = max(len('Level'), *(len(k[0]) for k in order)) + 2
             room_w  = max(len('Room #'), *(len(k[1]) for k in order)) + 2
-            lines.append(f"{'Level'.ljust(level_w)}{'Room #'.ljust(room_w)}Population")
+            name_w  = max(len('Room Name'), *(len(k[2]) for k in order)) + 2
+            pop_w   = max(len('Population'), *(len(str(len(v))) for v in buckets.values())) + 2
+            lines.append(f"{'Level'.ljust(level_w)}{'Room #'.ljust(room_w)}"
+                         f"{'Room Name'.ljust(name_w)}{'Population'.ljust(pop_w)}Players")
             for key in order:
-                level, room_no, _room_name = key
-                lines.append(f'{level.ljust(level_w)}{room_no.ljust(room_w)}{counts[key]}')
+                level, room_no, room_name = key
+                names = buckets[key]
+                lines.append(f'{level.ljust(level_w)}{room_no.ljust(room_w)}'
+                             f'{room_name.ljust(name_w)}{str(len(names)).ljust(pop_w)}'
+                             f'{", ".join(names)}')
         else:
             name_w = max(len('Room Name'), *(len(k[2]) for k in order)) + 2
-            lines.append(f"{'Room Name'.ljust(name_w)}Population")
+            pop_w  = max(len('Population'), *(len(str(len(v))) for v in buckets.values())) + 2
+            lines.append(f"{'Room Name'.ljust(name_w)}{'Population'.ljust(pop_w)}Players")
             for key in order:
                 _level, _room_no, room_name = key
-                lines.append(f'{room_name.ljust(name_w)}{counts[key]}')
+                names = buckets[key]
+                lines.append(f'{room_name.ljust(name_w)}{str(len(names)).ljust(pop_w)}'
+                             f'{", ".join(names)}')
         lines.append('')
 
         await ctx.send(lines)

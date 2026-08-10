@@ -227,6 +227,25 @@ class TestWhereatPopulation(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Bar', out)
         self.assertIn('2', out)     # both grouped rooms have 2 occupants
 
+    async def test_non_privileged_lists_player_names_per_room(self):
+        ctx = self._build(observer='Alice')
+        await WhereatCommand().execute(ctx, '#population')
+        out = _sent_text(ctx)
+        self.assertIn('Players', out)
+        self.assertIn('Alice, Bob', out)     # Town Square roommates, alphabetized
+        self.assertIn('Carol, Dave', out)    # Bar roommates, alphabetized
+
+    async def test_privileged_shows_room_name_and_player_names(self):
+        ctx = self._build(observer='Alice', admin=True)
+        await WhereatCommand().execute(ctx, '#population')
+        out = _sent_text(ctx)
+        self.assertIn('Room Name', out)
+        self.assertIn('Town Square', out)
+        self.assertIn('Bar', out)
+        self.assertIn('Players', out)
+        self.assertIn('Alice, Bob', out)
+        self.assertIn('Eve [hidden]', out)   # admins see the hidden player's name tagged
+
     async def test_non_privileged_hides_room_and_level_columns(self):
         ctx = self._build(observer='Alice')
         await WhereatCommand().execute(ctx, '#pop')
