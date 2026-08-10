@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Log in as botdummy and exercise PREFS' new T/K/L rows live."""
+"""Log in as botdummy and exercise the consolidated PREFS submenus live
+(Colors & Graphics 'C', Terminal Settings 'T', Date & Time 'D')."""
 import asyncio
 import json
 
@@ -63,21 +64,23 @@ async def main():
 
     script = [
         ('connect botdummy puppy123', 'login'),
-        ('prefs', 'game'),
-        ('ht', 'game'),        # help for Client Type
-        ('t', 'game'),         # open Client Type picker
-        ('5', 'game'),         # custom
-        ('100', 'game'),       # columns
-        ('30', 'game'),        # rows
-        ('P', 'game'),         # plain text
-        ('hk', 'game'),        # help for Tab Key
-        ('k', 'game'),         # open Tab Key picker
-        ('n', 'game'),         # no real tab key
-        ('4', 'game'),         # tab width 4
-        ('hl', 'game'),        # help for Line Ending
-        ('l', 'game'),         # open Line Ending picker
-        ('CRLF', 'game'),      # choose CRLF by name
-        ('', 'game'),          # exit prefs
+        ('prefs', 'game'),          # root menu -- should show just 7 rows now
+        ('c', 'game'),               # open Colors & Graphics
+        ('hs', 'game'),              #   help for Menu Colors
+        ('ha', 'game'),              #   help for Table Colors
+        ('hg', 'game'),              #   help for Graphics Test
+        ('g', 'game'),               #   run the graphics test (special glyphs box)
+        ('', 'game'),                # back out of Colors & Graphics
+        ('t', 'game'),               # open Terminal Settings
+        ('ht', 'game'),              #   help for Client Type
+        ('hk', 'game'),              #   help for Tab Key
+        ('hl', 'game'),              #   help for Line Ending
+        ('', 'game'),                # back out of Terminal Settings
+        ('d', 'game'),               # open Date & Time
+        ('hz', 'game'),              #   help for Timezone
+        ('hh', 'game'),              #   help for Hourglass Display
+        ('', 'game'),                # back out of Date & Time
+        ('', 'game'),                # exit prefs
         ('quit', 'game'),
         ('Y', 'game'),
     ]
