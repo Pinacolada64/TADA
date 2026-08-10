@@ -29,6 +29,13 @@ tactic prompt it's shown (attack/parry/bash, or stand/roll if knocked
 down) every time it's back at the main prompt -- see combat/duel.py's
 _tactic_prompt(), which re-sends after every round until the duel ends.
 
+Sending a bare 'down' from room 1 (part of the normal 'move' action) can
+also land a bot in the Merchant Shoppe menu (commands/movement.py's rc==2
+branch) -- handled reactively too: mostly 'X' to leave, occasionally 'E'
+to detour through the elevator, which answers its combination prompt with
+every account's seeded combo (setup_swarm_accounts.py) and then leaves
+via the post-combination floor picker.
+
 Targets tools/run_throwaway_server.py's isolated instance (default
 127.0.0.1:34190) -- never the real run/server save directory.
 
@@ -61,6 +68,11 @@ LOG_FILE = Path(__file__).resolve().parent.parent / f'bot_swarm_{_STAMP}.log'
 
 _PASSWORD = 'puppy123'
 _BOTS = [f'botswarm{i:02}' for i in range(1, 11)]
+
+# Matches setup_swarm_accounts.py's _ELEVATOR_COMBO -- shoppe/elevator.py's
+# get_combination() prompt (Combination [attempt N/5]) shows up whenever a
+# bot's random wandering takes it onto an elevator's 'rc' exit.
+_ELEVATOR_COMBO = '11-22-33'
 
 # level-1 rooms confirmed in setup: a few social/no-monster rooms plus the
 # regular-monster rooms documented in tools/BOT_README.md sec. 6.
@@ -344,6 +356,23 @@ async def bot_loop(bot: Bot, num_actions: int, seed: int) -> None:
             # commands/loot.py's two ctx.prompt() selections -- always grab
             # whoever/whatever is first in the list.
             await bot.say('1')
+        elif 'combination [attempt' in low_prompt:
+            # shoppe/elevator.py's get_combination() -- every swarm account
+            # was seeded with the same elevator combo (setup_swarm_accounts.py),
+            # so this always succeeds on the first attempt.
+            await bot.say(_ELEVATOR_COMBO)
+        elif low_prompt.rstrip().endswith('shoppe>'):
+            # commands/movement.py's rc==2 'down' from room 1 lands here
+            # (shoppe/main.py's menu), not directly at the elevator -- 'E'
+            # is what actually reaches the combination prompt above. Mostly
+            # leave immediately so shop visits don't eat the whole action
+            # budget; occasionally detour through the elevator instead.
+            await bot.say('E' if rng.random() < 0.25 else 'X')
+        elif 'level (or l to leave)' in low_prompt:
+            # shoppe/elevator.py's post-combination floor picker -- always
+            # leave. Picking a level would change the bot's map_level, which
+            # nothing else here (ROOM_POOL, room-mate assumptions) accounts for.
+            await bot.say('L')
         elif bot.is_main_prompt():
             # Bounding every main-prompt reaction (not just do_action's own
             # picks) under the same round_no budget matters here: a duel
