@@ -94,28 +94,31 @@ class TestClientTypeStepRemoved(unittest.TestCase):
 
 
 class TestPrefsMenuShowsNewRows(unittest.IsolatedAsyncioTestCase):
+    """Client Type/Tab Key/Line Ending now live in the Terminal Settings
+    submenu (PREFS 'T'), not the top-level menu -- every scenario here
+    opens that submenu with a leading 't' before checking its rows."""
 
     async def test_client_type_row_shown_for_ansi(self):
-        ctx = _FakeCtx([''], Player())
+        ctx = _FakeCtx(['t', '', ''], Player())
         await prefs_menu(ctx)
         text = ctx._flat()
         self.assertIn('Client', text)
         self.assertIn('Type', text)
 
     async def test_tab_key_row_shown(self):
-        ctx = _FakeCtx([''], Player())
+        ctx = _FakeCtx(['t', '', ''], Player())
         await prefs_menu(ctx)
         self.assertIn('Tab Key', ctx._flat())
 
     async def test_line_ending_row_shown(self):
-        ctx = _FakeCtx([''], Player())
+        ctx = _FakeCtx(['t', '', ''], Player())
         await prefs_menu(ctx)
         text = ctx._flat()
         self.assertIn('Line', text)
         self.assertIn('Ending', text)
 
     async def test_ht_hk_hl_help_available(self):
-        ctx = _FakeCtx(['ht', 'hk', 'hl', ''], Player())
+        ctx = _FakeCtx(['t', 'ht', 'hk', 'hl', '', ''], Player())
         await prefs_menu(ctx)
         text = ctx._flat()
         self.assertIn('Client Type', text)
@@ -128,7 +131,7 @@ class TestPrefsMenuShowsNewRows(unittest.IsolatedAsyncioTestCase):
         `if not is_petscii`, so a genuine C64/C128 player (translation
         already PETSCII, e.g. from terminal negotiation) could never see
         or change their screen size after login."""
-        ctx = _FakePetsciiCtx([''], Player())
+        ctx = _FakePetsciiCtx(['t', '', ''], Player())
         ctx.player.client_settings.translation = Translation.PETSCII
         await prefs_menu(ctx)
         text = ctx._flat()
@@ -136,7 +139,7 @@ class TestPrefsMenuShowsNewRows(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Type', text)
 
     async def test_t_key_reachable_for_real_petscii(self):
-        ctx = _FakePetsciiCtx(['t', '', ''], Player())
+        ctx = _FakePetsciiCtx(['t', 't', '', '', ''], Player())
         ctx.player.client_settings.translation = Translation.PETSCII
         await prefs_menu(ctx)
         self.assertIn('Client Type:', ctx._flat())
@@ -145,18 +148,20 @@ class TestPrefsMenuShowsNewRows(unittest.IsolatedAsyncioTestCase):
         """Live bug found testing this: codec/is_petscii used to be
         computed once before the menu loop started, so switching Client
         Type mid-session (e.g. to a Commodore preset) didn't hide the
-        ANSI-only Border Style row until PREFS was reopened fresh. Needs
-        a genuine PETSCIINetworkContext now -- an ANSI ctx picking a
-        Commodore preset no longer switches translation at all (see
-        TestPickClientType's non-PETSCII-transport tests below)."""
-        ctx = _FakePetsciiCtx(['t', '1', ''], Player())   # Client Type -> Commodore 64 (PETSCII)
+        ANSI-only Border Style row until PREFS was reopened fresh. Border
+        Style now lives in the Colors & Graphics submenu, separate from
+        Client Type in the Terminal Settings submenu -- confirms the fix
+        still holds across that split: switch Client Type in one
+        submenu, then open the other fresh and see it already reflect
+        PETSCII. Needs a genuine PETSCIINetworkContext -- an ANSI ctx
+        picking a Commodore preset no longer switches translation at all
+        (see TestPickClientType's non-PETSCII-transport tests below)."""
+        # Client Type -> Commodore 64 (PETSCII), back out to main, then
+        # open Colors & Graphics fresh.
+        ctx = _FakePetsciiCtx(['t', 't', '1', '', 'c', '', ''], Player())
         await prefs_menu(ctx)
-        # The LAST occurrence of the settings table in the transcript
-        # (the redraw right before exiting) must already omit Border
-        # Style -- it's PETSCII now, not still showing the stale ANSI
-        # table style captured when the loop started.
         text = ctx._flat()
-        last_menu_start = text.rindex('User Preferences')
+        last_menu_start = text.rindex('Colors & Graphics')
         self.assertNotIn('Border', text[last_menu_start:])
 
 

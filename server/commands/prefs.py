@@ -110,28 +110,9 @@ _SETTING_HELP: dict[str, list[str]] = {
     ],
     't': [
         '',
-        '|cyan|Client Type|reset|',
-        "Sets your screen size and color translation -- pick a Commodore "
-        "64/128 preset, the TADA client preset, or a Custom size (20-132 "
-        "columns, 10-60 rows) with ANSI color or plain text. On a real "
-        "Commodore connection, only the screen size actually changes -- "
-        "translation stays PETSCII regardless of which preset you pick, "
-        "since PETSCII color codes only work over that port.",
-        '',
-    ],
-    'k': [
-        '',
-        '|cyan|Tab Key|reset|',
-        "Whether your client sends a real Tab keypress. If not, tabs are "
-        "simulated with a configurable number of spaces instead.",
-        '',
-    ],
-    'l': [
-        '',
-        '|cyan|Line Ending|reset|',
-        "LF (Unix-style), CR (classic Mac / some Commodore terminals), or "
-        "CRLF (Windows-style). Stored for your client, but not yet enforced "
-        "on every line sent -- most terminals handle any of the three fine.",
+        '|cyan|Terminal Settings|reset|',
+        "Opens a submenu for connection-level settings: client type/"
+        "screen size, tab key behavior, and line ending.",
         '',
     ],
     'z': [
@@ -220,6 +201,38 @@ _COLORS_GRAPHICS_HELP: dict[str, list[str]] = {
         "client actually renders correctly. Nothing here is saved -- "
         "it's just a display, useful before picking a style with Border "
         "Style ('B').",
+        '',
+    ],
+}
+
+# Detailed per-setting explanations for the Terminal Settings submenu
+# (_terminal_menu()) -- same 'h<key>' convention as _SETTING_HELP/
+# _COLORS_GRAPHICS_HELP, scoped to that submenu's own keys.
+_TERMINAL_HELP: dict[str, list[str]] = {
+    't': [
+        '',
+        '|cyan|Client Type|reset|',
+        "Sets your screen size and color translation -- pick a Commodore "
+        "64/128 preset, the TADA client preset, or a Custom size (20-132 "
+        "columns, 10-60 rows) with ANSI color or plain text. On a real "
+        "Commodore connection, only the screen size actually changes -- "
+        "translation stays PETSCII regardless of which preset you pick, "
+        "since PETSCII color codes only work over that port.",
+        '',
+    ],
+    'k': [
+        '',
+        '|cyan|Tab Key|reset|',
+        "Whether your client sends a real Tab keypress. If not, tabs are "
+        "simulated with a configurable number of spaces instead.",
+        '',
+    ],
+    'l': [
+        '',
+        '|cyan|Line Ending|reset|',
+        "LF (Unix-style), CR (classic Mac / some Commodore terminals), or "
+        "CRLF (Windows-style). Stored for your client, but not yet enforced "
+        "on every line sent -- most terminals handle any of the three fine.",
         '',
     ],
 }
@@ -352,13 +365,6 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         hourglass   = ctx.player.query_flag(PlayerFlags.HOURGLASS)
         more_prompt = ctx.player.query_flag(PlayerFlags.MORE_PROMPT)
 
-        tab         = getattr(cs, 'tab_settings', None)
-        tab_summary = ('Real Tab key' if getattr(tab, 'has_tab_key', True)
-                       else f'Spaces ({getattr(tab, "tab_width", 8)})')
-        from terminal import LineEnding
-        line_ending      = getattr(cs, 'line_ending', LineEnding.LF)
-        line_ending_name = {LineEnding.LF: 'LF', LineEnding.CR: 'CR', LineEnding.CRLF: 'CRLF'}.get(line_ending, 'LF')
-
         t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
                   border_style=border_style_for_ctx(ctx))
         t.add_row(['X', 'Expert Mode', 'On' if expert else 'Off', 'hx'])
@@ -367,9 +373,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         t.add_row(['C', 'Colors & Graphics', '', 'hc'])
         news_all = getattr(ctx.player.command_settings, 'news_show_all', False)
         t.add_row(['N', 'News Display', 'Full directory' if news_all else 'New only', 'hn'])
-        t.add_row(['T', 'Client Type', f'{cs.screen_columns}x{cs.screen_rows}', 'ht'])
-        t.add_row(['K', 'Tab Key', tab_summary, 'hk'])
-        t.add_row(['L', 'Line Ending', line_ending_name, 'hl'])
+        t.add_row(['T', 'Terminal Settings', '', 'ht'])
         tz_name    = getattr(cs, 'timezone', '') or _server_local_label()
         t.add_row(['Z', 'Timezone', tz_name, 'hz'])
         date_fmt_name = _DATE_FORMAT_NAMES.get(getattr(cs, 'date_format', ''), 'Custom')
@@ -379,7 +383,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         wasd = getattr(ctx.player.command_settings, 'wasd_movement', False)
         t.add_row(['W', 'Movement Keys', 'WASD' if wasd else 'Compass', 'hw'])
 
-        valid_keys = ['X', 'H', 'M', 'C', 'N', 'T', 'K', 'L', 'Z', 'D', 'F', 'W']
+        valid_keys = ['X', 'H', 'M', 'C', 'N', 'T', 'Z', 'D', 'F', 'W']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -408,9 +412,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                 'C - Colors & Graphics submenu (text/menu/table colors, '
                 'border style, graphics test)',
                 'N - toggle News Display (new only / full directory)',
-                'T - choose client type / screen size',
-                'K - set whether your client has a real Tab key (and its width)',
-                'L - choose line ending (LF / CR / CRLF)',
+                'T - Terminal Settings submenu (client type/screen size, '
+                'tab key, line ending)',
                 'Z - choose your display timezone',
                 'D - choose your preferred date format',
                 'F - choose 12-hour or 24-hour time format',
@@ -464,13 +467,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             await ctx.send(f"{option}{'|green|Full directory' if cs2.news_show_all else '|green|New only'}|reset|")
 
         elif ans == 't':
-            await _pick_client_type(ctx)
-
-        elif ans == 'k':
-            await _pick_tab_settings(ctx)
-
-        elif ans == 'l':
-            await _pick_line_ending(ctx)
+            await _terminal_menu(ctx)
 
         elif ans == 'z':
             await _pick_timezone(ctx)
@@ -576,6 +573,61 @@ async def _colors_graphics_menu(ctx) -> None:
             await _pick_border_style(ctx, codec)
         elif ans == 'g':
             await _show_graphics_test(ctx)
+        else:
+            await ctx.send(f'Choose {",".join(valid_keys)}, or Enter to return.')
+
+
+async def _terminal_menu(ctx) -> None:
+    """Submenu for connection-level settings, reached via PREFS 'T'.
+
+    Folds what used to be three separate top-level PREFS rows (Client
+    Type, Tab Key, Line Ending) into one place -- same idea and shape as
+    _colors_graphics_menu(). Loops on its own until blank/'q'/disconnect
+    returns to the main prefs_menu() loop.
+    """
+    from formatting import border_style_for_ctx
+    from table import Table
+    from terminal import LineEnding
+
+    cs = ctx.player.client_settings
+
+    while True:
+        tab         = getattr(cs, 'tab_settings', None)
+        tab_summary = ('Real Tab key' if getattr(tab, 'has_tab_key', True)
+                       else f'Spaces ({getattr(tab, "tab_width", 8)})')
+        line_ending      = getattr(cs, 'line_ending', LineEnding.LF)
+        line_ending_name = {LineEnding.LF: 'LF', LineEnding.CR: 'CR', LineEnding.CRLF: 'CRLF'}.get(line_ending, 'LF')
+
+        t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
+                  border_style=border_style_for_ctx(ctx))
+        t.add_row(['T', 'Client Type', f'{cs.screen_columns}x{cs.screen_rows}', 'ht'])
+        t.add_row(['K', 'Tab Key', tab_summary, 'hk'])
+        t.add_row(['L', 'Line Ending', line_ending_name, 'hl'])
+
+        valid_keys = ['T', 'K', 'L']
+
+        menu = (
+            ['', '|yellow|Terminal Settings|reset|', '']
+            + t.render(width=cs.screen_columns)
+            + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
+                   f"(e.g. h{valid_keys[0].lower()}), Enter to return", '']
+        )
+
+        raw = await ctx.prompt('terminal settings', preamble_lines=menu)
+        if raw is None or not raw.strip() or raw.strip().lower() in ('q', 'quit', 'done', 'exit'):
+            return
+        ans = raw.strip().lower()
+
+        if len(ans) == 2 and ans[0] == 'h' and ans[1].upper() in valid_keys:
+            await ctx.send(*_TERMINAL_HELP[ans[1]])
+            continue
+
+        if ans == 't':
+            await _pick_client_type(ctx)
+        elif ans == 'k':
+            await _pick_tab_settings(ctx)
+        elif ans == 'l':
+            await _pick_line_ending(ctx)
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or Enter to return.')
 
