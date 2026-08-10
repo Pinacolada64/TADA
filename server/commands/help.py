@@ -153,11 +153,83 @@ class Help:
 
 _TOPICS: Dict[str, Help] = {}
 
+# id(Help instance) -> its first-registered name, i.e. the canonical name
+# a substring match should redirect to (see _find_topic_by_substring()).
+# Keyed by id() rather than the Help instance itself since Help isn't
+# hashable in a useful way here and identity, not equality, is what
+# distinguishes "same topic, different alias" from "coincidentally equal
+# Help objects."
+_TOPIC_PRIMARY_NAME: Dict[int, str] = {}
+
 
 def register_topic(*names: str, help_obj: Help) -> None:
     """Register a standalone help topic under one or more names/aliases."""
     for n in names:
         _TOPICS[n.lower()] = help_obj
+    _TOPIC_PRIMARY_NAME[id(help_obj)] = names[0].lower()
+
+
+def _exact_category(token: str) -> Optional["HelpCategory"]:
+    """Full category value/name match only, no substring fallback --
+    safe to call unconditionally at the top of HelpCommand.execute()'s
+    dispatch, before command/alias lookup. _match_categories()'s
+    bidirectional substring check is NOT safe there: a short command
+    alias (e.g. 't') is trivially a substring of most category names
+    ('adminisTrative', 'combaT', ...), so using it pre-emptively would
+    hijack alias resolution into a category listing. The substring
+    fallback still applies, just later -- see _show_command_help()'s
+    cmd-is-None branch, reached only once exact command lookup has
+    already failed.
+    """
+    token = token.lower()
+    return next((c for c in HelpCategory if token in (c.value.lower(), c.name.lower())), None)
+
+
+def _match_categories(token: str) -> List["HelpCategory"]:
+    """Return every HelpCategory *token* could plausibly mean.
+
+    Exact match (full value/name, case-insensitive) always wins outright
+    and short-circuits -- if the token IS a category, that's the answer,
+    full stop. Otherwise falls back to a *bidirectional* substring check
+    (token-in-category, e.g. 'admin' -> Administrative, AND category-in-
+    token, e.g. 'concepts' -> Concept) so both a trimmed prefix and an
+    extended typo/plural resolve. Ambiguous (2+) or empty results are
+    both valid outcomes for a caller to handle -- this never guesses.
+    """
+    token = token.lower()
+    if not token:
+        return []
+    exact = [c for c in HelpCategory if token in (c.value.lower(), c.name.lower())]
+    if exact:
+        return exact
+    return [
+        c for c in HelpCategory
+        if token in c.value.lower() or c.value.lower() in token
+        or token in c.name.lower() or c.name.lower() in token
+    ]
+
+
+def _find_topic_by_substring(token: str) -> Optional[str]:
+    """'help ease' -> 'easeofuse' -- if *token* is a substring of exactly
+    one registered topic's set of names/aliases, return that topic's
+    canonical name for a redirect. Returns None if it matches zero topics
+    (falls through to the normal "no help found" message) or more than
+    one distinct topic (ambiguous -- also falls through, rather than
+    guessing which one the player meant).
+
+    Deliberately topic-only, not command names too: a command typo
+    silently redirecting to an unrelated command would be far more
+    surprising than a concept-topic shortcut expanding, and commands
+    already have their own alias mechanism for the common-abbreviation
+    case ('help' aliases 'h'/'?', etc).
+    """
+    token = token.lower()
+    if not token:
+        return None
+    matched_ids = {id(help_obj) for name, help_obj in _TOPICS.items() if token in name}
+    if len(matched_ids) == 1:
+        return _TOPIC_PRIMARY_NAME.get(next(iter(matched_ids)))
+    return None
 
 
 register_topic(
@@ -961,8 +1033,12 @@ class HelpCommand(Command):
         notes = [
             "You can use 'help', 'h', or '?' interchangeably.",
             "Command names are case-insensitive.",
-            "'help #cat <name>' accepts a substring if it's unambiguous, "
-            "e.g. 'help #cat admin' for Administrative.",
+            "A category name (with or without '#cat') accepts a "
+            "substring if it's unambiguous, in either direction -- "
+            "'help admin' and 'help concepts' both work, same as the "
+            "full 'help administrative'/'help concept'.",
+            "A concept topic name (e.g. 'help easeofuse') also accepts "
+            "an unambiguous substring, e.g. 'help ease'.",
         ],
     )
 
@@ -996,10 +1072,13 @@ class HelpCommand(Command):
         if token in ("search", "find", "#search", "#find") and rest:
             return await self._help_search(ctx, " ".join(rest), processor)
 
-        # Category name used directly (e.g. "help movement")
-        for cat in HelpCategory:
-            if token in (cat.value.lower(), cat.name.lower()):
-                return await self._show_category_help(ctx, token, processor)
+        # Category name used directly (e.g. "help movement") -- exact
+        # match only here; the substring/pluralized-typo fallback (e.g.
+        # "help concepts" -> Concept) lives later, after exact command
+        # lookup has had first crack at the token (see _exact_category()'s
+        # docstring for why).
+        if _exact_category(token):
+            return await self._show_category_help(ctx, token, processor)
 
         # Standalone concept topic (e.g. "help about") -- not tied to a
         # Command, so this works even at the LOGIN prompt before a player
@@ -1117,29 +1196,15 @@ class HelpCommand(Command):
     async def _show_category_help(self, ctx, category_name: str, processor) -> Any:
         from commands.base_command import CommandResult
 
-        # Exact match first (full category name/value, case-insensitive).
-        matched = next(
-            (c for c in HelpCategory
-             if category_name in (c.value.lower(), c.name.lower())),
-            None,
-        )
-
-        # Fall back to substring match (e.g. 'admin' -> Administrative) --
-        # only when exactly one category matches; more than one is ambiguous.
-        if matched is None:
-            substring_matches = [
-                c for c in HelpCategory
-                if category_name in c.value.lower() or category_name in c.name.lower()
-            ]
-            if len(substring_matches) == 1:
-                matched = substring_matches[0]
-            elif len(substring_matches) > 1:
-                names = ", ".join(c.value for c in substring_matches)
-                await ctx.send(
-                    f"'{category_name}' matches more than one category: {names}. "
-                    "Type more of the name to narrow it down."
-                )
-                return CommandResult.fail(error="ambiguous_category")
+        matches = _match_categories(category_name)
+        matched  = matches[0] if len(matches) == 1 else None
+        if len(matches) > 1:
+            names = ", ".join(c.value for c in matches)
+            await ctx.send(
+                f"'{category_name}' matches more than one category: {names}. "
+                "Type more of the name to narrow it down."
+            )
+            return CommandResult.fail(error="ambiguous_category")
 
         if not matched:
             await ctx.send(
@@ -1212,6 +1277,27 @@ class HelpCommand(Command):
             cmd, _ = processor.find_command(command_name)
 
         if cmd is None:
+            # Neither an exact command nor an exact category/topic
+            # matched -- last chance: a substring/pluralized-typo match
+            # against category names ('help concepts' -> Concept) or
+            # topic names/aliases ('help ease' -> 'easeofuse'), each
+            # only when unambiguous. Category checked first since it's
+            # the coarser-grained match of the two.
+            cat_matches = _match_categories(command_name)
+            if len(cat_matches) == 1:
+                return await self._show_category_help(ctx, command_name, processor)
+            if len(cat_matches) > 1:
+                names = ", ".join(c.value for c in cat_matches)
+                await ctx.send(
+                    f"'{command_name}' matches more than one category: {names}. "
+                    "Type more of the name to narrow it down."
+                )
+                return CommandResult.fail(error="ambiguous_category")
+
+            topic = _find_topic_by_substring(command_name)
+            if topic:
+                return await self._show_topic_help(ctx, topic)
+
             await ctx.send(
                 f"No help found for '{command_name}'. "
                 "Type 'help' for a list of commands."

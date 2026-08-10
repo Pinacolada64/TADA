@@ -46,7 +46,10 @@ if ROOT not in sys.path:
 #    delete the stub once you've confirmed (by grepping that file's own
 #    imports) that nothing it actually imports needs it.
 # ---------------------------------------------------------------------------
-from commands.help import Help, HelpCategory, HelpCommand, format_help, _TOPICS
+from commands.help import (
+    Help, HelpCategory, HelpCommand, format_help, _TOPICS,
+    _find_topic_by_substring, _exact_category, _match_categories,
+)
 from commands.base_command import CommandResult
 import commands.help as help_mod
 
@@ -380,6 +383,114 @@ class TestCombatConceptTopics(unittest.TestCase):
             self.assertIn(race, out)
 
 
+class TestFindTopicBySubstring(unittest.TestCase):
+    """New in TADA: 'help ease' redirects to 'easeofuse' -- Ryan found
+    typing a topic's full canonical name cumbersome. Only redirects when
+    the substring is unambiguous (matches exactly one distinct topic)."""
+
+    def test_unique_substring_resolves_to_canonical_name(self):
+        self.assertEqual(_find_topic_by_substring("ease"), "easeofuse")
+        self.assertEqual(_find_topic_by_substring("base"), "basedamage")
+        self.assertEqual(_find_topic_by_substring("combat"), "combat")
+
+    def test_exact_canonical_name_resolves_to_itself(self):
+        self.assertEqual(_find_topic_by_substring("weaponclass"), "weaponclass")
+
+    def test_ambiguous_substring_returns_none(self):
+        # Matches weaponclass, weaponaffinity, "weapon affinity",
+        # "class weapon", "best weapon", "bestweapon" -- more than one
+        # distinct topic, so no redirect.
+        self.assertIsNone(_find_topic_by_substring("weapon"))
+
+    def test_no_match_returns_none(self):
+        self.assertIsNone(_find_topic_by_substring("zzznotatopic"))
+
+    def test_empty_string_returns_none(self):
+        self.assertIsNone(_find_topic_by_substring(""))
+
+    def test_case_insensitive(self):
+        self.assertEqual(_find_topic_by_substring("EASE"), "easeofuse")
+
+
+class TestMatchCategories(unittest.TestCase):
+    """New in TADA: 'help concepts' resolves to the Concept category --
+    Ryan kept mistyping 'help concept'. _match_categories() does
+    bidirectional substring matching (token-in-category AND category-
+    in-token) so both a trimmed prefix ('admin') and an extended/
+    pluralized typo ('concepts') resolve, as long as it's unambiguous."""
+
+    def test_exact_value_match(self):
+        self.assertEqual(_exact_category("concept"), HelpCategory.CONCEPT)
+        self.assertEqual(_exact_category("Combat"), HelpCategory.COMBAT)
+
+    def test_exact_name_match(self):
+        self.assertEqual(_exact_category("concept"), _exact_category("CONCEPT"))
+
+    def test_exact_category_has_no_substring_fallback(self):
+        # 'concepts' is NOT an exact match -- _exact_category must not
+        # guess; that's _match_categories()' job.
+        self.assertIsNone(_exact_category("concepts"))
+
+    def test_match_categories_resolves_pluralized_typo(self):
+        self.assertEqual(_match_categories("concepts"), [HelpCategory.CONCEPT])
+
+    def test_match_categories_resolves_trimmed_prefix(self):
+        self.assertEqual(_match_categories("admin"), [HelpCategory.ADMINISTRATIVE])
+
+    def test_match_categories_exact_short_circuits_substring(self):
+        # If the token exactly matches a category, that's the answer --
+        # even though it might also substring-match others in principle.
+        self.assertEqual(_match_categories("concept"), [HelpCategory.CONCEPT])
+
+    def test_match_categories_short_token_is_ambiguous_not_a_guess(self):
+        # A short token like 't' is a substring of most category names
+        # ('administraTive', 'combaT', ...) -- must return every match,
+        # not silently pick one, so a caller can tell it's ambiguous.
+        matches = _match_categories("t")
+        self.assertGreater(len(matches), 1)
+
+    def test_match_categories_no_match_returns_empty(self):
+        self.assertEqual(_match_categories("zzznotacategory"), [])
+
+    def test_match_categories_empty_string_returns_empty(self):
+        self.assertEqual(_match_categories(""), [])
+
+
+class TestHelpConceptsIntegration(unittest.IsolatedAsyncioTestCase):
+    """End-to-end: 'help concepts' (plural typo) via the real
+    HelpCommand.execute() dispatch, not just the resolver functions."""
+
+    async def test_help_concepts_shows_concept_category(self):
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "concepts")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("Concept", output)
+
+    async def test_help_concept_singular_still_works(self):
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "concept")
+        self.assertTrue(result.success)
+
+    async def test_short_ambiguous_token_does_not_hijack_a_real_command(self):
+        # Regression: an early version of this feature used the
+        # bidirectional substring check at the very top of dispatch,
+        # before command/alias lookup -- a short alias like 't' is a
+        # substring of most category names, so it wrongly showed an
+        # "ambiguous category" message instead of the real command's help.
+        cmd  = _make_cmd("test", aliases=["t"])
+        ctx  = _make_ctx()
+        proc = MagicMock()
+        proc.find_command.return_value     = (cmd, True)
+        proc.get_all_commands.return_value = {"test": cmd}
+        proc.search_commands.return_value  = []
+        ctx.client.command_processor = proc
+        ctx.command_processor        = proc
+        result = await HelpCommand().execute(ctx, "t")
+        self.assertTrue(result.success)
+        self.assertNotIn("matches more than one category", result.message or "")
+
+
 # ---------------------------------------------------------------------------
 # _is_petscii_viewer
 # ---------------------------------------------------------------------------
@@ -685,6 +796,25 @@ class TestHelpTopics(unittest.IsolatedAsyncioTestCase):
             ctx, _ = _ctx_with_processor()
             result = await HelpCommand().execute(ctx, alias)
             self.assertTrue(result.success, f"'{alias}' should resolve to the about topic")
+
+    async def test_unambiguous_substring_redirects_to_the_topic(self):
+        # 'help ease' -> the easeofuse topic, since it's the only
+        # registered topic name/alias containing 'ease' -- Ryan's
+        # request, typing the full canonical name was cumbersome.
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "ease")
+        self.assertTrue(result.success)
+        self.assertIn("Ease of use", result.message)
+
+    async def test_ambiguous_substring_falls_through_to_no_help_found(self):
+        # 'weapon' matches multiple distinct topics (weaponclass,
+        # weaponaffinity, ...) -- must not guess, falls through to the
+        # normal "no help found" message instead of picking one.
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "weapon")
+        self.assertFalse(result.success)
+        self.assertIn("No help found", " ".join(
+            str(a) for call in ctx.send.await_args_list for a in call.args))
 
     async def test_topic_works_with_no_processor_state(self):
         # No real commands registered at all -- the LOGIN-mode scenario
