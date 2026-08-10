@@ -283,7 +283,15 @@ class Table:
     ):
         self.text_color   = list(text_color) if text_color else None
         self.header_color = header_color
-        self.border_color = border_color
+        # Zebra-striped rows (text_color set) wrap each *entire* rendered
+        # line -- borders included -- in that row's color (see
+        # _render_logical_row()), so a border left uncolored just takes
+        # on whichever stripe color the row happens to be instead of
+        # staying neutral. Defaulting border_color to 'white' whenever
+        # text_color is set and no border_color was given explicitly
+        # keeps the border visually consistent across every zebra-
+        # striped row; pass border_color explicitly to override.
+        self.border_color = border_color or ('white' if self.text_color else None)
         self._columns: list[Column] = [
             c if isinstance(c, Column) else Column(header=c)
             for c in headers

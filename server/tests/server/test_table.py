@@ -656,6 +656,47 @@ class TestBorderColor(unittest.TestCase):
             self.assertNotIn("|light_blue|", line)
 
 
+class TestZebraBorderDefault(unittest.TestCase):
+    """New in TADA: text_color (zebra striping) wraps each row's entire
+    rendered line -- borders included -- in that row's stripe color, so
+    an uncolored border used to just take on whichever stripe color the
+    row happened to be (Ryan noticed the color 'bleeding' into WHEREAT's
+    #population border). border_color now defaults to 'white' whenever
+    text_color is set and no border_color was given explicitly."""
+
+    def test_border_defaults_to_white_when_zebra_striped(self):
+        t = Table(["Name", "HP"], text_color=["green", "yellow"])
+        t.add_row(["Aldric", "45"])
+        t.add_row(["Rhiannon", "72"])
+        self.assertEqual(t.border_color, "white")
+
+    def test_rule_lines_are_white_not_a_stripe_color(self):
+        t = Table(["Name", "HP"], text_color=["green", "yellow"])
+        t.add_row(["Aldric", "45"])
+        lines = t.render(width=20)
+        rule_lines = [l for l in lines if "+" in l]
+        self.assertTrue(rule_lines)
+        for line in rule_lines:
+            self.assertTrue(line.startswith("|white|"))
+            self.assertNotIn("|green|", line)
+
+    def test_cell_separators_stay_white_across_striped_rows(self):
+        t = Table(["Name", "HP"], text_color=["green", "yellow"])
+        t.add_row(["Aldric", "45"])
+        t.add_row(["Rhiannon", "72"])
+        data_lines = [l for l in t.render(width=20) if "Aldric" in l or "Rhiannon" in l]
+        for line in data_lines:
+            self.assertIn("|white|||reset|", line)
+
+    def test_explicit_border_color_overrides_the_zebra_default(self):
+        t = Table(["Name", "HP"], text_color=["green", "yellow"], border_color="light_blue")
+        self.assertEqual(t.border_color, "light_blue")
+
+    def test_no_zebra_leaves_border_color_none(self):
+        t = Table(["Name", "HP"])
+        self.assertIsNone(t.border_color)
+
+
 class TestBracketHighlightAlignment(unittest.TestCase):
     """A cell can carry raw '[LOOT]'-style formatting.highlight_brackets()
     markup (e.g. stats.py's ally Notes column '[ELITE]' status tag) that
