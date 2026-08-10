@@ -419,6 +419,79 @@ class TestGiveWeaponAndAmmoToAlly(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.ally.ammo_rounds, 0)
 
 
+class TestGiveArmorAndShieldToAlly(unittest.IsolatedAsyncioTestCase):
+    # Bug: allies have no WEAR command, so GIVEing one an armor- or
+    # shield-type Item fell all the way through to the generic plain-item
+    # branch -- "{ally} takes the {item} and tucks it away", same wording
+    # as a book or trinket, instead of anything suggesting it got worn.
+    # Ryan's report, direct follow-up to the STATS "still shows READYed"
+    # fix above.
+
+    def setUp(self):
+        self.cmd = GiveCommand()
+        self.player = _make_player()
+        self.ally   = _make_ally('THE BISHOP')
+        self.player.party.add_member(self.player, self.ally)
+        self.ctx = _FakeCtx(self.player)
+
+    def _armor(self, name='CLOTH ARMOR', item_id=2):
+        from item_system import ItemType
+        item = _make_item(name, item_id=item_id, category=ItemCategory.ARMOR)
+        item.type = ItemType.ARMOR
+        return item
+
+    def _shield(self, name='SMALL SHIELD', item_id=4):
+        from item_system import ItemType
+        item = _make_item(name, item_id=item_id, category=ItemCategory.ARMOR)
+        item.type = ItemType.SHIELD
+        return item
+
+    async def test_give_armor_to_ally_wears_it(self):
+        armor = self._armor()
+        self.player.inventory.add(armor)
+        await self.cmd.execute(self.ctx, 'cloth', 'armor', 'to', 'bishop')
+
+        self.assertIs(self.ally.readied_armor, armor)
+        self.assertIn('WEARS', self.ctx.sent().upper())
+        self.assertNotIn('TUCKS', self.ctx.sent().upper())
+        self.assertEqual(len(self.player.inventory.entries()), 0)
+        self.assertEqual(self.ally.items[0].item, armor)
+        self.assertTrue(self.player.unsaved_changes)
+
+    async def test_give_shield_to_ally_straps_it_on(self):
+        shield = self._shield()
+        self.player.inventory.add(shield)
+        await self.cmd.execute(self.ctx, 'small', 'shield', 'to', 'bishop')
+
+        self.assertIs(self.ally.readied_shield, shield)
+        self.assertIn('STRAPS ON', self.ctx.sent().upper())
+
+    async def test_giving_second_armor_replaces_the_first(self):
+        first  = self._armor('CLOTH ARMOR', item_id=2)
+        second = self._armor('CHAINMAIL ARMOR', item_id=28)
+        self.player.inventory.add(first)
+        self.player.inventory.add(second)
+        await self.cmd.execute(self.ctx, 'cloth', 'armor', 'to', 'bishop')
+        await self.cmd.execute(self.ctx, 'chainmail', 'armor', 'to', 'bishop')
+
+        self.assertIs(self.ally.readied_armor, second)
+        # The replaced piece stays in the ally's pack rather than vanishing
+        # -- same behavior as the Weapon branch's readied_weapon swap.
+        self.assertEqual(len(self.ally.items), 2)
+
+    async def test_give_worn_armor_to_ally_clears_players_active_armor_id(self):
+        armor = self._armor()
+        armor.condition = 100
+        self.player.inventory.add(armor)
+        self.player.active_armor_id = 2
+        self.player.armor = 50
+
+        await self.cmd.execute(self.ctx, 'cloth', 'armor', 'to', 'bishop')
+
+        self.assertIsNone(self.player.active_armor_id)
+        self.assertEqual(self.player.armor, 0)
+
+
 # ---------------------------------------------------------------------------
 # GiveCommand — mount carrying capacity (New in TADA, Ryan's request)
 # ---------------------------------------------------------------------------

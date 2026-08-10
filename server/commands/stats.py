@@ -120,6 +120,17 @@ def _ally_weapon_display(ally) -> str:
     return weapon.name
 
 
+def _ally_worn_display(ally) -> str:
+    """Return the ally's worn armor/shield names for the Notes "Worn" tag
+    (commands/give.py auto-wears an armor- or shield-type Item on GIVE,
+    same idea as _ally_weapon_display above for readied_weapon). 'None'
+    when nothing is worn, joined with '/' when both slots are filled."""
+    names = [getattr(w, 'name', None)
+             for w in (getattr(ally, 'readied_armor', None), getattr(ally, 'readied_shield', None))
+             if w is not None]
+    return '/'.join(n for n in names if n) or 'None'
+
+
 def _ally_flag_tags(ally) -> list[str]:
     """Return every AllyFlags member set on *ally* as "[Tag]" strings, in a
     fixed display order. Tracking/Finder/Body Built append their magnitude
@@ -344,12 +355,11 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     # Notes carries every AllyFlags member (see _ally_flag_tags), any
     # non-default AllyStatus tag, a Wpn tag for the ally's readied weapon
     # (see _ally_weapon_display -- commands/give.py auto-readies a Weapon
-    # on GIVE), and a Worn tag. Worn is always [Worn: None] for now --
-    # allies have no WEAR command / active_armor_id-equivalent yet, but
-    # Ryan wants the display present so it's ready once that lands, rather
-    # than added as its own fixed-width table column (which starved Notes'
-    # width on narrow/C64 screens when tried -- see test_stats_allies.py's
-    # test_multiple_flags_all_tagged).
+    # on GIVE), and a Worn tag for readied_armor/readied_shield (see
+    # _ally_worn_display -- commands/give.py auto-wears an armor/shield
+    # Item the same way, added 2026-08-09). Not its own fixed-width table
+    # column -- that starved Notes' width on narrow/C64 screens when tried
+    # (see test_stats_allies.py's test_multiple_flags_all_tagged).
     from bar.ally_data import AllyStatus
     from bar.allies import owned_allies
     allies = owned_allies(player)
@@ -385,7 +395,7 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
         for a in allies:
             status_tag = f'[{a.status.name}]' if a.status not in (AllyStatus.FREE, AllyStatus.SERVANT) else ''
             weapon_tag = f'[Wpn: {_ally_weapon_display(a)}]'
-            worn_tag   = '[Worn: None]'
+            worn_tag   = f'[Worn: {_ally_worn_display(a)}]'
             # Comma-delimited, not just space-joined -- Ryan's request, for
             # readability once a row carries several tags at once.
             notes = ', '.join(part for part in

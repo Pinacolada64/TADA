@@ -98,6 +98,26 @@ class Party:
                             'item_category': str(getattr(readied_weapon, 'category', '')),
                             'item_flags':    getattr(readied_weapon, 'flags', None) or [],
                         }
+
+                    def _worn_dict(worn):
+                        if worn is None:
+                            return None
+                        d = {
+                            'item_id':       getattr(worn, 'id_number', None),
+                            'item_name':     getattr(worn, 'name', ''),
+                            'item_category': str(getattr(worn, 'category', '')),
+                            'item_flags':    getattr(worn, 'flags', None) or [],
+                        }
+                        item_type = getattr(worn, 'type', None)
+                        if item_type:
+                            d['item_type'] = str(item_type)
+                        condition = getattr(worn, 'condition', None)
+                        if condition is not None:
+                            d['item_condition'] = condition
+                        return d
+
+                    armor_dict  = _worn_dict(getattr(m, 'readied_armor',  None))
+                    shield_dict = _worn_dict(getattr(m, 'readied_shield', None))
                     result.append({
                         'type':           'ally',
                         'name':           m.name,
@@ -119,6 +139,8 @@ class Party:
                         'ammo_rounds':    getattr(m, 'ammo_rounds', 0),
                         'ammo_max':       getattr(m, 'ammo_max', 0),
                         'ammo_damage':    getattr(m, 'ammo_damage', 0),
+                        'readied_armor':  armor_dict,
+                        'readied_shield': shield_dict,
                     })
                     continue
             except ImportError:
@@ -194,6 +216,15 @@ class Party:
                     ally.ammo_rounds = item.get('ammo_rounds', 0)
                     ally.ammo_max = item.get('ammo_max', 0)
                     ally.ammo_damage = item.get('ammo_damage', 0)
+
+                    for slot in ('armor', 'shield'):
+                        worn_data = item.get(f'readied_{slot}')
+                        if worn_data:
+                            worn_entries = Inventory.from_json(
+                                [worn_data], weapons_data=weapons_data
+                            ).entries()
+                            if worn_entries:
+                                setattr(ally, f'readied_{slot}', worn_entries[0].item)
 
                     members.append(ally)
                 elif member_type == 'player':

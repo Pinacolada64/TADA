@@ -110,6 +110,14 @@ class Ally:
         self.ammo_rounds: int = 0        # rounds currently loaded
         self.ammo_max:    int = 0        # capacity, for recovery/display
         self.ammo_damage: int = 0        # per-round damage bonus (SPUR vm), set by commands/give.py
+        # Armor/shield, same idea as readied_weapon above -- auto-worn by
+        # commands/give.py when the player GIVEs an armor- or shield-type
+        # Item (item_system.ItemType.ARMOR/SHIELD). Display-only for now
+        # (no ally damage-mitigation model yet, see commands/stats.py's
+        # long-parked "[Worn: None]" comment) -- just stops GIVE from
+        # saying a worn piece was merely "tucked away".
+        self.readied_armor  = None       # items.Item (type=ARMOR) or None
+        self.readied_shield = None       # items.Item (type=SHIELD) or None
         # 'ayf': int  # ally has a 1-ayf% chance of randomly finding sack of gold/diamond/etc.
         self.find_percentage: int = 0
         # TODO: look at Skip's branch on GitHub, it has more TRACKing stuff:

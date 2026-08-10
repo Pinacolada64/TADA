@@ -471,6 +471,37 @@ class GiveCommand(Command):
                     exclude_self=True)
                 return CommandResult.ok()
 
+            # Armor/shield: allies have no WEAR command of their own either
+            # (same gap as the Weapon branch above), so a given armor- or
+            # shield-type Item is auto-worn on the spot, replacing whatever
+            # they had in that slot. Display-only for now (commands/
+            # stats.py's Notes column has carried a hardcoded "[Worn: None]"
+            # placeholder since 2026-08-08 for exactly this to fill in) --
+            # no ally damage-mitigation model exists yet to hook a rating
+            # into. Ryan's report: GIVEing an ally cloth armor said it
+            # "takes the cloth armor and tucks it away", same generic
+            # wording as a book or trinket, instead of anything suggesting
+            # it got worn.
+            from item_system import ItemType
+            item_type = getattr(item, 'type', None)
+            worn_slot = {ItemType.ARMOR: 'armor', ItemType.SHIELD: 'shield'}.get(item_type)
+            if worn_slot is not None:
+                from player import unequip_if_worn
+                unequip_if_worn(player, item)
+                if inventory:
+                    inventory.remove(item)
+                setattr(ally, f'readied_{worn_slot}', item)
+                add_ally_item(ally, item, quantity=1)
+                player.unsaved_changes = True
+                pself = getattr(player, 'name', 'Someone')
+                verb = 'straps on' if worn_slot == 'shield' else 'wears'
+                await ctx.send(f'You give the {iname} to {ally.name}.')
+                await ctx.send(f'{ally.name} {verb} the {iname}!')
+                await ctx.send_room(
+                    f'{pself} gives the {iname} to {ally.name}, who {verb} it!',
+                    exclude_self=True)
+                return CommandResult.ok()
+
             # Given-away armor/shield stops counting as worn -- otherwise
             # STATS keeps showing it equipped even though it's now sitting
             # in the ally's pack (player.py's unequip_if_worn()). Must run
