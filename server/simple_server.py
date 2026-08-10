@@ -42,6 +42,15 @@ PETSCII_PORT = 34064
 
 _DIRECTION_TO_SUFFIX = {'n': 'north', 's': 'south', 'e': 'east', 'w': 'west'}
 
+# Ryan: track how many unrecognized commands a non-expert player types in
+# a row (ctx.client.unknown_command_count, session-only -- never saved,
+# so it doesn't carry across reconnects). At this many, offer a "Need a
+# Hand?" tip box pointing at the help system, then reset the counter so
+# it doesn't fire again on every single subsequent miss. Expert players
+# are never tracked or shown this -- same "no beginner hints once you
+# know the ropes" convention as Expert Mode everywhere else.
+_UNKNOWN_COMMAND_HELP_THRESHOLD = 3
+
 # Wild horse (monsters.json #136, a TADA extension -- no canonical SPUR
 # placement exists) is randomized to one of these level-1 "Edge of Forest"
 # rooms each time the server starts. Not persisted to level_1.json, so it
@@ -707,6 +716,13 @@ class Server:
             if not result.success and result.error == 'unknown_command':
                 await ctx.send(f"Unknown command '{raw.strip().split()[0]}'. "
                                "Type 'help' for a list.")
+                await self._maybe_offer_help(ctx)
+            else:
+                # Any recognized command (success or a different failure,
+                # e.g. wrong mode) resets the streak -- only *consecutive*
+                # unrecognized commands should trip the offer, not a
+                # lifetime total spread across an otherwise normal session.
+                ctx.client.unknown_command_count = 0
 
             # Hunger/thirst tick (SPUR.COMBAT.S:12-20).
             from survival import survival_tick
@@ -720,6 +736,43 @@ class Server:
             if getattr(ctx.player, 'hit_points', 1) <= 0:
                 logging.debug('death triggered')
                 await self._player_dies(ctx)
+
+    # -----------------------------------------------------------------------
+    # Unknown-command help offer
+    # -----------------------------------------------------------------------
+
+    async def _maybe_offer_help(self, ctx: GameContext) -> None:
+        """Track consecutive unrecognized commands for a non-expert
+        player (ctx.client.unknown_command_count); at
+        _UNKNOWN_COMMAND_HELP_THRESHOLD, offer a "Need a Hand?" tip box
+        pointing at the help system, then reset the counter so it
+        doesn't fire again on every single subsequent miss.
+
+        Called only from the 'unknown_command' branch of the main GAME
+        loop -- see that call site's else-branch for where the streak
+        gets reset back to 0 on any recognized command.
+        """
+        if ctx.player.is_expert:
+            return
+
+        count = getattr(ctx.client, 'unknown_command_count', 0) + 1
+        ctx.client.unknown_command_count = count
+        if count < _UNKNOWN_COMMAND_HELP_THRESHOLD:
+            return
+
+        from formatting import titled_box
+        tip_lines = titled_box(
+            ctx, 'Need a Hand?',
+            "Having trouble finding a command? Try 'help' for the full "
+            "list, 'help #search <word>' to look something up by "
+            "keyword, or 'help #summary' for one-line descriptions of "
+            "everything.",
+            frame_color='green', text_color='white', title_color='purple',
+        )
+        # Leading |reset| per tips.py's format_tip_box() convention -- see
+        # commands/ready.py's Weapon Tip box for the same pattern.
+        await ctx.send([f'|reset|{line}' for line in tip_lines])
+        ctx.client.unknown_command_count = 0
 
     # -----------------------------------------------------------------------
     # Room display
