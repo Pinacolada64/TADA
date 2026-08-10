@@ -188,6 +188,80 @@ class TestWhereatSubcommands(unittest.IsolatedAsyncioTestCase):
 
 
 # ---------------------------------------------------------------------------
+# WhereatCommand.execute() — #pop / #population
+# ---------------------------------------------------------------------------
+
+class TestWhereatPopulation(unittest.IsolatedAsyncioTestCase):
+    """Exercises 'wa #pop' -- room-by-room population summary."""
+
+    ROOMS = {5: 'Town Square', 33: 'The Ruins'}
+
+    # (name, virtual_location, room_no, hidden)
+    ROSTER = [
+        ('Alice', None,  5,    False),
+        ('Bob',   None,  5,    False),   # shares Town Square with Alice
+        ('Carol', 'Bar', None, False),
+        ('Dave',  'Bar', None, False),   # shares the Bar with Carol
+        ('Eve',   None,  33,   True),    # hidden
+    ]
+
+    def _build(self, *, observer='Alice', admin=False):
+        players = {}
+        clients = {}
+        for name, vl, room_no, hidden in self.ROSTER:
+            is_admin = admin and name == observer
+            p = make_player(name, admin=is_admin, hidden=hidden)
+            c = make_client(p, virtual_location=vl, room=room_no)
+            players[name] = p
+            clients[name] = c
+
+        rooms_mock = {n: make_room(label) for n, label in self.ROOMS.items()}
+        server = make_server(*clients.values(), rooms=rooms_mock)
+        return make_ctx(players[observer], server)
+
+    async def test_non_privileged_shows_room_name_and_count(self):
+        ctx = self._build(observer='Alice')
+        await WhereatCommand().execute(ctx, '#pop')
+        out = _sent_text(ctx)
+        self.assertIn('Town Square', out)
+        self.assertIn('Bar', out)
+        self.assertIn('2', out)     # both grouped rooms have 2 occupants
+
+    async def test_non_privileged_hides_room_and_level_columns(self):
+        ctx = self._build(observer='Alice')
+        await WhereatCommand().execute(ctx, '#pop')
+        out = _sent_text(ctx)
+        self.assertNotIn('Level', out)
+        self.assertNotIn('Room #', out)
+
+    async def test_non_privileged_buckets_hidden_players_together(self):
+        ctx = self._build(observer='Alice')
+        await WhereatCommand().execute(ctx, '#pop')
+        out = _sent_text(ctx)
+        self.assertIn('(Hidden)', out)
+        self.assertNotIn('The Ruins', out)
+
+    async def test_privileged_shows_level_and_room_columns(self):
+        ctx = self._build(observer='Alice', admin=True)
+        await WhereatCommand().execute(ctx, '#pop')
+        out = _sent_text(ctx)
+        self.assertIn('Level', out)
+        self.assertIn('Room #', out)
+        self.assertIn('Population', out)
+
+    async def test_privileged_sees_hidden_players_real_room(self):
+        ctx = self._build(observer='Alice', admin=True)
+        await WhereatCommand().execute(ctx, '#pop')
+        out = _sent_text(ctx)
+        self.assertNotIn('(Hidden)', out)
+
+    async def test_no_players_message(self):
+        ctx = make_ctx(make_player('Alice'), make_server())
+        await WhereatCommand().execute(ctx, '#pop')
+        self.assertIn('No players', _sent_text(ctx))
+
+
+# ---------------------------------------------------------------------------
 # WhereatCommand.execute() — listing
 # ---------------------------------------------------------------------------
 

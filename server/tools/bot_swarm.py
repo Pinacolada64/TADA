@@ -284,6 +284,7 @@ async def do_action(bot: Bot, rng: random.Random) -> None:
         ('loot',     0.02 if bot.loot_tries < 2 else 0.0),
         ('who',      0.02),
         ('wa',       0.02),
+        ('wa_pop',   0.02),
         ('shout',    0.01),
         ('stats',    0.01),
     ]
@@ -333,6 +334,8 @@ async def do_action(bot: Bot, rng: random.Random) -> None:
         await bot.say('who')
     elif action == 'wa':
         await bot.say('wa')
+    elif action == 'wa_pop':
+        await bot.say('wa #population')
     elif action == 'shout':
         await bot.say('shout swarm test in progress')
     elif action == 'stats':
