@@ -67,10 +67,11 @@ _SETTING_HELP: dict[str, list[str]] = {
     'x': [
         '',
         '|cyan|Expert Mode|reset|',
-        "Hides beginner-oriented tips, hints, and confirmation text "
-        "throughout the game once you're comfortable with the commands. "
-        "Affects things like READY's weapon-class breakdown and various "
-        "menu prompts -- the underlying commands work the same either way.",
+        "If enabled, Expert Mode hides beginner-oriented tips, hints, "
+        "and confirmation text throughout the game once you're "
+        "comfortable with the commands. Affects things like READY's "
+        "weapon-class breakdown and various menu prompts -- the "
+        "underlying commands work the same either way.",
         '',
     ],
     'm': [
