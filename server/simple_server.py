@@ -248,6 +248,11 @@ class Server:
             self.statues = {}
         # Items dropped by players during this session: room_number → list of InventoryEntry
         self.room_items: dict[int, list] = {}
+        # Ye Olde Pawn Shoppe's buy-back stock this session: list of InventoryEntry,
+        # fed by both players selling here (shoppe/pawn.py) and items sinking in
+        # water rooms (commands/drop.py) -- once it's in the shop, it doesn't
+        # matter where it came from. See shoppe/pawn.py's add_to_stock().
+        self.pawn_stock: list = []
         logging.info('Map: %d rooms | %d monsters | %d items | %d weapons',
                      len(self.game_map.rooms) if self.game_map else 0,
                      len(self.monsters), len(self.items), len(self.weapons))

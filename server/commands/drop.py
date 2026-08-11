@@ -234,17 +234,24 @@ class DropCommand(Command):
         # Must run before inventory.remove() below -- the armor/shield
         # half looks the item up via player.inventory.find(), which comes
         # up empty once gone.
-        from player import unworn_if_given_away, unworn_notice
+        from player import unworn_if_given_away
+        # DROP always removes exactly 1 unit, regardless of stack size
+        # (inventory.remove()'s default quantity=1 below, no "how many?"
+        # prompt exists) -- but inventory.remove() decrements entry.quantity
+        # IN PLACE (same InventoryEntry object 'entry' aliases), so reading
+        # entry.quantity *after* removing (the old bug) reflects what's
+        # LEFT in the stack, not what was dropped. Every placement below
+        # (room floor, water float, pawn stock) must use this literal 1,
+        # not entry.quantity before or after the call.
+        dropped_quantity = 1
         unworn_slot = unworn_if_given_away(player, entry.item)
         inventory.remove(entry.item)
-        # Ryan's request: tell a non-expert their readied/worn gear just
-        # came off, rather than leaving them to notice via a later STAT
-        # or attack -- same `if not player.is_expert:` hint pattern as
-        # commands/wear.py's ring toggle.
-        if not player.is_expert:
-            notice = unworn_notice(unworn_slot, name)
-            if notice:
-                await ctx.send(notice)
+        # Ryan's request: tell the player their readied/worn gear is
+        # coming off as part of the drop, rather than leaving them to
+        # notice via a later STAT or attack.
+        if unworn_slot:
+            await ctx.send('(UNREADYing or REMOVEing it first.)')
+            await ctx.send(f'Dropping {name}.')
 
         # Check for water room
         room_no  = int(getattr(ctx.client, 'room', 0) or 0)
@@ -263,12 +270,22 @@ class DropCommand(Command):
             msgs, lost = _water_drop_messages(entry.item, room)
             for msg in msgs:
                 await ctx.send(msg)
-            if not lost:
+            if lost:
+                # Sunk/down the well -- not gone forever, it turns up as
+                # buy-back stock at Ye Olde Pawn Shoppe (Ryan's request:
+                # doesn't matter where an item came from, dropped in water
+                # or sold outright -- see shoppe/pawn.py's add_to_stock()).
+                from shoppe.pawn import add_to_stock
+                add_to_stock(ctx.server, InventoryEntry(
+                    item     = entry.item,
+                    quantity = dropped_quantity,
+                ))
+            else:
                 # Float — place in room so it can be retrieved
                 dropped = ctx.server.room_items.setdefault(room_no, [])
                 dropped.append(InventoryEntry(
                     item     = entry.item,
-                    quantity = entry.quantity,
+                    quantity = dropped_quantity,
                 ))
             # Bystanders see the splash either way -- Ryan's request
             # (this command had no send_room() at all before, so nobody
@@ -281,7 +298,7 @@ class DropCommand(Command):
             dropped = ctx.server.room_items.setdefault(room_no, [])
             dropped.append(InventoryEntry(
                 item     = entry.item,
-                quantity = entry.quantity,
+                quantity = dropped_quantity,
             ))
 
         await ctx.send(f'You drop {name}.')

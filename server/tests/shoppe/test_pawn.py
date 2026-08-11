@@ -38,7 +38,7 @@ class _FakeCtx:
         self._q = list(responses)
         self.sent: list = []
         self.player = player
-        self.server = SimpleNamespace(items=items or [])
+        self.server = SimpleNamespace(items=items or [], pawn_stock=[])
 
     async def send(self, *args):
         for a in args:
@@ -105,6 +105,66 @@ class TestPawnSellsReloadedItemsForRealPrice(unittest.IsolatedAsyncioTestCase):
         await pawn_main(ctx)
         self.assertIn("I'll give ya nothing for the worthless junk.", ctx._flat())
         self.assertEqual(player.get_silver(PlayerMoneyTypes.IN_HAND), 0)
+
+
+class TestPawnBuyBack(unittest.IsolatedAsyncioTestCase):
+    """Covers the new Buy option -- SPUR's original pawn.shp (SPUR-code/
+    SPUR.SHOP.S on the 'skip' branch) was sell-only, this is new in the
+    port, Ryan's request. Fed by both Sell (below) and commands/drop.py's
+    water-room sinks -- test_drop.py covers the drop.py side."""
+
+    def _stock_entry(self, item_id: int, name: str, quantity: int = 1):
+        from inventory import InventoryEntry
+        item = Item(id_number=item_id, name=name, category=ItemCategory.ITEM)
+        return InventoryEntry(item=item, quantity=quantity)
+
+    async def test_buy_charges_price_times_markup_and_adds_to_inventory(self):
+        player = _new_player('Rulan')
+        player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 1000)
+        player.inventory = Inventory()
+        ctx = _FakeCtx(['b', '1', 'y', 'q'], player,
+                       items=[{'number': 1, 'name': 'compass', 'price': 5}])
+        ctx.server.pawn_stock = [self._stock_entry(1, 'compass')]
+
+        await pawn_main(ctx)
+
+        self.assertEqual(player.get_silver(PlayerMoneyTypes.IN_HAND), 1000 - 5 * 40)
+        names = [e.item.name for e in player.inventory.entries(ItemCategory.ITEM)]
+        self.assertIn('compass', names)
+        self.assertEqual(ctx.server.pawn_stock, [])
+
+    async def test_buy_declines_when_not_enough_silver(self):
+        player = _new_player('Rulan')
+        player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 1)
+        player.inventory = Inventory()
+        ctx = _FakeCtx(['b', '1', 'y', 'q'], player,
+                       items=[{'number': 1, 'name': 'compass', 'price': 5}])
+        ctx.server.pawn_stock = [self._stock_entry(1, 'compass')]
+
+        await pawn_main(ctx)
+
+        self.assertEqual(player.get_silver(PlayerMoneyTypes.IN_HAND), 1)
+        self.assertEqual(len(ctx.server.pawn_stock), 1, 'declined purchase must leave stock untouched')
+        self.assertEqual(len(player.inventory.entries(ItemCategory.ITEM)), 0)
+
+    async def test_empty_stock_says_so_instead_of_offering_a_menu(self):
+        player = _new_player('Rulan')
+        player.inventory = Inventory()
+        ctx = _FakeCtx(['b', 'q'], player, items=[])
+
+        await pawn_main(ctx)
+
+        self.assertIn("Nothing's turned up in the back room today.", ctx._flat())
+
+    async def test_selling_an_item_feeds_the_buy_back_stock(self):
+        player = _player_with_reloaded_item(1, 'compass')
+        ctx = _FakeCtx(['s', '1', 'y', 'q'], player,
+                       items=[{'number': 1, 'name': 'compass', 'price': 5}])
+
+        await pawn_main(ctx)
+
+        self.assertEqual(len(ctx.server.pawn_stock), 1)
+        self.assertEqual(ctx.server.pawn_stock[0].item.name, 'compass')
 
 
 if __name__ == '__main__':

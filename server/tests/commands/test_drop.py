@@ -62,6 +62,7 @@ class _FakeServer:
     def __init__(self, room=None):
         self.game_map  = _FakeMap(room) if room is not None else None
         self.room_items: dict = {}
+        self.pawn_stock: list = []
 
 
 class _FakeClient:
@@ -319,6 +320,30 @@ class TestDropCommand(unittest.IsolatedAsyncioTestCase):
         self.assertIn(5, server.room_items)
         self.assertEqual(len(server.room_items[5]), 1)
 
+    async def test_dry_room_dropped_entry_has_quantity_one_not_zero(self):
+        # Regression: Inventory.remove() decrements entry.quantity IN
+        # PLACE (same InventoryEntry object drop.py holds a reference to)
+        # -- reading entry.quantity *after* calling remove() (the old bug)
+        # always saw 0, so every item placed on the ground was invisible/
+        # unusable via a later GET despite room_items showing an entry.
+        player, server, ctx, cmd = self._setup(room_no=5)
+        ration = _item('RATION', item_id=1, kind='food')
+        player.inventory.add(ration)
+        await cmd.execute(ctx, 'ration')
+        self.assertEqual(server.room_items[5][0].quantity, 1)
+
+    async def test_dropping_one_from_a_stack_leaves_quantity_one_on_ground(self):
+        player, server, ctx, cmd = self._setup(room_no=5)
+        ration = _item('RATION', item_id=1, kind='food')
+        player.inventory.add(ration)
+        player.inventory.add(_item('RATION', item_id=1, kind='food'))  # stacks to quantity 2
+        await cmd.execute(ctx, 'ration')
+        self.assertEqual(server.room_items[5][0].quantity, 1)
+        # one unit remains in the stack the player is carrying
+        remaining = player.inventory.entries()
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0].quantity, 1)
+
     async def test_dead_bug_ration_droppable_while_ring_worn_flag_set(self):
         # Regression: id_number is only unique within its own category
         # (weapons/items/rations each number independently -- items.py:364).
@@ -352,16 +377,20 @@ class TestDropCommand(unittest.IsolatedAsyncioTestCase):
         player.readied_weapon = sword
         player.is_expert = False
         await cmd.execute(ctx, 'sword')
-        self.assertIn('no longer wielding', ctx.sent().lower())
+        sent = ctx.sent().lower()
+        self.assertIn('unreadying or removeing it first', sent)
+        self.assertIn('dropping long sword', sent)
 
-    async def test_dropping_readied_weapon_silent_for_expert(self):
+    async def test_dropping_readied_weapon_tells_expert_too(self):
         player, server, ctx, cmd = self._setup()
         sword = _weapon('LONG SWORD', item_id=1)
         player.inventory.add(sword)
         player.readied_weapon = sword
         player.is_expert = True
         await cmd.execute(ctx, 'sword')
-        self.assertNotIn('no longer wielding', ctx.sent().lower())
+        sent = ctx.sent().lower()
+        self.assertIn('unreadying or removeing it first', sent)
+        self.assertIn('dropping long sword', sent)
 
     async def test_dry_room_drop_broadcasts_to_room(self):
         # This command had no send_room() at all -- bystanders never saw
@@ -418,6 +447,10 @@ class TestDropCommand(unittest.IsolatedAsyncioTestCase):
         # NOT placed in room_items (it sank)
         self.assertEqual(len(server.room_items.get(2, [])), 0)
         self.assertIn('sink', ctx.sent().lower())
+        # ...but turns up as pawn-shop buy-back stock instead of vanishing
+        self.assertEqual(len(server.pawn_stock), 1)
+        self.assertIs(server.pawn_stock[0].item, sword)
+        self.assertEqual(server.pawn_stock[0].quantity, 1)
 
     async def test_water_room_drop_broadcasts_to_room(self):
         room = _Room(name='UNDERGROUND POOL')
@@ -447,6 +480,7 @@ class TestDropCommand(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(player.inventory.entries()), 0)
         # placed in room_items (it floats)
         self.assertEqual(len(server.room_items.get(3, [])), 1)
+        self.assertEqual(server.room_items[3][0].quantity, 1)
         self.assertIn('float', ctx.sent().lower())
 
     async def test_water_room_food_floats(self):
@@ -469,6 +503,8 @@ class TestDropCommand(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(player.inventory.entries()), 0)
         self.assertEqual(len(server.room_items.get(27, [])), 0,
                          'bow should be lost in the well even though it floats')
+        self.assertEqual(len(server.pawn_stock), 1,
+                         'well-room losses turn into pawn-shop stock too')
 
     async def test_well_room_message(self):
         room = _Room(name='WELL ROOM')
