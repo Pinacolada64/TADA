@@ -358,8 +358,13 @@ class GetCommand(Command):
             ('get <name>', 'Pick up a specific item by name'),
         ],
         examples = [
-            ('get',        'Show what is on the ground'),
-            ('get sword',  'Pick up the sword'),
+            ('get',        'GET picks up an item lying in the room. With no name given, '
+                            'it lists everything available here (items, weapons, food, '
+                            "and anyone dropped this session) instead of guessing what "
+                            "you want."),
+            ('get sword',  'Naming an item (a partial match works) picks it up directly. '
+                            'Worth EXAMINEing first if you suspect it might be cursed -- '
+                            'GET on a cursed item unexamined carries a real penalty.'),
         ],
     )
 

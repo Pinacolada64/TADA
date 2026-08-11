@@ -291,8 +291,14 @@ class GiveCommand(Command):
             ('give <item> to <who>',  'Give a specific item to a named target'),
         ],
         examples = [
-            ('give ration to batman', 'Give Batman a food ration'),
-            ('give sword to dragon',  'Try giving a sword to a dragon (results vary)'),
+            ('give ration to batman', 'GIVE hands an item from your inventory to a party '
+                                       'ally, another player, or a monster. Giving a ration '
+                                       "to an ally named Batman transfers it into his "
+                                       "inventory -- allies actually carry and use what "
+                                       "you give them."),
+            ('give sword to dragon',  "Giving a monster something is mostly flavor -- most "
+                                       "just sniff at it and hand it back, though food or "
+                                       "gold occasionally gets kept by a greedy one."),
         ],
     )
 

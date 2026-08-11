@@ -32,9 +32,21 @@ class GroupsCommand(Command):
             ('groups #delete <group>',             'Delete an entire group'),
         ],
         examples = [
-            ('groups #add friends Alice Bob',      'Add Alice and Bob to group "friends"'),
-            ('whisper #friends=Meet me now!',      'Whisper to everyone in "friends"'),
-            ('groups #delete friends',             'Delete the "friends" group'),
+            ('groups #add friends Alice Bob',      "GROUPS lets you save named lists of "
+                                                    "players, so you don't have to retype "
+                                                    "everyone's name each time you WHISPER "
+                                                    "or PAGE a set of people. This creates "
+                                                    '(or adds to) a group called "friends" '
+                                                    'containing Alice and Bob.'),
+            ('whisper #friends=Meet me now!',      'Once a group exists, reference it with '
+                                                    "'#groupname' anywhere WHISPER or PAGE "
+                                                    'expects a target -- this sends to '
+                                                    'everyone in "friends" at once, without '
+                                                    'listing them by name.'),
+            ('groups #delete friends',             'Deletes the whole group (not the '
+                                                    'players themselves) -- groups persist '
+                                                    "across logins, so removing one you no "
+                                                    "longer need keeps your list tidy."),
         ],
     )
 

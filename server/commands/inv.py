@@ -182,9 +182,15 @@ class InvCommand(Command):
             ('inv #test cat','Fill with random items and list by category'),
         ],
         examples = [
-            ('inv',          'Show flat inventory list'),
-            ('inv cat',      'Show inventory sorted by type'),
-            ('inv #test cat','Test categorized display with random items'),
+            ('inv',          "INV lists what you're carrying. With no argument, it shows "
+                              "everything in one flat list, in whatever order you picked "
+                              "items up."),
+            ('inv cat',      "'cat' regroups the same list under headings -- weapons, "
+                              "armor, food, drink, items -- rather than one undivided "
+                              "list, handy once you're carrying a lot."),
+            ('inv #test cat','#test fills your inventory with a random assortment before '
+                              'listing it -- a developer/testing switch for previewing the '
+                              "display, not something you'd normally use while playing."),
         ],
     )
 

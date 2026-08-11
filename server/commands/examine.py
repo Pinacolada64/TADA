@@ -442,9 +442,10 @@ class ExamineCommand(Command):
         description = (
             'Without a target, examines everything you carry and everything '
             'in the room. With a target, examines just that item. Magic and '
-            'cursed items only reveal their nature about 60% of the time, '
-            'and re-examining one after a failed roll just repeats the '
-            'failure message rather than trying again.'
+            'cursed items only reveal their nature about 60% of the time -- '
+            'a failed roll can simply be retried by examining again. Once a '
+            "roll succeeds, though, re-examining the same item just tells "
+            "you it's already been examined instead of re-rolling."
         ),
         category = HelpCategory.MOVEMENT,
         usage    = [
@@ -453,10 +454,17 @@ class ExamineCommand(Command):
             ('examine <target>', 'Examine just that item.'),
         ],
         examples = [
-            ('examine',        'Look closer at everything around you.'),
-            ('examine sword',  'Examine the sword.'),
-            ('examine silver', 'Examine an ally or mount named Silver.'),
-            ('x',              'Same as "examine".'),
+            ('examine',        'EXAMINE checks an item for anything LOOK would miss -- '
+                                'magic or curses in particular. With no target, it '
+                                'examines everything you carry and everything in the room '
+                                'at once, one line per item.'),
+            ('examine sword',  'Naming an item examines just that one -- handy for '
+                                'checking a specific weapon or treasure before deciding '
+                                'whether to pick it up or wield it.'),
+            ('examine silver', 'Allies and mounts can be examined too -- "examine silver" '
+                                'checks an ally/mount named Silver rather than an item.'),
+            ('x',              "'x' is a shorter alias for examine -- both do exactly the "
+                                'same thing.'),
         ],
     )
 

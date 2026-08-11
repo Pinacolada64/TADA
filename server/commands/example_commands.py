@@ -152,7 +152,10 @@ class TableCommand(Command):
 
     help = Help(summary="Display a table of all available commands.",
                 description="The 'table' command shows a list of commands.",
-                examples=[("table", "Show the table.")],
+                examples=[("table", "TABLE takes no arguments -- it just lists every "
+                                     "registered command in a rendered Table, useful as a "
+                                     "quick sanity check that table.py's box-drawing and "
+                                     "zebra-striping still look right on your terminal.")],
                 category=HelpCategory.MISCELLANEOUS
                 )
     async def execute(self, ctx: GameContext, *args: List[str]) -> CommandResult:
