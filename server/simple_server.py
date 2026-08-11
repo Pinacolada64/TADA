@@ -1026,9 +1026,13 @@ class Server:
 
         try:
             debug = getattr(player, 'is_debug', False)
-            exits_str = room.exits_txt(client_ctx)
-            if exits_str:
-                tail += ['', f"Ye may travel {exits_str}."]
+            from encounters.desert import can_sense_direction, direction_loss_message
+            if not can_sense_direction(player, room):
+                tail += ['', direction_loss_message(player)]
+            else:
+                exits_str = room.exits_txt(client_ctx)
+                if exits_str:
+                    tail += ['', f"Ye may travel {exits_str}."]
             if debug:
                 room_flags = getattr(room, 'flags', None) or []
                 if room_flags:
@@ -1138,6 +1142,8 @@ class Server:
         ctx.player.unsaved_changes = True
         logging.debug('EXIT moved to room=%r', dest)
         await self._show_room_then_encounter(ctx, level=level, room_no=int(dest))
+        from encounters.desert import try_desert_sweat
+        await try_desert_sweat(ctx)
         from ally_events import try_ally_find_gold
         await try_ally_find_gold(ctx)
         from wild_horse_events import try_wandering_horse_encounter
@@ -1250,6 +1256,8 @@ class Server:
             await ctx.send(f'You have entered {name}!')
         logging.debug('Cross-level hidden exit -> level=%s room=%s', target_level, target_room)
         await self._show_room_then_encounter(ctx, level=target_level, room_no=target_room)
+        from encounters.desert import try_desert_sweat
+        await try_desert_sweat(ctx)
         from ally_events import try_ally_find_gold
         await try_ally_find_gold(ctx)
         from wild_horse_events import try_wandering_horse_encounter

@@ -1415,7 +1415,32 @@ class CombatSession:
 
         await self._narrate_monster_swing(ctx, result)
         self._apply_monster_damage(ctx, result)
+        await self._check_compass_damage(ctx, result)
         return False
+
+    async def _check_compass_damage(self, ctx: 'GameContext', result) -> None:
+        """SPUR.COMBAT.S "druid" label (identical in master and the skip
+        branch): every landed hit gives a readied compass a 5% chance
+        (`gosub rnd.100a:if (a>54) and (a<60)`) of being damaged. Unlike
+        USE's on/off toggle, this doesn't just deactivate it -- SPUR's
+        `clr.cmps` drops the item entirely (`SPUR.MISC.S:161-164`), so the
+        compass is destroyed, not merely switched off."""
+        player = ctx.player
+        if not result.hit or not getattr(player, 'compass_active', False):
+            return
+        if random.randint(1, 100) not in range(55, 60):
+            return
+
+        player.compass_active = False
+        from item_system import ItemType
+        inv = getattr(player, 'inventory', None)
+        if inv is not None:
+            for entry in inv.entries():
+                if getattr(entry.item, 'type', None) == ItemType.COMPASS:
+                    inv.remove(entry.item)
+                    break
+        player.unsaved_changes = True
+        await ctx.send('Compass damaged!')
 
     async def _try_redirect_to_mount(self, ctx: 'GameContext') -> bool:
         """Skip branch SPUR.COMBAT.S lurk.a: a mounted player's horse can
