@@ -50,7 +50,6 @@ if TYPE_CHECKING:
     from base_classes import (CombinationTypes, PlayerMoneyTypes, PlayerStat, Gender, compass_txts, Guild, Alignment,
     InventoryItem)
     from base_variables import STAT_DATA
-    from players import Ally
     from items import ItemCategory
     from flags import Flag, new_player_default_flags, PlayerFlags, FlagDisplayTypes
     from net_common import Message

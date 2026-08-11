@@ -188,9 +188,9 @@ General-purpose utilities. Mix of async (ctx-aware) and pure sync functions.
 |-----------------------------------------------------------------------------------------|------------|------------------------------------------------|
 | `prompt_client(ctx, preamble_lines, prompt_text)`                                       | ✅ Fixed   | Correctly uses `ctx.reader`/`ctx.writer` now   |
 | `input_string(ctx, default='', prompt='', allow_empty=True, keep_msg=True, reminder='Please enter something.')` | ✅ OK | Loops on `prompt_client(ctx, ...)`; empty/`default` input returns `default` (or reprompts with `reminder` if `allow_empty=False`, unless expert mode, which just keeps `default`) |
-| `input_number_range(ctx, default=None, prompt_msg='', min_value=1, max_value=10, out_of_bounds_msg=None)` | ⚠️ Bug | **Real bug, confirmed this pass:** line calls `await ctx.prompt(ctx, prompt_text=f'...')` — passes `ctx` itself as the positional `prompt_text` argument *and* `prompt_text=` as a keyword, which raises `TypeError: prompt() got multiple values for argument 'prompt_text'` the instant this runs. Not currently reached by any live ctx-based caller — `grep` across `commands/`, `bar/`, `shoppe/` finds zero call sites; the only callers are `terminal.py`/`create_character.py` (both stale pre-ctx-refactor files, calling with `player=`/positional args and no `await` — already broken independently) and `tada_utilities.py`'s own `__main__` demo block (also broken — references an undefined `ctx`). Latent/dead-code bug, not exercised in production. |
+| `input_number_range(ctx, default=None, prompt_msg='', min_value=1, max_value=10, out_of_bounds_msg=None)` | ⚠️ Bug | **Real bug, confirmed this pass:** line calls `await ctx.prompt(ctx, prompt_text=f'...')` — passes `ctx` itself as the positional `prompt_text` argument *and* `prompt_text=` as a keyword, which raises `TypeError: prompt() got multiple values for argument 'prompt_text'` the instant this runs. Not currently reached by any live ctx-based caller — `grep` across `commands/`, `bar/`, `shoppe/` finds zero call sites; `terminal.py` still calls it with the old `player=`/positional convention and no `await` (already broken independently), and `tada_utilities.py`'s own `__main__` demo block is also broken (references an undefined `ctx`). Its other stale caller, `create_character.py`, was deleted 8/11/26 as confirmed dead code — see the backlog section. Latent/dead-code bug, not exercised in production. |
 | `set_logging_level(ctx)`                                                                | ✅ OK | async — shows current root logger level, prompts via `input_string`, applies D/I/W/E/C choice |
-| `text_pager(ctx, text_lines)`                                                           | GONE | Confirmed this pass: no longer exists anywhere in `tada_utilities.py`. Only references left in the tree are a commented-out import in `threaded_messages.py` and one live call `tada_utilities.text_pager(text, p)` in `create_character.py` (line 740) that would raise `AttributeError` if ever reached — but `create_character.py` is itself stale/pre-refactor (see backlog section) and not part of the live ctx pipeline. |
+| `text_pager(ctx, text_lines)`                                                           | GONE | Confirmed this pass: no longer exists anywhere in `tada_utilities.py`. Only reference left in the tree is a commented-out import in `threaded_messages.py`; the former live call in `create_character.py` went away with that file's deletion 8/11/26. |
 | `header(ctx, header_text)`                                                              | ✅ OK       | async, sends underlined header                 |
 | `format_quote(quote_text, reader_name)`                                                 | *(new, undocumented)* | Not in original doc                 |
 
@@ -803,8 +803,8 @@ Core live `Player` runtime class (~1717 lines) — identity, stats, flags,
 inventory, party, silver/rulan, client settings, save/load. Actively
 touched (5 of last 5 commits landed in the last two weeks: ammo persistence,
 GIVE/DROP unready fixes, EXAMINE expansion, armor durability). Distinct from
-`players.py` below, which is a stale, explicitly-marked-for-deletion
-predecessor.
+`players.py`, which was a stale, self-flagged-for-deletion predecessor,
+deleted 8/11/26.
 
 | Function / Class                                                                       | Notes                                                                                     |
 |------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
@@ -829,22 +829,19 @@ predecessor.
 ---
 
 ## players.py
-*(STALE — self-flagged dead code, confirmed unused this pass)* File's own
-first line: `# FIXME: PLAYERS.PY IS OUTDATED. MIGRATE BETTER CODE TO
-PLAYER.PY, THEN DELETE IT.` Confirmed this pass: nothing else in the tree
-imports it (`grep -rl "from players import\|import players\b"` outside the
-file itself returns no hits) — fully orphaned. Superseded by `player.py`
-above.
-
-| Function / Class                                              | Notes                                                                    |
-|-----------------------------------------------------------------|---------------------------------------------------------------------------|
-| `Character` (dataclass)                                        | `name`, `flags` — small stub, superseded by `player.py`'s `Player`        |
-| `Player` (dataclass)                                            | Old, incompatible predecessor of `player.py`'s `Player`; own inline comment says "THIS DOES NOT WORK ANYMORE" |
-| `Player.get_flag/show_flag/show_flag_line_item/show_flag_status/toggle_flag/put_flag/query_flag` | Old flag API, superseded by `flags.py`'s module functions |
-| `Player.show_stat/adjust_stat/get_stat/put_stat`                | Old stat API, superseded                                                  |
-| `TodoPlayer(Character)`                                         | Another stub subclass: `__str__`, `set_stat`, `get_stat`, `print_stat`, `print_all_stats`, `get_silver`, `set_silver` |
-| `transfer_money(receiver, giver, kind, adj)`                    | Standalone module-level function                                          |
-| `Ally` (class)                                                   | Old Ally stub — separate from, and superseded by, the live `bar/ally_data.Ally` used everywhere else |
+**DELETED 8/11/26.** Was self-flagged dead code (file's own first line:
+`# FIXME: PLAYERS.PY IS OUTDATED. MIGRATE BETTER CODE TO PLAYER.PY, THEN
+DELETE IT.`) — confirmed fully orphaned by audit before deletion: its old
+`Character`/`Player`/`TodoPlayer`/`Ally` classes and `transfer_money()`
+function had no working code (undefined names, discarded f-strings, a
+bare `super().__init__()` in `TodoPlayer`'s class body that would raise if
+ever instantiated) and no live importers. The one non-obvious reference —
+`player.py` had `from players import Ally` inside a `TYPE_CHECKING` block
+(never executed at runtime, and `Ally` wasn't even used as an annotation
+anywhere in the file) — was removed from `player.py` as part of this
+deletion. Everything real here was already superseded: `flags.py`'s
+module-level flag functions, `player.py`'s stat/silver methods, and
+`bar/ally_data.Ally` (the live Ally class).
 
 ---
 
@@ -1049,58 +1046,32 @@ No behavior was invented here -- `grep -rn "terminal\.settings_menu\|terminal\.t
 
 ---
 
-## create_character.py (1115 lines)
-*(STALE — confirmed orphaned this pass, not merely undocumented)* A
-complete pre-`ctx` character-creation flow (`choose_gender`/`choose_name`/
-`choose_client`/`choose_class`/`choose_settings`/`choose_race`/`choose_age`/
-`choose_guild`/`roll_stats`/`main(player)`/`debug_menu`, ~22 top-level
-functions total). Imports `net_server` (itself dead, see above) and calls
-into `tada_utilities.py` functions (`header`, `input_number_range`,
-`input_yes_no`, `a_or_an`, `set_logging_level`) using old positional/`player=`
-calling conventions that predate the `ctx`-based signatures those functions
-have today. Confirmed this pass: the only reference to this module anywhere
-in the tree is a **commented-out** `# import create_character` plus a
-commented-out call in `future/main.py` (itself an untracked-scratch-turned-
-`future/` holding-pen file, not live) -- so `create_character.py` has zero
-live importers. The actual, live new-character flow is
-`commands/new_player.py` (1580 lines, ctx-based, its own `Command`
-subclass), which does not use this file at all.
-
-| Function                                                     | Notes                                                                                                |
-|-----------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| `choose_gender(char)` / `edit_gender(char)`                     |                                                                                                       |
-| `choose_name(char)` / `edit_name(char)` / `enter_name(p, edit_mode)` |                                                                                                  |
-| `choose_client(p)`                                               | Old client-type/settings selection, pre-`ClientSettings` negotiation flow                            |
-| `choose_class(p)` / `display_classes(p)` / `edit_class(p)` / `validate_class_race_combo(p)` |                                                                                        |
-| `choose_settings(p)`                                             |                                                                                                       |
-| `choose_race(p)` / `display_races(p)` / `edit_race(p)`           |                                                                                                       |
-| `choose_age(p)` / `validate_age(age, p)`                         |                                                                                                       |
-| `final_edit(p)`                                                  |                                                                                                       |
-| `choose_guild(p)`                                                |                                                                                                       |
-| `roll_stats(p)` / `preview_stats_with_bonuses(p, class_bonuses, race_bonuses)` |                                                                                          |
-| `getnum()`                                                       |                                                                                                       |
-| `main(player) -> Player`                                         | Old top-level entry point, superseded by `commands/new_player.py`                                    |
-| `debug_menu(p)`                                                  |                                                                                                       |
+## create_character.py
+**DELETED 8/11/26.** Was a complete pre-`ctx` character-creation flow
+(`choose_gender`/`choose_name`/`choose_client`/`choose_class`/
+`choose_settings`/`choose_race`/`choose_age`/`choose_guild`/`roll_stats`/
+`main(player)`/`debug_menu`), importing the also-now-deleted `net_server.py`
+and calling `tada_utilities.py` functions with old positional/`player=`
+conventions incompatible with those functions' current `ctx`-based
+signatures. Confirmed before deletion: its only reference anywhere in the
+tree was a commented-out `# import create_character` plus a commented-out
+call in `future/main.py` (itself an untracked holding-pen file, not live) --
+zero live importers. `commands/new_player.py` (1580 lines, ctx-based, its
+own `Command` subclass) is the live new-character flow and independently
+reimplements every step this file had; nothing was folded in from here
+since there was nothing this file did that `commands/new_player.py` didn't
+already do, correctly, with a working `ctx`.
 
 ---
 
-## new_player_2.py (553 lines)
-*(STALE — confirmed orphaned this pass, not merely undocumented)* Another
-pre-`ctx` character-creation prototype, with its own **third** independent
-`Player` class definition (alongside `player.py`'s live one and
-`players.py`'s self-flagged-dead one -- see those sections above), plus a
+## new_player_2.py
+**DELETED 8/11/26.** Was another pre-`ctx` character-creation prototype,
+with its own third independent `Player` class definition (alongside
+`player.py`'s live one and the also-now-deleted `players.py`'s), plus a
 local `Client` dataclass and `Color` enum unrelated to `net_client.Client`/
-`terminal.ColorName`. Confirmed this pass: `grep -rl "import new_player_2\|
-from new_player_2"` across the tree (outside the file itself) returns
-nothing -- zero live importers, same as `create_character.py`.
-
-| Function / Class                                                | Notes                                                                                                |
-|----------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
-| `Color` (Enum)                                                    | `BLACK`/`WHITE` -- unrelated to `terminal.ColorName`                                                  |
-| `Client` (dataclass)                                              | `name`, `rows`, `columns`, `translation`, `text`/`highlight`/`background`/`border` (`Color` fields) -- unrelated to `net_client.Client` |
-| `make_random_id()` / `make_random_stat()`                        | Old duplicates of the same-named live helpers in `player.py`                                         |
-| `set_up_combinations()` / `set_up_flags()` / `set_up_silver()` / `set_up_stats()` / `set_up_rulan()` / `set_up_terminal()` | Old `Player.__init__` field-default factories -- predecessors of `player.py`'s same-named live functions |
-| `Player` (class)                                                  | Old, independent `Player` implementation; `__init__(**kwargs)` with a large FIXME/TODO-laden docstring about eventually using dataclasses; not compatible with the live `player.py` `Player` |
+`terminal.ColorName`. Confirmed before deletion: zero live importers
+anywhere in the tree, and its own `set_silver()`/`load()` methods were
+unimplemented `pass` stubs. Superseded in every respect by `player.py`.
 
 ---
 
@@ -1206,44 +1177,25 @@ against `commands/editplayer.py` this pass; flag for a future check.)*
 ---
 
 ## user_settings.py
-*(STALE — confirmed orphaned this pass)* A tiny (33-line) file of three
-enums with a literal `# TODO: client settings editor here, pull stuff from
-terminal.py` comment at the top -- reads as an abandoned starting sketch
-for a client-settings editor that was apparently built directly into
-`terminal.py`/`commands/prefs.py` instead. Confirmed this pass: `grep -rl
-"import user_settings\|from user_settings"` across the tree (outside the
-file itself) returns nothing -- zero importers anywhere.
-
-| Symbol                              | Notes                                                                                            |
-|-------------------------------------|----------------------------------------------------------------------------------------------------|
-| `ClientSettingsNames` (StrEnum)        | Display-label strings (`"Name"`, `"Screen rows"`, `"Text color"`, etc.) -- overlaps in concept with, but is a separate/unused definition from, `terminal.ClientSettings`'s real fields |
-| `Translation` (StrEnum)                | `PetSCII`/`ASCII`/`ANSI` -- separate, unused duplicate of `terminal.Translation`                  |
-| `ClientValues` (Enum, `int`)           | Odd hybrid: an `IntEnum`-style class body that's actually just type-annotated attribute stubs (`name: str`, `rows: int`, ...) with no actual enum members -- dead/non-functional as written |
+**DELETED 8/11/26.** Was a tiny (33-line) file of three enums
+(`ClientSettingsNames`, a duplicate unused `Translation`, and a
+non-functional `ClientValues` "enum" that was really just type-annotated
+attribute stubs with no actual members) under a literal `# TODO: client
+settings editor here, pull stuff from terminal.py` comment -- an abandoned
+starting sketch for a settings editor that was apparently built directly
+into `terminal.py`/`commands/prefs.py` instead. Confirmed before deletion:
+zero importers anywhere in the tree.
 
 ---
 
-## new_server.py (257 lines)
-*(STALE — confirmed orphaned this pass)* Yet another alternate server
-entry point, built around a `GameServer` class (distinct from
-`net_server.py`'s `Server`/`Server.Server`). Handles PID-file locking,
-logging setup, graceful-shutdown signal handling, and `load_game_data()`
-(map/items/weapons/rations/monsters loading) -- yet none of it is reachable
-from the live game. Confirmed this pass: `grep -rl "import new_server\|from
-new_server"` across the tree (outside the file itself) returns nothing --
-zero importers anywhere, including from `net_server.py` or `player.py`
-(both of which reference `net_server.py`, not this file, despite the
-similar name). Distinct module from `net_server.py`, not a typo/duplicate
-of it -- genuinely a third, separate, also-dead server prototype alongside
-`net_server.py` and `create_character.py`'s abandoned pipeline.
-
-| Function / Class                                                | Notes                                                                                                 |
-|-------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| Module-level PID-file / logging setup                              | Runs at import time -- writes `run/tada_server.pid`, configures `logging.basicConfig` to `logs/server.log`, registers an `atexit` cleanup |
-| `Init` (class)                                                       | Yet another separate handshake payload class (third one across `net_client.py`/`net_server.py`/this file) |
-| `GameServer` (class)                                                 | `__init__(host, port)`, registers `SIGINT`/`SIGTERM` handlers                                            |
-| `GameServer._signal_handler(signum, frame)`                          | Schedules `_handle_shutdown` as an asyncio task                                                          |
-| `GameServer._handle_shutdown(signum=None, frame=None)`                | async -- broadcasts a shutdown message, saves all players, closes connections, re-raises `KeyboardInterrupt` on `SIGINT` or `os._exit(0)` otherwise |
-| `GameServer.load_game_data()`                                        | Loads `level_<n>.json` map files (1-7), `objects.json`, `weapons.json`, `rations.json`, `monsters.json` via `Item.read`/`Weapon.read`/`Rations.read_rations`/`Monster.read_monsters` |
+## new_server.py
+**DELETED 8/11/26.** Was yet another alternate server entry point, built
+around a `GameServer` class (distinct from `net_server.py`'s
+`Server`/`Server.Server` -- a third, separate, also-now-deleted server
+prototype). Handled PID-file locking, logging setup, graceful-shutdown
+signal handling, and game-data loading, none of it reachable from the live
+game. Confirmed before deletion: zero importers anywhere in the tree,
+including from `net_server.py` or `player.py` despite the similar name.
 
 ---
 
