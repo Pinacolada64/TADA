@@ -183,9 +183,18 @@ class Inventory:
         from item_system import ItemType
         is_durable = getattr(item, 'type', None) in (ItemType.ARMOR, ItemType.SHIELD)
         item_id = getattr(item, 'id_number', None)
+        item_category = getattr(item, 'category', None)
         if item_id is not None and not is_durable:
             for entry in self._entries:
-                if getattr(entry.item, 'id_number', None) == item_id:
+                # id_number is only unique within its own category (weapons/
+                # items/rations each number independently -- see items.py:364
+                # and commands/get.py's anti-hoarding check). Without this,
+                # e.g. objects.json #82 (Crystal Pendant) picked up while
+                # already carrying rations.json #82 (Bucket of Water) would
+                # silently stack onto the ration instead of creating its own
+                # entry, so the pendant would never actually be carried.
+                if (getattr(entry.item, 'id_number', None) == item_id
+                        and getattr(entry.item, 'category', None) == item_category):
                     entry.quantity += quantity
                     return True
 

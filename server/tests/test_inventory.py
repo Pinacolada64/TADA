@@ -80,6 +80,28 @@ class TestInventoryStacking(unittest.TestCase):
         self.assertEqual(len(inv), 0)
         self.assertEqual(inv.find(item_id=1), [])
 
+    def test_add_does_not_stack_across_categories_sharing_an_id_number(self):
+        # id_number is only unique *within* its own category (weapons/
+        # items/rations each number independently -- see items.py:364).
+        # objects.json #82 is Crystal Pendant; rations.json #82 is Bucket
+        # of Water. Picking up the pendant while already carrying the
+        # ration must not silently stack onto the ration's entry -- that
+        # would leave "You pick up Crystal Pendant" on screen with no
+        # actual pendant entry in inventory.
+        inv = Inventory()
+        bucket = Item(id_number=82, name='Bucket of Water', category=ItemCategory.DRINK)
+        pendant = Item(id_number=82, name='Crystal Pendant', category=ItemCategory.ITEM)
+
+        inv.add(bucket)
+        inv.add(pendant)
+
+        self.assertEqual(len(inv), 2)
+        bucket_entry = inv.find(item_id=82, category=str(ItemCategory.DRINK))[0]
+        pendant_entry = inv.find(item_id=82, category=str(ItemCategory.ITEM))[0]
+        self.assertEqual(bucket_entry.quantity, 1)
+        self.assertEqual(pendant_entry.quantity, 1)
+        self.assertEqual(pendant_entry.item.name, 'Crystal Pendant')
+
 
 class TestInventoryPruneZombieEntries(unittest.TestCase):
     """Inventory._prune() self-heals a quantity<=0 entry that got left
