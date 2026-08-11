@@ -111,6 +111,7 @@ def _pick_monster_quote(ctx: 'GameContext', monster: dict) -> Optional[str]:
 # imported there, same as every other ally lookup in this module).
 _TACTICAL_SLOT_ROLL = (1, 1, 1, 1, 1, 2, 2, 3, 3, 3)
 _TACTICAL_SHOUTS = {1: "To the front!", 2: "On the flank!", 3: "To the rear!"}
+_TACTICAL_POSITIONS = {1: "to the front", 2: "on the flank", 3: "to the rear"}
 
 
 def _weapon_class_str(weapon) -> str:
@@ -751,7 +752,19 @@ class CombatSession:
         )
 
         if occupant is not None:
-            await ctx.send(f"{occupant.name} shouts '{shout}'")
+            # SPUR.MISC4.S's tactical (skip branch): a god/goddess-tier
+            # occupant (cln.ally's ">"/"+" markers) gets the "life force"
+            # phrasing instead of the plain "SHOUTS" line -- see
+            # encounters/monster.py's _try_ally_tactical for the matching
+            # room-entry case.
+            if AllyFlags.GOD in (occupant.flags or []):
+                await ctx.send(f"'There seems to be a life force {_TACTICAL_POSITIONS[slot_num]},' "
+                                f"mentions THE GOD {occupant.name}.")
+            elif AllyFlags.GODDESS in (occupant.flags or []):
+                await ctx.send(f"'There seems to be a life force {_TACTICAL_POSITIONS[slot_num]},' "
+                                f"mentions THE GODDESS {occupant.name}.")
+            else:
+                await ctx.send(f"{occupant.name} shouts '{shout}'")
             roll = (random.randint(0, 298) // 10) - 9
             if roll > occupant.hit_points:
                 if AllyFlags.ELITE in (occupant.flags or []):

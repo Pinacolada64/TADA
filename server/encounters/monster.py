@@ -442,7 +442,7 @@ async def _try_spontaneous_charm(ctx: 'GameContext', monster: dict, monster_no: 
 async def _try_ally_tactical(ctx: 'GameContext', monster: dict) -> None:
     """SPUR.MISC4.S:140-168 "tactical"/"desert". Only reached when neither
     the surprise nor charm roll fired this encounter."""
-    from bar.ally_data import Ally, AllyPosition
+    from bar.ally_data import Ally, AllyFlags, AllyPosition
 
     player = ctx.player
     party  = getattr(player, 'party', None)
@@ -456,12 +456,30 @@ async def _try_ally_tactical(ctx: 'GameContext', monster: dict) -> None:
     ally = random.choice(allies)
     position = random.choice((AllyPosition.POINT, AllyPosition.FLANK, AllyPosition.REAR))
     ally.position = position
-    shout = {
-        AllyPosition.POINT: 'To the front!',
-        AllyPosition.FLANK: 'On the flank!',
-        AllyPosition.REAR:  'To the rear!',
+    position_txt = {
+        AllyPosition.POINT: 'To the front',
+        AllyPosition.FLANK: 'On the flank',
+        AllyPosition.REAR:  'To the rear',
     }[position]
-    await ctx.send(f"{ally.name} shouts '{shout}'")
+
+    # SPUR.MISC4.S's tactical (skip branch): `if zt if instr(">",i$) print
+    # \"'THERE SEEMS TO BE A LIFE FORCE "zt$",' MENTIONS "lu$` -- god/
+    # goddess-tier allies (cln.ally's ">"/"+" markers) get this phrasing
+    # instead of the plain "SHOUTS" line. Title prefix matches
+    # ally_events/farewell.py's cln.ally-derived "THE GOD "/"THE GODDESS "
+    # convention.
+    flags = getattr(ally, 'flags', None) or []
+    if AllyFlags.GOD in flags:
+        display_name = f'THE GOD {ally.name}'
+    elif AllyFlags.GODDESS in flags:
+        display_name = f'THE GODDESS {ally.name}'
+    else:
+        display_name = None
+
+    if display_name is not None:
+        await ctx.send(f"'There seems to be a life force {position_txt.lower()},' mentions {display_name}.")
+    else:
+        await ctx.send(f"{ally.name} shouts, '{position_txt}!'")
 
     # SPUR desert: gosub rnd.10z:if z<>5 then return -- 1-in-10 chance
     if random.randint(1, 10) != 5:

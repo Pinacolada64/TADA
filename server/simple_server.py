@@ -790,8 +790,36 @@ class Server:
         await ctx.send(lines)
         logging.debug('EXIT room=%r lines=%d', getattr(ctx.client, 'room', '?'), len(lines))
 
+    async def _show_room_then_encounter(self, ctx: GameContext, *, level: int, room_no: int) -> None:
+        """Like _show_room(), but for a fresh room entry (move/teleport)
+        where try_monster_encounter() also needs to run.
+
+        SPUR.MISC4.S's rd.mons (surprise roll, charm roll, tactical/
+        ally-shout, or a god/goddess "life force" line) prints all of its
+        own messages *before* rd.mon3 finally prints the buffered "There
+        is <monster> here" line (zw$) -- see rd.mon2's `gosub tactical`
+        happening ahead of the caller's `if zw$<>"" print \\zw$`. Splitting
+        the room description here so the monster line (and the "You see
+        <items>" line right after it) prints after the encounter keeps
+        that ordering, instead of showing the monster before an ally's
+        warning shout about it.
+        """
+        head, _, _ = self._describe_room_parts(ctx.client)
+        await ctx.send(head)
+        from encounters.monster import try_monster_encounter
+        await try_monster_encounter(ctx, level=level, room_no=room_no)
+        _, monster_and_seen, tail = self._describe_room_parts(ctx.client)
+        await ctx.send(monster_and_seen + tail)
+
     def _describe_room(self, client) -> list[str]:
         """Return a list of strings describing the client's current room."""
+        head, monster_and_seen, tail = self._describe_room_parts(client)
+        return head + monster_and_seen + tail
+
+    def _describe_room_parts(self, client) -> tuple[list[str], list[str], list[str]]:
+        """Same content as _describe_room(), split into (head, monster_and_seen,
+        tail) so _show_room_then_encounter() can print the monster/"you see
+        <items>" section after an encounter's own messages instead of before."""
         logging.debug('ENTER room=%r', getattr(client, 'room', '?'))
         lines    = []
         room_no  = getattr(client, 'room', 1) or 1
@@ -800,7 +828,7 @@ class Server:
         room     = (self.game_map.get_room(level, int(room_no))
                     if self.game_map else None)
         if not room:
-            return ['You are nowhere (map not loaded).']
+            return ['You are nowhere (map not loaded).'], [], []
 
         from base_classes import RoomAlignment, strip_legacy_alignment_suffix
         from formatting import guild_sigil_for
@@ -862,6 +890,7 @@ class Server:
             if name:
                 seen.append(name)
 
+        monster_and_seen = []
         try:
             mon_number = int(getattr(room, 'monster', 0) or 0)
             m = get_monster(self.monsters, mon_number) if mon_number else None
@@ -884,22 +913,22 @@ class Server:
                     # (the monster left with this player, not died).
                     pass
                 elif greeting is not None:
-                    lines += ['', greeting]
+                    monster_and_seen += ['', greeting]
                 elif mon_num is not None and mon_num in mk:
                     # Monster is dead for this player
                     if flags.get('mechanical'):
-                        lines += ['', f'The wrecked remains of {name} lie here.']
+                        monster_and_seen += ['', f'The wrecked remains of {name} lie here.']
                     else:
-                        lines += ['', f'You see a dead {name} here.']
+                        monster_and_seen += ['', f'You see a dead {name} here.']
                     # TODO: fled (md=2) case — show tracks when monster-flee is implemented
                 elif mon_num == _DWARF_MONSTER_NUMBER:
                     # SPUR.MAIN.S: "A short bearded person is here, with a
                     # pile of gold!" -- own flavor line instead of the
                     # generic "There is DWARF here." (gold -> silver, this
                     # port's own wording convention).
-                    lines += ['', 'A short bearded person is here, with a pile of silver!']
+                    monster_and_seen += ['', 'A short bearded person is here, with a pile of silver!']
                 else:
-                    lines += ['', f"There {is_or_are(name)} {f'{size} ' if size else ''}{name} here."]
+                    monster_and_seen += ['', f"There {is_or_are(name)} {f'{size} ' if size else ''}{name} here."]
 
                 # Non-expert nudge toward the SAY-riddle easter egg
                 # (encounters/gollum.py) -- pure new content, no SPUR
@@ -918,7 +947,7 @@ class Server:
                     hint_ctx = getattr(client, 'ctx', None)
                     if hint_ctx:
                         from formatting import titled_box
-                        lines += [''] + titled_box(
+                        monster_and_seen += [''] + titled_box(
                             hint_ctx, 'Tip', 'You can ask Gollum riddles.')
                         mark_riddle_hint_shown(player)
 
@@ -934,13 +963,14 @@ class Server:
                     from combat.engine import first_statue_victim
                     victim = first_statue_victim(name)
                     if victim:
-                        lines += ['', f'There is a statue of {victim} here!']
+                        monster_and_seen += ['', f'There is a statue of {victim} here!']
         except Exception:
             pass
 
         if seen:
-            lines += ['', f"You see {grammatical_list(seen)}."]
+            monster_and_seen += ['', f"You see {grammatical_list(seen)}."]
 
+        tail = []
         # Other players in the room -- fighters get called out by name against
         # the monster they're fighting, rather than blending into the plain
         # "X is here" list, so someone walking in immediately sees a fight
@@ -974,19 +1004,19 @@ class Server:
 
             bystanders = [(n, p) for n, p in others if n not in fighting]
             if bystanders:
-                lines += ['', list_players_in_room([n for n, _ in bystanders])]
+                tail += ['', list_players_in_room([n for n, _ in bystanders])]
                 # Each bystander's personal quote (SPUR.MAIN.S:398's
                 # gosub ply.loc7, shown right under "X is here" there);
                 # "$" in it becomes the *viewer's* name, not the author's.
                 for n, p in bystanders:
                     quote = format_quote(getattr(p, 'quote', None), player.name)
                     if quote:
-                        lines.append(f'{n}: {quote}')
+                        tail.append(f'{n}: {quote}')
             if fighting:
                 from monsters import monster_display_name
                 mname = monster_display_name(session.monster)
                 verb  = 'is' if len(fighting) == 1 else 'are'
-                lines += ['', f'{oxford_comma_list(sorted(fighting))} {verb} fighting {mname} here!']
+                tail += ['', f'{oxford_comma_list(sorted(fighting))} {verb} fighting {mname} here!']
         except Exception:
             pass
 
@@ -998,20 +1028,20 @@ class Server:
             debug = getattr(player, 'is_debug', False)
             exits_str = room.exits_txt(client_ctx)
             if exits_str:
-                lines += ['', f"Ye may travel {exits_str}."]
+                tail += ['', f"Ye may travel {exits_str}."]
             if debug:
                 room_flags = getattr(room, 'flags', None) or []
                 if room_flags:
-                    lines.append(f"[DEBUG] Room flags: {', '.join(room_flags)}")
+                    tail.append(f"[DEBUG] Room flags: {', '.join(room_flags)}")
                 for attr, label in (('hidden_exit_east', 'east'), ('hidden_exit_west', 'west')):
                     value = getattr(room, attr, None)
                     if value is not None:
-                        lines.append(f"[DEBUG] Hidden exit {label} -> {value}")
+                        tail.append(f"[DEBUG] Hidden exit {label} -> {value}")
         except Exception:
             pass
 
-        logging.debug('EXIT room=%r lines=%d', room_no, len(lines))
-        return lines
+        logging.debug('EXIT room=%r lines=%d', room_no, len(lines) + len(monster_and_seen) + len(tail))
+        return lines, monster_and_seen, tail
 
     # -----------------------------------------------------------------------
     # Movement
@@ -1107,9 +1137,7 @@ class Server:
         ctx.player.map_room = int(dest)
         ctx.player.unsaved_changes = True
         logging.debug('EXIT moved to room=%r', dest)
-        await self._show_room(ctx)
-        from encounters.monster import try_monster_encounter
-        await try_monster_encounter(ctx, level=level, room_no=int(dest))
+        await self._show_room_then_encounter(ctx, level=level, room_no=int(dest))
         from ally_events import try_ally_find_gold
         await try_ally_find_gold(ctx)
         from wild_horse_events import try_wandering_horse_encounter
@@ -1221,9 +1249,7 @@ class Server:
         if name:
             await ctx.send(f'You have entered {name}!')
         logging.debug('Cross-level hidden exit -> level=%s room=%s', target_level, target_room)
-        await self._show_room(ctx)
-        from encounters.monster import try_monster_encounter
-        await try_monster_encounter(ctx, level=target_level, room_no=target_room)
+        await self._show_room_then_encounter(ctx, level=target_level, room_no=target_room)
         from ally_events import try_ally_find_gold
         await try_ally_find_gold(ctx)
         from wild_horse_events import try_wandering_horse_encounter
