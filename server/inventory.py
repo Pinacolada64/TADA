@@ -279,6 +279,28 @@ class Inventory:
         return [e for e in self._entries
                 if str(getattr(e.item, 'category', '')) == category]
 
+    def sort(self, category_order: list[str] | None = None) -> None:
+        """Reorder entries by category (in *category_order*, falling back to
+        entries whose category isn't listed going last), then alphabetically
+        by name within each category. Used by the Shoppe's pack-management
+        screen (shoppe/inventory_tools.py) -- INV's own 'cat' display groups
+        entries for viewing without touching storage order, but a player
+        asking to actually tidy their pack expects it to stay tidy on the
+        next plain `inv` too."""
+        self._prune()
+        order = category_order or []
+
+        def key(entry: InventoryEntry):
+            cat = str(getattr(entry.item, 'category', ''))
+            try:
+                idx = order.index(cat)
+            except ValueError:
+                idx = len(order)
+            name = (getattr(entry.item, 'name', '') or '').lower()
+            return (idx, name)
+
+        self._entries.sort(key=key)
+
     def is_full(self) -> bool:
         self._prune()
         return self.capacity is not None and len(self._entries) >= self.capacity

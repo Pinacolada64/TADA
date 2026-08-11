@@ -185,6 +185,16 @@ def _ollys(ctx: GameContext):
     return ollys_main(ctx)
 
 
+def _inventory(ctx: GameContext):
+    from shoppe.inventory_tools import inventory_main
+    return inventory_main(ctx)
+
+
+def _transfer(ctx: GameContext):
+    from shoppe.inventory_tools import transfer_main
+    return transfer_main(ctx)
+
+
 _MENU = (
     ('A', 'Armory',              _armory),
     ('P', 'Protection',          _protection),
@@ -196,7 +206,22 @@ _MENU = (
     ('E', 'Elevator',            _elevator),
     ('V', 'Pawn Shop',           _pawn_shop),
     ('L', 'Player List',         _player_list),
+    ('I', 'Inventory',           _inventory),
 )
+
+
+def _menu_entries(ctx: GameContext) -> tuple:
+    """_MENU plus [T]ransfer, shown only once there's somewhere to send an
+    item -- a party ally or horse (shoppe/inventory_tools.has_transfer_targets()).
+    Built per-call rather than baked into _MENU itself since eligibility can
+    change mid-session (an ally dies, a horse is bought/sold) without the
+    player leaving and re-entering the Shoppe."""
+    from shoppe.inventory_tools import has_transfer_targets
+
+    entries = _MENU
+    if has_transfer_targets(ctx.player):
+        entries += (('T', 'Transfer to Party/Horse', _transfer),)
+    return entries
 
 
 async def _show_menu(ctx: GameContext) -> None:
@@ -205,7 +230,7 @@ async def _show_menu(ctx: GameContext) -> None:
     if other_names:
         lines.append(f'  Also here: {", ".join(other_names)}')
         lines.append('')
-    for key, label, _ in _MENU:
+    for key, label, _ in _menu_entries(ctx):
         lines.append(f'  [{key}] {label}')
     lines += ['  [LOCKER] Private Locker', '  [X] Leave the Shoppe', '']
     await ctx.send(lines)
@@ -271,11 +296,12 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
             await ctx.send(f'You climb back up the passageway into the daylight.')
             break
 
-        matched = next((fn for key, _, fn in _MENU if key.lower() == cmd), None)
+        menu = _menu_entries(ctx)
+        matched = next((fn for key, _, fn in menu if key.lower() == cmd), None)
         if matched:
             await matched(ctx)
         else:
-            keys = '/'.join(k for k, _, _ in _MENU)
+            keys = '/'.join(k for k, _, _ in menu)
             await ctx.send(f'"{raw.strip()}"? ({keys}/X to choose)')
 
 
