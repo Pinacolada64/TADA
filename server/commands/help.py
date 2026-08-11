@@ -928,10 +928,9 @@ register_topic(
             "more mouths to feed.\n\n"
             "You can GIVE an ally food, a weapon, or other gear to carry "
             "and use, and TAKE it back later. An ally's loyalty depends "
-            "on how well you treat it -- an ally with a '!' after its "
-            "name is an elite: extra loyal, lightly armored, and won't "
-            "abandon you just for refusing it food the way an ordinary "
-            "ally might."
+            "on how well you treat it -- an ally tagged [Elite] on STATS "
+            "is extra loyal, lightly armored, and won't abandon you just "
+            "for refusing it food the way an ordinary ally might."
         ),
         category=HelpCategory.CONCEPT,
         usage=[
@@ -951,20 +950,29 @@ register_topic(
 register_topic(
     "eliteally", "elite ally",
     help_obj=Help(
-        summary="What the '!' after an ally's name means",
+        summary="What the [Elite] tag on an ally means",
         description=(
-            "An ally listed with a '!' after its name is an elite: more "
-            "loyal than an ordinary ally, lightly armored (a small bonus "
-            "to how much damage it can block in a fight), and it won't "
-            "turn on you the way an ordinary ally might if you refuse "
-            "to feed it."
+            "An ally tagged [Elite] on STATS (or in an ally-picker "
+            "listing) is more loyal than an ordinary ally, lightly "
+            "armored (a small bonus to how much damage it can block in "
+            "a fight), and it won't turn on you the way an ordinary "
+            "ally might if you refuse to feed it."
         ),
         category=HelpCategory.CONCEPT,
+        usage=[
+            ("stats", "Shows [Elite] and any other ally flags in the Allies table's Notes column."),
+        ],
         see_also=["parties"],
         admin_notes=[
-            "combat/resolution.py's has_light_armor param (ally has '!' "
-            "flag in SPUR) grants a +2 armor_bonus in monster/ally combat "
-            "math.",
+            "AllyFlags.ELITE (bar/ally_data.py) -- SPUR's own source uses "
+            "a '!' sigil (instr(\"!\",zt$)) for this internally, but this "
+            "port never surfaces that character to the player; the "
+            "player-facing tag is always the rendered '[Elite]' string "
+            "(commands/stats.py's _ally_flag_tags(), bar/allies.py's "
+            "pick_ally() listing). combat/resolution.py's "
+            "has_light_armor param (set from AllyFlags.ELITE in "
+            "combat/engine.py) grants a +2 armor_bonus in monster/ally "
+            "combat math.",
         ],
     ),
 )
