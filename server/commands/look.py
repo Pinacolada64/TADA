@@ -39,9 +39,15 @@ class LookCommand(Command):
             ('look <target>', 'Describe an object, creature, or player.'),
         ],
         examples = [
-            ('look',       'See where you are.'),
-            ('look sword', 'Describe the sword.'),
-            ('look me',    'Describe yourself.'),
+            ('look',       "LOOK re-describes wherever you currently are -- the same "
+                            "room description you saw on arrival, useful after other "
+                            "messages have scrolled it out of view."),
+            ('look sword', "Naming a target gives a plain description of that object, "
+                            "creature, or player instead of the room -- for anything "
+                            "riskier (checking for a curse before picking it up), use "
+                            "EXAMINE instead, which LOOK deliberately doesn't attempt."),
+            ('look me',    "'me' (also 'self'/'myself') targets your own character, "
+                            "showing how you currently appear to others."),
         ],
     )
 

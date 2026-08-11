@@ -101,9 +101,17 @@ class ListLocationsCommand(Command):
             ('list #<type>',    'List by a specific objects.json type (book, treasure, etc.).'),
         ],
         examples = [
-            ('list #w',       'List all weapon locations.'),
-            ('list #shield',  'List all shield locations.'),
-            ('list #w #tel',  'List weapons, then optionally teleport to one.'),
+            ('list #w',       'LIST scans every room on every level and reports where a '
+                               "category of object currently sits -- a way to answer "
+                               '"where are all the copies of X" without digging through '
+                               "the raw data files. \"list #w\" reports every weapon's "
+                               "current room."),
+            ('list #shield',  'Any objects.json "type" works as a switch, not just the '
+                               'shorthand ones -- "list #shield" lists every shield the '
+                               'same way.'),
+            ('list #w #tel',  "Adding '#tel' after the listing prompts you to pick one of "
+                               "the results and teleport straight to it -- handy for "
+                               "actually going to check on a specific copy."),
         ],
         notes = ['Admin or Dungeon Master only.'],
     )

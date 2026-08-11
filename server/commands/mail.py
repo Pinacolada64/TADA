@@ -85,15 +85,35 @@ class MailCommand(Command):
             ('mail <target>',             'Open the editor for a longer message.'),
         ],
         examples = [
-            ('mail',                          'See what mail you have.'),
-            ('mail 2',                        'Read message #2.'),
-            ('mail #delete 2',                'Remove message #2.'),
-            ('mail #reply 2=On my way!',      'Reply to message #2\'s sender.'),
-            ('mail #read',                    'Read through everything, one at a time.'),
-            ('mail Alice=Meet at the inn',    'Short message to Alice.'),
-            ('mail Alice,Bob=Party tonight',  'Short message to Alice and Bob.'),
-            ('mail #friends=Where is everyone?', 'Short message to a saved group.'),
-            ('mail "Dark Lord"',              'Opens the editor for a longer letter.'),
+            ('mail',                          "MAIL is your private mailbox -- unlike "
+                                               "PAGE, a mailed message always waits for "
+                                               "the recipient whether they're online or "
+                                               "not. With no argument, it lists what's "
+                                               "in your mailbox."),
+            ('mail 2',                        'A bare number from that listing reads '
+                                               'message #2 in full and marks it read.'),
+            ('mail #delete 2',                "'#delete' removes message #2 from your "
+                                               'mailbox for good.'),
+            ('mail #reply 2=On my way!',      "'#reply' pages (or, if they're offline, "
+                                               "mails) whoever sent message #2, without "
+                                               "you needing to look up their name."),
+            ('mail #read',                    "'#read' (with Prompt Mode on, and more "
+                                               "than one message) walks your whole "
+                                               "mailbox one message at a time, offering "
+                                               "Reply/Delete/Archive/Keep after each."),
+            ('mail Alice=Meet at the inn',    "Naming a recipient with '=' sends a short "
+                                               "one-line message directly, the same "
+                                               "target syntax as PAGE -- this always "
+                                               "lands in Alice's mailbox, live or not."),
+            ('mail Alice,Bob=Party tonight',  'Comma-separate names to mail several '
+                                               'people the same short message at once.'),
+            ('mail #friends=Where is everyone?', "A saved GROUPS name ('#friends') works "
+                                               'as a target too, mailing everyone in it.'),
+            ('mail "Dark Lord"',              "Naming a target with no '=' skips the "
+                                               "one-liner and opens the full text editor "
+                                               "instead, for a longer letter -- quote a "
+                                               "name containing a space, like \"Dark "
+                                               "Lord\", the same way PAGE does."),
         ],
         notes = [
             'Unread mail is announced when you log in.',

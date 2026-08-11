@@ -22,8 +22,13 @@ class LurkCommand(Command):
             ('lurk <name>',   'Lurk if name matches the monster here.'),
         ],
         examples = [
-            ('lurk',        'Swing this round from behind your allies.'),
-            ('lurk goblin', 'Lurk against the goblin (must be in this room).'),
+            ('lurk',        "LURK lets your allies take the hit instead of you this "
+                             "round: the monster's counter-attack gets redirected onto "
+                             "one of your allies, at the cost of Honor and a weakened "
+                             "swing of your own (or no swing at all, for most weapons)."),
+            ('lurk goblin', "Naming the monster works the same as ATTACK -- it must "
+                             "actually be the one in this room, it doesn't target among "
+                             "several."),
         ],
         description = (
             'Requires at least one living ally in your party. Costs Honor. '

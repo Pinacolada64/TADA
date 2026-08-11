@@ -242,8 +242,11 @@ class MoveCommand(Command):
             ('go <direction>',          'Alternate form: go north, go n, etc.'),
         ],
         examples = [
-            ('n',        'Move north.'),
-            ('go west',  'Move west.'),
+            ('n',        "A single letter (n/s/e/w/u/d) moves one step in that compass "
+                          "direction on its own -- no 'go' needed."),
+            ('go west',  "'go <direction>' is the alternate, full-word form -- 'go west' "
+                          "and typing 'w' (or 'west') on its own all do the same thing, "
+                          "unless PREFS has remapped w/a/s/d to a WASD-style keymap."),
         ],
     )
 

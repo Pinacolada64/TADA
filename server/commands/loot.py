@@ -119,7 +119,11 @@ class LootCommand(Command):
             ('loot', 'List other players here and choose one to steal from.'),
         ],
         examples = [
-            ('loot', 'Attempt to steal from someone in this room.'),
+            ('loot', 'LOOT takes no target -- typing it lists the other players sharing '
+                     "your room and lets you pick one to steal an item from. It's a "
+                     'limited gamble (once per session, twice for Outlaws): a fellow '
+                     'guild member of theirs may step in as a guardian and stop you, and '
+                     'either way it costs you Honor.'),
         ],
     )
 
