@@ -424,7 +424,11 @@ class CastCommand(Command):
             ('cast ?',          'Relist your known spells.'),
         ],
         examples = [
-            ('cast', 'Open the casting prompt.'),
+            ('cast', "CAST takes no arguments -- typing it lists every spell you've "
+                     'learned and prompts you to pick one by number. The spell is '
+                     'consumed from your Spell Book whether it succeeds, fizzles, or '
+                     "backfires, so there's nothing to type after 'cast' itself; the "
+                     'choice happens at the prompt.'),
         ],
         description = (
             'Casts one of the spells you’ve learned at the Wizard’s cave. '

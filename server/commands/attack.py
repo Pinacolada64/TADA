@@ -56,9 +56,15 @@ class AttackCommand(Command):
             ('attack <name>',   'Attack if name matches the monster here.'),
         ],
         examples = [
-            ('attack',         'Begin or join a fight.'),
-            ('attack goblin',  'Attack the goblin (must be in this room).'),
-            ('k',              'Shortcut: same as attack.'),
+            ('attack',         'ATTACK engages whatever monster is in your current room. '
+                                'With no name given, it just attacks the room\'s monster '
+                                '(or joins a fight another player already started there).'),
+            ('attack goblin',  'Naming the monster (it must actually be the one in this '
+                                "room) works the same way -- it's not for targeting a "
+                                'specific monster among several, since only one can occupy '
+                                'a room at a time.'),
+            ('k',              "'k' (also 'kill' or 'fight') is a shorter alias for "
+                                'attack -- all four do exactly the same thing.'),
         ],
         description = (
             'Engages the monster in your current room in melee combat. '

@@ -133,7 +133,11 @@ class ConfigCommand(Command):
             ('config <key> <value>', 'Change a setting directly, without the menu.'),
         ],
         examples = [
-            ('config',                    'Open the settings menu.'),
+            ('config',                    'CONFIG reads and writes server-wide settings. With '
+                                            'no arguments, it opens an interactive menu listing '
+                                            "every setting and its current value -- pick one to "
+                                            "change it, rather than typing the key/value pair "
+                                            "directly."),
             ('config victory_type',       'Show just the victory_type setting.'),
             ('config victory_t both',     "Same as above but abbreviated -- 'victory_t' only "
                                             "matches victory_type, so it expands automatically."),

@@ -178,8 +178,14 @@ class EditCommand(Command):
             ('edit <filename>', 'Load/create your own text file and edit it.'),
         ],
         examples = [
-            ('edit',          'Check for and resume anything recovered from a shutdown.'),
-            ('edit notes.txt', 'Edit your own notes.txt.'),
+            ('edit',          'EDIT is a general-purpose text editor for your own files. '
+                               'With no filename, it first checks whether a graceful '
+                               'server shutdown caught you mid-edit and offers to resume '
+                               'that recovered text -- otherwise it just opens a blank '
+                               'buffer.'),
+            ('edit notes.txt', 'Naming a file loads (or creates) it directly -- each '
+                                "player's files are stored separately, so your "
+                                "notes.txt won't collide with anyone else's."),
         ],
     )
 
