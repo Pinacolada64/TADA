@@ -152,5 +152,64 @@ class TestPawn(unittest.IsolatedAsyncioTestCase):
         inv_mock.assert_awaited_once_with(ctx)
 
 
+class TestHelpFallback(unittest.IsolatedAsyncioTestCase):
+    """Ryan's report: a player standing in the Shoppe with no locker
+    combination yet had no way to type 'help combination' -- every shop's
+    own prompt loop bypassed CommandProcessor entirely, so 'help' just
+    fell into that shop's own 'invalid selection' handling (or, at the
+    Shoppe's top-level menu, was silently truncated to its first letter
+    before ever being recognized as anything). Each loop now tries
+    presence.try_global_command() on unrecognized input before giving up."""
+
+    async def test_general_store_falls_back_to_help(self):
+        player = _new_player()
+        ctx = _FakeCtx(['help combination', ''], player)
+        with patch('shoppe.main.try_global_command', new=AsyncMock(return_value=True)) as gc:
+            await _general_store(ctx)
+        gc.assert_awaited_once_with(ctx, 'help combination')
+
+    async def test_armory_buy_falls_back_to_help(self):
+        player = _new_player()
+        ctx = _FakeCtx(['help combination', 'q'], player)
+        with patch('shoppe.armory.try_global_command', new=AsyncMock(return_value=True)) as gc:
+            await armory_buy(ctx, player, player.inventory, [])
+        gc.assert_awaited_once_with(ctx, 'help combination')
+
+    async def test_wizard_falls_back_to_help(self):
+        player = _new_player()
+        ctx = _FakeCtx(['y', 'help combination', 'q'], player)
+        with patch('shoppe.wizard.try_global_command', new=AsyncMock(return_value=True)) as gc:
+            await wizard_main(ctx)
+        gc.assert_awaited_once_with(ctx, 'help combination')
+
+    async def test_pawn_falls_back_to_help(self):
+        player = _new_player()
+        player.once_per_day = []
+        ctx = _FakeCtx(['help combination', 'q'], player)
+        with patch('shoppe.pawn.try_global_command', new=AsyncMock(return_value=True)) as gc:
+            await pawn_main(ctx)
+        gc.assert_awaited_once_with(ctx, 'help combination')
+
+    async def test_booby_section_falls_back_to_help_not_code_h(self):
+        """'help' truncates to 'H' -- itself a valid disarm code (A-I) --
+        so this must be checked as a real command before the single-letter
+        code table, not after."""
+        player = _new_player()
+        ctx = _FakeCtx(['help combination', 'q'], player)
+        with patch('shoppe.ollys.try_global_command', new=AsyncMock(return_value=True)) as gc:
+            await _booby_section(ctx, player, player.inventory, {})
+        gc.assert_awaited_once_with(ctx, 'help combination')
+
+    async def test_booby_section_bare_h_still_selects_code_h(self):
+        """A real single-letter disarm code must keep working -- 'H' alone
+        (len 1) should never reach try_global_command at all."""
+        player = _new_player()
+        player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 100_000)
+        ctx = _FakeCtx(['h', 'n'], player)
+        with patch('shoppe.ollys.try_global_command', new=AsyncMock(return_value=True)) as gc:
+            await _booby_section(ctx, player, player.inventory, {152: {'name': 'trap'}})
+        gc.assert_not_awaited()
+
+
 if __name__ == '__main__':
     unittest.main()

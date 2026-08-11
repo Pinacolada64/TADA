@@ -21,6 +21,14 @@ def make_ctx(player, prompts: list) -> MagicMock:
     ctx.send          = AsyncMock()
     ctx.send_room     = AsyncMock()
     ctx.server.clients = {}
+    # No real CommandProcessor wired up in these tests -- presence.
+    # try_global_command() (now consulted as a fallback for unrecognized
+    # Shoppe input, e.g. 'help') early-returns False when ctx.client is
+    # None, same as it would with no live connection. Without this,
+    # ctx.client.command_processor.find_command(...) auto-mocks into a
+    # bare MagicMock that isn't the (Command, bool) tuple the real
+    # CommandProcessor returns, and unpacking it blows up.
+    ctx.client = None
 
     it = iter(prompts)
     ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(it, None))
@@ -227,6 +235,20 @@ class TestShoppeSessionDispatch(unittest.IsolatedAsyncioTestCase):
         ctx    = make_ctx(player, ['z', 'x'])
         await _shoppe_session(ctx, player)
         self.assertIn('"z"', _sent(ctx))
+
+    @_PATCH_STUBS
+    async def test_help_falls_back_to_global_command(self, **_):
+        """Ryan's report: 'help combination' (unrecognized as a menu key)
+        used to just show the '"help combination"? (A/B/.../X to choose)'
+        error -- now tried as a real global command first, on the full
+        input, not the single-char key dispatch."""
+        from shoppe.main import _shoppe_session
+        player = make_player()
+        ctx    = make_ctx(player, ['help combination', 'x'])
+        with patch('shoppe.main.try_global_command', new=AsyncMock(return_value=True)) as gc:
+            await _shoppe_session(ctx, player)
+        gc.assert_awaited_once_with(ctx, 'help combination')
+        self.assertNotIn('"help combination"?', _sent(ctx))
 
     async def test_multi_char_input_uses_first_char(self):
         """Shoppe reads only the first character — 'armory' acts like 'a'."""

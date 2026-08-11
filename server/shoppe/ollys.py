@@ -154,6 +154,8 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
         try:
             num = int(choice)
         except ValueError:
+            if await try_global_command(ctx, raw):
+                continue
             await ctx.send('Enter a number, ? to list, I)nventory, or Q to leave.')
             continue
 
@@ -280,11 +282,21 @@ async def _booby_section(ctx: GameContext, player, inv, objects_by_num: dict) ->
         raw = await ctx.prompt(f'Disarm code [{_BOOBY_CODES}] or Q to leave{shop_menu_hint(player)}')
         if raw is None:
             return
-        choice = raw.strip().upper()[:1]
+        stripped = raw.strip()
+        choice = stripped.upper()[:1]
         if not choice or choice == 'Q':
             await ctx.send('You leave the booby trap display.')
             return
         if choice in ('I', 'T') and await handle_shop_key(ctx, choice):
+            continue
+
+        # A disarm code is always a single letter -- multi-character input
+        # (e.g. 'help', 'help combination') can't be one, so try it as a
+        # global command *before* truncating down to its first letter
+        # below. Without this length check, 'help' would truncate to 'H'
+        # -- itself a valid disarm code (_BOOBY_CODES spans A-I) -- and
+        # get silently swallowed as if the player had picked code H.
+        if len(stripped) > 1 and await try_global_command(ctx, raw):
             continue
 
         if choice not in _BOOBY_CODES:

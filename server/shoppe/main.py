@@ -4,7 +4,7 @@ import logging
 import os
 
 from network_context import GameContext
-from presence import enter_area, leave_area, broadcast_open_room, others_present
+from presence import enter_area, leave_area, broadcast_open_room, others_present, try_global_command
 
 log = logging.getLogger(__name__)
 
@@ -97,6 +97,8 @@ async def _general_store(ctx: GameContext, *, numbers: object = None) -> None:
             if not (0 <= choice < len(available)):
                 raise ValueError
         except ValueError:
+            if await try_global_command(ctx, raw):
+                continue
             await ctx.send('Invalid selection.')
             continue
 
@@ -310,6 +312,16 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
         matched = next((fn for key, _, fn in menu if key.lower() == cmd), None)
         if matched:
             await matched(ctx)
+        elif await try_global_command(ctx, raw):
+            # 'help', 'help combination', 'whereat', etc. -- see
+            # presence.try_global_command()'s own docstring. Checked
+            # against the *full* input, not the single-char `cmd` this
+            # menu dispatches on, so a multi-word command like
+            # 'help combination' isn't truncated down to a bare 'h'
+            # before it ever gets a chance to match. Ryan's report: a
+            # player without a locker combination yet had no way to look
+            # up 'help combination' while standing in the Shoppe.
+            pass
         else:
             keys = '/'.join(k for k, _, _ in menu)
             await ctx.send(f'"{raw.strip()}"? ({keys}/X to choose)')

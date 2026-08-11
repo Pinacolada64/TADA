@@ -3,6 +3,7 @@ import logging
 import random
 
 from network_context import GameContext
+from presence import try_global_command
 
 log = logging.getLogger(__name__)
 
@@ -319,6 +320,8 @@ async def main(ctx: GameContext) -> None:
         try:
             num = int(choice)
         except ValueError:
+            if await try_global_command(ctx, raw):
+                continue
             await ctx.send('Enter a spell number, ? to list, i# for info, or Q to leave.')
             continue
 

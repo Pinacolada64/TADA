@@ -619,6 +619,35 @@ class TestDwarfConceptTopic(unittest.TestCase):
             self.assertLessEqual(_visible_len(line), 78, f"line too long: {line!r}")
 
 
+class TestCombinationConceptTopic(unittest.TestCase):
+    """combination concept topic -- Ryan's request: a player without a
+    Locker combination yet had no way to look up what a "combination" even
+    is or where Elevator's comes from. Must hint at the scrap of paper
+    mechanic without spoiling where it's actually found in the dungeon."""
+
+    def test_topic_registered(self):
+        self.assertIn("combination", _TOPICS)
+
+    def test_alias_forms_resolve(self):
+        for alias in ("combinations", "combo"):
+            self.assertIn(alias, _TOPICS, f"{alias!r} alias not registered")
+
+    def test_mentions_scrap_of_paper_hint_without_revealing_location(self):
+        text = _TOPICS["combination"].description.lower()
+        self.assertIn("scrap of paper", text)
+        # No spoilers: room names/numbers or "found in"-style location
+        # phrasing shouldn't appear in the player-facing description.
+        for spoiler in ("room ", "level 1", "level 2", "level 3", "level 4", "level 5"):
+            self.assertNotIn(spoiler, text)
+
+    def test_renders_without_error(self):
+        from formatting import _visible_len
+        out = format_help(_TOPICS["combination"], command_name="combination", width=78)
+        self.assertIsNotNone(out)
+        for line in out:
+            self.assertLessEqual(_visible_len(line), 78, f"line too long: {line!r}")
+
+
 class TestGuildsTopicDuelingIsReal(unittest.TestCase):
     """Regression guard: guilds/bhr topics previously (wrongly) claimed
     live dueling wasn't implemented -- combat/duel.py's DuelCommand

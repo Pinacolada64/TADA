@@ -4,6 +4,7 @@ import logging
 import os
 
 from network_context import GameContext
+from presence import try_global_command
 
 log = logging.getLogger(__name__)
 
@@ -89,6 +90,8 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
         try:
             wnum = int(choice)
         except ValueError:
+            if await try_global_command(ctx, raw):
+                continue
             await ctx.send('Enter a weapon number, ? to list, or Q to leave.')
             continue
 
@@ -195,6 +198,8 @@ async def _sell(ctx: GameContext, player, inv, all_weapons) -> None:
             if not (0 <= idx < len(weapon_entries)):
                 raise ValueError
         except ValueError:
+            if await try_global_command(ctx, raw):
+                continue
             await ctx.send('Invalid selection.')
             continue
 
@@ -326,6 +331,8 @@ async def _repair(ctx: GameContext, player, inv) -> None:
             if not (0 <= idx < len(entries)):
                 raise ValueError
         except ValueError:
+            if await try_global_command(ctx, raw):
+                continue
             await ctx.send('Invalid selection.')
             continue
 
@@ -426,6 +433,8 @@ async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> N
             if not (0 <= idx < len(prot_items)):
                 raise ValueError
         except ValueError:
+            if await try_global_command(ctx, raw):
+                continue
             await ctx.send('Invalid selection.')
             continue
 

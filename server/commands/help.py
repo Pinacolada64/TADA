@@ -1386,6 +1386,49 @@ register_topic(
     ),
 )
 
+register_topic(
+    "combination", "combinations", "combo",
+    help_obj=Help(
+        summary="Combinations: what they unlock, and where Elevator's comes from",
+        description=(
+            "A combination is a three-number code (e.g. 42-07-93) that "
+            "unlocks something. You'll deal with up to three kinds:\n\n"
+            "-- Castle: yours from the moment your character is "
+            "created. You'll never need to hunt this one down.\n\n"
+            "-- Locker: assigned the first time you visit the Private "
+            "Locker in the Merchant Shoppe -- the attendant hands it "
+            "to you on the spot (and engraves it on your claim tag, in "
+            "case you forget it later).\n\n"
+            "-- Elevator: the one you have to go earn. It doesn't "
+            "exist for your character until you find and read a "
+            "scrap of paper somewhere out in the dungeon -- that's "
+            "the only way to learn it. Where that scrap turns up is "
+            "part of the adventure; this topic won't spoil it."
+        ),
+        category=HelpCategory.CONCEPT,
+        notes=[
+            "Lost or forgot a combination you already have? It isn't "
+            "rerolled or consumed by checking it again -- Locker's is "
+            "reprinted on your claim tag (READ it), and Elevator's "
+            "stays the same if you still have the scrap of paper to "
+            "re-read.",
+        ],
+        see_also=["pawnshop", "rooms"],
+        admin_notes=[
+            "base_classes.py's CombinationTypes/Combination (three "
+            "random 1-99 digits). Castle is generated for every "
+            "character up front (player.py's set_up_combinations()). "
+            "Locker is granted by shoppe/locker.py's _first_visit(). "
+            "Elevator is generated on first READ of objects.json #69 "
+            "'scrap of paper' (commands/read.py's "
+            "_read_scrap_of_paper() -- SPUR.MISC2.S's `elev` "
+            "subroutine); deliberately not consumed or rerolled on "
+            "later reads (see MECHANICS.md's 'Elevator Combination' "
+            "section).",
+        ],
+    ),
+)
+
 
 # ---------------------------------------------------------------------------
 # Helper function - guards against Mode.NONE instead of a set {Mode.NONE}

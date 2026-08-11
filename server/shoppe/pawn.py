@@ -3,6 +3,7 @@ import logging
 
 from debug_tools import debug_toggle_once_per_day
 from network_context import GameContext
+from presence import try_global_command
 
 log = logging.getLogger(__name__)
 
@@ -120,6 +121,8 @@ async def main(ctx: GameContext) -> None:
                 if not (0 <= idx < len(stock)):
                     raise ValueError
             except ValueError:
+                if await try_global_command(ctx, raw):
+                    continue
                 await ctx.send("I don't have that.")
                 continue
 
@@ -147,6 +150,8 @@ async def main(ctx: GameContext) -> None:
             continue
 
         if cmd != 'S':
+            if await try_global_command(ctx, raw):
+                continue
             continue
 
         if not item_entries:
@@ -171,6 +176,8 @@ async def main(ctx: GameContext) -> None:
             if not (0 <= idx < len(item_entries)):
                 raise ValueError
         except ValueError:
+            if await try_global_command(ctx, raw):
+                continue
             await ctx.send("You're NOT carrying that!!")
             continue
 
