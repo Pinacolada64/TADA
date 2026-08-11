@@ -15,6 +15,15 @@ same style, so the reference stays authoritative.
   (`wy$`), `b1`/`xu$` additions, and `*MNT` confirmed for `ys$`, all found
   while porting allies/mounts to the Python server. See `SPUR.MISC7.S`,
   `SPUR.MAIN.S`, `SPUR.COMBAT.S`, `SPUR.USE.S`, `SPUR.MISC2.S` (skip branch).
+- Updated 10/Aug/2026 — investigated whether a monster can attack before
+  the player (yes — `advent5`'s baseline unconditional `gosub m.attack`,
+  `vz` adds a bonus second swing) and the ally-shout/god-goddess
+  "life force" line's ordering vs. the room's monster listing (shout
+  prints first, per `zw$` being buffered until after `tactical` returns),
+  while comparing GitHub's `skip` branch (`SPUR-code/SPUR.COMBAT.S`,
+  `SPUR.MISC4.S`) against master. Added `gm` (God Mode), `lu$`/`lc$`/`lg`
+  (Skip's branch `cln.ally`/`m.a1`), and new reused meanings for `vz`,
+  `zt`/`zt$`, `zw$`.
 - Updated 31/Jul/2026 — converted from `spur variables.txt` to Markdown;
   resolved essentially every previously-"?"/"scratch variable" entry and
   added ~90 undocumented variables, via two full grep sweeps of every
@@ -247,6 +256,15 @@ Related file-path variables, not in the original drive-specifier block:
   *input* by `spl.gold` (splits back into `g1`/`g2`). Also the raw input
   buffer for bank-amount prompts (`SPUR.BAR3.S:54`).
 - **`gh` / `gl`** — Gold in hand, high/low (`gold=gh*10,000+gl`)
+- **`gm`** — God Mode flag (Skip's branch, `SPUR-code/SPUR.COMBAT.S`,
+  sysop-only `TGM` command at `advent3`). Once set (`gm=1`, one-way — "GOD
+  MODE cannot be turned off now"), suppresses hunger/thirst-weaken
+  messages in favor of an `advent.gm` fast path, blocks starvation death
+  (`hp<1 if gm=1 hp=1`), zeroes all incoming damage in `dragon`/`destroy`
+  ("GOD MODE- NO DAMAGE"), no-ops `zap`/turn-to-stone, prevents `ep`
+  (experience) from ticking up in `lurk.b`, and stops the monster from
+  ever landing the first blow in `m.attack` (`if gm=1 if zq=0 zq=1:
+  print "GOD MODE prevents "m$" from attacking."`).
 - **`go`** — Game objective: `1`=specific amount of gold, `2`=specific
   item, `3`=specific amount of gold & item
 - **`gs`** — Cost of food
@@ -291,14 +309,37 @@ Related file-path variables, not in the original drive-specifier block:
 ## L
 
 - **`lc`** — Level count (# of map levels in game)
+- **`lc$` / `lg`** — Skip's branch, `SPUR-code/SPUR.COMBAT.S` `m.a1`
+  (an ally fleeing/dropping weapons under fire): `lc$` is that slot's
+  raw `d1$`/`d2$`/`d3$` name-with-sigils string (`"*"` = empty slot,
+  short-circuits the routine); `lg` is a copy of that ally's current
+  `a1`/`a2`/`a3` hit-point total, used for the same "did they die" check
+  after damage is applied. `lu$=lc$:gosub cln.ally` derives the
+  display name from it — see `lu$` below.
 - **`lg$`** — last adventurer name
 - **`lo$`** — Room location name (copied into `ww$`)
-- **`l0$` / `rz$`** — The hand-rolled line-input routine. Identical copies
-  in `SPUR.MAIN.S:601-626` and `SPUR.COMBAT.S:475-499` (label
-  `tm.loop`): `l0$` accumulates the typed line, auto-uppercasing the
-  first letter of each word; returns via `rz$=l0$`. `rz$` doubles as the
-  mixed-case name formatter for the status line (`SPUR.MAIN.S:69`
-  `rz$=n1$:gosub to.mixed`).
+- **`lu$`** — The display-ready ally name, built by `gosub cln.ally`
+  from a raw `d1$`/`d2$`/`d3$` (or `lc$`) sigil string: strips everything
+  from `|` onward, and — Skip's branch only — prefixes `"THE GOD "` /
+  `"THE GODDESS "` for a `>`/`+`-flagged ally (see `d1$` above for the
+  sigil table). Used everywhere an ally's name is printed in combat
+  (`p.a1a`'s ally-attacks-monster line, `tactical`'s shout/"life force"
+  line, `m.a1`'s flee/desert message, `desert`'s run-away text) instead
+  of the raw sigil string. Master's `SPUR.MISC4.S` has an equivalent
+  `cln.ally` but without the god/goddess title logic; the
+  `SPUR.COMBAT.S` copy of `cln.ally` is new to Skip's branch.
+- **`l0$` / `rz$`** — The hand-rolled line-input routine, in
+  `SPUR.MAIN.S:601-626` (label `tm.loop`): `l0$` accumulates the typed
+  line, auto-uppercasing the first letter of each word; returns via
+  `rz$=l0$`. `rz$` doubles as the mixed-case name formatter for the
+  status line (`SPUR.MAIN.S:69` `rz$=n1$:gosub to.mixed`). Master also
+  carries an identical copy at `SPUR.COMBAT.S:475-499`, called from
+  `prompt`'s status-line build (`rz$=n1$:gosub to.mixed`); Skip's branch
+  deleted that copy (and the status line's `[<name>]` segment it fed)
+  entirely, along with `to.mixed`/`to.lower` from `SPUR.COMBAT.S` — a
+  dedup, not a functional change, per this file's convention of trusting
+  `SPUR-code/*.S` over any single branch for what's "current": treat the
+  master copy as the baseline unless told Skip's branch is authoritative.
 
 ## M
 
@@ -552,10 +593,16 @@ Related file-path variables, not in the original drive-specifier block:
 - **`vy` / `vq` / `zm`** — see `zm` below.
 - **`vz`** — "You were caught off guard" / surprise-in-the-monster's-favor
   flag. `SPUR.COMBAT.S:31` `if vz=1 vz=0:print "SURPRISE ATTACK..":
-  gosub m.attack` grants the monster a bonus second swing. Set by
-  `SPUR.MISC4.S:149-157`'s pre-fight ambush roll and by the ally-revolt
-  ambush in `SPUR.SUB.S:408`. Also reused as a string-length scratch in
-  `SPUR.MISC5.S:164`.
+  gosub m.attack` grants the monster a bonus *second* swing. Note the
+  full line is `gosub m.attack:if vz=1 …` — that leading, unconditional
+  `gosub m.attack` is `advent5`'s normal per-round monster attack, run
+  *every* round before the player's own command is even read (`p.attack`
+  is only reached later, once the player types `ATT`); `vz` just adds a
+  bonus swing on top of that baseline. In other words: the monster
+  always gets the first swing of a round, `vz` is what lets it get two.
+  Set by `SPUR.MISC4.S:149-157`'s pre-fight ambush roll and by the
+  ally-revolt ambush in `SPUR.SUB.S:408`. Also reused as a string-length
+  scratch in `SPUR.MISC5.S:164`.
 
 ## W
 
@@ -958,8 +1005,25 @@ Related file-path variables, not in the original drive-specifier block:
 - **`yo` / `yq`** — Opponent's class/race, copied from `yg`/`yi` at
   `SPUR.DUEL2.S:139` specifically to drive the weapon-affinity scan
   above.
-- **`zt`** — Guild.standings: Claw victory points
-- **`zt$`** — Copy of `xv$` (from spur.misc2)
+- **`zt`** — Guild.standings: Claw victory points. Also reused in
+  `SPUR.MISC4.S`'s `tactical` (the ambush-roll routine underlying the
+  ally shout / god-goddess "life force" line): the deployed ally's
+  current hit points (copy of `a1`/`a2`/`a3` for whichever slot got
+  ambushed), used as the threshold the ambush roll has to beat — `zt=0`
+  (nobody posted in the rolled slot) means the *player* is at risk
+  instead, per the `if zt=0 then if (z>(pi+xp)) vz=1` branch further
+  down.
+- **`zt$`** — Copy of `xv$` (from spur.misc2). Skip's branch also reuses
+  it in `SPUR.MISC4.S`'s `tactical`/`desert` for the ambushed position's
+  flavor text (`"TO THE FRONT"` / `"ON THE FLANK"` / `"TO THE REAR"`,
+  set from `vy`), consumed by both the plain ally shout (`lu$" SHOUTS,
+  '"zt$"!'"`) and, for a `>`/`+`-flagged god/goddess ally, the "life
+  force" line (`"'THERE SEEMS TO BE A LIFE FORCE "zt$",' MENTIONS
+  "lu$`) — see `lu$` above. Master's `SPUR.MISC4.S` prints the same
+  three phrases as three separate `if vy=N print` literals instead of
+  building them into `zt$` first; functionally identical, just less
+  reusable, which is presumably why Skip refactored it this way to also
+  drive the new god/goddess line.
 - **`zu`** — Skill with currently readied weapon
 - **`zu$`** — 10 characters:
   1. Room description — `A`/`B`=off (`spur.logon.s`; `SPUR.ANNEX.S`'s
@@ -985,7 +1049,15 @@ Related file-path variables, not in the original drive-specifier block:
   is a charge" flag (`zw=1` set right before falling through to
   `p.attack`) — unrelated to the duel meaning above, just the same two
   letters recycled in a different overlay.
-- **`zw$`** — Temp for class/race display
+- **`zw$`** — Temp for class/race display. Also reused in
+  `SPUR.MISC4.S`'s `rd.mons`/`claw` as the buffered "There is a
+  &lt;monster&gt; here" room-presence line (`zw$="THE "+m$`, then
+  displayed later): it's built early but not printed immediately —
+  `rd.mon2` falls through to `gosub tactical` (the ally
+  shout/god-goddess line) first, and only once that returns does the
+  caller (`rd.mon3`) finally `print \zw$`. That's *why* the shout/"life
+  force" line prints before the monster is listed in the room: `zw$`
+  is deliberately held back until after `tactical` runs.
 - **`zx$`** — Class/race name slice (`SPUR.LOGON.S:103-107`) and the
   `":"+str$(cr)+"="` search key used in every `ply.locD` room-roster
   lookup.
