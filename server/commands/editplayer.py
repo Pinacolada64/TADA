@@ -718,8 +718,14 @@ def _attributes_menu(ctx) -> Menu:
     _range = {PlayerStat.EGY: (1, 25)}
 
     def _get(stat):
+        # get_stat() returns None (with a logged warning) for a stat key
+        # that isn't in p.stats yet -- true for Charisma on most existing
+        # characters, since it was only added to the roll in _STAT_ORDER
+        # after they were created. Fall back to 0 so the menu shows a real
+        # number instead of "None".
         if hasattr(p, 'get_stat'):
-            return p.get_stat(stat)
+            val = p.get_stat(stat)
+            return val if val is not None else 0
         return (p.stats or {}).get(stat, 0)
 
     def _set(stat, val):

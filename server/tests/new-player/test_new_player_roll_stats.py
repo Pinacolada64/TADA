@@ -73,7 +73,7 @@ class TestRollStatsExplanation(unittest.IsolatedAsyncioTestCase):
 
     async def test_explains_4d6_drop_lowest_technique(self):
         ctx = _FakeCtx(['y'])
-        with patch('random.randint', side_effect=_fixed_rolls(*([[3, 3, 3, 3]] * 6))):
+        with patch('random.randint', side_effect=_fixed_rolls(*([[3, 3, 3, 3]] * 7))):
             result = await _roll_stats(ctx)
         self.assertTrue(result)
         text = ctx._flat()
@@ -83,7 +83,7 @@ class TestRollStatsExplanation(unittest.IsolatedAsyncioTestCase):
 
     async def test_shows_individual_rolls_and_drop_per_stat(self):
         ctx = _FakeCtx(['y'])
-        with patch('random.randint', side_effect=_fixed_rolls([6, 5, 4, 1], *([[3, 3, 3, 3]] * 5))):
+        with patch('random.randint', side_effect=_fixed_rolls([6, 5, 4, 1], *([[3, 3, 3, 3]] * 6))):
             await _roll_stats(ctx)
         text = ctx._flat()
         self.assertIn('rolled', text)
@@ -95,7 +95,7 @@ class TestRollStatsBonusReporting(unittest.IsolatedAsyncioTestCase):
     async def test_race_and_class_deltas_are_reported(self):
         # OGRE: CON+2 DEX-1 INT-2 STR+3 WIS-1 ; FIGHTER: CON+2 DEX-1 INT-2 STR+2 EGY+2
         ctx = _FakeCtx(['y'], char_race=PlayerRace.OGRE, char_class=PlayerClass.FIGHTER)
-        with patch('random.randint', side_effect=_fixed_rolls(*([[3, 3, 3, 3]] * 6))):
+        with patch('random.randint', side_effect=_fixed_rolls(*([[3, 3, 3, 3]] * 7))):
             await _roll_stats(ctx)
         text = ctx._flat()
         self.assertIn('Ogre', text)
@@ -109,7 +109,7 @@ class TestRollStatsBonusReporting(unittest.IsolatedAsyncioTestCase):
 
     async def test_no_bonus_report_when_nothing_changes(self):
         ctx = _FakeCtx(['y'], char_race=None, char_class=None)
-        with patch('random.randint', side_effect=_fixed_rolls(*([[3, 3, 3, 3]] * 6))):
+        with patch('random.randint', side_effect=_fixed_rolls(*([[3, 3, 3, 3]] * 7))):
             await _roll_stats(ctx)
         text = ctx._flat()
         self.assertNotIn('bonuses', text)
@@ -119,14 +119,14 @@ class TestRollStatsBonusReporting(unittest.IsolatedAsyncioTestCase):
         the player's final stats actually reflect the applied deltas, and
         that this is visible in what was sent to the player."""
         ctx = _FakeCtx(['y'], char_race=PlayerRace.DWARF, char_class=None)
-        with patch('random.randint', side_effect=_fixed_rolls(*([[3, 3, 3, 3]] * 6))):
+        with patch('random.randint', side_effect=_fixed_rolls(*([[3, 3, 3, 3]] * 7))):
             await _roll_stats(ctx)
-        # DWARF: CON+1 DEX-1 CHR+2 -- CHR isn't rolled (0 baseline), so it
-        # goes from 0 -> 2 purely from the race bonus.
-        self.assertEqual(ctx.player.stats[PlayerStat.CHR], 2)
+        # DWARF: CON+1 DEX-1 CHR+2 -- CHR is now rolled like every other
+        # stat (9, from three dropped-lowest 3s), plus the +2 race bonus.
+        self.assertEqual(ctx.player.stats[PlayerStat.CHR], 11)
         text = ctx._flat()
         self.assertIn('CHR', text)
-        self.assertIn('0 ->  2', text)
+        self.assertIn('9 -> 11', text)
         self.assertIn('(+2)', text)
 
 
@@ -138,10 +138,12 @@ class TestRollStatsHitPoints(unittest.IsolatedAsyncioTestCase):
 
     async def test_hit_points_is_average_of_final_stats_plus_roll(self):
         ctx = _FakeCtx(['y'], char_race=None, char_class=None)
-        with patch('random.randint', side_effect=_fixed_rolls(*([[3, 3, 3, 3]] * 6), hp_roll=4)):
+        with patch('random.randint', side_effect=_fixed_rolls(*([[3, 3, 3, 3]] * 7), hp_roll=4)):
             await _roll_stats(ctx)
-        # All 6 stats roll to 9 (three 3s summed, lowest 3 dropped); no
-        # race/class means no extra stat keys, so avg is exactly 9.
+        # All 7 stats (including CHR) roll to 9, but HP only averages the
+        # original 6 SPUR stats (Charisma has no SPUR precedent -- see
+        # CHARISMA_AUDIT.md), so the average is still exactly 9 regardless
+        # of CHR's value.
         self.assertEqual(ctx.player.hit_points, 13)
         self.assertIn('Hit Points   : 13', ctx._flat())
 

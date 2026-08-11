@@ -1104,6 +1104,15 @@ async def _choose_guild(ctx) -> bool:
 
 _STAT_ORDER = [
     PlayerStat.STR, PlayerStat.DEX, PlayerStat.CON,
+    PlayerStat.INT, PlayerStat.WIS, PlayerStat.EGY, PlayerStat.CHR,
+]
+
+# SPUR-code/SPUR.NEW.S's "stat1"/"stat2" HP formula only ever averaged
+# these six -- Charisma has no SPUR precedent (see CHARISMA_AUDIT.md) and
+# must stay out of the HP average, or adding it to _STAT_ORDER above would
+# silently dilute every new character's starting HP.
+_HP_STATS = [
+    PlayerStat.STR, PlayerStat.DEX, PlayerStat.CON,
     PlayerStat.INT, PlayerStat.WIS, PlayerStat.EGY,
 ]
 
@@ -1168,7 +1177,11 @@ async def _roll_stats(ctx) -> bool:
             # +random(10), rolled from the post-race/class-delta stats, not a
             # flat default -- see Player.hit_points' own flat-10 fallback
             # (player.py:294/531), which this replaces for new characters.
-            ctx.player.hit_points = round(sum(after.values()) / len(after)) + random.randint(0, 9)
+            # Only the original six SPUR stats feed this average -- Charisma
+            # is a TADA-only addition (_STAT_ORDER above) and must not shift
+            # everyone's starting HP just by being present in `after`.
+            hp_stats = [after[stat] for stat in _HP_STATS]
+            ctx.player.hit_points = round(sum(hp_stats) / len(hp_stats)) + random.randint(0, 9)
             await ctx.send(f"Hit Points   : {ctx.player.hit_points}")
 
             await ctx.send("Stats accepted.")
