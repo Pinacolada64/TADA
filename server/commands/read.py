@@ -284,8 +284,14 @@ class ReadCommand(Command):
             ('read <name>', 'Read the book matching name'),
         ],
         examples = [
-            ('read',                 'Pick from book list'),
-            ('read scrap of paper',  'Read the scrap of paper'),
+            ('read',                 "READ requires at least 6 Intelligence -- too dim "
+                                      "and it just tells you so. With no name given, it "
+                                      "lists every readable book you're carrying and lets "
+                                      "you pick one."),
+            ('read scrap of paper',  "Naming an item (a partial match works) reads it "
+                                      "directly instead. Ordinary books like this stick "
+                                      "around after reading -- only a SCROLL is consumed, "
+                                      "burning up on the spot whatever effect it grants."),
         ],
     )
 

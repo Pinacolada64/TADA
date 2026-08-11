@@ -165,7 +165,12 @@ class PrayCommand(Command):
             ('pray', 'Ask the Spirit of the Dungeons for help.'),
         ],
         examples = [
-            ('pray', 'Try your luck when things are looking grim.'),
+            ('pray', 'PRAY takes no arguments -- typing it begs the Spirit of the '
+                     'Dungeons for a small boost when you\'re genuinely low on hit '
+                     'points, Strength, or Energy, once per session (twice for Druids '
+                     'and Paladins). Praying when you\'re not actually in need just '
+                     'gets a snarky refusal, and pushing your luck past the limit can '
+                     'get you struck by lightning.'),
         ],
     )
 

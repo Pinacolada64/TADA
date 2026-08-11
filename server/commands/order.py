@@ -58,7 +58,11 @@ class OrderCommand(Command):
         ),
         category = HelpCategory.INTERACTION,
         usage    = [('order', "Review and, optionally, redeploy your servants")],
-        examples = [('order', 'See who is Point/Flank/Rear right now')],
+        examples = [('order', "ORDER takes no arguments -- typing it shows how your "
+                               "servants are currently deployed (Point Man/Flank Guard/"
+                               "Rear Guard) and offers to walk you through reassigning "
+                               "them. Purely a roster display today -- combat doesn't "
+                               "yet react to which slot a servant is in.")],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:

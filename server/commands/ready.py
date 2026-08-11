@@ -113,8 +113,13 @@ class ReadyCommand(Command):
             ('ready <name>',  'Ready the weapon matching name'),
         ],
         examples = [
-            ('ready',         'Choose from weapon list'),
-            ('ready sword',   'Ready anything with "sword" in the name'),
+            ('ready',         "READY wields a weapon from your inventory, showing its "
+                               "class, ease of use, and damage once equipped. With no "
+                               "name given, it lists everything you're carrying that can "
+                               "be readied and lets you pick one."),
+            ('ready sword',   'Naming a weapon (a partial match works) readies it '
+                               'directly -- "ready sword" wields whatever you\'re '
+                               'carrying with "sword" in its name.'),
         ],
         see_also = ['combat', 'weaponclass', 'basedamage', 'easeofuse', 'weaponaffinity'],
     )

@@ -54,12 +54,26 @@ class PageCommand(Command):
             ('page #unhaven',                   'Allow pages again'),
         ],
         examples = [
-            ('page Alice=Are you there?',       'Alice receives your page from anywhere'),
-            ('page Alice,Bob=Party at the inn', 'Both Alice and Bob receive your page'),
-            ('page #friends=Where is everyone?','Everyone in your "friends" group'),
-            ('p Bob=Meet me at the inn',        'Alias p works the same way'),
-            ('page #ignore Bob',                'Bob can no longer page you'),
-            ('page #haven',                     'Nobody can page you until #unhaven'),
+            ('page Alice=Are you there?',       'PAGE sends a private, live message to '
+                                                 "another online player, wherever they "
+                                                 'are in the game -- Alice receives '
+                                                 "\"Are you there?\" immediately, no "
+                                                 'matter what room either of you is in.'),
+            ('page Alice,Bob=Party at the inn', 'Comma-separate names to page several '
+                                                 'people the same message at once.'),
+            ('page #friends=Where is everyone?','A saved GROUPS name (see GROUPS) works '
+                                                 "as a target too, paging everyone in it "
+                                                 'without listing them by name.'),
+            ('p Bob=Meet me at the inn',        "'p' (also 'tell'/'msg') is a shorter "
+                                                 'alias for page -- all work the same '
+                                                 'way.'),
+            ('page #ignore Bob',                "'#ignore' blocks a specific player's "
+                                                 "pages from reaching you -- Bob's pages "
+                                                 "are silently dropped until you "
+                                                 "'#unignore' him."),
+            ('page #haven',                     "'#haven' blocks everyone's pages at "
+                                                 "once, not just one player -- lasts "
+                                                 "until you type 'page #unhaven'."),
         ],
         notes = [
             'Use [whisper] to restrict delivery to players in your room.',

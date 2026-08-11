@@ -75,9 +75,15 @@ class SayCommand(Command):
             ('"<message>',    'Shorthand for say'),
         ],
         examples = [
-            ('say Hello there!',   'Rulan exclaims, "Hello there!"'),
-            ('say What time is it?', 'Rulan asks, "What time is it?"'),
-            ('"See you around.',   'Rulan says, "See you around."'),
+            ('say Hello there!',   'SAY broadcasts a message to everyone in your room, '
+                                    'picking a verb from your trailing punctuation rather '
+                                    "than always saying \"says\" -- a trailing '!' shows "
+                                    'as Rulan exclaims, "Hello there!"'),
+            ('say What time is it?', "A trailing '?' shows as asking instead -- Rulan "
+                                      'asks, "What time is it?"'),
+            ('"See you around.',   'The \'"\' shortcut works without typing \'say\' first '
+                                    "-- with no special punctuation at the end, it's just "
+                                    'Rulan says, "See you around."'),
         ],
     )
 
