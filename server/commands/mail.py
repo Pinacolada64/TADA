@@ -418,7 +418,7 @@ class MailCommand(Command):
             targets_str, _, message = raw.partition('=')
             message = message.strip()
             if not message:
-                await ctx.send('Mail what?  Usage: mail <target[,target2]>=<message>')
+                await ctx.send('Mail what?  Usage: mail <target[[,target2]]>=<message>')
                 return CommandResult.fail('Missing message.', error='missing_args')
             return await self._send_short(ctx, targets_str, message)
 
@@ -426,7 +426,7 @@ class MailCommand(Command):
 
     async def _send_short(self, ctx, targets_str: str, message: str) -> CommandResult:
         if not targets_str.strip():
-            await ctx.send('Mail whom?  Usage: mail <target[,target2]>=<message>')
+            await ctx.send('Mail whom?  Usage: mail <target[[,target2]]>=<message>')
             return CommandResult.fail('Missing target.', error='missing_args')
 
         targets, problems = self._resolve_targets(ctx, targets_str)
@@ -445,7 +445,7 @@ class MailCommand(Command):
             await ctx.send(p)
         if not targets:
             if not problems:
-                await ctx.send('Mail whom?  Usage: mail <target[,target2]> (opens the editor)')
+                await ctx.send('Mail whom?  Usage: mail <target[[,target2]]> (opens the editor)')
             return CommandResult.fail('No valid target.', error='missing_args')
 
         from text_editor import run_editor

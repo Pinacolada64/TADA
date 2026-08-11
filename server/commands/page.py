@@ -69,7 +69,7 @@ class PageCommand(Command):
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         if not args:
-            await ctx.send('Page whom?  Usage: page <name[,name2]>=<message>')
+            await ctx.send('Page whom?  Usage: page <name[[,name2]]>=<message>')
             return CommandResult.fail('No arguments.')
 
         first = args[0].lower()
@@ -127,19 +127,19 @@ class PageCommand(Command):
         raw = ' '.join(args)
 
         if '=' not in raw:
-            await ctx.send('Usage: page <name[,name2]>=<message>')
+            await ctx.send('Usage: page <name[[,name2]]>=<message>')
             return CommandResult.fail('Missing =.')
 
         targets_str, _, message = raw.partition('=')
         message = message.strip()
 
         if not message:
-            await ctx.send('Page what?  Usage: page <name[,name2]>=<message>')
+            await ctx.send('Page what?  Usage: page <name[[,name2]]>=<message>')
             return CommandResult.fail('Missing message.')
 
         target_names = parse_targets(targets_str)
         if not target_names:
-            await ctx.send('Page whom?  Usage: page <name[,name2]>=<message>')
+            await ctx.send('Page whom?  Usage: page <name[[,name2]]>=<message>')
             return CommandResult.fail('Missing target name.')
 
         my_name = ctx.player.name

@@ -288,7 +288,7 @@ class ConnectCommand(Command):
 
         if not positional:
             await ctx.send(
-                "Usage:  connect <username> [<password>]",
+                "Usage:  connect <username> [[<password>]]",
                 "        connect guest",
                 "Type 'new' to create a new character.",
             )

@@ -247,7 +247,7 @@ class TeleportCommand(Command):
             room_obj = game_map.get_room(level, room) if game_map else None
             name = getattr(room_obj, 'name', None) or ''
             if not name:
-                await ctx.send('Usage: teleport #learn [<name>] -- current room has no name to fall back on.')
+                await ctx.send('Usage: teleport #learn [[<name>]] -- current room has no name to fall back on.')
                 return CommandResult.fail('No name given.', error='missing_args')
 
         cs = getattr(ctx.player, 'command_settings', None)
@@ -279,7 +279,7 @@ class TeleportCommand(Command):
             room_obj = game_map.get_room(level, room) if game_map and room is not None else None
             name = getattr(room_obj, 'name', None) or ''
             if not name:
-                await ctx.send('Usage: teleport #forget [<alias>] -- current room has no name to fall back on.')
+                await ctx.send('Usage: teleport #forget [[<alias>]] -- current room has no name to fall back on.')
                 return CommandResult.fail('No alias given.', error='missing_args')
 
         for saved_name in destinations:

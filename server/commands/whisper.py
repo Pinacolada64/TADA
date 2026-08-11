@@ -42,25 +42,25 @@ class WhisperCommand(Command):
         # Don't call parse_args: #groupname tokens start with '#' and would be
         # classified as switches, breaking the targets=message syntax.
         if not args:
-            await ctx.send('Whisper to whom?  Usage: whisper <name[,name2]>=<message>')
+            await ctx.send('Whisper to whom?  Usage: whisper <name[[,name2]]>=<message>')
             return CommandResult.fail('No arguments.')
 
         raw = ' '.join(args)
 
         if '=' not in raw:
-            await ctx.send('Usage: whisper <name[,name2]>=<message>')
+            await ctx.send('Usage: whisper <name[[,name2]]>=<message>')
             return CommandResult.fail('Missing =.')
 
         targets_str, _, message = raw.partition('=')
         message = message.strip()
 
         if not message:
-            await ctx.send('Whisper what?  Usage: whisper <name[,name2]>=<message>')
+            await ctx.send('Whisper what?  Usage: whisper <name[[,name2]]>=<message>')
             return CommandResult.fail('Missing message.')
 
         target_names = parse_targets(targets_str)
         if not target_names:
-            await ctx.send('Whisper to whom?  Usage: whisper <name[,name2]>=<message>')
+            await ctx.send('Whisper to whom?  Usage: whisper <name[[,name2]]>=<message>')
             return CommandResult.fail('Missing target name.')
 
         my_name = ctx.player.name
