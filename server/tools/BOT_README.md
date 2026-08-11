@@ -1,4 +1,207 @@
-# tools/BOT_README.md — how to script a live combat-encounter bot
+# tools/BOT_README.md — catalog and notes for tools/bot_*.py scripts
+
+Every `bot_*.py` script here connects to a real running TADA server (or,
+for a couple, drives the command engine directly) as a throwaway test
+account and exercises some feature live — a regression check, a one-off
+verification during active work, or a reactive multi-phase demo. See
+`tools/BOTS_TODO.md` for known duplication/cleanup across these scripts,
+and `bot_horse_journey.py`'s own docstring for why the reactive
+perceive/update-belief/decide pattern (used by the newer, more involved
+scripts) beats a fixed-line scripted send/sleep/assume bot.
+
+Shared infrastructure (not itself a feature demo):
+
+- **`bot_client.py`** (server root, not `tools/`) — generic scripted-bot
+  base: connects, logs in, runs a command sequence, pretty-prints
+  responses. `BOTS_TODO.md` tracks moving more shared plumbing here
+  (terminal-type negotiation, the News board "More" pager dance) so
+  individual scripts stop re-implementing it.
+- **`bot_credentials.py`** — shared, gitignored password loader
+  (`tools/.bot_credentials.json`) so bot scripts stop hardcoding
+  passwords in plain text.
+- **`setup_bot_accounts.py`** — offline seeding of the throwaway test
+  accounts (botdummy/botlasso/botdruid/railbender) these scripts connect
+  as. Run this once before any `bot_*.py` script below.
+
+## Reactive multi-phase live demos
+
+- **`bot_horse_journey.py`** — wild-horse capture: non-Druid/Ranger LASSO
+  capture (two bots) and the Druid/Ranger passive tame (one bot), then
+  the shared tail of Jake's Stable saddle/armor/train.
+- **`bot_monster_encounter.py`** — a full monster encounter in one fight:
+  ORDER servant deployment, the crystal pendant petrify counter, the
+  tactical ambush check, and ranged-weapon combat (READY + USE ammo).
+- **`bot_epic_battle.py`** — the biggest single demo: Death Amulet
+  gamble, STORM weapon auto-assert + ammo, Crystal Pendant, tactical
+  ambush, LASSO+MOUNT+CHARGE+unseat, PC CAST against a live monster,
+  monster spellcasting cast back, a double-attack boss, and a kill on a
+  `no_article`-flagged monster.
+- **`bot_statue_walkthrough.py`** — the statue mechanic (SPUR.MAIN.S's
+  `statue` subroutine).
+- **`bot_sugar_cube_lasso.py`** — the sugar-cube lure → LASSO capture
+  flow (`wild_horse_events.try_sugar_cube_drop()`).
+- **`bot_water_drop_pawn_buyback.py`** — DROPs a metal weapon in a water
+  room so it sinks, then buys it back from Ye Olde Pawn Shoppe's `[B]uy`
+  option (`shoppe/pawn.py`'s `add_to_stock()`).
+- **`bot_swarm.py`** — 10 concurrent bots at once (wandering, PvE, PvP
+  duels, page/whisper/shout, give/loot/pickup) hunting for concurrency
+  bugs a one- or two-bot script can't reach.
+
+## Combat / duels
+
+- **`bot_duel_full.py`** — two bots ready weapons, room A duels room B.
+- **`bot_duel_tactics.py`** — two bots exercise bash/parry/flee tactics.
+- **`bot_duel_bystander.py`** — two duel, a third (botdummy) watches from
+  the same room as a bystander.
+- **`bot_duel_smoke.py`** — `duel` command family smoke test: help text,
+  no-target, invalid opponent, accept, standings.
+
+## Dwarf encounter
+
+- **`bot_dwarf_capture.py`** — full encounter transcript (spotted →
+  robbed → item stolen → hunted down → aftermath), saved to a file.
+- **`bot_dwarf_bystander.py`** — a second bot confirms bystanders see a
+  dwarf theft happen to the first.
+- **`bot_dwarf_playtest.py`** — 60 repeated attacks, comparing stats
+  before/after to watch for combat/reward drift over many rounds.
+- **`bot_dwarf_theft.py`** — stat/inventory consistency check around a
+  theft-capable room.
+- **`bot_dwarf_look.py`** / **`bot_dwarf_stats2.py`** — bare `look` /
+  `stats` checks in a dwarf room.
+
+## Girl encounter
+
+- **`bot_girl_scenario.py`** — drives a configurable choice/gift-pick
+  sequence through the girl encounter and checks resulting stats.
+- **`bot_girl_dual.py`** — same encounter with a second bot watching as
+  a bystander.
+
+## Ally / mount / equipment
+
+- **`bot_ally_wear_armor_check.py`** — GIVE-to-ally armor/shield-wearing
+  branch and the STATS `[Worn: ...]` tag it feeds.
+- **`bot_give_take_ready_sweep.py`** — GIVE/TAKE swept across item kinds
+  (weapon, armor, food, book), checking STAT's readied/worn status
+  before and after each transfer.
+- **`bot_equipment_check.py`** — starting equipment (shield/armor/weapon)
+  and the stats display.
+- **`bot_relogin_check.py`** — shield/armor persistence across a real
+  QUIT + reconnect.
+- **`bot_wear_use_shield_check.py`** — WEAR/USE setting
+  `active_armor_id`/`active_shield_id`, and STAT showing the equipped
+  item names.
+- **`bot_stat_weapon_ally_check.py`** — STAT's "Weapon readied" line
+  (player) and "Wpn: ... Worn: ..." Notes tags (allies).
+- **`bot_editplayer_saddlebags_check.py`** — three saddlebags fixes via
+  the EditPlayer admin menu.
+- **`bot_ammo_carrier_check.py`** — the ammo carrier auto-load mechanic
+  (shoppe/ollys.py, commands/use.py).
+- **`bot_ammo_reconnect_check.py`** — loaded ammo and an ammo box's own
+  item_flags survive a real QUIT + reconnect, not just in-session RELOAD.
+- **`bot_ally_encounters.py`** / **`bot_ally_starvation3.py`** — trigger
+  ally-related room encounters / an ally starvation encounter via plain
+  movement and print the server's response.
+
+## Character creation / login
+
+- **`bot_new_character.py`** — full `new` character-creation session,
+  verifying the 4d6-drop-lowest explanation and the race/class bonus
+  report.
+- **`bot_check_stat_bonus.py`** — does the class/race bonus report show
+  after accepting rolled stats?
+- **`bot_quit_login.py`** — `quit` works at the bare login prompt (before
+  connect/new).
+- **`bot_quit_resume.py`** — quit/resume mid character-creation.
+- **`bot_whereat_chargen.py`** — WHEREAT shows "Creating a character" for
+  someone mid-chargen.
+
+## Spells / monsters
+
+- **`bot_cast_check.py`** — the spell book + CAST command.
+- **`bot_monster_cast_check.py`** — monster spellcasting
+  (`combat/monster_spells.py`).
+- **`bot_charm_accept.py`** — picking up and drinking a charm potion,
+  then accepting the resulting NPC charm prompt.
+
+## Board / news / text editor
+
+- **`bot_board_post.py`** — BOARD post/list/read-back.
+- **`bot_board_options_demo.py`** — BOARD's Prompt Mode reader's full
+  option set: `?` menu, `[L]ist`, jumping ahead, `[R]eply` with a quote.
+- **`bot_text_editor_news.py`** — `text_editor.py` wired into NEWS, and
+  per-viewer re-rendering of a saved post's Justification/Border.
+- **`bot_editor_recovery_demo.py`** — the shutdown/disconnect
+  editor-recovery feature (`save_recovery_file()`/`find_recovery_file()`,
+  `Server.graceful_shutdown()`).
+
+## Prefs / UI
+
+- **`bot_prefs_test.py`** — the consolidated PREFS submenus (Colors &
+  Graphics, Terminal Settings, Date & Time).
+- **`bot_prefs_petscii_guard.py`** — reproduces a specific PETSCII-leak
+  scenario: picking "Commodore 128, 80 col" from an ANSI-connected
+  session and confirming no raw PETSCII bytes land in the transcript.
+- **`bot_border_style.py`** — the border style picker.
+- **`bot_tips_login.py`** — login-time tips.
+- **`bot_tips_playtest.py`** — the `tips` on/off toggle and `#off`/`#on`
+  flags.
+- **`bot_help_bhr.py`** / **`bot_help_bhr_admin.py`** — `help bhr` at the
+  login prompt / in-game.
+
+## Config command
+
+- **`bot_config_check.py`** — bare `config` dump.
+- **`bot_config_fuzzy_match.py`** — fuzzy/partial matching of `config`
+  subcommand names against real keys.
+- **`bot_config_more.py`** / **`bot_config_settings.py`** — near-duplicate
+  sequences covering config help text, victory_type get/set, an invalid
+  key, and a read-only key (port).
+- **`bot_label_check.py`** — `config victory_item_number`'s label
+  formatting.
+- **`bot_list_locations.py`** — `list` filters (weapons/armor/shields/
+  books/all).
+
+## Victory condition
+
+- **`bot_victory_capture.py`** — multi-stage victory-condition transcript
+  capture, selected via a CLI stage argument.
+- **`bot_victory_display.py`** — victory-item display formatting via
+  `config victory_item_number` get/set + dump.
+- **`bot_victory_item.py`** — `config victory_item_number` validation
+  (query, valid value, out-of-range value).
+- **`bot_victory_playtest.py`** — sets an item victory_type, then
+  attempts to win and checks the outcome.
+
+## Analysis / one-off tooling
+
+- **`bot_events_to_artifact_data.py`** — collapses a
+  `bot_monster_encounter.py` `*.events.json` transcript into a clean,
+  de-duplicated narrative for the progression-viewer artifact.
+- **`bot_ration_demo.py`** — rations + ally hunger, run against the real
+  command engine directly (not a live server).
+- **`bot_meteor.py`** — triggers and observes a meteor room event via
+  movement.
+- **`bot_stats_check.py`** / **`bot_stats_test.py`** — bare `stats`
+  check / stats-after-hot-reload check.
+
+## Hot-reload dev utilities
+
+One-off scripts written during active sessions to confirm a specific
+module's hot-reload actually picked up a change — narrow by design, not
+meant as lasting regression coverage:
+
+- `bot_reload_all.py` — batch reload (charm, dwarf, ally events,
+  list_locations).
+- `bot_reload_charm.py` — charm spell + simple_server.
+- `bot_reload_editplayer.py` — editplayer's ally_data dependency.
+- `bot_reload_list3.py` — list_locations, then `list #shield`.
+- `bot_reload_saddle.py` — use/give/inv's ally_data dependency.
+- `bot_reload_stats.py` — the stats module.
+- `bot_reload_tier.py` — combat.resolution/stats/ready, then `stat`.
+
+---
+
+# Research: scripting a live combat-encounter bot
 
 Research notes for writing a reactive bot (in the style of
 `bot_horse_journey.py`) that connects to a real running server, finds a
