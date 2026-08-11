@@ -33,8 +33,14 @@ class TipsCommand(Command):
             ('tips #off', 'Stop showing a tip at login (tips still works manually).'),
         ],
         examples = [
-            ('tips',     'Read the next tip.'),
-            ('tips #off', "Don't show a tip at login."),
+            ('tips',     "TIPS cycles through a list of gameplay tips (ported from "
+                         "SPUR's own tip screen), one at a time, wrapping back to the "
+                         "first after the last. Typing it with no switch just shows the "
+                         "next one in the sequence, whether you got here manually or "
+                         "via a login tip."),
+            ('tips #off', "By default a tip shows automatically at each login -- "
+                          "'#off' turns that off; TIPS still works fine typed manually, "
+                          "'#on' turns automatic display back on."),
         ],
         description = (
             "Cycles through a list of gameplay tips (ported from SPUR's own "

@@ -22,7 +22,10 @@ class UnreadyCommand(Command):
         summary  = 'Unready your currently readied weapon.',
         category = HelpCategory.GENERAL,
         usage    = [('unready', 'Repack your readied weapon.')],
-        examples = [('unready', 'Stop wielding your current weapon.')],
+        examples = [('unready', "UNREADY (also 'unwield') takes no arguments -- it just "
+                                 "repacks whatever weapon you currently have readied, "
+                                 "leaving you unarmed. Fails harmlessly with \"No weapon "
+                                 "readied!\" if you weren't wielding anything.")],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:

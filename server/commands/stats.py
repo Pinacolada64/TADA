@@ -463,7 +463,11 @@ class StatCommand(Command):
             "status conditions, allies, and world-state flags."
         ),
         usage    = [('stat', 'Show your stats')],
-        examples = [('stat', 'Display your character sheet')],
+        examples = [('stat', 'STAT (also stats/status/score) takes no arguments -- '
+                              "typing it displays your full character sheet: money, "
+                              "ability scores, current alignment (see HONOR), Bad "
+                              "Hombre Rating, status conditions, allies, and world-"
+                              "state flags like The Dwarf, all in one screen.")],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:

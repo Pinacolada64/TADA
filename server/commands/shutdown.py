@@ -59,9 +59,15 @@ class ShutdownCommand(Command):
             ('shutdown',                 'Show the current shutdown status.'),
         ],
         examples = [
-            ('shutdown #time 30',  'Shut down in 30 minutes, warning everyone along the way.'),
-            ('shutdown #time now', 'Shut down right now.'),
-            ('shutdown #cancel',   'Call off a scheduled shutdown.'),
+            ('shutdown #time 30',  "SHUTDOWN schedules (or cancels) a graceful server "
+                                    "stop -- every connected player gets saved and "
+                                    "notified before the process actually exits. This "
+                                    "schedules it 30 minutes out, with countdown "
+                                    "warnings broadcast as the deadline gets closer."),
+            ('shutdown #time now', "'now' skips the countdown entirely and shuts down "
+                                    "immediately."),
+            ('shutdown #cancel',   'Call off a shutdown that was already scheduled -- '
+                                    'no effect if none is pending.'),
         ],
         notes = [
             'Every connected player is notified and saved before the '

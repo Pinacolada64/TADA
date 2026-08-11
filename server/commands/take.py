@@ -31,8 +31,14 @@ class TakeCommand(Command):
             ('take <item> from <ally>', 'Take a specific item from a named ally'),
         ],
         examples = [
-            ('take from batman',       'See what Batman is holding'),
-            ('take sword from batman', 'Retrieve the sword from Batman'),
+            ('take from batman',       "TAKE retrieves an item you'd previously GIVEn to "
+                                        "a servant ally, back into your own inventory -- "
+                                        'it only works on servants, not every ally in '
+                                        'your party. "take from batman" lists what an '
+                                        'ally named Batman is currently carrying.'),
+            ('take sword from batman', 'Naming an item skips the listing and takes it '
+                                        'directly, if Batman is actually carrying one '
+                                        'matching that name.'),
         ],
     )
 

@@ -128,16 +128,34 @@ class TeleportCommand(Command):
             ('teleport #forget [<alias>]', 'Remove a saved destination, or the current room\'s.'),
         ],
         examples = [
-            ('#37',           'Go to room 37 on your current level.'),
-            ('#5 18',         'Go to room 18 on level 5.'),
-            ('teleport 1',    'Go to room 1.'),
-            ('teleport guild', 'List all rooms whose name contains "guild".'),
-            ('#learn armory', 'Save the current room as "armory".'),
-            ('#learn',        'Save the current room under its own name.'),
-            ('teleport armory', 'Jump to the saved "armory" destination.'),
-            ('teleport #list', 'List all saved destinations.'),
-            ('#forget armory', 'Remove the saved "armory" destination.'),
-            ('t #find jakes', "Find every room whose name contains \"jakes\", on any level."),
+            ('#37',           'TELEPORT jumps instantly to any room, by number or name '
+                               "fragment -- \"#37\" (the bare '#' form) goes straight to "
+                               'room 37 on your current level.'),
+            ('#5 18',         "A second number is the level -- \"#5 18\" goes to room 18 "
+                               "on level 5 specifically, rather than assuming your "
+                               "current level."),
+            ('teleport 1',    "'teleport'/'t' are longer aliases for the same '#' "
+                               'command -- all three forms behave identically.'),
+            ('teleport guild', 'A name (not a number) searches by fragment instead -- '
+                                'lists every room whose name contains "guild", or jumps '
+                                'straight there if only one matches.'),
+            ('#learn armory', "'#learn' saves your current room under a name of your "
+                               'choosing, so you can jump back to it later without '
+                               'remembering its room number.'),
+            ('#learn',        'With no name given, #learn saves the current room under '
+                               'its own room name instead of a custom one.'),
+            ('teleport armory', 'Typing a saved name later jumps straight to that '
+                                 'remembered destination.'),
+            ('teleport #list', "'#list' (also '#show') lists every destination you've "
+                                'saved with #learn.'),
+            ('#forget armory', "'#forget' removes a saved destination -- with no name "
+                                "given, it removes the current room's saved entry "
+                                "instead."),
+            ('t #find jakes', "'#find' searches room names across every level at once, "
+                               "unlike a bare name search (which only searches your "
+                               "current level) -- finds every room whose name contains "
+                               '"jakes", anywhere in the game. Purely informational: it '
+                               "reports where matches are but doesn't teleport you there."),
         ],
         notes = ['Administrator or Dungeon Master only.'],
     )
