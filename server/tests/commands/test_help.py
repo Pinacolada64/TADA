@@ -315,6 +315,45 @@ class TestFormatHelp(unittest.TestCase):
         self.assertNotIn("Aliases:", out)
 
 
+class TestAdminExamples(unittest.TestCase):
+    """New in TADA: Help.admin_examples -- same shape as Help.examples
+    (syntax + one-line explanation), but only rendered for privileged
+    viewers, gated by format_help()'s is_privileged param exactly like
+    admin_notes. Ryan's request: an example demonstrating an admin-only
+    command (e.g. TELEPORT) shouldn't clutter a regular player's view of
+    a general CONCEPT topic like 'commandline'."""
+
+    def test_hidden_by_default(self):
+        h = Help(summary="x", admin_examples=[("teleport 42", "Go to room 42.")])
+        out = self._fmt(h)
+        self.assertNotIn("Admin Example", out)
+        self.assertNotIn("teleport 42", out)
+
+    def test_shown_when_privileged(self):
+        h = Help(summary="x", admin_examples=[("teleport 42", "Go to room 42.")])
+        out = self._fmt(h, is_privileged=True)
+        self.assertIn("Admin Example:", out)
+        self.assertIn("teleport 42", out)
+        self.assertIn("Go to room 42.", out)
+
+    def test_plural_heading_for_multiple(self):
+        h = Help(summary="x", admin_examples=[("a", "one"), ("b", "two")])
+        out = self._fmt(h, is_privileged=True)
+        self.assertIn("Admin Examples:", out)
+        self.assertNotIn("Admin Example:", out)
+
+    def test_regular_examples_shown_regardless_of_privilege(self):
+        h = Help(summary="x", examples=[("say hi", "Say hi.")],
+                 admin_examples=[("teleport 42", "Go to room 42.")])
+        out = self._fmt(h, is_privileged=False)
+        self.assertIn("Example:", out)  # single regular example -> singular heading
+        self.assertIn("say hi", out)
+        self.assertNotIn("teleport 42", out)
+
+    def _fmt(self, h, **kwargs):
+        return "\n".join(format_help(h, **kwargs) or [])
+
+
 class TestSeeAlso(unittest.TestCase):
     """New in TADA: Help.see_also renders a 'See Also:' section of
     cyan-colored, comma-separated related command/topic names."""
@@ -408,6 +447,18 @@ class TestCommandlineTopicBracketNotation(unittest.TestCase):
         rendered = "\n".join(highlight_brackets(line, PlainCodec()) for line in out)
         self.assertIn("[name]", rendered)
         self.assertIn("[,name2]", rendered)
+
+    def test_teleport_example_hidden_for_regular_players(self):
+        # TELEPORT is Admin/DM-gated -- its syntax example belongs in
+        # admin_examples, not the general examples a regular player sees.
+        out = "\n".join(format_help(_TOPICS["commandline"], width=78, is_privileged=False) or [])
+        self.assertNotIn("teleport", out.lower())
+
+    def test_teleport_example_shown_for_privileged_viewers(self):
+        out = "\n".join(format_help(_TOPICS["commandline"], width=78, is_privileged=True) or [])
+        self.assertIn("Admin Example", out)
+        self.assertIn("teleport 42", out)
+        self.assertIn("administrative command", out.lower())
 
 
 class TestFormatTwoColumnBracketAlignment(unittest.TestCase):

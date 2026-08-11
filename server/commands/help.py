@@ -129,6 +129,13 @@ class Help:
     # just be noise (or an unwanted hint) for a regular player. See
     # format_help()'s is_privileged parameter / _is_privileged_viewer().
     admin_notes: List[str]             = field(default_factory=list)
+    # Same idea as admin_notes, but formatted like `examples` (its own
+    # "Admin Examples:" section, syntax + one-line explanation) -- for an
+    # example that only makes sense to demonstrate for a privileged
+    # viewer, e.g. a CONCEPT topic illustrating command syntax with a
+    # real admin-only command as its example. See format_help()'s
+    # is_privileged parameter / _is_privileged_viewer().
+    admin_examples: List[Tuple[str, str]] = field(default_factory=list)
     # Extra notes appended only for viewers on a real Commodore (PETSCII)
     # connection -- e.g. an alternate keystroke that only matters on that
     # keyboard, and would just be noise for an ANSI/plain-text player. See
@@ -267,7 +274,7 @@ register_topic(
         description=(
             "Most commands take plain words as parameters -- the actual "
             "thing you're acting on, like a player name, item name, or "
-            "number: `page Alice=Hello`, `teleport 42`.\n\n"
+            "number.\n\n"
             "A token starting with '#' is a switch instead: a flag or "
             "sub-option that changes how the command behaves, rather than "
             "data the command acts on. Switches are usually specific to "
@@ -293,7 +300,7 @@ register_topic(
         examples=[
             ("page Alice=Hello",        "'Alice=Hello' is the parameter."),
             ("groups #add friends Bob", "'#add' is the switch; 'friends Bob' are its own parameters."),
-            ("teleport #learn [<name>]", "The name is optional -- omit it to use the room's own name."),
+            ("connect Alice",           "Password left out -- you'll be prompted for it separately."),
         ],
         notes=[
             "A command-specific switch (like '#hide' or '#add') only makes "
@@ -308,6 +315,14 @@ register_topic(
             "'attack #version') -- reports when that command's own code "
             "was last changed instead of running it. Handled centrally in "
             "command_processor.py, gated to Admin/Dungeon Master.",
+        ],
+        # TELEPORT itself is Admin/DM-gated (commands/teleport.py's
+        # execute() checks PlayerFlags.ADMIN/DUNGEON_MASTER), so these
+        # syntax examples only make sense to demonstrate for a viewer who
+        # can actually run them -- see Help.admin_examples.
+        admin_examples=[
+            ("teleport 42",              "An administrative command: teleports you to room #42 on your current level."),
+            ("teleport #learn [<name>]", "The name is optional -- omit it to use the room's own name."),
         ],
     ),
 )
@@ -1601,11 +1616,11 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                  for u in usage]
         lines.extend(format_two_column(items, width))
 
-    # Examples
-    examples = getattr(help_obj, "examples", None)
-    if examples:
+    def _render_examples(singular: str, plural: str, examples: List[Tuple[str, str]]) -> None:
+        if not examples:
+            return
         lines.append("")
-        lines.append(_heading("Example:" if len(examples) == 1 else "Examples:"))
+        lines.append(_heading(singular if len(examples) == 1 else plural))
         for item in examples:
             lines.append(f"  {_esc(item[0])}")
             if len(item) > 1 and item[1]:
@@ -1615,6 +1630,18 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                     initial_indent=" " * 6,
                     subsequent_indent=" " * 6,
                 ))
+
+    # Examples
+    _render_examples("Example:", "Examples:", list(getattr(help_obj, "examples", None) or []))
+
+    # Admin Examples -- privileged (Admin/Dungeon Master) viewers only,
+    # same shape as Examples but for an example that only makes sense to
+    # demonstrate for staff -- e.g. a CONCEPT topic illustrating syntax
+    # with a real admin-only command. See Help.admin_examples and this
+    # function's is_privileged parameter.
+    if is_privileged:
+        _render_examples("Admin Example:", "Admin Examples:",
+                          list(getattr(help_obj, "admin_examples", None) or []))
 
     def _render_notes(heading: str, notes: List[str]) -> None:
         if not notes:
