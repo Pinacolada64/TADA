@@ -9,6 +9,8 @@ items/weapons across the whole map.
                          (book, treasure, ammunition, compass, container,
                          cursed, power)
     list #m[onsters]  — monsters.json entries, via each room's .monster field
+    list #r[ations]   — rations.json entries (food/drink), via each room's
+                         .food field
     list #w #tel      — after listing, prompt to pick one and teleport there
 
 New in TADA -- a debugging/moderation convenience, not a ported
@@ -44,6 +46,7 @@ _CATEGORY_ALIASES = {
     's': 'shield',  'shield':  'shield',
     'i': 'item',    'item':    'item',   'items':    'item',
     'm': 'monster', 'monster': 'monster', 'monsters': 'monster',
+    'r': 'ration',  'ration':  'ration',  'rations':  'ration',
 }
 
 
@@ -81,6 +84,21 @@ def _find_monsters(game_map, server) -> list[tuple[int, int, object, dict]]:
             monster = get_monster(server.monsters, number)
             if monster:
                 matches.append((level, room_no, room, monster))
+    return matches
+
+
+def _find_rations(game_map, server) -> list[tuple[int, int, object, dict]]:
+    """Return (level, room_no, room, ration_dict) for every room whose .food
+    field resolves to a real rations.json entry (food or drink kind).
+
+    room.food is a 1-based index into server.rations, same convention as
+    .weapon/server.weapons -- see commands/get.py's _room_available_items()."""
+    matches = []
+    for level, rooms in game_map.levels.items():
+        for room_no, room in rooms.items():
+            idx = int(getattr(room, 'food', 0) or 0) - 1
+            if 0 <= idx < len(server.rations):
+                matches.append((level, room_no, room, server.rations[idx]))
     return matches
 
 
@@ -123,6 +141,7 @@ class ListLocationsCommand(Command):
             ('list #i[tems]',   'List every item location (any type).'),
             ('list #<type>',    'List by a specific objects.json type (book, treasure, etc.).'),
             ('list #m[onsters]', 'List every monster location.'),
+            ('list #r[ations]', 'List every ration (food/drink) location.'),
         ],
         examples = [
             ('list #w',       'LIST scans every room on every level and reports where a '
@@ -161,7 +180,7 @@ class ListLocationsCommand(Command):
                 # usage fields, needed here by hand since this is a raw
                 # ctx.send(), not a Help(usage=...) entry.
                 'Usage: list #w[[eapons]] | #i[[tems]] | #a[[rmor]] | #s[[hield]] | '
-                '#m[[onsters]] | #<type>  [[#tel]]'
+                '#m[[onsters]] | #r[[ations]] | #<type>  [[#tel]]'
             )
             return CommandResult.fail('No category specified.', error='missing_args')
 
@@ -177,6 +196,8 @@ class ListLocationsCommand(Command):
             found = _find_weapons(game_map, server)
         elif category == 'monster':
             found = _find_monsters(game_map, server)
+        elif category == 'ration':
+            found = _find_rations(game_map, server)
         elif category == 'item':
             found = _find_items(game_map, server, None)
         else:

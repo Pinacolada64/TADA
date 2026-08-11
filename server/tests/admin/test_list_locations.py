@@ -10,18 +10,19 @@ from commands.list_locations import ListLocationsCommand
 from flags import PlayerFlags
 
 
-def _room(name, number=0, item=0, weapon=0, monster=0):
+def _room(name, number=0, item=0, weapon=0, monster=0, food=0):
     r = MagicMock()
     r.name = name
     r.number = number
     r.item = item
     r.weapon = weapon
     r.monster = monster
+    r.food = food
     return r
 
 
 def make_ctx(*, admin=False, dm=False, levels=None, items=None, weapons=None,
-             monsters=None, prompt_answer=None):
+             monsters=None, rations=None, prompt_answer=None):
     player = MagicMock()
     player.name = 'Rulan'
     player.map_level = 1
@@ -39,6 +40,7 @@ def make_ctx(*, admin=False, dm=False, levels=None, items=None, weapons=None,
     server.items    = items or []
     server.weapons  = weapons or []
     server.monsters = monsters or []
+    server.rations  = rations or []
 
     client = MagicMock()
     client.room = 1
@@ -156,6 +158,48 @@ class TestMonsterListing(unittest.IsolatedAsyncioTestCase):
         res = await cmd.execute(ctx, '#m')
         self.assertTrue(res.success)
         self.assertIn('No monster locations found', _sent_text(ctx))
+
+
+class TestRationListing(unittest.IsolatedAsyncioTestCase):
+    async def test_finds_ration_by_room_index(self):
+        cmd = ListLocationsCommand()
+        rations = [{'number': 1, 'name': 'GOAT\'S MILK', 'kind': 'drink'}]
+        rooms = {1: _room('Pantry', food=1), 2: _room('Hallway', food=0)}
+        ctx = make_ctx(admin=True, levels={1: rooms}, rations=rations)
+        res = await cmd.execute(ctx, '#rations')
+        self.assertTrue(res.success)
+        text = _sent_text(ctx)
+        self.assertIn("GOAT'S MILK", text)
+        self.assertIn('Pantry', text)
+        self.assertNotIn('Hallway', text)
+
+    async def test_short_alias_r(self):
+        cmd = ListLocationsCommand()
+        rations = [{'number': 1, 'name': 'HUNK OF BREAD', 'kind': 'food'}]
+        rooms = {1: _room('Pantry', food=1)}
+        ctx = make_ctx(admin=True, levels={1: rooms}, rations=rations)
+        await cmd.execute(ctx, '#r')
+        self.assertIn('HUNK OF BREAD', _sent_text(ctx))
+
+    async def test_includes_both_food_and_drink_kinds(self):
+        cmd = ListLocationsCommand()
+        rations = [
+            {'number': 1, 'name': 'HUNK OF BREAD', 'kind': 'food'},
+            {'number': 2, 'name': 'GOAT\'S MILK', 'kind': 'drink'},
+        ]
+        rooms = {1: _room('Pantry', food=1), 2: _room('Cellar', food=2)}
+        ctx = make_ctx(admin=True, levels={1: rooms}, rations=rations)
+        await cmd.execute(ctx, '#rations')
+        text = _sent_text(ctx)
+        self.assertIn('HUNK OF BREAD', text)
+        self.assertIn("GOAT'S MILK", text)
+
+    async def test_no_matches(self):
+        cmd = ListLocationsCommand()
+        ctx = make_ctx(admin=True, levels={1: {1: _room('Empty Room')}})
+        res = await cmd.execute(ctx, '#r')
+        self.assertTrue(res.success)
+        self.assertIn('No ration locations found', _sent_text(ctx))
 
 
 class TestItemTypeFiltering(unittest.IsolatedAsyncioTestCase):
