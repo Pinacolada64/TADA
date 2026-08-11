@@ -298,7 +298,9 @@ register_topic(
             ("[optional]",             "Square brackets: this part can be left out."),
         ],
         examples=[
-            ("page Alice=Hello",        "'Alice=Hello' is the parameter."),
+            ("page Alice=Hello",        "Page (send a message to a player in a different room) "
+                                         "a player (named Alice). The '=' separates one (or "
+                                         "multiple) players from the message (\"Hello\")."),
             ("groups #add friends Bob", "'#add' is the switch; 'friends Bob' are its own parameters."),
             ("connect Alice",           "Password left out -- you'll be prompted for it separately."),
         ],
