@@ -301,7 +301,10 @@ register_topic(
             ("page Alice=Hello",        "Page (send a message to a player in a different room) "
                                          "a player (named Alice). The '=' separates one (or "
                                          "multiple) players from the message (\"Hello\")."),
-            ("groups #add friends Bob", "'#add' is the switch; 'friends Bob' are its own parameters."),
+            ("groups #add friends Bob", "Groups help you automate writing messages to "
+                                         "multiple people at once. Here, '#add' is a switch "
+                                         "saying you want to add Bob to a group named "
+                                         "'friends'."),
             ("connect Alice",           "Password left out -- you'll be prompted for it separately."),
         ],
         notes=[
