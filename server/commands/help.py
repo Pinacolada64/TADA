@@ -305,7 +305,8 @@ register_topic(
                                          "multiple people at once. Here, '#add' is a switch "
                                          "saying you want to add Bob to a group named "
                                          "'friends'."),
-            ("connect Alice",           "Password left out -- you'll be prompted for it separately."),
+            ("connect Alice",           "To log in as Alice and be prompted for the password "
+                                         "separately, type 'connect Alice'."),
         ],
         notes=[
             "A command-specific switch (like '#hide' or '#add') only makes "
