@@ -1434,20 +1434,27 @@ def format_two_column(items: List[Tuple[str, str]], width: int) -> List[str]:
     alignment (and ignore embedded '\\n's) if lines were pre-joined into one
     string instead.
 
+    Padding uses _visible_len(), not raw len()/str.ljust() -- `left` can
+    contain a [[bracket]]-escaped syntax example (see format_help()'s
+    _esc()), which is 2 characters longer than what actually renders once
+    highlight_brackets() collapses the escape at send time. Padding on
+    raw length would under-pad exactly those rows relative to plain ones.
+
     Used for Usage/Examples-style (syntax, description) listings in
     format_help(), and for HelpCommand's category listing.
     """
     out: List[str] = []
     if not items:
         return out
-    left_col  = min(max(len(s) for s, _ in items), int(width * 0.4), 30)
+    left_col  = min(max(_visible_len(s) for s, _ in items), int(width * 0.4), 30)
     left_col  = max(left_col, 10)
     right_col = max(width - 4 - left_col - 2, 10)
 
     for left, right in items:
+        pad = " " * max(0, left_col - _visible_len(left))
         if right:
             wrapped = textwrap.wrap(right, width=right_col) or [""]
-            out.append(f"  {left.ljust(left_col)}  {wrapped[0]}")
+            out.append(f"  {left}{pad}  {wrapped[0]}")
             for cont in wrapped[1:]:
                 out.append(f"  {'':{left_col}}  {cont}")
         else:

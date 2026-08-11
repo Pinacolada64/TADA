@@ -47,7 +47,7 @@ if ROOT not in sys.path:
 #    imports) that nothing it actually imports needs it.
 # ---------------------------------------------------------------------------
 from commands.help import (
-    Help, HelpCategory, HelpCommand, format_help, _TOPICS,
+    Help, HelpCategory, HelpCommand, format_help, format_two_column, _TOPICS,
     _find_topic_by_substring, _exact_category, _match_categories,
 )
 from commands.base_command import CommandResult
@@ -408,6 +408,42 @@ class TestCommandlineTopicBracketNotation(unittest.TestCase):
         rendered = "\n".join(highlight_brackets(line, PlainCodec()) for line in out)
         self.assertIn("[name]", rendered)
         self.assertIn("[,name2]", rendered)
+
+
+class TestFormatTwoColumnBracketAlignment(unittest.TestCase):
+    """format_two_column() previously padded its left column using raw
+    len()/str.ljust(), which over-counts a [[bracket]]-escaped usage
+    string (see format_help()'s _esc()) by 2 characters relative to what
+    actually renders once highlight_brackets() collapses the escape --
+    e.g. '[optional]' escapes to '[[optional]]' for storage/rendering
+    safety, so a naive left_col computed from the escaped string leaves
+    that row 2 columns short once the client un-escapes it. Ryan caught
+    this live in 'help commandline' output."""
+
+    def test_escaped_bracket_row_aligns_with_plain_row(self):
+        from formatting import highlight_brackets, PlainCodec
+        # Mirrors format_help()'s _esc() escaping of a usage row containing
+        # literal brackets, same as it does for real Help.usage entries.
+        items = [("<required>", "Plain row."), ("[[optional]]", "Escaped-bracket row.")]
+        lines = format_two_column(items, width=78)
+        rendered = [highlight_brackets(line, PlainCodec()) for line in lines]
+        # Both rows' right-hand text must start at the same column once
+        # the escape has collapsed away.
+        col_a = rendered[0].index("Plain row.")
+        col_b = rendered[1].index("Escaped-bracket row.")
+        self.assertEqual(col_a, col_b,
+                          f"columns misaligned: {rendered[0]!r} vs {rendered[1]!r}")
+
+    def test_commandline_topic_usage_rows_align(self):
+        from formatting import highlight_brackets, PlainCodec
+        out = format_help(_TOPICS["commandline"], width=78) or []
+        rendered = [highlight_brackets(line, PlainCodec()) for line in out]
+        required_line = next(l for l in rendered if l.strip().startswith("<required>"))
+        optional_line = next(l for l in rendered if l.strip().startswith("[optional]"))
+        col_a = required_line.index("Angle brackets:")
+        col_b = optional_line.index("Square brackets:")
+        self.assertEqual(col_a, col_b,
+                          f"columns misaligned: {required_line!r} vs {optional_line!r}")
 
 
 class TestPlayerMechanicsConceptTopics(unittest.TestCase):
