@@ -16,6 +16,11 @@ _AMMO_RANGE      = range(98, 112)    # 98–111 inclusive
 _CARRIER_RANGE   = range(147, 151)   # 147–150 inclusive
 _BOOBY_BASE      = 152               # code A = 152, B = 153, …
 
+# Zebra-stripe alternation for every table this shop renders (ammo listing,
+# carrier listing, and the [H]elp section's carrier glossary) -- one shared
+# constant so a future palette change only needs to happen in one place.
+_ROW_COLORS = ['light_blue', 'cyan']
+
 
 def _load_objects() -> list[dict]:
     path = os.path.join(os.path.dirname(__file__), '..', 'objects.json')
@@ -80,7 +85,6 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
     # line; the 'Used With' header already labels the column, so the
     # brackets were redundant anyway (same reasoning that dropped 'rnd'/
     # 'dmg:'/'cap:' from these rows earlier).
-    _ROW_COLORS = ['light_blue', 'cyan']
 
     def _ammo_table() -> Table:
         t = Table(headers=[
@@ -374,6 +378,35 @@ async def _help_section(ctx: GameContext) -> None:
         committing to the mechanic.
     """
     from formatting import underline
+    from table import Align, Column, Table
+
+    try:
+        width = ctx.player.client_settings.screen_columns
+    except AttributeError:
+        width = 78
+
+    # Zebra-striped like the shop's own ammo/carrier listings (same
+    # _ROW_COLORS) -- Ryan's request, turning the plain glossary lines
+    # into a real table rather than hand-aligned text.
+    carrier_glossary = Table(headers=[
+        Column('Carrier',                    min_width=13),
+        Column('What it is / refills',       min_width=20),
+    ], border=False, text_color=_ROW_COLORS)
+    carrier_glossary.add_row([
+        'Cartridge box',
+        'A small hinged box of paper or metal-cased rounds, worn on '
+        'the belt.  Refills the musket.',
+    ])
+    carrier_glossary.add_row([
+        'Bandolier',
+        'A strap worn across the chest, lined with loops to hold '
+        'rounds ready to hand.  Refills a .357 or .44 magnum.',
+    ])
+    carrier_glossary.add_row([
+        'Shell caisson',
+        'A small ammunition wagon or chest for heavy ordnance, too '
+        'big to sling over a shoulder.  Refills the cannon.',
+    ])
 
     await ctx.send([
         '',
@@ -394,6 +427,8 @@ async def _help_section(ctx: GameContext) -> None:
         'pack afterward instead of being used up -- buy matching ammo '
         'here again later to top it back off.  You only need one per '
         'weapon; a second sits empty and does nothing.',
+        '',
+        *carrier_glossary.render(width=width),
         '',
         *underline('Stray Rounds / Friendly Fire', ctx),
         'A missed ammo shot may go wide and hit a party member or '

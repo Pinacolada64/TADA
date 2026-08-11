@@ -312,6 +312,17 @@ class TestOllysMainDispatch(unittest.IsolatedAsyncioTestCase):
         await ollys_main(ctx)
         self.assertIn('Ammunition Guide', ctx._flat())
 
+    async def test_h_shows_carrier_glossary(self):
+        """Ryan's request: define what a cartridge box/bandolier/shell
+        caisson actually is, not just list the names."""
+        player = _funded_player()
+        ctx = _FakeCtx(['h', 'q'], player)
+        await ollys_main(ctx)
+        flat = ctx._flat()
+        self.assertIn('Cartridge box', flat)
+        self.assertIn('Bandolier', flat)
+        self.assertIn('Shell caisson', flat)
+
     async def test_q_leaves_immediately(self):
         player = _funded_player()
         ctx = _FakeCtx(['q'], player)
