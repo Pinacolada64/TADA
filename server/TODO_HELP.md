@@ -42,27 +42,18 @@ convention as the existing `bhr`/`rooms`/`commandline` topics:
 
 - **✅ Done (8/10/26).** ~~Honor / alignment~~ -- written as the
   `honor`/`alignment` CONCEPT topic.
-- **Guilds** (Civilian / Iron Fist / Mark of the Sword / Mark of the
-  Claw / Outlaw) -- `Guild` StrEnum (`base_classes.py`), chosen during
-  character creation (`commands/new_player.py`'s Guild step),
-  `PlayerFlags.GUILD_MEMBER`/`GUILD_AUTODUEL`/`GUILD_FOLLOW_MODE`.
-  Ties into dueling/territory concepts the Guild step's own text
-  already gestures at but doesn't fully explain.
+- **✅ Done (8/10/26).** ~~Guilds~~ -- written as the `guilds`/`guild`
+  CONCEPT topic. Notes it explicitly flags that live guild dueling
+  isn't implemented yet, rather than repeating the choice-screen's
+  aspirational "dueling, territory control" flavor text as fact.
 - **✅ Done (8/10/26).** ~~Experience levels vs. `xp_level`~~ -- written
   as the `experience`/`xplevel`/`levels` CONCEPT topic, folded together
   with the "Battle experience tiers" entry below since they're the same
   disambiguation.
-- **The More Prompt / paging system** -- command-level help exists
-  (`commands/more_prompt.py`, `commands/prefs.py`'s 'M' row), but no
-  general CONCEPT topic explains screen-by-screen "-- More --"
-  pagination the way `rooms` explains a general term. Could mostly
-  reuse `more_prompt.py`'s existing description text.
-- **Virtual areas** (Bar / Shoppe / Elevator / guild HQs) and how they
-  relate to ordinary rooms -- `bar/main.py`, `shoppe/main.py`,
-  `shoppe/elevator.py`, `annex/main.py`; MECHANICS.md:315-322
-  documents the `rc`/`rt` room-exit fields that route into them. This
-  is a genuinely confusing mechanic (a "virtual area" isn't a room
-  number) worth its own topic, distinct from `rooms`.
+- **✅ Done (8/10/26).** ~~The More Prompt / paging system~~ -- written
+  as the `moreprompt`/`paging` CONCEPT topic.
+- **✅ Done (8/10/26).** ~~Virtual areas~~ -- written as the
+  `virtualareas` CONCEPT topic.
 - **Weapon classes** (bash/slash, poke/jab, pole/range, projectile,
   energy, proximity) and class/race weapon affinities --
   `WeaponClass` enum + `weapon_bonus()` (`item_system.py:241`, used by
@@ -74,12 +65,8 @@ convention as the existing `bhr`/`rooms`/`commandline` topics:
   -- folded into the `experience` topic above rather than a separate
   one, since the whole point is disambiguating it from `xp_level` in
   the same breath.
-- **Stat rolling** -- character creation's attribute-roll step
-  (`commands/new_player.py`'s `_roll_stats()`, 4d6-drop-lowest per
-  stat) already has decent inline explanation text shown during
-  creation (`_ROLL_EXPLANATION`), but no standalone `help stats`-
-  adjacent CONCEPT topic for looking it up later outside of character
-  creation.
+- **✅ Done (8/10/26).** ~~Stat rolling~~ -- written as the
+  `statrolling`/`rollstats`/`4d6` CONCEPT topic.
 - **Duels** -- BHR's own help text already references dueling
   ("sizing up other adventurers before a duel"), but dueling itself
   isn't implemented yet (MECHANICS.md's Live Duel / Autoduel are both
@@ -89,12 +76,11 @@ convention as the existing `bhr`/`rooms`/`commandline` topics:
 - **✅ Done (8/10/26).** ~~Parties / allies~~ -- written as the
   `parties`/`allies` CONCEPT topic (cross-linked with the new
   `eliteally` topic from the tips.txt pass below).
-- **PETSCII vs. ANSI terminal types** -- `Translation` enum
-  (`terminal.py`: PETSCII/ANSI/COMMODORE/ASCII), selected via
-  `commands/prefs.py`'s Client Type row; affects rendering throughout
-  `formatting.py` (e.g. guild sigils differ by translation). A "why
-  does this look different on my terminal" topic would help new
-  players picking a Client Type during/after character creation.
+- **✅ Done (8/10/26).** ~~PETSCII vs. ANSI terminal types~~ -- written
+  as the `petscii`/`ansi`/`clienttype` CONCEPT topic. Correction while
+  writing it: `Translation` (`terminal.py`) has only three members --
+  PETSCII/ASCII/ANSI. This file's earlier note claiming a fourth
+  `COMMODORE` value was wrong; no such member exists.
 - **Horses / mounts** -- `commands/mount.py`/`commands/dismount.py`
   have command-level help, but the broader concept (acquiring a horse,
   CHARGE, unseating, SADDLED/ARMORED flags -- spread across

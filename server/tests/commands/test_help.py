@@ -419,6 +419,35 @@ class TestPlayerMechanicsConceptTopics(unittest.TestCase):
             for line in out:
                 self.assertLessEqual(_visible_len(line), 78, f"{name!r} line too long: {line!r}")
 
+
+class TestWorldConceptTopics(unittest.TestCase):
+    """guilds/virtualareas/moreprompt/petscii/statrolling concept topics --
+    TODO_HELP.md's 7/14/26 'concept topics worth adding' list, second batch."""
+
+    TOPIC_NAMES = ["guilds", "virtualareas", "moreprompt", "petscii", "statrolling"]
+
+    def test_all_new_topics_registered(self):
+        for name in self.TOPIC_NAMES:
+            self.assertIn(name, _TOPICS, f"{name!r} not registered as a topic")
+
+    def test_alias_forms_also_resolve(self):
+        for alias in ("guild", "virtual area", "more prompt", "ansi",
+                      "client type", "roll stats", "4d6"):
+            self.assertIn(alias, _TOPICS, f"{alias!r} alias not registered")
+
+    def test_every_see_also_entry_resolves_to_a_real_topic(self):
+        for name in self.TOPIC_NAMES:
+            for ref in _TOPICS[name].see_also:
+                self.assertIn(ref, _TOPICS, f"{name!r}.see_also has unresolvable {ref!r}")
+
+    def test_topics_render_without_error(self):
+        from formatting import _visible_len
+        for name in self.TOPIC_NAMES:
+            out = format_help(_TOPICS[name], command_name=name, width=78)
+            self.assertIsNotNone(out, f"{name!r} produced no output")
+            for line in out:
+                self.assertLessEqual(_visible_len(line), 78, f"{name!r} line too long: {line!r}")
+
     def test_weaponaffinity_topic_mentions_all_nine_classes(self):
         out = "\n".join(format_help(_TOPICS["weaponaffinity"], width=78) or [])
         for cls in ("Wizard", "Druid", "Fighter", "Paladin", "Ranger",

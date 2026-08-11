@@ -977,6 +977,180 @@ register_topic(
     ),
 )
 
+register_topic(
+    "guilds", "guild",
+    help_obj=Help(
+        summary="Guilds: Civilian, Iron Fist, Sword, Claw, or Outlaw",
+        description=(
+            "During character creation you choose a guild -- Civilian, "
+            "The Iron Fist, Mark of the Sword, Mark of the Claw, or "
+            "Outlaw -- which is mostly a roleplaying/flavor choice, but "
+            "guild membership does gate a few real things: each guild "
+            "has its own headquarters (a virtual area with a food "
+            "locker, item locker, and guild bank), and Civilians are "
+            "advertised as safe from dueling by anyone but an Outlaw.\n\n"
+            "Outlaw is the odd one out -- you make yourself a target "
+            "for nearly everyone else in exchange for solo-play "
+            "opportunities the other guilds don't get. Civilian is the "
+            "safest choice and the one recommended for a first "
+            "character.\n\n"
+            "GUILD FOLLOW MODE (an on/off toggle, see FOLLOW) is "
+            "separate from which guild you're in -- it controls whether "
+            "you automatically tag along when a fellow guild member "
+            "moves, not membership itself."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("follow", "Toggle Guild Follow Mode."),
+        ],
+        notes=[
+            "Live guild-vs-guild dueling isn't implemented yet -- the "
+            "guild-choice screen's dueling/territory-control flavor text "
+            "describes where the game is headed, not something you can "
+            "trigger today.",
+        ],
+        admin_notes=[
+            "Guild StrEnum (base_classes.py); guild choice UI is "
+            "commands/new_player.py's _choose_guild() (_GUILD_INFO). "
+            "PlayerFlags.GUILD_MEMBER/GUILD_AUTODUEL/GUILD_FOLLOW_MODE "
+            "(flags.py) -- GUILD_FOLLOW_MODE is the only one actually "
+            "wired to live behavior so far (commands/follow.py); "
+            "GUILD_AUTODUEL is set but has no consuming logic yet (no "
+            "duel system exists). Guild HQ virtual area: guild_hq/main.py.",
+        ],
+        see_also=["virtualareas"],
+    ),
+)
+
+register_topic(
+    "virtualareas", "virtual area", "virtual areas",
+    help_obj=Help(
+        summary="Virtual areas: the Bar, Shoppe, Elevator, and guild HQs",
+        description=(
+            "Most of the game is ordinary rooms connected by compass "
+            "exits, but a few locations work differently: the Wall Bar "
+            "& Grill, the Shoppe, and each guild's headquarters are "
+            "\"virtual areas\" -- self-contained, menu-driven places you "
+            "enter from a specific room rather than a room number of "
+            "their own on the map. You don't LOOK around and pick an "
+            "exit direction there; you get a menu of options instead, "
+            "and a dedicated command (often just a letter) leaves it and "
+            "puts you back in the ordinary room you entered from.\n\n"
+            "The Elevator works the same way for Up/Down travel in "
+            "certain rooms -- rather than a compass exit to a specific "
+            "room, it's a connection that can route you into the "
+            "Shoppe or to a real staircase destination on the same "
+            "level, depending on the room."
+        ),
+        category=HelpCategory.CONCEPT,
+        see_also=["rooms", "guilds"],
+        admin_notes=[
+            "bar/main.py, shoppe/main.py, shoppe/elevator.py, "
+            "annex/main.py, guild_hq/main.py. A room's exits dict can "
+            "carry rc/rt fields (MECHANICS.md:343-358) separate from "
+            "compass exits: rc=1/2 marks an Up/Down elevator connection, "
+            "rt==0 routes into the Shoppe, rt>0 is a real same-level "
+            "staircase to that room number. commands/movement.py's "
+            "MoveCommand and Server._move() (simple_server.py) resolve "
+            "these.",
+        ],
+    ),
+)
+
+register_topic(
+    "moreprompt", "more prompt", "paging", "pagination",
+    help_obj=Help(
+        summary="The '-- More --' pause between screenfuls of output",
+        description=(
+            "When More Prompt is on, any output longer than one screen "
+            "pauses partway through with a '-- More --' prompt instead "
+            "of scrolling everything past you at once. From that "
+            "prompt: Enter shows the next page, B or - goes back a "
+            "page, and Q stops and discards the rest.\n\n"
+            "Turn it off and everything sends in one go regardless of "
+            "length -- better for a client that already scrolls back "
+            "comfortably or logs its own output, worse if long listings "
+            "(like a big room or inventory) fly past faster than you "
+            "can read them."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("mp",                "Quickly toggle More Prompt on/off."),
+            ("prefs",             "Open PREFS; 'M' also toggles More Prompt."),
+        ],
+        admin_notes=[
+            "PlayerFlags.MORE_PROMPT (flags.py); toggled by "
+            "commands/more_prompt.py's MorePromptCommand (name 'mp') and "
+            "commands/prefs.py's 'M' row -- both call "
+            "commands/prefs.py's toggle_more_prompt().",
+        ],
+    ),
+)
+
+register_topic(
+    "petscii", "ansi", "terminaltype", "terminal type", "clienttype", "client type",
+    help_obj=Help(
+        summary="Why the game looks different depending on your terminal",
+        description=(
+            "TADA renders the same game text differently depending on "
+            "what kind of terminal/client you're connecting with, set "
+            "via PREFS' Client Type row. A real Commodore (PETSCII) "
+            "gets Commodore's own character set and color codes; an "
+            "ANSI terminal gets standard ANSI escape codes and a wider "
+            "color palette; a plain ASCII client gets neither -- just "
+            "text, with color codes stripped.\n\n"
+            "This is why some things (like a guild's sigil, or a boxed-"
+            "text tip) can look different -- or not appear at all -- "
+            "between two players connected with different clients: the "
+            "game picks the right rendering for your Client Type "
+            "automatically once it's set correctly, so if something "
+            "looks wrong (garbled symbols, missing color, boxes drawn "
+            "with the wrong characters), check PREFS' Client Type first."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("prefs", "Open PREFS; Client Type is on the Terminal Settings submenu."),
+        ],
+        see_also=["colors"],
+        admin_notes=[
+            "terminal.py's Translation enum (PETSCII/ASCII/ANSI -- only "
+            "three values; earlier notes in this file mentioning a "
+            "fourth 'COMMODORE' value were wrong, no such member "
+            "exists). Selected via commands/prefs.py's Client Type row; "
+            "consumed throughout formatting.py (e.g. codec_for_settings(), "
+            "PETSCIICodec) for anything that renders differently per "
+            "terminal.",
+        ],
+    ),
+)
+
+register_topic(
+    "statrolling", "stat rolling", "rollstats", "roll stats", "4d6",
+    help_obj=Help(
+        summary="How your starting attributes are rolled (4d6, drop lowest)",
+        description=(
+            "Each of your six starting attributes (Strength, Dexterity, "
+            "Constitution, Intelligence, Wisdom, Energy) is rolled with "
+            "four six-sided dice: the lowest of the four is dropped, "
+            "and the remaining three are added together, giving a "
+            "result from 3 to 18. You see all six rolls at once during "
+            "character creation and can accept them or re-roll the "
+            "whole set as many times as you like before locking them in "
+            "-- there's no limit on re-rolling, so there's little reason "
+            "to accept a set you're unhappy with.\n\n"
+            "Your class and race then apply their own fixed bonuses/"
+            "penalties on top of whatever you rolled."
+        ),
+        category=HelpCategory.CONCEPT,
+        admin_notes=[
+            "commands/new_player.py's _roll_stats()/_roll_one_stat() "
+            "(4d6-drop-lowest per PlayerStat in _STAT_ORDER); class/race "
+            "bonuses applied separately via PlayerClassBonuses/"
+            "PlayerRaceBonuses (base_classes.py).",
+        ],
+    ),
+)
+
 
 # ---------------------------------------------------------------------------
 # Helper function - guards against Mode.NONE instead of a set {Mode.NONE}
