@@ -17,6 +17,7 @@ import logging
 import random
 
 from bar.ally_data import Ally
+from bar.charisma import charisma_check, charisma_tier
 from base_classes import PlayerMoneyTypes, PlayerStat, PronounType
 from debug_tools import debug_toggle_once_per_day
 from flags import PlayerFlags
@@ -30,6 +31,11 @@ _NPC       = "Skip"
 _HASH_COST = 5    # silver  (SPUR: 5g for hash)
 _COFF_COST = 1    # silver  (SPUR: 1g for coffee)
 _STAT_CAP  = 25   # SPUR: if peek(m)+ar < 25 then poke m, peek(m)+ar
+# TADA addition: a charismatic regular occasionally gets a round on the
+# house. Only rollable for 'high' tier and already bounded by the
+# once-per-day visit gate + per-visit `ordered` lock, so it can't be
+# farmed. See server/CHARISMA_AUDIT.md's "NPC reactions" suggestion.
+_COMP_DC   = 15
 _HP_COFFEE_THRESHOLD = 21   # +4 HP only when HP <= this (SPUR: if x>21 then {:con})
 
 
@@ -187,7 +193,9 @@ async def main(ctx: GameContext, bar=None) -> None:
                     pronoun = get_pronoun(patron, PronounType.SUBJECTIVE).capitalize()
                     plural  = ''
 
-            if not player.subtract_silver(PlayerMoneyTypes.IN_HAND, _HASH_COST):
+            if charisma_tier(player) == 'high' and charisma_check(player, _COMP_DC):
+                await ctx.send(f'{_NPC} waves off your silver. "Ah, on the house, {z}."')
+            elif not player.subtract_silver(PlayerMoneyTypes.IN_HAND, _HASH_COST):
                 await ctx.send(f'{_NPC} mutters, "Ye don\'t got enough gold."')
                 continue
 
@@ -219,7 +227,9 @@ async def main(ctx: GameContext, bar=None) -> None:
                 await ctx.send(f'{_NPC} protests. "You just had the last of it!"')
                 continue
 
-            if not player.subtract_silver(PlayerMoneyTypes.IN_HAND, _COFF_COST):
+            if charisma_tier(player) == 'high' and charisma_check(player, _COMP_DC):
+                await ctx.send(f'{_NPC} waves off your silver. "Ah, on the house, {z}."')
+            elif not player.subtract_silver(PlayerMoneyTypes.IN_HAND, _COFF_COST):
                 await ctx.send(
                     f'{_NPC} wipes a nonexistent spot on the counter with a rag. '
                     '"I know, times are tough."'

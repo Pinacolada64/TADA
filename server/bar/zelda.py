@@ -16,6 +16,7 @@ import logging
 from pathlib import Path
 from random import choice
 
+from bar.charisma import charisma_tier
 from base_classes import Gender, PlayerStat, PlayerMoneyTypes, PronounType
 from commands.messaging import player_exists, prompt_player_choice
 from flags import PlayerFlags
@@ -433,6 +434,14 @@ async def _tell_fortune(ctx: GameContext) -> None:
             f'{player.name} gets {get_pronoun(player, PronounType.POSSESSIVE_ADJECTIVE)} fortune read.'
         )
         await ctx.send(f'{_NPC} consults the tea leaves, finally announcing: "{fortune}"')
+        # TADA addition: a charismatic visitor gets Zelda to open up with a
+        # second, unprompted reading -- see server/CHARISMA_AUDIT.md's "NPC
+        # reactions" suggestion.
+        if charisma_tier(player) == 'high':
+            extra = choice([f for f in _FORTUNES if f != fortune])
+            await ctx.send(
+                f'{_NPC} leans in, unable to resist adding: "{extra}"'
+            )
         ans = await ctx.prompt('Another fortune? (Y/N)')
         if not ans or ans.strip().lower() not in ('y', 'yes'):
             break

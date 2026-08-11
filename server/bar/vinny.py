@@ -15,6 +15,7 @@ import math
 import random
 from typing import Tuple
 
+from bar.charisma import charisma_tier
 from base_classes import PlayerMoneyTypes
 from flags import PlayerFlags
 from network_context import GameContext
@@ -27,6 +28,10 @@ _AP       = "'"
 _MAX_LOAN = 5_000     # max new + outstanding combined (SPUR.BAR3.S)
 _MAX_STORED = 5_000   # max silver Vinny will hold for you (SPUR.BAR3.S)
 _LOAN_RATE  = 4 / 3   # repayment is 133% of principal (SPUR.BAR3.S borrow logic)
+# TADA addition: a charismatic borrower talks Vinny down to a friendlier
+# rate. Not SPUR-sourced -- see server/CHARISMA_AUDIT.md's "NPC reactions"
+# suggestion. Low/mid tiers keep the SPUR-accurate 133%.
+_LOAN_RATE_HIGH_CHR = 1.25
 _MIN_PAYMENT = 1_000  # minimum partial payment (SPUR.BAR3.S)
 
 
@@ -62,6 +67,16 @@ _ANNOYED_LINES = [
     f'{_NPC} cracks his knuckles. {_AP}I don{_AP}t got time for dis, {{hn}}.{_AP}',
     f'{_NPC} taps cigar ash onto the floor. {_AP}Try again, {{hn}}.{_AP}',
     f'{_NPC} narrows his eyes. {_AP}Youse tryin{_AP} ta be funny, {{hn}}?{_AP}',
+]
+
+# TADA addition: a low-Charisma player gets Vinny's short fuse instead of
+# his usual mild annoyance -- see server/CHARISMA_AUDIT.md's "NPC
+# reactions" suggestion.
+_ANNOYED_LINES_LOW_CHR = [
+    f'{_NPC} slams a meaty fist on the table. {_AP}Youse deaf, {{hn}}? '
+    f'I said stick ta da choices!{_AP}',
+    f'{_NPC} looks at youse like youse is somethin{_AP} he scraped off his shoe. '
+    f'{_AP}Get it right, {{hn}}, or get lost.{_AP}',
 ]
 
 
@@ -126,6 +141,12 @@ async def _apply_loan(ctx: GameContext, hn: str, dl: str) -> None:
             f'But if youse fail ta pay...{_AP} '
             f'His voice trails off as he raises a ham-like fist menacingly.'
         )
+    elif charisma_tier(player) == 'high':
+        await ctx.send(
+            f'{_NPC} chuckles warmly. {_AP}Ah, {hn}, for youse? '
+            f'I can let youse have up to {headroom:,}s, an{_AP} at a friend{_AP}s '
+            f'rate, no less.{_AP}'
+        )
     else:
         await ctx.send(
             f'{_NPC} leans forward. {_AP}Psst, wanna loan, {hn}? '
@@ -147,8 +168,10 @@ async def _apply_loan(ctx: GameContext, hn: str, dl: str) -> None:
         await ctx.send(f'{_NPC} smirks. {_AP}Nice try, {hn}...{_AP}')
         return
 
-    # Repayment at 133% (SPUR.BAR3.S: g1*4/3)
-    total_owed = existing + math.ceil(amount * _LOAN_RATE)
+    # Repayment at 133% (SPUR.BAR3.S: g1*4/3), unless a charismatic
+    # borrower talked Vinny down to a friendlier rate (TADA addition).
+    rate = _LOAN_RATE_HIGH_CHR if charisma_tier(player) == 'high' else _LOAN_RATE
+    total_owed = existing + math.ceil(amount * rate)
     weeks      = max(1, math.ceil(amount / 1000))
     days       = weeks * 7
     daily      = math.ceil(total_owed / days)
@@ -460,7 +483,8 @@ async def main(ctx: GameContext, bar=None) -> None:
         elif cmd == 'c':
             await _clown_around(ctx, hn, dl)
         else:
-            await ctx.send(random.choice(_ANNOYED_LINES).format(hn=hn))
+            pool = _ANNOYED_LINES_LOW_CHR if charisma_tier(player) == 'low' else _ANNOYED_LINES
+            await ctx.send(random.choice(pool).format(hn=hn))
 
 
 # ---------------------------------------------------------------------------
