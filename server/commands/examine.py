@@ -51,6 +51,51 @@ _DWARF_TREASURE_CHANCE = 26
 # searching a corpse.
 _DISEASE_CHANCE_PCT = 2
 
+# objects.json "type" -> (singular, plural) noun phrase naming what kind of
+# thing an item is, for EXAMINE's generic ("looks pretty ordinary..") flavor
+# line -- Ryan's request that EXAMINE say what you're looking at, not just
+# how unremarkable it looks. Both forms are needed: this_or_these()/
+# is_or_are() already switch "this .. is" to "these .. are" for a plural
+# item name (e.g. rations.json's "STANDARD RATIONS", "DRY BONES"), and a
+# singular article stapled onto that ("These rations are a treasure.")
+# reads as broken English -- see _item_type_phrase().
+_OBJECT_TYPE_PHRASES = {
+    'treasure':   ('a treasure', 'treasures'),
+    'misc':       ('an item', 'items'),
+    'book':       ('a book', 'books'),
+    'ammunition': ('ammunition', 'ammunition'),
+    'shield':     ('a shield', 'shields'),
+    'armor':      ('a piece of armor', 'pieces of armor'),
+    'cursed':     ('a cursed treasure', 'cursed treasures'),
+    'power':      ('a power pak', 'power paks'),
+    'container':  ('a container', 'containers'),
+    'compass':    ('a compass', 'compasses'),
+}
+
+
+def _item_type_phrase(item, raw: dict | None, plural: bool) -> str | None:
+    """Return a short noun phrase describing *item*'s type for EXAMINE's
+    flavor line, or None if the type is unknown/unrepresented. *plural*
+    should match this_or_these()/is_or_are()'s own verdict on the item's
+    name (name.endswith('s')) so the noun phrase agrees with the rest of
+    the sentence."""
+    if isinstance(item, Weapon):
+        is_magic = bool(raw and raw.get('kind') == 'magic')
+        if plural:
+            return 'magical weapons' if is_magic else 'weapons'
+        return 'a magical weapon' if is_magic else 'a weapon'
+    if isinstance(item, Rations):
+        kind = raw.get('kind') if raw else getattr(item, 'kind', None)
+        if kind == 'food':
+            return 'food'
+        if kind == 'drink':
+            return 'drinks' if plural else 'a drink'
+        return None
+    if raw:
+        pair = _OBJECT_TYPE_PHRASES.get(raw.get('type'))
+        return pair[1 if plural else 0] if pair else None
+    return None
+
 
 def _raw_item_data(ctx, item) -> dict | None:
     """Find *item*'s original objects.json/weapons.json/rations.json entry
@@ -129,10 +174,19 @@ def _examine_item(ctx, name: str, item) -> str:
         if name in last_examined:
             return 'You have already examined this!'
         last_examined.append(name)
-        return f'{this_or_these(name, capitalize=True)} {name} {is_or_are(name)} Magical.' if kind == 'magic' else \
-            f'{this_or_these(name, capitalize=True)} {name} {is_or_are(name)} cursed!'
+        plural = name.lower().endswith('s')
+        if kind == 'magic':
+            return f'{this_or_these(name, capitalize=True)} {name} {is_or_are(name)} Magical.'
+        cursed_phrase = _OBJECT_TYPE_PHRASES['cursed'][1 if plural else 0]
+        return f'{this_or_these(name, capitalize=True)} {name} {is_or_are(name)} {cursed_phrase}!'
 
-    return 'It looks pretty ordinary..'
+    plural = name.lower().endswith('s')
+    ordinary = 'They look pretty ordinary..' if plural else 'It looks pretty ordinary..'
+    type_phrase = _item_type_phrase(item, raw, plural)
+    if type_phrase:
+        return (f'{this_or_these(name, capitalize=True)} {name} {is_or_are(name)} '
+                f'{type_phrase}. {ordinary}')
+    return ordinary
 
 
 def _current_room(ctx):

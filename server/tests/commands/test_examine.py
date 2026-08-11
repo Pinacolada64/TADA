@@ -223,7 +223,7 @@ class TestExamineCursedRoll(unittest.TestCase):
         item, ctx = self._item_and_ctx()
         with patch('random.randint', return_value=1):
             result = _examine_item(ctx, 'blue gem', item)
-        self.assertEqual(result, 'This blue gem is cursed!')
+        self.assertEqual(result, 'This blue gem is a cursed treasure!')
 
     def test_failure_message(self):
         item, ctx = self._item_and_ctx()
@@ -250,13 +250,25 @@ class TestExamineCursedRoll(unittest.TestCase):
 
         self.assertEqual(result, 'You have already examined this!')
 
+    def test_plural_name_gets_plural_verb_and_noun_phrase(self):
+        """this_or_these()/is_or_are() switch to 'These .. are' for a
+        plural-looking name -- the cursed noun phrase must pluralize too,
+        or 'These gems are a cursed treasure!' reads as broken English."""
+        server = _FakeServer(items=[{'number': 1, 'name': 'gems', 'type': 'cursed'}])
+        item = Item(id_number=1, name='gems', category=ItemCategory.ITEM)
+        ctx = _FakeCtx(_player(), server)
+        with patch('random.randint', return_value=1):
+            result = _examine_item(ctx, 'gems', item)
+        self.assertEqual(result, 'These gems are cursed treasures!')
+
 
 class TestExamineOrdinaryFallback(unittest.TestCase):
     def test_unremarkable_item_is_ordinary(self):
         server = _FakeServer(items=[{'number': 1, 'name': 'rock', 'type': 'treasure'}])
         item = Item(id_number=1, name='rock', category=ItemCategory.ITEM)
         ctx = _FakeCtx(_player(), server)
-        self.assertEqual(_examine_item(ctx, 'rock', item), 'It looks pretty ordinary..')
+        self.assertEqual(_examine_item(ctx, 'rock', item),
+                          'This rock is a treasure. It looks pretty ordinary..')
 
     def test_unknown_item_not_in_any_pool_is_ordinary(self):
         server = _FakeServer()
@@ -264,11 +276,25 @@ class TestExamineOrdinaryFallback(unittest.TestCase):
         ctx = _FakeCtx(_player(), server)
         self.assertEqual(_examine_item(ctx, 'mystery', item), 'It looks pretty ordinary..')
 
+    def test_unknown_item_plural_name_uses_plural_pronoun(self):
+        server = _FakeServer()
+        item = Item(id_number=999, name='mysteries', category=ItemCategory.ITEM)
+        ctx = _FakeCtx(_player(), server)
+        self.assertEqual(_examine_item(ctx, 'mysteries', item), 'They look pretty ordinary..')
+
     def test_standard_weapon_is_ordinary(self):
         server = _FakeServer(weapons=[{'number': 1, 'name': 'SWORD', 'kind': 'standard'}])
         weapon = Weapon(id_number=1, name='SWORD', kind='standard')
         ctx = _FakeCtx(_player(), server)
-        self.assertEqual(_examine_item(ctx, 'SWORD', weapon), 'It looks pretty ordinary..')
+        self.assertEqual(_examine_item(ctx, 'SWORD', weapon),
+                          'This SWORD is a weapon. It looks pretty ordinary..')
+
+    def test_plural_treasure_name_gets_plural_verb_and_noun_phrase(self):
+        server = _FakeServer(items=[{'number': 1, 'name': 'rocks', 'type': 'treasure'}])
+        item = Item(id_number=1, name='rocks', category=ItemCategory.ITEM)
+        ctx = _FakeCtx(_player(), server)
+        self.assertEqual(_examine_item(ctx, 'rocks', item),
+                          'These rocks are treasures. They look pretty ordinary..')
 
 
 class TestExamineStatue(unittest.TestCase):
