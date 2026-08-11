@@ -297,6 +297,23 @@ class TestFormatHelp(unittest.TestCase):
         for line in (lines if isinstance(lines, list) else []):
             self.assertLessEqual(_visible_len(line), 40, f"Line too long: {line!r}")
 
+    def test_aliases_section_present_when_given(self):
+        h = Help(summary="Does the thing.")
+        out = self._fmt(h, command_name="unwear", aliases=["remove", "doff"])
+        self.assertIn("Aliases:", out)
+        self.assertIn("remove", out)
+        self.assertIn("doff", out)
+
+    def test_aliases_section_absent_when_none_given(self):
+        h = Help(summary="Does the thing.")
+        out = self._fmt(h, command_name="unwear")
+        self.assertNotIn("Aliases:", out)
+
+    def test_aliases_section_absent_when_empty_list(self):
+        h = Help(summary="Does the thing.")
+        out = self._fmt(h, command_name="unwear", aliases=[])
+        self.assertNotIn("Aliases:", out)
+
 
 class TestSeeAlso(unittest.TestCase):
     """New in TADA: Help.see_also renders a 'See Also:' section of
@@ -369,6 +386,38 @@ class TestCombatConceptTopics(unittest.TestCase):
         out = format_help(_TOPICS["combat"], command_name="combat", width=78)
         self.assertIsNotNone(out)
         self.assertTrue(any("Weapon Class" in line for line in out))
+
+
+class TestPlayerMechanicsConceptTopics(unittest.TestCase):
+    """honor/experience/armorcondition/specialweapon/examine/parties/
+    eliteally concept topics -- TODO_HELP.md's 7/14/26 'implemented, no
+    help topic yet' list."""
+
+    TOPIC_NAMES = ["honor", "experience", "armorcondition", "specialweapon",
+                   "examine", "parties", "eliteally"]
+
+    def test_all_new_topics_registered(self):
+        for name in self.TOPIC_NAMES:
+            self.assertIn(name, _TOPICS, f"{name!r} not registered as a topic")
+
+    def test_alias_forms_also_resolve(self):
+        for alias in ("alignment", "xp level", "shield condition", "intactness",
+                      "silver bullet", "look first", "party", "allies",
+                      "elite ally"):
+            self.assertIn(alias, _TOPICS, f"{alias!r} alias not registered")
+
+    def test_every_see_also_entry_resolves_to_a_real_topic(self):
+        for name in self.TOPIC_NAMES:
+            for ref in _TOPICS[name].see_also:
+                self.assertIn(ref, _TOPICS, f"{name!r}.see_also has unresolvable {ref!r}")
+
+    def test_topics_render_without_error(self):
+        from formatting import _visible_len
+        for name in self.TOPIC_NAMES:
+            out = format_help(_TOPICS[name], command_name=name, width=78)
+            self.assertIsNotNone(out, f"{name!r} produced no output")
+            for line in out:
+                self.assertLessEqual(_visible_len(line), 78, f"{name!r} line too long: {line!r}")
 
     def test_weaponaffinity_topic_mentions_all_nine_classes(self):
         out = "\n".join(format_help(_TOPICS["weaponaffinity"], width=78) or [])
@@ -570,6 +619,24 @@ class TestHelpCommandExecute(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.error, "no_help")
         output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
         self.assertIn("No help found", output)
+
+    async def test_specific_command_detail_shows_its_aliases(self):
+        cmd = _make_cmd("unwear", aliases=["remove", "doff"], summary="Take off worn gear.")
+        ctx, _ = _ctx_with_processor(cmd)
+        result = await HelpCommand().execute(ctx, "unwear")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("Aliases:", output)
+        self.assertIn("remove", output)
+        self.assertIn("doff", output)
+
+    async def test_specific_command_detail_omits_aliases_section_when_none(self):
+        cmd = _make_cmd("say", summary="Say something.")
+        ctx, _ = _ctx_with_processor(cmd)
+        result = await HelpCommand().execute(ctx, "say")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertNotIn("Aliases:", output)
 
     async def test_alias_resolves_to_command(self):
         cmd  = _make_cmd("test", aliases=["t"])

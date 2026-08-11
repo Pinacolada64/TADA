@@ -40,20 +40,18 @@ dead code now.
 Grounded in where each concept actually lives in the code, same
 convention as the existing `bhr`/`rooms`/`commandline` topics:
 
-- **Honor / alignment** -- `honor` (int stat, 0-2000) drives
-  `Alignment` (Good/Neutral/Evil, `base_classes.py`) and ally loyalty
-  checks (`courage > honor` in `ally_events.py`). Players see "Current
-  alignment" on `stats` with no explanation of how it's earned/lost.
+- **✅ Done (8/10/26).** ~~Honor / alignment~~ -- written as the
+  `honor`/`alignment` CONCEPT topic.
 - **Guilds** (Civilian / Iron Fist / Mark of the Sword / Mark of the
   Claw / Outlaw) -- `Guild` StrEnum (`base_classes.py`), chosen during
   character creation (`commands/new_player.py`'s Guild step),
   `PlayerFlags.GUILD_MEMBER`/`GUILD_AUTODUEL`/`GUILD_FOLLOW_MODE`.
   Ties into dueling/territory concepts the Guild step's own text
   already gestures at but doesn't fully explain.
-- **Experience levels vs. `xp_level`** -- character level
-  (`player.xp_level`, `player.py`) vs. battle experience (next entry)
-  are two different "experience" concepts that share vocabulary and
-  will confuse new players. No topic currently disambiguates them.
+- **✅ Done (8/10/26).** ~~Experience levels vs. `xp_level`~~ -- written
+  as the `experience`/`xplevel`/`levels` CONCEPT topic, folded together
+  with the "Battle experience tiers" entry below since they're the same
+  disambiguation.
 - **The More Prompt / paging system** -- command-level help exists
   (`commands/more_prompt.py`, `commands/prefs.py`'s 'M' row), but no
   general CONCEPT topic explains screen-by-screen "-- More --"
@@ -69,22 +67,13 @@ convention as the existing `bhr`/`rooms`/`commandline` topics:
   energy, proximity) and class/race weapon affinities --
   `WeaponClass` enum + `weapon_bonus()` (`item_system.py:241`, used by
   `commands/ready.py`'s displayed skill/damage bonus).
-- **Shield/armor condition ("intactness")** -- now directly relevant
-  since the starting-equipment feature landed
-  (`starting_equipment.py`'s `_roll_intactness()`, 10-69% on a 50/50
-  roll); players will see "Shield: NN% intact" / "Armor: NN% intact"
-  with no explanation of what the percentage means or how it degrades
-  (`combat/resolution.py`'s block/degrade math).
-- **Battle experience tiers (GREEN/VETERAN/ELITE)** -- per-weapon
-  tracked experience (`player.weapon_experience`, `player.py`'s
-  `gain_weapon_experience()`, +1 per killing blow per
-  `SPUR.MISC.S:384`), VETERAN at 40, ELITE at 99
-  (`combat/resolution.py`'s `battle_exp_bonuses()`), shown as a
-  colored badge on `ready`. Should explicitly distinguish this from
-  character `xp_level` above -- same "experience" word, different
-  systems. The new `shield_proficiency` mechanic
-  (`player.py`'s `gain_shield_proficiency()`) mirrors this exactly and
-  should probably be covered by the same topic.
+- **✅ Done (8/10/26).** ~~Shield/armor condition ("intactness")~~ --
+  written as the `armorcondition`/`shieldcondition`/`intactness`
+  CONCEPT topic.
+- **✅ Done (8/10/26).** ~~Battle experience tiers (GREEN/VETERAN/ELITE)~~
+  -- folded into the `experience` topic above rather than a separate
+  one, since the whole point is disambiguating it from `xp_level` in
+  the same breath.
 - **Stat rolling** -- character creation's attribute-roll step
   (`commands/new_player.py`'s `_roll_stats()`, 4d6-drop-lowest per
   stat) already has decent inline explanation text shown during
@@ -97,11 +86,9 @@ convention as the existing `bhr`/`rooms`/`commandline` topics:
   "Not Implemented", `combat/duel.py` has design notes only). Hold off
   on a dedicated `duel` concept topic until the feature exists --
   premature to document a mechanic that doesn't work yet.
-- **Parties / allies** -- `Party` (`party.py`), `Ally`/`Horse(Ally)`
-  characters (`characters.py`, `character_editor.py`).
-  `commands/take.py`/`commands/give.py` both say "party ally" in their
-  help text with nothing to link to that explains what a party/ally
-  actually is or how one is formed.
+- **✅ Done (8/10/26).** ~~Parties / allies~~ -- written as the
+  `parties`/`allies` CONCEPT topic (cross-linked with the new
+  `eliteally` topic from the tips.txt pass below).
 - **PETSCII vs. ANSI terminal types** -- `Translation` enum
   (`terminal.py`: PETSCII/ANSI/COMMODORE/ASCII), selected via
   `commands/prefs.py`'s Client Type row; affects rendering throughout
@@ -176,43 +163,44 @@ that are either implemented-but-unexplained (real gap) or
 not-implemented (parked, not a help gap yet).
 
 **Implemented, no help topic yet** -- ready to write:
-- **Special weapons required for certain monsters** (tips.txt: "the
-  silver bullet for the Werewolf... any other weapon is just wasting
-  your time") -- `combat/resolution.py`'s `check_special_weapon()`,
-  monster's `special_weapon` field (`characters.py:86`). No topic
-  explains that some monsters are effectively immune to ordinary
-  weapons.
-- **Examine before you pick things up** (tips.txt: cursed objects raise
-  IQ if successfully examined first, lower it if picked up blind) --
-  `commands/look.py`'s `_examine_item()` flags magic/cursed items on
-  LOOK; `commands/get.py`'s cursed-item INT/HP penalty (`hp.5`, line
-  ~25). The mechanic is real; nothing tells a player LOOK-before-GET is
-  the way to avoid it.
+- **✅ Done (8/10/26).** ~~Special weapons required for certain
+  monsters~~ -- written as the `specialweapon`/`silverbullet` CONCEPT
+  topic.
+- **✅ Done (8/10/26).** ~~Examine before you pick things up~~ --
+  written as the `examine`/`lookfirst` CONCEPT topic. Correction while
+  writing it: the TODO's original file references were stale --
+  `_examine_item()` now lives in `commands/examine.py` (a real EXAMINE/
+  `x` command), not `commands/look.py`; the cursed-pickup penalty is
+  `commands/get.py`'s `_cursed_penalty()`, not a line-25 `hp.5` in
+  `look.py`.
 - **Item persistence rule** (tips.txt: a found item reappears next
   session *unless* you're still carrying it -- eat it before you log
-  off to reset it) -- `player.picked_up_items` (`player.py:307`,
-  `commands/get.py`'s `_record()`). Worth a topic since it's
-  counter-intuitive (most MUDs don't work this way).
-- **Elite allies** (tips.txt: allies with a `!` after their name are
-  more loyal, lightly armored, won't attack you over refused food) --
-  `combat/resolution.py`'s `has_light_armor` param (`ally has "!" flag
-  in SPUR`, line ~774), `+2` armor bonus. The flag/bonus exist in
-  combat math; nothing surfaces what `!` means to a player looking at
-  their ally list.
-- **LOOT and the Pawn Shop together** -- pawn shop (sell anything you
-  find) is implemented (`shoppe/pawn.py`), and LOOT (search an
-  unconscious player, once per session) is listed "Not Implemented" in
-  MECHANICS.md -- so this one's half-blocked; could still write the
-  Pawn Shop half now and extend once LOOT lands.
-- **"Dusk Approaches" / session time limit** -- ✅ implemented per
-  MECHANICS.md:202 (`SPUR.COMBAT.S:11`, warning under 120 ticks
-  remaining), but tips.txt's actual advice (don't start a tough fight,
-  your weakened stats save as-is if time runs out, the monster resets
-  but your combat hits on it don't) isn't explained anywhere in-game.
-  Good concept-topic candidate once the exact current-port behavior is
-  double-checked against tips.txt's claims (worth confirming the
-  "monster resets, your hits carry over" half is still true here before
-  writing it up as fact).
+  off to reset it) -- still not written up. Correction: the field is
+  `player.item_history`/`player.ration_history` (`player.py:369-370`),
+  not `player.picked_up_items` as this file previously said -- that
+  name doesn't exist in the current codebase. Both histories are
+  reseeded from current inventory on login
+  (`record_item_pickup()`/`record_ration_pickup()`,
+  `commands/get.py`/`simple_server.py` both read them to hide
+  already-taken room items). Worth a topic since it's counter-intuitive.
+- **✅ Done (8/10/26).** ~~Elite allies~~ -- written as the `eliteally`
+  CONCEPT topic (folded into a new `parties`/`allies` topic too, since
+  neither existed and they're closely related -- see this file's
+  now-resolved "Parties / allies" entry above).
+- **LOOT and the Pawn Shop together** -- still half-blocked on LOOT;
+  not written yet.
+- **"Dusk Approaches" / session time limit -- NOT actually implemented,
+  despite this file previously saying "✅ implemented".** Re-checked
+  8/10/26: grepped the whole non-test tree for `ticks`/`Dusk`/session-
+  time enforcement -- `config.py`'s `session_time_limit_minutes` setting
+  exists and is documented as sharing "the same budget the Dusk warning
+  counts down", but nothing in the codebase actually reads that setting
+  to enforce a limit or send a warning; `survival.py`'s `survival_tick()`
+  has no ticks/Dusk logic at all. `MECHANICS.md:204`'s "Dusk warning —
+  message when session time < 120 ticks remain" is aspirational/stale,
+  not a description of working code. Do NOT write this help topic until
+  the feature actually exists -- would otherwise document a mechanic
+  players can't experience. Moved to TODO.md instead as a feature gap.
 
 **Not implemented -- premature for a help topic, noted for TODO.md instead:**
 - **WEAR** (don armor) and **LOOT** (search an unconscious player) --
@@ -239,7 +227,7 @@ not-implemented (parked, not a help gap yet).
 
 8/8/26:
 
-**Show a command's aliases in `help <command>`'s detail view.** Right now
+**✅ Done (8/10/26). Show a command's aliases in `help <command>`'s detail view.** Right now
 `commands/help.py`'s general `help` listing already shows aliases inline
 next to each command name (`_show_general_help()`, ~line 787-793: `als =
 [a for a in cmd.aliases if a != name]`, rendered as `name (alias1,

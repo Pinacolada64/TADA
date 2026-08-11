@@ -711,6 +711,264 @@ register_topic(
     ),
 )
 
+register_topic(
+    "honor", "alignment",
+    help_obj=Help(
+        summary="Honor points and your current alignment",
+        description=(
+            "Honor is a 0-2000 point score, separate from your other "
+            "stats, that tracks how you've been playing rather than how "
+            "strong you are. Where it sits determines your \"current "
+            "alignment\", shown on STATS:\n\n"
+            "  Above 1600: Saintly\n"
+            "  1201-1600:  Good\n"
+            "  800-1200:   Neutral\n"
+            "  400-799:    Bad\n"
+            "  399 and under: Evil\n\n"
+            "Every character starts with a race-dependent amount: 1250 "
+            "for Pixies and Elves, 750 for Ogres and Orcs, 1000 for "
+            "everyone else -- so a good-aligned race starts closer to "
+            "Good than a Human or Dwarf does, and an evil-aligned race "
+            "starts closer to Evil.\n\n"
+            "Honor moves in small steps as you play, not in one big "
+            "swing: eating a ration nudges it up a couple of points, "
+            "praying can raise or lower it depending on how it's "
+            "answered, and some encounters (like meeting a Ringwraith) "
+            "drain it outright. It's capped at 2000, and some effects "
+            "only trigger while it's below or above a threshold -- for "
+            "example, a Ringwraith recognizes \"one of his own kind\" and "
+            "skips the fight entirely if your honor is under 800, and an "
+            "ally's own courage stat is compared against your honor to "
+            "decide whether it stands and fights or flees."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("stats", "Shows your current Honor score and alignment."),
+        ],
+        notes=[
+            "Your alignment isn't fixed at character creation -- it's "
+            "just a live readout of your current Honor score, so it can "
+            "drift between Saintly and Evil over a long enough session.",
+        ],
+        admin_notes=[
+            "_current_alignment() (commands/stats.py, ported from "
+            "SPUR.MISC5.S lines 199-201) computes the band shown above. "
+            "Starting/max values: PlayerRaceMaxHonor (base_classes.py), "
+            "ported from SPUR.NEW.S / SPUR.LOGON.S's set.honor. Honor "
+            "deltas are scattered per-mechanic rather than centralized -- "
+            "see ally_events/__init__.py (ration eating, ally-loyalty "
+            "courage-vs-honor check), commands/pray.py, and "
+            "encounters/ringwraith.py for representative examples.",
+        ],
+        see_also=["experience"],
+    ),
+)
+
+register_topic(
+    "experience", "xplevel", "xp level", "levels",
+    help_obj=Help(
+        summary="Character level vs. battle experience -- two different things",
+        description=(
+            "TADA has two unrelated systems that both use the word "
+            "\"experience\", which trips people up:\n\n"
+            "Character level (xp_level) is your overall progress through "
+            "the game -- it rises as you accumulate XP from fights and "
+            "quests, and drives your general power level (hit points, "
+            "stat caps, and so on). This is what people usually mean by "
+            "\"what level are you\".\n\n"
+            "Battle experience is completely separate: it's tracked "
+            "per-weapon, not per-character. Every killing blow you land "
+            "with a given weapon adds one point to that weapon's own "
+            "tally. READY a weapon to see its badge: green with no "
+            "label below 40 kills, VETERAN at 40, ELITE at 99. A high "
+            "battle-experience badge on your sword says nothing about "
+            "your character level, and vice versa -- a level-20 wizard "
+            "who just picked up a mace for the first time still shows a "
+            "plain green badge on it.\n\n"
+            "Shield proficiency works the same way, tracked per-shield "
+            "rather than per-weapon, with its own similarly-tiered badge."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("ready <weapon>", "Wield a weapon and see its battle-exp badge."),
+            ("stats", "Shows your overall character level."),
+        ],
+        admin_notes=[
+            "player.xp_level vs. player.weapon_experience "
+            "(gain_weapon_experience(), +1 per killing blow, per "
+            "SPUR.MISC.S:384) / player.shield_proficiency "
+            "(gain_shield_proficiency()). Tier thresholds and badge "
+            "labels: combat/resolution.py's battle_exp_bonuses() / "
+            "tier_label() -- VETERAN at 40, ELITE at 99.",
+        ],
+        see_also=["easeofuse", "weaponaffinity"],
+    ),
+)
+
+register_topic(
+    "armorcondition", "armor condition", "shieldcondition", "shield condition",
+    "intact", "intactness",
+    help_obj=Help(
+        summary="What the \"NN% intact\" on your shield/armor means",
+        description=(
+            "Your shield and armor each carry their own intactness "
+            "rating, shown as a percentage on STATS -- 'Shield: NN% "
+            "intact' / 'Armor: NN% intact'. Gear that starts with any "
+            "protective value at all rolls somewhere in the 10-69% "
+            "range at character creation, on an independent coin-flip "
+            "for each of the two.\n\n"
+            "In a fight, a shield or suit of armor with any protection "
+            "left can absorb some incoming damage before it reaches "
+            "you, but each block also has a chance to chip away at that "
+            "gear's own condition -- and a bad enough hit can destroy "
+            "the piece outright, leaving you with no more block from it "
+            "until it's repaired or replaced. Rolls are independent for "
+            "shield and armor, so it's entirely possible for one to fail "
+            "while the other holds.\n\n"
+            "There's no separate readout for how much block value "
+            "you'll get from a given percentage -- higher intactness "
+            "simply means more punishment absorbed and slower "
+            "degradation, lower means less protection and a piece "
+            "closer to breaking."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("stats", "Shows your current Shield/Armor intactness percentages."),
+        ],
+        admin_notes=[
+            "starting_equipment.py's _roll_intactness() (10-69, 50/50 "
+            "roll per slot). Per-swing block/degrade math: "
+            "combat/resolution.py's monster_attacks() shield-block "
+            "(lines ~771-795) and armor-block (lines ~797-813) sections "
+            "-- each computes its own block threshold and degrade roll "
+            "from the current shield/armor value, with a separate roll "
+            "for outright destruction.",
+        ],
+    ),
+)
+
+register_topic(
+    "specialweapon", "special weapon", "silverbullet", "silver bullet",
+    help_obj=Help(
+        summary="Some monsters only fall to one specific weapon",
+        description=(
+            "A handful of monsters are effectively immune to ordinary "
+            "weapons -- the classic example is the Werewolf, who only "
+            "goes down to a silver bullet. Fighting one of these with "
+            "the wrong weapon isn't just less effective, it can be "
+            "outright wasted effort: your swing lands but does nothing "
+            "useful.\n\n"
+            "There's no way to see a monster's required weapon in "
+            "advance from the game's UI -- it's something you learn "
+            "from experience, a tip, or trial and error. If a fight "
+            "against a particular monster feels like it's going "
+            "nowhere no matter how hard you hit, that's the sign to "
+            "try switching weapons rather than just hitting harder."
+        ),
+        category=HelpCategory.CONCEPT,
+        see_also=["weaponaffinity", "weaponclass"],
+        admin_notes=[
+            "combat/resolution.py's check_special_weapon() "
+            "(SPUR.COMBAT.S lines 127-151, SPUR.MISC4.S lines 132-137). "
+            "monster['special_weapon'] (characters.py) holds the "
+            "required weapon's number, 0 = no requirement; wrong weapon "
+            "-> is_ineffective, matching weapon -> normal combat. A few "
+            "named weapons (EXCALIBUR, WRAITH DAGGER, any STORM weapon) "
+            "have their own always-on special-case bonuses independent "
+            "of this per-monster requirement.",
+        ],
+    ),
+)
+
+register_topic(
+    "examine", "lookfirst", "look first",
+    help_obj=Help(
+        summary="Why to EXAMINE/LOOK before you pick something up",
+        description=(
+            "Some items lying around are magical or cursed, and picking "
+            "one up blind carries risk: a cursed item can hurt you the "
+            "moment you grab it. EXAMINE (or LOOK at an item) lets you "
+            "check first without that risk -- a successful examine "
+            "reveals whether an item is Magical or cursed before you've "
+            "committed to taking it.\n\n"
+            "The check isn't guaranteed to succeed, and once you've "
+            "successfully examined a given item this session, examining "
+            "it again just tells you so rather than re-rolling -- so a "
+            "failed attempt is worth trying again, but there's nothing "
+            "more to learn once it's worked."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("examine <item>", "Check an item on the ground (or in your inventory) before taking it."),
+            ("get <item>",     "Pick it up -- risky if it's cursed and unexamined."),
+        ],
+        admin_notes=[
+            "commands/examine.py's _examine_item() (SPUR.MISC3.S's "
+            "exam.a/exam2/exam3) -- magic weapons (weapons.json "
+            "kind=='magic') and cursed treasures (objects.json "
+            "type=='cursed') roll against _EXAMINE_SUCCESS_PCT, with a "
+            "one-shot memory in player.last_examined. The actual GET-"
+            "time penalty for grabbing a cursed item unexamined is "
+            "commands/get.py's _cursed_penalty() (SPUR.MISC.S's hp.5: "
+            "-5 INT, HP set to 5).",
+        ],
+    ),
+)
+
+register_topic(
+    "parties", "party", "allies", "ally",
+    help_obj=Help(
+        summary="Parties and allies -- companions who fight alongside you",
+        description=(
+            "An ally is an NPC companion (a hired hand, a rescued "
+            "prisoner, a tamed animal, ...) that joins your party and "
+            "fights at your side. Your party is just the list of allies "
+            "currently traveling with you -- there's no fixed party "
+            "size limit, though juggling a lot of allies at once means "
+            "more mouths to feed.\n\n"
+            "You can GIVE an ally food, a weapon, or other gear to carry "
+            "and use, and TAKE it back later. An ally's loyalty depends "
+            "on how well you treat it -- an ally with a '!' after its "
+            "name is an elite: extra loyal, lightly armored, and won't "
+            "abandon you just for refusing it food the way an ordinary "
+            "ally might."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("give <item> <ally>", "Hand an ally something to carry or wield."),
+            ("take <item> <ally>", "Take an item back from an ally."),
+        ],
+        see_also=["eliteally"],
+        admin_notes=[
+            "party.py's Party class (add_member()/remove()) and "
+            "bar/ally_data.py's Ally (also characters.py's Horse(Ally)) "
+            "back this. No hard cap on party size is enforced anywhere "
+            "in add_member().",
+        ],
+    ),
+)
+
+register_topic(
+    "eliteally", "elite ally",
+    help_obj=Help(
+        summary="What the '!' after an ally's name means",
+        description=(
+            "An ally listed with a '!' after its name is an elite: more "
+            "loyal than an ordinary ally, lightly armored (a small bonus "
+            "to how much damage it can block in a fight), and it won't "
+            "turn on you the way an ordinary ally might if you refuse "
+            "to feed it."
+        ),
+        category=HelpCategory.CONCEPT,
+        see_also=["parties"],
+        admin_notes=[
+            "combat/resolution.py's has_light_armor param (ally has '!' "
+            "flag in SPUR) grants a +2 armor_bonus in monster/ally combat "
+            "math.",
+        ],
+    ),
+)
+
 
 # ---------------------------------------------------------------------------
 # Helper function - guards against Mode.NONE instead of a set {Mode.NONE}
@@ -867,7 +1125,8 @@ def _search_snippet(cmd, term: str, context: int = 20) -> str:
 
 def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                 rule_char: str = "-", is_privileged: bool = False,
-                is_petscii: bool = False) -> Optional[str]:
+                is_petscii: bool = False,
+                aliases: Optional[List[str]] = None) -> Optional[str]:
     """Format a Help instance into a display string.
 
     :param help_obj: Help (or a str, or None)
@@ -880,6 +1139,12 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     :param is_petscii: when True, help_obj.petscii_notes are appended to
         the Notes section (see Help.petscii_notes) -- pass
         _is_petscii_viewer(ctx) from a call site that has a live ctx.
+    :param aliases: other names this command is also reachable under
+        (cmd.aliases, minus command_name itself) -- rendered as its own
+        "Aliases:" line. The general 'help' listing already shows these
+        inline (_show_general_help()'s 'name (alias1, alias2)'); this is
+        the same information surfaced on the per-command detail view,
+        which previously never read cmd.aliases at all.
     """
     if help_obj is None:
         return None
@@ -907,6 +1172,10 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                     lines.append(_heading(cat_str.rjust(width)))
         lines.extend(textwrap.wrap(str(summary).strip(), width=width))
         lines.append(_rule(rule_char * width))
+
+    # Aliases -- other names this same command answers to
+    if aliases:
+        lines.append(_heading("Aliases: ") + ", ".join(_cmd(a) for a in aliases))
 
     # Description — blank lines in the source string (\n\n) become paragraph
     # breaks; each paragraph is wrapped independently so multi-paragraph
@@ -1309,9 +1578,10 @@ class HelpCommand(Command):
         help_obj = getattr(cmd, "help", None)
 
         if help_obj and hasattr(help_obj, "summary"):
+            als = [a for a in (getattr(cmd, "aliases", []) or []) if a != command_name]
             formatted = format_help(help_obj, command_name=command_name, width=width,
                                     rule_char=rchar, is_privileged=_is_privileged_viewer(ctx),
-                                    is_petscii=_is_petscii_viewer(ctx))
+                                    is_petscii=_is_petscii_viewer(ctx), aliases=als)
             if formatted:
                 await ctx.send(*formatted)
                 return CommandResult.ok("\n".join(formatted))
