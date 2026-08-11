@@ -58,7 +58,7 @@ def _raw_item_data(ctx, item) -> dict | None:
     category = getattr(item, 'category', None)
     if category == ItemCategory.WEAPON:
         pool = getattr(ctx.server, 'weapons', None) or []
-    elif category == ItemCategory.FOOD:
+    elif category in (ItemCategory.FOOD, ItemCategory.DRINK):
         pool = getattr(ctx.server, 'rations', None) or []
     else:
         pool = getattr(ctx.server, 'items', None) or []
