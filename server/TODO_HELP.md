@@ -67,12 +67,19 @@ convention as the existing `bhr`/`rooms`/`commandline` topics:
   the same breath.
 - **✅ Done (8/10/26).** ~~Stat rolling~~ -- written as the
   `statrolling`/`rollstats`/`4d6` CONCEPT topic.
-- **Duels** -- BHR's own help text already references dueling
-  ("sizing up other adventurers before a duel"), but dueling itself
-  isn't implemented yet (MECHANICS.md's Live Duel / Autoduel are both
-  "Not Implemented", `combat/duel.py` has design notes only). Hold off
-  on a dedicated `duel` concept topic until the feature exists --
-  premature to document a mechanic that doesn't work yet.
+- **⚠️ Stale as of 8/10/26 -- Duels are actually implemented.** This
+  bullet said dueling wasn't implemented and to hold off on a topic --
+  wrong even back on 7/14/26, the day it was written (`092b957`, same
+  date, landed the live Attack/Parry/Bash/Flee tactic loop). Found while
+  answering "any more help topics needed?" and re-checking current
+  state instead of trusting this file. `combat/duel.py`'s `DuelCommand`
+  (`duel <player>`/`accept`/`decline`/`grovel`/tactics/`#standings`)
+  already has thorough command-level `Help` -- no separate CONCEPT
+  topic needed for that. Instead: corrected `bhr`'s and `guilds`'
+  CONCEPT topics, which both wrongly repeated "dueling isn't
+  implemented," and corrected `MECHANICS.md`'s "Duels (PvP)" section
+  (same stale claim, now fixed with an accurate Implemented/Not
+  Implemented split).
 - **✅ Done (8/10/26).** ~~Parties / allies~~ -- written as the
   `parties`/`allies` CONCEPT topic (cross-linked with the new
   `eliteally` topic from the tips.txt pass below).
@@ -91,21 +98,15 @@ boards** (not implemented yet -- `threaded_messages.py` is a skeleton
 per MECHANICS.md's "Design Ideas (not yet decided)" section, nothing to
 document).
 
-- **Room alignment / territory control** (Ryan): each guild duel win in
-  a room shifts that room's alignment to the winning guild, and
-  thereafter members of that guild get a duel bonus while standing in
-  it. Searched `SPUR-code/SPUR.DUEL2.S`/`SPUR.GUILD.S` and this repo's
-  Python for anything matching ("territ", "align" near "guild/room",
-  room-ownership fields) and found nothing -- the closest existing
-  things are (a) `commands/new_player.py`'s Guild step already
-  advertises "territory control" in its flavor text without any backing
-  mechanic, and (b) tips.txt's "park your character in your guild's HQ
-  ... duel bonus if anybody attacks while you are gone" (a *player*-HQ
-  bonus, not a room-capture system). This looks like a genuinely new
-  mechanic (or one from a part of the original SPUR source not in this
-  checkout) rather than a restoration -- needs design work (how
-  alignment is stored per room, decay/contest rules, HQ vs. any-room)
-  before it's ready for a help topic; noted here so it isn't lost.
+- **⚠️ Stale as of 8/10/26 -- this got built.** The room-alignment/
+  territory-capture design this bullet asked for (each guild duel win
+  in a room shifts that room's alignment to the winning guild) now
+  exists: `room_alignment.py`, wired through `combat/duel.py`'s
+  `DuelSession._end()`, feeding the `guilds` CONCEPT topic's mention of
+  territory capture. Kept the original research trail below since it's
+  still an accurate account of the SPUR-source investigation (this
+  really was a from-scratch design, not a restoration, matching the
+  conclusion below) -- just no longer "needs design work," it's shipped.
   - **Checked `remotes/origin/skip` too (7/14/26)**: that branch's
     `SPUR-code/` has six files master's checkout doesn't --
     `SPUR.ARMORY.S`, `SPUR.BACKUP.S`, `SPUR.COMPILE.S`, `SPUR.MISC8.S`,
@@ -182,15 +183,21 @@ not-implemented (parked, not a help gap yet).
   players can't experience. Moved to TODO.md instead as a feature gap.
 
 **Not implemented -- premature for a help topic, noted for TODO.md instead:**
-- **WEAR** (don armor) and **LOOT** (search an unconscious player) --
-  both listed in `SPUR.HELP.TXT`'s original command list, neither
-  exists as a command in this port (`commands/` has no `wear.py` or
-  `loot.py`). EXAMINE is already folded into LOOK (`commands/look.py`),
-  so that one's not actually missing, just renamed/merged.
-- **The Dwarf** (fixed level-1 NPC, steals gold until killed, killer
-  gets all accumulated stolen gold) -- confirmed "Not Implemented" in
-  MECHANICS.md, no matching code found (`DWARF_ALIVE` flag exists and
-  is displayed on `stats`, but no NPC/mechanic backs it yet).
+- **⚠️ Stale as of 8/10/26 -- WEAR now exists** (`commands/wear.py`,
+  armor equipping + ring-of-invisibility toggle, already has full
+  command-level `Help` -- no gap, nothing further needed).
+- **⚠️ Stale as of 8/10/26 -- LOOT now exists**, but as a different
+  mechanic than the original bullet described: not "search an
+  unconscious player" (SPUR.HELP.TXT's original meaning), but a live
+  once-per-session (twice for Outlaws) PvP item-steal from another
+  online player in the room, gated by a guardian-intervention chance
+  and always costing the thief honor (`commands/loot.py`, already has
+  full command-level `Help`). Cross-referenced from the `honor` CONCEPT
+  topic's description/admin_notes.
+- **⚠️ Stale as of 8/10/26 -- The Dwarf is now implemented**, contrary
+  to this bullet's "confirmed Not Implemented." Written up as the
+  `dwarf`/`thedwarf` CONCEPT topic (explains the STATS "Dwarf: Alive!/
+  Dead..." line, which previously had zero player-facing explanation).
 - **✅ Done (8/10/26).** ~~Victory conditions ("Conqueror" status)~~ --
   written as the `victory`/`escape`/`conqueror` CONCEPT topic,
   explicitly correcting the "must defeat SPUR" misconception (only the

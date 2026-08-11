@@ -526,11 +526,29 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 
 ## Duels (PvP)
 
+### Implemented
+- ✅ **Live SPORT DUEL** — challenge/accept/decline/grovel, then a live
+  round-by-round Attack/Parry/Bash/Flee tactic loop (own simplified
+  design, not a port of SPUR's single-player-vs-AI prediction system,
+  since there's a real opponent to react to here) with a Stand/Roll
+  down-state, guild support bonus, and territory capture on a guild-vs-
+  guild win (`combat/duel.py`'s `DuelCommand`, `see "help duel"`).
+  Corrected 8/10/26: this whole section previously said "Not
+  Implemented," which was stale as of 7/14/26 already (`092b957` landed
+  the live tactic loop that same day) — caught while auditing
+  `TODO_HELP.md` for missing help topics.
+- ✅ **Guild standings** — win/loss tally per guild, persisted and shown
+  via `duel #standings` (`guild_standings.py`, `SPUR.DUEL2.S`'s `guild`
+  label).
+- ✅ **Territory capture** (Ryan's own extension, no SPUR precedent) — a
+  guild-vs-guild duel win flips the room's `RoomAlignment` to the
+  winner's guild, except HQ/`FREE_FIRE` rooms (`room_alignment.py`).
+
 ### Not Implemented
-- **Live duel** — both players online; weapon chosen from weapon roster interactively (`SPUR.DUEL.S`)
-- **Autoduel** — offline defender; best weapon auto-selected by `zt+zs` score (`SPUR.DUEL2.S`)
-- **Weapon roster** — separate from inventory; needed for both duel modes (see `combat/duel.py` for design notes)
-- **No weapon penalty** — fighting without a readied weapon deducts 1 INT (`SPUR.DUEL.S:30–54`)
+- **Autoduel** — offline defender; best weapon auto-selected by `zt+zs` score (`SPUR.DUEL2.S`). `PlayerFlags.GUILD_AUTODUEL` exists but has no consuming logic yet.
+- **Weapon roster** — SPUR chooses the duel weapon from a roster separate from inventory; this port's DUEL just uses whatever's currently READY'd, so there's no separate roster to build.
+- **No weapon penalty** — SPUR's specific "fighting without a readied weapon deducts 1 INT" (`SPUR.DUEL.S:30–54`) isn't ported; this port instead refuses the challenge outright without a readied weapon (milder gate, same intent).
+- **Civilian/Outlaw dueling immunity** — the guild-choice screen advertises Civilians as safe from dueling by anyone but an Outlaw; `DuelCommand.execute()` has no guild-eligibility check, so this isn't actually enforced.
 
 ---
 
@@ -795,11 +813,11 @@ Locker belongs to the Shoppe (`shoppe/locker.py`), not here.
 - **Tips** — in-game tips display (content from `SPUR-data/tips.txt`)
 - **School spells** — list of spells available to the player's class
 - **Recent news / Older news** — two-tier news log (ties into News & Mail design)
-- **Guild standings** — ranking of guilds by kills/XP; SPUR source is
-  `SPUR.DUEL2.S`'s `guild` label (~lines 316-336): after any guild-vs-guild
-  duel, tallies a win/loss counter per guild to a `guild.standings` data
-  file (`vv`/`yz` are the duelists' guild numbers, `zz`/`yw` the running
-  win/loss counts, position-addressed by guild slot 1/2/3)
+- **Guild standings display** — an Annex screen showing guild rankings
+  isn't built, but the underlying win/loss data now is (see this doc's
+  "Duels (PvP)" section, `guild_standings.py`) and is already player-
+  visible today via `duel #standings` -- this stub is specifically
+  "no Annex display for it yet," not "the mechanic doesn't exist."
 - **Personal records** — player's own stats history
 - **Winners list ("Conqueror's list")** — SPUR.MISC7.S's `win5` label
   writes each victor to a `spur.winners` file after escaping via the

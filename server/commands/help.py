@@ -273,16 +273,27 @@ register_topic(
             "data the command acts on. Switches are usually specific to "
             "the command they're used with -- `groups #add friends Alice`, "
             "`ban #view`, `wa #hide` -- so check a command's own `help "
-            "<command>` for what its switches do."
+            "<command>` for what its switches do.\n\n"
+            "In a command's own Usage line, angle brackets and square "
+            "brackets mean two different things: <name> marks a "
+            "required placeholder -- type your own value there, not "
+            "the brackets themselves -- while [[name]] marks something "
+            "optional you can leave out entirely. 'page <name[[,name2]]>"
+            "=<message>' means: name is required, a second comma-"
+            "separated name is optional, and so is everything after it "
+            "up to the message."
         ),
         category=HelpCategory.CONCEPT,
         usage=[
             ("<command> <parameter>",  "Plain words: data the command acts on."),
             ("<command> #<switch>",    "A '#'-prefixed flag: changes command behavior."),
+            ("<required>",             "Angle brackets: type your own value here, not the brackets."),
+            ("[optional]",             "Square brackets: this part can be left out."),
         ],
         examples=[
             ("page Alice=Hello",        "'Alice=Hello' is the parameter."),
             ("groups #add friends Bob", "'#add' is the switch; 'friends Bob' are its own parameters."),
+            ("teleport #learn [<name>]", "The name is optional -- omit it to use the room's own name."),
         ],
         notes=[
             "A command-specific switch (like '#hide' or '#add') only makes "
@@ -317,11 +328,15 @@ register_topic(
             "deliberately leaves out your weapon and its class/race bonus "
             "(item_system.weapon_bonus()), so two characters with the same "
             "BHR can still fight very differently depending on what "
-            "they're carrying."
+            "they're carrying.\n\n"
+            "This is the same danger rating DUEL points you at before you "
+            "decide whether to accept a challenge -- worth checking on "
+            "STATS before you say yes to a stranger."
         ),
         category=HelpCategory.CONCEPT,
         usage=[
-            ("stats", "Show your own BHR along with the rest of your character sheet."),
+            ("stats",       "Show your own BHR along with the rest of your character sheet."),
+            ("duel accept", "Accept a pending duel challenge -- check the challenger's BHR first."),
         ],
         # Admin/DM-only -- the exact formula lets a player reverse-engineer
         # and min-max toward a target BHR instead of it staying a rough,
@@ -739,7 +754,9 @@ register_topic(
             "example, a Ringwraith recognizes \"one of his own kind\" and "
             "skips the fight entirely if your honor is under 800, and an "
             "ally's own courage stat is compared against your honor to "
-            "decide whether it stands and fights or flees."
+            "decide whether it stands and fights or flees. Stealing from "
+            "another player with LOOT always costs you honor too, whether "
+            "or not it succeeds."
         ),
         category=HelpCategory.CONCEPT,
         usage=[
@@ -757,8 +774,8 @@ register_topic(
             "ported from SPUR.NEW.S / SPUR.LOGON.S's set.honor. Honor "
             "deltas are scattered per-mechanic rather than centralized -- "
             "see ally_events/__init__.py (ration eating, ally-loyalty "
-            "courage-vs-honor check), commands/pray.py, and "
-            "encounters/ringwraith.py for representative examples.",
+            "courage-vs-honor check), commands/pray.py, commands/loot.py, "
+            "and encounters/ringwraith.py for representative examples.",
         ],
         see_also=["experience"],
     ),
@@ -987,8 +1004,10 @@ register_topic(
             "Outlaw -- which is mostly a roleplaying/flavor choice, but "
             "guild membership does gate a few real things: each guild "
             "has its own headquarters (a virtual area with a food "
-            "locker, item locker, and guild bank), and Civilians are "
-            "advertised as safe from dueling by anyone but an Outlaw.\n\n"
+            "locker, item locker, and guild bank), guildmates in the "
+            "room with you lend a combat bonus when you SPORT DUEL "
+            "someone, and winning a guild-vs-guild duel captures that "
+            "room's territory for your guild.\n\n"
             "Outlaw is the odd one out -- you make yourself a target "
             "for nearly everyone else in exchange for solo-play "
             "opportunities the other guilds don't get. Civilian is the "
@@ -1001,24 +1020,33 @@ register_topic(
         ),
         category=HelpCategory.CONCEPT,
         usage=[
-            ("follow", "Toggle Guild Follow Mode."),
+            ("follow",          "Toggle Guild Follow Mode."),
+            ("duel <player>",   "Challenge a player in your room to a SPORT DUEL."),
+            ("duel #standings", "Show guild win/loss duel standings."),
         ],
         notes=[
-            "Live guild-vs-guild dueling isn't implemented yet -- the "
-            "guild-choice screen's dueling/territory-control flavor text "
-            "describes where the game is headed, not something you can "
-            "trigger today.",
+            "The guild-choice screen advertises Civilians as \"safe from "
+            "dueling by anyone but an Outlaw\" -- that restriction isn't "
+            "actually enforced yet; DUEL currently lets any player "
+            "challenge any other player regardless of guild.",
         ],
         admin_notes=[
             "Guild StrEnum (base_classes.py); guild choice UI is "
             "commands/new_player.py's _choose_guild() (_GUILD_INFO). "
             "PlayerFlags.GUILD_MEMBER/GUILD_AUTODUEL/GUILD_FOLLOW_MODE "
-            "(flags.py) -- GUILD_FOLLOW_MODE is the only one actually "
-            "wired to live behavior so far (commands/follow.py); "
-            "GUILD_AUTODUEL is set but has no consuming logic yet (no "
-            "duel system exists). Guild HQ virtual area: guild_hq/main.py.",
+            "(flags.py) -- GUILD_FOLLOW_MODE is wired to live behavior "
+            "(commands/follow.py); GUILD_AUTODUEL is set but has no "
+            "consuming logic yet. Guild HQ virtual area: "
+            "guild_hq/main.py. combat/duel.py's DuelCommand.execute() "
+            "has no guild-eligibility check on who can challenge whom -- "
+            "the Civilian/Outlaw dueling-immunity rule from the choice "
+            "screen isn't ported. Territory capture: room_alignment.py "
+            "(Ryan's own extension, no SPUR precedent -- SPUR's guild "
+            "territory is baked into room names at map-build time and "
+            "never mutated by combat). Guild standings persistence: "
+            "guild_standings.py (SPUR.DUEL2.S's guild label).",
         ],
-        see_also=["virtualareas"],
+        see_also=["virtualareas", "bhr"],
     ),
 )
 
@@ -1286,9 +1314,6 @@ register_topic(
             "Reached via the Shoppe's own menu -- take the elevator "
             "(Up/Down at a room with one) to reach the Shoppe, then "
             "pick Pawn Shop from its options.",
-            "LOOT (searching an unconscious player for loot) isn't "
-            "implemented yet -- the Pawn Shop works today regardless of "
-            "how an item ended up in your hands.",
         ],
         admin_notes=[
             "shoppe/pawn.py (SPUR.SHOP.S's pawn.shp section). "
@@ -1297,6 +1322,45 @@ register_topic(
             "(session-only, _STOCK_CAP=30, oldest evicted first), sold "
             "back at _BUY_MARKUP (×40) -- no SPUR precedent for buy-back, "
             "this port's own addition.",
+        ],
+    ),
+)
+
+register_topic(
+    "dwarf", "thedwarf", "the dwarf",
+    help_obj=Help(
+        summary="The Dwarf: what the STATS 'Dwarf: Alive!/Dead...' line means",
+        description=(
+            "The Dwarf is a single, world-shared NPC thief wandering "
+            "level 1 -- a short, bearded fellow who periodically robs "
+            "you as you move around: your silver in hand if you're "
+            "carrying any, otherwise a random item from your "
+            "inventory. He relocates to a new room every so often, so "
+            "he isn't a fixed target you can camp.\n\n"
+            "Find his current room and fight him like any other "
+            "monster to kill him -- doing so hands you his entire "
+            "accumulated hoard (everything he's stolen from everyone, "
+            "not just you) and stops him robbing you specifically. He "
+            "keeps roaming and stealing from anyone else who hasn't "
+            "killed him yet -- 'killed' is tracked per player, not "
+            "server-wide, so one player's kill doesn't retire him for "
+            "everyone."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("stats", "Shows 'Dwarf: Alive! [N silver]' or 'Dwarf: Dead...' for you specifically."),
+        ],
+        admin_notes=[
+            "encounters/dwarf.py (SPUR.MAIN.S 'dwarf'/'no.dwarf', "
+            "SPUR.MISC5.S 'dwarf' theft subroutine, SPUR.MISC.S:385-388 "
+            "'p.a4' award-on-death). PlayerFlags.DWARF_ALIVE (per-player "
+            "kill tracking, not a ported SPUR mechanic -- SPUR retires "
+            "him server-wide on death). Periodic relocation "
+            "(config.dwarf_move_interval_minutes) is also this port's "
+            "own addition, replacing SPUR's fixed world-init placement. "
+            "Hoard total: config.dwarf_silver (server-wide, sysop-"
+            "editable via CONFIG); his current room: "
+            "run/server/dwarf_state.json.",
         ],
     ),
 )

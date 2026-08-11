@@ -388,6 +388,28 @@ class TestCombatConceptTopics(unittest.TestCase):
         self.assertTrue(any("Weapon Class" in line for line in out))
 
 
+class TestCommandlineTopicBracketNotation(unittest.TestCase):
+    """'commandline' concept topic now explains <required>/[optional]
+    syntax (Ryan's request, tied to the [[..]]-escaping bug fixed in
+    page/whisper/mail/teleport/connect's usage-reminder strings). Its
+    description text uses literal [name]/[,name2] examples, which must
+    be [[..]]-escaped since format_help() does NOT auto-escape
+    Help.description the way it does usage/examples columns."""
+
+    def test_mentions_angle_and_square_brackets(self):
+        out = "\n".join(format_help(_TOPICS["commandline"], width=78) or [])
+        self.assertIn("<name>", out)
+        self.assertIn("required", out.lower())
+        self.assertIn("optional", out.lower())
+
+    def test_description_bracket_examples_survive_highlighting(self):
+        from formatting import highlight_brackets, PlainCodec
+        out = format_help(_TOPICS["commandline"], width=78) or []
+        rendered = "\n".join(highlight_brackets(line, PlainCodec()) for line in out)
+        self.assertIn("[name]", rendered)
+        self.assertIn("[,name2]", rendered)
+
+
 class TestPlayerMechanicsConceptTopics(unittest.TestCase):
     """honor/experience/armorcondition/specialweapon/examine/parties/
     eliteally concept topics -- TODO_HELP.md's 7/14/26 'implemented, no
@@ -488,6 +510,46 @@ class TestWorldConceptTopicsBatch2(unittest.TestCase):
             self.assertIsNotNone(out, f"{name!r} produced no output")
             for line in out:
                 self.assertLessEqual(_visible_len(line), 78, f"{name!r} line too long: {line!r}")
+
+
+class TestDwarfConceptTopic(unittest.TestCase):
+    """dwarf concept topic -- The Dwarf shipped after TODO_HELP.md's
+    7/14/26 pass (which had confirmed it 'Not Implemented' at the time),
+    so this was a genuinely new gap found by re-checking current state."""
+
+    def test_topic_registered(self):
+        self.assertIn("dwarf", _TOPICS)
+
+    def test_alias_forms_resolve(self):
+        for alias in ("thedwarf", "the dwarf"):
+            self.assertIn(alias, _TOPICS, f"{alias!r} alias not registered")
+
+    def test_renders_without_error(self):
+        from formatting import _visible_len
+        out = format_help(_TOPICS["dwarf"], command_name="dwarf", width=78)
+        self.assertIsNotNone(out)
+        for line in out:
+            self.assertLessEqual(_visible_len(line), 78, f"line too long: {line!r}")
+
+
+class TestGuildsTopicDuelingIsReal(unittest.TestCase):
+    """Regression guard: guilds/bhr topics previously (wrongly) claimed
+    live dueling wasn't implemented -- combat/duel.py's DuelCommand
+    already existed as of 7/14/26, so this was stale even before this
+    session started. Confirms the corrected wording stuck."""
+
+    def test_guilds_topic_does_not_claim_dueling_unimplemented(self):
+        out = "\n".join(format_help(_TOPICS["guilds"], width=78) or [])
+        self.assertNotIn("isn't implemented yet", out)
+        self.assertIn("duel", out.lower())
+
+    def test_guilds_topic_mentions_duel_command_in_usage(self):
+        usage_cmds = [u[0] for u in _TOPICS["guilds"].usage]
+        self.assertTrue(any("duel" in u for u in usage_cmds))
+
+    def test_bhr_topic_mentions_duel(self):
+        out = "\n".join(format_help(_TOPICS["bhr"], width=78) or [])
+        self.assertIn("DUEL", out)
 
 
 class TestFindTopicBySubstring(unittest.TestCase):
