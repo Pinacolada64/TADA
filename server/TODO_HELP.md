@@ -54,10 +54,10 @@ convention as the existing `bhr`/`rooms`/`commandline` topics:
   as the `moreprompt`/`paging` CONCEPT topic.
 - **✅ Done (8/10/26).** ~~Virtual areas~~ -- written as the
   `virtualareas` CONCEPT topic.
-- **Weapon classes** (bash/slash, poke/jab, pole/range, projectile,
-  energy, proximity) and class/race weapon affinities --
-  `WeaponClass` enum + `weapon_bonus()` (`item_system.py:241`, used by
-  `commands/ready.py`'s displayed skill/damage bonus).
+- **✅ Already done (predates this file's 7/14/26 pass).** ~~Weapon
+  classes~~ -- `weaponclass`/`weaponaffinity` CONCEPT topics already
+  existed from the earlier `combat`/`basedamage`/`easeofuse` batch;
+  this bullet was stale.
 - **✅ Done (8/10/26).** ~~Shield/armor condition ("intactness")~~ --
   written as the `armorcondition`/`shieldcondition`/`intactness`
   CONCEPT topic.
@@ -81,12 +81,8 @@ convention as the existing `bhr`/`rooms`/`commandline` topics:
   writing it: `Translation` (`terminal.py`) has only three members --
   PETSCII/ASCII/ANSI. This file's earlier note claiming a fourth
   `COMMODORE` value was wrong; no such member exists.
-- **Horses / mounts** -- `commands/mount.py`/`commands/dismount.py`
-  have command-level help, but the broader concept (acquiring a horse,
-  CHARGE, unseating, SADDLED/ARMORED flags -- spread across
-  MECHANICS.md:828-963 and touching `mount`, `dismount`, `lasso`,
-  `attack`) doesn't have a single place tying it together the way
-  `bhr` does for its own topic.
+- **✅ Done (8/10/26).** ~~Horses / mounts~~ -- written as the
+  `horses`/`horse`/`mounts`/`mount` CONCEPT topic.
 
 Not flagged: **groups** (fully covered already by `help groups`, no gap
 even though `page`/`whisper` cross-reference `#<group>` syntax), **news**
@@ -159,22 +155,19 @@ not-implemented (parked, not a help gap yet).
   `x` command), not `commands/look.py`; the cursed-pickup penalty is
   `commands/get.py`'s `_cursed_penalty()`, not a line-25 `hp.5` in
   `look.py`.
-- **Item persistence rule** (tips.txt: a found item reappears next
-  session *unless* you're still carrying it -- eat it before you log
-  off to reset it) -- still not written up. Correction: the field is
-  `player.item_history`/`player.ration_history` (`player.py:369-370`),
-  not `player.picked_up_items` as this file previously said -- that
-  name doesn't exist in the current codebase. Both histories are
-  reseeded from current inventory on login
-  (`record_item_pickup()`/`record_ration_pickup()`,
-  `commands/get.py`/`simple_server.py` both read them to hide
-  already-taken room items). Worth a topic since it's counter-intuitive.
+- **✅ Done (8/10/26).** ~~Item persistence rule~~ -- written as the
+  `itempersistence`/`respawn` CONCEPT topic. Correction while writing
+  it: the field is `player.item_history`/`player.ration_history`
+  (`player.py:369-370`), not `player.picked_up_items` as this file
+  previously said -- that name doesn't exist in the current codebase.
 - **✅ Done (8/10/26).** ~~Elite allies~~ -- written as the `eliteally`
   CONCEPT topic (folded into a new `parties`/`allies` topic too, since
   neither existed and they're closely related -- see this file's
   now-resolved "Parties / allies" entry above).
-- **LOOT and the Pawn Shop together** -- still half-blocked on LOOT;
-  not written yet.
+- **✅ Half-done (8/10/26).** ~~LOOT and the Pawn Shop together~~ --
+  wrote the Pawn Shop half as its own `pawnshop`/`pawn` CONCEPT topic
+  (with a note that LOOT isn't implemented yet); extend to cover LOOT
+  once that command lands rather than waiting on it.
 - **"Dusk Approaches" / session time limit -- NOT actually implemented,
   despite this file previously saying "✅ implemented".** Re-checked
   8/10/26: grepped the whole non-test tree for `ticks`/`Dusk`/session-
@@ -198,18 +191,10 @@ not-implemented (parked, not a help gap yet).
   gets all accumulated stolen gold) -- confirmed "Not Implemented" in
   MECHANICS.md, no matching code found (`DWARF_ALIVE` flag exists and
   is displayed on `stats`, but no NPC/mechanic backs it yet).
-- **Victory conditions ("Conqueror" status)** -- now implemented
-  (`victory.py`, `commands/movement.py`'s level-6 "Ladder Up" hook at
-  room 117 "Shimmering Portal" -- SPUR's own escape point per
-  `SPUR.MISC.S`'s `cl=6, di=5` trigger, not level 1 as `SPUR.HELP.TXT`'s
-  flavor text implies). Gates: the King of the Wraiths must be dead
-  (`PlayerFlags.WRAITH_KING_ALIVE`), plus `victory_gold_amount` silver in
-  hand and/or `victory_item_number` carried per `config.victory_type`.
-  Note: `SPUR.MISC7.S`'s actual win check never tests
-  `PlayerFlags.SPUR_ALIVE` at all, despite `SPUR.HELP.TXT`'s "defeat
-  SPUR" framing -- only the Wraith King gates it. A help topic
-  explaining the real escape conditions (and clarifying that SPUR
-  himself isn't a literal gate) would now be accurate and worth writing.
+- **✅ Done (8/10/26).** ~~Victory conditions ("Conqueror" status)~~ --
+  written as the `victory`/`escape`/`conqueror` CONCEPT topic,
+  explicitly correcting the "must defeat SPUR" misconception (only the
+  Wraith King's death is actually checked).
 
 8/8/26:
 

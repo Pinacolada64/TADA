@@ -1151,6 +1151,156 @@ register_topic(
     ),
 )
 
+register_topic(
+    "itempersistence", "item persistence", "respawn",
+    help_obj=Help(
+        summary="Why an item you left behind is there again next session",
+        description=(
+            "Ground items (things, weapons, and rations sitting in a "
+            "room, not something you found in a chest) reappear the "
+            "next time you visit -- but only if you're not still "
+            "carrying the one you took. The moment you log in, the "
+            "game checks what's currently in your inventory: anything "
+            "you've eaten, dropped, sold, or otherwise no longer have "
+            "counts as available to find again, while anything still "
+            "on you stays marked as already taken so it doesn't "
+            "duplicate.\n\n"
+            "In practice this means a ration you're saving for later "
+            "won't respawn a second copy in the room while you're "
+            "still holding it -- but eat it (or drop it) before you log "
+            "off, and it'll be back next time. This surprises people "
+            "coming from MUDs where a picked-up item is gone from the "
+            "world for good."
+        ),
+        category=HelpCategory.CONCEPT,
+        admin_notes=[
+            "player.item_history / player.ration_history (player.py) -- "
+            "session ring buffers, reseeded from current inventory on "
+            "login. commands/get.py's _room_available_items() and "
+            "simple_server.py's room-item display both hide any item ID "
+            "present in the relevant history list; record_item_pickup()/"
+            "record_ration_pickup() append to it on GET.",
+        ],
+    ),
+)
+
+register_topic(
+    "horses", "horse", "mounts", "mount",
+    help_obj=Help(
+        summary="Horses: acquiring, mounting, and fighting from the saddle",
+        description=(
+            "A horse is a special kind of ally: you get one either by "
+            "LASSOing a wild horse during combat, or buying one at "
+            "Jake's Stable. Once you have one, MOUNT climbs into the "
+            "saddle and DISMOUNT gets off -- you're automatically "
+            "dismounted if your horse dies/leaves the party or you "
+            "walk into water.\n\n"
+            "Mounted combat has its own flavor: you sometimes get a "
+            "free CHARGE opportunity for extra damage on the first "
+            "exchange of a fight, a monster's attack can sometimes hit "
+            "your horse instead of you, and CHARGE itself carries a "
+            "risk of being thrown from the saddle afterward (a Saddle "
+            "gives you a second chance to stay seated if that happens). "
+            "A Saddle and Horse Armor, bought at Jake's Stable and then "
+            "USEd on your horse, equip it for that fight -- and enough "
+            "gold buys Train Horse, which upgrades an equipped horse to "
+            "Elite.\n\n"
+            "Pixies are too small to mount a horse at all."
+        ),
+        category=HelpCategory.CONCEPT,
+        usage=[
+            ("lasso",      "Attempt to capture a wild horse you're fighting."),
+            ("mount",      "Climb onto your horse."),
+            ("dismount",   "Get off your horse."),
+            ("use <item>", "Equip a Saddle or Horse Armor onto your mounted horse."),
+        ],
+        see_also=["parties"],
+        admin_notes=[
+            "MECHANICS.md's 'Horses' section (Phase 1-3 implementation "
+            "notes) is the authoritative reference. commands/mount.py/"
+            "dismount.py/lasso.py; AllyFlags.MOUNT/SADDLED/ARMORED "
+            "(bar/ally_data.py); CHARGE eligibility/bonus/unseat: "
+            "combat/engine.py's _roll_charge_first_strike()/"
+            "_charge_unseat_check(), combat/resolution.py's "
+            "player_attacks(is_charge=True). Known gap: horse HP isn't "
+            "meaningfully tracked yet (a lassoed mount's hit_points "
+            "seeds to 0), so a 'mount redirects a hit' save is "
+            "narrative-only, not real mount damage.",
+        ],
+    ),
+)
+
+register_topic(
+    "victory", "escape", "winning", "conqueror",
+    help_obj=Help(
+        summary="How to actually win/escape the dungeon",
+        description=(
+            "Victory ('Conqueror' status) is reached at level 6's "
+            "Shimmering Portal room by going Up -- but only once every "
+            "gate is satisfied. First, the King of the Wraiths must be "
+            "dead, no matter what else is true. Beyond that, the exact "
+            "requirement depends on the server's configured victory "
+            "type: carrying a specific treasure item, holding enough "
+            "silver in hand, or both -- ask an admin (or check CONFIG, "
+            "if you have access) which applies on this server.\n\n"
+            "A common misconception carried over from the original "
+            "game's own flavor text is that you need to personally "
+            "defeat SPUR himself to win -- that's not actually checked "
+            "anywhere; only the Wraith King's death (plus whatever "
+            "item/gold gate applies) matters."
+        ),
+        category=HelpCategory.CONCEPT,
+        admin_notes=[
+            "victory.py (SPUR.MISC7.S's win/win2/win5/nowin), triggered "
+            "by commands/movement.py's rc/rt handling on level 6 room "
+            "117 ('Shimmering Portal', the only rc==1 'Ladder Up' room "
+            "in the dataset). Gates: PlayerFlags.WRAITH_KING_ALIVE must "
+            "be False (unconditional); config.victory_type "
+            "('gold'/'item'/'both') then further requires "
+            "config.victory_gold_amount silver in hand and/or carrying "
+            "objects.json item #config.victory_item_number. On success: "
+            "winners.py records the win, a battle.log entry and "
+            "permanent news post follow.",
+        ],
+    ),
+)
+
+register_topic(
+    "pawnshop", "pawn shop", "pawn",
+    help_obj=Help(
+        summary="The Pawn Shop: sell (almost) anything you find",
+        description=(
+            "The Shoppe's Pawn Shop buys back nearly any item you're "
+            "carrying for quick cash -- a handy way to convert loot "
+            "you don't need into gold without hunting down a "
+            "specialty buyer. A couple of quest-tier treasures are too "
+            "valuable for the pawnbroker to touch and are refused "
+            "outright.\n\n"
+            "Everything sold this way goes into the shop's own back-"
+            "room stock, which you (or anyone else) can browse and buy "
+            "back later at a markup -- so a pawned item isn't "
+            "necessarily gone for good, just changed hands."
+        ),
+        category=HelpCategory.CONCEPT,
+        notes=[
+            "Reached via the Shoppe's own menu -- take the elevator "
+            "(Up/Down at a room with one) to reach the Shoppe, then "
+            "pick Pawn Shop from its options.",
+            "LOOT (searching an unconscious player for loot) isn't "
+            "implemented yet -- the Pawn Shop works today regardless of "
+            "how an item ended up in your hands.",
+        ],
+        admin_notes=[
+            "shoppe/pawn.py (SPUR.SHOP.S's pawn.shp section). "
+            "_REFUSED_IDS (Crown of Midas #73, Amulet of Life #76) are "
+            "hardcoded no-resale items. Buy-back stock: server.pawn_stock "
+            "(session-only, _STOCK_CAP=30, oldest evicted first), sold "
+            "back at _BUY_MARKUP (×40) -- no SPUR precedent for buy-back, "
+            "this port's own addition.",
+        ],
+    ),
+)
+
 
 # ---------------------------------------------------------------------------
 # Helper function - guards against Mode.NONE instead of a set {Mode.NONE}

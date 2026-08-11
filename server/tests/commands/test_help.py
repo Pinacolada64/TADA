@@ -461,6 +461,35 @@ class TestWorldConceptTopics(unittest.TestCase):
             self.assertIn(race, out)
 
 
+class TestWorldConceptTopicsBatch2(unittest.TestCase):
+    """itempersistence/horses/victory/pawnshop concept topics --
+    TODO_HELP.md's 7/14/26 pass, third batch."""
+
+    TOPIC_NAMES = ["itempersistence", "horses", "victory", "pawnshop"]
+
+    def test_all_new_topics_registered(self):
+        for name in self.TOPIC_NAMES:
+            self.assertIn(name, _TOPICS, f"{name!r} not registered as a topic")
+
+    def test_alias_forms_also_resolve(self):
+        for alias in ("respawn", "horse", "mounts", "mount", "escape",
+                      "conqueror", "pawn shop", "pawn"):
+            self.assertIn(alias, _TOPICS, f"{alias!r} alias not registered")
+
+    def test_every_see_also_entry_resolves_to_a_real_topic(self):
+        for name in self.TOPIC_NAMES:
+            for ref in _TOPICS[name].see_also:
+                self.assertIn(ref, _TOPICS, f"{name!r}.see_also has unresolvable {ref!r}")
+
+    def test_topics_render_without_error(self):
+        from formatting import _visible_len
+        for name in self.TOPIC_NAMES:
+            out = format_help(_TOPICS[name], command_name=name, width=78)
+            self.assertIsNotNone(out, f"{name!r} produced no output")
+            for line in out:
+                self.assertLessEqual(_visible_len(line), 78, f"{name!r} line too long: {line!r}")
+
+
 class TestFindTopicBySubstring(unittest.TestCase):
     """New in TADA: 'help ease' redirects to 'easeofuse' -- Ryan found
     typing a topic's full canonical name cumbersome. Only redirects when
