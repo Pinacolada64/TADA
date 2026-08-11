@@ -178,9 +178,11 @@ class PlayerClass(StrEnum):
     In the original Apple code, this was the variable 'pc' which could range from 1-9.
     The class number is in a comment.
     """
-    # this player class will be referred to as PlayerClass.MAGIC_USER even if the player's gender is female, making her a witch:
-    # FIXME: how do I do that? Python Player class can't be... inherited? from that i can see?
-    #  TODO: "Wizard" if player.gender == Gender.MALE else 'Witch'
+    # PlayerClass.WIZARD always stores/compares as "Wizard" regardless of
+    # gender -- mechanical checks must stay against this one enum member.
+    # The player-facing "Witch" swap for a female Wizard lives in
+    # tada_utilities.class_display_name()/player_class_display_name(),
+    # not here, since an enum member's value can't vary per-instance.
     WIZARD = "Wizard"  # 1
     DRUID = "Druid"  # 2
     FIGHTER = "Fighter"  # 3

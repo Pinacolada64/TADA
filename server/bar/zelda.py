@@ -202,7 +202,8 @@ async def _study_player(ctx: GameContext) -> None:
     if info.get('char_race'):
         parts.append(str(info['char_race']))
     if info.get('char_class'):
-        parts.append(str(info['char_class']))
+        from tada_utilities import class_display_name
+        parts.append(class_display_name(info['char_class'], info.get('gender')))
     if info.get('guild'):
         parts.append(f"({info['guild']})")
     await ctx.send(' '.join(parts))

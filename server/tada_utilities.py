@@ -484,6 +484,36 @@ def get_pronoun(character: 'Player',
         return ''
 
 
+def class_display_name(char_class, gender=None) -> str:
+    """Player-facing class name -- "Witch" for a female Wizard, the enum's
+    plain value otherwise. Wires up base_classes.py's long-standing
+    PlayerClass.WIZARD TODO ("Wizard" if male else 'Witch'), which
+    create_character.py's dead/legacy chargen flow implemented once but
+    never connected to the live game.
+
+    Display text only -- every mechanical check in the codebase
+    (`char_class == PlayerClass.WIZARD`, spell eligibility, equipment
+    lookups keyed by class name, etc.) must keep comparing against the
+    real PlayerClass.WIZARD enum member regardless of gender; this
+    function is not a substitute for that and must not be used in place
+    of it.
+    """
+    from base_classes import Gender, PlayerClass
+    if char_class is None:
+        return None
+    if char_class == PlayerClass.WIZARD and gender == Gender.FEMALE:
+        return 'Witch'
+    return getattr(char_class, 'value', char_class)
+
+
+def player_class_display_name(player) -> str:
+    """class_display_name() for a Player/Ally/Monster-like object exposing
+    .char_class/.gender, e.g. `player_class_display_name(ctx.player)`."""
+    return class_display_name(
+        getattr(player, 'char_class', None), getattr(player, 'gender', None)
+    )
+
+
 # %-token letter -> PronounType name, mirrors ally_events/farewell.py's
 # original ally-only scheme (one per PronounType member in base_classes.py):
 # %s he/she, %o him/her, %p his/her, %P his/hers, %r himself/herself.

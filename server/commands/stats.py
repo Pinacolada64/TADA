@@ -295,7 +295,8 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     ]
 
     # Class and race
-    class_name = str(char_class).split('.')[-1].title() if char_class else 'Unknown'
+    from tada_utilities import class_display_name
+    class_name = class_display_name(char_class, getattr(player, 'gender', None)) if char_class else 'Unknown'
     race_name  = str(char_race).split('.')[-1].title()  if char_race  else 'Unknown'
     lines += [
         f"Class : {class_name:<10}  Race: {race_name}",

@@ -813,8 +813,12 @@ async def _choose_class(ctx) -> int | None:
     class_names = [""]
     try:
         from base_classes import PlayerClass, PlayerClassText
+        from tada_utilities import class_display_name
         classes     = list(PlayerClass)
-        class_names = [c.value for c in classes]
+        # Gendered display only ("Witch" for a female Wizard) -- gender is
+        # chosen before class in the creation step order, so
+        # ctx.player.gender is already set here.
+        class_names = [class_display_name(c, ctx.player.gender) for c in classes]
         class_texts = list(PlayerClassText)
     except ImportError:
         classes     = ["Fighter", "Mage", "Cleric", "Thief"]
@@ -888,7 +892,7 @@ async def _choose_class(ctx) -> int | None:
             # every "Applying ..." message -- getattr(char_class,
             # 'name', None) always came back None.
             ctx.player.char_class = classes[sel - 1]
-            await ctx.send(f"Class set to {ctx.player.char_class}.")
+            await ctx.send(f"Class set to {class_display_name(ctx.player.char_class, ctx.player.gender)}.")
             return True
 
 
@@ -1332,6 +1336,7 @@ async def _choose_quote(ctx) -> bool:
 async def _final_review(ctx) -> bool:
     """Show a summary and let the player make last-minute edits."""
     p = ctx.player
+    from tada_utilities import player_class_display_name
     while True:
         lines = [
             "",
@@ -1340,7 +1345,7 @@ async def _final_review(ctx) -> bool:
             f"  Username : {getattr(p, 'name',       '?')}",
             f"  Age      : {getattr(p, 'age',        '?')}",
             f"  Gender   : {getattr(p, 'gender',     '?')}",
-            f"  Class    : {getattr(p, 'char_class', '?')}",
+            f"  Class    : {player_class_display_name(p) if getattr(p, 'char_class', None) else '?'}",
             f"  Race     : {getattr(p, 'char_race',  '?')}",
             f"  Guild    : {getattr(p, 'guild',      '?')}",
             "",

@@ -453,7 +453,8 @@ def _examine_player(target_ctx: 'GameContext') -> list[str]:
     race = getattr(player, 'char_race', None)
     race_name = str(race).split('.')[-1].title() if race else 'Unknown'
     char_class = getattr(player, 'char_class', None)
-    class_name = str(char_class).split('.')[-1].title() if char_class else 'Unknown'
+    from tada_utilities import class_display_name
+    class_name = class_display_name(char_class, getattr(player, 'gender', None)) if char_class else 'Unknown'
 
     health = _health_descriptor(int(getattr(player, 'hit_points', 0) or 0))
 

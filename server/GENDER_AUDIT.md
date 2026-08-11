@@ -10,10 +10,10 @@ Scope: every read/write of `Gender` (players, allies/NPCs, mounts) across
 Gender is fully wired but purely cosmetic — pronoun substitution and NPC
 address terms only, never a number, roll, or gate anywhere. It has no
 SPUR precedent (the original BASIC game had no gender concept at all), so
-this is a from-scratch TADA system that's mostly fully realized for its
-intended (flavor) purpose, with one real, documented gap: a Wizard/Witch
-class-name swap that exists in dead code but was never connected to the
-live creation path.
+this is a from-scratch TADA system. As of 2026-08-11 it's fully realized
+for its intended (flavor) purpose: the one gap this audit found — a
+Wizard/Witch class-name swap that existed only in dead code — is now
+wired into the live game (see below).
 
 ---
 
@@ -106,16 +106,22 @@ calculation, or eligibility gate anywhere searched (`combat/engine.py`,
 pronoun substitution plus a fixed vocabulary swap in three NPCs'
 dialogue.
 
-## The one real gap: Wizard/Witch class naming
+## Wizard/Witch class naming — resolved 2026-08-11
 
-- `base_classes.py:181-183` — the live `PlayerClass` enum has an explicit
-  `TODO`: `"Wizard" if player.gender == Gender.MALE else 'Witch'` —
-  **unimplemented** in the active class-name display path.
-- `create_character.py:281` (`display_classes`) — this swap **is**
-  implemented, but only in the legacy/unused `create_character.py`
-  creation flow, which isn't wired into `simple_server.py`. In the live
-  game, a female Wizard is always displayed/labeled "Wizard," never
-  "Witch."
+- `base_classes.py:181-183` used to have an explicit `TODO`:
+  `"Wizard" if player.gender == Gender.MALE else 'Witch'` — unimplemented
+  in the active class-name display path. `create_character.py:281`
+  (`display_classes`) had the swap implemented, but only in the
+  legacy/unused creation flow, not wired into `simple_server.py`.
+- Now wired up via `tada_utilities.class_display_name()` /
+  `player_class_display_name()` — a female Wizard displays as "Witch" in
+  character creation's class picker/confirmation/review
+  (`commands/new_player.py`), the `stats` command (`commands/stats.py`),
+  `examine` (`commands/examine.py`), and Zelda's `study` NPC command
+  (`bar/zelda.py`). Every mechanical `== PlayerClass.WIZARD` check (spell
+  eligibility, equipment lookups, honor costs, etc.) is untouched — the
+  enum member itself can't vary per player, so the swap only ever
+  happens in display text, never in a comparison.
 
 ## No relationship system to gate on gender
 
@@ -127,10 +133,7 @@ dialogue.
 
 ## Ideas for humor/poignancy (cosmetic-tier, matching how gender is used elsewhere)
 
-- **Wire up the existing Wizard/Witch TODO** — smallest possible win,
-  the code already exists in `create_character.py:281`, it just needs to
-  move into the live `commands/new_player.py`/display path referenced by
-  `base_classes.py:181-183`.
+- ~~Wire up the existing Wizard/Witch TODO~~ — done, see above.
 - **Extend the title-swap pattern** to other classes with gendered
   English titles, if any read naturally in `commands/stats.py` or duel
   victory announcements.
