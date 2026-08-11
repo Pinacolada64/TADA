@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""One-off setup for the horse-journey and monster-encounter bot demos
-(see bot_horse_journey.py and bot_monster_encounter.py).
+"""One-off setup for the horse-journey, monster-encounter, and desert-compass
+bot demos (see bot_horse_journey.py, bot_monster_encounter.py, and
+bot_desert_compass.py).
 
-Creates four throwaway accounts (bypassing the interactive character-
+Creates five throwaway accounts (bypassing the interactive character-
 creation wizard) so the bot scripts can log straight in over the wire:
 
   botdummy   (Fighter) -- keeps a fight open so other bots can join as a
@@ -22,8 +23,13 @@ creation wizard) so the bot scripts can log straight in over the wire:
                           come from Fat Olaf's Slave Trade in the bar,
                           seeded directly here so the live bot script can
                           skip straight to the ORDER command
+  botdesert  (Fighter) -- starts already standing in level 5 room 2 ("The
+                          Desert"), pre-seeded with a compass and a
+                          DAGGER, for bot_desert_compass.py's demo of
+                          encounters/desert.py (exit-list suppression,
+                          heat/thirst drain, in-combat compass damage)
 
-All four: ADMIN flag on (for the '#<room>' teleport command), a known
+All five: ADMIN flag on (for the '#<room>' teleport command), a known
 elevator combination pre-seeded (normally learned from reading the SCRAP OF
 PAPER item), and plenty of gold for Jake's Stable's saddle/armor/training.
 
@@ -31,7 +37,7 @@ Run from anywhere (paths are resolved relative to this file's location,
 not the current working directory):
     .venv/bin/python tools/setup_bot_accounts.py
 
-Re-running just overwrites the four accounts with fresh, empty-party state
+Re-running just overwrites the five accounts with fresh, empty-party state
 (railbender's 3 servants are always re-seeded fresh too).
 """
 import json
@@ -62,6 +68,7 @@ ACCOUNTS = [
     ('botlasso',   PlayerClass.FIGHTER, Gender.MALE),
     ('botdruid',   PlayerClass.DRUID,   Gender.FEMALE),
     ('railbender', PlayerClass.FIGHTER, Gender.MALE),
+    ('botdesert',  PlayerClass.FIGHTER, Gender.MALE),
 ]
 
 # Names must match bar/ally_data.py's load_allies() master roster exactly.
@@ -96,6 +103,39 @@ def _seed_botlasso_gun(player) -> None:
         player.inventory.add(ammo)
 
 
+def _seed_botdesert_gear(player) -> None:
+    """Give botdesert a Compass (objects.json #1, item_system.ItemType.COMPASS)
+    and a DAGGER (weapons.json #7) so bot_desert_compass.py can demonstrate
+    encounters/desert.py's compass-navigation/heat/combat-damage mechanics
+    without first having to shop for either -- USE toggles the compass on/off
+    live (commands/use.py), READY equips the dagger.
+
+    Deliberately NOT weapons.json #1 (LONG SWORD): Inventory.add() (see its
+    docstring) stacks purely on id_number, with no id_prefix/category check
+    -- a weapon and an item can share the same raw JSON id (both #1 here),
+    and adding both merges the second into the first's stack instead of
+    creating a separate entry. Real latent bug, worth its own fix, but
+    sidestepped here by picking a weapon id (#7) that doesn't collide with
+    the compass's #1.
+    """
+    from inventory import Inventory
+    from items import Item, ItemCategory, Weapon
+    from item_system import ItemType
+
+    # Same re-seed-fresh reasoning as _seed_railbender_allies.
+    player.inventory = Inventory(capacity=player.max_inventory_size)
+
+    compass = Item(id_number=1, name='compass', category=ItemCategory.ITEM,
+                    type=ItemType.COMPASS, price=5)
+    player.inventory.add(compass)
+
+    dagger = Weapon(id_number=7, name='DAGGER', category=ItemCategory.WEAPON,
+                     kind='standard', weapon_class='poke/jab',
+                     stability=50, to_hit=50, price=75,
+                     sound_effect=['SWISH!', 'STAB!'])
+    player.inventory.add(dagger)
+
+
 def _seed_railbender_allies(player) -> None:
     from bar.ally_data import AllyStatus, load_allies, save_ally_roster
     from party import Party
@@ -118,8 +158,14 @@ def _seed_railbender_allies(player) -> None:
 
 
 def make_account(name: str, char_class, gender) -> None:
+    # botdesert starts already standing in level 5 room 2 ("The Desert",
+    # level_5.json -- room 1 there is "Tiny Town", NOT desert terrain
+    # itself, despite being the desert region's own entry point) instead
+    # of the usual level 1 room 1 -- bot_desert_compass.py needs desert
+    # terrain immediately, no elevator dance required.
+    start_level, start_room = (5, 2) if name == 'botdesert' else (1, 1)
     player = Player(id=name, name=name, char_class=char_class, gender=gender,
-                     map_level=1, map_room=1)
+                     map_level=start_level, map_room=start_room)
     player.set_flag(PlayerFlags.ADMIN)
     player.silver[PlayerMoneyTypes.IN_HAND] = 100_000
     # A fresh level-1 character's default 10 HP dies in 1-2 hits against a
@@ -135,6 +181,24 @@ def make_account(name: str, char_class, gender) -> None:
         _seed_railbender_allies(player)
     if name == 'botlasso':
         _seed_botlasso_gun(player)
+    if name == 'botdesert':
+        _seed_botdesert_gear(player)
+        # Force Wisdom+Intelligence well above encounters/desert.py's
+        # _MIN_WIS_PLUS_INT=10 floor -- character creation rolls these
+        # randomly, and a low roll would make botdesert lose its sense of
+        # direction in *every* room (SPUR's a=pw+pi<10 branch), muddying
+        # the demo's point that it's specifically DESERT terrain + no
+        # compass causing it, not a dim-witted character.
+        from base_classes import PlayerStat
+        player.stats[PlayerStat.WIS] = 14
+        player.stats[PlayerStat.INT] = 14
+        # New accounts default to Debug Mode ON (flags.py's DEBUG_MODE
+        # default=True) -- encounters/desert.py's can_sense_direction()
+        # always lets a debug player see exits, which would make the
+        # "no compass = lost direction" phase of the demo silently pass
+        # for the wrong reason. Start with it off; bot_desert_compass.py
+        # flips it on later specifically to demonstrate that bypass.
+        player.clear_flag(PlayerFlags.DEBUG_MODE)
 
     ok = player.save(force=True)
     if not ok:
@@ -150,6 +214,8 @@ def make_account(name: str, char_class, gender) -> None:
         extra = f' -- servants: {", ".join(_RAILBENDER_ALLY_NAMES)}'
     if name == 'botlasso':
         extra = ' -- carrying: .357 MAGNUM, 2x .357 ammo'
+    if name == 'botdesert':
+        extra = ' -- carrying: compass, DAGGER; starts in level 5 room 2 ("The Desert")'
     set_password(name, _PASSWORD)   # tools/.bot_credentials.json (gitignored)
     print(f'Created {name} ({char_class.value}, {gender.value}) -- '
           f'password {_PASSWORD!r}, elevator combo {"-".join(f"{n:02}" for n in _ELEVATOR_COMBO)}{extra}')
