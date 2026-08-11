@@ -91,7 +91,7 @@ class GroupsCommand(Command):
             return CommandResult.ok()
 
         if not cs.groups:
-            await ctx.send('You have no groups.  Use: groups #add <group> <player> [player2 ...]')
+            await ctx.send('You have no groups.  Use: groups #add <group> <player> [[player2 ...]]')
             return CommandResult.ok()
 
         lines = ['Your groups:', '']
