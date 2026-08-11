@@ -52,10 +52,11 @@ class _FakeInventory:
         return True
 
 
-def _make_player(silver=0, items=(), dwarf_alive=True, mounted=False, race=None):
+def _make_player(silver=0, items=(), dwarf_alive=True, mounted=False, race=None, gender=None):
     player = MagicMock()
     player.name = 'Testerson'
     player.char_race = race
+    player.gender = gender
     player.inventory = _FakeInventory(items)
     player._silver = {'IN_HAND': silver}
     player.get_silver = MagicMock(side_effect=lambda kind: player._silver.get('IN_HAND', 0))
@@ -195,6 +196,40 @@ class TestTrySteal(unittest.IsolatedAsyncioTestCase):
             self.assertIn('Testerson', room_args[0])
             self.assertNotIn('your', room_args[0])   # bystander view, third person
             self.assertTrue(room_kwargs.get('exclude_self'))
+
+    async def test_male_victim_gets_laddie_taunt(self):
+        import tempfile
+        from base_classes import Gender
+        with tempfile.TemporaryDirectory() as tmp:
+            _isolated_state(self, tmp)
+            from encounters.dwarf import save_state, try_steal
+            from config import config
+            save_state({'room': 2, 'last_moved': datetime.datetime.utcnow().isoformat()})
+            starting_hoard = config.dwarf_silver
+            player = _make_player(silver=500, gender=Gender.MALE)
+            ctx = _make_ctx(room_no=2, player=player)
+            with patch('random.randint', return_value=1):
+                await try_steal(ctx)
+            config.dwarf_silver = starting_hoard
+            sent = '\n'.join(str(c.args[0]) for c in ctx.send.await_args_list)
+            self.assertIn('laddie', sent)
+
+    async def test_female_victim_gets_mlady_taunt(self):
+        import tempfile
+        from base_classes import Gender
+        with tempfile.TemporaryDirectory() as tmp:
+            _isolated_state(self, tmp)
+            from encounters.dwarf import save_state, try_steal
+            from config import config
+            save_state({'room': 2, 'last_moved': datetime.datetime.utcnow().isoformat()})
+            starting_hoard = config.dwarf_silver
+            player = _make_player(silver=500, gender=Gender.FEMALE)
+            ctx = _make_ctx(room_no=2, player=player)
+            with patch('random.randint', return_value=1):
+                await try_steal(ctx)
+            config.dwarf_silver = starting_hoard
+            sent = '\n'.join(str(c.args[0]) for c in ctx.send.await_args_list)
+            self.assertIn("m'lady", sent)
 
     async def test_steals_item_when_no_silver(self):
         import tempfile

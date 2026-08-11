@@ -304,6 +304,16 @@ async def try_steal(ctx: 'GameContext') -> None:
             f'{possessive} silver!',
             exclude_self=True,
         )
+        # TADA addition: a gendered taunt on the way out -- not SPUR-
+        # sourced (see server/GENDER_AUDIT.md's gendered-flavor-beats
+        # suggestion). Same thieving Dwarf either way; his manners just
+        # don't match his morals.
+        from base_classes import Gender
+        if getattr(player, 'gender', None) == Gender.FEMALE:
+            await ctx.send('The DWARF tips an imaginary cap. "Much obliged, m\'lady!" '
+                            'he cackles, already halfway out the door.')
+        else:
+            await ctx.send('The DWARF spits at your feet. "Heh. Buy fewer ales, laddie."')
         return
 
     item_name = _steal_item(player)

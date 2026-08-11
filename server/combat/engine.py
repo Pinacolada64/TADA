@@ -1936,9 +1936,15 @@ class CombatSession:
         """Handle player death during combat."""
         self._done.set()
         mname = monster_display_name(self.monster)
+        # TADA addition: a gendered sendoff on the closing line. Not SPUR-
+        # sourced (see server/GENDER_AUDIT.md's "death message variant"
+        # suggestion) -- symmetric "son"/"daughter" phrasing rather than
+        # anything that reads as one gender getting a warmer send-off.
+        from base_classes import Gender
+        kin = 'daughter' if getattr(ctx.player, 'gender', None) == Gender.FEMALE else 'son'
         await ctx.send([
             f'|red|You have been slain by {mname}!|reset|',
-            'Your adventure ends here...',
+            f'Your adventure ends here, {kin} of these lands. May your name be remembered.',
         ])
         await ctx.send_room(
             f'|red|{_player_name(ctx)} has been slain by {mname}!|reset|',
