@@ -10,17 +10,18 @@ from commands.list_locations import ListLocationsCommand
 from flags import PlayerFlags
 
 
-def _room(name, number=0, item=0, weapon=0):
+def _room(name, number=0, item=0, weapon=0, monster=0):
     r = MagicMock()
     r.name = name
     r.number = number
     r.item = item
     r.weapon = weapon
+    r.monster = monster
     return r
 
 
 def make_ctx(*, admin=False, dm=False, levels=None, items=None, weapons=None,
-             prompt_answer=None):
+             monsters=None, prompt_answer=None):
     player = MagicMock()
     player.name = 'Rulan'
     player.map_level = 1
@@ -35,8 +36,9 @@ def make_ctx(*, admin=False, dm=False, levels=None, items=None, weapons=None,
 
     server = MagicMock()
     server.game_map.levels = levels or {}
-    server.items   = items or []
-    server.weapons = weapons or []
+    server.items    = items or []
+    server.weapons  = weapons or []
+    server.monsters = monsters or []
 
     client = MagicMock()
     client.room = 1
@@ -113,6 +115,47 @@ class TestWeaponListing(unittest.IsolatedAsyncioTestCase):
         res = await cmd.execute(ctx, '#w')
         self.assertTrue(res.success)
         self.assertIn('No weapon locations found', _sent_text(ctx))
+
+
+class TestMonsterListing(unittest.IsolatedAsyncioTestCase):
+    async def test_finds_monster_by_room_number(self):
+        cmd = ListLocationsCommand()
+        monsters = [{'number': 1, 'name': 'SAND CRAB'}]
+        rooms = {1: _room('Desert', monster=1), 2: _room('Hallway', monster=0)}
+        ctx = make_ctx(admin=True, levels={1: rooms}, monsters=monsters)
+        res = await cmd.execute(ctx, '#monsters')
+        self.assertTrue(res.success)
+        text = _sent_text(ctx)
+        self.assertIn('SAND CRAB', text)
+        self.assertIn('Desert', text)
+        self.assertNotIn('Hallway', text)
+
+    async def test_short_alias_m(self):
+        cmd = ListLocationsCommand()
+        monsters = [{'number': 1, 'name': 'SAND CRAB'}]
+        rooms = {1: _room('Desert', monster=1)}
+        ctx = make_ctx(admin=True, levels={1: rooms}, monsters=monsters)
+        await cmd.execute(ctx, '#m')
+        self.assertIn('SAND CRAB', _sent_text(ctx))
+
+    async def test_monster_number_not_positional(self):
+        # monsters.json numbering has gaps -- .monster=135 must be looked
+        # up by 'number', not list position (see get_monster()'s docstring).
+        cmd = ListLocationsCommand()
+        monsters = [{'number': 1, 'name': 'SAND CRAB'}, {'number': 135, 'name': 'DEMON'}]
+        rooms = {1: _room('Pit', monster=135)}
+        ctx = make_ctx(admin=True, levels={1: rooms}, monsters=monsters)
+        await cmd.execute(ctx, '#m')
+        text = _sent_text(ctx)
+        self.assertIn('DEMON', text)
+        self.assertNotIn('SAND CRAB', text)
+
+    async def test_no_matches(self):
+        cmd = ListLocationsCommand()
+        ctx = make_ctx(admin=True, levels={1: {1: _room('Empty Room')}})
+        res = await cmd.execute(ctx, '#m')
+        self.assertTrue(res.success)
+        self.assertIn('No monster locations found', _sent_text(ctx))
 
 
 class TestItemTypeFiltering(unittest.IsolatedAsyncioTestCase):

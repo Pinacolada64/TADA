@@ -8,6 +8,7 @@ items/weapons across the whole map.
     list #<type>      — any other objects.json "type" string directly
                          (book, treasure, ammunition, compass, container,
                          cursed, power)
+    list #m[onsters]  — monsters.json entries, via each room's .monster field
     list #w #tel      — after listing, prompt to pick one and teleport there
 
 New in TADA -- a debugging/moderation convenience, not a ported
@@ -34,13 +35,15 @@ from __future__ import annotations
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
+from monsters import get_monster
 from network_context import GameContext
 
 _CATEGORY_ALIASES = {
-    'w': 'weapon', 'weapon': 'weapon', 'weapons': 'weapon',
-    'a': 'armor',  'armor':  'armor',
-    's': 'shield', 'shield': 'shield',
-    'i': 'item',   'item':   'item',   'items': 'item',
+    'w': 'weapon',  'weapon':  'weapon', 'weapons':  'weapon',
+    'a': 'armor',   'armor':   'armor',
+    's': 'shield',  'shield':  'shield',
+    'i': 'item',    'item':    'item',   'items':    'item',
+    'm': 'monster', 'monster': 'monster', 'monsters': 'monster',
 }
 
 
@@ -58,6 +61,26 @@ def _find_weapons(game_map, server) -> list[tuple[int, int, object, dict]]:
             idx = int(getattr(room, 'weapon', 0) or 0) - 1
             if 0 <= idx < len(server.weapons):
                 matches.append((level, room_no, room, server.weapons[idx]))
+    return matches
+
+
+def _find_monsters(game_map, server) -> list[tuple[int, int, object, dict]]:
+    """Return (level, room_no, room, monster_dict) for every room whose
+    .monster field resolves to a real monsters.json entry.
+
+    Unlike .weapon/.item, .monster is looked up by get_monster()'s
+    'number' field, not list position -- monsters.json's numbering has
+    gaps, so indexing the list positionally would grab the wrong entry
+    (see monsters.py's get_monster() docstring)."""
+    matches = []
+    for level, rooms in game_map.levels.items():
+        for room_no, room in rooms.items():
+            number = int(getattr(room, 'monster', 0) or 0)
+            if not number:
+                continue
+            monster = get_monster(server.monsters, number)
+            if monster:
+                matches.append((level, room_no, room, monster))
     return matches
 
 
@@ -99,6 +122,7 @@ class ListLocationsCommand(Command):
             ('list #s[hield]',  'List every shield location.'),
             ('list #i[tems]',   'List every item location (any type).'),
             ('list #<type>',    'List by a specific objects.json type (book, treasure, etc.).'),
+            ('list #m[onsters]', 'List every monster location.'),
         ],
         examples = [
             ('list #w',       'LIST scans every room on every level and reports where a '
@@ -137,7 +161,7 @@ class ListLocationsCommand(Command):
                 # usage fields, needed here by hand since this is a raw
                 # ctx.send(), not a Help(usage=...) entry.
                 'Usage: list #w[[eapons]] | #i[[tems]] | #a[[rmor]] | #s[[hield]] | '
-                '#<type>  [[#tel]]'
+                '#m[[onsters]] | #<type>  [[#tel]]'
             )
             return CommandResult.fail('No category specified.', error='missing_args')
 
@@ -151,6 +175,8 @@ class ListLocationsCommand(Command):
         server = ctx.server
         if category == 'weapon':
             found = _find_weapons(game_map, server)
+        elif category == 'monster':
+            found = _find_monsters(game_map, server)
         elif category == 'item':
             found = _find_items(game_map, server, None)
         else:
