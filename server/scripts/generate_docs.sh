@@ -3,7 +3,8 @@
 #
 # "Reference docs" here means the maintained roadmap/catalog files meant
 # to be read as a document (MECHANICS.md, FUNCTIONS.md, DATA_FILES.md,
-# tools/BOT_README.md, ../programming-notes/spur-variables.md) -- not
+# RESEARCH.md, CHARISMA_AUDIT.md, GENDER_AUDIT.md, tools/BOT_README.md,
+# ../programming-notes/spur-variables.md) -- not
 # dated task logs (TODO.md, BOTS_TODO.md, TODO_HELP.md) or the top-level
 # project READMEs, which aren't meant to be rendered to PDF.
 #
@@ -21,6 +22,8 @@ DOCS=(
   "$SERVER_DIR/FUNCTIONS.md"
   "$SERVER_DIR/DATA_FILES.md"
   "$SERVER_DIR/RESEARCH.md"
+  "$SERVER_DIR/CHARISMA_AUDIT.md"
+  "$SERVER_DIR/GENDER_AUDIT.md"
   "$SERVER_DIR/tools/BOT_README.md"
   "$SERVER_DIR/../programming-notes/spur-variables.md"
 )
