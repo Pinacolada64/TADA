@@ -115,6 +115,16 @@ class TestShoppeSessionMenu(unittest.IsolatedAsyncioTestCase):
         await _shoppe_session(ctx, player)
         self.assertIn('Elevator', _sent(ctx))
 
+    def test_menu_entries_sorted_alphabetically_by_label(self):
+        """Ryan's request: menu order is alphabetical by label, not
+        _MENU's declaration order."""
+        from shoppe.main import _menu_entries
+        ctx = MagicMock()
+        ctx.player = make_player()
+        ctx.player.party = []
+        labels = [label for _, label, _ in _menu_entries(ctx)]
+        self.assertEqual(labels, sorted(labels, key=str.lower))
+
     @_PATCH_STUBS
     async def test_menu_lists_leave_option(self, **_):
         from shoppe.main import _shoppe_session

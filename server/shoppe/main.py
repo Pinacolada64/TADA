@@ -53,6 +53,8 @@ async def _general_store(ctx: GameContext, *, numbers: object = None) -> None:
         await ctx.send('The shelves are bare. Come back later.')
         return
 
+    from shoppe.inventory_tools import handle_shop_key, shop_menu_hint
+
     while True:
         silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
 
@@ -83,9 +85,12 @@ async def _general_store(ctx: GameContext, *, numbers: object = None) -> None:
             await ctx.send('You already carry everything the store sells.')
             return
 
-        raw = await ctx.prompt(f'Buy which item (1-{len(available)}, Enter to leave)')
+        raw = await ctx.prompt(f'Buy which item (1-{len(available)}, Enter to leave{shop_menu_hint(player)})')
         if not raw or not raw.strip():
             return
+
+        if raw.strip().upper()[:1] in ('I', 'T') and await handle_shop_key(ctx, raw.strip().upper()[:1]):
+            continue
 
         try:
             choice = int(raw.strip()) - 1
@@ -215,13 +220,18 @@ def _menu_entries(ctx: GameContext) -> tuple:
     item -- a party ally or horse (shoppe/inventory_tools.has_transfer_targets()).
     Built per-call rather than baked into _MENU itself since eligibility can
     change mid-session (an ally dies, a horse is bought/sold) without the
-    player leaving and re-entering the Shoppe."""
+    player leaving and re-entering the Shoppe.
+
+    Sorted alphabetically by label (Ryan's request) rather than kept in
+    _MENU's declaration order -- both the listing in _show_menu() and the
+    key lookup in _shoppe_session() read this same sorted tuple, so the
+    display order and any 'valid keys' error message stay in sync."""
     from shoppe.inventory_tools import has_transfer_targets
 
     entries = _MENU
     if has_transfer_targets(ctx.player):
         entries += (('T', 'Transfer to Party/Horse', _transfer),)
-    return entries
+    return tuple(sorted(entries, key=lambda e: e[1].lower()))
 
 
 async def _show_menu(ctx: GameContext) -> None:

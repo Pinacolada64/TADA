@@ -43,6 +43,7 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
     from base_classes import PlayerMoneyTypes
     from items import Weapon
     from inventory import PACK_FULL_MESSAGE
+    from shoppe.inventory_tools import handle_shop_key, shop_menu_hint
 
     def _owned_ids() -> set[int]:
         if inv is None:
@@ -70,7 +71,7 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
                 await _sell(ctx, player, inv, all_weapons)
             return
 
-        raw = await ctx.prompt('Your Choice (?=List, Q to leave)')
+        raw = await ctx.prompt(f'Your Choice (?=List, Q to leave{shop_menu_hint(player)})')
         if raw is None:
             return
         choice = raw.strip().upper()
@@ -81,6 +82,8 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
             for w in all_weapons:
                 lines.append(f"  {w['number']:>3}. {w['name']:<22} {w['price']:>5}s")
             await ctx.send(lines)
+            continue
+        if choice in ('I', 'T') and await handle_shop_key(ctx, choice):
             continue
 
         try:
@@ -151,6 +154,7 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
 
 async def _sell(ctx: GameContext, player, inv, all_weapons) -> None:
     from base_classes import PlayerMoneyTypes, PlayerStat
+    from shoppe.inventory_tools import handle_shop_key, shop_menu_hint
 
     if inv is None:
         await ctx.send('No weapons.')
@@ -180,9 +184,12 @@ async def _sell(ctx: GameContext, player, inv, all_weapons) -> None:
             lines.append(f"  {i}. {entry.item.name}")
         await ctx.send(lines)
 
-        raw = await ctx.prompt('Which (Q to leave)')
+        raw = await ctx.prompt(f'Which (Q to leave{shop_menu_hint(player)})')
         if raw is None or raw.strip().upper() == 'Q':
             return
+        choice = raw.strip().upper()
+        if choice in ('I', 'T') and await handle_shop_key(ctx, choice):
+            continue
         try:
             idx = int(raw.strip()) - 1
             if not (0 <= idx < len(weapon_entries)):
@@ -374,6 +381,7 @@ async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> N
     from base_classes import PlayerMoneyTypes
     from items import Item, ItemCategory
     from inventory import PACK_FULL_MESSAGE
+    from shoppe.inventory_tools import handle_shop_key, shop_menu_hint
 
     player = ctx.player
     inv    = getattr(player, 'inventory', None)
@@ -399,7 +407,7 @@ async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> N
         lines += ['', 'R to repair', 'Q to leave', '']
         await ctx.send(lines)
 
-        raw = await ctx.prompt('Your Choice (?=List)')
+        raw = await ctx.prompt(f'Your Choice (?=List{shop_menu_hint(player)})')
         if raw is None:
             return
         choice = raw.strip().upper()
@@ -409,6 +417,8 @@ async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> N
             continue
         if choice == 'R':
             await _repair(ctx, player, inv)
+            continue
+        if choice in ('I', 'T') and await handle_shop_key(ctx, choice):
             continue
 
         try:

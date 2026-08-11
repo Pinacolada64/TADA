@@ -1,8 +1,11 @@
 """shoppe/inventory_tools.py — Merchant Shoppe pack management.
 
-Two entry points, both reachable from anywhere in the Shoppe (registered
-directly on shoppe/main.py's top-level menu, not buried in one specific
-stall, since managing your own pack isn't tied to any single shop):
+Two entry points, reachable both from shoppe/main.py's top-level menu AND
+from every individual shop's own browsing loop (armory/protection, general
+store, Olly's, the Wizard, the pawn shop -- see handle_shop_key()/
+shop_menu_hint() below, Ryan's request), since deciding to free up a pack
+slot usually happens *while* looking at something you want to buy, not
+after backing all the way out to the Shoppe's main menu:
 
   [I] Inventory — view your pack, sort it by category, or drop (permanently
       discard) an item to free a slot.
@@ -29,6 +32,36 @@ def has_transfer_targets(player) -> bool:
     """Gate for showing [T]ransfer at all -- a lone adventurer with no
     party and no horse has nobody to hand items off to."""
     return bool(purchased_allies(player))
+
+
+def shop_menu_hint(player) -> str:
+    """', [I]nventory' plus ', [T]ransfer' when eligible -- splice this
+    into a shop's own prompt text so both tools are visible without
+    backing out to the main Shoppe menu. Built fresh per prompt (not
+    cached) since party composition -- and therefore [T]'s eligibility --
+    can change mid-session."""
+    hint = ', [I]nventory'
+    if has_transfer_targets(player):
+        hint += ', [T]ransfer'
+    return hint
+
+
+async def handle_shop_key(ctx: GameContext, cmd: str) -> bool:
+    """Shared [I]nventory / [T]ransfer dispatch for any individual shop's
+    own prompt loop. *cmd* is the already-uppercased single character the
+    shop's loop didn't otherwise recognize. Returns True if this handled
+    it (the shop loop should just re-prompt); False means fall through to
+    the shop's own 'invalid choice' handling -- covers both a genuinely
+    unrecognized key and 'T' typed while ineligible (has_transfer_targets()
+    is re-checked here, not trusted from an earlier prompt render, in case
+    party composition changed since)."""
+    if cmd == 'I':
+        await inventory_main(ctx)
+        return True
+    if cmd == 'T' and has_transfer_targets(ctx.player):
+        await transfer_main(ctx)
+        return True
+    return False
 
 
 async def inventory_main(ctx: GameContext) -> None:

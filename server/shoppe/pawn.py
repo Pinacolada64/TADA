@@ -64,6 +64,7 @@ async def main(ctx: GameContext) -> None:
     from base_classes import PlayerMoneyTypes
     from inventory import PACK_FULL_MESSAGE
     from items import ItemCategory
+    from shoppe.inventory_tools import handle_shop_key, shop_menu_hint
 
     player = ctx.player
     inv    = getattr(player, 'inventory', None)
@@ -85,13 +86,15 @@ async def main(ctx: GameContext) -> None:
         ]
         stock = ctx.server.pawn_stock
 
-        raw = await ctx.prompt('[S]ell, [B]uy, [Q]uit')
+        raw = await ctx.prompt(f'[S]ell, [B]uy, [Q]uit{shop_menu_hint(player)}')
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
         if not cmd or cmd == 'Q':
             await ctx.send('Ok-fine')
             return
+        if cmd in ('I', 'T') and await handle_shop_key(ctx, cmd):
+            continue
 
         if cmd == 'B':
             if not stock:

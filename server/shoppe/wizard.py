@@ -184,6 +184,7 @@ async def main(ctx: GameContext) -> None:
     import spellbook
     from base_classes import PlayerClass, PlayerMoneyTypes, PlayerRace, PlayerStat
     from items import Spell
+    from shoppe.inventory_tools import handle_shop_key, shop_menu_hint
 
     player    = ctx.player
     inv       = getattr(player, 'inventory', None)
@@ -280,8 +281,9 @@ async def main(ctx: GameContext) -> None:
             await ctx.send('Sorry, Non-Adepts can only learn six spells..')
             return
 
-        raw = await ctx.prompt('Learn which spell?',
-                                preamble_lines=['(?=List, i#=Info, BOOK=Buy Spell Book, Q to leave)'])
+        raw = await ctx.prompt(
+            'Learn which spell?',
+            preamble_lines=[f'(?=List, i#=Info, BOOK=Buy Spell Book, Q to leave{shop_menu_hint(player)})'])
         if raw is None:
             return
         choice = raw.strip()
@@ -292,6 +294,8 @@ async def main(ctx: GameContext) -> None:
             continue
         if choice.upper() == 'BOOK':
             await _buy_spellbook(ctx, player, inv, is_adept)
+            continue
+        if choice.upper() in ('I', 'T') and await handle_shop_key(ctx, choice.upper()):
             continue
 
         info_num = _parse_info_request(choice)

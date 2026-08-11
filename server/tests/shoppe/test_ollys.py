@@ -136,16 +136,19 @@ class TestAmmoSectionHeaderEscaping(unittest.IsolatedAsyncioTestCase):
 
 
 class TestAmmoSectionInventoryShortcut(unittest.IsolatedAsyncioTestCase):
-    """New in TADA: 'I' at the ammo prompt shows the player's own inventory
-    without leaving the shop, via presence.try_global_command()."""
+    """New in TADA: 'I' at the ammo prompt shows the player's own pack
+    (sort/drop tools included) without leaving the shop, via
+    shoppe.inventory_tools.handle_shop_key() -- previously routed through
+    presence.try_global_command() to the read-only INV command; upgraded so
+    [T]ransfer is reachable from the same prompt too."""
 
     async def test_i_dispatches_inventory_and_relists(self):
         player = _funded_player()
         objects_by_num = {o['number']: o for o in _load_objects()}
         ctx = _FakeCtx(['i', 'q'], player)
-        with patch('shoppe.ollys.try_global_command', new=AsyncMock(return_value=True)) as mocked:
+        with patch('shoppe.inventory_tools.inventory_main', new=AsyncMock()) as mocked:
             await _ammo_section(ctx, player, player.inventory, objects_by_num)
-        mocked.assert_awaited_once_with(ctx, 'inventory')
+        mocked.assert_awaited_once_with(ctx)
         # Loop continued and re-showed the listing rather than exiting.
         self.assertIn('OLLY', ctx._flat())
 
@@ -153,9 +156,9 @@ class TestAmmoSectionInventoryShortcut(unittest.IsolatedAsyncioTestCase):
         player = _funded_player()
         objects_by_num = {o['number']: o for o in _load_objects()}
         ctx = _FakeCtx(['I', 'q'], player)
-        with patch('shoppe.ollys.try_global_command', new=AsyncMock(return_value=True)) as mocked:
+        with patch('shoppe.inventory_tools.inventory_main', new=AsyncMock()) as mocked:
             await _ammo_section(ctx, player, player.inventory, objects_by_num)
-        mocked.assert_awaited_once_with(ctx, 'inventory')
+        mocked.assert_awaited_once_with(ctx)
 
 
 class TestAmmoSectionPurchase(unittest.IsolatedAsyncioTestCase):

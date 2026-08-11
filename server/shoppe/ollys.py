@@ -50,6 +50,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
     from base_classes import PlayerMoneyTypes
     from items import Item, ItemCategory
     from inventory import PACK_FULL_MESSAGE
+    from shoppe.inventory_tools import handle_shop_key, shop_menu_hint
     from table import Align, Column, Table
 
     ammo_items    = [objects_by_num[n] for n in _AMMO_RANGE    if n in objects_by_num]
@@ -130,7 +131,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
         lines += _ammo_table().render(width=width)
         lines += ['', '  [[ Ammo Carriers ]]', '']
         lines += _carrier_table().render(width=width)
-        lines += ['', 'Enter item number, ? to re-list, [I]nventory, or Q to leave.', '']
+        lines += ['', f'Enter item number, ? to re-list{shop_menu_hint(player)}, or Q to leave.', '']
         await ctx.send(lines)
 
         raw = await ctx.prompt('Your Choice')
@@ -141,12 +142,13 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
             return
         if choice == '?':
             continue
-        if choice == 'I':
+        if choice in ('I', 'T') and await handle_shop_key(ctx, choice):
             # New in TADA: it's easy to lose track of what you're already
-            # carrying while browsing this list -- let 'I' show it without
-            # leaving the shop. Just the player's own inventory (InvCommand
-            # already covers allies/mount on its own); Ryan's request.
-            await try_global_command(ctx, 'inventory')
+            # carrying (or want to offload to a mount) while browsing this
+            # list -- let [I]/[T] work without leaving the shop. Ryan's
+            # request. (Was a bare 'inventory' global-command dispatch;
+            # upgraded to the shared pack-management tool so [T]ransfer
+            # works here too, not just a read-only listing.)
             continue
 
         try:
@@ -260,6 +262,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
 async def _booby_section(ctx: GameContext, player, inv, objects_by_num: dict) -> None:
     from base_classes import PlayerMoneyTypes
     from items import Item, ItemCategory
+    from shoppe.inventory_tools import handle_shop_key, shop_menu_hint
     from inventory import PACK_FULL_MESSAGE
 
     await ctx.send([
@@ -274,13 +277,15 @@ async def _booby_section(ctx: GameContext, player, inv, objects_by_num: dict) ->
 
     while True:
         await ctx.send(f'Cost=1000.  Purchase Booby Trap.')
-        raw = await ctx.prompt(f'Disarm code [{_BOOBY_CODES}] or Q to leave')
+        raw = await ctx.prompt(f'Disarm code [{_BOOBY_CODES}] or Q to leave{shop_menu_hint(player)}')
         if raw is None:
             return
         choice = raw.strip().upper()[:1]
         if not choice or choice == 'Q':
             await ctx.send('You leave the booby trap display.')
             return
+        if choice in ('I', 'T') and await handle_shop_key(ctx, choice):
+            continue
 
         if choice not in _BOOBY_CODES:
             await ctx.send("Olly pretends not to notice you fumbling at the keyboard.")
@@ -421,8 +426,10 @@ async def main(ctx: GameContext) -> None:
         "fine list of ammunition and stuff.'"
     )
 
+    from shoppe.inventory_tools import handle_shop_key, shop_menu_hint
+
     while True:
-        raw = await ctx.prompt('[A]mmo, [B]ooby traps, [H]elp, or Q to leave')
+        raw = await ctx.prompt(f'[A]mmo, [B]ooby traps, [H]elp, or Q to leave{shop_menu_hint(player)}')
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -434,6 +441,8 @@ async def main(ctx: GameContext) -> None:
             await _booby_section(ctx, player, inv, objects_by_num)
         elif cmd == 'H':
             await _help_section(ctx)
+        elif cmd in ('I', 'T') and await handle_shop_key(ctx, cmd):
+            pass
         elif await try_global_command(ctx, raw):
             pass
         else:
