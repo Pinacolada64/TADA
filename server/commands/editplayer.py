@@ -60,13 +60,87 @@ class EditPlayerCommand(Command):
         summary     = 'Edit player attributes, flags, and settings.',
         description = 'Interactive editor for player data. Mirrors the original C64 player editor.',
         category    = HelpCategory.ADMINISTRATIVE,
-        usage       = [('editplayer', 'Open the interactive player editor.')],
+        usage       = [
+            ('editplayer', 'Open the interactive player editor for yourself.'),
+            ('editplayer <playername>', "Edit another player's saved data. "
+                                        'Offers to save (and, if that player '
+                                        'is online, live-sync) on exit.'),
+        ],
     )
 
     async def execute(self, ctx, *args) -> CommandResult:
-        await ctx.send(f'|yellow|Player Editor|reset| — {ctx.player.name}')
-        await run_menu(ctx, _build_main_menu(ctx))
+        admin = ctx.player
+        target_name = args[0] if args else None
+
+        if not target_name or target_name.lower() == admin.name.lower():
+            await ctx.send(f'|yellow|Player Editor|reset| — {admin.name}')
+            await run_menu(ctx, _build_main_menu(ctx))
+            return CommandResult.ok('Player editor closed.')
+
+        found = await _find_character(ctx, target_name)
+        if found is None:
+            await ctx.send(f'No player found matching "{target_name}".')
+            return CommandResult.fail('No such player.')
+        live_player, is_online = found
+
+        from player import Player
+        # A fresh Player() with an id loads from disk in __init__ (see
+        # Player._load()) -- an edit buffer fully decoupled from any live
+        # session, even if *target_name* is online right now. Deliberately
+        # not editing the live object directly: an admin bailing out with
+        # 'N' at the save prompt below must leave a connected player's
+        # actual session untouched. _find_character() above (also used by
+        # the Inventory Transfer feature) is only needed here to resolve
+        # the id and, if online, to know who to notify afterward.
+        target = Player(name=live_player.name, id=live_player.id,
+                        weapons_data=getattr(ctx.server, 'weapons', None))
+
+        status = ' |cyan|(online)|reset|' if is_online else ''
+        await ctx.send(f'|yellow|Player Editor|reset| — {target.name}{status}')
+
+        ctx.player = target
+        # Borrow the admin's real terminal settings for the duration of the
+        # edit -- ctx.send()/ctx.prompt() format against ctx.player.
+        # client_settings, and a freshly-loaded target only has default
+        # settings, not the admin's actual screen width/translation/return
+        # key.
+        target.client_settings = admin.client_settings
+        try:
+            await run_menu(ctx, _build_main_menu(ctx))
+        finally:
+            ctx.player = admin
+
+        if getattr(target, 'unsaved_changes', False):
+            raw = await ctx.prompt(f'Save changes to {target.name}? (Y/N)')
+            if raw and raw.strip().lower().startswith('y'):
+                target.save(force=True)
+                await ctx.send(f'Saved {target.name}.')
+                if is_online:
+                    # Re-run the same _load() merge login uses to refresh
+                    # the connected player's live object from what was
+                    # just written to disk, instead of hand-copying fields.
+                    live_player._load()
+                    live_player.unsaved_changes = False
+                    online_ctx = _online_ctx_for(ctx, live_player)
+                    if online_ctx is not None:
+                        await online_ctx.send(
+                            '[You feel magically touched by the spirit of the '
+                            'dungeon -- you feel different.]'
+                        )
+            else:
+                await ctx.send('Changes discarded.')
+
         return CommandResult.ok('Player editor closed.')
+
+
+def _online_ctx_for(ctx, player):
+    """Return the connected client's ctx for *player*, or None if it can't
+    be found (e.g. they disconnected while being edited)."""
+    for client in getattr(ctx.server, 'clients', {}).values():
+        other_ctx = getattr(client, 'ctx', None)
+        if getattr(other_ctx, 'player', None) is player:
+            return other_ctx
+    return None
 
 
 # ---------------------------------------------------------------------------
