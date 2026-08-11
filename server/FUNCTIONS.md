@@ -1,7 +1,7 @@
 # FUNCTIONS.md
 ## Roadmap of functions across the TADA server codebase
 
-Last updated: manually maintained — update when adding, moving, or removing functions.
+Last updated: 2026-08-11 — manually maintained; update the date above when adding, moving, or removing functions.
 
 ## Refactor progress
 | Step | Status | Description                                                                         |
@@ -28,26 +28,155 @@ commands and editor functions.
 ---
 
 ## terminal_context.py
-*(STALE — class names below no longer exist; rewrite pending, see FUNCTIONS.md
-full-rewrite plan)* GameContext-compatible context for local terminal use.
-The module's actual main class is now confusingly also named `GameContext`
-(same name as network_context.py's, imported elsewhere as
-`from terminal_context import GameContext as TerminalContext` — see
-monster_editor.py). `TerminalSettings`/`TerminalPlayer`/`_TerminalReader`/
-`_TerminalWriter`/`TerminalContext` as documented below do **not** exist
-under those names anymore. `run_local(coro)` still exists as documented.
+*(STALE — confirmed this pass to be an actual stale FORK of
+`network_context.py`, not just a renaming issue)* Despite its module
+docstring's claim ("`TerminalContext` — local terminal (print/input), in
+terminal_context.py"), the file defines **no `TerminalContext` class at
+all** — never has, under the names below or any other. What it actually
+contains is a second, older copy of `network_context.py`'s
+`BaseContext`/`GameContext`/`PETSCIINetworkContext`/`GuestPlayer` classes
+(same names, same dataclass fields, same `send`/`send_room`/`prompt`
+signatures) that has since fallen behind: read side-by-side this pass,
+this file's `GameContext`/`PETSCIINetworkContext` are missing
+`network_context.py`'s pagination (`_wants_pagination`/`_paginate`/
+`_send_formatted`, the `PlayerFlags.MORE_PROMPT` screenful-at-a-time
+reader), `_pop_pending_pages()` (queued-page delivery, see
+`commands/page.py`), and `PETSCIINetworkContext.send_raw()` (the sid_engine
+raw-byte passthrough) -- none of which exist in `terminal_context.py`'s
+copies. `simple_server.py` (the live server) imports its context classes
+from `network_context.py`, confirmed via `grep -n "^from network_context"
+simple_server.py`; `terminal_context.py`'s classes are only reachable
+through `tada_utilities.py`, `encounters/droid_salvage.py`, and
+`monster_editor.py` (imported there as `from terminal_context import
+GameContext as TerminalContext` -- the alias masks that it's the same
+class name as network_context.py's, not a distinct terminal-only context).
+`run_local(coro)` is the one function that matches its documented purpose:
+a plain `asyncio.run()` wrapper for editor entry points, still present and
+correct.
 
-| Function / Class (STALE NAMES — see note above)       | Notes                                                                                        |
-|-------------------------------------------------------|----------------------------------------------------------------------------------------------|
-| `TerminalSettings` (dataclass)                        | Mimics `player.client_settings`; `screen_columns`, `screen_rows`, `return_key`               |
-| `TerminalPlayer`                                      | Minimal Player stub; `name`, `client_settings`, `query_flag()`, `set_flag()`, `clear_flag()` |
-| `_TerminalReader`                                     | Wraps `input()` as async `readline()`, returns JSON wire format                              |
-| `_TerminalWriter`                                     | No-op `write()`/`drain()` — output goes through `ctx.send()`                                 |
-| `TerminalContext`                                     | Main class; `player`, `reader`, `writer`, `server=None`, `client=None`                       |
-| `TerminalContext.send(*lines)`                        | async — prints to terminal; accepts str, multiple args, or list                              |
-| `TerminalContext.send_room(*lines)`                   | async no-op                                                                                  |
-| `TerminalContext.prompt(prompt_text, preamble_lines)` | async — prints preamble then prompts for input                                               |
-| `run_local(coro)`                                     | Convenience wrapper around `asyncio.run()` for editor entry points                           |
+**terminal_context.py vs terminal.py -- clarified this pass:** these are
+genuinely unrelated modules that happen to share a name prefix, not the
+same file under two names. `terminal.py` (546 lines, see its own section
+below) is client-display/settings data -- `ClientSettings`, `ColorName`,
+`Translation`, keyboard/color code enums -- with no context/ctx classes in
+it at all. `terminal_context.py` is entirely GameContext-shaped
+network-context code, with no terminal-*settings* content in it. No
+overlap, no risk of confusing one for the other once you've opened both.
+
+| Function / Class (current, real names)                 | Notes                                                                                         |
+|----------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| `GuestPlayer`                                           | Pre-login stub -- near-identical to `network_context.py`'s copy                                |
+| `_GuestSettings` (dataclass)                            | `ClientSettings`-compatible stub for `GuestPlayer`                                             |
+| `BaseContext`                                           | `send()`/`send_room()`/`prompt()` interface stubs -- no `_pop_pending_pages()` (network_context.py's copy has it, this one doesn't) |
+| `GameContext(BaseContext)` (dataclass)                  | `player`/`reader`/`writer`/`server`/`client`; `send()`/`send_room()`/`prompt()`/`set_prompt()`/`for_guest()` -- no pagination, no pending-page popping |
+| `PETSCIINetworkContext(GameContext)`                    | Raw-PETSCII-byte variant; `send()`/`prompt()`/`send_room()`/`for_guest()` -- no `send_raw()`   |
+| `run_local(coro)`                                       | Convenience wrapper around `asyncio.run()` for editor entry points; matches its doc, still correct |
+
+---
+
+## net_common.py
+Wire-protocol primitives, password hashing, and the shared `Message`/`Mode`/
+`MessageType` types used across the network layer -- not a "common utils
+grab-bag" so much as the load-bearing definitions everything else (`net_client.py`,
+`net_server.py`, `network_context.py`, `terminal_context.py`, dozens of
+`commands/*.py`) imports as `net_common as nc`. Actively touched
+(`append_battle_log` -- collapsed ~10 duplicated `_append_battle_log`/
+`_append_capture_log` copies into this one shared helper).
+
+| Function / Class                                       | Notes                                                                                          |
+|------------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| `run_server_dir` (module global)                          | `str \| None`; read dynamically (not import-time) by `user_dir()`/`Player._json_path()` so tests can isolate it to a `tmp_path` after import |
+| `user_dir()`                                               | Returns `Path` to per-account `login-<username>.json` credential directory                    |
+| `append_battle_log(entry)`                                 | Appends one UTC-timestamped line to `battle.log`; shared by monster kills, ally desertion/recruitment, guild duels, thefts, prayers, mount captures, etc. |
+| `hash_password(password)` / `verify_password(password, stored)` | bcrypt hashing; passwords always compared lowercased (C64 keyboards send uppercase by default); `verify_password` transparently upgrades a legacy plaintext match to a bcrypt hash via its `rehashed` return value |
+| `K` (StrEnum)                                              | Credential-file JSON key names (`id`, `password`, `code`, `hash`, `salt`, `invite`, `user`, `translation`) |
+| `Mode` (StrEnum)                                            | Connection state machine: `init`, `guest`, `new_player`, `login`, `app`, `bye`                 |
+| `MessageType` (Enum)                                        | `INIT`, `SYSTEM`, `ANNOUNCEMENT`, `REGULAR`, plus lowercase player-communication members `shout`/`page`/`say`/`mumble`/`emote`/`whisper` (inconsistent casing vs. the uppercase members above, not resolved this pass) |
+| `_default_serializer(o)`                                    | Private -- JSON default hook: Enum by name, dataclass via `asdict`, else `__dict__`/`str()`   |
+| `to_jsonb(obj)` / `from_jsonb(b)`                            | Serialize to/from JSON bytes for the wire; `from_jsonb` returns `None` on empty/invalid input  |
+| `Message` (dataclass)                                       | The wire envelope: `lines`, `changes`, `choices`, `prompt`, `error`, `error_line`, `mode`, `type`; `__post_init__` normalizes a bare string `lines` into a one-item list |
+| `ClientInfo` (dataclass)                                     | `user_id`, `handler`, `connected_time`, `last_active` -- used by `ClientManager` below         |
+| `ClientManager` (class)                                     | *(new, undocumented until now -- appears unused by the live game; see note below)* `add_client`/`remove_client`/`update_activity`/`get_online_client_info`/`broadcast`, thread-lock-guarded |
+| `client_manager` (module-level `ClientManager()` instance)  | *(new, undocumented until now)*                                                                |
+
+`ClientManager`/`client_manager` are exercised only by `new_server.py` (see
+below, itself unreferenced by the live game) and are not the mechanism
+`simple_server.py` actually uses for tracking connections (`Server.clients`,
+a plain dict keyed by `addr`) -- so this class, while real code, is not on
+the live server's path today.
+
+---
+
+## net_client.py (916 lines)
+A synchronous, blocking-socket TCP client with its own handshake/receive-thread/
+`cmd`-style dispatch loop -- written for a standalone CLI/bot client, not
+for the live async server. Confirmed this pass: **only the `Client`
+dataclass itself is used by the live game**, and only as a plain per-connection
+data container (`client.mode`, `client.translation`, `client.room`, etc.)
+attached to `ctx.client` by `network_context.py`/`simple_server.py`/
+`terminal_context.py`/`new_server.py` -- none of those call sites use
+`Client.connect()`/`.default()`/`._send_data()`/`._receive_messages()` or
+any of this file's other socket-I/O machinery; that machinery is only
+exercised by this module's own `main()` when run standalone. `main()` itself
+is broken as written -- it references an undefined `server` and `Mode.APP`
+(no such member; `net_common.Mode`'s app-mode value is lowercase `Mode.app`)
+that would raise `NameError`/`AttributeError` immediately if actually run.
+
+| Function / Class                                            | Notes                                                                                            |
+|-------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| `Init` (dataclass)                                            | Handshake payload: `id`, `key`, `mode`, `protocol`; `__post_init__` forces `mode=Mode.init`, `translation=Translation.ANSI` |
+| `Client` (class)                                               | Per-connection state; live usage is purely as a data container (see note above). ~14 methods, below |
+| `Client.set_user(user_id)` / `.set_password(password)`         | Trivial setters                                                                                    |
+| `Client.connect(host, port, server_id, server_key, protocol_version, translation)` | Blocking-socket handshake + starts a background `_receive_messages` thread; standalone-CLI-only in practice |
+| `Client.default(command)`                                     | `cmd`-style command dispatch -- formats guest/login/plain commands and sends via `_send_data()`    |
+| `Client._send_data(data)` / `Client._receive_messages()`      | Private -- raw socket write / threaded receive loop with `select()`                                |
+| `Client.init_success_lines(request)` / `._process_mode(request)` | Response handling for the standalone CLI: prints lines, tracks mode, dispatches to `_handle_*`  |
+| `Client._handle_command_result(result)` / `._handle_room_change(data)` / `._handle_room_data(room_data)` | Private -- CLI-side response formatting for those message shapes                    |
+| `Client.close()` / `Client._cleanup()`                         | Socket teardown                                                                                    |
+| `Client.process_request(request)`                              | Blocking `input()`-based request/response helper for the CLI loop                                 |
+| `CommodoreClient(Client)`                                      | "Client that sends just lines of text for Commodore clients" -- overrides `_send_data`/`_receive_data` |
+| `get_input(prompt, hidden=False)`                              | Wraps `input()`/`getpass.getpass()`                                                                |
+| `main()`                                                       | Standalone CLI entry point -- **broken as written**, see note above; not exercised by any test or the live server |
+
+---
+
+## net_server.py (515 lines)
+*(superseded/dead — confirmed this pass)* A `socketserver.ThreadingMixIn` +
+inner-asyncio-`Server.Server` alternate server implementation, predating
+(or an abandoned parallel to) `simple_server.py`, which is the actual live
+server (see `simple_server.py`'s own section above and `player.py`'s
+`_ss`-preferred-over-`_ns` fallback logic). **Nothing in the live game path
+imports this module.** It's reachable only from: `player.py` (a
+try/except fallback -- `import net_server as _ns`, used only if `import
+simple_server as _ss` itself raises, which it doesn't in production),
+`new_server.py` (itself unreferenced anywhere, see below),
+`create_character.py` (itself unreferenced anywhere, see below), and one
+test file (`tests/social/test_message_handling.py`). The module docstring
+literally embeds a comment attributing its design to "simple_server.py",
+suggesting this was an earlier/alternate draft of that server rather than
+something meant to run alongside it.
+
+| Function / Class                                              | Notes                                                                                             |
+|-----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| `Init` (dataclass)                                                | Local handshake payload -- separate definition from `net_client.py`'s `Init`                        |
+| `connected_users` (module global `set`) / `server_lock` (module global `threading.Lock`) | Legacy globals -- see `player.py`'s fallback wiring to these under the `_ns` name          |
+| `Error` (StrEnum)                                                 | `server1`, `server2`, `user_id`, `login1`, `login2`, `multiple`                                      |
+| `Message` (module alias)                                          | `= nc.Message`, i.e. `net_common.Message`                                                            |
+| `Server(socketserver.ThreadingMixIn, socketserver.TCPServer)`     | Outer class; its body is almost entirely a **nested inner class also named `Server`** (`Server.Server`) that does the real work via asyncio -- an unusual/confusing double-`Server` shape, not cleaned up this pass |
+| `Server.Server.__init__(host, port)`                              | Builds `server_init_object`, loads `level_<n>.json` map files 1-7 into a `Map`                       |
+| `Server.Server.send_message(writer, obj)` / `.receive_message(reader)` | async JSON-over-newline read/write                                                             |
+| `Server.Server.handle_connection(reader, writer)`                 | async -- per-client lifecycle: handshake, login, then a `Mode.login`/`Mode.app` dispatch loop         |
+| `Server.Server._perform_handshake(reader, writer, addr)`          | async -- checks `server_id`/`server_key`, warns (doesn't reject) on protocol-version mismatch         |
+| `Server.Server.start()`                                           | async -- `asyncio.start_server` + `serve_forever()`                                                   |
+| `Server.Server._handle_login(reader, writer, addr, client)`       | async -- sends the hardcoded "Totally Awesome Dungeon Adventure" login banner                         |
+| `Server.Server.handle_login_command(writer, username=None)`       | async -- mock login handler (`await asyncio.sleep(1)` "simulated processing delay"), not real auth   |
+| `Server.Server.handle_login_mode(client, in_message, writer)`     | async -- parses `connect`/`guest`/`new` commands out of raw message lines                             |
+| `Server.Server.handle_app_mode(client, in_message, writer, addr)` | async -- lazily creates a `CommandHandler`/`command_processor` and dispatches text through it        |
+| `Server.Server._save_client_state(client)`                        | async -- dumps `client.__dict__` (JSON-safe subset) to `player_data/<username>.json`; separate/incompatible persistence path from `player.py`'s real `Player.save()` |
+| `Server.error_ban()` / `.error_login_failed(message)`              | Return canned `Message` objects                                                                       |
+| `Server.init_success_lines()` / `.login_fail_lines()` / `.process_login_success(user_id)` / `.process_message(data)` | Docstrings say "OVERRIDE in subclass" -- base-class stub behavior, not itemized further |
+| `handle_new_connection(self, reader, writer)`                     | Module-level (not a method despite `self` -- orphaned/dead code smell), body is just `pass`           |
+| `start(host, port, _id, key, protocol, handler_class)`            | Module-level entry point -- spins up `Server.Server` on a dedicated background thread                 |
 
 ---
 
@@ -881,6 +1010,243 @@ classes, rooms, map, combinations, money (~846 lines). Actively touched
 
 ---
 
+## terminal.py (546 lines)
+Client-display/settings data: keyboard/color code enums, `ClientSettings`
+(the object every player's `player.client_settings` actually is), and a
+second half of legacy menu-driven settings-editor functions that appear to
+predate the `ctx`/`menu_system.py` refactor and are **not wired into the
+live `prefs` command** (confirmed this pass -- `commands/prefs.py` never
+imports from `terminal.py` at all; it edits `player.client_settings`
+fields directly). Distinct from `terminal_context.py` -- see that
+section's clarifying note above; no naming confusion once both are read.
+
+### Live / actively used
+| Symbol                                                     | Notes                                                                                              |
+|-----------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| `KeyboardKeyName` (StrEnum) / `KeyboardKeyCodes` (Enum) / `KeyCodes` (Enum) | Key-name/code tables                                                              |
+| `CommodoreKeyCodes`                                          | C64/128 keyboard code constants                                                                     |
+| `ANSIGraphicsChars` (StrEnum) / `CommodoreGraphicsChars` (StrEnum) | Box-drawing glyph tables, one per translation mode -- `formatting.py` looks up `{NAME}` glyph tokens from `CommodoreGraphicsChars` |
+| `LineEnding`                                                 | Line-ending constants                                                                                |
+| `ColorName` (StrEnum)                                        | Abstract color-token names; `formatting.py`'s `COLOR_NAME_TO_TOKEN` maps these to `\|token\|` names |
+| `ANSIColors` (Enum) / `CBMColors` (Enum)                      | Concrete per-translation color code tables                                                          |
+| `Translation` (Enum)                                          | `PETSCII`/`ASCII`/`ANSI` (or similarly-named members) -- the single most-imported symbol in this file, used by `player.py`, `formatting.py`, `network_context.py`, `net_client.py`, `net_common.py`'s `Init`, etc. |
+| `TabSettings` (class)                                         | `to_dict()`/`from_dict()` persistence                                                               |
+| `TerminalColors` (class)                                      | `to_dict()`/`from_dict()` persistence                                                               |
+| `ClientSettings` (class)                                      | The real, live object behind `player.client_settings` (screen size, translation, colors, return key, etc.); `to_dict()`/`from_dict()` persistence |
+| `Commodore64(ClientSettings)` / `Commodore128_40Col(Commodore64)` / `Commodore128_80Col(Commodore64)` | Preset `ClientSettings` subclasses for specific hardware profiles |
+
+### Legacy menu-driven settings editor -- confirmed unreferenced by `commands/prefs.py` or anywhere else this pass
+| Function / Class                                            | Notes                                                                                               |
+|--------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| `settings_menu(player)` / `tab_edit(player)`                  | Old numbered-menu-loop settings editors, pre-`ctx`/`menu_system.py`                                  |
+| `edit_screen_columns(player)` / `edit_screen_rows(player)`    | Nested inside `tab_edit`/module scope                                                                |
+| `horizontal_ruler(player)`                                     | Renders a column-width ruler for the old editor                                                      |
+| `keyboard_settings(player)` / `color_settings(player)` / `test_graphics_output(player)` | Further old menu-driven editor screens                                                  |
+| `CommodoreClient` (dataclass)                                  | *(new, undocumented)* -- distinct from, and not to be confused with, `net_client.py`'s `CommodoreClient(Client)` |
+| `Output` (class)                                                | `__init__(player)`, `.output(message)`, `.process_message(player, message)` -- old direct-print output helper, superseded by `ctx.send()` |
+
+No behavior was invented here -- `grep -rn "terminal\.settings_menu\|terminal\.tab_edit\|terminal\.Output"` across the tree (outside `terminal.py` itself) returns nothing, confirming these are dead in the current game, not merely undocumented.
+
+---
+
+## create_character.py (1115 lines)
+*(STALE — confirmed orphaned this pass, not merely undocumented)* A
+complete pre-`ctx` character-creation flow (`choose_gender`/`choose_name`/
+`choose_client`/`choose_class`/`choose_settings`/`choose_race`/`choose_age`/
+`choose_guild`/`roll_stats`/`main(player)`/`debug_menu`, ~22 top-level
+functions total). Imports `net_server` (itself dead, see above) and calls
+into `tada_utilities.py` functions (`header`, `input_number_range`,
+`input_yes_no`, `a_or_an`, `set_logging_level`) using old positional/`player=`
+calling conventions that predate the `ctx`-based signatures those functions
+have today. Confirmed this pass: the only reference to this module anywhere
+in the tree is a **commented-out** `# import create_character` plus a
+commented-out call in `future/main.py` (itself an untracked-scratch-turned-
+`future/` holding-pen file, not live) -- so `create_character.py` has zero
+live importers. The actual, live new-character flow is
+`commands/new_player.py` (1580 lines, ctx-based, its own `Command`
+subclass), which does not use this file at all.
+
+| Function                                                     | Notes                                                                                                |
+|-----------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| `choose_gender(char)` / `edit_gender(char)`                     |                                                                                                       |
+| `choose_name(char)` / `edit_name(char)` / `enter_name(p, edit_mode)` |                                                                                                  |
+| `choose_client(p)`                                               | Old client-type/settings selection, pre-`ClientSettings` negotiation flow                            |
+| `choose_class(p)` / `display_classes(p)` / `edit_class(p)` / `validate_class_race_combo(p)` |                                                                                        |
+| `choose_settings(p)`                                             |                                                                                                       |
+| `choose_race(p)` / `display_races(p)` / `edit_race(p)`           |                                                                                                       |
+| `choose_age(p)` / `validate_age(age, p)`                         |                                                                                                       |
+| `final_edit(p)`                                                  |                                                                                                       |
+| `choose_guild(p)`                                                |                                                                                                       |
+| `roll_stats(p)` / `preview_stats_with_bonuses(p, class_bonuses, race_bonuses)` |                                                                                          |
+| `getnum()`                                                       |                                                                                                       |
+| `main(player) -> Player`                                         | Old top-level entry point, superseded by `commands/new_player.py`                                    |
+| `debug_menu(p)`                                                  |                                                                                                       |
+
+---
+
+## new_player_2.py (553 lines)
+*(STALE — confirmed orphaned this pass, not merely undocumented)* Another
+pre-`ctx` character-creation prototype, with its own **third** independent
+`Player` class definition (alongside `player.py`'s live one and
+`players.py`'s self-flagged-dead one -- see those sections above), plus a
+local `Client` dataclass and `Color` enum unrelated to `net_client.Client`/
+`terminal.ColorName`. Confirmed this pass: `grep -rl "import new_player_2\|
+from new_player_2"` across the tree (outside the file itself) returns
+nothing -- zero live importers, same as `create_character.py`.
+
+| Function / Class                                                | Notes                                                                                                |
+|----------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| `Color` (Enum)                                                    | `BLACK`/`WHITE` -- unrelated to `terminal.ColorName`                                                  |
+| `Client` (dataclass)                                              | `name`, `rows`, `columns`, `translation`, `text`/`highlight`/`background`/`border` (`Color` fields) -- unrelated to `net_client.Client` |
+| `make_random_id()` / `make_random_stat()`                        | Old duplicates of the same-named live helpers in `player.py`                                         |
+| `set_up_combinations()` / `set_up_flags()` / `set_up_silver()` / `set_up_stats()` / `set_up_rulan()` / `set_up_terminal()` | Old `Player.__init__` field-default factories -- predecessors of `player.py`'s same-named live functions |
+| `Player` (class)                                                  | Old, independent `Player` implementation; `__init__(**kwargs)` with a large FIXME/TODO-laden docstring about eventually using dataclasses; not compatible with the live `player.py` `Player` |
+
+---
+
+## wild_horse_events.py (96 lines)
+Wild-horse encounter triggers beyond the random-room placement
+`Server._place_wild_horse()` does at boot. Live -- imported by
+`simple_server.py` and `commands/drop.py`. Ports SPUR `MAIN.S "horse"` and
+`MISC.S "d.sugar"`.
+
+| Function                                             | Notes                                                                                                              |
+|--------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| `_room_is_grassy(room)`                                 | Private -- `True` if `'grassy'` is in `room.flags`                                                                  |
+| `_current_room(ctx)`                                    | Private -- resolves `ctx`'s current `Room` via `ctx.server.game_map`                                                |
+| `try_wandering_horse_encounter(ctx)`                    | async -- per-move d100 roll in grassy rooms only; +15 Ranger / +10 Knight; >70 shows a tracks hint, >93 spawns the horse (both checks independent, matching SPUR) |
+| `try_sugar_cube_drop(ctx, room)`                        | async, returns `bool` -- always returns `True` ("fully handled"); outside a grassy room the cube just fails silently; in a grassy room, 50% chance nothing happens, else spawns the wild horse |
+
+`_WILD_HORSE_MONSTER_NUMBER = 136` is duplicated (not imported) from
+`simple_server.py`'s own constant of the same value, deliberately, to avoid
+a load-time circular import -- documented directly in the module's own
+comment.
+
+---
+
+## survival.py (115 lines)
+Hunger/thirst/poison/disease tick mechanics, ported from SPUR
+`COMBAT.S`/`MAIN.S`. Live -- imported by `simple_server.py`,
+`ally_events/starvation.py` (transitively, via shared conventions), and
+several `commands/*.py` (`eat.py`, `examine.py`, `drink.py`, `get.py`).
+
+| Function                                  | Notes                                                                                                                       |
+|---------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| `survival_tick(player) -> list[str]`         | Call once per command; decrements food/drink on a `config.survival_tick_interval` schedule (`-1` disables depletion entirely), applies ring-of-invisibility stat drain, poison (-2 HP, 30% chance), disease (-1 HP, 30% chance), and starvation (both at 0 → death); Admins/DMs are fully immune (no depletion, no damage, no starvation); keeps `PlayerFlags.HUNGER`/`THIRST` in sync with the `< 7` threshold |
+| `restore_food(player, amount)` / `restore_drink(player, amount)` | Add to food/drink, capped at `config.survival_max`                                                              |
+| `ration_restore(item) -> int`                | Pure -- derives a 1-9 restore quantity from `item.price` (mirrors SPUR's `gs` quality variable; `rations.json` has no explicit quality field) |
+| `apply_poison(player)` / `cure_poison(player)` | Sets/clears `player.poisoned` + `PlayerFlags.POISON`                                                                       |
+| `apply_disease(player)` / `cure_disease(player)` | Sets/clears `player.diseased` + `PlayerFlags.DISEASE`                                                                    |
+
+---
+
+## books.py
+SPUR book-text emulation (`server/books.json`), same shape/pattern as
+`messages.py` below. Live -- imported by `simple_server.py` and
+`commands/read.py`.
+
+| Function                                                | Notes                                                                                                    |
+|-------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| `load_books(path) -> dict[int, list[str]]`               | Loads `books.json` into `{item_number: [paragraph, ...]}`; logs and returns `{}` on `FileNotFoundError` |
+| `get_book_text(ctx, item_number) -> Optional[list[str]]` | Looks up `ctx.server.books.get(item_number)`                                                            |
+
+---
+
+## messages.py
+SPUR numbered-message-file emulation (`server/messages.json`, 54 recovered
+entries from `SPUR-data/SPUR Messages.txt`). Live -- imported by
+`simple_server.py`, `commands/new_player.py`, `encounters/galadriel.py`,
+`street/jakes.py`.
+
+| Function                                                    | Notes                                                                                                                  |
+|-------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------|
+| `load_messages(path) -> dict[int, list[str]]`                  | Same load pattern as `books.py`'s `load_books`                                                                          |
+| `get_message(ctx, number) -> Optional[list[str]]`               | Nested `getattr()` so a `ctx` without a `.server` (lightweight test fixture) doesn't raise before the fallback applies |
+| `send_message(ctx, number, **context) -> bool`                  | async -- prints message `number` if loaded; supports `{PLACEHOLDER}`-style `str.format()` substitution via kwargs (e.g. gendered pronouns), deliberately not a mini-expression-language -- messages with no placeholders are unaffected |
+
+**`messages.py` vs `message_handlers.py` -- confirmed both files exist,
+confirmed neither was merged into the other.** They are unrelated in
+purpose despite the similar name: `messages.py` (above) is the live
+SPUR-message-lookup module. `message_handlers.py` is a separate, much
+smaller (91-line) file whose own module docstring says outright: *"Minimal
+message handlers module used by tests."* It defines a toy
+`MessageRouter`/`Handler` pair and five `handle_*` example callbacks
+(`handle_notification`, `handle_page`, `handle_system`, `handle_new_player`,
+`handle_player_created`) operating on a different, simpler `{'type': ...}`
+dict shape than `net_common.Message`. Confirmed this pass: its only
+importer anywhere in the tree is `tests/social/test_message_handlers.py` --
+it is test-support scaffolding, not part of the live message pipeline.
+
+| Function / Class (message_handlers.py)                        | Notes                                                                    |
+|-------------------------------------------------------------|--------------------------------------------------------------------------|
+| `Handler` (class)                                               | `message_type`, `func`                                                    |
+| `MessageRouter` (class)                                         | `register_command(message_type)` decorator, `handle_message(message, client)` |
+| `handle_notification` / `handle_page` / `handle_system` / `handle_new_player` / `handle_player_created` | Example handlers, print-based                          |
+| `message_router` (module-level `MessageRouter()` instance)      | Pre-registered with the five handlers above                              |
+
+---
+
+## command_settings.py
+Per-player command-preference settings (`player.command_settings`),
+distinct from `PlayerFlags` (game state) -- for player-controlled UI/behavior
+toggles. Live -- imported by `player.py` and several `commands/*.py`.
+
+| Function / Class                                          | Notes                                                                                                             |
+|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| `TipsSettings` (dataclass)                                  | `enabled` (auto-show on login), `tip_number` (last-shown cursor) -- `commands/tips.py`                          |
+| `BoardSettings` (dataclass)                                 | `last_date` (ISO string) -- only `'board ld'` advances it; `None` means "everything is new" -- `board.py`/`commands/board.py` |
+| `TeleportSettings` (dataclass)                              | `destinations: dict` -- name-as-typed → `(level, room)` tuple, via `'teleport #learn <name>'` -- `commands/teleport.py` |
+| `CommandSettings` (dataclass)                               | Aggregate: `whereat_hidden`, `groups` (dict, whisper/page group names), `news_show_all`, `haven`, `ignored_pagers`, `tips`, `board`, `teleport`, `wasd_movement` |
+| `CommandSettings.to_dict()` / `.from_dict(data)` (classmethod) | Persistence; `from_dict` reconstructs the three nested dataclasses (`tips`/`board`/`teleport`) from plain dicts, and round-trips `teleport.destinations`' JSON-serialized-as-lists back into tuples |
+
+*(New per-player settings added here should get an `editplayer.py` entry
+per this file's own CLAUDE.md convention -- not verified field-by-field
+against `commands/editplayer.py` this pass; flag for a future check.)*
+
+---
+
+## user_settings.py
+*(STALE — confirmed orphaned this pass)* A tiny (33-line) file of three
+enums with a literal `# TODO: client settings editor here, pull stuff from
+terminal.py` comment at the top -- reads as an abandoned starting sketch
+for a client-settings editor that was apparently built directly into
+`terminal.py`/`commands/prefs.py` instead. Confirmed this pass: `grep -rl
+"import user_settings\|from user_settings"` across the tree (outside the
+file itself) returns nothing -- zero importers anywhere.
+
+| Symbol                              | Notes                                                                                            |
+|-------------------------------------|----------------------------------------------------------------------------------------------------|
+| `ClientSettingsNames` (StrEnum)        | Display-label strings (`"Name"`, `"Screen rows"`, `"Text color"`, etc.) -- overlaps in concept with, but is a separate/unused definition from, `terminal.ClientSettings`'s real fields |
+| `Translation` (StrEnum)                | `PetSCII`/`ASCII`/`ANSI` -- separate, unused duplicate of `terminal.Translation`                  |
+| `ClientValues` (Enum, `int`)           | Odd hybrid: an `IntEnum`-style class body that's actually just type-annotated attribute stubs (`name: str`, `rows: int`, ...) with no actual enum members -- dead/non-functional as written |
+
+---
+
+## new_server.py (257 lines)
+*(STALE — confirmed orphaned this pass)* Yet another alternate server
+entry point, built around a `GameServer` class (distinct from
+`net_server.py`'s `Server`/`Server.Server`). Handles PID-file locking,
+logging setup, graceful-shutdown signal handling, and `load_game_data()`
+(map/items/weapons/rations/monsters loading) -- yet none of it is reachable
+from the live game. Confirmed this pass: `grep -rl "import new_server\|from
+new_server"` across the tree (outside the file itself) returns nothing --
+zero importers anywhere, including from `net_server.py` or `player.py`
+(both of which reference `net_server.py`, not this file, despite the
+similar name). Distinct module from `net_server.py`, not a typo/duplicate
+of it -- genuinely a third, separate, also-dead server prototype alongside
+`net_server.py` and `create_character.py`'s abandoned pipeline.
+
+| Function / Class                                                | Notes                                                                                                 |
+|-------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| Module-level PID-file / logging setup                              | Runs at import time -- writes `run/tada_server.pid`, configures `logging.basicConfig` to `logs/server.log`, registers an `atexit` cleanup |
+| `Init` (class)                                                       | Yet another separate handshake payload class (third one across `net_client.py`/`net_server.py`/this file) |
+| `GameServer` (class)                                                 | `__init__(host, port)`, registers `SIGINT`/`SIGTERM` handlers                                            |
+| `GameServer._signal_handler(signum, frame)`                          | Schedules `_handle_shutdown` as an asyncio task                                                          |
+| `GameServer._handle_shutdown(signum=None, frame=None)`                | async -- broadcasts a shutdown message, saves all players, closes connections, re-raises `KeyboardInterrupt` on `SIGINT` or `os._exit(0)` otherwise |
+| `GameServer.load_game_data()`                                        | Loads `level_<n>.json` map files (1-7), `objects.json`, `weapons.json`, `rations.json`, `monsters.json` via `Item.read`/`Weapon.read`/`Rations.read_rations`/`Monster.read_monsters` |
+
+---
+
 ## Not yet covered by this doc (full-rewrite backlog)
 
 Significant modules/packages that exist in the codebase but this doc never
@@ -946,13 +1312,19 @@ incompatible early draft of what `net_common.py`'s real `Message`/
 `inventory.py`, `flags.py`, `base_classes.py` — moved out of this backlog
 list this pass; see their own `##` sections earlier in this file.
 
-**Core game-logic modules still never documented here at all** (not
-one-off scripts — these predate or postdate the doc's original scope
-entirely): `net_client.py` (916), `net_server.py` (515),
-`create_character.py` (1115), `new_player_2.py` (553), `terminal.py` (546),
-`wild_horse_events.py` (96), `survival.py` (115), `net_common.py` (281),
-`new_server.py` (257), `books.py`, `messages.py`/`message_handlers.py`,
-`command_settings.py`, `user_settings.py`.
+**Core game-logic modules — given full sections this pass, moved out of
+this backlog list:** `net_common.py`, `net_client.py`, `net_server.py`,
+`terminal.py`, `terminal_context.py` (rewritten from a stale placeholder
+into an accurate current section), `create_character.py`, `new_player_2.py`,
+`wild_horse_events.py`, `survival.py`, `books.py`, `messages.py`,
+`message_handlers.py`, `command_settings.py`, `user_settings.py`,
+`new_server.py`. Several of these turned out to be fully orphaned dead code
+confirmed by grep (zero live importers), not just undocumented:
+`create_character.py`, `new_player_2.py`, `new_server.py`, and
+`user_settings.py`; `net_server.py` is reachable only via a fallback import
+in `player.py` that's never actually exercised since `simple_server`
+always imports successfully. See their own `##` sections earlier in this
+file for the detail and the grep commands used to confirm each.
 
 `character_editor.py` (687 lines) — deleted 8/1/26, was a dead never-wired
 stub (had its own orphaned `Horse` class alongside `characters.py`'s and
