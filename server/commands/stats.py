@@ -171,6 +171,7 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     pd = st(PlayerStat.DEX)
     pw = st(PlayerStat.WIS)
     pe = st(PlayerStat.EGY)
+    pc = st(PlayerStat.CHR)
     sh = int(getattr(player, 'shield', 0) or 0)
     ar = int(getattr(player, 'armor',  0) or 0)
 
@@ -227,6 +228,7 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
         stat_pair("Strength:",  ps, "Const'n  :", pt),
         stat_pair("Intel   :",  pi, "Dexterity:", pd),
         stat_pair("Wisdom  :",  pw, "Energy   :", pe),
+        f"{'Charisma:':<10} {pc:>2} {pc * 4:>3}%",
         '',
     ]
 
