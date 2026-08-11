@@ -31,9 +31,21 @@ class WhisperCommand(Command):
             ('whisper #<group>=<message>',         'Whisper to everyone in a group'),
         ],
         examples = [
-            ('whisper Bob=Did you see that?',      'Only Bob hears you'),
-            ('whisper Alice,Bob=Lets go',          'Both Alice and Bob hear you'),
-            ('whisper #friends=Meet at the inn',   'Everyone in your "friends" group hears you'),
+            ('whisper Bob=Did you see that?',      "WHISPER sends a message only the "
+                                                    "named target(s) can see, unlike SAY "
+                                                    "-- everyone else in the room stays "
+                                                    "unaware you said anything. Only Bob "
+                                                    "hears this one, and only because "
+                                                    "he's in the same room as you (use "
+                                                    "PAGE instead for cross-room "
+                                                    "messages)."),
+            ('whisper Alice,Bob=Lets go',          'Comma-separate names to whisper the '
+                                                    'same message to several people at '
+                                                    'once, same as PAGE.'),
+            ('whisper #friends=Meet at the inn',   'A saved GROUPS name works as a '
+                                                    'target too, whispering to everyone '
+                                                    'in it who happens to be in the room '
+                                                    'with you.'),
         ],
         notes = ['Target must be in the same room.  Use [page] for cross-room messages.'],
     )

@@ -370,9 +370,15 @@ class UseCommand(Command):
             ('use <name>',   'Use the item matching name'),
         ],
         examples = [
-            ('use',          'Pick from item list'),
-            ('use compass',  'Toggle compass'),
-            ('use shield',   'Activate a shield'),
+            ('use',          "USE covers items that aren't weapons (READY handles "
+                              "those) and don't fit GET/DROP/WEAR either -- what it "
+                              "actually does depends on the item. With no name given, "
+                              "it lists everything usable you're carrying."),
+            ('use compass',  "A compass just toggles on/off -- session state, no "
+                              "lasting effect on the item itself."),
+            ('use shield',   'A shield instead equips it, the same non-consuming way '
+                              'WEAR equips armor -- your Shield rating updates to match, '
+                              "capped by your class/race, and UNWEAR takes it back off."),
         ],
     )
 

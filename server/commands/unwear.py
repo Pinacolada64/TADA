@@ -55,8 +55,13 @@ class UnwearCommand(Command):
             ('unwear shield', 'Take off your shield'),
         ],
         examples = [
-            ('unwear',        'Take off whatever is worn'),
-            ('unwear shield', 'Take off just the shield'),
+            ('unwear',        "UNWEAR (also 'remove'/'doff') takes off equipped armor "
+                               "and/or a shield -- the item itself isn't lost or "
+                               "damaged by this, it just stops being equipped and stays "
+                               "in your pack. With both slots worn and no argument, it "
+                               "asks which one you mean."),
+            ('unwear shield', 'Naming a slot ("armor" or "shield") skips the question '
+                               'and takes off just that one.'),
         ],
     )
 

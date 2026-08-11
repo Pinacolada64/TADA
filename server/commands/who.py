@@ -34,7 +34,10 @@ class WhoCommand(Command):
         ),
         category = HelpCategory.COMMUNICATION,
         usage    = [('who', 'List online players')],
-        examples = [('who', 'Show the online roster')],
+        examples = [('who', "WHO takes no arguments -- typing it lists every connected "
+                             "player along with how long they've been online and how "
+                             "long since they last typed a command, so you can spot who's "
+                             "actually active right now.")],
         admin_notes=['Admins also see the IP address of each connection.']
     )
 

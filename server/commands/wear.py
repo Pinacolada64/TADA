@@ -100,9 +100,15 @@ class WearCommand(Command):
             ('wear <name>', 'Wear the item matching name'),
         ],
         examples = [
-            ('wear',            'Pick from item list'),
-            ('wear plate armor', 'Wear plate armor'),
-            ('wear ring',        'Toggle the ring of invisibility'),
+            ('wear',            "WEAR equips a piece of armor from your inventory -- "
+                                 "non-consuming, so UNWEAR takes it back off later "
+                                 "without losing it. With no name given, it lists "
+                                 "everything wearable you're carrying."),
+            ('wear plate armor', "Naming an armor item equips it directly -- your Armor "
+                                  "rating updates to match, capped by your class/race."),
+            ('wear ring',        "The Ring of Invisibility is a special case WEAR also "
+                                  "handles -- wearing it toggles invisibility on and "
+                                  "off, rather than changing an armor rating."),
         ],
     )
 
