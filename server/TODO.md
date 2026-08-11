@@ -1,3 +1,22 @@
+8/10/26:
+- **"Dusk Approaches" session-time-limit warning is not implemented.**
+  Discovered while writing help topics (TODO_HELP.md): `config.py`'s
+  `session_time_limit_minutes` setting exists and is documented as
+  sharing "the same budget the Dusk warning counts down", and
+  `MECHANICS.md:204` lists "Dusk warning — message when session time <
+  120 ticks remain" as done, but nothing in the codebase actually
+  enforces a session time limit or sends any warning --
+  `survival.py`'s `survival_tick()` has no ticks/Dusk logic at all, and
+  a repo-wide grep for `ticks`/`Dusk` turns up nothing wired to real
+  gameplay. If this is wanted, port `SPUR.COMBAT.S:11`'s warning
+  (message when under 120 ticks remain) and tips.txt's actual in-
+  fiction advice about it (your weakened stats save as-is if time runs
+  out; the monster resets but your combat hits on it don't -- verify
+  that half is still true here before relying on it). MECHANICS.md:204
+  itself has no ✅ checkmark (correctly not-yet-done) -- it was
+  TODO_HELP.md's 7/14/26 pass that mistakenly logged this as
+  implemented; that file has been corrected.
+
 3/21/26:
 - Murder Motel level in dungeon
   - [Fleshed out 7/30/26, Ryan] Renamed "Hostile Hostel": a standalone
