@@ -20,6 +20,7 @@ from flags import PlayerFlags
 from network_context import GameContext
 
 _RING_ID = 67  # ring of invisibility (objects.json) -- see commands/wear.py
+_PENDANT_ID = 82  # crystal pendant (objects.json) -- see commands/wear.py
 
 
 # New in TADA -- no SPUR precedent for mount carrying capacity at all
@@ -365,6 +366,12 @@ class GiveCommand(Command):
         item_no  = getattr(item, 'number', None) or getattr(item, 'id_number', None)
         item_cat = getattr(item, 'category', None)
         if item_cat == ItemCategory.ITEM and item_no == _RING_ID and player.query_flag(PlayerFlags.RING_WORN):
+            await ctx.send("Can't, you are wearing it!")
+            return CommandResult.ok()
+
+        # Crystal Pendant (#82): can't give it away while worn -- same
+        # reasoning as the ring above (commands/wear.py). WEAR again first.
+        if item_cat == ItemCategory.ITEM and item_no == _PENDANT_ID and player.query_flag(PlayerFlags.PENDANT_WORN):
             await ctx.send("Can't, you are wearing it!")
             return CommandResult.ok()
 

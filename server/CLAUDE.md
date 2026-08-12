@@ -29,6 +29,15 @@
 
 ## Testing
 
+- **Always use `.venv`, never the bare system `python3`.** Run tests (and
+  any other Python invocation in this repo) via `.venv/bin/python3 -m
+  pytest ...` or activate it first (`source .venv/bin/activate`) — don't
+  fall back to a bare `python3`/`pytest` from PATH. The system
+  interpreter is missing `colorama` and `cbmcodecs2`, which `.venv` has
+  installed; running outside `.venv` produces hundreds of spurious
+  `ModuleNotFoundError` failures/collection errors that look like real
+  regressions but aren't. If `.venv` doesn't exist yet, set it up rather
+  than working around the missing packages.
 - **Local runs skip e2e tests by default.** `pyproject.toml`'s `addopts`
   already includes `-m "not e2e"`, so a plain `pytest` / `pytest -q` (no
   extra flags) finishes in ~20s instead of ~60-130s. The 6 tests marked

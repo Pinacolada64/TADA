@@ -64,8 +64,6 @@ _FRIENDLY_RANGE = (61, 71)
 _FRIENDLY_EVIL_RACES = {'Ogre', 'Half-Elf'}
 _FRIENDLY_GOOD_RACES = {'Pixie', 'Elf'}
 
-_CRYSTAL_PENDANT_ID = 82   # objects.json -- blocks turn-to-stone (SPUR.MISC4.S)
-
 
 def _is_friendly_encounter(ctx: 'GameContext', monster: dict) -> bool:
     """True when the player's race is thematically simpatico with the
@@ -662,25 +660,27 @@ class CombatSession:
 
     async def _check_crystal_pendant(self, ctx: 'GameContext') -> None:
         """Crystal Pendant (item #82): if the monster can cast turn-to-stone
-        and the player carries the pendant, roll once (not per-round) for
-        whether it blocks that ability for the rest of this encounter.
+        and the player is wearing the pendant (commands/wear.py, toggles
+        PlayerFlags.PENDANT_WORN), roll once (not per-round) for whether it
+        blocks that ability for the rest of this encounter.
 
         SPUR.MISC4.S mon.set/stone: 90% chance ("The CRYSTAL PENDANT flashes,
         preventing TURN TO STONE by <monster>!") permanently disables the
         monster's turn-to-stone for this fight; 10% chance the monster
         "happens to see" the pendant and counters it this one time (turn-to-
         stone remains possible for the rest of the fight either way).
+
+        SPUR's own mon.set/glasses text calls this "wearing the CRYSTAL
+        PENDANT" even though its underlying xi$ check is just an inventory
+        membership test (SPUR had no separate equip step for this item) --
+        Ryan's call to require the flag rather than mere possession, so
+        WEAR is the action that actually matters instead of the protection
+        silently auto-applying off a bare inventory check.
         """
         if not (self.monster.get('flags', {}) or {}).get('petrify'):
             return
         player = ctx.player
-        inventory = getattr(player, 'inventory', None)
-        # id_number is only unique within its own category (weapons/items/
-        # rations each number independently -- items.py:364); without the
-        # category filter this matched ration #82 BUCKET OF WATER too.
-        from items import ItemCategory
-        if not inventory or not inventory.find(item_id=_CRYSTAL_PENDANT_ID,
-                                                category=str(ItemCategory.ITEM)):
+        if not player.query_flag(PlayerFlags.PENDANT_WORN):
             return
 
         mname = monster_display_name(self.monster)

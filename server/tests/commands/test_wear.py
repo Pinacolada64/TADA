@@ -94,6 +94,48 @@ class TestWearCommandRingCollision(unittest.IsolatedAsyncioTestCase):
         player.set_flag.assert_called_once_with(PlayerFlags.RING_WORN)
 
 
+class TestWearPendantCollision(unittest.TestCase):
+    # Same category guard as the ring collision above -- objects.json #82
+    # "Crystal Pendant" collides with ration #82 "BUCKET OF WATER".
+
+    def test_bucket_of_water_not_wearable(self):
+        player = _make_player()
+        bucket = _item('BUCKET OF WATER', item_id=82, category=ItemCategory.FOOD, kind='drink')
+        player.inventory.add(bucket)
+        entries = _wearable_entries(player)
+        self.assertEqual(entries, [])
+
+    def test_real_pendant_still_wearable(self):
+        player = _make_player()
+        pendant = _item('Crystal Pendant', item_id=82, category=ItemCategory.ITEM)
+        player.inventory.add(pendant)
+        entries = _wearable_entries(player)
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].item.name, 'Crystal Pendant')
+
+
+class TestWearCommandPendant(unittest.IsolatedAsyncioTestCase):
+
+    async def test_wear_pendant_toggles_pendant_worn(self):
+        player = _make_player()
+        pendant = _item('Crystal Pendant', item_id=82, category=ItemCategory.ITEM)
+        player.inventory.add(pendant)
+        ctx = _FakeCtx(player)
+        await WearCommand().execute(ctx, 'crystal pendant')
+        player.set_flag.assert_called_once_with(PlayerFlags.PENDANT_WORN)
+        self.assertIn('Crystal Pendant worn!', ctx.sent())
+
+    async def test_wear_again_removes_pendant(self):
+        player = _make_player()
+        player.query_flag = MagicMock(return_value=True)
+        pendant = _item('Crystal Pendant', item_id=82, category=ItemCategory.ITEM)
+        player.inventory.add(pendant)
+        ctx = _FakeCtx(player)
+        await WearCommand().execute(ctx, 'crystal pendant')
+        player.clear_flag.assert_called_once_with(PlayerFlags.PENDANT_WORN)
+        self.assertIn('returned to your pack', ctx.sent().lower())
+
+
 class TestWearArmorSetsActiveArmorId(unittest.IsolatedAsyncioTestCase):
     # Regression: WEAR used to boost player.armor's flat percentage without
     # ever recording *which* armor item was worn, so STAT/the login banner

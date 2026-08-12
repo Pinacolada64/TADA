@@ -25,6 +25,7 @@ from inventory import InventoryEntry
 from network_context import GameContext
 
 _RING_ID = 67  # ring of invisibility (objects.json) -- see commands/wear.py
+_PENDANT_ID = 82  # crystal pendant (objects.json) -- see commands/wear.py
 
 # Keywords that indicate a water room in name/desc (fallback when flags absent).
 # Primary detection is room.flags containing 'water'.
@@ -228,6 +229,12 @@ class DropCommand(Command):
         item_no  = getattr(entry.item, 'number', None) or getattr(entry.item, 'id_number', None)
         item_cat = getattr(entry.item, 'category', None)
         if item_cat == ItemCategory.ITEM and item_no == _RING_ID and player.query_flag(PlayerFlags.RING_WORN):
+            await ctx.send("Can't, you are wearing it!")
+            return CommandResult.ok()
+
+        # Crystal Pendant (#82): can't drop it while worn -- same reasoning
+        # as the ring above (commands/wear.py). WEAR again first.
+        if item_cat == ItemCategory.ITEM and item_no == _PENDANT_ID and player.query_flag(PlayerFlags.PENDANT_WORN):
             await ctx.send("Can't, you are wearing it!")
             return CommandResult.ok()
 

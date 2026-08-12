@@ -47,6 +47,7 @@ class PlayerFlags(StrEnum):
     COMPASS_USED = "Compass used"
     DWARF_ALIVE = "Dwarf alive"
     GAUNTLETS_WORN = "Gauntlets worn"
+    PENDANT_WORN = "Pendant worn"
     RING_WORN = "Ring worn"
     SPUR_ALIVE = "SPUR alive"
     THUG_ATTACK = "Thug attack"
@@ -90,6 +91,7 @@ new_player_default_flags = [
     (PlayerFlags.COMPASS_USED, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.DWARF_ALIVE, FlagDisplayTypes.YESNO, True),
     (PlayerFlags.GAUNTLETS_WORN, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.PENDANT_WORN, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.RING_WORN, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.SPUR_ALIVE, FlagDisplayTypes.YESNO, True),
     (PlayerFlags.THUG_ATTACK, FlagDisplayTypes.YESNO, False),

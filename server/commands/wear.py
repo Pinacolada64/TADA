@@ -28,6 +28,15 @@ Supported items:
     "hard to see" + an immediate one-time Constitution -2 (floor 5) -- see
     survival.py's survival_tick() for the ongoing per-move drain while
     worn, and encounters/ringwraith.py for the Ringwraith tie-in.
+  crystal pendant (#82) — toggles PlayerFlags.PENDANT_WORN. SPUR.MISC4.S's
+    own "glasses" flavor text already calls this "wearing the CRYSTAL
+    PENDANT" (SPUR.MISC4.S:194), so combat/engine.py's petrify-block roll
+    (_check_crystal_pendant) requires this flag, not just carrying the
+    item in your pack -- Ryan's call: silently auto-applying protection
+    off a bare inventory check made WEAR a dead end for this item (it
+    already refused as "not armor", and USE just gave flavor text), with
+    no player action actually mattering. Toggled here rather than through
+    USE for the same "WEAR reads better than USE" reason as the ring.
 
 Not ported (SPUR.SUB.S x=68 "gauntlets"/SPUR.COMBAT.S's `gauntlet`
 label): a separate hit-absorption mechanic entirely (the gauntlets block
@@ -51,6 +60,7 @@ from network_context import GameContext
 _RING_ID         = 67   # ring of invisibility (objects.json)
 _BATTLE_ARMOR_ID = 113  # battle armor (objects.json) -- flat 125%
 _POWER_ARMOR_ID  = 115  # power armor (objects.json) -- flat 150%
+_PENDANT_ID      = 82   # crystal pendant (objects.json) -- petrify block
 
 # SPUR.SUB.S:33-34 -- max armor rating by class/race.
 _CAP_MID_RACE  = {'Pixie', 'Hobbit', 'Gnome'}   # 50%
@@ -68,7 +78,8 @@ def _armor_cap(player) -> int:
 
 
 def _wearable_entries(player):
-    """Armor-type items, plus the ring -- everything WEAR actually handles."""
+    """Armor-type items, plus the ring and pendant -- everything WEAR
+    actually handles."""
     from items import ItemCategory
     inv = getattr(player, 'inventory', None)
     if inv is None:
@@ -82,8 +93,9 @@ def _wearable_entries(player):
         # rations each number independently -- items.py:364); without this
         # guard a ration sharing #67 with the ring (DEAD BUG) showed up as
         # wearable and could toggle RING_WORN.
-        is_ring = item_cat == ItemCategory.ITEM and item_no == _RING_ID
-        if getattr(item, 'type', None) == ItemType.ARMOR or is_ring:
+        is_ring    = item_cat == ItemCategory.ITEM and item_no == _RING_ID
+        is_pendant = item_cat == ItemCategory.ITEM and item_no == _PENDANT_ID
+        if getattr(item, 'type', None) == ItemType.ARMOR or is_ring or is_pendant:
             out.append(e)
     return out
 
@@ -109,6 +121,10 @@ class WearCommand(Command):
             ('wear ring',        "The Ring of Invisibility is a special case WEAR also "
                                   "handles -- wearing it toggles invisibility on and "
                                   "off, rather than changing an armor rating."),
+            ('wear crystal pendant', "The Crystal Pendant is another special case -- "
+                                      "wearing it is what actually protects you from a "
+                                      "monster's turn-to-stone attack, not just carrying "
+                                      "it in your pack."),
         ],
     )
 
@@ -173,6 +189,23 @@ class WearCommand(Command):
                 player.clear_flag(PlayerFlags.RING_WORN)
                 player.unsaved_changes = True
                 await ctx.send('Ring returned to your pack.')
+            return CommandResult.ok()
+
+        # ---- Crystal Pendant (#82): toggle worn, gates the petrify-block --
+        # roll in combat/engine.py's _check_crystal_pendant() -------------
+        if item_no == _PENDANT_ID:
+            worn = player.query_flag(PlayerFlags.PENDANT_WORN)
+            if not worn:
+                player.set_flag(PlayerFlags.PENDANT_WORN)
+                player.unsaved_changes = True
+                lines = ['Crystal Pendant worn!']
+                if not player.is_expert:
+                    lines.append('(WEAR again to remove)')
+                await ctx.send(lines)
+            else:
+                player.clear_flag(PlayerFlags.PENDANT_WORN)
+                player.unsaved_changes = True
+                await ctx.send('Crystal Pendant returned to your pack.')
             return CommandResult.ok()
 
         # ---- Battle armor (#113) / Power armor (#115): flat ratings -------
