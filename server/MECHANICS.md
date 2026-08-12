@@ -514,13 +514,13 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 ## Character Progression
 
 ### Implemented
-- **Level-up** — XP threshold `999 + (xp_level × 100)` triggers level-up message (`SPUR.COMBAT.S:10`)
+- **Level-up** — XP threshold `999 + (xp_level × 100)` triggers level-up message (`SPUR.COMBAT.S:10` master / `:11` skip, unchanged — skip adds an unrelated `zw=0` reset just ahead of the same check, not a leveling-logic change)
 - **Stat rolling** — race/class bonuses applied at character creation (`characters.py`)
 - ✅ **`xp_level` split from `map_level`** — these were conflated in one field (`player.map_level`), used correctly as the dungeon floor (SPUR's `cl`) by the elevator/shoppe but incorrectly reused as character level (SPUR's `xp`/`yn`) by combat level-up, the BHR stat formula, the XP-drain formula, Blue Djinn's hire pricing, and the bank transfer gate. `player.xp_level` is now the single source for character level; old saves migrate their `map_level` value into `xp_level` on load and reset `map_level` to 1 (`player.py`, `combat/engine.py`, `combat/resolution.py`, `commands/stats.py`, `bar/blue_djinn.py`, `shoppe/bank.py`)
+- ✅ **Level-up message + increment** — SPUR's `lvl.msg` (master `SPUR.COMBAT.S:346-347` / skip `:422-424`, byte-identical besides skip wrapping the text in `hl$`/`of$` highlight-color codes) only ever prints `"Congratulations! You Are a Level <xp> Player!"` and returns — it does **not** grant any stat/HP increase in either branch, `xp` is used elsewhere purely as a formula input (BHR at `SPUR.DUEL2.S:25,108`, damage scaling `SPUR.COMBAT.S:155`, snake-bite XP drain `SPUR.COMBAT.S:316`, `SPUR.MISC6.S:243`). This threshold-check-plus-message flow is already ported, matching SPUR's text, at `combat/engine.py:214-227` (`_add_exp`) — moved up from "Not Implemented" below since both halves (trigger and message) are done; there was never a stat-grant mechanic in SPUR source to port in the first place.
 
 ### Not Implemented
-- **Level-up stat grants** — what increases on level-up (HP, stats) (`SPUR.COMBAT.S lvl.msg`)
-- **Time limit** — session clock `ev`; player is forced to quit when time expires (`SPUR.COMBAT.S tim.chk`)
+- **Time limit** — session clock `ev`; player is forced to quit when time expires (`SPUR.COMBAT.S tim.chk`, master `:349-351` / skip `:425-427`, byte-identical). Confirmed genuinely unimplemented — `commands/config.py:164` stores `session_time_limit_minutes` but nothing enforces it; already tracked in `TODO.md:2-8` ("Dusk Approaches" session-time-limit warning).
 
 ---
 
@@ -538,17 +538,33 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   the live tactic loop that same day) — caught while auditing
   `TODO_HELP.md` for missing help topics.
 - ✅ **Guild standings** — win/loss tally per guild, persisted and shown
-  via `duel #standings` (`guild_standings.py`, `SPUR.DUEL2.S`'s `guild`
-  label).
+  via `duel #standings` (`guild_standings.py`, `SPUR.DUEL2.S:316-337 guild`
+  label, master and skip byte-identical, same lines both branches).
+- ✅ **Initiative** — level + weapon accuracy/damage bonus + STR+DEX+INT,
+  ±10% hit-chance delta for the whole duel (`_compute_initiative()`,
+  `combat/duel.py:100-105`; SPUR `vu`, `SPUR.DUEL.S:68`). **Branch
+  divergence**: master's formula is `zr=(yn*2)+xy+xv+cd+cs+ci`; skip adds a
+  turf-bonus term not present on master, `zr=(yn*2)+xy+xv+cd+cs+ci+(zz*5)`
+  (same line 68 both branches) — `zz` is the same 0/1/3 room-ownership/HQ
+  turf flag master already folds into the separate damage/accuracy terms
+  (`xy`/`xv`), just not into initiative there. The port's own code comment
+  already flags this as a deliberate gap ("Turf's own contribution to the
+  SPUR formula (zz*5) is left out") — confirmed the port is following
+  **master's** version, not skip's, so this is expected/consistent
+  behavior, not a bug.
 - ✅ **Territory capture** (Ryan's own extension, no SPUR precedent) — a
   guild-vs-guild duel win flips the room's `RoomAlignment` to the
   winner's guild, except HQ/`FREE_FIRE` rooms (`room_alignment.py`).
 
 ### Not Implemented
-- **Autoduel** — offline defender; best weapon auto-selected by `zt+zs` score (`SPUR.DUEL2.S`). `PlayerFlags.GUILD_AUTODUEL` exists but has no consuming logic yet.
+- **Autoduel** — offline defender; best weapon auto-selected by `zt+zs` score (`SPUR.DUEL2.S auto.c/opnt.wp:130-158` master / same lines skip, unchanged besides a `dx$`→`dw$` disk-var rename). `PlayerFlags.GUILD_AUTODUEL` exists but has no consuming logic yet. Per `TODO.md`'s existing AUTODUEL entry, this is really a **skip-exclusive command living in `SPUR.MISC5.S`**, not something master's mainline duel flow exposes on its own — worth MECHANICS.md eventually cross-linking that TODO.md entry directly.
 - **Weapon roster** — SPUR chooses the duel weapon from a roster separate from inventory; this port's DUEL just uses whatever's currently READY'd, so there's no separate roster to build.
-- **No weapon penalty** — SPUR's specific "fighting without a readied weapon deducts 1 INT" (`SPUR.DUEL.S:30–54`) isn't ported; this port instead refuses the challenge outright without a readied weapon (milder gate, same intent).
-- **Civilian/Outlaw dueling immunity** — the guild-choice screen advertises Civilians as safe from dueling by anyone but an Outlaw; `DuelCommand.execute()` has no guild-eligibility check, so this isn't actually enforced.
+- **No weapon penalty** — SPUR's specific "fighting without a readied weapon deducts 1 INT" (`SPUR.DUEL.S:30–54` master / skip, unchanged — only cosmetic caps like "Shield BASH!"→"SHIELD BASH!" differ) isn't ported; this port instead refuses the challenge outright without a readied weapon (milder gate, same intent).
+- **Civilian/Outlaw dueling immunity** — the guild-choice screen advertises Civilians as safe from dueling by anyone but an Outlaw; `DuelCommand.execute()` has no guild-eligibility check, so this isn't actually enforced (`SPUR.DUEL2.S:93-96` master / skip, unchanged besides message wording).
+- **Revenge Duel system** — untracked, not in `TODO.md`. `SPUR.DUEL2.S`'s `set.rvng`/`rd.rvng`/`wt.rvng`/`ck.rvng` labels (`:448-476` master / same lines skip, unchanged). After a duel where the winner had a large support/BHR edge over the loser (`zz<8` at `follow.b`, `:127-128`), the *loser* gets a revenge flag set against the winner in a per-player `revenge` data file. If that same loser later challenges the original winner again and would normally be blocked/scorned (`zz>12` branch, `ck.rvng:448-458`), the flag lets them bypass the grovel/decline gate straight into `auto.c` with `xz$="revenge"` — tagged `": REVENGE DUEL"` in `battle.log` (`news:301`) instead of `": SPORT DUEL"`/`": AUTODUEL"`, with `"(Eligible for revenge duel)"` noted in the loser's mail (`sendmail:285`). No trace of this in `combat/duel.py`, `guild_standings.py`, or `TODO.md`.
+- **Challenging "SPUR" (the omnipotent NPC boss) via DUEL** — untracked, not in `TODO.md`. `SPUR.DUEL.S`'s `chalspur`/`chalsp.2` labels (`:158-186` master / same lines skip, cosmetic diffs only). Issuing DUEL while standing in SPUR's special room (`sl=cl and sr=cr` check, `SPUR.DUEL.S:15`) routes into a scripted boss fight instead of the normal roster: requires total `pe+pi+ps+pw+pt+pd > 90` or the player is teleported away with a rebuke; SPUR gets maxed stats (`cs=ct=ci=ce=cw=cd=20`), HP formula `h=10*sl+random(10)` capped at 51 (reduced further by `xl*3` at high player level), full 50/50 shield/armor, and auto-equips whichever shop weapon scores highest on damage+accuracy. Entirely distinct from the already-tracked "THE ENFORCER" forced encounter (`TODO.md:541`) — this is a separate boss-duel mechanic with no TADA equivalent.
+
+No SPUR-source mechanic exists for wager/stakes (gold only changes hands via win/loss forfeiture, never a pre-duel bet) or room-wide spectator broadcast of duel results (both branches only `print`/mail the two participants plus `battle.log`) — not gaps, just confirming nothing was missed porting them.
 
 ---
 
@@ -564,10 +580,10 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - **Bulletin board / news log** (`SPUR.MISC2.S`) — see expanded design in **News & Mail** and **Threaded Message Boards** sections below
 - **Pray / Rest** — recover HP or stats out of combat (`SPUR.MISC2.S`)
 - ✅ **READ command** — lists/reads book-type inventory items; item #69 "scrap of paper" is special-cased (see **Elevator Combination** section) (`commands/read.py`). **Not yet implemented**: the tips.txt claim that reading "increases your wisdom" — other books currently just print "there's nothing more to learn from it," per `read.py`'s own docstring (`SPUR.MISC3.S`; tips.txt: "READ books to increase your wisdom!")
-- ✅ **QUOTE command** — player sets a short quote (60 char max) shown to others who see them in a room; `$` substituted with the *reading* player's name; View/Write/Quit menu (`SPUR.MISC2.S:488-503`; also wired into character creation, `SPUR.LOGON.S:410,618-624`) (`commands/quote.py`, `commands/new_player.py`)
+- ✅ **QUOTE command** — player sets a short quote (60 char max) shown to others who see them in a room; `$` substituted with the *reading* player's name; View/Write/Quit menu (`SPUR.MISC2.S:488-503` master / `:523-538` skip, byte-identical; also wired into character creation, `SPUR.LOGON.S:410,618-624`) (`commands/quote.py`, `commands/new_player.py`)
 - **LOOT command** — search an unconscious player's inventory; one item per session; Civilians barred from the Shoppe after looting (tips.txt); see also Items section above
-- ✅ **The Dwarf** — wandering level-1 NPC; steals silver (or an item once broke) from players via a per-move roll, appears as a fightable encounter in his own room, awards his entire shared hoard to whoever kills him (`encounters/dwarf.py`; `SPUR.LOGON.S`/`SPUR.MAIN.S`/`SPUR.MISC5.S`). Per-player kill immunity and periodic relocation are this port's own additions, not from SPUR (original places him once at world-init and never moves him).
-- **The Thief** — random per-move weapon-stealing encounter, not the Thief *character class* (`SPUR.MAIN.S:231`/`271` gosub `thief` local label, `SPUR.MISC.S:60-70`). Gated behind a **3% roll** (`rnd.100a`, `a<3`) and requires the player to be **carrying 3+ weapons** (`SPUR.MAIN.S thief:` `if xw<3 return` — no weapon is ever stolen down to fewer than 2 in hand). If triggered:
+- ✅ **The Dwarf** — wandering level-1 NPC; steals silver (or an item once broke) from players via a per-move roll, appears as a fightable encounter in his own room, awards his entire shared hoard to whoever kills him (`encounters/dwarf.py`; `SPUR.MAIN.S:265-268` master `dwarf` gosub / `:275-278` skip, byte-identical incl. the 1% `a<>50` roll and `rd.dwarf` data load; `SPUR.LOGON.S`/`SPUR.MISC5.S:15` master / `:16` skip dispatch entry, also unchanged). Per-player kill immunity and periodic relocation are this port's own additions, not from SPUR (original places him once at world-init and never moves him).
+- **The Thief** — random per-move weapon-stealing encounter, not the Thief *character class* (`SPUR.MAIN.S:231`/`271` gosub `thief` local label master / `:280-282` skip, `SPUR.MISC.S:60-70` master / `:61-71` skip — byte-identical on both branches, including the water-room exemption, aura-scare check, and the reroll-flavor quirk below, so the "ask Ryan before fixing" note applies equally to both). Gated behind a **3% roll** (`rnd.100a`, `a<3`) and requires the player to be **carrying 3+ weapons** (`SPUR.MAIN.S thief:` `if xw<3 return` — no weapon is ever stolen down to fewer than 2 in hand). If triggered:
   1. **No-flee rooms are exempt** — `if instr("@@",lo$)` ("the thief can't get you here!"), the same `@@` water/no-flee room flag used elsewhere, not steal-specific.
   2. **Wizard's Glow (or any active protective aura) scares him off** — `if tm=>mm` (aura-expiry move number `tm` still ≥ the current move counter `mm`) prints "and is scared by the magical aura surrounding you" and ends the encounter with nothing taken.
   3. **"Sees who you are, and quickly leaves" roll** — `z=rnd.10z` (uniform 1-10); if `(z-1)<xp` (player's XP level beats the roll) it **rerolls** `z`, then either way checks `if z>4` to flee. Traced through: because `rnd.10z` draws are i.i.d. uniform 1-10, the reroll doesn't actually change the 60% (6-in-10) flee odds one way or the other — whether or not the reroll fires, the final `z>4` check is drawn from the same distribution. As written, this reads as a **non-functional flourish in the original BASIC**: it looks like a level-based recognition check but has no measurable effect on outcome versus a flat "60% chance the thief just leaves" roll. Worth an explicit ask-Ryan before "fixing" this if ported — it may be intentional filler/flavor rather than a bug to correct.
@@ -593,8 +609,10 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Login-time equipped-shield notice** — a currently-readied shield prints a sentence-cased "\<name\> is readied." line at login (`SPUR.LOGON.S`'s misc.data armor/shield reload loop — present in `origin/skip`'s fuller LOGON.S revision, absent from this repo's own SPUR-code copy); looked up by `player.active_shield_id` against `ctx.server.items`. No armor-side counterpart yet — `player.armor` is only a flat condition %, not tied to a specific item id (`commands/connect.py`'s `_login_equipment_lines()`).
 - **WHO command** — lists currently online players; replaces the SPUR "last adventurer" login display (stubbed in `commands/connect.py:247`)
 - **Guild follow** — player character automatically follows guild members to their location when logged off; toggle in settings (stubbed in `commands/connect.py:274`)
-- **DIG command** — dig for buried items or gold (`SPUR.MISC7.S` `dig.a`
-  onward, not `SPUR.MAIN.S`). SPUR's data model: one `bury.<level>` file per
+- **DIG command** — dig for buried items or gold (`SPUR.MISC7.S:161 dig.a`
+  master / `:173 skip`, unchanged — `SPUR.MISC7.S` exists on master too, it's
+  not one of skip's five brand-new files, contrary to what the bare filename
+  citation might suggest). SPUR's data model: one `bury.<level>` file per
   dungeon level (1-5 only — DIG refuses on level 6+), one record per room,
   five slots per room (North/South/East/West/Center) each holding what's
   buried there (gold amount or item number — a planted booby trap, see
@@ -602,6 +620,12 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   fixed by which of the 9 "booby trap (code X)" items it is, objects.json
   #152-160, not stored again in the bury record). SPUR itself never records
   *who* buried something — anyone digging the right spot finds it.
+  **Branch divergence**: dig time cost was halved and its display unit
+  changed on skip — master (`:178-181`) charges 180 (bare-handed) / 60
+  (with shovel, item 151) "seconds" internally but prints them as
+  `"-"str$(a/60)" minutes."` (3 min / 1 min); skip (`:190-193`) charges
+  90/30 and prints `"-"str$(a)" seconds."` (90 sec / 30 sec) — both the
+  cost and the displayed unit changed, not just the number.
   **Planned TADA deviations** (design notes only, nothing built yet — see
   `shoppe/ollys.py`'s `_help_section()` docstring): record the burying
   player per slot; a paid Olly "recall" service listing a player's own
@@ -618,24 +642,29 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Booby-trapped item pickup** — strange weapon (#70) / funny doll (#72): "BOOOMM!!" → INT−5, HP→5; Pandora's Box (#71): smoke → XP capped at 100, CON→5, INT−5, HP→5; Gold Rose (#41): DEX check, fail → −5 HP + poison; Fireplace (#81): "USE only" (can't be picked up); Obelisk (#139): too large (`SPUR.MISC.S get.itm`, `commands/get.py`)
 - ✅ **Fireplace USE** — room 103 "East Hall"; `use` or `use fireplace` while in room: restores Strength to 20 and heals +4 HP if both were low; room message shown to bystanders (`SPUR.USE.S:187`, `commands/use.py`)
 - ✅ **DROP command** — drop items into the room; water rooms (`@@` flag or keyword match on name/desc) show float/sink messages: metal weapons and heavy items sink and are lost, wooden weapons/food/books/darts/arrows float and remain retrievable; well rooms always lose the item; buoyancy inferred from category+name until a per-item flag exists (`SPUR.MISC.S`, `commands/drop.py`)
-- ✅ **GIVE / TAKE** — `give <item> to <ally/player/monster>` transfers item to ally's carried list or co-located player's inventory; giving to a monster yields humorous responses (food eaten, gold kept by greedy types, etc.); `take [<item>] from <ally>` retrieves items ally is holding (`SPUR.MISC.S`, `commands/give.py`, `commands/take.py`)
-- ✅ **ORDER command** — deploy up to 3 owned servants as Point Man / Flank Guard / Rear Guard; every owned servant must be placed somewhere (a slot can be left NONE if you own fewer than three), matching SPUR's "You didn't deploy ALL your servants!" retry loop; position persists across save/load (`bar.ally_data.Ally.position`, `party.py` to_json/from_json) (`SPUR.MISC2.S`, `commands/order.py`).
-- ✅ **Tactical ambush** (SPUR.MISC4.S "tactical"/"desert") — once per encounter, before the first exchange, an ambush falls on a random ORDER slot (Point 50% / Flank 20% / Rear 30%). Whoever's deployed there shouts a warning and rolls to hold (an ELITE-flagged servant is always immune -- SPUR's literal "!" in the servant's name); failing that roll leaves the *player* caught off guard too (a bonus monster attack on the first swing, SPUR.COMBAT.S:31 "Surprise attack..") and a 1-in-10 chance the servant actually deserts (room-flavor text: ordinary/water/level-6+-vacuum). An empty slot puts the player alone at risk, rolled against Intelligence + character level plus a flat 10%. Skipped for a friendly encounter (same race/alignment affinity as the monster-quote greeting) and for any monster number already in `player.dead_monsters` (this port's equivalent of SPUR's xm$ rolling-kill-history gate) (`combat/engine.py` `CombatSession._check_tactical_ambush()`/`_ally_deserts()`, wired into `_run_loop()`).
-- **Ally payment** — allies require weekly payment (gold) to remain loyal; non-payment triggers desertion (`SPUR.MISC2.S`)
-- **Allies joining you** — conditions under which free allies in a room may voluntarily join the party (`SPUR.MISC2.S`)
-- ✅ **Ally gold finding** — on each room move, any party ally has a 5% chance to find a gold sack (52–250 gp); fires at most once per day via `once_per_day` `'AYF'` tag; suppressed in water rooms (`SPUR.MISC6.S al.find`, `ally_events.py`, `simple_server._move()`)
-- ✅ **Ally body building** — giving food/drink to an ally with strength < 11 raises their strength by 1; cursed rations poison the ally instead (strength −1, floor 1) (`SPUR.SUB.S hun.slv`, `commands/give.py _try_body_build()`)
-- **Ally desertion / death** — allies may die or leave if unpaid, injured, or mistreated; status reverts to FREE (`SPUR.MISC6.S`)
-- **Random events** — location-triggered events: little girl encounter, meteor strike, Enforcer arrival, Galadriel appearance (`SPUR.MISC6.S`)
+- ✅ **GIVE / TAKE** — `give <item> to <ally/player/monster>` transfers item to ally's carried list or co-located player's inventory; giving to a monster yields humorous responses (food eaten, gold kept by greedy types, etc.); `take [<item>] from <ally>` retrieves items ally is holding (`SPUR.MISC.S:72-141` master / `:73-142` skip, byte-identical, `commands/give.py`, `commands/take.py`)
+- ✅ **ORDER command** — deploy up to 3 owned servants as Point Man / Flank Guard / Rear Guard; every owned servant must be placed somewhere (a slot can be left NONE if you own fewer than three), matching SPUR's "You didn't deploy ALL your servants!" retry loop; position persists across save/load (`bar.ally_data.Ally.position`, `party.py` to_json/from_json) (`SPUR.MISC2.S:36-70` master, `commands/order.py`). **Branch divergence**: skip (`:66,73-74` — offsets differ, same `order.a` label) adds an escape hatch master doesn't have — instead of an unconditional forced retry loop, skip prompts `"Dismiss the remainder? y/[N] :"` and, on "Y", lets the player proceed with unplaced servants dismissed outright (and logs the dismissal via `add.log`) rather than looping back to `order.a` every time.
+- ✅ **Tactical ambush** (`SPUR.MISC4.S:140-158` master `tactical`/`desert` / `:147-164` skip, core formula unchanged) — once per encounter, before the first exchange, an ambush falls on a random ORDER slot (Point 50% / Flank 20% / Rear 30%, `i$="1111122333"`). Whoever's deployed there shouts a warning and rolls to hold (an ELITE-flagged servant is always immune -- SPUR's literal "!" in the servant's name); failing that roll leaves the *player* caught off guard too (a bonus monster attack on the first swing, SPUR.COMBAT.S:31 "Surprise attack..") and a 1-in-10 chance the servant actually deserts (room-flavor text: ordinary/water/level-6+-vacuum). An empty slot puts the player alone at risk, rolled against Intelligence + character level plus a flat 10%. Skipped for a friendly encounter (same race/alignment affinity as the monster-quote greeting) and for any monster number already in `player.dead_monsters` (this port's equivalent of SPUR's xm$ rolling-kill-history gate) (`combat/engine.py` `CombatSession._check_tactical_ambush()`/`_ally_deserts()`, wired into `_run_loop()`). Skip-only additions are flavor, not mechanic: an extra `>`-flagged (incorporeal/undead ally?) case with its own SHOUTS text, and "TOO DISCIPLINED" replacing "TOO CLEVER" in the elite-immunity line — the 50/20/30 split, hold roll, and 1-in-10 desertion odds are otherwise identical.
+- **Ally payment** — allies require weekly payment (gold) to remain loyal; non-payment triggers desertion (`SPUR.MISC2.S`, confirmed real and unchanged on skip, not yet ported). Trigger gate: `SPUR.MISC.S:423` master / `:431` skip — flat 50% chance per non-water-room move (`gosub rnd.10z:if z>5 link dy$,"servant"`) to enter `ally` in `SPUR.MISC2.S:85-86` (master, same area skip); a further `random(100)>40` (60% of triggers) routes to the payment-demand path (`ally6`→`ally9`, master `SPUR.MISC2.S:~96-149`, skip `~174-216`). Demand amount `xu=gl/3` capped at 100 gold, identical both branches. Refusal consequence: honor (`vk`) penalty, ~30% honor-scaled chance of "looks grumpy," or full REVOLT/desertion+combat if honor drops low enough (`zs<41` after scaling) — formula unchanged both branches. Skip's only real addition: `>`-flagged (god/incorporeal) allies skip the payment demand entirely (`instr(">",zt$)` check folded into the `ally6` gate, skip `:178`).
+- **Allies joining you** — conditions under which free allies in a room may voluntarily join the party (`SPUR.MISC2.S`, confirmed real and unchanged on skip, not yet ported). The other 40% of `ally` triggers (see Ally payment above) fall through to `ally2` — attempts to recruit a free ally from the room's `allies` file, gated by a `gl<10` gold-in-hand check and `sel.ally` (master `~88-118`, skip `~99-131`) — identical logic both branches.
+- ✅ **Ally gold finding** — on each room move, any party ally has a 5% chance to find a gold sack (52–250 gp); fires at most once per day via `once_per_day` `'AYF'` tag; suppressed in water rooms (`SPUR.MISC6.S al.find:541-554` master / `:430-445` skip, `ally_events.py`, `simple_server._move()`). Gold formula (`z=(z*2)+50`, i.e. 52–250 gp) confirmed identical both branches; port's `ally_events/__init__.py` `_CHANCE = 0.05` is the port's own simplified standalone roll, not a literal SPUR percentage — real SPUR gating is compound (2%-per-move dispatcher entry at `SPUR.MAIN.S:239`, times a further ~15%-wide slice within it on master / ~17%-wide on skip), so "5%" doesn't trace to a specific SPUR source figure on either branch. **Branch divergence**: once-per-day tag semantics changed — master only marks the day's `*AYF` tag used on an *actual* gold find (an absent ally bails out before tagging); skip marks its `*AF` tag unconditionally, before even checking whether an ally is present, so on skip a move with no ally deployed still burns the day's allowance.
+- ✅ **Ally body building** — giving food/drink to an ally with strength < 11 raises their strength by 1; cursed rations poison the ally instead (strength −1, floor 1) (`SPUR.SUB.S hun.slv:370-384` master / `:500-518` skip, `commands/give.py _try_body_build()`). The port's own `+= 1` per feeding (vs. SPUR's `+4`) is a deliberate, already-documented port simplification, not a citation error. **Branch divergence**: skip replaces the hardcoded `<11` threshold with a variable (`if a2<b-4`, `b` not fully traced — likely a per-ally-type max-strength stat) and adds a new `ck.horse` gate (skip `SPUR.SUB.S:520-528`) that blocks the attempt with `"(<name> CAN NOT CONSUME THE <item>)"` unless the item is on a mount-appropriate allowlist (`objects.json` #4,14,16,20,23,24,25,39,41,50,61,63,77-82) — reads as skip's allies now including rideable/horse-type allies that can't eat ordinary rations, a case master's version doesn't handle.
+- **Ally desertion / death** — allies may die or leave if unpaid, injured, or mistreated; status reverts to FREE (`SPUR.MISC6.S dead.al:566-586` master / `:518-536` skip, formula unchanged: `a1<8`/`a2<8`/`a3<8` HP-below-8 check, honor/wisdom/intelligence penalties, battle-log write; not yet ported). **Branch divergence**: master only reaches `dead.al` through the same ~15%-of-2%-per-move random-event slice as galad/meteor/al.find/enforce; skip's `random` dispatcher (`SPUR.MISC6.S:141`) calls `dead.al` **unconditionally on every dispatcher fire**, in addition to then separately rolling galad/meteor/al.find/enforce/djinn — so ally starvation-death checks run far more often on skip. Skip also adds a `>`-flagged (incorporeal ally) branch at `dead.al2` (`:527-528`): "`<name>` looks annoyed, and flies away!" instead of "stumbles and falls," routed to a `god.lv` label instead of the normal "DIED IN `<room>`" battle-log line.
+- **Random events** — location-triggered events: little girl encounter, meteor strike, Enforcer arrival, Galadriel appearance (`SPUR.MISC6.S`, dispatcher at `no.test`/`random`, master `:152-159`: `z<15` galad, `z<30` meteor, `z<45` dead.al, `z<60` al.find, `z<80` enforce, else girl; not yet ported). **Branch divergence**: skip adds a sixth event, `djinn` (skip `SPUR.MISC6.S:554-567`, dispatcher `:143-149`: `z<15` galad, `z<32` meteor, `z<49` al.find, `z<66` enforce, `z<83` djinn, else girl), each individually gated by its own once-per-day tag (`*GA`/`*ME`/`*AF`/`*EN`/`*VN`) — master only gates `girl` (`*gi`) and `al.find` (`*AYF`) that way. `djinn` ("You think you see the Blue Djinn in the distance!") checks the player's honor/progress record (`spur.a1$` fields `g7`/`g8`) and, if low enough, silently deploys a hitman NPC named VINNEY against the player (writes a `thug` file, sets a thug-attack flag in `zu$`) — a bounty-hunter mechanic tied to the Bar's hired-hits feature (see **Bar** section) rather than a purely new random encounter.
 - ✅ **Turn to stone attack** — a `petrify`-flagged monster (e.g. Medusa) has a
   20% chance per attack to attempt petrification instead of a normal swing, 10% chance to
   succeed once attempted; either way this replaces the normal hit/damage roll entirely for
-  that round (`SPUR.COMBAT.S` "medusa" section, `combat/resolution.py` `monster_attacks()`)
+  that round (`SPUR.COMBAT.S:229-234` master "medusa" section / `:264-270` skip — skip's
+  +35 line shift is an inserted `vu>1` context block plus a sysop-only `gm=1` GOD MODE
+  bypass, not a gameplay change; roll formula `gosub rnd.10z:if z>2 goto medusa` (20%
+  attempt) then `gosub rnd.10z:if z>1 ... return` (10% success) unchanged both branches,
+  `combat/resolution.py` `monster_attacks()`)
 - ✅ **Statue memorial file (turned-to-stone death)** — a successful petrification is a
   distinct death flow, not a normal kill: "...ARGG!! YOU ARE TURNED TO STONE!", not a
   player action, an automatic consequence of death. Creates/appends a file named after the
   killing monster (stripping a leading "THE "), one victim name per line — a permanent
-  per-monster victim log (`SPUR.MISC6.S:113,123-126`, `combat/engine.py`
+  per-monster victim log (`SPUR.MISC6.S:113,123-126` master / `:114,124` skip, unchanged,
+  `combat/engine.py`
   `CombatSession._player_petrified()` / `_record_statue()`)
 - ✅ **Statue display (`petrify` monster present)** — `#` in a monster's status string
   means it *can perform* petrification (the `petrify` flag), not that it has been turned to
@@ -645,11 +674,18 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   permanent room fixture: "There is a statue of `<victim>` here!", too heavy to pick up
   ("THE STATUE IS MUCH TOO HEAVY!"). Not a separate corpse/room-object system — the same
   monster showing up elsewhere on the map displays the same statue there too, exactly like
-  SPUR (`SPUR.MAIN.S:386,532-536`, `SPUR.MISC.S:221,234`, `SPUR.MISC3.S:281,289`,
+  SPUR (`SPUR.MAIN.S:386,532-536` master / `:397,527-531` skip, `SPUR.MISC.S:221,234` master
+  / `:222,233` skip, `SPUR.MISC3.S:281,289` master / `:305,313` skip — all byte-identical
+  logic besides line shifts,
   `combat/engine.py` `first_statue_victim()`, `commands/get.py`, `commands/look.py`,
   `commands/read.py`, `simple_server.py` `_describe_room()`). LOOK/EXAMINE/READ show a
   plaque naming both the victim and the monster (Ryan's own wording, not a SPUR port — SPUR's
-  own examine line was just "It is made of stone, and is kind of ugly.").
+  own examine line was just "It is made of stone, and is kind of ugly.", unchanged on skip).
+  **Branch divergence (cosmetic)**: the in-room display print itself is sentence-case on
+  master (`"There is a statue of "dy$" here!"`, `SPUR.MAIN.S:536`) but reverted to
+  screaming-caps on skip (`"THERE IS A STATUE OF "dy$" HERE!"`, `SPUR.MAIN.S:531`) — master
+  already matches this port's own sentence-case convention (see CLAUDE.md) here; skip
+  regressed it, so master is the one to follow if porting the raw string verbatim mattered.
 - **STATS / STAT2** — two-level stat display; STAT2 shows extended information (`SPUR.MISC5.S`)
 - **FOLLOW ME command** — causes nearby players or allies to follow the player (`SPUR.MISC5.S`)
 
@@ -674,7 +710,7 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 > (e.g. `annex/` -> `bulletin/` or similar) -- not done here.
 
 ### Implemented
-- ✅ **General Store** — sells rations 1–10 (safe food/drink); duplicate check; silver deduction; pack-full guard
+- ✅ **General Store** — sells rations 1–10 (safe food/drink); duplicate check; silver deduction; pack-full guard (`SPUR.SHOP.S:293-325 general` master / `:317-348` skip, byte-identical logic besides string-padding cosmetics)
 - ✅ **Elevator** — travel between levels 1–5 (`shoppe/elevator.py`)
 - ✅ **Player List** — browse online/offline players by wildcard pattern
 - ✅ **Private Locker** (`shoppe/locker.py`) — personal item storage, reached
@@ -717,10 +753,10 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   - `player.locker` persists through `Player.save()`/`_load()` the same way
     `player.inventory` does (explicit `Inventory.to_json()`/`from_json()`
     round-trip alongside the generic `__dict__` dump).
-- ✅ **Armory** — buy and sell weapons; max 6 weapons per player (`SPUR.SHOP.S`; `shoppe/armory.py`)
-- ✅ **Protection** — buy armor and shields; max 5 items per player (`SPUR.SHOP.S`; `shoppe/armory.py`'s `protection()`)
-- ✅ **Bank of SPUR** — deposit, withdraw, transfer gold; level 2+ required for transfers (`SPUR.SHIP.S bank`; `shoppe/bank.py`)
-- ✅ **Wizard** — buy spells; Wizards pay half price, Druids two-thirds; max 10 spells (`SPUR.SHOP.S`; `shoppe/wizard.py`)
+- ✅ **Armory** — buy and sell weapons; max 6 weapons per player (`SPUR.SHOP.S:100-260 armory/weapons0/buy.wep/sel.wep` master / `:102-263` skip, unchanged — `xw<6` cap, sell-back formula `a=v/16:l=a*pi`, one-of-each dup check all identical; `shoppe/armory.py`)
+- ✅ **Protection** — buy armor and shields; max 5 items per player (`SPUR.SHOP.S:262-291 protect` master / `:265-316` skip; `x>5` cap and `it*100` price formula unchanged; `shoppe/armory.py`'s `protection()`). **Branch divergence**: skip's `protect` adds a second duplicate-carry check master doesn't have — it also refuses a purchase if a deployed *ally* is already carrying that item (`if instr(xa$,ai$) i$="Your ally is already carrying a "+a$`, skip `:295`), not just the player.
+- ✅ **Bank of SPUR** — deposit, withdraw, transfer gold; level 2+ required for transfers (`SPUR.SHOP.S:333 bank` master / `:356` skip — **citation fixed**: the level-2 transfer gate lives in `SPUR.SHOP.S`'s `bank`, not `SPUR.SHIP.S`'s; `SPUR.SHIP.S`'s own "Ships Bank" copy for level 6 has deposit/withdraw/transfer but **no level-2 gate at all** on either branch, `SPUR.SHIP.S:238` master / `:232` skip; `shoppe/bank.py`)
+- ✅ **Wizard** — buy spells; Wizards pay half price, Druids two-thirds; max 10 spells (`SPUR.SHOP.S:365-434 wizard` master / `:388-457` skip — price formula `if pc=1 q4=q4/2` / `if pc=2 q4=q4*2:q4=q4/3`, `xs=10` cap, and 6-spell non-Adept cap all byte-identical; `shoppe/wizard.py`)
 - ✅ **Spell Book** (TADA addition, not SPUR-sourced) — Wizards/Druids can
   buy a Spell Book from the Wizard (`BOOK` at the main prompt, 50 silver);
   any spells already sitting loose in the main inventory move into it on
@@ -730,9 +766,9 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   Adepts are also auto-granted one for free at character creation and the
   first time they learn a spell if they don't already have one
   (`spellbook.py`'s `ensure_spellbook()`).
-- ✅ **Clan / Guild office** — change guild affiliation (Claw, Sword, Iron Fist, Civilian, Outlaw); costs gold and honor (`SPUR.SHOP.S`; `shoppe/clan.py`)
-- ✅ **Pawn Shop** — sell (not buy) items to the merchant; all found items are sellable (tips.txt) (`SPUR.SHOP.S`; `shoppe/pawn.py`)
-- ✅ **Olly's Ammo** — buy ammo and ammo carriers; booby trap purchase; [H]elp explains ammo system and friendly fire. Reached in the original by typing `AMMO` (`SPUR.MISC5.S:16: if i$="AMMO" goto ammo`, `ammo` subroutine — "Olly greets you, 'Welcome, ...'"), not a separate ammo-count command (`shoppe/ollys.py`)
+- ✅ **Clan / Guild office** — change guild affiliation (Claw, Sword, Iron Fist, Civilian, Outlaw); costs gold and honor: 1000 gold Civilian→Guild, 2000 Outlaw→Guild, 100-point honor penalty for desertion, 400 e.p. honor penalty on the desert-a-guild prompt — figures unchanged both branches (`SPUR.SHOP.S:576-617 clan` master; `shoppe/clan.py`). **Branch divergence (relocation + new checks)**: the subroutine itself moved off `SPUR.SHOP.S` entirely on skip — dispatched instead to skip's new `SPUR.MISC7.S:349-410` (`main1`'s `if left$(i$,1)="J" i$="*JOIN*":dy$=dz$+"spur.misc7":link dy$`, skip `SPUR.SHOP.S:24`), and gains two checks master doesn't have (neither ported, neither in TODO.md — see gaps below): a per-guild banned-player-number list blocking JOIN (`SPUR.MISC7.S:367-368`), and an automatic in-game mail notification to the guild leader on a player's first-time join (`SPUR.MISC7.S:392-409`).
+- ✅ **Pawn Shop** — sell (not buy) items to the merchant; all found items are sellable (tips.txt) (`SPUR.SHOP.S:536-574 pawn.shp/pawn.p` master / `:555-596` skip — sell-price formula `g2=g2*10`, the "can't sell what you're USEing" guard (item #67), and the "I don't want it" refusal for items #73/#76 all unchanged; `shoppe/pawn.py`)
+- ✅ **Olly's Ammo** — buy ammo and ammo carriers; booby trap purchase; [H]elp explains ammo system and friendly fire. Reached in the original by typing `AMMO` (`SPUR.MISC5.S:16: if i$="AMMO" goto ammo`, `ammo` subroutine — "Olly greets you, 'Welcome, ...'"), not a separate ammo-count command (`SPUR.MISC5.S:281-359 ammo/ammo1-ammo6` master / `:294-372` skip — item ranges (98-111 loose, 147-150 carriers), the id→carrier mapping (103-105,109 → 201/203/205/207), the `zz>8` full check, and the auto-load/no-second-carrier logic all byte-identical; `shoppe/ollys.py`). **Branch divergence (price)**: the booby trap's cost was halved on skip — master `SPUR.MISC5.S:330,367` charges 1000 gold, skip `:343,382` charges 200; TADA's `shoppe/ollys.py:12` `_BOOBY_TRAP_COST = 1000` matches master, which is correct per this project's master-fidelity default, but flagging the branch numeric split for the record.
 - ✅ **Ammo carriers auto-load, and are one-per-type** — Olly's own listing
   says "Appropriate ammo will automatically be placed in the carrier when
   it is purchased. Buying more than one will do no good." — previously
@@ -763,13 +799,36 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 ### Stubs (not yet implemented)
 - None currently known — all `_MENU` entries in `shoppe/main.py` route to implemented modules.
 
+### Missing from TADA — present in SPUR source, not in `TODO.md`
+Surfaced by the skip-branch audit above; none of the following were already tracked in `server/TODO.md` (checked for guild-ban/notify/repair/armory keywords, no hits) as of this pass, so flagging them here per Ryan's standing request rather than silently leaving them undocumented:
+- **Armor/Shield repair shop (Smithy)** — entirely skip-exclusive, its own new file `SPUR.ARMORY.S` (206 lines, no master equivalent at all), reached from `protect` via a new `[R]epair` option (skip `SPUR.SHOP.S:266-268`). Mechanic: every worn armor item and readied shield accrues a hidden "current condition" value stored per-player in `misc.data` at fixed offsets (armor `zy=233`, shield `zy=217`, `SPUR.ARMORY.S:17-18,78-83`) — separate from the item's nominal rating (`it`). `pr.items` (`:59-72`) lists condition as a percentage with a quality label (`ENCHANTED` >125% magic-only, `EXCELLENT` >100%, `GOOD` >75%, `SERVICABLE` >50%, `POOR` >25%, else `TERRIBLE`, `:107-112`). Repair cost `zz=(it*10)-zz` gold, doubled above level 2 (`:33`), refused once already at cap. Skip's `protect` buy-flow (`SPUR.SHOP.S:301-314`) writes condition into these same `misc.data` fields at purchase time — buy and repair share one data model on skip. **This is conceptually adjacent to but numerically distinct from** TADA's already-shipped 8/8/26 armor/shield durability system (flat `.condition` field that degrades in combat, replaced by re-equipping — see the armor/shield redesign notes; TODO.md:1525-1547) — TADA currently has no gold-for-repair path anywhere in `shoppe/armory.py`. Not something to port silently; would need to interoperate with the existing `player.armor`/`player.shield`/`equipped_entry()` model rather than bolt on separately — worth a chat with Ryan before building, per this file's own player-data convention.
+- **Guild-join "barred player" list** — skip-only, `SPUR.MISC7.S:367-368` (inside the relocated `clan` subroutine, see above): before letting someone join guilds 1-3, it reads a per-guild banned-user-number string from the `guild` data file (`position #2,256,z,239:input #2,a$`) and refuses with "You are barred from this guild!" if the joining player's number is in it. No equivalent in `shoppe/clan.py`.
+- **Automatic guild-leader mail notification on JOIN** — skip-only, `SPUR.MISC7.S:392-409`. After a successful first-time join to Claw/Sword/Iron Fist, skip looks up that guild's leader from `guild.leaders` and delivers an actual in-game mail message announcing the new member is "waiting for access to the Guild." Master's `clan` (`SPUR.SHOP.S:576-617`) only logs to `battle.log`/`add.log`, no leader notification. `shoppe/clan.py` has no equivalent either.
+
 ---
 
 ## Elevator Combination (Scrap of Paper)
 
-✅ Implemented. Mechanic traced from `SPUR.MISC2.S:296-352` (`elev` subroutine, triggered
-by `READ`ing item #69) and `SPUR.SHIP.S:375-388` (`elevator`/`elev.1`, the actual
-coordinate check at the Shoppe elevator).
+✅ Implemented. Mechanic traced from `SPUR.MISC2.S` `elev` (master `:343-354`, entry
+point `read:286`, gate `:287`, dispatch `:306` — skip `elev:380-391`, entry `read:335`,
+gate `:336`, dispatch `:355`; byte-identical between branches besides a "wispers"/
+"whispers" spelling difference) and `SPUR.SHIP.S:376-392` (`elevator`/`elev.1`, the actual
+coordinate check at the Shoppe elevator; skip `elevator:370`/`elev.1:374`).
+
+**Not the dungeon elevator's own file, despite the name overlap**: `SPUR.SHIP.S`'s
+`elevator`/`elev.1` is actually the level-6 ship's **transporter room** (`TR` command from
+the Ships Stores menu, `SPUR.SHIP.S:38`) — it shares the same `elevator` combination file
+as the scrap of paper but is otherwise a separate system: after the coordinate check it
+prompts `LEVEL: [1]-[5]` and rolls a malfunction chance that teleports the player to a
+random level 1-6 on failure (`malfunction:`, master `SPUR.SHIP.S:440-458` / skip `:434`
+onward). This is already fully ported as `ship/transporter.py` (not `shoppe/elevator.py`)
+and documented in `TODO.md:569-576,596-597` — cross-referencing here so the two systems
+aren't conflated. **Branch divergence**: the malfunction-odds penalty after a first
+successful use is `xz=xz-20` on master (`SPUR.SHIP.S:388`) but `xz=xz-30` on skip (same
+area, ~line 382) — a real numeric difference, not just relocation, plus the completion
+token differs (`"TR+"` master / `"*TR"` skip). `ship/transporter.py`'s `roll -= 20` matches
+**master's** figure; skip's independently-worse `-30` isn't referenced anywhere in the
+port — flagging so it's not mistaken for a bug to "fix" toward skip's value.
 
 - **Item #69 "scrap of paper"** (type `book`) is placed in level 1, room 64
   ("Labyrinth"); no placement/randomization work was needed.
@@ -809,14 +868,22 @@ coordinate check at the Shoppe elevator).
 
 ## Merchant's Annex (`server/annex/main.py`)
 
-All sections are stubs. Source: `SPUR.ANNEX.S`. See the naming note under
-"Merchant Shoppe" above -- this is a *different* room from the Shoppe (whose
-own flavor text also calls itself "the merchant's annex"), and the Private
-Locker belongs to the Shoppe (`shoppe/locker.py`), not here.
+All sections are stubs. Source: `SPUR.ANNEX.S`, `annex1` menu dispatcher (master
+`:63-85` / skip `:91-113`, skip inserting one new item so every later item number is
++1 vs. master — see divergence note below). See the naming note under "Merchant
+Shoppe" above -- this is a *different* room from the Shoppe (whose own flavor text
+also calls itself "the merchant's annex"), and the Private Locker belongs to the
+Shoppe (`shoppe/locker.py`), not here. Ground-truthed against
+`SPUR-data/SPUR Messages.txt` (decoded), whose own menu-item labels (Message #31)
+confirmed several corrections below — that decoded help text matches **skip's**
+item numbering, not master's, so it was evidently captured from a skip-era build.
 
 ### Stubs (not yet implemented)
 - **School info** — character class descriptions and stat bonuses
-- **System message** — sysop broadcast message of the day
+- **System message** — **mislabeled**: item "2" (master `annex1:69` / skip `:98`) is not
+  a sysop broadcast/MOTD feature — it dispatches `a=16:gosub rd.msg`, a static
+  "SPUR DUEL HELP" screen (combat menu key reference — A/P/B/F/R, size table, tips).
+  `SPUR.ANNEX.S`'s public numbered menu has no sysop broadcast-message feature at all.
 - **Tips** — in-game tips display (content from `SPUR-data/tips.txt`)
 - **School spells** — list of spells available to the player's class
 - **Recent news / Older news** — two-tier news log (ties into News & Mail design)
@@ -824,17 +891,51 @@ Locker belongs to the Shoppe (`shoppe/locker.py`), not here.
   isn't built, but the underlying win/loss data now is (see this doc's
   "Duels (PvP)" section, `guild_standings.py`) and is already player-
   visible today via `duel #standings` -- this stub is specifically
-  "no Annex display for it yet," not "the mechanic doesn't exist."
-- **Personal records** — player's own stats history
+  "no Annex display for it yet," not "the mechanic doesn't exist." Points formula
+  (`floor(wins*3/2) - losses`, clamped ≥0, three-way ranking with Latin mottos
+  IMPARI MARTE/FVIMVS TROES/FILIVS TERRAE) confirmed byte-identical both branches:
+  master `guild:138-166`, skip `:154-182`.
+- **Personal records** — player's own stats history; same points formula as guild
+  standings above, best/second-best ranking as HUNC TU CAVETO (master `personal:
+  327-357`, skip `:344-374` — skip's only addition is a `ra$="YES"` remote-drive
+  branch for the users file, infra-only, not a gameplay change).
 - **Winners list ("Conqueror's list")** — SPUR.MISC7.S's `win5` label
   writes each victor to a `spur.winners` file after escaping via the
   level-6 "Ladder Up" (see "Win/escape detection" below); the persistence
   half exists (`winners.py`'s `record_win()`/`load_winners()`, backing
   `run/server/winners.json`) but nothing in the Annex displays it yet --
   a natural fit for this stub, listing name/class/race/level/date per winner.
-- **System data view** — server-level statistics (total players, kills, etc.)
-- **Message boards (×3)** — three separate threaded boards (ties into Threaded Message Boards design)
-- **Player rosters** — separate lists for Civilians, Mark of the Claw, Mark of the Sword, Iron Fist, and Outlaws
+- **System data view** — **mislabeled**: the true sysop-only system-data view
+  (`view.dat`/`prnt.dat`/`pr.dat1` — server-wide totals: players, levels, monster/
+  item/weapon counts, master `SPUR.ANNEX.S:359-417`) is reached only via the hidden
+  `@I` command (`info(5)` flag gate) into a separate `system` submenu
+  (`SPUR.ANNEX.S:9-58`, its "V" option) — **not** through any of the 17 (master) /
+  19 (skip) public numbered menu items. What `annex/main.py` currently binds to
+  item 9 is actually a **weapons list display** (master item 9, `annex1:76`:
+  `gosub view.dat:dy$=ds$+"spur.control":link dy$,"annex.l"` → `SPUR.CONTROL.S`'s
+  `annex.l`/`listwep`, `:263` onward both branches; skip item 10 due to its inserted
+  item 5) — confirmed by Message #31's own line "10) Weapons list." This weapons-list
+  feature is genuinely unimplemented and untracked (`TODO.md` has no "weapon list"/
+  "listwep"/"annex.l" hits) — worth its own stub bullet separate from the real
+  (sysop-only, sub-menu) system data view.
+- **Message boards (×3)** — **mislabeled**: items "10/11/12" (master `annex1:77-79`
+  / skip `:105-107`) are not boards of any kind, threaded or otherwise — all three
+  dispatch to static admin-authored help screens via the same `rd.msg` mechanism as
+  item 2 above: item 10 → Message #15 (guild-membership perks), item 11 → Message #14
+  ("Shields in Monster Combat" probability reference), item 12 → Message #32 ("The
+  EXAMINE command in Spur" help text). There is no multi-author/postable board system
+  anywhere in `SPUR.ANNEX.S`; this doc's separate "Threaded Message Boards" section is
+  a forward-looking design idea, not a port of an existing SPUR Annex mechanic.
+- **Player rosters** — separate lists for Civilians, Mark of the Claw, Mark of the
+  Sword, Iron Fist, and Outlaws, via `annex2` (master items 13-17, `annex1:80-84` /
+  `annex2:86-109`; skip items 15-19, `annex1:107-111` / `annex2:116-139`) — logic
+  confirmed identical both branches.
+- **Skip-only additions, not in master, not yet needing a stub of their own but noted
+  for completeness**: skip's Annex menu has two extra items master's doesn't —
+  item 5 (skip `annex1:95`), a `"c:horse.help"` show-file ("The Horse," presumably
+  horse-care/ownership help), and item 14 (skip `annex1:106`, `a=41:gosub rd.msg` →
+  Message #41, "The Track Command" — base track range 12 plus class/race/level
+  modifiers, full formula in `SPUR-data/SPUR Messages.txt:663-684`).
 
 ---
 
