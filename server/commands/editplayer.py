@@ -30,6 +30,7 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import FlagDisplayTypes, PlayerFlags, new_player_default_flags
 from menu_system import Menu, MenuItem, run_menu
+from tada_utilities import player_class_display_name
 
 log = logging.getLogger(__name__)
 
@@ -1623,9 +1624,10 @@ def _statistics_menu(ctx) -> Menu:
 
     async def edit_class(ctx) -> None:
         from base_classes import PlayerClass
+        from tada_utilities import class_display_name
         options  = list(PlayerClass)
-        preamble = [f'Current: {getattr(p, "char_class", "?")}'] + [
-            f'{i+1}: {c.value}' for i, c in enumerate(options)
+        preamble = [f'Current: {player_class_display_name(p)}'] + [
+            f'{i+1}: {class_display_name(c, getattr(p, "gender", None))}' for i, c in enumerate(options)
         ]
         raw = await ctx.prompt('Class', preamble_lines=preamble)
         if not raw or not raw.strip().isdigit():
@@ -1635,7 +1637,7 @@ def _statistics_menu(ctx) -> Menu:
         if 0 <= idx < len(options):
             p.char_class = options[idx]
             p.unsaved_changes = True
-            await ctx.send(f'Class set to {options[idx].value}.')
+            await ctx.send(f'Class set to {player_class_display_name(p)}.')
             await _warn_if_incompatible(ctx, p)
             await _apply_and_report_alignment(ctx, p)
 
@@ -1860,7 +1862,7 @@ def _statistics_menu(ctx) -> Menu:
     ))
     menu.add_item(MenuItem(
         'Class', shortcuts='cl',
-        dot_leader_handler=lambda ctx: str(getattr(p, 'char_class', '?')),
+        dot_leader_handler=lambda ctx: player_class_display_name(p),
         action=edit_class,
     ))
     menu.add_item(MenuItem(
