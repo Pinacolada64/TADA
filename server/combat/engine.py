@@ -852,6 +852,12 @@ class CombatSession:
             exclude_self=True,
         )
 
+        # GUARDIAN (#103) shapeshifts to mirror the player -- not in the
+        # SPUR source's own `guardian` gosub (SPUR.MISC4.S), just flavor
+        # for its already-mirror-like stats (str 18, appears_unaffected).
+        if self.monster.get('number') == 103:
+            await ctx.send('The GUARDIAN shimmers, and takes on your appearance and weapons!')
+
         # Monster taunt/greeting (SPUR.MISC4.S mon.ret/perm.qt)
         if self.monster.get('flags', {}).get('has_quote'):
             quote = _pick_monster_quote(ctx, self.monster)
