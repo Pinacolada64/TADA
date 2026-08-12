@@ -4173,7 +4173,7 @@
             "fire_attack": false,
             "no_gold": false,
             "multiple_monsters": false,
-            "no_article": false,
+            "no_article": true,
             "charmable": false,
             "has_quote": false
         },
