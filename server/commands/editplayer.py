@@ -17,8 +17,8 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
   │                        items between characters
   ├─ 10. Map Information   dungeon level, room number
   ├─ 11. Money             in hand / in bank / in bar / Vinny Loan status
-  ├─ 12. Statistics        age, birthday, class, experience, guild, honor,
-  │                        race, moves to date, monsters killed
+  ├─ 12. Statistics        age, birthday, class, experience, gender, guild,
+  │                        honor, race, moves to date, monsters killed
   └─ 13. Weapons           readied weapon, per-weapon battle experience
 """
 
@@ -1680,6 +1680,12 @@ def _statistics_menu(ctx) -> Menu:
             p.unsaved_changes = True
             await ctx.send(f'Honor set to {val} ({_current_alignment(val)}).')
 
+    async def toggle_gender(ctx) -> None:
+        from base_classes import Gender
+        p.gender = Gender.FEMALE if p.gender == Gender.MALE else Gender.MALE
+        p.unsaved_changes = True
+        await ctx.send(f'Gender set to {p.gender.value}.')
+
     async def edit_race(ctx) -> None:
         from base_classes import PlayerRace
         options  = list(PlayerRace)
@@ -1873,6 +1879,11 @@ def _statistics_menu(ctx) -> Menu:
         'Honor', shortcuts='ho',
         dot_leader_handler=lambda ctx: str(getattr(p, 'honor', '?')),
         action=edit_honor,
+    ))
+    menu.add_item(MenuItem(
+        'Gender', shortcuts='ge',
+        dot_leader_handler=lambda ctx: str(getattr(p, 'gender', '?')),
+        action=toggle_gender,
     ))
     menu.add_item(MenuItem(
         'Race', shortcuts='ra',
