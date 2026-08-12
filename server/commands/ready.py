@@ -440,6 +440,10 @@ class ReadyCommand(Command):
         # Clear servant bonus when switching to any non-STORM weapon.
         if not new_is_storm:
             player.storm_servant_bonus = None
+        # POTION OF SKILL's +4 bonus lasts only "until READY is executed
+        # again" (SPUR.SUB.S potion subroutine) -- wiped on every READY,
+        # regardless of which weapon is readied.
+        player.skill_potion_bonus = None
         await ctx.send(f'{name.upper()} READIED.')
 
         # Staff enhances spellcasting for Wizards (commands/get.py's

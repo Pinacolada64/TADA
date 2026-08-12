@@ -96,6 +96,21 @@ class DrinkCommand(Command):
                             else '(You were not poisoned.)'])
             return CommandResult.ok()
 
+        # POTION OF SKILL — +4 to-hit with the readied weapon until the
+        # player next READYs a weapon (SPUR.SUB.S potion subroutine).
+        if 'OF SKILL' in uname:
+            weapon = getattr(player, 'readied_weapon', None)
+            if weapon is None:
+                await ctx.send([f'You drink the {name}.',
+                                'You feel more skillful, but you have nothing readied!'])
+                return CommandResult.ok()
+            wname = getattr(weapon, 'name', '?')
+            player.skill_potion_bonus = 4
+            await ctx.send([f'You drink the {name}.',
+                            f'You feel more skillful with the {wname}',
+                            '(+4 skill until READY is executed again)'])
+            return CommandResult.ok()
+
         # CHARM POTION — charms the monster in this room (SPUR.SUB.S "charm").
         if 'CHARM POTION' in uname:
             await ctx.send(f'You drink the {name}.')

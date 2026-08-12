@@ -1038,7 +1038,7 @@ class Player:
                 os.makedirs(parent, exist_ok=True)
             # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact.
             # Exclude session-only attributes that hold live objects and are not restored on load.
-            _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'compass_active', 'pending_pages',
+            _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'skill_potion_bonus', 'compass_active', 'pending_pages',
                              'pending_duel_challenge', 'active_duel', '_weapons_data'}
             data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
@@ -1669,6 +1669,7 @@ def unworn_if_given_away(player, item) -> str | None:
     if getattr(player, 'readied_weapon', None) is item:
         player.readied_weapon = None
         player.storm_servant_bonus = None
+        player.skill_potion_bonus = None
         return 'weapon'
     return unequip_if_worn(player, item)
 

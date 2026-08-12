@@ -1225,6 +1225,9 @@ class CombatSession:
         if sb:
             class_to_hit += sb[0]
             class_damage  += sb[1]
+        # POTION OF SKILL: +4 to-hit until the player next READYs a weapon
+        # (SPUR.SUB.S potion subroutine, "OF SKILL" branch).
+        class_to_hit += getattr(player, 'skill_potion_bonus', None) or 0
         weapons_data = getattr(ctx.server, 'weapons', None) or []
         return player_attacks(
             player, weapon, self.monster,

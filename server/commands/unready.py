@@ -39,6 +39,7 @@ class UnreadyCommand(Command):
         name = getattr(weapon, 'name', '?')
         player.readied_weapon = None
         player.storm_servant_bonus = None
+        player.skill_potion_bonus = None
         player.unsaved_changes = True
         await ctx.send(f'You repack the {name}.')
         return CommandResult.ok()
