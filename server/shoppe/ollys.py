@@ -13,7 +13,7 @@ _BOOBY_TRAP_COST = 1000  # SPUR: if zt=1 it=1000
 _BOOBY_CODES     = 'ABCDEFGHI'
 # Item numbers in objects.json
 _AMMO_RANGE      = range(98, 112)    # 98–111 inclusive
-_CARRIER_RANGE   = range(147, 151)   # 147–150 inclusive
+_CARRIER_RANGE   = list(range(147, 151)) + [167]  # 147–150, plus quiver (167)
 _BOOBY_BASE      = 152               # code A = 152, B = 153, …
 
 # Zebra-stripe alternation for every table this shop renders (ammo listing,
@@ -392,6 +392,11 @@ async def _help_section(ctx: GameContext) -> None:
         Column('Carrier',                    min_width=13),
         Column('What it is / refills',       min_width=20),
     ], border=False, text_color=_ROW_COLORS)
+    carrier_glossary.add_row([
+        'Quiver',
+        'A leather case for arrows, slung over the shoulder or hip.  '
+        'Refills the bow.',
+    ])
     carrier_glossary.add_row([
         'Cartridge box',
         'A small hinged box of paper or metal-cased rounds, worn on '

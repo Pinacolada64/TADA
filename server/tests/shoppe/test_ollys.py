@@ -221,7 +221,7 @@ class TestAmmoSectionPurchase(unittest.IsolatedAsyncioTestCase):
         player = _funded_player(1000)
         ctx = _FakeCtx(['999', 'q'], player)
         await _ammo_section(ctx, player, player.inventory, self.objects_by_num)
-        self.assertIn('Enter 1-18, or Q.', ctx._flat())
+        self.assertIn('Enter 1-19, or Q.', ctx._flat())
 
     async def test_non_numeric_choice_rejected(self):
         player = _funded_player(1000)

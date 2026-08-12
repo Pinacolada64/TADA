@@ -1137,6 +1137,17 @@
             "name": "Spellbook",
             "type": "book",
             "price": 8
+        },
+        {
+            "number": 167,
+            "name": "quiver",
+            "type": "container",
+            "flags": {
+                "rounds": 10,
+                "damage": 1,
+                "used_with": " bow"
+            },
+            "price": 5
         }
     ]
 }

@@ -752,6 +752,13 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   `_apply_item()`). Inventory now shows loose ammo as `[N rounds xM]`
   (N rounds per box, M boxes carried) and a carrier as `[current/capacity
   rounds]` (`commands/inv.py` `_format_entry()`).
+- ✅ **Quiver (TADA addition)** — a bow ammo carrier (objects.json #167,
+  price 5, `used_with: ' bow'`, capacity 10 matching arrows' own
+  `rounds`), added to `shoppe/ollys.py`'s `_CARRIER_RANGE` alongside
+  master's original 147-150 carriers. Not in the SPUR source (bow ammo
+  had no carrier there) — Ryan's request, follows the existing carrier
+  pattern exactly (arrives full, refills via matching ammo purchase,
+  one-per-type).
 
 ### Stubs (not yet implemented)
 - None currently known — all `_MENU` entries in `shoppe/main.py` route to implemented modules.
