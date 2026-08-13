@@ -179,6 +179,13 @@ Shared infrastructure (not itself a feature demo):
   de-duplicated narrative for the progression-viewer artifact.
 - **`bot_ration_demo.py`** — rations + ally hunger, run against the real
   command engine directly (not a live server).
+- **`bot_horse_bolt_demo.py`** — the horse-bolt mechanic
+  (`ally_events/horse_bolt.py`), same real-engine-no-socket approach as
+  `bot_ration_demo.py`: ambush bolts a mounted horse away, MOUNT catches
+  it, a second bolt stops at a water room's edge instead of landing in
+  it, a CHARGE-thrown rider triggers a third bolt, and a real
+  `EditPlayerCommand` run does the `[C] Recall Horse` admin fix. Fed the
+  "Horse Bolt Session" artifact.
 - **`bot_meteor.py`** — triggers and observes a meteor room event via
   movement.
 - **`bot_stats_check.py`** / **`bot_stats_test.py`** — bare `stats`
