@@ -141,6 +141,11 @@ class Party:
                         'ammo_damage':    getattr(m, 'ammo_damage', 0),
                         'readied_armor':  armor_dict,
                         'readied_shield': shield_dict,
+                        # Only non-None while status == BOLTED, see
+                        # bar/ally_data.py's Ally.bolt_room_no docstring.
+                        'bolt_room_no':   getattr(m, 'bolt_room_no', None),
+                        'bolt_map_level': getattr(m, 'bolt_map_level', None),
+                        'bolt_at_water':  getattr(m, 'bolt_at_water', False),
                     })
                     continue
             except ImportError:
@@ -198,6 +203,9 @@ class Party:
                     position_name = item.get('position', 'EMPTY')
                     if position_name in AllyPosition.__members__:
                         ally.position = AllyPosition[position_name]
+                    ally.bolt_room_no   = item.get('bolt_room_no')
+                    ally.bolt_map_level = item.get('bolt_map_level')
+                    ally.bolt_at_water  = bool(item.get('bolt_at_water', False))
 
                     # Items given via GIVE (see to_json() above and
                     # commands/give.py). Reuse Inventory.from_json()'s item

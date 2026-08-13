@@ -49,6 +49,13 @@ class AllyStatus(Enum):
     SERVANT     = auto()   # bought from Olaf; reverts to FREE if they desert
     UNCONSCIOUS = auto()   # knocked out in combat
     DEAD        = auto()   # killed in combat
+    # A MOUNT that bolted during an ambush (ally_events/horse_bolt.py) --
+    # still owned by the player (owner stays set), just not with them right
+    # now. bolt_room_no/bolt_map_level (below) say where it ended up.
+    # Distinct from deserting (SERVANT -> FREE): a bolted mount can't be
+    # re-purchased by anyone else and comes back via MOUNT once the player
+    # finds it, rather than being lost for good.
+    BOLTED      = auto()
 
 
 # 1. Define a clear and robust data structure
@@ -131,6 +138,16 @@ class Ally:
         """
         self.tracking_range: int = 0
         self.body_build: int = 0
+        # Only meaningful while status == AllyStatus.BOLTED (MOUNT-only,
+        # see ally_events/horse_bolt.py) -- where the horse ended up after
+        # bolting, so MOUNT can re-attach it once the player walks in.
+        self.bolt_room_no: Optional[int] = None
+        self.bolt_map_level: Optional[int] = None
+        # True if the bolt walk was cut short at a water room's edge
+        # (ally_events/horse_bolt.py never deposits a horse in the water
+        # itself) -- lets the catch message read "at the water's edge"
+        # instead of the generic "nearby".
+        self.bolt_at_water: bool = False
         # 3. Use an f-string for safer and more readable logging
         #    Using .name on enums provides a clean string like "MALE"
         logging.debug(

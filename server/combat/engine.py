@@ -740,6 +740,13 @@ class CombatSession:
         if mid is not None and mid in (getattr(ctx.player, 'dead_monsters', None) or []):
             return
 
+        # A mounted player's horse rolls its own, separate bolt chance on
+        # every ambush (ally_events/horse_bolt.py) -- independent of
+        # whether a servant is posted/deserts below, same as SPUR's
+        # tactical/desert didn't have a MOUNT-aware branch at all.
+        from ally_events.horse_bolt import maybe_bolt_mount
+        await maybe_bolt_mount(ctx)
+
         slot_num = random.choice(_TACTICAL_SLOT_ROLL)
         slot = {1: AllyPosition.POINT, 2: AllyPosition.FLANK, 3: AllyPosition.REAR}[slot_num]
         shout = _TACTICAL_SHOUTS[slot_num]
@@ -747,7 +754,8 @@ class CombatSession:
         occupant = next(
             (a for a in owned_allies(ctx.player)
              if a.position == slot and a.status == AllyStatus.SERVANT
-             and getattr(a, 'hit_points', 0) > 0),
+             and getattr(a, 'hit_points', 0) > 0
+             and AllyFlags.MOUNT not in (a.flags or [])),
             None,
         )
 
@@ -1535,6 +1543,14 @@ class CombatSession:
         await ctx.send('The jar knocks you from your mount!')
         player.clear_flag(PlayerFlags.MOUNTED)
         player.unsaved_changes = True
+
+        # A horse that just threw its rider is already spooked -- reuse
+        # the ambush-bolt mechanic (ally_events/horse_bolt.py) so it may
+        # run off too, rather than standing calmly beside a rider it just
+        # unseated.
+        if mount is not None:
+            from ally_events.horse_bolt import bolt_thrown_mount
+            await bolt_thrown_mount(ctx, mount)
 
         fall_damage = min(random.randint(1, 10) + 1, hp)
         player.hit_points = hp - fall_damage

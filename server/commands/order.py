@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from bar.ally_data import AllyPosition, AllyStatus
+from bar.ally_data import AllyFlags, AllyPosition, AllyStatus
 from bar.allies import purchased_allies
 from network_context import GameContext
 
@@ -67,7 +67,16 @@ class OrderCommand(Command):
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         player = ctx.player
-        allies = [a for a in purchased_allies(player) if a.status == AllyStatus.SERVANT]
+        # A mount isn't a deployable servant -- exclude it here the same way
+        # every other tactical-slot-adjacent call site does (editplayer.py,
+        # give.py, shoppe/inventory_tools.py), so a horse can never end up
+        # posted to POINT/FLANK/REAR and become eligible for the ambush
+        # desert check below.
+        allies = [
+            a for a in purchased_allies(player)
+            if a.status == AllyStatus.SERVANT
+            and AllyFlags.MOUNT not in (a.flags or [])
+        ]
 
         if not allies:
             await ctx.send("You don't have any servants!")

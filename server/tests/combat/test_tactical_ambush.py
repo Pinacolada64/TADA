@@ -66,6 +66,16 @@ class _FakePlayer:
         self.stats = {'Intelligence': intelligence}
         self.xp_level = xp_level
         self.unsaved_changes = False
+        self._flags: set = set()
+
+    def query_flag(self, flag) -> bool:
+        return flag in self._flags
+
+    def set_flag(self, flag) -> None:
+        self._flags.add(flag)
+
+    def clear_flag(self, flag) -> None:
+        self._flags.discard(flag)
 
 
 class _FakeRoom:

@@ -303,6 +303,43 @@ class TestChargeUnseatCheck(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(thrown)
         self.assertEqual(ctx.sent(), '')
 
+    async def test_thrown_mount_can_bolt(self):
+        """A horse that just threw its rider gets its own bolt roll
+        (ally_events/horse_bolt.py's bolt_thrown_mount) -- separate random
+        stream from combat.engine's, so it needs its own patch target."""
+        from bar.ally_data import AllyStatus
+
+        mount = _make_mount()
+        player = _FakePlayer(mounted=True, hit_points=50, allies=[mount],
+                              stats={PlayerStat.STR: 1, PlayerStat.CON: 1, PlayerStat.INT: 1,
+                                     PlayerStat.EGY: 1, PlayerStat.DEX: 1},
+                              xp_level=1)
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN', 'strength': 10}, room_no=1)
+        with patch('combat.engine.random.randint', return_value=1), \
+             patch('ally_events.horse_bolt.random.randint', return_value=1):
+            thrown = await session._charge_unseat_check(ctx)
+        self.assertFalse(thrown)
+        self.assertEqual(mount.status, AllyStatus.BOLTED)
+        self.assertIn('gallops off', ctx.sent().lower())
+
+    async def test_thrown_mount_can_stay_put(self):
+        from bar.ally_data import AllyStatus
+
+        mount = _make_mount()
+        player = _FakePlayer(mounted=True, hit_points=50, allies=[mount],
+                              stats={PlayerStat.STR: 1, PlayerStat.CON: 1, PlayerStat.INT: 1,
+                                     PlayerStat.EGY: 1, PlayerStat.DEX: 1},
+                              xp_level=1)
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN', 'strength': 10}, room_no=1)
+        with patch('combat.engine.random.randint', return_value=1), \
+             patch('ally_events.horse_bolt.random.randint', return_value=2):
+            thrown = await session._charge_unseat_check(ctx)
+        self.assertFalse(thrown)
+        self.assertEqual(mount.status, AllyStatus.SERVANT)
+        self.assertNotIn('gallops off', ctx.sent().lower())
+
 
 # ---------------------------------------------------------------------------
 # CombatSession._try_redirect_to_mount()

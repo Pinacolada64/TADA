@@ -62,8 +62,16 @@ class MountCommand(Command):
 
         mount = find_mount(player)
         if mount is None:
-            await ctx.send('You have no horse to mount.')
-            return CommandResult.fail(error='no_mount')
+            from ally_events.horse_bolt import has_bolted_mount, try_catch_bolted_mount
+            caught = await try_catch_bolted_mount(ctx)
+            if caught is not None:
+                mount = caught
+            elif has_bolted_mount(player):
+                await ctx.send("Your horse bolted and isn't anywhere nearby.")
+                return CommandResult.fail(error='mount_bolted')
+            else:
+                await ctx.send('You have no horse to mount.')
+                return CommandResult.fail(error='no_mount')
 
         if _in_water_room(ctx):
             await ctx.send(f"{mount.name} refuses to go in the water!")

@@ -1189,7 +1189,10 @@ def _names_menu(ctx) -> Menu:
         flavor = ' '.join(str(x) for x in (
             getattr(mount, 'color', None), getattr(mount, 'breed', None),
         ) if x)
-        return f'{mount.name}{f" ({flavor})" if flavor else ""}  Str {mount.strength}'
+        label = f'{mount.name}{f" ({flavor})" if flavor else ""}  Str {mount.strength}'
+        if mount.status == AllyStatus.BOLTED:
+            label += f'  [BOLTED -- Level {mount.bolt_map_level} Room {mount.bolt_room_no}]'
+        return label
 
     async def _add_horse(ctx) -> None:
         """[A] Add Horse: no master roster to pick from -- horses aren't
@@ -1253,6 +1256,24 @@ def _names_menu(ctx) -> Menu:
         p.unsaved_changes = True
         await ctx.send(lines)
 
+    async def _recall_horse(ctx) -> None:
+        """[C] Recall Horse: support-desk fix for a mount stuck BOLTED
+        (ally_events/horse_bolt.py) -- e.g. the player's search room got
+        deleted/relocated out from under them, or an admin just wants to
+        test/undo it. Snaps status straight back to SERVANT, same as
+        MOUNT's own catch-in-that-room path (try_catch_bolted_mount) but
+        without requiring the player to actually be standing there.
+        """
+        mount = _horse()
+        if mount is None or mount.status != AllyStatus.BOLTED:
+            await ctx.send('No bolted horse to recall.')
+            return
+        mount.status         = AllyStatus.SERVANT
+        mount.bolt_room_no   = None
+        mount.bolt_map_level = None
+        p.unsaved_changes = True
+        await ctx.send(f'{mount.name} is recalled and rejoins the party.')
+
     async def edit_horse(ctx) -> None:
         mount = _horse()
         if mount is None:
@@ -1267,11 +1288,16 @@ def _names_menu(ctx) -> Menu:
                 await ctx.send("Please choose 'A'.")
             return
 
+        bolted = mount.status == AllyStatus.BOLTED
+        options = "[N]ew name, [R]emove horse" + (", [C] recall bolted horse" if bolted else "")
+        current_line = f'Current: {mount.name}  Str {mount.strength}'
+        if bolted:
+            current_line += f'  [BOLTED -- Level {mount.bolt_map_level} Room {mount.bolt_room_no}]'
         raw = await ctx.prompt(
             mount.name,
             preamble_lines=[
-                f'Current: {mount.name}  Str {mount.strength}',
-                f"[N]ew name, [R]emove horse, or {ctx.player.return_key} to cancel:",
+                current_line,
+                f"{options}, or {ctx.player.return_key} to cancel:",
             ],
         )
         choice = (raw or '').strip().lower()
@@ -1281,8 +1307,11 @@ def _names_menu(ctx) -> Menu:
             await _rename_ally(ctx, mount)
         elif choice == 'r':
             await _remove_horse(ctx)
+        elif choice == 'c' and bolted:
+            await _recall_horse(ctx)
         else:
-            await ctx.send("Please choose 'N' or 'R'.")
+            expected = 'N, R, or C' if bolted else "'N' or 'R'"
+            await ctx.send(f"Please choose {expected}.")
 
     def _roster_label(a) -> str:
         return f'{a.name:<22}  Str {a.strength:>2}  {a.to_hit * 10:>3}%  [{_status_label(a)}]'

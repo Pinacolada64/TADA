@@ -449,7 +449,17 @@ async def _try_ally_tactical(ctx: 'GameContext', monster: dict) -> None:
     if not party:
         return
 
-    allies = [m for m in party if isinstance(m, Ally) and getattr(m, 'hit_points', 0) > 0]
+    # A mounted player's horse rolls its own, separate bolt chance on
+    # every ambush -- independent of whether a non-mount ally exists/
+    # deserts below, see ally_events/horse_bolt.py.
+    from ally_events.horse_bolt import maybe_bolt_mount
+    await maybe_bolt_mount(ctx)
+
+    allies = [
+        m for m in party
+        if isinstance(m, Ally) and getattr(m, 'hit_points', 0) > 0
+        and AllyFlags.MOUNT not in (getattr(m, 'flags', None) or [])
+    ]
     if not allies:
         return
 
