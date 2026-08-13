@@ -1055,7 +1055,7 @@
         },
         {
             "number": 67,
-            "name": "De Vinci Room",
+            "name": "Da Vinci Room",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1065,7 +1065,7 @@
             "item": 51,
             "weapon": 0,
             "food": 0,
-            "desc": "You have entered Leonardo De Vinci's exhibit hall..."
+            "desc": "You have entered Leonardo Da Vinci's exhibit hall..."
         },
         {
             "number": 68,
@@ -1953,7 +1953,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The passage seems rather oppresive for some reason.."
+            "desc": "The passage seems rather oppressive for some reason.."
         },
         {
             "number": 134,
@@ -2452,7 +2452,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The tunnel is very crooked here, tiny stalagtites get in your way."
+            "desc": "The tunnel is very crooked here, tiny stalactites get in your way."
         },
         {
             "number": 169,
