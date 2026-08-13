@@ -379,21 +379,96 @@ scratch on a future pass:
   the same rooms (`encounters/meteor.py`).
 - **Fixed secret Bar entrances** (`SPUR.MAIN.S:147-150`) — 4 hardcoded
   level+room+direction combinations (levels 1/4/5/6) link directly into
-  the Bar module bypassing its normal elevator/menu access. Level 5's
-  room 157 is flagged as the one most likely to still map correctly
-  given how cleanly that level's other room numbers (Fountain of Youth
-  105, Desert Oasis 322) have checked out — worth checking directly as a
-  scoped follow-up before the others.
+  the Bar module bypassing its normal elevator/menu access.
 
-**Suggested next step, if pursuing these**: rather than chasing more
-hardcoded old-scheme room numbers one at a time, it's worth first
-checking whether `SPUR-data/convert_from_gbbs_tool.py` or
-`SPUR-data/analyse-binary-level-data.py` can reconstruct an old→new
-room-number mapping for level 6 (and level 2, for Galadriel's room 223) —
-one piece of tooling work that would likely unlock most of the findings
-above at once, rather than resolving them individually.
+**Root cause of every "blocked on renumbering" item above is now
+confirmed — see §17.**
 
-## 17. Explicitly-checked empty categories
+## 17. Root cause found: levels 2-7's shipped room numbers are fabricated, not SPUR's real ones
+
+Ryan's hypothesis (that the level's grid dimensions, decodable from the
+GBBS `D.LEVEL{N}.TXT` header, would explain the room-number mismatches
+throughout §16) is exactly right, and the tooling to prove it already
+exists in this repo: `SPUR-data/level-2/tada_level_builder.py`'s
+`LevelHeader.read()` parses `D.LEVEL{N}.TXT` directly into `title`,
+`total_rooms` (= `map_width` × `map_width`, i.e. SPUR's `nr`/`ri×ri`),
+`map_width` (SPUR's `ri`, the "Room Incr." grid stride used for N/S/E/W
+math — see that file's `resolve_exit_destinations()`), and
+`room_numbers` — the literal bitfield of which of those `total_rooms`
+grid slots actually have message content.
+
+Running `LevelHeader.read()` against every level's header and comparing
+its `room_numbers` (SPUR's *real* room numbers) against the room numbers
+actually shipped in `server/level_{N}.json`:
+
+| level | real grid (ri×ri = nr) | real populated rooms | shipped room count | shipped numbers = 1..N? | overlap with real |
+|---|---|---|---|---|---|
+| 1 | 12×12 = 144 | 123 | 123 | **no** | 112 |
+| 2 | 15×15 = 225 | 208 | 208 | **yes** | 192 |
+| 3 | 10×10 = 100 | 89 | 90 | **yes** | 79 |
+| 4 | 7×7 = 49 | 43 | 44 | **yes** | 38 |
+| 5 | 20×20 = 400 | 371 | 373 | **yes** | 345 |
+| 6 | 30×30 = 900 | 291 | 292 | **yes** | 55 |
+| 7 | 10×10 = 100 | 30 | 28 | **yes** | 9 |
+
+**Level 1 alone preserves SPUR's real room numbers** — matching what
+`tada_level_builder.py`'s own docstring already says about `level_1.json`
+using a separate, correct pipeline (`convert_map_data.py`), while
+`level_2.json`..`level_7.json` were built by an older/different process
+that discarded the real grid position of each decoded message and
+renumbered them **sequentially in decode order (1, 2, 3, ...)** instead.
+Concretely verified for level 6: room 612 (a real, populated grid slot
+per the header bitfield) is completely absent from `level_6.json`, whose
+292 rooms are exactly `{1, 2, ..., 292}` — nothing between 293 and 900,
+even though 291 real grid slots in that range have content. Level 2's
+room 223 (Galadriel's fixed trigger room) is real/populated too, and
+likewise absent from the shipped `level_2.json`, whose 208 rooms are
+exactly `{1..208}`.
+
+This is the single root cause behind essentially every "confirmed but
+blocked" finding in §16, and behind §9's off-by-one Gollum's Cave room
+number confusion, and behind §16's now-retracted claim that level 5's
+room numbers (105, 322) "checked out cleanly" — that was **coincidence**
+(both happen to be ≤ 373, level 5's shipped count), not evidence level 5
+is closer to correct than level 6. Only level 1's shipped numbers have
+any real claim to matching SPUR source room literals directly.
+
+**This does not mean anything already shipped this session is broken.**
+The Fountain of Youth/Vial (`level_5.json` room 105), Gollum's Cave
+(`level_4.json` room 17), the wild-horse meadow, POOL OF WATER rooms,
+etc. are all keyed to *current* `level_{N}.json` room numbers and work
+correctly within the game world as it actually runs today — movement,
+exits, and every other room reference in `commands/`/`combat/`/
+`encounters/` are internally self-consistent against the shipped
+(renumbered) data, since the whole game only ever navigates within that
+data. The mismatch only bites when trying to use a *SPUR source code
+literal* (`cr=223`, `cr=612`, etc.) to find "the same room" in current
+data — that lookup is simply invalid without a translation step, which
+is exactly why §16's findings stalled.
+
+**Two ways forward, genuinely different in cost and risk — not decided
+here:**
+
+1. **Keep matching by name/theme in current data** (what every mechanic
+   shipped this session already does) — cheap, safe, no migration, but
+   means "the same room SPUR intended" is sometimes approximate rather
+   than exact (e.g. Galadriel's trigger room would be picked by vibes,
+   not by re-deriving grid position 223).
+2. **Rebuild `level_2.json`..`level_7.json` with real SPUR room numbers**,
+   using the same "zip decoded Msg-K with the Kth entry of
+   `LevelHeader.room_numbers`" approach `tada_level_builder.py` already
+   implements for level 2 (per its own Step 3 docstring) — this would
+   make every SPUR source room literal directly resolvable, unlocking
+   §16's findings exactly rather than approximately. Substantially
+   higher cost/risk: every existing room-number reference in this
+   codebase (this session's own Fountain/Vial/Gollum/wild-horse/POOL OF
+   WATER work included, plus `no_comm_signal`/`vehicle_exit_*`/
+   `RoomAlignment` overrides/every monster room placement/every player's
+   persisted `map_room`) would need remapping in lockstep, or the live
+   game world silently scrambles. Not something to undertake casually or
+   without a deliberate migration plan.
+
+## 18. Explicitly-checked empty categories
 
 - No mechanic in the codebase gates on a bare hardcoded room-number
   literal (`room == N`) besides the Fountain/Vial (#1/#2) — everything
@@ -407,6 +482,12 @@ above at once, rather than resolving them individually.
 
 ## Follow-up ideas (not yet built)
 
+- **Decide on §17's two paths** before doing more room-number-literal SPUR
+  porting work: match-by-theme in current data (cheap, approximate) vs.
+  a real renumbering migration to restore SPUR's original room numbers
+  (unlocks exact matches, but touches every room reference in the
+  codebase plus persisted player `map_room` state — a deliberate,
+  separately-scoped project, not a drive-by fix).
 - **Garden of Eden (§15)** — the single most ready-to-build gap found: 37
   named rooms already exist, matched by name (no room-number remapping
   needed), monster #121 (SERPENT) already exists. Smallest-effort,
