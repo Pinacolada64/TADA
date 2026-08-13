@@ -519,8 +519,19 @@ ANSI_COLOR_CODES: dict[str, str] = {
     'brown': Fore.YELLOW if _COLORAMA_AVAILABLE else '',
     'orange': Fore.YELLOW if _COLORAMA_AVAILABLE else '',  # closest ANSI approximation
     'purple': Fore.MAGENTA if _COLORAMA_AVAILABLE else '',  # closest ANSI approximation
-    'reverse_on': Style.BRIGHT if _COLORAMA_AVAILABLE else '',
-    'reverse_off': Style.RESET_ALL if _COLORAMA_AVAILABLE else '',
+    # True ANSI reverse video (SGR 7/27) -- colorama's Style enum has no
+    # reverse-video constant of its own (only BRIGHT/DIM/NORMAL/RESET_ALL),
+    # so these were previously (wrongly) aliased to Style.BRIGHT, which is
+    # bold/intensity, not a foreground/background swap. A bold *space*
+    # character (e.g. commands/map.py's #overview room squares) looks
+    # identical to a plain space -- no visible highlight at all -- which
+    # is exactly the bug this was: raw escape codes below match the
+    # convention terminal.py's cursor-movement constants already use for
+    # codes colorama doesn't expose. SGR 27 turns reverse back off
+    # without also clearing color like Style.RESET_ALL would, so
+    # |reverse_off| behaves correctly even without a following |reset|.
+    'reverse_on': '\x1b[7m' if _COLORAMA_AVAILABLE else '',
+    'reverse_off': '\x1b[27m' if _COLORAMA_AVAILABLE else '',
     'bold': Style.BRIGHT if _COLORAMA_AVAILABLE else '',
     'dim': Style.DIM if _COLORAMA_AVAILABLE else '',
     'reset': Fore.RESET if _COLORAMA_AVAILABLE else '',

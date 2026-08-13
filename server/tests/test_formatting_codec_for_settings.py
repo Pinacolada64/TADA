@@ -130,5 +130,42 @@ class TestMakeBoxBracketPadding(unittest.TestCase):
         self.assertEqual(widths, {30}, f'expected every rendered line at 30 cols, got {widths}')
 
 
+class TestReverseVideoTokens(unittest.TestCase):
+    """Ryan found: |reverse_on|/|reverse_off| (used by commands/map.py's
+    #overview/#visited to highlight a room square) were mapped to
+    colorama's Style.BRIGHT/RESET_ALL -- bold intensity, not a real
+    foreground/background swap. A bold *space* character looks identical
+    to a plain space, so the room squares rendered as invisible blanks
+    on a real ANSI terminal even though the arrows/@ marker (real glyphs)
+    showed up fine. Fixed by emitting the raw SGR reverse-video escape
+    codes (\\x1b[7m / \\x1b[27m) directly, the same way terminal.py's
+    cursor-movement constants already do for codes colorama doesn't
+    expose."""
+
+    def test_reverse_on_emits_true_sgr_reverse_video(self):
+        rendered = ansi_encode('|reverse_on|')
+        self.assertIn('\x1b[7m', rendered)
+
+    def test_reverse_off_emits_sgr_reverse_video_off(self):
+        rendered = ansi_encode('|reverse_off|')
+        self.assertIn('\x1b[27m', rendered)
+
+    def test_reverse_on_is_not_just_bold(self):
+        # The bug this guards against: reverse_on and bold used to be the
+        # exact same colorama Style.BRIGHT code.
+        from formatting import ANSI_COLOR_CODES
+        self.assertNotEqual(ANSI_COLOR_CODES['reverse_on'], ANSI_COLOR_CODES['bold'])
+
+    def test_a_space_wrapped_in_reverse_video_is_visibly_different_from_plain(self):
+        # The actual failure mode: commands/map.py's #overview draws a
+        # room as a plain space wrapped in reverse_on/off. Confirm the
+        # rendered bytes for that space differ from an unwrapped space --
+        # under the old Style.BRIGHT mapping they'd have been identical
+        # once colorama's bold code has no visible effect on whitespace.
+        plain = ansi_encode(' ')
+        reversed_space = ansi_encode('|reverse_on| |reverse_off|')
+        self.assertNotEqual(plain, reversed_space)
+
+
 if __name__ == '__main__':
     unittest.main()
