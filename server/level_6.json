@@ -1360,7 +1360,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The access tunnel ends here! There is a huge blast door to the south which is fused shut. A smaller day is to the East. A sign over it says, 'VENTILATION'. It is locked, but there is a small slot in it's center surrounded by a RED band....",
+            "desc": "The access tunnel ends here! There is a huge blast door to the south which is fused shut. A smaller door is to the East. A sign over it says, 'VENTILATION'. It is locked, but there is a small slot in its center surrounded by a RED band....",
             "hidden_exit_east": 422
         },
         {
@@ -4228,7 +4228,7 @@
             "item": 125,
             "weapon": 0,
             "food": 0,
-            "desc": "This is the center of The Bridge. A very imposing swivel chair sits on top of a raised platform. It is lavishly covered in red leather. A gold embossed sign on the back says simply, 'Captain'. There is a very decayed corps in the chair! A book still in it's lap...."
+            "desc": "This is the center of The Bridge. A very imposing swivel chair sits on top of a raised platform. It is lavishly covered in red leather. A gold embossed sign on the back says simply, 'Captain'. There is a very decayed corpse in the chair! A book still in its lap...."
         },
         {
             "number": 782,
