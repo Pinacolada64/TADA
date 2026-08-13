@@ -433,7 +433,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are in some sort of small inlet, but the walls are much too sheer to land the dingy.."
+            "desc": "You are in some sort of small inlet, but the walls are much too sheer to land the dinghy.."
         },
         {
             "number": 30,
@@ -502,7 +502,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The water quietly slaps against your dingy. There is a granite wall rising sheer, to the west."
+            "desc": "The water quietly slaps against your dinghy. There is a granite wall rising sheer, to the west."
         },
         {
             "number": 34,
@@ -535,7 +535,7 @@
             "item": 60,
             "weapon": 0,
             "food": 31,
-            "desc": "The Embalming Room, adjacent to the Caretakers quarters, reeks of the smell of formaldehyde and pieces of unfortunate adventurers.  Take care not to disturb him."
+            "desc": "The Embalming Room, adjacent to the Caretaker's quarters, reeks of the smell of formaldehyde and pieces of unfortunate adventurers.  Take care not to disturb him."
         },
         {
             "number": 36,
@@ -912,7 +912,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A deathly silence reins, except for you paddling noise. Wait... What's that gurgling noise?"
+            "desc": "A deathly silence reigns, except for you paddling noise. Wait... What's that gurgling noise?"
         },
         {
             "number": 59,
@@ -1021,7 +1021,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The river goes thru a narrow crevice to the south. Much too narrow for you to enter. But there is a small shelf of land here, where you may land the dingy."
+            "desc": "The river goes thru a narrow crevice to the south. Much too narrow for you to enter. But there is a small shelf of land here, where you may land the dinghy."
         },
         {
             "number": 65,
@@ -1538,7 +1538,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is the lakes edge. Granite walls rise sheer and foreboding to the south and west..."
+            "desc": "This is the lake's edge. Granite walls rise sheer and foreboding to the south and west..."
         },
         {
             "number": 105,
@@ -3293,7 +3293,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You begin to worry about the state of your dingy, as it continues to get pounded on the rocks.."
+            "desc": "You begin to worry about the state of your dinghy, as it continues to get pounded on the rocks.."
         },
         {
             "number": 224,

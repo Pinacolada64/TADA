@@ -1,3 +1,10 @@
+8/13/26:
+- Room 732 in level_6.json ("Garden Of Eden") has a sign reading
+  "Help Dura! Post post!" -- "Dura" is Dura Europos, the BBS this game
+  ran on; the sign is telling players to post messages there. Ryan
+  wants it rewritten later to read more clearly, e.g. "Help the scribes
+  of the land, post a message!"
+
 8/10/26:
 - **"Dusk Approaches" session-time-limit warning is not implemented.**
   Discovered while writing help topics (TODO_HELP.md): `config.py`'s

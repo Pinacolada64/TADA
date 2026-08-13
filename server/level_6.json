@@ -3303,7 +3303,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is the southeast corner of the strange room. The strange man is sitting in in the strange corner.",
+            "desc": "This is the southeast corner of the strange room. The strange man is sitting in the strange corner.",
             "hidden_exit_east": 704
         },
         {
@@ -3879,7 +3879,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are in a black void.. The ships bridge looms to the 'south'. It's lights look cheerful and inviting."
+            "desc": "You are in a black void.. The ship's bridge looms to the 'south'. It's lights look cheerful and inviting."
         },
         {
             "number": 751,
@@ -4196,7 +4196,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are near the extreme bow of the spacecraft. It stretches out to the south for a mile or more. To the 'north' is sheer blackness, punctuated by thousands of points of light. For some reason, you think of a bush. 'East', is the forward section of the ships bridge, portholes aglow with light.."
+            "desc": "You are near the extreme bow of the spacecraft. It stretches out to the south for a mile or more. To the 'north' is sheer blackness, punctuated by thousands of points of light. For some reason, you think of a bush. 'East', is the forward section of the ship's bridge, portholes aglow with light.."
         },
         {
             "number": 780,
@@ -4538,7 +4538,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You stand at the entrance to the ships bridge. You are dazzled by the immense display of lights. Ship's security might frown on your presence..."
+            "desc": "You stand at the entrance to the ship's bridge. You are dazzled by the immense display of lights. Ship's security might frown on your presence..."
         },
         {
             "number": 812,

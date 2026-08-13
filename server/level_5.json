@@ -2341,7 +2341,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Waves lap over the side of the dingy.."
+            "desc": "Waves lap over the side of the dinghy.."
         },
         {
             "number": 151,
@@ -2410,7 +2410,7 @@
             "item": 40,
             "weapon": 0,
             "food": 0,
-            "desc": "This is apparently the head hunters village. A group of huts of some sort, surround a large fire pit. The jungle is impenetrable in all directions except the way you came.",
+            "desc": "This is apparently the head hunters' village. A group of huts of some sort, surround a large fire pit. The jungle is impenetrable in all directions except the way you came.",
             "hidden_exit_east": 155
         },
         {
@@ -3019,7 +3019,7 @@
             "item": 0,
             "weapon": 0,
             "food": 51,
-            "desc": "A sudden rain squall completely fills your little dingy with warm fresh water."
+            "desc": "A sudden rain squall completely fills your little dinghy with warm fresh water."
         },
         {
             "number": 192,
@@ -3038,7 +3038,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You see a small land bird land on the bow of the dingy for a short rest.."
+            "desc": "You see a small land bird land on the bow of the dinghy for a short rest.."
         },
         {
             "number": 193,
@@ -3494,7 +3494,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Something bumps the bottom of the dingy!"
+            "desc": "Something bumps the bottom of the dinghy!"
         },
         {
             "number": 220,
@@ -4063,7 +4063,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "It occurs to you that maybe rowing a dingy across an ocean is not too smart.."
+            "desc": "It occurs to you that maybe rowing a dinghy across an ocean is not too smart.."
         },
         {
             "number": 255,
@@ -4307,7 +4307,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This little dingy sure gets uncomfortable!"
+            "desc": "This little dinghy sure gets uncomfortable!"
         },
         {
             "number": 271,
@@ -4383,7 +4383,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The waves go 'lap lap lap' against the side of your faithful dingy.."
+            "desc": "The waves go 'lap lap lap' against the side of your faithful dinghy.."
         },
         {
             "number": 275,
@@ -5083,7 +5083,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You hope that soft hissing noise is not coming from the dingy.."
+            "desc": "You hope that soft hissing noise is not coming from the dinghy.."
         },
         {
             "number": 315,
@@ -5394,7 +5394,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The water seems to gush upwards on all sides, tossing the small dingy wildly."
+            "desc": "The water seems to gush upwards on all sides, tossing the small dinghy wildly."
         },
         {
             "number": 333,
