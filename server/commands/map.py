@@ -226,8 +226,8 @@ def render_overview(ctx: GameContext, game_map, level: int, player,
 
     lines = [_serialize_canvas_row(canvas_row) for canvas_row in canvas]
     lines.append('')
-    lines.append(f'|{_OVERVIEW_PLAYER_ROOM_COLOR}|@|reset|=you  '
-                 f'|{_OVERVIEW_ROOM_COLOR}| |reset|=room')
+    lines.append(f'|{_OVERVIEW_PLAYER_ROOM_COLOR}||reverse_on|@|reverse_off||reset|=you  '
+                 f'|{_OVERVIEW_ROOM_COLOR}||reverse_on| |reverse_off||reset|=room')
     if is_ansi:
         lines.append('↑↓→←=one-way exit   ↕↔=exit in both directions')
     else:

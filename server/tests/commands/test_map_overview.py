@@ -191,6 +191,23 @@ class TestRenderOverview(unittest.TestCase):
         lines = render_overview(ctx, MagicMock(levels={}), 4, player)
         self.assertIsNone(lines)
 
+    def test_legend_samples_are_reverse_video_like_the_real_grid(self):
+        # Ryan found: the legend's '=room' sample was a bare space with
+        # no |reverse_on|/|reverse_off| wrapping, so it looked like
+        # nothing next to the label -- an anomaly, since the actual grid
+        # cells (see the `@`/color-cell assignment above) are always
+        # reverse-video wrapped via _serialize_canvas_row(). Both legend
+        # samples ('=you' and '=room') must carry the same markup pair
+        # the real cells do.
+        rooms = {1: _FakeRoom(1)}
+        player = make_player(debug=True, map_level=4, map_room=1)
+        ctx = MagicMock()
+        ctx.player = player
+        lines = render_overview(ctx, MagicMock(levels={4: rooms}), 4, player)
+        legend = lines[lines.index('') + 1]
+        self.assertIn('|reverse_on|@|reverse_off|', legend)
+        self.assertIn('|reverse_on| |reverse_off|', legend)
+
     def test_allowed_filter_excludes_unlisted_rooms(self):
         rooms = {
             1: _FakeRoom(1, exits={'east': 2}),
