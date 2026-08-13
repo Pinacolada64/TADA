@@ -104,6 +104,117 @@ def _is_privileged(player) -> bool:
     return bool(player.query_flag(PlayerFlags.ADMIN) or player.query_flag(PlayerFlags.DUNGEON_MASTER))
 
 
+def _is_debug(player) -> bool:
+    return bool(player.query_flag(PlayerFlags.DEBUG_MODE))
+
+
+# Grid width (SPUR's `ri`, "Room Incr.") per level -- not tracked anywhere
+# on the runtime Map/Room objects (see this module's own docstring), so
+# it's hardcoded here from D.LEVEL{N}.TXT's own header, same source
+# LEVEL_AUDIT.md's room-renumbering investigation (§17) used. Room number
+# -> (row, col) is divmod(number - 1, ri), matching
+# SPUR-data/level-2/tada_level_builder.py's resolve_exit_destinations()
+# row-major convention (north decreases row, east increases col).
+_OVERVIEW_GRID_WIDTH = {1: 12, 2: 15, 3: 10, 4: 7, 5: 20, 6: 30, 7: 10}
+
+_OVERVIEW_ROOM_COLOR = 'light_gray'
+_OVERVIEW_PLAYER_ROOM_COLOR = 'cyan'
+
+# ANSI double-headed arrows for a gap between two grid-adjoining rooms
+# that each have an exit leading into the other -- distinguishes a real
+# two-way passage from a one-way one, which a lone single-direction arrow
+# can't (Ryan's request). No PETSCII equivalent: cbmcodecs2's
+# petscii_c64en_lc codec doesn't map '↕'/'↔' any more than it maps the
+# single-direction arrows (see _PETSCII_ONE_WAY_ARROW's own comment) --
+# PETSCII clients fall back to the single-direction glyph for the room
+# that's "ahead" on that axis (south/east), same as if only one direction
+# existed; the exit still gets an arrow, just not a bidirectional one.
+_ANSI_BOTH_WAYS = {'vertical': '↕', 'horizontal': '↔'}
+
+
+def render_overview(ctx: GameContext, game_map, level: int, player) -> list[str] | None:
+    """Compressed birds-eye view of an entire level's grid: one reverse-
+    video square per room (no monster/item/weapon/food markers -- see
+    render_ansi_grid() for that), with arrow glyphs in the gap between
+    each pair of grid-adjoining rooms showing whether north/east/south/
+    west exits connect them -- a double-headed arrow (ANSI clients only)
+    if both rooms have an exit into the other, a single-direction one if
+    only one does. Up/down (rc/rt) exits aren't spatial neighbors on this
+    flat grid, so they're not shown -- same reasoning _nearby_rooms()
+    already documents. Returns None if this level has no known grid
+    width or no rooms are loaded for it."""
+    ri = _OVERVIEW_GRID_WIDTH.get(level)
+    if not ri:
+        return None
+
+    rooms = getattr(game_map, 'levels', {}).get(level) or {}
+    if not rooms:
+        return None
+
+    arrows = _arrow_chars(ctx)
+    is_ansi = arrows is not _PETSCII_ONE_WAY_ARROW
+    positions = {rn: divmod(rn - 1, ri) for rn in rooms}
+    by_pos = {pos: rooms[rn] for rn, pos in positions.items()}
+    max_row = max(row for row, _ in positions.values())
+    max_col = max(col for _, col in positions.values())
+
+    height = 2 * max_row + 1
+    width  = 2 * max_col + 1
+    canvas = [[(' ', None) for _ in range(width)] for _ in range(height)]
+
+    for rn, room in rooms.items():
+        row, col = positions[rn]
+        is_player_room = level == player.map_level and rn == player.map_room
+        color = _OVERVIEW_PLAYER_ROOM_COLOR if is_player_room else _OVERVIEW_ROOM_COLOR
+        canvas[2 * row][2 * col] = ('@' if is_player_room else ' ', color)
+
+    # Vertical gaps: between (row, col) and (row+1, col) -- south exit
+    # from the first, north exit from the second.
+    for row in range(max_row):
+        for col in range(max_col + 1):
+            north_room = by_pos.get((row, col))
+            south_room = by_pos.get((row + 1, col))
+            goes_south = bool(north_room and north_room.exits.get('south'))
+            goes_north = bool(south_room and south_room.exits.get('north'))
+            if goes_south and goes_north and is_ansi:
+                glyph = _ANSI_BOTH_WAYS['vertical']
+            elif goes_south:
+                glyph = arrows['south']
+            elif goes_north:
+                glyph = arrows['north']
+            else:
+                continue
+            canvas[2 * row + 1][2 * col] = (glyph, None)
+
+    # Horizontal gaps: between (row, col) and (row, col+1) -- east exit
+    # from the first, west exit from the second.
+    for row in range(max_row + 1):
+        for col in range(max_col):
+            west_room = by_pos.get((row, col))
+            east_room = by_pos.get((row, col + 1))
+            goes_east = bool(west_room and west_room.exits.get('east'))
+            goes_west = bool(east_room and east_room.exits.get('west'))
+            if goes_east and goes_west and is_ansi:
+                glyph = _ANSI_BOTH_WAYS['horizontal']
+            elif goes_east:
+                glyph = arrows['east']
+            elif goes_west:
+                glyph = arrows['west']
+            else:
+                continue
+            canvas[2 * row][2 * col + 1] = (glyph, None)
+
+    lines = [_serialize_canvas_row(canvas_row) for canvas_row in canvas]
+    lines.append('')
+    lines.append(f'|{_OVERVIEW_PLAYER_ROOM_COLOR}|@|reset|=you  '
+                 f'|{_OVERVIEW_ROOM_COLOR}| |reset|=room')
+    if is_ansi:
+        lines.append('↑↓→←=one-way exit   ↕↔=exit in both directions')
+    else:
+        lines.append('^v><=exit exists that direction')
+    return lines
+
+
 def _nearby_rooms(game_map, level: int, start_room: int, depth: int) -> dict[int, list[str]]:
     """BFS out from start_room over cardinal exits only (rc/rt -- up/down,
     shoppe transports -- aren't spatial neighbors, so they're left out of
@@ -390,6 +501,7 @@ class MapCommand(Command):
             ('map', 'Show nearby rooms.'),
             ('map grid', 'Show nearby rooms as a colored grid of boxes.'),
             ('map #grid', 'Same as "map grid".'),
+            ('map #overview [<level>]', 'Debug Mode: full-level birds-eye grid.'),
         ],
         notes = [
             'Only available to the Ranger class, and only from character '
@@ -404,11 +516,44 @@ class MapCommand(Command):
         admin_notes = [
             "Admins/DMs additionally see each nearby room's number -- "
             'ordinary players just get the direction path and name.',
+            '"map #overview [<level>]" needs Debug Mode on (not the '
+            'Ranger/level-3 gate above) and shows every room on the given '
+            'level (your own level if omitted) as a single reverse-video '
+            'square, with arrow glyphs around it marking which of '
+            'north/east/south/west have an exit. No monster/item/weapon/'
+            'food markers, and no up/down exits -- a compressed grid '
+            "layout, not the nearby-rooms view. Your own room shows '@'.",
         ],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         player = ctx.player
+
+        if args and args[0].lower().lstrip('#') == 'overview':
+            if not _is_debug(player):
+                await ctx.send("You need Debug Mode on for that -- see the DBG command.")
+                return CommandResult.fail('Not in debug mode.', error='not_debug')
+
+            game_map = getattr(ctx.server, 'game_map', None)
+            if not game_map:
+                await ctx.send('You lose your bearings -- no map data here.')
+                return CommandResult.fail('No map data.', error='no_map')
+
+            if len(args) > 1:
+                try:
+                    level = int(args[1])
+                except ValueError:
+                    await ctx.send(f'"{args[1]}" is not a level number.')
+                    return CommandResult.fail('Bad level.', error='bad_level')
+            else:
+                level = player.map_level
+
+            lines = render_overview(ctx, game_map, level, player)
+            if lines is None:
+                await ctx.send(f"No overview data for level {level}.")
+                return CommandResult.fail('No overview data.', error='no_overview')
+            await ctx.send([f'|yellow|Level {level} overview|reset|', ''] + lines)
+            return CommandResult.ok('Showed level overview.')
 
         if player.char_class != PlayerClass.RANGER:
             await ctx.send('Only a Ranger has the wilderness sense for this.')
