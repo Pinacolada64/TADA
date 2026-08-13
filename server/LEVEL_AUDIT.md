@@ -225,7 +225,90 @@ logic written. `hidden_item`/`hidden_door_*`/`outer_space` still have no
 discovered companion item or intended mechanic — worth confirming against
 SPUR master/skip source specifically for those three.
 
-## 14. Explicitly-checked empty categories
+## 14. SPUR source cross-check — confirmed-real mechanics not yet ported
+
+A pass through `SPUR-code/SPUR.MAIN.S` and `SPUR-code/SPUR.USE.S` (the
+"skip" branch — TADA's own citation convention; "master," the original
+1987-88 source, has a much thinner equivalent room-arrival routine and
+lacks all of the below) turned up several mechanics confirmed in source
+but with zero matching code anywhere in `commands/`, `combat/`, or
+`encounters/`. Item/message numbers below are independently verified
+against `objects.json`/`messages.json` in this repo, not just quoted from
+source.
+
+**Geiger Counter / Radiation Suit / Great Coat** (`SPUR.MAIN.S:310-319`,
+`dingy`/`coat` labels) — a per-move survival check, structurally the same
+shape as `encounters/desert.py`'s `try_desert_sweat()`: in a
+`radiation_extreme` room, carrying the Geiger counter (#123) prints
+`"[Tick... tick...]"`, escalating to `"[ Danger! Radiation suit
+required. ]"` in the stricter tier; without the Radiation Suit (#124),
+every such move costs -1 drink, -1 Strength, -2 HP plus `"You feel
+funny!"` (with it: `"You wisely wear the RAD SUIT"`). Same pattern for
+the Great Coat (#78) in `snow`-flagged rooms (`"You're freezing!"`
+otherwise). All three items and the `radiation_extreme` flag (40 rooms,
+level 6 only) already exist in this repo's data — only the check itself
+is missing. (This item/flag pairing is the one already called out in
+§13 above; the SPUR source confirms the exact intended mechanic.)
+
+**Water rooms drown you without a Dinghy/Spacesuit** (`SPUR.MAIN.S:301-309`)
+— broader than what's currently ported. Every `water`/`water_with_rocks`
+room (216 rooms, all 7 levels) costs -5 HP on arrival without item #74
+(inflatable dinghy, levels 1-5) or #122 (spacesuit, level 6); carrying it
+instead prints a flavor line plus, on levels <6, a further 30% chance of
+-1 Strength ("Growing a bit tired"). TADA currently only ports a narrow
+slice of this via `commands/movement.py`'s `_check_vehicle_exit_gate()`
+(§11 above), which just blocks *leaving* through the one
+`vehicle_exit_west`-flagged room (level_6 #277, "Air Lock") — a player
+can currently walk through all 216 water rooms on levels 1-5 with no
+consequence at all.
+
+**Security Cards** (`SPUR.USE.S:74-83`, `card` label) — USEing the red
+card (#131) in a room flagged `->` opens its east exit for that visit;
+the green card (#132) in a `<-`-flagged room opens west; the wrong
+card gives an electric shock (-4 HP if HP > 5). This confirms §8's
+`hidden_exit_east`/`hidden_exit_west` dead-flag-string finding wasn't
+actually about a dead mechanic — `->`/`<-` are real, meaningful
+markers for *this* puzzle, not for the (also real, separately-ported)
+`_reveal_hidden_exit()` reveal-on-kill system. `commands/use.py`'s own
+docstring already self-flags "security cards — level-6 items" as
+deferred; both cards already exist in `objects.json`. Likely explanation:
+the room-data conversion pipeline drops the `->`/`<-` markers
+before they reach `level_*.json` — no current room carries either.
+
+**Ruby Slippers** (`SPUR.USE.S:142-145`, `slippers` label) — USEing them
+unconditionally teleports the player to level 1, room 1 ("MERCHANT
+LOBBY"), no room gate at all. `messages.json` #19 is already fully
+written ("There is no place like home...") and unused by any code. This
+is the cheapest of these gaps to close — same
+`ctx.server._teleport_to()` call `commands/use.py`'s existing
+Communicator handler already makes, just pointed at a fixed level/room
+instead of gated by `no_comm_signal`.
+
+**Palintar** — a Ranger-adjacent direction-confusion bypass item
+(`SPUR.MAIN.S:327`, `SPUR.MISC6.S:8`). `encounters/desert.py`'s own
+docstring already notes this isn't ported; confirmed still true (no
+"palintar" string anywhere in `server/`). Would plug into the existing
+desert/labyrinth/water confusion check (§6) as a third bypass alongside
+compass and Ranger tracking — not a separate room list.
+
+**The `T#` same-level teleport marker** — `SPUR.MAIN.S:294`: a room flag
+containing `T` followed by a room number silently relocates the player
+there on arrival, with `"[A wave of nausea engulfs you, then subsides.]"`.
+`SPUR-data/convert_from_gbbs_tool.py:130-134` already self-documents that
+this marker is *not* extracted by the conversion pipeline (a bare `T`
+would false-positive against most room names without a suffix-anchored
+parse), so even if ported, no current `level_*.json` room could carry it
+— confirmed self-flagged upstream, not silently dropped.
+
+**Not checked this pass**: `SPUR.MISC.S`, `SPUR.MISC2.S`, `SPUR.SHIP.S`,
+`SPUR.ANNEX.S`, `SPUR.GATES.S`, `SPUR.GUILD.S` — the pass so far covered
+only `SPUR.MAIN.S`+`SPUR.USE.S` (2 of 28 `.S` files) and already
+surfaced this many gaps; the remaining files (Excalibur/Pandora's
+Box-style special items, elevator/combo/house-entry logic, guild
+stockpile/chalkboard mechanics) are likely to hold more of the same
+shape and are a natural next pass.
+
+## 15. Explicitly-checked empty categories
 
 - No mechanic in the codebase gates on a bare hardcoded room-number
   literal (`room == N`) besides the Fountain/Vial (#1/#2) — everything
