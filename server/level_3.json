@@ -836,7 +836,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Inside this dark tunnel things are very dim and unclear. The wind seems to be coming from within and there is an strange glow emanating from the walls."
+            "desc": "Inside this dark tunnel things are very dim and unclear. The wind seems to be coming from within and there is a strange glow emanating from the walls."
         },
         {
             "number": 62,
@@ -912,7 +912,7 @@
             "item": 47,
             "weapon": 0,
             "food": 0,
-            "desc": "The forest is less dense here. There appears to be an clearing of sorts to the east but the shadows make it difficult to be sure."
+            "desc": "The forest is less dense here. There appears to be a clearing of sorts to the east but the shadows make it difficult to be sure."
         },
         {
             "number": 68,

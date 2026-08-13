@@ -966,7 +966,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is the edge of a small pond which seems to bubbling up from a underground stream. The roaring noise is very loud here.."
+            "desc": "This is the edge of a small pond which seems to be bubbling up from an underground stream. The roaring noise is very loud here.."
         },
         {
             "number": 62,
@@ -1315,7 +1315,7 @@
             "item": 0,
             "weapon": 0,
             "food": 51,
-            "desc": "You are in a underground lake, the slapping of water echoes eerily..."
+            "desc": "You are in an underground lake, the slapping of water echoes eerily..."
         },
         {
             "number": 89,
