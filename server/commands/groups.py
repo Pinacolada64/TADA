@@ -25,8 +25,8 @@ class GroupsCommand(Command):
         summary  = 'Manage named groups for whisper and page targeting.',
         category = HelpCategory.COMMUNICATION,
         usage    = [
-            ('groups [[#list]]',                   'List all your groups'),
-            ('groups [[#list]] <name>',            'Show members of a group'),
+            ('groups [#list]',                     'List all your groups'),
+            ('groups [#list] <name>',              'Show members of a group'),
             ('groups #add <group> <player> [...]', 'Add one or more players to a group'),
             ('groups #remove <group> <player>',    'Remove a player from a group'),
             ('groups #delete <group>',             'Delete an entire group'),

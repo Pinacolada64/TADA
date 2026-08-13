@@ -117,6 +117,31 @@ class Help:
             examples    = [("say Hello!", "Greet everyone nearby.")],
             notes       = ["Shouting reaches adjacent rooms."],
         )
+
+    Writing [optional] syntax notation
+    -----------------------------------
+    Just write it plain, with single brackets, e.g.
+    `usage = [("teleport #learn [<name>]", "...")]`. format_help() runs
+    every field below through _auto_escape() before it ever reaches a
+    client -- usage/examples/admin_examples (both the syntax column and
+    its description) and notes/admin_notes/petscii_notes -- so a single
+    `[<name>]` written here always survives to the player as literal
+    `[<name>]` text instead of being eaten by highlight_brackets() (which
+    treats a lone `[...]` as highlight markup and drops the brackets).
+    Never write `[[double brackets]]` by hand in any of these fields --
+    that gets auto-escaped too, and comes out mangled (`[[[name]]]`).
+
+    summary/description are the one exception: they're plain prose, not
+    run through _auto_escape(), specifically so a paragraph is free to
+    quote the `[[double-bracket]]` convention itself as a literal example
+    (see the "syntax" concept topic below) without this function eating
+    it.
+
+    This auto-escaping only covers Help() fields rendered via
+    format_help(). A raw `await ctx.send(...)` string written directly in
+    a command's execute() (e.g. an inline "Usage: ..." error reminder)
+    bypasses format_help() entirely and still needs manual `[[..]]`
+    escaping -- see tests/commands/test_usage_string_bracket_escaping.py.
     """
     summary:     str                   = "No summary available."
     description: str                   = "No description available."
@@ -1482,8 +1507,17 @@ def _is_petscii_viewer(ctx) -> bool:
 # Formatter  (pure — no I/O)
 # ---------------------------------------------------------------------------
 
-def _esc(text: str) -> str:
-    """Escape [optional] syntax notation so highlight_brackets renders it literally."""
+def _auto_escape(text: str) -> str:
+    """Escape [optional] syntax notation so highlight_brackets renders it
+    literally instead of eating it as highlight markup. Applied by
+    format_help() to every free-text field of a Help object that reaches
+    a real client -- usage/examples/admin_examples (both columns) and
+    notes/admin_notes/petscii_notes -- so a Help() author never needs to
+    write [[double brackets]] by hand; see Help's own class docstring for
+    the full explanation. NOT applied to summary/description, which stay
+    raw prose free to quote literal double-bracket syntax as an example
+    (see the "syntax" concept topic below) without this function mangling
+    it."""
     return re.sub(r'\[([^\[\]]+)\]', r'[[\1]]', text)
 
 
@@ -1500,9 +1534,13 @@ def format_two_column(items: List[Tuple[str, str]], width: int) -> List[str]:
 
     Padding uses _visible_len(), not raw len()/str.ljust() -- `left` can
     contain a [[bracket]]-escaped syntax example (see format_help()'s
-    _esc()), which is 2 characters longer than what actually renders once
-    highlight_brackets() collapses the escape at send time. Padding on
-    raw length would under-pad exactly those rows relative to plain ones.
+    _auto_escape()), which is 2 characters longer than what actually
+    renders once highlight_brackets() collapses the escape at send time.
+    Padding on raw length would under-pad exactly those rows relative to
+    plain ones. `right` isn't padded to a fixed width (just word-wrapped),
+    so its own auto-escaping doesn't need the same _visible_len() care --
+    a slightly-early wrap on a bracket-heavy description line is the only
+    (cosmetic) cost.
 
     Used for Usage/Examples-style (syntax, description) listings in
     format_help(), and for HelpCommand's category listing.
@@ -1661,7 +1699,8 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     if usage:
         lines.append("")
         lines.append(_heading("Usage:"))
-        items = [(_esc(str(u[0])), str(u[1]) if len(u) > 1 and u[1] else "")
+        items = [(_auto_escape(str(u[0])),
+                   _auto_escape(str(u[1])) if len(u) > 1 and u[1] else "")
                  for u in usage]
         lines.extend(format_two_column(items, width))
 
@@ -1671,10 +1710,10 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         lines.append("")
         lines.append(_heading(singular if len(examples) == 1 else plural))
         for item in examples:
-            lines.append(f"  {_esc(item[0])}")
+            lines.append(f"  {_auto_escape(item[0])}")
             if len(item) > 1 and item[1]:
                 lines.extend(textwrap.wrap(
-                    str(item[1]),
+                    _auto_escape(str(item[1])),
                     width=wrap_width,
                     initial_indent=" " * 6,
                     subsequent_indent=" " * 6,
@@ -1702,7 +1741,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                 lines.append('')
             else:
                 lines.extend(textwrap.wrap(
-                    str(note),
+                    _auto_escape(str(note)),
                     width=wrap_width,
                     initial_indent=" " * 4,
                     subsequent_indent=" " * 4,
